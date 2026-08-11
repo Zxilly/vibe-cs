@@ -6,7 +6,7 @@ import type {
   PlayerMatchupInsightRecord,
   RoundEconomyInsightRecord,
   TeamPurchaseInsightRecord,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 
 const unavailable = (reason: string) => ({ available: false, reason });
 

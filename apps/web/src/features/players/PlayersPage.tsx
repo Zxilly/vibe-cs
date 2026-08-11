@@ -11,12 +11,12 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { api, readableError } from '../../shared/api/client';
+import { commands, readableError } from '../../shared/desktop/client';
 import type {
   AvatarCacheStatus,
   PlayerDirectoryItem,
   PlayerProfile,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button, Card, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
 import { LibrarySectionNav } from '../library/LibrarySectionNav';
@@ -88,7 +88,7 @@ export function PlayersPage() {
     const requestRevision = ++listRequestRevision.current;
     setListState('loading');
     setListError(null);
-    void api.listPlayers(
+    void commands.listPlayers(
       {
         page,
         page_size: PLAYER_PAGE_SIZE,
@@ -121,7 +121,7 @@ export function PlayersPage() {
     const requestRevision = ++detailRequestRevision.current;
     setDetailState('loading');
     setDetailError(null);
-    void api.getPlayer(selectedId, controller.signal).then((response) => {
+    void commands.getPlayer(selectedId, controller.signal).then((response) => {
       if (controller.signal.aborted || !isCurrentRequest(detailRequestRevision.current, requestRevision)) return;
       setProfile(response);
       setDetailState('ready');
@@ -139,7 +139,7 @@ export function PlayersPage() {
     const requestRevision = ++cacheStatusRequestRevision.current;
     setCacheState('loading');
     setCacheError(null);
-    void api.avatarCacheStatus(controller.signal).then((response) => {
+    void commands.avatarCacheStatus(controller.signal).then((response) => {
       if (controller.signal.aborted || !isCurrentRequest(cacheStatusRequestRevision.current, requestRevision)) return;
       setCache(response);
       setCacheState('ready');
@@ -170,9 +170,9 @@ export function PlayersPage() {
     setCacheActionState('clearing');
     setCacheActionMessage(null);
     try {
-      const cleanup = await api.clearAvatarCache(controller.signal);
+      const cleanup = await commands.clearAvatarCache(controller.signal);
       if (controller.signal.aborted || !isCurrentRequest(cacheMutationRequestRevision.current, requestRevision)) return;
-      const status = await api.avatarCacheStatus(controller.signal);
+      const status = await commands.avatarCacheStatus(controller.signal);
       if (controller.signal.aborted || !isCurrentRequest(cacheMutationRequestRevision.current, requestRevision)) return;
       setCache(status);
       setCacheState('ready');

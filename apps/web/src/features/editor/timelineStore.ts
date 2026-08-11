@@ -1,7 +1,7 @@
 import { msg, msgf } from '../../shared/i18n';
 import { create } from 'zustand';
 
-import type { EditorMarker } from '../../shared/api/dto';
+import type { EditorMarker } from '../../shared/desktop/dto';
 import { MAX_EDITOR_TIMELINE_SECONDS, boundedTimelineValue, trimMarkersToDuration } from './projectState';
 
 export type TimelineKeyframeProperty =

@@ -1,5 +1,5 @@
 import { msgf } from '../../shared/i18n';
-import type { EditorProject } from '../../shared/api/dto';
+import type { EditorProject } from '../../shared/desktop/dto';
 import type { TimelineClip, TimelineTrack } from './timelineStore';
 
 export const EDITOR_TRANSITIONS = [

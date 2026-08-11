@@ -10,7 +10,7 @@ import {
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { api, readableError } from '../../shared/api/client';
+import { commands, readableError } from '../../shared/desktop/client';
 import { useI18n } from '../../shared/i18n';
 import { useQueueStore } from '../queue/queueStore';
 import { Notice, PageHeader } from '../../shared/ui';
@@ -47,10 +47,10 @@ export function ProductionPage() {
     const controller = new AbortController();
     setLoading(true);
     void Promise.allSettled([
-      api.listDemos({ page: 1, page_size: 1, sort: 'newest' }, controller.signal),
-      api.listRecordedClips(controller.signal),
-      api.listEditorProjects(controller.signal),
-      api.listOutputs({ page: 1, page_size: 1 }, controller.signal),
+      commands.listDemos({ page: 1, page_size: 1, sort: 'newest' }, controller.signal),
+      commands.listRecordedClips(controller.signal),
+      commands.listEditorProjects(controller.signal),
+      commands.listOutputs({ page: 1, page_size: 1 }, controller.signal),
     ]).then(([matchesResult, clipsResult, projectsResult, outputsResult]) => {
       if (controller.signal.aborted) return;
       const errors = [matchesResult, clipsResult, projectsResult, outputsResult]

@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { api, readableError } from '../../shared/api/client';
+import { commands, readableError } from '../../shared/desktop/client';
 import type {
   DemoPlaybackLaunch,
   DemoPlaybackPreflight,
@@ -30,7 +30,7 @@ import type {
   RecordingJob,
   RecordingPlanResponse,
   RecordingQueueRequest,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
 import { runManagedPlaybackLaunch, useRuntimeStore } from '../../shared/stores/runtimeStore';
@@ -138,13 +138,13 @@ export function QueuePage() {
   useEffect(() => {
     const controller = new AbortController();
     const runtimeStamp = beginRemoteRead();
-    void api.runtimeState(controller.signal).then((state) => {
+    void commands.runtimeState(controller.signal).then((state) => {
       if (state.active_recording_job) setActiveJobId(state.active_recording_job);
       applyRemoteSession(state.runtime_session, runtimeStamp);
     }).catch(() => {
       // The page remains usable when the local service is still starting.
     });
-    void api.playbackStatus(controller.signal).then((status) => {
+    void commands.playbackStatus(controller.signal).then((status) => {
       setPlaybackStatus(status);
       setPlaybackStatusError(null);
     }).catch((error) => {
@@ -178,7 +178,7 @@ export function QueuePage() {
 
     const refresh = async () => {
       try {
-        const next = await api.getRecordingJob(activeJobId, controller.signal);
+        const next = await commands.getRecordingJob(activeJobId, controller.signal);
         if (disposed) return;
         setJob(next);
         setJobPollError(null);
@@ -215,7 +215,7 @@ export function QueuePage() {
     const request: RecordingQueueRequest = buildRecordingQueueRequest(latestItems);
     const fingerprint = recordingQueueFingerprint(latestItems);
     setValidatedPlan(null);
-    const result = await planAction.run(() => api.planRecording(request), msg("m0607"));
+    const result = await planAction.run(() => commands.planRecording(request), msg("m0607"));
     if (result) setValidatedPlan({ response: result, fingerprint });
   };
 
@@ -226,7 +226,7 @@ export function QueuePage() {
       return;
     }
     const request = buildRecordingQueueRequest(latestItems);
-    const result = await executeAction.run(() => api.executeRecordingQueue(request), msg("m0595"));
+    const result = await executeAction.run(() => commands.executeRecordingQueue(request), msg("m0595"));
     if (result) {
       setValidatedPlan(null);
       setJob(null);
@@ -237,7 +237,7 @@ export function QueuePage() {
 
   const handleCancel = async () => {
     if (!job) return;
-    const result = await abortAction.run(() => api.cancelRecordingJob(job.id), msg("m0539"));
+    const result = await abortAction.run(() => commands.cancelRecordingJob(job.id), msg("m0539"));
     if (result) {
       setJob(result);
       setActiveJobId(result.id);
@@ -255,7 +255,7 @@ export function QueuePage() {
     preflightController.current = controller;
     setPreflightState({ status: 'loading', data: null, message: null });
     try {
-      const result = await api.preflightDemo(
+      const result = await commands.preflightDemo(
         item.demoId,
         buildDemoPlaybackOptions(item),
         controller.signal,
@@ -302,7 +302,7 @@ export function QueuePage() {
     try {
       const result = await previewAction.run(
         () => runManagedPlaybackLaunch(
-          () => api.playDemo(selected.demoId, buildDemoPlaybackOptions(selected)),
+          () => commands.playDemo(selected.demoId, buildDemoPlaybackOptions(selected)),
         ),
         msg("m0548"),
       );
@@ -320,7 +320,7 @@ export function QueuePage() {
     if (transitionRevision === null) return;
     setStopReconcileNotice(null);
     const result = await stopPlaybackAction.run(
-      () => api.stopPlayback(),
+      () => commands.stopPlayback(),
       msg("m0781"),
     );
     if (result) {
@@ -328,7 +328,7 @@ export function QueuePage() {
       return;
     }
     try {
-      const current = await api.runtimeState();
+      const current = await commands.runtimeState();
       completeRuntimeTransition(transitionRevision, current.runtime_session);
       if (current.runtime_session === 'idle') {
         stopPlaybackAction.reset();

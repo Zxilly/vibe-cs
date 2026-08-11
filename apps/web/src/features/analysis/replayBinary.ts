@@ -1,5 +1,5 @@
 import { msg, msgf } from '../../shared/i18n';
-import type { ReplayCacheMetadata, ReplayFrameRecord, ReplayPayload } from '../../shared/api/dto';
+import type { ReplayCacheMetadata, ReplayFrameRecord, ReplayPayload } from '../../shared/desktop/dto';
 
 const maximumBytes = 128 * 1024 * 1024;
 

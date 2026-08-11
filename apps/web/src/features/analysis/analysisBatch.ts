@@ -1,4 +1,4 @@
-import type { AnalysisWorkspace } from '../../shared/api/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/dto';
 
 export const maximumBatchDemos = 12;
 

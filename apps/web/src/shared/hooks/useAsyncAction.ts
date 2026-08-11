@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { readableError } from '../api/client';
+import { readableError } from '../desktop/client';
 
 type AsyncState<T> =
   | { status: 'idle'; data: null; message: null }

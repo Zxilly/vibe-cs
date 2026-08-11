@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TimelineTrackDto } from '../../shared/api/dto';
+import type { TimelineTrackDto } from '../../shared/desktop/dto';
 import {
   MAX_EDITOR_TIMELINE_SECONDS,
   boundedTimelineValue,

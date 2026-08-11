@@ -1,5 +1,5 @@
 import { msg } from '../../shared/i18n';
-import type { ReplayCacheMetadata } from '../../shared/api/dto';
+import type { ReplayCacheMetadata } from '../../shared/desktop/dto';
 
 export type ReplayEffectPresentation = {
   className: 'smoke' | 'inferno' | 'decoy' | 'he' | 'flash' | 'event';

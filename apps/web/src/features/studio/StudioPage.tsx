@@ -11,8 +11,8 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { api, readableError } from '../../shared/api/client';
-import type { EditorProject, OutputItem, RecordedClip } from '../../shared/api/dto';
+import { commands, readableError } from '../../shared/desktop/client';
+import type { EditorProject, OutputItem, RecordedClip } from '../../shared/desktop/dto';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Card, Notice, PageHeader, Spinner } from '../../shared/ui';
 import { ProductionSectionNav } from '../production/ProductionSectionNav';
@@ -45,9 +45,9 @@ export function StudioPage() {
     const controller = new AbortController();
     setLoading(true);
     void Promise.allSettled([
-      api.listEditorProjects(controller.signal),
-      api.listRecordedClips(controller.signal),
-      api.listOutputs({ page: 1, page_size: 6 }, controller.signal),
+      commands.listEditorProjects(controller.signal),
+      commands.listRecordedClips(controller.signal),
+      commands.listOutputs({ page: 1, page_size: 6 }, controller.signal),
     ]).then(([projectsResult, clipsResult, outputsResult]) => {
       if (controller.signal.aborted) return;
       const errors = [projectsResult, clipsResult, outputsResult]

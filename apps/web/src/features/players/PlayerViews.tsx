@@ -10,13 +10,13 @@ import {
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { apiMediaUrl } from '../../shared/api/client';
+import { desktopMediaUrl } from '../../shared/desktop/client';
 import type {
   PlayerAggregateStats,
   PlayerDirectoryItem,
   PlayerProfile,
   PlayerSteamProfile,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 import { Badge, EmptyState, Notice } from '../../shared/ui';
 import {
   formatOptionalMetric,
@@ -54,7 +54,7 @@ export function PlayerAvatar({ player }: { player: PlayerDirectoryItem }) {
     <div className="player-avatar">
       {showImage ? (
         <img
-          src={apiMediaUrl(path)}
+          src={desktopMediaUrl(path)}
           alt={msgf("m0110", [player.name])}
           decoding="async"
           referrerPolicy="no-referrer"

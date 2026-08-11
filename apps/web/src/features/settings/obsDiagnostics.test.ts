@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AppConfig, ObsDiagnosis, ObsVideoSettings } from '../../shared/api/dto';
+import type { AppConfig, ObsDiagnosis, ObsVideoSettings } from '../../shared/desktop/dto';
 import {
   formatObsFrameRate,
   hasUnsavedObsRuntimeSettings,

@@ -2,7 +2,7 @@ import { msg, msgf } from '../../shared/i18n';
 import { AlertTriangle, Archive, RefreshCw, RotateCcw, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { readableError } from '../../shared/api/client';
+import { readableError } from '../../shared/desktop/client';
 import { Badge, Button, Notice, Spinner } from '../../shared/ui';
 
 export type ObsTuningChangeView = {

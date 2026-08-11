@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CosmeticInspectionItem } from '../../shared/api/dto';
+import type { CosmeticInspectionItem } from '../../shared/desktop/dto';
 import {
   buildCosmeticRewriteRequest,
   cosmeticDraftsFromPatches,

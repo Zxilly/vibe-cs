@@ -1,5 +1,5 @@
 import { msg } from '../../shared/i18n';
-import type { DemoPlaybackOptions, RecordingQueueRequest } from '../../shared/api/dto';
+import type { DemoPlaybackOptions, RecordingQueueRequest } from '../../shared/desktop/dto';
 
 import type { QueueItem } from './queueStore';
 

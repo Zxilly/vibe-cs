@@ -26,8 +26,8 @@ import {
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { api, apiMediaUrl, readableError } from '../../shared/api/client';
-import type { AnalysisWorkspace, DemoStatus, DemoSummary, DemoWatchStatus, RadarOverviewRecord } from '../../shared/api/dto';
+import { commands, desktopMediaUrl, readableError } from '../../shared/desktop/client';
+import type { AnalysisWorkspace, DemoStatus, DemoSummary, DemoWatchStatus, RadarOverviewRecord } from '../../shared/desktop/dto';
 import { chooseLocalDirectories, chooseLocalFiles, isDesktopShell } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
@@ -100,7 +100,7 @@ export function LibraryPage() {
   const desktopShell = useMemo(isDesktopShell, []);
 
   const refreshDemos = useCallback(async (signal?: AbortSignal) => {
-    const response = await api.listDemos({ page: 1, page_size: 100, sort: 'newest' }, signal);
+    const response = await commands.listDemos({ page: 1, page_size: 100, sort: 'newest' }, signal);
     setDemos(response.items);
     setSource('service');
     setLoadError(null);
@@ -114,7 +114,7 @@ export function LibraryPage() {
         setSource('unavailable');
         setLoadError(readableError(error));
       });
-    void api.getDemoWatchStatus(controller.signal)
+    void commands.getDemoWatchStatus(controller.signal)
       .then((status) => {
         setWatchStatus(status);
         setWatchError(null);
@@ -129,7 +129,7 @@ export function LibraryPage() {
     const controller = new AbortController();
     let previousScan = watchStatus?.last_scan_at ?? null;
     const poll = window.setInterval(() => {
-      void api.getDemoWatchStatus(controller.signal)
+      void commands.getDemoWatchStatus(controller.signal)
         .then(async (status) => {
           if (disposed) return;
           setWatchStatus(status);
@@ -192,7 +192,7 @@ export function LibraryPage() {
     const controller = new AbortController();
     setDetailAnalysis(null);
     setDetailAnalysisError(null);
-    void api.getAnalysis(activeDemo.id, controller.signal)
+    void commands.getAnalysis(activeDemo.id, controller.signal)
       .then(setDetailAnalysis)
       .catch((error: unknown) => {
         if (!controller.signal.aborted) setDetailAnalysisError(readableError(error));
@@ -210,9 +210,9 @@ export function LibraryPage() {
   };
 
   const handleScan = async () => {
-    const result = await scanAction.run(() => api.scanDemos(), msg("m0643"));
+    const result = await scanAction.run(() => commands.scanDemos(), msg("m0643"));
     if (result && source === 'service') {
-      const response = await api.listDemos({ page: 1, page_size: 100, sort: 'newest' });
+      const response = await commands.listDemos({ page: 1, page_size: 100, sort: 'newest' });
       setDemos(response.items);
     }
   };
@@ -228,7 +228,7 @@ export function LibraryPage() {
     });
     if (paths.length === 0) return;
     const result = await importAction.run(
-      () => api.importDemoPaths(paths),
+      () => commands.importDemoPaths(paths),
       msg("m0456"),
     );
     if (result && source === 'service') await refreshDemos();
@@ -238,14 +238,14 @@ export function LibraryPage() {
     const paths = await chooseLocalDirectories({ title: msg("m1241") });
     if (paths.length === 0) return;
     const status = await watchAction.run(async () => {
-      const config = await api.getConfig();
+      const config = await commands.getConfig();
       const known = new Set(config.demo_watch_paths.map((path) => path.toLocaleLowerCase()));
       const additions = paths.filter((path) => !known.has(path.toLocaleLowerCase()));
-      await api.updateConfig({
+      await commands.updateConfig({
         ...config,
         demo_watch_paths: [...config.demo_watch_paths, ...additions],
       });
-      return api.getDemoWatchStatus();
+      return commands.getDemoWatchStatus();
     }, msg("m1008"));
     if (status) {
       setWatchStatus(status);
@@ -255,7 +255,7 @@ export function LibraryPage() {
 
   const handleWatchRescan = async () => {
     const status = await watchAction.run(
-      () => api.rescanDemoWatch(),
+      () => commands.rescanDemoWatch(),
       msg("m1009"),
     );
     if (status) {
@@ -268,9 +268,9 @@ export function LibraryPage() {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (files.length === 0) return;
-    const result = await importAction.run(() => api.importDemos(files), msg("m0137"));
+    const result = await importAction.run(() => commands.importDemos(files), msg("m0137"));
     if (result && source === 'service') {
-      const response = await api.listDemos({ page: 1, page_size: 100, sort: 'newest' });
+      const response = await commands.listDemos({ page: 1, page_size: 100, sort: 'newest' });
       setDemos(response.items);
     }
   };
@@ -278,7 +278,7 @@ export function LibraryPage() {
   const handleSave = async () => {
     if (!activeDemo) return;
     const updated = await saveAction.run(
-      () => api.updateDemo(activeDemo.id, { display_name: editName.trim(), remark: editRemark.trim() }),
+      () => commands.updateDemo(activeDemo.id, { display_name: editName.trim(), remark: editRemark.trim() }),
       msg("m1163"),
     );
     if (!updated) return;
@@ -291,7 +291,7 @@ export function LibraryPage() {
     if (!window.confirm(msgf("m0191", [activeDemo.display_name]))) return;
     const deleted = await deleteAction.run(
       async () => {
-        await api.deleteDemo(activeDemo.id);
+        await commands.deleteDemo(activeDemo.id);
         return true;
       },
       msg("m1165"),
@@ -305,7 +305,7 @@ export function LibraryPage() {
     if (demo.status !== 'ready') return;
     setPlayingDemoId(demo.id);
     await playAction.run(
-      () => runManagedPlaybackLaunch(() => api.playDemo(demo.id)),
+      () => runManagedPlaybackLaunch(() => commands.playDemo(demo.id)),
       msg("m0513"),
     );
     setPlayingDemoId(null);
@@ -616,13 +616,13 @@ function LibraryMapThumbnail({ mapName, enabled }: { mapName: string; enabled: b
   const [radar, setRadar] = useState<RadarOverviewRecord | null>(null);
   useEffect(() => {
     if (!enabled || !mapName.trim()) return undefined;
-    const promise = radarThumbnailCache.get(mapName) ?? api.getRadarOverview(mapName).catch(() => null);
+    const promise = radarThumbnailCache.get(mapName) ?? commands.getRadarOverview(mapName).catch(() => null);
     radarThumbnailCache.set(mapName, promise);
     let active = true;
     void promise.then((value) => { if (active) setRadar(value); });
     return () => { active = false; };
   }, [enabled, mapName]);
-  if (radar?.browser_displayable && radar.image_url) return <img className="radar-map-image" src={apiMediaUrl(radar.image_url)} alt={msgf("m0112", [mapName])} />;
+  if (radar?.browser_displayable && radar.image_url) return <img className="radar-map-image" src={desktopMediaUrl(radar.image_url)} alt={msgf("m0112", [mapName])} />;
   return <div className="map-art__grid" />;
 }
 

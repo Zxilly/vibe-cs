@@ -14,8 +14,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { api, readableError } from '../../shared/api/client';
-import type { MatchDownloadJob, MatchHistoryItem } from '../../shared/api/dto';
+import { commands, readableError } from '../../shared/desktop/client';
+import type { MatchDownloadJob, MatchHistoryItem } from '../../shared/desktop/dto';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button, Card, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
@@ -78,7 +78,7 @@ export function MatchHistoryPage() {
   const cancelAction = useAsyncAction<MatchDownloadJob>();
 
   const loadPage = useCallback(async (requestedPage: number, signal?: AbortSignal) => {
-    const response = await api.listMatchHistory(requestedPage, PAGE_SIZE, signal);
+    const response = await commands.listMatchHistory(requestedPage, PAGE_SIZE, signal);
     setMatches(response.items);
     setTotal(response.total);
     setPage(response.page);
@@ -88,7 +88,7 @@ export function MatchHistoryPage() {
   useEffect(() => {
     const controller = new AbortController();
     void Promise.allSettled([
-      api.getConfig(controller.signal).then((config) => {
+      commands.getConfig(controller.signal).then((config) => {
         setConfigured(Boolean(
           config.steam.steam_id
           && config.steam_has_web_api_key
@@ -118,7 +118,7 @@ export function MatchHistoryPage() {
     const controller = new AbortController();
     const poll = async () => {
       const ids = activeJobIds.split(',');
-      const settled = await Promise.allSettled(ids.map((id) => api.getMatchDownloadJob(id, controller.signal)));
+      const settled = await Promise.allSettled(ids.map((id) => commands.getMatchDownloadJob(id, controller.signal)));
       if (controller.signal.aborted) return;
       let completed = false;
       setJobs((current) => {
@@ -149,7 +149,7 @@ export function MatchHistoryPage() {
   }, [matches, query]);
 
   const sync = async () => {
-    const result = await syncAction.run(() => api.syncMatchHistory(), msg("m0890"));
+    const result = await syncAction.run(() => commands.syncMatchHistory(), msg("m0890"));
     if (!result) return;
     setPage(1);
     await loadPage(1).catch((error: unknown) => setLoadError(readableError(error)));
@@ -157,12 +157,12 @@ export function MatchHistoryPage() {
 
   const startDownload = async (match: MatchHistoryItem) => {
     setTaskMessage(null);
-    const job = await downloadAction.run(() => api.downloadMatchDemo(match.id));
+    const job = await downloadAction.run(() => commands.downloadMatchDemo(match.id));
     if (job) setJobs((current) => ({ ...current, [match.id]: job }));
   };
 
   const cancelDownload = async (match: MatchHistoryItem, job: MatchDownloadJob) => {
-    const cancelled = await cancelAction.run(() => api.cancelMatchDownload(job.id), msg("m0537"));
+    const cancelled = await cancelAction.run(() => commands.cancelMatchDownload(job.id), msg("m0537"));
     if (cancelled) setJobs((current) => ({ ...current, [match.id]: cancelled }));
   };
 

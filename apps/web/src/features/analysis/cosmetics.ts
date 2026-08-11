@@ -4,7 +4,7 @@ import type {
   CosmeticInspectionItem,
   CosmeticRewriteRequest,
   CosmeticValues,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 
 export type CosmeticDraft = Record<CosmeticFieldName, string>;
 export type CosmeticDrafts = Record<string, CosmeticDraft>;

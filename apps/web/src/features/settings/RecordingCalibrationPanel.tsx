@@ -2,8 +2,8 @@ import { msg, msgf } from '../../shared/i18n';
 import { Gauge, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
-import { api } from '../../shared/api/client';
-import type { CaptureLatencyCalibration, CaptureLatencySample } from '../../shared/api/dto';
+import { commands } from '../../shared/desktop/client';
+import type { CaptureLatencyCalibration, CaptureLatencySample } from '../../shared/desktop/dto';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { Badge, Button, Field, Notice, Spinner } from '../../shared/ui';
 import './recordingCalibration.css';
@@ -27,7 +27,7 @@ export function RecordingCalibrationPanel({
     )));
   };
   const calibrate = () => action.run(
-    () => api.calibrateRecordingLatency({ samples }),
+    () => commands.calibrateRecordingLatency({ samples }),
     msg("m0556"),
   );
   const result = action.state.status === 'success' ? action.state.data : null;

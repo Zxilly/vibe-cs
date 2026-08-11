@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { ObsDiagnosis } from '../../shared/api/dto';
+import type { ObsDiagnosis } from '../../shared/desktop/dto';
 import { ObsDiagnosisDetails } from './SettingsPage';
 
 const diagnosis: ObsDiagnosis = {

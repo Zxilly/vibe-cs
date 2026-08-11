@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ObsVideoBackup, ObsVideoTuningPlan } from '../../shared/api/dto';
+import type { ObsVideoBackup, ObsVideoTuningPlan } from '../../shared/desktop/dto';
 import {
   canCommitObsTuningRefresh,
   obsTuningGateState,

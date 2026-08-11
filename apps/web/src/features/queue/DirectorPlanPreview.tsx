@@ -1,7 +1,7 @@
 import { currentLocale, msg, msgf } from '../../shared/i18n';
 import { Camera, Merge, UserRound } from 'lucide-react';
 
-import type { DirectorPlan } from '../../shared/api/dto';
+import type { DirectorPlan } from '../../shared/desktop/dto';
 import { Badge, Card, Notice } from '../../shared/ui';
 import './recordingDirector.css';
 

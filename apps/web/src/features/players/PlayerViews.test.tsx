@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import type { PlayerProfile } from '../../shared/api/dto';
+import type { PlayerProfile } from '../../shared/desktop/dto';
 import { PlayerDetailView } from './PlayerViews';
 
 const profile: PlayerProfile = {
@@ -66,7 +66,9 @@ describe('player detail evidence', () => {
     expect(markup).toContain('Steam 公开资料可用');
     expect(markup).toContain('de_inferno');
     expect(markup).toContain('1.50');
-    expect(markup).toContain('/api/v1/players/76561198000000001/avatar');
+    expect(markup).toMatch(
+      /(?:vibe-cs-media:\/\/localhost|http:\/\/vibe-cs-media\.localhost)\/players\/76561198000000001\/avatar/,
+    );
     expect(markup).not.toContain('avatars.steamstatic.com');
     expect(markup).toContain('不推断胜负');
   });

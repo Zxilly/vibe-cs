@@ -1,8 +1,9 @@
+import { invoke } from '@tauri-apps/api/core';
+
 import { msg, msgf } from '../i18n';
 import type {
   AnalysisWorkspace,
   ApiHealth,
-  ApiProblem,
   AppConfig,
   AvatarCacheCleanup,
   AvatarCacheStatus,
@@ -87,79 +88,40 @@ import type {
   WaveformResponse,
 } from './dto';
 
-export class ApiError extends Error {
+export class DesktopError extends Error {
   readonly status: number;
   readonly code: string | undefined;
 
   constructor(message: string, status: number, code?: string) {
     super(message);
-    this.name = 'ApiError';
+    this.name = 'DesktopError';
     this.status = status;
     this.code = code;
   }
 }
 
-type RequestOptions = Omit<RequestInit, 'body' | 'signal'> & {
+type RequestOptions = Omit<RequestInit, 'body' | 'signal' | 'headers'> & {
   body?: unknown;
   timeoutMs?: number;
   signal?: AbortSignal | undefined;
 };
 
-const apiNamespace = '/api/v1';
-const desktopApiBase = `http://127.0.0.1:47831${apiNamespace}`;
+const legacyResourcePrefix = '/api/v1';
 
-export interface ApiBaseOptions {
-  configuredBase?: string | undefined;
-  protocol?: string | undefined;
-  hostname?: string | undefined;
-}
-
-/** Resolve only build-controlled configuration; runtime URL/query data is never used as an API origin. */
-export function resolveApiBase(options: ApiBaseOptions = {}): string {
-  const isDesktopOrigin = options.protocol === 'tauri:' || options.hostname?.toLocaleLowerCase() === 'tauri.localhost';
-  const fallback = isDesktopOrigin ? desktopApiBase : apiNamespace;
-  const configured = options.configuredBase?.trim();
-  if (!configured) return fallback;
-  if (configured === '/api' || configured === '/api/' || configured === apiNamespace || configured === `${apiNamespace}/`) {
-    return apiNamespace;
-  }
-
-  try {
-    const parsed = new URL(configured);
-    if (!['http:', 'https:'].includes(parsed.protocol)) return fallback;
-    if (parsed.username || parsed.password || parsed.search || parsed.hash) return fallback;
-    const path = parsed.pathname.replace(/\/+$/, '');
-    parsed.pathname = path.endsWith(apiNamespace)
+/** Build a URL owned by the desktop media protocol without accepting an arbitrary origin. */
+export function desktopMediaUrl(path: string): string {
+  const managedPath = path.startsWith(`${legacyResourcePrefix}/`)
+    ? path.slice(legacyResourcePrefix.length)
+    : path.startsWith('/')
       ? path
-      : path.endsWith('/api')
-        ? `${path}/v1`
-        : `${path}${apiNamespace}`;
-    return parsed.toString().replace(/\/$/, '');
-  } catch {
-    return fallback;
+      : null;
+  if (managedPath) {
+    const origin = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent)
+      ? 'http://vibe-cs-media.localhost'
+      : 'vibe-cs-media://localhost';
+    return `${origin}${managedPath}`;
   }
-}
-
-const apiBase = resolveApiBase({
-  configuredBase: import.meta.env.VITE_API_URL,
-  protocol: typeof location === 'undefined' ? undefined : location.protocol,
-  hostname: typeof location === 'undefined' ? undefined : location.hostname,
-});
-
-/** Build a URL for a service-owned media route without accepting an arbitrary origin. */
-export function apiMediaUrl(path: string): string {
-  if (path.startsWith(`${apiNamespace}/`)) return `${apiBase}${path.slice(apiNamespace.length)}`;
-  if (path.startsWith('/')) return `${apiBase}${path}`;
-  throw new ApiError(msg("m0432"), 0, 'INVALID_MEDIA_URL');
-}
-
-function problemMessage(problem: ApiProblem | null, status: number): string {
-  if (!problem) return msgf("m1142", [status]);
-  if (typeof problem.detail === 'string') return problem.detail;
-  if (problem.detail?.message) return problem.detail.message;
-  if (problem.message) return problem.message;
-  if (problem.detail?.code) return msgf("m1143", [problem.detail.code]);
-  return msgf("m1142", [status]);
+  throw new DesktopError(msg("m0432"), 0, 'INVALID_MEDIA_URL');
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -167,56 +129,37 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     body: requestBody,
     timeoutMs = 15_000,
     signal: callerSignal,
-    ...requestInit
+    method = 'GET',
   } = options;
+  if (requestBody instanceof FormData) {
+    throw new DesktopError(msg("m0711"), 0, 'NATIVE_UPLOAD_REQUIRED');
+  }
   const controller = new AbortController();
   const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
-  const headers = new Headers(requestInit.headers);
-  const isFormData = requestBody instanceof FormData;
-
-  if (requestBody !== undefined && !isFormData) {
-    headers.set('Content-Type', 'application/json');
-  }
-  headers.set('Accept', 'application/json');
-  const locale = typeof document === 'undefined' ? 'zh-CN' : document.documentElement.lang || 'zh-CN';
-  headers.set('X-Vibe-CS-Locale', locale);
 
   const abortFromCaller = () => controller.abort();
   callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
 
-  let body: BodyInit | undefined;
-  if (requestBody instanceof FormData) body = requestBody;
-  else if (requestBody !== undefined) body = JSON.stringify(requestBody);
-
   try {
-    const response = await fetch(`${apiBase}${path}`, {
-      ...requestInit,
-      headers,
-      ...(body === undefined ? {} : { body }),
-      signal: controller.signal,
+    const invocation = invoke<T>('desktop_call', {
+      call: {
+        method: method.toLocaleLowerCase(),
+        path,
+        ...(requestBody === undefined ? {} : { body: requestBody }),
+      },
     });
-
-    if (!response.ok) {
-      let problem: ApiProblem | null = null;
-      try {
-        problem = (await response.json()) as ApiProblem;
-      } catch {
-        problem = null;
-      }
-      const code =
-        problem?.code ??
-        (typeof problem?.detail === 'object' ? problem.detail.code : undefined);
-      throw new ApiError(problemMessage(problem, response.status), response.status, code);
-    }
-
-    if (response.status === 204) return undefined as T;
-    return (await response.json()) as T;
+    const cancellation = new Promise<never>((_resolve, reject) => {
+      controller.signal.addEventListener('abort', () => {
+        reject(new DesktopError(msg("m1144"), 0, 'REQUEST_ABORTED'));
+      }, { once: true });
+    });
+    return await Promise.race([invocation, cancellation]);
   } catch (error) {
-    if (error instanceof ApiError) throw error;
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new ApiError(msg("m1144"), 0, 'REQUEST_ABORTED');
+    if (error instanceof DesktopError) throw error;
+    if (isDesktopCommandFailure(error)) {
+      throw new DesktopError(error.message, error.status, error.code);
     }
-    throw new ApiError(msg("m0711"), 0, 'NETWORK_ERROR');
+    throw new DesktopError(msg("m0711"), 0, 'DESKTOP_COMMAND_FAILED');
   } finally {
     globalThis.clearTimeout(timer);
     callerSignal?.removeEventListener('abort', abortFromCaller);
@@ -229,22 +172,55 @@ async function requestBinary(path: string, signal?: AbortSignal): Promise<ArrayB
   const abortFromCaller = () => controller.abort();
   signal?.addEventListener('abort', abortFromCaller, { once: true });
   try {
-    const response = await fetch(`${apiBase}${path}`, {
-      headers: { Accept: 'application/vnd.vibe-cs.replay-v1' },
-      signal: controller.signal,
+    const invocation = invoke<ArrayBuffer>('desktop_binary', { path });
+    const cancellation = new Promise<never>((_resolve, reject) => {
+      controller.signal.addEventListener('abort', () => {
+        reject(new DesktopError(msg("m1144"), 0, 'REQUEST_ABORTED'));
+      }, { once: true });
     });
-    if (!response.ok) throw new ApiError(msgf("m0382", [response.status]), response.status);
-    if (response.headers.get('Content-Type')?.split(';', 1)[0] !== 'application/vnd.vibe-cs.replay-v1') {
-      throw new ApiError(msg("m0748"), 502, 'INVALID_REPLAY_FORMAT');
-    }
-    const declared = Number(response.headers.get('Content-Length') ?? '0');
-    if (declared > 128 * 1024 * 1024) throw new ApiError(msg("m0177"), 413, 'REPLAY_TOO_LARGE');
-    const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > 128 * 1024 * 1024) throw new ApiError(msg("m0177"), 413, 'REPLAY_TOO_LARGE');
+    const buffer = await Promise.race([invocation, cancellation]);
+    if (buffer.byteLength > 128 * 1024 * 1024) throw new DesktopError(msg("m0177"), 413, 'REPLAY_TOO_LARGE');
     return buffer;
   } finally {
     globalThis.clearTimeout(timer);
     signal?.removeEventListener('abort', abortFromCaller);
+  }
+}
+
+interface DesktopCommandFailure {
+  status: number;
+  code: string;
+  message: string;
+}
+
+function isDesktopCommandFailure(value: unknown): value is DesktopCommandFailure {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<DesktopCommandFailure>;
+  return typeof candidate.status === 'number'
+    && typeof candidate.code === 'string'
+    && typeof candidate.message === 'string';
+}
+
+function utf8Hex(value: string): string {
+  return Array.from(new TextEncoder().encode(value), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function uploadNativeFile<T>(path: string, file: File, projectId?: string): Promise<T> {
+  try {
+    return await invoke<T>(
+      'desktop_upload',
+      await file.arrayBuffer(),
+      {
+        headers: {
+          'x-vibe-upload-path': path,
+          'x-vibe-filename-hex': utf8Hex(file.name),
+          ...(projectId ? { 'x-vibe-project-id': projectId } : {}),
+        },
+      },
+    );
+  } catch (error) {
+    if (isDesktopCommandFailure(error)) throw new DesktopError(error.message, error.status, error.code);
+    throw new DesktopError(msg("m0711"), 0, 'DESKTOP_UPLOAD_FAILED');
   }
 }
 
@@ -292,7 +268,7 @@ export function normalizeSide(value: string | number): 'A' | 'B' | null {
 
 function requireSide(value: string | number): 'A' | 'B' {
   const side = normalizeSide(value);
-  if (!side) throw new ApiError(msgf("m0264", [String(value)]), 502, 'INVALID_TEAM_SIDE');
+  if (!side) throw new DesktopError(msgf("m0264", [String(value)]), 502, 'INVALID_TEAM_SIDE');
   return side;
 }
 
@@ -360,7 +336,7 @@ export function normalizeRecordedClip(record: RecordedClipRecord): RecordedClip 
   };
 }
 
-export const api = {
+export const commands = {
   health: (signal?: AbortSignal) => request<ApiHealth>('/health', { signal }),
   quickCheck: (signal?: AbortSignal) =>
     request<QuickCheckResponse>('/config/quick-check', { signal }),
@@ -393,10 +369,17 @@ export const api = {
       body: { paths, source: 'local' },
       timeoutMs: 600_000,
     }),
-  importDemos: (files: File[]) => {
-    const body = new FormData();
-    files.forEach((file) => body.append('files', file));
-    return request<ScanResult>('/demo/upload-multiple', { method: 'POST', body, timeoutMs: 600_000 });
+  importDemos: async (files: File[]) => {
+    const results = await Promise.all(
+      files.map((file) => uploadNativeFile<ScanResult>('/demo/upload-multiple', file)),
+    );
+    return results.reduce<ScanResult>((total, result) => ({
+      discovered: total.discovered + result.discovered,
+      imported: total.imported + result.imported,
+      updated: total.updated + result.updated,
+      skipped: total.skipped + result.skipped,
+      errors: [...total.errors, ...result.errors],
+    }), { discovered: 0, imported: 0, updated: 0, skipped: 0, errors: [] });
   },
   updateDemo: async (id: string, update: DemoUpdate) => {
     const record = await request<DemoRecord>(`/demos/${encodeURIComponent(id)}`, {
@@ -471,7 +454,7 @@ export const api = {
   getCosmeticCatalog: (signal?: AbortSignal) =>
     request<CosmeticCatalog>('/cosmetics/catalog', { signal, timeoutMs: 120_000 }),
   cosmeticImageUrl: (itemDefinitionIndex: number, paintKit: number) =>
-    apiMediaUrl(`/api/v1/cosmetics/catalog/items/${itemDefinitionIndex}/paint-kits/${paintKit}/image`),
+    desktopMediaUrl(`/api/v1/cosmetics/catalog/items/${itemDefinitionIndex}/paint-kits/${paintKit}/image`),
   listCosmeticPlans: (id: string, signal?: AbortSignal) =>
     request<CosmeticPlan[]>(`/demos/${encodeURIComponent(id)}/cosmetics/plans`, { signal }),
   createCosmeticPlan: (
@@ -560,15 +543,11 @@ export const api = {
       `/media/assets${queryString({ project_id: projectId })}`,
       { signal },
     ),
-  uploadMediaAssets: (files: File[], projectId?: string) => {
-    const body = new FormData();
-    if (projectId) body.append('project_id', projectId);
-    files.forEach((file) => body.append('files', file));
-    return request<{ items: MediaAsset[] }>('/media/assets', {
-      method: 'POST',
-      body,
-      timeoutMs: 120_000,
-    });
+  uploadMediaAssets: async (files: File[], projectId?: string) => {
+    const results = await Promise.all(
+      files.map((file) => uploadNativeFile<{ items: MediaAsset[] }>('/media/assets', file, projectId)),
+    );
+    return { items: results.flatMap((result) => result.items) };
   },
   createEditorProject: (project: CreateEditorProject) =>
     request<EditorProject>('/editor/projects', { method: 'POST', body: project }),
@@ -641,15 +620,8 @@ export const api = {
       body: { path },
       timeoutMs: 10 * 60_000,
     }),
-  uploadEditorPackage: (file: File) => {
-    const body = new FormData();
-    body.append('file', file);
-    return request<EditorPackageImport>('/editor/packages/upload', {
-      method: 'POST',
-      body,
-      timeoutMs: 10 * 60_000,
-    });
-  },
+  uploadEditorPackage: (file: File) =>
+    uploadNativeFile<EditorPackageImport>('/editor/packages/upload', file),
   listEditorSnapshots: (projectId: string, signal?: AbortSignal) =>
     request<{ items: EditorProjectSnapshot[] }>(
       `/editor/projects/${encodeURIComponent(projectId)}/snapshots`,
@@ -692,15 +664,8 @@ export const api = {
       body: { path },
       timeoutMs: 90_000,
     }),
-  replaceMediaAsset: (id: string, file: File) => {
-    const body = new FormData();
-    body.append('file', file);
-    return request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/replace`, {
-      method: 'POST',
-      body,
-      timeoutMs: 120_000,
-    });
-  },
+  replaceMediaAsset: (id: string, file: File) =>
+    uploadNativeFile<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/replace`, file),
   generateMediaProxy: (id: string) =>
     request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/proxy`, {
       method: 'POST',
@@ -832,6 +797,6 @@ export const api = {
 };
 
 export function readableError(error: unknown): string {
-  if (error instanceof ApiError) return error.message;
+  if (error instanceof DesktopError) return error.message;
   return msg("m0324");
 }

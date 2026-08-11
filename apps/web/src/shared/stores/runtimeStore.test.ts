@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { api } from '../api/client';
+import { commands } from '../desktop/client';
 import { runManagedPlaybackLaunch, useRuntimeStore } from './runtimeStore';
 
 describe('runtime session ordering', () => {
@@ -49,7 +49,7 @@ describe('runtime session ordering', () => {
   });
 
   it('keeps an unknown failed launch conservatively blocked until polling reconciles it', async () => {
-    vi.spyOn(api, 'runtimeState').mockRejectedValue(new Error('status unavailable'));
+    vi.spyOn(commands, 'runtimeState').mockRejectedValue(new Error('status unavailable'));
     await expect(runManagedPlaybackLaunch(async () => {
       throw new Error('launch response lost');
     })).rejects.toThrow('launch response lost');

@@ -31,7 +31,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-import { api, apiMediaUrl, normalizeSide, readableError } from '../../shared/api/client';
+import { commands, desktopMediaUrl, normalizeSide, readableError } from '../../shared/desktop/client';
 import type {
   AnalysisWorkspace,
   CosmeticCatalog,
@@ -47,7 +47,7 @@ import type {
   ReplayCacheMetadata,
   ReplayFrameRecord,
   TimelineEvent,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
 import { worldPointsToRadarPercent } from '../../shared/radar';
@@ -161,7 +161,7 @@ export function AnalysisPage() {
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
-    void api.getConfig(controller.signal)
+    void commands.getConfig(controller.signal)
       .then((config) => {
         if (!active) return;
         setRecordingDefaults({
@@ -207,7 +207,7 @@ export function AnalysisPage() {
     const controller = new AbortController();
     let active = true;
     setSource('loading');
-    void api.analyzeDemo(demoId, controller.signal)
+    void commands.analyzeDemo(demoId, controller.signal)
       .then((response) => {
         if (!active) return;
         setWorkspace(response);
@@ -239,7 +239,7 @@ export function AnalysisPage() {
     setError(null);
     void runBatchAnalysis(
       batchIds,
-      (id) => api.analyzeDemo(id, controller.signal),
+      (id) => commands.analyzeDemo(id, controller.signal),
       (id, state) => {
         if (!active) return;
         setBatchStates((current) => ({ ...current, [id]: state }));
@@ -707,7 +707,7 @@ function RoundsView({
             <div><span className={`team-token team-token--${round.winner.toLocaleLowerCase()}`}>TEAM {round.winner}</span><h2>{msg("m0367")} {round.number}</h2><p>{round.reason || msg("m0762")}</p></div>
             <div>
               <Button size="sm" disabled={!selectedPlayer} title={selectedPlayer ? msgf("m0194", [selectedPlayer.name]) : msg("m1136")} onClick={() => selectedPlayer && onCompile({ id: `round-${round.number}-${selectedPlayer.id}`, title: msgf("m0368", [round.number, round.reason || msg("m1350")]), playerId: selectedPlayer.id, startTick: round.start_tick, endTick: Math.max(round.start_tick + 1, round.end_tick), category: 'custom' })}>{addedId === `round-${round.number}-${selectedPlayer?.id}` ? <Check size={13} /> : <Plus size={13} />}{msg("m0301")}</Button>
-              <Button size="sm" disabled={!playable || playAction.state.status === 'loading' || runtimeSession !== 'idle'} title={!playable ? msg("m1001") : runtimeSession !== 'idle' ? msg("m0799") : msg("m0390")} onClick={() => void playAction.run(() => runManagedPlaybackLaunch(() => api.playDemo(demoId, { start_tick: round.start_tick })), msg("m0514"))}>{playAction.state.status === 'loading' ? <Spinner /> : <Play size={13} />}{msg("m0676")}</Button>
+              <Button size="sm" disabled={!playable || playAction.state.status === 'loading' || runtimeSession !== 'idle'} title={!playable ? msg("m1001") : runtimeSession !== 'idle' ? msg("m0799") : msg("m0390")} onClick={() => void playAction.run(() => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: round.start_tick })), msg("m0514"))}>{playAction.state.status === 'loading' ? <Spinner /> : <Play size={13} />}{msg("m0676")}</Button>
             </div>
           </div>
           {playAction.state.message ? <Notice tone={playAction.state.status === 'error' ? 'danger' : 'success'}>{playAction.state.message}</Notice> : null}
@@ -750,7 +750,7 @@ function useRadarOverview(mapName: string, enabled: boolean): RadarOverviewRecor
     const controller = new AbortController();
     let active = true;
     setOverview(null);
-    void api.getRadarOverview(mapName, controller.signal)
+    void commands.getRadarOverview(mapName, controller.signal)
       .then((response) => {
         if (active) setOverview(response);
       })
@@ -804,7 +804,7 @@ function ReplayView({ demoId, workspace, source }: { demoId: string; workspace: 
     let active = true;
     setState('loading');
     setError(null);
-    void api.getReplayBinary(demoId, controller.signal).then(decodeReplayBinary).then((response) => {
+    void commands.getReplayBinary(demoId, controller.signal).then(decodeReplayBinary).then((response) => {
       if (!active) return;
       setFrames(response.frames);
       setCache(response.cache);
@@ -847,7 +847,7 @@ function ReplayView({ demoId, workspace, source }: { demoId: string; workspace: 
   const coordinates = allCoordinates.slice(0, playerPoints.length);
   const projectileCoordinates = allCoordinates.slice(playerPoints.length, playerPoints.length + projectilePoints.length);
   const bombCoordinate = currentFrame.bomb ? allCoordinates.at(-1) ?? null : null;
-  const radarImage = radarTransform && radar?.browser_displayable && radar.image_url ? apiMediaUrl(radar.image_url) : null;
+  const radarImage = radarTransform && radar?.browser_displayable && radar.image_url ? desktopMediaUrl(radar.image_url) : null;
   const startTick = frames[0]?.tick ?? currentFrame.tick;
   const endTick = frames.at(-1)?.tick ?? currentFrame.tick;
   const elapsed = workspace.tick_rate > 0 ? (currentFrame.tick - startTick) / workspace.tick_rate : 0;
@@ -931,7 +931,7 @@ function HeatmapView({ demoId, mapName, player, source }: { demoId: string; mapN
     let active = true;
     setState('loading');
     setError(null);
-    void api.getHeatmap(demoId, controller.signal).then((response) => {
+    void commands.getHeatmap(demoId, controller.signal).then((response) => {
       if (!active) return;
       setPoints(response);
       setState('ready');
@@ -967,7 +967,7 @@ function HeatmapView({ demoId, mapName, player, source }: { demoId: string; mapN
   const radarTransform = radar?.transform ?? null;
   const heatPoints: Array<[number, number]> = filtered.map((point) => [point.x, point.y]);
   const coordinates = worldPointsToRadarPercent(heatPoints, radarTransform) ?? normalizeCoordinates(heatPoints);
-  const radarImage = radarTransform && radar?.browser_displayable && radar.image_url ? apiMediaUrl(radar.image_url) : null;
+  const radarImage = radarTransform && radar?.browser_displayable && radar.image_url ? desktopMediaUrl(radar.image_url) : null;
   const floorCounts = new Map<number, number>();
   points.forEach((point) => floorCounts.set(point.floor, (floorCounts.get(point.floor) ?? 0) + 1));
   const kindCounts = new Map<string, number>();
@@ -1150,11 +1150,11 @@ function CosmeticsView({
     setLoadState('loading');
     setLoadError(null);
     void Promise.all([
-      api.inspectCosmetics(demoId, controller.signal),
-      api.getCosmeticCatalog(controller.signal)
+      commands.inspectCosmetics(demoId, controller.signal),
+      commands.getCosmeticCatalog(controller.signal)
         .then((value) => ({ value, error: null }))
         .catch((cause: unknown) => ({ value: null, error: readableError(cause) })),
-      api.listCosmeticPlans(demoId, controller.signal)
+      commands.listCosmeticPlans(demoId, controller.signal)
         .then((value) => ({ value, error: null }))
         .catch((cause: unknown) => ({ value: [], error: readableError(cause) })),
     ])
@@ -1218,7 +1218,7 @@ function CosmeticsView({
     if (!window.confirm(msgf("m0463", [build.request.patches.length, build.changedFields]))) return;
     setDraftError(null);
     await rewriteAction.run(
-      () => api.rewriteCosmetics(demoId, build.request!),
+      () => commands.rewriteCosmetics(demoId, build.request!),
       msg("m1262"),
     );
     setConfirmed(false);
@@ -1235,7 +1235,7 @@ function CosmeticsView({
     setPlanBusy(true);
     setPlanNotice(null);
     try {
-      const plan = await api.createCosmeticPlan(demoId, {
+      const plan = await commands.createCosmeticPlan(demoId, {
         name: planName.trim(),
         patches: build.request.patches,
       });
@@ -1267,7 +1267,7 @@ function CosmeticsView({
     setPlanBusy(true);
     setPlanNotice(null);
     try {
-      await api.deleteCosmeticPlan(demoId, plan.id);
+      await commands.deleteCosmeticPlan(demoId, plan.id);
       setPlans((current) => current.filter((candidate) => candidate.id !== plan.id));
       setPlanNotice({ tone: 'success', message: msgf("m0501", [plan.name]) });
     } catch (cause: unknown) {
@@ -1321,7 +1321,7 @@ function CosmeticsView({
           return (
             <Card className="cosmetic-editor-card" key={key}>
               <div className="cosmetic-editor-card__heading">
-                <span className="cosmetic-item-icon"><CosmeticPreviewImage key={hasSelectedImage ? selectedPaint : 'none'} source={hasSelectedImage ? api.cosmeticImageUrl(item.item_definition_index, selectedPaint) : null} /></span>
+                <span className="cosmetic-item-icon"><CosmeticPreviewImage key={hasSelectedImage ? selectedPaint : 'none'} source={hasSelectedImage ? commands.cosmeticImageUrl(item.item_definition_index, selectedPaint) : null} /></span>
                 <div><strong>{catalogItem?.display_name ?? msgf("m0973", [item.item_definition_index])}</strong><small>#{item.item_definition_index} · {player?.name ?? `Steam ${item.owner.steam_id64}`} · {item.entity_handles.length} {msg("m0155")}</small></div>
                 <Badge tone={item.match_basis === 'both' ? 'blue' : 'warning'}>{item.match_basis === 'both' ? msg("m0320") : msg("m1158")}</Badge>
               </div>

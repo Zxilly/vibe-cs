@@ -14,8 +14,8 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { api, readableError } from '../../shared/api/client';
-import type { DependencyCheck } from '../../shared/api/dto';
+import { commands, readableError } from '../../shared/desktop/client';
+import type { DependencyCheck } from '../../shared/desktop/dto';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button, Card, Notice, PageHeader, Spinner } from '../../shared/ui';
 
@@ -46,7 +46,7 @@ export function GuidePage() {
   const refresh = useCallback(async (signal?: AbortSignal) => {
     setStatus((current) => ({ ...current, loading: true, error: null }));
     try {
-      const response = await api.quickCheck(signal);
+      const response = await commands.quickCheck(signal);
       setStatus({
         loading: false,
         checks: response.checks,

@@ -1,13 +1,13 @@
 import { currentLocale, msg } from '../../shared/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { api, readableError } from '../../shared/api/client';
+import { commands, readableError } from '../../shared/desktop/client';
 import type {
   ObsVideoBackup,
   ObsVideoField,
   ObsVideoSettingsSnapshot,
   ObsVideoTuningPlan,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 import {
   ObsTuningPanel,
   type ObsTuningActionResult,
@@ -187,8 +187,8 @@ export function ObsTuningSection({
     setState({ status: 'loading', message: msg("m0864") });
     try {
       const [plan, backups] = await Promise.all([
-        api.getObsVideoTuningPlan(controller.signal),
-        api.listObsVideoBackups(controller.signal),
+        commands.getObsVideoTuningPlan(controller.signal),
+        commands.listObsVideoBackups(controller.signal),
       ]);
       const latestGate = obsTuningGateState(gateProps.current);
       if (canCommitObsTuningRefresh(
@@ -243,7 +243,7 @@ export function ObsTuningSection({
 
   const apply = useCallback(async (expectedFingerprint: string): Promise<ObsTuningActionResult> => {
     beginMutation();
-    const result = await api.applyObsVideoTuningPlan(expectedFingerprint);
+    const result = await commands.applyObsVideoTuningPlan(expectedFingerprint);
     try {
       if (mounted.current) await refresh();
     } catch {
@@ -261,7 +261,7 @@ export function ObsTuningSection({
 
   const restore = useCallback(async (backupId: string): Promise<ObsTuningActionResult> => {
     beginMutation();
-    await api.restoreObsVideoBackup(backupId);
+    await commands.restoreObsVideoBackup(backupId);
     try {
       if (mounted.current) await refresh();
     } catch {
@@ -275,7 +275,7 @@ export function ObsTuningSection({
 
   const remove = useCallback(async (backupId: string): Promise<ObsTuningActionResult> => {
     beginMutation();
-    await api.deleteObsVideoBackup(backupId);
+    await commands.deleteObsVideoBackup(backupId);
     try {
       if (mounted.current) await refresh();
     } catch {

@@ -13,8 +13,8 @@ import {
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { api, readableError } from '../../shared/api/client';
-import type { RecoveryStatus } from '../../shared/api/dto';
+import { commands, readableError } from '../../shared/desktop/client';
+import type { RecoveryStatus } from '../../shared/desktop/dto';
 import { isDesktopShell, revealLocalPath } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
@@ -32,7 +32,7 @@ export function RecoveryPage() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [response, runtime] = await Promise.all([api.recoveryStatus(), api.runtimeState()]);
+      const [response, runtime] = await Promise.all([commands.recoveryStatus(), commands.runtimeState()]);
       setStatus(response);
       setRecoveryDirectory(`${runtime.data_dir.replace(/[\\/]+$/, '')}/recovery`);
       setError(null);
@@ -47,7 +47,7 @@ export function RecoveryPage() {
   useEffect(() => { void refresh(); }, [refresh]);
 
   const restore = async () => {
-    const response = await restoreAction.run(() => api.recoverConfiguration(), msg("m1256"));
+    const response = await restoreAction.run(() => commands.recoverConfiguration(), msg("m1256"));
     if (response) setStatus(response);
   };
 

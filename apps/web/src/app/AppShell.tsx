@@ -28,7 +28,7 @@ import {
 import { type KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-import { api, readableError } from '../shared/api/client';
+import { commands, readableError } from '../shared/desktop/client';
 import { useI18n } from '../shared/i18n';
 import { useRuntimeStore } from '../shared/stores/runtimeStore';
 import { useUiStore } from '../shared/stores/uiStore';
@@ -107,7 +107,7 @@ export function AppShell() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void api.getConfig(controller.signal).then((config) => {
+    void commands.getConfig(controller.signal).then((config) => {
       if (config.locale === 'zh-CN' || config.locale === 'en-US') applyLocale(config.locale);
       if (config.theme === 'dark' || config.theme === 'light' || config.theme === 'system') setTheme(config.theme);
     }).catch(() => undefined);
@@ -145,8 +145,8 @@ export function AppShell() {
     const check = async () => {
       const runtimeStamp = beginRemoteRead();
       const [health, runtime] = await Promise.allSettled([
-        api.health(controller.signal),
-        api.runtimeState(controller.signal),
+        commands.health(controller.signal),
+        commands.runtimeState(controller.signal),
       ]);
       if (controller.signal.aborted) return;
       setServiceState(health.status === 'fulfilled' ? 'online' : 'offline');
@@ -177,7 +177,7 @@ export function AppShell() {
     setSessionError(null);
     setSessionNotice(null);
     try {
-      const result = await api.stopPlayback();
+      const result = await commands.stopPlayback();
       completeRuntimeTransition(revision, 'idle');
       setSessionNotice(result.forced_process_stop
         ? msg("m0807")
@@ -185,7 +185,7 @@ export function AppShell() {
     } catch (cause) {
       setSessionError(readableError(cause));
       try {
-        const current = await api.runtimeState();
+        const current = await commands.runtimeState();
         completeRuntimeTransition(revision, current.runtime_session);
       } catch {
         completeRuntimeTransition(revision, 'playback_stopping');

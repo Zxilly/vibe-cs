@@ -5,7 +5,7 @@ import type {
   OutputItem,
   OutputKind,
   OutputReference,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 
 export const terminalOutputStatuses = new Set<JobStatus>(['completed', 'failed', 'cancelled']);
 

@@ -47,8 +47,8 @@ import {
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
-import { ApiError, api, apiMediaUrl, readableError } from '../../shared/api/client';
-import type { EditorPreset, EditorPresetDocument, EditorProjectDeletionResult, EditorProjectSnapshot, EditorTransitionName, ExportJobRecord, EditorAudioSeparation, EditorPackageExport, EditorPackageImport, EditorProject, MediaAsset, RecordedClip, TimelineClipDto, TimelineTrackDto } from '../../shared/api/dto';
+import { DesktopError, commands, desktopMediaUrl, readableError } from '../../shared/desktop/client';
+import type { EditorPreset, EditorPresetDocument, EditorProjectDeletionResult, EditorProjectSnapshot, EditorTransitionName, ExportJobRecord, EditorAudioSeparation, EditorPackageExport, EditorPackageImport, EditorProject, MediaAsset, RecordedClip, TimelineClipDto, TimelineTrackDto } from '../../shared/desktop/dto';
 import { chooseLocalFile, isDesktopShell } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
@@ -247,7 +247,7 @@ const ProgramPreview = memo(function ProgramPreview({
   }
 
   if (media?.streamUrl) {
-    const src = apiMediaUrl(media.streamUrl);
+    const src = desktopMediaUrl(media.streamUrl);
     if (media.kind === 'image') {
       return <img key={media.id} src={src} alt={media.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', ...visualStyle }} />;
     }
@@ -288,7 +288,7 @@ const TimelineAudioPreview = memo(function TimelineAudioPreview({
     if (element) syncMedia(element);
   }, [syncMedia]);
   if (!media?.streamUrl) return null;
-  return <audio ref={mediaElement} src={apiMediaUrl(media.streamUrl)} preload="metadata" onLoadedMetadata={(event) => syncMedia(event.currentTarget)} />;
+  return <audio ref={mediaElement} src={desktopMediaUrl(media.streamUrl)} preload="metadata" onLoadedMetadata={(event) => syncMedia(event.currentTarget)} />;
 });
 
 const makeId = (): string => crypto.randomUUID();
@@ -509,10 +509,10 @@ export function EditorPage() {
   useEffect(() => {
     const controller = new AbortController();
     void Promise.all([
-      api.listEditorProjects(controller.signal),
-      api.listRecordedClips(controller.signal),
-      api.listMediaAssets(undefined, controller.signal),
-      api.listEditorPresets(controller.signal).catch(() => ({ items: [] as EditorPreset[] })),
+      commands.listEditorProjects(controller.signal),
+      commands.listRecordedClips(controller.signal),
+      commands.listMediaAssets(undefined, controller.signal),
+      commands.listEditorPresets(controller.signal).catch(() => ({ items: [] as EditorPreset[] })),
     ])
       .then(([response, recordedClips, mediaAssets, editorPresets]) => {
         if (controller.signal.aborted) return;
@@ -576,7 +576,7 @@ export function EditorPage() {
     const controller = new AbortController();
     const refresh = async () => {
       try {
-        const next = await api.getExportJob(exportJobId, controller.signal);
+        const next = await commands.getExportJob(exportJobId, controller.signal);
         if (disposed) return;
         setExportJob(next);
         setExportPollError(null);
@@ -613,8 +613,8 @@ export function EditorPage() {
     ids.forEach((id) => waveformRequests.current.add(id));
     void Promise.all(ids.map(async (id) => {
       try {
-        if (assetIds.has(id)) return [id, (await api.getAssetWaveform(id, 120)).waveform] as const;
-        if (recordedIds.has(id)) return [id, (await api.getRecordedClipWaveform(id, 120)).waveform] as const;
+        if (assetIds.has(id)) return [id, (await commands.getAssetWaveform(id, 120)).waveform] as const;
+        if (recordedIds.has(id)) return [id, (await commands.getRecordedClipWaveform(id, 120)).waveform] as const;
         return null;
       } catch {
         waveformRequests.current.delete(id);
@@ -715,7 +715,7 @@ export function EditorPage() {
       if (autoSaveInFlight.current) return;
       autoSaveInFlight.current = true;
       setAutoSaveState({ status: 'saving', message: msg("m0862") });
-      void api.saveEditorProject(payload)
+      void commands.saveEditorProject(payload)
         .then((saved) => {
           if (!mounted.current) return;
           setProjects((items) => items.map((project) => project.id === saved.id ? saved : project));
@@ -734,7 +734,7 @@ export function EditorPage() {
         .catch((cause: unknown) => {
           if (!mounted.current) return;
           if (activeProjectId.current !== projectId || projectSession.current !== session) return;
-          const conflict = cause instanceof ApiError && cause.code === 'revision_conflict';
+          const conflict = cause instanceof DesktopError && cause.code === 'revision_conflict';
           setAutoSaveState({
             status: conflict ? 'conflict' : 'error',
             message: conflict
@@ -874,7 +874,7 @@ export function EditorPage() {
     try {
       if (confirmDiscardIfNeeded(null, msg("m0696")) !== 'proceed') return;
       const created = await createAction.run(
-        () => api.createEditorProject({ name: msg("m0753"), width: 1920, height: 1080, fps: 60 }),
+        () => commands.createEditorProject({ name: msg("m0753"), width: 1920, height: 1080, fps: 60 }),
         msg("m0694"),
       );
       if (!created) return;
@@ -896,7 +896,7 @@ export function EditorPage() {
 
   const persistCurrentProject = async (successMessage: string): Promise<EditorProject | null> => {
     if (isPreview || autoSaveInFlight.current) return null;
-    const result = await saveAction.run(() => api.saveEditorProject(projectPayload()), successMessage);
+    const result = await saveAction.run(() => commands.saveEditorProject(projectPayload()), successMessage);
     if (result) {
       setProjects((items) => items.map((project) => project.id === result.id ? result : project));
       activateProject(result, toStoreTracks(result.tracks));
@@ -923,7 +923,7 @@ export function EditorPage() {
       if (!saved) return;
       const suffix = asTemplate ? msg("m0836") : msg("m0298");
       const duplicate = await duplicateAction.run(
-        () => api.duplicateEditorProject(saved.id, `${saved.name} ${suffix}`, asTemplate),
+        () => commands.duplicateEditorProject(saved.id, `${saved.name} ${suffix}`, asTemplate),
         asTemplate ? msg("m0347") : msg("m0475"),
       );
       if (!duplicate) return;
@@ -939,7 +939,7 @@ export function EditorPage() {
     try {
       if (confirmDiscardIfNeeded(template.id, msg("m0190")) === 'cancel') return;
       const created = await duplicateAction.run(
-        () => api.duplicateEditorProject(template.id, msgf("m0105", [template.name]), false),
+        () => commands.duplicateEditorProject(template.id, msgf("m0105", [template.name]), false),
         msg("m0486"),
       );
       if (!created) return;
@@ -1038,7 +1038,7 @@ export function EditorPage() {
       return;
     }
     const result = await uploadAction.run(
-      () => api.uploadMediaAssets([file], activeProject.id),
+      () => commands.uploadMediaAssets([file], activeProject.id),
       msg("m1098"),
     );
     const asset = result?.items[0];
@@ -1046,7 +1046,7 @@ export function EditorPage() {
     setAssets((current) => [asset, ...current]);
     const family = `VibeCSCustom-${asset.id}`;
     try {
-      const face = new FontFace(family, `url(${apiMediaUrl(`/api/v1/media/assets/${encodeURIComponent(asset.id)}/stream`)})`);
+      const face = new FontFace(family, `url(${desktopMediaUrl(`/api/v1/media/assets/${encodeURIComponent(asset.id)}/stream`)})`);
       await face.load();
       document.fonts.add(face);
     } catch {
@@ -1068,7 +1068,7 @@ export function EditorPage() {
         : activeProject;
       if (!saved) return;
       const separated = await extractAudioAction.run(
-        () => api.separateEditorAudio(saved.id, clipId, saved.revision, true),
+        () => commands.separateEditorAudio(saved.id, clipId, saved.revision, true),
         msg("m1298"),
       );
       if (!separated) return;
@@ -1201,7 +1201,7 @@ export function EditorPage() {
   const importFiles = async (files: File[]) => {
     if (isPreview || files.length === 0) return;
     const result = await uploadAction.run(
-      () => api.uploadMediaAssets(files, activeProject.id),
+      () => commands.uploadMediaAssets(files, activeProject.id),
       msgf("m0099", [files.length]),
     );
     if (result) setAssets((current) => [...result.items, ...current]);
@@ -1219,7 +1219,7 @@ export function EditorPage() {
       });
       if (!path) return;
       const result = await relinkAction.run(
-        () => api.relinkMediaAsset(asset.id, path),
+        () => commands.relinkMediaAsset(asset.id, path),
         msgf("m0124", [asset.name]),
       );
       if (result) replaceAssetInState(result);
@@ -1234,7 +1234,7 @@ export function EditorPage() {
     replacementAssetId.current = null;
     if (!assetId || !file) return;
     const result = await relinkAction.run(
-      () => api.replaceMediaAsset(assetId, file),
+      () => commands.replaceMediaAsset(assetId, file),
       msg("m0911"),
     );
     if (result) replaceAssetInState(result);
@@ -1246,7 +1246,7 @@ export function EditorPage() {
       proxy_status: { status: 'generating', started_at: new Date().toISOString() },
     } : item));
     const result = await proxyAction.run(
-      () => api.generateMediaProxy(asset.id),
+      () => commands.generateMediaProxy(asset.id),
       msgf("m0126", [asset.name]),
     );
     if (result) {
@@ -1254,7 +1254,7 @@ export function EditorPage() {
       return;
     }
     try {
-      replaceAssetInState(await api.getMediaAsset(asset.id));
+      replaceAssetInState(await commands.getMediaAsset(asset.id));
     } catch {
       setAssets((items) => items.map((item) => item.id === asset.id ? asset : item));
     }
@@ -1268,12 +1268,12 @@ export function EditorPage() {
         : activeProject;
       if (!saved) return;
       const result = await packageExportAction.run(
-        () => api.exportEditorPackage(saved.id),
+        () => commands.exportEditorPackage(saved.id),
         msg("m0207"),
       );
       if (!result?.download_url) return;
       const link = document.createElement('a');
-      link.href = apiMediaUrl(result.download_url);
+      link.href = desktopMediaUrl(result.download_url);
       link.download = result.name;
       link.click();
     } finally {
@@ -1301,7 +1301,7 @@ export function EditorPage() {
         title: msg("m0454"),
         filters: [{ name: msg("m0206"), extensions: ['vcep'] }],
       });
-      if (path) await performPackageImport(() => api.importEditorPackagePath(path));
+      if (path) await performPackageImport(() => commands.importEditorPackagePath(path));
       return;
     }
     packageInput.current?.click();
@@ -1316,7 +1316,7 @@ export function EditorPage() {
     const projectId = activeProject.id;
     const session = projectSession.current;
     try {
-      const project = await api.getEditorProject(projectId, controller.signal);
+      const project = await commands.getEditorProject(projectId, controller.signal);
       if (controller.signal.aborted
         || !mounted.current
         || activeProjectId.current !== projectId
@@ -1338,7 +1338,7 @@ export function EditorPage() {
   const createPresetFromSelection = async () => {
     if (!selectedClip || presetMutationAction.state.status === 'loading') return;
     const result = await presetMutationAction.run(
-      () => api.createEditorPreset(presetName, presetDocumentFromClip(selectedClip)),
+      () => commands.createEditorPreset(presetName, presetDocumentFromClip(selectedClip)),
       msg("m0498"),
     );
     if (!result) return;
@@ -1349,7 +1349,7 @@ export function EditorPage() {
   const updatePresetFromSelection = async () => {
     if (!selectedClip || !selectedPreset || presetMutationAction.state.status === 'loading') return;
     const result = await presetMutationAction.run(
-      () => api.updateEditorPreset({
+      () => commands.updateEditorPreset({
         ...selectedPreset,
         name: presetName,
         document: presetDocumentFromClip(selectedClip),
@@ -1364,7 +1364,7 @@ export function EditorPage() {
     if (!selectedPreset || presetDeleteAction.state.status === 'loading') return;
     if (!window.confirm(msgf("m0292", [selectedPreset.name]))) return;
     const result = await presetDeleteAction.run(
-      () => api.deleteEditorPreset(selectedPreset.id, selectedPreset.revision),
+      () => commands.deleteEditorPreset(selectedPreset.id, selectedPreset.revision),
       msg("m1314"),
     );
     if (result === null) return;
@@ -1386,7 +1386,7 @@ export function EditorPage() {
         : activeProject;
       if (!saved) return;
       const result = await presetApplyAction.run(
-        () => api.applyEditorPreset(
+        () => commands.applyEditorPreset(
           saved.id,
           selectedClip.id,
           selectedPreset.id,
@@ -1416,7 +1416,7 @@ export function EditorPage() {
       }
       if (!window.confirm(msgf("m0286", [candidates.length]))) return;
       const result = await projectDeleteAction.run(
-        () => api.deleteEditorProjects(candidates.map((project) => ({
+        () => commands.deleteEditorProjects(candidates.map((project) => ({
           id: project.id,
           expected_revision: project.revision,
         }))),
@@ -1598,7 +1598,7 @@ export function EditorPage() {
       const saved = await persistCurrentProject(msg("m0569"));
       if (!saved) return;
       const result = await exportAction.run(
-        () => api.exportEditorProject(saved.id, {
+        () => commands.exportEditorProject(saved.id, {
           encoder: 'auto',
           quality: 80,
           ...(exportScope === 'range' ? {
@@ -1621,7 +1621,7 @@ export function EditorPage() {
   const cancelExport = async () => {
     if (!exportJobId) return;
     const result = await cancelExportAction.run(
-      () => api.cancelExportJob(exportJobId),
+      () => commands.cancelExportJob(exportJobId),
       msg("m0538"),
     );
     if (result) setExportJob(result);
@@ -1635,7 +1635,7 @@ export function EditorPage() {
     }
     setProjectListOpen(false);
     const result = await snapshotAction.run(
-      () => api.listEditorSnapshots(activeProject.id),
+      () => commands.listEditorSnapshots(activeProject.id),
     );
     if (result) {
       setSnapshots(result.items);
@@ -1648,7 +1648,7 @@ export function EditorPage() {
     try {
       if (confirmDiscardIfNeeded(null, msg("m0623")) !== 'proceed') return;
       const restored = await restoreAction.run(
-        () => api.restoreEditorSnapshot(activeProject.id, snapshotId),
+        () => commands.restoreEditorSnapshot(activeProject.id, snapshotId),
         msg("m0316"),
       );
       if (!restored) return;
@@ -1780,7 +1780,7 @@ export function EditorPage() {
         <aside className="media-bin editor-panel">
           <input ref={fileInput} className="visually-hidden" type="file" multiple accept="video/*,audio/*,image/*" onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ''; void importFiles(files); }} />
           <input ref={replacementInput} className="visually-hidden" type="file" accept="video/*,audio/*,image/*" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void replaceAssetFile(file); }} />
-          <input ref={packageInput} className="visually-hidden" type="file" accept=".vcep,application/zip" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void performPackageImport(() => api.uploadEditorPackage(file)); }} />
+          <input ref={packageInput} className="visually-hidden" type="file" accept=".vcep,application/zip" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void performPackageImport(() => commands.uploadEditorPackage(file)); }} />
           <input ref={fontInput} className="visually-hidden" type="file" accept=".ttf,.otf,font/ttf,font/otf" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void importCustomFont(file); }} />
           <header className="editor-panel__header"><div><Layers3 size={15} /><strong>{t('editor.media')}</strong></div><IconButton label={t('common.import')} disabled={isPreview || uploadAction.state.status === 'loading'} onClick={() => fileInput.current?.click()}>{uploadAction.state.status === 'loading' ? <Spinner /> : <Upload size={14} />}</IconButton></header>
           <div className="media-tabs"><button type="button" className="is-active" aria-pressed="true">{t('editor.assets')}</button><button type="button" onClick={appendText}>{t('editor.addText')}</button><button type="button" disabled title={msg("m1235")}>{msg("m0680")}</button></div>
@@ -1892,7 +1892,7 @@ export function EditorPage() {
                   </>
                 ) : null}
                 {inspectorTab === 'color' ? selectedTrack?.kind === 'audio' || selectedClip.text ? <Notice tone="info">{msg("m1156")}</Notice> : <PropertyGroup icon={<SlidersHorizontal size={14} />} title={msg("m0407")}><Field label={msgf("m0179", [selectedColor.brightness.toFixed(2)])}><input type="range" min="-100" max="100" value={Math.round(selectedColor.brightness * 100)} onChange={(event) => updateSelectedColor({ brightness: Number(event.target.value) / 100 })} /></Field><Field label={msgf("m0452", [selectedColor.contrast.toFixed(2)])}><input type="range" min="0" max="300" value={Math.round(selectedColor.contrast * 100)} onChange={(event) => updateSelectedColor({ contrast: Number(event.target.value) / 100 })} /></Field><Field label={msgf("m1321", [selectedColor.saturation.toFixed(2)])}><input type="range" min="0" max="300" value={Math.round(selectedColor.saturation * 100)} onChange={(event) => updateSelectedColor({ saturation: Number(event.target.value) / 100 })} /></Field><Button size="sm" onClick={() => updateSelectedColor(defaultColorAdjust)}>{msg("m1267")}</Button></PropertyGroup> : null}
-                {inspectorTab === 'audio' ? <PropertyGroup icon={<Volume2 size={14} />} title={msg("m1299")}><Field label={msgf("m0968", [Math.round(selectedClip.volume * 100)])}><input type="range" min="0" max="200" value={Math.round(selectedClip.volume * 100)} onChange={(event) => updateClip(selectedClip.id, { volume: Number(event.target.value) / 100 })} /></Field>{selectedClip.assetId && waveforms[selectedClip.assetId] && selectedMedia?.streamUrl ? <div className="inspector-waveform"><EditorWaveform url={apiMediaUrl(selectedMedia.streamUrl)} peaks={waveforms[selectedClip.assetId] ?? []} duration={selectedMedia.duration} currentTime={selectedClip.sourceIn + sourceOffsetAt(selectedClip, selectedLocalTime)} onSeek={(sourceTime) => setPlayhead(selectedClip.start + localTimeAtSource(selectedClip, sourceTime))} /></div> : <Notice tone="info">{msg("m0362")}</Notice>}{selectedMedia?.asset?.kind.startsWith('video') && selectedMedia.asset.has_audio ? <><Button size="sm" disabled={extractAudioAction.state.status === 'loading' || selectedClipHasSeparatedAudio} title={selectedClipHasSeparatedAudio ? msg("m1124") : undefined} onClick={() => void extractSelectedAudio()}>{extractAudioAction.state.status === 'loading' ? <Spinner /> : <Music2 size={12} />}{selectedClipHasSeparatedAudio ? msg("m0496") : t('editor.detachAudio')}</Button>{selectedClipHasSeparatedAudio ? <Notice tone="info">{msg("m0977")}</Notice> : null}</> : null}</PropertyGroup> : null}
+                {inspectorTab === 'audio' ? <PropertyGroup icon={<Volume2 size={14} />} title={msg("m1299")}><Field label={msgf("m0968", [Math.round(selectedClip.volume * 100)])}><input type="range" min="0" max="200" value={Math.round(selectedClip.volume * 100)} onChange={(event) => updateClip(selectedClip.id, { volume: Number(event.target.value) / 100 })} /></Field>{selectedClip.assetId && waveforms[selectedClip.assetId] && selectedMedia?.streamUrl ? <div className="inspector-waveform"><EditorWaveform url={desktopMediaUrl(selectedMedia.streamUrl)} peaks={waveforms[selectedClip.assetId] ?? []} duration={selectedMedia.duration} currentTime={selectedClip.sourceIn + sourceOffsetAt(selectedClip, selectedLocalTime)} onSeek={(sourceTime) => setPlayhead(selectedClip.start + localTimeAtSource(selectedClip, sourceTime))} /></div> : <Notice tone="info">{msg("m0362")}</Notice>}{selectedMedia?.asset?.kind.startsWith('video') && selectedMedia.asset.has_audio ? <><Button size="sm" disabled={extractAudioAction.state.status === 'loading' || selectedClipHasSeparatedAudio} title={selectedClipHasSeparatedAudio ? msg("m1124") : undefined} onClick={() => void extractSelectedAudio()}>{extractAudioAction.state.status === 'loading' ? <Spinner /> : <Music2 size={12} />}{selectedClipHasSeparatedAudio ? msg("m0496") : t('editor.detachAudio')}</Button>{selectedClipHasSeparatedAudio ? <Notice tone="info">{msg("m0977")}</Notice> : null}</> : null}</PropertyGroup> : null}
                 {inspectorTab === 'preset' ? (
                   <PropertyGroup icon={<Archive size={14} />} title={msg("m0970")}>
                     <Field label={msg("m1313")}><select value={selectedPresetId ?? ''} onChange={(event) => { const next = presets.find((preset) => preset.id === event.target.value); setSelectedPresetId(next?.id ?? null); if (next) setPresetName(next.name); }}><option value="">{msg("m1242")}</option>{presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name} · r{preset.revision}</option>)}</select></Field>

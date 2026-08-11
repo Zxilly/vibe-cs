@@ -34,8 +34,8 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { api, readableError } from '../../shared/api/client';
-import { productApi, type ManagedLocations, type UpdateCheckResult, type UpdateInfo } from '../../shared/api/product';
+import { commands, readableError } from '../../shared/desktop/client';
+import { productApi, type ManagedLocations, type UpdateCheckResult, type UpdateInfo } from '../../shared/desktop/product';
 import type {
   AppConfig,
   DetectedPaths,
@@ -46,7 +46,7 @@ import type {
   ReplayCacheCleanup,
   ReplayCacheStatus,
   StorageStatus,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 import {
   chooseLocalDirectories,
   chooseLocalFile,
@@ -158,7 +158,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void api.getConfig(controller.signal)
+    void commands.getConfig(controller.signal)
       .then((response) => {
         setConfig(response);
         setSavedConfig(response);
@@ -177,7 +177,7 @@ export function SettingsPage() {
 
   const save = async () => {
     const payload = { ...config, locale: draftLanguage, theme: draftTheme };
-    const result = await saveAction.run(() => api.updateConfig(payload), msg("m1116"));
+    const result = await saveAction.run(() => commands.updateConfig(payload), msg("m1116"));
     if (result) {
       setConfig(result);
       setSavedConfig(result);
@@ -234,7 +234,7 @@ function SteamSettings({ config, setConfig, updateSteam }: { config: AppConfig; 
     && (Boolean(config.steam.authentication_code.trim()) || config.steam_has_authentication_code)
     && (Boolean(config.steam.known_share_code.trim()) || config.steam_has_share_code);
   const disconnect = async () => {
-    const result = await disconnectAction.run(() => api.disconnectMatchHistory(), msg("m0073"));
+    const result = await disconnectAction.run(() => commands.disconnectMatchHistory(), msg("m0073"));
     if (!result) return;
     setConfig((current) => ({
       ...current,
@@ -255,7 +255,7 @@ function SteamSettings({ config, setConfig, updateSteam }: { config: AppConfig; 
         <Field label={msg("m0739")} hint={config.steam_has_share_code ? msg("m0356") : msg("m0828")}><TextInput type="password" value={config.steam.known_share_code} onChange={(event) => updateSteam('known_share_code', event.target.value)} autoComplete="new-password" placeholder={config.steam_has_share_code ? msg("m0357") : 'CSGO-…'} /></Field>
         <Field label={msg("m0313")}><div className="number-control"><input type="number" min="1" max="100" value={config.steam.maximum_results} onChange={(event) => updateSteam('maximum_results', Number(event.target.value))} /><span>{msg("m0400")}</span></div></Field>
         <div className="field-row">
-          <Button disabled={!canTest || testAction.state.status === 'loading'} onClick={() => void testAction.run(() => api.testMatchHistory(config.steam), msg("m0074"))}>{testAction.state.status === 'loading' ? <Spinner /> : <KeyRound size={14} />}{msg("m0908")}</Button>
+          <Button disabled={!canTest || testAction.state.status === 'loading'} onClick={() => void testAction.run(() => commands.testMatchHistory(config.steam), msg("m0074"))}>{testAction.state.status === 'loading' ? <Spinner /> : <KeyRound size={14} />}{msg("m0908")}</Button>
           <Button variant="danger" disabled={disconnectAction.state.status === 'loading' || (!config.steam_has_web_api_key && !config.steam.web_api_key)} onClick={() => void disconnect()}>{disconnectAction.state.status === 'loading' ? <Spinner /> : <Unplug size={14} />}{msg("m0930")}</Button>
         </div>
         {testAction.state.message ? <Notice tone={testAction.state.status === 'error' ? 'danger' : 'success'}>{testAction.state.message}</Notice> : null}
@@ -279,7 +279,7 @@ function GeneralSettings({ theme, language, setTheme, setLanguage, config }: { t
   const refreshStorage = useCallback(async (signal?: AbortSignal) => {
     setStorageLoading(true);
     try {
-      const response = await api.storageStatus(signal);
+      const response = await commands.storageStatus(signal);
       setStorage(response);
       setStorageError(null);
     } catch (error) {
@@ -301,7 +301,7 @@ function GeneralSettings({ theme, language, setTheme, setLanguage, config }: { t
     : 0;
   const cleanupProxies = async () => {
     const result = await cleanupAction.run(
-      () => api.cleanupMediaProxies(),
+      () => commands.cleanupMediaProxies(),
     );
     if (result) await refreshStorage();
   };
@@ -451,7 +451,7 @@ function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: Rea
     addWatchPaths(await chooseLocalDirectories({ title: msg("m1219"), multiple: true }));
   };
   const detectPaths = async () => {
-    const detected = await detectAction.run(() => api.detectPaths(), msg("m0511"));
+    const detected = await detectAction.run(() => commands.detectPaths(), msg("m0511"));
     if (!detected) return;
     setConfig((current) => ({
       ...current,
@@ -553,8 +553,8 @@ export function VideoSettings({
     setDiagnosisState({ status: 'loading', data: null, message: null });
     try {
       const response = retryAfterLaunch
-        ? await retryObsDiagnosis(api.diagnoseObs, { signal: controller.signal })
-        : await api.diagnoseObs(controller.signal);
+        ? await retryObsDiagnosis(commands.diagnoseObs, { signal: controller.signal })
+        : await commands.diagnoseObs(controller.signal);
       if (!controller.signal.aborted) {
         setDiagnosisState({ status: 'success', data: response, message: null });
       }
@@ -572,7 +572,7 @@ export function VideoSettings({
 
   const launchObs = async () => {
     const result = await launchAction.run(
-      () => api.startObs(),
+      () => commands.startObs(),
       msg("m0050"),
     );
     if (result) await refreshDiagnosis(true);
@@ -584,7 +584,7 @@ export function VideoSettings({
         <PathField icon={<FilmIcon />} label="FFmpeg" value={config.ffmpeg_path} onChange={(value) => setConfig((current) => ({ ...current, ffmpeg_path: value }))} placeholder={msg("m0082")} browse={{ kind: 'file', title: msg("m1220"), filters: [{ name: msg("m0081"), extensions: ['exe'] }] }} />
         <PathField icon={<FilmIcon />} label="FFprobe" value={config.ffprobe_path} onChange={(value) => setConfig((current) => ({ ...current, ffprobe_path: value }))} placeholder={msg("m0083")} browse={{ kind: 'file', title: msg("m1221"), filters: [{ name: msg("m0081"), extensions: ['exe'] }] }} />
         <Field label={msg("m1324")} hint={msg("m1028")}><select value={config.preferred_encoder} onChange={(event) => setConfig((current) => ({ ...current, preferred_encoder: event.target.value as AppConfig['preferred_encoder'] }))}><option value="auto">{msg("m1096")}</option><option value="libx264">{msg("m0084")}</option><option value="h264_nvenc">NVIDIA NVENC</option><option value="h264_qsv">Intel Quick Sync</option><option value="h264_amf">AMD AMF</option></select></Field>
-        <div className="dependency-inline"><span className="setup-row__icon setup-row__icon--warning"><CircleAlert size={14} /></span><div><strong>{msg("m0204")}</strong><small>{msg("m0744")}</small></div><Button size="sm" disabled={dependencyAction.state.status === 'loading'} onClick={() => void dependencyAction.run(() => api.quickCheck(), msg("m0205"))} >{dependencyAction.state.status === 'loading' ? <Spinner /> : <RefreshCw size={13} />}{msg("m0830")}</Button></div>
+        <div className="dependency-inline"><span className="setup-row__icon setup-row__icon--warning"><CircleAlert size={14} /></span><div><strong>{msg("m0204")}</strong><small>{msg("m0744")}</small></div><Button size="sm" disabled={dependencyAction.state.status === 'loading'} onClick={() => void dependencyAction.run(() => commands.quickCheck(), msg("m0205"))} >{dependencyAction.state.status === 'loading' ? <Spinner /> : <RefreshCw size={13} />}{msg("m0830")}</Button></div>
         {dependencyAction.state.message ? <Notice tone={dependencyAction.state.status === 'error' ? 'danger' : 'success'}>{dependencyAction.state.message}</Notice> : null}
       </SettingsSection>
       <SettingsSection eyebrow="OBS WEBSOCKET" title={msg("m0048")} description={msg("m1212")}>
@@ -596,7 +596,7 @@ export function VideoSettings({
         <Field label={msg("m0449")} hint={config.obs_has_password && !config.obs.password ? msg("m0492") : msg("m0450")}><TextInput type="password" value={config.obs.password} onChange={(event) => updateObs('password', event.target.value)} autoComplete="new-password" placeholder={config.obs_has_password ? msg("m0508") : undefined} /></Field>
         <Field label={msg("m0596")} hint={msg("m1208")}><TextInput value={config.obs.scene} onChange={(event) => updateObs('scene', event.target.value)} placeholder="Capture" /></Field>
         <div className="field-row obs-control-actions">
-          <Button disabled={source !== 'service' || !config.obs.host.trim() || config.obs.port <= 0 || testAction.state.status === 'loading'} onClick={() => void testAction.run(() => api.testObs(config.obs), msg("m0587"))}>{testAction.state.status === 'loading' ? <Spinner /> : <PlugZap size={14} />}{msg("m0908")}</Button>
+          <Button disabled={source !== 'service' || !config.obs.host.trim() || config.obs.port <= 0 || testAction.state.status === 'loading'} onClick={() => void testAction.run(() => commands.testObs(config.obs), msg("m0587"))}>{testAction.state.status === 'loading' ? <Spinner /> : <PlugZap size={14} />}{msg("m0908")}</Button>
           <Button variant="primary" disabled={source !== 'service' || hasUnsavedRuntimeSettings || !savedExecutableConfigured || launchAction.state.status === 'loading'} title={hasUnsavedRuntimeSettings ? msg("m1131") : savedExecutableConfigured ? msg("m0203") : msg("m1130")} onClick={() => void launchObs()}>{launchAction.state.status === 'loading' ? <Spinner /> : <Video size={14} />}{msg("m0363")}</Button>
         </div>
         {testAction.state.message ? <Notice tone={testAction.state.status === 'error' ? 'danger' : 'success'}>{testAction.state.message}</Notice> : null}
@@ -684,7 +684,7 @@ function AnalysisSettings({ config, source, updateLlm }: { config: AppConfig; so
     let active = true;
     setCacheLoading(true);
     setCacheError(null);
-    void api.replayCacheStatus(controller.signal)
+    void commands.replayCacheStatus(controller.signal)
       .then((status) => {
         if (active) setCacheStatus(status);
       })
@@ -701,7 +701,7 @@ function AnalysisSettings({ config, source, updateLlm }: { config: AppConfig; so
   }, [cacheRefresh, source]);
 
   const clearCache = async () => {
-    const result = await cleanupAction.run(() => api.clearReplayCache(), msg("m0019"));
+    const result = await cleanupAction.run(() => commands.clearReplayCache(), msg("m0019"));
     if (result) setCacheRefresh((value) => value + 1);
   };
 
@@ -718,7 +718,7 @@ function AnalysisSettings({ config, source, updateLlm }: { config: AppConfig; so
         <div className="field-row"><Field label={msg("m0664")}><select value={config.llm.provider} onChange={(event) => updateLlm('provider', event.target.value)}><option value="">{msg("m0772")}</option><option value="openai-compatible">{msg("m0066")}</option><option value="local">{msg("m0796")}</option></select></Field><Field label={msg("m0834")}><TextInput value={config.llm.model} onChange={(event) => updateLlm('model', event.target.value)} placeholder={msg("m0835")} /></Field></div>
         <Field label={msg("m0745")} hint={config.llm.provider === 'local' ? msg("m0785") : msg("m1206")}><TextInput value={config.llm.base_url} onChange={(event) => updateLlm('base_url', event.target.value)} placeholder={config.llm.provider === 'local' ? 'http://127.0.0.1:11434/v1' : 'https://.../v1'} /></Field>
         <Field label={msg("m0024")} hint={config.llm_has_api_key ? msg("m0493") : undefined}><TextInput type="password" value={config.llm.api_key} onChange={(event) => updateLlm('api_key', event.target.value)} autoComplete="new-password" placeholder={config.llm_has_api_key ? msg("m0508") : undefined} /></Field>
-        <Button disabled={!canTest || llmAction.state.status === 'loading'} onClick={() => void llmAction.run(() => api.testLlm(config.llm), msg("m1180"))}>{llmAction.state.status === 'loading' ? <Spinner /> : <Radio size={14} />}{msg("m0909")}</Button>
+        <Button disabled={!canTest || llmAction.state.status === 'loading'} onClick={() => void llmAction.run(() => commands.testLlm(config.llm), msg("m1180"))}>{llmAction.state.status === 'loading' ? <Spinner /> : <Radio size={14} />}{msg("m0909")}</Button>
         {llmAction.state.message ? <Notice tone={llmAction.state.status === 'error' ? 'danger' : 'success'}>{llmAction.state.message}</Notice> : null}
       </SettingsSection>
     </div>

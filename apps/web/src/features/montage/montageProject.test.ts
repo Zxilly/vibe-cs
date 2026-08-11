@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { RecordedClip } from '../../shared/api/dto';
+import type { RecordedClip } from '../../shared/desktop/dto';
 import { buildMontageDraft, montageDuration, toMontageTimelineItem } from './montageProject';
 
 const clip = (id: string, duration: number): RecordedClip => ({

@@ -22,7 +22,7 @@ import {
   useState,
 } from 'react';
 
-import { api, readableError } from '../../shared/api/client';
+import { commands, readableError } from '../../shared/desktop/client';
 import type {
   BatchDeleteOutputResult,
   CleanupMissingOutputsResult,
@@ -32,7 +32,7 @@ import type {
   OutputAvailability,
   OutputItem,
   OutputKind,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 import { isDesktopShell, revealLocalPath } from '../../shared/desktop/dialog';
 import { useI18n } from '../../shared/i18n';
 import {
@@ -207,7 +207,7 @@ export function OutputsPage() {
       setLoading(true);
     }
     try {
-      const response = await api.listOutputs({
+      const response = await commands.listOutputs({
         page,
         page_size: PAGE_SIZE,
         ...(kind ? { kind } : {}),
@@ -343,7 +343,7 @@ export function OutputsPage() {
   const submitRename = async (item: OutputItem) => {
     const renamed = await runOutputAction<OutputItem>(
       'rename',
-      () => api.renameOutput(item.output_kind, item.id, renameValue.trim()),
+      () => commands.renameOutput(item.output_kind, item.id, renameValue.trim()),
       { tone: 'success', message: msg("m0686") },
       true,
     );
@@ -360,7 +360,7 @@ export function OutputsPage() {
   const confirmDelete = async (item: OutputItem) => {
     const result = await runOutputAction<DeleteOutputResult>(
       'delete',
-      () => api.deleteOutput(item.output_kind, item.id, deleteFiles),
+      () => commands.deleteOutput(item.output_kind, item.id, deleteFiles),
       (value) => ({
         tone: value.warning ? 'warning' : 'success',
         message: value.warning ?? (
@@ -381,7 +381,7 @@ export function OutputsPage() {
   const confirmBatchDelete = async () => {
     const result = await runOutputAction<BatchDeleteOutputResult>(
       'batch',
-      () => api.batchDeleteOutputs(selectedReferences, deleteFiles),
+      () => commands.batchDeleteOutputs(selectedReferences, deleteFiles),
       (value) => value.failed > 0
         ? { tone: 'warning', message: msgf("m0500", [value.deleted, value.failed]) }
         : { tone: 'success', message: msg("m0649") },
@@ -403,7 +403,7 @@ export function OutputsPage() {
   const confirmCleanup = async () => {
     const result = await runOutputAction<CleanupMissingOutputsResult>(
       'cleanup',
-      () => api.cleanupMissingOutputs(kind || undefined),
+      () => commands.cleanupMissingOutputs(kind || undefined),
       (value) => ({
         tone: value.scan_limited ? 'warning' : 'success',
         message: value.scan_limited
@@ -420,7 +420,7 @@ export function OutputsPage() {
   const confirmStagedCleanup = async () => {
     const result = await runOutputAction<CleanupStagedOutputsResult>(
       'cleanup-staged',
-      () => api.cleanupStagedOutputs(),
+      () => commands.cleanupStagedOutputs(),
       (value) => ({
         tone: value.failed > 0 || value.scan_limited ? 'warning' : 'success',
         message: value.failed > 0

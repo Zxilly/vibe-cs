@@ -2,8 +2,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { api } from '../../shared/api/client';
-import type { AnalysisWorkspace } from '../../shared/api/dto';
+import { commands } from '../../shared/desktop/client';
+import type { AnalysisWorkspace } from '../../shared/desktop/dto';
 import { AiReviewPanel, type ReviewConfiguration } from './AiReviewPanel';
 
 const workspace: AnalysisWorkspace = {
@@ -35,7 +35,7 @@ describe('AI review availability', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('shows unconfigured and configuration-error states without generating', () => {
-    const reviewSpy = vi.spyOn(api, 'reviewDemo');
+    const reviewSpy = vi.spyOn(commands, 'reviewDemo');
     const unconfigured = render({
       status: 'ready',
       configured: false,
@@ -56,7 +56,7 @@ describe('AI review availability', () => {
   });
 
   it('never sends explicitly marked preview analysis', () => {
-    const reviewSpy = vi.spyOn(api, 'reviewDemo');
+    const reviewSpy = vi.spyOn(commands, 'reviewDemo');
     const markup = render({
       status: 'ready',
       configured: true,

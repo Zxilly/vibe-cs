@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MatchHistoryItem } from '../../shared/api/dto';
+import type { MatchHistoryItem } from '../../shared/desktop/dto';
 import { matchesCsv } from './MatchHistoryPage';
 
 describe('matchesCsv', () => {

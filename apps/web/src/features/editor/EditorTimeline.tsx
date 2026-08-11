@@ -3,7 +3,7 @@ import '@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css';
 import { Crosshair, Flag } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, type ComponentProps, type CSSProperties } from 'react';
 
-import type { EditorMarker } from '../../shared/api/dto';
+import type { EditorMarker } from '../../shared/desktop/dto';
 import type { KillAxisEvent } from './advancedEditing';
 import type { TimelineTrack } from './timelineStore';
 

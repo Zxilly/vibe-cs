@@ -1,5 +1,5 @@
 import { msg } from '../../shared/i18n';
-import type { AppConfig, ObsDiagnosis, ObsVideoSettings } from '../../shared/api/dto';
+import type { AppConfig, ObsDiagnosis, ObsVideoSettings } from '../../shared/desktop/dto';
 
 const MAXIMUM_DIAGNOSIS_ATTEMPTS = 10;
 const MAXIMUM_RETRY_DELAY_MS = 2_000;

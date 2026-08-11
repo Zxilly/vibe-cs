@@ -3,7 +3,7 @@ import type {
   PlayerAggregateStats,
   PlayerDirectoryItem,
   PlayerSteamProfile,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 
 export const PLAYER_PAGE_SIZE = 24;
 export const PLAYER_SEARCH_DEBOUNCE_MS = 250;

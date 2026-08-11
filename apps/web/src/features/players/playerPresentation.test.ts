@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PlayerDirectoryItem, PlayerSteamProfile } from '../../shared/api/dto';
+import type { PlayerDirectoryItem, PlayerSteamProfile } from '../../shared/desktop/dto';
 import {
   MAXIMUM_PLAYER_SEARCH_CHARACTERS,
   PLAYER_SEARCH_DEBOUNCE_MS,

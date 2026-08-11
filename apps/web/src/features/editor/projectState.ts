@@ -1,5 +1,5 @@
 import { msg } from '../../shared/i18n';
-import type { EditorPresetDocument, EditorMarker, TimelineTrackDto } from '../../shared/api/dto';
+import type { EditorPresetDocument, EditorMarker, TimelineTrackDto } from '../../shared/desktop/dto';
 
 export const MAX_EDITOR_TIMELINE_SECONDS = 86_400;
 

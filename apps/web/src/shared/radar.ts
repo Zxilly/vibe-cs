@@ -1,4 +1,4 @@
-import type { RadarOverviewRecord } from './api/dto';
+import type { RadarOverviewRecord } from './desktop/dto';
 
 export type RadarTransform = NonNullable<RadarOverviewRecord['transform']>;
 

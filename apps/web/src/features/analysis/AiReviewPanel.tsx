@@ -3,14 +3,14 @@ import { Bot, CircleStop, ShieldCheck, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { api, readableError } from '../../shared/api/client';
+import { commands, readableError } from '../../shared/desktop/client';
 import type {
   AnalysisWorkspace,
   LlmReviewResult,
   LlmReviewScope,
   LlmReviewTone,
   PlayerAnalysis,
-} from '../../shared/api/dto';
+} from '../../shared/desktop/dto';
 import { Badge, Button, Card, EmptyState, Notice, Spinner } from '../../shared/ui';
 import {
   buildReviewRequest,
@@ -78,7 +78,7 @@ export function AiReviewPanel({
     setStatus('running');
     setError(null);
     try {
-      const response = await api.reviewDemo(
+      const response = await commands.reviewDemo(
         demoId,
         buildReviewRequest(
           scope,

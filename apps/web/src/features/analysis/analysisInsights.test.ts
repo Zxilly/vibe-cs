@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisInsightsRecord, Highlight, PlayerAnalysis } from '../../shared/api/dto';
+import type { AnalysisInsightsRecord, Highlight, PlayerAnalysis } from '../../shared/desktop/dto';
 import {
   emptyAnalysisInsights,
   matchupsForPlayer,

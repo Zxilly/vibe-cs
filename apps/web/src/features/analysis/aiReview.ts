@@ -1,4 +1,4 @@
-import type { LlmReviewRequest, LlmReviewScope, LlmReviewTone } from '../../shared/api/dto';
+import type { LlmReviewRequest, LlmReviewScope, LlmReviewTone } from '../../shared/desktop/dto';
 
 export const maximumReviewHighlights = 24;
 

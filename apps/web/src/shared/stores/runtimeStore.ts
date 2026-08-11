@@ -1,8 +1,8 @@
 import { msg } from '../i18n';
 import { create } from 'zustand';
 
-import { ApiError, api } from '../api/client';
-import type { RuntimeState } from '../api/dto';
+import { DesktopError, commands } from '../desktop/client';
+import type { RuntimeState } from '../desktop/dto';
 
 export type RuntimeSession = RuntimeState['runtime_session'];
 
@@ -77,7 +77,7 @@ function beginTransition(
 export async function runManagedPlaybackLaunch<T>(launch: () => Promise<T>): Promise<T> {
   const revision = useRuntimeStore.getState().beginPlaybackLaunch();
   if (revision === null) {
-    throw new ApiError(msg("m0800"), 409, 'RUNTIME_SESSION_BUSY');
+    throw new DesktopError(msg("m0800"), 409, 'RUNTIME_SESSION_BUSY');
   }
   try {
     const result = await launch();
@@ -85,7 +85,7 @@ export async function runManagedPlaybackLaunch<T>(launch: () => Promise<T>): Pro
     return result;
   } catch (error) {
     try {
-      const current = await api.runtimeState();
+      const current = await commands.runtimeState();
       useRuntimeStore.getState().completeTransition(revision, current.runtime_session);
     } catch {
       useRuntimeStore.getState().completeTransition(revision, 'playback_launching');

@@ -12,6 +12,8 @@ Loose radar files and managed playback launch paths are compared by operating-sy
 
 Managed editor-file quarantine and playback-cache operations use Bytecode Alliance `cap-std` (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT) so journal, move, restore, publish, validation, and cleanup remain relative to opened directory capabilities on Windows and Unix.
 
+The Editor timeline uses `@xzdarcy/react-timeline-editor` 1.0.0 (MIT). The selected-audio inspector loads `wavesurfer.js` 7.12.11 (BSD-3-Clause) on demand. Neither package is used as a renderer: persisted projects remain Vibe CS domain records and final media is still produced by the bounded Rust/FFmpeg pipeline.
+
 Installation-scoped OBS backup authentication uses RustCrypto `hmac` (MIT OR Apache-2.0) with `sha2`, while operating-system random key material is obtained through `getrandom` (MIT OR Apache-2.0).
 
 Before redistributing a packaged build, generate a dependency license report and include the applicable notices. If FFmpeg is bundled, its build configuration determines the corresponding LGPL or GPL obligations.

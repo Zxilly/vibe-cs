@@ -35,3 +35,13 @@ pub fn build_dispatcher(state: AppState) -> Router {
         .fallback(routes::not_found)
         .with_state(state)
 }
+
+/// Builds the loopback-only receiver required by the CS2 GSI protocol.
+///
+/// This router intentionally exposes only the authenticated GSI ingestion route. Product and UI
+/// commands remain available exclusively through Tauri IPC.
+pub fn build_gsi_receiver(state: AppState) -> Router {
+    routes::gsi_router()
+        .fallback(routes::not_found)
+        .with_state(state)
+}

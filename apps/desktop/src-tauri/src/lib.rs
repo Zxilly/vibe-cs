@@ -7,6 +7,7 @@ use tokio::sync::OnceCell;
 use tracing_subscriber::fmt::writer::MakeWriterExt;
 
 const LOG_RETENTION_DAYS: usize = 14;
+const GSI_RECEIVER_ADDRESS: &str = "127.0.0.1:47831";
 
 struct LogGuard {
     _guard: tracing_appender::non_blocking::WorkerGuard,
@@ -77,17 +78,32 @@ pub fn run() {
                 .compact()
                 .init();
             app.manage(LogGuard { _guard: guard });
-            let application_router = tauri::async_runtime::block_on(build_application(data_dir))?;
+            let application = tauri::async_runtime::block_on(build_application(data_dir))?;
             setup_router
-                .set(application_router)
+                .set(application.dispatcher)
                 .map_err(|_| io::Error::other("desktop application state was initialized twice"))?;
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) =
+                    axum::serve(application.gsi_listener, application.gsi_receiver).await
+                {
+                    tracing::error!(%error, "CS2 GSI receiver stopped");
+                }
+            });
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("failed to run desktop application");
 }
 
-async fn build_application(data_dir: PathBuf) -> Result<axum::Router, Box<dyn std::error::Error>> {
+struct DesktopApplication {
+    dispatcher: axum::Router,
+    gsi_receiver: axum::Router,
+    gsi_listener: tokio::net::TcpListener,
+}
+
+async fn build_application(
+    data_dir: PathBuf,
+) -> Result<DesktopApplication, Box<dyn std::error::Error>> {
     tokio::fs::create_dir_all(&data_dir).await?;
     if let Some(previous) = std::env::var_os("VIBE_CS_PREVIOUS_DATA_DIR")
         && !data_dir.join("vibe-cs.db").exists()
@@ -114,5 +130,11 @@ async fn build_application(data_dir: PathBuf) -> Result<axum::Router, Box<dyn st
     }
     let storage = vibe_cs_storage::Storage::open(data_dir.join("vibe-cs.db")).await?;
     let state = vibe_cs_runtime::build_app_state(storage, data_dir).await;
-    Ok(vibe_cs_application::build_dispatcher(state))
+    let gsi_listener = tokio::net::TcpListener::bind(GSI_RECEIVER_ADDRESS).await?;
+    tracing::info!(address = GSI_RECEIVER_ADDRESS, "CS2 GSI receiver ready");
+    Ok(DesktopApplication {
+        dispatcher: vibe_cs_application::build_dispatcher(state.clone()),
+        gsi_receiver: vibe_cs_application::build_gsi_receiver(state),
+        gsi_listener,
+    })
 }

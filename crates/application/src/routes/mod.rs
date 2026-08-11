@@ -37,6 +37,10 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/v1/{*path}", any(not_found))
 }
 
+pub(crate) fn gsi_router() -> Router<AppState> {
+    integrations::gsi_router()
+}
+
 pub(crate) async fn not_found() -> ApiError {
     ApiError::new(
         StatusCode::NOT_FOUND,

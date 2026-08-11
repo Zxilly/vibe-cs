@@ -54,6 +54,13 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/v1/config-backup/restore", post(recovery_restore))
 }
 
+pub(crate) fn gsi_router() -> Router<AppState> {
+    Router::new().route(
+        "/api/v1/gsi/cs2",
+        post(gsi_ingest).layer(DefaultBodyLimit::max(MAXIMUM_GSI_PAYLOAD_BYTES)),
+    )
+}
+
 #[derive(Debug, Deserialize)]
 struct MatchHistoryQuery {
     #[serde(default)]

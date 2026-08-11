@@ -162,7 +162,7 @@ pub fn validate_demo(
     Ok(ValidatedDemo {
         path: path.to_path_buf(),
         size: bytes_read,
-        sha256: format!("{:x}", hasher.finalize()),
+        sha256: hex::encode(hasher.finalize()),
     })
 }
 

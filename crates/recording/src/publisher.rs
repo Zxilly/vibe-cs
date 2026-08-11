@@ -168,7 +168,7 @@ fn publish_blocking(
         Ok(PublishedClip {
             path: destination.to_path_buf(),
             bytes: copied,
-            sha256: format!("{:x}", digest.finalize()),
+            sha256: hex::encode(digest.finalize()),
         })
     })();
     if result.is_err() {

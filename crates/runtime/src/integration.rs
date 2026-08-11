@@ -2533,7 +2533,7 @@ fn validate_opened_managed_playback(
     Ok(total == expected.size
         && final_metadata.len() == expected.size
         && !modified_changed
-        && format!("{:x}", hasher.finalize()).eq_ignore_ascii_case(&expected.sha256))
+        && hex::encode(hasher.finalize()).eq_ignore_ascii_case(&expected.sha256))
 }
 
 #[cfg(windows)]

@@ -23,6 +23,8 @@ pub enum StorageError {
     MediaAssetAlreadyExists(Uuid),
     #[error("editor preset {0} revision cannot be incremented")]
     EditorPresetRevisionOverflow(Uuid),
+    #[error("integer {0} cannot be represented by SQLite")]
+    IntegerOutOfRange(u64),
 }
 
 pub type Result<T> = std::result::Result<T, StorageError>;

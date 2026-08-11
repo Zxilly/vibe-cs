@@ -555,11 +555,11 @@ fn cache_key(
     hash.update(config.llm.prompt.as_bytes());
     hash.update([0]);
     hash.update(request);
-    Ok(format!("{:x}", hash.finalize()))
+    Ok(hex::encode(hash.finalize()))
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn integration_error(error: IntegrationError) -> DomainError {

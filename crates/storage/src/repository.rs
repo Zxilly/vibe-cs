@@ -30,6 +30,24 @@ use crate::{Result, StorageError, migrations};
 /// Maximum number of editor project versions retained for restoration.
 pub const EDITOR_PROJECT_SNAPSHOT_LIMIT: usize = 20;
 
+fn sql_u64(value: u64) -> Result<i64> {
+    i64::try_from(value).map_err(|_| StorageError::IntegerOutOfRange(value))
+}
+
+fn row_u64(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<u64> {
+    let value = row.get::<_, i64>(index)?;
+    u64::try_from(value).map_err(|_| {
+        rusqlite::Error::FromSqlConversionFailure(
+            index,
+            rusqlite::types::Type::Integer,
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "negative SQLite integer cannot represent an unsigned value",
+            )),
+        )
+    })
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum EditorProjectUpdate {
     Updated(EditorProject),
@@ -339,7 +357,7 @@ impl Storage {
             let total = connection.query_row(
                 &format!("SELECT COUNT(*) FROM demos{where_sql}"),
                 values,
-                |row| row.get::<_, u64>(0),
+                |row| row_u64(row, 0),
             )?;
 
             let mut statement = connection.prepare(&format!(
@@ -352,7 +370,7 @@ impl Storage {
                 map_name,
                 status,
                 page_size,
-                u64::from(page - 1) * u64::from(page_size)
+                sql_u64(u64::from(page - 1) * u64::from(page_size))?
             ])?;
             let mut items = Vec::new();
             while let Some(row) = rows.next()? {
@@ -550,7 +568,7 @@ impl Storage {
             let total = connection.query_row(
                 "SELECT COUNT(*) FROM steam_matches WHERE (?1 IS NULL OR steam_id = ?1)",
                 [&steam_id],
-                |row| row.get::<_, u64>(0),
+                |row| row_u64(row, 0),
             )?;
             let mut statement = connection.prepare(
                 "SELECT document_json FROM steam_matches \
@@ -560,7 +578,7 @@ impl Storage {
             let mut rows = statement.query(params![
                 steam_id,
                 page_size,
-                u64::from(page - 1) * u64::from(page_size)
+                sql_u64(u64::from(page - 1) * u64::from(page_size))?
             ])?;
             Ok(Page {
                 items: collect_documents(&mut rows)?,
@@ -834,7 +852,7 @@ impl Storage {
                     .query_row(
                         "SELECT revision FROM editor_projects WHERE id = ?1",
                         [project.id.to_string()],
-                        |row| row.get::<_, u64>(0),
+                        |row| row_u64(row, 0),
                     )
                     .optional()?
                     .unwrap_or(expected_revision);
@@ -915,7 +933,7 @@ impl Storage {
                     .query_row(
                         "SELECT revision FROM editor_projects WHERE id = ?1",
                         [project_id.to_string()],
-                        |row| row.get::<_, u64>(0),
+                        |row| row_u64(row, 0),
                     )
                     .optional()?
                     .unwrap_or(expected_revision);
@@ -1167,7 +1185,7 @@ impl Storage {
                 for item in &revisions {
                     transaction.execute(
                         "DELETE FROM editor_projects WHERE id = ?1 AND revision = ?2",
-                        params![item.id.to_string(), item.expected_revision],
+                        params![item.id.to_string(), sql_u64(item.expected_revision)?],
                     )?;
                 }
                 transaction.commit()?;
@@ -1476,7 +1494,7 @@ impl Storage {
                 params![
                     preset.id.to_string(),
                     preset.name,
-                    preset.revision,
+                    sql_u64(preset.revision)?,
                     preset.created_at.to_rfc3339(),
                     preset.updated_at.to_rfc3339(),
                     encode(&preset)?
@@ -1518,10 +1536,10 @@ impl Storage {
                 params![
                     preset.id.to_string(),
                     preset.name,
-                    preset.revision,
+                    sql_u64(preset.revision)?,
                     preset.updated_at.to_rfc3339(),
                     encode(&preset)?,
-                    expected_revision,
+                    sql_u64(expected_revision)?,
                 ],
             )?;
             if changed != 1 {
@@ -1529,7 +1547,7 @@ impl Storage {
                     .query_row(
                         "SELECT revision FROM editor_presets WHERE id = ?1",
                         [preset.id.to_string()],
-                        |row| row.get::<_, u64>(0),
+                        |row| row_u64(row, 0),
                     )
                     .optional()?
                     .unwrap_or(expected_revision);
@@ -1556,7 +1574,7 @@ impl Storage {
             }
             transaction.execute(
                 "DELETE FROM editor_presets WHERE id = ?1 AND revision = ?2",
-                params![id.to_string(), expected_revision],
+                params![id.to_string(), sql_u64(expected_revision)?],
             )?;
             transaction.commit()?;
             Ok(PresetDelete::Deleted(current))
@@ -1624,7 +1642,7 @@ impl Storage {
                     .query_row(
                         "SELECT revision FROM editor_projects WHERE id = ?1",
                         [project_id.to_string()],
-                        |row| row.get::<_, u64>(0),
+                        |row| row_u64(row, 0),
                     )
                     .optional()?
                     .unwrap_or(expected_project_revision);
@@ -2559,7 +2577,7 @@ fn put_editor_project_row(connection: &Connection, document: &EditorProjectDocum
         params![
             project.id.to_string(),
             project.name,
-            project.revision,
+            sql_u64(project.revision)?,
             project.updated_at.to_rfc3339(),
             encode(document)?
         ],
@@ -2579,11 +2597,11 @@ fn update_editor_project_row(
              document_json = ?4 WHERE id = ?5 AND revision = ?6",
             params![
                 project.name,
-                project.revision,
+                sql_u64(project.revision)?,
                 project.updated_at.to_rfc3339(),
                 encode(document)?,
                 project.id.to_string(),
-                expected_revision,
+                sql_u64(expected_revision)?,
             ],
         )
         .map_err(Into::into)
@@ -3214,7 +3232,7 @@ mod tests {
                     params![
                         stored_project.id.to_string(),
                         stored_project.name,
-                        stored_project.revision,
+                        sql_u64(stored_project.revision)?,
                         stored_project.updated_at.to_rfc3339(),
                         encode(&stored_project)?
                     ],

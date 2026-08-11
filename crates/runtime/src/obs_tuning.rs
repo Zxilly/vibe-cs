@@ -8,7 +8,7 @@ use std::{
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
@@ -557,14 +557,14 @@ fn plan_fingerprint(current: &ObsVideoSettings, target: &ObsVideoSettings) -> St
     hasher.update(b"vibe-cs-obs-video-plan-v1\0");
     update_settings_hash(&mut hasher, current);
     update_settings_hash(&mut hasher, target);
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 fn settings_fingerprint(settings: &ObsVideoSettings) -> String {
     let mut hasher = Sha256::new();
     hasher.update(b"vibe-cs-obs-video-settings-v1\0");
     update_settings_hash(&mut hasher, settings);
-    format!("{:x}", hasher.finalize())
+    hex::encode(hasher.finalize())
 }
 
 fn backup_authentication_tag(

@@ -604,7 +604,7 @@ fn read_bounded_file(path: &Path, maximum_bytes: u64) -> PlatformResult<Vec<u8>>
 }
 
 fn sha256(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+    hex::encode(Sha256::digest(bytes))
 }
 
 fn is_sha256(value: &str) -> bool {

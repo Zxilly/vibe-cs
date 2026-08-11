@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use vibe_cs_domain::{AppConfig, DependencyStatus, SetupStatus};
 use vibe_cs_integrations::discover_paths;
+use vibe_cs_media::{NativeFfmpegInfo, native_ffmpeg_info};
 use walkdir::WalkDir;
 
 use crate::{ApiError, ApiJson, ApiResult, AppState};
@@ -23,6 +24,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/v1/config", get(get_config).put(put_config))
         .route("/api/v1/config/detect-paths", post(detect_paths))
         .route("/api/v1/config/quick-check", get(quick_check))
+        .route("/api/v1/media-runtime", get(media_runtime_status))
         .route("/api/v1/storage/status", get(storage_status))
         .route("/api/v1/status/setup", get(setup_status))
 }
@@ -146,6 +148,45 @@ async fn detect_paths(State(state): State<AppState>) -> ApiResult<Json<DetectedP
 
 fn lossy_path(path: Option<&Path>) -> Option<String> {
     path.map(|path| path.to_string_lossy().into_owned())
+}
+
+#[derive(Debug, Serialize)]
+struct MediaRuntimeResponse {
+    available: bool,
+    backend: String,
+    version: String,
+    license: String,
+    encoders: Vec<String>,
+}
+
+async fn media_runtime_status() -> ApiResult<Json<MediaRuntimeResponse>> {
+    let info = tokio::task::spawn_blocking(native_ffmpeg_info)
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "media_runtime_status_failed",
+                format!("native media runtime task failed: {error}"),
+            )
+        })?
+        .map_err(|error| {
+            ApiError::new(
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "media_runtime_unavailable",
+                error.to_string(),
+            )
+        })?;
+    Ok(Json(media_runtime_response(info)))
+}
+
+fn media_runtime_response(info: NativeFfmpegInfo) -> MediaRuntimeResponse {
+    MediaRuntimeResponse {
+        available: true,
+        backend: info.backend,
+        version: info.avcodec_version,
+        license: info.license,
+        encoders: info.encoders,
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -464,7 +505,7 @@ fn validate_config(config: &AppConfig) -> ApiResult<()> {
             .trim()
             .to_ascii_lowercase()
             .as_str(),
-        "auto" | "libx264" | "h264_qsv" | "h264_nvenc" | "h264_amf"
+        "auto" | "libopenh264" | "h264_mf" | "h264_qsv" | "h264_nvenc" | "h264_amf"
     ) {
         return Err(crate::ApiError::invalid(
             "preferred encoder is not supported",
@@ -552,7 +593,21 @@ fn is_secret_placeholder(value: &str) -> bool {
 
 async fn setup_status(State(state): State<AppState>) -> ApiResult<Json<SetupStatus>> {
     let config = state.storage.get_config().await?.unwrap_or_default();
-    let dependencies = dependency_statuses(&config);
+    let discovery_config = config.clone();
+    let paths = tokio::task::spawn_blocking(move || discover_paths(&discovery_config))
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "path_discovery_failed",
+                format!("dependency discovery task failed: {error}"),
+            )
+        })?;
+    let media = tokio::task::spawn_blocking(native_ffmpeg_info)
+        .await
+        .ok()
+        .and_then(Result::ok);
+    let dependencies = dependency_statuses(&config, &paths, media.as_ref());
     let ready = dependencies
         .iter()
         .filter(|dependency| dependency.name != "llm")
@@ -581,13 +636,36 @@ struct DependencyCheck {
 
 async fn quick_check(State(state): State<AppState>) -> ApiResult<Json<QuickCheckResponse>> {
     let config = state.storage.get_config().await?.unwrap_or_default();
+    let discovery_config = config.clone();
+    let paths = tokio::task::spawn_blocking(move || discover_paths(&discovery_config))
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "path_discovery_failed",
+                format!("dependency discovery task failed: {error}"),
+            )
+        })?;
+    let media = tokio::task::spawn_blocking(native_ffmpeg_info)
+        .await
+        .ok()
+        .and_then(Result::ok);
     let checks = vec![
-        check_path("game", "Game", &config.cs2_path, Some("/settings")),
+        check_discovered_path("game", "Game", paths.cs2.as_deref(), Some("/settings")),
         check_obs(&config),
-        check_path("ffmpeg", "FFmpeg", &config.ffmpeg_path, Some("/settings")),
+        DependencyCheck {
+            kind: "ffmpeg",
+            state: if media.is_some() { "ready" } else { "missing" },
+            label: "Native FFmpeg",
+            detail: media.as_ref().map_or_else(
+                || "The linked FFmpeg libraries could not be initialized".to_owned(),
+                |info| format!("ffmpeg-next / libavcodec {}", info.avcodec_version),
+            ),
+            action_path: Some("/settings"),
+        },
         DependencyCheck {
             kind: "encoder",
-            state: if config.ffmpeg_path.is_empty() {
+            state: if media.as_ref().is_none_or(|info| info.encoders.is_empty()) {
                 "missing"
             } else {
                 "checking"
@@ -610,11 +688,38 @@ async fn quick_check(State(state): State<AppState>) -> ApiResult<Json<QuickCheck
     }))
 }
 
-fn dependency_statuses(config: &AppConfig) -> Vec<DependencyStatus> {
+fn check_discovered_path(
+    kind: &'static str,
+    label: &'static str,
+    path: Option<&Path>,
+    action_path: Option<&'static str>,
+) -> DependencyCheck {
+    DependencyCheck {
+        kind,
+        state: if path.is_some() { "ready" } else { "missing" },
+        label,
+        detail: path.map_or_else(
+            || format!("{label} was not found"),
+            |path| path.to_string_lossy().into_owned(),
+        ),
+        action_path,
+    }
+}
+
+fn dependency_statuses(
+    config: &AppConfig,
+    paths: &vibe_cs_integrations::DiscoveredPaths,
+    media: Option<&NativeFfmpegInfo>,
+) -> Vec<DependencyStatus> {
     vec![
-        dependency("game", &config.cs2_path),
-        dependency("ffmpeg", &config.ffmpeg_path),
-        dependency("ffprobe", &config.ffprobe_path),
+        dependency("game", paths.cs2.as_deref()),
+        DependencyStatus {
+            name: "ffmpeg".to_owned(),
+            available: media.is_some(),
+            version: media.map(|info| info.avcodec_version.clone()),
+            path: None,
+            message: Some("Linked through ffmpeg-next; no executable path is required".to_owned()),
+        },
         DependencyStatus {
             name: "obs".to_owned(),
             available: !config.obs.executable.is_empty()
@@ -635,34 +740,14 @@ fn dependency_statuses(config: &AppConfig) -> Vec<DependencyStatus> {
     ]
 }
 
-fn dependency(name: &str, configured_path: &str) -> DependencyStatus {
-    let available = !configured_path.is_empty() && Path::new(configured_path).is_file();
+fn dependency(name: &str, path: Option<&Path>) -> DependencyStatus {
+    let available = path.is_some_and(Path::is_file);
     DependencyStatus {
         name: name.to_owned(),
         available,
         version: None,
-        path: (!configured_path.is_empty()).then(|| configured_path.to_owned()),
-        message: (!available).then(|| format!("{name} executable is not configured or accessible")),
-    }
-}
-
-fn check_path(
-    kind: &'static str,
-    label: &'static str,
-    path: &str,
-    action_path: Option<&'static str>,
-) -> DependencyCheck {
-    let available = !path.is_empty() && Path::new(path).exists();
-    DependencyCheck {
-        kind,
-        state: if available { "ready" } else { "missing" },
-        label,
-        detail: if available {
-            path.to_owned()
-        } else {
-            format!("{label} is not configured or accessible")
-        },
-        action_path,
+        path: path.map(|path| path.to_string_lossy().into_owned()),
+        message: (!available).then(|| format!("{name} executable was not found")),
     }
 }
 

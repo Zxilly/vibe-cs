@@ -31,6 +31,16 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": {
+      "../../../.deps/ffmpeg/bin/avcodec-62.dll": "avcodec-62.dll",
+      "../../../.deps/ffmpeg/bin/avdevice-62.dll": "avdevice-62.dll",
+      "../../../.deps/ffmpeg/bin/avfilter-11.dll": "avfilter-11.dll",
+      "../../../.deps/ffmpeg/bin/avformat-62.dll": "avformat-62.dll",
+      "../../../.deps/ffmpeg/bin/avutil-60.dll": "avutil-60.dll",
+      "../../../.deps/ffmpeg/bin/swresample-6.dll": "swresample-6.dll",
+      "../../../.deps/ffmpeg/bin/swscale-9.dll": "swscale-9.dll",
+      "../../../.deps/ffmpeg/LICENSE.txt": "licenses/ffmpeg-LGPL.txt"
+    },
     "publisher": "Vibe CS contributors",
     "copyright": "Copyright © 2026 Vibe CS contributors",
     "shortDescription": "Local-first match review and video creation workspace",

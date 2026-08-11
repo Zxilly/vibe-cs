@@ -5,8 +5,8 @@
   "packageManager": "pnpm@10.33.4",
   "scripts": {
     "dev": "pnpm --filter @vibe-cs/web dev",
-    "desktop:dev": "pnpm --filter @vibe-cs/desktop dev",
-    "desktop:build": "pnpm --filter @vibe-cs/desktop build",
+    "desktop:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm --filter @vibe-cs/desktop dev",
+    "desktop:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm --filter @vibe-cs/desktop build",
     "build": "pnpm --filter @vibe-cs/web build",
     "test": "pnpm --filter @vibe-cs/web test",
     "typecheck": "pnpm --filter @vibe-cs/web typecheck",

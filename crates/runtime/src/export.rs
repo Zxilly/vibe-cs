@@ -10,12 +10,12 @@ use serde_json::Value;
 use tokio::sync::{Mutex, mpsc};
 use uuid::Uuid;
 use vibe_cs_application::ExportPort;
-use vibe_cs_domain::{AppConfig, DomainError, ExportJob, JobStatus};
+use vibe_cs_domain::{DomainError, ExportJob, JobStatus};
 use vibe_cs_media::{
     EditorMediaKind, EditorMediaSource, EditorRenderOptions, EncoderSelection, FilterPlan,
-    MediaError, MontageSource, ProcessCancellation, ProcessRunner, ProgressCallback,
-    SystemProcessRunner, build_editor_plan_with_sources, build_montage_plan_with_sources,
-    execute_filter_plan_with_progress, find_executable, inspect_ffmpeg, probe_media,
+    MediaError, MontageSource, ProcessCancellation, ProgressCallback,
+    build_editor_plan_with_sources, build_montage_plan_with_sources,
+    execute_native_filter_plan_with_progress, native_ffmpeg_info, native_probe_media,
     select_video_encoder,
 };
 use vibe_cs_storage::ExportJobRecord;
@@ -25,8 +25,34 @@ const MEDIA_INSPECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_
 pub struct RuntimeExportPort {
     storage: vibe_cs_storage::Storage,
     data_dir: PathBuf,
-    runner: Arc<dyn ProcessRunner>,
+    backend: ExportBackend,
     active: Arc<Mutex<HashMap<Uuid, ProcessCancellation>>>,
+}
+
+#[derive(Clone)]
+enum ExportBackend {
+    Native,
+    #[cfg(test)]
+    Test(Arc<dyn ExportTestBackend>),
+}
+
+#[cfg(test)]
+#[async_trait]
+trait ExportTestBackend: Send + Sync + std::fmt::Debug {
+    async fn execute(
+        &self,
+        plan: &FilterPlan,
+        cancellation: &ProcessCancellation,
+        progress: ProgressCallback,
+    ) -> Result<(), MediaError>;
+
+    fn encoders(&self) -> Vec<String> {
+        vec!["libopenh264".to_owned()]
+    }
+
+    fn has_audio(&self, _path: &Path) -> bool {
+        true
+    }
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -51,19 +77,25 @@ impl std::fmt::Debug for RuntimeExportPort {
 impl RuntimeExportPort {
     #[must_use]
     pub fn new(storage: vibe_cs_storage::Storage, data_dir: PathBuf) -> Self {
-        Self::with_runner(storage, data_dir, Arc::new(SystemProcessRunner::default()))
+        Self {
+            storage,
+            data_dir,
+            backend: ExportBackend::Native,
+            active: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
+    #[cfg(test)]
     #[must_use]
-    pub fn with_runner(
+    fn with_test_backend(
         storage: vibe_cs_storage::Storage,
         data_dir: PathBuf,
-        runner: Arc<dyn ProcessRunner>,
+        backend: Arc<dyn ExportTestBackend>,
     ) -> Self {
         Self {
             storage,
             data_dir,
-            runner,
+            backend: ExportBackend::Test(backend),
             active: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -109,16 +141,7 @@ impl RuntimeExportPort {
                 "unsupported export kind: {kind}"
             )));
         }
-        let config = self
-            .storage
-            .get_config()
-            .await
-            .map_err(|error| storage_error(&error))?
-            .unwrap_or_default();
-        let configured =
-            (!config.ffmpeg_path.trim().is_empty()).then(|| Path::new(&config.ffmpeg_path));
-        let ffmpeg = find_executable("ffmpeg", configured).map_err(map_media_error)?;
-        let ffprobe = Self::resolve_ffprobe(&config);
+        let ffmpeg = self.render_program();
         let export_dir = self.data_dir.join("exports");
         tokio::fs::create_dir_all(&export_dir)
             .await
@@ -126,12 +149,9 @@ impl RuntimeExportPort {
         let id = Uuid::new_v4();
         let output = export_dir.join(format!("{kind}-{project_id}-{id}.mp4"));
         let plan = match kind {
-            "montage" => {
-                self.montage_plan(&ffmpeg, ffprobe.as_deref(), project_id, &output)
-                    .await?
-            }
+            "montage" => self.montage_plan(&ffmpeg, project_id, &output).await?,
             "editor" => {
-                self.editor_plan(&ffmpeg, ffprobe.as_deref(), project_id, &output, request)
+                self.editor_plan(&ffmpeg, project_id, &output, request)
                     .await?
             }
             _ => unreachable!("validated kind"),
@@ -159,7 +179,6 @@ impl RuntimeExportPort {
     async fn montage_plan(
         &self,
         ffmpeg: &Path,
-        ffprobe: Option<&Path>,
         project_id: Uuid,
         output: &Path,
     ) -> Result<FilterPlan, DomainError> {
@@ -178,7 +197,7 @@ impl RuntimeExportPort {
                 .map_err(|error| storage_error(&error))?
                 .ok_or_else(|| DomainError::NotFound(format!("recorded clip {}", clip.clip_id)))?;
             let path = PathBuf::from(source.path);
-            let has_audio = self.probe_has_audio(ffprobe, &path).await.unwrap_or(true);
+            let has_audio = self.probe_has_audio(&path).await.unwrap_or(true);
             let avatar_path = if let Some(avatar_id) = clip.avatar_asset_id {
                 let avatar = self
                     .storage
@@ -205,9 +224,7 @@ impl RuntimeExportPort {
                 },
             );
         }
-        let encoder = self
-            .select_encoder(ffmpeg, &project.settings.encoder)
-            .await?;
+        let encoder = self.select_encoder(ffmpeg, &project.settings.encoder)?;
         build_montage_plan_with_sources(ffmpeg, &project, &sources, output, &encoder)
             .map_err(map_media_error)
     }
@@ -215,7 +232,6 @@ impl RuntimeExportPort {
     async fn editor_plan(
         &self,
         ffmpeg: &Path,
-        ffprobe: Option<&Path>,
         project_id: Uuid,
         output: &Path,
         request: &Value,
@@ -267,9 +283,7 @@ impl RuntimeExportPort {
             let has_audio = match kind {
                 EditorMediaKind::Audio => true,
                 EditorMediaKind::Image | EditorMediaKind::Font => false,
-                EditorMediaKind::Video => {
-                    self.probe_has_audio(ffprobe, &path).await.unwrap_or(true)
-                }
+                EditorMediaKind::Video => self.probe_has_audio(&path).await.unwrap_or(true),
             };
             assets.insert(
                 asset_id.to_string(),
@@ -287,9 +301,7 @@ impl RuntimeExportPort {
                 DomainError::InvalidInput(format!("invalid export options: {error}"))
             })?
         };
-        let encoder = self
-            .select_encoder(ffmpeg, request.encoder.as_deref().unwrap_or("auto"))
-            .await?;
+        let encoder = self.select_encoder(ffmpeg, request.encoder.as_deref().unwrap_or("auto"))?;
         let options = EditorRenderOptions {
             encoder,
             quality: request.quality.unwrap_or(80),
@@ -300,53 +312,47 @@ impl RuntimeExportPort {
             .map_err(map_media_error)
     }
 
-    fn resolve_ffprobe(config: &AppConfig) -> Option<PathBuf> {
-        let configured =
-            (!config.ffprobe_path.trim().is_empty()).then(|| Path::new(&config.ffprobe_path));
-        find_executable("ffprobe", configured).ok()
+    fn render_program(&self) -> PathBuf {
+        match &self.backend {
+            ExportBackend::Native => PathBuf::from("native-libav"),
+            #[cfg(test)]
+            ExportBackend::Test(_) => PathBuf::from("native-libav-test"),
+        }
     }
 
-    async fn probe_has_audio(&self, ffprobe: Option<&Path>, path: &Path) -> Option<bool> {
-        let ffprobe = ffprobe?;
+    async fn probe_has_audio(&self, path: &Path) -> Option<bool> {
         let cancellation = ProcessCancellation::default();
-        let result = tokio::time::timeout(
-            MEDIA_INSPECTION_TIMEOUT,
-            probe_media(self.runner.as_ref(), ffprobe, path, &cancellation),
-        )
-        .await;
-        if result.is_err() {
-            cancellation.cancel();
-        }
+        let result = match &self.backend {
+            ExportBackend::Native => {
+                let path = path.to_path_buf();
+                let worker_cancellation = cancellation.clone();
+                tokio::time::timeout(
+                    MEDIA_INSPECTION_TIMEOUT,
+                    tokio::task::spawn_blocking(move || {
+                        native_probe_media(&path, &worker_cancellation)
+                    }),
+                )
+                .await
+                .ok()
+                .and_then(Result::ok)
+            }
+            #[cfg(test)]
+            ExportBackend::Test(backend) => return Some(backend.has_audio(path)),
+        };
         result
-            .ok()
             .and_then(Result::ok)
             .map(|probe| probe.streams.iter().any(|stream| stream.kind == "audio"))
     }
 
-    async fn select_encoder(
+    fn select_encoder(
         &self,
-        ffmpeg: &Path,
+        _ffmpeg: &Path,
         requested: &str,
     ) -> Result<EncoderSelection, DomainError> {
-        let cancellation = ProcessCancellation::default();
-        let inspection = tokio::time::timeout(
-            MEDIA_INSPECTION_TIMEOUT,
-            inspect_ffmpeg(self.runner.as_ref(), ffmpeg.to_path_buf(), &cancellation),
-        )
-        .await;
-        if inspection.is_err() {
-            cancellation.cancel();
-        }
-        let encoders = match inspection {
-            Ok(Ok(info)) => info.encoders,
-            Ok(Err(error)) => {
-                tracing::warn!(%error, "unable to inspect FFmpeg encoders; using a safe selection");
-                Vec::new()
-            }
-            Err(_) => {
-                tracing::warn!("FFmpeg encoder inspection timed out; using a safe selection");
-                Vec::new()
-            }
+        let encoders = match &self.backend {
+            ExportBackend::Native => native_ffmpeg_info().map_err(map_media_error)?.encoders,
+            #[cfg(test)]
+            ExportBackend::Test(backend) => backend.encoders(),
         };
         select_video_encoder(requested, &encoders).map_err(map_media_error)
     }
@@ -358,7 +364,7 @@ impl RuntimeExportPort {
         cancellation: ProcessCancellation,
     ) {
         let storage = self.storage.clone();
-        let runner = Arc::clone(&self.runner);
+        let backend = self.backend.clone();
         let active = Arc::clone(&self.active);
         let job_id = record.job.id;
         tokio::spawn(async move {
@@ -397,13 +403,22 @@ impl RuntimeExportPort {
                 }
                 persisted
             });
-            let result = execute_filter_plan_with_progress(
-                runner.as_ref(),
-                &plan,
-                &cancellation,
-                progress_callback,
-            )
-            .await;
+            let result = match backend {
+                ExportBackend::Native => {
+                    execute_native_filter_plan_with_progress(
+                        &plan,
+                        &cancellation,
+                        progress_callback,
+                    )
+                    .await
+                }
+                #[cfg(test)]
+                ExportBackend::Test(backend) => {
+                    backend
+                        .execute(&plan, &cancellation, progress_callback)
+                        .await
+                }
+            };
             let persisted_progress = progress_task.await.unwrap_or(0.0);
             record.job.updated_at = Utc::now();
             record.job.progress = record.job.progress.max(persisted_progress);
@@ -529,6 +544,7 @@ fn map_media_error(error: MediaError) -> DomainError {
         error @ (MediaError::OutputLimit { .. }
         | MediaError::ProcessFailed { .. }
         | MediaError::InvalidToolOutput(_)
+        | MediaError::NativeFfmpeg(_)
         | MediaError::UnsupportedWave(_)
         | MediaError::EmptyOutput(_)
         | MediaError::Io { .. }
@@ -559,12 +575,13 @@ mod tests {
     }
 
     #[async_trait]
-    impl ProcessRunner for FailingRunner {
-        async fn run(
+    impl ExportTestBackend for FailingRunner {
+        async fn execute(
             &self,
-            _command: &vibe_cs_media::CommandSpec,
+            _plan: &FilterPlan,
             _cancellation: &ProcessCancellation,
-        ) -> Result<vibe_cs_media::ProcessOutput, MediaError> {
+            _progress: ProgressCallback,
+        ) -> Result<(), MediaError> {
             Err(MediaError::ProcessFailed {
                 status: 1,
                 message: "encoder failed".to_owned(),
@@ -573,30 +590,13 @@ mod tests {
     }
 
     #[async_trait]
-    impl ProcessRunner for CancellationRunner {
-        async fn run(
+    impl ExportTestBackend for CancellationRunner {
+        async fn execute(
             &self,
-            command: &vibe_cs_media::CommandSpec,
+            _plan: &FilterPlan,
             cancellation: &ProcessCancellation,
-        ) -> Result<vibe_cs_media::ProcessOutput, MediaError> {
-            if command.args.iter().any(|argument| argument == "-version") {
-                return Ok(vibe_cs_media::ProcessOutput {
-                    stdout: b"ffmpeg version 7.1\n".to_vec(),
-                    ..vibe_cs_media::ProcessOutput::default()
-                });
-            }
-            if command.args.iter().any(|argument| argument == "-encoders") {
-                return Ok(vibe_cs_media::ProcessOutput {
-                    stdout: b" V..... libx264 H.264\n".to_vec(),
-                    ..vibe_cs_media::ProcessOutput::default()
-                });
-            }
-            if command.args.iter().any(|argument| argument == "json") {
-                return Ok(vibe_cs_media::ProcessOutput {
-                    stdout: br#"{"streams":[{"index":0,"codec_type":"video","codec_name":"h264"},{"index":1,"codec_type":"audio","codec_name":"aac"}],"format":{"duration":"1","size":"5"}}"#.to_vec(),
-                    ..vibe_cs_media::ProcessOutput::default()
-                });
-            }
+            _progress: ProgressCallback,
+        ) -> Result<(), MediaError> {
             if cancellation.is_cancelled() {
                 return Err(MediaError::Cancelled);
             }
@@ -606,42 +606,13 @@ mod tests {
     }
 
     #[async_trait]
-    impl ProcessRunner for ProgressRunner {
-        async fn run(
+    impl ExportTestBackend for ProgressRunner {
+        async fn execute(
             &self,
-            command: &vibe_cs_media::CommandSpec,
-            _cancellation: &ProcessCancellation,
-        ) -> Result<vibe_cs_media::ProcessOutput, MediaError> {
-            if command.args.iter().any(|argument| argument == "-version") {
-                return Ok(vibe_cs_media::ProcessOutput {
-                    stdout: b"ffmpeg version 7.1\n".to_vec(),
-                    ..vibe_cs_media::ProcessOutput::default()
-                });
-            }
-            if command.args.iter().any(|argument| argument == "-encoders") {
-                return Ok(vibe_cs_media::ProcessOutput {
-                    stdout: b" V..... libx264 H.264\n".to_vec(),
-                    ..vibe_cs_media::ProcessOutput::default()
-                });
-            }
-            if command.args.iter().any(|argument| argument == "json") {
-                return Ok(vibe_cs_media::ProcessOutput {
-                    stdout: br#"{"streams":[{"index":0,"codec_type":"video","codec_name":"h264"},{"index":1,"codec_type":"audio","codec_name":"aac"}],"format":{"duration":"1","size":"5"}}"#.to_vec(),
-                    ..vibe_cs_media::ProcessOutput::default()
-                });
-            }
-            Ok(vibe_cs_media::ProcessOutput::default())
-        }
-
-        async fn run_with_progress(
-            &self,
-            command: &vibe_cs_media::CommandSpec,
+            plan: &FilterPlan,
             cancellation: &ProcessCancellation,
-            progress: vibe_cs_media::ProgressCallback,
-        ) -> Result<vibe_cs_media::ProcessOutput, MediaError> {
-            if !command.args.iter().any(|argument| argument == "-progress") {
-                return self.run(command, cancellation).await;
-            }
+            progress: ProgressCallback,
+        ) -> Result<(), MediaError> {
             progress(vibe_cs_media::FfmpegProgress {
                 out_time_seconds: 0.5,
                 completed: false,
@@ -651,19 +622,18 @@ mod tests {
                 () = self.release.notified() => {}
                 () = cancellation.cancelled() => return Err(MediaError::Cancelled),
             }
-            let output = command.args.last().expect("temporary output");
-            tokio::fs::write(Path::new(output), b"video")
+            tokio::fs::write(&plan.temporary_output, b"video")
                 .await
                 .map_err(|source| MediaError::Io {
-                    path: PathBuf::from(output),
+                    path: plan.temporary_output.clone(),
                     source,
                 })?;
-            Ok(vibe_cs_media::ProcessOutput::default())
+            vibe_cs_media::publish_temporary_output(&plan.temporary_output, &plan.final_output)
         }
     }
 
     async fn montage_fixture(
-        runner: Arc<dyn ProcessRunner>,
+        backend: Arc<dyn ExportTestBackend>,
     ) -> (
         tempfile::TempDir,
         vibe_cs_storage::Storage,
@@ -671,22 +641,11 @@ mod tests {
         Uuid,
     ) {
         let root = tempfile::tempdir().expect("temporary directory");
-        let ffmpeg = root.path().join("ffmpeg.exe");
         let source = root.path().join("source.mp4");
-        tokio::fs::write(&ffmpeg, b"stub")
-            .await
-            .expect("ffmpeg stub");
         tokio::fs::write(&source, b"video").await.expect("source");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
-        storage
-            .put_config(AppConfig {
-                ffmpeg_path: ffmpeg.to_string_lossy().into_owned(),
-                ..AppConfig::default()
-            })
-            .await
-            .expect("config");
         let now = Utc::now();
         let clip_id = Uuid::new_v4();
         storage
@@ -724,8 +683,11 @@ mod tests {
             })
             .await
             .expect("project");
-        let port =
-            RuntimeExportPort::with_runner(storage.clone(), root.path().to_path_buf(), runner);
+        let port = RuntimeExportPort::with_test_backend(
+            storage.clone(),
+            root.path().to_path_buf(),
+            backend,
+        );
         (root, storage, port, project_id)
     }
 
@@ -765,7 +727,7 @@ mod tests {
     async fn machine_progress_is_persisted_before_export_completion() {
         let runner = Arc::new(ProgressRunner::default());
         let (_root, storage, port, project_id) =
-            montage_fixture(runner.clone() as Arc<dyn ProcessRunner>).await;
+            montage_fixture(runner.clone() as Arc<dyn ExportTestBackend>).await;
         let running = port
             .start("montage", project_id, Value::Null)
             .await
@@ -860,13 +822,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn missing_ffmpeg_is_an_explicit_dependency_error() {
+    async fn configured_cli_paths_do_not_gate_native_exports() {
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
         storage
             .put_config(AppConfig {
-                ffmpeg_path: "Z:/definitely-missing/ffmpeg.exe".to_owned(),
+                ffmpeg_path: "ignored legacy external path".to_owned(),
                 ..AppConfig::default()
             })
             .await
@@ -876,29 +838,18 @@ mod tests {
         let error = port
             .start("montage", Uuid::new_v4(), Value::Null)
             .await
-            .expect_err("missing ffmpeg must fail before a process starts");
-        assert!(matches!(error, DomainError::DependencyUnavailable(_)));
+            .expect_err("unknown project must still be rejected");
+        assert!(matches!(error, DomainError::NotFound(_)));
     }
 
     #[tokio::test]
     async fn background_export_failure_is_persisted() {
         let root = tempfile::tempdir().expect("temporary directory");
-        let ffmpeg = root.path().join("ffmpeg.exe");
         let source = root.path().join("source.mp4");
-        tokio::fs::write(&ffmpeg, b"stub")
-            .await
-            .expect("ffmpeg stub");
         tokio::fs::write(&source, b"video").await.expect("source");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
-        storage
-            .put_config(AppConfig {
-                ffmpeg_path: ffmpeg.to_string_lossy().into_owned(),
-                ..AppConfig::default()
-            })
-            .await
-            .expect("config");
         let now = Utc::now();
         let clip_id = Uuid::new_v4();
         storage
@@ -936,7 +887,7 @@ mod tests {
             })
             .await
             .expect("project");
-        let port = RuntimeExportPort::with_runner(
+        let port = RuntimeExportPort::with_test_backend(
             storage.clone(),
             root.path().to_path_buf(),
             Arc::new(FailingRunner),
@@ -971,22 +922,11 @@ mod tests {
     #[tokio::test]
     async fn editor_accepts_a_recorded_clip_as_a_media_source() {
         let root = tempfile::tempdir().expect("temporary directory");
-        let ffmpeg = root.path().join("ffmpeg.exe");
         let source = root.path().join("recorded.mp4");
-        tokio::fs::write(&ffmpeg, b"stub")
-            .await
-            .expect("ffmpeg stub");
         tokio::fs::write(&source, b"video").await.expect("source");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
-        storage
-            .put_config(AppConfig {
-                ffmpeg_path: ffmpeg.to_string_lossy().into_owned(),
-                ..AppConfig::default()
-            })
-            .await
-            .expect("config");
         let now = Utc::now();
         let clip_id = Uuid::new_v4();
         storage
@@ -1051,7 +991,7 @@ mod tests {
             })
             .await
             .expect("project");
-        let port = RuntimeExportPort::with_runner(
+        let port = RuntimeExportPort::with_test_backend(
             storage,
             root.path().to_path_buf(),
             Arc::new(FailingRunner),

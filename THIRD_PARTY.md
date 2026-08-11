@@ -2,7 +2,9 @@
 
 Vibe CS uses open-source Rust and JavaScript packages through Cargo and pnpm. Exact versions and checksums are recorded in `Cargo.lock` and `pnpm-lock.yaml`.
 
-Demo decoding and bounded cosmetic field rewriting use the crates.io `source2-demo` 0.5.8 public parser/writer API under its MIT OR Apache-2.0 license. No modified or separately sourced parser code is vendored. FFmpeg and OBS are optional external programs discovered on the user's machine; they are not bundled by this repository.
+Demo decoding and bounded cosmetic field rewriting use the crates.io `source2-demo` 0.5.8 public parser/writer API under its MIT OR Apache-2.0 license. No modified or separately sourced parser code is vendored.
+
+The Rust media layer uses `ffmpeg-next` 8.1.0 (WTFPL) and `ez-ffmpeg` 0.17.1 (MIT OR Apache-2.0 OR MPL-2.0) to call the FFmpeg libraries in-process. Windows builds use the checksum-pinned BtbN FFmpeg 8.1.2 `win64-lgpl-shared` SDK under LGPL v2.1-or-later; its license is bundled with the application. The selected LGPL build includes NVENC, Intel QSV, AMD AMF, Media Foundation, and OpenH264 encoders but excludes GPL-only libx264/libx265. Steam and CS2 AppID 730 discovery use `steamlocate` 2.1.0 (MIT) and still validate the resolved executable before launch.
 
 The Windows adapter uses Microsoft's `windows` Rust crate under its MIT OR Apache-2.0 license to call documented Win32 APIs without shell command construction.
 

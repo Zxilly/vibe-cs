@@ -40,6 +40,7 @@ import type {
   AppConfig,
   DetectedPaths,
   MediaProxyCleanup,
+  MediaRuntimeStatus,
   ObsDiagnosis,
   ObsRecordStatus,
   QuickCheckResponse,
@@ -526,7 +527,9 @@ export function VideoSettings({
   setConfig: React.Dispatch<React.SetStateAction<AppConfig>>;
   updateObs: <K extends keyof AppConfig['obs']>(key: K, value: AppConfig['obs'][K]) => void;
 }) {
+  const { t } = useI18n();
   const dependencyAction = useAsyncAction<QuickCheckResponse>();
+  const mediaRuntimeAction = useAsyncAction<MediaRuntimeStatus>();
   const testAction = useAsyncAction<ObsRecordStatus>();
   const launchAction = useAsyncAction<{ started: boolean; process_id: number }>();
   const diagnosisController = useRef<AbortController | null>(null);
@@ -540,6 +543,14 @@ export function VideoSettings({
     : false;
   const savedObsConfigured = Boolean(savedConfig?.obs.host.trim() && savedConfig.obs.port > 0);
   const savedExecutableConfigured = Boolean(savedConfig?.obs.executable.trim());
+
+  useEffect(() => {
+    if (source === 'service') {
+      void mediaRuntimeAction.run(() => commands.mediaRuntimeStatus());
+    } else {
+      mediaRuntimeAction.reset();
+    }
+  }, [mediaRuntimeAction.reset, mediaRuntimeAction.run, source]);
 
   const refreshDiagnosis = useCallback(async (retryAfterLaunch = false) => {
     diagnosisController.current?.abort();
@@ -580,10 +591,13 @@ export function VideoSettings({
 
   return (
     <div className="settings-stack-page">
-      <SettingsSection eyebrow="MEDIA TOOLCHAIN" title="FFmpeg" description={msg("m0991")}>
-        <PathField icon={<FilmIcon />} label="FFmpeg" value={config.ffmpeg_path} onChange={(value) => setConfig((current) => ({ ...current, ffmpeg_path: value }))} placeholder={msg("m0082")} browse={{ kind: 'file', title: msg("m1220"), filters: [{ name: msg("m0081"), extensions: ['exe'] }] }} />
-        <PathField icon={<FilmIcon />} label="FFprobe" value={config.ffprobe_path} onChange={(value) => setConfig((current) => ({ ...current, ffprobe_path: value }))} placeholder={msg("m0083")} browse={{ kind: 'file', title: msg("m1221"), filters: [{ name: msg("m0081"), extensions: ['exe'] }] }} />
-        <Field label={msg("m1324")} hint={msg("m1028")}><select value={config.preferred_encoder} onChange={(event) => setConfig((current) => ({ ...current, preferred_encoder: event.target.value as AppConfig['preferred_encoder'] }))}><option value="auto">{msg("m1096")}</option><option value="libx264">{msg("m0084")}</option><option value="h264_nvenc">NVIDIA NVENC</option><option value="h264_qsv">Intel Quick Sync</option><option value="h264_amf">AMD AMF</option></select></Field>
+      <SettingsSection eyebrow="MEDIA TOOLCHAIN" title={t('settings.mediaRuntime')} description={t('settings.mediaRuntimeDescription')}>
+        {mediaRuntimeAction.state.status === 'loading' ? <Notice tone="info"><Spinner />{msg("m0872")}</Notice> : null}
+        {mediaRuntimeAction.state.status === 'success' ? <Notice tone="success">{t('settings.mediaRuntimeManaged')}</Notice> : null}
+        {mediaRuntimeAction.state.status === 'error' ? <Notice tone="danger">{mediaRuntimeAction.state.message}</Notice> : null}
+        {mediaRuntimeAction.state.status === 'success' ? <div className="dependency-inline"><span className="setup-row__icon"><FilmIcon /></span><div><strong>{mediaRuntimeAction.state.data.backend}</strong><small>libavcodec {mediaRuntimeAction.state.data.version} · {mediaRuntimeAction.state.data.license}</small></div><Badge tone="success">Native</Badge></div> : null}
+        {mediaRuntimeAction.state.status === 'success' ? <Notice tone="info">{t('settings.encoderAvailable')}: {mediaRuntimeAction.state.data.encoders.join(', ')}</Notice> : null}
+        <Field label={msg("m1324")} hint={t('settings.encoderDescription')}><select value={config.preferred_encoder} onChange={(event) => setConfig((current) => ({ ...current, preferred_encoder: event.target.value as AppConfig['preferred_encoder'] }))}><option value="auto">{msg("m1096")}</option><option value="libopenh264">OpenH264 (CPU)</option><option value="h264_mf">Media Foundation</option><option value="h264_nvenc">NVIDIA NVENC</option><option value="h264_qsv">Intel Quick Sync</option><option value="h264_amf">AMD AMF</option></select></Field>
         <div className="dependency-inline"><span className="setup-row__icon setup-row__icon--warning"><CircleAlert size={14} /></span><div><strong>{msg("m0204")}</strong><small>{msg("m0744")}</small></div><Button size="sm" disabled={dependencyAction.state.status === 'loading'} onClick={() => void dependencyAction.run(() => commands.quickCheck(), msg("m0205"))} >{dependencyAction.state.status === 'loading' ? <Spinner /> : <RefreshCw size={13} />}{msg("m0830")}</Button></div>
         {dependencyAction.state.message ? <Notice tone={dependencyAction.state.status === 'error' ? 'danger' : 'success'}>{dependencyAction.state.message}</Notice> : null}
       </SettingsSection>

@@ -6,6 +6,8 @@ use std::{
 use directories::BaseDirs;
 use vibe_cs_domain::AppConfig;
 
+const CS2_APP_ID: u32 = 730;
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct DiscoveredPaths {
     pub steam: Option<PathBuf>,
@@ -19,9 +21,24 @@ pub struct DiscoveredPaths {
 #[must_use]
 pub fn discover_paths(config: &AppConfig) -> DiscoveredPaths {
     let configured_steam_root = configured_steam_root(&config.steam_path);
-    let steam = configured_steam_executable(&config.steam_path).or_else(discover_steam_executable);
+    let configured_cs2 = configured_steam_root
+        .as_ref()
+        .and_then(|root| discover_cs2(std::slice::from_ref(root)));
+    let steam_installations = discover_steam_installations(configured_steam_root.as_deref());
+    let steam = configured_steam_executable(&config.steam_path)
+        .or_else(|| {
+            steam_installations
+                .iter()
+                .find_map(|item| item.executable.clone())
+        })
+        .or_else(discover_steam_executable);
     let mut libraries = steam_roots();
     libraries.extend(configured_steam_root);
+    libraries.extend(
+        steam_installations
+            .iter()
+            .flat_map(|item| item.libraries.clone()),
+    );
     if let Some(parent) = steam.as_deref().and_then(Path::parent) {
         libraries.push(parent.to_path_buf());
     }
@@ -34,14 +51,78 @@ pub fn discover_paths(config: &AppConfig) -> DiscoveredPaths {
     }
     libraries.sort();
     libraries.dedup();
+    let manifest_cs2 = steam_installations.iter().find_map(|item| item.cs2.clone());
     DiscoveredPaths {
         steam,
-        cs2: existing_file(&config.cs2_path).or_else(|| discover_cs2(&libraries)),
+        cs2: existing_file(&config.cs2_path)
+            .or(configured_cs2)
+            .or(manifest_cs2)
+            .or_else(|| discover_cs2(&libraries)),
         obs: existing_file(&config.obs.executable).or_else(discover_obs),
-        ffmpeg: existing_file(&config.ffmpeg_path).or_else(|| find_on_path("ffmpeg")),
-        ffprobe: existing_file(&config.ffprobe_path).or_else(|| find_on_path("ffprobe")),
+        // Compatibility fields remain null: media libraries are linked into
+        // the process and external FFmpeg executables are never discovered.
+        ffmpeg: None,
+        ffprobe: None,
         steam_libraries: libraries,
     }
+}
+
+#[derive(Debug, Default)]
+struct SteamInstallation {
+    executable: Option<PathBuf>,
+    libraries: Vec<PathBuf>,
+    cs2: Option<PathBuf>,
+}
+
+fn discover_steam_installations(configured_root: Option<&Path>) -> Vec<SteamInstallation> {
+    let mut directories = steamlocate::locate_all().unwrap_or_default();
+    if let Some(directory) =
+        configured_root.and_then(|path| steamlocate::SteamDir::from_dir(path).ok())
+        && !directories
+            .iter()
+            .any(|item| item.path() == directory.path())
+    {
+        directories.push(directory);
+    }
+    directories
+        .into_iter()
+        .map(|directory| {
+            let executable = steam_executable_in(directory.path());
+            let libraries = directory.library_paths().unwrap_or_default();
+            let cs2 = directory
+                .find_app(CS2_APP_ID)
+                .ok()
+                .flatten()
+                .and_then(|(app, library)| cs2_executable_in(&library.resolve_app_dir(&app)));
+            SteamInstallation {
+                executable,
+                libraries,
+                cs2,
+            }
+        })
+        .collect()
+}
+
+fn steam_executable_in(root: &Path) -> Option<PathBuf> {
+    let relative = if cfg!(windows) {
+        "steam.exe"
+    } else if cfg!(target_os = "macos") {
+        "Steam.app/Contents/MacOS/steam_osx"
+    } else {
+        "steam"
+    };
+    Some(root.join(relative)).filter(|path| path.is_file())
+}
+
+fn cs2_executable_in(app_directory: &Path) -> Option<PathBuf> {
+    let relative = if cfg!(windows) {
+        Path::new("game/bin/win64/cs2.exe")
+    } else if cfg!(target_os = "macos") {
+        Path::new("game/cs2.app/Contents/MacOS/cs2")
+    } else {
+        Path::new("game/bin/linuxsteamrt64/cs2")
+    };
+    Some(app_directory.join(relative)).filter(|path| path.is_file())
 }
 
 fn configured_steam_root(value: &str) -> Option<PathBuf> {
@@ -118,17 +199,9 @@ fn steam_roots() -> Vec<PathBuf> {
 }
 
 fn discover_steam_executable() -> Option<PathBuf> {
-    let executable = if cfg!(windows) {
-        "steam.exe"
-    } else if cfg!(target_os = "macos") {
-        "Steam.app/Contents/MacOS/steam_osx"
-    } else {
-        "steam"
-    };
     steam_roots()
         .into_iter()
-        .map(|root| root.join(executable))
-        .find(|path| path.is_file())
+        .find_map(|root| steam_executable_in(&root))
         .or_else(|| find_on_path("steam"))
 }
 
@@ -229,5 +302,24 @@ mod tests {
         let paths = discover_paths(&config);
         assert_eq!(paths.cs2.as_deref(), Some(executable.as_path()));
         assert!(paths.steam_libraries.iter().any(|path| path == root.path()));
+    }
+
+    #[test]
+    fn resolves_cs2_executable_below_a_manifest_install_directory() {
+        let root = tempfile::tempdir().unwrap();
+        let relative = if cfg!(windows) {
+            "game/bin/win64/cs2.exe"
+        } else if cfg!(target_os = "macos") {
+            "game/cs2.app/Contents/MacOS/cs2"
+        } else {
+            "game/bin/linuxsteamrt64/cs2"
+        };
+        let executable = root.path().join(relative);
+        std::fs::create_dir_all(executable.parent().unwrap()).unwrap();
+        std::fs::write(&executable, b"stub").unwrap();
+        assert_eq!(
+            cs2_executable_in(root.path()).as_deref(),
+            Some(executable.as_path())
+        );
     }
 }

@@ -147,6 +147,14 @@ export type DetectedPaths = {
   ffprobe_path: string | null;
 };
 
+export type MediaRuntimeStatus = {
+  available: boolean;
+  backend: 'ffmpeg-next';
+  version: string;
+  license: string;
+  encoders: string[];
+};
+
 export type DemoStatus = 'pending' | 'parsing' | 'ready' | 'error';
 
 /** Wire DTO mirrored from vibe-cs-domain::DemoRecord. */
@@ -985,7 +993,7 @@ export type MontageExportRequest = {
 };
 
 export type EditorExportOptions = {
-  encoder: 'auto' | 'libx264' | 'h264_qsv' | 'h264_nvenc' | 'h264_amf';
+  encoder: 'auto' | 'libopenh264' | 'h264_mf' | 'h264_qsv' | 'h264_nvenc' | 'h264_amf';
   quality: number;
   range_start_seconds?: number;
   range_end_seconds?: number;
@@ -1293,7 +1301,7 @@ export type AppConfig = {
   demo_watch_paths: string[];
   ffmpeg_path: string;
   ffprobe_path: string;
-  preferred_encoder: 'auto' | 'libx264' | 'h264_qsv' | 'h264_nvenc' | 'h264_amf';
+  preferred_encoder: 'auto' | 'libopenh264' | 'h264_mf' | 'h264_qsv' | 'h264_nvenc' | 'h264_amf';
   cs2_path: string;
   steam_path: string;
   steam: {

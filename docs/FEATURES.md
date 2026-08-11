@@ -93,7 +93,7 @@ missing.
   keyboard and kill-event overlays are derived from timeline evidence and rendered during a real
   FFmpeg post-process together with fades; missing input evidence does not produce a fabricated
   overlay.
-- Probe hardware encoders for post-processing, fall back to `libx264` after an actual hardware
+- Probe hardware encoders for post-processing, fall back to LGPL `libopenh264` after an actual hardware
   session failure, publish a verified non-empty output atomically and register the completed clip
   with duration, request and tick metadata.
 
@@ -105,7 +105,7 @@ missing.
 - Apply typed montage themes, player-avatar name cards and an optional outro. Uploaded packaging
   media remains managed, bounded and explicitly selected by the user.
 - Select resolution, frame rate and encoder policy, submit a persistent export, observe machine
-  progress parsed from FFmpeg, cancel cooperatively and retry the complete render with `libx264`
+  progress reported by the in-process scheduler, cancel cooperatively and retry the complete render with `libopenh264`
   when an auto-selected QSV/NVENC/AMF encoder fails.
 - Create multi-track editor projects with video, audio, image, text and overlay tracks. Rendering
   supports source trim, transform, opacity, volume, colour adjustment, fades, bounded export ranges,
@@ -169,7 +169,10 @@ missing.
   match evidence.
 - Positioned replay and heatmaps depend on trustworthy entity or event coordinates. The UI states
   when only non-spatial timeline evidence is available.
-- Media probing and rendering require local FFmpeg/ffprobe. Verified game capture requires Windows,
-  a local game installation, a fresh GSI heartbeat and OBS WebSocket.
+- Media probing, waveform decoding, filters, encoding and muxing run in-process through
+  `ffmpeg-next`/`ez-ffmpeg` and a bundled LGPL FFmpeg shared build. No media operation launches an
+  FFmpeg executable or command shell. Verified game capture requires
+  Windows, a Steam-discovered or manually selected local game installation, a fresh GSI heartbeat
+  and OBS WebSocket.
 - Steam public data and AI review are optional external integrations. Their absence never blocks
   local demo parsing, analysis or editing.

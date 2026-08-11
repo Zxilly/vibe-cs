@@ -34,10 +34,11 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 - `cosmetics` inspects and rewrites a fixed set of observed Source 2 entity fields to a new demo.
 - `source-assets` provides bounded read-only VPK v2 access, overview parsing and compiled radar
   texture decoding, plus localized cosmetic catalog and inventory-image extraction.
-- `media` owns ffprobe inspection, waveform generation and deterministic FFmpeg argument/filter
-  plans. It never invokes a shell.
-- `integrations` isolates OBS WebSocket v5, Steam HTTP, GSI payloads, launch commands and
-  OpenAI-compatible HTTP.
+- `media` links the FFmpeg libraries through `ffmpeg-next`, owns in-process container inspection
+  and audio waveform decoding, and is progressively replacing the legacy direct-argument render
+  plans with native codec/filter graphs. It never invokes a command shell.
+- `integrations` isolates OBS WebSocket v5, Steam HTTP, GSI payloads, launch commands,
+  Steam AppID-based installation discovery and OpenAI-compatible HTTP.
 - `platform-windows` owns process discovery, foreground verification, typed Unicode input, direct
   process launch and integrity-checked backup/recovery primitives.
 - `recording` coordinates acknowledged game playback, evidence-backed director plans, calibrated

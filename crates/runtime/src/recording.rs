@@ -21,9 +21,9 @@ use vibe_cs_integrations::{
     SecretString, WebSocketObsTransport, discover_paths,
 };
 use vibe_cs_media::{
-    MediaError, SingleInputTranscodeOptions, SystemProcessRunner as MediaProcessRunner,
-    TimedTextOverlay, build_single_input_transcode_plan, execute_filter_plan_with_progress,
-    find_executable, inspect_ffmpeg, probe_media, select_video_encoder,
+    MediaError, SingleInputTranscodeOptions, TimedTextOverlay, build_single_input_transcode_plan,
+    execute_native_filter_plan_with_progress, native_ffmpeg_info, native_probe_media,
+    select_video_encoder,
 };
 use vibe_cs_platform_windows::{
     BackupManager, DesktopBackend, FirstPersonHudInstaller, PlatformError,
@@ -584,9 +584,6 @@ impl SystemRecordingBackend {
         mut clip: RecordedClip,
         cancellation: &RecordingCancellation,
     ) -> Result<RecordedClip, DomainError> {
-        let configured =
-            (!config.ffmpeg_path.trim().is_empty()).then(|| Path::new(config.ffmpeg_path.trim()));
-        let ffmpeg = find_executable("ffmpeg", configured).map_err(media_error)?;
         let source = PathBuf::from(&clip.path);
         let stem = source
             .file_stem()
@@ -605,13 +602,8 @@ impl SystemRecordingBackend {
         } else {
             0.0
         };
-        let runner = MediaProcessRunner::default();
-        let has_audio = self
-            .recording_has_audio(config, &runner, &source, cancellation)
-            .await?;
-        let encoder = self
-            .recording_encoder(config, &runner, &ffmpeg, cancellation)
-            .await?;
+        let has_audio = self.recording_has_audio(&source, cancellation).await?;
+        let encoder = Self::recording_encoder(config, cancellation)?;
         let options = SingleInputTranscodeOptions {
             duration_seconds: clip.duration_seconds,
             width,
@@ -624,9 +616,14 @@ impl SystemRecordingBackend {
             encoder,
             quality: 80,
         };
-        let plan = build_single_input_transcode_plan(&ffmpeg, &source, &rendered, &options)
-            .map_err(media_error)?;
-        execute_filter_plan_with_progress(&runner, &plan, cancellation, Arc::new(|_| {}))
+        let plan = build_single_input_transcode_plan(
+            Path::new("native-libav"),
+            &source,
+            &rendered,
+            &options,
+        )
+        .map_err(media_error)?;
+        execute_native_filter_plan_with_progress(&plan, cancellation, Arc::new(|_| {}))
             .await
             .map_err(media_error)?;
         if cancellation.is_cancelled() {
@@ -646,65 +643,44 @@ impl SystemRecordingBackend {
 
     async fn recording_has_audio(
         &self,
-        config: &AppConfig,
-        runner: &MediaProcessRunner,
         source: &Path,
         cancellation: &RecordingCancellation,
     ) -> Result<bool, DomainError> {
-        let configured =
-            (!config.ffprobe_path.trim().is_empty()).then(|| Path::new(config.ffprobe_path.trim()));
-        let Ok(ffprobe) = find_executable("ffprobe", configured) else {
-            return Ok(true);
-        };
+        let source = source.to_path_buf();
+        let worker_cancellation = cancellation.clone();
         let result = tokio::time::timeout(
             Duration::from_secs(10),
-            probe_media(runner, &ffprobe, source, cancellation),
+            tokio::task::spawn_blocking(move || native_probe_media(&source, &worker_cancellation)),
         )
         .await;
         match result {
-            Ok(Ok(probe)) => Ok(probe.streams.iter().any(|stream| stream.kind == "audio")),
-            Ok(Err(MediaError::Cancelled)) => {
+            Ok(Ok(Ok(probe))) => Ok(probe.streams.iter().any(|stream| stream.kind == "audio")),
+            Ok(Ok(Err(MediaError::Cancelled))) => {
                 Err(DomainError::Conflict("recording was cancelled".to_owned()))
             }
-            Ok(Err(error)) => {
+            Ok(Ok(Err(error))) => {
                 tracing::warn!(%error, "unable to inspect OBS audio stream; preserving audio mapping");
                 Ok(true)
             }
+            Ok(Err(error)) => Err(DomainError::Internal(format!(
+                "native recording probe task failed: {error}"
+            ))),
             Err(_) => {
+                cancellation.cancel();
                 tracing::warn!("timed out inspecting OBS audio stream; preserving audio mapping");
                 Ok(true)
             }
         }
     }
 
-    async fn recording_encoder(
-        &self,
+    fn recording_encoder(
         config: &AppConfig,
-        runner: &MediaProcessRunner,
-        ffmpeg: &Path,
         cancellation: &RecordingCancellation,
     ) -> Result<vibe_cs_media::EncoderSelection, DomainError> {
-        let inspection = tokio::time::timeout(
-            Duration::from_secs(10),
-            inspect_ffmpeg(runner, ffmpeg.to_path_buf(), cancellation),
-        )
-        .await;
-        let encoders = match inspection {
-            Ok(Ok(info)) => info.encoders,
-            Ok(Err(MediaError::Cancelled)) => {
-                return Err(DomainError::Conflict("recording was cancelled".to_owned()));
-            }
-            Ok(Err(error)) => {
-                tracing::warn!(%error, "unable to inspect recording encoders; retaining software fallback");
-                Vec::new()
-            }
-            Err(_) => {
-                tracing::warn!(
-                    "timed out inspecting recording encoders; retaining software fallback"
-                );
-                Vec::new()
-            }
-        };
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict("recording was cancelled".to_owned()));
+        }
+        let encoders = native_ffmpeg_info().map_err(media_error)?.encoders;
         select_video_encoder(&config.preferred_encoder, &encoders).map_err(media_error)
     }
 }
@@ -836,9 +812,7 @@ impl RecordingBackend for SystemRecordingBackend {
     ) -> Result<(), DomainError> {
         validate_system_configuration(config)?;
         Self::ensure_hud_can_load_before_launch(config)?;
-        let configured =
-            (!config.ffmpeg_path.trim().is_empty()).then(|| Path::new(config.ffmpeg_path.trim()));
-        let _ffmpeg = find_executable("ffmpeg", configured).map_err(media_error)?;
+        let _native_media = native_ffmpeg_info().map_err(media_error)?;
         let _dimensions = parse_recording_resolution(&config.recording.resolution)?;
         if !matches!(config.recording.fps, 30 | 60) {
             return Err(DomainError::InvalidInput(
@@ -2220,6 +2194,7 @@ fn media_error(error: MediaError) -> DomainError {
         MediaError::InvalidInput(message) | MediaError::InvalidToolOutput(message) => {
             DomainError::InvalidInput(message)
         }
+        MediaError::NativeFfmpeg(message) => DomainError::DependencyUnavailable(message),
         MediaError::Cancelled => DomainError::Conflict("recording was cancelled".to_owned()),
         MediaError::OutputExists(path) => DomainError::Conflict(format!(
             "recording post-processing output already exists: {}",
@@ -2950,7 +2925,7 @@ mod tests {
             fade_in_seconds: 0.0,
             fade_out_seconds: 0.0,
             overlays: build_recording_overlays(item, 1920, 1080, 4.0),
-            encoder: select_video_encoder("libx264", &[]).expect("software encoder"),
+            encoder: select_video_encoder("libopenh264", &[]).expect("software encoder"),
             quality: 80,
         }
     }

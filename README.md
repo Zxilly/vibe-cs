@@ -27,13 +27,17 @@ crates/
 
 ## Development
 
-Requirements: Rust 1.88+, Node.js 22+, and pnpm 10+. FFmpeg/ffprobe are required
-for media probing, waveform generation, recording post-processing, and exports. Recording
-also requires a local CS2 installation and OBS with WebSocket enabled. Local CS2 assets supply
-map-overview metadata when available.
+Requirements: Rust 1.88+, Node.js 22+, pnpm 10+, and PowerShell on Windows. The desktop build
+bootstraps a checksum-pinned FFmpeg 8.1.2 LGPL shared SDK and links it through `ffmpeg-next` and
+`ez-ffmpeg`; probing, waveform decoding, filters, encoding and muxing all run inside the Rust process
+without an FFmpeg executable. Recording
+requires OBS with WebSocket enabled. CS2 is located from Steam app 730 manifests across configured
+library folders, with a manual path kept only as a fallback. Local CS2 assets supply map-overview
+metadata when available.
 
 ```powershell
 corepack pnpm install
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1
 cargo build -p vibe-cs-demo-worker
 ```
 

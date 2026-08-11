@@ -1,6 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
 use chrono::Utc;
+use ez_ffmpeg::{FfmpegContext, Input, Output};
 use serde_json::Value;
 use uuid::Uuid;
 use vibe_cs_domain::{
@@ -8,98 +9,62 @@ use vibe_cs_domain::{
     EditorTrack, MontageClip, MontageProject, MontageSettings, TextStyle, TrackKind, Transform,
 };
 use vibe_cs_media::{
-    CommandSpec, EditorMediaKind, EditorMediaSource, EditorRenderOptions, EncoderSelection,
-    MontageSource, ProcessCancellation, ProcessRunner, SystemProcessRunner,
-    build_audio_extraction_plan, build_editor_plan_with_sources, build_montage_plan_with_sources,
-    execute_filter_plan, find_executable, probe_media,
+    EditorMediaKind, EditorMediaSource, EditorRenderOptions, EncoderSelection, MontageSource,
+    ProcessCancellation, build_audio_extraction_plan, build_editor_plan_with_sources,
+    build_montage_plan_with_sources, execute_native_filter_plan, native_probe_media,
 };
 
-async fn generate_source(ffmpeg: &Path, output: &Path, color: &str) {
-    let runner = SystemProcessRunner::default();
-    runner
-        .run(
-            &CommandSpec::new(ffmpeg).args([
-                "-hide_banner".into(),
-                "-nostdin".into(),
-                "-y".into(),
-                "-f".into(),
-                "lavfi".into(),
-                "-i".into(),
-                format!("color=c={color}:s=320x180:r=30:d=2").into(),
-                "-f".into(),
-                "lavfi".into(),
-                "-i".into(),
-                "sine=frequency=440:sample_rate=48000:duration=2".into(),
-                "-c:v".into(),
-                "libx264".into(),
-                "-pix_fmt".into(),
-                "yuv420p".into(),
-                "-c:a".into(),
-                "aac".into(),
-                "-shortest".into(),
-                output.as_os_str().to_os_string(),
-            ]),
-            &ProcessCancellation::default(),
+fn generate_source(output: &Path, color: &str) {
+    let context = FfmpegContext::builder()
+        .input(Input::from(format!("color=c={color}:s=320x180:r=30:d=2")).set_format("lavfi"))
+        .input(Input::from("sine=frequency=440:sample_rate=48000:duration=2").set_format("lavfi"))
+        .output(
+            Output::from(output.to_string_lossy().into_owned())
+                .set_video_codec("libopenh264")
+                .set_audio_codec("aac")
+                .set_pix_fmt("yuv420p")
+                .set_shortest(true),
         )
-        .await
-        .expect("generate source")
-        .ensure_success()
-        .expect("source command");
+        .build()
+        .expect("source context");
+    context
+        .start()
+        .expect("source scheduler")
+        .wait()
+        .expect("generate source");
 }
 
-async fn generate_image(ffmpeg: &Path, output: &Path) {
-    SystemProcessRunner::default()
-        .run(
-            &CommandSpec::new(ffmpeg).args([
-                "-hide_banner".into(),
-                "-nostdin".into(),
-                "-y".into(),
-                "-f".into(),
-                "lavfi".into(),
-                "-i".into(),
-                "color=c=green:s=96x96:d=0.1".into(),
-                "-frames:v".into(),
-                "1".into(),
-                output.as_os_str().to_os_string(),
-            ]),
-            &ProcessCancellation::default(),
-        )
-        .await
-        .expect("generate image")
-        .ensure_success()
-        .expect("image command");
+fn generate_image(output: &Path) {
+    let context = FfmpegContext::builder()
+        .input(Input::from("color=c=green:s=96x96:d=0.1").set_format("lavfi"))
+        .output(Output::from(output.to_string_lossy().into_owned()).set_max_video_frames(Some(1)))
+        .build()
+        .expect("image context");
+    context
+        .start()
+        .expect("image scheduler")
+        .wait()
+        .expect("generate image");
 }
 
 #[tokio::test]
-#[ignore = "requires local FFmpeg and fontconfig/DirectWrite"]
 async fn renders_real_montage_and_editor_graphs() {
-    let ffmpeg = find_executable("ffmpeg", None).expect("ffmpeg");
-    let ffprobe = find_executable("ffprobe", None).expect("ffprobe");
+    let ffmpeg = Path::new("native-libav");
     let root = tempfile::tempdir().expect("temporary directory");
     let first = root.path().join("first.mp4");
     let second = root.path().join("second.mp4");
     let image = root.path().join("overlay.bmp");
-    generate_source(&ffmpeg, &first, "red").await;
-    generate_source(&ffmpeg, &second, "blue").await;
-    generate_image(&ffmpeg, &image).await;
+    generate_source(&first, "red");
+    generate_source(&second, "blue");
+    generate_image(&image);
     let separated_audio = root.path().join("separated.m4a");
     let audio_plan =
-        build_audio_extraction_plan(&ffmpeg, &first, &separated_audio, 2.0).expect("audio plan");
-    execute_filter_plan(
-        &SystemProcessRunner::default(),
-        &audio_plan,
-        &ProcessCancellation::default(),
-    )
-    .await
-    .expect("audio extraction");
-    let separated_probe = probe_media(
-        &SystemProcessRunner::default(),
-        &ffprobe,
-        &separated_audio,
-        &ProcessCancellation::default(),
-    )
-    .await
-    .expect("probe separated audio");
+        build_audio_extraction_plan(ffmpeg, &first, &separated_audio, 2.0).expect("audio plan");
+    execute_native_filter_plan(&audio_plan, &ProcessCancellation::default())
+        .await
+        .expect("audio extraction");
+    let separated_probe = native_probe_media(&separated_audio, &ProcessCancellation::default())
+        .expect("probe separated audio");
     assert!(
         separated_probe
             .streams
@@ -143,7 +108,7 @@ async fn renders_real_montage_and_editor_graphs() {
             width: 640,
             height: 360,
             fps: 30,
-            encoder: "libx264".to_owned(),
+            encoder: "libopenh264".to_owned(),
             quality: 70,
             background_music: Some(first.to_string_lossy().into_owned()),
             music_volume: 0.2,
@@ -181,23 +146,19 @@ async fn renders_real_montage_and_editor_graphs() {
     ]);
     let montage_output = root.path().join("montage.mp4");
     let montage_plan = build_montage_plan_with_sources(
-        &ffmpeg,
+        ffmpeg,
         &montage,
         &sources,
         &montage_output,
         &EncoderSelection {
-            primary: "libx264".to_owned(),
+            primary: "libopenh264".to_owned(),
             fallback: None,
         },
     )
     .expect("montage plan");
-    execute_filter_plan(
-        &SystemProcessRunner::default(),
-        &montage_plan,
-        &ProcessCancellation::default(),
-    )
-    .await
-    .expect("montage render");
+    execute_native_filter_plan(&montage_plan, &ProcessCancellation::default())
+        .await
+        .expect("montage render");
 
     let video_clip_id = Uuid::new_v4();
     let audio_clip_id = Uuid::new_v4();
@@ -502,13 +463,13 @@ async fn renders_real_montage_and_editor_graphs() {
     ]);
     let editor_output = root.path().join("editor.mp4");
     let editor_plan = build_editor_plan_with_sources(
-        &ffmpeg,
+        ffmpeg,
         &editor,
         &assets,
         &editor_output,
         &EditorRenderOptions {
             encoder: EncoderSelection {
-                primary: "libx264".to_owned(),
+                primary: "libopenh264".to_owned(),
                 fallback: None,
             },
             quality: 75,
@@ -517,13 +478,9 @@ async fn renders_real_montage_and_editor_graphs() {
         },
     )
     .expect("editor plan");
-    execute_filter_plan(
-        &SystemProcessRunner::default(),
-        &editor_plan,
-        &ProcessCancellation::default(),
-    )
-    .await
-    .expect("editor render");
+    execute_native_filter_plan(&editor_plan, &ProcessCancellation::default())
+        .await
+        .expect("editor render");
 
     for transition in [
         "flash", "dip", "zoom", "wipe", "slide", "blur", "glitch", "spin",
@@ -540,13 +497,13 @@ async fn renders_real_montage_and_editor_graphs() {
         variant.tracks[0].clips[0].transition_in = Some(transition.to_owned());
         let output = root.path().join(format!("editor-{transition}.mp4"));
         let plan = build_editor_plan_with_sources(
-            &ffmpeg,
+            ffmpeg,
             &variant,
             &assets,
             &output,
             &EditorRenderOptions {
                 encoder: EncoderSelection {
-                    primary: "libx264".to_owned(),
+                    primary: "libopenh264".to_owned(),
                     fallback: None,
                 },
                 quality: 60,
@@ -555,24 +512,14 @@ async fn renders_real_montage_and_editor_graphs() {
             },
         )
         .unwrap_or_else(|error| panic!("{transition} plan: {error}"));
-        execute_filter_plan(
-            &SystemProcessRunner::default(),
-            &plan,
-            &ProcessCancellation::default(),
-        )
-        .await
-        .unwrap_or_else(|error| panic!("{transition} render: {error}"));
+        execute_native_filter_plan(&plan, &ProcessCancellation::default())
+            .await
+            .unwrap_or_else(|error| panic!("{transition} render: {error}"));
     }
 
     for output in [montage_output, editor_output] {
-        let probe = probe_media(
-            &SystemProcessRunner::default(),
-            &ffprobe,
-            &output,
-            &ProcessCancellation::default(),
-        )
-        .await
-        .expect("probe output");
+        let probe =
+            native_probe_media(&output, &ProcessCancellation::default()).expect("probe output");
         assert!(probe.streams.iter().any(|stream| stream.kind == "video"));
         assert!(probe.streams.iter().any(|stream| stream.kind == "audio"));
         assert!(

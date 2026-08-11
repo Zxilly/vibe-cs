@@ -689,7 +689,13 @@ async fn validate_montage_project(state: &AppState, project: &MontageProject) ->
     }
     if !matches!(
         settings.encoder.trim().to_ascii_lowercase().as_str(),
-        "" | "auto" | "libx264" | "libx265" | "h264_nvenc" | "hevc_nvenc" | "h264_amf" | "h264_qsv"
+        "" | "auto"
+            | "libopenh264"
+            | "h264_mf"
+            | "h264_nvenc"
+            | "hevc_nvenc"
+            | "h264_amf"
+            | "h264_qsv"
     ) {
         return Err(ApiError::invalid("unsupported montage encoder"));
     }

@@ -14,6 +14,8 @@ pub enum MediaError {
     ProcessFailed { status: i32, message: String },
     #[error("unable to decode tool output: {0}")]
     InvalidToolOutput(String),
+    #[error("native FFmpeg operation failed: {0}")]
+    NativeFfmpeg(String),
     #[error("unsupported WAV encoding: {0}")]
     UnsupportedWave(String),
     #[error("temporary output is missing or empty: {0}")]

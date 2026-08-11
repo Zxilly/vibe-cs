@@ -11,6 +11,7 @@ vibe-cs-demo = { path = "../demo" }
 vibe-cs-domain = { path = "../domain" }
 vibe-cs-recording = { path = "../recording" }
 vibe-cs-integrations = { path = "../integrations" }
+vibe-cs-media = { path = "../media" }
 vibe-cs-storage = { path = "../storage" }
 async-trait.workspace = true
 axum.workspace = true

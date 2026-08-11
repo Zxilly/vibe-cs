@@ -49,6 +49,7 @@ import type {
   MatchDownloadJob,
   MediaAsset,
   MediaProxyCleanup,
+  MediaRuntimeStatus,
   MontageProjectRecord,
   MontageExportRequest,
   ObsDiagnosis,
@@ -729,6 +730,8 @@ export const commands = {
     }),
   getConfig: (signal?: AbortSignal) => request<AppConfig>('/config', { signal }),
   detectPaths: () => request<DetectedPaths>('/config/detect-paths', { method: 'POST', body: {} }),
+  mediaRuntimeStatus: (signal?: AbortSignal) =>
+    request<MediaRuntimeStatus>('/media-runtime', { signal }),
   storageStatus: (signal?: AbortSignal) => request<StorageStatus>('/storage/status', { signal }),
   updateConfig: (config: AppConfig) =>
     request<AppConfig>('/config', { method: 'PUT', body: config }),

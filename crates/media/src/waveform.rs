@@ -1,6 +1,8 @@
-use std::{ffi::OsString, path::Path};
+use std::path::Path;
 
-use crate::{CommandSpec, MediaError, MediaResult, ProcessCancellation, ProcessRunner, io_error};
+use ffmpeg_next as ffmpeg;
+
+use crate::{MediaError, MediaResult, ProcessCancellation, io_error};
 
 #[derive(Debug, Clone, Copy)]
 pub struct WaveformOptions {
@@ -38,57 +40,176 @@ pub fn read_wav_waveform(path: &Path, options: WaveformOptions) -> MediaResult<V
     parse_wav(&bytes, options.buckets)
 }
 
-/// Decodes audio with `FFmpeg` and returns bounded peak-amplitude buckets.
+/// Decodes audio in-process with libavcodec/libswresample and returns bounded
+/// peak-amplitude buckets.
 ///
 /// # Errors
 ///
-/// Returns an error for invalid options, missing media, cancellation, process
-/// failure, or output exceeding the configured bound.
-pub async fn generate_waveform(
-    runner: &dyn ProcessRunner,
-    ffmpeg: &Path,
+/// Returns an error for invalid options, missing audio, cancellation, decoder
+/// failure, or decoded samples exceeding the configured memory bound.
+pub fn generate_native_waveform(
     media: &Path,
     options: WaveformOptions,
     cancellation: &ProcessCancellation,
 ) -> MediaResult<Vec<f32>> {
     validate_options(options)?;
+    crate::native_ffmpeg_info()?;
     if !media.is_file() {
         return Err(MediaError::InvalidInput(format!(
             "media file does not exist: {}",
             media.display()
         )));
     }
-    let command = CommandSpec::new(ffmpeg).args([
-        OsString::from("-hide_banner"),
-        OsString::from("-nostdin"),
-        OsString::from("-v"),
-        OsString::from("error"),
-        OsString::from("-i"),
-        media.as_os_str().to_os_string(),
-        OsString::from("-vn"),
-        OsString::from("-ac"),
-        OsString::from("1"),
-        OsString::from("-ar"),
-        OsString::from(options.sample_rate.to_string()),
-        OsString::from("-f"),
-        OsString::from("f32le"),
-        OsString::from("pipe:1"),
-    ]);
-    let output = runner.run(&command, cancellation).await?.ensure_success()?;
-    let maximum_input_bytes = usize::try_from(options.maximum_input_bytes).unwrap_or(usize::MAX);
-    if output.stdout.len() > maximum_input_bytes {
+    let interrupt = cancellation.clone();
+    let mut input = ffmpeg::format::input_with_interrupt(media, move || interrupt.is_cancelled())
+        .map_err(native_error)?;
+    let stream = input
+        .streams()
+        .best(ffmpeg::media::Type::Audio)
+        .ok_or_else(|| MediaError::InvalidInput("media has no audio stream".to_owned()))?;
+    let stream_index = stream.index();
+    let context = ffmpeg::codec::context::Context::from_parameters(stream.parameters())
+        .map_err(native_error)?;
+    let mut decoder = context.decoder().audio().map_err(native_error)?;
+    let sample_limit = usize::try_from(options.maximum_input_bytes / 4).unwrap_or(usize::MAX);
+    let mut samples = Vec::new();
+    for (packet_stream, packet) in input.packets() {
+        if cancellation.is_cancelled() {
+            return Err(MediaError::Cancelled);
+        }
+        if packet_stream.index() != stream_index {
+            continue;
+        }
+        decoder.send_packet(&packet).map_err(native_error)?;
+        drain_audio_frames(&mut decoder, &mut samples, sample_limit, cancellation)?;
+    }
+    decoder.send_eof().map_err(native_error)?;
+    drain_audio_frames(&mut decoder, &mut samples, sample_limit, cancellation)?;
+    Ok(bucket_samples(&samples, options.buckets))
+}
+
+fn drain_audio_frames(
+    decoder: &mut ffmpeg::codec::decoder::Audio,
+    samples: &mut Vec<f32>,
+    sample_limit: usize,
+    cancellation: &ProcessCancellation,
+) -> MediaResult<()> {
+    let mut decoded_frame = ffmpeg::frame::Audio::empty();
+    while decoder.receive_frame(&mut decoded_frame).is_ok() {
+        if cancellation.is_cancelled() {
+            return Err(MediaError::Cancelled);
+        }
+        append_decoded_samples(&decoded_frame, samples, sample_limit)?;
+    }
+    Ok(())
+}
+
+fn append_decoded_samples(
+    decoded: &ffmpeg::frame::Audio,
+    samples: &mut Vec<f32>,
+    sample_limit: usize,
+) -> MediaResult<()> {
+    if decoded.samples() == 0 {
+        return Ok(());
+    }
+    let next_len = samples
+        .len()
+        .checked_add(decoded.samples())
+        .ok_or(MediaError::OutputLimit {
+            limit: sample_limit.saturating_mul(4),
+        })?;
+    if next_len > sample_limit {
         return Err(MediaError::OutputLimit {
-            limit: maximum_input_bytes,
+            limit: sample_limit.saturating_mul(4),
         });
     }
-    let samples = output
-        .stdout
-        .chunks_exact(4)
-        .filter_map(|bytes| <[u8; 4]>::try_from(bytes).ok())
-        .map(f32::from_le_bytes)
-        .filter(|sample| sample.is_finite())
-        .collect::<Vec<_>>();
-    Ok(bucket_samples(&samples, options.buckets))
+    let channel_count = decoded.channels();
+    let channels = usize::from(channel_count);
+    if channels == 0 {
+        return Err(MediaError::NativeFfmpeg(
+            "decoded audio frame has no channels".to_owned(),
+        ));
+    }
+    let format = decoded.format();
+    let bytes_per_sample = format.bytes();
+    if bytes_per_sample == 0 {
+        return Err(MediaError::NativeFfmpeg(
+            "decoded audio frame has an unsupported sample format".to_owned(),
+        ));
+    }
+    if format.is_planar() {
+        for index in 0..decoded.samples() {
+            let peak = (0..channels)
+                .map(|channel| decode_sample(format, decoded.data(channel), index))
+                .collect::<MediaResult<Vec<_>>>()?
+                .into_iter()
+                .map(f32::abs)
+                .sum::<f32>()
+                / f32::from(channel_count);
+            samples.push(peak.clamp(0.0, 1.0));
+        }
+    } else {
+        let data = decoded.data(0);
+        for index in 0..decoded.samples() {
+            let peak = (0..channels)
+                .map(|channel| {
+                    decode_sample(
+                        format,
+                        data,
+                        index.saturating_mul(channels).saturating_add(channel),
+                    )
+                })
+                .collect::<MediaResult<Vec<_>>>()?
+                .into_iter()
+                .map(f32::abs)
+                .sum::<f32>()
+                / f32::from(channel_count);
+            samples.push(peak.clamp(0.0, 1.0));
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+fn decode_sample(format: ffmpeg::format::Sample, data: &[u8], index: usize) -> MediaResult<f32> {
+    let width = format.bytes();
+    let start = index
+        .checked_mul(width)
+        .ok_or_else(|| MediaError::NativeFfmpeg("audio sample offset overflow".to_owned()))?;
+    let bytes = data
+        .get(start..start.saturating_add(width))
+        .ok_or_else(|| MediaError::NativeFfmpeg("truncated decoded audio frame".to_owned()))?;
+    let value = match format {
+        ffmpeg::format::Sample::U8(_) => (f32::from(bytes[0]) - 128.0) / 128.0,
+        ffmpeg::format::Sample::I16(_) => {
+            f32::from(i16::from_ne_bytes(
+                bytes.try_into().expect("two-byte sample"),
+            )) / f32::from(i16::MAX)
+        }
+        ffmpeg::format::Sample::I32(_) => {
+            i32::from_ne_bytes(bytes.try_into().expect("four-byte sample")) as f32 / i32::MAX as f32
+        }
+        ffmpeg::format::Sample::I64(_) => {
+            (i64::from_ne_bytes(bytes.try_into().expect("eight-byte sample")) as f64
+                / i64::MAX as f64) as f32
+        }
+        ffmpeg::format::Sample::F32(_) => {
+            f32::from_ne_bytes(bytes.try_into().expect("four-byte sample"))
+        }
+        ffmpeg::format::Sample::F64(_) => {
+            f64::from_ne_bytes(bytes.try_into().expect("eight-byte sample")) as f32
+        }
+        ffmpeg::format::Sample::None => {
+            return Err(MediaError::NativeFfmpeg(
+                "decoded audio frame has no sample format".to_owned(),
+            ));
+        }
+    };
+    Ok(value)
+}
+
+fn native_error(error: ffmpeg::Error) -> MediaError {
+    MediaError::NativeFfmpeg(error.to_string())
 }
 
 fn validate_options(options: WaveformOptions) -> MediaResult<()> {
@@ -219,5 +340,38 @@ mod tests {
         wav.extend_from_slice(&0_i16.to_le_bytes());
         let result = parse_wav(&wav, 2).unwrap();
         assert_eq!(result, [1.0, 0.0]);
+    }
+
+    #[test]
+    fn native_waveform_decodes_without_a_helper_process() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("sample.wav");
+        let mut wav = b"RIFF".to_vec();
+        wav.extend_from_slice(&40_u32.to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16_u32.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&1_u16.to_le_bytes());
+        wav.extend_from_slice(&8_000_u32.to_le_bytes());
+        wav.extend_from_slice(&16_000_u32.to_le_bytes());
+        wav.extend_from_slice(&2_u16.to_le_bytes());
+        wav.extend_from_slice(&16_u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&4_u32.to_le_bytes());
+        wav.extend_from_slice(&i16::MAX.to_le_bytes());
+        wav.extend_from_slice(&0_i16.to_le_bytes());
+        std::fs::write(&path, wav).unwrap();
+        let points = generate_native_waveform(
+            &path,
+            WaveformOptions {
+                buckets: 2,
+                maximum_input_bytes: 1024,
+                sample_rate: 8_000,
+            },
+            &ProcessCancellation::default(),
+        )
+        .unwrap();
+        assert_eq!(points.len(), 2);
+        assert!(points[0] > 0.9);
     }
 }

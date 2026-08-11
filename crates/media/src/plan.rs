@@ -4,7 +4,6 @@ use std::{
     fmt::Write as _,
     hash::BuildHasher,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 use serde_json::Value;
@@ -14,12 +13,9 @@ use vibe_cs_domain::{
     MontageBrandingTheme, MontageClip, MontageProject, TextStyle, TrackKind, Transform,
 };
 
-use crate::{
-    CommandSpec, FfmpegProgress, MediaError, MediaResult, ProcessCancellation, ProcessRunner,
-    ProgressCallback, io_error,
-};
+use crate::{CommandSpec, MediaError, MediaResult, io_error};
 
-const SOFTWARE_ENCODER: &str = "libx264";
+const SOFTWARE_ENCODER: &str = "libopenh264";
 const HARDWARE_ENCODERS: &[&str] = &["h264_qsv", "h264_nvenc", "h264_amf"];
 const DEFAULT_TRANSITION_SECONDS: f64 = 0.35;
 
@@ -39,7 +35,7 @@ pub struct EncoderSelection {
 }
 
 /// Selects a compiled H.264 encoder. `auto` prefers QSV, NVENC, then AMF and
-/// always keeps `libx264` as the runtime fallback.
+/// always keeps the LGPL-compatible `libopenh264` encoder as the runtime fallback.
 ///
 /// # Errors
 ///
@@ -1898,12 +1894,15 @@ fn validate_effect(effect: &EditorEffect) -> MediaResult<()> {
 
 fn effect_filter(effect: &EditorEffect) -> MediaResult<String> {
     match effect.kind.as_str() {
-        "color_adjust" => Ok(format!(
-            "eq=brightness={:.6}:contrast={:.6}:saturation={:.6}",
-            effect_number(&effect.parameters, "brightness", -1.0, 1.0, 0.0)?,
-            effect_number(&effect.parameters, "contrast", 0.0, 3.0, 1.0)?,
-            effect_number(&effect.parameters, "saturation", 0.0, 3.0, 1.0)?
-        )),
+        "color_adjust" => {
+            let brightness = effect_number(&effect.parameters, "brightness", -1.0, 1.0, 0.0)?;
+            let contrast = effect_number(&effect.parameters, "contrast", 0.0, 3.0, 1.0)?;
+            let saturation = effect_number(&effect.parameters, "saturation", 0.0, 3.0, 1.0)?;
+            let channel = format!("clip((val-128)*{contrast:.6}+128+{brightness:.6}*255,0,255)");
+            Ok(format!(
+                "lutrgb=r='{channel}':g='{channel}':b='{channel}',hue=s={saturation:.6}"
+            ))
+        }
         "grayscale" => Ok("hue=s=0".to_owned()),
         "blur" => {
             let radius = effect_number(&effect.parameters, "radius", 0.0, 20.0, 0.0)?;
@@ -2081,68 +2080,6 @@ fn escape_filter_value(value: &str) -> MediaResult<String> {
     Ok(escaped)
 }
 
-/// Executes a plan, streams machine-readable progress, retries a failed GPU
-/// command with the planned software encoder, and atomically publishes output.
-///
-/// # Errors
-///
-/// Returns an error on cancellation, process failure, invalid output, or I/O
-/// failure. Failed temporary outputs are removed when possible.
-pub async fn execute_filter_plan_with_progress(
-    runner: &dyn ProcessRunner,
-    plan: &FilterPlan,
-    cancellation: &ProcessCancellation,
-    progress: ProgressCallback,
-) -> MediaResult<()> {
-    if plan.final_output.exists() {
-        return Err(MediaError::OutputExists(plan.final_output.clone()));
-    }
-    if plan.temporary_output.exists() {
-        return Err(MediaError::OutputExists(plan.temporary_output.clone()));
-    }
-    let mut execution = runner
-        .run_with_progress(&plan.command, cancellation, Arc::clone(&progress))
-        .await
-        .and_then(|output| output.ensure_success().map(drop));
-    if matches!(execution, Err(MediaError::ProcessFailed { .. }))
-        && !cancellation.is_cancelled()
-        && let Some(fallback) = plan.fallback_command.as_ref()
-    {
-        let _ = std::fs::remove_file(&plan.temporary_output);
-        progress(FfmpegProgress::default());
-        execution = runner
-            .run_with_progress(fallback, cancellation, progress)
-            .await
-            .and_then(|output| output.ensure_success().map(drop));
-    }
-    if let Err(error) = execution {
-        let _ = std::fs::remove_file(&plan.temporary_output);
-        return Err(error);
-    }
-    if cancellation.is_cancelled() {
-        let _ = std::fs::remove_file(&plan.temporary_output);
-        return Err(MediaError::Cancelled);
-    }
-    let publication = publish_temporary_output(&plan.temporary_output, &plan.final_output);
-    if publication.is_err() {
-        let _ = std::fs::remove_file(&plan.temporary_output);
-    }
-    publication
-}
-
-/// Executes a plan without observing intermediate progress.
-///
-/// # Errors
-///
-/// Returns the same failures as [`execute_filter_plan_with_progress`].
-pub async fn execute_filter_plan(
-    runner: &dyn ProcessRunner,
-    plan: &FilterPlan,
-    cancellation: &ProcessCancellation,
-) -> MediaResult<()> {
-    execute_filter_plan_with_progress(runner, plan, cancellation, Arc::new(|_| {})).await
-}
-
 /// Publishes a non-empty temporary file without replacing an existing output.
 ///
 /// # Errors
@@ -2212,8 +2149,8 @@ fn validate_finite_range(value: f64, minimum: f64, maximum: f64, name: &str) -> 
 
 fn validated_encoder(value: &str) -> MediaResult<&'static str> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "libx264" => Ok("libx264"),
-        "libx265" => Ok("libx265"),
+        "libopenh264" => Ok("libopenh264"),
+        "h264_mf" => Ok("h264_mf"),
         "h264_nvenc" => Ok("h264_nvenc"),
         "hevc_nvenc" => Ok("hevc_nvenc"),
         "h264_amf" => Ok("h264_amf"),
@@ -2240,19 +2177,25 @@ fn encoder_quality_args(encoder: &str, quality: u8) -> Vec<OsString> {
             OsString::from("-qp_p"),
             OsString::from(value),
         ],
+        "h264_mf" => vec![
+            OsString::from("-rate_control"),
+            OsString::from("quality"),
+            OsString::from("-quality"),
+            OsString::from(quality.min(100).to_string()),
+        ],
+        "libopenh264" => vec![
+            OsString::from("-b:v"),
+            OsString::from(format!("{}k", 500 + u32::from(quality.min(100)) * 100)),
+        ],
         _ => vec![OsString::from("-crf"), OsString::from(value)],
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
-
-    use async_trait::async_trait;
     use serde_json::json;
 
     use super::*;
-    use crate::ProcessOutput;
 
     fn montage_project(clip_id: &str) -> MontageProject {
         serde_json::from_value(json!({
@@ -2270,7 +2213,7 @@ mod tests {
                 "width": 1280,
                 "height": 720,
                 "fps": 60,
-                "encoder": "libx264",
+                "encoder": "libopenh264",
                 "quality": 80,
                 "background_music": null,
                 "music_volume": 0.25,
@@ -2302,7 +2245,7 @@ mod tests {
 
     #[test]
     fn encoder_values_cannot_inject_filter_arguments() {
-        assert!(select_video_encoder("libx264 -y injected", &[]).is_err());
+        assert!(select_video_encoder("libopenh264 -y injected", &[]).is_err());
     }
 
     #[test]
@@ -2310,7 +2253,7 @@ mod tests {
         let selection =
             select_video_encoder("auto", &["h264_amf".to_owned(), "h264_qsv".to_owned()]).unwrap();
         assert_eq!(selection.primary, "h264_qsv");
-        assert_eq!(selection.fallback.as_deref(), Some("libx264"));
+        assert_eq!(selection.fallback.as_deref(), Some("libopenh264"));
     }
 
     #[test]
@@ -2478,7 +2421,7 @@ mod tests {
         let options = EditorRenderOptions {
             encoder: EncoderSelection {
                 primary: "h264_nvenc".to_owned(),
-                fallback: Some("libx264".to_owned()),
+                fallback: Some("libopenh264".to_owned()),
             },
             quality: 85,
             range_start: Some(2.0),
@@ -2497,7 +2440,7 @@ mod tests {
             .args
             .iter()
             .map(|item| item.to_string_lossy())
-            .find(|item| item.contains("eq=brightness"))
+            .find(|item| item.contains("lutrgb="))
             .or_else(|| {
                 plan.command
                     .args
@@ -2506,7 +2449,8 @@ mod tests {
                     .find(|item| item.contains("color=c=black"))
             })
             .unwrap();
-        assert!(graph.contains("eq=brightness=0.100000"));
+        assert!(graph.contains("+0.100000*255"));
+        assert!(graph.contains("hue=s=0.900000"));
         assert!(graph.contains("split=2"));
         assert!(graph.contains("concat=n=2:v=1:a=0"));
         assert!(graph.contains("atempo=0.500000"));
@@ -2533,110 +2477,6 @@ mod tests {
         )
         .expect_err("animated scale plus rotation must be rejected");
         assert!(error.to_string().contains("animated scale with rotation"));
-    }
-
-    #[derive(Debug)]
-    struct FallbackRunner {
-        commands: Mutex<Vec<CommandSpec>>,
-    }
-
-    #[derive(Debug)]
-    struct PublicationRaceRunner {
-        output: PathBuf,
-    }
-
-    #[async_trait]
-    impl ProcessRunner for FallbackRunner {
-        async fn run(
-            &self,
-            command: &CommandSpec,
-            _cancellation: &ProcessCancellation,
-        ) -> MediaResult<ProcessOutput> {
-            self.commands.lock().unwrap().push(command.clone());
-            let is_cpu = command.args.iter().any(|item| item == "libx264");
-            if is_cpu {
-                let output = command.args.last().expect("output path");
-                std::fs::write(Path::new(output), b"rendered")
-                    .map_err(|error| io_error(Path::new(output), error))?;
-                Ok(ProcessOutput::default())
-            } else {
-                Err(MediaError::ProcessFailed {
-                    status: 1,
-                    message: "hardware session unavailable".to_owned(),
-                })
-            }
-        }
-    }
-
-    #[async_trait]
-    impl ProcessRunner for PublicationRaceRunner {
-        async fn run(
-            &self,
-            command: &CommandSpec,
-            _cancellation: &ProcessCancellation,
-        ) -> MediaResult<ProcessOutput> {
-            let temporary = PathBuf::from(command.args.last().expect("temporary output"));
-            std::fs::write(&temporary, b"rendered").map_err(|error| io_error(&temporary, error))?;
-            std::fs::write(&self.output, b"racing writer")
-                .map_err(|error| io_error(&self.output, error))?;
-            Ok(ProcessOutput::default())
-        }
-    }
-
-    #[tokio::test]
-    async fn output_created_after_render_is_never_overwritten_at_publication() {
-        let root = tempfile::tempdir().unwrap();
-        let temporary = root.path().join(".partial.mp4");
-        let output = root.path().join("result.mp4");
-        let plan = FilterPlan {
-            command: CommandSpec::new("ffmpeg").arg(temporary.as_os_str()),
-            fallback_command: None,
-            temporary_output: temporary.clone(),
-            final_output: output.clone(),
-            duration_seconds: 1.0,
-        };
-        let error = execute_filter_plan(
-            &PublicationRaceRunner {
-                output: output.clone(),
-            },
-            &plan,
-            &ProcessCancellation::default(),
-        )
-        .await
-        .expect_err("racing destination must win without overwrite");
-        assert!(matches!(error, MediaError::OutputExists(_)));
-        assert_eq!(std::fs::read(output).unwrap(), b"racing writer");
-        assert!(!temporary.exists());
-    }
-
-    #[tokio::test]
-    async fn failed_gpu_command_retries_software_and_publishes_atomically() {
-        let root = tempfile::tempdir().unwrap();
-        let temporary = root.path().join(".partial.mp4");
-        let output = root.path().join("result.mp4");
-        let plan = FilterPlan {
-            command: CommandSpec::new("ffmpeg").args([
-                OsString::from("-c:v"),
-                OsString::from("h264_qsv"),
-                temporary.as_os_str().to_os_string(),
-            ]),
-            fallback_command: Some(CommandSpec::new("ffmpeg").args([
-                OsString::from("-c:v"),
-                OsString::from("libx264"),
-                temporary.as_os_str().to_os_string(),
-            ])),
-            temporary_output: temporary,
-            final_output: output.clone(),
-            duration_seconds: 1.0,
-        };
-        let runner = FallbackRunner {
-            commands: Mutex::new(Vec::new()),
-        };
-        execute_filter_plan(&runner, &plan, &ProcessCancellation::default())
-            .await
-            .unwrap();
-        assert_eq!(std::fs::read(output).unwrap(), b"rendered");
-        assert_eq!(runner.commands.lock().unwrap().len(), 2);
     }
 
     #[test]

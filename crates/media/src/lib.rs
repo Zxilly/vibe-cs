@@ -2,14 +2,16 @@
 
 mod command;
 mod error;
-mod ffmpeg;
+mod native;
+mod native_pipeline;
 mod plan;
 mod progress;
 mod waveform;
 
 pub use command::*;
 pub use error::*;
-pub use ffmpeg::*;
+pub use native::*;
+pub use native_pipeline::*;
 pub use plan::*;
 pub use progress::*;
 pub use waveform::*;

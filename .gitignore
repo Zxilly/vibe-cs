@@ -1,4 +1,5 @@
 /target/
+/.deps/
 node_modules/
 /.pnpm-store/
 /apps/web/dist/

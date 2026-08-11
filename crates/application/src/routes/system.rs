@@ -10,6 +10,7 @@ use chrono::Utc;
 use futures_util::stream;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use url::Url;
 use vibe_cs_domain::{AppConfig, DependencyStatus, SetupStatus};
 use vibe_cs_integrations::discover_paths;
 use vibe_cs_media::{NativeFfmpegInfo, native_ffmpeg_info};
@@ -256,6 +257,7 @@ struct ConfigDto {
     obs_has_password: bool,
     llm: vibe_cs_domain::LlmConfig,
     llm_has_api_key: bool,
+    clear_llm_api_key: bool,
     recording: vibe_cs_domain::RecordingDefaults,
 }
 
@@ -305,6 +307,7 @@ impl From<AppConfig> for ConfigDto {
             obs_has_password,
             llm,
             llm_has_api_key,
+            clear_llm_api_key: false,
             recording: config.recording,
         }
     }
@@ -339,15 +342,17 @@ async fn put_config(
     ApiJson(input): ApiJson<Value>,
 ) -> ApiResult<Json<ConfigDto>> {
     let current = state.storage.get_config().await?.unwrap_or_default();
+    let clear_llm_api_key = input
+        .get("clear_llm_api_key")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let config = if input.get("locale").is_some() || input.get("obs").is_some() {
         let mut updated = serde_json::from_value::<AppConfig>(input)
             .map_err(|error| crate::ApiError::invalid(error.to_string()))?;
         if is_secret_placeholder(&updated.obs.password) {
             updated.obs.password.clone_from(&current.obs.password);
         }
-        if is_secret_placeholder(&updated.llm.api_key) {
-            updated.llm.api_key.clone_from(&current.llm.api_key);
-        }
+        merge_llm_api_key(&current, &mut updated, clear_llm_api_key)?;
         if is_secret_placeholder(&updated.steam.web_api_key) {
             updated
                 .steam
@@ -591,6 +596,42 @@ fn is_secret_placeholder(value: &str) -> bool {
         || value.eq_ignore_ascii_case("<redacted>")
 }
 
+fn llm_credential_scope_changed(current: &AppConfig, updated: &AppConfig) -> bool {
+    current.llm.provider.trim() != updated.llm.provider.trim()
+        || canonical_origin(&current.llm.base_url) != canonical_origin(&updated.llm.base_url)
+}
+
+fn merge_llm_api_key(
+    current: &AppConfig,
+    updated: &mut AppConfig,
+    clear_requested: bool,
+) -> ApiResult<()> {
+    if clear_requested {
+        updated.llm.api_key.clear();
+        return Ok(());
+    }
+    if !is_secret_placeholder(&updated.llm.api_key) {
+        return Ok(());
+    }
+    if !current.llm.api_key.is_empty() && llm_credential_scope_changed(current, updated) {
+        return Err(crate::ApiError::invalid(
+            "changing the AI provider or endpoint requires re-entering its API key",
+        ));
+    }
+    updated.llm.api_key.clone_from(&current.llm.api_key);
+    Ok(())
+}
+
+fn canonical_origin(value: &str) -> Option<String> {
+    let url = Url::parse(value.trim()).ok()?;
+    let host = url.host_str()?.to_ascii_lowercase();
+    let port = url.port_or_known_default()?;
+    Some(format!(
+        "{}://{host}:{port}",
+        url.scheme().to_ascii_lowercase()
+    ))
+}
+
 async fn setup_status(State(state): State<AppState>) -> ApiResult<Json<SetupStatus>> {
     let config = state.storage.get_config().await?.unwrap_or_default();
     let discovery_config = config.clone();
@@ -824,6 +865,46 @@ mod tests {
         assert!(json.contains("\"steam_has_web_api_key\":true"));
         assert!(json.contains("\"steam_has_authentication_code\":true"));
         assert!(json.contains("\"steam_has_share_code\":true"));
+        assert!(json.contains("\"clear_llm_api_key\":false"));
+    }
+
+    #[test]
+    fn llm_key_can_be_preserved_replaced_or_explicitly_cleared() {
+        let mut current = AppConfig::default();
+        current.llm.provider = "openai-compatible".to_owned();
+        current.llm.base_url = "https://provider.example/v1".to_owned();
+        current.llm.api_key = "saved-secret".to_owned();
+
+        let mut preserved = current.clone();
+        preserved.llm.api_key.clear();
+        merge_llm_api_key(&current, &mut preserved, false).expect("preserve secret");
+        assert_eq!(preserved.llm.api_key, "saved-secret");
+
+        let mut replaced = current.clone();
+        replaced.llm.base_url = "https://new-provider.example/v1".to_owned();
+        replaced.llm.api_key = "new-secret".to_owned();
+        merge_llm_api_key(&current, &mut replaced, false).expect("replace secret");
+        assert_eq!(replaced.llm.api_key, "new-secret");
+
+        let mut cleared = current.clone();
+        cleared.llm.base_url = "https://new-provider.example/v1".to_owned();
+        cleared.llm.api_key.clear();
+        merge_llm_api_key(&current, &mut cleared, true).expect("clear secret");
+        assert!(cleared.llm.api_key.is_empty());
+    }
+
+    #[test]
+    fn llm_scope_change_never_reuses_a_redacted_key() {
+        let mut current = AppConfig::default();
+        current.llm.provider = "openai-compatible".to_owned();
+        current.llm.base_url = "https://provider.example/v1".to_owned();
+        current.llm.api_key = "saved-secret".to_owned();
+        let mut updated = current.clone();
+        updated.llm.base_url = "https://new-provider.example/v1".to_owned();
+        updated.llm.api_key.clear();
+
+        assert!(merge_llm_api_key(&current, &mut updated, false).is_err());
+        assert!(updated.llm.api_key.is_empty());
     }
 
     #[test]

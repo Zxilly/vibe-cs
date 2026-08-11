@@ -9,15 +9,20 @@ license.workspace = true
 vibe-cs-domain = { path = "../domain" }
 cap-std.workspace = true
 chrono.workspace = true
+hex.workspace = true
 rusqlite.workspace = true
 same-file.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 uuid.workspace = true
 walkdir.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+vibe-cs-platform-windows = { path = "../platform-windows" }
 
 [dev-dependencies]
 tempfile.workspace = true

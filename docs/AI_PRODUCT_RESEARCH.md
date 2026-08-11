@@ -14,8 +14,8 @@ users lose trust when preview and export timing drift or when beat markers canno
 For Vibe CS, the agent should therefore produce evidence-linked, revision-bound proposals and let
 the user apply them as one undoable operation. HLAE adds a second trust boundary: rich cameras are
 valuable, but generated commands must be offline-only, typed, previewable, and explicit about
-`-insecure`. Network research is useful for inspiration, but it should be visibly sourced and
-separate from facts extracted from the user's demo.
+`-insecure`. External reference research remains a maintainer activity during development; the
+product Agent uses only bounded local evidence and proposal tools.
 
 ## Ranked product problems
 
@@ -61,17 +61,16 @@ separate from facts extracted from the user's demo.
   safety warning before export or launch.
 - Severity: high. Frequency signal: medium. Confidence: high for complexity, low for population size.
 
-### 5. Provider and search setup can easily become misleading
+### 5. Provider setup can easily become misleading
 
-- User goal: import an existing development credential, then know which capabilities are actually
+- User goal: configure an AI provider in the product, then know which capabilities are actually
   available and what they cost.
 - Evidence: Kimi documents that Kimi Code and Kimi Open Platform credentials/endpoints are not
-  interchangeable. Kimi official web search is a separately billed tool and is currently described
-  as undergoing updates. assistant-ui's Mastra integration also requires an application-owned
+  interchangeable. assistant-ui's Mastra integration also requires an application-owned
   runtime rather than providing a turnkey Mastra adapter.
-- Product move: display model chat, tool calling, and web research as separate capability checks.
-  Import only the selected OpenCode credential after confirmation, never reveal it, and do not mark
-  web research ready without a compatible configured provider.
+- Product move: display model chat and local tool calling as separate capability checks. Product
+  credentials are configured only in Vibe CS Settings; development overrides remain debug-only
+  process environment values. The product Agent does not expose a general network tool.
 - Severity: medium-high. Frequency signal: medium. Confidence: high.
 
 ## Opportunity map
@@ -87,7 +86,7 @@ separate from facts extracted from the user's demo.
 ### Follow with deeper workflows
 
 - Saved shot recipes and reusable creative briefs.
-- Visual media search over generated/replayed camera candidates.
+- Side-by-side visual review over locally generated or replayed camera candidates.
 - Side-by-side candidate edits and A/B preview.
 - Per-map camera collision and occlusion scoring where trustworthy geometry exists.
 - Agent eval fixtures for factual grounding, invalid tool calls, stale revisions, and unsafe HLAE
@@ -98,7 +97,7 @@ separate from facts extracted from the user's demo.
 - Whether users prefer one persistent project thread or short task threads.
 - How much HLAE command detail beginners want visible by default.
 - Genre-specific beat/downbeat quality and acceptable manual correction time.
-- Cost expectations for Kimi K3 reasoning and paid web search.
+- Cost expectations for Kimi K3 reasoning.
 
 ## Source map
 
@@ -106,8 +105,7 @@ separate from facts extracted from the user's demo.
   output workflow requests.
 - assistant-ui Mastra guide and Mastra docs: sidecar/server runtime, streaming, tools, and memory
   requirements.
-- Kimi and OpenCode documentation: provider separation, model IDs, endpoints, credential storage,
-  tool calls, and web-search billing/status.
+- Kimi documentation: provider separation, model IDs, endpoints, credential storage, and tool calls.
 - Descript help/changelog: contextual co-editor placement and history.
 - Adobe Premiere help: local media analysis, natural-language search, filters, and inspectable
   results.

@@ -2,6 +2,7 @@ import { applyLocale, msg, type MessageKey } from '../shared/i18n';
 import {
   Activity,
   Archive,
+  Bot,
   ChevronRight,
   CircleHelp,
   Clapperboard,
@@ -44,9 +45,10 @@ type NavItem = {
 
 const primaryNav: NavItem[] = [
   { path: '/', code: '01', labelKey: 'nav.home', icon: Home, end: true },
-  { path: '/library', code: '02', labelKey: 'nav.matches', icon: Archive },
-  { path: '/production', code: '03', labelKey: 'nav.production', icon: Clapperboard },
-  { path: '/outputs', code: '04', labelKey: 'nav.works', icon: FileOutput },
+  { path: '/copilot', code: '02', labelKey: 'nav.copilot', icon: Bot },
+  { path: '/library', code: '03', labelKey: 'nav.matches', icon: Archive },
+  { path: '/production', code: '04', labelKey: 'nav.production', icon: Clapperboard },
+  { path: '/outputs', code: '05', labelKey: 'nav.works', icon: FileOutput },
 ];
 
 const secondaryNav: NavItem[] = [

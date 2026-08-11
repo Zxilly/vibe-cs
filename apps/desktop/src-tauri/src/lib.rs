@@ -1,3 +1,4 @@
+mod agent;
 mod bridge;
 
 use std::{io, path::PathBuf, sync::Arc};
@@ -23,13 +24,18 @@ pub fn run() {
     let router = Arc::new(OnceCell::new());
     let setup_router = Arc::clone(&router);
     let bridge = bridge::DesktopBridge::new(router);
+    let agent_dispatcher = bridge.clone();
     let media_bridge = bridge.clone();
     tauri::Builder::default()
         .manage(bridge)
         .invoke_handler(tauri::generate_handler![
             bridge::desktop_call,
             bridge::desktop_binary,
-            bridge::desktop_upload
+            bridge::desktop_upload,
+            agent::agent_status,
+            agent::agent_thread,
+            agent::agent_chat,
+            agent::agent_cancel
         ])
         .register_asynchronous_uri_scheme_protocol(
             "vibe-cs-media",
@@ -78,7 +84,9 @@ pub fn run() {
                 .compact()
                 .init();
             app.manage(LogGuard { _guard: guard });
-            let application = tauri::async_runtime::block_on(build_application(data_dir))?;
+            let application =
+                tauri::async_runtime::block_on(build_application(data_dir, agent_dispatcher))?;
+            app.manage(application.agent_bridge.clone());
             setup_router
                 .set(application.dispatcher)
                 .map_err(|_| io::Error::other("desktop application state was initialized twice"))?;
@@ -99,10 +107,12 @@ struct DesktopApplication {
     dispatcher: axum::Router,
     gsi_receiver: axum::Router,
     gsi_listener: tokio::net::TcpListener,
+    agent_bridge: agent::AgentBridge,
 }
 
 async fn build_application(
     data_dir: PathBuf,
+    agent_dispatcher: bridge::DesktopBridge,
 ) -> Result<DesktopApplication, Box<dyn std::error::Error>> {
     tokio::fs::create_dir_all(&data_dir).await?;
     if let Some(previous) = std::env::var_os("VIBE_CS_PREVIOUS_DATA_DIR")
@@ -129,6 +139,7 @@ async fn build_application(
         .into());
     }
     let storage = vibe_cs_storage::Storage::open(data_dir.join("vibe-cs.db")).await?;
+    let agent_bridge = agent::AgentBridge::new(storage.clone(), data_dir.clone(), agent_dispatcher);
     let state = vibe_cs_runtime::build_app_state(storage, data_dir).await;
     let gsi_listener = tokio::net::TcpListener::bind(GSI_RECEIVER_ADDRESS).await?;
     tracing::info!(address = GSI_RECEIVER_ADDRESS, "CS2 GSI receiver ready");
@@ -136,5 +147,6 @@ async fn build_application(
         dispatcher: vibe_cs_application::build_dispatcher(state.clone()),
         gsi_receiver: vibe_cs_application::build_gsi_receiver(state),
         gsi_listener,
+        agent_bridge,
     })
 }

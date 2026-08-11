@@ -12,6 +12,7 @@ mod log_retention;
 mod media;
 mod obs_tuning;
 mod player;
+mod proposal_execution;
 mod recording;
 mod replay_cache;
 mod source_assets;
@@ -32,6 +33,7 @@ pub use log_retention::prune_daily_logs;
 pub use media::RuntimeMediaPort;
 pub use obs_tuning::RuntimeObsTuningPort;
 pub use player::RuntimePlayerPort;
+pub use proposal_execution::RuntimeProposalExecutionPort;
 pub use recording::{
     PreparedRecording, RecordingBackend, RecordingCancellation, RuntimeRecordingPort,
     SystemRecordingBackend,
@@ -94,6 +96,14 @@ pub async fn build_app_state(
         Arc::new(SystemRecordingBackend::new(data_dir.clone(), gsi_state)),
     ));
     recording.recover_orphaned_jobs().await;
+    let proposal_execution: Arc<dyn vibe_cs_application::ProposalExecutionPort> =
+        match RuntimeProposalExecutionPort::new(&data_dir) {
+            Ok(port) => Arc::new(port),
+            Err(error) => {
+                tracing::error!(%error, "unable to initialize proposal confirmation adapter");
+                Arc::new(vibe_cs_application::DisabledProposalExecutionPort)
+            }
+        };
 
     let state = vibe_cs_application::AppState::new(storage.clone(), data_dir);
     let demo_watch = Arc::new(
@@ -110,5 +120,6 @@ pub async fn build_app_state(
         .with_integrations(integrations)
         .with_obs_tuning(obs_tuning)
         .with_recording(recording)
+        .with_proposal_execution(proposal_execution)
         .with_demo_watch(demo_watch)
 }

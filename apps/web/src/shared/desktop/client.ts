@@ -1,13 +1,25 @@
-import { invoke } from '@tauri-apps/api/core';
+import { Channel, invoke } from '@tauri-apps/api/core';
 
 import { msg, msgf } from '../i18n';
 import type {
   AnalysisWorkspace,
+  AgentChatInput,
+  AgentChatResult,
+  AgentEvent,
+  AgentStatus,
+  AgentThread,
   ApiHealth,
+  AudioAnalysis,
+  AudioAnalysisOptions,
   AppConfig,
   AvatarCacheCleanup,
   AvatarCacheStatus,
   BatchDeleteOutputResult,
+  BeatAlignmentDraft,
+  BeatAlignmentRequest,
+  BeatAlignmentApplyResult,
+  BeatAlignmentProposalPreview,
+  BeatAlignmentProposalRequest,
   CleanupMissingOutputsResult,
   CleanupStagedOutputsResult,
   CreateEditorProject,
@@ -36,6 +48,14 @@ import type {
   ExportJobRecord,
   JobAccepted,
   HeatPointRecord,
+  HighlightEditApplyResult,
+  HighlightEditPlan,
+  HighlightEditProposalPreview,
+  HighlightEditProposalRequest,
+  HlaeProposalExportResult,
+  HlaeProposalIntent,
+  HlaeProposalPreview,
+  ProposalConfirmation,
   EditorExportOptions,
   EditorAudioSeparation,
   EditorPackageExport,
@@ -338,6 +358,44 @@ export function normalizeRecordedClip(record: RecordedClipRecord): RecordedClip 
 }
 
 export const commands = {
+  agentStatus: () => invoke<AgentStatus>('agent_status'),
+  getAgentThread: (threadId: string) => invoke<AgentThread>('agent_thread', { threadId }),
+  cancelAgentChat: (requestId: string) => invoke<boolean>('agent_cancel', { requestId }),
+  streamAgentChat: async (input: AgentChatInput, onEvent: (event: AgentEvent) => void) => {
+    const channel = new Channel<AgentEvent>();
+    channel.onmessage = onEvent;
+    try {
+      return await invoke<AgentChatResult>('agent_chat', { input, onEvent: channel });
+    } catch (error) {
+      if (isDesktopCommandFailure(error)) throw new DesktopError(error.message, error.status, error.code);
+      throw new DesktopError(msg("m0711"), 0, 'AGENT_COMMAND_FAILED');
+    }
+  },
+  analyzeAudioAsset: (assetId: string, options?: AudioAnalysisOptions) =>
+    request<AudioAnalysis>(`/media/assets/${encodeURIComponent(assetId)}/audio-analysis${queryString(options ?? {})}`),
+  alignClipsToBeats: (body: BeatAlignmentRequest) =>
+    request<BeatAlignmentDraft>('/media/audio/align-clips', { method: 'POST', body }),
+  previewHlaeProposal: (intent: HlaeProposalIntent) =>
+    request<HlaeProposalPreview>('/agent/proposals/hlae/preview', { method: 'POST', body: intent }),
+  exportHlaeProposal: (intent: HlaeProposalIntent, confirmation: ProposalConfirmation) =>
+    request<HlaeProposalExportResult>('/agent/proposals/hlae/export', {
+      method: 'POST', body: { intent, ...confirmation },
+    }),
+  previewBeatAlignmentProposal: (body: BeatAlignmentProposalRequest) =>
+    request<BeatAlignmentProposalPreview>('/agent/proposals/beat-alignment/preview', { method: 'POST', body }),
+  applyBeatAlignmentProposal: (body: BeatAlignmentProposalRequest, confirmation: ProposalConfirmation) =>
+    request<BeatAlignmentApplyResult>('/agent/proposals/beat-alignment/apply', {
+      method: 'POST', body: { project_id: body.project_id, draft: body.draft, ...confirmation },
+    }),
+  previewHighlightEditProposal: (body: HighlightEditProposalRequest) =>
+    request<HighlightEditProposalPreview>('/agent/proposals/highlight-edit/preview', { method: 'POST', body }),
+  applyHighlightEditProposal: (
+    requestBody: HighlightEditProposalRequest,
+    plan: HighlightEditPlan,
+    confirmation: ProposalConfirmation,
+  ) => request<HighlightEditApplyResult>('/agent/proposals/highlight-edit/apply', {
+    method: 'POST', body: { request: requestBody, plan, ...confirmation },
+  }),
   health: (signal?: AbortSignal) => request<ApiHealth>('/health', { signal }),
   quickCheck: (signal?: AbortSignal) =>
     request<QuickCheckResponse>('/config/quick-check', { signal }),

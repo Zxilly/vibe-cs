@@ -1,0 +1,25 @@
+{
+  "name": "@vibe-cs/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.4",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=cjs --outfile=dist/index.cjs",
+    "sidecar": "pnpm build && node ../../scripts/build-agent-sidecar.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "4.0.37",
+    "@mastra/core": "1.57.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "esbuild": "0.28.2",
+    "postject": "1.0.0-alpha.6",
+    "typescript": "7.0.2",
+    "vitest": "4.1.10"
+  }
+}

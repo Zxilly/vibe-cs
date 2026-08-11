@@ -15,9 +15,10 @@ use uuid::Uuid;
 use crate::{
     AnalysisPort, ApiError, ApiResult, CosmeticsPort, DemoWatchPort, DisabledAnalysisPort,
     DisabledCosmeticsPort, DisabledDemoWatchPort, DisabledExportPort, DisabledIntegrationPort,
-    DisabledMediaPort, DisabledObsTuningPort, DisabledPlayerPort, DisabledRecordingPort,
-    DisabledReviewPort, DisabledSourceAssetPort, ExportPort, IntegrationPort, MediaPort,
-    ObsTuningPort, PlayerPort, RecordingPort, ReviewPort, SourceAssetPort,
+    DisabledMediaPort, DisabledObsTuningPort, DisabledPlayerPort, DisabledProposalExecutionPort,
+    DisabledRecordingPort, DisabledReviewPort, DisabledSourceAssetPort, ExportPort,
+    IntegrationPort, MediaPort, ObsTuningPort, PlayerPort, ProposalExecutionPort, RecordingPort,
+    ReviewPort, SourceAssetPort,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -213,6 +214,7 @@ pub struct AppState {
     pub(crate) integrations: Arc<dyn IntegrationPort>,
     pub(crate) obs_tuning: Arc<dyn ObsTuningPort>,
     pub(crate) demo_watch: Arc<dyn DemoWatchPort>,
+    pub(crate) proposal_execution: Arc<dyn ProposalExecutionPort>,
     pub(crate) events: EventHub,
     pub(crate) started_at: DateTime<Utc>,
     pub(crate) active_recording: Arc<Mutex<Option<Uuid>>>,
@@ -240,6 +242,7 @@ impl std::fmt::Debug for AppState {
             .field("integrations", &self.integrations)
             .field("obs_tuning", &self.obs_tuning)
             .field("demo_watch", &self.demo_watch)
+            .field("proposal_execution", &self.proposal_execution)
             .field("events", &self.events)
             .field("started_at", &self.started_at)
             .field("data_dir", &self.data_dir)
@@ -263,6 +266,7 @@ impl AppState {
             integrations: Arc::new(DisabledIntegrationPort),
             obs_tuning: Arc::new(DisabledObsTuningPort),
             demo_watch: Arc::new(DisabledDemoWatchPort),
+            proposal_execution: Arc::new(DisabledProposalExecutionPort),
             events: EventHub::default(),
             started_at: Utc::now(),
             active_recording: Arc::new(Mutex::new(None)),
@@ -338,6 +342,12 @@ impl AppState {
     #[must_use]
     pub fn with_demo_watch(mut self, port: Arc<dyn DemoWatchPort>) -> Self {
         self.demo_watch = port;
+        self
+    }
+
+    #[must_use]
+    pub fn with_proposal_execution(mut self, port: Arc<dyn ProposalExecutionPort>) -> Self {
+        self.proposal_execution = port;
         self
     }
 

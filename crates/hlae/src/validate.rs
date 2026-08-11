@@ -8,6 +8,7 @@ use crate::{
 const CS2_TICKS_PER_SECOND: u64 = 64;
 const MAXIMUM_TICK: u64 = i32::MAX as u64;
 const MAXIMUM_COORDINATE: f64 = 1_000_000.0;
+const MAXIMUM_TOTAL_KEYFRAMES: usize = 32_768;
 
 /// Validates an AI- or user-authored plan without compiling, writing, or executing it.
 ///
@@ -48,6 +49,14 @@ pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError>
     }
     if plan.shots.is_empty() || plan.shots.len() > 256 {
         return invalid("a plan must contain between 1 and 256 shots");
+    }
+    let total_keyframes = plan.shots.iter().try_fold(0_usize, |total, shot| {
+        total.checked_add(shot.keyframes.len())
+    });
+    if total_keyframes.is_none_or(|total| total > MAXIMUM_TOTAL_KEYFRAMES) {
+        return invalid(format!(
+            "a plan may contain at most {MAXIMUM_TOTAL_KEYFRAMES} camera keyframes in total"
+        ));
     }
 
     let mut notices = vec![HlaeNotice {
@@ -304,5 +313,43 @@ mod tests {
         let mut value = serde_json::to_value(valid_plan()).unwrap();
         value["commands"] = serde_json::json!(["quit"]);
         assert!(serde_json::from_value::<HlaePlan>(value).is_err());
+    }
+
+    #[test]
+    fn rejects_a_plan_that_exceeds_the_aggregate_keyframe_budget() {
+        let mut plan = valid_plan();
+        plan.shots.clear();
+        for shot_index in 0..9_u64 {
+            let start_tick = 1_000 + shot_index * 5_000;
+            let end_tick = start_tick + 4_095;
+            plan.shots.push(CameraShot {
+                id: format!("shot_{shot_index}"),
+                start_tick,
+                end_tick,
+                position_interpolation: PositionInterpolation::Cubic,
+                rotation_interpolation: RotationInterpolation::SphericalCubic,
+                keyframes: (start_tick..=end_tick)
+                    .map(|tick| CameraKeyframe {
+                        tick,
+                        position: CameraPosition {
+                            x: 1.0,
+                            y: 2.0,
+                            z: 3.0,
+                        },
+                        rotation: CameraRotation {
+                            pitch: 1.0,
+                            yaw: 2.0,
+                            roll: 3.0,
+                        },
+                        fov: 90.0,
+                    })
+                    .collect(),
+            });
+        }
+
+        assert!(matches!(
+            validate_hlae_plan(&plan),
+            Err(HlaeError::InvalidPlan(message)) if message.contains("at most 32768")
+        ));
     }
 }

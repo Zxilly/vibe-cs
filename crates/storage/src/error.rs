@@ -25,6 +25,14 @@ pub enum StorageError {
     EditorPresetRevisionOverflow(Uuid),
     #[error("integer {0} cannot be represented by SQLite")]
     IntegerOutOfRange(u64),
+    #[error("LLM API key could not be protected for secure persistence")]
+    SecretProtection,
+    #[error("LLM API key could not be recovered from secure persistence")]
+    SecretRecovery,
+    #[error(
+        "persistent LLM API keys are unsupported on this operating system; use a process environment credential"
+    )]
+    SecretPersistenceUnsupported,
 }
 
 pub type Result<T> = std::result::Result<T, StorageError>;

@@ -126,9 +126,9 @@ struct PreparedEvidence {
 
 fn review_client(config: &AppConfig) -> Result<OpenAiClient, DomainError> {
     let provider = config.llm.provider.trim();
-    if !matches!(provider, "openai-compatible" | "local") {
+    if !matches!(provider, "openai-compatible" | "local" | "kimi-code") {
         return Err(DomainError::DependencyUnavailable(
-            "AI review provider must be openai-compatible or local".to_owned(),
+            "AI review provider must be openai-compatible, kimi-code, or local".to_owned(),
         ));
     }
     if config.llm.base_url.len() > 2_048 || config.llm.model.len() > 256 {
@@ -178,6 +178,14 @@ fn validate_provider_url(provider: &str, url: &Url) -> Result<(), DomainError> {
         "openai-compatible" if url.scheme() != "https" => Err(DomainError::InvalidInput(
             "remote OpenAI-compatible providers must use HTTPS".to_owned(),
         )),
+        "kimi-code"
+            if url.scheme() != "https"
+                || !matches!(host, Host::Domain(domain) if domain.eq_ignore_ascii_case("api.kimi.com")) =>
+        {
+            Err(DomainError::InvalidInput(
+                "Kimi Code must use the official HTTPS api.kimi.com endpoint".to_owned(),
+            ))
+        }
         _ => Ok(()),
     }
 }

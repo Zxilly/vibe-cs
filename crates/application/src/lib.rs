@@ -18,14 +18,15 @@ pub use ports::{
     CosmeticPaintKitDto, CosmeticRewriteOutput, CosmeticsPort, DemoWatchPort, DemoWatchRootStatus,
     DemoWatchStatus, DisabledAnalysisPort, DisabledCosmeticsPort, DisabledDemoWatchPort,
     DisabledExportPort, DisabledIntegrationPort, DisabledMediaPort, DisabledObsTuningPort,
-    DisabledRecordingPort, DisabledReviewPort, DisabledSourceAssetPort, ExportPort,
-    IntegrationPort, LlmReviewRequest, LlmReviewResult, MediaPort, MediaProxyRequest,
-    ObsTuningPort, ObsVideoApplyRequest, ObsVideoApplyResult, ObsVideoBackup,
-    ObsVideoBackupDeleteResult, ObsVideoBackupReason, ObsVideoField, ObsVideoFieldDiff,
-    ObsVideoRestoreRequest, ObsVideoRestoreResult, ObsVideoSettingsSnapshot, ObsVideoTuningPlan,
-    ProbedMediaMetadata, RadarImageData, RadarOverviewData, RadarTransformData, RecordingPort,
-    ReplayCacheCleanup, ReplayCacheMetadata, ReplayCacheState, ReplayCacheStatus, ReplayPayload,
-    ReviewPort, ReviewScope, ReviewTone, SourceAssetPort,
+    DisabledProposalExecutionPort, DisabledRecordingPort, DisabledReviewPort,
+    DisabledSourceAssetPort, ExportPort, IntegrationPort, LlmReviewRequest, LlmReviewResult,
+    MediaPort, MediaProxyRequest, ObsTuningPort, ObsVideoApplyRequest, ObsVideoApplyResult,
+    ObsVideoBackup, ObsVideoBackupDeleteResult, ObsVideoBackupReason, ObsVideoField,
+    ObsVideoFieldDiff, ObsVideoRestoreRequest, ObsVideoRestoreResult, ObsVideoSettingsSnapshot,
+    ObsVideoTuningPlan, ProbedMediaMetadata, ProposalExecutionPort, RadarImageData,
+    RadarOverviewData, RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata,
+    ReplayCacheState, ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone,
+    SourceAssetPort,
 };
 pub use state::{AppState, ChangedEvent, EventHub};
 

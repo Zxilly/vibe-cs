@@ -334,9 +334,9 @@ impl DesktopMethod {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct DesktopCall {
-    method: DesktopMethod,
-    path: String,
-    body: Option<Value>,
+    pub(crate) method: DesktopMethod,
+    pub(crate) path: String,
+    pub(crate) body: Option<Value>,
 }
 
 impl DesktopCall {

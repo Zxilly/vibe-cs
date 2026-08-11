@@ -10,6 +10,7 @@ use crate::{
 const COMMAND_FILE_NAME: &str = "vibe_cs_commands.xml";
 const BOOTSTRAP_FILE_NAME: &str = "vibe_cs_hlae.cfg";
 const CS2_TICKS_PER_SECOND: f64 = 64.0;
+const MAXIMUM_COMPILED_ARTIFACT_BYTES: usize = 16 * 1024 * 1024;
 
 /// Compiles a validated plan into reviewable text artifacts without writing or executing them.
 ///
@@ -69,7 +70,7 @@ pub fn compile_hlae_plan(
         ),
     };
 
-    Ok(CompiledHlaePlan {
+    let compiled = CompiledHlaePlan {
         schema_version: HLAE_PLAN_SCHEMA_VERSION,
         mode: plan.mode,
         first_tick,
@@ -78,7 +79,19 @@ pub fn compile_hlae_plan(
         command_system,
         camera_paths,
         notices,
-    })
+    };
+    let total_bytes = std::iter::once(&compiled.bootstrap_config)
+        .chain(std::iter::once(&compiled.command_system))
+        .chain(compiled.camera_paths.iter())
+        .try_fold(0_usize, |total, artifact| {
+            total.checked_add(artifact.contents.len())
+        });
+    if total_bytes.is_none_or(|total| total > MAXIMUM_COMPILED_ARTIFACT_BYTES) {
+        return Err(HlaeError::InvalidPlan(format!(
+            "compiled HLAE artifacts exceed the {MAXIMUM_COMPILED_ARTIFACT_BYTES} byte limit"
+        )));
+    }
+    Ok(compiled)
 }
 
 /// Creates the fixed, `-insecure` custom-loader profile documented by HLAE.

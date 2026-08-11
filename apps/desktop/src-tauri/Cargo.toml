@@ -11,8 +11,11 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 vibe-cs-application = { path = "../../../crates/application" }
+vibe-cs-domain = { path = "../../../crates/domain" }
+vibe-cs-hlae = { path = "../../../crates/hlae" }
 vibe-cs-runtime = { path = "../../../crates/runtime" }
 vibe-cs-storage = { path = "../../../crates/storage" }
+vibe-cs-platform-windows = { path = "../../../crates/platform-windows" }
 axum.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
@@ -21,6 +24,11 @@ tauri-plugin-single-instance = "2"
 tokio.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+same-file.workspace = true
+chrono.workspace = true
+uuid.workspace = true
 tower.workspace = true
 tracing.workspace = true
 tracing-appender.workspace = true
@@ -28,3 +36,6 @@ tracing-subscriber.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

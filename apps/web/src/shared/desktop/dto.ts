@@ -1330,6 +1330,7 @@ export type AppConfig = {
     prompt: string;
   };
   llm_has_api_key: boolean;
+  clear_llm_api_key: boolean;
   recording: {
     pre_roll_seconds: number;
     post_roll_seconds: number;
@@ -1407,4 +1408,242 @@ export type ApiProblem = {
   code?: string;
   message?: string;
   detail?: string | { code?: string; message?: string; params?: Record<string, unknown> };
+};
+
+export type AgentMode = 'guide' | 'edit' | 'hlae';
+
+export type AgentStatus = {
+  sidecarAvailable: boolean;
+  configured: boolean;
+  provider: string;
+  model: string;
+  streaming: boolean;
+};
+
+export type AgentToolCall = {
+  name: string;
+  input: unknown;
+  output: unknown;
+};
+
+export type AgentProposal = {
+  kind: 'highlight_edit' | 'beat_alignment' | 'hlae';
+  title: string;
+  payload: unknown;
+};
+
+export type ProposalPrerequisite = { code: string; message: string };
+export type HlaeProposalIntent = {
+  demo_id: EntityId;
+  highlight_ids: string[];
+  camera_style: 'pov' | 'orbit' | 'dolly';
+  mode: 'preview' | 'capture';
+};
+export type ProposalConfirmation = {
+  base_fingerprint: string;
+  proposal_fingerprint: string;
+  confirmation_token: string;
+  expected_revision: number;
+  confirm: true;
+};
+export type HlaeProposalPreview = {
+  schema_version: number;
+  proposal_revision: number;
+  ready: boolean;
+  prerequisites: ProposalPrerequisite[];
+  base_fingerprint: string | null;
+  proposal_fingerprint: string | null;
+  confirmation_token: string | null;
+  typed_plan: unknown | null;
+  compiled_preview: unknown | null;
+  notices: string[];
+};
+export type HlaeProposalExportResult = {
+  directory: string;
+  files: string[];
+  completion_marker: string;
+  launched: false;
+};
+export type BeatAlignmentProposalRequest = {
+  project_id: EntityId;
+  expected_revision: number;
+  draft: BeatAlignmentDraft;
+};
+export type BeatAlignmentProposalPreview = {
+  ready: boolean;
+  prerequisites: ProposalPrerequisite[];
+  project_id: EntityId;
+  expected_revision: number;
+  base_fingerprint: string | null;
+  proposal_fingerprint: string | null;
+  confirmation_token: string | null;
+  changes: BeatAlignmentDraft['clips'];
+};
+export type BeatAlignmentApplyResult = {
+  project_id: EntityId;
+  previous_revision: number;
+  revision: number;
+  applied_clip_ids: EntityId[];
+  snapshot_created: boolean;
+};
+export type HighlightEditProposalRequest = {
+  demo_id: EntityId;
+  highlight_ids: string[];
+  target_project_id?: EntityId | null;
+  expected_revision?: number | null;
+  new_project_name?: string | null;
+};
+export type HighlightAssetMapping = {
+  highlight_id: string;
+  recorded_clip_id: EntityId;
+  path: string;
+  duration_seconds: number;
+  file_size: number;
+  content_sha256: string;
+};
+export type HighlightEditClipInsert = {
+  highlight_id: string;
+  recorded_clip_id: EntityId;
+  editor_clip_id: EntityId;
+  timeline_start_seconds: number;
+  timeline_end_seconds: number;
+  source_in_seconds: number;
+  source_out_seconds: number;
+  transition_in: string | null;
+};
+export type HighlightEditPlan = {
+  demo_id: EntityId;
+  project_id: EntityId;
+  project_name: string;
+  create_project: boolean;
+  expected_revision: number;
+  target_track_id: EntityId;
+  create_track: boolean;
+  mappings: HighlightAssetMapping[];
+  insertions: HighlightEditClipInsert[];
+};
+export type HighlightEditProposalPreview = {
+  ready: boolean;
+  prerequisites: ProposalPrerequisite[];
+  mappings: HighlightAssetMapping[];
+  insertions: HighlightEditClipInsert[];
+  target_project_id: EntityId | null;
+  creates_new_project: boolean;
+  expected_revision: number;
+  base_fingerprint: string | null;
+  proposal_fingerprint: string | null;
+  confirmation_token: string | null;
+  plan: HighlightEditPlan | null;
+};
+export type HighlightEditApplyResult = {
+  project_id: EntityId;
+  previous_revision: number;
+  revision: number;
+  inserted_clip_ids: EntityId[];
+  project_created: boolean;
+  snapshot_created: boolean;
+  already_applied: boolean;
+};
+
+export type AgentMessage = {
+  id: EntityId;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+  toolCalls: AgentToolCall[];
+  proposals: AgentProposal[];
+};
+
+export type AgentThread = {
+  id: EntityId;
+  messages: AgentMessage[];
+  updatedAt: string;
+};
+
+export type AgentChatInput = {
+  requestId: EntityId;
+  threadId?: EntityId;
+  demoId?: EntityId;
+  editorProjectId?: EntityId;
+  audioAssetId?: EntityId;
+  mode: AgentMode;
+  message: string;
+};
+
+export type AgentEvent =
+  | { type: 'started'; threadId: EntityId }
+  | { type: 'textDelta'; delta: string }
+  | { type: 'toolCall'; toolCall: AgentToolCall }
+  | { type: 'proposal'; proposal: AgentProposal }
+  | { type: 'complete'; thread: AgentThread }
+  | { type: 'error'; message: string };
+
+export type AgentChatResult = { thread_id: EntityId };
+
+export type AudioBeat = {
+  index: number;
+  time_seconds: number;
+  strength: number;
+  phrase_position: number;
+};
+
+export type AudioAnalysis = {
+  duration_seconds: number;
+  analysis_sample_rate: number;
+  bpm: number | null;
+  tempo_confidence: number;
+  beats: AudioBeat[];
+  onsets: Array<{ time_seconds: number; strength: number }>;
+  energy: Array<{ time_seconds: number; rms: number; peak: number }>;
+  sections: Array<{
+    start_seconds: number;
+    end_seconds: number;
+    character: string;
+    mean_energy: number;
+    confidence: number;
+  }>;
+  limitations: string[];
+};
+
+export type AudioAnalysisOptions = {
+  sample_rate?: number;
+  maximum_duration_seconds?: number;
+  maximum_beats?: number;
+  maximum_onsets?: number;
+  energy_points?: number;
+  maximum_sections?: number;
+};
+
+export type BeatAlignmentRequest = {
+  beats: AudioBeat[];
+  clips: Array<{
+    clip_id: string;
+    source_duration_seconds: number;
+    minimum_duration_seconds?: number;
+    maximum_duration_seconds?: number;
+    preferred_beats?: number;
+  }>;
+  options?: {
+    timeline_start_seconds?: number;
+    maximum_duration_change_ratio?: number;
+    beats_per_phrase?: number;
+    prefer_strong_boundaries?: boolean;
+  };
+};
+
+export type BeatAlignmentDraft = {
+  advisory_only: true;
+  clips: Array<{
+    clip_id: string;
+    timeline_start_seconds: number;
+    timeline_end_seconds: number;
+    planned_duration_seconds: number;
+    source_duration_seconds: number;
+    duration_change_ratio: number;
+    start_beat_index: number;
+    end_beat_index: number;
+    rationale: string[];
+  }>;
+  unplaced_clip_ids: string[];
+  constraints: string[];
 };

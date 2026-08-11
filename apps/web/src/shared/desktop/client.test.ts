@@ -108,6 +108,28 @@ describe('desktop command client', () => {
       call: { method: 'post', path: '/playback/stop', body: {} },
     }]);
   });
+
+  it('keeps proposal preview and confirmed mutation on typed local routes', async () => {
+    invokeMock.mockResolvedValue({ ready: true, prerequisites: [] });
+    const intent = {
+      demo_id: '00000000-0000-4000-8000-000000000001',
+      highlight_ids: ['h-1'], camera_style: 'orbit' as const, mode: 'preview' as const,
+    };
+    await commands.previewHlaeProposal(intent);
+    await commands.exportHlaeProposal(intent, {
+      base_fingerprint: 'base', proposal_fingerprint: 'proposal', confirmation_token: 'token',
+      expected_revision: 1, confirm: true,
+    });
+    expect(invokeMock.mock.calls[0]).toEqual(['desktop_call', {
+      call: { method: 'post', path: '/agent/proposals/hlae/preview', body: intent },
+    }]);
+    expect(invokeMock.mock.calls[1]?.[1]).toMatchObject({
+      call: {
+        method: 'post', path: '/agent/proposals/hlae/export',
+        body: { intent, confirm: true, confirmation_token: 'token' },
+      },
+    });
+  });
 });
 
 describe('wire normalization', () => {

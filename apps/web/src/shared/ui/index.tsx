@@ -248,11 +248,13 @@ export function SegmentedControl<T extends string>({
   value,
   options,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: T;
   options: ReadonlyArray<{ value: T; label: string; icon?: ReactNode }>;
   onChange: (value: T) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="segmented" role="group" aria-label={label}>
@@ -262,6 +264,7 @@ export function SegmentedControl<T extends string>({
           key={option.value}
           className={value === option.value ? 'is-active' : undefined}
           aria-pressed={value === option.value}
+          disabled={disabled}
           onClick={() => onChange(option.value)}
         >
           {option.icon}

@@ -17,18 +17,111 @@ use cap_std::{
 use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
+#[cfg(windows)]
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use vibe_cs_domain::{
-    AppConfig, CosmeticPlan, DemoPatch, DemoQuery, DemoRecord, DemoStatus, EditorAudioSeparation,
-    EditorPresetDocument, EditorProject, EditorProjectSnapshot, ExportJob, MatchAnalysis,
-    MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery, MediaAsset, MediaProxyStatus,
-    MontageProject, Page, RecordedClip, RecordingJob, SteamMatchRecord,
+    AppConfig, BeatAlignmentDraft, CosmeticPlan, DemoPatch, DemoQuery, DemoRecord, DemoStatus,
+    EditorAudioSeparation, EditorPresetDocument, EditorProject, EditorProjectSnapshot, ExportJob,
+    HighlightEditPlan, MatchAnalysis, MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery,
+    MediaAsset, MediaProxyStatus, MontageProject, Page, RecordedClip, RecordingJob,
+    SteamMatchRecord,
 };
 
 use crate::{Result, StorageError, migrations};
 
 /// Maximum number of editor project versions retained for restoration.
 pub const EDITOR_PROJECT_SNAPSHOT_LIMIT: usize = 20;
+
+#[cfg(windows)]
+const LLM_API_KEY_ENVELOPE_PREFIX: &str = "dpapi:v1:";
+#[cfg(windows)]
+const LLM_API_KEY_DPAPI_PURPOSE: &[u8] = b"Vibe CS app_config.llm.api_key dpapi:v1 scope:v1";
+#[cfg(windows)]
+const MAX_LLM_API_KEY_BYTES: usize = 64 * 1024;
+#[cfg(windows)]
+const MAX_LLM_API_KEY_ENVELOPE_HEX_BYTES: usize = (MAX_LLM_API_KEY_BYTES + 4 * 1024) * 2;
+
+#[cfg(windows)]
+fn llm_api_key_purpose(config: &AppConfig) -> [u8; 32] {
+    let mut digest = Sha256::new();
+    digest.update(LLM_API_KEY_DPAPI_PURPOSE);
+    for component in [config.llm.provider.trim(), config.llm.base_url.trim()] {
+        digest.update(component.len().to_le_bytes());
+        digest.update(component.as_bytes());
+    }
+    digest.finalize().into()
+}
+
+#[cfg(windows)]
+fn has_legacy_plaintext_llm_api_key(config: &AppConfig) -> bool {
+    !config.llm.api_key.is_empty() && !config.llm.api_key.starts_with(LLM_API_KEY_ENVELOPE_PREFIX)
+}
+
+#[cfg(windows)]
+fn config_for_persistence(config: &AppConfig) -> Result<AppConfig> {
+    let mut stored = config.clone();
+    if stored.llm.api_key.is_empty() {
+        return Ok(stored);
+    }
+    if stored.llm.api_key.len() > MAX_LLM_API_KEY_BYTES {
+        return Err(StorageError::SecretProtection);
+    }
+    let ciphertext = vibe_cs_platform_windows::protect_user_secret(
+        stored.llm.api_key.as_bytes(),
+        &llm_api_key_purpose(&stored),
+    )
+    .map_err(|_| StorageError::SecretProtection)?;
+    stored.llm.api_key = format!("{LLM_API_KEY_ENVELOPE_PREFIX}{}", hex::encode(ciphertext));
+    Ok(stored)
+}
+
+#[cfg(not(windows))]
+fn config_for_persistence(config: &AppConfig) -> Result<AppConfig> {
+    if config.llm.api_key.is_empty() {
+        Ok(config.clone())
+    } else {
+        Err(StorageError::SecretPersistenceUnsupported)
+    }
+}
+
+#[cfg(windows)]
+fn config_from_persistence(mut config: AppConfig) -> Result<AppConfig> {
+    if config.llm.api_key.is_empty() {
+        return Ok(config);
+    }
+    let Some(encoded) = config.llm.api_key.strip_prefix(LLM_API_KEY_ENVELOPE_PREFIX) else {
+        // The repository read path immediately rewrites this legacy plaintext
+        // under the same serialized connection lock before returning it.
+        return Ok(config);
+    };
+    if encoded.is_empty() || encoded.len() > MAX_LLM_API_KEY_ENVELOPE_HEX_BYTES {
+        return Err(StorageError::SecretRecovery);
+    }
+    let ciphertext = hex::decode(encoded).map_err(|_| StorageError::SecretRecovery)?;
+    let mut plaintext =
+        vibe_cs_platform_windows::unprotect_user_secret(&ciphertext, &llm_api_key_purpose(&config))
+            .map_err(|_| StorageError::SecretRecovery)?;
+    if plaintext.len() > MAX_LLM_API_KEY_BYTES {
+        plaintext.fill(0);
+        return Err(StorageError::SecretRecovery);
+    }
+    let api_key = std::str::from_utf8(&plaintext)
+        .map(str::to_owned)
+        .map_err(|_| StorageError::SecretRecovery);
+    plaintext.fill(0);
+    config.llm.api_key = api_key?;
+    Ok(config)
+}
+
+#[cfg(not(windows))]
+fn config_from_persistence(config: AppConfig) -> Result<AppConfig> {
+    if config.llm.api_key.is_empty() {
+        Ok(config)
+    } else {
+        Err(StorageError::SecretPersistenceUnsupported)
+    }
+}
 
 fn sql_u64(value: u64) -> Result<i64> {
     i64::try_from(value).map_err(|_| StorageError::IntegerOutOfRange(value))
@@ -53,6 +146,36 @@ pub enum EditorProjectUpdate {
     Updated(EditorProject),
     NotFound,
     Conflict { current_revision: u64 },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BeatAlignmentUpdate {
+    Applied {
+        project: EditorProject,
+        applied_clip_ids: Vec<Uuid>,
+    },
+    ProjectNotFound,
+    Conflict {
+        current_revision: u64,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum HighlightEditUpdate {
+    Applied {
+        project: EditorProject,
+        inserted_clip_ids: Vec<Uuid>,
+        project_created: bool,
+    },
+    AlreadyApplied {
+        project: EditorProject,
+        inserted_clip_ids: Vec<Uuid>,
+        project_created: bool,
+    },
+    ProjectNotFound,
+    Conflict {
+        current_revision: u64,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -276,25 +399,41 @@ impl Storage {
 
     pub async fn get_config(&self) -> Result<Option<AppConfig>> {
         self.run(|connection| {
-            let json = connection
+            let Some(json) = connection
                 .query_row(
                     "SELECT document_json FROM app_config WHERE key = 'app'",
                     [],
                     |row| row.get::<_, String>(0),
                 )
-                .optional()?;
-            json.map(|json| decode(&json)).transpose()
+                .optional()?
+            else {
+                return Ok(None);
+            };
+            let stored: AppConfig = decode(&json)?;
+            #[cfg(windows)]
+            let migrate_legacy_secret = has_legacy_plaintext_llm_api_key(&stored);
+            let config = config_from_persistence(stored)?;
+            #[cfg(windows)]
+            if migrate_legacy_secret {
+                let protected = config_for_persistence(&config)?;
+                connection.execute(
+                    "UPDATE app_config SET document_json = ?1, updated_at = ?2 WHERE key = 'app'",
+                    params![encode(&protected)?, Utc::now().to_rfc3339()],
+                )?;
+            }
+            Ok(Some(config))
         })
         .await
     }
 
     pub async fn put_config(&self, config: AppConfig) -> Result<AppConfig> {
         self.run(move |connection| {
+            let stored = config_for_persistence(&config)?;
             connection.execute(
                 "INSERT INTO app_config(key, document_json, updated_at) VALUES ('app', ?1, ?2) \
                  ON CONFLICT(key) DO UPDATE SET document_json = excluded.document_json, \
                  updated_at = excluded.updated_at",
-                params![encode(&config)?, Utc::now().to_rfc3339()],
+                params![encode(&stored)?, Utc::now().to_rfc3339()],
             )?;
             Ok(config)
         })
@@ -860,6 +999,166 @@ impl Storage {
             }
             transaction.commit()?;
             Ok(EditorProjectUpdate::Updated(project))
+        })
+        .await
+    }
+
+    /// Applies a bounded beat-alignment draft and retains the previous editor
+    /// document as one snapshot in the same `SQLite` transaction.
+    pub async fn apply_beat_alignment(
+        &self,
+        project_id: Uuid,
+        expected_revision: u64,
+        draft: BeatAlignmentDraft,
+    ) -> Result<BeatAlignmentUpdate> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(mut document) = get_editor_project_document(&transaction, project_id)? else {
+                return Ok(BeatAlignmentUpdate::ProjectNotFound);
+            };
+            if document.project.revision != expected_revision {
+                return Ok(BeatAlignmentUpdate::Conflict {
+                    current_revision: document.project.revision,
+                });
+            }
+
+            let previous = document.project.clone();
+            let applied_clip_ids = document.project.apply_beat_alignment_draft(&draft)?;
+            document.project.revision = previous
+                .revision
+                .checked_add(1)
+                .ok_or(StorageError::EditorProjectRevisionOverflow(project_id))?;
+            document.project.created_at = previous.created_at;
+            document.project.updated_at = Utc::now();
+            retain_snapshot(
+                &mut document.snapshots,
+                previous,
+                document.project.updated_at,
+            );
+            let changed = update_editor_project_row(&transaction, &document, expected_revision)?;
+            if changed != 1 {
+                let current_revision = transaction
+                    .query_row(
+                        "SELECT revision FROM editor_projects WHERE id = ?1",
+                        [project_id.to_string()],
+                        |row| row_u64(row, 0),
+                    )
+                    .optional()?
+                    .unwrap_or(expected_revision);
+                return Ok(BeatAlignmentUpdate::Conflict { current_revision });
+            }
+            transaction.commit()?;
+            Ok(BeatAlignmentUpdate::Applied {
+                project: document.project,
+                applied_clip_ids,
+            })
+        })
+        .await
+    }
+
+    /// Applies a confirmed highlight sequence with its recorded-source checks,
+    /// project compare-and-swap, and before-snapshot in one `SQLite` transaction.
+    /// The create-new branch inserts the complete project without an
+    /// intermediate empty document.
+    pub async fn apply_highlight_edit(
+        &self,
+        plan: HighlightEditPlan,
+        proposal_fingerprint: String,
+    ) -> Result<HighlightEditUpdate> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            verify_highlight_recordings(&transaction, &plan)?;
+            let existing = get_editor_project_document(&transaction, plan.project_id)?;
+            if let Some(mut document) = existing {
+                if highlight_edit_already_applied(&document.project, &plan, &proposal_fingerprint) {
+                    return Ok(HighlightEditUpdate::AlreadyApplied {
+                        project: document.project,
+                        inserted_clip_ids: plan
+                            .insertions
+                            .iter()
+                            .map(|insertion| insertion.editor_clip_id)
+                            .collect(),
+                        project_created: plan.create_project,
+                    });
+                }
+                if plan.create_project || document.project.revision != plan.expected_revision {
+                    return Ok(HighlightEditUpdate::Conflict {
+                        current_revision: document.project.revision,
+                    });
+                }
+
+                let previous = document.project.clone();
+                let inserted_clip_ids = document.project.apply_highlight_edit_plan(&plan)?;
+                document.project.revision = previous
+                    .revision
+                    .checked_add(1)
+                    .ok_or(StorageError::EditorProjectRevisionOverflow(plan.project_id))?;
+                document.project.created_at = previous.created_at;
+                document.project.updated_at = Utc::now();
+                mark_highlight_edit_applied(
+                    &mut document.project,
+                    &proposal_fingerprint,
+                    &inserted_clip_ids,
+                );
+                retain_snapshot(
+                    &mut document.snapshots,
+                    previous,
+                    document.project.updated_at,
+                );
+                let changed =
+                    update_editor_project_row(&transaction, &document, plan.expected_revision)?;
+                if changed != 1 {
+                    let current_revision = transaction
+                        .query_row(
+                            "SELECT revision FROM editor_projects WHERE id = ?1",
+                            [plan.project_id.to_string()],
+                            |row| row_u64(row, 0),
+                        )
+                        .optional()?
+                        .unwrap_or(plan.expected_revision);
+                    return Ok(HighlightEditUpdate::Conflict { current_revision });
+                }
+                transaction.commit()?;
+                return Ok(HighlightEditUpdate::Applied {
+                    project: document.project,
+                    inserted_clip_ids,
+                    project_created: false,
+                });
+            }
+
+            if !plan.create_project || plan.expected_revision != 0 {
+                return Ok(HighlightEditUpdate::ProjectNotFound);
+            }
+            let now = Utc::now();
+            let mut project = EditorProject {
+                id: plan.project_id,
+                name: plan.project_name.clone(),
+                width: 1920,
+                height: 1080,
+                fps: 60,
+                duration_seconds: 0.0,
+                tracks: Vec::new(),
+                markers: Vec::new(),
+                settings: serde_json::json!({}),
+                revision: 1,
+                created_at: now,
+                updated_at: now,
+            };
+            let inserted_clip_ids = project.apply_highlight_edit_plan(&plan)?;
+            mark_highlight_edit_applied(&mut project, &proposal_fingerprint, &inserted_clip_ids);
+            let document = EditorProjectDocument {
+                project: project.clone(),
+                snapshots: Vec::new(),
+            };
+            put_editor_project_row(&transaction, &document)?;
+            transaction.commit()?;
+            Ok(HighlightEditUpdate::Applied {
+                project,
+                inserted_clip_ids,
+                project_created: true,
+            })
         })
         .await
     }
@@ -2648,6 +2947,121 @@ fn retain_snapshot(
     snapshots.truncate(EDITOR_PROJECT_SNAPSHOT_LIMIT);
 }
 
+fn verify_highlight_recordings(connection: &Connection, plan: &HighlightEditPlan) -> Result<()> {
+    if plan.mappings.len() != plan.insertions.len() {
+        return Err(StorageError::Domain(
+            vibe_cs_domain::DomainError::InvalidInput(
+                "highlight edit mappings no longer match their insertions".to_owned(),
+            ),
+        ));
+    }
+    for mapping in &plan.mappings {
+        let Some(recorded) =
+            get_document::<RecordedClip>(connection, "recorded_clips", mapping.recorded_clip_id)?
+        else {
+            return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                format!(
+                    "recorded clip {} is no longer available",
+                    mapping.recorded_clip_id
+                ),
+            )));
+        };
+        let highlight_id = recorded
+            .metadata
+            .get("highlight_id")
+            .or_else(|| recorded.metadata.get("source_highlight_id"))
+            .and_then(serde_json::Value::as_str);
+        if recorded.demo_id != Some(plan.demo_id)
+            || highlight_id != Some(mapping.highlight_id.as_str())
+            || recorded.path != mapping.path
+            || !recorded.duration_seconds.is_finite()
+            || (recorded.duration_seconds - mapping.duration_seconds).abs() > 0.001
+        {
+            return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                format!(
+                    "recorded clip {} changed after proposal preview",
+                    mapping.recorded_clip_id
+                ),
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn mark_highlight_edit_applied(
+    project: &mut EditorProject,
+    proposal_fingerprint: &str,
+    inserted_clip_ids: &[Uuid],
+) {
+    if !project.settings.is_object() {
+        project.settings = serde_json::json!({});
+    }
+    project
+        .settings
+        .as_object_mut()
+        .expect("settings was normalized to an object")
+        .insert(
+            "last_agent_highlight_edit".to_owned(),
+            serde_json::json!({
+                "proposal_fingerprint": proposal_fingerprint,
+                "inserted_clip_ids": inserted_clip_ids,
+            }),
+        );
+}
+
+fn highlight_edit_already_applied(
+    project: &EditorProject,
+    plan: &HighlightEditPlan,
+    proposal_fingerprint: &str,
+) -> bool {
+    let marker = project
+        .settings
+        .get("last_agent_highlight_edit")
+        .and_then(serde_json::Value::as_object);
+    if marker
+        .and_then(|value| value.get("proposal_fingerprint"))
+        .and_then(serde_json::Value::as_str)
+        != Some(proposal_fingerprint)
+    {
+        return false;
+    }
+    let planned_ids = plan
+        .insertions
+        .iter()
+        .map(|insertion| insertion.editor_clip_id)
+        .collect::<Vec<_>>();
+    let Some(marker_ids) = marker
+        .and_then(|value| value.get("inserted_clip_ids"))
+        .and_then(serde_json::Value::as_array)
+        .and_then(|values| {
+            values
+                .iter()
+                .map(|value| value.as_str().and_then(|id| Uuid::parse_str(id).ok()))
+                .collect::<Option<Vec<_>>>()
+        })
+    else {
+        return false;
+    };
+    if marker_ids != planned_ids {
+        return false;
+    }
+    plan.insertions.iter().all(|insertion| {
+        project
+            .tracks
+            .iter()
+            .flat_map(|track| &track.clips)
+            .any(|clip| {
+                clip.id == insertion.editor_clip_id
+                    && clip.asset_id == Some(insertion.recorded_clip_id)
+                    && clip
+                        .metadata
+                        .get("highlight_id")
+                        .and_then(serde_json::Value::as_str)
+                        == Some(insertion.highlight_id.as_str())
+            })
+    })
+}
+
 fn get_document<T: DeserializeOwned>(
     connection: &Connection,
     table: &str,
@@ -2970,6 +3384,146 @@ mod tests {
                 .expect("get demo by hash"),
             Some(record)
         );
+    }
+
+    #[cfg(windows)]
+    async fn raw_config_document(storage: &Storage) -> String {
+        storage
+            .run(|connection| {
+                connection
+                    .query_row(
+                        "SELECT document_json FROM app_config WHERE key = 'app'",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .map_err(StorageError::from)
+            })
+            .await
+            .expect("raw config document")
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn llm_api_key_is_dpapi_protected_at_rest_and_round_trips() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let mut config = AppConfig::default();
+        config.llm.api_key = "storage-test-llm-secret-unique".to_owned();
+
+        storage
+            .put_config(config.clone())
+            .await
+            .expect("put protected config");
+
+        let raw = raw_config_document(&storage).await;
+        assert!(!raw.contains("storage-test-llm-secret-unique"));
+        assert!(raw.contains(LLM_API_KEY_ENVELOPE_PREFIX));
+        assert_eq!(
+            storage.get_config().await.expect("get protected config"),
+            Some(config)
+        );
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn tampered_llm_api_key_envelope_fails_closed() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let mut config = AppConfig::default();
+        config.llm.api_key = "tamper-test-secret".to_owned();
+        storage.put_config(config).await.expect("put config");
+
+        storage
+            .run(|connection| {
+                let raw: String = connection.query_row(
+                    "SELECT document_json FROM app_config WHERE key = 'app'",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let mut document: serde_json::Value = serde_json::from_str(&raw)?;
+                let envelope = document["llm"]["api_key"]
+                    .as_str()
+                    .expect("stored envelope");
+                let mut tampered = envelope.as_bytes().to_vec();
+                let last = tampered.last_mut().expect("non-empty envelope");
+                *last = if *last == b'0' { b'1' } else { b'0' };
+                document["llm"]["api_key"] =
+                    serde_json::Value::String(String::from_utf8(tampered).expect("ASCII envelope"));
+                connection.execute(
+                    "UPDATE app_config SET document_json = ?1 WHERE key = 'app'",
+                    [serde_json::to_string(&document)?],
+                )?;
+                Ok(())
+            })
+            .await
+            .expect("tamper stored envelope");
+
+        assert!(matches!(
+            storage.get_config().await,
+            Err(StorageError::SecretRecovery)
+        ));
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn stored_llm_key_is_bound_to_its_provider_scope() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let mut config = AppConfig::default();
+        config.llm.provider = "openai-compatible".to_owned();
+        config.llm.base_url = "https://provider.example/v1".to_owned();
+        config.llm.api_key = "scope-bound-secret".to_owned();
+        storage.put_config(config).await.expect("put config");
+
+        storage
+            .run(|connection| {
+                let raw: String = connection.query_row(
+                    "SELECT document_json FROM app_config WHERE key = 'app'",
+                    [],
+                    |row| row.get(0),
+                )?;
+                let mut document: serde_json::Value = serde_json::from_str(&raw)?;
+                document["llm"]["base_url"] =
+                    serde_json::Value::String("https://attacker.example/v1".to_owned());
+                connection.execute(
+                    "UPDATE app_config SET document_json = ?1 WHERE key = 'app'",
+                    [serde_json::to_string(&document)?],
+                )?;
+                Ok(())
+            })
+            .await
+            .expect("tamper stored provider scope");
+
+        assert!(matches!(
+            storage.get_config().await,
+            Err(StorageError::SecretRecovery)
+        ));
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn legacy_plaintext_llm_key_migrates_on_first_read() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let mut legacy = AppConfig::default();
+        legacy.llm.api_key = "legacy-plaintext-llm-secret".to_owned();
+        let legacy_json = encode(&legacy).expect("encode legacy config");
+        storage
+            .run(move |connection| {
+                connection.execute(
+                    "INSERT INTO app_config(key, document_json, updated_at) VALUES ('app', ?1, ?2)",
+                    params![legacy_json, Utc::now().to_rfc3339()],
+                )?;
+                Ok(())
+            })
+            .await
+            .expect("insert legacy config");
+
+        let recovered = storage
+            .get_config()
+            .await
+            .expect("read legacy config")
+            .expect("legacy config");
+        assert_eq!(recovered.llm.api_key, "legacy-plaintext-llm-secret");
+        let raw = raw_config_document(&storage).await;
+        assert!(!raw.contains("legacy-plaintext-llm-secret"));
+        assert!(raw.contains(LLM_API_KEY_ENVELOPE_PREFIX));
     }
 
     #[tokio::test]
@@ -3323,6 +3877,232 @@ mod tests {
                 .expect("snapshots")
                 .len(),
             1
+        );
+    }
+
+    #[tokio::test]
+    async fn beat_alignment_is_one_revision_transaction_with_one_snapshot() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let original = editor_project_with_asset("Beat edit", 1, Uuid::new_v4());
+        let clip_id = original.tracks[0].clips[0].id;
+        storage
+            .put_editor_project(original.clone())
+            .await
+            .expect("put project");
+        let draft = BeatAlignmentDraft {
+            advisory_only: true,
+            clips: vec![vibe_cs_domain::BeatAlignedClip {
+                clip_id: clip_id.to_string(),
+                timeline_start_seconds: 0.5,
+                timeline_end_seconds: 3.5,
+                planned_duration_seconds: 3.0,
+                source_duration_seconds: 4.0,
+                duration_change_ratio: -0.25,
+                start_beat_index: 0,
+                end_beat_index: 4,
+                rationale: Vec::new(),
+            }],
+            unplaced_clip_ids: Vec::new(),
+            constraints: Vec::new(),
+        };
+        let (first, second) = tokio::join!(
+            storage.apply_beat_alignment(original.id, 1, draft.clone()),
+            storage.apply_beat_alignment(original.id, 1, draft),
+        );
+        let outcomes = [first.expect("first"), second.expect("second")];
+        assert_eq!(
+            outcomes
+                .iter()
+                .filter(|outcome| matches!(outcome, BeatAlignmentUpdate::Applied { .. }))
+                .count(),
+            1
+        );
+        assert_eq!(
+            outcomes
+                .iter()
+                .filter(|outcome| matches!(outcome, BeatAlignmentUpdate::Conflict { .. }))
+                .count(),
+            1
+        );
+        let current = storage
+            .get_editor_project(original.id)
+            .await
+            .expect("get project")
+            .expect("project");
+        assert_eq!(current.revision, 2);
+        assert!((current.tracks[0].clips[0].start - 0.5).abs() < 0.000_001);
+        assert_eq!(
+            storage
+                .list_editor_project_snapshots(original.id)
+                .await
+                .expect("snapshots")
+                .len(),
+            1
+        );
+    }
+
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "test plan fixture keeps every signed field explicit"
+    )]
+    fn highlight_edit_plan(
+        demo_id: Uuid,
+        project_id: Uuid,
+        create_project: bool,
+        expected_revision: u64,
+        target_track_id: Uuid,
+        create_track: bool,
+        recorded_clip_id: Uuid,
+        editor_clip_id: Uuid,
+        start: f64,
+    ) -> HighlightEditPlan {
+        HighlightEditPlan {
+            demo_id,
+            project_id,
+            project_name: "AI highlights".to_owned(),
+            create_project,
+            expected_revision,
+            target_track_id,
+            create_track,
+            mappings: vec![vibe_cs_domain::HighlightAssetMapping {
+                highlight_id: "h-1".to_owned(),
+                recorded_clip_id,
+                path: "C:/managed/recording.mp4".to_owned(),
+                duration_seconds: 2.0,
+                file_size: 5,
+                content_sha256: "00".repeat(32),
+            }],
+            insertions: vec![vibe_cs_domain::HighlightEditClipInsert {
+                highlight_id: "h-1".to_owned(),
+                recorded_clip_id,
+                editor_clip_id,
+                timeline_start_seconds: start,
+                timeline_end_seconds: start + 2.0,
+                source_in_seconds: 0.0,
+                source_out_seconds: 2.0,
+                transition_in: None,
+            }],
+        }
+    }
+
+    async fn put_highlight_recording(storage: &Storage, demo_id: Uuid, clip_id: Uuid) {
+        storage
+            .put_recorded_clip(RecordedClip {
+                id: clip_id,
+                path: "C:/managed/recording.mp4".to_owned(),
+                title: "Highlight".to_owned(),
+                duration_seconds: 2.0,
+                demo_id: Some(demo_id),
+                player_name: None,
+                category: "highlight".to_owned(),
+                tags: Vec::new(),
+                metadata: serde_json::json!({"highlight_id":"h-1"}),
+                created_at: Utc::now(),
+            })
+            .await
+            .expect("recording");
+    }
+
+    #[tokio::test]
+    async fn highlight_edit_create_update_snapshot_and_retry_are_atomic() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo_record = demo("C:/matches/highlight.dem");
+        let demo_id = demo_record.id;
+        storage.put_demo(demo_record).await.expect("demo");
+        let recorded_clip_id = Uuid::new_v4();
+        put_highlight_recording(&storage, demo_id, recorded_clip_id).await;
+
+        let existing = editor_project_with_asset("Existing", 1, Uuid::new_v4());
+        storage
+            .put_editor_project(existing.clone())
+            .await
+            .expect("existing project");
+        let existing_plan = highlight_edit_plan(
+            demo_id,
+            existing.id,
+            false,
+            1,
+            existing.tracks[0].id,
+            false,
+            recorded_clip_id,
+            Uuid::new_v4(),
+            existing.duration_seconds,
+        );
+        let applied = storage
+            .apply_highlight_edit(existing_plan.clone(), "proposal-existing".to_owned())
+            .await
+            .expect("apply existing");
+        assert!(matches!(
+            applied,
+            HighlightEditUpdate::Applied {
+                project_created: false,
+                ..
+            }
+        ));
+        let retry = storage
+            .apply_highlight_edit(existing_plan.clone(), "proposal-existing".to_owned())
+            .await
+            .expect("retry existing");
+        assert!(matches!(retry, HighlightEditUpdate::AlreadyApplied { .. }));
+        let stale = storage
+            .apply_highlight_edit(existing_plan, "different-proposal".to_owned())
+            .await
+            .expect("stale existing");
+        assert!(matches!(
+            stale,
+            HighlightEditUpdate::Conflict {
+                current_revision: 2
+            }
+        ));
+        assert_eq!(
+            storage
+                .list_editor_project_snapshots(existing.id)
+                .await
+                .expect("snapshots")
+                .len(),
+            1
+        );
+
+        let new_project_id = Uuid::new_v4();
+        let new_plan = highlight_edit_plan(
+            demo_id,
+            new_project_id,
+            true,
+            0,
+            Uuid::new_v4(),
+            true,
+            recorded_clip_id,
+            Uuid::new_v4(),
+            0.0,
+        );
+        let created = storage
+            .apply_highlight_edit(new_plan.clone(), "proposal-new".to_owned())
+            .await
+            .expect("create project");
+        assert!(matches!(
+            created,
+            HighlightEditUpdate::Applied {
+                project_created: true,
+                ..
+            }
+        ));
+        let created_retry = storage
+            .apply_highlight_edit(new_plan, "proposal-new".to_owned())
+            .await
+            .expect("retry create");
+        assert!(matches!(
+            created_retry,
+            HighlightEditUpdate::AlreadyApplied {
+                project_created: true,
+                ..
+            }
+        ));
+        assert!(
+            storage
+                .list_editor_project_snapshots(new_project_id)
+                .await
+                .expect("new snapshots")
+                .is_empty()
         );
     }
 

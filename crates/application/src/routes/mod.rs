@@ -6,6 +6,7 @@ mod obs_tuning;
 mod outputs;
 mod players;
 mod product;
+mod proposals;
 mod recording;
 mod review;
 mod source_assets;
@@ -31,6 +32,7 @@ pub(crate) fn router() -> Router<AppState> {
         .merge(obs_tuning::router())
         .merge(outputs::router())
         .merge(players::router())
+        .merge(proposals::router())
         .merge(product::router())
         .merge(integrations::router())
         .route("/api/v1/events", get(system::events))

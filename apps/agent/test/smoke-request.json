@@ -1,0 +1,1 @@
+{"requestId":"00000000-0000-4000-8000-000000000001","mode":"guide","message":"hello","history":[],"config":{"provider":"local","model":"test","baseUrl":"http://127.0.0.1:9/v1","apiKey":"test-only","customInstructions":""},"context":{"demo":null,"analysis":null,"editorProject":null,"audioAnalysis":null,"beatAlignmentDraft":null}}

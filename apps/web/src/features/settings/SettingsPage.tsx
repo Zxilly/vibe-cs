@@ -97,6 +97,7 @@ export const defaultConfig: AppConfig = {
   obs_has_password: false,
   llm: { provider: '', model: '', base_url: '', api_key: '', prompt: '' },
   llm_has_api_key: false,
+  clear_llm_api_key: false,
   recording: {
     pre_roll_seconds: 3,
     post_roll_seconds: 2.5,
@@ -190,7 +191,17 @@ export function SettingsPage() {
   const updateObs = <K extends keyof AppConfig['obs']>(key: K, value: AppConfig['obs'][K]) =>
     setConfig((current) => ({ ...current, obs: { ...current.obs, [key]: value } }));
   const updateLlm = <K extends keyof AppConfig['llm']>(key: K, value: AppConfig['llm'][K]) =>
-    setConfig((current) => ({ ...current, llm: { ...current.llm, [key]: value } }));
+    setConfig((current) => ({
+      ...current,
+      clear_llm_api_key: key === 'api_key' && String(value).trim() ? false : current.clear_llm_api_key,
+      llm: { ...current.llm, [key]: value },
+    }));
+  const clearLlmApiKey = () => setConfig((current) => ({
+    ...current,
+    llm: { ...current.llm, api_key: '' },
+    llm_has_api_key: false,
+    clear_llm_api_key: true,
+  }));
   const updateSteam = <K extends keyof AppConfig['steam']>(key: K, value: AppConfig['steam'][K]) =>
     setConfig((current) => ({ ...current, steam: { ...current.steam, [key]: value } }));
   const updateRecording = <K extends keyof AppConfig['recording']>(key: K, value: AppConfig['recording'][K]) =>
@@ -219,7 +230,7 @@ export function SettingsPage() {
           {tab === 'paths' ? <PathSettings config={config} setConfig={setConfig} /> : null}
           {tab === 'steam' ? <SteamSettings config={config} setConfig={setConfig} updateSteam={updateSteam} /> : null}
           {tab === 'video' ? <VideoSettings config={config} savedConfig={savedConfig} source={source} setConfig={setConfig} updateObs={updateObs} /> : null}
-          {tab === 'analysis' ? <AnalysisSettings config={config} source={source} updateLlm={updateLlm} /> : null}
+          {tab === 'analysis' ? <AnalysisSettings config={config} source={source} updateLlm={updateLlm} clearLlmApiKey={clearLlmApiKey} /> : null}
           {tab === 'recording' ? <RecordingSettings config={config} updateRecording={updateRecording} /> : null}
         </section>
       </div>
@@ -674,7 +685,7 @@ export function ObsDiagnosisDetails({
   );
 }
 
-function AnalysisSettings({ config, source, updateLlm }: { config: AppConfig; source: SettingsSource; updateLlm: <K extends keyof AppConfig['llm']>(key: K, value: AppConfig['llm'][K]) => void }) {
+function AnalysisSettings({ config, source, updateLlm, clearLlmApiKey }: { config: AppConfig; source: SettingsSource; updateLlm: <K extends keyof AppConfig['llm']>(key: K, value: AppConfig['llm'][K]) => void; clearLlmApiKey: () => void }) {
   const llmAction = useAsyncAction<unknown>();
   const cleanupAction = useAsyncAction<ReplayCacheCleanup>();
   const [cacheStatus, setCacheStatus] = useState<ReplayCacheStatus | null>(null);
@@ -732,7 +743,7 @@ function AnalysisSettings({ config, source, updateLlm }: { config: AppConfig; so
         <div className="field-row"><Field label={msg("m0664")}><select value={config.llm.provider} onChange={(event) => updateLlm('provider', event.target.value)}><option value="">{msg("m0772")}</option><option value="openai-compatible">{msg("m0066")}</option><option value="local">{msg("m0796")}</option></select></Field><Field label={msg("m0834")}><TextInput value={config.llm.model} onChange={(event) => updateLlm('model', event.target.value)} placeholder={msg("m0835")} /></Field></div>
         <Field label={msg("m0745")} hint={config.llm.provider === 'local' ? msg("m0785") : msg("m1206")}><TextInput value={config.llm.base_url} onChange={(event) => updateLlm('base_url', event.target.value)} placeholder={config.llm.provider === 'local' ? 'http://127.0.0.1:11434/v1' : 'https://.../v1'} /></Field>
         <Field label={msg("m0024")} hint={config.llm_has_api_key ? msg("m0493") : undefined}><TextInput type="password" value={config.llm.api_key} onChange={(event) => updateLlm('api_key', event.target.value)} autoComplete="new-password" placeholder={config.llm_has_api_key ? msg("m0508") : undefined} /></Field>
-        <Button disabled={!canTest || llmAction.state.status === 'loading'} onClick={() => void llmAction.run(() => commands.testLlm(config.llm), msg("m1180"))}>{llmAction.state.status === 'loading' ? <Spinner /> : <Radio size={14} />}{msg("m0909")}</Button>
+        <div className="field-row"><Button disabled={!canTest || llmAction.state.status === 'loading'} onClick={() => void llmAction.run(() => commands.testLlm(config.llm), msg("m1180"))}>{llmAction.state.status === 'loading' ? <Spinner /> : <Radio size={14} />}{msg("m0909")}</Button><Button variant="danger" disabled={!config.llm_has_api_key && !config.llm.api_key} onClick={clearLlmApiKey}><Trash2 size={14} />{msg("m0930")}</Button></div>
         {llmAction.state.message ? <Notice tone={llmAction.state.status === 'error' ? 'danger' : 'success'}>{llmAction.state.message}</Notice> : null}
       </SettingsSection>
     </div>

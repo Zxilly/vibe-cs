@@ -3,7 +3,7 @@
 Vibe CS treats AI as a proposal author, not as an unbounded automation surface. The agent may read
 bounded match and project evidence, generate an edit or camera proposal, and explain the evidence
 behind it. Any operation that changes a project, writes an HLAE configuration, starts capture, or
-uses a paid network tool requires a separate, explicit user action.
+uses only bounded local tools; maintainers perform external product research outside the product Agent.
 
 ## Product flow
 
@@ -53,8 +53,8 @@ diagnostic output is structured, redacted, and size-limited.
 - `list_demos`: filters persisted demos and returns identifiers plus bounded metadata.
 - `get_demo_evidence`: returns score, rounds, players, highlights, utility, and spatial availability
   for selected evidence identifiers; it never sends the raw demo to a model.
-- `search_demo_events`: searches the already parsed event timeline with player, round, tick, and
-  event-kind bounds.
+- `search_rounds` and `read_round_events`: query the already parsed local timeline through strict
+  player, round, tick, purchase-item, winning-side, and event-kind bounds.
 - `get_editor_project`: reads one project and its current revision with source availability.
 - `get_media_summary`: returns codec, duration, dimensions, audio presence, and managed identity.
 - `get_audio_analysis`: returns a measured beat grid, tempo, energy sections, confidence, and
@@ -69,9 +69,6 @@ diagnostic output is structured, redacted, and size-limited.
   and reports every trim, speed change, and unused clip.
 - `propose_hlae_camera_path`: creates typed campath/input/command operations; raw console text and
   arbitrary script paths are not accepted.
-- `research_edit_reference`: performs network research only when a separately configured search
-  provider is available, returns citations, and reports request cost before execution.
-
 ### Confirmed mutations
 
 - `apply_editor_proposal`: compares the project revision and proposal fingerprint, then commits one
@@ -90,17 +87,16 @@ Users can configure provider, model, endpoint, and secret in Settings. Responses
 presence flags. Secrets remain inside the desktop-owned configuration boundary and are passed to
 the local sidecar only for the lifetime of a request.
 
-For development, the desktop can explicitly import the `kimi-for-coding` API credential from
-OpenCode's local authentication file after the user confirms. The importer accepts only a regular,
-bounded JSON file at the documented OpenCode data location, selects one exact provider, and never
-copies other credentials. The imported value is not committed, logged, sent to the webview, or
-written back to OpenCode.
+For local development only, a debug build can receive `VIBE_CS_AGENT_API_KEY` in its process
+environment. The value is never read from another product's configuration, persisted, logged,
+placed in command-line arguments, or exposed to the webview. Release builds ignore this override;
+product users configure credentials only in Vibe CS Settings.
 
 Kimi Code and the Kimi Open Platform are separate products. A Kimi Code credential uses the
 OpenAI-compatible `https://api.kimi.com/coding/v1` endpoint and an entitled model ID such as `k3`,
-`k3-256k`, or `kimi-for-coding`. It must not be sent to the Open Platform endpoint. Kimi's paid
-official web-search tool requires a compatible Open Platform configuration; the UI must not imply
-that importing a Kimi Code credential also enables web search.
+`k3-256k`. It must not be sent to the Open Platform endpoint. The product Agent exposes only
+bounded local Demo, analysis, editor, audio, and HLAE tools; it has no general network tool.
+External design research is a maintainer activity during development and is not exposed to users.
 
 ## HLAE safety policy
 

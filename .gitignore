@@ -4,6 +4,10 @@ node_modules/
 /.pnpm-store/
 /apps/web/dist/
 /apps/web/.vite/
+/apps/agent/dist/
+/apps/agent/.sea-*
+/apps/desktop/src-tauri/binaries/*.exe
+/apps/desktop/src-tauri/binaries/*.exe.sha256
 /apps/desktop/src-tauri/gen/
 /.vibe-cs/
 *.db

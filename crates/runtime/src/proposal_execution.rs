@@ -1,0 +1,880 @@
+use std::{
+    collections::hash_map::DefaultHasher,
+    f64::consts::TAU,
+    fs,
+    hash::{Hash, Hasher},
+    path::{Path, PathBuf},
+};
+
+use async_trait::async_trait;
+use hmac::{Hmac, KeyInit, Mac};
+use sha2::{Digest, Sha256};
+use tokio::io::AsyncReadExt;
+use vibe_cs_application::ProposalExecutionPort;
+use vibe_cs_domain::{
+    AGENT_PROPOSAL_SCHEMA_VERSION, AgentProposalAction, DomainError, HlaeCameraStyle,
+    HlaeProposalEvidence, HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalMode,
+    HlaeProposalPreview, ProposalPrerequisite, ReplayPlayer,
+};
+use vibe_cs_hlae::{
+    CameraKeyframe, CameraPosition, CameraRotation, CameraShot, CaptureSettings,
+    HLAE_PLAN_SCHEMA_VERSION, HlaePlan, HlaePlanMode, PositionInterpolation, RotationInterpolation,
+    compile_hlae_plan, export_hlae_plan, validate_hlae_plan,
+};
+
+type ProposalHmac = Hmac<Sha256>;
+const CONFIRMATION_KEY_BYTES: usize = 32;
+const PROPOSAL_REVISION: u64 = 1;
+const MAXIMUM_DEMO_BYTES: u64 = 16 * 1024 * 1024 * 1024;
+const HASH_BUFFER_BYTES: usize = 1024 * 1024;
+
+pub struct RuntimeProposalExecutionPort {
+    managed_root: PathBuf,
+    capture_root: PathBuf,
+    confirmation_key: [u8; CONFIRMATION_KEY_BYTES],
+}
+
+impl std::fmt::Debug for RuntimeProposalExecutionPort {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RuntimeProposalExecutionPort")
+            .field("managed_root", &self.managed_root)
+            .field("capture_root", &self.capture_root)
+            .field("confirmation_key", &"[REDACTED]")
+            .finish()
+    }
+}
+
+impl Drop for RuntimeProposalExecutionPort {
+    fn drop(&mut self) {
+        self.confirmation_key.fill(0);
+    }
+}
+
+impl RuntimeProposalExecutionPort {
+    /// Creates a process-local confirmation authority. Tokens intentionally
+    /// expire when the desktop process exits and are never persisted or sent
+    /// to an AI provider.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::Internal`] when the operating system cannot
+    /// provide cryptographically secure randomness for confirmation tokens.
+    pub fn new(data_dir: &Path) -> Result<Self, DomainError> {
+        let mut confirmation_key = [0_u8; CONFIRMATION_KEY_BYTES];
+        getrandom::fill(&mut confirmation_key).map_err(|error| {
+            DomainError::Internal(format!("initialize proposal confirmation key: {error}"))
+        })?;
+        Ok(Self {
+            managed_root: data_dir.join("hlae-plans"),
+            capture_root: data_dir.join("hlae-captures"),
+            confirmation_key,
+        })
+    }
+
+    fn build_hlae_preview(
+        &self,
+        intent: &HlaeProposalIntent,
+        evidence: &HlaeProposalEvidence,
+        verification: &DemoVerification,
+    ) -> Result<HlaeProposalPreview, DomainError> {
+        let built = match build_evidence_plan(intent, evidence, verification, &self.capture_root)? {
+            EvidencePlan::Prerequisites(items) => {
+                return Ok(HlaeProposalPreview::prerequisites(items));
+            }
+            EvidencePlan::Ready { plan, base_hash } => (plan, base_hash),
+        };
+        let (plan, base_fingerprint) = built;
+        // Round-trip through the deny-unknown-fields JSON contract. This keeps
+        // the exact transport shown to a user identical to the typed value we
+        // validate and later export.
+        let typed_json = serde_json::to_value(&plan)
+            .map_err(|error| DomainError::Internal(format!("serialize HLAE plan: {error}")))?;
+        let typed_plan: HlaePlan = serde_json::from_value(typed_json.clone()).map_err(|error| {
+            DomainError::InvalidInput(format!("invalid typed HLAE plan: {error}"))
+        })?;
+        let bundle_name = bundle_name(&proposal_hash_seed(&base_fingerprint, intent, &typed_plan)?);
+        let artifact_directory = self.managed_root.join(&bundle_name);
+        let compiled =
+            compile_hlae_plan(&typed_plan, &artifact_directory).map_err(map_hlae_error)?;
+        let proposal_fingerprint = proposal_fingerprint(&base_fingerprint, intent, &typed_plan)?;
+        let confirmation_token = self.confirmation_token(
+            AgentProposalAction::ExportHlaePlan,
+            &base_fingerprint,
+            &proposal_fingerprint,
+            PROPOSAL_REVISION,
+        )?;
+        let notices = compiled
+            .notices
+            .iter()
+            .map(|notice| notice.message.clone())
+            .collect();
+        Ok(HlaeProposalPreview {
+            schema_version: AGENT_PROPOSAL_SCHEMA_VERSION,
+            proposal_revision: PROPOSAL_REVISION,
+            ready: true,
+            prerequisites: Vec::new(),
+            base_fingerprint: Some(base_fingerprint),
+            proposal_fingerprint: Some(proposal_fingerprint),
+            confirmation_token: Some(confirmation_token),
+            typed_plan: Some(typed_json),
+            compiled_preview: Some(serde_json::to_value(compiled).map_err(|error| {
+                DomainError::Internal(format!("serialize compiled HLAE preview: {error}"))
+            })?),
+            notices,
+        })
+    }
+}
+
+#[async_trait]
+impl ProposalExecutionPort for RuntimeProposalExecutionPort {
+    async fn preview_hlae(
+        &self,
+        intent: &HlaeProposalIntent,
+        evidence: &HlaeProposalEvidence,
+    ) -> Result<HlaeProposalPreview, DomainError> {
+        let verification = match verify_demo_content(evidence).await {
+            Ok(verification) => verification,
+            Err(error) => {
+                return Ok(HlaeProposalPreview::prerequisites(vec![
+                    error.prerequisite(),
+                ]));
+            }
+        };
+        self.build_hlae_preview(intent, evidence, &verification)
+    }
+
+    async fn export_hlae(
+        &self,
+        intent: &HlaeProposalIntent,
+        evidence: &HlaeProposalEvidence,
+        expected_revision: u64,
+        base_fingerprint: &str,
+        proposal_fingerprint: &str,
+        confirmation_token: &str,
+    ) -> Result<HlaeProposalExportResult, DomainError> {
+        if expected_revision != PROPOSAL_REVISION {
+            return Err(DomainError::Conflict(format!(
+                "HLAE proposal is at revision {PROPOSAL_REVISION}"
+            )));
+        }
+        let verification = verify_demo_content(evidence)
+            .await
+            .map_err(DemoIntegrityError::export_error)?;
+        let preview = self.build_hlae_preview(intent, evidence, &verification)?;
+        if !preview.ready {
+            return Err(DomainError::Conflict(
+                "HLAE proposal prerequisites are no longer satisfied".to_owned(),
+            ));
+        }
+        let current_base = preview.base_fingerprint.as_deref().unwrap_or_default();
+        let current_proposal = preview.proposal_fingerprint.as_deref().unwrap_or_default();
+        if current_base != base_fingerprint || current_proposal != proposal_fingerprint {
+            return Err(DomainError::Conflict(
+                "HLAE proposal evidence or generated plan changed; preview it again".to_owned(),
+            ));
+        }
+        self.verify_confirmation(
+            AgentProposalAction::ExportHlaePlan,
+            base_fingerprint,
+            proposal_fingerprint,
+            expected_revision,
+            confirmation_token,
+        )?;
+        let plan: HlaePlan =
+            serde_json::from_value(preview.typed_plan.ok_or_else(|| {
+                DomainError::Internal("HLAE preview omitted its plan".to_owned())
+            })?)
+            .map_err(|error| {
+                DomainError::InvalidInput(format!("invalid typed HLAE plan: {error}"))
+            })?;
+        validate_hlae_plan(&plan).map_err(map_hlae_error)?;
+        fs::create_dir_all(&self.managed_root).map_err(|error| {
+            DomainError::Internal(format!("create managed HLAE plan directory: {error}"))
+        })?;
+        let name = bundle_name(proposal_fingerprint);
+        let exported =
+            export_hlae_plan(&plan, &self.managed_root, &name).map_err(map_hlae_error)?;
+        if !exported.completion_marker.is_file() {
+            return Err(DomainError::Internal(
+                "HLAE export did not publish its completion marker".to_owned(),
+            ));
+        }
+        Ok(HlaeProposalExportResult {
+            base_fingerprint: base_fingerprint.to_owned(),
+            proposal_fingerprint: proposal_fingerprint.to_owned(),
+            directory: exported.directory.to_string_lossy().into_owned(),
+            files: exported
+                .files
+                .into_iter()
+                .map(|path| path.to_string_lossy().into_owned())
+                .collect(),
+            completion_marker: exported.completion_marker.to_string_lossy().into_owned(),
+            launched: false,
+        })
+    }
+
+    fn confirmation_token(
+        &self,
+        action: AgentProposalAction,
+        base_fingerprint: &str,
+        proposal_fingerprint: &str,
+        expected_revision: u64,
+    ) -> Result<String, DomainError> {
+        let mut mac = ProposalHmac::new_from_slice(&self.confirmation_key)
+            .map_err(|_| DomainError::Internal("initialize proposal HMAC".to_owned()))?;
+        update_confirmation_mac(
+            &mut mac,
+            action,
+            base_fingerprint,
+            proposal_fingerprint,
+            expected_revision,
+        );
+        Ok(hex::encode(mac.finalize().into_bytes()))
+    }
+
+    fn verify_confirmation(
+        &self,
+        action: AgentProposalAction,
+        base_fingerprint: &str,
+        proposal_fingerprint: &str,
+        expected_revision: u64,
+        confirmation_token: &str,
+    ) -> Result<(), DomainError> {
+        let tag = hex::decode(confirmation_token).map_err(|_| {
+            DomainError::Conflict("proposal confirmation token is invalid".to_owned())
+        })?;
+        let mut mac = ProposalHmac::new_from_slice(&self.confirmation_key)
+            .map_err(|_| DomainError::Internal("initialize proposal HMAC".to_owned()))?;
+        update_confirmation_mac(
+            &mut mac,
+            action,
+            base_fingerprint,
+            proposal_fingerprint,
+            expected_revision,
+        );
+        mac.verify_slice(&tag).map_err(|_| {
+            DomainError::Conflict("proposal confirmation token does not match".to_owned())
+        })
+    }
+}
+
+#[derive(Debug)]
+enum DemoIntegrityError {
+    MissingFingerprint,
+    MissingFile,
+    NotRegularFile,
+    TooLarge,
+    ContentChanged,
+    Io(std::io::Error),
+}
+
+struct DemoVerification {
+    content_sha256: String,
+    file_identity: u64,
+}
+
+impl DemoIntegrityError {
+    fn prerequisite(&self) -> ProposalPrerequisite {
+        match self {
+            Self::MissingFingerprint => prerequisite(
+                "missing_demo_fingerprint",
+                "Re-import the demo to record its content fingerprint.",
+            ),
+            Self::MissingFile => prerequisite(
+                "missing_demo_file",
+                "The selected demo file must still exist locally.",
+            ),
+            Self::NotRegularFile => prerequisite(
+                "unsafe_demo_file",
+                "The demo must be a regular local file, not a link or reparse point.",
+            ),
+            Self::TooLarge => prerequisite(
+                "demo_too_large",
+                "The demo exceeds the bounded proposal verification limit.",
+            ),
+            Self::ContentChanged => prerequisite(
+                "demo_content_changed",
+                "The demo content changed after import; re-import and analyze it again.",
+            ),
+            Self::Io(_) => prerequisite(
+                "demo_verification_failed",
+                "The demo could not be read for content verification.",
+            ),
+        }
+    }
+
+    fn export_error(self) -> DomainError {
+        match self {
+            Self::Io(error) => {
+                DomainError::Internal(format!("verify HLAE proposal demo content: {error}"))
+            }
+            other => DomainError::Conflict(other.prerequisite().message),
+        }
+    }
+}
+
+async fn verify_demo_content(
+    evidence: &HlaeProposalEvidence,
+) -> Result<DemoVerification, DemoIntegrityError> {
+    let expected = evidence
+        .demo_content_sha256
+        .as_deref()
+        .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .ok_or(DemoIntegrityError::MissingFingerprint)?;
+    let path = Path::new(&evidence.demo_path);
+    let metadata = tokio::fs::symlink_metadata(path).await.map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            DemoIntegrityError::MissingFile
+        } else {
+            DemoIntegrityError::Io(error)
+        }
+    })?;
+    if !metadata.is_file() || metadata.file_type().is_symlink() || is_reparse_point(&metadata) {
+        return Err(DemoIntegrityError::NotRegularFile);
+    }
+    if metadata.len() > MAXIMUM_DEMO_BYTES {
+        return Err(DemoIntegrityError::TooLarge);
+    }
+    let mut file = tokio::fs::File::open(path)
+        .await
+        .map_err(DemoIntegrityError::Io)?;
+    let mut hash = Sha256::new();
+    let mut buffer = vec![0_u8; HASH_BUFFER_BYTES];
+    let mut read_bytes = 0_u64;
+    loop {
+        // Every bounded read is an await point, so dropping the request future
+        // cancels verification without a detached blocking hash task.
+        let read = file
+            .read(&mut buffer)
+            .await
+            .map_err(DemoIntegrityError::Io)?;
+        if read == 0 {
+            break;
+        }
+        read_bytes = read_bytes.saturating_add(read as u64);
+        if read_bytes > MAXIMUM_DEMO_BYTES || read_bytes > metadata.len() {
+            return Err(DemoIntegrityError::TooLarge);
+        }
+        hash.update(&buffer[..read]);
+    }
+    let actual_sha256 = hex::encode(hash.finalize());
+    if read_bytes != metadata.len() || !actual_sha256.eq_ignore_ascii_case(expected) {
+        return Err(DemoIntegrityError::ContentChanged);
+    }
+    let open_handle =
+        same_file::Handle::from_file(file.into_std().await).map_err(DemoIntegrityError::Io)?;
+    let named_handle = same_file::Handle::from_path(path).map_err(DemoIntegrityError::Io)?;
+    if open_handle != named_handle {
+        return Err(DemoIntegrityError::ContentChanged);
+    }
+    let mut identity = DefaultHasher::new();
+    open_handle.hash(&mut identity);
+    Ok(DemoVerification {
+        content_sha256: actual_sha256,
+        file_identity: identity.finish(),
+    })
+}
+
+#[cfg(windows)]
+fn is_reparse_point(metadata: &std::fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+    metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+const fn is_reparse_point(_metadata: &std::fs::Metadata) -> bool {
+    false
+}
+
+enum EvidencePlan {
+    Prerequisites(Vec<ProposalPrerequisite>),
+    Ready { plan: HlaePlan, base_hash: String },
+}
+
+fn build_evidence_plan(
+    intent: &HlaeProposalIntent,
+    evidence: &HlaeProposalEvidence,
+    verification: &DemoVerification,
+    capture_root: &Path,
+) -> Result<EvidencePlan, DomainError> {
+    let mut prerequisites = Vec::new();
+    if intent.highlight_ids.is_empty() || intent.highlight_ids.len() > 16 {
+        prerequisites.push(prerequisite(
+            "select_highlights",
+            "Select between 1 and 16 analyzed highlights.",
+        ));
+    }
+    if !evidence.tick_rate.is_finite() || !(1.0..=256.0).contains(&evidence.tick_rate) {
+        prerequisites.push(prerequisite(
+            "missing_tick_rate",
+            "The demo analysis does not contain a trustworthy tick rate.",
+        ));
+    }
+    let demo_path = PathBuf::from(&evidence.demo_path);
+    if !demo_path.is_file() {
+        prerequisites.push(prerequisite(
+            "missing_demo_file",
+            "The selected demo file must still exist locally.",
+        ));
+    }
+    let mut selected = Vec::new();
+    for id in &intent.highlight_ids {
+        match evidence
+            .highlights
+            .iter()
+            .find(|highlight| &highlight.id == id)
+        {
+            Some(highlight) => selected.push(highlight),
+            None => prerequisites.push(prerequisite(
+                "missing_highlight",
+                format!("Highlight {id} is not present in the current analysis."),
+            )),
+        }
+    }
+    selected.sort_by_key(|highlight| highlight.start_tick);
+    if selected
+        .windows(2)
+        .any(|pair| pair[0].end_tick >= pair[1].start_tick)
+    {
+        prerequisites.push(prerequisite(
+            "overlapping_highlights",
+            "Selected highlights overlap; choose non-overlapping camera windows.",
+        ));
+    }
+    if !prerequisites.is_empty() {
+        return Ok(EvidencePlan::Prerequisites(prerequisites));
+    }
+
+    let mut shots = Vec::with_capacity(selected.len());
+    let mut sampled_evidence = Vec::with_capacity(selected.len());
+    for (shot_index, highlight) in selected.into_iter().enumerate() {
+        let candidates = evidence
+            .replay_frames
+            .iter()
+            .filter(|frame| frame.tick >= highlight.start_tick && frame.tick <= highlight.end_tick)
+            .filter_map(|frame| {
+                frame
+                    .players
+                    .iter()
+                    .find(|player| player.id == highlight.player_id)
+                    .map(|player| (frame.tick, player))
+            })
+            .collect::<Vec<_>>();
+        let Some(samples) = sample_four_frames(&candidates) else {
+            prerequisites.push(prerequisite(
+                "missing_spatial_evidence",
+                format!(
+                    "Highlight {} needs at least four target-player replay frames.",
+                    highlight.id
+                ),
+            ));
+            continue;
+        };
+        let keyframes = samples
+            .iter()
+            .enumerate()
+            .map(|(index, (tick, player))| {
+                camera_keyframe(*tick, player, intent.camera_style, index)
+            })
+            .collect::<Vec<_>>();
+        let start_tick = keyframes.first().map_or(0, |keyframe| keyframe.tick);
+        let end_tick = keyframes.last().map_or(0, |keyframe| keyframe.tick);
+        sampled_evidence.push(serde_json::json!({
+            "highlight": highlight,
+            "frames": samples.iter().map(|(tick, player)| serde_json::json!({
+                "tick": tick,
+                "player": player,
+            })).collect::<Vec<_>>(),
+        }));
+        shots.push(CameraShot {
+            id: format!("highlight_{:02}", shot_index + 1),
+            start_tick,
+            end_tick,
+            position_interpolation: PositionInterpolation::Cubic,
+            rotation_interpolation: RotationInterpolation::SphericalCubic,
+            keyframes,
+        });
+    }
+    if !prerequisites.is_empty() {
+        return Ok(EvidencePlan::Prerequisites(prerequisites));
+    }
+    let base_hash = hash_json(
+        b"vibe-cs-hlae-evidence-v1\0",
+        &serde_json::json!({
+            "demoPath": evidence.demo_path,
+            "demoContentSha256": verification.content_sha256,
+            "demoFileIdentity": verification.file_identity,
+            "tickRate": evidence.tick_rate,
+            "samples": sampled_evidence,
+        }),
+    )?;
+    let output_directory = capture_root.join(format!("capture_{}", &base_hash[..16]));
+    // `tick_rate` was constrained to the finite 1..=256 range above, so this
+    // rounded conversion is bounded and cannot lose a sign or overflow.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let pre_roll_ticks = (evidence.tick_rate * 2.0).round() as u64;
+    let plan = HlaePlan {
+        schema_version: HLAE_PLAN_SCHEMA_VERSION,
+        mode: match intent.mode {
+            HlaeProposalMode::Preview => HlaePlanMode::Preview,
+            HlaeProposalMode::Capture => HlaePlanMode::Capture,
+        },
+        demo_path,
+        output_directory,
+        pre_roll_ticks,
+        capture: CaptureSettings::default(),
+        shots,
+    };
+    validate_hlae_plan(&plan).map_err(map_hlae_error)?;
+    Ok(EvidencePlan::Ready { plan, base_hash })
+}
+
+fn sample_four_frames<'a>(
+    frames: &[(u64, &'a ReplayPlayer)],
+) -> Option<[(u64, &'a ReplayPlayer); 4]> {
+    if frames.len() < 4 {
+        return None;
+    }
+    let last = frames.len() - 1;
+    let indexes = [0, last / 3, (last * 2) / 3, last];
+    let samples = indexes.map(|index| frames[index]);
+    if samples.windows(2).any(|pair| pair[0].0 >= pair[1].0) {
+        return None;
+    }
+    Some(samples)
+}
+
+fn camera_keyframe(
+    tick: u64,
+    player: &ReplayPlayer,
+    style: HlaeCameraStyle,
+    index: usize,
+) -> CameraKeyframe {
+    let phase = f64::from(u32::try_from(index).unwrap_or_default());
+    let target = [
+        player.position[0],
+        player.position[1],
+        player.position[2] + 64.0,
+    ];
+    let (position, rotation, fov) = match style {
+        HlaeCameraStyle::Pov => (
+            CameraPosition {
+                x: target[0],
+                y: target[1],
+                z: target[2],
+            },
+            CameraRotation {
+                pitch: 0.0,
+                yaw: normalized_yaw(player.yaw),
+                roll: 0.0,
+            },
+            90.0,
+        ),
+        HlaeCameraStyle::Orbit => {
+            let angle = player.yaw.to_radians() + TAU * phase / 4.0;
+            let camera = [
+                player.position[0] + 128.0 * angle.cos(),
+                player.position[1] + 128.0 * angle.sin(),
+                player.position[2] + 80.0,
+            ];
+            (camera_position(camera), look_at(camera, target), 78.0)
+        }
+        HlaeCameraStyle::Dolly => {
+            let angle = player.yaw.to_radians();
+            let distance = 192.0 - 24.0 * phase;
+            let camera = [
+                player.position[0] - distance * angle.cos(),
+                player.position[1] - distance * angle.sin(),
+                player.position[2] + 56.0,
+            ];
+            (camera_position(camera), look_at(camera, target), 72.0)
+        }
+    };
+    CameraKeyframe {
+        tick,
+        position,
+        rotation,
+        fov,
+    }
+}
+
+const fn camera_position(value: [f64; 3]) -> CameraPosition {
+    CameraPosition {
+        x: value[0],
+        y: value[1],
+        z: value[2],
+    }
+}
+
+fn look_at(camera: [f64; 3], target: [f64; 3]) -> CameraRotation {
+    let dx = target[0] - camera[0];
+    let dy = target[1] - camera[1];
+    let dz = target[2] - camera[2];
+    let horizontal = dx.hypot(dy);
+    CameraRotation {
+        pitch: -dz.atan2(horizontal).to_degrees(),
+        yaw: normalized_yaw(dy.atan2(dx).to_degrees()),
+        roll: 0.0,
+    }
+}
+
+fn normalized_yaw(value: f64) -> f64 {
+    (value + 180.0).rem_euclid(360.0) - 180.0
+}
+
+fn prerequisite(code: impl Into<String>, message: impl Into<String>) -> ProposalPrerequisite {
+    ProposalPrerequisite {
+        code: code.into(),
+        message: message.into(),
+    }
+}
+
+fn proposal_hash_seed(
+    base_fingerprint: &str,
+    intent: &HlaeProposalIntent,
+    plan: &HlaePlan,
+) -> Result<String, DomainError> {
+    proposal_fingerprint(base_fingerprint, intent, plan)
+}
+
+fn proposal_fingerprint(
+    base_fingerprint: &str,
+    intent: &HlaeProposalIntent,
+    plan: &HlaePlan,
+) -> Result<String, DomainError> {
+    hash_json(
+        b"vibe-cs-hlae-proposal-v1\0",
+        &serde_json::json!({
+            "baseFingerprint": base_fingerprint,
+            "intent": intent,
+            "plan": plan,
+        }),
+    )
+}
+
+fn hash_json(domain: &[u8], value: &serde_json::Value) -> Result<String, DomainError> {
+    let bytes = serde_json::to_vec(value).map_err(|error| {
+        DomainError::Internal(format!("serialize proposal fingerprint: {error}"))
+    })?;
+    let mut hash = Sha256::new();
+    hash.update(domain);
+    hash.update(bytes);
+    Ok(hex::encode(hash.finalize()))
+}
+
+fn bundle_name(fingerprint: &str) -> String {
+    let bounded = fingerprint.get(..32).unwrap_or(fingerprint);
+    format!("proposal_{bounded}")
+}
+
+fn update_confirmation_mac(
+    mac: &mut ProposalHmac,
+    action: AgentProposalAction,
+    base_fingerprint: &str,
+    proposal_fingerprint: &str,
+    expected_revision: u64,
+) {
+    mac.update(b"vibe-cs-agent-proposal-confirmation-v1\0");
+    mac.update(&[match action {
+        AgentProposalAction::ExportHlaePlan => 1,
+        AgentProposalAction::ApplyBeatAlignment => 2,
+        AgentProposalAction::ApplyHighlightEdit => 3,
+    }]);
+    mac.update(&(base_fingerprint.len() as u64).to_be_bytes());
+    mac.update(base_fingerprint.as_bytes());
+    mac.update(&(proposal_fingerprint.len() as u64).to_be_bytes());
+    mac.update(proposal_fingerprint.as_bytes());
+    mac.update(&expected_revision.to_be_bytes());
+}
+
+fn map_hlae_error(error: vibe_cs_hlae::HlaeError) -> DomainError {
+    match error {
+        vibe_cs_hlae::HlaeError::InvalidPlan(message)
+        | vibe_cs_hlae::HlaeError::InvalidInstallation(message) => {
+            DomainError::InvalidInput(message)
+        }
+        vibe_cs_hlae::HlaeError::ArtifactBundleExists(path) => DomainError::Conflict(format!(
+            "HLAE proposal bundle already exists at {}",
+            path.display()
+        )),
+        other => DomainError::Internal(format!("HLAE proposal operation failed: {other}")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn debug_output_never_exposes_the_confirmation_authority() {
+        let root = tempfile::tempdir().unwrap();
+        let mut port = RuntimeProposalExecutionPort::new(root.path()).unwrap();
+        port.confirmation_key = [0xAB; CONFIRMATION_KEY_BYTES];
+
+        let rendered = format!("{port:?}");
+
+        assert!(rendered.contains("[REDACTED]"));
+        assert!(!rendered.contains("171"));
+        assert!(!rendered.to_ascii_lowercase().contains("abab"));
+    }
+    use vibe_cs_domain::{Highlight, HighlightKind, ReplayFrame};
+
+    fn evidence(root: &Path) -> HlaeProposalEvidence {
+        let demo = root.join("match.dem");
+        fs::write(&demo, b"demo").unwrap();
+        let demo_sha256 = hex::encode(Sha256::digest(b"demo"));
+        let frames = [1_000, 1_080, 1_160, 1_240]
+            .into_iter()
+            .map(|tick| ReplayFrame {
+                tick,
+                players: vec![ReplayPlayer {
+                    id: "player-1".to_owned(),
+                    name: "Player".to_owned(),
+                    team: "CT".to_owned(),
+                    position: [f64::from(u32::try_from(tick).unwrap()) / 10.0, 20.0, 10.0],
+                    yaw: 45.0,
+                    health: 100,
+                    armor: 100,
+                    alive: true,
+                    weapon: "ak47".to_owned(),
+                    input: None,
+                }],
+                projectiles: Vec::new(),
+                bomb: None,
+            })
+            .collect();
+        HlaeProposalEvidence {
+            demo_path: demo.to_string_lossy().into_owned(),
+            demo_content_sha256: Some(demo_sha256),
+            tick_rate: 64.0,
+            highlights: vec![Highlight {
+                id: "highlight-1".to_owned(),
+                player_id: "player-1".to_owned(),
+                round: 1,
+                start_tick: 1_000,
+                end_tick: 1_240,
+                kind: HighlightKind::MultiKill,
+                title: "Multi kill".to_owned(),
+                description: String::new(),
+                score: 1.0,
+                tags: Vec::new(),
+                victims: Vec::new(),
+            }],
+            replay_frames: frames,
+        }
+    }
+
+    fn intent() -> HlaeProposalIntent {
+        HlaeProposalIntent {
+            demo_id: uuid::Uuid::nil(),
+            highlight_ids: vec!["highlight-1".to_owned()],
+            camera_style: HlaeCameraStyle::Orbit,
+            mode: HlaeProposalMode::Preview,
+        }
+    }
+
+    #[tokio::test]
+    async fn preview_uses_real_frames_and_export_requires_its_token() {
+        let root = tempfile::tempdir().unwrap();
+        let port = RuntimeProposalExecutionPort::new(root.path()).unwrap();
+        let evidence = evidence(root.path());
+        let preview = port.preview_hlae(&intent(), &evidence).await.unwrap();
+        assert!(preview.ready);
+        let base = preview.base_fingerprint.unwrap();
+        let proposal = preview.proposal_fingerprint.unwrap();
+        let token = preview.confirmation_token.unwrap();
+
+        let exported = port
+            .export_hlae(&intent(), &evidence, 1, &base, &proposal, &token)
+            .await
+            .unwrap();
+        assert!(!exported.launched);
+        assert!(Path::new(&exported.completion_marker).is_file());
+        assert!(exported.directory.contains("hlae-plans"));
+    }
+
+    #[tokio::test]
+    async fn missing_spatial_frames_return_prerequisites_without_a_token() {
+        let root = tempfile::tempdir().unwrap();
+        let port = RuntimeProposalExecutionPort::new(root.path()).unwrap();
+        let mut evidence = evidence(root.path());
+        evidence.replay_frames.truncate(3);
+        let preview = port.preview_hlae(&intent(), &evidence).await.unwrap();
+        assert!(!preview.ready);
+        assert!(preview.confirmation_token.is_none());
+        assert_eq!(preview.prerequisites[0].code, "missing_spatial_evidence");
+    }
+
+    #[tokio::test]
+    async fn replacing_demo_content_after_preview_rejects_the_old_token() {
+        let root = tempfile::tempdir().unwrap();
+        let port = RuntimeProposalExecutionPort::new(root.path()).unwrap();
+        let evidence = evidence(root.path());
+        let preview = port.preview_hlae(&intent(), &evidence).await.unwrap();
+        let base = preview.base_fingerprint.unwrap();
+        let proposal = preview.proposal_fingerprint.unwrap();
+        let token = preview.confirmation_token.unwrap();
+        fs::write(&evidence.demo_path, b"replaced demo bytes").unwrap();
+
+        let error = port
+            .export_hlae(&intent(), &evidence, 1, &base, &proposal, &token)
+            .await
+            .unwrap_err();
+        assert!(matches!(error, DomainError::Conflict(_)));
+        assert!(!root.path().join("hlae-plans").exists());
+    }
+
+    #[tokio::test]
+    async fn replacing_demo_identity_with_same_bytes_rejects_the_old_token() {
+        let root = tempfile::tempdir().unwrap();
+        let port = RuntimeProposalExecutionPort::new(root.path()).unwrap();
+        let evidence = evidence(root.path());
+        let preview = port.preview_hlae(&intent(), &evidence).await.unwrap();
+        let base = preview.base_fingerprint.unwrap();
+        let proposal = preview.proposal_fingerprint.unwrap();
+        let token = preview.confirmation_token.unwrap();
+        let replacement = root.path().join("replacement.dem");
+        fs::write(&replacement, b"demo").unwrap();
+        fs::remove_file(&evidence.demo_path).unwrap();
+        fs::rename(replacement, &evidence.demo_path).unwrap();
+
+        let error = port
+            .export_hlae(&intent(), &evidence, 1, &base, &proposal, &token)
+            .await
+            .unwrap_err();
+        assert!(matches!(error, DomainError::Conflict(_)));
+        assert!(!root.path().join("hlae-plans").exists());
+    }
+
+    #[test]
+    fn confirmation_token_is_bound_to_revision_and_fingerprints() {
+        let root = tempfile::tempdir().unwrap();
+        let port = RuntimeProposalExecutionPort::new(root.path()).unwrap();
+        let token = port
+            .confirmation_token(AgentProposalAction::ApplyBeatAlignment, "base", "plan", 4)
+            .unwrap();
+        assert!(
+            port.verify_confirmation(
+                AgentProposalAction::ApplyBeatAlignment,
+                "base",
+                "plan",
+                5,
+                &token,
+            )
+            .is_err()
+        );
+        assert!(
+            port.verify_confirmation(
+                AgentProposalAction::ApplyHighlightEdit,
+                "base",
+                "plan",
+                4,
+                &token,
+            )
+            .is_err()
+        );
+    }
+}

@@ -23,11 +23,21 @@ pub(crate) fn write_new_synced(path: &Path, bytes: &[u8]) -> PlatformResult<()> 
     sync_parent(path)
 }
 
-pub(crate) fn atomic_write(path: &Path, bytes: &[u8]) -> PlatformResult<()> {
+/// Atomically replaces an absolute managed file with flushed bytes.
+///
+/// # Errors
+///
+/// Returns an error when the target is unsafe or the durable write cannot complete.
+pub fn atomic_write(path: &Path, bytes: &[u8]) -> PlatformResult<()> {
     atomic_write_with_mode(path, bytes, PublishMode::Replace)
 }
 
-pub(crate) fn atomic_write_new(path: &Path, bytes: &[u8]) -> PlatformResult<()> {
+/// Atomically publishes a new absolute managed file without overwriting an existing target.
+///
+/// # Errors
+///
+/// Returns an error when the target exists, is unsafe, or the durable write cannot complete.
+pub fn atomic_write_new(path: &Path, bytes: &[u8]) -> PlatformResult<()> {
     if path.exists() {
         return Err(PlatformError::RecoveryPending);
     }

@@ -1,0 +1,496 @@
+import { currentLocale, msg, msgf } from '../../shared/i18n';
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronRight,
+  CircleAlert,
+  Clock3,
+  GripVertical,
+  ListChecks,
+  PauseCircle,
+  Play,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+  Timer,
+  Trash2,
+  UserRound,
+  Video,
+  WandSparkles,
+  X,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
+import { api, readableError } from '../../shared/api/client';
+import type {
+  DemoPlaybackLaunch,
+  DemoPlaybackPreflight,
+  DemoPlaybackStatus,
+  DemoPlaybackStop,
+  RecordingJob,
+  RecordingPlanResponse,
+  RecordingQueueRequest,
+} from '../../shared/api/dto';
+import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
+import { useI18n } from '../../shared/i18n';
+import { runManagedPlaybackLaunch, useRuntimeStore } from '../../shared/stores/runtimeStore';
+import { Badge, Button, Card, EmptyState, Field, IconButton, Notice, PageHeader, Spinner, TextInput } from '../../shared/ui';
+import {
+  buildRecordingQueueRequest,
+  buildDemoPlaybackOptions,
+  demoPlaybackFingerprint,
+  demoPlaybackBlockReason,
+  matchesRecordingQueueFingerprint,
+  queueItemDurationSeconds,
+  queueItemTickRate,
+  recordingQueueFingerprint,
+} from './queuePlan';
+import { type QueueItem, useQueueStore } from './queueStore';
+import { DirectorPlanPreview } from './DirectorPlanPreview';
+import { ProductionSectionNav } from '../production/ProductionSectionNav';
+
+type QueueFilter = 'all' | QueueItem['category'];
+
+const categoryLabel: Record<QueueItem['category'], string> = {
+  'multi-kill': msg("m0424"),
+  clutch: msg("m0879"),
+  entry: msg("m1322"),
+  utility: msg("m1250"),
+  custom: msg("m1097"),
+};
+
+type ValidatedPlan = {
+  response: RecordingPlanResponse;
+  fingerprint: string;
+};
+
+type PreflightState =
+  | { status: 'idle'; data: null; message: null }
+  | { status: 'loading'; data: null; message: null }
+  | { status: 'success'; data: DemoPlaybackPreflight; message: string }
+  | { status: 'error'; data: null; message: string };
+
+export function QueuePage() {
+  const { t } = useI18n();
+  const items = useQueueStore((state) => state.items);
+  const selectedId = useQueueStore((state) => state.selectedId);
+  const select = useQueueStore((state) => state.select);
+  const update = useQueueStore((state) => state.update);
+  const remove = useQueueStore((state) => state.remove);
+  const clear = useQueueStore((state) => state.clear);
+  const move = useQueueStore((state) => state.move);
+  const reorder = useQueueStore((state) => state.reorder);
+  const toggleAll = useQueueStore((state) => state.toggleAll);
+  const [filter, setFilter] = useState<QueueFilter>('all');
+  const [search, setSearch] = useState('');
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [validatedPlan, setValidatedPlan] = useState<ValidatedPlan | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [job, setJob] = useState<RecordingJob | null>(null);
+  const [jobPollError, setJobPollError] = useState<string | null>(null);
+  const [playbackStatus, setPlaybackStatus] = useState<DemoPlaybackStatus | null>(null);
+  const [playbackStatusError, setPlaybackStatusError] = useState<string | null>(null);
+  const [stopReconcileNotice, setStopReconcileNotice] = useState<string | null>(null);
+  const runtimeSession = useRuntimeStore((state) => state.session);
+  const beginRemoteRead = useRuntimeStore((state) => state.beginRemoteRead);
+  const applyRemoteSession = useRuntimeStore((state) => state.applyRemoteSession);
+  const beginPlaybackStop = useRuntimeStore((state) => state.beginPlaybackStop);
+  const completeRuntimeTransition = useRuntimeStore((state) => state.completeTransition);
+  const planAction = useAsyncAction<RecordingPlanResponse>();
+  const executeAction = useAsyncAction<{ job_id: string; status: 'queued' | 'running' }>();
+  const abortAction = useAsyncAction<RecordingJob>();
+  const previewAction = useAsyncAction<DemoPlaybackLaunch>();
+  const stopPlaybackAction = useAsyncAction<DemoPlaybackStop>();
+  const [preflightState, setPreflightState] = useState<PreflightState>({
+    status: 'idle',
+    data: null,
+    message: null,
+  });
+  const preflightController = useRef<AbortController | null>(null);
+  const preflightGeneration = useRef(0);
+  const previewInFlight = useRef(false);
+
+  const selected = items.find((item) => item.id === selectedId) ?? null;
+  const enabledItems = items.filter((item) => item.enabled);
+  const realEnabledItems = enabledItems.filter((item) => item.origin === 'demo');
+  const estimatedSeconds = enabledItems.reduce((sum, item) => sum + queueItemDurationSeconds(item), 0);
+  const currentFingerprint = useMemo(() => recordingQueueFingerprint(items), [items]);
+  const currentPlan = validatedPlan?.fingerprint === currentFingerprint ? validatedPlan.response : null;
+  const planIsStale = validatedPlan !== null && currentPlan === null;
+  const directorBlocked = (currentPlan?.director.unresolved_victim_requests ?? 0) > 0;
+  const enabledTickRates = new Set(enabledItems.map(queueItemTickRate));
+  const tickRateLabel = enabledTickRates.size === 1
+    ? `${[...enabledTickRates][0]?.toLocaleString(currentLocale()) ?? 64} tick`
+    : msg("m1245");
+  const previewOnly = enabledItems.length > 0 && realEnabledItems.length === 0;
+  const jobIsActive = activeJobId !== null || (job !== null && ['queued', 'preparing', 'running', 'cancelling'].includes(job.status));
+  const playbackSessionActive = runtimeSession === 'playback' || runtimeSession === 'playback_launching' || runtimeSession === 'playback_stopping';
+  const playbackBlockReason = demoPlaybackBlockReason(selected, jobIsActive, playbackSessionActive);
+  const preflightBlockReason = selected?.origin === 'demo'
+    ? null
+    : msg("m1003");
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
+  const selectedPlaybackFingerprint = selected ? demoPlaybackFingerprint(selected) : null;
+  const selectedPlaybackFingerprintRef = useRef(selectedPlaybackFingerprint);
+  selectedPlaybackFingerprintRef.current = selectedPlaybackFingerprint;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const runtimeStamp = beginRemoteRead();
+    void api.runtimeState(controller.signal).then((state) => {
+      if (state.active_recording_job) setActiveJobId(state.active_recording_job);
+      applyRemoteSession(state.runtime_session, runtimeStamp);
+    }).catch(() => {
+      // The page remains usable when the local service is still starting.
+    });
+    void api.playbackStatus(controller.signal).then((status) => {
+      setPlaybackStatus(status);
+      setPlaybackStatusError(null);
+    }).catch((error) => {
+      if (!controller.signal.aborted) setPlaybackStatusError(readableError(error));
+    });
+    return () => controller.abort();
+  }, [applyRemoteSession, beginRemoteRead]);
+
+  useEffect(() => {
+    preflightGeneration.current += 1;
+    preflightController.current?.abort();
+    preflightController.current = null;
+    setPreflightState({ status: 'idle', data: null, message: null });
+    return () => {
+      preflightGeneration.current += 1;
+      preflightController.current?.abort();
+    };
+  }, [selectedPlaybackFingerprint]);
+
+  useEffect(() => {
+    if (runtimeSession !== 'idle' || stopPlaybackAction.state.status !== 'error') return;
+    stopPlaybackAction.reset();
+    setStopReconcileNotice(msg("m0789"));
+  }, [runtimeSession, stopPlaybackAction.reset, stopPlaybackAction.state.status]);
+
+  useEffect(() => {
+    if (!activeJobId) return undefined;
+    let disposed = false;
+    let timer: number | undefined;
+    const controller = new AbortController();
+
+    const refresh = async () => {
+      try {
+        const next = await api.getRecordingJob(activeJobId, controller.signal);
+        if (disposed) return;
+        setJob(next);
+        setJobPollError(null);
+        if (['completed', 'failed', 'cancelled'].includes(next.status)) {
+          setActiveJobId(null);
+          return;
+        }
+        timer = window.setTimeout(() => void refresh(), 750);
+      } catch (error) {
+        if (disposed) return;
+        setJobPollError(readableError(error));
+        timer = window.setTimeout(() => void refresh(), 2_000);
+      }
+    };
+
+    void refresh();
+    return () => {
+      disposed = true;
+      controller.abort();
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [activeJobId]);
+
+  const filtered = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase();
+    return items.filter((item) =>
+      (filter === 'all' || item.category === filter) &&
+      (!query || `${item.title} ${item.demoName} ${item.playerName}`.toLocaleLowerCase().includes(query)),
+    );
+  }, [filter, items, search]);
+
+  const handlePlan = async () => {
+    const latestItems = useQueueStore.getState().items;
+    const request: RecordingQueueRequest = buildRecordingQueueRequest(latestItems);
+    const fingerprint = recordingQueueFingerprint(latestItems);
+    setValidatedPlan(null);
+    const result = await planAction.run(() => api.planRecording(request), msg("m0607"));
+    if (result) setValidatedPlan({ response: result, fingerprint });
+  };
+
+  const handleExecute = async () => {
+    const latestItems = useQueueStore.getState().items;
+    if (!matchesRecordingQueueFingerprint(validatedPlan?.fingerprint, latestItems)) {
+      setValidatedPlan(null);
+      return;
+    }
+    const request = buildRecordingQueueRequest(latestItems);
+    const result = await executeAction.run(() => api.executeRecordingQueue(request), msg("m0595"));
+    if (result) {
+      setValidatedPlan(null);
+      setJob(null);
+      setJobPollError(null);
+      setActiveJobId(result.job_id);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!job) return;
+    const result = await abortAction.run(() => api.cancelRecordingJob(job.id), msg("m0539"));
+    if (result) {
+      setJob(result);
+      setActiveJobId(result.id);
+    }
+  };
+
+  const handlePlaybackPreflight = async () => {
+    if (!selected || selected.origin !== 'demo') return;
+    preflightController.current?.abort();
+    const controller = new AbortController();
+    const generation = preflightGeneration.current + 1;
+    const item = selected;
+    const fingerprint = demoPlaybackFingerprint(item);
+    preflightGeneration.current = generation;
+    preflightController.current = controller;
+    setPreflightState({ status: 'loading', data: null, message: null });
+    try {
+      const result = await api.preflightDemo(
+        item.demoId,
+        buildDemoPlaybackOptions(item),
+        controller.signal,
+      );
+      const currentItem = useQueueStore.getState().items.find(
+        (candidate) => candidate.id === selectedIdRef.current,
+      ) ?? null;
+      if (
+        controller.signal.aborted
+        || generation !== preflightGeneration.current
+        || selectedIdRef.current !== item.id
+        || selectedPlaybackFingerprintRef.current !== fingerprint
+        || currentItem?.origin !== 'demo'
+        || demoPlaybackFingerprint(currentItem) !== fingerprint
+      ) return;
+      setPreflightState({
+        status: 'success',
+        data: result,
+        message: item.perspective === 'victim'
+          ? msg("m0034")
+          : msg("m0033"),
+      });
+      setPlaybackStatus(result.status);
+    } catch (error) {
+      if (
+        !controller.signal.aborted
+        && generation === preflightGeneration.current
+        && selectedIdRef.current === item.id
+        && selectedPlaybackFingerprintRef.current === fingerprint
+        && useQueueStore.getState().selectedId === item.id
+        && useQueueStore.getState().items.some((candidate) =>
+          candidate.id === item.id && demoPlaybackFingerprint(candidate) === fingerprint)
+      ) {
+        setPreflightState({ status: 'error', data: null, message: readableError(error) });
+      }
+    } finally {
+      if (generation === preflightGeneration.current) preflightController.current = null;
+    }
+  };
+
+  const handlePreview = async () => {
+    if (previewInFlight.current || !selected || demoPlaybackBlockReason(selected, jobIsActive, playbackSessionActive) !== null) return;
+    previewInFlight.current = true;
+    try {
+      const result = await previewAction.run(
+        () => runManagedPlaybackLaunch(
+          () => api.playDemo(selected.demoId, buildDemoPlaybackOptions(selected)),
+        ),
+        msg("m0548"),
+      );
+      if (result) {
+        setPlaybackStatus(result.preflight.status);
+      }
+    } finally {
+      previewInFlight.current = false;
+    }
+  };
+
+  const handleStopPlayback = async () => {
+    if (!window.confirm(msg("m0219"))) return;
+    const transitionRevision = beginPlaybackStop();
+    if (transitionRevision === null) return;
+    setStopReconcileNotice(null);
+    const result = await stopPlaybackAction.run(
+      () => api.stopPlayback(),
+      msg("m0781"),
+    );
+    if (result) {
+      completeRuntimeTransition(transitionRevision, 'idle');
+      return;
+    }
+    try {
+      const current = await api.runtimeState();
+      completeRuntimeTransition(transitionRevision, current.runtime_session);
+      if (current.runtime_session === 'idle') {
+        stopPlaybackAction.reset();
+        setStopReconcileNotice(msg("m0221"));
+      }
+    } catch {
+      completeRuntimeTransition(transitionRevision, 'playback_stopping');
+    }
+  };
+
+  const formatEstimate = (seconds: number) => msgf("m0102", [Math.floor(seconds / 60), Math.round(seconds % 60)]);
+
+  return (
+    <div className="page page--queue">
+      <PageHeader
+        eyebrow="RECORDING DIRECTOR"
+        title={t('queue.title')}
+        description={t('queue.description')}
+        actions={
+          <>
+            <Button disabled={items.length === 0} onClick={() => toggleAll(enabledItems.length !== items.length)}>
+              <ListChecks size={15} />{enabledItems.length === items.length ? t('queue.disableAll') : t('queue.enableAll')}
+            </Button>
+            <Button variant="danger" disabled={items.length === 0} onClick={clear}><Trash2 size={14} />{t('common.clear')}</Button>
+            {playbackSessionActive ? <Button variant="danger" disabled={stopPlaybackAction.state.status === 'loading' || runtimeSession !== 'playback'} onClick={() => void handleStopPlayback()}>{stopPlaybackAction.state.status === 'loading' || runtimeSession === 'playback_stopping' ? <Spinner /> : <PauseCircle size={14} />}{runtimeSession === 'playback_launching' ? msg("m0846") : runtimeSession === 'playback_stopping' ? msg("m0844") : msg("m0220")}</Button> : null}
+          </>
+        }
+      />
+      <ProductionSectionNav />
+
+      {previewOnly ? (
+        <Notice tone="warning" title={msg("m0591")}>
+
+         {msg("m0348")}
+        </Notice>
+      ) : null}
+      {playbackStatusError ? <Notice tone="warning" title={msg("m0783")}>{playbackStatusError}</Notice> : null}
+      {playbackStatus && !playbackStatus.ready_to_launch ? (
+        <Notice tone="danger" title={msg("m0782")}>{msg("m0900")}</Notice>
+      ) : playbackStatus && !playbackStatus.gsi_ready ? (
+        <Notice tone="warning" title={msg("m0345")}>{msg("m1140")}</Notice>
+      ) : null}
+      {planAction.state.message && (planAction.state.status === 'error' || currentPlan) ? <Notice tone={planAction.state.status === 'error' ? 'danger' : 'success'}>{planAction.state.message}</Notice> : null}
+      {currentPlan ? <DirectorPlanPreview plan={currentPlan.director} /> : null}
+      {planIsStale ? <Notice tone="warning" title={msg("m0606")}>{msg("m1280")}</Notice> : null}
+      {executeAction.state.message ? <Notice tone={executeAction.state.status === 'error' ? 'danger' : 'success'}>{executeAction.state.message}</Notice> : null}
+      {abortAction.state.message ? <Notice tone={abortAction.state.status === 'error' ? 'danger' : 'success'}>{abortAction.state.message}</Notice> : null}
+      {previewAction.state.message ? <Notice tone={previewAction.state.status === 'error' ? 'danger' : 'success'}>{previewAction.state.message}</Notice> : null}
+      {stopPlaybackAction.state.message ? <Notice tone={stopPlaybackAction.state.status === 'error' ? 'danger' : 'success'}>{stopPlaybackAction.state.message}</Notice> : null}
+      {stopReconcileNotice ? <Notice tone="warning">{stopReconcileNotice}</Notice> : null}
+      {preflightState.message ? <Notice tone={preflightState.status === 'error' ? 'danger' : 'success'}>{preflightState.message}{preflightState.data ? msgf("m0011", [(preflightState.data.demo_size / 1_048_576).toFixed(1), preflightState.data.demo_sha256.slice(0, 12)]) : ''}</Notice> : null}
+      {jobPollError ? <Notice tone="warning" title={msg("m0605")}>{jobPollError}{msg("m1337")}</Notice> : null}
+      {job ? (
+        <Card className="queue-job-progress" aria-live="polite">
+          <div>
+            <span className="eyebrow">LIVE JOB</span>
+            <strong>{job.status === 'completed' ? msg("m0598") : job.status === 'failed' ? msg("m0597") : job.status === 'cancelled' ? msg("m0599") : job.status === 'cancelling' ? msg("m0847") : msg("m0608")}</strong>
+            <small>{job.message || msgf("m0195", [job.id])}</small>
+          </div>
+          <div className="queue-job-progress__bar">
+            <span style={{ width: `${Math.max(0, Math.min(100, job.progress * 100))}%` }} />
+          </div>
+          <div className="queue-job-progress__meta">
+            <Badge tone={job.status === 'completed' ? 'success' : job.status === 'failed' ? 'danger' : job.status === 'cancelled' ? 'neutral' : 'blue'}>{job.status}</Badge>
+            <span>{Math.round(job.progress * 100)}%</span>
+            <span>{job.outputs.length} {msg("m0163")}</span>
+          </div>
+        </Card>
+      ) : null}
+
+      <section className="queue-stats">
+        <Card><span className="queue-stat-icon"><Video size={17} /></span><div><small>{msg("m1281")}</small><strong>{items.length}</strong></div><Badge tone="neutral">{enabledItems.length} {msg("m0365")}</Badge></Card>
+        <Card><span className="queue-stat-icon"><Clock3 size={17} /></span><div><small>{msg("m1312")}</small><strong>{formatEstimate(estimatedSeconds)}</strong></div><Badge tone="blue">{tickRateLabel}</Badge></Card>
+        <Card><span className="queue-stat-icon"><UserRound size={17} /></span><div><small>{msg("m1016")}</small><strong>{new Set(items.map((item) => item.playerName)).size}</strong></div><Badge tone="neutral">{msg("m1017")}</Badge></Card>
+        <Card><span className="queue-stat-icon"><Sparkles size={17} /></span><div><small>{msg("m1108")}</small><strong>{currentPlan ? msg("m0522") : msg("m0613")}</strong></div><Badge tone={currentPlan ? 'success' : 'warning'}>{currentPlan ? msgf("m0109", [currentPlan.active_items]) : msg("m0761")}</Badge></Card>
+      </section>
+
+      <div className="queue-layout">
+        <section className="queue-list-panel">
+          <Card className="queue-toolbar">
+            <div className="search-box"><Search size={15} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={msg("m0669")} aria-label={msg("m0665")} /></div>
+            <div className="queue-filters" role="group" aria-label={msg("m0965")}>
+              {(['all', 'multi-kill', 'clutch', 'entry', 'utility'] as const).map((value) => <button type="button" key={value} className={filter === value ? 'is-active' : undefined} onClick={() => setFilter(value)}>{value === 'all' ? msg("m0229") : categoryLabel[value]}</button>)}
+            </div>
+          </Card>
+
+          {filtered.length > 0 ? (
+            <div className="queue-list">
+              {filtered.map((item) => {
+                const index = items.findIndex((current) => current.id === item.id);
+                return (
+                  <article
+                    key={item.id}
+                    draggable
+                    onDragStart={() => setDragIndex(index)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={() => {
+                      if (dragIndex !== null) reorder(dragIndex, index);
+                      setDragIndex(null);
+                    }}
+                    className={`queue-item${selectedId === item.id ? ' is-selected' : ''}${item.enabled ? '' : ' is-disabled'}`}
+                  >
+                    <button className="queue-item__main" type="button" onClick={() => select(item.id)}>
+                      <span className="queue-item__grip"><GripVertical size={16} /></span>
+                      <span className={`queue-item__index category-${item.category}`}>{String(index + 1).padStart(2, '0')}</span>
+                      <span className="queue-item__copy"><span><Badge tone={item.category === 'clutch' ? 'warning' : 'blue'}>{categoryLabel[item.category]}</Badge>{item.origin === 'preview' ? <Badge tone="neutral">{msg("m1038")}</Badge> : null}</span><strong>{item.title}</strong><small>{item.demoName} · {item.playerName}</small></span>
+                      <span className="queue-item__timing"><strong>{queueItemDurationSeconds(item).toFixed(1)}s</strong><small>{item.perspective === 'victim' ? msg("m0331") : msg("m1017")} · {item.playbackSpeed}×</small></span>
+                      <ChevronRight size={16} />
+                    </button>
+                    <div className="queue-item__buttons">
+                      <IconButton label={msg("m0138")} disabled={index === 0} onClick={() => move(item.id, -1)}><ArrowUp size={14} /></IconButton>
+                      <IconButton label={msg("m0141")} disabled={index === items.length - 1} onClick={() => move(item.id, 1)}><ArrowDown size={14} /></IconButton>
+                      <IconButton label={msg("m1048")} onClick={() => remove(item.id)}><X size={14} /></IconButton>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <Card><EmptyState icon={<Video size={24} />} title={t('queue.empty')} description={t('queue.emptyDescription')} /></Card>
+          )}
+        </section>
+
+        <aside className="queue-inspector">
+          {selected ? (
+            <>
+              <div className="inspector-header"><div><span className="eyebrow">CLIP INSPECTOR</span><h2>{msg("m0955")}</h2></div><Badge tone={selected.enabled ? 'success' : 'neutral'}>{selected.enabled ? msg("m0365") : msg("m0222")}</Badge></div>
+              <div className="queue-preview"><div className="mini-crosshair"><span /><span /></div><span>{selected.demoName}</span><strong>{selected.title}</strong><small>tick {selected.startTick.toLocaleString(currentLocale())} — {selected.endTick.toLocaleString(currentLocale())}</small><div className="queue-preview__actions"><Button size="sm" disabled={preflightBlockReason !== null || preflightState.status === 'loading'} title={preflightBlockReason ?? (selected.perspective === 'victim' ? msg("m0823") : msg("m0822"))} onClick={() => void handlePlaybackPreflight()}>{preflightState.status === 'loading' ? <Spinner /> : <ListChecks size={13} />}{msg("m0364")}</Button><Button size="sm" disabled={playbackBlockReason !== null || previewAction.state.status === 'loading' || playbackStatus?.ready_to_launch === false} title={playbackBlockReason ?? (playbackStatus?.ready_to_launch === false ? msg("m0801") : msg("m1326"))} onClick={() => void handlePreview()}>{previewAction.state.status === 'loading' ? <Spinner /> : <Play size={13} />}{msg("m1311")}</Button></div>{selected.perspective === 'victim' ? <small role="status">{playbackBlockReason}</small> : null}</div>
+              <div className="inspector-fields">
+                <Field label={msg("m0964")}><TextInput value={selected.title} onChange={(event) => update(selected.id, { title: event.target.value })} /></Field>
+                <Field label={msg("m1275")} hint={selected.hasVictimPov ? msg("m0332") : msg("m0583")}>
+                  <select value={selected.perspective === 'victim' ? 'victim' : 'pov'} onChange={(event) => update(selected.id, { perspective: event.target.value as 'pov' | 'victim' })}>
+                    <option value="pov">{msg("m1016")}</option>
+                    <option value="victim" disabled={!selected.hasVictimPov}>{msg("m0331")}</option>
+                  </select>
+                </Field>
+                <div className="field-row">
+                  <Field label={msg("m0297")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={selected.preRollSeconds} onChange={(event) => update(selected.id, { preRollSeconds: Number(event.target.value) })} /><span>{msg("m1044")}</span></div></Field>
+                  <Field label={msg("m0361")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={selected.postRollSeconds} onChange={(event) => update(selected.id, { postRollSeconds: Number(event.target.value) })} /><span>{msg("m1044")}</span></div></Field>
+                </div>
+                <Field label={msg("m0677")}><input className="range-input" type="range" min="0.25" max="1" step="0.25" value={selected.playbackSpeed} onChange={(event) => update(selected.id, { playbackSpeed: Number(event.target.value) })} /><div className="range-labels"><span>0.25×</span><strong>{selected.playbackSpeed.toFixed(2)}×</strong><span>1.0×</span></div></Field>
+                <div className="toggle-list">
+                  <label><span><SlidersHorizontal size={15} /><span><strong>{msg("m0657")}</strong><small>{msg("m0727")}</small></span></span><input type="checkbox" checked={selected.showKeyboard} onChange={(event) => update(selected.id, { showKeyboard: event.target.checked })} /></label>
+                  <label><span><WandSparkles size={15} /><span><strong>{msg("m0253")}</strong><small>{msg("m0385")}</small></span></span><input type="checkbox" checked={selected.showKillFx} onChange={(event) => update(selected.id, { showKillFx: event.target.checked })} /></label>
+                  <label><span><PauseCircle size={15} /><span><strong>{msg("m0319")}</strong><small>{msg("m0245")}</small></span></span><input type="checkbox" checked={selected.enabled} onChange={(event) => update(selected.id, { enabled: event.target.checked })} /></label>
+                </div>
+              </div>
+            </>
+          ) : (
+            <EmptyState icon={<SlidersHorizontal size={24} />} title={t('queue.choose')} description={t('queue.chooseDescription')} />
+          )}
+        </aside>
+      </div>
+
+      <div className="queue-action-dock">
+        <div className="queue-action-dock__summary"><span className="queue-stat-icon"><Timer size={17} /></span><div><small>{msg("m0810")}</small><strong>{enabledItems.length} {msg("m0157")} {formatEstimate(estimatedSeconds)}</strong></div>{previewOnly ? <Badge tone="warning"><CircleAlert size={11} />{msg("m1039")}</Badge> : null}</div>
+        <div className="queue-action-dock__actions">
+          {jobIsActive ? <Button variant="danger" onClick={() => void handleCancel()} disabled={abortAction.state.status === 'loading' || job?.status === 'cancelling'}>{abortAction.state.status === 'loading' ? <Spinner /> : <PauseCircle size={15} />}{msg("m1075")}</Button> : null}
+          <Button disabled={realEnabledItems.length === 0 || planAction.state.status === 'loading'} onClick={() => void handlePlan()}>{planAction.state.status === 'loading' ? <Spinner /> : <ListChecks size={15} />}{msg("m0990")}</Button>
+          <Button variant="primary" title={directorBlocked ? msg("m0742") : undefined} disabled={!currentPlan || directorBlocked || realEnabledItems.length === 0 || executeAction.state.status === 'loading' || jobIsActive} onClick={() => void handleExecute()}>{executeAction.state.status === 'loading' ? <Spinner /> : <Play size={15} />}{msg("m0558")}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}

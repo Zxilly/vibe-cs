@@ -2,6 +2,7 @@
 node_modules/
 /.pnpm-store/
 /apps/web/dist/
+/apps/web/.vite/
 /apps/desktop/src-tauri/gen/
 /.vibe-cs/
 *.db

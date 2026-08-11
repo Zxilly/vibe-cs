@@ -1,0 +1,24 @@
+[package]
+name = "vibe-cs-recording"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+vibe-cs-domain = { path = "../domain" }
+vibe-cs-integrations = { path = "../integrations" }
+vibe-cs-platform-windows = { path = "../platform-windows" }
+async-trait.workspace = true
+chrono.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

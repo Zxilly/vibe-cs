@@ -222,7 +222,7 @@ export function MontagePage() {
     if (!file || !selectedItem) return;
     if (!file.type.startsWith('image/') || file.size > 20 * 1024 * 1024) return;
     const response = await avatarAction.run(
-      () => api.uploadLiteCutAssets([file]),
+      () => api.uploadMediaAssets([file]),
       msg("m0979"),
     );
     const asset = response?.items[0];
@@ -311,7 +311,7 @@ export function MontagePage() {
         <section className="montage-stage panel-surface">
           <header className="panel-title"><div><span className="eyebrow">SEQUENCE</span><h2>{t('montage.sequence')}</h2></div><div className="panel-title__meta"><Clock3 size={13} />{totalDuration.toFixed(1)}s</div></header>
           <div className="montage-player">
-            {displayedClip && previewClipId === displayedClip.id ? <video key={displayedClip.id} className="montage-player__media" src={apiMediaUrl(displayedClip.stream_url)} controls autoPlay playsInline preload="metadata" onError={() => setPreviewClipId(null)} /> : <><div className="montage-player__title">{selectedItem?.avatarAssetId ? <img src={apiMediaUrl(`/api/lite-cut/assets/${encodeURIComponent(selectedItem.avatarAssetId)}/stream`)} alt={msg("m0430")} width="64" height="64" /> : null}<span>{introEnabled ? introTitle : msg("m1072")}</span><strong>{displayedClip?.title ?? msg("m1238")}</strong><small>{displayedClip ? `${displayedClip.player_name} · ${displayedClip.map_name}` : msgf("m0115", [transitionSeconds.toFixed(2)])}</small></div><button type="button" className="montage-player__play" aria-label={displayedClip ? msgf("m1310", [displayedClip.title]) : msg("m1148")} disabled={!displayedClip} onClick={() => displayedClip && setPreviewClipId(displayedClip.id)}><Play size={22} fill="currentColor" /></button></>}
+            {displayedClip && previewClipId === displayedClip.id ? <video key={displayedClip.id} className="montage-player__media" src={apiMediaUrl(displayedClip.stream_url)} controls autoPlay playsInline preload="metadata" onError={() => setPreviewClipId(null)} /> : <><div className="montage-player__title">{selectedItem?.avatarAssetId ? <img src={apiMediaUrl(`/api/media/assets/${encodeURIComponent(selectedItem.avatarAssetId)}/stream`)} alt={msg("m0430")} width="64" height="64" /> : null}<span>{introEnabled ? introTitle : msg("m1072")}</span><strong>{displayedClip?.title ?? msg("m1238")}</strong><small>{displayedClip ? `${displayedClip.player_name} · ${displayedClip.map_name}` : msgf("m0115", [transitionSeconds.toFixed(2)])}</small></div><button type="button" className="montage-player__play" aria-label={displayedClip ? msgf("m1310", [displayedClip.title]) : msg("m1148")} disabled={!displayedClip} onClick={() => displayedClip && setPreviewClipId(displayedClip.id)}><Play size={22} fill="currentColor" /></button></>}
             <div className="montage-player__hud"><span>00:00 / {totalDuration.toFixed(0)}s</span><span>{resolution.toUpperCase()} · {fps} FPS</span></div>
           </div>
           <div className="sequence-toolbar"><div><Badge tone="accent">{timeline.length} CLIPS</Badge><span>{msg("m1236")}</span></div><Button size="sm" onClick={() => setTimeline((current) => [...current].reverse())}><RotateCcw size={13} />{msg("m0322")}</Button></div>

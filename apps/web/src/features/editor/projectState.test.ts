@@ -27,7 +27,7 @@ const tracks: TimelineTrackDto[] = [
   },
 ];
 
-describe('LiteCut project state', () => {
+describe('Editor project state', () => {
   it('counts both project-name and timeline changes as unsaved edits', () => {
     const saved = projectEditFingerprint('我的剪辑', tracks);
 

@@ -41,12 +41,27 @@ describe('API client', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await api.separateLiteCutAudio('project 1', 'clip/1', 7);
+    await api.separateEditorAudio('project 1', 'clip/1', 7);
 
     const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toBe('/api/lite-cut/projects/project%201/clips/clip%2F1/separate-audio');
+    expect(url).toBe('/api/editor/projects/project%201/clips/clip%2F1/separate-audio');
     expect(init?.method).toBe('POST');
     expect(init?.body).toBe('{"expected_revision":7,"mute_source":true}');
+  });
+
+  it('keeps reusable assets under the shared media API boundary', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ id: 'asset-1', name: 'clip.mp4' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await api.getMediaAsset('asset/1');
+
+    const [url] = fetchMock.mock.calls[0] ?? [];
+    expect(url).toBe('/api/media/assets/asset%2F1');
   });
 
   it('uses the fixed loopback service for the Tauri protocol', () => {

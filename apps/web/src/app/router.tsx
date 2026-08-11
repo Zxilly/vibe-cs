@@ -13,7 +13,7 @@ const ProductionPage = lazy(() => import('../features/production/ProductionPage'
 const QueuePage = lazy(() => import('../features/queue/QueuePage').then((module) => ({ default: module.QueuePage })));
 const StudioPage = lazy(() => import('../features/studio/StudioPage').then((module) => ({ default: module.StudioPage })));
 const MontagePage = lazy(() => import('../features/montage/MontagePage').then((module) => ({ default: module.MontagePage })));
-const LiteCutPage = lazy(() => import('../features/lite-cut/LiteCutPage').then((module) => ({ default: module.LiteCutPage })));
+const EditorPage = lazy(() => import('../features/editor/EditorPage').then((module) => ({ default: module.EditorPage })));
 const OutputsPage = lazy(() => import('../features/outputs/OutputsPage').then((module) => ({ default: module.OutputsPage })));
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })));
 const MatchHistoryPage = lazy(() => import('../features/match-history/MatchHistoryPage').then((module) => ({ default: module.MatchHistoryPage })));
@@ -36,7 +36,7 @@ export const routePaths = [
   '/queue',
   '/studio',
   '/montage',
-  '/lite-cut',
+  '/studio/editor',
   '/outputs',
   '/settings',
   '/match-history',
@@ -58,7 +58,7 @@ export const appRoutes: RouteObject[] = [
       { id: 'queue', path: 'queue', element: suspense(<QueuePage />) },
       { id: 'studio', path: 'studio', element: suspense(<StudioPage />) },
       { id: 'montage', path: 'montage', element: suspense(<MontagePage />) },
-      { id: 'lite-cut', path: 'lite-cut', element: suspense(<LiteCutPage />) },
+      { id: 'editor', path: 'studio/editor', element: suspense(<EditorPage />) },
       { id: 'outputs', path: 'outputs', element: suspense(<OutputsPage />) },
       { id: 'settings', path: 'settings', element: suspense(<SettingsPage />) },
       { id: 'match-history', path: 'match-history', element: suspense(<MatchHistoryPage />) },

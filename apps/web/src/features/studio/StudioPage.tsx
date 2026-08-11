@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { api, readableError } from '../../shared/api/client';
-import type { LiteCutProject, OutputItem, RecordedClip } from '../../shared/api/dto';
+import type { EditorProject, OutputItem, RecordedClip } from '../../shared/api/dto';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Card, Notice, PageHeader, Spinner } from '../../shared/ui';
 import { ProductionSectionNav } from '../production/ProductionSectionNav';
@@ -23,7 +23,7 @@ type ResourceState<T> = {
 };
 
 type StudioOverview = {
-  projects: ResourceState<LiteCutProject>;
+  projects: ResourceState<EditorProject>;
   clips: ResourceState<RecordedClip>;
   outputs: ResourceState<OutputItem> & { total: number };
   errors: string[];
@@ -45,7 +45,7 @@ export function StudioPage() {
     const controller = new AbortController();
     setLoading(true);
     void Promise.allSettled([
-      api.listLiteCutProjects(controller.signal),
+      api.listEditorProjects(controller.signal),
       api.listRecordedClips(controller.signal),
       api.listOutputs({ page: 1, page_size: 6 }, controller.signal),
     ]).then(([projectsResult, clipsResult, outputsResult]) => {
@@ -130,7 +130,7 @@ export function StudioPage() {
               {metric(overview.projects.available, overview.projects.items.length)} {t('studio.projects')}
             </Badge>
           </div>
-          <Link className="button button--primary button--md" to="/lite-cut"><Layers3 size={15} />{t('studio.editorAction')}<ArrowRight size={14} /></Link>
+          <Link className="button button--primary button--md" to="/studio/editor"><Layers3 size={15} />{t('studio.editorAction')}<ArrowRight size={14} /></Link>
         </article>
       </section>
 
@@ -139,7 +139,7 @@ export function StudioPage() {
         {recentProjects.length > 0 ? (
           <div className="studio-project-list">
             {recentProjects.map((project) => (
-              <Link key={project.id} to={`/lite-cut?project=${encodeURIComponent(project.id)}`}>
+              <Link key={project.id} to={`/studio/editor?project=${encodeURIComponent(project.id)}`}>
                 <span className="studio-project-list__icon"><Film size={17} /></span>
                 <span><strong>{project.name}</strong><small><Clock3 size={12} />{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(project.updated_at))} · {project.duration_seconds.toFixed(1)}s</small></span>
                 <span>{t('studio.continueProject')}<ArrowRight size={13} /></span>

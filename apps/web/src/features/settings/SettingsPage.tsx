@@ -301,7 +301,7 @@ function GeneralSettings({ theme, language, setTheme, setLanguage, config }: { t
     : 0;
   const cleanupProxies = async () => {
     const result = await cleanupAction.run(
-      () => api.cleanupLiteCutProxies(),
+      () => api.cleanupMediaProxies(),
     );
     if (result) await refreshStorage();
   };

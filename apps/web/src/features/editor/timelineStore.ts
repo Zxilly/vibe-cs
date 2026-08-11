@@ -1,7 +1,7 @@
 import { msg, msgf } from '../../shared/i18n';
 import { create } from 'zustand';
 
-import type { LiteCutMarker } from '../../shared/api/dto';
+import type { EditorMarker } from '../../shared/api/dto';
 import { MAX_EDITOR_TIMELINE_SECONDS, boundedTimelineValue, trimMarkersToDuration } from './projectState';
 
 export type TimelineKeyframeProperty =
@@ -77,7 +77,7 @@ type TimelineSnapshot = Pick<TimelineState, 'tracks' | 'markers' | 'selectedClip
 
 type TimelineState = {
   tracks: TimelineTrack[];
-  markers: LiteCutMarker[];
+  markers: EditorMarker[];
   selectedClipId: string | null;
   selectedClipIds: string[];
   playhead: number;
@@ -91,7 +91,7 @@ type TimelineState = {
   selectClip: (id: string | null, additive?: boolean) => void;
   setPlayhead: (seconds: number) => void;
   setProjectDuration: (seconds: number) => TimelineOperationResult;
-  addMarker: (marker: LiteCutMarker) => TimelineOperationResult;
+  addMarker: (marker: EditorMarker) => TimelineOperationResult;
   removeMarker: (id: string) => TimelineOperationResult;
   setZoom: (zoom: number) => void;
   toggleSnapping: () => void;
@@ -122,7 +122,7 @@ type TimelineState = {
   ) => TimelineOperationResult;
   undo: () => void;
   redo: () => void;
-  reset: (tracks?: TimelineTrack[], authoritativeDuration?: number, markers?: LiteCutMarker[]) => void;
+  reset: (tracks?: TimelineTrack[], authoritativeDuration?: number, markers?: EditorMarker[]) => void;
 };
 
 const succeeded: TimelineOperationResult = { ok: true };

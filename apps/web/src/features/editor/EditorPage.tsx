@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ChevronRight,
   Clock3,
-  Crosshair,
   Download,
   Film,
   Flag,
@@ -49,7 +48,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { ApiError, api, apiMediaUrl, readableError } from '../../shared/api/client';
-import type { EditorPreset, EditorPresetDocument, EditorProjectDeletionResult, EditorProjectSnapshot, EditorTransitionName, ExportJobRecord, LiteCutAudioSeparation, LiteCutPackageExport, LiteCutPackageImport, LiteCutProject, MediaAsset, RecordedClip, TimelineClipDto, TimelineTrackDto } from '../../shared/api/dto';
+import type { EditorPreset, EditorPresetDocument, EditorProjectDeletionResult, EditorProjectSnapshot, EditorTransitionName, ExportJobRecord, EditorAudioSeparation, EditorPackageExport, EditorPackageImport, EditorProject, MediaAsset, RecordedClip, TimelineClipDto, TimelineTrackDto } from '../../shared/api/dto';
 import { chooseLocalFile, isDesktopShell } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
@@ -63,7 +62,6 @@ import {
   presetCompatibilityReason,
   projectEditFingerprint,
   snapTimelineTime,
-  timelineRuler,
 } from './projectState';
 import {
   EDITOR_TRANSITIONS,
@@ -75,6 +73,8 @@ import {
   mapKillAxisEvents,
 } from './advancedEditing';
 import { synchronizeMediaPreview } from './previewSync';
+import { EditorTimeline } from './EditorTimeline';
+import { EditorWaveform } from './EditorWaveform';
 import { interpolateTimelineProperty, type TimelineClip, type TimelineKeyframeProperty, type TimelineOperationResult, type TimelineTrack, useTimelineStore } from './timelineStore';
 
 type InspectorTab = 'clip' | 'color' | 'audio' | 'preset';
@@ -137,20 +137,26 @@ const presetDocumentFromClip = (clip: TimelineClip): EditorPresetDocument => {
   };
 };
 
-const WaveformStrip = memo(function WaveformStrip({ points }: { points: number[] | undefined }) {
-  if (!points || points.length === 0) return <span className="waveform waveform--loading">{msg("m0989")}</span>;
-  const coordinates = points.map((point, index) => {
-    const x = points.length === 1 ? 0 : index * 100 / (points.length - 1);
-    return `${x.toFixed(2)},${(50 - Math.max(0, Math.min(1, point)) * 42).toFixed(2)}`;
-  }).join(' ');
-  return <svg className="waveform" viewBox="0 0 100 50" preserveAspectRatio="none" aria-hidden="true"><polyline points={coordinates} /></svg>;
-});
-
 const sourceOffsetAt = (clip: TimelineClip, localTime: number): number => {
   const segments = clip.speedSegments ?? [];
   if (segments.length === 0) return localTime * clip.speed;
   return segments.reduce((offset, segment) => offset
     + Math.max(0, Math.min(localTime, segment.end) - segment.start) * segment.speed, 0);
+};
+
+const localTimeAtSource = (clip: TimelineClip, sourceTime: number): number => {
+  const sourceOffset = Math.max(0, sourceTime - clip.sourceIn);
+  const segments = clip.speedSegments ?? [];
+  if (segments.length === 0) return Math.min(clip.duration, sourceOffset / clip.speed);
+  let consumedSource = 0;
+  for (const segment of segments) {
+    const sourceDuration = (segment.end - segment.start) * segment.speed;
+    if (sourceOffset <= consumedSource + sourceDuration) {
+      return Math.min(clip.duration, segment.start + (sourceOffset - consumedSource) / segment.speed);
+    }
+    consumedSource += sourceDuration;
+  }
+  return clip.duration;
 };
 
 const speedAt = (clip: TimelineClip, localTime: number): number =>
@@ -287,7 +293,7 @@ const TimelineAudioPreview = memo(function TimelineAudioPreview({
 
 const makeId = (): string => crypto.randomUUID();
 
-const blankProject = (): LiteCutProject => ({
+const blankProject = (): EditorProject => ({
   id: '',
   name: msg("m0753"),
   width: 1920,
@@ -308,7 +314,7 @@ const emptyProjectTracks = (): TimelineTrack[] => [
   { id: makeId(), name: msg("m0383"), kind: 'overlay', muted: false, locked: false, clips: [] },
 ];
 
-const projectTracks = (project: LiteCutProject): TimelineTrack[] =>
+const projectTracks = (project: EditorProject): TimelineTrack[] =>
   project.tracks.length > 0 ? toStoreTracks(project.tracks) : emptyProjectTracks();
 
 const toStoreTracks = (tracks: TimelineTrackDto[]): TimelineTrack[] => tracks.map((track) => ({
@@ -375,7 +381,7 @@ const toWireTracks = (tracks: TimelineTrack[]): TimelineTrackDto[] => tracks.map
   clips: track.clips.map(toWireClip),
 }));
 
-export function LiteCutPage() {
+export function EditorPage() {
   const [searchParams] = useSearchParams();
   const requestedProjectId = searchParams.get('project');
   const { t } = useI18n();
@@ -415,11 +421,11 @@ export function LiteCutPage() {
   const undo = useTimelineStore((state) => state.undo);
   const redo = useTimelineStore((state) => state.redo);
   const reset = useTimelineStore((state) => state.reset);
-  const [projects, setProjects] = useState<LiteCutProject[]>([]);
+  const [projects, setProjects] = useState<EditorProject[]>([]);
   const [media, setMedia] = useState<RecordedClip[]>([]);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
   const [presets, setPresets] = useState<EditorPreset[]>([]);
-  const [activeProject, setActiveProject] = useState<LiteCutProject>(() => blankProject());
+  const [activeProject, setActiveProject] = useState<EditorProject>(() => blankProject());
   const [source, setSource] = useState<'loading' | 'service' | 'unavailable'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [projectListOpen, setProjectListOpen] = useState(false);
@@ -464,22 +470,21 @@ export function LiteCutPage() {
   const recorderBytes = useRef(0);
   const recorderLimitTimer = useRef<number | null>(null);
   const [recordingVoice, setRecordingVoice] = useState(false);
-  const dragStart = useRef<{ clipId: string; trackId: string; clientX: number; start: number } | null>(null);
-  const saveAction = useAsyncAction<LiteCutProject>();
-  const createAction = useAsyncAction<LiteCutProject>();
-  const duplicateAction = useAsyncAction<LiteCutProject>();
+  const saveAction = useAsyncAction<EditorProject>();
+  const createAction = useAsyncAction<EditorProject>();
+  const duplicateAction = useAsyncAction<EditorProject>();
   const exportAction = useAsyncAction<{ job_id: string; status: 'queued' | 'running' }>();
   const cancelExportAction = useAsyncAction<ExportJobRecord>();
   const snapshotAction = useAsyncAction<{ items: EditorProjectSnapshot[] }>();
-  const restoreAction = useAsyncAction<LiteCutProject>();
+  const restoreAction = useAsyncAction<EditorProject>();
   const uploadAction = useAsyncAction<{ items: MediaAsset[] }>();
   const relinkAction = useAsyncAction<MediaAsset>();
   const proxyAction = useAsyncAction<MediaAsset>();
-  const extractAudioAction = useAsyncAction<LiteCutAudioSeparation>();
-  const packageExportAction = useAsyncAction<LiteCutPackageExport>();
-  const packageImportAction = useAsyncAction<LiteCutPackageImport>();
+  const extractAudioAction = useAsyncAction<EditorAudioSeparation>();
+  const packageExportAction = useAsyncAction<EditorPackageExport>();
+  const packageImportAction = useAsyncAction<EditorPackageImport>();
   const presetMutationAction = useAsyncAction<EditorPreset>();
-  const presetApplyAction = useAsyncAction<LiteCutProject>();
+  const presetApplyAction = useAsyncAction<EditorProject>();
   const presetDeleteAction = useAsyncAction<void>();
   const projectDeleteAction = useAsyncAction<EditorProjectDeletionResult>();
   const mounted = useRef(true);
@@ -504,10 +509,10 @@ export function LiteCutPage() {
   useEffect(() => {
     const controller = new AbortController();
     void Promise.all([
-      api.listLiteCutProjects(controller.signal),
+      api.listEditorProjects(controller.signal),
       api.listRecordedClips(controller.signal),
-      api.listLiteCutAssets(undefined, controller.signal),
-      api.listLiteCutPresets(controller.signal).catch(() => ({ items: [] as EditorPreset[] })),
+      api.listMediaAssets(undefined, controller.signal),
+      api.listEditorPresets(controller.signal).catch(() => ({ items: [] as EditorPreset[] })),
     ])
       .then(([response, recordedClips, mediaAssets, editorPresets]) => {
         if (controller.signal.aborted) return;
@@ -698,7 +703,7 @@ export function LiteCutPage() {
     const projectId = activeProject.id;
     const session = projectSession.current;
     const fingerprint = currentFingerprint;
-    const payload: LiteCutProject = {
+    const payload: EditorProject = {
       ...activeProject,
       revision: savedRevision,
       duration_seconds: duration,
@@ -710,7 +715,7 @@ export function LiteCutPage() {
       if (autoSaveInFlight.current) return;
       autoSaveInFlight.current = true;
       setAutoSaveState({ status: 'saving', message: msg("m0862") });
-      void api.saveLiteCutProject(payload)
+      void api.saveEditorProject(payload)
         .then((saved) => {
           if (!mounted.current) return;
           setProjects((items) => items.map((project) => project.id === saved.id ? saved : project));
@@ -774,8 +779,8 @@ export function LiteCutPage() {
       duration: asset.duration_seconds && asset.duration_seconds > 0 ? asset.duration_seconds : 5,
       kind: asset.kind.startsWith('audio') ? 'audio' as const : asset.kind.startsWith('image') ? 'image' as const : 'video' as const,
       streamUrl: asset.proxy_status.status === 'ready'
-        ? `/api/lite-cut/assets/${encodeURIComponent(asset.id)}/proxy/stream`
-        : `/api/lite-cut/assets/${encodeURIComponent(asset.id)}/stream`,
+        ? `/api/media/assets/${encodeURIComponent(asset.id)}/proxy/stream`
+        : `/api/media/assets/${encodeURIComponent(asset.id)}/stream`,
       asset,
     })),
   ], [assets, media]);
@@ -807,7 +812,6 @@ export function LiteCutPage() {
     selectedClip?.volume ?? null,
     selectedPreset?.document ?? null,
   );
-  const ruler = useMemo(() => timelineRuler(duration), [duration]);
   const killAxisEvents = useMemo(
     () => tracks.flatMap((track) => track.clips.flatMap(mapKillAxisEvents)),
     [tracks],
@@ -824,7 +828,7 @@ export function LiteCutPage() {
     if (operationGate.finish(operation)) setProjectOperation(null);
   };
 
-  const activateProject = (project: LiteCutProject, nextTracks: TimelineTrack[]) => {
+  const activateProject = (project: EditorProject, nextTracks: TimelineTrack[]) => {
     projectSession.current += 1;
     setPlaying(false);
     setActiveProject(project);
@@ -854,7 +858,7 @@ export function LiteCutPage() {
     return 'proceed';
   };
 
-  const openProject = (project: LiteCutProject) => {
+  const openProject = (project: EditorProject) => {
     if (operationGate.current() !== null) return;
     const decision = confirmDiscardIfNeeded(project.id, msgf("m0276", [project.name]));
     if (decision === 'stay') {
@@ -870,7 +874,7 @@ export function LiteCutPage() {
     try {
       if (confirmDiscardIfNeeded(null, msg("m0696")) !== 'proceed') return;
       const created = await createAction.run(
-        () => api.createLiteCutProject({ name: msg("m0753"), width: 1920, height: 1080, fps: 60 }),
+        () => api.createEditorProject({ name: msg("m0753"), width: 1920, height: 1080, fps: 60 }),
         msg("m0694"),
       );
       if (!created) return;
@@ -881,7 +885,7 @@ export function LiteCutPage() {
     }
   };
 
-  const projectPayload = (): LiteCutProject => ({
+  const projectPayload = (): EditorProject => ({
     ...activeProject,
     revision: savedRevision,
     duration_seconds: duration,
@@ -890,9 +894,9 @@ export function LiteCutPage() {
     updated_at: new Date().toISOString(),
   });
 
-  const persistCurrentProject = async (successMessage: string): Promise<LiteCutProject | null> => {
+  const persistCurrentProject = async (successMessage: string): Promise<EditorProject | null> => {
     if (isPreview || autoSaveInFlight.current) return null;
-    const result = await saveAction.run(() => api.saveLiteCutProject(projectPayload()), successMessage);
+    const result = await saveAction.run(() => api.saveEditorProject(projectPayload()), successMessage);
     if (result) {
       setProjects((items) => items.map((project) => project.id === result.id ? result : project));
       activateProject(result, toStoreTracks(result.tracks));
@@ -919,7 +923,7 @@ export function LiteCutPage() {
       if (!saved) return;
       const suffix = asTemplate ? msg("m0836") : msg("m0298");
       const duplicate = await duplicateAction.run(
-        () => api.duplicateLiteCutProject(saved.id, `${saved.name} ${suffix}`, asTemplate),
+        () => api.duplicateEditorProject(saved.id, `${saved.name} ${suffix}`, asTemplate),
         asTemplate ? msg("m0347") : msg("m0475"),
       );
       if (!duplicate) return;
@@ -930,12 +934,12 @@ export function LiteCutPage() {
     }
   };
 
-  const createFromTemplate = async (template: LiteCutProject) => {
+  const createFromTemplate = async (template: EditorProject) => {
     if (editorLocked || !beginProjectOperation('duplicating')) return;
     try {
       if (confirmDiscardIfNeeded(template.id, msg("m0190")) === 'cancel') return;
       const created = await duplicateAction.run(
-        () => api.duplicateLiteCutProject(template.id, msgf("m0105", [template.name]), false),
+        () => api.duplicateEditorProject(template.id, msgf("m0105", [template.name]), false),
         msg("m0486"),
       );
       if (!created) return;
@@ -1034,7 +1038,7 @@ export function LiteCutPage() {
       return;
     }
     const result = await uploadAction.run(
-      () => api.uploadLiteCutAssets([file], activeProject.id),
+      () => api.uploadMediaAssets([file], activeProject.id),
       msg("m1098"),
     );
     const asset = result?.items[0];
@@ -1042,7 +1046,7 @@ export function LiteCutPage() {
     setAssets((current) => [asset, ...current]);
     const family = `VibeCSCustom-${asset.id}`;
     try {
-      const face = new FontFace(family, `url(${apiMediaUrl(`/api/lite-cut/assets/${encodeURIComponent(asset.id)}/stream`)})`);
+      const face = new FontFace(family, `url(${apiMediaUrl(`/api/media/assets/${encodeURIComponent(asset.id)}/stream`)})`);
       await face.load();
       document.fonts.add(face);
     } catch {
@@ -1064,7 +1068,7 @@ export function LiteCutPage() {
         : activeProject;
       if (!saved) return;
       const separated = await extractAudioAction.run(
-        () => api.separateLiteCutAudio(saved.id, clipId, saved.revision, true),
+        () => api.separateEditorAudio(saved.id, clipId, saved.revision, true),
         msg("m1298"),
       );
       if (!separated) return;
@@ -1158,21 +1162,46 @@ export function LiteCutPage() {
     reportTimelineResult(removeTimelineMarker(id), msg("m0817"));
   };
 
-  const finishClipDrag = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const drag = dragStart.current;
-    dragStart.current = null;
-    if (!drag || drag.clipId !== event.currentTarget.dataset.clipId) return;
-    const candidate = drag.start + (event.clientX - drag.clientX) / pixelsPerSecond;
-    reportTimelineResult(
-      moveClip(drag.clipId, drag.trackId, snapTime(candidate, drag.clipId), ripple),
-      ripple ? msg("m0512") : undefined,
-    );
+  const resizeTimelineClip = (
+    clipId: string,
+    candidateStart: number,
+    candidateEnd: number,
+    direction: 'left' | 'right',
+  ) => {
+    const location = useTimelineStore.getState().tracks.flatMap((track) =>
+      track.clips.map((clip) => ({ track, clip }))).find(({ clip }) => clip.id === clipId);
+    if (!location || location.track.locked || location.clip.groupId || location.clip.linkGroupId) return;
+    const { clip } = location;
+    if ((clip.speedSegments?.length ?? 0) > 0) return;
+
+    if (direction === 'left') {
+      const minimumStart = Math.max(0, clip.start - clip.sourceIn / clip.speed);
+      const start = Math.min(clip.start + clip.duration - 0.1, Math.max(minimumStart, snapTime(candidateStart, clip.id)));
+      const durationSeconds = Math.max(0.1, candidateEnd - start);
+      const sourceIn = Math.max(0, clip.sourceIn + (start - clip.start) * clip.speed);
+      reportTimelineResult(updateClip(clip.id, {
+        start,
+        duration: durationSeconds,
+        sourceIn,
+        sourceOut: sourceIn + durationSeconds * clip.speed,
+        keyframes: (clip.keyframes ?? []).filter((keyframe) => keyframe.time <= durationSeconds),
+      }));
+      return;
+    }
+
+    const end = Math.max(clip.start + 0.1, snapTime(candidateEnd, clip.id));
+    const durationSeconds = end - clip.start;
+    reportTimelineResult(updateClip(clip.id, {
+      duration: durationSeconds,
+      sourceOut: clip.sourceIn + durationSeconds * clip.speed,
+      keyframes: (clip.keyframes ?? []).filter((keyframe) => keyframe.time <= durationSeconds),
+    }));
   };
 
   const importFiles = async (files: File[]) => {
     if (isPreview || files.length === 0) return;
     const result = await uploadAction.run(
-      () => api.uploadLiteCutAssets(files, activeProject.id),
+      () => api.uploadMediaAssets(files, activeProject.id),
       msgf("m0099", [files.length]),
     );
     if (result) setAssets((current) => [...result.items, ...current]);
@@ -1190,7 +1219,7 @@ export function LiteCutPage() {
       });
       if (!path) return;
       const result = await relinkAction.run(
-        () => api.relinkLiteCutAsset(asset.id, path),
+        () => api.relinkMediaAsset(asset.id, path),
         msgf("m0124", [asset.name]),
       );
       if (result) replaceAssetInState(result);
@@ -1205,7 +1234,7 @@ export function LiteCutPage() {
     replacementAssetId.current = null;
     if (!assetId || !file) return;
     const result = await relinkAction.run(
-      () => api.replaceLiteCutAsset(assetId, file),
+      () => api.replaceMediaAsset(assetId, file),
       msg("m0911"),
     );
     if (result) replaceAssetInState(result);
@@ -1217,7 +1246,7 @@ export function LiteCutPage() {
       proxy_status: { status: 'generating', started_at: new Date().toISOString() },
     } : item));
     const result = await proxyAction.run(
-      () => api.generateLiteCutProxy(asset.id),
+      () => api.generateMediaProxy(asset.id),
       msgf("m0126", [asset.name]),
     );
     if (result) {
@@ -1225,7 +1254,7 @@ export function LiteCutPage() {
       return;
     }
     try {
-      replaceAssetInState(await api.getLiteCutAsset(asset.id));
+      replaceAssetInState(await api.getMediaAsset(asset.id));
     } catch {
       setAssets((items) => items.map((item) => item.id === asset.id ? asset : item));
     }
@@ -1239,7 +1268,7 @@ export function LiteCutPage() {
         : activeProject;
       if (!saved) return;
       const result = await packageExportAction.run(
-        () => api.exportLiteCutPackage(saved.id),
+        () => api.exportEditorPackage(saved.id),
         msg("m0207"),
       );
       if (!result?.download_url) return;
@@ -1252,7 +1281,7 @@ export function LiteCutPage() {
     }
   };
 
-  const performPackageImport = async (load: () => Promise<LiteCutPackageImport>) => {
+  const performPackageImport = async (load: () => Promise<EditorPackageImport>) => {
     if (!beginProjectOperation('importing')) return;
     try {
       if (confirmDiscardIfNeeded(null, msg("m0455")) !== 'proceed') return;
@@ -1270,9 +1299,9 @@ export function LiteCutPage() {
     if (isDesktopShell()) {
       const path = await chooseLocalFile({
         title: msg("m0454"),
-        filters: [{ name: msg("m0206"), extensions: ['alcp'] }],
+        filters: [{ name: msg("m0206"), extensions: ['vcep'] }],
       });
-      if (path) await performPackageImport(() => api.importLiteCutPackagePath(path));
+      if (path) await performPackageImport(() => api.importEditorPackagePath(path));
       return;
     }
     packageInput.current?.click();
@@ -1287,7 +1316,7 @@ export function LiteCutPage() {
     const projectId = activeProject.id;
     const session = projectSession.current;
     try {
-      const project = await api.getLiteCutProject(projectId, controller.signal);
+      const project = await api.getEditorProject(projectId, controller.signal);
       if (controller.signal.aborted
         || !mounted.current
         || activeProjectId.current !== projectId
@@ -1309,7 +1338,7 @@ export function LiteCutPage() {
   const createPresetFromSelection = async () => {
     if (!selectedClip || presetMutationAction.state.status === 'loading') return;
     const result = await presetMutationAction.run(
-      () => api.createLiteCutPreset(presetName, presetDocumentFromClip(selectedClip)),
+      () => api.createEditorPreset(presetName, presetDocumentFromClip(selectedClip)),
       msg("m0498"),
     );
     if (!result) return;
@@ -1320,7 +1349,7 @@ export function LiteCutPage() {
   const updatePresetFromSelection = async () => {
     if (!selectedClip || !selectedPreset || presetMutationAction.state.status === 'loading') return;
     const result = await presetMutationAction.run(
-      () => api.updateLiteCutPreset({
+      () => api.updateEditorPreset({
         ...selectedPreset,
         name: presetName,
         document: presetDocumentFromClip(selectedClip),
@@ -1335,7 +1364,7 @@ export function LiteCutPage() {
     if (!selectedPreset || presetDeleteAction.state.status === 'loading') return;
     if (!window.confirm(msgf("m0292", [selectedPreset.name]))) return;
     const result = await presetDeleteAction.run(
-      () => api.deleteLiteCutPreset(selectedPreset.id, selectedPreset.revision),
+      () => api.deleteEditorPreset(selectedPreset.id, selectedPreset.revision),
       msg("m1314"),
     );
     if (result === null) return;
@@ -1357,7 +1386,7 @@ export function LiteCutPage() {
         : activeProject;
       if (!saved) return;
       const result = await presetApplyAction.run(
-        () => api.applyLiteCutPreset(
+        () => api.applyEditorPreset(
           saved.id,
           selectedClip.id,
           selectedPreset.id,
@@ -1387,7 +1416,7 @@ export function LiteCutPage() {
       }
       if (!window.confirm(msgf("m0286", [candidates.length]))) return;
       const result = await projectDeleteAction.run(
-        () => api.deleteLiteCutProjects(candidates.map((project) => ({
+        () => api.deleteEditorProjects(candidates.map((project) => ({
           id: project.id,
           expected_revision: project.revision,
         }))),
@@ -1569,7 +1598,7 @@ export function LiteCutPage() {
       const saved = await persistCurrentProject(msg("m0569"));
       if (!saved) return;
       const result = await exportAction.run(
-        () => api.exportLiteCutProject(saved.id, {
+        () => api.exportEditorProject(saved.id, {
           encoder: 'auto',
           quality: 80,
           ...(exportScope === 'range' ? {
@@ -1606,7 +1635,7 @@ export function LiteCutPage() {
     }
     setProjectListOpen(false);
     const result = await snapshotAction.run(
-      () => api.listLiteCutSnapshots(activeProject.id),
+      () => api.listEditorSnapshots(activeProject.id),
     );
     if (result) {
       setSnapshots(result.items);
@@ -1619,7 +1648,7 @@ export function LiteCutPage() {
     try {
       if (confirmDiscardIfNeeded(null, msg("m0623")) !== 'proceed') return;
       const restored = await restoreAction.run(
-        () => api.restoreLiteCutSnapshot(activeProject.id, snapshotId),
+        () => api.restoreEditorSnapshot(activeProject.id, snapshotId),
         msg("m0316"),
       );
       if (!restored) return;
@@ -1675,19 +1704,17 @@ export function LiteCutPage() {
     return () => window.removeEventListener('keydown', handleShortcut);
   }, [editorLocked, reportTimelineResult, sourceDurations]);
 
-  const pixelsPerSecond = 12 * zoom;
-
   return (
-    <div className="litecut-shell">
-      <header className="litecut-header">
-        <div className="litecut-project-switcher">
+    <div className="editor-shell">
+      <header className="editor-header">
+        <div className="editor-project-switcher">
           <Link className="back-button" to="/studio" aria-label={t('studio.back')}><ArrowLeft size={15} /><span>{t('production.editing')}</span></Link>
-          <button type="button" className="back-button project-menu-button" onClick={() => { setSnapshotListOpen(false); setProjectListOpen((value) => !value); }} aria-expanded={projectListOpen}><Film size={15} /><span>{t('liteCut.projects')}</span></button>
+          <button type="button" className="back-button project-menu-button" onClick={() => { setSnapshotListOpen(false); setProjectListOpen((value) => !value); }} aria-expanded={projectListOpen}><Film size={15} /><span>{t('editor.projects')}</span></button>
           <div><input value={activeProject.name} disabled={editorLocked} onChange={(event) => setActiveProject((project) => ({ ...project, name: event.target.value }))} aria-label={msg("m0476")} /><span>{autoSaveState.status === 'saving' ? msg("m1092") : hasUnsavedChanges ? msg("m1064") : msgf("m0217", [savedRevision])}</span></div>
           <IconButton label={msg("m0815")} disabled={isPreview || editorLocked || snapshotAction.state.status === 'loading'} onClick={() => void openSnapshots()}>{snapshotAction.state.status === 'loading' ? <Spinner /> : <History size={15} />}</IconButton>
           {projectListOpen ? (
             <div className="project-popover">
-              <header><strong>{t('liteCut.editingProjects')}</strong><Button size="sm" variant="primary" disabled={source !== 'service' || editorLocked} onClick={() => void newProject()}>{projectOperation === 'creating' ? <Spinner /> : <Plus size={13} />}{t('liteCut.new')}</Button></header>
+              <header><strong>{t('editor.editingProjects')}</strong><Button size="sm" variant="primary" disabled={source !== 'service' || editorLocked} onClick={() => void newProject()}>{projectOperation === 'creating' ? <Spinner /> : <Plus size={13} />}{t('editor.new')}</Button></header>
               {projects.map((project) => {
                 const selectable = true;
                 return (
@@ -1720,52 +1747,52 @@ export function LiteCutPage() {
           ) : null}
           {snapshotListOpen ? <div className="project-popover project-history-popover"><header><strong>{msg("m0315")}</strong><Badge tone="neutral">{snapshots.length}</Badge></header>{snapshots.length > 0 ? snapshots.map((snapshot) => <button type="button" key={snapshot.id} disabled={editorLocked} onClick={() => void restoreSnapshot(snapshot.id)}><span className="project-thumb"><History size={16} /></span><span><strong>{msg("m0216")} {snapshot.revision} · {snapshot.name}</strong><small>{new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'short', timeStyle: 'short' }).format(new Date(snapshot.created_at))}</small></span><ChevronRight size={14} /></button>) : <div className="project-history-empty">{msg("m0211")}</div>}</div> : null}
         </div>
-        <div className="litecut-header__center"><Badge tone="neutral">{activeProject.width} × {activeProject.height}</Badge><Badge tone="neutral">{activeProject.fps} FPS</Badge><Badge tone={source === 'service' ? 'success' : 'warning'}>{source === 'service' ? t('liteCut.serviceConnected') : source === 'loading' ? t('common.loading') : t('common.unavailable')}</Badge></div>
-        <div className="litecut-header__actions"><Button size="sm" disabled={source !== 'service' || editorLocked} onClick={() => void choosePackageImport()}>{projectOperation === 'importing' ? <Spinner /> : <FolderOpen size={14} />}{t('liteCut.importPackage')}</Button><Button size="sm" disabled={isPreview || editorLocked} onClick={() => void duplicateProject(false)}><Copy size={14} />{t('liteCut.duplicateProject')}</Button><Button size="sm" disabled={isPreview || editorLocked} title={msgf("m0521", [templates.length])} onClick={() => void duplicateProject(true)}><LayoutTemplate size={14} />{t('liteCut.saveTemplate')}</Button><Button size="sm" disabled={isPreview || editorLocked || autoSaveInFlight.current} onClick={() => void exportPackage()}>{projectOperation === 'packaging' ? <Spinner /> : <Archive size={14} />}{t('liteCut.projectPackage')}</Button><Button size="sm" disabled={isPreview || editorLocked || autoSaveInFlight.current || !hasUnsavedChanges} onClick={() => void saveProject()}>{projectOperation === 'saving' ? <Spinner /> : <Save size={14} />}{projectOperation === 'saving' ? msg("m0210") : t('common.save')}</Button><Button size="sm" variant="primary" disabled={isPreview || editorLocked || autoSaveInFlight.current || exportJobId !== null} onClick={() => void startExport()}>{projectOperation === 'exporting' ? <Spinner /> : <Download size={14} />}{exportJobId ? msg("m0457") : projectOperation === 'exporting' ? msg("m0212") : t('liteCut.export')}</Button></div>
+        <div className="editor-header__center"><Badge tone="neutral">{activeProject.width} × {activeProject.height}</Badge><Badge tone="neutral">{activeProject.fps} FPS</Badge><Badge tone={source === 'service' ? 'success' : 'warning'}>{source === 'service' ? t('editor.serviceConnected') : source === 'loading' ? t('common.loading') : t('common.unavailable')}</Badge></div>
+        <div className="editor-header__actions"><Button size="sm" disabled={source !== 'service' || editorLocked} onClick={() => void choosePackageImport()}>{projectOperation === 'importing' ? <Spinner /> : <FolderOpen size={14} />}{t('editor.importPackage')}</Button><Button size="sm" disabled={isPreview || editorLocked} onClick={() => void duplicateProject(false)}><Copy size={14} />{t('editor.duplicateProject')}</Button><Button size="sm" disabled={isPreview || editorLocked} title={msgf("m0521", [templates.length])} onClick={() => void duplicateProject(true)}><LayoutTemplate size={14} />{t('editor.saveTemplate')}</Button><Button size="sm" disabled={isPreview || editorLocked || autoSaveInFlight.current} onClick={() => void exportPackage()}>{projectOperation === 'packaging' ? <Spinner /> : <Archive size={14} />}{t('editor.projectPackage')}</Button><Button size="sm" disabled={isPreview || editorLocked || autoSaveInFlight.current || !hasUnsavedChanges} onClick={() => void saveProject()}>{projectOperation === 'saving' ? <Spinner /> : <Save size={14} />}{projectOperation === 'saving' ? msg("m0210") : t('common.save')}</Button><Button size="sm" variant="primary" disabled={isPreview || editorLocked || autoSaveInFlight.current || exportJobId !== null} onClick={() => void startExport()}>{projectOperation === 'exporting' ? <Spinner /> : <Download size={14} />}{exportJobId ? msg("m0457") : projectOperation === 'exporting' ? msg("m0212") : t('editor.export')}</Button></div>
       </header>
 
-      <div className="litecut-status-stack">
-        {source !== 'service' ? <Notice className="litecut-notice" tone={source === 'loading' ? 'info' : 'warning'}>{source === 'loading' ? t('common.loading') : error ?? t('common.unavailable')}</Notice> : null}
-        {autoSaveState.message ? <Notice className="litecut-notice" tone={autoSaveState.status === 'error' || autoSaveState.status === 'conflict' ? 'danger' : autoSaveState.status === 'saving' ? 'info' : 'success'}>{autoSaveState.message}{autoSaveState.status === 'error' ? <Button size="sm" onClick={() => { setAutoSaveState({ status: 'idle', message: null }); setAutoSaveRetry((value) => value + 1); }}><RefreshCw size={12} />{msg("m1268")}</Button> : null}{autoSaveState.status === 'conflict' ? <Button size="sm" variant="danger" disabled={projectOperation === 'reloading'} onClick={() => void reloadServerProject()}>{projectOperation === 'reloading' ? <Spinner /> : <RefreshCw size={12} />}{projectOperation === 'reloading' ? msg("m1175") : msg("m1177")}</Button> : null}</Notice> : null}
-        {saveAction.state.message ? <Notice className="litecut-notice" tone={saveAction.state.status === 'error' ? 'danger' : 'success'}>{saveAction.state.message}</Notice> : null}
-        {createAction.state.message ? <Notice className="litecut-notice" tone={createAction.state.status === 'error' ? 'danger' : 'success'}>{createAction.state.message}</Notice> : null}
-        {duplicateAction.state.message ? <Notice className="litecut-notice" tone={duplicateAction.state.status === 'error' ? 'danger' : 'success'}>{duplicateAction.state.message}</Notice> : null}
-        {uploadAction.state.message ? <Notice className="litecut-notice" tone={uploadAction.state.status === 'error' ? 'danger' : 'success'}>{uploadAction.state.message}</Notice> : null}
-        {exportAction.state.message ? <Notice className="litecut-notice" tone={exportAction.state.status === 'error' ? 'danger' : 'success'}>{exportAction.state.message}</Notice> : null}
-        {cancelExportAction.state.message ? <Notice className="litecut-notice" tone={cancelExportAction.state.status === 'error' ? 'danger' : 'success'}>{cancelExportAction.state.message}</Notice> : null}
-        {snapshotAction.state.message ? <Notice className="litecut-notice" tone={snapshotAction.state.status === 'error' ? 'danger' : 'success'}>{snapshotAction.state.message}</Notice> : null}
-        {restoreAction.state.message ? <Notice className="litecut-notice" tone={restoreAction.state.status === 'error' ? 'danger' : 'success'}>{restoreAction.state.message}</Notice> : null}
-        {relinkAction.state.message ? <Notice className="litecut-notice" tone={relinkAction.state.status === 'error' ? 'danger' : 'success'}>{relinkAction.state.message}</Notice> : null}
-        {proxyAction.state.message ? <Notice className="litecut-notice" tone={proxyAction.state.status === 'error' ? 'danger' : 'success'}>{proxyAction.state.message}</Notice> : null}
-        {extractAudioAction.state.message ? <Notice className="litecut-notice" tone={extractAudioAction.state.status === 'error' ? 'danger' : 'success'}>{extractAudioAction.state.message}</Notice> : null}
-        {packageExportAction.state.message ? <Notice className="litecut-notice" tone={packageExportAction.state.status === 'error' ? 'danger' : 'success'}>{packageExportAction.state.message}</Notice> : null}
-        {packageImportAction.state.message ? <Notice className="litecut-notice" tone={packageImportAction.state.status === 'error' ? 'danger' : 'success'}>{packageImportAction.state.message}</Notice> : null}
-        {presetMutationAction.state.message ? <Notice className="litecut-notice" tone={presetMutationAction.state.status === 'error' ? 'danger' : 'success'}>{presetMutationAction.state.message}</Notice> : null}
-        {presetApplyAction.state.message ? <Notice className="litecut-notice" tone={presetApplyAction.state.status === 'error' ? 'danger' : 'success'}>{presetApplyAction.state.message}</Notice> : null}
-        {presetDeleteAction.state.message ? <Notice className="litecut-notice" tone={presetDeleteAction.state.status === 'error' ? 'danger' : 'success'}>{presetDeleteAction.state.message}</Notice> : null}
-        {projectDeleteAction.state.message ? <Notice className="litecut-notice" tone={projectDeleteAction.state.status === 'error' ? 'danger' : 'success'}>{projectDeleteAction.state.message}</Notice> : null}
-        {timelineNotice ? <Notice className="litecut-notice" tone="info"><span aria-live="polite">{timelineNotice}</span><IconButton label={msg("m0246")} onClick={() => setTimelineNotice(null)}><Trash2 size={11} /></IconButton></Notice> : null}
-        {exportPollError ? <Notice className="litecut-notice" tone="warning">{exportPollError}{msg("m1335")}</Notice> : null}
-        {exportJob ? <div className="litecut-export-progress" aria-live="polite"><span>{exportJob.job.status}</span><div><i style={{ width: `${Math.max(0, Math.min(100, exportJob.job.progress * 100))}%` }} /></div><strong>{Math.round(exportJob.job.progress * 100)}%</strong><small>{exportJob.job.error ?? (exportJob.job.output_path || msg("m0794"))}</small>{exportJobId ? <Button size="sm" variant="danger" disabled={cancelExportAction.state.status === 'loading'} onClick={() => void cancelExport()}>{cancelExportAction.state.status === 'loading' ? <Spinner /> : <Pause size={12} />}{msg("m0325")}</Button> : null}</div> : null}
+      <div className="editor-status-stack">
+        {source !== 'service' ? <Notice className="editor-notice" tone={source === 'loading' ? 'info' : 'warning'}>{source === 'loading' ? t('common.loading') : error ?? t('common.unavailable')}</Notice> : null}
+        {autoSaveState.message ? <Notice className="editor-notice" tone={autoSaveState.status === 'error' || autoSaveState.status === 'conflict' ? 'danger' : autoSaveState.status === 'saving' ? 'info' : 'success'}>{autoSaveState.message}{autoSaveState.status === 'error' ? <Button size="sm" onClick={() => { setAutoSaveState({ status: 'idle', message: null }); setAutoSaveRetry((value) => value + 1); }}><RefreshCw size={12} />{msg("m1268")}</Button> : null}{autoSaveState.status === 'conflict' ? <Button size="sm" variant="danger" disabled={projectOperation === 'reloading'} onClick={() => void reloadServerProject()}>{projectOperation === 'reloading' ? <Spinner /> : <RefreshCw size={12} />}{projectOperation === 'reloading' ? msg("m1175") : msg("m1177")}</Button> : null}</Notice> : null}
+        {saveAction.state.message ? <Notice className="editor-notice" tone={saveAction.state.status === 'error' ? 'danger' : 'success'}>{saveAction.state.message}</Notice> : null}
+        {createAction.state.message ? <Notice className="editor-notice" tone={createAction.state.status === 'error' ? 'danger' : 'success'}>{createAction.state.message}</Notice> : null}
+        {duplicateAction.state.message ? <Notice className="editor-notice" tone={duplicateAction.state.status === 'error' ? 'danger' : 'success'}>{duplicateAction.state.message}</Notice> : null}
+        {uploadAction.state.message ? <Notice className="editor-notice" tone={uploadAction.state.status === 'error' ? 'danger' : 'success'}>{uploadAction.state.message}</Notice> : null}
+        {exportAction.state.message ? <Notice className="editor-notice" tone={exportAction.state.status === 'error' ? 'danger' : 'success'}>{exportAction.state.message}</Notice> : null}
+        {cancelExportAction.state.message ? <Notice className="editor-notice" tone={cancelExportAction.state.status === 'error' ? 'danger' : 'success'}>{cancelExportAction.state.message}</Notice> : null}
+        {snapshotAction.state.message ? <Notice className="editor-notice" tone={snapshotAction.state.status === 'error' ? 'danger' : 'success'}>{snapshotAction.state.message}</Notice> : null}
+        {restoreAction.state.message ? <Notice className="editor-notice" tone={restoreAction.state.status === 'error' ? 'danger' : 'success'}>{restoreAction.state.message}</Notice> : null}
+        {relinkAction.state.message ? <Notice className="editor-notice" tone={relinkAction.state.status === 'error' ? 'danger' : 'success'}>{relinkAction.state.message}</Notice> : null}
+        {proxyAction.state.message ? <Notice className="editor-notice" tone={proxyAction.state.status === 'error' ? 'danger' : 'success'}>{proxyAction.state.message}</Notice> : null}
+        {extractAudioAction.state.message ? <Notice className="editor-notice" tone={extractAudioAction.state.status === 'error' ? 'danger' : 'success'}>{extractAudioAction.state.message}</Notice> : null}
+        {packageExportAction.state.message ? <Notice className="editor-notice" tone={packageExportAction.state.status === 'error' ? 'danger' : 'success'}>{packageExportAction.state.message}</Notice> : null}
+        {packageImportAction.state.message ? <Notice className="editor-notice" tone={packageImportAction.state.status === 'error' ? 'danger' : 'success'}>{packageImportAction.state.message}</Notice> : null}
+        {presetMutationAction.state.message ? <Notice className="editor-notice" tone={presetMutationAction.state.status === 'error' ? 'danger' : 'success'}>{presetMutationAction.state.message}</Notice> : null}
+        {presetApplyAction.state.message ? <Notice className="editor-notice" tone={presetApplyAction.state.status === 'error' ? 'danger' : 'success'}>{presetApplyAction.state.message}</Notice> : null}
+        {presetDeleteAction.state.message ? <Notice className="editor-notice" tone={presetDeleteAction.state.status === 'error' ? 'danger' : 'success'}>{presetDeleteAction.state.message}</Notice> : null}
+        {projectDeleteAction.state.message ? <Notice className="editor-notice" tone={projectDeleteAction.state.status === 'error' ? 'danger' : 'success'}>{projectDeleteAction.state.message}</Notice> : null}
+        {timelineNotice ? <Notice className="editor-notice" tone="info"><span aria-live="polite">{timelineNotice}</span><IconButton label={msg("m0246")} onClick={() => setTimelineNotice(null)}><Trash2 size={11} /></IconButton></Notice> : null}
+        {exportPollError ? <Notice className="editor-notice" tone="warning">{exportPollError}{msg("m1335")}</Notice> : null}
+        {exportJob ? <div className="editor-export-progress" aria-live="polite"><span>{exportJob.job.status}</span><div><i style={{ width: `${Math.max(0, Math.min(100, exportJob.job.progress * 100))}%` }} /></div><strong>{Math.round(exportJob.job.progress * 100)}%</strong><small>{exportJob.job.error ?? (exportJob.job.output_path || msg("m0794"))}</small>{exportJobId ? <Button size="sm" variant="danger" disabled={cancelExportAction.state.status === 'loading'} onClick={() => void cancelExport()}>{cancelExportAction.state.status === 'loading' ? <Spinner /> : <Pause size={12} />}{msg("m0325")}</Button> : null}</div> : null}
       </div>
 
-      <div className="litecut-top" inert={editorLocked ? true : undefined} aria-busy={editorLocked}>
+      <div className="editor-top" inert={editorLocked ? true : undefined} aria-busy={editorLocked}>
         <aside className="media-bin editor-panel">
           <input ref={fileInput} className="visually-hidden" type="file" multiple accept="video/*,audio/*,image/*" onChange={(event) => { const files = Array.from(event.target.files ?? []); event.target.value = ''; void importFiles(files); }} />
           <input ref={replacementInput} className="visually-hidden" type="file" accept="video/*,audio/*,image/*" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void replaceAssetFile(file); }} />
-          <input ref={packageInput} className="visually-hidden" type="file" accept=".alcp,application/zip" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void performPackageImport(() => api.uploadLiteCutPackage(file)); }} />
+          <input ref={packageInput} className="visually-hidden" type="file" accept=".vcep,application/zip" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void performPackageImport(() => api.uploadEditorPackage(file)); }} />
           <input ref={fontInput} className="visually-hidden" type="file" accept=".ttf,.otf,font/ttf,font/otf" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void importCustomFont(file); }} />
-          <header className="editor-panel__header"><div><Layers3 size={15} /><strong>{t('liteCut.media')}</strong></div><IconButton label={t('common.import')} disabled={isPreview || uploadAction.state.status === 'loading'} onClick={() => fileInput.current?.click()}>{uploadAction.state.status === 'loading' ? <Spinner /> : <Upload size={14} />}</IconButton></header>
-          <div className="media-tabs"><button type="button" className="is-active" aria-pressed="true">{t('liteCut.assets')}</button><button type="button" onClick={appendText}>{t('liteCut.addText')}</button><button type="button" disabled title={msg("m1235")}>{msg("m0680")}</button></div>
-          <div className="material-search"><Search size={14} /><input value={mediaQuery} onChange={(event) => setMediaQuery(event.target.value)} placeholder={t('liteCut.searchMedia')} /></div>
-          <div className="media-actions"><Button size="sm" disabled={isPreview || uploadAction.state.status === 'loading'} onClick={() => fileInput.current?.click()}><Upload size={13} />{t('common.import')}</Button><Button size="sm" variant={recordingVoice ? 'danger' : 'secondary'} disabled={isPreview || uploadAction.state.status === 'loading'} onClick={() => void toggleVoiceRecording()}><Mic size={13} />{recordingVoice ? t('liteCut.stopVoice') : t('liteCut.recordVoice')}</Button><Button size="sm" onClick={() => setMediaQuery('')}><Link2 size={13} />{t('liteCut.allMedia')}</Button></div>
+          <header className="editor-panel__header"><div><Layers3 size={15} /><strong>{t('editor.media')}</strong></div><IconButton label={t('common.import')} disabled={isPreview || uploadAction.state.status === 'loading'} onClick={() => fileInput.current?.click()}>{uploadAction.state.status === 'loading' ? <Spinner /> : <Upload size={14} />}</IconButton></header>
+          <div className="media-tabs"><button type="button" className="is-active" aria-pressed="true">{t('editor.assets')}</button><button type="button" onClick={appendText}>{t('editor.addText')}</button><button type="button" disabled title={msg("m1235")}>{msg("m0680")}</button></div>
+          <div className="material-search"><Search size={14} /><input value={mediaQuery} onChange={(event) => setMediaQuery(event.target.value)} placeholder={t('editor.searchMedia')} /></div>
+          <div className="media-actions"><Button size="sm" disabled={isPreview || uploadAction.state.status === 'loading'} onClick={() => fileInput.current?.click()}><Upload size={13} />{t('common.import')}</Button><Button size="sm" variant={recordingVoice ? 'danger' : 'secondary'} disabled={isPreview || uploadAction.state.status === 'loading'} onClick={() => void toggleVoiceRecording()}><Mic size={13} />{recordingVoice ? t('editor.stopVoice') : t('editor.recordVoice')}</Button><Button size="sm" onClick={() => setMediaQuery('')}><Link2 size={13} />{t('editor.allMedia')}</Button></div>
           <div className="media-grid">
             {filteredMedia.map((item, index) => <article key={item.id}><button type="button" className={`media-grid__thumb material-thumb--${['amber', 'rose', 'blue', 'violet'][index % 4]}`} onDoubleClick={() => appendMedia(index)}>{item.kind === 'audio' ? <Music2 size={18} /> : item.kind === 'image' ? <Image size={18} /> : <Video size={18} />}<span>{item.duration.toFixed(1)}s</span></button><strong>{item.name}</strong><small>{item.asset ? item.asset.proxy_status.status === 'ready' ? msg("m0193") : item.asset.proxy_status.status === 'generating' ? msg("m0858") : item.asset.proxy_status.status === 'failed' ? msg("m0192") : item.detail : item.detail}</small><div className="media-grid__item-actions"><IconButton label={msg("m0921")} onClick={() => appendMedia(index)}><Plus size={12} /></IconButton>{item.asset ? <IconButton label={msgf("m1265", [item.name])} disabled={item.asset.proxy_status.status === 'generating' || relinkAction.state.status === 'loading'} onClick={() => void relinkAsset(item.asset!)}><Link2 size={12} /></IconButton> : null}{item.asset && item.kind === 'video' ? <IconButton label={msgf("m0090", [item.asset.proxy_status.status === 'failed' ? msg("m1268") : msg("m1341"), item.name])} disabled={item.asset.proxy_status.status === 'generating' || proxyAction.state.status === 'loading'} onClick={() => void generateProxy(item.asset!)}><RefreshCw size={12} /></IconButton> : null}</div></article>)}
           </div>
         </aside>
 
         <section className="preview-panel editor-panel">
-          <header className="editor-panel__header"><div><MousePointer2 size={15} /><strong>{t('liteCut.programMonitor')}</strong></div><div><Badge tone="neutral">{visualPreviewLayers.length} {msg("m0471")}</Badge><IconButton label={msg("m0228")} disabled><Maximize2 size={14} /></IconButton></div></header>
+          <header className="editor-panel__header"><div><MousePointer2 size={15} /><strong>{t('editor.programMonitor')}</strong></div><div><Badge tone="neutral">{visualPreviewLayers.length} {msg("m0471")}</Badge><IconButton label={msg("m0228")} disabled><Maximize2 size={14} /></IconButton></div></header>
           <div className="program-monitor">
             <div className="program-monitor__frame">
               {visualPreviewLayers.length > 0 ? visualPreviewLayers.map((layer) => (
@@ -1797,7 +1824,7 @@ export function LiteCutPage() {
         </section>
 
         <aside className="property-panel editor-panel">
-          <header className="editor-panel__header"><div><SlidersHorizontal size={15} /><strong>{t('liteCut.properties')}</strong></div><Badge tone="neutral">{selectedClip ? msg("m0952") : msg("m0474")}</Badge></header>
+          <header className="editor-panel__header"><div><SlidersHorizontal size={15} /><strong>{t('editor.properties')}</strong></div><Badge tone="neutral">{selectedClip ? msg("m0952") : msg("m0474")}</Badge></header>
           {selectedClip ? (
             <>
               <div className="property-tabs">
@@ -1809,7 +1836,7 @@ export function LiteCutPage() {
                     <Field label={msg("m0359")}><TextInput value={selectedClip.name} onChange={(event) => updateClip(selectedClip.id, { name: event.target.value })} /></Field>
                     {selectedTrack ? <Field label={msg("m1172")}><select value={selectedTrack.id} onChange={(event) => reportTimelineResult(moveClip(selectedClip.id, event.target.value, selectedClip.start, ripple), msg("m0962"))}>{tracks.filter((track) => track.kind === selectedTrack.kind).map((track) => <option key={track.id} value={track.id} disabled={track.locked}>{track.name}{track.locked ? msg("m1333") : ''}</option>)}</select></Field> : null}
                     {!selectedClip.text ? <div className="field-row"><Button size="sm" disabled={selectedTrack?.locked} onClick={() => slipSelected(-0.1)}>{msg("m0940")}</Button><Button size="sm" disabled={selectedTrack?.locked} onClick={() => slipSelected(0.1)}>{msg("m0939")}</Button></div> : null}
-                    {selectedClip.text ? <PropertyGroup icon={<Type size={14} />} title={msg("m0690")}><Field label={msg("m0249")}><TextInput value={selectedClip.text.content} maxLength={1_000} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, content: event.target.value } })} /></Field><div className="field-row"><Field label={msg("m0437")}><TextInput type="number" min="6" max="512" value={selectedClip.text.font_size} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, font_size: Number(event.target.value) } })} /></Field><Field label={msg("m0453")}><select value={selectedClip.text.align} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, align: event.target.value } })}><option value="left">{msg("m0485")}</option><option value="center">{msg("m0472")}</option><option value="right">{msg("m0352")}</option></select></Field></div><div className="field-row"><Field label={msg("m0692")}><input type="color" value={selectedClip.text.color.slice(0, 7)} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, color: event.target.value.toUpperCase() } })} /></Field><Field label={msg("m1091")}><input type="color" value={(selectedClip.text.background ?? '#000000').slice(0, 7)} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, background: event.target.value.toUpperCase() } })} /></Field></div><Button size="sm" disabled={isPreview || uploadAction.state.status === 'loading'} onClick={() => fontInput.current?.click()}><Type size={12} />{selectedClip.text.font_asset_id ? t('liteCut.replaceFont') : t('liteCut.importFont')}</Button></PropertyGroup> : null}
+                    {selectedClip.text ? <PropertyGroup icon={<Type size={14} />} title={msg("m0690")}><Field label={msg("m0249")}><TextInput value={selectedClip.text.content} maxLength={1_000} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, content: event.target.value } })} /></Field><div className="field-row"><Field label={msg("m0437")}><TextInput type="number" min="6" max="512" value={selectedClip.text.font_size} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, font_size: Number(event.target.value) } })} /></Field><Field label={msg("m0453")}><select value={selectedClip.text.align} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, align: event.target.value } })}><option value="left">{msg("m0485")}</option><option value="center">{msg("m0472")}</option><option value="right">{msg("m0352")}</option></select></Field></div><div className="field-row"><Field label={msg("m0692")}><input type="color" value={selectedClip.text.color.slice(0, 7)} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, color: event.target.value.toUpperCase() } })} /></Field><Field label={msg("m1091")}><input type="color" value={(selectedClip.text.background ?? '#000000').slice(0, 7)} onChange={(event) => updateClip(selectedClip.id, { text: { ...selectedClip.text!, background: event.target.value.toUpperCase() } })} /></Field></div><Button size="sm" disabled={isPreview || uploadAction.state.status === 'loading'} onClick={() => fontInput.current?.click()}><Type size={12} />{selectedClip.text.font_asset_id ? t('editor.replaceFont') : t('editor.importFont')}</Button></PropertyGroup> : null}
                     <div className="field-row">
                       <Field label={msg("m0557")}><div className="number-control"><input type="number" value={selectedClip.start.toFixed(2)} min="0" max={Math.max(0, MAX_EDITOR_TIMELINE_SECONDS - selectedClip.duration)} step="0.1" onChange={(event) => updateSelectedStart(Number(event.target.value))} /><span>s</span></div></Field>
                       <Field label={msg("m0715")}><div className="number-control"><input type="number" disabled={(selectedClip.speedSegments?.length ?? 0) > 0} title={(selectedClip.speedSegments?.length ?? 0) > 0 ? msg("m0273") : undefined} value={selectedClip.duration.toFixed(2)} min="0.1" max={Math.max(0.1, MAX_EDITOR_TIMELINE_SECONDS - selectedClip.start)} step="0.1" onChange={(event) => updateSelectedDuration(Number(event.target.value))} /><span>s</span></div></Field>
@@ -1865,7 +1892,7 @@ export function LiteCutPage() {
                   </>
                 ) : null}
                 {inspectorTab === 'color' ? selectedTrack?.kind === 'audio' || selectedClip.text ? <Notice tone="info">{msg("m1156")}</Notice> : <PropertyGroup icon={<SlidersHorizontal size={14} />} title={msg("m0407")}><Field label={msgf("m0179", [selectedColor.brightness.toFixed(2)])}><input type="range" min="-100" max="100" value={Math.round(selectedColor.brightness * 100)} onChange={(event) => updateSelectedColor({ brightness: Number(event.target.value) / 100 })} /></Field><Field label={msgf("m0452", [selectedColor.contrast.toFixed(2)])}><input type="range" min="0" max="300" value={Math.round(selectedColor.contrast * 100)} onChange={(event) => updateSelectedColor({ contrast: Number(event.target.value) / 100 })} /></Field><Field label={msgf("m1321", [selectedColor.saturation.toFixed(2)])}><input type="range" min="0" max="300" value={Math.round(selectedColor.saturation * 100)} onChange={(event) => updateSelectedColor({ saturation: Number(event.target.value) / 100 })} /></Field><Button size="sm" onClick={() => updateSelectedColor(defaultColorAdjust)}>{msg("m1267")}</Button></PropertyGroup> : null}
-                {inspectorTab === 'audio' ? <PropertyGroup icon={<Volume2 size={14} />} title={msg("m1299")}><Field label={msgf("m0968", [Math.round(selectedClip.volume * 100)])}><input type="range" min="0" max="200" value={Math.round(selectedClip.volume * 100)} onChange={(event) => updateClip(selectedClip.id, { volume: Number(event.target.value) / 100 })} /></Field>{selectedClip.assetId && waveforms[selectedClip.assetId] ? <div className="inspector-waveform"><WaveformStrip points={waveforms[selectedClip.assetId]} /></div> : <Notice tone="info">{msg("m0362")}</Notice>}{selectedMedia?.asset?.kind.startsWith('video') && selectedMedia.asset.has_audio ? <><Button size="sm" disabled={extractAudioAction.state.status === 'loading' || selectedClipHasSeparatedAudio} title={selectedClipHasSeparatedAudio ? msg("m1124") : undefined} onClick={() => void extractSelectedAudio()}>{extractAudioAction.state.status === 'loading' ? <Spinner /> : <Music2 size={12} />}{selectedClipHasSeparatedAudio ? msg("m0496") : t('liteCut.detachAudio')}</Button>{selectedClipHasSeparatedAudio ? <Notice tone="info">{msg("m0977")}</Notice> : null}</> : null}</PropertyGroup> : null}
+                {inspectorTab === 'audio' ? <PropertyGroup icon={<Volume2 size={14} />} title={msg("m1299")}><Field label={msgf("m0968", [Math.round(selectedClip.volume * 100)])}><input type="range" min="0" max="200" value={Math.round(selectedClip.volume * 100)} onChange={(event) => updateClip(selectedClip.id, { volume: Number(event.target.value) / 100 })} /></Field>{selectedClip.assetId && waveforms[selectedClip.assetId] && selectedMedia?.streamUrl ? <div className="inspector-waveform"><EditorWaveform url={apiMediaUrl(selectedMedia.streamUrl)} peaks={waveforms[selectedClip.assetId] ?? []} duration={selectedMedia.duration} currentTime={selectedClip.sourceIn + sourceOffsetAt(selectedClip, selectedLocalTime)} onSeek={(sourceTime) => setPlayhead(selectedClip.start + localTimeAtSource(selectedClip, sourceTime))} /></div> : <Notice tone="info">{msg("m0362")}</Notice>}{selectedMedia?.asset?.kind.startsWith('video') && selectedMedia.asset.has_audio ? <><Button size="sm" disabled={extractAudioAction.state.status === 'loading' || selectedClipHasSeparatedAudio} title={selectedClipHasSeparatedAudio ? msg("m1124") : undefined} onClick={() => void extractSelectedAudio()}>{extractAudioAction.state.status === 'loading' ? <Spinner /> : <Music2 size={12} />}{selectedClipHasSeparatedAudio ? msg("m0496") : t('editor.detachAudio')}</Button>{selectedClipHasSeparatedAudio ? <Notice tone="info">{msg("m0977")}</Notice> : null}</> : null}</PropertyGroup> : null}
                 {inspectorTab === 'preset' ? (
                   <PropertyGroup icon={<Archive size={14} />} title={msg("m0970")}>
                     <Field label={msg("m1313")}><select value={selectedPresetId ?? ''} onChange={(event) => { const next = presets.find((preset) => preset.id === event.target.value); setSelectedPresetId(next?.id ?? null); if (next) setPresetName(next.name); }}><option value="">{msg("m1242")}</option>{presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name} · r{preset.revision}</option>)}</select></Field>
@@ -1897,61 +1924,44 @@ export function LiteCutPage() {
             <IconButton label={msg("m0387")} disabled={!selectedClip || selectedTrack?.locked} onClick={() => selectedClip && reportTimelineResult(splitClip(selectedClip.id, playhead), msg("m0960"))}><Scissors size={14} /></IconButton>
             <IconButton label={msg("m0414")} disabled={!selectedClip || selectedTrack?.locked} onClick={duplicateSelectedClip}><Copy size={14} /></IconButton>
             <IconButton label={msgf("m0291", [ripple ? msg("m1342") : ''])} disabled={!selectedClip || selectedTrack?.locked} onClick={() => selectedClip && reportTimelineResult(removeClip(selectedClip.id, ripple), ripple ? msg("m0959") : msg("m0957"))}><SplitSquareHorizontal size={14} /></IconButton>
-            <Button size="sm" disabled={selectedClipIds.length < 2} onClick={() => reportTimelineResult(groupSelected(), msg("m0515"))}>{t('liteCut.group')}</Button>
-            <Button size="sm" disabled={selectedClipIds.length === 0} onClick={() => reportTimelineResult(ungroupSelected(), msg("m0535"))}>{t('liteCut.ungroup')}</Button>
-            <Button size="sm" disabled={selectedClipIds.length < 2} onClick={() => reportTimelineResult(linkSelected(), msg("m0547"))}>{t('liteCut.link')}</Button>
-            <Button size="sm" disabled={selectedClipIds.length === 0} onClick={() => reportTimelineResult(unlinkSelected(), msg("m0536"))}>{t('liteCut.unlink')}</Button>
+            <Button size="sm" disabled={selectedClipIds.length < 2} onClick={() => reportTimelineResult(groupSelected(), msg("m0515"))}>{t('editor.group')}</Button>
+            <Button size="sm" disabled={selectedClipIds.length === 0} onClick={() => reportTimelineResult(ungroupSelected(), msg("m0535"))}>{t('editor.ungroup')}</Button>
+            <Button size="sm" disabled={selectedClipIds.length < 2} onClick={() => reportTimelineResult(linkSelected(), msg("m0547"))}>{t('editor.link')}</Button>
+            <Button size="sm" disabled={selectedClipIds.length === 0} onClick={() => reportTimelineResult(unlinkSelected(), msg("m0536"))}>{t('editor.unlink')}</Button>
             <span />
             <IconButton label={msg("m0366")} className={snapping ? 'is-active' : undefined} aria-pressed={snapping} onClick={toggleSnapping}><Magnet size={14} /></IconButton>
-            <Button size="sm" className={ripple ? 'is-active' : undefined} aria-pressed={ripple} onClick={toggleRipple}>{t('liteCut.ripple')} {ripple ? 'ON' : 'OFF'}</Button>
+            <Button size="sm" className={ripple ? 'is-active' : undefined} aria-pressed={ripple} onClick={toggleRipple}>{t('editor.ripple')} {ripple ? 'ON' : 'OFF'}</Button>
             <IconButton label={msg("m0388")} disabled={duration <= 0} onClick={addMarker}><Flag size={14} /></IconButton>
-            <Button size="sm" onClick={() => setMarkerListOpen((value) => !value)} aria-expanded={markerListOpen}>{t('liteCut.markers')} {markers.length}</Button>
+            <Button size="sm" onClick={() => setMarkerListOpen((value) => !value)} aria-expanded={markerListOpen}>{t('editor.markers')} {markers.length}</Button>
           </div>
           <div className="timeline-timecode"><strong>{formatTimelineTime(playhead, activeProject.fps)}</strong><span>/ {formatTimelineTime(duration, activeProject.fps)}</span></div>
-          <div className="timeline-zoom"><select value={exportScope} aria-label={t('liteCut.exportRange')} onChange={(event) => { const scope = event.target.value as 'full' | 'range'; setExportScope(scope); if (scope === 'range') { setRangeStart(playhead); setRangeEnd(Math.min(duration, Math.max(playhead + 1, rangeEnd))); } }}><option value="full">{t('liteCut.exportFull')}</option><option value="range">{t('liteCut.exportRange')}</option></select>{exportScope === 'range' ? <><input className="range-time-input" type="number" min="0" max={rangeEnd} step="0.1" value={rangeStart} aria-label={msg("m0462")} onChange={(event) => setRangeStart(boundedTimelineValue(Number(event.target.value), rangeStart, 0, Math.max(0, Math.min(duration, rangeEnd))))} /><span>–</span><input className="range-time-input" type="number" min={rangeStart} max={duration} step="0.1" value={rangeEnd} aria-label={msg("m0460")} onChange={(event) => setRangeEnd(boundedTimelineValue(Number(event.target.value), rangeEnd, rangeStart, duration))} /></> : null}<ZoomOut size={13} /><input type="range" min="0.5" max="3" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label={msg("m0721")} /><ZoomIn size={13} /></div>
+          <div className="timeline-zoom"><select value={exportScope} aria-label={t('editor.exportRange')} onChange={(event) => { const scope = event.target.value as 'full' | 'range'; setExportScope(scope); if (scope === 'range') { setRangeStart(playhead); setRangeEnd(Math.min(duration, Math.max(playhead + 1, rangeEnd))); } }}><option value="full">{t('editor.exportFull')}</option><option value="range">{t('editor.exportRange')}</option></select>{exportScope === 'range' ? <><input className="range-time-input" type="number" min="0" max={rangeEnd} step="0.1" value={rangeStart} aria-label={msg("m0462")} onChange={(event) => setRangeStart(boundedTimelineValue(Number(event.target.value), rangeStart, 0, Math.max(0, Math.min(duration, rangeEnd))))} /><span>–</span><input className="range-time-input" type="number" min={rangeStart} max={duration} step="0.1" value={rangeEnd} aria-label={msg("m0460")} onChange={(event) => setRangeEnd(boundedTimelineValue(Number(event.target.value), rangeEnd, rangeStart, duration))} /></> : null}<ZoomOut size={13} /><input type="range" min="0.5" max="3" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} aria-label={msg("m0721")} /><ZoomIn size={13} /></div>
         </header>
         {markerListOpen ? <div className="timeline-marker-popover"><header><strong>{msg("m0720")}</strong><Badge tone="neutral">{markers.length}</Badge></header>{markers.length > 0 ? markers.map((marker) => <div key={marker.id}><button type="button" onClick={() => { setPlayhead(marker.time); setMarkerListOpen(false); }}><i style={{ background: marker.color }} /><span><strong>{marker.label}</strong><small>{formatTimelineTime(marker.time, activeProject.fps)}</small></span></button><IconButton label={msgf("m0285", [marker.label])} onClick={() => removeMarker(marker.id)}><Trash2 size={12} /></IconButton></div>) : <p>{msg("m1047")}</p>}</div> : null}
-        <div className="timeline-scroll">
-          <div className="timeline-track-headers" style={{ gridTemplateRows: `27px repeat(${tracks.length}, 52px)` }}><div className="timeline-ruler-corner">TRACKS</div>{tracks.map((track) => <div key={track.id}><span className={`track-kind track-kind--${track.kind}`}>{track.kind === 'video' ? <Video size={13} /> : track.kind === 'audio' ? <Music2 size={13} /> : track.kind === 'text' ? <Type size={13} /> : <Image size={13} />}</span><span><strong>{track.name}</strong><small>{track.clips.length} clips</small></span><IconButton label={msgf("m0089", [track.locked ? msg("m1343") : msg("m1344"), track.name])} className={track.locked ? 'is-active' : undefined} aria-pressed={track.locked} onClick={() => toggleTrackLock(track.id)}><Lock size={12} /></IconButton></div>)}</div>
-          <div className="timeline-canvas" style={{ minWidth: Math.max(920, duration * pixelsPerSecond + 80), gridTemplateRows: `27px repeat(${tracks.length}, 52px)` }}>
-            <div className="timeline-ruler">{Array.from({ length: ruler.tickCount }, (_, index) => { const tick = index * ruler.stepSeconds; return <span key={index} style={{ left: tick * pixelsPerSecond }}><i />{formatTimelineTime(tick, activeProject.fps).slice(0, 5)}</span>; })}{markers.map((marker) => <button type="button" className="timeline-marker" key={marker.id} style={{ left: marker.time * pixelsPerSecond, '--marker-color': marker.color } as React.CSSProperties} title={`${marker.label} · ${formatTimelineTime(marker.time, activeProject.fps)}`} aria-label={msgf("m1169", [marker.label])} onClick={() => setPlayhead(marker.time)}><Flag size={9} /></button>)}{killAxisEvents.map((event) => <button type="button" className="timeline-marker" key={`${event.clip_id}-${event.id}`} style={{ left: event.timeline_time * pixelsPerSecond, '--marker-color': '#EF4444' } as React.CSSProperties} title={`${event.attacker} → ${event.victim}${event.weapon ? ` · ${event.weapon}` : ''}`} aria-label={msgf("m0254", [event.attacker, event.victim])} onClick={() => setPlayhead(event.timeline_time)}><Crosshair size={9} /></button>)}</div>
-            <div className="timeline-playhead" style={{ left: playhead * pixelsPerSecond }}><span /></div>
-            {tracks.map((track) => (
-              <div className="timeline-lane" key={track.id} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); selectClip(null); setPlayhead(snapTime((event.clientX - rect.left) / pixelsPerSecond)); }}>
-                {track.clips.map((clip) => {
-                  const isSelected = selectedClipIds.includes(clip.id);
-                  return (
-                    <button
-                      type="button"
-                      key={clip.id}
-                      data-clip-id={clip.id}
-                      aria-pressed={isSelected}
-                      aria-label={msgf("m0120", [clip.name, clip.duration.toFixed(1), clip.groupId ? msg("m1345") : '', clip.linkGroupId ? msg("m1346") : ''])}
-                      className={`timeline-clip timeline-clip--${track.kind}${isSelected ? ' is-selected' : ''}${clip.groupId ? ' is-grouped' : ''}${clip.linkGroupId ? ' is-linked' : ''}`}
-                      style={{ left: clip.start * pixelsPerSecond, width: Math.max(24, clip.duration * pixelsPerSecond), '--clip-color': clip.color } as React.CSSProperties}
-                      onPointerDown={(event) => {
-                        if (event.button !== 0 || track.locked) return;
-                        event.currentTarget.setPointerCapture(event.pointerId);
-                        dragStart.current = { clipId: clip.id, trackId: track.id, clientX: event.clientX, start: clip.start };
-                      }}
-                      onPointerUp={finishClipDrag}
-                      onPointerCancel={() => { dragStart.current = null; }}
-                      onClick={(event) => { event.stopPropagation(); selectClip(clip.id, event.ctrlKey || event.metaKey || event.shiftKey); }}
-                      title={msgf("m0091", [clip.name, clip.duration.toFixed(1), clip.groupId ? msg("m1347") : '', clip.linkGroupId ? msg("m1348") : ''])}
-                    >
-                      <span className="clip-handle clip-handle--left" />
-                      <span className="timeline-clip__content">
-                        {track.kind === 'audio' && clip.assetId ? <WaveformStrip points={waveforms[clip.assetId]} /> : null}
-                        <strong>{clip.name}</strong>
-                        <small>{clip.duration.toFixed(1)}s{clip.groupId ? ' · G' : ''}{clip.linkGroupId ? ' · L' : ''}</small>
-                      </span>
-                      <span className="clip-handle clip-handle--right" />
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
+        <div className="timeline-scroll timeline-scroll--editor-library">
+          <div className="timeline-track-headers" style={{ gridTemplateRows: `32px 30px repeat(${tracks.length}, 54px)` }}>
+            <div className="timeline-ruler-corner">TRACKS</div>
+            <div className="timeline-events-header"><span className="track-kind"><Flag size={13} /></span><span><strong>{msg("m0720")}</strong><small>{markers.length + killAxisEvents.length} events</small></span></div>
+            {tracks.map((track) => <div key={track.id}><span className={`track-kind track-kind--${track.kind}`}>{track.kind === 'video' ? <Video size={13} /> : track.kind === 'audio' ? <Music2 size={13} /> : track.kind === 'text' ? <Type size={13} /> : <Image size={13} />}</span><span><strong>{track.name}</strong><small>{track.clips.length} clips</small></span><IconButton label={msgf("m0089", [track.locked ? msg("m1343") : msg("m1344"), track.name])} className={track.locked ? 'is-active' : undefined} aria-pressed={track.locked} onClick={() => toggleTrackLock(track.id)}><Lock size={12} /></IconButton></div>)}
           </div>
+          <EditorTimeline
+            tracks={tracks}
+            markers={markers}
+            killEvents={killAxisEvents}
+            selectedClipIds={selectedClipIds}
+            playhead={playhead}
+            duration={duration}
+            zoom={zoom}
+            snapping={snapping}
+            disabled={editorLocked}
+            waveforms={waveforms}
+            onSeek={(time) => setPlayhead(snapTime(time))}
+            onSelectClip={selectClip}
+            onMoveClip={(clipId, trackId, start) => {
+              reportTimelineResult(moveClip(clipId, trackId, snapTime(start, clipId), ripple), ripple ? msg("m0512") : undefined);
+            }}
+            onResizeClip={resizeTimelineClip}
+          />
         </div>
       </section>
     </div>

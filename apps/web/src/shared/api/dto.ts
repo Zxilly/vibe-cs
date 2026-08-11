@@ -984,7 +984,7 @@ export type MontageExportRequest = {
   branding_theme?: MontageBrandingTheme;
 };
 
-export type LiteCutExportOptions = {
+export type EditorExportOptions = {
   encoder: 'auto' | 'libx264' | 'h264_qsv' | 'h264_nvenc' | 'h264_amf';
   quality: number;
   range_start_seconds?: number;
@@ -1153,7 +1153,7 @@ export type TimelineTrackDto = {
   clips: TimelineClipDto[];
 };
 
-export type LiteCutProject = {
+export type EditorProject = {
   id: EntityId;
   name: string;
   width: number;
@@ -1163,12 +1163,12 @@ export type LiteCutProject = {
   created_at: string;
   duration_seconds: number;
   tracks: TimelineTrackDto[];
-  markers: LiteCutMarker[];
+  markers: EditorMarker[];
   settings: unknown;
   revision: number;
 };
 
-export type LiteCutMarker = {
+export type EditorMarker = {
   id: EntityId;
   time: number;
   label: string;
@@ -1183,7 +1183,7 @@ export type EditorProjectSnapshot = {
   created_at: string;
 };
 
-export type CreateLiteCutProject = {
+export type CreateEditorProject = {
   name: string;
   width: number;
   height: number;
@@ -1259,12 +1259,12 @@ export type MediaAsset = {
   created_at: string;
 };
 
-export type LiteCutAudioSeparation = {
-  project: LiteCutProject;
+export type EditorAudioSeparation = {
+  project: EditorProject;
   asset: MediaAsset;
 };
 
-export type LiteCutPackageExport = {
+export type EditorPackageExport = {
   package_id: EntityId;
   name: string;
   path: string;
@@ -1273,8 +1273,8 @@ export type LiteCutPackageExport = {
   download_url: string | null;
 };
 
-export type LiteCutPackageImport = {
-  project: LiteCutProject;
+export type EditorPackageImport = {
+  project: EditorProject;
   assets: MediaAsset[];
 };
 

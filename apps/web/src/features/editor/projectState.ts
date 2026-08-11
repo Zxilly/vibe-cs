@@ -1,5 +1,5 @@
 import { msg } from '../../shared/i18n';
-import type { EditorPresetDocument, LiteCutMarker, TimelineTrackDto } from '../../shared/api/dto';
+import type { EditorPresetDocument, EditorMarker, TimelineTrackDto } from '../../shared/api/dto';
 
 export const MAX_EDITOR_TIMELINE_SECONDS = 86_400;
 
@@ -19,9 +19,9 @@ export function boundedTimelineValue(
 }
 
 export function trimMarkersToDuration(
-  markers: LiteCutMarker[],
+  markers: EditorMarker[],
   durationSeconds: number,
-): { markers: LiteCutMarker[]; removed: number } {
+): { markers: EditorMarker[]; removed: number } {
   const duration = boundedTimelineValue(durationSeconds, 0);
   const kept = markers.filter((marker) => Number.isFinite(marker.time)
     && marker.time >= 0
@@ -107,7 +107,7 @@ export type ProjectTransitionDecision = 'stay' | 'proceed' | 'confirm';
 export function projectEditFingerprint(
   name: string,
   tracks: TimelineTrackDto[],
-  markers: LiteCutMarker[] = [],
+  markers: EditorMarker[] = [],
   settings: unknown = {},
   durationSeconds = 0,
 ): string {
@@ -119,7 +119,7 @@ export type SnapResult = { time: number; snapped: boolean };
 export function snapTimelineTime(
   candidate: number,
   tracks: TimelineTrackDto[],
-  markers: LiteCutMarker[],
+  markers: EditorMarker[],
   playhead: number,
   thresholdSeconds: number,
   movingClipId?: string,

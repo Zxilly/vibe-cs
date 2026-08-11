@@ -9,7 +9,7 @@ import type {
   BatchDeleteOutputResult,
   CleanupMissingOutputsResult,
   CleanupStagedOutputsResult,
-  CreateLiteCutProject,
+  CreateEditorProject,
   CreateMontageProject,
   CosmeticCatalog,
   CosmeticInspectionReport,
@@ -35,11 +35,11 @@ import type {
   ExportJobRecord,
   JobAccepted,
   HeatPointRecord,
-  LiteCutExportOptions,
-  LiteCutAudioSeparation,
-  LiteCutPackageExport,
-  LiteCutPackageImport,
-  LiteCutProject,
+  EditorExportOptions,
+  EditorAudioSeparation,
+  EditorPackageExport,
+  EditorPackageImport,
+  EditorProject,
   LlmReviewRequest,
   LlmReviewResult,
   MatchAnalysisRecord,
@@ -544,46 +544,46 @@ export const api = {
       body: {},
       timeoutMs: 30_000,
     }),
-  listLiteCutProjects: (signal?: AbortSignal) =>
-    request<{ items: LiteCutProject[] }>('/lite-cut/projects', { signal }),
-  getLiteCutProject: (id: string, signal?: AbortSignal) =>
-    request<LiteCutProject>(`/lite-cut/projects/${encodeURIComponent(id)}`, { signal }),
-  listLiteCutAssets: (projectId?: string, signal?: AbortSignal) =>
+  listEditorProjects: (signal?: AbortSignal) =>
+    request<{ items: EditorProject[] }>('/editor/projects', { signal }),
+  getEditorProject: (id: string, signal?: AbortSignal) =>
+    request<EditorProject>(`/editor/projects/${encodeURIComponent(id)}`, { signal }),
+  listMediaAssets: (projectId?: string, signal?: AbortSignal) =>
     request<{ items: MediaAsset[] }>(
-      `/lite-cut/assets${queryString({ project_id: projectId })}`,
+      `/media/assets${queryString({ project_id: projectId })}`,
       { signal },
     ),
-  uploadLiteCutAssets: (files: File[], projectId?: string) => {
+  uploadMediaAssets: (files: File[], projectId?: string) => {
     const body = new FormData();
     if (projectId) body.append('project_id', projectId);
     files.forEach((file) => body.append('files', file));
-    return request<{ items: MediaAsset[] }>('/lite-cut/assets', {
+    return request<{ items: MediaAsset[] }>('/media/assets', {
       method: 'POST',
       body,
       timeoutMs: 120_000,
     });
   },
-  createLiteCutProject: (project: CreateLiteCutProject) =>
-    request<LiteCutProject>('/lite-cut/projects', { method: 'POST', body: project }),
-  duplicateLiteCutProject: (projectId: string, name: string, asTemplate = false) =>
-    request<LiteCutProject>(`/lite-cut/projects/${encodeURIComponent(projectId)}/duplicate`, {
+  createEditorProject: (project: CreateEditorProject) =>
+    request<EditorProject>('/editor/projects', { method: 'POST', body: project }),
+  duplicateEditorProject: (projectId: string, name: string, asTemplate = false) =>
+    request<EditorProject>(`/editor/projects/${encodeURIComponent(projectId)}/duplicate`, {
       method: 'POST',
       body: { name, as_template: asTemplate },
     }),
-  saveLiteCutProject: (project: LiteCutProject) =>
-    request<LiteCutProject>(`/lite-cut/projects/${encodeURIComponent(project.id)}`, {
+  saveEditorProject: (project: EditorProject) =>
+    request<EditorProject>(`/editor/projects/${encodeURIComponent(project.id)}`, {
       method: 'PATCH',
       body: project,
     }),
-  listLiteCutPresets: (signal?: AbortSignal) =>
-    request<{ items: EditorPreset[] }>('/lite-cut/presets', { signal }),
-  createLiteCutPreset: (name: string, document: EditorPresetDocument) =>
-    request<EditorPreset>('/lite-cut/presets', {
+  listEditorPresets: (signal?: AbortSignal) =>
+    request<{ items: EditorPreset[] }>('/editor/presets', { signal }),
+  createEditorPreset: (name: string, document: EditorPresetDocument) =>
+    request<EditorPreset>('/editor/presets', {
       method: 'POST',
       body: { name, document },
     }),
-  updateLiteCutPreset: (preset: EditorPreset) =>
-    request<EditorPreset>(`/lite-cut/presets/${encodeURIComponent(preset.id)}`, {
+  updateEditorPreset: (preset: EditorPreset) =>
+    request<EditorPreset>(`/editor/presets/${encodeURIComponent(preset.id)}`, {
       method: 'PUT',
       body: {
         name: preset.name,
@@ -591,19 +591,19 @@ export const api = {
         document: preset.document,
       },
     }),
-  deleteLiteCutPreset: (id: string, expectedRevision: number) =>
+  deleteEditorPreset: (id: string, expectedRevision: number) =>
     request<void>(
-      `/lite-cut/presets/${encodeURIComponent(id)}${queryString({ expected_revision: expectedRevision })}`,
+      `/editor/presets/${encodeURIComponent(id)}${queryString({ expected_revision: expectedRevision })}`,
       { method: 'DELETE' },
     ),
-  applyLiteCutPreset: (
+  applyEditorPreset: (
     projectId: string,
     clipId: string,
     presetId: string,
     expectedProjectRevision: number,
     expectedPresetRevision: number,
-  ) => request<LiteCutProject>(
-    `/lite-cut/projects/${encodeURIComponent(projectId)}/clips/${encodeURIComponent(clipId)}/apply-preset`,
+  ) => request<EditorProject>(
+    `/editor/projects/${encodeURIComponent(projectId)}/clips/${encodeURIComponent(clipId)}/apply-preset`,
     {
       method: 'POST',
       body: {
@@ -613,95 +613,95 @@ export const api = {
       },
     },
   ),
-  deleteLiteCutProjects: (items: Array<{ id: string; expected_revision: number }>) =>
-    request<EditorProjectDeletionResult>('/lite-cut/projects/delete-batch', {
+  deleteEditorProjects: (items: Array<{ id: string; expected_revision: number }>) =>
+    request<EditorProjectDeletionResult>('/editor/projects/delete-batch', {
       method: 'POST',
       body: { items },
       timeoutMs: 120_000,
     }),
-  exportLiteCutPackage: (projectId: string, outputPath?: string) =>
-    request<LiteCutPackageExport>(
-      `/lite-cut/projects/${encodeURIComponent(projectId)}/package`,
+  exportEditorPackage: (projectId: string, outputPath?: string) =>
+    request<EditorPackageExport>(
+      `/editor/projects/${encodeURIComponent(projectId)}/package`,
       {
         method: 'POST',
         body: { output_path: outputPath ?? null },
         timeoutMs: 10 * 60_000,
       },
     ),
-  importLiteCutPackagePath: (path: string) =>
-    request<LiteCutPackageImport>('/lite-cut/packages/import', {
+  importEditorPackagePath: (path: string) =>
+    request<EditorPackageImport>('/editor/packages/import', {
       method: 'POST',
       body: { path },
       timeoutMs: 10 * 60_000,
     }),
-  uploadLiteCutPackage: (file: File) => {
+  uploadEditorPackage: (file: File) => {
     const body = new FormData();
     body.append('file', file);
-    return request<LiteCutPackageImport>('/lite-cut/packages/upload', {
+    return request<EditorPackageImport>('/editor/packages/upload', {
       method: 'POST',
       body,
       timeoutMs: 10 * 60_000,
     });
   },
-  listLiteCutSnapshots: (projectId: string, signal?: AbortSignal) =>
+  listEditorSnapshots: (projectId: string, signal?: AbortSignal) =>
     request<{ items: EditorProjectSnapshot[] }>(
-      `/lite-cut/projects/${encodeURIComponent(projectId)}/snapshots`,
+      `/editor/projects/${encodeURIComponent(projectId)}/snapshots`,
       { signal },
     ),
-  restoreLiteCutSnapshot: (projectId: string, snapshotId: string) =>
-    request<LiteCutProject>(
-      `/lite-cut/projects/${encodeURIComponent(projectId)}/snapshots/${encodeURIComponent(snapshotId)}/restore`,
+  restoreEditorSnapshot: (projectId: string, snapshotId: string) =>
+    request<EditorProject>(
+      `/editor/projects/${encodeURIComponent(projectId)}/snapshots/${encodeURIComponent(snapshotId)}/restore`,
       { method: 'POST', body: {} },
     ),
-  exportLiteCutProject: (projectId: string, options: LiteCutExportOptions) =>
-    request<JobAccepted>(`/lite-cut/projects/${encodeURIComponent(projectId)}/export`, {
+  exportEditorProject: (projectId: string, options: EditorExportOptions) =>
+    request<JobAccepted>(`/editor/projects/${encodeURIComponent(projectId)}/export`, {
       method: 'POST',
       body: options,
     }),
   getAssetWaveform: (id: string, buckets = 120, signal?: AbortSignal) =>
     request<WaveformResponse>(
-      `/lite-cut/assets/${encodeURIComponent(id)}/waveform${queryString({ buckets })}`,
+      `/media/assets/${encodeURIComponent(id)}/waveform${queryString({ buckets })}`,
       { signal, timeoutMs: 90_000 },
     ),
-  getLiteCutAsset: (id: string, signal?: AbortSignal) =>
-    request<MediaAsset>(`/lite-cut/assets/${encodeURIComponent(id)}`, { signal }),
-  separateLiteCutAudio: (
+  getMediaAsset: (id: string, signal?: AbortSignal) =>
+    request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}`, { signal }),
+  separateEditorAudio: (
     projectId: string,
     clipId: string,
     expectedRevision: number,
     muteSource = true,
   ) =>
-    request<LiteCutAudioSeparation>(
-      `/lite-cut/projects/${encodeURIComponent(projectId)}/clips/${encodeURIComponent(clipId)}/separate-audio`,
+    request<EditorAudioSeparation>(
+      `/editor/projects/${encodeURIComponent(projectId)}/clips/${encodeURIComponent(clipId)}/separate-audio`,
       {
       method: 'POST',
       body: { expected_revision: expectedRevision, mute_source: muteSource },
       timeoutMs: 60 * 60_000,
       },
     ),
-  relinkLiteCutAsset: (id: string, path: string) =>
-    request<MediaAsset>(`/lite-cut/assets/${encodeURIComponent(id)}/relink`, {
+  relinkMediaAsset: (id: string, path: string) =>
+    request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/relink`, {
       method: 'POST',
       body: { path },
       timeoutMs: 90_000,
     }),
-  replaceLiteCutAsset: (id: string, file: File) => {
+  replaceMediaAsset: (id: string, file: File) => {
     const body = new FormData();
     body.append('file', file);
-    return request<MediaAsset>(`/lite-cut/assets/${encodeURIComponent(id)}/replace`, {
+    return request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/replace`, {
       method: 'POST',
       body,
       timeoutMs: 120_000,
     });
   },
-  generateLiteCutProxy: (id: string) =>
-    request<MediaAsset>(`/lite-cut/assets/${encodeURIComponent(id)}/proxy`, {
+  generateMediaProxy: (id: string) =>
+    request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/proxy`, {
       method: 'POST',
       body: {},
       timeoutMs: 20 * 60_000,
     }),
-  cleanupLiteCutProxies: () =>
-    request<MediaProxyCleanup>('/lite-cut/proxies/cleanup', {
+  cleanupMediaProxies: () =>
+    request<MediaProxyCleanup>('/media/proxies/cleanup', {
       method: 'POST',
       body: {},
       timeoutMs: 120_000,

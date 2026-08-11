@@ -1,5 +1,5 @@
 import { msgf } from '../../shared/i18n';
-import type { LiteCutProject } from '../../shared/api/dto';
+import type { EditorProject } from '../../shared/api/dto';
 import type { TimelineClip, TimelineTrack } from './timelineStore';
 
 export const EDITOR_TRANSITIONS = [
@@ -139,7 +139,7 @@ export function hasSeparatedAudioChild(
       && separatedAudioOrigin(clip.metadata) === sourceClipId);
 }
 
-export function isEditorTemplate(project: LiteCutProject): boolean {
+export function isEditorTemplate(project: EditorProject): boolean {
   return Boolean(project.settings
     && typeof project.settings === 'object'
     && (project.settings as { is_template?: unknown }).is_template === true);

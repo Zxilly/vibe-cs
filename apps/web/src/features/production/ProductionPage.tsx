@@ -49,7 +49,7 @@ export function ProductionPage() {
     void Promise.allSettled([
       api.listDemos({ page: 1, page_size: 1, sort: 'newest' }, controller.signal),
       api.listRecordedClips(controller.signal),
-      api.listLiteCutProjects(controller.signal),
+      api.listEditorProjects(controller.signal),
       api.listOutputs({ page: 1, page_size: 1 }, controller.signal),
     ]).then(([matchesResult, clipsResult, projectsResult, outputsResult]) => {
       if (controller.signal.aborted) return;

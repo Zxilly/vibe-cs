@@ -40,7 +40,7 @@ const MAXIMUM_ASSET_UPLOAD_FILES: usize = 64;
 const MAXIMUM_ASSET_UPLOAD_BATCH_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAXIMUM_ASSET_UPLOAD_REQUEST_BYTES: usize = 4 * 1024 * 1024 * 1024 + 8 * 1024 * 1024;
 const WAVEFORM_CACHE_BUCKETS: usize = 2_000;
-const PORTABLE_PACKAGE_FORMAT: &str = "vibe-cs-lite-cut";
+const PORTABLE_PACKAGE_FORMAT: &str = "vibe-cs-editor";
 const PORTABLE_PACKAGE_VERSION: u32 = 1;
 const MAXIMUM_PACKAGE_ASSETS: usize = 128;
 const MAXIMUM_PACKAGE_ENTRIES: usize = MAXIMUM_PACKAGE_ASSETS + 2;
@@ -75,102 +75,96 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/montage/projects/{id}/export", post(export_montage))
         .route("/api/montage/export", post(export_compatible_montage))
         .route(
-            "/api/lite-cut/projects",
+            "/api/editor/projects",
             get(list_editor_projects).post(create_editor_project),
         )
         .route(
-            "/api/lite-cut/projects/delete-batch",
+            "/api/editor/projects/delete-batch",
             post(delete_editor_projects_batch),
         )
         .route(
-            "/api/lite-cut/projects/{id}",
+            "/api/editor/projects/{id}",
             get(get_editor_project)
                 .put(save_editor_project)
                 .patch(save_editor_project)
                 .delete(delete_editor_project),
         )
         .route(
-            "/api/lite-cut/projects/{id}/export",
+            "/api/editor/projects/{id}/export",
             post(export_editor_project),
         )
         .route(
-            "/api/lite-cut/projects/{id}/duplicate",
+            "/api/editor/projects/{id}/duplicate",
             post(duplicate_editor_project),
         )
         .route(
-            "/api/lite-cut/projects/{id}/snapshots",
+            "/api/editor/projects/{id}/snapshots",
             get(list_editor_snapshots),
         )
         .route(
-            "/api/lite-cut/projects/{id}/snapshots/{snapshot_id}/restore",
+            "/api/editor/projects/{id}/snapshots/{snapshot_id}/restore",
             post(restore_editor_snapshot),
         )
         .route(
-            "/api/lite-cut/projects/{project_id}/clips/{clip_id}/apply-preset",
+            "/api/editor/projects/{project_id}/clips/{clip_id}/apply-preset",
             post(apply_editor_preset),
         )
         .route(
-            "/api/lite-cut/projects/{project_id}/clips/{clip_id}/separate-audio",
+            "/api/editor/projects/{project_id}/clips/{clip_id}/separate-audio",
             post(separate_editor_clip_audio),
         )
         .route(
-            "/api/lite-cut/projects/{id}/package",
+            "/api/editor/projects/{id}/package",
             post(export_editor_package),
         )
         .route(
-            "/api/lite-cut/packages/import",
+            "/api/editor/packages/import",
             post(import_editor_package_path),
         )
         .route(
-            "/api/lite-cut/packages/upload",
+            "/api/editor/packages/upload",
             post(upload_editor_package).layer(DefaultBodyLimit::max(MAXIMUM_PACKAGE_UPLOAD_BYTES)),
         )
         .route(
-            "/api/lite-cut/packages/{id}/download",
+            "/api/editor/packages/{id}/download",
             get(download_editor_package).head(head_editor_package),
         )
-        .route("/api/lite-cut/export/start", post(export_editor_compatible))
+        .route("/api/editor/export/start", post(export_editor_compatible))
         .route(
-            "/api/lite-cut/assets",
+            "/api/media/assets",
             get(list_assets)
                 .post(upload_assets)
                 .layer(DefaultBodyLimit::max(MAXIMUM_ASSET_UPLOAD_REQUEST_BYTES)),
         )
-        .route("/api/lite-cut/assets/import", post(import_asset))
+        .route("/api/media/assets/import", post(import_asset))
         .route(
-            "/api/lite-cut/assets/{id}",
+            "/api/media/assets/{id}",
             get(get_asset).put(put_asset).delete(delete_asset),
         )
-        .route("/api/lite-cut/assets/{id}/relink", post(relink_asset_path))
+        .route("/api/media/assets/{id}/relink", post(relink_asset_path))
         .route(
-            "/api/lite-cut/assets/{id}/replace",
+            "/api/media/assets/{id}/replace",
             post(replace_asset_upload)
                 .layer(DefaultBodyLimit::max(MAXIMUM_ASSET_UPLOAD_REQUEST_BYTES)),
         )
+        .route("/api/media/assets/{id}/proxy", post(generate_asset_proxy))
         .route(
-            "/api/lite-cut/assets/{id}/proxy",
-            post(generate_asset_proxy),
-        )
-        .route(
-            "/api/lite-cut/assets/{id}/proxy/stream",
+            "/api/media/assets/{id}/proxy/stream",
             get(stream_asset_proxy).head(head_asset_proxy),
         )
-        .route("/api/lite-cut/proxies/cleanup", post(cleanup_asset_proxies))
+        .route("/api/media/proxies/cleanup", post(cleanup_asset_proxies))
         .route(
-            "/api/lite-cut/assets/{id}/stream",
+            "/api/media/assets/{id}/stream",
             get(stream_asset).head(head_asset),
         )
-        .route("/api/lite-cut/assets/{id}/waveform", get(asset_waveform))
+        .route("/api/media/assets/{id}/waveform", get(asset_waveform))
         .route(
-            "/api/lite-cut/assets/{id}/extract-audio",
+            "/api/media/assets/{id}/extract-audio",
             post(extract_asset_audio),
         )
+        .route("/api/editor/presets", get(list_presets).post(create_preset))
         .route(
-            "/api/lite-cut/presets",
-            get(list_presets).post(create_preset),
-        )
-        .route(
-            "/api/lite-cut/presets/{id}",
+            "/api/editor/presets/{id}",
             get(get_preset).put(put_preset).delete(delete_preset),
         )
         .route("/api/exports", get(list_export_jobs))
@@ -1436,7 +1430,7 @@ async fn export_editor_package(
     let name = output
         .file_name()
         .and_then(|name| name.to_str())
-        .unwrap_or("lite-cut-project.alcp")
+        .unwrap_or("editor-project.vcep")
         .to_owned();
     state.events.publish("editor_project", "packaged", Some(id));
     Ok(Json(EditorPackageExportResponse {
@@ -1457,10 +1451,10 @@ async fn editor_package_output_path(
     if let Some(requested) = requested.filter(|path| !path.trim().is_empty()) {
         let requested = PathBuf::from(requested);
         if !requested.is_absolute()
-            || requested.extension().and_then(|value| value.to_str()) != Some("alcp")
+            || requested.extension().and_then(|value| value.to_str()) != Some("vcep")
         {
             return Err(ApiError::invalid(
-                "portable project output must be an absolute .alcp path",
+                "portable project output must be an absolute .vcep path",
             ));
         }
         let file_name = requested
@@ -1486,8 +1480,8 @@ async fn editor_package_output_path(
     let directory = state.data_dir().join("packages");
     tokio::fs::create_dir_all(&directory).await?;
     Ok((
-        directory.join(format!("{package_id}.alcp")),
-        Some(format!("/api/lite-cut/packages/{package_id}/download")),
+        directory.join(format!("{package_id}.vcep")),
+        Some(format!("/api/editor/packages/{package_id}/download")),
     ))
 }
 
@@ -1514,7 +1508,7 @@ async fn download_editor_package_response(
     head_only: bool,
 ) -> ApiResult<Response<Body>> {
     let id = parse_id(id)?;
-    let path = state.data_dir().join("packages").join(format!("{id}.alcp"));
+    let path = state.data_dir().join("packages").join(format!("{id}.vcep"));
     let mut response = stream_media_file(
         path.to_string_lossy().as_ref(),
         headers,
@@ -1524,7 +1518,7 @@ async fn download_editor_package_response(
     .await?;
     response.headers_mut().insert(
         header::CONTENT_DISPOSITION,
-        format!("attachment; filename=\"lite-cut-{id}.alcp\"")
+        format!("attachment; filename=\"editor-{id}.vcep\"")
             .parse()
             .map_err(|_| {
                 ApiError::new(
@@ -1581,12 +1575,12 @@ async fn upload_editor_package(
             .file_name()
             .and_then(safe_file_name)
             .ok_or_else(|| ApiError::invalid("portable project requires a safe file name"))?;
-        if !original_name.to_ascii_lowercase().ends_with(".alcp") {
+        if !original_name.to_ascii_lowercase().ends_with(".vcep") {
             return Err(ApiError::invalid(
-                "portable project upload must use the .alcp extension",
+                "portable project upload must use the .vcep extension",
             ));
         }
-        let destination = upload_dir.join(format!("{}.alcp", Uuid::new_v4()));
+        let destination = upload_dir.join(format!("{}.vcep", Uuid::new_v4()));
         persist_multipart_field(&mut field, &destination, MAXIMUM_PACKAGE_BYTES).await?;
         uploaded = Some(destination);
     }
@@ -1812,7 +1806,7 @@ fn build_editor_package_archive(
     let output_name = output
         .file_name()
         .and_then(|name| name.to_str())
-        .unwrap_or("project.alcp");
+        .unwrap_or("project.vcep");
     let temporary = parent.join(format!(".{output_name}.partial.{}", Uuid::new_v4()));
     let result = (|| {
         let file = std::fs::OpenOptions::new()
@@ -4695,7 +4689,7 @@ mod tests {
     #[tokio::test]
     async fn portable_editor_package_rejects_zip_slip_and_removes_staging() {
         let directory = tempfile::tempdir().expect("temporary directory");
-        let package = directory.path().join("unsafe.alcp");
+        let package = directory.path().join("unsafe.vcep");
         let file = std::fs::File::create(&package).expect("package");
         let mut writer = ZipWriter::new(file);
         writer
@@ -4724,7 +4718,7 @@ mod tests {
     #[tokio::test]
     async fn portable_editor_package_rejects_a_tampered_project_document() {
         let directory = tempfile::tempdir().expect("temporary directory");
-        let package = directory.path().join("tampered.alcp");
+        let package = directory.path().join("tampered.vcep");
         let mut project = editor_project_with_source(Uuid::new_v4());
         project.tracks[0].clips[0].asset_id = None;
         let manifest = EditorPackageManifest {

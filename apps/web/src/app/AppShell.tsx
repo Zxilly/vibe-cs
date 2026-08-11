@@ -60,7 +60,7 @@ const contextualDestinations: NavItem[] = [
   { path: '/queue', code: '03.1', labelKey: 'queue.title', icon: PlaySquare },
   { path: '/studio', code: '03.2', labelKey: 'studio.title', icon: Film },
   { path: '/montage', code: '03.2.1', labelKey: 'montage.title', icon: Clapperboard },
-  { path: '/lite-cut', code: '03.2.2', labelKey: 'liteCut.title', icon: Film },
+  { path: '/studio/editor', code: '03.2.1', labelKey: 'editor.title', icon: Film },
   { path: '/recovery', code: '90.1', labelKey: 'recovery.title', icon: ShieldCheck },
 ];
 
@@ -205,7 +205,7 @@ export function AppShell() {
 
   const contextActive = (path: string) => {
     if (path === '/library') return ['/library', '/analysis', '/players', '/match-history'].includes(location.pathname);
-    if (path === '/production') return ['/production', '/queue', '/studio', '/montage', '/lite-cut'].includes(location.pathname);
+    if (path === '/production') return ['/production', '/queue', '/studio', '/montage', '/studio/editor'].includes(location.pathname);
     if (path === '/settings') return ['/settings', '/recovery'].includes(location.pathname);
     return false;
   };

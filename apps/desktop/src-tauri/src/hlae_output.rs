@@ -35,10 +35,10 @@ impl ManagedHlaeRoot {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct HlaeBundleHandoff {
-    directory: String,
-    files: Vec<String>,
-    completion_marker: String,
-    created_at_epoch_ms: u64,
+    pub(crate) directory: String,
+    pub(crate) files: Vec<String>,
+    pub(crate) completion_marker: String,
+    pub(crate) created_at_epoch_ms: u64,
 }
 
 #[tauri::command]
@@ -48,6 +48,12 @@ pub(crate) struct HlaeBundleHandoff {
 )]
 pub(crate) fn list_hlae_bundles(
     root: State<'_, ManagedHlaeRoot>,
+) -> Result<Vec<HlaeBundleHandoff>, String> {
+    list_managed_hlae_bundles(&root)
+}
+
+pub(crate) fn list_managed_hlae_bundles(
+    root: &ManagedHlaeRoot,
 ) -> Result<Vec<HlaeBundleHandoff>, String> {
     let Some(canonical_root) = canonical_managed_root(&root.0)? else {
         return Ok(Vec::new());

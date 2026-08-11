@@ -36,3 +36,22 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
+  agent-sidecar:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm agent:e2e
+      - run: cargo test -p vibe-cs-desktop verified_development_sidecar_matches_the_build_manifest -- --ignored --nocapture
+      - run: cargo test -p vibe-cs-desktop desktop_stream_accepts_a_typed_sidecar_proposal_and_emits_channel_events -- --nocapture
+      - run: cargo test -p vibe-cs-desktop saved_credentials_drive_bundled_sea_edit_and_survive_restart -- --ignored --nocapture --test-threads=1
+      - run: cargo test -p vibe-cs-desktop sea_hlae_proposal_exports_a_revalidated_persistent_handoff -- --ignored --nocapture --test-threads=1
+      - run: pnpm desktop:build

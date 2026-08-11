@@ -482,7 +482,7 @@ pub(crate) enum AgentEvent {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", tag = "type")]
+#[serde(rename_all = "snake_case", tag = "type")]
 enum SidecarEvent {
     TextDelta { delta: String },
     Complete { response: SidecarResponse },
@@ -604,6 +604,14 @@ pub(crate) async fn agent_chat(
     input: AgentChatInput,
     on_event: Channel<AgentEvent>,
 ) -> Result<AgentChatResult, AgentCommandError> {
+    chat(&state, input, on_event).await
+}
+
+async fn chat(
+    state: &AgentBridge,
+    input: AgentChatInput,
+    on_event: Channel<AgentEvent>,
+) -> Result<AgentChatResult, AgentCommandError> {
     let message = input.message.trim();
     if message.is_empty() || message.chars().count() > 8_000 {
         return Err(AgentCommandError::invalid(
@@ -621,8 +629,7 @@ pub(crate) async fn agent_chat(
         }
         cancellations.insert(input.request_id, Arc::clone(&cancellation));
     }
-    let result =
-        run_scheduled_agent_chat(&state, &input, &on_event, thread_id, &cancellation).await;
+    let result = run_scheduled_agent_chat(state, &input, &on_event, thread_id, &cancellation).await;
     let mut cancellations = state.cancellations.lock().await;
     if cancellations
         .get(&input.request_id)
@@ -1238,6 +1245,8 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex as StdMutex;
+    use tauri::ipc::InvokeResponseBody;
     use tokio::io::BufReader;
 
     #[test]
@@ -1292,6 +1301,77 @@ mod tests {
             .expect_err("over 64 KiB");
     }
 
+    #[tokio::test]
+    async fn desktop_stream_accepts_a_typed_sidecar_proposal_and_emits_channel_events() {
+        let response = json!({
+            "content": "The HLAE proposal is ready for review.",
+            "toolCalls": [{
+                "name": "draft_hlae_plan",
+                "input": { "highlightIds": ["ace-1"] },
+                "output": { "accepted": true }
+            }],
+            "plans": [{
+                "kind": "hlae",
+                "title": "HLAE camera proposal",
+                "payload": {
+                    "demo_id": "00000000-0000-4000-8000-0000000000d1",
+                    "highlight_ids": ["ace-1"],
+                    "camera_style": "orbit",
+                    "mode": "preview",
+                    "lead_seconds": 2.0,
+                    "tail_seconds": 2.5
+                }
+            }]
+        });
+        let stream = format!(
+            "{EVENT_PREFIX}{}\n{EVENT_PREFIX}{}\n",
+            json!({ "type": "text_delta", "delta": "Reviewing verified evidence..." }),
+            json!({ "type": "complete", "response": response })
+        );
+        let received = Arc::new(StdMutex::new(Vec::<Value>::new()));
+        let captured = Arc::clone(&received);
+        let channel = Channel::new(move |body| {
+            let InvokeResponseBody::Json(encoded) = body else {
+                panic!("agent events must use JSON channel payloads");
+            };
+            captured
+                .lock()
+                .expect("event capture")
+                .push(serde_json::from_str(&encoded)?);
+            Ok(())
+        });
+
+        let parsed = read_sidecar_events(BufReader::new(stream.as_bytes()), &channel)
+            .await
+            .expect("valid sidecar stream")
+            .expect("completion response");
+        assert_eq!(parsed.content, "The HLAE proposal is ready for review.");
+        assert_eq!(parsed.tool_calls.len(), 1);
+        assert_eq!(parsed.plans.len(), 1);
+        let events = received.lock().expect("event capture");
+        assert_eq!(events.len(), 3);
+        assert_eq!(events[0]["type"], "textDelta");
+        assert_eq!(events[1]["type"], "toolCall");
+        assert_eq!(events[2]["type"], "proposal");
+        assert_eq!(
+            events[2]["proposal"]["payload"]["highlight_ids"][0],
+            "ace-1"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires pnpm agent:sidecar before compiling the desktop crate"]
+    async fn verified_development_sidecar_matches_the_build_manifest() {
+        let path = AgentBridge::sidecar_path().expect("generated development sidecar");
+        let verified = verify_bundled_sidecar(&path)
+            .await
+            .expect("sidecar must match the compile-time SHA-256 manifest");
+        assert!(
+            verified.is_some(),
+            "development sidecar must use release-equivalent verification"
+        );
+    }
+
     #[test]
     fn thread_serialization_drops_oldest_pairs_to_fit_its_byte_budget() {
         let mut thread = AgentThread {
@@ -1326,3 +1406,11 @@ mod tests {
         assert!(std::fs::rename(&path, directory.path().join("replacement.exe")).is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "agent_edit_e2e.rs"]
+mod edit_e2e;
+
+#[cfg(test)]
+#[path = "agent_e2e.rs"]
+mod agent_e2e;

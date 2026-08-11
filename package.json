@@ -6,6 +6,7 @@
   "scripts": {
     "agent:build": "pnpm --filter @vibe-cs/agent build",
     "agent:sidecar": "pnpm --filter @vibe-cs/agent sidecar",
+    "agent:e2e": "pnpm --filter @vibe-cs/agent test:sidecar",
     "agent:test": "pnpm --filter @vibe-cs/agent test",
     "dev": "pnpm --filter @vibe-cs/web dev",
     "desktop:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm agent:sidecar && pnpm --filter @vibe-cs/desktop dev",

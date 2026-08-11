@@ -5,15 +5,19 @@ use std::{
 
 use async_trait::async_trait;
 use vibe_cs_application::{MediaPort, ProbedMediaMetadata};
-use vibe_cs_domain::DomainError;
+use vibe_cs_domain::{
+    AudioAnalysis, AudioAnalysisOptions, BeatAlignmentDraft, BeatAlignmentRequest, DomainError,
+};
 use vibe_cs_media::{
     EncoderSelection, MediaError, ProcessCancellation, SingleInputTranscodeOptions,
-    WaveformOptions, build_audio_extraction_plan, build_single_input_transcode_plan,
-    execute_native_filter_plan, generate_native_waveform, native_probe_media,
+    WaveformOptions, analyze_native_audio, build_audio_extraction_plan,
+    build_single_input_transcode_plan, execute_native_filter_plan, generate_native_waveform,
+    native_probe_media, plan_clip_alignment,
 };
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(20);
 const WAVEFORM_TIMEOUT: Duration = Duration::from_secs(90);
+const AUDIO_ANALYSIS_TIMEOUT: Duration = Duration::from_secs(3 * 60);
 const MAXIMUM_WAVEFORM_BYTES: u64 = 32 * 1024 * 1024;
 const PROXY_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 const AUDIO_EXTRACTION_TIMEOUT: Duration = Duration::from_secs(60 * 60);
@@ -131,6 +135,41 @@ impl MediaPort for RuntimeMediaPort {
                 "waveform generation exceeded its time limit".to_owned(),
             ))
         }
+    }
+
+    async fn analyze_audio(
+        &self,
+        path: PathBuf,
+        options: AudioAnalysisOptions,
+    ) -> Result<AudioAnalysis, DomainError> {
+        let cancellation = ProcessCancellation::default();
+        let analysis_cancellation = cancellation.clone();
+        let result = tokio::time::timeout(
+            AUDIO_ANALYSIS_TIMEOUT,
+            tokio::task::spawn_blocking(move || {
+                analyze_native_audio(&path, options, &analysis_cancellation)
+            }),
+        )
+        .await;
+        if let Ok(result) = result {
+            result
+                .map_err(|error| {
+                    DomainError::Internal(format!("audio analysis task failed: {error}"))
+                })?
+                .map_err(map_media_error)
+        } else {
+            cancellation.cancel();
+            Err(DomainError::Internal(
+                "audio analysis exceeded its time limit".to_owned(),
+            ))
+        }
+    }
+
+    async fn align_clips_to_beats(
+        &self,
+        request: BeatAlignmentRequest,
+    ) -> Result<BeatAlignmentDraft, DomainError> {
+        plan_clip_alignment(&request).map_err(map_media_error)
     }
 
     async fn generate_proxy(

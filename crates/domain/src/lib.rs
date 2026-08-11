@@ -1,6 +1,7 @@
 //! Shared, transport-agnostic models for the `Vibe CS` application.
 
 mod analysis;
+mod audio_intelligence;
 mod config;
 mod cosmetics;
 mod demo;
@@ -11,6 +12,7 @@ mod match_history;
 mod recording;
 
 pub use analysis::*;
+pub use audio_intelligence::*;
 pub use config::*;
 pub use cosmetics::*;
 pub use demo::*;

@@ -6,6 +6,8 @@ Demo decoding and bounded cosmetic field rewriting use the crates.io `source2-de
 
 The Rust media layer uses `ffmpeg-next` 8.1.0 (WTFPL) and `ez-ffmpeg` 0.17.1 (MIT OR Apache-2.0 OR MPL-2.0) to call the FFmpeg libraries in-process. Windows builds use the checksum-pinned BtbN FFmpeg 8.1.2 `win64-lgpl-shared` SDK under LGPL v2.1-or-later; its license is bundled with the application. The selected LGPL build includes NVENC, Intel QSV, AMD AMF, Media Foundation, and OpenH264 encoders but excludes GPL-only libx264/libx265. Steam and CS2 AppID 730 discovery use `steamlocate` 2.1.0 (MIT) and still validate the resolved executable before launch.
 
+Local BGM rhythm analysis uses `rustfft` 6.4.1 (MIT OR Apache-2.0) for spectral-flux onset and tempo features after in-process libav decoding. It does not invoke an audio-analysis executable or download a model.
+
 The Windows adapter uses Microsoft's `windows` Rust crate under its MIT OR Apache-2.0 license to call documented Win32 APIs without shell command construction.
 
 Compiled radar textures are decoded with `lz4_flex` (MIT), `png` (MIT OR Apache-2.0), and `texture2ddecoder` (MIT OR Apache-2.0). The bounded resource-container and texture-metadata reader is an independent Rust implementation informed by the publicly documented format behavior in ValveResourceFormat (MIT); no implementation code or game assets are vendored.

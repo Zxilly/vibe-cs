@@ -99,6 +99,10 @@ missing.
 
 ## Montage and timeline editing
 
+- Analyze a managed BGM through in-process libav decoding and bounded local spectral analysis.
+  The result exposes a global BPM estimate and confidence, beat grid, onsets, energy curve,
+  heuristic sections and explicit limitations. A deterministic beat-alignment action returns an
+  explainable advisory clip-timing draft; it never mutates an editor project by itself.
 - Search recorded clips, assemble and reorder a montage, trim every source, retain original audio,
   render cut/fade/slide transitions, mix looped background music, and render configurable intro
   and per-clip name cards.

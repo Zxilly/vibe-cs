@@ -1,6 +1,7 @@
 //! Shell-free `FFmpeg` planning, probing, waveform extraction, and execution.
 
 mod command;
+mod audio_intelligence;
 mod error;
 mod native;
 mod native_pipeline;
@@ -9,6 +10,7 @@ mod progress;
 mod waveform;
 
 pub use command::*;
+pub use audio_intelligence::*;
 pub use error::*;
 pub use native::*;
 pub use native_pipeline::*;

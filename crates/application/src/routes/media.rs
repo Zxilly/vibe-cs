@@ -20,6 +20,7 @@ use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use uuid::Uuid;
 use vibe_cs_domain::{
+    AudioAnalysis, AudioAnalysisOptions, BeatAlignmentDraft, BeatAlignmentRequest,
     EditorAudioSeparation, EditorPackageAsset, EditorPackageManifest, EditorPresetDocument,
     EditorProject, EditorProjectSnapshot, JobStatus, MediaAsset, MediaMetadataStatus,
     MediaProxyStatus, MontageClip, MontageProject, MontageSettings, Page, RecordedClip, TrackKind,
@@ -164,6 +165,14 @@ pub(crate) fn router() -> Router<AppState> {
             get(stream_asset).head(head_asset),
         )
         .route("/api/v1/media/assets/{id}/waveform", get(asset_waveform))
+        .route(
+            "/api/v1/media/assets/{id}/audio-analysis",
+            get(asset_audio_analysis),
+        )
+        .route(
+            "/api/v1/media/audio/align-clips",
+            post(align_clips_to_beats),
+        )
         .route(
             "/api/v1/media/assets/{id}/extract-audio",
             post(extract_asset_audio),
@@ -2829,6 +2838,41 @@ async fn asset_waveform(
     }))
 }
 
+async fn asset_audio_analysis(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    ApiQuery(options): ApiQuery<AudioAnalysisOptions>,
+) -> ApiResult<Json<AudioAnalysis>> {
+    let asset = state
+        .storage
+        .get_asset(parse_id(&id)?)
+        .await?
+        .ok_or_else(|| ApiError::not_found("media asset"))?;
+    if !asset.has_audio && !asset.kind.starts_with("audio") {
+        return Err(ApiError::invalid(
+            "audio analysis requires a media asset with an audio stream",
+        ));
+    }
+    state
+        .media
+        .analyze_audio(PathBuf::from(asset.path), options)
+        .await
+        .map(Json)
+        .map_err(Into::into)
+}
+
+async fn align_clips_to_beats(
+    State(state): State<AppState>,
+    ApiJson(request): ApiJson<BeatAlignmentRequest>,
+) -> ApiResult<Json<BeatAlignmentDraft>> {
+    state
+        .media
+        .align_clips_to_beats(request)
+        .await
+        .map(Json)
+        .map_err(Into::into)
+}
+
 async fn extract_asset_audio(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -3716,6 +3760,9 @@ mod tests {
         release: tokio::sync::Notify,
     }
 
+    #[derive(Debug, Default)]
+    struct AudioIntelligenceMedia;
+
     #[async_trait::async_trait]
     impl crate::MediaPort for FailingMedia {
         async fn probe(
@@ -3894,6 +3941,59 @@ mod tests {
             self.started.notify_one();
             self.release.notified().await;
             Ok(())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::MediaPort for AudioIntelligenceMedia {
+        async fn probe(
+            &self,
+            _path: PathBuf,
+        ) -> Result<crate::ProbedMediaMetadata, vibe_cs_domain::DomainError> {
+            Ok(crate::ProbedMediaMetadata::default())
+        }
+
+        async fn waveform(
+            &self,
+            _path: PathBuf,
+            _buckets: usize,
+        ) -> Result<Vec<f32>, vibe_cs_domain::DomainError> {
+            Ok(Vec::new())
+        }
+
+        async fn analyze_audio(
+            &self,
+            _path: PathBuf,
+            options: AudioAnalysisOptions,
+        ) -> Result<AudioAnalysis, vibe_cs_domain::DomainError> {
+            Ok(AudioAnalysis {
+                duration_seconds: 8.0,
+                analysis_sample_rate: options.sample_rate,
+                bpm: Some(120.0),
+                tempo_confidence: 0.9,
+                beats: vec![vibe_cs_domain::AudioBeat {
+                    index: 0,
+                    time_seconds: 0.0,
+                    strength: 1.0,
+                    phrase_position: 1,
+                }],
+                onsets: Vec::new(),
+                energy: Vec::new(),
+                sections: Vec::new(),
+                limitations: vec!["test limitation".to_owned()],
+            })
+        }
+
+        async fn align_clips_to_beats(
+            &self,
+            request: BeatAlignmentRequest,
+        ) -> Result<BeatAlignmentDraft, vibe_cs_domain::DomainError> {
+            Ok(BeatAlignmentDraft {
+                advisory_only: true,
+                clips: Vec::new(),
+                unplaced_clip_ids: request.clips.into_iter().map(|clip| clip.clip_id).collect(),
+                constraints: vec!["advisory".to_owned()],
+            })
         }
     }
 
@@ -4440,6 +4540,82 @@ mod tests {
                 .len(),
             WAVEFORM_CACHE_BUCKETS
         );
+    }
+
+    #[tokio::test]
+    async fn audio_intelligence_handlers_return_analysis_and_advisory_drafts() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("bgm.wav");
+        tokio::fs::write(&path, b"audio").await.expect("media");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let id = Uuid::new_v4();
+        storage
+            .put_asset(MediaAsset {
+                id,
+                project_id: None,
+                path: path.to_string_lossy().into_owned(),
+                name: "bgm.wav".to_owned(),
+                kind: "audio/wav".to_owned(),
+                duration_seconds: Some(8.0),
+                width: None,
+                height: None,
+                file_size: 5,
+                has_audio: true,
+                proxy_path: None,
+                proxy_status: MediaProxyStatus::NotRequested,
+                waveform: None,
+                metadata_status: MediaMetadataStatus::Ready,
+                created_at: Utc::now(),
+            })
+            .await
+            .expect("asset");
+        let state = AppState::new(storage, directory.path().to_path_buf())
+            .with_media(Arc::new(AudioIntelligenceMedia));
+
+        let analysis = asset_audio_analysis(
+            State(state.clone()),
+            Path(id.to_string()),
+            ApiQuery(AudioAnalysisOptions::default()),
+        )
+        .await
+        .expect("analysis")
+        .0;
+        assert_eq!(analysis.bpm, Some(120.0));
+        assert_eq!(analysis.analysis_sample_rate, 11_025);
+        assert!(!analysis.limitations.is_empty());
+
+        let request = BeatAlignmentRequest {
+            beats: vec![
+                vibe_cs_domain::AudioBeat {
+                    index: 0,
+                    time_seconds: 0.0,
+                    strength: 1.0,
+                    phrase_position: 1,
+                },
+                vibe_cs_domain::AudioBeat {
+                    index: 1,
+                    time_seconds: 0.5,
+                    strength: 0.5,
+                    phrase_position: 2,
+                },
+            ],
+            clips: vec![vibe_cs_domain::BeatAlignmentClip {
+                clip_id: "highlight".to_owned(),
+                source_duration_seconds: 1.0,
+                minimum_duration_seconds: None,
+                maximum_duration_seconds: None,
+                preferred_beats: None,
+            }],
+            options: vibe_cs_domain::BeatAlignmentOptions::default(),
+        };
+        let draft = align_clips_to_beats(State(state), ApiJson(request))
+            .await
+            .expect("alignment")
+            .0;
+        assert!(draft.advisory_only);
+        assert_eq!(draft.unplaced_clip_ids, ["highlight"]);
     }
 
     #[tokio::test]

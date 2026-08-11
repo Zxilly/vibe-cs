@@ -7,7 +7,8 @@ use serde_json::Value;
 use uuid::Uuid;
 use vibe_cs_cosmetics::{CosmeticInspectionReport, RewriteReport, RewriteRequest};
 use vibe_cs_domain::{
-    DemoRecord, DomainError, ExportJob, HeatPoint, MatchAnalysis, RecordingJob, ReplayFrame,
+    AudioAnalysis, AudioAnalysisOptions, BeatAlignmentDraft, BeatAlignmentRequest, DemoRecord,
+    DomainError, ExportJob, HeatPoint, MatchAnalysis, RecordingJob, ReplayFrame,
 };
 
 #[async_trait]
@@ -342,6 +343,25 @@ pub struct MediaProxyRequest {
 pub trait MediaPort: Send + Sync + std::fmt::Debug {
     async fn probe(&self, path: PathBuf) -> Result<ProbedMediaMetadata, DomainError>;
     async fn waveform(&self, path: PathBuf, buckets: usize) -> Result<Vec<f32>, DomainError>;
+
+    async fn analyze_audio(
+        &self,
+        _path: PathBuf,
+        _options: AudioAnalysisOptions,
+    ) -> Result<AudioAnalysis, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "audio intelligence adapter".to_owned(),
+        ))
+    }
+
+    async fn align_clips_to_beats(
+        &self,
+        _request: BeatAlignmentRequest,
+    ) -> Result<BeatAlignmentDraft, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "beat alignment adapter".to_owned(),
+        ))
+    }
 
     async fn generate_proxy(
         &self,

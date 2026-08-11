@@ -563,7 +563,7 @@ async fn status(state: &AgentBridge) -> Result<AgentStatus, AgentCommandError> {
 async fn resolved_agent_config(
     state: &AgentBridge,
 ) -> Result<(vibe_cs_domain::AppConfig, String), AgentCommandError> {
-    let mut config = state
+    let config = state
         .storage
         .get_config()
         .await
@@ -571,6 +571,8 @@ async fn resolved_agent_config(
             AgentCommandError::internal(format!("unable to read agent configuration: {error}"))
         })?
         .unwrap_or_default();
+    #[cfg(debug_assertions)]
+    let mut config = config;
     #[cfg(debug_assertions)]
     let development_key = std::env::var("VIBE_CS_AGENT_API_KEY")
         .ok()

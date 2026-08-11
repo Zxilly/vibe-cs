@@ -36,6 +36,7 @@ export const agentRequestSchema = z.object({
     demo: z.unknown().nullable(),
     analysis: z.unknown().nullable(),
     editorProject: z.unknown().nullable(),
+    selectedAudio: z.unknown().nullable(),
     audioAnalysis: z.unknown().nullable(),
     beatAlignmentDraft: z.unknown().nullable(),
   }).strict(),

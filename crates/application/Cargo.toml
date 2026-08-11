@@ -9,6 +9,7 @@ license.workspace = true
 vibe-cs-cosmetics = { path = "../cosmetics" }
 vibe-cs-demo = { path = "../demo" }
 vibe-cs-domain = { path = "../domain" }
+vibe-cs-hlae = { path = "../hlae" }
 vibe-cs-recording = { path = "../recording" }
 vibe-cs-integrations = { path = "../integrations" }
 vibe-cs-media = { path = "../media" }

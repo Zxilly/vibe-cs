@@ -14,6 +14,9 @@ const context = {
     highlights: [{
       id: 'ace-1', kind: 'multi_kill', title: 'Ace', player_id: 'p1', round: 7,
       start_tick: 1_000, end_tick: 1_500, description: 'Five eliminations',
+    }, {
+      id: 'support-2', kind: 'clutch', title: 'Support clutch', player_id: 'p2', round: 7,
+      start_tick: 1_520, end_tick: 1_620, description: 'Clutch follow-up',
     }],
     insights: {
       round_economy: [{ round: 7, teams: [{ team: 'A', items: [{ name: 'ak47', count: 1 }] }] }],
@@ -21,36 +24,168 @@ const context = {
     },
   },
   editorProject: { id: 'project-1', revision: 3, tracks: [] },
+  selectedAudio: null,
   audioAnalysis: null,
   beatAlignmentDraft: null,
 };
 
 describe('Vibe CS agent tools', () => {
-  it('grounds edit plans in known highlight IDs', async () => {
+  it('binds beat drafts to the selected audio asset and placement', async () => {
+    const plans: never[] = [];
+    const draft = { advisory_only: true, clips: [{ clip_id: 'clip-1' }] };
+    const tools = createVibeTools({
+      ...context,
+      selectedAudio: {
+        assetId: 'audio-1',
+        placement: { timeline_start_seconds: 0, source_in_seconds: 0, volume: 1 },
+      },
+      beatAlignmentDraft: draft,
+    }, plans);
+    const result = await tools.draftBeatAlignment.execute?.(
+      { acknowledgeAdvisoryOnly: true },
+      {} as never,
+    );
+    expect(result).toEqual({ available: true, draft });
+    expect(plans).toEqual([{
+      kind: 'beat_alignment',
+      title: 'BGM beat alignment',
+      payload: {
+        project_id: 'project-1',
+        expected_revision: 3,
+        audio_asset_id: 'audio-1',
+        audio_placement: { timeline_start_seconds: 0, source_in_seconds: 0, volume: 1 },
+        draft,
+      },
+    }]);
+  });
+
+  it('rejects a partial highlight binding without enqueueing a reduced proposal', async () => {
     const plans: never[] = [];
     const tools = createVibeTools(context, plans);
     const result = await tools.draftEditPlan.execute?.({
-      highlightIds: ['ace-1', 'missing'], pacing: 'impact', includeContextSeconds: 2,
+      highlightIds: ['support-2', 'ace-1', 'missing'], pacing: 'impact', includeContextSeconds: 2,
+      transitionStyle: 'auto',
     }, {} as never);
-    expect(result).toMatchObject({ accepted: true, plan: { missingHighlightIds: ['missing'] } });
-    expect(plans).toHaveLength(1);
+    expect(result).toMatchObject({
+      accepted: false,
+      plan: {
+        clips: [],
+        missingHighlightIds: ['missing'],
+        duplicateHighlightIds: [],
+        rejectionReasons: ['Missing highlight evidence: missing'],
+      },
+    });
+    expect(plans).toEqual([]);
+  });
+
+  it('preserves exact highlight order only when every ID has one evidence match', async () => {
+    const plans: never[] = [];
+    const tools = createVibeTools(context, plans);
+    const result = await tools.draftEditPlan.execute?.({
+      highlightIds: ['support-2', 'ace-1'], pacing: 'impact', includeContextSeconds: 2,
+      transitionStyle: 'auto',
+    }, {} as never);
+    expect(result).toMatchObject({
+      accepted: true,
+      plan: {
+        clips: [
+          { sourceHighlightId: 'support-2', order: 0, transition: 'cut' },
+          { sourceHighlightId: 'ace-1', order: 1, startTick: 872, endTick: 1_628, transition: 'flash' },
+        ],
+        missingHighlightIds: [],
+        duplicateHighlightIds: [],
+        rejectionReasons: [],
+      },
+    });
+    expect(plans).toMatchObject([{
+      kind: 'highlight_edit',
+      payload: {
+        demo_id: 'demo-1',
+        highlight_ids: ['support-2', 'ace-1'],
+        intent: { pacing: 'impact', include_context_seconds: 2, transition: 'flash' },
+      },
+    }]);
+  });
+
+  it('rejects duplicate requested highlight IDs without enqueueing a proposal', async () => {
+    const plans: never[] = [];
+    const tools = createVibeTools(context, plans);
+    const result = await tools.draftEditPlan.execute?.({
+      highlightIds: ['ace-1', 'ace-1'], pacing: 'measured', includeContextSeconds: 1,
+      transitionStyle: 'fade',
+    }, {} as never);
+    expect(result).toMatchObject({
+      accepted: false,
+      plan: {
+        clips: [],
+        duplicateHighlightIds: ['ace-1'],
+        rejectionReasons: ['Duplicate requested highlight IDs: ace-1'],
+      },
+    });
+    expect(plans).toEqual([]);
   });
 
   it('emits only a typed HLAE intent and leaves camera compilation to Rust', async () => {
     const plans: never[] = [];
     const tools = createVibeTools(context, plans);
     const result = await tools.draftHlaePlan.execute?.({
-      highlightIds: ['ace-1'], cameraStyle: 'orbit', leadSeconds: 2, tailSeconds: 2,
+      highlightIds: ['support-2', 'ace-1'], cameraStyle: 'orbit', mode: 'capture', leadSeconds: 2, tailSeconds: 3,
     }, {} as never);
     expect(result).toMatchObject({
       accepted: true,
       missingEvidence: [],
       plan: {
-        demo_id: 'demo-1', highlight_ids: ['ace-1'], camera_style: 'orbit',
-        mode: 'preview', requiresUserReview: true,
+        demo_id: 'demo-1', highlight_ids: ['support-2', 'ace-1'], camera_style: 'orbit',
+        mode: 'capture', lead_seconds: 2, tail_seconds: 3, requiresUserReview: true,
+        rejectionReasons: [],
       },
     });
-    expect(plans).toMatchObject([{ kind: 'hlae', payload: { demo_id: 'demo-1', mode: 'preview' } }]);
+    expect(plans).toMatchObject([{
+      kind: 'hlae',
+      payload: {
+        demo_id: 'demo-1', highlight_ids: ['support-2', 'ace-1'],
+        mode: 'capture', lead_seconds: 2, tail_seconds: 3,
+      },
+    }]);
+  });
+
+  it('rejects a partial HLAE evidence binding without enqueueing a reduced proposal', async () => {
+    const plans: never[] = [];
+    const tools = createVibeTools(context, plans);
+    const result = await tools.draftHlaePlan.execute?.({
+      highlightIds: ['ace-1', 'missing'], cameraStyle: 'pov', mode: 'preview',
+      leadSeconds: 2, tailSeconds: 2,
+    }, {} as never);
+    expect(result).toMatchObject({
+      accepted: false,
+      missingEvidence: ['missing_highlight:missing'],
+      plan: {
+        highlight_ids: [],
+        missingHighlightIds: ['missing'],
+        duplicateHighlightIds: [],
+        rejectionReasons: ['Missing highlight evidence: missing'],
+      },
+    });
+    expect(plans).toEqual([]);
+  });
+
+  it('rejects duplicate HLAE highlight IDs without enqueueing a proposal', async () => {
+    const plans: never[] = [];
+    const tools = createVibeTools(context, plans);
+    const result = await tools.draftHlaePlan.execute?.({
+      highlightIds: ['ace-1', 'ace-1'], cameraStyle: 'dolly', mode: 'preview',
+      leadSeconds: 2, tailSeconds: 2,
+    }, {} as never);
+    expect(result).toMatchObject({
+      accepted: false,
+      missingEvidence: ['duplicate_highlight:ace-1'],
+      plan: {
+        highlight_ids: [],
+        duplicateHighlightIds: ['ace-1'],
+        rejectionReasons: ['Duplicate requested highlight IDs: ace-1'],
+      },
+    });
+    expect(plans).toEqual([]);
   });
 
   it('executes strict local round and event queries with evidence identifiers', async () => {

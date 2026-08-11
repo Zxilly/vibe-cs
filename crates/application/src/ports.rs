@@ -9,9 +9,10 @@ use vibe_cs_cosmetics::{CosmeticInspectionReport, RewriteReport, RewriteRequest}
 use vibe_cs_domain::{
     AgentProposalAction, AudioAnalysis, AudioAnalysisOptions, BeatAlignmentDraft,
     BeatAlignmentRequest, DemoRecord, DomainError, ExportJob, HeatPoint, HlaeProposalEvidence,
-    HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalPreview, MatchAnalysis, RecordingJob,
-    ReplayFrame,
+    HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalPreview, MatchAnalysis,
+    ProposalConfirmation, RecordingJob, ReplayFrame,
 };
+use vibe_cs_hlae::HlaeBundleLaunchInputs;
 
 #[async_trait]
 pub trait ProposalExecutionPort: Send + Sync + std::fmt::Debug {
@@ -37,10 +38,8 @@ pub trait ProposalExecutionPort: Send + Sync + std::fmt::Debug {
         &self,
         intent: &HlaeProposalIntent,
         evidence: &HlaeProposalEvidence,
-        expected_revision: u64,
-        base_fingerprint: &str,
-        proposal_fingerprint: &str,
-        confirmation_token: &str,
+        launch_inputs: &HlaeBundleLaunchInputs,
+        confirmation: &ProposalConfirmation,
     ) -> Result<HlaeProposalExportResult, DomainError>;
 
     /// Signs a proposal identity for an explicit UI confirmation round-trip.
@@ -93,10 +92,8 @@ impl ProposalExecutionPort for DisabledProposalExecutionPort {
         &self,
         _intent: &HlaeProposalIntent,
         _evidence: &HlaeProposalEvidence,
-        _expected_revision: u64,
-        _base_fingerprint: &str,
-        _proposal_fingerprint: &str,
-        _confirmation_token: &str,
+        _launch_inputs: &HlaeBundleLaunchInputs,
+        _confirmation: &ProposalConfirmation,
     ) -> Result<HlaeProposalExportResult, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "AI proposal execution adapter".to_owned(),

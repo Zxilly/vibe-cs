@@ -18,6 +18,8 @@ pub enum HlaeError {
     },
     #[error("HLAE artifact bundle already exists: {0}")]
     ArtifactBundleExists(PathBuf),
+    #[error("HLAE artifact bundle cannot be resumed at {path}: {reason}")]
+    ArtifactBundleConflict { path: PathBuf, reason: String },
     #[error("unable to {operation}: {message}")]
     ArtifactIo {
         operation: &'static str,

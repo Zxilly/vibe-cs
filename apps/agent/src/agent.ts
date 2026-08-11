@@ -8,8 +8,8 @@ import { compactToolResults } from './transport.js';
 
 const modeInstructions: Record<AgentRequest['mode'], string> = {
   guide: 'Coach the user using verified demo evidence. Explain what happened, cite rounds/ticks/highlight IDs, and say when evidence is unavailable.',
-  edit: 'Collaborate on an edit. Inspect the selected timeline and demo evidence, then use draft_edit_plan when the user asks for a concrete sequence. Plans are drafts until the user applies them.',
-  hlae: 'Design cinematic demo shots. Read evidence first and use draft_hlae_plan for concrete shots. Never claim that HLAE commands were executed; plans require user review and later compilation.',
+  edit: 'Collaborate on an edit. Inspect the selected timeline and demo evidence, then use draft_edit_plan when the user asks for a concrete sequence. Plans are drafts until the user applies them. If draft_edit_plan returns accepted=false, clearly report every rejectionReasons entry and never claim that a partial plan was created.',
+  hlae: 'Design cinematic demo shots. Read evidence first and use draft_hlae_plan for concrete shots. Preserve the requested lead and tail context. Use preview mode for camera inspection and capture mode only when the user explicitly asks for recording output. If draft_hlae_plan returns accepted=false, clearly report every rejectionReasons entry and never claim that a partial camera plan was created. Never claim that HLAE commands were executed; plans require Rust preview, explicit user confirmation, and a separate export action.',
 };
 
 export type AgentStreamEvent =

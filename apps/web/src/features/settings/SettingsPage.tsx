@@ -12,6 +12,7 @@ import {
   FolderCog,
   Gamepad2,
   HardDrive,
+  Clapperboard,
   Info,
   Languages,
   KeyRound,
@@ -41,6 +42,8 @@ import type {
   DetectedPaths,
   MediaProxyCleanup,
   MediaRuntimeStatus,
+  HlaeStatus,
+  LlmTestResult,
   ObsDiagnosis,
   ObsRecordStatus,
   QuickCheckResponse,
@@ -82,6 +85,7 @@ export const defaultConfig: AppConfig = {
   ffprobe_path: '',
   preferred_encoder: 'auto',
   cs2_path: '',
+  hlae_path: '',
   steam_path: '',
   steam: {
     steam_id: '',
@@ -449,8 +453,10 @@ function formatBytes(bytes: number): string {
 }
 
 function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: React.Dispatch<React.SetStateAction<AppConfig>> }) {
+  const { t } = useI18n();
   const [newPath, setNewPath] = useState('');
   const detectAction = useAsyncAction<DetectedPaths>();
+  const hlaeStatusAction = useAsyncAction<HlaeStatus>();
   const addWatchPaths = (paths: string[]) => {
     const normalized = paths.map((path) => path.trim()).filter(Boolean);
     if (normalized.length === 0) return;
@@ -468,11 +474,18 @@ function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: Rea
     setConfig((current) => ({
       ...current,
       cs2_path: detected.cs2_path ?? current.cs2_path,
+      hlae_path: detected.hlae_path ?? current.hlae_path,
       steam_path: detected.steam_path ?? current.steam_path,
       ffmpeg_path: detected.ffmpeg_path ?? current.ffmpeg_path,
       ffprobe_path: detected.ffprobe_path ?? current.ffprobe_path,
       obs: { ...current.obs, executable: detected.obs_path ?? current.obs.executable },
     }));
+  };
+  const checkHlae = async () => {
+    await hlaeStatusAction.run(
+      () => commands.checkHlaeStatus(config.hlae_path, config.cs2_path),
+      msg("m0511"),
+    );
   };
 
   return (
@@ -488,6 +501,32 @@ function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: Rea
           placeholder="C:\Program Files\...\cs2.exe"
           browse={{ kind: 'file', title: msg("m1217"), filters: [{ name: msg("m0081"), extensions: ['exe'] }] }}
         />
+        <PathField
+          icon={<Clapperboard size={15} />}
+          label="HLAE"
+          value={config.hlae_path}
+          onChange={(value) => setConfig((current) => ({ ...current, hlae_path: value }))}
+          placeholder="C:\\HLAE\\HLAE.exe"
+          browse={{ kind: 'file', title: t('settings.chooseHlae'), filters: [{ name: 'HLAE', extensions: ['exe'] }] }}
+        />
+        <div className="settings-inline-actions">
+          <Button size="sm" variant="secondary" disabled={hlaeStatusAction.state.status === 'loading'} onClick={() => void checkHlae()}>
+            {hlaeStatusAction.state.status === 'loading' ? <Spinner /> : <ShieldCheck size={13} />}{t('settings.checkHlae')}
+          </Button>
+          {hlaeStatusAction.state.data ? (
+            <Badge tone={hlaeStatusAction.state.data.available ? 'success' : 'warning'}>
+              {hlaeStatusAction.state.data.available ? t('settings.hlaeReady') : t('settings.hlaeMissing')}
+            </Badge>
+          ) : null}
+        </div>
+        {hlaeStatusAction.state.data ? (
+          <Notice tone={hlaeStatusAction.state.data.launch_profile_ready ? 'info' : 'warning'}>
+            {hlaeStatusAction.state.data.executable ?? hlaeStatusAction.state.data.messages[0]}
+            {' · '}{t('settings.hlaeSafety')}
+          </Notice>
+        ) : hlaeStatusAction.state.message ? (
+          <Notice tone="danger">{hlaeStatusAction.state.message}</Notice>
+        ) : null}
         <PathField
           icon={<Server size={15} />}
           label={msg("m0075")}
@@ -686,7 +725,7 @@ export function ObsDiagnosisDetails({
 }
 
 function AnalysisSettings({ config, source, updateLlm, clearLlmApiKey }: { config: AppConfig; source: SettingsSource; updateLlm: <K extends keyof AppConfig['llm']>(key: K, value: AppConfig['llm'][K]) => void; clearLlmApiKey: () => void }) {
-  const llmAction = useAsyncAction<unknown>();
+  const llmAction = useAsyncAction<LlmTestResult>();
   const cleanupAction = useAsyncAction<ReplayCacheCleanup>();
   const [cacheStatus, setCacheStatus] = useState<ReplayCacheStatus | null>(null);
   const [cacheError, setCacheError] = useState<string | null>(null);
@@ -740,11 +779,16 @@ function AnalysisSettings({ config, source, updateLlm, clearLlmApiKey }: { confi
       </SettingsSection>
       <SettingsSection eyebrow="OPTIONAL ASSISTANCE" title={msg("m1179")} description={msg("m0340")}>
         <Notice tone="info">{msg("m0150")}</Notice>
-        <div className="field-row"><Field label={msg("m0664")}><select value={config.llm.provider} onChange={(event) => updateLlm('provider', event.target.value)}><option value="">{msg("m0772")}</option><option value="openai-compatible">{msg("m0066")}</option><option value="local">{msg("m0796")}</option></select></Field><Field label={msg("m0834")}><TextInput value={config.llm.model} onChange={(event) => updateLlm('model', event.target.value)} placeholder={msg("m0835")} /></Field></div>
+        <div className="field-row"><Field label={msg("m0664")}><select value={config.llm.provider} onChange={(event) => updateLlm('provider', event.target.value)}><option value="">{msg("m0772")}</option><option value="kimi-code">Kimi Code</option><option value="openai-compatible">{msg("m0066")}</option><option value="local">{msg("m0796")}</option></select></Field><Field label={msg("m0834")}><TextInput value={config.llm.model} onChange={(event) => updateLlm('model', event.target.value)} placeholder={msg("m0835")} /></Field></div>
         <Field label={msg("m0745")} hint={config.llm.provider === 'local' ? msg("m0785") : msg("m1206")}><TextInput value={config.llm.base_url} onChange={(event) => updateLlm('base_url', event.target.value)} placeholder={config.llm.provider === 'local' ? 'http://127.0.0.1:11434/v1' : 'https://.../v1'} /></Field>
         <Field label={msg("m0024")} hint={config.llm_has_api_key ? msg("m0493") : undefined}><TextInput type="password" value={config.llm.api_key} onChange={(event) => updateLlm('api_key', event.target.value)} autoComplete="new-password" placeholder={config.llm_has_api_key ? msg("m0508") : undefined} /></Field>
         <div className="field-row"><Button disabled={!canTest || llmAction.state.status === 'loading'} onClick={() => void llmAction.run(() => commands.testLlm(config.llm), msg("m1180"))}>{llmAction.state.status === 'loading' ? <Spinner /> : <Radio size={14} />}{msg("m0909")}</Button><Button variant="danger" disabled={!config.llm_has_api_key && !config.llm.api_key} onClick={clearLlmApiKey}><Trash2 size={14} />{msg("m0930")}</Button></div>
         {llmAction.state.message ? <Notice tone={llmAction.state.status === 'error' ? 'danger' : 'success'}>{llmAction.state.message}</Notice> : null}
+        {llmAction.state.status === 'success' ? (
+          <Notice tone="success">
+            {llmAction.state.data.provider} · {llmAction.state.data.model} · Chat / Stream / Tools
+          </Notice>
+        ) : null}
       </SettingsSection>
     </div>
   );

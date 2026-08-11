@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use vibe_cs_hlae::{
-    CompiledHlaePlan, ExportedHlaePlan, HlaeDiscovery, HlaeError, HlaeLaunchProfile, HlaeNotice,
-    HlaePlan, LaunchResolution, build_hlae_launch_profile, compile_hlae_plan, discover_hlae,
-    export_hlae_plan, validate_hlae_plan,
+    CompiledHlaePlan, ExportedHlaePlan, HlaeBundleLaunchInputs, HlaeDiscovery, HlaeError,
+    HlaeLaunchProfile, HlaeNotice, HlaePlan, LaunchResolution, build_hlae_launch_profile,
+    compile_hlae_plan, discover_hlae, export_hlae_plan, validate_hlae_plan,
 };
 
 /// Process-free HLAE adapter used by desktop commands and AI tool boundaries.
@@ -51,8 +51,9 @@ impl RuntimeHlaePort {
         plan: &HlaePlan,
         managed_root: &Path,
         bundle_name: &str,
+        launch_inputs: &HlaeBundleLaunchInputs,
     ) -> Result<ExportedHlaePlan, HlaeError> {
-        export_hlae_plan(plan, managed_root, bundle_name)
+        export_hlae_plan(plan, managed_root, bundle_name, launch_inputs)
     }
 
     /// Produces fixed official custom-loader fields with `-insecure` enforced.

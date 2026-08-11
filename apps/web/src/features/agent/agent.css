@@ -59,6 +59,11 @@
 .agent-proposal-details__artifacts { display: grid; min-width: 0; gap: 4px; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .agent-proposal-details__artifacts li { overflow-wrap: anywhere; }
 .agent-proposal-card__actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.agent-proposal-details--exported { border-color: color-mix(in srgb,var(--green) 40%,var(--border)); background: color-mix(in srgb,var(--green) 7%,var(--surface-2)); }
+.agent-proposal-details__export-heading { display: flex; align-items: center; gap: 8px; color: var(--green); }
+.agent-proposal-details__export-heading > div { display: grid; gap: 2px; }
+.agent-proposal-details__export-heading span { color: var(--muted); font-size: 11px; }
+.agent-proposal-details__export-files { display: grid; max-height: 150px; margin: 0; padding-left: 18px; overflow: auto; color: var(--muted); font: 10px/1.5 var(--font-mono); overflow-wrap: anywhere; }
 .agent-activity pre { max-height: 140px; margin: 8px 0 0; padding: 9px; overflow: auto; border-radius: 6px; background: var(--surface-2); color: var(--text-soft); font: 11px/1.45 var(--font-mono); white-space: pre-wrap; }
 .agent-activity > .notice { margin-top: auto; }
 @media (max-width: 1050px) { .agent-workspace { grid-template-columns: 1fr; }.agent-activity { max-height: 380px; }.agent-context__grid { grid-template-columns: 1fr 1fr; }.agent-context__status .is-unavailable, .agent-context__status .is-ready { width: 100%; margin-left: 0; } }

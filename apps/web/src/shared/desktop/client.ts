@@ -55,6 +55,8 @@ import type {
   HlaeProposalExportResult,
   HlaeProposalIntent,
   HlaeProposalPreview,
+  HlaeStatus,
+  HlaeBundleHandoff,
   ProposalConfirmation,
   EditorExportOptions,
   EditorAudioSeparation,
@@ -63,6 +65,7 @@ import type {
   EditorProject,
   LlmReviewRequest,
   LlmReviewResult,
+  LlmTestResult,
   MatchAnalysisRecord,
   MatchHistoryItem,
   MatchHistorySyncResult,
@@ -385,7 +388,14 @@ export const commands = {
     request<BeatAlignmentProposalPreview>('/agent/proposals/beat-alignment/preview', { method: 'POST', body }),
   applyBeatAlignmentProposal: (body: BeatAlignmentProposalRequest, confirmation: ProposalConfirmation) =>
     request<BeatAlignmentApplyResult>('/agent/proposals/beat-alignment/apply', {
-      method: 'POST', body: { project_id: body.project_id, draft: body.draft, ...confirmation },
+      method: 'POST',
+      body: {
+        project_id: body.project_id,
+        audio_asset_id: body.audio_asset_id,
+        audio_placement: body.audio_placement,
+        draft: body.draft,
+        ...confirmation,
+      },
     }),
   previewHighlightEditProposal: (body: HighlightEditProposalRequest) =>
     request<HighlightEditProposalPreview>('/agent/proposals/highlight-edit/preview', { method: 'POST', body }),
@@ -788,6 +798,13 @@ export const commands = {
     }),
   getConfig: (signal?: AbortSignal) => request<AppConfig>('/config', { signal }),
   detectPaths: () => request<DetectedPaths>('/config/detect-paths', { method: 'POST', body: {} }),
+  getHlaeStatus: (signal?: AbortSignal) => request<HlaeStatus>('/hlae/status', { signal }),
+  checkHlaeStatus: (hlaePath: string, cs2Path: string) => request<HlaeStatus>('/hlae/status', {
+    method: 'POST', body: { hlae_path: hlaePath, cs2_path: cs2Path },
+  }),
+  listHlaeBundles: () => invoke<HlaeBundleHandoff[]>('list_hlae_bundles'),
+  revealHlaeBundle: (bundleDirectory: string) =>
+    invoke<HlaeBundleHandoff>('reveal_hlae_bundle', { bundleDirectory }),
   mediaRuntimeStatus: (signal?: AbortSignal) =>
     request<MediaRuntimeStatus>('/media-runtime', { signal }),
   storageStatus: (signal?: AbortSignal) => request<StorageStatus>('/storage/status', { signal }),
@@ -821,7 +838,7 @@ export const commands = {
       { method: 'DELETE' },
     ),
   testLlm: (llm: AppConfig['llm']) =>
-    request<unknown>('/llm/test', { method: 'POST', body: llm }),
+    request<LlmTestResult>('/llm/test', { method: 'POST', body: llm }),
   listMatchHistory: (page = 1, pageSize = 50, signal?: AbortSignal) =>
     request<Paginated<MatchHistoryItem>>(
       `/match-history/matches${queryString({ page, page_size: pageSize })}`,

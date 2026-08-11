@@ -9,7 +9,6 @@ use crate::{
 
 const COMMAND_FILE_NAME: &str = "vibe_cs_commands.xml";
 const BOOTSTRAP_FILE_NAME: &str = "vibe_cs_hlae.cfg";
-const CS2_TICKS_PER_SECOND: f64 = 64.0;
 const MAXIMUM_COMPILED_ARTIFACT_BYTES: usize = 16 * 1024 * 1024;
 
 /// Compiles a validated plan into reviewable text artifacts without writing or executing them.
@@ -43,7 +42,7 @@ pub fn compile_hlae_plan(
             GeneratedArtifact {
                 path,
                 media_type: "application/xml".to_owned(),
-                contents: compile_camera_path(shot),
+                contents: compile_camera_path(shot, plan.tick_rate),
             }
         })
         .collect::<Vec<_>>();
@@ -174,7 +173,7 @@ pub fn build_hlae_launch_profile(
     })
 }
 
-fn compile_camera_path(shot: &CameraShot) -> String {
+fn compile_camera_path(shot: &CameraShot, tick_rate: f64) -> String {
     let position = match shot.position_interpolation {
         PositionInterpolation::Linear => "linear",
         PositionInterpolation::Cubic => "cubic",
@@ -190,7 +189,7 @@ fn compile_camera_path(shot: &CameraShot) -> String {
     );
     for keyframe in &shot.keyframes {
         let relative_tick = u32::try_from(keyframe.tick - shot.start_tick).unwrap_or(u32::MAX);
-        let time = f64::from(relative_tick) / CS2_TICKS_PER_SECOND;
+        let time = f64::from(relative_tick) / tick_rate;
         writeln!(
             xml,
             "<p t=\"{time:.6}\" x=\"{:.6}\" y=\"{:.6}\" z=\"{:.6}\" fov=\"{:.6}\" rx=\"{:.6}\" ry=\"{:.6}\" rz=\"{:.6}\" />",
@@ -336,6 +335,7 @@ mod tests {
         HlaePlan {
             schema_version: HLAE_PLAN_SCHEMA_VERSION,
             mode,
+            tick_rate: 64.0,
             demo_path: PathBuf::from("match.dem"),
             output_directory: output,
             pre_roll_ticks: 128,
@@ -427,6 +427,16 @@ mod tests {
         let xml = &compiled.camera_paths[0].contents;
         assert!(xml.contains("t=\"1.562500\""));
         assert!(xml.contains("rx=\"6.000000\" ry=\"4.000000\" rz=\"5.000000\""));
+    }
+
+    #[test]
+    fn camera_xml_uses_the_demo_tick_rate() {
+        let root = tempfile::tempdir().unwrap();
+        let mut plan = plan(HlaePlanMode::Preview, root.path().join("capture"));
+        plan.tick_rate = 128.0;
+        let compiled = compile_hlae_plan(&plan, root.path()).unwrap();
+
+        assert!(compiled.camera_paths[0].contents.contains("t=\"0.781250\""));
     }
 
     #[test]

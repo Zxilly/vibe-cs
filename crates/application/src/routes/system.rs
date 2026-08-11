@@ -1,4 +1,8 @@
-use std::{convert::Infallible, io, path::Path};
+use std::{
+    convert::Infallible,
+    io,
+    path::{Path, PathBuf},
+};
 
 use axum::{
     Json, Router,
@@ -11,7 +15,10 @@ use futures_util::stream;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
-use vibe_cs_domain::{AppConfig, DependencyStatus, SetupStatus};
+use vibe_cs_domain::{AppConfig, DependencyStatus, HlaeStatus, SetupStatus};
+use vibe_cs_hlae::{
+    HlaeBundleLaunchInputs, LaunchResolution, build_hlae_launch_profile, discover_hlae,
+};
 use vibe_cs_integrations::discover_paths;
 use vibe_cs_media::{NativeFfmpegInfo, native_ffmpeg_info};
 use walkdir::WalkDir;
@@ -25,6 +32,10 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/v1/config", get(get_config).put(put_config))
         .route("/api/v1/config/detect-paths", post(detect_paths))
         .route("/api/v1/config/quick-check", get(quick_check))
+        .route(
+            "/api/v1/hlae/status",
+            get(hlae_status).post(check_hlae_status),
+        )
         .route("/api/v1/media-runtime", get(media_runtime_status))
         .route("/api/v1/storage/status", get(storage_status))
         .route("/api/v1/status/setup", get(setup_status))
@@ -121,6 +132,7 @@ fn directory_usage(root: &Path, maximum_entries: usize) -> DirectoryUsage {
 )]
 struct DetectedPathsResponse {
     cs2_path: Option<String>,
+    hlae_path: Option<String>,
     steam_path: Option<String>,
     obs_path: Option<String>,
     ffmpeg_path: Option<String>,
@@ -129,7 +141,10 @@ struct DetectedPathsResponse {
 
 async fn detect_paths(State(state): State<AppState>) -> ApiResult<Json<DetectedPathsResponse>> {
     let config = state.storage.get_config().await?.unwrap_or_default();
-    let paths = tokio::task::spawn_blocking(move || discover_paths(&config))
+    let configured_hlae =
+        (!config.hlae_path.trim().is_empty()).then(|| std::path::PathBuf::from(&config.hlae_path));
+    let discovery_config = config.clone();
+    let paths = tokio::task::spawn_blocking(move || discover_paths(&discovery_config))
         .await
         .map_err(|error| {
             crate::ApiError::new(
@@ -138,13 +153,170 @@ async fn detect_paths(State(state): State<AppState>) -> ApiResult<Json<DetectedP
                 format!("dependency discovery task failed: {error}"),
             )
         })?;
+    let hlae = tokio::task::spawn_blocking(move || discover_hlae(configured_hlae.as_deref()))
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "hlae_discovery_failed",
+                format!("HLAE discovery task failed: {error}"),
+            )
+        })?;
     Ok(Json(DetectedPathsResponse {
         cs2_path: lossy_path(paths.cs2.as_deref()),
+        hlae_path: hlae
+            .installation
+            .as_ref()
+            .map(|installation| installation.executable.to_string_lossy().into_owned()),
         steam_path: lossy_path(paths.steam.as_deref()),
         obs_path: lossy_path(paths.obs.as_deref()),
         ffmpeg_path: lossy_path(paths.ffmpeg.as_deref()),
         ffprobe_path: lossy_path(paths.ffprobe.as_deref()),
     }))
+}
+
+async fn hlae_status(State(state): State<AppState>) -> ApiResult<Json<HlaeStatus>> {
+    Ok(Json(current_hlae_status(&state).await?))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct HlaeStatusRequest {
+    hlae_path: String,
+    cs2_path: String,
+}
+
+async fn check_hlae_status(
+    State(state): State<AppState>,
+    ApiJson(request): ApiJson<HlaeStatusRequest>,
+) -> ApiResult<Json<HlaeStatus>> {
+    let config = AppConfig {
+        hlae_path: request.hlae_path,
+        cs2_path: request.cs2_path,
+        ..AppConfig::default()
+    };
+    validate_hlae_paths(&config)?;
+    let profile_root = state.data_dir().join("hlae-plans");
+    let status = tokio::task::spawn_blocking(move || build_hlae_status(&config, &profile_root))
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "hlae_status_failed",
+                format!("HLAE status task failed: {error}"),
+            )
+        })?;
+    Ok(Json(status))
+}
+
+pub(super) async fn current_hlae_status(state: &AppState) -> ApiResult<HlaeStatus> {
+    let config = state.storage.get_config().await?.unwrap_or_default();
+    let profile_root = state.data_dir().join("hlae-plans");
+    let status = tokio::task::spawn_blocking(move || build_hlae_status(&config, &profile_root))
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "hlae_status_failed",
+                format!("HLAE status task failed: {error}"),
+            )
+        })?;
+    Ok(status)
+}
+
+pub(super) async fn current_hlae_launch_inputs(
+    state: &AppState,
+) -> ApiResult<Option<HlaeBundleLaunchInputs>> {
+    let config = state.storage.get_config().await?.unwrap_or_default();
+    tokio::task::spawn_blocking(move || resolve_hlae_launch_inputs(&config))
+        .await
+        .map_err(|error| {
+            ApiError::new(
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "hlae_status_failed",
+                format!("HLAE launch input task failed: {error}"),
+            )
+        })
+}
+
+fn resolve_hlae_launch_inputs(config: &AppConfig) -> Option<HlaeBundleLaunchInputs> {
+    let configured = (!config.hlae_path.trim().is_empty()).then(|| Path::new(&config.hlae_path));
+    let installation = discover_hlae(configured).installation?;
+    let game_executable = PathBuf::from(&config.cs2_path);
+    if !game_executable.is_file()
+        || !game_executable
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case("cs2.exe"))
+    {
+        return None;
+    }
+    Some(HlaeBundleLaunchInputs {
+        installation,
+        game_executable,
+        resolution: LaunchResolution {
+            width: 1920,
+            height: 1080,
+        },
+    })
+}
+
+fn build_hlae_status(config: &AppConfig, profile_root: &Path) -> HlaeStatus {
+    let configured_path = (!config.hlae_path.trim().is_empty()).then(|| config.hlae_path.clone());
+    let configured = configured_path.as_deref().map(Path::new);
+    let discovery = discover_hlae(configured);
+    let installation = discovery.installation.as_ref();
+    let cs2 = (!config.cs2_path.trim().is_empty())
+        .then(|| Path::new(&config.cs2_path))
+        .filter(|path| {
+            path.is_file()
+                && path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.eq_ignore_ascii_case("cs2.exe"))
+        });
+    let launch_inputs = resolve_hlae_launch_inputs(config);
+    let launch_profile_ready = launch_inputs.as_ref().is_some_and(|inputs| {
+        build_hlae_launch_profile(
+            &inputs.installation,
+            &inputs.game_executable,
+            profile_root,
+            inputs.resolution,
+        )
+        .is_ok()
+    });
+    let mut messages = discovery.messages;
+    if installation.is_some() && cs2.is_none() {
+        messages.push(
+            "CS2.exe is required before a typed HLAE launch profile can be prepared".to_owned(),
+        );
+    }
+    messages.push(
+        "Automatic launch is disabled; exported plans are for offline demo playback with -insecure only"
+            .to_owned(),
+    );
+    HlaeStatus {
+        available: installation.is_some(),
+        configured_path,
+        executable: installation.map(|value| value.executable.to_string_lossy().into_owned()),
+        source2_hook: installation.map(|value| value.source2_hook.to_string_lossy().into_owned()),
+        source: installation.map(|value| match value.source {
+            vibe_cs_hlae::HlaeDiscoverySource::Configured => "configured".to_owned(),
+            vibe_cs_hlae::HlaeDiscoverySource::CommonLocation => "common_location".to_owned(),
+        }),
+        checked_locations: discovery
+            .checked_locations
+            .into_iter()
+            .map(|path| path.to_string_lossy().into_owned())
+            .collect(),
+        messages,
+        cs2_executable: cs2.map(|path| path.to_string_lossy().into_owned()),
+        launch_profile_ready,
+        automatic_launch_enabled: false,
+        insecure_mode_required: true,
+        vac_servers_prohibited: true,
+        demo_playback_only: true,
+    }
 }
 
 fn lossy_path(path: Option<&Path>) -> Option<String> {
@@ -248,6 +420,7 @@ struct ConfigDto {
     data_dir: String,
     ffprobe_path: String,
     cs2_path: String,
+    hlae_path: String,
     steam_path: String,
     steam: vibe_cs_domain::SteamConfig,
     steam_has_web_api_key: bool,
@@ -298,6 +471,7 @@ impl From<AppConfig> for ConfigDto {
             data_dir: config.data_dir,
             ffprobe_path: config.ffprobe_path,
             cs2_path: config.cs2_path,
+            hlae_path: config.hlae_path,
             steam_path: config.steam_path,
             steam,
             steam_has_web_api_key,
@@ -417,6 +591,7 @@ fn validate_config(config: &AppConfig) -> ApiResult<()> {
             "at most 64 demo watch directories may be configured",
         ));
     }
+    validate_hlae_paths(config)?;
     if config
         .demo_watch_paths
         .iter()
@@ -562,6 +737,32 @@ fn validate_config(config: &AppConfig) -> ApiResult<()> {
     {
         return Err(crate::ApiError::invalid(
             "Steam match sharing code must use the CSGO-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx format",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_hlae_paths(config: &AppConfig) -> ApiResult<()> {
+    if !config.hlae_path.is_empty()
+        && (config.hlae_path.trim() != config.hlae_path
+            || !Path::new(&config.hlae_path).is_absolute()
+            || config.hlae_path.chars().any(char::is_control)
+            || !Path::new(&config.hlae_path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.eq_ignore_ascii_case("HLAE.exe")))
+    {
+        return Err(ApiError::invalid(
+            "HLAE path must be a normalized absolute path ending in HLAE.exe",
+        ));
+    }
+    if !config.cs2_path.is_empty()
+        && (!Path::new(&config.cs2_path).is_absolute()
+            || config.cs2_path.trim() != config.cs2_path
+            || config.cs2_path.chars().any(char::is_control))
+    {
+        return Err(ApiError::invalid(
+            "CS2 path must be a normalized absolute path",
         ));
     }
     Ok(())
@@ -838,11 +1039,40 @@ mod tests {
         let config = AppConfig {
             locale: "en-US".to_owned(),
             cs2_path: "C:/Game/game.exe".to_owned(),
+            hlae_path: "C:/HLAE/HLAE.exe".to_owned(),
             ..AppConfig::default()
         };
         let dto = ConfigDto::from(config);
         assert_eq!(dto.language, "en-US");
         assert_eq!(dto.game_path, "C:/Game/game.exe");
+        assert_eq!(dto.hlae_path, "C:/HLAE/HLAE.exe");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn hlae_status_reports_inputs_without_enabling_launch() {
+        let temporary = tempfile::tempdir().unwrap();
+        let hlae = temporary.path().join("HLAE.exe");
+        let hook = temporary.path().join("x64/AfxHookSource2.dll");
+        let cs2 = temporary.path().join("cs2.exe");
+        std::fs::create_dir_all(hook.parent().unwrap()).unwrap();
+        for path in [&hlae, &hook, &cs2] {
+            std::fs::write(path, b"fixture").unwrap();
+        }
+        let config = AppConfig {
+            hlae_path: hlae.to_string_lossy().into_owned(),
+            cs2_path: cs2.to_string_lossy().into_owned(),
+            ..AppConfig::default()
+        };
+
+        let status = build_hlae_status(&config, temporary.path());
+
+        assert!(status.available);
+        assert!(status.launch_profile_ready);
+        assert!(!status.automatic_launch_enabled);
+        assert!(status.insecure_mode_required);
+        assert!(status.vac_servers_prohibited);
+        assert!(status.demo_playback_only);
     }
 
     #[test]

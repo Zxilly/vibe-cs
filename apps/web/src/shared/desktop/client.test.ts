@@ -114,6 +114,7 @@ describe('desktop command client', () => {
     const intent = {
       demo_id: '00000000-0000-4000-8000-000000000001',
       highlight_ids: ['h-1'], camera_style: 'orbit' as const, mode: 'preview' as const,
+      lead_seconds: 2.5, tail_seconds: 2,
     };
     await commands.previewHlaeProposal(intent);
     await commands.exportHlaeProposal(intent, {
@@ -129,6 +130,26 @@ describe('desktop command client', () => {
         body: { intent, confirm: true, confirmation_token: 'token' },
       },
     });
+  });
+
+  it('keeps HLAE discovery and bundle reveal behind typed desktop boundaries', async () => {
+    invokeMock.mockResolvedValue([]);
+
+    await commands.checkHlaeStatus('C:/HLAE/HLAE.exe', 'C:/Steam/cs2.exe');
+    await commands.listHlaeBundles();
+    await commands.revealHlaeBundle('C:/Vibe CS/hlae-plans/proposal_0123456789abcdef0123456789abcdef');
+
+    expect(invokeMock.mock.calls[0]).toEqual(['desktop_call', {
+      call: {
+        method: 'post',
+        path: '/hlae/status',
+        body: { hlae_path: 'C:/HLAE/HLAE.exe', cs2_path: 'C:/Steam/cs2.exe' },
+      },
+    }]);
+    expect(invokeMock.mock.calls[1]).toEqual(['list_hlae_bundles']);
+    expect(invokeMock.mock.calls[2]).toEqual(['reveal_hlae_bundle', {
+      bundleDirectory: 'C:/Vibe CS/hlae-plans/proposal_0123456789abcdef0123456789abcdef',
+    }]);
   });
 });
 

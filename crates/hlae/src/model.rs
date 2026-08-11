@@ -3,7 +3,13 @@ use std::{collections::BTreeMap, path::PathBuf};
 use serde::{Deserialize, Serialize};
 
 /// Current stable JSON contract understood by the HLAE planner.
-pub const HLAE_PLAN_SCHEMA_VERSION: u32 = 1;
+pub const HLAE_PLAN_SCHEMA_VERSION: u32 = 2;
+/// Current integrity-manifest contract for a completed exported bundle.
+pub const HLAE_BUNDLE_MANIFEST_SCHEMA_VERSION: u32 = 1;
+pub const HLAE_BUNDLE_MANIFEST_FILE: &str = "vibe_cs_bundle.complete.json";
+pub const HLAE_BUNDLE_MANIFEST_PRODUCER: &str = "vibe-cs-hlae";
+pub const HLAE_BUNDLE_README_FILE: &str = "README.txt";
+pub const HLAE_BUNDLE_LAUNCH_PROFILE_FILE: &str = "vibe_cs_launch_profile.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -144,6 +150,9 @@ impl Default for CaptureSettings {
 pub struct HlaePlan {
     pub schema_version: u32,
     pub mode: HlaePlanMode,
+    /// Tick rate parsed from the selected demo. Camera times are derived from
+    /// this evidence instead of assuming a 64 tick demo.
+    pub tick_rate: f64,
     /// Existing local `.dem` file selected by the user.
     pub demo_path: PathBuf,
     /// Absolute output directory consumed by HLAE's recording system.
@@ -200,6 +209,47 @@ pub struct ExportedHlaePlan {
     pub files: Vec<PathBuf>,
     pub completion_marker: PathBuf,
     pub compiled: CompiledHlaePlan,
+}
+
+/// One immutable artifact covered by the bundle completion manifest.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HlaeBundleArtifactManifest {
+    /// Safe direct-child path relative to the bundle directory.
+    pub path: String,
+    pub size: u64,
+    /// Lower-case SHA-256 encoded as exactly 64 hexadecimal characters.
+    pub sha256: String,
+}
+
+/// Written and synchronized only after every planner artifact is durable.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HlaeBundleManifest {
+    pub schema_version: u32,
+    pub state: String,
+    pub producer: String,
+    pub artifacts: Vec<HlaeBundleArtifactManifest>,
+}
+
+/// Trusted local inputs used to produce a typed, process-free handoff.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HlaeBundleLaunchInputs {
+    pub installation: HlaeInstallation,
+    pub game_executable: PathBuf,
+    pub resolution: LaunchResolution,
+}
+
+/// Reviewable launch fields and offline-only consumption instructions.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct HlaeBundleLaunchHandoff {
+    pub schema_version: u32,
+    pub launch_profile: HlaeLaunchProfile,
+    pub demo_path: PathBuf,
+    pub bootstrap_config: String,
+    pub instructions: Vec<String>,
 }
 
 /// Values to enter into HLAE's official CS2 launcher / custom loader UI.

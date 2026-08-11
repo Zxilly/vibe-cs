@@ -428,6 +428,17 @@ mod tests {
                 .lock()
                 .await
                 .push((capability.to_owned(), request));
+            if capability == "llm_test" {
+                return Ok(json!({
+                    "ok": true,
+                    "capabilities": {
+                        "protocol": "openai_chat_completions",
+                        "chat": true,
+                        "stream": true,
+                        "tools": true
+                    }
+                }));
+            }
             Ok(json!({ "accepted": true }))
         }
     }
@@ -554,9 +565,12 @@ mod tests {
         let _ = obs_test(State(state.clone()), ApiJson(obs_request.clone()))
             .await
             .expect("OBS test request");
-        let _ = llm_test(State(state), ApiJson(llm_request.clone()))
+        let llm_response = llm_test(State(state), ApiJson(llm_request.clone()))
             .await
             .expect("LLM test request");
+        assert_eq!(llm_response.0["capabilities"]["chat"], true);
+        assert_eq!(llm_response.0["capabilities"]["stream"], true);
+        assert_eq!(llm_response.0["capabilities"]["tools"], true);
 
         let requests = integrations.requests.lock().await;
         assert_eq!(requests[0], ("obs_test".to_owned(), obs_request));

@@ -14,17 +14,18 @@ use vibe_cs_application::ProposalExecutionPort;
 use vibe_cs_domain::{
     AGENT_PROPOSAL_SCHEMA_VERSION, AgentProposalAction, DomainError, HlaeCameraStyle,
     HlaeProposalEvidence, HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalMode,
-    HlaeProposalPreview, ProposalPrerequisite, ReplayPlayer,
+    HlaeProposalPreview, ProposalConfirmation, ProposalPrerequisite, ReplayPlayer,
 };
 use vibe_cs_hlae::{
     CameraKeyframe, CameraPosition, CameraRotation, CameraShot, CaptureSettings,
-    HLAE_PLAN_SCHEMA_VERSION, HlaePlan, HlaePlanMode, PositionInterpolation, RotationInterpolation,
-    compile_hlae_plan, export_hlae_plan, validate_hlae_plan,
+    HLAE_PLAN_SCHEMA_VERSION, HlaeBundleLaunchInputs, HlaePlan, HlaePlanMode,
+    PositionInterpolation, RotationInterpolation, compile_hlae_plan, export_hlae_plan,
+    validate_hlae_plan,
 };
 
 type ProposalHmac = Hmac<Sha256>;
 const CONFIRMATION_KEY_BYTES: usize = 32;
-const PROPOSAL_REVISION: u64 = 1;
+const PROPOSAL_REVISION: u64 = 2;
 const MAXIMUM_DEMO_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 const HASH_BUFFER_BYTES: usize = 1024 * 1024;
 
@@ -122,6 +123,7 @@ impl RuntimeProposalExecutionPort {
                 DomainError::Internal(format!("serialize compiled HLAE preview: {error}"))
             })?),
             notices,
+            installation_status: None,
         })
     }
 }
@@ -148,11 +150,13 @@ impl ProposalExecutionPort for RuntimeProposalExecutionPort {
         &self,
         intent: &HlaeProposalIntent,
         evidence: &HlaeProposalEvidence,
-        expected_revision: u64,
-        base_fingerprint: &str,
-        proposal_fingerprint: &str,
-        confirmation_token: &str,
+        launch_inputs: &HlaeBundleLaunchInputs,
+        confirmation: &ProposalConfirmation,
     ) -> Result<HlaeProposalExportResult, DomainError> {
+        let expected_revision = confirmation.expected_revision;
+        let base_fingerprint = &confirmation.base_fingerprint;
+        let proposal_fingerprint = &confirmation.proposal_fingerprint;
+        let confirmation_token = &confirmation.confirmation_token;
         if expected_revision != PROPOSAL_REVISION {
             return Err(DomainError::Conflict(format!(
                 "HLAE proposal is at revision {PROPOSAL_REVISION}"
@@ -193,8 +197,8 @@ impl ProposalExecutionPort for RuntimeProposalExecutionPort {
             DomainError::Internal(format!("create managed HLAE plan directory: {error}"))
         })?;
         let name = bundle_name(proposal_fingerprint);
-        let exported =
-            export_hlae_plan(&plan, &self.managed_root, &name).map_err(map_hlae_error)?;
+        let exported = export_hlae_plan(&plan, &self.managed_root, &name, launch_inputs)
+            .map_err(map_hlae_error)?;
         if !exported.completion_marker.is_file() {
             return Err(DomainError::Internal(
                 "HLAE export did not publish its completion marker".to_owned(),
@@ -407,6 +411,16 @@ fn build_evidence_plan(
             "Select between 1 and 16 analyzed highlights.",
         ));
     }
+    if !intent.lead_seconds.is_finite()
+        || !(0.5..=8.0).contains(&intent.lead_seconds)
+        || !intent.tail_seconds.is_finite()
+        || !(0.5..=8.0).contains(&intent.tail_seconds)
+    {
+        prerequisites.push(prerequisite(
+            "invalid_camera_context",
+            "HLAE lead and tail context must each be between 0.5 and 8 seconds.",
+        ));
+    }
     if !evidence.tick_rate.is_finite() || !(1.0..=256.0).contains(&evidence.tick_rate) {
         prerequisites.push(prerequisite(
             "missing_tick_rate",
@@ -435,15 +449,6 @@ fn build_evidence_plan(
         }
     }
     selected.sort_by_key(|highlight| highlight.start_tick);
-    if selected
-        .windows(2)
-        .any(|pair| pair[0].end_tick >= pair[1].start_tick)
-    {
-        prerequisites.push(prerequisite(
-            "overlapping_highlights",
-            "Selected highlights overlap; choose non-overlapping camera windows.",
-        ));
-    }
     if !prerequisites.is_empty() {
         return Ok(EvidencePlan::Prerequisites(prerequisites));
     }
@@ -451,10 +456,45 @@ fn build_evidence_plan(
     let mut shots = Vec::with_capacity(selected.len());
     let mut sampled_evidence = Vec::with_capacity(selected.len());
     for (shot_index, highlight) in selected.into_iter().enumerate() {
+        let Some(lead_ticks) = seconds_to_ticks(intent.lead_seconds, evidence.tick_rate) else {
+            prerequisites.push(prerequisite(
+                "invalid_camera_context",
+                "HLAE lead context cannot be represented in demo ticks.",
+            ));
+            continue;
+        };
+        let Some(tail_ticks) = seconds_to_ticks(intent.tail_seconds, evidence.tick_rate) else {
+            prerequisites.push(prerequisite(
+                "invalid_camera_context",
+                "HLAE tail context cannot be represented in demo ticks.",
+            ));
+            continue;
+        };
+        let window_start = highlight.start_tick.saturating_sub(lead_ticks);
+        let Some(window_end) = highlight.end_tick.checked_add(tail_ticks) else {
+            prerequisites.push(prerequisite(
+                "camera_window_overflow",
+                format!(
+                    "Highlight {} context exceeds the demo tick range.",
+                    highlight.id
+                ),
+            ));
+            continue;
+        };
+        if shots
+            .last()
+            .is_some_and(|previous: &CameraShot| previous.end_tick >= window_start)
+        {
+            prerequisites.push(prerequisite(
+                "overlapping_camera_windows",
+                "Selected lead/tail camera windows overlap; reduce context or choose non-overlapping highlights.",
+            ));
+            continue;
+        }
         let candidates = evidence
             .replay_frames
             .iter()
-            .filter(|frame| frame.tick >= highlight.start_tick && frame.tick <= highlight.end_tick)
+            .filter(|frame| frame.tick >= window_start && frame.tick <= window_end)
             .filter_map(|frame| {
                 frame
                     .players
@@ -473,26 +513,36 @@ fn build_evidence_plan(
             ));
             continue;
         };
+        let duration = window_end - window_start;
+        let target_ticks = [
+            window_start,
+            window_start + duration / 3,
+            window_start + duration.saturating_mul(2) / 3,
+            window_end,
+        ];
         let keyframes = samples
             .iter()
+            .zip(target_ticks)
             .enumerate()
-            .map(|(index, (tick, player))| {
-                camera_keyframe(*tick, player, intent.camera_style, index)
+            .map(|(index, ((_, player), target_tick))| {
+                camera_keyframe(target_tick, player, intent.camera_style, index)
             })
             .collect::<Vec<_>>();
-        let start_tick = keyframes.first().map_or(0, |keyframe| keyframe.tick);
-        let end_tick = keyframes.last().map_or(0, |keyframe| keyframe.tick);
         sampled_evidence.push(serde_json::json!({
             "highlight": highlight,
+            "leadSeconds": intent.lead_seconds,
+            "tailSeconds": intent.tail_seconds,
+            "windowStartTick": window_start,
+            "windowEndTick": window_end,
             "frames": samples.iter().map(|(tick, player)| serde_json::json!({
-                "tick": tick,
+                "sourceTick": tick,
                 "player": player,
             })).collect::<Vec<_>>(),
         }));
         shots.push(CameraShot {
             id: format!("highlight_{:02}", shot_index + 1),
-            start_tick,
-            end_tick,
+            start_tick: window_start,
+            end_tick: window_end,
             position_interpolation: PositionInterpolation::Cubic,
             rotation_interpolation: RotationInterpolation::SphericalCubic,
             keyframes,
@@ -522,6 +572,7 @@ fn build_evidence_plan(
             HlaeProposalMode::Preview => HlaePlanMode::Preview,
             HlaeProposalMode::Capture => HlaePlanMode::Capture,
         },
+        tick_rate: evidence.tick_rate,
         demo_path,
         output_directory,
         pre_roll_ticks,
@@ -530,6 +581,15 @@ fn build_evidence_plan(
     };
     validate_hlae_plan(&plan).map_err(map_hlae_error)?;
     Ok(EvidencePlan::Ready { plan, base_hash })
+}
+
+fn seconds_to_ticks(seconds: f64, tick_rate: f64) -> Option<u64> {
+    let value = (seconds * tick_rate).round();
+    if !value.is_finite() || !(0.0..=2_048.0).contains(&value) {
+        return None;
+    }
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    Some(value as u64)
 }
 
 fn sample_four_frames<'a>(
@@ -700,6 +760,12 @@ fn map_hlae_error(error: vibe_cs_hlae::HlaeError) -> DomainError {
             "HLAE proposal bundle already exists at {}",
             path.display()
         )),
+        vibe_cs_hlae::HlaeError::ArtifactBundleConflict { path, reason } => {
+            DomainError::Conflict(format!(
+                "HLAE proposal bundle at {} cannot be resumed: {reason}",
+                path.display()
+            ))
+        }
         other => DomainError::Internal(format!("HLAE proposal operation failed: {other}")),
     }
 }
@@ -773,6 +839,47 @@ mod tests {
             highlight_ids: vec!["highlight-1".to_owned()],
             camera_style: HlaeCameraStyle::Orbit,
             mode: HlaeProposalMode::Preview,
+            lead_seconds: 2.0,
+            tail_seconds: 2.0,
+        }
+    }
+
+    fn launch_inputs(root: &Path) -> HlaeBundleLaunchInputs {
+        let installation_root = root.join("HLAE");
+        let executable = installation_root.join("HLAE.exe");
+        let source2_hook = installation_root.join("x64/AfxHookSource2.dll");
+        let game_executable = root.join("game/bin/win64/cs2.exe");
+        fs::create_dir_all(source2_hook.parent().unwrap()).unwrap();
+        fs::create_dir_all(game_executable.parent().unwrap()).unwrap();
+        fs::write(&executable, b"hlae").unwrap();
+        fs::write(&source2_hook, b"hook").unwrap();
+        fs::write(&game_executable, b"cs2").unwrap();
+        HlaeBundleLaunchInputs {
+            installation: vibe_cs_hlae::HlaeInstallation {
+                root: installation_root,
+                executable,
+                source2_hook,
+                source: vibe_cs_hlae::HlaeDiscoverySource::Configured,
+            },
+            game_executable,
+            resolution: vibe_cs_hlae::LaunchResolution {
+                width: 1920,
+                height: 1080,
+            },
+        }
+    }
+
+    fn export_confirmation(
+        base_fingerprint: String,
+        proposal_fingerprint: String,
+        confirmation_token: String,
+    ) -> ProposalConfirmation {
+        ProposalConfirmation {
+            base_fingerprint,
+            proposal_fingerprint,
+            confirmation_token,
+            expected_revision: PROPOSAL_REVISION,
+            confirm: true,
         }
     }
 
@@ -783,12 +890,19 @@ mod tests {
         let evidence = evidence(root.path());
         let preview = port.preview_hlae(&intent(), &evidence).await.unwrap();
         assert!(preview.ready);
+        let typed_plan: HlaePlan =
+            serde_json::from_value(preview.typed_plan.clone().unwrap()).unwrap();
+        assert!((typed_plan.tick_rate - 64.0).abs() < f64::EPSILON);
+        assert_eq!(typed_plan.shots[0].start_tick, 872);
+        assert_eq!(typed_plan.shots[0].end_tick, 1_368);
         let base = preview.base_fingerprint.unwrap();
         let proposal = preview.proposal_fingerprint.unwrap();
         let token = preview.confirmation_token.unwrap();
+        let launch_inputs = launch_inputs(root.path());
+        let confirmation = export_confirmation(base, proposal, token);
 
         let exported = port
-            .export_hlae(&intent(), &evidence, 1, &base, &proposal, &token)
+            .export_hlae(&intent(), &evidence, &launch_inputs, &confirmation)
             .await
             .unwrap();
         assert!(!exported.launched);
@@ -817,10 +931,12 @@ mod tests {
         let base = preview.base_fingerprint.unwrap();
         let proposal = preview.proposal_fingerprint.unwrap();
         let token = preview.confirmation_token.unwrap();
+        let launch_inputs = launch_inputs(root.path());
+        let confirmation = export_confirmation(base, proposal, token);
         fs::write(&evidence.demo_path, b"replaced demo bytes").unwrap();
 
         let error = port
-            .export_hlae(&intent(), &evidence, 1, &base, &proposal, &token)
+            .export_hlae(&intent(), &evidence, &launch_inputs, &confirmation)
             .await
             .unwrap_err();
         assert!(matches!(error, DomainError::Conflict(_)));
@@ -836,13 +952,15 @@ mod tests {
         let base = preview.base_fingerprint.unwrap();
         let proposal = preview.proposal_fingerprint.unwrap();
         let token = preview.confirmation_token.unwrap();
+        let launch_inputs = launch_inputs(root.path());
+        let confirmation = export_confirmation(base, proposal, token);
         let replacement = root.path().join("replacement.dem");
         fs::write(&replacement, b"demo").unwrap();
         fs::remove_file(&evidence.demo_path).unwrap();
         fs::rename(replacement, &evidence.demo_path).unwrap();
 
         let error = port
-            .export_hlae(&intent(), &evidence, 1, &base, &proposal, &token)
+            .export_hlae(&intent(), &evidence, &launch_inputs, &confirmation)
             .await
             .unwrap_err();
         assert!(matches!(error, DomainError::Conflict(_)));

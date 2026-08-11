@@ -42,6 +42,34 @@ function highlightEvidence(analysis: unknown) {
   }).filter((item) => item.id && item.startTick !== null && item.endTick !== null);
 }
 
+function bindHighlightEvidence(highlights: ReturnType<typeof highlightEvidence>, highlightIds: string[]) {
+  const evidenceById = new Map<string, typeof highlights>();
+  for (const highlight of highlights) {
+    const matches = evidenceById.get(highlight.id) ?? [];
+    matches.push(highlight);
+    evidenceById.set(highlight.id, matches);
+  }
+  const duplicateHighlightIds = [...new Set(
+    highlightIds.filter((id, index) => highlightIds.indexOf(id) !== index),
+  )];
+  const missingHighlightIds = [...new Set(
+    highlightIds.filter((id) => !evidenceById.has(id)),
+  )];
+  const ambiguousHighlightIds = [...new Set(
+    highlightIds.filter((id) => (evidenceById.get(id)?.length ?? 0) > 1),
+  )];
+  const selected = highlightIds.flatMap((id) => {
+    const matches = evidenceById.get(id);
+    return matches?.length === 1 ? matches : [];
+  });
+  const ready = duplicateHighlightIds.length === 0
+    && missingHighlightIds.length === 0
+    && ambiguousHighlightIds.length === 0
+    && selected.length === highlightIds.length
+    && selected.every((item, index) => item.id === highlightIds[index]);
+  return { selected, duplicateHighlightIds, missingHighlightIds, ambiguousHighlightIds, ready };
+}
+
 const eventKindSchema = z.enum([
   'round_start', 'round_end', 'kill', 'damage', 'bomb_plant', 'bomb_defuse',
   'bomb_explode', 'grenade', 'purchase',
@@ -276,40 +304,76 @@ export function createVibeTools(context: AgentRequest['context'], plans: Capture
       highlightIds: z.array(z.string().min(1)).min(1).max(16),
       pacing: z.enum(['measured', 'energetic', 'impact']),
       includeContextSeconds: z.number().min(0).max(8).default(2),
+      transitionStyle: z.enum(['auto', 'cut', 'fade', 'flash', 'slide']).default('auto'),
     }).strict(),
     outputSchema: z.object({ accepted: z.boolean(), plan: z.unknown() }).strict(),
-    execute: async ({ highlightIds, pacing, includeContextSeconds }) => {
+    execute: async ({ highlightIds, pacing, includeContextSeconds, transitionStyle }) => {
       const highlights = highlightEvidence(context.analysis);
-      const requested = new Set(highlightIds);
-      const selected = highlights.filter((item) => requested.has(item.id));
-      const missing = highlightIds.filter((id) => !selected.some((item) => item.id === id));
+      const {
+        selected, duplicateHighlightIds, missingHighlightIds, ambiguousHighlightIds,
+        ready: bindingReady,
+      } = bindHighlightEvidence(highlights, highlightIds);
       const tickRate = number(object(context.analysis)?.tick_rate) ?? 64;
-      const clips = selected.map((item, index) => ({
+      const resolvedTransition = transitionStyle === 'auto'
+        ? pacing === 'impact' ? 'flash' : pacing === 'energetic' ? 'slide' : 'fade'
+        : transitionStyle;
+      const candidateClips = selected.map((item, index) => ({
         sourceHighlightId: item.id,
         order: index,
         startTick: Math.max(0, (item.startTick ?? 0) - Math.round(includeContextSeconds * tickRate)),
         endTick: (item.endTick ?? 0) + Math.round(includeContextSeconds * tickRate),
-        transition: index === 0 ? 'cut' : pacing === 'impact' ? 'flash' : pacing === 'energetic' ? 'whip' : 'fade',
+        transition: index === 0 ? 'cut' : resolvedTransition,
         rationale: item.description || item.title,
       }));
-      const payload = { schemaVersion: 1, pacing, tickRate, clips, missingHighlightIds: missing };
       const demoId = text(object(context.demo)?.id);
-      if (clips.length > 0 && demoId) {
+      const rejectionReasons = [
+        ...(missingHighlightIds.length > 0
+          ? [`Missing highlight evidence: ${missingHighlightIds.join(', ')}`]
+          : []),
+        ...(duplicateHighlightIds.length > 0
+          ? [`Duplicate requested highlight IDs: ${duplicateHighlightIds.join(', ')}`]
+          : []),
+        ...(ambiguousHighlightIds.length > 0
+          ? [`Highlight IDs are ambiguous in the current analysis: ${ambiguousHighlightIds.join(', ')}`]
+          : []),
+        ...(!demoId ? ['No analyzed Demo is selected.'] : []),
+      ];
+      const accepted = bindingReady && demoId !== null;
+      const payload = {
+        schemaVersion: 1,
+        pacing,
+        tickRate,
+        clips: accepted ? candidateClips : [],
+        missingHighlightIds,
+        duplicateHighlightIds,
+        ambiguousHighlightIds,
+        rejectionReasons,
+      };
+      if (accepted) {
         plans.push({
           kind: 'highlight_edit', title: 'Recorded highlight edit draft',
-          payload: { demo_id: demoId, highlight_ids: selected.map((item) => item.id) },
+          payload: {
+            demo_id: demoId,
+            highlight_ids: selected.map((item) => item.id),
+            intent: {
+              pacing,
+              include_context_seconds: includeContextSeconds,
+              transition: resolvedTransition,
+            },
+          },
         });
       }
-      return { accepted: clips.length > 0, plan: payload };
+      return { accepted, plan: payload };
     },
   });
 
   const draftHlaePlan = createTool({
     id: 'draft_hlae_plan',
-    description: 'Draft a reviewable HLAE camera plan from verified demo ticks. It emits data only and never launches the game or executes console commands.',
+    description: 'Draft a reviewable HLAE camera intent from verified demo ticks. Choose preview to inspect paths without recording or capture to export image-sequence recording commands. This emits data only and never launches the game or executes console commands.',
     inputSchema: z.object({
       highlightIds: z.array(z.string().min(1)).min(1).max(16),
       cameraStyle: z.enum(['pov', 'orbit', 'dolly']),
+      mode: z.enum(['preview', 'capture']).default('preview'),
       leadSeconds: z.number().min(0.5).max(8).default(2.5),
       tailSeconds: z.number().min(0.5).max(8).default(2),
     }).strict(),
@@ -318,24 +382,53 @@ export function createVibeTools(context: AgentRequest['context'], plans: Capture
       plan: z.unknown(),
       missingEvidence: z.array(z.string()),
     }).strict(),
-    execute: async ({ highlightIds, cameraStyle, leadSeconds, tailSeconds }) => {
+    execute: async ({ highlightIds, cameraStyle, mode, leadSeconds, tailSeconds }) => {
       const highlights = highlightEvidence(context.analysis);
       const tickRate = number(object(context.analysis)?.tick_rate) ?? 64;
-      const requested = new Set(highlightIds);
-      const selected = highlights.filter((item) => requested.has(item.id));
+      const {
+        selected, duplicateHighlightIds, missingHighlightIds, ambiguousHighlightIds,
+        ready: bindingReady,
+      } = bindHighlightEvidence(highlights, highlightIds);
       const demoId = text(object(context.demo)?.id);
-      const missingEvidence = selected.length === 0 ? ['verified_highlight_ticks'] : demoId ? [] : ['demo_id'];
+      const missingEvidence = [
+        ...missingHighlightIds.map((id) => `missing_highlight:${id}`),
+        ...duplicateHighlightIds.map((id) => `duplicate_highlight:${id}`),
+        ...ambiguousHighlightIds.map((id) => `ambiguous_highlight:${id}`),
+        ...(!demoId ? ['demo_id'] : []),
+      ];
+      const accepted = bindingReady && demoId !== null;
+      const rejectionReasons = [
+        ...(missingHighlightIds.length > 0
+          ? [`Missing highlight evidence: ${missingHighlightIds.join(', ')}`]
+          : []),
+        ...(duplicateHighlightIds.length > 0
+          ? [`Duplicate requested highlight IDs: ${duplicateHighlightIds.join(', ')}`]
+          : []),
+        ...(ambiguousHighlightIds.length > 0
+          ? [`Highlight IDs are ambiguous in the current analysis: ${ambiguousHighlightIds.join(', ')}`]
+          : []),
+        ...(!demoId ? ['No analyzed Demo is selected.'] : []),
+      ];
       const payload = {
         demo_id: demoId,
-        highlight_ids: selected.map((item) => item.id),
+        highlight_ids: accepted ? selected.map((item) => item.id) : [],
         camera_style: cameraStyle,
-        mode: 'preview',
+        mode,
+        lead_seconds: leadSeconds,
+        tail_seconds: tailSeconds,
       };
-      const accepted = missingEvidence.length === 0;
       if (accepted) plans.push({ kind: 'hlae', title: 'HLAE camera proposal', payload });
       return {
         accepted,
-        plan: { ...payload, tickRate, leadSeconds, tailSeconds, requiresUserReview: true },
+        plan: {
+          ...payload,
+          tickRate,
+          requiresUserReview: true,
+          missingHighlightIds,
+          duplicateHighlightIds,
+          ambiguousHighlightIds,
+          rejectionReasons,
+        },
         missingEvidence,
       };
     },
@@ -366,10 +459,19 @@ export function createVibeTools(context: AgentRequest['context'], plans: Capture
       const project = object(context.editorProject);
       const projectId = text(project?.id);
       const revision = number(project?.revision);
-      if (projectId && revision !== null) {
+      const selectedAudio = object(context.selectedAudio);
+      const audioAssetId = text(selectedAudio?.assetId);
+      const placement = object(selectedAudio?.placement);
+      if (projectId && revision !== null && audioAssetId && placement) {
         plans.push({
           kind: 'beat_alignment', title: 'BGM beat alignment',
-          payload: { project_id: projectId, expected_revision: revision, draft },
+          payload: {
+            project_id: projectId,
+            expected_revision: revision,
+            audio_asset_id: audioAssetId,
+            audio_placement: placement,
+            draft,
+          },
         });
       }
       return { available: true, draft };

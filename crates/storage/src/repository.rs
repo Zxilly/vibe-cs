@@ -17,15 +17,14 @@ use cap_std::{
 use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-#[cfg(windows)]
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use vibe_cs_domain::{
-    AppConfig, BeatAlignmentDraft, CosmeticPlan, DemoPatch, DemoQuery, DemoRecord, DemoStatus,
-    EditorAudioSeparation, EditorPresetDocument, EditorProject, EditorProjectSnapshot, ExportJob,
-    HighlightEditPlan, MatchAnalysis, MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery,
-    MediaAsset, MediaProxyStatus, MontageProject, Page, RecordedClip, RecordingJob,
-    SteamMatchRecord,
+    AppConfig, BeatAlignmentAudioBinding, BeatAlignmentAudioPlacement, BeatAlignmentDraft,
+    CosmeticPlan, DemoPatch, DemoQuery, DemoRecord, DemoStatus, EditorAudioSeparation,
+    EditorPresetDocument, EditorProject, EditorProjectSnapshot, ExportJob, HighlightEditPlan,
+    MatchAnalysis, MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery, MediaAsset,
+    MediaProxyStatus, MontageProject, Page, RecordedClip, RecordingJob, SteamMatchRecord,
 };
 
 use crate::{Result, StorageError, migrations};
@@ -151,8 +150,11 @@ pub enum EditorProjectUpdate {
 #[derive(Debug, Clone, PartialEq)]
 pub enum BeatAlignmentUpdate {
     Applied {
-        project: EditorProject,
+        project: Box<EditorProject>,
         applied_clip_ids: Vec<Uuid>,
+        audio_track_id: Uuid,
+        audio_clip_id: Uuid,
+        audio_clip_inserted: bool,
     },
     ProjectNotFound,
     Conflict {
@@ -1010,6 +1012,8 @@ impl Storage {
         project_id: Uuid,
         expected_revision: u64,
         draft: BeatAlignmentDraft,
+        audio: BeatAlignmentAudioBinding,
+        placement: BeatAlignmentAudioPlacement,
     ) -> Result<BeatAlignmentUpdate> {
         self.run(move |connection| {
             let transaction =
@@ -1023,8 +1027,34 @@ impl Storage {
                 });
             }
 
+            let Some(stored_audio) =
+                get_document::<MediaAsset>(&transaction, "media_assets", audio.asset_id)?
+            else {
+                return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                    "the selected BGM asset was removed; preview it again".to_owned(),
+                )));
+            };
+            let stored_audio_bytes = serde_json::to_vec(&stored_audio)?;
+            let mut asset_hash = Sha256::new();
+            asset_hash.update(b"vibe-cs-media-asset-v1\0");
+            asset_hash.update(stored_audio_bytes);
+            let stored_asset_fingerprint = hex::encode(asset_hash.finalize());
+            if stored_audio.id != audio.asset_id
+                || stored_audio.name != audio.name
+                || stored_audio.kind != audio.kind
+                || stored_audio.file_size != audio.file_size
+                || stored_audio.duration_seconds != Some(audio.duration_seconds)
+                || stored_asset_fingerprint != audio.asset_fingerprint
+            {
+                return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                    "the selected BGM asset changed; preview it again".to_owned(),
+                )));
+            }
+
             let previous = document.project.clone();
-            let applied_clip_ids = document.project.apply_beat_alignment_draft(&draft)?;
+            let (applied_clip_ids, audio_clip_inserted) = document
+                .project
+                .apply_beat_alignment_with_audio(&draft, &audio, &placement)?;
             document.project.revision = previous
                 .revision
                 .checked_add(1)
@@ -1050,8 +1080,11 @@ impl Storage {
             }
             transaction.commit()?;
             Ok(BeatAlignmentUpdate::Applied {
-                project: document.project,
+                project: Box::new(document.project),
                 applied_clip_ids,
+                audio_track_id: placement.track_id,
+                audio_clip_id: placement.clip_id,
+                audio_clip_inserted,
             })
         })
         .await
@@ -2971,8 +3004,18 @@ fn verify_highlight_recordings(connection: &Connection, plan: &HighlightEditPlan
             .get("highlight_id")
             .or_else(|| recorded.metadata.get("source_highlight_id"))
             .and_then(serde_json::Value::as_str);
+        let capture_start_tick = recorded
+            .metadata
+            .get("effective_start_tick")
+            .and_then(serde_json::Value::as_u64);
+        let capture_end_tick = recorded
+            .metadata
+            .get("effective_end_tick")
+            .and_then(serde_json::Value::as_u64);
         if recorded.demo_id != Some(plan.demo_id)
             || highlight_id != Some(mapping.highlight_id.as_str())
+            || capture_start_tick != Some(mapping.capture_start_tick)
+            || capture_end_tick != Some(mapping.capture_end_tick)
             || recorded.path != mapping.path
             || !recorded.duration_seconds.is_finite()
             || (recorded.duration_seconds - mapping.duration_seconds).abs() > 0.001
@@ -3885,10 +3928,39 @@ mod tests {
         let storage = Storage::open_in_memory().await.expect("open storage");
         let original = editor_project_with_asset("Beat edit", 1, Uuid::new_v4());
         let clip_id = original.tracks[0].clips[0].id;
+        let audio_asset_id = Uuid::new_v4();
+        let mut audio_asset = media_asset(audio_asset_id, original.id, "C:/music/bgm.wav");
+        audio_asset.name = "BGM".to_owned();
+        audio_asset.kind = "audio/wav".to_owned();
+        let mut asset_hash = Sha256::new();
+        asset_hash.update(b"vibe-cs-media-asset-v1\0");
+        asset_hash.update(serde_json::to_vec(&audio_asset).expect("asset json"));
+        let audio = BeatAlignmentAudioBinding {
+            asset_id: audio_asset.id,
+            name: audio_asset.name.clone(),
+            kind: audio_asset.kind.clone(),
+            file_size: audio_asset.file_size,
+            duration_seconds: audio_asset.duration_seconds.expect("duration"),
+            asset_fingerprint: hex::encode(asset_hash.finalize()),
+            content_sha256: "11".repeat(32),
+            analysis_sha256: "22".repeat(32),
+        };
+        let placement = BeatAlignmentAudioPlacement {
+            track_id: Uuid::new_v4(),
+            clip_id: Uuid::new_v4(),
+            timeline_start_seconds: 0.0,
+            timeline_end_seconds: 4.0,
+            source_in_seconds: 0.0,
+            source_out_seconds: 4.0,
+            volume: 1.0,
+            insert_audio_track: true,
+            insert_audio_clip: true,
+        };
         storage
             .put_editor_project(original.clone())
             .await
             .expect("put project");
+        storage.put_asset(audio_asset).await.expect("put BGM asset");
         let draft = BeatAlignmentDraft {
             advisory_only: true,
             clips: vec![vibe_cs_domain::BeatAlignedClip {
@@ -3906,8 +3978,14 @@ mod tests {
             constraints: Vec::new(),
         };
         let (first, second) = tokio::join!(
-            storage.apply_beat_alignment(original.id, 1, draft.clone()),
-            storage.apply_beat_alignment(original.id, 1, draft),
+            storage.apply_beat_alignment(
+                original.id,
+                1,
+                draft.clone(),
+                audio.clone(),
+                placement.clone(),
+            ),
+            storage.apply_beat_alignment(original.id, 1, draft, audio, placement),
         );
         let outcomes = [first.expect("first"), second.expect("second")];
         assert_eq!(
@@ -3931,6 +4009,13 @@ mod tests {
             .expect("project");
         assert_eq!(current.revision, 2);
         assert!((current.tracks[0].clips[0].start - 0.5).abs() < 0.000_001);
+        assert!(current.tracks.iter().any(|track| {
+            track.kind == vibe_cs_domain::TrackKind::Audio
+                && track
+                    .clips
+                    .iter()
+                    .any(|clip| clip.asset_id == Some(audio_asset_id))
+        }));
         assert_eq!(
             storage
                 .list_editor_project_snapshots(original.id)
@@ -3958,6 +4043,11 @@ mod tests {
     ) -> HighlightEditPlan {
         HighlightEditPlan {
             demo_id,
+            intent: vibe_cs_domain::HighlightEditProposalIntent {
+                pacing: vibe_cs_domain::HighlightEditPacing::Measured,
+                include_context_seconds: 0.0,
+                transition: vibe_cs_domain::HighlightEditTransition::Cut,
+            },
             project_id,
             project_name: "AI highlights".to_owned(),
             create_project,
@@ -3971,6 +4061,10 @@ mod tests {
                 duration_seconds: 2.0,
                 file_size: 5,
                 content_sha256: "00".repeat(32),
+                capture_start_tick: 0,
+                capture_end_tick: 128,
+                tick_rate: 64.0,
+                capture_playback_speed: 1.0,
             }],
             insertions: vec![vibe_cs_domain::HighlightEditClipInsert {
                 highlight_id: "h-1".to_owned(),
@@ -3978,9 +4072,13 @@ mod tests {
                 editor_clip_id,
                 timeline_start_seconds: start,
                 timeline_end_seconds: start + 2.0,
+                source_start_tick: 0,
+                source_end_tick: 128,
                 source_in_seconds: 0.0,
                 source_out_seconds: 2.0,
+                playback_speed: 1.0,
                 transition_in: None,
+                transition_duration_seconds: None,
             }],
         }
     }
@@ -3996,7 +4094,11 @@ mod tests {
                 player_name: None,
                 category: "highlight".to_owned(),
                 tags: Vec::new(),
-                metadata: serde_json::json!({"highlight_id":"h-1"}),
+                metadata: serde_json::json!({
+                    "highlight_id":"h-1",
+                    "effective_start_tick": 0,
+                    "effective_end_tick": 128
+                }),
                 created_at: Utc::now(),
             })
             .await

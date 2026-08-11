@@ -1,5 +1,6 @@
 mod agent;
 mod bridge;
+mod hlae_output;
 
 use std::{io, path::PathBuf, sync::Arc};
 
@@ -35,7 +36,9 @@ pub fn run() {
             agent::agent_status,
             agent::agent_thread,
             agent::agent_chat,
-            agent::agent_cancel
+            agent::agent_cancel,
+            hlae_output::list_hlae_bundles,
+            hlae_output::reveal_hlae_bundle
         ])
         .register_asynchronous_uri_scheme_protocol(
             "vibe-cs-media",
@@ -84,6 +87,7 @@ pub fn run() {
                 .compact()
                 .init();
             app.manage(LogGuard { _guard: guard });
+            app.manage(hlae_output::ManagedHlaeRoot::new(&data_dir));
             let application =
                 tauri::async_runtime::block_on(build_application(data_dir, agent_dispatcher))?;
             app.manage(application.agent_bridge.clone());

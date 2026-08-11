@@ -1236,6 +1236,19 @@ impl RuntimeIntegrationPort {
         Ok(json!({ "ok": true, "commentary": commentary }))
     }
 
+    async fn llm_agent_test(&self, config: &AppConfig) -> Result<Value, DomainError> {
+        let capabilities = Self::llm_client(config)?
+            .agent_capabilities()
+            .await
+            .map_err(integration_error)?;
+        Ok(json!({
+            "ok": true,
+            "provider": config.llm.provider,
+            "model": config.llm.model,
+            "capabilities": capabilities,
+        }))
+    }
+
     async fn gsi_status(&self, config: &AppConfig) -> Result<Value, DomainError> {
         let state = self.gsi.read().await.clone();
         let installed = gsi_config_path(config).is_some_and(|path| path.is_file());
@@ -1892,7 +1905,7 @@ impl IntegrationPort for RuntimeIntegrationPort {
             "llm_status" => Ok(Self::llm_status(&config)),
             "llm_test" => {
                 let test_config = Self::llm_test_config(config, &request)?;
-                self.llm_commentary(&test_config, &Value::Null, true).await
+                self.llm_agent_test(&test_config).await
             }
             "llm_commentary" => self.llm_commentary(&config, &request, false).await,
             "gsi_ingest" => {

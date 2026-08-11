@@ -15,6 +15,9 @@ pub struct AppConfig {
     pub ffprobe_path: String,
     pub preferred_encoder: String,
     pub cs2_path: String,
+    /// Optional user-selected HLAE.exe. Discovery also checks conservative
+    /// common locations when this is empty.
+    pub hlae_path: String,
     pub steam_path: String,
     pub steam: SteamConfig,
     pub obs: ObsConfig,
@@ -35,6 +38,7 @@ impl fmt::Debug for AppConfig {
             .field("ffprobe_path", &self.ffprobe_path)
             .field("preferred_encoder", &self.preferred_encoder)
             .field("cs2_path", &self.cs2_path)
+            .field("hlae_path", &self.hlae_path)
             .field("steam_path", &self.steam_path)
             .field("steam", &self.steam)
             .field("obs", &self.obs)
@@ -56,6 +60,7 @@ impl Default for AppConfig {
             ffprobe_path: String::new(),
             preferred_encoder: "auto".to_owned(),
             cs2_path: String::new(),
+            hlae_path: String::new(),
             steam_path: String::new(),
             steam: SteamConfig::default(),
             obs: ObsConfig::default(),
@@ -266,4 +271,28 @@ pub struct DependencyStatus {
 pub struct SetupStatus {
     pub ready: bool,
     pub dependencies: Vec<DependencyStatus>,
+}
+
+/// Read-only product status for the process-free HLAE integration.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent installation and immutable safety-policy facts are part of the status wire contract"
+)]
+pub struct HlaeStatus {
+    pub available: bool,
+    pub configured_path: Option<String>,
+    pub executable: Option<String>,
+    pub source2_hook: Option<String>,
+    pub source: Option<String>,
+    pub checked_locations: Vec<String>,
+    pub messages: Vec<String>,
+    pub cs2_executable: Option<String>,
+    /// True when the typed launch-profile inputs are present. Vibe CS still
+    /// never starts HLAE or CS2 from an AI proposal.
+    pub launch_profile_ready: bool,
+    pub automatic_launch_enabled: bool,
+    pub insecure_mode_required: bool,
+    pub vac_servers_prohibited: bool,
+    pub demo_playback_only: bool,
 }

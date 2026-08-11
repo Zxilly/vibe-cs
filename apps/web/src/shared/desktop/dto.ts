@@ -141,6 +141,7 @@ export type StorageStatus = {
 
 export type DetectedPaths = {
   cs2_path: string | null;
+  hlae_path: string | null;
   steam_path: string | null;
   obs_path: string | null;
   ffmpeg_path: string | null;
@@ -1303,6 +1304,7 @@ export type AppConfig = {
   ffprobe_path: string;
   preferred_encoder: 'auto' | 'libopenh264' | 'h264_mf' | 'h264_qsv' | 'h264_nvenc' | 'h264_amf';
   cs2_path: string;
+  hlae_path: string;
   steam_path: string;
   steam: {
     steam_id: string;
@@ -1358,6 +1360,41 @@ export type AppConfig = {
     obs_realtime_keyboard_media: string;
     capture_delay_ms: number;
   };
+};
+
+export type LlmTestResult = {
+  ok: true;
+  provider: string;
+  model: string;
+  capabilities: {
+    protocol: 'openai_chat_completions';
+    chat: true;
+    stream: true;
+    tools: true;
+  };
+};
+
+export type HlaeStatus = {
+  available: boolean;
+  configured_path: string | null;
+  executable: string | null;
+  source2_hook: string | null;
+  source: 'configured' | 'common_location' | null;
+  checked_locations: string[];
+  messages: string[];
+  cs2_executable: string | null;
+  launch_profile_ready: boolean;
+  automatic_launch_enabled: false;
+  insecure_mode_required: true;
+  vac_servers_prohibited: true;
+  demo_playback_only: true;
+};
+
+export type HlaeBundleHandoff = {
+  directory: string;
+  files: string[];
+  completionMarker: string;
+  createdAtEpochMs: number;
 };
 
 export type MatchHistoryItem = {
@@ -1438,6 +1475,8 @@ export type HlaeProposalIntent = {
   highlight_ids: string[];
   camera_style: 'pov' | 'orbit' | 'dolly';
   mode: 'preview' | 'capture';
+  lead_seconds: number;
+  tail_seconds: number;
 };
 export type ProposalConfirmation = {
   base_fingerprint: string;
@@ -1457,6 +1496,7 @@ export type HlaeProposalPreview = {
   typed_plan: unknown | null;
   compiled_preview: unknown | null;
   notices: string[];
+  installation_status: HlaeStatus | null;
 };
 export type HlaeProposalExportResult = {
   directory: string;
@@ -1467,7 +1507,35 @@ export type HlaeProposalExportResult = {
 export type BeatAlignmentProposalRequest = {
   project_id: EntityId;
   expected_revision: number;
+  audio_asset_id: EntityId;
+  audio_placement: BeatAlignmentAudioPlacementIntent;
   draft: BeatAlignmentDraft;
+};
+export type BeatAlignmentAudioPlacementIntent = {
+  timeline_start_seconds: number;
+  source_in_seconds: number;
+  volume: number;
+};
+export type BeatAlignmentAudioBinding = {
+  asset_id: EntityId;
+  name: string;
+  kind: string;
+  file_size: number;
+  duration_seconds: number;
+  asset_fingerprint: string;
+  content_sha256: string;
+  analysis_sha256: string;
+};
+export type BeatAlignmentAudioPlacement = {
+  track_id: EntityId;
+  clip_id: EntityId;
+  timeline_start_seconds: number;
+  timeline_end_seconds: number;
+  source_in_seconds: number;
+  source_out_seconds: number;
+  volume: number;
+  insert_audio_track: boolean;
+  insert_audio_clip: boolean;
 };
 export type BeatAlignmentProposalPreview = {
   ready: boolean;
@@ -1477,6 +1545,8 @@ export type BeatAlignmentProposalPreview = {
   base_fingerprint: string | null;
   proposal_fingerprint: string | null;
   confirmation_token: string | null;
+  audio: BeatAlignmentAudioBinding | null;
+  audio_placement: BeatAlignmentAudioPlacement | null;
   changes: BeatAlignmentDraft['clips'];
 };
 export type BeatAlignmentApplyResult = {
@@ -1484,14 +1554,23 @@ export type BeatAlignmentApplyResult = {
   previous_revision: number;
   revision: number;
   applied_clip_ids: EntityId[];
+  audio_track_id: EntityId;
+  audio_clip_id: EntityId;
+  audio_clip_inserted: boolean;
   snapshot_created: boolean;
 };
 export type HighlightEditProposalRequest = {
   demo_id: EntityId;
   highlight_ids: string[];
+  intent: HighlightEditProposalIntent;
   target_project_id?: EntityId | null;
   expected_revision?: number | null;
   new_project_name?: string | null;
+};
+export type HighlightEditProposalIntent = {
+  pacing: 'measured' | 'energetic' | 'impact';
+  include_context_seconds: number;
+  transition: 'cut' | 'fade' | 'flash' | 'slide';
 };
 export type HighlightAssetMapping = {
   highlight_id: string;
@@ -1500,6 +1579,10 @@ export type HighlightAssetMapping = {
   duration_seconds: number;
   file_size: number;
   content_sha256: string;
+  capture_start_tick: number;
+  capture_end_tick: number;
+  tick_rate: number;
+  capture_playback_speed: number;
 };
 export type HighlightEditClipInsert = {
   highlight_id: string;
@@ -1509,10 +1592,15 @@ export type HighlightEditClipInsert = {
   timeline_end_seconds: number;
   source_in_seconds: number;
   source_out_seconds: number;
-  transition_in: string | null;
+  source_start_tick: number;
+  source_end_tick: number;
+  playback_speed: number;
+  transition_in: 'cut' | 'fade' | 'flash' | 'slide' | null;
+  transition_duration_seconds: number | null;
 };
 export type HighlightEditPlan = {
   demo_id: EntityId;
+  intent: HighlightEditProposalIntent;
   project_id: EntityId;
   project_name: string;
   create_project: boolean;

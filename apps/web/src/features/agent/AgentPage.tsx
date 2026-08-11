@@ -8,7 +8,7 @@ import {
   type ThreadMessageLike,
   useExternalStoreRuntime,
 } from '@assistant-ui/react';
-import { Bot, CheckCircle2, Film, Music2, Send, Sparkles, Square, Wrench } from 'lucide-react';
+import { Bot, CheckCircle2, Film, FolderOpen, Music2, Send, Sparkles, Square, Wrench } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -25,6 +25,7 @@ import type {
   HighlightEditProposalPreview,
   HighlightEditProposalRequest,
   HlaeProposalIntent,
+  HlaeProposalExportResult,
   HlaeProposalPreview,
   MediaAsset,
   ProposalPrerequisite,
@@ -32,6 +33,8 @@ import type {
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button, EmptyState, Notice, PageHeader, SegmentedControl, Spinner } from '../../shared/ui';
 import { applyAgentEvent, proposalActivityKey, rollbackOptimisticRun } from './agentSession';
+import { HLAE_BUNDLE_EXPORTED_EVENT, HlaeHandoffPanel } from './HlaeHandoffPanel';
+import { ProposalMutationBusyError, ProposalMutationCoordinator } from './proposalMutation';
 
 import './agent.css';
 
@@ -118,35 +121,110 @@ function hlaeShotRecords(preview: HlaeProposalPreview): Record<string, unknown>[
   return Array.isArray(shots) ? shots.map(record).filter((shot): shot is Record<string, unknown> => shot !== null) : [];
 }
 
-function beatProjectMatchesPreview(preview: BeatAlignmentProposalPreview, project: EditorProject | undefined): boolean {
-  if (!project || project.id !== preview.project_id || project.revision !== preview.expected_revision) return false;
+function hlaeIntent(proposal: AgentProposal, mode: HlaeProposalIntent['mode']): HlaeProposalIntent {
+  const payload = proposal.payload as Partial<HlaeProposalIntent>;
+  return {
+    demo_id: payload.demo_id ?? '',
+    highlight_ids: payload.highlight_ids ?? [],
+    camera_style: payload.camera_style ?? 'pov',
+    mode,
+    lead_seconds: payload.lead_seconds ?? 2.5,
+    tail_seconds: payload.tail_seconds ?? 2,
+  };
+}
+
+function HlaeExportResult({ result, onReveal }: {
+  result: HlaeProposalExportResult;
+  onReveal: (directory: string) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <section className="agent-proposal-details agent-proposal-details--exported" aria-label={t('copilot.exportComplete')}>
+      <div className="agent-proposal-details__export-heading">
+        <CheckCircle2 size={18} aria-hidden="true" />
+        <div><strong>{t('copilot.exportComplete')}</strong><span>{t('copilot.notLaunched')}</span></div>
+      </div>
+      <dl>
+        <div className="agent-proposal-details__wide"><dt>{t('copilot.bundleDirectory')}</dt><dd title={result.directory}>{result.directory}</dd></div>
+        <div><dt>{t('copilot.generatedFiles')}</dt><dd>{result.files.length}</dd></div>
+        <div><dt>{t('copilot.launched')}</dt><dd>{result.launched ? '—' : t('copilot.never')}</dd></div>
+        <div className="agent-proposal-details__wide"><dt>{t('copilot.completeMarker')}</dt><dd title={result.completion_marker}>{result.completion_marker}</dd></div>
+      </dl>
+      <ul className="agent-proposal-details__export-files">
+        {result.files.map((path) => <li key={path} title={path}>{path}</li>)}
+      </ul>
+      <Button size="sm" variant="secondary" onClick={() => onReveal(result.directory)}>
+        <FolderOpen size={14} />{t('copilot.revealBundle')}
+      </Button>
+    </section>
+  );
+}
+
+function beatProjectMatchesPreview(
+  preview: BeatAlignmentProposalPreview,
+  project: EditorProject | undefined,
+  selectedAudioAssetId: string,
+): boolean {
+  if (!project
+    || project.id !== preview.project_id
+    || project.revision !== preview.expected_revision
+    || !preview.audio
+    || !preview.audio_placement
+    || preview.audio.asset_id !== selectedAudioAssetId) return false;
   const clipIds = new Set(project.tracks.flatMap((track) => track.clips.map((clip) => clip.id)));
   return preview.changes.length > 0 && preview.changes.every((change) => clipIds.has(change.clip_id));
 }
 
-function hasReviewableChanges(preview: ProposalPreview | null, project?: EditorProject): boolean {
+function hasReviewableChanges(
+  preview: ProposalPreview | null,
+  project: EditorProject | undefined,
+  selectedAudioAssetId: string,
+): boolean {
   if (!preview?.value.ready) return false;
   if (preview.kind === 'hlae') {
     const plan = record(preview.value.typed_plan);
     const compiled = record(preview.value.compiled_preview);
     return plan !== null && compiled !== null && hlaeShotRecords(preview.value).length > 0;
   }
-  if (preview.kind === 'beat_alignment') return beatProjectMatchesPreview(preview.value, project);
+  if (preview.kind === 'beat_alignment') {
+    return beatProjectMatchesPreview(preview.value, project, selectedAudioAssetId);
+  }
   return preview.value.mappings.length > 0;
 }
 
 function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview; project?: EditorProject }) {
   const { t } = useI18n();
-  if (!preview.value.ready) return null;
+  if (!preview.value.ready) {
+    if (preview.kind !== 'hlae' || !preview.value.installation_status) return null;
+    const status = preview.value.installation_status;
+    return (
+      <section className="agent-proposal-details" aria-label={t('copilot.hlaeInstallStatus')}>
+        <Notice tone={status.available ? 'info' : 'warning'}>
+          {status.available ? t('copilot.hlaeInstalled') : t('copilot.hlaeMissing')}
+          {' · '}{status.executable ?? status.messages[0]}
+        </Notice>
+      </section>
+    );
+  }
 
   if (preview.kind === 'beat_alignment') {
     const clips = new Map(project?.tracks.flatMap((track) => track.clips.map((clip) => [clip.id, clip] as const)) ?? []);
+    const audio = preview.value.audio;
+    const placement = preview.value.audio_placement;
     return (
       <section className="agent-proposal-details" aria-label={t('copilot.changeReview')}>
         <dl>
           <div><dt>{t('copilot.project')}</dt><dd>{preview.value.project_id}</dd></div>
           <div><dt>{t('copilot.revision')}</dt><dd>{preview.value.expected_revision}</dd></div>
           <div><dt>{t('copilot.clipChanges')}</dt><dd>{preview.value.changes.length}</dd></div>
+          <div><dt>BGM</dt><dd>{audio?.name ?? '—'}</dd></div>
+          <div><dt>Audio asset</dt><dd>{audio?.asset_id ?? '—'}</dd></div>
+          <div><dt>File identity</dt><dd>{audio ? `${audio.content_sha256.slice(0, 12)}… · ${(audio.file_size / 1_048_576).toFixed(1)} MiB` : '—'}</dd></div>
+          <div><dt>Analysis</dt><dd>{audio ? `${audio.analysis_sha256.slice(0, 12)}…` : '—'}</dd></div>
+          <div><dt>Audio track</dt><dd>{placement?.track_id ?? '—'} {placement?.insert_audio_track ? '· new' : '· existing'}</dd></div>
+          <div><dt>Audio clip</dt><dd>{placement?.clip_id ?? '—'} {placement?.insert_audio_clip ? '· insert' : '· verify'}</dd></div>
+          <div><dt>BGM placement</dt><dd>{placement ? `${placement.timeline_start_seconds.toFixed(3)}s → ${placement.timeline_end_seconds.toFixed(3)}s` : '—'}</dd></div>
+          <div><dt>BGM source</dt><dd>{placement ? `${placement.source_in_seconds.toFixed(3)}s → ${placement.source_out_seconds.toFixed(3)}s · ${placement.volume.toFixed(2)}×` : '—'}</dd></div>
         </dl>
         <ol className="agent-proposal-details__changes">
           {preview.value.changes.map((clip) => {
@@ -166,6 +244,9 @@ function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview
   }
 
   if (preview.kind === 'highlight_edit') {
+    const insertionByHighlight = new Map(
+      preview.value.insertions.map((insertion) => [insertion.highlight_id, insertion] as const),
+    );
     return (
       <section className="agent-proposal-details" aria-label={t('copilot.changeReview')}>
         <dl>
@@ -173,22 +254,30 @@ function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview
           <div><dt>{t('copilot.project')}</dt><dd>{preview.value.target_project_id ?? '—'}</dd></div>
           <div><dt>{t('copilot.revision')}</dt><dd>{preview.value.creates_new_project ? t('copilot.newProject') : preview.value.expected_revision}</dd></div>
           <div><dt>{t('copilot.recordedClips')}</dt><dd>{preview.value.mappings.length}</dd></div>
+          <div><dt>{t('copilot.pacing')}</dt><dd>{preview.request.intent.pacing}</dd></div>
+          <div><dt>{t('copilot.contextWindow')}</dt><dd>±{preview.request.intent.include_context_seconds.toFixed(2)}s</dd></div>
+          <div><dt>{t('copilot.transition')}</dt><dd>{preview.request.intent.transition}</dd></div>
         </dl>
         <ol className="agent-proposal-details__changes">
-          {preview.value.mappings.map((mapping) => (
-            <li key={mapping.highlight_id}>
-              <strong>{mapping.highlight_id}</strong>
-              <span>{mapping.recorded_clip_id}</span>
-              <span>{mapping.duration_seconds.toFixed(3)}s · {(mapping.file_size / 1_048_576).toFixed(1)} MiB</span>
-              {preview.value.insertions.find((item) => item.highlight_id === mapping.highlight_id) ? (
-                <span>
-                  {t('copilot.timeline')}: {preview.value.insertions.find((item) => item.highlight_id === mapping.highlight_id)!.timeline_start_seconds.toFixed(3)}s
-                  {' → '}
-                  {preview.value.insertions.find((item) => item.highlight_id === mapping.highlight_id)!.timeline_end_seconds.toFixed(3)}s
-                </span>
-              ) : null}
-            </li>
-          ))}
+          {preview.value.mappings.map((mapping) => {
+            const insertion = insertionByHighlight.get(mapping.highlight_id);
+            return (
+              <li key={mapping.highlight_id}>
+                <strong>{mapping.highlight_id}</strong>
+                <span>{mapping.recorded_clip_id}</span>
+                <span>{t('copilot.captureTicks')}: {mapping.capture_start_tick} → {mapping.capture_end_tick} · {mapping.tick_rate.toFixed(3)} tick/s</span>
+                <span>{t('copilot.sourceClip')}: {mapping.duration_seconds.toFixed(3)}s · {(mapping.file_size / 1_048_576).toFixed(1)} MiB · {mapping.capture_playback_speed.toFixed(3)}×</span>
+                {insertion ? (
+                  <>
+                    <span>{t('copilot.sourceTicks')}: {insertion.source_start_tick} → {insertion.source_end_tick}</span>
+                    <span>{t('copilot.sourceTrim')}: {insertion.source_in_seconds.toFixed(3)}s → {insertion.source_out_seconds.toFixed(3)}s</span>
+                    <span>{t('copilot.timeline')}: {insertion.timeline_start_seconds.toFixed(3)}s → {insertion.timeline_end_seconds.toFixed(3)}s · {insertion.playback_speed.toFixed(3)}×</span>
+                    <span>{t('copilot.transition')}: {insertion.transition_in ?? 'cut'}{insertion.transition_duration_seconds === null ? '' : ` · ${insertion.transition_duration_seconds.toFixed(3)}s`}</span>
+                  </>
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       </section>
     );
@@ -206,12 +295,16 @@ function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview
     .map((artifact) => stringField(artifact, 'path'))
     .filter((path): path is string => path !== null);
   const outputDirectory = stringField(plan, 'outputDirectory');
+  const tickRate = numberField(plan, 'tickRate');
+  const status = preview.value.installation_status;
   return (
     <section className="agent-proposal-details" aria-label={t('copilot.changeReview')}>
       <dl>
         <div><dt>Demo</dt><dd>{preview.request.demo_id}</dd></div>
         <div><dt>{t('copilot.cameraStyle')}</dt><dd>{preview.request.camera_style}</dd></div>
         <div><dt>{t('copilot.mode')}</dt><dd>{preview.request.mode}</dd></div>
+        <div><dt>{t('copilot.contextWindow')}</dt><dd>{preview.request.lead_seconds.toFixed(2)}s / {preview.request.tail_seconds.toFixed(2)}s</dd></div>
+        <div><dt>{t('copilot.tickRate')}</dt><dd>{tickRate?.toFixed(3) ?? '—'} tick/s</dd></div>
         <div><dt>{t('copilot.shots')}</dt><dd>{shots.length}</dd></div>
         <div><dt>{t('copilot.highlights')}</dt><dd>{preview.request.highlight_ids.length}</dd></div>
         <div><dt>{t('copilot.tickRange')}</dt><dd>{firstTick ?? '—'} → {lastTick ?? '—'}</dd></div>
@@ -219,7 +312,11 @@ function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview
         <div className="agent-proposal-details__wide"><dt>{t('copilot.outputDirectory')}</dt><dd title={outputDirectory ?? undefined}>{outputDirectory ?? '—'}</dd></div>
         <div><dt>{t('copilot.generatedPaths')}</dt><dd>{artifacts.length}</dd></div>
         <div className="agent-proposal-details__wide"><dt>{t('copilot.highlights')}</dt><dd>{preview.request.highlight_ids.join(', ')}</dd></div>
+        <div><dt>{t('copilot.hlaeInstallStatus')}</dt><dd>{status?.available ? t('copilot.hlaeInstalled') : t('copilot.hlaeMissing')}</dd></div>
+        <div><dt>{t('copilot.launchProfile')}</dt><dd>{status?.launch_profile_ready ? t('copilot.profileReady') : t('copilot.profileNotReady')}</dd></div>
+        <div className="agent-proposal-details__wide"><dt>HLAE.exe</dt><dd title={status?.executable ?? undefined}>{status?.executable ?? '—'}</dd></div>
       </dl>
+      <Notice tone="info">{t('copilot.hlaeSafetyBoundary')}</Notice>
       <ol className="agent-proposal-details__changes">
         {shots.map((shot, index) => {
           const keyframes = Array.isArray(shot.keyframes) ? shot.keyframes.length : 0;
@@ -246,30 +343,62 @@ function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview
   );
 }
 
-function ProposalCard({ proposal, projects }: { proposal: AgentProposal; projects: EditorProject[] }) {
+function ProposalCard({
+  proposalId,
+  proposal,
+  projects,
+  selectedAudioAssetId,
+  mutationCoordinator,
+  mutationOwner,
+}: {
+  proposalId: string;
+  proposal: AgentProposal;
+  projects: EditorProject[];
+  selectedAudioAssetId: string;
+  mutationCoordinator: ProposalMutationCoordinator;
+  mutationOwner: string | null;
+}) {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const initialMode = record(proposal.payload)?.mode === 'capture' ? 'capture' : 'preview';
+  const [hlaeMode, setHlaeMode] = useState<HlaeProposalIntent['mode']>(initialMode);
   const [preview, setPreview] = useState<ProposalPreview | null>(null);
+  const [exported, setExported] = useState<HlaeProposalExportResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const generationRef = useRef(0);
+  const mutationActiveRef = useRef(false);
+  const mutationLocked = mutationOwner !== null;
   const beatProject = preview?.kind === 'beat_alignment'
     ? projects.find((project) => project.id === preview.value.project_id)
     : undefined;
-  const reviewable = useMemo(() => hasReviewableChanges(preview, beatProject), [beatProject, preview]);
+  const reviewable = useMemo(
+    () => hasReviewableChanges(preview, beatProject, selectedAudioAssetId),
+    [beatProject, preview, selectedAudioAssetId],
+  );
 
   useEffect(() => {
     generationRef.current += 1;
     setPreview(null);
+    setExported(null);
+    setHlaeMode(initialMode);
     setError(null);
     setBusy(false);
     return () => {
       generationRef.current += 1;
     };
-  }, [proposal]);
+  }, [initialMode, proposal]);
+
+  useEffect(() => {
+    if (proposal.kind !== 'beat_alignment' || mutationActiveRef.current) return;
+    generationRef.current += 1;
+    setPreview(null);
+    setError(null);
+    setBusy(false);
+  }, [proposal.kind, selectedAudioAssetId]);
 
   const inspect = useCallback(async () => {
-    if (busy) return;
+    if (busy || mutationLocked) return;
     const generation = generationRef.current + 1;
     generationRef.current = generation;
     setBusy(true);
@@ -277,10 +406,13 @@ function ProposalCard({ proposal, projects }: { proposal: AgentProposal; project
     try {
       let next: ProposalPreview;
       if (proposal.kind === 'hlae') {
-        const request = proposal.payload as HlaeProposalIntent;
+        const request = hlaeIntent(proposal, hlaeMode);
         next = { kind: 'hlae', request, value: await commands.previewHlaeProposal(request) };
       } else if (proposal.kind === 'beat_alignment') {
         const request = proposal.payload as BeatAlignmentProposalRequest;
+        if (!selectedAudioAssetId || request.audio_asset_id !== selectedAudioAssetId) {
+          throw new Error('The selected BGM changed. Ask the copilot for a new beat-alignment draft.');
+        }
         next = { kind: 'beat_alignment', request, value: await commands.previewBeatAlignmentProposal(request) };
       } else {
         const request = proposal.payload as HighlightEditProposalRequest;
@@ -292,57 +424,91 @@ function ProposalCard({ proposal, projects }: { proposal: AgentProposal; project
     } finally {
       if (generationRef.current === generation) setBusy(false);
     }
-  }, [busy, proposal]);
+  }, [busy, hlaeMode, mutationLocked, proposal, selectedAudioAssetId]);
 
   const apply = useCallback(async () => {
-    if (!preview || !reviewable || busy) return;
+    if (!preview || !reviewable || busy || mutationLocked) return;
     const target = preview.kind === 'hlae'
       ? `Demo ${preview.request.demo_id} · ${hlaeShotRecords(preview.value).length} ${t('copilot.shots')}`
       : preview.kind === 'beat_alignment'
         ? `${t('copilot.project')} ${preview.value.project_id} · ${preview.value.changes.length} ${t('copilot.clipChanges')}`
         : `${t('copilot.project')} ${preview.value.target_project_id ?? '—'} · ${preview.value.insertions.length} ${t('copilot.clipChanges')}`;
     if (!window.confirm(`${t(preview.kind === 'hlae' ? 'copilot.confirmExport' : 'copilot.confirmApply')}\n\n${target}`)) return;
-    const generation = generationRef.current + 1;
-    generationRef.current = generation;
     setBusy(true);
     setError(null);
+    mutationActiveRef.current = true;
     try {
-      const value = preview.value;
-      if (!value.base_fingerprint || !value.proposal_fingerprint || !value.confirmation_token) {
-        throw new Error(t('copilot.previewExpired'));
-      }
-      const confirmation = {
-        base_fingerprint: value.base_fingerprint,
-        proposal_fingerprint: value.proposal_fingerprint,
-        confirmation_token: value.confirmation_token,
-        expected_revision: preview.kind === 'hlae'
-          ? preview.value.proposal_revision
-          : preview.value.expected_revision,
-        confirm: true as const,
-      };
-      if (preview.kind === 'hlae') {
-        await commands.exportHlaeProposal(preview.request, confirmation);
-        if (generationRef.current === generation) navigate('/outputs');
-      } else if (preview.kind === 'beat_alignment') {
-        await commands.applyBeatAlignmentProposal(preview.request, confirmation);
-        if (generationRef.current === generation) navigate('/studio/editor');
-      } else {
-        if (!preview.value.plan) throw new Error(t('copilot.previewExpired'));
-        const result = await commands.applyHighlightEditProposal(preview.request, preview.value.plan, confirmation);
-        if (generationRef.current === generation) navigate(`/studio/editor?project=${encodeURIComponent(result.project_id)}`);
-      }
+      await mutationCoordinator.run(proposalId, async () => {
+        const value = preview.value;
+        if (!value.base_fingerprint || !value.proposal_fingerprint || !value.confirmation_token) {
+          throw new Error(t('copilot.previewExpired'));
+        }
+        const confirmation = {
+          base_fingerprint: value.base_fingerprint,
+          proposal_fingerprint: value.proposal_fingerprint,
+          confirmation_token: value.confirmation_token,
+          expected_revision: preview.kind === 'hlae'
+            ? preview.value.proposal_revision
+            : preview.value.expected_revision,
+          confirm: true as const,
+        };
+        if (preview.kind === 'hlae') {
+          const result = await commands.exportHlaeProposal(preview.request, confirmation);
+          setExported(result);
+          window.dispatchEvent(new Event(HLAE_BUNDLE_EXPORTED_EVENT));
+        } else if (preview.kind === 'beat_alignment') {
+          const result = await commands.applyBeatAlignmentProposal(preview.request, confirmation);
+          navigate(`/studio/editor?project=${encodeURIComponent(result.project_id)}`);
+        } else {
+          if (!preview.value.plan) throw new Error(t('copilot.previewExpired'));
+          const result = await commands.applyHighlightEditProposal(preview.request, preview.value.plan, confirmation);
+          navigate(`/studio/editor?project=${encodeURIComponent(result.project_id)}`);
+        }
+      });
     } catch (cause) {
-      if (generationRef.current === generation) setError(readableError(cause));
+      if (!(cause instanceof ProposalMutationBusyError)) setError(readableError(cause));
     } finally {
-      if (generationRef.current === generation) setBusy(false);
+      mutationActiveRef.current = false;
+      setBusy(false);
     }
-  }, [busy, navigate, preview, reviewable, t]);
+  }, [busy, mutationCoordinator, mutationLocked, navigate, preview, proposalId, reviewable, t]);
+
+  const revealExport = useCallback(async (directory: string) => {
+    if (busy || mutationLocked) return;
+    setBusy(true);
+    setError(null);
+    mutationActiveRef.current = true;
+    try {
+      await mutationCoordinator.run(proposalId, () => commands.revealHlaeBundle(directory));
+    } catch (cause) {
+      if (!(cause instanceof ProposalMutationBusyError)) setError(readableError(cause));
+    } finally {
+      mutationActiveRef.current = false;
+      setBusy(false);
+    }
+  }, [busy, mutationCoordinator, mutationLocked, proposalId]);
 
   const missing = prerequisites(preview);
   return (
     <div className="agent-proposal-card">
       <strong>{proposal.title}</strong>
       <p>{proposalSummary(proposal)}</p>
+      {proposal.kind === 'hlae' ? (
+        <SegmentedControl
+          label={t('copilot.hlaeOutputMode')}
+          value={hlaeMode}
+          onChange={(value) => {
+            setHlaeMode(value);
+            setPreview(null);
+            setExported(null);
+          }}
+          disabled={busy || mutationLocked}
+          options={[
+            { value: 'preview', label: t('copilot.previewMode') },
+            { value: 'capture', label: t('copilot.captureMode') },
+          ]}
+        />
+      ) : null}
       {error ? <span className="agent-proposal-card__error">{error}</span> : null}
       {preview ? (
         <>
@@ -358,12 +524,15 @@ function ProposalCard({ proposal, projects }: { proposal: AgentProposal; project
       {missing.length > 0 ? (
         <ul>{missing.map((item) => <li key={item.code}>{item.message}</li>)}</ul>
       ) : null}
+      {exported ? <HlaeExportResult result={exported} onReveal={(directory) => void revealExport(directory)} /> : null}
       <div className="agent-proposal-card__actions">
-        <Button size="sm" variant="secondary" disabled={busy} onClick={() => void inspect()}>
+        <Button size="sm" variant="secondary" disabled={busy || mutationLocked} onClick={() => void inspect()}>
           {busy ? <Spinner /> : null}{t('copilot.preview')}
         </Button>
-        <Button size="sm" variant="primary" disabled={busy || !reviewable} onClick={() => void apply()}>
-          {proposal.kind === 'hlae' ? t('copilot.export') : t('copilot.apply')}
+        <Button size="sm" variant="primary" disabled={busy || mutationLocked || !reviewable} onClick={() => void apply()}>
+          {proposal.kind === 'hlae'
+            ? t(hlaeMode === 'capture' ? 'copilot.exportCaptureBundle' : 'copilot.exportPreviewBundle')
+            : t('copilot.apply')}
         </Button>
       </div>
     </div>
@@ -478,8 +647,14 @@ export function AgentPage() {
   const [isRunning, setIsRunning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [proposalMutationCoordinator] = useState(() => new ProposalMutationCoordinator());
+  const [proposalMutationOwner, setProposalMutationOwner] = useState<string | null>(null);
   const generationRef = useRef(0);
   const requestIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return proposalMutationCoordinator.subscribe(setProposalMutationOwner);
+  }, [proposalMutationCoordinator]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -511,7 +686,7 @@ export function AgentPage() {
   }, [initialThreadId]);
 
   const onNew = useCallback(async (message: AppendMessage) => {
-    if (isRunning) return;
+    if (isRunning || proposalMutationCoordinator.activeOwner !== null) return;
     const content = messageText(message);
     if (!content) return;
     const createdAt = new Date().toISOString();
@@ -559,7 +734,7 @@ export function AgentPage() {
         setIsRunning(false);
       }
     }
-  }, [audioAssetId, demoId, isRunning, mode, projectId, threadId]);
+  }, [audioAssetId, demoId, isRunning, mode, projectId, proposalMutationCoordinator, threadId]);
 
   const onCancel = useCallback(async () => {
     const requestId = requestIdRef.current;
@@ -570,7 +745,7 @@ export function AgentPage() {
     messages,
     convertMessage,
     isRunning,
-    isSendDisabled: !status?.configured || !status.sidecarAvailable,
+    isSendDisabled: !status?.configured || !status.sidecarAvailable || proposalMutationOwner !== null,
     onNew,
     onCancel,
   });
@@ -605,14 +780,14 @@ export function AgentPage() {
         actions={<Badge tone={statusTone}>{statusText}</Badge>}
       />
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      <section className="agent-context" aria-label={t('copilot.context')} aria-busy={isRunning}>
+      <section className="agent-context" aria-label={t('copilot.context')} aria-busy={isRunning || proposalMutationOwner !== null}>
         <div className="agent-context__heading">
           <strong>{t('copilot.context')}</strong>
           <SegmentedControl
             label={t('copilot.context')}
             value={mode}
             onChange={setMode}
-            disabled={isRunning}
+            disabled={isRunning || proposalMutationOwner !== null}
             options={[
               { value: 'guide', label: t('copilot.mode.guide') },
               { value: 'edit', label: t('copilot.mode.edit') },
@@ -621,15 +796,15 @@ export function AgentPage() {
           />
         </div>
         <div className="agent-context__grid">
-          <ContextSelect disabled={isRunning} label={t('copilot.matchFile')} icon={<Film size={15} />} value={demoId} onChange={setDemoId}>
+          <ContextSelect disabled={isRunning || proposalMutationOwner !== null} label={t('copilot.matchFile')} icon={<Film size={15} />} value={demoId} onChange={setDemoId}>
             <option value="">{t('copilot.none')}</option>
             {demos.map((demo) => <option key={demo.id} value={demo.id}>{demo.display_name}</option>)}
           </ContextSelect>
-          <ContextSelect disabled={isRunning} label={t('copilot.project')} icon={<Sparkles size={15} />} value={projectId} onChange={setProjectId}>
+          <ContextSelect disabled={isRunning || proposalMutationOwner !== null} label={t('copilot.project')} icon={<Sparkles size={15} />} value={projectId} onChange={setProjectId}>
             <option value="">{t('copilot.none')}</option>
             {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
           </ContextSelect>
-          <ContextSelect disabled={isRunning} label={t('copilot.bgm')} icon={<Music2 size={15} />} value={audioAssetId} onChange={setAudioAssetId}>
+          <ContextSelect disabled={isRunning || proposalMutationOwner !== null} label={t('copilot.bgm')} icon={<Music2 size={15} />} value={audioAssetId} onChange={setAudioAssetId}>
             <option value="">{t('copilot.none')}</option>
             {audioAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name}</option>)}
           </ContextSelect>
@@ -639,6 +814,7 @@ export function AgentPage() {
             : <Link className="button button--secondary button--sm" to="/settings">{t('copilot.configure')}</Link>}
         </div>
       </section>
+      <HlaeHandoffPanel />
       <div className="agent-workspace">
         <section className="agent-chat-panel">
           <AssistantRuntimeProvider runtime={runtime}><AgentThread /></AssistantRuntimeProvider>
@@ -653,7 +829,14 @@ export function AgentPage() {
                     {item.kind === 'proposal' ? t('copilot.proposal') : t('copilot.tool')}
                   </Badge>
                   {item.kind === 'proposal' ? (
-                    <ProposalCard proposal={item.proposal} projects={projects} />
+                    <ProposalCard
+                      proposalId={item.id}
+                      proposal={item.proposal}
+                      projects={projects}
+                      selectedAudioAssetId={audioAssetId}
+                      mutationCoordinator={proposalMutationCoordinator}
+                      mutationOwner={proposalMutationOwner}
+                    />
                   ) : <><strong>{item.name}</strong><p>{item.summary}</p></>}
                 </li>
               ))}

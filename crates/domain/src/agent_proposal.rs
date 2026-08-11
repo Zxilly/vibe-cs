@@ -6,7 +6,7 @@ use crate::{
     Highlight, ReplayFrame, TrackKind, Transform,
 };
 
-pub const AGENT_PROPOSAL_SCHEMA_VERSION: u32 = 1;
+pub const AGENT_PROPOSAL_SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -31,13 +31,15 @@ pub enum HlaeProposalMode {
     Capture,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct HlaeProposalIntent {
     pub demo_id: Uuid,
     pub highlight_ids: Vec<String>,
     pub camera_style: HlaeCameraStyle,
     pub mode: HlaeProposalMode,
+    pub lead_seconds: f64,
+    pub tail_seconds: f64,
 }
 
 /// Trusted evidence loaded by the Rust application boundary, never authored by
@@ -71,6 +73,10 @@ pub struct HlaeProposalPreview {
     pub typed_plan: Option<serde_json::Value>,
     pub compiled_preview: Option<serde_json::Value>,
     pub notices: Vec<String>,
+    /// Read-only discovery and launch-safety state loaded by the application
+    /// boundary. Preview/export remain available for review even when HLAE is
+    /// not installed; execution is never implied.
+    pub installation_status: Option<crate::HlaeStatus>,
 }
 
 impl HlaeProposalPreview {
@@ -78,7 +84,7 @@ impl HlaeProposalPreview {
     pub fn prerequisites(items: Vec<ProposalPrerequisite>) -> Self {
         Self {
             schema_version: AGENT_PROPOSAL_SCHEMA_VERSION,
-            proposal_revision: 1,
+            proposal_revision: 2,
             ready: false,
             prerequisites: items,
             base_fingerprint: None,
@@ -87,6 +93,7 @@ impl HlaeProposalPreview {
             typed_plan: None,
             compiled_preview: None,
             notices: Vec::new(),
+            installation_status: None,
         }
     }
 }
@@ -101,7 +108,7 @@ pub struct ProposalConfirmation {
     pub confirm: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct HlaeProposalExportRequest {
     pub intent: HlaeProposalIntent,
@@ -125,7 +132,42 @@ pub struct HlaeProposalExportResult {
 pub struct BeatAlignmentProposalRequest {
     pub project_id: Uuid,
     pub expected_revision: u64,
+    pub audio_asset_id: Uuid,
+    pub audio_placement: BeatAlignmentAudioPlacementIntent,
     pub draft: BeatAlignmentDraft,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct BeatAlignmentAudioPlacementIntent {
+    pub timeline_start_seconds: f64,
+    pub source_in_seconds: f64,
+    pub volume: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BeatAlignmentAudioBinding {
+    pub asset_id: Uuid,
+    pub name: String,
+    pub kind: String,
+    pub file_size: u64,
+    pub duration_seconds: f64,
+    pub asset_fingerprint: String,
+    pub content_sha256: String,
+    pub analysis_sha256: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BeatAlignmentAudioPlacement {
+    pub track_id: Uuid,
+    pub clip_id: Uuid,
+    pub timeline_start_seconds: f64,
+    pub timeline_end_seconds: f64,
+    pub source_in_seconds: f64,
+    pub source_out_seconds: f64,
+    pub volume: f64,
+    pub insert_audio_track: bool,
+    pub insert_audio_clip: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -137,6 +179,8 @@ pub struct BeatAlignmentProposalPreview {
     pub base_fingerprint: Option<String>,
     pub proposal_fingerprint: Option<String>,
     pub confirmation_token: Option<String>,
+    pub audio: Option<BeatAlignmentAudioBinding>,
+    pub audio_placement: Option<BeatAlignmentAudioPlacement>,
     pub changes: Vec<BeatAlignedClip>,
 }
 
@@ -144,6 +188,8 @@ pub struct BeatAlignmentProposalPreview {
 #[serde(deny_unknown_fields)]
 pub struct BeatAlignmentApplyRequest {
     pub project_id: Uuid,
+    pub audio_asset_id: Uuid,
+    pub audio_placement: BeatAlignmentAudioPlacementIntent,
     pub draft: BeatAlignmentDraft,
     #[serde(flatten)]
     pub confirmation: ProposalConfirmation,
@@ -155,14 +201,63 @@ pub struct BeatAlignmentApplyResult {
     pub previous_revision: u64,
     pub revision: u64,
     pub applied_clip_ids: Vec<Uuid>,
+    pub audio_track_id: Uuid,
+    pub audio_clip_id: Uuid,
+    pub audio_clip_inserted: bool,
     pub snapshot_created: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct HighlightEditProposalIntent {
+    pub pacing: HighlightEditPacing,
+    pub include_context_seconds: f64,
+    pub transition: HighlightEditTransition,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum HighlightEditPacing {
+    Measured,
+    Energetic,
+    Impact,
+}
+
+impl HighlightEditPacing {
+    #[must_use]
+    pub const fn playback_speed(self) -> f64 {
+        match self {
+            Self::Measured => 1.0,
+            Self::Energetic => 1.15,
+            Self::Impact => 0.85,
+        }
+    }
+
+    #[must_use]
+    pub const fn transition_duration_seconds(self) -> f64 {
+        match self {
+            Self::Measured => 0.45,
+            Self::Energetic => 0.20,
+            Self::Impact => 0.12,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum HighlightEditTransition {
+    Cut,
+    Fade,
+    Flash,
+    Slide,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct HighlightEditProposalRequest {
     pub demo_id: Uuid,
     pub highlight_ids: Vec<String>,
+    pub intent: HighlightEditProposalIntent,
     /// When omitted, preview prepares a new editor project. Existing projects
     /// are always revision-bound and must provide `expected_revision`.
     #[serde(default)]
@@ -181,6 +276,13 @@ pub struct HighlightAssetMapping {
     pub duration_seconds: f64,
     pub file_size: u64,
     pub content_sha256: String,
+    /// Trusted capture boundaries retained in the managed recording metadata.
+    pub capture_start_tick: u64,
+    pub capture_end_tick: u64,
+    pub tick_rate: f64,
+    /// Playback speed used while the demo was captured. This maps demo ticks
+    /// to exact source-media seconds without trusting model-authored timing.
+    pub capture_playback_speed: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -190,14 +292,19 @@ pub struct HighlightEditClipInsert {
     pub editor_clip_id: Uuid,
     pub timeline_start_seconds: f64,
     pub timeline_end_seconds: f64,
+    pub source_start_tick: u64,
+    pub source_end_tick: u64,
     pub source_in_seconds: f64,
     pub source_out_seconds: f64,
-    pub transition_in: Option<String>,
+    pub playback_speed: f64,
+    pub transition_in: Option<HighlightEditTransition>,
+    pub transition_duration_seconds: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HighlightEditPlan {
     pub demo_id: Uuid,
+    pub intent: HighlightEditProposalIntent,
     pub project_id: Uuid,
     pub project_name: String,
     pub create_project: bool,
@@ -266,6 +373,8 @@ impl EditorProject {
             || plan.insertions.is_empty()
             || plan.insertions.len() > 16
             || plan.insertions.len() != plan.mappings.len()
+            || !plan.intent.include_context_seconds.is_finite()
+            || !(0.0..=8.0).contains(&plan.intent.include_context_seconds)
         {
             return Err(DomainError::InvalidInput(
                 "highlight edit plan is not bound to this project".to_owned(),
@@ -278,7 +387,48 @@ impl EditorProject {
             .iter()
             .flat_map(|track| track.clips.iter().map(|clip| clip.id))
             .collect::<HashSet<_>>();
-        for (mapping, insertion) in plan.mappings.iter().zip(&plan.insertions) {
+        for (index, (mapping, insertion)) in plan.mappings.iter().zip(&plan.insertions).enumerate()
+        {
+            let expected_transition =
+                if index == 0 || plan.intent.transition == HighlightEditTransition::Cut {
+                    None
+                } else {
+                    Some(plan.intent.transition)
+                };
+            let timeline_duration =
+                insertion.timeline_end_seconds - insertion.timeline_start_seconds;
+            let source_start_delta = insertion
+                .source_start_tick
+                .checked_sub(mapping.capture_start_tick)
+                .and_then(|ticks| u32::try_from(ticks).ok());
+            let source_end_delta = insertion
+                .source_end_tick
+                .checked_sub(mapping.capture_start_tick)
+                .and_then(|ticks| u32::try_from(ticks).ok());
+            let expected_source_in = source_start_delta.map_or(f64::NAN, f64::from)
+                / mapping.tick_rate
+                / mapping.capture_playback_speed;
+            let expected_source_out = source_end_delta.map_or(f64::NAN, f64::from)
+                / mapping.tick_rate
+                / mapping.capture_playback_speed;
+            let expected_transition_duration = expected_transition.map(|_| {
+                plan.intent
+                    .pacing
+                    .transition_duration_seconds()
+                    .min(timeline_duration / 2.0)
+            });
+            let transition_duration_matches = match (
+                insertion.transition_duration_seconds,
+                expected_transition_duration,
+            ) {
+                (None, None) => true,
+                (Some(actual), Some(expected)) => {
+                    actual.is_finite()
+                        && (0.05..timeline_duration).contains(&actual)
+                        && (actual - expected).abs() <= 0.000_001
+                }
+                _ => false,
+            };
             if mapping.highlight_id != insertion.highlight_id
                 || mapping.recorded_clip_id != insertion.recorded_clip_id
                 || !highlight_ids.insert(&insertion.highlight_id)
@@ -286,28 +436,38 @@ impl EditorProject {
                 || !editor_ids.insert(insertion.editor_clip_id)
                 || !mapping.duration_seconds.is_finite()
                 || mapping.duration_seconds <= 0.0
+                || mapping.capture_end_tick <= mapping.capture_start_tick
+                || !mapping.tick_rate.is_finite()
+                || !(1.0..=256.0).contains(&mapping.tick_rate)
+                || !mapping.capture_playback_speed.is_finite()
+                || !(0.05..=16.0).contains(&mapping.capture_playback_speed)
                 || !insertion.timeline_start_seconds.is_finite()
                 || !insertion.timeline_end_seconds.is_finite()
                 || !insertion.source_in_seconds.is_finite()
                 || !insertion.source_out_seconds.is_finite()
+                || insertion.source_start_tick < mapping.capture_start_tick
+                || insertion.source_end_tick <= insertion.source_start_tick
+                || insertion.source_end_tick > mapping.capture_end_tick
+                || source_start_delta.is_none()
+                || source_end_delta.is_none()
                 || insertion.timeline_start_seconds < 0.0
                 || insertion.timeline_end_seconds <= insertion.timeline_start_seconds
                 || insertion.source_in_seconds < 0.0
                 || insertion.source_out_seconds <= insertion.source_in_seconds
-                || (insertion.source_out_seconds
-                    - insertion.source_in_seconds
-                    - mapping.duration_seconds)
+                || insertion.source_out_seconds > mapping.duration_seconds + 0.001
+                || (insertion.source_in_seconds - expected_source_in).abs() > 0.001
+                || (insertion.source_out_seconds - expected_source_out).abs() > 0.001
+                || !insertion.playback_speed.is_finite()
+                || !(0.05..=16.0).contains(&insertion.playback_speed)
+                || (insertion.playback_speed - plan.intent.pacing.playback_speed()).abs()
+                    > 0.000_001
+                || (timeline_duration
+                    - (insertion.source_out_seconds - insertion.source_in_seconds)
+                        / insertion.playback_speed)
                     .abs()
                     > 0.001
-                || (insertion.timeline_end_seconds
-                    - insertion.timeline_start_seconds
-                    - mapping.duration_seconds)
-                    .abs()
-                    > 0.001
-                || insertion
-                    .transition_in
-                    .as_deref()
-                    .is_some_and(|transition| transition != "fade")
+                || insertion.transition_in != expected_transition
+                || !transition_duration_matches
             {
                 return Err(DomainError::InvalidInput(
                     "highlight edit plan contains an invalid clip insertion".to_owned(),
@@ -359,20 +519,25 @@ impl EditorProject {
                 "highlight edit target must be an unlocked video track".to_owned(),
             ));
         }
-        for (mapping, insertion) in plan.mappings.iter().zip(&plan.insertions) {
+        for insertion in &plan.insertions {
             target.clips.push(EditorClip {
                 id: insertion.editor_clip_id,
                 asset_id: Some(insertion.recorded_clip_id),
                 name: format!("精选 · {}", insertion.highlight_id),
                 start: insertion.timeline_start_seconds,
-                duration: mapping.duration_seconds,
+                duration: insertion.timeline_end_seconds - insertion.timeline_start_seconds,
                 source_in: insertion.source_in_seconds,
                 source_out: insertion.source_out_seconds,
-                speed: 1.0,
+                speed: insertion.playback_speed,
                 volume: 1.0,
                 transform: Transform::default(),
                 effects: Vec::new(),
-                transition_in: insertion.transition_in.clone(),
+                transition_in: insertion.transition_in.map(|transition| match transition {
+                    HighlightEditTransition::Cut => "cut".to_owned(),
+                    HighlightEditTransition::Fade => "fade".to_owned(),
+                    HighlightEditTransition::Flash => "flash".to_owned(),
+                    HighlightEditTransition::Slide => "slide".to_owned(),
+                }),
                 transition_out: None,
                 text: None,
                 metadata: serde_json::json!({
@@ -380,6 +545,11 @@ impl EditorProject {
                     "demo_id": plan.demo_id,
                     "highlight_id": insertion.highlight_id,
                     "recorded_clip_id": insertion.recorded_clip_id,
+                    "source_start_tick": insertion.source_start_tick,
+                    "source_end_tick": insertion.source_end_tick,
+                    "pacing": plan.intent.pacing,
+                    "include_context_seconds": plan.intent.include_context_seconds,
+                    "transition_duration": insertion.transition_duration_seconds,
                 }),
                 group_id: None,
                 link_group_id: None,
@@ -508,6 +678,198 @@ impl EditorProject {
         *self = updated;
         Ok(parsed.into_iter().map(|(id, _)| id).collect())
     }
+
+    /// Applies a signed BGM placement and the associated video timing as one
+    /// in-memory document mutation. Persistence is responsible for verifying
+    /// the bound media asset before committing this document and its snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] or [`DomainError::Conflict`] when
+    /// the audio binding, placement, target track, clip identity, or video
+    /// timing no longer matches the reviewed proposal.
+    pub fn apply_beat_alignment_with_audio(
+        &mut self,
+        draft: &BeatAlignmentDraft,
+        audio: &BeatAlignmentAudioBinding,
+        placement: &BeatAlignmentAudioPlacement,
+    ) -> Result<(Vec<Uuid>, bool), DomainError> {
+        let valid_hash =
+            |value: &str| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit());
+        let duration = placement.timeline_end_seconds - placement.timeline_start_seconds;
+        let source_duration = placement.source_out_seconds - placement.source_in_seconds;
+        if audio.name.trim().is_empty()
+            || audio.name.chars().count() > 512
+            || audio.kind.trim().is_empty()
+            || audio.file_size == 0
+            || !audio.duration_seconds.is_finite()
+            || audio.duration_seconds <= 0.0
+            || !valid_hash(&audio.asset_fingerprint)
+            || !valid_hash(&audio.content_sha256)
+            || !valid_hash(&audio.analysis_sha256)
+            || !placement.timeline_start_seconds.is_finite()
+            || !placement.timeline_end_seconds.is_finite()
+            || !placement.source_in_seconds.is_finite()
+            || !placement.source_out_seconds.is_finite()
+            || !placement.volume.is_finite()
+            || placement.timeline_start_seconds < 0.0
+            || placement.source_in_seconds < 0.0
+            || duration <= 0.0
+            || source_duration <= 0.0
+            || (duration - source_duration).abs() > 0.000_001
+            || placement.source_out_seconds > audio.duration_seconds + 0.001
+            || placement.timeline_end_seconds > self.duration_seconds + 0.000_001
+            || !(0.0..=4.0).contains(&placement.volume)
+        {
+            return Err(DomainError::InvalidInput(
+                "beat alignment contains an invalid BGM binding or placement".to_owned(),
+            ));
+        }
+
+        let mut updated = self.clone();
+        let applied_clip_ids = updated.apply_beat_alignment_draft(draft)?;
+        let matching = updated.tracks.iter().find_map(|track| {
+            track
+                .clips
+                .iter()
+                .find(|clip| clip.id == placement.clip_id)
+                .map(|clip| (track, clip))
+        });
+        let inserted = if let Some((track, clip)) = matching {
+            if placement.insert_audio_clip
+                || track.id != placement.track_id
+                || track.kind != TrackKind::Audio
+                || track.locked
+                || track.muted
+                || track.hidden
+                || clip.asset_id != Some(audio.asset_id)
+                || clip.text.is_some()
+                || (clip.start - placement.timeline_start_seconds).abs() > 0.000_001
+                || (clip.duration - duration).abs() > 0.000_001
+                || (clip.source_in - placement.source_in_seconds).abs() > 0.000_001
+                || (clip.source_out - placement.source_out_seconds).abs() > 0.000_001
+                || (clip.volume - placement.volume).abs() > 0.000_001
+            {
+                return Err(DomainError::Conflict(
+                    "the bound BGM placement changed; preview it again".to_owned(),
+                ));
+            }
+            let Some(clip) = updated
+                .tracks
+                .iter_mut()
+                .find(|candidate| candidate.id == placement.track_id)
+                .and_then(|candidate| {
+                    candidate
+                        .clips
+                        .iter_mut()
+                        .find(|candidate| candidate.id == placement.clip_id)
+                })
+            else {
+                return Err(DomainError::Conflict(
+                    "the bound BGM clip changed; preview it again".to_owned(),
+                ));
+            };
+            let metadata = serde_json::json!({
+                "asset_fingerprint": audio.asset_fingerprint,
+                "content_sha256": audio.content_sha256,
+                "analysis_sha256": audio.analysis_sha256,
+            });
+            if let Some(object) = clip.metadata.as_object_mut() {
+                object.insert(
+                    "origin".to_owned(),
+                    serde_json::Value::String("beat_alignment_bgm".to_owned()),
+                );
+                object.insert("beat_alignment_bgm".to_owned(), metadata);
+            } else {
+                clip.metadata = serde_json::json!({
+                    "origin": "beat_alignment_bgm",
+                    "beat_alignment_bgm": metadata,
+                });
+            }
+            false
+        } else {
+            if !placement.insert_audio_clip {
+                return Err(DomainError::Conflict(
+                    "the bound BGM clip no longer exists; preview it again".to_owned(),
+                ));
+            }
+            if updated
+                .tracks
+                .iter()
+                .any(|track| track.id == placement.track_id && track.kind != TrackKind::Audio)
+            {
+                return Err(DomainError::Conflict(
+                    "the selected BGM track changed; preview it again".to_owned(),
+                ));
+            }
+            let clip = EditorClip {
+                id: placement.clip_id,
+                asset_id: Some(audio.asset_id),
+                name: audio.name.clone(),
+                start: placement.timeline_start_seconds,
+                duration,
+                source_in: placement.source_in_seconds,
+                source_out: placement.source_out_seconds,
+                speed: 1.0,
+                volume: placement.volume,
+                transform: crate::Transform::default(),
+                effects: Vec::new(),
+                transition_in: None,
+                transition_out: None,
+                text: None,
+                metadata: serde_json::json!({
+                    "origin": "beat_alignment_bgm",
+                    "beat_alignment_bgm": {
+                        "asset_fingerprint": audio.asset_fingerprint,
+                        "content_sha256": audio.content_sha256,
+                        "analysis_sha256": audio.analysis_sha256,
+                    }
+                }),
+                group_id: None,
+                link_group_id: None,
+                keyframes: Vec::new(),
+                speed_segments: Vec::new(),
+            };
+            if let Some(track) = updated
+                .tracks
+                .iter_mut()
+                .find(|track| track.id == placement.track_id)
+            {
+                if placement.insert_audio_track || track.locked || track.muted || track.hidden {
+                    return Err(DomainError::Conflict(
+                        "the selected BGM track changed; preview it again".to_owned(),
+                    ));
+                }
+                track.clips.push(clip);
+            } else {
+                if !placement.insert_audio_track {
+                    return Err(DomainError::Conflict(
+                        "the selected BGM track no longer exists; preview it again".to_owned(),
+                    ));
+                }
+                let order = updated
+                    .tracks
+                    .iter()
+                    .map(|track| track.order)
+                    .max()
+                    .map_or(0, |order| order.saturating_add(1));
+                updated.tracks.push(EditorTrack {
+                    id: placement.track_id,
+                    name: "BGM".to_owned(),
+                    kind: TrackKind::Audio,
+                    order,
+                    muted: false,
+                    locked: false,
+                    hidden: false,
+                    clips: vec![clip],
+                });
+            }
+            true
+        };
+        updated.validate()?;
+        *self = updated;
+        Ok((applied_clip_ids, inserted))
+    }
 }
 
 #[cfg(test)]
@@ -515,6 +877,20 @@ mod tests {
     use chrono::Utc;
 
     use super::*;
+
+    #[test]
+    fn highlight_intent_rejects_untyped_renderer_transitions() {
+        let request = serde_json::json!({
+            "demo_id": Uuid::new_v4(),
+            "highlight_ids": ["h-1"],
+            "intent": {
+                "pacing": "energetic",
+                "include_context_seconds": 2.0,
+                "transition": "whip"
+            }
+        });
+        assert!(serde_json::from_value::<HighlightEditProposalRequest>(request).is_err());
+    }
     use crate::{BeatAlignedClip, EditorClip, EditorTrack, TrackKind, Transform};
 
     fn project() -> EditorProject {
@@ -628,6 +1004,11 @@ mod tests {
         let editor_clip_id = Uuid::new_v4();
         let plan = HighlightEditPlan {
             demo_id: Uuid::new_v4(),
+            intent: HighlightEditProposalIntent {
+                pacing: HighlightEditPacing::Measured,
+                include_context_seconds: 0.0,
+                transition: HighlightEditTransition::Cut,
+            },
             project_id: project.id,
             project_name: project.name.clone(),
             create_project: false,
@@ -641,6 +1022,10 @@ mod tests {
                 duration_seconds: 3.0,
                 file_size: 5,
                 content_sha256: "00".repeat(32),
+                capture_start_tick: 0,
+                capture_end_tick: 192,
+                tick_rate: 64.0,
+                capture_playback_speed: 1.0,
             }],
             insertions: vec![HighlightEditClipInsert {
                 highlight_id: "h-1".to_owned(),
@@ -648,11 +1033,29 @@ mod tests {
                 editor_clip_id,
                 timeline_start_seconds: 0.0,
                 timeline_end_seconds: 3.0,
+                source_start_tick: 0,
+                source_end_tick: 192,
                 source_in_seconds: 0.0,
                 source_out_seconds: 3.0,
+                playback_speed: 1.0,
                 transition_in: None,
+                transition_duration_seconds: None,
             }],
         };
+        let original = project.clone();
+        let mut tampered_speed = plan.clone();
+        tampered_speed.insertions[0].playback_speed = 1.15;
+        assert!(project.apply_highlight_edit_plan(&tampered_speed).is_err());
+        assert_eq!(project, original);
+        let mut tampered_transition = plan.clone();
+        tampered_transition.insertions[0].transition_in = Some(HighlightEditTransition::Flash);
+        tampered_transition.insertions[0].transition_duration_seconds = Some(0.12);
+        assert!(
+            project
+                .apply_highlight_edit_plan(&tampered_transition)
+                .is_err()
+        );
+        assert_eq!(project, original);
         assert_eq!(
             project.apply_highlight_edit_plan(&plan).unwrap(),
             vec![editor_clip_id]

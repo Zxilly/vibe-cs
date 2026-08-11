@@ -705,6 +705,28 @@ async fn run_agent_chat(
         .map_err(|error| AgentCommandError::internal(error.to_string()))?,
         None => Value::Null,
     };
+    let selected_audio = match input.audio_asset_id {
+        Some(id) => {
+            let asset = state.storage.get_asset(id).await.map_err(|error| {
+                AgentCommandError::internal(format!("unable to read selected BGM: {error}"))
+            })?;
+            asset.map_or(Value::Null, |asset| {
+                json!({
+                    "assetId": asset.id,
+                    "name": asset.name,
+                    "kind": asset.kind,
+                    "durationSeconds": asset.duration_seconds,
+                    "fileSize": asset.file_size,
+                    "placement": {
+                        "timeline_start_seconds": 0.0,
+                        "source_in_seconds": 0.0,
+                        "volume": 1.0,
+                    },
+                })
+            })
+        }
+        None => Value::Null,
+    };
     let audio_analysis = match input.audio_asset_id {
         Some(id) => tokio::select! {
             analysis = state.analyze_audio(id) => analysis?,
@@ -761,6 +783,7 @@ async fn run_agent_chat(
             "demo": summarize_demo(&demo),
             "analysis": summarize_analysis(&analysis),
             "editorProject": summarize_editor_project(&editor_project),
+            "selectedAudio": selected_audio,
             "audioAnalysis": audio_analysis,
             "beatAlignmentDraft": beat_alignment_draft,
         },

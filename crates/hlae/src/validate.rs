@@ -5,7 +5,6 @@ use crate::{
     HlaePlanMode,
 };
 
-const CS2_TICKS_PER_SECOND: u64 = 64;
 const MAXIMUM_TICK: u64 = i32::MAX as u64;
 const MAXIMUM_COORDINATE: f64 = 1_000_000.0;
 const MAXIMUM_TOTAL_KEYFRAMES: usize = 32_768;
@@ -36,6 +35,9 @@ pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError>
         return invalid("demoPath must have a .dem extension");
     }
     validate_safe_path(&plan.output_directory, "outputDirectory", true)?;
+    if !plan.tick_rate.is_finite() || !(1.0..=256.0).contains(&plan.tick_rate) {
+        return invalid("tickRate must be finite and between 1 and 256");
+    }
     if !(1..=1_000).contains(&plan.capture.fps) {
         return invalid("capture fps must be between 1 and 1000");
     }
@@ -82,7 +84,7 @@ pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError>
 
     let mut previous_end = None;
     for shot in &plan.shots {
-        validate_shot(shot, &mut notices)?;
+        validate_shot(shot, plan.tick_rate, &mut notices)?;
         if let Some(end) = previous_end {
             if shot.start_tick < end {
                 return invalid("shots must be sorted and must not overlap");
@@ -103,7 +105,11 @@ pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError>
     Ok(notices)
 }
 
-fn validate_shot(shot: &CameraShot, notices: &mut Vec<HlaeNotice>) -> Result<(), HlaeError> {
+fn validate_shot(
+    shot: &CameraShot,
+    tick_rate: f64,
+    notices: &mut Vec<HlaeNotice>,
+) -> Result<(), HlaeError> {
     if shot.id.is_empty()
         || shot.id.len() > 64
         || !shot
@@ -137,7 +143,8 @@ fn validate_shot(shot: &CameraShot, notices: &mut Vec<HlaeNotice>) -> Result<(),
                     shot.id
                 ));
             }
-            if keyframe.tick - previous < CS2_TICKS_PER_SECOND {
+            let tick_gap = u32::try_from(keyframe.tick - previous).unwrap_or(u32::MAX);
+            if f64::from(tick_gap) / tick_rate < 1.0 {
                 notices.push(HlaeNotice {
                     code: HlaeNoticeCode::ShortKeyframeGap,
                     message: format!(
@@ -241,6 +248,7 @@ mod tests {
         HlaePlan {
             schema_version: HLAE_PLAN_SCHEMA_VERSION,
             mode: HlaePlanMode::Preview,
+            tick_rate: 64.0,
             demo_path: PathBuf::from("match.dem"),
             output_directory: std::env::temp_dir().join("vibe-cs-hlae-output"),
             pre_roll_ticks: 128,
@@ -291,6 +299,17 @@ mod tests {
     fn rejects_non_finite_ai_generated_values() {
         let mut plan = valid_plan();
         plan.shots[0].keyframes[0].fov = f64::NAN;
+        assert!(validate_hlae_plan(&plan).is_err());
+    }
+
+    #[test]
+    fn rejects_invalid_demo_tick_rate() {
+        let mut plan = valid_plan();
+        plan.tick_rate = f64::NAN;
+        assert!(validate_hlae_plan(&plan).is_err());
+        plan.tick_rate = 0.0;
+        assert!(validate_hlae_plan(&plan).is_err());
+        plan.tick_rate = 257.0;
         assert!(validate_hlae_plan(&plan).is_err());
     }
 

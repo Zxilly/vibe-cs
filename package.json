@@ -10,6 +10,7 @@
     "build": "pnpm --filter @vibe-cs/web build",
     "test": "pnpm --filter @vibe-cs/web test",
     "typecheck": "pnpm --filter @vibe-cs/web typecheck",
-    "lint": "pnpm --filter @vibe-cs/web lint"
+    "lint": "pnpm --filter @vibe-cs/web lint",
+    "audit:distance": "node scripts/source-distance.mjs"
   }
 }

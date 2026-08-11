@@ -6,6 +6,7 @@ members = [
   "crates/cosmetics",
   "crates/demo",
   "crates/domain",
+  "crates/hlae",
   "crates/integrations",
   "crates/media",
   "crates/platform-windows",

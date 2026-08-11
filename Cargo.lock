@@ -6053,6 +6053,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vibe-cs-hlae"
+version = "0.1.0"
+dependencies = [
+ "cap-std",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.20",
+]
+
+[[package]]
 name = "vibe-cs-integrations"
 version = "0.1.0"
 dependencies = [
@@ -6152,6 +6163,7 @@ dependencies = [
  "vibe-cs-cosmetics",
  "vibe-cs-demo",
  "vibe-cs-domain",
+ "vibe-cs-hlae",
  "vibe-cs-integrations",
  "vibe-cs-media",
  "vibe-cs-platform-windows",

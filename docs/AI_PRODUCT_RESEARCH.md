@@ -75,6 +75,38 @@ product Agent uses only bounded local evidence and proposal tools.
 
 ## Opportunity map
 
+## Counter-Strike-specific tool audit
+
+The implementation was checked against the current open-source CS Demo Manager checkout
+(`akiver/cs-demo-manager`, commit `8961f50`), the local CS2 Insight Agent checkout
+(`02920eb`), Freezetime (`dcf6a20`), and Breakdown's published Tactical Analyst surface.
+CS Demo Manager is not itself an LLM agent; its value as a reference is the verified data surface
+an agent should be able to query: match overview/scoreboard, rounds, players, weapons, duels,
+opening duels, grenades, economy, heatmaps, 2D replay, video timeline, and chat records. Breakdown
+publishes the closest explicit agent-tool vocabulary: Search Rounds, Round Context, Round Events,
+Events Batch, and Full Demo Data. CS2 Insight Agent adds bounded highlight/fail classification and
+director planning, while Freezetime is a useful counterexample that keeps deterministic local
+analysis separate from external LLMs.
+
+Vibe CS mirrors those useful seams with narrower, evidence-bound tools rather than one oversized
+"full database" tool:
+
+| Reference surface | Vibe CS tool | Product boundary |
+| --- | --- | --- |
+| Match overview, scoreboard, rounds, players | `read_demo_evidence` | persisted local analysis only |
+| Search Rounds | `search_rounds` | bounded filters for side, player, purchase, round, event |
+| Round Context | `read_round_context` | explicit round numbers; economy and state included |
+| Round Events / Events Batch | `read_round_events` | bounded event kinds, players, and result count |
+| Duels and opponent tendencies | `read_player_matchups` | deterministic player-v-player aggregates |
+| Highlight/fail collections | `read_highlights` | stable evidence IDs and tick ranges |
+| Match video timeline | `read_editor_timeline` | selected project and optimistic revision |
+| Music timing | `read_audio_analysis`, `draft_beat_alignment` | native decoded evidence; proposal only |
+| Director/cinematic planning | `draft_edit_plan`, `draft_hlae_plan` | typed proposal; no direct mutation or launch |
+
+The product intentionally does not expose filesystem, shell, SQL, arbitrary HTTP, raw console, or
+generic web-search tools. Mutations happen only after a second Rust-side preview, exact diff,
+fingerprint/revision validation, and explicit user confirmation.
+
 ### Deliver first
 
 - Context attachments for demos, player, project, and music.
@@ -103,6 +135,15 @@ product Agent uses only bounded local evidence and proposal tools.
 
 - AdvancedFX command reference and issues: command breadth, experimental scripts, CS2 surface, and
   output workflow requests.
+- CS Demo Manager source: <https://github.com/akiver/cs-demo-manager> — the Counter-Strike match,
+  round, player, duel, grenade, economy, replay, video, and chat data surfaces an assistant must
+  query without inventing facts.
+- Breakdown Tactical Analyst: <https://www.breakdown.gg/> — the published Search Rounds, Round
+  Context, Round Events, Events Batch, and Full Demo Data agent-tool vocabulary.
+- CS2 Insight Agent source: <https://github.com/DrEAmSs59/CS2-insight-agent> — deterministic
+  highlight/fail classification, recording director, and bounded AI commentary separation.
+- Freezetime source: <https://github.com/benginN/csfreezetime> — local deterministic opponent,
+  utility, replay, and strategy analysis without an external LLM dependency.
 - assistant-ui Mastra guide and Mastra docs: sidecar/server runtime, streaming, tools, and memory
   requirements.
 - Kimi documentation: provider separation, model IDs, endpoints, credential storage, and tool calls.

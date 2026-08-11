@@ -1,0 +1,20 @@
+[package]
+name = "vibe-cs-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+vibe-cs-api = { path = "../../crates/api" }
+vibe-cs-runtime = { path = "../../crates/runtime" }
+vibe-cs-storage = { path = "../../crates/storage" }
+directories.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-appender.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true

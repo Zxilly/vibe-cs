@@ -1,0 +1,20 @@
+[package]
+name = "vibe-cs-source-assets"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+crc32fast = "1.5"
+lz4_flex.workspace = true
+png.workspace = true
+same-file.workspace = true
+thiserror.workspace = true
+texture2ddecoder.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

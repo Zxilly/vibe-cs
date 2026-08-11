@@ -11,10 +11,23 @@ $archive = Join-Path $dependencyRoot "$sdkVersion.zip"
 $downloadUrl = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-11-13-11/ffmpeg-n8.1.2-34-g9b6c8969e0-win64-lgpl-shared-8.1.zip'
 $expectedSha256 = '026f3ba22f0acf4fe58bf4da28a7eb64ffb107b270119684b91e4cace3b577aa'
 $markerName = '.vibe-cs-sdk-version'
+$cliExecutables = @('ffmpeg.exe', 'ffplay.exe', 'ffprobe.exe')
+
+function Remove-FfmpegCliExecutables {
+    param([Parameter(Mandatory = $true)][string]$SdkRoot)
+
+    foreach ($name in $cliExecutables) {
+        $path = Join-Path $SdkRoot "bin\$name"
+        if (Test-Path -LiteralPath $path -PathType Leaf) {
+            Remove-Item -LiteralPath $path -Force
+        }
+    }
+}
 
 if ((Test-Path -LiteralPath (Join-Path $destination 'lib\avcodec.lib')) -and
     (Test-Path -LiteralPath (Join-Path $destination $markerName)) -and
     ((Get-Content -Raw -LiteralPath (Join-Path $destination $markerName)).Trim() -eq $sdkVersion)) {
+    Remove-FfmpegCliExecutables -SdkRoot $destination
     exit 0
 }
 
@@ -36,6 +49,7 @@ $source = Get-ChildItem -LiteralPath $staging -Directory | Select-Object -First 
 if ($null -eq $source -or -not (Test-Path -LiteralPath (Join-Path $source.FullName 'lib\avcodec.lib'))) {
     throw 'Downloaded FFmpeg SDK does not contain the expected import libraries.'
 }
+Remove-FfmpegCliExecutables -SdkRoot $source.FullName
 Set-Content -NoNewline -LiteralPath (Join-Path $source.FullName $markerName) -Value $sdkVersion
 $previous = $null
 if (Test-Path -LiteralPath $destination) {

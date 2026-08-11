@@ -1,19 +1,19 @@
 # Architecture
 
-Vibe CS is a loopback-only, local-first application. The HTTP boundary gives the React client,
-desktop shell, standalone host and integration tests one contract; it is not a public service
-boundary.
+Vibe CS is a native, local-first desktop application. Tauri owns the process boundary: React sends
+IPC commands to managed Rust state, receives large binary results as raw IPC bytes, and reads media
+through a private application protocol. The only local HTTP listener is a single authenticated
+CS2 GSI ingestion route required by the game protocol; it exposes no product commands.
 
 ## Dependency direction
 
 ```text
-apps/desktop ─┐
-apps/server  ─┴─> api + runtime + storage
+apps/desktop ─────> application + runtime + storage
 
-runtime ─> api + cosmetics + demo + domain + integrations + media
+runtime ─> application + cosmetics + demo + domain + integrations + media
         + platform-windows + recording + source-assets + storage
 
-api ───────────────> demo + domain + storage
+application ───────> demo + domain + storage
 storage ───────────> domain
 demo ──────────────> domain + source2-demo
 cosmetics ─────────> domain + source2-demo
@@ -23,7 +23,7 @@ recording ─────────> domain + integrations + platform-windows
 source-assets ─────> bounded codecs + VPK reader
 
 apps/demo-worker ──> demo + domain
-apps/web ── HTTP/SSE ──> api
+apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 ```
 
 - `domain` contains serializable records, validation and errors and performs no I/O.
@@ -42,21 +42,20 @@ apps/web ── HTTP/SSE ──> api
   process launch and integrity-checked backup/recovery primitives.
 - `recording` coordinates acknowledged game playback, evidence-backed director plans, calibrated
   overlays, job-scoped capture settings, OBS capture, cleanup and atomic publication.
-- `api` owns the versioned `/api/v1` contract, request validation, status mapping,
-  loopback/origin enforcement, bounded uploads and
-  streaming, active-task tracking and mutation events.
+- `application` owns use-case validation, status mapping, bounded uploads and media reads,
+  active-task tracking and mutation events. It is private to the desktop process.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
   media, cache and source-asset ports.
-- `server` and `desktop` own application-data resolution, composition and process lifecycle.
-- `web` keeps wire DTOs at the API boundary and uses feature-local state for analysis, queue,
+- `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and
+  process lifecycle.
+- `web` keeps DTOs at the desktop command boundary and uses feature-local state for analysis, queue,
   editor and settings workflows.
 
 Platform commands and process spawning do not appear in route handlers or domain records.
 
 ## Runtime data
 
-The standalone host resolves a standard per-user directory unless `--data-dir` is supplied; the
-desktop host uses Tauri's application-data resolver. The resulting tree is created lazily:
+The desktop host uses Tauri's per-user application-data resolver. The resulting tree is created lazily:
 
 ```text
 <data-dir>/
@@ -89,14 +88,14 @@ Temporary files are created in the target filesystem and become visible only aft
 an atomic or no-clobber publication step. Replay and avatar caches have entry and byte ceilings;
 proxy ownership and cleanup are persisted explicitly.
 
-## Request and task flow
+## Command and task flow
 
-The API validates identity and wire shape before calling a narrow port. A concrete runtime port
+The application dispatcher validates identity and command shape before calling a narrow port. A concrete runtime port
 loads persistent state, performs filesystem/network/process work through a bounded adapter and
 persists the resulting domain record. The React client never chooses an arbitrary executable,
 remote avatar origin, OBS setting field or LLM evidence document at request time.
 
-Recording, export and Steam-download records are persisted and polled over HTTP. Cancellation is
+Recording, export and Steam-download records are persisted and queried through Tauri commands. Cancellation is
 cooperative and job-scoped. A normal lifecycle is:
 
 ```text
@@ -107,8 +106,8 @@ queued -> preparing -> running -> completed
 ```
 
 Exports, recordings and Steam downloads left active by a stopped host are reconciled to a terminal
-state on the next startup; capture and downloads are not resumed from an ambiguous point. Route
-mutations emit SSE change events. Background render/capture progress is read from persistent job
+state on the next startup; capture and downloads are not resumed from an ambiguous point. Mutations
+publish desktop change events. Background render/capture progress is read from persistent job
 records. Demo parsing uses a bounded worker process when available and otherwise the same bounded
 parser in-process.
 
@@ -124,8 +123,9 @@ state separate from ready state so a crash cannot make a partial media file look
 
 ## Safety boundaries
 
-- Hosts bind only to loopback and reject non-loopback `Host` values and untrusted `Origin` values,
-  including simple requests that do not trigger a browser preflight.
+- IPC commands are registered explicitly, media paths stay inside the private protocol namespace,
+  and upload targets are allowlisted before bytes are parsed. The separate loopback GSI receiver
+  accepts only the bounded, token-authenticated CS2 state payload route.
 - Multipart and archive names are reduced to safe relative components. Request, file, entry,
   expansion, compression-ratio and total sizes are bounded, and partial batches are rolled back.
 - Secrets are accepted on write, redacted from responses and debug output, and preserved when a

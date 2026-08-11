@@ -2,7 +2,7 @@
 
 Vibe CS is a local-first desktop workspace for competitive match review and video creation. It combines a watched demo library, match and player analysis, evidence-backed 2D replay, highlight planning, OBS-assisted recording, montage assembly, optional AI review, and a multi-track editor.
 
-The backend is implemented as a Rust workspace. The user interface is TypeScript + React and can run in a browser during development or inside the desktop shell.
+The application core is implemented as a Rust workspace. The user interface is TypeScript + React and runs inside the Tauri desktop shell.
 
 ## Workspace
 
@@ -10,10 +10,9 @@ The backend is implemented as a Rust workspace. The user interface is TypeScript
 apps/
   demo-worker/  isolated demo-analysis worker
   desktop/      Tauri 2 desktop host
-  server/       standalone HTTP service entry point
   web/          TypeScript + React application
 crates/
-  api/          HTTP routes and application state
+  application/  in-process use cases, validation and desktop command dispatch
   cosmetics/    bounded cosmetic inspection and demo rewrite library
   demo/         demo discovery, indexing, parsing and analysis
   domain/       shared models and errors
@@ -38,22 +37,19 @@ corepack pnpm install
 cargo build -p vibe-cs-demo-worker
 ```
 
-Start the two development processes in separate terminals:
+Start the native desktop development host:
 
 ```powershell
-# Terminal 1
-cargo run -p vibe-cs-server
-
-# Terminal 2
-corepack pnpm dev
+corepack pnpm desktop:dev
 ```
 
-The web client uses the versioned `/api/v1` contract, proxied to `http://127.0.0.1:47831`
-during development. A packaged desktop build talks to that fixed loopback service directly.
-`VITE_API_URL` is an optional,
-build-time HTTP(S) override.
+The React client calls Tauri commands through IPC. Replay payloads use raw IPC bytes, uploads use
+bounded raw-byte commands, and video/audio/image resources are served by the private
+`vibe-cs-media` protocol with range support. No product API origin or CORS policy exists. The only
+loopback listener is the narrow, token-authenticated CS2 GSI receiver required by the game itself;
+it exposes no UI or product commands.
 
-The analysis worker is discovered beside the server or desktop executable. Set
+The analysis worker is discovered beside the desktop executable. Set
 `VIBE_CS_DEMO_WORKER` only when it is installed elsewhere; development falls back to the
 same bounded parser in-process if the worker binary has not been built yet.
 
@@ -65,13 +61,12 @@ after the target database exists. Versioned replay-cache entries are still valid
 incompatible entries are invalidated and rebuilt. Remove the environment variable after a
 successful first start so later starts use the imported database normally.
 
-Update checks are opt-in and manual. Configure a public HTTPS manifest URL in Settings. The local
-service rejects redirects and non-public endpoints, bounds connection time and response size, and
+Update checks are opt-in and manual. Configure a public HTTPS manifest URL in Settings. The Rust
+integration rejects redirects and non-public endpoints, bounds connection time and response size, and
 only returns a validated download page; it never downloads or executes an update.
 
 For desktop development, install the Tauri platform prerequisites, then use the workspace
-scripts. The local CLI, web build, embedded loopback service, and desktop configuration are
-resolved automatically:
+scripts. The web build and desktop configuration are resolved automatically:
 
 ```powershell
 corepack pnpm desktop:dev

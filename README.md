@@ -48,8 +48,9 @@ cargo run -p vibe-cs-server
 corepack pnpm dev
 ```
 
-The web client proxies `/api` to `http://127.0.0.1:47831` during development. A packaged
-desktop build talks to that fixed loopback service directly. `VITE_API_URL` is an optional,
+The web client uses the versioned `/api/v1` contract, proxied to `http://127.0.0.1:47831`
+during development. A packaged desktop build talks to that fixed loopback service directly.
+`VITE_API_URL` is an optional,
 build-time HTTP(S) override.
 
 The analysis worker is discovered beside the server or desktop executable. Set

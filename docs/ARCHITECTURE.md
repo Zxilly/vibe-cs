@@ -42,7 +42,8 @@ apps/web ── HTTP/SSE ──> api
   process launch and integrity-checked backup/recovery primitives.
 - `recording` coordinates acknowledged game playback, evidence-backed director plans, calibrated
   overlays, job-scoped capture settings, OBS capture, cleanup and atomic publication.
-- `api` owns request validation, status mapping, loopback/origin enforcement, bounded uploads and
+- `api` owns the versioned `/api/v1` contract, request validation, status mapping,
+  loopback/origin enforcement, bounded uploads and
   streaming, active-task tracking and mutation events.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
   media, cache and source-asset ports.

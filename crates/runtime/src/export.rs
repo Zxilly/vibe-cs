@@ -104,7 +104,7 @@ impl RuntimeExportPort {
         project_id: Uuid,
         request: &Value,
     ) -> Result<(ExportJobRecord, FilterPlan), DomainError> {
-        if !matches!(kind, "montage" | "lite_cut") {
+        if !matches!(kind, "montage" | "editor") {
             return Err(DomainError::InvalidInput(format!(
                 "unsupported export kind: {kind}"
             )));
@@ -130,7 +130,7 @@ impl RuntimeExportPort {
                 self.montage_plan(&ffmpeg, ffprobe.as_deref(), project_id, &output)
                     .await?
             }
-            "lite_cut" => {
+            "editor" => {
                 self.editor_plan(&ffmpeg, ffprobe.as_deref(), project_id, &output, request)
                     .await?
             }
@@ -817,7 +817,7 @@ mod tests {
         ] {
             storage
                 .put_export_job(ExportJobRecord {
-                    kind: "lite_cut".to_owned(),
+                    kind: "editor".to_owned(),
                     job: ExportJob {
                         id,
                         project_id: Uuid::new_v4(),
@@ -1058,7 +1058,7 @@ mod tests {
         );
 
         let job = port
-            .start("lite_cut", project_id, Value::Null)
+            .start("editor", project_id, Value::Null)
             .await
             .expect("recorded clip resolves as an editor source");
         assert_eq!(job.status, JobStatus::Running);

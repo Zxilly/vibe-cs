@@ -25,7 +25,7 @@ export function playerPageCount(total: number, pageSize = PLAYER_PAGE_SIZE): num
 }
 
 export function localPlayerAvatarPath(player: PlayerDirectoryItem): string | null {
-  const expected = `/api/players/${encodeURIComponent(player.steam_id)}/avatar`;
+  const expected = `/api/v1/players/${encodeURIComponent(player.steam_id)}/avatar`;
   return player.steam.state === 'available' && player.steam.avatar_url === expected
     ? expected
     : null;

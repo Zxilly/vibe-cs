@@ -51,125 +51,134 @@ const MAXIMUM_PACKAGE_UPLOAD_BYTES: usize = 4 * 1024 * 1024 * 1024 + 1024 * 1024
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/recorded-clips", get(list_clips).post(create_clip))
+        .route("/api/v1/recorded-clips", get(list_clips).post(create_clip))
         .route(
-            "/api/recorded-clips/{id}",
+            "/api/v1/recorded-clips/{id}",
             get(get_clip).patch(patch_clip).delete(delete_clip),
         )
         .route(
-            "/api/recorded-clips/{id}/stream",
+            "/api/v1/recorded-clips/{id}/stream",
             get(stream_clip).head(head_clip),
         )
         .route(
-            "/api/recorded-clips/{id}/waveform",
+            "/api/v1/recorded-clips/{id}/waveform",
             get(recorded_clip_waveform),
         )
         .route(
-            "/api/montage/projects",
+            "/api/v1/montage/projects",
             get(list_montages).post(create_montage),
         )
         .route(
-            "/api/montage/projects/{id}",
+            "/api/v1/montage/projects/{id}",
             get(get_montage).put(put_montage).delete(delete_montage),
         )
-        .route("/api/montage/projects/{id}/export", post(export_montage))
-        .route("/api/montage/export", post(export_compatible_montage))
+        .route("/api/v1/montage/projects/{id}/export", post(export_montage))
+        .route("/api/v1/montage/export", post(export_compatible_montage))
         .route(
-            "/api/editor/projects",
+            "/api/v1/editor/projects",
             get(list_editor_projects).post(create_editor_project),
         )
         .route(
-            "/api/editor/projects/delete-batch",
+            "/api/v1/editor/projects/delete-batch",
             post(delete_editor_projects_batch),
         )
         .route(
-            "/api/editor/projects/{id}",
+            "/api/v1/editor/projects/{id}",
             get(get_editor_project)
                 .put(save_editor_project)
                 .patch(save_editor_project)
                 .delete(delete_editor_project),
         )
         .route(
-            "/api/editor/projects/{id}/export",
+            "/api/v1/editor/projects/{id}/export",
             post(export_editor_project),
         )
         .route(
-            "/api/editor/projects/{id}/duplicate",
+            "/api/v1/editor/projects/{id}/duplicate",
             post(duplicate_editor_project),
         )
         .route(
-            "/api/editor/projects/{id}/snapshots",
+            "/api/v1/editor/projects/{id}/snapshots",
             get(list_editor_snapshots),
         )
         .route(
-            "/api/editor/projects/{id}/snapshots/{snapshot_id}/restore",
+            "/api/v1/editor/projects/{id}/snapshots/{snapshot_id}/restore",
             post(restore_editor_snapshot),
         )
         .route(
-            "/api/editor/projects/{project_id}/clips/{clip_id}/apply-preset",
+            "/api/v1/editor/projects/{project_id}/clips/{clip_id}/apply-preset",
             post(apply_editor_preset),
         )
         .route(
-            "/api/editor/projects/{project_id}/clips/{clip_id}/separate-audio",
+            "/api/v1/editor/projects/{project_id}/clips/{clip_id}/separate-audio",
             post(separate_editor_clip_audio),
         )
         .route(
-            "/api/editor/projects/{id}/package",
+            "/api/v1/editor/projects/{id}/package",
             post(export_editor_package),
         )
         .route(
-            "/api/editor/packages/import",
+            "/api/v1/editor/packages/import",
             post(import_editor_package_path),
         )
         .route(
-            "/api/editor/packages/upload",
+            "/api/v1/editor/packages/upload",
             post(upload_editor_package).layer(DefaultBodyLimit::max(MAXIMUM_PACKAGE_UPLOAD_BYTES)),
         )
         .route(
-            "/api/editor/packages/{id}/download",
+            "/api/v1/editor/packages/{id}/download",
             get(download_editor_package).head(head_editor_package),
         )
-        .route("/api/editor/export/start", post(export_editor_compatible))
         .route(
-            "/api/media/assets",
+            "/api/v1/editor/export/start",
+            post(export_editor_compatible),
+        )
+        .route(
+            "/api/v1/media/assets",
             get(list_assets)
                 .post(upload_assets)
                 .layer(DefaultBodyLimit::max(MAXIMUM_ASSET_UPLOAD_REQUEST_BYTES)),
         )
-        .route("/api/media/assets/import", post(import_asset))
+        .route("/api/v1/media/assets/import", post(import_asset))
         .route(
-            "/api/media/assets/{id}",
+            "/api/v1/media/assets/{id}",
             get(get_asset).put(put_asset).delete(delete_asset),
         )
-        .route("/api/media/assets/{id}/relink", post(relink_asset_path))
+        .route("/api/v1/media/assets/{id}/relink", post(relink_asset_path))
         .route(
-            "/api/media/assets/{id}/replace",
+            "/api/v1/media/assets/{id}/replace",
             post(replace_asset_upload)
                 .layer(DefaultBodyLimit::max(MAXIMUM_ASSET_UPLOAD_REQUEST_BYTES)),
         )
-        .route("/api/media/assets/{id}/proxy", post(generate_asset_proxy))
         .route(
-            "/api/media/assets/{id}/proxy/stream",
+            "/api/v1/media/assets/{id}/proxy",
+            post(generate_asset_proxy),
+        )
+        .route(
+            "/api/v1/media/assets/{id}/proxy/stream",
             get(stream_asset_proxy).head(head_asset_proxy),
         )
-        .route("/api/media/proxies/cleanup", post(cleanup_asset_proxies))
+        .route("/api/v1/media/proxies/cleanup", post(cleanup_asset_proxies))
         .route(
-            "/api/media/assets/{id}/stream",
+            "/api/v1/media/assets/{id}/stream",
             get(stream_asset).head(head_asset),
         )
-        .route("/api/media/assets/{id}/waveform", get(asset_waveform))
+        .route("/api/v1/media/assets/{id}/waveform", get(asset_waveform))
         .route(
-            "/api/media/assets/{id}/extract-audio",
+            "/api/v1/media/assets/{id}/extract-audio",
             post(extract_asset_audio),
         )
-        .route("/api/editor/presets", get(list_presets).post(create_preset))
         .route(
-            "/api/editor/presets/{id}",
+            "/api/v1/editor/presets",
+            get(list_presets).post(create_preset),
+        )
+        .route(
+            "/api/v1/editor/presets/{id}",
             get(get_preset).put(put_preset).delete(delete_preset),
         )
-        .route("/api/exports", get(list_export_jobs))
-        .route("/api/exports/{id}", get(get_export_job))
-        .route("/api/exports/{id}/cancel", post(cancel_export_job))
+        .route("/api/v1/exports", get(list_export_jobs))
+        .route("/api/v1/exports/{id}", get(get_export_job))
+        .route("/api/v1/exports/{id}/cancel", post(cancel_export_job))
 }
 
 #[derive(Debug, Serialize)]
@@ -209,7 +218,7 @@ impl From<RecordedClip> for RecordedClipDto {
             map_name,
             duration_seconds: clip.duration_seconds,
             created_at: clip.created_at,
-            stream_url: format!("/api/recorded-clips/{}/stream", clip.id),
+            stream_url: format!("/api/v1/recorded-clips/{}/stream", clip.id),
             demo_id: clip.demo_id,
             category: clip.category,
             tags: clip.tags,
@@ -1481,7 +1490,7 @@ async fn editor_package_output_path(
     tokio::fs::create_dir_all(&directory).await?;
     Ok((
         directory.join(format!("{package_id}.vcep")),
-        Some(format!("/api/editor/packages/{package_id}/download")),
+        Some(format!("/api/v1/editor/packages/{package_id}/download")),
     ))
 }
 
@@ -2247,7 +2256,7 @@ async fn export_editor_project(
     if state.storage.get_editor_project(id).await?.is_none() {
         return Err(ApiError::not_found("editor project"));
     }
-    start_export(&state, "lite_cut", id, request).await
+    start_export(&state, "editor", id, request).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -2265,7 +2274,7 @@ async fn export_editor_compatible(
     if state.storage.get_editor_project(id).await?.is_none() {
         return Err(ApiError::not_found("editor project"));
     }
-    start_export(&state, "lite_cut", id, request.options).await
+    start_export(&state, "editor", id, request.options).await
 }
 
 #[derive(Debug, Default, Deserialize)]

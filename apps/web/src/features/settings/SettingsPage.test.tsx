@@ -38,7 +38,7 @@ describe('OBS diagnosis UI', () => {
     );
 
     expect(markup).toContain('WebSocket 已连接');
-    expect(markup).toContain('正在录制');
+    expect(markup).toContain('录制进行中');
     expect(markup).toContain('59.94 FPS');
     expect(markup).toContain('期望 60 FPS');
     expect(markup).toContain('Desktop（当前）');

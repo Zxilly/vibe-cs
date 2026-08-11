@@ -227,7 +227,7 @@ mod tests {
         let address = listener.local_addr().expect("local address");
         let task = tokio::spawn(async move { axum::serve(listener, app).await });
 
-        let response = reqwest::get(format!("http://{address}/api/health"))
+        let response = reqwest::get(format!("http://{address}/api/v1/health"))
             .await
             .expect("request health");
         assert_eq!(response.status(), reqwest::StatusCode::OK);
@@ -252,7 +252,7 @@ mod tests {
             reqwest::multipart::Part::bytes(b"demo".to_vec()).file_name("match.dem"),
         );
         let response = reqwest::Client::new()
-            .post(format!("http://{address}/api/demo/upload-multiple"))
+            .post(format!("http://{address}/api/v1/demo/upload-multiple"))
             .header(reqwest::header::ORIGIN, "https://evil.test")
             .multipart(form)
             .send()
@@ -277,7 +277,7 @@ mod tests {
         let task = tokio::spawn(async move { axum::serve(listener, app).await });
 
         let response = reqwest::Client::new()
-            .get(format!("http://{address}/api/health"))
+            .get(format!("http://{address}/api/v1/health"))
             .header(reqwest::header::HOST, "evil.test:47831")
             .send()
             .await

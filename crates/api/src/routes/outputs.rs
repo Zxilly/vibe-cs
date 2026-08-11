@@ -28,17 +28,20 @@ const TRASH_DIRECTORY: &str = ".output-trash";
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/outputs", get(list_outputs))
+        .route("/api/v1/outputs", get(list_outputs))
         .route(
-            "/api/outputs/{kind}/{id}",
+            "/api/v1/outputs/{kind}/{id}",
             patch(rename_output).delete(delete_output),
         )
-        .route("/api/outputs/batch-delete", post(batch_delete_outputs))
+        .route("/api/v1/outputs/batch-delete", post(batch_delete_outputs))
         .route(
-            "/api/outputs/cleanup-missing",
+            "/api/v1/outputs/cleanup-missing",
             post(cleanup_missing_outputs),
         )
-        .route("/api/outputs/cleanup-staged", post(cleanup_staged_outputs))
+        .route(
+            "/api/v1/outputs/cleanup-staged",
+            post(cleanup_staged_outputs),
+        )
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]

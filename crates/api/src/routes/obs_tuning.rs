@@ -15,18 +15,18 @@ const MAXIMUM_OBS_TUNING_PAYLOAD_BYTES: usize = 1024;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/obs/video-tuning/plan", get(plan))
+        .route("/api/v1/obs/video-tuning/plan", get(plan))
         .route(
-            "/api/obs/video-tuning/apply",
+            "/api/v1/obs/video-tuning/apply",
             post(apply).layer(DefaultBodyLimit::max(MAXIMUM_OBS_TUNING_PAYLOAD_BYTES)),
         )
-        .route("/api/obs/video-tuning/backups", get(list_backups))
+        .route("/api/v1/obs/video-tuning/backups", get(list_backups))
         .route(
-            "/api/obs/video-tuning/backups/{id}",
+            "/api/v1/obs/video-tuning/backups/{id}",
             axum::routing::delete(delete_backup),
         )
         .route(
-            "/api/obs/video-tuning/backups/{id}/restore",
+            "/api/v1/obs/video-tuning/backups/{id}/restore",
             post(restore).layer(DefaultBodyLimit::max(MAXIMUM_OBS_TUNING_PAYLOAD_BYTES)),
         )
 }
@@ -145,7 +145,7 @@ mod tests {
                 .expect("server");
         });
         let response = reqwest::Client::new()
-            .post(format!("http://{address}/api/obs/video-tuning/apply"))
+            .post(format!("http://{address}/api/v1/obs/video-tuning/apply"))
             .json(&serde_json::json!({
                 "confirm": true,
                 "expected_fingerprint": "a".repeat(64),

@@ -17,19 +17,22 @@ use crate::{ApiError, ApiJson, ApiResult, AppState};
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/cosmetics/catalog", get(cosmetic_catalog))
+        .route("/api/v1/cosmetics/catalog", get(cosmetic_catalog))
         .route(
-            "/api/cosmetics/catalog/items/{item_definition_index}/paint-kits/{paint_kit}/image",
+            "/api/v1/cosmetics/catalog/items/{item_definition_index}/paint-kits/{paint_kit}/image",
             get(cosmetic_image),
         )
-        .route("/api/demos/{id}/cosmetics", get(inspect_cosmetics))
-        .route("/api/demos/{id}/cosmetics/rewrite", post(rewrite_cosmetics))
+        .route("/api/v1/demos/{id}/cosmetics", get(inspect_cosmetics))
         .route(
-            "/api/demos/{id}/cosmetics/plans",
+            "/api/v1/demos/{id}/cosmetics/rewrite",
+            post(rewrite_cosmetics),
+        )
+        .route(
+            "/api/v1/demos/{id}/cosmetics/plans",
             get(list_cosmetic_plans).post(create_cosmetic_plan),
         )
         .route(
-            "/api/demos/{id}/cosmetics/plans/{plan_id}",
+            "/api/v1/demos/{id}/cosmetics/plans/{plan_id}",
             put(update_cosmetic_plan).delete(delete_cosmetic_plan),
         )
 }
@@ -357,7 +360,7 @@ mod tests {
     async fn inspection_requires_a_registered_demo_id() {
         let (_directory, _source, address) = start_app().await;
         let response = reqwest::get(format!(
-            "http://{address}/api/demos/{}/cosmetics",
+            "http://{address}/api/v1/demos/{}/cosmetics",
             Uuid::new_v4()
         ))
         .await
@@ -369,7 +372,7 @@ mod tests {
     async fn inspection_and_rewrite_use_the_registered_record() {
         let (_directory, source, address) = start_app().await;
         let inspected = reqwest::get(format!(
-            "http://{address}/api/demos/{}/cosmetics",
+            "http://{address}/api/v1/demos/{}/cosmetics",
             source.id
         ))
         .await
@@ -380,7 +383,7 @@ mod tests {
             StablePlayerIdentity::new(76_561_197_960_389_184, 123_456).expect("identity");
         let response = reqwest::Client::new()
             .post(format!(
-                "http://{address}/api/demos/{}/cosmetics/rewrite",
+                "http://{address}/api/v1/demos/{}/cosmetics/rewrite",
                 source.id
             ))
             .json(&serde_json::json!({
@@ -409,7 +412,7 @@ mod tests {
         let (_directory, source, address) = start_app().await;
         let response = reqwest::Client::new()
             .post(format!(
-                "http://{address}/api/demos/{}/cosmetics/rewrite",
+                "http://{address}/api/v1/demos/{}/cosmetics/rewrite",
                 source.id
             ))
             .json(&serde_json::json!({
@@ -425,7 +428,7 @@ mod tests {
     #[tokio::test]
     async fn catalog_and_inventory_image_are_exposed_with_safe_content_types() {
         let (_directory, _source, address) = start_app().await;
-        let catalog = reqwest::get(format!("http://{address}/api/cosmetics/catalog"))
+        let catalog = reqwest::get(format!("http://{address}/api/v1/cosmetics/catalog"))
             .await
             .expect("catalog");
         assert_eq!(catalog.status(), StatusCode::OK);
@@ -435,7 +438,7 @@ mod tests {
         );
 
         let image = reqwest::get(format!(
-            "http://{address}/api/cosmetics/catalog/items/7/paint-kits/600/image"
+            "http://{address}/api/v1/cosmetics/catalog/items/7/paint-kits/600/image"
         ))
         .await
         .expect("image");
@@ -465,7 +468,7 @@ mod tests {
         let client = reqwest::Client::new();
         let created = client
             .post(format!(
-                "http://{address}/api/demos/{}/cosmetics/plans",
+                "http://{address}/api/v1/demos/{}/cosmetics/plans",
                 source.id
             ))
             .json(&body)
@@ -476,7 +479,7 @@ mod tests {
         let created = created.json::<CosmeticPlan>().await.expect("created plan");
 
         let listed = reqwest::get(format!(
-            "http://{address}/api/demos/{}/cosmetics/plans",
+            "http://{address}/api/v1/demos/{}/cosmetics/plans",
             source.id
         ))
         .await
@@ -490,7 +493,7 @@ mod tests {
         updated_body["name"] = serde_json::json!("Final loadout");
         let updated = client
             .put(format!(
-                "http://{address}/api/demos/{}/cosmetics/plans/{}",
+                "http://{address}/api/v1/demos/{}/cosmetics/plans/{}",
                 source.id, created.id
             ))
             .json(&updated_body)
@@ -509,7 +512,7 @@ mod tests {
 
         let deleted = client
             .delete(format!(
-                "http://{address}/api/demos/{}/cosmetics/plans/{}",
+                "http://{address}/api/v1/demos/{}/cosmetics/plans/{}",
                 source.id, created.id
             ))
             .send()

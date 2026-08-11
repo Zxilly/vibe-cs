@@ -18,13 +18,13 @@ use crate::{ApiError, ApiJson, ApiResult, AppState};
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/health", get(health))
-        .route("/api/app/runtime-state", get(runtime_state))
-        .route("/api/config", get(get_config).put(put_config))
-        .route("/api/config/detect-paths", post(detect_paths))
-        .route("/api/config/quick-check", get(quick_check))
-        .route("/api/storage/status", get(storage_status))
-        .route("/api/status/setup", get(setup_status))
+        .route("/api/v1/health", get(health))
+        .route("/api/v1/app/runtime-state", get(runtime_state))
+        .route("/api/v1/config", get(get_config).put(put_config))
+        .route("/api/v1/config/detect-paths", post(detect_paths))
+        .route("/api/v1/config/quick-check", get(quick_check))
+        .route("/api/v1/storage/status", get(storage_status))
+        .route("/api/v1/status/setup", get(setup_status))
 }
 
 const MAXIMUM_STORAGE_SCAN_ENTRIES: usize = 500_000;

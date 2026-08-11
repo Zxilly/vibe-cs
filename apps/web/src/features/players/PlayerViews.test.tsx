@@ -31,7 +31,7 @@ const profile: PlayerProfile = {
       persona_state: 1,
       last_logoff: null,
       created_at: null,
-      avatar_url: '/api/players/76561198000000001/avatar',
+      avatar_url: '/api/v1/players/76561198000000001/avatar',
       reason: null,
     },
   },
@@ -66,7 +66,7 @@ describe('player detail evidence', () => {
     expect(markup).toContain('Steam 公开资料可用');
     expect(markup).toContain('de_inferno');
     expect(markup).toContain('1.50');
-    expect(markup).toContain('/api/players/76561198000000001/avatar');
+    expect(markup).toContain('/api/v1/players/76561198000000001/avatar');
     expect(markup).not.toContain('avatars.steamstatic.com');
     expect(markup).toContain('不推断胜负');
   });

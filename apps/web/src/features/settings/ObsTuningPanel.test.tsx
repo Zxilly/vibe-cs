@@ -16,7 +16,7 @@ const plan: ObsTuningPlanView = {
   targetResolution: '1920 × 1080',
   targetFrameRate: '60 FPS',
   changes: [
-    { id: 'output_resolution', label: '输出分辨率', current: '1280x720', target: '1920x1080' },
+    { id: 'output_resolution', label: '成片分辨率', current: '1280x720', target: '1920x1080' },
     { id: 'frame_rate', label: '帧率', current: '30/1', target: '60/1' },
   ],
   warnings: [],
@@ -53,7 +53,7 @@ describe('OBS tuning panel', () => {
   it('renders an honest bounded scope, diff, and backup history', () => {
     const markup = renderToStaticMarkup(<ObsTuningPanel state={ready} {...callbacks} />);
 
-    expect(markup).toContain('输出分辨率与有理帧率');
+    expect(markup).toContain('成片分辨率与有理帧率');
     expect(markup).toContain('基础画布、编码器、码率和场景均不在计划内');
     expect(markup).toContain('不会执行所谓的全自动调优');
     expect(markup).toContain('1280x720');

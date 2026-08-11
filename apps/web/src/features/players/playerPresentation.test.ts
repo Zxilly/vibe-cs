@@ -24,7 +24,7 @@ const baseSteam: PlayerSteamProfile = {
   persona_state: 1,
   last_logoff: null,
   created_at: null,
-  avatar_url: '/api/players/76561198000000001/avatar',
+  avatar_url: '/api/v1/players/76561198000000001/avatar',
   reason: null,
 };
 
@@ -49,7 +49,7 @@ const player: PlayerDirectoryItem = {
 
 describe('player presentation', () => {
   it('accepts only the exact service-owned avatar route', () => {
-    expect(localPlayerAvatarPath(player)).toBe('/api/players/76561198000000001/avatar');
+    expect(localPlayerAvatarPath(player)).toBe('/api/v1/players/76561198000000001/avatar');
     expect(localPlayerAvatarPath({
       ...player,
       steam: { ...baseSteam, avatar_url: 'https://avatars.steamstatic.com/avatar.jpg' },

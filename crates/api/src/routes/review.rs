@@ -9,7 +9,7 @@ use crate::{ApiError, ApiJson, ApiResult, AppState, LlmReviewRequest, LlmReviewR
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new().route(
-        "/api/demos/{id}/review",
+        "/api/v1/demos/{id}/review",
         post(review_demo).layer(DefaultBodyLimit::max(32 * 1024)),
     )
 }

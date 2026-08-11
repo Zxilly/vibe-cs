@@ -29,10 +29,10 @@ const UPDATE_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/app/update-info", get(update_info))
-        .route("/api/app/check-update", post(check_update))
-        .route("/api/app/managed-locations", get(managed_locations))
-        .route("/api/app/diagnostics/export", post(export_diagnostics))
+        .route("/api/v1/app/update-info", get(update_info))
+        .route("/api/v1/app/check-update", post(check_update))
+        .route("/api/v1/app/managed-locations", get(managed_locations))
+        .route("/api/v1/app/diagnostics/export", post(export_diagnostics))
 }
 
 #[derive(Debug, Serialize)]

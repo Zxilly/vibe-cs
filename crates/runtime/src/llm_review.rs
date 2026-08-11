@@ -500,7 +500,7 @@ fn system_prompt(
     let scope = match scope {
         ReviewScope::Match => "整场比赛",
         ReviewScope::Highlights => "所选高光",
-        ReviewScope::Player => "所选玩家",
+        ReviewScope::Player => "目标选手",
     };
     let tone = match tone {
         ReviewTone::Analytical => "冷静、数据导向",

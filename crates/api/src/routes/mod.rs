@@ -33,8 +33,8 @@ pub(crate) fn router() -> Router<AppState> {
         .merge(players::router())
         .merge(product::router())
         .merge(integrations::router())
-        .route("/api/events", get(system::events))
-        .route("/api/{*path}", any(not_found))
+        .route("/api/v1/events", get(system::events))
+        .route("/api/v1/{*path}", any(not_found))
 }
 
 pub(crate) async fn not_found() -> ApiError {

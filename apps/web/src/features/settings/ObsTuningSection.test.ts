@@ -77,7 +77,7 @@ describe('OBS tuning presentation', () => {
     expect(state.plan.currentResolution).toBe('1280 × 720');
     expect(state.plan.currentFrameRate).toBe('60000/1001 · 59.94 FPS');
     expect(state.plan.targetFrameRate).toBe('60/1 · 60 FPS');
-    expect(state.plan.changes.map((change) => change.label)).toEqual(['输出分辨率', '帧率']);
+    expect(state.plan.changes.map((change) => change.label)).toEqual(['成片分辨率', '帧率']);
     expect(state.plan.excludedFields).toEqual(['基础画布', '编码器', '码率', '场景']);
     expect(state.plan.warnings).toEqual([
       'OBS 输出视频设置已匹配保存的录制默认值。',

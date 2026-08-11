@@ -21,13 +21,13 @@ const ACTIVE_JOB_MISSING_POLL_LIMIT: u32 = 15;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/recording/plan", post(plan))
-        .route("/api/recording/queue", post(queue))
-        .route("/api/recording/execute", post(execute_existing))
-        .route("/api/recording/jobs/{id}", get(get_job))
-        .route("/api/recording/jobs/{id}/cancel", post(cancel_job))
-        .route("/api/recording/abort", post(abort_active))
-        .route("/api/recording/calibration", post(calibrate_latency))
+        .route("/api/v1/recording/plan", post(plan))
+        .route("/api/v1/recording/queue", post(queue))
+        .route("/api/v1/recording/execute", post(execute_existing))
+        .route("/api/v1/recording/jobs/{id}", get(get_job))
+        .route("/api/v1/recording/jobs/{id}/cancel", post(cancel_job))
+        .route("/api/v1/recording/abort", post(abort_active))
+        .route("/api/v1/recording/calibration", post(calibrate_latency))
 }
 
 #[derive(Debug, Deserialize)]

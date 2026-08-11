@@ -16,7 +16,7 @@ The former `openvideodev/openvideo` URL returned 404 during the audit, so the cu
 ## Product boundary
 
 - `/studio/editor` is the editing workspace and is entered from Studio, not a top-level product area.
-- `/api/editor/*` owns projects, snapshots, presets, portable packages, and project exports.
-- `/api/media/*` owns reusable assets, streams, waveforms, proxies, relinking, and extraction.
+- `/api/v1/editor/*` owns projects, snapshots, presets, portable packages, and project exports.
+- `/api/v1/media/*` owns reusable assets, streams, waveforms, proxies, relinking, and extraction.
 - React Timeline Editor and wavesurfer.js only provide interaction and visualization. SQLite remains the project source of truth, and Rust/FFmpeg remains the only final rendering pipeline.
 - Portable editor packages use the `.vcep` extension and the `vibe-cs-editor` format identifier.

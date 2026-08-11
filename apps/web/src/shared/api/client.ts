@@ -105,7 +105,8 @@ type RequestOptions = Omit<RequestInit, 'body' | 'signal'> & {
   signal?: AbortSignal | undefined;
 };
 
-const desktopApiBase = 'http://127.0.0.1:47831/api';
+const apiNamespace = '/api/v1';
+const desktopApiBase = `http://127.0.0.1:47831${apiNamespace}`;
 
 export interface ApiBaseOptions {
   configuredBase?: string | undefined;
@@ -116,17 +117,23 @@ export interface ApiBaseOptions {
 /** Resolve only build-controlled configuration; runtime URL/query data is never used as an API origin. */
 export function resolveApiBase(options: ApiBaseOptions = {}): string {
   const isDesktopOrigin = options.protocol === 'tauri:' || options.hostname?.toLocaleLowerCase() === 'tauri.localhost';
-  const fallback = isDesktopOrigin ? desktopApiBase : '/api';
+  const fallback = isDesktopOrigin ? desktopApiBase : apiNamespace;
   const configured = options.configuredBase?.trim();
   if (!configured) return fallback;
-  if (configured === '/api' || configured === '/api/') return '/api';
+  if (configured === '/api' || configured === '/api/' || configured === apiNamespace || configured === `${apiNamespace}/`) {
+    return apiNamespace;
+  }
 
   try {
     const parsed = new URL(configured);
     if (!['http:', 'https:'].includes(parsed.protocol)) return fallback;
     if (parsed.username || parsed.password || parsed.search || parsed.hash) return fallback;
     const path = parsed.pathname.replace(/\/+$/, '');
-    parsed.pathname = path.endsWith('/api') ? path : `${path}/api`;
+    parsed.pathname = path.endsWith(apiNamespace)
+      ? path
+      : path.endsWith('/api')
+        ? `${path}/v1`
+        : `${path}${apiNamespace}`;
     return parsed.toString().replace(/\/$/, '');
   } catch {
     return fallback;
@@ -141,7 +148,7 @@ const apiBase = resolveApiBase({
 
 /** Build a URL for a service-owned media route without accepting an arbitrary origin. */
 export function apiMediaUrl(path: string): string {
-  if (path.startsWith('/api/')) return `${apiBase}${path.slice(4)}`;
+  if (path.startsWith(`${apiNamespace}/`)) return `${apiBase}${path.slice(apiNamespace.length)}`;
   if (path.startsWith('/')) return `${apiBase}${path}`;
   throw new ApiError(msg("m0432"), 0, 'INVALID_MEDIA_URL');
 }
@@ -464,7 +471,7 @@ export const api = {
   getCosmeticCatalog: (signal?: AbortSignal) =>
     request<CosmeticCatalog>('/cosmetics/catalog', { signal, timeoutMs: 120_000 }),
   cosmeticImageUrl: (itemDefinitionIndex: number, paintKit: number) =>
-    apiMediaUrl(`/api/cosmetics/catalog/items/${itemDefinitionIndex}/paint-kits/${paintKit}/image`),
+    apiMediaUrl(`/api/v1/cosmetics/catalog/items/${itemDefinitionIndex}/paint-kits/${paintKit}/image`),
   listCosmeticPlans: (id: string, signal?: AbortSignal) =>
     request<CosmeticPlan[]>(`/demos/${encodeURIComponent(id)}/cosmetics/plans`, { signal }),
   createCosmeticPlan: (

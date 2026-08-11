@@ -14,41 +14,44 @@ const MAXIMUM_OBS_CONTROL_PAYLOAD_BYTES: usize = 1024;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/match-history/matches", get(match_history))
-        .route("/api/match-history/sync", post(match_history_sync))
-        .route("/api/match-history/download", post(match_history_download))
+        .route("/api/v1/match-history/matches", get(match_history))
+        .route("/api/v1/match-history/sync", post(match_history_sync))
         .route(
-            "/api/match-history/download/{job_id}",
+            "/api/v1/match-history/download",
+            post(match_history_download),
+        )
+        .route(
+            "/api/v1/match-history/download/{job_id}",
             get(match_history_download_status).delete(match_history_download_cancel),
         )
         .route(
-            "/api/match-history/credentials",
+            "/api/v1/match-history/credentials",
             axum::routing::delete(match_history_disconnect),
         )
-        .route("/api/steam/matches", get(match_history))
-        .route("/api/match-history/test", post(match_history_test))
-        .route("/api/obs/status", get(obs_status))
-        .route("/api/obs/test", post(obs_test))
+        .route("/api/v1/steam/matches", get(match_history))
+        .route("/api/v1/match-history/test", post(match_history_test))
+        .route("/api/v1/obs/status", get(obs_status))
+        .route("/api/v1/obs/test", post(obs_test))
         .route(
-            "/api/obs/start",
+            "/api/v1/obs/start",
             post(obs_start).layer(DefaultBodyLimit::max(MAXIMUM_OBS_CONTROL_PAYLOAD_BYTES)),
         )
         .route(
-            "/api/obs/diagnose",
+            "/api/v1/obs/diagnose",
             post(obs_diagnose).layer(DefaultBodyLimit::max(MAXIMUM_OBS_CONTROL_PAYLOAD_BYTES)),
         )
-        .route("/api/llm/status", get(llm_status))
-        .route("/api/llm/test", post(llm_test))
+        .route("/api/v1/llm/status", get(llm_status))
+        .route("/api/v1/llm/test", post(llm_test))
         .route(
-            "/api/gsi/cs2",
+            "/api/v1/gsi/cs2",
             post(gsi_ingest).layer(DefaultBodyLimit::max(MAXIMUM_GSI_PAYLOAD_BYTES)),
         )
-        .route("/api/gsi/status", get(gsi_status))
-        .route("/api/playback/status", get(playback_status))
-        .route("/api/gsi/install", post(gsi_install))
-        .route("/api/gsi/remove", post(gsi_remove))
-        .route("/api/config-backup/status", get(recovery_status))
-        .route("/api/config-backup/restore", post(recovery_restore))
+        .route("/api/v1/gsi/status", get(gsi_status))
+        .route("/api/v1/playback/status", get(playback_status))
+        .route("/api/v1/gsi/install", post(gsi_install))
+        .route("/api/v1/gsi/remove", post(gsi_remove))
+        .route("/api/v1/config-backup/status", get(recovery_status))
+        .route("/api/v1/config-backup/restore", post(recovery_restore))
 }
 
 #[derive(Debug, Deserialize)]
@@ -510,7 +513,7 @@ mod tests {
         let _response = gsi_install(
             State(state.clone()),
             ApiJson(json!({
-                "uri": "http://127.0.0.1:47831/api/gsi/cs2",
+                "uri": "http://127.0.0.1:47831/api/v1/gsi/cs2",
                 "token": "client-controlled"
             })),
         )

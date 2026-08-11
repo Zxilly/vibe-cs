@@ -9,7 +9,7 @@ describe('API client', () => {
     vi.restoreAllMocks();
   });
 
-  it('sends JSON requests under /api and parses a typed response', async () => {
+  it('sends JSON requests under the versioned API namespace and parses a typed response', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({ status: 'ok', version: '0.1.0' }), {
         status: 200,
@@ -26,7 +26,7 @@ describe('API client', () => {
     expect(result).toEqual({ status: 'ok', version: '0.1.0' });
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toBe('/api/health');
+    expect(url).toBe('/api/v1/health');
     expect(init?.method).toBe('POST');
     expect(init?.body).toBe('{"probe":true}');
     expect(new Headers(init?.headers).get('X-Vibe-CS-Locale')).toBe('zh-CN');
@@ -44,7 +44,7 @@ describe('API client', () => {
     await api.separateEditorAudio('project 1', 'clip/1', 7);
 
     const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toBe('/api/editor/projects/project%201/clips/clip%2F1/separate-audio');
+    expect(url).toBe('/api/v1/editor/projects/project%201/clips/clip%2F1/separate-audio');
     expect(init?.method).toBe('POST');
     expect(init?.body).toBe('{"expected_revision":7,"mute_source":true}');
   });
@@ -61,34 +61,34 @@ describe('API client', () => {
     await api.getMediaAsset('asset/1');
 
     const [url] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toBe('/api/media/assets/asset%2F1');
+    expect(url).toBe('/api/v1/media/assets/asset%2F1');
   });
 
   it('uses the fixed loopback service for the Tauri protocol', () => {
-    expect(resolveApiBase({ protocol: 'tauri:' })).toBe('http://127.0.0.1:47831/api');
+    expect(resolveApiBase({ protocol: 'tauri:' })).toBe('http://127.0.0.1:47831/api/v1');
   });
 
   it.each(['http:', 'https:'])('recognizes the Tauri v2 Windows origin over %s', (protocol) => {
     expect(resolveApiBase({ protocol, hostname: 'tauri.localhost' })).toBe(
-      'http://127.0.0.1:47831/api',
+      'http://127.0.0.1:47831/api/v1',
     );
   });
 
-  it('keeps relative /api routing in a browser', () => {
-    expect(resolveApiBase({ protocol: 'http:' })).toBe('/api');
+  it('keeps relative versioned API routing in a browser', () => {
+    expect(resolveApiBase({ protocol: 'http:' })).toBe('/api/v1');
   });
 
   it('keeps media URLs on the configured local API boundary', () => {
-    expect(apiMediaUrl('/api/recorded-clips/clip-id/stream')).toBe('/api/recorded-clips/clip-id/stream');
+    expect(apiMediaUrl('/api/v1/recorded-clips/clip-id/stream')).toBe('/api/v1/recorded-clips/clip-id/stream');
     expect(() => apiMediaUrl('https://evil.example/video.mp4')).toThrow(ApiError);
   });
 
   it('accepts a validated build-time HTTP API origin and appends the API path', () => {
     expect(resolveApiBase({ configuredBase: 'https://adapter.example.test/service/' })).toBe(
-      'https://adapter.example.test/service/api',
+      'https://adapter.example.test/service/api/v1',
     );
     expect(resolveApiBase({ configuredBase: 'file:///untrusted', protocol: 'tauri:' })).toBe(
-      'http://127.0.0.1:47831/api',
+      'http://127.0.0.1:47831/api/v1',
     );
   });
 
@@ -170,7 +170,7 @@ describe('API client', () => {
     const replay = await api.getReplay('demo/id');
     expect(replay.frames[0]?.players[0]?.team).toBe('B');
     expect(replay.cache).toMatchObject({ state: 'hit', bytes: 512 });
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/demos/demo%2Fid/replay');
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/demos/demo%2Fid/replay');
   });
 
   it('uses bounded replay cache status and cleanup endpoints', async () => {
@@ -197,11 +197,11 @@ describe('API client', () => {
     await api.clearAvatarCache();
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      '/api/players?search=old+name&page=2&page_size=24',
+      '/api/v1/players?search=old+name&page=2&page_size=24',
     );
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/players/76561198000000001%2Fpath');
-    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/avatar-cache');
-    expect(fetchMock.mock.calls[3]?.[0]).toBe('/api/avatar-cache');
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/players/76561198000000001%2Fpath');
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/v1/avatar-cache');
+    expect(fetchMock.mock.calls[3]?.[0]).toBe('/api/v1/avatar-cache');
     expect(fetchMock.mock.calls[3]?.[1]?.method).toBe('DELETE');
   });
 
@@ -229,11 +229,11 @@ describe('API client', () => {
     await api.deleteOutput('export', '4ef9c6f5-955d-4919-85fc-1c236f4c524c', true);
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      '/api/outputs?page=2&page_size=30&kind=export&status=failed&availability=missing&search=match+one',
+      '/api/v1/outputs?page=2&page_size=30&kind=export&status=failed&availability=missing&search=match+one',
     );
     const [, deleteInit] = fetchMock.mock.calls[1] ?? [];
     expect(fetchMock.mock.calls[1]?.[0]).toBe(
-      '/api/outputs/export/4ef9c6f5-955d-4919-85fc-1c236f4c524c?delete_file=true',
+      '/api/v1/outputs/export/4ef9c6f5-955d-4919-85fc-1c236f4c524c?delete_file=true',
     );
     expect(deleteInit?.method).toBe('DELETE');
   });
@@ -269,7 +269,7 @@ describe('API client', () => {
     });
 
     const [url, init] = fetchMock.mock.calls[0] ?? [];
-    expect(url).toBe('/api/demos/demo%2Fid/review');
+    expect(url).toBe('/api/v1/demos/demo%2Fid/review');
     expect(init?.method).toBe('POST');
     expect(JSON.parse(String(init?.body))).toEqual({
       scope: 'player',
@@ -316,12 +316,12 @@ describe('API client', () => {
     await api.startObs();
     await api.diagnoseObs();
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/obs/status');
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/obs/status');
     expect(fetchMock.mock.calls[0]?.[1]?.method).toBeUndefined();
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/obs/start');
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/obs/start');
     expect(fetchMock.mock.calls[1]?.[1]?.method).toBe('POST');
     expect(fetchMock.mock.calls[1]?.[1]?.body).toBe('{}');
-    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/obs/diagnose');
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/v1/obs/diagnose');
     expect(fetchMock.mock.calls[2]?.[1]?.method).toBe('POST');
     expect(fetchMock.mock.calls[2]?.[1]?.body).toBe('{}');
   });
@@ -339,16 +339,16 @@ describe('API client', () => {
     await api.restoreObsVideoBackup('backup/id');
     await api.deleteObsVideoBackup('backup/id');
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/obs/video-tuning/plan');
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/obs/video-tuning/plan');
     expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({
       confirm: true,
       expected_fingerprint: 'a'.repeat(64),
     });
     expect(String(fetchMock.mock.calls[1]?.[1]?.body)).not.toContain('target');
-    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/obs/video-tuning/backups');
-    expect(fetchMock.mock.calls[3]?.[0]).toBe('/api/obs/video-tuning/backups/backup%2Fid/restore');
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/v1/obs/video-tuning/backups');
+    expect(fetchMock.mock.calls[3]?.[0]).toBe('/api/v1/obs/video-tuning/backups/backup%2Fid/restore');
     expect(JSON.parse(String(fetchMock.mock.calls[3]?.[1]?.body))).toEqual({ confirm: true });
-    expect(fetchMock.mock.calls[4]?.[0]).toBe('/api/obs/video-tuning/backups/backup%2Fid');
+    expect(fetchMock.mock.calls[4]?.[0]).toBe('/api/v1/obs/video-tuning/backups/backup%2Fid');
     expect(fetchMock.mock.calls[4]?.[1]?.method).toBe('DELETE');
   });
 
@@ -364,16 +364,16 @@ describe('API client', () => {
     await api.playDemo('demo/id', { start_tick: 4_096 });
     await api.stopPlayback();
 
-    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/playback/status');
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/playback/status');
     expect(fetchMock.mock.calls[0]?.[1]?.method).toBeUndefined();
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/demos/demo%2Fid/playback/preflight');
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/v1/demos/demo%2Fid/playback/preflight');
     expect(fetchMock.mock.calls[1]?.[1]?.method).toBe('POST');
     expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(
       '{"start_tick":4096,"player":"Player One","timescale":0.5}',
     );
-    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/demos/demo%2Fid/play');
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/api/v1/demos/demo%2Fid/play');
     expect(fetchMock.mock.calls[2]?.[1]?.method).toBe('POST');
-    expect(fetchMock.mock.calls[3]?.[0]).toBe('/api/playback/stop');
+    expect(fetchMock.mock.calls[3]?.[0]).toBe('/api/v1/playback/stop');
     expect(fetchMock.mock.calls[3]?.[1]?.method).toBe('POST');
     expect(fetchMock.mock.calls[3]?.[1]?.body).toBe('{}');
   });

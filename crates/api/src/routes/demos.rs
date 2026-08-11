@@ -34,42 +34,42 @@ const MAXIMUM_BINARY_REPLAY_BYTES: usize = 128 * 1024 * 1024;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/demos", get(list_demos))
-        .route("/api/demos/compact", get(list_demos))
-        .route("/api/demos/import", post(import_paths))
-        .route("/api/demos/scan", post(scan_demos))
-        .route("/api/demos/watch/status", get(watch_status))
-        .route("/api/demos/watch/rescan", post(watch_rescan))
+        .route("/api/v1/demos", get(list_demos))
+        .route("/api/v1/demos/compact", get(list_demos))
+        .route("/api/v1/demos/import", post(import_paths))
+        .route("/api/v1/demos/scan", post(scan_demos))
+        .route("/api/v1/demos/watch/status", get(watch_status))
+        .route("/api/v1/demos/watch/rescan", post(watch_rescan))
         .route(
-            "/api/demo/upload-multiple",
+            "/api/v1/demo/upload-multiple",
             post(upload_multiple).layer(DefaultBodyLimit::max(MAXIMUM_DEMO_UPLOAD_REQUEST_BYTES)),
         )
         .route(
-            "/api/demos/{id}",
+            "/api/v1/demos/{id}",
             get(get_demo).patch(patch_demo).delete(delete_demo),
         )
-        .route("/api/demos/{id}/analyze", post(analyze_demo))
+        .route("/api/v1/demos/{id}/analyze", post(analyze_demo))
         .route(
-            "/api/demos/{id}/analysis",
+            "/api/v1/demos/{id}/analysis",
             get(get_analysis).post(analyze_demo),
         )
-        .route("/api/demos/{id}/replay", get(get_replay))
-        .route("/api/demos/{id}/replay.bin", get(get_replay_binary))
+        .route("/api/v1/demos/{id}/replay", get(get_replay))
+        .route("/api/v1/demos/{id}/replay.bin", get(get_replay_binary))
         .route(
-            "/api/replay-cache",
+            "/api/v1/replay-cache",
             get(get_replay_cache_status).delete(clear_replay_cache),
         )
-        .route("/api/demos/{id}/heatmap", get(get_heatmap))
+        .route("/api/v1/demos/{id}/heatmap", get(get_heatmap))
         .route(
-            "/api/demos/{id}/playback/preflight",
+            "/api/v1/demos/{id}/playback/preflight",
             post(preflight_demo).layer(DefaultBodyLimit::max(MAXIMUM_PLAYBACK_REQUEST_BYTES)),
         )
         .route(
-            "/api/demos/{id}/play",
+            "/api/v1/demos/{id}/play",
             post(play_demo).layer(DefaultBodyLimit::max(MAXIMUM_PLAYBACK_REQUEST_BYTES)),
         )
         .route(
-            "/api/playback/stop",
+            "/api/v1/playback/stop",
             post(stop_playback).layer(DefaultBodyLimit::max(MAXIMUM_PLAYBACK_REQUEST_BYTES)),
         )
 }

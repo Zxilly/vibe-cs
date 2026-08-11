@@ -528,7 +528,7 @@ fn summary_profile(summary: &SteamPlayerSummary) -> PlayerSteamProfile {
         avatar_url: summary
             .avatar_url
             .as_ref()
-            .map(|_| format!("/api/players/{}/avatar", summary.steam_id)),
+            .map(|_| format!("/api/v1/players/{}/avatar", summary.steam_id)),
         reason: None,
     }
 }
@@ -792,7 +792,7 @@ mod tests {
         assert_eq!(profile.player.steam.state, SteamProfileState::Available);
         assert_eq!(
             profile.player.steam.avatar_url.as_deref(),
-            Some("/api/players/76561198000000001/avatar")
+            Some("/api/v1/players/76561198000000001/avatar")
         );
         let first = port.avatar(PLAYER_ID.to_owned()).await.expect("avatar");
         let second = port

@@ -779,8 +779,8 @@ export function EditorPage() {
       duration: asset.duration_seconds && asset.duration_seconds > 0 ? asset.duration_seconds : 5,
       kind: asset.kind.startsWith('audio') ? 'audio' as const : asset.kind.startsWith('image') ? 'image' as const : 'video' as const,
       streamUrl: asset.proxy_status.status === 'ready'
-        ? `/api/media/assets/${encodeURIComponent(asset.id)}/proxy/stream`
-        : `/api/media/assets/${encodeURIComponent(asset.id)}/stream`,
+        ? `/api/v1/media/assets/${encodeURIComponent(asset.id)}/proxy/stream`
+        : `/api/v1/media/assets/${encodeURIComponent(asset.id)}/stream`,
       asset,
     })),
   ], [assets, media]);
@@ -1046,7 +1046,7 @@ export function EditorPage() {
     setAssets((current) => [asset, ...current]);
     const family = `VibeCSCustom-${asset.id}`;
     try {
-      const face = new FontFace(family, `url(${apiMediaUrl(`/api/media/assets/${encodeURIComponent(asset.id)}/stream`)})`);
+      const face = new FontFace(family, `url(${apiMediaUrl(`/api/v1/media/assets/${encodeURIComponent(asset.id)}/stream`)})`);
       await face.load();
       document.fonts.add(face);
     } catch {

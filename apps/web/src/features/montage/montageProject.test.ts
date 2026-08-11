@@ -10,7 +10,7 @@ const clip = (id: string, duration: number): RecordedClip => ({
   map_name: 'de_dust2',
   duration_seconds: duration,
   created_at: '2026-08-10T00:00:00Z',
-  stream_url: `/api/recorded-clips/${id}/stream`,
+  stream_url: `/api/v1/recorded-clips/${id}/stream`,
 });
 
 describe('montage project mapping', () => {

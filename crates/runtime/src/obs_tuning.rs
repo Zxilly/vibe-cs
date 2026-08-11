@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 use uuid::Uuid;
-use vibe_cs_api::{
+use vibe_cs_application::{
     ObsTuningPort, ObsVideoApplyRequest, ObsVideoApplyResult, ObsVideoBackup,
     ObsVideoBackupDeleteResult, ObsVideoBackupReason, ObsVideoField, ObsVideoFieldDiff,
     ObsVideoRestoreRequest, ObsVideoRestoreResult, ObsVideoSettingsSnapshot, ObsVideoTuningPlan,

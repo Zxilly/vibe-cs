@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 use uuid::Uuid;
-use vibe_cs_api::{
+use vibe_cs_application::{
     ReplayCacheCleanup, ReplayCacheMetadata, ReplayCacheState, ReplayCacheStatus, ReplayPayload,
 };
 use vibe_cs_domain::{DemoRecord, DomainError, MatchAnalysis, ReplayFrame};
@@ -734,7 +734,7 @@ mod tests {
     };
 
     use tempfile::TempDir;
-    use vibe_cs_api::ReplayCacheState;
+    use vibe_cs_application::ReplayCacheState;
     use vibe_cs_domain::{DemoStatus, ReplayPlayer};
 
     use super::*;

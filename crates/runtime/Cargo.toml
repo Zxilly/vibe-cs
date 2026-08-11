@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-vibe-cs-api = { path = "../api" }
+vibe-cs-application = { path = "../application" }
 vibe-cs-cosmetics = { path = "../cosmetics" }
 vibe-cs-demo = { path = "../demo" }
 vibe-cs-domain = { path = "../domain" }

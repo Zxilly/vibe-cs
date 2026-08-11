@@ -36,12 +36,11 @@ pub use recording::{
 };
 pub use source_assets::RuntimeSourceAssetPort;
 
-/// Composes the concrete local adapters used by desktop and standalone hosts.
+/// Composes the concrete local adapters used by the desktop host.
 pub async fn build_app_state(
     storage: vibe_cs_storage::Storage,
     data_dir: PathBuf,
-    web_dist: Option<PathBuf>,
-) -> vibe_cs_api::AppState {
+) -> vibe_cs_application::AppState {
     if let Err(error) = tokio::fs::create_dir_all(&data_dir).await {
         tracing::error!(%error, path = %data_dir.display(), "unable to create runtime data directory");
     }
@@ -94,7 +93,7 @@ pub async fn build_app_state(
     ));
     recording.recover_orphaned_jobs().await;
 
-    let state = vibe_cs_api::AppState::new(storage.clone(), data_dir);
+    let state = vibe_cs_application::AppState::new(storage.clone(), data_dir);
     let demo_watch = Arc::new(
         RuntimeDemoWatchPort::start(storage, state.event_hub(), config.demo_watch_paths).await,
     );
@@ -110,5 +109,4 @@ pub async fn build_app_state(
         .with_obs_tuning(obs_tuning)
         .with_recording(recording)
         .with_demo_watch(demo_watch)
-        .with_web_dist(web_dist)
 }

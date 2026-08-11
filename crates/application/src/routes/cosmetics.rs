@@ -249,7 +249,7 @@ mod tests {
     use vibe_cs_domain::{DemoRecord, DemoStatus, DomainError};
 
     use super::*;
-    use crate::{CosmeticRewriteOutput, CosmeticsPort, build_router};
+    use crate::{CosmeticRewriteOutput, CosmeticsPort, build_dispatcher};
 
     #[derive(Debug)]
     struct FixtureCosmetics {
@@ -352,7 +352,7 @@ mod tests {
             .await
             .expect("listener");
         let address = listener.local_addr().expect("address");
-        tokio::spawn(async move { axum::serve(listener, build_router(state)).await });
+        tokio::spawn(async move { axum::serve(listener, build_dispatcher(state)).await });
         (directory, source, address)
     }
 

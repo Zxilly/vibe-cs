@@ -1,7 +1,6 @@
 use std::{
     collections::HashSet,
     io::Write,
-    net::SocketAddr,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -165,23 +164,6 @@ async fn reconcile_playback_stop(
     };
 }
 
-#[derive(Debug, Clone)]
-pub struct ServerConfig {
-    pub bind_addr: SocketAddr,
-    pub data_dir: PathBuf,
-    pub web_dist: Option<PathBuf>,
-}
-
-impl Default for ServerConfig {
-    fn default() -> Self {
-        Self {
-            bind_addr: SocketAddr::from(([127, 0, 0, 1], 47_831)),
-            data_dir: PathBuf::from("data"),
-            web_dist: None,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ChangedEvent {
     pub resource: String,
@@ -240,7 +222,6 @@ pub struct AppState {
     pub(crate) gsi_last_timestamp: Arc<Mutex<Option<i64>>>,
     gsi_token: Arc<str>,
     data_dir: Arc<PathBuf>,
-    web_dist: Option<Arc<PathBuf>>,
 }
 
 impl std::fmt::Debug for AppState {
@@ -262,7 +243,6 @@ impl std::fmt::Debug for AppState {
             .field("events", &self.events)
             .field("started_at", &self.started_at)
             .field("data_dir", &self.data_dir)
-            .field("web_dist", &self.web_dist)
             .finish_non_exhaustive()
     }
 }
@@ -292,7 +272,6 @@ impl AppState {
             gsi_last_timestamp: Arc::new(Mutex::new(None)),
             gsi_token: Arc::from(gsi_token),
             data_dir: Arc::new(data_dir),
-            web_dist: None,
         }
     }
 
@@ -363,21 +342,12 @@ impl AppState {
     }
 
     #[must_use]
-    pub fn with_web_dist(mut self, web_dist: Option<PathBuf>) -> Self {
-        self.web_dist = web_dist.map(Arc::new);
-        self
-    }
-
     pub fn storage(&self) -> &vibe_cs_storage::Storage {
         &self.storage
     }
 
     pub fn data_dir(&self) -> &PathBuf {
         &self.data_dir
-    }
-
-    pub fn web_dist(&self) -> Option<Arc<PathBuf>> {
-        self.web_dist.clone()
     }
 
     pub fn event_hub(&self) -> EventHub {

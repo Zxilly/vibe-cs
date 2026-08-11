@@ -11,7 +11,7 @@ use tokio::{
     time::Instant,
 };
 use url::Url;
-use vibe_cs_api::{
+use vibe_cs_application::{
     AvatarCacheCleanup, AvatarCacheStatus, PlayerAggregateStats, PlayerAvatar, PlayerDirectoryItem,
     PlayerDirectoryPage, PlayerDirectoryQuery, PlayerPort, PlayerProfile, PlayerRecentMatch,
     PlayerSteamProfile, SteamProfileState,

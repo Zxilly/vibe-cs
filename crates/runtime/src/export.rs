@@ -9,7 +9,7 @@ use chrono::Utc;
 use serde_json::Value;
 use tokio::sync::{Mutex, mpsc};
 use uuid::Uuid;
-use vibe_cs_api::ExportPort;
+use vibe_cs_application::ExportPort;
 use vibe_cs_domain::{AppConfig, DomainError, ExportJob, JobStatus};
 use vibe_cs_media::{
     EditorMediaKind, EditorMediaSource, EditorRenderOptions, EncoderSelection, FilterPlan,

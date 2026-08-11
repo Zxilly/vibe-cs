@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
-use vibe_cs_api::{AnalysisPort, ReplayCacheCleanup, ReplayCacheStatus, ReplayPayload};
+use vibe_cs_application::{AnalysisPort, ReplayCacheCleanup, ReplayCacheStatus, ReplayPayload};
 use vibe_cs_demo::{
     DemoEngine, DemoError, ParseCancellation, create_terminal_tail_compatibility_copy,
     heatmap_from_events, replay_frames_from_events,

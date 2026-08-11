@@ -6,7 +6,7 @@ use std::{
 
 use async_trait::async_trait;
 use tokio::sync::{Mutex, RwLock};
-use vibe_cs_api::{RadarImageData, RadarOverviewData, RadarTransformData, SourceAssetPort};
+use vibe_cs_application::{RadarImageData, RadarOverviewData, RadarTransformData, SourceAssetPort};
 use vibe_cs_domain::DomainError;
 use vibe_cs_integrations::discover_paths;
 use vibe_cs_source_assets::{

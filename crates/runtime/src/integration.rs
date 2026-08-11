@@ -27,7 +27,7 @@ use tokio::{
 };
 use url::Url;
 use uuid::Uuid;
-use vibe_cs_api::IntegrationPort;
+use vibe_cs_application::IntegrationPort;
 use vibe_cs_demo::{
     ParseCancellation, SOURCE2_DEMO_MAGIC, ValidatedDemo, ValidationLimits, validate_demo,
 };

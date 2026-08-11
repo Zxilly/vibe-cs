@@ -13,7 +13,7 @@ use chrono::Utc;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::{RwLock, mpsc, oneshot};
 use uuid::Uuid;
-use vibe_cs_api::{DemoWatchPort, DemoWatchRootStatus, DemoWatchStatus, EventHub};
+use vibe_cs_application::{DemoWatchPort, DemoWatchRootStatus, DemoWatchStatus, EventHub};
 use vibe_cs_demo::{DiscoveryOptions, ParseCancellation, ValidatedDemo, ValidationLimits};
 use vibe_cs_domain::{DemoQuery, DemoRecord, DemoStatus, DomainError};
 

@@ -13,7 +13,7 @@ use tokio::{
     sync::Mutex,
 };
 use uuid::Uuid;
-use vibe_cs_api::{AvatarCacheCleanup, AvatarCacheStatus, PlayerAvatar};
+use vibe_cs_application::{AvatarCacheCleanup, AvatarCacheStatus, PlayerAvatar};
 use vibe_cs_domain::DomainError;
 use vibe_cs_integrations::{
     MAXIMUM_STEAM_AVATAR_BYTES, SteamAvatarImage, detect_steam_avatar_mime, is_steam_id,

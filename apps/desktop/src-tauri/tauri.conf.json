@@ -25,7 +25,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' http://127.0.0.1:47831 ws://127.0.0.1:47831; img-src 'self' asset: http://asset.localhost http://127.0.0.1:47831 blob: data:; media-src 'self' asset: http://asset.localhost http://127.0.0.1:47831 blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:"
+      "csp": "default-src 'self' customprotocol: asset:; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost vibe-cs-media: http://vibe-cs-media.localhost blob: data:; media-src 'self' asset: http://asset.localhost vibe-cs-media: http://vibe-cs-media.localhost blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' vibe-cs-media: http://vibe-cs-media.localhost data:"
     }
   },
   "bundle": {

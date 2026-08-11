@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 use url::{Host, Url};
 use uuid::Uuid;
-use vibe_cs_api::{LlmReviewRequest, LlmReviewResult, ReviewPort, ReviewScope, ReviewTone};
+use vibe_cs_application::{LlmReviewRequest, LlmReviewResult, ReviewPort, ReviewScope, ReviewTone};
 use vibe_cs_domain::{AppConfig, DomainError, MatchAnalysis};
 use vibe_cs_integrations::{
     IntegrationError, OpenAiClient, OpenAiConfig, SecretString, StructuredCommentary,

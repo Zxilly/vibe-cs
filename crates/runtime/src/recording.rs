@@ -10,7 +10,7 @@ use chrono::Utc;
 use serde_json::json;
 use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
-use vibe_cs_api::RecordingPort;
+use vibe_cs_application::RecordingPort;
 use vibe_cs_domain::{
     AppConfig, DemoRecord, DomainError, EventKind, Highlight, HighlightKind, JobStatus,
     MatchAnalysis, RecordedClip, RecordingInputBus, RecordingInputEvent, RecordingJob,

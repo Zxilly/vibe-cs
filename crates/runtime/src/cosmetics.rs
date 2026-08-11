@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
-use vibe_cs_api::{
+use vibe_cs_application::{
     CosmeticCatalogDto, CosmeticCatalogItemDto, CosmeticImageOutput, CosmeticPaintKitDto,
     CosmeticRewriteOutput, CosmeticsPort,
 };

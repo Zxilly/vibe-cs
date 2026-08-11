@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use vibe_cs_api::{MediaPort, ProbedMediaMetadata};
+use vibe_cs_application::{MediaPort, ProbedMediaMetadata};
 use vibe_cs_domain::DomainError;
 use vibe_cs_media::{
     EncoderSelection, MediaError, ProcessCancellation, ProcessRunner, SingleInputTranscodeOptions,
@@ -156,7 +156,7 @@ impl MediaPort for RuntimeMediaPort {
         &self,
         source: PathBuf,
         output: PathBuf,
-        request: vibe_cs_api::MediaProxyRequest,
+        request: vibe_cs_application::MediaProxyRequest,
     ) -> Result<(), DomainError> {
         let ffmpeg = self.configured_executable("ffmpeg").await?;
         let cancellation = ProcessCancellation::default();

@@ -87,13 +87,3 @@ impl From<DomainError> for ApiError {
         }
     }
 }
-
-#[derive(Debug, Error)]
-pub enum ServeError {
-    #[error("refusing to bind the local API to non-loopback address {0}")]
-    NonLoopback(std::net::SocketAddr),
-    #[error("I/O error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("storage error: {0}")]
-    Storage(#[from] vibe_cs_storage::StorageError),
-}

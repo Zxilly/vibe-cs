@@ -1832,12 +1832,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "http-range-header"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9171a2ea8a68358193d15dd5d70c1c10a2afc3e7e4c5bc92bc9f025cebd7359c"
-
-[[package]]
 name = "httparse"
 version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5093,25 +5087,14 @@ checksum = "4cfcf7e2740e6fc6d4d688b4ef00650406bb94adf4731e43c096c3a19fe40840"
 dependencies = [
  "bitflags 2.13.1",
  "bytes",
- "futures-core",
  "futures-util",
  "http",
  "http-body",
- "http-body-util",
- "http-range-header",
- "httpdate",
- "mime",
- "mime_guess",
- "percent-encoding",
  "pin-project-lite",
- "tokio",
- "tokio-util",
  "tower",
  "tower-layer",
  "tower-service",
- "tracing",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -5473,7 +5456,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
-name = "vibe-cs-api"
+name = "vibe-cs-application"
 version = "0.1.0"
 dependencies = [
  "async-trait",
@@ -5492,7 +5475,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
- "tower-http",
  "tracing",
  "url",
  "uuid",
@@ -5551,16 +5533,20 @@ dependencies = [
 name = "vibe-cs-desktop"
 version = "0.1.0"
 dependencies = [
+ "axum",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
  "tokio",
+ "tower",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
- "vibe-cs-api",
+ "vibe-cs-application",
  "vibe-cs-runtime",
  "vibe-cs-storage",
 ]
@@ -5666,7 +5652,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
- "vibe-cs-api",
+ "vibe-cs-application",
  "vibe-cs-cosmetics",
  "vibe-cs-demo",
  "vibe-cs-domain",
@@ -5675,21 +5661,6 @@ dependencies = [
  "vibe-cs-platform-windows",
  "vibe-cs-recording",
  "vibe-cs-source-assets",
- "vibe-cs-storage",
-]
-
-[[package]]
-name = "vibe-cs-server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "directories",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "vibe-cs-api",
- "vibe-cs-runtime",
  "vibe-cs-storage",
 ]
 

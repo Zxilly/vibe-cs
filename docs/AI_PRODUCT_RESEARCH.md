@@ -66,8 +66,8 @@ product Agent uses only bounded local evidence and proposal tools.
 - User goal: configure an AI provider in the product, then know which capabilities are actually
   available and what they cost.
 - Evidence: Kimi documents that Kimi Code and Kimi Open Platform credentials/endpoints are not
-  interchangeable. assistant-ui's Mastra integration also requires an application-owned
-  runtime rather than providing a turnkey Mastra adapter.
+  interchangeable. The production implementation uses Rig inside Tauri and adapts its stream to
+  the application-owned React thread protocol.
 - Product move: display model chat and local tool calling as separate capability checks. Product
   credentials are configured only in Vibe CS Settings; development overrides remain debug-only
   process environment values. The product Agent does not expose a general network tool.
@@ -144,8 +144,7 @@ fingerprint/revision validation, and explicit user confirmation.
   highlight/fail classification, recording director, and bounded AI commentary separation.
 - Freezetime source: <https://github.com/benginN/csfreezetime> — local deterministic opponent,
   utility, replay, and strategy analysis without an external LLM dependency.
-- assistant-ui Mastra guide and Mastra docs: sidecar/server runtime, streaming, tools, and memory
-  requirements.
+- Rig documentation: in-process streaming, typed/dynamic tools, and OpenAI-compatible providers.
 - Kimi documentation: provider separation, model IDs, endpoints, credential storage, and tool calls.
 - Descript help/changelog: contextual co-editor placement and history.
 - Adobe Premiere help: local media analysis, natural-language search, filters, and inspectable

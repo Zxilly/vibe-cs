@@ -4,16 +4,12 @@
   "private": true,
   "packageManager": "pnpm@10.33.4",
   "scripts": {
-    "agent:build": "pnpm --filter @vibe-cs/agent build",
-    "agent:sidecar": "pnpm --filter @vibe-cs/agent sidecar",
-    "agent:e2e": "pnpm --filter @vibe-cs/agent test:sidecar",
-    "agent:test": "pnpm --filter @vibe-cs/agent test",
     "dev": "pnpm --filter @vibe-cs/web dev",
-    "desktop:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm agent:sidecar && pnpm --filter @vibe-cs/desktop dev",
-    "desktop:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm agent:sidecar && pnpm --filter @vibe-cs/desktop build",
-    "build": "pnpm --filter @vibe-cs/agent build && pnpm --filter @vibe-cs/web build",
-    "test": "pnpm --filter @vibe-cs/agent test && pnpm --filter @vibe-cs/web test",
-    "typecheck": "pnpm --filter @vibe-cs/agent typecheck && pnpm --filter @vibe-cs/web typecheck",
+    "desktop:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm --filter @vibe-cs/desktop dev",
+    "desktop:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm --filter @vibe-cs/desktop build",
+    "build": "pnpm --filter @vibe-cs/web build",
+    "test": "pnpm --filter @vibe-cs/web test",
+    "typecheck": "pnpm --filter @vibe-cs/web typecheck",
     "lint": "pnpm --filter @vibe-cs/web lint"
   }
 }

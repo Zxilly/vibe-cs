@@ -215,8 +215,7 @@ fn analysis(demo_id: Uuid) -> MatchAnalysis {
 
 #[cfg(windows)]
 #[tokio::test]
-#[ignore = "requires pnpm agent:sidecar before compiling the desktop crate"]
-async fn saved_credentials_drive_bundled_sea_edit_and_survive_restart() {
+async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
     let directory = tempfile::tempdir().expect("data directory");
     let data_dir = directory.path().to_path_buf();
     let database = data_dir.join("vibe-cs.db");
@@ -294,7 +293,7 @@ async fn saved_credentials_drive_bundled_sea_edit_and_survive_restart() {
         .expect("save config through desktop bridge");
     let status = status(&agent).await.expect("agent status");
     assert!(status.configured);
-    assert!(status.sidecar_available);
+    assert!(status.runtime_available);
 
     let events = Arc::new(StdMutex::new(Vec::<Value>::new()));
     let captured = Arc::clone(&events);
@@ -321,14 +320,14 @@ async fn saved_credentials_drive_bundled_sea_edit_and_survive_restart() {
     let result = tokio::time::timeout(Duration::from_secs(20), chat(&agent, input, channel))
         .await
         .expect("desktop chat timeout")
-        .expect("real bundled sidecar chat through command implementation");
+        .expect("embedded Rig chat through command implementation");
     assert_eq!(result.thread_id, thread_id);
     let thread = agent.load_thread(thread_id).await.expect("saved thread");
     let proposal = thread
         .messages
         .last()
         .and_then(|message| message.proposals.first())
-        .expect("sidecar-generated proposal")
+        .expect("Rig-generated proposal")
         .clone();
     assert_eq!(proposal.kind, "highlight_edit");
     assert_eq!(proposal.payload["highlight_ids"][0], "ace-1");

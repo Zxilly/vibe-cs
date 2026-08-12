@@ -13,7 +13,8 @@ chat room:
 1. The user selects one or more demos, an existing edit, and optionally a music asset.
 2. Read-only tools assemble a bounded evidence pack from persisted analysis, player events, replay
    frames, media metadata, and the current optimistic project revision.
-3. Mastra streams the explanation and tool state to an `assistant-ui` thread.
+3. The in-process Rig runtime streams explanations and tool state through the existing Tauri
+   channel into the React assistant thread.
 4. Planning tools return typed proposals. They do not mutate storage or launch external programs.
 5. The UI renders a diff card with timing changes, evidence, confidence, unsupported operations,
    estimated cost, and recovery behavior.
@@ -33,9 +34,7 @@ assistant-ui (React)
         v
 desktop host (Rust)
         |
-        | bounded JSONL over inherited stdin/stdout; secrets never use argv
-        v
-Mastra sidecar (local TypeScript executable)
+        | in-process Rig agent; provider keys never cross into the webview
         |
         | typed tool request / response
         v
@@ -43,8 +42,9 @@ Rust application/runtime ports -> SQLite, demo parser, media, HLAE planner
 ```
 
 The browser never receives a provider key. The desktop host owns cancellation, message and token
-ceilings, thread identity, proposal confirmation, and sidecar lifetime. Stdout is protocol-only;
-diagnostic output is structured, redacted, and size-limited.
+ceilings, thread identity, proposal confirmation, and the Rig tool loop. There is no Node process,
+JSONL transport, or separately packaged Agent executable; diagnostics remain structured, redacted,
+and size-limited.
 
 ## Initial tool set
 
@@ -84,8 +84,8 @@ or raw HLAE-console tools.
 ## Credentials and model policy
 
 Users can configure provider, model, endpoint, and secret in Settings. Responses expose only
-presence flags. Secrets remain inside the desktop-owned configuration boundary and are passed to
-the local sidecar only for the lifetime of a request.
+presence flags. Secrets remain inside the desktop-owned configuration boundary and are borrowed by
+the in-process Rig client only for the lifetime of a request.
 
 For local development only, a debug build can receive `VIBE_CS_AGENT_API_KEY` in its process
 environment. The value is never read from another product's configuration, persisted, logged,
@@ -112,7 +112,7 @@ arbitrary library/script loading, arbitrary filesystem paths, and commands outsi
 ## References
 
 - AdvancedFX Source 2 commands: <https://github.com/advancedfx/advancedfx/wiki/Source2%3ACommands>
-- Mastra and assistant-ui integration: <https://www.assistant-ui.com/docs/integrations/frameworks/mastra/overview>
+- Rig framework and OpenAI-compatible providers: <https://www.rig.rs/>
 - Kimi Code model and endpoint contract: <https://www.kimi.com/code/docs/en/kimi-code/models.html>
 - Descript co-editor: <https://help.descript.com/hc/en-us/articles/36803785502221-Underlord-beta-Your-AI-co-editor-in-Descript>
 - Premiere media intelligence: <https://helpx.adobe.com/premiere-pro/using/media-intelligence-and-search-panel.html>

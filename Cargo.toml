@@ -3,6 +3,7 @@ members = [
   "apps/desktop/src-tauri",
   "apps/demo-worker",
   "crates/application",
+  "crates/agent",
   "crates/cosmetics",
   "crates/demo",
   "crates/domain",
@@ -47,6 +48,8 @@ mime_guess = "2.0"
 notify = "8.0"
 png = "0.18"
 reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "query", "rustls"] }
+rig-agent = { version = "0.41.0", default-features = false }
+rig-core = { version = "0.41.0", default-features = false, features = ["reqwest", "rustls"] }
 rustfft = "6.4.1"
 semver = "1.0"
 rusqlite = { version = "0.40", features = ["backup", "bundled", "chrono"] }

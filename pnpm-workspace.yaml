@@ -1,5 +1,4 @@
 packages:
-  - "apps/agent"
   - "apps/web"
   - "apps/desktop"
 

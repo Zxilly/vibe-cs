@@ -8,7 +8,9 @@ CS2 GSI ingestion route required by the game protocol; it exposes no product com
 ## Dependency direction
 
 ```text
-apps/desktop ─────> application + runtime + storage
+apps/desktop ─────> agent + application + runtime + storage
+
+agent ────────────> Rig + bounded request-local Demo/editor/audio evidence
 
 runtime ─> application + cosmetics + demo + domain + integrations + media
         + platform-windows + recording + source-assets + storage
@@ -45,6 +47,8 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   overlays, job-scoped capture settings, OBS capture, cleanup and atomic publication.
 - `application` owns use-case validation, status mapping, bounded uploads and media reads,
   active-task tracking and mutation events. It is private to the desktop process.
+- `agent` owns the in-process Rig model/tool loop, provider URL policy, streaming limits, and
+  deterministic read/proposal tools. It has no filesystem, shell, or process execution tool.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
   media, cache and source-asset ports.
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and

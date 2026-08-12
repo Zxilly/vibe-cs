@@ -1450,7 +1450,7 @@ export type ApiProblem = {
 export type AgentMode = 'guide' | 'edit' | 'hlae';
 
 export type AgentStatus = {
-  sidecarAvailable: boolean;
+  runtimeAvailable: boolean;
   configured: boolean;
   provider: string;
   model: string;

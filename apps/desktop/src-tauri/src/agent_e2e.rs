@@ -2,13 +2,12 @@
 
 use super::*;
 
-use std::{collections::BTreeSet, fs, sync::Mutex as StdMutex, time::Duration};
+use std::{collections::BTreeSet, fs, path::Path, time::Duration};
 
 use serde_json::json;
-use sha2::Sha256;
-use tauri::ipc::Channel;
+use sha2::{Digest as _, Sha256};
 use tokio::{
-    io::AsyncReadExt as _,
+    io::{AsyncReadExt as _, AsyncWriteExt as _},
     net::{TcpListener, TcpStream},
 };
 use vibe_cs_application::ProposalExecutionPort as _;
@@ -27,30 +26,28 @@ const TEST_SECRET: &str = "vibe-cs-desktop-hlae-e2e-secret";
 const MAXIMUM_HTTP_BYTES: usize = 2 * 1024 * 1024;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "requires `corepack pnpm agent:sidecar` before compiling the desktop crate"]
-async fn sea_hlae_proposal_exports_a_revalidated_persistent_handoff() {
-    let sidecar = AgentBridge::sidecar_path().expect("freshly built SEA sidecar");
+async fn rig_hlae_proposal_exports_a_revalidated_persistent_handoff() {
     let listener = TcpListener::bind(("127.0.0.1", 0))
         .await
         .expect("bind loopback provider");
     let provider_address = listener.local_addr().expect("loopback provider address");
     let provider = tokio::spawn(serve_provider(listener));
     let demo_id = Uuid::parse_str("00000000-0000-4000-8000-0000000000d1").unwrap();
-    let payload = json!({
-        "requestId": "00000000-0000-4000-8000-0000000000e3",
-        "mode": "hlae",
-        "message": "请把 ace-1 做成 capture 模式的 HLAE 镜头方案。",
-        "history": [],
-        "config": {
-            "provider": "vibe-cs-desktop-e2e",
-            "model": "vibe-cs-desktop-e2e-model",
-            "baseUrl": format!("http://{provider_address}/v1"),
-            "apiKey": TEST_SECRET,
-            "customInstructions": ""
+    let request = EmbeddedAgentRequest {
+        request_id: "00000000-0000-4000-8000-0000000000e3".to_owned(),
+        mode: EmbeddedAgentMode::Hlae,
+        message: "请把 ace-1 做成 capture 模式的 HLAE 镜头方案。".to_owned(),
+        history: Vec::new(),
+        config: EmbeddedAgentConfig {
+            provider: "vibe-cs-desktop-e2e".to_owned(),
+            model: "vibe-cs-desktop-e2e-model".to_owned(),
+            base_url: format!("http://{provider_address}/v1"),
+            api_key: TEST_SECRET.to_owned(),
+            custom_instructions: String::new(),
         },
-        "context": {
-            "demo": { "id": demo_id, "file_name": "verified.dem" },
-            "analysis": {
+        context: EmbeddedAgentContext {
+            demo: json!({ "id": demo_id, "file_name": "verified.dem" }),
+            analysis: json!({
                 "tick_rate": 64,
                 "highlights": [{
                     "id": "ace-1", "kind": "multi_kill", "title": "Ace",
@@ -58,33 +55,19 @@ async fn sea_hlae_proposal_exports_a_revalidated_persistent_handoff() {
                     "start_tick": 1000, "end_tick": 1500,
                     "description": "Five verified eliminations"
                 }]
-            },
-            "editorProject": null,
-            "selectedAudio": null,
-            "audioAnalysis": null,
-            "beatAlignmentDraft": null
-        }
-    });
-    let received_events = Arc::new(StdMutex::new(Vec::<Value>::new()));
-    let captured_events = Arc::clone(&received_events);
-    let channel = Channel::new(move |body| {
-        if let tauri::ipc::InvokeResponseBody::Json(encoded) = body {
-            captured_events
-                .lock()
-                .expect("capture agent event")
-                .push(serde_json::from_str(&encoded)?);
-        }
-        Ok(())
-    });
+            }),
+            ..EmbeddedAgentContext::default()
+        },
+    };
     let cancellation = Cancellation::new();
 
     let response = tokio::time::timeout(
         Duration::from_secs(20),
-        run_sidecar(&sidecar, &payload, &channel, &cancellation),
+        vibe_cs_agent::run_agent(request, &cancellation, |_| {}),
     )
     .await
-    .expect("SEA tool loop timeout")
-    .expect("SEA tool loop");
+    .expect("Rig tool loop timeout")
+    .expect("Rig tool loop");
     let provider_requests = tokio::time::timeout(Duration::from_secs(20), provider)
         .await
         .expect("provider fixture timeout")
@@ -92,7 +75,7 @@ async fn sea_hlae_proposal_exports_a_revalidated_persistent_handoff() {
     assert_eq!(
         provider_requests.len(),
         2,
-        "Mastra must complete the tool loop"
+        "Rig must complete the tool loop"
     );
     assert!(
         provider_requests[1]["messages"]
@@ -103,7 +86,7 @@ async fn sea_hlae_proposal_exports_a_revalidated_persistent_handoff() {
     assert_eq!(response.plans[0].kind, "hlae");
     assert_eq!(response.tool_calls[0].name, "draft_hlae_plan");
     let intent: HlaeProposalIntent = serde_json::from_value(response.plans[0].payload.clone())
-        .expect("sidecar proposal must preserve the typed Rust intent");
+        .expect("Rig proposal must preserve the typed Rust intent");
     assert_eq!(intent.demo_id, demo_id);
     assert_eq!(intent.highlight_ids, ["ace-1"]);
     assert_eq!(intent.mode, HlaeProposalMode::Capture);

@@ -745,7 +745,7 @@ export function AgentPage() {
     messages,
     convertMessage,
     isRunning,
-    isSendDisabled: !status?.configured || !status.sidecarAvailable || proposalMutationOwner !== null,
+    isSendDisabled: !status?.configured || !status.runtimeAvailable || proposalMutationOwner !== null,
     onNew,
     onCancel,
   });
@@ -766,9 +766,9 @@ export function AgentPage() {
     return <div className="page-state"><Spinner label={t('copilot.loading')} /><span>{t('copilot.loading')}</span></div>;
   }
 
-  const statusTone = status?.configured && status.sidecarAvailable ? 'success' : 'warning';
-  const statusText = !status?.sidecarAvailable
-    ? t('copilot.noSidecar')
+  const statusTone = status?.configured && status.runtimeAvailable ? 'success' : 'warning';
+  const statusText = !status?.runtimeAvailable
+    ? t('copilot.noRuntime')
     : status.configured ? t('copilot.ready') : t('copilot.notConfigured');
 
   return (

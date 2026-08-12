@@ -1,36 +1,28 @@
 use std::{
     collections::HashMap,
-    io::Read,
-    path::{Path, PathBuf},
-    process::Stdio,
-    sync::{
-        Arc, Weak,
-        atomic::{AtomicBool, Ordering},
-    },
+    path::PathBuf,
+    sync::{Arc, Weak},
     time::Duration,
 };
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use tauri::{State, ipc::Channel};
-use tokio::{
-    io::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, BufReader},
-    process::Command,
-    sync::{Mutex, Notify, Semaphore},
-};
+use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
+use vibe_cs_agent::{
+    AgentConfig as EmbeddedAgentConfig, AgentContext as EmbeddedAgentContext,
+    AgentMode as EmbeddedAgentMode, AgentRequest as EmbeddedAgentRequest,
+    AgentStreamEvent as EmbeddedAgentStreamEvent, Cancellation, HistoryMessage,
+};
 
 use crate::bridge::{DesktopBridge, DesktopCall, DesktopMethod};
 
-const EVENT_PREFIX: &str = "VIBE_CS_AGENT_EVENT:";
-const MAXIMUM_EVENT_BYTES: usize = 2 * 1024 * 1024;
-const MAXIMUM_STREAM_BYTES: usize = 2 * 1024 * 1024;
-const MAXIMUM_CHANNEL_EVENTS: usize = 1_020;
-const TEXT_DELTA_BATCH_BYTES: usize = 8 * 1024;
 const MAXIMUM_THREAD_MESSAGES: usize = 80;
 const MAXIMUM_THREAD_BYTES: usize = 1024 * 1024;
+const TEXT_DELTA_BATCH_BYTES: usize = 256;
+const MAXIMUM_STREAM_TEXT_EVENTS_BEFORE_FINAL: usize = 979;
 
 #[derive(Debug, Clone)]
 pub(crate) struct AgentBridge {
@@ -42,37 +34,6 @@ pub(crate) struct AgentBridge {
     chat_gate: Arc<Semaphore>,
     thread_locks: Arc<Mutex<HashMap<Uuid, Weak<Mutex<()>>>>>,
     cancellations: Arc<Mutex<HashMap<Uuid, Arc<Cancellation>>>>,
-}
-
-#[derive(Debug)]
-struct Cancellation {
-    cancelled: AtomicBool,
-    notify: Notify,
-}
-
-impl Cancellation {
-    fn new() -> Self {
-        Self {
-            cancelled: AtomicBool::new(false),
-            notify: Notify::new(),
-        }
-    }
-
-    fn cancel(&self) {
-        self.cancelled.store(true, Ordering::Release);
-        self.notify.notify_waiters();
-    }
-
-    async fn cancelled(&self) {
-        if self.cancelled.load(Ordering::Acquire) {
-            return;
-        }
-        let notified = self.notify.notified();
-        if self.cancelled.load(Ordering::Acquire) {
-            return;
-        }
-        notified.await;
-    }
 }
 
 impl AgentBridge {
@@ -93,30 +54,6 @@ impl AgentBridge {
         }
     }
 
-    fn sidecar_path() -> Option<PathBuf> {
-        if cfg!(debug_assertions)
-            && let Some(configured) = std::env::var_os("VIBE_CS_AGENT_SIDECAR")
-        {
-            let path = PathBuf::from(configured);
-            if trusted_sidecar_path(&path) {
-                return Some(path);
-            }
-        }
-        let installed = std::env::current_exe()
-            .ok()?
-            .with_file_name("vibe-cs-agent.exe");
-        if trusted_sidecar_path(&installed) {
-            return Some(installed);
-        }
-        let development = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("binaries")
-            .join(format!(
-                "vibe-cs-agent-{}.exe",
-                env!("VIBE_CS_TARGET_TRIPLE")
-            ));
-        trusted_sidecar_path(&development).then_some(development)
-    }
-
     fn thread_path(&self, thread_id: Uuid) -> PathBuf {
         self.data_dir
             .join("agent")
@@ -127,7 +64,7 @@ impl AgentBridge {
     async fn load_thread(&self, thread_id: Uuid) -> Result<AgentThread, AgentCommandError> {
         let path = self.thread_path(thread_id);
         match tokio::fs::read(&path).await {
-            Ok(bytes) if bytes.len() <= MAXIMUM_EVENT_BYTES => serde_json::from_slice(&bytes)
+            Ok(bytes) if bytes.len() <= MAXIMUM_THREAD_BYTES => serde_json::from_slice(&bytes)
                 .map_err(|error| {
                     AgentCommandError::internal(format!("invalid local agent thread: {error}"))
                 }),
@@ -248,165 +185,10 @@ fn serialize_bounded_thread(thread: &mut AgentThread) -> Result<Vec<u8>, AgentCo
     }
 }
 
-fn trusted_sidecar_path(path: &Path) -> bool {
-    if !path.is_absolute() {
-        return false;
-    }
-    let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
-        return false;
-    };
-    if !(name.eq_ignore_ascii_case("vibe-cs-agent.exe")
-        || name.to_ascii_lowercase().starts_with("vibe-cs-agent-")
-            && name.to_ascii_lowercase().ends_with(".exe"))
-    {
-        return false;
-    }
-    let Ok(metadata) = std::fs::symlink_metadata(path) else {
-        return false;
-    };
-    if !metadata.is_file() || metadata.file_type().is_symlink() {
-        return false;
-    }
-    let Some(parent) = path.parent() else {
-        return false;
-    };
-    let Ok(parent_metadata) = std::fs::symlink_metadata(parent) else {
-        return false;
-    };
-    if !parent_metadata.is_dir() || parent_metadata.file_type().is_symlink() {
-        return false;
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt as _;
-        if metadata.file_attributes() & 0x0000_0400 != 0
-            || parent_metadata.file_attributes() & 0x0000_0400 != 0
-        {
-            return false;
-        }
-    }
-    true
-}
-
-fn is_debug_sidecar_override(path: &Path) -> bool {
-    cfg!(debug_assertions)
-        && std::env::var_os("VIBE_CS_AGENT_SIDECAR")
-            .is_some_and(|configured| configured == path.as_os_str())
-}
-
-struct VerifiedSidecar {
-    _file: std::fs::File,
-    _parent: std::fs::File,
-}
-
-impl std::fmt::Debug for VerifiedSidecar {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("VerifiedSidecar")
-            .finish_non_exhaustive()
-    }
-}
-
-async fn verify_bundled_sidecar(path: &Path) -> Result<Option<VerifiedSidecar>, AgentCommandError> {
-    if is_debug_sidecar_override(path) {
-        return Ok(None);
-    }
-    let expected = env!("VIBE_CS_AGENT_SIDECAR_SHA256");
-    if expected.is_empty() {
-        if cfg!(debug_assertions) {
-            return Ok(None);
-        }
-        return Err(AgentCommandError::unavailable(
-            "bundled agent integrity manifest is unavailable",
-        ));
-    }
-    let path = path.to_owned();
-    tokio::task::spawn_blocking(move || verify_bundled_sidecar_sync(&path, expected))
-        .await
-        .map_err(|error| {
-            AgentCommandError::internal(format!("agent integrity task failed: {error}"))
-        })?
-}
-
-fn verify_bundled_sidecar_sync(
-    path: &Path,
-    expected: &str,
-) -> Result<Option<VerifiedSidecar>, AgentCommandError> {
-    let (mut file, parent) = open_locked_sidecar(path).map_err(|error| {
-        AgentCommandError::unavailable(format!("unable to lock bundled agent: {error}"))
-    })?;
-    let metadata = file.metadata().map_err(|error| {
-        AgentCommandError::unavailable(format!("unable to inspect bundled agent: {error}"))
-    })?;
-    if metadata.len() > 256 * 1024 * 1024 {
-        return Err(AgentCommandError::unavailable(
-            "bundled agent exceeds its integrity size limit",
-        ));
-    }
-    let mut hash = Sha256::new();
-    let mut buffer = vec![0_u8; 64 * 1024].into_boxed_slice();
-    let mut read_bytes = 0_u64;
-    loop {
-        let read = file.read(&mut buffer).map_err(|error| {
-            AgentCommandError::unavailable(format!("unable to verify bundled agent: {error}"))
-        })?;
-        if read == 0 {
-            break;
-        }
-        read_bytes = read_bytes.saturating_add(read as u64);
-        hash.update(&buffer[..read]);
-    }
-    if read_bytes != metadata.len() || !hex::encode(hash.finalize()).eq_ignore_ascii_case(expected)
-    {
-        return Err(AgentCommandError::unavailable(
-            "bundled agent failed its integrity check",
-        ));
-    }
-    let open_handle = same_file::Handle::from_file(file.try_clone().map_err(|error| {
-        AgentCommandError::unavailable(format!("unable to clone bundled agent handle: {error}"))
-    })?)
-    .map_err(|error| {
-        AgentCommandError::unavailable(format!("unable to identify bundled agent: {error}"))
-    })?;
-    let named_handle = same_file::Handle::from_path(path).map_err(|error| {
-        AgentCommandError::unavailable(format!("unable to re-open bundled agent: {error}"))
-    })?;
-    if open_handle != named_handle || !trusted_sidecar_path(path) {
-        return Err(AgentCommandError::unavailable(
-            "bundled agent changed during integrity verification",
-        ));
-    }
-    Ok(Some(VerifiedSidecar {
-        _file: file,
-        _parent: parent,
-    }))
-}
-
-fn open_locked_sidecar(path: &Path) -> std::io::Result<(std::fs::File, std::fs::File)> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| std::io::Error::other("sidecar has no parent"))?;
-    let mut file_options = std::fs::OpenOptions::new();
-    file_options.read(true);
-    let mut parent_options = std::fs::OpenOptions::new();
-    parent_options.read(true);
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::OpenOptionsExt as _;
-        const FILE_SHARE_READ: u32 = 0x0000_0001;
-        const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
-        file_options.share_mode(FILE_SHARE_READ);
-        parent_options
-            .share_mode(FILE_SHARE_READ)
-            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS);
-    }
-    Ok((file_options.open(path)?, parent_options.open(parent)?))
-}
-
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct AgentStatus {
-    sidecar_available: bool,
+    runtime_available: bool,
     configured: bool,
     provider: String,
     model: String,
@@ -481,20 +263,24 @@ pub(crate) enum AgentEvent {
     Error { message: String },
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "type")]
-enum SidecarEvent {
-    TextDelta { delta: String },
-    Complete { response: SidecarResponse },
-    Error { error: String },
+impl From<vibe_cs_agent::CapturedToolCall> for AgentToolCall {
+    fn from(value: vibe_cs_agent::CapturedToolCall) -> Self {
+        Self {
+            name: value.name,
+            input: value.input,
+            output: value.output,
+        }
+    }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SidecarResponse {
-    content: String,
-    tool_calls: Vec<AgentToolCall>,
-    plans: Vec<AgentProposal>,
+impl From<vibe_cs_agent::CapturedPlan> for AgentProposal {
+    fn from(value: vibe_cs_agent::CapturedPlan) -> Self {
+        Self {
+            kind: value.kind,
+            title: value.title,
+            payload: value.payload,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -544,13 +330,8 @@ pub(crate) async fn agent_status(
 
 async fn status(state: &AgentBridge) -> Result<AgentStatus, AgentCommandError> {
     let (config, api_key) = resolved_agent_config(state).await?;
-    let sidecar_available = if let Some(path) = AgentBridge::sidecar_path() {
-        verify_bundled_sidecar(&path).await.is_ok()
-    } else {
-        false
-    };
     Ok(AgentStatus {
-        sidecar_available,
+        runtime_available: true,
         configured: !api_key.is_empty()
             && !config.llm.model.is_empty()
             && !config.llm.base_url.is_empty(),
@@ -772,39 +553,94 @@ async fn run_agent_chat(
         .collect::<Vec<_>>()
         .into_iter()
         .rev()
-        .map(|entry| json!({ "role": entry.role, "content": entry.content }))
+        .map(|entry| HistoryMessage {
+            role: entry.role.clone(),
+            content: entry.content.clone(),
+        })
         .collect::<Vec<_>>();
-    let payload = json!({
-        "requestId": input.request_id,
-        "mode": input.mode,
-        "message": message,
-        "history": history,
-        "config": {
-            "provider": config.llm.provider,
-            "model": config.llm.model,
-            "baseUrl": config.llm.base_url,
-            "apiKey": api_key,
-            "customInstructions": config.llm.prompt,
+    let request = EmbeddedAgentRequest {
+        request_id: input.request_id.to_string(),
+        mode: match input.mode {
+            AgentMode::Guide => EmbeddedAgentMode::Guide,
+            AgentMode::Edit => EmbeddedAgentMode::Edit,
+            AgentMode::Hlae => EmbeddedAgentMode::Hlae,
         },
-        "context": {
-            "demo": summarize_demo(&demo),
-            "analysis": summarize_analysis(&analysis),
-            "editorProject": summarize_editor_project(&editor_project),
-            "selectedAudio": selected_audio,
-            "audioAnalysis": audio_analysis,
-            "beatAlignmentDraft": beat_alignment_draft,
+        message: message.to_owned(),
+        history,
+        config: EmbeddedAgentConfig {
+            provider: config.llm.provider,
+            model: config.llm.model,
+            base_url: config.llm.base_url,
+            api_key,
+            custom_instructions: config.llm.prompt,
         },
-    });
-    let sidecar = AgentBridge::sidecar_path().ok_or_else(|| {
-        AgentCommandError::unavailable("the local Mastra sidecar is not installed")
+        context: EmbeddedAgentContext {
+            demo: summarize_demo(&demo),
+            analysis: summarize_analysis(&analysis),
+            editor_project: summarize_editor_project(&editor_project),
+            selected_audio,
+            audio_analysis,
+            beat_alignment_draft,
+        },
+    };
+    let mut pending_text = String::new();
+    let mut text_event_count = 0_usize;
+    let response = tokio::time::timeout(
+        Duration::from_secs(180),
+        vibe_cs_agent::run_agent(request, cancellation, |event| {
+            if let EmbeddedAgentStreamEvent::TextDelta(delta) = event {
+                pending_text.push_str(&delta);
+                if pending_text.len() >= TEXT_DELTA_BATCH_BYTES
+                    && text_event_count < MAXIMUM_STREAM_TEXT_EVENTS_BEFORE_FINAL
+                {
+                    let _ = on_event.send(AgentEvent::TextDelta {
+                        delta: std::mem::take(&mut pending_text),
+                    });
+                    text_event_count += 1;
+                }
+            }
+        }),
+    )
+    .await
+    .map_err(|_| AgentCommandError::unavailable("agent request timed out"))?
+    .map_err(|error| match error {
+        vibe_cs_agent::AgentError::Invalid(message) => AgentCommandError::invalid(message),
+        vibe_cs_agent::AgentError::Cancelled => AgentCommandError::unavailable(error.to_string()),
+        vibe_cs_agent::AgentError::Provider(message) => AgentCommandError::unavailable(message),
+    })
+    .inspect_err(|error| {
+        let _ = on_event.send(AgentEvent::Error {
+            message: error.message.clone(),
+        });
     })?;
-    let response = run_sidecar(&sidecar, &payload, on_event, cancellation)
-        .await
-        .inspect_err(|error| {
-            let _ = on_event.send(AgentEvent::Error {
-                message: error.message.clone(),
-            });
-        })?;
+    if !pending_text.is_empty() {
+        let _ = on_event.send(AgentEvent::TextDelta {
+            delta: std::mem::take(&mut pending_text),
+        });
+    }
+    let tool_calls = response
+        .tool_calls
+        .into_iter()
+        .map(AgentToolCall::from)
+        .collect::<Vec<_>>();
+    let proposals = response
+        .plans
+        .into_iter()
+        .map(AgentProposal::from)
+        .collect::<Vec<_>>();
+    for proposal in &proposals {
+        validate_proposal(proposal)?;
+    }
+    for tool_call in &tool_calls {
+        let _ = on_event.send(AgentEvent::ToolCall {
+            tool_call: tool_call.clone(),
+        });
+    }
+    for proposal in &proposals {
+        let _ = on_event.send(AgentEvent::Proposal {
+            proposal: proposal.clone(),
+        });
+    }
     let now = Utc::now().to_rfc3339();
     thread.messages.push(AgentMessage {
         id: Uuid::new_v4(),
@@ -819,8 +655,8 @@ async fn run_agent_chat(
         role: "assistant".to_owned(),
         content: response.content,
         created_at: now.clone(),
-        tool_calls: response.tool_calls,
-        proposals: response.plans,
+        tool_calls,
+        proposals,
     });
     if thread.messages.len() > MAXIMUM_THREAD_MESSAGES {
         thread
@@ -963,229 +799,6 @@ fn beat_alignment_clips(editor_project: &Value, analysis: &Value) -> Vec<Value> 
     clips
 }
 
-async fn run_sidecar(
-    executable: &Path,
-    payload: &Value,
-    on_event: &Channel<AgentEvent>,
-    cancellation: &Cancellation,
-) -> Result<SidecarResponse, AgentCommandError> {
-    let request = serde_json::to_vec(payload)
-        .map_err(|error| AgentCommandError::internal(error.to_string()))?;
-    if request.len() > MAXIMUM_EVENT_BYTES {
-        return Err(AgentCommandError::invalid(
-            "selected agent context exceeds 2 MiB after evidence limits",
-        ));
-    }
-    let _verified_sidecar = verify_bundled_sidecar(executable).await?;
-    let mut child = Command::new(executable)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .kill_on_drop(true)
-        .spawn()
-        .map_err(|error| {
-            AgentCommandError::unavailable(format!("unable to start local agent sidecar: {error}"))
-        })?;
-    let transaction = async {
-        let mut stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| AgentCommandError::internal("agent sidecar stdin is unavailable"))?;
-        stdin.write_all(&request).await.map_err(|error| {
-            AgentCommandError::internal(format!("unable to send agent request: {error}"))
-        })?;
-        stdin.shutdown().await.map_err(|error| {
-            AgentCommandError::internal(format!("unable to close agent request: {error}"))
-        })?;
-        drop(stdin);
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| AgentCommandError::internal("agent sidecar stdout is unavailable"))?;
-        let response = read_sidecar_events(BufReader::new(stdout), on_event).await?;
-        let status = child.wait().await.map_err(|error| {
-            AgentCommandError::internal(format!("unable to wait for agent sidecar: {error}"))
-        })?;
-        if !status.success() {
-            return Err(AgentCommandError::unavailable(
-                "local agent sidecar rejected the request",
-            ));
-        }
-        response.ok_or_else(|| {
-            AgentCommandError::internal("agent sidecar returned no completion event")
-        })
-    };
-    tokio::select! {
-        result = tokio::time::timeout(Duration::from_secs(180), transaction) => if let Ok(result) = result {
-            result
-        } else {
-                let _ = child.kill().await;
-                let _ = child.wait().await;
-                Err(AgentCommandError::unavailable("agent request timed out"))
-        },
-        () = cancellation.cancelled() => {
-            let _ = child.kill().await;
-            let _ = child.wait().await;
-            Err(AgentCommandError::unavailable("agent request was cancelled"))
-        }
-    }
-}
-
-async fn read_sidecar_events<R: AsyncBufRead + Unpin>(
-    mut stdout: R,
-    on_event: &Channel<AgentEvent>,
-) -> Result<Option<SidecarResponse>, AgentCommandError> {
-    let mut response = None;
-    let mut total_bytes = 0_usize;
-    let mut input_event_count = 0_usize;
-    let mut output_event_count = 0_usize;
-    let mut total_text_bytes = 0_usize;
-    let mut frame = Vec::new();
-    let mut pending_text = String::new();
-    loop {
-        let line = if pending_text.is_empty() {
-            read_bounded_line(&mut stdout, &mut frame).await?
-        } else {
-            tokio::select! {
-                line = read_bounded_line(&mut stdout, &mut frame) => line?,
-                () = tokio::time::sleep(Duration::from_millis(16)) => {
-                    flush_text_delta(on_event, &mut pending_text, &mut output_event_count)?;
-                    continue;
-                }
-            }
-        };
-        let Some(line) = line else { break };
-        total_bytes = total_bytes.saturating_add(line.len());
-        input_event_count = input_event_count.saturating_add(1);
-        if total_bytes > MAXIMUM_STREAM_BYTES || input_event_count > 4_096 {
-            return Err(AgentCommandError::internal(
-                "agent stream exceeds its cumulative budget",
-            ));
-        }
-        let text = String::from_utf8_lossy(&line);
-        let Some(encoded) = text.trim().strip_prefix(EVENT_PREFIX) else {
-            continue;
-        };
-        match serde_json::from_str::<SidecarEvent>(encoded).map_err(|error| {
-            AgentCommandError::internal(format!("invalid agent stream event: {error}"))
-        })? {
-            SidecarEvent::TextDelta { delta } => {
-                append_text_delta(&mut pending_text, &mut total_text_bytes, &delta)?;
-                if pending_text.len() >= TEXT_DELTA_BATCH_BYTES {
-                    flush_text_delta(on_event, &mut pending_text, &mut output_event_count)?;
-                }
-            }
-            SidecarEvent::Complete {
-                response: completed,
-            } => {
-                flush_text_delta(on_event, &mut pending_text, &mut output_event_count)?;
-                validate_sidecar_response(&completed)?;
-                for tool_call in &completed.tool_calls {
-                    reserve_channel_event(&mut output_event_count)?;
-                    let _ = on_event.send(AgentEvent::ToolCall {
-                        tool_call: tool_call.clone(),
-                    });
-                }
-                for proposal in &completed.plans {
-                    reserve_channel_event(&mut output_event_count)?;
-                    let _ = on_event.send(AgentEvent::Proposal {
-                        proposal: proposal.clone(),
-                    });
-                }
-                response = Some(completed);
-            }
-            SidecarEvent::Error { error } => return Err(AgentCommandError::unavailable(error)),
-        }
-    }
-    flush_text_delta(on_event, &mut pending_text, &mut output_event_count)?;
-    Ok(response)
-}
-
-fn append_text_delta(
-    pending: &mut String,
-    total_bytes: &mut usize,
-    delta: &str,
-) -> Result<(), AgentCommandError> {
-    *total_bytes = total_bytes.saturating_add(delta.len());
-    if *total_bytes > 64_000 {
-        return Err(AgentCommandError::internal(
-            "agent text stream exceeds its response limit",
-        ));
-    }
-    pending.push_str(delta);
-    Ok(())
-}
-
-fn reserve_channel_event(count: &mut usize) -> Result<(), AgentCommandError> {
-    *count = count.saturating_add(1);
-    if *count > MAXIMUM_CHANNEL_EVENTS {
-        return Err(AgentCommandError::internal(
-            "agent channel exceeds its event budget",
-        ));
-    }
-    Ok(())
-}
-
-fn flush_text_delta(
-    on_event: &Channel<AgentEvent>,
-    pending: &mut String,
-    count: &mut usize,
-) -> Result<(), AgentCommandError> {
-    if pending.is_empty() {
-        return Ok(());
-    }
-    reserve_channel_event(count)?;
-    let delta = std::mem::take(pending);
-    let _ = on_event.send(AgentEvent::TextDelta { delta });
-    Ok(())
-}
-
-async fn read_bounded_line<R: AsyncBufRead + Unpin>(
-    reader: &mut R,
-    line: &mut Vec<u8>,
-) -> Result<Option<Vec<u8>>, AgentCommandError> {
-    loop {
-        let buffer = reader.fill_buf().await.map_err(|error| {
-            AgentCommandError::internal(format!("unable to read agent stream: {error}"))
-        })?;
-        if buffer.is_empty() {
-            return Ok((!line.is_empty()).then(|| std::mem::take(line)));
-        }
-        let consumed = buffer
-            .iter()
-            .position(|byte| *byte == b'\n')
-            .map_or(buffer.len(), |index| index + 1);
-        if line.len().saturating_add(consumed) > MAXIMUM_EVENT_BYTES {
-            return Err(AgentCommandError::internal(
-                "agent stream event exceeds 2 MiB",
-            ));
-        }
-        let found_newline = buffer.get(consumed.saturating_sub(1)) == Some(&b'\n');
-        line.extend_from_slice(&buffer[..consumed]);
-        reader.consume(consumed);
-        if found_newline {
-            return Ok(Some(std::mem::take(line)));
-        }
-    }
-}
-
-fn validate_sidecar_response(response: &SidecarResponse) -> Result<(), AgentCommandError> {
-    if response.content.is_empty() || response.content.chars().count() > 64_000 {
-        return Err(AgentCommandError::internal(
-            "agent response text violates its size contract",
-        ));
-    }
-    if response.tool_calls.len() > 32 || response.plans.len() > 8 {
-        return Err(AgentCommandError::internal(
-            "agent response contains too many tool calls or proposals",
-        ));
-    }
-    for proposal in &response.plans {
-        validate_proposal(proposal)?;
-    }
-    Ok(())
-}
-
 fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> {
     match proposal.kind.as_str() {
         "hlae" => {
@@ -1245,14 +858,11 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex as StdMutex;
-    use tauri::ipc::InvokeResponseBody;
-    use tokio::io::BufReader;
 
     #[test]
     fn status_never_serializes_a_key() {
         let status = AgentStatus {
-            sidecar_available: true,
+            runtime_available: true,
             configured: true,
             provider: "local".to_owned(),
             model: "test-model".to_owned(),
@@ -1261,19 +871,10 @@ mod tests {
         let encoded = serde_json::to_string(&status).expect("status");
         assert!(!encoded.contains("api_key"));
         assert!(!encoded.contains("apiKey"));
-    }
-
-    #[tokio::test]
-    async fn bounded_line_rejects_an_oversized_unterminated_frame() {
-        let (mut writer, reader) = tokio::io::duplex(64 * 1024);
-        let write = tokio::spawn(async move {
-            let _ = writer.write_all(&vec![b'x'; MAXIMUM_EVENT_BYTES + 1]).await;
-        });
-        let error = read_bounded_line(&mut BufReader::new(reader), &mut Vec::new())
-            .await
-            .expect_err("oversized frame");
-        assert_eq!(error.code, "agent_failed");
-        write.abort();
+        assert_eq!(
+            serde_json::from_str::<Value>(&encoded).expect("JSON")["runtimeAvailable"],
+            true
+        );
     }
 
     #[test]
@@ -1287,89 +888,6 @@ mod tests {
         assert_eq!(summary["rounds"].as_array().map(Vec::len), Some(64));
         assert_eq!(summary["highlights"].as_array().map(Vec::len), Some(128));
         assert_eq!(summary["players"].as_array().map(Vec::len), Some(32));
-    }
-
-    #[test]
-    fn text_delta_limit_is_cumulative_across_batches() {
-        let mut total = 0;
-        for _ in 0..7 {
-            let mut batch = String::new();
-            append_text_delta(&mut batch, &mut total, &"x".repeat(8 * 1024)).expect("within limit");
-        }
-        let mut final_batch = String::new();
-        append_text_delta(&mut final_batch, &mut total, &"x".repeat(8 * 1024))
-            .expect_err("over 64 KiB");
-    }
-
-    #[tokio::test]
-    async fn desktop_stream_accepts_a_typed_sidecar_proposal_and_emits_channel_events() {
-        let response = json!({
-            "content": "The HLAE proposal is ready for review.",
-            "toolCalls": [{
-                "name": "draft_hlae_plan",
-                "input": { "highlightIds": ["ace-1"] },
-                "output": { "accepted": true }
-            }],
-            "plans": [{
-                "kind": "hlae",
-                "title": "HLAE camera proposal",
-                "payload": {
-                    "demo_id": "00000000-0000-4000-8000-0000000000d1",
-                    "highlight_ids": ["ace-1"],
-                    "camera_style": "orbit",
-                    "mode": "preview",
-                    "lead_seconds": 2.0,
-                    "tail_seconds": 2.5
-                }
-            }]
-        });
-        let stream = format!(
-            "{EVENT_PREFIX}{}\n{EVENT_PREFIX}{}\n",
-            json!({ "type": "text_delta", "delta": "Reviewing verified evidence..." }),
-            json!({ "type": "complete", "response": response })
-        );
-        let received = Arc::new(StdMutex::new(Vec::<Value>::new()));
-        let captured = Arc::clone(&received);
-        let channel = Channel::new(move |body| {
-            let InvokeResponseBody::Json(encoded) = body else {
-                panic!("agent events must use JSON channel payloads");
-            };
-            captured
-                .lock()
-                .expect("event capture")
-                .push(serde_json::from_str(&encoded)?);
-            Ok(())
-        });
-
-        let parsed = read_sidecar_events(BufReader::new(stream.as_bytes()), &channel)
-            .await
-            .expect("valid sidecar stream")
-            .expect("completion response");
-        assert_eq!(parsed.content, "The HLAE proposal is ready for review.");
-        assert_eq!(parsed.tool_calls.len(), 1);
-        assert_eq!(parsed.plans.len(), 1);
-        let events = received.lock().expect("event capture");
-        assert_eq!(events.len(), 3);
-        assert_eq!(events[0]["type"], "textDelta");
-        assert_eq!(events[1]["type"], "toolCall");
-        assert_eq!(events[2]["type"], "proposal");
-        assert_eq!(
-            events[2]["proposal"]["payload"]["highlight_ids"][0],
-            "ace-1"
-        );
-    }
-
-    #[tokio::test]
-    #[ignore = "requires pnpm agent:sidecar before compiling the desktop crate"]
-    async fn verified_development_sidecar_matches_the_build_manifest() {
-        let path = AgentBridge::sidecar_path().expect("generated development sidecar");
-        let verified = verify_bundled_sidecar(&path)
-            .await
-            .expect("sidecar must match the compile-time SHA-256 manifest");
-        assert!(
-            verified.is_some(),
-            "development sidecar must use release-equivalent verification"
-        );
     }
 
     #[test]
@@ -1393,17 +911,6 @@ mod tests {
         assert!(thread.messages.len() < 40);
         assert_eq!(thread.messages.len() % 2, 0);
         assert!(!thread.messages[0].content.starts_with("0:"));
-    }
-
-    #[cfg(windows)]
-    #[test]
-    fn locked_sidecar_handle_rejects_write_and_replace() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let path = directory.path().join("vibe-cs-agent-test.exe");
-        std::fs::write(&path, b"test sidecar").expect("fixture");
-        let (_file, _parent) = open_locked_sidecar(&path).expect("lock sidecar");
-        assert!(std::fs::OpenOptions::new().write(true).open(&path).is_err());
-        assert!(std::fs::rename(&path, directory.path().join("replacement.exe")).is_err());
     }
 }
 

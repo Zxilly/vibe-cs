@@ -186,7 +186,7 @@ impl OpenAiClient {
     }
 
     /// Exercises the same streamed Chat Completions + tools surface used by
-    /// the local Mastra sidecar. The probe deliberately avoids structured
+    /// the in-process Rig agent. The probe deliberately avoids structured
     /// response settings and sampling parameters rejected by Kimi K3.
     ///
     /// # Errors

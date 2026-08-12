@@ -19,6 +19,7 @@ const OutputsPage = lazy(() => import('../features/outputs/OutputsPage').then((m
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })));
 const MatchHistoryPage = lazy(() => import('../features/match-history/MatchHistoryPage').then((module) => ({ default: module.MatchHistoryPage })));
 const RecoveryPage = lazy(() => import('../features/recovery/RecoveryPage').then((module) => ({ default: module.RecoveryPage })));
+const AceOverlayPrototypePage = lazy(() => import('../features/production/AceOverlayPrototypePage').then((module) => ({ default: module.AceOverlayPrototypePage })));
 
 function LoadingRoute() {
   return <div className="route-loading" role="status"><span className="spinner" /><strong>{msg("m0850")}</strong><span>{msg("m0306")}</span></div>;
@@ -43,9 +44,16 @@ export const routePaths = [
   '/settings',
   '/match-history',
   '/recovery',
+  '/prototype/ace-overlay',
 ] as const;
 
 export const appRoutes: RouteObject[] = [
+  {
+    id: 'ace-overlay-prototype',
+    path: '/prototype/ace-overlay',
+    element: suspense(<AceOverlayPrototypePage />),
+    errorElement: <RouteError />,
+  },
   {
     id: 'app-shell',
     path: '/',

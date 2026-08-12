@@ -1,6 +1,7 @@
 mod agent;
 mod bridge;
 mod hlae_output;
+mod overlay_prototype;
 
 use std::{io, path::PathBuf, sync::Arc};
 
@@ -38,7 +39,8 @@ pub fn run() {
             agent::agent_chat,
             agent::agent_cancel,
             hlae_output::list_hlae_bundles,
-            hlae_output::reveal_hlae_bundle
+            hlae_output::reveal_hlae_bundle,
+            overlay_prototype::toggle_ace_overlay_prototype
         ])
         .register_asynchronous_uri_scheme_protocol(
             "vibe-cs-media",

@@ -105,7 +105,7 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
             "Run a strict deterministic query over selected local Demo rounds. Returns bounded round/tick evidence only.",
             object_schema(
                 json!({
-                    "winningSide": {"type":"string","enum":["A","B"]}, "playerIds": string_array_schema(10),
+                    "winningSide": {"type":"string","enum":["T","CT"]}, "playerIds": string_array_schema(10),
                     "purchasedItems": string_array_schema(12), "roundNumbers": integer_array_schema(24),
                     "eventKinds": event_array_schema(), "maximumResults": {"type":"integer","minimum":1,"maximum":24,"default":24}
                 }),
@@ -299,8 +299,8 @@ fn search_rounds(context: &AgentContext, input: &Value) -> Result<Value, String>
         );
     }
     let winning_side = optional_str(input, "winningSide")?;
-    if winning_side.is_some_and(|value| !matches!(value, "A" | "B")) {
-        return Err("winningSide must be A or B".into());
+    if winning_side.is_some_and(|value| !matches!(value, "T" | "CT")) {
+        return Err("winningSide must be T or CT".into());
     }
     let wanted_players = string_set(input, "playerIds", 10)?;
     let wanted_items = string_set(input, "purchasedItems", 12)?
@@ -938,5 +938,20 @@ mod tests {
         assert!(plan.is_none());
         assert_eq!(output["plan"]["missingHighlightIds"], json!(["missing"]));
         assert_eq!(output["plan"]["duplicateHighlightIds"], json!(["missing"]));
+    }
+
+    #[test]
+    fn round_search_uses_counter_strike_side_names() {
+        let mut context = context();
+        context.analysis["rounds"] = json!([{
+            "number": 7,
+            "winner": "T",
+            "start_tick": 900,
+            "end_tick": 1_700,
+            "events": []
+        }]);
+        let result = search_rounds(&context, &json!({"winningSide":"T"})).unwrap();
+        assert_eq!(result["rounds"][0]["round"], 7);
+        assert!(search_rounds(&context, &json!({"winningSide":"A"})).is_err());
     }
 }

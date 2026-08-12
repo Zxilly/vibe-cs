@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     path::PathBuf,
     sync::{Arc, Weak},
     time::Duration,
@@ -695,6 +695,87 @@ fn capped_array(value: Option<&Value>, maximum: usize) -> Vec<Value> {
         .collect()
 }
 
+fn highlight_kind_rank(highlight: &Value) -> u8 {
+    match highlight.get("kind").and_then(Value::as_str) {
+        Some("multi_kill") => 0,
+        Some("clutch") => 1,
+        Some("one_tap") => 2,
+        Some("wallbang" | "no_scope" | "knife" | "taser" | "defuse") => 3,
+        Some("fail") => 4,
+        Some("timeline") => 5,
+        _ => 6,
+    }
+}
+
+fn summarize_highlights(value: Option<&Value>, maximum: usize) -> Vec<Value> {
+    let highlights = value
+        .and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice);
+    if highlights.len() <= maximum {
+        return highlights.to_vec();
+    }
+
+    let mut by_round = BTreeMap::<u64, Vec<(usize, &Value)>>::new();
+    for (index, highlight) in highlights.iter().enumerate() {
+        let round = highlight
+            .get("round")
+            .and_then(Value::as_u64)
+            .unwrap_or(u64::MAX);
+        by_round.entry(round).or_default().push((index, highlight));
+    }
+    for candidates in by_round.values_mut() {
+        candidates.sort_by(|(_, left), (_, right)| {
+            highlight_kind_rank(left)
+                .cmp(&highlight_kind_rank(right))
+                .then_with(|| {
+                    right
+                        .get("score")
+                        .and_then(Value::as_f64)
+                        .unwrap_or_default()
+                        .total_cmp(
+                            &left
+                                .get("score")
+                                .and_then(Value::as_f64)
+                                .unwrap_or_default(),
+                        )
+                })
+                .then_with(|| {
+                    left.get("start_tick")
+                        .and_then(Value::as_u64)
+                        .cmp(&right.get("start_tick").and_then(Value::as_u64))
+                })
+                .then_with(|| {
+                    left.get("id")
+                        .and_then(Value::as_str)
+                        .cmp(&right.get("id").and_then(Value::as_str))
+                })
+        });
+    }
+
+    let mut selected = Vec::with_capacity(maximum);
+    let mut rank = 0;
+    while selected.len() < maximum {
+        let before = selected.len();
+        for candidates in by_round.values() {
+            if let Some((index, _)) = candidates.get(rank) {
+                selected.push(*index);
+                if selected.len() == maximum {
+                    break;
+                }
+            }
+        }
+        if selected.len() == before {
+            break;
+        }
+        rank += 1;
+    }
+    selected.sort_unstable();
+    selected
+        .into_iter()
+        .map(|index| highlights[index].clone())
+        .collect()
+}
+
 fn summarize_analysis(analysis: &Value) -> Value {
     let Some(source) = analysis.as_object() else {
         return Value::Null;
@@ -714,7 +795,7 @@ fn summarize_analysis(analysis: &Value) -> Value {
         "demo_id": source.get("demo_id"), "map_name": source.get("map_name"),
         "tick_rate": source.get("tick_rate"), "duration_seconds": source.get("duration_seconds"),
         "teams": capped_array(source.get("teams"), 2), "players": capped_array(source.get("players"), 32),
-        "rounds": capped_array(source.get("rounds"), 64), "highlights": capped_array(source.get("highlights"), 128),
+        "rounds": capped_array(source.get("rounds"), 64), "highlights": summarize_highlights(source.get("highlights"), 128),
         "insights": insights,
     })
 }
@@ -888,6 +969,49 @@ mod tests {
         assert_eq!(summary["rounds"].as_array().map(Vec::len), Some(64));
         assert_eq!(summary["highlights"].as_array().map(Vec::len), Some(128));
         assert_eq!(summary["players"].as_array().map(Vec::len), Some(32));
+    }
+
+    #[test]
+    fn analysis_summary_keeps_high_value_highlights_from_every_round() {
+        let mut highlights = Vec::new();
+        for round in 1..=21 {
+            for index in 0..8 {
+                highlights.push(json!({
+                    "id": format!("round-{round}-timeline-{index}"),
+                    "round": round,
+                    "kind": "timeline",
+                    "score": 0.5,
+                    "start_tick": round * 10_000 + index * 100,
+                }));
+            }
+        }
+        highlights.push(json!({
+            "id": "round-20-fallen-4k",
+            "round": 20,
+            "kind": "multi_kill",
+            "score": 0.93,
+            "start_tick": 160_986,
+        }));
+        highlights.push(json!({
+            "id": "round-21-niko-3k",
+            "round": 21,
+            "kind": "multi_kill",
+            "score": 0.91,
+            "start_tick": 171_501,
+        }));
+
+        let summary = summarize_analysis(&json!({ "highlights": highlights }));
+        let selected = summary["highlights"].as_array().expect("highlights");
+        assert_eq!(selected.len(), 128);
+        assert!(
+            selected
+                .iter()
+                .any(|item| item["id"] == "round-20-fallen-4k")
+        );
+        assert!(selected.iter().any(|item| item["id"] == "round-21-niko-3k"));
+        for round in 1..=21 {
+            assert!(selected.iter().any(|item| item["round"] == round));
+        }
     }
 
     #[test]

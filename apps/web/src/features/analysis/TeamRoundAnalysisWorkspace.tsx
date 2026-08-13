@@ -21,10 +21,12 @@ import {
   initialTeamRoundSelection,
   reduceTeamRoundSelection,
   resolveTeamRoundEvidenceId,
-  type CompetitiveSide,
-  type StableMatchTeam,
   type TeamRoundEvidence,
 } from './teamRoundWorkspace';
+import type {
+  CompetitiveSide,
+  StableMatchTeam,
+} from './stableMatchTeamContext';
 import './TeamRoundAnalysisWorkspace.css';
 
 export type TeamRoundAnalysisWorkspaceProps = {

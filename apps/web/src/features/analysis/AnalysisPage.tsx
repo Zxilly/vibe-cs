@@ -100,7 +100,7 @@ import { UtilityAnalysisWorkspace } from './UtilityAnalysisWorkspace';
 import { EconomyAnalysisWorkspace } from './EconomyAnalysisWorkspace';
 import { DuelAnalysisWorkspace } from './DuelAnalysisWorkspace';
 import { OpeningDuelAnalysisWorkspace } from './OpeningDuelAnalysisWorkspace';
-import { TeamRoundAnalysisWorkspace } from './TeamRoundAnalysisWorkspace';
+import { TeamAnalysisWorkspace } from './TeamAnalysisWorkspace';
 import { ClutchReviewAnalysisWorkspace } from './ClutchReviewAnalysisWorkspace';
 import { HighlightAnnotationReviewControl } from './HighlightAnnotationReviewControl';
 import { canonicalHighlightAnnotationItem } from './highlightAnnotationReview';
@@ -113,8 +113,10 @@ import type { WeaponAtomicEvidence } from './weaponEvidenceWorkspace';
 import type { UtilityAtomicEvidence } from './utilityEvidenceWorkspace';
 import type { OpeningDuelEvidence } from './openingDuelWorkspace';
 import type { TeamRoundEvidence } from './teamRoundWorkspace';
+import type { TeamEconomyEvidence } from './teamEconomyWorkspace';
 import type { ClutchReviewEvidence } from './clutchReviewWorkspace';
 import { teamRoundEvidenceActionContract } from './teamRoundEvidenceActions';
+import { teamEconomyEvidenceActionContract } from './teamEconomyEvidenceActions';
 import { clutchReviewActionContract } from './clutchReviewActions';
 import { buildRoundContext, type RoundContextGroup, type RoundEvidenceAvailability } from './roundContextModel';
 import { evidenceRangeGroupId, roundNumberFromNavigationKey, roundSectionIsVisible, roundTickPercent, selectedGroupScrollTop, selectedRoundGroupId, tickDurationLabel } from './roundContextPresentation';
@@ -486,6 +488,23 @@ export function AnalysisPage() {
     if (action.add.compilation) addCompilation(action.add.compilation);
   };
 
+  const watchTeamEconomyEvidence = (evidence: TeamEconomyEvidence) => {
+    void playerEvidenceWatchAction.run(
+      () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: evidence.tick })),
+      msg("m0514"),
+    );
+  };
+
+  const addTeamEconomyEvidence = (evidence: TeamEconomyEvidence) => {
+    const action = teamEconomyEvidenceActionContract(workspace, evidence, {
+      serviceAvailable: source === 'service',
+      runtimeIdle: runtimeSession === 'idle',
+      watchPending: playerEvidenceWatchAction.state.status === 'loading',
+      alreadyAdded: addedHighlight === evidence.evidence_id,
+    });
+    if (action.add.compilation) addCompilation(action.add.compilation);
+  };
+
   const watchClutchReviewEvidence = (evidence: ClutchReviewEvidence) => {
     void playerEvidenceWatchAction.run(
       () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: evidence.tick })),
@@ -763,7 +782,7 @@ export function AnalysisPage() {
                 {playerEvidenceWatchAction.state.status === 'error'
                   ? <Notice tone="danger">{playerEvidenceWatchAction.state.message}</Notice>
                   : null}
-                <TeamRoundAnalysisWorkspace
+                <TeamAnalysisWorkspace
                   workspace={workspace}
                   serviceAvailable={source === 'service'}
                   runtimeIdle={runtimeSession === 'idle'}
@@ -771,8 +790,10 @@ export function AnalysisPage() {
                   focusedEvidenceId={selectedEvidenceId}
                   {...(addedHighlight ? { addedEvidenceIds: new Set([addedHighlight]) } : {})}
                   onNavigate={navigateAnalysis}
-                  onWatch={watchTeamRoundEvidence}
-                  onAddProduction={addTeamRoundEvidence}
+                  onWatchRound={watchTeamRoundEvidence}
+                  onAddRound={addTeamRoundEvidence}
+                  onWatchEconomy={watchTeamEconomyEvidence}
+                  onAddEconomy={addTeamEconomyEvidence}
                 />
               </>
             ) : null}

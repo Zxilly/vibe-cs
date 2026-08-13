@@ -1,12 +1,15 @@
 import type {
   AnalysisWorkspace,
-  PlayerAnalysis,
   TimelineEvent,
 } from '../../shared/desktop/dto';
 import type { PlayerEvidenceRef } from './playerMatchEvidence';
-
-export type StableMatchTeam = PlayerAnalysis['team'];
-export type CompetitiveSide = 'T' | 'CT';
+import {
+  deriveStableMatchTeamContext,
+  type CompetitiveSide,
+  type StableMatchRound,
+  type StableMatchTeam,
+  type StableMatchTeamRecord,
+} from './stableMatchTeamContext';
 
 export type TeamRoundFilter = {
   team: StableMatchTeam | null;
@@ -65,12 +68,6 @@ export type TeamRoundAvailability = {
   failure_round: number | null;
 };
 
-export type StableMatchTeamRecord = {
-  id: StableMatchTeam;
-  player_ids: string[];
-  player_names: string[];
-};
-
 export type TeamRoundCell = {
   team: StableMatchTeam;
   side: CompetitiveSide;
@@ -105,10 +102,10 @@ export type TeamRoundWorkspace = {
 };
 
 type VerifiedRound = {
-  number: number;
+  number: StableMatchRound['number'];
   winner: StableMatchTeam;
-  sides: Record<StableMatchTeam, CompetitiveSide>;
-  source: AnalysisWorkspace['rounds'][number];
+  sides: StableMatchRound['sides'];
+  source: StableMatchRound['source'];
   round_end: TimelineEvent;
 };
 
@@ -134,97 +131,16 @@ function unavailable(
   };
 }
 
-function normalizedSide(value: unknown): CompetitiveSide | null {
-  const side = String(value ?? '').trim().toLocaleUpperCase().replaceAll('_', '-');
-  if (side === 'T' || side === 'TERRORIST' || side === '2') return 'T';
-  if (side === 'CT' || side === 'COUNTER-TERRORIST' || side === '3') return 'CT';
-  return null;
-}
-
-function sameMembers(left: readonly string[], right: readonly string[]): boolean {
-  if (left.length !== right.length) return false;
-  const sortedRight = [...right].sort();
-  return [...left].sort().every((id, index) => id === sortedRight[index]);
-}
-
-function stableTeamRecords(workspace: AnalysisWorkspace): StableMatchTeamRecord[] | null {
-  if (workspace.players.length !== 10) return null;
-  const uniquePlayerIds = new Set(workspace.players.map((player) => player.id));
-  if (uniquePlayerIds.size !== 10 || [...uniquePlayerIds].some((id) => !id.trim())) return null;
-
-  const records = stableTeams.map((team): StableMatchTeamRecord => {
-    const players = workspace.players.filter((player) => player.team === team);
-    return {
-      id: team,
-      player_ids: players.map((player) => player.id),
-      player_names: players.map((player) => player.name),
-    };
-  });
-  if (records.some((team) => team.player_ids.length !== 5)) return null;
-
-  for (const record of records) {
-    const summary = workspace.teams.find((team) => team.side.trim().toLocaleUpperCase() === record.id);
-    if (!summary
-      || summary.name.trim().toLocaleUpperCase() !== `TEAM ${record.id}`
-      || !sameMembers(summary.players, record.player_ids)) return null;
-  }
-  return records;
-}
-
-function roundRoster(
-  round: AnalysisWorkspace['rounds'][number],
-): Map<string, CompetitiveSide> | null {
-  const start = round.events.find((event) => event.kind === 'round_start');
-  if (!start || start.tick < round.start_tick || start.tick > round.end_tick) return null;
-  if (typeof start.detail !== 'object' || start.detail === null) return null;
-  const rawRoster = (start.detail as Record<string, unknown>)._round_roster;
-  if (typeof rawRoster !== 'object' || rawRoster === null || Array.isArray(rawRoster)) return null;
-  const roster = new Map<string, CompetitiveSide>();
-  for (const [playerId, rawSide] of Object.entries(rawRoster)) {
-    const side = normalizedSide(rawSide);
-    if (!playerId.trim() || !side) return null;
-    roster.set(playerId, side);
-  }
-  return roster;
-}
-
-function teamSide(
-  roster: ReadonlyMap<string, CompetitiveSide>,
-  playerIds: readonly string[],
-): CompetitiveSide | null {
-  const sides = new Set(playerIds.map((id) => roster.get(id)));
-  if (sides.size !== 1 || sides.has(undefined)) return null;
-  return [...sides][0] ?? null;
-}
-
 function verifyRounds(
-  workspace: AnalysisWorkspace,
-  teams: readonly StableMatchTeamRecord[],
+  stableRounds: readonly StableMatchRound[],
 ): {
   rounds: VerifiedRound[] | null;
   failure_code: NonNullable<TeamRoundAvailability['failure_code']> | null;
   failure_round: number | null;
 } {
-  const expectedPlayers = teams.flatMap((team) => team.player_ids);
   const rounds: VerifiedRound[] = [];
-  for (const round of workspace.rounds) {
-    const roster = roundRoster(round);
-    if (!roster || !sameMembers([...roster.keys()], expectedPlayers)) {
-      return {
-        rounds: null,
-        failure_code: 'incomplete_round_roster',
-        failure_round: round.number,
-      };
-    }
-    const aSide = teamSide(roster, teams[0]?.player_ids ?? []);
-    const bSide = teamSide(roster, teams[1]?.player_ids ?? []);
-    if (!aSide || !bSide || aSide === bSide) {
-      return {
-        rounds: null,
-        failure_code: 'inconsistent_team_membership',
-        failure_round: round.number,
-      };
-    }
+  for (const stableRound of stableRounds) {
+    const round = stableRound.source;
     if (round.winner !== 'A' && round.winner !== 'B') {
       return {
         rounds: null,
@@ -241,16 +157,14 @@ function verifyRounds(
       };
     }
     rounds.push({
-      number: round.number,
+      number: stableRound.number,
       winner: round.winner,
-      sides: { A: aSide, B: bSide },
+      sides: stableRound.sides,
       source: round,
       round_end: roundEnd,
     });
   }
-  return rounds.length > 0
-    ? { rounds, failure_code: null, failure_round: null }
-    : { rounds: null, failure_code: 'no_analyzed_rounds', failure_round: null };
+  return { rounds, failure_code: null, failure_round: null };
 }
 
 function eventEvidence(
@@ -296,14 +210,15 @@ export function buildTeamRoundWorkspace(
   workspace: AnalysisWorkspace,
   filter: TeamRoundFilter,
 ): TeamRoundWorkspace {
-  const teams = stableTeamRecords(workspace);
-  if (!teams) {
+  const context = deriveStableMatchTeamContext(workspace);
+  if (context.availability.state !== 'available') {
     return unavailable(
-      'Stable Team A/B identity requires two exact five-player match rosters.',
-      'stable_team_identity',
+      context.availability.reason ?? 'Stable Team A/B identity cannot be proven.',
+      context.availability.failure_code ?? 'stable_team_identity',
+      context.availability.failure_round,
     );
   }
-  const verification = verifyRounds(workspace, teams);
+  const verification = verifyRounds(context.rounds);
   if (!verification.rounds) {
     const roundLabel = verification.failure_round === null
       ? ''
@@ -314,6 +229,7 @@ export function buildTeamRoundWorkspace(
       verification.failure_round,
     );
   }
+  const teams = context.teams;
   const rounds = verification.rounds;
   const cells = stableTeams.flatMap((team) => competitiveSides.map((side): TeamRoundCell => {
     const matching = rounds.filter((round) => round.sides[team] === side);

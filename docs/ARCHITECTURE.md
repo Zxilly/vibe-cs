@@ -61,12 +61,13 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   active-task tracking, mutation events and Activity API mapping. Activity filtering, counting and
   paging stay at the storage boundary: a kind-specific query reads only that authoritative source;
   a cross-kind query filters, orders and windows each source before the final merge, ordered by
-  `updated_at DESC, activity_id ASC`. Download retryability is calculated only for download rows in
-  the returned page. The result is not an event-history store, a materialized unified table or a
+  `updated_at DESC, activity_id ASC`. Retryability is calculated only for download and recording rows
+  in the returned page. The result is not an event-history store, a materialized unified table or a
   general database cursor. A failed or cancelled persisted Steam download exposes retry only when it
   is the latest eligible attempt, the match is not downloaded, the current Steam ID and 32-character
-  hexadecimal Web API key are syntactically valid, and the record belongs to that current account.
-  Activity is private to the desktop process.
+  hexadecimal Web API key are syntactically valid, and the record belongs to that current account. A
+  failed or cancelled recording exposes retry only when storage can prove one unclaimed unpublished
+  suffix; Activity never guesses a resumable capture tick. Activity is private to the desktop process.
 - `agent` owns the in-process Rig model/tool loop, provider URL policy, streaming limits, and
   deterministic read/proposal tools. It has no filesystem, shell, or process execution tool.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
@@ -88,11 +89,18 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   been cancelled. The player directory builds one cached, bounded catalog from at most 1,000 Demos,
   then applies server filtering, stable enum-selected sort with a SteamID tie-break, and finally
   pagination. It reports the scanned count and completeness; sorting one returned page never stands
-  in for the catalog-wide operation. Evidence Search has an exact participant filter that matches an
-  actor, target or indexed highlight victim by normalized player ID or name. The Player profile uses
-  that persistent query for a first-ten cross-match evidence preview with total/index completeness,
-  Round/Replay links that retain the inspected player, and a link to the exact full search; it is not
-  cross-page compare or a complete profile analytics model. Evidence Search also exposes canonical
+  in for the catalog-wide operation. The current-only player comparison route requires two distinct,
+  valid Steam64 IDs that both belong to that catalog and returns them in the requested order; malformed
+  or duplicate IDs are rejected, a missing member returns no partial comparison, and the client rejects
+  an out-of-order response. The UI retains at most two explicit IDs across page, search, sort and layout
+  changes, replacing the oldest ID when a third is selected. If a comparison becomes missing, exact
+  profile reads remove only identities proven absent. This is explicit selection, not select-all or a
+  filtered-set promise, and a one-page catalog does not establish cross-page or multi-match behavior.
+  Evidence Search has an exact participant filter that matches an actor, target or indexed highlight
+  victim by normalized player ID or name. The Player profile uses that persistent query for a first-ten
+  cross-match evidence preview with total/index completeness, Round/Replay links that retain the
+  inspected player, and a link to the exact full search; it is not a complete profile analytics model.
+  Evidence Search also exposes canonical
   annotation records through a global index whose URL owns bounded `q/tag/state/page` selection and
   whose rows deep-link back to Round or Replay. Canonical Highlight cards read the same records,
   distinguish unavailable annotation state from a true zero, show open/resolved summaries and reuse
@@ -108,7 +116,14 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   teammate/opponent sides, an A/B winner and an in-bounds canonical `round_end`. Its 2-by-2 cells are
   Team A/B by T/CT and report round wins over rounds played, never a win rate. A selected cell filters
   kills plus the same canonical round-end evidence; raw T/CT summaries fail closed and no organization
-  entity is inferred. Clutch Review is likewise a current-analysis projection: it accepts a highlight
+  entity is inferred. Team Economy reuses that exact stable-match context. It accepts only unique,
+  in-round purchase events with a canonical actor; any explicit event-side field must agree with the
+  actor's roster side. Its four Team A/B by T/CT cells report rounds, accepted purchases, item counts
+  and only explicitly decoded non-negative cost. Missing cost retains the purchase count while making
+  spend partial and null. The detail table is bounded to 50 rows, the cell preview shows the three most
+  frequent item groups plus a remainder, and evidence actions are rebuilt from the canonical source so
+  a forged cost cannot create an executable action. Clutch Review is likewise a current-analysis
+  projection: it accepts a highlight
   only when an exact win/attempt outcome, one unambiguous `1vN` tag, canonical player and round,
   in-range ticks and opponent relationships all agree; inconsistent candidates are rejected rather
   than coerced into a scenario. Production previews the bounded persisted Activity read model rather
@@ -200,6 +215,16 @@ progress. Before persisting that new job, the runtime revalidates the syntactic 
 requirements and exact account ownership. Missing configuration or a previous account's record is
 rejected without creating a job or mutating the match record; this does not prove that the key is
 accepted by Steam or that a later network request will succeed.
+
+Creating a recording retry is likewise a new durable job, with an immutable `retry_of` link to one
+failed or cancelled parent. The domain accepts only the unpublished suffix whose published prefix,
+request IDs and cursor agree exactly; ambiguous lineage fails closed, the parent and its published
+clips remain unchanged, and storage atomically permits only one child. A short-lived retry plan binds
+the parent ID, parent `updated_at` and eligible-suffix SHA-256, and execution revalidates that binding
+before claiming the child. Rejecting native recording consent creates no child. If startup is
+interrupted after a normal or retry row becomes durable, the runtime cleanup guard stops the backend
+and terminalizes any nonterminal row before releasing the active session. These contracts are covered
+by deterministic tests; they do not establish a real CS2/HLAE suffix retry.
 
 Release demo parsing runs in a single globally-admitted, integrity-pinned worker process;
 the desktop locks the worker and its parent across process creation, and the worker enforces parser

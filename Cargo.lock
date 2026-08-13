@@ -6768,6 +6768,7 @@ dependencies = [
  "hex",
  "hmac",
  "notify",
+ "rusqlite",
  "same-file",
  "serde",
  "serde_json",

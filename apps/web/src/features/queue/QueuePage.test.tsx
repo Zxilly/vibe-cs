@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { QueuePage, QueuePlaybackReadiness } from './QueuePage';
+import { QueuePage, QueuePlaybackReadiness, recordingExecutionOutcome } from './QueuePage';
 import { queueTestItems } from './queueTestFixtures';
 
 const previewControlUnavailable = {
@@ -42,6 +42,21 @@ describe('recording queue workspace', () => {
     queueState.items = [];
     queueState.selectedId = null;
     vi.clearAllMocks();
+  });
+
+  it('does not treat immediate terminal execution responses as active starts', () => {
+    expect(recordingExecutionOutcome('failed')).toMatchObject({
+      tracksActiveJob: false,
+      tone: 'danger',
+    });
+    expect(recordingExecutionOutcome('cancelled')).toMatchObject({
+      tracksActiveJob: false,
+      tone: 'warning',
+    });
+    expect(recordingExecutionOutcome('queued')).toMatchObject({
+      tracksActiveJob: true,
+      tone: 'info',
+    });
   });
 
   it('turns a truly empty queue into one compact path back to the library', () => {

@@ -28,12 +28,14 @@ import type {
   DemoPlaybackStatus,
   DemoPlaybackStop,
   HlaeStatus,
+  JobStatus,
+  RecordingExecutionResponse,
   RecordingJob,
   RecordingPlanResponse,
   RecordingQueueRequest,
 } from '../../shared/desktop/dto';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
-import { useI18n } from '../../shared/i18n';
+import { type MessageKey, useI18n } from '../../shared/i18n';
 import { runManagedPlaybackLaunch, useRuntimeStore } from '../../shared/stores/runtimeStore';
 import { Badge, Button, Card, EmptyState, Field, IconButton, Notice, PageHeader, Spinner, TextInput } from '../../shared/ui';
 import {
@@ -55,6 +57,27 @@ import { DirectorPlanPreview } from './DirectorPlanPreview';
 import { ProductionSectionNav } from '../production/ProductionSectionNav';
 
 type QueueFilter = 'all' | QueueItem['category'];
+
+export function recordingExecutionOutcome(status: JobStatus): {
+  tracksActiveJob: boolean;
+  tone: 'info' | 'success' | 'warning' | 'danger';
+  key: MessageKey;
+} {
+  if (status === 'failed') {
+    return { tracksActiveJob: false, tone: 'danger', key: 'activity.status.failed' };
+  }
+  if (status === 'cancelled') {
+    return { tracksActiveJob: false, tone: 'warning', key: 'activity.status.cancelled' };
+  }
+  if (status === 'completed') {
+    return { tracksActiveJob: false, tone: 'success', key: 'activity.status.completed' };
+  }
+  return {
+    tracksActiveJob: true,
+    tone: status === 'cancelling' ? 'warning' : 'info',
+    key: `activity.status.${status}`,
+  };
+}
 
 const categoryLabel: Record<QueueItem['category'], string> = {
   'multi-kill': msg("m0424"),
@@ -130,7 +153,11 @@ export function QueuePage() {
   const completeRuntimeTransition = useRuntimeStore((state) => state.completeTransition);
   const planAction = useAsyncAction<RecordingPlanResponse>();
   const hlaePreparationAction = useAsyncAction<HlaeStatus>();
-  const executeAction = useAsyncAction<{ job_id: string; status: 'queued' | 'running' }>();
+  const executeAction = useAsyncAction<RecordingExecutionResponse>();
+  const [executionNotice, setExecutionNotice] = useState<{
+    tone: 'info' | 'success' | 'warning' | 'danger';
+    message: string;
+  } | null>(null);
   const abortAction = useAsyncAction<RecordingJob>();
   const previewAction = useAsyncAction<DemoPlaybackLaunch>();
   const stopPlaybackAction = useAsyncAction<DemoPlaybackStop>();
@@ -280,17 +307,34 @@ export function QueuePage() {
     }
     const planId = validatedPlan?.response.plan_id;
     if (!planId) return;
+    setExecutionNotice(null);
     const result = await executeAction.run(
       // The trusted confirmation is owned by the native desktop bridge. The
       // renderer never grants itself permission to start an insecure CS2.
       () => commands.executeRecordingPlan(planId, false),
-      msg("m0595"),
     );
     if (result) {
+      const outcome = recordingExecutionOutcome(result.status);
       setValidatedPlan(null);
-      setJob(null);
       setJobPollError(null);
-      setActiveJobId(result.job_id);
+      if (outcome.tracksActiveJob) {
+        setJob(null);
+        setActiveJobId(result.job_id);
+        setExecutionNotice({ tone: outcome.tone, message: t(outcome.key) });
+      } else {
+        setActiveJobId(null);
+        let terminal: RecordingJob | null = null;
+        try {
+          terminal = await commands.getRecordingJob(result.job_id);
+        } catch {
+          // The execution response is still authoritative for its terminal status.
+        }
+        setJob(terminal);
+        setExecutionNotice({
+          tone: outcome.tone,
+          message: terminal?.message.trim() || t(outcome.key),
+        });
+      }
       return;
     }
 
@@ -461,6 +505,7 @@ export function QueuePage() {
       {currentPlan ? <DirectorPlanPreview plan={currentPlan.director} /> : null}
       {planIsStale ? <Notice tone="warning" title={msg("m0606")}>{msg("m1280")}</Notice> : null}
       {executeAction.state.message ? <Notice tone={executeAction.state.status === 'error' ? 'danger' : 'success'}>{executeAction.state.message}</Notice> : null}
+      {executionNotice ? <Notice tone={executionNotice.tone}>{executionNotice.message}</Notice> : null}
       {abortAction.state.message ? <Notice tone={abortAction.state.status === 'error' ? 'danger' : 'success'}>{abortAction.state.message}</Notice> : null}
       {previewAction.state.message ? <Notice tone={previewAction.state.status === 'error' ? 'danger' : 'success'}>{previewAction.state.message}</Notice> : null}
       {stopPlaybackAction.state.message ? <Notice tone={stopPlaybackAction.state.status === 'error' ? 'danger' : 'success'}>{stopPlaybackAction.state.message}</Notice> : null}

@@ -24,6 +24,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub(crate) struct RecordingPlanLease {
     pub(crate) items: Vec<vibe_cs_domain::RecordingRequest>,
+    pub(crate) retry_of: Option<Uuid>,
     pub(crate) binding_sha256: String,
     pub(crate) expires_at: DateTime<Utc>,
     pub(crate) deadline: Instant,

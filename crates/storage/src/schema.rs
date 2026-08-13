@@ -94,9 +94,11 @@ const CURRENT_SCHEMA: &str = r"
 
     CREATE TABLE recording_jobs (
         id TEXT PRIMARY KEY NOT NULL,
+        retry_of TEXT UNIQUE CHECK(retry_of IS NULL OR retry_of <> id),
         status TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        document_json TEXT NOT NULL
+        document_json TEXT NOT NULL,
+        FOREIGN KEY (retry_of) REFERENCES recording_jobs(id)
     );
 
     CREATE TABLE steam_matches (
@@ -201,6 +203,7 @@ const CURRENT_SCHEMA: &str = r"
     CREATE INDEX export_jobs_activity_status_idx ON export_jobs(status, updated_at DESC, id);
     CREATE INDEX recording_jobs_activity_idx ON recording_jobs(updated_at DESC, id);
     CREATE INDEX recording_jobs_activity_status_idx ON recording_jobs(status, updated_at DESC, id);
+    CREATE INDEX recording_jobs_retry_of_idx ON recording_jobs(retry_of);
     CREATE INDEX steam_matches_account_idx ON steam_matches(steam_id, match_id DESC);
     CREATE INDEX match_download_jobs_match_idx
         ON match_download_jobs(match_record_id, updated_at DESC);

@@ -30,6 +30,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/recording/plan", post(plan))
         .route("/api/recording/plans/{id}/execute", post(execute_plan))
         .route("/api/recording/jobs/{id}", get(get_job))
+        .route("/api/recording/jobs/{id}/retry-plan", post(retry_plan))
         .route("/api/recording/jobs/{id}/cancel", post(cancel_job))
         .route("/api/recording/abort", post(abort_active))
 }
@@ -81,26 +82,47 @@ async fn plan(
     ApiJson(request): ApiJson<RecordingQueueRequest>,
 ) -> ApiResult<Json<RecordingPlanResponse>> {
     let mut active_items = Vec::new();
-    let mut warnings = Vec::new();
     for (index, item) in request.items.into_iter().enumerate() {
         let item = convert_item(item)
             .map_err(|error| ApiError::invalid(format!("item {}: {error}", index + 1)))?;
         active_items.push(item);
     }
+    create_recording_plan(&state, active_items, None).await
+}
+
+async fn retry_plan(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> ApiResult<Json<RecordingPlanResponse>> {
+    let parent_id = parse_id(&id)?;
+    let parent = retryable_recording_parent(&state, parent_id).await?;
+    let items = parent.retryable_suffix()?.to_vec();
+    create_recording_plan(&state, items, Some(parent_id)).await
+}
+
+async fn create_recording_plan(
+    state: &AppState,
+    active_items: Vec<RecordingRequest>,
+    retry_of: Option<Uuid>,
+) -> ApiResult<Json<RecordingPlanResponse>> {
+    let mut warnings = Vec::new();
     if active_items.is_empty() {
         return Err(ApiError::invalid(
             "recording queue must contain at least one executable item",
         ));
     }
     let disabled_items = 0;
-    let analyses = load_analyses(&state, &active_items).await?;
+    let analyses = load_analyses(state, &active_items).await?;
     let director = build_director_plan(&active_items, &analyses, DirectorPolicy::default());
-    if director.unresolved_victim_requests > 0 {
+    if retry_of.is_none() && director.unresolved_victim_requests > 0 {
         return Err(ApiError::invalid(
             "the director plan cannot satisfy every requested victim reaction from persisted analysis evidence",
         ));
     }
-    let executable_items = executable_director_requests(&active_items, &director);
+    let executable_items = retry_of.map_or_else(
+        || executable_director_requests(&active_items, &director),
+        |_| active_items.clone(),
+    );
     if executable_items.is_empty() {
         return Err(ApiError::invalid(
             "the director plan did not produce an executable recording shot",
@@ -113,9 +135,10 @@ async fn plan(
                 .to_owned(),
         );
     }
-    let binding_before_preflight = recording_plan_binding(&state, &executable_items).await?;
+    let binding_before_preflight =
+        recording_plan_binding(state, &executable_items, retry_of).await?;
     state.recording.preflight(&executable_items).await?;
-    let binding_sha256 = recording_plan_binding(&state, &executable_items).await?;
+    let binding_sha256 = recording_plan_binding(state, &executable_items, retry_of).await?;
     if binding_sha256 != binding_before_preflight {
         return Err(ApiError::new(
             StatusCode::CONFLICT,
@@ -146,6 +169,7 @@ async fn plan(
             plan_id,
             RecordingPlanLease {
                 items: executable_items.clone(),
+                retry_of,
                 binding_sha256,
                 expires_at,
                 deadline,
@@ -182,9 +206,35 @@ struct RecordingPlanBinding<'a> {
     cs2_path: &'a str,
     steam_path: &'a str,
     demos: Vec<RecordingPlanDemoBinding>,
+    retry: Option<RecordingRetryPlanBinding>,
 }
 
-async fn recording_plan_binding(state: &AppState, items: &[RecordingRequest]) -> ApiResult<String> {
+#[derive(Serialize)]
+struct RecordingRetryPlanBinding {
+    parent_id: Uuid,
+    parent_updated_at: chrono::DateTime<Utc>,
+    eligible_suffix_sha256: String,
+}
+
+async fn retryable_recording_parent(state: &AppState, parent_id: Uuid) -> ApiResult<RecordingJob> {
+    state
+        .storage
+        .get_retryable_recording_job(parent_id)
+        .await?
+        .ok_or_else(|| {
+            ApiError::new(
+                StatusCode::CONFLICT,
+                "recording_job_not_retryable",
+                "Recording job has no unclaimed, identity-proven suffix to retry",
+            )
+        })
+}
+
+async fn recording_plan_binding(
+    state: &AppState,
+    items: &[RecordingRequest],
+    retry_of: Option<Uuid>,
+) -> ApiResult<String> {
     let config = state.storage.get_config().await?.unwrap_or_default();
     let mut demo_ids = items.iter().map(|item| item.demo_id).collect::<Vec<_>>();
     demo_ids.sort_unstable();
@@ -205,12 +255,38 @@ async fn recording_plan_binding(state: &AppState, items: &[RecordingRequest]) ->
             analysis,
         });
     }
+    let retry = if let Some(parent_id) = retry_of {
+        let parent = retryable_recording_parent(state, parent_id).await?;
+        let suffix = parent.retryable_suffix()?;
+        if suffix != items {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "recording_retry_suffix_changed",
+                "Recording retry suffix changed; create the retry plan again",
+            ));
+        }
+        let suffix_bytes = serde_json::to_vec(suffix).map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "recording_retry_binding_failed",
+                format!("Recording retry binding failed: {error}"),
+            )
+        })?;
+        Some(RecordingRetryPlanBinding {
+            parent_id,
+            parent_updated_at: parent.updated_at,
+            eligible_suffix_sha256: hex::encode(Sha256::digest(suffix_bytes)),
+        })
+    } else {
+        None
+    };
     let bytes = serde_json::to_vec(&RecordingPlanBinding {
         items,
         recording: &config.recording,
         cs2_path: &config.cs2_path,
         steam_path: &config.steam_path,
         demos,
+        retry,
     })
     .map_err(|error| {
         ApiError::new(
@@ -317,14 +393,15 @@ async fn execute_plan(
             return existing_recording_execution(&state, job_id).await;
         };
         let mut plan_start = RecordingPlanStartReservation::new(state.clone(), plan_id, job_id);
-        let current_binding = match recording_plan_binding(&state, &lease.items).await {
-            Ok(binding) => binding,
-            Err(error) => {
-                restore_recording_plan(&state, plan_id, job_id).await;
-                plan_start.disarm();
-                return Err(error);
-            }
-        };
+        let current_binding =
+            match recording_plan_binding(&state, &lease.items, lease.retry_of).await {
+                Ok(binding) => binding,
+                Err(error) => {
+                    restore_recording_plan(&state, plan_id, job_id).await;
+                    plan_start.disarm();
+                    return Err(error);
+                }
+            };
         if current_binding != lease.binding_sha256 {
             remove_recording_plan(&state, plan_id, job_id).await;
             plan_start.disarm();
@@ -343,7 +420,7 @@ async fn execute_plan(
                 "Recording plan expired; create a new plan before recording",
             ));
         }
-        let execution = start_recording_job(&state, job_id, lease.items).await;
+        let execution = start_recording_job(&state, job_id, lease.items, lease.retry_of).await;
         let response = match execution {
             Ok(response) => {
                 mark_recording_plan_started(&state, plan_id, job_id).await;
@@ -363,10 +440,12 @@ async fn start_recording_job(
     state: &AppState,
     job_id: Uuid,
     items: Vec<RecordingRequest>,
+    retry_of: Option<Uuid>,
 ) -> ApiResult<Json<RecordingExecutionResponse>> {
     let now = Utc::now();
     let job = RecordingJob {
         id: job_id,
+        retry_of,
         status: JobStatus::Queued,
         items,
         current_index: 0,
@@ -1039,10 +1118,36 @@ mod tests {
         }
     }
 
+    async fn persist_retryable_parent(state: &AppState) -> RecordingJob {
+        let demo_id = Uuid::new_v4();
+        persist_plan_demo(state, demo_id).await;
+        let request = convert_item(plan_queue_item(demo_id)).expect("retry request");
+        let now = Utc::now();
+        let parent = RecordingJob {
+            id: Uuid::new_v4(),
+            retry_of: None,
+            status: JobStatus::Failed,
+            items: vec![request],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        state
+            .storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("retryable parent");
+        parent
+    }
+
     fn recording_job(id: Uuid, status: JobStatus) -> RecordingJob {
         let now = Utc::now();
         RecordingJob {
             id,
+            retry_of: None,
             status,
             items: Vec::new(),
             current_index: 0,
@@ -1477,6 +1582,152 @@ mod tests {
 
         assert_eq!(persisted.id, retried.0.job_id);
         assert_eq!(recording.executions.load(Ordering::Relaxed), 2);
+    }
+
+    #[tokio::test]
+    async fn recording_retry_executes_only_the_proven_suffix_as_a_new_durable_job() {
+        let recording = Arc::new(CountingRecordingPort::default());
+        let (_directory, state) = state_with_recording(Arc::clone(&recording)).await;
+        let demo_id = Uuid::new_v4();
+        persist_plan_demo(&state, demo_id).await;
+        let first = convert_item(plan_queue_item(demo_id)).expect("first request");
+        let second = convert_item(plan_queue_item(demo_id)).expect("second request");
+        let first_request_id = first.id.expect("first request id");
+        let now = Utc::now();
+        let parent = RecordingJob {
+            id: Uuid::new_v4(),
+            retry_of: None,
+            status: JobStatus::Failed,
+            items: vec![first, second.clone()],
+            current_index: 1,
+            progress: 0.5,
+            message: "capture interrupted".to_owned(),
+            outputs: vec![vibe_cs_domain::RecordedClip {
+                id: Uuid::new_v4(),
+                path: "C:/recordings/first.mp4".to_owned(),
+                title: "First capture".to_owned(),
+                duration_seconds: 2.0,
+                demo_id: Some(demo_id),
+                player_name: Some("Player".to_owned()),
+                category: "custom".to_owned(),
+                tags: Vec::new(),
+                metadata: serde_json::json!({ "request_id": first_request_id }),
+                created_at: now,
+            }],
+            created_at: now,
+            updated_at: now,
+        };
+        state
+            .storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("parent job");
+
+        let planned = retry_plan(State(state.clone()), Path(parent.id.to_string()))
+            .await
+            .expect("retry plan");
+
+        assert_eq!(planned.0.items, vec![second.clone()]);
+        assert_eq!(recording.preflight_items.load(Ordering::Relaxed), 1);
+
+        let execution = execute_plan(
+            State(state.clone()),
+            Path(planned.0.plan_id.to_string()),
+            ApiJson(ExecuteRecordingPlanRequest {
+                offline_insecure_acknowledged: true,
+            }),
+        )
+        .await
+        .expect("execute retry plan");
+        let child = state
+            .storage
+            .get_recording_job(execution.0.job_id)
+            .await
+            .expect("child lookup")
+            .expect("durable child");
+
+        assert_eq!(child.retry_of, Some(parent.id));
+        assert_eq!(child.items, vec![second]);
+        assert_eq!(
+            state
+                .storage
+                .get_recording_job(parent.id)
+                .await
+                .expect("parent lookup"),
+            Some(parent),
+        );
+    }
+
+    #[tokio::test]
+    async fn recording_retry_plan_rejects_a_changed_parent_before_execution() {
+        let recording = Arc::new(CountingRecordingPort::default());
+        let (_directory, state) = state_with_recording(Arc::clone(&recording)).await;
+        let mut parent = persist_retryable_parent(&state).await;
+        let planned = retry_plan(State(state.clone()), Path(parent.id.to_string()))
+            .await
+            .expect("retry plan");
+        parent.message = "failure evidence was updated".to_owned();
+        parent.updated_at += chrono::Duration::seconds(1);
+        state
+            .storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("updated parent");
+
+        let error = execute_plan(
+            State(state.clone()),
+            Path(planned.0.plan_id.to_string()),
+            ApiJson(ExecuteRecordingPlanRequest {
+                offline_insecure_acknowledged: true,
+            }),
+        )
+        .await
+        .expect_err("changed retry parent invalidates its lease");
+
+        assert_eq!(error.into_response().status(), StatusCode::CONFLICT);
+        assert_eq!(recording.executions.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            state
+                .storage
+                .list_recording_jobs()
+                .await
+                .expect("recording jobs"),
+            vec![parent]
+        );
+    }
+
+    #[tokio::test]
+    async fn unacknowledged_recording_retry_does_not_create_a_child() {
+        let recording = Arc::new(CountingRecordingPort::default());
+        let (_directory, state) = state_with_recording(Arc::clone(&recording)).await;
+        let parent = persist_retryable_parent(&state).await;
+        let planned = retry_plan(State(state.clone()), Path(parent.id.to_string()))
+            .await
+            .expect("retry plan");
+
+        let error = execute_plan(
+            State(state.clone()),
+            Path(planned.0.plan_id.to_string()),
+            ApiJson(ExecuteRecordingPlanRequest {
+                offline_insecure_acknowledged: false,
+            }),
+        )
+        .await
+        .expect_err("offline insecure acknowledgement is required");
+
+        assert_eq!(
+            error.into_response().status(),
+            StatusCode::PRECONDITION_REQUIRED
+        );
+        assert_eq!(recording.executions.load(Ordering::Relaxed), 0);
+        assert_eq!(
+            state
+                .storage
+                .list_recording_jobs()
+                .await
+                .expect("recording jobs"),
+            vec![parent]
+        );
     }
 
     #[tokio::test]

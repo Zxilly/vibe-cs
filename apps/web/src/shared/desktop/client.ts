@@ -686,6 +686,11 @@ export const commands = {
       body,
       timeoutMs: null,
     }),
+  planRecordingRetry: (jobId: string) =>
+    request<RecordingPlanResponse>(
+      `/recording/jobs/${encodeURIComponent(jobId)}/retry-plan`,
+      { method: 'POST', body: {}, timeoutMs: null },
+    ),
   executeRecordingPlan: (planId: string, offlineInsecureAcknowledged: boolean) =>
     request<RecordingExecutionResponse>(
       `/recording/plans/${encodeURIComponent(planId)}/execute`,

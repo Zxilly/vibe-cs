@@ -62,6 +62,7 @@ const actionKeys: Record<ActivityAction, MessageKey> = {
   cancel: 'activity.cancel',
   retry_analysis: 'activity.retryAnalysis',
   retry_download: 'activity.retryDownload',
+  retry_recording: 'activity.retryRecording',
   open_analysis: 'activity.openAnalysis',
   open_library: 'activity.openLibrary',
   open_match_history: 'activity.openHistory',
@@ -95,7 +96,11 @@ function kindIcon(kind: ActivityKind) {
 
 function actionIcon(action: ActivityAction) {
   if (action === 'cancel') return <StopCircle size={13} />;
-  if (action === 'retry_analysis' || action === 'retry_download') return <RotateCcw size={13} />;
+  if (
+    action === 'retry_analysis'
+    || action === 'retry_download'
+    || action === 'retry_recording'
+  ) return <RotateCcw size={13} />;
   return <ExternalLink size={13} />;
 }
 
@@ -112,8 +117,25 @@ export async function executeActivityAction(
   } else if (action === 'retry_download' && item.context_id) {
     const job = await commands.downloadMatchDemo(item.context_id);
     return job.status;
+  } else if (action === 'retry_recording' && item.job_id) {
+    const plan = await commands.planRecordingRetry(item.job_id);
+    const execution = await commands.executeRecordingPlan(plan.plan_id, false);
+    return execution.status;
   }
   return null;
+}
+
+export function activityActionNotice(status: ActivityStatus | null): {
+  tone: 'info' | 'success' | 'warning' | 'danger';
+  key: MessageKey;
+} {
+  if (status === null) return { tone: 'success', key: 'activity.actionSucceeded' };
+  if (status === 'failed') return { tone: 'danger', key: statusKeys[status] };
+  if (status === 'cancelled' || status === 'cancelling') {
+    return { tone: 'warning', key: statusKeys[status] };
+  }
+  if (status === 'completed') return { tone: 'success', key: statusKeys[status] };
+  return { tone: 'info', key: statusKeys[status] };
 }
 
 export function ActivityWorkspace({
@@ -314,7 +336,10 @@ export function ActivityPage() {
   const [state, setState] = useState<ActivityStateFilter>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{
+    tone: 'info' | 'success' | 'warning' | 'danger';
+    message: string;
+  } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
 
@@ -377,7 +402,8 @@ export function ActivityPage() {
     setNotice(null);
     try {
       const persistedStatus = await executeActivityAction(item, action);
-      setNotice(persistedStatus ? t(statusKeys[persistedStatus]) : t('activity.actionSucceeded'));
+      const outcome = activityActionNotice(persistedStatus);
+      setNotice({ tone: outcome.tone, message: t(outcome.key) });
       setRevision((current) => current + 1);
     } catch (cause) {
       setError(readableError(cause));
@@ -400,7 +426,7 @@ export function ActivityPage() {
       />
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
-      {notice ? <Notice tone="success">{notice}</Notice> : null}
+      {notice ? <Notice tone={notice.tone}>{notice.message}</Notice> : null}
 
       <div className="activity-summary" aria-label={t('activity.title')}>
         <span><strong>{summary.total}</strong>{t('activity.total')}</span>

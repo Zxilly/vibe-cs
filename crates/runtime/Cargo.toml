@@ -38,6 +38,7 @@ uuid.workspace = true
 
 [dev-dependencies]
 bzip2.workspace = true
+rusqlite.workspace = true
 tempfile.workspace = true
 
 [lints]

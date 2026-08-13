@@ -132,6 +132,20 @@ describe('desktop command client', () => {
     });
   });
 
+  it('creates a retry plan from one encoded durable recording job identity', async () => {
+    invokeMock.mockResolvedValue({ plan_id: 'retry-plan' });
+
+    await commands.planRecordingRetry('failed/job unsafe');
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'post',
+        path: '/recording/jobs/failed%2Fjob%20unsafe/retry-plan',
+        body: {},
+      },
+    });
+  });
+
   it('sends a deterministic cross-match evidence query through the local dispatcher', async () => {
     invokeMock.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50, availability: {} });
 

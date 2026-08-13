@@ -46,7 +46,10 @@ pub struct ActivityQuery {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ActivitySource {
-    Recording(RecordingJob),
+    Recording {
+        job: RecordingJob,
+        retryable: bool,
+    },
     Export(ExportJobRecord),
     Download {
         job: MatchDownloadJob,
@@ -211,6 +214,20 @@ const DOWNLOAD_RETRYABILITY_SQL: &str = "
     FROM match_download_jobs AS job
     LEFT JOIN steam_matches AS match_record ON match_record.id = job.match_record_id";
 
+const RECORDING_RETRYABILITY_SQL: &str = "
+    SELECT job.id,
+           CASE WHEN
+               job.status IN ('failed', 'cancelled')
+               AND NOT EXISTS (
+                   SELECT 1 FROM recording_jobs AS child WHERE child.retry_of = job.id
+               )
+               AND NOT EXISTS (
+                   SELECT 1 FROM recording_jobs AS active
+                    WHERE active.status NOT IN ('completed', 'failed', 'cancelled')
+               )
+           THEN 1 ELSE 0 END
+      FROM recording_jobs AS job";
+
 #[derive(Debug, Clone, Copy)]
 struct ActivityBranch {
     source_sql: &'static str,
@@ -312,6 +329,14 @@ fn download_retryability_sql(downloads: usize) -> String {
     format!("{DOWNLOAD_RETRYABILITY_SQL} WHERE job.id IN ({parameters})")
 }
 
+fn recording_retryability_sql(recordings: usize) -> String {
+    let parameters = (1..=recordings)
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{RECORDING_RETRYABILITY_SQL} WHERE job.id IN ({parameters})")
+}
+
 impl Storage {
     /// Queries the current cross-workflow activity projection without loading complete job
     /// histories into application memory.
@@ -406,6 +431,28 @@ impl Storage {
             drop(rows);
             drop(statement);
 
+            let recording_ids = persisted
+                .iter()
+                .filter(|activity| activity.source_kind == "recording")
+                .map(|activity| activity.source_id.clone())
+                .collect::<Vec<_>>();
+            if !recording_ids.is_empty() {
+                let mut statement =
+                    transaction.prepare(&recording_retryability_sql(recording_ids.len()))?;
+                let retryability = statement
+                    .query_map(params_from_iter(&recording_ids), |row| {
+                        Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?))
+                    })?
+                    .collect::<rusqlite::Result<HashMap<_, _>>>()?;
+                for activity in &mut persisted {
+                    if activity.source_kind == "recording"
+                        && let Some(retryable) = retryability.get(&activity.source_id)
+                    {
+                        activity.retryable = *retryable;
+                    }
+                }
+            }
+
             let download_ids = persisted
                 .iter()
                 .filter(|activity| activity.source_kind == "download")
@@ -437,7 +484,10 @@ impl Storage {
             let items = persisted
                 .into_iter()
                 .map(|persisted| match persisted.source_kind.as_str() {
-                    "recording" => decode(&persisted.document).map(ActivitySource::Recording),
+                    "recording" => decode(&persisted.document).map(|job: RecordingJob| {
+                        let retryable = persisted.retryable && job.retryable_suffix().is_ok();
+                        ActivitySource::Recording { job, retryable }
+                    }),
                     "export" => decode(&persisted.document).map(ActivitySource::Export),
                     "download" => decode(&persisted.document).map(|job| ActivitySource::Download {
                         job,
@@ -479,6 +529,7 @@ mod tests {
         storage
             .put_recording_job(vibe_cs_domain::RecordingJob {
                 id: recording_id,
+                retry_of: None,
                 status: vibe_cs_domain::JobStatus::Running,
                 items: vec![],
                 current_index: 0,
@@ -587,7 +638,7 @@ mod tests {
             assert!(
                 matches!(
                     (expected_kind, page.items.as_slice()),
-                    (ActivityKind::Recording, [ActivitySource::Recording(job)])
+                    (ActivityKind::Recording, [ActivitySource::Recording { job, .. }])
                         if job.id == recording_id
                 ) || matches!(
                     (expected_kind, page.items.as_slice()),
@@ -605,6 +656,70 @@ mod tests {
                 "copied activity id {exact_id} resolved to the wrong activity: {page:#?}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn activity_recording_retryability_tracks_the_latest_durable_attempt() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = chrono::Utc::now();
+        let parent_id = uuid::Uuid::new_v4();
+        let request = vibe_cs_domain::RecordingRequest {
+            id: Some(uuid::Uuid::new_v4()),
+            demo_id: uuid::Uuid::new_v4(),
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: "Retryable capture".to_owned(),
+            start_tick: 100,
+            end_tick: 200,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+        };
+        let attempt = |id, retry_of| vibe_cs_domain::RecordingJob {
+            id,
+            retry_of,
+            status: vibe_cs_domain::JobStatus::Failed,
+            items: vec![request.clone()],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_recording_job(attempt(parent_id, None))
+            .await
+            .expect("parent job");
+        let query = ActivityQuery {
+            search: Some(format!("recording:{parent_id}")),
+            kind: Some(ActivityKind::Recording),
+            state: None,
+            page: 1,
+            page_size: 10,
+        };
+
+        let initial = storage
+            .query_activities(query.clone())
+            .await
+            .expect("initial activity");
+        assert!(matches!(
+            initial.items.as_slice(),
+            [ActivitySource::Recording { job, retryable: true }] if job.id == parent_id
+        ));
+
+        storage
+            .put_recording_job(attempt(uuid::Uuid::new_v4(), Some(parent_id)))
+            .await
+            .expect("retry child");
+        let superseded = storage
+            .query_activities(query)
+            .await
+            .expect("superseded activity");
+        assert!(matches!(
+            superseded.items.as_slice(),
+            [ActivitySource::Recording { job, retryable: false }] if job.id == parent_id
+        ));
     }
 
     #[tokio::test]

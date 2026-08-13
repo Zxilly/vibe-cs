@@ -107,7 +107,7 @@ async fn list_activities(
     let mut items = Vec::with_capacity(page_result.items.len());
     for source in page_result.items {
         let item = match source {
-            ActivitySource::Recording(job) => recording_activity(&job),
+            ActivitySource::Recording { job, retryable } => recording_activity(&job, retryable),
             ActivitySource::Export(record) => export_activity(record),
             ActivitySource::Download {
                 job,
@@ -191,7 +191,7 @@ impl ActivityStateFilter {
     }
 }
 
-fn recording_activity(job: &RecordingJob) -> ActivityItem {
+fn recording_activity(job: &RecordingJob, retryable: bool) -> ActivityItem {
     let message = (!job.message.trim().is_empty()).then(|| job.message.trim().to_owned());
     let completed_units = message.as_deref().and_then(recording_stage_ordinal);
     let error = (job.status == JobStatus::Failed)
@@ -200,6 +200,8 @@ fn recording_activity(job: &RecordingJob) -> ActivityItem {
     let mut available_actions = Vec::with_capacity(2);
     if !job.status.is_terminal() {
         available_actions.push("cancel");
+    } else if retryable {
+        available_actions.push("retry_recording");
     }
     available_actions.push("open_outputs");
     ActivityItem {
@@ -373,5 +375,48 @@ const fn demo_status(status: DemoStatus) -> &'static str {
         DemoStatus::Analyzing => "analyzing",
         DemoStatus::Failed => "failed",
         DemoStatus::Missing => "missing",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    #[test]
+    fn recording_retry_action_is_exposed_only_for_a_proven_latest_attempt() {
+        let now = Utc::now();
+        let job = RecordingJob {
+            id: Uuid::new_v4(),
+            retry_of: None,
+            status: JobStatus::Failed,
+            items: vec![vibe_cs_domain::RecordingRequest {
+                id: Some(Uuid::new_v4()),
+                demo_id: Uuid::new_v4(),
+                highlight_id: None,
+                player_id: "76561198000000000".to_owned(),
+                title: "Retryable capture".to_owned(),
+                start_tick: 100,
+                end_tick: 200,
+                pre_roll_seconds: 0.0,
+                post_roll_seconds: 0.0,
+                victim_pov: false,
+            }],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        let retryable = recording_activity(&job, true);
+        let superseded = recording_activity(&job, false);
+
+        assert_eq!(
+            retryable.available_actions,
+            vec!["retry_recording", "open_outputs"]
+        );
+        assert_eq!(superseded.available_actions, vec!["open_outputs"]);
     }
 }

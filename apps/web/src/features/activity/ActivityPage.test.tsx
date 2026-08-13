@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { commands } from '../../shared/desktop/client';
 import type { ActivityItem } from '../../shared/desktop/dto';
-import { ActivityPagination, ActivityWorkspace, executeActivityAction } from './ActivityPage';
+import {
+  ActivityPagination,
+  ActivityWorkspace,
+  activityActionNotice,
+  executeActivityAction,
+} from './ActivityPage';
 
 const item = (overrides: Partial<ActivityItem>): ActivityItem => ({
   id: 'recording:job-1',
@@ -27,6 +32,12 @@ const item = (overrides: Partial<ActivityItem>): ActivityItem => ({
 });
 
 describe('activity workspace', () => {
+  it('renders durable action outcomes with truthful severity', () => {
+    expect(activityActionNotice('failed')).toMatchObject({ tone: 'danger' });
+    expect(activityActionNotice('cancelled')).toMatchObject({ tone: 'warning' });
+    expect(activityActionNotice('queued')).toMatchObject({ tone: 'info' });
+  });
+
   it('keeps a dense task table and evidence inspector while omitting unknown percentages', () => {
     const recording = item({
       stage: 'recording.stage.capturing', progress_percent: null,
@@ -146,5 +157,88 @@ describe('activity workspace', () => {
 
     expect(returnedStatus).toBe('completed');
     retry.mockRestore();
+  });
+
+  it('retries a failed recording through a fresh plan and native consent execution', async () => {
+    const failedRecording = item({
+      id: 'recording:failed-job',
+      job_id: 'failed/job',
+      status: 'failed',
+      error: 'capture interrupted',
+      available_actions: ['retry_recording'],
+    });
+    const plan = vi.spyOn(commands, 'planRecordingRetry').mockResolvedValue({
+      plan_id: 'retry-plan',
+      expires_at: '2026-08-13T01:07:00Z',
+      active_items: 1,
+      disabled_items: 0,
+      estimated_seconds: 2,
+      warnings: [],
+      items: [],
+      director: {
+        shots: [],
+        warnings: [],
+        source_item_count: 1,
+        merged_item_count: 1,
+        victim_reaction_count: 0,
+        unresolved_victim_requests: 0,
+      },
+    });
+    const execute = vi.spyOn(commands, 'executeRecordingPlan').mockResolvedValue({
+      job_id: 'retry-child',
+      status: 'queued',
+    });
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <ActivityWorkspace
+          items={[failedRecording]}
+          selectedId={failedRecording.id}
+          busyId={null}
+          onSelect={() => undefined}
+          onAction={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    const returnedStatus = await executeActivityAction(failedRecording, 'retry_recording');
+
+    expect(markup).toContain('data-action="retry_recording"');
+    expect(plan).toHaveBeenCalledWith('failed/job');
+    expect(execute).toHaveBeenCalledWith('retry-plan', false);
+    expect(returnedStatus).toBe('queued');
+    plan.mockRestore();
+    execute.mockRestore();
+  });
+
+  it('does not bypass a rejected native recording consent', async () => {
+    const failedRecording = item({
+      id: 'recording:consent-job',
+      job_id: 'consent-job',
+      status: 'failed',
+      available_actions: ['retry_recording'],
+    });
+    const plan = vi.spyOn(commands, 'planRecordingRetry').mockResolvedValue({
+      plan_id: 'consent-plan',
+      expires_at: '2026-08-13T01:07:00Z',
+      active_items: 1,
+      disabled_items: 0,
+      estimated_seconds: null,
+      warnings: [],
+      items: [],
+      director: {
+        shots: [], warnings: [], source_item_count: 1, merged_item_count: 1,
+        victim_reaction_count: 0, unresolved_victim_requests: 0,
+      },
+    });
+    const execute = vi.spyOn(commands, 'executeRecordingPlan')
+      .mockRejectedValue(new Error('native consent cancelled'));
+
+    await expect(executeActivityAction(failedRecording, 'retry_recording'))
+      .rejects.toThrow('native consent cancelled');
+
+    expect(plan).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledWith('consent-plan', false);
+    plan.mockRestore();
+    execute.mockRestore();
   });
 });

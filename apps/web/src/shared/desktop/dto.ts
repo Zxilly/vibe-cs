@@ -817,7 +817,7 @@ export type DirectorPlan = {
 
 export type RecordingExecutionResponse = {
   job_id: EntityId;
-  status: 'queued' | 'running';
+  status: JobStatus;
 };
 
 export type JobStatus =
@@ -844,6 +844,7 @@ export type RecordingJobOutput = {
 
 export type RecordingJob = {
   id: EntityId;
+  retry_of: EntityId | null;
   status: JobStatus;
   items: RecordingRequest[];
   current_index: number;
@@ -865,6 +866,7 @@ export type ActivityAction =
   | 'cancel'
   | 'retry_analysis'
   | 'retry_download'
+  | 'retry_recording'
   | 'open_analysis'
   | 'open_library'
   | 'open_match_history'

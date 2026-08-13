@@ -29,6 +29,10 @@ pub enum StorageError {
     EditorProjectAlreadyExists(Uuid),
     #[error("media asset {0} already exists")]
     MediaAssetAlreadyExists(Uuid),
+    #[error("recording retry for {0} was already claimed by another durable job")]
+    RecordingRetryAlreadyClaimed(Uuid),
+    #[error("recording job {0} retry lineage is immutable")]
+    RecordingRetryLineageImmutable(Uuid),
     #[error("editor preset {0} revision cannot be incremented")]
     EditorPresetRevisionOverflow(Uuid),
     #[error("integer {0} cannot be represented by SQLite")]

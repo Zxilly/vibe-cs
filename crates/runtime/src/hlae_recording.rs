@@ -2052,6 +2052,7 @@ impl RecordingBackend for HlaeRecordingBackend {
             category: item.segment.category.clone(),
             tags: item.segment.tags.clone(),
             metadata: json!({
+                "request_id": item.request.id,
                 "capture_backend": MANAGED_CAPTURE_BACKEND,
                 "managed_recordings_root": roots.recordings.to_string_lossy(),
                 "managed_output_identity": validated_output.to_string_lossy(),
@@ -2330,6 +2331,7 @@ mod tests {
         let now = Utc::now();
         RecordingJob {
             id: item.job_id,
+            retry_of: None,
             status: JobStatus::Running,
             items: vec![item.request.clone()],
             current_index: item.item_index,

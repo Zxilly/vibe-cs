@@ -131,6 +131,8 @@ impl RecordingRequest {
 #[serde(deny_unknown_fields)]
 pub struct RecordingJob {
     pub id: Uuid,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub retry_of: Option<Uuid>,
     pub status: JobStatus,
     pub items: Vec<RecordingRequest>,
     pub current_index: usize,
@@ -139,6 +141,51 @@ pub struct RecordingJob {
     pub outputs: Vec<RecordedClip>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl RecordingJob {
+    /// Returns the exact unpublished suffix that may be retried as a new job.
+    ///
+    /// Every published prefix clip must prove which request produced it. A
+    /// missing or changed request identity makes recovery ambiguous and is
+    /// rejected rather than replaying an unknown portion of the job.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::DomainError::Conflict`] unless this is a failed or
+    /// cancelled job with a valid unpublished suffix and an exact durable
+    /// request identity for every already-published clip.
+    pub fn retryable_suffix(&self) -> Result<&[RecordingRequest], crate::DomainError> {
+        if !matches!(self.status, JobStatus::Failed | JobStatus::Cancelled) {
+            return Err(crate::DomainError::Conflict(
+                "only failed or cancelled recording jobs can be retried".to_owned(),
+            ));
+        }
+        if self.outputs.len() > self.current_index || self.current_index >= self.items.len() {
+            return Err(crate::DomainError::Conflict(
+                "recording retry cursor does not identify an unpublished suffix".to_owned(),
+            ));
+        }
+        for (request, clip) in self.items.iter().zip(&self.outputs) {
+            let request_id = request.id.ok_or_else(|| {
+                crate::DomainError::Conflict(
+                    "published recording request has no durable identity".to_owned(),
+                )
+            })?;
+            let expected = request_id.to_string();
+            if clip
+                .metadata
+                .get("request_id")
+                .and_then(serde_json::Value::as_str)
+                != Some(expected.as_str())
+            {
+                return Err(crate::DomainError::Conflict(
+                    "published recording clip does not match its request identity".to_owned(),
+                ));
+            }
+        }
+        Ok(&self.items[self.outputs.len()..])
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -298,6 +345,7 @@ mod tests {
         let now = Utc::now();
         let job = RecordingJob {
             id: Uuid::new_v4(),
+            retry_of: None,
             status: JobStatus::Queued,
             items: Vec::new(),
             current_index: 0,
@@ -309,6 +357,124 @@ mod tests {
         };
 
         assert_exact_current_document(&job);
+    }
+
+    #[test]
+    fn failed_recording_retry_uses_only_the_proven_unpublished_suffix() {
+        let now = Utc::now();
+        let demo_id = Uuid::new_v4();
+        let first_id = Uuid::new_v4();
+        let second_id = Uuid::new_v4();
+        let request = |id| RecordingRequest {
+            id: Some(id),
+            demo_id,
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: format!("Capture {id}"),
+            start_tick: 100,
+            end_tick: 200,
+            pre_roll_seconds: 1.0,
+            post_roll_seconds: 2.0,
+            victim_pov: false,
+        };
+        let job = RecordingJob {
+            id: Uuid::new_v4(),
+            retry_of: None,
+            status: JobStatus::Failed,
+            items: vec![request(first_id), request(second_id)],
+            current_index: 1,
+            progress: 0.5,
+            message: "capture interrupted".to_owned(),
+            outputs: vec![RecordedClip {
+                id: Uuid::new_v4(),
+                path: "recordings/first.mp4".to_owned(),
+                title: "First".to_owned(),
+                duration_seconds: 2.0,
+                demo_id: Some(demo_id),
+                player_name: Some("Player".to_owned()),
+                category: "highlight".to_owned(),
+                tags: Vec::new(),
+                metadata: serde_json::json!({ "request_id": first_id }),
+                created_at: now,
+            }],
+            created_at: now,
+            updated_at: now,
+        };
+
+        assert_eq!(
+            job.retryable_suffix().expect("retryable suffix"),
+            &job.items[1..]
+        );
+    }
+
+    #[test]
+    fn recording_retry_fails_closed_for_unproven_prefixes_and_invalid_cursors() {
+        let now = Utc::now();
+        let demo_id = Uuid::new_v4();
+        let first_id = Uuid::new_v4();
+        let request = |id| RecordingRequest {
+            id: Some(id),
+            demo_id,
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: format!("Capture {id}"),
+            start_tick: 100,
+            end_tick: 200,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+        };
+        let valid = RecordingJob {
+            id: Uuid::new_v4(),
+            retry_of: None,
+            status: JobStatus::Failed,
+            items: vec![request(first_id), request(Uuid::new_v4())],
+            current_index: 1,
+            progress: 0.5,
+            message: "capture interrupted".to_owned(),
+            outputs: vec![RecordedClip {
+                id: Uuid::new_v4(),
+                path: "recordings/first.mp4".to_owned(),
+                title: "First".to_owned(),
+                duration_seconds: 2.0,
+                demo_id: Some(demo_id),
+                player_name: Some("Player".to_owned()),
+                category: "highlight".to_owned(),
+                tags: Vec::new(),
+                metadata: serde_json::json!({ "request_id": first_id }),
+                created_at: now,
+            }],
+            created_at: now,
+            updated_at: now,
+        };
+
+        let mut active = valid.clone();
+        active.status = JobStatus::Running;
+        let mut completed = valid.clone();
+        completed.status = JobStatus::Completed;
+        let mut output_ahead_of_cursor = valid.clone();
+        output_ahead_of_cursor.current_index = 0;
+        let mut cursor_after_items = valid.clone();
+        cursor_after_items.current_index = cursor_after_items.items.len();
+        let mut missing_request_id = valid.clone();
+        missing_request_id.outputs[0].metadata = serde_json::json!({});
+        let mut changed_request_id = valid.clone();
+        changed_request_id.outputs[0].metadata =
+            serde_json::json!({ "request_id": Uuid::new_v4() });
+        let mut anonymous_prefix = valid;
+        anonymous_prefix.items[0].id = None;
+
+        for ambiguous in [
+            active,
+            completed,
+            output_ahead_of_cursor,
+            cursor_after_items,
+            missing_request_id,
+            changed_request_id,
+            anonymous_prefix,
+        ] {
+            assert!(ambiguous.retryable_suffix().is_err());
+        }
     }
 
     #[test]

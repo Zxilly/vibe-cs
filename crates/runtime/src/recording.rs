@@ -72,15 +72,28 @@ struct RecordingRun {
 struct RecordingStartupGuard {
     active: ActiveRecordings,
     backend: Arc<dyn RecordingBackend>,
+    storage: Storage,
+    persistence: Arc<Mutex<()>>,
+    cancellation: RecordingCancellation,
     job_id: Uuid,
     armed: bool,
 }
 
 impl RecordingStartupGuard {
-    fn new(active: ActiveRecordings, backend: Arc<dyn RecordingBackend>, job_id: Uuid) -> Self {
+    fn new(
+        active: ActiveRecordings,
+        backend: Arc<dyn RecordingBackend>,
+        storage: Storage,
+        persistence: Arc<Mutex<()>>,
+        cancellation: RecordingCancellation,
+        job_id: Uuid,
+    ) -> Self {
         Self {
             active,
             backend,
+            storage,
+            persistence,
+            cancellation,
             job_id,
             armed: true,
         }
@@ -98,10 +111,43 @@ impl Drop for RecordingStartupGuard {
         }
         let active = Arc::clone(&self.active);
         let backend = Arc::clone(&self.backend);
+        let storage = self.storage.clone();
+        let persistence = Arc::clone(&self.persistence);
+        let cancellation = self.cancellation.clone();
         let job_id = self.job_id;
         tokio::spawn(async move {
-            if let Err(error) = backend.finish_job(job_id).await {
+            let cleanup = backend.finish_job(job_id).await;
+            if let Err(error) = &cleanup {
                 tracing::error!(%job_id, %error, "unable to clean an aborted recording startup context");
+            }
+            let _persistence_guard = persistence.lock().await;
+            match storage.get_recording_job(job_id).await {
+                Ok(Some(mut job)) if !job.status.is_terminal() => {
+                    match cleanup {
+                        Ok(()) if cancellation.is_cancelled() => {
+                            job.status = JobStatus::Cancelled;
+                            "Cancelled".clone_into(&mut job.message);
+                        }
+                        Ok(()) => {
+                            job.status = JobStatus::Failed;
+                            "recording startup was interrupted".clone_into(&mut job.message);
+                        }
+                        Err(cleanup) => {
+                            job.status = JobStatus::Failed;
+                            job.message = truncate_message(&format!(
+                                "recording startup was interrupted; additionally failed to restore recording job resources: {cleanup}"
+                            ));
+                        }
+                    }
+                    job.updated_at = Utc::now();
+                    if let Err(error) = storage.put_recording_job(job).await {
+                        tracing::error!(%job_id, %error, "unable to persist an aborted recording startup terminal state");
+                    }
+                }
+                Ok(_) => {}
+                Err(error) => {
+                    tracing::error!(%job_id, %error, "unable to read an aborted recording startup");
+                }
             }
             active.lock().await.remove(&job_id);
         });
@@ -588,6 +634,14 @@ impl RuntimeRecordingPort {
             backend
                 .commit_recorded_clip(job.id, index, &persisted)
                 .await?;
+            job.current_index = index.checked_add(1).ok_or_else(|| {
+                DomainError::Internal("recording item cursor overflowed".to_owned())
+            })?;
+            job.updated_at = Utc::now();
+            storage
+                .put_recording_job(job.clone())
+                .await
+                .map_err(|error| storage_error(&error))?;
         }
         Ok(())
     }
@@ -889,6 +943,7 @@ impl RecordingPort for RuntimeRecordingPort {
         let now = Utc::now();
         let transient_job = RecordingJob {
             id: Uuid::new_v4(),
+            retry_of: None,
             status: JobStatus::Queued,
             items: items.to_vec(),
             current_index: 0,
@@ -957,10 +1012,40 @@ impl RecordingPort for RuntimeRecordingPort {
                 },
             );
         }
-        let mut startup =
-            RecordingStartupGuard::new(Arc::clone(&self.active), Arc::clone(&self.backend), job.id);
+        let mut startup = RecordingStartupGuard::new(
+            Arc::clone(&self.active),
+            Arc::clone(&self.backend),
+            self.storage.clone(),
+            Arc::clone(&persistence),
+            cancellation.clone(),
+            job.id,
+        );
+        if job.retry_of.is_some()
+            && let Err(error) = self.storage.put_recording_job(job.clone()).await
+        {
+            self.active.lock().await.remove(&job.id);
+            startup.disarm();
+            return Err(storage_error(&error));
+        }
         if let Err(error) = self.backend.begin_job(&config, &prepared.items).await {
             let cleanup = self.backend.finish_job(job.id).await;
+            if job.retry_of.is_some() {
+                job.status = JobStatus::Failed;
+                job.message = truncate_message(&match &cleanup {
+                    Ok(()) => error.to_string(),
+                    Err(cleanup) => format!(
+                        "{error}; additionally failed to restore recording job resources: {cleanup}"
+                    ),
+                });
+                job.updated_at = Utc::now();
+                self.storage
+                    .put_recording_job(job.clone())
+                    .await
+                    .map_err(|error| storage_error(&error))?;
+                self.active.lock().await.remove(&job.id);
+                startup.disarm();
+                return Ok(job);
+            }
             self.active.lock().await.remove(&job.id);
             startup.disarm();
             return match cleanup {
@@ -972,6 +1057,42 @@ impl RecordingPort for RuntimeRecordingPort {
         }
         if cancellation.is_cancelled() {
             let cleanup = self.backend.finish_job(job.id).await;
+            if job.retry_of.is_some() {
+                let terminal = {
+                    let _persistence_guard = persistence.lock().await;
+                    let mut terminal = self
+                        .storage
+                        .get_recording_job(job.id)
+                        .await
+                        .map_err(|error| storage_error(&error))?
+                        .ok_or_else(|| {
+                            DomainError::Internal(
+                                "accepted recording retry disappeared during startup".to_owned(),
+                            )
+                        })?;
+                    match cleanup {
+                        Ok(()) => {
+                            terminal.status = JobStatus::Cancelled;
+                            "Cancelled".clone_into(&mut terminal.message);
+                        }
+                        Err(cleanup) => {
+                            terminal.status = JobStatus::Failed;
+                            terminal.message = truncate_message(&format!(
+                                "recording was cancelled while preparing; additionally failed to restore recording job resources: {cleanup}"
+                            ));
+                        }
+                    }
+                    terminal.updated_at = Utc::now();
+                    self.storage
+                        .put_recording_job(terminal.clone())
+                        .await
+                        .map_err(|error| storage_error(&error))?;
+                    Ok(terminal)
+                };
+                self.active.lock().await.remove(&job.id);
+                startup.disarm();
+                return terminal;
+            }
             self.active.lock().await.remove(&job.id);
             startup.disarm();
             return match cleanup {
@@ -988,9 +1109,26 @@ impl RecordingPort for RuntimeRecordingPort {
         job.updated_at = Utc::now();
         if let Err(error) = self.storage.put_recording_job(job.clone()).await {
             let cleanup = self.backend.finish_job(job.id).await;
+            let primary = storage_error(&error);
+            if job.retry_of.is_some() {
+                job.status = JobStatus::Failed;
+                job.message = truncate_message(&match &cleanup {
+                    Ok(()) => primary.to_string(),
+                    Err(cleanup) => format!(
+                        "{primary}; additionally failed to restore recording job resources: {cleanup}"
+                    ),
+                });
+                job.updated_at = Utc::now();
+                self.storage
+                    .put_recording_job(job.clone())
+                    .await
+                    .map_err(|error| storage_error(&error))?;
+                self.active.lock().await.remove(&job.id);
+                startup.disarm();
+                return Ok(job);
+            }
             self.active.lock().await.remove(&job.id);
             startup.disarm();
-            let primary = storage_error(&error);
             return match cleanup {
                 Ok(()) => Err(primary),
                 Err(cleanup) => Err(DomainError::CleanupFailed(format!(
@@ -1285,6 +1423,7 @@ fn safe_output_stem(title: &str) -> String {
 }
 
 async fn validate_clip(clip: &RecordedClip, item: &PreparedRecording) -> Result<(), DomainError> {
+    validate_clip_request_identity(clip, &item.request)?;
     if clip.demo_id != Some(item.demo.id) {
         return Err(DomainError::InvalidInput(
             "recording backend returned a clip for another demo".to_owned(),
@@ -1311,6 +1450,7 @@ async fn validate_recovered_clip(
     clip: &RecordedClip,
     request: &RecordingRequest,
 ) -> Result<(), DomainError> {
+    validate_clip_request_identity(clip, request)?;
     if clip.demo_id != Some(request.demo_id) {
         return Err(DomainError::InvalidInput(
             "recovered recording clip belongs to another demo".to_owned(),
@@ -1328,6 +1468,28 @@ async fn validate_recovered_clip(
     if !metadata.is_file() || metadata.len() == 0 {
         return Err(DomainError::Internal(
             "recovered clip is not a non-empty regular file".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_clip_request_identity(
+    clip: &RecordedClip,
+    request: &RecordingRequest,
+) -> Result<(), DomainError> {
+    let request_id = request.id.ok_or_else(|| {
+        DomainError::InvalidInput(
+            "recording request has no durable identity for clip publication".to_owned(),
+        )
+    })?;
+    if clip
+        .metadata
+        .get("request_id")
+        .and_then(serde_json::Value::as_str)
+        != Some(request_id.to_string().as_str())
+    {
+        return Err(DomainError::InvalidInput(
+            "recording backend returned a clip without the exact request identity".to_owned(),
         ));
     }
     Ok(())
@@ -1359,7 +1521,14 @@ fn truncate_message(message: &str) -> String {
 }
 
 fn storage_error(error: &vibe_cs_storage::StorageError) -> DomainError {
-    DomainError::Internal(format!("storage operation failed: {error}"))
+    match error {
+        vibe_cs_storage::StorageError::RecordingRetryAlreadyClaimed(parent_id) => {
+            DomainError::Conflict(format!(
+                "recording retry for {parent_id} was already claimed by another durable job"
+            ))
+        }
+        _ => DomainError::Internal(format!("storage operation failed: {error}")),
+    }
 }
 
 #[cfg(test)]
@@ -1415,7 +1584,7 @@ mod tests {
                 player_name: Some(item.request.player_id.clone()),
                 category: "highlight".to_owned(),
                 tags: Vec::new(),
-                metadata: serde_json::Value::Null,
+                metadata: json!({ "request_id": item.request.id }),
                 created_at: Utc::now(),
             })
         }
@@ -1427,6 +1596,7 @@ mod tests {
         storage: Storage,
         commits: AtomicUsize,
         cancel_after_publish: bool,
+        fail_commit: bool,
     }
 
     #[async_trait]
@@ -1459,7 +1629,7 @@ mod tests {
                 player_name: Some(item.request.player_id.clone()),
                 category: "highlight".to_owned(),
                 tags: Vec::new(),
-                metadata: serde_json::Value::Null,
+                metadata: json!({ "request_id": item.request.id }),
                 created_at: Utc::now(),
             };
             if self.cancel_after_publish {
@@ -1493,6 +1663,11 @@ mod tests {
             if !stored_job.outputs.iter().any(|output| output == clip) {
                 return Err(DomainError::Internal(
                     "backend commit ran before recording job output persistence".to_owned(),
+                ));
+            }
+            if self.fail_commit {
+                return Err(DomainError::CleanupFailed(
+                    "injected publication acknowledgement failure".to_owned(),
                 ));
             }
             self.commits.fetch_add(1, Ordering::SeqCst);
@@ -1541,10 +1716,41 @@ mod tests {
     }
 
     #[derive(Debug)]
+    struct BeginFailingBackend {
+        begins: AtomicUsize,
+        finishes: AtomicUsize,
+    }
+
+    #[derive(Debug)]
     struct BlockingStartupBackend {
         begins: AtomicUsize,
         finishes: AtomicUsize,
         entered: tokio::sync::Notify,
+        release: tokio::sync::Notify,
+    }
+
+    #[derive(Debug)]
+    struct BlockingBeginFailureBackend {
+        begins: AtomicUsize,
+        finishes: AtomicUsize,
+        finish_entered: tokio::sync::Notify,
+        finish_release: tokio::sync::Notify,
+    }
+
+    #[derive(Debug)]
+    struct FailRunningPersistenceBackend {
+        database_path: PathBuf,
+        begins: AtomicUsize,
+        finishes: AtomicUsize,
+    }
+
+    #[derive(Debug)]
+    struct BlockingRunningPersistenceBackend {
+        database_path: PathBuf,
+        begins: AtomicUsize,
+        finishes: AtomicUsize,
+        lock_entered: tokio::sync::Notify,
+        database_lock: TestMutex<Option<rusqlite::Connection>>,
     }
 
     #[async_trait]
@@ -1564,7 +1770,7 @@ mod tests {
         ) -> Result<(), DomainError> {
             if self.begins.fetch_add(1, Ordering::SeqCst) == 0 {
                 self.entered.notify_one();
-                futures_util::future::pending::<()>().await;
+                self.release.notified().await;
             }
             Ok(())
         }
@@ -1583,6 +1789,140 @@ mod tests {
 
         async fn finish_job(&self, _job_id: Uuid) -> Result<(), DomainError> {
             self.finishes.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl RecordingBackend for BlockingBeginFailureBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn begin_job(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            self.begins.fetch_add(1, Ordering::SeqCst);
+            Err(DomainError::DependencyUnavailable(
+                "injected begin failure".to_owned(),
+            ))
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            _item: &PreparedRecording,
+            _cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            unreachable!("recording cannot start after begin_job fails")
+        }
+
+        async fn finish_job(&self, _job_id: Uuid) -> Result<(), DomainError> {
+            if self.finishes.fetch_add(1, Ordering::SeqCst) == 0 {
+                self.finish_entered.notify_one();
+                self.finish_release.notified().await;
+            }
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl RecordingBackend for FailRunningPersistenceBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn begin_job(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            self.begins.fetch_add(1, Ordering::SeqCst);
+            let connection = rusqlite::Connection::open(&self.database_path)
+                .map_err(|error| DomainError::Internal(error.to_string()))?;
+            connection
+                .execute_batch(
+                    "CREATE TRIGGER fail_running_recording_update
+                     BEFORE UPDATE OF status ON recording_jobs
+                     WHEN NEW.status = 'running'
+                     BEGIN
+                         SELECT RAISE(FAIL, 'injected running status failure');
+                     END;",
+                )
+                .map_err(|error| DomainError::Internal(error.to_string()))?;
+            Ok(())
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            _item: &PreparedRecording,
+            _cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            unreachable!("recording cannot run after its running state failed to persist")
+        }
+
+        async fn finish_job(&self, _job_id: Uuid) -> Result<(), DomainError> {
+            self.finishes.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl RecordingBackend for BlockingRunningPersistenceBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn begin_job(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            self.begins.fetch_add(1, Ordering::SeqCst);
+            let connection = rusqlite::Connection::open(&self.database_path)
+                .map_err(|error| DomainError::Internal(error.to_string()))?;
+            connection
+                .execute_batch("BEGIN EXCLUSIVE")
+                .map_err(|error| DomainError::Internal(error.to_string()))?;
+            *self.database_lock.lock().expect("database lock") = Some(connection);
+            self.lock_entered.notify_one();
+            Ok(())
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            _item: &PreparedRecording,
+            _cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            unreachable!("recording cannot run before its running state becomes durable")
+        }
+
+        async fn finish_job(&self, _job_id: Uuid) -> Result<(), DomainError> {
+            self.finishes.fetch_add(1, Ordering::SeqCst);
+            if let Some(connection) = self.database_lock.lock().expect("database lock").take() {
+                connection
+                    .execute_batch("ROLLBACK")
+                    .map_err(|error| DomainError::Internal(error.to_string()))?;
+            }
             Ok(())
         }
     }
@@ -1616,6 +1956,43 @@ mod tests {
             Err(DomainError::DependencyUnavailable(
                 "injected recording failure".to_owned(),
             ))
+        }
+
+        async fn finish_job(&self, _job_id: Uuid) -> Result<(), DomainError> {
+            self.finishes.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl RecordingBackend for BeginFailingBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn begin_job(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            self.begins.fetch_add(1, Ordering::SeqCst);
+            Err(DomainError::DependencyUnavailable(
+                "injected begin failure".to_owned(),
+            ))
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            _item: &PreparedRecording,
+            _cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            unreachable!("recording cannot start after begin_job fails")
         }
 
         async fn finish_job(&self, _job_id: Uuid) -> Result<(), DomainError> {
@@ -1777,6 +2154,7 @@ mod tests {
                 category: "highlight".to_owned(),
                 tags: Vec::new(),
                 metadata: json!({
+                    "request_id": item.request.id,
                     "capture_backend": "managed_hlae_windows_mf"
                 }),
                 created_at: Utc::now(),
@@ -1884,9 +2262,10 @@ mod tests {
             .expect("analysis");
         let job = RecordingJob {
             id: Uuid::new_v4(),
+            retry_of: None,
             status: JobStatus::Queued,
             items: vec![RecordingRequest {
-                id: None,
+                id: Some(Uuid::new_v4()),
                 demo_id,
                 highlight_id: None,
                 player_id: "player".to_owned(),
@@ -1912,6 +2291,37 @@ mod tests {
         (root, storage, port, job)
     }
 
+    async fn file_backed_fixture(
+        wait_for_cancel: bool,
+    ) -> (
+        tempfile::TempDir,
+        Storage,
+        RuntimeRecordingPort,
+        RecordingJob,
+    ) {
+        let (root, memory, _port, job) = fixture(wait_for_cancel).await;
+        let database_path = root.path().join("runtime-recording.sqlite3");
+        let storage = Storage::open(&database_path).await.expect("storage");
+        let demo = memory
+            .get_demo(job.items[0].demo_id)
+            .await
+            .expect("demo lookup")
+            .expect("demo");
+        let analysis = memory
+            .get_analysis(job.items[0].demo_id)
+            .await
+            .expect("analysis lookup")
+            .expect("analysis");
+        storage.put_demo(demo).await.expect("demo");
+        storage.put_analysis(analysis).await.expect("analysis");
+        let backend = Arc::new(FakeBackend {
+            output_dir: root.path().to_path_buf(),
+            wait_for_cancel,
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend);
+        (root, storage, port, job)
+    }
+
     async fn wait_for_terminal(storage: &Storage, id: Uuid) -> RecordingJob {
         for _ in 0..100 {
             let job = storage
@@ -1925,6 +2335,48 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
         panic!("recording job did not become terminal");
+    }
+
+    #[test]
+    fn published_clip_requires_the_exact_recording_request_identity() {
+        let request_id = Uuid::new_v4();
+        let request = RecordingRequest {
+            id: Some(request_id),
+            demo_id: Uuid::new_v4(),
+            highlight_id: None,
+            player_id: "player".to_owned(),
+            title: "Highlight".to_owned(),
+            start_tick: 64,
+            end_tick: 128,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+        };
+        let clip = |metadata| RecordedClip {
+            id: Uuid::new_v4(),
+            path: "C:/recordings/clip.mp4".to_owned(),
+            title: "Highlight".to_owned(),
+            duration_seconds: 1.0,
+            demo_id: Some(request.demo_id),
+            player_name: Some("Player".to_owned()),
+            category: "highlight".to_owned(),
+            tags: Vec::new(),
+            metadata,
+            created_at: Utc::now(),
+        };
+
+        assert!(
+            validate_clip_request_identity(&clip(json!({ "request_id": request_id })), &request,)
+                .is_ok()
+        );
+        assert!(validate_clip_request_identity(&clip(json!({})), &request).is_err());
+        assert!(
+            validate_clip_request_identity(
+                &clip(json!({ "request_id": Uuid::new_v4() })),
+                &request,
+            )
+            .is_err()
+        );
     }
 
     #[tokio::test]
@@ -1991,6 +2443,101 @@ mod tests {
         assert_eq!(observed.1[0].segment.spectator_slot, Some(7));
         assert_eq!(observed.1[0].segment.verified_total_ticks, Some(1_536));
         assert!((observed.1[0].segment.tick_rate - 128.0).abs() < f64::EPSILON);
+    }
+
+    #[tokio::test]
+    async fn duplicate_recording_retry_is_rejected_before_backend_start() {
+        let (_root, storage, _fixture_port, mut template) = fixture(false).await;
+        template.items[0].id = Some(Uuid::new_v4());
+        template.status = JobStatus::Failed;
+        template.message = "capture interrupted".to_owned();
+        let parent_id = template.id;
+        storage
+            .put_recording_job(template.clone())
+            .await
+            .expect("parent job");
+
+        let mut first_child = template.clone();
+        first_child.id = Uuid::new_v4();
+        first_child.retry_of = Some(parent_id);
+        storage
+            .put_recording_job(first_child)
+            .await
+            .expect("first retry child");
+
+        let mut duplicate = template;
+        duplicate.id = Uuid::new_v4();
+        duplicate.retry_of = Some(parent_id);
+        duplicate.status = JobStatus::Queued;
+        duplicate.message = "Queued retry".to_owned();
+        let backend = Arc::new(FailingLifecycleBackend {
+            begins: AtomicUsize::new(0),
+            finishes: AtomicUsize::new(0),
+        });
+        let port =
+            RuntimeRecordingPort::new(storage, Arc::clone(&backend) as Arc<dyn RecordingBackend>);
+
+        let error = port.execute(duplicate).await.expect_err("duplicate retry");
+
+        assert!(matches!(error, DomainError::Conflict(_)));
+        assert_eq!(backend.begins.load(Ordering::SeqCst), 0);
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn accepted_retry_that_cannot_begin_is_durably_terminal() {
+        let (_root, storage, _fixture_port, mut parent) = fixture(false).await;
+        parent.items[0].id = Some(Uuid::new_v4());
+        parent.status = JobStatus::Failed;
+        parent.message = "capture interrupted".to_owned();
+        let parent_snapshot = parent.clone();
+        storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("parent job");
+
+        let mut retry = parent;
+        retry.id = Uuid::new_v4();
+        retry.retry_of = Some(parent_snapshot.id);
+        retry.status = JobStatus::Queued;
+        retry.message = "Queued retry".to_owned();
+        retry.outputs.clear();
+        retry.current_index = 0;
+        retry.progress = 0.0;
+        let backend = Arc::new(BeginFailingBackend {
+            begins: AtomicUsize::new(0),
+            finishes: AtomicUsize::new(0),
+        });
+        let port = RuntimeRecordingPort::new(
+            storage.clone(),
+            Arc::clone(&backend) as Arc<dyn RecordingBackend>,
+        );
+
+        let failed = port
+            .execute(retry.clone())
+            .await
+            .expect("accepted retry has a durable terminal result");
+
+        assert_eq!(failed.id, retry.id);
+        assert_eq!(failed.retry_of, Some(parent_snapshot.id));
+        assert_eq!(failed.status, JobStatus::Failed);
+        assert!(failed.message.contains("injected begin failure"));
+        assert_eq!(
+            storage
+                .get_recording_job(retry.id)
+                .await
+                .expect("retry lookup"),
+            Some(failed)
+        );
+        assert_eq!(
+            storage
+                .get_recording_job(parent_snapshot.id)
+                .await
+                .expect("parent lookup"),
+            Some(parent_snapshot)
+        );
+        assert_eq!(backend.begins.load(Ordering::SeqCst), 1);
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]
@@ -2063,6 +2610,7 @@ mod tests {
             storage: storage.clone(),
             commits: AtomicUsize::new(0),
             cancel_after_publish: false,
+            fail_commit: false,
         });
         let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
 
@@ -2074,13 +2622,40 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cancellation_after_publication_commits_the_verified_clip_before_cancelling_job() {
+    async fn failed_publication_acknowledgement_keeps_retry_cursor_ambiguous() {
         let (root, storage, _port, job) = fixture(false).await;
         let backend = Arc::new(CommitOrderBackend {
             output_dir: root.path().to_path_buf(),
             storage: storage.clone(),
             commits: AtomicUsize::new(0),
+            cancel_after_publish: false,
+            fail_commit: true,
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend);
+
+        let started = port.execute(job).await.expect("start recording");
+        let failed = wait_for_terminal(&storage, started.id).await;
+
+        assert_eq!(failed.status, JobStatus::Failed);
+        assert_eq!(failed.outputs.len(), 1);
+        assert_eq!(failed.current_index, 0);
+        assert!(failed.retryable_suffix().is_err());
+    }
+
+    #[tokio::test]
+    async fn cancellation_after_publication_commits_the_verified_clip_before_cancelling_job() {
+        let (root, storage, _port, mut job) = fixture(false).await;
+        let mut unpublished = job.items[0].clone();
+        unpublished.id = Some(Uuid::new_v4());
+        unpublished.start_tick = 129;
+        unpublished.end_tick = 192;
+        job.items.push(unpublished.clone());
+        let backend = Arc::new(CommitOrderBackend {
+            output_dir: root.path().to_path_buf(),
+            storage: storage.clone(),
+            commits: AtomicUsize::new(0),
             cancel_after_publish: true,
+            fail_commit: false,
         });
         let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
 
@@ -2089,6 +2664,11 @@ mod tests {
 
         assert_eq!(cancelled.status, JobStatus::Cancelled);
         assert_eq!(cancelled.outputs.len(), 1);
+        assert_eq!(cancelled.current_index, 1);
+        assert_eq!(
+            cancelled.retryable_suffix().expect("unpublished suffix"),
+            std::slice::from_ref(&unpublished)
+        );
         assert_eq!(backend.commits.load(Ordering::SeqCst), 1);
         assert_eq!(
             storage.list_recorded_clips().await.expect("durable clips"),
@@ -2370,6 +2950,7 @@ mod tests {
             begins: AtomicUsize::new(0),
             finishes: AtomicUsize::new(0),
             entered: tokio::sync::Notify::new(),
+            release: tokio::sync::Notify::new(),
         });
         let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
         let first_port = port.clone();
@@ -2400,6 +2981,293 @@ mod tests {
             JobStatus::Failed
         );
         assert_eq!(backend.finishes.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn aborting_normal_start_during_running_persistence_terminalizes_a_late_commit() {
+        let (_root, storage, _port, job) = file_backed_fixture(false).await;
+        let backend = Arc::new(BlockingRunningPersistenceBackend {
+            database_path: storage
+                .database_path()
+                .await
+                .expect("database path")
+                .expect("file-backed fixture database"),
+            begins: AtomicUsize::new(0),
+            finishes: AtomicUsize::new(0),
+            lock_entered: tokio::sync::Notify::new(),
+            database_lock: TestMutex::new(None),
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+        let executing_port = port.clone();
+        let job_id = job.id;
+        let execution = tokio::spawn(async move { executing_port.execute(job).await });
+        backend.lock_entered.notified().await;
+
+        execution.abort();
+        let _ = execution.await;
+        let failed = wait_for_terminal(&storage, job_id).await;
+
+        assert_eq!(failed.status, JobStatus::Failed);
+        assert!(failed.message.contains("startup was interrupted"));
+        assert_eq!(backend.begins.load(Ordering::SeqCst), 1);
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
+        assert!(port.active.lock().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn aborting_a_claimed_retry_start_terminalizes_its_durable_child() {
+        let (_root, storage, _port, mut parent) = fixture(false).await;
+        parent.status = JobStatus::Failed;
+        parent.message = "capture interrupted".to_owned();
+        storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("parent job");
+        let mut retry = parent.clone();
+        retry.id = Uuid::new_v4();
+        retry.retry_of = Some(parent.id);
+        retry.status = JobStatus::Queued;
+        retry.message = "Queued retry".to_owned();
+        let backend = Arc::new(BlockingStartupBackend {
+            begins: AtomicUsize::new(0),
+            finishes: AtomicUsize::new(0),
+            entered: tokio::sync::Notify::new(),
+            release: tokio::sync::Notify::new(),
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+        let executing_port = port.clone();
+        let retry_id = retry.id;
+        let execution = tokio::spawn(async move { executing_port.execute(retry).await });
+        backend.entered.notified().await;
+
+        execution.abort();
+        let _ = execution.await;
+        let failed = wait_for_terminal(&storage, retry_id).await;
+
+        assert_eq!(failed.status, JobStatus::Failed);
+        assert_eq!(failed.retry_of, Some(parent.id));
+        assert!(failed.message.contains("startup was interrupted"));
+        assert_eq!(
+            storage
+                .get_recording_job(parent.id)
+                .await
+                .expect("parent lookup"),
+            Some(parent)
+        );
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
+        assert!(port.active.lock().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn aborting_retry_while_its_atomic_claim_is_blocked_terminalizes_a_late_commit() {
+        let (root, storage, _port, mut parent) = file_backed_fixture(false).await;
+        parent.status = JobStatus::Failed;
+        parent.message = "capture interrupted".to_owned();
+        storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("parent job");
+        let mut retry = parent.clone();
+        retry.id = Uuid::new_v4();
+        retry.retry_of = Some(parent.id);
+        retry.status = JobStatus::Queued;
+        retry.message = "Queued retry".to_owned();
+        let backend = Arc::new(BlockingStartupBackend {
+            begins: AtomicUsize::new(0),
+            finishes: AtomicUsize::new(0),
+            entered: tokio::sync::Notify::new(),
+            release: tokio::sync::Notify::new(),
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+        let database_path = storage
+            .database_path()
+            .await
+            .expect("database path")
+            .expect("file-backed fixture database");
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let connection_holder = tokio::task::spawn_blocking(move || {
+            let connection = rusqlite::Connection::open(database_path)?;
+            connection.execute_batch("PRAGMA foreign_keys = ON; BEGIN EXCLUSIVE;")?;
+            entered_tx.send(()).expect("announce database lock");
+            release_rx.recv().expect("release database lock");
+            connection.execute_batch("ROLLBACK")?;
+            Ok::<_, rusqlite::Error>(())
+        });
+        entered_rx.recv().expect("database lock entered");
+        let executing_port = port.clone();
+        let retry_id = retry.id;
+        let execution = tokio::spawn(async move { executing_port.execute(retry).await });
+        for _ in 0..100 {
+            if port.active.lock().await.contains_key(&retry_id) || execution.is_finished() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        assert!(port.active.lock().await.contains_key(&retry_id));
+
+        execution.abort();
+        let _ = execution.await;
+        release_tx.send(()).expect("release connection holder");
+        connection_holder
+            .await
+            .expect("connection holder task")
+            .expect("connection holder");
+        let failed = wait_for_terminal(&storage, retry_id).await;
+
+        assert_eq!(failed.status, JobStatus::Failed);
+        assert_eq!(failed.retry_of, Some(parent.id));
+        assert!(failed.message.contains("startup was interrupted"));
+        assert_eq!(backend.begins.load(Ordering::SeqCst), 0);
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
+        assert!(port.active.lock().await.is_empty());
+        drop(root);
+    }
+
+    #[tokio::test]
+    async fn aborting_retry_after_begin_failure_keeps_the_guard_armed_through_terminalization() {
+        let (_root, storage, _port, mut parent) = fixture(false).await;
+        parent.status = JobStatus::Failed;
+        parent.message = "capture interrupted".to_owned();
+        storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("parent job");
+        let mut retry = parent.clone();
+        retry.id = Uuid::new_v4();
+        retry.retry_of = Some(parent.id);
+        retry.status = JobStatus::Queued;
+        retry.message = "Queued retry".to_owned();
+        let backend = Arc::new(BlockingBeginFailureBackend {
+            begins: AtomicUsize::new(0),
+            finishes: AtomicUsize::new(0),
+            finish_entered: tokio::sync::Notify::new(),
+            finish_release: tokio::sync::Notify::new(),
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+        let executing_port = port.clone();
+        let retry_id = retry.id;
+        let execution = tokio::spawn(async move { executing_port.execute(retry).await });
+        backend.finish_entered.notified().await;
+
+        execution.abort();
+        let _ = execution.await;
+        let failed = wait_for_terminal(&storage, retry_id).await;
+
+        assert_eq!(failed.status, JobStatus::Failed);
+        assert_eq!(failed.retry_of, Some(parent.id));
+        assert!(failed.message.contains("startup was interrupted"));
+        assert_eq!(backend.begins.load(Ordering::SeqCst), 1);
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 2);
+        assert!(port.active.lock().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn accepted_retry_terminalizes_when_its_running_state_cannot_be_persisted() {
+        let (_root, storage, _port, mut parent) = file_backed_fixture(false).await;
+        parent.status = JobStatus::Failed;
+        parent.message = "capture interrupted".to_owned();
+        storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("parent job");
+        let mut retry = parent.clone();
+        retry.id = Uuid::new_v4();
+        retry.retry_of = Some(parent.id);
+        retry.status = JobStatus::Queued;
+        retry.message = "Queued retry".to_owned();
+        let backend = Arc::new(FailRunningPersistenceBackend {
+            database_path: storage
+                .database_path()
+                .await
+                .expect("database path")
+                .expect("file-backed fixture database"),
+            begins: AtomicUsize::new(0),
+            finishes: AtomicUsize::new(0),
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+
+        let failed = port
+            .execute(retry)
+            .await
+            .expect("accepted retry returns a durable terminal state");
+
+        assert_eq!(failed.status, JobStatus::Failed);
+        assert_eq!(failed.retry_of, Some(parent.id));
+        assert!(
+            failed.message.contains("storage operation failed"),
+            "{}",
+            failed.message
+        );
+        assert_eq!(
+            storage
+                .get_recording_job(failed.id)
+                .await
+                .expect("child lookup"),
+            Some(failed)
+        );
+        assert_eq!(backend.begins.load(Ordering::SeqCst), 1);
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
+        assert!(port.active.lock().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn cancelling_a_retry_during_backend_start_persists_a_terminal_child() {
+        let (_root, storage, _port, mut parent) = fixture(false).await;
+        parent.status = JobStatus::Failed;
+        parent.message = "capture interrupted".to_owned();
+        storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("parent job");
+        let mut retry = parent.clone();
+        retry.id = Uuid::new_v4();
+        retry.retry_of = Some(parent.id);
+        retry.status = JobStatus::Queued;
+        retry.message = "Queued retry".to_owned();
+        let backend = Arc::new(BlockingStartupBackend {
+            begins: AtomicUsize::new(0),
+            finishes: AtomicUsize::new(0),
+            entered: tokio::sync::Notify::new(),
+            release: tokio::sync::Notify::new(),
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+        let executing_port = port.clone();
+        let executing_retry = retry.clone();
+        let execution = tokio::spawn(async move { executing_port.execute(executing_retry).await });
+        backend.entered.notified().await;
+        let durable = storage
+            .get_recording_job(retry.id)
+            .await
+            .expect("retry lookup")
+            .expect("retry is claimed before backend start");
+
+        let cancelling = port.cancel(durable).await.expect("cancel retry start");
+        assert_eq!(cancelling.status, JobStatus::Cancelling);
+        backend.release.notify_one();
+        let cancelled = execution
+            .await
+            .expect("execution task")
+            .expect("accepted retry returns its durable terminal state");
+
+        assert_eq!(cancelled.status, JobStatus::Cancelled);
+        assert_eq!(
+            storage
+                .get_recording_job(retry.id)
+                .await
+                .expect("retry lookup"),
+            Some(cancelled.clone())
+        );
+        assert_eq!(
+            storage
+                .get_recording_job(parent.id)
+                .await
+                .expect("parent lookup"),
+            Some(parent)
+        );
+        assert!(cancelled.retryable_suffix().is_ok());
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
+        assert!(port.active.lock().await.is_empty());
     }
 
     #[tokio::test]
@@ -2451,7 +3319,7 @@ mod tests {
             player_name: Some(running.items[0].player_id.clone()),
             category: "highlight".to_owned(),
             tags: Vec::new(),
-            metadata: serde_json::Value::Null,
+            metadata: json!({ "request_id": running.items[0].id }),
             created_at: Utc::now(),
         };
         running.status = JobStatus::Running;
@@ -2501,7 +3369,7 @@ mod tests {
             player_name: Some(running.items[0].player_id.clone()),
             category: "highlight".to_owned(),
             tags: Vec::new(),
-            metadata: serde_json::Value::Null,
+            metadata: json!({ "request_id": running.items[0].id }),
             created_at: Utc::now(),
         };
         running.status = JobStatus::Running;

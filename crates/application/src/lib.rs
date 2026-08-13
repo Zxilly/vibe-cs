@@ -873,6 +873,7 @@ mod tests {
         storage
             .put_recording_job(RecordingJob {
                 id: job_id,
+                retry_of: None,
                 status: JobStatus::Running,
                 items: vec![],
                 current_index: 0,
@@ -930,6 +931,7 @@ mod tests {
         storage
             .put_recording_job(RecordingJob {
                 id: recording_id,
+                retry_of: None,
                 status: JobStatus::Running,
                 items: vec![],
                 current_index: 0,
@@ -1021,6 +1023,7 @@ mod tests {
         storage
             .put_recording_job(RecordingJob {
                 id: recording_id,
+                retry_of: None,
                 status: JobStatus::Running,
                 items: vec![],
                 current_index: 0,

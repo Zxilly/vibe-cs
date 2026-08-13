@@ -2367,6 +2367,36 @@ impl Storage {
             .await
     }
 
+    /// Returns a structurally proven terminal recording attempt only when it
+    /// is the latest leaf and no other persisted recording is active.
+    pub async fn get_retryable_recording_job(&self, id: Uuid) -> Result<Option<RecordingJob>> {
+        self.run(move |connection| {
+            let document = connection
+                .query_row(
+                    "SELECT parent.document_json
+                       FROM recording_jobs AS parent
+                      WHERE parent.id = ?1
+                        AND parent.status IN ('failed', 'cancelled')
+                        AND NOT EXISTS (
+                            SELECT 1 FROM recording_jobs AS child WHERE child.retry_of = parent.id
+                        )
+                        AND NOT EXISTS (
+                            SELECT 1 FROM recording_jobs AS active
+                             WHERE active.status NOT IN ('completed', 'failed', 'cancelled')
+                        )",
+                    params![id.to_string()],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            let Some(document) = document else {
+                return Ok(None);
+            };
+            let job = decode::<RecordingJob>(&document)?;
+            Ok(job.retryable_suffix().is_ok().then_some(job))
+        })
+        .await
+    }
+
     pub async fn list_recording_jobs(&self) -> Result<Vec<RecordingJob>> {
         self.list_documents("recording_jobs", "updated_at DESC")
             .await
@@ -2374,17 +2404,49 @@ impl Storage {
 
     pub async fn put_recording_job(&self, job: RecordingJob) -> Result<RecordingJob> {
         self.run(move |connection| {
-            connection.execute(
-                "INSERT INTO recording_jobs(id, status, updated_at, document_json) VALUES (?1, ?2, ?3, ?4) \
+            let retry_of = job.retry_of;
+            let result = connection.execute(
+                "INSERT INTO recording_jobs(id, retry_of, status, updated_at, document_json) VALUES (?1, ?2, ?3, ?4, ?5) \
                  ON CONFLICT(id) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at, \
-                 document_json = excluded.document_json",
+                 document_json = excluded.document_json \
+                 WHERE recording_jobs.retry_of IS excluded.retry_of",
                 params![
                     job.id.to_string(),
+                    job.retry_of.map(|id| id.to_string()),
                     job_status_text(job.status),
                     job.updated_at.to_rfc3339(),
                     encode(&job)?
                 ],
-            )?;
+            );
+            let affected = match result {
+                Ok(affected) => affected,
+                Err(error) => {
+                    let constraint_violation = matches!(
+                        &error,
+                        rusqlite::Error::SqliteFailure(failure, _)
+                            if failure.code == rusqlite::ErrorCode::ConstraintViolation
+                    );
+                    if constraint_violation
+                        && let Some(parent_id) = retry_of
+                    {
+                        let claimed = connection.query_row(
+                            "SELECT EXISTS(
+                                SELECT 1 FROM recording_jobs
+                                 WHERE retry_of = ?1 AND id <> ?2
+                             )",
+                            params![parent_id.to_string(), job.id.to_string()],
+                            |row| row.get::<_, bool>(0),
+                        )?;
+                        if claimed {
+                            return Err(StorageError::RecordingRetryAlreadyClaimed(parent_id));
+                        }
+                    }
+                    return Err(error.into());
+                }
+            };
+            if affected == 0 {
+                return Err(StorageError::RecordingRetryLineageImmutable(job.id));
+            }
             Ok(job)
         })
         .await
@@ -6072,6 +6134,7 @@ mod tests {
         storage
             .put_recording_job(RecordingJob {
                 id: recording_id,
+                retry_of: None,
                 status: vibe_cs_domain::JobStatus::Running,
                 items: vec![],
                 current_index: 0,
@@ -6148,7 +6211,7 @@ mod tests {
             .expect("second activity page");
         assert!(matches!(
             second.items.as_slice(),
-            [ActivitySource::Recording(job)] if job.id == recording_id
+            [ActivitySource::Recording { job, .. }] if job.id == recording_id
         ));
 
         let failed = storage
@@ -6167,6 +6230,468 @@ mod tests {
             failed.items.as_slice(),
             [ActivitySource::Export(record)] if record.job.id == failed_export_id
         ));
+    }
+
+    #[tokio::test]
+    async fn recording_retry_lineage_atomically_allows_only_one_child() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let parent_id = Uuid::new_v4();
+        let request = vibe_cs_domain::RecordingRequest {
+            id: Some(Uuid::new_v4()),
+            demo_id: Uuid::new_v4(),
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: "Retryable capture".to_owned(),
+            start_tick: 100,
+            end_tick: 200,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+        };
+        let parent = RecordingJob {
+            id: parent_id,
+            retry_of: None,
+            status: vibe_cs_domain::JobStatus::Failed,
+            items: vec![request.clone()],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_recording_job(parent.clone())
+            .await
+            .expect("parent job");
+        let child = |id| RecordingJob {
+            id,
+            retry_of: Some(parent_id),
+            status: vibe_cs_domain::JobStatus::Queued,
+            items: vec![request.clone()],
+            current_index: 0,
+            progress: 0.0,
+            message: "Queued retry".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        let first_id = Uuid::new_v4();
+        storage
+            .put_recording_job(child(first_id))
+            .await
+            .expect("first retry child");
+        let second_id = Uuid::new_v4();
+
+        let second = storage.put_recording_job(child(second_id)).await;
+
+        assert!(matches!(
+            second,
+            Err(StorageError::RecordingRetryAlreadyClaimed(id)) if id == parent_id
+        ));
+        assert!(
+            storage
+                .get_recording_job(first_id)
+                .await
+                .expect("first child")
+                .is_some()
+        );
+        assert!(
+            storage
+                .get_recording_job(second_id)
+                .await
+                .expect("second child")
+                .is_none()
+        );
+        assert_eq!(
+            storage.get_recording_job(parent_id).await.expect("parent"),
+            Some(parent),
+            "claiming retry lineage must not mutate the parent fact",
+        );
+    }
+
+    #[tokio::test]
+    async fn recording_retry_lineage_is_immutable_after_insert() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let parent_id = Uuid::new_v4();
+        let request = vibe_cs_domain::RecordingRequest {
+            id: Some(Uuid::new_v4()),
+            demo_id: Uuid::new_v4(),
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: "Retryable capture".to_owned(),
+            start_tick: 100,
+            end_tick: 200,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+        };
+        let parent = RecordingJob {
+            id: parent_id,
+            retry_of: None,
+            status: vibe_cs_domain::JobStatus::Failed,
+            items: vec![request.clone()],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        storage.put_recording_job(parent).await.expect("parent job");
+        let child_id = Uuid::new_v4();
+        let child = RecordingJob {
+            id: child_id,
+            retry_of: Some(parent_id),
+            status: vibe_cs_domain::JobStatus::Queued,
+            items: vec![request],
+            current_index: 0,
+            progress: 0.0,
+            message: "Queued retry".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_recording_job(child.clone())
+            .await
+            .expect("child job");
+        let mut rewritten = child.clone();
+        rewritten.retry_of = None;
+        rewritten.message = "rewritten lineage".to_owned();
+
+        let error = storage
+            .put_recording_job(rewritten)
+            .await
+            .expect_err("retry lineage cannot be rewritten");
+
+        assert!(matches!(
+            error,
+            StorageError::RecordingRetryLineageImmutable(id) if id == child_id
+        ));
+        assert_eq!(
+            storage
+                .get_recording_job(child_id)
+                .await
+                .expect("child lookup"),
+            Some(child)
+        );
+    }
+
+    #[tokio::test]
+    async fn recording_retry_child_requires_an_existing_parent() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let child_id = Uuid::new_v4();
+        let missing_parent_id = Uuid::new_v4();
+        let child = RecordingJob {
+            id: child_id,
+            retry_of: Some(missing_parent_id),
+            status: vibe_cs_domain::JobStatus::Queued,
+            items: vec![vibe_cs_domain::RecordingRequest {
+                id: Some(Uuid::new_v4()),
+                demo_id: Uuid::new_v4(),
+                highlight_id: None,
+                player_id: "76561198000000000".to_owned(),
+                title: "Retry child".to_owned(),
+                start_tick: 100,
+                end_tick: 200,
+                pre_roll_seconds: 0.0,
+                post_roll_seconds: 0.0,
+                victim_pov: false,
+            }],
+            current_index: 0,
+            progress: 0.0,
+            message: "Queued retry".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+
+        let error = storage
+            .put_recording_job(child)
+            .await
+            .expect_err("retry child cannot reference a missing parent");
+
+        assert!(matches!(error, StorageError::Database(_)));
+        assert!(
+            storage
+                .get_recording_job(child_id)
+                .await
+                .expect("child lookup")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn retryable_recording_lookup_follows_the_latest_terminal_attempt() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let demo_id = Uuid::new_v4();
+        let request = vibe_cs_domain::RecordingRequest {
+            id: Some(Uuid::new_v4()),
+            demo_id,
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: "Retryable capture".to_owned(),
+            start_tick: 100,
+            end_tick: 200,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+        };
+        let parent_id = Uuid::new_v4();
+        let attempt = |id, retry_of| RecordingJob {
+            id,
+            retry_of,
+            status: vibe_cs_domain::JobStatus::Failed,
+            items: vec![request.clone()],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_recording_job(attempt(parent_id, None))
+            .await
+            .expect("parent job");
+
+        assert_eq!(
+            storage
+                .get_retryable_recording_job(parent_id)
+                .await
+                .expect("parent eligibility")
+                .expect("parent retryable")
+                .id,
+            parent_id,
+        );
+
+        let child_id = Uuid::new_v4();
+        storage
+            .put_recording_job(attempt(child_id, Some(parent_id)))
+            .await
+            .expect("child job");
+
+        assert!(
+            storage
+                .get_retryable_recording_job(parent_id)
+                .await
+                .expect("superseded parent eligibility")
+                .is_none(),
+        );
+        assert_eq!(
+            storage
+                .get_retryable_recording_job(child_id)
+                .await
+                .expect("child eligibility")
+                .expect("latest child retryable")
+                .id,
+            child_id,
+        );
+    }
+
+    #[tokio::test]
+    async fn recording_retry_lineage_and_eligibility_survive_reopen() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database_path = directory.path().join("recording-retry.sqlite3");
+        let now = Utc::now();
+        let request = vibe_cs_domain::RecordingRequest {
+            id: Some(Uuid::new_v4()),
+            demo_id: Uuid::new_v4(),
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: "Retryable capture".to_owned(),
+            start_tick: 100,
+            end_tick: 200,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+        };
+        let parent_id = Uuid::new_v4();
+        let child_id = Uuid::new_v4();
+        let attempt = |id, retry_of| RecordingJob {
+            id,
+            retry_of,
+            status: vibe_cs_domain::JobStatus::Failed,
+            items: vec![request.clone()],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        {
+            let storage = Storage::open(&database_path).await.expect("open storage");
+            storage
+                .put_recording_job(attempt(parent_id, None))
+                .await
+                .expect("parent job");
+            storage
+                .put_recording_job(attempt(child_id, Some(parent_id)))
+                .await
+                .expect("child job");
+        }
+
+        let reopened = Storage::open(&database_path).await.expect("reopen storage");
+
+        assert!(
+            reopened
+                .get_retryable_recording_job(parent_id)
+                .await
+                .expect("parent eligibility")
+                .is_none()
+        );
+        let child = reopened
+            .get_retryable_recording_job(child_id)
+            .await
+            .expect("child eligibility")
+            .expect("latest child retryable");
+        assert_eq!(child.retry_of, Some(parent_id));
+        let duplicate = reopened
+            .put_recording_job(attempt(Uuid::new_v4(), Some(parent_id)))
+            .await;
+        assert!(matches!(
+            duplicate,
+            Err(StorageError::RecordingRetryAlreadyClaimed(id)) if id == parent_id
+        ));
+    }
+
+    #[tokio::test]
+    async fn retryable_recording_lookup_rejects_unproven_published_prefix() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let demo_id = Uuid::new_v4();
+        let request_id = Uuid::new_v4();
+        let job = RecordingJob {
+            id: Uuid::new_v4(),
+            retry_of: None,
+            status: vibe_cs_domain::JobStatus::Failed,
+            items: vec![
+                vibe_cs_domain::RecordingRequest {
+                    id: Some(request_id),
+                    demo_id,
+                    highlight_id: None,
+                    player_id: "76561198000000000".to_owned(),
+                    title: "Published capture".to_owned(),
+                    start_tick: 100,
+                    end_tick: 200,
+                    pre_roll_seconds: 0.0,
+                    post_roll_seconds: 0.0,
+                    victim_pov: false,
+                },
+                vibe_cs_domain::RecordingRequest {
+                    id: Some(Uuid::new_v4()),
+                    demo_id,
+                    highlight_id: None,
+                    player_id: "76561198000000000".to_owned(),
+                    title: "Unpublished capture".to_owned(),
+                    start_tick: 300,
+                    end_tick: 400,
+                    pre_roll_seconds: 0.0,
+                    post_roll_seconds: 0.0,
+                    victim_pov: false,
+                },
+            ],
+            current_index: 1,
+            progress: 0.5,
+            message: "capture interrupted".to_owned(),
+            outputs: vec![vibe_cs_domain::RecordedClip {
+                id: Uuid::new_v4(),
+                path: "C:/recordings/first.mp4".to_owned(),
+                title: "Published capture".to_owned(),
+                duration_seconds: 2.0,
+                demo_id: Some(demo_id),
+                player_name: Some("Player".to_owned()),
+                category: "highlight".to_owned(),
+                tags: Vec::new(),
+                metadata: serde_json::json!({ "request_id": Uuid::new_v4() }),
+                created_at: now,
+            }],
+            created_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_recording_job(job.clone())
+            .await
+            .expect("failed recording job");
+
+        assert!(
+            storage
+                .get_retryable_recording_job(job.id)
+                .await
+                .expect("retry eligibility")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn active_recording_blocks_retry_until_it_is_terminal() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let request = vibe_cs_domain::RecordingRequest {
+            id: Some(Uuid::new_v4()),
+            demo_id: Uuid::new_v4(),
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: "Retryable capture".to_owned(),
+            start_tick: 100,
+            end_tick: 200,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+        };
+        let parent_id = Uuid::new_v4();
+        let attempt = |id, status| RecordingJob {
+            id,
+            retry_of: None,
+            status,
+            items: vec![request.clone()],
+            current_index: 0,
+            progress: 0.0,
+            message: "recording state".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_recording_job(attempt(parent_id, vibe_cs_domain::JobStatus::Failed))
+            .await
+            .expect("failed parent");
+        let active_id = Uuid::new_v4();
+        let mut active = attempt(active_id, vibe_cs_domain::JobStatus::Queued);
+        storage
+            .put_recording_job(active.clone())
+            .await
+            .expect("active recording");
+
+        assert!(
+            storage
+                .get_retryable_recording_job(parent_id)
+                .await
+                .expect("blocked eligibility")
+                .is_none()
+        );
+
+        active.status = vibe_cs_domain::JobStatus::Failed;
+        active.updated_at += chrono::Duration::seconds(1);
+        storage
+            .put_recording_job(active)
+            .await
+            .expect("terminal recording");
+        assert_eq!(
+            storage
+                .get_retryable_recording_job(parent_id)
+                .await
+                .expect("restored eligibility")
+                .expect("parent retryable")
+                .id,
+            parent_id
+        );
     }
 
     #[tokio::test]
@@ -6319,6 +6844,7 @@ mod tests {
             storage
                 .put_recording_job(RecordingJob {
                     id: recording_id,
+                    retry_of: None,
                     status: vibe_cs_domain::JobStatus::Running,
                     items: vec![],
                     current_index: 0,
@@ -6347,7 +6873,7 @@ mod tests {
         assert_eq!(page.summary.total, 1);
         assert!(matches!(
             page.items.as_slice(),
-            [ActivitySource::Recording(job)] if job.id == recording_id
+            [ActivitySource::Recording { job, .. }] if job.id == recording_id
         ));
     }
 

@@ -12,6 +12,12 @@ describe('players power-table responsive contract', () => {
     expect(css).toMatch(/\.player-inspector-shell\s*\{[^}]*position:\s*sticky/s);
   });
 
+  it('bounds the maximized inspector to the remaining Players viewport with its own scroll', () => {
+    expect(css).toMatch(/@media\s*\(min-width:\s*1400px\)[\s\S]*?\.page\.page--players\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0[^}]*overflow:\s*hidden[^}]*display:\s*flex[^}]*flex-direction:\s*column/s);
+    expect(css).toMatch(/@media\s*\(min-width:\s*1400px\)[\s\S]*?\.page--players\s+\.players-workspace\s*\{[^}]*min-height:\s*0[^}]*flex:\s*1\s+1\s+auto[^}]*overflow:\s*hidden/s);
+    expect(css).toMatch(/@media\s*\(min-width:\s*1400px\)[\s\S]*?\.page--players\s+\.player-inspector-shell\s*\{[^}]*top:\s*0[^}]*align-self:\s*stretch[^}]*height:\s*100%[^}]*max-height:\s*100%[^}]*overflow:\s*auto/s);
+  });
+
   it('contains table overflow and keeps primary row actions visible at 1100 pixels', () => {
     expect(css).toMatch(/\.player-power-table__scroll\s*\{[^}]*max-width:\s*100%[^}]*overflow-x:\s*auto/s);
     expect(css).toMatch(/\.player-power-table\s*\{[^}]*width:\s*100%[^}]*min-width:\s*1180px[^}]*border-collapse:\s*collapse/s);

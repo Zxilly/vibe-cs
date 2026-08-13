@@ -13,9 +13,17 @@ describe('activity workspace density styles', () => {
     expect(contract).toMatch(/\.activity-workspace\s*{[^}]*min-height:\s*0;[^}]*grid-template-columns:\s*minmax\(520px, 1fr\) minmax\(280px, 340px\);/s);
     expect(contract).toMatch(/\.activity-table-scroll\s*{[^}]*height:\s*100%;[^}]*overflow:\s*auto;/s);
     expect(contract).toMatch(/@media \(max-width:\s*900px\)[\s\S]*?\.activity-workspace\s*{[^}]*grid-template-columns:\s*minmax\(0, 1fr\);/s);
+    expect(contract).toMatch(/@media \(max-width:\s*900px\)[\s\S]*?\.page\.page--activity\s*{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s);
+    expect(contract).toMatch(/@media \(max-width:\s*900px\)[\s\S]*?\.activity-workspace\s*{[^}]*grid-template-rows:\s*repeat\(2, minmax\(0, 1fr\)\);/s);
   });
 
   it('keeps filter labels inline so controls remain inside the compact toolbar', () => {
     expect(contract).toMatch(/\.activity-toolbar\s*>\s*label:not\(\.activity-search\)\s*{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\);[^}]*align-items:\s*center;/s);
+  });
+
+  it('bounds persisted run evidence and wraps long hashes and event details', () => {
+    expect(contract).toMatch(/\.analysis-run-detail\s*{[^}]*min-width:\s*0;/s);
+    expect(contract).toMatch(/\.analysis-run-events\s*{[^}]*max-height:\s*240px;[^}]*overflow:\s*auto;/s);
+    expect(contract).toMatch(/\.analysis-run-events\s+p\s*{[^}]*overflow-wrap:\s*anywhere;/s);
   });
 });

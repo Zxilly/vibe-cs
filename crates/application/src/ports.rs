@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -7,11 +7,17 @@ use serde_json::Value;
 use uuid::Uuid;
 use vibe_cs_cosmetics::{CosmeticInspectionReport, RewriteReport, RewriteRequest};
 use vibe_cs_domain::{
-    AgentProposalAction, AudioAnalysis, AudioAnalysisOptions, BeatAlignmentDraft,
-    BeatAlignmentRequest, DemoRecord, DomainError, ExportJob, HeatPoint, HlaeProposalEvidence,
-    HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalPreview, MatchAnalysis,
-    ProposalConfirmation, RecordingJob, RecordingRequest, ReplayFidelityMetadata, ReplayFrame,
+    AgentProposalAction, AnalysisInputFingerprint, AudioAnalysis, AudioAnalysisOptions,
+    BeatAlignmentDraft, BeatAlignmentRequest, DemoRecord, DomainError, ExportJob, HeatPoint,
+    HlaeProposalEvidence, HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalPreview,
+    MatchAnalysis, ProposalConfirmation, RecordingJob, RecordingRequest, ReplayFidelityMetadata,
+    ReplayFrame,
 };
+
+#[async_trait]
+pub trait AnalysisProgressReporter: Send + Sync + std::fmt::Debug {
+    async fn parser_started(&self) -> Result<(), DomainError>;
+}
 use vibe_cs_hlae::HlaeBundleLaunchInputs;
 
 #[async_trait]
@@ -128,7 +134,15 @@ impl ProposalExecutionPort for DisabledProposalExecutionPort {
 
 #[async_trait]
 pub trait AnalysisPort: Send + Sync + std::fmt::Debug {
-    async fn analyze(&self, demo: DemoRecord) -> Result<MatchAnalysis, DomainError>;
+    async fn validate_input(
+        &self,
+        demo: DemoRecord,
+    ) -> Result<AnalysisInputFingerprint, DomainError>;
+    async fn analyze(
+        &self,
+        demo: DemoRecord,
+        progress: Arc<dyn AnalysisProgressReporter>,
+    ) -> Result<MatchAnalysis, DomainError>;
     async fn replay(&self, demo: DemoRecord) -> Result<ReplayPayload, DomainError>;
     async fn heatmap(&self, demo: DemoRecord) -> Result<Vec<HeatPoint>, DomainError>;
     async fn replay_cache_status(&self) -> Result<ReplayCacheStatus, DomainError>;
@@ -261,7 +275,20 @@ pub struct DisabledAnalysisPort;
 
 #[async_trait]
 impl AnalysisPort for DisabledAnalysisPort {
-    async fn analyze(&self, _demo: DemoRecord) -> Result<MatchAnalysis, DomainError> {
+    async fn validate_input(
+        &self,
+        _demo: DemoRecord,
+    ) -> Result<AnalysisInputFingerprint, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "Demo analysis adapter".to_owned(),
+        ))
+    }
+
+    async fn analyze(
+        &self,
+        _demo: DemoRecord,
+        _progress: Arc<dyn AnalysisProgressReporter>,
+    ) -> Result<MatchAnalysis, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "demo analysis adapter".to_owned(),
         ))

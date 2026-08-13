@@ -7,7 +7,9 @@ export type ActivityFilters = {
   state: ActivityStateFilter;
 };
 
-const terminalStatuses = new Set<ActivityItem['status']>(['completed', 'failed', 'cancelled']);
+const terminalStatuses = new Set<ActivityItem['status']>([
+  'completed', 'failed', 'cancelled',
+]);
 
 export function isActivityActive(item: ActivityItem): boolean {
   return !terminalStatuses.has(item.status);
@@ -31,7 +33,9 @@ export function activityUnitLabel(item: ActivityItem): string | null {
 
 export function activityActionHref(item: ActivityItem, action: ActivityAction): string | null {
   if (action === 'open_analysis' && item.context_id) {
-    return `/analysis?demo=${encodeURIComponent(item.context_id)}`;
+    const parameters = new URLSearchParams({ demo: item.context_id });
+    if (item.kind === 'analysis' && item.job_id) parameters.set('run', item.job_id);
+    return `/analysis?${parameters.toString()}`;
   }
   if (action === 'open_library') return '/library';
   if (action === 'open_match_history') return '/match-history';

@@ -4,10 +4,12 @@
 )]
 
 mod activity;
+mod analysis_runs;
 
 pub use activity::{
     ActivityKind, ActivityPage, ActivityQuery, ActivitySource, ActivityState, ActivitySummary,
 };
+pub use analysis_runs::AnalysisRunClaim;
 
 use std::{
     collections::BTreeMap,
@@ -663,35 +665,6 @@ impl Storage {
         .await
     }
 
-    /// Marks analysis work interrupted by a previous process exit as retryable failures.
-    pub async fn recover_orphaned_demo_analyses(&self) -> Result<u64> {
-        self.run(|connection| {
-            let transaction = connection.transaction()?;
-            let mut demos = {
-                let mut statement = transaction.prepare(
-                    "SELECT document_json FROM demos WHERE status IN ('indexing', 'analyzing')",
-                )?;
-                let mut rows = statement.query([])?;
-                let mut demos = Vec::new();
-                while let Some(row) = rows.next()? {
-                    demos.push(decode::<DemoRecord>(&row.get::<_, String>(0)?)?);
-                }
-                demos
-            };
-            let recovered = u64::try_from(demos.len())
-                .map_err(|_| StorageError::IntegerOutOfRange(u64::MAX))?;
-            let now = Utc::now();
-            for demo in &mut demos {
-                demo.status = DemoStatus::Failed;
-                demo.updated_at = now;
-                put_demo_row(&transaction, demo)?;
-            }
-            transaction.commit()?;
-            Ok(recovered)
-        })
-        .await
-    }
-
     pub async fn delete_demo(&self, id: Uuid) -> Result<bool> {
         self.run(move |connection| {
             Ok(connection.execute("DELETE FROM demos WHERE id = ?1", [id.to_string()])? > 0)
@@ -719,108 +692,6 @@ impl Storage {
                 )
                 .optional()?;
             json.map(|json| decode(&json)).transpose()
-        })
-        .await
-    }
-
-    /// Returns the complete persisted analysis lifecycle projection.
-    ///
-    /// Active and failed analyses are represented by the demo lifecycle. A completed
-    /// analysis requires both a ready demo and an authoritative `analyses` row, so a
-    /// ready-only demo is deliberately excluded. This is intentionally unpaged because
-    /// it feeds the cross-workflow activity projection, whose other job sources are
-    /// also complete persisted lists.
-    pub async fn list_analysis_activity_demos(&self) -> Result<Vec<DemoRecord>> {
-        self.run(|connection| {
-            let mut statement = connection.prepare(
-                "SELECT demos.document_json FROM demos \
-                 LEFT JOIN analyses ON analyses.demo_id = demos.id \
-                 WHERE demos.status IN ('analyzing', 'failed') \
-                    OR (demos.status = 'ready' AND analyses.demo_id IS NOT NULL) \
-                 ORDER BY demos.updated_at DESC",
-            )?;
-            let mut rows = statement.query([])?;
-            collect_documents(&mut rows)
-        })
-        .await
-    }
-
-    pub async fn put_analysis(&self, analysis: MatchAnalysis) -> Result<MatchAnalysis> {
-        self.run(move |connection| {
-            let transaction = connection.transaction()?;
-            let updated_at = Utc::now().to_rfc3339();
-            transaction.execute(
-                "INSERT INTO analyses(demo_id, document_json, updated_at) VALUES (?1, ?2, ?3) \
-                 ON CONFLICT(demo_id) DO UPDATE SET document_json = excluded.document_json, \
-                 updated_at = excluded.updated_at",
-                params![analysis.demo_id.to_string(), encode(&analysis)?, updated_at],
-            )?;
-            replace_evidence_projection(&transaction, &analysis, &updated_at)?;
-            transaction.commit()?;
-            Ok(analysis)
-        })
-        .await
-    }
-
-    /// Persists an analysis and its library summary in one transaction.
-    pub async fn complete_demo_analysis(
-        &self,
-        mut analysis: MatchAnalysis,
-    ) -> Result<Option<MatchAnalysis>> {
-        let has_stable_team_continuity = analysis.normalize_team_continuity();
-        self.run(move |connection| {
-            let transaction = connection.transaction()?;
-            let Some(mut demo) =
-                get_document::<DemoRecord>(&transaction, "demos", analysis.demo_id)?
-            else {
-                return Ok(None);
-            };
-            let total_rounds = u32::try_from(analysis.rounds.len()).map_err(|_| {
-                StorageError::IntegerOutOfRange(
-                    u64::try_from(analysis.rounds.len()).unwrap_or(u64::MAX),
-                )
-            })?;
-            demo.status = DemoStatus::Ready;
-            demo.map_name = Some(analysis.map_name.clone());
-            demo.duration_seconds = Some(analysis.duration_seconds);
-            demo.total_rounds = Some(total_rounds);
-            demo.player_names = analysis
-                .players
-                .iter()
-                .map(|player| player.name.trim())
-                .filter(|name| !name.is_empty())
-                .map(str::to_owned)
-                .collect();
-            demo.player_names.sort();
-            demo.player_names.dedup();
-            demo.player_names
-                .truncate(vibe_cs_domain::MAX_DEMO_PLAYER_SUMMARY_NAMES);
-            if has_stable_team_continuity {
-                demo.team_a_name = analysis.teams.first().map(|team| team.name.clone());
-                demo.team_b_name = analysis.teams.get(1).map(|team| team.name.clone());
-                demo.team_a_score = analysis.teams.first().map(|team| team.score);
-                demo.team_b_score = analysis.teams.get(1).map(|team| team.score);
-            } else {
-                demo.team_a_name = None;
-                demo.team_b_name = None;
-                demo.team_a_score = None;
-                demo.team_b_score = None;
-            }
-            demo.updated_at = Utc::now();
-            transaction.execute(
-                "INSERT INTO analyses(demo_id, document_json, updated_at) VALUES (?1, ?2, ?3) \
-                 ON CONFLICT(demo_id) DO UPDATE SET document_json = excluded.document_json, \
-                 updated_at = excluded.updated_at",
-                params![
-                    analysis.demo_id.to_string(),
-                    encode(&analysis)?,
-                    demo.updated_at.to_rfc3339()
-                ],
-            )?;
-            replace_evidence_projection(&transaction, &analysis, &demo.updated_at.to_rfc3339())?;
-            put_demo_row(&transaction, &demo)?;
-            transaction.commit()?;
-            Ok(Some(analysis))
         })
         .await
     }
@@ -4256,19 +4127,58 @@ mod tests {
             team_b_score: None,
             player_names: Vec::new(),
             remark: String::new(),
-            content_sha256: None,
+            content_sha256: Some("a".repeat(64)),
             file_size: 42,
             created_at: now,
             updated_at: now,
         }
     }
 
+    async fn persist_completed_analysis(storage: &Storage, analysis: MatchAnalysis) {
+        let demo = storage
+            .get_demo(analysis.demo_id)
+            .await
+            .expect("read analysis demo")
+            .expect("analysis demo exists");
+        let fingerprint = vibe_cs_domain::AnalysisInputFingerprint {
+            sha256: demo.content_sha256.clone().expect("demo fingerprint"),
+            size: demo.file_size,
+        };
+        let run_id = storage
+            .start_analysis_run(demo.id)
+            .await
+            .expect("start analysis run")
+            .run
+            .id;
+        storage
+            .bind_analysis_run_input(run_id, fingerprint.clone())
+            .await
+            .expect("bind analysis input");
+        storage
+            .mark_analysis_parser_started(run_id)
+            .await
+            .expect("mark parser started");
+        storage
+            .mark_analysis_input_revalidation_started(run_id)
+            .await
+            .expect("mark input revalidation");
+        storage
+            .mark_analysis_projection_started(run_id)
+            .await
+            .expect("mark projection started");
+        storage
+            .complete_analysis_run(run_id, analysis, fingerprint)
+            .await
+            .expect("complete analysis run");
+    }
+
     async fn put_annotation_evidence(storage: &Storage, path: &str) -> (Uuid, String) {
         let record = demo(path);
         let demo_id = record.id;
         storage.put_demo(record).await.expect("put demo");
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            storage,
+            MatchAnalysis {
                 demo_id,
                 map_name: "de_anubis".to_owned(),
                 tick_rate: 64.0,
@@ -4299,9 +4209,9 @@ mod tests {
                     }],
                 }],
                 highlights: vec![],
-            })
-            .await
-            .expect("put analysis");
+            },
+        )
+        .await;
         (demo_id, format!("demo:{demo_id}/event:player_death-320-1"))
     }
 
@@ -4512,56 +4422,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn restart_recovery_terminalizes_orphaned_demo_analyses() {
-        let storage = Storage::open_in_memory().await.expect("open storage");
-        let mut indexing = demo("C:/matches/indexing.dem");
-        indexing.status = DemoStatus::Indexing;
-        let mut analyzing = demo("C:/matches/analyzing.dem");
-        analyzing.status = DemoStatus::Analyzing;
-        let mut ready = demo("C:/matches/ready.dem");
-        ready.status = DemoStatus::Ready;
-        storage
-            .put_demos(vec![indexing.clone(), analyzing.clone(), ready.clone()])
-            .await
-            .expect("put demos");
-
-        assert_eq!(
-            storage
-                .recover_orphaned_demo_analyses()
-                .await
-                .expect("recover analyses"),
-            2
-        );
-        assert_eq!(
-            storage
-                .get_demo(indexing.id)
-                .await
-                .expect("indexing demo")
-                .expect("indexing record")
-                .status,
-            DemoStatus::Failed
-        );
-        assert_eq!(
-            storage
-                .get_demo(analyzing.id)
-                .await
-                .expect("analyzing demo")
-                .expect("analyzing record")
-                .status,
-            DemoStatus::Failed
-        );
-        assert_eq!(
-            storage
-                .get_demo(ready.id)
-                .await
-                .expect("ready demo")
-                .expect("ready record")
-                .status,
-            DemoStatus::Ready
-        );
-    }
-
-    #[tokio::test]
     async fn completing_analysis_atomically_populates_the_demo_summary() {
         let storage = Storage::open_in_memory().await.expect("open storage");
         let record = demo("C:/matches/major-final.dem");
@@ -4651,11 +4511,7 @@ mod tests {
         let mut normalized = analysis.clone();
         assert!(normalized.normalize_team_continuity());
 
-        storage
-            .complete_demo_analysis(analysis)
-            .await
-            .expect("complete analysis")
-            .expect("demo exists");
+        persist_completed_analysis(&storage, analysis).await;
 
         let completed = storage
             .get_demo(record.id)
@@ -4706,8 +4562,9 @@ mod tests {
             .put_demo(fallen_demo)
             .await
             .expect("put FalleN demo");
-        storage
-            .complete_demo_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id: fallen_id,
                 map_name: "de_mirage".to_owned(),
                 tick_rate: 64.0,
@@ -4749,18 +4606,18 @@ mod tests {
                         "victim-d".to_owned(),
                     ],
                 }],
-            })
-            .await
-            .expect("complete FalleN analysis")
-            .expect("FalleN demo exists");
+            },
+        )
+        .await;
 
         let mut niko_demo = demo("C:/matches/niko-major.dem");
         niko_demo.display_name = "Major NiKo opener".to_owned();
         niko_demo.match_date = Some("2024-04-01T12:00:00Z".parse().expect("date"));
         let niko_id = niko_demo.id;
         storage.put_demo(niko_demo).await.expect("put NiKo demo");
-        storage
-            .complete_demo_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id: niko_id,
                 map_name: "de_nuke".to_owned(),
                 tick_rate: 64.0,
@@ -4791,10 +4648,9 @@ mod tests {
                     }],
                 }],
                 highlights: vec![],
-            })
-            .await
-            .expect("complete NiKo analysis")
-            .expect("NiKo demo exists");
+            },
+        )
+        .await;
 
         let all = storage
             .search_evidence(vibe_cs_domain::EvidenceSearchQuery::default())
@@ -4876,8 +4732,9 @@ mod tests {
         let record = demo("C:/matches/annotated.dem");
         let demo_id = record.id;
         storage.put_demo(record).await.expect("put demo");
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id,
                 map_name: "de_mirage".to_owned(),
                 tick_rate: 64.0,
@@ -4908,9 +4765,9 @@ mod tests {
                     }],
                 }],
                 highlights: vec![],
-            })
-            .await
-            .expect("put analysis");
+            },
+        )
+        .await;
         let evidence_id = format!("demo:{demo_id}/event:player_death-640-7");
 
         let created = storage
@@ -5005,8 +4862,9 @@ mod tests {
         let record = demo("C:/matches/annotation-contract.dem");
         let demo_id = record.id;
         storage.put_demo(record).await.expect("put demo");
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id,
                 map_name: "de_nuke".to_owned(),
                 tick_rate: 64.0,
@@ -5037,9 +4895,9 @@ mod tests {
                     }],
                 }],
                 highlights: vec![],
-            })
-            .await
-            .expect("put analysis");
+            },
+        )
+        .await;
         let valid_id = format!("demo:{demo_id}/event:player_death-320-1");
         let draft =
             |evidence_id: String, round: u32, tick: u64| vibe_cs_domain::CreateEvidenceAnnotation {
@@ -5349,8 +5207,9 @@ mod tests {
         let record = demo("C:/matches/rebuild.dem");
         let demo_id = record.id;
         storage.put_demo(record).await.expect("put demo");
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id,
                 map_name: "de_anubis".to_owned(),
                 tick_rate: 64.0,
@@ -5381,9 +5240,9 @@ mod tests {
                     }],
                 }],
                 highlights: vec![],
-            })
-            .await
-            .expect("put analysis");
+            },
+        )
+        .await;
         storage
             .run(|connection| {
                 let transaction = connection.transaction()?;
@@ -5465,14 +5324,14 @@ mod tests {
             highlights: vec![],
         };
 
-        storage
-            .put_analysis(analysis("old-event", "ak47"))
-            .await
-            .expect("first analysis");
-        storage
-            .put_analysis(analysis("replacement-event", "awp"))
-            .await
-            .expect("replacement analysis");
+        persist_completed_analysis(&storage, analysis("old-event", "ak47")).await;
+        assert!(
+            storage
+                .delete_analysis(demo_id)
+                .await
+                .expect("invalidate first analysis")
+        );
+        persist_completed_analysis(&storage, analysis("replacement-event", "awp")).await;
         let replacement = storage
             .search_evidence(EvidenceSearchQuery::default())
             .await
@@ -5649,10 +5508,7 @@ mod tests {
             rounds: vec![],
             highlights: vec![],
         };
-        storage
-            .put_analysis(analysis.clone())
-            .await
-            .expect("put analysis");
+        persist_completed_analysis(&storage, analysis.clone()).await;
         assert_eq!(
             storage.get_analysis(demo_id).await.expect("get analysis"),
             Some(analysis)
@@ -5715,10 +5571,7 @@ mod tests {
             rounds: vec![],
             highlights: vec![],
         };
-        storage
-            .put_analysis(analysis.clone())
-            .await
-            .expect("put analysis");
+        persist_completed_analysis(&storage, analysis.clone()).await;
 
         assert_eq!(
             storage.get_analysis(demo_id).await.expect("get analysis"),
@@ -5768,7 +5621,7 @@ mod tests {
             rounds: vec![],
             highlights: vec![],
         };
-        storage.put_analysis(analysis).await.expect("put analysis");
+        persist_completed_analysis(&storage, analysis).await;
         assert!(storage.delete_demo(record.id).await.expect("delete demo"));
         assert!(
             storage
@@ -5784,8 +5637,9 @@ mod tests {
         let storage = Storage::open_in_memory().await.expect("open storage");
         let record = demo("C:/matches/changed.dem");
         storage.put_demo(record.clone()).await.expect("put demo");
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id: record.id,
                 map_name: "de_dust2".to_owned(),
                 tick_rate: 64.0,
@@ -5795,9 +5649,9 @@ mod tests {
                 players: vec![],
                 rounds: vec![],
                 highlights: vec![],
-            })
-            .await
-            .expect("put analysis");
+            },
+        )
+        .await;
 
         assert!(
             storage

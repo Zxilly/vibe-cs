@@ -14,15 +14,16 @@ use axum::Router;
 pub use error::{ApiError, ApiResult};
 pub use player::*;
 pub use ports::{
-    AnalysisPort, CosmeticCatalogDto, CosmeticCatalogItemDto, CosmeticImageOutput,
-    CosmeticPaintKitDto, CosmeticRewriteOutput, CosmeticsPort, DemoWatchPort, DemoWatchRootStatus,
-    DemoWatchStatus, DisabledAnalysisPort, DisabledCosmeticsPort, DisabledDemoWatchPort,
-    DisabledExportPort, DisabledIntegrationPort, DisabledMediaPort, DisabledProposalExecutionPort,
-    DisabledRecordingPort, DisabledReviewPort, DisabledSourceAssetPort, ExportPort,
-    IntegrationPort, LlmReviewRequest, LlmReviewResult, MediaPort, MediaProxyRequest,
-    ProbedMediaMetadata, ProposalExecutionPort, RadarImageData, RadarOverviewData,
-    RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata, ReplayCacheState,
-    ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone, SourceAssetPort,
+    AnalysisPort, AnalysisProgressReporter, CosmeticCatalogDto, CosmeticCatalogItemDto,
+    CosmeticImageOutput, CosmeticPaintKitDto, CosmeticRewriteOutput, CosmeticsPort, DemoWatchPort,
+    DemoWatchRootStatus, DemoWatchStatus, DisabledAnalysisPort, DisabledCosmeticsPort,
+    DisabledDemoWatchPort, DisabledExportPort, DisabledIntegrationPort, DisabledMediaPort,
+    DisabledProposalExecutionPort, DisabledRecordingPort, DisabledReviewPort,
+    DisabledSourceAssetPort, ExportPort, IntegrationPort, LlmReviewRequest, LlmReviewResult,
+    MediaPort, MediaProxyRequest, ProbedMediaMetadata, ProposalExecutionPort, RadarImageData,
+    RadarOverviewData, RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata,
+    ReplayCacheState, ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone,
+    SourceAssetPort,
 };
 pub use state::{AppState, ChangedEvent, EventHub};
 pub use vibe_cs_domain::{
@@ -65,6 +66,53 @@ mod tests {
     use vibe_cs_storage::ExportJobRecord;
 
     use super::*;
+
+    async fn persist_completed_analysis(
+        storage: &vibe_cs_storage::Storage,
+        analysis: MatchAnalysis,
+    ) -> Uuid {
+        let demo = storage.get_demo(analysis.demo_id).await.unwrap().unwrap();
+        let fingerprint = vibe_cs_domain::AnalysisInputFingerprint {
+            sha256: demo.content_sha256.unwrap(),
+            size: demo.file_size,
+        };
+        storage
+            .set_demo_status(demo.id, DemoStatus::Discovered)
+            .await
+            .unwrap();
+        let run_id = storage.start_analysis_run(demo.id).await.unwrap().run.id;
+        storage
+            .bind_analysis_run_input(run_id, fingerprint.clone())
+            .await
+            .unwrap();
+        storage.mark_analysis_parser_started(run_id).await.unwrap();
+        storage
+            .mark_analysis_input_revalidation_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_projection_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .complete_analysis_run(run_id, analysis, fingerprint)
+            .await
+            .unwrap();
+        run_id
+    }
+
+    async fn persist_failed_analysis(
+        storage: &vibe_cs_storage::Storage,
+        demo_id: Uuid,
+        error: &str,
+    ) -> Uuid {
+        let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+        storage
+            .fail_analysis_run(run_id, error.to_owned())
+            .await
+            .unwrap();
+        run_id
+    }
 
     async fn configure_steam_downloads(storage: &vibe_cs_storage::Storage, steam_id: &str) {
         let mut config = vibe_cs_domain::AppConfig::default();
@@ -271,15 +319,16 @@ mod tests {
                 team_b_score: None,
                 player_names: vec![],
                 remark: String::new(),
-                content_sha256: None,
+                content_sha256: Some("a".repeat(64)),
                 file_size: 1,
                 created_at: now,
                 updated_at: now,
             })
             .await
             .expect("persist demo");
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id,
                 map_name: "de_mirage".to_owned(),
                 tick_rate: 64.0,
@@ -310,9 +359,9 @@ mod tests {
                     }],
                 }],
                 highlights: vec![],
-            })
-            .await
-            .expect("persist analysis");
+            },
+        )
+        .await;
         let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
         let evidence_id = format!("demo:{demo_id}/event:player_death-320-1");
 
@@ -511,8 +560,8 @@ mod tests {
             (Method::GET, "/api/demos/compact".to_owned(), ""),
             (
                 Method::POST,
-                format!("/api/demos/{missing_id}/analysis"),
-                "{}",
+                format!("/api/demos/{missing_id}/analysis-runs"),
+                "",
             ),
             (Method::GET, "/api/match-history/matches".to_owned(), ""),
             (
@@ -584,6 +633,22 @@ mod tests {
                 "retired route remained reachable: {path}"
             );
         }
+
+        let retired_analysis_post = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/demos/{missing_id}/analysis"))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(
+            retired_analysis_post.status(),
+            axum::http::StatusCode::METHOD_NOT_ALLOWED
+        );
 
         let retired_put = dispatcher
             .oneshot(
@@ -939,7 +1004,7 @@ mod tests {
                 message: "recording.stage.launching".to_owned(),
                 outputs: vec![],
                 created_at: now,
-                updated_at: now,
+                updated_at: now + chrono::Duration::seconds(2),
             })
             .await
             .expect("persist recording job");
@@ -954,7 +1019,7 @@ mod tests {
                     output_path: "C:/exports/middle.mp4".to_owned(),
                     error: None,
                     created_at: now - chrono::Duration::seconds(1),
-                    updated_at: now - chrono::Duration::seconds(1),
+                    updated_at: now + chrono::Duration::seconds(1),
                 },
             })
             .await
@@ -984,6 +1049,8 @@ mod tests {
             })
             .await
             .expect("persist analysis lifecycle");
+        let _analysis_run_id =
+            persist_failed_analysis(&storage, demo_id, "analysis fixture failed").await;
         let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
 
         let response = dispatcher
@@ -1060,6 +1127,8 @@ mod tests {
             })
             .await
             .expect("persist analysis lifecycle");
+        let analysis_run_id =
+            persist_failed_analysis(&storage, demo_id, "analysis fixture failed").await;
         let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
 
         let response = dispatcher
@@ -1079,7 +1148,10 @@ mod tests {
 
         assert_eq!(payload["total"], 1);
         assert_eq!(payload["items"].as_array().map(Vec::len), Some(1));
-        assert_eq!(payload["items"][0]["id"], format!("analysis:{demo_id}"));
+        assert_eq!(
+            payload["items"][0]["id"],
+            format!("analysis:{analysis_run_id}")
+        );
         assert_eq!(payload["summary"]["total"], 2);
         assert_eq!(payload["summary"]["active"], 1);
         assert_eq!(payload["summary"]["failed"], 1);
@@ -1844,7 +1916,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn activity_feed_projects_failed_analysis_without_claiming_a_job_or_error_detail() {
+    async fn activity_feed_projects_the_exact_failed_analysis_attempt_and_error() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
@@ -1876,6 +1948,7 @@ mod tests {
             })
             .await
             .expect("persist failed demo");
+        let run_id = persist_failed_analysis(&storage, demo_id, "parser failed").await;
         let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
 
         let response = dispatcher
@@ -1892,14 +1965,14 @@ mod tests {
             .expect("response body");
         let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
 
-        assert_eq!(payload["items"][0]["id"], format!("analysis:{demo_id}"));
+        assert_eq!(payload["items"][0]["id"], format!("analysis:{run_id}"));
         assert_eq!(payload["items"][0]["kind"], "analysis");
-        assert!(payload["items"][0]["job_id"].is_null());
+        assert_eq!(payload["items"][0]["job_id"], run_id.to_string());
         assert_eq!(payload["items"][0]["context_id"], demo_id.to_string());
         assert_eq!(payload["items"][0]["subject"], "Major M1");
         assert_eq!(payload["items"][0]["status"], "failed");
         assert!(payload["items"][0]["progress_percent"].is_null());
-        assert!(payload["items"][0]["error"].is_null());
+        assert_eq!(payload["items"][0]["error"], "parser failed");
         assert_eq!(
             payload["items"][0]["available_actions"],
             serde_json::json!(["retry_analysis", "open_library"])
@@ -1913,7 +1986,7 @@ mod tests {
             .await
             .expect("storage");
         let now = Utc::now();
-        let demos = (0..201)
+        let demos: Vec<DemoRecord> = (0..201)
             .map(|index| {
                 let id = Uuid::new_v4();
                 DemoRecord {
@@ -1940,10 +2013,14 @@ mod tests {
                 }
             })
             .collect();
+        let demo_ids = demos.iter().map(|demo| demo.id).collect::<Vec<_>>();
         storage
             .put_demos(demos)
             .await
             .expect("persist failed demos");
+        for demo_id in demo_ids {
+            persist_failed_analysis(&storage, demo_id, "parser failed").await;
+        }
         let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
 
         let response = dispatcher
@@ -2004,8 +2081,9 @@ mod tests {
             ])
             .await
             .expect("persist demos");
-        storage
-            .put_analysis(MatchAnalysis {
+        let run_id = persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id,
                 map_name: "de_anubis".to_owned(),
                 tick_rate: 64.0,
@@ -2015,9 +2093,9 @@ mod tests {
                 players: vec![],
                 rounds: vec![],
                 highlights: vec![],
-            })
-            .await
-            .expect("persist analysis");
+            },
+        )
+        .await;
         let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
 
         let response = dispatcher
@@ -2035,10 +2113,10 @@ mod tests {
         let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
 
         assert_eq!(payload["items"].as_array().map(Vec::len), Some(1));
-        assert_eq!(payload["items"][0]["id"], format!("analysis:{demo_id}"));
+        assert_eq!(payload["items"][0]["id"], format!("analysis:{run_id}"));
         assert_eq!(payload["items"][0]["subject"], "Analyzed M1");
         assert_eq!(payload["items"][0]["status"], "completed");
-        assert!(payload["items"][0]["job_id"].is_null());
+        assert_eq!(payload["items"][0]["job_id"], run_id.to_string());
         assert!(payload["items"][0]["progress_percent"].is_null());
         assert_eq!(
             payload["items"][0]["available_actions"],

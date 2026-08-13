@@ -33,9 +33,78 @@ const CURRENT_SCHEMA: &str = r"
 
     CREATE TABLE analyses (
         demo_id TEXT PRIMARY KEY NOT NULL,
+        producer_run_id TEXT NOT NULL UNIQUE,
+        producer_status TEXT NOT NULL CHECK(producer_status = 'completed'),
         document_json TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE
+        FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE,
+        FOREIGN KEY (producer_run_id, demo_id, producer_status)
+            REFERENCES analysis_runs(id, demo_id, status)
+            ON DELETE CASCADE
+    );
+
+    CREATE TABLE analysis_runs (
+        id TEXT PRIMARY KEY NOT NULL,
+        demo_id TEXT NOT NULL,
+        input_sha256 TEXT,
+        input_size INTEGER CHECK(input_size IS NULL OR input_size >= 0),
+        status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'completed', 'failed', 'interrupted')),
+        stage TEXT NOT NULL CHECK(stage IN (
+            'validating_input', 'parser_queued', 'parser_running', 'verifying_input_after_parse', 'projecting',
+            'completed', 'failed', 'interrupted'
+        )),
+        error TEXT CHECK(error IS NULL OR length(error) <= 2000),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE,
+        UNIQUE(id, demo_id, status),
+        CHECK((input_sha256 IS NULL) = (input_size IS NULL)),
+        CHECK(stage IN ('validating_input', 'failed', 'interrupted') OR input_sha256 IS NOT NULL),
+        CHECK(input_sha256 IS NULL OR (
+            length(input_sha256) = 64
+            AND input_sha256 = lower(input_sha256)
+            AND input_sha256 NOT GLOB '*[^0-9a-f]*'
+        )),
+        CHECK(
+            (status = 'queued' AND stage IN ('validating_input', 'parser_queued'))
+            OR (status = 'running' AND stage IN ('parser_running', 'verifying_input_after_parse', 'projecting'))
+            OR (status = 'completed' AND stage = 'completed')
+            OR (status = 'failed' AND stage = 'failed')
+            OR (status = 'interrupted' AND stage = 'interrupted')
+        ),
+        CHECK(
+            (status IN ('failed', 'interrupted') AND error IS NOT NULL)
+            OR (status NOT IN ('failed', 'interrupted') AND error IS NULL)
+        )
+    );
+
+    CREATE TABLE analysis_run_events (
+        run_id TEXT NOT NULL,
+        sequence INTEGER NOT NULL CHECK(sequence >= 0 AND sequence < 32),
+        stage TEXT NOT NULL CHECK(stage IN (
+            'validating_input', 'parser_queued', 'parser_running', 'verifying_input_after_parse', 'projecting',
+            'completed', 'failed', 'interrupted'
+        )),
+        message_code TEXT NOT NULL CHECK(message_code IN (
+            'input_validation_started', 'input_verified', 'parser_started', 'input_revalidation_started',
+            'projection_started', 'completed', 'failed', 'interrupted'
+        )),
+        detail TEXT CHECK(detail IS NULL OR length(detail) <= 2000),
+        created_at TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        PRIMARY KEY(run_id, sequence),
+        FOREIGN KEY (run_id) REFERENCES analysis_runs(id) ON DELETE CASCADE,
+        CHECK(
+            (stage = 'validating_input' AND message_code = 'input_validation_started')
+            OR (stage = 'parser_queued' AND message_code = 'input_verified')
+            OR (stage = 'parser_running' AND message_code = 'parser_started')
+            OR (stage = 'verifying_input_after_parse' AND message_code = 'input_revalidation_started')
+            OR (stage = 'projecting' AND message_code = 'projection_started')
+            OR (stage = 'completed' AND message_code = 'completed')
+            OR (stage = 'failed' AND message_code = 'failed')
+            OR (stage = 'interrupted' AND message_code = 'interrupted')
+        )
     );
 
     CREATE TABLE recorded_clips (
@@ -196,6 +265,11 @@ const CURRENT_SCHEMA: &str = r"
     CREATE INDEX demos_map_idx ON demos(map_name);
     CREATE INDEX demos_updated_idx ON demos(updated_at DESC);
     CREATE INDEX demos_content_sha256_idx ON demos(content_sha256);
+    CREATE INDEX analysis_runs_demo_idx ON analysis_runs(demo_id, created_at DESC, id);
+    CREATE INDEX analysis_runs_activity_idx ON analysis_runs(updated_at DESC, id);
+    CREATE INDEX analysis_runs_activity_status_idx ON analysis_runs(status, updated_at DESC, id);
+    CREATE UNIQUE INDEX analysis_runs_one_active_demo_idx ON analysis_runs(demo_id)
+        WHERE status IN ('queued', 'running');
     CREATE INDEX recorded_clips_created_idx ON recorded_clips(created_at DESC);
     CREATE INDEX media_assets_project_idx ON media_assets(project_id);
     CREATE INDEX export_jobs_project_idx ON export_jobs(project_id, updated_at DESC);

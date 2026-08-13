@@ -14,12 +14,16 @@ use sha2::{Digest as _, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use uuid::Uuid;
-use vibe_cs_application::{AnalysisPort, ReplayCacheCleanup, ReplayCacheStatus, ReplayPayload};
-use vibe_cs_demo::{
-    DemoEngine, DemoError, ParseCancellation, create_terminal_tail_repair_copy,
-    heatmap_from_rounds, replay_artifact_from_events,
+use vibe_cs_application::{
+    AnalysisPort, AnalysisProgressReporter, ReplayCacheCleanup, ReplayCacheStatus, ReplayPayload,
 };
-use vibe_cs_domain::{DemoRecord, DomainError, HeatPoint, MatchAnalysis, ReplayFrame};
+use vibe_cs_demo::{
+    DemoEngine, DemoError, ParseCancellation, ValidationLimits, create_terminal_tail_repair_copy,
+    heatmap_from_rounds, replay_artifact_from_events, validate_demo,
+};
+use vibe_cs_domain::{
+    AnalysisInputFingerprint, DemoRecord, DomainError, HeatPoint, MatchAnalysis, ReplayFrame,
+};
 
 use crate::replay_cache::ReplayCache;
 
@@ -129,8 +133,12 @@ impl RuntimeAnalysisPort {
         self
     }
 
-    async fn analyze_inner(&self, demo: &DemoRecord) -> Result<MatchAnalysis, DomainError> {
-        let initial = self.analyze_direct(demo).await;
+    async fn analyze_inner(
+        &self,
+        demo: &DemoRecord,
+        progress: Arc<dyn AnalysisProgressReporter>,
+    ) -> Result<MatchAnalysis, DomainError> {
+        let initial = self.analyze_direct(demo, Some(progress)).await;
         if initial.is_ok() {
             return initial;
         }
@@ -166,7 +174,7 @@ impl RuntimeAnalysisPort {
         let cleanup = RepairCopyCleanup(copy.path.clone());
         let mut repaired_demo = demo.clone();
         repaired_demo.path = copy.path.to_string_lossy().into_owned();
-        let result = self.analyze_direct(&repaired_demo).await;
+        let result = self.analyze_direct(&repaired_demo, None).await;
         drop(cleanup);
         result
     }
@@ -178,14 +186,21 @@ impl RuntimeAnalysisPort {
             .map_err(|_| DomainError::Internal("demo analysis resource gate closed".to_owned()))
     }
 
-    async fn analyze_direct(&self, demo: &DemoRecord) -> Result<MatchAnalysis, DomainError> {
+    async fn analyze_direct(
+        &self,
+        demo: &DemoRecord,
+        progress: Option<Arc<dyn AnalysisProgressReporter>>,
+    ) -> Result<MatchAnalysis, DomainError> {
         if let Some(worker) = &self.worker {
-            return self.analyze_with_worker(worker, demo).await;
+            return self.analyze_with_worker(worker, demo, progress).await;
         }
         tracing::warn!(
             "demo worker was not found; using the in-process parser with panic isolation"
         );
         let cancellation = ParseCancellation::default();
+        if let Some(progress) = progress {
+            progress.parser_started().await?;
+        }
         let parsing = self
             .engine
             .analyze(&demo.path, demo.id, cancellation.clone());
@@ -204,6 +219,7 @@ impl RuntimeAnalysisPort {
         &self,
         worker: &DemoWorkerSidecar,
         demo: &DemoRecord,
+        progress: Option<Arc<dyn AnalysisProgressReporter>>,
     ) -> Result<MatchAnalysis, DomainError> {
         let _verified_worker = verify_demo_worker(worker).await?;
         tokio::fs::create_dir_all(&self.task_dir)
@@ -220,7 +236,7 @@ impl RuntimeAnalysisPort {
             .map_err(|error| DomainError::Internal(error.to_string()))?;
         write_new(&request_path, &request_bytes).await?;
 
-        let execution = tokio::process::Command::new(&worker.path)
+        let mut child = tokio::process::Command::new(&worker.path)
             .arg("--input")
             .arg(&request_path)
             .arg("--output")
@@ -229,8 +245,20 @@ impl RuntimeAnalysisPort {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .kill_on_drop(true)
-            .status();
-        let result = match tokio::time::timeout(self.timeout, execution).await {
+            .spawn()
+            .map_err(|error| {
+                DomainError::Internal(format!("unable to start demo worker: {error}"))
+            })?;
+        if let Some(progress) = progress
+            && let Err(error) = progress.parser_started().await
+        {
+            let _ = child.kill().await;
+            let _ = child.wait().await;
+            let _ = tokio::fs::remove_file(&request_path).await;
+            let _ = tokio::fs::remove_file(&response_path).await;
+            return Err(error);
+        }
+        let result = match tokio::time::timeout(self.timeout, child.wait()).await {
             Ok(Ok(status)) => {
                 if !status.success() && !response_path.is_file() {
                     Err(DomainError::Internal(format!(
@@ -240,13 +268,21 @@ impl RuntimeAnalysisPort {
                     read_worker_analysis(&response_path).await
                 }
             }
-            Ok(Err(error)) => Err(DomainError::Internal(format!(
-                "unable to start demo worker: {error}"
-            ))),
-            Err(_) => Err(DomainError::Conflict(format!(
-                "demo worker exceeded {} seconds and was terminated",
-                self.timeout.as_secs()
-            ))),
+            Ok(Err(error)) => {
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                Err(DomainError::Internal(format!(
+                    "unable to wait for demo worker: {error}"
+                )))
+            }
+            Err(_) => {
+                let _ = child.kill().await;
+                let _ = child.wait().await;
+                Err(DomainError::Conflict(format!(
+                    "demo worker exceeded {} seconds and was terminated",
+                    self.timeout.as_secs()
+                )))
+            }
         };
         let _ = tokio::fs::remove_file(&request_path).await;
         let _ = tokio::fs::remove_file(&response_path).await;
@@ -271,14 +307,34 @@ fn should_attempt_terminal_tail_recovery(error: &DomainError) -> bool {
 
 #[async_trait]
 impl AnalysisPort for RuntimeAnalysisPort {
-    async fn analyze(&self, demo: DemoRecord) -> Result<MatchAnalysis, DomainError> {
+    async fn validate_input(
+        &self,
+        demo: DemoRecord,
+    ) -> Result<AnalysisInputFingerprint, DomainError> {
+        let path = PathBuf::from(demo.path);
+        let validated = tokio::task::spawn_blocking(move || {
+            validate_demo(
+                path,
+                ValidationLimits::default(),
+                &ParseCancellation::default(),
+            )
+        })
+        .await
+        .map_err(|error| DomainError::Internal(format!("Demo validation task failed: {error}")))?
+        .map_err(map_demo_error)?;
+        Ok(AnalysisInputFingerprint {
+            sha256: validated.sha256,
+            size: validated.size,
+        })
+    }
+
+    async fn analyze(
+        &self,
+        demo: DemoRecord,
+        progress: Arc<dyn AnalysisProgressReporter>,
+    ) -> Result<MatchAnalysis, DomainError> {
         let _permit = self.acquire_analysis_permit().await?;
-        let analysis = self.analyze_inner(&demo).await?;
-        self.storage
-            .put_analysis(analysis.clone())
-            .await
-            .map_err(|error| DomainError::Internal(error.to_string()))?;
-        Ok(analysis)
+        self.analyze_inner(&demo, progress).await
     }
 
     async fn replay(&self, demo: DemoRecord) -> Result<ReplayPayload, DomainError> {
@@ -591,10 +647,113 @@ mod tests {
     use chrono::Utc;
     use serde_json::json;
     use tempfile::TempDir;
-    use vibe_cs_application::{ReplayCacheState, ReplayFidelityMode};
+    use vibe_cs_application::{AnalysisProgressReporter, ReplayCacheState, ReplayFidelityMode};
     use vibe_cs_domain::{DemoStatus, EventKind, PlayerStats, RoundSummary, TimelineEvent};
 
     use super::*;
+
+    #[derive(Debug)]
+    struct IgnoredAnalysisProgress;
+
+    #[async_trait]
+    impl AnalysisProgressReporter for IgnoredAnalysisProgress {
+        async fn parser_started(&self) -> Result<(), DomainError> {
+            Ok(())
+        }
+    }
+
+    async fn persist_completed_analysis(
+        storage: &vibe_cs_storage::Storage,
+        analysis: MatchAnalysis,
+    ) {
+        let demo = storage.get_demo(analysis.demo_id).await.unwrap().unwrap();
+        let fingerprint = AnalysisInputFingerprint {
+            sha256: demo.content_sha256.unwrap(),
+            size: demo.file_size,
+        };
+        storage
+            .set_demo_status(demo.id, DemoStatus::Discovered)
+            .await
+            .unwrap();
+        let run_id = storage.start_analysis_run(demo.id).await.unwrap().run.id;
+        storage
+            .bind_analysis_run_input(run_id, fingerprint.clone())
+            .await
+            .unwrap();
+        storage.mark_analysis_parser_started(run_id).await.unwrap();
+        storage
+            .mark_analysis_input_revalidation_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_projection_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .complete_analysis_run(run_id, analysis, fingerprint)
+            .await
+            .unwrap();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn timed_out_worker_is_terminated_before_task_files_are_cleaned() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let worker_path = directory.path().join("slow-worker.cmd");
+        std::fs::write(&worker_path, "@echo off\r\nping -n 30 127.0.0.1 > nul\r\n")
+            .expect("slow worker fixture");
+        let worker = DemoWorkerSidecar::new(
+            worker_path.clone(),
+            hex::encode(Sha256::digest(std::fs::read(&worker_path).unwrap())),
+        )
+        .expect("worker descriptor");
+        let task_dir = directory.path().join("worker-tasks");
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let port = RuntimeAnalysisPort::new_with_worker(
+            storage,
+            task_dir.clone(),
+            directory.path().join("cache"),
+            Some(worker.clone()),
+        )
+        .with_timeout(Duration::from_millis(25));
+        let demo = DemoRecord {
+            id: Uuid::new_v4(),
+            path: "C:/unused/current.dem".to_owned(),
+            file_name: "current.dem".to_owned(),
+            display_name: "Current".to_owned(),
+            source: "test".to_owned(),
+            status: DemoStatus::Analyzing,
+            map_name: None,
+            match_date: None,
+            duration_seconds: None,
+            total_rounds: None,
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: Vec::new(),
+            remark: String::new(),
+            content_sha256: Some("a".repeat(64)),
+            file_size: 512,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let error = port
+            .analyze_with_worker(&worker, &demo, Some(Arc::new(IgnoredAnalysisProgress)))
+            .await
+            .expect_err("slow worker must time out");
+
+        assert!(error.to_string().contains("terminated"));
+        assert!(task_dir.is_dir());
+        assert_eq!(
+            std::fs::read_dir(task_dir)
+                .expect("read task directory")
+                .count(),
+            0,
+            "request and response files must be removed after the child exits"
+        );
+    }
 
     #[test]
     fn demo_worker_descriptor_requires_a_sha256_digest() {
@@ -769,8 +928,9 @@ mod tests {
             updated_at: now,
         };
         storage.put_demo(demo.clone()).await.expect("persist demo");
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id: demo.id,
                 map_name: "de_mirage".to_owned(),
                 tick_rate: 64.0,
@@ -833,9 +993,9 @@ mod tests {
                     ],
                 }],
                 highlights: Vec::new(),
-            })
-            .await
-            .expect("persist analysis");
+            },
+        )
+        .await;
         let port = RuntimeAnalysisPort::new(
             storage,
             temporary.path().join("tasks"),

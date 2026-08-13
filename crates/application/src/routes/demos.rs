@@ -53,10 +53,7 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/demos/{id}",
             get(get_demo).patch(patch_demo).delete(delete_demo),
         )
-        .route(
-            "/api/demos/{id}/analysis",
-            get(get_analysis).post(analyze_demo),
-        )
+        .route("/api/demos/{id}/analysis", get(get_analysis))
         .route("/api/demos/{id}/replay.bin", get(get_replay_binary))
         .route(
             "/api/replay-cache",
@@ -949,70 +946,6 @@ fn safe_file_name(file_name: &str) -> Option<String> {
         .map(ToOwned::to_owned)
 }
 
-async fn analyze_demo(
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-) -> ApiResult<Json<MatchAnalysis>> {
-    let id = parse_id(&id)?;
-    let mutation = state.analysis_mutation(id).await;
-    let (_guard, waited_for_active_request) = match mutation.clone().try_lock_owned() {
-        Ok(guard) => (guard, false),
-        Err(_) => (mutation.lock_owned().await, true),
-    };
-    if let Some(analysis) = state.storage.get_analysis(id).await? {
-        return Ok(Json(analysis));
-    }
-    let demo = state
-        .storage
-        .get_demo(id)
-        .await?
-        .ok_or_else(|| ApiError::not_found("demo"))?;
-    if waited_for_active_request {
-        return Err(ApiError::new(
-            StatusCode::CONFLICT,
-            "analysis_not_completed",
-            "The active analysis did not produce a result; review the failure and retry explicitly",
-        ));
-    }
-    if matches!(demo.status, DemoStatus::Indexing | DemoStatus::Analyzing) {
-        return Err(ApiError::new(
-            StatusCode::CONFLICT,
-            "analysis_in_progress",
-            "Demo analysis is already in progress",
-        ));
-    }
-    if demo.status == DemoStatus::Missing {
-        return Err(ApiError::new(
-            StatusCode::CONFLICT,
-            "demo_missing",
-            "Restore the Demo file to its watched folder and rescan before retrying analysis",
-        ));
-    }
-    state
-        .storage
-        .set_demo_status(id, DemoStatus::Analyzing)
-        .await?;
-    match state.analysis.analyze(demo).await {
-        Ok(analysis) => {
-            let analysis = state
-                .storage
-                .complete_demo_analysis(analysis)
-                .await?
-                .ok_or_else(|| ApiError::not_found("demo"))?;
-            state.events.publish("analysis", "completed", Some(id));
-            Ok(Json(analysis))
-        }
-        Err(error) => {
-            state
-                .storage
-                .set_demo_status(id, DemoStatus::Failed)
-                .await?;
-            state.events.publish("analysis", "failed", Some(id));
-            Err(error.into())
-        }
-    }
-}
-
 async fn get_analysis(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
@@ -1475,6 +1408,39 @@ mod tests {
 
     use super::*;
 
+    async fn persist_completed_analysis(
+        storage: &vibe_cs_storage::Storage,
+        analysis: MatchAnalysis,
+    ) {
+        let demo = storage.get_demo(analysis.demo_id).await.unwrap().unwrap();
+        let fingerprint = vibe_cs_domain::AnalysisInputFingerprint {
+            sha256: demo.content_sha256.unwrap(),
+            size: demo.file_size,
+        };
+        storage
+            .set_demo_status(demo.id, DemoStatus::Discovered)
+            .await
+            .unwrap();
+        let run_id = storage.start_analysis_run(demo.id).await.unwrap().run.id;
+        storage
+            .bind_analysis_run_input(run_id, fingerprint.clone())
+            .await
+            .unwrap();
+        storage.mark_analysis_parser_started(run_id).await.unwrap();
+        storage
+            .mark_analysis_input_revalidation_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_projection_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .complete_analysis_run(run_id, analysis, fingerprint)
+            .await
+            .unwrap();
+    }
+
     #[test]
     fn binary_replay_has_the_current_bounded_envelope() {
         let payload = crate::ReplayPayload {
@@ -1679,161 +1645,6 @@ mod tests {
     }
 
     #[derive(Debug, Default)]
-    struct BlockingAnalysis {
-        calls: AtomicUsize,
-        entered: tokio::sync::Notify,
-        release: tokio::sync::Notify,
-    }
-
-    #[async_trait]
-    impl crate::AnalysisPort for BlockingAnalysis {
-        async fn analyze(
-            &self,
-            demo: DemoRecord,
-        ) -> Result<MatchAnalysis, vibe_cs_domain::DomainError> {
-            self.calls.fetch_add(1, Ordering::SeqCst);
-            self.entered.notify_one();
-            self.release.notified().await;
-            Ok(MatchAnalysis {
-                demo_id: demo.id,
-                map_name: "de_mirage".to_owned(),
-                tick_rate: 64.0,
-                duration_seconds: 1.0,
-                verified_total_ticks: None,
-                teams: Vec::new(),
-                players: Vec::new(),
-                rounds: Vec::new(),
-                highlights: Vec::new(),
-            })
-        }
-
-        async fn replay(
-            &self,
-            _demo: DemoRecord,
-        ) -> Result<crate::ReplayPayload, vibe_cs_domain::DomainError> {
-            unreachable!("replay is outside this test")
-        }
-
-        async fn heatmap(
-            &self,
-            _demo: DemoRecord,
-        ) -> Result<Vec<vibe_cs_domain::HeatPoint>, vibe_cs_domain::DomainError> {
-            unreachable!("heatmap is outside this test")
-        }
-
-        async fn replay_cache_status(
-            &self,
-        ) -> Result<crate::ReplayCacheStatus, vibe_cs_domain::DomainError> {
-            unreachable!("cache status is outside this test")
-        }
-
-        async fn clear_replay_cache(
-            &self,
-        ) -> Result<crate::ReplayCacheCleanup, vibe_cs_domain::DomainError> {
-            unreachable!("cache cleanup is outside this test")
-        }
-    }
-
-    #[derive(Debug, Default)]
-    struct FailingAnalysis;
-
-    #[async_trait]
-    impl crate::AnalysisPort for FailingAnalysis {
-        async fn analyze(
-            &self,
-            _demo: DemoRecord,
-        ) -> Result<MatchAnalysis, vibe_cs_domain::DomainError> {
-            Err(vibe_cs_domain::DomainError::InvalidInput(
-                "malformed game event payload".to_owned(),
-            ))
-        }
-
-        async fn replay(
-            &self,
-            _demo: DemoRecord,
-        ) -> Result<crate::ReplayPayload, vibe_cs_domain::DomainError> {
-            unreachable!("replay is outside this test")
-        }
-
-        async fn heatmap(
-            &self,
-            _demo: DemoRecord,
-        ) -> Result<Vec<vibe_cs_domain::HeatPoint>, vibe_cs_domain::DomainError> {
-            unreachable!("heatmap is outside this test")
-        }
-
-        async fn replay_cache_status(
-            &self,
-        ) -> Result<crate::ReplayCacheStatus, vibe_cs_domain::DomainError> {
-            unreachable!("cache status is outside this test")
-        }
-
-        async fn clear_replay_cache(
-            &self,
-        ) -> Result<crate::ReplayCacheCleanup, vibe_cs_domain::DomainError> {
-            unreachable!("cache cleanup is outside this test")
-        }
-    }
-
-    #[derive(Debug)]
-    struct BlockingFailingAnalysis {
-        calls: AtomicUsize,
-        entered: tokio::sync::Notify,
-        release: tokio::sync::Semaphore,
-    }
-
-    impl Default for BlockingFailingAnalysis {
-        fn default() -> Self {
-            Self {
-                calls: AtomicUsize::new(0),
-                entered: tokio::sync::Notify::new(),
-                release: tokio::sync::Semaphore::new(0),
-            }
-        }
-    }
-
-    #[async_trait]
-    impl crate::AnalysisPort for BlockingFailingAnalysis {
-        async fn analyze(
-            &self,
-            _demo: DemoRecord,
-        ) -> Result<MatchAnalysis, vibe_cs_domain::DomainError> {
-            self.calls.fetch_add(1, Ordering::SeqCst);
-            self.entered.notify_one();
-            let _permit = self.release.acquire().await.expect("release analysis");
-            Err(vibe_cs_domain::DomainError::InvalidInput(
-                "malformed game event payload".to_owned(),
-            ))
-        }
-
-        async fn replay(
-            &self,
-            _demo: DemoRecord,
-        ) -> Result<crate::ReplayPayload, vibe_cs_domain::DomainError> {
-            unreachable!("replay is outside this test")
-        }
-
-        async fn heatmap(
-            &self,
-            _demo: DemoRecord,
-        ) -> Result<Vec<vibe_cs_domain::HeatPoint>, vibe_cs_domain::DomainError> {
-            unreachable!("heatmap is outside this test")
-        }
-
-        async fn replay_cache_status(
-            &self,
-        ) -> Result<crate::ReplayCacheStatus, vibe_cs_domain::DomainError> {
-            unreachable!("cache status is outside this test")
-        }
-
-        async fn clear_replay_cache(
-            &self,
-        ) -> Result<crate::ReplayCacheCleanup, vibe_cs_domain::DomainError> {
-            unreachable!("cache cleanup is outside this test")
-        }
-    }
-
-    #[derive(Debug, Default)]
     struct BlockingIntegrations {
         play_entered: tokio::sync::Notify,
         play_release: tokio::sync::Notify,
@@ -2017,172 +1828,6 @@ mod tests {
                 StatusCode::BAD_REQUEST
             );
         }
-    }
-
-    #[tokio::test]
-    async fn concurrent_analysis_requests_share_one_parse_and_persisted_result() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let path = directory.path().join("major.dem");
-        std::fs::write(&path, b"PBDEMS2\0fixture!").expect("demo fixture");
-        let demo = build_demo_record(&path.to_string_lossy(), "local")
-            .await
-            .expect("demo record");
-        let demo_id = demo.id;
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        storage.put_demo(demo).await.expect("persist demo");
-        let analysis = Arc::new(BlockingAnalysis::default());
-        let state = AppState::new(storage.clone(), directory.path().join("data"))
-            .with_analysis(analysis.clone());
-
-        let first_state = state.clone();
-        let first = tokio::spawn(async move {
-            analyze_demo(State(first_state), AxumPath(demo_id.to_string())).await
-        });
-        analysis.entered.notified().await;
-        let second_state = state.clone();
-        let second = tokio::spawn(async move {
-            analyze_demo(State(second_state), AxumPath(demo_id.to_string())).await
-        });
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        assert_eq!(analysis.calls.load(Ordering::SeqCst), 1);
-
-        analysis.release.notify_one();
-        let first = first.await.expect("first task").expect("first analysis");
-        let second = second.await.expect("second task").expect("second analysis");
-        assert_eq!(first.demo_id, demo_id);
-        assert_eq!(second.demo_id, demo_id);
-        assert_eq!(analysis.calls.load(Ordering::SeqCst), 1);
-        let completed = storage
-            .get_demo(demo_id)
-            .await
-            .expect("read demo")
-            .expect("persisted demo");
-        assert_eq!(completed.status, DemoStatus::Ready);
-        assert_eq!(completed.map_name.as_deref(), Some("de_mirage"));
-        assert_eq!(completed.duration_seconds, Some(1.0));
-        assert_eq!(completed.total_rounds, Some(0));
-    }
-
-    #[tokio::test]
-    async fn failed_analysis_persists_a_retryable_terminal_state() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let path = directory.path().join("broken.dem");
-        std::fs::write(&path, b"PBDEMS2\0fixture!").expect("demo fixture");
-        let demo = build_demo_record(&path.to_string_lossy(), "local")
-            .await
-            .expect("demo record");
-        let demo_id = demo.id;
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        storage.put_demo(demo).await.expect("persist demo");
-        let state = AppState::new(storage.clone(), directory.path().join("data"))
-            .with_analysis(Arc::new(FailingAnalysis));
-
-        assert!(
-            analyze_demo(State(state), AxumPath(demo_id.to_string()))
-                .await
-                .is_err()
-        );
-        assert_eq!(
-            storage
-                .get_demo(demo_id)
-                .await
-                .expect("read demo")
-                .expect("persisted demo")
-                .status,
-            DemoStatus::Failed
-        );
-        assert!(
-            storage
-                .get_analysis(demo_id)
-                .await
-                .expect("read analysis")
-                .is_none()
-        );
-    }
-
-    #[tokio::test]
-    async fn missing_demo_cannot_start_analysis_or_leave_the_missing_state() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let path = directory.path().join("missing.dem");
-        std::fs::write(&path, b"PBDEMS2\0fixture!").expect("demo fixture");
-        let demo = build_demo_record(&path.to_string_lossy(), "watch")
-            .await
-            .expect("demo record");
-        let demo_id = demo.id;
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        storage.put_demo(demo).await.expect("persist demo");
-        storage
-            .set_demo_status(demo_id, DemoStatus::Missing)
-            .await
-            .expect("missing state");
-        std::fs::remove_file(path).expect("remove demo fixture");
-        let state = AppState::new(storage.clone(), directory.path().join("data"))
-            .with_analysis(Arc::new(FailingAnalysis));
-
-        assert!(
-            analyze_demo(State(state), AxumPath(demo_id.to_string()))
-                .await
-                .is_err()
-        );
-        assert_eq!(
-            storage
-                .get_demo(demo_id)
-                .await
-                .expect("read demo")
-                .expect("persisted demo")
-                .status,
-            DemoStatus::Missing
-        );
-    }
-
-    #[tokio::test]
-    async fn concurrent_requests_do_not_retry_a_failed_analysis_after_waiting() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let path = directory.path().join("broken-major.dem");
-        std::fs::write(&path, b"PBDEMS2\0fixture!").expect("demo fixture");
-        let demo = build_demo_record(&path.to_string_lossy(), "local")
-            .await
-            .expect("demo record");
-        let demo_id = demo.id;
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        storage.put_demo(demo).await.expect("persist demo");
-        let analysis = Arc::new(BlockingFailingAnalysis::default());
-        let state = AppState::new(storage.clone(), directory.path().join("data"))
-            .with_analysis(analysis.clone());
-
-        let first_state = state.clone();
-        let first = tokio::spawn(async move {
-            analyze_demo(State(first_state), AxumPath(demo_id.to_string())).await
-        });
-        analysis.entered.notified().await;
-        let second_state = state.clone();
-        let second = tokio::spawn(async move {
-            analyze_demo(State(second_state), AxumPath(demo_id.to_string())).await
-        });
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        assert_eq!(analysis.calls.load(Ordering::SeqCst), 1);
-
-        analysis.release.add_permits(2);
-        assert!(first.await.expect("first task").is_err());
-        assert!(second.await.expect("second task").is_err());
-        assert_eq!(analysis.calls.load(Ordering::SeqCst), 1);
-        assert_eq!(
-            storage
-                .get_demo(demo_id)
-                .await
-                .expect("read demo")
-                .expect("persisted demo")
-                .status,
-            DemoStatus::Failed
-        );
     }
 
     #[test]
@@ -2608,8 +2253,9 @@ mod tests {
             .expect("demos")
             .items
             .remove(0);
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id: record.id,
                 map_name: "de_safe".to_owned(),
                 tick_rate: 64.0,
@@ -2619,13 +2265,9 @@ mod tests {
                 players: vec![],
                 rounds: vec![],
                 highlights: vec![],
-            })
-            .await
-            .expect("analysis");
-        storage
-            .set_demo_status(record.id, DemoStatus::Ready)
-            .await
-            .expect("status");
+            },
+        )
+        .await;
         std::fs::write(&path, b"PBDEMS2\0version2").expect("second version");
 
         import_candidates(&state, vec![path.to_string_lossy().into_owned()], "local")

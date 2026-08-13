@@ -20,8 +20,8 @@ use vibe_cs_application::{
 };
 use vibe_cs_domain::{DemoQuery, DemoRecord, DomainError, MatchAnalysis, PlayerStats};
 use vibe_cs_integrations::{
-    is_steam_id, IntegrationError, SecretString, SteamAvatarImage, SteamPlayerProfilePort,
-    SteamPlayerSummary, SteamProfileClient,
+    IntegrationError, SecretString, SteamAvatarImage, SteamPlayerProfilePort, SteamPlayerSummary,
+    SteamProfileClient, is_steam_id,
 };
 
 #[cfg(test)]
@@ -815,6 +815,36 @@ mod tests {
 
     const PLAYER_ID: &str = "76561198000000001";
 
+    async fn persist_completed_analysis(
+        storage: &vibe_cs_storage::Storage,
+        analysis: MatchAnalysis,
+    ) -> vibe_cs_storage::Result<()> {
+        let demo = storage
+            .get_demo(analysis.demo_id)
+            .await?
+            .expect("fixture demo");
+        let fingerprint = vibe_cs_domain::AnalysisInputFingerprint {
+            sha256: demo.content_sha256.expect("fixture fingerprint"),
+            size: demo.file_size,
+        };
+        storage
+            .set_demo_status(demo.id, DemoStatus::Discovered)
+            .await?;
+        let run_id = storage.start_analysis_run(demo.id).await?.run.id;
+        storage
+            .bind_analysis_run_input(run_id, fingerprint.clone())
+            .await?;
+        storage.mark_analysis_parser_started(run_id).await?;
+        storage
+            .mark_analysis_input_revalidation_started(run_id)
+            .await?;
+        storage.mark_analysis_projection_started(run_id).await?;
+        storage
+            .complete_analysis_run(run_id, analysis, fingerprint)
+            .await
+            .map(|_| ())
+    }
+
     #[derive(Debug)]
     struct FakeBackend {
         summary_calls: AtomicUsize,
@@ -926,8 +956,9 @@ mod tests {
             })
             .await
             .expect("demo");
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            storage,
+            MatchAnalysis {
                 demo_id: id,
                 map_name: "de_test".to_owned(),
                 tick_rate: 64.0,
@@ -955,9 +986,10 @@ mod tests {
                 }],
                 rounds: Vec::new(),
                 highlights: Vec::new(),
-            })
-            .await
-            .expect("analysis");
+            },
+        )
+        .await
+        .expect("analysis");
     }
 
     #[tokio::test]

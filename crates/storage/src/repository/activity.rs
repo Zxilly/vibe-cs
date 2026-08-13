@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rusqlite::{named_params, params_from_iter};
-use vibe_cs_domain::{DemoRecord, MatchDownloadJob, RecordingJob};
+use vibe_cs_domain::{AnalysisRun, DemoRecord, MatchDownloadJob, RecordingJob};
 
 use super::{ExportJobRecord, Storage, decode, row_u64, sql_u64};
 use crate::{Result, StorageError};
@@ -56,7 +56,12 @@ pub enum ActivitySource {
         retryable: bool,
         owner_steam_id: Option<String>,
     },
-    Analysis(DemoRecord),
+    Analysis {
+        run: AnalysisRun,
+        demo: Box<DemoRecord>,
+        retryable: bool,
+        result_available: bool,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -83,6 +88,7 @@ struct PersistedActivity {
     document: String,
     retryable: bool,
     owner_steam_id: Option<String>,
+    result_available: bool,
 }
 
 const ACTIVITY_FILTER_SQL: &str = "
@@ -135,20 +141,17 @@ const DOWNLOAD_ACTIVITY_SQL: &str = "
 
 const ANALYSIS_ACTIVITY_SQL: &str = "
     SELECT
-        'analysis:' || demo.id AS activity_id,
+        'analysis:' || run.id AS activity_id,
         'analysis' AS source_kind,
-        demo.id AS source_id,
-        CASE demo.status WHEN 'ready' THEN 'completed' ELSE demo.status END AS status,
-        demo.updated_at,
-        demo.document_json,
-        'analysis:' || demo.id || ' analysis ' || demo.id || ' ' ||
-            CASE demo.status WHEN 'ready' THEN 'completed' ELSE demo.status END || ' ' ||
+        run.id AS source_id,
+        CASE WHEN run.status = 'interrupted' THEN 'failed' ELSE run.status END AS status,
+        run.updated_at,
+        json_object('run', json(run.document_json), 'demo', json(demo.document_json)) AS document_json,
+        'analysis:' || run.id || ' analysis ' || run.id || ' ' || run.demo_id || ' ' ||
+            run.status || ' ' || run.stage || ' ' || COALESCE(run.error, '') || ' ' ||
             demo.display_name AS search_text
-    FROM demos AS demo
-    WHERE demo.status IN ('analyzing', 'failed')
-       OR (demo.status = 'ready' AND EXISTS (
-            SELECT 1 FROM analyses WHERE analyses.demo_id = demo.id
-       ))";
+    FROM analysis_runs AS run
+    INNER JOIN demos AS demo ON demo.id = run.demo_id";
 
 const ACTIVITY_SUMMARY_SQL: &str = "
     SELECT
@@ -180,14 +183,10 @@ const ACTIVITY_SUMMARY_SQL: &str = "
         UNION ALL
         SELECT
             COUNT(*),
-            COALESCE(SUM(demo.status = 'analyzing'), 0),
-            COALESCE(SUM(demo.status = 'failed'), 0),
-            COALESCE(SUM(demo.status = 'ready'), 0)
-        FROM demos AS demo
-        WHERE demo.status IN ('analyzing', 'failed')
-           OR (demo.status = 'ready' AND EXISTS (
-                SELECT 1 FROM analyses WHERE analyses.demo_id = demo.id
-           ))
+            COALESCE(SUM(status IN ('queued', 'running')), 0),
+            COALESCE(SUM(status IN ('failed', 'interrupted')), 0),
+            COALESCE(SUM(status = 'completed'), 0)
+        FROM analysis_runs
     )";
 
 const DOWNLOAD_RETRYABILITY_SQL: &str = "
@@ -227,6 +226,34 @@ const RECORDING_RETRYABILITY_SQL: &str = "
                )
            THEN 1 ELSE 0 END
       FROM recording_jobs AS job";
+
+const ANALYSIS_RETRYABILITY_SQL: &str = "
+    SELECT run.id,
+           CASE WHEN
+               run.status IN ('failed', 'interrupted')
+               AND NOT EXISTS (
+                   SELECT 1 FROM analysis_runs AS active
+                   WHERE active.demo_id = run.demo_id
+                     AND active.status IN ('queued', 'running')
+               )
+               AND NOT EXISTS (
+                   SELECT 1 FROM analysis_runs AS newer
+                   WHERE newer.demo_id = run.demo_id
+                     AND (
+                       newer.created_at > run.created_at
+                       OR (newer.created_at = run.created_at AND newer.id < run.id)
+                     )
+               )
+               AND NOT EXISTS (
+                   SELECT 1 FROM analyses WHERE analyses.demo_id = run.demo_id
+               )
+               AND EXISTS (
+                   SELECT 1 FROM demos
+                   WHERE demos.id = run.demo_id
+                     AND demos.status NOT IN ('missing', 'indexing', 'analyzing')
+               )
+           THEN 1 ELSE 0 END
+      FROM analysis_runs AS run";
 
 #[derive(Debug, Clone, Copy)]
 struct ActivityBranch {
@@ -337,6 +364,14 @@ fn recording_retryability_sql(recordings: usize) -> String {
     format!("{RECORDING_RETRYABILITY_SQL} WHERE job.id IN ({parameters})")
 }
 
+fn analysis_retryability_sql(analyses: usize) -> String {
+    let parameters = (1..=analyses)
+        .map(|index| format!("?{index}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{ANALYSIS_RETRYABILITY_SQL} WHERE run.id IN ({parameters})")
+}
+
 impl Storage {
     /// Queries the current cross-workflow activity projection without loading complete job
     /// histories into application memory.
@@ -426,6 +461,7 @@ impl Storage {
                     document: row.get(2)?,
                     retryable: false,
                     owner_steam_id: None,
+                    result_available: false,
                 });
             }
             drop(rows);
@@ -479,6 +515,51 @@ impl Storage {
                     }
                 }
             }
+            let analysis_ids = persisted
+                .iter()
+                .filter(|activity| activity.source_kind == "analysis")
+                .map(|activity| activity.source_id.clone())
+                .collect::<Vec<_>>();
+            if !analysis_ids.is_empty() {
+                let mut statement =
+                    transaction.prepare(&analysis_retryability_sql(analysis_ids.len()))?;
+                let retryability = statement
+                    .query_map(params_from_iter(&analysis_ids), |row| {
+                        Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?))
+                    })?
+                    .collect::<rusqlite::Result<HashMap<_, _>>>()?;
+                for activity in &mut persisted {
+                    if activity.source_kind == "analysis"
+                        && let Some(retryable) = retryability.get(&activity.source_id)
+                    {
+                        activity.retryable = *retryable;
+                    }
+                }
+                let parameters = (1..=analysis_ids.len())
+                    .map(|index| format!("?{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let mut statement = transaction.prepare(&format!(
+                    "SELECT run.id, EXISTS(\
+                         SELECT 1 FROM analyses \
+                         WHERE analyses.producer_run_id = run.id \
+                           AND analyses.demo_id = run.demo_id\
+                     ) \
+                     FROM analysis_runs AS run WHERE run.id IN ({parameters})"
+                ))?;
+                let availability = statement
+                    .query_map(params_from_iter(&analysis_ids), |row| {
+                        Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?))
+                    })?
+                    .collect::<rusqlite::Result<HashMap<_, _>>>()?;
+                for activity in &mut persisted {
+                    if activity.source_kind == "analysis"
+                        && let Some(result_available) = availability.get(&activity.source_id)
+                    {
+                        activity.result_available = *result_available;
+                    }
+                }
+            }
             transaction.commit()?;
 
             let items = persisted
@@ -494,7 +575,21 @@ impl Storage {
                         retryable: persisted.retryable,
                         owner_steam_id: persisted.owner_steam_id,
                     }),
-                    "analysis" => decode(&persisted.document).map(ActivitySource::Analysis),
+                    "analysis" => {
+                        #[derive(serde::Deserialize)]
+                        struct AnalysisActivityDocument {
+                            run: AnalysisRun,
+                            demo: DemoRecord,
+                        }
+                        decode::<AnalysisActivityDocument>(&persisted.document).map(|document| {
+                            ActivitySource::Analysis {
+                                run: document.run,
+                                demo: Box::new(document.demo),
+                                retryable: persisted.retryable,
+                                result_available: persisted.result_available,
+                            }
+                        })
+                    }
                     value => Err(StorageError::ActivityProjection(format!(
                         "unknown activity source kind {value:?}"
                     ))),
@@ -516,6 +611,75 @@ impl Storage {
 mod tests {
     use super::*;
 
+    fn analysis_demo(
+        id: uuid::Uuid,
+        status: vibe_cs_domain::DemoStatus,
+    ) -> vibe_cs_domain::DemoRecord {
+        let now = chrono::Utc::now();
+        vibe_cs_domain::DemoRecord {
+            id,
+            path: format!("C:/demos/{id}.dem"),
+            file_name: format!("{id}.dem"),
+            display_name: "Analysis activity".to_owned(),
+            source: "local".to_owned(),
+            status,
+            map_name: None,
+            match_date: None,
+            duration_seconds: None,
+            total_rounds: None,
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: Vec::new(),
+            remark: String::new(),
+            content_sha256: Some("a".repeat(64)),
+            file_size: 512,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    async fn complete_analysis(storage: &Storage, demo_id: uuid::Uuid) -> uuid::Uuid {
+        let fingerprint = vibe_cs_domain::AnalysisInputFingerprint {
+            sha256: "a".repeat(64),
+            size: 512,
+        };
+        let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+        storage
+            .bind_analysis_run_input(run_id, fingerprint.clone())
+            .await
+            .unwrap();
+        storage.mark_analysis_parser_started(run_id).await.unwrap();
+        storage
+            .mark_analysis_input_revalidation_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_projection_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .complete_analysis_run(
+                run_id,
+                vibe_cs_domain::MatchAnalysis {
+                    demo_id,
+                    map_name: "de_mirage".to_owned(),
+                    tick_rate: 64.0,
+                    duration_seconds: 1.0,
+                    verified_total_ticks: None,
+                    teams: Vec::new(),
+                    players: Vec::new(),
+                    rounds: Vec::new(),
+                    highlights: Vec::new(),
+                },
+                fingerprint,
+            )
+            .await
+            .unwrap();
+        run_id
+    }
+
     #[tokio::test]
     async fn activity_search_accepts_each_copyable_exact_activity_id() {
         let storage = Storage::open_in_memory().await.expect("open storage");
@@ -523,7 +687,7 @@ mod tests {
         let recording_id = uuid::Uuid::new_v4();
         let export_id = uuid::Uuid::new_v4();
         let download_id = uuid::Uuid::new_v4();
-        let analysis_id = uuid::Uuid::new_v4();
+        let analysis_demo_id = uuid::Uuid::new_v4();
         let match_record_id = "76561198000000000:copied-id";
 
         storage
@@ -593,7 +757,7 @@ mod tests {
             .expect("put download activity");
         storage
             .put_demo(vibe_cs_domain::DemoRecord {
-                id: analysis_id,
+                id: analysis_demo_id,
                 path: "C:/demos/copied-id.dem".to_owned(),
                 file_name: "copied-id.dem".to_owned(),
                 display_name: "Copied ID analysis".to_owned(),
@@ -609,13 +773,19 @@ mod tests {
                 team_b_score: None,
                 player_names: vec![],
                 remark: String::new(),
-                content_sha256: None,
-                file_size: 1,
+                content_sha256: Some("a".repeat(64)),
+                file_size: 512,
                 created_at: now,
                 updated_at: now,
             })
             .await
             .expect("put analysis activity");
+        let analysis_id = storage
+            .start_analysis_run(analysis_demo_id)
+            .await
+            .expect("start analysis activity")
+            .run
+            .id;
 
         for (exact_id, expected_kind) in [
             (format!("recording:{recording_id}"), ActivityKind::Recording),
@@ -650,8 +820,8 @@ mod tests {
                         if job.id == download_id
                 ) || matches!(
                     (expected_kind, page.items.as_slice()),
-                    (ActivityKind::Analysis, [ActivitySource::Analysis(demo)])
-                        if demo.id == analysis_id
+                    (ActivityKind::Analysis, [ActivitySource::Analysis { run, demo, retryable: false, result_available: false }])
+                        if run.id == analysis_id && demo.id == analysis_demo_id
                 ),
                 "copied activity id {exact_id} resolved to the wrong activity: {page:#?}"
             );
@@ -719,6 +889,155 @@ mod tests {
         assert!(matches!(
             superseded.items.as_slice(),
             [ActivitySource::Recording { job, retryable: false }] if job.id == parent_id
+        ));
+    }
+
+    #[tokio::test]
+    async fn interrupted_analysis_is_failed_in_summary_and_state_filters() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo_id = uuid::Uuid::new_v4();
+        storage
+            .put_demo(vibe_cs_domain::DemoRecord {
+                id: demo_id,
+                path: "C:/demos/interrupted.dem".to_owned(),
+                file_name: "interrupted.dem".to_owned(),
+                display_name: "Interrupted analysis".to_owned(),
+                source: "local".to_owned(),
+                status: vibe_cs_domain::DemoStatus::Discovered,
+                map_name: None,
+                match_date: None,
+                duration_seconds: None,
+                total_rounds: None,
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: Vec::new(),
+                remark: String::new(),
+                content_sha256: Some("a".repeat(64)),
+                file_size: 512,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            })
+            .await
+            .expect("put demo");
+        let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+        storage.recover_orphaned_analysis_runs().await.unwrap();
+
+        let failed = storage
+            .query_activities(ActivityQuery {
+                search: Some(format!("analysis:{run_id}")),
+                kind: Some(ActivityKind::Analysis),
+                state: Some(ActivityState::Failed),
+                page: 1,
+                page_size: 10,
+            })
+            .await
+            .unwrap();
+        assert_eq!(failed.summary.failed, 1);
+        assert_eq!(failed.total, 1);
+        assert!(matches!(
+            failed.items.as_slice(),
+            [ActivitySource::Analysis { run, .. }]
+                if run.status == vibe_cs_domain::AnalysisRunStatus::Interrupted
+        ));
+
+        let active = storage
+            .query_activities(ActivityQuery {
+                search: Some(format!("analysis:{run_id}")),
+                kind: Some(ActivityKind::Analysis),
+                state: Some(ActivityState::Active),
+                page: 1,
+                page_size: 10,
+            })
+            .await
+            .unwrap();
+        assert_eq!(active.total, 0);
+    }
+
+    #[tokio::test]
+    async fn analysis_retryability_matches_start_claim_lifecycle_preconditions() {
+        for status in [
+            vibe_cs_domain::DemoStatus::Indexing,
+            vibe_cs_domain::DemoStatus::Analyzing,
+        ] {
+            let storage = Storage::open_in_memory().await.expect("open storage");
+            let demo_id = uuid::Uuid::new_v4();
+            storage
+                .put_demo(analysis_demo(
+                    demo_id,
+                    vibe_cs_domain::DemoStatus::Discovered,
+                ))
+                .await
+                .unwrap();
+            let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+            storage
+                .fail_analysis_run(run_id, "fixture failure".to_owned())
+                .await
+                .unwrap();
+            storage.set_demo_status(demo_id, status).await.unwrap();
+
+            let page = storage
+                .query_activities(ActivityQuery {
+                    search: Some(format!("analysis:{run_id}")),
+                    kind: Some(ActivityKind::Analysis),
+                    state: Some(ActivityState::Failed),
+                    page: 1,
+                    page_size: 10,
+                })
+                .await
+                .unwrap();
+            assert!(matches!(
+                page.items.as_slice(),
+                [ActivitySource::Analysis {
+                    run,
+                    retryable: false,
+                    ..
+                }] if run.id == run_id
+            ));
+        }
+    }
+
+    #[tokio::test]
+    async fn completed_analysis_activity_loses_result_availability_when_projection_is_deleted() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo_id = uuid::Uuid::new_v4();
+        storage
+            .put_demo(analysis_demo(
+                demo_id,
+                vibe_cs_domain::DemoStatus::Discovered,
+            ))
+            .await
+            .unwrap();
+        let run_id = complete_analysis(&storage, demo_id).await;
+        let query = ActivityQuery {
+            search: Some(format!("analysis:{run_id}")),
+            kind: Some(ActivityKind::Analysis),
+            state: Some(ActivityState::Completed),
+            page: 1,
+            page_size: 10,
+        };
+
+        let available = storage.query_activities(query.clone()).await.unwrap();
+        assert!(matches!(
+            available.items.as_slice(),
+            [ActivitySource::Analysis {
+                run,
+                result_available: true,
+                ..
+            }] if run.id == run_id
+        ));
+
+        assert!(storage.delete_analysis(demo_id).await.unwrap());
+        let unavailable = storage.query_activities(query).await.unwrap();
+        assert!(matches!(
+            unavailable.items.as_slice(),
+            [ActivitySource::Analysis {
+                run,
+                retryable: false,
+                result_available: false,
+                ..
+            }] if run.id == run_id
         ));
     }
 

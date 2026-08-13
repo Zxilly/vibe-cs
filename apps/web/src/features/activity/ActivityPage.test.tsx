@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { commands } from '../../shared/desktop/client';
 import type { ActivityItem } from '../../shared/desktop/dto';
@@ -32,6 +32,9 @@ const item = (overrides: Partial<ActivityItem>): ActivityItem => ({
 });
 
 describe('activity workspace', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it('renders durable action outcomes with truthful severity', () => {
     expect(activityActionNotice('failed')).toMatchObject({ tone: 'danger' });
     expect(activityActionNotice('cancelled')).toMatchObject({ tone: 'warning' });
@@ -44,8 +47,8 @@ describe('activity workspace', () => {
       completed_units: 3, total_units: 5, unit: 'stages',
     });
     const failedAnalysis = item({
-      id: 'analysis:demo-2', kind: 'analysis', job_id: null, context_id: 'demo-2',
-      subject: 'Major M1', status: 'failed', stage: null, progress_percent: null,
+      id: 'analysis:run-2', kind: 'analysis', job_id: 'run-2', context_id: 'demo-2',
+      subject: 'Major M1', status: 'failed', stage: 'interrupted', progress_percent: null,
       error: null, available_actions: ['retry_analysis', 'open_library'],
     });
     const markup = renderToStaticMarkup(
@@ -62,12 +65,12 @@ describe('activity workspace', () => {
 
     expect(markup).toContain('class="activity-table"');
     expect(markup).toContain('class="card activity-inspector"');
-    expect(markup).toContain('data-activity-id="analysis:demo-2"');
+    expect(markup).toContain('data-activity-id="analysis:run-2"');
     expect(markup).not.toContain('<progress');
     expect(markup).toContain('3 / 5');
     expect(markup).toContain('demo-2');
     expect(markup).toContain('data-action="retry_analysis"');
-    expect(markup).not.toContain('analysis:demo-2<!-- -->%');
+    expect(markup).not.toContain('analysis:run-2<!-- -->%');
   });
 
   it('keeps cross-workflow paging compact and exposes both navigation bounds', () => {
@@ -128,7 +131,6 @@ describe('activity workspace', () => {
     expect(markup).toContain('download ticket expired');
     expect(retry).toHaveBeenCalledOnce();
     expect(retry).toHaveBeenCalledWith('match-record-42');
-    retry.mockRestore();
   });
 
   it('reports the persisted download state returned by a retry command', async () => {
@@ -140,7 +142,7 @@ describe('activity workspace', () => {
       status: 'failed',
       available_actions: ['retry_download'],
     });
-    const retry = vi.spyOn(commands, 'downloadMatchDemo').mockResolvedValue({
+    vi.spyOn(commands, 'downloadMatchDemo').mockResolvedValue({
       id: 'existing-completed-job',
       match_record_id: 'match-record-already-downloaded',
       status: 'completed',
@@ -153,10 +155,9 @@ describe('activity workspace', () => {
       updated_at: '2026-08-13T01:02:00Z',
     });
 
-    const returnedStatus = await executeActivityAction(failedDownload, 'retry_download');
+    const outcome = await executeActivityAction(failedDownload, 'retry_download');
 
-    expect(returnedStatus).toBe('completed');
-    retry.mockRestore();
+    expect(outcome).toEqual({ status: 'completed', analysisRun: null });
   });
 
   it('retries a failed recording through a fresh plan and native consent execution', async () => {
@@ -200,14 +201,12 @@ describe('activity workspace', () => {
       </MemoryRouter>,
     );
 
-    const returnedStatus = await executeActivityAction(failedRecording, 'retry_recording');
+    const outcome = await executeActivityAction(failedRecording, 'retry_recording');
 
     expect(markup).toContain('data-action="retry_recording"');
     expect(plan).toHaveBeenCalledWith('failed/job');
     expect(execute).toHaveBeenCalledWith('retry-plan', false);
-    expect(returnedStatus).toBe('queued');
-    plan.mockRestore();
-    execute.mockRestore();
+    expect(outcome).toEqual({ status: 'queued', analysisRun: null });
   });
 
   it('does not bypass a rejected native recording consent', async () => {
@@ -238,7 +237,24 @@ describe('activity workspace', () => {
 
     expect(plan).toHaveBeenCalledOnce();
     expect(execute).toHaveBeenCalledWith('consent-plan', false);
-    plan.mockRestore();
-    execute.mockRestore();
+  });
+
+  it('retries analysis through a new durable run and returns its identity', async () => {
+    const failedAnalysis = item({
+      id: 'analysis:old-run', kind: 'analysis', job_id: 'old-run', context_id: 'demo-1',
+      status: 'failed', stage: 'failed', progress_percent: null,
+      available_actions: ['retry_analysis'],
+    });
+    const created = {
+      id: 'new-run', demo_id: 'demo-1', input_sha256: null, input_size: null,
+      status: 'queued' as const, stage: 'validating_input' as const, error: null,
+      created_at: '2026-08-13T01:02:00Z', updated_at: '2026-08-13T01:02:00Z',
+    };
+    const retry = vi.spyOn(commands, 'startAnalysisRun').mockResolvedValue(created);
+
+    await expect(executeActivityAction(failedAnalysis, 'retry_analysis')).resolves.toEqual({
+      status: 'queued', analysisRun: created,
+    });
+    expect(retry).toHaveBeenCalledWith('demo-1');
   });
 });

@@ -2,7 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     io::Write,
     path::{Path, PathBuf},
-    sync::{Arc, Weak},
+    sync::Arc,
 };
 
 use axum::http::StatusCode;
@@ -240,7 +240,6 @@ pub struct AppState {
     pub(crate) recording_plans: Arc<Mutex<HashMap<Uuid, RecordingPlanLease>>>,
     pub(crate) output_mutations: Arc<Mutex<()>>,
     pub(crate) hlae_preparation: Arc<Mutex<()>>,
-    analysis_mutations: Arc<Mutex<HashMap<Uuid, Weak<Mutex<()>>>>>,
     pub(crate) gsi_last_timestamp: Arc<Mutex<Option<i64>>>,
     gsi_token: Arc<str>,
     data_dir: Arc<PathBuf>,
@@ -293,7 +292,6 @@ impl AppState {
             recording_plans: Arc::new(Mutex::new(HashMap::new())),
             output_mutations: Arc::new(Mutex::new(())),
             hlae_preparation: Arc::new(Mutex::new(())),
-            analysis_mutations: Arc::new(Mutex::new(HashMap::new())),
             gsi_last_timestamp: Arc::new(Mutex::new(None)),
             gsi_token: Arc::from(gsi_token),
             data_dir: Arc::new(data_dir),
@@ -304,16 +302,6 @@ impl AppState {
     pub fn with_analysis(mut self, port: Arc<dyn AnalysisPort>) -> Self {
         self.analysis = port;
         self
-    }
-
-    pub(crate) async fn analysis_mutation(&self, demo_id: Uuid) -> Arc<Mutex<()>> {
-        let mut mutations = self.analysis_mutations.lock().await;
-        if let Some(mutation) = mutations.get(&demo_id).and_then(Weak::upgrade) {
-            return mutation;
-        }
-        let mutation = Arc::new(Mutex::new(()));
-        mutations.insert(demo_id, Arc::downgrade(&mutation));
-        mutation
     }
 
     #[must_use]

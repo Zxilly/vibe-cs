@@ -169,7 +169,7 @@ async fn build_application(
     let agent_bridge = agent::AgentBridge::new(storage.clone(), data_dir.clone(), agent_dispatcher);
     let demo_worker = bundled_demo_worker()?;
     let state =
-        vibe_cs_runtime::build_app_state_with_demo_worker(storage, data_dir, demo_worker).await;
+        vibe_cs_runtime::build_app_state_with_demo_worker(storage, data_dir, demo_worker).await?;
     let gsi_listener = tokio::net::TcpListener::bind(GSI_RECEIVER_ADDRESS).await?;
     tracing::info!(address = GSI_RECEIVER_ADDRESS, "CS2 GSI receiver ready");
     Ok(DesktopApplication {

@@ -56,19 +56,28 @@ pub use recording_progress::{RecordingProgressSink, RecordingStage};
 pub use source_assets::RuntimeSourceAssetPort;
 
 /// Composes the concrete local adapters used by the desktop host.
+///
+/// # Errors
+///
+/// Returns a storage error when durable analysis recovery cannot be completed.
 pub async fn build_app_state(
     storage: vibe_cs_storage::Storage,
     data_dir: PathBuf,
-) -> vibe_cs_application::AppState {
+) -> vibe_cs_storage::Result<vibe_cs_application::AppState> {
     build_app_state_with_demo_worker(storage, data_dir, None).await
 }
 
 /// Composes the desktop runtime with an optional integrity-pinned analysis worker.
+///
+/// # Errors
+///
+/// Returns a storage error when durable analysis recovery cannot be completed. The host must not
+/// accept requests while a persisted active attempt has no recovered owner.
 pub async fn build_app_state_with_demo_worker(
     storage: vibe_cs_storage::Storage,
     data_dir: PathBuf,
     demo_worker: Option<DemoWorkerSidecar>,
-) -> vibe_cs_application::AppState {
+) -> vibe_cs_storage::Result<vibe_cs_application::AppState> {
     if let Err(error) = tokio::fs::create_dir_all(&data_dir).await {
         tracing::error!(%error, path = %data_dir.display(), "unable to create runtime data directory");
     }
@@ -85,13 +94,19 @@ pub async fn build_app_state_with_demo_worker(
         Ok(Some(_)) => {}
         Err(error) => tracing::error!(%error, "unable to load application configuration"),
     }
-    match storage.recover_orphaned_demo_analyses().await {
-        Ok(0) => {}
-        Ok(recovered) => tracing::warn!(
+    match storage.recover_orphaned_analysis_runs().await? {
+        0 => {}
+        recovered => tracing::warn!(
             recovered,
-            "recovered interrupted demo analyses as retryable failures"
+            "recovered interrupted analysis runs with durable terminal events"
         ),
-        Err(error) => tracing::error!(%error, "unable to recover interrupted demo analyses"),
+    }
+    match storage.recover_orphaned_demo_processing().await? {
+        0 => {}
+        recovered => tracing::warn!(
+            recovered,
+            "recovered demo processing without a durable owner"
+        ),
     }
     let config = storage
         .get_config()
@@ -140,7 +155,7 @@ pub async fn build_app_state_with_demo_worker(
     let demo_watch = Arc::new(
         RuntimeDemoWatchPort::start(storage, state.event_hub(), config.demo_watch_paths).await,
     );
-    state
+    Ok(state
         .with_analysis(analysis)
         .with_review(review)
         .with_cosmetics(cosmetics)
@@ -151,5 +166,73 @@ pub async fn build_app_state_with_demo_worker(
         .with_integrations(integrations)
         .with_recording(recording)
         .with_proposal_execution(proposal_execution)
-        .with_demo_watch(demo_watch)
+        .with_demo_watch(demo_watch))
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+    use uuid::Uuid;
+    use vibe_cs_domain::{DemoRecord, DemoStatus};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn startup_fails_closed_when_durable_analysis_recovery_cannot_be_read() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database_path = directory.path().join("runtime.sqlite");
+        let storage = vibe_cs_storage::Storage::open(&database_path)
+            .await
+            .expect("storage");
+        let now = Utc::now();
+        let demo_id = Uuid::new_v4();
+        storage
+            .put_demo(DemoRecord {
+                id: demo_id,
+                path: directory
+                    .path()
+                    .join("current.dem")
+                    .to_string_lossy()
+                    .into_owned(),
+                file_name: "current.dem".to_owned(),
+                display_name: "Current".to_owned(),
+                source: "local".to_owned(),
+                status: DemoStatus::Discovered,
+                map_name: None,
+                match_date: None,
+                duration_seconds: None,
+                total_rounds: None,
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: Vec::new(),
+                remark: String::new(),
+                content_sha256: Some("a".repeat(64)),
+                file_size: 512,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("demo");
+        let run_id = storage
+            .start_analysis_run(demo_id)
+            .await
+            .expect("analysis run")
+            .run
+            .id;
+        rusqlite::Connection::open(&database_path)
+            .expect("inspection connection")
+            .execute(
+                "UPDATE analysis_runs SET document_json = '{' WHERE id = ?1",
+                [run_id.to_string()],
+            )
+            .expect("corrupt active run fixture");
+
+        let result = build_app_state(storage, directory.path().join("data")).await;
+        assert!(
+            matches!(result, Err(vibe_cs_storage::StorageError::Serialization(_))),
+            "startup must not serve an active run whose recovery failed"
+        );
+    }
 }

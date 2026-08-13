@@ -875,6 +875,39 @@ mod tests {
     use super::*;
     use crate::RecordingPort;
 
+    async fn persist_completed_analysis(
+        storage: &vibe_cs_storage::Storage,
+        analysis: MatchAnalysis,
+    ) {
+        let demo = storage.get_demo(analysis.demo_id).await.unwrap().unwrap();
+        let fingerprint = vibe_cs_domain::AnalysisInputFingerprint {
+            sha256: demo.content_sha256.unwrap(),
+            size: demo.file_size,
+        };
+        storage
+            .set_demo_status(demo.id, vibe_cs_domain::DemoStatus::Discovered)
+            .await
+            .unwrap();
+        let run_id = storage.start_analysis_run(demo.id).await.unwrap().run.id;
+        storage
+            .bind_analysis_run_input(run_id, fingerprint.clone())
+            .await
+            .unwrap();
+        storage.mark_analysis_parser_started(run_id).await.unwrap();
+        storage
+            .mark_analysis_input_revalidation_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_projection_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .complete_analysis_run(run_id, analysis, fingerprint)
+            .await
+            .unwrap();
+    }
+
     #[derive(Debug, Default)]
     struct CountingRecordingPort {
         preflights: AtomicUsize,
@@ -1086,9 +1119,9 @@ mod tests {
             })
             .await
             .expect("plan demo");
-        state
-            .storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &state.storage,
+            MatchAnalysis {
                 demo_id,
                 map_name: "de_mirage".to_owned(),
                 tick_rate: 64.0,
@@ -1098,9 +1131,9 @@ mod tests {
                 players: Vec::new(),
                 rounds: Vec::new(),
                 highlights: Vec::new(),
-            })
-            .await
-            .expect("plan analysis");
+            },
+        )
+        .await;
     }
 
     fn plan_queue_item(demo_id: Uuid) -> RecordingQueueItem {

@@ -33,8 +33,8 @@ describe('activity presentation', () => {
     const items = [
       activity({}),
       activity({
-        id: 'analysis:demo-2', kind: 'analysis', job_id: null, context_id: 'demo-2',
-        subject: 'Major M1', status: 'failed', error: null,
+        id: 'analysis:run-2', kind: 'analysis', job_id: 'run-2', context_id: 'demo-2',
+        subject: 'Major M1', status: 'failed', stage: 'interrupted', error: null,
       }),
       activity({
         id: 'download:job-3', kind: 'download', job_id: 'job-3',
@@ -69,11 +69,11 @@ describe('activity presentation', () => {
 
   it('opens completed analysis at its persisted demo and keeps mutations command-driven', () => {
     const analyzed = activity({
-      id: 'analysis:demo/2', kind: 'analysis', job_id: null, context_id: 'demo/2',
+      id: 'analysis:run/2', kind: 'analysis', job_id: 'run/2', context_id: 'demo/2',
       status: 'completed', available_actions: ['open_analysis', 'open_library'],
     });
 
-    expect(activityActionHref(analyzed, 'open_analysis')).toBe('/analysis?demo=demo%2F2');
+    expect(activityActionHref(analyzed, 'open_analysis')).toBe('/analysis?demo=demo%2F2&run=run%2F2');
     expect(activityActionHref(analyzed, 'open_library')).toBe('/library');
     expect(activityActionHref(analyzed, 'retry_analysis')).toBeNull();
   });

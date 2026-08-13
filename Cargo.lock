@@ -6554,6 +6554,7 @@ dependencies = [
  "http",
  "mime_guess",
  "reqwest",
+ "rusqlite",
  "same-file",
  "semver",
  "serde",

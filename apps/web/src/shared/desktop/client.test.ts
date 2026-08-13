@@ -341,20 +341,64 @@ describe('desktop command client', () => {
     await expect(pending).rejects.toMatchObject({ code: 'REQUEST_ABORTED' });
   });
 
-  it('keeps a real demo analysis alive beyond the old two-minute cutoff', async () => {
-    vi.useFakeTimers();
-    invokeMock.mockReturnValue(new Promise(() => undefined));
-    const controller = new AbortController();
-    let settled = false;
-    const pending = commands.analyzeDemo('major-final-map', controller.signal)
-      .finally(() => { settled = true; });
+  it('starts one durable analysis run and returns its stable identity immediately', async () => {
+    invokeMock.mockResolvedValue({
+      id: 'run-1',
+      demo_id: 'major-final-map',
+      input_sha256: null,
+      input_size: null,
+      status: 'queued',
+      stage: 'validating_input',
+      error: null,
+      created_at: '2026-08-13T01:00:00Z',
+      updated_at: '2026-08-13T01:00:00Z',
+    });
 
-    await vi.advanceTimersByTimeAsync(120_001);
+    await expect(commands.startAnalysisRun('major/final map')).resolves.toMatchObject({
+      id: 'run-1',
+      stage: 'validating_input',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'post',
+        path: '/demos/major%2Ffinal%20map/analysis-runs',
+      },
+    });
+  });
 
-    expect(settled).toBe(false);
-    controller.abort();
-    await expect(pending).rejects.toMatchObject({ code: 'REQUEST_ABORTED' });
-    vi.useRealTimers();
+  it('reads active and exact analysis run details through their encoded identities', async () => {
+    const detail = {
+      run: {
+        id: 'run-1', demo_id: 'demo-1', input_sha256: 'a'.repeat(64), input_size: 42,
+        status: 'running', stage: 'parser_running', error: null,
+        created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:01:00Z',
+      },
+      events: [{
+        run_id: 'run-1', sequence: 0, stage: 'validating_input',
+        message_code: 'input_validation_started', detail: null,
+        created_at: '2026-08-13T01:00:00Z',
+      }, {
+        run_id: 'run-1', sequence: 1, stage: 'parser_queued',
+        message_code: 'input_verified', detail: null,
+        created_at: '2026-08-13T01:00:30Z',
+      }, {
+        run_id: 'run-1', sequence: 2, stage: 'parser_running',
+        message_code: 'parser_started', detail: null,
+        created_at: '2026-08-13T01:01:00Z',
+      }],
+      result_available: false,
+    };
+    invokeMock.mockResolvedValue(detail);
+
+    await expect(commands.getActiveAnalysisRun('demo/1')).resolves.toEqual(detail);
+    await expect(commands.getAnalysisRun('run/1')).resolves.toEqual(detail);
+
+    expect(invokeMock.mock.calls[0]).toEqual(['desktop_call', {
+      call: { method: 'get', path: '/demos/demo%2F1/analysis-runs/active' },
+    }]);
+    expect(invokeMock.mock.calls[1]).toEqual(['desktop_call', {
+      call: { method: 'get', path: '/analysis-runs/run%2F1' },
+    }]);
   });
 
   it('reads one demo lifecycle without starting analysis', async () => {
@@ -419,6 +463,18 @@ describe('desktop command client', () => {
     });
     const normalized = await commands.getAnalysis('demo-1');
     expect(normalized.players[0]).not.toHaveProperty('rating');
+  });
+
+  it('reads a completed analysis through its exact producer run identity', async () => {
+    invokeMock.mockResolvedValue(matchAnalysisRecord());
+
+    await expect(commands.getAnalysisRunResult('run/1')).resolves.toMatchObject({
+      demo_id: 'demo-1',
+      players: [{ id: '7656119' }],
+    });
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: { method: 'get', path: '/analysis-runs/run%2F1/result' },
+    });
   });
 
   it('rejects an analysis wire without verified total ticks', async () => {

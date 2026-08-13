@@ -1,10 +1,10 @@
 use axum::{
+    Json, Router,
     body::Body,
     extract::{Path, State},
-    http::{header, HeaderName, HeaderValue, StatusCode},
+    http::{HeaderName, HeaderValue, StatusCode, header},
     response::{IntoResponse, Response},
     routing::get,
-    Json, Router,
 };
 
 use crate::{
@@ -495,9 +495,11 @@ mod tests {
             to_bytes(get.into_body(), 1024).await.expect("GET body"),
             &b"fixture-avatar"[..]
         );
-        assert!(to_bytes(head.into_body(), 1024)
-            .await
-            .expect("HEAD body")
-            .is_empty());
+        assert!(
+            to_bytes(head.into_body(), 1024)
+                .await
+                .expect("HEAD body")
+                .is_empty()
+        );
     }
 }

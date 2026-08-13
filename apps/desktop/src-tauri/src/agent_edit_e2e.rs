@@ -12,6 +12,7 @@ use axum::{
 };
 use chrono::Utc;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tokio::sync::{OnceCell, oneshot};
 use uuid::Uuid;
@@ -182,7 +183,7 @@ fn demo(demo_id: Uuid, path: &std::path::Path) -> DemoRecord {
         team_b_score: Some(0),
         player_names: vec!["Player One".to_owned()],
         remark: String::new(),
-        content_sha256: None,
+        content_sha256: Some(hex::encode(Sha256::digest(b"demo-e2e"))),
         file_size: 8,
         created_at: Utc::now(),
         updated_at: Utc::now(),
@@ -215,6 +216,33 @@ fn analysis(demo_id: Uuid) -> MatchAnalysis {
     }
 }
 
+async fn persist_completed_analysis(
+    storage: &vibe_cs_storage::Storage,
+    analysis: MatchAnalysis,
+) -> vibe_cs_storage::Result<()> {
+    let demo = storage
+        .get_demo(analysis.demo_id)
+        .await?
+        .expect("fixture demo");
+    let fingerprint = vibe_cs_domain::AnalysisInputFingerprint {
+        sha256: demo.content_sha256.expect("fixture fingerprint"),
+        size: demo.file_size,
+    };
+    let run_id = storage.start_analysis_run(demo.id).await?.run.id;
+    storage
+        .bind_analysis_run_input(run_id, fingerprint.clone())
+        .await?;
+    storage.mark_analysis_parser_started(run_id).await?;
+    storage
+        .mark_analysis_input_revalidation_started(run_id)
+        .await?;
+    storage.mark_analysis_projection_started(run_id).await?;
+    storage
+        .complete_analysis_run(run_id, analysis, fingerprint)
+        .await
+        .map(|_| ())
+}
+
 #[cfg(windows)]
 #[tokio::test]
 async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
@@ -226,7 +254,9 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
         .expect("storage");
     let router_cell = Arc::new(OnceCell::new());
     let dispatcher = crate::bridge::DesktopBridge::new(Arc::clone(&router_cell));
-    let state = vibe_cs_runtime::build_app_state(storage.clone(), data_dir.clone()).await;
+    let state = vibe_cs_runtime::build_app_state(storage.clone(), data_dir.clone())
+        .await
+        .expect("runtime state");
     router_cell
         .set(vibe_cs_application::build_dispatcher(state))
         .expect("desktop router");
@@ -241,8 +271,7 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
         .put_demo(demo(demo_id, &demo_path))
         .await
         .expect("demo");
-    storage
-        .put_analysis(analysis(demo_id))
+    persist_completed_analysis(&storage, analysis(demo_id))
         .await
         .expect("analysis");
     let recordings = data_dir.join("recordings");

@@ -84,6 +84,7 @@ import {
 import { AiReviewPanel, type ReviewConfiguration } from './AiReviewPanel';
 import { analysisBatchIds, runBatchAnalysis, type BatchAnalysisState } from './analysisBatch';
 import { AnalysisLifecycleError, loadDemoAnalysis } from './analysisLoader';
+import { persistPrimaryAnalysisRun, selectBatchAnalysisDemo } from './analysisRunNavigation';
 import {
   readAnalysisNavigation,
   readAnalysisOpponent,
@@ -201,6 +202,7 @@ export function AnalysisPage() {
   const { t } = useI18n();
   const [params, setParams] = useSearchParams();
   const demoId = params.get('demo') ?? '';
+  const routeRunId = params.get('run');
   const encodedBatch = params.get('demos');
   const batchIds = useMemo(() => demoId ? analysisBatchIds(demoId, encodedBatch) : [], [demoId, encodedBatch]);
   const batchKey = batchIds.join(',');
@@ -273,8 +275,16 @@ export function AnalysisPage() {
     setSource('loading');
     setLifecycle(null);
     void loadDemoAnalysis(demoId, commands, controller.signal, {
+      runId: routeRunId,
       onLifecycle: (status) => {
         if (active) setLifecycle(status);
+      },
+      onRun: (run) => {
+        if (!active) return;
+        setLifecycle(run.status === 'completed' ? 'ready' : run.status === 'failed' || run.status === 'interrupted' ? 'failed' : 'analyzing');
+        if (routeRunId !== run.id && run.demo_id === demoId) {
+          setParams((current) => persistPrimaryAnalysisRun(current, demoId, run.demo_id, run.id), { replace: true });
+        }
       },
     })
       .then((response) => {
@@ -295,7 +305,7 @@ export function AnalysisPage() {
       active = false;
       controller.abort();
     };
-  }, [batchIds.length, demoId]);
+  }, [batchIds.length, demoId, routeRunId, setParams]);
 
   useEffect(() => {
     if (batchIds.length <= 1) {
@@ -597,10 +607,7 @@ export function AnalysisPage() {
             <span>{msg("m0578")}</span>
               <label>
                 <select value={demoId} onChange={(event) => {
-                    const next = updateAnalysisNavigation(params, { round: 1, playerId: null });
-                    next.set('demo', event.target.value);
-                    next.set('demos', batchKey);
-                    setParams(next);
+                    setParams(selectBatchAnalysisDemo(params, event.target.value, batchKey));
                   }} aria-label={msg("m0280")}>
                     {batchIds.map((id, index) => {
                       const state = batchStates[id];

@@ -617,6 +617,39 @@ mod tests {
 
     use super::*;
 
+    async fn persist_completed_analysis(
+        storage: &vibe_cs_storage::Storage,
+        analysis: MatchAnalysis,
+    ) {
+        let demo = storage.get_demo(analysis.demo_id).await.unwrap().unwrap();
+        let fingerprint = vibe_cs_domain::AnalysisInputFingerprint {
+            sha256: demo.content_sha256.unwrap(),
+            size: demo.file_size,
+        };
+        storage
+            .set_demo_status(demo.id, vibe_cs_domain::DemoStatus::Discovered)
+            .await
+            .unwrap();
+        let run_id = storage.start_analysis_run(demo.id).await.unwrap().run.id;
+        storage
+            .bind_analysis_run_input(run_id, fingerprint.clone())
+            .await
+            .unwrap();
+        storage.mark_analysis_parser_started(run_id).await.unwrap();
+        storage
+            .mark_analysis_input_revalidation_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_projection_started(run_id)
+            .await
+            .unwrap();
+        storage
+            .complete_analysis_run(run_id, analysis, fingerprint)
+            .await
+            .unwrap();
+    }
+
     fn analysis() -> MatchAnalysis {
         MatchAnalysis {
             demo_id: Uuid::nil(),
@@ -885,14 +918,14 @@ mod tests {
                 team_b_score: Some(0),
                 player_names: vec!["Player One".to_owned()],
                 remark: String::new(),
-                content_sha256: None,
+                content_sha256: Some("a".repeat(64)),
                 file_size: 128,
                 created_at: now,
                 updated_at: now,
             })
             .await
             .expect("demo");
-        storage.put_analysis(analysis()).await.expect("analysis");
+        persist_completed_analysis(&storage, analysis()).await;
         let mut config = AppConfig::default();
         config.llm.provider = "local".to_owned();
         config.llm.model = "review-model".to_owned();

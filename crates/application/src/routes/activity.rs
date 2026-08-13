@@ -2,7 +2,7 @@ use axum::{Json, Router, extract::State, routing::get};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use vibe_cs_domain::{
-    DemoRecord, DemoStatus, JobStatus, MatchDownloadJob, MatchDownloadStatus, RecordingJob,
+    AnalysisRun, AnalysisRunStatus, JobStatus, MatchDownloadJob, MatchDownloadStatus, RecordingJob,
     SteamConfig,
 };
 use vibe_cs_integrations::is_steam_id;
@@ -119,7 +119,12 @@ async fn list_activities(
                         .is_some_and(|steam_id| owner_steam_id.as_deref() == Some(steam_id));
                 download_activity(job, retryable)
             }
-            ActivitySource::Analysis(demo) => analysis_activity(demo),
+            ActivitySource::Analysis {
+                run,
+                demo,
+                retryable,
+                result_available,
+            } => analysis_activity(run, demo.display_name, retryable, result_available),
         };
         items.push(item);
     }
@@ -301,29 +306,35 @@ fn download_activity(job: MatchDownloadJob, retryable: bool) -> ActivityItem {
     }
 }
 
-fn analysis_activity(demo: DemoRecord) -> ActivityItem {
-    let available_actions = match demo.status {
-        DemoStatus::Failed => vec!["retry_analysis", "open_library"],
-        DemoStatus::Ready => vec!["open_analysis", "open_library"],
-        _ => vec!["open_library"],
-    };
+fn analysis_activity(
+    run: AnalysisRun,
+    subject: String,
+    retryable: bool,
+    result_available: bool,
+) -> ActivityItem {
+    let mut available_actions = Vec::with_capacity(2);
+    if retryable {
+        available_actions.push("retry_analysis");
+    } else if run.status == AnalysisRunStatus::Completed && result_available {
+        available_actions.push("open_analysis");
+    }
+    available_actions.push("open_library");
     ActivityItem {
-        id: format!("analysis:{}", demo.id),
+        id: format!("analysis:{}", run.id),
         kind: "analysis",
         subtype: None,
-        job_id: None,
-        context_id: Some(demo.id.to_string()),
-        subject: Some(demo.display_name),
-        status: demo_status(demo.status),
-        stage: None,
+        job_id: Some(run.id.to_string()),
+        context_id: Some(run.demo_id.to_string()),
+        subject: Some(subject),
+        status: analysis_run_status(run.status),
+        stage: Some(analysis_run_stage(run.stage).to_owned()),
         progress_percent: None,
         completed_units: None,
         total_units: None,
         unit: None,
-        // DemoRecord currently persists only the failure state, not the parser error text.
-        error: None,
-        created_at: demo.created_at,
-        updated_at: demo.updated_at,
+        error: run.error,
+        created_at: run.created_at,
+        updated_at: run.updated_at,
         available_actions,
     }
 }
@@ -367,14 +378,25 @@ const fn match_download_status(status: MatchDownloadStatus) -> &'static str {
     }
 }
 
-const fn demo_status(status: DemoStatus) -> &'static str {
+const fn analysis_run_status(status: AnalysisRunStatus) -> &'static str {
     match status {
-        DemoStatus::Discovered => "discovered",
-        DemoStatus::Indexing => "indexing",
-        DemoStatus::Ready => "completed",
-        DemoStatus::Analyzing => "analyzing",
-        DemoStatus::Failed => "failed",
-        DemoStatus::Missing => "missing",
+        AnalysisRunStatus::Queued => "queued",
+        AnalysisRunStatus::Running => "running",
+        AnalysisRunStatus::Completed => "completed",
+        AnalysisRunStatus::Failed | AnalysisRunStatus::Interrupted => "failed",
+    }
+}
+
+const fn analysis_run_stage(stage: vibe_cs_domain::AnalysisRunStage) -> &'static str {
+    match stage {
+        vibe_cs_domain::AnalysisRunStage::ValidatingInput => "validating_input",
+        vibe_cs_domain::AnalysisRunStage::ParserQueued => "parser_queued",
+        vibe_cs_domain::AnalysisRunStage::ParserRunning => "parser_running",
+        vibe_cs_domain::AnalysisRunStage::VerifyingInputAfterParse => "verifying_input_after_parse",
+        vibe_cs_domain::AnalysisRunStage::Projecting => "projecting",
+        vibe_cs_domain::AnalysisRunStage::Completed => "completed",
+        vibe_cs_domain::AnalysisRunStage::Failed => "failed",
+        vibe_cs_domain::AnalysisRunStage::Interrupted => "interrupted",
     }
 }
 
@@ -382,6 +404,28 @@ const fn demo_status(status: DemoStatus) -> &'static str {
 mod tests {
     use super::*;
     use uuid::Uuid;
+
+    fn analysis_run(
+        status: AnalysisRunStatus,
+        stage: vibe_cs_domain::AnalysisRunStage,
+    ) -> AnalysisRun {
+        let now = Utc::now();
+        AnalysisRun {
+            id: Uuid::new_v4(),
+            demo_id: Uuid::new_v4(),
+            input_sha256: Some("a".repeat(64)),
+            input_size: Some(512),
+            status,
+            stage,
+            error: matches!(
+                status,
+                AnalysisRunStatus::Failed | AnalysisRunStatus::Interrupted
+            )
+            .then(|| "analysis stopped".to_owned()),
+            created_at: now,
+            updated_at: now,
+        }
+    }
 
     #[test]
     fn recording_retry_action_is_exposed_only_for_a_proven_latest_attempt() {
@@ -418,5 +462,36 @@ mod tests {
             vec!["retry_recording", "open_outputs"]
         );
         assert_eq!(superseded.available_actions, vec!["open_outputs"]);
+    }
+
+    #[test]
+    fn analysis_actions_and_public_status_follow_exact_attempt_truth() {
+        let completed = analysis_run(
+            AnalysisRunStatus::Completed,
+            vibe_cs_domain::AnalysisRunStage::Completed,
+        );
+        let with_result = analysis_activity(completed.clone(), "Demo".to_owned(), false, true);
+        let without_result = analysis_activity(completed, "Demo".to_owned(), false, false);
+        assert_eq!(
+            with_result.available_actions,
+            ["open_analysis", "open_library"]
+        );
+        assert_eq!(without_result.available_actions, ["open_library"]);
+
+        let interrupted = analysis_activity(
+            analysis_run(
+                AnalysisRunStatus::Interrupted,
+                vibe_cs_domain::AnalysisRunStage::Interrupted,
+            ),
+            "Demo".to_owned(),
+            true,
+            false,
+        );
+        assert_eq!(interrupted.status, "failed");
+        assert_eq!(interrupted.stage.as_deref(), Some("interrupted"));
+        assert_eq!(
+            interrupted.available_actions,
+            ["retry_analysis", "open_library"]
+        );
     }
 }

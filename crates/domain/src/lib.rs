@@ -2,6 +2,7 @@
 
 mod agent_proposal;
 mod analysis;
+mod analysis_run;
 mod audio_intelligence;
 mod config;
 mod cosmetics;
@@ -16,6 +17,7 @@ mod recording;
 
 pub use agent_proposal::*;
 pub use analysis::*;
+pub use analysis_run::*;
 pub use audio_intelligence::*;
 pub use config::*;
 pub use cosmetics::*;

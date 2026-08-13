@@ -1,9 +1,12 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 
 import { msg, msgf } from '../i18n';
+import { parseAnalysisRun, parseAnalysisRunDetail } from './analysisRunContract';
 import type {
   ActivityFeed,
   ActivityQuery,
+  AnalysisRun,
+  AnalysisRunDetail,
   AnalysisWorkspace,
   AgentChatInput,
   AgentChatResult,
@@ -579,13 +582,23 @@ export const commands = {
     '/playback/stop',
     { method: 'POST', body: {}, timeoutMs: 15_000 },
   ),
-  analyzeDemo: async (id: string, signal?: AbortSignal) => {
-    const record = await request<MatchAnalysisRecord>(`/demos/${encodeURIComponent(id)}/analysis`, {
+  startAnalysisRun: async (id: string, signal?: AbortSignal) =>
+    parseAnalysisRun(await request<AnalysisRun>(`/demos/${encodeURIComponent(id)}/analysis-runs`, {
       method: 'POST',
-      body: {},
       signal,
-      timeoutMs: 15 * 60_000,
-    });
+    })),
+  getActiveAnalysisRun: async (id: string, signal?: AbortSignal) =>
+    parseAnalysisRunDetail(await request<AnalysisRunDetail>(
+      `/demos/${encodeURIComponent(id)}/analysis-runs/active`, { signal },
+    )),
+  getAnalysisRun: async (id: string, signal?: AbortSignal) =>
+    parseAnalysisRunDetail(await request<AnalysisRunDetail>(
+      `/analysis-runs/${encodeURIComponent(id)}`, { signal },
+    )),
+  getAnalysisRunResult: async (id: string, signal?: AbortSignal) => {
+    const record = await request<MatchAnalysisRecord>(
+      `/analysis-runs/${encodeURIComponent(id)}/result`, { signal },
+    );
     return normalizeAnalysis(record);
   },
   getAnalysis: async (id: string, signal?: AbortSignal) => {

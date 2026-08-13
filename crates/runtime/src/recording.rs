@@ -1544,6 +1544,36 @@ mod tests {
 
     use super::*;
 
+    async fn persist_completed_analysis(
+        storage: &Storage,
+        analysis: MatchAnalysis,
+    ) -> vibe_cs_storage::Result<()> {
+        let demo = storage
+            .get_demo(analysis.demo_id)
+            .await?
+            .expect("fixture demo");
+        let fingerprint = vibe_cs_domain::AnalysisInputFingerprint {
+            sha256: demo.content_sha256.expect("fixture fingerprint"),
+            size: demo.file_size,
+        };
+        storage
+            .set_demo_status(demo.id, vibe_cs_domain::DemoStatus::Discovered)
+            .await?;
+        let run_id = storage.start_analysis_run(demo.id).await?.run.id;
+        storage
+            .bind_analysis_run_input(run_id, fingerprint.clone())
+            .await?;
+        storage.mark_analysis_parser_started(run_id).await?;
+        storage
+            .mark_analysis_input_revalidation_started(run_id)
+            .await?;
+        storage.mark_analysis_projection_started(run_id).await?;
+        storage
+            .complete_analysis_run(run_id, analysis, fingerprint)
+            .await
+            .map(|_| ())
+    }
+
     #[derive(Debug)]
     struct FakeBackend {
         output_dir: PathBuf,
@@ -2233,8 +2263,9 @@ mod tests {
             })
             .await
             .expect("demo");
-        storage
-            .put_analysis(MatchAnalysis {
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id,
                 map_name: "de_test".to_owned(),
                 tick_rate: 64.0,
@@ -2257,9 +2288,10 @@ mod tests {
                 }],
                 rounds: Vec::new(),
                 highlights: Vec::new(),
-            })
-            .await
-            .expect("analysis");
+            },
+        )
+        .await
+        .expect("analysis");
         let job = RecordingJob {
             id: Uuid::new_v4(),
             retry_of: None,
@@ -2313,7 +2345,9 @@ mod tests {
             .expect("analysis lookup")
             .expect("analysis");
         storage.put_demo(demo).await.expect("demo");
-        storage.put_analysis(analysis).await.expect("analysis");
+        persist_completed_analysis(&storage, analysis)
+            .await
+            .expect("analysis");
         let backend = Arc::new(FakeBackend {
             output_dir: root.path().to_path_buf(),
             wait_for_cancel,
@@ -2390,7 +2424,12 @@ mod tests {
             .await
             .expect("current recording config");
         storage
-            .put_analysis(MatchAnalysis {
+            .delete_analysis(job.items[0].demo_id)
+            .await
+            .expect("replace fixture analysis");
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id: job.items[0].demo_id,
                 map_name: "de_test".to_owned(),
                 tick_rate: 128.0,
@@ -2413,9 +2452,10 @@ mod tests {
                 }],
                 rounds: Vec::new(),
                 highlights: Vec::new(),
-            })
-            .await
-            .expect("authoritative analysis");
+            },
+        )
+        .await
+        .expect("authoritative analysis");
         let backend = Arc::new(ObservingPreflightBackend::default());
         let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
 
@@ -2560,7 +2600,12 @@ mod tests {
         let mut conflicting_player = player.clone();
         conflicting_player.steam_id = "other-player".to_owned();
         storage
-            .put_analysis(MatchAnalysis {
+            .delete_analysis(job.items[0].demo_id)
+            .await
+            .expect("replace fixture analysis");
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
                 demo_id: job.items[0].demo_id,
                 map_name: "de_test".to_owned(),
                 tick_rate: 64.0,
@@ -2570,9 +2615,10 @@ mod tests {
                 players: vec![player, conflicting_player],
                 rounds: Vec::new(),
                 highlights: Vec::new(),
-            })
-            .await
-            .expect("ambiguous observer analysis");
+            },
+        )
+        .await
+        .expect("ambiguous observer analysis");
         let backend = Arc::new(ObservingPreflightBackend::default());
         let port = RuntimeRecordingPort::new(storage, backend.clone());
 

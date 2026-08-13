@@ -10,7 +10,7 @@ import {
   StopCircle,
   Video,
 } from 'lucide-react';
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
@@ -19,6 +19,8 @@ import type {
   ActivityItem,
   ActivityKind,
   ActivityStatus,
+  AnalysisRun,
+  AnalysisRunDetail,
 } from '../../shared/desktop/dto';
 import { type MessageKey, useI18n } from '../../shared/i18n';
 import { Badge, Button, Card, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
@@ -28,6 +30,7 @@ import {
   activityUnitLabel,
   type ActivityStateFilter,
 } from './activityPresentation';
+import { AnalysisRunInspector, analysisStageKey } from './AnalysisRunInspector';
 
 type ActivityWorkspaceProps = {
   items: ActivityItem[];
@@ -35,6 +38,9 @@ type ActivityWorkspaceProps = {
   busyId: string | null;
   onSelect: (id: string) => void;
   onAction: (item: ActivityItem, action: ActivityAction) => void;
+  analysisDetail?: AnalysisRunDetail | null;
+  analysisDetailLoading?: boolean;
+  analysisDetailError?: string | null;
 };
 
 const kindKeys: Record<ActivityKind, MessageKey> = {
@@ -107,22 +113,26 @@ function actionIcon(action: ActivityAction) {
 export async function executeActivityAction(
   item: ActivityItem,
   action: ActivityAction,
-): Promise<ActivityStatus | null> {
+): Promise<{ status: ActivityStatus | null; analysisRun: AnalysisRun | null }> {
   if (action === 'cancel' && item.job_id) {
     if (item.kind === 'recording') await commands.cancelRecordingJob(item.job_id);
     else if (item.kind === 'export') await commands.cancelExportJob(item.job_id);
     else if (item.kind === 'download') await commands.cancelMatchDownload(item.job_id);
   } else if (action === 'retry_analysis' && item.context_id) {
-    await commands.analyzeDemo(item.context_id);
+    const run = await commands.startAnalysisRun(item.context_id);
+    return {
+      status: run.status === 'interrupted' ? 'failed' : run.status,
+      analysisRun: run,
+    };
   } else if (action === 'retry_download' && item.context_id) {
     const job = await commands.downloadMatchDemo(item.context_id);
-    return job.status;
+    return { status: job.status, analysisRun: null };
   } else if (action === 'retry_recording' && item.job_id) {
     const plan = await commands.planRecordingRetry(item.job_id);
     const execution = await commands.executeRecordingPlan(plan.plan_id, false);
-    return execution.status;
+    return { status: execution.status, analysisRun: null };
   }
-  return null;
+  return { status: null, analysisRun: null };
 }
 
 export function activityActionNotice(status: ActivityStatus | null): {
@@ -144,6 +154,9 @@ export function ActivityWorkspace({
   busyId,
   onSelect,
   onAction,
+  analysisDetail = null,
+  analysisDetailLoading = false,
+  analysisDetailError = null,
 }: ActivityWorkspaceProps) {
   const { locale, t } = useI18n();
   const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
@@ -179,7 +192,9 @@ export function ActivityWorkspace({
                 {items.map((item) => {
                   const progress = activityProgressLabel(item);
                   const units = activityUnitLabel(item);
-                  const stageKey = item.stage ? recordingStageKeys[item.stage] : undefined;
+                  const stageKey = item.stage
+                    ? recordingStageKeys[item.stage] ?? (item.kind === 'analysis' ? analysisStageKey(item.stage) ?? undefined : undefined)
+                    : undefined;
                   const active = selected?.id === item.id;
                   return (
                     <tr
@@ -235,11 +250,19 @@ export function ActivityWorkspace({
               <div><dt>{t('activity.jobId')}</dt><dd title={selected.job_id ?? undefined}>{selected.job_id ?? t('activity.noJobId')}</dd></div>
               <div><dt>{t('activity.contextId')}</dt><dd title={selected.context_id ?? undefined}>{selected.context_id ?? '—'}</dd></div>
               <div><dt>{t('activity.state')}</dt><dd><code>{selected.status}</code></dd></div>
-              <div><dt>{t('activity.stage')}</dt><dd>{selected.stage ? (recordingStageKeys[selected.stage] ? t(recordingStageKeys[selected.stage]!) : selected.stage) : t('activity.noStage')}</dd></div>
+              <div><dt>{t('activity.stage')}</dt><dd>{selected.stage ? (recordingStageKeys[selected.stage] ? t(recordingStageKeys[selected.stage]!) : analysisStageKey(selected.stage) ? t(analysisStageKey(selected.stage)!) : selected.stage) : t('activity.noStage')}</dd></div>
               <div><dt>{t('activity.progress')}</dt><dd>{activityProgressLabel(selected) ?? activityUnitLabel(selected) ?? '—'}</dd></div>
               <div><dt>{t('activity.created')}</dt><dd><time dateTime={selected.created_at}>{dateFormatter.format(new Date(selected.created_at))}</time></dd></div>
               <div><dt>{t('activity.updated')}</dt><dd><time dateTime={selected.updated_at}>{dateFormatter.format(new Date(selected.updated_at))}</time></dd></div>
             </dl>
+
+            {selected.kind === 'analysis' ? (
+              <AnalysisRunInspector
+                detail={analysisDetail}
+                loading={analysisDetailLoading}
+                error={analysisDetailError}
+              />
+            ) : null}
 
             {selected.error ? (
               <Notice tone="danger" title={t('activity.error')}>{selected.error}</Notice>
@@ -342,6 +365,49 @@ export function ActivityPage() {
   } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const preferredSelection = useRef<string | null>(null);
+  const [analysisDetail, setAnalysisDetail] = useState<AnalysisRunDetail | null>(null);
+  const [analysisDetailLoading, setAnalysisDetailLoading] = useState(false);
+  const [analysisDetailError, setAnalysisDetailError] = useState<string | null>(null);
+
+  const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
+  const selectedAnalysisRunId = selected?.kind === 'analysis' ? selected.job_id : null;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let timer: number | undefined;
+    let disposed = false;
+    setAnalysisDetail(null);
+    setAnalysisDetailError(null);
+    if (!selectedAnalysisRunId) {
+      setAnalysisDetailLoading(false);
+      return () => controller.abort();
+    }
+    setAnalysisDetailLoading(true);
+    const load = async () => {
+      try {
+        const detail = await commands.getAnalysisRun(selectedAnalysisRunId, controller.signal);
+        if (disposed) return;
+        setAnalysisDetail(detail);
+        setAnalysisDetailError(null);
+        setAnalysisDetailLoading(false);
+        if (detail.run.status === 'queued' || detail.run.status === 'running') {
+          timer = window.setTimeout(() => void load(), 1_500);
+        }
+      } catch (cause) {
+        if (disposed || controller.signal.aborted) return;
+        setAnalysisDetail(null);
+        setAnalysisDetailError(readableError(cause));
+        setAnalysisDetailLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      disposed = true;
+      controller.abort();
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [revision, selectedAnalysisRunId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -366,10 +432,13 @@ export function ActivityPage() {
         setTotal(response.total);
         setSummary(response.summary);
         setSelectedId((current) => (
-          current && response.items.some((item) => item.id === current)
+          preferredSelection.current && response.items.some((item) => item.id === preferredSelection.current)
+            ? preferredSelection.current
+            : current && response.items.some((item) => item.id === current)
             ? current
             : response.items[0]?.id ?? null
         ));
+        preferredSelection.current = null;
         setError(null);
         if (response.summary.active > 0) {
           timer = window.setTimeout(() => void load(true), 1_500);
@@ -401,9 +470,18 @@ export function ActivityPage() {
     setError(null);
     setNotice(null);
     try {
-      const persistedStatus = await executeActivityAction(item, action);
-      const outcome = activityActionNotice(persistedStatus);
-      setNotice({ tone: outcome.tone, message: t(outcome.key) });
+      const result = await executeActivityAction(item, action);
+      const outcome = activityActionNotice(result.status);
+      setNotice({
+        tone: outcome.tone,
+        message: result.analysisRun
+          ? `${t('activity.analysisRetryStarted')} · ${result.analysisRun.id} · ${t(analysisStageKey(result.analysisRun.stage)!)}`
+          : t(outcome.key),
+      });
+      if (result.analysisRun) {
+        preferredSelection.current = `analysis:${result.analysisRun.id}`;
+        setSelectedId(preferredSelection.current);
+      }
       setRevision((current) => current + 1);
     } catch (cause) {
       setError(readableError(cause));
@@ -491,6 +569,9 @@ export function ActivityPage() {
           busyId={busyId}
           onSelect={setSelectedId}
           onAction={(item, action) => void runAction(item, action)}
+          analysisDetail={analysisDetail}
+          analysisDetailLoading={analysisDetailLoading}
+          analysisDetailError={analysisDetailError}
         />
       )}
     </div>

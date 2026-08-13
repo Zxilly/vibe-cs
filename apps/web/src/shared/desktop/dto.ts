@@ -592,6 +592,56 @@ export type MatchAnalysisRecord = {
   insights: AnalysisInsightsRecord;
 };
 
+export type AnalysisRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'interrupted';
+
+export type AnalysisRunStage =
+  | 'validating_input'
+  | 'parser_queued'
+  | 'parser_running'
+  | 'verifying_input_after_parse'
+  | 'projecting'
+  | 'completed'
+  | 'failed'
+  | 'interrupted';
+
+export type AnalysisRunEventCode =
+  | 'input_validation_started'
+  | 'input_verified'
+  | 'parser_started'
+  | 'input_revalidation_started'
+  | 'projection_started'
+  | 'completed'
+  | 'failed'
+  | 'interrupted';
+
+/** Exact current analysis-run wire. Nullable fields are required by the service contract. */
+export type AnalysisRun = {
+  id: EntityId;
+  demo_id: EntityId;
+  input_sha256: string | null;
+  input_size: number | null;
+  status: AnalysisRunStatus;
+  stage: AnalysisRunStage;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AnalysisRunEvent = {
+  run_id: EntityId;
+  sequence: number;
+  stage: AnalysisRunStage;
+  message_code: AnalysisRunEventCode;
+  detail: string | null;
+  created_at: string;
+};
+
+export type AnalysisRunDetail = {
+  run: AnalysisRun;
+  events: AnalysisRunEvent[];
+  result_available: boolean;
+};
+
 export type LlmReviewScope = 'match' | 'highlights' | 'player';
 export type LlmReviewTone = 'analytical' | 'coach' | 'direct';
 

@@ -41,7 +41,7 @@ use vibe_cs_integrations::{
     GsiState, IntegrationError, LaunchCommand, MatchHistoryRequest, OpenAiClient, OpenAiConfig,
     SecretString, SteamMatchHistoryPort, SteamMatchReference, SteamWebClient,
     build_cs2_launch_command, decode_match_sharing_code, decompress_bz2_archive_cancellable,
-    discover_paths, parse_gsi_payload,
+    discover_paths, is_steam_id, parse_gsi_payload,
 };
 use vibe_cs_storage::Storage;
 
@@ -710,6 +710,24 @@ impl RuntimeIntegrationPort {
         config: &AppConfig,
         request: &Value,
     ) -> Result<Value, DomainError> {
+        let steam_id = config.steam.steam_id.as_str();
+        if !is_steam_id(steam_id) {
+            return Err(DomainError::DependencyUnavailable(
+                "Steam match downloads are not configured; connect a Steam account in Settings"
+                    .to_owned(),
+            ));
+        }
+        let web_api_key = config.steam.web_api_key.as_str();
+        if web_api_key.len() != 32
+            || !web_api_key
+                .bytes()
+                .all(|character| character.is_ascii_hexdigit())
+        {
+            return Err(DomainError::DependencyUnavailable(
+                "Steam match downloads are not configured; add a valid Web API key in Settings"
+                    .to_owned(),
+            ));
+        }
         let match_record_id = request
             .get("match_id")
             .and_then(Value::as_str)
@@ -721,7 +739,7 @@ impl RuntimeIntegrationPort {
             .await
             .map_err(|error| storage_error(&error))?
             .ok_or_else(|| DomainError::NotFound("Steam match".to_owned()))?;
-        if !config.steam.steam_id.is_empty() && record.steam_id != config.steam.steam_id {
+        if record.steam_id != steam_id {
             return Err(DomainError::NotFound("Steam match".to_owned()));
         }
         if let Some(job) = self
@@ -792,7 +810,7 @@ impl RuntimeIntegrationPort {
             .insert(job.id, cancellation.clone());
         let response_job = job.clone();
         let runtime = self.clone();
-        let api_key = config.steam.web_api_key.clone();
+        let api_key = web_api_key.to_owned();
         tokio::spawn(async move {
             runtime
                 .run_steam_download(job, record, api_key, cancellation)
@@ -2959,7 +2977,7 @@ mod tests {
     fn steam_config(known_share_code: String) -> SteamConfig {
         SteamConfig {
             steam_id: "76561198000000000".to_owned(),
-            web_api_key: "fake-web-api-key".to_owned(),
+            web_api_key: "a".repeat(32),
             authentication_code: "ABCD-EFGHI-JKLM".to_owned(),
             known_share_code,
             maximum_results: 20,
@@ -3874,6 +3892,157 @@ mod tests {
 
         assert_eq!(history["total"], 1);
         assert_eq!(history["items"][0]["map_name"], "de_nuke");
+    }
+
+    #[tokio::test]
+    async fn match_download_rejects_missing_credentials_without_persisting_a_job() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:42".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "42".to_owned(),
+            outcome_id: "420".to_owned(),
+            token: 42,
+            map_name: Some("de_anubis".to_owned()),
+            played_at: Some(now),
+            score: Some("13:10".to_owned()),
+            result: MatchHistoryResult::Win,
+            demo_status: MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_matches(vec![record.clone()])
+            .await
+            .expect("match");
+        let port = RuntimeIntegrationPort::new(storage.clone(), PathBuf::from("unused"));
+
+        let error = port
+            .request("match_history_download", json!({ "match_id": record.id }))
+            .await
+            .expect_err("missing Steam credentials must reject download");
+
+        assert!(matches!(error, DomainError::DependencyUnavailable(_)));
+        assert!(
+            storage
+                .list_match_download_jobs()
+                .await
+                .expect("download jobs")
+                .is_empty()
+        );
+        assert_eq!(
+            storage
+                .get_steam_match(record.id.clone())
+                .await
+                .expect("match lookup"),
+            Some(record)
+        );
+    }
+
+    #[tokio::test]
+    async fn match_download_rejects_a_missing_web_api_key_without_persisting_or_mutating() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut config = AppConfig::default();
+        config.steam.steam_id = "76561198000000000".to_owned();
+        storage.put_config(config).await.expect("config");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:42".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "42".to_owned(),
+            outcome_id: "420".to_owned(),
+            token: 42,
+            map_name: Some("de_anubis".to_owned()),
+            played_at: Some(now),
+            score: Some("13:10".to_owned()),
+            result: MatchHistoryResult::Win,
+            demo_status: MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_matches(vec![record.clone()])
+            .await
+            .expect("match");
+        let port = RuntimeIntegrationPort::new(storage.clone(), PathBuf::from("unused"));
+
+        let error = port
+            .request("match_history_download", json!({ "match_id": record.id }))
+            .await
+            .expect_err("missing Web API key must reject download");
+
+        assert!(matches!(error, DomainError::DependencyUnavailable(_)));
+        assert!(
+            storage
+                .list_match_download_jobs()
+                .await
+                .expect("download jobs")
+                .is_empty()
+        );
+        assert_eq!(
+            storage
+                .get_steam_match(record.id.clone())
+                .await
+                .expect("match lookup"),
+            Some(record)
+        );
+    }
+
+    #[tokio::test]
+    async fn match_download_rejects_a_previous_accounts_record_without_persisting_a_job() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut config = AppConfig::default();
+        config.steam.steam_id = "76561198000000001".to_owned();
+        config.steam.web_api_key = "a".repeat(32);
+        storage.put_config(config).await.expect("config");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:42".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "42".to_owned(),
+            outcome_id: "420".to_owned(),
+            token: 42,
+            map_name: Some("de_anubis".to_owned()),
+            played_at: Some(now),
+            score: Some("13:10".to_owned()),
+            result: MatchHistoryResult::Win,
+            demo_status: MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_matches(vec![record.clone()])
+            .await
+            .expect("match");
+        let port = RuntimeIntegrationPort::new(storage.clone(), PathBuf::from("unused"));
+
+        let error = port
+            .request("match_history_download", json!({ "match_id": record.id }))
+            .await
+            .expect_err("previous account match must not be downloadable");
+
+        assert!(matches!(error, DomainError::NotFound(_)));
+        assert!(
+            storage
+                .list_match_download_jobs()
+                .await
+                .expect("download jobs")
+                .is_empty()
+        );
+        assert_eq!(
+            storage
+                .get_steam_match(record.id.clone())
+                .await
+                .expect("match lookup"),
+            Some(record)
+        );
     }
 
     #[tokio::test]

@@ -29,9 +29,12 @@ apps/demo-worker ──> demo + domain
 apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 ```
 
-- `domain` contains serializable records, validation and errors and performs no I/O.
-- `storage` owns the current SQLite schema, explicit transactions, project snapshots, jobs and library
-  records.
+- `domain` contains serializable records, validation and errors and performs no I/O. The current
+  evidence-annotation contract binds user text, free-form tags and open/resolved state to one exact
+  `demo_id/evidence_id/round/tick` locator.
+- `storage` owns the current SQLite schema, explicit transactions, project snapshots, jobs, library
+  records, evidence projections and canonical evidence annotations. Annotation creation verifies the
+  locator against `evidence_search_items`; Demo deletion cascades to annotations.
 - `demo` owns safe discovery, ZIP extraction, hashing, Source 2 parsing, entity replay, insights,
   heatmaps, highlight classification and narrowly bounded malformed-demo repair planning.
 - `cosmetics` inspects and rewrites a fixed set of observed Source 2 entity fields to a new demo.
@@ -53,7 +56,9 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   publication. The concrete movie backend is managed HLAE capture followed by Windows Media
   Foundation encoding.
 - `application` owns use-case validation, status mapping, bounded uploads and media reads,
-  active-task tracking and mutation events. It is private to the desktop process.
+  active-task tracking, mutation events and the Activity read model. Activity merges persisted
+  recording, export, download and analysis facts, then applies stable ordering, filters and a bounded
+  page; it is not an event-history store or a database cursor. It is private to the desktop process.
 - `agent` owns the in-process Rig model/tool loop, provider URL policy, streaming limits, and
   deterministic read/proposal tools. It has no filesystem, shell, or process execution tool.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
@@ -61,7 +66,12 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and
   process lifecycle.
 - `web` keeps DTOs at the desktop command boundary and uses feature-local state for analysis, queue,
-  editor and settings workflows.
+  editor and settings workflows. Library query state is URL-owned and sent to the SQLite-backed
+  search/filter/stable-sort/page boundary; page selection never implies a client-side full-library
+  sort. The Openings workspace is a deterministic projection of the loaded analysis: it accepts only
+  the earliest kill by tick in each round, resolves both participants through canonical player IDs,
+  and marks the round unavailable when that first event cannot be verified. It never promotes a later
+  kill or infers trades, KAST or rating.
 
 Platform commands and process spawning do not appear in route handlers or domain records.
 
@@ -102,6 +112,11 @@ Temporary files are created in the target filesystem and become visible only aft
 an atomic or no-clobber publication step. Replay and avatar caches have entry and byte ceilings;
 proxy ownership and cleanup are persisted explicitly.
 
+Evidence annotations also live in SQLite as current-schema records. They survive a normal desktop
+restart, are page-queryable by Demo, evidence ID or review state, and are removed with their owning
+Demo. They are not aliases for the older Demo remark field, an algorithmic highlight tag, or an
+Agent thread.
+
 ## Command and task flow
 
 The application dispatcher validates identity and command shape before calling a narrow port. A concrete runtime port
@@ -122,7 +137,13 @@ queued -> preparing -> running -> completed
 Exports, recordings and Steam downloads left active by a stopped host are reconciled to a terminal
 state on the next startup; capture and downloads are not resumed from an ambiguous point. Mutations
 publish desktop change events. Background render/capture progress is read from persistent job
-records. Release demo parsing runs in a single globally-admitted, integrity-pinned worker process;
+records. The runtime state exposes the durable active recording job ID separately from the richer
+job document, so the renderer can still address cancellation while status hydration is pending or
+temporarily unavailable. Startup recovery verifies job-scoped staging/publication evidence: a
+provably published output may complete, while ambiguous running/cancelling work is terminalized.
+This is fail-safe reconciliation, not continuation from an assumed capture tick.
+
+Release demo parsing runs in a single globally-admitted, integrity-pinned worker process;
 the desktop locks the worker and its parent across process creation, and the worker enforces parser
 thread, segment, decompression and aggregate-event budgets. Development without a generated worker
 manifest uses only the cooperative Source 2 parser in-process. The worker defaults to the vendored
@@ -132,6 +153,10 @@ override; Fast parser errors are returned without retrying the cooperative parse
 `DemoEngine` default stays on the cooperative parser so cancellation never depends on interrupting
 an in-process parallel parse. Fast statistics do not embed dense entity
 snapshots; replay and heatmap use positioned events as their explicit sparse fallback.
+
+The desktop, worker binary and worker manifest form one current release contract. They must be built
+from the same source. A worker response missing a current required field is rejected; the unreleased
+product does not add versioned response shells or fallback decoding for stale sidecars.
 
 Movie capture is moving to an offline deterministic pipeline:
 

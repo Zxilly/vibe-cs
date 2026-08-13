@@ -13,6 +13,7 @@ import {
   MatchHistoryAnalysisLink,
   MatchHistoryDownloadControl,
   MatchHistoryEmptyWorkspace,
+  MatchHistoryPage,
 } from './MatchHistoryPage';
 
 function match(overrides: Partial<MatchHistoryItem> = {}): MatchHistoryItem {
@@ -36,6 +37,16 @@ function match(overrides: Partial<MatchHistoryItem> = {}): MatchHistoryItem {
 }
 
 describe('matchesCsv', () => {
+  it('fails closed when the route does not use the current Match History query schema', () => {
+    expect(() => renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        { initialEntries: ['/match-history?search=nuke'] },
+        createElement(MatchHistoryPage),
+      ),
+    )).toThrow('Invalid Match History query parameter: search');
+  });
+
   it('quotes every cell and neutralizes spreadsheet formulas', () => {
     const value = match({
       match_id: '=unsafe',

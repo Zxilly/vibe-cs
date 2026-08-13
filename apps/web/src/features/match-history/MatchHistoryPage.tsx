@@ -12,8 +12,8 @@ import {
   Settings2,
   Square,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
 import type { MatchDownloadJob, MatchHistoryItem, Paginated } from '../../shared/desktop/dto';
@@ -21,8 +21,16 @@ import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button, Card, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
 import { LibrarySectionNav } from '../library/LibrarySectionNav';
+import {
+  MATCH_HISTORY_PAGE_SIZES,
+  MAXIMUM_MATCH_HISTORY_SEARCH_CHARACTERS,
+  commitCurrentMatchHistoryPage,
+  matchHistoryQueryFromParams,
+  matchHistoryQueryToParams,
+  patchMatchHistoryQuery,
+  type MatchHistoryQueryState,
+} from './matchHistoryQuery';
 
-const PAGE_SIZE = 20;
 const EXPORT_PAGE_SIZE = 200;
 const TERMINAL_DOWNLOAD_STATES = new Set<MatchDownloadJob['status']>(['completed', 'cancelled', 'failed']);
 
@@ -175,6 +183,14 @@ export function MatchHistoryEmptyWorkspace({
 
 export function MatchHistoryPage() {
   const { locale, t } = useI18n();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parameterKey = searchParams.toString();
+  const historyQuery = useMemo(
+    () => matchHistoryQueryFromParams(new URLSearchParams(parameterKey)),
+    [parameterKey],
+  );
+  const currentHistoryQuery = useRef(historyQuery);
+  currentHistoryQuery.current = historyQuery;
   const downloadLabels: DownloadLabels = {
     imported: t('history.imported'),
     redownload: t('history.redownload'),
@@ -201,9 +217,7 @@ export function MatchHistoryPage() {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [matches, setMatches] = useState<MatchHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [queryInput, setQueryInput] = useState('');
-  const [query, setQuery] = useState('');
+  const [queryInput, setQueryInput] = useState(historyQuery.search);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Record<string, MatchDownloadJob>>({});
   const [taskMessage, setTaskMessage] = useState<string | null>(null);
@@ -212,13 +226,35 @@ export function MatchHistoryPage() {
   const cancelAction = useAsyncAction<MatchDownloadJob>();
   const exportAction = useAsyncAction<MatchHistoryItem[]>();
 
-  const loadPage = useCallback(async (requestedPage: number, signal?: AbortSignal) => {
-    const response = await commands.listMatchHistory(requestedPage, PAGE_SIZE, signal, query);
-    setMatches(response.items);
-    setTotal(response.total);
-    setPage(response.page);
-    setLoadError(null);
-  }, [query]);
+  const updateHistoryQuery = useCallback((
+    patch: Partial<MatchHistoryQueryState>,
+    replace = false,
+  ) => {
+    const next = patchMatchHistoryQuery(historyQuery, patch);
+    setSearchParams(matchHistoryQueryToParams(next), { replace });
+  }, [historyQuery, setSearchParams]);
+
+  const loadPage = useCallback(async (
+    requestedQuery: MatchHistoryQueryState,
+    signal?: AbortSignal,
+  ) => {
+    return commitCurrentMatchHistoryPage(
+      requestedQuery,
+      () => commands.listMatchHistory(
+        requestedQuery.page,
+        requestedQuery.pageSize,
+        signal,
+        requestedQuery.search,
+      ),
+      () => currentHistoryQuery.current,
+      (response) => {
+        setMatches(response.items);
+        setTotal(response.total);
+        setLoadError(null);
+      },
+      signal,
+    );
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -229,7 +265,7 @@ export function MatchHistoryPage() {
           && config.steam_has_authentication_code
           && config.steam_has_share_code,
         )),
-      loadPage(page, controller.signal),
+      loadPage(historyQuery, controller.signal),
       commands.listActiveMatchDownloadJobs(controller.signal).then((activeJobs) => {
         setJobs(indexMatchDownloadJobs(activeJobs));
       }),
@@ -249,18 +285,21 @@ export function MatchHistoryPage() {
       }
     });
     return () => controller.abort();
-  }, [loadPage, page]);
+  }, [historyQuery, loadPage]);
+
+  useEffect(() => {
+    setQueryInput(historyQuery.search);
+  }, [historyQuery.search]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const normalized = queryInput.trim();
-      if (normalized !== query) {
-        setPage(1);
-        setQuery(normalized);
+      if (normalized !== historyQuery.search) {
+        updateHistoryQuery({ search: normalized }, true);
       }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [query, queryInput]);
+  }, [historyQuery.search, queryInput, updateHistoryQuery]);
 
   const activeJobIds = useMemo(
     () => Object.values(jobs).filter(isDownloadActive).map((job) => job.id).sort().join(','),
@@ -286,7 +325,7 @@ export function MatchHistoryPage() {
       });
       if (completed) {
         setTaskMessage(msg("m0035"));
-        await loadPage(page, controller.signal).catch(() => undefined);
+        await loadPage(historyQuery, controller.signal).catch(() => undefined);
       }
     };
     void poll();
@@ -295,13 +334,22 @@ export function MatchHistoryPage() {
       controller.abort();
       window.clearInterval(timer);
     };
-  }, [activeJobIds, loadPage, page]);
+  }, [activeJobIds, historyQuery, loadPage]);
 
   const sync = async () => {
     const result = await syncAction.run(() => commands.syncMatchHistory(), msg("m0890"));
     if (!result) return;
-    setPage(1);
-    await loadPage(1).catch((error: unknown) => setLoadError(readableError(error)));
+    const latestQuery = currentHistoryQuery.current;
+    const firstPageQuery = patchMatchHistoryQuery(latestQuery, { page: 1 });
+    if (latestQuery.page !== firstPageQuery.page) {
+      setSearchParams(matchHistoryQueryToParams(firstPageQuery));
+      return;
+    }
+    await loadPage(firstPageQuery).catch((error: unknown) => {
+      const requestedKey = matchHistoryQueryToParams(firstPageQuery).toString();
+      const currentKey = matchHistoryQueryToParams(currentHistoryQuery.current).toString();
+      if (requestedKey === currentKey) setLoadError(readableError(error));
+    });
   };
 
   const startDownload = async (match: MatchHistoryItem) => {
@@ -318,7 +366,7 @@ export function MatchHistoryPage() {
   const exportCsv = async () => {
     const exported = await exportAction.run(() => loadAllMatchHistory(
       (requestedPage, pageSize, search) => commands.listMatchHistory(requestedPage, pageSize, undefined, search),
-      query,
+      historyQuery.search,
     ));
     if (!exported) return;
     const url = URL.createObjectURL(new Blob([matchesCsv(exported)], { type: 'text/csv;charset=utf-8' }));
@@ -329,7 +377,7 @@ export function MatchHistoryPage() {
     URL.revokeObjectURL(url);
   };
 
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(total / historyQuery.pageSize));
 
   return (
     <div className="page page--match-history">
@@ -351,7 +399,36 @@ export function MatchHistoryPage() {
       {matches.length > 0 ? (
         <>
           <Card className="history-toolbar">
-            <form className="search-box" onSubmit={(event) => { event.preventDefault(); setPage(1); setQuery(queryInput.trim()); }}><Search size={15} /><input value={queryInput} onChange={(event) => setQueryInput(event.target.value)} placeholder={t('history.searchPlaceholder')} aria-label={t('history.searchLabel')} /></form>
+            <form
+              className="search-box"
+              onSubmit={(event) => {
+                event.preventDefault();
+                updateHistoryQuery({ search: queryInput.trim() });
+              }}
+            >
+              <Search size={15} />
+              <input
+                value={queryInput}
+                maxLength={MAXIMUM_MATCH_HISTORY_SEARCH_CHARACTERS}
+                onChange={(event) => setQueryInput(event.target.value)}
+                placeholder={t('history.searchPlaceholder')}
+                aria-label={t('history.searchLabel')}
+              />
+            </form>
+            <label className="compact-select">
+              <span>{t('library.pagination.pageSize')}</span>
+              <select
+                value={historyQuery.pageSize}
+                aria-label={t('library.pagination.pageSize')}
+                onChange={(event) => updateHistoryQuery({
+                  pageSize: Number(event.target.value) as MatchHistoryQueryState['pageSize'],
+                })}
+              >
+                {MATCH_HISTORY_PAGE_SIZES.map((pageSize) => (
+                  <option key={pageSize} value={pageSize}>{pageSize}</option>
+                ))}
+              </select>
+            </label>
             <Button size="sm" disabled={total === 0 || exportAction.state.status === 'loading'} onClick={() => void exportCsv()}>{exportAction.state.status === 'loading' ? <Spinner /> : <FileDown size={13} />}{t('history.exportCsv')}</Button>
           </Card>
           <div className="history-list">
@@ -385,17 +462,20 @@ export function MatchHistoryPage() {
           </div>
           <div className="history-footer">
             <span><CheckCircle2 size={13} />{t('history.completedHint')}</span>
-            <span>{total} {t('history.records')} · {t('history.page')} {page} {t('history.of')} {pageCount}</span>
-            <div><Button size="sm" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>{t('common.previous')}</Button><Button size="sm" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>{t('common.next')}</Button></div>
+            <span>{total} {t('history.records')} · {t('history.page')} {historyQuery.page} {t('history.of')} {pageCount}</span>
+            <div><Button size="sm" disabled={historyQuery.page <= 1} onClick={() => updateHistoryQuery({ page: Math.max(1, historyQuery.page - 1) })}>{t('common.previous')}</Button><Button size="sm" disabled={historyQuery.page >= pageCount} onClick={() => updateHistoryQuery({ page: Math.min(pageCount, historyQuery.page + 1) })}>{t('common.next')}</Button></div>
           </div>
         </>
       ) : !loadError && configured !== null ? (
         <MatchHistoryEmptyWorkspace
           configured={configured}
-          filtered={Boolean(query)}
+          filtered={Boolean(historyQuery.search)}
           labels={emptyLabels}
           onSync={() => void sync()}
-          onClearSearch={() => { setQueryInput(''); setPage(1); setQuery(''); }}
+          onClearSearch={() => {
+            setQueryInput('');
+            updateHistoryQuery({ search: '' });
+          }}
         />
       ) : null}
     </div>

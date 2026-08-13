@@ -190,15 +190,24 @@ const CURRENT_SCHEMA: &str = r"
     );
 
     CREATE INDEX demos_status_idx ON demos(status);
+    CREATE INDEX demos_activity_status_idx ON demos(status, updated_at DESC, id);
     CREATE INDEX demos_map_idx ON demos(map_name);
     CREATE INDEX demos_updated_idx ON demos(updated_at DESC);
     CREATE INDEX demos_content_sha256_idx ON demos(content_sha256);
     CREATE INDEX recorded_clips_created_idx ON recorded_clips(created_at DESC);
     CREATE INDEX media_assets_project_idx ON media_assets(project_id);
     CREATE INDEX export_jobs_project_idx ON export_jobs(project_id, updated_at DESC);
+    CREATE INDEX export_jobs_activity_idx ON export_jobs(updated_at DESC, id);
+    CREATE INDEX export_jobs_activity_status_idx ON export_jobs(status, updated_at DESC, id);
+    CREATE INDEX recording_jobs_activity_idx ON recording_jobs(updated_at DESC, id);
+    CREATE INDEX recording_jobs_activity_status_idx ON recording_jobs(status, updated_at DESC, id);
     CREATE INDEX steam_matches_account_idx ON steam_matches(steam_id, match_id DESC);
     CREATE INDEX match_download_jobs_match_idx
         ON match_download_jobs(match_record_id, updated_at DESC);
+    CREATE INDEX match_download_jobs_activity_idx
+        ON match_download_jobs(updated_at DESC, id);
+    CREATE INDEX match_download_jobs_activity_status_idx
+        ON match_download_jobs(status, updated_at DESC, id);
     CREATE INDEX editor_presets_updated_idx ON editor_presets(updated_at DESC);
     CREATE INDEX cosmetic_plans_demo_idx ON cosmetic_plans(demo_id, updated_at DESC);
     CREATE INDEX evidence_search_demo_idx

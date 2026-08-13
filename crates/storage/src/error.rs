@@ -13,6 +13,8 @@ pub enum StorageError {
     ManagedFile(String),
     #[error("evidence search projection is invalid: {0}")]
     EvidenceProjection(String),
+    #[error("activity projection is invalid: {0}")]
+    ActivityProjection(String),
     #[error(
         "database does not match the current unreleased product schema; start with a fresh data directory"
     )]

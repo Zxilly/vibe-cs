@@ -1,12 +1,15 @@
 use axum::{Json, Router, extract::State, routing::get};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use vibe_cs_domain::{
-    DemoRecord, DemoStatus, JobStatus, MatchDemoStatus, MatchDownloadJob, MatchDownloadStatus,
-    RecordingJob,
+    DemoRecord, DemoStatus, JobStatus, MatchDownloadJob, MatchDownloadStatus, RecordingJob,
+    SteamConfig,
 };
-use vibe_cs_storage::ExportJobRecord;
+use vibe_cs_integrations::is_steam_id;
+use vibe_cs_storage::{
+    ActivityKind as StoredActivityKind, ActivityQuery as StoredActivityQuery, ActivitySource,
+    ActivityState as StoredActivityState, ExportJobRecord,
+};
 
 use crate::{ApiError, ApiQuery, ApiResult, AppState};
 
@@ -89,96 +92,59 @@ async fn list_activities(
     let page = query.page.unwrap_or(1);
     let page_size = query.page_size.unwrap_or(DEFAULT_PAGE_SIZE);
     validate_activity_query(&query, page, page_size)?;
-    let mut items = state
+    let page_result = state
         .storage
-        .list_recording_jobs()
-        .await?
-        .into_iter()
-        .map(|job| recording_activity(&job))
-        .collect::<Vec<_>>();
-    items.extend(
-        state
-            .storage
-            .list_export_jobs(None)
-            .await?
-            .into_iter()
-            .map(export_activity),
-    );
-    let mut download_jobs = state.storage.list_match_download_jobs().await?;
-    download_jobs.sort_by(|left, right| {
-        right
-            .updated_at
-            .cmp(&left.updated_at)
-            .then_with(|| left.id.cmp(&right.id))
-    });
-    let active_download_matches = download_jobs
-        .iter()
-        .filter(|job| !job.status.is_terminal())
-        .map(|job| job.match_record_id.clone())
-        .collect::<HashSet<_>>();
-    let mut seen_download_matches = HashSet::new();
-    let mut retryable_download_jobs = HashSet::new();
-    for job in &download_jobs {
-        if !seen_download_matches.insert(job.match_record_id.clone())
-            || active_download_matches.contains(&job.match_record_id)
-            || !matches!(
-                job.status,
-                MatchDownloadStatus::Failed | MatchDownloadStatus::Cancelled
-            )
-        {
-            continue;
-        }
-        let match_is_not_downloaded = state
-            .storage
-            .get_steam_match(job.match_record_id.clone())
-            .await?
-            .is_some_and(|record| {
-                record.demo_id.is_none() && record.demo_status != MatchDemoStatus::Downloaded
-            });
-        if match_is_not_downloaded {
-            retryable_download_jobs.insert(job.id);
-        }
+        .query_activities(StoredActivityQuery {
+            search: query.search,
+            kind: query.kind.map(ActivityKindFilter::stored),
+            state: query.state.map(ActivityStateFilter::stored),
+            page,
+            page_size,
+        })
+        .await?;
+    let config = state.storage.get_config().await?.unwrap_or_default();
+    let retry_account = valid_steam_download_account(&config.steam);
+    let mut items = Vec::with_capacity(page_result.items.len());
+    for source in page_result.items {
+        let item = match source {
+            ActivitySource::Recording(job) => recording_activity(&job),
+            ActivitySource::Export(record) => export_activity(record),
+            ActivitySource::Download {
+                job,
+                retryable,
+                owner_steam_id,
+            } => {
+                let retryable = retryable
+                    && retry_account
+                        .is_some_and(|steam_id| owner_steam_id.as_deref() == Some(steam_id));
+                download_activity(job, retryable)
+            }
+            ActivitySource::Analysis(demo) => analysis_activity(demo),
+        };
+        items.push(item);
     }
-    items.extend(download_jobs.into_iter().map(|job| {
-        let retryable = retryable_download_jobs.contains(&job.id);
-        download_activity(job, retryable)
-    }));
-    items.extend(
-        state
-            .storage
-            .list_analysis_activity_demos()
-            .await?
-            .into_iter()
-            .map(analysis_activity),
-    );
-    items.sort_by(|left, right| {
-        right
-            .updated_at
-            .cmp(&left.updated_at)
-            .then_with(|| left.id.cmp(&right.id))
-    });
     let summary = ActivitySummary {
-        total: u64::try_from(items.len()).unwrap_or(u64::MAX),
-        active: count_items(&items, |item| !is_terminal_activity(item.status)),
-        failed: count_items(&items, |item| item.status == "failed"),
-        completed: count_items(&items, |item| item.status == "completed"),
+        total: page_result.summary.total,
+        active: page_result.summary.active,
+        failed: page_result.summary.failed,
+        completed: page_result.summary.completed,
     };
-    items.retain(|item| query.matches(item));
-    let total = u64::try_from(items.len()).unwrap_or(u64::MAX);
-    let offset_u64 = u64::from(page.saturating_sub(1)) * u64::from(page_size);
-    let offset = usize::try_from(offset_u64).unwrap_or(usize::MAX);
-    let items = items
-        .into_iter()
-        .skip(offset)
-        .take(usize::try_from(page_size).unwrap_or(usize::MAX))
-        .collect();
     Ok(Json(ActivityFeed {
         items,
-        total,
+        total: page_result.total,
         page,
         page_size,
         summary,
     }))
+}
+
+fn valid_steam_download_account(config: &SteamConfig) -> Option<&str> {
+    let valid_web_api_key = config.web_api_key.len() == 32
+        && config
+            .web_api_key
+            .bytes()
+            .all(|character| character.is_ascii_hexdigit());
+    (is_steam_id(&config.steam_id) && valid_web_api_key).then_some(config.steam_id.as_str())
 }
 
 fn validate_activity_query(query: &ActivityQuery, page: u32, page_size: u32) -> ApiResult<()> {
@@ -204,68 +170,25 @@ fn validate_activity_query(query: &ActivityQuery, page: u32, page_size: u32) -> 
     Ok(())
 }
 
-impl ActivityQuery {
-    fn matches(&self, item: &ActivityItem) -> bool {
-        if self.kind.is_some_and(|kind| !kind.matches(item.kind)) {
-            return false;
-        }
-        if self.state.is_some_and(|state| !state.matches(item.status)) {
-            return false;
-        }
-        let Some(search) = self
-            .search
-            .as_deref()
-            .map(str::trim)
-            .filter(|search| !search.is_empty())
-        else {
-            return true;
-        };
-        let search = search.to_lowercase();
-        [
-            Some(item.id.as_str()),
-            Some(item.kind),
-            item.subtype.as_deref(),
-            item.job_id.as_deref(),
-            item.context_id.as_deref(),
-            item.subject.as_deref(),
-            Some(item.status),
-            item.stage.as_deref(),
-            item.error.as_deref(),
-        ]
-        .into_iter()
-        .flatten()
-        .any(|value| value.to_lowercase().contains(&search))
-    }
-}
-
 impl ActivityKindFilter {
-    fn matches(self, kind: &str) -> bool {
-        matches!(
-            (self, kind),
-            (Self::Recording, "recording")
-                | (Self::Export, "export")
-                | (Self::Download, "download")
-                | (Self::Analysis, "analysis")
-        )
+    const fn stored(self) -> StoredActivityKind {
+        match self {
+            Self::Recording => StoredActivityKind::Recording,
+            Self::Export => StoredActivityKind::Export,
+            Self::Download => StoredActivityKind::Download,
+            Self::Analysis => StoredActivityKind::Analysis,
+        }
     }
 }
 
 impl ActivityStateFilter {
-    fn matches(self, status: &str) -> bool {
+    const fn stored(self) -> StoredActivityState {
         match self {
-            Self::Active => !is_terminal_activity(status),
-            Self::Failed => status == "failed",
-            Self::Completed => status == "completed",
+            Self::Active => StoredActivityState::Active,
+            Self::Failed => StoredActivityState::Failed,
+            Self::Completed => StoredActivityState::Completed,
         }
     }
-}
-
-fn count_items(items: &[ActivityItem], predicate: impl Fn(&ActivityItem) -> bool) -> u64 {
-    u64::try_from(items.iter().filter(|item| predicate(item)).count()).unwrap_or(u64::MAX)
-}
-
-fn is_terminal_activity(status: &str) -> bool {
-    matches!(status, "completed" | "failed" | "cancelled")
 }
 
 fn recording_activity(job: &RecordingJob) -> ActivityItem {

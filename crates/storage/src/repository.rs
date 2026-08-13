@@ -3,6 +3,12 @@
     reason = "all repository methods consistently return the documented StorageError"
 )]
 
+mod activity;
+
+pub use activity::{
+    ActivityKind, ActivityPage, ActivityQuery, ActivitySource, ActivityState, ActivitySummary,
+};
+
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
@@ -6023,6 +6029,298 @@ mod tests {
             .await
             .expect("search literal wildcard");
         assert_eq!(literal_wildcard.total, 0);
+    }
+
+    #[tokio::test]
+    async fn activity_query_sorts_and_pages_the_complete_cross_type_projection() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let recording_id =
+            Uuid::parse_str("00000000-0000-0000-0000-000000000002").expect("recording id");
+        let completed_export_id =
+            Uuid::parse_str("00000000-0000-0000-0000-000000000001").expect("export id");
+        let failed_export_id =
+            Uuid::parse_str("00000000-0000-0000-0000-000000000003").expect("export id");
+        storage
+            .put_recording_job(RecordingJob {
+                id: recording_id,
+                status: vibe_cs_domain::JobStatus::Running,
+                items: vec![],
+                current_index: 0,
+                progress: 0.0,
+                message: "recording.stage.launching".to_owned(),
+                outputs: vec![],
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("put recording");
+        for (id, status, updated_at) in [
+            (
+                completed_export_id,
+                vibe_cs_domain::JobStatus::Completed,
+                now,
+            ),
+            (
+                failed_export_id,
+                vibe_cs_domain::JobStatus::Failed,
+                now - chrono::Duration::seconds(1),
+            ),
+        ] {
+            storage
+                .put_export_job(ExportJobRecord {
+                    kind: "editor".to_owned(),
+                    job: ExportJob {
+                        id,
+                        project_id: Uuid::new_v4(),
+                        status,
+                        progress: 0.0,
+                        output_path: format!("C:/exports/{id}.mp4"),
+                        error: None,
+                        created_at: updated_at,
+                        updated_at,
+                    },
+                })
+                .await
+                .expect("put export");
+        }
+
+        let first = storage
+            .query_activities(ActivityQuery {
+                search: None,
+                kind: None,
+                state: None,
+                page: 1,
+                page_size: 1,
+            })
+            .await
+            .expect("first activity page");
+        assert_eq!(first.total, 3);
+        assert_eq!(first.summary.total, 3);
+        assert_eq!(first.summary.active, 1);
+        assert_eq!(first.summary.failed, 1);
+        assert_eq!(first.summary.completed, 1);
+        assert!(matches!(
+            first.items.as_slice(),
+            [ActivitySource::Export(record)] if record.job.id == completed_export_id
+        ));
+
+        let second = storage
+            .query_activities(ActivityQuery {
+                page: 2,
+                ..ActivityQuery {
+                    search: None,
+                    kind: None,
+                    state: None,
+                    page: 1,
+                    page_size: 1,
+                }
+            })
+            .await
+            .expect("second activity page");
+        assert!(matches!(
+            second.items.as_slice(),
+            [ActivitySource::Recording(job)] if job.id == recording_id
+        ));
+
+        let failed = storage
+            .query_activities(ActivityQuery {
+                search: None,
+                kind: Some(ActivityKind::Export),
+                state: Some(ActivityState::Failed),
+                page: 1,
+                page_size: 1,
+            })
+            .await
+            .expect("failed export page");
+        assert_eq!(failed.total, 1);
+        assert_eq!(failed.summary, first.summary);
+        assert!(matches!(
+            failed.items.as_slice(),
+            [ActivitySource::Export(record)] if record.job.id == failed_export_id
+        ));
+    }
+
+    #[tokio::test]
+    async fn activity_query_batches_download_owner_and_retry_readiness_on_the_final_page() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let match_record_id = "76561198000000000:retry";
+        storage
+            .put_steam_matches(vec![SteamMatchRecord {
+                id: match_record_id.to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "retry".to_owned(),
+                outcome_id: "retry-outcome".to_owned(),
+                token: 7,
+                map_name: Some("de_mirage".to_owned()),
+                played_at: Some(now),
+                score: Some("11:13".to_owned()),
+                result: vibe_cs_domain::MatchHistoryResult::Loss,
+                demo_status: vibe_cs_domain::MatchDemoStatus::Failed,
+                demo_id: None,
+                last_error: Some("download failed".to_owned()),
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("put match record");
+        let job_id = Uuid::new_v4();
+        storage
+            .put_match_download_job(MatchDownloadJob {
+                id: job_id,
+                match_record_id: match_record_id.to_owned(),
+                status: vibe_cs_domain::MatchDownloadStatus::Failed,
+                downloaded_bytes: 0,
+                total_bytes: None,
+                progress: 0.0,
+                demo_id: None,
+                error: Some("network".to_owned()),
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("put download job");
+
+        let page = storage
+            .query_activities(ActivityQuery {
+                search: None,
+                kind: Some(ActivityKind::Download),
+                state: None,
+                page: 1,
+                page_size: 1,
+            })
+            .await
+            .expect("download activity page");
+
+        assert!(matches!(
+            page.items.as_slice(),
+            [ActivitySource::Download {
+                job,
+                retryable: true,
+                owner_steam_id: Some(owner),
+            }] if job.id == job_id && owner == "76561198000000000"
+        ));
+    }
+
+    #[tokio::test]
+    async fn activity_query_tracks_authoritative_updates_and_deletes_without_rebuilding() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let export_id = Uuid::new_v4();
+        let project_id = Uuid::new_v4();
+        let export = |status, updated_at| ExportJobRecord {
+            kind: "editor".to_owned(),
+            job: ExportJob {
+                id: export_id,
+                project_id,
+                status,
+                progress: 0.0,
+                output_path: "C:/exports/live.mp4".to_owned(),
+                error: None,
+                created_at: now,
+                updated_at,
+            },
+        };
+        storage
+            .put_export_job(export(vibe_cs_domain::JobStatus::Running, now))
+            .await
+            .expect("put running export");
+        let query = || ActivityQuery {
+            search: Some("LIVE.MP4".to_owned()),
+            kind: Some(ActivityKind::Export),
+            state: None,
+            page: 1,
+            page_size: 10,
+        };
+
+        let running = storage
+            .query_activities(query())
+            .await
+            .expect("running projection");
+        assert_eq!(running.total, 1);
+        assert_eq!(running.summary.active, 1);
+        assert!(matches!(
+            running.items.as_slice(),
+            [ActivitySource::Export(record)]
+                if record.job.status == vibe_cs_domain::JobStatus::Running
+        ));
+
+        storage
+            .put_export_job(export(
+                vibe_cs_domain::JobStatus::Completed,
+                now + chrono::Duration::seconds(1),
+            ))
+            .await
+            .expect("complete export");
+        let completed = storage
+            .query_activities(query())
+            .await
+            .expect("completed projection");
+        assert_eq!(completed.summary.active, 0);
+        assert_eq!(completed.summary.completed, 1);
+        assert!(matches!(
+            completed.items.as_slice(),
+            [ActivitySource::Export(record)]
+                if record.job.status == vibe_cs_domain::JobStatus::Completed
+        ));
+
+        assert!(
+            storage
+                .delete_export_job(export_id)
+                .await
+                .expect("delete export")
+        );
+        let deleted = storage
+            .query_activities(query())
+            .await
+            .expect("projection after delete");
+        assert_eq!(deleted.total, 0);
+        assert_eq!(deleted.summary, ActivitySummary::default());
+        assert!(deleted.items.is_empty());
+    }
+
+    #[tokio::test]
+    async fn activity_projection_is_available_after_reopening_without_a_rebuild_step() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database_path = directory.path().join("activity.sqlite3");
+        let now = Utc::now();
+        let recording_id = Uuid::new_v4();
+        {
+            let storage = Storage::open(&database_path).await.expect("open storage");
+            storage
+                .put_recording_job(RecordingJob {
+                    id: recording_id,
+                    status: vibe_cs_domain::JobStatus::Running,
+                    items: vec![],
+                    current_index: 0,
+                    progress: 0.0,
+                    message: "recording.stage.capturing".to_owned(),
+                    outputs: vec![],
+                    created_at: now,
+                    updated_at: now,
+                })
+                .await
+                .expect("put recording");
+        }
+
+        let reopened = Storage::open(&database_path).await.expect("reopen storage");
+        let page = reopened
+            .query_activities(ActivityQuery {
+                search: Some("capturing".to_owned()),
+                kind: Some(ActivityKind::Recording),
+                state: Some(ActivityState::Active),
+                page: 1,
+                page_size: 10,
+            })
+            .await
+            .expect("query reopened projection");
+        assert_eq!(page.total, 1);
+        assert_eq!(page.summary.total, 1);
+        assert!(matches!(
+            page.items.as_slice(),
+            [ActivitySource::Recording(job)] if job.id == recording_id
+        ));
     }
 
     #[test]

@@ -66,6 +66,13 @@ mod tests {
 
     use super::*;
 
+    async fn configure_steam_downloads(storage: &vibe_cs_storage::Storage, steam_id: &str) {
+        let mut config = vibe_cs_domain::AppConfig::default();
+        config.steam.steam_id = steam_id.to_owned();
+        config.steam.web_api_key = "a".repeat(32);
+        storage.put_config(config).await.expect("Steam config");
+    }
+
     #[tokio::test]
     async fn dispatcher_does_not_expose_retired_obs_control_routes() {
         let directory = tempfile::tempdir().expect("temporary directory");
@@ -1284,12 +1291,142 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn activity_feed_hides_download_retry_without_current_steam_credentials() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let now = Utc::now();
+        let match_record_id = "76561198000000000:unconfigured";
+        storage
+            .put_steam_matches(vec![SteamMatchRecord {
+                id: match_record_id.to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "unconfigured".to_owned(),
+                outcome_id: "unconfigured-outcome".to_owned(),
+                token: 42,
+                map_name: Some("de_anubis".to_owned()),
+                played_at: Some(now),
+                score: Some("10:13".to_owned()),
+                result: MatchHistoryResult::Loss,
+                demo_status: MatchDemoStatus::Failed,
+                demo_id: None,
+                last_error: Some("download ticket expired".to_owned()),
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("persist match record");
+        storage
+            .put_match_download_job(MatchDownloadJob {
+                id: Uuid::new_v4(),
+                match_record_id: match_record_id.to_owned(),
+                status: MatchDownloadStatus::Failed,
+                downloaded_bytes: 4_096,
+                total_bytes: Some(8_192),
+                progress: 0.5,
+                demo_id: None,
+                error: Some("download ticket expired".to_owned()),
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist failed download job");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities?kind=download")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["open_match_history"])
+        );
+    }
+
+    #[tokio::test]
+    async fn activity_feed_hides_download_retry_for_a_different_current_steam_account() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        configure_steam_downloads(&storage, "76561198000000001").await;
+        let now = Utc::now();
+        let match_record_id = "76561198000000000:previous-account";
+        storage
+            .put_steam_matches(vec![SteamMatchRecord {
+                id: match_record_id.to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "previous-account".to_owned(),
+                outcome_id: "previous-account-outcome".to_owned(),
+                token: 42,
+                map_name: Some("de_anubis".to_owned()),
+                played_at: Some(now),
+                score: Some("10:13".to_owned()),
+                result: MatchHistoryResult::Loss,
+                demo_status: MatchDemoStatus::Failed,
+                demo_id: None,
+                last_error: Some("download ticket expired".to_owned()),
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("persist match record");
+        storage
+            .put_match_download_job(MatchDownloadJob {
+                id: Uuid::new_v4(),
+                match_record_id: match_record_id.to_owned(),
+                status: MatchDownloadStatus::Failed,
+                downloaded_bytes: 4_096,
+                total_bytes: Some(8_192),
+                progress: 0.5,
+                demo_id: None,
+                error: Some("download ticket expired".to_owned()),
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist failed download job");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities?kind=download")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["open_match_history"])
+        );
+    }
+
+    #[tokio::test]
     async fn activity_feed_does_not_offer_retry_on_an_old_failure_while_a_newer_download_is_active()
     {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
+        configure_steam_downloads(&storage, "76561198000000000").await;
         let failed_job_id = Uuid::new_v4();
         let active_job_id = Uuid::new_v4();
         let now = Utc::now();
@@ -1384,6 +1521,7 @@ mod tests {
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
+        configure_steam_downloads(&storage, "76561198000000000").await;
         let failed_job_id = Uuid::new_v4();
         let demo_id = Uuid::new_v4();
         let now = Utc::now();
@@ -1526,6 +1664,7 @@ mod tests {
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
+        configure_steam_downloads(&storage, "76561198000000000").await;
         let selected_job_id =
             Uuid::parse_str("00000000-0000-0000-0000-000000000001").expect("selected job id");
         let tied_job_id =
@@ -1633,6 +1772,7 @@ mod tests {
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
+        configure_steam_downloads(&storage, "76561198000000000").await;
         let job_id = Uuid::new_v4();
         let now = Utc::now();
         storage

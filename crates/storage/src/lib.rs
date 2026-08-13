@@ -6,6 +6,7 @@ mod schema;
 
 pub use error::{Result, StorageError};
 pub use repository::{
+    ActivityKind, ActivityPage, ActivityQuery, ActivitySource, ActivityState, ActivitySummary,
     BeatAlignmentUpdate, EDITOR_PROJECT_SNAPSHOT_LIMIT, EditorAudioSeparationResult,
     EditorAudioSeparationUpdate, EditorProjectDeletion, EditorProjectDeletionResult,
     EditorProjectRevision, EditorProjectUpdate, EvidenceAnnotationCreate, ExportJobRecord,

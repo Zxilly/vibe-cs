@@ -21,6 +21,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { Link } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
 import type {
@@ -100,6 +101,69 @@ export function canCommitOutputLoad(
   aborted: boolean,
 ): boolean {
   return requestGeneration === currentGeneration && !aborted;
+}
+
+export function boundedOutputPage(page: number, total: number, pageSize: number): number {
+  if (pageSize <= 0) return 1;
+  const pageCount = Math.max(1, Math.ceil(Math.max(0, total) / pageSize));
+  return Math.min(Math.max(1, page), pageCount);
+}
+
+type OutputWorkspaceMode = 'loading' | 'zero' | 'filtered-empty' | 'results' | 'error';
+
+export function outputWorkspacePresentation({
+  loading,
+  itemCount,
+  total,
+  hasFilters,
+  loadFailed,
+}: {
+  loading: boolean;
+  itemCount: number;
+  total: number;
+  hasFilters: boolean;
+  loadFailed: boolean;
+}): {
+  mode: OutputWorkspaceMode;
+  showFilters: boolean;
+  showCollectionControls: boolean;
+  showStagedCleanup: boolean;
+} {
+  if (loadFailed && itemCount === 0) {
+    return { mode: 'error', showFilters: false, showCollectionControls: false, showStagedCleanup: false };
+  }
+  if (loading && itemCount === 0) {
+    return { mode: 'loading', showFilters: hasFilters, showCollectionControls: false, showStagedCleanup: false };
+  }
+  if (itemCount > 0) {
+    return { mode: 'results', showFilters: true, showCollectionControls: true, showStagedCleanup: false };
+  }
+  if (hasFilters || total > 0) {
+    return { mode: 'filtered-empty', showFilters: true, showCollectionControls: false, showStagedCleanup: false };
+  }
+  return { mode: 'zero', showFilters: false, showCollectionControls: false, showStagedCleanup: true };
+}
+
+export function OutputZeroActions({
+  working,
+  onCleanupStaged,
+}: {
+  working: boolean;
+  onCleanupStaged: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="outputs-zero-actions">
+      <Link className="button button--primary button--md" to="/production">{t('production.title')}</Link>
+      <Button
+        data-action="cleanup-staged"
+        disabled={working}
+        onClick={onCleanupStaged}
+      >
+        <Trash2 size={13} />{msg("m1270")}
+      </Button>
+    </div>
+  );
 }
 
 export function ConfirmationDialog({
@@ -274,6 +338,19 @@ export function OutputsPage() {
     [selected],
   );
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasFilters = Boolean(search.trim() || kind || status || availability);
+  const workspace = outputWorkspacePresentation({
+    loading,
+    itemCount: items.length,
+    total,
+    hasFilters,
+    loadFailed: loadError !== null,
+  });
+
+  useEffect(() => {
+    const boundedPage = boundedOutputPage(page, total, PAGE_SIZE);
+    if (boundedPage !== page) setPage(boundedPage);
+  }, [page, total]);
 
   const resetPage = () => setPage(1);
   const refresh = () => {
@@ -457,7 +534,7 @@ export function OutputsPage() {
       {scanLimited ? <Notice tone="warning">{msg("m1113")}</Notice> : null}
       {actionNotice ? <Notice tone={actionNotice.tone}>{actionNotice.message}</Notice> : null}
 
-      <Card className="outputs-toolbar">
+      {workspace.showFilters ? <Card className="outputs-toolbar">
         <label className="outputs-search">
           <Search size={15} />
           <span className="sr-only">{msg("m0672")}</span>
@@ -470,9 +547,9 @@ export function OutputsPage() {
         <label><span>{msg("m0813")}</span><select value={kind} onChange={(event) => { setKind(event.target.value as OutputKind | ''); resetPage(); }}><option value="">{msg("m0229")}</option><option value="recording">{msg("m0604")}</option><option value="export">{msg("m0933")}</option></select></label>
         <label><span>{msg("m0974")}</span><select value={status} onChange={(event) => { setStatus(event.target.value as JobStatus | ''); resetPage(); }}><option value="">{msg("m0229")}</option><option value="queued">{msg("m0662")}</option><option value="preparing">{msg("m0250")}</option><option value="running">{msg("m0408")}</option><option value="cancelling">{msg("m0845")}</option><option value="completed">{msg("m0510")}</option><option value="failed">{msg("m0425")}</option><option value="cancelled">{msg("m0504")}</option></select></label>
         <label><span>{msg("m0685")}</span><select value={availability} onChange={(event) => { setAvailability(event.target.value as OutputAvailability | ''); resetPage(); }}><option value="">{msg("m0229")}</option><option value="present">{msg("m0350")}</option><option value="missing">{msg("m1088")}</option><option value="unsafe">{msg("m0149")}</option></select></label>
-      </Card>
+      </Card> : null}
 
-      <Card className="outputs-batchbar">
+      {workspace.showCollectionControls ? <Card className="outputs-batchbar">
         <label>
           <input
             type="checkbox"
@@ -489,13 +566,15 @@ export function OutputsPage() {
           <Button size="sm" disabled={total === 0 || pendingAction !== null} onClick={() => setConfirmation({ type: 'cleanup' })}><HardDrive size={13} />{msg("m0927")}</Button>
           <Button size="sm" disabled={pendingAction !== null} onClick={() => setConfirmation({ type: 'cleanup-staged' })}><Trash2 size={13} />{msg("m1270")}</Button>
         </div>
-      </Card>
+      </Card> : null}
 
-      {loading && items.length === 0 ? (
+      {workspace.mode === 'loading' ? (
         <Card className="outputs-loading"><Spinner label={msg("m0305")} /><strong>{msg("m0869")}</strong></Card>
-      ) : items.length === 0 ? (
-        <Card><EmptyState icon={<FileOutput size={28} />} title={t('outputs.empty')} description={t('outputs.emptyDescription')} /></Card>
-      ) : (
+      ) : workspace.mode === 'zero' ? (
+        <Card className="outputs-zero-workspace"><EmptyState icon={<FileOutput size={28} />} title={t('outputs.empty')} description={t('outputs.emptyDescription')} action={workspace.showStagedCleanup ? <OutputZeroActions working={pendingAction !== null} onCleanupStaged={() => setConfirmation({ type: 'cleanup-staged' })} /> : undefined} /></Card>
+      ) : workspace.mode === 'filtered-empty' ? (
+        <Card className="outputs-filtered-empty"><EmptyState icon={<Search size={24} />} title={t('outputs.empty')} description={t('outputs.emptyDescription')} /></Card>
+      ) : workspace.mode === 'error' ? null : (
         <div className="outputs-list" role="list" aria-label={msg("m1187")}>
           {items.map((item) => {
             const key = outputItemKey(item);
@@ -547,10 +626,10 @@ export function OutputsPage() {
         </div>
       )}
 
-      <footer className="outputs-footer">
+      {workspace.showCollectionControls ? <footer className="outputs-footer">
         <span>{total} {msg("m1307")} {page}/{pageCount} {msg("m1302")}</span>
         <div><Button size="sm" disabled={page <= 1 || loading || pendingAction !== null} onClick={() => setPage((current) => Math.max(1, current - 1))}>{msg("m0135")}</Button><Button size="sm" disabled={page >= pageCount || loading || pendingAction !== null} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>{msg("m0140")}</Button></div>
-      </footer>
+      </footer> : null}
 
       <ConfirmationDialog
         open={confirmation?.type === 'single'}

@@ -6,6 +6,7 @@ export const ANALYSIS_TABS = [
   'economy',
   'duels',
   'openings',
+  'advantage',
   'teams',
   'clutches',
   'insights',

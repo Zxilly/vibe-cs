@@ -71,6 +71,24 @@ describe('analysis URL navigation', () => {
     });
   });
 
+  it('restores exact man-advantage death evidence at its canonical round and tick', () => {
+    const params = new URLSearchParams(
+      'tab=advantage&round=15&player=p2&tick=135720&evidence=demo%3Am2%2Fevent%3Akill-135720',
+    );
+
+    expect(readAnalysisNavigation(params, {
+      roundNumbers: [15],
+      playerIds: ['p1', 'p2'],
+      roundTickRanges: [{ number: 15, startTick: 130_000, endTick: 138_000 }],
+    })).toEqual({
+      tab: 'advantage',
+      round: 15,
+      playerId: 'p2',
+      tick: 135_720,
+      evidenceId: 'demo:m2/event:kill-135720',
+    });
+  });
+
   it('preserves a duel opponent across round filters and clears it when the selected player changes', () => {
     const current = new URLSearchParams(
       'demo=d1&tab=duels&round=20&player=p2&opponent=p1&evidence=demo%3Ad1%2Fevent%3Akill-1',

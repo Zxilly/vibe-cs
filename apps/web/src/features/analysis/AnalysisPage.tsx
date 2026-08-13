@@ -101,6 +101,7 @@ import { UtilityAnalysisWorkspace } from './UtilityAnalysisWorkspace';
 import { EconomyAnalysisWorkspace } from './EconomyAnalysisWorkspace';
 import { DuelAnalysisWorkspace } from './DuelAnalysisWorkspace';
 import { OpeningDuelAnalysisWorkspace } from './OpeningDuelAnalysisWorkspace';
+import { ManAdvantageAnalysisWorkspace } from './ManAdvantageAnalysisWorkspace';
 import { TeamAnalysisWorkspace } from './TeamAnalysisWorkspace';
 import { ClutchReviewAnalysisWorkspace } from './ClutchReviewAnalysisWorkspace';
 import { HighlightAnnotationReviewControl } from './HighlightAnnotationReviewControl';
@@ -113,12 +114,14 @@ import type { EconomyAtomicEvidence } from './economyEvidenceWorkspace';
 import type { WeaponAtomicEvidence } from './weaponEvidenceWorkspace';
 import type { UtilityAtomicEvidence } from './utilityEvidenceWorkspace';
 import type { OpeningDuelEvidence } from './openingDuelWorkspace';
+import type { ManAdvantageDeathEvidence } from './manAdvantageWorkspace';
 import type { TeamRoundEvidence } from './teamRoundWorkspace';
 import type { TeamEconomyEvidence } from './teamEconomyWorkspace';
 import type { ClutchReviewEvidence } from './clutchReviewWorkspace';
 import { teamRoundEvidenceActionContract } from './teamRoundEvidenceActions';
 import { teamEconomyEvidenceActionContract } from './teamEconomyEvidenceActions';
 import { clutchReviewActionContract } from './clutchReviewActions';
+import { manAdvantageEvidenceActionContract } from './manAdvantageEvidenceActions';
 import { buildRoundContext, type RoundContextGroup, type RoundEvidenceAvailability } from './roundContextModel';
 import { evidenceRangeGroupId, roundNumberFromNavigationKey, roundSectionIsVisible, roundTickPercent, selectedGroupScrollTop, selectedRoundGroupId, tickDurationLabel } from './roundContextPresentation';
 import {
@@ -165,6 +168,7 @@ const tabIcons: Record<AnalysisTab, typeof Activity> = {
   economy: DollarSign,
   duels: Swords,
   openings: Target,
+  advantage: Shield,
   teams: ShieldCheck,
   clutches: Award,
   insights: Zap,
@@ -488,6 +492,30 @@ export function AnalysisPage() {
     );
   };
 
+  const watchManAdvantageEvidence = (evidence: ManAdvantageDeathEvidence) => {
+    const action = manAdvantageEvidenceActionContract(workspace, evidence, {
+      serviceAvailable: source === 'service',
+      runtimeIdle: runtimeSession === 'idle',
+      watchPending: playerEvidenceWatchAction.state.status === 'loading',
+      alreadyAdded: addedHighlight === evidence.evidence_id,
+    });
+    if (!action.watch.available) return;
+    void playerEvidenceWatchAction.run(
+      () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: action.watch.start_tick })),
+      msg("m0514"),
+    );
+  };
+
+  const addManAdvantageEvidence = (evidence: ManAdvantageDeathEvidence) => {
+    const action = manAdvantageEvidenceActionContract(workspace, evidence, {
+      serviceAvailable: source === 'service',
+      runtimeIdle: runtimeSession === 'idle',
+      watchPending: playerEvidenceWatchAction.state.status === 'loading',
+      alreadyAdded: addedHighlight === evidence.evidence_id,
+    });
+    if (action.add.available && action.add.compilation) addCompilation(action.add.compilation);
+  };
+
   const addTeamRoundEvidence = (evidence: TeamRoundEvidence) => {
     const action = teamRoundEvidenceActionContract(workspace, evidence, {
       serviceAvailable: source === 'service',
@@ -784,6 +812,25 @@ export function AnalysisPage() {
                 />
               </>
             ) : null}
+            {tab === 'advantage' ? (
+              <>
+                {playerEvidenceWatchAction.state.status === 'error'
+                  ? <Notice tone="danger">{playerEvidenceWatchAction.state.message}</Notice>
+                  : null}
+                <ManAdvantageAnalysisWorkspace
+                  workspace={workspace}
+                  selectedRound={selectedRound}
+                  serviceAvailable={source === 'service'}
+                  runtimeIdle={runtimeSession === 'idle'}
+                  watchPending={playerEvidenceWatchAction.state.status === 'loading'}
+                  focusedEvidenceId={selectedEvidenceId}
+                  {...(addedHighlight ? { addedEvidenceIds: new Set([addedHighlight]) } : {})}
+                  onNavigate={navigateAnalysis}
+                  onWatch={watchManAdvantageEvidence}
+                  onAddProduction={addManAdvantageEvidence}
+                />
+              </>
+            ) : null}
             {tab === 'teams' ? (
               <>
                 {playerEvidenceWatchAction.state.status === 'error'
@@ -880,6 +927,7 @@ function AnalysisTabs({
     economy: t('analysis.tab.economy'),
     duels: t('analysis.tab.duels'),
     openings: t('analysis.tab.openings'),
+    advantage: t('analysis.tab.advantage'),
     teams: t('analysis.tab.teams'),
     clutches: t('analysis.tab.clutches'),
     insights: t('analysis.tab.insights'),

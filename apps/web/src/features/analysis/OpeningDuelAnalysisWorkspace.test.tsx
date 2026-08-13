@@ -72,6 +72,7 @@ describe('OpeningDuelAnalysisWorkspace', () => {
 
     expect(markup).toContain('data-testid="opening-duel-workspace"');
     expect(markup).toContain('data-testid="opening-filter-player"');
+    expect(markup).toContain('data-testid="opening-filter-target"');
     expect(markup).toContain('data-testid="opening-filter-round"');
     expect(markup).toContain('data-testid="opening-filter-outcome"');
     expect(markup).toContain('data-testid="opening-player-aggregate"');
@@ -80,6 +81,12 @@ describe('OpeningDuelAnalysisWorkspace', () => {
     expect(markup).toContain('data-testid="opening-unavailable-summary"');
     expect(markup).toContain('data-reason-code="no_kill_event"');
     expect(markup).toContain('data-testid="opening-inspector"');
+    expect(markup).toContain('data-testid="opening-duel-matrix"');
+    expect(markup.match(/data-testid="opening-matrix-cell"/g)).toHaveLength(2);
+    expect(markup).toContain('击杀者 ↓ / 目标 →');
+    expect(markup).toContain('行是击杀者，列是目标；只计每回合已验证的首个击杀。');
+    expect(markup).toMatch(/data-actor-id="fallen-id" data-target-id="niko-id"[^>]*>1<\/button>/);
+    expect(markup).toMatch(/data-actor-id="niko-id" data-target-id="fallen-id"[^>]*disabled=""[^>]*>0<\/button>/);
     for (const action of ['round', 'replay', 'watch', 'add']) {
       expect(markup.match(new RegExp('data-action="' + action + '"', 'g'))).toHaveLength(1);
     }
@@ -88,6 +95,7 @@ describe('OpeningDuelAnalysisWorkspace', () => {
     expect(markup).not.toContain('Trade');
     expect(markup).not.toContain('KAST');
     expect(markup).not.toContain('Success rate');
+    expect(markup).not.toContain('Win impact');
   });
 
   it('restores player, round, and canonical evidence focus from navigation state', () => {
@@ -95,6 +103,7 @@ describe('OpeningDuelAnalysisWorkspace', () => {
       <OpeningDuelAnalysisWorkspace
         workspace={workspace}
         selectedPlayerId="fallen-id"
+        selectedOpponentId="niko-id"
         selectedRound={1}
         focusedEvidenceId="demo:major-final-map-1/event:opening-r1"
         serviceAvailable
@@ -107,7 +116,10 @@ describe('OpeningDuelAnalysisWorkspace', () => {
     );
 
     expect(markup).toMatch(/data-testid="opening-filter-player"[^>]*>.*<option value="fallen-id" selected=""/s);
+    expect(markup).toMatch(/data-testid="opening-filter-target"[^>]*>.*<option value="niko-id" selected=""/s);
     expect(markup).toMatch(/data-testid="opening-filter-round"[^>]*>.*<option value="1" selected=""/s);
+    expect(markup).toMatch(/data-testid="opening-filter-outcome" disabled=""[^>]*>.*<option value="opening_kill" selected=""/s);
+    expect(markup).toMatch(/data-actor-id="fallen-id" data-target-id="niko-id"[^>]*aria-pressed="true"/);
     expect(markup).toContain('aria-current="true"');
     expect(markup).toContain('demo:major-final-map-1/event:opening-r1');
   });

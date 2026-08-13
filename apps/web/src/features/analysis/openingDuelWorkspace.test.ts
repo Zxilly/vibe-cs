@@ -80,6 +80,96 @@ describe('opening duel workspace', () => {
     expect(result.availability).toEqual({ state: 'available', reason: null });
   });
 
+  it('builds a dense directional player matrix from verified first kills only', () => {
+    const result = buildOpeningDuelWorkspace(workspace, {
+      playerId: null,
+      round: null,
+      outcome: 'all',
+    });
+
+    expect(result.matrix.players.map((player) => player.player_id)).toEqual([
+      'fallen-id',
+      'niko-id',
+      'monesy-id',
+    ]);
+    expect(result.matrix.cells).toHaveLength(6);
+    expect(result.matrix.cells.find((cell) => (
+      cell.actor_id === 'fallen-id' && cell.target_id === 'niko-id'
+    ))).toEqual({
+      actor_id: 'fallen-id',
+      target_id: 'niko-id',
+      opening_kills: 1,
+      evidence_ids: ['demo:major-final-map-1/event:opening-r1'],
+    });
+    expect(result.matrix.cells.find((cell) => (
+      cell.actor_id === 'niko-id' && cell.target_id === 'fallen-id'
+    ))).toMatchObject({
+      opening_kills: 1,
+      evidence_ids: ['demo:major-final-map-1/event:opening-r2'],
+    });
+    expect(result.matrix.cells.find((cell) => (
+      cell.actor_id === 'fallen-id' && cell.target_id === 'monesy-id'
+    ))).toMatchObject({ opening_kills: 0, evidence_ids: [] });
+    expect(result.matrix.cells.some((cell) => (
+      cell.actor_id === 'fallen-id' && cell.target_id === 'fallen-id'
+    ))).toBe(false);
+    expect(result.matrix).not.toHaveProperty('success_rate');
+    expect(result.matrix.cells[0]).not.toHaveProperty('opening_deaths');
+  });
+
+  it('filters atomic evidence to one canonical actor-to-target matrix cell', () => {
+    const result = buildOpeningDuelWorkspace(workspace, {
+      playerId: 'fallen-id',
+      targetId: 'niko-id',
+      round: null,
+      outcome: 'all',
+    });
+
+    expect(result.evidence.map((item) => item.source_id)).toEqual(['opening-r1']);
+    expect(result.evidence[0]).toMatchObject({
+      actor_id: 'fallen-id',
+      target_id: 'niko-id',
+    });
+  });
+
+  it('fails closed when a matrix target does not form a canonical actor-to-target pair', () => {
+    const missingActor = buildOpeningDuelWorkspace(workspace, {
+      playerId: null,
+      targetId: 'niko-id',
+      round: null,
+      outcome: 'all',
+    });
+    expect(missingActor.evidence).toEqual([]);
+    expect(missingActor.availability).toEqual({
+      state: 'unavailable',
+      reason: 'Select a verified actor before filtering an opening matchup.',
+    });
+
+    const invalidTarget = buildOpeningDuelWorkspace(workspace, {
+      playerId: 'fallen-id',
+      targetId: 'missing-player',
+      round: null,
+      outcome: 'all',
+    });
+    expect(invalidTarget.evidence).toEqual([]);
+    expect(invalidTarget.availability).toEqual({
+      state: 'unavailable',
+      reason: 'Select a verified target or clear the matchup filter.',
+    });
+
+    const selfTarget = buildOpeningDuelWorkspace(workspace, {
+      playerId: 'fallen-id',
+      targetId: 'fallen-id',
+      round: null,
+      outcome: 'all',
+    });
+    expect(selfTarget.evidence).toEqual([]);
+    expect(selfTarget.availability).toEqual({
+      state: 'unavailable',
+      reason: 'Opening matchup actor and target must be different players.',
+    });
+  });
+
   it('marks an unidentifiable first kill unavailable and never promotes a later kill', () => {
     const incomplete: AnalysisWorkspace = {
       ...workspace,

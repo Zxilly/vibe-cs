@@ -30,6 +30,7 @@ import './OpeningDuelAnalysisWorkspace.css';
 export type OpeningDuelAnalysisWorkspaceProps = {
   workspace: AnalysisWorkspace;
   selectedPlayerId: string | null;
+  selectedOpponentId?: string | null;
   selectedRound: number | null;
   serviceAvailable: boolean;
   runtimeIdle: boolean;
@@ -67,6 +68,7 @@ function reasonLabel(
 export function OpeningDuelAnalysisWorkspace({
   workspace,
   selectedPlayerId,
+  selectedOpponentId = null,
   selectedRound,
   serviceAvailable,
   runtimeIdle,
@@ -80,14 +82,37 @@ export function OpeningDuelAnalysisWorkspace({
   const { t } = useI18n();
   const [outcome, setOutcome] = useState<OpeningDuelOutcome>('all');
   const [localFocusId, setLocalFocusId] = useState<string | null>(null);
-  const view = useMemo(
+  const matrixView = useMemo(
     () => buildOpeningDuelWorkspace(workspace, {
       playerId: selectedPlayerId,
       round: selectedRound,
-      outcome: selectedPlayerId ? outcome : 'all',
+      outcome: 'all',
     }),
-    [workspace, selectedPlayerId, selectedRound, outcome],
+    [workspace, selectedPlayerId, selectedRound],
   );
+  const selectedMatrixCell = matrixView.matrix.cells.find((cell) => (
+    cell.actor_id === selectedPlayerId
+      && cell.target_id === selectedOpponentId
+      && cell.opening_kills > 0
+  )) ?? null;
+  const activeTargetId = selectedMatrixCell?.target_id ?? null;
+  const effectiveOutcome: OpeningDuelOutcome = activeTargetId
+    ? 'opening_kill'
+    : selectedPlayerId ? outcome : 'all';
+  const view = useMemo(
+    () => buildOpeningDuelWorkspace(workspace, {
+      playerId: selectedPlayerId,
+      targetId: activeTargetId,
+      round: selectedRound,
+      outcome: effectiveOutcome,
+    }),
+    [workspace, selectedPlayerId, activeTargetId, selectedRound, effectiveOutcome],
+  );
+  const targetOptions = selectedPlayerId
+    ? matrixView.matrix.cells.filter((cell) => (
+        cell.actor_id === selectedPlayerId && cell.opening_kills > 0
+      ))
+    : [];
   const activeEvidence = view.evidence.find((item) => item.evidence_id === focusedEvidenceId)
     ?? view.evidence.find((item) => item.evidence_id === localFocusId)
     ?? view.evidence[0]
@@ -149,6 +174,35 @@ export function OpeningDuelAnalysisWorkspace({
             </select>
           </label>
           <label>
+            <span>{t('analysis.openings.targetFilter')}</span>
+            <select
+              data-testid="opening-filter-target"
+              value={activeTargetId ?? ''}
+              disabled={!selectedPlayerId || targetOptions.length === 0}
+              onChange={(event) => {
+                setOutcome('all');
+                setLocalFocusId(null);
+                onNavigate({
+                  opponentId: event.target.value || null,
+                  tick: null,
+                  evidenceId: null,
+                });
+              }}
+            >
+              <option value="">{t('analysis.openings.allTargets')}</option>
+              {targetOptions.map((cell) => {
+                const target = matrixView.matrix.players.find(
+                  (player) => player.player_id === cell.target_id,
+                );
+                return target ? (
+                  <option value={target.player_id} key={target.player_id}>
+                    {target.player_name} · {cell.opening_kills}
+                  </option>
+                ) : null;
+              })}
+            </select>
+          </label>
+          <label>
             <span>{t('analysis.openings.roundFilter')}</span>
             <select
               data-testid="opening-filter-round"
@@ -169,8 +223,8 @@ export function OpeningDuelAnalysisWorkspace({
             <span>{t('analysis.openings.outcomeFilter')}</span>
             <select
               data-testid="opening-filter-outcome"
-              value={selectedPlayerId ? outcome : 'all'}
-              disabled={!selectedPlayerId}
+              value={effectiveOutcome}
+              disabled={!selectedPlayerId || activeTargetId !== null}
               onChange={(event) => setOutcome(event.target.value as OpeningDuelOutcome)}
             >
               <option value="all">{t('analysis.openings.allOutcomes')}</option>
@@ -235,6 +289,88 @@ export function OpeningDuelAnalysisWorkspace({
       </div>
 
       <div className="opening-analysis-canvas">
+        <section
+          className="opening-analysis-matrix"
+          data-testid="opening-duel-matrix"
+          aria-label={t('analysis.openings.matrix')}
+        >
+          <header>
+            <div>
+              <span className="eyebrow">{t('analysis.openings.matrix')}</span>
+              <strong>{t('analysis.openings.matrixDescription')}</strong>
+            </div>
+            {selectedMatrixCell ? (
+              <Badge tone="blue">{selectedMatrixCell.opening_kills}</Badge>
+            ) : null}
+          </header>
+          <div className="opening-analysis-matrix__scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">{t('analysis.openings.matrixAxis')}</th>
+                  {matrixView.matrix.players.map((target) => (
+                    <th scope="col" title={target.player_name} key={target.player_id}>
+                      <span className={`opening-team opening-team--${target.player_team.toLocaleLowerCase()}`}>
+                        {target.player_team}
+                      </span>
+                      <span>{target.player_name}</span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {matrixView.matrix.players.map((actor) => (
+                  <tr key={actor.player_id}>
+                    <th scope="row" title={actor.player_name}>
+                      <span className={`opening-team opening-team--${actor.player_team.toLocaleLowerCase()}`}>
+                        {actor.player_team}
+                      </span>
+                      <span>{actor.player_name}</span>
+                    </th>
+                    {matrixView.matrix.players.map((target) => {
+                      if (actor.player_id === target.player_id) {
+                        return <td className="opening-analysis-matrix__diagonal" key={target.player_id}>—</td>;
+                      }
+                      const cell = matrixView.matrix.cells.find((candidate) => (
+                        candidate.actor_id === actor.player_id
+                          && candidate.target_id === target.player_id
+                      ));
+                      const count = cell?.opening_kills ?? 0;
+                      const selected = actor.player_id === selectedPlayerId
+                        && target.player_id === activeTargetId;
+                      const firstEvidenceId = cell?.evidence_ids[0] ?? null;
+                      return (
+                        <td key={target.player_id}>
+                          <button
+                            type="button"
+                            className={selected ? 'is-active' : undefined}
+                            data-testid="opening-matrix-cell"
+                            data-actor-id={actor.player_id}
+                            data-target-id={target.player_id}
+                            disabled={count === 0}
+                            aria-pressed={selected}
+                            aria-label={`${actor.player_name} → ${target.player_name}: ${count} ${t('analysis.openings.openingKills')}`}
+                            onClick={() => {
+                              setOutcome('all');
+                              setLocalFocusId(selected ? null : firstEvidenceId);
+                              onNavigate({
+                                playerId: actor.player_id,
+                                opponentId: selected ? null : target.player_id,
+                                tick: null,
+                                evidenceId: selected ? null : firstEvidenceId,
+                              });
+                            }}
+                          >{count}</button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <section className="opening-analysis-table" aria-label={t('analysis.openings.atomicEvidence')}>
           <header className="opening-analysis-table__title">
             <div>

@@ -696,6 +696,7 @@ export function AnalysisPage() {
                 <OpeningDuelAnalysisWorkspace
                   workspace={workspace}
                   selectedPlayerId={params.has('player') ? selectedPlayerId : null}
+                  selectedOpponentId={selectedOpponentId}
                   selectedRound={params.has('round') ? selectedRound : null}
                   serviceAvailable={source === 'service'}
                   runtimeIdle={runtimeSession === 'idle'}

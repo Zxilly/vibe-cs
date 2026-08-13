@@ -9,6 +9,7 @@ export type OpeningDuelOutcome = 'all' | 'opening_kill' | 'opening_death';
 
 export type OpeningDuelFilter = {
   playerId: string | null;
+  targetId?: string | null;
   round: number | null;
   outcome: OpeningDuelOutcome;
 };
@@ -55,6 +56,24 @@ export type OpeningPlayerAggregate = {
   atomic_evidence_count: number;
 };
 
+export type OpeningDuelMatrixPlayer = {
+  player_id: string;
+  player_name: string;
+  player_team: PlayerAnalysis['team'];
+};
+
+export type OpeningDuelMatrixCell = {
+  actor_id: string;
+  target_id: string;
+  opening_kills: number;
+  evidence_ids: string[];
+};
+
+export type OpeningDuelMatrix = {
+  players: OpeningDuelMatrixPlayer[];
+  cells: OpeningDuelMatrixCell[];
+};
+
 export type OpeningUnavailableSummary = {
   count: number;
   reasons: Array<{ code: OpeningRoundUnavailableReason; count: number }>;
@@ -64,6 +83,7 @@ export type OpeningDuelWorkspace = {
   selected_player: PlayerAnalysis | null;
   evidence: OpeningDuelEvidence[];
   player_aggregates: OpeningPlayerAggregate[];
+  matrix: OpeningDuelMatrix;
   round_assessments: OpeningRoundAssessment[];
   unavailable_rounds: OpeningUnavailableSummary;
   availability: PlayerEvidenceAvailability;
@@ -240,6 +260,32 @@ function playerAggregates(
   });
 }
 
+function openingDuelMatrix(
+  players: PlayerAnalysis[],
+  evidence: OpeningDuelEvidence[],
+): OpeningDuelMatrix {
+  return {
+    players: players.map((player) => ({
+      player_id: player.id,
+      player_name: player.name,
+      player_team: player.team,
+    })),
+    cells: players.flatMap((actor) => players
+      .filter((target) => target.id !== actor.id)
+      .map((target) => {
+        const matchingEvidence = evidence.filter(
+          (item) => item.actor_id === actor.id && item.target_id === target.id,
+        );
+        return {
+          actor_id: actor.id,
+          target_id: target.id,
+          opening_kills: matchingEvidence.length,
+          evidence_ids: matchingEvidence.map((item) => item.evidence_id),
+        };
+      })),
+  };
+}
+
 export function buildOpeningDuelWorkspace(
   workspace: AnalysisWorkspace,
   filter: OpeningDuelFilter,
@@ -256,35 +302,54 @@ export function buildOpeningDuelWorkspace(
     .flatMap((assessment) => assessment.evidence ? [assessment.evidence] : [])
     .sort((left, right) => left.round - right.round || left.tick - right.tick);
   const unavailable = unavailableSummary(assessments);
+  const matrix = openingDuelMatrix(workspace.players, allEvidence);
+  const aggregates = playerAggregates(workspace.players, allEvidence);
+  const unavailableResult = (
+    player: PlayerAnalysis | null,
+    reason: string,
+  ): OpeningDuelWorkspace => ({
+    selected_player: player,
+    evidence: [],
+    player_aggregates: aggregates,
+    matrix,
+    round_assessments: assessments,
+    unavailable_rounds: unavailable,
+    availability: { state: 'unavailable', reason },
+  });
 
   if (filter.playerId && !selectedPlayer) {
-    return {
-      selected_player: null,
-      evidence: [],
-      player_aggregates: playerAggregates(workspace.players, allEvidence),
-      round_assessments: assessments,
-      unavailable_rounds: unavailable,
-      availability: {
-        state: 'unavailable',
-        reason: 'Select a verified player or clear the player filter.',
-      },
-    };
+    return unavailableResult(null, 'Select a verified player or clear the player filter.');
+  }
+  if (filter.targetId && !selectedPlayer) {
+    return unavailableResult(
+      null,
+      'Select a verified actor before filtering an opening matchup.',
+    );
+  }
+  if (filter.targetId
+    && !workspace.players.some((player) => player.id === filter.targetId)) {
+    return unavailableResult(
+      selectedPlayer,
+      'Select a verified target or clear the matchup filter.',
+    );
+  }
+  if (filter.targetId && filter.targetId === selectedPlayer?.id) {
+    return unavailableResult(
+      selectedPlayer,
+      'Opening matchup actor and target must be different players.',
+    );
   }
   if (!selectedPlayer && filter.outcome !== 'all') {
-    return {
-      selected_player: null,
-      evidence: [],
-      player_aggregates: playerAggregates(workspace.players, allEvidence),
-      round_assessments: assessments,
-      unavailable_rounds: unavailable,
-      availability: {
-        state: 'unavailable',
-        reason: 'Select a verified player before filtering opening kills or deaths.',
-      },
-    };
+    return unavailableResult(
+      null,
+      'Select a verified player before filtering opening kills or deaths.',
+    );
   }
 
   const evidence = allEvidence.filter((item) => {
+    if (filter.targetId) {
+      return item.actor_id === selectedPlayer?.id && item.target_id === filter.targetId;
+    }
     if (!selectedPlayer) return true;
     if (filter.outcome === 'opening_kill') return item.actor_id === selectedPlayer.id;
     if (filter.outcome === 'opening_death') return item.target_id === selectedPlayer.id;
@@ -293,7 +358,8 @@ export function buildOpeningDuelWorkspace(
   return {
     selected_player: selectedPlayer,
     evidence,
-    player_aggregates: playerAggregates(workspace.players, allEvidence),
+    player_aggregates: aggregates,
+    matrix,
     round_assessments: assessments,
     unavailable_rounds: unavailable,
     availability: evidenceAvailability(assessments, unavailable),

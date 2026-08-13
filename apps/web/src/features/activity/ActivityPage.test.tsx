@@ -9,6 +9,7 @@ import {
   ActivityWorkspace,
   activityActionNotice,
   executeActivityAction,
+  shouldDismissActivityActionNotice,
   shouldShowActivityListLoading,
 } from './ActivityPage';
 
@@ -40,6 +41,33 @@ describe('activity workspace', () => {
     expect(activityActionNotice('failed')).toMatchObject({ tone: 'danger' });
     expect(activityActionNotice('cancelled')).toMatchObject({ tone: 'warning' });
     expect(activityActionNotice('queued')).toMatchObject({ tone: 'info' });
+  });
+
+  it('retires a mutation receipt once the exact activity advances beyond it', () => {
+    const receipt = {
+      activityId: 'analysis:new-run',
+      status: 'queued' as const,
+      stage: 'validating_input',
+    };
+    const queued = item({
+      id: receipt.activityId,
+      kind: 'analysis',
+      status: 'queued',
+      stage: receipt.stage,
+    });
+
+    expect(shouldDismissActivityActionNotice(receipt, queued)).toBe(false);
+    expect(shouldDismissActivityActionNotice(receipt, {
+      ...queued,
+      status: 'completed',
+      stage: 'completed',
+    })).toBe(true);
+    expect(shouldDismissActivityActionNotice(receipt, {
+      ...queued,
+      id: 'analysis:other-run',
+      status: 'completed',
+      stage: 'completed',
+    })).toBe(false);
   });
 
   it('keeps a dense task table and evidence inspector while omitting unknown percentages', () => {

@@ -189,6 +189,15 @@ export function activityActionNotice(status: ActivityStatus | null): {
   return { tone: 'info', key: statusKeys[status] };
 }
 
+export function shouldDismissActivityActionNotice(
+  receipt: Pick<ActivityActionOutcome, 'activityId' | 'status' | 'stage'>,
+  selected: ActivityItem | null,
+): boolean {
+  return receipt.activityId !== null
+    && selected?.id === receipt.activityId
+    && (selected.status !== receipt.status || selected.stage !== receipt.stage);
+}
+
 export function ActivityWorkspace({
   items,
   selectedId,
@@ -430,6 +439,9 @@ export function ActivityPage() {
   const [notice, setNotice] = useState<{
     tone: 'info' | 'success' | 'warning' | 'danger';
     message: string;
+    activityId: string | null;
+    status: ActivityStatus | null;
+    stage: string | null;
   } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
@@ -470,6 +482,10 @@ export function ActivityPage() {
               ? 'retrying'
               : null;
   const selectedAnalysisRunId = selected?.kind === 'analysis' ? selected.job_id : null;
+
+  useEffect(() => {
+    if (notice && shouldDismissActivityActionNotice(notice, selected)) setNotice(null);
+  }, [notice, selected]);
 
   useEffect(() => {
     mutationGuard.activate();
@@ -617,6 +633,9 @@ export function ActivityPage() {
       setNotice({
         tone: outcome.tone,
         message: [t(outcome.key), ...evidence].join(' · '),
+        activityId: result.activityId,
+        status: result.status,
+        stage: result.stage,
       });
       if (result.activityId) {
         setSelectedId(result.activityId);

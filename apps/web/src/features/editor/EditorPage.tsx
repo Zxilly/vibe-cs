@@ -74,6 +74,7 @@ import {
   mapKillAxisEvents,
 } from './advancedEditing';
 import { synchronizeMediaPreview } from './previewSync';
+import { selectEditorProjectFromUrl } from './editorProjectSelection';
 import { EditorTimeline } from './EditorTimeline';
 import { EditorWaveform } from './EditorWaveform';
 import { interpolateTimelineProperty, type TimelineClip, type TimelineKeyframeProperty, type TimelineOperationResult, type TimelineTrack, useTimelineStore } from './timelineStore';
@@ -381,6 +382,18 @@ const toWireTracks = (tracks: TimelineTrack[]): TimelineTrackDto[] => tracks.map
   clips: track.clips.map(toWireClip),
 }));
 
+export function EditorMissingProjectNotice({
+  projectId,
+  projectLabel,
+  unavailableLabel,
+}: {
+  projectId: string;
+  projectLabel: string;
+  unavailableLabel: string;
+}) {
+  return <Notice className="editor-notice" tone="danger">{projectLabel} · {projectId} · {unavailableLabel}</Notice>;
+}
+
 export function EditorPage() {
   const [searchParams] = useSearchParams();
   const requestedProjectId = searchParams.get('project');
@@ -428,6 +441,7 @@ export function EditorPage() {
   const [activeProject, setActiveProject] = useState<EditorProject>(() => blankProject());
   const [source, setSource] = useState<'loading' | 'service' | 'unavailable'>('loading');
   const [error, setError] = useState<string | null>(null);
+  const [missingProjectId, setMissingProjectId] = useState<string | null>(null);
   const [projectListOpen, setProjectListOpen] = useState(false);
   const [snapshotListOpen, setSnapshotListOpen] = useState(false);
   const [markerListOpen, setMarkerListOpen] = useState(false);
@@ -523,13 +537,13 @@ export function EditorPage() {
         setAssets(mediaAssets.items);
         setPresets(editorPresets.items);
         setSelectedPresetId(editorPresets.items[0]?.id ?? null);
-        const first = response.items.find((project) => project.id === requestedProjectId) ?? response.items[0];
-        if (first) {
-          const loadedTracks = projectTracks(first);
-          setActiveProject(first);
-          reset(loadedTracks, first.duration_seconds, first.markers);
-          setSavedRevision(first.revision);
-          setSavedFingerprint(projectEditFingerprint(first.name, toWireTracks(loadedTracks), first.markers, first.settings, first.duration_seconds));
+        const selection = selectEditorProjectFromUrl(response.items, requestedProjectId);
+        if (selection.status === 'selected') {
+          const loadedTracks = projectTracks(selection.project);
+          setActiveProject(selection.project);
+          reset(loadedTracks, selection.project.duration_seconds, selection.project.markers);
+          setSavedRevision(selection.project.revision);
+          setSavedFingerprint(projectEditFingerprint(selection.project.name, toWireTracks(loadedTracks), selection.project.markers, selection.project.settings, selection.project.duration_seconds));
         } else {
           const empty = blankProject();
           setActiveProject(empty);
@@ -537,6 +551,7 @@ export function EditorPage() {
           setSavedFingerprint(projectEditFingerprint(empty.name, [], [], empty.settings, 0));
           reset([], 0, []);
         }
+        setMissingProjectId(selection.status === 'missing' ? selection.requestedProjectId : null);
         setSource('service');
         setError(null);
       })
@@ -547,6 +562,7 @@ export function EditorPage() {
         setMedia([]);
         setAssets([]);
         setPresets([]);
+        setMissingProjectId(null);
         setActiveProject(empty);
         setSavedRevision(0);
         setSavedFingerprint(projectEditFingerprint(empty.name, [], [], empty.settings, 0));
@@ -846,6 +862,7 @@ export function EditorPage() {
   const activateProject = (project: EditorProject, nextTracks: TimelineTrack[]) => {
     projectSession.current += 1;
     setPlaying(false);
+    setMissingProjectId(null);
     setActiveProject(project);
     setSavedRevision(project.revision);
     setSavedFingerprint(projectEditFingerprint(project.name, toWireTracks(nextTracks), project.markers, project.settings, project.duration_seconds));
@@ -1763,6 +1780,7 @@ export function EditorPage() {
       </header>
 
       <div className="editor-status-stack">
+        {missingProjectId !== null ? <EditorMissingProjectNotice projectId={missingProjectId} projectLabel={t('editor.editingProjects')} unavailableLabel={msg("m0147")} /> : null}
         {source !== 'service' ? <Notice className="editor-notice" tone={source === 'loading' ? 'info' : 'warning'}>{source === 'loading' ? t('common.loading') : error ?? t('common.unavailable')}</Notice> : null}
         {autoSaveState.message ? <Notice className="editor-notice" tone={autoSaveState.status === 'error' || autoSaveState.status === 'conflict' ? 'danger' : autoSaveState.status === 'saving' ? 'info' : 'success'}>{autoSaveState.message}{autoSaveState.status === 'error' ? <Button size="sm" onClick={() => { setAutoSaveState({ status: 'idle', message: null }); setAutoSaveRetry((value) => value + 1); }}><RefreshCw size={12} />{msg("m1268")}</Button> : null}{autoSaveState.status === 'conflict' ? <Button size="sm" variant="danger" disabled={projectOperation === 'reloading'} onClick={() => void reloadServerProject()}>{projectOperation === 'reloading' ? <Spinner /> : <RefreshCw size={12} />}{projectOperation === 'reloading' ? msg("m1175") : msg("m1177")}</Button> : null}</Notice> : null}
         {saveAction.state.message ? <Notice className="editor-notice" tone={saveAction.state.status === 'error' ? 'danger' : 'success'}>{saveAction.state.message}</Notice> : null}

@@ -10,53 +10,42 @@ use serde_json::{Value, json};
 use crate::{ApiError, ApiJson, ApiQuery, ApiResult, AppState};
 
 const MAXIMUM_GSI_PAYLOAD_BYTES: usize = 512 * 1024;
-const MAXIMUM_OBS_CONTROL_PAYLOAD_BYTES: usize = 1024;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/match-history/matches", get(match_history))
-        .route("/api/v1/match-history/sync", post(match_history_sync))
+        .route("/api/match-history/matches", get(match_history))
+        .route("/api/match-history/sync", post(match_history_sync))
+        .route("/api/match-history/download", post(match_history_download))
         .route(
-            "/api/v1/match-history/download",
-            post(match_history_download),
+            "/api/match-history/downloads/active",
+            get(match_history_active_downloads),
         )
         .route(
-            "/api/v1/match-history/download/{job_id}",
+            "/api/match-history/download/{job_id}",
             get(match_history_download_status).delete(match_history_download_cancel),
         )
         .route(
-            "/api/v1/match-history/credentials",
+            "/api/match-history/credentials",
             axum::routing::delete(match_history_disconnect),
         )
-        .route("/api/v1/steam/matches", get(match_history))
-        .route("/api/v1/match-history/test", post(match_history_test))
-        .route("/api/v1/obs/status", get(obs_status))
-        .route("/api/v1/obs/test", post(obs_test))
+        .route("/api/match-history/test", post(match_history_test))
+        .route("/api/llm/status", get(llm_status))
+        .route("/api/llm/test", post(llm_test))
         .route(
-            "/api/v1/obs/start",
-            post(obs_start).layer(DefaultBodyLimit::max(MAXIMUM_OBS_CONTROL_PAYLOAD_BYTES)),
-        )
-        .route(
-            "/api/v1/obs/diagnose",
-            post(obs_diagnose).layer(DefaultBodyLimit::max(MAXIMUM_OBS_CONTROL_PAYLOAD_BYTES)),
-        )
-        .route("/api/v1/llm/status", get(llm_status))
-        .route("/api/v1/llm/test", post(llm_test))
-        .route(
-            "/api/v1/gsi/cs2",
+            "/api/gsi/cs2",
             post(gsi_ingest).layer(DefaultBodyLimit::max(MAXIMUM_GSI_PAYLOAD_BYTES)),
         )
-        .route("/api/v1/gsi/status", get(gsi_status))
-        .route("/api/v1/playback/status", get(playback_status))
-        .route("/api/v1/gsi/install", post(gsi_install))
-        .route("/api/v1/gsi/remove", post(gsi_remove))
-        .route("/api/v1/config-backup/status", get(recovery_status))
-        .route("/api/v1/config-backup/restore", post(recovery_restore))
+        .route("/api/gsi/status", get(gsi_status))
+        .route("/api/playback/status", get(playback_status))
+        .route("/api/gsi/install", post(gsi_install))
+        .route("/api/gsi/remove", post(gsi_remove))
+        .route("/api/config-backup/status", get(recovery_status))
+        .route("/api/config-backup/restore", post(recovery_restore))
 }
 
 pub(crate) fn gsi_router() -> Router<AppState> {
     Router::new().route(
-        "/api/v1/gsi/cs2",
+        "/api/gsi/cs2",
         post(gsi_ingest).layer(DefaultBodyLimit::max(MAXIMUM_GSI_PAYLOAD_BYTES)),
     )
 }
@@ -65,6 +54,8 @@ pub(crate) fn gsi_router() -> Router<AppState> {
 struct MatchHistoryQuery {
     #[serde(default)]
     steam_id: Option<String>,
+    #[serde(default)]
+    search: Option<String>,
     #[serde(default = "default_page")]
     page: u32,
     #[serde(default = "default_page_size")]
@@ -84,6 +75,7 @@ async fn match_history(
 ) -> ApiResult<Json<Value>> {
     let request = json!({
         "steam_id": query.steam_id,
+        "search": query.search,
         "page": query.page.max(1),
         "page_size": query.page_size.clamp(1, 200),
     });
@@ -142,6 +134,15 @@ async fn match_history_download_status(
     ))
 }
 
+async fn match_history_active_downloads(State(state): State<AppState>) -> ApiResult<Json<Value>> {
+    Ok(Json(
+        state
+            .integrations
+            .request("match_history_downloads_active", Value::Null)
+            .await?,
+    ))
+}
+
 async fn match_history_download_cancel(
     State(state): State<AppState>,
     AxumPath(job_id): AxumPath<String>,
@@ -161,61 +162,6 @@ async fn match_history_disconnect(State(state): State<AppState>) -> ApiResult<Js
             .request("match_history_disconnect", Value::Null)
             .await?,
     ))
-}
-
-async fn obs_status(State(state): State<AppState>) -> ApiResult<Json<Value>> {
-    ensure_obs_configured(&state).await?;
-    Ok(Json(
-        state
-            .integrations
-            .request("obs_status", Value::Null)
-            .await?,
-    ))
-}
-
-async fn obs_test(
-    State(state): State<AppState>,
-    ApiJson(request): ApiJson<Value>,
-) -> ApiResult<Json<Value>> {
-    Ok(Json(state.integrations.request("obs_test", request).await?))
-}
-
-async fn obs_start(
-    State(state): State<AppState>,
-    ApiJson(request): ApiJson<Value>,
-) -> ApiResult<Json<Value>> {
-    validate_obs_control_request(&request)?;
-    let config = state.storage.get_config().await?.unwrap_or_default();
-    if config.obs.executable.trim().is_empty() {
-        return Err(ApiError::dependency("OBS executable"));
-    }
-    Ok(Json(
-        state.integrations.request("obs_start", Value::Null).await?,
-    ))
-}
-
-async fn obs_diagnose(
-    State(state): State<AppState>,
-    ApiJson(request): ApiJson<Value>,
-) -> ApiResult<Json<Value>> {
-    validate_obs_control_request(&request)?;
-    ensure_obs_configured(&state).await?;
-    Ok(Json(
-        state
-            .integrations
-            .request("obs_diagnose", Value::Null)
-            .await?,
-    ))
-}
-
-fn validate_obs_control_request(request: &Value) -> ApiResult<()> {
-    if request.as_object().is_some_and(serde_json::Map::is_empty) {
-        Ok(())
-    } else {
-        Err(ApiError::invalid(
-            "OBS control request must be an empty JSON object",
-        ))
-    }
 }
 
 async fn llm_status(State(state): State<AppState>) -> ApiResult<Json<Value>> {
@@ -326,14 +272,6 @@ async fn recovery_restore(
             .request("config_backup_restore", request)
             .await?,
     ))
-}
-
-async fn ensure_obs_configured(state: &AppState) -> ApiResult<()> {
-    let config = state.storage.get_config().await?.unwrap_or_default();
-    if config.obs.host.trim().is_empty() || config.obs.port == 0 {
-        return Err(ApiError::dependency("OBS WebSocket"));
-    }
-    Ok(())
 }
 
 async fn ensure_llm_configured(state: &AppState) -> ApiResult<()> {
@@ -531,7 +469,7 @@ mod tests {
         let _response = gsi_install(
             State(state.clone()),
             ApiJson(json!({
-                "uri": "http://127.0.0.1:47831/api/v1/gsi/cs2",
+                "uri": "http://127.0.0.1:47831/api/gsi/cs2",
                 "token": "client-controlled"
             })),
         )
@@ -544,16 +482,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn connection_tests_forward_unsaved_form_configuration() {
+    async fn llm_connection_test_forwards_unsaved_form_configuration() {
         let integrations = Arc::new(CapturingIntegrations::default());
         let (_directory, state) = test_state(Arc::clone(&integrations)).await;
-        let obs_request = json!({
-            "host": "localhost",
-            "port": 4456,
-            "password": "temporary",
-            "executable": "",
-            "scene": "Test"
-        });
         let llm_request = json!({
             "provider": "openai-compatible",
             "model": "test-model",
@@ -562,9 +493,6 @@ mod tests {
             "prompt": ""
         });
 
-        let _ = obs_test(State(state.clone()), ApiJson(obs_request.clone()))
-            .await
-            .expect("OBS test request");
         let llm_response = llm_test(State(state), ApiJson(llm_request.clone()))
             .await
             .expect("LLM test request");
@@ -573,60 +501,7 @@ mod tests {
         assert_eq!(llm_response.0["capabilities"]["tools"], true);
 
         let requests = integrations.requests.lock().await;
-        assert_eq!(requests[0], ("obs_test".to_owned(), obs_request));
-        assert_eq!(requests[1], ("llm_test".to_owned(), llm_request));
-    }
-
-    #[tokio::test]
-    async fn obs_control_routes_reject_non_empty_or_non_object_payloads() {
-        let integrations = Arc::new(CapturingIntegrations::default());
-        let (_directory, state) = test_state(Arc::clone(&integrations)).await;
-        for invalid in [
-            Value::Null,
-            json!([]),
-            json!("start"),
-            json!({ "scene": "client-controlled" }),
-        ] {
-            let start_error = obs_start(State(state.clone()), ApiJson(invalid.clone()))
-                .await
-                .expect_err("invalid OBS start payload must fail");
-            assert_eq!(
-                start_error.into_response().status(),
-                StatusCode::BAD_REQUEST
-            );
-
-            let diagnose_error = obs_diagnose(State(state.clone()), ApiJson(invalid))
-                .await
-                .expect_err("invalid OBS diagnosis payload must fail");
-            assert_eq!(
-                diagnose_error.into_response().status(),
-                StatusCode::BAD_REQUEST
-            );
-        }
-        assert_eq!(integrations.calls.load(Ordering::Relaxed), 0);
-    }
-
-    #[tokio::test]
-    async fn obs_control_routes_use_only_saved_configuration() {
-        let integrations = Arc::new(CapturingIntegrations::default());
-        let (_directory, state) = test_state(Arc::clone(&integrations)).await;
-        let mut config = vibe_cs_domain::AppConfig::default();
-        config.obs.executable = "configured-obs".to_owned();
-        config.obs.scene = "Capture".to_owned();
-        state.storage.put_config(config).await.expect("config");
-
-        let _ = obs_status(State(state.clone())).await.expect("OBS status");
-        let _ = obs_start(State(state.clone()), ApiJson(json!({})))
-            .await
-            .expect("OBS start");
-        let _ = obs_diagnose(State(state), ApiJson(json!({})))
-            .await
-            .expect("OBS diagnosis");
-
-        let requests = integrations.requests.lock().await;
-        assert_eq!(requests[0], ("obs_status".to_owned(), Value::Null));
-        assert_eq!(requests[1], ("obs_start".to_owned(), Value::Null));
-        assert_eq!(requests[2], ("obs_diagnose".to_owned(), Value::Null));
+        assert_eq!(requests[0], ("llm_test".to_owned(), llm_request));
     }
 
     #[tokio::test]
@@ -645,6 +520,7 @@ mod tests {
             State(state.clone()),
             ApiQuery(MatchHistoryQuery {
                 steam_id: None,
+                search: Some("nuke".to_owned()),
                 page: 2,
                 page_size: 25,
             }),
@@ -663,6 +539,9 @@ mod tests {
         )
         .await
         .expect("start download");
+        let _ = match_history_active_downloads(State(state.clone()))
+            .await
+            .expect("list active downloads");
         let job_id = uuid::Uuid::new_v4().to_string();
         let _ = match_history_download_status(State(state.clone()), AxumPath(job_id.clone()))
             .await
@@ -675,13 +554,15 @@ mod tests {
         assert_eq!(requests[0].0, "match_history");
         assert_eq!(requests[0].1["page"], 2);
         assert_eq!(requests[0].1["page_size"], 25);
+        assert_eq!(requests[0].1["search"], "nuke");
         assert_eq!(requests[1].0, "match_history_sync");
         assert_eq!(
             requests[2],
             ("match_history_test".to_owned(), steam_request)
         );
         assert_eq!(requests[3].1["match_id"], "account:match");
-        assert_eq!(requests[4].1["job_id"], job_id);
-        assert_eq!(requests[5].0, "match_history_download_cancel");
+        assert_eq!(requests[4].0, "match_history_downloads_active");
+        assert_eq!(requests[5].1["job_id"], job_id);
+        assert_eq!(requests[6].0, "match_history_download_cancel");
     }
 }

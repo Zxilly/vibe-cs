@@ -19,6 +19,12 @@ pub enum DemoError {
     Cancelled,
     #[error("demo contains more than {limit} supported events")]
     EventLimitExceeded { limit: usize },
+    #[error("demo parser resource limit exceeded for {resource} ({actual}, maximum {limit})")]
+    ParserResourceLimit {
+        resource: String,
+        limit: usize,
+        actual: usize,
+    },
     #[error("unsafe archive entry path: {0}")]
     UnsafeArchivePath(String),
     #[error("archive contains too many entries (maximum {0})")]

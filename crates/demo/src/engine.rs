@@ -1,12 +1,14 @@
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     panic::{AssertUnwindSafe, catch_unwind},
     path::Path,
 };
 
 use serde_json::{Map, Value};
 use source2_demo::prelude::*;
-use source2_demo::proto::CMsgPlayerInfo;
+use source2_demo::proto::{
+    CDemoFileHeader, CDemoFileInfo, CMsgPlayerInfo, CNetMsgSignonState, CSvcMsgClearAllStringTables,
+};
 use uuid::Uuid;
 use vibe_cs_domain::{
     EventKind, MatchAnalysis, PlayerStats, RoundSummary, TeamSummary, TimelineEvent,
@@ -15,6 +17,7 @@ use vibe_cs_domain::{
 use crate::{
     DemoError, DemoResult, EntityReplayLimits, HighlightPolicy, ParseCancellation,
     ValidationLimits, classify_highlights_with_players,
+    demoparser_backend::analyze_fast,
     entity_replay::{EntityReplayCapture, attach_entity_replay},
     validate_demo,
 };
@@ -25,6 +28,23 @@ pub struct DemoEngineConfig {
     pub maximum_events: usize,
     pub highlights: HighlightPolicy,
     pub entity_replay: EntityReplayLimits,
+    pub backend: DemoParserBackend,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum DemoParserBackend {
+    #[default]
+    Cooperative,
+    Fast,
+}
+
+impl DemoParserBackend {
+    pub fn from_environment_value(value: Option<&str>) -> Self {
+        match value.map(str::trim).map(str::to_ascii_lowercase).as_deref() {
+            Some("cooperative") => Self::Cooperative,
+            _ => Self::Fast,
+        }
+    }
 }
 
 impl Default for DemoEngineConfig {
@@ -34,6 +54,7 @@ impl Default for DemoEngineConfig {
             maximum_events: 500_000,
             highlights: HighlightPolicy::default(),
             entity_replay: EntityReplayLimits::default(),
+            backend: DemoParserBackend::Cooperative,
         }
     }
 }
@@ -98,20 +119,99 @@ impl DemoEngine {
 }
 
 #[derive(Debug, Clone)]
-struct ParsedEvent {
-    sequence: u64,
-    tick: u64,
-    name: String,
-    fields: Map<String, Value>,
+pub(crate) struct ParsedEvent {
+    pub(crate) sequence: u64,
+    pub(crate) tick: u64,
+    pub(crate) name: String,
+    pub(crate) fields: Map<String, Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct PlayerIdentity {
-    stable_id: String,
-    name: String,
+struct GameRulesRoundSnapshot {
+    total_rounds_played: u32,
+    round_start_number: u32,
+    winner_team: i64,
+    end_reason: i64,
+    end_message: String,
 }
 
-type PlayerIdentities = HashMap<String, PlayerIdentity>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GameRulesRoundRecord {
+    number: u32,
+    start_tick: u64,
+    end_tick: u64,
+    winner_team: i64,
+    end_reason: i64,
+    end_message: String,
+}
+
+#[derive(Debug, Default)]
+struct GameRulesRoundCapture {
+    last_total_rounds: Option<u32>,
+    starts: BTreeMap<u32, u64>,
+    records: Vec<GameRulesRoundRecord>,
+}
+
+#[derive(Debug, Default)]
+struct RoundRosterCapture {
+    current: BTreeMap<String, String>,
+    snapshots: Vec<(u64, BTreeMap<String, String>)>,
+}
+
+impl RoundRosterCapture {
+    fn observe(&mut self, tick: u64, player_id: String, team: String) {
+        if self.current.get(&player_id) == Some(&team) {
+            return;
+        }
+        self.current.insert(player_id, team);
+        self.snapshots.push((tick, self.current.clone()));
+    }
+
+    fn into_snapshots(self) -> Vec<(u64, BTreeMap<String, String>)> {
+        self.snapshots
+    }
+}
+
+impl GameRulesRoundCapture {
+    fn observe(&mut self, tick: u64, snapshot: GameRulesRoundSnapshot) {
+        let active_round = snapshot.round_start_number.saturating_add(1);
+        self.starts.entry(active_round).or_insert(tick);
+
+        let Some(previous_total) = self.last_total_rounds.replace(snapshot.total_rounds_played)
+        else {
+            return;
+        };
+        if snapshot.total_rounds_played <= previous_total {
+            return;
+        }
+        let number = snapshot.total_rounds_played;
+        let Some(start_tick) = self.starts.get(&number).copied() else {
+            return;
+        };
+        self.records.push(GameRulesRoundRecord {
+            number,
+            start_tick,
+            end_tick: tick,
+            winner_team: snapshot.winner_team,
+            end_reason: snapshot.end_reason,
+            end_message: snapshot.end_message,
+        });
+    }
+
+    fn into_records(self) -> Vec<GameRulesRoundRecord> {
+        self.records
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PlayerIdentity {
+    pub(crate) stable_id: String,
+    pub(crate) name: String,
+    pub(crate) spectator_slot: Option<u8>,
+    pub(crate) spectator_slot_conflicted: bool,
+}
+
+pub(crate) type PlayerIdentities = HashMap<String, PlayerIdentity>;
 
 #[derive(Debug)]
 struct EventObserver {
@@ -119,17 +219,61 @@ struct EventObserver {
     maximum_events: usize,
     events: Vec<ParsedEvent>,
     identities: PlayerIdentities,
+    header_map_name: Option<String>,
+    network_map_name: Option<String>,
+    game_rules_rounds: GameRulesRoundCapture,
+    round_rosters: RoundRosterCapture,
     entity_replay: EntityReplayCapture,
 }
 
 impl Observer for EventObserver {
     fn interests(&self) -> Interests {
         Interests::BASE_GAME_EVENT
+            | Interests::DEMO_MESSAGE
+            | Interests::NET_MESSAGE
+            | Interests::SVC_MESSAGE
             | Interests::TICK_START
             | Interests::TICK_END
             | Interests::ENTITY_STATE
+            | Interests::ENTITY_EVENTS
             | Interests::STRING_TABLE_STATE
             | Interests::STRING_TABLE_ENTRIES
+    }
+
+    fn on_demo_command(
+        &mut self,
+        _context: &Context,
+        message_type: EDemoCommands,
+        message: &[u8],
+    ) -> ObserverResult {
+        if self.header_map_name.is_none() {
+            self.header_map_name = map_name_from_demo_message(message_type, message);
+        }
+        Ok(())
+    }
+
+    fn on_net_message(
+        &mut self,
+        _context: &Context,
+        message_type: NetMessages,
+        message: &[u8],
+    ) -> ObserverResult {
+        if self.network_map_name.is_none() {
+            self.network_map_name = map_name_from_net_message(message_type, message);
+        }
+        Ok(())
+    }
+
+    fn on_svc_message(
+        &mut self,
+        _context: &Context,
+        message_type: SvcMessages,
+        message: &[u8],
+    ) -> ObserverResult {
+        if self.network_map_name.is_none() {
+            self.network_map_name = map_name_from_svc_message(message_type, message);
+        }
+        Ok(())
     }
 
     fn on_tick_start(&mut self, _context: &Context) -> ObserverResult {
@@ -167,6 +311,23 @@ impl Observer for EventObserver {
         Ok(())
     }
 
+    fn on_entity(
+        &mut self,
+        context: &Context,
+        _event: EntityEvents,
+        entity: &Entity,
+    ) -> ObserverResult {
+        if let Some(snapshot) = game_rules_round_snapshot(entity) {
+            self.game_rules_rounds
+                .observe(u64::from(context.tick()), snapshot);
+        }
+        if let Some((player_id, team)) = controller_player_team(entity) {
+            self.round_rosters
+                .observe(u64::from(context.tick()), player_id, team);
+        }
+        Ok(())
+    }
+
     fn on_string_table(
         &mut self,
         _context: &Context,
@@ -201,6 +362,20 @@ fn analyze_blocking(
     config: DemoEngineConfig,
     cancellation: &ParseCancellation,
 ) -> DemoResult<MatchAnalysis> {
+    match config.backend {
+        DemoParserBackend::Cooperative => {
+            analyze_source2_blocking(path, demo_id, config, cancellation)
+        }
+        DemoParserBackend::Fast => analyze_fast(path, demo_id, config, cancellation),
+    }
+}
+
+fn analyze_source2_blocking(
+    path: &Path,
+    demo_id: Uuid,
+    config: DemoEngineConfig,
+    cancellation: &ParseCancellation,
+) -> DemoResult<MatchAnalysis> {
     let validated = validate_demo(path, config.validation, cancellation)?;
     cancellation.check()?;
     let bytes =
@@ -208,21 +383,18 @@ fn analyze_blocking(
     cancellation.check()?;
 
     let mut parser = Parser::new(&bytes).map_err(|error| DemoError::Parse(error.to_string()))?;
-    let playback_ticks = parser.replay_info().playback_ticks();
-    let playback_time = f64::from(parser.replay_info().playback_time());
-    if playback_ticks <= 0 || !playback_time.is_finite() || playback_time <= 0.0 {
-        return Err(DemoError::MetadataUnavailable("playback duration/ticks"));
-    }
-    let tick_rate = f64::from(playback_ticks) / playback_time;
-    if !tick_rate.is_finite() || tick_rate <= 0.0 {
-        return Err(DemoError::MetadataUnavailable("tick rate"));
-    }
+    let (verified_total_ticks, playback_time, tick_rate) =
+        verified_replay_metadata(parser.replay_info())?;
 
     let observer = parser.add_observer(EventObserver {
         cancellation: cancellation.clone(),
         maximum_events: config.maximum_events,
         events: Vec::new(),
         identities: HashMap::new(),
+        header_map_name: None,
+        network_map_name: None,
+        game_rules_rounds: GameRulesRoundCapture::default(),
+        round_rosters: RoundRosterCapture::default(),
         entity_replay: EntityReplayCapture::new(config.entity_replay),
     });
     if let Err(error) = parser.run_to_end() {
@@ -238,13 +410,26 @@ fn analyze_blocking(
         return Err(DemoError::Parse(message));
     }
     cancellation.check()?;
-    let (events, observed_identities, entity_frames, entity_unavailable) = {
+    let (
+        events,
+        observed_identities,
+        header_map_name,
+        network_map_name,
+        game_rules_rounds,
+        round_rosters,
+        entity_frames,
+        entity_unavailable,
+    ) = {
         let mut observer = observer.borrow_mut();
         let entity_replay = std::mem::take(&mut observer.entity_replay);
         let (entity_frames, entity_unavailable) = entity_replay.into_parts();
         (
             observer.events.clone(),
             observer.identities.clone(),
+            observer.header_map_name.clone(),
+            observer.network_map_name.clone(),
+            std::mem::take(&mut observer.game_rules_rounds).into_records(),
+            std::mem::take(&mut observer.round_rosters).into_snapshots(),
             entity_frames,
             entity_unavailable,
         )
@@ -253,7 +438,11 @@ fn analyze_blocking(
         return Err(DemoError::Parse("no game events were decoded".to_owned()));
     }
 
-    let map_name = find_map_name(&events).ok_or(DemoError::MetadataUnavailable("map name"))?;
+    let events = canonicalize_round_events(events, &game_rules_rounds, &round_rosters);
+    let map_name = header_map_name
+        .or(network_map_name)
+        .or_else(|| find_map_name(&events))
+        .ok_or(DemoError::MetadataUnavailable("map name"))?;
     let (mut rounds, players) = build_rounds_and_players(&events, tick_rate, &observed_identities)?;
     attach_entity_replay(&mut rounds, &entity_frames, entity_unavailable.as_deref());
     let teams = build_teams(&players, &rounds);
@@ -263,11 +452,27 @@ fn analyze_blocking(
         map_name,
         tick_rate,
         duration_seconds: playback_time,
+        verified_total_ticks: Some(verified_total_ticks),
         teams,
         players,
         rounds,
         highlights,
     })
+}
+
+pub(crate) fn verified_replay_metadata(replay_info: &CDemoFileInfo) -> DemoResult<(u32, f64, f64)> {
+    let playback_ticks = replay_info.playback_ticks();
+    let playback_time = f64::from(replay_info.playback_time());
+    if playback_ticks <= 0 || !playback_time.is_finite() || playback_time <= 0.0 {
+        return Err(DemoError::MetadataUnavailable("playback duration/ticks"));
+    }
+    let verified_total_ticks = u32::try_from(playback_ticks)
+        .map_err(|_| DemoError::MetadataUnavailable("playback ticks"))?;
+    let tick_rate = f64::from(playback_ticks) / playback_time;
+    if !tick_rate.is_finite() || tick_rate <= 0.0 {
+        return Err(DemoError::MetadataUnavailable("tick rate"));
+    }
+    Ok((verified_total_ticks, playback_time, tick_rate))
 }
 
 fn event_value_to_json(value: &EventValue) -> Value {
@@ -283,6 +488,162 @@ fn event_value_to_json(value: &EventValue) -> Value {
     }
 }
 
+fn game_rules_round_snapshot(entity: &Entity) -> Option<GameRulesRoundSnapshot> {
+    if entity.class().name() != "CCSGameRulesProxy" {
+        return None;
+    }
+    let fields = entity.fields();
+    Some(GameRulesRoundSnapshot {
+        total_rounds_played: u32::try_from(game_rules_integer(
+            &fields,
+            "m_pGameRules.m_totalRoundsPlayed",
+        )?)
+        .ok()?,
+        round_start_number: u32::try_from(game_rules_integer(
+            &fields,
+            "m_pGameRules.m_iRoundStartRoundNumber",
+        )?)
+        .ok()?,
+        winner_team: game_rules_integer(&fields, "m_pGameRules.m_iRoundEndWinnerTeam")?,
+        end_reason: game_rules_integer(&fields, "m_pGameRules.m_eRoundEndReason")?,
+        end_message: game_rules_string(&fields, "m_pGameRules.m_sRoundEndMessage")?.to_owned(),
+    })
+}
+
+fn controller_player_team(entity: &Entity) -> Option<(String, String)> {
+    if entity.class().name() != "CCSPlayerController" {
+        return None;
+    }
+    let fields = entity.fields();
+    let steam_id = entity_unsigned(&fields, "m_steamID").filter(|value| *value > 0)?;
+    let team = entity_unsigned(&fields, "m_iTeamNum")
+        .and_then(|value| i64::try_from(value).ok())
+        .and_then(team_side)?;
+    Some((steam_id.to_string(), team.to_owned()))
+}
+
+fn entity_unsigned(fields: &[EntityField<'_>], name: &str) -> Option<u64> {
+    let value = fields
+        .iter()
+        .find(|field| field.name == name || field.name.ends_with(&format!(".{name}")))?
+        .value?;
+    match value {
+        FieldValue::Unsigned8(value) => Some(u64::from(*value)),
+        FieldValue::Unsigned16(value) => Some(u64::from(*value)),
+        FieldValue::Unsigned32(value) => Some(u64::from(*value)),
+        FieldValue::Unsigned64(value) => Some(*value),
+        FieldValue::Signed8(value) => u64::try_from(*value).ok(),
+        FieldValue::Signed16(value) => u64::try_from(*value).ok(),
+        FieldValue::Signed32(value) => u64::try_from(*value).ok(),
+        FieldValue::Signed64(value) => u64::try_from(*value).ok(),
+        _ => None,
+    }
+}
+
+fn game_rules_integer(fields: &[EntityField<'_>], name: &str) -> Option<i64> {
+    let value = fields.iter().find(|field| field.name == name)?.value?;
+    match value {
+        FieldValue::Signed8(value) => Some(i64::from(*value)),
+        FieldValue::Signed16(value) => Some(i64::from(*value)),
+        FieldValue::Signed32(value) => Some(i64::from(*value)),
+        FieldValue::Signed64(value) => Some(*value),
+        FieldValue::Unsigned8(value) => Some(i64::from(*value)),
+        FieldValue::Unsigned16(value) => Some(i64::from(*value)),
+        FieldValue::Unsigned32(value) => Some(i64::from(*value)),
+        FieldValue::Unsigned64(value) => i64::try_from(*value).ok(),
+        _ => None,
+    }
+}
+
+fn game_rules_string<'a>(fields: &'a [EntityField<'a>], name: &str) -> Option<&'a str> {
+    let value = fields.iter().find(|field| field.name == name)?.value?;
+    match value {
+        FieldValue::String(value) => Some(value),
+        _ => None,
+    }
+}
+
+fn canonicalize_round_events(
+    mut events: Vec<ParsedEvent>,
+    records: &[GameRulesRoundRecord],
+    roster_snapshots: &[(u64, BTreeMap<String, String>)],
+) -> Vec<ParsedEvent> {
+    if records.is_empty() {
+        return events;
+    }
+    events.retain(|event| !matches!(event.name.as_str(), "round_start" | "round_end"));
+    let mut sequence = events
+        .iter()
+        .map(|event| event.sequence)
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1);
+    for record in records {
+        let mut start_fields = Map::new();
+        start_fields.insert("round_number".to_owned(), Value::from(record.number));
+        start_fields.insert(
+            "source".to_owned(),
+            Value::String("CCSGameRulesProxy".to_owned()),
+        );
+        if let Some(roster) = roster_for_round(record, roster_snapshots) {
+            start_fields.insert(
+                "_round_roster".to_owned(),
+                serde_json::to_value(roster).expect("round roster serialization cannot fail"),
+            );
+        }
+        events.push(ParsedEvent {
+            sequence,
+            tick: record.start_tick,
+            name: "round_start".to_owned(),
+            fields: start_fields,
+        });
+        sequence = sequence.saturating_add(1);
+
+        let mut end_fields = Map::new();
+        end_fields.insert("round_number".to_owned(), Value::from(record.number));
+        end_fields.insert("winner".to_owned(), Value::from(record.winner_team));
+        end_fields.insert("reason_code".to_owned(), Value::from(record.end_reason));
+        end_fields.insert(
+            "reason".to_owned(),
+            Value::String(record.end_message.clone()),
+        );
+        end_fields.insert(
+            "source".to_owned(),
+            Value::String("CCSGameRulesProxy".to_owned()),
+        );
+        events.push(ParsedEvent {
+            sequence,
+            tick: record.end_tick,
+            name: "round_end".to_owned(),
+            fields: end_fields,
+        });
+        sequence = sequence.saturating_add(1);
+    }
+    events.sort_by_key(|event| {
+        let boundary_order = match event.name.as_str() {
+            "round_start" => 0_u8,
+            "round_end" => 2,
+            _ => 1,
+        };
+        (event.tick, boundary_order, event.sequence)
+    });
+    events
+}
+
+fn roster_for_round<'a>(
+    record: &GameRulesRoundRecord,
+    snapshots: &'a [(u64, BTreeMap<String, String>)],
+) -> Option<&'a BTreeMap<String, String>> {
+    snapshots
+        .iter()
+        .rfind(|(tick, roster)| {
+            *tick <= record.end_tick
+                && roster.len() >= 4
+                && roster.values().collect::<BTreeSet<_>>().len() == 2
+        })
+        .map(|(_, roster)| roster)
+}
+
 fn find_map_name(events: &[ParsedEvent]) -> Option<String> {
     events
         .iter()
@@ -296,8 +657,40 @@ fn find_map_name(events: &[ParsedEvent]) -> Option<String> {
         .filter(|name| !name.trim().is_empty())
 }
 
+fn map_name_from_demo_message(message_type: EDemoCommands, message: &[u8]) -> Option<String> {
+    if message_type != EDemoCommands::DemFileHeader {
+        return None;
+    }
+    let message = CDemoFileHeader::decode(message).ok()?;
+    nonempty_map_name(message.map_name)
+}
+
+fn map_name_from_net_message(message_type: NetMessages, message: &[u8]) -> Option<String> {
+    if message_type != NetMessages::NetSignonState {
+        return None;
+    }
+    let message = CNetMsgSignonState::decode(message).ok()?;
+    nonempty_map_name(message.map_name)
+}
+
+fn map_name_from_svc_message(message_type: SvcMessages, message: &[u8]) -> Option<String> {
+    if message_type != SvcMessages::SvcClearAllStringTables {
+        return None;
+    }
+    let message = CSvcMsgClearAllStringTables::decode(message).ok()?;
+    nonempty_map_name(message.mapname)
+}
+
+fn nonempty_map_name(map_name: Option<String>) -> Option<String> {
+    let map_name = map_name?.trim().to_owned();
+    (!map_name.is_empty()).then_some(map_name)
+}
+
 fn register_player_info(identities: &mut PlayerIdentities, info: &CMsgPlayerInfo) {
-    let user_id = info.userid.filter(|value| *value > 0);
+    let raw_user_id = info.userid;
+    let user_id = raw_user_id
+        .map(|value| value & 0xff)
+        .filter(|value| *value > 0);
     let steam_id = info
         .steamid
         .filter(|value| *value > 0)
@@ -315,11 +708,39 @@ fn register_player_info(identities: &mut PlayerIdentities, info: &CMsgPlayerInfo
         .filter(|value| !value.is_empty())
         .unwrap_or(&stable_id)
         .to_owned();
+    let previous = identities.get(&stable_id);
+    let (spectator_slot, spectator_slot_conflicted) = match raw_user_id {
+        None => previous.map_or((None, false), |identity| {
+            (identity.spectator_slot, identity.spectator_slot_conflicted)
+        }),
+        Some(user_id) => match spectator_slot_from_userid(user_id) {
+            None => (None, true),
+            Some(slot) => match previous {
+                Some(identity) if identity.spectator_slot_conflicted => (None, true),
+                Some(identity)
+                    if identity
+                        .spectator_slot
+                        .is_some_and(|existing| existing != slot) =>
+                {
+                    (None, true)
+                }
+                _ => (Some(slot), false),
+            },
+        },
+    };
     let identity = PlayerIdentity {
         stable_id: stable_id.clone(),
         name,
+        spectator_slot,
+        spectator_slot_conflicted,
     };
 
+    for existing in identities
+        .values_mut()
+        .filter(|existing| existing.stable_id == stable_id)
+    {
+        existing.clone_from(&identity);
+    }
     identities.insert(stable_id.clone(), identity.clone());
     if let Some(user_id) = user_id {
         identities.insert(user_id.to_string(), identity.clone());
@@ -331,6 +752,13 @@ fn register_player_info(identities: &mut PlayerIdentities, info: &CMsgPlayerInfo
     if let Some(steam_id) = info.steamid.filter(|value| *value > 0) {
         identities.insert(steam_id.to_string(), identity);
     }
+}
+
+pub(crate) fn spectator_slot_from_userid(user_id: i32) -> Option<u8> {
+    let slot = (user_id & 0xff).checked_add(1)?;
+    u8::try_from(slot)
+        .ok()
+        .filter(|slot| (1..=64).contains(slot))
 }
 
 #[derive(Debug, Default)]
@@ -345,7 +773,7 @@ struct PlayerAccumulator {
     damage: u32,
 }
 
-fn build_rounds_and_players(
+pub(crate) fn build_rounds_and_players(
     parsed: &[ParsedEvent],
     tick_rate: f64,
     observed_identities: &PlayerIdentities,
@@ -447,9 +875,11 @@ fn build_rounds_and_players(
         ));
     }
     let round_count = u32::try_from(rounds.len()).unwrap_or(u32::MAX).max(1);
+    let spectator_slots = resolved_spectator_slots(&identities);
     let players = players
         .into_values()
         .map(|player| PlayerStats {
+            spectator_slot: spectator_slots.get(&player.id).copied(),
             steam_id: player.id,
             name: player.name,
             team: player.team,
@@ -459,12 +889,41 @@ fn build_rounds_and_players(
             headshots: player.headshots,
             damage: player.damage,
             adr: f64::from(player.damage) / f64::from(round_count),
-            rating: f64::from(player.kills) / f64::from(player.deaths.max(1)),
+            kill_death_ratio: f64::from(player.kills) / f64::from(player.deaths.max(1)),
             score: i32::try_from(player.kills.saturating_mul(2)).unwrap_or(i32::MAX)
                 - i32::try_from(player.deaths).unwrap_or(i32::MAX),
         })
         .collect();
     Ok((rounds, players))
+}
+
+fn resolved_spectator_slots(identities: &PlayerIdentities) -> HashMap<String, u8> {
+    let mut by_player = BTreeMap::<String, (bool, BTreeSet<u8>)>::new();
+    for identity in identities.values() {
+        let (conflicted, observed) = by_player.entry(identity.stable_id.clone()).or_default();
+        *conflicted |= identity.spectator_slot_conflicted;
+        if let Some(slot) = identity.spectator_slot {
+            observed.insert(slot);
+        }
+    }
+    let mut slot_counts = HashMap::<u8, usize>::new();
+    for slot in by_player.values().filter_map(|(conflicted, observed)| {
+        (!conflicted && observed.len() == 1)
+            .then(|| observed.iter().next().copied())
+            .flatten()
+    }) {
+        *slot_counts.entry(slot).or_default() += 1;
+    }
+    by_player
+        .into_iter()
+        .filter_map(|(player_id, (conflicted, observed))| {
+            if conflicted || observed.len() != 1 {
+                return None;
+            }
+            let slot = observed.into_iter().next()?;
+            (slot_counts.get(&slot) == Some(&1)).then_some((player_id, slot))
+        })
+        .collect()
 }
 
 fn collect_identities(
@@ -496,6 +955,8 @@ fn collect_identities(
         let identity = PlayerIdentity {
             stable_id: stable_id.clone(),
             name,
+            spectator_slot: None,
+            spectator_slot_conflicted: false,
         };
         identities
             .entry(stable_id.clone())
@@ -573,6 +1034,11 @@ fn timeline_event(
         }
         _ => None,
     };
+    let weapon_keys: &[&str] = if kind == EventKind::Purchase {
+        &["item_name", "weapon", "weapon_name"]
+    } else {
+        &["weapon", "weapon_name"]
+    };
     TimelineEvent {
         id: format!("{}-{}-{}", raw.name, raw.tick, raw.sequence),
         tick: raw.tick,
@@ -580,7 +1046,7 @@ fn timeline_event(
         kind,
         actor,
         target,
-        weapon: field_string(&raw.fields, &["weapon", "weapon_name"]),
+        weapon: field_string(&raw.fields, weapon_keys),
         headshot: field_bool(&raw.fields, &["headshot"]),
         penetrated: field_bool(&raw.fields, &["penetrated"])
             || field_i64(&raw.fields, &["penetrated"]).is_some_and(|value| value > 0),
@@ -598,8 +1064,11 @@ fn update_players(
 ) {
     if let Some(actor) = event.actor.as_ref() {
         let player = player_entry(players, actor, identities);
-        if let Some(team) =
-            field_i64(fields, &["attackerteam", "attacker_team"]).and_then(team_side)
+        if let Some(team) = field_i64(
+            fields,
+            &["attackerteam", "attacker_team", "attacker_team_num"],
+        )
+        .and_then(team_side)
         {
             team.clone_into(&mut player.team);
             current_teams.insert(actor.clone(), team.to_owned());
@@ -625,7 +1094,12 @@ fn update_players(
     if event.kind == EventKind::Kill {
         if let Some(target) = event.target.as_ref() {
             let player = player_entry(players, target, identities);
-            if let Some(team) = field_i64(fields, &["userteam", "victimteam"]).and_then(team_side) {
+            if let Some(team) = field_i64(
+                fields,
+                &["userteam", "victimteam", "user_team_num", "victim_team_num"],
+            )
+            .and_then(team_side)
+            {
                 team.clone_into(&mut player.team);
                 current_teams.insert(target.clone(), team.to_owned());
             } else if let Some(team) = current_teams.get(target) {
@@ -636,7 +1110,12 @@ fn update_players(
         let raw_assister = field_string(fields, &["assister_steamid", "assister_xuid", "assister"]);
         if let Some(assister) = canonical_player_id(raw_assister.as_deref(), identities) {
             let player = player_entry(players, &assister, identities);
-            if let Some(team) = current_teams.get(&assister) {
+            if let Some(team) =
+                field_i64(fields, &["assisterteam", "assister_team_num"]).and_then(team_side)
+            {
+                team.clone_into(&mut player.team);
+                current_teams.insert(assister.clone(), team.to_owned());
+            } else if let Some(team) = current_teams.get(&assister) {
                 player.team.clone_from(team);
             }
             player.assists = player.assists.saturating_add(1);
@@ -691,7 +1170,7 @@ fn player_entry<'a>(
         })
 }
 
-fn build_teams(players: &[PlayerStats], rounds: &[RoundSummary]) -> Vec<TeamSummary> {
+pub(crate) fn build_teams(players: &[PlayerStats], rounds: &[RoundSummary]) -> Vec<TeamSummary> {
     let (t_score, ct_score) = rounds
         .last()
         .map_or((0, 0), |round| (round.team_a_score, round.team_b_score));
@@ -740,7 +1219,7 @@ fn canonical_player_id(raw_id: Option<&str>, identities: &PlayerIdentities) -> O
 
 fn normalize_raw_player_id(value: &str) -> Option<String> {
     let value = value.trim();
-    if value.is_empty() || matches!(value, "0" | "-1") {
+    if value.is_empty() || matches!(value, "0" | "-1" | "65535") {
         None
     } else {
         Some(value.to_owned())
@@ -788,6 +1267,8 @@ fn field_bool(fields: &Map<String, Value>, keys: &[&str]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write as _;
+
     use serde_json::json;
 
     use super::*;
@@ -799,6 +1280,125 @@ mod tests {
             name: name.to_owned(),
             fields: fields.as_object().unwrap().clone(),
         }
+    }
+
+    #[test]
+    fn extracts_map_name_from_trusted_protocol_metadata() {
+        let header = source2_demo::proto::CDemoFileHeader {
+            demo_file_stamp: "PBDEMS2".to_owned(),
+            map_name: Some("de_mirage".to_owned()),
+            ..Default::default()
+        };
+        let signon = source2_demo::proto::CNetMsgSignonState {
+            map_name: Some("de_anubis".to_owned()),
+            ..Default::default()
+        };
+        let cleared = source2_demo::proto::CSvcMsgClearAllStringTables {
+            mapname: Some("de_inferno".to_owned()),
+            ..Default::default()
+        };
+
+        assert_eq!(
+            map_name_from_demo_message(EDemoCommands::DemFileHeader, &header.encode_to_vec())
+                .as_deref(),
+            Some("de_mirage")
+        );
+        assert_eq!(
+            map_name_from_net_message(NetMessages::NetSignonState, &signon.encode_to_vec())
+                .as_deref(),
+            Some("de_anubis")
+        );
+        assert_eq!(
+            map_name_from_svc_message(
+                SvcMessages::SvcClearAllStringTables,
+                &cleared.encode_to_vec()
+            )
+            .as_deref(),
+            Some("de_inferno")
+        );
+        assert_eq!(map_name_from_net_message(NetMessages::NetTick, &[]), None);
+        assert_eq!(map_name_from_svc_message(SvcMessages::SvcPrint, &[]), None);
+        assert_eq!(
+            map_name_from_demo_message(EDemoCommands::DemStop, &[]),
+            None
+        );
+    }
+
+    #[test]
+    fn game_rules_round_state_emits_once_per_completed_round() {
+        let mut capture = GameRulesRoundCapture::default();
+        capture.observe(
+            1,
+            GameRulesRoundSnapshot {
+                total_rounds_played: 0,
+                round_start_number: 0,
+                winner_team: 3,
+                end_reason: 12,
+                end_message: "#SFUI_Notice_Target_Saved".to_owned(),
+            },
+        );
+        capture.observe(
+            4_041,
+            GameRulesRoundSnapshot {
+                total_rounds_played: 1,
+                round_start_number: 0,
+                winner_team: 3,
+                end_reason: 8,
+                end_message: "#SFUI_Notice_CTs_Win".to_owned(),
+            },
+        );
+        capture.observe(
+            4_042,
+            GameRulesRoundSnapshot {
+                total_rounds_played: 1,
+                round_start_number: 0,
+                winner_team: 3,
+                end_reason: 8,
+                end_message: "#SFUI_Notice_CTs_Win".to_owned(),
+            },
+        );
+        capture.observe(
+            4_361,
+            GameRulesRoundSnapshot {
+                total_rounds_played: 1,
+                round_start_number: 1,
+                winner_team: 3,
+                end_reason: 8,
+                end_message: "#SFUI_Notice_CTs_Win".to_owned(),
+            },
+        );
+        capture.observe(
+            9_461,
+            GameRulesRoundSnapshot {
+                total_rounds_played: 2,
+                round_start_number: 1,
+                winner_team: 2,
+                end_reason: 1,
+                end_message: "#SFUI_Notice_Target_Bombed".to_owned(),
+            },
+        );
+
+        assert_eq!(
+            capture.into_records(),
+            vec![
+                GameRulesRoundRecord {
+                    number: 1,
+                    start_tick: 1,
+                    end_tick: 4_041,
+                    winner_team: 3,
+                    end_reason: 8,
+                    end_message: "#SFUI_Notice_CTs_Win".to_owned(),
+                },
+                GameRulesRoundRecord {
+                    number: 2,
+                    start_tick: 4_361,
+                    end_tick: 9_461,
+                    winner_team: 2,
+                    end_reason: 1,
+                    end_message: "#SFUI_Notice_Target_Bombed".to_owned(),
+                },
+            ]
+        );
     }
 
     #[test]
@@ -886,6 +1486,89 @@ mod tests {
         );
         assert_eq!(identities["42"].name, "Player One");
         assert_eq!(canonical_player_id(Some("0"), &identities), None);
+        assert_eq!(canonical_player_id(Some("65535"), &identities), None);
+    }
+
+    #[test]
+    fn source2_userinfo_low_byte_becomes_one_based_spectator_slot() {
+        let mut identities = HashMap::new();
+        register_player_info(
+            &mut identities,
+            &CMsgPlayerInfo {
+                name: Some("Player One".to_owned()),
+                xuid: Some(76_561_198_000_000_123),
+                userid: Some(0x12_0007),
+                steamid: Some(76_561_198_000_000_123),
+                ..CMsgPlayerInfo::default()
+            },
+        );
+        let events = vec![
+            raw(10, "round_start", &json!({})),
+            raw(
+                20,
+                "player_death",
+                &json!({"attacker": 7, "userid": 0, "weapon": "world"}),
+            ),
+            raw(30, "round_end", &json!({"winner": 2})),
+        ];
+
+        let (_, players) =
+            build_rounds_and_players(&events, 64.0, &identities).expect("one competitive round");
+        let player = players
+            .iter()
+            .find(|player| player.steam_id == "76561198000000123")
+            .expect("userinfo player");
+
+        assert_eq!(player.spectator_slot, Some(8));
+    }
+
+    #[test]
+    fn conflicting_or_shared_source2_userinfo_slots_are_unavailable() {
+        let mut identities = HashMap::new();
+        for (steam_id, user_id) in [(76_561_198_000_000_001, 7), (76_561_198_000_000_002, 7)] {
+            register_player_info(
+                &mut identities,
+                &CMsgPlayerInfo {
+                    name: Some(steam_id.to_string()),
+                    userid: Some(user_id),
+                    steamid: Some(steam_id),
+                    ..CMsgPlayerInfo::default()
+                },
+            );
+        }
+        register_player_info(
+            &mut identities,
+            &CMsgPlayerInfo {
+                name: Some("conflict".to_owned()),
+                userid: Some(8),
+                steamid: Some(76_561_198_000_000_001),
+                ..CMsgPlayerInfo::default()
+            },
+        );
+        let slots = resolved_spectator_slots(&identities);
+
+        assert_eq!(slots.get("76561198000000001"), None);
+        assert_eq!(slots.get("76561198000000002"), Some(&8));
+
+        let mut shared = HashMap::new();
+        for steam_id in [76_561_198_000_000_001, 76_561_198_000_000_002] {
+            register_player_info(
+                &mut shared,
+                &CMsgPlayerInfo {
+                    userid: Some(7),
+                    steamid: Some(steam_id),
+                    ..CMsgPlayerInfo::default()
+                },
+            );
+        }
+        assert!(resolved_spectator_slots(&shared).is_empty());
+    }
+
+    #[test]
+    fn source2_userinfo_slots_outside_cs2_range_are_unavailable() {
+        assert_eq!(spectator_slot_from_userid(63), Some(64));
+        assert_eq!(spectator_slot_from_userid(64), None);
+        assert_eq!(spectator_slot_from_userid(255), None);
     }
 
     #[test]
@@ -938,6 +1621,33 @@ mod tests {
     }
 
     #[test]
+    fn purchase_preserves_the_vendored_item_name_as_event_evidence() {
+        let identities = HashMap::new();
+        let purchase = timeline_event(
+            &raw(
+                128,
+                "item_purchase",
+                &json!({
+                    "steamid": "76561198000000007",
+                    "item_name": "weapon_ak47",
+                    "user_X": 1.0,
+                    "user_Y": 2.0,
+                    "user_Z": 3.0,
+                    "x": 1.0,
+                    "y": 2.0,
+                    "z": 3.0
+                }),
+            ),
+            EventKind::Purchase,
+            64.0,
+            &identities,
+        );
+
+        assert_eq!(purchase.weapon.as_deref(), Some("weapon_ak47"));
+        assert_eq!(purchase.position, Some([1.0, 2.0, 3.0]));
+    }
+
+    #[test]
     fn blind_event_preserves_thrower_target_and_duration() {
         let mut identities = HashMap::new();
         for (user_id, steam_id, name) in [
@@ -978,5 +1688,143 @@ mod tests {
         assert_eq!(normalize_team_side("TERRORIST"), Some("T"));
         assert_eq!(normalize_team_side("counter-terrorist"), Some("CT"));
         assert_eq!(normalize_team_side("spectator"), None);
+    }
+
+    #[test]
+    fn parser_backend_uses_only_current_names_and_requires_an_explicit_cooperative_override() {
+        assert_eq!(
+            DemoEngineConfig::default().backend,
+            DemoParserBackend::Cooperative
+        );
+        assert_eq!(
+            DemoParserBackend::from_environment_value(None),
+            DemoParserBackend::Fast
+        );
+        assert_eq!(
+            DemoParserBackend::from_environment_value(Some("unknown")),
+            DemoParserBackend::Fast
+        );
+        assert_eq!(
+            DemoParserBackend::from_environment_value(Some(" COOPERATIVE ")),
+            DemoParserBackend::Cooperative
+        );
+        assert_eq!(
+            DemoParserBackend::from_environment_value(Some(" FAST ")),
+            DemoParserBackend::Fast
+        );
+    }
+
+    #[test]
+    fn replay_metadata_keeps_header_ticks_instead_of_reconstructing_them_from_time() {
+        let replay_info = CDemoFileInfo {
+            playback_ticks: Some(7_681),
+            playback_time: Some(120.0),
+            ..CDemoFileInfo::default()
+        };
+
+        let (verified_total_ticks, duration_seconds, tick_rate) =
+            verified_replay_metadata(&replay_info).expect("valid replay metadata");
+
+        assert_eq!(verified_total_ticks, 7_681);
+        assert!((duration_seconds - 120.0).abs() < f64::EPSILON);
+        assert!((tick_rate - (7_681.0 / 120.0)).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn fast_backend_returns_its_own_error_without_retrying_another_parser() {
+        let mut demo = tempfile::Builder::new().suffix(".dem").tempfile().unwrap();
+        demo.write_all(b"PBDEMS2\0abcdefgh").unwrap();
+        let config = DemoEngineConfig {
+            backend: DemoParserBackend::Fast,
+            ..DemoEngineConfig::default()
+        };
+        let cancellation = ParseCancellation::default();
+        let fast_error = analyze_fast(demo.path(), Uuid::nil(), config, &cancellation)
+            .expect_err("incomplete demo must fail in the selected fast parser");
+        assert!(matches!(
+            fast_error,
+            DemoError::Parse(_) | DemoError::MetadataUnavailable(_)
+        ));
+
+        let selected_error = analyze_blocking(
+            demo.path(),
+            Uuid::nil(),
+            config,
+            &ParseCancellation::default(),
+        )
+        .expect_err("selected fast parser must report its own failure");
+
+        assert_eq!(selected_error.to_string(), fast_error.to_string());
+    }
+
+    #[test]
+    #[ignore = "requires VIBE_CS_REAL_DEMO_DIR pointing at the local Major final demos"]
+    fn real_major_replay_headers_report_authoritative_total_ticks() {
+        let directory = std::path::PathBuf::from(
+            std::env::var("VIBE_CS_REAL_DEMO_DIR").expect("VIBE_CS_REAL_DEMO_DIR"),
+        );
+        for (file, expected_total_ticks) in [
+            ("furia-vs-falcons-m1-mirage.dem", 189_316),
+            ("furia-vs-falcons-m2-anubis.dem", 211_707),
+            ("furia-vs-falcons-m3-inferno.dem", 216_279),
+        ] {
+            let bytes = std::fs::read(directory.join(file)).expect("read real demo");
+            let parser = Parser::new(&bytes).expect("read authoritative replay header");
+            let playback_ticks = parser.replay_info().playback_ticks();
+            assert_eq!(playback_ticks, expected_total_ticks, "{file}");
+        }
+    }
+
+    #[test]
+    #[ignore = "requires VIBE_CS_REAL_DEMO_DIR pointing at the local Major final demos"]
+    fn cooperative_parser_persists_authoritative_total_ticks_for_the_real_major_final() {
+        let directory = std::path::PathBuf::from(
+            std::env::var("VIBE_CS_REAL_DEMO_DIR").expect("VIBE_CS_REAL_DEMO_DIR"),
+        );
+        for (file, expected_total_ticks) in [
+            ("furia-vs-falcons-m1-mirage.dem", 189_316),
+            ("furia-vs-falcons-m2-anubis.dem", 211_707),
+            ("furia-vs-falcons-m3-inferno.dem", 216_279),
+        ] {
+            let analysis = analyze_source2_blocking(
+                &directory.join(file),
+                Uuid::nil(),
+                DemoEngineConfig::default(),
+                &ParseCancellation::default(),
+            )
+            .unwrap_or_else(|error| panic!("cooperative parser should parse {file}: {error}"));
+            let verified_total_ticks = analysis
+                .verified_total_ticks
+                .unwrap_or_else(|| panic!("{file} must persist replay_info.playback_ticks"));
+            let spectator_slots = analysis
+                .players
+                .iter()
+                .map(|player| {
+                    player.spectator_slot.unwrap_or_else(|| {
+                        panic!(
+                            "{file}: {} has no parser-observed spectator slot",
+                            player.steam_id
+                        )
+                    })
+                })
+                .collect::<BTreeSet<_>>();
+
+            assert_eq!(verified_total_ticks, expected_total_ticks, "{file}");
+            assert_eq!(analysis.players.len(), 10, "{file}");
+            assert_eq!(spectator_slots.len(), 10, "{file}");
+            assert!(
+                spectator_slots.iter().all(|slot| (1..=64).contains(slot)),
+                "{file}"
+            );
+            assert!(
+                u64::from(verified_total_ticks)
+                    >= analysis
+                        .rounds
+                        .last()
+                        .expect("last competitive round")
+                        .end_tick,
+                "{file}"
+            );
+        }
     }
 }

@@ -4,7 +4,6 @@ use std::{
 };
 
 use async_trait::async_trait;
-use vibe_cs_integrations::{ObsClient, ObsRecordStatus, ObsTransport};
 use vibe_cs_platform_windows::{
     BackupManager, ConsoleCommand, ProcessCancellation, ProcessInfo, RecoveryStatus,
 };
@@ -41,46 +40,41 @@ pub trait GameController: Send + Sync {
     fn send_command(&self, process_id: u32, command: &ConsoleCommand) -> RecordingResult<()>;
 }
 
-#[async_trait]
-pub trait ObsRecorder: Send {
-    /// Queries whether OBS is currently recording.
-    ///
-    /// # Errors
-    ///
-    /// Returns an integration or protocol error.
-    async fn record_status(&mut self) -> RecordingResult<ObsRecordStatus>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CaptureStatus {
+    pub active: bool,
+    pub paused: bool,
+    pub timecode: Option<String>,
+    pub artifact_path: Option<PathBuf>,
+}
 
-    /// Requests OBS recording start.
-    ///
-    /// # Errors
-    ///
-    /// Returns an integration or protocol error.
-    async fn start_recording(&mut self) -> RecordingResult<()>;
-
-    /// Stops OBS and returns its output path, when reported.
-    ///
-    /// # Errors
-    ///
-    /// Returns an integration or protocol error.
-    async fn stop_recording(&mut self) -> RecordingResult<Option<PathBuf>>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CaptureArtifact {
+    pub path: PathBuf,
 }
 
 #[async_trait]
-impl<T> ObsRecorder for ObsClient<T>
-where
-    T: ObsTransport,
-{
-    async fn record_status(&mut self) -> RecordingResult<ObsRecordStatus> {
-        Ok(ObsClient::record_status(self).await?)
-    }
+pub trait CaptureRecorder: Send {
+    /// Queries whether the capture backend is currently active.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capture-backend or protocol error.
+    async fn capture_status(&mut self) -> RecordingResult<CaptureStatus>;
 
-    async fn start_recording(&mut self) -> RecordingResult<()> {
-        Ok(ObsClient::start_recording(self).await?)
-    }
+    /// Requests capture start.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capture-backend or protocol error.
+    async fn start_capture(&mut self) -> RecordingResult<()>;
 
-    async fn stop_recording(&mut self) -> RecordingResult<Option<PathBuf>> {
-        Ok(ObsClient::stop_recording(self).await?.map(PathBuf::from))
-    }
+    /// Stops capture and returns its output artifact, when reported.
+    ///
+    /// # Errors
+    ///
+    /// Returns a capture-backend or protocol error.
+    async fn stop_capture(&mut self) -> RecordingResult<Option<CaptureArtifact>>;
 }
 
 #[async_trait]

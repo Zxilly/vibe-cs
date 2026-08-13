@@ -6,7 +6,16 @@ pub const MAX_EDITOR_KEYFRAMES_PER_CLIP: usize = 128;
 pub const MAX_EDITOR_SPEED_SEGMENTS: usize = 16;
 pub const MAX_EDITOR_PROJECT_DURATION_SECONDS: f64 = 86_400.0;
 
+fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorProject {
     pub id: Uuid,
     pub name: String,
@@ -34,11 +43,12 @@ pub struct EditorAudioSeparation {
     pub mute_source: bool,
 }
 
-/// Metadata for a persisted point-in-time editor project version.
+/// Metadata for a persisted point-in-time editor project snapshot.
 ///
 /// The full project document is retained by storage and restored through the
 /// snapshot identifier; list operations can therefore stay lightweight.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorProjectSnapshot {
     pub id: Uuid,
     pub project_id: Uuid,
@@ -48,9 +58,8 @@ pub struct EditorProjectSnapshot {
 }
 
 impl EditorProject {
-    /// Returns the linked audio child previously created by audio separation.
-    /// Both the current structured origin and the earlier flat metadata shape
-    /// are accepted so persisted projects remain compatible.
+    /// Returns the linked audio child identified by the structured audio
+    /// origin written by the current separation operation.
     #[must_use]
     pub fn separated_audio_clip_id(&self, source_clip_id: Uuid) -> Option<Uuid> {
         let source_link_group = self
@@ -289,8 +298,6 @@ impl EditorProject {
             transition_out: None,
             text: None,
             metadata: serde_json::json!({
-                "separated_from_clip_id": source.id,
-                "separated_from_asset_id": request.source_asset_id,
                 "audio_origin": {
                     "kind": "separated_from_video",
                     "source_clip_id": source.id,
@@ -356,18 +363,13 @@ impl EditorProject {
 }
 
 fn separated_audio_origin(metadata: &serde_json::Value) -> Option<Uuid> {
-    let structured = metadata
+    metadata
         .get("audio_origin")
         .filter(|origin| {
             origin.get("kind").and_then(serde_json::Value::as_str) == Some("separated_from_video")
         })
         .and_then(|origin| origin.get("source_clip_id"))
-        .and_then(serde_json::Value::as_str);
-    let legacy = metadata
-        .get("separated_from_clip_id")
-        .and_then(serde_json::Value::as_str);
-    structured
-        .or(legacy)
+        .and_then(serde_json::Value::as_str)
         .and_then(|value| Uuid::parse_str(value).ok())
 }
 
@@ -548,6 +550,7 @@ fn is_editor_color(value: &str) -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorTrack {
     pub id: Uuid,
     pub name: String,
@@ -569,8 +572,10 @@ pub enum TrackKind {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorClip {
     pub id: Uuid,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub asset_id: Option<Uuid>,
     pub name: String,
     pub start: f64,
@@ -581,17 +586,18 @@ pub struct EditorClip {
     pub volume: f64,
     pub transform: Transform,
     pub effects: Vec<EditorEffect>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub transition_in: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub transition_out: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub text: Option<TextStyle>,
     pub metadata: serde_json::Value,
-    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub group_id: Option<Uuid>,
-    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub link_group_id: Option<Uuid>,
-    #[serde(default)]
     pub keyframes: Vec<EditorKeyframe>,
-    #[serde(default)]
     pub speed_segments: Vec<EditorSpeedSegment>,
 }
 
@@ -608,6 +614,7 @@ pub enum EditorKeyframeProperty {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorKeyframe {
     pub id: Uuid,
     pub time: f64,
@@ -617,6 +624,7 @@ pub struct EditorKeyframe {
 
 /// One constant-speed interval on the clip-local output timeline.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorSpeedSegment {
     pub id: Uuid,
     pub start: f64,
@@ -625,6 +633,7 @@ pub struct EditorSpeedSegment {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct Transform {
     pub x: f64,
     pub y: f64,
@@ -648,6 +657,7 @@ impl Default for Transform {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorEffect {
     pub id: String,
     pub kind: String,
@@ -656,20 +666,23 @@ pub struct EditorEffect {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct TextStyle {
     pub content: String,
     pub font_family: String,
     /// Optional managed font asset. Exporters resolve the identifier through
     /// the media library instead of accepting an ambient filesystem path.
-    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub font_asset_id: Option<Uuid>,
     pub font_size: f64,
     pub color: String,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub background: Option<String>,
     pub align: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorMarker {
     pub id: Uuid,
     pub time: f64,
@@ -677,35 +690,31 @@ pub struct EditorMarker {
     pub color: String,
 }
 
-pub const EDITOR_PRESET_SCHEMA_VERSION: u32 = 1;
-
-/// A versioned, closed set of clip properties that the renderer supports.
+/// The closed set of clip properties that the current renderer supports.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct EditorPresetDocument {
-    pub schema_version: u32,
     pub transform: Transform,
     pub volume: f64,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub color_adjust: Option<EditorColorAdjustPreset>,
     pub grayscale: bool,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub blur_radius: Option<f64>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub transition_in: Option<EditorTransitionPreset>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub transition_out: Option<EditorTransitionPreset>,
 }
 
 impl EditorPresetDocument {
-    /// Validates the preset schema and every renderer-facing value.
+    /// Validates every renderer-facing value in the current preset contract.
     ///
     /// # Errors
     ///
-    /// Returns [`crate::DomainError::InvalidInput`] when the schema version or
-    /// any renderer-facing value is unsupported.
+    /// Returns [`crate::DomainError::InvalidInput`] when any renderer-facing
+    /// value is unsupported.
     pub fn validate(&self) -> Result<(), crate::DomainError> {
-        if self.schema_version != EDITOR_PRESET_SCHEMA_VERSION {
-            return Err(crate::DomainError::InvalidInput(
-                "editor preset schema version is unsupported".to_owned(),
-            ));
-        }
         validate_editor_transform(&self.transform, Uuid::nil())?;
         if !self.volume.is_finite() || !(0.0..=4.0).contains(&self.volume) {
             return Err(crate::DomainError::InvalidInput(
@@ -879,38 +888,39 @@ pub enum EditorTransitionPreset {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct MediaAsset {
     pub id: Uuid,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub project_id: Option<Uuid>,
     pub path: String,
     pub name: String,
     pub kind: String,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub duration_seconds: Option<f64>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub width: Option<u32>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub height: Option<u32>,
     pub file_size: u64,
-    #[serde(default)]
     pub has_audio: bool,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub proxy_path: Option<String>,
-    #[serde(default)]
     pub proxy_status: MediaProxyStatus,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub waveform: Option<Vec<f32>>,
-    #[serde(default)]
     pub metadata_status: MediaMetadataStatus,
     pub created_at: DateTime<Utc>,
 }
 
 /// Lifecycle of the optional low-resolution editing proxy.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "status", rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
 pub enum MediaProxyStatus {
-    #[default]
     NotRequested,
     Generating {
         started_at: DateTime<Utc>,
-        #[serde(default)]
         lease_id: Uuid,
-        #[serde(default)]
         expires_at: DateTime<Utc>,
     },
     Ready {
@@ -922,11 +932,11 @@ pub enum MediaProxyStatus {
     },
 }
 
-/// Versioned manifest stored at the root of a portable editor package.
+/// Exact current manifest stored at the root of a portable editor package.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorPackageManifest {
     pub format: String,
-    pub version: u32,
     pub created_at: DateTime<Utc>,
     pub project_sha256: String,
     pub assets: Vec<EditorPackageAsset>,
@@ -934,6 +944,7 @@ pub struct EditorPackageManifest {
 
 /// Integrity and reconnection metadata for one packaged source file.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct EditorPackageAsset {
     pub source_asset_id: Uuid,
     pub archive_path: String,
@@ -944,24 +955,23 @@ pub struct EditorPackageAsset {
 }
 
 /// Describes whether media metadata probing has completed successfully.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "status", rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
 pub enum MediaMetadataStatus {
-    #[default]
     Pending,
     Ready,
-    Unavailable {
-        message: String,
-    },
+    Unavailable { message: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ExportJob {
     pub id: Uuid,
     pub project_id: Uuid,
     pub status: crate::JobStatus,
     pub progress: f64,
     pub output_path: String,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub error: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -972,8 +982,65 @@ mod tests {
     use super::*;
 
     #[test]
-    fn media_metadata_status_is_backward_compatible_and_reports_failures() {
-        let mut value = serde_json::to_value(MediaAsset {
+    fn editor_preset_accepts_only_the_current_exact_shape() {
+        let current = serde_json::json!({
+            "transform": {
+                "x": 0.0,
+                "y": 0.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "rotation": 0.0,
+                "opacity": 1.0
+            },
+            "volume": 1.0,
+            "color_adjust": null,
+            "grayscale": false,
+            "blur_radius": null,
+            "transition_in": null,
+            "transition_out": null
+        });
+
+        let document = serde_json::from_value::<EditorPresetDocument>(current.clone())
+            .expect("current editor preset shape");
+        assert_eq!(
+            serde_json::to_value(document).expect("serialize editor preset"),
+            current
+        );
+
+        let mut invalid = current;
+        invalid["unexpected"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<EditorPresetDocument>(invalid).is_err());
+
+        for nullable in [
+            "color_adjust",
+            "blur_radius",
+            "transition_in",
+            "transition_out",
+        ] {
+            let mut missing = serde_json::to_value(EditorPresetDocument {
+                transform: Transform::default(),
+                volume: 1.0,
+                color_adjust: None,
+                grayscale: false,
+                blur_radius: None,
+                transition_in: None,
+                transition_out: None,
+            })
+            .expect("serialize current preset");
+            missing
+                .as_object_mut()
+                .expect("preset object")
+                .remove(nullable);
+            assert!(
+                serde_json::from_value::<EditorPresetDocument>(missing).is_err(),
+                "nullable preset field {nullable} must be explicitly present"
+            );
+        }
+    }
+
+    #[test]
+    fn media_asset_and_proxy_status_require_the_current_persisted_shape() {
+        let value = serde_json::to_value(MediaAsset {
             id: Uuid::new_v4(),
             project_id: None,
             path: "C:/clips/round.mp4".to_owned(),
@@ -991,13 +1058,34 @@ mod tests {
             created_at: Utc::now(),
         })
         .expect("serialize asset");
-        value
-            .as_object_mut()
-            .expect("asset is an object")
-            .remove("metadata_status");
-
-        let legacy: MediaAsset = serde_json::from_value(value).expect("deserialize legacy asset");
-        assert_eq!(legacy.metadata_status, MediaMetadataStatus::Pending);
+        serde_json::from_value::<MediaAsset>(value.clone()).expect("current media asset");
+        let mut unknown_asset = value.clone();
+        unknown_asset["retired_field"] = serde_json::json!(true);
+        assert!(
+            serde_json::from_value::<MediaAsset>(unknown_asset).is_err(),
+            "persisted media assets must reject fields outside the current contract"
+        );
+        for required in [
+            "project_id",
+            "duration_seconds",
+            "width",
+            "height",
+            "has_audio",
+            "proxy_path",
+            "proxy_status",
+            "waveform",
+            "metadata_status",
+        ] {
+            let mut incomplete = value.clone();
+            incomplete
+                .as_object_mut()
+                .expect("asset is an object")
+                .remove(required);
+            assert!(
+                serde_json::from_value::<MediaAsset>(incomplete).is_err(),
+                "missing {required} must be rejected"
+            );
+        }
 
         let unavailable = MediaMetadataStatus::Unavailable {
             message: "unsupported codec".to_owned(),
@@ -1005,20 +1093,201 @@ mod tests {
         let value = serde_json::to_value(&unavailable).expect("serialize unavailable status");
         assert_eq!(value["status"], "unavailable");
         assert_eq!(value["message"], "unsupported codec");
+        let mut unknown_metadata = value;
+        unknown_metadata["retired_field"] = serde_json::json!(true);
+        assert!(
+            serde_json::from_value::<MediaMetadataStatus>(unknown_metadata).is_err(),
+            "metadata states must reject fields outside the current contract"
+        );
 
-        let legacy_generating: MediaProxyStatus = serde_json::from_value(serde_json::json!({
+        let generating = serde_json::json!({
             "status": "generating",
-            "started_at": "2026-01-01T00:00:00Z"
-        }))
-        .expect("deserialize legacy generating status");
-        assert!(matches!(
-            legacy_generating,
-            MediaProxyStatus::Generating {
-                lease_id,
-                expires_at,
-                ..
-            } if lease_id == Uuid::nil() && expires_at == DateTime::<Utc>::default()
-        ));
+            "started_at": "2026-01-01T00:00:00Z",
+            "lease_id": Uuid::new_v4(),
+            "expires_at": "2026-01-01T06:00:00Z"
+        });
+        serde_json::from_value::<MediaProxyStatus>(generating.clone())
+            .expect("current generating status");
+        let mut unknown_proxy = generating.clone();
+        unknown_proxy["retired_field"] = serde_json::json!(true);
+        assert!(
+            serde_json::from_value::<MediaProxyStatus>(unknown_proxy).is_err(),
+            "proxy states must reject fields outside the current contract"
+        );
+        for required in ["lease_id", "expires_at"] {
+            let mut incomplete = generating.clone();
+            incomplete
+                .as_object_mut()
+                .expect("proxy status is an object")
+                .remove(required);
+            assert!(
+                serde_json::from_value::<MediaProxyStatus>(incomplete).is_err(),
+                "missing {required} must be rejected"
+            );
+        }
+
+        let export = serde_json::to_value(ExportJob {
+            id: Uuid::new_v4(),
+            project_id: Uuid::new_v4(),
+            status: crate::JobStatus::Queued,
+            progress: 0.0,
+            output_path: "C:/exports/round.mp4".to_owned(),
+            error: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        })
+        .expect("serialize export job");
+        let mut unknown_export = export;
+        unknown_export["retired_field"] = serde_json::json!(true);
+        assert!(
+            serde_json::from_value::<ExportJob>(unknown_export).is_err(),
+            "export jobs must reject fields outside the current contract"
+        );
+        let mut missing_export_error = serde_json::to_value(ExportJob {
+            id: Uuid::new_v4(),
+            project_id: Uuid::new_v4(),
+            status: crate::JobStatus::Queued,
+            progress: 0.0,
+            output_path: "C:/exports/round.mp4".to_owned(),
+            error: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        })
+        .expect("serialize export job");
+        missing_export_error
+            .as_object_mut()
+            .expect("export job object")
+            .remove("error");
+        assert!(serde_json::from_value::<ExportJob>(missing_export_error).is_err());
+
+        let mut package = serde_json::to_value(EditorPackageManifest {
+            format: "vibe-cs-editor-package".to_owned(),
+            created_at: Utc::now(),
+            project_sha256: "a".repeat(64),
+            assets: vec![EditorPackageAsset {
+                source_asset_id: Uuid::new_v4(),
+                archive_path: "assets/round.mp4".to_owned(),
+                name: "Round".to_owned(),
+                kind: "video".to_owned(),
+                size: 42,
+                sha256: "b".repeat(64),
+            }],
+        })
+        .expect("serialize package manifest");
+        package["assets"][0]["retired_field"] = serde_json::json!(true);
+        assert!(
+            serde_json::from_value::<EditorPackageManifest>(package).is_err(),
+            "nested package assets must reject fields outside the current contract"
+        );
+    }
+
+    #[test]
+    fn editor_clip_requires_every_current_field_and_accepts_explicit_nulls() {
+        let current = serde_json::to_value(EditorClip {
+            id: Uuid::new_v4(),
+            asset_id: None,
+            name: "caption".to_owned(),
+            start: 0.0,
+            duration: 1.0,
+            source_in: 0.0,
+            source_out: 1.0,
+            speed: 1.0,
+            volume: 1.0,
+            transform: Transform::default(),
+            effects: Vec::new(),
+            transition_in: None,
+            transition_out: None,
+            text: None,
+            metadata: serde_json::json!({}),
+            group_id: None,
+            link_group_id: None,
+            keyframes: Vec::new(),
+            speed_segments: Vec::new(),
+        })
+        .expect("serialize current clip");
+
+        for required in ["keyframes", "speed_segments"] {
+            let mut incomplete = current.clone();
+            incomplete
+                .as_object_mut()
+                .expect("clip is an object")
+                .remove(required);
+            assert!(
+                serde_json::from_value::<EditorClip>(incomplete).is_err(),
+                "missing {required} must be rejected"
+            );
+        }
+        for nullable in [
+            "asset_id",
+            "transition_in",
+            "transition_out",
+            "text",
+            "group_id",
+            "link_group_id",
+        ] {
+            let mut missing = current.clone();
+            missing
+                .as_object_mut()
+                .expect("clip is an object")
+                .remove(nullable);
+            assert!(
+                serde_json::from_value::<EditorClip>(missing).is_err(),
+                "nullable field {nullable} must still be explicitly present"
+            );
+        }
+
+        let mut unknown_clip = current.clone();
+        unknown_clip["retired_field"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<EditorClip>(unknown_clip).is_err());
+
+        let mut unknown_transform = current;
+        unknown_transform["transform"]["retired_field"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<EditorClip>(unknown_transform).is_err());
+    }
+
+    #[test]
+    fn editor_project_tree_rejects_fields_outside_the_current_contract() {
+        let now = Utc::now();
+        let current = serde_json::to_value(EditorProject {
+            id: Uuid::new_v4(),
+            name: "Current project".to_owned(),
+            width: 1_920,
+            height: 1_080,
+            fps: 60,
+            duration_seconds: 1.0,
+            tracks: vec![EditorTrack {
+                id: Uuid::new_v4(),
+                name: "Video".to_owned(),
+                kind: TrackKind::Video,
+                order: 0,
+                muted: false,
+                locked: false,
+                hidden: false,
+                clips: Vec::new(),
+            }],
+            markers: vec![EditorMarker {
+                id: Uuid::new_v4(),
+                time: 0.5,
+                label: "Beat".to_owned(),
+                color: "#ffffff".to_owned(),
+            }],
+            settings: serde_json::json!({}),
+            revision: 1,
+            created_at: now,
+            updated_at: now,
+        })
+        .expect("serialize current project");
+        serde_json::from_value::<EditorProject>(current.clone()).expect("current project tree");
+
+        for pointer in ["", "/tracks/0", "/markers/0"] {
+            let mut invalid = current.clone();
+            invalid.pointer_mut(pointer).expect("current project node")["retired_field"] =
+                serde_json::json!(true);
+            assert!(
+                serde_json::from_value::<EditorProject>(invalid).is_err(),
+                "unknown field at {pointer} must be rejected"
+            );
+        }
     }
 
     #[test]
@@ -1141,6 +1410,29 @@ mod tests {
         assert_ne!(audio.keyframes[0].id, volume_keyframe_id);
         assert_ne!(audio.speed_segments[0].id, speed_segment_id);
         assert_eq!(audio.link_group_id, source.link_group_id);
+        assert_eq!(
+            audio.metadata,
+            serde_json::json!({
+                "audio_origin": {
+                    "kind": "separated_from_video",
+                    "source_clip_id": source.id,
+                    "source_asset_id": source_asset_id,
+                },
+            })
+        );
+        assert_eq!(
+            project.separated_audio_clip_id(source_clip_id),
+            Some(audio_clip_id)
+        );
+        let mut flat_origin = project.clone();
+        flat_origin
+            .tracks
+            .iter_mut()
+            .flat_map(|track| &mut track.clips)
+            .find(|clip| clip.id == audio_clip_id)
+            .expect("separated audio clip")
+            .metadata = serde_json::json!({ "separated_from_clip_id": source_clip_id });
+        assert_eq!(flat_origin.separated_audio_clip_id(source_clip_id), None);
         project.validate().expect("separated project validates");
 
         let separated = project.clone();
@@ -1186,7 +1478,6 @@ mod tests {
     #[test]
     fn preset_target_validation_rejects_properties_the_renderer_cannot_apply() {
         let mut document = EditorPresetDocument {
-            schema_version: EDITOR_PRESET_SCHEMA_VERSION,
             transform: Transform::default(),
             volume: 1.0,
             color_adjust: Some(EditorColorAdjustPreset {

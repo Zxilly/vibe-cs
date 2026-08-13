@@ -7,14 +7,19 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::State;
-use tokio::sync::OnceCell;
+use tauri::{State, WebviewWindow};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+use tokio::sync::{OnceCell, oneshot};
 use tower::ServiceExt;
 
 const MAXIMUM_COMMAND_RESPONSE_BYTES: usize = 128 * 1024 * 1024;
 const MAXIMUM_MEDIA_RESPONSE_BYTES: usize = 256 * 1024 * 1024;
-const COMMAND_NAMESPACE: &str = "/api/v1/";
+const COMMAND_NAMESPACE: &str = "/api/";
 const UPLOAD_BOUNDARY: &str = "vibe-cs-tauri-upload";
+const HLAE_CONSENT_TITLE: &str = "HLAE 离线录制确认 / Offline capture confirmation";
+const HLAE_CONSENT_MESSAGE: &str = "Vibe CS 将通过 HLAE 使用 -insecure 启动 CS2 并录制 Demo。\n\
+    \n仅限离线 Demo 回放；不得加入或连接任何受 VAC 保护的服务器。\n\
+    \nVibe CS will launch CS2 through HLAE with -insecure to record a demo. Use this only for offline demo playback. Do not join or connect to any VAC-secured server.";
 
 #[derive(Clone)]
 pub(crate) struct DesktopBridge {
@@ -103,7 +108,7 @@ impl DesktopBridge {
                     .uri(uri)
                     .header(header::HOST, "tauri.localhost")
                     .header(header::ORIGIN, "tauri://localhost")
-                    .header(header::ACCEPT, "application/vnd.vibe-cs.replay-v1")
+                    .header(header::ACCEPT, "application/vnd.vibe-cs.replay")
                     .body(Body::empty())
                     .map_err(|error| DesktopCommandError::internal(error.to_string()))?,
             )
@@ -169,6 +174,7 @@ impl DesktopBridge {
         &self,
         request: Request<Vec<u8>>,
     ) -> Result<Response<Vec<u8>>, DesktopCommandError> {
+        validate_media_method(request.method())?;
         let router = self
             .router
             .get()
@@ -226,10 +232,61 @@ fn copy_request_header(builder: &mut Builder, headers: &HeaderMap, name: header:
 }
 
 fn media_uri(uri: &Uri) -> Result<Uri, DesktopCommandError> {
+    validate_media_path(uri.path())?;
     let path_and_query = uri
         .path_and_query()
         .map_or_else(|| uri.path(), axum::http::uri::PathAndQuery::as_str);
     internal_uri(path_and_query)
+}
+
+fn validate_media_method(method: &Method) -> Result<(), DesktopCommandError> {
+    if method == Method::GET || method == Method::HEAD {
+        return Ok(());
+    }
+    Err(DesktopCommandError::invalid(
+        "desktop media protocol is read-only",
+    ))
+}
+
+fn validate_media_path(path: &str) -> Result<(), DesktopCommandError> {
+    let segments = path
+        .strip_prefix('/')
+        .map(|path| path.split('/').collect::<Vec<_>>())
+        .unwrap_or_default();
+    let is_uuid = |value: &str| uuid::Uuid::parse_str(value).is_ok();
+    let is_decimal =
+        |value: &str| !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit());
+    let is_map_name = |value: &str| {
+        !value.is_empty()
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+    };
+    let allowed = match segments.as_slice() {
+        ["recorded-clips", id, "stream"]
+        | ["media", "assets", id, "stream"]
+        | ["editor", "packages", id, "download"]
+        | ["media", "assets", id, "proxy", "stream"] => is_uuid(id),
+        ["players", steam_id, "avatar"] => is_decimal(steam_id),
+        [
+            "cosmetics",
+            "catalog",
+            "items",
+            item,
+            "paint-kits",
+            paint_kit,
+            "image",
+        ] => is_decimal(item) && is_decimal(paint_kit),
+        ["maps", map_name, "radar"] => is_map_name(map_name),
+        _ => false,
+    };
+    if allowed {
+        Ok(())
+    } else {
+        Err(DesktopCommandError::invalid(
+            "desktop media resource is not allowed",
+        ))
+    }
 }
 
 fn validate_desktop_path(path: &str) -> Result<(), DesktopCommandError> {
@@ -309,7 +366,7 @@ fn decode_hex(value: &str) -> Result<String, DesktopCommandError> {
         .map_err(|_| DesktopCommandError::invalid("invalid upload file name encoding"))
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum DesktopMethod {
     Get,
@@ -345,6 +402,53 @@ impl DesktopCall {
     }
 }
 
+fn hlae_execute_requires_native_consent(call: &DesktopCall) -> bool {
+    if call.method != DesktopMethod::Post {
+        return false;
+    }
+    call.path
+        .strip_prefix("/recording/plans/")
+        .and_then(|tail| tail.strip_suffix("/execute"))
+        .filter(|plan_id| !plan_id.is_empty() && !plan_id.contains('/'))
+        .is_some_and(|plan_id| uuid::Uuid::parse_str(plan_id).is_ok())
+}
+
+fn apply_hlae_native_consent(
+    call: &mut DesktopCall,
+    confirmed: bool,
+) -> Result<(), DesktopCommandError> {
+    if !hlae_execute_requires_native_consent(call) {
+        return Ok(());
+    }
+    if !confirmed {
+        return Err(DesktopCommandError::hlae_consent_cancelled());
+    }
+    call.body = Some(serde_json::json!({
+        "offline_insecure_acknowledged": true
+    }));
+    Ok(())
+}
+
+async fn request_hlae_native_consent(window: &WebviewWindow) -> Result<bool, DesktopCommandError> {
+    let (sender, receiver) = oneshot::channel();
+    window
+        .dialog()
+        .message(HLAE_CONSENT_MESSAGE)
+        .title(HLAE_CONSENT_TITLE)
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "仅离线启动 / Launch offline only".to_owned(),
+            "取消 / Cancel".to_owned(),
+        ))
+        .parent(window)
+        .show(move |confirmed| {
+            let _ = sender.send(confirmed);
+        });
+    receiver.await.map_err(|_| {
+        DesktopCommandError::internal("native HLAE consent dialog closed unexpectedly")
+    })
+}
+
 #[derive(Debug, Serialize)]
 pub(crate) struct DesktopCommandError {
     status: u16,
@@ -366,6 +470,14 @@ impl DesktopCommandError {
             status: 503,
             code: "desktop_services_starting".to_owned(),
             message: message.into(),
+        }
+    }
+
+    fn hlae_consent_cancelled() -> Self {
+        Self {
+            status: 409,
+            code: "hlae_offline_insecure_consent_cancelled".to_owned(),
+            message: "HLAE offline capture was cancelled before CS2 started".to_owned(),
         }
     }
 
@@ -412,9 +524,14 @@ impl DesktopCommandError {
 
 #[tauri::command]
 pub(crate) async fn desktop_call(
+    window: WebviewWindow,
     state: State<'_, DesktopBridge>,
-    call: DesktopCall,
+    mut call: DesktopCall,
 ) -> Result<Value, DesktopCommandError> {
+    if hlae_execute_requires_native_consent(&call) {
+        let confirmed = request_hlae_native_consent(&window).await?;
+        apply_hlae_native_consent(&mut call, confirmed)?;
+    }
     state.dispatch(call).await
 }
 
@@ -463,9 +580,96 @@ pub(crate) async fn desktop_upload(
 
 #[cfg(test)]
 mod tests {
-    use axum::http::Uri;
+    use axum::http::{Method, Uri};
 
-    use super::{DesktopCall, DesktopCommandError, DesktopMethod, decode_hex, media_uri};
+    use super::{
+        DesktopCall, DesktopCommandError, DesktopMethod, apply_hlae_native_consent, decode_hex,
+        hlae_execute_requires_native_consent, media_uri, validate_media_method,
+    };
+
+    #[test]
+    fn only_hlae_plan_execution_requires_native_consent() {
+        let execute = DesktopCall {
+            method: DesktopMethod::Post,
+            path: "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute".to_owned(),
+            body: None,
+        };
+        assert!(hlae_execute_requires_native_consent(&execute));
+
+        for (method, path) in [
+            (DesktopMethod::Get, execute.path.as_str()),
+            (DesktopMethod::Post, "/recording/plans"),
+            (DesktopMethod::Post, "/recording/plans/not-a-uuid/execute"),
+            (
+                DesktopMethod::Post,
+                "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute/again",
+            ),
+        ] {
+            let ordinary = DesktopCall {
+                method,
+                path: path.to_owned(),
+                body: None,
+            };
+            assert!(!hlae_execute_requires_native_consent(&ordinary));
+        }
+    }
+
+    #[test]
+    fn native_confirmation_grants_the_backend_acknowledgement() {
+        let mut execute = DesktopCall {
+            method: DesktopMethod::Post,
+            path: "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute".to_owned(),
+            body: Some(serde_json::json!({
+                "offline_insecure_acknowledged": false
+            })),
+        };
+
+        apply_hlae_native_consent(&mut execute, true).expect("native confirmation");
+
+        assert_eq!(
+            execute.body,
+            Some(serde_json::json!({
+                "offline_insecure_acknowledged": true
+            }))
+        );
+    }
+
+    #[test]
+    fn cancelling_native_consent_stops_execution_with_a_stable_error() {
+        let mut execute = DesktopCall {
+            method: DesktopMethod::Post,
+            path: "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute".to_owned(),
+            body: Some(serde_json::json!({
+                "offline_insecure_acknowledged": true
+            })),
+        };
+
+        let error = apply_hlae_native_consent(&mut execute, false)
+            .expect_err("cancellation must stop dispatch");
+
+        assert_eq!(error.status, 409);
+        assert_eq!(error.code, "hlae_offline_insecure_consent_cancelled");
+        assert_eq!(
+            execute.body,
+            Some(serde_json::json!({
+                "offline_insecure_acknowledged": true
+            }))
+        );
+    }
+
+    #[test]
+    fn native_consent_policy_does_not_modify_other_desktop_calls() {
+        let body = serde_json::json!({ "offline_insecure_acknowledged": false });
+        let mut ordinary = DesktopCall {
+            method: DesktopMethod::Post,
+            path: "/recording/plans".to_owned(),
+            body: Some(body.clone()),
+        };
+
+        apply_hlae_native_consent(&mut ordinary, false).expect("ordinary request");
+
+        assert_eq!(ordinary.body, Some(body));
+    }
 
     #[test]
     fn command_paths_are_local_and_private() {
@@ -474,10 +678,10 @@ mod tests {
             path: "/health".to_owned(),
             body: None,
         };
-        assert_eq!(valid.internal_uri().expect("valid path"), "/api/v1/health");
+        assert_eq!(valid.internal_uri().expect("valid path"), "/api/health");
 
         for path in [
-            "/api/v1/health",
+            "/api/health",
             "https://example.test/health",
             "/demos//health",
         ] {
@@ -495,17 +699,48 @@ mod tests {
 
     #[test]
     fn media_paths_cannot_escape_the_managed_namespace() {
-        let valid: Uri = "http://vibe-cs-media.localhost/media/assets/id/stream?x=1"
+        const ID: &str = "2f872494-53ca-46c4-967a-f7e63ec60116";
+        let valid: Uri = format!("http://vibe-cs-media.localhost/media/assets/{ID}/stream?x=1")
             .parse()
             .expect("valid URI");
         assert_eq!(
-            media_uri(&valid).expect("valid media URI"),
-            "/api/v1/media/assets/id/stream?x=1"
+            media_uri(&valid).expect("valid media URI").to_string(),
+            format!("/api/media/assets/{ID}/stream?x=1")
         );
-        let invalid: Uri = "http://vibe-cs-media.localhost/api/v1/external/file"
-            .parse()
-            .expect("valid URI");
-        assert!(media_uri(&invalid).is_err());
+        for path in [
+            format!("/recorded-clips/{ID}/stream"),
+            format!("/media/assets/{ID}/proxy/stream"),
+            format!("/editor/packages/{ID}/download"),
+            "/players/76561198000000001/avatar".to_owned(),
+            "/cosmetics/catalog/items/7/paint-kits/600/image".to_owned(),
+            "/maps/de_mirage/radar".to_owned(),
+        ] {
+            let valid: Uri = format!("http://vibe-cs-media.localhost{path}")
+                .parse()
+                .expect("valid URI");
+            assert!(media_uri(&valid).is_ok(), "unexpectedly blocked {path}");
+        }
+        for invalid in [
+            "http://vibe-cs-media.localhost/api/external/file",
+            "http://vibe-cs-media.localhost/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute",
+            "http://vibe-cs-media.localhost/config",
+            "http://vibe-cs-media.localhost/media/assets/not-a-uuid/stream",
+            "http://vibe-cs-media.localhost/maps/../radar",
+        ] {
+            let invalid: Uri = invalid.parse().expect("valid URI");
+            assert!(
+                media_uri(&invalid).is_err(),
+                "unexpectedly allowed {invalid}"
+            );
+        }
+    }
+
+    #[test]
+    fn media_protocol_is_read_only() {
+        assert!(validate_media_method(&Method::GET).is_ok());
+        assert!(validate_media_method(&Method::HEAD).is_ok());
+        assert!(validate_media_method(&Method::POST).is_err());
+        assert!(validate_media_method(&Method::DELETE).is_err());
     }
 
     #[test]

@@ -180,6 +180,7 @@ fn demo(demo_id: Uuid, path: &std::path::Path) -> DemoRecord {
         team_b_name: Some("B".to_owned()),
         team_a_score: Some(1),
         team_b_score: Some(0),
+        player_names: vec!["Player One".to_owned()],
         remark: String::new(),
         content_sha256: None,
         file_size: 8,
@@ -194,6 +195,7 @@ fn analysis(demo_id: Uuid) -> MatchAnalysis {
         map_name: "de_mirage".to_owned(),
         tick_rate: 64.0,
         duration_seconds: 30.0,
+        verified_total_ticks: None,
         teams: Vec::new(),
         players: Vec::new(),
         rounds: Vec::new(),
@@ -283,11 +285,17 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
         },
         ..AppConfig::default()
     };
+    let mut config_payload = serde_json::to_value(config).expect("config JSON");
+    config_payload["steam_has_web_api_key"] = serde_json::json!(false);
+    config_payload["steam_has_authentication_code"] = serde_json::json!(false);
+    config_payload["steam_has_share_code"] = serde_json::json!(false);
+    config_payload["llm_has_api_key"] = serde_json::json!(true);
+    config_payload["clear_llm_api_key"] = serde_json::json!(false);
     dispatcher
         .dispatch(crate::bridge::DesktopCall {
             method: crate::bridge::DesktopMethod::Put,
             path: "/config".to_owned(),
-            body: Some(serde_json::to_value(config).expect("config JSON")),
+            body: Some(config_payload),
         })
         .await
         .expect("save config through desktop bridge");

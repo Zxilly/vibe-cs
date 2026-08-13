@@ -13,10 +13,9 @@ use sha2::{Digest as _, Sha256};
 use crate::validate::validate_safe_path;
 use crate::{
     ExportedHlaePlan, GeneratedArtifact, HLAE_BUNDLE_LAUNCH_PROFILE_FILE,
-    HLAE_BUNDLE_MANIFEST_FILE, HLAE_BUNDLE_MANIFEST_PRODUCER, HLAE_BUNDLE_MANIFEST_SCHEMA_VERSION,
-    HLAE_BUNDLE_README_FILE, HlaeBundleArtifactManifest, HlaeBundleLaunchHandoff,
-    HlaeBundleLaunchInputs, HlaeBundleManifest, HlaeError, HlaePlan, build_hlae_launch_profile,
-    compile_hlae_plan,
+    HLAE_BUNDLE_MANIFEST_FILE, HLAE_BUNDLE_MANIFEST_PRODUCER, HLAE_BUNDLE_README_FILE,
+    HlaeBundleArtifactManifest, HlaeBundleLaunchHandoff, HlaeBundleLaunchInputs,
+    HlaeBundleManifest, HlaeError, HlaePlan, build_hlae_launch_profile, compile_hlae_plan,
 };
 
 /// Exports a validated plan below an application-managed directory.
@@ -43,6 +42,13 @@ pub fn export_hlae_plan(
 ) -> Result<ExportedHlaePlan, HlaeError> {
     validate_safe_path(managed_root, "managedRoot", true)?;
     validate_bundle_name(bundle_name)?;
+    if plan.capture.width != launch_inputs.resolution.width
+        || plan.capture.height != launch_inputs.resolution.height
+    {
+        return Err(HlaeError::InvalidPlan(
+            "capture dimensions must match the managed CS2 launch resolution".to_owned(),
+        ));
+    }
     let destination = managed_root.join(bundle_name);
     let compiled = compile_hlae_plan(plan, &destination)?;
     let handoff = compile_handoff(plan, &destination, launch_inputs)?;
@@ -52,7 +58,6 @@ pub fn export_hlae_plan(
         .chain(handoff.iter())
         .collect::<Vec<_>>();
     let manifest = HlaeBundleManifest {
-        schema_version: HLAE_BUNDLE_MANIFEST_SCHEMA_VERSION,
         state: "complete".to_owned(),
         producer: HLAE_BUNDLE_MANIFEST_PRODUCER.to_owned(),
         artifacts: artifacts
@@ -296,6 +301,7 @@ fn compile_handoff(
     let profile = build_hlae_launch_profile(
         &inputs.installation,
         &inputs.game_executable,
+        &inputs.steam_executable,
         destination,
         inputs.resolution,
     )?;
@@ -310,7 +316,6 @@ fn compile_handoff(
             .to_owned(),
     ];
     let handoff = HlaeBundleLaunchHandoff {
-        schema_version: HLAE_BUNDLE_MANIFEST_SCHEMA_VERSION,
         launch_profile: profile,
         demo_path: plan.demo_path.clone(),
         bootstrap_config: "vibe_cs_hlae.cfg".to_owned(),
@@ -406,15 +411,14 @@ mod tests {
 
     use crate::{
         CameraKeyframe, CameraPosition, CameraRotation, CameraShot, CaptureSettings,
-        HLAE_PLAN_SCHEMA_VERSION, HlaeBundleLaunchHandoff, HlaeDiscoverySource, HlaeInstallation,
-        HlaePlanMode, LaunchResolution, PositionInterpolation, RotationInterpolation,
+        HlaeBundleLaunchHandoff, HlaeDiscoverySource, HlaeInstallation, HlaePlanMode,
+        LaunchResolution, PositionInterpolation, RotationInterpolation,
     };
 
     use super::*;
 
     fn plan(output: PathBuf) -> HlaePlan {
         HlaePlan {
-            schema_version: HLAE_PLAN_SCHEMA_VERSION,
             mode: HlaePlanMode::Preview,
             tick_rate: 64.0,
             demo_path: PathBuf::from("match.dem"),
@@ -453,19 +457,23 @@ mod tests {
         let executable = installation_root.join("HLAE.exe");
         let source2_hook = installation_root.join("x64/AfxHookSource2.dll");
         let game_executable = root.join("game/bin/win64/cs2.exe");
+        let steam_executable = root.join("Steam/steam.exe");
         fs::create_dir_all(source2_hook.parent().unwrap()).unwrap();
         fs::create_dir_all(game_executable.parent().unwrap()).unwrap();
+        fs::create_dir_all(steam_executable.parent().unwrap()).unwrap();
         fs::write(&executable, b"hlae").unwrap();
         fs::write(&source2_hook, b"hook").unwrap();
         fs::write(&game_executable, b"cs2").unwrap();
+        fs::write(&steam_executable, b"steam").unwrap();
         HlaeBundleLaunchInputs {
             installation: HlaeInstallation {
                 root: installation_root,
                 executable,
                 source2_hook,
-                source: HlaeDiscoverySource::Configured,
+                source: HlaeDiscoverySource::Managed,
             },
             game_executable,
+            steam_executable,
             resolution: LaunchResolution {
                 width: 1920,
                 height: 1080,
@@ -508,7 +516,13 @@ mod tests {
         let manifest: HlaeBundleManifest =
             serde_json::from_str(&fs::read_to_string(&exported.completion_marker).unwrap())
                 .unwrap();
-        assert_eq!(manifest.schema_version, HLAE_BUNDLE_MANIFEST_SCHEMA_VERSION);
+        let manifest_json = serde_json::to_value(&manifest).unwrap();
+        let mut invalid_manifest = manifest_json;
+        invalid_manifest
+            .as_object_mut()
+            .unwrap()
+            .insert("unexpected".to_owned(), serde_json::json!(true));
+        assert!(serde_json::from_value::<HlaeBundleManifest>(invalid_manifest).is_err());
         assert_eq!(manifest.artifacts.len(), 5);
         for artifact in manifest.artifacts {
             let contents = fs::read(exported.directory.join(&artifact.path)).unwrap();
@@ -543,6 +557,13 @@ mod tests {
             &fs::read_to_string(exported.directory.join(HLAE_BUNDLE_LAUNCH_PROFILE_FILE)).unwrap(),
         )
         .unwrap();
+        let handoff_json = serde_json::to_value(&handoff).unwrap();
+        let mut invalid_handoff = handoff_json;
+        invalid_handoff
+            .as_object_mut()
+            .unwrap()
+            .insert("unexpected".to_owned(), serde_json::json!(true));
+        assert!(serde_json::from_value::<HlaeBundleLaunchHandoff>(invalid_handoff).is_err());
         assert!(
             handoff
                 .launch_profile
@@ -566,6 +587,27 @@ mod tests {
                 .iter()
                 .any(|item| item.path == HLAE_BUNDLE_LAUNCH_PROFILE_FILE)
         );
+    }
+
+    #[test]
+    fn rejects_a_launch_resolution_that_differs_from_the_capture_contract() {
+        let root = tempfile::tempdir().unwrap();
+        let mut inputs = launch_inputs(root.path());
+        inputs.resolution = LaunchResolution {
+            width: 1280,
+            height: 720,
+        };
+
+        let error = export_hlae_plan(
+            &plan(root.path().join("capture")),
+            root.path(),
+            "resolution_mismatch",
+            &inputs,
+        )
+        .unwrap_err();
+
+        assert!(matches!(error, HlaeError::InvalidPlan(message) if message.contains("dimensions")));
+        assert!(!root.path().join("resolution_mismatch").exists());
     }
 
     #[test]

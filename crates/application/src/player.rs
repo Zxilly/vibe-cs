@@ -69,6 +69,7 @@ impl PlayerSteamProfile {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerAggregateStats {
     pub matches: u32,
     pub kills: u64,
@@ -77,7 +78,7 @@ pub struct PlayerAggregateStats {
     pub headshots: u64,
     pub damage: u64,
     pub average_adr: Option<f64>,
-    pub average_rating: Option<f64>,
+    pub average_kill_death_ratio: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -92,6 +93,7 @@ pub struct PlayerDirectoryItem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerRecentMatch {
     pub demo_id: Uuid,
     pub demo_name: String,
@@ -104,7 +106,7 @@ pub struct PlayerRecentMatch {
     pub headshots: u32,
     pub damage: u32,
     pub adr: Option<f64>,
-    pub rating: Option<f64>,
+    pub kill_death_ratio: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -149,7 +151,6 @@ impl std::fmt::Debug for PlayerAvatar {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AvatarCacheStatus {
-    pub version: u32,
     pub entries: u64,
     pub bytes: u64,
     pub maximum_entries: u64,
@@ -209,5 +210,33 @@ impl PlayerPort for DisabledPlayerPort {
         Err(DomainError::DependencyUnavailable(
             "avatar cache adapter".to_owned(),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn player_directory_metrics_use_only_explicit_kill_death_ratio_names() {
+        let aggregate = serde_json::json!({
+            "matches": 2,
+            "kills": 30,
+            "deaths": 20,
+            "assists": 7,
+            "headshots": 12,
+            "damage": 2_800,
+            "average_adr": 70.0,
+            "average_kill_death_ratio": 1.5
+        });
+        assert!(serde_json::from_value::<PlayerAggregateStats>(aggregate.clone()).is_ok());
+
+        let mut retired = aggregate;
+        retired["average_rating"] = retired["average_kill_death_ratio"].take();
+        retired
+            .as_object_mut()
+            .unwrap()
+            .remove("average_kill_death_ratio");
+        assert!(serde_json::from_value::<PlayerAggregateStats>(retired).is_err());
     }
 }

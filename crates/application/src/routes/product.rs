@@ -29,10 +29,10 @@ const UPDATE_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/app/update-info", get(update_info))
-        .route("/api/v1/app/check-update", post(check_update))
-        .route("/api/v1/app/managed-locations", get(managed_locations))
-        .route("/api/v1/app/diagnostics/export", post(export_diagnostics))
+        .route("/api/app/update-info", get(update_info))
+        .route("/api/app/check-update", post(check_update))
+        .route("/api/app/managed-locations", get(managed_locations))
+        .route("/api/app/diagnostics/export", post(export_diagnostics))
 }
 
 #[derive(Debug, Serialize)]
@@ -341,7 +341,6 @@ async fn export_diagnostics(State(state): State<AppState>) -> ApiResult<Json<Dia
     let root = state.data_dir().join("diagnostics");
     tokio::fs::create_dir_all(&root).await?;
     let document = json!({
-        "schema_version": 1,
         "created_at": created_at,
         "application": {
             "version": env!("CARGO_PKG_VERSION"),
@@ -355,21 +354,16 @@ async fn export_diagnostics(State(state): State<AppState>) -> ApiResult<Json<Dia
             "theme": config.theme,
             "data_directory_configured": !config.data_dir.is_empty(),
             "game_path_configured": !config.cs2_path.is_empty(),
-            "ffmpeg_configured": !config.ffmpeg_path.is_empty(),
-            "ffprobe_configured": !config.ffprobe_path.is_empty(),
             "steam_identity_configured": !config.steam.steam_id.is_empty(),
             "steam_credentials_configured": !config.steam.web_api_key.is_empty(),
-            "obs_configured": !config.obs.executable.is_empty(),
-            "obs_password_configured": !config.obs.password.is_empty(),
             "assistant_configured": !config.llm.provider.is_empty(),
             "assistant_key_configured": !config.llm.api_key.is_empty(),
             "update_manifest_configured": !config.update_manifest_url.is_empty(),
         },
         "storage": {
             "data_directory": display_path(state.data_dir()),
-            "schema_migrations": "transactional and automatic on startup",
-            "previous_data_import": "explicit startup import only; an existing target database is never overwritten",
-            "replay_cache": "versioned entries are invalidated when parser or schema compatibility changes",
+            "schema_contract": "the database must match the current application schema exactly",
+            "replay_cache": "entries use the current parser and replay artifact contract",
         },
         "privacy": "Credential values, access tokens, and user media contents are intentionally omitted."
     });

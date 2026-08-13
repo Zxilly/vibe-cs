@@ -13,32 +13,38 @@ use vibe_cs_domain::RecordedClip;
 use vibe_cs_platform_windows::{ConsoleCommand, ProcessCancellation, RecoveryStatus};
 
 use crate::{
-    EngineConfig, GameController, ObsRecorder, PlaybackSynchronizer, PreflightReport,
-    RecordingError, RecordingResult, RecoveryGate, SegmentPlan, io_error, publish_obs_output,
+    CaptureRecorder, EngineConfig, GameController, PlaybackSynchronizer, PreflightReport,
+    RecordingError, RecordingResult, RecoveryGate, SegmentPlan, io_error, publish_capture_artifact,
 };
 
 #[derive(Debug)]
-pub struct RecordingEngine<G, O, S, J> {
+pub struct RecordingEngine<G, C, S, J> {
     config: EngineConfig,
     game: G,
-    obs: O,
+    capture: C,
     synchronizer: S,
     recovery: J,
 }
 
-impl<G, O, S, J> RecordingEngine<G, O, S, J>
+impl<G, C, S, J> RecordingEngine<G, C, S, J>
 where
     G: GameController,
-    O: ObsRecorder,
+    C: CaptureRecorder,
     S: PlaybackSynchronizer,
     J: RecoveryGate,
 {
     #[must_use]
-    pub const fn new(config: EngineConfig, game: G, obs: O, synchronizer: S, recovery: J) -> Self {
+    pub const fn new(
+        config: EngineConfig,
+        game: G,
+        capture: C,
+        synchronizer: S,
+        recovery: J,
+    ) -> Self {
         Self {
             config,
             game,
-            obs,
+            capture,
             synchronizer,
             recovery,
         }
@@ -47,8 +53,8 @@ where
     /// Returns the recorder adapter so a composition layer can perform
     /// session-scoped setup and restoration around a recording run.
     #[must_use]
-    pub fn recorder_mut(&mut self) -> &mut O {
-        &mut self.obs
+    pub fn recorder_mut(&mut self) -> &mut C {
+        &mut self.capture
     }
 
     /// Validates all immutable inputs and external idle state before launching
@@ -57,7 +63,7 @@ where
     /// # Errors
     ///
     /// Returns an error for invalid demos, CS2/output paths, a pending recovery
-    /// journal, ambiguous processes, unsafe commands, or active OBS recording.
+    /// journal, ambiguous processes, unsafe commands, or an active capture.
     pub async fn preflight(
         &mut self,
         segments: &[SegmentPlan],
@@ -96,8 +102,8 @@ where
                 });
             }
         }
-        if self.obs.record_status().await?.active {
-            return Err(RecordingError::ObsBusy);
+        if self.capture.capture_status().await?.active {
+            return Err(RecordingError::capture_busy());
         }
         let processes = self.game.discover_cs2()?;
         let running_process_id = select_process(&processes, self.config.preferred_process_id)?;
@@ -112,8 +118,9 @@ where
     ///
     /// # Errors
     ///
-    /// Returns the first validation, playback, OBS, cancellation, publication,
-    /// or cleanup failure. OBS stop and game cleanup are attempted on every path.
+    /// Returns the first validation, playback, capture, cancellation,
+    /// publication, or cleanup failure. Capture stop and game cleanup are
+    /// attempted on every path.
     pub async fn record_segments(
         &mut self,
         segments: &[SegmentPlan],
@@ -161,7 +168,7 @@ where
     ) -> RecordingResult<RecordedClip> {
         let mut session = SessionState {
             process_id,
-            obs_maybe_active: false,
+            capture_maybe_active: false,
             restore_commands: Vec::new(),
         };
         let execution = self
@@ -230,12 +237,6 @@ where
                 cancellation,
             )
             .await?;
-        self.send(
-            session.process_id,
-            &ConsoleCommand::Timescale(segment.playback_speed),
-            cancellation,
-            "timescale command",
-        )?;
         for (target, restore) in capture_command_pairs(segment)? {
             self.send(
                 session.process_id,
@@ -245,16 +246,16 @@ where
             )?;
             session.restore_commands.push(restore);
         }
-        if self.obs.record_status().await?.active {
-            return Err(RecordingError::ObsBusy);
+        if self.capture.capture_status().await?.active {
+            return Err(RecordingError::capture_busy());
         }
-        // Mark active before awaiting the response: OBS may have started even
-        // when a transport error loses the acknowledgement.
-        session.obs_maybe_active = true;
-        self.obs.start_recording().await?;
-        if !self.obs.record_status().await?.active {
+        // Mark active before awaiting the response: the backend may have
+        // started even when a transport error loses the acknowledgement.
+        session.capture_maybe_active = true;
+        self.capture.start_capture().await?;
+        if !self.capture.capture_status().await?.active {
             return Err(RecordingError::Preflight(
-                "OBS did not report an active recording after StartRecord".to_owned(),
+                "capture backend did not report an active session after start".to_owned(),
             ));
         }
         self.send(
@@ -275,12 +276,12 @@ where
                 cancellation,
             )
             .await?;
-        let output = self.obs.stop_recording().await?;
-        session.obs_maybe_active = false;
-        let source = output.ok_or(RecordingError::OutputMissing)?;
+        let output = self.capture.stop_capture().await?;
+        session.capture_maybe_active = false;
+        let artifact = output.ok_or(RecordingError::OutputMissing)?;
         let destination = self.config.output_directory.join(&segment.output_file_name);
-        let published = publish_obs_output(
-            &source,
+        let published = publish_capture_artifact(
+            &artifact,
             &destination,
             self.config.maximum_clip_bytes,
             cancellation,
@@ -307,7 +308,6 @@ where
                 "start_tick": segment.start_tick,
                 "end_tick": segment.end_tick,
                 "tick_rate": segment.tick_rate,
-                "playback_speed": segment.playback_speed,
                 "bytes": published.bytes,
                 "sha256": published.sha256,
                 "custom": segment.metadata,
@@ -331,10 +331,10 @@ where
 
     async fn cleanup_session(&mut self, session: &mut SessionState) -> Result<(), String> {
         let mut errors = Vec::new();
-        if session.obs_maybe_active {
-            match self.obs.stop_recording().await {
-                Ok(_) => session.obs_maybe_active = false,
-                Err(error) => errors.push(format!("stopping OBS: {error}")),
+        if session.capture_maybe_active {
+            match self.capture.stop_capture().await {
+                Ok(_) => session.capture_maybe_active = false,
+                Err(error) => errors.push(format!("stopping capture backend: {error}")),
             }
         }
         let mut cleanup_commands = session
@@ -344,7 +344,6 @@ where
             .map(|command| ("restoring capture setting", command))
             .collect::<Vec<_>>();
         cleanup_commands.extend([
-            ("restoring timescale", ConsoleCommand::Timescale(1.0)),
             ("pausing playback", ConsoleCommand::Pause),
             ("disconnecting demo", ConsoleCommand::Disconnect),
         ]);
@@ -364,7 +363,7 @@ where
 #[derive(Debug)]
 struct SessionState {
     process_id: u32,
-    obs_maybe_active: bool,
+    capture_maybe_active: bool,
     restore_commands: Vec<ConsoleCommand>,
 }
 
@@ -453,11 +452,9 @@ fn validate_segment(segment: &SegmentPlan, config: &EngineConfig) -> RecordingRe
         || segment.end_tick <= segment.start_tick
         || !segment.tick_rate.is_finite()
         || !(1.0..=256.0).contains(&segment.tick_rate)
-        || !segment.playback_speed.is_finite()
-        || !(0.1..=8.0).contains(&segment.playback_speed)
     {
         return Err(RecordingError::InvalidInput(
-            "segment title, player, ticks, tick rate, or playback speed is invalid".to_owned(),
+            "segment title, player, ticks, or tick rate is invalid".to_owned(),
         ));
     }
     if segment.player_name.as_ref().is_some_and(|name| {
@@ -754,13 +751,11 @@ fn validate_segment_commands(segment: &SegmentPlan) -> RecordingResult<()> {
         ConsoleCommand::Pause,
         ConsoleCommand::GoToTick(segment.start_tick),
         ConsoleCommand::SpectatePlayer(segment.player_id.clone()),
-        ConsoleCommand::Timescale(segment.playback_speed),
         ConsoleCommand::RadarVisibility(true),
         ConsoleCommand::RadarVisibility(false),
         ConsoleCommand::VoiceVolume(0.0),
         ConsoleCommand::VoiceVolume(1.0),
         ConsoleCommand::Resume,
-        ConsoleCommand::Timescale(1.0),
         ConsoleCommand::Disconnect,
     ] {
         vibe_cs_platform_windows::build_console_input(&command)?;
@@ -778,7 +773,7 @@ fn planned_duration(segment: &SegmentPlan) -> RecordingResult<Duration> {
             RecordingError::InvalidInput("segment tick span exceeds the supported range".to_owned())
         })?;
     let ticks = f64::from(ticks);
-    let seconds = ticks / segment.tick_rate / segment.playback_speed;
+    let seconds = ticks / segment.tick_rate;
     if !seconds.is_finite() || seconds <= 0.0 {
         return Err(RecordingError::InvalidInput(
             "planned segment duration is invalid".to_owned(),
@@ -829,10 +824,10 @@ mod tests {
     };
 
     use async_trait::async_trait;
-    use vibe_cs_integrations::ObsRecordStatus;
     use vibe_cs_platform_windows::ProcessInfo;
 
     use super::*;
+    use crate::{CaptureArtifact, CaptureStatus};
 
     #[derive(Debug, Default)]
     struct MockGame {
@@ -865,7 +860,7 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct MockObs {
+    struct MockCapture {
         active: bool,
         output: Option<PathBuf>,
         starts: usize,
@@ -874,17 +869,17 @@ mod tests {
     }
 
     #[async_trait]
-    impl ObsRecorder for MockObs {
-        async fn record_status(&mut self) -> RecordingResult<ObsRecordStatus> {
-            Ok(ObsRecordStatus {
+    impl CaptureRecorder for MockCapture {
+        async fn capture_status(&mut self) -> RecordingResult<CaptureStatus> {
+            Ok(CaptureStatus {
                 active: self.active,
                 paused: false,
                 timecode: None,
-                output_path: self.output.as_ref().map(|path| path.display().to_string()),
+                artifact_path: self.output.clone(),
             })
         }
 
-        async fn start_recording(&mut self) -> RecordingResult<()> {
+        async fn start_capture(&mut self) -> RecordingResult<()> {
             self.starts += 1;
             self.active = true;
             if self.fail_start {
@@ -896,10 +891,10 @@ mod tests {
             }
         }
 
-        async fn stop_recording(&mut self) -> RecordingResult<Option<PathBuf>> {
+        async fn stop_capture(&mut self) -> RecordingResult<Option<CaptureArtifact>> {
             self.stops += 1;
             self.active = false;
-            Ok(self.output.clone())
+            Ok(self.output.clone().map(|path| CaptureArtifact { path }))
         }
     }
 
@@ -997,7 +992,7 @@ mod tests {
         _root: tempfile::TempDir,
         config: EngineConfig,
         segment: SegmentPlan,
-        obs_output: PathBuf,
+        capture_output: PathBuf,
     }
 
     impl Fixture {
@@ -1006,11 +1001,11 @@ mod tests {
             let executable = root.path().join("cs2.exe");
             let demo = root.path().join("match.dem");
             let output = root.path().join("managed");
-            let obs_output = root.path().join("obs.mkv");
+            let capture_output = root.path().join("capture.mkv");
             fs::write(&executable, b"stub").unwrap();
             fs::write(&demo, b"PBDEMS2 payload").unwrap();
             fs::create_dir(&output).unwrap();
-            fs::write(&obs_output, b"recorded-video").unwrap();
+            fs::write(&capture_output, b"recorded-video").unwrap();
             Self {
                 config: EngineConfig::new(executable, output),
                 segment: SegmentPlan {
@@ -1019,16 +1014,17 @@ mod tests {
                     title: "Round highlight".to_owned(),
                     player_id: "76561198000000000".to_owned(),
                     player_name: Some("Player".to_owned()),
+                    spectator_slot: None,
+                    verified_total_ticks: None,
                     start_tick: 100,
                     end_tick: 164,
                     tick_rate: 64.0,
-                    playback_speed: 1.0,
                     output_file_name: "segment-a.mkv".to_owned(),
                     category: "highlight".to_owned(),
                     tags: vec!["test".to_owned()],
                     metadata: json!({"fixture": true}),
                 },
-                obs_output,
+                capture_output,
                 _root: root,
             }
         }
@@ -1037,11 +1033,11 @@ mod tests {
             &self,
             mode: SyncMode,
             output: Option<PathBuf>,
-        ) -> RecordingEngine<MockGame, MockObs, MockSynchronizer, MockRecovery> {
+        ) -> RecordingEngine<MockGame, MockCapture, MockSynchronizer, MockRecovery> {
             RecordingEngine::new(
                 self.config.clone(),
                 MockGame::default(),
-                MockObs {
+                MockCapture {
                     active: false,
                     output,
                     starts: 0,
@@ -1080,7 +1076,7 @@ mod tests {
         second.output_file_name = "segment-b.mkv".to_owned();
         second.start_tick = 200;
         second.end_tick = 264;
-        let mut engine = fixture.engine(SyncMode::Normal, Some(fixture.obs_output.clone()));
+        let mut engine = fixture.engine(SyncMode::Normal, Some(fixture.capture_output.clone()));
 
         let clips = engine
             .record_segments(&[first, second], &ProcessCancellation::default())
@@ -1089,8 +1085,8 @@ mod tests {
 
         assert_eq!(clips.len(), 2);
         assert_eq!(engine.game.launches.load(Ordering::SeqCst), 1);
-        assert_eq!(engine.obs.starts, 2);
-        assert_eq!(engine.obs.stops, 2);
+        assert_eq!(engine.capture.starts, 2);
+        assert_eq!(engine.capture.stops, 2);
         assert!(Path::new(&clips[0].path).is_file());
         assert!(Path::new(&clips[1].path).is_file());
         assert_eq!(
@@ -1137,7 +1133,7 @@ mod tests {
             "show_radar": false,
             "mute_voice": true,
         }});
-        let mut engine = fixture.engine(SyncMode::Normal, Some(fixture.obs_output.clone()));
+        let mut engine = fixture.engine(SyncMode::Normal, Some(fixture.capture_output.clone()));
 
         let error = engine
             .preflight(std::slice::from_ref(&segment))
@@ -1146,13 +1142,13 @@ mod tests {
 
         assert!(matches!(error, RecordingError::InvalidInput(_)));
         assert!(engine.game.commands.lock().unwrap().is_empty());
-        assert_eq!(engine.obs.starts, 0);
+        assert_eq!(engine.capture.starts, 0);
     }
 
     #[tokio::test]
-    async fn playback_error_after_start_always_stops_obs() {
+    async fn playback_error_after_start_always_stops_capture() {
         let fixture = Fixture::new();
-        let mut engine = fixture.engine(SyncMode::FailAtEnd, Some(fixture.obs_output.clone()));
+        let mut engine = fixture.engine(SyncMode::FailAtEnd, Some(fixture.capture_output.clone()));
         let result = engine
             .record_segments(
                 std::slice::from_ref(&fixture.segment),
@@ -1160,16 +1156,16 @@ mod tests {
             )
             .await;
         assert!(result.is_err());
-        assert_eq!(engine.obs.starts, 1);
-        assert_eq!(engine.obs.stops, 1);
-        assert!(!engine.obs.active);
+        assert_eq!(engine.capture.starts, 1);
+        assert_eq!(engine.capture.stops, 1);
+        assert!(!engine.capture.active);
     }
 
     #[tokio::test]
-    async fn ambiguous_start_failure_still_attempts_obs_stop() {
+    async fn ambiguous_start_failure_still_attempts_capture_stop() {
         let fixture = Fixture::new();
-        let mut engine = fixture.engine(SyncMode::Normal, Some(fixture.obs_output.clone()));
-        engine.obs.fail_start = true;
+        let mut engine = fixture.engine(SyncMode::Normal, Some(fixture.capture_output.clone()));
+        engine.capture.fail_start = true;
         let result = engine
             .record_segments(
                 std::slice::from_ref(&fixture.segment),
@@ -1177,29 +1173,33 @@ mod tests {
             )
             .await;
         assert!(result.is_err());
-        assert_eq!(engine.obs.starts, 1);
-        assert_eq!(engine.obs.stops, 1);
-        assert!(!engine.obs.active);
+        assert_eq!(engine.capture.starts, 1);
+        assert_eq!(engine.capture.stops, 1);
+        assert!(!engine.capture.active);
     }
 
     #[tokio::test]
-    async fn cancellation_after_start_always_stops_obs() {
+    async fn cancellation_after_start_always_stops_capture() {
         let fixture = Fixture::new();
-        let mut engine = fixture.engine(SyncMode::CancelAtEnd, Some(fixture.obs_output.clone()));
+        let mut engine =
+            fixture.engine(SyncMode::CancelAtEnd, Some(fixture.capture_output.clone()));
         let cancellation = ProcessCancellation::default();
         let result = engine
             .record_segments(std::slice::from_ref(&fixture.segment), &cancellation)
             .await;
         assert!(matches!(result, Err(RecordingError::Cancelled { .. })));
         assert!(cancellation.is_cancelled());
-        assert_eq!(engine.obs.stops, 1);
-        assert!(!engine.obs.active);
+        assert_eq!(engine.capture.stops, 1);
+        assert!(!engine.capture.active);
     }
 
     #[tokio::test]
     async fn wrong_observer_is_rejected_before_recording() {
         let fixture = Fixture::new();
-        let mut engine = fixture.engine(SyncMode::WrongObserver, Some(fixture.obs_output.clone()));
+        let mut engine = fixture.engine(
+            SyncMode::WrongObserver,
+            Some(fixture.capture_output.clone()),
+        );
         let result = engine
             .record_segments(
                 std::slice::from_ref(&fixture.segment),
@@ -1210,12 +1210,12 @@ mod tests {
             result,
             Err(RecordingError::ObserverMismatch { .. })
         ));
-        assert_eq!(engine.obs.starts, 0);
-        assert_eq!(engine.obs.stops, 0);
+        assert_eq!(engine.capture.starts, 0);
+        assert_eq!(engine.capture.stops, 0);
     }
 
     #[tokio::test]
-    async fn missing_obs_output_is_an_explicit_error() {
+    async fn missing_capture_artifact_is_an_explicit_error() {
         let fixture = Fixture::new();
         let mut engine = fixture.engine(SyncMode::Normal, None);
         let result = engine
@@ -1225,7 +1225,7 @@ mod tests {
             )
             .await;
         assert!(matches!(result, Err(RecordingError::OutputMissing)));
-        assert_eq!(engine.obs.stops, 1);
+        assert_eq!(engine.capture.stops, 1);
     }
 
     #[tokio::test]
@@ -1234,9 +1234,9 @@ mod tests {
         let mut engine = RecordingEngine::new(
             fixture.config.clone(),
             MockGame::default(),
-            MockObs {
+            MockCapture {
                 active: false,
-                output: Some(fixture.obs_output.clone()),
+                output: Some(fixture.capture_output.clone()),
                 starts: 0,
                 stops: 0,
                 fail_start: false,
@@ -1252,22 +1252,21 @@ mod tests {
                 .await,
             Err(RecordingError::RecoveryPending)
         ));
-        assert_eq!(engine.obs.starts, 0);
+        assert_eq!(engine.capture.starts, 0);
         assert_eq!(engine.game.launches.load(Ordering::SeqCst), 0);
     }
 
     #[tokio::test]
-    async fn active_obs_fails_preflight_without_launching_cs2() {
+    async fn active_capture_fails_preflight_without_launching_cs2() {
         let fixture = Fixture::new();
-        let mut engine = fixture.engine(SyncMode::Normal, Some(fixture.obs_output.clone()));
-        engine.obs.active = true;
-        assert!(matches!(
-            engine
-                .preflight(std::slice::from_ref(&fixture.segment))
-                .await,
-            Err(RecordingError::ObsBusy)
-        ));
-        assert_eq!(engine.obs.starts, 0);
+        let mut engine = fixture.engine(SyncMode::Normal, Some(fixture.capture_output.clone()));
+        engine.capture.active = true;
+        let error = engine
+            .preflight(std::slice::from_ref(&fixture.segment))
+            .await
+            .expect_err("an active capture must fail preflight");
+        assert!(error.is_capture_busy());
+        assert_eq!(engine.capture.starts, 0);
         assert_eq!(engine.game.launches.load(Ordering::SeqCst), 0);
     }
 }

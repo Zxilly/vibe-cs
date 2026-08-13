@@ -13,6 +13,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "Vibe CS",
         "width": 1440,
         "height": 900,
@@ -20,7 +21,7 @@
         "minHeight": 700,
         "resizable": true,
         "fullscreen": false,
-        "decorations": true,
+        "decorations": false,
         "center": true
       }
     ],
@@ -31,6 +32,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "externalBin": [
+      "binaries/vibe-cs-demo-worker"
+    ],
     "resources": {
       "../../../.deps/ffmpeg/bin/avcodec-62.dll": "avcodec-62.dll",
       "../../../.deps/ffmpeg/bin/avdevice-62.dll": "avdevice-62.dll",

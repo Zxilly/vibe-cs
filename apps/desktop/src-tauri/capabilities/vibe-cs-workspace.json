@@ -3,5 +3,13 @@
   "identifier": "vibe-cs-workspace",
   "description": "Dialog and opener access for the Vibe CS primary workspace",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:default", "opener:default"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-start-dragging",
+    "dialog:default",
+    "opener:default"
+  ]
 }

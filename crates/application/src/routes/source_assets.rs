@@ -12,11 +12,8 @@ use crate::{ApiError, ApiResult, AppState, RadarOverviewData};
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/maps/{map_name}/radar", get(radar_image))
-        .route(
-            "/api/v1/maps/{map_name}/radar/metadata",
-            get(radar_metadata),
-        )
+        .route("/api/maps/{map_name}/radar", get(radar_image))
+        .route("/api/maps/{map_name}/radar/metadata", get(radar_metadata))
 }
 
 #[derive(Debug, Serialize)]
@@ -53,7 +50,7 @@ async fn radar_metadata(
     let image_url = overview
         .image
         .as_ref()
-        .map(|_| format!("/api/v1/maps/{}/radar", overview.map_name));
+        .map(|_| format!("/api/maps/{}/radar", overview.map_name));
     let image_mime = overview
         .image
         .as_ref()
@@ -162,7 +159,7 @@ mod tests {
         assert_eq!(metadata.map_name, "de_safe");
         assert_eq!(
             metadata.image_url.as_deref(),
-            Some("/api/v1/maps/de_safe/radar")
+            Some("/api/maps/de_safe/radar")
         );
         assert_eq!(metadata.image_mime.as_deref(), Some("image/png"));
         assert!(metadata.browser_displayable);

@@ -336,4 +336,23 @@ mod tests {
             Some(root.path().canonicalize().expect("canonical root"))
         );
     }
+
+    #[tokio::test]
+    #[ignore = "requires a locally installed Steam copy of CS2"]
+    async fn discovers_and_decodes_the_real_mirage_radar() {
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let port = RuntimeSourceAssetPort::new(storage);
+        let overview = port
+            .radar_overview("de_mirage".to_owned())
+            .await
+            .expect("discover and decode de_mirage radar");
+
+        assert!(overview.transform.is_some(), "Mirage transform");
+        let image = overview.image.expect("Mirage image");
+        assert!(image.browser_displayable);
+        assert_eq!(image.content_type, "image/png");
+        assert!(image.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+    }
 }

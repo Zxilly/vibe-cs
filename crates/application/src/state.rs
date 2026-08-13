@@ -1,25 +1,42 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     io::Write,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Weak},
 };
 
 use axum::http::StatusCode;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::{Mutex, broadcast, watch};
+use tokio::time::Instant;
 use uuid::Uuid;
 
 use crate::{
     AnalysisPort, ApiError, ApiResult, CosmeticsPort, DemoWatchPort, DisabledAnalysisPort,
     DisabledCosmeticsPort, DisabledDemoWatchPort, DisabledExportPort, DisabledIntegrationPort,
-    DisabledMediaPort, DisabledObsTuningPort, DisabledPlayerPort, DisabledProposalExecutionPort,
-    DisabledRecordingPort, DisabledReviewPort, DisabledSourceAssetPort, ExportPort,
-    IntegrationPort, MediaPort, ObsTuningPort, PlayerPort, ProposalExecutionPort, RecordingPort,
-    ReviewPort, SourceAssetPort,
+    DisabledMediaPort, DisabledPlayerPort, DisabledProposalExecutionPort, DisabledRecordingPort,
+    DisabledReviewPort, DisabledSourceAssetPort, ExportPort, IntegrationPort, MediaPort,
+    PlayerPort, ProposalExecutionPort, RecordingPort, ReviewPort, SourceAssetPort,
 };
+
+#[derive(Debug, Clone)]
+pub(crate) struct RecordingPlanLease {
+    pub(crate) items: Vec<vibe_cs_domain::RecordingRequest>,
+    pub(crate) binding_sha256: String,
+    pub(crate) expires_at: DateTime<Utc>,
+    pub(crate) deadline: Instant,
+    pub(crate) state: RecordingPlanLeaseState,
+    pub(crate) transitions: watch::Sender<RecordingPlanLeaseState>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RecordingPlanLeaseState {
+    Ready,
+    Starting { job_id: Uuid },
+    Started { job_id: Uuid },
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum RuntimeSessionState {
@@ -212,7 +229,6 @@ pub struct AppState {
     pub(crate) players: Arc<dyn PlayerPort>,
     pub(crate) source_assets: Arc<dyn SourceAssetPort>,
     pub(crate) integrations: Arc<dyn IntegrationPort>,
-    pub(crate) obs_tuning: Arc<dyn ObsTuningPort>,
     pub(crate) demo_watch: Arc<dyn DemoWatchPort>,
     pub(crate) proposal_execution: Arc<dyn ProposalExecutionPort>,
     pub(crate) events: EventHub,
@@ -220,7 +236,10 @@ pub struct AppState {
     pub(crate) active_recording: Arc<Mutex<Option<Uuid>>>,
     runtime_session: Arc<Mutex<RuntimeSessionState>>,
     pub(crate) recording_monitors: Arc<Mutex<HashSet<Uuid>>>,
+    pub(crate) recording_plans: Arc<Mutex<HashMap<Uuid, RecordingPlanLease>>>,
     pub(crate) output_mutations: Arc<Mutex<()>>,
+    pub(crate) hlae_preparation: Arc<Mutex<()>>,
+    analysis_mutations: Arc<Mutex<HashMap<Uuid, Weak<Mutex<()>>>>>,
     pub(crate) gsi_last_timestamp: Arc<Mutex<Option<i64>>>,
     gsi_token: Arc<str>,
     data_dir: Arc<PathBuf>,
@@ -240,7 +259,6 @@ impl std::fmt::Debug for AppState {
             .field("players", &self.players)
             .field("source_assets", &self.source_assets)
             .field("integrations", &self.integrations)
-            .field("obs_tuning", &self.obs_tuning)
             .field("demo_watch", &self.demo_watch)
             .field("proposal_execution", &self.proposal_execution)
             .field("events", &self.events)
@@ -264,7 +282,6 @@ impl AppState {
             players: Arc::new(DisabledPlayerPort),
             source_assets: Arc::new(DisabledSourceAssetPort),
             integrations: Arc::new(DisabledIntegrationPort),
-            obs_tuning: Arc::new(DisabledObsTuningPort),
             demo_watch: Arc::new(DisabledDemoWatchPort),
             proposal_execution: Arc::new(DisabledProposalExecutionPort),
             events: EventHub::default(),
@@ -272,7 +289,10 @@ impl AppState {
             active_recording: Arc::new(Mutex::new(None)),
             runtime_session: Arc::new(Mutex::new(RuntimeSessionState::Idle)),
             recording_monitors: Arc::new(Mutex::new(HashSet::new())),
+            recording_plans: Arc::new(Mutex::new(HashMap::new())),
             output_mutations: Arc::new(Mutex::new(())),
+            hlae_preparation: Arc::new(Mutex::new(())),
+            analysis_mutations: Arc::new(Mutex::new(HashMap::new())),
             gsi_last_timestamp: Arc::new(Mutex::new(None)),
             gsi_token: Arc::from(gsi_token),
             data_dir: Arc::new(data_dir),
@@ -283,6 +303,16 @@ impl AppState {
     pub fn with_analysis(mut self, port: Arc<dyn AnalysisPort>) -> Self {
         self.analysis = port;
         self
+    }
+
+    pub(crate) async fn analysis_mutation(&self, demo_id: Uuid) -> Arc<Mutex<()>> {
+        let mut mutations = self.analysis_mutations.lock().await;
+        if let Some(mutation) = mutations.get(&demo_id).and_then(Weak::upgrade) {
+            return mutation;
+        }
+        let mutation = Arc::new(Mutex::new(()));
+        mutations.insert(demo_id, Arc::downgrade(&mutation));
+        mutation
     }
 
     #[must_use]
@@ -330,12 +360,6 @@ impl AppState {
     #[must_use]
     pub fn with_integrations(mut self, port: Arc<dyn IntegrationPort>) -> Self {
         self.integrations = port;
-        self
-    }
-
-    #[must_use]
-    pub fn with_obs_tuning(mut self, port: Arc<dyn ObsTuningPort>) -> Self {
-        self.obs_tuning = port;
         self
     }
 

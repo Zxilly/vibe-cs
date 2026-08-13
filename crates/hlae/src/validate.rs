@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::{
-    CameraShot, HLAE_PLAN_SCHEMA_VERSION, HlaeError, HlaeNotice, HlaeNoticeCode, HlaePlan,
-    HlaePlanMode,
+    CameraShot, HLAE_TAKE_MAX_ESTIMATED_BYTES, HLAE_TAKE_MAX_FRAMES, HlaeError, HlaeNotice,
+    HlaeNoticeCode, HlaePlan, HlaePlanMode, estimate_validated_hlae_capture_resources,
 };
 
 const MAXIMUM_TICK: u64 = i32::MAX as u64;
@@ -19,12 +19,6 @@ const MAXIMUM_TOTAL_KEYFRAMES: usize = 32_768;
 /// Returns [`HlaeError`] when any value is unsafe, unsupported, out of bounds,
 /// or internally inconsistent.
 pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError> {
-    if plan.schema_version != HLAE_PLAN_SCHEMA_VERSION {
-        return invalid(format!(
-            "unsupported schema version {}; expected {HLAE_PLAN_SCHEMA_VERSION}",
-            plan.schema_version
-        ));
-    }
     validate_safe_path(&plan.demo_path, "demoPath", false)?;
     if !plan
         .demo_path
@@ -41,10 +35,12 @@ pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError>
     if !(1..=1_000).contains(&plan.capture.fps) {
         return invalid("capture fps must be between 1 and 1000");
     }
-    if !(320..=16_384).contains(&plan.capture.width)
-        || !(240..=16_384).contains(&plan.capture.height)
+    if !(320..=4_096).contains(&plan.capture.width)
+        || !(240..=2_304).contains(&plan.capture.height)
+        || !plan.capture.width.is_multiple_of(2)
+        || !plan.capture.height.is_multiple_of(2)
     {
-        return invalid("capture dimensions are outside the supported range");
+        return invalid("capture dimensions must be even and within the native MP4 pipeline range");
     }
     if !plan.capture.layers.screen && !plan.capture.layers.world && !plan.capture.layers.depth {
         return invalid("at least one capture layer must be enabled");
@@ -101,6 +97,19 @@ pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError>
             }
         }
         previous_end = Some(shot.end_tick);
+    }
+    if plan.mode == HlaePlanMode::Capture {
+        let estimate = estimate_validated_hlae_capture_resources(plan)?;
+        if estimate.maximum_frame_count > HLAE_TAKE_MAX_FRAMES {
+            return invalid(format!(
+                "capture exceeds the {HLAE_TAKE_MAX_FRAMES} frame budget"
+            ));
+        }
+        if estimate.total_bytes > HLAE_TAKE_MAX_ESTIMATED_BYTES {
+            return invalid(format!(
+                "capture exceeds the {HLAE_TAKE_MAX_ESTIMATED_BYTES} byte staging budget"
+            ));
+        }
     }
     Ok(notices)
 }
@@ -246,7 +255,6 @@ mod tests {
 
     fn valid_plan() -> HlaePlan {
         HlaePlan {
-            schema_version: HLAE_PLAN_SCHEMA_VERSION,
             mode: HlaePlanMode::Preview,
             tick_rate: 64.0,
             demo_path: PathBuf::from("match.dem"),
@@ -286,6 +294,17 @@ mod tests {
     }
 
     #[test]
+    fn plan_json_has_one_current_exact_shape() {
+        let current = serde_json::to_value(valid_plan()).expect("current plan JSON");
+        let mut invalid = current;
+        invalid
+            .as_object_mut()
+            .expect("plan object")
+            .insert("unexpected".to_owned(), serde_json::json!(true));
+        assert!(serde_json::from_value::<HlaePlan>(invalid).is_err());
+    }
+
+    #[test]
     fn rejects_console_command_separators_in_paths() {
         let mut plan = valid_plan();
         plan.output_directory = PathBuf::from(r"C:\capture;quit");
@@ -311,6 +330,38 @@ mod tests {
         assert!(validate_hlae_plan(&plan).is_err());
         plan.tick_rate = 257.0;
         assert!(validate_hlae_plan(&plan).is_err());
+    }
+
+    #[test]
+    fn rejects_dimensions_that_the_native_mp4_pipeline_cannot_encode() {
+        let mut plan = valid_plan();
+        plan.capture.width = 4_097;
+        assert!(validate_hlae_plan(&plan).is_err());
+
+        plan.capture.width = 4_096;
+        plan.capture.height = 2_305;
+        assert!(validate_hlae_plan(&plan).is_err());
+
+        plan.capture.height = 1_081;
+        assert!(validate_hlae_plan(&plan).is_err());
+    }
+
+    #[test]
+    fn rejects_a_capture_that_would_exceed_the_take_frame_budget() {
+        let mut plan = valid_plan();
+        plan.mode = HlaePlanMode::Capture;
+        plan.capture.fps = 1_000;
+        plan.shots[0].end_tick = 140_000;
+        for (keyframe, tick) in plan.shots[0]
+            .keyframes
+            .iter_mut()
+            .zip([1_000, 47_000, 93_000, 140_000])
+        {
+            keyframe.tick = tick;
+        }
+
+        let error = validate_hlae_plan(&plan).unwrap_err();
+        assert!(error.to_string().contains("frame budget"));
     }
 
     #[test]

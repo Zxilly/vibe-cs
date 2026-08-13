@@ -7,7 +7,7 @@ use vibe_cs_domain::{ReplayFrame, ReplayInputState, ReplayPlayer, RoundSummary, 
 
 const CELL_WIDTH: f64 = 512.0;
 const MAX_COORDINATE: f64 = 16_384.0;
-const REPLAY_DETAIL_KEY: &str = "_entity_replay_v1";
+const REPLAY_DETAIL_KEY: &str = "_entity_replay";
 const REPLAY_UNAVAILABLE_DETAIL_KEY: &str = "_entity_replay_unavailable";
 const MAX_DECODED_FRAMES: usize = 50_000;
 const MAX_DECODED_PLAYERS_PER_FRAME: usize = 64;
@@ -26,7 +26,7 @@ pub struct EntityReplayLimits {
 impl Default for EntityReplayLimits {
     fn default() -> Self {
         Self {
-            sample_every_ticks: 8,
+            sample_every_ticks: 64,
             maximum_frames: 20_000,
             maximum_players_per_frame: 24,
         }
@@ -455,8 +455,8 @@ fn team_side(value: u64) -> Option<&'static str> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ReplayEnvelope {
-    version: u8,
     frames: Vec<ReplayFrame>,
 }
 
@@ -485,7 +485,6 @@ pub(crate) fn attach_entity_replay(
         detail.insert(
             REPLAY_DETAIL_KEY.to_owned(),
             serde_json::to_value(ReplayEnvelope {
-                version: 1,
                 frames: round_frames,
             })
             .expect("ReplayFrame serialization cannot fail"),
@@ -516,12 +515,6 @@ pub(crate) fn embedded_entity_replay(events: &[TimelineEvent]) -> Result<Vec<Rep
     {
         let envelope: ReplayEnvelope = serde_json::from_value(value.clone())
             .map_err(|error| format!("invalid embedded entity replay: {error}"))?;
-        if envelope.version != 1 {
-            return Err(format!(
-                "unsupported embedded entity replay version {}",
-                envelope.version
-            ));
-        }
         frames.extend(envelope.frames);
         if frames.len() > MAX_DECODED_FRAMES {
             return Err(format!(
@@ -571,6 +564,15 @@ mod tests {
     use vibe_cs_domain::{EventKind, TimelineEvent};
 
     use super::*;
+
+    #[test]
+    fn default_replay_sampling_stays_below_the_frame_budget_for_long_matches() {
+        let limits = EntityReplayLimits::default();
+        let maximum_frames = u32::try_from(limits.maximum_frames).expect("frame limit fits u32");
+
+        assert_eq!(limits.sample_every_ticks, 64);
+        assert!(175_000_u32.div_ceil(limits.sample_every_ticks) < maximum_frames);
+    }
 
     fn round() -> RoundSummary {
         RoundSummary {
@@ -661,6 +663,20 @@ mod tests {
 
         assert_eq!(pawn_position(&fixture), Some([10.0, -12.0, 64.0]));
         assert_eq!(pawn_position(&fixture[..5]), None);
+    }
+
+    #[test]
+    fn embedded_replay_accepts_only_the_current_exact_shape() {
+        let mut rounds = vec![round()];
+        attach_entity_replay(&mut rounds, &[frame(120)], None);
+        let detail = &rounds[0].events[0].detail;
+        let current = detail
+            .get("_entity_replay")
+            .expect("current embedded replay detail");
+        assert!(current.get("version").is_none());
+        let mut invalid = current.clone();
+        invalid["unexpected"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<ReplayEnvelope>(invalid).is_err());
     }
 
     #[test]

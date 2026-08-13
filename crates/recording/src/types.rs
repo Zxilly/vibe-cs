@@ -57,10 +57,16 @@ pub struct SegmentPlan {
     pub title: String,
     pub player_id: String,
     pub player_name: Option<String>,
+    /// Parser-backed one-based CS2 spectator slot. Ambiguous userinfo evidence
+    /// leaves this absent; callers must not infer it.
+    pub spectator_slot: Option<u8>,
+    /// Authoritative total demo ticks from the parser header. This remains
+    /// absent when the parser cannot prove it rather than being approximated
+    /// from duration.
+    pub verified_total_ticks: Option<u32>,
     pub start_tick: u64,
     pub end_tick: u64,
     pub tick_rate: f64,
-    pub playback_speed: f64,
     pub output_file_name: String,
     pub category: String,
     pub tags: Vec<String>,

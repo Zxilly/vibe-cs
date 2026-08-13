@@ -12,15 +12,14 @@ use sha2::{Digest, Sha256};
 use tokio::io::AsyncReadExt;
 use vibe_cs_application::ProposalExecutionPort;
 use vibe_cs_domain::{
-    AGENT_PROPOSAL_SCHEMA_VERSION, AgentProposalAction, DomainError, HlaeCameraStyle,
-    HlaeProposalEvidence, HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalMode,
-    HlaeProposalPreview, ProposalConfirmation, ProposalPrerequisite, ReplayPlayer,
+    AgentProposalAction, DomainError, HlaeCameraStyle, HlaeProposalEvidence,
+    HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalMode, HlaeProposalPreview,
+    ProposalConfirmation, ProposalPrerequisite, ReplayPlayer,
 };
 use vibe_cs_hlae::{
     CameraKeyframe, CameraPosition, CameraRotation, CameraShot, CaptureSettings,
-    HLAE_PLAN_SCHEMA_VERSION, HlaeBundleLaunchInputs, HlaePlan, HlaePlanMode,
-    PositionInterpolation, RotationInterpolation, compile_hlae_plan, export_hlae_plan,
-    validate_hlae_plan,
+    HlaeBundleLaunchInputs, HlaePlan, HlaePlanMode, PositionInterpolation, RotationInterpolation,
+    compile_hlae_plan, export_hlae_plan, validate_hlae_plan,
 };
 
 type ProposalHmac = Hmac<Sha256>;
@@ -111,7 +110,6 @@ impl RuntimeProposalExecutionPort {
             .map(|notice| notice.message.clone())
             .collect();
         Ok(HlaeProposalPreview {
-            schema_version: AGENT_PROPOSAL_SCHEMA_VERSION,
             proposal_revision: PROPOSAL_REVISION,
             ready: true,
             prerequisites: Vec::new(),
@@ -552,7 +550,7 @@ fn build_evidence_plan(
         return Ok(EvidencePlan::Prerequisites(prerequisites));
     }
     let base_hash = hash_json(
-        b"vibe-cs-hlae-evidence-v1\0",
+        b"vibe-cs-hlae-evidence\0",
         &serde_json::json!({
             "demoPath": evidence.demo_path,
             "demoContentSha256": verification.content_sha256,
@@ -567,7 +565,6 @@ fn build_evidence_plan(
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let pre_roll_ticks = (evidence.tick_rate * 2.0).round() as u64;
     let plan = HlaePlan {
-        schema_version: HLAE_PLAN_SCHEMA_VERSION,
         mode: match intent.mode {
             HlaeProposalMode::Preview => HlaePlanMode::Preview,
             HlaeProposalMode::Capture => HlaePlanMode::Capture,
@@ -706,7 +703,7 @@ fn proposal_fingerprint(
     plan: &HlaePlan,
 ) -> Result<String, DomainError> {
     hash_json(
-        b"vibe-cs-hlae-proposal-v1\0",
+        b"vibe-cs-hlae-proposal\0",
         &serde_json::json!({
             "baseFingerprint": base_fingerprint,
             "intent": intent,
@@ -737,7 +734,7 @@ fn update_confirmation_mac(
     proposal_fingerprint: &str,
     expected_revision: u64,
 ) {
-    mac.update(b"vibe-cs-agent-proposal-confirmation-v1\0");
+    mac.update(b"vibe-cs-agent-proposal-confirmation\0");
     mac.update(&[match action {
         AgentProposalAction::ExportHlaePlan => 1,
         AgentProposalAction::ApplyBeatAlignment => 2,
@@ -849,19 +846,23 @@ mod tests {
         let executable = installation_root.join("HLAE.exe");
         let source2_hook = installation_root.join("x64/AfxHookSource2.dll");
         let game_executable = root.join("game/bin/win64/cs2.exe");
+        let steam_executable = root.join("Steam/steam.exe");
         fs::create_dir_all(source2_hook.parent().unwrap()).unwrap();
         fs::create_dir_all(game_executable.parent().unwrap()).unwrap();
+        fs::create_dir_all(steam_executable.parent().unwrap()).unwrap();
         fs::write(&executable, b"hlae").unwrap();
         fs::write(&source2_hook, b"hook").unwrap();
         fs::write(&game_executable, b"cs2").unwrap();
+        fs::write(&steam_executable, b"steam").unwrap();
         HlaeBundleLaunchInputs {
             installation: vibe_cs_hlae::HlaeInstallation {
                 root: installation_root,
                 executable,
                 source2_hook,
-                source: vibe_cs_hlae::HlaeDiscoverySource::Configured,
+                source: vibe_cs_hlae::HlaeDiscoverySource::Managed,
             },
             game_executable,
+            steam_executable,
             resolution: vibe_cs_hlae::LaunchResolution {
                 width: 1920,
                 height: 1080,

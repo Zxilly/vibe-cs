@@ -2,9 +2,9 @@ use std::{collections::BTreeMap, fmt::Write as _, path::Path};
 
 use crate::validate::{validate_hlae_plan, validate_safe_path};
 use crate::{
-    CameraShot, CompiledHlaePlan, GeneratedArtifact, HLAE_PLAN_SCHEMA_VERSION, HlaeError,
-    HlaeInstallation, HlaeLaunchProfile, HlaePlan, HlaePlanMode, HlaeSafetyPolicy,
-    LaunchResolution, PositionInterpolation, RotationInterpolation,
+    CameraShot, CompiledHlaePlan, GeneratedArtifact, HlaeError, HlaeInstallation,
+    HlaeLaunchProfile, HlaePlan, HlaePlanMode, HlaeSafetyPolicy, LaunchResolution,
+    PositionInterpolation, RotationInterpolation,
 };
 
 const COMMAND_FILE_NAME: &str = "vibe_cs_commands.xml";
@@ -70,7 +70,6 @@ pub fn compile_hlae_plan(
     };
 
     let compiled = CompiledHlaePlan {
-        schema_version: HLAE_PLAN_SCHEMA_VERSION,
         mode: plan.mode,
         first_tick,
         last_tick,
@@ -104,6 +103,7 @@ pub fn compile_hlae_plan(
 pub fn build_hlae_launch_profile(
     installation: &HlaeInstallation,
     cs2_executable: &Path,
+    steam_executable: &Path,
     moviemaking_config_root: &Path,
     resolution: LaunchResolution,
 ) -> Result<HlaeLaunchProfile, HlaeError> {
@@ -125,6 +125,7 @@ pub fn build_hlae_launch_profile(
         ));
     }
     validate_safe_path(cs2_executable, "gameExecutable", true)?;
+    validate_safe_path(steam_executable, "steamExecutable", true)?;
     validate_safe_path(moviemaking_config_root, "moviemakingConfigRoot", true)?;
     if !cs2_executable.is_file()
         || !cs2_executable
@@ -136,13 +137,39 @@ pub fn build_hlae_launch_profile(
             "game executable must be an existing cs2.exe".to_owned(),
         ));
     }
-    if !(320..=16_384).contains(&resolution.width) || !(240..=16_384).contains(&resolution.height) {
+    if !steam_executable.is_file()
+        || !steam_executable
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case("steam.exe"))
+    {
+        return Err(HlaeError::InvalidInstallation(
+            "Steam executable must be an existing steam.exe".to_owned(),
+        ));
+    }
+    if !(320..=4_096).contains(&resolution.width) || !(240..=2_304).contains(&resolution.height) {
         return Err(HlaeError::InvalidPlan(
             "launch resolution is outside the supported range".to_owned(),
         ));
     }
+    if !resolution.width.is_multiple_of(2) || !resolution.height.is_multiple_of(2) {
+        return Err(HlaeError::InvalidPlan(
+            "launch resolution must use even dimensions for native MP4 output".to_owned(),
+        ));
+    }
 
     let mut environment = BTreeMap::new();
+    let steam_root = steam_executable.parent().ok_or_else(|| {
+        HlaeError::InvalidInstallation("Steam executable has no parent directory".to_owned())
+    })?;
+    environment.insert("SteamAppId".to_owned(), "730".to_owned());
+    environment.insert("SteamClientLaunch".to_owned(), "1".to_owned());
+    environment.insert("SteamGameId".to_owned(), "730".to_owned());
+    environment.insert("SteamOverlayGameId".to_owned(), "730".to_owned());
+    environment.insert(
+        "SteamPath".to_owned(),
+        steam_root.to_string_lossy().into_owned(),
+    );
     environment.insert(
         "USRLOCALCSGO".to_owned(),
         moviemaking_config_root.to_string_lossy().into_owned(),
@@ -211,10 +238,6 @@ fn compile_command_system(plan: &HlaePlan, camera_paths: &[GeneratedArtifact]) -
     let first_tick = plan.shots.first().map_or(0, |shot| shot.start_tick);
     let last_tick = plan.shots.last().map_or(0, |shot| shot.end_tick);
     let mut commands = Vec::new();
-
-    if plan.mode == HlaePlanMode::Capture {
-        commands.push((first_tick, capture_start_command(plan)));
-    }
     for (index, (shot, camera)) in plan.shots.iter().zip(camera_paths).enumerate() {
         let mut start = format!(
             "mirv_campath clear; mirv_campath load \"{}\"; mirv_campath edit start; mirv_fov default; mirv_campath enabled 1",
@@ -223,7 +246,7 @@ fn compile_command_system(plan: &HlaePlan, camera_paths: &[GeneratedArtifact]) -
         if plan.mode == HlaePlanMode::Preview {
             start.push_str("; mirv_campath draw enabled 1");
         }
-        commands.push((shot.start_tick, start));
+        commands.push((shot.start_tick, 0_u8, start));
         let has_contiguous_next = plan
             .shots
             .get(index + 1)
@@ -231,18 +254,20 @@ fn compile_command_system(plan: &HlaePlan, camera_paths: &[GeneratedArtifact]) -
         if !has_contiguous_next {
             commands.push((
                 shot.end_tick,
+                2_u8,
                 "mirv_campath enabled 0; mirv_campath draw enabled 0".to_owned(),
             ));
         }
     }
     if plan.mode == HlaePlanMode::Capture {
-        commands.push((last_tick, capture_stop_command(plan)));
+        commands.push((first_tick, 1_u8, capture_start_command(plan)));
+        commands.push((last_tick, 1_u8, capture_stop_command(plan)));
     }
-    commands.sort_by_key(|(tick, _)| *tick);
+    commands.sort_by_key(|(tick, phase, _)| (*tick, *phase));
 
     let mut xml =
         String::from("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<commandSystem>\n<commands>\n");
-    for (tick, command) in commands {
+    for (tick, _, command) in commands {
         writeln!(
             xml,
             "<c tick=\"{tick}\"><body>{}</body></c>",
@@ -296,6 +321,7 @@ fn capture_start_command(plan: &HlaePlan) -> String {
 fn capture_stop_command(plan: &HlaePlan) -> String {
     let mut commands = vec![
         "mirv_streams record end".to_owned(),
+        "demo_pause".to_owned(),
         "mirv_campath enabled 0".to_owned(),
         "mirv_campath draw enabled 0".to_owned(),
         "mirv_streams record screen enabled 0".to_owned(),
@@ -333,7 +359,6 @@ mod tests {
 
     fn plan(mode: HlaePlanMode, output: PathBuf) -> HlaePlan {
         HlaePlan {
-            schema_version: HLAE_PLAN_SCHEMA_VERSION,
             mode,
             tick_rate: 64.0,
             demo_path: PathBuf::from("match.dem"),
@@ -417,6 +442,27 @@ mod tests {
     }
 
     #[test]
+    fn capture_arms_the_camera_before_start_and_stops_before_teardown() {
+        let root = tempfile::tempdir().unwrap();
+        let compiled = compile_hlae_plan(
+            &plan(HlaePlanMode::Capture, root.path().join("capture")),
+            root.path(),
+        )
+        .unwrap();
+        let xml = &compiled.command_system.contents;
+
+        let camera_start = xml.find("mirv_campath load").unwrap();
+        let capture_start = xml.find("mirv_streams record name").unwrap();
+        let capture_end = xml.find("mirv_streams record end").unwrap();
+        let pause_after_capture = xml.find("mirv_streams record end; demo_pause").unwrap();
+        let camera_end = xml.rfind("mirv_campath enabled 0").unwrap();
+
+        assert!(camera_start < capture_start);
+        assert!(capture_end < camera_end);
+        assert_eq!(capture_end, pause_after_capture);
+    }
+
+    #[test]
     fn camera_xml_uses_relative_sixty_four_tick_time_and_hlae_axes() {
         let root = tempfile::tempdir().unwrap();
         let compiled = compile_hlae_plan(
@@ -445,19 +491,22 @@ mod tests {
         let hlae = root.path().join("HLAE.exe");
         let hook = root.path().join("x64/AfxHookSource2.dll");
         let cs2 = root.path().join("cs2.exe");
+        let steam = root.path().join("Steam/steam.exe");
         std::fs::create_dir_all(hook.parent().unwrap()).unwrap();
-        for path in [&hlae, &hook, &cs2] {
+        std::fs::create_dir_all(steam.parent().unwrap()).unwrap();
+        for path in [&hlae, &hook, &cs2, &steam] {
             std::fs::write(path, b"stub").unwrap();
         }
         let installation = HlaeInstallation {
             root: root.path().to_path_buf(),
             executable: hlae,
             source2_hook: hook,
-            source: HlaeDiscoverySource::Configured,
+            source: HlaeDiscoverySource::Managed,
         };
         let profile = build_hlae_launch_profile(
             &installation,
             &cs2,
+            &steam,
             &root.path().join("mmcfg"),
             LaunchResolution {
                 width: 1920,
@@ -469,5 +518,39 @@ mod tests {
         assert!(profile.arguments.iter().any(|item| item == "-insecure"));
         assert!(profile.safety.vac_servers_prohibited);
         assert!(profile.safety.demo_playback_only);
+    }
+
+    #[test]
+    fn launch_profile_rejects_dimensions_the_native_encoder_cannot_publish() {
+        let root = tempfile::tempdir().unwrap();
+        let hlae = root.path().join("HLAE.exe");
+        let hook = root.path().join("x64/AfxHookSource2.dll");
+        let cs2 = root.path().join("cs2.exe");
+        let steam = root.path().join("Steam/steam.exe");
+        std::fs::create_dir_all(hook.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(steam.parent().unwrap()).unwrap();
+        for path in [&hlae, &hook, &cs2, &steam] {
+            std::fs::write(path, b"stub").unwrap();
+        }
+        let installation = HlaeInstallation {
+            root: root.path().to_path_buf(),
+            executable: hlae,
+            source2_hook: hook,
+            source: HlaeDiscoverySource::Managed,
+        };
+
+        assert!(
+            build_hlae_launch_profile(
+                &installation,
+                &cs2,
+                &steam,
+                &root.path().join("mmcfg"),
+                LaunchResolution {
+                    width: 4_097,
+                    height: 2_304,
+                },
+            )
+            .is_err()
+        );
     }
 }

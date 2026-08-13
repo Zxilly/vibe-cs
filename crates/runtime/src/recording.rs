@@ -1,49 +1,122 @@
 use std::{
     collections::HashMap,
+    fs::File,
+    io::Read as _,
     path::{Path, PathBuf},
-    sync::Arc,
-    time::Duration,
+    sync::{Arc, Mutex as StdMutex, OnceLock, Weak},
+    time::SystemTime,
 };
 
 use async_trait::async_trait;
 use chrono::Utc;
 use serde_json::json;
-use tokio::sync::{Mutex, RwLock};
+use sha2::{Digest as _, Sha256};
+use tokio::sync::Mutex;
 use uuid::Uuid;
 use vibe_cs_application::RecordingPort;
 use vibe_cs_domain::{
-    AppConfig, DemoRecord, DomainError, EventKind, Highlight, HighlightKind, JobStatus,
-    MatchAnalysis, RecordedClip, RecordingInputBus, RecordingInputEvent, RecordingJob,
-    RecordingRequest, TimelineEvent,
+    AppConfig, DemoRecord, DomainError, Highlight, HighlightKind, JobStatus, MatchAnalysis,
+    RecordedClip, RecordingJob, RecordingRequest,
 };
-use vibe_cs_integrations::{
-    GsiState, IntegrationError, ObsClient, ObsRealtimeMediaInput, ObsTransport, ObsTransportLimits,
-    SecretString, WebSocketObsTransport, discover_paths,
-};
-use vibe_cs_media::{
-    MediaError, SingleInputTranscodeOptions, TimedTextOverlay, build_single_input_transcode_plan,
-    execute_native_filter_plan_with_progress, native_ffmpeg_info, native_probe_media,
-    select_video_encoder,
-};
-use vibe_cs_platform_windows::{
-    BackupManager, DesktopBackend, FirstPersonHudInstaller, PlatformError,
-    ProcessCancellation as PlatformRecordingCancellation, SystemDesktopBackend,
-    SystemProcessRunner as PlatformProcessRunner,
-};
-use vibe_cs_recording::{
-    CommandAcknowledgedPlaybackSynchronizer, CommandEvidenceGameController, CommandEvidenceStore,
-    EngineConfig, GsiStateSnapshotSource, PlatformGameController, RecordingEngine, RecordingError,
-    SegmentPlan,
-};
+use vibe_cs_recording::SegmentPlan;
 use vibe_cs_storage::Storage;
+
+use crate::recording_progress::{
+    RecordingProgressSink, RecordingStage, recording_progress_channel,
+};
 
 pub type RecordingCancellation = vibe_cs_media::ProcessCancellation;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
+pub enum OrphanedRecordingRecovery {
+    NoPublishedClip,
+    PublishedClip {
+        item_index: usize,
+        clip: Box<RecordedClip>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct PreparedRecording {
+    pub job_id: Uuid,
+    pub item_index: usize,
     pub request: RecordingRequest,
     pub demo: DemoRecord,
     pub segment: SegmentPlan,
+}
+
+struct PreparedRecordingJob {
+    items: Vec<PreparedRecording>,
+    _demo_guards: Vec<Arc<VerifiedRecordingDemo>>,
+}
+
+#[derive(Debug, Clone)]
+struct ActiveRecording {
+    cancellation: RecordingCancellation,
+    persistence: Arc<Mutex<()>>,
+}
+
+type ActiveRecordings = Arc<Mutex<HashMap<Uuid, ActiveRecording>>>;
+
+struct RecordingRun {
+    storage: Storage,
+    backend: Arc<dyn RecordingBackend>,
+    active: ActiveRecordings,
+    config: AppConfig,
+    job: RecordingJob,
+    prepared: PreparedRecordingJob,
+    cancellation: RecordingCancellation,
+    persistence: Arc<Mutex<()>>,
+}
+
+struct RecordingStartupGuard {
+    active: ActiveRecordings,
+    backend: Arc<dyn RecordingBackend>,
+    job_id: Uuid,
+    armed: bool,
+}
+
+impl RecordingStartupGuard {
+    fn new(active: ActiveRecordings, backend: Arc<dyn RecordingBackend>, job_id: Uuid) -> Self {
+        Self {
+            active,
+            backend,
+            job_id,
+            armed: true,
+        }
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for RecordingStartupGuard {
+    fn drop(&mut self) {
+        if !self.armed {
+            return;
+        }
+        let active = Arc::clone(&self.active);
+        let backend = Arc::clone(&self.backend);
+        let job_id = self.job_id;
+        tokio::spawn(async move {
+            if let Err(error) = backend.finish_job(job_id).await {
+                tracing::error!(%job_id, %error, "unable to clean an aborted recording startup context");
+            }
+            active.lock().await.remove(&job_id);
+        });
+    }
+}
+
+struct StagePersistence {
+    storage: Storage,
+    persistence: Arc<Mutex<()>>,
+    cancellation: RecordingCancellation,
+    job: RecordingJob,
+    progress_index: u32,
+    total: u32,
+    receiver: tokio::sync::mpsc::Receiver<RecordingStage>,
+    finished: tokio::sync::oneshot::Receiver<()>,
 }
 
 #[async_trait]
@@ -59,926 +132,44 @@ pub trait RecordingBackend: Send + Sync + std::fmt::Debug {
         config: &AppConfig,
         item: &PreparedRecording,
         cancellation: &RecordingCancellation,
+        progress: &RecordingProgressSink,
     ) -> Result<RecordedClip, DomainError>;
 
+    /// Removes only artifacts durably leased to one persisted non-terminal job.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a present lease cannot be authenticated or its
+    /// exact artifacts cannot be removed safely. The default backend owns no
+    /// recoverable artifacts.
+    async fn recover_orphaned_job(
+        &self,
+        _job: &RecordingJob,
+    ) -> Result<OrphanedRecordingRecovery, DomainError> {
+        Ok(OrphanedRecordingRecovery::NoPublishedClip)
+    }
+
+    /// Retires backend-owned publication evidence only after the clip and its
+    /// owning job output are durable in storage.
+    async fn commit_recorded_clip(
+        &self,
+        _job_id: Uuid,
+        _item_index: usize,
+        _clip: &RecordedClip,
+    ) -> Result<(), DomainError> {
+        Ok(())
+    }
+
     async fn begin_job(
-        &self,
-        _config: &AppConfig,
-        _items: &[PreparedRecording],
-    ) -> Result<(), DomainError> {
-        Ok(())
-    }
-
-    async fn finish_job(&self, _config: &AppConfig) -> Result<(), DomainError> {
-        Ok(())
-    }
-}
-
-type SystemGameController = CommandEvidenceGameController<
-    PlatformGameController<SystemDesktopBackend, PlatformProcessRunner>,
->;
-type SystemPlaybackSynchronizer = CommandAcknowledgedPlaybackSynchronizer<GsiStateSnapshotSource>;
-type SystemEngine = RecordingEngine<
-    SystemGameController,
-    ObsClient<WebSocketObsTransport>,
-    SystemPlaybackSynchronizer,
-    BackupManager,
->;
-
-/// Real system adapter for deterministic demo playback and OBS capture.
-#[derive(Clone)]
-pub struct SystemRecordingBackend {
-    data_dir: PathBuf,
-    gsi: Arc<RwLock<GsiState>>,
-    hud_session: Arc<Mutex<Option<FirstPersonHudInstaller>>>,
-}
-
-impl std::fmt::Debug for SystemRecordingBackend {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("SystemRecordingBackend")
-            .field("data_dir", &self.data_dir)
-            .field("shared_gsi_state", &true)
-            .finish_non_exhaustive()
-    }
-}
-
-impl SystemRecordingBackend {
-    #[must_use]
-    pub fn new(data_dir: PathBuf, gsi: Arc<RwLock<GsiState>>) -> Self {
-        Self {
-            data_dir,
-            gsi,
-            hud_session: Arc::new(Mutex::new(None)),
-        }
-    }
-
-    async fn build_engine(&self, config: &AppConfig) -> Result<SystemEngine, DomainError> {
-        validate_system_configuration(config)?;
-        self.ensure_runtime_recovery_is_clean().await?;
-
-        let executable = discover_paths(config).cs2.ok_or_else(|| {
-            DomainError::DependencyUnavailable("CS2 executable was not found".to_owned())
-        })?;
-        let executable = std::path::absolute(executable).map_err(|error| {
-            io_dependency_error("resolve the configured CS2 executable", &error)
-        })?;
-        let output_directory = self.managed_directory("recordings").await?;
-        let recovery_directory = self.managed_directory("recovery").await?;
-        let recovery = BackupManager::new(recovery_directory).map_err(platform_error)?;
-
-        let password = SecretString::new(config.obs.password.clone());
-        let obs = ObsClient::connect_websocket(
-            config.obs.host.trim(),
-            config.obs.port,
-            &password,
-            ObsTransportLimits::default(),
-        )
-        .await
-        .map_err(integration_error)?;
-
-        let evidence = CommandEvidenceStore::default();
-        let game = CommandEvidenceGameController::new(
-            PlatformGameController::new(SystemDesktopBackend, PlatformProcessRunner),
-            evidence.clone(),
-        );
-        let source =
-            GsiStateSnapshotSource::new(Arc::clone(&self.gsi), chrono::Duration::seconds(3));
-        let synchronizer = CommandAcknowledgedPlaybackSynchronizer::new(evidence, source)
-            .with_limits(Duration::from_millis(50), Duration::from_secs(3))
-            .map_err(recording_error)?;
-        let engine_config = EngineConfig::new(executable, output_directory);
-        Ok(RecordingEngine::new(
-            engine_config,
-            game,
-            obs,
-            synchronizer,
-            recovery,
-        ))
-    }
-
-    async fn managed_directory(&self, name: &str) -> Result<PathBuf, DomainError> {
-        let directory = self.data_dir.join(name);
-        tokio::fs::create_dir_all(&directory)
-            .await
-            .map_err(|error| io_dependency_error("create managed directory", &error))?;
-        tokio::fs::canonicalize(&directory)
-            .await
-            .map_err(|error| io_dependency_error("resolve managed directory", &error))
-    }
-
-    async fn first_person_hud_installer(
-        &self,
-        config: &AppConfig,
-    ) -> Result<Option<FirstPersonHudInstaller>, DomainError> {
-        let source = config.recording.first_person_hud_assets.trim();
-        if source.is_empty() {
-            return Ok(None);
-        }
-        let executable = discover_paths(config).cs2.ok_or_else(|| {
-            DomainError::DependencyUnavailable("CS2 executable was not found".to_owned())
-        })?;
-        let game_directory = executable
-            .ancestors()
-            .find(|path| {
-                path.file_name()
-                    .is_some_and(|name| name.eq_ignore_ascii_case("game"))
-            })
-            .ok_or_else(|| {
-                DomainError::InvalidInput(
-                    "CS2 executable is outside a recognizable game directory".to_owned(),
-                )
-            })?;
-        let target = game_directory.join("csgo/custom/vibe_cs_hud");
-        let recovery = self.managed_directory("recovery/hud").await?;
-        FirstPersonHudInstaller::new(PathBuf::from(source), target, recovery)
-            .map(Some)
-            .map_err(platform_error)
-    }
-
-    fn ensure_hud_can_load_before_launch(config: &AppConfig) -> Result<(), DomainError> {
-        if config.recording.first_person_hud_assets.trim().is_empty() {
-            return Ok(());
-        }
-        let running = SystemDesktopBackend
-            .discover_processes("cs2.exe")
-            .map_err(platform_error)?;
-        if running.is_empty() {
-            Ok(())
-        } else {
-            Err(DomainError::Conflict(
-                "first-person HUD assets require the game to be closed so the managed launch can load and later restore them"
-                    .to_owned(),
-            ))
-        }
-    }
-
-    async fn configured_scene(
-        engine: &mut SystemEngine,
-        config: &AppConfig,
-    ) -> Result<Option<String>, DomainError> {
-        let requested = config.obs.scene.trim();
-        if requested.is_empty() {
-            return Ok(None);
-        }
-        let status = engine
-            .recorder_mut()
-            .scene_status()
-            .await
-            .map_err(integration_error)?;
-        if !status.scenes.iter().any(|scene| scene == requested) {
-            return Err(DomainError::DependencyUnavailable(format!(
-                "configured OBS scene {requested:?} does not exist"
-            )));
-        }
-        Ok(Some(status.current_program_scene))
-    }
-
-    async fn activate_configured_scene(
-        engine: &mut SystemEngine,
-        config: &AppConfig,
-    ) -> Result<Option<String>, DomainError> {
-        let Some(previous) = Self::configured_scene(engine, config).await? else {
-            return Ok(None);
-        };
-        let requested = config.obs.scene.trim();
-        if previous == requested {
-            return Ok(None);
-        }
-        if let Err(error) = engine
-            .recorder_mut()
-            .set_current_program_scene(requested)
-            .await
-        {
-            let primary = integration_error(error);
-            let cleanup = Self::restore_obs_scene(engine, Some(&previous)).await;
-            return Err(scene_activation_error(primary, cleanup));
-        }
-        let confirmed = match engine.recorder_mut().scene_status().await {
-            Ok(confirmed) => confirmed,
-            Err(error) => {
-                let primary = integration_error(error);
-                let cleanup = Self::restore_obs_scene(engine, Some(&previous)).await;
-                return Err(scene_activation_error(primary, cleanup));
-            }
-        };
-        if confirmed.current_program_scene != requested {
-            let primary = DomainError::Conflict(format!(
-                "OBS did not switch to configured scene {requested:?}"
-            ));
-            let cleanup = Self::restore_obs_scene(engine, Some(&previous)).await;
-            return Err(scene_activation_error(primary, cleanup));
-        }
-        Ok(Some(previous))
-    }
-
-    async fn restore_obs_scene(
-        engine: &mut SystemEngine,
-        previous: Option<&str>,
-    ) -> Result<(), DomainError> {
-        let Some(previous) = previous else {
-            return Ok(());
-        };
-        engine
-            .recorder_mut()
-            .set_current_program_scene(previous)
-            .await
-            .map_err(integration_error)?;
-        let confirmed = engine
-            .recorder_mut()
-            .scene_status()
-            .await
-            .map_err(integration_error)?;
-        if confirmed.current_program_scene != previous {
-            return Err(DomainError::Conflict(format!(
-                "OBS did not restore the previous scene {previous:?}"
-            )));
-        }
-        Ok(())
-    }
-
-    async fn activate_realtime_overlays(
-        engine: &mut SystemEngine,
-        config: &AppConfig,
-        item: &PreparedRecording,
-        cues: &[RealtimeOverlayCue],
-    ) -> Result<RealtimeOverlaySession, DomainError> {
-        let kill_path = config.recording.obs_realtime_kill_fx_media.trim();
-        let keyboard_path = config.recording.obs_realtime_keyboard_media.trim();
-        let has_kill_cue = has_realtime_kill_cue(cues);
-        if (!has_kill_cue || kill_path.is_empty()) && !item.request.show_keyboard {
-            return Ok(RealtimeOverlaySession::default());
-        }
-        let scene = engine
-            .recorder_mut()
-            .scene_status()
-            .await
-            .map_err(integration_error)?
-            .current_program_scene;
-        let mut session = RealtimeOverlaySession {
-            scene,
-            inputs: Vec::new(),
-            kill: None,
-            keyboard_text: None,
-            keyboard_background: None,
-        };
-        let prefix = format!("VibeCS-{}", Uuid::new_v4().simple());
-        if has_kill_cue && !kill_path.is_empty() {
-            let input_name = format!("{prefix}-kill-fx");
-            let scene_item_id = match engine
-                .recorder_mut()
-                .create_realtime_media_input(ObsRealtimeMediaInput {
-                    scene: session.scene.clone(),
-                    input_name: input_name.clone(),
-                    media_path: PathBuf::from(kill_path),
-                    loop_media: false,
-                })
-                .await
-            {
-                Ok(id) => id,
-                Err(error) => {
-                    let cleanup = session.cleanup(engine).await;
-                    return Err(scene_activation_error(integration_error(error), cleanup));
-                }
-            };
-            session.inputs.push(input_name.clone());
-            session.kill = Some(RealtimeSceneInput {
-                name: input_name,
-                scene_item_id,
-            });
-        }
-        if item.request.show_keyboard {
-            let input_name = format!("{prefix}-keyboard-state");
-            let scene_item_id = match engine
-                .recorder_mut()
-                .create_realtime_text_input(&session.scene, &input_name)
-                .await
-            {
-                Ok(id) => id,
-                Err(error) => {
-                    let cleanup = session.cleanup(engine).await;
-                    return Err(scene_activation_error(integration_error(error), cleanup));
-                }
-            };
-            session.inputs.push(input_name.clone());
-            session.keyboard_text = Some(RealtimeSceneInput {
-                name: input_name,
-                scene_item_id,
-            });
-            if !keyboard_path.is_empty() {
-                let input_name = format!("{prefix}-keyboard-background");
-                let scene_item_id = match engine
-                    .recorder_mut()
-                    .create_realtime_media_input(ObsRealtimeMediaInput {
-                        scene: session.scene.clone(),
-                        input_name: input_name.clone(),
-                        media_path: PathBuf::from(keyboard_path),
-                        loop_media: true,
-                    })
-                    .await
-                {
-                    Ok(id) => id,
-                    Err(error) => {
-                        let cleanup = session.cleanup(engine).await;
-                        return Err(scene_activation_error(integration_error(error), cleanup));
-                    }
-                };
-                session.inputs.push(input_name.clone());
-                session.keyboard_background = Some(RealtimeSceneInput {
-                    name: input_name,
-                    scene_item_id,
-                });
-            }
-        }
-        Ok(session)
-    }
-
-    async fn connect_realtime_overlay_driver(
-        config: &AppConfig,
-        session: &RealtimeOverlaySession,
-    ) -> Result<Option<ObsClient<WebSocketObsTransport>>, DomainError> {
-        if session.inputs.is_empty() {
-            return Ok(None);
-        }
-        let password = SecretString::new(config.obs.password.clone());
-        ObsClient::connect_websocket(
-            config.obs.host.trim(),
-            config.obs.port,
-            &password,
-            ObsTransportLimits::default(),
-        )
-        .await
-        .map(Some)
-        .map_err(integration_error)
-    }
-
-    async fn drive_realtime_overlays<T: ObsTransport>(
-        client: &mut ObsClient<T>,
-        session: &RealtimeOverlaySession,
-        cues: &[RealtimeOverlayCue],
-        cancellation: &RecordingCancellation,
-        stop: &RecordingCancellation,
-    ) -> Result<(), DomainError> {
-        let started_deadline = tokio::time::Instant::now() + Duration::from_secs(20);
-        loop {
-            if cancellation.is_cancelled() || stop.is_cancelled() {
-                return Self::disable_realtime_overlays(client, session).await;
-            }
-            if client
-                .record_status()
-                .await
-                .map_err(integration_error)?
-                .active
-            {
-                break;
-            }
-            if tokio::time::Instant::now() >= started_deadline {
-                return Err(DomainError::DependencyUnavailable(
-                    "OBS recording did not become active before the realtime overlay deadline"
-                        .to_owned(),
-                ));
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-
-        let started = tokio::time::Instant::now();
-        let mut result = Ok(());
-        for cue in cues {
-            let deadline = started + cue.at;
-            loop {
-                if cancellation.is_cancelled() || stop.is_cancelled() {
-                    break;
-                }
-                let now = tokio::time::Instant::now();
-                if now >= deadline {
-                    break;
-                }
-                tokio::time::sleep((deadline - now).min(Duration::from_millis(25))).await;
-            }
-            if cancellation.is_cancelled() || stop.is_cancelled() {
-                break;
-            }
-            if let Err(error) = Self::apply_realtime_cue(client, session, cue).await {
-                result = Err(error);
-                break;
-            }
-        }
-        let disabled = Self::disable_realtime_overlays(client, session).await;
-        match (result, disabled) {
-            (Ok(()), disabled) => disabled,
-            (Err(primary), Ok(())) => Err(primary),
-            (Err(primary), Err(cleanup)) => Err(DomainError::Internal(format!(
-                "{primary}; additionally failed to disable realtime OBS inputs: {cleanup}"
-            ))),
-        }
-    }
-
-    async fn apply_realtime_cue<T: ObsTransport>(
-        client: &mut ObsClient<T>,
-        session: &RealtimeOverlaySession,
-        cue: &RealtimeOverlayCue,
-    ) -> Result<(), DomainError> {
-        match &cue.action {
-            RealtimeOverlayAction::ShowKill => {
-                if let Some(input) = &session.kill {
-                    client
-                        .set_realtime_media_enabled(&session.scene, input.scene_item_id, true)
-                        .await
-                        .map_err(integration_error)?;
-                    client
-                        .restart_realtime_media(&input.name)
-                        .await
-                        .map_err(integration_error)?;
-                }
-            }
-            RealtimeOverlayAction::HideKill => {
-                if let Some(input) = &session.kill {
-                    client
-                        .set_realtime_media_enabled(&session.scene, input.scene_item_id, false)
-                        .await
-                        .map_err(integration_error)?;
-                }
-            }
-            RealtimeOverlayAction::Keyboard(text) => {
-                if let Some(input) = &session.keyboard_text {
-                    client
-                        .set_realtime_text(&input.name, text)
-                        .await
-                        .map_err(integration_error)?;
-                    client
-                        .set_realtime_media_enabled(&session.scene, input.scene_item_id, true)
-                        .await
-                        .map_err(integration_error)?;
-                }
-                if let Some(input) = &session.keyboard_background {
-                    client
-                        .set_realtime_media_enabled(&session.scene, input.scene_item_id, true)
-                        .await
-                        .map_err(integration_error)?;
-                }
-            }
-            RealtimeOverlayAction::Finish => {}
-        }
-        Ok(())
-    }
-
-    async fn disable_realtime_overlays<T: ObsTransport>(
-        client: &mut ObsClient<T>,
-        session: &RealtimeOverlaySession,
-    ) -> Result<(), DomainError> {
-        let mut errors = Vec::new();
-        for input in [
-            session.kill.as_ref(),
-            session.keyboard_text.as_ref(),
-            session.keyboard_background.as_ref(),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            if let Err(error) = client
-                .set_realtime_media_enabled(&session.scene, input.scene_item_id, false)
-                .await
-            {
-                errors.push(integration_error(error).to_string());
-            }
-        }
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(DomainError::Internal(errors.join("; ")))
-        }
-    }
-
-    async fn ensure_runtime_recovery_is_clean(&self) -> Result<(), DomainError> {
-        let marker = self.data_dir.join("recovery/config-backup.json");
-        match tokio::fs::symlink_metadata(&marker).await {
-            Ok(_) => Err(DomainError::Conflict(
-                "configuration recovery is pending and must be resolved before recording"
-                    .to_owned(),
-            )),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(io_dependency_error("inspect recovery marker", &error)),
-        }
-    }
-
-    async fn remove_unpublished_output(&self, item: &PreparedRecording) {
-        let path = self
-            .data_dir
-            .join("recordings")
-            .join(&item.segment.output_file_name);
-        match tokio::fs::remove_file(&path).await {
-            Ok(()) => {
-                tracing::info!(path = %path.display(), "removed unpublished recording output");
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => {
-                tracing::warn!(path = %path.display(), %error, "unable to remove unpublished recording output");
-            }
-        }
-    }
-
-    async fn postprocess_clip(
-        &self,
-        config: &AppConfig,
-        item: &PreparedRecording,
-        mut clip: RecordedClip,
-        cancellation: &RecordingCancellation,
-    ) -> Result<RecordedClip, DomainError> {
-        let source = PathBuf::from(&clip.path);
-        let stem = source
-            .file_stem()
-            .and_then(|value| value.to_str())
-            .ok_or_else(|| {
-                DomainError::Internal("recording output has no valid stem".to_owned())
-            })?;
-        let rendered = source.with_file_name(format!("{stem}-rendered.mp4"));
-        let (width, height) = parse_recording_resolution(&config.recording.resolution)?;
-        let overlays = build_recording_overlays(item, width, height, clip.duration_seconds);
-        let fade_seconds = if item.request.fade {
-            config
-                .recording
-                .transition_seconds
-                .clamp(0.0, clip.duration_seconds / 2.0)
-        } else {
-            0.0
-        };
-        let has_audio = self.recording_has_audio(&source, cancellation).await?;
-        let encoder = Self::recording_encoder(config, cancellation)?;
-        let options = SingleInputTranscodeOptions {
-            duration_seconds: clip.duration_seconds,
-            width,
-            height,
-            fps: config.recording.fps,
-            has_audio,
-            fade_in_seconds: fade_seconds,
-            fade_out_seconds: fade_seconds,
-            overlays,
-            encoder,
-            quality: 80,
-        };
-        let plan = build_single_input_transcode_plan(
-            Path::new("native-libav"),
-            &source,
-            &rendered,
-            &options,
-        )
-        .map_err(media_error)?;
-        execute_native_filter_plan_with_progress(&plan, cancellation, Arc::new(|_| {}))
-            .await
-            .map_err(media_error)?;
-        if cancellation.is_cancelled() {
-            let _ = tokio::fs::remove_file(&rendered).await;
-            return Err(DomainError::Conflict("recording was cancelled".to_owned()));
-        }
-        if let Err(error) = tokio::fs::remove_file(&source).await {
-            let _ = tokio::fs::remove_file(&rendered).await;
-            return Err(DomainError::Internal(format!(
-                "unable to retire the unprocessed recording: {error}"
-            )));
-        }
-        clip.path = rendered.to_string_lossy().into_owned();
-        promote_render_metadata(&mut clip, item, &options);
-        Ok(clip)
-    }
-
-    async fn recording_has_audio(
-        &self,
-        source: &Path,
-        cancellation: &RecordingCancellation,
-    ) -> Result<bool, DomainError> {
-        let source = source.to_path_buf();
-        let worker_cancellation = cancellation.clone();
-        let result = tokio::time::timeout(
-            Duration::from_secs(10),
-            tokio::task::spawn_blocking(move || native_probe_media(&source, &worker_cancellation)),
-        )
-        .await;
-        match result {
-            Ok(Ok(Ok(probe))) => Ok(probe.streams.iter().any(|stream| stream.kind == "audio")),
-            Ok(Ok(Err(MediaError::Cancelled))) => {
-                Err(DomainError::Conflict("recording was cancelled".to_owned()))
-            }
-            Ok(Ok(Err(error))) => {
-                tracing::warn!(%error, "unable to inspect OBS audio stream; preserving audio mapping");
-                Ok(true)
-            }
-            Ok(Err(error)) => Err(DomainError::Internal(format!(
-                "native recording probe task failed: {error}"
-            ))),
-            Err(_) => {
-                cancellation.cancel();
-                tracing::warn!("timed out inspecting OBS audio stream; preserving audio mapping");
-                Ok(true)
-            }
-        }
-    }
-
-    fn recording_encoder(
-        config: &AppConfig,
-        cancellation: &RecordingCancellation,
-    ) -> Result<vibe_cs_media::EncoderSelection, DomainError> {
-        if cancellation.is_cancelled() {
-            return Err(DomainError::Conflict("recording was cancelled".to_owned()));
-        }
-        let encoders = native_ffmpeg_info().map_err(media_error)?.encoders;
-        select_video_encoder(&config.preferred_encoder, &encoders).map_err(media_error)
-    }
-}
-
-#[derive(Debug, Clone)]
-struct RealtimeSceneInput {
-    name: String,
-    scene_item_id: i64,
-}
-
-#[derive(Debug, Clone, Default)]
-struct RealtimeOverlaySession {
-    scene: String,
-    inputs: Vec<String>,
-    kill: Option<RealtimeSceneInput>,
-    keyboard_text: Option<RealtimeSceneInput>,
-    keyboard_background: Option<RealtimeSceneInput>,
-}
-
-impl RealtimeOverlaySession {
-    async fn cleanup(&mut self, engine: &mut SystemEngine) -> Result<(), DomainError> {
-        let mut errors = Vec::new();
-        for name in self.inputs.drain(..).rev() {
-            if let Err(error) = engine
-                .recorder_mut()
-                .remove_realtime_media_input(&name)
-                .await
-            {
-                errors.push(integration_error(error).to_string());
-            }
-        }
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(DomainError::Internal(format!(
-                "unable to remove OBS realtime inputs: {}",
-                errors.join("; ")
-            )))
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct RealtimeOverlayCue {
-    at: Duration,
-    action: RealtimeOverlayAction,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum RealtimeOverlayAction {
-    ShowKill,
-    HideKill,
-    Keyboard(String),
-    Finish,
-}
-
-fn scene_activation_error(primary: DomainError, cleanup: Result<(), DomainError>) -> DomainError {
-    match cleanup {
-        Ok(()) => primary,
-        Err(cleanup) => DomainError::Internal(format!(
-            "{primary}; additionally failed to restore the previous OBS scene: {cleanup}"
-        )),
-    }
-}
-
-#[async_trait]
-impl RecordingBackend for SystemRecordingBackend {
-    async fn begin_job(
-        &self,
-        config: &AppConfig,
-        _items: &[PreparedRecording],
-    ) -> Result<(), DomainError> {
-        Self::ensure_hud_can_load_before_launch(config)?;
-        let Some(installer) = self.first_person_hud_installer(config).await? else {
-            return Ok(());
-        };
-        match installer.status().map_err(platform_error)? {
-            vibe_cs_platform_windows::RecoveryStatus::Clean => {}
-            vibe_cs_platform_windows::RecoveryStatus::Pending {
-                restorable: true, ..
-            } => {
-                installer.restore().map_err(platform_error)?;
-            }
-            vibe_cs_platform_windows::RecoveryStatus::Pending {
-                restorable: false, ..
-            } => {
-                return Err(DomainError::Conflict(
-                    "first-person HUD recovery is pending but its backup cannot be verified"
-                        .to_owned(),
-                ));
-            }
-        }
-        installer.preflight().map_err(platform_error)?;
-        if let Err(error) = installer.install() {
-            let primary = platform_error(error);
-            let recovery = match installer.status().map_err(platform_error)? {
-                vibe_cs_platform_windows::RecoveryStatus::Clean => Ok(()),
-                vibe_cs_platform_windows::RecoveryStatus::Pending {
-                    restorable: true, ..
-                } => installer.restore().map_err(platform_error),
-                vibe_cs_platform_windows::RecoveryStatus::Pending {
-                    restorable: false, ..
-                } => Err(DomainError::Conflict(
-                    "HUD installation failed and its recovery state cannot be verified".to_owned(),
-                )),
-            };
-            return Err(match recovery {
-                Ok(()) => primary,
-                Err(cleanup) => DomainError::Internal(format!(
-                    "{primary}; additionally failed to restore first-person HUD resources: {cleanup}"
-                )),
-            });
-        }
-        *self.hud_session.lock().await = Some(installer);
-        Ok(())
-    }
-
-    async fn finish_job(&self, _config: &AppConfig) -> Result<(), DomainError> {
-        let installer = self.hud_session.lock().await.take();
-        installer.map_or(Ok(()), |installer| {
-            installer.restore().map_err(platform_error)
-        })
-    }
-
-    async fn preflight(
         &self,
         config: &AppConfig,
         items: &[PreparedRecording],
     ) -> Result<(), DomainError> {
-        validate_system_configuration(config)?;
-        Self::ensure_hud_can_load_before_launch(config)?;
-        let _native_media = native_ffmpeg_info().map_err(media_error)?;
-        let _dimensions = parse_recording_resolution(&config.recording.resolution)?;
-        if !matches!(config.recording.fps, 30 | 60) {
-            return Err(DomainError::InvalidInput(
-                "recording frame rate must be 30 or 60 FPS".to_owned(),
-            ));
-        }
-        let _encoder = select_video_encoder(&config.preferred_encoder, &[]).map_err(media_error)?;
-        if let Some(installer) = self.first_person_hud_installer(config).await? {
-            installer.preflight().map_err(platform_error)?;
-        }
-        for (enabled, configured) in [
-            (
-                items.iter().any(|item| item.request.show_kill_fx),
-                config.recording.obs_realtime_kill_fx_media.trim(),
-            ),
-            (
-                items.iter().any(|item| item.request.show_keyboard),
-                config.recording.obs_realtime_keyboard_media.trim(),
-            ),
-        ] {
-            if enabled && !configured.is_empty() {
-                ObsRealtimeMediaInput {
-                    scene: if config.obs.scene.trim().is_empty() {
-                        "current-scene-preflight".to_owned()
-                    } else {
-                        config.obs.scene.trim().to_owned()
-                    },
-                    input_name: "VibeCS-preflight".to_owned(),
-                    media_path: PathBuf::from(configured),
-                    loop_media: false,
-                }
-                .validate()
-                .map_err(integration_error)?;
-            }
-        }
-        let plans = items
-            .iter()
-            .map(|item| item.segment.clone())
-            .collect::<Vec<_>>();
-        let mut engine = self.build_engine(config).await?;
-        Self::configured_scene(&mut engine, config).await?;
-        engine
-            .preflight(&plans)
-            .await
-            .map(|_| ())
-            .map_err(recording_error)
+        self.preflight(config, items).await
     }
 
-    async fn record(
-        &self,
-        config: &AppConfig,
-        item: &PreparedRecording,
-        cancellation: &RecordingCancellation,
-    ) -> Result<RecordedClip, DomainError> {
-        let mut engine = self.build_engine(config).await?;
-        let previous_scene = Self::activate_configured_scene(&mut engine, config).await?;
-        let overlay_cues = build_realtime_overlay_cues(item);
-        let mut realtime_overlays = match Self::activate_realtime_overlays(
-            &mut engine,
-            config,
-            item,
-            &overlay_cues,
-        )
-        .await
-        {
-            Ok(session) => session,
-            Err(error) => {
-                let scene_restore =
-                    Self::restore_obs_scene(&mut engine, previous_scene.as_deref()).await;
-                return Err(scene_activation_error(error, scene_restore));
-            }
-        };
-        let mut overlay_driver =
-            match Self::connect_realtime_overlay_driver(config, &realtime_overlays).await {
-                Ok(driver) => driver,
-                Err(error) => {
-                    let overlay_cleanup = realtime_overlays.cleanup(&mut engine).await;
-                    let scene_restore =
-                        Self::restore_obs_scene(&mut engine, previous_scene.as_deref()).await;
-                    return Err(scene_activation_error(
-                        scene_activation_error(error, overlay_cleanup),
-                        scene_restore,
-                    ));
-                }
-            };
-        let overlay_stop = RecordingCancellation::default();
-        let platform_cancellation = PlatformRecordingCancellation::default();
-        let (result, overlay_result) = {
-            let recording = async {
-                let recording = engine
-                    .record_segments(std::slice::from_ref(&item.segment), &platform_cancellation);
-                tokio::pin!(recording);
-                tokio::select! {
-                    biased;
-                    () = wait_for_cancellation(cancellation) => {
-                        platform_cancellation.cancel();
-                        recording.await
-                    }
-                    result = &mut recording => result,
-                }
-            };
-            let driving = async {
-                if let Some(client) = overlay_driver.as_mut() {
-                    Self::drive_realtime_overlays(
-                        client,
-                        &realtime_overlays,
-                        &overlay_cues,
-                        cancellation,
-                        &overlay_stop,
-                    )
-                    .await
-                } else {
-                    Ok(())
-                }
-            };
-            tokio::pin!(recording);
-            tokio::pin!(driving);
-            tokio::select! {
-                result = &mut recording => {
-                    overlay_stop.cancel();
-                    (result, driving.await)
-                }
-                overlay_result = &mut driving => {
-                    if overlay_result.is_err() {
-                        platform_cancellation.cancel();
-                    }
-                    (recording.await, overlay_result)
-                }
-            }
-        };
-        let overlay_cleanup = realtime_overlays.cleanup(&mut engine).await;
-        let scene_restore = Self::restore_obs_scene(&mut engine, previous_scene.as_deref()).await;
-        if cancellation.is_cancelled()
-            || result.is_err()
-            || overlay_result.is_err()
-            || overlay_cleanup.is_err()
-            || scene_restore.is_err()
-        {
-            self.remove_unpublished_output(item).await;
-        }
-        if cancellation.is_cancelled() {
-            return Err(DomainError::Conflict("recording was cancelled".to_owned()));
-        }
-        let mut clips = result.map_err(recording_error)?;
-        overlay_result?;
-        overlay_cleanup?;
-        scene_restore?;
-        if clips.len() != 1 {
-            self.remove_unpublished_output(item).await;
-            return Err(DomainError::Internal(
-                "recording engine returned an unexpected output count".to_owned(),
-            ));
-        }
-        let clip = clips.pop().ok_or_else(|| {
-            DomainError::Internal("recording engine returned no output".to_owned())
-        })?;
-        match self
-            .postprocess_clip(config, item, clip, cancellation)
-            .await
-        {
-            Ok(clip) => Ok(clip),
-            Err(error) => {
-                self.remove_unpublished_output(item).await;
-                Err(error)
-            }
-        }
+    async fn finish_job(&self, _job_id: Uuid) -> Result<(), DomainError> {
+        Ok(())
     }
 }
 
@@ -986,7 +177,7 @@ impl RecordingBackend for SystemRecordingBackend {
 pub struct RuntimeRecordingPort {
     storage: Storage,
     backend: Arc<dyn RecordingBackend>,
-    active: Arc<Mutex<HashMap<Uuid, RecordingCancellation>>>,
+    active: ActiveRecordings,
 }
 
 impl std::fmt::Debug for RuntimeRecordingPort {
@@ -1019,18 +210,82 @@ impl RuntimeRecordingPort {
             }
         };
         for mut job in jobs {
-            job.status = match job.status {
-                JobStatus::Queued | JobStatus::Preparing | JobStatus::Running => JobStatus::Failed,
-                JobStatus::Cancelling => JobStatus::Cancelled,
-                JobStatus::Completed | JobStatus::Failed | JobStatus::Cancelled => continue,
-            };
-            job.message = match job.status {
-                JobStatus::Cancelled => {
-                    "Recording cancellation completed after service restart".to_owned()
+            let orphaned_status = job.status;
+            if matches!(orphaned_status, JobStatus::Completed | JobStatus::Cancelled) {
+                continue;
+            }
+            let recovery = self.backend.recover_orphaned_job(&job).await;
+            let (status, message) = match recovery {
+                Err(error) => (
+                    JobStatus::Failed,
+                    truncate_message(&format!(
+                        "Recording artifact recovery failed after service restart: {error}"
+                    )),
+                ),
+                Ok(OrphanedRecordingRecovery::NoPublishedClip)
+                    if orphaned_status == JobStatus::Failed =>
+                {
+                    continue;
                 }
-                JobStatus::Failed => "Recording was interrupted by service restart".to_owned(),
-                _ => unreachable!("orphan reconciliation produces a terminal state"),
+                Ok(OrphanedRecordingRecovery::NoPublishedClip)
+                    if job.outputs.len() == job.items.len() && !job.items.is_empty() =>
+                {
+                    job.current_index = job.items.len();
+                    job.progress = 1.0;
+                    (
+                        JobStatus::Completed,
+                        "Completed durable recording publication recovery after service restart"
+                            .to_owned(),
+                    )
+                }
+                Ok(OrphanedRecordingRecovery::NoPublishedClip) => match orphaned_status {
+                    JobStatus::Queued | JobStatus::Preparing | JobStatus::Running => (
+                        JobStatus::Failed,
+                        "Recording was interrupted by service restart".to_owned(),
+                    ),
+                    JobStatus::Cancelling => (
+                        JobStatus::Cancelled,
+                        "Recording cancellation completed after service restart".to_owned(),
+                    ),
+                    JobStatus::Completed | JobStatus::Failed | JobStatus::Cancelled => {
+                        unreachable!("completed, failed, and cancelled jobs were handled above")
+                    }
+                },
+                Ok(OrphanedRecordingRecovery::PublishedClip { item_index, clip }) => {
+                    match self
+                        .restore_published_clip(&mut job, item_index, *clip)
+                        .await
+                    {
+                        Ok(()) if orphaned_status == JobStatus::Cancelling => (
+                            JobStatus::Cancelled,
+                            "Recovered a verified clip while completing cancellation after service restart"
+                                .to_owned(),
+                        ),
+                        Ok(()) if orphaned_status == JobStatus::Failed => (
+                            JobStatus::Failed,
+                            "Recovered a verified published clip from the failed recording"
+                                .to_owned(),
+                        ),
+                        Ok(()) if job.outputs.len() == job.items.len() => (
+                            JobStatus::Completed,
+                            "Recovered the verified published clip after service restart".to_owned(),
+                        ),
+                        Ok(()) => (
+                            JobStatus::Failed,
+                            "Recovered a verified published clip; remaining recordings were interrupted by service restart"
+                                .to_owned(),
+                        ),
+                        Err(error) => (
+                            JobStatus::Failed,
+                            truncate_message(&format!(
+                                "Published clip recovery failed after service restart: {error}"
+                            )),
+                        ),
+                    }
+                }
             };
+            job.status = status;
+            job.message = message;
             job.updated_at = Utc::now();
             if let Err(error) = self.storage.put_recording_job(job.clone()).await {
                 tracing::error!(job_id = %job.id, %error, "unable to persist orphaned recording terminal state");
@@ -1038,7 +293,87 @@ impl RuntimeRecordingPort {
         }
     }
 
-    async fn prepare(&self, job: &RecordingJob) -> Result<Vec<PreparedRecording>, DomainError> {
+    async fn restore_published_clip(
+        &self,
+        job: &mut RecordingJob,
+        item_index: usize,
+        clip: RecordedClip,
+    ) -> Result<(), DomainError> {
+        if job.current_index != item_index {
+            return Err(DomainError::Conflict(
+                "published clip lease does not match the persisted recording cursor".to_owned(),
+            ));
+        }
+        let request = job.items.get(item_index).ok_or_else(|| {
+            DomainError::Conflict(
+                "published clip lease references an unavailable recording item".to_owned(),
+            )
+        })?;
+        validate_recovered_clip(&clip, request).await?;
+        if job.outputs.len() < item_index || job.outputs.len() > item_index.saturating_add(1) {
+            return Err(DomainError::Conflict(
+                "published clip cannot be inserted into a non-contiguous recording output list"
+                    .to_owned(),
+            ));
+        }
+        if job.outputs[..item_index]
+            .iter()
+            .any(|existing| existing.id == clip.id || existing.path == clip.path)
+        {
+            return Err(DomainError::Conflict(
+                "published clip duplicates an earlier recording output".to_owned(),
+            ));
+        }
+        if let Some(existing) = job.outputs.get(item_index)
+            && existing != &clip
+        {
+            return Err(DomainError::Conflict(
+                "persisted recording output conflicts with the exact published clip lease"
+                    .to_owned(),
+            ));
+        }
+        match self
+            .storage
+            .get_recorded_clip(clip.id)
+            .await
+            .map_err(|error| storage_error(&error))?
+        {
+            Some(existing) if existing != clip => {
+                return Err(DomainError::Conflict(
+                    "recorded clip ID already belongs to different persisted content".to_owned(),
+                ));
+            }
+            Some(_) => {}
+            None => {
+                self.storage
+                    .put_recorded_clip(clip.clone())
+                    .await
+                    .map_err(|error| storage_error(&error))?;
+            }
+        }
+        if job.outputs.len() == item_index {
+            job.outputs.push(clip.clone());
+        }
+        let completed = u32::try_from(job.outputs.len()).map_err(|_| {
+            DomainError::Internal("recovered recording output count overflowed".to_owned())
+        })?;
+        let total = u32::try_from(job.items.len()).map_err(|_| {
+            DomainError::Internal("recording item count overflowed during recovery".to_owned())
+        })?;
+        job.progress = (f64::from(completed) / f64::from(total)).min(1.0);
+        job.updated_at = Utc::now();
+        self.storage
+            .put_recording_job(job.clone())
+            .await
+            .map_err(|error| storage_error(&error))?;
+        self.backend
+            .commit_recorded_clip(job.id, item_index, &clip)
+            .await?;
+        job.current_index = item_index.saturating_add(1);
+        Ok(())
+    }
+
+    async fn prepare(&self, job: &RecordingJob) -> Result<PreparedRecordingJob, DomainError> {
         if job.items.is_empty() {
             return Err(DomainError::InvalidInput(
                 "recording job must contain at least one item".to_owned(),
@@ -1057,7 +392,8 @@ impl RuntimeRecordingPort {
             )));
         }
         let mut prepared = Vec::with_capacity(job.items.len());
-        for request in &job.items {
+        let mut demo_guards = Vec::with_capacity(job.items.len());
+        for (item_index, request) in job.items.iter().enumerate() {
             request.validate()?;
             let demo = self
                 .storage
@@ -1070,54 +406,59 @@ impl RuntimeRecordingPort {
                 .get_analysis(demo.id)
                 .await
                 .map_err(|error| storage_error(&error))?;
-            let (tick_rate, tick_rate_source) = select_tick_rate(analysis.as_ref());
+            let tick_rate = authoritative_tick_rate(analysis.as_ref())?;
             let demo_path = std::path::absolute(Path::new(&demo.path)).map_err(|error| {
                 DomainError::InvalidInput(format!(
                     "recording demo path could not be made absolute: {error}"
                 ))
             })?;
+            let demo_guard = acquire_recording_demo_guard(&demo, &demo_path).await?;
+            register_recording_demo_guard(&demo_guard);
             let segment = build_segment_plan(
                 request,
                 &demo,
                 analysis.as_ref(),
                 demo_path,
                 tick_rate,
-                tick_rate_source,
                 Uuid::new_v4(),
             )?;
             prepared.push(PreparedRecording {
+                job_id: job.id,
+                item_index,
                 request: request.clone(),
                 demo,
                 segment,
             });
+            demo_guards.push(demo_guard);
         }
-        Ok(prepared)
+        Ok(PreparedRecordingJob {
+            items: prepared,
+            _demo_guards: demo_guards,
+        })
     }
 
-    async fn run_job(
-        storage: Storage,
-        backend: Arc<dyn RecordingBackend>,
-        active: Arc<Mutex<HashMap<Uuid, RecordingCancellation>>>,
-        config: AppConfig,
-        mut job: RecordingJob,
-        prepared: Vec<PreparedRecording>,
-        cancellation: RecordingCancellation,
-    ) {
-        let result = match backend.begin_job(&config, &prepared).await {
-            Ok(()) => {
-                Self::record_all(
-                    &storage,
-                    backend.as_ref(),
-                    &config,
-                    &mut job,
-                    &prepared,
-                    &cancellation,
-                )
-                .await
-            }
-            Err(error) => Err(error),
-        };
-        let cleanup = backend.finish_job(&config).await;
+    async fn run_job(run: RecordingRun) {
+        let RecordingRun {
+            storage,
+            backend,
+            active,
+            config,
+            mut job,
+            prepared,
+            cancellation,
+            persistence,
+        } = run;
+        let result = Self::record_all(
+            &storage,
+            backend.as_ref(),
+            &config,
+            &mut job,
+            &prepared.items,
+            &cancellation,
+            &persistence,
+        )
+        .await;
+        let cleanup = backend.finish_job(job.id).await;
         let result = match (result, cleanup) {
             (Ok(()), Ok(())) => Ok(()),
             (Err(primary), Ok(())) => Err(primary),
@@ -1126,34 +467,39 @@ impl RuntimeRecordingPort {
                 "{primary}; additionally failed to restore recording job resources: {cleanup}"
             ))),
         };
-        let mut active_jobs = active.lock().await;
-        match result {
-            Ok(()) if cancellation.is_cancelled() => {
-                job.status = JobStatus::Cancelled;
-                "Cancelled".clone_into(&mut job.message);
+        {
+            let _persistence_guard = persistence.lock().await;
+            match result {
+                Ok(()) if cancellation.is_cancelled() => {
+                    job.status = JobStatus::Cancelled;
+                    "Cancelled".clone_into(&mut job.message);
+                }
+                Ok(()) => {
+                    job.status = JobStatus::Completed;
+                    job.progress = 1.0;
+                    job.current_index = job.items.len();
+                    "Completed".clone_into(&mut job.message);
+                }
+                Err(error)
+                    if cancellation.is_cancelled()
+                        && !matches!(error, DomainError::CleanupFailed(_)) =>
+                {
+                    tracing::info!(job_id = %job.id, %error, "recording job cancelled");
+                    job.status = JobStatus::Cancelled;
+                    "Cancelled".clone_into(&mut job.message);
+                }
+                Err(error) => {
+                    tracing::error!(job_id = %job.id, %error, "recording job failed");
+                    job.status = JobStatus::Failed;
+                    job.message = truncate_message(&error.to_string());
+                }
             }
-            Ok(()) => {
-                job.status = JobStatus::Completed;
-                job.progress = 1.0;
-                job.current_index = job.items.len();
-                "Completed".clone_into(&mut job.message);
-            }
-            Err(error) if cancellation.is_cancelled() => {
-                tracing::info!(job_id = %job.id, %error, "recording job cancelled");
-                job.status = JobStatus::Cancelled;
-                "Cancelled".clone_into(&mut job.message);
-            }
-            Err(error) => {
-                tracing::error!(job_id = %job.id, %error, "recording job failed");
-                job.status = JobStatus::Failed;
-                job.message = truncate_message(&error.to_string());
+            job.updated_at = Utc::now();
+            if let Err(error) = storage.put_recording_job(job.clone()).await {
+                tracing::error!(job_id = %job.id, %error, "unable to persist terminal recording state");
             }
         }
-        job.updated_at = Utc::now();
-        if let Err(error) = storage.put_recording_job(job.clone()).await {
-            tracing::error!(job_id = %job.id, %error, "unable to persist terminal recording state");
-        }
-        active_jobs.remove(&job.id);
+        active.lock().await.remove(&job.id);
     }
 
     async fn record_all(
@@ -1163,6 +509,7 @@ impl RuntimeRecordingPort {
         job: &mut RecordingJob,
         prepared: &[PreparedRecording],
         cancellation: &RecordingCancellation,
+        persistence: &Arc<Mutex<()>>,
     ) -> Result<(), DomainError> {
         let total = u32::try_from(prepared.len()).map_err(|_| {
             DomainError::InvalidInput("recording queue contains too many items".to_owned())
@@ -1183,33 +530,384 @@ impl RuntimeRecordingPort {
                 .await
                 .map_err(|error| storage_error(&error))?;
 
-            let clip = backend.record(config, item, cancellation).await?;
-            if cancellation.is_cancelled() {
-                remove_unpublished_clip(&clip).await;
-                return Ok(());
+            let (progress, receiver) = recording_progress_channel();
+            let (progress_finished, finished) = tokio::sync::oneshot::channel();
+            let progress_task = tokio::spawn(persist_recording_stages(StagePersistence {
+                storage: storage.clone(),
+                persistence: Arc::clone(persistence),
+                cancellation: cancellation.clone(),
+                job: job.clone(),
+                progress_index,
+                total,
+                receiver,
+                finished,
+            }));
+            let recording = backend.record(config, item, cancellation, &progress).await;
+            let _ = progress_finished.send(());
+            drop(progress);
+            let persisted = progress_task.await.map_err(|error| {
+                DomainError::Internal(format!(
+                    "recording progress persistence task failed: {error}"
+                ))
+            })?;
+            let persisted = match (recording, persisted) {
+                (Ok(clip), Ok(persisted)) => {
+                    job.progress = persisted.progress;
+                    job.message = persisted.message;
+                    job.updated_at = persisted.updated_at;
+                    clip
+                }
+                (Ok(clip), Err(error)) => {
+                    return Err(cleanup_unpublished_clip(&clip, error).await);
+                }
+                (Err(error), Ok(persisted)) => {
+                    job.progress = persisted.progress;
+                    job.message = persisted.message;
+                    job.updated_at = persisted.updated_at;
+                    return Err(error);
+                }
+                (Err(primary), Err(progress)) => {
+                    return Err(DomainError::Internal(format!(
+                        "{primary}; additionally failed to persist recording progress: {progress}"
+                    )));
+                }
+            };
+            if let Err(error) = validate_clip(&persisted, item).await {
+                return Err(cleanup_unpublished_clip(&persisted, error).await);
             }
-            if let Err(error) = validate_clip(&clip, item).await {
-                remove_unpublished_clip(&clip).await;
-                return Err(error);
+            if let Err(error) = storage.put_recorded_clip(persisted.clone()).await {
+                return Err(cleanup_unpublished_clip(&persisted, storage_error(&error)).await);
             }
-            if let Err(error) = storage.put_recorded_clip(clip.clone()).await {
-                remove_unpublished_clip(&clip).await;
-                return Err(storage_error(&error));
-            }
-            job.outputs.push(clip);
+            job.outputs.push(persisted.clone());
             job.progress = f64::from(progress_index + 1) / f64::from(total);
             job.updated_at = Utc::now();
             storage
                 .put_recording_job(job.clone())
                 .await
                 .map_err(|error| storage_error(&error))?;
+            backend
+                .commit_recorded_clip(job.id, index, &persisted)
+                .await?;
         }
         Ok(())
     }
 }
 
+async fn persist_recording_stages(context: StagePersistence) -> Result<RecordingJob, DomainError> {
+    let StagePersistence {
+        storage,
+        persistence,
+        cancellation,
+        mut job,
+        progress_index,
+        total,
+        mut receiver,
+        mut finished,
+    } = context;
+    loop {
+        tokio::select! {
+            biased;
+            stage = receiver.recv() => {
+                let Some(stage) = stage else { break };
+                if !persist_recording_stage(
+                    &storage,
+                    &persistence,
+                    &cancellation,
+                    &mut job,
+                    progress_index,
+                    total,
+                    stage,
+                ).await? {
+                    break;
+                }
+            }
+            _ = &mut finished => {
+                while let Ok(stage) = receiver.try_recv() {
+                    if !persist_recording_stage(
+                        &storage,
+                        &persistence,
+                        &cancellation,
+                        &mut job,
+                        progress_index,
+                        total,
+                        stage,
+                    ).await? {
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    Ok(job)
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn persist_recording_stage(
+    storage: &Storage,
+    persistence: &Arc<Mutex<()>>,
+    cancellation: &RecordingCancellation,
+    job: &mut RecordingJob,
+    progress_index: u32,
+    total: u32,
+    stage: RecordingStage,
+) -> Result<bool, DomainError> {
+    let _persistence_guard = persistence.lock().await;
+    if cancellation.is_cancelled() {
+        return Ok(false);
+    }
+    let item_fraction = f64::from(stage.milestone()) / f64::from(RecordingStage::COUNT);
+    let progress = ((f64::from(progress_index) + item_fraction) / f64::from(total)).min(0.99);
+    job.progress = job.progress.max(progress.clamp(0.0, 1.0));
+    stage.code().clone_into(&mut job.message);
+    job.updated_at = Utc::now();
+    storage
+        .put_recording_job(job.clone())
+        .await
+        .map_err(|error| storage_error(&error))?;
+    Ok(true)
+}
+
+const MAXIMUM_RECORDING_DEMO_BYTES: u64 = 8 * 1024 * 1024 * 1024;
+
+#[derive(Debug)]
+struct VerifiedRecordingDemo {
+    demo_id: Uuid,
+    path: PathBuf,
+    expected_sha256: String,
+    length: u64,
+    modified: Option<SystemTime>,
+    file: File,
+}
+
+type RecordingDemoGuardCache = HashMap<(Uuid, PathBuf, String), Weak<VerifiedRecordingDemo>>;
+
+fn recording_demo_guard_cache() -> &'static StdMutex<RecordingDemoGuardCache> {
+    static CACHE: OnceLock<StdMutex<RecordingDemoGuardCache>> = OnceLock::new();
+    CACHE.get_or_init(|| StdMutex::new(HashMap::new()))
+}
+
+#[cfg(test)]
+fn recording_demo_hash_passes() -> &'static StdMutex<HashMap<PathBuf, usize>> {
+    static HASH_PASSES: OnceLock<StdMutex<HashMap<PathBuf, usize>>> = OnceLock::new();
+    HASH_PASSES.get_or_init(|| StdMutex::new(HashMap::new()))
+}
+
+fn recording_demo_guard_key(
+    demo: &DemoRecord,
+    path: &Path,
+) -> Result<(Uuid, PathBuf, String), DomainError> {
+    let expected = demo
+        .content_sha256
+        .as_deref()
+        .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        .ok_or_else(|| {
+            DomainError::DependencyUnavailable(
+                "this Demo must be reimported before recording can bind its content hash"
+                    .to_owned(),
+            )
+        })?;
+    Ok((demo.id, path.to_path_buf(), expected.to_ascii_lowercase()))
+}
+
+fn register_recording_demo_guard(guard: &Arc<VerifiedRecordingDemo>) {
+    let key = (
+        guard.demo_id,
+        guard.path.clone(),
+        guard.expected_sha256.clone(),
+    );
+    let mut cache = recording_demo_guard_cache()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    cache.retain(|_, candidate| candidate.strong_count() > 0);
+    cache.insert(key, Arc::downgrade(guard));
+}
+
+async fn acquire_recording_demo_guard(
+    demo: &DemoRecord,
+    path: &Path,
+) -> Result<Arc<VerifiedRecordingDemo>, DomainError> {
+    let key = recording_demo_guard_key(demo, path)?;
+    if let Some(guard) = recording_demo_guard_cache()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(&key)
+        .and_then(Weak::upgrade)
+    {
+        guard.verify_path_identity()?;
+        return Ok(guard);
+    }
+    let demo_id = demo.id;
+    let path = path.to_path_buf();
+    let expected_sha256 = key.2;
+    tokio::task::spawn_blocking(move || {
+        VerifiedRecordingDemo::open(demo_id, path, expected_sha256).map(Arc::new)
+    })
+    .await
+    .map_err(|error| DomainError::Internal(format!("recording Demo guard task failed: {error}")))?
+}
+
+impl VerifiedRecordingDemo {
+    fn open(demo_id: Uuid, path: PathBuf, expected_sha256: String) -> Result<Self, DomainError> {
+        reject_link_or_reparse(&path)?;
+        let mut file = open_recording_demo_read_only(&path).map_err(|error| {
+            DomainError::InvalidInput(format!("unable to open recording Demo: {error}"))
+        })?;
+        let metadata = file.metadata().map_err(|error| {
+            DomainError::InvalidInput(format!("unable to inspect recording Demo: {error}"))
+        })?;
+        if !metadata.is_file() || metadata.len() > MAXIMUM_RECORDING_DEMO_BYTES {
+            return Err(DomainError::InvalidInput(
+                "recording Demo must be a bounded regular non-link file".to_owned(),
+            ));
+        }
+        let modified = metadata.modified().ok();
+        #[cfg(test)]
+        {
+            let mut passes = recording_demo_hash_passes()
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            *passes.entry(path.clone()).or_default() += 1;
+        }
+        let mut hash = Sha256::new();
+        let mut buffer = vec![0_u8; 64 * 1024].into_boxed_slice();
+        let mut total = 0_u64;
+        loop {
+            let count = file.read(&mut buffer).map_err(|error| {
+                DomainError::InvalidInput(format!("unable to read recording Demo: {error}"))
+            })?;
+            if count == 0 {
+                break;
+            }
+            total = total.checked_add(count as u64).ok_or_else(|| {
+                DomainError::InvalidInput("recording Demo size overflowed".to_owned())
+            })?;
+            if total > metadata.len() || total > MAXIMUM_RECORDING_DEMO_BYTES {
+                return Err(DomainError::Conflict(
+                    "recording Demo changed while its content was verified".to_owned(),
+                ));
+            }
+            hash.update(&buffer[..count]);
+        }
+        if total != metadata.len()
+            || !hex::encode(hash.finalize()).eq_ignore_ascii_case(&expected_sha256)
+        {
+            return Err(DomainError::Conflict(
+                "recording Demo content no longer matches its analyzed fingerprint".to_owned(),
+            ));
+        }
+        let guard = Self {
+            demo_id,
+            path,
+            expected_sha256,
+            length: metadata.len(),
+            modified,
+            file,
+        };
+        guard.verify_path_identity()?;
+        Ok(guard)
+    }
+
+    fn verify_path_identity(&self) -> Result<(), DomainError> {
+        reject_link_or_reparse(&self.path)?;
+        let open_handle = same_file::Handle::from_file(self.file.try_clone().map_err(|error| {
+            DomainError::Conflict(format!("unable to clone verified Demo handle: {error}"))
+        })?)
+        .map_err(|error| {
+            DomainError::Conflict(format!("unable to identify verified Demo handle: {error}"))
+        })?;
+        let named_handle = same_file::Handle::from_path(&self.path).map_err(|error| {
+            DomainError::Conflict(format!(
+                "recording Demo path is no longer available: {error}"
+            ))
+        })?;
+        reject_link_or_reparse(&self.path)?;
+        let metadata = self.file.metadata().map_err(|error| {
+            DomainError::Conflict(format!("unable to re-inspect verified Demo: {error}"))
+        })?;
+        if open_handle != named_handle
+            || metadata.len() != self.length
+            || metadata.modified().ok() != self.modified
+        {
+            return Err(DomainError::Conflict(
+                "recording Demo changed after its content was verified".to_owned(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn reject_link_or_reparse(path: &Path) -> Result<(), DomainError> {
+    let metadata = std::fs::symlink_metadata(path).map_err(|error| {
+        DomainError::InvalidInput(format!("unable to inspect recording Demo: {error}"))
+    })?;
+    if !metadata.is_file()
+        || metadata.file_type().is_symlink()
+        || metadata.len() > MAXIMUM_RECORDING_DEMO_BYTES
+    {
+        return Err(DomainError::InvalidInput(
+            "recording Demo must be a bounded regular non-link file".to_owned(),
+        ));
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt as _;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
+        if metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return Err(DomainError::InvalidInput(
+                "recording Demo must not be a Windows reparse point".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn open_recording_demo_read_only(path: &Path) -> std::io::Result<File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt as _;
+        const FILE_SHARE_READ: u32 = 0x0000_0001;
+        options.share_mode(FILE_SHARE_READ);
+    }
+    options.open(path)
+}
+
+pub(crate) async fn verify_recording_demo_content(
+    demo: &DemoRecord,
+    path: &Path,
+) -> Result<(), DomainError> {
+    let guard = acquire_recording_demo_guard(demo, path).await?;
+    register_recording_demo_guard(&guard);
+    guard.verify_path_identity()
+}
+
 #[async_trait]
 impl RecordingPort for RuntimeRecordingPort {
+    async fn preflight(&self, items: &[RecordingRequest]) -> Result<(), DomainError> {
+        let now = Utc::now();
+        let transient_job = RecordingJob {
+            id: Uuid::new_v4(),
+            status: JobStatus::Queued,
+            items: items.to_vec(),
+            current_index: 0,
+            progress: 0.0,
+            message: "Preflight".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        let prepared = self.prepare(&transient_job).await?;
+        let config = self
+            .storage
+            .get_config()
+            .await
+            .map_err(|error| storage_error(&error))?
+            .unwrap_or_default();
+        self.backend.preflight(&config, &prepared.items).await
+    }
+
     async fn execute(&self, mut job: RecordingJob) -> Result<RecordingJob, DomainError> {
         if !self.active.lock().await.is_empty() {
             return Err(DomainError::Conflict(
@@ -1223,7 +921,7 @@ impl RecordingPort for RuntimeRecordingPort {
             .await
             .map_err(|error| storage_error(&error))?
             .unwrap_or_default();
-        for item in &mut prepared {
+        for item in &mut prepared.items {
             let voice_participants = item
                 .segment
                 .metadata
@@ -1231,29 +929,19 @@ impl RecordingPort for RuntimeRecordingPort {
                 .cloned()
                 .unwrap_or_else(|| json!([]));
             item.segment.metadata["capture"] = json!({
-                "obs_scene": config.obs.scene.trim(),
+                "backend": "managed_hlae_windows_mf",
                 "show_radar": config.recording.show_radar,
-                "radar_restore_visible": config.recording.radar_restore_visible,
                 "mute_voice": config.recording.mute_voice,
-                "voice_restore_volume": config.recording.voice_restore_volume,
                 "camera_fov": config.recording.camera_fov,
-                "camera_fov_restore": config.recording.camera_fov_restore,
                 "viewmodel_fov": config.recording.viewmodel_fov,
-                "viewmodel_fov_restore": config.recording.viewmodel_fov_restore,
                 "flash_alpha": config.recording.flash_alpha,
-                "flash_alpha_restore": config.recording.flash_alpha_restore,
-                "grenade_trajectory": config.recording.grenade_trajectory,
-                "grenade_trajectory_restore": config.recording.grenade_trajectory_restore,
                 "show_hud": config.recording.show_hud,
-                "hud_restore_visible": config.recording.hud_restore_visible,
                 "isolate_target_voice": config.recording.isolate_target_voice,
                 "voice_participants": voice_participants,
-                "capture_delay_ms": config.recording.capture_delay_ms,
             });
         }
-        self.backend.preflight(&config, &prepared).await?;
-
         let cancellation = RecordingCancellation::default();
+        let persistence = Arc::new(Mutex::new(()));
         {
             let mut active = self.active.lock().await;
             if !active.is_empty() {
@@ -1261,14 +949,54 @@ impl RecordingPort for RuntimeRecordingPort {
                     "another recording job is already active".to_owned(),
                 ));
             }
-            active.insert(job.id, cancellation.clone());
+            active.insert(
+                job.id,
+                ActiveRecording {
+                    cancellation: cancellation.clone(),
+                    persistence: Arc::clone(&persistence),
+                },
+            );
+        }
+        let mut startup =
+            RecordingStartupGuard::new(Arc::clone(&self.active), Arc::clone(&self.backend), job.id);
+        if let Err(error) = self.backend.begin_job(&config, &prepared.items).await {
+            let cleanup = self.backend.finish_job(job.id).await;
+            self.active.lock().await.remove(&job.id);
+            startup.disarm();
+            return match cleanup {
+                Ok(()) => Err(error),
+                Err(cleanup) => Err(DomainError::CleanupFailed(format!(
+                    "{error}; additionally failed to restore recording job resources: {cleanup}"
+                ))),
+            };
+        }
+        if cancellation.is_cancelled() {
+            let cleanup = self.backend.finish_job(job.id).await;
+            self.active.lock().await.remove(&job.id);
+            startup.disarm();
+            return match cleanup {
+                Ok(()) => Err(DomainError::Conflict(
+                    "recording was cancelled while preparing".to_owned(),
+                )),
+                Err(cleanup) => Err(DomainError::CleanupFailed(format!(
+                    "recording was cancelled while preparing; additionally failed to restore recording job resources: {cleanup}"
+                ))),
+            };
         }
         job.status = JobStatus::Running;
         "Running".clone_into(&mut job.message);
         job.updated_at = Utc::now();
         if let Err(error) = self.storage.put_recording_job(job.clone()).await {
+            let cleanup = self.backend.finish_job(job.id).await;
             self.active.lock().await.remove(&job.id);
-            return Err(storage_error(&error));
+            startup.disarm();
+            let primary = storage_error(&error);
+            return match cleanup {
+                Ok(()) => Err(primary),
+                Err(cleanup) => Err(DomainError::CleanupFailed(format!(
+                    "{primary}; additionally failed to restore recording job resources: {cleanup}"
+                ))),
+            };
         }
 
         let storage = self.storage.clone();
@@ -1276,17 +1004,19 @@ impl RecordingPort for RuntimeRecordingPort {
         let active = Arc::clone(&self.active);
         let background_job = job.clone();
         tokio::spawn(async move {
-            Self::run_job(
+            Self::run_job(RecordingRun {
                 storage,
                 backend,
                 active,
                 config,
-                background_job,
+                job: background_job,
                 prepared,
                 cancellation,
-            )
+                persistence,
+            })
             .await;
         });
+        startup.disarm();
         Ok(job)
     }
 
@@ -1296,13 +1026,25 @@ impl RecordingPort for RuntimeRecordingPort {
                 "recording job is already terminal".to_owned(),
             ));
         }
-        let active = self.active.lock().await;
-        let Some(cancellation) = active.get(&job.id) else {
+        let Some(active) = self.active.lock().await.get(&job.id).cloned() else {
             return Err(DomainError::Conflict(
                 "recording job is not active in this runtime".to_owned(),
             ));
         };
-        cancellation.cancel();
+        active.cancellation.cancel();
+        let _persistence_guard = active.persistence.lock().await;
+        let Some(current) = self
+            .storage
+            .get_recording_job(job.id)
+            .await
+            .map_err(|error| storage_error(&error))?
+        else {
+            return Err(DomainError::NotFound("recording job".to_owned()));
+        };
+        if current.status.is_terminal() {
+            return Ok(current);
+        }
+        job = current;
         job.status = JobStatus::Cancelling;
         "Cancelling".clone_into(&mut job.message);
         job.updated_at = Utc::now();
@@ -1314,18 +1056,15 @@ impl RecordingPort for RuntimeRecordingPort {
     }
 }
 
-async fn wait_for_cancellation(cancellation: &RecordingCancellation) {
-    while !cancellation.is_cancelled() {
-        tokio::time::sleep(Duration::from_millis(25)).await;
-    }
-}
-
-fn select_tick_rate(analysis: Option<&MatchAnalysis>) -> (f64, &'static str) {
+fn authoritative_tick_rate(analysis: Option<&MatchAnalysis>) -> Result<f64, DomainError> {
     analysis
         .map(|analysis| analysis.tick_rate)
         .filter(|tick_rate| tick_rate.is_finite() && (1.0..=256.0).contains(tick_rate))
-        .map_or((64.0, "fallback_64"), |tick_rate| {
-            (tick_rate, "persisted_analysis")
+        .ok_or_else(|| {
+            DomainError::DependencyUnavailable(
+                "this Demo must be reanalyzed before its authoritative tick rate can be used for recording"
+                    .to_owned(),
+            )
         })
 }
 
@@ -1335,7 +1074,6 @@ fn build_segment_plan(
     analysis: Option<&MatchAnalysis>,
     demo_path: PathBuf,
     tick_rate: f64,
-    tick_rate_source: &'static str,
     output_id: Uuid,
 ) -> Result<SegmentPlan, DomainError> {
     request.validate()?;
@@ -1350,10 +1088,8 @@ fn build_segment_plan(
             "recording title must be a bounded printable value".to_owned(),
         ));
     }
-    let pre_roll_ticks =
-        seconds_to_ticks(request.pre_roll_seconds, tick_rate, request.playback_speed)?;
-    let post_roll_ticks =
-        seconds_to_ticks(request.post_roll_seconds, tick_rate, request.playback_speed)?;
+    let pre_roll_ticks = seconds_to_ticks(request.pre_roll_seconds, tick_rate)?;
+    let post_roll_ticks = seconds_to_ticks(request.post_roll_seconds, tick_rate)?;
     let start_tick = request.start_tick.saturating_sub(pre_roll_ticks);
     let end_tick = request
         .end_tick
@@ -1383,57 +1119,28 @@ fn build_segment_plan(
                 .find(|player| player.steam_id == camera_player_id)
         })
         .map_or_else(|| camera_player_id.clone(), |player| player.name.clone());
+    let spectator_slot =
+        analysis.and_then(|analysis| resolved_spectator_slot(analysis, &camera_player_id));
+    let verified_total_ticks = analysis
+        .and_then(|analysis| analysis.verified_total_ticks)
+        .filter(|ticks| *ticks > 0);
     let category = highlight.map_or("custom", |highlight| highlight_category(highlight.kind));
     let mut tags = highlight.map_or_else(Vec::new, |highlight| highlight.tags.clone());
     if request.victim_pov && !tags.iter().any(|tag| tag == "victim_pov") {
         tags.push("victim_pov".to_owned());
     }
-    let kill_track = analysis.map_or_else(Vec::new, |analysis| {
-        build_kill_track(
-            analysis,
-            &request.player_id,
-            start_tick,
-            end_tick,
-            tick_rate,
-            request.playback_speed,
-        )
-    });
-    let input_bus = if request.show_keyboard {
-        let analysis = analysis.ok_or_else(|| {
-            DomainError::DependencyUnavailable(
-                "keyboard rendering requires a persisted demo analysis".to_owned(),
-            )
-        })?;
-        let track = build_input_track(analysis, &camera_player_id, start_tick, end_tick)?;
-        if track.is_empty() {
-            return Err(DomainError::DependencyUnavailable(
-                "the demo does not expose a trustworthy player input mask for this segment"
-                    .to_owned(),
-            ));
-        }
-        Some(RecordingInputBus {
-            version: 1,
-            player_id: camera_player_id.clone(),
-            source: "demo_button_mask".to_owned(),
-            events: track,
-        })
-    } else {
-        None
-    };
-    let input_track = input_bus
-        .as_ref()
-        .map_or_else(Vec::new, |bus| bus.events.clone());
-    let output_file_name = format!("{}-{}.mkv", safe_output_stem(title), output_id.simple());
+    let output_file_name = format!("{}-{}.mp4", safe_output_stem(title), output_id.simple());
     Ok(SegmentPlan {
         demo_id: demo.id,
         demo_path,
         title: title.to_owned(),
         player_id: camera_player_id.clone(),
         player_name: Some(player_name.clone()),
+        spectator_slot,
+        verified_total_ticks,
         start_tick,
         end_tick,
         tick_rate,
-        playback_speed: request.playback_speed,
         output_file_name,
         category: category.to_owned(),
         tags,
@@ -1448,18 +1155,11 @@ fn build_segment_plan(
             "post_roll_seconds": request.post_roll_seconds,
             "pre_roll_ticks": pre_roll_ticks,
             "post_roll_ticks": post_roll_ticks,
-            "tick_rate_source": tick_rate_source,
-            "tick_rate_fallback": tick_rate_source == "fallback_64",
+            "tick_rate_source": "persisted_analysis",
             "victim_pov_requested": request.victim_pov,
             "perspective": if request.victim_pov { "victim" } else { "player" },
             "camera_player_id": camera_player_id,
             "camera_player_name": player_name,
-            "show_keyboard_requested": request.show_keyboard,
-            "show_kill_fx_requested": request.show_kill_fx,
-            "fade_requested": request.fade,
-            "kill_track": kill_track,
-            "input_track": input_track,
-            "input_state_bus": input_bus,
             "hud": {
                 "title": title,
                 "map_name": demo.map_name,
@@ -1470,6 +1170,27 @@ fn build_segment_plan(
             }),
         }),
     })
+}
+
+fn resolved_spectator_slot(analysis: &MatchAnalysis, player_id: &str) -> Option<u8> {
+    let mut matches = analysis
+        .players
+        .iter()
+        .filter(|player| player.steam_id == player_id);
+    let player = matches.next()?;
+    if matches.next().is_some() {
+        return None;
+    }
+    let slot = player
+        .spectator_slot
+        .filter(|slot| (1..=64).contains(slot))?;
+    (analysis
+        .players
+        .iter()
+        .filter(|player| player.spectator_slot == Some(slot))
+        .count()
+        == 1)
+        .then_some(slot)
 }
 
 fn resolve_camera_player(
@@ -1521,107 +1242,13 @@ const fn highlight_category(kind: HighlightKind) -> &'static str {
     }
 }
 
-fn analysis_events(analysis: &MatchAnalysis) -> Vec<TimelineEvent> {
-    analysis
-        .rounds
-        .iter()
-        .flat_map(|round| round.events.iter().cloned())
-        .collect()
-}
-
-#[allow(clippy::cast_precision_loss)] // Demo ticks are bounded to u32 spans above before timing conversion.
-fn build_kill_track(
-    analysis: &MatchAnalysis,
-    player_id: &str,
-    start_tick: u64,
-    end_tick: u64,
-    tick_rate: f64,
-    playback_speed: f64,
-) -> Vec<serde_json::Value> {
-    analysis
-        .rounds
-        .iter()
-        .flat_map(|round| round.events.iter().map(move |event| (round.number, event)))
-        .filter(|(_, event)| {
-            event.kind == EventKind::Kill
-                && event.tick >= start_tick
-                && event.tick <= end_tick
-                && event.actor.as_deref() == Some(player_id)
-        })
-        .map(|(round, event)| {
-            let video_seconds =
-                (event.tick.saturating_sub(start_tick) as f64) / tick_rate / playback_speed;
-            let mut tags = Vec::new();
-            if event.headshot {
-                tags.push("headshot");
-            }
-            if event.penetrated {
-                tags.push("wallbang");
-            }
-            if event
-                .detail
-                .get("noscope")
-                .and_then(serde_json::Value::as_bool)
-                .unwrap_or(false)
-            {
-                tags.push("no_scope");
-            }
-            json!({
-                "tick": event.tick,
-                "video_seconds": video_seconds,
-                "round": round,
-                "victim_id": event.target,
-                "weapon": event.weapon,
-                "tags": tags,
-            })
-        })
-        .collect()
-}
-
-fn build_input_track(
-    analysis: &MatchAnalysis,
-    player_id: &str,
-    start_tick: u64,
-    end_tick: u64,
-) -> Result<Vec<RecordingInputEvent>, DomainError> {
-    const MAXIMUM_TRACK_FRAMES: usize = 2_000;
-    let events = analysis_events(analysis);
-    let frames = vibe_cs_demo::replay_frames_from_events(&events).map_err(|error| {
-        DomainError::DependencyUnavailable(format!(
-            "player input track could not be decoded: {error}"
-        ))
-    })?;
-    let samples = frames
-        .into_iter()
-        .filter(|frame| frame.tick >= start_tick && frame.tick <= end_tick)
-        .filter_map(|frame| {
-            frame
-                .players
-                .into_iter()
-                .find(|player| player.id == player_id)
-                .and_then(|player| player.input.map(|input| (frame.tick, input)))
-        })
-        .collect::<Vec<_>>();
-    let stride = samples.len().div_ceil(MAXIMUM_TRACK_FRAMES).max(1);
-    Ok(samples
-        .into_iter()
-        .step_by(stride)
-        .enumerate()
-        .map(|(sequence, (tick, input))| RecordingInputEvent {
-            sequence: u64::try_from(sequence).unwrap_or(u64::MAX),
-            tick,
-            input,
-        })
-        .collect())
-}
-
 #[allow(
     clippy::cast_possible_truncation,
     clippy::cast_precision_loss,
     clippy::cast_sign_loss
 )]
-fn seconds_to_ticks(seconds: f64, tick_rate: f64, playback_speed: f64) -> Result<u64, DomainError> {
-    let ticks = seconds * tick_rate * playback_speed;
+fn seconds_to_ticks(seconds: f64, tick_rate: f64) -> Result<u64, DomainError> {
+    let ticks = seconds * tick_rate;
     if !ticks.is_finite() || ticks < 0.0 || ticks > u64::MAX as f64 {
         return Err(DomainError::InvalidInput(
             "recording pre/post-roll is outside the supported tick range".to_owned(),
@@ -1657,463 +1284,6 @@ fn safe_output_stem(title: &str) -> String {
     }
 }
 
-fn parse_recording_resolution(value: &str) -> Result<(u32, u32), DomainError> {
-    let (width, height) = value.trim().split_once('x').ok_or_else(|| {
-        DomainError::InvalidInput("recording resolution must use WIDTHxHEIGHT".to_owned())
-    })?;
-    let width = width.parse::<u32>().map_err(|_| {
-        DomainError::InvalidInput("recording width is not a valid integer".to_owned())
-    })?;
-    let height = height.parse::<u32>().map_err(|_| {
-        DomainError::InvalidInput("recording height is not a valid integer".to_owned())
-    })?;
-    if width == 0 || height == 0 || width > 16_384 || height > 16_384 {
-        return Err(DomainError::InvalidInput(
-            "recording resolution is outside the supported range".to_owned(),
-        ));
-    }
-    Ok((width, height))
-}
-
-fn build_recording_overlays(
-    item: &PreparedRecording,
-    width: u32,
-    height: u32,
-    duration_seconds: f64,
-) -> Vec<TimedTextOverlay> {
-    const MAXIMUM_DYNAMIC_OVERLAYS: usize = 256;
-    let mut overlays = Vec::new();
-    let delay_ms = item
-        .segment
-        .metadata
-        .pointer("/capture/capture_delay_ms")
-        .and_then(serde_json::Value::as_i64)
-        .and_then(|value| i32::try_from(value).ok())
-        .filter(|value| (-5_000..=5_000).contains(value))
-        .unwrap_or_default();
-    let delay_seconds = f64::from(delay_ms) / 1_000.0;
-    if duration_seconds > 0.01 {
-        let map = item
-            .segment
-            .metadata
-            .pointer("/hud/map_name")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or("unknown map");
-        let player = item
-            .segment
-            .player_name
-            .as_deref()
-            .unwrap_or("unknown player");
-        overlays.push(TimedTextOverlay {
-            text: bounded_overlay_text(&format!(
-                "{}  |  {}  |  {}",
-                item.segment.title, player, map
-            )),
-            start_seconds: 0.0,
-            end_seconds: duration_seconds.min(2.75),
-            x: 32.0,
-            y: (f64::from(height) - 72.0).max(16.0),
-            font_size: (f64::from(height) * 0.027).clamp(18.0, 42.0),
-            color: "#FFFFFF".to_owned(),
-            background: Some("#101419".to_owned()),
-        });
-    }
-    if item.request.show_kill_fx {
-        overlays.extend(build_kill_overlays(
-            &item.segment.metadata,
-            width,
-            duration_seconds,
-            delay_seconds,
-        ));
-    }
-    if item.request.show_keyboard {
-        overlays.extend(build_keyboard_overlays(
-            &item.segment,
-            height,
-            duration_seconds,
-            delay_seconds,
-        ));
-    }
-    if overlays.len() > MAXIMUM_DYNAMIC_OVERLAYS + 1 {
-        overlays.truncate(MAXIMUM_DYNAMIC_OVERLAYS + 1);
-    }
-    overlays
-}
-
-fn build_kill_overlays(
-    metadata: &serde_json::Value,
-    width: u32,
-    duration_seconds: f64,
-    delay_seconds: f64,
-) -> Vec<TimedTextOverlay> {
-    metadata
-        .get("kill_track")
-        .and_then(serde_json::Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|entry| {
-            let start = entry.get("video_seconds")?.as_f64()? + delay_seconds;
-            if !start.is_finite() || start < 0.0 || start >= duration_seconds {
-                return None;
-            }
-            let weapon = entry
-                .get("weapon")
-                .and_then(serde_json::Value::as_str)
-                .filter(|value| !value.trim().is_empty())
-                .unwrap_or("weapon");
-            let tags = entry
-                .get("tags")
-                .and_then(serde_json::Value::as_array)
-                .into_iter()
-                .flatten()
-                .filter_map(serde_json::Value::as_str)
-                .map(str::to_ascii_uppercase)
-                .collect::<Vec<_>>();
-            let suffix = if tags.is_empty() {
-                String::new()
-            } else {
-                format!("  |  {}", tags.join(" + "))
-            };
-            Some(TimedTextOverlay {
-                text: bounded_overlay_text(&format!(
-                    "KILL  |  {}{suffix}",
-                    weapon.to_ascii_uppercase()
-                )),
-                start_seconds: start,
-                end_seconds: (start + 0.9).min(duration_seconds),
-                x: (f64::from(width) * 0.68).max(32.0),
-                y: 48.0,
-                font_size: 30.0,
-                color: "#FFB15C".to_owned(),
-                background: Some("#180E08".to_owned()),
-            })
-        })
-        .filter(|overlay| overlay.end_seconds > overlay.start_seconds)
-        .collect()
-}
-
-fn build_keyboard_overlays(
-    segment: &SegmentPlan,
-    height: u32,
-    duration_seconds: f64,
-    delay_seconds: f64,
-) -> Vec<TimedTextOverlay> {
-    let Some(samples) = segment
-        .metadata
-        .get("input_track")
-        .and_then(serde_json::Value::as_array)
-    else {
-        return Vec::new();
-    };
-    let stride = samples.len().div_ceil(200).max(1);
-    let timeline = samples
-        .iter()
-        .step_by(stride)
-        .filter_map(|sample| {
-            let tick = sample.get("tick")?.as_u64()?;
-            let delta = u32::try_from(tick.saturating_sub(segment.start_tick)).ok()?;
-            let seconds =
-                f64::from(delta) / segment.tick_rate / segment.playback_speed + delay_seconds;
-            let input = sample.get("input")?.as_object()?;
-            Some((seconds, keyboard_text(input)))
-        })
-        .filter(|(seconds, _)| {
-            seconds.is_finite() && *seconds >= 0.0 && *seconds < duration_seconds
-        })
-        .collect::<Vec<_>>();
-    let mut intervals: Vec<TimedTextOverlay> = Vec::new();
-    for (index, (start, text)) in timeline.iter().enumerate() {
-        let end = timeline
-            .get(index + 1)
-            .map_or(duration_seconds, |(seconds, _)| *seconds)
-            .clamp(*start, duration_seconds);
-        if end <= *start {
-            continue;
-        }
-        if let Some(previous) = intervals.last_mut()
-            && previous.text == *text
-            && (previous.end_seconds - *start).abs() < 0.02
-        {
-            previous.end_seconds = end;
-            continue;
-        }
-        intervals.push(TimedTextOverlay {
-            text: text.clone(),
-            start_seconds: *start,
-            end_seconds: end,
-            x: 32.0,
-            y: (f64::from(height) - 132.0).max(16.0),
-            font_size: 24.0,
-            color: "#9ED7FF".to_owned(),
-            background: Some("#071018".to_owned()),
-        });
-    }
-    intervals
-}
-
-fn keyboard_text(input: &serde_json::Map<String, serde_json::Value>) -> String {
-    let key = |name: &str, active: &'static str| -> &'static str {
-        if input
-            .get(name)
-            .and_then(serde_json::Value::as_bool)
-            .is_some_and(|value| value)
-        {
-            active
-        } else {
-            "·"
-        }
-    };
-    format!(
-        "{} {} {} {}  |  {} {} {} {}  |  {} {}",
-        key("forward", "W"),
-        key("left", "A"),
-        key("backward", "S"),
-        key("right", "D"),
-        key("jump", "SPACE"),
-        key("crouch", "CTRL"),
-        key("walk", "SHIFT"),
-        key("reload", "R"),
-        key("fire", "M1"),
-        key("secondary_fire", "M2")
-    )
-}
-
-fn build_realtime_overlay_cues(item: &PreparedRecording) -> Vec<RealtimeOverlayCue> {
-    const KILL_VISIBILITY_SECONDS: f64 = 0.9;
-    const MAXIMUM_KEYBOARD_CUES: usize = 512;
-
-    let duration_seconds = u32::try_from(
-        item.segment
-            .end_tick
-            .saturating_sub(item.segment.start_tick),
-    )
-    .map_or(0.0, |ticks| {
-        f64::from(ticks) / item.segment.tick_rate / item.segment.playback_speed
-    });
-    if !duration_seconds.is_finite() || duration_seconds <= 0.0 {
-        return Vec::new();
-    }
-    let delay_ms = item
-        .segment
-        .metadata
-        .pointer("/capture/capture_delay_ms")
-        .and_then(serde_json::Value::as_i64)
-        .and_then(|value| i32::try_from(value).ok())
-        .filter(|value| (-5_000..=5_000).contains(value))
-        .unwrap_or_default();
-    let delay_seconds = f64::from(delay_ms) / 1_000.0;
-    let mut cues = Vec::new();
-
-    if item.request.show_kill_fx {
-        let mut intervals = item
-            .segment
-            .metadata
-            .get("kill_track")
-            .and_then(serde_json::Value::as_array)
-            .into_iter()
-            .flatten()
-            .filter_map(|entry| {
-                let start = entry.get("video_seconds")?.as_f64()? + delay_seconds;
-                (start.is_finite() && start >= 0.0 && start < duration_seconds).then_some((
-                    start,
-                    (start + KILL_VISIBILITY_SECONDS).min(duration_seconds),
-                ))
-            })
-            .collect::<Vec<_>>();
-        intervals.sort_by(|left, right| left.0.total_cmp(&right.0));
-        let mut merged: Vec<(f64, f64)> = Vec::new();
-        for (start, end) in intervals {
-            if let Some(previous) = merged.last_mut()
-                && start <= previous.1
-            {
-                previous.1 = previous.1.max(end);
-            } else {
-                merged.push((start, end));
-            }
-        }
-        for (start, end) in merged {
-            if let (Ok(start), Ok(end)) = (
-                Duration::try_from_secs_f64(start),
-                Duration::try_from_secs_f64(end),
-            ) {
-                cues.push(RealtimeOverlayCue {
-                    at: start,
-                    action: RealtimeOverlayAction::ShowKill,
-                });
-                cues.push(RealtimeOverlayCue {
-                    at: end,
-                    action: RealtimeOverlayAction::HideKill,
-                });
-            }
-        }
-    }
-
-    if item.request.show_keyboard {
-        let samples = item
-            .segment
-            .metadata
-            .get("input_track")
-            .and_then(serde_json::Value::as_array)
-            .map(Vec::as_slice)
-            .unwrap_or_default();
-        let stride = samples.len().div_ceil(MAXIMUM_KEYBOARD_CUES).max(1);
-        let mut previous_text = None;
-        for sample in samples.iter().step_by(stride) {
-            let Some(tick) = sample.get("tick").and_then(serde_json::Value::as_u64) else {
-                continue;
-            };
-            let Ok(delta) = u32::try_from(tick.saturating_sub(item.segment.start_tick)) else {
-                continue;
-            };
-            let seconds = f64::from(delta) / item.segment.tick_rate / item.segment.playback_speed
-                + delay_seconds;
-            let Some(input) = sample.get("input").and_then(serde_json::Value::as_object) else {
-                continue;
-            };
-            let text = keyboard_text(input);
-            if !seconds.is_finite()
-                || seconds < 0.0
-                || seconds >= duration_seconds
-                || previous_text.as_ref() == Some(&text)
-            {
-                continue;
-            }
-            let Ok(at) = Duration::try_from_secs_f64(seconds) else {
-                continue;
-            };
-            previous_text = Some(text.clone());
-            cues.push(RealtimeOverlayCue {
-                at,
-                action: RealtimeOverlayAction::Keyboard(text),
-            });
-        }
-    }
-    cues.sort_by(|left, right| {
-        left.at.cmp(&right.at).then_with(|| {
-            realtime_action_order(&left.action).cmp(&realtime_action_order(&right.action))
-        })
-    });
-    cues.push(RealtimeOverlayCue {
-        at: Duration::try_from_secs_f64(duration_seconds).unwrap_or(Duration::ZERO),
-        action: RealtimeOverlayAction::Finish,
-    });
-    cues
-}
-
-fn has_realtime_kill_cue(cues: &[RealtimeOverlayCue]) -> bool {
-    cues.iter()
-        .any(|cue| cue.action == RealtimeOverlayAction::ShowKill)
-}
-
-const fn realtime_action_order(action: &RealtimeOverlayAction) -> u8 {
-    match action {
-        RealtimeOverlayAction::HideKill => 0,
-        RealtimeOverlayAction::ShowKill => 1,
-        RealtimeOverlayAction::Keyboard(_) => 2,
-        RealtimeOverlayAction::Finish => 3,
-    }
-}
-
-fn bounded_overlay_text(value: &str) -> String {
-    value
-        .chars()
-        .filter(|character| !character.is_control())
-        .take(480)
-        .collect()
-}
-
-fn promote_render_metadata(
-    clip: &mut RecordedClip,
-    item: &PreparedRecording,
-    options: &SingleInputTranscodeOptions,
-) {
-    if !clip.metadata.is_object() {
-        clip.metadata = json!({});
-    }
-    let Some(metadata) = clip.metadata.as_object_mut() else {
-        return;
-    };
-    metadata.insert(
-        "perspective".to_owned(),
-        item.segment
-            .metadata
-            .get("perspective")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-    );
-    metadata.insert(
-        "camera_player_id".to_owned(),
-        item.segment
-            .metadata
-            .get("camera_player_id")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-    );
-    metadata.insert(
-        "kill_axis".to_owned(),
-        item.segment
-            .metadata
-            .get("kill_track")
-            .cloned()
-            .unwrap_or_else(|| json!([])),
-    );
-    metadata.insert(
-        "hud".to_owned(),
-        item.segment
-            .metadata
-            .get("hud")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-    );
-    metadata.insert(
-        "input_state_bus".to_owned(),
-        item.segment
-            .metadata
-            .get("input_state_bus")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null),
-    );
-    metadata.insert(
-        "capture_delay_ms".to_owned(),
-        item.segment
-            .metadata
-            .pointer("/capture/capture_delay_ms")
-            .cloned()
-            .unwrap_or_else(|| json!(0)),
-    );
-    let kill_event_count = item
-        .segment
-        .metadata
-        .get("kill_track")
-        .and_then(serde_json::Value::as_array)
-        .map_or(0, Vec::len);
-    let kill_fx_rendered = item.request.show_kill_fx && kill_event_count > 0;
-    metadata.insert(
-        "render".to_owned(),
-        json!({
-            "container": "mp4",
-            "width": options.width,
-            "height": options.height,
-            "fps": options.fps,
-            "encoder": options.encoder.primary,
-            "quality": options.quality,
-            "audio_preserved": options.has_audio,
-            "fade_in_seconds": options.fade_in_seconds,
-            "fade_out_seconds": options.fade_out_seconds,
-            "keyboard_rendered": item.request.show_keyboard,
-            "kill_fx_requested": item.request.show_kill_fx,
-            "kill_fx_rendered": kill_fx_rendered,
-            "kill_fx_event_count": kill_event_count,
-            "kill_fx_degraded_reason": if item.request.show_kill_fx && !kill_fx_rendered {
-                Some("no trustworthy kill event was available for this segment")
-            } else {
-                None
-            },
-            "overlay_count": options.overlays.len(),
-        }),
-    );
-}
-
 async fn validate_clip(clip: &RecordedClip, item: &PreparedRecording) -> Result<(), DomainError> {
     if clip.demo_id != Some(item.demo.id) {
         return Err(DomainError::InvalidInput(
@@ -2125,6 +1295,7 @@ async fn validate_clip(clip: &RecordedClip, item: &PreparedRecording) -> Result<
             "recording backend returned an invalid clip duration".to_owned(),
         ));
     }
+    crate::hlae_recording::validate_managed_hlae_clip_path(clip)?;
     let metadata = tokio::fs::metadata(&clip.path)
         .await
         .map_err(|error| DomainError::Internal(format!("recorded clip is unavailable: {error}")))?;
@@ -2136,187 +1307,55 @@ async fn validate_clip(clip: &RecordedClip, item: &PreparedRecording) -> Result<
     Ok(())
 }
 
-async fn remove_unpublished_clip(clip: &RecordedClip) {
-    match tokio::fs::remove_file(&clip.path).await {
-        Ok(()) => tracing::info!(clip_id = %clip.id, "removed cancelled unpublished clip"),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => {
-            tracing::warn!(clip_id = %clip.id, %error, "unable to remove cancelled unpublished clip");
-        }
-    }
-}
-
-fn truncate_message(message: &str) -> String {
-    message.chars().take(1_000).collect()
-}
-
-fn integration_error(error: IntegrationError) -> DomainError {
-    match error {
-        IntegrationError::NotConfigured {
-            integration,
-            message,
-        }
-        | IntegrationError::Unavailable {
-            integration,
-            message,
-        } => DomainError::DependencyUnavailable(format!("{integration}: {message}")),
-        IntegrationError::InvalidConfiguration(message)
-        | IntegrationError::InvalidInput(message)
-        | IntegrationError::Protocol(message) => DomainError::InvalidInput(message),
-        IntegrationError::HttpStatus { status, message } => DomainError::DependencyUnavailable(
-            format!("remote service returned HTTP {status}: {message}"),
-        ),
-        IntegrationError::ResponseLimit(limit) => {
-            DomainError::InvalidInput(format!("integration response exceeded {limit} bytes"))
-        }
-        IntegrationError::Cancelled => {
-            DomainError::Conflict("integration was cancelled".to_owned())
-        }
-        IntegrationError::Io { path, source } => DomainError::DependencyUnavailable(format!(
-            "I/O failure for {}: {source}",
-            path.display()
-        )),
-        IntegrationError::Http(error) => {
-            DomainError::DependencyUnavailable(format!("integration request failed: {error}"))
-        }
-        IntegrationError::Url(error) => DomainError::InvalidInput(format!("invalid URL: {error}")),
-        IntegrationError::Json(error) => {
-            DomainError::InvalidInput(format!("invalid integration response: {error}"))
-        }
-    }
-}
-
-fn media_error(error: MediaError) -> DomainError {
-    match error {
-        MediaError::ExecutableNotFound(executable) => DomainError::DependencyUnavailable(format!(
-            "recording post-processing requires {executable}"
-        )),
-        MediaError::InvalidInput(message) | MediaError::InvalidToolOutput(message) => {
-            DomainError::InvalidInput(message)
-        }
-        MediaError::NativeFfmpeg(message) => DomainError::DependencyUnavailable(message),
-        MediaError::Cancelled => DomainError::Conflict("recording was cancelled".to_owned()),
-        MediaError::OutputExists(path) => DomainError::Conflict(format!(
-            "recording post-processing output already exists: {}",
-            path.display()
-        )),
-        MediaError::ProcessFailed { status, message } => DomainError::DependencyUnavailable(
-            format!("recording post-processing failed with status {status}: {message}"),
-        ),
-        MediaError::OutputLimit { limit } => DomainError::Internal(format!(
-            "recording post-processing output exceeded {limit} bytes"
-        )),
-        MediaError::UnsupportedWave(message) => DomainError::InvalidInput(message),
-        MediaError::EmptyOutput(path) => DomainError::Internal(format!(
-            "recording post-processing produced no output: {}",
-            path.display()
-        )),
-        MediaError::Io { path, source } => DomainError::Internal(format!(
-            "recording post-processing I/O failed for {}: {source}",
-            path.display()
-        )),
-        MediaError::Json(error) => DomainError::Internal(format!(
-            "recording post-processing metadata failed: {error}"
-        )),
-    }
-}
-
-fn recording_error(error: RecordingError) -> DomainError {
-    match error {
-        RecordingError::InvalidInput(message) => DomainError::InvalidInput(message),
-        RecordingError::Domain(error) => error,
-        RecordingError::Integration(error) => integration_error(error),
-        RecordingError::Platform(error) => platform_error(error),
-        RecordingError::Cancelled { .. } => {
-            DomainError::Conflict("recording was cancelled".to_owned())
-        }
-        RecordingError::ObsBusy => DomainError::Conflict("OBS is already recording".to_owned()),
-        RecordingError::RecoveryPending => DomainError::Conflict(
-            "configuration recovery is pending and must be resolved before recording".to_owned(),
-        ),
-        RecordingError::ObserverMismatch { expected, actual } => DomainError::Conflict(format!(
-            "recording observer mismatch: expected {expected}, received {actual}"
-        )),
-        RecordingError::Preflight(message) => DomainError::DependencyUnavailable(format!(
-            "recording preflight could not be satisfied: {message}"
-        )),
-        RecordingError::Timeout { stage } => DomainError::DependencyUnavailable(format!(
-            "recording timed out while waiting for {stage}"
-        )),
-        RecordingError::OutputMissing => {
-            DomainError::Internal("OBS did not return a recording output path".to_owned())
-        }
-        RecordingError::OutputInvalid { path, reason } => DomainError::Internal(format!(
-            "recording output {} is invalid: {reason}",
-            path.display()
-        )),
-        RecordingError::Cleanup { primary, cleanup } => DomainError::Internal(format!(
-            "recording failed: {}; cleanup also failed: {cleanup}",
-            truncate_message(&primary.to_string())
-        )),
-        RecordingError::CleanupFailed(message) => {
-            DomainError::Internal(format!("recording cleanup failed: {message}"))
-        }
-        RecordingError::Io {
-            operation,
-            path,
-            source,
-        } => DomainError::Internal(format!(
-            "recording I/O failed while {operation} {}: {source}",
-            path.display()
-        )),
-        RecordingError::Task(message) => {
-            DomainError::Internal(format!("recording task failed: {message}"))
-        }
-    }
-}
-
-fn platform_error(error: PlatformError) -> DomainError {
-    match error {
-        PlatformError::InvalidInput(message) => DomainError::InvalidInput(message),
-        PlatformError::RecoveryPending
-        | PlatformError::RecoveryNotPending
-        | PlatformError::BackupIntegrity { .. }
-        | PlatformError::RecoveryConflict { .. } => DomainError::Conflict(error.to_string()),
-        PlatformError::Cancelled { .. } => {
-            DomainError::Conflict("recording platform operation was cancelled".to_owned())
-        }
-        PlatformError::Unsupported
-        | PlatformError::ProcessNotFound(_)
-        | PlatformError::ForegroundMismatch { .. }
-        | PlatformError::Windows(_)
-        | PlatformError::Io { .. } => DomainError::DependencyUnavailable(error.to_string()),
-        PlatformError::Json(error) => {
-            DomainError::InvalidInput(format!("invalid platform configuration: {error}"))
-        }
-        PlatformError::Url(error) => {
-            DomainError::InvalidInput(format!("invalid platform URL: {error}"))
-        }
-    }
-}
-
-fn validate_system_configuration(config: &AppConfig) -> Result<(), DomainError> {
-    if config.obs.host.trim().is_empty() || config.obs.port == 0 {
-        return Err(DomainError::DependencyUnavailable(
-            "OBS WebSocket is not configured".to_owned(),
+async fn validate_recovered_clip(
+    clip: &RecordedClip,
+    request: &RecordingRequest,
+) -> Result<(), DomainError> {
+    if clip.demo_id != Some(request.demo_id) {
+        return Err(DomainError::InvalidInput(
+            "recovered recording clip belongs to another demo".to_owned(),
         ));
     }
-    if config.recording.mute_voice && config.recording.isolate_target_voice {
+    if !clip.duration_seconds.is_finite() || clip.duration_seconds <= 0.0 {
         return Err(DomainError::InvalidInput(
-            "global voice muting and target-player voice isolation are mutually exclusive"
-                .to_owned(),
+            "recovered recording clip has an invalid duration".to_owned(),
         ));
     }
-    if !(-5_000..=5_000).contains(&config.recording.capture_delay_ms) {
-        return Err(DomainError::InvalidInput(
-            "recording capture delay must be between -5000 and 5000 milliseconds".to_owned(),
+    crate::hlae_recording::validate_managed_hlae_clip_path(clip)?;
+    let metadata = tokio::fs::metadata(&clip.path).await.map_err(|error| {
+        DomainError::Internal(format!("recovered clip is unavailable: {error}"))
+    })?;
+    if !metadata.is_file() || metadata.len() == 0 {
+        return Err(DomainError::Internal(
+            "recovered clip is not a non-empty regular file".to_owned(),
         ));
     }
     Ok(())
 }
 
-fn io_dependency_error(operation: &str, error: &std::io::Error) -> DomainError {
-    DomainError::DependencyUnavailable(format!("unable to {operation}: {error}"))
+async fn cleanup_unpublished_clip(clip: &RecordedClip, primary: DomainError) -> DomainError {
+    if let Some(result) = crate::hlae_recording::remove_managed_hlae_unpublished_clip(clip).await {
+        return match result {
+            Ok(()) => primary,
+            Err(cleanup) => DomainError::CleanupFailed(format!(
+                "{primary}; managed recording cleanup also failed: {cleanup}"
+            )),
+        };
+    }
+    match tokio::fs::remove_file(&clip.path).await {
+        Ok(()) => tracing::info!(clip_id = %clip.id, "removed cancelled unpublished clip"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return primary,
+        Err(error) => {
+            return DomainError::CleanupFailed(format!(
+                "{primary}; unpublished clip cleanup also failed: {error}"
+            ));
+        }
+    }
+    primary
+}
+
+fn truncate_message(message: &str) -> String {
+    message.chars().take(1_000).collect()
 }
 
 fn storage_error(error: &vibe_cs_storage::StorageError) -> DomainError {
@@ -2326,83 +1365,15 @@ fn storage_error(error: &vibe_cs_storage::StorageError) -> DomainError {
 #[cfg(test)]
 mod tests {
     use std::{
-        collections::VecDeque,
         path::PathBuf,
         sync::{
-            Arc as StdArc, Mutex as StdMutex,
+            Mutex as TestMutex,
             atomic::{AtomicUsize, Ordering},
         },
         time::Duration,
     };
 
     use super::*;
-
-    #[derive(Debug)]
-    struct RuntimeObsTransport {
-        incoming: VecDeque<String>,
-        sent: StdArc<StdMutex<Vec<serde_json::Value>>>,
-        fail_restart: bool,
-    }
-
-    impl RuntimeObsTransport {
-        fn new(sent: StdArc<StdMutex<Vec<serde_json::Value>>>, fail_restart: bool) -> Self {
-            Self {
-                incoming: VecDeque::from([
-                    r#"{"op":0,"d":{"rpcVersion":1}}"#.to_owned(),
-                    r#"{"op":2,"d":{"negotiatedRpcVersion":1}}"#.to_owned(),
-                ]),
-                sent,
-                fail_restart,
-            }
-        }
-    }
-
-    #[async_trait]
-    impl ObsTransport for RuntimeObsTransport {
-        async fn send_text(&mut self, message: String) -> Result<(), IntegrationError> {
-            let wire: serde_json::Value = serde_json::from_str(&message)?;
-            if wire["op"] == 6 {
-                let request_id = wire["d"]["requestId"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .to_owned();
-                let request_type = wire["d"]["requestType"].as_str().unwrap_or_default();
-                let failed = self.fail_restart && request_type == "TriggerMediaInputAction";
-                let response_data = if request_type == "GetRecordStatus" {
-                    json!({ "outputActive": true, "outputPaused": false })
-                } else {
-                    json!({})
-                };
-                self.incoming.push_back(
-                    json!({ "op": 5, "d": { "eventType": "InputSettingsChanged" } }).to_string(),
-                );
-                self.incoming.push_back(
-                    json!({
-                        "op": 7,
-                        "d": {
-                            "requestType": request_type,
-                            "requestId": request_id,
-                            "requestStatus": {
-                                "result": !failed,
-                                "code": if failed { 500 } else { 100 },
-                                "comment": if failed { "injected restart failure" } else { "ok" }
-                            },
-                            "responseData": response_data
-                        }
-                    })
-                    .to_string(),
-                );
-            }
-            self.sent.lock().unwrap().push(wire);
-            Ok(())
-        }
-
-        async fn receive_text(&mut self) -> Result<String, IntegrationError> {
-            self.incoming.pop_front().ok_or_else(|| {
-                IntegrationError::Protocol("runtime fake transport exhausted".to_owned())
-            })
-        }
-    }
 
     #[derive(Debug)]
     struct FakeBackend {
@@ -2425,6 +1396,7 @@ mod tests {
             _config: &AppConfig,
             item: &PreparedRecording,
             cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
         ) -> Result<RecordedClip, DomainError> {
             if self.wait_for_cancel {
                 cancellation.cancelled().await;
@@ -2450,9 +1422,169 @@ mod tests {
     }
 
     #[derive(Debug)]
+    struct CommitOrderBackend {
+        output_dir: PathBuf,
+        storage: Storage,
+        commits: AtomicUsize,
+        cancel_after_publish: bool,
+    }
+
+    #[async_trait]
+    impl RecordingBackend for CommitOrderBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            item: &PreparedRecording,
+            cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            let path = self.output_dir.join(format!("{}.mp4", Uuid::new_v4()));
+            tokio::fs::write(&path, b"durable-video")
+                .await
+                .map_err(|error| DomainError::Internal(error.to_string()))?;
+            let clip = RecordedClip {
+                id: Uuid::new_v4(),
+                path: path.to_string_lossy().into_owned(),
+                title: item.request.title.clone(),
+                duration_seconds: 1.0,
+                demo_id: Some(item.demo.id),
+                player_name: Some(item.request.player_id.clone()),
+                category: "highlight".to_owned(),
+                tags: Vec::new(),
+                metadata: serde_json::Value::Null,
+                created_at: Utc::now(),
+            };
+            if self.cancel_after_publish {
+                cancellation.cancel();
+            }
+            Ok(clip)
+        }
+
+        async fn commit_recorded_clip(
+            &self,
+            job_id: Uuid,
+            _item_index: usize,
+            clip: &RecordedClip,
+        ) -> Result<(), DomainError> {
+            let stored_clip = self
+                .storage
+                .get_recorded_clip(clip.id)
+                .await
+                .map_err(|error| storage_error(&error))?;
+            if stored_clip.as_ref() != Some(clip) {
+                return Err(DomainError::Internal(
+                    "backend commit ran before RecordedClip persistence".to_owned(),
+                ));
+            }
+            let stored_job = self
+                .storage
+                .get_recording_job(job_id)
+                .await
+                .map_err(|error| storage_error(&error))?
+                .ok_or_else(|| DomainError::Internal("recording job disappeared".to_owned()))?;
+            if !stored_job.outputs.iter().any(|output| output == clip) {
+                return Err(DomainError::Internal(
+                    "backend commit ran before recording job output persistence".to_owned(),
+                ));
+            }
+            self.commits.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct ObservingPreflightBackend {
+        preflights: AtomicUsize,
+        records: AtomicUsize,
+        observed: TestMutex<Option<(AppConfig, Vec<PreparedRecording>)>>,
+    }
+
+    #[async_trait]
+    impl RecordingBackend for ObservingPreflightBackend {
+        async fn preflight(
+            &self,
+            config: &AppConfig,
+            items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            self.preflights.fetch_add(1, Ordering::SeqCst);
+            *self.observed.lock().expect("preflight observation") =
+                Some((config.clone(), items.to_vec()));
+            Ok(())
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            _item: &PreparedRecording,
+            _cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            self.records.fetch_add(1, Ordering::SeqCst);
+            Err(DomainError::Internal(
+                "record must not run during preflight".to_owned(),
+            ))
+        }
+    }
+
+    #[derive(Debug)]
     struct FailingLifecycleBackend {
         begins: AtomicUsize,
         finishes: AtomicUsize,
+    }
+
+    #[derive(Debug)]
+    struct BlockingStartupBackend {
+        begins: AtomicUsize,
+        finishes: AtomicUsize,
+        entered: tokio::sync::Notify,
+    }
+
+    #[async_trait]
+    impl RecordingBackend for BlockingStartupBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn begin_job(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            if self.begins.fetch_add(1, Ordering::SeqCst) == 0 {
+                self.entered.notify_one();
+                futures_util::future::pending::<()>().await;
+            }
+            Ok(())
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            _item: &PreparedRecording,
+            _cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            Err(DomainError::DependencyUnavailable(
+                "injected recording failure".to_owned(),
+            ))
+        }
+
+        async fn finish_job(&self, _job_id: Uuid) -> Result<(), DomainError> {
+            self.finishes.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
     }
 
     #[async_trait]
@@ -2479,15 +1611,206 @@ mod tests {
             _config: &AppConfig,
             _item: &PreparedRecording,
             _cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
         ) -> Result<RecordedClip, DomainError> {
             Err(DomainError::DependencyUnavailable(
                 "injected recording failure".to_owned(),
             ))
         }
 
-        async fn finish_job(&self, _config: &AppConfig) -> Result<(), DomainError> {
+        async fn finish_job(&self, _job_id: Uuid) -> Result<(), DomainError> {
             self.finishes.fetch_add(1, Ordering::SeqCst);
             Ok(())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct ReportingBackend {
+        retained_progress: TestMutex<Option<RecordingProgressSink>>,
+        encoding_reported: bool,
+    }
+
+    #[derive(Debug)]
+    struct UncleanableCancelledClipBackend {
+        output_path: PathBuf,
+    }
+
+    #[derive(Debug)]
+    struct ObservingRecoveryBackend {
+        recovered: TestMutex<Vec<Uuid>>,
+        fail_job: Uuid,
+    }
+
+    #[derive(Debug)]
+    struct PublishedRecoveryBackend {
+        storage: Storage,
+        clip: RecordedClip,
+        commits: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl RecordingBackend for PublishedRecoveryBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            _item: &PreparedRecording,
+            _cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            unreachable!("restart recovery must not start a new recording")
+        }
+
+        async fn recover_orphaned_job(
+            &self,
+            job: &RecordingJob,
+        ) -> Result<OrphanedRecordingRecovery, DomainError> {
+            Ok(OrphanedRecordingRecovery::PublishedClip {
+                item_index: job.current_index,
+                clip: Box::new(self.clip.clone()),
+            })
+        }
+
+        async fn commit_recorded_clip(
+            &self,
+            job_id: Uuid,
+            item_index: usize,
+            clip: &RecordedClip,
+        ) -> Result<(), DomainError> {
+            let stored_clip = self
+                .storage
+                .get_recorded_clip(clip.id)
+                .await
+                .map_err(|error| storage_error(&error))?;
+            let stored_job = self
+                .storage
+                .get_recording_job(job_id)
+                .await
+                .map_err(|error| storage_error(&error))?
+                .ok_or_else(|| DomainError::Internal("recording job disappeared".to_owned()))?;
+            if stored_clip.as_ref() != Some(clip)
+                || stored_job.current_index != item_index
+                || stored_job.outputs.get(item_index) != Some(clip)
+            {
+                return Err(DomainError::Internal(
+                    "recovery retired publication evidence before durable clip and job storage"
+                        .to_owned(),
+                ));
+            }
+            self.commits.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[async_trait]
+    impl RecordingBackend for ObservingRecoveryBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            _item: &PreparedRecording,
+            _cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            unreachable!("orphan recovery must not start recording")
+        }
+
+        async fn recover_orphaned_job(
+            &self,
+            job: &RecordingJob,
+        ) -> Result<OrphanedRecordingRecovery, DomainError> {
+            self.recovered
+                .lock()
+                .expect("recovery observations")
+                .push(job.id);
+            if job.id == self.fail_job {
+                return Err(DomainError::CleanupFailed(
+                    "injected artifact lease rejection".to_owned(),
+                ));
+            }
+            Ok(OrphanedRecordingRecovery::NoPublishedClip)
+        }
+    }
+
+    #[async_trait]
+    impl RecordingBackend for UncleanableCancelledClipBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            item: &PreparedRecording,
+            cancellation: &RecordingCancellation,
+            _progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            tokio::fs::write(&self.output_path, b"must-not-be-deleted")
+                .await
+                .expect("external clip fixture");
+            cancellation.cancel();
+            Ok(RecordedClip {
+                id: Uuid::new_v4(),
+                path: self.output_path.to_string_lossy().into_owned(),
+                title: item.request.title.clone(),
+                duration_seconds: 1.0,
+                demo_id: Some(item.demo.id),
+                player_name: Some(item.request.player_id.clone()),
+                category: "highlight".to_owned(),
+                tags: Vec::new(),
+                metadata: json!({
+                    "capture_backend": "managed_hlae_windows_mf"
+                }),
+                created_at: Utc::now(),
+            })
+        }
+    }
+
+    #[async_trait]
+    impl RecordingBackend for ReportingBackend {
+        async fn preflight(
+            &self,
+            _config: &AppConfig,
+            _items: &[PreparedRecording],
+        ) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn record(
+            &self,
+            _config: &AppConfig,
+            _item: &PreparedRecording,
+            cancellation: &RecordingCancellation,
+            progress: &RecordingProgressSink,
+        ) -> Result<RecordedClip, DomainError> {
+            progress.report(RecordingStage::Launching);
+            if self.encoding_reported {
+                progress.report(RecordingStage::Encoding);
+            }
+            *self
+                .retained_progress
+                .lock()
+                .expect("retained progress sink") = Some(progress.clone());
+            cancellation.cancelled().await;
+            Err(DomainError::Conflict("cancelled".to_owned()))
         }
     }
 
@@ -2523,14 +1846,42 @@ mod tests {
                 team_b_name: None,
                 team_a_score: None,
                 team_b_score: None,
+                player_names: Vec::new(),
                 remark: String::new(),
-                content_sha256: None,
+                content_sha256: Some(hex::encode(Sha256::digest(b"demo"))),
                 file_size: 4,
                 created_at: now,
                 updated_at: now,
             })
             .await
             .expect("demo");
+        storage
+            .put_analysis(MatchAnalysis {
+                demo_id,
+                map_name: "de_test".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 4.0,
+                verified_total_ticks: Some(256),
+                teams: Vec::new(),
+                players: vec![vibe_cs_domain::PlayerStats {
+                    steam_id: "player".to_owned(),
+                    spectator_slot: Some(7),
+                    name: "Player".to_owned(),
+                    team: "T".to_owned(),
+                    kills: 0,
+                    deaths: 0,
+                    assists: 0,
+                    headshots: 0,
+                    damage: 0,
+                    adr: 0.0,
+                    kill_death_ratio: 0.0,
+                    score: 0,
+                }],
+                rounds: Vec::new(),
+                highlights: Vec::new(),
+            })
+            .await
+            .expect("analysis");
         let job = RecordingJob {
             id: Uuid::new_v4(),
             status: JobStatus::Queued,
@@ -2542,13 +1893,9 @@ mod tests {
                 title: "Highlight".to_owned(),
                 start_tick: 64,
                 end_tick: 128,
-                playback_speed: 1.0,
                 pre_roll_seconds: 0.0,
                 post_roll_seconds: 0.0,
                 victim_pov: false,
-                show_keyboard: false,
-                show_kill_fx: false,
-                fade: false,
             }],
             current_index: 0,
             progress: 0.0,
@@ -2581,6 +1928,122 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn preflight_uses_current_config_and_authoritative_analysis_without_persisting_or_recording()
+     {
+        let (_root, storage, _port, job) = fixture(false).await;
+        let mut config = AppConfig::default();
+        config.recording.camera_fov = 101.0;
+        storage
+            .put_config(config)
+            .await
+            .expect("current recording config");
+        storage
+            .put_analysis(MatchAnalysis {
+                demo_id: job.items[0].demo_id,
+                map_name: "de_test".to_owned(),
+                tick_rate: 128.0,
+                duration_seconds: 12.0,
+                verified_total_ticks: Some(1_536),
+                teams: Vec::new(),
+                players: vec![vibe_cs_domain::PlayerStats {
+                    steam_id: "player".to_owned(),
+                    spectator_slot: Some(7),
+                    name: "Player".to_owned(),
+                    team: "T".to_owned(),
+                    kills: 0,
+                    deaths: 0,
+                    assists: 0,
+                    headshots: 0,
+                    damage: 0,
+                    adr: 0.0,
+                    kill_death_ratio: 0.0,
+                    score: 0,
+                }],
+                rounds: Vec::new(),
+                highlights: Vec::new(),
+            })
+            .await
+            .expect("authoritative analysis");
+        let backend = Arc::new(ObservingPreflightBackend::default());
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+
+        port.preflight(&job.items)
+            .await
+            .expect("recording preflight");
+
+        assert_eq!(backend.preflights.load(Ordering::SeqCst), 1);
+        assert_eq!(backend.records.load(Ordering::SeqCst), 0);
+        assert!(
+            storage
+                .list_recording_jobs()
+                .await
+                .expect("recording jobs")
+                .is_empty()
+        );
+        let observed = backend
+            .observed
+            .lock()
+            .expect("preflight observation")
+            .clone()
+            .expect("observed preflight");
+        assert!((observed.0.recording.camera_fov - 101.0).abs() < f64::EPSILON);
+        assert_eq!(observed.1.len(), 1);
+        assert_eq!(observed.1[0].segment.spectator_slot, Some(7));
+        assert_eq!(observed.1[0].segment.verified_total_ticks, Some(1_536));
+        assert!((observed.1[0].segment.tick_rate - 128.0).abs() < f64::EPSILON);
+    }
+
+    #[tokio::test]
+    async fn preflight_preserves_missing_or_ambiguous_observer_evidence_for_backend_rejection() {
+        let (_root, storage, _port, job) = fixture(false).await;
+        let player = vibe_cs_domain::PlayerStats {
+            steam_id: "player".to_owned(),
+            spectator_slot: Some(7),
+            name: "Player".to_owned(),
+            team: "T".to_owned(),
+            kills: 0,
+            deaths: 0,
+            assists: 0,
+            headshots: 0,
+            damage: 0,
+            adr: 0.0,
+            kill_death_ratio: 0.0,
+            score: 0,
+        };
+        let mut conflicting_player = player.clone();
+        conflicting_player.steam_id = "other-player".to_owned();
+        storage
+            .put_analysis(MatchAnalysis {
+                demo_id: job.items[0].demo_id,
+                map_name: "de_test".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 12.0,
+                verified_total_ticks: None,
+                teams: Vec::new(),
+                players: vec![player, conflicting_player],
+                rounds: Vec::new(),
+                highlights: Vec::new(),
+            })
+            .await
+            .expect("ambiguous observer analysis");
+        let backend = Arc::new(ObservingPreflightBackend::default());
+        let port = RuntimeRecordingPort::new(storage, backend.clone());
+
+        port.preflight(&job.items)
+            .await
+            .expect("runtime preserves evidence for the concrete backend contract");
+
+        let observed = backend
+            .observed
+            .lock()
+            .expect("preflight observation")
+            .clone()
+            .expect("observed preflight");
+        assert_eq!(observed.1[0].segment.spectator_slot, None);
+        assert_eq!(observed.1[0].segment.verified_total_ticks, None);
+    }
+
+    #[tokio::test]
     async fn fake_backend_completes_and_persists_a_real_output() {
         let (_root, storage, port, job) = fixture(false).await;
         let started = port.execute(job).await.expect("start");
@@ -2590,6 +2053,231 @@ mod tests {
         assert_eq!(completed.outputs.len(), 1);
         assert!(Path::new(&completed.outputs[0].path).is_file());
         assert_eq!(storage.list_recorded_clips().await.expect("clips").len(), 1);
+    }
+
+    #[tokio::test]
+    async fn backend_publication_is_committed_only_after_clip_and_job_are_durable() {
+        let (root, storage, _port, job) = fixture(false).await;
+        let backend = Arc::new(CommitOrderBackend {
+            output_dir: root.path().to_path_buf(),
+            storage: storage.clone(),
+            commits: AtomicUsize::new(0),
+            cancel_after_publish: false,
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+
+        let started = port.execute(job).await.expect("start recording");
+        let completed = wait_for_terminal(&storage, started.id).await;
+
+        assert_eq!(completed.status, JobStatus::Completed);
+        assert_eq!(backend.commits.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn cancellation_after_publication_commits_the_verified_clip_before_cancelling_job() {
+        let (root, storage, _port, job) = fixture(false).await;
+        let backend = Arc::new(CommitOrderBackend {
+            output_dir: root.path().to_path_buf(),
+            storage: storage.clone(),
+            commits: AtomicUsize::new(0),
+            cancel_after_publish: true,
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+
+        let started = port.execute(job).await.expect("start recording");
+        let cancelled = wait_for_terminal(&storage, started.id).await;
+
+        assert_eq!(cancelled.status, JobStatus::Cancelled);
+        assert_eq!(cancelled.outputs.len(), 1);
+        assert_eq!(backend.commits.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            storage.list_recorded_clips().await.expect("durable clips"),
+            cancelled.outputs
+        );
+        assert!(Path::new(&cancelled.outputs[0].path).is_file());
+    }
+
+    #[tokio::test]
+    async fn backend_stage_is_persisted_without_waiting_for_the_clip_to_finish() {
+        let (_root, storage, _port, job) = fixture(false).await;
+        let backend = Arc::new(ReportingBackend {
+            retained_progress: TestMutex::new(None),
+            encoding_reported: false,
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+
+        let started = port.execute(job).await.expect("start recording");
+        let observed = loop {
+            let observed = storage
+                .get_recording_job(started.id)
+                .await
+                .expect("read recording job")
+                .expect("recording job");
+            if observed.message == RecordingStage::Launching.code() {
+                break observed;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        };
+
+        assert!((observed.progress - 0.2).abs() < f64::EPSILON);
+        let cancelling = port.cancel(observed).await.expect("cancel recording");
+        assert_eq!(
+            wait_for_terminal(&storage, cancelling.id).await.status,
+            JobStatus::Cancelled
+        );
+        assert!(
+            backend
+                .retained_progress
+                .lock()
+                .expect("retained progress sink")
+                .take()
+                .is_some(),
+            "job completion must not depend on every sink clone being dropped"
+        );
+    }
+
+    #[tokio::test]
+    async fn encoding_stage_never_marks_an_unpublished_clip_complete() {
+        let (_root, storage, _port, job) = fixture(false).await;
+        let backend = Arc::new(ReportingBackend {
+            retained_progress: TestMutex::new(None),
+            encoding_reported: true,
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+
+        let started = port.execute(job).await.expect("start recording");
+        let observed = loop {
+            let observed = storage
+                .get_recording_job(started.id)
+                .await
+                .expect("read recording job")
+                .expect("recording job");
+            if observed.message == RecordingStage::Encoding.code() {
+                break observed;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        };
+
+        assert!(observed.progress < 1.0);
+        assert!(observed.outputs.is_empty());
+        let cancelling = port.cancel(observed).await.expect("cancel recording");
+        assert_eq!(
+            wait_for_terminal(&storage, cancelling.id).await.status,
+            JobStatus::Cancelled
+        );
+        backend
+            .retained_progress
+            .lock()
+            .expect("retained progress sink")
+            .take();
+    }
+
+    #[tokio::test]
+    async fn recording_refuses_a_demo_that_changed_after_analysis() {
+        let (root, _storage, port, job) = fixture(false).await;
+        tokio::fs::write(root.path().join("fixture.dem"), b"changed demo")
+            .await
+            .expect("replace demo fixture");
+
+        let error = port
+            .execute(job)
+            .await
+            .expect_err("stale parser identity must not drive another Demo");
+        assert!(matches!(error, DomainError::Conflict(_)));
+        assert!(error.to_string().contains("fingerprint"));
+    }
+
+    #[tokio::test]
+    async fn one_job_hashes_each_unique_demo_only_once() {
+        let (root, storage, port, mut job) = fixture(true).await;
+        job.items.push(job.items[0].clone());
+        let demo_path = std::path::absolute(root.path().join("fixture.dem"))
+            .expect("absolute Demo fixture path");
+        recording_demo_hash_passes()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&demo_path);
+
+        let started = port.execute(job).await.expect("start recording");
+        assert_eq!(
+            recording_demo_hash_passes()
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get(&demo_path),
+            Some(&1),
+        );
+        let cancelling = port.cancel(started).await.expect("cancel recording");
+        assert_eq!(
+            wait_for_terminal(&storage, cancelling.id).await.status,
+            JobStatus::Cancelled
+        );
+    }
+
+    #[tokio::test]
+    async fn recording_refuses_a_demo_without_a_valid_content_hash() {
+        let (_root, storage, port, job) = fixture(false).await;
+        let mut demo = storage
+            .get_demo(job.items[0].demo_id)
+            .await
+            .expect("read Demo")
+            .expect("Demo fixture");
+        demo.content_sha256 = Some("not-a-sha256".to_owned());
+        storage.put_demo(demo).await.expect("update Demo");
+
+        let error = port
+            .execute(job)
+            .await
+            .expect_err("an invalid content hash must fail closed");
+        assert!(matches!(error, DomainError::DependencyUnavailable(_)));
+        assert!(error.to_string().contains("reimported"));
+    }
+
+    #[tokio::test]
+    async fn recording_refuses_a_demo_without_any_content_hash() {
+        let (_root, storage, port, job) = fixture(false).await;
+        let mut demo = storage
+            .get_demo(job.items[0].demo_id)
+            .await
+            .expect("read Demo")
+            .expect("Demo fixture");
+        demo.content_sha256 = None;
+        storage.put_demo(demo).await.expect("update Demo");
+
+        let error = port
+            .execute(job)
+            .await
+            .expect_err("a missing content hash must fail closed");
+        assert!(matches!(error, DomainError::DependencyUnavailable(_)));
+        assert!(error.to_string().contains("reimported"));
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn recording_holds_the_verified_demo_read_only_for_the_whole_job() {
+        let (root, storage, port, job) = fixture(true).await;
+        let demo_path = root.path().join("fixture.dem");
+        let started = port.execute(job).await.expect("start recording");
+
+        let write_error = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&demo_path)
+            .expect_err("a running recording must deny new Demo writers");
+        assert_eq!(
+            write_error.raw_os_error(),
+            Some(32),
+            "the verified Demo handle should reject Windows write sharing"
+        );
+
+        let cancelling = port.cancel(started).await.expect("cancel recording");
+        let cancelled = wait_for_terminal(&storage, cancelling.id).await;
+        assert_eq!(cancelled.status, JobStatus::Cancelled);
+        for _ in 0..100 {
+            match std::fs::OpenOptions::new().write(true).open(&demo_path) {
+                Ok(_) => return,
+                Err(_) => tokio::time::sleep(Duration::from_millis(5)).await,
+            }
+        }
+        panic!("the Demo guard should be released when the job becomes terminal");
     }
 
     #[tokio::test]
@@ -2604,6 +2292,31 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn cancellation_with_failed_managed_clip_cleanup_is_failed_not_cancelled() {
+        let (external, _external_storage, _external_port, _external_job) = fixture(false).await;
+        let victim = external.path().join("external-victim.mp4");
+        let (_root, storage, _port, job) = fixture(false).await;
+        let port = RuntimeRecordingPort::new(
+            storage.clone(),
+            Arc::new(UncleanableCancelledClipBackend {
+                output_path: victim.clone(),
+            }),
+        );
+
+        let started = port.execute(job).await.expect("start recording");
+        let terminal = wait_for_terminal(&storage, started.id).await;
+
+        assert_eq!(terminal.status, JobStatus::Failed);
+        assert!(terminal.message.contains("cleanup"));
+        assert_eq!(
+            tokio::fs::read(&victim)
+                .await
+                .expect("external victim survives"),
+            b"must-not-be-deleted"
+        );
+    }
+
+    #[tokio::test]
     async fn job_resources_are_finished_after_a_recording_failure() {
         let (_root, storage, port, mut job) = fixture(false).await;
         let prepared = port.prepare(&job).await.expect("prepared job");
@@ -2611,21 +2324,31 @@ mod tests {
             begins: AtomicUsize::new(0),
             finishes: AtomicUsize::new(0),
         });
+        let cancellation = RecordingCancellation::default();
+        let persistence = Arc::new(Mutex::new(()));
         let active = Arc::new(Mutex::new(HashMap::from([(
             job.id,
-            RecordingCancellation::default(),
+            ActiveRecording {
+                cancellation: cancellation.clone(),
+                persistence: Arc::clone(&persistence),
+            },
         )])));
+        backend
+            .begin_job(&AppConfig::default(), &prepared.items)
+            .await
+            .expect("begin recording lifecycle");
         job.status = JobStatus::Running;
         storage.put_recording_job(job.clone()).await.expect("job");
-        RuntimeRecordingPort::run_job(
-            storage.clone(),
-            backend.clone(),
+        RuntimeRecordingPort::run_job(RecordingRun {
+            storage: storage.clone(),
+            backend: backend.clone(),
             active,
-            AppConfig::default(),
-            job.clone(),
+            config: AppConfig::default(),
+            job: job.clone(),
             prepared,
-            RecordingCancellation::default(),
-        )
+            cancellation,
+            persistence,
+        })
         .await;
         assert_eq!(backend.begins.load(Ordering::SeqCst), 1);
         assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
@@ -2638,6 +2361,45 @@ mod tests {
                 .status,
             JobStatus::Failed
         );
+    }
+
+    #[tokio::test]
+    async fn aborting_execute_during_begin_releases_the_job_context_and_active_reservation() {
+        let (_root, storage, _port, job) = fixture(false).await;
+        let backend = Arc::new(BlockingStartupBackend {
+            begins: AtomicUsize::new(0),
+            finishes: AtomicUsize::new(0),
+            entered: tokio::sync::Notify::new(),
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+        let first_port = port.clone();
+        let first_job = job.clone();
+        let first = tokio::spawn(async move { first_port.execute(first_job).await });
+        backend.entered.notified().await;
+
+        first.abort();
+        let _ = first.await;
+        for _ in 0..100 {
+            if backend.finishes.load(Ordering::SeqCst) == 1 && port.active.lock().await.is_empty() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 1);
+        assert!(port.active.lock().await.is_empty());
+
+        let mut next = job;
+        next.id = Uuid::new_v4();
+        let started = port
+            .execute(next)
+            .await
+            .expect("aborted startup must not block the next recording job");
+        assert_eq!(started.status, JobStatus::Running);
+        assert_eq!(
+            wait_for_terminal(&storage, started.id).await.status,
+            JobStatus::Failed
+        );
+        assert_eq!(backend.finishes.load(Ordering::SeqCst), 2);
     }
 
     #[tokio::test]
@@ -2674,24 +2436,153 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn system_backend_rejects_missing_obs_configuration_before_external_io() {
-        let root = tempfile::tempdir().expect("temporary directory");
-        let backend = SystemRecordingBackend::new(
-            root.path().to_path_buf(),
-            Arc::new(RwLock::new(GsiState::default())),
-        );
-        let mut config = AppConfig::default();
-        config.obs.host.clear();
-        config.obs.password = "must-not-appear".to_owned();
-
-        let error = backend
-            .preflight(&config, &[])
+    async fn restart_restores_verified_publication_before_retiring_backend_evidence() {
+        let (root, storage, _port, mut running) = fixture(false).await;
+        let output = root.path().join("recovered.mp4");
+        tokio::fs::write(&output, b"verified-recovered-video")
             .await
-            .expect_err("missing OBS configuration");
-        assert!(matches!(&error, DomainError::DependencyUnavailable(_)));
-        assert!(!error.to_string().contains("must-not-appear"));
-        assert!(!format!("{backend:?}").contains("must-not-appear"));
-        assert!(!root.path().join("recordings").exists());
+            .expect("recovered output");
+        let clip = RecordedClip {
+            id: Uuid::new_v4(),
+            path: output.to_string_lossy().into_owned(),
+            title: running.items[0].title.clone(),
+            duration_seconds: 1.0,
+            demo_id: Some(running.items[0].demo_id),
+            player_name: Some(running.items[0].player_id.clone()),
+            category: "highlight".to_owned(),
+            tags: Vec::new(),
+            metadata: serde_json::Value::Null,
+            created_at: Utc::now(),
+        };
+        running.status = JobStatus::Running;
+        storage
+            .put_recording_job(running.clone())
+            .await
+            .expect("persist orphaned job");
+        let backend = Arc::new(PublishedRecoveryBackend {
+            storage: storage.clone(),
+            clip: clip.clone(),
+            commits: AtomicUsize::new(0),
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+
+        port.recover_orphaned_jobs().await;
+
+        let recovered = storage
+            .get_recording_job(running.id)
+            .await
+            .expect("read recovered job")
+            .expect("recovered job");
+        assert_eq!(recovered.status, JobStatus::Completed);
+        assert_eq!(recovered.outputs, vec![clip.clone()]);
+        assert_eq!(
+            storage
+                .get_recorded_clip(clip.id)
+                .await
+                .expect("read recovered clip"),
+            Some(clip)
+        );
+        assert_eq!(backend.commits.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn restart_completes_a_fully_committed_job_after_its_lease_was_retired() {
+        let (root, storage, port, mut running) = fixture(false).await;
+        let output = root.path().join("already-committed.mp4");
+        tokio::fs::write(&output, b"already-committed-video")
+            .await
+            .expect("committed output");
+        let clip = RecordedClip {
+            id: Uuid::new_v4(),
+            path: output.to_string_lossy().into_owned(),
+            title: running.items[0].title.clone(),
+            duration_seconds: 1.0,
+            demo_id: Some(running.items[0].demo_id),
+            player_name: Some(running.items[0].player_id.clone()),
+            category: "highlight".to_owned(),
+            tags: Vec::new(),
+            metadata: serde_json::Value::Null,
+            created_at: Utc::now(),
+        };
+        running.status = JobStatus::Running;
+        running.outputs.push(clip.clone());
+        storage
+            .put_recorded_clip(clip.clone())
+            .await
+            .expect("durable clip");
+        storage
+            .put_recording_job(running.clone())
+            .await
+            .expect("durable job output");
+
+        port.recover_orphaned_jobs().await;
+
+        let recovered = storage
+            .get_recording_job(running.id)
+            .await
+            .expect("read recovered job")
+            .expect("recovered job");
+        assert_eq!(recovered.status, JobStatus::Completed);
+        assert_eq!(recovered.current_index, recovered.items.len());
+        assert!((recovered.progress - 1.0).abs() <= f64::EPSILON);
+        assert_eq!(recovered.outputs, vec![clip]);
+    }
+
+    #[tokio::test]
+    async fn restart_recovers_only_non_terminal_jobs_and_surfaces_cleanup_failure() {
+        let (_root, storage, _port, mut running) = fixture(false).await;
+        running.status = JobStatus::Running;
+        storage
+            .put_recording_job(running.clone())
+            .await
+            .expect("persist running job");
+        let mut cancelling = running.clone();
+        cancelling.id = Uuid::new_v4();
+        cancelling.status = JobStatus::Cancelling;
+        storage
+            .put_recording_job(cancelling.clone())
+            .await
+            .expect("persist cancelling job");
+        let mut completed = running.clone();
+        completed.id = Uuid::new_v4();
+        completed.status = JobStatus::Completed;
+        storage
+            .put_recording_job(completed.clone())
+            .await
+            .expect("persist completed job");
+        let backend = Arc::new(ObservingRecoveryBackend {
+            recovered: TestMutex::new(Vec::new()),
+            fail_job: cancelling.id,
+        });
+        let port = RuntimeRecordingPort::new(storage.clone(), backend.clone());
+
+        port.recover_orphaned_jobs().await;
+
+        let observed = backend
+            .recovered
+            .lock()
+            .expect("recovery observations")
+            .clone();
+        assert!(observed.contains(&running.id));
+        assert!(observed.contains(&cancelling.id));
+        assert!(!observed.contains(&completed.id));
+        let failed_cleanup = storage
+            .get_recording_job(cancelling.id)
+            .await
+            .expect("read cancelling job")
+            .expect("cancelling job exists");
+        assert_eq!(failed_cleanup.status, JobStatus::Failed);
+        assert!(failed_cleanup.message.contains("recovery failed"));
+        assert!(failed_cleanup.message.contains("lease rejection"));
+        assert_eq!(
+            storage
+                .get_recording_job(completed.id)
+                .await
+                .expect("read completed job")
+                .expect("completed job exists")
+                .status,
+            JobStatus::Completed
+        );
     }
 
     #[tokio::test]
@@ -2709,20 +2600,36 @@ mod tests {
         request.end_tick = 1_280;
         request.pre_roll_seconds = 1.0;
         request.post_roll_seconds = 0.5;
-        request.playback_speed = 2.0;
         let analysis = MatchAnalysis {
             demo_id: demo.id,
             map_name: "de_test".to_owned(),
             tick_rate: 128.0,
             duration_seconds: 30.0,
+            verified_total_ticks: Some(3_840),
             teams: Vec::new(),
-            players: Vec::new(),
+            players: vec![vibe_cs_domain::PlayerStats {
+                steam_id: "player".to_owned(),
+                spectator_slot: Some(7),
+                name: "Player".to_owned(),
+                team: "T".to_owned(),
+                kills: 0,
+                deaths: 0,
+                assists: 0,
+                headshots: 0,
+                damage: 0,
+                adr: 0.0,
+                kill_death_ratio: 0.0,
+                score: 0,
+            }],
             rounds: Vec::new(),
             highlights: Vec::new(),
         };
-        let (tick_rate, source) = select_tick_rate(Some(&analysis));
-        assert_eq!((tick_rate, source), (128.0, "persisted_analysis"));
-        assert_eq!(select_tick_rate(None), (64.0, "fallback_64"));
+        let tick_rate = authoritative_tick_rate(Some(&analysis)).expect("authoritative tick rate");
+        assert!((tick_rate - 128.0).abs() < f64::EPSILON);
+        assert!(matches!(
+            authoritative_tick_rate(None),
+            Err(DomainError::DependencyUnavailable(message)) if message.contains("reanalyzed")
+        ));
 
         let demo_path = std::path::absolute(&demo.path).expect("absolute demo path");
         let first = build_segment_plan(
@@ -2731,7 +2638,6 @@ mod tests {
             Some(&analysis),
             demo_path.clone(),
             tick_rate,
-            source,
             Uuid::from_u128(1),
         )
         .expect("first segment");
@@ -2741,35 +2647,45 @@ mod tests {
             Some(&analysis),
             demo_path.clone(),
             tick_rate,
-            source,
             Uuid::from_u128(2),
         )
         .expect("second segment");
-        let fallback = build_segment_plan(
+
+        assert_eq!(first.start_tick, 512);
+        assert_eq!(first.end_tick, 1_344);
+        assert!((first.tick_rate - 128.0).abs() < f64::EPSILON);
+        assert_eq!(first.metadata["tick_rate_source"], "persisted_analysis");
+        for retired in [
+            "show_keyboard_requested",
+            "show_kill_fx_requested",
+            "fade_requested",
+            "kill_track",
+            "input_track",
+            "input_state_bus",
+        ] {
+            assert!(first.metadata.get(retired).is_none());
+        }
+        assert_eq!(first.spectator_slot, Some(7));
+        assert_eq!(first.verified_total_ticks, Some(3_840));
+        let mut ambiguous_analysis = analysis.clone();
+        let mut conflicting_player = ambiguous_analysis.players[0].clone();
+        conflicting_player.steam_id = "another-player".to_owned();
+        ambiguous_analysis.players.push(conflicting_player);
+        let ambiguous = build_segment_plan(
             &request,
             &demo,
-            None,
-            demo_path,
-            64.0,
-            "fallback_64",
-            Uuid::from_u128(3),
+            Some(&ambiguous_analysis),
+            std::path::absolute(&demo.path).expect("absolute demo path"),
+            tick_rate,
+            Uuid::from_u128(4),
         )
-        .expect("fallback segment");
-
-        assert_eq!(first.start_tick, 384);
-        assert_eq!(first.end_tick, 1_408);
-        assert!((first.tick_rate - 128.0).abs() < f64::EPSILON);
-        assert!((first.playback_speed - 2.0).abs() < f64::EPSILON);
-        assert_eq!(first.metadata["tick_rate_source"], "persisted_analysis");
-        assert_eq!(first.metadata["tick_rate_fallback"], false);
-        assert_eq!(fallback.metadata["tick_rate_source"], "fallback_64");
-        assert_eq!(fallback.metadata["tick_rate_fallback"], true);
-        assert!((fallback.tick_rate - 64.0).abs() < f64::EPSILON);
+        .expect("ambiguous analysis remains representable for fail-closed preflight");
+        assert_eq!(ambiguous.spectator_slot, None);
         assert_ne!(first.output_file_name, second.output_file_name);
         assert!(
             Path::new(&first.output_file_name)
                 .extension()
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("mkv"))
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("mp4"))
         );
         assert_eq!(
             Path::new(&first.output_file_name)
@@ -2778,335 +2694,5 @@ mod tests {
             Some(first.output_file_name.as_str())
         );
         assert!(!first.output_file_name.contains(['/', '\\', ':']));
-
-        let mut render_item = PreparedRecording {
-            request: RecordingRequest {
-                show_keyboard: true,
-                show_kill_fx: true,
-                ..request
-            },
-            demo,
-            segment: first,
-        };
-        render_item.segment.metadata["kill_track"] = json!([{
-            "video_seconds": 1.25,
-            "weapon": "ak47",
-            "tags": ["headshot"]
-        }]);
-        render_item.segment.metadata["input_track"] = json!([
-            {"tick": 384, "input": {"forward": true, "fire": false}},
-            {"tick": 640, "input": {"forward": true, "fire": true}},
-            {"tick": 896, "input": {"forward": false, "fire": false}}
-        ]);
-        let overlays = build_recording_overlays(&render_item, 1920, 1080, 4.0);
-        assert!(overlays.iter().any(|overlay| overlay.text.contains("KILL")));
-        assert!(overlays.iter().any(|overlay| overlay.text.contains('W')));
-        assert!(overlays.iter().any(|overlay| overlay.text.contains("M1")));
-        let realtime = build_realtime_overlay_cues(&render_item);
-        assert!(realtime.iter().any(|cue| {
-            cue.action == RealtimeOverlayAction::ShowKill && cue.at == Duration::from_secs_f64(1.25)
-        }));
-        assert!(realtime.iter().any(|cue| {
-            matches!(cue.action, RealtimeOverlayAction::Keyboard(ref text) if text.contains('W'))
-        }));
-        assert!(matches!(
-            realtime.last(),
-            Some(RealtimeOverlayCue {
-                at,
-                action: RealtimeOverlayAction::Finish,
-            }) if *at == Duration::from_secs(4)
-        ));
-        render_item.segment.metadata["capture"] = json!({ "capture_delay_ms": 500 });
-        let delayed = build_recording_overlays(&render_item, 1920, 1080, 4.0);
-        assert!(delayed.iter().any(|overlay| {
-            overlay.text.contains("KILL") && (overlay.start_seconds - 1.75).abs() < f64::EPSILON
-        }));
-        assert!(build_realtime_overlay_cues(&render_item).iter().any(|cue| {
-            cue.action == RealtimeOverlayAction::ShowKill && cue.at == Duration::from_secs_f64(1.75)
-        }));
-        render_item.segment.metadata["capture"] = json!({ "capture_delay_ms": i64::MAX });
-        let rejected_delay = build_recording_overlays(&render_item, 1920, 1080, 4.0);
-        assert!(rejected_delay.iter().any(|overlay| {
-            overlay.text.contains("KILL") && (overlay.start_seconds - 1.25).abs() < f64::EPSILON
-        }));
-        assert_eq!(
-            parse_recording_resolution("1920x1080").expect("valid resolution"),
-            (1920, 1080)
-        );
-        assert!(parse_recording_resolution("automatic").is_err());
-    }
-
-    fn realtime_test_session() -> RealtimeOverlaySession {
-        RealtimeOverlaySession {
-            scene: "Gameplay".to_owned(),
-            inputs: vec!["kill".to_owned(), "keys".to_owned()],
-            kill: Some(RealtimeSceneInput {
-                name: "kill".to_owned(),
-                scene_item_id: 10,
-            }),
-            keyboard_text: Some(RealtimeSceneInput {
-                name: "keys".to_owned(),
-                scene_item_id: 11,
-            }),
-            keyboard_background: None,
-        }
-    }
-
-    fn render_metadata_fixture(kill_track: &serde_json::Value) -> PreparedRecording {
-        let demo_id = Uuid::new_v4();
-        let now = Utc::now();
-        PreparedRecording {
-            request: RecordingRequest {
-                id: Some(Uuid::new_v4()),
-                demo_id,
-                highlight_id: None,
-                player_id: "player-1".to_owned(),
-                title: "Fixture".to_owned(),
-                start_tick: 0,
-                end_tick: 256,
-                playback_speed: 1.0,
-                pre_roll_seconds: 0.0,
-                post_roll_seconds: 0.0,
-                victim_pov: false,
-                show_keyboard: false,
-                show_kill_fx: true,
-                fade: false,
-            },
-            demo: DemoRecord {
-                id: demo_id,
-                path: "fixture.dem".to_owned(),
-                file_name: "fixture.dem".to_owned(),
-                display_name: "Fixture".to_owned(),
-                source: "test".to_owned(),
-                status: vibe_cs_domain::DemoStatus::Ready,
-                map_name: None,
-                match_date: None,
-                duration_seconds: Some(4.0),
-                total_rounds: None,
-                team_a_name: None,
-                team_b_name: None,
-                team_a_score: None,
-                team_b_score: None,
-                remark: String::new(),
-                content_sha256: None,
-                file_size: 1,
-                created_at: now,
-                updated_at: now,
-            },
-            segment: SegmentPlan {
-                demo_id,
-                demo_path: PathBuf::from("fixture.dem"),
-                title: "Fixture".to_owned(),
-                player_id: "player-1".to_owned(),
-                player_name: Some("Player One".to_owned()),
-                start_tick: 0,
-                end_tick: 256,
-                tick_rate: 64.0,
-                playback_speed: 1.0,
-                output_file_name: "fixture.mkv".to_owned(),
-                category: "highlight".to_owned(),
-                tags: Vec::new(),
-                metadata: json!({
-                    "perspective": "player",
-                    "camera_player_id": "player-1",
-                    "kill_track": kill_track.clone(),
-                }),
-            },
-        }
-    }
-
-    fn render_metadata_options(item: &PreparedRecording) -> SingleInputTranscodeOptions {
-        SingleInputTranscodeOptions {
-            duration_seconds: 4.0,
-            width: 1920,
-            height: 1080,
-            fps: 60,
-            has_audio: true,
-            fade_in_seconds: 0.0,
-            fade_out_seconds: 0.0,
-            overlays: build_recording_overlays(item, 1920, 1080, 4.0),
-            encoder: select_video_encoder("libopenh264", &[]).expect("software encoder"),
-            quality: 80,
-        }
-    }
-
-    fn render_metadata_clip(item: &PreparedRecording) -> RecordedClip {
-        RecordedClip {
-            id: Uuid::new_v4(),
-            path: "fixture.mp4".to_owned(),
-            title: item.request.title.clone(),
-            duration_seconds: 4.0,
-            demo_id: Some(item.demo.id),
-            player_name: item.segment.player_name.clone(),
-            category: item.segment.category.clone(),
-            tags: Vec::new(),
-            metadata: serde_json::Value::Null,
-            created_at: Utc::now(),
-        }
-    }
-
-    #[test]
-    fn requested_kill_fx_without_events_is_reported_as_degraded_and_has_no_realtime_source() {
-        let item = render_metadata_fixture(&json!([]));
-        let cues = build_realtime_overlay_cues(&item);
-        assert!(!has_realtime_kill_cue(&cues));
-        assert!(cues.iter().all(|cue| !matches!(
-            cue.action,
-            RealtimeOverlayAction::ShowKill | RealtimeOverlayAction::HideKill
-        )));
-
-        let mut clip = render_metadata_clip(&item);
-        promote_render_metadata(&mut clip, &item, &render_metadata_options(&item));
-        assert_eq!(clip.metadata["render"]["kill_fx_requested"], true);
-        assert_eq!(clip.metadata["render"]["kill_fx_rendered"], false);
-        assert_eq!(clip.metadata["render"]["kill_fx_event_count"], 0);
-        assert_eq!(
-            clip.metadata["render"]["kill_fx_degraded_reason"],
-            "no trustworthy kill event was available for this segment"
-        );
-    }
-
-    #[test]
-    fn requested_kill_fx_with_an_event_is_reported_as_rendered_and_drives_realtime() {
-        let item = render_metadata_fixture(&json!([{
-            "video_seconds": 1.0,
-            "weapon": "ak47",
-            "tags": ["headshot"]
-        }]));
-        let cues = build_realtime_overlay_cues(&item);
-        assert!(has_realtime_kill_cue(&cues));
-        assert!(cues.iter().any(|cue| {
-            cue.action == RealtimeOverlayAction::HideKill && cue.at == Duration::from_secs_f64(1.9)
-        }));
-
-        let mut clip = render_metadata_clip(&item);
-        promote_render_metadata(&mut clip, &item, &render_metadata_options(&item));
-        assert_eq!(clip.metadata["render"]["kill_fx_requested"], true);
-        assert_eq!(clip.metadata["render"]["kill_fx_rendered"], true);
-        assert_eq!(clip.metadata["render"]["kill_fx_event_count"], 1);
-        assert!(clip.metadata["render"]["kill_fx_degraded_reason"].is_null());
-    }
-
-    async fn realtime_test_client(
-        sent: StdArc<StdMutex<Vec<serde_json::Value>>>,
-        fail_restart: bool,
-    ) -> ObsClient<RuntimeObsTransport> {
-        ObsClient::connect(
-            RuntimeObsTransport::new(sent, fail_restart),
-            &SecretString::default(),
-        )
-        .await
-        .expect("fake OBS handshake")
-    }
-
-    fn sent_request_types(sent: &StdArc<StdMutex<Vec<serde_json::Value>>>) -> Vec<String> {
-        sent.lock()
-            .unwrap()
-            .iter()
-            .filter_map(|wire| wire.pointer("/d/requestType")?.as_str().map(str::to_owned))
-            .collect()
-    }
-
-    #[tokio::test]
-    async fn realtime_overlay_driver_follows_cue_timing_and_disables_exact_inputs() {
-        let sent = StdArc::new(StdMutex::new(Vec::new()));
-        let mut client = realtime_test_client(StdArc::clone(&sent), false).await;
-        let session = realtime_test_session();
-        let cues = vec![
-            RealtimeOverlayCue {
-                at: Duration::from_millis(1),
-                action: RealtimeOverlayAction::Keyboard("W · · D".to_owned()),
-            },
-            RealtimeOverlayCue {
-                at: Duration::from_millis(2),
-                action: RealtimeOverlayAction::ShowKill,
-            },
-            RealtimeOverlayCue {
-                at: Duration::from_millis(4),
-                action: RealtimeOverlayAction::HideKill,
-            },
-        ];
-        let cancellation = RecordingCancellation::default();
-        let stop = RecordingCancellation::default();
-        let started = tokio::time::Instant::now();
-        SystemRecordingBackend::drive_realtime_overlays(
-            &mut client,
-            &session,
-            &cues,
-            &cancellation,
-            &stop,
-        )
-        .await
-        .expect("driven overlays");
-        assert!(started.elapsed() >= Duration::from_millis(3));
-        let requests = sent_request_types(&sent);
-        assert_eq!(
-            requests.first().map(String::as_str),
-            Some("GetRecordStatus")
-        );
-        assert!(
-            requests
-                .windows(2)
-                .any(|pair| { pair == ["SetSceneItemEnabled", "TriggerMediaInputAction"] })
-        );
-        let disabled = sent
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|wire| {
-                wire.pointer("/d/requestType")
-                    .and_then(serde_json::Value::as_str)
-                    == Some("SetSceneItemEnabled")
-                    && wire.pointer("/d/requestData/sceneItemEnabled")
-                        == Some(&serde_json::Value::Bool(false))
-            })
-            .count();
-        assert!(disabled >= 3, "hide plus final cleanup must be explicit");
-    }
-
-    #[tokio::test]
-    async fn realtime_overlay_driver_cancellation_and_failure_both_cleanup() {
-        let cancelled_sent = StdArc::new(StdMutex::new(Vec::new()));
-        let mut cancelled_client =
-            realtime_test_client(StdArc::clone(&cancelled_sent), false).await;
-        let session = realtime_test_session();
-        let cancellation = RecordingCancellation::default();
-        cancellation.cancel();
-        SystemRecordingBackend::drive_realtime_overlays(
-            &mut cancelled_client,
-            &session,
-            &[],
-            &cancellation,
-            &RecordingCancellation::default(),
-        )
-        .await
-        .expect("cancel cleanup");
-        assert_eq!(
-            sent_request_types(&cancelled_sent),
-            ["SetSceneItemEnabled", "SetSceneItemEnabled"]
-        );
-
-        let failed_sent = StdArc::new(StdMutex::new(Vec::new()));
-        let mut failed_client = realtime_test_client(StdArc::clone(&failed_sent), true).await;
-        let failure = SystemRecordingBackend::drive_realtime_overlays(
-            &mut failed_client,
-            &session,
-            &[RealtimeOverlayCue {
-                at: Duration::ZERO,
-                action: RealtimeOverlayAction::ShowKill,
-            }],
-            &RecordingCancellation::default(),
-            &RecordingCancellation::default(),
-        )
-        .await;
-        assert!(failure.is_err());
-        let failed_messages = failed_sent.lock().unwrap();
-        assert!(failed_messages.iter().any(|wire| {
-            wire.pointer("/d/requestType")
-                .and_then(serde_json::Value::as_str)
-                == Some("SetSceneItemEnabled")
-                && wire.pointer("/d/requestData/sceneItemEnabled")
-                    == Some(&serde_json::Value::Bool(false))
-        }));
     }
 }

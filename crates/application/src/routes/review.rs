@@ -9,7 +9,7 @@ use crate::{ApiError, ApiJson, ApiResult, AppState, LlmReviewRequest, LlmReviewR
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new().route(
-        "/api/v1/demos/{id}/review",
+        "/api/demos/{id}/review",
         post(review_demo).layer(DefaultBodyLimit::max(32 * 1024)),
     )
 }
@@ -46,5 +46,29 @@ mod tests {
             "tone": "coach"
         }));
         assert!(unknown_scope.is_err());
+    }
+
+    #[test]
+    fn request_requires_explicit_nullable_player_and_highlight_selection() {
+        let current = serde_json::json!({
+            "scope": "match",
+            "player_id": null,
+            "highlight_ids": [],
+            "tone": "coach"
+        });
+        serde_json::from_value::<LlmReviewRequest>(current.clone())
+            .expect("current explicit review request");
+
+        for field in ["player_id", "highlight_ids"] {
+            let mut missing = current.clone();
+            missing
+                .as_object_mut()
+                .expect("request object")
+                .remove(field);
+            assert!(
+                serde_json::from_value::<LlmReviewRequest>(missing).is_err(),
+                "missing {field} must not select an implicit request default"
+            );
+        }
     }
 }

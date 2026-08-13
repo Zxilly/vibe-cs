@@ -38,10 +38,10 @@ use vibe_cs_domain::{
 use vibe_cs_integrations::{
     DemoDecompressionLimits, DemoDownloadObserver, DemoDownloadPort, DemoDownloadProgress,
     DemoDownloadRequest, DependencyInspector, DownloadCancellation, GameLaunchOptions, GsiPayload,
-    GsiState, IntegrationError, LaunchCommand, MatchHistoryRequest, ObsClient, ObsTransportLimits,
-    OpenAiClient, OpenAiConfig, SecretString, SteamMatchHistoryPort, SteamMatchReference,
-    SteamWebClient, build_cs2_launch_command, decode_match_sharing_code,
-    decompress_bz2_archive_cancellable, discover_paths, parse_gsi_payload,
+    GsiState, IntegrationError, LaunchCommand, MatchHistoryRequest, OpenAiClient, OpenAiConfig,
+    SecretString, SteamMatchHistoryPort, SteamMatchReference, SteamWebClient,
+    build_cs2_launch_command, decode_match_sharing_code, decompress_bz2_archive_cancellable,
+    discover_paths, parse_gsi_payload,
 };
 use vibe_cs_storage::Storage;
 
@@ -655,6 +655,7 @@ impl RuntimeIntegrationPort {
             .storage
             .list_steam_matches(MatchHistoryQuery {
                 steam_id: Some(config.steam.steam_id.clone()),
+                search: None,
                 page: Some(1),
                 page_size: Some(1),
             })
@@ -681,6 +682,12 @@ impl RuntimeIntegrationPort {
             ));
         }
         let page = request.get("page").and_then(Value::as_u64).unwrap_or(1);
+        let search = request
+            .get("search")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned);
         let page_size = request
             .get("page_size")
             .and_then(Value::as_u64)
@@ -689,6 +696,7 @@ impl RuntimeIntegrationPort {
             .storage
             .list_steam_matches(MatchHistoryQuery {
                 steam_id: Some(config.steam.steam_id.clone()),
+                search,
                 page: Some(u32::try_from(page).unwrap_or(u32::MAX).max(1)),
                 page_size: Some(u32::try_from(page_size).unwrap_or(u32::MAX).clamp(1, 200)),
             })
@@ -994,6 +1002,29 @@ impl RuntimeIntegrationPort {
         serde_json::to_value(job).map_err(|error| json_error(&error))
     }
 
+    async fn list_active_steam_downloads(&self, config: &AppConfig) -> Result<Value, DomainError> {
+        if config.steam.steam_id.trim().is_empty() {
+            return Ok(json!([]));
+        }
+        let jobs = self
+            .storage
+            .list_active_match_download_jobs()
+            .await
+            .map_err(|error| storage_error(&error))?;
+        let mut account_jobs = Vec::new();
+        for job in jobs {
+            let record = self
+                .storage
+                .get_steam_match(job.match_record_id.clone())
+                .await
+                .map_err(|error| storage_error(&error))?;
+            if record.is_some_and(|record| record.steam_id == config.steam.steam_id) {
+                account_jobs.push(job);
+            }
+        }
+        serde_json::to_value(account_jobs).map_err(|error| json_error(&error))
+    }
+
     async fn cancel_steam_download(&self, request: &Value) -> Result<Value, DomainError> {
         let id = parse_request_uuid(request, "job_id")?;
         let mut job = self
@@ -1034,113 +1065,6 @@ impl RuntimeIntegrationPort {
         Ok(json!({ "disconnected": true }))
     }
 
-    async fn obs_status(&self, config: &AppConfig) -> Result<Value, DomainError> {
-        if config.obs.host.trim().is_empty() || config.obs.port == 0 {
-            return Err(DomainError::DependencyUnavailable(
-                "OBS WebSocket is not configured".to_owned(),
-            ));
-        }
-        let password = SecretString::new(config.obs.password.clone());
-        let mut client = ObsClient::connect_websocket(
-            config.obs.host.trim(),
-            config.obs.port,
-            &password,
-            ObsTransportLimits::default(),
-        )
-        .await
-        .map_err(integration_error)?;
-        serde_json::to_value(client.record_status().await.map_err(integration_error)?)
-            .map_err(|error| json_error(&error))
-    }
-
-    async fn obs_diagnose(&self, config: &AppConfig) -> Result<Value, DomainError> {
-        if config.obs.host.trim().is_empty() || config.obs.port == 0 {
-            return Err(DomainError::DependencyUnavailable(
-                "OBS WebSocket is not configured".to_owned(),
-            ));
-        }
-        let password = SecretString::new(config.obs.password.clone());
-        let mut client = ObsClient::connect_websocket(
-            config.obs.host.trim(),
-            config.obs.port,
-            &password,
-            ObsTransportLimits::default(),
-        )
-        .await
-        .map_err(integration_error)?;
-        let recording = client.record_status().await.map_err(integration_error)?;
-        let scenes = client.scene_status().await.map_err(integration_error)?;
-        let video = client.video_settings().await.map_err(integration_error)?;
-
-        let configured_scene = config.obs.scene.trim();
-        let scene_ready = !configured_scene.is_empty()
-            && scenes.scenes.iter().any(|scene| scene == configured_scene);
-        let expected_resolution = config.recording.resolution.trim();
-        let actual_resolution = format!("{}x{}", video.output_width, video.output_height);
-        let resolution_matches = expected_resolution.eq_ignore_ascii_case(&actual_resolution);
-        let fps_matches =
-            config.recording.fps.checked_mul(video.fps_denominator) == Some(video.fps_numerator);
-        let mut warnings = Vec::new();
-        if configured_scene.is_empty() {
-            warnings.push("no dedicated recording scene is configured".to_owned());
-        } else if !scene_ready {
-            warnings.push(format!(
-                "configured scene {configured_scene:?} is absent from OBS"
-            ));
-        }
-        if !resolution_matches {
-            warnings.push(format!(
-                "OBS output resolution is {actual_resolution}, expected {expected_resolution}"
-            ));
-        }
-        if !fps_matches {
-            warnings.push(format!(
-                "OBS frame rate is {}/{}, expected {} FPS",
-                video.fps_numerator, video.fps_denominator, config.recording.fps
-            ));
-        }
-        if recording.active {
-            warnings.push("OBS is currently recording".to_owned());
-        }
-
-        Ok(json!({
-            "dependencies": self.inspector.inspect(config),
-            "recording": recording,
-            "scenes": scenes,
-            "video": video,
-            "configured_scene": configured_scene,
-            "scene_ready": scene_ready,
-            "resolution_matches": resolution_matches,
-            "fps_matches": fps_matches,
-            "ready": warnings.is_empty(),
-            "warnings": warnings,
-        }))
-    }
-
-    fn start_obs(config: &AppConfig) -> Result<Value, DomainError> {
-        let executable = discover_paths(config).obs.ok_or_else(|| {
-            DomainError::DependencyUnavailable("OBS executable was not found".to_owned())
-        })?;
-        let mut command = tokio::process::Command::new(&executable);
-        command
-            .arg("--minimize-to-tray")
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        if let Some(parent) = executable.parent() {
-            command.current_dir(parent);
-        }
-        let child = command.spawn().map_err(|error| {
-            DomainError::DependencyUnavailable(format!("unable to start OBS: {error}"))
-        })?;
-        let process_id = child.id().ok_or_else(|| {
-            DomainError::DependencyUnavailable(
-                "OBS started without an observable process identifier".to_owned(),
-            )
-        })?;
-        Ok(json!({ "started": true, "process_id": process_id }))
-    }
-
     fn llm_client(config: &AppConfig) -> Result<OpenAiClient, DomainError> {
         let base_url = Url::parse(config.llm.base_url.trim())
             .map_err(|error| DomainError::InvalidInput(format!("invalid LLM base URL: {error}")))?;
@@ -1175,18 +1099,6 @@ impl RuntimeIntegrationPort {
             "base_url": public_base_url,
             "has_api_key": !config.llm.api_key.is_empty(),
         })
-    }
-
-    fn obs_test_config(mut config: AppConfig, request: &Value) -> Result<AppConfig, DomainError> {
-        let mut requested = serde_json::from_value::<vibe_cs_domain::ObsConfig>(request.clone())
-            .map_err(|error| {
-                DomainError::InvalidInput(format!("invalid OBS test configuration: {error}"))
-            })?;
-        if is_secret_placeholder(&requested.password) {
-            requested.password = config.obs.password;
-        }
-        config.obs = requested;
-        Ok(config)
     }
 
     fn llm_test_config(mut config: AppConfig, request: &Value) -> Result<AppConfig, DomainError> {
@@ -1865,6 +1777,7 @@ async fn import_downloaded_demo(storage: &Storage, path: &Path) -> Result<DemoRe
             team_b_name: None,
             team_a_score: None,
             team_b_score: None,
+            player_names: Vec::new(),
             remark: "Steam 比赛历史下载".to_owned(),
             content_sha256: Some(validated.sha256),
             file_size: validated.size,
@@ -1895,13 +1808,6 @@ impl IntegrationPort for RuntimeIntegrationPort {
         match capability {
             "dependency_status" => serde_json::to_value(self.inspector.inspect(&config))
                 .map_err(|error| json_error(&error)),
-            "obs_status" => self.obs_status(&config).await,
-            "obs_test" => {
-                let test_config = Self::obs_test_config(config, &request)?;
-                self.obs_status(&test_config).await
-            }
-            "obs_start" => Self::start_obs(&config),
-            "obs_diagnose" => self.obs_diagnose(&config).await,
             "llm_status" => Ok(Self::llm_status(&config)),
             "llm_test" => {
                 let test_config = Self::llm_test_config(config, &request)?;
@@ -1933,6 +1839,7 @@ impl IntegrationPort for RuntimeIntegrationPort {
                 self.test_steam_history(&test_config).await
             }
             "match_history_download" => self.start_steam_download(&config, &request).await,
+            "match_history_downloads_active" => self.list_active_steam_downloads(&config).await,
             "match_history_download_status" => self.steam_download_status(&request).await,
             "match_history_download_cancel" => self.cancel_steam_download(&request).await,
             "match_history_disconnect" => self.disconnect_steam(&config).await,
@@ -3780,26 +3687,27 @@ mod tests {
         assert_tracked_playback_is_stopped(&port, token, process_id);
     }
 
-    #[test]
-    fn connection_tests_use_ephemeral_fields_and_preserve_saved_secrets() {
-        let mut saved = AppConfig::default();
-        saved.obs.password = "saved-obs-secret".to_owned();
-        saved.llm.api_key = "saved-llm-secret".to_owned();
+    #[tokio::test]
+    async fn retired_obs_capabilities_are_not_runtime_dependencies() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let port = RuntimeIntegrationPort::new(storage, PathBuf::from("unused"));
 
-        let obs = RuntimeIntegrationPort::obs_test_config(
-            saved.clone(),
-            &json!({
-                "host": "localhost",
-                "port": 4456,
-                "password": "",
-                "executable": "",
-                "scene": "Test Scene"
-            }),
-        )
-        .expect("OBS test config");
-        assert_eq!(obs.obs.host, "localhost");
-        assert_eq!(obs.obs.port, 4456);
-        assert_eq!(obs.obs.password, "saved-obs-secret");
+        for capability in ["obs_status", "obs_test", "obs_start", "obs_diagnose"] {
+            let error = port
+                .request(capability, Value::Null)
+                .await
+                .expect_err("retired capability");
+            assert!(
+                matches!(error, DomainError::DependencyUnavailable(ref message)
+                    if message == &format!("unsupported integration capability: {capability}"))
+            );
+        }
+    }
+
+    #[test]
+    fn llm_connection_tests_use_ephemeral_fields_and_preserve_saved_secrets() {
+        let mut saved = AppConfig::default();
+        saved.llm.api_key = "saved-llm-secret".to_owned();
 
         let llm = RuntimeIntegrationPort::llm_test_config(
             saved,
@@ -3820,7 +3728,6 @@ mod tests {
     async fn status_values_never_serialize_integration_secrets() {
         let storage = Storage::open_in_memory().await.expect("storage");
         let mut config = AppConfig::default();
-        config.obs.password = "obs-secret-value".to_owned();
         config.llm.provider = "compatible".to_owned();
         config.llm.model = "model".to_owned();
         config.llm.base_url =
@@ -3834,7 +3741,6 @@ mod tests {
             .await
             .expect("status");
         let encoded = serde_json::to_string(&status).expect("JSON");
-        assert!(!encoded.contains("obs-secret-value"));
         assert!(!encoded.contains("llm-secret-value"));
         assert!(!encoded.contains("url-secret"));
         assert!(!encoded.contains("query-secret"));
@@ -3927,6 +3833,109 @@ mod tests {
             .expect("imported demo");
         assert_eq!(demo.source, "download");
         assert!(Path::new(&demo.path).is_file());
+    }
+
+    #[tokio::test]
+    async fn match_history_search_is_applied_before_runtime_pagination() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut config = AppConfig::default();
+        config.steam.steam_id = "76561198000000000".to_owned();
+        storage.put_config(config).await.expect("config");
+        let now = Utc::now();
+        let record = |token: u16, map_name: &str| SteamMatchRecord {
+            id: format!("76561198000000000:{token}"),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: token.to_string(),
+            outcome_id: token.to_string(),
+            token,
+            map_name: Some(map_name.to_owned()),
+            played_at: None,
+            score: None,
+            result: MatchHistoryResult::Unknown,
+            demo_status: MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_matches(vec![record(1, "de_mirage"), record(2, "de_nuke")])
+            .await
+            .expect("matches");
+        let port = RuntimeIntegrationPort::new(storage, PathBuf::from("unused"));
+
+        let history = port
+            .request(
+                "match_history",
+                json!({ "search": "NUKE", "page": 1, "page_size": 1 }),
+            )
+            .await
+            .expect("filtered history");
+
+        assert_eq!(history["total"], 1);
+        assert_eq!(history["items"][0]["map_name"], "de_nuke");
+    }
+
+    #[tokio::test]
+    async fn match_history_restores_only_the_configured_accounts_active_downloads() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut config = AppConfig::default();
+        config.steam.steam_id = "76561198000000000".to_owned();
+        storage.put_config(config).await.expect("config");
+        let now = Utc::now();
+        let record = |steam_id: &str, token: u16| SteamMatchRecord {
+            id: format!("{steam_id}:{token}"),
+            steam_id: steam_id.to_owned(),
+            match_id: token.to_string(),
+            outcome_id: token.to_string(),
+            token,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: MatchHistoryResult::Unknown,
+            demo_status: MatchDemoStatus::Downloading,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        let own_record = record("76561198000000000", 1);
+        let other_record = record("76561198000000001", 2);
+        storage
+            .put_steam_matches(vec![own_record.clone(), other_record.clone()])
+            .await
+            .expect("matches");
+        for (record, status) in [
+            (&own_record, MatchDownloadStatus::Downloading),
+            (&other_record, MatchDownloadStatus::Downloading),
+            (&own_record, MatchDownloadStatus::Completed),
+        ] {
+            storage
+                .put_match_download_job(MatchDownloadJob {
+                    id: Uuid::new_v4(),
+                    match_record_id: record.id.clone(),
+                    status,
+                    downloaded_bytes: 10,
+                    total_bytes: Some(100),
+                    progress: 0.1,
+                    demo_id: None,
+                    error: None,
+                    created_at: now,
+                    updated_at: now,
+                })
+                .await
+                .expect("job");
+        }
+        let port = RuntimeIntegrationPort::new(storage, PathBuf::from("unused"));
+
+        let jobs = port
+            .request("match_history_downloads_active", Value::Null)
+            .await
+            .expect("active jobs");
+
+        assert_eq!(jobs.as_array().map(Vec::len), Some(1));
+        assert_eq!(jobs[0]["match_record_id"], own_record.id);
+        assert_eq!(jobs[0]["status"], "downloading");
     }
 
     #[tokio::test]

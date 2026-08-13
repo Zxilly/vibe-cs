@@ -6,8 +6,6 @@ use crate::{
     Highlight, ReplayFrame, TrackKind, Transform,
 };
 
-pub const AGENT_PROPOSAL_SCHEMA_VERSION: u32 = 2;
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentProposalAction {
@@ -60,8 +58,8 @@ pub struct ProposalPrerequisite {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct HlaeProposalPreview {
-    pub schema_version: u32,
     pub proposal_revision: u64,
     pub ready: bool,
     pub prerequisites: Vec<ProposalPrerequisite>,
@@ -73,9 +71,9 @@ pub struct HlaeProposalPreview {
     pub typed_plan: Option<serde_json::Value>,
     pub compiled_preview: Option<serde_json::Value>,
     pub notices: Vec<String>,
-    /// Read-only discovery and launch-safety state loaded by the application
-    /// boundary. Preview/export remain available for review even when HLAE is
-    /// not installed; execution is never implied.
+    /// Read-only managed-release readiness and launch-safety state loaded by
+    /// the application boundary. Preview/export remain available for review
+    /// even when HLAE is not installed; execution is never implied.
     pub installation_status: Option<crate::HlaeStatus>,
 }
 
@@ -83,7 +81,6 @@ impl HlaeProposalPreview {
     #[must_use]
     pub fn prerequisites(items: Vec<ProposalPrerequisite>) -> Self {
         Self {
-            schema_version: AGENT_PROPOSAL_SCHEMA_VERSION,
             proposal_revision: 2,
             ready: false,
             prerequisites: items,
@@ -258,17 +255,26 @@ pub struct HighlightEditProposalRequest {
     pub demo_id: Uuid,
     pub highlight_ids: Vec<String>,
     pub intent: HighlightEditProposalIntent,
-    /// When omitted, preview prepares a new editor project. Existing projects
-    /// are always revision-bound and must provide `expected_revision`.
-    #[serde(default)]
+    /// `null` prepares a new editor project. Existing projects are always
+    /// revision-bound and must provide `expected_revision`.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub target_project_id: Option<Uuid>,
-    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub expected_revision: Option<u64>,
-    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub new_project_name: Option<String>,
 }
 
+fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct HighlightAssetMapping {
     pub highlight_id: String,
     pub recorded_clip_id: Uuid,
@@ -286,6 +292,7 @@ pub struct HighlightAssetMapping {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct HighlightEditClipInsert {
     pub highlight_id: String,
     pub recorded_clip_id: Uuid,
@@ -297,11 +304,14 @@ pub struct HighlightEditClipInsert {
     pub source_in_seconds: f64,
     pub source_out_seconds: f64,
     pub playback_speed: f64,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub transition_in: Option<HighlightEditTransition>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub transition_duration_seconds: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct HighlightEditPlan {
     pub demo_id: Uuid,
     pub intent: HighlightEditProposalIntent,
@@ -878,6 +888,101 @@ mod tests {
 
     use super::*;
 
+    fn current_preview_with_managed_status() -> serde_json::Value {
+        let mut current = serde_json::to_value(HlaeProposalPreview::prerequisites(Vec::new()))
+            .expect("serialize current proposal preview");
+        current["installation_status"] = serde_json::json!({
+            "available": false,
+            "executable": null,
+            "source2_hook": null,
+            "source": null,
+            "managed_release": {
+                "version": "reviewed-release",
+                "archive_sha256": "a".repeat(64),
+                "signing_fingerprint": "reviewed-fingerprint",
+                "prepared": false
+            },
+            "messages": ["prepare the managed movie engine"],
+            "cs2_executable": null,
+            "launch_profile_ready": false,
+            "automatic_launch_enabled": false,
+            "insecure_mode_required": true,
+            "vac_servers_prohibited": true,
+            "demo_playback_only": true
+        });
+        current
+    }
+
+    #[test]
+    fn hlae_preview_accepts_only_the_current_exact_shape() {
+        let preview = HlaeProposalPreview::prerequisites(Vec::new());
+        let current = serde_json::to_value(&preview).expect("serialize current proposal preview");
+        assert_eq!(
+            serde_json::from_value::<HlaeProposalPreview>(current.clone())
+                .expect("current proposal preview shape"),
+            preview
+        );
+
+        let mut invalid = current;
+        invalid["unexpected"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<HlaeProposalPreview>(invalid).is_err());
+    }
+
+    #[test]
+    fn hlae_preview_serializes_only_the_current_managed_status() {
+        let mut preview = HlaeProposalPreview::prerequisites(Vec::new());
+        preview.installation_status = Some(crate::HlaeStatus {
+            available: false,
+            executable: None,
+            source2_hook: None,
+            source: None,
+            managed_release: crate::ManagedHlaeReleaseStatus {
+                version: "reviewed-release".to_owned(),
+                archive_sha256: "a".repeat(64),
+                signing_fingerprint: "reviewed-fingerprint".to_owned(),
+                prepared: false,
+            },
+            messages: vec!["prepare the managed movie engine".to_owned()],
+            cs2_executable: None,
+            launch_profile_ready: false,
+            automatic_launch_enabled: false,
+            insecure_mode_required: true,
+            vac_servers_prohibited: true,
+            demo_playback_only: true,
+        });
+
+        let encoded = serde_json::to_value(preview).expect("serialize HLAE proposal preview");
+        let status = encoded["installation_status"]
+            .as_object()
+            .expect("managed HLAE status object");
+
+        assert!(!status.contains_key("configured_path"));
+        assert!(!status.contains_key("checked_locations"));
+        assert_eq!(status["source"], serde_json::Value::Null);
+        assert!(status.contains_key("managed_release"));
+    }
+
+    #[test]
+    fn hlae_preview_rejects_unknown_managed_status_fields() {
+        let mut current = current_preview_with_managed_status();
+        serde_json::from_value::<HlaeProposalPreview>(current.clone())
+            .expect("current managed HLAE status");
+
+        current["installation_status"]["configured_path"] =
+            serde_json::json!("retired-manual-path");
+
+        assert!(serde_json::from_value::<HlaeProposalPreview>(current).is_err());
+    }
+
+    #[test]
+    fn hlae_preview_rejects_unknown_managed_release_fields() {
+        let mut current = current_preview_with_managed_status();
+        current["installation_status"]["managed_release"]["legacy_source"] =
+            serde_json::json!("manual");
+
+        assert!(serde_json::from_value::<HlaeProposalPreview>(current).is_err());
+    }
+
     #[test]
     fn highlight_intent_rejects_untyped_renderer_transitions() {
         let request = serde_json::json!({
@@ -891,6 +996,102 @@ mod tests {
         });
         assert!(serde_json::from_value::<HighlightEditProposalRequest>(request).is_err());
     }
+
+    #[test]
+    fn highlight_edit_request_requires_the_current_explicit_nullable_shape() {
+        let current = serde_json::json!({
+            "demo_id": Uuid::new_v4(),
+            "highlight_ids": ["h-1"],
+            "intent": {
+                "pacing": "energetic",
+                "include_context_seconds": 2.0,
+                "transition": "slide"
+            },
+            "target_project_id": null,
+            "expected_revision": null,
+            "new_project_name": null
+        });
+        let parsed = serde_json::from_value::<HighlightEditProposalRequest>(current.clone())
+            .expect("current request shape");
+        assert_eq!(parsed.target_project_id, None);
+        assert_eq!(parsed.expected_revision, None);
+        assert_eq!(parsed.new_project_name, None);
+
+        for field in ["target_project_id", "expected_revision", "new_project_name"] {
+            let mut missing = current.clone();
+            missing
+                .as_object_mut()
+                .expect("request object")
+                .remove(field);
+            assert!(
+                serde_json::from_value::<HighlightEditProposalRequest>(missing).is_err(),
+                "missing {field} must not select an implicit retired default"
+            );
+        }
+    }
+
+    #[test]
+    fn highlight_edit_plan_accepts_only_the_current_exact_shape() {
+        let current = serde_json::json!({
+            "demo_id": Uuid::new_v4(),
+            "intent": {
+                "pacing": "measured",
+                "include_context_seconds": 0.0,
+                "transition": "cut"
+            },
+            "project_id": Uuid::new_v4(),
+            "project_name": "Current edit",
+            "create_project": false,
+            "expected_revision": 1,
+            "target_track_id": Uuid::new_v4(),
+            "create_track": false,
+            "mappings": [{
+                "highlight_id": "h-1",
+                "recorded_clip_id": Uuid::new_v4(),
+                "path": "managed.mp4",
+                "duration_seconds": 3.0,
+                "file_size": 5,
+                "content_sha256": "00".repeat(32),
+                "capture_start_tick": 0,
+                "capture_end_tick": 192,
+                "tick_rate": 64.0,
+                "capture_playback_speed": 1.0
+            }],
+            "insertions": [{
+                "highlight_id": "h-1",
+                "recorded_clip_id": Uuid::new_v4(),
+                "editor_clip_id": Uuid::new_v4(),
+                "timeline_start_seconds": 0.0,
+                "timeline_end_seconds": 3.0,
+                "source_start_tick": 0,
+                "source_end_tick": 192,
+                "source_in_seconds": 0.0,
+                "source_out_seconds": 3.0,
+                "playback_speed": 1.0,
+                "transition_in": null,
+                "transition_duration_seconds": null
+            }]
+        });
+        serde_json::from_value::<HighlightEditPlan>(current.clone())
+            .expect("current highlight edit plan");
+
+        let mut retired = current.clone();
+        retired["insertions"][0]["legacy_transition"] = serde_json::json!("fade");
+        assert!(serde_json::from_value::<HighlightEditPlan>(retired).is_err());
+
+        for field in ["transition_in", "transition_duration_seconds"] {
+            let mut missing = current.clone();
+            missing["insertions"][0]
+                .as_object_mut()
+                .expect("highlight insertion")
+                .remove(field);
+            assert!(
+                serde_json::from_value::<HighlightEditPlan>(missing).is_err(),
+                "missing {field} must not select an implicit retired default"
+            );
+        }
+    }
+
     use crate::{BeatAlignedClip, EditorClip, EditorTrack, TrackKind, Transform};
 
     fn project() -> EditorProject {

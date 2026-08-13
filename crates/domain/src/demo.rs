@@ -2,6 +2,18 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub const MAX_DEMO_PLAYER_SUMMARY_NAMES: usize = 64;
+pub const DEMO_MAX_PAGE: u32 = 100_000;
+pub const DEMO_MAX_PAGE_SIZE: u32 = 200;
+
+fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DemoStatus {
@@ -14,7 +26,28 @@ pub enum DemoStatus {
     Missing,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DemoSort {
+    #[default]
+    UpdatedDesc,
+    UpdatedAsc,
+    FileAsc,
+    FileDesc,
+    StatusAsc,
+    StatusDesc,
+    MapAsc,
+    MapDesc,
+    ScoreAsc,
+    ScoreDesc,
+    DurationAsc,
+    DurationDesc,
+    RoundsAsc,
+    RoundsDesc,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct DemoRecord {
     pub id: Uuid,
     pub path: String,
@@ -22,15 +55,25 @@ pub struct DemoRecord {
     pub display_name: String,
     pub source: String,
     pub status: DemoStatus,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub map_name: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub match_date: Option<DateTime<Utc>>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub duration_seconds: Option<f64>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub total_rounds: Option<u32>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub team_a_name: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub team_b_name: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub team_a_score: Option<u32>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub team_b_score: Option<u32>,
+    pub player_names: Vec<String>,
     pub remark: String,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub content_sha256: Option<String>,
     pub file_size: u64,
     pub created_at: DateTime<Utc>,
@@ -43,6 +86,7 @@ pub struct DemoQuery {
     pub source: Option<String>,
     pub map_name: Option<String>,
     pub status: Option<DemoStatus>,
+    pub sort: Option<DemoSort>,
     pub page: Option<u32>,
     pub page_size: Option<u32>,
 }
@@ -54,14 +98,10 @@ pub struct DemoPatch {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ScanRequest {
     pub paths: Vec<String>,
-    #[serde(default = "default_true")]
     pub recursive: bool,
-}
-
-const fn default_true() -> bool {
-    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -73,9 +113,12 @@ pub struct ScanResult {
     pub errors: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PlayerStats {
     pub steam_id: String,
+    /// One-based CS2 spectator target derived from `CMsgPlayerInfo.userid`.
+    /// It is absent when the parser did not observe one unambiguous slot in 1..=64.
+    pub spectator_slot: Option<u8>,
     pub name: String,
     pub team: String,
     pub kills: u32,
@@ -84,14 +127,131 @@ pub struct PlayerStats {
     pub headshots: u32,
     pub damage: u32,
     pub adr: f64,
-    pub rating: f64,
+    /// `kills / max(deaths, 1)` from the parsed scoreboard totals.
+    pub kill_death_ratio: f64,
     pub score: i32,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PlayerStatsInput {
+    steam_id: String,
+    spectator_slot: RequiredNullable<u8>,
+    name: String,
+    team: String,
+    kills: u32,
+    deaths: u32,
+    assists: u32,
+    headshots: u32,
+    damage: u32,
+    adr: f64,
+    kill_death_ratio: f64,
+    score: i32,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum RequiredNullable<T> {
+    Value(T),
+    Null(()),
+}
+
+impl<T> RequiredNullable<T> {
+    fn into_option(self) -> Option<T> {
+        match self {
+            Self::Value(value) => Some(value),
+            Self::Null(()) => None,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for PlayerStats {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let input = PlayerStatsInput::deserialize(deserializer)?;
+        Ok(Self {
+            steam_id: input.steam_id,
+            spectator_slot: input.spectator_slot.into_option(),
+            name: input.name,
+            team: input.team,
+            kills: input.kills,
+            deaths: input.deaths,
+            assists: input.assists,
+            headshots: input.headshots,
+            damage: input.damage,
+            adr: input.adr,
+            kill_death_ratio: input.kill_death_ratio,
+            score: input.score,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct TeamSummary {
     pub name: String,
     pub side: String,
     pub score: u32,
     pub players: Vec<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn current_demo_record() -> DemoRecord {
+        let now = Utc::now();
+        DemoRecord {
+            id: Uuid::new_v4(),
+            path: "C:/demos/match.dem".to_owned(),
+            file_name: "match.dem".to_owned(),
+            display_name: "Match".to_owned(),
+            source: "local".to_owned(),
+            status: DemoStatus::Ready,
+            map_name: None,
+            match_date: None,
+            duration_seconds: None,
+            total_rounds: None,
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: Vec::new(),
+            remark: String::new(),
+            content_sha256: None,
+            file_size: 0,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    #[test]
+    fn demo_record_requires_every_current_nullable_field() {
+        let current = serde_json::to_value(current_demo_record()).expect("current demo record");
+        serde_json::from_value::<DemoRecord>(current.clone()).expect("current demo record shape");
+
+        for field in [
+            "map_name",
+            "match_date",
+            "duration_seconds",
+            "total_rounds",
+            "team_a_name",
+            "team_b_name",
+            "team_a_score",
+            "team_b_score",
+            "content_sha256",
+        ] {
+            let mut missing = current.clone();
+            missing
+                .as_object_mut()
+                .expect("demo record object")
+                .remove(field);
+            assert!(
+                serde_json::from_value::<DemoRecord>(missing).is_err(),
+                "missing current field {field} must be rejected"
+            );
+        }
+    }
 }

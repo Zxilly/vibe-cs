@@ -121,7 +121,7 @@ impl AgentBridge {
             .and_then(|value| value.duration_since(std::time::UNIX_EPOCH).ok())
             .map_or(0, |value| value.as_nanos());
         let key = format!(
-            "{asset_id}:{}:{}:{modified}:default-v1",
+            "{asset_id}:{}:{}:{modified}:default",
             asset.path,
             metadata.len()
         );
@@ -196,20 +196,18 @@ pub(crate) struct AgentStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct AgentMessage {
     id: Uuid,
     role: String,
     content: String,
     created_at: String,
-    #[serde(default)]
     tool_calls: Vec<AgentToolCall>,
-    #[serde(default)]
     proposals: Vec<AgentProposal>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct AgentThread {
     id: Uuid,
     messages: Vec<AgentMessage>,
@@ -217,7 +215,7 @@ pub(crate) struct AgentThread {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct AgentToolCall {
     name: String,
     input: Value,
@@ -225,7 +223,7 @@ pub(crate) struct AgentToolCall {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct AgentProposal {
     kind: String,
     title: String,
@@ -236,12 +234,24 @@ pub(crate) struct AgentProposal {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub(crate) struct AgentChatInput {
     request_id: Uuid,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     thread_id: Option<Uuid>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     demo_id: Option<Uuid>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     editor_project_id: Option<Uuid>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     audio_asset_id: Option<Uuid>,
     mode: AgentMode,
     message: String,
+}
+
+fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -1011,6 +1021,46 @@ mod tests {
         assert!(selected.iter().any(|item| item["id"] == "round-21-niko-3k"));
         for round in 1..=21 {
             assert!(selected.iter().any(|item| item["round"] == round));
+        }
+    }
+
+    #[test]
+    fn persisted_agent_messages_require_the_complete_current_shape() {
+        let value = json!({
+            "id": Uuid::new_v4(),
+            "role": "assistant",
+            "content": "done",
+            "createdAt": Utc::now().to_rfc3339(),
+            "proposals": []
+        });
+
+        assert!(serde_json::from_value::<AgentMessage>(value).is_err());
+    }
+
+    #[test]
+    fn agent_chat_requires_explicit_nullable_context_fields() {
+        let current = json!({
+            "requestId": Uuid::new_v4(),
+            "threadId": null,
+            "demoId": null,
+            "editorProjectId": null,
+            "audioAssetId": null,
+            "mode": "guide",
+            "message": "Review this match"
+        });
+        serde_json::from_value::<AgentChatInput>(current.clone())
+            .expect("current explicit agent chat request");
+
+        for field in ["threadId", "demoId", "editorProjectId", "audioAssetId"] {
+            let mut missing = current.clone();
+            missing
+                .as_object_mut()
+                .expect("agent chat object")
+                .remove(field);
+            assert!(
+                serde_json::from_value::<AgentChatInput>(missing).is_err(),
+                "missing {field} must not select an implicit context default"
+            );
         }
     }
 

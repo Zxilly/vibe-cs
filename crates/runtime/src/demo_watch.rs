@@ -631,6 +631,7 @@ async fn upsert_watched_demo(
             record.team_b_name = existing.team_b_name;
             record.team_a_score = existing.team_a_score;
             record.team_b_score = existing.team_b_score;
+            record.player_names = existing.player_names;
             record.status = if existing.status == DemoStatus::Missing {
                 DemoStatus::Discovered
             } else {
@@ -681,6 +682,7 @@ fn demo_record(validated: ValidatedDemo, source: &str) -> DemoRecord {
         team_b_name: None,
         team_a_score: None,
         team_b_score: None,
+        player_names: Vec::new(),
         remark: String::new(),
         content_sha256: Some(validated.sha256),
         file_size: validated.size,
@@ -806,10 +808,14 @@ mod tests {
             })
         })
         .await;
-        storage
-            .set_demo_status(record.id, DemoStatus::Ready)
+        let mut summarized = storage
+            .get_demo(record.id)
             .await
-            .expect("ready after replacement");
+            .expect("demo")
+            .expect("record");
+        summarized.status = DemoStatus::Ready;
+        summarized.player_names = vec!["FalleN".to_owned(), "m0NESY".to_owned()];
+        storage.put_demo(summarized).await.expect("ready summary");
 
         std::fs::remove_file(&demo).expect("remove demo");
         wait_for(|| {
@@ -825,7 +831,7 @@ mod tests {
         })
         .await;
 
-        std::fs::write(&demo, b"PBDEMS2\0version1").expect("restore demo");
+        std::fs::write(&demo, b"PBDEMS2\0version2").expect("restore demo");
         wait_for(|| {
             let storage = storage.clone();
             Box::pin(async move {
@@ -838,6 +844,15 @@ mod tests {
             })
         })
         .await;
+        assert_eq!(
+            storage
+                .get_demo(record.id)
+                .await
+                .expect("demo")
+                .expect("record")
+                .player_names,
+            vec!["FalleN", "m0NESY"]
+        );
     }
 
     #[tokio::test]

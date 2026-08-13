@@ -16,14 +16,14 @@ const AVATAR_CACHE_HEADER: HeaderName = HeaderName::from_static("x-vibe-cs-avata
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/players", get(list_players))
-        .route("/api/v1/players/{steam_id}", get(get_player))
+        .route("/api/players", get(list_players))
+        .route("/api/players/{steam_id}", get(get_player))
         .route(
-            "/api/v1/players/{steam_id}/avatar",
+            "/api/players/{steam_id}/avatar",
             get(get_avatar).head(head_avatar),
         )
         .route(
-            "/api/v1/avatar-cache",
+            "/api/avatar-cache",
             get(avatar_cache_status).delete(clear_avatar_cache),
         )
 }
@@ -211,7 +211,6 @@ mod tests {
 
         async fn avatar_cache_status(&self) -> Result<AvatarCacheStatus, DomainError> {
             Ok(AvatarCacheStatus {
-                version: 1,
                 entries: 1,
                 bytes: 14,
                 maximum_entries: 500,

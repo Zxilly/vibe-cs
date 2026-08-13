@@ -1,29 +1,16 @@
-use std::{
-    collections::BTreeSet,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
 use crate::{HlaeDiscovery, HlaeDiscoverySource, HlaeError, HlaeInstallation};
 
 const HLAE_EXECUTABLE: &str = "HLAE.exe";
 const SOURCE2_HOOK: &str = "x64/AfxHookSource2.dll";
 
-/// Finds an existing installation without launching or inspecting executable code.
+/// Finds the integrity-verified application-managed release without launching
+/// or inspecting executable code.
 #[must_use]
-pub fn discover_hlae(configured_path: Option<&Path>) -> HlaeDiscovery {
-    let mut candidates = Vec::new();
-    if let Some(path) = configured_path {
-        candidates.push((normalize_candidate(path), HlaeDiscoverySource::Configured));
-    }
-    candidates.extend(
-        common_candidates()
-            .into_iter()
-            .map(|path| (path, HlaeDiscoverySource::CommonLocation)),
-    );
-
-    let mut seen = BTreeSet::new();
-    candidates.retain(|(path, _)| seen.insert(path.clone()));
-    let checked_locations = candidates.iter().map(|(path, _)| path.clone()).collect();
+pub fn discover_managed_hlae(managed_root: &Path) -> HlaeDiscovery {
+    let executable = crate::managed_hlae_release_directory(managed_root).join(HLAE_EXECUTABLE);
+    let checked_locations = vec![executable];
 
     if !cfg!(windows) {
         return HlaeDiscovery {
@@ -33,13 +20,11 @@ pub fn discover_hlae(configured_path: Option<&Path>) -> HlaeDiscovery {
         };
     }
 
-    let installation = candidates
-        .into_iter()
-        .find_map(|(executable, source)| installation_from_executable(&executable, source).ok());
+    let installation = crate::verify_managed_hlae_installation(managed_root).ok();
     let messages = if installation.is_some() {
         Vec::new()
     } else {
-        vec!["No complete HLAE installation was found; configure HLAE.exe manually".to_owned()]
+        vec!["No integrity-verified app-managed HLAE release was found".to_owned()]
     };
     HlaeDiscovery {
         installation,
@@ -54,13 +39,12 @@ pub fn discover_hlae(configured_path: Option<&Path>) -> HlaeDiscovery {
 ///
 /// Returns [`HlaeError::InvalidInstallation`] when the executable name or the
 /// Source 2 hook is missing.
-pub fn installation_from_executable(
+pub(crate) fn installation_from_executable(
     executable: &Path,
-    source: HlaeDiscoverySource,
 ) -> Result<HlaeInstallation, HlaeError> {
     if !is_named(executable, HLAE_EXECUTABLE) {
         return Err(HlaeError::InvalidInstallation(
-            "the configured executable must be named HLAE.exe".to_owned(),
+            "the HLAE executable must be named HLAE.exe".to_owned(),
         ));
     }
     if !executable.is_file() {
@@ -81,30 +65,8 @@ pub fn installation_from_executable(
         root: root.to_path_buf(),
         executable: executable.to_path_buf(),
         source2_hook,
-        source,
+        source: HlaeDiscoverySource::Managed,
     })
-}
-
-fn normalize_candidate(path: &Path) -> PathBuf {
-    if path.is_dir() {
-        path.join(HLAE_EXECUTABLE)
-    } else {
-        path.to_path_buf()
-    }
-}
-
-fn common_candidates() -> Vec<PathBuf> {
-    let mut candidates = Vec::new();
-    for variable in ["ProgramFiles(x86)", "ProgramFiles"] {
-        if let Some(root) = std::env::var_os(variable) {
-            candidates.push(PathBuf::from(root).join("HLAE/HLAE.exe"));
-        }
-    }
-    if let Some(root) = std::env::var_os("LOCALAPPDATA") {
-        candidates.push(PathBuf::from(root).join("HLAE/HLAE.exe"));
-    }
-    candidates.push(PathBuf::from(r"C:\HLAE\HLAE.exe"));
-    candidates
 }
 
 fn is_named(path: &Path, expected: &str) -> bool {
@@ -118,6 +80,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn managed_discovery_never_accepts_a_manual_or_common_location() {
+        let root = tempfile::tempdir().unwrap();
+        let executable = root.path().join(HLAE_EXECUTABLE);
+        let hook = root.path().join(SOURCE2_HOOK);
+        std::fs::create_dir_all(hook.parent().unwrap()).unwrap();
+        std::fs::write(&executable, b"manual fixture").unwrap();
+        std::fs::write(&hook, b"manual fixture").unwrap();
+
+        let discovery = discover_managed_hlae(root.path());
+
+        assert!(discovery.installation.is_none());
+        assert_eq!(
+            discovery.checked_locations,
+            vec![crate::managed_hlae_release_directory(root.path()).join(HLAE_EXECUTABLE)]
+        );
+        assert!(
+            discovery
+                .messages
+                .iter()
+                .all(|message| !message.contains("configure") && !message.contains("manually"))
+        );
+    }
+
+    #[test]
     fn validates_executable_and_source2_hook_without_running_them() {
         let root = tempfile::tempdir().unwrap();
         let executable = root.path().join("HLAE.exe");
@@ -126,8 +112,7 @@ mod tests {
         std::fs::write(&executable, b"not executed").unwrap();
         std::fs::write(&hook, b"not loaded").unwrap();
 
-        let installation =
-            installation_from_executable(&executable, HlaeDiscoverySource::Configured).unwrap();
+        let installation = installation_from_executable(&executable).unwrap();
 
         assert_eq!(installation.executable, executable);
         assert_eq!(installation.source2_hook, hook);
@@ -138,8 +123,6 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let executable = root.path().join("HLAE.exe");
         std::fs::write(&executable, b"not executed").unwrap();
-        assert!(
-            installation_from_executable(&executable, HlaeDiscoverySource::Configured).is_err()
-        );
+        assert!(installation_from_executable(&executable).is_err());
     }
 }

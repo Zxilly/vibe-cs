@@ -10,13 +10,13 @@ pub enum RecordingError {
     Cancelled { stage: &'static str },
     #[error("timed out while waiting for {stage}")]
     Timeout { stage: &'static str },
-    #[error("OBS is already recording")]
-    ObsBusy,
+    #[error("the capture backend is already active")]
+    CaptureBusy,
     #[error("configuration recovery is pending and must be resolved before recording")]
     RecoveryPending,
     #[error("expected observer {expected}, but playback reported {actual}")]
     ObserverMismatch { expected: String, actual: String },
-    #[error("OBS did not return a recording output path")]
+    #[error("the capture backend did not return an output artifact")]
     OutputMissing,
     #[error("recording output {path} is invalid: {reason}")]
     OutputInvalid { path: PathBuf, reason: String },
@@ -42,6 +42,20 @@ pub enum RecordingError {
 }
 
 pub type RecordingResult<T> = Result<T, RecordingError>;
+
+impl RecordingError {
+    /// Creates the backend-neutral busy error.
+    #[must_use]
+    pub const fn capture_busy() -> Self {
+        Self::CaptureBusy
+    }
+
+    /// Reports whether capture could not start because the backend was active.
+    #[must_use]
+    pub const fn is_capture_busy(&self) -> bool {
+        matches!(self, Self::CaptureBusy)
+    }
+}
 
 pub(crate) fn io_error(
     operation: &'static str,

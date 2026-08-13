@@ -1,4 +1,4 @@
-use std::{ffi::OsString, path::PathBuf, sync::Arc};
+use std::{ffi::OsString, sync::Arc};
 
 use tokio::sync::watch;
 
@@ -6,22 +6,13 @@ use crate::FfmpegProgress;
 
 pub type ProgressCallback = Arc<dyn Fn(FfmpegProgress) + Send + Sync>;
 
-/// Validated, generated media-plan tokens. The `program` field is retained as
-/// a compatibility label for persisted/debug plans; it is never executed.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Validated, generated native media-plan tokens.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CommandSpec {
-    pub program: PathBuf,
     pub args: Vec<OsString>,
 }
 
 impl CommandSpec {
-    pub fn new(program: impl Into<PathBuf>) -> Self {
-        Self {
-            program: program.into(),
-            args: Vec::new(),
-        }
-    }
-
     #[must_use]
     pub fn arg(mut self, value: impl Into<OsString>) -> Self {
         self.args.push(value.into());

@@ -19,6 +19,8 @@ pub enum DomainError {
     Conflict(String),
     #[error("external dependency is unavailable: {0}")]
     DependencyUnavailable(String),
+    #[error("artifact cleanup failed: {0}")]
+    CleanupFailed(String),
     #[error("internal operation failed: {0}")]
     Internal(String),
 }
@@ -31,7 +33,7 @@ impl DomainError {
             Self::InvalidInput(_) => "invalid_input",
             Self::Conflict(_) => "conflict",
             Self::DependencyUnavailable(_) => "dependency_unavailable",
-            Self::Internal(_) => "internal_error",
+            Self::CleanupFailed(_) | Self::Internal(_) => "internal_error",
         };
         ErrorBody {
             code: code.to_owned(),

@@ -2,17 +2,21 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// Current stable JSON contract understood by the HLAE planner.
-pub const HLAE_PLAN_SCHEMA_VERSION: u32 = 2;
-/// Current integrity-manifest contract for a completed exported bundle.
-pub const HLAE_BUNDLE_MANIFEST_SCHEMA_VERSION: u32 = 1;
 pub const HLAE_BUNDLE_MANIFEST_FILE: &str = "vibe_cs_bundle.complete.json";
 pub const HLAE_BUNDLE_MANIFEST_PRODUCER: &str = "vibe-cs-hlae";
 pub const HLAE_BUNDLE_README_FILE: &str = "README.txt";
 pub const HLAE_BUNDLE_LAUNCH_PROFILE_FILE: &str = "vibe_cs_launch_profile.json";
 
+fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HlaeInstallation {
     pub root: PathBuf,
     pub executable: PathBuf,
@@ -23,13 +27,13 @@ pub struct HlaeInstallation {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum HlaeDiscoverySource {
-    Configured,
-    CommonLocation,
+    Managed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HlaeDiscovery {
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub installation: Option<HlaeInstallation>,
     pub checked_locations: Vec<PathBuf>,
     pub messages: Vec<String>,
@@ -148,7 +152,6 @@ impl Default for CaptureSettings {
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct HlaePlan {
-    pub schema_version: u32,
     pub mode: HlaePlanMode,
     /// Tick rate parsed from the selected demo. Camera times are derived from
     /// this evidence instead of assuming a 64 tick demo.
@@ -174,15 +177,16 @@ pub enum HlaeNoticeCode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HlaeNotice {
     pub code: HlaeNoticeCode,
     pub message: String,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub shot_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct GeneratedArtifact {
     pub path: PathBuf,
     pub media_type: String,
@@ -190,9 +194,8 @@ pub struct GeneratedArtifact {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CompiledHlaePlan {
-    pub schema_version: u32,
     pub mode: HlaePlanMode,
     pub first_tick: u64,
     pub last_tick: u64,
@@ -203,7 +206,7 @@ pub struct CompiledHlaePlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ExportedHlaePlan {
     pub directory: PathBuf,
     pub files: Vec<PathBuf>,
@@ -226,7 +229,6 @@ pub struct HlaeBundleArtifactManifest {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HlaeBundleManifest {
-    pub schema_version: u32,
     pub state: String,
     pub producer: String,
     pub artifacts: Vec<HlaeBundleArtifactManifest>,
@@ -238,6 +240,9 @@ pub struct HlaeBundleManifest {
 pub struct HlaeBundleLaunchInputs {
     pub installation: HlaeInstallation,
     pub game_executable: PathBuf,
+    /// Existing Steam client executable used to reproduce HLAE's official
+    /// Source 2 launch environment without relying on inherited variables.
+    pub steam_executable: PathBuf,
     pub resolution: LaunchResolution,
 }
 
@@ -245,7 +250,6 @@ pub struct HlaeBundleLaunchInputs {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HlaeBundleLaunchHandoff {
-    pub schema_version: u32,
     pub launch_profile: HlaeLaunchProfile,
     pub demo_path: PathBuf,
     pub bootstrap_config: String,
@@ -256,7 +260,7 @@ pub struct HlaeBundleLaunchHandoff {
 ///
 /// Arguments remain separate values so downstream callers do not need a shell.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HlaeLaunchProfile {
     pub hlae_executable: PathBuf,
     pub hook_library: PathBuf,
@@ -267,7 +271,7 @@ pub struct HlaeLaunchProfile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HlaeSafetyPolicy {
     pub insecure_mode_required: bool,
     pub vac_servers_prohibited: bool,
@@ -275,8 +279,94 @@ pub struct HlaeSafetyPolicy {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct LaunchResolution {
     pub width: u32,
     pub height: u32,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nested_hlae_documents_reject_fields_outside_the_current_contract() {
+        let installation = HlaeInstallation {
+            root: PathBuf::from("C:/VibeCS/hlae"),
+            executable: PathBuf::from("C:/VibeCS/hlae/HLAE.exe"),
+            source2_hook: PathBuf::from("C:/VibeCS/hlae/AfxHookSource2.dll"),
+            source: HlaeDiscoverySource::Managed,
+        };
+        let inputs = HlaeBundleLaunchInputs {
+            installation,
+            game_executable: PathBuf::from("C:/Steam/cs2.exe"),
+            steam_executable: PathBuf::from("C:/Steam/steam.exe"),
+            resolution: LaunchResolution {
+                width: 1_920,
+                height: 1_080,
+            },
+        };
+        let current = serde_json::to_value(inputs).expect("serialize current launch inputs");
+
+        for pointer in ["/installation", "/resolution"] {
+            let mut invalid = current.clone();
+            invalid.pointer_mut(pointer).expect("nested HLAE node")["retiredField"] =
+                serde_json::json!(true);
+            assert!(
+                serde_json::from_value::<HlaeBundleLaunchInputs>(invalid).is_err(),
+                "unknown field at {pointer} must be rejected"
+            );
+        }
+
+        let discovery = HlaeDiscovery {
+            installation: None,
+            checked_locations: Vec::new(),
+            messages: Vec::new(),
+        };
+        let mut missing_installation =
+            serde_json::to_value(discovery).expect("serialize current discovery");
+        missing_installation
+            .as_object_mut()
+            .expect("discovery object")
+            .remove("installation");
+        assert!(serde_json::from_value::<HlaeDiscovery>(missing_installation).is_err());
+
+        let compiled = CompiledHlaePlan {
+            mode: HlaePlanMode::Preview,
+            first_tick: 1,
+            last_tick: 2,
+            bootstrap_config: GeneratedArtifact {
+                path: PathBuf::from("bootstrap.cfg"),
+                media_type: "text/plain".to_owned(),
+                contents: "exec".to_owned(),
+            },
+            command_system: GeneratedArtifact {
+                path: PathBuf::from("commands.xml"),
+                media_type: "application/xml".to_owned(),
+                contents: "<commandSystem/>".to_owned(),
+            },
+            camera_paths: Vec::new(),
+            notices: vec![HlaeNotice {
+                code: HlaeNoticeCode::PreviewDoesNotRecord,
+                message: "preview".to_owned(),
+                shot_id: None,
+            }],
+        };
+        let current = serde_json::to_value(compiled).expect("serialize current compiled plan");
+        for pointer in ["/bootstrapConfig", "/notices/0"] {
+            let mut invalid = current.clone();
+            invalid.pointer_mut(pointer).expect("nested compiled node")["retiredField"] =
+                serde_json::json!(true);
+            assert!(
+                serde_json::from_value::<CompiledHlaePlan>(invalid).is_err(),
+                "unknown field at {pointer} must be rejected"
+            );
+        }
+        let mut missing_notice_target = current;
+        missing_notice_target["notices"][0]
+            .as_object_mut()
+            .expect("notice object")
+            .remove("shotId");
+        assert!(serde_json::from_value::<CompiledHlaePlan>(missing_notice_target).is_err());
+    }
 }

@@ -16,7 +16,8 @@ use vibe_cs_demo::{
     validate_demo,
 };
 use vibe_cs_domain::{
-    DemoPatch, DemoQuery, DemoRecord, DemoStatus, MatchAnalysis, Page, ScanResult,
+    DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoPatch, DemoQuery, DemoRecord, DemoSort, DemoStatus,
+    MatchAnalysis, Page, ScanResult,
 };
 
 use crate::{
@@ -31,45 +32,47 @@ const MAXIMUM_EXPANDED_UPLOAD_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAXIMUM_EXPANDED_UPLOAD_DEMOS: usize = 256;
 const MAXIMUM_PLAYBACK_REQUEST_BYTES: usize = 1024;
 const MAXIMUM_BINARY_REPLAY_BYTES: usize = 128 * 1024 * 1024;
+const MAXIMUM_REPLAY_FRAMES: usize = 20_000;
+const MAXIMUM_REPLAY_PLAYERS_PER_FRAME: usize = 64;
+const MAXIMUM_REPLAY_EFFECTS_PER_FRAME: usize = 512;
+const MAXIMUM_REPLAY_PLAYER_RECORDS: usize = 200_000;
+const MAXIMUM_REPLAY_EFFECT_RECORDS: usize = 100_000;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/demos", get(list_demos))
-        .route("/api/v1/demos/compact", get(list_demos))
-        .route("/api/v1/demos/import", post(import_paths))
-        .route("/api/v1/demos/scan", post(scan_demos))
-        .route("/api/v1/demos/watch/status", get(watch_status))
-        .route("/api/v1/demos/watch/rescan", post(watch_rescan))
+        .route("/api/demos/compact", get(list_demos))
+        .route("/api/demos/import", post(import_paths))
+        .route("/api/demos/scan", post(scan_demos))
+        .route("/api/demos/watch/status", get(watch_status))
+        .route("/api/demos/watch/rescan", post(watch_rescan))
         .route(
-            "/api/v1/demo/upload-multiple",
+            "/api/demo/upload-multiple",
             post(upload_multiple).layer(DefaultBodyLimit::max(MAXIMUM_DEMO_UPLOAD_REQUEST_BYTES)),
         )
         .route(
-            "/api/v1/demos/{id}",
+            "/api/demos/{id}",
             get(get_demo).patch(patch_demo).delete(delete_demo),
         )
-        .route("/api/v1/demos/{id}/analyze", post(analyze_demo))
         .route(
-            "/api/v1/demos/{id}/analysis",
+            "/api/demos/{id}/analysis",
             get(get_analysis).post(analyze_demo),
         )
-        .route("/api/v1/demos/{id}/replay", get(get_replay))
-        .route("/api/v1/demos/{id}/replay.bin", get(get_replay_binary))
+        .route("/api/demos/{id}/replay.bin", get(get_replay_binary))
         .route(
-            "/api/v1/replay-cache",
+            "/api/replay-cache",
             get(get_replay_cache_status).delete(clear_replay_cache),
         )
-        .route("/api/v1/demos/{id}/heatmap", get(get_heatmap))
+        .route("/api/demos/{id}/heatmap", get(get_heatmap))
         .route(
-            "/api/v1/demos/{id}/playback/preflight",
+            "/api/demos/{id}/playback/preflight",
             post(preflight_demo).layer(DefaultBodyLimit::max(MAXIMUM_PLAYBACK_REQUEST_BYTES)),
         )
         .route(
-            "/api/v1/demos/{id}/play",
+            "/api/demos/{id}/play",
             post(play_demo).layer(DefaultBodyLimit::max(MAXIMUM_PLAYBACK_REQUEST_BYTES)),
         )
         .route(
-            "/api/v1/playback/stop",
+            "/api/playback/stop",
             post(stop_playback).layer(DefaultBodyLimit::max(MAXIMUM_PLAYBACK_REQUEST_BYTES)),
         )
 }
@@ -83,13 +86,12 @@ async fn watch_rescan(State(state): State<AppState>) -> ApiResult<Json<DemoWatch
 }
 
 #[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DemoListQuery {
     search: Option<String>,
     source: Option<String>,
-    map: Option<String>,
     map_name: Option<String>,
     status: Option<String>,
-    #[allow(dead_code)]
     sort: Option<String>,
     page: Option<u32>,
     page_size: Option<u32>,
@@ -98,26 +100,20 @@ struct DemoListQuery {
 #[derive(Debug, Serialize)]
 struct DemoSummaryDto {
     id: Uuid,
-    filename: String,
     file_name: String,
     path: String,
     display_name: String,
     map_name: Option<String>,
-    played_at: String,
     match_date: Option<DateTime<Utc>>,
     duration_seconds: Option<f64>,
     total_rounds: Option<u32>,
     team_a_name: Option<String>,
     team_b_name: Option<String>,
-    score_team_a: u32,
-    score_team_b: u32,
     team_a_score: Option<u32>,
     team_b_score: Option<u32>,
     status: DemoStatus,
-    summary_status: &'static str,
     players: Vec<String>,
     source: String,
-    summary_source: &'static str,
     remark: String,
     content_sha256: Option<String>,
     file_size: u64,
@@ -127,30 +123,21 @@ struct DemoSummaryDto {
 
 impl From<DemoRecord> for DemoSummaryDto {
     fn from(demo: DemoRecord) -> Self {
-        let played_at = demo
-            .match_date
-            .map_or_else(|| demo.created_at.to_rfc3339(), |date| date.to_rfc3339());
         Self {
             id: demo.id,
-            filename: demo.file_name.clone(),
             file_name: demo.file_name,
             path: demo.path,
             display_name: demo.display_name,
             map_name: demo.map_name,
-            played_at,
             match_date: demo.match_date,
             duration_seconds: demo.duration_seconds,
             total_rounds: demo.total_rounds,
             team_a_name: demo.team_a_name,
             team_b_name: demo.team_b_name,
-            score_team_a: demo.team_a_score.unwrap_or_default(),
-            score_team_b: demo.team_b_score.unwrap_or_default(),
             team_a_score: demo.team_a_score,
             team_b_score: demo.team_b_score,
             status: demo.status,
-            summary_status: compatible_status(demo.status),
-            players: Vec::new(),
-            summary_source: compatible_source(&demo.source),
+            players: demo.player_names,
             source: demo.source,
             remark: demo.remark,
             content_sha256: demo.content_sha256,
@@ -165,14 +152,17 @@ async fn list_demos(
     State(state): State<AppState>,
     ApiQuery(query): ApiQuery<DemoListQuery>,
 ) -> ApiResult<Json<Page<DemoSummaryDto>>> {
+    validate_demo_window(query.page, query.page_size)?;
     let status = query.status.as_deref().map(parse_status).transpose()?;
+    let sort = parse_demo_sort(query.sort.as_deref())?;
     let page = state
         .storage
         .list_demos(DemoQuery {
             search: query.search,
             source: query.source,
-            map_name: query.map_name.or(query.map),
+            map_name: query.map_name,
             status,
+            sort,
             page: query.page,
             page_size: query.page_size,
         })
@@ -226,14 +216,10 @@ async fn delete_demo(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ImportRequest {
     paths: Vec<String>,
-    #[serde(default = "local_source")]
     source: String,
-}
-
-fn local_source() -> String {
-    "local".to_owned()
 }
 
 async fn import_paths(
@@ -260,16 +246,11 @@ async fn import_paths(
     Ok(Json(result))
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ScanBody {
-    #[serde(default)]
     paths: Vec<String>,
-    #[serde(default = "default_true")]
     recursive: bool,
-}
-
-const fn default_true() -> bool {
-    true
 }
 
 async fn scan_demos(
@@ -706,6 +687,7 @@ async fn import_candidates(
                         record.team_b_name = existing.team_b_name;
                         record.team_a_score = existing.team_a_score;
                         record.team_b_score = existing.team_b_score;
+                        record.player_names = existing.player_names;
                         record.status = if existing.status == DemoStatus::Missing {
                             DemoStatus::Discovered
                         } else {
@@ -887,6 +869,7 @@ fn record_from_validated(validated: ValidatedDemo, source: &str) -> Result<DemoR
         team_b_name: None,
         team_a_score: None,
         team_b_score: None,
+        player_names: Vec::new(),
         remark: String::new(),
         content_sha256: Some(validated.sha256),
         file_size: validated.size,
@@ -971,25 +954,60 @@ async fn analyze_demo(
     AxumPath(id): AxumPath<String>,
 ) -> ApiResult<Json<MatchAnalysis>> {
     let id = parse_id(&id)?;
+    let mutation = state.analysis_mutation(id).await;
+    let (_guard, waited_for_active_request) = match mutation.clone().try_lock_owned() {
+        Ok(guard) => (guard, false),
+        Err(_) => (mutation.lock_owned().await, true),
+    };
+    if let Some(analysis) = state.storage.get_analysis(id).await? {
+        return Ok(Json(analysis));
+    }
     let demo = state
         .storage
         .get_demo(id)
         .await?
         .ok_or_else(|| ApiError::not_found("demo"))?;
-    let previous_status = demo.status;
+    if waited_for_active_request {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "analysis_not_completed",
+            "The active analysis did not produce a result; review the failure and retry explicitly",
+        ));
+    }
+    if matches!(demo.status, DemoStatus::Indexing | DemoStatus::Analyzing) {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "analysis_in_progress",
+            "Demo analysis is already in progress",
+        ));
+    }
+    if demo.status == DemoStatus::Missing {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "demo_missing",
+            "Restore the Demo file to its watched folder and rescan before retrying analysis",
+        ));
+    }
     state
         .storage
         .set_demo_status(id, DemoStatus::Analyzing)
         .await?;
     match state.analysis.analyze(demo).await {
         Ok(analysis) => {
-            let analysis = state.storage.put_analysis(analysis).await?;
-            state.storage.set_demo_status(id, DemoStatus::Ready).await?;
+            let analysis = state
+                .storage
+                .complete_demo_analysis(analysis)
+                .await?
+                .ok_or_else(|| ApiError::not_found("demo"))?;
             state.events.publish("analysis", "completed", Some(id));
             Ok(Json(analysis))
         }
         Err(error) => {
-            state.storage.set_demo_status(id, previous_status).await?;
+            state
+                .storage
+                .set_demo_status(id, DemoStatus::Failed)
+                .await?;
+            state.events.publish("analysis", "failed", Some(id));
             Err(error.into())
         }
     }
@@ -1008,14 +1026,6 @@ async fn get_analysis(
         .ok_or_else(|| ApiError::not_found("analysis"))
 }
 
-async fn get_replay(
-    State(state): State<AppState>,
-    AxumPath(id): AxumPath<String>,
-) -> ApiResult<Json<crate::ReplayPayload>> {
-    let demo = get_demo_record(&state, &id).await?;
-    Ok(Json(state.analysis.replay(demo).await?))
-}
-
 async fn get_replay_binary(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
@@ -1024,7 +1034,7 @@ async fn get_replay_binary(
     let payload = state.analysis.replay(demo).await?;
     let bytes = encode_binary_replay(&payload)?;
     Response::builder()
-        .header(header::CONTENT_TYPE, "application/vnd.vibe-cs.replay-v1")
+        .header(header::CONTENT_TYPE, "application/vnd.vibe-cs.replay")
         .header(header::CONTENT_LENGTH, bytes.len())
         .header(header::CACHE_CONTROL, "private, no-store")
         .body(Body::from(bytes))
@@ -1100,9 +1110,77 @@ impl ReplayEncoder {
 }
 
 fn encode_binary_replay(payload: &crate::ReplayPayload) -> ApiResult<Vec<u8>> {
+    if payload.frames.len() > MAXIMUM_REPLAY_FRAMES
+        || payload.fidelity.frame_count != u64::try_from(payload.frames.len()).unwrap_or(u64::MAX)
+        || !payload.fidelity.tick_rate.is_finite()
+        || !(8.0..=1024.0).contains(&payload.fidelity.tick_rate)
+        || payload.fidelity.positioned_event_count
+            > u64::try_from(MAXIMUM_REPLAY_EFFECT_RECORDS).unwrap_or(u64::MAX)
+        || payload.frames.first().map_or(0, |frame| frame.tick) != payload.fidelity.start_tick
+        || payload.frames.last().map_or(0, |frame| frame.tick) != payload.fidelity.end_tick
+    {
+        return Err(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "invalid_replay",
+            "replay fidelity, frame bounds, or strictly increasing ticks are invalid",
+        ));
+    }
+    let mut player_records = 0_usize;
+    let mut effect_records = 0_usize;
+    let mut previous_tick = None;
+    for frame in &payload.frames {
+        if previous_tick.is_some_and(|tick| frame.tick <= tick) {
+            return Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "invalid_replay",
+                "replay ticks must be strictly increasing",
+            ));
+        }
+        previous_tick = Some(frame.tick);
+        if frame.players.len() > MAXIMUM_REPLAY_PLAYERS_PER_FRAME
+            || frame.projectiles.len() > MAXIMUM_REPLAY_EFFECTS_PER_FRAME
+        {
+            return Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "invalid_replay",
+                "replay frame exceeds player or effect limits",
+            ));
+        }
+        player_records = player_records
+            .checked_add(frame.players.len())
+            .ok_or_else(|| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "invalid_replay",
+                    "replay player record count overflow",
+                )
+            })?;
+        if player_records > MAXIMUM_REPLAY_PLAYER_RECORDS {
+            return Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "invalid_replay",
+                "replay exceeds the aggregate player record limit",
+            ));
+        }
+        effect_records = effect_records
+            .checked_add(frame.projectiles.len())
+            .ok_or_else(|| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "invalid_replay",
+                    "replay effect record count overflow",
+                )
+            })?;
+        if effect_records > MAXIMUM_REPLAY_EFFECT_RECORDS {
+            return Err(ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "invalid_replay",
+                "replay exceeds the aggregate effect record limit",
+            ));
+        }
+    }
     let mut output = ReplayEncoder { bytes: Vec::new() };
     output.push(b"ARPL")?;
-    output.u16(1)?;
     let cache = serde_json::to_vec(&payload.cache).map_err(|error| {
         ApiError::new(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -1114,6 +1192,18 @@ fn encode_binary_replay(payload: &crate::ReplayPayload) -> ApiResult<Vec<u8>> {
         u32::try_from(cache.len()).map_err(|_| ApiError::invalid("cache metadata is too large"))?,
     )?;
     output.push(&cache)?;
+    let fidelity = serde_json::to_vec(&payload.fidelity).map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "replay_encode",
+            error.to_string(),
+        )
+    })?;
+    output.u32(
+        u32::try_from(fidelity.len())
+            .map_err(|_| ApiError::invalid("replay fidelity metadata is too large"))?,
+    )?;
+    output.push(&fidelity)?;
     output.u32(
         u32::try_from(payload.frames.len())
             .map_err(|_| ApiError::invalid("too many replay frames"))?,
@@ -1125,6 +1215,13 @@ fn encode_binary_replay(payload: &crate::ReplayPayload) -> ApiResult<Vec<u8>> {
                 .map_err(|_| ApiError::invalid("too many replay players"))?,
         )?;
         for player in &frame.players {
+            if !matches!(player.team.as_str(), "A" | "B") {
+                return Err(ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "invalid_replay",
+                    "replay player team is not a canonical Team A/B identity",
+                ));
+            }
             output.text(&player.id)?;
             output.text(&player.name)?;
             output.text(&player.team)?;
@@ -1312,30 +1409,49 @@ fn parse_id(id: &str) -> ApiResult<Uuid> {
 
 fn parse_status(status: &str) -> ApiResult<DemoStatus> {
     match status {
-        "pending" | "discovered" => Ok(DemoStatus::Discovered),
-        "parsing" | "indexing" | "analyzing" => Ok(DemoStatus::Analyzing),
-        "ready" | "done" => Ok(DemoStatus::Ready),
-        "error" | "failed" => Ok(DemoStatus::Failed),
+        "discovered" => Ok(DemoStatus::Discovered),
+        "indexing" => Ok(DemoStatus::Indexing),
+        "analyzing" => Ok(DemoStatus::Analyzing),
+        "ready" => Ok(DemoStatus::Ready),
+        "failed" => Ok(DemoStatus::Failed),
         "missing" => Ok(DemoStatus::Missing),
         _ => Err(ApiError::invalid("unknown demo status")),
     }
 }
 
-const fn compatible_status(status: DemoStatus) -> &'static str {
-    match status {
-        DemoStatus::Discovered => "pending",
-        DemoStatus::Indexing | DemoStatus::Analyzing => "parsing",
-        DemoStatus::Ready => "ready",
-        DemoStatus::Failed | DemoStatus::Missing => "error",
-    }
+fn parse_demo_sort(sort: Option<&str>) -> ApiResult<Option<DemoSort>> {
+    sort.map(|sort| match sort {
+        "updated_desc" => Ok(DemoSort::UpdatedDesc),
+        "updated_asc" => Ok(DemoSort::UpdatedAsc),
+        "file_asc" => Ok(DemoSort::FileAsc),
+        "file_desc" => Ok(DemoSort::FileDesc),
+        "status_asc" => Ok(DemoSort::StatusAsc),
+        "status_desc" => Ok(DemoSort::StatusDesc),
+        "map_asc" => Ok(DemoSort::MapAsc),
+        "map_desc" => Ok(DemoSort::MapDesc),
+        "score_asc" => Ok(DemoSort::ScoreAsc),
+        "score_desc" => Ok(DemoSort::ScoreDesc),
+        "duration_asc" => Ok(DemoSort::DurationAsc),
+        "duration_desc" => Ok(DemoSort::DurationDesc),
+        "rounds_asc" => Ok(DemoSort::RoundsAsc),
+        "rounds_desc" => Ok(DemoSort::RoundsDesc),
+        _ => Err(ApiError::invalid("unknown demo sort")),
+    })
+    .transpose()
 }
 
-fn compatible_source(source: &str) -> &'static str {
-    match source {
-        "watch" => "watch",
-        "upload" => "upload",
-        _ => "local",
+fn validate_demo_window(page: Option<u32>, page_size: Option<u32>) -> ApiResult<()> {
+    if page.is_some_and(|page| !(1..=DEMO_MAX_PAGE).contains(&page)) {
+        return Err(ApiError::invalid(format!(
+            "demo page must be between 1 and {DEMO_MAX_PAGE}"
+        )));
     }
+    if page_size.is_some_and(|page_size| !(1..=DEMO_MAX_PAGE_SIZE).contains(&page_size)) {
+        return Err(ApiError::invalid(format!(
+            "demo page_size must be between 1 and {DEMO_MAX_PAGE_SIZE}"
+        )));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1360,12 +1476,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn binary_replay_has_a_versioned_bounded_envelope() {
+    fn binary_replay_has_the_current_bounded_envelope() {
         let payload = crate::ReplayPayload {
             frames: Vec::new(),
+            fidelity: crate::ReplayFidelityMetadata {
+                mode: crate::ReplayFidelityMode::EventSparse,
+                tick_rate: 64.0,
+                frame_count: 0,
+                positioned_event_count: 0,
+                start_tick: 0,
+                end_tick: 0,
+            },
             cache: crate::ReplayCacheMetadata {
                 state: crate::ReplayCacheState::Bypassed,
-                version: 2,
                 key: None,
                 bytes: 0,
                 generated_at: None,
@@ -1375,8 +1498,162 @@ mod tests {
         };
         let encoded = encode_binary_replay(&payload).expect("encode replay");
         assert_eq!(&encoded[..4], b"ARPL");
-        assert_eq!(u16::from_le_bytes([encoded[4], encoded[5]]), 1);
+        let cache_length = u32::from_le_bytes(encoded[4..8].try_into().unwrap()) as usize;
+        let fidelity_length_offset = 8 + cache_length;
+        let fidelity_length = u32::from_le_bytes(
+            encoded[fidelity_length_offset..fidelity_length_offset + 4]
+                .try_into()
+                .unwrap(),
+        ) as usize;
+        let fidelity_offset = fidelity_length_offset + 4;
+        let fidelity: crate::ReplayFidelityMetadata =
+            serde_json::from_slice(&encoded[fidelity_offset..fidelity_offset + fidelity_length])
+                .expect("fidelity metadata");
+        assert_eq!(fidelity.mode, crate::ReplayFidelityMode::EventSparse);
+        assert!((fidelity.tick_rate - 64.0).abs() < f64::EPSILON);
         assert!(encoded.len() < MAXIMUM_BINARY_REPLAY_BYTES);
+    }
+
+    #[test]
+    fn binary_replay_rejects_duplicate_ticks_before_encoding() {
+        let payload = crate::ReplayPayload {
+            frames: vec![
+                vibe_cs_domain::ReplayFrame {
+                    tick: 7,
+                    players: Vec::new(),
+                    projectiles: Vec::new(),
+                    bomb: None,
+                },
+                vibe_cs_domain::ReplayFrame {
+                    tick: 7,
+                    players: Vec::new(),
+                    projectiles: Vec::new(),
+                    bomb: None,
+                },
+            ],
+            fidelity: crate::ReplayFidelityMetadata {
+                mode: crate::ReplayFidelityMode::EventSparse,
+                tick_rate: 64.0,
+                frame_count: 2,
+                positioned_event_count: 0,
+                start_tick: 7,
+                end_tick: 7,
+            },
+            cache: crate::ReplayCacheMetadata {
+                state: crate::ReplayCacheState::Bypassed,
+                key: None,
+                bytes: 0,
+                generated_at: None,
+                repaired: false,
+                reason: Some("test".to_owned()),
+            },
+        };
+
+        let error = encode_binary_replay(&payload)
+            .expect_err("duplicate ticks must be rejected before allocating the wire payload");
+
+        assert!(error.to_string().contains("strictly increasing"));
+    }
+
+    #[test]
+    fn binary_replay_rejects_more_than_two_hundred_thousand_player_records() {
+        let player = vibe_cs_domain::ReplayPlayer {
+            id: "1".to_owned(),
+            name: "P".to_owned(),
+            team: "A".to_owned(),
+            position: [1.0, 2.0, 3.0],
+            yaw: 0.0,
+            health: 100,
+            armor: 0,
+            alive: true,
+            weapon: String::new(),
+            input: None,
+        };
+        let mut remaining = 200_001_usize;
+        let mut frames = Vec::new();
+        while remaining > 0 {
+            let count = remaining.min(MAXIMUM_REPLAY_PLAYERS_PER_FRAME);
+            frames.push(vibe_cs_domain::ReplayFrame {
+                tick: u64::try_from(frames.len() + 1).unwrap(),
+                players: vec![player.clone(); count],
+                projectiles: Vec::new(),
+                bomb: None,
+            });
+            remaining -= count;
+        }
+        let frame_count = u64::try_from(frames.len()).unwrap();
+        let payload = crate::ReplayPayload {
+            frames,
+            fidelity: crate::ReplayFidelityMetadata {
+                mode: crate::ReplayFidelityMode::EventSparse,
+                tick_rate: 64.0,
+                frame_count,
+                positioned_event_count: 0,
+                start_tick: 1,
+                end_tick: frame_count,
+            },
+            cache: crate::ReplayCacheMetadata {
+                state: crate::ReplayCacheState::Bypassed,
+                key: None,
+                bytes: 0,
+                generated_at: None,
+                repaired: false,
+                reason: Some("test".to_owned()),
+            },
+        };
+
+        assert!(
+            encode_binary_replay(&payload).is_err(),
+            "aggregate player records above the wire budget must be rejected"
+        );
+    }
+
+    #[test]
+    fn binary_replay_rejects_more_than_one_hundred_thousand_effect_records() {
+        let effect = vibe_cs_domain::ReplayProjectile {
+            kind: "smoke".to_owned(),
+            position: [1.0, 2.0, 3.0],
+            active: true,
+            radius: Some(144.0),
+            masks_vision: true,
+        };
+        let mut remaining = 100_001_usize;
+        let mut frames = Vec::new();
+        while remaining > 0 {
+            let count = remaining.min(MAXIMUM_REPLAY_EFFECTS_PER_FRAME);
+            frames.push(vibe_cs_domain::ReplayFrame {
+                tick: u64::try_from(frames.len() + 1).unwrap(),
+                players: Vec::new(),
+                projectiles: vec![effect.clone(); count],
+                bomb: None,
+            });
+            remaining -= count;
+        }
+        let frame_count = u64::try_from(frames.len()).unwrap();
+        let payload = crate::ReplayPayload {
+            frames,
+            fidelity: crate::ReplayFidelityMetadata {
+                mode: crate::ReplayFidelityMode::EventSparse,
+                tick_rate: 64.0,
+                frame_count,
+                positioned_event_count: 0,
+                start_tick: 1,
+                end_tick: frame_count,
+            },
+            cache: crate::ReplayCacheMetadata {
+                state: crate::ReplayCacheState::Bypassed,
+                key: None,
+                bytes: 0,
+                generated_at: None,
+                repaired: false,
+                reason: Some("test".to_owned()),
+            },
+        };
+
+        assert!(
+            encode_binary_replay(&payload).is_err(),
+            "aggregate effect records above the wire budget must be rejected"
+        );
     }
 
     #[derive(Debug, Default)]
@@ -1398,6 +1675,161 @@ mod tests {
             } else {
                 Ok(json!({ "capability": capability, "request": request }))
             }
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct BlockingAnalysis {
+        calls: AtomicUsize,
+        entered: tokio::sync::Notify,
+        release: tokio::sync::Notify,
+    }
+
+    #[async_trait]
+    impl crate::AnalysisPort for BlockingAnalysis {
+        async fn analyze(
+            &self,
+            demo: DemoRecord,
+        ) -> Result<MatchAnalysis, vibe_cs_domain::DomainError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            self.entered.notify_one();
+            self.release.notified().await;
+            Ok(MatchAnalysis {
+                demo_id: demo.id,
+                map_name: "de_mirage".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 1.0,
+                verified_total_ticks: None,
+                teams: Vec::new(),
+                players: Vec::new(),
+                rounds: Vec::new(),
+                highlights: Vec::new(),
+            })
+        }
+
+        async fn replay(
+            &self,
+            _demo: DemoRecord,
+        ) -> Result<crate::ReplayPayload, vibe_cs_domain::DomainError> {
+            unreachable!("replay is outside this test")
+        }
+
+        async fn heatmap(
+            &self,
+            _demo: DemoRecord,
+        ) -> Result<Vec<vibe_cs_domain::HeatPoint>, vibe_cs_domain::DomainError> {
+            unreachable!("heatmap is outside this test")
+        }
+
+        async fn replay_cache_status(
+            &self,
+        ) -> Result<crate::ReplayCacheStatus, vibe_cs_domain::DomainError> {
+            unreachable!("cache status is outside this test")
+        }
+
+        async fn clear_replay_cache(
+            &self,
+        ) -> Result<crate::ReplayCacheCleanup, vibe_cs_domain::DomainError> {
+            unreachable!("cache cleanup is outside this test")
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct FailingAnalysis;
+
+    #[async_trait]
+    impl crate::AnalysisPort for FailingAnalysis {
+        async fn analyze(
+            &self,
+            _demo: DemoRecord,
+        ) -> Result<MatchAnalysis, vibe_cs_domain::DomainError> {
+            Err(vibe_cs_domain::DomainError::InvalidInput(
+                "malformed game event payload".to_owned(),
+            ))
+        }
+
+        async fn replay(
+            &self,
+            _demo: DemoRecord,
+        ) -> Result<crate::ReplayPayload, vibe_cs_domain::DomainError> {
+            unreachable!("replay is outside this test")
+        }
+
+        async fn heatmap(
+            &self,
+            _demo: DemoRecord,
+        ) -> Result<Vec<vibe_cs_domain::HeatPoint>, vibe_cs_domain::DomainError> {
+            unreachable!("heatmap is outside this test")
+        }
+
+        async fn replay_cache_status(
+            &self,
+        ) -> Result<crate::ReplayCacheStatus, vibe_cs_domain::DomainError> {
+            unreachable!("cache status is outside this test")
+        }
+
+        async fn clear_replay_cache(
+            &self,
+        ) -> Result<crate::ReplayCacheCleanup, vibe_cs_domain::DomainError> {
+            unreachable!("cache cleanup is outside this test")
+        }
+    }
+
+    #[derive(Debug)]
+    struct BlockingFailingAnalysis {
+        calls: AtomicUsize,
+        entered: tokio::sync::Notify,
+        release: tokio::sync::Semaphore,
+    }
+
+    impl Default for BlockingFailingAnalysis {
+        fn default() -> Self {
+            Self {
+                calls: AtomicUsize::new(0),
+                entered: tokio::sync::Notify::new(),
+                release: tokio::sync::Semaphore::new(0),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl crate::AnalysisPort for BlockingFailingAnalysis {
+        async fn analyze(
+            &self,
+            _demo: DemoRecord,
+        ) -> Result<MatchAnalysis, vibe_cs_domain::DomainError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            self.entered.notify_one();
+            let _permit = self.release.acquire().await.expect("release analysis");
+            Err(vibe_cs_domain::DomainError::InvalidInput(
+                "malformed game event payload".to_owned(),
+            ))
+        }
+
+        async fn replay(
+            &self,
+            _demo: DemoRecord,
+        ) -> Result<crate::ReplayPayload, vibe_cs_domain::DomainError> {
+            unreachable!("replay is outside this test")
+        }
+
+        async fn heatmap(
+            &self,
+            _demo: DemoRecord,
+        ) -> Result<Vec<vibe_cs_domain::HeatPoint>, vibe_cs_domain::DomainError> {
+            unreachable!("heatmap is outside this test")
+        }
+
+        async fn replay_cache_status(
+            &self,
+        ) -> Result<crate::ReplayCacheStatus, vibe_cs_domain::DomainError> {
+            unreachable!("cache status is outside this test")
+        }
+
+        async fn clear_replay_cache(
+            &self,
+        ) -> Result<crate::ReplayCacheCleanup, vibe_cs_domain::DomainError> {
+            unreachable!("cache cleanup is outside this test")
         }
     }
 
@@ -1514,10 +1946,243 @@ mod tests {
     }
 
     #[test]
-    fn compatibility_statuses_cover_domain_states() {
-        assert_eq!(compatible_status(DemoStatus::Discovered), "pending");
-        assert_eq!(compatible_status(DemoStatus::Analyzing), "parsing");
-        assert_eq!(compatible_status(DemoStatus::Failed), "error");
+    fn demo_list_query_parses_exact_statuses_and_whitelisted_sorts() {
+        assert!(
+            serde_json::from_value::<DemoListQuery>(json!({ "map": "de_mirage" })).is_err(),
+            "the retired map alias must not deserialize"
+        );
+        assert_eq!(
+            parse_status("indexing").expect("indexing"),
+            DemoStatus::Indexing
+        );
+        assert_eq!(
+            parse_status("parsing")
+                .expect_err("summary status alias must be rejected")
+                .into_response()
+                .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            parse_demo_sort(Some("map_desc")).expect("map sort"),
+            Some(vibe_cs_domain::DemoSort::MapDesc)
+        );
+        for sort in [
+            "updated_desc",
+            "updated_asc",
+            "file_asc",
+            "file_desc",
+            "status_asc",
+            "status_desc",
+            "map_asc",
+            "map_desc",
+            "score_asc",
+            "score_desc",
+            "duration_asc",
+            "duration_desc",
+            "rounds_asc",
+            "rounds_desc",
+        ] {
+            assert!(
+                parse_demo_sort(Some(sort))
+                    .expect("canonical sort")
+                    .is_some()
+            );
+        }
+        assert_eq!(parse_demo_sort(None).expect("default sort"), None);
+        assert_eq!(
+            parse_demo_sort(Some("updated_at; DROP TABLE demos"))
+                .expect_err("unknown sort must be rejected")
+                .into_response()
+                .status(),
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            parse_demo_sort(Some("newest"))
+                .expect_err("retired sort alias must be rejected")
+                .into_response()
+                .status(),
+            StatusCode::BAD_REQUEST
+        );
+        for (page, page_size) in [
+            (Some(0), None),
+            (Some(100_001), None),
+            (None, Some(0)),
+            (None, Some(201)),
+        ] {
+            assert_eq!(
+                validate_demo_window(page, page_size)
+                    .expect_err("invalid window must be rejected at the route boundary")
+                    .into_response()
+                    .status(),
+                StatusCode::BAD_REQUEST
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn concurrent_analysis_requests_share_one_parse_and_persisted_result() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("major.dem");
+        std::fs::write(&path, b"PBDEMS2\0fixture!").expect("demo fixture");
+        let demo = build_demo_record(&path.to_string_lossy(), "local")
+            .await
+            .expect("demo record");
+        let demo_id = demo.id;
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        storage.put_demo(demo).await.expect("persist demo");
+        let analysis = Arc::new(BlockingAnalysis::default());
+        let state = AppState::new(storage.clone(), directory.path().join("data"))
+            .with_analysis(analysis.clone());
+
+        let first_state = state.clone();
+        let first = tokio::spawn(async move {
+            analyze_demo(State(first_state), AxumPath(demo_id.to_string())).await
+        });
+        analysis.entered.notified().await;
+        let second_state = state.clone();
+        let second = tokio::spawn(async move {
+            analyze_demo(State(second_state), AxumPath(demo_id.to_string())).await
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert_eq!(analysis.calls.load(Ordering::SeqCst), 1);
+
+        analysis.release.notify_one();
+        let first = first.await.expect("first task").expect("first analysis");
+        let second = second.await.expect("second task").expect("second analysis");
+        assert_eq!(first.demo_id, demo_id);
+        assert_eq!(second.demo_id, demo_id);
+        assert_eq!(analysis.calls.load(Ordering::SeqCst), 1);
+        let completed = storage
+            .get_demo(demo_id)
+            .await
+            .expect("read demo")
+            .expect("persisted demo");
+        assert_eq!(completed.status, DemoStatus::Ready);
+        assert_eq!(completed.map_name.as_deref(), Some("de_mirage"));
+        assert_eq!(completed.duration_seconds, Some(1.0));
+        assert_eq!(completed.total_rounds, Some(0));
+    }
+
+    #[tokio::test]
+    async fn failed_analysis_persists_a_retryable_terminal_state() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("broken.dem");
+        std::fs::write(&path, b"PBDEMS2\0fixture!").expect("demo fixture");
+        let demo = build_demo_record(&path.to_string_lossy(), "local")
+            .await
+            .expect("demo record");
+        let demo_id = demo.id;
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        storage.put_demo(demo).await.expect("persist demo");
+        let state = AppState::new(storage.clone(), directory.path().join("data"))
+            .with_analysis(Arc::new(FailingAnalysis));
+
+        assert!(
+            analyze_demo(State(state), AxumPath(demo_id.to_string()))
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            storage
+                .get_demo(demo_id)
+                .await
+                .expect("read demo")
+                .expect("persisted demo")
+                .status,
+            DemoStatus::Failed
+        );
+        assert!(
+            storage
+                .get_analysis(demo_id)
+                .await
+                .expect("read analysis")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn missing_demo_cannot_start_analysis_or_leave_the_missing_state() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("missing.dem");
+        std::fs::write(&path, b"PBDEMS2\0fixture!").expect("demo fixture");
+        let demo = build_demo_record(&path.to_string_lossy(), "watch")
+            .await
+            .expect("demo record");
+        let demo_id = demo.id;
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        storage.put_demo(demo).await.expect("persist demo");
+        storage
+            .set_demo_status(demo_id, DemoStatus::Missing)
+            .await
+            .expect("missing state");
+        std::fs::remove_file(path).expect("remove demo fixture");
+        let state = AppState::new(storage.clone(), directory.path().join("data"))
+            .with_analysis(Arc::new(FailingAnalysis));
+
+        assert!(
+            analyze_demo(State(state), AxumPath(demo_id.to_string()))
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            storage
+                .get_demo(demo_id)
+                .await
+                .expect("read demo")
+                .expect("persisted demo")
+                .status,
+            DemoStatus::Missing
+        );
+    }
+
+    #[tokio::test]
+    async fn concurrent_requests_do_not_retry_a_failed_analysis_after_waiting() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("broken-major.dem");
+        std::fs::write(&path, b"PBDEMS2\0fixture!").expect("demo fixture");
+        let demo = build_demo_record(&path.to_string_lossy(), "local")
+            .await
+            .expect("demo record");
+        let demo_id = demo.id;
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        storage.put_demo(demo).await.expect("persist demo");
+        let analysis = Arc::new(BlockingFailingAnalysis::default());
+        let state = AppState::new(storage.clone(), directory.path().join("data"))
+            .with_analysis(analysis.clone());
+
+        let first_state = state.clone();
+        let first = tokio::spawn(async move {
+            analyze_demo(State(first_state), AxumPath(demo_id.to_string())).await
+        });
+        analysis.entered.notified().await;
+        let second_state = state.clone();
+        let second = tokio::spawn(async move {
+            analyze_demo(State(second_state), AxumPath(demo_id.to_string())).await
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert_eq!(analysis.calls.load(Ordering::SeqCst), 1);
+
+        analysis.release.add_permits(2);
+        assert!(first.await.expect("first task").is_err());
+        assert!(second.await.expect("second task").is_err());
+        assert_eq!(analysis.calls.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            storage
+                .get_demo(demo_id)
+                .await
+                .expect("read demo")
+                .expect("persisted demo")
+                .status,
+            DemoStatus::Failed
+        );
     }
 
     #[test]
@@ -1949,6 +2614,7 @@ mod tests {
                 map_name: "de_safe".to_owned(),
                 tick_rate: 64.0,
                 duration_seconds: 1.0,
+                verified_total_ticks: None,
                 teams: vec![],
                 players: vec![],
                 rounds: vec![],
@@ -1997,16 +2663,18 @@ mod tests {
         import_candidates(&state, vec![path.to_string_lossy().into_owned()], "watch")
             .await
             .expect("initial import");
-        let record = storage
+        let mut record = storage
             .list_demos(DemoQuery::default())
             .await
             .expect("demos")
             .items
             .remove(0);
+        record.status = DemoStatus::Ready;
+        record.player_names = vec!["FalleN".to_owned(), "m0NESY".to_owned()];
         storage
-            .set_demo_status(record.id, DemoStatus::Ready)
+            .put_demo(record.clone())
             .await
-            .expect("status");
+            .expect("ready summary");
 
         std::fs::remove_file(&path).expect("remove watched demo");
         let changed =
@@ -2028,15 +2696,13 @@ mod tests {
         import_candidates(&state, vec![path.to_string_lossy().into_owned()], "watch")
             .await
             .expect("restored import");
-        assert_eq!(
-            storage
-                .get_demo(record.id)
-                .await
-                .expect("demo")
-                .expect("record")
-                .status,
-            DemoStatus::Discovered
-        );
+        let restored = storage
+            .get_demo(record.id)
+            .await
+            .expect("demo")
+            .expect("record");
+        assert_eq!(restored.status, DemoStatus::Discovered);
+        assert_eq!(restored.player_names, vec!["FalleN", "m0NESY"]);
     }
 
     #[tokio::test]

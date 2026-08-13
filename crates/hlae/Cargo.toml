@@ -8,13 +8,16 @@ license.workspace = true
 [dependencies]
 cap-std.workspace = true
 hex.workspace = true
+getrandom.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
+url.workspace = true
+zip.workspace = true
 
 [dev-dependencies]
-tempfile.workspace = true
 
 [lints]
 workspace = true

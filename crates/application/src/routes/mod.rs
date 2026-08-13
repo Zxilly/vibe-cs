@@ -1,8 +1,9 @@
+mod activity;
 mod cosmetics;
 mod demos;
+mod evidence;
 mod integrations;
 mod media;
-mod obs_tuning;
 mod outputs;
 mod players;
 mod product;
@@ -22,21 +23,22 @@ use crate::{ApiError, AppState};
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
+        .merge(activity::router())
         .merge(system::router())
         .merge(cosmetics::router())
         .merge(demos::router())
+        .merge(evidence::router())
         .merge(recording::router())
         .merge(review::router())
         .merge(source_assets::router())
         .merge(media::router())
-        .merge(obs_tuning::router())
         .merge(outputs::router())
         .merge(players::router())
         .merge(proposals::router())
         .merge(product::router())
         .merge(integrations::router())
-        .route("/api/v1/events", get(system::events))
-        .route("/api/v1/{*path}", any(not_found))
+        .route("/api/events", get(system::events))
+        .route("/api/{*path}", any(not_found))
 }
 
 pub(crate) fn gsi_router() -> Router<AppState> {

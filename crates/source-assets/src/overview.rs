@@ -330,8 +330,9 @@ fn transform_from_object(object: &Object) -> Result<RadarTransform> {
         .map(|value| parse_rotate(&value))
         .transpose()?;
     let zoom = optional_scalar(object, "zoom")?
-        .map(|value| parse_number("zoom", &value, true))
-        .transpose()?;
+        .map(|value| parse_zoom(&value))
+        .transpose()?
+        .flatten();
     Ok(RadarTransform {
         pos_x,
         pos_y,
@@ -397,6 +398,17 @@ fn parse_rotate(value: &str) -> Result<bool> {
     }
 }
 
+fn parse_zoom(value: &str) -> Result<Option<f64>> {
+    let zoom = parse_number("zoom", value, false)?;
+    if zoom < 0.0 {
+        return Err(SourceAssetError::InvalidOverviewField {
+            field: "zoom",
+            value: value.to_owned(),
+        });
+    }
+    Ok((zoom > 0.0).then_some(zoom))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -428,6 +440,20 @@ mod tests {
                 zoom: Some(1.25),
             }
         );
+    }
+
+    #[test]
+    fn treats_valve_zero_zoom_as_unspecified_without_relaxing_scale() {
+        let transform = parse_overview_text(
+            br#""de_mirage" { "pos_x" "-3230" "pos_y" "1713" "scale" "5" "zoom" "0" }"#,
+        )
+        .expect("Valve uses zoom=0 for Mirage");
+
+        assert_eq!(transform.zoom, None);
+        assert!(parse_overview_text(
+            br#""invalid" { "pos_x" "0" "pos_y" "0" "scale" "0" "zoom" "0" }"#,
+        )
+        .is_err());
     }
 
     #[test]

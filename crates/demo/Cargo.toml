@@ -6,6 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+ahash.workspace = true
+demoparser = { package = "parser", path = "../../vendor/demoparser/parser" }
 vibe-cs-domain = { path = "../domain" }
 serde.workspace = true
 serde_json.workspace = true

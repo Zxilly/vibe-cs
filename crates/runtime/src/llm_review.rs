@@ -375,7 +375,6 @@ fn build_evidence(
             .collect()
     };
     let evidence = json!({
-        "schema_version": 1,
         "scope": request.scope,
         "demo": {
             "evidence_id": format!("demo:{}", analysis.demo_id),
@@ -402,7 +401,8 @@ fn build_evidence(
             "headshots": player.headshots,
             "damage": player.damage,
             "adr": player.adr,
-            "rating": player.rating,
+            "kill_death_ratio": (player.deaths > 0)
+                .then(|| f64::from(player.kills) / f64::from(player.deaths)),
             "score": player.score,
         })).collect::<Vec<_>>(),
         "rounds": rounds,
@@ -623,6 +623,7 @@ mod tests {
             map_name: "de_mirage".to_owned(),
             tick_rate: 64.0,
             duration_seconds: 1_200.0,
+            verified_total_ticks: None,
             teams: vec![TeamSummary {
                 name: "Alpha".to_owned(),
                 side: "A".to_owned(),
@@ -632,6 +633,7 @@ mod tests {
             players: vec![
                 PlayerStats {
                     steam_id: "p1".to_owned(),
+                    spectator_slot: None,
                     name: "Alice".to_owned(),
                     team: "A".to_owned(),
                     kills: 20,
@@ -640,11 +642,12 @@ mod tests {
                     headshots: 10,
                     damage: 2_000,
                     adr: 100.0,
-                    rating: 1.3,
+                    kill_death_ratio: 1.3,
                     score: 42,
                 },
                 PlayerStats {
                     steam_id: "p2".to_owned(),
+                    spectator_slot: None,
                     name: "Bob".to_owned(),
                     team: "B".to_owned(),
                     kills: 10,
@@ -653,7 +656,7 @@ mod tests {
                     headshots: 3,
                     damage: 1_000,
                     adr: 50.0,
-                    rating: 0.7,
+                    kill_death_ratio: 0.7,
                     score: 20,
                 },
             ],
@@ -716,6 +719,25 @@ mod tests {
         assert_eq!(evidence.selected_highlight_ids, ["h1"]);
         assert!(evidence.allowed_ids.contains("player:p1"));
         assert!(!evidence.allowed_ids.contains("player:p2"));
+    }
+
+    #[test]
+    fn player_evidence_names_the_derived_metric_as_kill_death_ratio() {
+        let evidence = build_evidence(
+            &analysis(),
+            &LlmReviewRequest {
+                scope: ReviewScope::Match,
+                player_id: None,
+                highlight_ids: Vec::new(),
+                tone: ReviewTone::Coach,
+            },
+        )
+        .expect("evidence");
+        let value: Value = serde_json::from_str(&evidence.json).expect("json");
+        let player = &value["players"][0];
+
+        assert_eq!(player["kill_death_ratio"], serde_json::json!(2.0));
+        assert!(player.get("rating").is_none());
     }
 
     #[test]
@@ -861,6 +883,7 @@ mod tests {
                 team_b_name: Some("Beta".to_owned()),
                 team_a_score: Some(1),
                 team_b_score: Some(0),
+                player_names: vec!["Player One".to_owned()],
                 remark: String::new(),
                 content_sha256: None,
                 file_size: 128,

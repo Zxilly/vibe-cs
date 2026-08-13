@@ -12,9 +12,6 @@ const CS2_APP_ID: u32 = 730;
 pub struct DiscoveredPaths {
     pub steam: Option<PathBuf>,
     pub cs2: Option<PathBuf>,
-    pub obs: Option<PathBuf>,
-    pub ffmpeg: Option<PathBuf>,
-    pub ffprobe: Option<PathBuf>,
     pub steam_libraries: Vec<PathBuf>,
 }
 
@@ -58,11 +55,6 @@ pub fn discover_paths(config: &AppConfig) -> DiscoveredPaths {
             .or(configured_cs2)
             .or(manifest_cs2)
             .or_else(|| discover_cs2(&libraries)),
-        obs: existing_file(&config.obs.executable).or_else(discover_obs),
-        // Compatibility fields remain null: media libraries are linked into
-        // the process and external FFmpeg executables are never discovered.
-        ffmpeg: None,
-        ffprobe: None,
         steam_libraries: libraries,
     }
 }
@@ -219,22 +211,6 @@ fn discover_cs2(libraries: &[PathBuf]) -> Option<PathBuf> {
         .iter()
         .map(|root| root.join(relative))
         .find(|path| path.is_file())
-}
-
-fn discover_obs() -> Option<PathBuf> {
-    if cfg!(windows) {
-        ["ProgramFiles", "ProgramFiles(x86)"]
-            .into_iter()
-            .filter_map(std::env::var_os)
-            .map(PathBuf::from)
-            .map(|root| root.join("obs-studio/bin/64bit/obs64.exe"))
-            .find(|path| path.is_file())
-    } else if cfg!(target_os = "macos") {
-        Some(PathBuf::from("/Applications/OBS.app/Contents/MacOS/OBS"))
-            .filter(|path| path.is_file())
-    } else {
-        find_on_path("obs")
-    }
 }
 
 fn parse_library_folders(path: &Path) -> Vec<PathBuf> {

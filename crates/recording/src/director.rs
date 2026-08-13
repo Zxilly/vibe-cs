@@ -189,13 +189,9 @@ mod tests {
             title: format!("shot-{id}"),
             start_tick,
             end_tick,
-            playback_speed: 1.0,
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: true,
-            show_keyboard: false,
-            show_kill_fx: true,
-            fade: true,
         }
     }
 
@@ -205,6 +201,7 @@ mod tests {
             map_name: "de_test".to_owned(),
             tick_rate: 64.0,
             duration_seconds: 30.0,
+            verified_total_ticks: None,
             teams: Vec::new(),
             players: Vec::new(),
             rounds: Vec::new(),

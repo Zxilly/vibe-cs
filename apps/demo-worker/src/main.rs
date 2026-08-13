@@ -9,7 +9,8 @@ use serde_json::Value;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
 use vibe_cs_demo::{
-    DemoEngine, DemoError, ParseCancellation, heatmap_from_events, replay_frames_from_events,
+    DemoEngine, DemoEngineConfig, DemoError, DemoParserBackend, ParseCancellation,
+    heatmap_from_events, replay_frames_from_events,
 };
 use vibe_cs_domain::{MatchAnalysis, TimelineEvent};
 
@@ -92,75 +93,27 @@ impl Arguments {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct WorkerRequest {
-    version: u32,
-    operation: WorkerOperation,
-    demo_path: Option<String>,
-    demo_id: Option<Uuid>,
-    analysis: Option<MatchAnalysis>,
-}
-
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-enum WorkerOperation {
-    Analyze,
-    Replay,
-    Heatmap,
-}
-
-impl WorkerRequest {
-    fn validate(&self) -> Result<(), WorkerFailure> {
-        if self.version != 1 {
-            return Err(invalid("unsupported worker protocol version"));
-        }
-        match self.operation {
-            WorkerOperation::Analyze => {
-                if self
-                    .demo_path
-                    .as_deref()
-                    .is_none_or(|path| path.trim().is_empty())
-                    || self.demo_id.is_none()
-                {
-                    return Err(invalid("analyze requires demo_path and demo_id"));
-                }
-            }
-            WorkerOperation::Replay | WorkerOperation::Heatmap => {
-                if self.analysis.is_none() {
-                    return Err(invalid("replay and heatmap require analysis"));
-                }
-            }
-        }
-        Ok(())
-    }
+#[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
+enum WorkerRequest {
+    Analyze { demo_path: String, demo_id: Uuid },
+    Replay { analysis: MatchAnalysis },
+    Heatmap { analysis: MatchAnalysis },
 }
 
 #[derive(Debug, Serialize)]
-struct WorkerResponse {
-    version: u32,
-    ok: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    result: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<WorkerFailure>,
+#[serde(tag = "status", rename_all = "snake_case")]
+enum WorkerResponse {
+    Success { result: Value },
+    Failure { error: WorkerFailure },
 }
 
 impl WorkerResponse {
     fn success(result: Value) -> Self {
-        Self {
-            version: 1,
-            ok: true,
-            result: Some(result),
-            error: None,
-        }
+        Self::Success { result }
     }
 
     fn failure(error: WorkerFailure) -> Self {
-        Self {
-            version: 1,
-            ok: false,
-            result: None,
-            error: Some(error),
-        }
+        Self::Failure { error }
     }
 }
 
@@ -191,35 +144,41 @@ async fn read_request(path: &Path) -> Result<WorkerRequest, WorkerFailure> {
     }
     let request: WorkerRequest = serde_json::from_slice(&bytes)
         .map_err(|error| invalid(format!("invalid request JSON: {error}")))?;
-    request.validate()?;
     Ok(request)
 }
 
 async fn execute(request: WorkerRequest) -> Result<Value, WorkerFailure> {
-    match request.operation {
-        WorkerOperation::Analyze => {
-            let analysis = DemoEngine::default()
-                .analyze(
-                    request.demo_path.expect("validated demo_path"),
-                    request.demo_id.expect("validated demo_id"),
-                    ParseCancellation::default(),
-                )
-                .await
-                .map_err(|error| demo_failure(&error))?;
+    match request {
+        WorkerRequest::Analyze { demo_path, demo_id } => {
+            if demo_path.trim().is_empty() {
+                return Err(invalid("analyze requires a non-empty demo_path"));
+            }
+            let backend = worker_backend(std::env::var("VIBE_CS_DEMO_BACKEND").ok().as_deref());
+            let analysis = DemoEngine::new(DemoEngineConfig {
+                backend,
+                ..DemoEngineConfig::default()
+            })
+            .analyze(demo_path, demo_id, ParseCancellation::default())
+            .await
+            .map_err(|error| demo_failure(&error))?;
             serde_json::to_value(analysis).map_err(|error| internal(&error))
         }
-        WorkerOperation::Replay => {
-            let events = analysis_events(request.analysis.expect("validated analysis"));
+        WorkerRequest::Replay { analysis } => {
+            let events = analysis_events(analysis);
             let replay =
                 replay_frames_from_events(&events).map_err(|error| demo_failure(&error))?;
             serde_json::to_value(replay).map_err(|error| internal(&error))
         }
-        WorkerOperation::Heatmap => {
-            let events = analysis_events(request.analysis.expect("validated analysis"));
+        WorkerRequest::Heatmap { analysis } => {
+            let events = analysis_events(analysis);
             let heatmap = heatmap_from_events(&events).map_err(|error| demo_failure(&error))?;
             serde_json::to_value(heatmap).map_err(|error| internal(&error))
         }
     }
+}
+
+fn worker_backend(configured: Option<&str>) -> DemoParserBackend {
+    DemoParserBackend::from_environment_value(configured)
 }
 
 fn analysis_events(analysis: MatchAnalysis) -> Vec<TimelineEvent> {
@@ -296,6 +255,9 @@ fn demo_failure(error: &DemoError) -> WorkerFailure {
         DemoError::NotFound(_) => "not_found",
         DemoError::Unavailable { .. } => "dependency_unavailable",
         DemoError::Cancelled => "cancelled",
+        DemoError::EventLimitExceeded { .. } | DemoError::ParserResourceLimit { .. } => {
+            "resource_limit"
+        }
         DemoError::ParserPanicked | DemoError::Join(_) | DemoError::Io { .. } => "internal_error",
         _ => "parse_error",
     };
@@ -310,24 +272,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn request_validation_requires_operation_payloads() {
-        let analyze = WorkerRequest {
-            version: 1,
-            operation: WorkerOperation::Analyze,
-            demo_path: None,
-            demo_id: Some(Uuid::new_v4()),
-            analysis: None,
-        };
-        assert!(analyze.validate().is_err());
-
-        let replay = WorkerRequest {
-            version: 1,
-            operation: WorkerOperation::Replay,
-            demo_path: None,
-            demo_id: None,
-            analysis: None,
-        };
-        assert!(replay.validate().is_err());
+    fn request_shape_requires_exact_operation_payloads() {
+        assert!(
+            serde_json::from_value::<WorkerRequest>(serde_json::json!({
+                "operation": "analyze",
+                "demo_id": Uuid::new_v4()
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<WorkerRequest>(serde_json::json!({
+                "operation": "replay"
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<WorkerRequest>(serde_json::json!({
+                "operation": "heatmap",
+                "analysis": null,
+                "unexpected": true
+            }))
+            .is_err()
+        );
     }
 
     #[test]
@@ -340,5 +306,96 @@ mod tests {
         ])
         .expect_err("same path must fail");
         assert!(error.contains("differ"));
+    }
+
+    #[test]
+    fn parser_resource_limits_have_a_stable_worker_code() {
+        let failure = demo_failure(&DemoError::ParserResourceLimit {
+            resource: "game events".to_owned(),
+            limit: 10,
+            actual: 11,
+        });
+
+        assert_eq!(failure.code, "resource_limit");
+        assert!(
+            failure
+                .message
+                .starts_with("demo parser resource limit exceeded")
+        );
+        assert!(!failure.message.starts_with("demo parser failed:"));
+    }
+
+    #[test]
+    fn isolated_worker_defaults_fast_and_allows_only_an_explicit_cooperative_override() {
+        assert_eq!(worker_backend(None), DemoParserBackend::Fast);
+        assert_eq!(
+            worker_backend(Some("cooperative")),
+            DemoParserBackend::Cooperative
+        );
+        assert_eq!(worker_backend(Some("unknown")), DemoParserBackend::Fast);
+        assert_eq!(worker_backend(Some("fast")), DemoParserBackend::Fast);
+    }
+
+    #[test]
+    fn worker_rejects_analysis_without_current_total_tick_field() {
+        let mut analysis = serde_json::to_value(MatchAnalysis {
+            demo_id: Uuid::nil(),
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 120.0,
+            verified_total_ticks: None,
+            teams: Vec::new(),
+            players: Vec::new(),
+            rounds: Vec::new(),
+            highlights: Vec::new(),
+        })
+        .expect("current analysis JSON");
+        analysis
+            .as_object_mut()
+            .expect("analysis is an object")
+            .remove("verified_total_ticks");
+        let request = serde_json::from_value::<WorkerRequest>(serde_json::json!({
+            "operation": "replay",
+            "analysis": analysis
+        }));
+        assert!(request.is_err());
+    }
+
+    #[test]
+    fn worker_request_preserves_parser_observed_spectator_slot() {
+        let analysis = MatchAnalysis {
+            demo_id: Uuid::nil(),
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 120.0,
+            verified_total_ticks: None,
+            teams: Vec::new(),
+            players: vec![vibe_cs_domain::PlayerStats {
+                steam_id: "76561198000000001".to_owned(),
+                spectator_slot: Some(8),
+                name: "Player One".to_owned(),
+                team: "T".to_owned(),
+                kills: 1,
+                deaths: 0,
+                assists: 0,
+                headshots: 1,
+                damage: 100,
+                adr: 100.0,
+                kill_death_ratio: 1.0,
+                score: 2,
+            }],
+            rounds: Vec::new(),
+            highlights: Vec::new(),
+        };
+        let request: WorkerRequest = serde_json::from_value(serde_json::json!({
+            "operation": "replay",
+            "analysis": analysis
+        }))
+        .expect("worker request with spectator slot");
+
+        let WorkerRequest::Replay { analysis } = request else {
+            panic!("expected replay request");
+        };
+        assert_eq!(analysis.players[0].spectator_slot, Some(8));
     }
 }

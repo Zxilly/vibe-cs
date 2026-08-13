@@ -11,6 +11,12 @@ pub enum StorageError {
     Domain(#[from] vibe_cs_domain::DomainError),
     #[error("managed file transaction failed: {0}")]
     ManagedFile(String),
+    #[error("evidence search projection is invalid: {0}")]
+    EvidenceProjection(String),
+    #[error(
+        "database does not match the current unreleased product schema; start with a fresh data directory"
+    )]
+    CurrentSchemaRequired,
     #[error("database worker failed: {0}")]
     Worker(#[from] tokio::task::JoinError),
     #[error("database lock was poisoned")]

@@ -339,19 +339,22 @@ fn launch_inputs(root: &Path) -> HlaeBundleLaunchInputs {
     let executable = installation_root.join("HLAE.exe");
     let source2_hook = installation_root.join("x64/AfxHookSource2.dll");
     let game_executable = root.join("game/bin/win64/cs2.exe");
+    let steam_executable = root.join("steam.exe");
     fs::create_dir_all(source2_hook.parent().unwrap()).unwrap();
     fs::create_dir_all(game_executable.parent().unwrap()).unwrap();
     fs::write(&executable, b"hlae fixture").unwrap();
     fs::write(&source2_hook, b"hook fixture").unwrap();
     fs::write(&game_executable, b"cs2 fixture").unwrap();
+    fs::write(&steam_executable, b"steam fixture").unwrap();
     HlaeBundleLaunchInputs {
         installation: HlaeInstallation {
             root: installation_root,
             executable,
             source2_hook,
-            source: HlaeDiscoverySource::Configured,
+            source: HlaeDiscoverySource::Managed,
         },
         game_executable,
+        steam_executable,
         resolution: LaunchResolution {
             width: 1920,
             height: 1080,

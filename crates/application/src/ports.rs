@@ -10,7 +10,7 @@ use vibe_cs_domain::{
     AgentProposalAction, AudioAnalysis, AudioAnalysisOptions, BeatAlignmentDraft,
     BeatAlignmentRequest, DemoRecord, DomainError, ExportJob, HeatPoint, HlaeProposalEvidence,
     HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalPreview, MatchAnalysis,
-    ProposalConfirmation, RecordingJob, ReplayFrame,
+    ProposalConfirmation, RecordingJob, RecordingRequest, ReplayFidelityMetadata, ReplayFrame,
 };
 use vibe_cs_hlae::HlaeBundleLaunchInputs;
 
@@ -144,9 +144,9 @@ pub enum ReplayCacheState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ReplayCacheMetadata {
     pub state: ReplayCacheState,
-    pub version: u32,
     pub key: Option<String>,
     pub bytes: u64,
     pub generated_at: Option<DateTime<Utc>>,
@@ -157,12 +157,13 @@ pub struct ReplayCacheMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReplayPayload {
     pub frames: Vec<ReplayFrame>,
+    pub fidelity: ReplayFidelityMetadata,
     pub cache: ReplayCacheMetadata,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ReplayCacheStatus {
-    pub version: u32,
     pub entries: u64,
     pub bytes: u64,
     pub maximum_entries: u64,
@@ -200,11 +201,18 @@ pub enum ReviewTone {
 #[serde(deny_unknown_fields)]
 pub struct LlmReviewRequest {
     pub scope: ReviewScope,
-    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub player_id: Option<String>,
-    #[serde(default)]
     pub highlight_ids: Vec<String>,
     pub tone: ReviewTone,
+}
+
+fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -378,6 +386,17 @@ impl CosmeticsPort for DisabledCosmeticsPort {
 
 #[async_trait]
 pub trait RecordingPort: Send + Sync + std::fmt::Debug {
+    /// Validates an executable recording plan against current authoritative
+    /// Demo, analysis, configuration, and backend capability evidence.
+    ///
+    /// This check is read-only with respect to recording jobs and must not
+    /// launch the game or capture runtime. Execution revalidates independently.
+    async fn preflight(&self, items: &[RecordingRequest]) -> Result<(), DomainError>;
+    /// Starts a job and durably registers its current state before returning.
+    ///
+    /// The application layer treats this method as the single persistence owner
+    /// for the start transition; implementations must not return a successful
+    /// job that cannot immediately be retrieved from durable storage.
     async fn execute(&self, job: RecordingJob) -> Result<RecordingJob, DomainError>;
     async fn cancel(&self, job: RecordingJob) -> Result<RecordingJob, DomainError>;
 }
@@ -387,6 +406,12 @@ pub struct DisabledRecordingPort;
 
 #[async_trait]
 impl RecordingPort for DisabledRecordingPort {
+    async fn preflight(&self, _items: &[RecordingRequest]) -> Result<(), DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "recording runtime".to_owned(),
+        ))
+    }
+
     async fn execute(&self, _job: RecordingJob) -> Result<RecordingJob, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "recording runtime".to_owned(),
@@ -571,151 +596,6 @@ pub struct DisabledIntegrationPort;
 impl IntegrationPort for DisabledIntegrationPort {
     async fn request(&self, capability: &str, _request: Value) -> Result<Value, DomainError> {
         Err(DomainError::DependencyUnavailable(capability.to_owned()))
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ObsVideoSettingsSnapshot {
-    pub base_width: u32,
-    pub base_height: u32,
-    pub output_width: u32,
-    pub output_height: u32,
-    pub fps_numerator: u32,
-    pub fps_denominator: u32,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum ObsVideoField {
-    OutputResolution,
-    FrameRate,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ObsVideoFieldDiff {
-    pub field: ObsVideoField,
-    pub current: String,
-    pub target: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ObsVideoTuningPlan {
-    pub current: ObsVideoSettingsSnapshot,
-    pub target: ObsVideoSettingsSnapshot,
-    pub diff: Vec<ObsVideoFieldDiff>,
-    pub expected_fingerprint: String,
-    pub recording_active: bool,
-    pub warnings: Vec<String>,
-    pub managed_fields: Vec<String>,
-    pub excluded_fields: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct ObsVideoApplyRequest {
-    pub confirm: bool,
-    pub expected_fingerprint: String,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum ObsVideoBackupReason {
-    Apply,
-    BeforeRestore,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ObsVideoBackup {
-    pub id: Uuid,
-    pub created_at: DateTime<Utc>,
-    pub reason: ObsVideoBackupReason,
-    pub settings: ObsVideoSettingsSnapshot,
-    pub settings_fingerprint: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ObsVideoApplyResult {
-    pub applied: bool,
-    pub backup: Option<ObsVideoBackup>,
-    pub settings: ObsVideoSettingsSnapshot,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct ObsVideoRestoreRequest {
-    pub confirm: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ObsVideoRestoreResult {
-    pub restored: bool,
-    pub restored_backup_id: Uuid,
-    pub rollback_backup: Option<ObsVideoBackup>,
-    pub settings: ObsVideoSettingsSnapshot,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ObsVideoBackupDeleteResult {
-    pub id: Uuid,
-    pub deleted: bool,
-}
-
-#[async_trait]
-pub trait ObsTuningPort: Send + Sync + std::fmt::Debug {
-    async fn plan(&self) -> Result<ObsVideoTuningPlan, DomainError>;
-    async fn apply(
-        &self,
-        request: ObsVideoApplyRequest,
-    ) -> Result<ObsVideoApplyResult, DomainError>;
-    async fn list_backups(&self) -> Result<Vec<ObsVideoBackup>, DomainError>;
-    async fn restore(
-        &self,
-        id: Uuid,
-        request: ObsVideoRestoreRequest,
-    ) -> Result<ObsVideoRestoreResult, DomainError>;
-    async fn delete_backup(&self, id: Uuid) -> Result<ObsVideoBackupDeleteResult, DomainError>;
-}
-
-#[derive(Debug, Default)]
-pub struct DisabledObsTuningPort;
-
-#[async_trait]
-impl ObsTuningPort for DisabledObsTuningPort {
-    async fn plan(&self) -> Result<ObsVideoTuningPlan, DomainError> {
-        Err(DomainError::DependencyUnavailable(
-            "OBS video tuning adapter".to_owned(),
-        ))
-    }
-
-    async fn apply(
-        &self,
-        _request: ObsVideoApplyRequest,
-    ) -> Result<ObsVideoApplyResult, DomainError> {
-        Err(DomainError::DependencyUnavailable(
-            "OBS video tuning adapter".to_owned(),
-        ))
-    }
-
-    async fn list_backups(&self) -> Result<Vec<ObsVideoBackup>, DomainError> {
-        Err(DomainError::DependencyUnavailable(
-            "OBS video tuning adapter".to_owned(),
-        ))
-    }
-
-    async fn restore(
-        &self,
-        _id: Uuid,
-        _request: ObsVideoRestoreRequest,
-    ) -> Result<ObsVideoRestoreResult, DomainError> {
-        Err(DomainError::DependencyUnavailable(
-            "OBS video tuning adapter".to_owned(),
-        ))
-    }
-
-    async fn delete_backup(&self, _id: Uuid) -> Result<ObsVideoBackupDeleteResult, DomainError> {
-        Err(DomainError::DependencyUnavailable(
-            "OBS video tuning adapter".to_owned(),
-        ))
     }
 }
 

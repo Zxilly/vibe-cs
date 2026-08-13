@@ -20,6 +20,7 @@ vibe-cs-storage = { path = "../storage" }
 async-trait.workspace = true
 cap-std.workspace = true
 chrono.workspace = true
+futures-util.workspace = true
 getrandom.workspace = true
 hex.workspace = true
 hmac.workspace = true
@@ -29,6 +30,8 @@ sha2.workspace = true
 same-file.workspace = true
 notify.workspace = true
 tokio.workspace = true
+tokio-tungstenite.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
 url.workspace = true
 uuid.workspace = true

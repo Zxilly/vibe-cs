@@ -11,34 +11,33 @@ use axum::{
     routing::{get, post},
 };
 use chrono::Utc;
-use futures_util::stream;
+use futures_util::{StreamExt as _, stream};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
-use vibe_cs_domain::{AppConfig, DependencyStatus, HlaeStatus, SetupStatus};
+use vibe_cs_domain::{
+    AppConfig, DependencyStatus, HlaeStatus, ManagedHlaeReleaseStatus, SetupStatus,
+};
 use vibe_cs_hlae::{
-    HlaeBundleLaunchInputs, LaunchResolution, build_hlae_launch_profile, discover_hlae,
+    HlaeBundleLaunchInputs, HlaeError, LaunchResolution, ManagedHlaeRelease,
+    build_hlae_launch_profile, install_managed_hlae_archive, verify_managed_hlae_installation,
 };
 use vibe_cs_integrations::discover_paths;
-use vibe_cs_media::{NativeFfmpegInfo, native_ffmpeg_info};
 use walkdir::WalkDir;
 
 use crate::{ApiError, ApiJson, ApiResult, AppState};
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/health", get(health))
-        .route("/api/v1/app/runtime-state", get(runtime_state))
-        .route("/api/v1/config", get(get_config).put(put_config))
-        .route("/api/v1/config/detect-paths", post(detect_paths))
-        .route("/api/v1/config/quick-check", get(quick_check))
-        .route(
-            "/api/v1/hlae/status",
-            get(hlae_status).post(check_hlae_status),
-        )
-        .route("/api/v1/media-runtime", get(media_runtime_status))
-        .route("/api/v1/storage/status", get(storage_status))
-        .route("/api/v1/status/setup", get(setup_status))
+        .route("/api/health", get(health))
+        .route("/api/app/runtime-state", get(runtime_state))
+        .route("/api/config", get(get_config).put(put_config))
+        .route("/api/config/detect-paths", post(detect_paths))
+        .route("/api/config/quick-check", get(quick_check))
+        .route("/api/hlae/status", get(hlae_status))
+        .route("/api/hlae/managed/prepare", post(prepare_managed_hlae))
+        .route("/api/storage/status", get(storage_status))
+        .route("/api/status/setup", get(setup_status))
 }
 
 const MAXIMUM_STORAGE_SCAN_ENTRIES: usize = 500_000;
@@ -132,17 +131,11 @@ fn directory_usage(root: &Path, maximum_entries: usize) -> DirectoryUsage {
 )]
 struct DetectedPathsResponse {
     cs2_path: Option<String>,
-    hlae_path: Option<String>,
     steam_path: Option<String>,
-    obs_path: Option<String>,
-    ffmpeg_path: Option<String>,
-    ffprobe_path: Option<String>,
 }
 
 async fn detect_paths(State(state): State<AppState>) -> ApiResult<Json<DetectedPathsResponse>> {
     let config = state.storage.get_config().await?.unwrap_or_default();
-    let configured_hlae =
-        (!config.hlae_path.trim().is_empty()).then(|| std::path::PathBuf::from(&config.hlae_path));
     let discovery_config = config.clone();
     let paths = tokio::task::spawn_blocking(move || discover_paths(&discovery_config))
         .await
@@ -153,74 +146,73 @@ async fn detect_paths(State(state): State<AppState>) -> ApiResult<Json<DetectedP
                 format!("dependency discovery task failed: {error}"),
             )
         })?;
-    let hlae = tokio::task::spawn_blocking(move || discover_hlae(configured_hlae.as_deref()))
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "hlae_discovery_failed",
-                format!("HLAE discovery task failed: {error}"),
-            )
-        })?;
     Ok(Json(DetectedPathsResponse {
         cs2_path: lossy_path(paths.cs2.as_deref()),
-        hlae_path: hlae
-            .installation
-            .as_ref()
-            .map(|installation| installation.executable.to_string_lossy().into_owned()),
         steam_path: lossy_path(paths.steam.as_deref()),
-        obs_path: lossy_path(paths.obs.as_deref()),
-        ffmpeg_path: lossy_path(paths.ffmpeg.as_deref()),
-        ffprobe_path: lossy_path(paths.ffprobe.as_deref()),
     }))
 }
 
-async fn hlae_status(State(state): State<AppState>) -> ApiResult<Json<HlaeStatus>> {
-    Ok(Json(current_hlae_status(&state).await?))
+#[derive(Debug, Serialize)]
+struct ManagedHlaeStatusDto {
+    available: bool,
+    executable: Option<String>,
+    source2_hook: Option<String>,
+    source: Option<String>,
+    managed_release: ManagedHlaeReleaseStatus,
+    messages: Vec<String>,
+    cs2_executable: Option<String>,
+    launch_profile_ready: bool,
+    automatic_launch_enabled: bool,
+    safety_boundary: HlaeSafetyBoundaryDto,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct HlaeStatusRequest {
-    hlae_path: String,
-    cs2_path: String,
+#[derive(Debug, Serialize)]
+struct HlaeSafetyBoundaryDto {
+    insecure_mode_required: bool,
+    vac_servers_prohibited: bool,
+    demo_playback_only: bool,
 }
 
-async fn check_hlae_status(
-    State(state): State<AppState>,
-    ApiJson(request): ApiJson<HlaeStatusRequest>,
-) -> ApiResult<Json<HlaeStatus>> {
-    let config = AppConfig {
-        hlae_path: request.hlae_path,
-        cs2_path: request.cs2_path,
-        ..AppConfig::default()
-    };
-    validate_hlae_paths(&config)?;
-    let profile_root = state.data_dir().join("hlae-plans");
-    let status = tokio::task::spawn_blocking(move || build_hlae_status(&config, &profile_root))
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "hlae_status_failed",
-                format!("HLAE status task failed: {error}"),
-            )
-        })?;
-    Ok(Json(status))
+impl From<HlaeStatus> for ManagedHlaeStatusDto {
+    fn from(status: HlaeStatus) -> Self {
+        Self {
+            available: status.available,
+            executable: status.executable,
+            source2_hook: status.source2_hook,
+            source: status.source,
+            managed_release: status.managed_release,
+            messages: status.messages,
+            cs2_executable: status.cs2_executable,
+            launch_profile_ready: status.launch_profile_ready,
+            automatic_launch_enabled: status.automatic_launch_enabled,
+            safety_boundary: HlaeSafetyBoundaryDto {
+                insecure_mode_required: status.insecure_mode_required,
+                vac_servers_prohibited: status.vac_servers_prohibited,
+                demo_playback_only: status.demo_playback_only,
+            },
+        }
+    }
+}
+
+async fn hlae_status(State(state): State<AppState>) -> ApiResult<Json<ManagedHlaeStatusDto>> {
+    Ok(Json(current_hlae_status(&state).await?.into()))
 }
 
 pub(super) async fn current_hlae_status(state: &AppState) -> ApiResult<HlaeStatus> {
     let config = state.storage.get_config().await?.unwrap_or_default();
     let profile_root = state.data_dir().join("hlae-plans");
-    let status = tokio::task::spawn_blocking(move || build_hlae_status(&config, &profile_root))
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "hlae_status_failed",
-                format!("HLAE status task failed: {error}"),
-            )
-        })?;
+    let managed_root = managed_hlae_root(state);
+    let status = tokio::task::spawn_blocking(move || {
+        build_hlae_status(&config, &profile_root, &managed_root)
+    })
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "hlae_status_failed",
+            format!("HLAE status task failed: {error}"),
+        )
+    })?;
     Ok(status)
 }
 
@@ -228,7 +220,8 @@ pub(super) async fn current_hlae_launch_inputs(
     state: &AppState,
 ) -> ApiResult<Option<HlaeBundleLaunchInputs>> {
     let config = state.storage.get_config().await?.unwrap_or_default();
-    tokio::task::spawn_blocking(move || resolve_hlae_launch_inputs(&config))
+    let managed_root = managed_hlae_root(state);
+    tokio::task::spawn_blocking(move || resolve_hlae_launch_inputs(&config, &managed_root))
         .await
         .map_err(|error| {
             ApiError::new(
@@ -239,10 +232,13 @@ pub(super) async fn current_hlae_launch_inputs(
         })
 }
 
-fn resolve_hlae_launch_inputs(config: &AppConfig) -> Option<HlaeBundleLaunchInputs> {
-    let configured = (!config.hlae_path.trim().is_empty()).then(|| Path::new(&config.hlae_path));
-    let installation = discover_hlae(configured).installation?;
+fn resolve_hlae_launch_inputs(
+    config: &AppConfig,
+    managed_root: &Path,
+) -> Option<HlaeBundleLaunchInputs> {
+    let installation = verify_managed_hlae_installation(managed_root).ok()?;
     let game_executable = PathBuf::from(&config.cs2_path);
+    let steam_executable = discover_paths(config).steam?;
     if !game_executable.is_file()
         || !game_executable
             .file_name()
@@ -254,6 +250,7 @@ fn resolve_hlae_launch_inputs(config: &AppConfig) -> Option<HlaeBundleLaunchInpu
     Some(HlaeBundleLaunchInputs {
         installation,
         game_executable,
+        steam_executable,
         resolution: LaunchResolution {
             width: 1920,
             height: 1080,
@@ -261,11 +258,9 @@ fn resolve_hlae_launch_inputs(config: &AppConfig) -> Option<HlaeBundleLaunchInpu
     })
 }
 
-fn build_hlae_status(config: &AppConfig, profile_root: &Path) -> HlaeStatus {
-    let configured_path = (!config.hlae_path.trim().is_empty()).then(|| config.hlae_path.clone());
-    let configured = configured_path.as_deref().map(Path::new);
-    let discovery = discover_hlae(configured);
-    let installation = discovery.installation.as_ref();
+fn build_hlae_status(config: &AppConfig, profile_root: &Path, managed_root: &Path) -> HlaeStatus {
+    let verification = verify_managed_hlae_installation(managed_root);
+    let installation = verification.as_ref().ok();
     let cs2 = (!config.cs2_path.trim().is_empty())
         .then(|| Path::new(&config.cs2_path))
         .filter(|path| {
@@ -275,91 +270,173 @@ fn build_hlae_status(config: &AppConfig, profile_root: &Path) -> HlaeStatus {
                     .and_then(|name| name.to_str())
                     .is_some_and(|name| name.eq_ignore_ascii_case("cs2.exe"))
         });
-    let launch_inputs = resolve_hlae_launch_inputs(config);
+    let launch_inputs = resolve_hlae_launch_inputs(config, managed_root);
     let launch_profile_ready = launch_inputs.as_ref().is_some_and(|inputs| {
         build_hlae_launch_profile(
             &inputs.installation,
             &inputs.game_executable,
+            &inputs.steam_executable,
             profile_root,
             inputs.resolution,
         )
         .is_ok()
     });
-    let mut messages = discovery.messages;
+    let automatic_launch_enabled = launch_profile_ready && installation.is_some();
+    let mut messages = verification
+        .as_ref()
+        .err()
+        .map(|error| vec![error.to_string()])
+        .unwrap_or_default();
     if installation.is_some() && cs2.is_none() {
         messages.push(
             "CS2.exe is required before a typed HLAE launch profile can be prepared".to_owned(),
         );
     }
-    messages.push(
-        "Automatic launch is disabled; exported plans are for offline demo playback with -insecure only"
-            .to_owned(),
-    );
+    messages.push(if automatic_launch_enabled {
+        "Recording jobs launch a fresh managed HLAE and CS2 process for offline Demo playback with -insecure; proposal exports remain process-free"
+            .to_owned()
+    } else {
+        "Automatic recording launch requires the integrity-verified app-managed HLAE release"
+            .to_owned()
+    });
     HlaeStatus {
         available: installation.is_some(),
-        configured_path,
         executable: installation.map(|value| value.executable.to_string_lossy().into_owned()),
         source2_hook: installation.map(|value| value.source2_hook.to_string_lossy().into_owned()),
-        source: installation.map(|value| match value.source {
-            vibe_cs_hlae::HlaeDiscoverySource::Configured => "configured".to_owned(),
-            vibe_cs_hlae::HlaeDiscoverySource::CommonLocation => "common_location".to_owned(),
-        }),
-        checked_locations: discovery
-            .checked_locations
-            .into_iter()
-            .map(|path| path.to_string_lossy().into_owned())
-            .collect(),
+        source: installation.map(|_| "managed".to_owned()),
+        managed_release: ManagedHlaeReleaseStatus {
+            version: ManagedHlaeRelease::current().version,
+            archive_sha256: ManagedHlaeRelease::current().archive_sha256,
+            signing_fingerprint: ManagedHlaeRelease::current().signing_fingerprint,
+            prepared: installation.is_some(),
+        },
         messages,
         cs2_executable: cs2.map(|path| path.to_string_lossy().into_owned()),
         launch_profile_ready,
-        automatic_launch_enabled: false,
+        automatic_launch_enabled,
         insecure_mode_required: true,
         vac_servers_prohibited: true,
         demo_playback_only: true,
     }
 }
 
-fn lossy_path(path: Option<&Path>) -> Option<String> {
-    path.map(|path| path.to_string_lossy().into_owned())
+fn managed_hlae_root(state: &AppState) -> PathBuf {
+    state.data_dir().join("runtimes/hlae")
 }
 
-#[derive(Debug, Serialize)]
-struct MediaRuntimeResponse {
-    available: bool,
-    backend: String,
-    version: String,
-    license: String,
-    encoders: Vec<String>,
-}
+async fn prepare_managed_hlae(
+    State(state): State<AppState>,
+) -> ApiResult<Json<ManagedHlaeStatusDto>> {
+    if !cfg!(windows) {
+        return Err(ApiError::new(
+            axum::http::StatusCode::BAD_REQUEST,
+            "hlae_unsupported_platform",
+            "HLAE is supported only on Windows",
+        ));
+    }
+    let _preparation = state.hlae_preparation.lock().await;
+    let config = state.storage.get_config().await?.unwrap_or_default();
+    let profile_root = state.data_dir().join("hlae-plans");
+    let managed_root = managed_hlae_root(&state);
+    let existing = build_hlae_status(&config, &profile_root, &managed_root);
+    if existing.managed_release.prepared {
+        return Ok(Json(existing.into()));
+    }
 
-async fn media_runtime_status() -> ApiResult<Json<MediaRuntimeResponse>> {
-    let info = tokio::task::spawn_blocking(native_ffmpeg_info)
+    let release = ManagedHlaeRelease::current();
+    let archive = download_managed_hlae_archive(&release).await?;
+    let install_root = managed_root.clone();
+    tokio::task::spawn_blocking(move || install_managed_hlae_archive(&archive, &install_root))
         .await
         .map_err(|error| {
             ApiError::new(
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "media_runtime_status_failed",
-                format!("native media runtime task failed: {error}"),
+                "hlae_prepare_failed",
+                format!("managed HLAE preparation task failed: {error}"),
             )
         })?
-        .map_err(|error| {
-            ApiError::new(
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "media_runtime_unavailable",
-                error.to_string(),
-            )
-        })?;
-    Ok(Json(media_runtime_response(info)))
+        .map_err(|error| hlae_api_error(&error))?;
+    Ok(Json(
+        build_hlae_status(&config, &profile_root, &managed_root).into(),
+    ))
 }
 
-fn media_runtime_response(info: NativeFfmpegInfo) -> MediaRuntimeResponse {
-    MediaRuntimeResponse {
-        available: true,
-        backend: info.backend,
-        version: info.avcodec_version,
-        license: info.license,
-        encoders: info.encoders,
+async fn download_managed_hlae_archive(release: &ManagedHlaeRelease) -> ApiResult<Vec<u8>> {
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|_| managed_download_error("unable to initialize the HTTPS client"))?;
+    let response = client
+        .get(&release.archive_url)
+        .header(reqwest::header::ACCEPT, "application/zip")
+        .send()
+        .await
+        .map_err(|_| managed_download_error("official HLAE release download failed"))?
+        .error_for_status()
+        .map_err(|_| managed_download_error("official HLAE release returned an error"))?;
+    if response
+        .content_length()
+        .is_some_and(|length| length != release.archive_size)
+    {
+        return Err(managed_download_error(
+            "official HLAE release reported an unexpected size",
+        ));
     }
+    let capacity = usize::try_from(release.archive_size).map_err(|_| {
+        managed_download_error("reviewed HLAE release size is unsupported on this system")
+    })?;
+    let mut archive = Vec::with_capacity(capacity);
+    let mut stream = response.bytes_stream();
+    while let Some(chunk) = stream.next().await {
+        let chunk =
+            chunk.map_err(|_| managed_download_error("HLAE release download was interrupted"))?;
+        let total = archive
+            .len()
+            .checked_add(chunk.len())
+            .ok_or_else(|| managed_download_error("HLAE release download size overflow"))?;
+        if total > capacity {
+            return Err(managed_download_error(
+                "HLAE release exceeded the reviewed archive size",
+            ));
+        }
+        archive.extend_from_slice(&chunk);
+    }
+    if archive.len() != capacity {
+        return Err(managed_download_error(
+            "HLAE release download ended before the reviewed archive size",
+        ));
+    }
+    Ok(archive)
+}
+
+fn managed_download_error(message: &'static str) -> ApiError {
+    ApiError::new(
+        axum::http::StatusCode::BAD_GATEWAY,
+        "hlae_download_failed",
+        message,
+    )
+}
+
+fn hlae_api_error(error: &HlaeError) -> ApiError {
+    let (status, code) = match error {
+        HlaeError::ArtifactBundleExists(_) | HlaeError::ArtifactBundleConflict { .. } => {
+            (axum::http::StatusCode::CONFLICT, "hlae_prepare_conflict")
+        }
+        HlaeError::InvalidInstallation(_) | HlaeError::UnsafePath { .. } => (
+            axum::http::StatusCode::UNPROCESSABLE_ENTITY,
+            "hlae_integrity_failed",
+        ),
+        _ => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "hlae_prepare_failed",
+        ),
+    };
+    ApiError::new(status, code, error.to_string())
+}
+
+fn lossy_path(path: Option<&Path>) -> Option<String> {
+    path.map(|path| path.to_string_lossy().into_owned())
 }
 
 #[derive(Debug, Serialize)]
@@ -400,34 +477,23 @@ async fn runtime_state(State(state): State<AppState>) -> Json<RuntimeStateRespon
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[allow(
     clippy::struct_excessive_bools,
-    reason = "wire compatibility exposes one presence bit per independently stored secret"
+    reason = "the settings contract exposes one presence bit per independently stored secret"
 )]
 struct ConfigDto {
-    language: String,
     theme: String,
     update_manifest_url: String,
-    game_path: String,
     demo_watch_paths: Vec<String>,
-    ffmpeg_path: String,
-    obs_host: String,
-    obs_port: u16,
-    output_directory: String,
-    preferred_encoder: String,
-    analysis_mode: String,
     locale: String,
     data_dir: String,
-    ffprobe_path: String,
     cs2_path: String,
-    hlae_path: String,
     steam_path: String,
     steam: vibe_cs_domain::SteamConfig,
     steam_has_web_api_key: bool,
     steam_has_authentication_code: bool,
     steam_has_share_code: bool,
-    obs: vibe_cs_domain::ObsConfig,
-    obs_has_password: bool,
     llm: vibe_cs_domain::LlmConfig,
     llm_has_api_key: bool,
     clear_llm_api_key: bool,
@@ -436,15 +502,6 @@ struct ConfigDto {
 
 impl From<AppConfig> for ConfigDto {
     fn from(config: AppConfig) -> Self {
-        let analysis_mode = if config.llm.provider.is_empty() {
-            "local"
-        } else {
-            "assisted"
-        }
-        .to_owned();
-        let mut obs = config.obs;
-        let obs_has_password = !obs.password.is_empty();
-        obs.password.clear();
         let mut llm = config.llm;
         let llm_has_api_key = !llm.api_key.is_empty();
         llm.api_key.clear();
@@ -456,54 +513,23 @@ impl From<AppConfig> for ConfigDto {
         steam.authentication_code.clear();
         steam.known_share_code.clear();
         Self {
-            language: config.locale.clone(),
             theme: config.theme.clone(),
             update_manifest_url: config.update_manifest_url.clone(),
-            game_path: config.cs2_path.clone(),
             demo_watch_paths: config.demo_watch_paths.clone(),
-            ffmpeg_path: config.ffmpeg_path.clone(),
-            obs_host: obs.host.clone(),
-            obs_port: obs.port,
-            output_directory: config.data_dir.clone(),
-            preferred_encoder: config.preferred_encoder,
-            analysis_mode,
             locale: config.locale,
             data_dir: config.data_dir,
-            ffprobe_path: config.ffprobe_path,
             cs2_path: config.cs2_path,
-            hlae_path: config.hlae_path,
             steam_path: config.steam_path,
             steam,
             steam_has_web_api_key,
             steam_has_authentication_code,
             steam_has_share_code,
-            obs,
-            obs_has_password,
             llm,
             llm_has_api_key,
             clear_llm_api_key: false,
             recording: config.recording,
         }
     }
-}
-
-#[derive(Debug, Deserialize)]
-struct CompatibleConfigInput {
-    language: String,
-    theme: String,
-    #[serde(default)]
-    update_manifest_url: String,
-    game_path: String,
-    #[serde(default)]
-    demo_watch_paths: Vec<String>,
-    ffmpeg_path: String,
-    obs_host: String,
-    obs_port: u16,
-    output_directory: String,
-    #[serde(default)]
-    preferred_encoder: String,
-    #[serde(default)]
-    analysis_mode: String,
 }
 
 async fn get_config(State(state): State<AppState>) -> ApiResult<Json<ConfigDto>> {
@@ -516,62 +542,40 @@ async fn put_config(
     ApiJson(input): ApiJson<Value>,
 ) -> ApiResult<Json<ConfigDto>> {
     let current = state.storage.get_config().await?.unwrap_or_default();
-    let clear_llm_api_key = input
-        .get("clear_llm_api_key")
-        .and_then(Value::as_bool)
-        .unwrap_or(false);
-    let config = if input.get("locale").is_some() || input.get("obs").is_some() {
-        let mut updated = serde_json::from_value::<AppConfig>(input)
-            .map_err(|error| crate::ApiError::invalid(error.to_string()))?;
-        if is_secret_placeholder(&updated.obs.password) {
-            updated.obs.password.clone_from(&current.obs.password);
-        }
-        merge_llm_api_key(&current, &mut updated, clear_llm_api_key)?;
-        if is_secret_placeholder(&updated.steam.web_api_key) {
-            updated
-                .steam
-                .web_api_key
-                .clone_from(&current.steam.web_api_key);
-        }
-        if is_secret_placeholder(&updated.steam.authentication_code) {
-            updated
-                .steam
-                .authentication_code
-                .clone_from(&current.steam.authentication_code);
-        }
-        if is_secret_placeholder(&updated.steam.known_share_code) {
-            updated
-                .steam
-                .known_share_code
-                .clone_from(&current.steam.known_share_code);
-        }
-        updated
-    } else {
-        let input = serde_json::from_value::<CompatibleConfigInput>(input)
-            .map_err(|error| crate::ApiError::invalid(error.to_string()))?;
-        let _ = &input.analysis_mode;
-        let preferred_encoder = if input.preferred_encoder.trim().is_empty() {
-            current.preferred_encoder.clone()
-        } else {
-            input.preferred_encoder
-        };
-        AppConfig {
-            locale: input.language,
-            theme: input.theme,
-            update_manifest_url: input.update_manifest_url,
-            data_dir: input.output_directory,
-            demo_watch_paths: input.demo_watch_paths,
-            ffmpeg_path: input.ffmpeg_path,
-            preferred_encoder,
-            cs2_path: input.game_path,
-            obs: vibe_cs_domain::ObsConfig {
-                host: input.obs_host,
-                port: input.obs_port,
-                ..current.obs
-            },
-            ..current
-        }
+    let input = serde_json::from_value::<ConfigDto>(input)
+        .map_err(|error| crate::ApiError::invalid(error.to_string()))?;
+    let clear_llm_api_key = input.clear_llm_api_key;
+    let mut config = AppConfig {
+        locale: input.locale,
+        theme: input.theme,
+        update_manifest_url: input.update_manifest_url,
+        data_dir: input.data_dir,
+        demo_watch_paths: input.demo_watch_paths,
+        cs2_path: input.cs2_path,
+        steam_path: input.steam_path,
+        steam: input.steam,
+        llm: input.llm,
+        recording: input.recording,
     };
+    merge_llm_api_key(&current, &mut config, clear_llm_api_key)?;
+    if is_secret_placeholder(&config.steam.web_api_key) {
+        config
+            .steam
+            .web_api_key
+            .clone_from(&current.steam.web_api_key);
+    }
+    if is_secret_placeholder(&config.steam.authentication_code) {
+        config
+            .steam
+            .authentication_code
+            .clone_from(&current.steam.authentication_code);
+    }
+    if is_secret_placeholder(&config.steam.known_share_code) {
+        config
+            .steam
+            .known_share_code
+            .clone_from(&current.steam.known_share_code);
+    }
     validate_config(&config)?;
     let config = state.storage.put_config(config).await?;
     state
@@ -591,7 +595,7 @@ fn validate_config(config: &AppConfig) -> ApiResult<()> {
             "at most 64 demo watch directories may be configured",
         ));
     }
-    validate_hlae_paths(config)?;
+    validate_game_path(config)?;
     if config
         .demo_watch_paths
         .iter()
@@ -611,13 +615,6 @@ fn validate_config(config: &AppConfig) -> ApiResult<()> {
             "recording pre/post-roll must be between 0 and 15 seconds",
         ));
     }
-    if !recording.transition_seconds.is_finite()
-        || !(0.0..=2.0).contains(&recording.transition_seconds)
-    {
-        return Err(crate::ApiError::invalid(
-            "recording transition must be between 0 and 2 seconds",
-        ));
-    }
     if !matches!(
         recording.resolution.as_str(),
         "1920x1080" | "2560x1440" | "3840x2160"
@@ -631,69 +628,19 @@ fn validate_config(config: &AppConfig) -> ApiResult<()> {
             "recording frame rate must be 30 or 60 FPS",
         ));
     }
-    if !recording.voice_restore_volume.is_finite()
-        || !(0.0..=1.0).contains(&recording.voice_restore_volume)
-    {
+    if !recording.camera_fov.is_finite() || !(60.0..=140.0).contains(&recording.camera_fov) {
         return Err(ApiError::invalid(
-            "recording voice restore volume must be between 0 and 1",
+            "recording camera FOV must be between 60 and 140",
         ));
     }
-    if ![recording.camera_fov, recording.camera_fov_restore]
-        .into_iter()
-        .all(|value| value.is_finite() && (60.0..=140.0).contains(&value))
-    {
+    if !recording.viewmodel_fov.is_finite() || !(54.0..=68.0).contains(&recording.viewmodel_fov) {
         return Err(ApiError::invalid(
-            "recording camera FOV and its restore value must be between 60 and 140",
-        ));
-    }
-    if ![recording.viewmodel_fov, recording.viewmodel_fov_restore]
-        .into_iter()
-        .all(|value| value.is_finite() && (54.0..=68.0).contains(&value))
-    {
-        return Err(ApiError::invalid(
-            "recording viewmodel FOV and its restore value must be between 54 and 68",
-        ));
-    }
-    if !(-5_000..=5_000).contains(&recording.capture_delay_ms) {
-        return Err(ApiError::invalid(
-            "recording capture delay must be between -5000 and 5000 milliseconds",
+            "recording viewmodel FOV must be between 54 and 68",
         ));
     }
     if recording.mute_voice && recording.isolate_target_voice {
         return Err(ApiError::invalid(
             "recording global voice mute and target-player isolation are mutually exclusive",
-        ));
-    }
-    for path in [
-        &recording.first_person_hud_assets,
-        &recording.obs_realtime_kill_fx_media,
-        &recording.obs_realtime_keyboard_media,
-    ] {
-        if !path.is_empty()
-            && (path.trim() != path
-                || !Path::new(path).is_absolute()
-                || path.chars().any(char::is_control))
-        {
-            return Err(ApiError::invalid(
-                "recording HUD and realtime overlay paths must be normalized absolute paths",
-            ));
-        }
-    }
-    if !matches!(
-        config
-            .preferred_encoder
-            .trim()
-            .to_ascii_lowercase()
-            .as_str(),
-        "auto" | "libopenh264" | "h264_mf" | "h264_qsv" | "h264_nvenc" | "h264_amf"
-    ) {
-        return Err(crate::ApiError::invalid(
-            "preferred encoder is not supported",
-        ));
-    }
-    if config.obs.port == 0 {
-        return Err(crate::ApiError::invalid(
-            "OBS port must be greater than zero",
         ));
     }
     if !(1..=100).contains(&config.steam.maximum_results) {
@@ -742,20 +689,7 @@ fn validate_config(config: &AppConfig) -> ApiResult<()> {
     Ok(())
 }
 
-fn validate_hlae_paths(config: &AppConfig) -> ApiResult<()> {
-    if !config.hlae_path.is_empty()
-        && (config.hlae_path.trim() != config.hlae_path
-            || !Path::new(&config.hlae_path).is_absolute()
-            || config.hlae_path.chars().any(char::is_control)
-            || !Path::new(&config.hlae_path)
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name.eq_ignore_ascii_case("HLAE.exe")))
-    {
-        return Err(ApiError::invalid(
-            "HLAE path must be a normalized absolute path ending in HLAE.exe",
-        ));
-    }
+fn validate_game_path(config: &AppConfig) -> ApiResult<()> {
     if !config.cs2_path.is_empty()
         && (!Path::new(&config.cs2_path).is_absolute()
             || config.cs2_path.trim() != config.cs2_path
@@ -845,11 +779,7 @@ async fn setup_status(State(state): State<AppState>) -> ApiResult<Json<SetupStat
                 format!("dependency discovery task failed: {error}"),
             )
         })?;
-    let media = tokio::task::spawn_blocking(native_ffmpeg_info)
-        .await
-        .ok()
-        .and_then(Result::ok);
-    let dependencies = dependency_statuses(&config, &paths, media.as_ref());
+    let dependencies = dependency_statuses(&config, &paths);
     let ready = dependencies
         .iter()
         .filter(|dependency| dependency.name != "llm")
@@ -888,46 +818,20 @@ async fn quick_check(State(state): State<AppState>) -> ApiResult<Json<QuickCheck
                 format!("dependency discovery task failed: {error}"),
             )
         })?;
-    let media = tokio::task::spawn_blocking(native_ffmpeg_info)
-        .await
-        .ok()
-        .and_then(Result::ok);
-    let checks = vec![
-        check_discovered_path("game", "Game", paths.cs2.as_deref(), Some("/settings")),
-        check_obs(&config),
-        DependencyCheck {
-            kind: "ffmpeg",
-            state: if media.is_some() { "ready" } else { "missing" },
-            label: "Native FFmpeg",
-            detail: media.as_ref().map_or_else(
-                || "The linked FFmpeg libraries could not be initialized".to_owned(),
-                |info| format!("ffmpeg-next / libavcodec {}", info.avcodec_version),
-            ),
-            action_path: Some("/settings"),
-        },
-        DependencyCheck {
-            kind: "encoder",
-            state: if media.as_ref().is_none_or(|info| info.encoders.is_empty()) {
-                "missing"
-            } else {
-                "checking"
-            },
-            label: "Encoder",
-            detail: "Encoder capability is verified when an export adapter starts".to_owned(),
-            action_path: Some("/settings"),
-        },
-        DependencyCheck {
-            kind: "storage",
-            state: "ready",
-            label: "Storage",
-            detail: state.data_dir().to_string_lossy().into_owned(),
-            action_path: None,
-        },
-    ];
+    let checks = build_quick_checks(&paths);
     Ok(Json(QuickCheckResponse {
         checks,
         checked_at: Utc::now(),
     }))
+}
+
+fn build_quick_checks(paths: &vibe_cs_integrations::DiscoveredPaths) -> Vec<DependencyCheck> {
+    vec![check_discovered_path(
+        "game",
+        "Counter-Strike 2",
+        paths.cs2.as_deref(),
+        Some("/settings"),
+    )]
 }
 
 fn check_discovered_path(
@@ -951,25 +855,9 @@ fn check_discovered_path(
 fn dependency_statuses(
     config: &AppConfig,
     paths: &vibe_cs_integrations::DiscoveredPaths,
-    media: Option<&NativeFfmpegInfo>,
 ) -> Vec<DependencyStatus> {
     vec![
         dependency("game", paths.cs2.as_deref()),
-        DependencyStatus {
-            name: "ffmpeg".to_owned(),
-            available: media.is_some(),
-            version: media.map(|info| info.avcodec_version.clone()),
-            path: None,
-            message: Some("Linked through ffmpeg-next; no executable path is required".to_owned()),
-        },
-        DependencyStatus {
-            name: "obs".to_owned(),
-            available: !config.obs.executable.is_empty()
-                && Path::new(&config.obs.executable).is_file(),
-            version: None,
-            path: (!config.obs.executable.is_empty()).then(|| config.obs.executable.clone()),
-            message: Some("Connectivity is verified by the OBS endpoint".to_owned()),
-        },
         DependencyStatus {
             name: "llm".to_owned(),
             available: !config.llm.provider.is_empty()
@@ -990,21 +878,6 @@ fn dependency(name: &str, path: Option<&Path>) -> DependencyStatus {
         version: None,
         path: path.map(|path| path.to_string_lossy().into_owned()),
         message: (!available).then(|| format!("{name} executable was not found")),
-    }
-}
-
-fn check_obs(config: &AppConfig) -> DependencyCheck {
-    let available = !config.obs.executable.is_empty() && Path::new(&config.obs.executable).exists();
-    DependencyCheck {
-        kind: "obs",
-        state: if available { "checking" } else { "missing" },
-        label: "OBS",
-        detail: if available {
-            "Executable found; use the OBS status endpoint to verify connectivity".to_owned()
-        } else {
-            "OBS is not configured or accessible".to_owned()
-        },
-        action_path: Some("/settings"),
     }
 }
 
@@ -1035,67 +908,197 @@ mod tests {
     use super::*;
 
     #[test]
-    fn compatible_config_round_trip_keeps_core_fields() {
+    fn public_config_uses_only_canonical_current_fields() {
         let config = AppConfig {
             locale: "en-US".to_owned(),
             cs2_path: "C:/Game/game.exe".to_owned(),
-            hlae_path: "C:/HLAE/HLAE.exe".to_owned(),
             ..AppConfig::default()
         };
         let dto = ConfigDto::from(config);
-        assert_eq!(dto.language, "en-US");
-        assert_eq!(dto.game_path, "C:/Game/game.exe");
-        assert_eq!(dto.hlae_path, "C:/HLAE/HLAE.exe");
+        assert_eq!(dto.locale, "en-US");
+        assert_eq!(dto.cs2_path, "C:/Game/game.exe");
+        let json = serde_json::to_string(&dto).expect("serialize public config");
+        for retired in [
+            "language",
+            "game_path",
+            "output_directory",
+            "analysis_mode",
+            "obs",
+            "ffmpeg_path",
+            "ffprobe_path",
+            "preferred_encoder",
+            "hlae_path",
+        ] {
+            assert!(!json.contains(&format!("\"{retired}\"")));
+        }
+    }
+
+    #[test]
+    fn config_response_exposes_only_native_hlae_recording_controls() {
+        let response = serde_json::to_value(ConfigDto::from(AppConfig::default()))
+            .expect("serialize public configuration");
+        let recording = response["recording"]
+            .as_object()
+            .expect("recording configuration object");
+        let mut fields = recording.keys().map(String::as_str).collect::<Vec<_>>();
+        fields.sort_unstable();
+
+        assert_eq!(
+            fields,
+            [
+                "camera_fov",
+                "flash_alpha",
+                "fps",
+                "isolate_target_voice",
+                "mute_voice",
+                "post_roll_seconds",
+                "pre_roll_seconds",
+                "resolution",
+                "show_hud",
+                "show_radar",
+                "viewmodel_fov",
+            ]
+        );
+    }
+
+    #[test]
+    fn workspace_readiness_contains_only_the_user_supplied_cs2_dependency() {
+        let checks = build_quick_checks(&vibe_cs_integrations::DiscoveredPaths::default());
+
+        assert_eq!(
+            checks.iter().map(|check| check.kind).collect::<Vec<_>>(),
+            vec!["game"]
+        );
     }
 
     #[cfg(windows)]
     #[test]
-    fn hlae_status_reports_inputs_without_enabling_launch() {
+    fn hlae_status_requires_the_managed_installation() {
         let temporary = tempfile::tempdir().unwrap();
-        let hlae = temporary.path().join("HLAE.exe");
-        let hook = temporary.path().join("x64/AfxHookSource2.dll");
         let cs2 = temporary.path().join("cs2.exe");
-        std::fs::create_dir_all(hook.parent().unwrap()).unwrap();
-        for path in [&hlae, &hook, &cs2] {
-            std::fs::write(path, b"fixture").unwrap();
-        }
+        std::fs::write(&cs2, b"fixture").unwrap();
         let config = AppConfig {
-            hlae_path: hlae.to_string_lossy().into_owned(),
             cs2_path: cs2.to_string_lossy().into_owned(),
             ..AppConfig::default()
         };
 
-        let status = build_hlae_status(&config, temporary.path());
+        let status = build_hlae_status(
+            &config,
+            temporary.path(),
+            &temporary.path().join("managed-hlae"),
+        );
 
-        assert!(status.available);
-        assert!(status.launch_profile_ready);
+        assert!(!status.available);
+        assert!(!status.launch_profile_ready);
         assert!(!status.automatic_launch_enabled);
+        assert!(status.source.is_none());
         assert!(status.insecure_mode_required);
         assert!(status.vac_servers_prohibited);
         assert!(status.demo_playback_only);
     }
 
     #[test]
+    fn public_hlae_status_omits_retired_discovery_contracts() {
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let status = build_hlae_status(
+            &AppConfig::default(),
+            temporary.path(),
+            &temporary.path().join("managed-hlae"),
+        );
+        let value = serde_json::to_value(ManagedHlaeStatusDto::from(status))
+            .expect("serialize managed HLAE status");
+        let object = value.as_object().expect("status object");
+
+        assert!(!object.contains_key("configured_path"));
+        assert!(!object.contains_key("checked_locations"));
+        assert!(!object.contains_key("insecure_mode_required"));
+        assert!(object.contains_key("managed_release"));
+        assert_eq!(
+            value["safety_boundary"],
+            serde_json::json!({
+                "insecure_mode_required": true,
+                "vac_servers_prohibited": true,
+                "demo_playback_only": true
+            })
+        );
+    }
+
+    #[test]
     fn serialized_config_never_contains_credentials() {
         let mut config = AppConfig::default();
-        config.obs.password = "obs-private-value".to_owned();
         config.llm.api_key = "llm-private-value".to_owned();
         config.steam.web_api_key = "steam-api-private-value".to_owned();
         config.steam.authentication_code = "steam-auth-private-value".to_owned();
         config.steam.known_share_code = "steam-share-private-value".to_owned();
         let dto = ConfigDto::from(config);
         let json = serde_json::to_string(&dto).expect("serialize config response");
-        assert!(!json.contains("obs-private-value"));
+        assert!(!json.contains("\"obs\""));
+        assert!(!json.contains("obs_host"));
+        assert!(!json.contains("obs_port"));
+        assert!(!json.contains("obs_has_password"));
+        assert!(!json.contains("ffmpeg_path"));
+        assert!(!json.contains("ffprobe_path"));
+        assert!(!json.contains("preferred_encoder"));
+        assert!(!json.contains("hlae_path"));
         assert!(!json.contains("llm-private-value"));
         assert!(!json.contains("steam-api-private-value"));
         assert!(!json.contains("steam-auth-private-value"));
         assert!(!json.contains("steam-share-private-value"));
-        assert!(json.contains("\"obs_has_password\":true"));
         assert!(json.contains("\"llm_has_api_key\":true"));
         assert!(json.contains("\"steam_has_web_api_key\":true"));
         assert!(json.contains("\"steam_has_authentication_code\":true"));
         assert!(json.contains("\"steam_has_share_code\":true"));
         assert!(json.contains("\"clear_llm_api_key\":false"));
+    }
+
+    #[tokio::test]
+    async fn retired_configuration_fields_are_rejected() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let state = AppState::new(storage, directory.path().to_path_buf());
+        let canonical = serde_json::to_value(ConfigDto::from(AppConfig::default()))
+            .expect("serialize public configuration");
+        for (path, value) in [
+            ("obs", serde_json::json!({ "host": "127.0.0.1" })),
+            ("ffmpeg_path", serde_json::json!("C:\\Tools\\ffmpeg.exe")),
+            ("ffprobe_path", serde_json::json!("C:\\Tools\\ffprobe.exe")),
+            ("preferred_encoder", serde_json::json!("h264_nvenc")),
+            ("hlae_path", serde_json::json!("C:\\Tools\\HLAE.exe")),
+        ] {
+            let mut payload = canonical.clone();
+            payload[path] = value;
+            assert!(
+                put_config(State(state.clone()), ApiJson(payload))
+                    .await
+                    .is_err()
+            );
+        }
+        let mut recording_payload = canonical;
+        recording_payload["recording"]["capture_delay_ms"] = serde_json::json!(250);
+        assert!(
+            put_config(State(state), ApiJson(recording_payload))
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn detected_paths_only_exposes_user_managed_game_paths() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let state = AppState::new(storage, directory.path().to_path_buf());
+        let response = detect_paths(State(state)).await.expect("detected paths");
+        let value = serde_json::to_value(response.0).expect("serialize detected paths");
+        let object = value.as_object().expect("detected paths object");
+
+        assert_eq!(
+            object.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["cs2_path", "steam_path"]
+        );
     }
 
     #[test]
@@ -1138,7 +1141,7 @@ mod tests {
     }
 
     #[test]
-    fn recording_defaults_are_validated_at_the_configuration_boundary() {
+    fn native_hlae_recording_controls_are_validated_at_the_configuration_boundary() {
         let mut config = AppConfig::default();
         assert!(validate_config(&config).is_ok());
         config.recording.pre_roll_seconds = -1.0;
@@ -1147,23 +1150,12 @@ mod tests {
         config.recording.fps = 144;
         assert!(validate_config(&config).is_err());
         config.recording.fps = 60;
-        config.recording.voice_restore_volume = f64::NAN;
-        assert!(validate_config(&config).is_err());
-        config.recording.voice_restore_volume = 1.01;
-        assert!(validate_config(&config).is_err());
-        config.recording.voice_restore_volume = 1.0;
         config.recording.camera_fov = 200.0;
         assert!(validate_config(&config).is_err());
         config.recording.camera_fov = 90.0;
-        config.recording.viewmodel_fov_restore = 40.0;
+        config.recording.viewmodel_fov = 40.0;
         assert!(validate_config(&config).is_err());
-        config.recording.viewmodel_fov_restore = 68.0;
-        config.recording.capture_delay_ms = 5_001;
-        assert!(validate_config(&config).is_err());
-        config.recording.capture_delay_ms = 0;
-        config.recording.obs_realtime_kill_fx_media = "relative.webm".to_owned();
-        assert!(validate_config(&config).is_err());
-        config.recording.obs_realtime_kill_fx_media.clear();
+        config.recording.viewmodel_fov = 68.0;
         config.recording.mute_voice = true;
         config.recording.isolate_target_voice = true;
         assert!(validate_config(&config).is_err());

@@ -15,8 +15,7 @@ use crate::{
     io_error,
 };
 
-const JOURNAL_VERSION: u32 = 1;
-const JOURNAL_FILE_NAME: &str = "managed-files.v1.json";
+const JOURNAL_FILE_NAME: &str = "managed-files.json";
 const MAXIMUM_MANAGED_FILES: usize = 128;
 const MAXIMUM_JOURNAL_BYTES: u64 = 256 * 1024;
 
@@ -183,7 +182,6 @@ impl BackupManager {
                 });
             }
             let journal = Journal {
-                version: JOURNAL_VERSION,
                 transaction_id,
                 entries,
             };
@@ -364,13 +362,10 @@ impl BackupManager {
         }
         let bytes = read_bounded_file(&path, MAXIMUM_JOURNAL_BYTES)?;
         let journal: Journal = serde_json::from_slice(&bytes)?;
-        if journal.version != JOURNAL_VERSION
-            || journal.entries.is_empty()
-            || journal.entries.len() > MAXIMUM_MANAGED_FILES
-        {
+        if journal.entries.is_empty() || journal.entries.len() > MAXIMUM_MANAGED_FILES {
             return Err(PlatformError::BackupIntegrity {
                 path,
-                reason: "journal version or entry count is invalid".to_owned(),
+                reason: "journal entry count is invalid".to_owned(),
             });
         }
         let managed = journal
@@ -472,7 +467,6 @@ enum RestoreOperation {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Journal {
-    version: u32,
     transaction_id: Uuid,
     entries: Vec<JournalEntry>,
 }

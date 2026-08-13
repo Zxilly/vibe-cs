@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Bounded settings for deterministic, local music analysis.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-#[serde(default, deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct AudioAnalysisOptions {
     /// Analysis sample rate. Inputs above this rate are downsampled in-process.
     pub sample_rate: u32,
@@ -89,7 +89,7 @@ pub struct BeatAlignmentClip {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
-#[serde(default, deny_unknown_fields)]
+#[serde(deny_unknown_fields)]
 pub struct BeatAlignmentOptions {
     pub timeline_start_seconds: f64,
     pub maximum_duration_change_ratio: f64,
@@ -113,7 +113,6 @@ impl Default for BeatAlignmentOptions {
 pub struct BeatAlignmentRequest {
     pub beats: Vec<AudioBeat>,
     pub clips: Vec<BeatAlignmentClip>,
-    #[serde(default)]
     pub options: BeatAlignmentOptions,
 }
 
@@ -144,9 +143,72 @@ mod tests {
     use super::*;
 
     #[test]
-    fn analysis_options_have_transport_safe_defaults() {
-        let options: AudioAnalysisOptions = serde_json::from_str("{}").unwrap();
-        assert_eq!(options, AudioAnalysisOptions::default());
-        assert!(serde_json::from_str::<AudioAnalysisOptions>(r#"{"unexpected":true}"#).is_err());
+    fn audio_analysis_options_accept_only_the_current_exact_shape() {
+        let current = serde_json::to_value(AudioAnalysisOptions::default())
+            .expect("serialize current audio options");
+        assert_eq!(
+            serde_json::from_value::<AudioAnalysisOptions>(current.clone())
+                .expect("current audio options"),
+            AudioAnalysisOptions::default()
+        );
+
+        for required in [
+            "sample_rate",
+            "maximum_duration_seconds",
+            "maximum_beats",
+            "maximum_onsets",
+            "energy_points",
+            "maximum_sections",
+        ] {
+            let mut incomplete = current.clone();
+            incomplete
+                .as_object_mut()
+                .expect("audio options are an object")
+                .remove(required);
+            assert!(
+                serde_json::from_value::<AudioAnalysisOptions>(incomplete).is_err(),
+                "missing {required} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn beat_alignment_options_accept_only_the_current_exact_shape() {
+        let current = serde_json::to_value(BeatAlignmentOptions::default())
+            .expect("serialize current alignment options");
+        for required in [
+            "timeline_start_seconds",
+            "maximum_duration_change_ratio",
+            "beats_per_phrase",
+            "prefer_strong_boundaries",
+        ] {
+            let mut incomplete = current.clone();
+            incomplete
+                .as_object_mut()
+                .expect("alignment options are an object")
+                .remove(required);
+            assert!(
+                serde_json::from_value::<BeatAlignmentOptions>(incomplete).is_err(),
+                "missing {required} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn beat_alignment_request_requires_explicit_current_options() {
+        let current = serde_json::json!({
+            "beats": [],
+            "clips": [],
+            "options": BeatAlignmentOptions::default(),
+        });
+        serde_json::from_value::<BeatAlignmentRequest>(current.clone())
+            .expect("current alignment request");
+
+        let mut incomplete = current;
+        incomplete
+            .as_object_mut()
+            .expect("alignment request is an object")
+            .remove("options");
+        assert!(serde_json::from_value::<BeatAlignmentRequest>(incomplete).is_err());
     }
 }

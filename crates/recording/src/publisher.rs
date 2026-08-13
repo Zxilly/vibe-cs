@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use vibe_cs_platform_windows::ProcessCancellation;
 
-use crate::{RecordingError, RecordingResult, io_error};
+use crate::{CaptureArtifact, RecordingError, RecordingResult, io_error};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PublishedClip {
@@ -17,20 +17,20 @@ pub struct PublishedClip {
     pub sha256: String,
 }
 
-/// Copies a verified OBS output into a same-directory temporary file and
+/// Copies a verified capture artifact into a same-directory temporary file and
 /// atomically publishes it without replacing an existing managed output.
 ///
 /// # Errors
 ///
 /// Rejects missing, empty, oversized, symlink, relative, or existing paths;
 /// also returns cancellation and filesystem errors.
-pub async fn publish_obs_output(
-    source: &Path,
+pub async fn publish_capture_artifact(
+    artifact: &CaptureArtifact,
     destination: &Path,
     maximum_bytes: u64,
     cancellation: &ProcessCancellation,
 ) -> RecordingResult<PublishedClip> {
-    let source = source.to_path_buf();
+    let source = artifact.path.clone();
     let destination = destination.to_path_buf();
     let cancellation = cancellation.clone();
     tokio::task::spawn_blocking(move || {
@@ -54,11 +54,11 @@ fn publish_blocking(
     if source == destination {
         return Err(RecordingError::OutputInvalid {
             path: source.to_path_buf(),
-            reason: "OBS source and managed destination must differ".to_owned(),
+            reason: "capture source and managed destination must differ".to_owned(),
         });
     }
     let metadata = fs::symlink_metadata(source)
-        .map_err(|error| io_error("reading OBS output metadata", source, error))?;
+        .map_err(|error| io_error("reading capture output metadata", source, error))?;
     if metadata.file_type().is_symlink()
         || !metadata.file_type().is_file()
         || metadata.len() == 0
@@ -107,8 +107,8 @@ fn publish_blocking(
     let temporary =
         destination.with_file_name(format!(".{file_name}.{}.recording.tmp", Uuid::new_v4()));
     let result = (|| {
-        let mut input =
-            File::open(source).map_err(|error| io_error("opening OBS output", source, error))?;
+        let mut input = File::open(source)
+            .map_err(|error| io_error("opening capture output", source, error))?;
         let mut output = OpenOptions::new()
             .create_new(true)
             .write(true)
@@ -127,7 +127,7 @@ fn publish_blocking(
             }
             let read = input
                 .read(&mut buffer)
-                .map_err(|error| io_error("reading OBS output", source, error))?;
+                .map_err(|error| io_error("reading capture output", source, error))?;
             if read == 0 {
                 break;
             }
@@ -206,31 +206,43 @@ mod tests {
     #[tokio::test]
     async fn atomically_publishes_non_empty_output_without_overwrite() {
         let root = tempfile::tempdir().unwrap();
-        let source = root.path().join("obs.mkv");
+        let source = root.path().join("capture.mkv");
         let destination = root.path().join("managed.mkv");
         fs::write(&source, b"video").unwrap();
-        let published =
-            publish_obs_output(&source, &destination, 1024, &ProcessCancellation::default())
-                .await
-                .unwrap();
+        let artifact = CaptureArtifact {
+            path: source.clone(),
+        };
+        let published = publish_capture_artifact(
+            &artifact,
+            &destination,
+            1024,
+            &ProcessCancellation::default(),
+        )
+        .await
+        .unwrap();
         assert_eq!(published.bytes, 5);
         assert_eq!(fs::read(&destination).unwrap(), b"video");
         assert!(
-            publish_obs_output(&source, &destination, 1024, &ProcessCancellation::default())
-                .await
-                .is_err()
+            publish_capture_artifact(
+                &artifact,
+                &destination,
+                1024,
+                &ProcessCancellation::default()
+            )
+            .await
+            .is_err()
         );
         assert_eq!(fs::read(destination).unwrap(), b"video");
     }
 
     #[tokio::test]
-    async fn rejects_empty_obs_output() {
+    async fn rejects_empty_capture_artifact() {
         let root = tempfile::tempdir().unwrap();
-        let source = root.path().join("obs.mkv");
+        let source = root.path().join("capture.mkv");
         fs::write(&source, []).unwrap();
         assert!(matches!(
-            publish_obs_output(
-                &source,
+            publish_capture_artifact(
+                &CaptureArtifact { path: source },
                 &root.path().join("managed.mkv"),
                 1024,
                 &ProcessCancellation::default()

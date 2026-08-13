@@ -23,27 +23,27 @@ use crate::{ApiError, ApiJson, ApiResult, AppState};
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route(
-            "/api/v1/agent/proposals/hlae/preview",
+            "/api/agent/proposals/hlae/preview",
             post(preview_hlae_proposal),
         )
         .route(
-            "/api/v1/agent/proposals/hlae/export",
+            "/api/agent/proposals/hlae/export",
             post(export_hlae_proposal),
         )
         .route(
-            "/api/v1/agent/proposals/beat-alignment/preview",
+            "/api/agent/proposals/beat-alignment/preview",
             post(preview_beat_alignment),
         )
         .route(
-            "/api/v1/agent/proposals/beat-alignment/apply",
+            "/api/agent/proposals/beat-alignment/apply",
             post(apply_beat_alignment),
         )
         .route(
-            "/api/v1/agent/proposals/highlight-edit/preview",
+            "/api/agent/proposals/highlight-edit/preview",
             post(preview_highlight_edit),
         )
         .route(
-            "/api/v1/agent/proposals/highlight-edit/apply",
+            "/api/agent/proposals/highlight-edit/apply",
             post(apply_highlight_edit),
         )
 }
@@ -92,7 +92,7 @@ async fn export_hlae_proposal(
             ApiError::new(
                 StatusCode::CONFLICT,
                 "hlae_launch_profile_unavailable",
-                "Configure and verify HLAE.exe and CS2.exe before exporting a consumable bundle",
+                "Prepare the app-managed movie engine and verify the CS2 installation before exporting a consumable bundle",
             )
         })?;
     let _mutation = state.output_mutations.lock().await;
@@ -149,9 +149,9 @@ async fn preview_beat_alignment(
             changes: request.draft.clips,
         }));
     }
-    let base_fingerprint = fingerprint(b"vibe-cs-editor-project-v1\0", &project)?;
+    let base_fingerprint = fingerprint(b"vibe-cs-editor-project\0", &project)?;
     let proposal_fingerprint = fingerprint(
-        b"vibe-cs-beat-alignment-proposal-v1\0",
+        b"vibe-cs-beat-alignment-proposal\0",
         &(
             request.project_id,
             request.expected_revision,
@@ -205,9 +205,9 @@ async fn apply_beat_alignment(
         &verified_audio.binding,
         &audio_placement,
     )?;
-    let current_base = fingerprint(b"vibe-cs-editor-project-v1\0", &project)?;
+    let current_base = fingerprint(b"vibe-cs-editor-project\0", &project)?;
     let current_proposal = fingerprint(
-        b"vibe-cs-beat-alignment-proposal-v1\0",
+        b"vibe-cs-beat-alignment-proposal\0",
         &(
             request.project_id,
             expected_revision,
@@ -416,9 +416,9 @@ async fn verify_beat_audio(state: &AppState, asset_id: Uuid) -> ApiResult<Verifi
             kind: asset.kind.clone(),
             file_size: asset.file_size,
             duration_seconds,
-            asset_fingerprint: fingerprint(b"vibe-cs-media-asset-v1\0", &asset)?,
+            asset_fingerprint: fingerprint(b"vibe-cs-media-asset\0", &asset)?,
             content_sha256: hex::encode(content_hash.finalize()),
-            analysis_sha256: fingerprint(b"vibe-cs-audio-analysis-v1\0", &analysis)?,
+            analysis_sha256: fingerprint(b"vibe-cs-audio-analysis\0", &analysis)?,
         },
         _file: file,
     })
@@ -480,12 +480,12 @@ fn plan_beat_audio_placement(
     let track_id = match available_track {
         Some(id) => id,
         None => deterministic_proposal_uuid(
-            b"vibe-cs-beat-audio-track-v1\0",
+            b"vibe-cs-beat-audio-track\0",
             &(project.id, project.revision, audio.asset_id),
         )?,
     };
     let clip_id = deterministic_proposal_uuid(
-        b"vibe-cs-beat-audio-clip-v1\0",
+        b"vibe-cs-beat-audio-clip\0",
         &(
             project.id,
             project.revision,
@@ -636,7 +636,7 @@ async fn preview_highlight_edit(
     let base_fingerprint =
         highlight_base_fingerprint(&request, &selected_highlights, &mappings, existing.as_ref())?;
     let proposal_fingerprint = fingerprint(
-        b"vibe-cs-highlight-edit-proposal-v2\0",
+        b"vibe-cs-highlight-edit-proposal\0",
         &(&request, &base_fingerprint, &plan),
     )?;
     let confirmation_token = state.proposal_execution.confirmation_token(
@@ -747,7 +747,7 @@ async fn apply_highlight_edit(
             current_project.as_ref(),
         )?;
         let current_proposal = fingerprint(
-            b"vibe-cs-highlight-edit-proposal-v2\0",
+            b"vibe-cs-highlight-edit-proposal\0",
             &(&request.request, &current_base, &request.plan),
         )?;
         if current_base != request.confirmation.base_fingerprint
@@ -1084,7 +1084,7 @@ fn highlight_base_fingerprint(
     project: Option<&EditorProject>,
 ) -> ApiResult<String> {
     fingerprint(
-        b"vibe-cs-highlight-edit-base-v2\0",
+        b"vibe-cs-highlight-edit-base\0",
         &(request, highlights, mappings, project),
     )
 }
@@ -1594,12 +1594,12 @@ mod tests {
         );
         assert_ne!(first_binding.content_sha256, second.binding.content_sha256);
         let first_proposal = fingerprint(
-            b"vibe-cs-beat-alignment-proposal-v1\0",
+            b"vibe-cs-beat-alignment-proposal\0",
             &(first_binding.content_sha256, first_binding.analysis_sha256),
         )
         .expect("first proposal");
         let second_proposal = fingerprint(
-            b"vibe-cs-beat-alignment-proposal-v1\0",
+            b"vibe-cs-beat-alignment-proposal\0",
             &(
                 second.binding.content_sha256,
                 second.binding.analysis_sha256,

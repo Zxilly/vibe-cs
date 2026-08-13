@@ -19,19 +19,19 @@ use uuid::Uuid;
 use vibe_cs_application::{
     ReplayCacheCleanup, ReplayCacheMetadata, ReplayCacheState, ReplayCacheStatus, ReplayPayload,
 };
-use vibe_cs_domain::{DemoRecord, DomainError, MatchAnalysis, ReplayFrame};
+use vibe_cs_domain::{
+    DemoRecord, DomainError, MatchAnalysis, ReplayArtifact, ReplayFidelityMetadata, ReplayFrame,
+};
 
-/// Version 2 adds evidence ownership and utility-mask geometry. The version is
-/// part of the cache key, so version 1 entries are never interpreted as the new
-/// wire model and are replaced on demand before ordinary bounded pruning.
-pub(crate) const REPLAY_CACHE_VERSION: u32 = 2;
 const MAXIMUM_CACHE_FILE_BYTES: u64 = 128 * 1024 * 1024;
 const MAXIMUM_CACHE_BYTES: u64 = 512 * 1024 * 1024;
 const MAXIMUM_CACHE_ENTRIES: usize = 128;
 const MAXIMUM_SCAN_ENTRIES: usize = 2_048;
-const MAXIMUM_REPLAY_FRAMES: usize = 500_000;
-const MAXIMUM_PLAYERS_PER_FRAME: usize = 128;
+const MAXIMUM_REPLAY_FRAMES: usize = 20_000;
+const MAXIMUM_PLAYERS_PER_FRAME: usize = 64;
 const MAXIMUM_EFFECTS_PER_FRAME: usize = 512;
+const MAXIMUM_PLAYER_RECORDS: usize = 200_000;
+const MAXIMUM_EFFECT_RECORDS: usize = 100_000;
 const MAXIMUM_TEXT_BYTES: usize = 512;
 
 #[derive(Debug, Clone)]
@@ -44,12 +44,12 @@ pub(crate) struct ReplayCache {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CacheDocument {
-    version: u32,
     key: String,
     content_sha256: String,
     analysis_sha256: String,
     generated_at: DateTime<Utc>,
     frame_count: usize,
+    fidelity: ReplayFidelityMetadata,
     frames: Vec<ReplayFrame>,
 }
 
@@ -148,16 +148,16 @@ impl ReplayCache {
         generate: F,
     ) -> Result<ReplayPayload, DomainError>
     where
-        F: FnOnce() -> Result<Vec<ReplayFrame>, DomainError>,
+        F: FnOnce() -> Result<ReplayArtifact, DomainError>,
     {
         let Some(content_sha256) = normalized_sha256(demo.content_sha256.as_deref()) else {
-            let frames = generate()?;
-            validate_generated_frames(&frames)?;
+            let artifact = generate()?;
+            validate_generated_artifact(&artifact)?;
             return Ok(ReplayPayload {
-                frames,
+                frames: artifact.frames,
+                fidelity: artifact.fidelity,
                 cache: ReplayCacheMetadata {
                     state: ReplayCacheState::Bypassed,
-                    version: REPLAY_CACHE_VERSION,
                     key: None,
                     bytes: 0,
                     generated_at: None,
@@ -178,9 +178,9 @@ impl ReplayCache {
         if let Some(cached) = cached {
             return Ok(ReplayPayload {
                 frames: cached.document.frames,
+                fidelity: cached.document.fidelity,
                 cache: ReplayCacheMetadata {
                     state: ReplayCacheState::Hit,
-                    version: REPLAY_CACHE_VERSION,
                     key: Some(key),
                     bytes: cached.bytes,
                     generated_at: Some(cached.document.generated_at),
@@ -190,17 +190,17 @@ impl ReplayCache {
             });
         }
 
-        let frames = generate()?;
-        validate_generated_frames(&frames)?;
+        let artifact = generate()?;
+        validate_generated_artifact(&artifact)?;
         let generated_at = Utc::now();
         let document = CacheDocument {
-            version: REPLAY_CACHE_VERSION,
             key: key.clone(),
             content_sha256,
             analysis_sha256,
             generated_at,
-            frame_count: frames.len(),
-            frames,
+            frame_count: artifact.frames.len(),
+            fidelity: artifact.fidelity,
+            frames: artifact.frames,
         };
         let mut cache_writer = BoundedBytesWriter::default();
         serde_json::to_writer(&mut cache_writer, &document).map_err(|error| {
@@ -219,9 +219,9 @@ impl ReplayCache {
         let byte_count = u64::try_from(bytes.len()).unwrap_or(u64::MAX);
         Ok(ReplayPayload {
             frames: document.frames,
+            fidelity: document.fidelity,
             cache: ReplayCacheMetadata {
                 state: ReplayCacheState::Generated,
-                version: REPLAY_CACHE_VERSION,
                 key: Some(key),
                 bytes: byte_count,
                 generated_at: Some(generated_at),
@@ -237,7 +237,6 @@ impl ReplayCache {
         let (entries, scan_complete) = Self::scan_entries(directory)?;
         ensure_cache_directory_mapping(directory, &self.root)?;
         Ok(ReplayCacheStatus {
-            version: REPLAY_CACHE_VERSION,
             entries: u64::try_from(entries.len()).unwrap_or(u64::MAX),
             bytes: entries
                 .iter()
@@ -317,12 +316,12 @@ impl ReplayCache {
             .as_deref()
             .and_then(|bytes| serde_json::from_slice::<CacheDocument>(bytes).ok());
         if let Some(document) = document.filter(|document| {
-            document.version == REPLAY_CACHE_VERSION
-                && document.key == key
+            document.key == key
                 && document.content_sha256 == content_sha256
                 && document.analysis_sha256 == analysis_sha256
                 && document.frame_count == document.frames.len()
                 && frames_are_valid(&document.frames)
+                && fidelity_is_valid(&document.fidelity, &document.frames)
         }) {
             if !capability_file_matches_name(directory, name, &file)
                 .map_err(|error| cache_io_error("verify read entry", &error))?
@@ -457,14 +456,32 @@ fn write_atomic(
     result
 }
 
-fn validate_generated_frames(frames: &[ReplayFrame]) -> Result<(), DomainError> {
-    if frames_are_valid(frames) {
+fn validate_generated_artifact(artifact: &ReplayArtifact) -> Result<(), DomainError> {
+    if frames_are_valid(&artifact.frames) && fidelity_is_valid(&artifact.fidelity, &artifact.frames)
+    {
         Ok(())
     } else {
         Err(DomainError::InvalidInput(
-            "generated replay exceeds cache limits or contains invalid coordinates".to_owned(),
+            "generated replay exceeds cache limits or contains invalid fidelity/coordinates"
+                .to_owned(),
         ))
     }
+}
+
+fn fidelity_is_valid(fidelity: &ReplayFidelityMetadata, frames: &[ReplayFrame]) -> bool {
+    let Some(first) = frames.first() else {
+        return false;
+    };
+    let Some(last) = frames.last() else {
+        return false;
+    };
+    fidelity.tick_rate.is_finite()
+        && (8.0..=1024.0).contains(&fidelity.tick_rate)
+        && fidelity.frame_count == u64::try_from(frames.len()).unwrap_or(u64::MAX)
+        && fidelity.positioned_event_count
+            <= u64::try_from(MAXIMUM_EFFECT_RECORDS).unwrap_or(u64::MAX)
+        && fidelity.start_tick == first.tick
+        && fidelity.end_tick == last.tick
 }
 
 fn frames_are_valid(frames: &[ReplayFrame]) -> bool {
@@ -472,16 +489,33 @@ fn frames_are_valid(frames: &[ReplayFrame]) -> bool {
         return false;
     }
     let mut previous_tick = None;
+    let mut player_records = 0_usize;
+    let mut effect_records = 0_usize;
     for frame in frames {
-        if previous_tick.is_some_and(|tick| frame.tick < tick)
+        if previous_tick.is_some_and(|tick| frame.tick <= tick)
             || frame.players.len() > MAXIMUM_PLAYERS_PER_FRAME
             || frame.projectiles.len() > MAXIMUM_EFFECTS_PER_FRAME
         {
             return false;
         }
+        let Some(next_player_records) = player_records.checked_add(frame.players.len()) else {
+            return false;
+        };
+        if next_player_records > MAXIMUM_PLAYER_RECORDS {
+            return false;
+        }
+        player_records = next_player_records;
+        let Some(next_effect_records) = effect_records.checked_add(frame.projectiles.len()) else {
+            return false;
+        };
+        if next_effect_records > MAXIMUM_EFFECT_RECORDS {
+            return false;
+        }
+        effect_records = next_effect_records;
         previous_tick = Some(frame.tick);
         if frame.players.iter().any(|player| {
             !valid_coordinates(player.position)
+                || !matches!(player.team.as_str(), "A" | "B")
                 || player.id.len() > MAXIMUM_TEXT_BYTES
                 || player.name.len() > MAXIMUM_TEXT_BYTES
                 || player.team.len() > MAXIMUM_TEXT_BYTES
@@ -518,10 +552,7 @@ fn normalized_sha256(value: Option<&str>) -> Option<String> {
 }
 
 fn cache_key(content_sha256: &str, analysis_sha256: &str) -> String {
-    hex_digest(
-        format!("replay-cache-v{REPLAY_CACHE_VERSION}\0{content_sha256}\0{analysis_sha256}")
-            .as_bytes(),
-    )
+    hex_digest(format!("replay-cache\0{content_sha256}\0{analysis_sha256}").as_bytes())
 }
 
 fn analysis_digest(analysis: &MatchAnalysis) -> Result<String, DomainError> {
@@ -735,9 +766,28 @@ mod tests {
 
     use tempfile::TempDir;
     use vibe_cs_application::ReplayCacheState;
-    use vibe_cs_domain::{DemoStatus, ReplayPlayer};
+    use vibe_cs_domain::{DemoStatus, ReplayFidelityMode, ReplayPlayer, ReplayProjectile};
 
     use super::*;
+
+    #[test]
+    fn cache_document_accepts_only_the_current_exact_shape() {
+        let document = CacheDocument {
+            key: "a".repeat(64),
+            content_sha256: "b".repeat(64),
+            analysis_sha256: "c".repeat(64),
+            generated_at: Utc::now(),
+            frame_count: 1,
+            fidelity: artifact().fidelity,
+            frames: frames(),
+        };
+        let current = serde_json::to_value(&document).expect("serialize current cache document");
+        assert!(serde_json::from_value::<CacheDocument>(current.clone()).is_ok());
+
+        let mut invalid = current;
+        invalid["unexpected"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<CacheDocument>(invalid).is_err());
+    }
 
     fn demo() -> DemoRecord {
         let now = Utc::now();
@@ -756,6 +806,7 @@ mod tests {
             team_b_name: None,
             team_a_score: None,
             team_b_score: None,
+            player_names: Vec::new(),
             remark: String::new(),
             content_sha256: Some("a".repeat(64)),
             file_size: 1,
@@ -770,6 +821,7 @@ mod tests {
             map_name: "de_test".to_owned(),
             tick_rate: 64.0,
             duration_seconds: 1.0,
+            verified_total_ticks: None,
             teams: Vec::new(),
             players: Vec::new(),
             rounds: Vec::new(),
@@ -783,7 +835,7 @@ mod tests {
             players: vec![ReplayPlayer {
                 id: "1".to_owned(),
                 name: "Player".to_owned(),
-                team: "T".to_owned(),
+                team: "A".to_owned(),
                 position: [1.0, 2.0, 3.0],
                 yaw: 90.0,
                 health: 100,
@@ -797,6 +849,104 @@ mod tests {
         }]
     }
 
+    fn artifact() -> ReplayArtifact {
+        ReplayArtifact {
+            frames: frames(),
+            fidelity: ReplayFidelityMetadata {
+                mode: ReplayFidelityMode::EventSparse,
+                tick_rate: 64.0,
+                frame_count: 1,
+                positioned_event_count: 1,
+                start_tick: 1,
+                end_tick: 1,
+            },
+        }
+    }
+
+    #[test]
+    fn generated_artifact_rejects_duplicate_ticks() {
+        let mut artifact = artifact();
+        artifact.frames.push(artifact.frames[0].clone());
+        artifact.fidelity.frame_count = 2;
+
+        let error = validate_generated_artifact(&artifact)
+            .expect_err("duplicate replay ticks must be rejected before caching");
+
+        assert!(error.to_string().contains("invalid fidelity"));
+    }
+
+    #[test]
+    fn generated_artifact_rejects_more_than_two_hundred_thousand_player_records() {
+        let player = frames()[0].players[0].clone();
+        let mut remaining = 200_001_usize;
+        let mut replay_frames = Vec::new();
+        while remaining > 0 {
+            let count = remaining.min(MAXIMUM_PLAYERS_PER_FRAME);
+            replay_frames.push(ReplayFrame {
+                tick: u64::try_from(replay_frames.len() + 1).unwrap(),
+                players: vec![player.clone(); count],
+                projectiles: Vec::new(),
+                bomb: None,
+            });
+            remaining -= count;
+        }
+        let artifact = ReplayArtifact {
+            fidelity: ReplayFidelityMetadata {
+                mode: ReplayFidelityMode::EventSparse,
+                tick_rate: 64.0,
+                frame_count: u64::try_from(replay_frames.len()).unwrap(),
+                positioned_event_count: 0,
+                start_tick: 1,
+                end_tick: u64::try_from(replay_frames.len()).unwrap(),
+            },
+            frames: replay_frames,
+        };
+
+        let error = validate_generated_artifact(&artifact)
+            .expect_err("aggregate player records above the wire budget must be rejected");
+
+        assert!(error.to_string().contains("cache limits"));
+    }
+
+    #[test]
+    fn generated_artifact_rejects_more_than_one_hundred_thousand_effect_records() {
+        let effect = ReplayProjectile {
+            kind: "smoke".to_owned(),
+            position: [1.0, 2.0, 3.0],
+            active: true,
+            radius: Some(144.0),
+            masks_vision: true,
+        };
+        let mut remaining = 100_001_usize;
+        let mut replay_frames = Vec::new();
+        while remaining > 0 {
+            let count = remaining.min(MAXIMUM_EFFECTS_PER_FRAME);
+            replay_frames.push(ReplayFrame {
+                tick: u64::try_from(replay_frames.len() + 1).unwrap(),
+                players: Vec::new(),
+                projectiles: vec![effect.clone(); count],
+                bomb: None,
+            });
+            remaining -= count;
+        }
+        let artifact = ReplayArtifact {
+            fidelity: ReplayFidelityMetadata {
+                mode: ReplayFidelityMode::EventSparse,
+                tick_rate: 64.0,
+                frame_count: u64::try_from(replay_frames.len()).unwrap(),
+                positioned_event_count: 0,
+                start_tick: 1,
+                end_tick: u64::try_from(replay_frames.len()).unwrap(),
+            },
+            frames: replay_frames,
+        };
+
+        let error = validate_generated_artifact(&artifact)
+            .expect_err("aggregate effect records above the wire budget must be rejected");
+
+        assert!(error.to_string().contains("cache limits"));
+    }
+
     #[tokio::test]
     async fn generated_entry_is_reused_without_regeneration() {
         let temporary = TempDir::new().expect("temp dir");
@@ -807,14 +957,14 @@ mod tests {
         let first = cache
             .resolve(&demo, &analysis, || {
                 count.fetch_add(1, Ordering::SeqCst);
-                Ok(frames())
+                Ok(artifact())
             })
             .await
             .expect("generate");
         let second = cache
             .resolve(&demo, &analysis, || {
                 count.fetch_add(1, Ordering::SeqCst);
-                Ok(frames())
+                Ok(artifact())
             })
             .await
             .expect("hit");
@@ -831,7 +981,7 @@ mod tests {
         let demo = demo();
         let analysis = analysis(demo.id);
         let first = cache
-            .resolve(&demo, &analysis, || Ok(frames()))
+            .resolve(&demo, &analysis, || Ok(artifact()))
             .await
             .expect("generate");
         let key = first.cache.key.expect("cache key");
@@ -840,11 +990,37 @@ mod tests {
             .expect("corrupt fixture");
 
         let repaired = cache
-            .resolve(&demo, &analysis, || Ok(frames()))
+            .resolve(&demo, &analysis, || Ok(artifact()))
             .await
             .expect("repair");
         assert_eq!(repaired.cache.state, ReplayCacheState::Generated);
         assert!(repaired.cache.repaired);
+    }
+
+    #[tokio::test]
+    async fn noncanonical_team_entry_is_removed_and_regenerated() {
+        let temporary = TempDir::new().expect("temp dir");
+        let cache = ReplayCache::new(temporary.path().join("replay-cache"));
+        let demo = demo();
+        let analysis = analysis(demo.id);
+        let first = cache
+            .resolve(&demo, &analysis, || Ok(artifact()))
+            .await
+            .expect("generate");
+        let key = first.cache.key.expect("cache key");
+        let path = cache.root.join(format!("{key}.json"));
+        let bytes = fs::read_to_string(&path).expect("cache document");
+        fs::write(&path, bytes.replace(r#""team":"A""#, r#""team":"T""#))
+            .expect("tamper cache team");
+
+        let repaired = cache
+            .resolve(&demo, &analysis, || Ok(artifact()))
+            .await
+            .expect("repair noncanonical team");
+
+        assert_eq!(repaired.cache.state, ReplayCacheState::Generated);
+        assert!(repaired.cache.repaired);
+        assert_eq!(repaired.frames[0].players[0].team, "A");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -864,7 +1040,7 @@ mod tests {
                 .resolve(&first_demo, &first_analysis, || {
                     first_count.fetch_add(1, Ordering::SeqCst);
                     std::thread::sleep(std::time::Duration::from_millis(40));
-                    Ok(frames())
+                    Ok(artifact())
                 })
                 .await
         });
@@ -875,7 +1051,7 @@ mod tests {
             second_cache
                 .resolve(&demo, &analysis, || {
                     second_count.fetch_add(1, Ordering::SeqCst);
-                    Ok(frames())
+                    Ok(artifact())
                 })
                 .await
         });
@@ -893,7 +1069,7 @@ mod tests {
         let cache = ReplayCache::new(temporary.path().join("replay-cache"));
         let demo = demo();
         cache
-            .resolve(&demo, &analysis(demo.id), || Ok(frames()))
+            .resolve(&demo, &analysis(demo.id), || Ok(artifact()))
             .await
             .expect("generate");
 

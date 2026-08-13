@@ -8,6 +8,7 @@ mod cosmetics;
 mod demo;
 mod editor;
 mod error;
+mod evidence_search;
 mod insights;
 mod match_history;
 mod recording;
@@ -20,6 +21,7 @@ pub use cosmetics::*;
 pub use demo::*;
 pub use editor::*;
 pub use error::*;
+pub use evidence_search::*;
 pub use insights::*;
 pub use match_history::*;
 pub use recording::*;
@@ -60,28 +62,69 @@ mod tests {
     }
 
     #[test]
-    fn config_deserializes_missing_fields_from_defaults() {
-        let config: AppConfig = serde_json::from_str(r#"{"locale":"en-US"}"#).unwrap();
-        assert_eq!(config.locale, "en-US");
-        assert_eq!(config.obs.port, 4455);
-        assert_eq!(config.recording.fps, 60);
+    fn config_requires_the_complete_current_shape() {
+        assert!(serde_json::from_str::<AppConfig>(r#"{"locale":"en-US"}"#).is_err());
+    }
+
+    #[test]
+    fn config_rejects_retired_dependency_and_recording_fields() {
+        for retired in [
+            serde_json::json!({ "obs": { "host": "127.0.0.1" } }),
+            serde_json::json!({ "ffmpeg_path": "C:/Tools/ffmpeg.exe" }),
+            serde_json::json!({ "ffprobe_path": "C:/Tools/ffprobe.exe" }),
+            serde_json::json!({ "preferred_encoder": "h264_nvenc" }),
+            serde_json::json!({ "hlae_path": "C:/Tools/HLAE.exe" }),
+            serde_json::json!({ "recording": { "show_keyboard": true } }),
+            serde_json::json!({ "recording": { "radar_restore_visible": false } }),
+            serde_json::json!({ "recording": { "obs_realtime_kill_fx_media": "old.webm" } }),
+            serde_json::json!({ "recording": { "capture_delay_ms": 250 } }),
+        ] {
+            assert!(serde_json::from_value::<AppConfig>(retired).is_err());
+        }
     }
 
     #[test]
     fn config_debug_redacts_secrets() {
         let mut config = AppConfig::default();
-        config.obs.password = "obs-secret".to_owned();
         config.llm.api_key = "llm-secret".to_owned();
         config.steam.web_api_key = "steam-api-secret".to_owned();
         config.steam.authentication_code = "steam-auth-secret".to_owned();
         config.steam.known_share_code = "steam-share-secret".to_owned();
 
         let rendered = format!("{config:?}");
-        assert!(!rendered.contains("obs-secret"));
         assert!(!rendered.contains("llm-secret"));
         assert!(!rendered.contains("steam-api-secret"));
         assert!(!rendered.contains("steam-auth-secret"));
         assert!(!rendered.contains("steam-share-secret"));
         assert!(rendered.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn player_stats_accept_only_the_current_kill_death_ratio_name() {
+        let current = serde_json::json!({
+            "steam_id": "76561197960287930",
+            "spectator_slot": 7,
+            "name": "FalleN",
+            "team": "A",
+            "kills": 18,
+            "deaths": 12,
+            "assists": 4,
+            "headshots": 7,
+            "damage": 1_640,
+            "adr": 74.5,
+            "kill_death_ratio": 1.5,
+            "score": 36
+        });
+        let stats = serde_json::from_value::<PlayerStats>(current.clone())
+            .expect("current player stats shape");
+        assert_eq!(
+            serde_json::to_value(stats).expect("serialize player stats"),
+            current
+        );
+
+        let mut retired = current;
+        retired["rating"] = retired["kill_death_ratio"].take();
+        retired.as_object_mut().unwrap().remove("kill_death_ratio");
+        assert!(serde_json::from_value::<PlayerStats>(retired).is_err());
     }
 }

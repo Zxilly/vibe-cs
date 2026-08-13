@@ -12,7 +12,6 @@ vibe-cs-domain = { path = "../domain" }
 vibe-cs-hlae = { path = "../hlae" }
 vibe-cs-recording = { path = "../recording" }
 vibe-cs-integrations = { path = "../integrations" }
-vibe-cs-media = { path = "../media" }
 vibe-cs-storage = { path = "../storage" }
 async-trait.workspace = true
 axum.workspace = true
@@ -39,6 +38,7 @@ zip.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+tower.workspace = true
 
 [lints]
 workspace = true

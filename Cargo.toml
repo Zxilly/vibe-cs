@@ -17,6 +17,10 @@ members = [
   "crates/storage",
 ]
 default-members = ["apps/desktop/src-tauri"]
+exclude = [
+  "vendor/demoparser/csgoproto",
+  "vendor/demoparser/parser",
+]
 resolver = "3"
 
 [workspace.package]
@@ -28,6 +32,7 @@ license = "MIT"
 
 [workspace.dependencies]
 anyhow = "1.0"
+ahash = "0.8"
 async-trait = "0.1"
 axum = { version = "0.8", features = ["json", "macros", "multipart", "ws"] }
 bzip2 = "0.6"

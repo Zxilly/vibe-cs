@@ -17,15 +17,12 @@ impl DependencyInspector {
     #[must_use]
     pub fn inspect_discovered(&self, paths: &DiscoveredPaths) -> SetupStatus {
         let dependencies = vec![
-            status("FFmpeg", paths.ffmpeg.as_deref(), true),
-            status("ffprobe", paths.ffprobe.as_deref(), true),
             status("CS2", paths.cs2.as_deref(), true),
             status("Steam", paths.steam.as_deref(), false),
-            status("OBS Studio", paths.obs.as_deref(), false),
         ];
         let ready = dependencies
             .iter()
-            .filter(|dependency| matches!(dependency.name.as_str(), "FFmpeg" | "ffprobe" | "CS2"))
+            .filter(|dependency| dependency.name == "CS2")
             .all(|dependency| dependency.available);
         SetupStatus {
             ready,
@@ -56,25 +53,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn readiness_requires_only_core_tools() {
+    fn readiness_requires_only_cs2() {
         let root = tempfile::tempdir().unwrap();
         let binary = root.path().join("tool.exe");
         std::fs::write(&binary, b"stub").unwrap();
         let paths = DiscoveredPaths {
-            ffmpeg: Some(binary.clone()),
-            ffprobe: Some(binary.clone()),
             cs2: Some(binary),
             ..DiscoveredPaths::default()
         };
         let status = DependencyInspector.inspect_discovered(&paths);
         assert!(status.ready);
-        assert!(
-            !status
+        assert_eq!(
+            status
                 .dependencies
                 .iter()
-                .find(|item| item.name == "OBS Studio")
-                .unwrap()
-                .available
+                .map(|item| item.name.as_str())
+                .collect::<Vec<_>>(),
+            ["CS2", "Steam"]
         );
     }
 }

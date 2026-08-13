@@ -3,7 +3,7 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
+#[serde(deny_unknown_fields)]
 pub struct AppConfig {
     pub locale: String,
     pub theme: String,
@@ -11,16 +11,9 @@ pub struct AppConfig {
     pub update_manifest_url: String,
     pub data_dir: String,
     pub demo_watch_paths: Vec<String>,
-    pub ffmpeg_path: String,
-    pub ffprobe_path: String,
-    pub preferred_encoder: String,
     pub cs2_path: String,
-    /// Optional user-selected HLAE.exe. Discovery also checks conservative
-    /// common locations when this is empty.
-    pub hlae_path: String,
     pub steam_path: String,
     pub steam: SteamConfig,
-    pub obs: ObsConfig,
     pub llm: LlmConfig,
     pub recording: RecordingDefaults,
 }
@@ -34,14 +27,9 @@ impl fmt::Debug for AppConfig {
             .field("update_manifest_url", &self.update_manifest_url)
             .field("data_dir", &self.data_dir)
             .field("demo_watch_paths", &self.demo_watch_paths)
-            .field("ffmpeg_path", &self.ffmpeg_path)
-            .field("ffprobe_path", &self.ffprobe_path)
-            .field("preferred_encoder", &self.preferred_encoder)
             .field("cs2_path", &self.cs2_path)
-            .field("hlae_path", &self.hlae_path)
             .field("steam_path", &self.steam_path)
             .field("steam", &self.steam)
-            .field("obs", &self.obs)
             .field("llm", &self.llm)
             .field("recording", &self.recording)
             .finish()
@@ -56,14 +44,9 @@ impl Default for AppConfig {
             update_manifest_url: String::new(),
             data_dir: String::new(),
             demo_watch_paths: Vec::new(),
-            ffmpeg_path: String::new(),
-            ffprobe_path: String::new(),
-            preferred_encoder: "auto".to_owned(),
             cs2_path: String::new(),
-            hlae_path: String::new(),
             steam_path: String::new(),
             steam: SteamConfig::default(),
-            obs: ObsConfig::default(),
             llm: LlmConfig::default(),
             recording: RecordingDefaults::default(),
         }
@@ -71,7 +54,7 @@ impl Default for AppConfig {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(default)]
+#[serde(deny_unknown_fields)]
 pub struct SteamConfig {
     pub steam_id: String,
     pub web_api_key: String,
@@ -119,50 +102,8 @@ fn secret_debug_value(value: &str) -> &'static str {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(default)]
-pub struct ObsConfig {
-    pub host: String,
-    pub port: u16,
-    pub password: String,
-    pub executable: String,
-    pub scene: String,
-}
-
-impl fmt::Debug for ObsConfig {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("ObsConfig")
-            .field("host", &self.host)
-            .field("port", &self.port)
-            .field(
-                "password",
-                &if self.password.is_empty() {
-                    "unset"
-                } else {
-                    "[REDACTED]"
-                },
-            )
-            .field("executable", &self.executable)
-            .field("scene", &self.scene)
-            .finish()
-    }
-}
-
-impl Default for ObsConfig {
-    fn default() -> Self {
-        Self {
-            host: "127.0.0.1".to_owned(),
-            port: 4455,
-            password: String::new(),
-            executable: String::new(),
-            scene: String::new(),
-        }
-    }
-}
-
 #[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(default)]
+#[serde(deny_unknown_fields)]
 pub struct LlmConfig {
     pub provider: String,
     pub model: String,
@@ -192,38 +133,23 @@ impl fmt::Debug for LlmConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
+#[serde(deny_unknown_fields)]
 #[allow(
     clippy::struct_excessive_bools,
-    reason = "independent capture toggles and their explicit restoration state are part of the stable config wire contract"
+    reason = "independent managed-HLAE presentation toggles are part of the current config contract"
 )]
 pub struct RecordingDefaults {
     pub pre_roll_seconds: f64,
     pub post_roll_seconds: f64,
-    pub transition_seconds: f64,
     pub resolution: String,
     pub fps: u32,
     pub show_radar: bool,
-    pub radar_restore_visible: bool,
-    pub show_keyboard: bool,
     pub mute_voice: bool,
-    pub voice_restore_volume: f64,
     pub camera_fov: f64,
-    pub camera_fov_restore: f64,
     pub viewmodel_fov: f64,
-    pub viewmodel_fov_restore: f64,
     pub flash_alpha: u8,
-    pub flash_alpha_restore: u8,
-    pub grenade_trajectory: bool,
-    pub grenade_trajectory_restore: bool,
     pub show_hud: bool,
-    pub hud_restore_visible: bool,
     pub isolate_target_voice: bool,
-    /// Optional absolute directory containing user-provided first-person HUD assets.
-    pub first_person_hud_assets: String,
-    pub obs_realtime_kill_fx_media: String,
-    pub obs_realtime_keyboard_media: String,
-    pub capture_delay_ms: i64,
 }
 
 impl Default for RecordingDefaults {
@@ -231,29 +157,15 @@ impl Default for RecordingDefaults {
         Self {
             pre_roll_seconds: 3.0,
             post_roll_seconds: 2.5,
-            transition_seconds: 0.35,
             resolution: "1920x1080".to_owned(),
             fps: 60,
             show_radar: true,
-            radar_restore_visible: true,
-            show_keyboard: false,
             mute_voice: false,
-            voice_restore_volume: 1.0,
             camera_fov: 90.0,
-            camera_fov_restore: 90.0,
             viewmodel_fov: 68.0,
-            viewmodel_fov_restore: 68.0,
             flash_alpha: 255,
-            flash_alpha_restore: 255,
-            grenade_trajectory: false,
-            grenade_trajectory_restore: false,
             show_hud: true,
-            hud_restore_visible: true,
             isolate_target_voice: false,
-            first_person_hud_assets: String::new(),
-            obs_realtime_kill_fx_media: String::new(),
-            obs_realtime_keyboard_media: String::new(),
-            capture_delay_ms: 0,
         }
     }
 }
@@ -273,26 +185,38 @@ pub struct SetupStatus {
     pub dependencies: Vec<DependencyStatus>,
 }
 
-/// Read-only product status for the process-free HLAE integration.
+/// Read-only product status for the managed HLAE integration.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "independent installation and immutable safety-policy facts are part of the status wire contract"
 )]
 pub struct HlaeStatus {
     pub available: bool,
-    pub configured_path: Option<String>,
     pub executable: Option<String>,
     pub source2_hook: Option<String>,
     pub source: Option<String>,
-    pub checked_locations: Vec<String>,
+    /// Reviewed application-managed portable release. Preparing it is an
+    /// explicit user action and never launches or injects into CS2.
+    pub managed_release: ManagedHlaeReleaseStatus,
     pub messages: Vec<String>,
     pub cs2_executable: Option<String>,
-    /// True when the typed launch-profile inputs are present. Vibe CS still
-    /// never starts HLAE or CS2 from an AI proposal.
+    /// True when the typed launch-profile inputs are present.
     pub launch_profile_ready: bool,
+    /// True only for the integrity-verified managed release used by explicit
+    /// recording jobs. AI proposal previews and exports remain process-free.
     pub automatic_launch_enabled: bool,
     pub insecure_mode_required: bool,
     pub vac_servers_prohibited: bool,
     pub demo_playback_only: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedHlaeReleaseStatus {
+    pub version: String,
+    pub archive_sha256: String,
+    pub signing_fingerprint: String,
+    pub prepared: bool,
 }

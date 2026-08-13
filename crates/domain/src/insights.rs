@@ -4,7 +4,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::{EventKind, MatchAnalysis, TimelineEvent};
 
+fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct AnalysisInsights {
     pub round_economy: Vec<RoundEconomyInsight>,
     pub player_utility: Vec<PlayerUtilityInsight>,
@@ -13,6 +22,7 @@ pub struct AnalysisInsights {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct RoundEconomyInsight {
     pub round: u32,
     pub teams: Vec<TeamPurchaseInsight>,
@@ -20,22 +30,26 @@ pub struct RoundEconomyInsight {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct TeamPurchaseInsight {
     pub team: String,
     pub purchase_count: u32,
     pub items: Vec<CountedItem>,
     /// Only present when every decoded purchase for this team carried an
     /// explicit non-negative price. No static price table is used.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub spend: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct CountedItem {
     pub name: String,
     pub count: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerUtilityInsight {
     pub player_id: String,
     pub throws: u32,
@@ -46,10 +60,12 @@ pub struct PlayerUtilityInsight {
     pub flash_events: u32,
     pub players_flashed: u32,
     /// Absent when at least one decoded blind event omitted its duration.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub flash_duration_seconds: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerMatchupInsight {
     pub player_id: String,
     pub opponent_id: String,
@@ -62,6 +78,7 @@ pub struct PlayerMatchupInsight {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct AnalysisInsightAvailability {
     pub purchase_events: InsightCapability,
     pub purchase_spend: InsightCapability,
@@ -72,8 +89,10 @@ pub struct AnalysisInsightAvailability {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct InsightCapability {
     pub available: bool,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     pub reason: Option<String>,
 }
 
@@ -133,15 +152,7 @@ impl MatchAnalysis {
 
 #[must_use]
 pub fn derive_analysis_insights(analysis: &MatchAnalysis) -> AnalysisInsights {
-    let player_teams = analysis
-        .players
-        .iter()
-        .filter(|player| !player.team.is_empty())
-        .map(|player| (player.steam_id.clone(), player.team.clone()))
-        .collect::<BTreeMap<_, _>>();
-    let mut teams = player_teams.values().cloned().collect::<BTreeSet<_>>();
-    teams.extend(["CT".to_owned(), "T".to_owned()]);
-    let round_economy = derive_round_economy(analysis, &teams);
+    let round_economy = derive_round_economy(analysis);
     let (player_utility, utility_event_count, utility_damage_count, flash_event_count) =
         derive_player_utility(analysis);
     let matchups = derive_matchups(analysis);
@@ -191,17 +202,14 @@ pub fn derive_analysis_insights(analysis: &MatchAnalysis) -> AnalysisInsights {
     }
 }
 
-fn derive_round_economy(
-    analysis: &MatchAnalysis,
-    teams: &BTreeSet<String>,
-) -> Vec<RoundEconomyInsight> {
+fn derive_round_economy(analysis: &MatchAnalysis) -> Vec<RoundEconomyInsight> {
     analysis
         .rounds
         .iter()
         .map(|round| {
-            let mut by_team = teams
-                .iter()
-                .cloned()
+            let mut by_team = ["CT", "T"]
+                .into_iter()
+                .map(str::to_owned)
                 .map(|team| (team, PurchaseAccumulator::default()))
                 .collect::<BTreeMap<_, _>>();
             let mut unattributed_purchase_count = 0_u32;
@@ -219,7 +227,18 @@ fn derive_round_economy(
                 };
                 let accumulator = by_team.entry(team).or_default();
                 accumulator.count = accumulator.count.saturating_add(1);
-                let item = normalized_item_name(event.weapon.as_deref().unwrap_or("unknown"));
+                let item = normalized_item_name(
+                    event
+                        .weapon
+                        .as_deref()
+                        .or_else(|| {
+                            event
+                                .detail
+                                .get("item_name")
+                                .and_then(|value| value.as_str())
+                        })
+                        .unwrap_or("unknown"),
+                );
                 let item_count = accumulator.items.entry(item).or_default();
                 *item_count = item_count.saturating_add(1);
                 if let Some(price) =
@@ -537,11 +556,13 @@ mod tests {
             map_name: "de_test".to_owned(),
             tick_rate: 64.0,
             duration_seconds: 30.0,
+            verified_total_ticks: None,
             teams: Vec::<TeamSummary>::new(),
             players: [("alice", "T"), ("bob", "CT"), ("cara", "T")]
                 .into_iter()
                 .map(|(id, team)| PlayerStats {
                     steam_id: id.to_owned(),
+                    spectator_slot: None,
                     name: id.to_owned(),
                     team: team.to_owned(),
                     kills: 0,
@@ -550,7 +571,7 @@ mod tests {
                     headshots: 0,
                     damage: 0,
                     adr: 0.0,
-                    rating: 0.0,
+                    kill_death_ratio: 0.0,
                     score: 0,
                 })
                 .collect(),
@@ -584,8 +605,8 @@ mod tests {
                 EventKind::Purchase,
                 Some("alice"),
                 None,
-                Some("smokegrenade"),
-                json!({"team": 2}),
+                None,
+                json!({"team": 2, "item_name": "weapon_smokegrenade"}),
             ),
             event(
                 "grenade_thrown-20-3",
@@ -626,6 +647,7 @@ mod tests {
         assert_eq!(t.team, "T");
         assert_eq!(t.purchase_count, 2);
         assert_eq!(t.items[0].name, "ak47");
+        assert_eq!(t.items[1].name, "smokegrenade");
         assert_eq!(t.spend, None, "partial prices must not be estimated");
         let utility = insights
             .player_utility
@@ -645,6 +667,66 @@ mod tests {
         assert_eq!(wire["insights"]["player_utility"][0]["throws"], 1);
         let round_trip: MatchAnalysis = serde_json::from_value(wire).unwrap();
         assert_eq!(round_trip, analysis);
+    }
+
+    #[test]
+    fn round_economy_keeps_explicit_sides_across_the_halftime_swap() {
+        let mut analysis = analysis(Vec::new());
+        analysis.players[0].team = "A".to_owned();
+        analysis.players[1].team = "B".to_owned();
+        analysis.players[2].team = "A".to_owned();
+        analysis.rounds = vec![
+            RoundSummary {
+                number: 1,
+                start_tick: 0,
+                end_tick: 99,
+                winner: "T".to_owned(),
+                reason: "elimination".to_owned(),
+                team_a_score: 1,
+                team_b_score: 0,
+                events: vec![event(
+                    "item_purchase-first-half",
+                    EventKind::Purchase,
+                    Some("alice"),
+                    None,
+                    Some("ak47"),
+                    json!({"team": "T"}),
+                )],
+            },
+            RoundSummary {
+                number: 13,
+                start_tick: 1_200,
+                end_tick: 1_299,
+                winner: "CT".to_owned(),
+                reason: "elimination".to_owned(),
+                team_a_score: 7,
+                team_b_score: 6,
+                events: vec![event(
+                    "item_purchase-second-half",
+                    EventKind::Purchase,
+                    Some("alice"),
+                    None,
+                    Some("m4a1"),
+                    json!({"team": "CT"}),
+                )],
+            },
+        ];
+
+        let economy = analysis.derived_insights().round_economy;
+
+        assert_eq!(
+            economy
+                .iter()
+                .map(|round| round
+                    .teams
+                    .iter()
+                    .map(|team| team.team.as_str())
+                    .collect::<Vec<_>>())
+                .collect::<Vec<_>>(),
+            vec![vec!["CT", "T"], vec!["CT", "T"]]
+        );
+        assert_eq!(economy[0].teams[1].purchase_count, 1);
+        assert_eq!(economy[1].teams[0].purchase_count, 1);
     }
 
     #[test]

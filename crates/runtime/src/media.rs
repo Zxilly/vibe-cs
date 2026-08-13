@@ -1,7 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{path::PathBuf, time::Duration};
 
 use async_trait::async_trait;
 use vibe_cs_application::{MediaPort, ProbedMediaMetadata};
@@ -180,7 +177,6 @@ impl MediaPort for RuntimeMediaPort {
     ) -> Result<(), DomainError> {
         let cancellation = ProcessCancellation::default();
         let plan = build_single_input_transcode_plan(
-            Path::new("native-libav"),
             &source,
             &output,
             &SingleInputTranscodeOptions {
@@ -222,13 +218,8 @@ impl MediaPort for RuntimeMediaPort {
         duration_seconds: f64,
     ) -> Result<(), DomainError> {
         let cancellation = ProcessCancellation::default();
-        let plan = build_audio_extraction_plan(
-            Path::new("native-libav"),
-            &source,
-            &output,
-            duration_seconds,
-        )
-        .map_err(map_media_error)?;
+        let plan = build_audio_extraction_plan(&source, &output, duration_seconds)
+            .map_err(map_media_error)?;
         let mut cleanup =
             PendingFilterOutputs::new(plan.temporary_output.clone(), plan.final_output.clone());
         let result = tokio::time::timeout(

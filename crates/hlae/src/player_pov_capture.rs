@@ -1,0 +1,412 @@
+//! Closed compiler for deterministic player-POV movie capture.
+//!
+//! This is intentionally separate from the cinematic camera-plan compiler:
+//! player POV must never be represented by invented camera coordinates.
+
+use std::{fmt::Write as _, fs, path::Path};
+
+use crate::{
+    CaptureLayers, CaptureSettings, GeneratedArtifact, HLAE_TAKE_MAX_ESTIMATED_BYTES,
+    HlaeCaptureResourceEstimate, HlaeError, estimate_hlae_capture_span_resources,
+    validate::validate_safe_path,
+};
+
+/// Fixed file name consumed by the managed-session bootstrap.
+pub const HLAE_MANAGED_COMMAND_SYSTEM_FILE_NAME: &str = "vibe_cs_commands.xml";
+const MAXIMUM_TICK: u64 = i32::MAX as u64;
+const MAXIMUM_COMMAND_SYSTEM_BYTES: usize = 64 * 1_024;
+
+/// Closed, typed presentation controls supported by the managed CS2 movie
+/// session. Every field compiles to a fixed command grammar; callers cannot
+/// inject free-form console input.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HlaePlayerPovPresentation {
+    pub radar: HlaeRadarVisibility,
+    pub hud: HlaeHudVisibility,
+    pub camera_fov: f64,
+    pub viewmodel_fov: f64,
+    /// Desired remaining flash alpha in the CS2 0..=255 scale.
+    pub flash_alpha: u8,
+    pub voice: HlaeVoicePolicy,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HlaeRadarVisibility {
+    Visible,
+    Hidden,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HlaeHudVisibility {
+    Visible,
+    DeathNoticesOnly,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HlaeVoicePolicy {
+    AllPlayers,
+    Muted,
+    TargetOnly,
+}
+
+impl Default for HlaePlayerPovPresentation {
+    fn default() -> Self {
+        Self {
+            radar: HlaeRadarVisibility::Visible,
+            hud: HlaeHudVisibility::Visible,
+            camera_fov: 90.0,
+            viewmodel_fov: 68.0,
+            flash_alpha: u8::MAX,
+            voice: HlaeVoicePolicy::AllPlayers,
+        }
+    }
+}
+
+/// Trusted fields required to record one bounded first-person player view.
+#[derive(Debug, Clone, PartialEq)]
+pub struct HlaePlayerPovCapturePlan {
+    pub demo_path: std::path::PathBuf,
+    pub output_directory: std::path::PathBuf,
+    /// Parser-verified player identifier passed only to the fixed
+    /// evidence metadata. It is never sent to the game console.
+    pub player_id: String,
+    /// Parser-backed CS2 spectator slot (`userinfo.userid + 1`) used by the
+    /// fixed `spec_player` command.
+    pub spectator_slot: u8,
+    pub start_tick: u64,
+    pub end_tick: u64,
+    pub pre_roll_ticks: u64,
+    pub tick_rate: f64,
+    pub capture: CaptureSettings,
+    pub presentation: HlaePlayerPovPresentation,
+}
+
+/// Immutable program accepted by the managed HLAE runtime.
+///
+/// Fields stay private so runtime code cannot smuggle arbitrary console text
+/// into a capture session.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CompiledHlaePlayerPovCapture {
+    demo_path: std::path::PathBuf,
+    output_directory: std::path::PathBuf,
+    player_id: String,
+    spectator_slot: u8,
+    seek_tick: u32,
+    setup_tick: u32,
+    first_tick: u32,
+    last_tick: u32,
+    tick_rate: f64,
+    capture: CaptureSettings,
+    command_system: GeneratedArtifact,
+    resource_estimate: HlaeCaptureResourceEstimate,
+}
+
+impl CompiledHlaePlayerPovCapture {
+    #[must_use]
+    pub fn demo_path(&self) -> &Path {
+        &self.demo_path
+    }
+
+    #[must_use]
+    pub fn output_directory(&self) -> &Path {
+        &self.output_directory
+    }
+
+    #[must_use]
+    pub fn player_id(&self) -> &str {
+        &self.player_id
+    }
+
+    #[must_use]
+    pub const fn spectator_slot(&self) -> u8 {
+        self.spectator_slot
+    }
+
+    #[must_use]
+    pub const fn seek_tick(&self) -> u32 {
+        self.seek_tick
+    }
+
+    /// Returns the tick used to establish first-person spectator state before
+    /// capture. It is deliberately distinct from both the seek and record
+    /// ticks because CS2 can ignore `spec_player` when it shares a seek tick.
+    #[must_use]
+    pub const fn setup_tick(&self) -> u32 {
+        self.setup_tick
+    }
+
+    #[must_use]
+    pub const fn first_tick(&self) -> u32 {
+        self.first_tick
+    }
+
+    #[must_use]
+    pub const fn last_tick(&self) -> u32 {
+        self.last_tick
+    }
+
+    #[must_use]
+    pub const fn tick_rate(&self) -> f64 {
+        self.tick_rate
+    }
+
+    #[must_use]
+    pub const fn capture(&self) -> &CaptureSettings {
+        &self.capture
+    }
+
+    #[must_use]
+    pub const fn command_system(&self) -> &GeneratedArtifact {
+        &self.command_system
+    }
+
+    /// Player POV does not produce cinematic camera-path artifacts.
+    #[must_use]
+    pub const fn camera_paths(&self) -> &[GeneratedArtifact] {
+        &[]
+    }
+
+    #[must_use]
+    pub const fn resource_estimate(&self) -> HlaeCaptureResourceEstimate {
+        self.resource_estimate
+    }
+}
+
+/// Compiles one player-POV plan into a fixed `mirv_cmd` schedule.
+///
+/// The compiler accepts no free-form console command. The current contract is
+/// screen-only because the native encoder consumes one screen TGA sequence;
+/// world/depth layers require a separate typed product contract.
+///
+/// # Errors
+///
+/// Returns [`HlaeError`] for unsafe or missing paths, an untrusted player ID,
+/// unsupported capture settings, invalid ticks, or resource-budget overflow.
+pub fn compile_hlae_player_pov_capture(
+    plan: &HlaePlayerPovCapturePlan,
+    artifact_directory: &Path,
+) -> Result<CompiledHlaePlayerPovCapture, HlaeError> {
+    validate_player_pov_plan(plan, artifact_directory)?;
+    let first_tick = u32::try_from(plan.start_tick)
+        .map_err(|_| invalid_error("capture start tick is unsupported"))?;
+    let last_tick = u32::try_from(plan.end_tick)
+        .map_err(|_| invalid_error("capture end tick is unsupported"))?;
+    let pre_roll_ticks = u32::try_from(plan.pre_roll_ticks)
+        .map_err(|_| invalid_error("capture pre-roll is unsupported"))?;
+    let seek_tick = first_tick.saturating_sub(pre_roll_ticks);
+    let setup_tick = first_tick - 1;
+    let resource_estimate =
+        estimate_hlae_capture_span_resources(first_tick, last_tick, plan.tick_rate, &plan.capture)?;
+    if resource_estimate.total_bytes > HLAE_TAKE_MAX_ESTIMATED_BYTES {
+        return Err(invalid_error(format!(
+            "capture exceeds the {HLAE_TAKE_MAX_ESTIMATED_BYTES} byte staging budget"
+        )));
+    }
+
+    let contents = compile_player_pov_command_system(plan, setup_tick);
+    if contents.len() > MAXIMUM_COMMAND_SYSTEM_BYTES {
+        return Err(invalid_error(
+            "player POV command system exceeds its 64 KiB limit",
+        ));
+    }
+    Ok(CompiledHlaePlayerPovCapture {
+        demo_path: plan.demo_path.clone(),
+        output_directory: plan.output_directory.clone(),
+        player_id: plan.player_id.clone(),
+        spectator_slot: plan.spectator_slot,
+        seek_tick,
+        setup_tick,
+        first_tick,
+        last_tick,
+        tick_rate: plan.tick_rate,
+        capture: plan.capture.clone(),
+        command_system: GeneratedArtifact {
+            path: artifact_directory.join(HLAE_MANAGED_COMMAND_SYSTEM_FILE_NAME),
+            media_type: "application/xml".to_owned(),
+            contents,
+        },
+        resource_estimate,
+    })
+}
+
+fn validate_player_pov_plan(
+    plan: &HlaePlayerPovCapturePlan,
+    artifact_directory: &Path,
+) -> Result<(), HlaeError> {
+    validate_regular_path(&plan.demo_path, "demoPath", false)?;
+    validate_regular_path(&plan.output_directory, "outputDirectory", true)?;
+    validate_regular_path(artifact_directory, "artifactDirectory", true)?;
+    if !plan
+        .demo_path
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("dem"))
+    {
+        return invalid("demoPath must have a .dem extension");
+    }
+    if plan.player_id.len() != 17
+        || !plan.player_id.bytes().all(|byte| byte.is_ascii_digit())
+        || !matches!(plan.player_id.parse::<u64>(), Ok(value) if value != 0)
+    {
+        return invalid("playerId must be a canonical non-zero 17-digit SteamID64");
+    }
+    if !(1..=64).contains(&plan.spectator_slot) {
+        return invalid("spectatorSlot must be a parser-backed value between 1 and 64");
+    }
+    if plan.start_tick <= 1 || plan.start_tick >= plan.end_tick || plan.end_tick > MAXIMUM_TICK {
+        return invalid("player POV capture has an invalid tick range");
+    }
+    if plan.pre_roll_ticks < 2
+        || plan.pre_roll_ticks > MAXIMUM_TICK
+        || plan.start_tick.saturating_sub(plan.pre_roll_ticks) >= plan.start_tick - 1
+    {
+        return invalid("player POV capture requires a distinct pre-roll and setup tick");
+    }
+    if !plan.tick_rate.is_finite() || !(1.0..=256.0).contains(&plan.tick_rate) {
+        return invalid("tickRate must be finite and between 1 and 256");
+    }
+    if !(1..=1_000).contains(&plan.capture.fps) {
+        return invalid("capture fps must be between 1 and 1000");
+    }
+    if !(320..=4_096).contains(&plan.capture.width)
+        || !(240..=2_304).contains(&plan.capture.height)
+        || !plan.capture.width.is_multiple_of(2)
+        || !plan.capture.height.is_multiple_of(2)
+    {
+        return invalid("capture dimensions must be even and within the native MP4 pipeline range");
+    }
+    if plan.capture.layers
+        != (CaptureLayers {
+            screen: true,
+            world: false,
+            depth: false,
+        })
+    {
+        return invalid("managed player POV capture is screen-only");
+    }
+    if !plan.presentation.camera_fov.is_finite()
+        || !(60.0..=140.0).contains(&plan.presentation.camera_fov)
+    {
+        return invalid("camera FOV must be finite and between 60 and 140");
+    }
+    if !plan.presentation.viewmodel_fov.is_finite()
+        || !(54.0..=68.0).contains(&plan.presentation.viewmodel_fov)
+    {
+        return invalid("viewmodel FOV must be finite and between 54 and 68");
+    }
+    Ok(())
+}
+
+fn validate_regular_path(
+    path: &Path,
+    field: &'static str,
+    directory: bool,
+) -> Result<(), HlaeError> {
+    validate_safe_path(path, field, true)?;
+    let metadata = fs::symlink_metadata(path).map_err(|error| HlaeError::ArtifactIo {
+        operation: "inspect player POV capture path",
+        message: error.to_string(),
+    })?;
+    if metadata.file_type().is_symlink()
+        || (directory && !metadata.is_dir())
+        || (!directory && !metadata.is_file())
+    {
+        return invalid(format!("{field} must be a regular non-link path"));
+    }
+    Ok(())
+}
+
+fn compile_player_pov_command_system(plan: &HlaePlayerPovCapturePlan, setup_tick: u32) -> String {
+    let presentation = compile_presentation_setup(plan);
+    let spectator = format!(
+        "mirv_campath enabled 0; mirv_campath draw enabled 0; spec_mode 2; spec_player {}; {presentation}",
+        plan.spectator_slot,
+    );
+    let capture_start = format!(
+        "mirv_streams record name \"{}\"; mirv_streams record fps {}; mirv_streams record startMovieWav {}; mirv_streams settings edit afxDefault settings afxClassic; mirv_streams record screen enabled 1; mirv_streams record start",
+        console_path(&plan.output_directory),
+        plan.capture.fps,
+        u8::from(plan.capture.record_wav),
+    );
+    let capture_stop = "mirv_streams record end; demo_pause; mirv_streams record screen enabled 0; cl_drawhud_force_radar 0; cl_draw_only_deathnotices 0; mirv_fov default; mirv_viewmodel enabled 0; mirv_noflash 0; snd_voipvolume 1; tv_listen_voice_indices 0; tv_listen_voice_indices_h 0";
+    let mut xml =
+        String::from("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<commandSystem>\n<commands>\n");
+    for (tick, command) in [
+        (u64::from(setup_tick), spectator.as_str()),
+        (plan.start_tick, capture_start.as_str()),
+        (plan.end_tick, capture_stop),
+    ] {
+        writeln!(
+            xml,
+            "<c tick=\"{tick}\"><body>{}</body></c>",
+            xml_text(command)
+        )
+        .expect("writing to String cannot fail");
+    }
+    xml.push_str("</commands>\n</commandSystem>\n");
+    xml
+}
+
+fn compile_presentation_setup(plan: &HlaePlayerPovCapturePlan) -> String {
+    let presentation = plan.presentation;
+    let noflash = 1.0 - f64::from(presentation.flash_alpha) / f64::from(u8::MAX);
+    let (voice_volume, voice_low, voice_high) = match presentation.voice {
+        HlaeVoicePolicy::Muted => (0_u8, 0_i32, 0_i32),
+        HlaeVoicePolicy::TargetOnly => {
+            let bit = u32::from(plan.spectator_slot - 1);
+            let (low, high) = if bit < 32 {
+                (1_i32.wrapping_shl(bit), 0)
+            } else {
+                (0, 1_i32.wrapping_shl(bit - 32))
+            };
+            (1, low, high)
+        }
+        HlaeVoicePolicy::AllPlayers => (1, -1, -1),
+    };
+    format!(
+        "cl_drawhud_force_radar {}; cl_drawhud 1; cl_draw_only_deathnotices {}; mirv_fov handleZoom minUnzoomedFov 90; mirv_fov handleZoom enabled 1; mirv_fov {}; mirv_viewmodel set * * * {} *; mirv_viewmodel enabled 1; mirv_noflash {}; snd_voipvolume {voice_volume}; tv_listen_voice_indices {voice_low}; tv_listen_voice_indices_h {voice_high}",
+        match presentation.radar {
+            HlaeRadarVisibility::Visible => 1,
+            HlaeRadarVisibility::Hidden => -1,
+        },
+        match presentation.hud {
+            HlaeHudVisibility::Visible => 0,
+            HlaeHudVisibility::DeathNoticesOnly => 1,
+        },
+        bounded_decimal(presentation.camera_fov),
+        bounded_decimal(presentation.viewmodel_fov),
+        bounded_decimal(noflash),
+    )
+}
+
+fn bounded_decimal(value: f64) -> String {
+    let mut rendered = format!("{value:.6}");
+    while rendered.ends_with('0') {
+        rendered.pop();
+    }
+    if rendered.ends_with('.') {
+        rendered.pop();
+    }
+    rendered
+}
+
+fn console_path(path: &Path) -> String {
+    path.to_string_lossy().replace('/', "\\")
+}
+
+fn xml_text(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
+}
+
+fn invalid<T>(message: impl Into<String>) -> Result<T, HlaeError> {
+    Err(invalid_error(message))
+}
+
+fn invalid_error(message: impl Into<String>) -> HlaeError {
+    HlaeError::InvalidPlan(message.into())
+}

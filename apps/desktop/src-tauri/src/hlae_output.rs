@@ -12,7 +12,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt as _;
 use vibe_cs_hlae::{
     HLAE_BUNDLE_LAUNCH_PROFILE_FILE, HLAE_BUNDLE_MANIFEST_FILE, HLAE_BUNDLE_MANIFEST_PRODUCER,
-    HLAE_BUNDLE_MANIFEST_SCHEMA_VERSION, HLAE_BUNDLE_README_FILE, HlaeBundleManifest,
+    HLAE_BUNDLE_README_FILE, HlaeBundleManifest,
 };
 
 const BOOTSTRAP_FILE: &str = "vibe_cs_hlae.cfg";
@@ -162,10 +162,7 @@ fn validate_bundle(root: &Path, requested: &Path) -> Result<HlaeBundleHandoff, S
         .map_err(|error| format!("HLAE bundle completion marker is unavailable: {error}"))?;
     let manifest: HlaeBundleManifest = serde_json::from_str(&marker_contents)
         .map_err(|error| format!("HLAE bundle completion manifest is invalid: {error}"))?;
-    if manifest.schema_version != HLAE_BUNDLE_MANIFEST_SCHEMA_VERSION
-        || manifest.state != "complete"
-        || manifest.producer != HLAE_BUNDLE_MANIFEST_PRODUCER
-    {
+    if manifest.state != "complete" || manifest.producer != HLAE_BUNDLE_MANIFEST_PRODUCER {
         return Err("HLAE bundle completion manifest contract is unsupported".to_owned());
     }
     if manifest.artifacts.len().saturating_add(1) != entries_by_name.len() {
@@ -336,7 +333,6 @@ mod tests {
             fs::write(directory.join(path), contents).unwrap();
         }
         let manifest = HlaeBundleManifest {
-            schema_version: HLAE_BUNDLE_MANIFEST_SCHEMA_VERSION,
             state: "complete".to_owned(),
             producer: HLAE_BUNDLE_MANIFEST_PRODUCER.to_owned(),
             artifacts: artifacts

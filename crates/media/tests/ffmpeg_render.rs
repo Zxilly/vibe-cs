@@ -49,7 +49,6 @@ fn generate_image(output: &Path) {
 
 #[tokio::test]
 async fn renders_real_montage_and_editor_graphs() {
-    let ffmpeg = Path::new("native-libav");
     let root = tempfile::tempdir().expect("temporary directory");
     let first = root.path().join("first.mp4");
     let second = root.path().join("second.mp4");
@@ -59,7 +58,7 @@ async fn renders_real_montage_and_editor_graphs() {
     generate_image(&image);
     let separated_audio = root.path().join("separated.m4a");
     let audio_plan =
-        build_audio_extraction_plan(ffmpeg, &first, &separated_audio, 2.0).expect("audio plan");
+        build_audio_extraction_plan(&first, &separated_audio, 2.0).expect("audio plan");
     execute_native_filter_plan(&audio_plan, &ProcessCancellation::default())
         .await
         .expect("audio extraction");
@@ -146,7 +145,6 @@ async fn renders_real_montage_and_editor_graphs() {
     ]);
     let montage_output = root.path().join("montage.mp4");
     let montage_plan = build_montage_plan_with_sources(
-        ffmpeg,
         &montage,
         &sources,
         &montage_output,
@@ -463,7 +461,6 @@ async fn renders_real_montage_and_editor_graphs() {
     ]);
     let editor_output = root.path().join("editor.mp4");
     let editor_plan = build_editor_plan_with_sources(
-        ffmpeg,
         &editor,
         &assets,
         &editor_output,
@@ -497,7 +494,6 @@ async fn renders_real_montage_and_editor_graphs() {
         variant.tracks[0].clips[0].transition_in = Some(transition.to_owned());
         let output = root.path().join(format!("editor-{transition}.mp4"));
         let plan = build_editor_plan_with_sources(
-            ffmpeg,
             &variant,
             &assets,
             &output,

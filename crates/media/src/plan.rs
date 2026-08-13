@@ -145,7 +145,6 @@ impl Default for EditorRenderOptions {
 /// Returns an error for a missing input, invalid duration, unsafe output, or
 /// a non-M4A output extension.
 pub fn build_audio_extraction_plan(
-    ffmpeg: &Path,
     source: &Path,
     output: &Path,
     duration_seconds: f64,
@@ -167,7 +166,7 @@ pub fn build_audio_extraction_plan(
         ));
     }
     let temporary = temporary_output_path(output)?;
-    let command = CommandSpec::new(ffmpeg).args([
+    let command = CommandSpec::default().args([
         OsString::from("-hide_banner"),
         OsString::from("-nostdin"),
         OsString::from("-y"),
@@ -205,7 +204,6 @@ pub fn build_audio_extraction_plan(
 /// Returns an error for invalid source/output paths, dimensions, timing,
 /// overlays, colors, or encoders.
 pub fn build_single_input_transcode_plan(
-    ffmpeg: &Path,
     source: &Path,
     output: &Path,
     options: &SingleInputTranscodeOptions,
@@ -226,7 +224,6 @@ pub fn build_single_input_transcode_plan(
     }
     let temporary = temporary_output_path(output)?;
     let primary = build_single_input_command(
-        ffmpeg,
         source,
         &temporary,
         options,
@@ -238,7 +235,7 @@ pub fn build_single_input_transcode_plan(
         .as_deref()
         .map(validated_encoder)
         .transpose()?
-        .map(|encoder| build_single_input_command(ffmpeg, source, &temporary, options, encoder))
+        .map(|encoder| build_single_input_command(source, &temporary, options, encoder))
         .transpose()?;
     Ok(FilterPlan {
         command: primary,
@@ -250,7 +247,6 @@ pub fn build_single_input_transcode_plan(
 }
 
 fn build_single_input_command(
-    ffmpeg: &Path,
     source: &Path,
     temporary: &Path,
     options: &SingleInputTranscodeOptions,
@@ -310,7 +306,7 @@ fn build_single_input_command(
         );
     }
     video.push_str("[outv]");
-    let mut command = CommandSpec::new(ffmpeg).args([
+    let mut command = CommandSpec::default().args([
         OsString::from("-hide_banner"),
         OsString::from("-nostdin"),
         OsString::from("-y"),
@@ -363,37 +359,6 @@ enum Transition {
     Spin,
 }
 
-/// Builds a shell-free montage plan. This compatibility entry point treats
-/// supplied files as video-with-audio and uses their explicit trim end.
-///
-/// # Errors
-///
-/// Returns an error for missing sources, unsafe settings, unsupported values,
-/// or an invalid output location.
-pub fn build_montage_plan<S: BuildHasher>(
-    ffmpeg: &Path,
-    project: &MontageProject,
-    sources: &HashMap<String, PathBuf, S>,
-    output: &Path,
-) -> MediaResult<FilterPlan> {
-    let expanded = sources
-        .iter()
-        .map(|(id, path)| {
-            (
-                id.clone(),
-                MontageSource {
-                    path: path.clone(),
-                    duration_seconds: None,
-                    has_audio: true,
-                    avatar_path: None,
-                },
-            )
-        })
-        .collect::<HashMap<_, _>>();
-    let encoder = select_video_encoder(&project.settings.encoder, &[])?;
-    build_montage_plan_with_sources(ffmpeg, project, &expanded, output, &encoder)
-}
-
 /// Builds a complete montage plan with probed duration/audio metadata and an
 /// optional software fallback command.
 ///
@@ -401,7 +366,6 @@ pub fn build_montage_plan<S: BuildHasher>(
 ///
 /// Returns an error for invalid timing, transitions, text, media, or output.
 pub fn build_montage_plan_with_sources<S: BuildHasher>(
-    ffmpeg: &Path,
     project: &MontageProject,
     sources: &HashMap<String, MontageSource, S>,
     output: &Path,
@@ -419,7 +383,6 @@ pub fn build_montage_plan_with_sources<S: BuildHasher>(
     let temporary = temporary_output_path(output)?;
     let prepared = prepare_montage_clips(project, sources)?;
     let primary = build_montage_command(
-        ffmpeg,
         project,
         &prepared,
         &temporary,
@@ -430,7 +393,7 @@ pub fn build_montage_plan_with_sources<S: BuildHasher>(
         .as_deref()
         .map(validated_encoder)
         .transpose()?
-        .map(|fallback| build_montage_command(ffmpeg, project, &prepared, &temporary, fallback))
+        .map(|fallback| build_montage_command(project, &prepared, &temporary, fallback))
         .transpose()?;
     let duration_seconds = montage_duration(project, &prepared)?;
     Ok(FilterPlan {
@@ -574,13 +537,12 @@ fn montage_duration(
 }
 
 fn build_montage_command(
-    ffmpeg: &Path,
     project: &MontageProject,
     prepared: &[PreparedMontageClip<'_>],
     temporary: &Path,
     encoder: &str,
 ) -> MediaResult<CommandSpec> {
-    let mut command = CommandSpec::new(ffmpeg).args(["-hide_banner", "-nostdin", "-y"]);
+    let mut command = CommandSpec::default().args(["-hide_banner", "-nostdin", "-y"]);
     let mut inputs = Vec::with_capacity(prepared.len());
     let mut next_input = 0_usize;
     for item in prepared {
@@ -906,40 +868,6 @@ fn montage_theme_colors(theme: MontageBrandingTheme) -> (&'static str, &'static 
     }
 }
 
-/// Builds a shell-free editor plan using video-with-audio compatibility
-/// sources and a full-timeline range.
-///
-/// # Errors
-///
-/// Returns an error for invalid timing, missing assets, unsupported encoders,
-/// or an invalid output location.
-pub fn build_editor_plan<S: BuildHasher>(
-    ffmpeg: &Path,
-    project: &EditorProject,
-    assets: &HashMap<String, PathBuf, S>,
-    output: &Path,
-    encoder: &str,
-) -> MediaResult<FilterPlan> {
-    let expanded = assets
-        .iter()
-        .map(|(id, path)| {
-            (
-                id.clone(),
-                EditorMediaSource {
-                    path: path.clone(),
-                    kind: EditorMediaKind::Video,
-                    has_audio: true,
-                },
-            )
-        })
-        .collect::<HashMap<_, _>>();
-    let options = EditorRenderOptions {
-        encoder: select_video_encoder(encoder, &[])?,
-        ..EditorRenderOptions::default()
-    };
-    build_editor_plan_with_sources(ffmpeg, project, &expanded, output, &options)
-}
-
 /// Builds a compositing plan for video, audio, image, text, and overlay tracks.
 ///
 /// # Errors
@@ -947,7 +875,6 @@ pub fn build_editor_plan<S: BuildHasher>(
 /// Returns an error for invalid timing, range, media, transform, effect,
 /// transition, text style, encoder, or output.
 pub fn build_editor_plan_with_sources<S: BuildHasher>(
-    ffmpeg: &Path,
     project: &EditorProject,
     assets: &HashMap<String, EditorMediaSource, S>,
     output: &Path,
@@ -967,7 +894,6 @@ pub fn build_editor_plan_with_sources<S: BuildHasher>(
     let temporary = temporary_output_path(output)?;
     let primary_encoder = validated_encoder(&options.encoder.primary)?;
     let command = build_editor_command(
-        ffmpeg,
         project,
         assets,
         &temporary,
@@ -984,7 +910,6 @@ pub fn build_editor_plan_with_sources<S: BuildHasher>(
         .transpose()?
         .map(|fallback| {
             build_editor_command(
-                ffmpeg,
                 project,
                 assets,
                 &temporary,
@@ -1091,7 +1016,6 @@ struct PreparedSpeedSection {
 
 #[allow(clippy::too_many_arguments)]
 fn build_editor_command<S: BuildHasher>(
-    ffmpeg: &Path,
     project: &EditorProject,
     assets: &HashMap<String, EditorMediaSource, S>,
     temporary: &Path,
@@ -1101,7 +1025,7 @@ fn build_editor_command<S: BuildHasher>(
     encoder: &str,
 ) -> MediaResult<CommandSpec> {
     let duration = range_end - range_start;
-    let mut command = CommandSpec::new(ffmpeg).args(["-hide_banner", "-nostdin", "-y"]);
+    let mut command = CommandSpec::default().args(["-hide_banner", "-nostdin", "-y"]);
     let mut prepared = Vec::new();
     let mut next_input = 0_usize;
     let mut tracks = project
@@ -2221,7 +2145,10 @@ mod tests {
                 "intro_title": null,
                 "intro_duration_seconds": 0.0,
                 "include_name_cards": true,
-                "name_card_duration_seconds": 2.5
+                "name_card_duration_seconds": 2.5,
+                "outro_title": null,
+                "outro_duration_seconds": 0.0,
+                "branding_theme": "vibe"
             },
             "created_at": "2026-01-01T00:00:00Z",
             "updated_at": "2026-01-01T00:00:00Z"
@@ -2263,12 +2190,21 @@ mod tests {
         std::fs::write(&source, b"media").unwrap();
         let clip_id = "00000000-0000-4000-8000-000000000001";
         let project = montage_project(clip_id);
-        let sources = HashMap::from([(clip_id.to_owned(), source.clone())]);
-        let plan = build_montage_plan(
-            Path::new("ffmpeg"),
+        let sources = HashMap::from([(
+            clip_id.to_owned(),
+            MontageSource {
+                path: source.clone(),
+                duration_seconds: None,
+                has_audio: true,
+                avatar_path: None,
+            },
+        )]);
+        let encoder = select_video_encoder(&project.settings.encoder, &[]).unwrap();
+        let plan = build_montage_plan_with_sources(
             &project,
             &sources,
             &root.path().join("result.mp4"),
+            &encoder,
         )
         .unwrap();
         assert!(
@@ -2428,7 +2364,6 @@ mod tests {
             range_end: Some(8.0),
         };
         let plan = build_editor_plan_with_sources(
-            Path::new("ffmpeg"),
             &project,
             &assets,
             &root.path().join("result.mp4"),
@@ -2469,7 +2404,6 @@ mod tests {
             value: 0.8,
         }];
         let error = build_editor_plan_with_sources(
-            Path::new("ffmpeg"),
             &unsupported,
             &assets,
             &root.path().join("unsupported.mp4"),
@@ -2507,10 +2441,11 @@ mod tests {
         let source = root.path().join("capture.webm");
         std::fs::write(&source, b"source").unwrap();
         let output = root.path().join("voice.m4a");
-        let plan = build_audio_extraction_plan(Path::new("ffmpeg"), &source, &output, 12.5)
-            .expect("audio extraction plan");
-        assert!(plan.command.args.iter().any(|arg| arg == "-vn"));
-        assert!(plan.command.args.iter().any(|arg| arg == "0:a:0"));
+        let plan =
+            build_audio_extraction_plan(&source, &output, 12.5).expect("audio extraction plan");
+        let CommandSpec { args } = plan.command;
+        assert!(args.iter().any(|arg| arg == "-vn"));
+        assert!(args.iter().any(|arg| arg == "0:a:0"));
         assert_eq!(plan.final_output, output);
         assert_ne!(plan.temporary_output, plan.final_output);
     }

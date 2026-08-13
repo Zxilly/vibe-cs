@@ -1,6 +1,5 @@
-//! Verified orchestration for replay playback and OBS recording.
+//! Verified orchestration for replay playback and pluggable capture backends.
 
-mod calibration;
 mod command_sync;
 mod director;
 mod engine;
@@ -11,7 +10,6 @@ mod synchronizer;
 mod traits;
 mod types;
 
-pub use calibration::*;
 pub use command_sync::*;
 pub use director::*;
 pub use engine::*;

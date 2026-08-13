@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn converts_generated_audio_extraction_to_a_native_job() {
-        let command = CommandSpec::new("unused-ffmpeg-program").args([
+        let command = CommandSpec::default().args([
             "-hide_banner",
             "-nostdin",
             "-y",
@@ -417,8 +417,7 @@ mod tests {
 
     #[test]
     fn rejects_options_outside_the_generated_native_contract() {
-        let command =
-            CommandSpec::new("unused").args(["-i", "source.mp4", "-shell", "bad", "out.mp4"]);
+        let command = CommandSpec::default().args(["-i", "source.mp4", "-shell", "bad", "out.mp4"]);
         assert!(NativeJob::from_command(&command, Path::new("out.mp4")).is_err());
     }
 
@@ -430,8 +429,7 @@ mod tests {
         write_test_wav(&source);
 
         let cancellation = ProcessCancellation::default();
-        let plan =
-            build_audio_extraction_plan(Path::new("native-libav"), &source, &output, 0.5).unwrap();
+        let plan = build_audio_extraction_plan(&source, &output, 0.5).unwrap();
         execute_native_filter_plan(&plan, &cancellation)
             .await
             .unwrap();
@@ -447,8 +445,7 @@ mod tests {
         let source = directory.path().join("source.wav");
         let output = directory.path().join("audio.m4a");
         write_test_wav(&source);
-        let mut plan =
-            build_audio_extraction_plan(Path::new("native-libav"), &source, &output, 0.5).unwrap();
+        let mut plan = build_audio_extraction_plan(&source, &output, 0.5).unwrap();
         let fallback = plan.command.clone();
         let codec = plan
             .command
@@ -471,8 +468,7 @@ mod tests {
         let source = directory.path().join("source.wav");
         let output = directory.path().join("audio.m4a");
         write_test_wav(&source);
-        let plan =
-            build_audio_extraction_plan(Path::new("native-libav"), &source, &output, 0.5).unwrap();
+        let plan = build_audio_extraction_plan(&source, &output, 0.5).unwrap();
         let created = Arc::new(AtomicBool::new(false));
         let output_for_callback = output.clone();
         let created_for_callback = Arc::clone(&created);

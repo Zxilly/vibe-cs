@@ -28,20 +28,17 @@ const TRASH_DIRECTORY: &str = ".output-trash";
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/outputs", get(list_outputs))
+        .route("/api/outputs", get(list_outputs))
         .route(
-            "/api/v1/outputs/{kind}/{id}",
+            "/api/outputs/{kind}/{id}",
             patch(rename_output).delete(delete_output),
         )
-        .route("/api/v1/outputs/batch-delete", post(batch_delete_outputs))
+        .route("/api/outputs/batch-delete", post(batch_delete_outputs))
         .route(
-            "/api/v1/outputs/cleanup-missing",
+            "/api/outputs/cleanup-missing",
             post(cleanup_missing_outputs),
         )
-        .route(
-            "/api/v1/outputs/cleanup-staged",
-            post(cleanup_staged_outputs),
-        )
+        .route("/api/outputs/cleanup-staged", post(cleanup_staged_outputs))
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
@@ -91,6 +88,7 @@ struct OutputItemDto {
 }
 
 #[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct OutputListQuery {
     page: Option<u32>,
     page_size: Option<u32>,
@@ -450,6 +448,7 @@ async fn list_outputs(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct RenameOutputRequest {
     file_name: String,
 }
@@ -504,9 +503,9 @@ async fn rename_output(
     Ok(Json(output.into_dto(&roots).await))
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DeleteOutputQuery {
-    #[serde(default)]
     delete_file: bool,
 }
 
@@ -612,13 +611,14 @@ async fn delete_stored_output(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct BatchDeleteRequest {
     items: Vec<OutputReference>,
-    #[serde(default)]
     delete_files: bool,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[serde(deny_unknown_fields)]
 struct OutputReference {
     kind: OutputKind,
     id: Uuid,
@@ -683,6 +683,7 @@ async fn batch_delete_outputs(
 }
 
 #[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CleanupMissingRequest {
     kind: Option<OutputKind>,
 }
@@ -1042,6 +1043,53 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
     use vibe_cs_domain::ExportJob;
+
+    #[test]
+    fn output_requests_reject_fields_outside_the_current_contract() {
+        assert!(
+            serde_json::from_value::<RenameOutputRequest>(serde_json::json!({
+                "file_name": "renamed.mp4",
+                "unexpected": true
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<OutputListQuery>(serde_json::json!({
+                "page": 1,
+                "unexpected": true
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<DeleteOutputQuery>(serde_json::json!({
+                "delete_file": true,
+                "unexpected": true
+            }))
+            .is_err()
+        );
+        assert!(serde_json::from_value::<DeleteOutputQuery>(serde_json::json!({})).is_err());
+        assert!(
+            serde_json::from_value::<BatchDeleteRequest>(serde_json::json!({
+                "items": [],
+                "delete_files": false,
+                "unexpected": true
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<BatchDeleteRequest>(serde_json::json!({
+                "items": []
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<CleanupMissingRequest>(serde_json::json!({
+                "kind": null,
+                "unexpected": true
+            }))
+            .is_err()
+        );
+    }
 
     #[test]
     fn output_file_names_reject_escape_and_reserved_names() {

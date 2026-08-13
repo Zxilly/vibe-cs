@@ -10,7 +10,7 @@ use crate::{
 use source2_demo::proto::EDemoCommands;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompatibilityCopy {
+pub struct TerminalTailRepairCopy {
     pub path: PathBuf,
     pub source_bytes: u64,
     pub copied_bytes: u64,
@@ -31,7 +31,7 @@ impl Drop for RemoveOnDrop {
     }
 }
 
-/// Creates a separate compatibility copy only when a complete file-info
+/// Creates a separate repair copy only when a complete file-info
 /// message is followed by one provably incomplete terminal message. The source
 /// is never opened for writing. Other malformed layouts remain rejected.
 ///
@@ -39,29 +39,25 @@ impl Drop for RemoveOnDrop {
 ///
 /// Returns an error for invalid headers, unsafe destinations, I/O failures, or
 /// damage that is not the narrowly supported trailing-message case.
-pub fn create_terminal_tail_compatibility_copy(
+pub fn create_terminal_tail_repair_copy(
     source: impl AsRef<Path>,
     destination: impl AsRef<Path>,
-) -> DemoResult<Option<CompatibilityCopy>> {
-    create_terminal_tail_compatibility_copy_cancellable(
-        source,
-        destination,
-        &ParseCancellation::default(),
-    )
+) -> DemoResult<Option<TerminalTailRepairCopy>> {
+    create_terminal_tail_repair_copy_cancellable(source, destination, &ParseCancellation::default())
 }
 
-/// Creates the same bounded compatibility copy while cooperatively observing
+/// Creates the same bounded repair copy while cooperatively observing
 /// cancellation throughout header inspection, message scanning, and copying.
 ///
 /// # Errors
 ///
 /// Returns [`DemoError::Cancelled`] once cancellation is observed. A partial
 /// destination is removed before returning.
-pub fn create_terminal_tail_compatibility_copy_cancellable(
+pub fn create_terminal_tail_repair_copy_cancellable(
     source: impl AsRef<Path>,
     destination: impl AsRef<Path>,
     cancellation: &ParseCancellation,
-) -> DemoResult<Option<CompatibilityCopy>> {
+) -> DemoResult<Option<TerminalTailRepairCopy>> {
     let source = source.as_ref();
     let destination = destination.as_ref();
     cancellation.check()?;
@@ -79,7 +75,7 @@ pub fn create_terminal_tail_compatibility_copy_cancellable(
         .len();
     if source_bytes > ValidationLimits::default().maximum_bytes || source_bytes < 16 {
         return Err(DemoError::MetadataUnavailable(
-            "demo size is outside compatibility-copy limits",
+            "demo size is outside repair-copy limits",
         ));
     }
     let mut reader = BufReader::new(file);
@@ -186,12 +182,12 @@ pub fn create_terminal_tail_compatibility_copy_cancellable(
         copied = copied
             .checked_add(u64::try_from(read).unwrap_or(u64::MAX))
             .ok_or(DemoError::MetadataUnavailable(
-                "compatibility copy byte count overflow",
+                "repair copy byte count overflow",
             ))?;
     }
     if copied != copied_bytes {
         return Err(DemoError::MetadataUnavailable(
-            "compatibility copy ended before the verified boundary",
+            "repair copy ended before the verified boundary",
         ));
     }
     output
@@ -203,7 +199,7 @@ pub fn create_terminal_tail_compatibility_copy_cancellable(
         .map_err(|error| io_error(destination, error))?;
     cancellation.check()?;
     cleanup.armed = false;
-    Ok(Some(CompatibilityCopy {
+    Ok(Some(TerminalTailRepairCopy {
         path: destination.to_path_buf(),
         source_bytes,
         copied_bytes,
@@ -258,17 +254,17 @@ mod tests {
     }
 
     #[test]
-    fn creates_a_new_copy_only_for_a_proven_incomplete_terminal_message() {
+    fn creates_a_new_repair_copy_only_for_a_proven_incomplete_terminal_message() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source.dem");
-        let destination = temporary.path().join("compat.dem");
+        let destination = temporary.path().join("repair.dem");
         let mut bytes = Vec::from(*b"PBDEMS2\0");
         bytes.extend_from_slice(&16_u32.to_le_bytes());
         bytes.extend_from_slice(&0_u32.to_le_bytes());
         bytes.extend_from_slice(&[2, 2, 1, 9]);
         bytes.extend_from_slice(&[2, 3, 5, 7]);
         std::fs::write(&source, &bytes).unwrap();
-        let copy = create_terminal_tail_compatibility_copy(&source, &destination)
+        let copy = create_terminal_tail_repair_copy(&source, &destination)
             .unwrap()
             .unwrap();
         assert_eq!(copy.copied_bytes, 20);
@@ -286,8 +282,7 @@ mod tests {
         bytes.extend_from_slice(&[1, 2, 9, 7]);
         std::fs::write(&source, bytes).unwrap();
         assert!(
-            create_terminal_tail_compatibility_copy(&source, temporary.path().join("compat.dem"))
-                .is_err()
+            create_terminal_tail_repair_copy(&source, temporary.path().join("repair.dem")).is_err()
         );
     }
 
@@ -295,7 +290,7 @@ mod tests {
     fn cancellation_during_bounded_copy_removes_partial_destination() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("source.dem");
-        let destination = temporary.path().join("compat.dem");
+        let destination = temporary.path().join("repair.dem");
         let payload_bytes = 32 * 1024 * 1024_u64;
         let mut prefix = Vec::from(*b"PBDEMS2\0");
         prefix.extend_from_slice(&16_u32.to_le_bytes());
@@ -321,11 +316,8 @@ mod tests {
             }
             cancellation_for_thread.cancel();
         });
-        let result = create_terminal_tail_compatibility_copy_cancellable(
-            &source,
-            &destination,
-            &cancellation,
-        );
+        let result =
+            create_terminal_tail_repair_copy_cancellable(&source, &destination, &cancellation);
         canceller.join().unwrap();
 
         assert!(matches!(result, Err(DemoError::Cancelled)));

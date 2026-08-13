@@ -1,12 +1,10 @@
-//! `SQLite` persistence with serialized access and versioned migrations.
+//! `SQLite` persistence with serialized access and one current schema.
 
 mod error;
-mod legacy;
-mod migrations;
 mod repository;
+mod schema;
 
 pub use error::{Result, StorageError};
-pub use legacy::{PreviousDataImport, PreviousDataImportError, import_previous_data_directory};
 pub use repository::{
     BeatAlignmentUpdate, EDITOR_PROJECT_SNAPSHOT_LIMIT, EditorAudioSeparationResult,
     EditorAudioSeparationUpdate, EditorProjectDeletion, EditorProjectDeletionResult,

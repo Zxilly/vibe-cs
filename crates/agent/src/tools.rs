@@ -509,8 +509,23 @@ fn draft_edit_plan(
     } else {
         Vec::new()
     };
-    let payload = json!({"schemaVersion":1,"pacing":pacing,"tickRate":tick_rate,"clips":clips,"missingHighlightIds":binding.missing,"duplicateHighlightIds":binding.duplicates,"ambiguousHighlightIds":binding.ambiguous,"rejectionReasons":rejection_reasons});
-    let plan = accepted.then(|| CapturedPlan { kind:"highlight_edit".into(), title:"Recorded highlight edit draft".into(), payload:json!({"demo_id":demo_id,"highlight_ids":ids,"intent":{"pacing":pacing,"include_context_seconds":include,"transition":resolved}}) });
+    let payload = json!({"pacing":pacing,"tickRate":tick_rate,"clips":clips,"missingHighlightIds":binding.missing,"duplicateHighlightIds":binding.duplicates,"ambiguousHighlightIds":binding.ambiguous,"rejectionReasons":rejection_reasons});
+    let plan = accepted.then(|| CapturedPlan {
+        kind: "highlight_edit".into(),
+        title: "Recorded highlight edit draft".into(),
+        payload: json!({
+            "demo_id": demo_id,
+            "highlight_ids": ids,
+            "intent": {
+                "pacing": pacing,
+                "include_context_seconds": include,
+                "transition": resolved
+            },
+            "target_project_id": null,
+            "expected_revision": null,
+            "new_project_name": null
+        }),
+    });
     Ok((json!({"accepted":accepted,"plan":payload}), plan))
 }
 
@@ -928,6 +943,22 @@ mod tests {
     }
 
     #[test]
+    fn edit_plan_emits_the_current_explicit_nullable_target_shape() {
+        let (_, plan) = draft_edit_plan(
+            &context(),
+            &json!({"highlightIds":["ace-1"],"pacing":"energetic"}),
+        )
+        .expect("draft edit plan");
+        let payload = plan.expect("accepted edit plan").payload;
+        let object = payload.as_object().expect("proposal payload");
+
+        for field in ["target_project_id", "expected_revision", "new_project_name"] {
+            assert!(object.contains_key(field), "missing current field {field}");
+            assert!(object[field].is_null(), "new-project field must be null");
+        }
+    }
+
+    #[test]
     fn edit_plan_rejects_missing_and_duplicate_ids() {
         let (output, plan) = draft_edit_plan(
             &context(),
@@ -936,6 +967,7 @@ mod tests {
         .unwrap();
         assert_eq!(output["accepted"], false);
         assert!(plan.is_none());
+        assert!(output["plan"].is_object());
         assert_eq!(output["plan"]["missingHighlightIds"], json!(["missing"]));
         assert_eq!(output["plan"]["duplicateHighlightIds"], json!(["missing"]));
     }

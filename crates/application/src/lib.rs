@@ -17,18 +17,19 @@ pub use ports::{
     AnalysisPort, CosmeticCatalogDto, CosmeticCatalogItemDto, CosmeticImageOutput,
     CosmeticPaintKitDto, CosmeticRewriteOutput, CosmeticsPort, DemoWatchPort, DemoWatchRootStatus,
     DemoWatchStatus, DisabledAnalysisPort, DisabledCosmeticsPort, DisabledDemoWatchPort,
-    DisabledExportPort, DisabledIntegrationPort, DisabledMediaPort, DisabledObsTuningPort,
-    DisabledProposalExecutionPort, DisabledRecordingPort, DisabledReviewPort,
-    DisabledSourceAssetPort, ExportPort, IntegrationPort, LlmReviewRequest, LlmReviewResult,
-    MediaPort, MediaProxyRequest, ObsTuningPort, ObsVideoApplyRequest, ObsVideoApplyResult,
-    ObsVideoBackup, ObsVideoBackupDeleteResult, ObsVideoBackupReason, ObsVideoField,
-    ObsVideoFieldDiff, ObsVideoRestoreRequest, ObsVideoRestoreResult, ObsVideoSettingsSnapshot,
-    ObsVideoTuningPlan, ProbedMediaMetadata, ProposalExecutionPort, RadarImageData,
-    RadarOverviewData, RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata,
-    ReplayCacheState, ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone,
-    SourceAssetPort,
+    DisabledExportPort, DisabledIntegrationPort, DisabledMediaPort, DisabledProposalExecutionPort,
+    DisabledRecordingPort, DisabledReviewPort, DisabledSourceAssetPort, ExportPort,
+    IntegrationPort, LlmReviewRequest, LlmReviewResult, MediaPort, MediaProxyRequest,
+    ProbedMediaMetadata, ProposalExecutionPort, RadarImageData, RadarOverviewData,
+    RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata, ReplayCacheState,
+    ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone, SourceAssetPort,
 };
 pub use state::{AppState, ChangedEvent, EventHub};
+pub use vibe_cs_domain::{
+    EvidenceEventFamily, EvidenceSearchAvailability, EvidenceSearchCapability, EvidenceSearchItem,
+    EvidenceSearchPage, EvidenceSearchQuery, EvidenceSourceKind, ReplayFidelityMetadata,
+    ReplayFidelityMode,
+};
 
 /// Builds the private command dispatcher hosted inside the desktop process.
 pub fn build_dispatcher(state: AppState) -> Router {
@@ -45,4 +46,905 @@ pub fn build_gsi_receiver(state: AppState) -> Router {
     routes::gsi_router()
         .fallback(routes::not_found)
         .with_state(state)
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::{
+        body::{Body, to_bytes},
+        http::{Method, Request},
+    };
+    use chrono::Utc;
+    use tower::ServiceExt as _;
+    use uuid::Uuid;
+    use vibe_cs_domain::{
+        DemoRecord, DemoStatus, ExportJob, JobStatus, MatchAnalysis, MatchDemoStatus,
+        MatchDownloadJob, MatchDownloadStatus, MatchHistoryResult, RecordingJob, SteamMatchRecord,
+    };
+    use vibe_cs_storage::ExportJobRecord;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn dispatcher_does_not_expose_retired_obs_control_routes() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        for path in [
+            "/api/obs/status",
+            "/api/obs/test",
+            "/api/obs/start",
+            "/api/obs/diagnose",
+            "/api/obs/video-tuning/plan",
+            "/api/obs/video-tuning/apply",
+            "/api/obs/video-tuning/backups",
+            "/api/media-runtime",
+            "/api/recording/queue",
+            "/api/recording/execute",
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(path)
+                        .body(Body::empty())
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(
+                response.status(),
+                axum::http::StatusCode::NOT_FOUND,
+                "retired control route remained reachable: {path}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn dispatcher_does_not_expose_retired_unscoped_export_routes() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        for path in ["/api/montage/export", "/api/editor/export/start"] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri(path)
+                        .header(axum::http::header::CONTENT_TYPE, "application/json")
+                        .body(Body::from("{}"))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(
+                response.status(),
+                axum::http::StatusCode::NOT_FOUND,
+                "retired unscoped export route remained reachable: {path}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn recorded_clip_collection_is_a_runtime_owned_read_model() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let list_response = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::GET)
+                    .uri("/api/recorded-clips")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(list_response.status(), axum::http::StatusCode::OK);
+
+        let create_response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/recorded-clips")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from("{}"))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(
+            create_response.status(),
+            axum::http::StatusCode::METHOD_NOT_ALLOWED
+        );
+    }
+
+    #[tokio::test]
+    async fn recorded_clip_patch_rejects_fields_outside_the_current_contract() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+        let missing_id = Uuid::new_v4();
+
+        let current_response = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::PATCH)
+                    .uri(format!("/api/recorded-clips/{missing_id}"))
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(r#"{"title":"renamed"}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(current_response.status(), axum::http::StatusCode::NOT_FOUND);
+
+        let unknown_response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .method(Method::PATCH)
+                    .uri(format!("/api/recorded-clips/{missing_id}"))
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(r#"{"title":"renamed","unexpected":true}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(
+            unknown_response.status(),
+            axum::http::StatusCode::BAD_REQUEST
+        );
+    }
+
+    #[tokio::test]
+    async fn dispatcher_exposes_only_the_current_collection_analysis_and_replay_routes() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+        let missing_id = Uuid::new_v4();
+
+        for (method, path, body) in [
+            (Method::GET, "/api/demos/compact".to_owned(), ""),
+            (
+                Method::POST,
+                format!("/api/demos/{missing_id}/analysis"),
+                "{}",
+            ),
+            (Method::GET, "/api/match-history/matches".to_owned(), ""),
+            (
+                Method::PATCH,
+                format!("/api/editor/projects/{missing_id}"),
+                "{}",
+            ),
+            (
+                Method::GET,
+                format!("/api/demos/{missing_id}/replay.bin"),
+                "",
+            ),
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(&path)
+                        .header(axum::http::header::CONTENT_TYPE, "application/json")
+                        .body(Body::from(body))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            let status = response.status();
+            let body = to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .expect("response body");
+            let code = serde_json::from_slice::<serde_json::Value>(&body)
+                .ok()
+                .and_then(|value| value["code"].as_str().map(ToOwned::to_owned));
+            assert_ne!(
+                status,
+                axum::http::StatusCode::METHOD_NOT_ALLOWED,
+                "current route rejected its method: {path}"
+            );
+            assert_ne!(
+                code.as_deref(),
+                Some("route_not_found"),
+                "current route was not registered: {path}"
+            );
+        }
+
+        for (method, path) in [
+            (Method::GET, "/api/demos".to_owned()),
+            (Method::POST, format!("/api/demos/{missing_id}/analyze")),
+            (Method::GET, "/api/steam/matches".to_owned()),
+            (Method::GET, format!("/api/demos/{missing_id}/replay")),
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(&path)
+                        .header(axum::http::header::CONTENT_TYPE, "application/json")
+                        .body(Body::from("{}"))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            let body = to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .expect("response body");
+            let payload: serde_json::Value = serde_json::from_slice(&body).expect("error payload");
+            assert_eq!(
+                payload["code"], "route_not_found",
+                "retired route remained reachable: {path}"
+            );
+        }
+
+        let retired_put = dispatcher
+            .oneshot(
+                Request::builder()
+                    .method(Method::PUT)
+                    .uri(format!("/api/editor/projects/{missing_id}"))
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from("{}"))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(
+            retired_put.status(),
+            axum::http::StatusCode::METHOD_NOT_ALLOWED
+        );
+    }
+
+    #[tokio::test]
+    async fn demo_collection_returns_only_the_current_summary_shape() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let now = Utc::now();
+        storage
+            .put_demo(DemoRecord {
+                id: Uuid::new_v4(),
+                path: "C:/matches/major-m1.dem".to_owned(),
+                file_name: "major-m1.dem".to_owned(),
+                display_name: "Major M1".to_owned(),
+                source: "local".to_owned(),
+                status: DemoStatus::Ready,
+                map_name: Some("de_mirage".to_owned()),
+                match_date: Some(now),
+                duration_seconds: Some(2_400.0),
+                total_rounds: Some(24),
+                team_a_name: Some("Spirit".to_owned()),
+                team_b_name: Some("Vitality".to_owned()),
+                team_a_score: Some(13),
+                team_b_score: Some(11),
+                player_names: vec!["donk".to_owned(), "ZywOo".to_owned()],
+                remark: String::new(),
+                content_sha256: Some("ab".repeat(32)),
+                file_size: 42,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist demo");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/demos/compact?page=1&page_size=20")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("demo page");
+        let item = payload["items"][0].as_object().expect("demo summary");
+        let mut keys = item.keys().map(String::as_str).collect::<Vec<_>>();
+        keys.sort_unstable();
+        assert_eq!(
+            keys,
+            [
+                "content_sha256",
+                "created_at",
+                "display_name",
+                "duration_seconds",
+                "file_name",
+                "file_size",
+                "id",
+                "map_name",
+                "match_date",
+                "path",
+                "players",
+                "remark",
+                "source",
+                "status",
+                "team_a_name",
+                "team_a_score",
+                "team_b_name",
+                "team_b_score",
+                "total_rounds",
+                "updated_at",
+            ]
+        );
+        assert_eq!(item["players"], serde_json::json!(["donk", "ZywOo"]));
+    }
+
+    #[tokio::test]
+    async fn editor_project_creation_accepts_only_the_current_four_field_shape() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/editor/projects")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        r#"{"name":"Current","width":1920,"height":1080,"fps":60}"#,
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), axum::http::StatusCode::CREATED);
+
+        for body in [
+            r#"{"name":"Implicit defaults"}"#,
+            r#"{"id":"00000000-0000-4000-8000-000000000001","name":"Injected","width":1920,"height":1080,"fps":60,"duration_seconds":9,"tracks":[],"markers":[],"settings":{},"revision":99,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}"#,
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri("/api/editor/projects")
+                        .header(axum::http::header::CONTENT_TYPE, "application/json")
+                        .body(Body::from(body))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(
+                response.status(),
+                axum::http::StatusCode::BAD_REQUEST,
+                "retired editor creation shape remained accepted: {body}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn mutation_routes_reject_requests_missing_current_required_fields() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+        let missing_id = Uuid::new_v4();
+
+        for (path, body) in [
+            (
+                "/api/demos/import".to_owned(),
+                r#"{"paths":["C:/missing.dem"]}"#,
+            ),
+            (
+                "/api/demos/scan".to_owned(),
+                r#"{"paths":["C:/missing.dem"]}"#,
+            ),
+            (
+                "/api/montage/projects".to_owned(),
+                r#"{"name":"Missing shape"}"#,
+            ),
+            (
+                format!("/api/editor/projects/{missing_id}/duplicate"),
+                r#"{"name":"Copy"}"#,
+            ),
+            (
+                format!("/api/editor/projects/{missing_id}/clips/{missing_id}/separate-audio"),
+                r#"{"expected_revision":1}"#,
+            ),
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri(&path)
+                        .header(axum::http::header::CONTENT_TYPE, "application/json")
+                        .body(Body::from(body))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(
+                response.status(),
+                axum::http::StatusCode::BAD_REQUEST,
+                "request missing a current required field was accepted: {path}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn dispatcher_does_not_accept_manual_hlae_status_requests() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/hlae/status")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(r#"{"cs2_path":"C:/CS2/cs2.exe"}"#))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(
+            response.status(),
+            axum::http::StatusCode::METHOD_NOT_ALLOWED
+        );
+    }
+
+    #[tokio::test]
+    async fn dispatcher_exposes_bounded_cross_match_evidence_search() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/evidence/search?page=1&page_size=25")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: vibe_cs_domain::EvidenceSearchPage =
+            serde_json::from_slice(&body).expect("evidence search payload");
+        assert_eq!(payload.page, 1);
+        assert_eq!(payload.page_size, 25);
+        assert_eq!(payload.total, 0);
+    }
+
+    #[tokio::test]
+    async fn evidence_search_route_rejects_an_oversized_page() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/evidence/search?page_size=101")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn activity_feed_exposes_recording_stage_ordinal_without_claiming_percentage() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let job_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_recording_job(RecordingJob {
+                id: job_id,
+                status: JobStatus::Running,
+                items: vec![],
+                current_index: 0,
+                progress: 0.425,
+                message: "recording.stage.capturing".to_owned(),
+                outputs: vec![],
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist recording job");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+        assert_eq!(payload["items"][0]["id"], format!("recording:{job_id}"));
+        assert_eq!(payload["items"][0]["kind"], "recording");
+        assert_eq!(payload["items"][0]["job_id"], job_id.to_string());
+        assert_eq!(payload["items"][0]["status"], "running");
+        assert!(payload["items"][0]["progress_percent"].is_null());
+        assert_eq!(payload["items"][0]["stage"], "recording.stage.capturing");
+        assert_eq!(payload["items"][0]["completed_units"], 3);
+        assert_eq!(payload["items"][0]["total_units"], 5);
+        assert_eq!(payload["items"][0]["unit"], "stages");
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["cancel", "open_outputs"])
+        );
+    }
+
+    #[tokio::test]
+    async fn activity_feed_preserves_export_kind_error_and_terminal_actions() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let job_id = Uuid::new_v4();
+        let project_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_export_job(ExportJobRecord {
+                kind: "montage".to_owned(),
+                job: ExportJob {
+                    id: job_id,
+                    project_id,
+                    status: JobStatus::Failed,
+                    progress: 0.67,
+                    output_path: "C:/exports/major-m1.mp4".to_owned(),
+                    error: Some("encoder stopped".to_owned()),
+                    created_at: now,
+                    updated_at: now,
+                },
+            })
+            .await
+            .expect("persist export job");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(payload["items"][0]["id"], format!("export:{job_id}"));
+        assert_eq!(payload["items"][0]["kind"], "export");
+        assert_eq!(payload["items"][0]["subtype"], "montage");
+        assert_eq!(payload["items"][0]["context_id"], project_id.to_string());
+        assert_eq!(payload["items"][0]["status"], "failed");
+        assert_eq!(payload["items"][0]["progress_percent"], 67);
+        assert_eq!(payload["items"][0]["error"], "encoder stopped");
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["open_outputs"])
+        );
+    }
+
+    #[tokio::test]
+    async fn activity_feed_keeps_download_phase_and_hides_unprovable_percentage() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let job_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_steam_matches(vec![SteamMatchRecord {
+                id: "76561198000000000:42".to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "42".to_owned(),
+                outcome_id: "420".to_owned(),
+                token: 42,
+                map_name: Some("de_anubis".to_owned()),
+                played_at: Some(now),
+                score: Some("13:10".to_owned()),
+                result: MatchHistoryResult::Win,
+                demo_status: MatchDemoStatus::Downloading,
+                demo_id: None,
+                last_error: None,
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("persist match record");
+        storage
+            .put_match_download_job(MatchDownloadJob {
+                id: job_id,
+                match_record_id: "76561198000000000:42".to_owned(),
+                status: MatchDownloadStatus::Decompressing,
+                downloaded_bytes: 8_192,
+                total_bytes: None,
+                progress: 0.8,
+                demo_id: None,
+                error: None,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist download job");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(payload["items"][0]["id"], format!("download:{job_id}"));
+        assert_eq!(payload["items"][0]["kind"], "download");
+        assert_eq!(payload["items"][0]["context_id"], "76561198000000000:42");
+        assert_eq!(payload["items"][0]["status"], "decompressing");
+        assert_eq!(payload["items"][0]["completed_units"], 8_192);
+        assert_eq!(payload["items"][0]["unit"], "bytes");
+        assert!(payload["items"][0]["total_units"].is_null());
+        assert!(payload["items"][0]["progress_percent"].is_null());
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["cancel", "open_match_history"])
+        );
+    }
+
+    #[tokio::test]
+    async fn activity_feed_projects_failed_analysis_without_claiming_a_job_or_error_detail() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let demo_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_demo(DemoRecord {
+                id: demo_id,
+                path: "C:/matches/major-m1.dem".to_owned(),
+                file_name: "major-m1.dem".to_owned(),
+                display_name: "Major M1".to_owned(),
+                source: "local".to_owned(),
+                status: DemoStatus::Failed,
+                map_name: Some("de_anubis".to_owned()),
+                match_date: Some(now),
+                duration_seconds: None,
+                total_rounds: None,
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: vec![],
+                remark: String::new(),
+                content_sha256: Some("ab".repeat(32)),
+                file_size: 42,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist failed demo");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(payload["items"][0]["id"], format!("analysis:{demo_id}"));
+        assert_eq!(payload["items"][0]["kind"], "analysis");
+        assert!(payload["items"][0]["job_id"].is_null());
+        assert_eq!(payload["items"][0]["context_id"], demo_id.to_string());
+        assert_eq!(payload["items"][0]["subject"], "Major M1");
+        assert_eq!(payload["items"][0]["status"], "failed");
+        assert!(payload["items"][0]["progress_percent"].is_null());
+        assert!(payload["items"][0]["error"].is_null());
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["retry_analysis", "open_library"])
+        );
+    }
+
+    #[tokio::test]
+    async fn activity_feed_does_not_truncate_analysis_lifecycle_at_demo_page_limit() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let now = Utc::now();
+        let demos = (0..201)
+            .map(|index| {
+                let id = Uuid::new_v4();
+                DemoRecord {
+                    id,
+                    path: format!("C:/matches/failed-{index}.dem"),
+                    file_name: format!("failed-{index}.dem"),
+                    display_name: format!("Failed {index}"),
+                    source: "local".to_owned(),
+                    status: DemoStatus::Failed,
+                    map_name: None,
+                    match_date: None,
+                    duration_seconds: None,
+                    total_rounds: None,
+                    team_a_name: None,
+                    team_b_name: None,
+                    team_a_score: None,
+                    team_b_score: None,
+                    player_names: vec![],
+                    remark: String::new(),
+                    content_sha256: Some(id.simple().to_string().repeat(2)),
+                    file_size: 42,
+                    created_at: now,
+                    updated_at: now,
+                }
+            })
+            .collect();
+        storage
+            .put_demos(demos)
+            .await
+            .expect("persist failed demos");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 512 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(payload["items"].as_array().map(Vec::len), Some(201));
+    }
+
+    #[tokio::test]
+    async fn activity_feed_includes_only_ready_demos_with_a_persisted_analysis_as_completed() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let demo_id = Uuid::new_v4();
+        let unrelated_id = Uuid::new_v4();
+        let now = Utc::now();
+        let ready_demo = |id, name: &str| DemoRecord {
+            id,
+            path: format!("C:/matches/{id}.dem"),
+            file_name: format!("{id}.dem"),
+            display_name: name.to_owned(),
+            source: "local".to_owned(),
+            status: DemoStatus::Ready,
+            map_name: Some("de_anubis".to_owned()),
+            match_date: Some(now),
+            duration_seconds: None,
+            total_rounds: None,
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: vec![],
+            remark: String::new(),
+            content_sha256: Some(id.simple().to_string().repeat(2)),
+            file_size: 42,
+            created_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_demos(vec![
+                ready_demo(demo_id, "Analyzed M1"),
+                ready_demo(unrelated_id, "Ready only"),
+            ])
+            .await
+            .expect("persist demos");
+        storage
+            .put_analysis(MatchAnalysis {
+                demo_id,
+                map_name: "de_anubis".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 120.0,
+                verified_total_ticks: Some(7_680),
+                teams: vec![],
+                players: vec![],
+                rounds: vec![],
+                highlights: vec![],
+            })
+            .await
+            .expect("persist analysis");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(payload["items"].as_array().map(Vec::len), Some(1));
+        assert_eq!(payload["items"][0]["id"], format!("analysis:{demo_id}"));
+        assert_eq!(payload["items"][0]["subject"], "Analyzed M1");
+        assert_eq!(payload["items"][0]["status"], "completed");
+        assert!(payload["items"][0]["job_id"].is_null());
+        assert!(payload["items"][0]["progress_percent"].is_null());
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["open_analysis", "open_library"])
+        );
+    }
 }

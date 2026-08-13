@@ -122,8 +122,8 @@ struct PlayerAccumulator {
     damage: u64,
     adr_total: f64,
     adr_samples: u32,
-    rating_total: f64,
-    rating_samples: u32,
+    kill_death_ratio_total: f64,
+    kill_death_ratio_samples: u32,
     recent_matches: Vec<PlayerRecentMatch>,
 }
 
@@ -420,9 +420,9 @@ fn aggregate_analysis(
             &mut accumulator.adr_samples,
         );
         add_average_sample(
-            stats.rating,
-            &mut accumulator.rating_total,
-            &mut accumulator.rating_samples,
+            stats.kill_death_ratio,
+            &mut accumulator.kill_death_ratio_total,
+            &mut accumulator.kill_death_ratio_samples,
         );
         accumulator
             .recent_matches
@@ -459,7 +459,10 @@ fn recent_match(
         headshots: stats.headshots,
         damage: stats.damage,
         adr: stats.adr.is_finite().then_some(stats.adr),
-        rating: stats.rating.is_finite().then_some(stats.rating),
+        kill_death_ratio: stats
+            .kill_death_ratio
+            .is_finite()
+            .then_some(stats.kill_death_ratio),
     }
 }
 
@@ -491,7 +494,10 @@ fn finish_player(steam_id: String, mut accumulator: PlayerAccumulator) -> Option
             headshots: accumulator.headshots,
             damage: accumulator.damage,
             average_adr: average(accumulator.adr_total, accumulator.adr_samples),
-            average_rating: average(accumulator.rating_total, accumulator.rating_samples),
+            average_kill_death_ratio: average(
+                accumulator.kill_death_ratio_total,
+                accumulator.kill_death_ratio_samples,
+            ),
         },
         recent_matches: accumulator.recent_matches,
     })
@@ -528,7 +534,7 @@ fn summary_profile(summary: &SteamPlayerSummary) -> PlayerSteamProfile {
         avatar_url: summary
             .avatar_url
             .as_ref()
-            .map(|_| format!("/api/v1/players/{}/avatar", summary.steam_id)),
+            .map(|_| format!("/api/players/{}/avatar", summary.steam_id)),
         reason: None,
     }
 }
@@ -720,6 +726,7 @@ mod tests {
                 team_b_name: None,
                 team_a_score: None,
                 team_b_score: None,
+                player_names: Vec::new(),
                 remark: String::new(),
                 content_sha256: Some("a".repeat(64)),
                 file_size: 1,
@@ -734,6 +741,7 @@ mod tests {
                 map_name: "de_test".to_owned(),
                 tick_rate: 64.0,
                 duration_seconds: 60.0,
+                verified_total_ticks: None,
                 teams: vec![TeamSummary {
                     name: "T".to_owned(),
                     side: "T".to_owned(),
@@ -742,6 +750,7 @@ mod tests {
                 }],
                 players: vec![PlayerStats {
                     steam_id: PLAYER_ID.to_owned(),
+                    spectator_slot: None,
                     name: name.to_owned(),
                     team: "T".to_owned(),
                     kills,
@@ -750,7 +759,7 @@ mod tests {
                     headshots: 4,
                     damage: kills * 100,
                     adr: f64::from(kills),
-                    rating: 1.0,
+                    kill_death_ratio: 1.0,
                     score: 0,
                 }],
                 rounds: Vec::new(),
@@ -792,7 +801,7 @@ mod tests {
         assert_eq!(profile.player.steam.state, SteamProfileState::Available);
         assert_eq!(
             profile.player.steam.avatar_url.as_deref(),
-            Some("/api/v1/players/76561198000000001/avatar")
+            Some("/api/players/76561198000000001/avatar")
         );
         let first = port.avatar(PLAYER_ID.to_owned()).await.expect("avatar");
         let second = port

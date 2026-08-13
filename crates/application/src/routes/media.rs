@@ -42,7 +42,6 @@ const MAXIMUM_ASSET_UPLOAD_BATCH_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAXIMUM_ASSET_UPLOAD_REQUEST_BYTES: usize = 4 * 1024 * 1024 * 1024 + 8 * 1024 * 1024;
 const WAVEFORM_CACHE_BUCKETS: usize = 2_000;
 const PORTABLE_PACKAGE_FORMAT: &str = "vibe-cs-editor";
-const PORTABLE_PACKAGE_VERSION: u32 = 1;
 const MAXIMUM_PACKAGE_ASSETS: usize = 128;
 const MAXIMUM_PACKAGE_ENTRIES: usize = MAXIMUM_PACKAGE_ASSETS + 2;
 const MAXIMUM_PACKAGE_BYTES: u64 = 4 * 1024 * 1024 * 1024;
@@ -52,142 +51,127 @@ const MAXIMUM_PACKAGE_UPLOAD_BYTES: usize = 4 * 1024 * 1024 * 1024 + 1024 * 1024
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/v1/recorded-clips", get(list_clips).post(create_clip))
+        .route("/api/recorded-clips", get(list_clips))
         .route(
-            "/api/v1/recorded-clips/{id}",
+            "/api/recorded-clips/{id}",
             get(get_clip).patch(patch_clip).delete(delete_clip),
         )
         .route(
-            "/api/v1/recorded-clips/{id}/stream",
+            "/api/recorded-clips/{id}/stream",
             get(stream_clip).head(head_clip),
         )
         .route(
-            "/api/v1/recorded-clips/{id}/waveform",
+            "/api/recorded-clips/{id}/waveform",
             get(recorded_clip_waveform),
         )
         .route(
-            "/api/v1/montage/projects",
+            "/api/montage/projects",
             get(list_montages).post(create_montage),
         )
         .route(
-            "/api/v1/montage/projects/{id}",
+            "/api/montage/projects/{id}",
             get(get_montage).put(put_montage).delete(delete_montage),
         )
-        .route("/api/v1/montage/projects/{id}/export", post(export_montage))
-        .route("/api/v1/montage/export", post(export_compatible_montage))
+        .route("/api/montage/projects/{id}/export", post(export_montage))
         .route(
-            "/api/v1/editor/projects",
+            "/api/editor/projects",
             get(list_editor_projects).post(create_editor_project),
         )
         .route(
-            "/api/v1/editor/projects/delete-batch",
+            "/api/editor/projects/delete-batch",
             post(delete_editor_projects_batch),
         )
         .route(
-            "/api/v1/editor/projects/{id}",
+            "/api/editor/projects/{id}",
             get(get_editor_project)
-                .put(save_editor_project)
                 .patch(save_editor_project)
                 .delete(delete_editor_project),
         )
         .route(
-            "/api/v1/editor/projects/{id}/export",
+            "/api/editor/projects/{id}/export",
             post(export_editor_project),
         )
         .route(
-            "/api/v1/editor/projects/{id}/duplicate",
+            "/api/editor/projects/{id}/duplicate",
             post(duplicate_editor_project),
         )
         .route(
-            "/api/v1/editor/projects/{id}/snapshots",
+            "/api/editor/projects/{id}/snapshots",
             get(list_editor_snapshots),
         )
         .route(
-            "/api/v1/editor/projects/{id}/snapshots/{snapshot_id}/restore",
+            "/api/editor/projects/{id}/snapshots/{snapshot_id}/restore",
             post(restore_editor_snapshot),
         )
         .route(
-            "/api/v1/editor/projects/{project_id}/clips/{clip_id}/apply-preset",
+            "/api/editor/projects/{project_id}/clips/{clip_id}/apply-preset",
             post(apply_editor_preset),
         )
         .route(
-            "/api/v1/editor/projects/{project_id}/clips/{clip_id}/separate-audio",
+            "/api/editor/projects/{project_id}/clips/{clip_id}/separate-audio",
             post(separate_editor_clip_audio),
         )
         .route(
-            "/api/v1/editor/projects/{id}/package",
+            "/api/editor/projects/{id}/package",
             post(export_editor_package),
         )
         .route(
-            "/api/v1/editor/packages/import",
+            "/api/editor/packages/import",
             post(import_editor_package_path),
         )
         .route(
-            "/api/v1/editor/packages/upload",
+            "/api/editor/packages/upload",
             post(upload_editor_package).layer(DefaultBodyLimit::max(MAXIMUM_PACKAGE_UPLOAD_BYTES)),
         )
         .route(
-            "/api/v1/editor/packages/{id}/download",
+            "/api/editor/packages/{id}/download",
             get(download_editor_package).head(head_editor_package),
         )
         .route(
-            "/api/v1/editor/export/start",
-            post(export_editor_compatible),
-        )
-        .route(
-            "/api/v1/media/assets",
+            "/api/media/assets",
             get(list_assets)
                 .post(upload_assets)
                 .layer(DefaultBodyLimit::max(MAXIMUM_ASSET_UPLOAD_REQUEST_BYTES)),
         )
-        .route("/api/v1/media/assets/import", post(import_asset))
+        .route("/api/media/assets/import", post(import_asset))
         .route(
-            "/api/v1/media/assets/{id}",
+            "/api/media/assets/{id}",
             get(get_asset).put(put_asset).delete(delete_asset),
         )
-        .route("/api/v1/media/assets/{id}/relink", post(relink_asset_path))
+        .route("/api/media/assets/{id}/relink", post(relink_asset_path))
         .route(
-            "/api/v1/media/assets/{id}/replace",
+            "/api/media/assets/{id}/replace",
             post(replace_asset_upload)
                 .layer(DefaultBodyLimit::max(MAXIMUM_ASSET_UPLOAD_REQUEST_BYTES)),
         )
+        .route("/api/media/assets/{id}/proxy", post(generate_asset_proxy))
         .route(
-            "/api/v1/media/assets/{id}/proxy",
-            post(generate_asset_proxy),
-        )
-        .route(
-            "/api/v1/media/assets/{id}/proxy/stream",
+            "/api/media/assets/{id}/proxy/stream",
             get(stream_asset_proxy).head(head_asset_proxy),
         )
-        .route("/api/v1/media/proxies/cleanup", post(cleanup_asset_proxies))
+        .route("/api/media/proxies/cleanup", post(cleanup_asset_proxies))
         .route(
-            "/api/v1/media/assets/{id}/stream",
+            "/api/media/assets/{id}/stream",
             get(stream_asset).head(head_asset),
         )
-        .route("/api/v1/media/assets/{id}/waveform", get(asset_waveform))
+        .route("/api/media/assets/{id}/waveform", get(asset_waveform))
         .route(
-            "/api/v1/media/assets/{id}/audio-analysis",
+            "/api/media/assets/{id}/audio-analysis",
             get(asset_audio_analysis),
         )
+        .route("/api/media/audio/align-clips", post(align_clips_to_beats))
         .route(
-            "/api/v1/media/audio/align-clips",
-            post(align_clips_to_beats),
-        )
-        .route(
-            "/api/v1/media/assets/{id}/extract-audio",
+            "/api/media/assets/{id}/extract-audio",
             post(extract_asset_audio),
         )
+        .route("/api/editor/presets", get(list_presets).post(create_preset))
         .route(
-            "/api/v1/editor/presets",
-            get(list_presets).post(create_preset),
-        )
-        .route(
-            "/api/v1/editor/presets/{id}",
+            "/api/editor/presets/{id}",
             get(get_preset).put(put_preset).delete(delete_preset),
         )
-        .route("/api/v1/exports", get(list_export_jobs))
-        .route("/api/v1/exports/{id}", get(get_export_job))
-        .route("/api/v1/exports/{id}/cancel", post(cancel_export_job))
+        .route("/api/exports", get(list_export_jobs))
+        .route("/api/exports/{id}", get(get_export_job))
+        .route("/api/exports/{id}/cancel", post(cancel_export_job))
 }
 
 #[derive(Debug, Serialize)]
@@ -227,7 +211,7 @@ impl From<RecordedClip> for RecordedClipDto {
             map_name,
             duration_seconds: clip.duration_seconds,
             created_at: clip.created_at,
-            stream_url: format!("/api/v1/recorded-clips/{}/stream", clip.id),
+            stream_url: format!("/api/recorded-clips/{}/stream", clip.id),
             demo_id: clip.demo_id,
             category: clip.category,
             tags: clip.tags,
@@ -278,54 +262,7 @@ async fn get_clip(
 }
 
 #[derive(Debug, Deserialize)]
-struct CreateClipRequest {
-    path: String,
-    title: String,
-    duration_seconds: f64,
-    demo_id: Option<Uuid>,
-    player_name: Option<String>,
-    #[serde(default = "default_category")]
-    category: String,
-    #[serde(default)]
-    tags: Vec<String>,
-    #[serde(default)]
-    metadata: Value,
-}
-
-fn default_category() -> String {
-    "highlight".to_owned()
-}
-
-async fn create_clip(
-    State(state): State<AppState>,
-    ApiJson(request): ApiJson<CreateClipRequest>,
-) -> ApiResult<(StatusCode, Json<RecordedClipDto>)> {
-    validate_media_path(&request.path).await?;
-    if !request.duration_seconds.is_finite() || request.duration_seconds < 0.0 {
-        return Err(ApiError::invalid(
-            "duration_seconds must be finite and non-negative",
-        ));
-    }
-    let clip = RecordedClip {
-        id: Uuid::new_v4(),
-        path: request.path,
-        title: request.title,
-        duration_seconds: request.duration_seconds,
-        demo_id: request.demo_id,
-        player_name: request.player_name,
-        category: request.category,
-        tags: request.tags,
-        metadata: request.metadata,
-        created_at: Utc::now(),
-    };
-    let clip = state.storage.put_recorded_clip(clip).await?;
-    state
-        .events
-        .publish("recorded_clip", "created", Some(clip.id));
-    Ok((StatusCode::CREATED, Json(clip.into())))
-}
-
-#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ClipPatch {
     title: Option<String>,
     player_name: Option<String>,
@@ -590,11 +527,10 @@ async fn list_montages(State(state): State<AppState>) -> ApiResult<Json<ItemList
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct CreateMontageRequest {
     name: String,
-    #[serde(default)]
     clips: Vec<MontageClip>,
-    #[serde(default)]
     settings: MontageSettings,
 }
 
@@ -696,18 +632,7 @@ async fn validate_montage_project(state: &AppState, project: &MontageProject) ->
             )));
         }
     }
-    if !matches!(
-        settings.encoder.trim().to_ascii_lowercase().as_str(),
-        "" | "auto"
-            | "libopenh264"
-            | "h264_mf"
-            | "h264_nvenc"
-            | "hevc_nvenc"
-            | "h264_amf"
-            | "h264_qsv"
-    ) {
-        return Err(ApiError::invalid("unsupported montage encoder"));
-    }
+    validate_automatic_output_mode(&settings.encoder)?;
     if settings.intro_duration_seconds > 0.0
         && settings
             .intro_title
@@ -818,98 +743,8 @@ async fn export_montage(
     if state.storage.get_montage_project(id).await?.is_none() {
         return Err(ApiError::not_found("montage project"));
     }
+    validate_export_output_options(&request)?;
     start_export(&state, "montage", id, request).await
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct CompatibleMontageExport {
-    name: String,
-    clip_ids: Vec<Uuid>,
-    transition: String,
-    resolution: String,
-    fps: u32,
-    include_name_cards: bool,
-    #[serde(default)]
-    background_music: Option<String>,
-    #[serde(default = "default_music_volume")]
-    music_volume: f64,
-    #[serde(default = "default_transition_seconds")]
-    transition_seconds: f64,
-    #[serde(default)]
-    intro_title: Option<String>,
-    #[serde(default)]
-    intro_duration_seconds: f64,
-}
-
-const fn default_music_volume() -> f64 {
-    0.25
-}
-
-const fn default_transition_seconds() -> f64 {
-    0.35
-}
-
-async fn export_compatible_montage(
-    State(state): State<AppState>,
-    ApiJson(request): ApiJson<CompatibleMontageExport>,
-) -> ApiResult<Json<JobAccepted>> {
-    if request.clip_ids.is_empty() {
-        return Err(ApiError::invalid("clip_ids must not be empty"));
-    }
-    let mut recorded_clips = Vec::with_capacity(request.clip_ids.len());
-    for id in &request.clip_ids {
-        recorded_clips.push(
-            state
-                .storage
-                .get_recorded_clip(*id)
-                .await?
-                .ok_or_else(|| ApiError::not_found(format!("recorded clip {id}")))?,
-        );
-    }
-    let (width, height) = resolution_dimensions(&request.resolution)?;
-    let now = Utc::now();
-    let project = MontageProject {
-        id: Uuid::new_v4(),
-        name: request.name.clone(),
-        clips: request
-            .clip_ids
-            .iter()
-            .enumerate()
-            .zip(&recorded_clips)
-            .map(|((order, id), recorded)| MontageClip {
-                clip_id: *id,
-                order: u32::try_from(order).unwrap_or(u32::MAX),
-                trim_start: 0.0,
-                trim_end: None,
-                transition: request.transition.clone(),
-                title: request.include_name_cards.then(|| recorded.title.clone()),
-                avatar_asset_id: None,
-            })
-            .collect(),
-        settings: MontageSettings {
-            width,
-            height,
-            fps: request.fps,
-            background_music: request.background_music.clone(),
-            music_volume: request.music_volume,
-            transition_seconds: request.transition_seconds,
-            intro_title: request.intro_title.clone(),
-            intro_duration_seconds: request.intro_duration_seconds,
-            include_name_cards: request.include_name_cards,
-            ..MontageSettings::default()
-        },
-        created_at: now,
-        updated_at: now,
-    };
-    validate_montage_project(&state, &project).await?;
-    state.storage.put_montage_project(project.clone()).await?;
-    start_export(
-        &state,
-        "montage",
-        project.id,
-        serde_json::to_value(request).map_err(|error| ApiError::invalid(error.to_string()))?,
-    )
-    .await
 }
 
 async fn list_editor_projects(
@@ -921,59 +756,32 @@ async fn list_editor_projects(
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum CreateEditorRequest {
-    Full(Box<EditorProject>),
-    Minimal(MinimalEditorRequest),
-}
-
-#[derive(Debug, Deserialize)]
-struct MinimalEditorRequest {
+#[serde(deny_unknown_fields)]
+struct CreateEditorProjectRequest {
     name: String,
-    #[serde(default = "default_width")]
     width: u32,
-    #[serde(default = "default_height")]
     height: u32,
-    #[serde(default = "default_fps")]
     fps: u32,
-}
-
-const fn default_width() -> u32 {
-    1920
-}
-const fn default_height() -> u32 {
-    1080
-}
-const fn default_fps() -> u32 {
-    60
 }
 
 async fn create_editor_project(
     State(state): State<AppState>,
-    ApiJson(request): ApiJson<CreateEditorRequest>,
+    ApiJson(request): ApiJson<CreateEditorProjectRequest>,
 ) -> ApiResult<(StatusCode, Json<EditorProject>)> {
     let now = Utc::now();
-    let project = match request {
-        CreateEditorRequest::Full(project) => EditorProject {
-            revision: 1,
-            created_at: now,
-            updated_at: now,
-            ..*project
-        },
-        CreateEditorRequest::Minimal(request) => EditorProject {
-            id: Uuid::new_v4(),
-            name: request.name,
-            width: request.width,
-            height: request.height,
-            fps: request.fps,
-            duration_seconds: 0.0,
-            tracks: Vec::new(),
-            markers: Vec::new(),
-            settings: Value::Object(serde_json::Map::new()),
-            revision: 1,
-            created_at: now,
-            updated_at: now,
-        },
+    let project = EditorProject {
+        id: Uuid::new_v4(),
+        name: request.name,
+        width: request.width,
+        height: request.height,
+        fps: request.fps,
+        duration_seconds: 0.0,
+        tracks: Vec::new(),
+        markers: Vec::new(),
+        settings: Value::Object(serde_json::Map::new()),
+        revision: 1,
+        created_at: now,
+        updated_at: now,
     };
     if state
         .storage
@@ -999,7 +807,6 @@ async fn create_editor_project(
 #[serde(deny_unknown_fields)]
 struct DuplicateEditorProjectRequest {
     name: String,
-    #[serde(default)]
     as_template: bool,
 }
 
@@ -1349,8 +1156,18 @@ async fn restore_editor_snapshot(
     Ok(Json(project))
 }
 
+fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer)
+}
+
 #[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ExportEditorPackageRequest {
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     output_path: Option<String>,
 }
 
@@ -1371,6 +1188,7 @@ struct EditorPackageImportResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ImportEditorPackageRequest {
     path: String,
 }
@@ -1505,7 +1323,7 @@ async fn editor_package_output_path(
     tokio::fs::create_dir_all(&directory).await?;
     Ok((
         directory.join(format!("{package_id}.vcep")),
-        Some(format!("/api/v1/editor/packages/{package_id}/download")),
+        Some(format!("/api/editor/packages/{package_id}/download")),
     ))
 }
 
@@ -1811,7 +1629,6 @@ fn build_editor_package_archive(
     }
     let manifest = EditorPackageManifest {
         format: PORTABLE_PACKAGE_FORMAT.to_owned(),
-        version: PORTABLE_PACKAGE_VERSION,
         created_at: Utc::now(),
         project_sha256,
         assets: manifest_assets,
@@ -2031,9 +1848,9 @@ fn extract_editor_package_archive(
                 "portable package manifest is invalid: {error}"
             ))
         })?;
-    if manifest.format != PORTABLE_PACKAGE_FORMAT || manifest.version != PORTABLE_PACKAGE_VERSION {
+    if manifest.format != PORTABLE_PACKAGE_FORMAT {
         return Err(vibe_cs_domain::DomainError::InvalidInput(
-            "portable package format or version is unsupported".to_owned(),
+            "portable package format is unsupported".to_owned(),
         ));
     }
     if manifest.assets.len() > MAXIMUM_PACKAGE_ASSETS {
@@ -2271,25 +2088,28 @@ async fn export_editor_project(
     if state.storage.get_editor_project(id).await?.is_none() {
         return Err(ApiError::not_found("editor project"));
     }
+    validate_export_output_options(&request)?;
     start_export(&state, "editor", id, request).await
 }
 
-#[derive(Debug, Deserialize)]
-struct CompatibleEditorExport {
-    project_id: String,
-    #[serde(default)]
-    options: Value,
+fn validate_export_output_options(request: &Value) -> ApiResult<()> {
+    let Some(value) = request.get("encoder") else {
+        return Ok(());
+    };
+    let value = value
+        .as_str()
+        .ok_or_else(|| ApiError::invalid("video output mode must be automatic"))?;
+    validate_automatic_output_mode(value)
 }
 
-async fn export_editor_compatible(
-    State(state): State<AppState>,
-    ApiJson(request): ApiJson<CompatibleEditorExport>,
-) -> ApiResult<Json<JobAccepted>> {
-    let id = parse_id(&request.project_id)?;
-    if state.storage.get_editor_project(id).await?.is_none() {
-        return Err(ApiError::not_found("editor project"));
+fn validate_automatic_output_mode(value: &str) -> ApiResult<()> {
+    if value.trim().is_empty() || value.trim().eq_ignore_ascii_case("auto") {
+        Ok(())
+    } else {
+        Err(ApiError::invalid(
+            "video output mode is selected automatically by the app",
+        ))
     }
-    start_export(&state, "editor", id, request.options).await
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -2382,6 +2202,7 @@ async fn stream_asset_proxy_response(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct RelinkAssetRequest {
     path: String,
 }
@@ -2534,7 +2355,11 @@ async fn generate_asset_proxy(
     let duration_seconds = existing
         .duration_seconds
         .filter(|duration| duration.is_finite() && *duration > 0.0)
-        .ok_or_else(|| ApiError::invalid("video duration is unavailable; relink or re-import the asset after configuring ffprobe"))?;
+        .ok_or_else(|| {
+            ApiError::invalid(
+                "video duration is unavailable; relink or re-import the asset so the bundled metadata probe can inspect it",
+            )
+        })?;
     let started_at = Utc::now();
     let lease_id = Uuid::new_v4();
     let expires_at = started_at + chrono::Duration::hours(6);
@@ -2934,12 +2759,7 @@ async fn extract_asset_audio(
 #[serde(deny_unknown_fields)]
 struct SeparateEditorAudioRequest {
     expected_revision: u64,
-    #[serde(default = "default_true")]
     mute_source: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Debug, Serialize)]
@@ -3172,10 +2992,14 @@ fn rebucket_peaks(points: &[f32], buckets: usize) -> Vec<f32> {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ImportAssetRequest {
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     project_id: Option<Uuid>,
     path: String,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     name: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
     kind: Option<String>,
 }
 
@@ -3667,15 +3491,6 @@ fn accepted_status(status: JobStatus) -> ApiResult<&'static str> {
     }
 }
 
-fn resolution_dimensions(resolution: &str) -> ApiResult<(u32, u32)> {
-    match resolution {
-        "1080p" => Ok((1920, 1080)),
-        "1440p" => Ok((2560, 1440)),
-        "2160p" => Ok((3840, 2160)),
-        _ => Err(ApiError::invalid("unsupported montage resolution")),
-    }
-}
-
 fn safe_file_name(file_name: &str) -> Option<String> {
     FsPath::new(file_name)
         .file_name()
@@ -3720,6 +3535,68 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn media_json_bodies_accept_only_the_current_exact_shapes() {
+        let export = serde_json::json!({ "output_path": null });
+        serde_json::from_value::<ExportEditorPackageRequest>(export.clone())
+            .expect("current package export body");
+        let mut missing_output_path = export.clone();
+        missing_output_path
+            .as_object_mut()
+            .expect("package export body")
+            .remove("output_path");
+        assert!(serde_json::from_value::<ExportEditorPackageRequest>(missing_output_path).is_err());
+        let mut retired_export = export;
+        retired_export["legacy_output"] = serde_json::json!("old.zip");
+        assert!(serde_json::from_value::<ExportEditorPackageRequest>(retired_export).is_err());
+
+        let package_import = serde_json::json!({ "path": "project.vcsedit" });
+        serde_json::from_value::<ImportEditorPackageRequest>(package_import.clone())
+            .expect("current package import body");
+        let mut retired_package_import = package_import;
+        retired_package_import["legacy_path"] = serde_json::json!("old.vcsedit");
+        assert!(
+            serde_json::from_value::<ImportEditorPackageRequest>(retired_package_import).is_err()
+        );
+
+        let relink = serde_json::json!({ "path": "replacement.mp4" });
+        serde_json::from_value::<RelinkAssetRequest>(relink.clone()).expect("current relink body");
+        let mut retired_relink = relink;
+        retired_relink["legacy_path"] = serde_json::json!("old.mp4");
+        assert!(serde_json::from_value::<RelinkAssetRequest>(retired_relink).is_err());
+
+        let import = serde_json::json!({
+            "project_id": null,
+            "path": "asset.mp4",
+            "name": null,
+            "kind": null
+        });
+        serde_json::from_value::<ImportAssetRequest>(import.clone())
+            .expect("current asset import body");
+        let mut retired_import = import.clone();
+        retired_import["legacy_kind"] = serde_json::json!("movie");
+        assert!(serde_json::from_value::<ImportAssetRequest>(retired_import).is_err());
+        for field in ["project_id", "name", "kind"] {
+            let mut missing = import.clone();
+            missing
+                .as_object_mut()
+                .expect("asset import body")
+                .remove(field);
+            assert!(
+                serde_json::from_value::<ImportAssetRequest>(missing).is_err(),
+                "missing {field} must not select an implicit retired default"
+            );
+        }
+    }
+
+    #[test]
+    fn public_exports_do_not_accept_a_user_selected_encoder() {
+        assert!(validate_automatic_output_mode("auto").is_ok());
+        assert!(validate_automatic_output_mode("").is_ok());
+        assert!(validate_automatic_output_mode("h264_nvenc").is_err());
+        assert!(validate_automatic_output_mode("libopenh264").is_err());
+    }
 
     #[cfg(unix)]
     fn create_directory_symlink(target: &FsPath, link: &FsPath) -> std::io::Result<()> {
@@ -3770,7 +3647,7 @@ mod tests {
             _path: PathBuf,
         ) -> Result<crate::ProbedMediaMetadata, vibe_cs_domain::DomainError> {
             Err(vibe_cs_domain::DomainError::DependencyUnavailable(
-                "ffprobe".to_owned(),
+                "bundled metadata probe".to_owned(),
             ))
         }
 
@@ -3780,7 +3657,7 @@ mod tests {
             _buckets: usize,
         ) -> Result<Vec<f32>, vibe_cs_domain::DomainError> {
             Err(vibe_cs_domain::DomainError::DependencyUnavailable(
-                "ffmpeg".to_owned(),
+                "bundled waveform service".to_owned(),
             ))
         }
     }
@@ -4319,14 +4196,6 @@ mod tests {
         assert!(parse_byte_range("bytes=100-", 100).is_err());
     }
 
-    #[test]
-    fn maps_supported_resolutions() {
-        assert_eq!(
-            resolution_dimensions("1440p").expect("resolution"),
-            (2560, 1440)
-        );
-    }
-
     #[tokio::test]
     async fn montage_project_persists_rendered_packaging_controls() {
         let directory = tempfile::tempdir().expect("temporary directory");
@@ -4471,7 +4340,7 @@ mod tests {
         assert_eq!(asset.height, None);
         assert!(matches!(
             asset.metadata_status,
-            MediaMetadataStatus::Unavailable { ref message } if message.contains("ffprobe")
+            MediaMetadataStatus::Unavailable { ref message } if message.contains("bundled metadata probe")
         ));
     }
 
@@ -4914,7 +4783,6 @@ mod tests {
         project.tracks[0].clips[0].asset_id = None;
         let manifest = EditorPackageManifest {
             format: PORTABLE_PACKAGE_FORMAT.to_owned(),
-            version: PORTABLE_PACKAGE_VERSION,
             created_at: Utc::now(),
             project_sha256: "0".repeat(64),
             assets: Vec::new(),

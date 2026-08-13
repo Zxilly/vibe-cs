@@ -4,6 +4,7 @@
 )]
 
 use std::{
+    collections::BTreeMap,
     ffi::{OsStr, OsString},
     io::{Read, Write},
     path::{Path, PathBuf},
@@ -21,21 +22,24 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use vibe_cs_domain::{
     AppConfig, BeatAlignmentAudioBinding, BeatAlignmentAudioPlacement, BeatAlignmentDraft,
-    CosmeticPlan, DemoPatch, DemoQuery, DemoRecord, DemoStatus, EditorAudioSeparation,
-    EditorPresetDocument, EditorProject, EditorProjectSnapshot, ExportJob, HighlightEditPlan,
-    MatchAnalysis, MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery, MediaAsset,
-    MediaProxyStatus, MontageProject, Page, RecordedClip, RecordingJob, SteamMatchRecord,
+    CosmeticPlan, DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoPatch, DemoQuery, DemoRecord, DemoSort,
+    DemoStatus, EditorAudioSeparation, EditorPresetDocument, EditorProject, EditorProjectSnapshot,
+    EventKind, EvidenceEventFamily, EvidenceSearchAvailability, EvidenceSearchCapability,
+    EvidenceSearchItem, EvidenceSearchPage, EvidenceSearchQuery, EvidenceSourceKind, ExportJob,
+    HighlightEditPlan, HighlightKind, MatchAnalysis, MatchDownloadJob, MatchDownloadStatus,
+    MatchHistoryQuery, MediaAsset, MediaProxyStatus, MontageProject, Page, RecordedClip,
+    RecordingJob, SteamMatchRecord,
 };
 
-use crate::{Result, StorageError, migrations};
+use crate::{Result, StorageError, schema};
 
-/// Maximum number of editor project versions retained for restoration.
+/// Maximum number of editor project snapshots retained for restoration.
 pub const EDITOR_PROJECT_SNAPSHOT_LIMIT: usize = 20;
 
 #[cfg(windows)]
-const LLM_API_KEY_ENVELOPE_PREFIX: &str = "dpapi:v1:";
+const LLM_API_KEY_ENVELOPE_PREFIX: &str = "dpapi:";
 #[cfg(windows)]
-const LLM_API_KEY_DPAPI_PURPOSE: &[u8] = b"Vibe CS app_config.llm.api_key dpapi:v1 scope:v1";
+const LLM_API_KEY_DPAPI_PURPOSE: &[u8] = b"Vibe CS app_config.llm.api_key";
 #[cfg(windows)]
 const MAX_LLM_API_KEY_BYTES: usize = 64 * 1024;
 #[cfg(windows)]
@@ -50,11 +54,6 @@ fn llm_api_key_purpose(config: &AppConfig) -> [u8; 32] {
         digest.update(component.as_bytes());
     }
     digest.finalize().into()
-}
-
-#[cfg(windows)]
-fn has_legacy_plaintext_llm_api_key(config: &AppConfig) -> bool {
-    !config.llm.api_key.is_empty() && !config.llm.api_key.starts_with(LLM_API_KEY_ENVELOPE_PREFIX)
 }
 
 #[cfg(windows)]
@@ -90,9 +89,7 @@ fn config_from_persistence(mut config: AppConfig) -> Result<AppConfig> {
         return Ok(config);
     }
     let Some(encoded) = config.llm.api_key.strip_prefix(LLM_API_KEY_ENVELOPE_PREFIX) else {
-        // The repository read path immediately rewrites this legacy plaintext
-        // under the same serialized connection lock before returning it.
-        return Ok(config);
+        return Err(StorageError::SecretRecovery);
     };
     if encoded.is_empty() || encoded.len() > MAX_LLM_API_KEY_ENVELOPE_HEX_BYTES {
         return Err(StorageError::SecretRecovery);
@@ -257,18 +254,18 @@ pub struct ManagedFileStaging {
 /// Durable ownership record for files moved out of their live managed paths
 /// before the corresponding database transaction committed.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ManagedFileQuarantine {
-    pub schema_version: u32,
     pub id: Uuid,
     pub project_ids: Vec<Uuid>,
     pub directory: PathBuf,
     pub journal_path: PathBuf,
     pub entries: Vec<ManagedFileQuarantineEntry>,
-    #[serde(default)]
     pub preserved_external_files: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
 pub struct ManagedFileQuarantineEntry {
     pub original_path: PathBuf,
     pub staged_path: PathBuf,
@@ -320,12 +317,14 @@ pub struct MediaProxyCleanupPlan {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct ExportJobRecord {
     pub kind: String,
     pub job: ExportJob,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PresetRecord {
     pub id: Uuid,
     pub name: String,
@@ -336,23 +335,17 @@ pub struct PresetRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct EditorProjectDocument {
     project: EditorProject,
-    #[serde(default)]
     snapshots: Vec<StoredEditorProjectSnapshot>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct StoredEditorProjectSnapshot {
     summary: EditorProjectSnapshot,
     project: EditorProject,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-enum CompatibleEditorProjectDocument {
-    Versioned(EditorProjectDocument),
-    Legacy(EditorProject),
 }
 
 #[derive(Debug, Clone)]
@@ -376,8 +369,9 @@ impl Storage {
     {
         let connection = tokio::task::spawn_blocking(move || {
             let mut connection = open()?;
-            migrations::configure(&connection)?;
-            migrations::run(&mut connection)?;
+            schema::configure(&connection)?;
+            schema::run(&mut connection)?;
+            reconcile_evidence_projections(&mut connection)?;
             Ok::<_, StorageError>(connection)
         })
         .await??;
@@ -412,17 +406,7 @@ impl Storage {
                 return Ok(None);
             };
             let stored: AppConfig = decode(&json)?;
-            #[cfg(windows)]
-            let migrate_legacy_secret = has_legacy_plaintext_llm_api_key(&stored);
             let config = config_from_persistence(stored)?;
-            #[cfg(windows)]
-            if migrate_legacy_secret {
-                let protected = config_for_persistence(&config)?;
-                connection.execute(
-                    "UPDATE app_config SET document_json = ?1, updated_at = ?2 WHERE key = 'app'",
-                    params![encode(&protected)?, Utc::now().to_rfc3339()],
-                )?;
-            }
             Ok(Some(config))
         })
         .await
@@ -484,14 +468,29 @@ impl Storage {
 
     pub async fn list_demos(&self, query: DemoQuery) -> Result<Page<DemoRecord>> {
         self.run(move |connection| {
-            let page = query.page.unwrap_or(1).max(1);
-            let page_size = query.page_size.unwrap_or(50).clamp(1, 200);
+            let page = query.page.unwrap_or(1);
+            if !(1..=DEMO_MAX_PAGE).contains(&page) {
+                return Err(vibe_cs_domain::DomainError::InvalidInput(
+                    format!("demo page must be between 1 and {DEMO_MAX_PAGE}"),
+                )
+                .into());
+            }
+            let page_size = query.page_size.unwrap_or(50);
+            if !(1..=DEMO_MAX_PAGE_SIZE).contains(&page_size) {
+                return Err(vibe_cs_domain::DomainError::InvalidInput(
+                    format!("demo page_size must be between 1 and {DEMO_MAX_PAGE_SIZE}"),
+                )
+                .into());
+            }
             let search = query.search.filter(|value| !value.trim().is_empty());
             let source = query.source.filter(|value| !value.trim().is_empty());
             let map_name = query.map_name.filter(|value| !value.trim().is_empty());
             let status = query.status.map(status_text);
+            let order_sql = demo_order_sql(query.sort.unwrap_or_default());
             let values: [&dyn rusqlite::ToSql; 4] = [&search, &source, &map_name, &status];
-            let where_sql = " WHERE (?1 IS NULL OR display_name LIKE '%' || ?1 || '%' OR file_name LIKE '%' || ?1 || '%') \
+            let where_sql = " WHERE (?1 IS NULL OR display_name LIKE '%' || ?1 || '%' OR file_name LIKE '%' || ?1 || '%' \
+                             OR EXISTS (SELECT 1 FROM json_each(demos.document_json, '$.player_names') AS player \
+                                        WHERE CAST(player.value AS TEXT) LIKE '%' || ?1 || '%')) \
                              AND (?2 IS NULL OR source = ?2) \
                              AND (?3 IS NULL OR map_name = ?3) \
                              AND (?4 IS NULL OR status = ?4)";
@@ -503,7 +502,7 @@ impl Storage {
 
             let mut statement = connection.prepare(&format!(
                 "SELECT document_json FROM demos{where_sql} \
-                 ORDER BY updated_at DESC LIMIT ?5 OFFSET ?6"
+                 ORDER BY {order_sql} LIMIT ?5 OFFSET ?6"
             ))?;
             let mut rows = statement.query(params![
                 search,
@@ -650,6 +649,35 @@ impl Storage {
         .await
     }
 
+    /// Marks analysis work interrupted by a previous process exit as retryable failures.
+    pub async fn recover_orphaned_demo_analyses(&self) -> Result<u64> {
+        self.run(|connection| {
+            let transaction = connection.transaction()?;
+            let mut demos = {
+                let mut statement = transaction.prepare(
+                    "SELECT document_json FROM demos WHERE status IN ('indexing', 'analyzing')",
+                )?;
+                let mut rows = statement.query([])?;
+                let mut demos = Vec::new();
+                while let Some(row) = rows.next()? {
+                    demos.push(decode::<DemoRecord>(&row.get::<_, String>(0)?)?);
+                }
+                demos
+            };
+            let recovered = u64::try_from(demos.len())
+                .map_err(|_| StorageError::IntegerOutOfRange(u64::MAX))?;
+            let now = Utc::now();
+            for demo in &mut demos {
+                demo.status = DemoStatus::Failed;
+                demo.updated_at = now;
+                put_demo_row(&transaction, demo)?;
+            }
+            transaction.commit()?;
+            Ok(recovered)
+        })
+        .await
+    }
+
     pub async fn delete_demo(&self, id: Uuid) -> Result<bool> {
         self.run(move |connection| {
             Ok(connection.execute("DELETE FROM demos WHERE id = ?1", [id.to_string()])? > 0)
@@ -681,21 +709,111 @@ impl Storage {
         .await
     }
 
+    /// Returns the complete persisted analysis lifecycle projection.
+    ///
+    /// Active and failed analyses are represented by the demo lifecycle. A completed
+    /// analysis requires both a ready demo and an authoritative `analyses` row, so a
+    /// ready-only demo is deliberately excluded. This is intentionally unpaged because
+    /// it feeds the cross-workflow activity projection, whose other job sources are
+    /// also complete persisted lists.
+    pub async fn list_analysis_activity_demos(&self) -> Result<Vec<DemoRecord>> {
+        self.run(|connection| {
+            let mut statement = connection.prepare(
+                "SELECT demos.document_json FROM demos \
+                 LEFT JOIN analyses ON analyses.demo_id = demos.id \
+                 WHERE demos.status IN ('analyzing', 'failed') \
+                    OR (demos.status = 'ready' AND analyses.demo_id IS NOT NULL) \
+                 ORDER BY demos.updated_at DESC",
+            )?;
+            let mut rows = statement.query([])?;
+            collect_documents(&mut rows)
+        })
+        .await
+    }
+
     pub async fn put_analysis(&self, analysis: MatchAnalysis) -> Result<MatchAnalysis> {
         self.run(move |connection| {
-            connection.execute(
+            let transaction = connection.transaction()?;
+            let updated_at = Utc::now().to_rfc3339();
+            transaction.execute(
+                "INSERT INTO analyses(demo_id, document_json, updated_at) VALUES (?1, ?2, ?3) \
+                 ON CONFLICT(demo_id) DO UPDATE SET document_json = excluded.document_json, \
+                 updated_at = excluded.updated_at",
+                params![analysis.demo_id.to_string(), encode(&analysis)?, updated_at],
+            )?;
+            replace_evidence_projection(&transaction, &analysis, &updated_at)?;
+            transaction.commit()?;
+            Ok(analysis)
+        })
+        .await
+    }
+
+    /// Persists an analysis and its library summary in one transaction.
+    pub async fn complete_demo_analysis(
+        &self,
+        mut analysis: MatchAnalysis,
+    ) -> Result<Option<MatchAnalysis>> {
+        let has_stable_team_continuity = analysis.normalize_team_continuity();
+        self.run(move |connection| {
+            let transaction = connection.transaction()?;
+            let Some(mut demo) =
+                get_document::<DemoRecord>(&transaction, "demos", analysis.demo_id)?
+            else {
+                return Ok(None);
+            };
+            let total_rounds = u32::try_from(analysis.rounds.len()).map_err(|_| {
+                StorageError::IntegerOutOfRange(
+                    u64::try_from(analysis.rounds.len()).unwrap_or(u64::MAX),
+                )
+            })?;
+            demo.status = DemoStatus::Ready;
+            demo.map_name = Some(analysis.map_name.clone());
+            demo.duration_seconds = Some(analysis.duration_seconds);
+            demo.total_rounds = Some(total_rounds);
+            demo.player_names = analysis
+                .players
+                .iter()
+                .map(|player| player.name.trim())
+                .filter(|name| !name.is_empty())
+                .map(str::to_owned)
+                .collect();
+            demo.player_names.sort();
+            demo.player_names.dedup();
+            demo.player_names
+                .truncate(vibe_cs_domain::MAX_DEMO_PLAYER_SUMMARY_NAMES);
+            if has_stable_team_continuity {
+                demo.team_a_name = analysis.teams.first().map(|team| team.name.clone());
+                demo.team_b_name = analysis.teams.get(1).map(|team| team.name.clone());
+                demo.team_a_score = analysis.teams.first().map(|team| team.score);
+                demo.team_b_score = analysis.teams.get(1).map(|team| team.score);
+            } else {
+                demo.team_a_name = None;
+                demo.team_b_name = None;
+                demo.team_a_score = None;
+                demo.team_b_score = None;
+            }
+            demo.updated_at = Utc::now();
+            transaction.execute(
                 "INSERT INTO analyses(demo_id, document_json, updated_at) VALUES (?1, ?2, ?3) \
                  ON CONFLICT(demo_id) DO UPDATE SET document_json = excluded.document_json, \
                  updated_at = excluded.updated_at",
                 params![
                     analysis.demo_id.to_string(),
                     encode(&analysis)?,
-                    Utc::now().to_rfc3339()
+                    demo.updated_at.to_rfc3339()
                 ],
             )?;
-            Ok(analysis)
+            replace_evidence_projection(&transaction, &analysis, &demo.updated_at.to_rfc3339())?;
+            put_demo_row(&transaction, &demo)?;
+            transaction.commit()?;
+            Ok(Some(analysis))
         })
         .await
+    }
+
+    pub async fn search_evidence(&self, query: EvidenceSearchQuery) -> Result<EvidenceSearchPage> {
+        self.run(move |connection| search_evidence_rows(connection, &query))
+            .await
     }
 
     pub async fn list_steam_matches(
@@ -706,18 +824,33 @@ impl Storage {
             let page = query.page.unwrap_or(1).max(1);
             let page_size = query.page_size.unwrap_or(50).clamp(1, 200);
             let steam_id = query.steam_id.filter(|value| !value.trim().is_empty());
+            let search = query.search.and_then(|value| {
+                let value = value.trim();
+                (!value.is_empty()).then(|| {
+                    let escaped = value
+                        .to_lowercase()
+                        .replace('\\', "\\\\")
+                        .replace('%', "\\%")
+                        .replace('_', "\\_");
+                    format!("%{escaped}%")
+                })
+            });
             let total = connection.query_row(
-                "SELECT COUNT(*) FROM steam_matches WHERE (?1 IS NULL OR steam_id = ?1)",
-                [&steam_id],
+                "SELECT COUNT(*) FROM steam_matches \
+                 WHERE (?1 IS NULL OR steam_id = ?1) \
+                 AND (?2 IS NULL OR lower(document_json) LIKE ?2 ESCAPE '\\')",
+                params![steam_id, search],
                 |row| row_u64(row, 0),
             )?;
             let mut statement = connection.prepare(
                 "SELECT document_json FROM steam_matches \
                  WHERE (?1 IS NULL OR steam_id = ?1) \
-                 ORDER BY length(match_id) DESC, match_id DESC LIMIT ?2 OFFSET ?3",
+                 AND (?2 IS NULL OR lower(document_json) LIKE ?2 ESCAPE '\\') \
+                 ORDER BY length(match_id) DESC, match_id DESC LIMIT ?3 OFFSET ?4",
             )?;
             let mut rows = statement.query(params![
                 steam_id,
+                search,
                 page_size,
                 sql_u64(u64::from(page - 1) * u64::from(page_size))?
             ])?;
@@ -816,6 +949,16 @@ impl Storage {
             collect_documents(&mut rows)
         })
         .await
+    }
+
+    /// Lists every persisted match download job, including terminal history.
+    ///
+    /// The match-history polling endpoint intentionally exposes active jobs only. Cross-workflow
+    /// activity views need stored terminal outcomes too, so this read model keeps that distinction
+    /// explicit instead of treating a missing active job as a successful download.
+    pub async fn list_match_download_jobs(&self) -> Result<Vec<MatchDownloadJob>> {
+        self.list_documents("match_download_jobs", "updated_at DESC")
+            .await
     }
 
     pub async fn put_match_download_job(&self, job: MatchDownloadJob) -> Result<MatchDownloadJob> {
@@ -1036,7 +1179,7 @@ impl Storage {
             };
             let stored_audio_bytes = serde_json::to_vec(&stored_audio)?;
             let mut asset_hash = Sha256::new();
-            asset_hash.update(b"vibe-cs-media-asset-v1\0");
+            asset_hash.update(b"vibe-cs-media-asset\0");
             asset_hash.update(stored_audio_bytes);
             let stored_asset_fingerprint = hex::encode(asset_hash.finalize());
             if stored_audio.id != audio.asset_id
@@ -1333,7 +1476,7 @@ impl Storage {
         .await
     }
 
-    /// Restores a retained version while keeping revisions monotonically increasing.
+    /// Restores a retained snapshot while keeping revisions monotonically increasing.
     ///
     /// Returns `None` when either the project or snapshot does not exist.
     pub async fn restore_editor_project_snapshot(
@@ -1703,7 +1846,7 @@ impl Storage {
         .await
     }
 
-    /// Converts expired or legacy proxy leases into retryable failures.
+    /// Converts expired proxy leases into retryable failures.
     pub async fn recover_expired_media_proxy_generations(
         &self,
         now: DateTime<Utc>,
@@ -2204,7 +2347,6 @@ fn stage_managed_files(
         });
     }
     let quarantine = ManagedFileQuarantine {
-        schema_version: 1,
         id,
         project_ids: project_ids.to_vec(),
         directory: directory_path,
@@ -2581,9 +2723,7 @@ fn validate_quarantine_record(
     let directory_name_text = directory_name.to_str().ok_or_else(|| {
         StorageError::ManagedFile("quarantine directory name is not Unicode".to_owned())
     })?;
-    if quarantine.schema_version != 1
-        || Uuid::parse_str(directory_name_text).ok() != Some(quarantine.id)
-    {
+    if Uuid::parse_str(directory_name_text).ok() != Some(quarantine.id) {
         return Err(StorageError::ManagedFile(
             "quarantine identifier does not match its directory".to_owned(),
         ));
@@ -2889,14 +3029,7 @@ fn get_editor_project_document(
 }
 
 fn decode_editor_project_document(value: &str) -> Result<EditorProjectDocument> {
-    let compatible: CompatibleEditorProjectDocument = decode(value)?;
-    Ok(match compatible {
-        CompatibleEditorProjectDocument::Versioned(document) => document,
-        CompatibleEditorProjectDocument::Legacy(project) => EditorProjectDocument {
-            project,
-            snapshots: Vec::new(),
-        },
-    })
+    decode(value)
 }
 
 fn put_editor_project_row(connection: &Connection, document: &EditorProjectDocument) -> Result<()> {
@@ -3105,6 +3238,626 @@ fn highlight_edit_already_applied(
     })
 }
 
+const MAX_EVIDENCE_ITEMS_PER_ANALYSIS: usize = 200_000;
+const MAX_EVIDENCE_SOURCE_ID_CHARS: usize = 256;
+
+fn reconcile_evidence_projections(connection: &mut Connection) -> Result<()> {
+    let stale = {
+        let mut statement = connection.prepare(
+            "SELECT a.document_json, a.updated_at \
+             FROM analyses AS a \
+             LEFT JOIN evidence_search_projection_state AS s ON s.demo_id = a.demo_id \
+             WHERE s.demo_id IS NULL \
+                OR s.analysis_updated_at <> a.updated_at \
+                OR s.indexed_items <> (\
+                    SELECT COUNT(*) FROM evidence_search_items AS i WHERE i.demo_id = a.demo_id\
+                )",
+        )?;
+        let mut rows = statement.query([])?;
+        let mut stale = Vec::new();
+        while let Some(row) = rows.next()? {
+            stale.push((
+                decode::<MatchAnalysis>(&row.get::<_, String>(0)?)?,
+                row.get::<_, String>(1)?,
+            ));
+        }
+        stale
+    };
+    if stale.is_empty() {
+        return Ok(());
+    }
+    let transaction = connection.transaction()?;
+    for (analysis, updated_at) in stale {
+        replace_evidence_projection(&transaction, &analysis, &updated_at)?;
+    }
+    transaction.commit()?;
+    Ok(())
+}
+
+fn replace_evidence_projection(
+    transaction: &rusqlite::Transaction<'_>,
+    analysis: &MatchAnalysis,
+    analysis_updated_at: &str,
+) -> Result<()> {
+    let item_count = analysis
+        .rounds
+        .iter()
+        .try_fold(analysis.highlights.len(), |count, round| {
+            count.checked_add(round.events.len())
+        })
+        .ok_or_else(|| evidence_projection_error("analysis evidence count overflowed"))?;
+    if item_count > MAX_EVIDENCE_ITEMS_PER_ANALYSIS {
+        return Err(evidence_projection_error(format!(
+            "analysis {} contains {item_count} evidence items; maximum is {MAX_EVIDENCE_ITEMS_PER_ANALYSIS}",
+            analysis.demo_id
+        )));
+    }
+    validate_projection_text("map name", &analysis.map_name, 128, false)?;
+    let player_names = analysis
+        .players
+        .iter()
+        .map(|player| (player.steam_id.as_str(), player.name.as_str()))
+        .collect::<BTreeMap<_, _>>();
+    let demo_id = analysis.demo_id.to_string();
+    let map_key = search_key(&analysis.map_name);
+
+    transaction.execute(
+        "DELETE FROM evidence_search_items WHERE demo_id = ?1",
+        [&demo_id],
+    )?;
+    let mut insert_item = transaction.prepare(
+        "INSERT INTO evidence_search_items(\
+             evidence_id, demo_id, source_kind, source_id, event_family, event_type, \
+             map_name, map_key, round, tick, end_tick, actor_id, actor_name, actor_id_key, \
+             actor_name_key, target_id, target_name, target_id_key, target_name_key, weapon, \
+             weapon_key, headshot, penetrated, attributes_json, search_text\
+         ) VALUES (\
+             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, \
+             ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25\
+         )",
+    )?;
+    let mut insert_victim = transaction.prepare(
+        "INSERT INTO evidence_search_victims(\
+             evidence_id, position, victim_id, victim_name, victim_id_key, victim_name_key\
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+    )?;
+
+    for round in &analysis.rounds {
+        for event in &round.events {
+            validate_source_id(&event.id)?;
+            let event_type = event_kind_text(event.kind);
+            let event_family = event_family_for_event(event.kind);
+            let evidence_id = format!("demo:{demo_id}/event:{}", event.id);
+            let actor_name = event
+                .actor
+                .as_deref()
+                .and_then(|id| player_names.get(id).copied());
+            let target_name = event
+                .target
+                .as_deref()
+                .and_then(|id| player_names.get(id).copied());
+            let attributes = event.position.map_or_else(
+                || serde_json::json!({}),
+                |position| serde_json::json!({ "position": position }),
+            );
+            let search_text = evidence_search_text([
+                Some(analysis.map_name.as_str()),
+                Some(event_type),
+                event.actor.as_deref(),
+                actor_name,
+                event.target.as_deref(),
+                target_name,
+                event.weapon.as_deref(),
+            ]);
+            let is_kill = event.kind == EventKind::Kill;
+            insert_item.execute(params![
+                evidence_id,
+                demo_id,
+                "event",
+                event.id,
+                event_family,
+                event_type,
+                analysis.map_name,
+                map_key,
+                i64::from(round.number),
+                sql_u64(event.tick)?,
+                sql_u64(event.tick)?,
+                event.actor,
+                actor_name,
+                event.actor.as_deref().map(search_key),
+                actor_name.map(search_key),
+                event.target,
+                target_name,
+                event.target.as_deref().map(search_key),
+                target_name.map(search_key),
+                event.weapon,
+                event.weapon.as_deref().map(search_key),
+                is_kill.then_some(i64::from(event.headshot)),
+                is_kill.then_some(i64::from(event.penetrated)),
+                encode(&attributes)?,
+                search_text,
+            ])?;
+        }
+    }
+
+    for highlight in &analysis.highlights {
+        validate_source_id(&highlight.id)?;
+        validate_projection_text("highlight title", &highlight.title, 512, true)?;
+        validate_projection_text("highlight description", &highlight.description, 2_048, true)?;
+        if highlight.tags.len() > 64 || highlight.victims.len() > 64 {
+            return Err(evidence_projection_error(format!(
+                "highlight {} exceeds the 64 tag/victim projection limit",
+                highlight.id
+            )));
+        }
+        let evidence_id = format!("demo:{demo_id}/highlight:{}", highlight.id);
+        let event_type = highlight_kind_text(highlight.kind);
+        let event_family = event_family_for_highlight(highlight.kind);
+        let actor_name = player_names.get(highlight.player_id.as_str()).copied();
+        let victim_names = highlight
+            .victims
+            .iter()
+            .map(|id| player_names.get(id.as_str()).copied())
+            .collect::<Vec<_>>();
+        let attributes = serde_json::json!({
+            "title": highlight.title,
+            "description": highlight.description,
+            "score": highlight.score,
+            "tags": highlight.tags,
+            "victim_ids": highlight.victims,
+            "victim_names": victim_names,
+        });
+        let mut search_parts = vec![
+            analysis.map_name.as_str(),
+            event_type,
+            highlight.player_id.as_str(),
+            highlight.title.as_str(),
+            highlight.description.as_str(),
+        ];
+        search_parts.extend(actor_name);
+        search_parts.extend(highlight.tags.iter().map(String::as_str));
+        search_parts.extend(highlight.victims.iter().map(String::as_str));
+        search_parts.extend(victim_names.iter().flatten().copied());
+        insert_item.execute(params![
+            evidence_id,
+            demo_id,
+            "highlight",
+            highlight.id,
+            event_family,
+            event_type,
+            analysis.map_name,
+            map_key,
+            i64::from(highlight.round),
+            sql_u64(highlight.start_tick)?,
+            sql_u64(highlight.end_tick)?,
+            highlight.player_id,
+            actor_name,
+            search_key(&highlight.player_id),
+            actor_name.map(search_key),
+            Option::<String>::None,
+            Option::<String>::None,
+            Option::<String>::None,
+            Option::<String>::None,
+            Option::<String>::None,
+            Option::<String>::None,
+            Option::<i64>::None,
+            Option::<i64>::None,
+            encode(&attributes)?,
+            evidence_search_text(search_parts.into_iter().map(Some)),
+        ])?;
+        for (position, (victim_id, victim_name)) in highlight
+            .victims
+            .iter()
+            .zip(victim_names.iter())
+            .enumerate()
+        {
+            insert_victim.execute(params![
+                evidence_id,
+                i64::try_from(position)
+                    .map_err(|_| evidence_projection_error("victim position overflowed"))?,
+                victim_id,
+                victim_name,
+                search_key(victim_id),
+                victim_name.map(search_key),
+            ])?;
+        }
+    }
+    drop(insert_victim);
+    drop(insert_item);
+    transaction.execute(
+        "INSERT INTO evidence_search_projection_state(\
+             demo_id, analysis_updated_at, indexed_items\
+         ) VALUES (?1, ?2, ?3) \
+         ON CONFLICT(demo_id) DO UPDATE SET \
+             analysis_updated_at = excluded.analysis_updated_at, \
+             indexed_items = excluded.indexed_items",
+        params![
+            demo_id,
+            analysis_updated_at,
+            i64::try_from(item_count)
+                .map_err(|_| evidence_projection_error("evidence item count overflowed"))?,
+        ],
+    )?;
+    Ok(())
+}
+
+const EVIDENCE_SEARCH_WHERE_SQL: &str = " WHERE NOT EXISTS (\
+        SELECT 1 FROM json_each(:q_tokens) AS q \
+        WHERE instr(i.search_text, CAST(q.value AS TEXT)) = 0\
+    ) \
+    AND (:event_family IS NULL OR i.event_family = :event_family) \
+    AND (:actor IS NULL OR i.actor_id_key = :actor OR i.actor_name_key = :actor) \
+    AND (:victim IS NULL OR i.target_id_key = :victim OR i.target_name_key = :victim \
+         OR EXISTS (SELECT 1 FROM evidence_search_victims AS v \
+                    WHERE v.evidence_id = i.evidence_id \
+                    AND (v.victim_id_key = :victim OR v.victim_name_key = :victim))) \
+    AND (:weapon IS NULL OR i.weapon_key = :weapon) \
+    AND (:map IS NULL OR i.map_key = :map) \
+    AND (:source IS NULL OR lower(trim(d.source)) = :source) \
+    AND (:headshot IS NULL OR i.headshot = :headshot) \
+    AND (:round IS NULL OR i.round = :round) \
+    AND (:match_date_from IS NULL OR d.match_date >= :match_date_from) \
+    AND (:match_date_to IS NULL OR d.match_date <= :match_date_to) \
+    AND (:source_kind IS NULL OR i.source_kind = :source_kind) \
+    AND (:demo_id IS NULL OR i.demo_id = :demo_id)";
+
+fn search_evidence_rows(
+    connection: &Connection,
+    query: &EvidenceSearchQuery,
+) -> Result<EvidenceSearchPage> {
+    query.validate()?;
+    let page = query.page.unwrap_or(1);
+    let page_size = query
+        .page_size
+        .unwrap_or(vibe_cs_domain::EVIDENCE_SEARCH_DEFAULT_PAGE_SIZE);
+    let q_tokens = query
+        .q
+        .as_deref()
+        .unwrap_or_default()
+        .split_whitespace()
+        .map(search_key)
+        .collect::<Vec<_>>();
+    let q_tokens = encode(&q_tokens)?;
+    let event_family = query.event_family.map(event_family_text);
+    let actor = query.actor.as_deref().map(search_key);
+    let victim = query.victim.as_deref().map(search_key);
+    let weapon = query.weapon.as_deref().map(search_key);
+    let map = query.map.as_deref().map(search_key);
+    let source = query.source.as_deref().map(search_key);
+    let headshot = query.headshot.map(i64::from);
+    let round = query.round.map(i64::from);
+    let match_date_from = query.match_date_from.as_ref().map(DateTime::to_rfc3339);
+    let match_date_to = query.match_date_to.as_ref().map(DateTime::to_rfc3339);
+    let source_kind = query.source_kind.map(source_kind_text);
+    let demo_id = query.demo_id.map(|id| id.to_string());
+    let offset = u64::from(page - 1) * u64::from(page_size);
+    let total = connection.query_row(
+        &format!(
+            "SELECT COUNT(*) FROM evidence_search_items AS i \
+             INNER JOIN demos AS d ON d.id = i.demo_id{EVIDENCE_SEARCH_WHERE_SQL}"
+        ),
+        rusqlite::named_params! {
+            ":q_tokens": q_tokens,
+            ":event_family": event_family,
+            ":actor": actor,
+            ":victim": victim,
+            ":weapon": weapon,
+            ":map": map,
+            ":source": source,
+            ":headshot": headshot,
+            ":round": round,
+            ":match_date_from": match_date_from,
+            ":match_date_to": match_date_to,
+            ":source_kind": source_kind,
+            ":demo_id": demo_id,
+        },
+        |row| row_u64(row, 0),
+    )?;
+    let mut statement = connection.prepare(&format!(
+        "SELECT i.evidence_id, i.demo_id, d.display_name, i.map_name, d.match_date, \
+                i.round, i.tick, i.end_tick, i.event_type, i.actor_id, i.actor_name, \
+                i.target_id, i.target_name, i.weapon, i.headshot, i.penetrated, \
+                i.source_kind, i.source_id, i.attributes_json \
+         FROM evidence_search_items AS i \
+         INNER JOIN demos AS d ON d.id = i.demo_id{EVIDENCE_SEARCH_WHERE_SQL} \
+         ORDER BY (d.match_date IS NULL) ASC, d.match_date DESC, d.updated_at DESC, \
+                  i.demo_id ASC, i.round ASC, i.tick ASC, i.source_kind ASC, i.source_id ASC \
+         LIMIT :page_size OFFSET :offset"
+    ))?;
+    let mut rows = statement.query(rusqlite::named_params! {
+        ":q_tokens": q_tokens,
+        ":event_family": event_family,
+        ":actor": actor,
+        ":victim": victim,
+        ":weapon": weapon,
+        ":map": map,
+        ":source": source,
+        ":headshot": headshot,
+        ":round": round,
+        ":match_date_from": match_date_from,
+        ":match_date_to": match_date_to,
+        ":source_kind": source_kind,
+        ":demo_id": demo_id,
+        ":page_size": i64::from(page_size),
+        ":offset": sql_u64(offset)?,
+    })?;
+    let mut items = Vec::new();
+    while let Some(row) = rows.next()? {
+        let evidence_id = row.get::<_, String>(0)?;
+        let demo_id_text = row.get::<_, String>(1)?;
+        let item_demo_id = Uuid::parse_str(&demo_id_text).map_err(|error| {
+            evidence_projection_error(format!("invalid projected demo id: {error}"))
+        })?;
+        let match_date = row
+            .get::<_, Option<String>>(4)?
+            .map(|date| {
+                DateTime::parse_from_rfc3339(&date)
+                    .map(|value| value.with_timezone(&Utc))
+                    .map_err(|error| {
+                        evidence_projection_error(format!("invalid projected match date: {error}"))
+                    })
+            })
+            .transpose()?;
+        let item_round_u64 = row_u64(row, 5)?;
+        let item_round = u32::try_from(item_round_u64)
+            .map_err(|_| StorageError::IntegerOutOfRange(item_round_u64))?;
+        let tick = row_u64(row, 6)?;
+        let end_tick = row_u64(row, 7)?;
+        let actor_id = row.get::<_, Option<String>>(9)?;
+        let source_kind_text = row.get::<_, String>(16)?;
+        let source_kind = parse_source_kind(&source_kind_text)?;
+        let attributes = decode(&row.get::<_, String>(18)?)?;
+        let analysis_href = evidence_href(
+            item_demo_id,
+            "rounds",
+            item_round,
+            tick,
+            &evidence_id,
+            actor_id.as_deref(),
+        );
+        let replay_href = evidence_href(
+            item_demo_id,
+            "replay",
+            item_round,
+            tick,
+            &evidence_id,
+            actor_id.as_deref(),
+        );
+        items.push(EvidenceSearchItem {
+            evidence_id,
+            demo_id: item_demo_id,
+            demo_display_name: row.get(2)?,
+            map_name: row.get(3)?,
+            match_date,
+            round: item_round,
+            tick,
+            end_tick,
+            event_type: row.get(8)?,
+            actor_id,
+            actor_name: row.get(10)?,
+            target_id: row.get(11)?,
+            target_name: row.get(12)?,
+            weapon: row.get(13)?,
+            headshot: row.get::<_, Option<i64>>(14)?.map(|value| value != 0),
+            penetrated: row.get::<_, Option<i64>>(15)?.map(|value| value != 0),
+            source_kind,
+            source_id: row.get(17)?,
+            attributes,
+            analysis_href,
+            replay_href,
+        });
+    }
+    drop(rows);
+    drop(statement);
+
+    let indexed_items =
+        connection.query_row("SELECT COUNT(*) FROM evidence_search_items", [], |row| {
+            row_u64(row, 0)
+        })?;
+    let dated_items = connection.query_row(
+        "SELECT COUNT(*) FROM evidence_search_items AS i \
+         INNER JOIN demos AS d ON d.id = i.demo_id WHERE d.match_date IS NOT NULL",
+        [],
+        |row| row_u64(row, 0),
+    )?;
+    let sourced_items = connection.query_row(
+        "SELECT COUNT(*) FROM evidence_search_items AS i \
+         INNER JOIN demos AS d ON d.id = i.demo_id WHERE trim(d.source) <> ''",
+        [],
+        |row| row_u64(row, 0),
+    )?;
+    let total_analyses =
+        connection.query_row("SELECT COUNT(*) FROM analyses", [], |row| row_u64(row, 0))?;
+    let indexed_demos = connection.query_row(
+        "SELECT COUNT(*) FROM analyses AS a \
+         INNER JOIN evidence_search_projection_state AS s ON s.demo_id = a.demo_id \
+         WHERE s.analysis_updated_at = a.updated_at \
+           AND s.indexed_items = (\
+               SELECT COUNT(*) FROM evidence_search_items AS i WHERE i.demo_id = a.demo_id\
+           )",
+        [],
+        |row| row_u64(row, 0),
+    )?;
+    Ok(EvidenceSearchPage {
+        items,
+        total,
+        page,
+        page_size,
+        availability: EvidenceSearchAvailability {
+            indexed_items,
+            indexed_demos,
+            total_analyses,
+            scan_complete: indexed_demos == total_analyses,
+            match_date: evidence_capability(
+                dated_items,
+                "No indexed evidence is linked to a trusted match date",
+            ),
+            source: evidence_capability(
+                sourced_items,
+                "No indexed evidence is linked to a trusted demo source",
+            ),
+        },
+    })
+}
+
+fn evidence_capability(indexed_items: u64, unavailable_reason: &str) -> EvidenceSearchCapability {
+    EvidenceSearchCapability {
+        available: indexed_items > 0,
+        indexed_items,
+        reason: (indexed_items == 0).then(|| unavailable_reason.to_owned()),
+    }
+}
+
+fn evidence_href(
+    demo_id: Uuid,
+    tab: &str,
+    round: u32,
+    tick: u64,
+    evidence_id: &str,
+    actor_id: Option<&str>,
+) -> String {
+    let mut query = url::form_urlencoded::Serializer::new(String::new());
+    query.append_pair("demo", &demo_id.to_string());
+    query.append_pair("tab", tab);
+    query.append_pair("round", &round.to_string());
+    query.append_pair("tick", &tick.to_string());
+    query.append_pair("evidence", evidence_id);
+    if let Some(actor_id) = actor_id {
+        query.append_pair("player", actor_id);
+    }
+    format!("/analysis?{}", query.finish())
+}
+
+fn evidence_search_text<'a>(parts: impl IntoIterator<Item = Option<&'a str>>) -> String {
+    parts
+        .into_iter()
+        .flatten()
+        .map(search_key)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn search_key(value: &str) -> String {
+    value.trim().to_lowercase()
+}
+
+fn validate_source_id(source_id: &str) -> Result<()> {
+    validate_projection_text(
+        "evidence source id",
+        source_id,
+        MAX_EVIDENCE_SOURCE_ID_CHARS,
+        false,
+    )?;
+    if !source_id
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':'))
+    {
+        return Err(evidence_projection_error(format!(
+            "evidence source id {source_id:?} contains an unsafe character"
+        )));
+    }
+    Ok(())
+}
+
+fn validate_projection_text(
+    field: &str,
+    value: &str,
+    maximum_chars: usize,
+    allow_empty: bool,
+) -> Result<()> {
+    let length = value.chars().count();
+    if (!allow_empty && value.trim().is_empty()) || length > maximum_chars {
+        return Err(evidence_projection_error(format!(
+            "{field} must contain {} to {maximum_chars} characters",
+            usize::from(!allow_empty)
+        )));
+    }
+    Ok(())
+}
+
+fn evidence_projection_error(message: impl Into<String>) -> StorageError {
+    StorageError::EvidenceProjection(message.into())
+}
+
+const fn event_kind_text(kind: EventKind) -> &'static str {
+    match kind {
+        EventKind::RoundStart => "round_start",
+        EventKind::RoundEnd => "round_end",
+        EventKind::Kill => "kill",
+        EventKind::Damage => "damage",
+        EventKind::BombPlant => "bomb_plant",
+        EventKind::BombDefuse => "bomb_defuse",
+        EventKind::BombExplode => "bomb_explode",
+        EventKind::Grenade => "grenade",
+        EventKind::Purchase => "purchase",
+    }
+}
+
+const fn highlight_kind_text(kind: HighlightKind) -> &'static str {
+    match kind {
+        HighlightKind::MultiKill => "multi_kill",
+        HighlightKind::Clutch => "clutch",
+        HighlightKind::OneTap => "one_tap",
+        HighlightKind::Wallbang => "wallbang",
+        HighlightKind::NoScope => "no_scope",
+        HighlightKind::Knife => "knife",
+        HighlightKind::Taser => "taser",
+        HighlightKind::Defuse => "defuse",
+        HighlightKind::Fail => "fail",
+        HighlightKind::Timeline => "timeline",
+    }
+}
+
+const fn event_family_for_event(kind: EventKind) -> Option<&'static str> {
+    match kind {
+        EventKind::Kill => Some("kill"),
+        EventKind::BombPlant | EventKind::BombDefuse | EventKind::BombExplode => Some("objective"),
+        EventKind::RoundStart => Some("round_start"),
+        EventKind::RoundEnd | EventKind::Damage | EventKind::Grenade | EventKind::Purchase => None,
+    }
+}
+
+const fn event_family_for_highlight(kind: HighlightKind) -> Option<&'static str> {
+    match kind {
+        HighlightKind::MultiKill => Some("multi_kill"),
+        HighlightKind::Defuse => Some("objective"),
+        HighlightKind::Clutch
+        | HighlightKind::OneTap
+        | HighlightKind::Wallbang
+        | HighlightKind::NoScope
+        | HighlightKind::Knife
+        | HighlightKind::Taser
+        | HighlightKind::Fail
+        | HighlightKind::Timeline => None,
+    }
+}
+
+const fn event_family_text(family: EvidenceEventFamily) -> &'static str {
+    match family {
+        EvidenceEventFamily::Kill => "kill",
+        EvidenceEventFamily::MultiKill => "multi_kill",
+        EvidenceEventFamily::Objective => "objective",
+        EvidenceEventFamily::RoundStart => "round_start",
+    }
+}
+
+const fn source_kind_text(kind: EvidenceSourceKind) -> &'static str {
+    match kind {
+        EvidenceSourceKind::Event => "event",
+        EvidenceSourceKind::Highlight => "highlight",
+    }
+}
+
+fn parse_source_kind(value: &str) -> Result<EvidenceSourceKind> {
+    match value {
+        "event" => Ok(EvidenceSourceKind::Event),
+        "highlight" => Ok(EvidenceSourceKind::Highlight),
+        _ => Err(evidence_projection_error(format!(
+            "unknown projected evidence source kind {value:?}"
+        ))),
+    }
+}
+
 fn get_document<T: DeserializeOwned>(
     connection: &Connection,
     table: &str,
@@ -3154,6 +3907,41 @@ fn status_text(status: DemoStatus) -> &'static str {
         DemoStatus::Analyzing => "analyzing",
         DemoStatus::Failed => "failed",
         DemoStatus::Missing => "missing",
+    }
+}
+
+const fn demo_order_sql(sort: DemoSort) -> &'static str {
+    match sort {
+        DemoSort::UpdatedDesc => "updated_at DESC, id ASC",
+        DemoSort::UpdatedAsc => "updated_at ASC, id ASC",
+        DemoSort::FileAsc => "file_name COLLATE NOCASE ASC, id ASC",
+        DemoSort::FileDesc => "file_name COLLATE NOCASE DESC, id ASC",
+        DemoSort::StatusAsc => "status COLLATE NOCASE ASC, id ASC",
+        DemoSort::StatusDesc => "status COLLATE NOCASE DESC, id ASC",
+        DemoSort::MapAsc => {
+            "CASE WHEN map_name IS NULL OR trim(map_name) = '' THEN 1 ELSE 0 END ASC, map_name COLLATE NOCASE ASC, id ASC"
+        }
+        DemoSort::MapDesc => {
+            "CASE WHEN map_name IS NULL OR trim(map_name) = '' THEN 1 ELSE 0 END ASC, map_name COLLATE NOCASE DESC, id ASC"
+        }
+        DemoSort::ScoreAsc => {
+            "CASE WHEN status != 'ready' OR json_extract(document_json, '$.team_a_score') IS NULL OR json_extract(document_json, '$.team_b_score') IS NULL OR trim(coalesce(json_extract(document_json, '$.team_a_name'), '')) = '' OR trim(coalesce(json_extract(document_json, '$.team_b_name'), '')) = '' THEN 1 ELSE 0 END ASC, (json_extract(document_json, '$.team_a_score') + json_extract(document_json, '$.team_b_score')) ASC, id ASC"
+        }
+        DemoSort::ScoreDesc => {
+            "CASE WHEN status != 'ready' OR json_extract(document_json, '$.team_a_score') IS NULL OR json_extract(document_json, '$.team_b_score') IS NULL OR trim(coalesce(json_extract(document_json, '$.team_a_name'), '')) = '' OR trim(coalesce(json_extract(document_json, '$.team_b_name'), '')) = '' THEN 1 ELSE 0 END ASC, (json_extract(document_json, '$.team_a_score') + json_extract(document_json, '$.team_b_score')) DESC, id ASC"
+        }
+        DemoSort::DurationAsc => {
+            "CASE WHEN coalesce(json_extract(document_json, '$.duration_seconds'), 0) <= 0 THEN 1 ELSE 0 END ASC, json_extract(document_json, '$.duration_seconds') ASC, id ASC"
+        }
+        DemoSort::DurationDesc => {
+            "CASE WHEN coalesce(json_extract(document_json, '$.duration_seconds'), 0) <= 0 THEN 1 ELSE 0 END ASC, json_extract(document_json, '$.duration_seconds') DESC, id ASC"
+        }
+        DemoSort::RoundsAsc => {
+            "CASE WHEN coalesce(json_extract(document_json, '$.total_rounds'), 0) <= 0 THEN 1 ELSE 0 END ASC, json_extract(document_json, '$.total_rounds') ASC, id ASC"
+        }
+        DemoSort::RoundsDesc => {
+            "CASE WHEN coalesce(json_extract(document_json, '$.total_rounds'), 0) <= 0 THEN 1 ELSE 0 END ASC, json_extract(document_json, '$.total_rounds') DESC, id ASC"
+        }
     }
 }
 
@@ -3214,6 +4002,7 @@ mod tests {
             team_b_name: None,
             team_a_score: None,
             team_b_score: None,
+            player_names: Vec::new(),
             remark: String::new(),
             content_sha256: None,
             file_size: 42,
@@ -3318,7 +4107,6 @@ mod tests {
 
     fn preset_document(volume: f64) -> EditorPresetDocument {
         EditorPresetDocument {
-            schema_version: vibe_cs_domain::EDITOR_PRESET_SCHEMA_VERSION,
             transform: vibe_cs_domain::Transform {
                 x: 42.0,
                 opacity: 0.6,
@@ -3427,6 +4215,557 @@ mod tests {
                 .expect("get demo by hash"),
             Some(record)
         );
+    }
+
+    #[tokio::test]
+    async fn restart_recovery_terminalizes_orphaned_demo_analyses() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let mut indexing = demo("C:/matches/indexing.dem");
+        indexing.status = DemoStatus::Indexing;
+        let mut analyzing = demo("C:/matches/analyzing.dem");
+        analyzing.status = DemoStatus::Analyzing;
+        let mut ready = demo("C:/matches/ready.dem");
+        ready.status = DemoStatus::Ready;
+        storage
+            .put_demos(vec![indexing.clone(), analyzing.clone(), ready.clone()])
+            .await
+            .expect("put demos");
+
+        assert_eq!(
+            storage
+                .recover_orphaned_demo_analyses()
+                .await
+                .expect("recover analyses"),
+            2
+        );
+        assert_eq!(
+            storage
+                .get_demo(indexing.id)
+                .await
+                .expect("indexing demo")
+                .expect("indexing record")
+                .status,
+            DemoStatus::Failed
+        );
+        assert_eq!(
+            storage
+                .get_demo(analyzing.id)
+                .await
+                .expect("analyzing demo")
+                .expect("analyzing record")
+                .status,
+            DemoStatus::Failed
+        );
+        assert_eq!(
+            storage
+                .get_demo(ready.id)
+                .await
+                .expect("ready demo")
+                .expect("ready record")
+                .status,
+            DemoStatus::Ready
+        );
+    }
+
+    #[tokio::test]
+    async fn completing_analysis_atomically_populates_the_demo_summary() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let record = demo("C:/matches/major-final.dem");
+        storage.put_demo(record.clone()).await.expect("put demo");
+        let team_a = ["a1", "a2", "a3", "a4", "a5"];
+        let team_b = ["b1", "b2", "b3", "b4", "b5"];
+        let player = |id: &&str, side: &str| vibe_cs_domain::PlayerStats {
+            steam_id: (*id).to_owned(),
+            spectator_slot: None,
+            name: (*id).to_owned(),
+            team: side.to_owned(),
+            kills: 0,
+            deaths: 0,
+            assists: 0,
+            headshots: 0,
+            damage: 0,
+            adr: 0.0,
+            kill_death_ratio: 0.0,
+            score: 0,
+        };
+        let roster = |team_a_side: &str, team_b_side: &str| {
+            team_a
+                .iter()
+                .map(|id| ((*id).to_owned(), team_a_side.to_owned()))
+                .chain(
+                    team_b
+                        .iter()
+                        .map(|id| ((*id).to_owned(), team_b_side.to_owned())),
+                )
+                .collect::<std::collections::BTreeMap<_, _>>()
+        };
+        let round = |number: u32, winner: &str, roster| vibe_cs_domain::RoundSummary {
+            number,
+            start_tick: u64::from(number) * 100,
+            end_tick: u64::from(number) * 100 + 99,
+            winner: winner.to_owned(),
+            reason: "target_bombed".to_owned(),
+            team_a_score: 0,
+            team_b_score: 0,
+            events: vec![vibe_cs_domain::TimelineEvent {
+                id: format!("round-{number}-start"),
+                tick: u64::from(number) * 100,
+                seconds: f64::from(number),
+                kind: vibe_cs_domain::EventKind::RoundStart,
+                actor: None,
+                target: None,
+                weapon: None,
+                headshot: false,
+                penetrated: false,
+                position: None,
+                detail: serde_json::json!({ "_round_roster": roster }),
+            }],
+        };
+        let analysis = MatchAnalysis {
+            demo_id: record.id,
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 2_958.062_5,
+            verified_total_ticks: None,
+            teams: vec![
+                vibe_cs_domain::TeamSummary {
+                    name: "T".to_owned(),
+                    side: "T".to_owned(),
+                    score: 3,
+                    players: team_b.iter().map(|id| (*id).to_owned()).collect(),
+                },
+                vibe_cs_domain::TeamSummary {
+                    name: "CT".to_owned(),
+                    side: "CT".to_owned(),
+                    score: 1,
+                    players: team_a.iter().map(|id| (*id).to_owned()).collect(),
+                },
+            ],
+            players: team_a
+                .iter()
+                .map(|id| player(id, "CT"))
+                .chain(team_b.iter().map(|id| player(id, "T")))
+                .collect(),
+            rounds: vec![
+                round(1, "CT", roster("T", "CT")),
+                round(2, "T", roster("T", "CT")),
+                round(3, "T", roster("CT", "T")),
+                round(4, "T", roster("CT", "T")),
+            ],
+            highlights: vec![],
+        };
+        let mut normalized = analysis.clone();
+        assert!(normalized.normalize_team_continuity());
+
+        storage
+            .complete_demo_analysis(analysis)
+            .await
+            .expect("complete analysis")
+            .expect("demo exists");
+
+        let completed = storage
+            .get_demo(record.id)
+            .await
+            .expect("get demo")
+            .expect("demo exists");
+        assert_eq!(completed.status, DemoStatus::Ready);
+        assert_eq!(completed.map_name.as_deref(), Some("de_mirage"));
+        assert_eq!(completed.duration_seconds, Some(2_958.062_5));
+        assert_eq!(completed.total_rounds, Some(4));
+        assert_eq!(completed.team_a_name.as_deref(), Some("Team A"));
+        assert_eq!(completed.team_b_name.as_deref(), Some("Team B"));
+        assert_eq!(completed.team_a_score, Some(1));
+        assert_eq!(completed.team_b_score, Some(3));
+        assert_eq!(
+            completed.player_names,
+            vec!["a1", "a2", "a3", "a4", "a5", "b1", "b2", "b3", "b4", "b5"]
+        );
+        assert_eq!(
+            storage.get_analysis(record.id).await.expect("get analysis"),
+            Some(normalized)
+        );
+    }
+
+    #[tokio::test]
+    async fn evidence_search_crosses_matches_with_stable_canonical_evidence() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let player = |id: &str, name: &str| vibe_cs_domain::PlayerStats {
+            steam_id: id.to_owned(),
+            spectator_slot: None,
+            name: name.to_owned(),
+            team: "A".to_owned(),
+            kills: 0,
+            deaths: 0,
+            assists: 0,
+            headshots: 0,
+            damage: 0,
+            adr: 0.0,
+            kill_death_ratio: 0.0,
+            score: 0,
+        };
+
+        let mut fallen_demo = demo("C:/matches/fallen-major.dem");
+        fallen_demo.display_name = "Major FalleN 4K".to_owned();
+        fallen_demo.match_date = Some("2024-03-30T12:00:00Z".parse().expect("date"));
+        let fallen_id = fallen_demo.id;
+        storage
+            .put_demo(fallen_demo)
+            .await
+            .expect("put FalleN demo");
+        storage
+            .complete_demo_analysis(MatchAnalysis {
+                demo_id: fallen_id,
+                map_name: "de_mirage".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 100.0,
+                verified_total_ticks: Some(6_400),
+                teams: vec![],
+                players: vec![
+                    player("fallen-id", "FalleN"),
+                    player("victim-a", "Victim A"),
+                    player("victim-b", "Victim B"),
+                    player("victim-c", "Victim C"),
+                    player("victim-d", "Victim D"),
+                ],
+                rounds: vec![vibe_cs_domain::RoundSummary {
+                    number: 12,
+                    start_tick: 1_000,
+                    end_tick: 2_000,
+                    winner: "A".to_owned(),
+                    reason: String::new(),
+                    team_a_score: 7,
+                    team_b_score: 5,
+                    events: vec![],
+                }],
+                highlights: vec![vibe_cs_domain::Highlight {
+                    id: "fallen-4k-r12".to_owned(),
+                    player_id: "fallen-id".to_owned(),
+                    round: 12,
+                    start_tick: 1_200,
+                    end_tick: 1_500,
+                    kind: vibe_cs_domain::HighlightKind::MultiKill,
+                    title: "FalleN 4K".to_owned(),
+                    description: "Four kills".to_owned(),
+                    score: 0.95,
+                    tags: vec!["4k".to_owned(), "awp".to_owned()],
+                    victims: vec![
+                        "victim-a".to_owned(),
+                        "victim-b".to_owned(),
+                        "victim-c".to_owned(),
+                        "victim-d".to_owned(),
+                    ],
+                }],
+            })
+            .await
+            .expect("complete FalleN analysis")
+            .expect("FalleN demo exists");
+
+        let mut niko_demo = demo("C:/matches/niko-major.dem");
+        niko_demo.display_name = "Major NiKo opener".to_owned();
+        niko_demo.match_date = Some("2024-04-01T12:00:00Z".parse().expect("date"));
+        let niko_id = niko_demo.id;
+        storage.put_demo(niko_demo).await.expect("put NiKo demo");
+        storage
+            .complete_demo_analysis(MatchAnalysis {
+                demo_id: niko_id,
+                map_name: "de_nuke".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 100.0,
+                verified_total_ticks: Some(6_400),
+                teams: vec![],
+                players: vec![player("niko-id", "NiKo"), player("target-id", "ropz")],
+                rounds: vec![vibe_cs_domain::RoundSummary {
+                    number: 3,
+                    start_tick: 100,
+                    end_tick: 900,
+                    winner: "A".to_owned(),
+                    reason: String::new(),
+                    team_a_score: 2,
+                    team_b_score: 1,
+                    events: vec![vibe_cs_domain::TimelineEvent {
+                        id: "player_death-640-7".to_owned(),
+                        tick: 640,
+                        seconds: 10.0,
+                        kind: vibe_cs_domain::EventKind::Kill,
+                        actor: Some("niko-id".to_owned()),
+                        target: Some("target-id".to_owned()),
+                        weapon: Some("ak47".to_owned()),
+                        headshot: true,
+                        penetrated: false,
+                        position: Some([10.0, 20.0, 30.0]),
+                        detail: serde_json::json!({"untrusted_extra": "not projected"}),
+                    }],
+                }],
+                highlights: vec![],
+            })
+            .await
+            .expect("complete NiKo analysis")
+            .expect("NiKo demo exists");
+
+        let all = storage
+            .search_evidence(vibe_cs_domain::EvidenceSearchQuery::default())
+            .await
+            .expect("search across matches");
+        assert_eq!(all.total, 2);
+        assert_eq!(all.items.len(), 2);
+        assert_eq!(all.availability.indexed_demos, 2);
+        assert_eq!(all.availability.total_analyses, 2);
+        assert!(all.availability.scan_complete);
+        assert_eq!(
+            all.items
+                .iter()
+                .map(|item| item.evidence_id.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                format!("demo:{niko_id}/event:player_death-640-7"),
+                format!("demo:{fallen_id}/highlight:fallen-4k-r12"),
+            ]
+        );
+        assert_eq!(all.items[0].actor_name.as_deref(), Some("NiKo"));
+        assert_eq!(all.items[0].target_name.as_deref(), Some("ropz"));
+        assert!(all.items[0].analysis_href.contains("evidence=demo%3A"));
+        assert!(!all.items[0].analysis_href.contains("event="));
+        assert!(all.items[0].replay_href.contains("tab=replay"));
+        assert_eq!(
+            all.items[0].attributes,
+            serde_json::json!({"position": [10.0, 20.0, 30.0]})
+        );
+
+        let fallen = storage
+            .search_evidence(vibe_cs_domain::EvidenceSearchQuery {
+                q: Some("FalleN 4K".to_owned()),
+                event_family: Some(vibe_cs_domain::EvidenceEventFamily::MultiKill),
+                ..vibe_cs_domain::EvidenceSearchQuery::default()
+            })
+            .await
+            .expect("search FalleN multi-kill");
+        assert_eq!(fallen.total, 1);
+        assert_eq!(fallen.items[0].source_id, "fallen-4k-r12");
+
+        let niko = storage
+            .search_evidence(vibe_cs_domain::EvidenceSearchQuery {
+                q: Some("NiKo kill".to_owned()),
+                event_family: Some(vibe_cs_domain::EvidenceEventFamily::Kill),
+                ..vibe_cs_domain::EvidenceSearchQuery::default()
+            })
+            .await
+            .expect("search NiKo kill");
+        assert_eq!(niko.total, 1);
+        assert_eq!(niko.items[0].source_id, "player_death-640-7");
+    }
+
+    #[tokio::test]
+    #[ignore = "requires VIBE_CS_REAL_APP_DATA_DIR with the imported Major M1 analysis"]
+    async fn real_major_m1_projection_finds_fallen_4k_and_stable_niko_kills() {
+        let source_path = PathBuf::from(
+            std::env::var("VIBE_CS_REAL_APP_DATA_DIR").expect("real app data directory"),
+        )
+        .join("vibe-cs.db");
+        let source = Connection::open_with_flags(
+            source_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .expect("open real database read-only");
+        let temporary = tempfile::tempdir().expect("temporary directory");
+        let copied_database = temporary.path().join("major-m1.sqlite3");
+        source
+            .backup(rusqlite::MAIN_DB, &copied_database, None)
+            .expect("copy real database with SQLite backup");
+        drop(source);
+
+        let storage = Storage::open(copied_database)
+            .await
+            .expect("open copied real database");
+        let fallen = storage
+            .search_evidence(EvidenceSearchQuery {
+                q: Some("FalleN 4K".to_owned()),
+                event_family: Some(EvidenceEventFamily::MultiKill),
+                actor: Some("FalleN".to_owned()),
+                round: Some(20),
+                ..EvidenceSearchQuery::default()
+            })
+            .await
+            .expect("query real FalleN 4K");
+        assert_eq!(fallen.total, 1);
+        assert_eq!(
+            fallen.items[0].source_id,
+            "20:76561197960690195:161114-multikill"
+        );
+        assert_eq!(fallen.items[0].tick, 160_986);
+        assert_eq!(fallen.items[0].end_tick, 161_502);
+        assert_eq!(fallen.items[0].actor_name.as_deref(), Some("FalleN"));
+
+        let niko = storage
+            .search_evidence(EvidenceSearchQuery {
+                q: Some("NiKo kill".to_owned()),
+                event_family: Some(EvidenceEventFamily::Kill),
+                actor: Some("NiKo".to_owned()),
+                ..EvidenceSearchQuery::default()
+            })
+            .await
+            .expect("query real NiKo kills");
+        assert_eq!(niko.total, 15);
+        assert_eq!(niko.items[0].source_id, "player_death-30392-646");
+        assert_eq!(niko.items[0].actor_name.as_deref(), Some("NiKo"));
+        assert_eq!(niko.availability.indexed_demos, 1);
+        assert_eq!(niko.availability.total_analyses, 1);
+        assert!(niko.availability.scan_complete);
+    }
+
+    #[tokio::test]
+    async fn reopening_storage_rebuilds_a_missing_evidence_projection() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database = directory.path().join("evidence.sqlite3");
+        let storage = Storage::open(&database).await.expect("open storage");
+        let record = demo("C:/matches/rebuild.dem");
+        let demo_id = record.id;
+        storage.put_demo(record).await.expect("put demo");
+        storage
+            .put_analysis(MatchAnalysis {
+                demo_id,
+                map_name: "de_anubis".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 10.0,
+                verified_total_ticks: Some(640),
+                teams: vec![],
+                players: vec![],
+                rounds: vec![vibe_cs_domain::RoundSummary {
+                    number: 1,
+                    start_tick: 1,
+                    end_tick: 10,
+                    winner: String::new(),
+                    reason: String::new(),
+                    team_a_score: 0,
+                    team_b_score: 0,
+                    events: vec![vibe_cs_domain::TimelineEvent {
+                        id: "round_start-1-0".to_owned(),
+                        tick: 1,
+                        seconds: 1.0 / 64.0,
+                        kind: vibe_cs_domain::EventKind::RoundStart,
+                        actor: None,
+                        target: None,
+                        weapon: None,
+                        headshot: false,
+                        penetrated: false,
+                        position: None,
+                        detail: serde_json::json!({}),
+                    }],
+                }],
+                highlights: vec![],
+            })
+            .await
+            .expect("put analysis");
+        storage
+            .run(|connection| {
+                let transaction = connection.transaction()?;
+                transaction.execute("DELETE FROM evidence_search_items", [])?;
+                transaction.execute("DELETE FROM evidence_search_projection_state", [])?;
+                transaction.commit()?;
+                Ok(())
+            })
+            .await
+            .expect("simulate missing projection");
+        drop(storage);
+
+        let reopened = Storage::open(&database).await.expect("reopen storage");
+        let page = reopened
+            .search_evidence(EvidenceSearchQuery::default())
+            .await
+            .expect("search rebuilt projection");
+        assert_eq!(page.total, 1);
+        assert_eq!(
+            page.items[0].evidence_id,
+            format!("demo:{demo_id}/event:round_start-1-0")
+        );
+    }
+
+    #[tokio::test]
+    async fn evidence_search_rejects_out_of_range_pages_instead_of_clamping_them() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+
+        let error = storage
+            .search_evidence(EvidenceSearchQuery {
+                page_size: Some(vibe_cs_domain::EVIDENCE_SEARCH_MAX_PAGE_SIZE + 1),
+                ..EvidenceSearchQuery::default()
+            })
+            .await
+            .expect_err("oversized page must be rejected");
+
+        assert!(matches!(
+            error,
+            StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn replacing_and_deleting_analysis_replaces_and_removes_search_evidence() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let record = demo("C:/matches/replace-search.dem");
+        let demo_id = record.id;
+        storage.put_demo(record).await.expect("put demo");
+        let analysis = |event_id: &str, weapon: &str| MatchAnalysis {
+            demo_id,
+            map_name: "de_vertigo".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 10.0,
+            verified_total_ticks: Some(640),
+            teams: vec![],
+            players: vec![],
+            rounds: vec![vibe_cs_domain::RoundSummary {
+                number: 1,
+                start_tick: 1,
+                end_tick: 10,
+                winner: String::new(),
+                reason: String::new(),
+                team_a_score: 0,
+                team_b_score: 0,
+                events: vec![vibe_cs_domain::TimelineEvent {
+                    id: event_id.to_owned(),
+                    tick: 8,
+                    seconds: 0.125,
+                    kind: vibe_cs_domain::EventKind::Kill,
+                    actor: None,
+                    target: None,
+                    weapon: Some(weapon.to_owned()),
+                    headshot: false,
+                    penetrated: false,
+                    position: None,
+                    detail: serde_json::json!({}),
+                }],
+            }],
+            highlights: vec![],
+        };
+
+        storage
+            .put_analysis(analysis("old-event", "ak47"))
+            .await
+            .expect("first analysis");
+        storage
+            .put_analysis(analysis("replacement-event", "awp"))
+            .await
+            .expect("replacement analysis");
+        let replacement = storage
+            .search_evidence(EvidenceSearchQuery::default())
+            .await
+            .expect("replacement search");
+        assert_eq!(replacement.total, 1);
+        assert_eq!(replacement.items[0].source_id, "replacement-event");
+        assert_eq!(replacement.items[0].weapon.as_deref(), Some("awp"));
+
+        assert!(
+            storage
+                .delete_analysis(demo_id)
+                .await
+                .expect("delete analysis")
+        );
+        let deleted = storage
+            .search_evidence(EvidenceSearchQuery::default())
+            .await
+            .expect("search after deletion");
+        assert_eq!(deleted.total, 0);
+        assert_eq!(deleted.availability.indexed_demos, 0);
+        assert_eq!(deleted.availability.total_analyses, 0);
+        assert!(deleted.availability.scan_complete);
     }
 
     #[cfg(windows)]
@@ -3542,31 +4881,146 @@ mod tests {
 
     #[cfg(windows)]
     #[tokio::test]
-    async fn legacy_plaintext_llm_key_migrates_on_first_read() {
+    async fn plaintext_llm_key_is_rejected() {
         let storage = Storage::open_in_memory().await.expect("open storage");
-        let mut legacy = AppConfig::default();
-        legacy.llm.api_key = "legacy-plaintext-llm-secret".to_owned();
-        let legacy_json = encode(&legacy).expect("encode legacy config");
+        let mut plaintext = AppConfig::default();
+        plaintext.llm.api_key = "plaintext-llm-secret".to_owned();
+        let plaintext_json = encode(&plaintext).expect("encode plaintext config");
         storage
             .run(move |connection| {
                 connection.execute(
                     "INSERT INTO app_config(key, document_json, updated_at) VALUES ('app', ?1, ?2)",
-                    params![legacy_json, Utc::now().to_rfc3339()],
+                    params![plaintext_json, Utc::now().to_rfc3339()],
                 )?;
                 Ok(())
             })
             .await
-            .expect("insert legacy config");
+            .expect("insert plaintext config");
 
-        let recovered = storage
-            .get_config()
+        assert!(matches!(
+            storage.get_config().await,
+            Err(StorageError::SecretRecovery)
+        ));
+    }
+
+    #[tokio::test]
+    async fn analysis_total_ticks_round_trip_and_missing_current_field_is_rejected() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let record = demo("C:/matches/verified-ticks.dem");
+        let demo_id = record.id;
+        storage.put_demo(record).await.expect("put demo");
+        let analysis = MatchAnalysis {
+            demo_id,
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 120.0,
+            verified_total_ticks: Some(7_680),
+            teams: vec![],
+            players: vec![],
+            rounds: vec![],
+            highlights: vec![],
+        };
+        storage
+            .put_analysis(analysis.clone())
             .await
-            .expect("read legacy config")
-            .expect("legacy config");
-        assert_eq!(recovered.llm.api_key, "legacy-plaintext-llm-secret");
-        let raw = raw_config_document(&storage).await;
-        assert!(!raw.contains("legacy-plaintext-llm-secret"));
-        assert!(raw.contains(LLM_API_KEY_ENVELOPE_PREFIX));
+            .expect("put analysis");
+        assert_eq!(
+            storage.get_analysis(demo_id).await.expect("get analysis"),
+            Some(analysis)
+        );
+
+        storage
+            .run(move |connection| {
+                let raw: String = connection.query_row(
+                    "SELECT document_json FROM analyses WHERE demo_id = ?1",
+                    [demo_id.to_string()],
+                    |row| row.get(0),
+                )?;
+                let mut document: serde_json::Value = serde_json::from_str(&raw)?;
+                document
+                    .as_object_mut()
+                    .expect("analysis object")
+                    .remove("verified_total_ticks");
+                connection.execute(
+                    "UPDATE analyses SET document_json = ?1 WHERE demo_id = ?2",
+                    params![serde_json::to_string(&document)?, demo_id.to_string()],
+                )?;
+                Ok(())
+            })
+            .await
+            .expect("remove required current field");
+
+        assert!(matches!(
+            storage.get_analysis(demo_id).await,
+            Err(StorageError::Serialization(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn analysis_spectator_slot_round_trips_through_storage() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let record = demo("C:/matches/spectator-slot.dem");
+        let demo_id = record.id;
+        storage.put_demo(record).await.expect("put demo");
+        let analysis = MatchAnalysis {
+            demo_id,
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 120.0,
+            verified_total_ticks: Some(7_680),
+            teams: vec![],
+            players: vec![vibe_cs_domain::PlayerStats {
+                steam_id: "76561198000000001".to_owned(),
+                spectator_slot: Some(8),
+                name: "Player One".to_owned(),
+                team: "T".to_owned(),
+                kills: 1,
+                deaths: 0,
+                assists: 0,
+                headshots: 1,
+                damage: 100,
+                adr: 100.0,
+                kill_death_ratio: 1.0,
+                score: 2,
+            }],
+            rounds: vec![],
+            highlights: vec![],
+        };
+        storage
+            .put_analysis(analysis.clone())
+            .await
+            .expect("put analysis");
+
+        assert_eq!(
+            storage.get_analysis(demo_id).await.expect("get analysis"),
+            Some(analysis)
+        );
+
+        storage
+            .run(move |connection| {
+                let raw: String = connection.query_row(
+                    "SELECT document_json FROM analyses WHERE demo_id = ?1",
+                    [demo_id.to_string()],
+                    |row| row.get(0),
+                )?;
+                let mut document: serde_json::Value = serde_json::from_str(&raw)?;
+                document["players"][0]
+                    .as_object_mut()
+                    .expect("player object")
+                    .remove("spectator_slot");
+                connection.execute(
+                    "UPDATE analyses SET document_json = ?1 WHERE demo_id = ?2",
+                    params![serde_json::to_string(&document)?, demo_id.to_string()],
+                )?;
+                Ok(())
+            })
+            .await
+            .expect("remove required current player field");
+
+        assert!(matches!(
+            storage.get_analysis(demo_id).await,
+            Err(StorageError::Serialization(_))
+        ));
     }
 
     #[tokio::test]
@@ -3579,6 +5033,7 @@ mod tests {
             map_name: "de_mirage".to_owned(),
             tick_rate: 64.0,
             duration_seconds: 0.0,
+            verified_total_ticks: None,
             teams: vec![],
             players: vec![],
             rounds: vec![],
@@ -3606,6 +5061,7 @@ mod tests {
                 map_name: "de_dust2".to_owned(),
                 tick_rate: 64.0,
                 duration_seconds: 1.0,
+                verified_total_ticks: None,
                 teams: vec![],
                 players: vec![],
                 rounds: vec![],
@@ -3642,6 +5098,106 @@ mod tests {
             .await
             .expect("list demos");
         assert_eq!(page.total, 0);
+    }
+
+    #[tokio::test]
+    async fn demo_search_matches_persisted_player_summaries() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let mut major = demo("C:/matches/major-final.dem");
+        major.player_names = vec!["FalleN".to_owned(), "m0NESY".to_owned()];
+        storage.put_demo(major.clone()).await.expect("put demo");
+
+        let page = storage
+            .list_demos(DemoQuery {
+                search: Some("m0nesy".to_owned()),
+                ..DemoQuery::default()
+            })
+            .await
+            .expect("search demos");
+
+        assert_eq!(page.total, 1);
+        assert_eq!(page.items, vec![major]);
+    }
+
+    #[tokio::test]
+    async fn demo_listing_applies_stable_map_sort_and_strict_page_bounds() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let mut ancient = demo("C:/matches/ancient.dem");
+        ancient.id = Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap();
+        ancient.file_name = "ancient.dem".to_owned();
+        ancient.map_name = Some("de_ancient".to_owned());
+        let mut ancient_first = demo("C:/matches/ancient-first.dem");
+        ancient_first.id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+        ancient_first.file_name = "ancient-first.dem".to_owned();
+        ancient_first.map_name = Some("de_ancient".to_owned());
+        let mut inferno = demo("C:/matches/inferno.dem");
+        inferno.id = Uuid::parse_str("00000000-0000-0000-0000-000000000003").unwrap();
+        inferno.file_name = "inferno.dem".to_owned();
+        inferno.map_name = Some("de_inferno".to_owned());
+        let mut unknown = demo("C:/matches/unknown.dem");
+        unknown.id = Uuid::parse_str("00000000-0000-0000-0000-000000000004").unwrap();
+        unknown.file_name = "unknown.dem".to_owned();
+
+        storage
+            .put_demos(vec![
+                unknown.clone(),
+                inferno.clone(),
+                ancient.clone(),
+                ancient_first.clone(),
+            ])
+            .await
+            .expect("put demos");
+
+        let first_page = storage
+            .list_demos(DemoQuery {
+                sort: Some(vibe_cs_domain::DemoSort::MapAsc),
+                page: Some(1),
+                page_size: Some(2),
+                ..DemoQuery::default()
+            })
+            .await
+            .expect("sorted page");
+        assert_eq!(first_page.total, 4);
+        assert_eq!(first_page.page, 1);
+        assert_eq!(first_page.page_size, 2);
+        assert_eq!(first_page.items, vec![ancient_first, ancient]);
+
+        let second_page = storage
+            .list_demos(DemoQuery {
+                sort: Some(vibe_cs_domain::DemoSort::MapAsc),
+                page: Some(2),
+                page_size: Some(2),
+                ..DemoQuery::default()
+            })
+            .await
+            .expect("second sorted page");
+        assert_eq!(second_page.items, vec![inferno, unknown]);
+
+        for query in [
+            DemoQuery {
+                page: Some(0),
+                ..DemoQuery::default()
+            },
+            DemoQuery {
+                page_size: Some(0),
+                ..DemoQuery::default()
+            },
+            DemoQuery {
+                page_size: Some(201),
+                ..DemoQuery::default()
+            },
+            DemoQuery {
+                page: Some(100_001),
+                ..DemoQuery::default()
+            },
+        ] {
+            assert!(matches!(
+                storage.list_demos(query).await,
+                Err(StorageError::Domain(
+                    vibe_cs_domain::DomainError::InvalidInput(_)
+                ))
+            ));
+        }
     }
 
     #[tokio::test]
@@ -3704,6 +5260,7 @@ mod tests {
         let page = storage
             .list_steam_matches(MatchHistoryQuery {
                 steam_id: Some("76561198000000000".to_owned()),
+                search: None,
                 page: Some(2),
                 page_size: Some(2),
             })
@@ -3753,8 +5310,140 @@ mod tests {
                 .get_match_download_job(completed.id)
                 .await
                 .expect("job by id"),
-            Some(completed)
+            Some(completed.clone())
         );
+        assert_eq!(
+            storage
+                .list_match_download_jobs()
+                .await
+                .expect("all persisted download jobs"),
+            vec![completed]
+        );
+    }
+
+    #[tokio::test]
+    async fn steam_match_search_filters_the_complete_history_before_paging() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = Utc::now();
+        let record = |token: u16, map_name: &str, score: &str, result| SteamMatchRecord {
+            id: format!("76561198000000000:{token}"),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: format!("match-{token}"),
+            outcome_id: token.to_string(),
+            token,
+            map_name: Some(map_name.to_owned()),
+            played_at: None,
+            score: Some(score.to_owned()),
+            result,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_matches(vec![
+                record(
+                    1,
+                    "de_mirage",
+                    "13:7",
+                    vibe_cs_domain::MatchHistoryResult::Win,
+                ),
+                record(
+                    2,
+                    "de_nuke",
+                    "7:13",
+                    vibe_cs_domain::MatchHistoryResult::Loss,
+                ),
+                record(
+                    3,
+                    "de_nuke",
+                    "13:11",
+                    vibe_cs_domain::MatchHistoryResult::Win,
+                ),
+            ])
+            .await
+            .expect("put matches");
+
+        let page = storage
+            .list_steam_matches(MatchHistoryQuery {
+                steam_id: Some("76561198000000000".to_owned()),
+                search: Some("NUKE".to_owned()),
+                page: Some(2),
+                page_size: Some(1),
+            })
+            .await
+            .expect("search history");
+
+        assert_eq!(page.total, 2);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.page, 2);
+        assert_eq!(page.items[0].map_name.as_deref(), Some("de_nuke"));
+
+        let literal_wildcard = storage
+            .list_steam_matches(MatchHistoryQuery {
+                steam_id: Some("76561198000000000".to_owned()),
+                search: Some("%".to_owned()),
+                page: Some(1),
+                page_size: Some(20),
+            })
+            .await
+            .expect("search literal wildcard");
+        assert_eq!(literal_wildcard.total, 0);
+    }
+
+    #[test]
+    fn persisted_wrapper_documents_reject_unknown_fields() {
+        let now = Utc::now();
+        let export = ExportJobRecord {
+            kind: "editor".to_owned(),
+            job: ExportJob {
+                id: Uuid::new_v4(),
+                project_id: Uuid::new_v4(),
+                status: vibe_cs_domain::JobStatus::Queued,
+                progress: 0.0,
+                output_path: "output.mp4".to_owned(),
+                error: None,
+                created_at: now,
+                updated_at: now,
+            },
+        };
+        let mut export_json = serde_json::to_value(export).expect("serialize export wrapper");
+        export_json
+            .as_object_mut()
+            .expect("export wrapper object")
+            .insert("unexpected".to_owned(), serde_json::Value::Bool(true));
+        assert!(serde_json::from_value::<ExportJobRecord>(export_json).is_err());
+
+        let preset = PresetRecord {
+            id: Uuid::new_v4(),
+            name: "Current preset".to_owned(),
+            revision: 1,
+            document: preset_document(0.5),
+            created_at: now,
+            updated_at: now,
+        };
+        let mut preset_json = serde_json::to_value(preset).expect("serialize preset wrapper");
+        preset_json
+            .as_object_mut()
+            .expect("preset wrapper object")
+            .insert("unexpected".to_owned(), serde_json::Value::Bool(true));
+        assert!(serde_json::from_value::<PresetRecord>(preset_json).is_err());
+    }
+
+    #[test]
+    fn editor_project_documents_require_the_complete_current_shape() {
+        let project = editor_project("Current cut", 1);
+        let document = EditorProjectDocument {
+            project,
+            snapshots: Vec::new(),
+        };
+        let mut json = serde_json::to_value(document).expect("serialize current document");
+        json.as_object_mut()
+            .expect("editor project document object")
+            .remove("snapshots");
+
+        assert!(decode_editor_project_document(&json.to_string()).is_err());
     }
 
     #[tokio::test]
@@ -3817,34 +5506,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn editor_project_snapshots_are_bounded_and_read_legacy_documents() {
+    async fn editor_project_snapshots_are_bounded() {
         let storage = Storage::open_in_memory().await.expect("open storage");
-        let project = editor_project("Legacy cut", 1);
-        let stored_project = project.clone();
+        let project = editor_project("Current cut", 1);
         storage
-            .run(move |connection| {
-                connection.execute(
-                    "INSERT INTO editor_projects(id, name, revision, updated_at, document_json) \
-                     VALUES (?1, ?2, ?3, ?4, ?5)",
-                    params![
-                        stored_project.id.to_string(),
-                        stored_project.name,
-                        sql_u64(stored_project.revision)?,
-                        stored_project.updated_at.to_rfc3339(),
-                        encode(&stored_project)?
-                    ],
-                )?;
-                Ok(())
-            })
+            .put_editor_project(project.clone())
             .await
-            .expect("insert legacy project document");
-        assert_eq!(
-            storage
-                .get_editor_project(project.id)
-                .await
-                .expect("get legacy project"),
-            Some(project.clone())
-        );
+            .expect("insert current project document");
 
         for revision in 2..=u64::try_from(EDITOR_PROJECT_SNAPSHOT_LIMIT).unwrap() + 5 {
             let mut updated = project.clone();
@@ -3933,7 +5601,7 @@ mod tests {
         audio_asset.name = "BGM".to_owned();
         audio_asset.kind = "audio/wav".to_owned();
         let mut asset_hash = Sha256::new();
-        asset_hash.update(b"vibe-cs-media-asset-v1\0");
+        asset_hash.update(b"vibe-cs-media-asset\0");
         asset_hash.update(serde_json::to_vec(&audio_asset).expect("asset json"));
         let audio = BeatAlignmentAudioBinding {
             asset_id: audio_asset.id,

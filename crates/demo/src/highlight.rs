@@ -257,12 +257,11 @@ fn classify_clutch_attempts(
     players: &[PlayerStats],
     output: &mut Vec<Highlight>,
 ) {
-    let player_teams = players
-        .iter()
-        .filter(|player| !player.steam_id.trim().is_empty() && !player.team.trim().is_empty())
-        .map(|player| (player.steam_id.as_str(), player.team.as_str()))
-        .collect::<BTreeMap<_, _>>();
-    let teams = player_teams.values().copied().collect::<BTreeSet<_>>();
+    let player_teams = round_player_teams(round, players);
+    let teams = player_teams
+        .values()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
     if teams.len() != 2 {
         return;
     }
@@ -272,7 +271,9 @@ fn classify_clutch_attempts(
         .map(|team| {
             let members = player_teams
                 .iter()
-                .filter_map(|(player, player_team)| (*player_team == *team).then_some(*player))
+                .filter_map(|(player, player_team)| {
+                    (player_team == team).then_some(player.as_str())
+                })
                 .collect::<BTreeSet<_>>();
             (*team, members)
         })
@@ -291,7 +292,7 @@ fn classify_clutch_attempts(
 
     for event in &kills {
         if let Some(target) = event.target.as_deref()
-            && let Some(team) = player_teams.get(target).copied()
+            && let Some(team) = player_teams.get(target).map(String::as_str)
             && let Some(members) = alive.get_mut(team)
         {
             members.remove(target);
@@ -391,6 +392,36 @@ fn classify_clutch_attempts(
             victims,
         });
     }
+}
+
+fn round_player_teams(round: &RoundSummary, players: &[PlayerStats]) -> BTreeMap<String, String> {
+    if let Some(value) = round
+        .events
+        .iter()
+        .find_map(|event| event.detail.get("_round_roster"))
+    {
+        let Some(roster) = value.as_object() else {
+            return BTreeMap::new();
+        };
+        let teams = roster
+            .iter()
+            .filter_map(|(player, team)| {
+                let team = team.as_str()?;
+                (!player.trim().is_empty() && matches!(team, "T" | "CT"))
+                    .then(|| (player.clone(), team.to_owned()))
+            })
+            .collect::<BTreeMap<_, _>>();
+        return if teams.len() == roster.len() && teams.len() == players.len() {
+            teams
+        } else {
+            BTreeMap::new()
+        };
+    }
+    players
+        .iter()
+        .filter(|player| !player.steam_id.trim().is_empty() && !player.team.trim().is_empty())
+        .map(|player| (player.steam_id.clone(), player.team.clone()))
+        .collect()
 }
 
 fn classify_special_events(round: &RoundSummary, output: &mut Vec<Highlight>) {
@@ -617,6 +648,7 @@ mod tests {
     fn player(id: &str, team: &str) -> PlayerStats {
         PlayerStats {
             steam_id: id.to_owned(),
+            spectator_slot: None,
             name: id.to_owned(),
             team: team.to_owned(),
             kills: 0,
@@ -625,7 +657,7 @@ mod tests {
             headshots: 0,
             damage: 0,
             adr: 0.0,
-            rating: 0.0,
+            kill_death_ratio: 0.0,
             score: 0,
         }
     }
@@ -749,6 +781,54 @@ mod tests {
                 .iter()
                 .any(|item| matches!(item.kind, HighlightKind::Clutch | HighlightKind::Fail))
         );
+    }
+
+    #[test]
+    fn clutch_uses_round_roster_instead_of_final_post_halftime_sides() {
+        let final_players = vec![
+            player("a1", "CT"),
+            player("a2", "CT"),
+            player("a3", "CT"),
+            player("b1", "T"),
+            player("b2", "T"),
+            player("b3", "T"),
+        ];
+        let mut round = round(vec![
+            TimelineEvent {
+                id: "round-start".to_owned(),
+                tick: 0,
+                seconds: 0.0,
+                kind: EventKind::RoundStart,
+                actor: None,
+                target: None,
+                weapon: None,
+                headshot: false,
+                penetrated: false,
+                position: None,
+                detail: json!({
+                    "_round_roster": {
+                        "a1": "T", "a2": "T", "a3": "T",
+                        "b1": "CT", "b2": "CT", "b3": "CT"
+                    }
+                }),
+            },
+            elimination("k1", 100, "b1", "a2"),
+            elimination("k2", 120, "b2", "a3"),
+            elimination("k3", 160, "a1", "b1"),
+            elimination("k4", 180, "a1", "b2"),
+            elimination("k5", 200, "a1", "b3"),
+        ]);
+        round.winner = "T".to_owned();
+        round.end_tick = 220;
+
+        let highlights =
+            classify_highlights_with_players(&[round], &final_players, HighlightPolicy::default());
+        let clutch = highlights
+            .iter()
+            .find(|item| item.kind == HighlightKind::Clutch)
+            .expect("round-backed clutch");
+        assert_eq!(clutch.player_id, "a1");
+        assert!(clutch.tags.contains(&"1v3".to_owned()));
     }
 
     #[test]

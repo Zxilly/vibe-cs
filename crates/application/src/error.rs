@@ -79,7 +79,9 @@ impl From<DomainError> for ApiError {
             DomainError::InvalidInput(_) => StatusCode::BAD_REQUEST,
             DomainError::Conflict(_) => StatusCode::CONFLICT,
             DomainError::DependencyUnavailable(_) => StatusCode::SERVICE_UNAVAILABLE,
-            DomainError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            DomainError::CleanupFailed(_) | DomainError::Internal(_) => {
+                StatusCode::INTERNAL_SERVER_ERROR
+            }
         };
         Self {
             status,

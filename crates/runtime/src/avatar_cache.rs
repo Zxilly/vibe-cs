@@ -19,7 +19,6 @@ use vibe_cs_integrations::{
     MAXIMUM_STEAM_AVATAR_BYTES, SteamAvatarImage, detect_steam_avatar_mime, is_steam_id,
 };
 
-const AVATAR_CACHE_VERSION: u32 = 1;
 const MAXIMUM_AVATAR_CACHE_BYTES: u64 = 64 * 1024 * 1024;
 const MAXIMUM_AVATAR_CACHE_ENTRIES: usize = 500;
 const MAXIMUM_AVATAR_SCAN_ENTRIES: usize = 2_048;
@@ -93,7 +92,6 @@ impl AvatarCache {
         let _guard = self.gate.lock().await;
         let (entries, scan_complete) = self.scan_entries().await?;
         Ok(AvatarCacheStatus {
-            version: AVATAR_CACHE_VERSION,
             entries: u64::try_from(entries.len()).unwrap_or(u64::MAX),
             bytes: entries
                 .iter()
@@ -329,10 +327,7 @@ async fn write_atomic(
     steam_id: &str,
     bytes: &[u8],
 ) -> Result<(), DomainError> {
-    let temporary = root.join(format!(
-        ".avatar-v{AVATAR_CACHE_VERSION}-{steam_id}-{}.tmp",
-        Uuid::new_v4()
-    ));
+    let temporary = root.join(format!(".avatar-{steam_id}-{}.tmp", Uuid::new_v4()));
     let mut file = tokio::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -360,13 +355,11 @@ async fn write_atomic(
 }
 
 fn entry_name(steam_id: &str, hash: &str, extension: &str) -> String {
-    format!("v{AVATAR_CACHE_VERSION}-{steam_id}-{hash}.{extension}")
+    format!("{steam_id}-{hash}.{extension}")
 }
 
 fn parse_entry_name(name: &str) -> Option<(String, String, &'static str)> {
-    let prefix = format!("v{AVATAR_CACHE_VERSION}-");
-    let rest = name.strip_prefix(&prefix)?;
-    let (steam_id, file) = rest.split_once('-')?;
+    let (steam_id, file) = name.split_once('-')?;
     if !is_steam_id(steam_id) {
         return None;
     }
@@ -387,7 +380,7 @@ fn parse_entry_name(name: &str) -> Option<(String, String, &'static str)> {
 }
 
 fn is_temporary_name(name: &str) -> bool {
-    name.starts_with(&format!(".avatar-v{AVATAR_CACHE_VERSION}-"))
+    name.starts_with(".avatar-")
         && Path::new(name)
             .extension()
             .is_some_and(|extension| extension.eq_ignore_ascii_case("tmp"))

@@ -113,7 +113,8 @@ mod windows_dpapi {
 
 /// Protects `secret` for the current Windows user and the supplied stable purpose.
 ///
-/// The caller must persist its own versioned envelope around the returned bytes.
+/// The caller persists the returned bytes as its current exact document shape;
+/// unreadable payloads are invalid and must be discarded.
 ///
 /// # Errors
 ///

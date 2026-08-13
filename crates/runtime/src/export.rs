@@ -55,11 +55,11 @@ trait ExportTestBackend: Send + Sync + std::fmt::Debug {
     }
 }
 
-#[derive(Debug, Default, serde::Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Debug, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 struct EditorExportRequest {
-    encoder: Option<String>,
-    quality: Option<u8>,
+    encoder: String,
+    quality: u8,
     range_start_seconds: Option<f64>,
     range_end_seconds: Option<f64>,
 }
@@ -141,7 +141,6 @@ impl RuntimeExportPort {
                 "unsupported export kind: {kind}"
             )));
         }
-        let ffmpeg = self.render_program();
         let export_dir = self.data_dir.join("exports");
         tokio::fs::create_dir_all(&export_dir)
             .await
@@ -149,11 +148,8 @@ impl RuntimeExportPort {
         let id = Uuid::new_v4();
         let output = export_dir.join(format!("{kind}-{project_id}-{id}.mp4"));
         let plan = match kind {
-            "montage" => self.montage_plan(&ffmpeg, project_id, &output).await?,
-            "editor" => {
-                self.editor_plan(&ffmpeg, project_id, &output, request)
-                    .await?
-            }
+            "montage" => self.montage_plan(project_id, &output).await?,
+            "editor" => self.editor_plan(project_id, &output, request).await?,
             _ => unreachable!("validated kind"),
         };
         let now = Utc::now();
@@ -178,7 +174,6 @@ impl RuntimeExportPort {
 
     async fn montage_plan(
         &self,
-        ffmpeg: &Path,
         project_id: Uuid,
         output: &Path,
     ) -> Result<FilterPlan, DomainError> {
@@ -224,14 +219,13 @@ impl RuntimeExportPort {
                 },
             );
         }
-        let encoder = self.select_encoder(ffmpeg, &project.settings.encoder)?;
-        build_montage_plan_with_sources(ffmpeg, &project, &sources, output, &encoder)
+        let encoder = self.select_encoder(&project.settings.encoder)?;
+        build_montage_plan_with_sources(&project, &sources, output, &encoder)
             .map_err(map_media_error)
     }
 
     async fn editor_plan(
         &self,
-        ffmpeg: &Path,
         project_id: Uuid,
         output: &Path,
         request: &Value,
@@ -294,30 +288,18 @@ impl RuntimeExportPort {
                 },
             );
         }
-        let request: EditorExportRequest = if request.is_null() {
-            EditorExportRequest::default()
-        } else {
+        let request: EditorExportRequest =
             serde_json::from_value(request.clone()).map_err(|error| {
                 DomainError::InvalidInput(format!("invalid export options: {error}"))
-            })?
-        };
-        let encoder = self.select_encoder(ffmpeg, request.encoder.as_deref().unwrap_or("auto"))?;
+            })?;
+        let encoder = self.select_encoder(&request.encoder)?;
         let options = EditorRenderOptions {
             encoder,
-            quality: request.quality.unwrap_or(80),
+            quality: request.quality,
             range_start: request.range_start_seconds,
             range_end: request.range_end_seconds,
         };
-        build_editor_plan_with_sources(ffmpeg, &project, &assets, output, &options)
-            .map_err(map_media_error)
-    }
-
-    fn render_program(&self) -> PathBuf {
-        match &self.backend {
-            ExportBackend::Native => PathBuf::from("native-libav"),
-            #[cfg(test)]
-            ExportBackend::Test(_) => PathBuf::from("native-libav-test"),
-        }
+        build_editor_plan_with_sources(&project, &assets, output, &options).map_err(map_media_error)
     }
 
     async fn probe_has_audio(&self, path: &Path) -> Option<bool> {
@@ -344,11 +326,7 @@ impl RuntimeExportPort {
             .map(|probe| probe.streams.iter().any(|stream| stream.kind == "audio"))
     }
 
-    fn select_encoder(
-        &self,
-        _ffmpeg: &Path,
-        requested: &str,
-    ) -> Result<EncoderSelection, DomainError> {
+    fn select_encoder(&self, requested: &str) -> Result<EncoderSelection, DomainError> {
         let encoders = match &self.backend {
             ExportBackend::Native => native_ffmpeg_info().map_err(map_media_error)?.encoders,
             #[cfg(test)]
@@ -822,15 +800,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn configured_cli_paths_do_not_gate_native_exports() {
+    async fn native_exports_do_not_require_external_cli_configuration() {
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
         storage
-            .put_config(AppConfig {
-                ffmpeg_path: "ignored legacy external path".to_owned(),
-                ..AppConfig::default()
-            })
+            .put_config(AppConfig::default())
             .await
             .expect("config");
         let root = tempfile::tempdir().expect("temporary directory");
@@ -997,8 +972,18 @@ mod tests {
             Arc::new(FailingRunner),
         );
 
-        let job = port
+        let error = port
             .start("editor", project_id, Value::Null)
+            .await
+            .expect_err("editor export requires the current explicit options shape");
+        assert!(matches!(error, DomainError::InvalidInput(_)));
+
+        let job = port
+            .start(
+                "editor",
+                project_id,
+                serde_json::json!({ "encoder": "auto", "quality": 80 }),
+            )
             .await
             .expect("recorded clip resolves as an editor source");
         assert_eq!(job.status, JobStatus::Running);

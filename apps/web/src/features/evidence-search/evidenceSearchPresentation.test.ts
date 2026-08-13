@@ -42,6 +42,7 @@ describe('evidence search presentation', () => {
       q: '  FalleN   ',
       event_family: 'kill',
       actor: '',
+      player: 'fallen-id',
       weapon: 'AWP',
       headshot: false,
       round: 20,
@@ -50,7 +51,7 @@ describe('evidence search presentation', () => {
     };
 
     expect(evidenceSearchParameters(query).toString()).toBe(
-      'q=FalleN&event_family=kill&weapon=AWP&headshot=false&round=20&page=2&page_size=50',
+      'q=FalleN&event_family=kill&player=fallen-id&weapon=AWP&headshot=false&round=20&page=2&page_size=50',
     );
   });
 
@@ -65,16 +66,45 @@ describe('evidence search presentation', () => {
     expect(visibleEvidenceAttributes(item)).toEqual(['penetrated']);
   });
 
-  it('restores only bounded filters from a shareable URL', () => {
+  it('restores an exact player-participation filter from a shareable URL', () => {
     expect(evidenceSearchQueryFromParameters(new URLSearchParams(
-      'q=FalleN&event_family=kill&headshot=false&round=20&page=999999&page_size=500&unknown=x',
+      'q=FalleN&event_family=kill&player=fallen-id&headshot=false&round=20&page=2&page_size=50',
     ))).toEqual({
       q: 'FalleN',
       event_family: 'kill',
+      player: 'fallen-id',
       headshot: false,
       round: 20,
-      page: 100_000,
-      page_size: 100,
+      page: 2,
+      page_size: 50,
     });
+  });
+
+  it('rejects unknown, duplicate, empty, and out-of-range URL fields', () => {
+    for (const raw of [
+      'unknown=x',
+      'player=fallen-id&player=niko-id',
+      'player=',
+      'page=100001',
+      'page_size=101',
+      'round=0',
+      'headshot=yes',
+      'event_family=frag',
+      'match_date_from=2026-99-99',
+      'match_date_to=not-a-date',
+    ]) {
+      expect(() => evidenceSearchQueryFromParameters(new URLSearchParams(raw))).toThrow();
+    }
+  });
+
+  it('uses the server Unicode-scalar bound rather than UTF-16 code units', () => {
+    const player = '🦄'.repeat(128);
+    expect(evidenceSearchQueryFromParameters(new URLSearchParams({ player }))).toEqual({ player });
+    expect(() => evidenceSearchQueryFromParameters(new URLSearchParams({ player: `${player}🦄` }))).toThrow();
+  });
+
+  it('keeps an explicit profile player focused for target and highlight-victim results', () => {
+    expect(evidenceSearchResultHref(item, 'replay', 'victim-player')).toContain('player=victim-player');
+    expect(evidenceSearchResultHref(item, 'replay', 'victim-player')).not.toContain('player=fallen-id');
   });
 });

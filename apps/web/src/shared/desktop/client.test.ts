@@ -138,6 +138,7 @@ describe('desktop command client', () => {
     await commands.searchEvidence({
       q: ' FalleN ',
       event_family: 'kill',
+      player: '76561198000000001',
       headshot: false,
       round: 20,
       page: 1,
@@ -147,7 +148,7 @@ describe('desktop command client', () => {
     expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
       call: {
         method: 'get',
-        path: '/evidence/search?q=FalleN&event_family=kill&headshot=false&round=20&page=1&page_size=50',
+        path: '/evidence/search?q=FalleN&event_family=kill&player=76561198000000001&headshot=false&round=20&page=1&page_size=50',
       },
     });
   });

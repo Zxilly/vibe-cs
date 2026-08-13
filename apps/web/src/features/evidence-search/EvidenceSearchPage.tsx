@@ -47,6 +47,7 @@ type SearchDraft = {
   eventFamily: '' | EvidenceSearchEventFamily;
   actor: string;
   victim: string;
+  player: string;
   weapon: string;
   map: string;
   source: string;
@@ -63,6 +64,7 @@ function draftFromQuery(query: EvidenceSearchQuery): SearchDraft {
     eventFamily: query.event_family ?? '',
     actor: query.actor ?? '',
     victim: query.victim ?? '',
+    player: query.player ?? '',
     weapon: query.weapon ?? '',
     map: query.map ?? '',
     source: query.source ?? '',
@@ -74,19 +76,23 @@ function draftFromQuery(query: EvidenceSearchQuery): SearchDraft {
   };
 }
 
-function queryFromDraft(draft: SearchDraft): EvidenceSearchQuery {
+export function queryFromDraft(draft: SearchDraft): EvidenceSearchQuery {
   const round = Number(draft.round);
+  if (draft.round && (!Number.isSafeInteger(round) || round < 1 || round > 256)) {
+    throw new Error('Round must be between 1 and 256');
+  }
   return {
     ...(draft.q.trim() ? { q: draft.q.trim() } : {}),
     ...(draft.eventFamily ? { event_family: draft.eventFamily } : {}),
     ...(draft.actor.trim() ? { actor: draft.actor.trim() } : {}),
     ...(draft.victim.trim() ? { victim: draft.victim.trim() } : {}),
+    ...(draft.player.trim() ? { player: draft.player.trim() } : {}),
     ...(draft.weapon.trim() ? { weapon: draft.weapon.trim() } : {}),
     ...(draft.map.trim() ? { map: draft.map.trim() } : {}),
     ...(draft.source.trim() ? { source: draft.source.trim() } : {}),
     ...(draft.sourceKind ? { source_kind: draft.sourceKind } : {}),
     ...(draft.headshot ? { headshot: draft.headshot === 'true' } : {}),
-    ...(Number.isSafeInteger(round) && round > 0 ? { round } : {}),
+    ...(draft.round ? { round } : {}),
     ...(draft.dateFrom ? { match_date_from: `${draft.dateFrom}T00:00:00Z` } : {}),
     ...(draft.dateTo ? { match_date_to: `${draft.dateTo}T23:59:59Z` } : {}),
     page: 1,
@@ -192,6 +198,7 @@ function EvidenceSearchWorkbench() {
           <label><span>{t('evidenceSearch.event')}</span><select value={draft.eventFamily} onChange={(event) => setDraft((current) => ({ ...current, eventFamily: event.target.value as SearchDraft['eventFamily'] }))}><option value="">{t('evidenceSearch.allEvents')}</option><option value="kill">{t('evidenceSearch.kills')}</option><option value="multi_kill">{t('evidenceSearch.multiKills')}</option><option value="objective">{t('evidenceSearch.objectives')}</option><option value="round_start">{t('evidenceSearch.roundStarts')}</option></select></label>
           <label><span>{t('evidenceSearch.actor')}</span><input value={draft.actor} maxLength={128} onChange={(event) => setDraft((current) => ({ ...current, actor: event.target.value }))} /></label>
           <label><span>{t('evidenceSearch.victim')}</span><input value={draft.victim} maxLength={128} onChange={(event) => setDraft((current) => ({ ...current, victim: event.target.value }))} /></label>
+          <label><span>{t('evidenceSearch.player')}</span><input value={draft.player} maxLength={128} onChange={(event) => setDraft((current) => ({ ...current, player: event.target.value }))} /></label>
           <label><span>{t('evidenceSearch.weapon')}</span><input value={draft.weapon} maxLength={128} onChange={(event) => setDraft((current) => ({ ...current, weapon: event.target.value }))} /></label>
           <label><span>{t('evidenceSearch.map')}</span><input value={draft.map} maxLength={128} placeholder="de_mirage" onChange={(event) => setDraft((current) => ({ ...current, map: event.target.value }))} /></label>
           <label><span>{t('evidenceSearch.source')}</span><input value={draft.source} maxLength={128} onChange={(event) => setDraft((current) => ({ ...current, source: event.target.value }))} /></label>

@@ -817,7 +817,7 @@ mod tests {
         let response = dispatcher
             .oneshot(
                 Request::builder()
-                    .uri("/api/evidence/search?page=1&page_size=25")
+                    .uri("/api/evidence/search?player=76561198000000001&page=1&page_size=25")
                     .body(Body::empty())
                     .expect("request"),
             )
@@ -836,24 +836,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn evidence_search_route_rejects_an_oversized_page() {
+    async fn evidence_search_route_rejects_invalid_current_query_values() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
         let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
 
-        let response = dispatcher
-            .oneshot(
-                Request::builder()
-                    .uri("/api/evidence/search?page_size=101")
-                    .body(Body::empty())
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
+        for uri in [
+            "/api/evidence/search?page_size=101",
+            "/api/evidence/search?q=",
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(uri)
+                        .body(Body::empty())
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
 
-        assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
+            assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
+        }
     }
 
     #[tokio::test]

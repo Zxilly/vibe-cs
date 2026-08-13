@@ -3666,6 +3666,11 @@ const EVIDENCE_SEARCH_WHERE_SQL: &str = " WHERE NOT EXISTS (\
          OR EXISTS (SELECT 1 FROM evidence_search_victims AS v \
                     WHERE v.evidence_id = i.evidence_id \
                     AND (v.victim_id_key = :victim OR v.victim_name_key = :victim))) \
+    AND (:player IS NULL OR i.actor_id_key = :player OR i.actor_name_key = :player \
+         OR i.target_id_key = :player OR i.target_name_key = :player \
+         OR EXISTS (SELECT 1 FROM evidence_search_victims AS v \
+                    WHERE v.evidence_id = i.evidence_id \
+                    AND (v.victim_id_key = :player OR v.victim_name_key = :player))) \
     AND (:weapon IS NULL OR i.weapon_key = :weapon) \
     AND (:map IS NULL OR i.map_key = :map) \
     AND (:source IS NULL OR lower(trim(d.source)) = :source) \
@@ -3696,6 +3701,7 @@ fn search_evidence_rows(
     let event_family = query.event_family.map(event_family_text);
     let actor = query.actor.as_deref().map(search_key);
     let victim = query.victim.as_deref().map(search_key);
+    let player = query.player.as_deref().map(search_key);
     let weapon = query.weapon.as_deref().map(search_key);
     let map = query.map.as_deref().map(search_key);
     let source = query.source.as_deref().map(search_key);
@@ -3716,6 +3722,7 @@ fn search_evidence_rows(
             ":event_family": event_family,
             ":actor": actor,
             ":victim": victim,
+            ":player": player,
             ":weapon": weapon,
             ":map": map,
             ":source": source,
@@ -3744,6 +3751,7 @@ fn search_evidence_rows(
         ":event_family": event_family,
         ":actor": actor,
         ":victim": victim,
+        ":player": player,
         ":weapon": weapon,
         ":map": map,
         ":source": source,
@@ -4776,6 +4784,26 @@ mod tests {
             .expect("search NiKo kill");
         assert_eq!(niko.total, 1);
         assert_eq!(niko.items[0].source_id, "player_death-640-7");
+
+        let niko_player = storage
+            .search_evidence(vibe_cs_domain::EvidenceSearchQuery {
+                player: Some("niko-id".to_owned()),
+                ..vibe_cs_domain::EvidenceSearchQuery::default()
+            })
+            .await
+            .expect("search all evidence involving NiKo");
+        assert_eq!(niko_player.total, 1);
+        assert_eq!(niko_player.items[0].source_id, "player_death-640-7");
+
+        let highlight_victim = storage
+            .search_evidence(vibe_cs_domain::EvidenceSearchQuery {
+                player: Some("victim-a".to_owned()),
+                ..vibe_cs_domain::EvidenceSearchQuery::default()
+            })
+            .await
+            .expect("search all evidence involving a highlight victim");
+        assert_eq!(highlight_victim.total, 1);
+        assert_eq!(highlight_victim.items[0].source_id, "fallen-4k-r12");
     }
 
     #[tokio::test]

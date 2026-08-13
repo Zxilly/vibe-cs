@@ -33,6 +33,7 @@ pub struct EvidenceSearchQuery {
     pub event_family: Option<EvidenceEventFamily>,
     pub actor: Option<String>,
     pub victim: Option<String>,
+    pub player: Option<String>,
     pub weapon: Option<String>,
     pub map: Option<String>,
     pub source: Option<String>,
@@ -54,13 +55,11 @@ impl EvidenceSearchQuery {
     /// Returns [`crate::DomainError::InvalidInput`] when a supplied query,
     /// filter, date window, round, or page lies outside the public contract.
     pub fn validate(&self) -> Result<(), crate::DomainError> {
-        if self
-            .q
-            .as_deref()
-            .is_some_and(|value| value.trim().chars().count() > EVIDENCE_SEARCH_MAX_QUERY_CHARS)
-        {
+        if self.q.as_deref().is_some_and(|value| {
+            !(1..=EVIDENCE_SEARCH_MAX_QUERY_CHARS).contains(&value.trim().chars().count())
+        }) {
             return Err(crate::DomainError::InvalidInput(format!(
-                "q must contain at most {EVIDENCE_SEARCH_MAX_QUERY_CHARS} characters"
+                "q must contain 1 to {EVIDENCE_SEARCH_MAX_QUERY_CHARS} characters"
             )));
         }
         if self
@@ -82,6 +81,7 @@ impl EvidenceSearchQuery {
         for (name, value) in [
             ("actor", self.actor.as_deref()),
             ("victim", self.victim.as_deref()),
+            ("player", self.player.as_deref()),
             ("weapon", self.weapon.as_deref()),
             ("map", self.map.as_deref()),
             ("source", self.source.as_deref()),
@@ -174,13 +174,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn evidence_search_rejects_oversized_search_text() {
-        let query = EvidenceSearchQuery {
-            q: Some("x".repeat(EVIDENCE_SEARCH_MAX_QUERY_CHARS + 1)),
-            ..EvidenceSearchQuery::default()
-        };
-
-        assert!(query.validate().is_err());
+    fn evidence_search_rejects_empty_or_oversized_search_text() {
+        for q in [
+            String::new(),
+            " ".to_owned(),
+            "x".repeat(EVIDENCE_SEARCH_MAX_QUERY_CHARS + 1),
+        ] {
+            assert!(
+                EvidenceSearchQuery {
+                    q: Some(q),
+                    ..EvidenceSearchQuery::default()
+                }
+                .validate()
+                .is_err()
+            );
+        }
     }
 
     #[test]
@@ -216,6 +224,10 @@ mod tests {
             },
             EvidenceSearchQuery {
                 victim: Some("x".repeat(EVIDENCE_SEARCH_MAX_FILTER_CHARS + 1)),
+                ..EvidenceSearchQuery::default()
+            },
+            EvidenceSearchQuery {
+                player: Some(String::new()),
                 ..EvidenceSearchQuery::default()
             },
             EvidenceSearchQuery {

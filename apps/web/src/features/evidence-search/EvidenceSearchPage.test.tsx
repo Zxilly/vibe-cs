@@ -2,12 +2,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { EvidenceSearchPage } from './EvidenceSearchPage';
+import { EvidenceSearchPage, queryFromDraft } from './EvidenceSearchPage';
 
 describe('evidence search page', () => {
   it('renders a dense URL-backed evidence workbench without inventing loading counts', () => {
     const markup = renderToStaticMarkup(
-      <MemoryRouter initialEntries={['/evidence-search?q=FalleN&event_family=kill&headshot=false&round=20']}>
+      <MemoryRouter initialEntries={['/evidence-search?q=FalleN&event_family=kill&player=fallen-id&headshot=false&round=20']}>
         <EvidenceSearchPage />
       </MemoryRouter>,
     );
@@ -17,6 +17,7 @@ describe('evidence search page', () => {
     expect(markup).toContain('data-testid="evidence-search-results"');
     expect(markup).toContain('value="FalleN"');
     expect(markup).toContain('value="kill" selected=""');
+    expect(markup).toContain('value="fallen-id"');
     expect(markup).toContain('value="false" selected=""');
     expect(markup).toContain('value="20"');
     expect(markup).toContain('aria-busy="true"');
@@ -47,5 +48,14 @@ describe('evidence search page', () => {
 
     expect(markup).toContain('Parameter &quot;view&quot; must be exactly &quot;annotations&quot;.');
     expect(markup).not.toContain('data-testid="evidence-search-filters"');
+  });
+});
+
+describe('evidence search form contract', () => {
+  it('does not silently drop an out-of-range round', () => {
+    expect(() => queryFromDraft({
+      q: '', eventFamily: '', actor: '', victim: '', player: '', weapon: '', map: '', source: '',
+      sourceKind: '', headshot: '', round: '257', dateFrom: '', dateTo: '',
+    })).toThrow('Round must be between 1 and 256');
   });
 });

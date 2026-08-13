@@ -111,6 +111,7 @@ export type EvidenceSearchQuery = {
   event_family?: EvidenceSearchEventFamily;
   actor?: string;
   victim?: string;
+  player?: string;
   weapon?: string;
   map?: string;
   source?: string;

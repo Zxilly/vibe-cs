@@ -3,7 +3,6 @@ import {
   Bot,
   Check,
   ChevronRight,
-  CircleAlert,
   Database,
   Download,
   FileJson,
@@ -12,21 +11,18 @@ import {
   FolderCog,
   Gamepad2,
   HardDrive,
-  Clapperboard,
   Info,
   Languages,
   KeyRound,
   Link2,
   MonitorCog,
   Moon,
-  PlugZap,
   Radio,
   RefreshCw,
   Save,
   Server,
   Settings2,
   ShieldCheck,
-  Sparkles,
   Sun,
   Trash2,
   Unplug,
@@ -41,12 +37,8 @@ import type {
   AppConfig,
   DetectedPaths,
   MediaProxyCleanup,
-  MediaRuntimeStatus,
   HlaeStatus,
   LlmTestResult,
-  ObsDiagnosis,
-  ObsRecordStatus,
-  QuickCheckResponse,
   ReplayCacheCleanup,
   ReplayCacheStatus,
   StorageStatus,
@@ -64,13 +56,6 @@ import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
 import { useUiStore } from '../../shared/stores/uiStore';
 import { Badge, Button, Card, Field, Notice, PageHeader, Spinner, TextInput } from '../../shared/ui';
-import {
-  formatObsFrameRate,
-  hasUnsavedObsRuntimeSettings,
-  retryObsDiagnosis,
-} from './obsDiagnostics';
-import { ObsTuningSection } from './ObsTuningSection';
-import { RecordingCalibrationPanel } from './RecordingCalibrationPanel';
 
 type SettingsTab = 'general' | 'paths' | 'steam' | 'video' | 'analysis' | 'recording';
 type SettingsSource = 'loading' | 'service' | 'unavailable';
@@ -81,11 +66,7 @@ export const defaultConfig: AppConfig = {
   update_manifest_url: '',
   data_dir: '',
   demo_watch_paths: [],
-  ffmpeg_path: '',
-  ffprobe_path: '',
-  preferred_encoder: 'auto',
   cs2_path: '',
-  hlae_path: '',
   steam_path: '',
   steam: {
     steam_id: '',
@@ -97,37 +78,21 @@ export const defaultConfig: AppConfig = {
   steam_has_web_api_key: false,
   steam_has_authentication_code: false,
   steam_has_share_code: false,
-  obs: { host: '127.0.0.1', port: 4455, password: '', executable: '', scene: '' },
-  obs_has_password: false,
   llm: { provider: '', model: '', base_url: '', api_key: '', prompt: '' },
   llm_has_api_key: false,
   clear_llm_api_key: false,
   recording: {
     pre_roll_seconds: 3,
     post_roll_seconds: 2.5,
-    transition_seconds: 0.35,
     resolution: '1920x1080',
     fps: 60,
     show_radar: true,
-    radar_restore_visible: true,
-    show_keyboard: false,
     mute_voice: false,
-    voice_restore_volume: 1,
     camera_fov: 90,
-    camera_fov_restore: 90,
     viewmodel_fov: 68,
-    viewmodel_fov_restore: 68,
     flash_alpha: 255,
-    flash_alpha_restore: 255,
-    grenade_trajectory: false,
-    grenade_trajectory_restore: false,
     show_hud: true,
-    hud_restore_visible: true,
     isolate_target_voice: false,
-    first_person_hud_assets: '',
-    obs_realtime_kill_fx_media: '',
-    obs_realtime_keyboard_media: '',
-    capture_delay_ms: 0,
   },
 };
 
@@ -192,8 +157,6 @@ export function SettingsPage() {
     }
   };
 
-  const updateObs = <K extends keyof AppConfig['obs']>(key: K, value: AppConfig['obs'][K]) =>
-    setConfig((current) => ({ ...current, obs: { ...current.obs, [key]: value } }));
   const updateLlm = <K extends keyof AppConfig['llm']>(key: K, value: AppConfig['llm'][K]) =>
     setConfig((current) => ({
       ...current,
@@ -233,7 +196,7 @@ export function SettingsPage() {
           {tab === 'general' ? <><GeneralSettings theme={draftTheme} language={draftLanguage} setTheme={setDraftTheme} setLanguage={setDraftLanguage} config={config} /><ProductSettings config={config} savedManifestUrl={savedConfig?.update_manifest_url ?? ''} source={source} setConfig={setConfig} /></> : null}
           {tab === 'paths' ? <PathSettings config={config} setConfig={setConfig} /> : null}
           {tab === 'steam' ? <SteamSettings config={config} setConfig={setConfig} updateSteam={updateSteam} /> : null}
-          {tab === 'video' ? <VideoSettings config={config} savedConfig={savedConfig} source={source} setConfig={setConfig} updateObs={updateObs} /> : null}
+          {tab === 'video' ? <VideoSettings /> : null}
           {tab === 'analysis' ? <AnalysisSettings config={config} source={source} updateLlm={updateLlm} clearLlmApiKey={clearLlmApiKey} /> : null}
           {tab === 'recording' ? <RecordingSettings config={config} updateRecording={updateRecording} /> : null}
         </section>
@@ -437,9 +400,6 @@ function ProductSettings({ config, savedManifestUrl, source, setConfig }: { conf
         {openMessage ? <Notice tone="warning">{openMessage}</Notice> : null}
         {diagnosticAction.state.status === 'success' ? <Notice tone="success">{diagnosticAction.state.message ?? diagnosticAction.state.data.path}</Notice> : diagnosticAction.state.status === 'error' ? <Notice tone="danger">{diagnosticAction.state.message}</Notice> : null}
       </SettingsSection>
-      <SettingsSection eyebrow="MIGRATION" title={t('settings.migration')} description={t('settings.migrationDescription')}>
-        <Notice tone="info">VIBE_CS_PREVIOUS_DATA_DIR</Notice>
-      </SettingsSection>
     </div>
   );
 }
@@ -474,17 +434,19 @@ function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: Rea
     setConfig((current) => ({
       ...current,
       cs2_path: detected.cs2_path ?? current.cs2_path,
-      hlae_path: detected.hlae_path ?? current.hlae_path,
       steam_path: detected.steam_path ?? current.steam_path,
-      ffmpeg_path: detected.ffmpeg_path ?? current.ffmpeg_path,
-      ffprobe_path: detected.ffprobe_path ?? current.ffprobe_path,
-      obs: { ...current.obs, executable: detected.obs_path ?? current.obs.executable },
     }));
   };
   const checkHlae = async () => {
     await hlaeStatusAction.run(
-      () => commands.checkHlaeStatus(config.hlae_path, config.cs2_path),
+      () => commands.getHlaeStatus(),
       msg("m0511"),
+    );
+  };
+  const prepareHlae = async () => {
+    await hlaeStatusAction.run(
+      () => commands.prepareManagedHlae(),
+      t('settings.hlaePrepared'),
     );
   };
 
@@ -501,15 +463,15 @@ function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: Rea
           placeholder="C:\Program Files\...\cs2.exe"
           browse={{ kind: 'file', title: msg("m1217"), filters: [{ name: msg("m0081"), extensions: ['exe'] }] }}
         />
-        <PathField
-          icon={<Clapperboard size={15} />}
-          label="HLAE"
-          value={config.hlae_path}
-          onChange={(value) => setConfig((current) => ({ ...current, hlae_path: value }))}
-          placeholder="C:\\HLAE\\HLAE.exe"
-          browse={{ kind: 'file', title: t('settings.chooseHlae'), filters: [{ name: 'HLAE', extensions: ['exe'] }] }}
-        />
+        <Notice tone="info">
+          {t('settings.hlaeManagedDescription')}
+        </Notice>
         <div className="settings-inline-actions">
+          {!hlaeStatusAction.state.data?.managed_release.prepared ? (
+            <Button size="sm" disabled={hlaeStatusAction.state.status === 'loading'} onClick={() => void prepareHlae()}>
+              {hlaeStatusAction.state.status === 'loading' ? <Spinner /> : <Download size={13} />}{t('settings.prepareHlae')}
+            </Button>
+          ) : null}
           <Button size="sm" variant="secondary" disabled={hlaeStatusAction.state.status === 'loading'} onClick={() => void checkHlae()}>
             {hlaeStatusAction.state.status === 'loading' ? <Spinner /> : <ShieldCheck size={13} />}{t('settings.checkHlae')}
           </Button>
@@ -521,7 +483,8 @@ function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: Rea
         </div>
         {hlaeStatusAction.state.data ? (
           <Notice tone={hlaeStatusAction.state.data.launch_profile_ready ? 'info' : 'warning'}>
-            {hlaeStatusAction.state.data.executable ?? hlaeStatusAction.state.data.messages[0]}
+            {hlaeStatusAction.state.data.managed_release.version}
+            {' · '}{hlaeStatusAction.state.data.executable ?? hlaeStatusAction.state.data.messages[0]}
             {' · '}{t('settings.hlaeSafety')}
           </Notice>
         ) : hlaeStatusAction.state.message ? (
@@ -558,168 +521,19 @@ function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: Rea
   );
 }
 
-type ObsDiagnosisState =
-  | { status: 'idle'; data: null; message: null }
-  | { status: 'loading'; data: null; message: null }
-  | { status: 'success'; data: ObsDiagnosis; message: null }
-  | { status: 'error'; data: null; message: string };
-
-export function VideoSettings({
-  config,
-  savedConfig,
-  source,
-  setConfig,
-  updateObs,
-}: {
-  config: AppConfig;
-  savedConfig: AppConfig | null;
-  source: SettingsSource;
-  setConfig: React.Dispatch<React.SetStateAction<AppConfig>>;
-  updateObs: <K extends keyof AppConfig['obs']>(key: K, value: AppConfig['obs'][K]) => void;
-}) {
+export function VideoSettings() {
   const { t } = useI18n();
-  const dependencyAction = useAsyncAction<QuickCheckResponse>();
-  const mediaRuntimeAction = useAsyncAction<MediaRuntimeStatus>();
-  const testAction = useAsyncAction<ObsRecordStatus>();
-  const launchAction = useAsyncAction<{ started: boolean; process_id: number }>();
-  const diagnosisController = useRef<AbortController | null>(null);
-  const [diagnosisState, setDiagnosisState] = useState<ObsDiagnosisState>({
-    status: 'idle',
-    data: null,
-    message: null,
-  });
-  const hasUnsavedRuntimeSettings = savedConfig
-    ? hasUnsavedObsRuntimeSettings(config, savedConfig)
-    : false;
-  const savedObsConfigured = Boolean(savedConfig?.obs.host.trim() && savedConfig.obs.port > 0);
-  const savedExecutableConfigured = Boolean(savedConfig?.obs.executable.trim());
-
-  useEffect(() => {
-    if (source === 'service') {
-      void mediaRuntimeAction.run(() => commands.mediaRuntimeStatus());
-    } else {
-      mediaRuntimeAction.reset();
-    }
-  }, [mediaRuntimeAction.reset, mediaRuntimeAction.run, source]);
-
-  const refreshDiagnosis = useCallback(async (retryAfterLaunch = false) => {
-    diagnosisController.current?.abort();
-    if (source !== 'service') {
-      setDiagnosisState({ status: 'idle', data: null, message: null });
-      return;
-    }
-
-    const controller = new AbortController();
-    diagnosisController.current = controller;
-    setDiagnosisState({ status: 'loading', data: null, message: null });
-    try {
-      const response = retryAfterLaunch
-        ? await retryObsDiagnosis(commands.diagnoseObs, { signal: controller.signal })
-        : await commands.diagnoseObs(controller.signal);
-      if (!controller.signal.aborted) {
-        setDiagnosisState({ status: 'success', data: response, message: null });
-      }
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        setDiagnosisState({ status: 'error', data: null, message: readableError(error) });
-      }
-    }
-  }, [source]);
-
-  useEffect(() => {
-    if (source === 'service' && savedConfig) void refreshDiagnosis();
-    return () => diagnosisController.current?.abort();
-  }, [refreshDiagnosis, savedConfig, source]);
-
-  const launchObs = async () => {
-    const result = await launchAction.run(
-      () => commands.startObs(),
-      msg("m0050"),
-    );
-    if (result) await refreshDiagnosis(true);
-  };
 
   return (
     <div className="settings-stack-page">
-      <SettingsSection eyebrow="MEDIA TOOLCHAIN" title={t('settings.mediaRuntime')} description={t('settings.mediaRuntimeDescription')}>
-        {mediaRuntimeAction.state.status === 'loading' ? <Notice tone="info"><Spinner />{msg("m0872")}</Notice> : null}
-        {mediaRuntimeAction.state.status === 'success' ? <Notice tone="success">{t('settings.mediaRuntimeManaged')}</Notice> : null}
-        {mediaRuntimeAction.state.status === 'error' ? <Notice tone="danger">{mediaRuntimeAction.state.message}</Notice> : null}
-        {mediaRuntimeAction.state.status === 'success' ? <div className="dependency-inline"><span className="setup-row__icon"><FilmIcon /></span><div><strong>{mediaRuntimeAction.state.data.backend}</strong><small>libavcodec {mediaRuntimeAction.state.data.version} · {mediaRuntimeAction.state.data.license}</small></div><Badge tone="success">Native</Badge></div> : null}
-        {mediaRuntimeAction.state.status === 'success' ? <Notice tone="info">{t('settings.encoderAvailable')}: {mediaRuntimeAction.state.data.encoders.join(', ')}</Notice> : null}
-        <Field label={msg("m1324")} hint={t('settings.encoderDescription')}><select value={config.preferred_encoder} onChange={(event) => setConfig((current) => ({ ...current, preferred_encoder: event.target.value as AppConfig['preferred_encoder'] }))}><option value="auto">{msg("m1096")}</option><option value="libopenh264">OpenH264 (CPU)</option><option value="h264_mf">Media Foundation</option><option value="h264_nvenc">NVIDIA NVENC</option><option value="h264_qsv">Intel Quick Sync</option><option value="h264_amf">AMD AMF</option></select></Field>
-        <div className="dependency-inline"><span className="setup-row__icon setup-row__icon--warning"><CircleAlert size={14} /></span><div><strong>{msg("m0204")}</strong><small>{msg("m0744")}</small></div><Button size="sm" disabled={dependencyAction.state.status === 'loading'} onClick={() => void dependencyAction.run(() => commands.quickCheck(), msg("m0205"))} >{dependencyAction.state.status === 'loading' ? <Spinner /> : <RefreshCw size={13} />}{msg("m0830")}</Button></div>
-        {dependencyAction.state.message ? <Notice tone={dependencyAction.state.status === 'error' ? 'danger' : 'success'}>{dependencyAction.state.message}</Notice> : null}
-      </SettingsSection>
-      <SettingsSection eyebrow="OBS WEBSOCKET" title={msg("m0048")} description={msg("m1212")}>
-        {source !== 'service' ? <Notice tone="warning" title={msg("m0769")}>{msg("m0912")}</Notice> : null}
-        {source === 'service' && !isDesktopShell() ? <Notice tone="info">{msg("m0575")}</Notice> : null}
-        {hasUnsavedRuntimeSettings ? <Notice tone="warning" title={msg("m0438")}>{msg("m0143")}</Notice> : null}
-        <PathField icon={<Video size={15} />} label={msg("m0049")} value={config.obs.executable} onChange={(value) => updateObs('executable', value)} placeholder={msg("m0086")} browse={{ kind: 'file', title: msg("m1222"), filters: [{ name: msg("m0081"), extensions: ['exe'] }] }} />
-        <div className="field-row"><Field label={msg("m0167")}><TextInput value={config.obs.host} onChange={(event) => updateObs('host', event.target.value)} /></Field><Field label={msg("m1057")}><TextInput type="number" value={config.obs.port} onChange={(event) => updateObs('port', Number(event.target.value))} /></Field></div>
-        <Field label={msg("m0449")} hint={config.obs_has_password && !config.obs.password ? msg("m0492") : msg("m0450")}><TextInput type="password" value={config.obs.password} onChange={(event) => updateObs('password', event.target.value)} autoComplete="new-password" placeholder={config.obs_has_password ? msg("m0508") : undefined} /></Field>
-        <Field label={msg("m0596")} hint={msg("m1208")}><TextInput value={config.obs.scene} onChange={(event) => updateObs('scene', event.target.value)} placeholder="Capture" /></Field>
-        <div className="field-row obs-control-actions">
-          <Button disabled={source !== 'service' || !config.obs.host.trim() || config.obs.port <= 0 || testAction.state.status === 'loading'} onClick={() => void testAction.run(() => commands.testObs(config.obs), msg("m0587"))}>{testAction.state.status === 'loading' ? <Spinner /> : <PlugZap size={14} />}{msg("m0908")}</Button>
-          <Button variant="primary" disabled={source !== 'service' || hasUnsavedRuntimeSettings || !savedExecutableConfigured || launchAction.state.status === 'loading'} title={hasUnsavedRuntimeSettings ? msg("m1131") : savedExecutableConfigured ? msg("m0203") : msg("m1130")} onClick={() => void launchObs()}>{launchAction.state.status === 'loading' ? <Spinner /> : <Video size={14} />}{msg("m0363")}</Button>
+      <SettingsSection eyebrow="MOVIE PIPELINE" title={t('settings.moviePipeline')} description={t('settings.moviePipelineDescription')}>
+        <div className="dependency-inline">
+          <span className="setup-row__icon"><FileVideo2 size={15} /></span>
+          <div><strong>HLAE → MP4</strong><small>{t('settings.moviePipelineManaged')}</small></div>
+          <Badge tone="neutral">{t('settings.noExternalTools')}</Badge>
         </div>
-        {testAction.state.message ? <Notice tone={testAction.state.status === 'error' ? 'danger' : 'success'}>{testAction.state.message}</Notice> : null}
-        {launchAction.state.message ? <Notice tone={launchAction.state.status === 'error' ? 'danger' : 'success'}>{launchAction.state.message}</Notice> : null}
-        <div className="obs-diagnosis-heading">
-          <div><strong>{msg("m0447")}</strong><small>{msg("m0402")}</small></div>
-          <Button size="sm" disabled={source !== 'service' || !savedObsConfigured || diagnosisState.status === 'loading'} onClick={() => void refreshDiagnosis()}>{diagnosisState.status === 'loading' ? <Spinner /> : <RefreshCw size={13} />}{msg("m0295")}</Button>
-        </div>
-        {diagnosisState.status === 'success' ? <ObsDiagnosisDetails diagnosis={diagnosisState.data} selectedScene={config.obs.scene} expectedResolution={savedConfig?.recording.resolution ?? config.recording.resolution} expectedFps={savedConfig?.recording.fps ?? config.recording.fps} onSelectScene={(scene) => updateObs('scene', scene)} /> : null}
-        {diagnosisState.status === 'loading' ? <Notice tone="info">{msg("m0875")}</Notice> : null}
-        {diagnosisState.status === 'error' ? <Notice tone="danger" title={msg("m0060")}>{diagnosisState.message}</Notice> : null}
-        {diagnosisState.status === 'idle' && source === 'service' ? <Notice tone="info">{msg("m0209")}</Notice> : null}
-        <ObsTuningSection
-          serviceAvailable={source === 'service'}
-          serviceLoading={source === 'loading'}
-          savedConfigAvailable={savedConfig !== null}
-          savedObsConfigured={savedObsConfigured}
-          hasUnsavedRuntimeSettings={hasUnsavedRuntimeSettings}
-        />
+        <Notice tone="info">{t('settings.moviePipelineAutomaticEncoding')}</Notice>
       </SettingsSection>
-    </div>
-  );
-}
-
-export function ObsDiagnosisDetails({
-  diagnosis,
-  selectedScene,
-  expectedResolution,
-  expectedFps,
-  onSelectScene,
-}: {
-  diagnosis: ObsDiagnosis;
-  selectedScene: string;
-  expectedResolution: string;
-  expectedFps: number;
-  onSelectScene: (scene: string) => void;
-}) {
-  const sceneMissing = Boolean(selectedScene && !diagnosis.scenes.scenes.includes(selectedScene));
-  const unavailableDependencies = diagnosis.dependencies.dependencies.filter((item) => !item.available);
-  return (
-    <div className="obs-diagnosis" aria-label={msg("m0051")}>
-      <div className="obs-diagnostic-grid">
-        <div><span>{msg("m1207")}</span><strong>{msg("m0080")}</strong><Badge tone="success">{msg("m0394")}</Badge></div>
-        <div><span>{msg("m0592")}</span><strong>{diagnosis.recording.active ? diagnosis.recording.paused ? msg("m0520") : msg("m0848") : msg("m0754")}</strong><Badge tone={diagnosis.recording.active ? 'warning' : 'neutral'}>{diagnosis.recording.active ? diagnosis.recording.timecode ?? msg("m0907") : msg("m1051")}</Badge></div>
-        <div><span>{msg("m1191")}</span><strong>{diagnosis.video.output_width} × {diagnosis.video.output_height}</strong><Badge tone={diagnosis.resolution_matches ? 'success' : 'warning'}>{diagnosis.resolution_matches ? msg("m0310") : msgf("m0749", [expectedResolution])}</Badge></div>
-        <div><span>{msg("m1189")}</span><strong>{formatObsFrameRate(diagnosis.video)}</strong><Badge tone={diagnosis.fps_matches ? 'success' : 'warning'}>{diagnosis.fps_matches ? msg("m0310") : msgf("m0750", [expectedFps])}</Badge></div>
-      </div>
-      <div className="field-row obs-scene-row">
-        <Field label={msg("m0446")} hint={msgf("m0054", [diagnosis.scenes.current_program_scene])}>
-          <select value={selectedScene} onChange={(event) => onSelectScene(event.target.value)}>
-            <option value="">{msg("m0760")}</option>
-            {sceneMissing ? <option value={selectedScene}>{selectedScene}{msg("m1332")}</option> : null}
-            {diagnosis.scenes.scenes.map((scene) => <option key={scene} value={scene}>{scene}{scene === diagnosis.scenes.current_program_scene ? msg("m1334") : ''}</option>)}
-          </select>
-        </Field>
-        <div className="obs-saved-scene"><span>{msg("m0489")}</span><strong>{diagnosis.configured_scene || msg("m0759")}</strong><Badge tone={diagnosis.scene_ready ? 'success' : 'warning'}>{diagnosis.scene_ready ? msg("m0350") : msg("m1287")}</Badge></div>
-      </div>
-      {diagnosis.warnings.length > 0 ? <Notice tone="warning" title={msg("m1121")}>{diagnosis.warnings.join('；')}</Notice> : <Notice tone="success">{msg("m0488")}</Notice>}
-      {unavailableDependencies.length > 0 ? <Notice tone="warning" title={msg("m0806")}>{unavailableDependencies.map((item) => msgf("m0121", [item.name, item.message ?? msg("m0147")])).join(msg("m1339"))}</Notice> : null}
     </div>
   );
 }
@@ -773,7 +587,7 @@ function AnalysisSettings({ config, source, updateLlm, clearLlmApiKey }: { confi
     <div className="settings-stack-page">
       <SettingsSection eyebrow="LOCAL ANALYSIS" title={msg("m0803")} description={msg("m0405")}>
         <div className="feature-status"><span className="feature-status__icon"><Check size={16} /></span><div><strong>{msg("m0804")}</strong><small>{msg("m0032")}</small></div><Badge tone="success">{msg("m1329")}</Badge></div>
-        <div className="feature-status"><span className="feature-status__icon">{cacheLoading ? <Spinner /> : <Check size={16} />}</span><div><strong>{msg("m0018")}</strong><small>{cacheStatus ? msgf("m0113", [cacheStatus.entries.toLocaleString(currentLocale()), formatBytes(cacheStatus.bytes), formatBytes(cacheStatus.maximum_bytes), cacheStatus.version, cacheStatus.scan_complete ? '' : msg("m1340")]) : cacheError ?? msg("m0872")}</small></div><Badge tone={cacheError || cacheStatus?.scan_complete === false ? 'warning' : cacheStatus ? 'success' : 'neutral'}>{cacheStatus ? msg("m0350") : cacheError ? msg("m0147") : msg("m1149")}</Badge></div>
+        <div className="feature-status"><span className="feature-status__icon">{cacheLoading ? <Spinner /> : <Check size={16} />}</span><div><strong>{msg("m0018")}</strong><small>{cacheStatus ? `${cacheStatus.entries.toLocaleString(currentLocale())} · ${formatBytes(cacheStatus.bytes)} / ${formatBytes(cacheStatus.maximum_bytes)}${cacheStatus.scan_complete ? '' : ` · ${msg("m1340")}`}` : cacheError ?? msg("m0872")}</small></div><Badge tone={cacheError || cacheStatus?.scan_complete === false ? 'warning' : cacheStatus ? 'success' : 'neutral'}>{cacheStatus ? msg("m0350") : cacheError ? msg("m0147") : msg("m1149")}</Badge></div>
         <div className="field-row"><Button size="sm" disabled={source !== 'service' || cacheLoading} onClick={() => setCacheRefresh((value) => value + 1)}>{cacheLoading ? <Spinner /> : <RefreshCw size={13} />}{msg("m0293")}</Button><Button size="sm" variant="danger" disabled={source !== 'service' || cleanupAction.state.status === 'loading'} onClick={() => void clearCache()}>{cleanupAction.state.status === 'loading' ? <Spinner /> : <Trash2 size={13} />}{msg("m0925")}</Button></div>
         {cleanupAction.state.status === 'success' ? <Notice tone={cleanupAction.state.data.failed_entries > 0 || !cleanupAction.state.data.scan_complete ? 'warning' : 'success'}>{msg("m0499")} {cleanupAction.state.data.removed_entries.toLocaleString(currentLocale())} {msg("m1309")} {formatBytes(cleanupAction.state.data.freed_bytes)}。{cleanupAction.state.data.failed_entries > 0 ? msgf("m0002", [cleanupAction.state.data.failed_entries.toLocaleString(currentLocale())]) : ''}{cleanupAction.state.data.scan_complete ? '' : msg("m0012")}</Notice> : cleanupAction.state.status === 'error' ? <Notice tone="danger">{cleanupAction.state.message}</Notice> : null}
       </SettingsSection>
@@ -794,43 +608,26 @@ function AnalysisSettings({ config, source, updateLlm, clearLlmApiKey }: { confi
   );
 }
 
-function RecordingSettings({ config, updateRecording }: { config: AppConfig; updateRecording: <K extends keyof AppConfig['recording']>(key: K, value: AppConfig['recording'][K]) => void }) {
+export function RecordingSettings({ config, updateRecording }: { config: AppConfig; updateRecording: <K extends keyof AppConfig['recording']>(key: K, value: AppConfig['recording'][K]) => void }) {
+  const { t } = useI18n();
   return (
     <div className="settings-stack-page">
       <SettingsSection eyebrow="CLIP PACING" title={msg("m0967")} description={msg("m0693")}>
-        <div className="field-row"><Field label={msg("m0297")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={config.recording.pre_roll_seconds} onChange={(event) => updateRecording('pre_roll_seconds', Number(event.target.value))} /><span>{msg("m1044")}</span></div></Field><Field label={msg("m0361")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={config.recording.post_roll_seconds} onChange={(event) => updateRecording('post_roll_seconds', Number(event.target.value))} /><span>{msg("m1044")}</span></div></Field><Field label={msg("m1174")}><div className="number-control"><input type="number" min="0" max="2" step="0.05" value={config.recording.transition_seconds} onChange={(event) => updateRecording('transition_seconds', Number(event.target.value))} /><span>{msg("m1044")}</span></div></Field></div>
+        <div className="field-row"><Field label={msg("m0297")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={config.recording.pre_roll_seconds} onChange={(event) => updateRecording('pre_roll_seconds', Number(event.target.value))} /><span>{msg("m1044")}</span></div></Field><Field label={msg("m0361")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={config.recording.post_roll_seconds} onChange={(event) => updateRecording('post_roll_seconds', Number(event.target.value))} /><span>{msg("m1044")}</span></div></Field></div>
       </SettingsSection>
-      <SettingsSection eyebrow="CAPTURE DEFAULTS" title={msg("m0997")} description={msg("m0448")}>
-        <Notice tone="info">{msg("m0620")}</Notice>
+      <SettingsSection eyebrow="NATIVE PIPELINE" title={t('settings.hlaeCaptureDefaults')} description={t('settings.hlaeCaptureDefaultsDescription')}>
+        <Notice tone="info">HLAE → Windows Media Foundation → MP4 · {t('settings.noExternalTools')}</Notice>
         <div className="field-row"><Field label={msg("m0275")}><select value={config.recording.resolution} onChange={(event) => updateRecording('resolution', event.target.value)}><option value="1920x1080">1920 × 1080</option><option value="2560x1440">2560 × 1440</option><option value="3840x2160">3840 × 2160</option></select></Field><Field label={msg("m0549")}><select value={config.recording.fps} onChange={(event) => updateRecording('fps', Number(event.target.value))}><option value="30">30 FPS</option><option value="60">60 FPS</option></select></Field></div>
+      </SettingsSection>
+      <SettingsSection eyebrow="VERIFIED PRESENTATION" title={t('settings.hlaePresentation')} description={t('settings.hlaePresentationDescription')}>
+        <Notice tone="info">{t('settings.hlaeJobIsolation')}</Notice>
         <div className="toggle-list">
           <label><span><Gamepad2 size={15} /><span><strong>{msg("m0600")}</strong><small>{msg("m0594")}</small></span></span><input type="checkbox" checked={config.recording.show_radar} onChange={(event) => updateRecording('show_radar', event.target.checked)} /></label>
-          <label><span><Gamepad2 size={15} /><span><strong>{msg("m0198")}</strong><small>{msg("m0615")}</small></span></span><input type="checkbox" checked={config.recording.radar_restore_visible} onChange={(event) => updateRecording('radar_restore_visible', event.target.checked)} /></label>
-          <label><span><MonitorCog size={15} /><span><strong>{msg("m0657")}</strong><small>{msg("m0697")}</small></span></span><input type="checkbox" checked={config.recording.show_keyboard} onChange={(event) => updateRecording('show_keyboard', event.target.checked)} /></label>
-          <label><span><Radio size={15} /><span><strong>{msg("m0601")}</strong><small>{msg("m0196")}</small></span></span><input type="checkbox" checked={config.recording.mute_voice} onChange={(event) => { updateRecording('mute_voice', event.target.checked); if (event.target.checked) updateRecording('isolate_target_voice', false); }} /></label>
-        </div>
-        {config.recording.mute_voice ? <Field label={msg("m0197")} hint={msg("m0614")}><div className="number-control"><input type="number" min="0" max="100" step="5" value={Math.round(config.recording.voice_restore_volume * 100)} onChange={(event) => { const percent = Number(event.target.value); if (Number.isFinite(percent)) updateRecording('voice_restore_volume', Math.min(100, Math.max(0, percent)) / 100); }} /><span>%</span></div></Field> : null}
-      </SettingsSection>
-      <SettingsSection eyebrow="CAMERA PREHEAT" title={msg("m1061")} description={msg("m0881")}>
-        <div className="field-row"><Field label={msg("m1274")}><div className="number-control"><input type="number" min="60" max="140" value={config.recording.camera_fov} onChange={(event) => updateRecording('camera_fov', Number(event.target.value))} /><span>°</span></div></Field><Field label={msg("m0626")}><div className="number-control"><input type="number" min="60" max="140" value={config.recording.camera_fov_restore} onChange={(event) => updateRecording('camera_fov_restore', Number(event.target.value))} /><span>°</span></div></Field></div>
-        <div className="field-row"><Field label={msg("m0654")}><div className="number-control"><input type="number" min="54" max="68" value={config.recording.viewmodel_fov} onChange={(event) => updateRecording('viewmodel_fov', Number(event.target.value))} /><span>°</span></div></Field><Field label={msg("m0625")}><div className="number-control"><input type="number" min="54" max="68" value={config.recording.viewmodel_fov_restore} onChange={(event) => updateRecording('viewmodel_fov_restore', Number(event.target.value))} /><span>°</span></div></Field></div>
-        <div className="field-row"><Field label={msg("m1278")}><div className="number-control"><input type="number" min="0" max="255" value={config.recording.flash_alpha} onChange={(event) => updateRecording('flash_alpha', Number(event.target.value))} /><span>/255</span></div></Field><Field label={msg("m0627")}><div className="number-control"><input type="number" min="0" max="255" value={config.recording.flash_alpha_restore} onChange={(event) => updateRecording('flash_alpha_restore', Number(event.target.value))} /><span>/255</span></div></Field></div>
-        <div className="toggle-list">
           <label><span><Gamepad2 size={15} /><span><strong>{msg("m0729")}</strong><small>{msg("m0602")}</small></span></span><input type="checkbox" checked={config.recording.show_hud} onChange={(event) => updateRecording('show_hud', event.target.checked)} /></label>
-          <label><span><Gamepad2 size={15} /><span><strong>{msg("m1080")}</strong><small>{msg("m0723")}</small></span></span><input type="checkbox" checked={config.recording.hud_restore_visible} onChange={(event) => updateRecording('hud_restore_visible', event.target.checked)} /></label>
-          <label><span><Sparkles size={15} /><span><strong>{msg("m0728")}</strong><small>{msg("m0341")}</small></span></span><input type="checkbox" checked={config.recording.grenade_trajectory} onChange={(event) => updateRecording('grenade_trajectory', event.target.checked)} /></label>
-          <label><span><Sparkles size={15} /><span><strong>{msg("m1079")}</strong><small>{msg("m0552")}</small></span></span><input type="checkbox" checked={config.recording.grenade_trajectory_restore} onChange={(event) => updateRecording('grenade_trajectory_restore', event.target.checked)} /></label>
+          <label><span><Radio size={15} /><span><strong>{msg("m0601")}</strong><small>{msg("m0196")}</small></span></span><input type="checkbox" checked={config.recording.mute_voice} onChange={(event) => { updateRecording('mute_voice', event.target.checked); if (event.target.checked) updateRecording('isolate_target_voice', false); }} /></label>
           <label><span><Radio size={15} /><span><strong>{msg("m0339")}</strong><small>{msg("m0181")}</small></span></span><input type="checkbox" checked={config.recording.isolate_target_voice} onChange={(event) => { updateRecording('isolate_target_voice', event.target.checked); if (event.target.checked) updateRecording('mute_voice', false); }} /></label>
         </div>
-      </SettingsSection>
-      <SettingsSection eyebrow="USER ASSETS" title={msg("m1060")} description={msg("m0344")}>
-        <PathField icon={<FolderCog size={15} />} label={msg("m0041")} value={config.recording.first_person_hud_assets} onChange={(value) => updateRecording('first_person_hud_assets', value)} placeholder={msg("m0309")} browse={{ kind: 'directory', title: msg("m1237") }} />
-        <PathField icon={<FileVideo2 size={15} />} label={msg("m0065")} value={config.recording.obs_realtime_kill_fx_media} onChange={(value) => updateRecording('obs_realtime_kill_fx_media', value)} placeholder={msg("m1243")} browse={{ kind: 'file', title: msg("m1223"), filters: [{ name: msg("m1244"), extensions: ['webm', 'mov', 'mp4', 'png'] }] }} />
-        <PathField icon={<FileVideo2 size={15} />} label={msg("m0055")} value={config.recording.obs_realtime_keyboard_media} onChange={(value) => updateRecording('obs_realtime_keyboard_media', value)} placeholder={msg("m0994")} browse={{ kind: 'file', title: msg("m1224"), filters: [{ name: msg("m0431"), extensions: ['webm', 'mov', 'mp4', 'png'] }] }} />
-      </SettingsSection>
-      <SettingsSection eyebrow="SYNC DIAGNOSTICS" title={msg("m0998")} description={msg("m1104")}>
-        <Field label={msg("m0574")}><div className="number-control"><input type="number" min="-5000" max="5000" value={config.recording.capture_delay_ms} onChange={(event) => updateRecording('capture_delay_ms', Number(event.target.value))} /><span>ms</span></div></Field>
-        <RecordingCalibrationPanel onApply={(delayMs) => updateRecording('capture_delay_ms', delayMs)} />
+        <div className="field-row"><Field label={msg("m1274")}><div className="number-control"><input type="number" min="60" max="140" value={config.recording.camera_fov} onChange={(event) => updateRecording('camera_fov', Number(event.target.value))} /><span>°</span></div></Field><Field label={msg("m0654")}><div className="number-control"><input type="number" min="54" max="68" value={config.recording.viewmodel_fov} onChange={(event) => updateRecording('viewmodel_fov', Number(event.target.value))} /><span>°</span></div></Field><Field label={msg("m1278")}><div className="number-control"><input type="number" min="0" max="255" value={config.recording.flash_alpha} onChange={(event) => updateRecording('flash_alpha', Number(event.target.value))} /><span>/255</span></div></Field></div>
       </SettingsSection>
     </div>
   );
@@ -892,5 +689,3 @@ function PathField({
     </Field>
   );
 }
-
-function FilmIcon() { return <FileVideo2 size={15} />; }

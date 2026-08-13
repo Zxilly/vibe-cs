@@ -3,10 +3,10 @@ export type EntityId = string;
 export type ApiHealth = {
   status: 'ok' | 'degraded';
   version: string;
-  started_at?: string;
+  started_at: string;
 };
 
-export type DependencyKind = 'game' | 'obs' | 'ffmpeg' | 'encoder' | 'storage';
+export type DependencyKind = 'game';
 export type DependencyState = 'ready' | 'warning' | 'missing' | 'checking';
 
 export type DependencyCheck = {
@@ -22,112 +22,6 @@ export type QuickCheckResponse = {
   checked_at: string;
 };
 
-export type ObsRecordStatus = {
-  active: boolean;
-  paused: boolean;
-  timecode: string | null;
-  output_path: string | null;
-};
-
-export type ObsSceneStatus = {
-  current_program_scene: string;
-  scenes: string[];
-};
-
-export type ObsVideoSettings = {
-  base_width: number;
-  base_height: number;
-  output_width: number;
-  output_height: number;
-  fps_numerator: number;
-  fps_denominator: number;
-};
-
-export type ObsDependencyStatus = {
-  name: string;
-  available: boolean;
-  version: string | null;
-  path: string | null;
-  message: string | null;
-};
-
-export type ObsDiagnosis = {
-  recording: ObsRecordStatus;
-  scenes: ObsSceneStatus;
-  video: ObsVideoSettings;
-  configured_scene: string;
-  scene_ready: boolean;
-  resolution_matches: boolean;
-  fps_matches: boolean;
-  ready: boolean;
-  warnings: string[];
-  dependencies: {
-    ready: boolean;
-    dependencies: ObsDependencyStatus[];
-  };
-};
-
-export type ObsStartResponse = {
-  started: boolean;
-  process_id: number;
-};
-
-export type ObsVideoSettingsSnapshot = {
-  base_width: number;
-  base_height: number;
-  output_width: number;
-  output_height: number;
-  fps_numerator: number;
-  fps_denominator: number;
-};
-
-export type ObsVideoField = 'output_resolution' | 'frame_rate';
-
-export type ObsVideoFieldDiff = {
-  field: ObsVideoField;
-  current: string;
-  target: string;
-};
-
-export type ObsVideoTuningPlan = {
-  current: ObsVideoSettingsSnapshot;
-  target: ObsVideoSettingsSnapshot;
-  diff: ObsVideoFieldDiff[];
-  expected_fingerprint: string;
-  recording_active: boolean;
-  warnings: string[];
-  managed_fields: string[];
-  excluded_fields: string[];
-};
-
-export type ObsVideoBackupReason = 'apply' | 'before_restore';
-
-export type ObsVideoBackup = {
-  id: EntityId;
-  created_at: string;
-  reason: ObsVideoBackupReason;
-  settings: ObsVideoSettingsSnapshot;
-  settings_fingerprint: string;
-};
-
-export type ObsVideoApplyResult = {
-  applied: boolean;
-  backup: ObsVideoBackup | null;
-  settings: ObsVideoSettingsSnapshot;
-};
-
-export type ObsVideoRestoreResult = {
-  restored: boolean;
-  restored_backup_id: EntityId;
-  rollback_backup: ObsVideoBackup | null;
-  settings: ObsVideoSettingsSnapshot;
-};
-
-export type ObsVideoBackupDeleteResult = {
-  id: EntityId;
-  deleted: boolean;
-};
-
 export type StorageStatus = {
   data_dir: string;
   directory_bytes: number;
@@ -141,24 +35,12 @@ export type StorageStatus = {
 
 export type DetectedPaths = {
   cs2_path: string | null;
-  hlae_path: string | null;
   steam_path: string | null;
-  obs_path: string | null;
-  ffmpeg_path: string | null;
-  ffprobe_path: string | null;
-};
-
-export type MediaRuntimeStatus = {
-  available: boolean;
-  backend: 'ffmpeg-next';
-  version: string;
-  license: string;
-  encoders: string[];
 };
 
 export type DemoStatus = 'pending' | 'parsing' | 'ready' | 'error';
 
-/** Wire DTO mirrored from vibe-cs-domain::DemoRecord. */
+/** Current demo-summary wire returned by the desktop API. */
 export type DemoRecord = {
   id: EntityId;
   path: string;
@@ -174,6 +56,7 @@ export type DemoRecord = {
   team_b_name: string | null;
   team_a_score: number | null;
   team_b_score: number | null;
+  players: string[];
   remark: string;
   content_sha256: string | null;
   file_size: number;
@@ -181,20 +64,36 @@ export type DemoRecord = {
   updated_at: string;
 };
 
+export type DemoLifecycleStatus = DemoRecord['status'];
+
+export type DemoSort =
+  | 'updated_desc' | 'updated_asc'
+  | 'file_asc' | 'file_desc'
+  | 'status_asc' | 'status_desc'
+  | 'map_asc' | 'map_desc'
+  | 'score_asc' | 'score_desc'
+  | 'duration_asc' | 'duration_desc'
+  | 'rounds_asc' | 'rounds_desc';
+
 export type DemoSummary = {
   id: EntityId;
+  path: string;
   filename: string;
   display_name: string;
   map_name: string;
   played_at: string;
   duration_seconds: number;
   total_rounds: number;
-  score_team_a: number;
-  score_team_b: number;
+  score_team_a: number | null;
+  score_team_b: number | null;
+  team_a_name: string | null;
+  team_b_name: string | null;
   status: DemoStatus;
+  lifecycle_status: DemoRecord['status'];
   players: string[];
   source: 'watch' | 'upload' | 'local';
-  remark?: string;
+  remark: string;
+  updated_at: string;
 };
 
 export type Paginated<T> = {
@@ -204,11 +103,73 @@ export type Paginated<T> = {
   page_size: number;
 };
 
+export type EvidenceSearchEventFamily = 'kill' | 'multi_kill' | 'objective' | 'round_start';
+export type EvidenceSearchSourceKind = 'event' | 'highlight';
+
+export type EvidenceSearchQuery = {
+  q?: string;
+  event_family?: EvidenceSearchEventFamily;
+  actor?: string;
+  victim?: string;
+  weapon?: string;
+  map?: string;
+  source?: string;
+  headshot?: boolean;
+  round?: number;
+  match_date_from?: string;
+  match_date_to?: string;
+  source_kind?: EvidenceSearchSourceKind;
+  demo_id?: string;
+  page?: number;
+  page_size?: number;
+};
+
+export type EvidenceSearchItem = {
+  evidence_id: string;
+  demo_id: string;
+  demo_display_name: string;
+  map_name: string;
+  match_date: string | null;
+  round: number;
+  tick: number;
+  end_tick: number;
+  event_type: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  target_id: string | null;
+  target_name: string | null;
+  weapon: string | null;
+  headshot: boolean | null;
+  penetrated: boolean | null;
+  source_kind: EvidenceSearchSourceKind;
+  source_id: string;
+  attributes: Record<string, unknown>;
+  analysis_href: string;
+  replay_href: string;
+};
+
+export type EvidenceSearchCapability = {
+  available: boolean;
+  indexed_items: number;
+  reason: string | null;
+};
+
+export type EvidenceSearchResponse = Paginated<EvidenceSearchItem> & {
+  availability: {
+    indexed_items: number;
+    indexed_demos: number;
+    total_analyses: number;
+    scan_complete: boolean;
+    match_date: EvidenceSearchCapability;
+    source: EvidenceSearchCapability;
+  };
+};
+
 export type DemoQuery = {
   search?: string;
-  map?: string;
-  status?: DemoStatus;
-  sort?: 'newest' | 'oldest' | 'name';
+  map_name?: string;
+  status?: DemoLifecycleStatus;
+  sort?: DemoSort;
   page?: number;
   page_size?: number;
 };
@@ -360,7 +321,7 @@ export type PlayerAnalysis = {
   deaths: number;
   assists: number;
   headshot_rate: number;
-  rating: number;
+  kill_death_ratio: number;
   adr: number;
 };
 
@@ -375,7 +336,7 @@ export type PlayerStats = {
   headshots: number;
   damage: number;
   adr: number;
-  rating: number;
+  kill_death_ratio: number;
   score: number;
 };
 
@@ -403,7 +364,7 @@ export type PlayerAggregateStats = {
   headshots: number;
   damage: number;
   average_adr: number | null;
-  average_rating: number | null;
+  average_kill_death_ratio: number | null;
 };
 
 export type PlayerDirectoryItem = {
@@ -428,7 +389,7 @@ export type PlayerRecentMatch = {
   headshots: number;
   damage: number;
   adr: number | null;
-  rating: number | null;
+  kill_death_ratio: number | null;
 };
 
 export type PlayerDirectoryPage = Paginated<PlayerDirectoryItem> & {
@@ -444,7 +405,6 @@ export type PlayerProfile = {
 };
 
 export type AvatarCacheStatus = {
-  version: number;
   entries: number;
   bytes: number;
   maximum_entries: number;
@@ -573,12 +533,12 @@ export type MatchAnalysisRecord = {
   map_name: string;
   tick_rate: number;
   duration_seconds: number;
+  verified_total_ticks: number | null;
   teams: TeamSummary[];
   players: PlayerStats[];
   rounds: AnalysisRoundRecord[];
   highlights: AnalysisHighlightRecord[];
-  /** Added by the current service; optional for older persisted/API fixtures. */
-  insights?: AnalysisInsightsRecord;
+  insights: AnalysisInsightsRecord;
 };
 
 export type LlmReviewScope = 'match' | 'highlights' | 'player';
@@ -586,7 +546,7 @@ export type LlmReviewTone = 'analytical' | 'coach' | 'direct';
 
 export type LlmReviewRequest = {
   scope: LlmReviewScope;
-  player_id?: EntityId;
+  player_id: EntityId | null;
   highlight_ids: EntityId[];
   tone: LlmReviewTone;
 };
@@ -641,6 +601,7 @@ export type AnalysisWorkspace = {
   players: PlayerAnalysis[];
   rounds: RoundSummary[];
   highlights: Highlight[];
+  /** Derived capability payload; absent only in in-memory loading/error workspaces. */
   insights?: AnalysisInsightsRecord;
 };
 
@@ -654,7 +615,7 @@ export type ReplayPlayerRecord = {
   armor: number;
   alive: boolean;
   weapon: string;
-  input?: {
+  input: {
     forward: boolean;
     left: boolean;
     backward: boolean;
@@ -672,8 +633,8 @@ export type ReplayProjectileRecord = {
   kind: string;
   position: [number, number, number];
   active: boolean;
-  radius?: number | null;
-  masks_vision?: boolean;
+  radius: number | null;
+  masks_vision: boolean;
 };
 
 export type ReplayBombRecord = {
@@ -691,7 +652,6 @@ export type ReplayFrameRecord = {
 
 export type ReplayCacheMetadata = {
   state: 'hit' | 'generated' | 'bypassed';
-  version: number;
   key: string | null;
   bytes: number;
   generated_at: string | null;
@@ -699,13 +659,22 @@ export type ReplayCacheMetadata = {
   reason: string | null;
 };
 
+export type ReplayFidelityMetadata = {
+  mode: 'entity_snapshots' | 'hybrid' | 'event_sparse';
+  tick_rate: number;
+  frame_count: number;
+  positioned_event_count: number;
+  start_tick: number;
+  end_tick: number;
+};
+
 export type ReplayPayload = {
   frames: ReplayFrameRecord[];
+  fidelity: ReplayFidelityMetadata;
   cache: ReplayCacheMetadata;
 };
 
 export type ReplayCacheStatus = {
-  version: number;
   entries: number;
   bytes: number;
   maximum_entries: number;
@@ -723,14 +692,17 @@ export type ReplayCacheCleanup = {
 };
 
 export type HeatPointRecord = {
+  id: string;
+  round: number | null;
+  tick: number;
   x: number;
   y: number;
   weight: number;
   floor: number;
   kind: string;
-  player_id?: string | null;
-  team?: string | null;
-  event_kind?: string | null;
+  player_id: string | null;
+  side: 'T' | 'CT' | null;
+  event_kind: string | null;
 };
 
 export type RadarOverviewRecord = {
@@ -748,20 +720,16 @@ export type RadarOverviewRecord = {
 };
 
 export type RecordingRequest = {
-  id?: EntityId;
+  id: EntityId;
   demo_id: EntityId;
   highlight_id: string | null;
   player_id: string;
   title: string;
   start_tick: number;
   end_tick: number;
-  playback_speed: number;
   pre_roll_seconds: number;
   post_roll_seconds: number;
   victim_pov: boolean;
-  show_keyboard: boolean;
-  show_kill_fx: boolean;
-  fade: boolean;
 };
 
 export type RecordingQueueRequest = {
@@ -769,9 +737,11 @@ export type RecordingQueueRequest = {
 };
 
 export type RecordingPlanResponse = {
+  plan_id: EntityId;
+  expires_at: string;
   active_items: number;
   disabled_items: number;
-  estimated_seconds: number;
+  estimated_seconds: number | null;
   warnings: string[];
   items: RecordingRequest[];
   director: DirectorPlan;
@@ -796,20 +766,6 @@ export type DirectorPlan = {
   merged_item_count: number;
   victim_reaction_count: number;
   unresolved_victim_requests: number;
-};
-
-export type CaptureLatencySample = {
-  game_observed_ms: number;
-  obs_observed_ms: number;
-};
-
-export type CaptureLatencyCalibration = {
-  sample_count: number;
-  recommended_delay_ms: number;
-  median_offset_ms: number;
-  jitter_ms: number;
-  confidence: 'high' | 'medium' | 'low';
-  diagnostic: string;
 };
 
 export type RecordingExecutionResponse = {
@@ -849,6 +805,44 @@ export type RecordingJob = {
   outputs: RecordingJobOutput[];
   created_at: string;
   updated_at: string;
+};
+
+export type ActivityKind = 'recording' | 'export' | 'download' | 'analysis';
+export type ActivityStatus =
+  | JobStatus
+  | 'downloading'
+  | 'decompressing'
+  | 'importing'
+  | 'analyzing';
+export type ActivityAction =
+  | 'cancel'
+  | 'retry_analysis'
+  | 'open_analysis'
+  | 'open_library'
+  | 'open_match_history'
+  | 'open_outputs';
+
+export type ActivityItem = {
+  id: string;
+  kind: ActivityKind;
+  subtype: string | null;
+  job_id: EntityId | null;
+  context_id: string | null;
+  subject: string | null;
+  status: ActivityStatus;
+  stage: string | null;
+  progress_percent: number | null;
+  completed_units: number | null;
+  total_units: number | null;
+  unit: 'bytes' | 'stages' | null;
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+  available_actions: ActivityAction[];
+};
+
+export type ActivityFeed = {
+  items: ActivityItem[];
 };
 
 export type RuntimeState = {
@@ -951,7 +945,7 @@ export type MontageSettingsRecord = {
   width: number;
   height: number;
   fps: number;
-  encoder: string;
+  encoder: 'auto';
   quality: number;
   background_music: string | null;
   music_volume: number;
@@ -976,25 +970,8 @@ export type MontageProjectRecord = {
 
 export type CreateMontageProject = Pick<MontageProjectRecord, 'name' | 'clips' | 'settings'>;
 
-export type MontageExportRequest = {
-  name: string;
-  clip_ids: EntityId[];
-  transition: 'cut' | 'fade' | 'whip';
-  resolution: '1080p' | '1440p' | '2160p';
-  fps: 30 | 60;
-  include_name_cards: boolean;
-  background_music?: string | null;
-  music_volume?: number;
-  transition_seconds?: number;
-  intro_title?: string | null;
-  intro_duration_seconds?: number;
-  outro_title?: string | null;
-  outro_duration_seconds?: number;
-  branding_theme?: MontageBrandingTheme;
-};
-
 export type EditorExportOptions = {
-  encoder: 'auto' | 'libopenh264' | 'h264_mf' | 'h264_qsv' | 'h264_nvenc' | 'h264_amf';
+  encoder: 'auto';
   quality: number;
   range_start_seconds?: number;
   range_end_seconds?: number;
@@ -1128,7 +1105,7 @@ export type TimelineClipDto = {
   text: {
     content: string;
     font_family: string;
-    font_asset_id?: EntityId | null;
+    font_asset_id: EntityId | null;
     font_size: number;
     color: string;
     background: string | null;
@@ -1200,7 +1177,6 @@ export type CreateEditorProject = {
 };
 
 export type EditorPresetDocument = {
-  schema_version: 1;
   transform: TimelineClipDto['transform'];
   volume: number;
   color_adjust: {
@@ -1257,7 +1233,7 @@ export type MediaAsset = {
   proxy_path: string | null;
   proxy_status:
     | { status: 'not_requested' }
-    | { status: 'generating'; started_at: string }
+    | { status: 'generating'; started_at: string; lease_id: EntityId; expires_at: string }
     | { status: 'ready'; generated_at: string }
     | { status: 'failed'; message: string; failed_at: string };
   waveform: number[] | null;
@@ -1300,11 +1276,7 @@ export type AppConfig = {
   update_manifest_url: string;
   data_dir: string;
   demo_watch_paths: string[];
-  ffmpeg_path: string;
-  ffprobe_path: string;
-  preferred_encoder: 'auto' | 'libopenh264' | 'h264_mf' | 'h264_qsv' | 'h264_nvenc' | 'h264_amf';
   cs2_path: string;
-  hlae_path: string;
   steam_path: string;
   steam: {
     steam_id: string;
@@ -1316,14 +1288,6 @@ export type AppConfig = {
   steam_has_web_api_key: boolean;
   steam_has_authentication_code: boolean;
   steam_has_share_code: boolean;
-  obs: {
-    host: string;
-    port: number;
-    password: string;
-    executable: string;
-    scene: string;
-  };
-  obs_has_password: boolean;
   llm: {
     provider: string;
     model: string;
@@ -1336,29 +1300,15 @@ export type AppConfig = {
   recording: {
     pre_roll_seconds: number;
     post_roll_seconds: number;
-    transition_seconds: number;
     resolution: string;
     fps: number;
     show_radar: boolean;
-    radar_restore_visible: boolean;
-    show_keyboard: boolean;
-    mute_voice: boolean;
-    voice_restore_volume: number;
-    camera_fov: number;
-    camera_fov_restore: number;
-    viewmodel_fov: number;
-    viewmodel_fov_restore: number;
-    flash_alpha: number;
-    flash_alpha_restore: number;
-    grenade_trajectory: boolean;
-    grenade_trajectory_restore: boolean;
     show_hud: boolean;
-    hud_restore_visible: boolean;
+    mute_voice: boolean;
     isolate_target_voice: boolean;
-    first_person_hud_assets: string;
-    obs_realtime_kill_fx_media: string;
-    obs_realtime_keyboard_media: string;
-    capture_delay_ms: number;
+    camera_fov: number;
+    viewmodel_fov: number;
+    flash_alpha: number;
   };
 };
 
@@ -1376,18 +1326,24 @@ export type LlmTestResult = {
 
 export type HlaeStatus = {
   available: boolean;
-  configured_path: string | null;
   executable: string | null;
   source2_hook: string | null;
-  source: 'configured' | 'common_location' | null;
-  checked_locations: string[];
+  source: 'managed' | null;
+  managed_release: {
+    version: string;
+    archive_sha256: string;
+    signing_fingerprint: string;
+    prepared: boolean;
+  };
   messages: string[];
   cs2_executable: string | null;
   launch_profile_ready: boolean;
-  automatic_launch_enabled: false;
-  insecure_mode_required: true;
-  vac_servers_prohibited: true;
-  demo_playback_only: true;
+  automatic_launch_enabled: boolean;
+  safety_boundary: {
+    insecure_mode_required: true;
+    vac_servers_prohibited: true;
+    demo_playback_only: true;
+  };
 };
 
 export type HlaeBundleHandoff = {
@@ -1486,7 +1442,6 @@ export type ProposalConfirmation = {
   confirm: true;
 };
 export type HlaeProposalPreview = {
-  schema_version: number;
   proposal_revision: number;
   ready: boolean;
   prerequisites: ProposalPrerequisite[];
@@ -1563,9 +1518,9 @@ export type HighlightEditProposalRequest = {
   demo_id: EntityId;
   highlight_ids: string[];
   intent: HighlightEditProposalIntent;
-  target_project_id?: EntityId | null;
-  expected_revision?: number | null;
-  new_project_name?: string | null;
+  target_project_id: EntityId | null;
+  expected_revision: number | null;
+  new_project_name: string | null;
 };
 export type HighlightEditProposalIntent = {
   pacing: 'measured' | 'energetic' | 'impact';
@@ -1650,10 +1605,10 @@ export type AgentThread = {
 
 export type AgentChatInput = {
   requestId: EntityId;
-  threadId?: EntityId;
-  demoId?: EntityId;
-  editorProjectId?: EntityId;
-  audioAssetId?: EntityId;
+  threadId: EntityId | null;
+  demoId: EntityId | null;
+  editorProjectId: EntityId | null;
+  audioAssetId: EntityId | null;
   mode: AgentMode;
   message: string;
 };
@@ -1694,12 +1649,12 @@ export type AudioAnalysis = {
 };
 
 export type AudioAnalysisOptions = {
-  sample_rate?: number;
-  maximum_duration_seconds?: number;
-  maximum_beats?: number;
-  maximum_onsets?: number;
-  energy_points?: number;
-  maximum_sections?: number;
+  sample_rate: number;
+  maximum_duration_seconds: number;
+  maximum_beats: number;
+  maximum_onsets: number;
+  energy_points: number;
+  maximum_sections: number;
 };
 
 export type BeatAlignmentRequest = {
@@ -1711,11 +1666,11 @@ export type BeatAlignmentRequest = {
     maximum_duration_seconds?: number;
     preferred_beats?: number;
   }>;
-  options?: {
-    timeline_start_seconds?: number;
-    maximum_duration_change_ratio?: number;
-    beats_per_phrase?: number;
-    prefer_strong_boundaries?: boolean;
+  options: {
+    timeline_start_seconds: number;
+    maximum_duration_change_ratio: number;
+    beats_per_phrase: number;
+    prefer_strong_boundaries: boolean;
   };
 };
 

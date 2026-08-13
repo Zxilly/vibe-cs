@@ -1,6 +1,5 @@
 import { currentLocale, msg, msgf } from '../../shared/i18n';
 import {
-  ArrowDownUp,
   CalendarDays,
   CheckSquare,
   Clock3,
@@ -19,18 +18,20 @@ import {
   ScanSearch,
   Search,
   Sparkles,
+  Table2,
   Trash2,
   Upload,
   Users,
 } from 'lucide-react';
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { commands, desktopMediaUrl, readableError } from '../../shared/desktop/client';
-import type { AnalysisWorkspace, DemoStatus, DemoSummary, DemoWatchStatus, RadarOverviewRecord } from '../../shared/desktop/dto';
-import { chooseLocalDirectories, chooseLocalFiles, isDesktopShell } from '../../shared/desktop/dialog';
+import type { AnalysisWorkspace, DemoLifecycleStatus, DemoSummary, DemoWatchStatus, RadarOverviewRecord, ScanResult } from '../../shared/desktop/dto';
+import { chooseLocalDirectories, chooseLocalFiles, isDesktopShell, revealLocalPath } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
+import { formatKillDeathRatioValue } from '../../shared/performanceMetrics';
 import { runManagedPlaybackLaunch, useRuntimeStore } from '../../shared/stores/runtimeStore';
 import {
   Badge,
@@ -46,42 +47,113 @@ import {
   TextInput,
 } from '../../shared/ui';
 import { LibrarySectionNav } from './LibrarySectionNav';
+import { requireSuccessfulImport } from './importResult';
+import { demoLifecyclePresentation, hasVerifiedMatchScore } from './libraryPresentation';
+import {
+  libraryPageCount,
+  libraryQueryFromParams,
+  libraryQueryToDemoQuery,
+  libraryQueryToParams,
+  patchLibraryQuery,
+  tableSortFromServerSort,
+  toggleLibraryTableSort,
+  type LibraryQueryState,
+} from './libraryQuery';
+import { isDemoAnalyzable, retainLibraryPageSelection } from './librarySelection';
+import {
+  LibraryDemoInspector,
+  LibraryPagination,
+  LibraryPowerTable,
+  LibraryResultScope,
+  type LibrarySortKey,
+} from './libraryTable';
 
-type ViewMode = 'grid' | 'list';
-type SortMode = 'newest' | 'oldest' | 'name';
-
-const statusLabel: Record<DemoStatus, string> = {
-  pending: msg("m0612"),
-  parsing: msg("m0263"),
-  ready: msg("m0346"),
-  error: msg("m1288"),
-};
-
-const statusTone: Record<DemoStatus, 'neutral' | 'warning' | 'success' | 'danger'> = {
-  pending: 'neutral',
-  parsing: 'warning',
-  ready: 'success',
-  error: 'danger',
-};
+type ViewMode = 'table' | 'grid' | 'list';
 
 function duration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
 }
 
+function lifecycleNoticeTone(tone: ReturnType<typeof demoLifecyclePresentation>['tone']): 'info' | 'warning' | 'success' | 'danger' {
+  return tone === 'neutral' ? 'info' : tone;
+}
+
+function useWideLibraryInspector(): boolean {
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1700px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1700px)');
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return wide;
+}
+
+export function LibraryWorkspaceSummary({
+  demos,
+  activeMap,
+  onMapFilter,
+}: {
+  demos: DemoSummary[];
+  activeMap: string;
+  onMapFilter: (mapName: string) => void;
+}) {
+  const { t } = useI18n();
+  const readyDemos = demos.filter((demo) => demo.lifecycle_status === 'ready');
+  const mapIndex = [...demos.reduce((index, demo) => {
+    index.set(demo.map_name, (index.get(demo.map_name) ?? 0) + 1);
+    return index;
+  }, new globalThis.Map<string, number>())]
+    .sort(([leftName, leftCount], [rightName, rightCount]) => rightCount - leftCount || leftName.localeCompare(rightName));
+  const verifiedRounds = readyDemos.reduce((total, demo) => total + demo.total_rounds, 0);
+
+  return (
+    <Card className="library-workspace-summary" role="complementary" aria-label={t('analysis.matchFacts')}>
+      <header>
+        <div>
+          <span className="eyebrow">CURRENT PAGE INDEX</span>
+          <h2>{t('analysis.matchFacts')}</h2>
+        </div>
+        <Badge tone="neutral">{demos.length}</Badge>
+      </header>
+      <dl className="library-workspace-summary__facts">
+        <div><dt>{t('library.localMatches')}</dt><dd>{demos.length}</dd></div>
+        <div><dt>{t('library.lifecycle.ready.label')}</dt><dd>{readyDemos.length}</dd></div>
+        <div><dt>{t('analysis.roundCountLabel')}</dt><dd>{verifiedRounds}</dd></div>
+        <div><dt>{t('evidenceSearch.map')}</dt><dd>{mapIndex.length}</dd></div>
+      </dl>
+      <div className="library-map-index" role="group" aria-label={t('evidenceSearch.map')}>
+        {mapIndex.map(([mapName, count]) => (
+          <button
+            key={mapName}
+            type="button"
+            aria-pressed={activeMap === mapName}
+            onClick={() => onMapFilter(mapName)}
+          >
+            <span><Map size={14} /><strong>{mapName.replace('de_', '').toUpperCase()}</strong></span>
+            <Badge tone={activeMap === mapName ? 'blue' : 'neutral'}>{count}</Badge>
+          </button>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export function LibraryPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const libraryQuery = useMemo(() => libraryQueryFromParams(searchParams), [searchParams]);
+  const tableSort = useMemo(() => tableSortFromServerSort(libraryQuery.sort), [libraryQuery.sort]);
   const runtimeSession = useRuntimeStore((state) => state.session);
   const fileInput = useRef<HTMLInputElement>(null);
   const [demos, setDemos] = useState<DemoSummary[]>([]);
+  const [demoTotal, setDemoTotal] = useState(0);
   const [source, setSource] = useState<'loading' | 'service' | 'unavailable'>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [mapFilter, setMapFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | DemoStatus>('all');
-  const [sort, setSort] = useState<SortMode>('newest');
-  const [view, setView] = useState<ViewMode>('grid');
+  const [view, setView] = useState<ViewMode>('table');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeDemo, setActiveDemo] = useState<DemoSummary | null>(null);
   const [detailAnalysis, setDetailAnalysis] = useState<AnalysisWorkspace | null>(null);
@@ -89,31 +161,54 @@ export function LibraryPage() {
   const [editName, setEditName] = useState('');
   const [editRemark, setEditRemark] = useState('');
   const scanAction = useAsyncAction<{ discovered: number; imported: number }>();
-  const importAction = useAsyncAction<{ discovered: number; imported: number }>();
+  const importAction = useAsyncAction<ScanResult>();
   const saveAction = useAsyncAction<DemoSummary>();
   const deleteAction = useAsyncAction<boolean>();
   const playAction = useAsyncAction<{ started: boolean; process_id: number }>();
+  const revealAction = useAsyncAction<boolean>();
   const [playingDemoId, setPlayingDemoId] = useState<string | null>(null);
   const [watchStatus, setWatchStatus] = useState<DemoWatchStatus | null>(null);
   const [watchError, setWatchError] = useState<string | null>(null);
   const watchAction = useAsyncAction<DemoWatchStatus>();
   const desktopShell = useMemo(isDesktopShell, []);
+  const wideInspector = useWideLibraryInspector();
+
+  const updateLibraryQuery = useCallback((
+    patch: Partial<LibraryQueryState>,
+    replace = false,
+  ) => {
+    const next = patchLibraryQuery(libraryQuery, patch);
+    setSearchParams(libraryQueryToParams(next), { replace });
+  }, [libraryQuery, setSearchParams]);
 
   const refreshDemos = useCallback(async (signal?: AbortSignal) => {
-    const response = await commands.listDemos({ page: 1, page_size: 100, sort: 'newest' }, signal);
+    const response = await commands.listDemos(libraryQueryToDemoQuery(libraryQuery), signal);
+    const pages = libraryPageCount(response.total, response.page_size);
+    if (response.total > 0 && response.page > pages) {
+      setSearchParams(libraryQueryToParams({ ...libraryQuery, page: pages }), { replace: true });
+      return;
+    }
     setDemos(response.items);
+    setDemoTotal(response.total);
     setSource('service');
     setLoadError(null);
-  }, []);
+  }, [libraryQuery, setSearchParams]);
 
   useEffect(() => {
     const controller = new AbortController();
     void refreshDemos(controller.signal)
       .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
         setDemos([]);
+        setDemoTotal(0);
         setSource('unavailable');
         setLoadError(readableError(error));
       });
+    return () => controller.abort();
+  }, [refreshDemos]);
+
+  useEffect(() => {
+    const controller = new AbortController();
     void commands.getDemoWatchStatus(controller.signal)
       .then((status) => {
         setWatchStatus(status);
@@ -121,7 +216,7 @@ export function LibraryPage() {
       })
       .catch((error: unknown) => setWatchError(readableError(error)));
     return () => controller.abort();
-  }, [refreshDemos]);
+  }, []);
 
   useEffect(() => {
     if (source !== 'service') return undefined;
@@ -155,26 +250,27 @@ export function LibraryPage() {
     [demos],
   );
 
-  const filteredDemos = useMemo(() => {
-    const normalized = search.trim().toLocaleLowerCase();
-    const result = demos.filter((demo) => {
-      const matchesSearch =
-        !normalized ||
-        `${demo.display_name} ${demo.filename} ${demo.map_name} ${demo.players.join(' ')}`
-          .toLocaleLowerCase()
-          .includes(normalized);
-      return (
-        matchesSearch &&
-        (mapFilter === 'all' || demo.map_name === mapFilter) &&
-        (statusFilter === 'all' || demo.status === statusFilter)
-      );
+  useEffect(() => {
+    setActiveDemo(null);
+    setSelectedIds(new Set());
+  }, [libraryQuery.map, libraryQuery.page, libraryQuery.pageSize, libraryQuery.search, libraryQuery.status]);
+
+  useEffect(() => {
+    const pageIds = demos.map((demo) => demo.id);
+    const pageIdSet = new Set(pageIds);
+    setActiveDemo((current) => current && pageIdSet.has(current.id) ? current : null);
+    setSelectedIds((current) => {
+      const next = retainLibraryPageSelection(current, pageIds);
+      return next.size === current.size ? current : next;
     });
-    return result.sort((a, b) => {
-      if (sort === 'name') return a.display_name.localeCompare(b.display_name, 'zh-CN');
-      const delta = Date.parse(a.played_at) - Date.parse(b.played_at);
-      return sort === 'oldest' ? delta : -delta;
-    });
-  }, [demos, mapFilter, search, sort, statusFilter]);
+  }, [demos]);
+
+  const selectedAnalysisIds = useMemo(() => {
+    const analyzable = new Set(
+      demos.filter((demo) => isDemoAnalyzable(demo.lifecycle_status)).map((demo) => demo.id),
+    );
+    return [...selectedIds].filter((id) => analyzable.has(id));
+  }, [demos, selectedIds]);
 
   const openDetails = (demo: DemoSummary) => {
     setActiveDemo(demo);
@@ -200,21 +296,36 @@ export function LibraryPage() {
     return () => controller.abort();
   }, [activeDemo, source]);
 
-  const toggleSelected = (id: string) => {
+  const toggleSelected = (demo: DemoSummary) => {
+    if (!isDemoAnalyzable(demo.lifecycle_status)) return;
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(demo.id)) next.delete(demo.id);
+      else next.add(demo.id);
       return next;
+    });
+  };
+
+  const handleTableSort = (key: LibrarySortKey) => {
+    updateLibraryQuery({ sort: toggleLibraryTableSort(libraryQuery.sort, key) });
+  };
+
+  const handleLifecycleAction = (demo: DemoSummary) => {
+    void navigate(`/analysis?demo=${encodeURIComponent(demo.id)}`);
+  };
+
+  const handleReveal = async (demo: DemoSummary) => {
+    if (!desktopShell || !demo.path || demo.lifecycle_status === 'missing') return;
+    await revealAction.run(async () => {
+      const revealed = await revealLocalPath(demo.path ?? '');
+      if (!revealed) throw new Error(t('library.inspector.revealUnavailable'));
+      return true;
     });
   };
 
   const handleScan = async () => {
     const result = await scanAction.run(() => commands.scanDemos(), msg("m0643"));
-    if (result && source === 'service') {
-      const response = await commands.listDemos({ page: 1, page_size: 100, sort: 'newest' });
-      setDemos(response.items);
-    }
+    if (result && source === 'service') await refreshDemos();
   };
 
   const handleImportButton = async () => {
@@ -228,8 +339,8 @@ export function LibraryPage() {
     });
     if (paths.length === 0) return;
     const result = await importAction.run(
-      () => commands.importDemoPaths(paths),
-      msg("m0456"),
+      async () => requireSuccessfulImport(await commands.importDemoPaths(paths), t),
+      t('library.importSucceeded'),
     );
     if (result && source === 'service') await refreshDemos();
   };
@@ -269,10 +380,7 @@ export function LibraryPage() {
     event.target.value = '';
     if (files.length === 0) return;
     const result = await importAction.run(() => commands.importDemos(files), msg("m0137"));
-    if (result && source === 'service') {
-      const response = await commands.listDemos({ page: 1, page_size: 100, sort: 'newest' });
-      setDemos(response.items);
-    }
+    if (result && source === 'service') await refreshDemos();
   };
 
   const handleSave = async () => {
@@ -282,8 +390,8 @@ export function LibraryPage() {
       msg("m1163"),
     );
     if (!updated) return;
-    setDemos((current) => current.map((demo) => demo.id === updated.id ? updated : demo));
     setActiveDemo(updated);
+    await refreshDemos();
   };
 
   const handleDelete = async () => {
@@ -297,8 +405,8 @@ export function LibraryPage() {
       msg("m1165"),
     );
     if (!deleted) return;
-    setDemos((current) => current.filter((demo) => demo.id !== activeDemo.id));
     setActiveDemo(null);
+    await refreshDemos();
   };
 
   const handlePlay = async (demo: DemoSummary) => {
@@ -318,7 +426,7 @@ export function LibraryPage() {
       <PageHeader
         eyebrow="DEMO LIBRARY"
         title={t('library.title')}
-        description={`${demos.length} · ${t('library.description')}`}
+        description={`${demos.length} / ${demoTotal} · ${t('library.description')}`}
         actions={
           <>
             <input
@@ -361,6 +469,9 @@ export function LibraryPage() {
       ) : null}
       {playAction.state.message ? (
         <Notice tone={playAction.state.status === 'error' ? 'danger' : 'success'}>{playAction.state.message}</Notice>
+      ) : null}
+      {revealAction.state.message ? (
+        <Notice tone={revealAction.state.status === 'error' ? 'danger' : 'success'}>{revealAction.state.message}</Notice>
       ) : null}
       {watchAction.state.message ? (
         <Notice tone={watchAction.state.status === 'error' ? 'danger' : 'success'}>{watchAction.state.message}</Notice>
@@ -406,8 +517,8 @@ export function LibraryPage() {
         <div className="search-box">
           <Search size={16} />
           <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={libraryQuery.search}
+            onChange={(event) => updateLibraryQuery({ search: event.target.value }, true)}
             placeholder={msg("m0668")}
             aria-label={msg("m0671")}
           />
@@ -416,31 +527,32 @@ export function LibraryPage() {
         <div className="toolbar-divider" />
         <label className="compact-select">
           <Map size={14} />
-          <select value={mapFilter} onChange={(event) => setMapFilter(event.target.value)} aria-label={msg("m0399")}>
-            <option value="all">{msg("m0231")}</option>
-            {maps.map((mapName) => <option key={mapName} value={mapName}>{mapName.replace('de_', '')}</option>)}
-          </select>
+          <input
+            className="library-map-filter"
+            list="library-map-options"
+            value={libraryQuery.map}
+            onChange={(event) => updateLibraryQuery({ map: event.target.value }, true)}
+            placeholder={msg("m0231")}
+            aria-label={msg("m0399")}
+          />
+          <datalist id="library-map-options">
+            {maps.map((mapName) => <option key={mapName} value={mapName} />)}
+          </datalist>
         </label>
         <label className="compact-select">
           <Filter size={14} />
           <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value as 'all' | DemoStatus)}
+            value={libraryQuery.status}
+            onChange={(event) => updateLibraryQuery({ status: event.target.value as 'all' | DemoLifecycleStatus })}
             aria-label={msg("m0976")}
           >
             <option value="all">{msg("m0234")}</option>
-            <option value="ready">{msg("m0346")}</option>
-            <option value="parsing">{msg("m0263")}</option>
-            <option value="pending">{msg("m0612")}</option>
-            <option value="error">{msg("m1288")}</option>
-          </select>
-        </label>
-        <label className="compact-select">
-          <ArrowDownUp size={14} />
-          <select value={sort} onChange={(event) => setSort(event.target.value as SortMode)} aria-label={msg("m0661")}>
-            <option value="newest">{msg("m0738")}</option>
-            <option value="oldest">{msg("m0737")}</option>
-            <option value="name">{msg("m0359")}</option>
+            <option value="ready">{t('library.lifecycle.ready.label')}</option>
+            <option value="analyzing">{t('library.lifecycle.analyzing.label')}</option>
+            <option value="indexing">{t('library.lifecycle.indexing.label')}</option>
+            <option value="discovered">{t('library.lifecycle.discovered.label')}</option>
+            <option value="failed">{t('library.lifecycle.failed.label')}</option>
+            <option value="missing">{t('library.lifecycle.missing.label')}</option>
           </select>
         </label>
         <div className="library-toolbar__spacer" />
@@ -449,19 +561,29 @@ export function LibraryPage() {
           value={view}
           onChange={setView}
           options={[
+            { value: 'table', label: t('library.view.table'), icon: <Table2 size={14} /> },
             { value: 'grid', label: msg("m1090"), icon: <Grid2X2 size={14} /> },
             { value: 'list', label: msg("m0281"), icon: <List size={14} /> },
           ]}
         />
       </Card>
 
-      {selectedIds.size > 0 ? (
+      {source === 'service' && demos.length > 0 ? (
+        <LibraryResultScope
+          page={libraryQuery.page}
+          pageSize={libraryQuery.pageSize}
+          total={demoTotal}
+          visible={demos.length}
+        />
+      ) : null}
+
+      {selectedAnalysisIds.length > 0 ? (
         <div className="selection-bar">
           <CheckSquare size={16} />
-          <strong>{msg("m0544")} {selectedIds.size} {msg("m0403")}</strong>
+          <strong>{msg("m0544")} {selectedAnalysisIds.length} {msg("m0403")}</strong>
           <Button size="sm" onClick={() => setSelectedIds(new Set())}>{msg("m0328")}</Button>
           <Button size="sm" variant="primary" onClick={() => {
-            const ids = [...selectedIds];
+            const ids = selectedAnalysisIds;
             const primary = ids[0];
             if (primary) void navigate(`/analysis?demo=${encodeURIComponent(primary)}&demos=${encodeURIComponent(ids.join(','))}`);
           }}>
@@ -470,25 +592,44 @@ export function LibraryPage() {
         </div>
       ) : null}
 
-      <div className={`demo-collection demo-collection--${view}`}>
-        {filteredDemos.map((demo) => (
-          <article
-            className={`demo-card demo-card--${view}${selectedIds.has(demo.id) ? ' is-selected' : ''}`}
-            key={demo.id}
-          >
+      <div className="library-workspace">
+        <section className="library-results" aria-label={t('library.localMatches')}>
+          {view === 'table' ? (
+            <LibraryPowerTable
+              demos={demos}
+              selectedIds={selectedIds}
+              activeDemoId={activeDemo?.id ?? null}
+              sort={tableSort}
+              playingDemoId={playingDemoId}
+              playbackDisabled={runtimeSession !== 'idle'}
+              onSort={handleTableSort}
+              onToggleSelected={toggleSelected}
+              onOpenDetails={openDetails}
+              onPlay={(demo) => void handlePlay(demo)}
+              onLifecycleAction={handleLifecycleAction}
+            />
+          ) : (
+          <div className={`demo-collection demo-collection--${view}`}>
+            {demos.map((demo) => {
+              const lifecycle = demoLifecyclePresentation(demo.lifecycle_status);
+              return (
+              <article
+                className={`demo-card demo-card--${view}${selectedIds.has(demo.id) ? ' is-selected' : ''}`}
+                key={demo.id}
+              >
             <div className={`map-art map-art--${demo.map_name.replace('de_', '')}`}>
-              <LibraryMapThumbnail mapName={demo.map_name} enabled={source === 'service'} />
-              <span className="map-art__name">{demo.map_name.replace('de_', '').toUpperCase()}</span>
-              <Badge tone={statusTone[demo.status]}>{statusLabel[demo.status]}</Badge>
-              <button
+              <LibraryMapThumbnail mapName={demo.map_name} enabled={source === 'service' && lifecycle.showMatchSummary} />
+              <span className="map-art__name">{demo.lifecycle_status === 'ready' ? demo.map_name.replace('de_', '').toUpperCase() : 'DEMO'}</span>
+              <Badge tone={lifecycle.tone}>{t(lifecycle.labelKey)}</Badge>
+              {isDemoAnalyzable(demo.lifecycle_status) ? <button
                 type="button"
                 className="demo-card__select"
                 aria-label={msgf("m0089", [selectedIds.has(demo.id) ? msg("m0328") : msg("m1216"), demo.display_name])}
                 aria-pressed={selectedIds.has(demo.id)}
-                onClick={() => toggleSelected(demo.id)}
+                onClick={() => toggleSelected(demo)}
               >
                 <span />
-              </button>
+              </button> : null}
             </div>
             <div className="demo-card__body">
               <div className="demo-card__title">
@@ -498,16 +639,16 @@ export function LibraryPage() {
                 </div>
                 <IconButton label={msg("m1086")} onClick={() => openDetails(demo)}><MoreHorizontal size={16} /></IconButton>
               </div>
-              <div className="scoreline">
-                <div><span>TEAM A</span><strong>{demo.score_team_a}</strong></div>
+              {hasVerifiedMatchScore(demo) ? <div className="scoreline">
+                <div><span>{demo.team_a_name}</span><strong>{demo.score_team_a}</strong></div>
                 <span>:</span>
-                <div><strong>{demo.score_team_b}</strong><span>TEAM B</span></div>
-              </div>
-              <div className="demo-card__meta">
+                <div><strong>{demo.score_team_b}</strong><span>{demo.team_b_name}</span></div>
+              </div> : demo.lifecycle_status === 'ready' ? null : <p className="demo-card__lifecycle">{t(lifecycle.descriptionKey)}</p>}
+              {lifecycle.showMatchSummary ? <div className="demo-card__meta">
                 <span><CalendarDays size={13} />{new Intl.DateTimeFormat(currentLocale(), { month: 'short', day: 'numeric' }).format(new Date(demo.played_at))}</span>
                 <span><Clock3 size={13} />{duration(demo.duration_seconds)}</span>
                 <span><Users size={13} />{demo.total_rounds} {msg("m0367")}</span>
-              </div>
+              </div> : null}
               <div className="demo-card__footer">
                 <span className="source-pill"><Import size={12} />{demo.source === 'watch' ? msg("m1007") : demo.source === 'upload' ? msg("m0634") : msg("m0786")}</span>
                 <div>
@@ -518,33 +659,66 @@ export function LibraryPage() {
                   >
                     {playingDemoId === demo.id ? <Spinner /> : <Play size={15} />}
                   </IconButton>
-                  <Button
+                  {lifecycle.actionKey ? <Button
                     size="sm"
                     variant="primary"
-                    disabled={demo.status !== 'ready'}
+                    disabled={!lifecycle.enabled}
                     onClick={() => void navigate(`/analysis?demo=${encodeURIComponent(demo.id)}`)}
                   >
-
-                   {msg("m0257")}<ArrowRightIcon />
-                  </Button>
+                   {t(lifecycle.actionKey)}<ArrowRightIcon />
+                  </Button> : null}
                 </div>
               </div>
             </div>
-          </article>
-        ))}
+              </article>
+              );
+            })}
+          </div>
+          )}
+
+          {source === 'service' && demos.length === 0 ? (
+            <div className="library-empty">
+              <FileVideo2 size={26} />
+              <h2>{msg("m0895")}</h2>
+              <p>{msg("m1154")}</p>
+              <Button onClick={() => updateLibraryQuery({ search: '', map: '', status: 'all' })}><RefreshCw size={14} />{msg("m0932")}</Button>
+            </div>
+          ) : null}
+          {source === 'service' && demoTotal > 0 ? (
+            <LibraryPagination
+              page={libraryQuery.page}
+              pageSize={libraryQuery.pageSize}
+              total={demoTotal}
+              onPageChange={(page) => updateLibraryQuery({ page })}
+              onPageSizeChange={(pageSize) => updateLibraryQuery({ pageSize })}
+            />
+          ) : null}
+        </section>
+        {source === 'service' && demos.length > 0 ? (
+          <div className="library-workspace-side">
+            {activeDemo && wideInspector ? (
+              <LibraryDemoInspector
+                demo={activeDemo}
+                playing={playingDemoId === activeDemo.id}
+                playbackDisabled={playingDemoId !== null || runtimeSession !== 'idle'}
+                revealDisabled={!desktopShell || !activeDemo.path || activeDemo.lifecycle_status === 'missing'}
+                onPlay={(demo) => void handlePlay(demo)}
+                onLifecycleAction={handleLifecycleAction}
+                onReveal={(demo) => void handleReveal(demo)}
+              />
+            ) : (
+              <LibraryWorkspaceSummary
+                demos={demos}
+                activeMap={libraryQuery.map}
+                onMapFilter={(map) => updateLibraryQuery({ map: libraryQuery.map === map ? '' : map })}
+              />
+            )}
+          </div>
+        ) : null}
       </div>
 
-      {filteredDemos.length === 0 ? (
-        <div className="library-empty">
-          <FileVideo2 size={26} />
-          <h2>{msg("m0895")}</h2>
-          <p>{msg("m1154")}</p>
-          <Button onClick={() => { setSearch(''); setMapFilter('all'); setStatusFilter('all'); }}><RefreshCw size={14} />{msg("m0932")}</Button>
-        </div>
-      ) : null}
-
       <Drawer
-        open={activeDemo !== null}
+        open={activeDemo !== null && !wideInspector}
         title={msg("m0891")}
         description={activeDemo?.filename}
         onClose={() => setActiveDemo(null)}
@@ -574,31 +748,46 @@ export function LibraryPage() {
       >
         {activeDemo ? (
           <div className="drawer-form">
+            <LibraryDemoInspector
+              demo={activeDemo}
+              playing={playingDemoId === activeDemo.id}
+              playbackDisabled={playingDemoId !== null || runtimeSession !== 'idle'}
+              revealDisabled={!desktopShell || !activeDemo.path || activeDemo.lifecycle_status === 'missing'}
+              onPlay={(demo) => void handlePlay(demo)}
+              onLifecycleAction={handleLifecycleAction}
+              onReveal={(demo) => void handleReveal(demo)}
+            />
             {saveAction.state.message ? (
               <Notice tone={saveAction.state.status === 'error' ? 'danger' : 'success'}>{saveAction.state.message}</Notice>
             ) : null}
-            <div className={`drawer-map-preview map-art--${activeDemo.map_name.replace('de_', '')}`}>
-              <Map size={24} /><strong>{activeDemo.map_name.replace('de_', '').toUpperCase()}</strong>
-            </div>
+            {activeDemo.lifecycle_status === 'ready' ? (
+              <div className={`drawer-map-preview map-art--${activeDemo.map_name.replace('de_', '')}`}>
+                <Map size={24} /><strong>{activeDemo.map_name.replace('de_', '').toUpperCase()}</strong>
+              </div>
+            ) : (
+              <Notice tone={lifecycleNoticeTone(demoLifecyclePresentation(activeDemo.lifecycle_status).tone)}>
+                {t(demoLifecyclePresentation(activeDemo.lifecycle_status).descriptionKey)}
+              </Notice>
+            )}
             <Field label={msg("m0726")}>
               <TextInput value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={100} />
             </Field>
             <Field label={msg("m0415")} hint={msg("m1114")}>
               <textarea value={editRemark} onChange={(event) => setEditRemark(event.target.value)} rows={5} maxLength={1000} />
             </Field>
-            <dl className="detail-list">
+            {activeDemo.lifecycle_status === 'ready' ? <dl className="detail-list">
               <div><dt>{msg("m0396")}</dt><dd>{activeDemo.map_name}</dd></div>
-              <div><dt>{msg("m0884")}</dt><dd>{activeDemo.score_team_a} : {activeDemo.score_team_b}</dd></div>
+              {hasVerifiedMatchScore(activeDemo) ? <div><dt>{msg("m0884")}</dt><dd>{activeDemo.score_team_a} : {activeDemo.score_team_b}</dd></div> : null}
               <div><dt>{msg("m0715")}</dt><dd>{duration(activeDemo.duration_seconds)}</dd></div>
               <div><dt>{msg("m0370")}</dt><dd>{activeDemo.total_rounds}</dd></div>
               <div><dt>{msg("m0813")}</dt><dd>{activeDemo.source}</dd></div>
-            </dl>
+            </dl> : null}
             {detailAnalysis ? (
               <div>
                 <h3>{msg("m0443")}</h3>
                 <div className="detail-list" role="table" aria-label={msg("m0443")}>
                   {detailAnalysis.players.map((player) => (
-                    <div role="row" key={player.id}><dt role="cell">{player.name} · TEAM {player.team}</dt><dd role="cell">{player.kills} / {player.deaths} / {player.assists} · ADR {player.adr.toFixed(1)} · Rating {player.rating.toFixed(2)}</dd></div>
+                    <div role="row" key={player.id}><dt role="cell">{player.name} · TEAM {player.team}</dt><dd role="cell">{player.kills} / {player.deaths} / {player.assists} · K/D {formatKillDeathRatioValue(player.kill_death_ratio, 2)} · ADR {player.adr.toFixed(1)}</dd></div>
                   ))}
                 </div>
               </div>

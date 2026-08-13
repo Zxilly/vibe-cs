@@ -2,6 +2,7 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 
 import { msg, msgf } from '../i18n';
 import type {
+  ActivityFeed,
   AnalysisWorkspace,
   AgentChatInput,
   AgentChatResult,
@@ -45,6 +46,8 @@ import type {
   EditorPreset,
   EditorPresetDocument,
   EditorProjectDeletionResult,
+  EvidenceSearchQuery,
+  EvidenceSearchResponse,
   ExportJobRecord,
   JobAccepted,
   HeatPointRecord,
@@ -72,17 +75,7 @@ import type {
   MatchDownloadJob,
   MediaAsset,
   MediaProxyCleanup,
-  MediaRuntimeStatus,
   MontageProjectRecord,
-  MontageExportRequest,
-  ObsDiagnosis,
-  ObsRecordStatus,
-  ObsStartResponse,
-  ObsVideoApplyResult,
-  ObsVideoBackup,
-  ObsVideoBackupDeleteResult,
-  ObsVideoRestoreResult,
-  ObsVideoTuningPlan,
   OutputItem,
   OutputKind,
   OutputPage,
@@ -95,16 +88,12 @@ import type {
   RadarOverviewRecord,
   ReplayCacheCleanup,
   ReplayCacheStatus,
-  ReplayFrameRecord,
-  ReplayPayload,
   RecordedClip,
   RecordedClipRecord,
   RecordingExecutionResponse,
   RecordingJob,
   RecordingPlanResponse,
   RecordingQueueRequest,
-  CaptureLatencyCalibration,
-  CaptureLatencySample,
   RecoveryStatus,
   RuntimeState,
   ScanResult,
@@ -126,20 +115,17 @@ export class DesktopError extends Error {
 
 type RequestOptions = Omit<RequestInit, 'body' | 'signal' | 'headers'> & {
   body?: unknown;
-  timeoutMs?: number;
+  /** Null keeps a state-changing native invocation attached until it settles. */
+  timeoutMs?: number | null;
   signal?: AbortSignal | undefined;
 };
 
-const legacyResourcePrefix = '/api/v1';
+const RESOURCE_PREFIX = '/api';
 
 /** Build a URL owned by the desktop media protocol without accepting an arbitrary origin. */
 export function desktopMediaUrl(path: string): string {
-  const managedPath = path.startsWith(`${legacyResourcePrefix}/`)
-    ? path.slice(legacyResourcePrefix.length)
-    : path.startsWith('/')
-      ? path
-      : null;
-  if (managedPath) {
+  if (path.startsWith(`${RESOURCE_PREFIX}/`)) {
+    const managedPath = path.slice(RESOURCE_PREFIX.length);
     const origin = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent)
       ? 'http://vibe-cs-media.localhost'
       : 'vibe-cs-media://localhost';
@@ -159,7 +145,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     throw new DesktopError(msg("m0711"), 0, 'NATIVE_UPLOAD_REQUIRED');
   }
   const controller = new AbortController();
-  const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  const timer = timeoutMs === null
+    ? null
+    : globalThis.setTimeout(() => controller.abort(), timeoutMs);
 
   const abortFromCaller = () => controller.abort();
   callerSignal?.addEventListener('abort', abortFromCaller, { once: true });
@@ -185,7 +173,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     }
     throw new DesktopError(msg("m0711"), 0, 'DESKTOP_COMMAND_FAILED');
   } finally {
-    globalThis.clearTimeout(timer);
+    if (timer !== null) globalThis.clearTimeout(timer);
     callerSignal?.removeEventListener('abort', abortFromCaller);
   }
 }
@@ -258,6 +246,14 @@ function queryString(values: Record<string, string | number | undefined>): strin
 }
 
 export function normalizeDemo(record: DemoRecord): DemoSummary {
+  const wire = record as unknown as Record<string, unknown>;
+  if (!Array.isArray(record.players) || Object.hasOwn(wire, 'player_names')) {
+    throw new DesktopError(
+      'Demo response does not match the current contract.',
+      502,
+      'INVALID_DEMO_CONTRACT',
+    );
+  }
   const statusMap: Record<DemoRecord['status'], DemoSummary['status']> = {
     discovered: 'pending',
     indexing: 'pending',
@@ -268,18 +264,23 @@ export function normalizeDemo(record: DemoRecord): DemoSummary {
   };
   return {
     id: record.id,
+    path: record.path,
     filename: record.file_name,
     display_name: record.display_name,
     map_name: record.map_name ?? 'unknown',
     played_at: record.match_date ?? record.created_at,
     duration_seconds: record.duration_seconds ?? 0,
     total_rounds: record.total_rounds ?? 0,
-    score_team_a: record.team_a_score ?? 0,
-    score_team_b: record.team_b_score ?? 0,
+    score_team_a: record.team_a_score,
+    score_team_b: record.team_b_score,
+    team_a_name: record.team_a_name?.trim() || null,
+    team_b_name: record.team_b_name?.trim() || null,
     status: statusMap[record.status],
-    players: [],
+    lifecycle_status: record.status,
+    players: record.players,
     source: record.source === 'watch' || record.source === 'upload' ? record.source : 'local',
     remark: record.remark,
+    updated_at: record.updated_at,
   };
 }
 
@@ -297,6 +298,17 @@ function requireSide(value: string | number): 'A' | 'B' {
 }
 
 export function normalizeAnalysis(record: MatchAnalysisRecord): AnalysisWorkspace {
+  if (
+    !Object.hasOwn(record, 'verified_total_ticks')
+    || !Object.hasOwn(record, 'insights')
+    || record.insights == null
+  ) {
+    throw new DesktopError(
+      'Analysis response does not match the current contract.',
+      502,
+      'INVALID_ANALYSIS_CONTRACT',
+    );
+  }
   const highlightCategory = (kind: MatchAnalysisRecord['highlights'][number]['kind']) => {
     if (kind === 'clutch') return 'clutch' as const;
     if (kind === 'multi_kill') return 'multi-kill' as const;
@@ -309,7 +321,7 @@ export function normalizeAnalysis(record: MatchAnalysisRecord): AnalysisWorkspac
     tick_rate: record.tick_rate,
     duration_seconds: record.duration_seconds,
     teams: record.teams.map((team) => ({ ...team, side: normalizeSide(team.side) ?? team.side })),
-    ...(record.insights ? { insights: record.insights } : {}),
+    insights: record.insights,
     players: record.players.map((player) => ({
       id: player.steam_id,
       name: player.name,
@@ -318,7 +330,7 @@ export function normalizeAnalysis(record: MatchAnalysisRecord): AnalysisWorkspac
       deaths: player.deaths,
       assists: player.assists,
       headshot_rate: player.kills > 0 ? player.headshots / player.kills : 0,
-      rating: player.rating,
+      kill_death_ratio: player.kill_death_ratio,
       adr: player.adr,
     })),
     rounds: record.rounds.map((round) => ({
@@ -360,6 +372,47 @@ export function normalizeRecordedClip(record: RecordedClipRecord): RecordedClip 
   };
 }
 
+function configUpdatePayload(config: AppConfig): AppConfig {
+  return {
+    locale: config.locale,
+    theme: config.theme,
+    update_manifest_url: config.update_manifest_url,
+    data_dir: config.data_dir,
+    demo_watch_paths: config.demo_watch_paths,
+    cs2_path: config.cs2_path,
+    steam_path: config.steam_path,
+    steam: config.steam,
+    steam_has_web_api_key: config.steam_has_web_api_key,
+    steam_has_authentication_code: config.steam_has_authentication_code,
+    steam_has_share_code: config.steam_has_share_code,
+    llm: config.llm,
+    llm_has_api_key: config.llm_has_api_key,
+    clear_llm_api_key: config.clear_llm_api_key,
+    recording: {
+      pre_roll_seconds: config.recording.pre_roll_seconds,
+      post_roll_seconds: config.recording.post_roll_seconds,
+      resolution: config.recording.resolution,
+      fps: config.recording.fps,
+      show_radar: config.recording.show_radar,
+      show_hud: config.recording.show_hud,
+      mute_voice: config.recording.mute_voice,
+      isolate_target_voice: config.recording.isolate_target_voice,
+      camera_fov: config.recording.camera_fov,
+      viewmodel_fov: config.recording.viewmodel_fov,
+      flash_alpha: config.recording.flash_alpha,
+    },
+  };
+}
+
+const DEFAULT_AUDIO_ANALYSIS_OPTIONS: AudioAnalysisOptions = {
+  sample_rate: 11_025,
+  maximum_duration_seconds: 30 * 60,
+  maximum_beats: 4_096,
+  maximum_onsets: 4_096,
+  energy_points: 512,
+  maximum_sections: 24,
+};
+
 export const commands = {
   agentStatus: () => invoke<AgentStatus>('agent_status'),
   getAgentThread: (threadId: string) => invoke<AgentThread>('agent_thread', { threadId }),
@@ -375,7 +428,7 @@ export const commands = {
     }
   },
   analyzeAudioAsset: (assetId: string, options?: AudioAnalysisOptions) =>
-    request<AudioAnalysis>(`/media/assets/${encodeURIComponent(assetId)}/audio-analysis${queryString(options ?? {})}`),
+    request<AudioAnalysis>(`/media/assets/${encodeURIComponent(assetId)}/audio-analysis${queryString(options ?? DEFAULT_AUDIO_ANALYSIS_OPTIONS)}`),
   alignClipsToBeats: (body: BeatAlignmentRequest) =>
     request<BeatAlignmentDraft>('/media/audio/align-clips', { method: 'POST', body }),
   previewHlaeProposal: (intent: HlaeProposalIntent) =>
@@ -413,7 +466,7 @@ export const commands = {
     const page = await request<Paginated<DemoRecord>>(
       `/demos/compact${queryString({
         search: query.search,
-        map_name: query.map,
+        map_name: query.map_name,
         status: query.status,
         sort: query.sort,
         page: query.page,
@@ -422,6 +475,10 @@ export const commands = {
       { signal },
     );
     return { ...page, items: page.items.map(normalizeDemo) };
+  },
+  getDemo: async (id: string, signal?: AbortSignal) => {
+    const record = await request<DemoRecord>(`/demos/${encodeURIComponent(id)}`, { signal });
+    return normalizeDemo(record);
   },
   scanDemos: (paths: string[] = []) =>
     request<ScanResult>('/demos/scan', {
@@ -502,12 +559,30 @@ export const commands = {
       method: 'POST',
       body: {},
       signal,
-      timeoutMs: 120_000,
+      timeoutMs: 15 * 60_000,
     });
     return normalizeAnalysis(record);
   },
-  getAnalysis: (id: string, signal?: AbortSignal) =>
-    request<AnalysisWorkspace>(`/demos/${encodeURIComponent(id)}/analysis`, { signal }),
+  getAnalysis: async (id: string, signal?: AbortSignal) => {
+    const record = await request<MatchAnalysisRecord>(
+      `/demos/${encodeURIComponent(id)}/analysis`,
+      { signal },
+    );
+    return normalizeAnalysis(record);
+  },
+  searchEvidence: (query: EvidenceSearchQuery = {}, signal?: AbortSignal) => {
+    const parameters = new URLSearchParams();
+    Object.entries(query).forEach(([key, value]) => {
+      if (typeof value === 'string') {
+        const normalized = value.trim();
+        if (normalized) parameters.set(key, normalized);
+      } else if (value !== undefined) {
+        parameters.set(key, String(value));
+      }
+    });
+    const suffix = parameters.size > 0 ? `?${parameters.toString()}` : '';
+    return request<EvidenceSearchResponse>(`/evidence/search${suffix}`, { signal });
+  },
   reviewDemo: (id: string, body: LlmReviewRequest, signal?: AbortSignal) =>
     request<LlmReviewResult>(`/demos/${encodeURIComponent(id)}/review`, {
       method: 'POST',
@@ -523,7 +598,7 @@ export const commands = {
   getCosmeticCatalog: (signal?: AbortSignal) =>
     request<CosmeticCatalog>('/cosmetics/catalog', { signal, timeoutMs: 120_000 }),
   cosmeticImageUrl: (itemDefinitionIndex: number, paintKit: number) =>
-    desktopMediaUrl(`/api/v1/cosmetics/catalog/items/${itemDefinitionIndex}/paint-kits/${paintKit}/image`),
+    desktopMediaUrl(`/api/cosmetics/catalog/items/${itemDefinitionIndex}/paint-kits/${paintKit}/image`),
   listCosmeticPlans: (id: string, signal?: AbortSignal) =>
     request<CosmeticPlan[]>(`/demos/${encodeURIComponent(id)}/cosmetics/plans`, { signal }),
   createCosmeticPlan: (
@@ -551,16 +626,6 @@ export const commands = {
       body,
       timeoutMs: 600_000,
     }),
-  getReplay: async (id: string, signal?: AbortSignal) => {
-    const payload = await request<ReplayPayload>(`/demos/${encodeURIComponent(id)}/replay`, { signal });
-    return {
-      ...payload,
-      frames: payload.frames.map((frame: ReplayFrameRecord) => ({
-        ...frame,
-        players: frame.players.map((player) => ({ ...player, team: requireSide(player.team) })),
-      })),
-    };
-  },
   getReplayBinary: (id: string, signal?: AbortSignal) =>
     requestBinary(`/demos/${encodeURIComponent(id)}/replay.bin`, signal),
   replayCacheStatus: (signal?: AbortSignal) =>
@@ -575,11 +640,20 @@ export const commands = {
       { signal },
     ),
   planRecording: (body: RecordingQueueRequest) =>
-    request<RecordingPlanResponse>('/recording/plan', { method: 'POST', body }),
-  calibrateRecordingLatency: (body: { samples: CaptureLatencySample[] }) =>
-    request<CaptureLatencyCalibration>('/recording/calibration', { method: 'POST', body }),
-  executeRecordingQueue: (body: RecordingQueueRequest) =>
-    request<RecordingExecutionResponse>('/recording/queue', { method: 'POST', body }),
+    request<RecordingPlanResponse>('/recording/plan', {
+      method: 'POST',
+      body,
+      timeoutMs: null,
+    }),
+  executeRecordingPlan: (planId: string, offlineInsecureAcknowledged: boolean) =>
+    request<RecordingExecutionResponse>(
+      `/recording/plans/${encodeURIComponent(planId)}/execute`,
+      {
+        method: 'POST',
+        body: { offline_insecure_acknowledged: offlineInsecureAcknowledged },
+        timeoutMs: null,
+      },
+    ),
   getRecordingJob: (id: string, signal?: AbortSignal) =>
     request<RecordingJob>(`/recording/jobs/${encodeURIComponent(id)}`, { signal }),
   cancelRecordingJob: (id: string) =>
@@ -587,14 +661,13 @@ export const commands = {
       method: 'POST',
       body: {},
     }),
+  listActivities: (signal?: AbortSignal) => request<ActivityFeed>('/activities', { signal }),
   runtimeState: (signal?: AbortSignal) => request<RuntimeState>('/app/runtime-state', { signal }),
   abortRecording: () => request<void>('/recording/abort', { method: 'POST', body: {} }),
   listRecordedClips: async (signal?: AbortSignal) => {
     const page = await request<Paginated<RecordedClipRecord>>('/recorded-clips', { signal });
     return { ...page, items: page.items.map(normalizeRecordedClip) };
   },
-  exportMontage: (body: MontageExportRequest) =>
-    request<JobAccepted>('/montage/export', { method: 'POST', body, timeoutMs: 30_000 }),
   createMontageProject: (body: CreateMontageProject) =>
     request<MontageProjectRecord>('/montage/projects', { method: 'POST', body }),
   exportMontageProject: (id: string) =>
@@ -799,49 +872,20 @@ export const commands = {
   getConfig: (signal?: AbortSignal) => request<AppConfig>('/config', { signal }),
   detectPaths: () => request<DetectedPaths>('/config/detect-paths', { method: 'POST', body: {} }),
   getHlaeStatus: (signal?: AbortSignal) => request<HlaeStatus>('/hlae/status', { signal }),
-  checkHlaeStatus: (hlaePath: string, cs2Path: string) => request<HlaeStatus>('/hlae/status', {
-    method: 'POST', body: { hlae_path: hlaePath, cs2_path: cs2Path },
+  prepareManagedHlae: () => request<HlaeStatus>('/hlae/managed/prepare', {
+    method: 'POST', body: {}, timeoutMs: null,
   }),
   listHlaeBundles: () => invoke<HlaeBundleHandoff[]>('list_hlae_bundles'),
   revealHlaeBundle: (bundleDirectory: string) =>
     invoke<HlaeBundleHandoff>('reveal_hlae_bundle', { bundleDirectory }),
-  mediaRuntimeStatus: (signal?: AbortSignal) =>
-    request<MediaRuntimeStatus>('/media-runtime', { signal }),
   storageStatus: (signal?: AbortSignal) => request<StorageStatus>('/storage/status', { signal }),
   updateConfig: (config: AppConfig) =>
-    request<AppConfig>('/config', { method: 'PUT', body: config }),
-  testObs: (obs: AppConfig['obs']) =>
-    request<ObsRecordStatus>('/obs/test', { method: 'POST', body: obs }),
-  getObsStatus: (signal?: AbortSignal) =>
-    request<ObsRecordStatus>('/obs/status', { signal }),
-  startObs: () =>
-    request<ObsStartResponse>('/obs/start', { method: 'POST', body: {} }),
-  diagnoseObs: (signal?: AbortSignal) =>
-    request<ObsDiagnosis>('/obs/diagnose', { method: 'POST', body: {}, signal }),
-  getObsVideoTuningPlan: (signal?: AbortSignal) =>
-    request<ObsVideoTuningPlan>('/obs/video-tuning/plan', { signal }),
-  applyObsVideoTuningPlan: (expectedFingerprint: string) =>
-    request<ObsVideoApplyResult>('/obs/video-tuning/apply', {
-      method: 'POST',
-      body: { confirm: true, expected_fingerprint: expectedFingerprint },
-    }),
-  listObsVideoBackups: (signal?: AbortSignal) =>
-    request<ObsVideoBackup[]>('/obs/video-tuning/backups', { signal }),
-  restoreObsVideoBackup: (id: string) =>
-    request<ObsVideoRestoreResult>(
-      `/obs/video-tuning/backups/${encodeURIComponent(id)}/restore`,
-      { method: 'POST', body: { confirm: true } },
-    ),
-  deleteObsVideoBackup: (id: string) =>
-    request<ObsVideoBackupDeleteResult>(
-      `/obs/video-tuning/backups/${encodeURIComponent(id)}`,
-      { method: 'DELETE' },
-    ),
+    request<AppConfig>('/config', { method: 'PUT', body: configUpdatePayload(config) }),
   testLlm: (llm: AppConfig['llm']) =>
     request<LlmTestResult>('/llm/test', { method: 'POST', body: llm }),
-  listMatchHistory: (page = 1, pageSize = 50, signal?: AbortSignal) =>
+  listMatchHistory: (page = 1, pageSize = 50, signal?: AbortSignal, search?: string) =>
     request<Paginated<MatchHistoryItem>>(
-      `/match-history/matches${queryString({ page, page_size: pageSize })}`,
+      `/match-history/matches${queryString({ page, page_size: pageSize, search: search?.trim() })}`,
       { signal },
     ),
   syncMatchHistory: () =>
@@ -860,6 +904,8 @@ export const commands = {
       '/match-history/download',
       { method: 'POST', body: { match_id: matchId }, timeoutMs: 120_000 },
     ),
+  listActiveMatchDownloadJobs: (signal?: AbortSignal) =>
+    request<MatchDownloadJob[]>('/match-history/downloads/active', { signal }),
   getMatchDownloadJob: (jobId: string, signal?: AbortSignal) =>
     request<MatchDownloadJob>(`/match-history/download/${encodeURIComponent(jobId)}`, { signal }),
   cancelMatchDownload: (jobId: string) =>

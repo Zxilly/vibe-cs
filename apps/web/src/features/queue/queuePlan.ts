@@ -1,44 +1,77 @@
-import { msg } from '../../shared/i18n';
+import { currentLocale, msg, translate } from '../../shared/i18n';
 import type { DemoPlaybackOptions, RecordingQueueRequest } from '../../shared/desktop/dto';
 
 import type { QueueItem } from './queueStore';
 
-const FALLBACK_TICK_RATE = 64;
+export type RecordingJobStage = {
+  key:
+    | 'queue.recordingStage.launching'
+    | 'queue.recordingStage.seeking'
+    | 'queue.recordingStage.capturing'
+    | 'queue.recordingStage.stabilizing'
+    | 'queue.recordingStage.encoding';
+  ordinal: 1 | 2 | 3 | 4 | 5;
+  total: 5;
+};
 
-export function queueItemTickRate(item: QueueItem): number {
+const recordingJobStages: Readonly<Record<string, RecordingJobStage>> = {
+  'recording.stage.launching': { key: 'queue.recordingStage.launching', ordinal: 1, total: 5 },
+  'recording.stage.seeking': { key: 'queue.recordingStage.seeking', ordinal: 2, total: 5 },
+  'recording.stage.capturing': { key: 'queue.recordingStage.capturing', ordinal: 3, total: 5 },
+  'recording.stage.stabilizing': { key: 'queue.recordingStage.stabilizing', ordinal: 4, total: 5 },
+  'recording.stage.encoding': { key: 'queue.recordingStage.encoding', ordinal: 5, total: 5 },
+};
+
+/** Prepares the pinned app-managed movie runtime for one recording task. This
+ * deliberately lives in the task flow instead of global workspace readiness. */
+export async function requireManagedHlaeForRecording<
+  T extends { managed_release: { prepared: boolean } },
+>(
+  prepare: () => Promise<T>,
+  failureMessage: string,
+): Promise<T> {
+  const status = await prepare();
+  if (!status.managed_release.prepared) throw new Error(failureMessage);
+  return status;
+}
+
+/** Maps the runtime's stable stage protocol to presentation data. Unknown and
+ * terminal messages remain visible verbatim so errors never get hidden. */
+export function recordingJobStage(message: string): RecordingJobStage | null {
+  return recordingJobStages[message] ?? null;
+}
+
+export function queueItemTickRate(item: QueueItem): number | null {
   return item.tickRate !== undefined && Number.isFinite(item.tickRate) && item.tickRate >= 1 && item.tickRate <= 256
     ? item.tickRate
-    : FALLBACK_TICK_RATE;
+    : null;
 }
 
-export function queueItemDurationSeconds(item: QueueItem): number {
+export function queueItemDurationSeconds(item: QueueItem): number | null {
+  const tickRate = queueItemTickRate(item);
+  if (tickRate === null) return null;
   const tickSpan = Math.max(0, item.endTick - item.startTick);
-  const playbackSpeed = Number.isFinite(item.playbackSpeed) && item.playbackSpeed > 0 ? item.playbackSpeed : 1;
   const preRoll = Number.isFinite(item.preRollSeconds) && item.preRollSeconds > 0 ? item.preRollSeconds : 0;
   const postRoll = Number.isFinite(item.postRollSeconds) && item.postRollSeconds > 0 ? item.postRollSeconds : 0;
-  return tickSpan / queueItemTickRate(item) / playbackSpeed + preRoll + postRoll;
+  return tickSpan / tickRate + preRoll + postRoll;
 }
 
-export function buildDemoPlaybackOptions(item: QueueItem): DemoPlaybackOptions {
+export function buildDemoPlaybackOptions(item: QueueItem): DemoPlaybackOptions | null {
   const tickRate = queueItemTickRate(item);
+  if (tickRate === null) return null;
   const startTick = Number.isFinite(item.startTick) ? item.startTick : 0;
   const preRoll = Number.isFinite(item.preRollSeconds) && item.preRollSeconds > 0
     ? item.preRollSeconds
     : 0;
-  const timescale = Number.isFinite(item.playbackSpeed)
-    && item.playbackSpeed >= 0.1
-    && item.playbackSpeed <= 8
-    ? item.playbackSpeed
-    : 1;
   return {
     start_tick: Math.max(0, Math.round(startTick - preRoll * tickRate)),
     player: item.playerId,
-    timescale,
+    timescale: 1,
   };
 }
 
 export function demoPlaybackFingerprint(item: QueueItem): string {
-  return `demo-playback-v1:${JSON.stringify({
+  return `demo-playback:${JSON.stringify({
     id: item.id,
     demoId: item.demoId,
     origin: item.origin,
@@ -56,10 +89,22 @@ export function demoPlaybackBlockReason(
   if (item.origin !== 'demo') return msg("m1002");
   if (recordingActive) return msg("m0577");
   if (playbackActive) return msg("m0571");
+  if (queueItemTickRate(item) === null) {
+    return translate(currentLocale(), 'queue.tickRateUnavailable');
+  }
   if (item.perspective === 'victim') {
     return msg("m0333");
   }
   return null;
+}
+
+/** Playback readiness belongs to the local preview workflow, not global
+ * recording readiness. An idle empty queue therefore has nothing to report. */
+export function playbackReadinessRelevant(
+  queueItemCount: number,
+  playbackActive: boolean,
+): boolean {
+  return queueItemCount > 0 || playbackActive;
 }
 
 export function buildRecordingQueueRequest(items: readonly QueueItem[]): RecordingQueueRequest {
@@ -74,13 +119,9 @@ export function buildRecordingQueueRequest(items: readonly QueueItem[]): Recordi
         title: item.title,
         start_tick: item.startTick,
         end_tick: item.endTick,
-        playback_speed: item.playbackSpeed,
         pre_roll_seconds: item.preRollSeconds,
         post_roll_seconds: item.postRollSeconds,
         victim_pov: item.perspective === 'victim',
-        show_keyboard: item.showKeyboard,
-        show_kill_fx: item.showKillFx,
-        fade: true,
       })),
   };
 }
@@ -106,15 +147,12 @@ export function recordingQueueFingerprint(items: readonly QueueItem[]): string {
     tickRate: item.tickRate ?? null,
     preRollSeconds: item.preRollSeconds,
     postRollSeconds: item.postRollSeconds,
-    playbackSpeed: item.playbackSpeed,
     perspective: item.perspective,
-    showKeyboard: item.showKeyboard,
-    showKillFx: item.showKillFx,
     enabled: item.enabled,
     origin: item.origin,
   }));
 
-  return `recording-queue-v1:${JSON.stringify(snapshot)}`;
+  return `recording-queue:${JSON.stringify(snapshot)}`;
 }
 
 export function matchesRecordingQueueFingerprint(

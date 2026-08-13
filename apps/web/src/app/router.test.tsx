@@ -8,6 +8,11 @@ describe('application routes', () => {
     expect(routerMode).toBe('hash');
   });
 
+  it('exposes the persisted cross-workflow activity workspace', () => {
+    expect(routePaths).toContain('/activity');
+    expect(matchRoutes(appRoutes, '/activity')?.at(-1)?.route.id).toBe('activity');
+  });
+
   it.each(routePaths)('matches the declared route %s', (path) => {
     const matches = matchRoutes(appRoutes, path);
     expect(matches).not.toBeNull();

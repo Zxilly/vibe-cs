@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Vibe CS">
+  <defs>
+    <linearGradient id="surface" x1="70" y1="44" x2="442" y2="468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#24262B"/>
+      <stop offset="1" stop-color="#111216"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="141" y1="112" x2="380" y2="406" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB23E"/>
+      <stop offset="0.52" stop-color="#F47B20"/>
+      <stop offset="1" stop-color="#D84A12"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="112" fill="url(#surface)"/>
+  <path d="M256 92c79 0 144 60 152 137h-45c-8-52-53-92-107-92s-99 40-107 92h-45C112 152 177 92 256 92Z" fill="#383B43"/>
+  <path d="M105 262h45c3 56 49 101 106 101s103-45 106-101h45c-3 81-70 146-151 146S108 343 105 262Z" fill="#383B43"/>
+  <circle cx="256" cy="250" r="112" fill="none" stroke="url(#accent)" stroke-width="42"/>
+  <circle cx="256" cy="250" r="40" fill="url(#accent)"/>
+  <path d="M256 104v62M256 334v62M110 250h62M340 250h62" stroke="#F9E0C7" stroke-width="18" stroke-linecap="round"/>
+  <path d="m334 340 70 70" stroke="url(#accent)" stroke-width="42" stroke-linecap="round"/>
+  <circle cx="256" cy="250" r="12" fill="#FFF6EC"/>
+</svg>

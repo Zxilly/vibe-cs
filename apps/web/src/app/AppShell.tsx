@@ -34,6 +34,7 @@ import { useI18n } from '../shared/i18n';
 import { useRuntimeStore } from '../shared/stores/runtimeStore';
 import { useUiStore } from '../shared/stores/uiStore';
 import { IconButton, useDialogFocus } from '../shared/ui';
+import { WindowTitleBar } from './WindowTitleBar';
 
 type NavItem = {
   path: string;
@@ -47,16 +48,17 @@ const primaryNav: NavItem[] = [
   { path: '/', code: '01', labelKey: 'nav.home', icon: Home, end: true },
   { path: '/copilot', code: '02', labelKey: 'nav.copilot', icon: Bot },
   { path: '/library', code: '03', labelKey: 'nav.matches', icon: Archive },
-  { path: '/production', code: '04', labelKey: 'nav.production', icon: Clapperboard },
-  { path: '/outputs', code: '05', labelKey: 'nav.works', icon: FileOutput },
+  { path: '/evidence-search', code: '04', labelKey: 'nav.evidenceSearch', icon: Search },
+  { path: '/production', code: '05', labelKey: 'nav.production', icon: Clapperboard },
+  { path: '/activity', code: '06', labelKey: 'nav.activity', icon: Activity },
+  { path: '/outputs', code: '07', labelKey: 'nav.works', icon: FileOutput },
 ];
 
 const secondaryNav: NavItem[] = [
   { path: '/settings', code: '90', labelKey: 'nav.settings', icon: Settings },
 ];
 
-const contextualDestinations: NavItem[] = [
-  { path: '/analysis', code: '02.1', labelKey: 'analysis.title', icon: Activity },
+const standaloneDestinations: NavItem[] = [
   { path: '/players', code: '02.2', labelKey: 'players.title', icon: UsersRound },
   { path: '/match-history', code: '02.3', labelKey: 'history.title', icon: History },
   { path: '/queue', code: '03.1', labelKey: 'queue.title', icon: PlaySquare },
@@ -64,6 +66,17 @@ const contextualDestinations: NavItem[] = [
   { path: '/montage', code: '03.2.1', labelKey: 'montage.title', icon: Clapperboard },
   { path: '/studio/editor', code: '03.2.1', labelKey: 'editor.title', icon: Film },
   { path: '/recovery', code: '90.1', labelKey: 'recovery.title', icon: ShieldCheck },
+];
+
+const contextualDestinations: NavItem[] = [
+  { path: '/analysis', code: '02.1', labelKey: 'analysis.title', icon: Activity },
+  ...standaloneDestinations,
+];
+
+export const commandPaletteDestinations = [
+  ...primaryNav,
+  ...secondaryNav,
+  ...standaloneDestinations,
 ];
 
 const allDestinations = [...primaryNav, ...secondaryNav, ...contextualDestinations];
@@ -197,7 +210,7 @@ export function AppShell() {
 
   const filteredNav = useMemo(() => {
     const normalized = query.toLocaleLowerCase();
-    return [...primaryNav, ...secondaryNav].filter((item) =>
+    return commandPaletteDestinations.filter((item) =>
       t(item.labelKey).toLocaleLowerCase().includes(normalized),
     );
   }, [query, t]);
@@ -220,7 +233,8 @@ export function AppShell() {
         {...(end ? { end: true } : {})}
         className={({ isActive }) => `sidebar-link${isActive || contextActive(path) ? ' is-active' : ''}`}
         onClick={() => setMobileNavOpen(false)}
-        {...(sidebarCollapsed ? { title: t(labelKey) } : {})}
+        aria-label={t(labelKey)}
+        title={t(labelKey)}
       >
         <Icon size={17} strokeWidth={1.8} />
         <span>{t(labelKey)}</span>
@@ -288,7 +302,7 @@ export function AppShell() {
       />
 
       <div className="app-main">
-        <header className="titlebar">
+        <WindowTitleBar>
           <div className="titlebar__crumb">
             <span className="titlebar__index" aria-hidden="true">{currentNavItem?.code ?? '00'}</span>
             <FolderKanban size={14} />
@@ -306,7 +320,7 @@ export function AppShell() {
             <span className={`status-dot${serviceState === 'online' ? ' status-dot--online' : serviceState === 'offline' ? ' status-dot--offline' : ''}`} />
             <span>{serviceState === 'online' ? t('shell.serviceOnline') : serviceState === 'offline' ? t('shell.serviceOffline') : t('shell.connecting')}</span>
           </div>
-        </header>
+        </WindowTitleBar>
 
         <main className="content" id="main-content">
           <Outlet />

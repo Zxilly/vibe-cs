@@ -6,7 +6,7 @@ import {
   Clapperboard,
   FolderSearch,
   Gauge,
-  Radio,
+  Film,
   RefreshCw,
   Settings2,
   WandSparkles,
@@ -24,7 +24,6 @@ type CheckState = {
   checks: DependencyCheck[];
   source: 'service' | 'unavailable';
   error: string | null;
-  checkedAt: string | null;
 };
 
 const checkIcon = (state: DependencyCheck['state']) => {
@@ -33,6 +32,58 @@ const checkIcon = (state: DependencyCheck['state']) => {
   return <CircleAlert size={15} />;
 };
 
+export function GuidePreflight({
+  loading,
+  check,
+  onRefresh,
+}: {
+  loading: boolean;
+  check: DependencyCheck | undefined;
+  onRefresh: () => void;
+}) {
+  const { t } = useI18n();
+  const mode = loading ? 'checking' : check?.state === 'ready' ? 'ready' : 'missing';
+  const detail = mode === 'ready'
+    ? check?.detail
+    : mode === 'checking'
+      ? t('guide.cs2CheckingDescription')
+      : t('guide.cs2MissingDescription');
+
+  return (
+    <section
+      className={`guide-preflight guide-preflight--${mode}`}
+      role={mode === 'missing' ? 'alert' : 'status'}
+      aria-labelledby="guide-preflight-title"
+    >
+      <span className="guide-preflight__icon" aria-hidden="true">
+        {loading ? <Spinner /> : checkIcon(check?.state ?? 'missing')}
+      </span>
+      <div className="guide-preflight__copy">
+        <div className="guide-preflight__title-row">
+          <h2 id="guide-preflight-title">
+            {mode === 'ready' ? t('guide.cs2Ready') : mode === 'checking' ? t('guide.checking') : t('guide.cs2Required')}
+          </h2>
+          <Badge tone={mode === 'ready' ? 'success' : mode === 'checking' ? 'neutral' : 'danger'}>
+            {mode === 'ready' ? t('guide.ready') : mode === 'checking' ? t('guide.checking') : t('guide.notReady')}
+          </Badge>
+        </div>
+        <p title={mode === 'ready' ? detail : undefined}>{detail}</p>
+      </div>
+      <div className="guide-preflight__actions">
+        <Link
+          className={mode === 'missing' ? 'button button--primary button--sm' : 'inline-link'}
+          to={check?.action_path ?? '/settings'}
+        >
+          {mode === 'missing' ? t('guide.locateCs2') : t('guide.details')}<ArrowRight size={13} />
+        </Link>
+        <Button size="sm" onClick={onRefresh} disabled={loading}>
+          <RefreshCw size={14} className={loading ? 'spin' : undefined} />{t('guide.recheck')}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
 export function GuidePage() {
   const { t } = useI18n();
   const [status, setStatus] = useState<CheckState>({
@@ -40,7 +91,6 @@ export function GuidePage() {
     checks: [],
     source: 'unavailable',
     error: null,
-    checkedAt: null,
   });
 
   const refresh = useCallback(async (signal?: AbortSignal) => {
@@ -52,7 +102,6 @@ export function GuidePage() {
         checks: response.checks,
         source: 'service',
         error: null,
-        checkedAt: response.checked_at,
       });
     } catch (error) {
       if (signal?.aborted) return;
@@ -61,7 +110,6 @@ export function GuidePage() {
         checks: [],
         source: 'unavailable',
         error: readableError(error),
-        checkedAt: null,
       });
     }
   }, []);
@@ -72,7 +120,7 @@ export function GuidePage() {
     return () => controller.abort();
   }, [refresh]);
 
-  const readyCount = status.checks.filter((check) => check.state === 'ready').length;
+  const gameCheck = status.checks.find((check) => check.kind === 'game');
 
   return (
     <div className="page page--guide">
@@ -93,59 +141,7 @@ export function GuidePage() {
         </Notice>
       ) : null}
 
-      <section className="guide-hero">
-        <Card className="setup-card">
-          <div className="setup-card__header">
-            <div>
-              <span className="eyebrow">SYSTEM READINESS</span>
-              <h2>{t('guide.readiness')}</h2>
-            </div>
-            <div className="setup-score">
-              <strong>{readyCount}/{status.checks.length}</strong>
-              <span>{t('guide.ready')}</span>
-            </div>
-          </div>
-          <div className="readiness-overview grid grid-cols-1 gap-2 sm:grid-cols-3">
-            <div>
-              <span>{t('guide.ready')}</span>
-              <strong>{status.loading ? '—' : readyCount}</strong>
-              <small>/ {status.checks.length}</small>
-            </div>
-            <div>
-              <span>{t('guide.attention')}</span>
-              <strong>{status.loading ? '—' : Math.max(0, status.checks.length - readyCount)}</strong>
-              <small>/ {status.checks.length}</small>
-            </div>
-            <div>
-              <span>{status.source === 'service' ? t('shell.serviceOnline') : t('guide.serviceUnavailable')}</span>
-              <strong>{status.loading || status.checks.length === 0 ? '—' : `${Math.round((readyCount / status.checks.length) * 100)}%`}</strong>
-              <small>{status.checkedAt ? new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date(status.checkedAt)) : t('guide.recheck')}</small>
-            </div>
-          </div>
-          <div className="setup-list">
-            {status.checks.map((check) => (
-              <div className="setup-row" key={check.kind}>
-                <span className={`setup-row__icon setup-row__icon--${check.state}`}>
-                  {checkIcon(check.state)}
-                </span>
-                <div>
-                  <strong>{check.label}</strong>
-                  <span>{check.detail}</span>
-                </div>
-                <Badge tone={check.state === 'ready' ? 'success' : check.state === 'warning' ? 'warning' : 'danger'}>
-                  {check.state === 'ready' ? t('guide.ready') : check.state === 'warning' ? t('guide.attention') : t('guide.notReady')}
-                </Badge>
-              </div>
-            ))}
-          </div>
-          <div className="setup-card__footer">
-            <Button onClick={() => void refresh()} disabled={status.loading}>
-              <RefreshCw size={14} className={status.loading ? 'spin' : undefined} />{t('guide.recheck')}
-            </Button>
-            <Link className="inline-link" to="/settings">{t('guide.details')}<ArrowRight size={13} /></Link>
-          </div>
-        </Card>
-      </section>
+      <GuidePreflight loading={status.loading} check={gameCheck} onRefresh={() => void refresh()} />
 
       <section className="workflow-section">
         <div className="section-header">
@@ -182,8 +178,8 @@ export function GuidePage() {
 
       <section className="quick-grid">
         <Card className="quick-card">
-          <Radio size={18} />
-          <div><strong>{t('guide.obsTitle')}</strong><span>{t('guide.obsDescription')}</span></div>
+          <Film size={18} />
+          <div><strong>{t('guide.movieEngineTitle')}</strong><span>{t('guide.movieEngineDescription')}</span></div>
           <Link to="/settings" aria-label={msg("m0636")}><ArrowRight size={15} /></Link>
         </Card>
         <Card className="quick-card">

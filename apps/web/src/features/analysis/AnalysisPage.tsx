@@ -5,16 +5,19 @@ import {
   ArrowLeftRight,
   Award,
   Bot,
-  Calendar,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleDot,
   Clock3,
   Crosshair,
+  DollarSign,
   Flame,
   Grid3X3,
   ListFilter,
   Map as MapIcon,
+  MoreHorizontal,
   Pause,
   Play,
   Plus,
@@ -25,10 +28,11 @@ import {
   Sparkles,
   Swords,
   Target,
+  TestTube2,
   Users,
   Zap,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { commands, desktopMediaUrl, normalizeSide, readableError } from '../../shared/desktop/client';
@@ -40,20 +44,28 @@ import type {
   CosmeticInspectionReport,
   CosmeticPlan,
   CosmeticRewriteResponse,
+  DemoRecord,
   HeatPointRecord,
   Highlight,
   PlayerAnalysis,
   RadarOverviewRecord,
   ReplayCacheMetadata,
+  ReplayFidelityMetadata,
   ReplayFrameRecord,
   TimelineEvent,
 } from '../../shared/desktop/dto';
+import { replayFrameDelayMs } from './replayClock';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
+import {
+  averageKillDeathRatio,
+  formatKillDeathRatioValue,
+} from '../../shared/performanceMetrics';
 import { worldPointsToRadarPercent } from '../../shared/radar';
 import { runManagedPlaybackLaunch, useRuntimeStore } from '../../shared/stores/runtimeStore';
-import { Badge, Button, Card, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
+import { Badge, Button, Card, EmptyState, Notice, Spinner } from '../../shared/ui';
 import { useQueueStore, type QueueItem } from '../queue/queueStore';
+import { demoLifecyclePresentation } from '../library/libraryPresentation';
 import {
   buildCosmeticRewriteRequest,
   cosmeticDraftsFromPatches,
@@ -63,17 +75,61 @@ import {
   type CosmeticDrafts,
 } from './cosmetics';
 import {
+  analysisInsightsForWorkspace,
   matchupsForPlayer,
-  normalizeAnalysisInsights,
   orderHighlightsForCompilation,
   teamPurchaseForSide,
 } from './analysisInsights';
 import { AiReviewPanel, type ReviewConfiguration } from './AiReviewPanel';
 import { analysisBatchIds, runBatchAnalysis, type BatchAnalysisState } from './analysisBatch';
-import { replayCacheLabel, replayEffectPresentation } from './replayPresentation';
+import { AnalysisLifecycleError, loadDemoAnalysis } from './analysisLoader';
+import {
+  readAnalysisNavigation,
+  readAnalysisOpponent,
+  updateAnalysisNavigation,
+  type AnalysisNavigationPatch,
+  type AnalysisTab,
+} from './analysisNavigation';
+import { roundReasonLabel, timelineEventItemEvidence } from './analysisEvidence';
+import { buildOverviewEvidence } from './analysisOverview';
+import { analysisScoreboardColumns, analysisScoreboardRows } from './analysisScoreboardPresentation';
+import { PlayerEvidenceWorkspace } from './PlayerEvidenceWorkspace';
+import { WeaponAnalysisWorkspace } from './WeaponAnalysisWorkspace';
+import { UtilityAnalysisWorkspace } from './UtilityAnalysisWorkspace';
+import { EconomyAnalysisWorkspace } from './EconomyAnalysisWorkspace';
+import { DuelAnalysisWorkspace } from './DuelAnalysisWorkspace';
+import { economyEvidenceActionContract } from './economyEvidenceActions';
+import { playerEvidenceActionIntent } from './playerEvidenceActions';
+import type { PlayerEvidenceRef } from './playerMatchEvidence';
+import type { EconomyAtomicEvidence } from './economyEvidenceWorkspace';
+import type { WeaponAtomicEvidence } from './weaponEvidenceWorkspace';
+import type { UtilityAtomicEvidence } from './utilityEvidenceWorkspace';
+import { buildRoundContext, type RoundContextGroup, type RoundEvidenceAvailability } from './roundContextModel';
+import { evidenceRangeGroupId, roundNumberFromNavigationKey, roundSectionIsVisible, roundTickPercent, selectedGroupScrollTop, selectedRoundGroupId, tickDurationLabel } from './roundContextPresentation';
+import {
+  replayCacheLabel,
+  replayEffectPresentation,
+  replayFidelityPresentation,
+  replayPlaybackControlPresentation,
+  replayPlayerVitalPresentation,
+} from './replayPresentation';
 import { decodeReplayBinary } from './replayBinary';
-
-type AnalysisTab = 'overview' | 'players' | 'insights' | 'review' | 'rounds' | 'replay' | 'heatmap' | 'highlights' | 'cosmetics';
+import {
+  filterHeatmapPoints,
+  heatmapEvidenceIntent,
+  nextHeatmapPointIndex,
+  projectHeatmapPoints,
+  summarizeHeatmapPoints,
+  type HeatmapSide,
+} from './heatmapPresentation';
+import { replayWorldBounds, worldPointsToRelativePercent } from './replayCoordinates';
+import { nextScopedFrameIndex, scopeReplayFrames } from './replayRoundScope';
+import { replayWorkspaceDensity, type ReplayWorkspaceDensity } from './replayWorkspaceLayout';
+import {
+  analysisTabLayout,
+  coreAnalysisTabs,
+  secondaryAnalysisTabs,
+} from './analysisWorkspaceLayout';
 
 type CompilationMoment = {
   id: string;
@@ -86,20 +142,23 @@ type CompilationMoment = {
   hasVictimPov?: boolean;
 };
 
-const tabs: Array<{ id: AnalysisTab; label: string; icon: typeof Activity }> = [
-  { id: 'overview', label: msg("m0618"), icon: Activity },
-  { id: 'players', label: msg("m0978"), icon: Users },
-  { id: 'insights', label: msg("m0919"), icon: Zap },
-  { id: 'review', label: msg("m0023"), icon: Bot },
-  { id: 'rounds', label: msg("m0371"), icon: ListFilter },
-  { id: 'replay', label: msg("m0016"), icon: MapIcon },
-  { id: 'heatmap', label: msg("m0946"), icon: Flame },
-  { id: 'highlights', label: msg("m1070"), icon: Sparkles },
-  { id: 'cosmetics', label: msg("m1317"), icon: Shirt },
-];
+const tabIcons: Record<AnalysisTab, typeof Activity> = {
+  overview: Activity,
+  players: Users,
+  weapons: Crosshair,
+  utility: TestTube2,
+  economy: DollarSign,
+  duels: Swords,
+  insights: Zap,
+  review: Bot,
+  rounds: ListFilter,
+  replay: MapIcon,
+  heatmap: Flame,
+  highlights: Sparkles,
+  cosmetics: Shirt,
+};
 
 const playerInitials = (name: string) => name.slice(0, 2).toUpperCase();
-const formatRating = (rating: number) => rating.toFixed(2);
 
 const emptyWorkspace = (demoId: string): AnalysisWorkspace => ({
   demo_id: demoId,
@@ -123,17 +182,6 @@ function findPlayerName(workspace: AnalysisWorkspace, id: string): string {
 
 export function AnalysisPage() {
   const { t } = useI18n();
-  const tabLabels: Record<AnalysisTab, string> = {
-    overview: t('analysis.tab.overview'),
-    players: t('analysis.tab.players'),
-    insights: t('analysis.tab.insights'),
-    review: t('analysis.tab.review'),
-    rounds: t('analysis.tab.rounds'),
-    replay: t('analysis.tab.replay'),
-    heatmap: t('analysis.tab.heatmap'),
-    highlights: t('analysis.tab.highlights'),
-    cosmetics: t('analysis.tab.cosmetics'),
-  };
   const [params, setParams] = useSearchParams();
   const demoId = params.get('demo') ?? '';
   const encodedBatch = params.get('demos');
@@ -143,13 +191,11 @@ export function AnalysisPage() {
   const [workspace, setWorkspace] = useState<AnalysisWorkspace>(() => emptyWorkspace(demoId));
   const [source, setSource] = useState<'loading' | 'service' | 'error'>(demoId ? 'loading' : 'error');
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<AnalysisTab>('overview');
-  const [selectedPlayerId, setSelectedPlayerId] = useState('');
+  const [lifecycle, setLifecycle] = useState<DemoRecord['status'] | null>(null);
   const [addedHighlight, setAddedHighlight] = useState<string | null>(null);
   const [recordingDefaults, setRecordingDefaults] = useState({
     pre_roll_seconds: 3,
     post_roll_seconds: 2.5,
-    show_keyboard: false,
   });
   const [reviewConfiguration, setReviewConfiguration] = useState<ReviewConfiguration>({
     status: 'loading',
@@ -157,6 +203,8 @@ export function AnalysisPage() {
     provider: '',
     model: '',
   });
+  const playerEvidenceWatchAction = useAsyncAction<unknown>();
+  const runtimeSession = useRuntimeStore((state) => state.session);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -167,7 +215,6 @@ export function AnalysisPage() {
         setRecordingDefaults({
           pre_roll_seconds: config.recording.pre_roll_seconds,
           post_roll_seconds: config.recording.post_roll_seconds,
-          show_keyboard: config.recording.show_keyboard,
         });
         setReviewConfiguration({
           status: 'ready',
@@ -207,11 +254,15 @@ export function AnalysisPage() {
     const controller = new AbortController();
     let active = true;
     setSource('loading');
-    void commands.analyzeDemo(demoId, controller.signal)
+    setLifecycle(null);
+    void loadDemoAnalysis(demoId, commands, controller.signal, {
+      onLifecycle: (status) => {
+        if (active) setLifecycle(status);
+      },
+    })
       .then((response) => {
         if (!active) return;
         setWorkspace(response);
-        setSelectedPlayerId(response.players[0]?.id ?? '');
         setSource('service');
         setError(null);
       })
@@ -220,6 +271,8 @@ export function AnalysisPage() {
         setWorkspace(emptyWorkspace(demoId));
         setSource('error');
         setError(readableError(cause));
+        if (cause instanceof AnalysisLifecycleError) setLifecycle(cause.lifecycle);
+        else setLifecycle((current) => current === 'analyzing' ? 'failed' : current);
       });
     return () => {
       active = false;
@@ -239,7 +292,7 @@ export function AnalysisPage() {
     setError(null);
     void runBatchAnalysis(
       batchIds,
-      (id) => commands.analyzeDemo(id, controller.signal),
+      (id) => loadDemoAnalysis(id, commands, controller.signal),
       (id, state) => {
         if (!active) return;
         setBatchStates((current) => ({ ...current, [id]: state }));
@@ -256,7 +309,6 @@ export function AnalysisPage() {
     const state = batchStates[demoId];
     if (state?.status === 'ready') {
       setWorkspace(state.workspace);
-      setSelectedPlayerId(state.workspace.players[0]?.id ?? '');
       setSource('service');
       setError(null);
     } else if (state?.status === 'error') {
@@ -269,16 +321,48 @@ export function AnalysisPage() {
     }
   }, [batchIds.length, batchStates, demoId]);
 
+  const navigation = readAnalysisNavigation(
+    params,
+    source === 'service'
+      ? {
+          roundNumbers: workspace.rounds.map((round) => round.number),
+          playerIds: workspace.players.map((player) => player.id),
+          roundTickRanges: workspace.rounds.map((round) => ({
+            number: round.number,
+            startTick: round.start_tick,
+            endTick: round.end_tick,
+          })),
+        }
+      : {},
+  );
+  const {
+    tab,
+    round: selectedRound,
+    playerId: selectedPlayerId,
+    tick: selectedTick,
+    evidenceId: selectedEvidenceId,
+  } = navigation;
+  const selectedOpponentId = readAnalysisOpponent(
+    params,
+    source === 'service' ? workspace.players.map((player) => player.id) : [],
+  );
+  const navigateAnalysis = (patch: AnalysisNavigationPatch) => {
+    setParams(updateAnalysisNavigation(params, patch));
+  };
   const selectedPlayer = workspace.players.find((player) => player.id === selectedPlayerId) ?? workspace.players[0] ?? null;
   const teamA = workspace.players.filter((player) => player.team === 'A');
   const teamB = workspace.players.filter((player) => player.team === 'B');
   const finalRound = workspace.rounds.at(-1);
   const scoreA = finalRound?.team_a_score ?? workspace.teams.find((team) => team.side.toLocaleUpperCase() === 'A')?.score;
   const scoreB = finalRound?.team_b_score ?? workspace.teams.find((team) => team.side.toLocaleUpperCase() === 'B')?.score;
+  const teamAName = workspace.teams.find((team) => team.side.toLocaleUpperCase() === 'A')?.name.trim() || 'TEAM A';
+  const teamBName = workspace.teams.find((team) => team.side.toLocaleUpperCase() === 'B')?.name.trim() || 'TEAM B';
+  const workspaceLayout = analysisTabLayout(tab);
   const addQueueItem = useQueueStore((state) => state.add);
   const addQueueItems = useQueueStore((state) => state.addMany);
   const batchReady = Object.values(batchStates).filter((state) => state.status === 'ready').length;
   const batchFailed = Object.values(batchStates).filter((state) => state.status === 'error').length;
+  const lifecyclePresentation = lifecycle ? demoLifecyclePresentation(lifecycle) : null;
 
   const queueItemForCompilation = (moment: CompilationMoment): QueueItem => ({
     id: `analysis-${workspace.demo_id}-${moment.id}`,
@@ -295,10 +379,7 @@ export function AnalysisPage() {
     ...(workspace.tick_rate > 0 ? { tickRate: workspace.tick_rate } : {}),
     preRollSeconds: recordingDefaults.pre_roll_seconds,
     postRollSeconds: recordingDefaults.post_roll_seconds,
-    playbackSpeed: 1,
     perspective: 'pov',
-    showKeyboard: recordingDefaults.show_keyboard,
-    showKillFx: true,
     enabled: true,
     origin: 'demo',
   });
@@ -335,100 +416,283 @@ export function AnalysisPage() {
     markCompilationAdded(highlight.id);
   };
 
+  const playerEvidenceIntent = (evidence: PlayerEvidenceRef) => selectedPlayer
+    ? playerEvidenceActionIntent(workspace, selectedPlayer.id, evidence)
+    : null;
+
+  const watchPlayerEvidence = (evidence: PlayerEvidenceRef) => {
+    const intent = playerEvidenceIntent(evidence);
+    if (!intent) return;
+    void playerEvidenceWatchAction.run(
+      () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, intent.watch)),
+      msg("m0514"),
+    );
+  };
+
+  const openPlayerEvidenceReplay = (evidence: PlayerEvidenceRef) => {
+    const intent = playerEvidenceIntent(evidence);
+    if (intent) navigateAnalysis(intent.replay);
+  };
+
+  const addPlayerEvidence = (evidence: PlayerEvidenceRef) => {
+    const intent = playerEvidenceIntent(evidence);
+    if (!intent) return;
+    addCompilation(intent.compilation);
+  };
+
+  const watchWeaponEvidence = (evidence: WeaponAtomicEvidence) => {
+    void playerEvidenceWatchAction.run(
+      () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: evidence.tick })),
+      msg("m0514"),
+    );
+  };
+
+  const addWeaponEvidence = (evidence: WeaponAtomicEvidence) => {
+    if (!evidence.actor_id || !workspace.players.some((player) => player.id === evidence.actor_id)) return;
+    addCompilation(playerEvidenceActionIntent(workspace, evidence.actor_id, evidence).compilation);
+  };
+
+  const watchUtilityEvidence = (evidence: UtilityAtomicEvidence) => {
+    void playerEvidenceWatchAction.run(
+      () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: evidence.tick })),
+      msg("m0514"),
+    );
+  };
+
+  const addUtilityEvidence = (evidence: UtilityAtomicEvidence) => {
+    if (!evidence.actor_id || !workspace.players.some((player) => player.id === evidence.actor_id)) return;
+    addCompilation({
+      ...playerEvidenceActionIntent(workspace, evidence.actor_id, evidence).compilation,
+      category: 'utility',
+    });
+  };
+
+  const watchEconomyEvidence = (evidence: EconomyAtomicEvidence) => {
+    void playerEvidenceWatchAction.run(
+      () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: evidence.tick })),
+      msg("m0514"),
+    );
+  };
+
+  const addEconomyEvidence = (evidence: EconomyAtomicEvidence) => {
+    const action = economyEvidenceActionContract(workspace, evidence, {
+      serviceAvailable: source === 'service',
+      runtimeIdle: runtimeSession === 'idle',
+      watchPending: playerEvidenceWatchAction.state.status === 'loading',
+      alreadyAdded: addedHighlight === evidence.evidence_id,
+    });
+    if (action.add.compilation) addCompilation(action.add.compilation);
+  };
+
   return (
-    <div className="page page--analysis">
-      <PageHeader
-        eyebrow="MATCH INTELLIGENCE"
-        title={t('analysis.title')}
-        description={t('analysis.description')}
-        actions={
-          <>
-            <Link className="button button--secondary button--md" to="/library"><ArrowLeft size={14} />{t('analysis.backLibrary')}</Link>
-            <Link className="button button--secondary button--md" to="/players"><Users size={14} />{t('analysis.playerDirectory')}</Link>
+    <div className="page page--analysis" data-testid="analysis-page">
+      <header className="analysis-match-header" data-testid="analysis-match-header">
+        <div className="analysis-match-header__identity">
+          <Link className="analysis-match-header__back" to="/library" aria-label={t('analysis.backLibrary')} title={t('analysis.backLibrary')}>
+            <ArrowLeft size={18} />
+          </Link>
+          <div className="analysis-match-header__copy">
+            <span className="eyebrow">MATCH INTELLIGENCE</span>
+            <div className="analysis-match-header__title-row">
+              <h1>{workspace.map_name ? workspace.map_name.replace('de_', '').toUpperCase() : t('analysis.title')}</h1>
+              {source === 'service' && workspace.rounds.length > 0 ? <Badge tone="success">{msg("m0494")}</Badge> : null}
+            </div>
+            {scoreA !== undefined && scoreB !== undefined ? (
+              <div className="analysis-match-header__score" aria-label={`${teamAName} ${scoreA}, ${teamBName} ${scoreB}`}>
+                <span>{teamAName}</span><strong>{scoreA}</strong><i>:</i><strong>{scoreB}</strong><span>{teamBName}</span>
+              </div>
+            ) : <p>{t('analysis.description')}</p>}
+          </div>
+        </div>
+
+        <div className="analysis-match-header__meta" aria-label={t('analysis.matchFacts')}>
+          {workspace.duration_seconds > 0 ? <span><Clock3 size={15} />{formatClock(workspace.duration_seconds)}</span> : null}
+          {workspace.tick_rate > 0 ? <span><Radio size={15} />{workspace.tick_rate} tick</span> : null}
+          {workspace.rounds.length > 0 ? <span><ListFilter size={15} />{workspace.rounds.length} {t('analysis.roundCountLabel')}</span> : null}
+          {workspace.highlights.length > 0 ? <span><Sparkles size={15} />{workspace.highlights.length} {t('analysis.highlightCountLabel')}</span> : null}
+        </div>
+
+        <div className="analysis-match-header__actions">
+          <Link className="button button--secondary button--sm" to="/players"><Users size={15} />{t('analysis.playerDirectory')}</Link>
+          {batchIds.length > 1 ? (
             <div className="analysis-demo-select">
             <span>{msg("m0578")}</span>
-            {batchIds.length > 1 ? (
               <label>
-                <select value={demoId} onChange={(event) => setParams({ demo: event.target.value, demos: batchKey })} aria-label={msg("m0280")}>
-                  {batchIds.map((id, index) => {
-                    const state = batchStates[id];
-                    const label = state?.status === 'ready' ? state.workspace.map_name.replace('de_', '').toUpperCase() : msgf("m0887", [index + 1]);
-                    const status = state?.status === 'ready' ? msg("m0510") : state?.status === 'error' ? msg("m0425") : state?.status === 'loading' ? msg("m0263") : msg("m1062");
-                    return <option value={id} key={id}>{label} · {status}</option>;
-                  })}
-                </select>
-                <ChevronDown size={14} />
-              </label>
-            ) : (
-              <button type="button" disabled title={msg("m1129")}>
-                <strong>{workspace.map_name ? workspace.map_name.replace('de_', '').toUpperCase() : msg("m1063")}</strong>
-                <ChevronDown size={14} />
-              </button>
-            )}
+                <select value={demoId} onChange={(event) => {
+                    const next = updateAnalysisNavigation(params, { round: 1, playerId: null });
+                    next.set('demo', event.target.value);
+                    next.set('demos', batchKey);
+                    setParams(next);
+                  }} aria-label={msg("m0280")}>
+                    {batchIds.map((id, index) => {
+                      const state = batchStates[id];
+                      const label = state?.status === 'ready' ? state.workspace.map_name.replace('de_', '').toUpperCase() : msgf("m0887", [index + 1]);
+                      const status = state?.status === 'ready' ? msg("m0510") : state?.status === 'error' ? msg("m0425") : state?.status === 'loading' ? msg("m0263") : msg("m1062");
+                      return <option value={id} key={id}>{label} · {status}</option>;
+                    })}
+                  </select>
+                  <ChevronDown size={14} />
+                </label>
             </div>
-          </>
-        }
-      />
+          ) : null}
+        </div>
+      </header>
 
       {batchIds.length > 1 ? <Notice tone={batchFailed > 0 ? 'warning' : batchReady === batchIds.length ? 'success' : 'info'} title={msg("m0645")}>{msg("m0510")} {batchReady} / {batchIds.length}{batchFailed > 0 ? msgf("m0003", [batchFailed]) : msg("m0007")}</Notice> : null}
 
       {source !== 'service' ? (
-        <Notice tone={source === 'loading' ? 'info' : 'danger'} title={source === 'loading' ? msg("m0865") : msg("m0262")}>
-          {source === 'loading' ? <><Spinner />{msg("m0874")}</> : error ?? msg("m0795")}
+        <Notice
+          tone={source === 'loading' ? 'info' : 'danger'}
+          title={source === 'loading' && lifecyclePresentation ? t(lifecyclePresentation.labelKey) : source === 'loading' ? msg("m0865") : msg("m0262")}
+        >
+          {source === 'loading'
+            ? <><Spinner />{lifecyclePresentation ? t(lifecyclePresentation.descriptionKey) : msg("m0874")}</>
+            : error ?? msg("m0795")}
         </Notice>
       ) : null}
 
-      <div className="analysis-layout">
-        <aside className="player-rail">
-          <div className="player-rail__header">
-            <span>PLAYERS</span>
-            <Badge tone="neutral">{workspace.players.length}</Badge>
-          </div>
-          <PlayerTeam label="TEAM A" tone="blue" players={teamA} selectedId={selectedPlayer?.id ?? ''} onSelect={setSelectedPlayerId} />
-          <PlayerTeam label="TEAM B" tone="warning" players={teamB} selectedId={selectedPlayer?.id ?? ''} onSelect={setSelectedPlayerId} />
-          <div className="player-rail__footer">
-            <span>{msg("m0551")}</span>
-            <strong>{workspace.players.length > 0 ? (workspace.players.reduce((sum, player) => sum + player.rating, 0) / workspace.players.length).toFixed(2) : '—'}</strong>
-          </div>
-        </aside>
+      <div className={`analysis-layout analysis-layout--${workspaceLayout.showsPlayerRail ? 'player-context' : 'full-width'}`}>
+        {workspaceLayout.showsPlayerRail ? (
+          <aside className="player-rail" aria-label={t('analysis.playerContext')}>
+            <div className="player-rail__header">
+              <span>{t('analysis.tab.players')}</span>
+              <Badge tone="neutral">{workspace.players.length}</Badge>
+            </div>
+            <PlayerTeam label={teamAName} tone="blue" players={teamA} selectedId={selectedPlayer?.id ?? ''} onSelect={(id) => navigateAnalysis({ playerId: id })} />
+            <PlayerTeam label={teamBName} tone="warning" players={teamB} selectedId={selectedPlayer?.id ?? ''} onSelect={(id) => navigateAnalysis({ playerId: id })} />
+            <div className="player-rail__footer">
+              <span>{msg("m0551")}</span>
+              <strong>{formatKillDeathRatioValue(averageKillDeathRatio(workspace.players))}</strong>
+            </div>
+          </aside>
+        ) : null}
 
         <section className="analysis-workspace">
-          <header className="analysis-summary-bar">
-            <div className="analysis-match-score">
-              <div><span>TEAM A</span><strong>{scoreA ?? '—'}</strong></div>
-              <div className="analysis-map-name"><MapIcon size={14} /><strong>{workspace.map_name ? workspace.map_name.replace('de_', '').toUpperCase() : '—'}</strong><span>{workspace.rounds.length > 0 ? msg("m0494") : msg("m0705")}</span></div>
-              <div><strong>{scoreB ?? '—'}</strong><span>TEAM B</span></div>
-            </div>
-            <div className="analysis-match-meta">
-              <span><Calendar size={13} />—</span>
-              <span><Clock3 size={13} />{formatClock(workspace.duration_seconds)}</span>
-              <span><Radio size={13} />{workspace.tick_rate > 0 ? `${workspace.tick_rate} tick` : '—'}</span>
-            </div>
-          </header>
-
-          <nav className="analysis-tabs" aria-label={msg("m0270")}>
-            {tabs.map(({ id, icon: Icon }) => (
-              <button
-                type="button"
-                key={id}
-                className={tab === id ? 'is-active' : undefined}
-                aria-current={tab === id ? 'page' : undefined}
-                onClick={() => setTab(id)}
-              >
-                <Icon size={14} />{tabLabels[id]}
-                {id === 'highlights' ? <Badge tone="accent">{workspace.highlights.length}</Badge> : null}
-              </button>
-            ))}
-          </nav>
+          <AnalysisTabs tab={tab} highlightCount={workspace.highlights.length} onSelect={(nextTab) => navigateAnalysis({ tab: nextTab })} />
 
           <div className="analysis-view">
-            {tab === 'overview' ? <Overview workspace={workspace} player={selectedPlayer} /> : null}
-            {tab === 'players' ? <PlayersTable players={workspace.players} selectedId={selectedPlayer?.id ?? ''} onSelect={setSelectedPlayerId} /> : null}
+            {tab === 'overview' ? (
+              <Overview
+                workspace={workspace}
+                player={selectedPlayer}
+                onNavigate={navigateAnalysis}
+                onSelectPlayer={(id) => navigateAnalysis({ playerId: id })}
+              />
+            ) : null}
+            {tab === 'players' && selectedPlayer ? (
+              <>
+                {playerEvidenceWatchAction.state.status === 'error'
+                  ? <Notice tone="danger">{playerEvidenceWatchAction.state.message}</Notice>
+                  : null}
+                <PlayerEvidenceWorkspace
+                  workspace={workspace}
+                  playerId={selectedPlayer.id}
+                  focusedEvidenceId={selectedEvidenceId}
+                  {...(addedHighlight ? { addedEvidenceIds: new Set([addedHighlight]) } : {})}
+                  watchEnabled={source === 'service' && runtimeSession === 'idle' && playerEvidenceWatchAction.state.status !== 'loading'}
+                  watchUnavailableReason={runtimeSession !== 'idle' ? msg("m0799") : msg("m1001")}
+                  onWatch={watchPlayerEvidence}
+                  onOpenReplay={openPlayerEvidenceReplay}
+                  onAddProduction={addPlayerEvidence}
+                />
+              </>
+            ) : null}
+            {tab === 'weapons' ? (
+              <>
+                {playerEvidenceWatchAction.state.status === 'error'
+                  ? <Notice tone="danger">{playerEvidenceWatchAction.state.message}</Notice>
+                  : null}
+                <WeaponAnalysisWorkspace
+                  workspace={workspace}
+                  selectedPlayerId={params.has('player') ? selectedPlayerId : null}
+                  selectedRound={params.has('round') ? selectedRound : null}
+                  serviceAvailable={source === 'service'}
+                  runtimeIdle={runtimeSession === 'idle'}
+                  watchPending={playerEvidenceWatchAction.state.status === 'loading'}
+                  focusedEvidenceId={selectedEvidenceId}
+                  {...(addedHighlight ? { addedEvidenceIds: new Set([addedHighlight]) } : {})}
+                  onNavigate={navigateAnalysis}
+                  onWatch={watchWeaponEvidence}
+                  onAddProduction={addWeaponEvidence}
+                />
+              </>
+            ) : null}
+            {tab === 'utility' ? (
+              <>
+                {playerEvidenceWatchAction.state.status === 'error'
+                  ? <Notice tone="danger">{playerEvidenceWatchAction.state.message}</Notice>
+                  : null}
+                <UtilityAnalysisWorkspace
+                  workspace={workspace}
+                  selectedPlayerId={params.has('player') ? selectedPlayerId : null}
+                  selectedRound={params.has('round') ? selectedRound : null}
+                  serviceAvailable={source === 'service'}
+                  runtimeIdle={runtimeSession === 'idle'}
+                  watchPending={playerEvidenceWatchAction.state.status === 'loading'}
+                  focusedEvidenceId={selectedEvidenceId}
+                  {...(addedHighlight ? { addedEvidenceIds: new Set([addedHighlight]) } : {})}
+                  onNavigate={navigateAnalysis}
+                  onWatch={watchUtilityEvidence}
+                  onAddProduction={addUtilityEvidence}
+                />
+              </>
+            ) : null}
+            {tab === 'economy' ? (
+              <>
+                {playerEvidenceWatchAction.state.status === 'error'
+                  ? <Notice tone="danger">{playerEvidenceWatchAction.state.message}</Notice>
+                  : null}
+                <EconomyAnalysisWorkspace
+                  workspace={workspace}
+                  selectedPlayerId={params.has('player') ? selectedPlayerId : null}
+                  selectedRound={params.has('round') ? selectedRound : null}
+                  serviceAvailable={source === 'service'}
+                  runtimeIdle={runtimeSession === 'idle'}
+                  watchPending={playerEvidenceWatchAction.state.status === 'loading'}
+                  focusedEvidenceId={selectedEvidenceId}
+                  {...(addedHighlight ? { addedEvidenceIds: new Set([addedHighlight]) } : {})}
+                  onNavigate={navigateAnalysis}
+                  onWatch={watchEconomyEvidence}
+                  onAddProduction={addEconomyEvidence}
+                />
+              </>
+            ) : null}
+            {tab === 'duels' ? (
+              <>
+                {playerEvidenceWatchAction.state.status === 'error'
+                  ? <Notice tone="danger">{playerEvidenceWatchAction.state.message}</Notice>
+                  : null}
+                <DuelAnalysisWorkspace
+                  workspace={workspace}
+                  selectedPlayerId={selectedPlayer?.id ?? null}
+                  selectedOpponentId={selectedOpponentId}
+                  selectedRound={params.has('round') ? selectedRound : null}
+                  serviceAvailable={source === 'service'}
+                  runtimeIdle={runtimeSession === 'idle'}
+                  watchPending={playerEvidenceWatchAction.state.status === 'loading'}
+                  focusedEvidenceId={selectedEvidenceId}
+                  {...(addedHighlight ? { addedEvidenceIds: new Set([addedHighlight]) } : {})}
+                  onNavigate={navigateAnalysis}
+                  onWatch={watchPlayerEvidence}
+                  onAddProduction={addPlayerEvidence}
+                />
+              </>
+            ) : null}
             {tab === 'insights' ? <InsightsView workspace={workspace} selectedPlayer={selectedPlayer} /> : null}
             {tab === 'review' ? <AiReviewPanel key={demoId} demoId={demoId} workspace={workspace} selectedPlayer={selectedPlayer} source={source} configuration={reviewConfiguration} /> : null}
-            {tab === 'rounds' ? <RoundsView workspace={workspace} demoId={demoId} playable={source === 'service'} selectedPlayer={selectedPlayer} addedId={addedHighlight} onCompile={addCompilation} /> : null}
-            {tab === 'replay' ? <ReplayView demoId={demoId} workspace={workspace} source={source} /> : null}
-            {tab === 'heatmap' ? <HeatmapView demoId={demoId} mapName={workspace.map_name} player={selectedPlayer} source={source} /> : null}
+            {tab === 'rounds' ? <RoundsView workspace={workspace} demoId={demoId} playable={source === 'service'} selectedRound={selectedRound} selectedPlayer={selectedPlayer} selectedTick={selectedTick} selectedEvidenceId={selectedEvidenceId} addedId={addedHighlight} onSelectRound={(round) => navigateAnalysis({ round })} onPreviewRound={(round, tick, playerId) => navigateAnalysis({ tab: 'replay', round, tick: tick ?? null, playerId: playerId ?? null })} onCompile={addCompilation} /> : null}
+            {tab === 'replay' ? <ReplayView demoId={demoId} workspace={workspace} source={source} roundNumber={selectedRound} targetTick={selectedTick} selectedPlayerId={selectedPlayerId} onSelectPlayer={(playerId) => navigateAnalysis({ playerId })} /> : null}
+            {tab === 'heatmap' ? (
+              <HeatmapView
+                demoId={demoId}
+                mapName={workspace.map_name}
+                player={selectedPlayer}
+                players={workspace.players}
+                source={source}
+                selectedRound={params.has('round') ? selectedRound : null}
+                onNavigate={navigateAnalysis}
+              />
+            ) : null}
             {tab === 'highlights' ? (
               <HighlightsView
                 highlights={workspace.highlights}
@@ -436,7 +700,12 @@ export function AnalysisPage() {
                 addedId={addedHighlight}
                 onAdd={addHighlight}
                 onAddMany={addHighlightCompilation}
-                onPreview={() => setTab('replay')}
+                onPreview={(highlight) => navigateAnalysis({
+                  tab: 'replay',
+                  round: highlight.round > 0 ? highlight.round : selectedRound,
+                  playerId: highlight.player_id,
+                  tick: highlight.start_tick,
+                })}
               />
             ) : null}
             {tab === 'cosmetics' ? <CosmeticsView demoId={demoId} players={workspace.players} source={source} /> : null}
@@ -444,6 +713,105 @@ export function AnalysisPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+function AnalysisTabs({
+  tab,
+  highlightCount,
+  onSelect,
+}: {
+  tab: AnalysisTab;
+  highlightCount: number;
+  onSelect: (tab: AnalysisTab) => void;
+}) {
+  const { t } = useI18n();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const labels: Record<AnalysisTab, string> = {
+    overview: t('analysis.tab.overview'),
+    players: t('analysis.tab.players'),
+    weapons: t('analysis.tab.weapons'),
+    utility: t('analysis.tab.utility'),
+    economy: t('analysis.tab.economy'),
+    duels: t('analysis.tab.duels'),
+    insights: t('analysis.tab.insights'),
+    review: t('analysis.tab.review'),
+    rounds: t('analysis.tab.rounds'),
+    replay: t('analysis.tab.replay'),
+    heatmap: t('analysis.tab.heatmap'),
+    highlights: t('analysis.tab.highlights'),
+    cosmetics: t('analysis.tab.cosmetics'),
+  };
+  const secondaryActive = analysisTabLayout(tab).group === 'secondary';
+
+  useEffect(() => {
+    if (!moreOpen) return undefined;
+    const closeFromPointer = (event: PointerEvent) => {
+      if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false);
+    };
+    const closeFromKeyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMoreOpen(false);
+    };
+    window.addEventListener('pointerdown', closeFromPointer);
+    window.addEventListener('keydown', closeFromKeyboard);
+    return () => {
+      window.removeEventListener('pointerdown', closeFromPointer);
+      window.removeEventListener('keydown', closeFromKeyboard);
+    };
+  }, [moreOpen]);
+
+  const selectTab = (nextTab: AnalysisTab) => {
+    setMoreOpen(false);
+    onSelect(nextTab);
+  };
+
+  const renderTab = (id: AnalysisTab, inMenu = false) => {
+    const Icon = tabIcons[id];
+    return (
+      <button
+        type="button"
+        key={id}
+        role={inMenu ? 'menuitem' : undefined}
+        className={`analysis-tab-button${tab === id ? ' is-active' : ''}`}
+        aria-current={tab === id ? 'page' : undefined}
+        data-testid={`analysis-tab-${id}`}
+        onClick={() => selectTab(id)}
+      >
+        <Icon size={16} />
+        <span>{labels[id]}</span>
+        {id === 'highlights' && highlightCount > 0 ? <Badge tone="accent">{highlightCount}</Badge> : null}
+      </button>
+    );
+  };
+
+  return (
+    <nav className="analysis-tabs" aria-label={t('analysis.navigationLabel')} data-testid="analysis-tabs">
+      <div className="analysis-tabs__core">
+        {coreAnalysisTabs.map((id) => renderTab(id))}
+      </div>
+      <div className="analysis-more" ref={moreRef}>
+        <button
+          type="button"
+          className={`analysis-tab-button analysis-more__trigger${secondaryActive ? ' is-active' : ''}`}
+          aria-haspopup="menu"
+          aria-expanded={moreOpen}
+          aria-label={secondaryActive ? `${t('analysis.tab.more')}: ${labels[tab]}` : t('analysis.tab.more')}
+          onClick={() => setMoreOpen((open) => !open)}
+        >
+          <MoreHorizontal size={17} />
+          <span>{t('analysis.tab.more')}</span>
+          {secondaryActive ? <small className="analysis-more__current">{labels[tab]}</small> : null}
+          <ChevronDown size={14} />
+        </button>
+        {moreOpen ? (
+          <div className="analysis-more__menu" role="menu" aria-label={t('analysis.moreTools')}>
+            <span>{t('analysis.moreTools')}</span>
+            {secondaryAnalysisTabs.map((id) => renderTab(id, true))}
+          </div>
+        ) : null}
+      </div>
+    </nav>
   );
 }
 
@@ -463,38 +831,63 @@ function PlayerTeam({
   return (
     <div className="player-team">
       <div className={`player-team__label player-team__label--${tone}`}><span />{label}</div>
-      {players.map((player) => (
-        <button
-          type="button"
-          key={player.id}
-          className={selectedId === player.id ? 'is-active' : undefined}
-          onClick={() => onSelect(player.id)}
-        >
-          <span className={`player-avatar player-avatar--${player.team.toLocaleLowerCase()}`}>{playerInitials(player.name)}</span>
-          <span className="player-team__name"><strong>{player.name}</strong><small>{player.kills} / {player.deaths} / {player.assists}</small></span>
-          <span className={`rating rating--${player.rating >= 1.1 ? 'high' : player.rating < 0.9 ? 'low' : 'mid'}`}>{formatRating(player.rating)}</span>
-        </button>
-      ))}
+      {players.map((player) => {
+        const ratio = player.kill_death_ratio;
+        return (
+          <button
+            type="button"
+            key={player.id}
+            className={selectedId === player.id ? 'is-active' : undefined}
+            onClick={() => onSelect(player.id)}
+          >
+            <span className={`player-avatar player-avatar--${player.team.toLocaleLowerCase()}`}>{playerInitials(player.name)}</span>
+            <span className="player-team__name"><strong>{player.name}</strong><small>{player.kills} / {player.deaths} / {player.assists}</small></span>
+            <span className={`kd-ratio kd-ratio--${ratio >= 1.1 ? 'high' : ratio < 0.9 ? 'low' : 'mid'}`}>{formatKillDeathRatioValue(player.kill_death_ratio, 2)}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function Overview({ workspace, player }: { workspace: AnalysisWorkspace; player: PlayerAnalysis | null }) {
+function Overview({
+  workspace,
+  player,
+  onNavigate,
+  onSelectPlayer,
+}: {
+  workspace: AnalysisWorkspace;
+  player: PlayerAnalysis | null;
+  onNavigate: (patch: AnalysisNavigationPatch) => void;
+  onSelectPlayer: (id: string) => void;
+}) {
+  const { t } = useI18n();
   if (!player) return <Card><EmptyState icon={<Users size={22} />} title={msg("m0904")} description={msg("m0259")} /></Card>;
   const roundWinsA = workspace.rounds.filter((round) => round.winner === 'A').length;
   const roundWinsB = workspace.rounds.length - roundWinsA;
-  const topHighlight = workspace.highlights[0];
+  const evidence = buildOverviewEvidence(workspace, player.id);
+  const keyHighlights = [...workspace.highlights]
+    .filter((highlight) => highlight.kind !== 'timeline' && highlight.kind !== 'fail')
+    .sort((left, right) => right.victims.length - left.victims.length
+      || right.confidence - left.confidence
+      || right.round - left.round
+      || left.start_tick - right.start_tick)
+    .slice(0, 5);
+  const topHighlight = keyHighlights[0] ?? workspace.highlights[0];
+  const topWeapon = evidence.weapons[0] ?? null;
   return (
     <div className="overview-view">
-      <section className="metric-grid">
+      <section className="metric-grid metric-grid--overview">
         <Card className="metric-card metric-card--featured">
           <div className="metric-card__icon"><Award size={18} /></div>
-          <span>PLAYER RATING</span><strong>{formatRating(player.rating)}</strong>
-          <small>{msg("m0267")}</small>
+          <span>K/D</span><strong>{formatKillDeathRatioValue(player.kill_death_ratio, 2)}</strong>
+          <small>{player.kills} K · {player.deaths} D</small>
         </Card>
-        <Card className="metric-card"><div className="metric-card__icon"><Crosshair size={18} /></div><span>K / D / A</span><strong>{player.kills}<i>/</i>{player.deaths}<i>/</i>{player.assists}</strong><small>{(player.kills / Math.max(1, player.deaths)).toFixed(2)} K/D</small></Card>
+        <Card className="metric-card"><div className="metric-card__icon"><Crosshair size={18} /></div><span>K / D / A</span><strong>{player.kills}<i>/</i>{player.deaths}<i>/</i>{player.assists}</strong><small>{player.assists} A</small></Card>
         <Card className="metric-card"><div className="metric-card__icon"><Target size={18} /></div><span>ADR</span><strong>{player.adr.toFixed(1)}</strong><small>{msg("m0883")}</small></Card>
         <Card className="metric-card"><div className="metric-card__icon"><Zap size={18} /></div><span>HEADSHOT</span><strong>{Math.round(player.headshot_rate * 100)}%</strong><small>{Math.round(player.kills * player.headshot_rate)} {msg("m0842")}</small></Card>
+        <Card className="metric-card metric-card--extended"><div className="metric-card__icon"><Zap size={18} /></div><span>{t('analysis.overview.utility')}</span><strong>{evidence.utility.available ? evidence.utility.damage : '—'}</strong><small>{evidence.utility.available ? `${evidence.utility.throws} ${t('analysis.overview.throws')}` : t('analysis.overview.unavailable')}</small></Card>
+        <Card className="metric-card metric-card--extended"><div className="metric-card__icon"><Swords size={18} /></div><span>{t('analysis.overview.topDuel')}</span><strong>{evidence.duel ? `${evidence.duel.kills}:${evidence.duel.deaths}` : '—'}</strong><small>{evidence.duel ? `${t('analysis.overview.vs')} ${evidence.duel.opponent_name}` : t('analysis.overview.unavailable')}</small></Card>
       </section>
 
       <div className="overview-columns">
@@ -512,29 +905,61 @@ function Overview({ workspace, player }: { workspace: AnalysisWorkspace; player:
           <div className="chart-legend"><span><i className="team-a" />TEAM A · {roundWinsA}</span><span><i className="team-b" />TEAM B · {roundWinsB}</span></div>
         </Card>
 
-        <Card className="impact-card">
-          <div className="card-heading"><div><span className="eyebrow">IMPACT</span><h2>{msg("m0610")}</h2></div><CircleDot size={16} /></div>
-          <EmptyState icon={<CircleDot size={22} />} title={msg("m0731")} description={msg("m0564")} />
+        <Card className="overview-evidence-focus">
+          <div className="card-heading">
+            <div><span className="eyebrow">PLAYER EVIDENCE</span><h2>{player.name} · {t('analysis.overview.evidence')}</h2><p>{t('analysis.overview.evidenceDescription')}</p></div>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate({ tab: 'insights' })}>{t('analysis.overview.openInsights')}<ChevronRight size={15} /></Button>
+          </div>
+          <div className="overview-evidence-focus__grid">
+            <div><Crosshair size={17} /><span><small>{t('analysis.overview.weapons')}</small><strong>{topWeapon ? topWeapon.name.replaceAll('_', ' ').toLocaleUpperCase() : '—'}</strong><em>{topWeapon ? `${topWeapon.kills} ${t('analysis.overview.kills')} · ${topWeapon.headshots} HS` : t('analysis.overview.unavailable')}</em></span></div>
+            <div><Swords size={17} /><span><small>{t('analysis.overview.duels')}</small><strong>{evidence.duel ? `${evidence.duel.kills}:${evidence.duel.deaths} ${t('analysis.overview.vs')} ${evidence.duel.opponent_name}` : '—'}</strong><em>{evidence.duel ? `${evidence.duel.damage_dealt} / ${evidence.duel.damage_taken} ${t('analysis.overview.damage')}` : t('analysis.overview.unavailable')}</em></span></div>
+            <div><Zap size={17} /><span><small>{t('analysis.overview.utility')}</small><strong>{evidence.utility.available ? `${evidence.utility.throws} ${t('analysis.overview.throws')}` : '—'}</strong><em>{evidence.utility.available ? evidence.utility.items.slice(0, 3).map((item) => `${item.name}×${item.count}`).join(' · ') : t('analysis.overview.unavailable')}</em></span></div>
+            <div><CircleDot size={17} /><span><small>{t('analysis.overview.objectivesEconomy')}</small><strong>{evidence.objectives.plants} / {evidence.objectives.defuses}</strong><em>{evidence.economy.available ? `${t('analysis.overview.matchEconomy')} · ${evidence.economy.purchases} ${t('analysis.overview.purchases')}${evidence.economy.spend === null ? '' : ` · $${evidence.economy.spend.toLocaleString(currentLocale())}`}` : t('analysis.overview.unavailable')}</em></span></div>
+          </div>
         </Card>
       </div>
 
-      {topHighlight ? <Card className="insight-callout"><div className="insight-callout__icon"><Sparkles size={18} /></div><div><span className="eyebrow">TOP PARSED HIGHLIGHT</span><strong>{topHighlight.label}</strong><p>{msg("m0367")} {topHighlight.round} {msg("m0122")} {topHighlight.confidence.toFixed(2)} · tick {topHighlight.start_tick}–{topHighlight.end_tick}</p></div></Card> : <Notice tone="info">{msg("m0266")}</Notice>}
+      <div className="overview-evidence-grid">
+        <PlayersTable players={workspace.players} selectedId={player.id} onSelect={onSelectPlayer} compact />
+        <Card className="overview-key-moments">
+          <div className="card-heading"><div><span className="eyebrow">MATCH EVIDENCE</span><h2>{t('analysis.overview.keyMoments')}</h2><p>{t('analysis.overview.keyMomentsDescription')}</p></div><Badge tone="neutral">{keyHighlights.length}</Badge></div>
+          {keyHighlights.length > 0 ? (
+            <div className="overview-key-moments__list">
+              {keyHighlights.map((highlight) => {
+                const owner = workspace.players.find((candidate) => candidate.id === highlight.player_id)?.name ?? highlight.player_id;
+                return (
+                  <article key={highlight.id}>
+                    <span><strong>{highlight.label}</strong><small>R{highlight.round} · {owner} · {highlight.victims.length} {t('analysis.overview.victims')} · tick {highlight.start_tick}–{highlight.end_tick}</small></span>
+                    <div>
+                      <Button variant="ghost" size="sm" onClick={() => onNavigate({ tab: 'rounds', round: highlight.round, playerId: highlight.player_id })}>{t('analysis.overview.openRound')}</Button>
+                      <Button variant="secondary" size="sm" onClick={() => onNavigate({ tab: 'replay', round: highlight.round, playerId: highlight.player_id, tick: highlight.start_tick })}><Play size={14} />{t('analysis.overview.openReplay')}</Button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : <EmptyState icon={<Sparkles size={22} />} title={t('analysis.overview.noKeyMoments')} description={msg("m0266")} />}
+        </Card>
+      </div>
+
+      {topHighlight ? <Card className="insight-callout"><div className="insight-callout__icon"><Sparkles size={18} /></div><div><span className="eyebrow">TOP PARSED HIGHLIGHT</span><strong>{topHighlight.label}</strong><p>{msg("m0367")} {topHighlight.round} {msg("m0122")} {topHighlight.confidence.toFixed(2)} · tick {topHighlight.start_tick}–{topHighlight.end_tick}</p></div><Button variant="secondary" size="sm" onClick={() => onNavigate({ tab: 'highlights', round: topHighlight.round, playerId: topHighlight.player_id })}>{t('analysis.overview.allHighlights')}<ChevronRight size={15} /></Button></Card> : <Notice tone="info">{msg("m0266")}</Notice>}
     </div>
   );
 }
 
-function PlayersTable({ players, selectedId, onSelect }: { players: PlayerAnalysis[]; selectedId: string; onSelect: (id: string) => void }) {
+function PlayersTable({ players, selectedId, onSelect, compact = false }: { players: PlayerAnalysis[]; selectedId: string; onSelect: (id: string) => void; compact?: boolean }) {
   if (players.length === 0) return <Card><EmptyState icon={<Users size={22} />} title={msg("m0903")} description={msg("m0261")} /></Card>;
+  const rows = analysisScoreboardRows(players);
   return (
-    <Card className="players-table-card">
+    <Card className={`players-table-card${compact ? ' players-table-card--compact' : ''}`}>
       <div className="card-heading"><div><span className="eyebrow">SCOREBOARD</span><h2>{msg("m0982")}</h2></div><Badge tone="neutral">{msg("m0655")}</Badge></div>
       <div className="data-table players-table">
-        <div className="data-table__head"><span>{msg("m0978")}</span><span>K</span><span>D</span><span>A</span><span>K/D</span><span>ADR</span><span>HS%</span><span>Rating</span></div>
-        {[...players].sort((a, b) => b.rating - a.rating).map((player) => (
+        <div className="data-table__head">{analysisScoreboardColumns.map((column) => <span key={column}>{column === 'player' ? msg("m0978") : column}</span>)}</div>
+        {rows.map((player) => (
           <button type="button" key={player.id} className={selectedId === player.id ? 'is-selected' : undefined} onClick={() => onSelect(player.id)}>
             <span className="data-player"><span className={`player-avatar player-avatar--${player.team.toLocaleLowerCase()}`}>{playerInitials(player.name)}</span><span><strong>{player.name}</strong><small>TEAM {player.team}</small></span></span>
             <span>{player.kills}</span><span>{player.deaths}</span><span>{player.assists}</span>
-            <span>{(player.kills / Math.max(1, player.deaths)).toFixed(2)}</span><span>{player.adr.toFixed(1)}</span><span>{Math.round(player.headshot_rate * 100)}%</span><span className="rating-cell">{player.rating.toFixed(2)}</span>
+            <span className="kd-ratio-cell">{player.killDeathRatio}</span><span>{player.adr}</span><span>{player.headshotRate}</span>
           </button>
         ))}
       </div>
@@ -543,7 +968,8 @@ function PlayersTable({ players, selectedId, onSelect }: { players: PlayerAnalys
 }
 
 function InsightsView({ workspace, selectedPlayer }: { workspace: AnalysisWorkspace; selectedPlayer: PlayerAnalysis | null }) {
-  const insights = normalizeAnalysisInsights(workspace.insights);
+  const { t } = useI18n();
+  const insights = analysisInsightsForWorkspace(workspace);
   const utility = selectedPlayer
     ? insights.player_utility.find((summary) => summary.player_id === selectedPlayer.id) ?? null
     : null;
@@ -566,14 +992,14 @@ function InsightsView({ workspace, selectedPlayer }: { workspace: AnalysisWorksp
         {capability.purchase_events.available ? (
           <>
             <div className="economy-round-table">
-              <div className="economy-round-table__head"><span>{msg("m0367")}</span><span>{msg("m0078")}</span><span>{msg("m0079")}</span></div>
+              <div className="economy-round-table__head"><span>{msg("m0367")}</span><span>{t('analysis.insights.economy.tSide')}</span><span>{t('analysis.insights.economy.ctSide')}</span></div>
               {insights.round_economy.map((round) => {
-                const teamA = teamPurchaseForSide(round, 'A');
-                const teamB = teamPurchaseForSide(round, 'B');
-                const renderTeam = (team: typeof teamA) => team ? (
-                  <span><strong>{team.purchase_count} {msg("m0811")}</strong><small>{team.items.length > 0 ? team.items.map((item) => `${item.name}×${item.count}`).join(' · ') : msg("m0704")} · {team.spend === null ? msg("m1272") : `$${team.spend.toLocaleString(currentLocale())}`}</small></span>
+                const terrorist = teamPurchaseForSide(round, 'T');
+                const counterTerrorist = teamPurchaseForSide(round, 'CT');
+                const renderSide = (team: typeof terrorist) => team ? (
+                  <span><strong>{team.purchase_count} {msg("m0811")}</strong><small>{team.items.length > 0 ? team.items.map((item) => `${item.name}×${item.count}`).join(' · ') : msg("m0704")}{team.purchase_count > 0 ? ` · ${team.spend === null ? msg("m1272") : `$${team.spend.toLocaleString(currentLocale())}`}` : ''}</small></span>
                 ) : <span><strong>{msg("m0146")}</strong><small>{msg("m0170")}</small></span>;
-                return <div key={round.round}><span>R{round.round}</span>{renderTeam(teamA)}{renderTeam(teamB)}</div>;
+                return <div key={round.round}><span>R{round.round}</span>{renderSide(terrorist)}{renderSide(counterTerrorist)}</div>;
               })}
             </div>
             {!capability.purchase_spend.available ? <Notice tone="info">{msg("m1162")}</Notice> : null}
@@ -627,9 +1053,12 @@ const eventKindLabel: Record<TimelineEvent['kind'], string> = {
   purchase: msg("m1159"),
 };
 
-function eventEvidence(event: TimelineEvent): string {
-  const participants = [event.actor, event.target].filter((value): value is string => Boolean(value));
-  const weapon = event.weapon ? ` · ${event.weapon}` : '';
+function eventEvidence(event: TimelineEvent, workspace: AnalysisWorkspace): string {
+  const participants = [event.actor, event.target]
+    .filter((value): value is string => Boolean(value))
+    .map((playerId) => findPlayerName(workspace, playerId));
+  const itemEvidence = timelineEventItemEvidence(event);
+  const weapon = itemEvidence ? ` · ${itemEvidence}` : '';
   const flags = [event.headshot ? msg("m0949") : null, event.penetrated ? msg("m1054") : null].filter(Boolean).join(' · ');
   const detail = typeof event.detail === 'object' && event.detail !== null
     ? event.detail as Record<string, unknown>
@@ -650,51 +1079,189 @@ function eventEvidence(event: TimelineEvent): string {
 
 type RoundEventFilter = 'all' | 'combat' | 'objectives' | 'utility' | 'economy';
 
-function eventMatchesFilter(event: TimelineEvent, filter: RoundEventFilter): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'combat') return event.kind === 'kill' || event.kind === 'damage';
-  if (filter === 'objectives') return event.kind.startsWith('bomb_');
-  if (filter === 'utility') return event.kind === 'grenade';
-  return event.kind === 'purchase';
+function evidenceValue<T>(evidence: RoundEvidenceAvailability<T>): T | null {
+  return evidence.state === 'unavailable' ? null : evidence.value;
 }
 
 function RoundsView({
   workspace,
   demoId,
   playable,
+  selectedRound,
   selectedPlayer,
+  selectedTick,
+  selectedEvidenceId,
   addedId,
+  onSelectRound,
+  onPreviewRound,
   onCompile,
 }: {
   workspace: AnalysisWorkspace;
   demoId: string;
   playable: boolean;
+  selectedRound: number;
   selectedPlayer: PlayerAnalysis | null;
+  selectedTick: number | null;
+  selectedEvidenceId: string | null;
   addedId: string | null;
+  onSelectRound: (round: number) => void;
+  onPreviewRound: (round: number, tick?: number, playerId?: string | null) => void;
   onCompile: (moment: CompilationMoment) => void;
 }) {
-  const [selectedRound, setSelectedRound] = useState(workspace.rounds[15]?.number ?? 1);
+  const { locale, t } = useI18n();
   const [winnerFilter, setWinnerFilter] = useState<'all' | 'A' | 'B'>('all');
-  const [eventFilter, setEventFilter] = useState<RoundEventFilter>('all');
+  const [eventFilter, setEventFilter] = useState<RoundEventFilter>('combat');
+  const [requestedGroupId, setRequestedGroupId] = useState<string | null>(null);
+  const ribbonRef = useRef<HTMLDivElement>(null);
+  const sectionsRef = useRef<HTMLDivElement>(null);
   const runtimeSession = useRuntimeStore((state) => state.session);
   const playAction = useAsyncAction<{ started: boolean; process_id: number }>();
   const visibleRounds = winnerFilter === 'all'
     ? workspace.rounds
     : workspace.rounds.filter((item) => item.winner === winnerFilter);
-  const round = visibleRounds.find((item) => item.number === selectedRound) ?? visibleRounds[0];
-  const visibleEvents = round?.events.filter((event) => eventMatchesFilter(event, eventFilter)) ?? [];
+  const round = workspace.rounds.find((item) => item.number === selectedRound) ?? workspace.rounds[0];
+  const visibleRoundIndex = round ? visibleRounds.findIndex((item) => item.number === round.number) : -1;
+  const previousRound = visibleRoundIndex > 0 ? visibleRounds[visibleRoundIndex - 1] : undefined;
+  const nextRound = visibleRoundIndex >= 0 ? visibleRounds[visibleRoundIndex + 1] : undefined;
+  useEffect(() => {
+    const ribbon = ribbonRef.current;
+    if (!ribbon || !round) return;
+    const item = Array.from(ribbon.querySelectorAll<HTMLElement>('[data-round-number]'))
+      .find((candidate) => candidate.dataset.roundNumber === String(round.number));
+    if (!item) return;
+    const left = item.offsetLeft - ribbon.offsetLeft;
+    const right = left + item.offsetWidth;
+    if (left < ribbon.scrollLeft || right > ribbon.scrollLeft + ribbon.clientWidth) {
+      ribbon.scrollTo({ left: Math.max(0, left - ((ribbon.clientWidth - item.offsetWidth) / 2)), behavior: 'auto' });
+    }
+  }, [round, visibleRounds.length, winnerFilter]);
+  const baseContext = useMemo(
+    () => round ? buildRoundContext(workspace, round.number, {
+      event_id: selectedEvidenceId?.match(/\/event:(.+)$/u)?.[1] ?? null,
+      player_id: selectedPlayer?.id ?? null,
+      tick: selectedTick,
+    }) : null,
+    [round, selectedEvidenceId, selectedPlayer?.id, selectedTick, workspace],
+  );
+  const allGroups = baseContext?.sections.flatMap((section) => section.groups) ?? [];
+  const selectedHighlightId = selectedEvidenceId?.match(/\/highlight:(.+)$/u)?.[1] ?? null;
+  const selectedHighlight = selectedHighlightId
+    ? workspace.highlights.find((highlight) => highlight.id === selectedHighlightId) ?? null
+    : null;
+  const highlightedGroupId = selectedHighlight ? evidenceRangeGroupId(
+    allGroups.map((group) => ({
+      id: group.id,
+      startTick: group.start_tick,
+      endTick: group.end_tick,
+      actorIds: group.events.flatMap((event) => [event.actor, event.target])
+        .filter((id): id is string => id !== null),
+    })),
+    selectedHighlight.start_tick,
+    selectedHighlight.end_tick,
+    selectedHighlight.player_id,
+  ) : null;
+  const resolvedGroupId = selectedRoundGroupId(
+    allGroups.map((group) => group.id),
+    requestedGroupId,
+    selectedHighlight ? highlightedGroupId : baseContext?.focus?.matched_group_ids[0] ?? null,
+  );
+  const context = useMemo(() => {
+    const group = allGroups.find((candidate) => candidate.id === resolvedGroupId);
+    return round ? buildRoundContext(workspace, round.number, {
+      event_id: group?.events[0]?.id ?? null,
+      player_id: selectedPlayer?.id ?? null,
+      tick: group?.start_tick ?? null,
+    }) : null;
+  }, [allGroups, resolvedGroupId, round, selectedPlayer?.id, workspace]);
+  const selectedGroup = context?.sections
+    .flatMap((section) => section.groups)
+    .find((group) => group.id === resolvedGroupId) ?? null;
+  useEffect(() => {
+    const container = sectionsRef.current;
+    if (!container || !resolvedGroupId) return;
+    const frame = window.requestAnimationFrame(() => {
+      const group = Array.from(container.querySelectorAll<HTMLElement>('[data-group-id]'))
+        .find((candidate) => candidate.dataset.groupId === resolvedGroupId);
+      if (!group) return;
+      const nextScrollTop = selectedGroupScrollTop(
+        container.scrollTop,
+        container.clientHeight,
+        group.offsetTop - container.offsetTop,
+        group.offsetHeight,
+      );
+      if (nextScrollTop !== container.scrollTop) {
+        container.scrollTo({ top: nextScrollTop, behavior: 'auto' });
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [resolvedGroupId, selectedRound]);
+  const visibleSections = context?.sections.filter((section) => (
+    roundSectionIsVisible(section.kind, section.groups.length, eventFilter)
+  )) ?? [];
+  const sectionLabels = {
+    encounters: t('analysis.roundContext.encounters'),
+    objective: t('analysis.roundContext.objective'),
+    utility: t('analysis.roundContext.utility'),
+    economy: t('analysis.roundContext.economy'),
+    other: t('analysis.roundContext.other'),
+  } as const;
+  const groupTitle = (group: RoundContextGroup) => {
+    if (group.encounter?.dominant_actor_id && group.encounter.kill_count > 0) {
+      return `${findPlayerName(workspace, group.encounter.dominant_actor_id)} ${group.encounter.kill_count}K`;
+    }
+    const first = group.events[0];
+    return first ? eventKindLabel[first.kind] : sectionLabels[group.kind];
+  };
+  const groupPlayerId = selectedGroup?.encounter?.dominant_actor_id
+    ?? selectedGroup?.events.find((event) => Boolean(event.actor))?.actor
+    ?? selectedPlayer?.id
+    ?? null;
+  const selectedParticipantIds = new Set(selectedGroup?.events.flatMap((event) => [event.actor, event.target].filter((value): value is string => Boolean(value))) ?? []);
+  const selectedParticipants = context?.inspector.participants.filter((participant) => selectedParticipantIds.has(participant.player_id)) ?? [];
+  const radarState = useRadarOverview(workspace.map_name, Boolean(round && selectedGroup));
+  const positionedEvents = selectedGroup?.events.filter((event): event is TimelineEvent & { position: [number, number, number] } => event.position !== null) ?? [];
+  const radarCoordinates = worldPointsToRadarPercent(
+    positionedEvents.map((event) => [event.position[0], event.position[1]]),
+    radarState.overview?.transform ?? null,
+  );
+  const radarImage = radarState.overview?.transform
+    && radarState.overview.browser_displayable
+    && radarState.overview.image_url
+    ? desktopMediaUrl(radarState.overview.image_url)
+    : null;
+  const changeWinnerFilter = (side: 'all' | 'A' | 'B') => {
+    setWinnerFilter(side);
+    if (side === 'all' || round?.winner === side) return;
+    const firstMatchingRound = workspace.rounds.find((item) => item.winner === side);
+    if (firstMatchingRound) onSelectRound(firstMatchingRound.number);
+  };
+  const navigateRoundStrip = (event: ReactKeyboardEvent<HTMLButtonElement>, currentRound: number) => {
+    const nextRoundNumber = roundNumberFromNavigationKey(
+      visibleRounds.map((item) => item.number),
+      currentRound,
+      event.key,
+    );
+    if (nextRoundNumber === null) return;
+    event.preventDefault();
+    onSelectRound(nextRoundNumber);
+    window.requestAnimationFrame(() => {
+      const nextItem = Array.from(ribbonRef.current?.querySelectorAll<HTMLButtonElement>('[data-round-number]') ?? [])
+        .find((candidate) => candidate.dataset.roundNumber === String(nextRoundNumber));
+      nextItem?.focus();
+    });
+  };
   return (
-    <div className="rounds-view">
-      <Card className="round-selector-card">
-        <div className="card-heading">
-          <div><span className="eyebrow">ROUND TIMELINE</span><h2>{msg("m0374")}</h2></div>
+    <div className="rounds-view round-context-canvas">
+      <Card className="round-selector-card round-context-roundbar" data-testid="round-strip">
+        <div className="round-context-roundbar__heading">
+          <div><span className="eyebrow">ROUND CONTEXT</span><h2>{t('analysis.roundContext.roundSelection')}</h2></div>
           <div className="mini-segmented" aria-label={msg("m0656")}>
-            {(['all', 'A', 'B'] as const).map((side) => <button type="button" key={side} className={winnerFilter === side ? 'is-active' : undefined} onClick={() => setWinnerFilter(side)}>{side === 'all' ? msg("m0229") : `TEAM ${side}`}</button>)}
+            {(['all', 'A', 'B'] as const).map((side) => <button type="button" key={side} className={winnerFilter === side ? 'is-active' : undefined} onClick={() => changeWinnerFilter(side)}>{side === 'all' ? msg("m0229") : `TEAM ${side}`}</button>)}
           </div>
         </div>
-        <div className="round-grid">
+        <div ref={ribbonRef} className="round-grid round-context-ribbon" aria-label={msg("m0374")} role="tablist">
           {visibleRounds.map((item) => (
-            <button type="button" key={item.number} className={`${item.winner === 'A' ? 'team-a' : 'team-b'}${round?.number === item.number ? ' is-active' : ''}`} onClick={() => setSelectedRound(item.number)}>
+            <button type="button" role="tab" key={item.number} className={`${item.winner === 'A' ? 'team-a' : 'team-b'}${round?.number === item.number ? ' is-active' : ''}`} aria-current={round?.number === item.number ? 'step' : undefined} aria-selected={round?.number === item.number} aria-label={`${msg("m0367")} ${item.number} · TEAM ${item.winner} · ${roundReasonLabel(item.reason, locale) || msg("m0762")}`} tabIndex={round?.number === item.number ? 0 : -1} data-testid="round-strip-item" data-round-number={item.number} onKeyDown={(event) => navigateRoundStrip(event, item.number)} onClick={() => onSelectRound(item.number)}>
               <span>{item.number}</span><small>{item.winner}</small>
             </button>
           ))}
@@ -702,60 +1269,121 @@ function RoundsView({
         {visibleRounds.length === 0 ? <EmptyState icon={<ListFilter size={20} />} title={msg("m0893")} description={msg("m0586")} /> : null}
       </Card>
       {round ? (
-        <Card className="round-detail-card">
-          <div className="round-detail-card__title">
-            <div><span className={`team-token team-token--${round.winner.toLocaleLowerCase()}`}>TEAM {round.winner}</span><h2>{msg("m0367")} {round.number}</h2><p>{round.reason || msg("m0762")}</p></div>
-            <div>
-              <Button size="sm" disabled={!selectedPlayer} title={selectedPlayer ? msgf("m0194", [selectedPlayer.name]) : msg("m1136")} onClick={() => selectedPlayer && onCompile({ id: `round-${round.number}-${selectedPlayer.id}`, title: msgf("m0368", [round.number, round.reason || msg("m1350")]), playerId: selectedPlayer.id, startTick: round.start_tick, endTick: Math.max(round.start_tick + 1, round.end_tick), category: 'custom' })}>{addedId === `round-${round.number}-${selectedPlayer?.id}` ? <Check size={13} /> : <Plus size={13} />}{msg("m0301")}</Button>
-              <Button size="sm" disabled={!playable || playAction.state.status === 'loading' || runtimeSession !== 'idle'} title={!playable ? msg("m1001") : runtimeSession !== 'idle' ? msg("m0799") : msg("m0390")} onClick={() => void playAction.run(() => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: round.start_tick })), msg("m0514"))}>{playAction.state.status === 'loading' ? <Spinner /> : <Play size={13} />}{msg("m0676")}</Button>
+        <div className="round-context-body" data-testid="round-workbench">
+          <Card className="round-detail-card round-context-stream" data-testid="round-event-pane">
+            <div className="round-detail-card__title round-context-stream__title">
+              <div><span className={`team-token team-token--${round.winner.toLocaleLowerCase()}`}>TEAM {round.winner}</span><h2>{msg("m0367")} {round.number}</h2><p>{roundReasonLabel(round.reason, locale) || msg("m0762")} · tick {round.start_tick}–{round.end_tick}</p></div>
+              <div>
+                <Button className="round-context-nav-button" size="sm" variant="ghost" disabled={!previousRound} title={t('analysis.previousRound')} onClick={() => previousRound && onSelectRound(previousRound.number)}><ChevronLeft size={13} /><span>{t('analysis.previousRound')}</span></Button>
+                <Button className="round-context-nav-button" size="sm" variant="ghost" disabled={!nextRound} title={t('analysis.nextRound')} onClick={() => nextRound && onSelectRound(nextRound.number)}><span>{t('analysis.nextRound')}</span><ChevronRight size={13} /></Button>
+                <Button size="sm" title={t('analysis.openRoundReplay')} onClick={() => onPreviewRound(round.number, selectedGroup?.start_tick, groupPlayerId)}><MapIcon size={13} />{t('analysis.roundContext.spatialReplay')}</Button>
+              </div>
             </div>
-          </div>
-          {playAction.state.message ? <Notice tone={playAction.state.status === 'error' ? 'danger' : 'success'}>{playAction.state.message}</Notice> : null}
-          <div className="mini-segmented" aria-label={msg("m1066")}>
-            {(['all', 'combat', 'objectives', 'utility', 'economy'] as const).map((filter) => <button type="button" key={filter} className={eventFilter === filter ? 'is-active' : undefined} onClick={() => setEventFilter(filter)}>{({ all: msg("m0229"), combat: msg("m0178"), objectives: msg("m1013"), utility: msg("m1250"), economy: msg("m1076") } as const)[filter]}</button>)}
-          </div>
-          {visibleEvents.length > 0 ? <div className="event-timeline">{visibleEvents.map((event) => {
-            const canCompile = Boolean(event.actor) && !['round_start', 'round_end'].includes(event.kind);
-            const compilationId = `event-${event.id}`;
-            return <div key={event.id}><span className={`event-dot${event.kind === 'kill' || event.kind.startsWith('bomb_') ? ' is-highlight' : ''}`} /><time>{formatClock(event.seconds)}</time><div><strong>{eventKindLabel[event.kind]}</strong><p>{eventEvidence(event)}</p></div>{event.headshot ? <Badge tone="accent">{msg("m0949")}</Badge> : null}{canCompile ? <Button size="sm" onClick={() => onCompile({ id: compilationId, title: `${eventKindLabel[event.kind]} · ${eventEvidence(event)}`, playerId: event.actor!, startTick: Math.max(round.start_tick, event.tick - 128), endTick: Math.max(event.tick + 1, Math.min(round.end_tick, event.tick + 192)), category: event.kind === 'kill' ? 'entry' : event.kind === 'grenade' || event.kind.startsWith('bomb_') ? 'utility' : 'custom' })}>{addedId === compilationId ? <Check size={12} /> : <Plus size={12} />}{msg("m0299")}</Button> : null}</div>;
-          })}</div> : <EmptyState icon={<ListFilter size={22} />} title={msg("m0892")} description={msg("m0774")} />}
-        </Card>
+            {playAction.state.message ? <Notice tone={playAction.state.status === 'error' ? 'danger' : 'success'}>{playAction.state.message}</Notice> : null}
+
+            <div className="round-context-ruler" aria-label={t('analysis.roundContext.tickRuler')} data-testid="round-time-ruler">
+              <div><span>{round.start_tick}</span><span>{Math.round((round.start_tick + round.end_tick) / 2)}</span><span>{round.end_tick}</span></div>
+              <i />
+              {selectedGroup ? <b style={{ insetInlineStart: `${roundTickPercent(selectedGroup.start_tick, round.start_tick, round.end_tick)}%` }}><span>{selectedGroup.start_tick}</span></b> : null}
+            </div>
+
+            <div className="round-context-toolbar" data-testid="round-filter-toolbar">
+              <div className="mini-segmented" aria-label={msg("m1066")}>
+                {(['all', 'combat', 'objectives', 'utility', 'economy'] as const).map((filter) => <button type="button" key={filter} className={eventFilter === filter ? 'is-active' : undefined} onClick={() => setEventFilter(filter)}>{({ all: msg("m0229"), combat: msg("m0178"), objectives: msg("m1013"), utility: msg("m1250"), economy: msg("m1076") } as const)[filter]}</button>)}
+              </div>
+              <span>{t('analysis.roundContext.atomicEvidence')} · {context?.sections.reduce((sum, section) => sum + section.atomic_event_ids.length, 0) ?? 0}</span>
+            </div>
+
+            {visibleSections.length > 0 ? <div ref={sectionsRef} className="round-context-sections">{visibleSections.map((section) => (
+              <section key={section.id} className="round-context-section">
+                <header><span>{sectionLabels[section.kind]}</span><Badge tone="neutral">{section.groups.length}</Badge></header>
+                <div>{section.groups.map((group) => {
+                  const isSelected = group.id === selectedGroup?.id;
+                  return <article key={group.id} className={`round-context-group${isSelected ? ' is-selected' : ''}`} data-testid="round-group" data-group-id={group.id} data-kind={group.kind} data-start-tick={group.start_tick} data-end-tick={group.end_tick}>
+                    <button type="button" className="round-context-group__summary" aria-expanded={isSelected} onClick={() => setRequestedGroupId(group.id)}>
+                      <span className={`event-dot${group.encounter?.kill_count || group.kind === 'objective' ? ' is-highlight' : ''}`} />
+                      <time>+{formatClock(Math.max(0, group.start_tick - round.start_tick) / Math.max(1, workspace.tick_rate))}</time>
+                      <span><strong>{groupTitle(group)}</strong><small>{tickDurationLabel(group.start_tick, group.end_tick, workspace.tick_rate)} · {group.atomic_event_ids.length} {t('analysis.roundContext.events')}</small></span>
+                      {group.encounter?.weapon_names.length ? <span className="round-context-group__weapons">{group.encounter.weapon_names.join(' · ')}</span> : null}
+                      <ChevronDown size={15} />
+                    </button>
+                    {isSelected ? <div className="round-context-atoms">{group.events.map((event) => {
+                      const canCompile = Boolean(event.actor) && !['round_start', 'round_end'].includes(event.kind);
+                      const compilationId = `event-${event.id}`;
+                      const eventEvidenceId = `demo:${workspace.demo_id}/event:${event.id}`;
+                      const focused = selectedEvidenceId === eventEvidenceId;
+                      return <div key={event.id} className={`round-context-atom${focused ? ' is-focused' : ''}`} data-testid="round-event" data-event-id={event.id} data-evidence-id={eventEvidenceId} data-tick={event.tick} aria-current={focused ? 'true' : undefined}><time>{event.tick}</time><span><strong>{eventKindLabel[event.kind]}</strong><small>{eventEvidence(event, workspace)}</small></span>{event.headshot ? <Badge tone="accent">{msg("m0949")}</Badge> : null}{canCompile ? <Button size="sm" variant="ghost" title={msg("m0299")} onClick={() => onCompile({ id: compilationId, title: `${eventKindLabel[event.kind]} · ${eventEvidence(event, workspace)}`, playerId: event.actor!, startTick: Math.max(round.start_tick, event.tick - 128), endTick: Math.max(event.tick + 1, Math.min(round.end_tick, event.tick + 192)), category: event.kind === 'kill' ? 'entry' : event.kind === 'grenade' || event.kind.startsWith('bomb_') ? 'utility' : 'custom' })}>{addedId === compilationId ? <Check size={12} /> : <Plus size={12} />}</Button> : null}</div>;
+                    })}</div> : null}
+                  </article>;
+                })}</div>
+              </section>
+            ))}</div> : <EmptyState icon={<ListFilter size={22} />} title={msg("m0892")} description={msg("m0774")} />}
+          </Card>
+
+          <Card className="round-context-spatial" data-testid="round-context-pane">
+            <header><div><span className="eyebrow">SPATIAL EVIDENCE</span><h2>{t('analysis.roundContext.mapContext')}</h2></div><div className="round-context-spatial__actions"><span>{positionedEvents.length} {t('analysis.roundContext.positionedEvents')}</span><Badge tone={radarImage ? 'success' : 'neutral'}>{radarImage ? t('analysis.roundContext.mapCoordinates') : t('analysis.roundContext.unavailable')}</Badge><Button size="sm" variant="ghost" onClick={() => onPreviewRound(round.number, selectedGroup?.start_tick, groupPlayerId)}>{t('analysis.roundContext.openFullReplay')}<ChevronRight size={13} /></Button></div></header>
+            <div className="round-context-spatial__body">
+              <div className={`round-context-radar${radarImage ? ' has-radar-image' : ''}`} data-testid="round-radar">
+                {radarImage ? <img src={radarImage} alt={msgf("m0111", [workspace.map_name])} /> : <div><Grid3X3 size={20} /><strong>{radarState.status === 'loading' ? t('analysis.replay.radarLoading') : t('analysis.roundContext.noSpatialEvidence')}</strong><span>{radarState.error ?? t('analysis.roundContext.noSpatialEvidenceDescription')}</span></div>}
+                {radarCoordinates?.map((position, index) => {
+                  const event = positionedEvents[index]!;
+                  return <span key={event.id} className={`round-context-radar__event${event.kind === 'kill' || event.kind.startsWith('bomb_') ? ' is-highlight' : ''}`} style={{ left: `${position[0]}%`, top: `${position[1]}%` }} title={`${eventKindLabel[event.kind]} · ${event.actor ? findPlayerName(workspace, event.actor) : `tick ${event.tick}`} · tick ${event.tick}`}><CircleDot size={12} /></span>;
+                })}
+              </div>
+              <div className="round-context-spatial__legend">{positionedEvents.length > 0 ? positionedEvents.map((event) => <button type="button" key={event.id} onClick={() => onPreviewRound(round.number, event.tick, event.actor)}><i className={event.kind === 'kill' || event.kind.startsWith('bomb_') ? 'is-highlight' : undefined} /><time>{event.tick}</time><span><strong>{eventKindLabel[event.kind]}</strong><small>{event.actor ? findPlayerName(workspace, event.actor) : t('analysis.roundContext.unavailable')}</small></span></button>) : <p>{t('analysis.roundContext.noSpatialEvidenceDescription')}</p>}</div>
+            </div>
+          </Card>
+
+          <Card className="round-context-inspector" data-testid="round-inspector">
+            <header><div><span className="eyebrow">EVIDENCE INSPECTOR</span><h2>{t('analysis.roundContext.evidenceDetails')}</h2></div><Badge tone="accent">tick {context?.inspector.at_tick ?? round.end_tick}</Badge></header>
+            {selectedGroup ? <>
+              <div className="round-context-inspector__focus"><span>{sectionLabels[selectedGroup.kind]}</span><strong>{groupTitle(selectedGroup)}</strong><small>{selectedGroup.start_tick}–{selectedGroup.end_tick} · {selectedGroup.atomic_event_ids.length} {t('analysis.roundContext.events')}</small></div>
+              <div className="round-context-side-grid">{context?.inspector.sides.map((side) => {
+                const purchases = evidenceValue(side.purchases);
+                const spend = evidenceValue(side.spend);
+                return <section key={side.side}><header><strong>{side.side}</strong><Badge tone={side.purchases.state === 'unavailable' ? 'neutral' : 'success'}>{side.purchases.state === 'available' ? t('analysis.roundContext.verified') : side.purchases.state === 'partial' ? t('analysis.roundContext.partial') : t('analysis.roundContext.unavailable')}</Badge></header><dl><div><dt>{t('analysis.roundContext.spend')}</dt><dd>{spend === null ? '—' : `$${spend.toLocaleString()}`}</dd></div><div><dt>{t('analysis.roundContext.purchases')}</dt><dd>{purchases?.count ?? '—'}</dd></div></dl>{purchases?.items.length ? <p>{purchases.items.slice(0, 4).map((item) => `${item.name} ×${item.count}`).join(' · ')}</p> : <p>{t('analysis.roundContext.noSnapshot')}</p>}</section>;
+              })}</div>
+              <section className="round-context-participants"><header><strong>{t('analysis.roundContext.participants')}</strong><Badge tone="neutral">{selectedParticipants.length}</Badge></header>{selectedParticipants.length ? <div>{selectedParticipants.map((participant) => <span key={participant.player_id}><i className={`player-avatar player-avatar--${participant.side.state === 'available' ? participant.side.value.toLocaleLowerCase() : 'unknown'}`}>{playerInitials(participant.name)}</i><b>{participant.name}</b><small>{participant.alive.state === 'available' && !participant.alive.value ? t('analysis.roundContext.knownDead') : t('analysis.roundContext.lifeUnknown')}</small></span>)}</div> : <p>{t('analysis.roundContext.noParticipants')}</p>}</section>
+              <section className="round-context-inspector__events"><header><strong>{t('analysis.roundContext.atomicEvidence')}</strong><Badge tone="neutral">{selectedGroup.events.length}</Badge></header>{selectedGroup.events.map((event) => <button type="button" key={event.id} onClick={() => onPreviewRound(round.number, event.tick, event.actor)}><time>{event.tick}</time><span><strong>{eventKindLabel[event.kind]}</strong><small>{eventEvidence(event, workspace)}</small></span><ChevronRight size={13} /></button>)}</section>
+              <footer data-testid="round-inspector-actions"><Button size="sm" variant="secondary" disabled={!playable || playAction.state.status === 'loading' || runtimeSession !== 'idle'} title={!playable ? msg("m1001") : runtimeSession !== 'idle' ? msg("m0799") : msg("m0390")} onClick={() => void playAction.run(() => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: selectedGroup.start_tick })), msg("m0514"))}>{playAction.state.status === 'loading' ? <Spinner /> : <Play size={13} />}{t('analysis.roundContext.watchGame')}</Button><Button size="sm" variant="secondary" onClick={() => onPreviewRound(round.number, selectedGroup.start_tick, groupPlayerId)}><MapIcon size={13} />{t('analysis.roundContext.open2d')}</Button><Button size="sm" disabled={!groupPlayerId} onClick={() => groupPlayerId && onCompile({ id: `group-${selectedGroup.id}`, title: `${msg("m0367")} ${round.number} · ${groupTitle(selectedGroup)}`, playerId: groupPlayerId, startTick: selectedGroup.start_tick, endTick: Math.max(selectedGroup.start_tick + 1, selectedGroup.end_tick), category: selectedGroup.kind === 'encounters' ? 'entry' : selectedGroup.kind === 'utility' || selectedGroup.kind === 'objective' ? 'utility' : 'custom' })}>{addedId === `group-${selectedGroup.id}` ? <Check size={13} /> : <Plus size={13} />}{addedId === `group-${selectedGroup.id}` ? msg("m0502") : t('analysis.roundContext.addProduction')}</Button></footer>
+            </> : <EmptyState icon={<CircleDot size={22} />} title={t('analysis.roundContext.noSelection')} description={t('analysis.roundContext.noSelectionDescription')} />}
+          </Card>
+        </div>
       ) : null}
     </div>
   );
 }
 
-function normalizeCoordinates(points: Array<[number, number]>): Array<[number, number]> {
-  if (points.length === 0) return [];
-  const xs = points.map(([x]) => x);
-  const ys = points.map(([, y]) => y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const rangeX = Math.max(1, maxX - minX);
-  const rangeY = Math.max(1, maxY - minY);
-  return points.map(([x, y]) => [10 + ((x - minX) / rangeX) * 80, 10 + ((y - minY) / rangeY) * 80]);
-}
+type RadarOverviewState = Readonly<{
+  overview: RadarOverviewRecord | null;
+  status: 'idle' | 'loading' | 'ready' | 'error';
+  error: string | null;
+}>;
 
-function useRadarOverview(mapName: string, enabled: boolean): RadarOverviewRecord | null {
-  const [overview, setOverview] = useState<RadarOverviewRecord | null>(null);
+function useRadarOverview(mapName: string, enabled: boolean): RadarOverviewState {
+  const [radarState, setRadarState] = useState<RadarOverviewState>({
+    overview: null,
+    status: 'idle',
+    error: null,
+  });
 
   useEffect(() => {
     if (!enabled || mapName.trim().length === 0) {
-      setOverview(null);
+      setRadarState({ overview: null, status: 'idle', error: null });
       return undefined;
     }
 
     const controller = new AbortController();
     let active = true;
-    setOverview(null);
+    setRadarState({ overview: null, status: 'loading', error: null });
     void commands.getRadarOverview(mapName, controller.signal)
       .then((response) => {
-        if (active) setOverview(response);
+        if (active) setRadarState({ overview: response, status: 'ready', error: null });
       })
-      .catch(() => {
-        if (active && !controller.signal.aborted) setOverview(null);
+      .catch((cause: unknown) => {
+        if (active && !controller.signal.aborted) {
+          setRadarState({ overview: null, status: 'error', error: readableError(cause) });
+        }
       });
     return () => {
       active = false;
@@ -763,7 +1391,7 @@ function useRadarOverview(mapName: string, enabled: boolean): RadarOverviewRecor
     };
   }, [enabled, mapName]);
 
-  return overview;
+  return radarState;
 }
 
 function activeInputLabels(player: ReplayFrameRecord['players'][number]): string[] {
@@ -782,21 +1410,58 @@ function activeInputLabels(player: ReplayFrameRecord['players'][number]): string
   ].filter((label): label is string => label !== null);
 }
 
-function ReplayView({ demoId, workspace, source }: { demoId: string; workspace: AnalysisWorkspace; source: 'loading' | 'service' | 'error' }) {
+function currentReplayWorkspaceDensity(): ReplayWorkspaceDensity {
+  if (typeof window === 'undefined') return 'expanded';
+  return replayWorkspaceDensity({ width: window.innerWidth, height: window.innerHeight });
+}
+
+function useReplayWorkspaceDensity(): ReplayWorkspaceDensity {
+  const [density, setDensity] = useState<ReplayWorkspaceDensity>(currentReplayWorkspaceDensity);
+
+  useEffect(() => {
+    const handleResize = () => setDensity(currentReplayWorkspaceDensity());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return density;
+}
+
+function ReplayView({
+  demoId,
+  workspace,
+  source,
+  roundNumber,
+  targetTick,
+  selectedPlayerId,
+  onSelectPlayer,
+}: {
+  demoId: string;
+  workspace: AnalysisWorkspace;
+  source: 'loading' | 'service' | 'error';
+  roundNumber: number;
+  targetTick: number | null;
+  selectedPlayerId: string | null;
+  onSelectPlayer: (playerId: string) => void;
+}) {
+  const { t } = useI18n();
   const [frames, setFrames] = useState<ReplayFrameRecord[]>([]);
   const [cache, setCache] = useState<ReplayCacheMetadata | null>(null);
+  const [fidelity, setFidelity] = useState<ReplayFidelityMetadata | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [frameIndex, setFrameIndex] = useState(0);
   const [speed, setSpeed] = useState<0.5 | 1 | 2>(1);
   const [sideFilter, setSideFilter] = useState<'all' | 'A' | 'B'>('all');
-  const radar = useRadarOverview(workspace.map_name, source === 'service');
+  const radarState = useRadarOverview(workspace.map_name, source === 'service');
+  const workspaceDensity = useReplayWorkspaceDensity();
 
   useEffect(() => {
     if (source !== 'service') {
       setFrames([]);
       setCache(null);
+      setFidelity(null);
       setState('idle');
       return undefined;
     }
@@ -808,12 +1473,14 @@ function ReplayView({ demoId, workspace, source }: { demoId: string; workspace: 
       if (!active) return;
       setFrames(response.frames);
       setCache(response.cache);
+      setFidelity(response.fidelity);
       setFrameIndex(0);
       setState('ready');
     }).catch((cause: unknown) => {
       if (!active || controller.signal.aborted) return;
       setFrames([]);
       setCache(null);
+      setFidelity(null);
       setState('error');
       setError(readableError(cause));
     });
@@ -823,17 +1490,47 @@ function ReplayView({ demoId, workspace, source }: { demoId: string; workspace: 
     };
   }, [demoId, source]);
 
+  const round = useMemo(
+    () => workspace.rounds.find((item) => item.number === roundNumber) ?? workspace.rounds[0] ?? null,
+    [roundNumber, workspace.rounds],
+  );
+  const roundScope = useMemo(
+    () => round ? scopeReplayFrames(frames, round, targetTick) : { frames: [], initialIndex: 0 },
+    [frames, round, targetTick],
+  );
+  const roundFrames = roundScope.frames;
+
   useEffect(() => {
-    if (!playing || frames.length < 2) return undefined;
-    const timer = window.setInterval(() => setFrameIndex((current) => current >= frames.length - 1 ? 0 : current + 1), 100 / speed);
-    return () => window.clearInterval(timer);
-  }, [frames.length, playing, speed]);
+    setPlaying(false);
+    setFrameIndex(roundScope.initialIndex);
+  }, [roundFrames, roundNumber, roundScope.initialIndex, targetTick]);
+
+  const replayTickRate = fidelity?.tick_rate ?? workspace.tick_rate;
+  const replayTimingMode = fidelity?.mode ?? 'entity_snapshots';
+  const replayBounds = useMemo(() => replayWorldBounds(frames), [frames]);
+
+  useEffect(() => {
+    if (!playing || roundFrames.length < 2) return undefined;
+    const current = roundFrames[Math.min(frameIndex, roundFrames.length - 1)];
+    const next = roundFrames[frameIndex >= roundFrames.length - 1 ? 0 : frameIndex + 1];
+    const delay = current && next
+      ? replayFrameDelayMs(current.tick, next.tick, replayTickRate, speed, replayTimingMode)
+      : 100;
+    const timer = window.setTimeout(
+      () => setFrameIndex((index) => nextScopedFrameIndex(index, roundFrames.length)),
+      delay,
+    );
+    return () => window.clearTimeout(timer);
+  }, [frameIndex, playing, replayTickRate, replayTimingMode, roundFrames, speed]);
 
   if (state === 'loading') return <Card><EmptyState icon={<Spinner />} title={msg("m0863")} description={msg("m0743")} /></Card>;
   if (state === 'error') return <Card><EmptyState icon={<CircleDot size={22} />} title={msg("m0017")} description={error ?? msg("m0778")} /></Card>;
   if (frames.length === 0) return <Card><EmptyState icon={<MapIcon size={22} />} title={msg("m0899")} description={msg("m0487")} /></Card>;
+  if (roundFrames.length === 0) return <Card><EmptyState icon={<MapIcon size={22} />} title={t('analysis.replay.noRoundEvidence')} description={t('analysis.replay.noRoundEvidenceDescription')} /></Card>;
 
-  const currentFrame = frames[Math.min(frameIndex, frames.length - 1)] ?? frames[0]!;
+  const currentFrameIndex = Math.min(frameIndex, roundFrames.length - 1);
+  const currentFrame = roundFrames[currentFrameIndex]!;
+  const radar = radarState.overview;
   const radarTransform = radar?.transform ?? null;
   const visiblePlayers = sideFilter === 'all'
     ? currentFrame.players
@@ -843,43 +1540,55 @@ function ReplayView({ demoId, workspace, source }: { demoId: string; workspace: 
   const projectilePoints: Array<[number, number]> = activeProjectiles.map((projectile) => [projectile.position[0], projectile.position[1]]);
   const bombPoints: Array<[number, number]> = currentFrame.bomb ? [[currentFrame.bomb.position[0], currentFrame.bomb.position[1]]] : [];
   const allPoints = [...playerPoints, ...projectilePoints, ...bombPoints];
-  const allCoordinates = worldPointsToRadarPercent(allPoints, radarTransform) ?? normalizeCoordinates(allPoints);
+  const allCoordinates = worldPointsToRadarPercent(allPoints, radarTransform)
+    ?? worldPointsToRelativePercent(allPoints, replayBounds);
   const coordinates = allCoordinates.slice(0, playerPoints.length);
   const projectileCoordinates = allCoordinates.slice(playerPoints.length, playerPoints.length + projectilePoints.length);
   const bombCoordinate = currentFrame.bomb ? allCoordinates.at(-1) ?? null : null;
   const radarImage = radarTransform && radar?.browser_displayable && radar.image_url ? desktopMediaUrl(radar.image_url) : null;
-  const startTick = frames[0]?.tick ?? currentFrame.tick;
-  const endTick = frames.at(-1)?.tick ?? currentFrame.tick;
-  const elapsed = workspace.tick_rate > 0 ? (currentFrame.tick - startTick) / workspace.tick_rate : 0;
-  const total = workspace.tick_rate > 0 ? (endTick - startTick) / workspace.tick_rate : 0;
+  const startTick = round?.start_tick ?? roundFrames[0]?.tick ?? currentFrame.tick;
+  const endTick = round?.end_tick ?? roundFrames.at(-1)?.tick ?? currentFrame.tick;
+  const elapsed = replayTickRate > 0 ? (currentFrame.tick - startTick) / replayTickRate : 0;
+  const total = replayTickRate > 0 ? (endTick - startTick) / replayTickRate : 0;
+  const fidelityPresentation = fidelity ? replayFidelityPresentation(fidelity) : null;
+  const playbackControl = replayPlaybackControlPresentation(replayTimingMode, speed);
 
   return (
-    <div className="replay-layout">
-      <Card className="replay-map-card">
-        <div className="replay-map-toolbar">
+    <div className="replay-layout" data-replay-density={workspaceDensity} data-testid="replay-workspace">
+      <Card className="replay-map-card" data-testid="replay-stage">
+        <div className="replay-map-toolbar" data-testid="replay-toolbar">
           <div>
             <Grid3X3 size={14} />
             <strong>{workspace.map_name ? workspace.map_name.replace('de_', '').toUpperCase() : 'MAP'}</strong>
             {radarTransform ? <Badge tone="neutral">{msg("m0397")}</Badge> : <Badge tone="neutral">{msg("m1023")}</Badge>}
-            {cache ? <span title={cache.reason ?? msgf("m1082", [cache.version, cache.bytes.toLocaleString(currentLocale())])}><Badge tone={cache.state === 'hit' ? 'success' : cache.state === 'bypassed' ? 'warning' : 'neutral'}>{replayCacheLabel(cache)}</Badge></span> : null}
+            {cache ? <span title={cache.reason ?? `${cache.bytes.toLocaleString(currentLocale())} bytes`}><Badge tone={cache.state === 'hit' ? 'success' : cache.state === 'bypassed' ? 'warning' : 'neutral'}>{replayCacheLabel(cache)}</Badge></span> : null}
           </div>
           <div className="mini-segmented" aria-label={msg("m0658")}>
             {(['all', 'A', 'B'] as const).map((side) => <button type="button" key={side} className={sideFilter === side ? 'is-active' : undefined} onClick={() => setSideFilter(side)}>{side === 'all' ? msg("m0229") : `TEAM ${side}`}</button>)}
           </div>
         </div>
-        <div className={`replay-map${radarImage ? ' has-radar-image' : ''}`}>
+        {fidelity && fidelityPresentation ? (
+          <div className="replay-fidelity" role="status" data-testid="replay-fidelity">
+            <Badge tone={fidelityPresentation.tone}>{fidelityPresentation.label}</Badge>
+            <span>{fidelityPresentation.description}</span>
+            <small>{fidelity.frame_count.toLocaleString(currentLocale())} {t('analysis.replay.fidelity.frames')} · {fidelity.positioned_event_count.toLocaleString(currentLocale())} {t('analysis.replay.fidelity.positionedEvents')}</small>
+          </div>
+        ) : null}
+        <div className={`replay-map${radarImage ? ' has-radar-image' : ' is-coordinate-plane'}`} data-testid="replay-canvas">
           {radarImage ? <img className="radar-map-image" src={radarImage} alt={msgf("m0111", [workspace.map_name])} /> : (
-            <>
-              <div className="replay-map__site replay-map__site--a">A</div>
-              <div className="replay-map__site replay-map__site--b">B</div>
-              <div className="replay-map__paths"><span /><span /><span /><span /><span /></div>
-            </>
+            <div className="replay-map__coordinate-note">
+              <Grid3X3 size={16} />
+              <strong>{radarState.status === 'loading' ? t('analysis.replay.radarLoading') : radarTransform ? t('analysis.replay.radarImageUnavailable') : t('analysis.replay.relativeCoordinates')}</strong>
+              <span>{radarState.error ?? (radarTransform ? t('analysis.replay.radarImageUnavailableDescription') : t('analysis.replay.relativeCoordinatesDescription'))}</span>
+            </div>
           )}
           {visiblePlayers.map((player, index) => {
             const position = coordinates[index] ?? [50, 50];
             const side = normalizeSide(player.team);
             const inputs = activeInputLabels(player);
-            return <button type="button" className={`replay-player replay-player--${side === 'A' ? 'a' : side === 'B' ? 'b' : 'unknown'}`} key={player.id} style={{ left: `${position[0]}%`, top: `${position[1]}%`, opacity: player.alive ? 1 : .35 }} title={`${player.name} · HP ${player.health} · ${player.weapon}${inputs.length > 0 ? ` · ${inputs.join('+')}` : ''}`}><span>{index + 1}</span><small>{player.name}</small></button>;
+            const vital = replayPlayerVitalPresentation(player);
+            const selected = player.id === selectedPlayerId;
+            return <button type="button" className={`replay-player replay-player--${side === 'A' ? 'a' : side === 'B' ? 'b' : 'unknown'}${selected ? ' is-selected' : ''}`} key={player.id} style={{ left: `${position[0]}%`, top: `${position[1]}%`, opacity: player.alive ? 1 : .35 }} title={`${player.name} · ${vital.healthLabel} · ${vital.statusLabel}${player.weapon ? ` · ${player.weapon}` : ''}${inputs.length > 0 ? ` · ${inputs.join('+')}` : ''}`} aria-pressed={selected} onClick={() => onSelectPlayer(player.id)}><span>{index + 1}</span><small>{player.name}</small></button>;
           })}
           {activeProjectiles.map((projectile, index) => {
             const position = projectileCoordinates[index] ?? [50, 50];
@@ -888,22 +1597,22 @@ function ReplayView({ demoId, workspace, source }: { demoId: string; workspace: 
           })}
           {currentFrame.bomb && bombCoordinate ? <span className={`replay-bomb replay-bomb--${currentFrame.bomb.state === 'planted' || currentFrame.bomb.state === 'defused' || currentFrame.bomb.state === 'exploded' ? currentFrame.bomb.state : 'unknown'}`} style={{ left: `${bombCoordinate[0]}%`, top: `${bombCoordinate[1]}%` }} title={msgf("m0942", [currentFrame.bomb.state])}>B</span> : null}
         </div>
-        <div className="replay-legend" aria-label={msg("m0378")}>
+        <div className="replay-legend" aria-label={msg("m0378")} data-testid="replay-legend">
           {(['smoke', 'inferno', 'decoy', 'he', 'flash'] as const).map((kind) => { const item = replayEffectPresentation(kind); return <span key={kind}><i className={`replay-legend__dot replay-grenade--${item.className}`} />{item.label}</span>; })}
           <span><i className="replay-legend__bomb">B</i>{msg("m0943")}</span>
           <small>{msg("m0183")}</small>
         </div>
-        <div className="replay-controls">
-          <Button size="sm" variant="ghost" disabled={frames.length < 2} onClick={() => setPlaying((value) => !value)}>{playing ? <Pause size={15} /> : <Play size={15} />}</Button>
-          <span>{formatClock(elapsed)}</span>
-          <input type="range" min="0" max={Math.max(0, frames.length - 1)} step="1" value={frameIndex} onChange={(event) => setFrameIndex(Number(event.target.value))} aria-label={msg("m0376")} />
-          <span>{formatClock(total)}</span>
-          <Button size="sm" onClick={() => setSpeed((current) => current === .5 ? 1 : current === 1 ? 2 : .5)}>{speed.toFixed(1)}×</Button>
+        <div className="replay-controls" data-testid="replay-transport">
+          <Button size="sm" variant="ghost" disabled={roundFrames.length < 2} onClick={() => setPlaying((value) => !value)} aria-label={playing ? msg("m0730") : msg("m0674")} title={playing ? msg("m0730") : msg("m0674")}>{playing ? <Pause size={15} /> : <Play size={15} />}</Button>
+          <span title={t('analysis.replay.timing.recordedClock')}>{formatClock(elapsed)}</span>
+          <input type="range" min="0" max={Math.max(0, roundFrames.length - 1)} step="1" value={currentFrameIndex} onChange={(event) => setFrameIndex(Number(event.target.value))} aria-label={msg("m0376")} />
+          <span title={t('analysis.replay.timing.recordedClock')}>{formatClock(total)}</span>
+          <Button size="sm" title={playbackControl.description} onClick={() => setSpeed((current) => current === .5 ? 1 : current === 1 ? 2 : .5)}>{playbackControl.buttonLabel}</Button>
         </div>
       </Card>
-      <Card className="replay-events">
+      <Card className="replay-events" data-testid="replay-inspector">
         <div className="card-heading"><div><span className="eyebrow">FRAME EVIDENCE</span><h2>{msg("m0572")}</h2></div><ScanLine size={16} /></div>
-        {visiblePlayers.map((player) => { const inputs = activeInputLabels(player); return <div key={player.id}><time>HP {player.health}</time><span className="event-type-icon"><Crosshair size={13} /></span><p>{player.name} · {player.weapon} · {player.alive ? msg("m0440") : msg("m1282")}{inputs.length > 0 ? ` · ${inputs.join('+')}` : ''}</p></div>; })}
+        {visiblePlayers.map((player) => { const inputs = activeInputLabels(player); const vital = replayPlayerVitalPresentation(player); const selected = player.id === selectedPlayerId; return <div className={selected ? 'is-current' : undefined} key={player.id}><time>{vital.healthLabel}</time><span className="event-type-icon"><Crosshair size={13} /></span><p>{player.name}{selected ? ` · ${t('analysis.replay.focusedPlayer')}` : ''}{player.weapon ? ` · ${player.weapon}` : ''} · {vital.statusLabel}{inputs.length > 0 ? ` · ${inputs.join('+')}` : ''}</p></div>; })}
         {activeProjectiles.map((projectile, index) => { const item = replayEffectPresentation(projectile.kind); return <div key={`${projectile.kind}-${index}`}><time>{msg("m0680")}</time><span className="event-type-icon"><Zap size={13} /></span><p>{item.label}{item.eventOnly ? msg("m0004") : msg("m0006")}</p></div>; })}
         {currentFrame.bomb ? <div><time>{msg("m1013")}</time><span className="event-type-icon"><CircleDot size={13} /></span><p>{msg("m0941")} {currentFrame.bomb.state === 'planted' ? msg("m0509") : currentFrame.bomb.state === 'defused' ? msg("m0516") : currentFrame.bomb.state === 'exploded' ? msg("m0532") : currentFrame.bomb.state}</p></div> : null}
       </Card>
@@ -911,15 +1620,35 @@ function ReplayView({ demoId, workspace, source }: { demoId: string; workspace: 
   );
 }
 
-function HeatmapView({ demoId, mapName, player, source }: { demoId: string; mapName: string; player: PlayerAnalysis | null; source: 'loading' | 'service' | 'error' }) {
+function HeatmapView({
+  demoId,
+  mapName,
+  player,
+  players,
+  source,
+  selectedRound,
+  onNavigate,
+}: {
+  demoId: string;
+  mapName: string;
+  player: PlayerAnalysis | null;
+  players: readonly PlayerAnalysis[];
+  source: 'loading' | 'service' | 'error';
+  selectedRound: number | null;
+  onNavigate: (patch: AnalysisNavigationPatch) => void;
+}) {
+  const { t } = useI18n();
   const [points, setPoints] = useState<HeatPointRecord[]>([]);
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'all' | 'kills' | 'deaths' | 'movement' | 'utility'>('all');
   const [floor, setFloor] = useState<number | null>(null);
-  const [team, setTeam] = useState<'all' | 'A' | 'B'>('all');
+  const [side, setSide] = useState<HeatmapSide>('all');
   const [playerOnly, setPlayerOnly] = useState(false);
-  const radar = useRadarOverview(mapName, source === 'service');
+  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+  const playAction = useAsyncAction<unknown>();
+  const runtimeSession = useRuntimeStore((runtime) => runtime.session);
+  const radarState = useRadarOverview(mapName, source === 'service');
 
   useEffect(() => {
     if (source !== 'service') {
@@ -947,31 +1676,40 @@ function HeatmapView({ demoId, mapName, player, source }: { demoId: string; mapN
     };
   }, [demoId, source]);
 
+  useEffect(() => {
+    setSelectedPointId(null);
+  }, [demoId, floor, mode, playerOnly, selectedRound, side]);
+
   if (state === 'loading') return <Card><EmptyState icon={<Spinner />} title={msg("m0870")} description={msg("m1052")} /></Card>;
   if (state === 'error') return <Card><EmptyState icon={<Flame size={22} />} title={msg("m0947")} description={error ?? msg("m0779")} /></Card>;
   if (points.length === 0) return <Card><EmptyState icon={<Flame size={22} />} title={msg("m0902")} description={msg("m0260")} /></Card>;
 
   const floors = [...new Set(points.map((point) => point.floor))].sort((left, right) => left - right);
-  const filtered = points.filter((point) => {
-    const event = (point.event_kind ?? point.kind).toLocaleLowerCase();
-    const matchesMode = mode === 'all'
-      || (mode === 'kills' && event.includes('kill'))
-      || (mode === 'deaths' && event.includes('death'))
-      || (mode === 'movement' && event === 'movement')
-      || (mode === 'utility' && (event.includes('grenade') || event.includes('bomb')));
-    return matchesMode
-      && (floor === null || point.floor === floor)
-      && (team === 'all' || normalizeSide(point.team ?? '') === team)
-      && (!playerOnly || (player !== null && point.player_id === player.id));
+  const rounds = [...new Set([
+    ...points.flatMap((point) => point.round == null ? [] : [point.round]),
+    ...(selectedRound === null ? [] : [selectedRound]),
+  ])].sort((left, right) => left - right);
+  const filtered = filterHeatmapPoints(points, {
+    mode,
+    floor,
+    side,
+    playerId: playerOnly && player ? player.id : null,
+    round: selectedRound,
   });
+  const radar = radarState.overview;
   const radarTransform = radar?.transform ?? null;
-  const heatPoints: Array<[number, number]> = filtered.map((point) => [point.x, point.y]);
-  const coordinates = worldPointsToRadarPercent(heatPoints, radarTransform) ?? normalizeCoordinates(heatPoints);
+  const coordinates = projectHeatmapPoints(points, filtered, radarTransform);
   const radarImage = radarTransform && radar?.browser_displayable && radar.image_url ? desktopMediaUrl(radar.image_url) : null;
-  const floorCounts = new Map<number, number>();
-  points.forEach((point) => floorCounts.set(point.floor, (floorCounts.get(point.floor) ?? 0) + 1));
-  const kindCounts = new Map<string, number>();
-  points.forEach((point) => kindCounts.set(point.kind, (kindCounts.get(point.kind) ?? 0) + 1));
+  const summary = summarizeHeatmapPoints(filtered);
+  const selectedPoint = points.find((point) => point.id === selectedPointId) ?? null;
+  const selectedIntent = selectedPoint ? heatmapEvidenceIntent(demoId, selectedPoint) : null;
+  const selectedPlayerName = selectedPoint?.player_id
+    ? players.find((candidate) => candidate.id === selectedPoint.player_id)?.name ?? selectedPoint.player_id
+    : t('analysis.heatmap.playerUnavailable');
+  const selectedRoundLabel = selectedPoint?.round == null
+    ? t('analysis.heatmap.roundUnavailable')
+    : `R${selectedPoint.round}`;
+  const watchDisabled = runtimeSession !== 'idle' || playAction.state.status === 'loading';
 
   return (
     <div className="heatmap-layout">
@@ -985,7 +1723,21 @@ function HeatmapView({ demoId, mapName, player, source }: { demoId: string; mapN
           <div className="mini-segmented">
             {(['all', 'kills', 'deaths', 'movement', 'utility'] as const).map((item) => <button type="button" key={item} className={mode === item ? 'is-active' : undefined} onClick={() => setMode(item)}>{({ all: msg("m0229"), kills: msg("m0252"), deaths: msg("m0878"), movement: msg("m1045"), utility: msg("m1250") } as const)[item]}</button>)}
           </div>
-          <label><span className="sr-only">{msg("m1283")}</span><select value={team} onChange={(event) => setTeam(event.target.value as typeof team)}><option value="all">{msg("m0235")}</option><option value="A">TEAM A</option><option value="B">TEAM B</option></select></label>
+          <label>
+            <span className="sr-only">{t('analysis.heatmap.roundFilter')}</span>
+            <select
+              data-testid="heatmap-round-filter"
+              value={selectedRound ?? 'all'}
+              onChange={(event) => onNavigate({
+                round: event.target.value === 'all' ? null : Number(event.target.value),
+              })}
+              aria-label={t('analysis.heatmap.roundFilter')}
+            >
+              <option value="all">{t('analysis.heatmap.allRounds')}</option>
+              {rounds.map((round) => <option key={round} value={round}>R{round}</option>)}
+            </select>
+          </label>
+          <label><span className="sr-only">{t('analysis.heatmap.sideFilter')}</span><select value={side} onChange={(event) => setSide(event.target.value as HeatmapSide)} aria-label={t('analysis.heatmap.sideFilter')}><option value="all">{t('analysis.heatmap.allSides')}</option><option value="T">{t('analysis.insights.economy.tSide')}</option><option value="CT">{t('analysis.insights.economy.ctSide')}</option></select></label>
           <Button size="sm" variant={playerOnly ? 'primary' : 'ghost'} disabled={!player} onClick={() => setPlayerOnly((value) => !value)}>{playerOnly ? msgf("m0180", [player?.name]) : msg("m1067")}</Button>
           <label>
             <span className="sr-only">{msg("m0833")}</span>
@@ -996,35 +1748,110 @@ function HeatmapView({ demoId, mapName, player, source }: { demoId: string; mapN
           </label>
         </div>
         {filtered.length > 0 ? (
-          <div className={`heatmap-map heatmap-map--${mode}${radarImage ? ' has-radar-image' : ''}`}>
+          <div className={`heatmap-map heatmap-map--${mode}${radarImage ? ' has-radar-image' : ' is-coordinate-plane'}`} data-coordinate-space={radarTransform ? 'map-overview' : 'whole-artifact-relative'}>
             {radarImage ? <img className="radar-map-image" src={radarImage} alt={msgf("m0111", [mapName])} /> : (
-              <>
-                <div className="replay-map__site replay-map__site--a">A</div>
-                <div className="replay-map__site replay-map__site--b">B</div>
-                <div className="replay-map__paths"><span /><span /><span /><span /><span /></div>
-              </>
+              <div className="replay-map__coordinate-note">
+                <MapIcon size={16} />
+                <strong>{t('analysis.heatmap.relativeCoordinates')}</strong>
+                <span>{t('analysis.heatmap.relativeCoordinatesDescription')}</span>
+              </div>
             )}
-            {filtered.map((point, index) => {
-              const position = coordinates[index] ?? [50, 50];
+            {filtered.map((point, pointIndex) => {
+              const position = coordinates.get(point.id) ?? [50, 50];
               const weight = Math.max(.08, Math.min(1, point.weight));
               const size = 20 + weight * 56;
-              return <span key={`${point.x}-${point.y}-${index}`} className="heat-spot" style={{ left: `${position[0]}%`, top: `${position[1]}%`, width: size, height: size, opacity: .25 + weight * .65 }} title={`${point.kind} · weight ${point.weight.toFixed(2)} · floor ${point.floor}`} />;
+              const round = point.round == null ? t('analysis.heatmap.roundUnavailable') : `R${point.round}`;
+              const playerIdentity = point.player_id ?? t('analysis.heatmap.playerUnavailable');
+              const evidenceSide = point.side ?? t('analysis.heatmap.sideUnavailable');
+              const label = `${point.kind} · ${round} · tick ${point.tick} · ${playerIdentity} · ${evidenceSide} · weight ${point.weight.toFixed(2)} · floor ${point.floor}`;
+              return (
+                <button
+                  type="button"
+                  key={point.id}
+                  className={`heat-spot${selectedPointId === point.id ? ' is-selected' : ''}`}
+                  data-testid="heatmap-point"
+                  data-evidence-id={point.id}
+                  data-heat-index={pointIndex}
+                  style={{ left: `${position[0]}%`, top: `${position[1]}%`, width: size, height: size, opacity: .25 + weight * .65 }}
+                  aria-label={label}
+                  aria-pressed={selectedPointId === point.id}
+                  tabIndex={selectedPointId === point.id || (selectedPointId === null && pointIndex === 0) ? 0 : -1}
+                  title={label}
+                  onClick={() => setSelectedPointId(point.id)}
+                  onFocus={() => setSelectedPointId(point.id)}
+                  onKeyDown={(event) => {
+                    const direction = event.key === 'ArrowRight' || event.key === 'ArrowDown'
+                      ? 1
+                      : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+                        ? -1
+                        : null;
+                    if (direction === null) return;
+                    event.preventDefault();
+                    const nextIndex = nextHeatmapPointIndex(filtered.length, pointIndex, direction);
+                    const nextPoint = filtered[nextIndex];
+                    if (!nextPoint) return;
+                    setSelectedPointId(nextPoint.id);
+                    event.currentTarget.parentElement
+                      ?.querySelector<HTMLButtonElement>(`[data-heat-index="${nextIndex}"]`)
+                      ?.focus();
+                  }}
+                />
+              );
             })}
           </div>
         ) : <EmptyState icon={<Flame size={20} />} title={msg("m0877")} description={msg("m0025")} />}
       </Card>
       <div className="heatmap-insights">
+        <Card className="heatmap-evidence-card" data-testid="heatmap-evidence-inspector">
+          <span className="eyebrow">EVIDENCE FOCUS</span>
+          <h2>{t('analysis.heatmap.selectedEvidence')}</h2>
+          {selectedPoint && selectedIntent ? (
+            <>
+              <dl>
+                <div><dt>{t('analysis.heatmap.kind')}</dt><dd>{selectedPoint.kind}</dd></div>
+                <div><dt>{t('analysis.heatmap.round')}</dt><dd>{selectedRoundLabel}</dd></div>
+                <div><dt>Tick</dt><dd>{selectedPoint.tick}</dd></div>
+                <div><dt>{t('analysis.heatmap.player')}</dt><dd>{selectedPlayerName}</dd></div>
+                <div><dt>{t('analysis.heatmap.side')}</dt><dd>{selectedPoint.side ?? t('analysis.heatmap.sideUnavailable')}</dd></div>
+                <div><dt>{t('analysis.heatmap.floor')}</dt><dd>{selectedPoint.floor}</dd></div>
+              </dl>
+              <code title={selectedIntent.evidenceId ?? selectedPoint.id}>{selectedIntent.evidenceId ?? selectedPoint.id}</code>
+              <footer>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={watchDisabled}
+                  title={runtimeSession !== 'idle' ? msg("m0799") : t('analysis.heatmap.watch')}
+                  onClick={() => void playAction.run(
+                    () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, selectedIntent.watch)),
+                    msg("m0514"),
+                  )}
+                >
+                  {playAction.state.status === 'loading' ? <Spinner /> : <Play size={13} />}
+                  {t('analysis.heatmap.watch')}
+                </Button>
+                <Button size="sm" variant="secondary" disabled={!selectedIntent.round} onClick={() => selectedIntent.round && onNavigate(selectedIntent.round)}>
+                  <ListFilter size={13} />{t('analysis.heatmap.openRound')}
+                </Button>
+                <Button size="sm" disabled={!selectedIntent.replay} onClick={() => selectedIntent.replay && onNavigate(selectedIntent.replay)}>
+                  <MapIcon size={13} />{t('analysis.heatmap.openReplay')}
+                </Button>
+              </footer>
+              {playAction.state.status === 'error' ? <Notice tone="danger">{playAction.state.message}</Notice> : null}
+            </>
+          ) : <p>{t('analysis.heatmap.selectEvidence')}</p>}
+        </Card>
         <Card>
           <span className="eyebrow">API EVIDENCE</span><h2>{msg("m1053")}</h2>
-          <div className="ranked-list">{[...kindCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([kind, count], index) => <div key={kind}><span>{index + 1}</span><strong>{kind || msg("m0752")}</strong><small>{count} {msg("m0944")}</small></div>)}</div>
+          <div className="ranked-list">{summary.kinds.slice(0, 4).map(({ kind, count }, index) => <div key={kind}><span>{index + 1}</span><strong>{kind || msg("m0752")}</strong><small>{count} {msg("m0944")}</small></div>)}</div>
         </Card>
-        <Notice tone="info" title={msg("m0683")}>{msg("m0576")} {filtered.length} / {points.length} {msg("m0162")} {floorCounts.size} {msg("m0156")}{radarTransform ? msg("m0404") : msg("m1089")}</Notice>
+        <Notice tone="info" title={msg("m0683")}>{msg("m0576")} {filtered.length} / {points.length} {msg("m0162")} {summary.floorCount} {msg("m0156")}{radarTransform ? msg("m0404") : msg("m1089")}</Notice>
       </div>
     </div>
   );
 }
 
-function HighlightsView({ highlights, workspace, addedId, onAdd, onAddMany, onPreview }: { highlights: Highlight[]; workspace: AnalysisWorkspace; addedId: string | null; onAdd: (highlight: Highlight) => void; onAddMany: (highlights: Highlight[]) => void; onPreview: () => void }) {
+function HighlightsView({ highlights, workspace, addedId, onAdd, onAddMany, onPreview }: { highlights: Highlight[]; workspace: AnalysisWorkspace; addedId: string | null; onAdd: (highlight: Highlight) => void; onAddMany: (highlights: Highlight[]) => void; onPreview: (highlight: Highlight) => void }) {
   const [sideFilter, setSideFilter] = useState<'all' | 'A' | 'B'>('all');
   const [kindFilter, setKindFilter] = useState<Highlight['kind'] | 'all'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
@@ -1084,7 +1911,7 @@ function HighlightsView({ highlights, workspace, addedId, onAdd, onAddMany, onPr
       {filtered.length > 0 ? <div className="highlight-list">
         {filtered.map((highlight, index) => {
           const player = workspace.players.find((candidate) => candidate.id === highlight.player_id);
-          return <Card className={`highlight-card${selectedIds.has(highlight.id) ? ' is-selected' : ''}`} key={highlight.id}><label className={`highlight-card__rank rank-${index + 1}`}><input type="checkbox" checked={selectedIds.has(highlight.id)} onChange={() => toggleHighlight(highlight.id)} aria-label={msgf("m1226", [highlight.label])} /><span>{String(index + 1).padStart(2, '0')}</span></label><div className="highlight-card__preview"><div className="mini-crosshair"><span /><span /></div><Badge tone="accent">{highlight.round > 0 ? `R${highlight.round}` : msg("m0225")}</Badge><span>{workspace.tick_rate > 0 ? `${((highlight.end_tick - highlight.start_tick) / workspace.tick_rate).toFixed(1)}s` : '—'}</span></div><div className="highlight-card__main"><div><Badge tone={highlight.kind === 'fail' ? 'danger' : highlight.category === 'clutch' ? 'warning' : 'blue'}>{kindLabel[highlight.kind]}</Badge><span>{player?.name ?? highlight.player_id}{player ? ` · TEAM ${player.team}` : ''}</span></div><h3>{highlight.label}</h3><p>{highlight.description || msgf("m0256", [highlight.confidence.toFixed(2)])} · tick {highlight.start_tick.toLocaleString(currentLocale())}–{highlight.end_tick.toLocaleString(currentLocale())}</p>{highlight.tags.length > 0 ? <small>{highlight.tags.join(' · ')}</small> : null}</div><div className="highlight-card__actions"><Button size="sm" onClick={onPreview}><Play size={13} />{msg("m0637")}</Button><Button size="sm" variant="primary" onClick={() => onAdd(highlight)}>{addedId === highlight.id ? <Check size={14} /> : <Plus size={14} />}{addedId === highlight.id ? msg("m0502") : msg("m0303")}</Button></div></Card>;
+          return <Card className={`highlight-card${selectedIds.has(highlight.id) ? ' is-selected' : ''}`} key={highlight.id}><label className={`highlight-card__rank rank-${index + 1}`}><input type="checkbox" checked={selectedIds.has(highlight.id)} onChange={() => toggleHighlight(highlight.id)} aria-label={msgf("m1226", [highlight.label])} /><span>{String(index + 1).padStart(2, '0')}</span></label><div className="highlight-card__preview"><div className="mini-crosshair"><span /><span /></div><Badge tone="accent">{highlight.round > 0 ? `R${highlight.round}` : msg("m0225")}</Badge><span>{workspace.tick_rate > 0 ? `${((highlight.end_tick - highlight.start_tick) / workspace.tick_rate).toFixed(1)}s` : '—'}</span></div><div className="highlight-card__main"><div><Badge tone={highlight.kind === 'fail' ? 'danger' : highlight.category === 'clutch' ? 'warning' : 'blue'}>{kindLabel[highlight.kind]}</Badge><span>{player?.name ?? highlight.player_id}{player ? ` · TEAM ${player.team}` : ''}</span></div><h3>{highlight.label}</h3><p>{highlight.description || msgf("m0256", [highlight.confidence.toFixed(2)])} · tick {highlight.start_tick.toLocaleString(currentLocale())}–{highlight.end_tick.toLocaleString(currentLocale())}</p>{highlight.tags.length > 0 ? <small>{highlight.tags.join(' · ')}</small> : null}</div><div className="highlight-card__actions"><Button size="sm" onClick={() => onPreview(highlight)}><Play size={13} />{msg("m0637")}</Button><Button size="sm" variant="primary" onClick={() => onAdd(highlight)}>{addedId === highlight.id ? <Check size={14} /> : <Plus size={14} />}{addedId === highlight.id ? msg("m0502") : msg("m0303")}</Button></div></Card>;
         })}
       </div> : <Card><EmptyState icon={<Sparkles size={22} />} title={msg("m0894")} description={msg("m0258")} /></Card>}
     </div>

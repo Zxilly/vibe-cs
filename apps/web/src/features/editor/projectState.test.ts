@@ -112,7 +112,6 @@ describe('Editor project state', () => {
 
   it('rejects presets whose properties cannot render on the selected target', () => {
     const document = {
-      schema_version: 1 as const,
       transform: { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
       volume: 1,
       color_adjust: { brightness: 0, contrast: 1, saturation: 1 },

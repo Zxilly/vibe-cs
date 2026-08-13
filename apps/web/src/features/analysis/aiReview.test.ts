@@ -11,6 +11,7 @@ describe('AI review request boundary', () => {
     expect(buildReviewRequest('match', 'analytical', 'ignored', ['ignored'])).toEqual({
       scope: 'match',
       tone: 'analytical',
+      player_id: null,
       highlight_ids: [],
     });
     expect(buildReviewRequest('player', 'coach', 'player-1', ['ignored'])).toEqual({

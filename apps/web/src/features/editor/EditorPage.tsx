@@ -41,6 +41,7 @@ import {
   Video,
   Volume2,
   WandSparkles,
+  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
@@ -52,7 +53,7 @@ import type { EditorPreset, EditorPresetDocument, EditorProjectDeletionResult, E
 import { chooseLocalFile, isDesktopShell } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
-import { Badge, Button, EmptyState, Field, IconButton, Notice, Spinner, TextInput } from '../../shared/ui';
+import { Badge, Button, EmptyState, Field, IconButton, Notice, Spinner, TextInput, useDialogFocus } from '../../shared/ui';
 import {
   MAX_EDITOR_TIMELINE_SECONDS,
   boundedTimelineValue,
@@ -126,7 +127,6 @@ const presetDocumentFromClip = (clip: TimelineClip): EditorPresetDocument => {
     : null;
   const radius = typeof blurParameters?.radius === 'number' ? blurParameters.radius : null;
   return {
-    schema_version: 1,
     transform: clip.transform ?? { x: 0, y: 0, scale_x: 1, scale_y: 1, rotation: 0, opacity: 1 },
     volume: clip.volume,
     color_adjust: readColorAdjust(clip),
@@ -362,7 +362,7 @@ const toWireClip = (clip: TimelineClip): TimelineClipDto => ({
   effects: clip.effects ?? [],
   transition_in: clip.transitionIn ?? null,
   transition_out: clip.transitionOut ?? null,
-  text: clip.text ?? null,
+  text: clip.text ? { ...clip.text, font_asset_id: clip.text.font_asset_id ?? null } : null,
   metadata: clip.metadata ?? {},
   group_id: clip.groupId ?? null,
   link_group_id: clip.linkGroupId ?? null,
@@ -439,6 +439,8 @@ export function EditorPage() {
   const [snapshots, setSnapshots] = useState<EditorProjectSnapshot[]>([]);
   const [mediaQuery, setMediaQuery] = useState('');
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>('clip');
+  const [inspectorDrawerOpen, setInspectorDrawerOpen] = useState(false);
+  const inspectorDrawerRef = useDialogFocus<HTMLElement>(inspectorDrawerOpen, () => setInspectorDrawerOpen(false));
   const [playing, setPlaying] = useState(false);
   const [savedRevision, setSavedRevision] = useState(activeProject.revision);
   const [savedFingerprint, setSavedFingerprint] = useState(() =>
@@ -691,6 +693,19 @@ export function EditorPage() {
   activeProjectId.current = activeProject.id;
 
   useEffect(() => {
+    if (editorLocked) setInspectorDrawerOpen(false);
+  }, [editorLocked]);
+
+  useEffect(() => {
+    const compactEditor = window.matchMedia('(max-width: 1400px)');
+    const closeWhenWide = () => {
+      if (!compactEditor.matches) setInspectorDrawerOpen(false);
+    };
+    compactEditor.addEventListener('change', closeWhenWide);
+    return () => compactEditor.removeEventListener('change', closeWhenWide);
+  }, []);
+
+  useEffect(() => {
     if (
       source !== 'service'
       || isPreview
@@ -779,8 +794,8 @@ export function EditorPage() {
       duration: asset.duration_seconds && asset.duration_seconds > 0 ? asset.duration_seconds : 5,
       kind: asset.kind.startsWith('audio') ? 'audio' as const : asset.kind.startsWith('image') ? 'image' as const : 'video' as const,
       streamUrl: asset.proxy_status.status === 'ready'
-        ? `/api/v1/media/assets/${encodeURIComponent(asset.id)}/proxy/stream`
-        : `/api/v1/media/assets/${encodeURIComponent(asset.id)}/stream`,
+        ? `/api/media/assets/${encodeURIComponent(asset.id)}/proxy/stream`
+        : `/api/media/assets/${encodeURIComponent(asset.id)}/stream`,
       asset,
     })),
   ], [assets, media]);
@@ -1046,7 +1061,7 @@ export function EditorPage() {
     setAssets((current) => [asset, ...current]);
     const family = `VibeCSCustom-${asset.id}`;
     try {
-      const face = new FontFace(family, `url(${desktopMediaUrl(`/api/v1/media/assets/${encodeURIComponent(asset.id)}/stream`)})`);
+      const face = new FontFace(family, `url(${desktopMediaUrl(`/api/media/assets/${encodeURIComponent(asset.id)}/stream`)})`);
       await face.load();
       document.fonts.add(face);
     } catch {
@@ -1241,10 +1256,6 @@ export function EditorPage() {
   };
 
   const generateProxy = async (asset: MediaAsset) => {
-    setAssets((items) => items.map((item) => item.id === asset.id ? {
-      ...item,
-      proxy_status: { status: 'generating', started_at: new Date().toISOString() },
-    } : item));
     const result = await proxyAction.run(
       () => commands.generateMediaProxy(asset.id),
       msgf("m0126", [asset.name]),
@@ -1748,7 +1759,7 @@ export function EditorPage() {
           {snapshotListOpen ? <div className="project-popover project-history-popover"><header><strong>{msg("m0315")}</strong><Badge tone="neutral">{snapshots.length}</Badge></header>{snapshots.length > 0 ? snapshots.map((snapshot) => <button type="button" key={snapshot.id} disabled={editorLocked} onClick={() => void restoreSnapshot(snapshot.id)}><span className="project-thumb"><History size={16} /></span><span><strong>{msg("m0216")} {snapshot.revision} · {snapshot.name}</strong><small>{new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'short', timeStyle: 'short' }).format(new Date(snapshot.created_at))}</small></span><ChevronRight size={14} /></button>) : <div className="project-history-empty">{msg("m0211")}</div>}</div> : null}
         </div>
         <div className="editor-header__center"><Badge tone="neutral">{activeProject.width} × {activeProject.height}</Badge><Badge tone="neutral">{activeProject.fps} FPS</Badge><Badge tone={source === 'service' ? 'success' : 'warning'}>{source === 'service' ? t('editor.serviceConnected') : source === 'loading' ? t('common.loading') : t('common.unavailable')}</Badge></div>
-        <div className="editor-header__actions"><Button size="sm" disabled={source !== 'service' || editorLocked} onClick={() => void choosePackageImport()}>{projectOperation === 'importing' ? <Spinner /> : <FolderOpen size={14} />}{t('editor.importPackage')}</Button><Button size="sm" disabled={isPreview || editorLocked} onClick={() => void duplicateProject(false)}><Copy size={14} />{t('editor.duplicateProject')}</Button><Button size="sm" disabled={isPreview || editorLocked} title={msgf("m0521", [templates.length])} onClick={() => void duplicateProject(true)}><LayoutTemplate size={14} />{t('editor.saveTemplate')}</Button><Button size="sm" disabled={isPreview || editorLocked || autoSaveInFlight.current} onClick={() => void exportPackage()}>{projectOperation === 'packaging' ? <Spinner /> : <Archive size={14} />}{t('editor.projectPackage')}</Button><Button size="sm" disabled={isPreview || editorLocked || autoSaveInFlight.current || !hasUnsavedChanges} onClick={() => void saveProject()}>{projectOperation === 'saving' ? <Spinner /> : <Save size={14} />}{projectOperation === 'saving' ? msg("m0210") : t('common.save')}</Button><Button size="sm" variant="primary" disabled={isPreview || editorLocked || autoSaveInFlight.current || exportJobId !== null} onClick={() => void startExport()}>{projectOperation === 'exporting' ? <Spinner /> : <Download size={14} />}{exportJobId ? msg("m0457") : projectOperation === 'exporting' ? msg("m0212") : t('editor.export')}</Button></div>
+        <div className="editor-header__actions"><Button className="editor-inspector-trigger" size="sm" disabled={editorLocked} data-testid="editor-inspector-trigger" aria-controls="editor-property-inspector" aria-expanded={inspectorDrawerOpen} onClick={() => setInspectorDrawerOpen(true)}><SlidersHorizontal size={14} />{t('editor.properties')}</Button><Button size="sm" disabled={source !== 'service' || editorLocked} onClick={() => void choosePackageImport()}>{projectOperation === 'importing' ? <Spinner /> : <FolderOpen size={14} />}{t('editor.importPackage')}</Button><Button size="sm" disabled={isPreview || editorLocked} onClick={() => void duplicateProject(false)}><Copy size={14} />{t('editor.duplicateProject')}</Button><Button size="sm" disabled={isPreview || editorLocked} title={msgf("m0521", [templates.length])} onClick={() => void duplicateProject(true)}><LayoutTemplate size={14} />{t('editor.saveTemplate')}</Button><Button size="sm" disabled={isPreview || editorLocked || autoSaveInFlight.current} onClick={() => void exportPackage()}>{projectOperation === 'packaging' ? <Spinner /> : <Archive size={14} />}{t('editor.projectPackage')}</Button><Button size="sm" disabled={isPreview || editorLocked || autoSaveInFlight.current || !hasUnsavedChanges} onClick={() => void saveProject()}>{projectOperation === 'saving' ? <Spinner /> : <Save size={14} />}{projectOperation === 'saving' ? msg("m0210") : t('common.save')}</Button><Button size="sm" variant="primary" disabled={isPreview || editorLocked || autoSaveInFlight.current || exportJobId !== null} onClick={() => void startExport()}>{projectOperation === 'exporting' ? <Spinner /> : <Download size={14} />}{exportJobId ? msg("m0457") : projectOperation === 'exporting' ? msg("m0212") : t('editor.export')}</Button></div>
       </header>
 
       <div className="editor-status-stack">
@@ -1775,6 +1786,8 @@ export function EditorPage() {
         {exportPollError ? <Notice className="editor-notice" tone="warning">{exportPollError}{msg("m1335")}</Notice> : null}
         {exportJob ? <div className="editor-export-progress" aria-live="polite"><span>{exportJob.job.status}</span><div><i style={{ width: `${Math.max(0, Math.min(100, exportJob.job.progress * 100))}%` }} /></div><strong>{Math.round(exportJob.job.progress * 100)}%</strong><small>{exportJob.job.error ?? (exportJob.job.output_path || msg("m0794"))}</small>{exportJobId ? <Button size="sm" variant="danger" disabled={cancelExportAction.state.status === 'loading'} onClick={() => void cancelExport()}>{cancelExportAction.state.status === 'loading' ? <Spinner /> : <Pause size={12} />}{msg("m0325")}</Button> : null}</div> : null}
       </div>
+
+      {inspectorDrawerOpen ? <button type="button" className="editor-inspector-backdrop" data-testid="editor-inspector-backdrop" tabIndex={-1} aria-hidden="true" onClick={() => setInspectorDrawerOpen(false)} /> : null}
 
       <div className="editor-top" inert={editorLocked ? true : undefined} aria-busy={editorLocked}>
         <aside className="media-bin editor-panel">
@@ -1823,8 +1836,17 @@ export function EditorPage() {
           <div className="preview-transport"><span>{formatTimelineTime(playhead, activeProject.fps)}</span><div><IconButton label={msg("m0133")} onClick={() => setPlayhead(playhead - 1 / activeProject.fps)}><SkipBack size={14} /></IconButton><IconButton className="transport-play" label={playing ? msg("m0730") : msg("m0674")} onClick={() => setPlaying((value) => !value)}>{playing ? <Pause size={16} /> : <Play size={16} fill="currentColor" />}</IconButton><IconButton label={msg("m0139")} onClick={() => setPlayhead(playhead + 1 / activeProject.fps)}><SkipForward size={14} /></IconButton></div><span>{formatTimelineTime(duration, activeProject.fps)}</span></div>
         </section>
 
-        <aside className="property-panel editor-panel">
-          <header className="editor-panel__header"><div><SlidersHorizontal size={15} /><strong>{t('editor.properties')}</strong></div><Badge tone="neutral">{selectedClip ? msg("m0952") : msg("m0474")}</Badge></header>
+        <aside
+          id="editor-property-inspector"
+          ref={inspectorDrawerRef}
+          className={`property-panel editor-panel${inspectorDrawerOpen ? ' is-drawer-open' : ''}`}
+          data-testid="editor-inspector-drawer"
+          role={inspectorDrawerOpen ? 'dialog' : undefined}
+          aria-modal={inspectorDrawerOpen ? true : undefined}
+          aria-labelledby="editor-inspector-title"
+          tabIndex={inspectorDrawerOpen ? -1 : undefined}
+        >
+          <header className="editor-panel__header"><div><SlidersHorizontal size={15} /><strong id="editor-inspector-title">{t('editor.properties')}</strong></div><div className="editor-inspector-heading-actions"><Badge tone="neutral">{selectedClip ? msg("m0952") : msg("m0474")}</Badge><IconButton className="editor-inspector-close" data-testid="editor-inspector-close" label={t('shell.close')} onClick={() => setInspectorDrawerOpen(false)}><X size={15} /></IconButton></div></header>
           {selectedClip ? (
             <>
               <div className="property-tabs">

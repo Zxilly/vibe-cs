@@ -113,15 +113,12 @@ function separatedAudioOrigin(metadata: unknown): string | null {
   if (!metadata || typeof metadata !== 'object') return null;
   const value = metadata as {
     audio_origin?: { kind?: unknown; source_clip_id?: unknown };
-    separated_from_clip_id?: unknown;
   };
   if (value.audio_origin?.kind === 'separated_from_video'
     && typeof value.audio_origin.source_clip_id === 'string') {
     return value.audio_origin.source_clip_id;
   }
-  return typeof value.separated_from_clip_id === 'string'
-    ? value.separated_from_clip_id
-    : null;
+  return null;
 }
 
 export function hasSeparatedAudioChild(

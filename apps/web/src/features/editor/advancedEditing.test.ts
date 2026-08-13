@@ -63,7 +63,7 @@ describe('advanced editor mapping', () => {
     expect(activeTimelineClips(tracks, Number.POSITIVE_INFINITY)).toEqual([]);
   });
 
-  it('recognizes only linked detached-audio children and accepts legacy metadata', () => {
+  it('recognizes only linked detached-audio children with the current audio origin', () => {
     const source = { ...clip(), linkGroupId: 'linked' };
     const tracks: TimelineTrack[] = [
       { id: 'video', name: 'Video', kind: 'video', muted: false, locked: false, clips: [source] },
@@ -85,7 +85,10 @@ describe('advanced editor mapping', () => {
     ];
     expect(hasSeparatedAudioChild(tracks, source.id)).toBe(true);
     tracks[1]!.clips[0]!.metadata = { separated_from_clip_id: source.id };
-    expect(hasSeparatedAudioChild(tracks, source.id)).toBe(true);
+    expect(hasSeparatedAudioChild(tracks, source.id)).toBe(false);
+    tracks[1]!.clips[0]!.metadata = {
+      audio_origin: { kind: 'separated_from_video', source_clip_id: source.id },
+    };
     tracks[1]!.clips[0]!.linkGroupId = 'unrelated';
     expect(hasSeparatedAudioChild(tracks, source.id)).toBe(false);
   });

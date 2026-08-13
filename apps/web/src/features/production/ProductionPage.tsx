@@ -47,7 +47,7 @@ export function ProductionPage() {
     const controller = new AbortController();
     setLoading(true);
     void Promise.allSettled([
-      commands.listDemos({ page: 1, page_size: 1, sort: 'newest' }, controller.signal),
+      commands.listDemos({ page: 1, page_size: 1, sort: 'updated_desc' }, controller.signal),
       commands.listRecordedClips(controller.signal),
       commands.listEditorProjects(controller.signal),
       commands.listOutputs({ page: 1, page_size: 1 }, controller.signal),

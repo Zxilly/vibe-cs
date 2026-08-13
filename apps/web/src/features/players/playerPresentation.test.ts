@@ -12,7 +12,10 @@ import {
   playerHeadshotRate,
   playerKd,
   playerPageCount,
+  sortPlayerDirectory,
   steamEvidence,
+  retainComparedPlayersOnPage,
+  toggleComparedPlayer,
 } from './playerPresentation';
 
 const baseSteam: PlayerSteamProfile = {
@@ -24,7 +27,7 @@ const baseSteam: PlayerSteamProfile = {
   persona_state: 1,
   last_logoff: null,
   created_at: null,
-  avatar_url: '/api/v1/players/76561198000000001/avatar',
+  avatar_url: '/api/players/76561198000000001/avatar',
   reason: null,
 };
 
@@ -42,14 +45,14 @@ const player: PlayerDirectoryItem = {
     headshots: 15,
     damage: 3_200,
     average_adr: 82.25,
-    average_rating: 1.1,
+    average_kill_death_ratio: 1.1,
   },
   steam: baseSteam,
 };
 
 describe('player presentation', () => {
   it('accepts only the exact service-owned avatar route', () => {
-    expect(localPlayerAvatarPath(player)).toBe('/api/v1/players/76561198000000001/avatar');
+    expect(localPlayerAvatarPath(player)).toBe('/api/players/76561198000000001/avatar');
     expect(localPlayerAvatarPath({
       ...player,
       steam: { ...baseSteam, avatar_url: 'https://avatars.steamstatic.com/avatar.jpg' },
@@ -85,5 +88,59 @@ describe('player presentation', () => {
     expect(playerHeadshotRate(player.stats)).toBe('50.0%');
     expect(formatOptionalMetric(Number.NaN)).toBe('—');
     expect(formatCacheBytes(1536)).toBe('1.5 KiB');
+  });
+
+  it('sorts only the supplied directory page and keeps missing metrics last', () => {
+    const lowAdr = { ...player, steam_id: '1', name: 'Low ADR', stats: { ...player.stats, average_adr: 70 } };
+    const highAdr = { ...player, steam_id: '2', name: 'High ADR', stats: { ...player.stats, average_adr: 95 } };
+    const missingAdr = { ...player, steam_id: '3', name: 'Missing ADR', stats: { ...player.stats, average_adr: null } };
+
+    expect(sortPlayerDirectory([highAdr, missingAdr, lowAdr], { key: 'adr', direction: 'asc' })
+      .map((item) => item.steam_id)).toEqual(['1', '2', '3']);
+    expect(sortPlayerDirectory([lowAdr, missingAdr, highAdr], { key: 'adr', direction: 'desc' })
+      .map((item) => item.steam_id)).toEqual(['2', '1', '3']);
+  });
+
+  it('keeps an ordered comparison of at most two real directory players', () => {
+    const second = { ...player, steam_id: '2', name: 'Second' };
+    const third = { ...player, steam_id: '3', name: 'Third' };
+
+    expect(toggleComparedPlayer([], player)).toEqual([player]);
+    expect(toggleComparedPlayer([player], second)).toEqual([player, second]);
+    expect(toggleComparedPlayer([player, second], third)).toEqual([second, third]);
+    expect(toggleComparedPlayer([player, second], player)).toEqual([second]);
+  });
+
+  it('drops comparison selections that are not on the current server page', () => {
+    const second = { ...player, steam_id: '2', name: 'Second' };
+
+    expect(retainComparedPlayersOnPage([player, second], [second])).toEqual([second]);
+    expect(retainComparedPlayersOnPage([player], [])).toEqual([]);
+  });
+
+  it.each([
+    ['player', 'asc', ['a', 'b']],
+    ['matches', 'desc', ['b', 'a']],
+    ['kd', 'desc', ['b', 'a']],
+    ['headshots', 'desc', ['b', 'a']],
+    ['lastMatch', 'desc', ['b', 'a']],
+  ] as const)('sorts the current page by %s %s', (key, direction, expected) => {
+    const first = {
+      ...player,
+      steam_id: 'a',
+      name: 'Alpha',
+      last_match_at: '2026-08-09T08:00:00Z',
+      stats: { ...player.stats, matches: 2, kills: 10, deaths: 10, headshots: 2 },
+    };
+    const second = {
+      ...player,
+      steam_id: 'b',
+      name: 'Bravo',
+      last_match_at: '2026-08-10T08:00:00Z',
+      stats: { ...player.stats, matches: 4, kills: 20, deaths: 10, headshots: 10 },
+    };
+
+    expect(sortPlayerDirectory([first, second], { key, direction }).map((item) => item.steam_id))
+      .toEqual(expected);
   });
 });

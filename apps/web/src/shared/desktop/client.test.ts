@@ -5,7 +5,38 @@ const invokeMock = vi.hoisted(() => vi.fn());
 vi.mock('@tauri-apps/api/core', () => ({ invoke: invokeMock }));
 
 import { DesktopError, commands, desktopMediaUrl, normalizeDemo, normalizeSide, request } from './client';
-import type { DemoRecord } from './dto';
+import type { AppConfig, DemoRecord, MatchAnalysisRecord } from './dto';
+
+function matchAnalysisRecord(): MatchAnalysisRecord {
+  const unavailable = { available: false, reason: 'No parsed evidence.' };
+  return {
+    demo_id: 'demo-1',
+    map_name: 'de_mirage',
+    tick_rate: 64,
+    duration_seconds: 90,
+    verified_total_ticks: null,
+    teams: [],
+    players: [{
+      steam_id: '7656119', name: 'Player', team: 'CT', kills: 1, deaths: 0,
+      assists: 0, headshots: 1, damage: 100, adr: 100, kill_death_ratio: 1.5, score: 2,
+    }],
+    rounds: [],
+    highlights: [],
+    insights: {
+      round_economy: [],
+      player_utility: [],
+      matchups: [],
+      availability: {
+        purchase_events: unavailable,
+        purchase_spend: unavailable,
+        utility_events: unavailable,
+        utility_damage: unavailable,
+        flash_effects: unavailable,
+        matchups: unavailable,
+      },
+    },
+  };
+}
 
 describe('desktop command client', () => {
   afterEach(() => {
@@ -13,12 +44,70 @@ describe('desktop command client', () => {
     vi.unstubAllGlobals();
   });
 
+  it('does not expose retired OBS control commands', () => {
+    for (const command of [
+      'testObs',
+      'getObsStatus',
+      'startObs',
+      'diagnoseObs',
+      'getObsVideoTuningPlan',
+      'applyObsVideoTuningPlan',
+      'listObsVideoBackups',
+      'restoreObsVideoBackup',
+      'deleteObsVideoBackup',
+    ]) {
+      expect(commands).not.toHaveProperty(command);
+    }
+    expect(commands).not.toHaveProperty('checkHlaeStatus');
+  });
+
+  it('sends the exact managed-HLAE settings contract', async () => {
+    const config: AppConfig = {
+      locale: 'zh-CN', theme: 'dark', update_manifest_url: '', data_dir: '', demo_watch_paths: [],
+      cs2_path: 'C:/CS2/cs2.exe', steam_path: 'C:/Steam/steam.exe',
+      steam: { steam_id: '', web_api_key: '', authentication_code: '', known_share_code: '', maximum_results: 20 },
+      steam_has_web_api_key: false, steam_has_authentication_code: false, steam_has_share_code: false,
+      llm: { provider: '', model: '', base_url: '', api_key: '', prompt: '' },
+      llm_has_api_key: false, clear_llm_api_key: false,
+      recording: {
+        pre_roll_seconds: 3, post_roll_seconds: 2.5,
+        resolution: '1920x1080', fps: 60, show_radar: true, show_hud: true,
+        mute_voice: false, isolate_target_voice: false, camera_fov: 90,
+        viewmodel_fov: 68, flash_alpha: 255,
+      },
+    };
+    invokeMock.mockResolvedValue(config);
+
+    await commands.updateConfig(config);
+
+    const body = invokeMock.mock.calls[0]?.[1]?.call.body;
+    expect(body).toEqual(config);
+  });
+
+  it('sends the exact current audio analysis options when the caller uses product defaults', async () => {
+    invokeMock.mockResolvedValue({ beats: [] });
+
+    await commands.analyzeAudioAsset('audio/1');
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: '/media/assets/audio%2F1/audio-analysis?sample_rate=11025&maximum_duration_seconds=1800&maximum_beats=4096&maximum_onsets=4096&energy_points=512&maximum_sections=24',
+      },
+    });
+  });
+
   it('uses Tauri invoke instead of an HTTP origin', async () => {
-    invokeMock.mockResolvedValue({ status: 'ok', version: '0.1.0' });
+    invokeMock.mockResolvedValue({
+      status: 'ok',
+      version: '0.1.0',
+      started_at: '2026-08-13T00:00:00Z',
+    });
 
     await expect(request('/health', { method: 'POST', body: { probe: true } })).resolves.toEqual({
       status: 'ok',
       version: '0.1.0',
+      started_at: '2026-08-13T00:00:00Z',
     });
     expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
       call: {
@@ -29,6 +118,80 @@ describe('desktop command client', () => {
     });
   });
 
+  it('executes the opaque server-side recording plan instead of resending queue items', async () => {
+    invokeMock.mockResolvedValue({ job_id: 'job-1', status: 'queued' });
+
+    await commands.executeRecordingPlan('plan/unsafe id', false);
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'post',
+        path: '/recording/plans/plan%2Funsafe%20id/execute',
+        body: { offline_insecure_acknowledged: false },
+      },
+    });
+  });
+
+  it('sends a deterministic cross-match evidence query through the local dispatcher', async () => {
+    invokeMock.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50, availability: {} });
+
+    await commands.searchEvidence({
+      q: ' FalleN ',
+      event_family: 'kill',
+      headshot: false,
+      round: 20,
+      page: 1,
+      page_size: 50,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: '/evidence/search?q=FalleN&event_family=kill&headshot=false&round=20&page=1&page_size=50',
+      },
+    });
+  });
+
+  it('restores persisted active Match History downloads through the local dispatcher', async () => {
+    invokeMock.mockResolvedValue([]);
+
+    await commands.listActiveMatchDownloadJobs();
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: { method: 'get', path: '/match-history/downloads/active' },
+    });
+  });
+
+  it('reads the persisted cross-workflow activity projection through one local request', async () => {
+    invokeMock.mockResolvedValue({ items: [] });
+
+    await commands.listActivities();
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: { method: 'get', path: '/activities' },
+    });
+  });
+
+  it('does not fake-cancel recording mutations or managed HLAE preparation in the renderer', async () => {
+    vi.useFakeTimers();
+    invokeMock.mockReturnValue(new Promise(() => undefined));
+    let planSettled = false;
+    let executeSettled = false;
+    let preparationSettled = false;
+
+    void commands.planRecording({ items: [] }).finally(() => { planSettled = true; });
+    void commands.executeRecordingPlan('plan-1', false).finally(() => { executeSettled = true; });
+    void commands.prepareManagedHlae().finally(() => { preparationSettled = true; });
+
+    await vi.advanceTimersByTimeAsync(15 * 60_000 + 1);
+
+    expect(planSettled).toBe(false);
+    expect(executeSettled).toBe(false);
+    expect(preparationSettled).toBe(false);
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
   it('preserves structured desktop command failures', async () => {
     invokeMock.mockRejectedValue({
       status: 409,
@@ -36,7 +199,7 @@ describe('desktop command client', () => {
       message: '录制服务正忙',
     });
 
-    await expect(request('/recording/queue')).rejects.toMatchObject({
+    await expect(request('/recording/jobs/job-1')).rejects.toMatchObject({
       name: 'DesktopError',
       status: 409,
       code: 'RUNTIME_BUSY',
@@ -53,10 +216,109 @@ describe('desktop command client', () => {
     await expect(pending).rejects.toMatchObject({ code: 'REQUEST_ABORTED' });
   });
 
+  it('keeps a real demo analysis alive beyond the old two-minute cutoff', async () => {
+    vi.useFakeTimers();
+    invokeMock.mockReturnValue(new Promise(() => undefined));
+    const controller = new AbortController();
+    let settled = false;
+    const pending = commands.analyzeDemo('major-final-map', controller.signal)
+      .finally(() => { settled = true; });
+
+    await vi.advanceTimersByTimeAsync(120_001);
+
+    expect(settled).toBe(false);
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ code: 'REQUEST_ABORTED' });
+    vi.useRealTimers();
+  });
+
+  it('reads one demo lifecycle without starting analysis', async () => {
+    invokeMock.mockResolvedValue({
+      id: 'demo-1',
+      path: 'D:\\Demos\\major.dem',
+      file_name: 'major.dem',
+      display_name: 'Major final',
+      source: 'local',
+      status: 'analyzing',
+      map_name: null,
+      match_date: null,
+      duration_seconds: null,
+      total_rounds: null,
+      team_a_name: null,
+      team_b_name: null,
+      team_a_score: null,
+      team_b_score: null,
+      players: [],
+      remark: '',
+      content_sha256: null,
+      file_size: 42,
+      created_at: '2026-08-12T00:00:00Z',
+      updated_at: '2026-08-12T00:00:01Z',
+    });
+
+    await expect(commands.getDemo('demo/1')).resolves.toMatchObject({
+      id: 'demo-1',
+      lifecycle_status: 'analyzing',
+    });
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: { method: 'get', path: '/demos/demo%2F1' },
+    });
+  });
+
+  it('sends the canonical server-side Library window without retired sort aliases', async () => {
+    invokeMock.mockResolvedValue({ items: [], total: 137, page: 3, page_size: 20 });
+
+    await commands.listDemos({
+      search: 'm0NESY',
+      map_name: 'de_mirage',
+      status: 'indexing',
+      sort: 'duration_desc',
+      page: 3,
+      page_size: 20,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: '/demos/compact?search=m0NESY&map_name=de_mirage&status=indexing&sort=duration_desc&page=3&page_size=20',
+      },
+    });
+  });
+
+  it('normalizes a stored analysis read through the same contract as a fresh analysis', async () => {
+    invokeMock.mockResolvedValue(matchAnalysisRecord());
+
+    await expect(commands.getAnalysis('demo-1')).resolves.toMatchObject({
+      demo_id: 'demo-1',
+      players: [{ id: '7656119', team: 'B', kill_death_ratio: 1.5 }],
+    });
+    const normalized = await commands.getAnalysis('demo-1');
+    expect(normalized.players[0]).not.toHaveProperty('rating');
+  });
+
+  it('rejects an analysis wire without verified total ticks', async () => {
+    const { verified_total_ticks: _verifiedTotalTicks, ...incomplete } = matchAnalysisRecord();
+    invokeMock.mockResolvedValue(incomplete);
+
+    await expect(commands.getAnalysis('demo-1')).rejects.toMatchObject({
+      code: 'INVALID_ANALYSIS_CONTRACT',
+    });
+  });
+
+  it('rejects an analysis wire without derived insights', async () => {
+    const { insights: _insights, ...incomplete } = matchAnalysisRecord();
+    invokeMock.mockResolvedValue(incomplete);
+
+    await expect(commands.getAnalysis('demo-1')).rejects.toMatchObject({
+      code: 'INVALID_ANALYSIS_CONTRACT',
+    });
+  });
+
   it('routes media only through the managed desktop protocol', () => {
-    expect(desktopMediaUrl('/api/v1/recorded-clips/clip-id/stream')).toMatch(
+    expect(desktopMediaUrl('/api/recorded-clips/clip-id/stream')).toMatch(
       /^(?:vibe-cs-media:\/\/localhost|http:\/\/vibe-cs-media\.localhost)\/recorded-clips\/clip-id\/stream$/,
     );
+    expect(() => desktopMediaUrl('/recorded-clips/clip-id/stream')).toThrow(DesktopError);
     expect(() => desktopMediaUrl('https://evil.example/video.mp4')).toThrow(DesktopError);
   });
 
@@ -74,21 +336,14 @@ describe('desktop command client', () => {
     });
   });
 
-  it('keeps replay metadata while normalizing player sides', async () => {
-    invokeMock.mockResolvedValue({
-      frames: [{
-        tick: 64,
-        players: [{ id: '1', name: 'Player', team: 'CT', position: [1, 2, 3], yaw: 0, health: 100, armor: 0, alive: true, weapon: 'm4a1' }],
-        projectiles: [],
-        bomb: null,
-      }],
-      cache: { state: 'hit', version: 1, key: 'abc', bytes: 512, generated_at: '2026-08-10T00:00:00Z', repaired: false, reason: null },
+  it('loads replay only through the current bounded binary route', async () => {
+    invokeMock.mockResolvedValue(new Uint8Array([1, 2, 3]).buffer);
+
+    await commands.getReplayBinary('demo/id');
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_binary', {
+      path: '/demos/demo%2Fid/replay.bin',
     });
-
-    const replay = await commands.getReplay('demo/id');
-
-    expect(replay.frames[0]?.players[0]?.team).toBe('B');
-    expect(replay.cache).toMatchObject({ state: 'hit', bytes: 512 });
   });
 
   it('encodes bounded playback commands and explicit stop', async () => {
@@ -132,19 +387,15 @@ describe('desktop command client', () => {
     });
   });
 
-  it('keeps HLAE discovery and bundle reveal behind typed desktop boundaries', async () => {
+  it('keeps managed HLAE preparation and bundle reveal behind typed desktop boundaries', async () => {
     invokeMock.mockResolvedValue([]);
 
-    await commands.checkHlaeStatus('C:/HLAE/HLAE.exe', 'C:/Steam/cs2.exe');
+    await commands.prepareManagedHlae();
     await commands.listHlaeBundles();
     await commands.revealHlaeBundle('C:/Vibe CS/hlae-plans/proposal_0123456789abcdef0123456789abcdef');
 
     expect(invokeMock.mock.calls[0]).toEqual(['desktop_call', {
-      call: {
-        method: 'post',
-        path: '/hlae/status',
-        body: { hlae_path: 'C:/HLAE/HLAE.exe', cs2_path: 'C:/Steam/cs2.exe' },
-      },
+      call: { method: 'post', path: '/hlae/managed/prepare', body: {} },
     }]);
     expect(invokeMock.mock.calls[1]).toEqual(['list_hlae_bundles']);
     expect(invokeMock.mock.calls[2]).toEqual(['reveal_hlae_bundle', {
@@ -170,6 +421,7 @@ describe('wire normalization', () => {
       team_b_name: 'B',
       team_a_score: 13,
       team_b_score: 9,
+      players: ['FalleN', 'm0NESY'],
       remark: '',
       content_sha256: null,
       file_size: 42,
@@ -178,11 +430,47 @@ describe('wire normalization', () => {
     };
 
     expect(normalizeDemo(record)).toMatchObject({
+      path: 'D:\\Demos\\match.dem',
       filename: 'match.dem',
       score_team_a: 13,
       score_team_b: 9,
+      team_a_name: 'A',
+      team_b_name: 'B',
       status: 'parsing',
+      players: ['FalleN', 'm0NESY'],
+      updated_at: '2026-08-09T12:11:00Z',
     });
+  });
+
+  it('rejects a demo wire that uses the retired player_names field', () => {
+    const current: DemoRecord = {
+      id: '0c34a82a-a176-4c88-9514-940245912866',
+      path: 'D:\\Demos\\match.dem',
+      file_name: 'match.dem',
+      display_name: 'Match',
+      source: 'local',
+      status: 'ready',
+      map_name: null,
+      match_date: null,
+      duration_seconds: null,
+      total_rounds: null,
+      team_a_name: null,
+      team_b_name: null,
+      team_a_score: null,
+      team_b_score: null,
+      players: [],
+      remark: '',
+      content_sha256: null,
+      file_size: 42,
+      created_at: '2026-08-09T12:10:00Z',
+      updated_at: '2026-08-09T12:11:00Z',
+    };
+    const { players: _players, ...withoutPlayers } = current;
+    const retired = { ...withoutPlayers, player_names: ['legacy-player'] };
+
+    expect(() => normalizeDemo(retired as unknown as DemoRecord)).toThrowError(
+      expect.objectContaining({ code: 'INVALID_DEMO_CONTRACT' }),
+    );
   });
 
   it.each([

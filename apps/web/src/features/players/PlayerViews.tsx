@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { desktopMediaUrl } from '../../shared/desktop/client';
+import { formatKillDeathRatioValue } from '../../shared/performanceMetrics';
 import type {
   PlayerAggregateStats,
   PlayerDirectoryItem,
@@ -102,7 +103,7 @@ export function PlayerStatsView({ stats }: { stats: PlayerAggregateStats }) {
     [msg("m0308"), String(stats.assists)],
     [msg("m0950"), playerHeadshotRate(stats)],
     [msg("m0550"), formatOptionalMetric(stats.average_adr)],
-    [msg("m0551"), formatOptionalMetric(stats.average_rating, 2)],
+    [msg("m0551"), formatKillDeathRatioValue(stats.average_kill_death_ratio, 2)],
     [msg("m0617"), stats.damage.toLocaleString('zh-CN')],
   ] as const;
 
@@ -170,7 +171,7 @@ export function PlayerDetailView({ profile }: { profile: PlayerProfile }) {
                 <dl>
                   <div><dt>K / D / A</dt><dd>{match.kills} / {match.deaths} / {match.assists}</dd></div>
                   <div><dt>ADR</dt><dd>{formatOptionalMetric(match.adr)}</dd></div>
-                  <div><dt>Rating</dt><dd>{formatOptionalMetric(match.rating, 2)}</dd></div>
+                  <div><dt>K/D</dt><dd>{formatKillDeathRatioValue(match.kill_death_ratio, 2)}</dd></div>
                 </dl>
                 <Link to={`/analysis?demo=${encodeURIComponent(match.demo_id)}`}>
 

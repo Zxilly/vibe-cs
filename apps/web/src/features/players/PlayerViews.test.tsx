@@ -20,7 +20,7 @@ const profile: PlayerProfile = {
       headshots: 15,
       damage: 3_200,
       average_adr: 82.25,
-      average_rating: 1.1,
+      average_kill_death_ratio: 1.1,
     },
     steam: {
       state: 'available',
@@ -31,7 +31,7 @@ const profile: PlayerProfile = {
       persona_state: 1,
       last_logoff: null,
       created_at: null,
-      avatar_url: '/api/v1/players/76561198000000001/avatar',
+      avatar_url: '/api/players/76561198000000001/avatar',
       reason: null,
     },
   },
@@ -47,7 +47,7 @@ const profile: PlayerProfile = {
     headshots: 10,
     damage: 2_000,
     adr: 90,
-    rating: 1.2,
+    kill_death_ratio: 2,
   }],
   scanned_demos: 2,
   scan_complete: true,
@@ -90,5 +90,13 @@ describe('player detail evidence', () => {
 
     expect(markup).toContain('Steam 资料未配置');
     expect(markup).not.toContain('<img');
+  });
+
+  it('presents the explicit ratio fields as K/D', () => {
+    const markup = render(profile);
+
+    expect(markup).toContain('<dt>平均 K/D</dt><dd>1.10</dd>');
+    expect(markup).toContain('<dt>K/D</dt><dd>2.00</dd>');
+    expect(markup).not.toMatch(/Rating/i);
   });
 });

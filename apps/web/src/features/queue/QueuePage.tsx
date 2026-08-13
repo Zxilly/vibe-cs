@@ -16,10 +16,10 @@ import {
   Trash2,
   UserRound,
   Video,
-  WandSparkles,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
 import type {
@@ -27,6 +27,7 @@ import type {
   DemoPlaybackPreflight,
   DemoPlaybackStatus,
   DemoPlaybackStop,
+  HlaeStatus,
   RecordingJob,
   RecordingPlanResponse,
   RecordingQueueRequest,
@@ -41,9 +42,12 @@ import {
   demoPlaybackFingerprint,
   demoPlaybackBlockReason,
   matchesRecordingQueueFingerprint,
+  playbackReadinessRelevant,
   queueItemDurationSeconds,
   queueItemTickRate,
+  recordingJobStage,
   recordingQueueFingerprint,
+  requireManagedHlaeForRecording,
 } from './queuePlan';
 import { type QueueItem, useQueueStore } from './queueStore';
 import { DirectorPlanPreview } from './DirectorPlanPreview';
@@ -69,6 +73,33 @@ type PreflightState =
   | { status: 'loading'; data: null; message: null }
   | { status: 'success'; data: DemoPlaybackPreflight; message: string }
   | { status: 'error'; data: null; message: string };
+
+type QueuePlaybackReadinessProps = {
+  itemCount: number;
+  playbackActive: boolean;
+  status: DemoPlaybackStatus | null;
+  error: string | null;
+};
+
+export function QueuePlaybackReadiness({
+  itemCount,
+  playbackActive,
+  status,
+  error,
+}: QueuePlaybackReadinessProps) {
+  if (!playbackReadinessRelevant(itemCount, playbackActive)) return null;
+
+  return (
+    <>
+      {error ? <Notice tone="warning" title={msg("m0783")}>{error}</Notice> : null}
+      {status && !status.ready_to_launch ? (
+        <Notice tone="danger" title={msg("m0782")}>{msg("m0900")}</Notice>
+      ) : status && !status.gsi_ready ? (
+        <Notice tone="warning" title={msg("m0345")}>{msg("m1140")}</Notice>
+      ) : null}
+    </>
+  );
+}
 
 export function QueuePage() {
   const { t } = useI18n();
@@ -97,6 +128,7 @@ export function QueuePage() {
   const beginPlaybackStop = useRuntimeStore((state) => state.beginPlaybackStop);
   const completeRuntimeTransition = useRuntimeStore((state) => state.completeTransition);
   const planAction = useAsyncAction<RecordingPlanResponse>();
+  const hlaePreparationAction = useAsyncAction<HlaeStatus>();
   const executeAction = useAsyncAction<{ job_id: string; status: 'queued' | 'running' }>();
   const abortAction = useAsyncAction<RecordingJob>();
   const previewAction = useAsyncAction<DemoPlaybackLaunch>();
@@ -111,24 +143,36 @@ export function QueuePage() {
   const previewInFlight = useRef(false);
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
+  const jobStage = job ? recordingJobStage(job.message) : null;
   const enabledItems = items.filter((item) => item.enabled);
   const realEnabledItems = enabledItems.filter((item) => item.origin === 'demo');
-  const estimatedSeconds = enabledItems.reduce((sum, item) => sum + queueItemDurationSeconds(item), 0);
+  const localEstimatedSeconds = enabledItems.reduce<number | null>((total, item) => {
+    if (total === null) return null;
+    const duration = queueItemDurationSeconds(item);
+    return duration === null ? null : total + duration;
+  }, 0);
   const currentFingerprint = useMemo(() => recordingQueueFingerprint(items), [items]);
   const currentPlan = validatedPlan?.fingerprint === currentFingerprint ? validatedPlan.response : null;
+  const estimatedSeconds = currentPlan ? currentPlan.estimated_seconds : localEstimatedSeconds;
   const planIsStale = validatedPlan !== null && currentPlan === null;
   const directorBlocked = (currentPlan?.director.unresolved_victim_requests ?? 0) > 0;
-  const enabledTickRates = new Set(enabledItems.map(queueItemTickRate));
-  const tickRateLabel = enabledTickRates.size === 1
-    ? `${[...enabledTickRates][0]?.toLocaleString(currentLocale()) ?? 64} tick`
-    : msg("m1245");
+  const itemTickRates = enabledItems.map(queueItemTickRate);
+  const hasUnavailableTickRate = itemTickRates.some((tickRate) => tickRate === null);
+  const enabledTickRates = new Set(itemTickRates.filter((tickRate): tickRate is number => tickRate !== null));
+  const tickRateLabel = hasUnavailableTickRate
+    ? t('queue.tickRateUnavailableShort')
+    : enabledTickRates.size === 1
+      ? `${[...enabledTickRates][0]?.toLocaleString(currentLocale())} tick`
+      : msg("m1245");
   const previewOnly = enabledItems.length > 0 && realEnabledItems.length === 0;
   const jobIsActive = activeJobId !== null || (job !== null && ['queued', 'preparing', 'running', 'cancelling'].includes(job.status));
   const playbackSessionActive = runtimeSession === 'playback' || runtimeSession === 'playback_launching' || runtimeSession === 'playback_stopping';
   const playbackBlockReason = demoPlaybackBlockReason(selected, jobIsActive, playbackSessionActive);
-  const preflightBlockReason = selected?.origin === 'demo'
-    ? null
-    : msg("m1003");
+  const preflightBlockReason = selected?.origin !== 'demo'
+    ? msg("m1003")
+    : queueItemTickRate(selected) === null
+      ? t('queue.tickRateUnavailable')
+      : null;
   const selectedIdRef = useRef(selectedId);
   selectedIdRef.current = selectedId;
   const selectedPlaybackFingerprint = selected ? demoPlaybackFingerprint(selected) : null;
@@ -211,10 +255,18 @@ export function QueuePage() {
   }, [filter, items, search]);
 
   const handlePlan = async () => {
+    setValidatedPlan(null);
+    const prepared = await hlaePreparationAction.run(
+      () => requireManagedHlaeForRecording(
+        commands.prepareManagedHlae,
+        t('queue.movieEnginePreparationFailed'),
+      ),
+      t('queue.movieEnginePrepared'),
+    );
+    if (!prepared) return;
     const latestItems = useQueueStore.getState().items;
     const request: RecordingQueueRequest = buildRecordingQueueRequest(latestItems);
     const fingerprint = recordingQueueFingerprint(latestItems);
-    setValidatedPlan(null);
     const result = await planAction.run(() => commands.planRecording(request), msg("m0607"));
     if (result) setValidatedPlan({ response: result, fingerprint });
   };
@@ -225,13 +277,36 @@ export function QueuePage() {
       setValidatedPlan(null);
       return;
     }
-    const request = buildRecordingQueueRequest(latestItems);
-    const result = await executeAction.run(() => commands.executeRecordingQueue(request), msg("m0595"));
+    const planId = validatedPlan?.response.plan_id;
+    if (!planId) return;
+    const result = await executeAction.run(
+      // The trusted confirmation is owned by the native desktop bridge. The
+      // renderer never grants itself permission to start an insecure CS2.
+      () => commands.executeRecordingPlan(planId, false),
+      msg("m0595"),
+    );
     if (result) {
       setValidatedPlan(null);
       setJob(null);
       setJobPollError(null);
       setActiveJobId(result.job_id);
+      return;
+    }
+
+    // A transport failure can arrive after the native command was accepted.
+    // Reconcile before allowing another launch so the recording does not
+    // become detached from this page.
+    try {
+      const runtime = await commands.runtimeState();
+      if (runtime.active_recording_job) {
+        executeAction.reset();
+        setValidatedPlan(null);
+        setJob(null);
+        setJobPollError(null);
+        setActiveJobId(runtime.active_recording_job);
+      }
+    } catch {
+      // The opaque plan remains available for an idempotent retry.
     }
   };
 
@@ -246,6 +321,8 @@ export function QueuePage() {
 
   const handlePlaybackPreflight = async () => {
     if (!selected || selected.origin !== 'demo') return;
+    const playbackOptions = buildDemoPlaybackOptions(selected);
+    if (playbackOptions === null) return;
     preflightController.current?.abort();
     const controller = new AbortController();
     const generation = preflightGeneration.current + 1;
@@ -257,7 +334,7 @@ export function QueuePage() {
     try {
       const result = await commands.preflightDemo(
         item.demoId,
-        buildDemoPlaybackOptions(item),
+        playbackOptions,
         controller.signal,
       );
       const currentItem = useQueueStore.getState().items.find(
@@ -298,11 +375,13 @@ export function QueuePage() {
 
   const handlePreview = async () => {
     if (previewInFlight.current || !selected || demoPlaybackBlockReason(selected, jobIsActive, playbackSessionActive) !== null) return;
+    const playbackOptions = buildDemoPlaybackOptions(selected);
+    if (playbackOptions === null) return;
     previewInFlight.current = true;
     try {
       const result = await previewAction.run(
         () => runManagedPlaybackLaunch(
-          () => commands.playDemo(selected.demoId, buildDemoPlaybackOptions(selected)),
+          () => commands.playDemo(selected.demoId, playbackOptions),
         ),
         msg("m0548"),
       );
@@ -339,7 +418,9 @@ export function QueuePage() {
     }
   };
 
-  const formatEstimate = (seconds: number) => msgf("m0102", [Math.floor(seconds / 60), Math.round(seconds % 60)]);
+  const formatEstimate = (seconds: number | null) => seconds === null
+    ? t('queue.durationUnavailable')
+    : msgf("m0102", [Math.floor(seconds / 60), Math.round(seconds % 60)]);
 
   return (
     <div className="page page--queue">
@@ -347,15 +428,17 @@ export function QueuePage() {
         eyebrow="RECORDING DIRECTOR"
         title={t('queue.title')}
         description={t('queue.description')}
-        actions={
+        actions={items.length > 0 || playbackSessionActive ? (
           <>
-            <Button disabled={items.length === 0} onClick={() => toggleAll(enabledItems.length !== items.length)}>
-              <ListChecks size={15} />{enabledItems.length === items.length ? t('queue.disableAll') : t('queue.enableAll')}
-            </Button>
-            <Button variant="danger" disabled={items.length === 0} onClick={clear}><Trash2 size={14} />{t('common.clear')}</Button>
+            {items.length > 0 ? <>
+              <Button onClick={() => toggleAll(enabledItems.length !== items.length)}>
+                <ListChecks size={15} />{enabledItems.length === items.length ? t('queue.disableAll') : t('queue.enableAll')}
+              </Button>
+              <Button variant="danger" onClick={clear}><Trash2 size={14} />{t('common.clear')}</Button>
+            </> : null}
             {playbackSessionActive ? <Button variant="danger" disabled={stopPlaybackAction.state.status === 'loading' || runtimeSession !== 'playback'} onClick={() => void handleStopPlayback()}>{stopPlaybackAction.state.status === 'loading' || runtimeSession === 'playback_stopping' ? <Spinner /> : <PauseCircle size={14} />}{runtimeSession === 'playback_launching' ? msg("m0846") : runtimeSession === 'playback_stopping' ? msg("m0844") : msg("m0220")}</Button> : null}
           </>
-        }
+        ) : undefined}
       />
       <ProductionSectionNav />
 
@@ -365,13 +448,14 @@ export function QueuePage() {
          {msg("m0348")}
         </Notice>
       ) : null}
-      {playbackStatusError ? <Notice tone="warning" title={msg("m0783")}>{playbackStatusError}</Notice> : null}
-      {playbackStatus && !playbackStatus.ready_to_launch ? (
-        <Notice tone="danger" title={msg("m0782")}>{msg("m0900")}</Notice>
-      ) : playbackStatus && !playbackStatus.gsi_ready ? (
-        <Notice tone="warning" title={msg("m0345")}>{msg("m1140")}</Notice>
-      ) : null}
+      <QueuePlaybackReadiness
+        itemCount={items.length}
+        playbackActive={playbackSessionActive}
+        status={playbackStatus}
+        error={playbackStatusError}
+      />
       {planAction.state.message && (planAction.state.status === 'error' || currentPlan) ? <Notice tone={planAction.state.status === 'error' ? 'danger' : 'success'}>{planAction.state.message}</Notice> : null}
+      {hlaePreparationAction.state.message ? <Notice tone={hlaePreparationAction.state.status === 'error' ? 'danger' : 'success'}>{hlaePreparationAction.state.message}</Notice> : null}
       {currentPlan ? <DirectorPlanPreview plan={currentPlan.director} /> : null}
       {planIsStale ? <Notice tone="warning" title={msg("m0606")}>{msg("m1280")}</Notice> : null}
       {executeAction.state.message ? <Notice tone={executeAction.state.status === 'error' ? 'danger' : 'success'}>{executeAction.state.message}</Notice> : null}
@@ -386,19 +470,40 @@ export function QueuePage() {
           <div>
             <span className="eyebrow">LIVE JOB</span>
             <strong>{job.status === 'completed' ? msg("m0598") : job.status === 'failed' ? msg("m0597") : job.status === 'cancelled' ? msg("m0599") : job.status === 'cancelling' ? msg("m0847") : msg("m0608")}</strong>
-            <small>{job.message || msgf("m0195", [job.id])}</small>
+            <small>{jobStage ? t(jobStage.key) : job.message || msgf("m0195", [job.id])}</small>
           </div>
-          <div className="queue-job-progress__bar">
+          <div
+            className="queue-job-progress__bar"
+            role="progressbar"
+            aria-label={jobStage ? t(jobStage.key) : undefined}
+            aria-valuemin={0}
+            aria-valuemax={jobStage ? jobStage.total : 100}
+            aria-valuenow={jobStage ? jobStage.ordinal : Math.round(job.progress * 100)}
+          >
             <span style={{ width: `${Math.max(0, Math.min(100, job.progress * 100))}%` }} />
           </div>
           <div className="queue-job-progress__meta">
             <Badge tone={job.status === 'completed' ? 'success' : job.status === 'failed' ? 'danger' : job.status === 'cancelled' ? 'neutral' : 'blue'}>{job.status}</Badge>
-            <span>{Math.round(job.progress * 100)}%</span>
+            <span>{jobStage ? `${t('queue.recordingStageLabel')} ${jobStage.ordinal}/${jobStage.total}` : `${Math.round(job.progress * 100)}%`}</span>
             <span>{job.outputs.length} {msg("m0163")}</span>
           </div>
         </Card>
       ) : null}
 
+      {items.length === 0 ? (
+        <Card className="queue-empty-workspace">
+          <EmptyState
+            icon={<Video size={24} />}
+            title={t('queue.empty')}
+            description={t('production.startFromMatch')}
+            action={
+              <Link className="button button--primary button--md" to="/library">
+                {t('guide.openLibrary')}<ChevronRight size={15} />
+              </Link>
+            }
+          />
+        </Card>
+      ) : <>
       <section className="queue-stats">
         <Card><span className="queue-stat-icon"><Video size={17} /></span><div><small>{msg("m1281")}</small><strong>{items.length}</strong></div><Badge tone="neutral">{enabledItems.length} {msg("m0365")}</Badge></Card>
         <Card><span className="queue-stat-icon"><Clock3 size={17} /></span><div><small>{msg("m1312")}</small><strong>{formatEstimate(estimatedSeconds)}</strong></div><Badge tone="blue">{tickRateLabel}</Badge></Card>
@@ -419,6 +524,7 @@ export function QueuePage() {
             <div className="queue-list">
               {filtered.map((item) => {
                 const index = items.findIndex((current) => current.id === item.id);
+                const durationSeconds = queueItemDurationSeconds(item);
                 return (
                   <article
                     key={item.id}
@@ -435,7 +541,7 @@ export function QueuePage() {
                       <span className="queue-item__grip"><GripVertical size={16} /></span>
                       <span className={`queue-item__index category-${item.category}`}>{String(index + 1).padStart(2, '0')}</span>
                       <span className="queue-item__copy"><span><Badge tone={item.category === 'clutch' ? 'warning' : 'blue'}>{categoryLabel[item.category]}</Badge>{item.origin === 'preview' ? <Badge tone="neutral">{msg("m1038")}</Badge> : null}</span><strong>{item.title}</strong><small>{item.demoName} · {item.playerName}</small></span>
-                      <span className="queue-item__timing"><strong>{queueItemDurationSeconds(item).toFixed(1)}s</strong><small>{item.perspective === 'victim' ? msg("m0331") : msg("m1017")} · {item.playbackSpeed}×</small></span>
+                      <span className="queue-item__timing"><strong>{durationSeconds === null ? t('queue.durationUnavailable') : `${durationSeconds.toFixed(1)}s`}</strong><small>{item.perspective === 'victim' ? msg("m0331") : msg("m1017")} · 1×</small></span>
                       <ChevronRight size={16} />
                     </button>
                     <div className="queue-item__buttons">
@@ -469,10 +575,11 @@ export function QueuePage() {
                   <Field label={msg("m0297")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={selected.preRollSeconds} onChange={(event) => update(selected.id, { preRollSeconds: Number(event.target.value) })} /><span>{msg("m1044")}</span></div></Field>
                   <Field label={msg("m0361")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={selected.postRollSeconds} onChange={(event) => update(selected.id, { postRollSeconds: Number(event.target.value) })} /><span>{msg("m1044")}</span></div></Field>
                 </div>
-                <Field label={msg("m0677")}><input className="range-input" type="range" min="0.25" max="1" step="0.25" value={selected.playbackSpeed} onChange={(event) => update(selected.id, { playbackSpeed: Number(event.target.value) })} /><div className="range-labels"><span>0.25×</span><strong>{selected.playbackSpeed.toFixed(2)}×</strong><span>1.0×</span></div></Field>
+                <Notice tone="info">
+                  <strong>{t('queue.nativeCaptureTitle')}</strong> · {t('queue.nativeCaptureDescription')}
+                </Notice>
+                <Field label={t('queue.deterministicSpeed')}><div className="number-control"><strong>1.0×</strong><span>HLAE</span></div></Field>
                 <div className="toggle-list">
-                  <label><span><SlidersHorizontal size={15} /><span><strong>{msg("m0657")}</strong><small>{msg("m0727")}</small></span></span><input type="checkbox" checked={selected.showKeyboard} onChange={(event) => update(selected.id, { showKeyboard: event.target.checked })} /></label>
-                  <label><span><WandSparkles size={15} /><span><strong>{msg("m0253")}</strong><small>{msg("m0385")}</small></span></span><input type="checkbox" checked={selected.showKillFx} onChange={(event) => update(selected.id, { showKillFx: event.target.checked })} /></label>
                   <label><span><PauseCircle size={15} /><span><strong>{msg("m0319")}</strong><small>{msg("m0245")}</small></span></span><input type="checkbox" checked={selected.enabled} onChange={(event) => update(selected.id, { enabled: event.target.checked })} /></label>
                 </div>
               </div>
@@ -487,10 +594,11 @@ export function QueuePage() {
         <div className="queue-action-dock__summary"><span className="queue-stat-icon"><Timer size={17} /></span><div><small>{msg("m0810")}</small><strong>{enabledItems.length} {msg("m0157")} {formatEstimate(estimatedSeconds)}</strong></div>{previewOnly ? <Badge tone="warning"><CircleAlert size={11} />{msg("m1039")}</Badge> : null}</div>
         <div className="queue-action-dock__actions">
           {jobIsActive ? <Button variant="danger" onClick={() => void handleCancel()} disabled={abortAction.state.status === 'loading' || job?.status === 'cancelling'}>{abortAction.state.status === 'loading' ? <Spinner /> : <PauseCircle size={15} />}{msg("m1075")}</Button> : null}
-          <Button disabled={realEnabledItems.length === 0 || planAction.state.status === 'loading'} onClick={() => void handlePlan()}>{planAction.state.status === 'loading' ? <Spinner /> : <ListChecks size={15} />}{msg("m0990")}</Button>
+          <Button disabled={realEnabledItems.length === 0 || planAction.state.status === 'loading' || hlaePreparationAction.state.status === 'loading'} onClick={() => void handlePlan()}>{planAction.state.status === 'loading' || hlaePreparationAction.state.status === 'loading' ? <Spinner /> : <ListChecks size={15} />}{msg("m0990")}</Button>
           <Button variant="primary" title={directorBlocked ? msg("m0742") : undefined} disabled={!currentPlan || directorBlocked || realEnabledItems.length === 0 || executeAction.state.status === 'loading' || jobIsActive} onClick={() => void handleExecute()}>{executeAction.state.status === 'loading' ? <Spinner /> : <Play size={15} />}{msg("m0558")}</Button>
         </div>
       </div>
+      </>}
     </div>
   );
 }

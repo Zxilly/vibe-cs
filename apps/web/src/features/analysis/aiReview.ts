@@ -15,8 +15,8 @@ export function buildReviewRequest(
   return {
     scope,
     tone,
+    player_id: scope === 'player' ? playerId : null,
     highlight_ids: highlightIds,
-    ...(scope === 'player' && playerId ? { player_id: playerId } : {}),
   };
 }
 

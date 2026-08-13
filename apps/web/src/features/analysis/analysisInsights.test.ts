@@ -1,17 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisInsightsRecord, Highlight, PlayerAnalysis } from '../../shared/desktop/dto';
+import type {
+  AnalysisInsightsRecord,
+  AnalysisWorkspace,
+  Highlight,
+  PlayerAnalysis,
+} from '../../shared/desktop/dto';
 import {
+  analysisInsightsForWorkspace,
   emptyAnalysisInsights,
   matchupsForPlayer,
+  normalizeAnalysisInsights,
   orderHighlightsForCompilation,
   teamPurchaseForSide,
 } from './analysisInsights';
 
 const players: PlayerAnalysis[] = [
-  { id: 'a', name: 'Alice', team: 'A', kills: 2, deaths: 1, assists: 0, headshot_rate: 0.5, rating: 1.2, adr: 90 },
-  { id: 'ally', name: 'Ally', team: 'A', kills: 1, deaths: 1, assists: 0, headshot_rate: 0, rating: 1, adr: 50 },
-  { id: 'b', name: 'Bob', team: 'B', kills: 1, deaths: 2, assists: 0, headshot_rate: 0, rating: 0.8, adr: 40 },
+  { id: 'a', name: 'Alice', team: 'A', kills: 2, deaths: 1, assists: 0, headshot_rate: 0.5, kill_death_ratio: 2, adr: 90 },
+  { id: 'ally', name: 'Ally', team: 'A', kills: 1, deaths: 1, assists: 0, headshot_rate: 0, kill_death_ratio: 1, adr: 50 },
+  { id: 'b', name: 'Bob', team: 'B', kills: 1, deaths: 2, assists: 0, headshot_rate: 0, kill_death_ratio: 0.5, adr: 40 },
 ];
 
 function insights(): AnalysisInsightsRecord {
@@ -32,10 +39,42 @@ function insights(): AnalysisInsightsRecord {
 }
 
 describe('analysis insight selectors', () => {
-  it('maps decoded T/CT economy evidence to displayed A/B sides without estimating spend', () => {
+  it('normalizes only an explicit current insights payload', () => {
+    if (false) {
+      // @ts-expect-error Current persisted analysis always carries derived insights.
+      normalizeAnalysisInsights(undefined);
+    }
+
+    const current = insights();
+    current.round_economy.push({
+      round: 0,
+      teams: [],
+      unattributed_purchase_count: 0,
+    });
+    expect(normalizeAnalysisInsights(current).round_economy.map((round) => round.round))
+      .toEqual([0, 1]);
+  });
+
+  it('uses unavailable capabilities only for an in-memory workspace without insights', () => {
+    const loadingWorkspace: AnalysisWorkspace = {
+      demo_id: 'demo-1',
+      map_name: '',
+      tick_rate: 0,
+      duration_seconds: 0,
+      teams: [],
+      players: [],
+      rounds: [],
+      highlights: [],
+    };
+
+    expect(analysisInsightsForWorkspace(loadingWorkspace)).toEqual(emptyAnalysisInsights());
+  });
+
+  it('keeps decoded economy on its explicit per-round T/CT side', () => {
     const round = insights().round_economy[0]!;
-    expect(teamPurchaseForSide(round, 'A')).toMatchObject({ purchase_count: 2, spend: null });
-    expect(teamPurchaseForSide(round, 'B')).toMatchObject({ purchase_count: 1, spend: 2900 });
+    expect(teamPurchaseForSide(round, 'T')).toMatchObject({ purchase_count: 2, spend: null });
+    expect(teamPurchaseForSide(round, 'CT')).toMatchObject({ purchase_count: 1, spend: 2900 });
+    expect(teamPurchaseForSide({ ...round, teams: [{ ...round.teams[0]!, team: 'A' }] }, 'T')).toBeNull();
   });
 
   it('keeps only opponent matchups for the selected player', () => {

@@ -34,8 +34,7 @@ export const useUiStore = create<UiState>()(
       setLanguage: (language) => set({ language }),
     }),
     {
-      name: 'vibe-cs:ui-v1',
-      version: 2,
+      name: 'vibe-cs:ui',
       storage: createJSONStorage(() => typeof localStorage === 'undefined' ? memoryStorage : localStorage),
       partialize: ({ sidebarCollapsed, theme, language }) => ({
         sidebarCollapsed,

@@ -1,5 +1,6 @@
 import { msg, msgf } from '../../shared/i18n';
 import {
+  Activity,
   CalendarDays,
   CheckCircle2,
   Download,
@@ -15,13 +16,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
-import type { MatchDownloadJob, MatchHistoryItem } from '../../shared/desktop/dto';
+import type { MatchDownloadJob, MatchHistoryItem, Paginated } from '../../shared/desktop/dto';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button, Card, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
 import { LibrarySectionNav } from '../library/LibrarySectionNav';
 
 const PAGE_SIZE = 20;
+const EXPORT_PAGE_SIZE = 200;
 const TERMINAL_DOWNLOAD_STATES = new Set<MatchDownloadJob['status']>(['completed', 'cancelled', 'failed']);
 
 function csvCell(value: string | number | boolean): string {
@@ -43,11 +45,41 @@ export function matchesCsv(matches: MatchHistoryItem[]): string {
   return [header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n');
 }
 
+export async function loadAllMatchHistory(
+  load: (page: number, pageSize: number, search: string) => Promise<Paginated<MatchHistoryItem>>,
+  search: string,
+): Promise<MatchHistoryItem[]> {
+  const first = await load(1, EXPORT_PAGE_SIZE, search);
+  const items = [...first.items];
+  const pageCount = Math.ceil(first.total / first.page_size);
+  for (let page = 2; page <= pageCount; page += 1) {
+    const next = await load(page, EXPORT_PAGE_SIZE, search);
+    items.push(...next.items);
+  }
+  return items;
+}
+
 function isDownloadActive(job: MatchDownloadJob): boolean {
   return !TERMINAL_DOWNLOAD_STATES.has(job.status);
 }
 
 type DownloadLabels = { imported: string; redownload: string; retry: string; download: string };
+type MatchHistoryActionLabels = DownloadLabels & {
+  processing: string;
+  cancel: string;
+  openAnalysis: string;
+};
+type MatchHistoryEmptyLabels = {
+  connectFirst: string;
+  credentialsDescription: string;
+  empty: string;
+  emptyDescription: string;
+  noSearchResults: string;
+  noSearchResultsDescription: string;
+  openSettings: string;
+  startSync: string;
+  clearSearch: string;
+};
 
 function downloadLabel(job: MatchDownloadJob | undefined, match: MatchHistoryItem, labels: DownloadLabels): string {
   if (job?.status === 'completed' || match.demo_status === 'downloaded') return labels.imported;
@@ -55,6 +87,90 @@ function downloadLabel(job: MatchDownloadJob | undefined, match: MatchHistoryIte
   if (job?.status === 'failed' || match.demo_status === 'failed') return labels.retry;
   if (job) return `${Math.round(job.progress * 100)}%`;
   return labels.download;
+}
+
+export function MatchHistoryAnalysisLink({
+  match,
+  demoId = match.demo_id,
+  label,
+}: {
+  match: MatchHistoryItem;
+  demoId?: string | null;
+  label: string;
+}) {
+  if (!demoId) return null;
+  const parameters = new URLSearchParams({ demo: demoId });
+  return <Link className="button button--secondary button--sm" to={`/analysis?${parameters.toString()}`}><Activity size={13} />{label}</Link>;
+}
+
+export function indexMatchDownloadJobs(jobs: MatchDownloadJob[]): Record<string, MatchDownloadJob> {
+  return Object.fromEntries(jobs.map((job) => [job.match_record_id, job]));
+}
+
+export function MatchHistoryDownloadControl({
+  match,
+  job,
+  labels,
+  cancelDisabled,
+  downloadDisabled,
+  onCancel,
+  onDownload,
+}: {
+  match: MatchHistoryItem;
+  job?: MatchDownloadJob | undefined;
+  labels: MatchHistoryActionLabels;
+  cancelDisabled: boolean;
+  downloadDisabled: boolean;
+  onCancel: () => void;
+  onDownload: () => void;
+}) {
+  const analysisDemoId = match.demo_id ?? job?.demo_id ?? null;
+  if (analysisDemoId) {
+    return <MatchHistoryAnalysisLink match={match} demoId={analysisDemoId} label={labels.openAnalysis} />;
+  }
+  if (job && isDownloadActive(job)) {
+    return <Button size="sm" variant="danger" disabled={cancelDisabled} onClick={onCancel}><Square size={12} />{labels.cancel}</Button>;
+  }
+  if (!job && match.demo_status === 'downloading') {
+    return <Button size="sm" disabled><Spinner />{labels.processing}</Button>;
+  }
+  return <Button size="sm" disabled={match.demo_status === 'downloaded' || downloadDisabled} onClick={onDownload}>{match.demo_status === 'downloaded' ? <CheckCircle2 size={13} /> : <Download size={13} />}{downloadLabel(job, match, labels)}</Button>;
+}
+
+export function matchHistoryVisibleError(
+  configured: boolean | null,
+  error: unknown,
+): string | null {
+  return configured === false ? null : readableError(error);
+}
+
+export function MatchHistoryEmptyWorkspace({
+  configured,
+  filtered,
+  labels,
+  onSync,
+  onClearSearch,
+}: {
+  configured: boolean;
+  filtered: boolean;
+  labels: MatchHistoryEmptyLabels;
+  onSync: () => void;
+  onClearSearch: () => void;
+}) {
+  return (
+    <Card className="history-empty-card history-empty-card--compact">
+      <EmptyState
+        icon={configured ? <History size={26} /> : <KeyRound size={26} />}
+        title={!configured ? labels.connectFirst : filtered ? labels.noSearchResults : labels.empty}
+        description={!configured ? labels.credentialsDescription : filtered ? labels.noSearchResultsDescription : labels.emptyDescription}
+        action={!configured
+          ? <Link className="button button--primary button--md" to="/settings"><Settings2 size={14} />{labels.openSettings}</Link>
+          : filtered
+            ? <Button variant="secondary" onClick={onClearSearch}>{labels.clearSearch}</Button>
+            : <Button variant="primary" onClick={onSync}><RefreshCw size={14} />{labels.startSync}</Button>}
+      />
+    </Card>
+  );
 }
 
 export function MatchHistoryPage() {
@@ -65,10 +181,28 @@ export function MatchHistoryPage() {
     retry: t('history.retryDownload'),
     download: t('history.downloadDemo'),
   };
+  const actionLabels: MatchHistoryActionLabels = {
+    ...downloadLabels,
+    processing: t('history.processing'),
+    cancel: t('history.cancel'),
+    openAnalysis: t('history.openAnalysis'),
+  };
+  const emptyLabels: MatchHistoryEmptyLabels = {
+    connectFirst: t('history.connectFirst'),
+    credentialsDescription: t('history.credentialsDescription'),
+    empty: t('history.empty'),
+    emptyDescription: t('history.emptyDescription'),
+    noSearchResults: t('history.noSearchResults'),
+    noSearchResultsDescription: t('history.noSearchResultsDescription'),
+    openSettings: t('history.openSettings'),
+    startSync: t('history.startSync'),
+    clearSearch: t('history.clearSearch'),
+  };
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [matches, setMatches] = useState<MatchHistoryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [queryInput, setQueryInput] = useState('');
   const [query, setQuery] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<Record<string, MatchDownloadJob>>({});
@@ -76,37 +210,57 @@ export function MatchHistoryPage() {
   const syncAction = useAsyncAction<unknown>();
   const downloadAction = useAsyncAction<MatchDownloadJob>();
   const cancelAction = useAsyncAction<MatchDownloadJob>();
+  const exportAction = useAsyncAction<MatchHistoryItem[]>();
 
   const loadPage = useCallback(async (requestedPage: number, signal?: AbortSignal) => {
-    const response = await commands.listMatchHistory(requestedPage, PAGE_SIZE, signal);
+    const response = await commands.listMatchHistory(requestedPage, PAGE_SIZE, signal, query);
     setMatches(response.items);
     setTotal(response.total);
     setPage(response.page);
     setLoadError(null);
-  }, []);
+  }, [query]);
 
   useEffect(() => {
     const controller = new AbortController();
     void Promise.allSettled([
-      commands.getConfig(controller.signal).then((config) => {
-        setConfigured(Boolean(
+      commands.getConfig(controller.signal).then((config) => Boolean(
           config.steam.steam_id
           && config.steam_has_web_api_key
           && config.steam_has_authentication_code
           && config.steam_has_share_code,
-        ));
-      }),
+        )),
       loadPage(page, controller.signal),
+      commands.listActiveMatchDownloadJobs(controller.signal).then((activeJobs) => {
+        setJobs(indexMatchDownloadJobs(activeJobs));
+      }),
     ]).then((results) => {
       const configResult = results[0];
       const historyResult = results[1];
-      if (configResult.status === 'rejected') setConfigured(false);
-      if (historyResult.status === 'rejected' && !controller.signal.aborted) {
-        setLoadError(readableError(historyResult.reason));
+      const jobsResult = results[2];
+      const resolvedConfiguration = configResult.status === 'fulfilled' ? configResult.value : null;
+      setConfigured(resolvedConfiguration);
+      const failedRequest = historyResult.status === 'rejected'
+        ? historyResult.reason
+        : jobsResult.status === 'rejected'
+          ? jobsResult.reason
+          : null;
+      if (failedRequest !== null && !controller.signal.aborted) {
+        setLoadError(matchHistoryVisibleError(resolvedConfiguration, failedRequest));
       }
     });
     return () => controller.abort();
   }, [loadPage, page]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const normalized = queryInput.trim();
+      if (normalized !== query) {
+        setPage(1);
+        setQuery(normalized);
+      }
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [query, queryInput]);
 
   const activeJobIds = useMemo(
     () => Object.values(jobs).filter(isDownloadActive).map((job) => job.id).sort().join(','),
@@ -143,11 +297,6 @@ export function MatchHistoryPage() {
     };
   }, [activeJobIds, loadPage, page]);
 
-  const filtered = useMemo(() => {
-    const value = query.trim().toLocaleLowerCase();
-    return matches.filter((match) => !value || `${match.map_name ?? ''} ${match.score ?? ''} ${match.match_id} ${match.result}`.toLocaleLowerCase().includes(value));
-  }, [matches, query]);
-
   const sync = async () => {
     const result = await syncAction.run(() => commands.syncMatchHistory(), msg("m0890"));
     if (!result) return;
@@ -166,8 +315,13 @@ export function MatchHistoryPage() {
     if (cancelled) setJobs((current) => ({ ...current, [match.id]: cancelled }));
   };
 
-  const exportCsv = () => {
-    const url = URL.createObjectURL(new Blob([matchesCsv(filtered)], { type: 'text/csv;charset=utf-8' }));
+  const exportCsv = async () => {
+    const exported = await exportAction.run(() => loadAllMatchHistory(
+      (requestedPage, pageSize, search) => commands.listMatchHistory(requestedPage, pageSize, undefined, search),
+      query,
+    ));
+    if (!exported) return;
+    const url = URL.createObjectURL(new Blob([matchesCsv(exported)], { type: 'text/csv;charset=utf-8' }));
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `vibe-cs-match-history-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -187,21 +341,21 @@ export function MatchHistoryPage() {
       />
       <LibrarySectionNav />
 
-      {configured === false ? <Notice tone="warning" title={t('history.disconnectedTitle')}>{t('history.disconnectedDescription')}<div><Link to="/settings"><Settings2 size={13} />{t('history.openSettings')}</Link></div></Notice> : null}
       {loadError ? <Notice tone="danger">{loadError}</Notice> : null}
       {syncAction.state.message ? <Notice tone={syncAction.state.status === 'error' ? 'danger' : 'success'}>{syncAction.state.message}</Notice> : null}
       {downloadAction.state.message ? <Notice tone={downloadAction.state.status === 'error' ? 'danger' : 'info'}>{downloadAction.state.message}</Notice> : null}
       {cancelAction.state.message ? <Notice tone={cancelAction.state.status === 'error' ? 'danger' : 'info'}>{cancelAction.state.message}</Notice> : null}
       {taskMessage ? <Notice tone="success">{taskMessage}</Notice> : null}
+      {exportAction.state.message ? <Notice tone={exportAction.state.status === 'error' ? 'danger' : 'info'}>{exportAction.state.message}</Notice> : null}
 
-      <Card className="history-toolbar">
-        <div className="search-box"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('history.searchPlaceholder')} aria-label={t('history.searchLabel')} /></div>
-        <Button size="sm" disabled={filtered.length === 0} onClick={exportCsv}><FileDown size={13} />{t('history.exportCsv')}</Button>
-      </Card>
-
-      {filtered.length > 0 ? (
-        <div className="history-list">
-          {filtered.map((match) => {
+      {matches.length > 0 ? (
+        <>
+          <Card className="history-toolbar">
+            <form className="search-box" onSubmit={(event) => { event.preventDefault(); setPage(1); setQuery(queryInput.trim()); }}><Search size={15} /><input value={queryInput} onChange={(event) => setQueryInput(event.target.value)} placeholder={t('history.searchPlaceholder')} aria-label={t('history.searchLabel')} /></form>
+            <Button size="sm" disabled={total === 0 || exportAction.state.status === 'loading'} onClick={() => void exportCsv()}>{exportAction.state.status === 'loading' ? <Spinner /> : <FileDown size={13} />}{t('history.exportCsv')}</Button>
+          </Card>
+          <div className="history-list">
+          {matches.map((match) => {
             const job = jobs[match.id];
             const active = job ? isDownloadActive(job) : false;
             const date = match.played_at ?? match.synced_at;
@@ -210,33 +364,40 @@ export function MatchHistoryPage() {
                 <span className={`history-result history-result--${match.result}`}>{match.result === 'win' ? 'W' : match.result === 'loss' ? 'L' : match.result === 'draw' ? 'D' : '?'}</span>
                 <div className="history-map-art"><span>{match.map_name?.replace('de_', '').slice(0, 3).toUpperCase() ?? 'DEM'}</span></div>
                 <div className="history-row__main">
-                  <div><strong>{match.map_name?.replace('de_', '').toUpperCase() ?? `MATCH ${match.match_id.slice(-8)}`}</strong><Badge tone={match.demo_status === 'downloaded' ? 'success' : match.demo_status === 'failed' ? 'danger' : 'neutral'}>{match.demo_status === 'downloaded' ? t('history.imported') : match.demo_status === 'failed' ? t('history.downloadFailed') : active ? t('history.processing') : t('history.available')}</Badge></div>
+                  <div><strong>{match.map_name?.replace('de_', '').toUpperCase() ?? `MATCH ${match.match_id.slice(-8)}`}</strong><Badge tone={match.demo_status === 'downloaded' ? 'success' : match.demo_status === 'failed' ? 'danger' : 'neutral'}>{match.demo_status === 'downloaded' ? t('history.imported') : match.demo_status === 'failed' ? t('history.downloadFailed') : active || match.demo_status === 'downloading' ? t('history.processing') : t('history.available')}</Badge></div>
                   <span><CalendarDays size={12} />{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(date))}{match.played_at ? t('history.matchTime') : t('history.syncTime')}</span>
                   {job && active ? <progress value={job.progress} max={1} aria-label={msgf("m0142", [Math.round(job.progress * 100)])} /> : null}
                   {job?.error ?? match.last_error ? <small>{job?.error ?? match.last_error}</small> : null}
                 </div>
                 <div className="history-score"><span>{t('history.score')}</span><strong>{match.score ?? t('history.pending')}</strong></div>
-                {active && job ? <Button size="sm" variant="danger" disabled={cancelAction.state.status === 'loading'} onClick={() => void cancelDownload(match, job)}><Square size={12} />{t('history.cancel')}</Button> : <Button size="sm" disabled={match.demo_status === 'downloaded' || downloadAction.state.status === 'loading'} onClick={() => void startDownload(match)}>{match.demo_status === 'downloaded' ? <CheckCircle2 size={13} /> : <Download size={13} />}{downloadLabel(job, match, downloadLabels)}</Button>}
+                <MatchHistoryDownloadControl
+                  match={match}
+                  job={job}
+                  labels={actionLabels}
+                  cancelDisabled={cancelAction.state.status === 'loading'}
+                  downloadDisabled={downloadAction.state.status === 'loading'}
+                  onCancel={() => { if (job) void cancelDownload(match, job); }}
+                  onDownload={() => void startDownload(match)}
+                />
               </Card>
             );
           })}
-        </div>
-      ) : (
-        <Card className="history-empty-card">
-          <EmptyState
-            icon={configured === false ? <KeyRound size={26} /> : <History size={26} />}
-            title={configured === false ? t('history.connectFirst') : t('history.empty')}
-            description={configured === false ? t('history.credentialsDescription') : t('history.emptyDescription')}
-            action={configured === true ? <Button variant="primary" onClick={() => void sync()}><RefreshCw size={14} />{t('history.startSync')}</Button> : <Link className="button button--primary button--md" to="/settings"><Settings2 size={14} />{t('history.openSettings')}</Link>}
-          />
-        </Card>
-      )}
-
-      <div className="history-footer">
-        <span><CheckCircle2 size={13} />{t('history.completedHint')}</span>
-        <span>{total} {t('history.records')} · {t('history.page')} {page} {t('history.of')} {pageCount}</span>
-        <div><Button size="sm" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>{t('common.previous')}</Button><Button size="sm" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>{t('common.next')}</Button></div>
-      </div>
+          </div>
+          <div className="history-footer">
+            <span><CheckCircle2 size={13} />{t('history.completedHint')}</span>
+            <span>{total} {t('history.records')} · {t('history.page')} {page} {t('history.of')} {pageCount}</span>
+            <div><Button size="sm" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>{t('common.previous')}</Button><Button size="sm" disabled={page >= pageCount} onClick={() => setPage((current) => Math.min(pageCount, current + 1))}>{t('common.next')}</Button></div>
+          </div>
+        </>
+      ) : !loadError && configured !== null ? (
+        <MatchHistoryEmptyWorkspace
+          configured={configured}
+          filtered={Boolean(query)}
+          labels={emptyLabels}
+          onSync={() => void sync()}
+          onClearSearch={() => { setQueryInput(''); setPage(1); setQuery(''); }}
+        />
+      ) : null}
     </div>
   );
 }

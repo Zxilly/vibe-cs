@@ -1,63 +1,54 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import { describe, expect, it } from 'vitest';
 
-import type { ObsDiagnosis } from '../../shared/desktop/dto';
-import { ObsDiagnosisDetails } from './SettingsPage';
+import { defaultConfig, RecordingSettings, SettingsPage, VideoSettings } from './SettingsPage';
 
-const diagnosis: ObsDiagnosis = {
-  recording: { active: true, paused: false, timecode: '00:00:12.000', output_path: 'D:\\Capture\\clip.mkv' },
-  scenes: { current_program_scene: 'Desktop', scenes: ['Desktop', 'Capture'] },
-  video: {
-    base_width: 2560,
-    base_height: 1440,
-    output_width: 1920,
-    output_height: 1080,
-    fps_numerator: 60_000,
-    fps_denominator: 1_001,
-  },
-  configured_scene: 'Capture',
-  scene_ready: true,
-  resolution_matches: true,
-  fps_matches: false,
-  ready: false,
-  warnings: ['OBS frame rate does not match the saved recording default'],
-  dependencies: { ready: true, dependencies: [] },
-};
-
-describe('OBS diagnosis UI', () => {
-  it('renders live status, every scene, and explicit mismatches', () => {
-    const onSelectScene = vi.fn();
+describe('current settings contract', () => {
+  it('exposes only the current local data directory', () => {
     const markup = renderToStaticMarkup(
-      <ObsDiagnosisDetails
-        diagnosis={diagnosis}
-        selectedScene="Capture"
-        expectedResolution="1920x1080"
-        expectedFps={60}
-        onSelectScene={onSelectScene}
-      />,
+      <MemoryRouter>
+        <SettingsPage />
+      </MemoryRouter>,
     );
 
-    expect(markup).toContain('WebSocket 已连接');
-    expect(markup).toContain('录制进行中');
-    expect(markup).toContain('59.94 FPS');
-    expect(markup).toContain('期望 60 FPS');
-    expect(markup).toContain('Desktop（当前）');
-    expect(markup).toContain('Capture');
-    expect(markup).toContain('OBS frame rate does not match');
-    expect(onSelectScene).not.toHaveBeenCalled();
+    expect(markup).not.toContain('VIBE_CS_PREVIOUS_DATA_DIR');
   });
+});
 
-  it('keeps an unsaved missing scene visible instead of silently replacing it', () => {
+describe('movie pipeline settings', () => {
+  it('presents the managed HLAE pipeline without OBS controls', () => {
     const markup = renderToStaticMarkup(
-      <ObsDiagnosisDetails
-        diagnosis={diagnosis}
-        selectedScene="Missing scene"
-        expectedResolution="1920x1080"
-        expectedFps={60}
-        onSelectScene={() => undefined}
-      />,
+      <MemoryRouter>
+        <VideoSettings />
+      </MemoryRouter>,
     );
 
-    expect(markup).toContain('Missing scene（实时列表中不存在）');
+    expect(markup).toContain('HLAE');
+    expect(markup).toContain('MP4');
+    expect(markup).not.toContain('OBS');
+    expect(markup).not.toContain('WebSocket');
+    expect(markup).not.toMatch(/ffmpeg|ffprobe|libx264/i);
+    expect(markup).not.toContain('选择 HLAE.exe');
+    expect(markup).not.toContain('Choose HLAE.exe');
+  });
+});
+
+describe('managed HLAE recording settings', () => {
+  it('shows only controls implemented by the native capture pipeline', () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <RecordingSettings config={defaultConfig} updateRecording={() => undefined} />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain('HLAE');
+    expect(markup).toContain('FOV');
+    expect(markup).not.toContain('恢复');
+    expect(markup).not.toContain('按键可视化');
+    expect(markup).not.toContain('投掷物轨迹');
+    expect(markup).not.toContain('实时素材');
+    expect(markup).not.toContain('画面延迟');
+    expect(markup).not.toContain('转场');
   });
 });

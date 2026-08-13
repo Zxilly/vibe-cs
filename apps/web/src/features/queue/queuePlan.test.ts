@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildRecordingQueueRequest,
@@ -6,10 +6,37 @@ import {
   demoPlaybackFingerprint,
   demoPlaybackBlockReason,
   matchesRecordingQueueFingerprint,
+  playbackReadinessRelevant,
   queueItemDurationSeconds,
   queueItemTickRate,
+  recordingJobStage,
   recordingQueueFingerprint,
+  requireManagedHlaeForRecording,
 } from './queuePlan';
+
+describe('recording job stage presentation', () => {
+  it('localizes a stable backend stage code without claiming elapsed-time percent', () => {
+    expect(recordingJobStage('recording.stage.capturing')).toEqual({
+      key: 'queue.recordingStage.capturing',
+      ordinal: 3,
+      total: 5,
+    });
+    expect(recordingJobStage('Recording 1 of 1')).toBeNull();
+  });
+});
+
+describe('managed recording preparation', () => {
+  it('accepts only a successfully prepared pinned runtime', async () => {
+    const prepared = vi.fn().mockResolvedValue({ managed_release: { prepared: true } });
+    const unavailable = vi.fn().mockResolvedValue({ managed_release: { prepared: false } });
+
+    await expect(requireManagedHlaeForRecording(prepared, 'prepare failed')).resolves.toMatchObject({
+      managed_release: { prepared: true },
+    });
+    await expect(requireManagedHlaeForRecording(unavailable, 'prepare failed')).rejects.toThrow('prepare failed');
+  });
+});
+
 import type { QueueItem } from './queueStore';
 import { queueTestItems } from './queueTestFixtures';
 
@@ -25,23 +52,33 @@ const realItem: QueueItem = {
 };
 
 describe('queue plan model', () => {
-  it('uses the item tick rate for duration and falls back to 64', () => {
+  it('keeps playback readiness out of a queue with no clips or active local preview', () => {
+    expect(playbackReadinessRelevant(0, false)).toBe(false);
+    expect(playbackReadinessRelevant(1, false)).toBe(true);
+  });
+
+  it('keeps local preview readiness visible while an otherwise empty queue owns playback', () => {
+    expect(playbackReadinessRelevant(0, true)).toBe(true);
+  });
+
+  it('uses only an authoritative item tick rate and refuses to invent 64 tick timing', () => {
     const item = {
       ...realItem,
       startTick: 1_000,
       endTick: 1_128,
       preRollSeconds: 2,
       postRollSeconds: 3,
-      playbackSpeed: 1,
     };
     const fallbackItem: QueueItem = { ...item };
     delete fallbackItem.tickRate;
 
     expect(queueItemTickRate(item)).toBe(128);
     expect(queueItemDurationSeconds(item)).toBe(6);
-    expect(queueItemTickRate(fallbackItem)).toBe(64);
-    expect(queueItemDurationSeconds(fallbackItem)).toBe(7);
-    expect(queueItemTickRate({ ...item, tickRate: Number.NaN })).toBe(64);
+    expect(queueItemTickRate(fallbackItem)).toBeNull();
+    expect(queueItemDurationSeconds(fallbackItem)).toBeNull();
+    expect(buildDemoPlaybackOptions(fallbackItem)).toBeNull();
+    expect(demoPlaybackBlockReason(fallbackItem, false)).toContain('Tick Rate');
+    expect(queueItemTickRate({ ...item, tickRate: Number.NaN })).toBeNull();
   });
 
   it('sends only enabled demo items and maps evidence-backed victim perspectives', () => {
@@ -54,22 +91,27 @@ describe('queue plan model', () => {
 
     expect(request.items.map((item) => item.highlight_id)).toEqual(['parsed-highlight-1', 'parsed-highlight-2']);
     expect(request.items.map((item) => item.victim_pov)).toEqual([false, true]);
+    for (const item of request.items) {
+      expect(item).not.toHaveProperty('playback_speed');
+      expect(item).not.toHaveProperty('show_keyboard');
+      expect(item).not.toHaveProperty('show_kill_fx');
+      expect(item).not.toHaveProperty('fade');
+    }
     expect(request.items[0]).not.toHaveProperty('perspective');
   });
 
-  it('builds preview arguments from the stable player identity and real tick rate', () => {
+  it('builds deterministic 1.0× preview arguments from the stable player identity and real tick rate', () => {
     expect(buildDemoPlaybackOptions({
       ...realItem,
       startTick: 10_000,
       preRollSeconds: 2.5,
       tickRate: 128,
-      playbackSpeed: 0.5,
       playerName: 'Ambiguous Name',
       playerId: '76561198000000000',
     })).toEqual({
       start_tick: 9_680,
       player: '76561198000000000',
-      timescale: 0.5,
+      timescale: 1,
     });
   });
 
@@ -89,7 +131,6 @@ describe('queue plan model', () => {
       { ...realItem, startTick: realItem.startTick + 1 },
       { ...realItem, tickRate: 64 },
       { ...realItem, preRollSeconds: realItem.preRollSeconds + 0.5 },
-      { ...realItem, playbackSpeed: 0.5 },
       { ...realItem, perspective: 'victim' },
       { ...realItem, origin: 'preview' },
     ];
@@ -112,9 +153,6 @@ describe('queue plan model', () => {
       [{ ...realItem, title: '改名' }, second],
       [{ ...realItem, preRollSeconds: realItem.preRollSeconds + 0.5 }, second],
       [{ ...realItem, postRollSeconds: realItem.postRollSeconds + 0.5 }, second],
-      [{ ...realItem, playbackSpeed: 0.5 }, second],
-      [{ ...realItem, showKeyboard: !realItem.showKeyboard }, second],
-      [{ ...realItem, showKillFx: !realItem.showKillFx }, second],
       [{ ...realItem, perspective: 'victim' }, second],
       [{ ...realItem, tickRate: 64 }, second],
     ];

@@ -38,15 +38,15 @@ import { ProposalMutationBusyError, ProposalMutationCoordinator } from './propos
 
 import './agent.css';
 
-const THREAD_STORAGE_KEY = 'vibe-cs.agent-thread.v1';
+const THREAD_STORAGE_KEY = 'vibe-cs.agent-thread';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 
 function storedThreadId() {
   try {
     const stored = JSON.parse(localStorage.getItem(THREAD_STORAGE_KEY) ?? 'null') as unknown;
     if (!stored || typeof stored !== 'object') return null;
-    const value = stored as { version?: unknown; threadId?: unknown };
-    return value.version === 1 && typeof value.threadId === 'string' && UUID_PATTERN.test(value.threadId)
+    const value = stored as { threadId?: unknown };
+    return typeof value.threadId === 'string' && UUID_PATTERN.test(value.threadId)
       ? value.threadId
       : null;
   } catch {
@@ -55,7 +55,7 @@ function storedThreadId() {
 }
 
 function persistThreadId(threadId: string) {
-  localStorage.setItem(THREAD_STORAGE_KEY, JSON.stringify({ version: 1, threadId }));
+  localStorage.setItem(THREAD_STORAGE_KEY, JSON.stringify({ threadId }));
 }
 
 function messageText(message: AppendMessage) {
@@ -661,7 +661,7 @@ export function AgentPage() {
     const threadPromise = initialThreadId ? commands.getAgentThread(initialThreadId) : Promise.resolve(null);
     void Promise.all([
       commands.agentStatus(),
-      commands.listDemos({ page: 1, page_size: 50, sort: 'newest' }, controller.signal),
+      commands.listDemos({ page: 1, page_size: 50, sort: 'updated_desc' }, controller.signal),
       commands.listEditorProjects(controller.signal),
       commands.listMediaAssets(undefined, controller.signal),
       threadPromise,
@@ -707,10 +707,10 @@ export function AgentPage() {
     try {
       await commands.streamAgentChat({
         requestId,
-        ...(contextSnapshot.threadId ? { threadId: contextSnapshot.threadId } : {}),
-        ...(contextSnapshot.demoId ? { demoId: contextSnapshot.demoId } : {}),
-        ...(contextSnapshot.projectId ? { editorProjectId: contextSnapshot.projectId } : {}),
-        ...(contextSnapshot.audioAssetId ? { audioAssetId: contextSnapshot.audioAssetId } : {}),
+        threadId: contextSnapshot.threadId,
+        demoId: contextSnapshot.demoId || null,
+        editorProjectId: contextSnapshot.projectId || null,
+        audioAssetId: contextSnapshot.audioAssetId || null,
         mode: contextSnapshot.mode,
         message: content,
       }, (event) => {

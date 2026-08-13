@@ -1,15 +1,14 @@
-import { currentLocale, msg, msgf } from '../../shared/i18n';
+import { msg, msgf } from '../../shared/i18n';
 import {
   ChevronLeft,
   ChevronRight,
-  Clock3,
   Database,
   RefreshCw,
   Search,
   Trash2,
   UsersRound,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { commands, readableError } from '../../shared/desktop/client';
 import type {
@@ -18,13 +17,18 @@ import type {
   PlayerProfile,
 } from '../../shared/desktop/dto';
 import { useI18n } from '../../shared/i18n';
-import { Badge, Button, Card, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
+import { Button, Card, Drawer, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
 import { LibrarySectionNav } from '../library/LibrarySectionNav';
 import {
   PlayerDetailPlaceholder,
   PlayerDetailView,
-  PlayerMonogram,
 } from './PlayerViews';
+import {
+  PlayerCompareInspector,
+  PlayerComparisonSelectionBar,
+  PlayerDirectoryScope,
+  PlayerPowerTable,
+} from './PlayerComparisonViews';
 import {
   PLAYER_PAGE_SIZE,
   PLAYER_SEARCH_DEBOUNCE_MS,
@@ -32,20 +36,25 @@ import {
   isCurrentRequest,
   normalizePlayerSearch,
   playerPageCount,
-  steamEvidence,
+  retainComparedPlayersOnPage,
+  sortPlayerDirectory,
+  toggleComparedPlayer,
+  type PlayerDirectorySort,
 } from './playerPresentation';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 type CacheActionState = 'idle' | 'clearing' | 'success' | 'error';
 
-const dateFormatter = new Intl.DateTimeFormat(currentLocale(), {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-});
-
-function lastMatchLabel(value: string): string {
-  const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? msg("m0717") : dateFormatter.format(date);
+function useWidePlayerInspector(): boolean {
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1400px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1400px)');
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  return wide;
 }
 
 export function PlayersPage() {
@@ -57,6 +66,9 @@ export function PlayersPage() {
   const [total, setTotal] = useState(0);
   const [scannedDemos, setScannedDemos] = useState(0);
   const [scanComplete, setScanComplete] = useState(true);
+  const [directorySort, setDirectorySort] = useState<PlayerDirectorySort>({ key: 'lastMatch', direction: 'desc' });
+  const [comparedPlayers, setComparedPlayers] = useState<PlayerDirectoryItem[]>([]);
+  const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
   const [listState, setListState] = useState<LoadState>('idle');
   const [listError, setListError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -74,6 +86,7 @@ export function PlayersPage() {
   const cacheStatusRequestRevision = useRef(0);
   const cacheMutationRequestRevision = useRef(0);
   const cacheMutationController = useRef<AbortController | null>(null);
+  const wideInspector = useWidePlayerInspector();
 
   useEffect(() => {
     const timer = globalThis.setTimeout(() => {
@@ -98,6 +111,8 @@ export function PlayersPage() {
     ).then((response) => {
       if (controller.signal.aborted || !isCurrentRequest(listRequestRevision.current, requestRevision)) return;
       setItems(response.items);
+      setComparedPlayers((current) => retainComparedPlayersOnPage(current, response.items));
+      setSelectedId((current) => current && response.items.some((item) => item.steam_id === current) ? current : null);
       setTotal(response.total);
       setPage(response.page);
       setScannedDemos(response.scanned_demos);
@@ -160,6 +175,43 @@ export function PlayersPage() {
     setDetailError(null);
   };
 
+  const inspectPlayer = (player: PlayerDirectoryItem) => {
+    setComparedPlayers([player]);
+    setCompactInspectorOpen(true);
+    selectPlayer(player.steam_id);
+  };
+
+  const togglePlayerComparison = (player: PlayerDirectoryItem) => {
+    const next = toggleComparedPlayer(comparedPlayers, player);
+    setComparedPlayers(next);
+    setCompactInspectorOpen(next.length === 2);
+    setProfile(null);
+    setDetailError(null);
+    if (next.length === 1) setSelectedId(next[0]?.steam_id ?? null);
+    else setSelectedId(null);
+  };
+
+  const clearPlayerComparison = () => {
+    setComparedPlayers([]);
+    setCompactInspectorOpen(false);
+    setSelectedId(null);
+    setProfile(null);
+    setDetailError(null);
+  };
+
+  const focusComparedPlayer = (player: PlayerDirectoryItem) => {
+    setComparedPlayers([player]);
+    setCompactInspectorOpen(true);
+    selectPlayer(player.steam_id);
+  };
+
+  const changeDirectorySort = (key: PlayerDirectorySort['key']) => {
+    setDirectorySort((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
   const refresh = () => setRefreshRevision((revision) => revision + 1);
 
   const clearAvatarCache = async () => {
@@ -190,9 +242,52 @@ export function PlayersPage() {
   };
 
   const pageCount = playerPageCount(total);
+  const sortedItems = useMemo(
+    () => sortPlayerDirectory(items, directorySort),
+    [directorySort, items],
+  );
+  const comparedIds = useMemo(
+    () => new Set(comparedPlayers.map((player) => player.steam_id)),
+    [comparedPlayers],
+  );
   const profileIsCurrent = profile?.player.steam_id === selectedId;
   const allProfilesUnconfigured = items.length > 0
     && items.every((item) => item.steam.state === 'not_configured');
+  const comparison = comparedPlayers.length === 2
+    ? [comparedPlayers[0] as PlayerDirectoryItem, comparedPlayers[1] as PlayerDirectoryItem] as const
+    : null;
+  const playerInspector = comparison ? (
+    <PlayerCompareInspector
+      players={comparison}
+      scannedDemos={scannedDemos}
+      scanComplete={scanComplete}
+      onFocus={focusComparedPlayer}
+      onClear={clearPlayerComparison}
+    />
+  ) : (
+    <Card className="player-detail-card">
+      {selectedId === null ? (
+        <PlayerDetailPlaceholder />
+      ) : detailState === 'loading' && !profileIsCurrent ? (
+        <div className="players-loading">
+          <Spinner label={msg("m1153")} />
+          <strong>{msg("m0867")}</strong>
+          <span>{msg("m0239")}</span>
+        </div>
+      ) : detailError ? (
+        <EmptyState
+          icon={<UsersRound size={27} />}
+          title={msg("m0983")}
+          description={detailError}
+          action={<Button size="sm" onClick={refresh}><RefreshCw size={13} />{t('common.retry')}</Button>}
+        />
+      ) : profileIsCurrent && profile ? (
+        <PlayerDetailView key={profile.player.steam_id} profile={profile} />
+      ) : (
+        <PlayerDetailPlaceholder />
+      )}
+    </Card>
+  );
 
   return (
     <div className="page page--players">
@@ -295,36 +390,29 @@ export function PlayersPage() {
               />
             </Card>
           ) : (
-            <div className="player-directory-list" role="list">
-              {items.map((player) => {
-                const evidence = steamEvidence(player.steam);
-                return (
-                  <button
-                    type="button"
-                    key={player.steam_id}
-                    className={`player-directory-row${selectedId === player.steam_id ? ' is-selected' : ''}`}
-                    aria-pressed={selectedId === player.steam_id}
-                    onClick={() => selectPlayer(player.steam_id)}
-                  >
-                    <PlayerMonogram player={player} />
-                    <span className="player-directory-row__main">
-                      <strong>{player.name}</strong>
-                      <small>{player.steam_id}</small>
-                      <span><Clock3 size={11} />{lastMatchLabel(player.last_match_at)}</span>
-                    </span>
-                    <span className="player-directory-row__stats">
-                      <strong>{player.stats.kills}</strong><small>{msg("m0252")}</small>
-                      <strong>{player.stats.matches}</strong><small>{msg("m0885")}</small>
-                    </span>
-                    <Badge tone={evidence.tone}>{evidence.label}</Badge>
-                  </button>
-                );
-              })}
-            </div>
+            <PlayerPowerTable
+              players={sortedItems}
+              comparedIds={comparedIds}
+              sort={directorySort}
+              onSort={changeDirectorySort}
+              onToggleCompare={togglePlayerComparison}
+              onInspect={inspectPlayer}
+            />
           )}
 
+          {items.length > 0 ? (
+            <PlayerDirectoryScope page={page} pages={pageCount} visible={items.length} total={total} />
+          ) : null}
+          {!wideInspector && comparedPlayers.length > 0 && !compactInspectorOpen ? (
+            <PlayerComparisonSelectionBar
+              count={comparedPlayers.length}
+              onOpen={() => setCompactInspectorOpen(true)}
+              onClear={clearPlayerComparison}
+            />
+          ) : null}
+
           <footer className="player-directory-footer">
-            <span>{msg("m1058")} {page}/{pageCount} {msg("m1303")} {scannedDemos} {msg("m0199")}</span>
+            <span>{scannedDemos} {msg("m0199")}</span>
             <div>
               <Button
                 size="sm"
@@ -340,29 +428,18 @@ export function PlayersPage() {
           </footer>
         </section>
 
-        <Card className="player-detail-card">
-          {selectedId === null ? (
-            <PlayerDetailPlaceholder />
-          ) : detailState === 'loading' && !profileIsCurrent ? (
-            <div className="players-loading">
-              <Spinner label={msg("m1153")} />
-              <strong>{msg("m0867")}</strong>
-              <span>{msg("m0239")}</span>
-            </div>
-          ) : detailError ? (
-            <EmptyState
-              icon={<UsersRound size={27} />}
-              title={msg("m0983")}
-              description={detailError}
-              action={<Button size="sm" onClick={refresh}><RefreshCw size={13} />{t('common.retry')}</Button>}
-            />
-          ) : profileIsCurrent && profile ? (
-            <PlayerDetailView key={profile.player.steam_id} profile={profile} />
-          ) : (
-            <PlayerDetailPlaceholder />
-          )}
-        </Card>
+        {wideInspector ? <aside className="player-inspector-shell">{playerInspector}</aside> : null}
       </div>
+
+      <Drawer
+        open={!wideInspector && compactInspectorOpen && comparedPlayers.length > 0}
+        title={comparison ? t('players.compare.title') : comparedPlayers[0]?.name ?? t('players.table.details')}
+        description={comparison ? t('players.table.scopeBehavior') : comparedPlayers[0]?.steam_id}
+        onClose={() => setCompactInspectorOpen(false)}
+        footer={<Button onClick={() => setCompactInspectorOpen(false)}>{t('shell.close')}</Button>}
+      >
+        <div className="player-inspector-drawer">{playerInspector}</div>
+      </Drawer>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { msg } from '../../shared/i18n';
 import type {
   AnalysisInsightsRecord,
+  AnalysisWorkspace,
   Highlight,
   PlayerAnalysis,
   PlayerMatchupInsightRecord,
@@ -27,9 +28,8 @@ export function emptyAnalysisInsights(reason = msg("m0563")): AnalysisInsightsRe
 }
 
 export function normalizeAnalysisInsights(
-  insights: AnalysisInsightsRecord | undefined,
+  insights: AnalysisInsightsRecord,
 ): AnalysisInsightsRecord {
-  if (!insights) return emptyAnalysisInsights();
   return {
     round_economy: [...insights.round_economy].sort((left, right) => left.round - right.round),
     player_utility: [...insights.player_utility],
@@ -38,18 +38,17 @@ export function normalizeAnalysisInsights(
   };
 }
 
-function normalizedSide(team: string): 'A' | 'B' | null {
-  const normalized = team.trim().toLocaleUpperCase().replaceAll('_', '-');
-  if (['A', 'T', 'TERRORIST', '2'].includes(normalized)) return 'A';
-  if (['B', 'CT', 'COUNTER-TERRORIST', '3'].includes(normalized)) return 'B';
-  return null;
+export function analysisInsightsForWorkspace(
+  workspace: Pick<AnalysisWorkspace, 'insights'>,
+): AnalysisInsightsRecord {
+  return workspace.insights ? normalizeAnalysisInsights(workspace.insights) : emptyAnalysisInsights();
 }
 
 export function teamPurchaseForSide(
   round: RoundEconomyInsightRecord,
-  side: 'A' | 'B',
+  side: 'T' | 'CT',
 ): TeamPurchaseInsightRecord | null {
-  return round.teams.find((team) => normalizedSide(team.team) === side) ?? null;
+  return round.teams.find((team) => team.team.trim().toLocaleUpperCase() === side) ?? null;
 }
 
 export function matchupsForPlayer(

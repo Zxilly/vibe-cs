@@ -73,7 +73,15 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   the column contract accepts only unique keys for fields present in the current DTO and exposes
   unavailable data such as file size as a capability gap instead of a placeholder column. Search,
   filter, stable sort and page selection stay at the SQLite boundary and never imply a client-side
-  full-library sort. The Openings workspace is a deterministic projection of the loaded analysis: it
+  full-library sort. Match History similarly owns one exact `q/page/page_size` URL contract; result-set
+  changes reset the page, and an asynchronous response is committed only while its request still
+  matches the current URL and has not been cancelled. The player directory builds one cached,
+  bounded catalog from at most 1,000 Demos, then applies server filtering, stable enum-selected sort
+  with a SteamID tie-break, and finally pagination. It reports the scanned count and completeness;
+  sorting one returned page never stands in for the catalog-wide operation. Evidence Search exposes
+  the canonical annotation records through a global index whose URL owns bounded `q/tag/state/page`
+  selection and whose rows deep-link back to Round or Replay. The Openings workspace is a
+  deterministic projection of the loaded analysis: it
   accepts only the earliest kill by tick in each round, resolves both participants through canonical
   player IDs, and marks the round unavailable when that first event cannot be verified. Its 10-by-10
   directional matrix is row-actor/column-target; selecting a cell filters the same canonical atomic
@@ -83,9 +91,14 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   teammate/opponent sides, an A/B winner and an in-bounds canonical `round_end`. Its 2-by-2 cells are
   Team A/B by T/CT and report round wins over rounds played, never a win rate. A selected cell filters
   kills plus the same canonical round-end evidence; raw T/CT summaries fail closed and no organization
-  entity is inferred. Production previews the bounded persisted Activity read model rather than mock
-  progress. Outputs treats staged cleanup as an independent recovery capability, so a true-zero
-  output collection can hide collection controls while retaining that action.
+  entity is inferred. Clutch Review is likewise a current-analysis projection: it accepts a highlight
+  only when an exact win/attempt outcome, one unambiguous `1vN` tag, canonical player and round,
+  in-range ticks and opponent relationships all agree; inconsistent candidates are rejected rather
+  than coerced into a scenario. Production previews the bounded persisted Activity read model rather
+  than mock progress. Outputs treats staged cleanup as an independent recovery capability, so a
+  true-zero output collection can hide collection controls while retaining that action. An export row
+  with a source project links to the Editor by exact project ID; an absent requested project fails
+  closed to an explicit notice and blank document instead of selecting another project.
 
 Platform commands and process spawning do not appear in route handlers or domain records.
 
@@ -129,9 +142,11 @@ proxy ownership and cleanup are persisted explicitly.
 Evidence annotations also live in SQLite as current-schema records. Their body, tags and review
 state can change without changing the canonical locator. They survive a normal desktop restart,
 are page-queryable with bounded `q`, tag, review-state, Demo and evidence-ID filters, and are removed
-with their owning Demo. The server query contract is implemented and tested; there is not yet a
-product-audited global annotation-index UI. Annotations are not aliases for the older Demo remark
-field, an algorithmic highlight tag, or an Agent thread.
+with their owning Demo. The server query contract is implemented and tested, and the global
+annotation-index UI exposes `q/tag/state/page`, pagination and Round/Replay links. The currentaudit
+product check covered its 1100×700 zero-result state in a fresh database; it does not establish a
+non-empty or multi-page product gate. Annotations are not aliases for the older Demo remark field,
+an algorithmic highlight tag, or an Agent thread.
 
 ## Command and task flow
 
@@ -209,7 +224,9 @@ stopped. A stale completion therefore cannot stop or clear a newer playback.
 
 Editor saves use an optimistic revision in an immediate SQLite transaction. The current document
 and its bounded snapshot are written together. Proxy and package workflows keep generating/staging
-state separate from ready state so a crash cannot make a partial media file look complete.
+state separate from ready state so a crash cannot make a partial media file look complete. Editor
+URL selection is exact-current-only: `project=<id>` selects that project or reports that exact ID as
+missing and initializes a blank document; it never falls back to the first available project.
 
 ## Safety boundaries
 

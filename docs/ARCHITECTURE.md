@@ -33,8 +33,10 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   evidence-annotation contract binds editable user text, free-form tags and open/resolved state to
   one immutable `demo_id/evidence_id/round/tick` locator.
 - `storage` owns the current SQLite schema, explicit transactions, project snapshots, jobs, library
-  records, evidence projections and canonical evidence annotations. Annotation creation verifies the
-  locator against `evidence_search_items`; Demo deletion cascades to annotations.
+  records, evidence projections, canonical evidence annotations and the Activity query over its four
+  authoritative sources. Activity summary, filtered total and page rows come from one SQLite
+  transaction; there is no materialized Activity table or compatibility view. Annotation creation
+  verifies the locator against `evidence_search_items`; Demo deletion cascades to annotations.
 - `demo` owns safe discovery, ZIP extraction, hashing, Source 2 parsing, entity replay, insights,
   heatmaps, highlight classification and narrowly bounded malformed-demo repair planning.
 - `cosmetics` inspects and rewrites a fixed set of observed Source 2 entity fields to a new demo.
@@ -56,12 +58,15 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   publication. The concrete movie backend is managed HLAE capture followed by Windows Media
   Foundation encoding.
 - `application` owns use-case validation, status mapping, bounded uploads and media reads,
-  active-task tracking, mutation events and the Activity read model. Activity merges persisted
-  recording, export, download and analysis facts, then applies stable ordering, filters and a bounded
-  page; it is not an event-history store or a database cursor. Failed or cancelled persisted Steam
-  downloads expose retry and match-history actions. Retry persists a new queued job before background
-  work starts and does not rewrite the old job, error or byte counts. Activity is private to the
-  desktop process.
+  active-task tracking, mutation events and Activity API mapping. Activity filtering, counting and
+  paging stay at the storage boundary: a kind-specific query reads only that authoritative source;
+  a cross-kind query filters, orders and windows each source before the final merge, ordered by
+  `updated_at DESC, activity_id ASC`. Download retryability is calculated only for download rows in
+  the returned page. The result is not an event-history store, a materialized unified table or a
+  general database cursor. A failed or cancelled persisted Steam download exposes retry only when it
+  is the latest eligible attempt, the match is not downloaded, the current Steam ID and 32-character
+  hexadecimal Web API key are syntactically valid, and the record belongs to that current account.
+  Activity is private to the desktop process.
 - `agent` owns the in-process Rig model/tool loop, provider URL policy, streaming limits, and
   deterministic read/proposal tools. It has no filesystem, shell, or process execution tool.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
@@ -73,14 +78,26 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   the column contract accepts only unique keys for fields present in the current DTO and exposes
   unavailable data such as file size as a capability gap instead of a placeholder column. Search,
   filter, stable sort and page selection stay at the SQLite boundary and never imply a client-side
-  full-library sort. Match History similarly owns one exact `q/page/page_size` URL contract; result-set
-  changes reset the page, and an asynchronous response is committed only while its request still
-  matches the current URL and has not been cancelled. The player directory builds one cached,
-  bounded catalog from at most 1,000 Demos, then applies server filtering, stable enum-selected sort
-  with a SteamID tie-break, and finally pagination. It reports the scanned count and completeness;
-  sorting one returned page never stands in for the catalog-wide operation. Evidence Search exposes
-  the canonical annotation records through a global index whose URL owns bounded `q/tag/state/page`
-  selection and whose rows deep-link back to Round or Replay. The Openings workspace is a
+  full-library sort. Library batch Analysis selection keeps at most twelve explicit canonical IDs in
+  component state across page, page-size, sort, column and view changes; search, map or lifecycle
+  changes clear it. It never means every filtered row. Before navigation, the client refetches each
+  exact Demo and verifies its identity and current analyzable lifecycle; a partial rejection stops for
+  explicit confirmation, while a non-404 read failure fails the whole preflight. Match History
+  similarly owns one exact `q/page/page_size` URL contract; result-set changes reset the page, and an
+  asynchronous response is committed only while its request still matches the current URL and has not
+  been cancelled. The player directory builds one cached, bounded catalog from at most 1,000 Demos,
+  then applies server filtering, stable enum-selected sort with a SteamID tie-break, and finally
+  pagination. It reports the scanned count and completeness; sorting one returned page never stands
+  in for the catalog-wide operation. Evidence Search has an exact participant filter that matches an
+  actor, target or indexed highlight victim by normalized player ID or name. The Player profile uses
+  that persistent query for a first-ten cross-match evidence preview with total/index completeness,
+  Round/Replay links that retain the inspected player, and a link to the exact full search; it is not
+  cross-page compare or a complete profile analytics model. Evidence Search also exposes canonical
+  annotation records through a global index whose URL owns bounded `q/tag/state/page` selection and
+  whose rows deep-link back to Round or Replay. Canonical Highlight cards read the same records,
+  distinguish unavailable annotation state from a true zero, show open/resolved summaries and reuse
+  the existing annotation CRUD drawer; successful mutations refresh the card even if the drawer was
+  already closed. This is not an accepted/rejected review queue. The Openings workspace is a
   deterministic projection of the loaded analysis: it
   accepts only the earliest kill by tick in each round, resolves both participants through canonical
   player IDs, and marks the round unavailable when that first event cannot be verified. Its 10-by-10
@@ -143,10 +160,14 @@ Evidence annotations also live in SQLite as current-schema records. Their body, 
 state can change without changing the canonical locator. They survive a normal desktop restart,
 are page-queryable with bounded `q`, tag, review-state, Demo and evidence-ID filters, and are removed
 with their owning Demo. The server query contract is implemented and tested, and the global
-annotation-index UI exposes `q/tag/state/page`, pagination and Round/Replay links. The currentaudit
-product check covered its 1100×700 zero-result state in a fresh database; it does not establish a
-non-empty or multi-page product gate. Annotations are not aliases for the older Demo remark field,
-an algorithmic highlight tag, or an Agent thread.
+annotation-index UI exposes `q/tag/state/page`, pagination and Round/Replay links. In the fresh
+`app.vibecs.currentaudit-workflows` product check, one canonical M1 Highlight annotation was created,
+its card summary refreshed to one open review, and the exact body and tags were read back after a full
+application restart. That check does not establish a non-empty or multi-page global-index gate, and
+the close-during-pending race remains a deterministic test rather than a visual observation.
+Annotations are not aliases for the older Demo remark field, an algorithmic highlight tag, or an
+Agent thread; Agent, Round, Editor, Library and Player-profile review surfaces still do not all
+consume them.
 
 ## Command and task flow
 
@@ -175,7 +196,10 @@ provably published output may complete, while ambiguous running/cancelling work 
 This is fail-safe reconciliation, not continuation from an assumed capture tick.
 Creating a download retry is a new durable job transition, not mutation or continuation of the
 terminal job. The old record remains available for diagnosis while the new queued job owns any later
-progress.
+progress. Before persisting that new job, the runtime revalidates the syntactic Steam ID/Web API key
+requirements and exact account ownership. Missing configuration or a previous account's record is
+rejected without creating a job or mutating the match record; this does not prove that the key is
+accepted by Steam or that a later network request will succeed.
 
 Release demo parsing runs in a single globally-admitted, integrity-pinned worker process;
 the desktop locks the worker and its parent across process creation, and the worker enforces parser

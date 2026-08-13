@@ -102,6 +102,9 @@ import { DuelAnalysisWorkspace } from './DuelAnalysisWorkspace';
 import { OpeningDuelAnalysisWorkspace } from './OpeningDuelAnalysisWorkspace';
 import { TeamRoundAnalysisWorkspace } from './TeamRoundAnalysisWorkspace';
 import { ClutchReviewAnalysisWorkspace } from './ClutchReviewAnalysisWorkspace';
+import { HighlightAnnotationReviewControl } from './HighlightAnnotationReviewControl';
+import { canonicalHighlightAnnotationItem } from './highlightAnnotationReview';
+import { useHighlightAnnotationReviews } from './useHighlightAnnotationReviews';
 import { economyEvidenceActionContract } from './economyEvidenceActions';
 import { playerEvidenceActionIntent } from './playerEvidenceActions';
 import type { PlayerEvidenceRef } from './playerMatchEvidence';
@@ -1967,10 +1970,14 @@ function HeatmapView({
   );
 }
 
-function HighlightsView({ highlights, workspace, addedId, onAdd, onAddMany, onPreview }: { highlights: Highlight[]; workspace: AnalysisWorkspace; addedId: string | null; onAdd: (highlight: Highlight) => void; onAddMany: (highlights: Highlight[]) => void; onPreview: (highlight: Highlight) => void }) {
+export function HighlightsView({ highlights, workspace, addedId, onAdd, onAddMany, onPreview }: { highlights: Highlight[]; workspace: AnalysisWorkspace; addedId: string | null; onAdd: (highlight: Highlight) => void; onAddMany: (highlights: Highlight[]) => void; onPreview: (highlight: Highlight) => void }) {
+  const { t } = useI18n();
   const [sideFilter, setSideFilter] = useState<'all' | 'A' | 'B'>('all');
   const [kindFilter, setKindFilter] = useState<Highlight['kind'] | 'all'>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [selectedAnnotationEvidenceId, setSelectedAnnotationEvidenceId] = useState<string | null>(null);
+  const [annotationRefreshVersion, setAnnotationRefreshVersion] = useState(0);
+  const annotationReviews = useHighlightAnnotationReviews(workspace, annotationRefreshVersion);
   const kinds = [...new Set(highlights.map((highlight) => highlight.kind))];
   const filtered = highlights.filter((highlight) => {
     const player = workspace.players.find((item) => item.id === highlight.player_id);
@@ -2024,10 +2031,59 @@ function HighlightsView({ highlights, workspace, addedId, onAdd, onAddMany, onPr
         </div>
       </Card>
       {addedId === 'compilation-batch' ? <Notice tone="success">{msg("m0517")}</Notice> : null}
+      {annotationReviews.status === 'error' ? (
+        <Notice tone="danger">
+          <span>{annotationReviews.error}</span>
+          <Button size="sm" variant="ghost" onClick={() => setAnnotationRefreshVersion((version) => version + 1)}>
+            {t('evidenceSearch.retryAnnotations')}
+          </Button>
+        </Notice>
+      ) : null}
       {filtered.length > 0 ? <div className="highlight-list">
         {filtered.map((highlight, index) => {
           const player = workspace.players.find((candidate) => candidate.id === highlight.player_id);
-          return <Card className={`highlight-card${selectedIds.has(highlight.id) ? ' is-selected' : ''}`} key={highlight.id}><label className={`highlight-card__rank rank-${index + 1}`}><input type="checkbox" checked={selectedIds.has(highlight.id)} onChange={() => toggleHighlight(highlight.id)} aria-label={msgf("m1226", [highlight.label])} /><span>{String(index + 1).padStart(2, '0')}</span></label><div className="highlight-card__preview"><div className="mini-crosshair"><span /><span /></div><Badge tone="accent">{highlight.round > 0 ? `R${highlight.round}` : msg("m0225")}</Badge><span>{workspace.tick_rate > 0 ? `${((highlight.end_tick - highlight.start_tick) / workspace.tick_rate).toFixed(1)}s` : '—'}</span></div><div className="highlight-card__main"><div><Badge tone={highlight.kind === 'fail' ? 'danger' : highlight.category === 'clutch' ? 'warning' : 'blue'}>{kindLabel[highlight.kind]}</Badge><span>{player?.name ?? highlight.player_id}{player ? ` · TEAM ${player.team}` : ''}</span></div><h3>{highlight.label}</h3><p>{highlight.description || msgf("m0256", [highlight.confidence.toFixed(2)])} · tick {highlight.start_tick.toLocaleString(currentLocale())}–{highlight.end_tick.toLocaleString(currentLocale())}</p>{highlight.tags.length > 0 ? <small>{highlight.tags.join(' · ')}</small> : null}</div><div className="highlight-card__actions"><Button size="sm" onClick={() => onPreview(highlight)}><Play size={13} />{msg("m0637")}</Button><Button size="sm" variant="primary" onClick={() => onAdd(highlight)}>{addedId === highlight.id ? <Check size={14} /> : <Plus size={14} />}{addedId === highlight.id ? msg("m0502") : msg("m0303")}</Button></div></Card>;
+          const annotationItem = canonicalHighlightAnnotationItem(workspace, highlight);
+          const annotationSummary = annotationItem
+            ? annotationReviews.summaries.get(annotationItem.evidence_id) ?? { total: 0, open: 0, resolved: 0 }
+            : { total: 0, open: 0, resolved: 0 };
+          return (
+            <Card className={`highlight-card${selectedIds.has(highlight.id) ? ' is-selected' : ''}`} key={highlight.id}>
+              <label className={`highlight-card__rank rank-${index + 1}`}>
+                <input type="checkbox" checked={selectedIds.has(highlight.id)} onChange={() => toggleHighlight(highlight.id)} aria-label={msgf("m1226", [highlight.label])} />
+                <span>{String(index + 1).padStart(2, '0')}</span>
+              </label>
+              <div className="highlight-card__preview">
+                <div className="mini-crosshair"><span /><span /></div>
+                <Badge tone="accent">{highlight.round > 0 ? `R${highlight.round}` : msg("m0225")}</Badge>
+                <span>{workspace.tick_rate > 0 ? `${((highlight.end_tick - highlight.start_tick) / workspace.tick_rate).toFixed(1)}s` : '—'}</span>
+              </div>
+              <div className="highlight-card__main">
+                <div><Badge tone={highlight.kind === 'fail' ? 'danger' : highlight.category === 'clutch' ? 'warning' : 'blue'}>{kindLabel[highlight.kind]}</Badge><span>{player?.name ?? highlight.player_id}{player ? ` · TEAM ${player.team}` : ''}</span></div>
+                <h3>{highlight.label}</h3>
+                <p>{highlight.description || msgf("m0256", [highlight.confidence.toFixed(2)])} · tick {highlight.start_tick.toLocaleString(currentLocale())}–{highlight.end_tick.toLocaleString(currentLocale())}</p>
+                {highlight.tags.length > 0 ? <small>{highlight.tags.join(' · ')}</small> : null}
+              </div>
+              <div className="highlight-card__actions">
+                <HighlightAnnotationReviewControl
+                  workspace={workspace}
+                  highlight={highlight}
+                  open={selectedAnnotationEvidenceId === annotationItem?.evidence_id}
+                  summary={annotationSummary}
+                  loading={annotationReviews.status === 'loading'}
+                  unavailable={annotationReviews.status === 'error'}
+                  onOpen={() => {
+                    if (annotationItem) setSelectedAnnotationEvidenceId(annotationItem.evidence_id);
+                  }}
+                  onClose={() => {
+                    setSelectedAnnotationEvidenceId(null);
+                  }}
+                  onChanged={() => setAnnotationRefreshVersion((version) => version + 1)}
+                />
+                <Button size="sm" onClick={() => onPreview(highlight)}><Play size={13} />{msg("m0637")}</Button>
+                <Button size="sm" variant="primary" onClick={() => onAdd(highlight)}>{addedId === highlight.id ? <Check size={14} /> : <Plus size={14} />}{addedId === highlight.id ? msg("m0502") : msg("m0303")}</Button>
+              </div>
+            </Card>
+          );
         })}
       </div> : <Card><EmptyState icon={<Sparkles size={22} />} title={msg("m0894")} description={msg("m0258")} /></Card>}
     </div>

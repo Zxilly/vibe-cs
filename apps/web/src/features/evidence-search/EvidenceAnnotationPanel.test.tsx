@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { EvidenceAnnotation, EvidenceSearchItem } from '../../shared/desktop/dto';
 import {
   arbitrateEvidenceAnnotationRequests,
+  completeEvidenceAnnotationMutation,
   EvidenceAnnotationPanel,
   EvidenceAnnotationRecord,
   evidenceAnnotationUpdate,
@@ -58,7 +59,7 @@ const recordCallbacks = {
 describe('evidence annotation panel', () => {
   it('anchors a review note composer to the exact evidence locator', () => {
     const markup = renderToStaticMarkup(
-      <EvidenceAnnotationPanel item={item} onClose={() => undefined} />,
+      <EvidenceAnnotationPanel item={item} onClose={() => undefined} onChanged={() => undefined} />,
     );
 
     expect(markup).toContain('role="dialog"');
@@ -139,5 +140,37 @@ describe('evidence annotation panel', () => {
     resolveList?.({ items: [annotation] });
 
     await expect(request).resolves.toBeNull();
+  });
+
+  it('refreshes the owning summary after a delayed mutation persists even when the drawer closed earlier', async () => {
+    let resolveMutation: ((value: EvidenceAnnotation) => void) | undefined;
+    let persistedAnnotations: EvidenceAnnotation[] = [];
+    let parentSummary = 0;
+    let parentRefreshes = 0;
+    const mutation = new Promise<EvidenceAnnotation>((resolve) => {
+      resolveMutation = resolve;
+    });
+    const refreshParentSummary = () => {
+      parentRefreshes += 1;
+      parentSummary = persistedAnnotations.length;
+    };
+
+    const completion = completeEvidenceAnnotationMutation(
+      mutation,
+      (persisted) => {
+        persistedAnnotations = [persisted];
+      },
+      refreshParentSummary,
+    );
+
+    refreshParentSummary(); // The drawer closes and the old close-time refresh wins the race.
+    expect(parentSummary).toBe(0);
+    expect(parentRefreshes).toBe(1);
+
+    resolveMutation?.(annotation);
+    await completion;
+
+    expect(parentSummary).toBe(1);
+    expect(parentRefreshes).toBe(2);
   });
 });

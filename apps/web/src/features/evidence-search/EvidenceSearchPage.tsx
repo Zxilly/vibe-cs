@@ -42,7 +42,9 @@ type SearchState =
   | { status: 'ready'; response: EvidenceSearchResponse; error: null }
   | { status: 'error'; response: null; error: string };
 
-type SearchDraft = {
+const ignoreEvidenceAnnotationChange = () => undefined;
+
+export type SearchDraft = {
   q: string;
   eventFamily: '' | EvidenceSearchEventFamily;
   actor: string;
@@ -242,7 +244,13 @@ function EvidenceSearchWorkbench() {
           {state.status === 'ready' && response && response.total > 0 ? <footer className="evidence-search-pagination"><Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => goToPage(page - 1)}><ChevronLeft size={14} />{t('evidenceSearch.previous')}</Button><span>{t('evidenceSearch.page')} <strong>{page}</strong> / {pageCount}</span><Button variant="ghost" size="sm" disabled={page >= pageCount} onClick={() => goToPage(page + 1)}>{t('evidenceSearch.next')}<ChevronRight size={14} /></Button></footer> : null}
         </section>
       </div>
-      {annotationItem ? <EvidenceAnnotationPanel item={annotationItem} onClose={() => setAnnotationItem(null)} /> : null}
+      {annotationItem ? (
+        <EvidenceAnnotationPanel
+          item={annotationItem}
+          onClose={() => setAnnotationItem(null)}
+          onChanged={ignoreEvidenceAnnotationChange}
+        />
+      ) : null}
     </div>
   );
 }

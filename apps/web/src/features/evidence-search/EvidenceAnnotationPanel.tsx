@@ -51,6 +51,20 @@ export function evidenceAnnotationUpdate(
   };
 }
 
+export async function completeEvidenceAnnotationMutation<T>(
+  mutation: Promise<T>,
+  acceptPersisted: (value: T) => void,
+  onChanged: () => void,
+): Promise<T> {
+  const persisted = await mutation;
+  try {
+    acceptPersisted(persisted);
+  } finally {
+    onChanged();
+  }
+  return persisted;
+}
+
 export function EvidenceAnnotationRecord({
   annotation,
   draft,
@@ -159,9 +173,11 @@ export function EvidenceAnnotationRecord({
 export function EvidenceAnnotationPanel({
   item,
   onClose,
+  onChanged,
 }: {
   item: EvidenceSearchItem;
   onClose: () => void;
+  onChanged: () => void;
 }) {
   const { locale, t } = useI18n();
   const [state, setState] = useState<AnnotationState>({
@@ -221,20 +237,25 @@ export function EvidenceAnnotationPanel({
     setPendingAction({ kind: 'create', annotationId: null });
     setMutationError(null);
     try {
-      const annotation = await commands.createEvidenceAnnotation({
-        demo_id: item.demo_id,
-        evidence_id: item.evidence_id,
-        round: item.round,
-        tick: item.tick,
-        body,
-        tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
-      });
-      requests.mutationSucceeded();
-      setState((current) => ({
-        status: 'ready', items: [annotation, ...current.items], error: null,
-      }));
-      setBody('');
-      setTags('');
+      await completeEvidenceAnnotationMutation(
+        commands.createEvidenceAnnotation({
+          demo_id: item.demo_id,
+          evidence_id: item.evidence_id,
+          round: item.round,
+          tick: item.tick,
+          body,
+          tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+        }),
+        (annotation) => {
+          requests.mutationSucceeded();
+          setState((current) => ({
+            status: 'ready', items: [annotation, ...current.items], error: null,
+          }));
+          setBody('');
+          setTags('');
+        },
+        onChanged,
+      );
     } catch (cause) {
       setMutationError(readableError(cause));
     } finally {
@@ -247,13 +268,18 @@ export function EvidenceAnnotationPanel({
     setPendingAction({ kind: 'edit', annotationId: annotation.id });
     setMutationError(null);
     try {
-      const updated = await commands.updateEvidenceAnnotation(
-        annotation.id,
-        evidenceAnnotationUpdate(annotation, editing),
+      await completeEvidenceAnnotationMutation(
+        commands.updateEvidenceAnnotation(
+          annotation.id,
+          evidenceAnnotationUpdate(annotation, editing),
+        ),
+        (updated) => {
+          requests.mutationSucceeded();
+          replaceAnnotation(updated);
+          setEditing(null);
+        },
+        onChanged,
       );
-      requests.mutationSucceeded();
-      replaceAnnotation(updated);
-      setEditing(null);
     } catch (cause) {
       setMutationError(readableError(cause));
     } finally {
@@ -265,13 +291,18 @@ export function EvidenceAnnotationPanel({
     setPendingAction({ kind: 'state', annotationId: annotation.id });
     setMutationError(null);
     try {
-      const updated = await commands.updateEvidenceAnnotation(annotation.id, {
-        body: annotation.body,
-        tags: annotation.tags,
-        review_state: annotation.review_state === 'open' ? 'resolved' : 'open',
-      });
-      requests.mutationSucceeded();
-      replaceAnnotation(updated);
+      await completeEvidenceAnnotationMutation(
+        commands.updateEvidenceAnnotation(annotation.id, {
+          body: annotation.body,
+          tags: annotation.tags,
+          review_state: annotation.review_state === 'open' ? 'resolved' : 'open',
+        }),
+        (updated) => {
+          requests.mutationSucceeded();
+          replaceAnnotation(updated);
+        },
+        onChanged,
+      );
     } catch (cause) {
       setMutationError(readableError(cause));
     } finally {
@@ -283,13 +314,18 @@ export function EvidenceAnnotationPanel({
     setPendingAction({ kind: 'delete', annotationId: annotation.id });
     setMutationError(null);
     try {
-      await commands.deleteEvidenceAnnotation(annotation.id);
-      requests.mutationSucceeded();
-      setState((current) => ({
-        status: 'ready',
-        items: current.items.filter((candidate) => candidate.id !== annotation.id),
-        error: null,
-      }));
+      await completeEvidenceAnnotationMutation(
+        commands.deleteEvidenceAnnotation(annotation.id),
+        () => {
+          requests.mutationSucceeded();
+          setState((current) => ({
+            status: 'ready',
+            items: current.items.filter((candidate) => candidate.id !== annotation.id),
+            error: null,
+          }));
+        },
+        onChanged,
+      );
     } catch (cause) {
       setMutationError(readableError(cause));
     } finally {

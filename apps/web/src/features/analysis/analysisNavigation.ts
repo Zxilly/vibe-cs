@@ -7,6 +7,7 @@ export const ANALYSIS_TABS = [
   'duels',
   'openings',
   'teams',
+  'clutches',
   'insights',
   'review',
   'rounds',

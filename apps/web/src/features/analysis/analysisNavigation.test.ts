@@ -105,6 +105,24 @@ describe('analysis URL navigation', () => {
     })).toMatchObject({ tab: 'teams', round: 20 });
   });
 
+  it('restores canonical clutch highlight evidence at its exact round and start tick', () => {
+    const params = new URLSearchParams(
+      'tab=clutches&round=16&player=p2&tick=143974&evidence=demo%3Am2%2Fhighlight%3A16%3Ap2%3A144102-clutch',
+    );
+
+    expect(readAnalysisNavigation(params, {
+      roundNumbers: [16],
+      playerIds: ['p1', 'p2'],
+      roundTickRanges: [{ number: 16, startTick: 136_040, endTick: 144_815 }],
+    })).toEqual({
+      tab: 'clutches',
+      round: 16,
+      playerId: 'p2',
+      tick: 143_974,
+      evidenceId: 'demo:m2/highlight:16:p2:144102-clutch',
+    });
+  });
+
   it('preserves Demo, batch, round, and player context when switching analysis tabs', () => {
     const current = new URLSearchParams('demo=d1&demos=d1%2Cd2&tab=rounds&round=20&player=p2');
 

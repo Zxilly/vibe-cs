@@ -15,6 +15,7 @@ export const secondaryAnalysisTabs = [
   'duels',
   'openings',
   'teams',
+  'clutches',
   'insights',
   'review',
   'heatmap',

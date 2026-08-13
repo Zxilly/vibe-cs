@@ -513,7 +513,7 @@ fresh Tauri 最大化显式选择 M2+M3 后排序仍保留 2 条，thead 没有 
 2. 缺时间线式批量审查；卡片列表在 400+ highlights 时效率低。
 3. 缺持久 review 状态，例如 accepted/rejected/needs trim。
 4. Highlights 已能读取和写入 canonical annotation，但仍没有 accepted/rejected/needs-trim 状态或团队审阅队列；open/resolved 不能冒充这套工作流。
-5. 最大化仍使用单列中等宽卡片，457 条证据只能长距离滚动；需要虚拟化 power table/时间轴、快捷审查和可持久的筛选，而不是简单把卡片拉宽。
+5. 最大化已把单卡整理为 rank/preview/main/actions 四栏结构，但 457 条证据仍是长距离卡片列表；需要虚拟化 power table/时间轴、快捷审查和可持久的筛选，而不是继续堆叠完整卡片。
 6. 当前一次渲染全部 457 张卡，包含大量重复的 full-match reel、相同黑色缩略图、英文标题、SteamID 和 raw tick；信息噪声和 DOM 成本都过高。
 7. 本轮 annotation 请求完成过快，只能视觉确认成功 mutation callback 后摘要刷新；close-during-pending 的 stale refresh 抑制只有确定性 TDD，不是人工时序验收。
 

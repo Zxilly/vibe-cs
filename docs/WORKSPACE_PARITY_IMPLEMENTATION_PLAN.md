@@ -35,7 +35,7 @@ Vibe CS 要成为“证据驱动的比赛分析与视频制作工作台”，而
 - 下方空间上下文使用真实 Valve radar 与事件坐标；不生成地点名、队徽、现金/装备快照、官方回合时钟或混入历史阵容。
 - `1672×941` 为事件 + 空间 + 352px Inspector；`1100×700` 保留同样三类能力并各自滚动，不通过 `display:none` 删除证据。
 
-本切片完成不等于全功能对齐。Evidence Search 已在真实产品库中覆盖 M1/M2/M3 共 11,548 条证据、50 行默认页、`scan_complete=true`、唯一 FalleN R20 结果及 Round/Replay 深链；实际 Watch 启动和投影重建仍未过。Player 原子证据、Weapons、Heatmap 点选、Library power table/Inspector 与 SQLite 侧 search/filter/stable-sort/page、只含真实数据的 URL 列选择、当前页 Player compare、分页 Activity Center、canonical Evidence Annotation、Openings 和 roster-verified Team Round 已落。current-build 使用独立 `app.vibecs.currentaudit` identifier 与 fresh DB；同源 fast worker 约 2.6 秒分析真实 M1，得到 Demo `d394e562-7324-446f-a995-f35ed2eb6efd`、Mirage、21 rounds 与 10 players。Team Round 双尺寸实测 A/T `4/12`、A/CT `4/9`、B/T `5/9`、B/CT `8/12`，并能下钻 kill/round_end；它是单场 roster continuity，不是持久 Team entity。Activity current contract 在 2560×1392/1100×700 显示 1 条 completed analysis 且无 route error；failed/cancelled Steam download retry 仅有 TDD/runtime 门禁。Production 已显示同一持久 Activity preview，Outputs true-zero 保留 Production 与 staged-cleanup recovery，二者双尺寸无 document 横向溢出。Library 多页/大库、Activity 多页、download retry 实机、Queue recovered-cancel 与非零 Outputs 仍不能外推。Queue 执行具有 exact lease/原子发布/启动复核；本轮未点击 Watch，未启动 CS2/HLAE，真实 active-cancel/成片仍未闭合。默认旧实验数据库被 exact current schema 拒绝；隔离 identifier 不是兼容迁移。
+本切片完成不等于全功能对齐。Evidence Search 已在真实产品库中覆盖 M1/M2/M3 共 11,548 条证据、50 行默认页、`scan_complete=true`、唯一 FalleN R20 结果及 Round/Replay 深链；实际 Watch 启动和投影重建仍未过。Player 原子证据、Weapons、Heatmap 点选、Library power table/Inspector 与 SQLite 侧 search/filter/stable-sort/page、只含真实数据的 URL 列选择、最多扫描 1,000 Demo 后 server filter → stable sort → paginate 的 Players 目录、当前页 Player compare、分页 Activity Center、canonical Evidence Annotation 与全局 index、Clutch Review、Openings 和 roster-verified Team Round 已落。current-build 使用独立 `app.vibecs.currentaudit` identifier 与 fresh DB；同源 fast worker 约 2.6 秒分析真实 M1，得到 Demo `d394e562-7324-446f-a995-f35ed2eb6efd`、Mirage、21 rounds 与 10 players。Players 真实 M1 只有 1 页，Clutch Review 为 20 attempts/0 wins；M2 R16 m0NESY `1v2` 没有载入 currentaudit UI。Annotation index 只在 0 annotation fresh DB 验收 1100×700 空态；Match History 只在 Steam 未配置空态验收 `q/page/page_size` URL。Team Round 双尺寸实测 A/T `4/12`、A/CT `4/9`、B/T `5/9`、B/CT `8/12`，并能下钻 kill/round_end；它是单场 roster continuity，不是持久 Team entity。Activity current contract 在 2560×1392/1100×700 显示 1 条 completed analysis 且无 route error；failed/cancelled Steam download retry 仅有 TDD/runtime 门禁。Production 已显示同一持久 Activity preview，Outputs true-zero 保留 Production 与 staged-cleanup recovery；非零 export 的 source-project 深链与 Editor deleted-source fail-closed 已在 1100×700 实机通过，但其他非零 metadata/动作仍不能外推。Library 多页/大库、Players 多页/大库、Activity 多页、download retry 实机与 Queue recovered-cancel 仍未通过。Queue 执行具有 exact lease/原子发布/启动复核；本轮未点击 Watch，未启动 CS2/HLAE，真实 active-cancel/成片仍未闭合。默认旧实验数据库被 exact current schema 拒绝；隔离 identifier 不是兼容迁移。
 
 ## 2. 不变量
 
@@ -137,6 +137,10 @@ Vibe CS 要成为“证据驱动的比赛分析与视频制作工作台”，而
 
 当前落地边界：最大化已是 `power table + 逐条 Inspector`，1100×700 复用同一详情的 drawer；Watch、Reveal 与生命周期主动作均保留，表格横滚只发生在自身容器。Library 通过 `/demos/compact` 把 search/map/exact status、稳定 sort、page/page_size 下推到 SQLite，默认 50 条，允许 20/50/100/200，URL 可恢复且超范围页会回正。当前-only `columns=` 只接受真实列的唯一键，未知或重复值不会成为隐性兼容状态；文件大小由于 DTO 没有数据而明确 unavailable。真实 Tauri 1100×700 已验证 selector、表内横滚、固定操作列与无页面溢出。仍缺阶段日志、tags/comments、跨页批量导出，以及 SQLite `LIKE`/JSON player search 与高 offset 的真实大库性能门禁；多页验收尚未完成。
 
+### 4.1.1 Match History / Downloads
+
+当前 URL contract 只接受唯一的 `q/page/page_size`，页容量限定为 20/50/100/200；搜索或页容量变化回到第一页，过期或已取消请求不能覆盖较新的 URL 结果。解析、序列化与 request-race 已有 TDD。真实 Tauri 1100×700 只在 Steam 未配置空态验证 URL 恢复和无 document 横向溢出，截图为 `target/product-audit-20260813-player-directory/06-match-history-url-1100x700.png`；由于没有真实 history 行，搜索结果、CSV、Analysis 深链和多页仍是 OPEN。
+
 ### 4.2 Match Overview
 
 最大化采用 `scoreboard/round flow/evidence table + 380px Inspector`：
@@ -171,6 +175,8 @@ Vibe CS 要成为“证据驱动的比赛分析与视频制作工作台”，而
 
 1100×700：Roster 变成 Team A/Team B player picker；Compare 为 drawer。
 
+当前全局目录不是当前页本地排序：runtime 先从最多 1,000 个 Demo 构建 bounded player catalog，再执行 server filter、按显式列/方向稳定排序并以 SteamID 打破并列，最后分页。当前-only query 对 sort/direction 使用严格枚举。真实 M1 的 10 名玩家只有 1 页，ADR 降序已在最大化和 1100×700 验收，截图为 `target/product-audit-20260813-player-directory/03-players-server-sort-adr-desc-max.png` 与 `04-players-server-sort-adr-desc-1100x700.png`；真实跨页和大库性能仍是 OPEN，compare 也仍限定当前页。
+
 ### 4.5 Advanced Analysis
 
 将当前 More 拆成三组：
@@ -180,6 +186,8 @@ Vibe CS 要成为“证据驱动的比赛分析与视频制作工作台”，而
 - 制作辅助：Cosmetics。
 
 Economy、Weapons、Duels、Grenades 复用 `主表 + Evidence Inspector`，不再各造一组 KPI 卡。Openings 已作为独立工作台落在高级分析组：每个回合只考察最早 tick 的 kill，无法验证该首事件时整回合显式 unavailable，不把后续 kill 提升为首杀。当前 10×10 方向矩阵以行表示 actor、列表示 target，点选 cell 后同步筛选可验证的原子证据。Team Round 另提供 2×2 Team A/B × T/CT 胜回合/已打回合矩阵；只有 exact 两组 5 人 summary roster 与逐回合 10 人 `_round_roster` 能证明 continuity、side、winner 和范围内 `round_end` 时才开放，raw T/CT summary 会 fail closed。真实 M1 为 A/T `4/12`、A/CT `4/9`、B/T `5/9`、B/CT `8/12`；双尺寸无 document 横向溢出。Watch 仍未点击，CS2 仍未启动。
+
+Clutch Review 只投影能证明 outcome、唯一 `1vN` 场景、canonical player/round、合法 tick 范围和对手关系的 highlight；不完整或互相矛盾的候选 fail closed。真实 currentaudit M1 在 1100×700 为 20 opportunities、0 wins、20 attempts，截图为 `target/product-audit-20260813-player-directory/07-clutch-review-m1-1100x700.png`。M2 R16 m0NESY `1v2` 仍只有 TDD 与既有 real-data oracle，没有载入本轮 UI；该 M2 产品门禁保持 OPEN。本轮未点击 Watch，也未启动 CS2/HLAE。
 
 ### 4.6 Replay
 
@@ -222,7 +230,7 @@ Economy、Weapons、Duels、Grenades 复用 `主表 + Evidence Inspector`，不�
 - 空态提供回到 Production 或打开 Editor 的唯一下一步。
 - staged-cleanup 是独立恢复能力，不以当前 output 行数推断是否可用；true-zero 仍可保留该动作，但不能暗示已知残留数量。
 
-当前落地边界：true-zero 隐藏筛选、批量与分页外壳，保留进入 Production 与独立 staged-cleanup recovery；最大化和 1100×700 均无 document 横向溢出。该截图不证明非零 output 的表格、metadata、rename/reveal/delete 或 cleanup 执行成功。
+当前落地边界：true-zero 隐藏筛选、批量与分页外壳，保留进入 Production 与独立 staged-cleanup recovery；最大化和 1100×700 均无 document 横向溢出。export output 现在按精确 `project_id` 提供 source project 深链；若 source 已删除，Editor 显示所请求 ID 不可用并打开空白工程，不会静默回退到另一个项目。该路径已在真实 Tauri 1100×700 验收，截图为 `target/product-audit-20260813-player-directory/08-editor-missing-lineage-1100x700.png`；仍不能据此声称非零表格密度、metadata、rename/reveal/delete 或 cleanup 已通过。
 
 ### 4.10 Editor
 
@@ -232,7 +240,7 @@ Economy、Weapons、Duels、Grenades 复用 `主表 + Evidence Inspector`，不�
 - Preview `object-fit: contain`，不得因为 pane 最小宽度裁切。
 - 空时间线属于正确的编辑画布空间，不用卡片填充。
 
-当前落地边界：最大化三栏保持不变；1100×700 的属性能力已用同一面板的 modal drawer 保留，真实键盘检查通过 focus trap、Esc 与焦点归还，且无横向溢出。Media pane 的互斥 drawer 与有真实素材时的低高度编辑密度仍是后续项。
+当前落地边界：最大化三栏保持不变；1100×700 的属性能力已用同一面板的 modal drawer 保留，真实键盘检查通过 focus trap、Esc 与焦点归还，且无横向溢出。`?project=` 只选择精确存在的项目；已删除/未知 ID fail closed 到带原 ID 的 danger notice 与空白工程，不选择第一个项目。Media pane 的互斥 drawer 与有真实素材时的低高度编辑密度仍是后续项。
 
 ### 4.11 Settings
 
@@ -379,7 +387,7 @@ ActivityItem {
 - 记录包含正文、自由标签、open/resolved、created/updated 时间；后端提供分页 CRUD 与 `q/tag/state/demo/evidence` 筛选，Evidence Search drawer 当前提供创建、正文/标签编辑、resolve/reopen 与删除。Demo 删除会级联删除 annotation。
 - 真实 Tauri 已在 `furia-vs-falcons-m1-mirage` R1 tick 1 创建注释，完成 open→resolved→open、正文/标签编辑与保存；在同一隔离数据目录完整应用退出重启后，编辑后正文与包含 `current-audit` 的标签集合精确读回。截图为 `target/product-audit-20260813-current/10-evidence-annotation-edited-1440x900.png` 与 `11-evidence-annotation-after-restart-1440x900.png`；删除和 1100×700 drawer 尚未做人工产品验收。
 - 当前未发布产品只维护一份 exact schema；不导入或迁移旧 Demo remark，也不保留旧 annotation contract。现有 Demo remark 继续是独立字段，不伪装成 evidence annotation。
-- 自由标签尚不是全局 taxonomy；缺作者/权限，以及 Agent、Highlights、Round、Editor 的复用。服务端筛选已实现并测试，但没有全局 annotation index UI 的真实产品验收。
+- 自由标签尚不是全局 taxonomy；缺作者/权限，以及 Agent、Highlights、Round、Editor 的复用。全局 annotation index UI 已落，`q/tag/state/page` URL/分页契约有 TDD；本轮 fresh currentaudit DB 为 0 annotation，只在真实 Tauri 1100×700 验收空态，截图为 `target/product-audit-20260813-player-directory/05-annotation-index-1100x700.png`。非空列表、多页与 Round/Replay index 深链仍是 OPEN。
 - Algorithm highlight tags 与用户 tag taxonomy 必须保持分离；更丰富 review state 只能在有明确工作流后直接修改当前 contract，不预埋兼容枚举。
 - Team 名称只使用 Demo 声明的 `team_name/team_clan_name` 或明确 roster-only identity；不从文件名、HLTV 页面或最终 side 猜。
 - Team Round 当前只接受 domain-normalized Team A/B summary roster 与 exact per-round 10-player `_round_roster`；同队不同 side、对手同 side、winner 不属于 A/B、越界或缺失 `round_end` 都使工作台 fail closed。该单场投影不创建组织身份。
@@ -395,7 +403,7 @@ ActivityItem {
 | shots/accuracy/hit regions | 否 | weapon_fire/bullet_impact/player_hurt |
 | KAST/trade/真实 rating | 否 | 事件语义、正式公式与 metric projection |
 | Activity | 四来源 read model + 应用层 filter/page 已有 | analysis runs/logs、持久查询/cursor、虚拟化 |
-| Annotation/Tag | exact evidence annotation + 可编辑正文/自由标签 + open/resolved + 服务端筛选已有 | 作者/权限、全局 taxonomy/index UI 产品验收、跨工作流复用 |
+| Annotation/Tag | exact evidence annotation + 可编辑正文/自由标签 + open/resolved + 服务端筛选 + 全局 index 空态门禁已有 | 作者/权限、全局 taxonomy、非空/多页 index 产品验收、跨工作流复用 |
 | Team A/B × T/CT round control | exact summary roster + per-round roster/winner/round_end 足够 | 持久组织身份与跨比赛 continuity 仍需 team props + teams/match_teams |
 | 组织队名 | vendor 支持但未请求 | team props + teams/match_teams |
 | 真实 equipment value/economy type | 否 | freeze-time entity snapshot |
@@ -409,8 +417,8 @@ ActivityItem {
 3. **Workspace primitives（页面级切片已开始）**：Library 宽屏 workspace、Queue compact empty state 与 Editor property drawer 已落，但尚未抽成完整 `WorkspacePage/DataGrid/Inspector/Drawer` 公共组件。
 4. **Library power table（生产纵切已实现）**：真实 power table + 宽屏 Inspector/窄窗 drawer、SQLite 侧 search/filter/stable-sort/page 与当前 URL 列选择已落；1100×700 selector/表内横滚/固定操作列已过真实 Tauri 验收。下一步是大库性能产品门禁、阶段日志和跨页批量动作。
 5. **Activity Center（生产纵切已实现）**：统一读取分析、下载、录制与导出事实，已有 search/kind/state 和应用层分页；current-build 双尺寸单页 completed analysis 已过。failed/cancelled Steam download retry 已过 TDD/runtime，下一步是实机失败任务、持久查询/cursor、多页验收、analysis run 日志与其他类型 retry/pause。
-6. **Advanced Analysis（进行中）**：Weapons、Duels、Utility、Openings 与 Team Round 已落；Team Round 真实 M1 2×2 矩阵和 kill/round_end Inspector 双尺寸验收已过，Watch 未跑。Economy 仍以真实 T/CT 回合表为主，缺持久组织队经济工作台；Utility 的页面内双尺寸验收也仍未完成。
-7. **Evidence Annotation（生产纵切已实现）**：exact locator、分页 CRUD、正文/自由标签编辑、open/resolved、服务端 `q/tag/state/demo/evidence` 筛选与 Evidence Search drawer 已落；真实 Tauri create/resolve/reopen/edit/restart 精确读回已过。全局 annotation index UI 尚未产品验收；下一步是 taxonomy/权限、删除与窄窗人工门禁，以及 Agent/Highlights/Round/Editor 复用。
+6. **Advanced Analysis（进行中）**：Weapons、Duels、Utility、Openings、Clutch Review 与 Team Round 已落；Team Round 真实 M1 2×2 矩阵和 kill/round_end Inspector 双尺寸验收已过，Clutch Review 真实 M1 1100×700 为 20 attempts/0 wins。M2 R16 m0NESY `1v2` 仍只有 TDD/既有 real oracle，未在 currentaudit UI 载入；Watch 未跑。Economy 仍以真实 T/CT 回合表为主，缺持久组织队经济工作台；Utility 的页面内双尺寸验收也仍未完成。
+7. **Evidence Annotation（生产纵切已实现）**：exact locator、分页 CRUD、正文/自由标签编辑、open/resolved、服务端 `q/tag/state/demo/evidence` 筛选、Evidence Search drawer 与全局 index 已落；真实 Tauri create/resolve/reopen/edit/restart 精确读回已过，新的 index 在 1100×700 验收了 0 annotation 空态。下一步是非空/多页 index、taxonomy/权限、删除与窄窗编辑 drawer，以及 Agent/Highlights/Round/Editor 复用。
 8. **Replay high-fidelity round pass**：连续 selected-round 模式、HUD、kill feed、绘图/音频。
 9. **Team continuity**：跨比赛 Player/Team 档案、maps/matches/heatmap。
 
@@ -448,11 +456,14 @@ ActivityItem {
 - 已闭合 P0：Editor 低于 1400px 不再删除属性栏；常驻触发器打开同一属性面板的 focus-managed drawer，1100×700 的 Esc/focus restore/overflow 已通过。尚缺 Media drawer 与真实素材低高度门禁。
 - 已闭合 P0：Replay 原先在 1100×700 把 transport 推出首屏；当前 workspace 使用完整剩余高度，底部为 678px，transport 为 677px，document 不滚动。Evidence 仍内联占宽，最终 canvas-first drawer 结构尚未做。
 - 已闭合真实纵切：Library 不再固定读取前 100 条；SQLite 侧 search/map/status/sort/page、默认 50 条、URL 恢复与 current-only 列选择已落。真实 Tauri 1100×700 的 selector/表内横滚/固定操作列已过；多页/大库性能仍未验收。
+- 已闭合 contract/单页实机：Players 在最多 1,000 Demo 的 bounded catalog 上执行 server filter → stable sort → paginate；真实 M1 只有 10 人/1 页，ADR 降序双尺寸已过。真实跨页与大库门禁仍未验收，compare 仍限定当前页。
+- 已闭合空态/竞态纵切：Match History 的 exact `q/page/page_size` URL 与 stale-request 抑制已有 TDD，1100×700 未配置空态已过；真实历史行、CSV、Analysis 深链和多页仍未验收。
 - 已闭合基础纵切：Activity 支持应用层稳定排序/filter/page；current-build 双尺寸的 1 条 completed analysis 无 route error/伪百分比。download retry 只有 TDD/runtime，多页与失败任务实机仍未验收。
-- 已闭合真实纵切：Evidence Annotation 在 `furia-vs-falcons-m1-mirage` R1 tick 1 完成 create、resolve/reopen、正文/标签 edit/save；同一隔离数据目录完整应用重启后，编辑后正文与包含 `current-audit` 的标签集合精确读回。服务端 `q/tag/state/demo/evidence` 筛选已有自动化门禁；全局 annotation index UI、删除与 1100×700 drawer 尚未人工验收。
+- 已闭合真实纵切：Evidence Annotation 在 `furia-vs-falcons-m1-mirage` R1 tick 1 完成 create、resolve/reopen、正文/标签 edit/save；同一隔离数据目录完整应用重启后，编辑后正文与包含 `current-audit` 的标签集合精确读回。服务端 `q/tag/state/demo/evidence` 筛选已有自动化门禁；全局 index 的 1100×700 空态与 `q/tag/state/page` contract 已过，但本轮库为 0 annotation，非空/多页、删除与 1100×700 编辑 drawer 尚未人工验收。
+- 已闭合真实纵切：Clutch Review 在 currentaudit M1 1100×700 显示 20 attempts/0 wins。M2 R16 m0NESY `1v2` 未载入本轮 UI，仍为 OPEN。
 - 已闭合真实纵切：Openings 在 M1 为 21/21 verified，10×10 actor→target 矩阵的 `karrigan→FalleN` 对应 R17 tick 143316；2560×1392 与 1100×700 均无页面横向溢出。Watch 未点击、CS2 未启动。
 - 已闭合真实纵切：Team Round 在 M1 为 A/T `4/12`、A/CT `4/9`、B/T `5/9`、B/CT `8/12`，并能下钻 kill/round_end；2560×1392 与 1100×700 均无 document 横向溢出。它不创建持久 Team entity。
-- 已闭合当前状态：Production 双尺寸显示真实持久 Activity preview；Outputs true-zero 双尺寸保留 Production 与 staged-cleanup recovery。非零 recording/export/output 与 cleanup 执行仍未验收。
+- 已闭合当前状态：Production 双尺寸显示真实持久 Activity preview；Outputs true-zero 双尺寸保留 Production 与 staged-cleanup recovery。非零 export 的 source-project 深链和 Editor deleted-source fail-closed 1100×700 已过；其他非零 metadata/动作与 cleanup 执行仍未验收。
 - Queue 零项的装饰统计与无效操作栏已移除；非空编辑计划已通过 WebView local storage + reload 实测恢复。后台 recording job 有持久状态、发布复核和 orphan terminalization，但这不等于可从中间 capture tick 续跑；recovered active id 的 cancel fallback 仍只有 focused 测试。
 - Player 单场原子证据已经接线；未完成的是跨比赛 compare、全局 Player evidence 和团队级高级分析。
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { PlayerDirectoryItem, PlayerSteamProfile } from '../../shared/desktop/dto';
+import type { PlayerDirectoryItem, PlayerMatchPage, PlayerSteamProfile } from '../../shared/desktop/dto';
 import {
   MAXIMUM_PLAYER_SEARCH_CHARACTERS,
   PLAYER_SEARCH_DEBOUNCE_MS,
@@ -11,7 +11,9 @@ import {
   normalizePlayerSearch,
   playerHeadshotRate,
   playerKd,
+  playerMatchResultRange,
   playerPageCount,
+  requestedPlayerMatchPage,
   steamEvidence,
   reconcileComparedPlayerIds,
   toggleComparedPlayerIds,
@@ -71,6 +73,40 @@ describe('player presentation', () => {
     expect(playerPageCount(Number.NaN, 0)).toBe(1);
     expect(isCurrentRequest(4, 4)).toBe(true);
     expect(isCurrentRequest(5, 4)).toBe(false);
+  });
+
+  it('clamps an exact player match request to the last real page', () => {
+    expect(requestedPlayerMatchPage(2, 0, 20)).toBe(1);
+    expect(requestedPlayerMatchPage(2, 20, 20)).toBe(1);
+    expect(requestedPlayerMatchPage(2, 21, 20)).toBe(2);
+    expect(requestedPlayerMatchPage(1, 0, 20)).toBe(1);
+  });
+
+  it('reports the exact player match window instead of a current-page count', () => {
+    const page: PlayerMatchPage = {
+      items: Array.from({ length: 5 }, (_, index) => ({
+        demo_id: `demo-${index}`,
+        demo_name: `Match ${index}`,
+        map_name: null,
+        played_at: '2026-08-13T00:00:00Z',
+        team: null,
+        kills: 0,
+        deaths: 0,
+        assists: 0,
+        headshots: 0,
+        damage: 0,
+        adr: null,
+        kill_death_ratio: null,
+      })),
+      total: 25,
+      page: 2,
+      page_size: 20,
+      scanned_demos: 25,
+      scan_complete: true,
+    };
+
+    expect(playerMatchResultRange(page)).toBe('21–25 / 25');
+    expect(playerMatchResultRange({ ...page, items: [], total: 0, page: 1 })).toBe('0 / 0');
   });
 
   it('labels evidence states and formats only evidenced statistics', () => {

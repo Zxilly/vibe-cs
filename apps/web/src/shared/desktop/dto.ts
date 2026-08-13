@@ -418,7 +418,7 @@ export type PlayerDirectoryItem = {
   steam: PlayerSteamProfile;
 };
 
-export type PlayerRecentMatch = {
+export type PlayerMatch = {
   demo_id: EntityId;
   demo_name: string;
   map_name: string | null;
@@ -438,6 +438,11 @@ export type PlayerDirectoryPage = Paginated<PlayerDirectoryItem> & {
   scan_complete: boolean;
 };
 
+export type PlayerMatchPage = Paginated<PlayerMatch> & {
+  scanned_demos: number;
+  scan_complete: boolean;
+};
+
 export type PlayerComparison = {
   players: [PlayerDirectoryItem, PlayerDirectoryItem];
   scanned_demos: number;
@@ -446,7 +451,6 @@ export type PlayerComparison = {
 
 export type PlayerProfile = {
   player: PlayerDirectoryItem;
-  recent_matches: PlayerRecentMatch[];
   scanned_demos: number;
   scan_complete: boolean;
 };

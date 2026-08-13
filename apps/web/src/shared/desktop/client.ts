@@ -88,6 +88,7 @@ import type {
   Paginated,
   PlayerComparison,
   PlayerDirectoryPage,
+  PlayerMatchPage,
   PlayerProfile,
   QuickCheckResponse,
   RadarOverviewRecord,
@@ -543,6 +544,14 @@ export const commands = {
   ),
   getPlayer: (steamId: string, signal?: AbortSignal) =>
     request<PlayerProfile>(`/players/${encodeURIComponent(steamId)}`, { signal }),
+  listPlayerMatches: (
+    steamId: string,
+    query: { page: number; page_size: number },
+    signal?: AbortSignal,
+  ) => request<PlayerMatchPage>(
+    `/players/${encodeURIComponent(steamId)}/matches${queryString(query)}`,
+    { signal },
+  ),
   comparePlayers: (left: string, right: string, signal?: AbortSignal) =>
     request<PlayerComparison>(`/players/compare${queryString({ left, right })}`, { signal }),
   avatarCacheStatus: (signal?: AbortSignal) =>

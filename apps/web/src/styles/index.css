@@ -4054,21 +4054,21 @@ body {
 }
 
 .player-directory-row,
-.player-recent-matches article {
+.player-match-history article {
   min-height: 82px;
   padding: 12px;
 }
 
 .player-directory-row__main > strong,
-.player-recent-matches > header strong,
+.player-match-history > header strong,
 .player-match-main strong {
   font-size: 14px;
 }
 
 .player-directory-row__main > small,
 .player-match-main small,
-.player-recent-matches article dt,
-.player-recent-matches article dd {
+.player-match-history article dt,
+.player-match-history article dd {
   font-size: 12px;
 }
 
@@ -4347,13 +4347,13 @@ body {
   .player-steam-evidence dl > div { padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-1); }
   .player-steam-evidence dt { color: var(--muted); font-size: 6px; }
   .player-steam-evidence dd { overflow: hidden; margin: 5px 0 0; font: 650 7px/1.2 var(--font-mono); text-overflow: ellipsis; white-space: nowrap; }
-  .player-recent-matches > header { display: flex; align-items: center; justify-content: space-between; padding: 3px 1px 8px; gap: 8px; }
-  .player-recent-matches > header > div { display: flex; align-items: center; gap: 6px; }
-  .player-recent-matches > header svg { color: var(--accent); }
-  .player-recent-matches > header strong { font-size: 10px; }
-  .player-recent-matches > header > span { color: var(--muted); font-size: 7px; }
-  .player-recent-matches > div[role="list"] { display: flex; flex-direction: column; gap: 5px; }
-  .player-recent-matches article { display: grid; min-height: 61px; grid-template-columns: minmax(150px,1fr) 45px minmax(190px,.9fr) auto; align-items: center; padding: 8px 9px; gap: 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); content-visibility: auto; contain-intrinsic-size: auto 61px; }
+  .player-match-history > header { display: flex; align-items: center; justify-content: space-between; padding: 3px 1px 8px; gap: 8px; }
+  .player-match-history > header > div { display: flex; align-items: center; gap: 6px; }
+  .player-match-history > header svg { color: var(--accent); }
+  .player-match-history > header strong { font-size: 10px; }
+  .player-match-history > header > span { color: var(--muted); font-size: 7px; }
+  .player-match-history > div[role="list"] { display: flex; flex-direction: column; gap: 5px; }
+  .player-match-history article { display: grid; min-height: 61px; grid-template-columns: minmax(150px,1fr) 45px minmax(190px,.9fr) auto; align-items: center; padding: 8px 9px; gap: 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); content-visibility: auto; contain-intrinsic-size: auto 61px; }
   .player-match-main { min-width: 0; }
   .player-match-main strong, .player-match-main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .player-match-main strong { font-size: 9px; }
@@ -4362,11 +4362,16 @@ body {
   .player-match-team span, .player-match-team strong { display: block; text-align: center; }
   .player-match-team span { color: var(--muted); font-size: 6px; }
   .player-match-team strong { margin-top: 5px; font: 700 8px/1 var(--font-mono); }
-  .player-recent-matches article dl { display: grid; grid-template-columns: repeat(3,minmax(45px,1fr)); margin: 0; gap: 5px; }
-  .player-recent-matches article dt { color: var(--muted); font-size: 6px; }
-  .player-recent-matches article dd { margin: 5px 0 0; font: 650 7px/1 var(--font-mono); }
-  .player-recent-matches article > a { display: flex; align-items: center; gap: 4px; color: var(--accent); font-size: 7px; white-space: nowrap; }
-  .player-recent-matches > .empty-state { min-height: 180px; }
+  .player-match-history article dl { display: grid; grid-template-columns: repeat(3,minmax(45px,1fr)); margin: 0; gap: 5px; }
+  .player-match-history article dt { color: var(--muted); font-size: 6px; }
+  .player-match-history article dd { margin: 5px 0 0; font: 650 7px/1 var(--font-mono); }
+  .player-match-history article > nav { display: flex; align-items: flex-start; flex-direction: column; gap: 5px; }
+  .player-match-history article > nav a { display: flex; align-items: center; gap: 4px; color: var(--accent); font-size: 7px; white-space: nowrap; }
+  .player-match-history > footer { display: flex; align-items: center; justify-content: flex-end; margin-top: 8px; gap: 8px; }
+  .player-match-history > footer > span { color: var(--muted); font: 650 7px/1 var(--font-mono); }
+  .player-match-history > .empty-state { min-height: 180px; }
+  .player-match-history__error > span { display: flex; min-width: 0; align-items: center; justify-content: space-between; flex: 1; gap: 8px; }
+  .player-match-history__error > span > span { min-width: 0; overflow-wrap: anywhere; }
 }
 
 @layer responsive {
@@ -4375,8 +4380,8 @@ body {
     .players-workspace { grid-template-columns: minmax(330px,.75fr) minmax(450px,1.25fr); }
     .player-directory-row { grid-template-columns: 36px minmax(120px,1fr) auto; }
     .player-directory-row > .badge { grid-column: 2 / -1; justify-self: start; }
-    .player-recent-matches article { grid-template-columns: minmax(140px,1fr) 42px minmax(170px,.9fr); }
-    .player-recent-matches article > a { grid-column: 3; justify-self: end; }
+    .player-match-history article { grid-template-columns: minmax(140px,1fr) 42px minmax(170px,.9fr); }
+    .player-match-history article > nav { grid-column: 3; justify-self: end; }
   }
 
   @media (max-width: 900px) {
@@ -4396,9 +4401,9 @@ body {
     .player-detail-card { padding: 11px; }
     .player-detail-identity { grid-template-columns: 62px minmax(0,1fr); }
     .player-avatar { width: 58px; height: 58px; border-radius: 13px; }
-    .player-recent-matches article { grid-template-columns: minmax(0,1fr) 42px; }
-    .player-recent-matches article dl { grid-column: 1 / -1; }
-    .player-recent-matches article > a { grid-column: 1 / -1; justify-self: start; }
+    .player-match-history article { grid-template-columns: minmax(0,1fr) 42px; }
+    .player-match-history article dl { grid-column: 1 / -1; }
+    .player-match-history article > nav { grid-column: 1 / -1; justify-self: start; }
   }
 }
 

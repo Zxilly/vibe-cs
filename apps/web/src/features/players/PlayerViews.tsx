@@ -1,10 +1,13 @@
 import { currentLocale, msg, msgf, useI18n } from '../../shared/i18n';
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Gamepad2,
   ImageOff,
   ListFilter,
+  RefreshCw,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
@@ -16,17 +19,19 @@ import { formatKillDeathRatioValue } from '../../shared/performanceMetrics';
 import type {
   PlayerAggregateStats,
   PlayerDirectoryItem,
+  PlayerMatchPage,
   PlayerProfile,
   PlayerSteamProfile,
   EvidenceSearchResponse,
 } from '../../shared/desktop/dto';
-import { Badge, EmptyState, Notice } from '../../shared/ui';
+import { Badge, Button, EmptyState, Notice, Spinner } from '../../shared/ui';
 import {
   formatOptionalMetric,
   localPlayerAvatarPath,
   playerHeadshotRate,
   playerInitials,
   playerKd,
+  playerMatchResultRange,
   steamEvidence,
 } from './playerPresentation';
 import { evidenceSearchResultHref } from '../evidence-search/evidenceSearchPresentation';
@@ -204,11 +209,23 @@ export function PlayerCrossMatchEvidence({
 
 export function PlayerDetailView({
   profile,
+  matches,
+  matchesLoading = false,
+  matchesError = null,
+  onRetryMatches = () => undefined,
+  onPreviousMatches = () => undefined,
+  onNextMatches = () => undefined,
   evidence = null,
   evidenceLoading = false,
   evidenceError = null,
 }: {
   profile: PlayerProfile;
+  matches: PlayerMatchPage | null;
+  matchesLoading?: boolean;
+  matchesError?: string | null;
+  onRetryMatches?: () => void;
+  onPreviousMatches?: () => void;
+  onNextMatches?: () => void;
   evidence?: EvidenceSearchResponse | null;
   evidenceLoading?: boolean;
   evidenceError?: string | null;
@@ -252,14 +269,30 @@ export function PlayerDetailView({
         <PlayerCrossMatchEvidence playerId={player.steam_id} evidence={evidence} />
       ) : null}
 
-      <section className="player-recent-matches">
+      <section className="player-match-history">
         <header>
-          <div><Gamepad2 size={16} /><strong>{msg("m0738")}</strong></div>
-          <span>{msg("m0182")}</span>
+          <div><Gamepad2 size={16} /><strong>{t('players.matches.title')}</strong></div>
+          <span>{matches ? `${playerMatchResultRange(matches)} · ${msg("m0182")}` : msg("m0182")}</span>
         </header>
-        {profile.recent_matches.length > 0 ? (
-          <div role="list" aria-label={msg("m0738")}>
-            {profile.recent_matches.map((match) => (
+        {matchesLoading && !matches ? (
+          <div className="players-loading">
+            <Spinner label={t('players.matches.loading')} />
+            <strong>{t('players.matches.loading')}</strong>
+          </div>
+        ) : matchesError ? (
+          <Notice
+            tone="danger"
+            title={t('players.matches.error')}
+            className="player-match-history__error"
+          >
+            <span>{matchesError}</span>
+            <Button size="sm" variant="ghost" onClick={onRetryMatches}>
+              <RefreshCw size={13} />{t('players.matches.retry')}
+            </Button>
+          </Notice>
+        ) : matches && matches.items.length > 0 ? (
+          <div role="list" aria-label={t('players.matches.title')}>
+            {matches.items.map((match) => (
               <article key={match.demo_id} role="listitem">
                 <div className="player-match-main">
                   <strong>{match.map_name ?? msg("m0398")}</strong>
@@ -275,20 +308,48 @@ export function PlayerDetailView({
                   <div><dt>ADR</dt><dd>{formatOptionalMetric(match.adr)}</dd></div>
                   <div><dt>K/D</dt><dd>{formatKillDeathRatioValue(match.kill_death_ratio, 2)}</dd></div>
                 </dl>
-                <Link to={`/analysis?demo=${encodeURIComponent(match.demo_id)}`}>
-
-                 {msg("m0814")}<ExternalLink size={12} />
-                </Link>
+                <nav aria-label={`${match.demo_name} · ${player.name}`}>
+                  <Link to={`/analysis?${new URLSearchParams({
+                    demo: match.demo_id,
+                    tab: 'players',
+                    player: player.steam_id,
+                  }).toString()}`}>
+                    {msg("m0814")}<ExternalLink size={12} />
+                  </Link>
+                  <Link to={`/evidence-search?${new URLSearchParams({
+                    player: player.steam_id,
+                    demo_id: match.demo_id,
+                    page: '1',
+                    page_size: '50',
+                  }).toString()}`}>
+                    {t('players.evidence.title')}<ExternalLink size={12} />
+                  </Link>
+                </nav>
               </article>
             ))}
           </div>
         ) : (
           <EmptyState
             icon={<ImageOff size={24} />}
-            title={msg("m0897")}
-            description={msg("m1122")}
+            title={t('players.matches.empty')}
+            description={t('players.matches.emptyDescription')}
           />
         )}
+        {matches && matches.total > 0 ? (
+          <footer>
+            <Button
+              size="sm"
+              disabled={matches.page <= 1}
+              onClick={onPreviousMatches}
+            ><ChevronLeft size={13} />{t('common.previous')}</Button>
+            <span>{matches.page} / {Math.max(1, Math.ceil(matches.total / matches.page_size))}</span>
+            <Button
+              size="sm"
+              disabled={matches.page >= Math.ceil(matches.total / matches.page_size)}
+              onClick={onNextMatches}
+            >{t('common.next')}<ChevronRight size={13} /></Button>
+          </footer>
+        ) : null}
       </section>
     </div>
   );

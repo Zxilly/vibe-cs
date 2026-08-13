@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import type { EvidenceSearchResponse, PlayerProfile } from '../../shared/desktop/dto';
+import type { EvidenceSearchResponse, PlayerMatchPage, PlayerProfile } from '../../shared/desktop/dto';
 import { evidenceParticipants, PlayerCrossMatchEvidence, PlayerDetailView } from './PlayerViews';
 
 const profile: PlayerProfile = {
@@ -35,7 +35,12 @@ const profile: PlayerProfile = {
       reason: null,
     },
   },
-  recent_matches: [{
+  scanned_demos: 2,
+  scan_complete: true,
+};
+
+const matches: PlayerMatchPage = {
+  items: [{
     demo_id: '23d5a6ee-23a4-43b7-8654-b48e1989e231',
     demo_name: 'Local match',
     map_name: 'de_inferno',
@@ -49,13 +54,16 @@ const profile: PlayerProfile = {
     adr: 90,
     kill_death_ratio: 2,
   }],
+  total: 2,
+  page: 1,
+  page_size: 20,
   scanned_demos: 2,
   scan_complete: true,
 };
 
 function render(value: PlayerProfile): string {
   return renderToStaticMarkup(
-    <MemoryRouter><PlayerDetailView profile={value} /></MemoryRouter>,
+    <MemoryRouter><PlayerDetailView profile={value} matches={matches} /></MemoryRouter>,
   );
 }
 
@@ -127,8 +135,12 @@ describe('player detail evidence', () => {
     }, 'unknown')).toBe('76561198000000001 → 76561198000000002');
   });
 
-  it('renders local statistics, recent matches, and only the local avatar route', () => {
-    const markup = render(profile);
+  it('renders exact paged matches with player-preserving analysis and evidence links', () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <PlayerDetailView profile={profile} matches={matches} />
+      </MemoryRouter>,
+    );
 
     expect(markup).toContain('Steam 公开资料可用');
     expect(markup).toContain('de_inferno');
@@ -138,6 +150,37 @@ describe('player detail evidence', () => {
     );
     expect(markup).not.toContain('avatars.steamstatic.com');
     expect(markup).toContain('不推断胜负');
+    expect(markup).toContain('本地比赛明细');
+    expect(markup).toContain('1–1 / 2');
+    expect(markup).toContain('tab=players&amp;player=76561198000000001');
+    expect(markup).toContain('player=76561198000000001&amp;demo_id=23d5a6ee-23a4-43b7-8654-b48e1989e231');
+  });
+
+  it('keeps the paged match region pending until the exact window arrives', () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <PlayerDetailView profile={profile} matches={null} matchesLoading />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain('正在读取该玩家的比赛');
+    expect(markup).not.toContain('没有本地比赛');
+  });
+
+  it('offers a local retry when only the exact match page failed', () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <PlayerDetailView
+          profile={profile}
+          matches={null}
+          matchesError="match page unavailable"
+          onRetryMatches={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain('match page unavailable');
+    expect(markup).toContain('重试读取比赛');
   });
 
   it('shows the unconfigured evidence state without requesting an avatar', () => {

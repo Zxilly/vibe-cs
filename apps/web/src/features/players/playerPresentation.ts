@@ -2,6 +2,7 @@ import { msg, msgf } from '../../shared/i18n';
 import type {
   PlayerAggregateStats,
   PlayerDirectoryItem,
+  PlayerMatchPage,
   PlayerSteamProfile,
 } from '../../shared/desktop/dto';
 import { formatKillDeathRatio } from '../../shared/performanceMetrics';
@@ -28,6 +29,20 @@ export function normalizePlayerSearch(value: string): string {
 export function playerPageCount(total: number, pageSize = PLAYER_PAGE_SIZE): number {
   if (!Number.isFinite(total) || !Number.isFinite(pageSize) || pageSize <= 0) return 1;
   return Math.max(1, Math.ceil(Math.max(0, total) / pageSize));
+}
+
+export function requestedPlayerMatchPage(
+  requestedPage: number,
+  total: number,
+  pageSize: number,
+): number {
+  return Math.min(Math.max(1, requestedPage), playerPageCount(total, pageSize));
+}
+
+export function playerMatchResultRange(page: PlayerMatchPage): string {
+  if (page.items.length === 0) return `0 / ${page.total}`;
+  const start = ((page.page - 1) * page.page_size) + 1;
+  return `${start}–${start + page.items.length - 1} / ${page.total}`;
 }
 
 export function toggleComparedPlayerIds(

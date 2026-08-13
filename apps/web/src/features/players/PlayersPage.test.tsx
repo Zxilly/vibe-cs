@@ -27,4 +27,17 @@ describe('explicit cross-page player comparison wiring', () => {
     expect(source).toMatch(/setComparedIds\(\(current\)[\s\S]*?reconciliation\.retainedIds/);
     expect(source).toMatch(/players\.compare\.missingRemoved/);
   });
+
+  it('re-requests the last real player match page instead of committing an empty overflow page', () => {
+    expect(source).toMatch(/const requestedPage = matchPage/);
+    expect(source).toMatch(/const availablePage = requestedPlayerMatchPage\(\s*requestedPage,\s*response\.total,\s*response\.page_size,?\s*\)/);
+    expect(source).toMatch(/if \(availablePage !== requestedPage\)[\s\S]*?setMatchPage\(availablePage\)[\s\S]*?return/);
+    expect(source.indexOf('setMatchPage(availablePage)')).toBeLessThan(source.indexOf('setMatches(response)'));
+  });
+
+  it('retries only the failed player match request', () => {
+    expect(source).toMatch(/const \[matchesRefreshRevision, setMatchesRefreshRevision\] = useState\(0\)/);
+    expect(source).toMatch(/\[matchPage, matchesRefreshRevision, refreshRevision, selectedId\]/);
+    expect(source).toMatch(/onRetryMatches=\{\(\) => setMatchesRefreshRevision\(\(current\) => current \+ 1\)\}/);
+  });
 });

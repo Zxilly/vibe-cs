@@ -15,13 +15,13 @@ use url::Url;
 use vibe_cs_application::{
     AvatarCacheCleanup, AvatarCacheStatus, PlayerAggregateStats, PlayerAvatar, PlayerComparison,
     PlayerComparisonQuery, PlayerDirectoryItem, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerDirectorySort, PlayerDirectorySortDirection, PlayerPort, PlayerProfile,
-    PlayerRecentMatch, PlayerSteamProfile, SteamProfileState,
+    PlayerDirectorySort, PlayerDirectorySortDirection, PlayerMatch, PlayerMatchPage,
+    PlayerMatchQuery, PlayerPort, PlayerProfile, PlayerSteamProfile, SteamProfileState,
 };
 use vibe_cs_domain::{DemoQuery, DemoRecord, DomainError, MatchAnalysis, PlayerStats};
 use vibe_cs_integrations::{
-    IntegrationError, SecretString, SteamAvatarImage, SteamPlayerProfilePort, SteamPlayerSummary,
-    SteamProfileClient, is_steam_id,
+    is_steam_id, IntegrationError, SecretString, SteamAvatarImage, SteamPlayerProfilePort,
+    SteamPlayerSummary, SteamProfileClient,
 };
 
 #[cfg(test)]
@@ -34,7 +34,6 @@ const DEMO_PAGE_SIZE: u32 = 200;
 const MAXIMUM_PLAYER_PAGE_SIZE: u32 = 100;
 const MAXIMUM_PLAYER_PAGE: u32 = 10_000;
 const MAXIMUM_SEARCH_CHARS: usize = 128;
-const MAXIMUM_RECENT_MATCHES: usize = 20;
 const MAXIMUM_LOCAL_NAME_CHARS: usize = 128;
 const MAXIMUM_DEMO_NAME_CHARS: usize = 256;
 const PLAYER_CATALOG_TTL: std::time::Duration = std::time::Duration::from_secs(5);
@@ -107,7 +106,7 @@ struct LocalPlayer {
     last_team: Option<String>,
     last_match_at: DateTime<Utc>,
     stats: PlayerAggregateStats,
-    recent_matches: Vec<PlayerRecentMatch>,
+    match_rows: Vec<PlayerMatch>,
 }
 
 #[derive(Debug, Default)]
@@ -126,7 +125,7 @@ struct PlayerAccumulator {
     adr_samples: u32,
     kill_death_ratio_total: f64,
     kill_death_ratio_samples: u32,
-    recent_matches: Vec<PlayerRecentMatch>,
+    match_rows: Vec<PlayerMatch>,
 }
 
 impl RuntimePlayerPort {
@@ -333,13 +332,44 @@ impl PlayerPort for RuntimePlayerPort {
             .find(|player| player.steam_id == steam_id)
             .cloned()
             .ok_or_else(|| DomainError::NotFound("player".to_owned()))?;
-        let mut recent_matches = local.recent_matches.clone();
-        recent_matches.truncate(MAXIMUM_RECENT_MATCHES);
         let mut items = vec![local_item(local)];
         self.enrich(&mut items).await?;
         Ok(PlayerProfile {
             player: items.remove(0),
-            recent_matches,
+            scanned_demos: catalog.scanned_demos,
+            scan_complete: catalog.scan_complete,
+        })
+    }
+
+    async fn matches(
+        &self,
+        steam_id: String,
+        query: PlayerMatchQuery,
+    ) -> Result<PlayerMatchPage, DomainError> {
+        validate_steam_id(&steam_id)?;
+        let (page, page_size) = validate_match_query(&query)?;
+        let catalog = self.catalog().await?;
+        let player = catalog
+            .players
+            .iter()
+            .find(|player| player.steam_id == steam_id)
+            .ok_or_else(|| DomainError::NotFound("player".to_owned()))?;
+        let total = u64::try_from(player.match_rows.len()).unwrap_or(u64::MAX);
+        let offset = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(page_size));
+        let offset = usize::try_from(offset).unwrap_or(usize::MAX);
+        let take = usize::try_from(page_size).unwrap_or(usize::MAX);
+        let items = player
+            .match_rows
+            .iter()
+            .skip(offset)
+            .take(take)
+            .cloned()
+            .collect();
+        Ok(PlayerMatchPage {
+            items,
+            total,
+            page,
+            page_size,
             scanned_demos: catalog.scanned_demos,
             scan_complete: catalog.scan_complete,
         })
@@ -457,8 +487,8 @@ fn aggregate_analysis(
             &mut accumulator.kill_death_ratio_samples,
         );
         accumulator
-            .recent_matches
-            .push(recent_match(demo, stats, played_at));
+            .match_rows
+            .push(player_match(demo, stats, played_at));
     }
 }
 
@@ -469,12 +499,8 @@ fn add_average_sample(value: f64, total: &mut f64, samples: &mut u32) {
     }
 }
 
-fn recent_match(
-    demo: &DemoRecord,
-    stats: &PlayerStats,
-    played_at: DateTime<Utc>,
-) -> PlayerRecentMatch {
-    PlayerRecentMatch {
+fn player_match(demo: &DemoRecord, stats: &PlayerStats, played_at: DateTime<Utc>) -> PlayerMatch {
+    PlayerMatch {
         demo_id: demo.id,
         demo_name: bounded_local_text(&demo.display_name, MAXIMUM_DEMO_NAME_CHARS)
             .or_else(|| bounded_local_text(&demo.file_name, MAXIMUM_DEMO_NAME_CHARS))
@@ -500,7 +526,7 @@ fn recent_match(
 
 fn finish_player(steam_id: String, mut accumulator: PlayerAccumulator) -> Option<LocalPlayer> {
     let last_match_at = accumulator.latest_at?;
-    accumulator.recent_matches.sort_by(|left, right| {
+    accumulator.match_rows.sort_by(|left, right| {
         right
             .played_at
             .cmp(&left.played_at)
@@ -531,7 +557,7 @@ fn finish_player(steam_id: String, mut accumulator: PlayerAccumulator) -> Option
                 accumulator.kill_death_ratio_samples,
             ),
         },
-        recent_matches: accumulator.recent_matches,
+        match_rows: accumulator.match_rows,
     })
 }
 
@@ -614,6 +640,11 @@ fn validate_query(
         )));
     }
     Ok((page, page_size, search, query.sort, query.direction))
+}
+
+fn validate_match_query(query: &PlayerMatchQuery) -> Result<(u32, u32), DomainError> {
+    query.validate()?;
+    Ok((query.page, query.page_size))
 }
 
 fn sort_player_directory(
@@ -930,7 +961,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn local_directory_aggregates_stable_ids_and_recent_matches() {
+    async fn local_directory_aggregates_stable_ids_and_player_matches() {
         let (port, backend, _temporary) = fixture(false).await;
         let page = port
             .list(PlayerDirectoryQuery {
@@ -951,9 +982,86 @@ mod tests {
         assert_eq!(page.items[0].steam.state, SteamProfileState::NotConfigured);
         assert_eq!(backend.summary_calls.load(Ordering::SeqCst), 0);
         let profile = port.get(PLAYER_ID.to_owned()).await.expect("profile");
-        assert_eq!(profile.recent_matches.len(), 2);
-        assert!(profile.recent_matches[0].played_at > profile.recent_matches[1].played_at);
+        assert_eq!(profile.player.stats.matches, 2);
+        let matches = port
+            .matches(
+                PLAYER_ID.to_owned(),
+                PlayerMatchQuery {
+                    page: 1,
+                    page_size: 20,
+                },
+            )
+            .await
+            .expect("matches");
+        assert_eq!(matches.items.len(), 2);
+        assert!(matches.items[0].played_at > matches.items[1].played_at);
         assert_eq!(port.catalog_builds.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn player_matches_page_is_windowed_after_the_complete_catalog_result() {
+        let (port, _, _temporary) = fixture(false).await;
+        let newest = Utc::now();
+        for index in 0..23 {
+            put_match(
+                &port.storage,
+                newest - Duration::minutes(i64::from(index)),
+                "Current Name",
+                30 + index,
+            )
+            .await;
+        }
+
+        let page = port
+            .matches(
+                PLAYER_ID.to_owned(),
+                PlayerMatchQuery {
+                    page: 2,
+                    page_size: 20,
+                },
+            )
+            .await
+            .expect("second player match page");
+
+        assert_eq!(page.total, 25);
+        assert_eq!(page.page, 2);
+        assert_eq!(page.page_size, 20);
+        assert_eq!(page.items.len(), 5);
+        assert_eq!(
+            page.items.iter().map(|item| item.kills).collect::<Vec<_>>(),
+            vec![50, 51, 52, 20, 10]
+        );
+        assert_eq!(page.scanned_demos, 25);
+        assert!(page.scan_complete);
+    }
+
+    #[tokio::test]
+    async fn player_matches_reject_invalid_input_and_a_catalog_missing_player() {
+        let (port, _, _temporary) = fixture(false).await;
+        let query = || PlayerMatchQuery {
+            page: 1,
+            page_size: 20,
+        };
+
+        assert!(matches!(
+            port.matches("not-a-steam-id".to_owned(), query()).await,
+            Err(DomainError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            port.matches(
+                PLAYER_ID.to_owned(),
+                PlayerMatchQuery {
+                    page: 0,
+                    page_size: 20,
+                },
+            )
+            .await,
+            Err(DomainError::InvalidInput(_))
+        ));
+        assert!(matches!(
+            port.matches("76561198000000999".to_owned(), query()).await,
+            Err(DomainError::NotFound(resource)) if resource == "player"
+        ));
     }
 
     #[tokio::test]

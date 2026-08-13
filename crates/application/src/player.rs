@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use vibe_cs_domain::DomainError;
 
+pub const MAXIMUM_PLAYER_MATCH_PAGE: u32 = 10_000;
+pub const MAXIMUM_PLAYER_MATCH_PAGE_SIZE: u32 = 100;
+
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PlayerDirectorySort {
@@ -42,6 +45,35 @@ pub struct PlayerDirectoryQuery {
 pub struct PlayerComparisonQuery {
     pub left: String,
     pub right: String,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PlayerMatchQuery {
+    pub page: u32,
+    pub page_size: u32,
+}
+
+impl PlayerMatchQuery {
+    /// Validates the exact bounded pagination contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when either pagination field is outside its
+    /// supported range.
+    pub fn validate(&self) -> Result<(), DomainError> {
+        if self.page == 0 || self.page > MAXIMUM_PLAYER_MATCH_PAGE {
+            return Err(DomainError::InvalidInput(format!(
+                "page must be between 1 and {MAXIMUM_PLAYER_MATCH_PAGE}"
+            )));
+        }
+        if self.page_size == 0 || self.page_size > MAXIMUM_PLAYER_MATCH_PAGE_SIZE {
+            return Err(DomainError::InvalidInput(format!(
+                "page_size must be between 1 and {MAXIMUM_PLAYER_MATCH_PAGE_SIZE}"
+            )));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -126,7 +158,7 @@ pub struct PlayerDirectoryItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
-pub struct PlayerRecentMatch {
+pub struct PlayerMatch {
     pub demo_id: Uuid,
     pub demo_name: String,
     pub map_name: Option<String>,
@@ -153,6 +185,17 @@ pub struct PlayerDirectoryPage {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
+pub struct PlayerMatchPage {
+    pub items: Vec<PlayerMatch>,
+    pub total: u64,
+    pub page: u32,
+    pub page_size: u32,
+    pub scanned_demos: u32,
+    pub scan_complete: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerComparison {
     pub players: [PlayerDirectoryItem; 2],
     pub scanned_demos: u32,
@@ -160,9 +203,9 @@ pub struct PlayerComparison {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerProfile {
     pub player: PlayerDirectoryItem,
-    pub recent_matches: Vec<PlayerRecentMatch>,
     pub scanned_demos: u32,
     pub scan_complete: bool,
 }
@@ -212,6 +255,11 @@ pub struct AvatarCacheCleanup {
 pub trait PlayerPort: Send + Sync + std::fmt::Debug {
     async fn list(&self, query: PlayerDirectoryQuery) -> Result<PlayerDirectoryPage, DomainError>;
     async fn get(&self, steam_id: String) -> Result<PlayerProfile, DomainError>;
+    async fn matches(
+        &self,
+        steam_id: String,
+        query: PlayerMatchQuery,
+    ) -> Result<PlayerMatchPage, DomainError>;
     async fn compare(&self, query: PlayerComparisonQuery) -> Result<PlayerComparison, DomainError>;
     async fn avatar(&self, steam_id: String) -> Result<PlayerAvatar, DomainError>;
     async fn avatar_cache_status(&self) -> Result<AvatarCacheStatus, DomainError>;
@@ -230,6 +278,16 @@ impl PlayerPort for DisabledPlayerPort {
     }
 
     async fn get(&self, _steam_id: String) -> Result<PlayerProfile, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "player directory adapter".to_owned(),
+        ))
+    }
+
+    async fn matches(
+        &self,
+        _steam_id: String,
+        _query: PlayerMatchQuery,
+    ) -> Result<PlayerMatchPage, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "player directory adapter".to_owned(),
         ))
@@ -291,6 +349,74 @@ mod tests {
             }))
             .is_err()
         );
+    }
+
+    #[test]
+    fn player_match_query_requires_exact_current_fields() {
+        let query = serde_json::from_value::<PlayerMatchQuery>(serde_json::json!({
+            "page": 2,
+            "page_size": 20
+        }))
+        .expect("current player match query");
+
+        assert_eq!(query.page, 2);
+        assert_eq!(query.page_size, 20);
+        assert!(
+            serde_json::from_value::<PlayerMatchQuery>(serde_json::json!({
+                "page_size": 20
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<PlayerMatchQuery>(serde_json::json!({
+                "page": 2,
+                "page_size": 20,
+                "limit": 20
+            }))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn player_profile_uses_only_the_current_identity_shape() {
+        let current = serde_json::json!({
+            "player": {
+                "steam_id": "76561198000000001",
+                "name": "Local Player",
+                "aliases": [],
+                "last_team": null,
+                "last_match_at": "2026-08-13T00:00:00Z",
+                "stats": {
+                    "matches": 2,
+                    "kills": 30,
+                    "deaths": 20,
+                    "assists": 8,
+                    "headshots": 15,
+                    "damage": 3200,
+                    "average_adr": 82.25,
+                    "average_kill_death_ratio": 1.5
+                },
+                "steam": {
+                    "state": "not_configured",
+                    "persona_name": null,
+                    "real_name": null,
+                    "profile_url": null,
+                    "country_code": null,
+                    "persona_state": null,
+                    "last_logoff": null,
+                    "created_at": null,
+                    "avatar_url": null,
+                    "reason": "Steam Web API key is not configured"
+                }
+            },
+            "scanned_demos": 2,
+            "scan_complete": true
+        });
+
+        serde_json::from_value::<PlayerProfile>(current.clone()).expect("current player profile");
+        let mut retired = current;
+        retired["recent_matches"] = serde_json::json!([]);
+        assert!(serde_json::from_value::<PlayerProfile>(retired).is_err());
     }
 
     #[test]

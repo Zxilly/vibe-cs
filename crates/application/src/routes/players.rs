@@ -1,16 +1,16 @@
 use axum::{
-    Json, Router,
     body::Body,
     extract::{Path, State},
-    http::{HeaderName, HeaderValue, StatusCode, header},
+    http::{header, HeaderName, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
+    Json, Router,
 };
 
 use crate::{
     ApiError, ApiQuery, ApiResult, AppState, AvatarCacheCleanup, AvatarCacheStatus, PlayerAvatar,
     PlayerComparison, PlayerComparisonQuery, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerProfile,
+    PlayerMatchPage, PlayerMatchQuery, PlayerProfile,
 };
 
 const AVATAR_CACHE_HEADER: HeaderName = HeaderName::from_static("x-vibe-cs-avatar-cache");
@@ -19,6 +19,7 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/players", get(list_players))
         .route("/api/players/compare", get(compare_players))
+        .route("/api/players/{steam_id}/matches", get(list_player_matches))
         .route("/api/players/{steam_id}", get(get_player))
         .route(
             "/api/players/{steam_id}/avatar",
@@ -61,6 +62,20 @@ async fn get_player(
     state
         .players
         .get(steam_id)
+        .await
+        .map(Json)
+        .map_err(Into::into)
+}
+
+async fn list_player_matches(
+    State(state): State<AppState>,
+    Path(steam_id): Path<String>,
+    ApiQuery(query): ApiQuery<PlayerMatchQuery>,
+) -> ApiResult<Json<PlayerMatchPage>> {
+    query.validate()?;
+    state
+        .players
+        .matches(steam_id, query)
         .await
         .map(Json)
         .map_err(Into::into)
@@ -213,8 +228,22 @@ mod tests {
                     stats: PlayerAggregateStats::default(),
                     steam: PlayerSteamProfile::not_configured(),
                 },
-                recent_matches: Vec::new(),
                 scanned_demos: 1,
+                scan_complete: true,
+            })
+        }
+
+        async fn matches(
+            &self,
+            _steam_id: String,
+            query: PlayerMatchQuery,
+        ) -> Result<PlayerMatchPage, DomainError> {
+            Ok(PlayerMatchPage {
+                items: Vec::new(),
+                total: 0,
+                page: query.page,
+                page_size: query.page_size,
+                scanned_demos: 12,
                 scan_complete: true,
             })
         }
@@ -353,6 +382,66 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn player_matches_route_returns_the_exact_requested_page() {
+        let players = Arc::new(FixturePlayers::new());
+        let (_directory, state) = test_state(players).await;
+        let response = router()
+            .with_state(state)
+            .oneshot(
+                Request::builder()
+                    .uri(format!(
+                        "/api/players/{PLAYER_ID}/matches?page=2&page_size=20"
+                    ))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let page: serde_json::Value = serde_json::from_slice(
+            &to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .expect("player matches body"),
+        )
+        .expect("player matches page");
+        assert_eq!(page["page"], 2);
+        assert_eq!(page["page_size"], 20);
+        assert_eq!(page["scanned_demos"], 12);
+        assert_eq!(page["scan_complete"], true);
+        assert_eq!(page["items"], serde_json::json!([]));
+    }
+
+    #[tokio::test]
+    async fn player_matches_route_rejects_missing_unknown_and_out_of_range_query_fields() {
+        let players = Arc::new(FixturePlayers::new());
+        let (_directory, state) = test_state(players).await;
+        let dispatcher = router().with_state(state);
+
+        for uri in [
+            format!("/api/players/{PLAYER_ID}/matches?page_size=20"),
+            format!("/api/players/{PLAYER_ID}/matches?page=1"),
+            format!("/api/players/{PLAYER_ID}/matches?page=1&page_size=20&limit=20"),
+            format!("/api/players/{PLAYER_ID}/matches?page=0&page_size=20"),
+            format!("/api/players/{PLAYER_ID}/matches?page=10001&page_size=20"),
+            format!("/api/players/{PLAYER_ID}/matches?page=1&page_size=0"),
+            format!("/api/players/{PLAYER_ID}/matches?page=1&page_size=101"),
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(uri)
+                        .body(Body::empty())
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        }
+    }
+
+    #[tokio::test]
     async fn player_comparison_route_rejects_missing_and_unknown_query_fields() {
         let players = Arc::new(FixturePlayers::new());
         let (_directory, state) = test_state(players).await;
@@ -406,11 +495,9 @@ mod tests {
             to_bytes(get.into_body(), 1024).await.expect("GET body"),
             &b"fixture-avatar"[..]
         );
-        assert!(
-            to_bytes(head.into_body(), 1024)
-                .await
-                .expect("HEAD body")
-                .is_empty()
-        );
+        assert!(to_bytes(head.into_body(), 1024)
+            .await
+            .expect("HEAD body")
+            .is_empty());
     }
 }

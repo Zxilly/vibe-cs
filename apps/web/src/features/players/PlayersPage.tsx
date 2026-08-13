@@ -16,6 +16,7 @@ import type {
   EvidenceSearchResponse,
   PlayerComparison,
   PlayerDirectoryItem,
+  PlayerMatchPage,
   PlayerProfile,
 } from '../../shared/desktop/dto';
 import { useI18n } from '../../shared/i18n';
@@ -39,12 +40,15 @@ import {
   normalizePlayerSearch,
   playerPageCount,
   reconcileComparedPlayerIds,
+  requestedPlayerMatchPage,
   toggleComparedPlayerIds,
   type PlayerDirectorySort,
 } from './playerPresentation';
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 type CacheActionState = 'idle' | 'clearing' | 'success' | 'error';
+
+const PLAYER_MATCH_PAGE_SIZE = 20;
 
 function useWidePlayerInspector(): boolean {
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1400px)').matches);
@@ -81,6 +85,11 @@ export function PlayersPage() {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [detailState, setDetailState] = useState<LoadState>('idle');
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [matchPage, setMatchPage] = useState(1);
+  const [matches, setMatches] = useState<PlayerMatchPage | null>(null);
+  const [matchesState, setMatchesState] = useState<LoadState>('idle');
+  const [matchesError, setMatchesError] = useState<string | null>(null);
+  const [matchesRefreshRevision, setMatchesRefreshRevision] = useState(0);
   const [playerEvidence, setPlayerEvidence] = useState<EvidenceSearchResponse | null>(null);
   const [playerEvidenceState, setPlayerEvidenceState] = useState<LoadState>('idle');
   const [playerEvidenceError, setPlayerEvidenceError] = useState<string | null>(null);
@@ -92,6 +101,7 @@ export function PlayersPage() {
   const [refreshRevision, setRefreshRevision] = useState(0);
   const listRequestRevision = useRef(0);
   const detailRequestRevision = useRef(0);
+  const matchesRequestRevision = useRef(0);
   const evidenceRequestRevision = useRef(0);
   const comparisonRequestRevision = useRef(0);
   const cacheStatusRequestRevision = useRef(0);
@@ -162,6 +172,52 @@ export function PlayersPage() {
     });
     return () => controller.abort();
   }, [refreshRevision, selectedId]);
+
+  useEffect(() => {
+    if (selectedId === null) {
+      setMatches(null);
+      setMatchesState('idle');
+      setMatchesError(null);
+      return undefined;
+    }
+    const controller = new AbortController();
+    const requestRevision = ++matchesRequestRevision.current;
+    const requestedPage = matchPage;
+    setMatches(null);
+    setMatchesState('loading');
+    setMatchesError(null);
+    void commands.listPlayerMatches(
+      selectedId,
+      { page: requestedPage, page_size: PLAYER_MATCH_PAGE_SIZE },
+      controller.signal,
+    ).then((response) => {
+      if (controller.signal.aborted || !isCurrentRequest(matchesRequestRevision.current, requestRevision)) return;
+      if (response.page !== requestedPage || response.page_size !== PLAYER_MATCH_PAGE_SIZE) {
+        throw new DesktopError(
+          'Player match response does not match the current contract.',
+          502,
+          'INVALID_PLAYER_MATCH_CONTRACT',
+        );
+      }
+      const availablePage = requestedPlayerMatchPage(
+        requestedPage,
+        response.total,
+        response.page_size,
+      );
+      if (availablePage !== requestedPage) {
+        setMatchPage(availablePage);
+        return;
+      }
+      setMatches(response);
+      setMatchesState('ready');
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted || !isCurrentRequest(matchesRequestRevision.current, requestRevision)) return;
+      setMatches(null);
+      setMatchesError(readableError(error));
+      setMatchesState('error');
+    });
+    return () => controller.abort();
+  }, [matchPage, matchesRefreshRevision, refreshRevision, selectedId]);
 
   useEffect(() => {
     if (comparedIds.length !== 2) {
@@ -302,11 +358,14 @@ export function PlayersPage() {
 
   const selectPlayer = (steamId: string) => {
     if (steamId === selectedId) return;
+    setMatchPage(1);
     setSelectedId(steamId);
     setProfile(null);
     setDetailError(null);
     setPlayerEvidence(null);
     setPlayerEvidenceError(null);
+    setMatches(null);
+    setMatchesError(null);
   };
 
   const inspectPlayer = (player: PlayerDirectoryItem) => {
@@ -323,6 +382,9 @@ export function PlayersPage() {
     setCompactInspectorOpen(next.length === 2);
     setProfile(null);
     setDetailError(null);
+    setMatchPage(1);
+    setMatches(null);
+    setMatchesError(null);
     if (next.length === 1) setSelectedId(next[0] ?? null);
     else setSelectedId(null);
   };
@@ -334,6 +396,9 @@ export function PlayersPage() {
     setSelectedId(null);
     setProfile(null);
     setDetailError(null);
+    setMatchPage(1);
+    setMatches(null);
+    setMatchesError(null);
   };
 
   const focusComparedPlayer = (player: PlayerDirectoryItem) => {
@@ -443,6 +508,12 @@ export function PlayersPage() {
         <PlayerDetailView
           key={profile.player.steam_id}
           profile={profile}
+          matches={matches}
+          matchesLoading={matchesState === 'loading'}
+          matchesError={matchesError}
+          onRetryMatches={() => setMatchesRefreshRevision((current) => current + 1)}
+          onPreviousMatches={() => setMatchPage((current) => Math.max(1, current - 1))}
+          onNextMatches={() => setMatchPage((current) => current + 1)}
           evidence={playerEvidence}
           evidenceLoading={playerEvidenceState === 'loading'}
           evidenceError={playerEvidenceError}

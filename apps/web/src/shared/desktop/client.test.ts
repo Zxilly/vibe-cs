@@ -204,6 +204,26 @@ describe('desktop command client', () => {
     });
   });
 
+  it('requests one exact player match page with explicit paging', async () => {
+    invokeMock.mockResolvedValue({
+      items: [], total: 0, page: 2, page_size: 20, scanned_demos: 3, scan_complete: true,
+    });
+    const controller = new AbortController();
+
+    await commands.listPlayerMatches(
+      '76561198000000001/unsafe',
+      { page: 2, page_size: 20 },
+      controller.signal,
+    );
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: '/players/76561198000000001%2Funsafe/matches?page=2&page_size=20',
+      },
+    });
+  });
+
   it('persists annotations against an exact canonical evidence locator', async () => {
     invokeMock.mockResolvedValue({ id: 'annotation-1' });
 

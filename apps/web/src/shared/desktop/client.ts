@@ -1,9 +1,12 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 
 import { msg, msgf } from '../i18n';
+import { parseActivityFeed, parseActivityItem } from './activityContract';
 import { parseAnalysisRun, parseAnalysisRunDetail } from './analysisRunContract';
 import type {
   ActivityFeed,
+  ActivityItem,
+  ActivityKind,
   ActivityQuery,
   AnalysisRun,
   AnalysisRunDetail,
@@ -591,10 +594,15 @@ export const commands = {
     parseAnalysisRunDetail(await request<AnalysisRunDetail>(
       `/demos/${encodeURIComponent(id)}/analysis-runs/active`, { signal },
     )),
-  getAnalysisRun: async (id: string, signal?: AbortSignal) =>
-    parseAnalysisRunDetail(await request<AnalysisRunDetail>(
+  getAnalysisRun: async (id: string, signal?: AbortSignal) => {
+    const detail = parseAnalysisRunDetail(await request<AnalysisRunDetail>(
       `/analysis-runs/${encodeURIComponent(id)}`, { signal },
-    )),
+    ));
+    if (detail.run.id !== id) {
+      throw new Error('Analysis run response does not match the requested exact run.');
+    }
+    return detail;
+  },
   getAnalysisRunResult: async (id: string, signal?: AbortSignal) => {
     const record = await request<MatchAnalysisRecord>(
       `/analysis-runs/${encodeURIComponent(id)}/result`, { signal },
@@ -729,16 +737,27 @@ export const commands = {
       method: 'POST',
       body: {},
     }),
-  listActivities: (query: ActivityQuery = {}, signal?: AbortSignal) => request<ActivityFeed>(
-    `/activities${queryString({
-      search: query.search?.trim(),
-      kind: query.kind,
-      state: query.state,
-      page: query.page,
-      page_size: query.page_size,
-    })}`,
-    { signal },
-  ),
+  listActivities: async (query: ActivityQuery = {}, signal?: AbortSignal) =>
+    parseActivityFeed(await request<ActivityFeed>(
+      `/activities${queryString({
+        search: query.search?.trim(),
+        kind: query.kind,
+        state: query.state,
+        page: query.page,
+        page_size: query.page_size,
+      })}`,
+      { signal },
+    )),
+  getActivity: async (kind: ActivityKind, id: string, signal?: AbortSignal) => {
+    const item = parseActivityItem(await request<ActivityItem>(
+      `/activities/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`,
+      { signal },
+    ));
+    if (item.kind !== kind || item.job_id !== id || item.id !== `${kind}:${id}`) {
+      throw new Error('Activity response does not match the requested exact locator.');
+    }
+    return item;
+  },
   runtimeState: (signal?: AbortSignal) => request<RuntimeState>('/app/runtime-state', { signal }),
   abortRecording: () => request<void>('/recording/abort', { method: 'POST', body: {} }),
   listRecordedClips: async (signal?: AbortSignal) => {

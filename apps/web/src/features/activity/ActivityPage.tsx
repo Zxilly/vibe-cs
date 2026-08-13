@@ -11,15 +11,14 @@ import {
   Video,
 } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
-import { commands, readableError } from '../../shared/desktop/client';
+import { commands, DesktopError, readableError } from '../../shared/desktop/client';
 import type {
   ActivityAction,
   ActivityItem,
   ActivityKind,
   ActivityStatus,
-  AnalysisRun,
   AnalysisRunDetail,
 } from '../../shared/desktop/dto';
 import { type MessageKey, useI18n } from '../../shared/i18n';
@@ -31,10 +30,24 @@ import {
   type ActivityStateFilter,
 } from './activityPresentation';
 import { AnalysisRunInspector, analysisStageKey } from './AnalysisRunInspector';
+import {
+  startActivityObservation,
+  type ActivityObservation,
+} from './activityObservation';
+import {
+  parseActivityLocator,
+  withActivitySelection,
+} from './activitySelection';
+import { createActivityMutationGuard } from './activityMutationGuard';
+
+type ExactSelectionState = 'loading' | 'retrying' | 'stale' | 'unavailable' | 'invalid' | null;
 
 type ActivityWorkspaceProps = {
   items: ActivityItem[];
   selectedId: string | null;
+  selectedItem?: ActivityItem | null;
+  exactSelectionState?: ExactSelectionState;
+  exactSelectionError?: string | null;
   busyId: string | null;
   onSelect: (id: string) => void;
   onAction: (item: ActivityItem, action: ActivityAction) => void;
@@ -85,6 +98,14 @@ const recordingStageKeys: Partial<Record<string, MessageKey>> = {
 
 const ACTIVITY_PAGE_SIZE = 50;
 
+export function shouldShowActivityListLoading(
+  loading: boolean,
+  itemCount: number,
+  hasExplicitSelection: boolean,
+): boolean {
+  return loading && itemCount === 0 && !hasExplicitSelection;
+}
+
 function statusTone(status: ActivityStatus): 'neutral' | 'success' | 'warning' | 'danger' | 'blue' {
   if (status === 'completed') return 'success';
   if (status === 'failed') return 'danger';
@@ -110,29 +131,49 @@ function actionIcon(action: ActivityAction) {
   return <ExternalLink size={13} />;
 }
 
+export type ActivityActionOutcome = {
+  status: ActivityStatus | null;
+  activityId: string | null;
+  stage: string | null;
+};
+
 export async function executeActivityAction(
   item: ActivityItem,
   action: ActivityAction,
-): Promise<{ status: ActivityStatus | null; analysisRun: AnalysisRun | null }> {
+): Promise<ActivityActionOutcome> {
   if (action === 'cancel' && item.job_id) {
-    if (item.kind === 'recording') await commands.cancelRecordingJob(item.job_id);
-    else if (item.kind === 'export') await commands.cancelExportJob(item.job_id);
-    else if (item.kind === 'download') await commands.cancelMatchDownload(item.job_id);
+    if (item.kind === 'recording') {
+      const job = await commands.cancelRecordingJob(item.job_id);
+      return { status: job.status, activityId: `recording:${job.id}`, stage: job.message || null };
+    }
+    if (item.kind === 'export') {
+      const record = await commands.cancelExportJob(item.job_id);
+      return { status: record.job.status, activityId: `export:${record.job.id}`, stage: null };
+    }
+    if (item.kind === 'download') {
+      const job = await commands.cancelMatchDownload(item.job_id);
+      return { status: job.status, activityId: `download:${job.id}`, stage: null };
+    }
   } else if (action === 'retry_analysis' && item.context_id) {
     const run = await commands.startAnalysisRun(item.context_id);
     return {
       status: run.status === 'interrupted' ? 'failed' : run.status,
-      analysisRun: run,
+      activityId: `analysis:${run.id}`,
+      stage: run.stage,
     };
   } else if (action === 'retry_download' && item.context_id) {
     const job = await commands.downloadMatchDemo(item.context_id);
-    return { status: job.status, analysisRun: null };
+    return { status: job.status, activityId: `download:${job.id}`, stage: null };
   } else if (action === 'retry_recording' && item.job_id) {
     const plan = await commands.planRecordingRetry(item.job_id);
     const execution = await commands.executeRecordingPlan(plan.plan_id, false);
-    return { status: execution.status, analysisRun: null };
+    return {
+      status: execution.status,
+      activityId: `recording:${execution.job_id}`,
+      stage: null,
+    };
   }
-  return { status: null, analysisRun: null };
+  return { status: null, activityId: null, stage: null };
 }
 
 export function activityActionNotice(status: ActivityStatus | null): {
@@ -151,6 +192,9 @@ export function activityActionNotice(status: ActivityStatus | null): {
 export function ActivityWorkspace({
   items,
   selectedId,
+  selectedItem,
+  exactSelectionState = null,
+  exactSelectionError = null,
   busyId,
   onSelect,
   onAction,
@@ -159,7 +203,9 @@ export function ActivityWorkspace({
   analysisDetailError = null,
 }: ActivityWorkspaceProps) {
   const { locale, t } = useI18n();
-  const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
+  const selected = selectedItem === undefined
+    ? items.find((item) => item.id === selectedId) ?? items[0] ?? null
+    : selectedItem;
   const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
     month: '2-digit',
     day: '2-digit',
@@ -235,6 +281,11 @@ export function ActivityWorkspace({
       </Card>
 
       <Card className="activity-inspector">
+        {exactSelectionState === 'stale' ? (
+          <Notice tone="warning" title={t('activity.observationStale')}>
+            {exactSelectionError ?? t('activity.observationRetrying')}
+          </Notice>
+        ) : null}
         {selected ? (
           <>
             <header className="activity-inspector__header">
@@ -296,7 +347,17 @@ export function ActivityWorkspace({
             </div>
           </>
         ) : (
-          <EmptyState icon={<ActivityIcon size={24} />} title={t('activity.details')} description={t('activity.select')} />
+          exactSelectionState === 'loading' ? (
+            <div className="activity-loading"><Spinner label={t('activity.selectionLoading')} /><span>{t('activity.selectionLoading')}</span></div>
+          ) : exactSelectionState === 'invalid' ? (
+            <Notice tone="warning" title={t('activity.details')}>{t('activity.selectionInvalid')}</Notice>
+          ) : exactSelectionState === 'unavailable' ? (
+            <Notice tone="warning" title={t('activity.details')}>{t('activity.selectionUnavailable')}</Notice>
+          ) : exactSelectionState === 'retrying' ? (
+            <Notice tone="warning" title={t('activity.details')}>{exactSelectionError ?? t('activity.observationRetrying')}</Notice>
+          ) : (
+            <EmptyState icon={<ActivityIcon size={24} />} title={t('activity.details')} description={t('activity.select')} />
+          )
         )}
       </Card>
     </div>
@@ -348,6 +409,13 @@ export function ActivityPagination({
 
 export function ActivityPage() {
   const { t } = useI18n();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activityParameter = searchParams.get('activity');
+  const selectedLocator = useMemo(
+    () => parseActivityLocator(activityParameter),
+    [activityParameter],
+  );
+  const invalidSelection = activityParameter !== null && selectedLocator === null;
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState({ total: 0, active: 0, failed: 0, completed: 0 });
@@ -365,18 +433,74 @@ export function ActivityPage() {
   } | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
-  const preferredSelection = useRef<string | null>(null);
+  const [exactSelection, setExactSelection] = useState<{
+    locatorId: string;
+    observation: ActivityObservation;
+  } | null>(null);
   const [analysisDetail, setAnalysisDetail] = useState<AnalysisRunDetail | null>(null);
   const [analysisDetailLoading, setAnalysisDetailLoading] = useState(false);
   const [analysisDetailError, setAnalysisDetailError] = useState<string | null>(null);
+  const mutationGuardRef = useRef<ReturnType<typeof createActivityMutationGuard> | null>(null);
+  if (mutationGuardRef.current === null) mutationGuardRef.current = createActivityMutationGuard();
+  const mutationGuard = mutationGuardRef.current;
 
-  const selected = items.find((item) => item.id === selectedId) ?? items[0] ?? null;
+  const currentObservation = selectedLocator && exactSelection?.locatorId === selectedLocator.id
+    ? exactSelection.observation
+    : null;
+  const listSelectedId = selectedId && items.some((item) => item.id === selectedId)
+    ? selectedId
+    : items[0]?.id ?? null;
+  const listSelected = items.find((item) => item.id === listSelectedId) ?? null;
+  const selected = invalidSelection
+    ? null
+    : selectedLocator
+      ? currentObservation?.item ?? null
+      : listSelected;
+  const exactSelectionState: ExactSelectionState = invalidSelection
+    ? 'invalid'
+    : selectedLocator && !currentObservation
+      ? 'loading'
+      : currentObservation?.loading
+        ? 'loading'
+        : currentObservation?.unavailable
+          ? 'unavailable'
+          : currentObservation?.stale
+            ? 'stale'
+            : currentObservation?.error
+              ? 'retrying'
+              : null;
   const selectedAnalysisRunId = selected?.kind === 'analysis' ? selected.job_id : null;
+
+  useEffect(() => {
+    mutationGuard.activate();
+    return () => mutationGuard.dispose();
+  }, [mutationGuard]);
+
+  useEffect(() => {
+    mutationGuard.setContext(selectedLocator?.id ?? listSelectedId);
+    if (busyId !== null && busyId !== selected?.id) setBusyId(null);
+  }, [busyId, listSelectedId, mutationGuard, selected?.id, selectedLocator?.id]);
+
+  useEffect(() => {
+    if (!selectedLocator) {
+      setExactSelection(null);
+      return undefined;
+    }
+    return startActivityObservation({
+      locator: selectedLocator,
+      load: commands.getActivity,
+      onChange: (observation) => setExactSelection({
+        locatorId: selectedLocator.id,
+        observation,
+      }),
+    });
+  }, [revision, selectedLocator]);
 
   useEffect(() => {
     const controller = new AbortController();
     let timer: number | undefined;
     let disposed = false;
+    let failures = 0;
     setAnalysisDetail(null);
     setAnalysisDetailError(null);
     if (!selectedAnalysisRunId) {
@@ -391,14 +515,21 @@ export function ActivityPage() {
         setAnalysisDetail(detail);
         setAnalysisDetailError(null);
         setAnalysisDetailLoading(false);
+        failures = 0;
         if (detail.run.status === 'queued' || detail.run.status === 'running') {
           timer = window.setTimeout(() => void load(), 1_500);
         }
       } catch (cause) {
         if (disposed || controller.signal.aborted) return;
-        setAnalysisDetail(null);
         setAnalysisDetailError(readableError(cause));
         setAnalysisDetailLoading(false);
+        if (cause instanceof DesktopError && cause.status === 404) {
+          setAnalysisDetail(null);
+          return;
+        }
+        failures += 1;
+        const delay = Math.min(1_500 * (2 ** Math.max(0, failures - 1)), 15_000);
+        timer = window.setTimeout(() => void load(), delay);
       }
     };
     void load();
@@ -432,13 +563,10 @@ export function ActivityPage() {
         setTotal(response.total);
         setSummary(response.summary);
         setSelectedId((current) => (
-          preferredSelection.current && response.items.some((item) => item.id === preferredSelection.current)
-            ? preferredSelection.current
-            : current && response.items.some((item) => item.id === current)
+          current && response.items.some((item) => item.id === current)
             ? current
             : response.items[0]?.id ?? null
         ));
-        preferredSelection.current = null;
         setError(null);
         if (response.summary.active > 0) {
           timer = window.setTimeout(() => void load(true), 1_500);
@@ -464,31 +592,43 @@ export function ActivityPage() {
     setPage(pageCount);
   }, [page, pageCount]);
 
+  const selectActivity = useCallback((activityId: string) => {
+    mutationGuard.setContext(activityId);
+    setBusyId(null);
+    setSelectedId(activityId);
+    setSearchParams((current) => withActivitySelection(current, activityId));
+  }, [mutationGuard, setSearchParams]);
+
   const runAction = useCallback(async (item: ActivityItem, action: ActivityAction) => {
     if (busyId !== null) return;
     setBusyId(item.id);
     setError(null);
     setNotice(null);
+    const lease = mutationGuard.begin(item.id);
     try {
       const result = await executeActivityAction(item, action);
+      if (!mutationGuard.canApply(lease)) return;
       const outcome = activityActionNotice(result.status);
+      const stageKey = result.stage ? analysisStageKey(result.stage) : null;
+      const evidence = [
+        result.activityId,
+        result.stage ? (stageKey ? t(stageKey) : result.stage) : null,
+      ].filter((value): value is string => value !== null);
       setNotice({
         tone: outcome.tone,
-        message: result.analysisRun
-          ? `${t('activity.analysisRetryStarted')} · ${result.analysisRun.id} · ${t(analysisStageKey(result.analysisRun.stage)!)}`
-          : t(outcome.key),
+        message: [t(outcome.key), ...evidence].join(' · '),
       });
-      if (result.analysisRun) {
-        preferredSelection.current = `analysis:${result.analysisRun.id}`;
-        setSelectedId(preferredSelection.current);
+      if (result.activityId) {
+        setSelectedId(result.activityId);
+        setSearchParams((current) => withActivitySelection(current, result.activityId!));
       }
       setRevision((current) => current + 1);
     } catch (cause) {
-      setError(readableError(cause));
+      if (mutationGuard.canApply(lease)) setError(readableError(cause));
     } finally {
-      setBusyId(null);
+      if (mutationGuard.isLatest(lease)) setBusyId(null);
     }
-  }, [busyId, t]);
+  }, [busyId, mutationGuard, setSearchParams, t]);
 
   return (
     <div className="page page--activity">
@@ -560,16 +700,23 @@ export function ActivityPage() {
         />
       ) : null}
 
-      {loading && items.length === 0 ? (
+      {shouldShowActivityListLoading(
+        loading,
+        items.length,
+        selectedLocator !== null || invalidSelection,
+      ) ? (
         <Card className="activity-loading"><Spinner label={t('activity.loading')} /><span>{t('activity.loading')}</span></Card>
       ) : (
         <ActivityWorkspace
           items={items}
-          selectedId={selectedId}
+          selectedId={selectedLocator?.id ?? selectedId}
+          selectedItem={selected}
+          exactSelectionState={exactSelectionState}
+          exactSelectionError={currentObservation?.error ?? null}
           busyId={busyId}
-          onSelect={setSelectedId}
+          onSelect={selectActivity}
           onAction={(item, action) => void runAction(item, action)}
-          analysisDetail={analysisDetail}
+          analysisDetail={analysisDetail?.run.id === selectedAnalysisRunId ? analysisDetail : null}
           analysisDetailLoading={analysisDetailLoading}
           analysisDetailError={analysisDetailError}
         />

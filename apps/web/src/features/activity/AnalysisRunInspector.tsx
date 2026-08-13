@@ -48,11 +48,12 @@ export function AnalysisRunInspector({
     second: '2-digit',
   }), [locale]);
   if (loading && !detail) return <div className="analysis-run-detail"><Spinner label={t('activity.analysisRunLoading')} /></div>;
-  if (error) return <Notice tone="warning" title={t('activity.analysisRunEvidence')}>{error}</Notice>;
+  if (error && !detail) return <Notice tone="warning" title={t('activity.analysisRunEvidence')}>{error}</Notice>;
   if (!detail) return <Notice tone="warning">{t('activity.analysisRunUnavailable')}</Notice>;
   const { run } = detail;
   return (
     <section className="analysis-run-detail" data-analysis-run-id={run.id} aria-label={t('activity.analysisRunEvidence')}>
+      {error ? <Notice tone="warning" title={t('activity.analysisRunEvidence')}>{error}</Notice> : null}
       <dl className="activity-inspector__facts">
         <div><dt>{t('activity.analysisRunStage')}</dt><dd>{t(stageKeys[run.stage])}</dd></div>
         <div><dt>{t('activity.analysisRunResult')}</dt><dd>{detail.result_available ? t('activity.analysisRunResultReady') : t('activity.analysisRunResultPending')}</dd></div>

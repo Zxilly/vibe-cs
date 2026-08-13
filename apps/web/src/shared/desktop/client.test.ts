@@ -297,6 +297,72 @@ describe('desktop command client', () => {
     });
   });
 
+  it('reads one exact activity by kind and durable job identity', async () => {
+    const jobId = '11111111-1111-4111-8111-111111111111';
+    const activity = {
+      id: `export:${jobId}`,
+      kind: 'export',
+      subtype: 'editor',
+      job_id: jobId,
+      context_id: '22222222-2222-4222-8222-222222222222',
+      subject: 'C:/exports/exact.mp4',
+      status: 'completed',
+      stage: null,
+      progress_percent: 100,
+      completed_units: null,
+      total_units: null,
+      unit: null,
+      error: null,
+      created_at: '2026-08-13T01:00:00Z',
+      updated_at: '2026-08-13T01:01:00Z',
+      available_actions: ['open_outputs'],
+    };
+    invokeMock.mockResolvedValue(activity);
+
+    await expect(commands.getActivity('export', jobId)).resolves.toEqual(activity);
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: `/activities/export/${jobId}`,
+      },
+    });
+  });
+
+  it('rejects a self-consistent activity returned for a different exact locator', async () => {
+    const requestedId = '11111111-1111-4111-8111-111111111111';
+    const otherId = '33333333-3333-4333-8333-333333333333';
+    invokeMock.mockResolvedValue({
+      id: `export:${otherId}`,
+      kind: 'export',
+      subtype: 'editor',
+      job_id: otherId,
+      context_id: '22222222-2222-4222-8222-222222222222',
+      subject: 'C:/exports/other.mp4',
+      status: 'completed',
+      stage: null,
+      progress_percent: 100,
+      completed_units: null,
+      total_units: null,
+      unit: null,
+      error: null,
+      created_at: '2026-08-13T01:00:00Z',
+      updated_at: '2026-08-13T01:01:00Z',
+      available_actions: ['open_outputs'],
+    });
+
+    await expect(commands.getActivity('export', requestedId)).rejects.toThrow('exact locator');
+  });
+
+  it('rejects an activity feed that widens the current wire shape', async () => {
+    invokeMock.mockResolvedValue({
+      items: [], total: 0, page: 1, page_size: 50,
+      summary: { total: 0, active: 0, failed: 0, completed: 0 },
+      legacy_cursor: null,
+    });
+
+    await expect(commands.listActivities()).rejects.toThrow('current contract');
+  });
+
   it('does not fake-cancel recording mutations or managed HLAE preparation in the renderer', async () => {
     vi.useFakeTimers();
     invokeMock.mockReturnValue(new Promise(() => undefined));
@@ -391,14 +457,32 @@ describe('desktop command client', () => {
     invokeMock.mockResolvedValue(detail);
 
     await expect(commands.getActiveAnalysisRun('demo/1')).resolves.toEqual(detail);
-    await expect(commands.getAnalysisRun('run/1')).resolves.toEqual(detail);
+    await expect(commands.getAnalysisRun('run-1')).resolves.toEqual(detail);
 
     expect(invokeMock.mock.calls[0]).toEqual(['desktop_call', {
       call: { method: 'get', path: '/demos/demo%2F1/analysis-runs/active' },
     }]);
     expect(invokeMock.mock.calls[1]).toEqual(['desktop_call', {
-      call: { method: 'get', path: '/analysis-runs/run%2F1' },
+      call: { method: 'get', path: '/analysis-runs/run-1' },
     }]);
+  });
+
+  it('rejects an exact analysis detail returned for a different run identity', async () => {
+    invokeMock.mockResolvedValue({
+      run: {
+        id: 'other-run', demo_id: 'demo-1', input_sha256: null, input_size: null,
+        status: 'queued', stage: 'validating_input', error: null,
+        created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:00:00Z',
+      },
+      events: [{
+        run_id: 'other-run', sequence: 0, stage: 'validating_input',
+        message_code: 'input_validation_started', detail: null,
+        created_at: '2026-08-13T01:00:00Z',
+      }],
+      result_available: false,
+    });
+
+    await expect(commands.getAnalysisRun('requested-run')).rejects.toThrow('exact run');
   });
 
   it('reads one demo lifecycle without starting analysis', async () => {

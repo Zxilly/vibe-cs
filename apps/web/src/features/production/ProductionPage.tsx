@@ -16,6 +16,8 @@ import type { ActivityItem, ActivityStatus } from '../../shared/desktop/dto';
 import { type MessageKey, useI18n } from '../../shared/i18n';
 import { useQueueStore } from '../queue/queueStore';
 import { Notice, PageHeader } from '../../shared/ui';
+import { activityHref } from '../activity/activitySelection';
+import { startProductionActivityObservationAfterInitial } from './productionActivityObservation';
 import { ProductionSectionNav } from './ProductionSectionNav';
 
 type CountState = {
@@ -59,11 +61,19 @@ export function productionActivityPreview(items: ActivityItem[]): ActivityItem[]
   return items.slice(0, 4);
 }
 
+export function productionActivityHref(activityId: string): string {
+  return activityHref(activityId);
+}
+
 export function ProductionPage() {
   const { locale, t } = useI18n();
   const queuedSegments = useQueueStore((state) => state.items.length);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<ProductionOverview>(emptyOverview);
+  const [activityRefresh, setActivityRefresh] = useState<{
+    stale: boolean;
+    error: string | null;
+  }>({ stale: false, error: null });
   const activityDateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, {
     dateStyle: 'short',
     timeStyle: 'short',
@@ -71,15 +81,17 @@ export function ProductionPage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    let disposed = false;
     setLoading(true);
-    void Promise.allSettled([
+    const activities = commands.listActivities({ page: 1, page_size: 4 }, controller.signal);
+    const overviewReady = Promise.allSettled([
       commands.listDemos({ page: 1, page_size: 1, sort: 'updated_desc' }, controller.signal),
       commands.listRecordedClips(controller.signal),
       commands.listEditorProjects(controller.signal),
       commands.listOutputs({ page: 1, page_size: 1 }, controller.signal),
-      commands.listActivities({ page: 1, page_size: 4 }, controller.signal),
+      activities,
     ]).then(([matchesResult, clipsResult, projectsResult, outputsResult, activitiesResult]) => {
-      if (controller.signal.aborted) return;
+      if (disposed || controller.signal.aborted) return;
       const errors = [matchesResult, clipsResult, projectsResult, outputsResult, activitiesResult]
         .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
         .map((result) => readableError(result.reason));
@@ -102,8 +114,30 @@ export function ProductionPage() {
         errors,
       });
       setLoading(false);
+      return activitiesResult.status === 'fulfilled' ? activitiesResult.value : undefined;
     });
-    return () => controller.abort();
+    const stopActivityObservation = startProductionActivityObservationAfterInitial({
+      initial: overviewReady.then((feed) => {
+        if (!feed) throw new Error('Activity preview is unavailable.');
+        return feed;
+      }),
+      load: (signal) => commands.listActivities({ page: 1, page_size: 4 }, signal),
+      onChange: ({ feed, stale, error }) => {
+        setOverview((current) => ({
+          ...current,
+          activities: {
+            available: true,
+            items: productionActivityPreview(feed.items),
+          },
+        }));
+        setActivityRefresh({ stale, error });
+      },
+    });
+    return () => {
+      disposed = true;
+      controller.abort();
+      stopActivityObservation();
+    };
   }, []);
 
   const count = (state: CountState) => loading || !state.available ? '—' : String(state.value);
@@ -118,10 +152,10 @@ export function ProductionPage() {
       />
       <ProductionSectionNav />
 
-      {overview.errors.length > 0 ? (
+      {overview.errors.length > 0 || activityRefresh.error ? (
         <Notice tone="warning" title={t('common.unavailable')}>
-          {t('production.serviceUnavailable')}
-          <small>{overview.errors[0]}</small>
+          {activityRefresh.stale ? t('activity.observationStale') : t('production.serviceUnavailable')}
+          <small>{activityRefresh.error ?? overview.errors[0]}</small>
         </Notice>
       ) : null}
 
@@ -169,7 +203,7 @@ export function ProductionPage() {
           {overview.activities.items.length > 0 ? (
             <div className="production-activity__list">
               {overview.activities.items.map((item) => (
-                <Link key={item.id} to="/activity" data-status={item.status}>
+                <Link key={item.id} to={productionActivityHref(item.id)} data-status={item.status}>
                   <span><Activity size={15} /></span>
                   <div><strong>{item.subject ?? item.context_id ?? item.id}</strong><small>{t(activityStatusKeys[item.status])} · {activityDateFormatter.format(new Date(item.updated_at))}</small></div>
                 </Link>

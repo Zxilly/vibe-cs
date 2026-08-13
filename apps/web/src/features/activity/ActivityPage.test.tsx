@@ -9,6 +9,7 @@ import {
   ActivityWorkspace,
   activityActionNotice,
   executeActivityAction,
+  shouldShowActivityListLoading,
 } from './ActivityPage';
 
 const item = (overrides: Partial<ActivityItem>): ActivityItem => ({
@@ -73,6 +74,38 @@ describe('activity workspace', () => {
     expect(markup).not.toContain('analysis:run-2<!-- -->%');
   });
 
+  it('keeps an exact URL-selected activity inspectable outside the current list page', () => {
+    const exact = item({
+      id: 'export:11111111-1111-4111-8111-111111111111',
+      kind: 'export',
+      job_id: '11111111-1111-4111-8111-111111111111',
+      context_id: '22222222-2222-4222-8222-222222222222',
+      subject: 'C:/exports/exact.mp4',
+      status: 'running',
+      available_actions: ['cancel', 'open_outputs'],
+    });
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <ActivityWorkspace
+          items={[]}
+          selectedId={exact.id}
+          selectedItem={exact}
+          busyId={null}
+          onSelect={() => undefined}
+          onAction={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain('C:/exports/exact.mp4');
+    expect(markup).toContain('export:11111111-1111-4111-8111-111111111111');
+  });
+
+  it('does not let a slow list request cover an exact deep-link inspector', () => {
+    expect(shouldShowActivityListLoading(true, 0, false)).toBe(true);
+    expect(shouldShowActivityListLoading(true, 0, true)).toBe(false);
+  });
+
   it('keeps cross-workflow paging compact and exposes both navigation bounds', () => {
     const markup = renderToStaticMarkup(
       <ActivityPagination
@@ -133,6 +166,31 @@ describe('activity workspace', () => {
     expect(retry).toHaveBeenCalledWith('match-record-42');
   });
 
+  it('reports the durable state returned by an export cancellation', async () => {
+    const runningExport = item({
+      id: 'export:export-job',
+      kind: 'export',
+      job_id: 'export-job',
+      context_id: 'project-1',
+      status: 'running',
+      available_actions: ['cancel', 'open_outputs'],
+    });
+    vi.spyOn(commands, 'cancelExportJob').mockResolvedValue({
+      kind: 'editor',
+      job: {
+        id: 'export-job', project_id: 'project-1', status: 'cancelling', progress: 0.42,
+        output_path: 'C:/exports/exact.mp4', error: null,
+        created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:02:00Z',
+      },
+    });
+
+    await expect(executeActivityAction(runningExport, 'cancel')).resolves.toEqual({
+      status: 'cancelling',
+      activityId: 'export:export-job',
+      stage: null,
+    });
+  });
+
   it('reports the persisted download state returned by a retry command', async () => {
     const failedDownload = item({
       id: 'download:stale-failed-job',
@@ -157,7 +215,9 @@ describe('activity workspace', () => {
 
     const outcome = await executeActivityAction(failedDownload, 'retry_download');
 
-    expect(outcome).toEqual({ status: 'completed', analysisRun: null });
+    expect(outcome).toEqual({
+      status: 'completed', activityId: 'download:existing-completed-job', stage: null,
+    });
   });
 
   it('retries a failed recording through a fresh plan and native consent execution', async () => {
@@ -206,7 +266,9 @@ describe('activity workspace', () => {
     expect(markup).toContain('data-action="retry_recording"');
     expect(plan).toHaveBeenCalledWith('failed/job');
     expect(execute).toHaveBeenCalledWith('retry-plan', false);
-    expect(outcome).toEqual({ status: 'queued', analysisRun: null });
+    expect(outcome).toEqual({
+      status: 'queued', activityId: 'recording:retry-child', stage: null,
+    });
   });
 
   it('does not bypass a rejected native recording consent', async () => {
@@ -253,7 +315,7 @@ describe('activity workspace', () => {
     const retry = vi.spyOn(commands, 'startAnalysisRun').mockResolvedValue(created);
 
     await expect(executeActivityAction(failedAnalysis, 'retry_analysis')).resolves.toEqual({
-      status: 'queued', analysisRun: created,
+      status: 'queued', activityId: 'analysis:new-run', stage: 'validating_input',
     });
     expect(retry).toHaveBeenCalledWith('demo-1');
   });

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use rusqlite::{named_params, params_from_iter};
+use rusqlite::{OptionalExtension as _, named_params, params_from_iter};
 use vibe_cs_domain::{AnalysisRun, DemoRecord, MatchDownloadJob, RecordingJob};
 
 use super::{ExportJobRecord, Storage, decode, row_u64, sql_u64};
@@ -89,6 +89,38 @@ struct PersistedActivity {
     retryable: bool,
     owner_steam_id: Option<String>,
     result_available: bool,
+}
+
+#[derive(serde::Deserialize)]
+struct AnalysisActivityDocument {
+    run: AnalysisRun,
+    demo: DemoRecord,
+}
+
+fn decode_persisted_activity(persisted: PersistedActivity) -> Result<ActivitySource> {
+    match persisted.source_kind.as_str() {
+        "recording" => decode(&persisted.document).map(|job: RecordingJob| {
+            let retryable = persisted.retryable && job.retryable_suffix().is_ok();
+            ActivitySource::Recording { job, retryable }
+        }),
+        "export" => decode(&persisted.document).map(ActivitySource::Export),
+        "download" => decode(&persisted.document).map(|job| ActivitySource::Download {
+            job,
+            retryable: persisted.retryable,
+            owner_steam_id: persisted.owner_steam_id,
+        }),
+        "analysis" => decode::<AnalysisActivityDocument>(&persisted.document).map(|document| {
+            ActivitySource::Analysis {
+                run: document.run,
+                demo: Box::new(document.demo),
+                retryable: persisted.retryable,
+                result_available: persisted.result_available,
+            }
+        }),
+        value => Err(StorageError::ActivityProjection(format!(
+            "unknown activity source kind {value:?}"
+        ))),
+    }
 }
 
 const ACTIVITY_FILTER_SQL: &str = "
@@ -373,6 +405,82 @@ fn analysis_retryability_sql(analyses: usize) -> String {
 }
 
 impl Storage {
+    /// Reads one exact activity from its authoritative persisted source.
+    pub async fn get_activity(
+        &self,
+        kind: ActivityKind,
+        id: uuid::Uuid,
+    ) -> Result<Option<ActivitySource>> {
+        self.run(move |connection| {
+            let transaction = connection.transaction()?;
+            let branch = ActivityBranch::for_kind(kind);
+            let persisted = transaction
+                .query_row(
+                    &format!(
+                        "SELECT source_kind, source_id, document_json \
+                           FROM ({}) AS activity WHERE source_id = ?1",
+                        branch.source_sql
+                    ),
+                    [id.to_string()],
+                    |row| {
+                        Ok(PersistedActivity {
+                            source_kind: row.get(0)?,
+                            source_id: row.get(1)?,
+                            document: row.get(2)?,
+                            retryable: false,
+                            owner_steam_id: None,
+                            result_available: false,
+                        })
+                    },
+                )
+                .optional()?;
+            let Some(mut persisted) = persisted else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            match kind {
+                ActivityKind::Recording => {
+                    persisted.retryable = transaction.query_row(
+                        &format!("{RECORDING_RETRYABILITY_SQL} WHERE job.id = ?1"),
+                        [id.to_string()],
+                        |row| row.get::<_, bool>(1),
+                    )?;
+                }
+                ActivityKind::Export => {}
+                ActivityKind::Download => {
+                    let (owner_steam_id, retryable) = transaction.query_row(
+                        &format!("{DOWNLOAD_RETRYABILITY_SQL} WHERE job.id = ?1"),
+                        [id.to_string()],
+                        |row| Ok((row.get::<_, Option<String>>(1)?, row.get::<_, bool>(2)?)),
+                    )?;
+                    persisted.owner_steam_id = owner_steam_id;
+                    persisted.retryable = retryable;
+                }
+                ActivityKind::Analysis => {
+                    persisted.retryable = transaction.query_row(
+                        &format!("{ANALYSIS_RETRYABILITY_SQL} WHERE run.id = ?1"),
+                        [id.to_string()],
+                        |row| row.get::<_, bool>(1),
+                    )?;
+                    persisted.result_available = transaction.query_row(
+                        "SELECT EXISTS(\
+                             SELECT 1 FROM analyses \
+                             WHERE analyses.producer_run_id = ?1 \
+                               AND analyses.demo_id = (\
+                                   SELECT demo_id FROM analysis_runs WHERE id = ?1\
+                               )\
+                         )",
+                        [id.to_string()],
+                        |row| row.get::<_, bool>(0),
+                    )?;
+                }
+            }
+            transaction.commit()?;
+            decode_persisted_activity(persisted).map(Some)
+        })
+        .await
+    }
+
     /// Queries the current cross-workflow activity projection without loading complete job
     /// histories into application memory.
     ///
@@ -564,36 +672,7 @@ impl Storage {
 
             let items = persisted
                 .into_iter()
-                .map(|persisted| match persisted.source_kind.as_str() {
-                    "recording" => decode(&persisted.document).map(|job: RecordingJob| {
-                        let retryable = persisted.retryable && job.retryable_suffix().is_ok();
-                        ActivitySource::Recording { job, retryable }
-                    }),
-                    "export" => decode(&persisted.document).map(ActivitySource::Export),
-                    "download" => decode(&persisted.document).map(|job| ActivitySource::Download {
-                        job,
-                        retryable: persisted.retryable,
-                        owner_steam_id: persisted.owner_steam_id,
-                    }),
-                    "analysis" => {
-                        #[derive(serde::Deserialize)]
-                        struct AnalysisActivityDocument {
-                            run: AnalysisRun,
-                            demo: DemoRecord,
-                        }
-                        decode::<AnalysisActivityDocument>(&persisted.document).map(|document| {
-                            ActivitySource::Analysis {
-                                run: document.run,
-                                demo: Box::new(document.demo),
-                                retryable: persisted.retryable,
-                                result_available: persisted.result_available,
-                            }
-                        })
-                    }
-                    value => Err(StorageError::ActivityProjection(format!(
-                        "unknown activity source kind {value:?}"
-                    ))),
-                })
+                .map(decode_persisted_activity)
                 .collect::<Result<Vec<_>>>()?;
             Ok(ActivityPage {
                 items,
@@ -826,6 +905,192 @@ mod tests {
                 "copied activity id {exact_id} resolved to the wrong activity: {page:#?}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn exact_activity_read_resolves_only_the_requested_kind_and_job_id() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = chrono::Utc::now();
+        let export_id = uuid::Uuid::new_v4();
+        storage
+            .put_export_job(ExportJobRecord {
+                kind: "editor".to_owned(),
+                job: vibe_cs_domain::ExportJob {
+                    id: export_id,
+                    project_id: uuid::Uuid::new_v4(),
+                    status: vibe_cs_domain::JobStatus::Completed,
+                    progress: 1.0,
+                    output_path: "C:/exports/exact.mp4".to_owned(),
+                    error: None,
+                    created_at: now,
+                    updated_at: now,
+                },
+            })
+            .await
+            .expect("put export activity");
+
+        assert!(matches!(
+            storage
+                .get_activity(ActivityKind::Export, export_id)
+                .await
+                .expect("exact export activity"),
+            Some(ActivitySource::Export(record)) if record.job.id == export_id
+        ));
+        assert!(
+            storage
+                .get_activity(ActivityKind::Recording, export_id)
+                .await
+                .expect("wrong-kind lookup")
+                .is_none(),
+            "an exact lookup must not search another activity source"
+        );
+    }
+
+    #[tokio::test]
+    async fn exact_recording_activity_reads_retryability_from_the_same_durable_lineage() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = chrono::Utc::now();
+        let parent_id = uuid::Uuid::new_v4();
+        let request = vibe_cs_domain::RecordingRequest {
+            id: Some(uuid::Uuid::new_v4()),
+            demo_id: uuid::Uuid::new_v4(),
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: "Retryable capture".to_owned(),
+            start_tick: 100,
+            end_tick: 200,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+        };
+        let attempt = |id, retry_of| vibe_cs_domain::RecordingJob {
+            id,
+            retry_of,
+            status: vibe_cs_domain::JobStatus::Failed,
+            items: vec![request.clone()],
+            current_index: 0,
+            progress: 0.0,
+            message: "capture interrupted".to_owned(),
+            outputs: Vec::new(),
+            created_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_recording_job(attempt(parent_id, None))
+            .await
+            .expect("parent job");
+
+        assert!(matches!(
+            storage
+                .get_activity(ActivityKind::Recording, parent_id)
+                .await
+                .expect("retryable parent"),
+            Some(ActivitySource::Recording { job, retryable: true }) if job.id == parent_id
+        ));
+
+        storage
+            .put_recording_job(attempt(uuid::Uuid::new_v4(), Some(parent_id)))
+            .await
+            .expect("retry child");
+        assert!(matches!(
+            storage
+                .get_activity(ActivityKind::Recording, parent_id)
+                .await
+                .expect("claimed parent"),
+            Some(ActivitySource::Recording { job, retryable: false }) if job.id == parent_id
+        ));
+    }
+
+    #[tokio::test]
+    async fn exact_download_activity_keeps_owner_and_retryability_bound_to_one_snapshot() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let now = chrono::Utc::now();
+        let job_id = uuid::Uuid::new_v4();
+        let match_record_id = "76561198000000000:exact-download";
+        storage
+            .put_steam_matches(vec![vibe_cs_domain::SteamMatchRecord {
+                id: match_record_id.to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "exact-download".to_owned(),
+                outcome_id: "exact-download-outcome".to_owned(),
+                token: 7,
+                map_name: Some("de_mirage".to_owned()),
+                played_at: Some(now),
+                score: None,
+                result: vibe_cs_domain::MatchHistoryResult::Unknown,
+                demo_status: vibe_cs_domain::MatchDemoStatus::Failed,
+                demo_id: None,
+                last_error: Some("network".to_owned()),
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("put match activity owner");
+        storage
+            .put_match_download_job(vibe_cs_domain::MatchDownloadJob {
+                id: job_id,
+                match_record_id: match_record_id.to_owned(),
+                status: vibe_cs_domain::MatchDownloadStatus::Failed,
+                downloaded_bytes: 0,
+                total_bytes: None,
+                progress: 0.0,
+                demo_id: None,
+                error: Some("network".to_owned()),
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("put failed download");
+
+        assert!(matches!(
+            storage
+                .get_activity(ActivityKind::Download, job_id)
+                .await
+                .expect("exact download"),
+            Some(ActivitySource::Download {
+                job,
+                retryable: true,
+                owner_steam_id: Some(owner),
+            }) if job.id == job_id && owner == "76561198000000000"
+        ));
+    }
+
+    #[tokio::test]
+    async fn exact_analysis_activity_preserves_interrupted_stage_and_retry_truth() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo_id = uuid::Uuid::new_v4();
+        storage
+            .put_demo(analysis_demo(
+                demo_id,
+                vibe_cs_domain::DemoStatus::Discovered,
+            ))
+            .await
+            .expect("put analysis demo");
+        let run_id = storage
+            .start_analysis_run(demo_id)
+            .await
+            .expect("start run")
+            .run
+            .id;
+        storage
+            .recover_orphaned_analysis_runs()
+            .await
+            .expect("interrupt run");
+
+        assert!(matches!(
+            storage
+                .get_activity(ActivityKind::Analysis, run_id)
+                .await
+                .expect("exact analysis"),
+            Some(ActivitySource::Analysis {
+                run,
+                demo,
+                retryable: true,
+                result_available: false,
+            }) if run.id == run_id
+                && run.status == vibe_cs_domain::AnalysisRunStatus::Interrupted
+                && demo.id == demo_id
+        ));
     }
 
     #[tokio::test]

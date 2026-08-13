@@ -1,6 +1,11 @@
-use axum::{Json, Router, extract::State, routing::get};
+use axum::{
+    Json, Router,
+    extract::{Path, State},
+    routing::get,
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use vibe_cs_domain::{
     AnalysisRun, AnalysisRunStatus, JobStatus, MatchDownloadJob, MatchDownloadStatus, RecordingJob,
     SteamConfig,
@@ -18,7 +23,9 @@ const MAXIMUM_PAGE_SIZE: u32 = 100;
 const MAXIMUM_PAGE: u32 = 10_000;
 
 pub(crate) fn router() -> Router<AppState> {
-    Router::new().route("/api/activities", get(list_activities))
+    Router::new()
+        .route("/api/activities", get(list_activities))
+        .route("/api/activities/{kind}/{id}", get(get_activity))
 }
 
 #[derive(Debug, Serialize)]
@@ -106,27 +113,7 @@ async fn list_activities(
     let retry_account = valid_steam_download_account(&config.steam);
     let mut items = Vec::with_capacity(page_result.items.len());
     for source in page_result.items {
-        let item = match source {
-            ActivitySource::Recording { job, retryable } => recording_activity(&job, retryable),
-            ActivitySource::Export(record) => export_activity(record),
-            ActivitySource::Download {
-                job,
-                retryable,
-                owner_steam_id,
-            } => {
-                let retryable = retryable
-                    && retry_account
-                        .is_some_and(|steam_id| owner_steam_id.as_deref() == Some(steam_id));
-                download_activity(job, retryable)
-            }
-            ActivitySource::Analysis {
-                run,
-                demo,
-                retryable,
-                result_available,
-            } => analysis_activity(run, demo.display_name, retryable, result_available),
-        };
-        items.push(item);
+        items.push(activity_item(source, retry_account));
     }
     let summary = ActivitySummary {
         total: page_result.summary.total,
@@ -141,6 +128,63 @@ async fn list_activities(
         page_size,
         summary,
     }))
+}
+
+async fn get_activity(
+    State(state): State<AppState>,
+    Path((kind, id)): Path<(String, String)>,
+) -> ApiResult<Json<ActivityItem>> {
+    let kind = parse_activity_kind(&kind)?;
+    let parsed_id =
+        Uuid::parse_str(&id).map_err(|_| ApiError::invalid("activity job id must be a UUID"))?;
+    if parsed_id.to_string() != id {
+        return Err(ApiError::invalid(
+            "activity job id must be a canonical lowercase UUID",
+        ));
+    }
+    let source = state
+        .storage
+        .get_activity(kind, parsed_id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("activity"))?;
+    let config = state.storage.get_config().await?.unwrap_or_default();
+    Ok(Json(activity_item(
+        source,
+        valid_steam_download_account(&config.steam),
+    )))
+}
+
+fn parse_activity_kind(value: &str) -> ApiResult<StoredActivityKind> {
+    match value {
+        "recording" => Ok(StoredActivityKind::Recording),
+        "export" => Ok(StoredActivityKind::Export),
+        "download" => Ok(StoredActivityKind::Download),
+        "analysis" => Ok(StoredActivityKind::Analysis),
+        _ => Err(ApiError::invalid("activity kind is invalid")),
+    }
+}
+
+fn activity_item(source: ActivitySource, retry_account: Option<&str>) -> ActivityItem {
+    match source {
+        ActivitySource::Recording { job, retryable } => recording_activity(&job, retryable),
+        ActivitySource::Export(record) => export_activity(record),
+        ActivitySource::Download {
+            job,
+            retryable,
+            owner_steam_id,
+        } => download_activity(
+            job,
+            retryable
+                && retry_account
+                    .is_some_and(|steam_id| owner_steam_id.as_deref() == Some(steam_id)),
+        ),
+        ActivitySource::Analysis {
+            run,
+            demo,
+            retryable,
+            result_available,
+        } => analysis_activity(run, demo.display_name, retryable, result_available),
+    }
 }
 
 fn valid_steam_download_account(config: &SteamConfig) -> Option<&str> {
@@ -403,7 +447,81 @@ const fn analysis_run_stage(stage: vibe_cs_domain::AnalysisRunStage) -> &'static
 #[cfg(test)]
 mod tests {
     use super::*;
-    use uuid::Uuid;
+    use axum::response::IntoResponse as _;
+
+    #[tokio::test]
+    async fn exact_activity_route_returns_the_requested_authoritative_row() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let now = Utc::now();
+        let job_id = Uuid::new_v4();
+        storage
+            .put_export_job(ExportJobRecord {
+                kind: "editor".to_owned(),
+                job: vibe_cs_domain::ExportJob {
+                    id: job_id,
+                    project_id: Uuid::new_v4(),
+                    status: JobStatus::Completed,
+                    progress: 1.0,
+                    output_path: "C:/exports/exact.mp4".to_owned(),
+                    error: None,
+                    created_at: now,
+                    updated_at: now,
+                },
+            })
+            .await
+            .expect("export job");
+        let state = AppState::new(storage, directory.path().to_path_buf());
+
+        let exact = get_activity(
+            State(state.clone()),
+            Path(("export".to_owned(), job_id.to_string())),
+        )
+        .await
+        .expect("exact activity")
+        .0;
+        assert_eq!(exact.id, format!("export:{job_id}"));
+        assert_eq!(exact.job_id.as_deref(), Some(job_id.to_string().as_str()));
+
+        let missing = get_activity(
+            State(state),
+            Path(("recording".to_owned(), job_id.to_string())),
+        )
+        .await
+        .expect_err("same UUID in another kind must not match");
+        assert_eq!(
+            missing.into_response().status(),
+            axum::http::StatusCode::NOT_FOUND
+        );
+    }
+
+    #[tokio::test]
+    async fn exact_activity_route_rejects_retired_or_malformed_locators() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let state = AppState::new(
+            vibe_cs_storage::Storage::open_in_memory()
+                .await
+                .expect("storage"),
+            directory.path().to_path_buf(),
+        );
+
+        for (kind, id) in [
+            ("analyses", Uuid::new_v4().to_string()),
+            ("analysis", "not-a-uuid".to_owned()),
+            ("analysis", Uuid::new_v4().to_string().to_uppercase()),
+            ("analysis", Uuid::new_v4().simple().to_string()),
+        ] {
+            let error = get_activity(State(state.clone()), Path((kind.to_owned(), id)))
+                .await
+                .expect_err("invalid locator must fail closed");
+            assert_eq!(
+                error.into_response().status(),
+                axum::http::StatusCode::BAD_REQUEST
+            );
+        }
+    }
 
     fn analysis_run(
         status: AnalysisRunStatus,

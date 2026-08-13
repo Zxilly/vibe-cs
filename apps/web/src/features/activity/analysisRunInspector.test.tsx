@@ -40,4 +40,13 @@ describe('analysis run inspector', () => {
     expect(markup).toContain('detail unavailable');
     expect(markup).not.toContain('data-event-sequence');
   });
+
+  it('preserves last-good persisted events while a transient refresh is retried', () => {
+    const markup = renderToStaticMarkup(
+      <AnalysisRunInspector detail={detail} loading={false} error="refresh unavailable" />,
+    );
+    expect(markup).toContain('refresh unavailable');
+    expect(markup).toContain('data-analysis-run-id="run-1"');
+    expect(markup).toContain('data-event-sequence="1"');
+  });
 });

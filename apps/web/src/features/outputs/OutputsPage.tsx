@@ -2,6 +2,7 @@ import { currentLocale, msg, msgf } from '../../shared/i18n';
 import {
   Check,
   CircleAlert,
+  Clapperboard,
   FileOutput,
   Files,
   FolderOpen,
@@ -163,6 +164,27 @@ export function OutputZeroActions({
         <Trash2 size={13} />{msg("m1270")}
       </Button>
     </div>
+  );
+}
+
+export function OutputSourceProjectAction({
+  item,
+  label,
+}: {
+  item: Pick<OutputItem, 'output_kind' | 'project_id'>;
+  label: string;
+}) {
+  if (item.output_kind !== 'export' || item.project_id === null) return null;
+  return (
+    <Link
+      className="icon-button"
+      data-action="open-source-project"
+      to={`/studio/editor?project=${encodeURIComponent(item.project_id)}`}
+      aria-label={label}
+      title={label}
+    >
+      <Clapperboard size={14} />
+    </Link>
   );
 }
 
@@ -612,6 +634,7 @@ export function OutputsPage() {
                   <small>{item.managed ? msg("m0334") : msg("m0421")}</small>
                 </div>
                 <div className="output-row__actions">
+                  <OutputSourceProjectAction item={item} label={t('studio.continueProject')} />
                   <IconButton label={msg("m1263")} disabled={!item.mutable || pendingAction !== null} onClick={() => beginRename(item)}><Pencil size={14} /></IconButton>
                   <IconButton
                     label={desktop ? msg("m0392") : msg("m0913")}

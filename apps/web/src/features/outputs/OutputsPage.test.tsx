@@ -7,6 +7,7 @@ import {
   canCommitOutputLoad,
   canDismissOutputConfirmation,
   ConfirmationDialog,
+  OutputSourceProjectAction,
   OutputZeroActions,
   outputWorkspacePresentation,
 } from './OutputsPage';
@@ -108,5 +109,38 @@ describe('outputs asynchronous guards', () => {
 
     expect(markup).toContain('href="/production"');
     expect(markup).toContain('data-action="cleanup-staged"');
+  });
+
+  it('returns a failed export to its exact persisted source project', () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <OutputSourceProjectAction
+          item={{
+            output_kind: 'export',
+            project_id: '3c657345-627f-4ce7-aab9-8db78976a6ea',
+          }}
+          label="继续编辑"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain('data-action="open-source-project"');
+    expect(markup).toContain('href="/studio/editor?project=3c657345-627f-4ce7-aab9-8db78976a6ea"');
+  });
+
+  it('does not invent a source-project action for recordings or missing lineage', () => {
+    const recordingMarkup = renderToStaticMarkup(
+      <MemoryRouter>
+        <OutputSourceProjectAction item={{ output_kind: 'recording', project_id: null }} label="继续编辑" />
+      </MemoryRouter>,
+    );
+    const missingProjectMarkup = renderToStaticMarkup(
+      <MemoryRouter>
+        <OutputSourceProjectAction item={{ output_kind: 'export', project_id: null }} label="继续编辑" />
+      </MemoryRouter>,
+    );
+
+    expect(recordingMarkup).toBe('');
+    expect(missingProjectMarkup).toBe('');
   });
 });

@@ -128,6 +128,28 @@
 .library-power-table th[data-column="updated"] { width: 128px; }
 .library-power-table th[data-column="actions"] { width: 270px; }
 
+.library-selection-bar { align-items: flex-start; }
+.library-selection-bar__copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.library-selection-bar__copy strong { font-size: 10px; }
+.library-selection-bar__copy span { color: var(--text-soft); font-size: 9px; line-height: 1.45; }
+.library-selection-bar__copy small { display: flex; align-items: center; gap: 5px; color: var(--amber); font-size: 9px; }
+.library-selection-bar__actions { display: flex; flex: 0 0 auto; gap: 6px; }
+
+@media (max-width: 780px) {
+  .library-selection-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .library-selection-bar__actions {
+    width: 100%;
+  }
+
+  .library-selection-bar__actions .button {
+    flex: 1;
+  }
+}
+
 @media (max-width: 1180px) {
   .library-column-visibility {
     grid-column: 4;

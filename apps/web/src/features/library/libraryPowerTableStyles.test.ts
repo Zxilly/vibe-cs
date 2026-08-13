@@ -25,6 +25,13 @@ describe('library power-table responsive contract', () => {
     expect(css).toMatch(/\.library-map-filter\s*\{[^}]*min-width:\s*0[^}]*border:\s*0/s);
   });
 
+  it('keeps cross-page selection actions visible and operable in the narrow desktop workspace', () => {
+    expect(columnCss).toMatch(/\.library-selection-bar\s*\{[^}]*align-items:\s*flex-start/s);
+    expect(columnCss).toMatch(/\.library-selection-bar__copy\s*\{[^}]*min-width:\s*0[^}]*flex:\s*1/s);
+    expect(columnCss).toMatch(/@media\s*\(max-width:\s*780px\)[\s\S]*?\.library-selection-bar\s*\{[^}]*flex-direction:\s*column/s);
+    expect(columnCss).toMatch(/@media\s*\(max-width:\s*780px\)[\s\S]*?\.library-selection-bar__actions\s*\{[^}]*width:\s*100%/s);
+  });
+
   it('anchors the column chooser and derives table width from real visible columns', () => {
     expect(columnCss).toMatch(/\.library-column-visibility\s*\{[^}]*position:\s*relative/s);
     expect(columnCss).toMatch(/\.library-column-visibility__panel\s*\{[^}]*position:\s*absolute[^}]*z-index:/s);

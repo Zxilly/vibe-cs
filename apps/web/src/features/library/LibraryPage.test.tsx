@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -81,5 +82,38 @@ describe('library server-query controls', () => {
     expect(markup).toContain('value="de_mirage"');
     expect(markup).toContain('value="indexing" selected=""');
     expect(markup).toContain('aria-sort="descending"><button type="button">地图');
+  });
+});
+
+describe('library cross-page selection wiring', () => {
+  const source = readFileSync(new URL('./LibraryPage.tsx', import.meta.url), 'utf8');
+
+  it('keeps canonical ids through page and sort changes but clears them when membership changes', () => {
+    expect(source).toMatch(/const selectionIdentity = librarySelectionIdentity\(libraryQuery\)/);
+    expect(source).toMatch(/setSelectedIds\(new Set\(\)\)[\s\S]*?\}, \[cancelSelectionPreflight, selectionIdentity\]\)/);
+    expect(source).not.toMatch(/retainLibraryPageSelection/);
+    expect(source).not.toMatch(/\[libraryQuery\.map, libraryQuery\.page, libraryQuery\.pageSize, libraryQuery\.search, libraryQuery\.status\]/);
+  });
+
+  it('preflights each selected id with the exact service record before opening batch analysis', () => {
+    expect(source).toMatch(/selectionPreflight\.run\([\s\S]*?commands\.getDemo\(id, signal\)/);
+    expect(source).toMatch(/return \{ id: demo\.id, status: demo\.lifecycle_status \}/);
+    expect(source).not.toMatch(/return \{ id: demo\.id, status: demo\.status \}/);
+    expect(source).toMatch(/result\.validIds\[0\][\s\S]*?demos=\$\{encodeURIComponent\(result\.validIds\.join\(','\)\)\}/);
+    expect(source).toMatch(/library\.selection\.validationFailed/);
+    expect(source).not.toMatch(/selectedAnalysisIds/);
+  });
+
+  it('ignores a stale preflight after the membership query clears selection', () => {
+    expect(source).toMatch(/cancelSelectionPreflight\(\)[\s\S]*?\}, \[cancelSelectionPreflight, selectionIdentity\]\)/);
+    expect(source).toMatch(/const requestedSelectionIdentity = selectionIdentity[\s\S]*?const requestedSelectionIdsIdentity = selectionIdsIdentity[\s\S]*?selectionPreflight\.run/);
+    expect(source).toMatch(/if \(selectionIdentityRef\.current !== requestedSelectionIdentity\) return/);
+    expect(source).toMatch(/if \(selectionIdsIdentityRef\.current !== requestedSelectionIdsIdentity\)[\s\S]*?cancelSelectionPreflight\(\)[\s\S]*?return/);
+    expect(source).toMatch(/setSelectedIds\(new Set\(result\.validIds\)\)/);
+  });
+
+  it('disposes the current preflight when the Library route leaves', () => {
+    expect(source).toMatch(/const selectionPreflight = useMemo\(createLibrarySelectionPreflight, \[\]\)/);
+    expect(source).toMatch(/return \(\) => selectionPreflight\.dispose\(\)/);
   });
 });

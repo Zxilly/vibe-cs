@@ -1,7 +1,6 @@
 import { currentLocale, msg, msgf } from '../../shared/i18n';
 import {
   CalendarDays,
-  CheckSquare,
   Clock3,
   FileVideo2,
   Filter,
@@ -17,7 +16,6 @@ import {
   Radio,
   ScanSearch,
   Search,
-  Sparkles,
   Table2,
   Trash2,
   Upload,
@@ -47,6 +45,7 @@ import {
   TextInput,
 } from '../../shared/ui';
 import { LibrarySectionNav } from './LibrarySectionNav';
+import { LibrarySelectionBar } from './LibrarySelectionBar';
 import { requireSuccessfulImport } from './importResult';
 import { demoLifecyclePresentation, hasVerifiedMatchScore } from './libraryPresentation';
 import {
@@ -61,7 +60,14 @@ import {
   type LibraryOptionalColumn,
   type LibraryQueryState,
 } from './libraryQuery';
-import { isDemoAnalyzable, retainLibraryPageSelection } from './librarySelection';
+import {
+  createLibrarySelectionPreflight,
+  isDemoAnalyzable,
+  formatLibrarySelectionMessage,
+  librarySelectionIdentity,
+  selectionNotice,
+  toggleLibrarySelection,
+} from './librarySelection';
 import {
   LibraryDemoInspector,
   LibraryColumnVisibility,
@@ -162,6 +168,12 @@ export function LibraryPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>('table');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectionAtLimit, setSelectionAtLimit] = useState(false);
+  const [selectionNoticeState, setSelectionNoticeState] = useState<{
+    tone: 'warning' | 'danger';
+    message: string;
+  } | null>(null);
+  const [selectionActionStatus, setSelectionActionStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [activeDemo, setActiveDemo] = useState<DemoSummary | null>(null);
   const [detailAnalysis, setDetailAnalysis] = useState<AnalysisWorkspace | null>(null);
   const [detailAnalysisError, setDetailAnalysisError] = useState<string | null>(null);
@@ -177,8 +189,23 @@ export function LibraryPage() {
   const [watchStatus, setWatchStatus] = useState<DemoWatchStatus | null>(null);
   const [watchError, setWatchError] = useState<string | null>(null);
   const watchAction = useAsyncAction<DemoWatchStatus>();
+  const selectionPreflight = useMemo(createLibrarySelectionPreflight, []);
   const desktopShell = useMemo(isDesktopShell, []);
   const wideInspector = useWideLibraryInspector();
+  const selectionIdentity = librarySelectionIdentity(libraryQuery);
+  const selectionIdentityRef = useRef(selectionIdentity);
+  selectionIdentityRef.current = selectionIdentity;
+  const selectionIdsIdentity = JSON.stringify([...selectedIds]);
+  const selectionIdsIdentityRef = useRef(selectionIdsIdentity);
+  selectionIdsIdentityRef.current = selectionIdsIdentity;
+  const cancelSelectionPreflight = useCallback(() => {
+    selectionPreflight.cancel();
+    setSelectionActionStatus('idle');
+  }, [selectionPreflight]);
+
+  useEffect(() => {
+    return () => selectionPreflight.dispose();
+  }, [selectionPreflight]);
 
   const updateLibraryQuery = useCallback((
     patch: Partial<LibraryQueryState>,
@@ -259,25 +286,21 @@ export function LibraryPage() {
 
   useEffect(() => {
     setActiveDemo(null);
+  }, [libraryQuery.page, libraryQuery.pageSize, libraryQuery.sort]);
+
+  useEffect(() => {
+    setActiveDemo(null);
     setSelectedIds(new Set());
-  }, [libraryQuery.map, libraryQuery.page, libraryQuery.pageSize, libraryQuery.search, libraryQuery.status]);
+    setSelectionAtLimit(false);
+    setSelectionNoticeState(null);
+    cancelSelectionPreflight();
+  }, [cancelSelectionPreflight, selectionIdentity]);
 
   useEffect(() => {
     const pageIds = demos.map((demo) => demo.id);
     const pageIdSet = new Set(pageIds);
     setActiveDemo((current) => current && pageIdSet.has(current.id) ? current : null);
-    setSelectedIds((current) => {
-      const next = retainLibraryPageSelection(current, pageIds);
-      return next.size === current.size ? current : next;
-    });
   }, [demos]);
-
-  const selectedAnalysisIds = useMemo(() => {
-    const analyzable = new Set(
-      demos.filter((demo) => isDemoAnalyzable(demo.lifecycle_status)).map((demo) => demo.id),
-    );
-    return [...selectedIds].filter((id) => analyzable.has(id));
-  }, [demos, selectedIds]);
 
   const openDetails = (demo: DemoSummary) => {
     setActiveDemo(demo);
@@ -305,12 +328,79 @@ export function LibraryPage() {
 
   const toggleSelected = (demo: DemoSummary) => {
     if (!isDemoAnalyzable(demo.lifecycle_status)) return;
+    cancelSelectionPreflight();
     setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(demo.id)) next.delete(demo.id);
-      else next.add(demo.id);
-      return next;
+      const result = toggleLibrarySelection(current, demo.id);
+      setSelectionAtLimit(result.atLimit);
+      setSelectionNoticeState(null);
+      return result.selectedIds instanceof Set
+        ? result.selectedIds
+        : new Set(result.selectedIds);
     });
+  };
+
+  const clearSelection = () => {
+    cancelSelectionPreflight();
+    setSelectedIds(new Set());
+    setSelectionAtLimit(false);
+    setSelectionNoticeState(null);
+  };
+
+  const handleAnalyzeSelection = () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    const requestedSelectionIdentity = selectionIdentity;
+    const requestedSelectionIdsIdentity = selectionIdsIdentity;
+    setSelectionNoticeState(null);
+    setSelectionActionStatus('loading');
+    void selectionPreflight.run(
+      ids,
+      async (id, signal) => {
+        const demo = await commands.getDemo(id, signal);
+        return { id: demo.id, status: demo.lifecycle_status };
+      },
+      {
+        onFailure: (error) => {
+          if (selectionIdentityRef.current !== requestedSelectionIdentity) return;
+          if (selectionIdsIdentityRef.current !== requestedSelectionIdsIdentity) {
+            cancelSelectionPreflight();
+            return;
+          }
+          setSelectionActionStatus('error');
+          setSelectionNoticeState({
+            tone: 'danger',
+            message: formatLibrarySelectionMessage(t('library.selection.validationFailed'), {
+              reason: readableError(error),
+            }),
+          });
+        },
+        onSuccess: (result) => {
+          if (selectionIdentityRef.current !== requestedSelectionIdentity) return;
+          if (selectionIdsIdentityRef.current !== requestedSelectionIdsIdentity) {
+            cancelSelectionPreflight();
+            return;
+          }
+          setSelectionActionStatus('success');
+          setSelectedIds(new Set(result.validIds));
+          setSelectionAtLimit(false);
+          const notice = selectionNotice(result.rejected.length, result.validIds.length);
+          if (notice) {
+            setSelectionNoticeState({
+              tone: notice.tone,
+              message: formatLibrarySelectionMessage(t(notice.key), notice.values),
+            });
+            setSelectionActionStatus('idle');
+            return;
+          }
+          const primary = result.validIds[0];
+          if (!primary) {
+            setSelectionActionStatus('idle');
+            return;
+          }
+          void navigate(`/analysis?demo=${encodeURIComponent(primary)}&demos=${encodeURIComponent(result.validIds.join(','))}`);
+        },
+      },
+    );
   };
 
   const handleTableSort = (key: LibrarySortKey) => {
@@ -596,19 +686,21 @@ export function LibraryPage() {
         />
       ) : null}
 
-      {selectedAnalysisIds.length > 0 ? (
-        <div className="selection-bar">
-          <CheckSquare size={16} />
-          <strong>{msg("m0544")} {selectedAnalysisIds.length} {msg("m0403")}</strong>
-          <Button size="sm" onClick={() => setSelectedIds(new Set())}>{msg("m0328")}</Button>
-          <Button size="sm" variant="primary" onClick={() => {
-            const ids = selectedAnalysisIds;
-            const primary = ids[0];
-            if (primary) void navigate(`/analysis?demo=${encodeURIComponent(primary)}&demos=${encodeURIComponent(ids.join(','))}`);
-          }}>
-            <Sparkles size={14} />{msg("m0644")}
-          </Button>
-        </div>
+      {selectionNoticeState ? (
+        <Notice tone={selectionNoticeState.tone}>{selectionNoticeState.message}</Notice>
+      ) : null}
+      {selectedIds.size > 0 ? (
+        <LibrarySelectionBar
+          selectedCount={selectedIds.size}
+          state={selectionActionStatus === 'loading'
+            ? 'validating'
+            : selectionActionStatus === 'success'
+              ? 'opening'
+              : 'idle'}
+          atLimit={selectionAtLimit}
+          onClear={clearSelection}
+          onAnalyze={() => void handleAnalyzeSelection()}
+        />
       ) : null}
 
       <div className="library-workspace">

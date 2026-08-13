@@ -33,6 +33,8 @@ import {
   visibleEvidenceAttributes,
 } from './evidenceSearchPresentation';
 import { EvidenceAnnotationPanel } from './EvidenceAnnotationPanel';
+import { EvidenceAnnotationIndexPage } from './EvidenceAnnotationIndexPage';
+import { EvidenceSearchSectionNav } from './EvidenceSearchSectionNav';
 import './EvidenceSearchPage.css';
 
 type SearchState =
@@ -100,6 +102,11 @@ function eventTone(item: EvidenceSearchItem) {
 }
 
 export function EvidenceSearchPage() {
+  const [parameters] = useSearchParams();
+  return parameters.has('view') ? <EvidenceAnnotationIndexPage /> : <EvidenceSearchWorkbench />;
+}
+
+function EvidenceSearchWorkbench() {
   const { locale, t } = useI18n();
   const [parameters, setParameters] = useSearchParams();
   const parameterKey = parameters.toString();
@@ -164,6 +171,7 @@ export function EvidenceSearchPage() {
     <div className="page page--evidence-search" data-testid="evidence-search-page">
       <header className="evidence-search-header">
         <div>
+          <EvidenceSearchSectionNav active="evidence" />
           <span className="eyebrow">{t('evidenceSearch.eyebrow')}</span>
           <h1>{t('evidenceSearch.title')}</h1>
           <p>{t('evidenceSearch.description')}</p>

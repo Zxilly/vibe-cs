@@ -30,8 +30,8 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 ```
 
 - `domain` contains serializable records, validation and errors and performs no I/O. The current
-  evidence-annotation contract binds user text, free-form tags and open/resolved state to one exact
-  `demo_id/evidence_id/round/tick` locator.
+  evidence-annotation contract binds editable user text, free-form tags and open/resolved state to
+  one immutable `demo_id/evidence_id/round/tick` locator.
 - `storage` owns the current SQLite schema, explicit transactions, project snapshots, jobs, library
   records, evidence projections and canonical evidence annotations. Annotation creation verifies the
   locator against `evidence_search_items`; Demo deletion cascades to annotations.
@@ -66,12 +66,15 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and
   process lifecycle.
 - `web` keeps DTOs at the desktop command boundary and uses feature-local state for analysis, queue,
-  editor and settings workflows. Library query state is URL-owned and sent to the SQLite-backed
-  search/filter/stable-sort/page boundary; page selection never implies a client-side full-library
-  sort. The Openings workspace is a deterministic projection of the loaded analysis: it accepts only
-  the earliest kill by tick in each round, resolves both participants through canonical player IDs,
-  and marks the round unavailable when that first event cannot be verified. It never promotes a later
-  kill or infers trades, KAST or rating.
+  editor and settings workflows. Library query and current column-visibility state are URL-owned;
+  the column contract accepts only unique keys for fields present in the current DTO and exposes
+  unavailable data such as file size as a capability gap instead of a placeholder column. Search,
+  filter, stable sort and page selection stay at the SQLite boundary and never imply a client-side
+  full-library sort. The Openings workspace is a deterministic projection of the loaded analysis: it
+  accepts only the earliest kill by tick in each round, resolves both participants through canonical
+  player IDs, and marks the round unavailable when that first event cannot be verified. Its 10-by-10
+  directional matrix is row-actor/column-target; selecting a cell filters the same canonical atomic
+  evidence. It never promotes a later kill or infers trades, KAST or rating.
 
 Platform commands and process spawning do not appear in route handlers or domain records.
 
@@ -112,10 +115,12 @@ Temporary files are created in the target filesystem and become visible only aft
 an atomic or no-clobber publication step. Replay and avatar caches have entry and byte ceilings;
 proxy ownership and cleanup are persisted explicitly.
 
-Evidence annotations also live in SQLite as current-schema records. They survive a normal desktop
-restart, are page-queryable by Demo, evidence ID or review state, and are removed with their owning
-Demo. They are not aliases for the older Demo remark field, an algorithmic highlight tag, or an
-Agent thread.
+Evidence annotations also live in SQLite as current-schema records. Their body, tags and review
+state can change without changing the canonical locator. They survive a normal desktop restart,
+are page-queryable with bounded `q`, tag, review-state, Demo and evidence-ID filters, and are removed
+with their owning Demo. The server query contract is implemented and tested; there is not yet a
+product-audited global annotation-index UI. Annotations are not aliases for the older Demo remark
+field, an algorithmic highlight tag, or an Agent thread.
 
 ## Command and task flow
 
@@ -146,13 +151,17 @@ This is fail-safe reconciliation, not continuation from an assumed capture tick.
 Release demo parsing runs in a single globally-admitted, integrity-pinned worker process;
 the desktop locks the worker and its parent across process creation, and the worker enforces parser
 thread, segment, decompression and aggregate-event budgets. Development without a generated worker
-manifest uses only the cooperative Source 2 parser in-process. The worker defaults to the vendored
-multithreaded demoparser backend and follows its event pass with a bounded selected-tick pass for
-exact round rosters. `VIBE_CS_DEMO_BACKEND=cooperative` is the only explicit worker diagnostic
-override; Fast parser errors are returned without retrying the cooperative parser. The in-process
-`DemoEngine` default stays on the cooperative parser so cancellation never depends on interrupting
-an in-process parallel parse. Fast statistics do not embed dense entity
-snapshots; replay and heatmap use positioned events as their explicit sparse fallback.
+manifest uses only the cooperative Source 2 parser in-process. Upstream demoparser already uses
+Rayon; multithreading is therefore not a reason to carry a local copy. The worker defaults to the
+audited vendored fork because the current release contract additionally requires deterministic
+offline-generated inputs, hard resource limits, checked decode, `spectator_slot`/exact-roster and
+identity output, and the reviewed performance envelope. A bare upstream Git revision cannot supply
+that contract. The worker follows its event pass with a bounded selected-tick pass for exact round
+rosters. `VIBE_CS_DEMO_BACKEND=cooperative` is the only explicit worker diagnostic override; Fast
+parser errors are returned without retrying the cooperative parser. The in-process `DemoEngine`
+default stays on the cooperative parser so cancellation never depends on interrupting an in-process
+parallel parse. Fast statistics do not embed dense entity snapshots; replay and heatmap use
+positioned events as their explicit sparse fallback.
 
 The desktop, worker binary and worker manifest form one current release contract. They must be built
 from the same source. A worker response missing a current required field is rejected; the unreleased

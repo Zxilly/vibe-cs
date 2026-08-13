@@ -21,14 +21,23 @@ revision. Exact scope, redistribution caveats, patch policy, per-file upstream
 hashes, and final tree hashes are recorded beside the sources in `UPSTREAM.md`,
 `UPSTREAM_FILES.sha256`, and `MANIFEST.sha256`.
 
+Upstream demoparser already parallelizes work with Rayon. Multithreading is not a
+vendoring justification and Vibe does not claim it as one. The audited fork is
+kept because the product contract also needs deterministic offline compilation,
+hard parser resource/decompression limits and checked decode, the
+`player_userids` to `spectator_slot` projection used by POV capture, exact-roster
+and identity corrections, and the reviewed performance patches. Pointing Cargo
+at a bare upstream Git revision would discard those audited inputs and behavior.
+
 The integrity-pinned demo worker selects this vendored backend by default. Its
 adapter uses owned, re-hashed input bytes, bounded parser resources, an event
 pass, and a selected-tick roster pass. The in-process engine remains on the
 cooperatively cancellable Source 2 backend, and the worker accepts only an explicit
 `VIBE_CS_DEMO_BACKEND=cooperative` diagnostic override. Parser errors are returned
-by the selected backend without retrying the other implementation. Any future upstream update
-must pin and audit a new full commit, repeat the mechanical import, review
-licensing and generated inputs, and regenerate both hash manifests.
+by the selected backend without retrying the other implementation. Any future
+upstream update must pin and audit a new full commit, repeat the mechanical import,
+review licensing and generated inputs, reapply only still-required local patches,
+and regenerate both hash manifests.
 
 ## Application-managed HLAE runtime
 

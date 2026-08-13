@@ -12,7 +12,7 @@
 
 ## 1. 结论
 
-Vibe CS 目前还不是 CS Demo Manager 的完整替代品。它已经补上跨三场 Major 的 Evidence Search、绑定 canonical evidence 的持久复盘注释、单场 Player Atomic Evidence、逐回合 Openings、分页 Activity Center、Library 服务端筛选/排序/分页和 power table/Inspector，也有更完整的“分析证据 → AI 协作 → 录制 → 剪辑 → 交付”产品链路。当前产品库已索引 M1/M2/M3 共 11,548 条证据并报告 `scan_complete=true`；剩余差距集中在团队实体与团队矩阵、跨工作流 review/taxonomy、连续高保真回放，以及真实 CS2 + HLAE 成片门禁：
+Vibe CS 目前还不是 CS Demo Manager 的完整替代品。它已经补上跨三场 Major 的 Evidence Search、绑定 canonical evidence 的持久复盘注释、单场 Player Atomic Evidence、带 10×10 方向对位矩阵的 Openings、分页 Activity Center、Library 服务端筛选/排序/分页、power table/Inspector 和只包含真实数据的 URL 列选择器，也有更完整的“分析证据 → AI 协作 → 录制 → 剪辑 → 交付”产品链路。当前产品库已索引 M1/M2/M3 共 11,548 条证据并报告 `scan_complete=true`；剩余差距集中在团队实体与团队矩阵、跨工作流 review/taxonomy、连续高保真回放，以及真实 CS2 + HLAE 成片门禁：
 
 1. Duels、Grenades、Economy 等团队级矩阵，以及首杀地图和跨比赛趋势。
 2. 队伍实体、队伍历史、队伍热图和表现页。
@@ -20,7 +20,7 @@ Vibe CS 目前还不是 CS Demo Manager 的完整替代品。它已经补上跨�
 4. 连续高保真 2D Viewer 的音频、绘图、全屏、击杀流和完整 HUD。
 5. FACEIT、Renown、5EPlay 等多来源下载入口。
 6. 可暂停、重试并在安全边界内续跑的制作任务队列，以及真实磁盘/ETA 与逐阶段日志。
-7. Library 的列配置、批量操作、逐阶段日志和大库性能产品门禁。
+7. Library 的跨页批量操作、逐阶段日志和大库性能产品门禁。
 
 Vibe CS 当前做得更好的部分也很明确：
 
@@ -57,16 +57,16 @@ Vibe CS 当前做得更好的部分也很明确：
 
 ### 2.3 本轮视觉证据索引
 
-所有 Vibe 截图都来自真实 Tauri/WebView2 运行态；单场工作台使用已持久化的 Major M1，Evidence Search、Library、Players 与 Activity 使用产品库中的 M1/M2/M3，不是 Storybook、静态 HTML 或 synthetic fixture。旧缺陷基线在 `target/visual-audit-20260813-0805-tauri/`，闭合证据分布在 `target/ui-parity-closure-20260813/`、`target/parity-continuation-20260813/` 与 `target/activity-center-audit-20260813/`。选项二参考与真实 Context Canvas 的等尺寸归一化并排证据为 `target/parity-continuation-20260813/13-option2-vs-real-context-normalized.png`；它只用于比较任务层级与信息密度，不冒充同一原生 viewport。CSDM 截图来自 v3.20.1 exact commit 的官方仓库预览和当前官方文档。截图位于 `target/`，仅作为本地审计证据，不进入 Git。
+所有 Vibe 截图都来自真实 Tauri/WebView2 运行态；单场工作台使用已持久化的 Major M1，Evidence Search、Library、Players 与 Activity 使用产品库中的 M1/M2/M3，不是 Storybook、静态 HTML 或 synthetic fixture。旧缺陷基线在 `target/visual-audit-20260813-0805-tauri/`，闭合证据分布在 `target/ui-parity-closure-20260813/`、`target/parity-continuation-20260813/`、`target/activity-center-audit-20260813/` 与 `target/product-audit-20260813-current/`。选项二参考与真实 Context Canvas 的等尺寸归一化并排证据为 `target/parity-continuation-20260813/13-option2-vs-real-context-normalized.png`；它只用于比较任务层级与信息密度，不冒充同一原生 viewport。CSDM 截图来自 v3.20.1 exact commit 的官方仓库预览和当前官方文档。截图位于 `target/`，仅作为本地审计证据，不进入 Git。
 
 Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮页面 `errors` 与 console 均无输出。它证明本轮页面没有可见脚本错误，不证明未实际执行的录制、导出、工程保存和模型生成成功态。
 
 | 对比对象 | CS Demo Manager 证据 | Vibe CS 证据 | 本轮直接观察 |
 |---|---|---|---|
-| 资料库 | `csdm/05-official-repo-preview-v3.20.1.png`、`csdm/07-official-analysis-queue-doc.png` | `parity-continuation-20260813/09-library-power-table-2560x1392.png`、`10-library-inspector-compact-1086x692.png` | 既有截图证明 power table + Inspector/drawer 的双尺寸布局；当前代码进一步把 search/map/status、稳定 sort、page/page_size 下推到 SQLite，默认 50 条且 URL 可恢复。新分页切片目前只有契约、focused 与全套自动化门禁，尚未补真实 Tauri 大库验收；列配置、标签、评论和阶段日志仍缺。 |
-| Evidence Search | CSDM Search 工作台源码 | `02-evidence-search-fallen-r20-1440x900.png`、`parity-continuation-20260813/04-evidence-search-three-demos-2560x1392.png` | 产品库三场 Major 共 11,548 条证据（M1 3,628 / M2 3,943 / M3 3,977），默认每页 50 行且 `scan_complete=true`；FalleN + multi-kill + R20 唯一命中并能进入精确 Round/Replay。当前同源 desktop+sidecar 重新分析 M1 后仍有 3,628 条；真实 Tauri 已对 R1 tick 1 注释完成创建、resolve→reopen，并在完整退出重启后读回。实际 Watch 与投影重建仍未跑。 |
+| 资料库 | `csdm/05-official-repo-preview-v3.20.1.png`、`csdm/07-official-analysis-queue-doc.png` | `parity-continuation-20260813/09-library-power-table-2560x1392.png`、`product-audit-20260813-current/08-library-columns-1100x700.png`、`09-library-columns-menu-1100x700.png` | Power table + Inspector/drawer 与 SQLite 侧 search/map/status/stable-sort/page 已落；当前列选择器只提供后端真实存在的列，当前 schema 没有文件大小则明确标为 unavailable，不生成占位列。`columns=` 随 URL 恢复；1100×700 实测选择器可操作、横向滚动限定在表格内、操作列保持可达，页面无横向溢出。多页/大库性能、标签、评论和阶段日志仍未验收。 |
+| Evidence Search | CSDM Search 工作台源码 | `02-evidence-search-fallen-r20-1440x900.png`、`parity-continuation-20260813/04-evidence-search-three-demos-2560x1392.png`、`product-audit-20260813-current/10-evidence-annotation-edited-1440x900.png`、`11-evidence-annotation-after-restart-1440x900.png` | 产品库三场 Major 共 11,548 条证据（M1 3,628 / M2 3,943 / M3 3,977），默认每页 50 行且 `scan_complete=true`；FalleN + multi-kill + R20 唯一命中并能进入精确 Round/Replay。真实 Tauri 在 `furia-vs-falcons-m1-mirage` R1 tick 1 完成注释创建、resolve→reopen、正文/标签编辑与保存；使用同一隔离数据目录完整重启后，编辑后正文与包含 `current-audit` 的标签集合精确读回。实际 Watch 与投影重建仍未跑。 |
 | 比赛总览 | CSDM exact commit 的 Overview/scoreboard 源码 | `06-analysis-overview-1100x700.png`、`07-analysis-scoreboard-1100x700.png`、`compare-analysis-overview-before-after.png` | 1100×700 比赛头与标签不再重叠，玩家链接可点击，完整 scoreboard 的 Player/K/D/A/KD/ADR/HS 均可达且 document 无横向溢出。 |
-| 回合与玩家证据 | CSDM Rounds、Match Players 与 Player profile 源码 | `08-evidence-round-link-1100x700.png`、`19-rounds-context-canvas-compact-nav-1100x700.png`、`compare-editor-drawer-context.png` | Evidence 深链会选中 R20 与真实 FalleN 4K encounter（tick 161101–161310）；52px 比赛头、48px 回合带、事件/空间/Inspector 全部留在 1100×700，选中组摘要自动滚入。单场 Player 已展开 kills/deaths/weapons/duels/utility/objectives/highlights 原子证据；真实 Tauri M1 Openings 显示 21 verified、0 unavailable、21 atomic openings，R1 canonical event 为 `player_death-2598-26` / tick 2598。Watch 未点。跨比赛 Player 档案和团队级矩阵仍缺。 |
+| 回合与玩家证据 | CSDM Rounds、Match Players 与 Player profile 源码 | `08-evidence-round-link-1100x700.png`、`19-rounds-context-canvas-compact-nav-1100x700.png`、`product-audit-20260813-current/05-openings-matrix-max-2560x1392.png`、`06-openings-filtered-karrigan-fallen-max.png`、`07-openings-filtered-1100x700.png` | Evidence 深链会选中 R20 与真实 FalleN 4K encounter（tick 161101–161310）；52px 比赛头、48px 回合带、事件/空间/Inspector 全部留在 1100×700。单场 Player 已展开原子证据；真实 M1 Openings 为 21/21 verified，10×10 矩阵的行是 actor、列是 target，点选 `karrigan → FalleN` 会筛到 R17 tick 143316 的 canonical evidence。2560×1392 与 1100×700 都无页面横向溢出。Watch 未点、CS2 未启动；跨比赛 Player 档案和团队级矩阵仍缺。 |
 | 2D 回放 | `csdm/01-official-2d-viewer-doc.png` | `21-replay-final-1100x700.png`、`compare-replay-before-after.png` | 1100×700 下 workspace 使用完整剩余高度，304px 方形 radar、transport 与独立滚动证据栏都留在 700px 视口内；仍只有 2,479 稀疏帧/3,129 定位事件，不等于 CSDM 连续 Viewer。 |
 | Heatmap | CSDM Heatmap 源码 | `parity-continuation-20260813/05-heatmap-r20-evidence-2560x1392.png`、`08-heatmap-r20-selected-1100x700.png` | 真实 M1 产品页使用 3,262 个稳定 ID 点；R20 可过滤出 FalleN 4 个 killer kill，点选后显示 player/side/floor/round/tick 并能进 Round/Replay/Watch，键盘 roving focus 实测通过。 |
 | Activity | CSDM Analyses/Downloads 队列 | `activity-center-audit-20260813/04-activity-max-real.png`、`05-activity-1100x700-real.png` | 当前 API/UI 支持 search/kind/state 与 50 条分页；真实 Tauri 最大化 2560×1392 显示 1 条 completed M1 analysis 且不伪造百分比。它会先读取四类完整持久来源，在应用层稳定排序、筛选和切页，不是 SQL cursor 或统一历史表；真实多页数据尚未验收。Analysis 仍无独立 job id、进度、取消和持久错误详情。 |
@@ -75,7 +75,7 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 | Settings | `csdm/06-official-settings-doc.png` 与 Settings 源码 | `vibe/18-settings-general-max.png`、`vibe/19-settings-paths-max.png` | 两者大屏都有窄内容列/长设置页问题；Vibe 分组更少，但 General 混入外观、存储、更新、诊断与迁移，并暴露占位更新地址。 |
 | AI 协作 | CSDM 无对应界面 | `vibe/20-copilot-empty-max.png`、`vibe/21-copilot-m1-selected-max.png`、`vibe/22-copilot-m1-1100x700.png` | 这是 Vibe 独有优势；当前未配置模型时能明确阻断，但 Demo/BGM/工程上下文与 HLAE handoff 占据首屏，真实对话和 proposal 历史还不是视觉中心。 |
 
-这里的“最大化通过”只表示没有裁切且主任务可以完成，不表示功能 parity 已完成。Library 已有服务端查询窗口和 power table/逐条 Inspector；Activity 已有应用层分页，但仍会完整读取四类来源，不能写成数据库级大数据历史游标。列配置、任务日志与通用可恢复动作仍不完整；Production、Settings 与更多非零任务状态仍需要继续实测。Editor 的大画布与空时间线属于工具语义，不应和资料页的无效留白混为一谈。
+这里的“最大化通过”只表示没有裁切且主任务可以完成，不表示功能 parity 已完成。Library 已有服务端查询窗口、power table/逐条 Inspector 和当前 URL 列选择；Activity 已有应用层分页，但仍会完整读取四类来源，不能写成数据库级大数据历史游标。跨页批量、任务日志与通用可恢复动作仍不完整；Production、Settings 与更多非零任务状态仍需要继续实测。Editor 的大画布与空时间线属于工具语义，不应和资料页的无效留白混为一谈。
 
 ## 3. 全局能力矩阵
 
@@ -83,18 +83,18 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 |---|---|---|---|---|
 | 全局导航 | 60px 图标侧栏，入口多，队列数量 badge | 带文字的可折叠侧栏、面包屑、服务状态、自绘窗口栏，Evidence Search 为常驻入口 | 相当 | Vibe 的上下文页不全在常驻导航；Ctrl+K 仍只是路由跳转，不能与独立证据检索混为一谈。 |
 | 首页 / 引导 | 无独立首页，按设置进入工作页 | 任务导向首页，解释分析、制作、交付流程 | 更好 | 首页与真实任务状态联动仍有限，容易变成静态导航板。 |
-| 原始 Demo 资料库 | 独立 Demos 表格、可见列、批量、标签、评论、来源修正、Watch/Reveal/Analyze | Library power table、逐条 Inspector/drawer、服务端 search/map/status/sort/page、导入、扫描、监听目录、生命周期、批量分析、Watch/Reveal | 部分 | 默认 50 条，页大小支持 20/50/100/200，查询状态写入 URL；新服务端窗口尚未做真实 Tauri 大库验收，且仍没有列配置、标签、评论、来源修正和分析数据导出。 |
+| 原始 Demo 资料库 | 独立 Demos 表格、可见列、批量、标签、评论、来源修正、Watch/Reveal/Analyze | Library power table、逐条 Inspector/drawer、服务端 search/map/status/sort/page、当前 URL 列选择、导入、扫描、监听目录、生命周期、批量分析、Watch/Reveal | 部分 | 默认 50 条，页大小支持 20/50/100/200，查询与列状态写入 URL；1100×700 的列选择、表内横滚和固定操作列已过真实 Tauri 门禁。文件大小不在当前 DTO 中，所以明确 unavailable；仍没有跨页批量、标签、评论、来源修正和分析数据导出，大库性能也未验收。 |
 | 已分析比赛列表 | 独立 Matches 表格、比分/地图/日期/来源、改队名、标签、Watch/Reveal | ready Demo 与未分析 Demo 共存于 Library | 部分 | 生命周期更连贯，但重度用户无法只看已分析比赛，也缺少密集列与批量动作。 |
 | 分析任务中心 | 独立 Analyses 页，Pending/Analyzing/Inserting/Done/Error、日志、See Demo/Match | 独立 Activity 聚合 analysis/download/recording/export 的持久状态与真实动作，并支持 search/kind/state/分页 | 部分 | Analysis 仍没有独立 job id、百分比、取消 API、持久错误详情和阶段日志；Activity 的 50 条分页发生在四类来源全部读入并合并之后，尚不是可扩展的 SQL cursor/统一历史表。 |
 | Demo 下载 | Valve、share code、FACEIT、Renown、5EPlay、Pending Downloads | Steam match history、持久下载 job、进度、取消、服务端全库搜索、全结果 CSV | 部分 | 已下载记录可直接进入 Analysis，刷新后会从持久任务恢复轮询和取消；仍缺多平台入口和 Download All，且真实 Steam 历史数据产品验收尚未运行。 |
-| 全局事件搜索 | 事件、玩家、受害者、武器、地图、日期、来源、标签及击杀属性组合筛选 | 独立 Evidence Search、持久投影、组合筛选、稳定 evidence ID、Round/Replay/Watch 动作、逐证据复盘注释 | 部分 | 真实 M1/M2/M3 共 11,548 条索引、50 行默认页和唯一 FalleN R20 结果已通过；真实 M1 annotation 已完成创建、resolve/reopen 与完整应用重启读回。投影重建和实际 Watch 启动仍未验收。 |
+| 全局事件搜索 | 事件、玩家、受害者、武器、地图、日期、来源、标签及击杀属性组合筛选 | 独立 Evidence Search、持久投影、组合筛选、稳定 evidence ID、Round/Replay/Watch 动作、逐证据复盘注释 | 部分 | 真实 M1/M2/M3 共 11,548 条索引、50 行默认页和唯一 FalleN R20 结果已通过；真实 M1 annotation 已完成创建、resolve/reopen、正文/标签编辑，并在完整应用重启后读回精确的编辑结果。投影重建和实际 Watch 启动仍未验收。 |
 | 比赛总览 | Scoreboard、round timeline、比赛信息、上下场导航、上下文菜单 | 紧凑比赛头、完整 10 人榜、选中玩家证据、round flow、关键时刻 | 部分 | Vibe 默认更清楚，但没有可配置 scoreboard 列、前后比赛快捷键和每项原子 Watch。 |
 | 回合列表 / 回合详情 | 回合导航、单回合详情、评论/标签、直接游戏内 Watch | 命名事件、类型过滤、精确 round/tick/player 深链、加入制作、2D 回放 | 部分 | 缺少人工评论/标签、逐回合完整装备/经济快照和广泛键盘导航。 |
 | 单场玩家 | Weapons、Kills、Utilities、Clutches 等独立面板 | K/D/A、ADR、爆头；kills/deaths/weapons/duels/utility/objectives/highlights 原子证据 | 部分 | 每条原子证据已可 Watch、开 Round/Replay、加入制作；仍缺团队级矩阵、独立高级分析页和跨比赛 compare。 |
 | 全局玩家目录 | 表格列、筛选、标签、评论、封禁、XLSX；个人 Overview/Charts/Maps/Heatmap/Rank/Matches | 服务端搜索/分页、当前页排序、最多两人真实对比、别名、汇总、头像、最近比赛、可选 Steam 公共资料 | 部分 | 对比只覆盖当前服务端页且聚合最多 1,000 个 Demo；缺个人图表、地图、热图、段位历史、评论、标签、封禁和导出。 |
 | 队伍目录 | Teams、Overview、Maps、Heatmap、Performance、Matches | 无稳定的全局 Team 实体页 | 缺失 | 无法跨比赛观察同一阵容、地图池、攻守表现和队伍热图。 |
 | 武器分析 | 独立 Weapons 页，命中部位与准确性 | 独立 Weapons master-detail，真实 kills/headshot kills/damage events/damage 与原子证据动作 | 部分 | 当前事件不能证明 shots/hits/accuracy/hitgroup，界面明确 unavailable；仍缺团队矩阵和命中部位。 |
-| 对位分析 | 对位矩阵、opening duel stats、opening duel map | Duels directional matchup + 原子 engagement；Openings 逐回合首个 kill、玩家首杀/首死汇总与证据 Inspector | 部分 | Openings 对无 kill、越界或无法解析参与者的首事件显式 unavailable，不会寻找后续事件替代；真实 M1 为 21/21 verified，R1=`player_death-2598-26` / tick 2598。仍缺全队矩阵、首杀地图、趋势，Watch 未启动。 |
+| 对位分析 | 对位矩阵、opening duel stats、opening duel map | Duels directional matchup + 原子 engagement；Openings 逐回合首个 kill、10×10 actor→target 矩阵、玩家首杀/首死汇总与证据 Inspector | 部分 | Openings 只使用可验证的逐回合首个 kill；真实 M1 为 21/21 verified，`karrigan→FalleN` 筛到 R17 tick 143316，且 2560×1392/1100×700 无页面溢出。无 kill 或不可验证的首事件仍显式 unavailable，不会提升后续 kill。仍缺首杀地图和跨比赛趋势，Watch 未启动。 |
 | 道具分析 | Grenades stats + Finder，地图位置和筛选 | 独立 Utility 原子表、玩家/回合/类型筛选、Replay lifecycle、Heatmap grenade 模式 | 部分 | 只消费已解码 grenade/player_blind/utility damage；没有起点→落点/爆点关系、可复用 lineup/callout，缺值明确 partial/unavailable。 |
 | 经济分析 | 装备价值、经济类型、优势曲线 | 21 回合 T/CT 表、购买数/金额/物品证据 | 部分 | Vibe 真实性更好，但缺趋势图、经济类型、优势变化和组织队连续性视图。 |
 | 热图 | Match、Player、Team 多层热图 | Match heatmap，真实雷达，kills/deaths/damage/grenade/purchase、T/CT/player/floor | 部分 | 无跨比赛 Player/Team 热图、缺点选证据和强度图例；当前主要是单场分布。 |
@@ -102,7 +102,7 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 | 比赛视频制作 | 单场 sequence timeline、HLAE/FFmpeg/VirtualDub、分辨率/语音/X-ray/death notices、加入队列 | Highlights→Queue、director preview、应用托管 HLAE、原生 Windows Media Foundation H.264/AAC、POV、预后滚 | 部分 | OBS 已从产品入口与可执行录制路径退役；Queue 编辑计划可跨 WebView reload 恢复，但真实 CS2+HLAE 端到端仍是发布门禁，不能把本地编辑状态等同于后台任务耐久性。 |
 | 视频队列 | Pause/Resume、移除完成/全部、每 job 状态 | 计划、执行、取消、重排、启用、预检、持久 job 状态与启动恢复 | 部分 | 运行时暴露的 active recording id 会在详情 hydration 前保持取消可用；启动恢复会复核已发布产物，或把歧义 running/cancelling 状态安全终结，不会猜测续跑。仍缺 pause/resume、失败重试、完整日志、可信磁盘/ETA，以及真实 HLAE job 验收。 |
 | 比赛聊天 | 展示/导出 Demo 内聊天消息 | AI Review 与 Agent 对话 | 缺失 | AI 对话不是原始比赛聊天；Vibe 没有聊天记录读取/导出。 |
-| 评论 / 标签 | Demo、Match、Player、Round 评论，round comment 可进入 video timeline；Tags taxonomy | Evidence Search 的持久复盘注释，精确绑定 demo/evidence/round/tick，含自由标签与 open/resolved | 部分 | 后端有分页 CRUD，UI 可创建、resolve/reopen、删除；真实 M1 已用 `PISTOL`/`COMMUNICATION` 标签完成 open→resolved→open 并在完整应用重启后读回。尚无作者/权限、全局 taxonomy/过滤、Demo/Player 泛化评论，以及 Agent/Highlights/Editor 复用。 |
+| 评论 / 标签 | Demo、Match、Player、Round 评论，round comment 可进入 video timeline；Tags taxonomy | Evidence Search 的持久复盘注释，精确绑定 demo/evidence/round/tick，含可编辑正文/自由标签与 open/resolved | 部分 | 后端有分页 CRUD 与 `q/tag/state/demo/evidence` 筛选，UI 可创建、编辑、resolve/reopen、删除；真实 M1 已在正文/标签编辑与完整应用重启后读回包含 `current-audit` 的精确结果。服务端筛选已有自动化门禁，但尚无全局 annotation index UI 的产品验收；也尚无作者/权限、全局 taxonomy、Demo/Player 泛化评论与 Agent/Highlights/Editor 复用。 |
 | 封禁统计 | 玩家封禁标记和全局 Ban charts | 无 | 缺失 | 若目标包含 MM 用户研究，这是信息缺口；若只服务职业赛可列为可选范围。 |
 | 输出管理 | 主要围绕 video queue 与输出文件夹 | 独立 Output Library，搜索/筛选/进度/rename/reveal/delete/cleanup | 更好 | HLAE bundle 仍是独立 handoff 语义，需继续保持和普通 media output 的区别。 |
 | Montage / Timeline Editor | 生成素材后依赖外部 NLE | 内置 Montage、multi-track Editor、BGM 卡点、字幕/图像/音频、undo/redo、package | 独有 | 是 Vibe 的核心差异，不能为了 CSDM parity 被挤到边缘入口。 |
@@ -199,10 +199,10 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 
 1. 服务端 search/map/status 与稳定 sort/page 已落，但 SQLite `LIKE`/JSON player-name 搜索和高页码 offset 尚未用大资料库做真实产品性能门禁。
 2. 分析任务没有独立日志和历史，`View progress` 只能回到 Analysis 上下文。
-3. 缺少可配置列、Tag、Comment、Demo source correction、XLSX/JSON analysis export。
+3. 缺少 Tag、Comment、Demo source correction、XLSX/JSON analysis export。
 4. ready 与 raw lifecycle 共用一个视图，在大量 Demo 下不如 CSDM 的 Demos/Matches 分离高效。
 5. 缺少一键只看失败/缺失并执行批量恢复的运维视图。
-6. Power table 与逐条 Inspector 已落，但缺阶段日志、列持久化、跨页批量上下文，以及完整路径等字段的用户可配置展示策略。
+6. Power table 与逐条 Inspector 已落，当前真实列的显隐状态也会写入 URL；仍缺阶段日志、跨页批量上下文，以及完整路径等字段的产品化展示。
 
 **建议**
 
@@ -267,16 +267,16 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 - analysis 持久化时事务性更新 evidence projection；应用启动会重建缺失投影，查询有明确的 bounded page/page-size 和 scan completeness。
 - 支持 event family、actor、victim、weapon、map、source、source kind、headshot、round 和日期组合筛选；结果使用与 Player/Round/Replay 相同的 canonical evidence ID。
 - 每条结果能进入精确 Round、Replay 或受管游戏内 Watch；URL 保留 demo/round/tick/player/evidence。
-- 每条结果现在可以打开复盘注释 drawer；创建时后端要求 `demo_id/evidence_id/round/tick` 与持久 projection 的 canonical locator 完全一致，记录支持自由标签、open/resolved、分页读取和删除，删除 Demo 会级联删除注释。
+- 每条结果现在可以打开复盘注释 drawer；创建时后端要求 `demo_id/evidence_id/round/tick` 与持久 projection 的 canonical locator 完全一致，locator 不随编辑改变。记录支持正文/自由标签编辑、open/resolved、分页读取和删除，删除 Demo 会级联删除注释。
 - 真实 Tauri 的 M1 产品库显示 3,628 条已索引证据、默认 50 行/页；`FalleN + multi_kill + R20` 唯一命中，并已实际跑通对应 Round 与 Replay 深链。
 
 **Vibe 做得不好的地方**
 
-1. 还没有保存查询、最近查询、annotation tag/review 条件、批量 collection/production 或导出。
+1. 还没有保存查询、最近查询、批量 collection/production 或导出。Annotation 服务端已支持 `q/tag/state/demo/evidence` 筛选并通过自动化门禁，但还没有全局 annotation index UI 的真实产品验收。
 2. 当前 projection 只覆盖已定义事件/高光族；CSDM 的 no-scope、jump、smoke、team kill、collateral、ninja 等条件需要 parser 有权威字段后再开放。
 3. M1/M2/M3 multi-match 与 `scan_complete=true` 已在产品库通过；应用重启后的投影重建，以及会真实启动 CS2 的 Watch 仍是明确门禁。
 4. Annotation 目前只在 Evidence Search 消费；Agent、Highlights、Editor、Library 和全局 Player profile 尚未全部消费统一 evidence deep link/review 状态。
-5. Annotation 的 locator rejection、CRUD 和 drawer 有 focused/全套自动化覆盖；真实 Tauri 已在 R1 tick 1 创建正文与 `PISTOL`/`COMMUNICATION` 标签、执行 resolve→reopen，并在完整应用退出重启后读回同一记录。删除仍只由自动化门禁覆盖。
+5. Annotation 的 locator rejection、CRUD、服务端筛选和 drawer 有 focused/全套自动化覆盖；真实 Tauri 已在 `furia-vs-falcons-m1-mirage` R1 tick 1 完成创建、resolve→reopen、正文/标签编辑与保存，并在使用同一隔离数据目录完整重启后读回编辑后正文与包含 `current-audit` 的精确标签集合。删除仍只由自动化门禁覆盖；全局 annotation index UI 也未做产品验收。
 
 这一项已从“功能缺失”进入“三场产品检索闭环已过、外部动作/重启门禁待验收”；不能把当前三场成功外推为任意规模资料库的性能结论。
 
@@ -562,15 +562,15 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 
 **Vibe CS**
 
-- Evidence Search 已有 canonical evidence annotation：持久记录绑定 `demo_id/evidence_id/round/tick`，正文与自由标签可写，review state 为 open/resolved；Agent thread、AI Review 和 Demo remark 仍是不同信息。
+- Evidence Search 已有 canonical evidence annotation：持久记录绑定 `demo_id/evidence_id/round/tick`，locator 不可通过编辑变更，正文与自由标签可创建和编辑，review state 为 open/resolved；Agent thread、AI Review 和 Demo remark 仍是不同信息。
 
 **当前边界**
 
 1. 没有原始比赛 chat 读取/导出。
-2. Annotation 创建会校验 exact canonical evidence locator，后端支持分页 CRUD；UI 当前提供创建、resolve/reopen 与删除，但尚未提供正文/标签的就地编辑。
-3. 自由标签随 annotation 保存，但没有全局 tag taxonomy、跨比赛 annotation 过滤、作者或权限模型。
+2. Annotation 创建会校验 exact canonical evidence locator，后端支持分页 CRUD；UI 当前提供创建、正文/标签就地编辑、resolve/reopen 与删除。
+3. 自由标签随 annotation 保存，服务端支持 `q/tag/state/demo/evidence` 过滤且已有自动化门禁；但没有全局 annotation index UI 的产品验收，也没有全局 tag taxonomy、作者或权限模型。
 4. Agent、Highlights 和 Editor 还不能读取这些 review note；Demo/Player/Round 泛化评论也未实现。
-5. Storage reopen/cascade 与 route/UI focused 测试已过；真实 Tauri 已验证 R1 tick 1 注释创建、resolve/reopen 与完整应用重启恢复。删除、1100×700 drawer 和跨工作流消费仍待产品验收。
+5. Storage reopen/cascade 与 route/UI focused 测试已过；真实 Tauri 已在 `furia-vs-falcons-m1-mirage` R1 tick 1 验证注释创建、resolve/reopen、正文/标签编辑，并在同一隔离数据目录完整应用重启后恢复包含 `current-audit` 的精确结果。删除、1100×700 drawer、全局 annotation index UI 和跨工作流消费仍待产品验收。
 
 ### 4.21 Teams / Ban
 
@@ -647,7 +647,7 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 用户所说的“最大化下界面空”并非一个统一 CSS 缺陷：
 
 - Overview 原先的大空卡已经被真实 scoreboard/evidence 填充，本轮最大化截图不再空。
-- Library 已把宽屏空白转换为 power table + 逐条 Inspector/drawer，并加入服务端 query window；仍缺列配置、跨页批量与真实大库性能门禁，Players 仍需要同类信息能力。
+- Library 已把宽屏空白转换为 power table + 逐条 Inspector/drawer，并加入服务端 query window 和当前 URL 列选择；仍缺跨页批量与真实大库性能门禁，Players 仍需要同类信息能力。
 - Queue 零项已收敛成唯一下一步；Production 概览与 Outputs 仍应给最近活动、依赖状态和明确下一步。
 - Replay/Heatmap/Editor 属于画布型页面，扩大地图或时间线是合理的；重点是控制、证据和画布对齐，而不是塞更多卡片。
 
@@ -669,7 +669,7 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 
 2. **高级比赛分析页**
 
-   保持 5 个核心标签；Player atomic、Weapons、Duels 和 Utility 已落，在 More 下继续收口团队级 Economy，同时补团队矩阵而不是复制不可靠指标。Utility 的真实页面内双尺寸验收仍待人工继续。
+   保持 5 个核心标签；Player atomic、Weapons、Duels、Utility 和 Openings 已落。Openings 的 10×10 方向矩阵已用真实 M1 在 2560×1392/1100×700 验收；在 More 下继续收口团队级 Economy 和其他可证明的团队矩阵，不复制不可靠指标。Utility 的真实页面内双尺寸验收仍待人工继续。
 
 3. **深化 Activity Center**
 
@@ -681,7 +681,7 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 
 5. **评论、标签与 Review 状态**
 
-   Evidence Search 已有 exact `demo/evidence/round/tick` annotation、自由标签和 open/resolved；下一步是作者/权限、全局 taxonomy/过滤，以及让 Agent、Highlights、Round 与 Editor 复用同一记录。
+   Evidence Search 已有 exact `demo/evidence/round/tick` annotation、可编辑正文/自由标签和 open/resolved；服务端 `q/tag/state/demo/evidence` 筛选也已有自动化门禁。下一步是全局 annotation index UI 产品门禁、taxonomy、作者/权限，以及让 Agent、Highlights、Round 与 Editor 复用同一记录。
 
 6. **逐玩家广度与队伍实体**
 
@@ -693,7 +693,7 @@ Vibe 黑盒检查覆盖原生最大化 2560×1392、1100×700、DPR 1.5；本轮
 
 8. **Library 大数据能力**
 
-   Power table + 逐条 Inspector/drawer 与 SQLite 侧 search/filter/stable-sort/page 已落；继续补列配置、跨页批量 tags/comments/reveal/watch/export、阶段日志、ready-only saved view，以及真实大库性能门禁。
+   Power table + 逐条 Inspector/drawer、SQLite 侧 search/filter/stable-sort/page 与只包含真实数据的 URL 列选择已落；1100×700 的 selector/表内横滚/固定操作列已过。继续补跨页批量 tags/comments/reveal/watch/export、阶段日志、ready-only saved view，以及真实大库性能门禁。
 
 ### P2 — 影响效率与理解
 
@@ -806,13 +806,13 @@ AI 协作
 
 ### 本轮视觉证据
 
-本轮闭合截图、逐页 DOM/几何记录和同视口 before/after 合成图保存在 `target/ui-parity-closure-20260813/`、`target/parity-continuation-20260813/` 与 `target/activity-center-audit-20260813/`；旧失败基线在 `target/visual-audit-20260813-0805-tauri/`。这些目录为本地审计证据，不进入 Git。
+本轮闭合截图、逐页 DOM/几何记录和同视口 before/after 合成图保存在 `target/ui-parity-closure-20260813/`、`target/parity-continuation-20260813/`、`target/activity-center-audit-20260813/` 与 `target/product-audit-20260813-current/`；旧失败基线在 `target/visual-audit-20260813-0805-tauri/`。这些目录为本地审计证据，不进入 Git。
 
 ## 11. 审计限制
 
 - 本次 CSDM 基线以 v3.20.1 当前源码、官方文档和官方界面截图为准；没有使用用户真实数据库完整跑一遍所有页面，因此 CSDM 的空状态、异常状态和部分数据密度只能结合源码判断。
 - Vibe 使用真实 Major M1 验证当前比赛、回合、Player/Weapons/Duels 原子证据、经济、热图和 Replay；M1/M2/M3 均已进入产品索引并完成 Evidence Search multi-match 实测。Windows Media Foundation 的真实 synthetic H.264/AAC write/readback smoke 已过，但真实 CS2+受管 HLAE 成片仍是发布门禁，不能由 isolated codec smoke 代替。
-- 本轮 Library 服务端窗口与 Queue recovered-cancel 只有 source/focused 和工作区自动化门禁；真实 Tauri 未覆盖 Library 多页/大库，也未覆盖 active HLAE job 刷新后取消。Evidence Annotation 已完成 create→resolve→reopen→完整重启读回，Openings 已完成真实 M1 21/21 页面核对，Activity 仅完成 1 条 completed analysis 的 2560×1392 页面核对，不能据此外推多页。Watch 仍未实跑。
+- 本轮 Library 的列选择、表内横滚与固定操作列已用真实 Tauri 1100×700 验收，但多页/大库性能仍未覆盖；Queue recovered-cancel 仍只有 source/focused 和工作区自动化门禁，active HLAE job 刷新后取消未跑。Evidence Annotation 已完成 create→resolve→reopen、正文/标签编辑与完整重启读回；编辑后正文与包含 `current-audit` 的标签集合在同一隔离数据目录中精确持久。服务端 `q/tag/state/demo/evidence` 筛选已实现并通过自动化门禁，但全局 annotation index UI 未做产品验收。Openings 已完成真实 M1 21/21、10×10 方向矩阵与 `karrigan→FalleN` R17 tick 143316 的双尺寸核对；Activity 仅完成 1 条 completed analysis 的 2560×1392 页面核对，不能据此外推多页。Watch 仍未实跑。
 - 初次 current desktop + 旧 sidecar 因 response 缺少 `status` 被 fail-closed 拒绝；重建同源 sidecar 后真实 M1 分析成功。该结果证明 exact current contract 生效，不构成旧响应兼容需求。
 - 视觉截图不能证明屏幕阅读器、Windows Snap、物理拖动和所有键盘路径。
 - “所有差异”以当前公开页面和当前 Vibe 路由为边界，不包含纯 CLI 命令、未公开实验页和仅存在于测试 fixture 的能力。

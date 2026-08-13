@@ -36,7 +36,10 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   records, durable analysis attempts and their bounded events, evidence projections, canonical
   evidence annotations and the Activity query over its four authoritative sources. Activity summary,
   filtered total and page rows come from one SQLite transaction; there is no materialized Activity
-  table or compatibility view. Every analysis result is bound to the exact completed producer run by
+  table or compatibility view. An exact Activity read resolves one canonical lowercase
+  `<kind>/<uuid>` against only that kind's authoritative source and calculates retryability and result
+  availability in the same transaction; malformed or retired locators are invalid and a UUID from
+  another kind is not a match. Every analysis result is bound to the exact completed producer run by
   a composite foreign key. Annotation creation verifies the locator against
   `evidence_search_items`; Demo deletion cascades to annotations.
 - `demo` owns safe discovery, ZIP extraction, hashing, Source 2 parsing, entity replay, insights,
@@ -115,6 +118,14 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   player IDs, and marks the round unavailable when that first event cannot be verified. Its 10-by-10
   directional matrix is row-actor/column-target; selecting a cell filters the same canonical atomic
   evidence. It never promotes a later kill or infers trades, KAST or rating.
+  Man Advantage Review is a separate current-analysis projection. It requires two stable five-player
+  summary rosters, one exact ten-player roster for every uniquely numbered round, one in-bounds
+  canonical round-end, unique canonical event IDs and resolvable death targets. It starts each round
+  from the roster and subtracts parsed death targets; deaths at one tick are one atomic transition,
+  an actorless death remains attributable only to its target, and a team kill decrements the target's
+  team. A repeated target or duplicate same-tick target makes that round unavailable. Its two-by-two
+  matrix is first-lead Team A/B by final winner Team A/B. This is a remaining-uneliminated projection,
+  not health/alive/disconnect evidence, a win probability, trade, KAST or rating.
   The Team Round workspace is another deterministic projection. It opens only when two exact
   five-player summary rosters and every exact ten-player round roster prove stable Team A/B identity,
   teammate/opponent sides, an A/B winner and an in-bounds canonical `round_end`. Its 2-by-2 cells are
@@ -141,7 +152,15 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   run can still use the Demo result route, whose row is producer-bound in storage. Activity uses
   `analysis:<run_id>`, displays the persisted stage, input fingerprint, error and ordered events, and
   starts retry as a new run without rewriting the failed or interrupted attempt. It never invents an
-  analysis percentage.
+  analysis percentage. Activity selection is independently URL-owned as
+  `activity=<kind:canonical-lowercase-uuid>` and is read through the exact endpoint even when the
+  selected row is outside the current search, filter or page. The strict client parser binds kind,
+  activity ID and job ID to the request. The exact observer retains the last good item during transient
+  failures, backs off from 1.5 seconds through 15 seconds, treats 404 as unavailable without selecting
+  another row, and aborts stale requests on context change or unmount. Production's recent rows use
+  the same exact deep link. Action responses may select a newly created durable task, but a late
+  response cannot hijack a changed or unmounted selection, and a queued action receipt is dismissed
+  once that exact task advances to a different persisted status or stage.
 
 Platform commands and process spawning do not appear in route handlers or domain records.
 
@@ -245,7 +264,7 @@ handle supplied every parser byte. In particular, terminal-tail recovery parses 
 and the copy's separate byte provenance is not recorded in the run events. This narrow physical-file
 TOCTOU boundary remains explicit.
 
-The completed-run success path has passed a fresh real-Major product gate at exact source
+The completed-run success path first passed a fresh real-Major product gate at exact source
 `d733b6cf8690996db516a08edc0e0df37b41851c`. The isolated
 `app.vibecs.analysisrun-audit` desktop executable had SHA-256
 `dafa01d17351d9b0730816b6e6bf320a509be201f102679a922d1f2e22100d1d`, and its paired demo worker had
@@ -255,8 +274,34 @@ The fresh database completed all three Major runs. The accepted M1 evidence prov
 persistent events, exact input fingerprint/size, `result_available=true`, a URL retaining both Demo
 and run IDs, and the matching `analysis:<run_id>` Activity/Open Analysis path. Activity had no
 document overflow at 2560×1392 or 1100×700; at 1100 it retained a 698.7px table and 300px independently
-scrollable inspector. This is a success-path product gate only: no analysis failure, interruption,
-retry or cancel was executed, and startup/concurrency recovery remains deterministic-test evidence.
+scrollable inspector. That was a success-path product gate only: no analysis failure, interruption,
+retry or cancel was executed there.
+
+The later `app.vibecs.manadv-activity-audit` gate used `agent-browser` directly against Tauri
+WebView2 CDP port 9341, not Computer Use. Its initial exact-HEAD `2d73e7f` executable had SHA-256
+`c7b1af286654ee988fe2f3a927e639d68bb9873258de41bb2ac1b92585b517ca`; screenshots 01–07 and the
+fresh database came from that build and identifier. Real Mirage Demo
+`97221743-7c59-4ae3-bdfd-7eb427c0e75d` / run
+`47499075-333f-4cac-803d-ae7dbfbc12de` proved a 21/21 Man Advantage workspace whose first-lead/final-
+winner matrix was `7/3/1/10`, with 17 first leads won, four lost and five rounds containing a lead
+change. The same product run proved Production-to-Activity exact deep linking, selection retained
+while filtered out and after reload, and accepted 2560×1392 and 1100×700 layouts.
+
+The host was then deliberately stopped immediately after starting a real Inferno analysis. On the
+next startup, run `4ded8b20-59e9-4e14-961e-e2e44995e497` was durably reconciled to `interrupted`; its
+retry created distinct run `02a7df9d-6a5c-456c-baac-6a461fb4e200`, left the old run intact and
+completed against the same Demo. This is product evidence for one analysis startup-recovery and retry
+path, not for cancel, concurrency, physical worker-artifact cleanup, Steam download retry, recording
+retry, export mutation, CS2 or HLAE. That run also exposed a stale queued action receipt after the new
+task had already completed. Commit `fc80c5f` fixed the client to retire a receipt only when the same
+exact activity advances. Its exact-build executable SHA-256 was
+`b77b0a458d1e4ccdc034d44404bca7b0d759364a5676436099698b64f3721ad8`; the embedded Web build
+transformed 2,600 modules, and the paired worker remained
+`2e99e8e365b7047dcd39eebc305d79e84438ea7d58757e2fb1eed4cb14c87255`. The full Web gate passed
+619 tests with three skipped, plus lint, typecheck and build. Screenshot 08 is the separate focused
+`fc80c5f` product check: loading an exact completed Activity showed no stale receipt. It did not run a
+second same-session retry; automatic dismissal when one exact task advances is supported by the new
+deterministic TDD and 24-test focused gate, not claimed as a repeated visual observation.
 
 Recording, export and Steam-download records are persisted and queried through Tauri commands. Cancellation is
 cooperative and job-scoped. A normal lifecycle is:

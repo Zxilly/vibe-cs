@@ -16,6 +16,7 @@ use uuid::Uuid;
 use vibe_cs_application::{DemoWatchPort, DemoWatchRootStatus, DemoWatchStatus, EventHub};
 use vibe_cs_demo::{DiscoveryOptions, ParseCancellation, ValidatedDemo, ValidationLimits};
 use vibe_cs_domain::{DemoQuery, DemoRecord, DemoStatus, DomainError};
+use vibe_cs_storage::{DemoContentIdentity, DemoContentRecovery};
 
 const MAXIMUM_WATCH_ROOTS: usize = 64;
 const MAXIMUM_DISCOVERED_DEMOS: usize = 10_000;
@@ -549,19 +550,27 @@ async fn scan_roots(
         let validated = match validation {
             Ok(validated) => validated,
             Err(error) => {
-                if let Ok(Some(mut existing)) = storage
+                match storage
                     .get_demo_by_path(path.to_string_lossy().into_owned())
                     .await
                 {
-                    let _ = storage.delete_analysis(existing.id).await;
-                    existing.status = DemoStatus::Failed;
-                    existing.content_sha256 = None;
-                    existing.file_size = tokio::fs::metadata(&path)
-                        .await
-                        .map_or(0, |metadata| metadata.len());
-                    existing.updated_at = Utc::now();
-                    let _ = storage.put_demo(existing.clone()).await;
-                    events.publish("demo", "invalid", Some(existing.id));
+                    Ok(Some(existing)) => {
+                        let observed_file_size = tokio::fs::metadata(&path)
+                            .await
+                            .map_or(0, |metadata| metadata.len());
+                        match storage
+                            .invalidate_demo_content(existing, observed_file_size)
+                            .await
+                        {
+                            Ok(Some(invalidated)) => {
+                                events.publish("demo", "invalid", Some(invalidated.id));
+                            }
+                            Ok(None) => {}
+                            Err(storage_error) => delta.errors.push(storage_error.to_string()),
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(storage_error) => delta.errors.push(storage_error.to_string()),
                 }
                 delta.errors.push(error);
                 continue;
@@ -620,9 +629,7 @@ async fn upsert_watched_demo(
         record.created_at = existing.created_at;
         record.display_name = existing.display_name;
         record.remark = existing.remark;
-        if content_changed {
-            let _ = storage.delete_analysis(existing.id).await?;
-        } else {
+        if !content_changed {
             record.map_name = existing.map_name;
             record.match_date = existing.match_date;
             record.duration_seconds = existing.duration_seconds;
@@ -638,19 +645,62 @@ async fn upsert_watched_demo(
                 existing.status
             };
         }
-        storage.put_demo(record.clone()).await?;
+        if content_changed {
+            storage.replace_demo_content(record.clone()).await?;
+        } else {
+            storage.put_demo(record.clone()).await?;
+        }
         return Ok(Some((record.id, true)));
     }
-    if storage
-        .get_demo_by_hash(validated.sha256.clone())
-        .await?
-        .is_some()
-    {
-        return Ok(None);
-    }
     let record = demo_record(validated, "watch");
-    storage.put_demo(record.clone()).await?;
-    Ok(Some((record.id, false)))
+    let outcome = storage.put_content_addressed_demo(record.clone()).await?;
+    if outcome.was_inserted() {
+        Ok(Some((record.id, false)))
+    } else if outcome.demo().path == record.path {
+        Ok(Some((outcome.demo().id, true)))
+    } else {
+        let existing = outcome.into_demo();
+        if demo_file_matches_catalog(&existing).await {
+            return Ok(None);
+        }
+        let recovered = storage
+            .recover_content_addressed_demo(DemoContentRecovery {
+                expected: DemoContentIdentity {
+                    id: existing.id,
+                    path: existing.path,
+                    status: existing.status,
+                    content_sha256: existing.content_sha256.unwrap_or_default(),
+                    file_size: existing.file_size,
+                },
+                verified_path: record.path,
+                verified_file_name: record.file_name,
+                verified_size: record.file_size,
+                verified_sha256: record.content_sha256.unwrap_or_default(),
+            })
+            .await?;
+        Ok(recovered.map(|demo| (demo.id, true)))
+    }
+}
+
+async fn demo_file_matches_catalog(demo: &DemoRecord) -> bool {
+    if demo.status == DemoStatus::Missing {
+        return false;
+    }
+    let Some(expected_hash) = demo.content_sha256.clone() else {
+        return false;
+    };
+    let expected_size = demo.file_size;
+    let path = PathBuf::from(&demo.path);
+    tokio::task::spawn_blocking(move || {
+        vibe_cs_demo::validate_demo(
+            &path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .is_ok_and(|validated| validated.size == expected_size && validated.sha256 == expected_hash)
+    })
+    .await
+    .unwrap_or(false)
 }
 
 fn demo_record(validated: ValidatedDemo, source: &str) -> DemoRecord {

@@ -4352,6 +4352,7 @@ body {
   .player-match-history > header svg { color: var(--accent); }
   .player-match-history > header strong { font-size: 10px; }
   .player-match-history > header > span { color: var(--muted); font-size: 7px; }
+  .player-match-history__scope { margin: 0 1px 8px; color: var(--muted); font-size: 7px; line-height: 1.45; }
   .player-match-history > div[role="list"] { display: flex; flex-direction: column; gap: 5px; }
   .player-match-history article { display: grid; min-height: 61px; grid-template-columns: minmax(150px,1fr) 45px minmax(190px,.9fr) auto; align-items: center; padding: 8px 9px; gap: 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); content-visibility: auto; contain-intrinsic-size: auto 61px; }
   .player-match-main { min-width: 0; }

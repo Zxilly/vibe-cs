@@ -81,7 +81,8 @@ export type DemoSummary = {
   filename: string;
   display_name: string;
   map_name: string;
-  played_at: string;
+  match_date: string | null;
+  cataloged_at: string;
   duration_seconds: number;
   total_rounds: number;
   score_team_a: number | null;
@@ -412,8 +413,10 @@ export type PlayerDirectoryItem = {
   steam_id: string;
   name: string;
   aliases: string[];
+  aliases_total: number;
   last_team: string | null;
-  last_match_at: string;
+  last_match_date: string | null;
+  last_cataloged_at: string;
   stats: PlayerAggregateStats;
   steam: PlayerSteamProfile;
 };
@@ -422,7 +425,8 @@ export type PlayerMatch = {
   demo_id: EntityId;
   demo_name: string;
   map_name: string | null;
-  played_at: string;
+  match_date: string | null;
+  cataloged_at: string;
   team: string | null;
   kills: number;
   deaths: number;
@@ -433,26 +437,29 @@ export type PlayerMatch = {
   kill_death_ratio: number | null;
 };
 
+export type PlayerProjectionCoverage = {
+  projected_demos: number;
+  total_analyses: number;
+  projection_complete: boolean;
+};
+
 export type PlayerDirectoryPage = Paginated<PlayerDirectoryItem> & {
-  scanned_demos: number;
-  scan_complete: boolean;
+  coverage: PlayerProjectionCoverage;
 };
 
 export type PlayerMatchPage = Paginated<PlayerMatch> & {
-  scanned_demos: number;
-  scan_complete: boolean;
+  steam_id: string;
+  coverage: PlayerProjectionCoverage;
 };
 
 export type PlayerComparison = {
   players: [PlayerDirectoryItem, PlayerDirectoryItem];
-  scanned_demos: number;
-  scan_complete: boolean;
+  coverage: PlayerProjectionCoverage;
 };
 
 export type PlayerProfile = {
   player: PlayerDirectoryItem;
-  scanned_demos: number;
-  scan_complete: boolean;
+  coverage: PlayerProjectionCoverage;
 };
 
 export type AvatarCacheStatus = {

@@ -26,6 +26,7 @@ const CURRENT_SCHEMA: &str = r"
         status TEXT NOT NULL,
         map_name TEXT,
         match_date TEXT,
+        created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         document_json TEXT NOT NULL,
         content_sha256 TEXT
@@ -247,6 +248,32 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (demo_id) REFERENCES analyses(demo_id) ON DELETE CASCADE
     );
 
+    CREATE TABLE player_match_items (
+        demo_id TEXT NOT NULL,
+        steam_id TEXT NOT NULL,
+        player_name TEXT NOT NULL,
+        player_name_key TEXT NOT NULL CHECK(length(player_name_key) > 0),
+        team TEXT,
+        team_key TEXT,
+        kills INTEGER NOT NULL CHECK(kills >= 0),
+        deaths INTEGER NOT NULL CHECK(deaths >= 0),
+        assists INTEGER NOT NULL CHECK(assists >= 0),
+        headshots INTEGER NOT NULL CHECK(headshots >= 0),
+        damage INTEGER NOT NULL CHECK(damage >= 0),
+        adr REAL CHECK(adr IS NULL OR adr >= 0),
+        kill_death_ratio REAL CHECK(kill_death_ratio IS NULL OR kill_death_ratio >= 0),
+        PRIMARY KEY(demo_id, steam_id),
+        FOREIGN KEY (demo_id) REFERENCES analyses(demo_id) ON DELETE CASCADE,
+        CHECK((team IS NULL) = (team_key IS NULL))
+    );
+
+    CREATE TABLE player_match_projection_state (
+        demo_id TEXT PRIMARY KEY NOT NULL,
+        analysis_updated_at TEXT NOT NULL,
+        projected_players INTEGER NOT NULL CHECK(projected_players >= 0),
+        FOREIGN KEY (demo_id) REFERENCES analyses(demo_id) ON DELETE CASCADE
+    );
+
     CREATE TABLE evidence_annotations (
         id TEXT PRIMARY KEY NOT NULL,
         demo_id TEXT NOT NULL,
@@ -281,12 +308,17 @@ const CURRENT_SCHEMA: &str = r"
     CREATE INDEX steam_matches_account_idx ON steam_matches(steam_id, match_id DESC);
     CREATE INDEX match_download_jobs_match_idx
         ON match_download_jobs(match_record_id, updated_at DESC);
+    CREATE UNIQUE INDEX match_download_jobs_one_active_per_match
+        ON match_download_jobs(match_record_id)
+        WHERE status NOT IN ('completed', 'cancelled', 'failed');
     CREATE INDEX match_download_jobs_activity_idx
         ON match_download_jobs(updated_at DESC, id);
     CREATE INDEX match_download_jobs_activity_status_idx
         ON match_download_jobs(status, updated_at DESC, id);
     CREATE INDEX editor_presets_updated_idx ON editor_presets(updated_at DESC);
     CREATE INDEX cosmetic_plans_demo_idx ON cosmetic_plans(demo_id, updated_at DESC);
+    CREATE UNIQUE INDEX demos_content_sha256_unique
+        ON demos(content_sha256) WHERE content_sha256 IS NOT NULL;
     CREATE INDEX evidence_search_demo_idx
         ON evidence_search_items(demo_id, round, tick);
     CREATE INDEX evidence_search_family_idx
@@ -303,6 +335,12 @@ const CURRENT_SCHEMA: &str = r"
         ON evidence_annotations(evidence_id, updated_at DESC);
     CREATE INDEX evidence_annotations_demo_idx
         ON evidence_annotations(demo_id, updated_at DESC);
+    CREATE INDEX player_match_player_idx
+        ON player_match_items(steam_id, demo_id);
+    CREATE INDEX player_match_name_idx
+        ON player_match_items(player_name_key, steam_id);
+    CREATE INDEX player_match_team_idx
+        ON player_match_items(team_key, steam_id);
 ";
 
 pub(crate) fn configure(connection: &Connection) -> Result<()> {

@@ -36,8 +36,10 @@ const player: PlayerDirectoryItem = {
   steam_id: '76561198000000001',
   name: 'Local Player',
   aliases: [],
+  aliases_total: 0,
   last_team: 'CT',
-  last_match_at: '2026-08-10T08:00:00Z',
+  last_match_date: null,
+  last_cataloged_at: '2026-08-10T08:00:00Z',
   stats: {
     matches: 2,
     kills: 30,
@@ -84,11 +86,13 @@ describe('player presentation', () => {
 
   it('reports the exact player match window instead of a current-page count', () => {
     const page: PlayerMatchPage = {
+      steam_id: '76561198000000001',
       items: Array.from({ length: 5 }, (_, index) => ({
         demo_id: `demo-${index}`,
         demo_name: `Match ${index}`,
         map_name: null,
-        played_at: '2026-08-13T00:00:00Z',
+        match_date: null,
+        cataloged_at: '2026-08-13T00:00:00Z',
         team: null,
         kills: 0,
         deaths: 0,
@@ -101,8 +105,7 @@ describe('player presentation', () => {
       total: 25,
       page: 2,
       page_size: 20,
-      scanned_demos: 25,
-      scan_complete: true,
+      coverage: { projected_demos: 25, total_analyses: 25, projection_complete: true },
     };
 
     expect(playerMatchResultRange(page)).toBe('21–25 / 25');

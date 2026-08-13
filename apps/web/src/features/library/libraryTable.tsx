@@ -126,7 +126,7 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
 }
 
-function formatUpdated(value: string | undefined): string {
+function formatUpdated(value: string | null | undefined): string {
   if (!value || !Number.isFinite(Date.parse(value))) return UNKNOWN_VALUE;
   return new Intl.DateTimeFormat(currentLocale(), {
     year: 'numeric',
@@ -301,7 +301,16 @@ export function LibraryPowerTable({
                 {visibleColumns.has('score') ? <td className={hasVerifiedMatchScore(demo) ? 'library-power-table__score' : 'library-power-table__reason'} data-column="score">
                   {libraryResult(demo, t(lifecycle.descriptionKey))}
                 </td> : null}
-                {visibleColumns.has('played') ? <td className="library-power-table__updated" data-column="played">{formatUpdated(demo.played_at)}</td> : null}
+                {visibleColumns.has('played') ? <td
+                  className="library-power-table__updated"
+                  data-column="played"
+                  title={t('library.matchDate.catalogedAt').replace(
+                    '{date}',
+                    formatUpdated(demo.cataloged_at),
+                  )}
+                >{demo.match_date
+                    ? formatUpdated(demo.match_date)
+                    : t('library.matchDate.unavailable')}</td> : null}
                 {visibleColumns.has('duration') ? <td className="library-power-table__mono" data-column="duration">{formatDuration(demo.duration_seconds)}</td> : null}
                 {visibleColumns.has('rounds') ? <td className="library-power-table__mono" data-column="rounds">{demo.total_rounds > 0 ? demo.total_rounds : UNKNOWN_VALUE}</td> : null}
                 {visibleColumns.has('updated') ? <td className="library-power-table__updated" data-column="updated">{formatUpdated(demo.updated_at)}</td> : null}

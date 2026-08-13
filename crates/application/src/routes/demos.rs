@@ -19,6 +19,7 @@ use vibe_cs_domain::{
     DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoPatch, DemoQuery, DemoRecord, DemoSort, DemoStatus,
     MatchAnalysis, Page, ScanResult,
 };
+use vibe_cs_storage::{DemoContentIdentity, DemoContentRecovery};
 
 use crate::{
     ApiError, ApiJson, ApiMultipart, ApiQuery, ApiResult, AppState, DemoWatchStatus,
@@ -450,21 +451,41 @@ async fn publish_prepared_batch(
             return Err(error.into());
         }
     };
-    for duplicate in &duplicates {
-        remove_uploaded_paths(std::slice::from_ref(&duplicate.path)).await;
+    let mut recovered = Vec::new();
+    let mut skipped_duplicates = 0_u64;
+    for duplicate in duplicates {
+        let Some(hash) = duplicate.content_sha256.clone() else {
+            return Err(ApiError::invalid(
+                "validated upload lost its content fingerprint",
+            ));
+        };
+        let owner = state
+            .storage
+            .get_demo_by_hash(hash)
+            .await?
+            .ok_or_else(|| ApiError::not_found("cataloged Demo"))?;
+        if demo_file_matches_catalog(&owner).await {
+            remove_uploaded_paths(std::slice::from_ref(&duplicate.path)).await;
+            skipped_duplicates = skipped_duplicates.saturating_add(1);
+        } else {
+            let demo = recover_verified_demo_copy(&state.storage, owner, duplicate)
+                .await?
+                .ok_or_else(|| ApiError::not_found("cataloged Demo"))?;
+            recovered.push(demo);
+        }
     }
-    if inserted.is_empty() {
+    if inserted.is_empty() && recovered.is_empty() {
         remove_directory(final_dir).await;
     }
-    for demo in &inserted {
+    for demo in inserted.iter().chain(&recovered) {
         state.events.publish("demo", "changed", Some(demo.id));
     }
     state.events.publish("demo_import", "completed", None);
     Ok(Json(ScanResult {
         discovered: prepared.discovered,
         imported: inserted.len() as u64,
-        updated: 0,
-        skipped: prepared.skipped.saturating_add(duplicates.len() as u64),
+        updated: recovered.len() as u64,
+        skipped: prepared.skipped.saturating_add(skipped_duplicates),
         errors: Vec::new(),
     }))
 }
@@ -673,7 +694,6 @@ async fn import_candidates(
                     record.display_name = existing.display_name;
                     record.remark = existing.remark;
                     if content_changed {
-                        let _ = state.storage.delete_analysis(existing.id).await?;
                         record.status = DemoStatus::Discovered;
                     } else {
                         record.map_name = existing.map_name;
@@ -691,24 +711,36 @@ async fn import_candidates(
                             existing.status
                         };
                     }
-                    state.storage.put_demo(record.clone()).await?;
+                    if content_changed {
+                        state.storage.replace_demo_content(record.clone()).await?;
+                    } else {
+                        state.storage.put_demo(record.clone()).await?;
+                    }
                     result.updated += 1;
                 } else {
-                    if let Some(hash) = record.content_sha256.as_ref()
-                        && state
-                            .storage
-                            .get_demo_by_hash(hash.clone())
-                            .await?
-                            .is_some()
-                    {
-                        if source == "upload" {
-                            remove_uploaded_paths(std::slice::from_ref(&path)).await;
+                    let outcome = state
+                        .storage
+                        .put_content_addressed_demo(record.clone())
+                        .await?;
+                    if outcome.was_inserted() {
+                        result.imported += 1;
+                    } else if outcome.demo().path == record.path {
+                        record = outcome.into_demo();
+                        result.updated += 1;
+                    } else {
+                        let existing = outcome.into_demo();
+                        if demo_file_matches_catalog(&existing).await {
+                            if source == "upload" {
+                                remove_uploaded_paths(std::slice::from_ref(&path)).await;
+                            }
+                            result.skipped += 1;
+                            continue;
                         }
-                        result.skipped += 1;
-                        continue;
+                        record = recover_verified_demo_copy(&state.storage, existing, record)
+                            .await?
+                            .ok_or_else(|| ApiError::not_found("cataloged Demo"))?;
+                        result.updated += 1;
                     }
-                    state.storage.put_demo(record.clone()).await?;
-                    result.imported += 1;
                 }
                 state.events.publish("demo", "changed", Some(record.id));
             }
@@ -733,6 +765,49 @@ async fn import_candidates(
         }
     }
     Ok(result)
+}
+
+async fn demo_file_matches_catalog(demo: &DemoRecord) -> bool {
+    if demo.status == DemoStatus::Missing {
+        return false;
+    }
+    let Some(expected_hash) = demo.content_sha256.clone() else {
+        return false;
+    };
+    let expected_size = demo.file_size;
+    let path = PathBuf::from(&demo.path);
+    tokio::task::spawn_blocking(move || {
+        validate_demo(
+            &path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .is_ok_and(|validated| validated.size == expected_size && validated.sha256 == expected_hash)
+    })
+    .await
+    .unwrap_or(false)
+}
+
+async fn recover_verified_demo_copy(
+    storage: &vibe_cs_storage::Storage,
+    existing: DemoRecord,
+    incoming: DemoRecord,
+) -> Result<Option<DemoRecord>, vibe_cs_storage::StorageError> {
+    storage
+        .recover_content_addressed_demo(DemoContentRecovery {
+            expected: DemoContentIdentity {
+                id: existing.id,
+                path: existing.path,
+                status: existing.status,
+                content_sha256: existing.content_sha256.unwrap_or_default(),
+                file_size: existing.file_size,
+            },
+            verified_path: incoming.path,
+            verified_file_name: incoming.file_name,
+            verified_size: incoming.file_size,
+            verified_sha256: incoming.content_sha256.unwrap_or_default(),
+        })
+        .await
 }
 
 async fn reconcile_missing_demos(state: &AppState, roots: &[String]) -> ApiResult<u64> {
@@ -2233,6 +2308,103 @@ mod tests {
             page.items[0].content_sha256.as_deref().map(str::len),
             Some(64)
         );
+    }
+
+    #[tokio::test]
+    async fn prepared_upload_recovers_missing_and_tampered_content_owners() {
+        for stale_kind in ["missing", "tampered"] {
+            let directory = tempfile::tempdir().expect("temporary directory");
+            let stale_path = directory.path().join(format!("{stale_kind}-owner.dem"));
+            let seed_path = directory.path().join("seed.dem");
+            std::fs::write(&seed_path, b"PBDEMS2\0fixture!").expect("seed Demo");
+            let validated = validate_demo(
+                &seed_path,
+                ValidationLimits::default(),
+                &ParseCancellation::default(),
+            )
+            .expect("validated Demo");
+            let mut owner =
+                record_from_validated(validated.clone(), "local").expect("owner record");
+            owner.path = stale_path.to_string_lossy().into_owned();
+            owner.file_name = stale_path
+                .file_name()
+                .expect("file name")
+                .to_string_lossy()
+                .into_owned();
+            if stale_kind == "missing" {
+                owner.status = DemoStatus::Missing;
+            } else {
+                owner.status = DemoStatus::Ready;
+                std::fs::write(&stale_path, b"PBDEMS2\0tampered")
+                    .expect("same-size tampered owner");
+            }
+            let storage = vibe_cs_storage::Storage::open_in_memory()
+                .await
+                .expect("storage");
+            storage.put_demo(owner.clone()).await.expect("owner Demo");
+            let state = AppState::new(storage.clone(), directory.path().join("data"));
+            let staging_dir = directory.path().join(format!("{stale_kind}.staging"));
+            let relative_path = PathBuf::from("file-0/incoming.dem");
+            let staged_path = staging_dir.join(&relative_path);
+            std::fs::create_dir_all(staged_path.parent().expect("staged parent"))
+                .expect("staged directory");
+            std::fs::write(&staged_path, b"PBDEMS2\0fixture!").expect("incoming Demo");
+            let incoming = validate_demo(
+                &staged_path,
+                ValidationLimits::default(),
+                &ParseCancellation::default(),
+            )
+            .expect("validated incoming Demo");
+            let final_dir = directory.path().join(format!("{stale_kind}.published"));
+
+            let Json(result) = publish_prepared_batch(
+                &state,
+                PreparedUploadBatch {
+                    demos: vec![PreparedUploadDemo {
+                        relative_path,
+                        size: incoming.size,
+                        sha256: incoming.sha256.clone(),
+                    }],
+                    discovered: 1,
+                    skipped: 0,
+                },
+                &staging_dir,
+                &final_dir,
+                "upload",
+            )
+            .await
+            .expect("publish upload");
+
+            assert_eq!(result.imported, 0);
+            assert_eq!(result.updated, 1);
+            assert_eq!(result.skipped, 0);
+            let recovered = storage
+                .get_demo(owner.id)
+                .await
+                .expect("Demo lookup")
+                .expect("recovered Demo");
+            assert_eq!(recovered.id, owner.id);
+            assert_eq!(
+                std::fs::canonicalize(
+                    Path::new(&recovered.path)
+                        .parent()
+                        .and_then(Path::parent)
+                        .expect("published batch parent"),
+                )
+                .expect("published batch canonical path"),
+                std::fs::canonicalize(&final_dir).expect("expected batch canonical path")
+            );
+            assert_eq!(
+                validate_demo(
+                    Path::new(&recovered.path),
+                    ValidationLimits::default(),
+                    &ParseCancellation::default(),
+                )
+                .expect("recovered validation")
+                .sha256,
+                incoming.sha256
+            );
+        }
     }
 
     #[tokio::test]

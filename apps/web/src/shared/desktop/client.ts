@@ -3,6 +3,12 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { msg, msgf } from '../i18n';
 import { parseActivityFeed, parseActivityItem } from './activityContract';
 import { parseAnalysisRun, parseAnalysisRunDetail } from './analysisRunContract';
+import {
+  parsePlayerComparison,
+  parsePlayerDirectoryPage,
+  parsePlayerMatchPage,
+  parsePlayerProfile,
+} from './playerContract';
 import type {
   ActivityFeed,
   ActivityItem,
@@ -281,7 +287,8 @@ export function normalizeDemo(record: DemoRecord): DemoSummary {
     filename: record.file_name,
     display_name: record.display_name,
     map_name: record.map_name ?? 'unknown',
-    played_at: record.match_date ?? record.created_at,
+    match_date: record.match_date,
+    cataloged_at: record.created_at,
     duration_seconds: record.duration_seconds ?? 0,
     total_rounds: record.total_rounds ?? 0,
     score_team_a: record.team_a_score,
@@ -529,7 +536,7 @@ export const commands = {
   },
   deleteDemo: (id: string) =>
     request<void>(`/demos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  listPlayers: (
+  listPlayers: async (
     query: {
       search?: string;
       page?: number;
@@ -538,7 +545,7 @@ export const commands = {
       direction: 'asc' | 'desc';
     },
     signal?: AbortSignal,
-  ) => request<PlayerDirectoryPage>(
+  ) => parsePlayerDirectoryPage(await request<PlayerDirectoryPage>(
     `/players${queryString({
       search: query.search,
       page: query.page,
@@ -547,19 +554,44 @@ export const commands = {
       direction: query.direction,
     })}`,
     { signal },
-  ),
-  getPlayer: (steamId: string, signal?: AbortSignal) =>
-    request<PlayerProfile>(`/players/${encodeURIComponent(steamId)}`, { signal }),
-  listPlayerMatches: (
+  )),
+  getPlayer: async (steamId: string, signal?: AbortSignal) => {
+    const profile = parsePlayerProfile(await request<PlayerProfile>(
+      `/players/${encodeURIComponent(steamId)}`,
+      { signal },
+    ));
+    if (profile.player.steam_id !== steamId) {
+      throw new Error('Player response does not match the requested exact player.');
+    }
+    return profile;
+  },
+  listPlayerMatches: async (
     steamId: string,
     query: { page: number; page_size: number },
     signal?: AbortSignal,
-  ) => request<PlayerMatchPage>(
-    `/players/${encodeURIComponent(steamId)}/matches${queryString(query)}`,
-    { signal },
-  ),
-  comparePlayers: (left: string, right: string, signal?: AbortSignal) =>
-    request<PlayerComparison>(`/players/compare${queryString({ left, right })}`, { signal }),
+  ) => {
+    const page = parsePlayerMatchPage(await request<PlayerMatchPage>(
+      `/players/${encodeURIComponent(steamId)}/matches${queryString(query)}`,
+      { signal },
+    ));
+    if (page.steam_id !== steamId) {
+      throw new Error('Player match response does not match the requested exact player.');
+    }
+    return page;
+  },
+  comparePlayers: async (left: string, right: string, signal?: AbortSignal) => {
+    const comparison = parsePlayerComparison(await request<PlayerComparison>(
+      `/players/compare${queryString({ left, right })}`,
+      { signal },
+    ));
+    if (
+      comparison.players[0].steam_id !== left
+      || comparison.players[1].steam_id !== right
+    ) {
+      throw new Error('Player comparison does not match the requested exact players.');
+    }
+    return comparison;
+  },
   avatarCacheStatus: (signal?: AbortSignal) =>
     request<AvatarCacheStatus>('/avatar-cache', { signal }),
   clearAvatarCache: (signal?: AbortSignal) =>

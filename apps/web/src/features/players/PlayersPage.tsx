@@ -8,7 +8,8 @@ import {
   Trash2,
   UsersRound,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { DesktopError, commands, readableError } from '../../shared/desktop/client';
 import type {
@@ -18,6 +19,7 @@ import type {
   PlayerDirectoryItem,
   PlayerMatchPage,
   PlayerProfile,
+  PlayerProjectionCoverage,
 } from '../../shared/desktop/dto';
 import { useI18n } from '../../shared/i18n';
 import { Button, Card, Drawer, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
@@ -32,6 +34,11 @@ import {
   PlayerDirectoryScope,
   PlayerPowerTable,
 } from './PlayerComparisonViews';
+import {
+  patchPlayerDirectoryQuery,
+  playerDirectoryQueryFromParams,
+  playerDirectoryQueryToParams,
+} from './playerDirectoryQuery';
 import {
   PLAYER_PAGE_SIZE,
   PLAYER_SEARCH_DEBOUNCE_MS,
@@ -64,28 +71,22 @@ function useWidePlayerInspector(): boolean {
 
 export function PlayersPage() {
   const { t } = useI18n();
-  const [searchInput, setSearchInput] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const playerQuery = useMemo(() => playerDirectoryQueryFromParams(searchParams), [searchParams]);
+  const [searchInput, setSearchInput] = useState(playerQuery.search);
   const [items, setItems] = useState<PlayerDirectoryItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [scannedDemos, setScannedDemos] = useState(0);
-  const [scanComplete, setScanComplete] = useState(true);
-  const [directorySort, setDirectorySort] = useState<PlayerDirectorySort>({ key: 'last_match', direction: 'desc' });
-  const [comparedIds, setComparedIds] = useState<string[]>([]);
+  const [coverage, setCoverage] = useState<PlayerProjectionCoverage | null>(null);
   const [comparison, setComparison] = useState<PlayerComparison | null>(null);
   const [comparisonState, setComparisonState] = useState<LoadState>('idle');
   const [comparisonError, setComparisonError] = useState<string | null>(null);
   const [comparisonNotice, setComparisonNotice] = useState<string | null>(null);
   const [comparisonRefreshRevision, setComparisonRefreshRevision] = useState(0);
-  const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
   const [listState, setListState] = useState<LoadState>('idle');
   const [listError, setListError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [detailState, setDetailState] = useState<LoadState>('idle');
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [matchPage, setMatchPage] = useState(1);
   const [matches, setMatches] = useState<PlayerMatchPage | null>(null);
   const [matchesState, setMatchesState] = useState<LoadState>('idle');
   const [matchesError, setMatchesError] = useState<string | null>(null);
@@ -108,21 +109,44 @@ export function PlayersPage() {
   const cacheMutationRequestRevision = useRef(0);
   const cacheMutationController = useRef<AbortController | null>(null);
   const wideInspector = useWidePlayerInspector();
+  const debouncedSearch = playerQuery.search;
+  const page = playerQuery.page;
+  const directorySort = playerQuery.sort;
+  const comparedIds = playerQuery.comparedIds;
+  const selectedId = playerQuery.playerId;
+  const matchPage = playerQuery.matchesPage;
+  const compactInspectorOpen = playerQuery.inspectorOpen;
   const comparedIdsIdentity = comparedIds.join('\0');
   const comparedIdsIdentityRef = useRef(comparedIdsIdentity);
   comparedIdsIdentityRef.current = comparedIdsIdentity;
 
+  const updatePlayerQuery = useCallback((
+    patch: Parameters<typeof patchPlayerDirectoryQuery>[1],
+    replace = false,
+  ) => {
+    setSearchParams((current) => playerDirectoryQueryToParams(
+      patchPlayerDirectoryQuery(playerDirectoryQueryFromParams(current), patch),
+    ), { replace });
+  }, [setSearchParams]);
+
+  useEffect(() => {
+    setSearchInput(playerQuery.search);
+  }, [playerQuery.search]);
+
   useEffect(() => {
     const timer = globalThis.setTimeout(() => {
-      setDebouncedSearch(normalizePlayerSearch(searchInput));
-      setPage(1);
+      const normalized = normalizePlayerSearch(searchInput);
+      if (normalized !== playerQuery.search) updatePlayerQuery({ search: normalized }, true);
     }, PLAYER_SEARCH_DEBOUNCE_MS);
     return () => globalThis.clearTimeout(timer);
-  }, [searchInput]);
+  }, [playerQuery.search, searchInput, updatePlayerQuery]);
 
   useEffect(() => {
     const controller = new AbortController();
     const requestRevision = ++listRequestRevision.current;
+    setItems([]);
+    setTotal(0);
+    setCoverage(null);
     setListState('loading');
     setListError(null);
     void commands.listPlayers(
@@ -136,11 +160,21 @@ export function PlayersPage() {
       controller.signal,
     ).then((response) => {
       if (controller.signal.aborted || !isCurrentRequest(listRequestRevision.current, requestRevision)) return;
+      if (response.page !== page || response.page_size !== PLAYER_PAGE_SIZE) {
+        throw new DesktopError(
+          'Player directory response does not match the requested page.',
+          502,
+          'INVALID_PLAYER_DIRECTORY_CONTRACT',
+        );
+      }
+      const availablePage = playerPageCount(response.total);
+      if (page > availablePage) {
+        updatePlayerQuery({ page: availablePage }, true);
+        return;
+      }
       setItems(response.items);
       setTotal(response.total);
-      setPage(response.page);
-      setScannedDemos(response.scanned_demos);
-      setScanComplete(response.scan_complete);
+      setCoverage(response.coverage);
       setListState('ready');
     }).catch((error: unknown) => {
       if (controller.signal.aborted || !isCurrentRequest(listRequestRevision.current, requestRevision)) return;
@@ -148,16 +182,25 @@ export function PlayersPage() {
       setListState('error');
     });
     return () => controller.abort();
-  }, [debouncedSearch, directorySort, page, refreshRevision]);
+  }, [
+    debouncedSearch,
+    directorySort.direction,
+    directorySort.key,
+    page,
+    refreshRevision,
+    updatePlayerQuery,
+  ]);
 
   useEffect(() => {
     if (selectedId === null) {
+      setProfile(null);
       setDetailState('idle');
       setDetailError(null);
       return undefined;
     }
     const controller = new AbortController();
     const requestRevision = ++detailRequestRevision.current;
+    setProfile(null);
     setDetailState('loading');
     setDetailError(null);
     void commands.getPlayer(selectedId, controller.signal).then((response) => {
@@ -205,7 +248,7 @@ export function PlayersPage() {
         response.page_size,
       );
       if (availablePage !== requestedPage) {
-        setMatchPage(availablePage);
+        updatePlayerQuery({ matchesPage: availablePage }, true);
         return;
       }
       setMatches(response);
@@ -217,7 +260,7 @@ export function PlayersPage() {
       setMatchesState('error');
     });
     return () => controller.abort();
-  }, [matchPage, matchesRefreshRevision, refreshRevision, selectedId]);
+  }, [matchPage, matchesRefreshRevision, refreshRevision, selectedId, updatePlayerQuery]);
 
   useEffect(() => {
     if (comparedIds.length !== 2) {
@@ -276,13 +319,22 @@ export function PlayersPage() {
               || comparedIdsIdentityRef.current !== requestedSelectionIdentity
             ) return;
             if (reconciliation.missingIds.length > 0) {
-              setComparedIds((current) => current.join('\0') === requestedSelectionIdentity
-                ? reconciliation.retainedIds
-                : current);
-              setSelectedId(reconciliation.retainedIds[0] ?? null);
+              setSearchParams((current) => {
+                const currentQuery = playerDirectoryQueryFromParams(current);
+                if (currentQuery.comparedIds.join('\0') !== requestedSelectionIdentity) return current;
+                const retainedPlayer = reconciliation.retainedIds.length === 1
+                  ? reconciliation.retainedIds[0] ?? null
+                  : null;
+                return playerDirectoryQueryToParams(patchPlayerDirectoryQuery(currentQuery, {
+                  comparedIds: reconciliation.retainedIds,
+                  playerId: retainedPlayer,
+                  matchesPage: 1,
+                  inspectorOpen: currentQuery.inspectorOpen
+                    && reconciliation.retainedIds.length > 0,
+                }));
+              }, { replace: true });
               setProfile(null);
               setPlayerEvidence(null);
-              setCompactInspectorOpen(reconciliation.retainedIds.length > 0);
               setComparisonNotice(
                 t('players.compare.missingRemoved').replace(
                   '{ids}',
@@ -307,7 +359,7 @@ export function PlayersPage() {
       }
     })();
     return () => controller.abort();
-  }, [comparedIdsIdentity, comparisonRefreshRevision, refreshRevision, t]);
+  }, [comparedIdsIdentity, comparisonRefreshRevision, refreshRevision, setSearchParams, t]);
 
   useEffect(() => {
     if (selectedId === null) {
@@ -357,9 +409,14 @@ export function PlayersPage() {
   useEffect(() => () => cacheMutationController.current?.abort(), []);
 
   const selectPlayer = (steamId: string) => {
-    if (steamId === selectedId) return;
-    setMatchPage(1);
-    setSelectedId(steamId);
+    const playerChanged = steamId !== selectedId;
+    updatePlayerQuery({
+      comparedIds: [steamId],
+      playerId: steamId,
+      matchesPage: 1,
+      inspectorOpen: true,
+    });
+    if (!playerChanged) return;
     setProfile(null);
     setDetailError(null);
     setPlayerEvidence(null);
@@ -369,51 +426,49 @@ export function PlayersPage() {
   };
 
   const inspectPlayer = (player: PlayerDirectoryItem) => {
-    setComparedIds([player.steam_id]);
     setComparisonNotice(null);
-    setCompactInspectorOpen(true);
     selectPlayer(player.steam_id);
   };
 
   const togglePlayerComparison = (player: PlayerDirectoryItem) => {
     const next = toggleComparedPlayerIds(comparedIds, player.steam_id);
-    setComparedIds(next);
+    updatePlayerQuery({
+      comparedIds: next,
+      playerId: next.length === 1 ? next[0] ?? null : null,
+      matchesPage: 1,
+      inspectorOpen: next.length === 2,
+    });
     setComparisonNotice(null);
-    setCompactInspectorOpen(next.length === 2);
     setProfile(null);
     setDetailError(null);
-    setMatchPage(1);
     setMatches(null);
     setMatchesError(null);
-    if (next.length === 1) setSelectedId(next[0] ?? null);
-    else setSelectedId(null);
   };
 
   const clearPlayerComparison = () => {
-    setComparedIds([]);
+    updatePlayerQuery({
+      comparedIds: [],
+      playerId: null,
+      matchesPage: 1,
+      inspectorOpen: false,
+    });
     setComparisonNotice(null);
-    setCompactInspectorOpen(false);
-    setSelectedId(null);
     setProfile(null);
     setDetailError(null);
-    setMatchPage(1);
     setMatches(null);
     setMatchesError(null);
   };
 
   const focusComparedPlayer = (player: PlayerDirectoryItem) => {
-    setComparedIds([player.steam_id]);
     setComparisonNotice(null);
-    setCompactInspectorOpen(true);
     selectPlayer(player.steam_id);
   };
 
   const changeDirectorySort = (key: PlayerDirectorySort['key']) => {
-    setPage(1);
-    setDirectorySort((current) => ({
+    updatePlayerQuery({ sort: {
       key,
-      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
-    }));
+      direction: directorySort.key === key && directorySort.direction === 'asc' ? 'desc' : 'asc',
+    } });
   };
 
   const refresh = () => setRefreshRevision((revision) => revision + 1);
@@ -460,8 +515,7 @@ export function PlayersPage() {
     comparisonIsCurrent && comparison ? (
       <PlayerCompareInspector
         players={comparison.players}
-        scannedDemos={comparison.scanned_demos}
-        scanComplete={comparison.scan_complete}
+        coverage={comparison.coverage}
         onFocus={focusComparedPlayer}
         onClear={clearPlayerComparison}
       />
@@ -512,8 +566,8 @@ export function PlayersPage() {
           matchesLoading={matchesState === 'loading'}
           matchesError={matchesError}
           onRetryMatches={() => setMatchesRefreshRevision((current) => current + 1)}
-          onPreviousMatches={() => setMatchPage((current) => Math.max(1, current - 1))}
-          onNextMatches={() => setMatchPage((current) => current + 1)}
+          onPreviousMatches={() => updatePlayerQuery({ matchesPage: Math.max(1, matchPage - 1) })}
+          onNextMatches={() => updatePlayerQuery({ matchesPage: matchPage + 1 })}
           evidence={playerEvidence}
           evidenceLoading={playerEvidenceState === 'loading'}
           evidenceError={playerEvidenceError}
@@ -539,11 +593,10 @@ export function PlayersPage() {
       />
       <LibrarySectionNav />
 
-      {!scanComplete ? (
-        <Notice tone="warning">
-
-         {msg("m0542")} {scannedDemos} {msg("m0200")}
-        </Notice>
+      {coverage && !coverage.projection_complete ? (
+        <Notice tone="warning">{t('players.projection.incomplete')
+          .replace('{projected}', String(coverage.projected_demos))
+          .replace('{total}', String(coverage.total_analyses))}</Notice>
       ) : null}
       {allProfilesUnconfigured ? (
         <Notice tone="info">
@@ -551,7 +604,6 @@ export function PlayersPage() {
          {msg("m0067")}
         </Notice>
       ) : null}
-      {listError ? <Notice tone="danger">{listError}</Notice> : null}
       {comparisonNotice ? <Notice tone="warning">{comparisonNotice}</Notice> : null}
 
       <div className="players-toolbar-row">
@@ -608,12 +660,29 @@ export function PlayersPage() {
       ) : null}
 
       <div className="players-workspace">
-        <section className="player-directory" aria-label={msg("m0981")}>
+        <section
+          className="player-directory"
+          aria-label={msg("m0981")}
+          aria-busy={listState === 'loading'}
+        >
           {listState === 'loading' && items.length === 0 ? (
             <Card className="players-loading">
               <Spinner label={msg("m1152")} />
-              <strong>{msg("m0861")}</strong>
-              <span>{msg("m0314")}</span>
+              <strong>{t('players.projection.loading')}</strong>
+              <span>{t('players.projection.loadingDescription')}</span>
+            </Card>
+          ) : listState === 'error' ? (
+            <Card className="players-empty">
+              <EmptyState
+                icon={<UsersRound size={28} />}
+                title={t('players.directory.error')}
+                description={listError ?? t('players.directory.error')}
+                action={(
+                  <Button size="sm" onClick={refresh}>
+                    <RefreshCw size={13} />{t('common.retry')}
+                  </Button>
+                )}
+              />
             </Card>
           ) : items.length === 0 ? (
             <Card className="players-empty">
@@ -642,23 +711,25 @@ export function PlayersPage() {
           {!wideInspector && comparedIds.length > 0 && !compactInspectorOpen ? (
             <PlayerComparisonSelectionBar
               count={comparedIds.length}
-              onOpen={() => setCompactInspectorOpen(true)}
+              onOpen={() => updatePlayerQuery({ inspectorOpen: true })}
               onClear={clearPlayerComparison}
             />
           ) : null}
 
           <footer className="player-directory-footer">
-            <span>{scannedDemos} {msg("m0199")}</span>
+            <span>{coverage ? t('players.projection.scope')
+              .replace('{projected}', String(coverage.projected_demos))
+              .replace('{total}', String(coverage.total_analyses)) : '—'}</span>
             <div>
               <Button
                 size="sm"
                 disabled={page <= 1 || listState === 'loading'}
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                onClick={() => updatePlayerQuery({ page: Math.max(1, page - 1) })}
               ><ChevronLeft size={13} />{t('common.previous')}</Button>
               <Button
                 size="sm"
                 disabled={page >= pageCount || listState === 'loading'}
-                onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+                onClick={() => updatePlayerQuery({ page: Math.min(pageCount, page + 1) })}
               >{t('common.next')}<ChevronRight size={13} /></Button>
             </div>
           </footer>
@@ -673,8 +744,12 @@ export function PlayersPage() {
           ? t('players.compare.title')
           : profileIsCurrent ? profile.player.name : t('players.table.details')}
         description={comparedIds.length === 2 ? t('players.table.scopeBehavior') : comparedIds[0]}
-        onClose={() => setCompactInspectorOpen(false)}
-        footer={<Button onClick={() => setCompactInspectorOpen(false)}>{t('shell.close')}</Button>}
+        onClose={() => updatePlayerQuery({ inspectorOpen: false }, true)}
+        footer={(
+          <Button onClick={() => updatePlayerQuery({ inspectorOpen: false }, true)}>
+            {t('shell.close')}
+          </Button>
+        )}
       >
         <div className="player-inspector-drawer">{playerInspector}</div>
       </Drawer>

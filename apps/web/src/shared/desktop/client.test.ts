@@ -38,6 +38,40 @@ function matchAnalysisRecord(): MatchAnalysisRecord {
   };
 }
 
+function playerDirectoryItem(steamId: string) {
+  return {
+    steam_id: steamId,
+    name: 'Player',
+    aliases: [],
+    aliases_total: 0,
+    last_team: null,
+    last_match_date: null,
+    last_cataloged_at: '2026-08-13T18:44:19Z',
+    stats: {
+      matches: 1,
+      kills: 1,
+      deaths: 1,
+      assists: 0,
+      headshots: 0,
+      damage: 100,
+      average_adr: 100,
+      average_kill_death_ratio: 1,
+    },
+    steam: {
+      state: 'not_configured',
+      persona_name: null,
+      real_name: null,
+      profile_url: null,
+      country_code: null,
+      persona_state: null,
+      last_logoff: null,
+      created_at: null,
+      avatar_url: null,
+      reason: 'Steam Web API key is not configured',
+    },
+  };
+}
+
 describe('desktop command client', () => {
   afterEach(() => {
     invokeMock.mockReset();
@@ -169,7 +203,8 @@ describe('desktop command client', () => {
 
   it('sends the exact scanned-directory player sort before pagination', async () => {
     invokeMock.mockResolvedValue({
-      items: [], total: 0, page: 2, page_size: 24, scanned_demos: 3, scan_complete: true,
+      items: [], total: 0, page: 2, page_size: 24,
+      coverage: { projected_demos: 3, total_analyses: 3, projection_complete: true },
     });
 
     await commands.listPlayers({
@@ -184,34 +219,74 @@ describe('desktop command client', () => {
     });
   });
 
-  it('requests one ordered explicit player comparison with encoded ids', async () => {
+  it('rejects the retired runtime-scan player directory response', async () => {
     invokeMock.mockResolvedValue({
-      players: [], scanned_demos: 3, scan_complete: true,
+      items: [], total: 0, page: 1, page_size: 24, scanned_demos: 3, scan_complete: true,
+    });
+
+    await expect(commands.listPlayers({
+      page: 1, page_size: 24, sort: 'player', direction: 'asc',
+    })).rejects.toThrow(/current contract/i);
+  });
+
+  it('rejects a profile response for a different requested player', async () => {
+    invokeMock.mockResolvedValue({
+      player: playerDirectoryItem('76561198000000002'),
+      coverage: { projected_demos: 1, total_analyses: 1, projection_complete: true },
+    });
+
+    await expect(commands.getPlayer('76561198000000001')).rejects.toThrow(/requested exact player/i);
+  });
+
+  it('requests one ordered explicit player comparison', async () => {
+    invokeMock.mockResolvedValue({
+      players: [
+        playerDirectoryItem('76561198000000001'),
+        playerDirectoryItem('76561198000000002'),
+      ],
+      coverage: { projected_demos: 3, total_analyses: 3, projection_complete: true },
     });
     const controller = new AbortController();
 
     await commands.comparePlayers(
       '76561198000000001',
-      '76561198000000002/unsafe',
+      '76561198000000002',
       controller.signal,
     );
 
     expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
       call: {
         method: 'get',
-        path: '/players/compare?left=76561198000000001&right=76561198000000002%2Funsafe',
+        path: '/players/compare?left=76561198000000001&right=76561198000000002',
       },
     });
   });
 
+  it('rejects a comparison response whose tuple does not match the requested order', async () => {
+    invokeMock.mockResolvedValue({
+      players: [
+        playerDirectoryItem('76561198000000002'),
+        playerDirectoryItem('76561198000000001'),
+      ],
+      coverage: { projected_demos: 1, total_analyses: 1, projection_complete: true },
+    });
+
+    await expect(commands.comparePlayers(
+      '76561198000000001',
+      '76561198000000002',
+    )).rejects.toThrow(/requested exact players/i);
+  });
+
   it('requests one exact player match page with explicit paging', async () => {
     invokeMock.mockResolvedValue({
-      items: [], total: 0, page: 2, page_size: 20, scanned_demos: 3, scan_complete: true,
+      steam_id: '76561198000000001',
+      items: [], total: 0, page: 2, page_size: 20,
+      coverage: { projected_demos: 3, total_analyses: 3, projection_complete: true },
     });
     const controller = new AbortController();
 
     await commands.listPlayerMatches(
-      '76561198000000001/unsafe',
+      '76561198000000001',
       { page: 2, page_size: 20 },
       controller.signal,
     );
@@ -219,9 +294,52 @@ describe('desktop command client', () => {
     expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
       call: {
         method: 'get',
-        path: '/players/76561198000000001%2Funsafe/matches?page=2&page_size=20',
+        path: '/players/76561198000000001/matches?page=2&page_size=20',
       },
     });
+  });
+
+  it('rejects a player match page bound to a different Steam identity', async () => {
+    invokeMock.mockResolvedValue({
+      steam_id: '76561198000000002',
+      items: [], total: 0, page: 1, page_size: 20,
+      coverage: { projected_demos: 3, total_analyses: 3, projection_complete: true },
+    });
+
+    await expect(commands.listPlayerMatches(
+      '76561198000000001',
+      { page: 1, page_size: 20 },
+    )).rejects.toThrow(/requested exact player/i);
+  });
+
+  it('rejects player matches that substitute an import timestamp for the match date', async () => {
+    invokeMock.mockResolvedValue({
+      steam_id: '76561198000000001',
+      items: [{
+        demo_id: '23d5a6ee-23a4-43b7-8654-b48e1989e231',
+        demo_name: 'Major Mirage',
+        map_name: 'de_mirage',
+        played_at: '2026-08-13T18:31:55Z',
+        team: 'A',
+        kills: 9,
+        deaths: 14,
+        assists: 6,
+        headshots: 4,
+        damage: 1_638,
+        adr: 78,
+        kill_death_ratio: 0.64,
+      }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      scanned_demos: 1,
+      scan_complete: true,
+    });
+
+    await expect(commands.listPlayerMatches(
+      '76561198000000001',
+      { page: 1, page_size: 20 },
+    )).rejects.toThrow(/current contract/i);
   });
 
   it('persists annotations against an exact canonical evidence locator', async () => {
@@ -705,6 +823,36 @@ describe('wire normalization', () => {
       players: ['FalleN', 'm0NESY'],
       updated_at: '2026-08-09T12:11:00Z',
     });
+  });
+
+  it('keeps an unknown Library match date nullable instead of substituting catalog time', () => {
+    const record: DemoRecord = {
+      id: '0c34a82a-a176-4c88-9514-940245912866',
+      path: 'D:\\Demos\\match.dem',
+      file_name: 'match.dem',
+      display_name: 'Unknown date match',
+      source: 'local',
+      status: 'ready',
+      map_name: 'de_mirage',
+      match_date: null,
+      duration_seconds: 1_980,
+      total_rounds: 24,
+      team_a_name: 'A',
+      team_b_name: 'B',
+      team_a_score: 13,
+      team_b_score: 9,
+      players: [],
+      remark: '',
+      content_sha256: null,
+      file_size: 42,
+      created_at: '2026-08-09T12:10:00Z',
+      updated_at: '2026-08-09T12:11:00Z',
+    };
+
+    const normalized = normalizeDemo(record) as unknown as Record<string, unknown>;
+    expect(normalized.match_date).toBeNull();
+    expect(normalized.cataloged_at).toBe(record.created_at);
+    expect(normalized).not.toHaveProperty('played_at');
   });
 
   it('rejects a demo wire that uses the retired player_names field', () => {

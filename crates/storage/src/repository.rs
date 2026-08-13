@@ -5,11 +5,17 @@
 
 mod activity;
 mod analysis_runs;
+mod players;
 
 pub use activity::{
     ActivityKind, ActivityPage, ActivityQuery, ActivitySource, ActivityState, ActivitySummary,
 };
 pub use analysis_runs::AnalysisRunClaim;
+pub use players::{
+    PlayerAggregateStats, PlayerComparisonProjection, PlayerDirectoryPage, PlayerDirectoryQuery,
+    PlayerDirectorySort, PlayerMatchPage, PlayerMatchQuery, PlayerProfile,
+    PlayerProjectionCoverage, PlayerSortDirection, ProjectedPlayer, ProjectedPlayerMatch,
+};
 
 use std::{
     collections::BTreeMap,
@@ -332,6 +338,68 @@ pub struct MediaProxyCleanupPlan {
     pub generating_asset_ids: Vec<Uuid>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ContentAddressedDemoPut {
+    Inserted(DemoRecord),
+    Existing(DemoRecord),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MatchDownloadClaim {
+    Claimed {
+        job: MatchDownloadJob,
+        record: Box<SteamMatchRecord>,
+        linked_demo: Option<DemoCatalogIdentity>,
+    },
+    Existing(MatchDownloadJob),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DemoContentIdentity {
+    pub id: Uuid,
+    pub path: String,
+    pub status: DemoStatus,
+    pub content_sha256: String,
+    pub file_size: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DemoCatalogIdentity {
+    pub id: Uuid,
+    pub path: String,
+    pub status: DemoStatus,
+    pub content_sha256: Option<String>,
+    pub file_size: u64,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DemoContentRecovery {
+    pub expected: DemoContentIdentity,
+    pub verified_path: String,
+    pub verified_file_name: String,
+    pub verified_size: u64,
+    pub verified_sha256: String,
+}
+
+impl ContentAddressedDemoPut {
+    pub fn demo(&self) -> &DemoRecord {
+        match self {
+            Self::Inserted(demo) | Self::Existing(demo) => demo,
+        }
+    }
+
+    pub fn into_demo(self) -> DemoRecord {
+        match self {
+            Self::Inserted(demo) | Self::Existing(demo) => demo,
+        }
+    }
+
+    pub const fn was_inserted(&self) -> bool {
+        matches!(self, Self::Inserted(_))
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ExportJobRecord {
@@ -580,6 +648,289 @@ impl Storage {
     pub async fn put_demo(&self, demo: DemoRecord) -> Result<DemoRecord> {
         let mut demos = self.put_demos(vec![demo]).await?;
         Ok(demos.remove(0))
+    }
+
+    /// Atomically claims a non-null content hash for one Demo. If the bytes are
+    /// already cataloged, only a previously unknown trusted match date may be
+    /// added; conflicting known dates are rejected without changing either row.
+    pub async fn put_content_addressed_demo(
+        &self,
+        demo: DemoRecord,
+    ) -> Result<ContentAddressedDemoPut> {
+        self.put_content_addressed_demo_observed(demo, None).await
+    }
+
+    /// Content-addressed insertion with a claim-time identity guard for an
+    /// existing Demo whose ID may be reused for repaired bytes.
+    pub async fn put_content_addressed_demo_observed(
+        &self,
+        demo: DemoRecord,
+        expected_same_id: Option<DemoCatalogIdentity>,
+    ) -> Result<ContentAddressedDemoPut> {
+        let hash = demo.content_sha256.clone().ok_or_else(|| {
+            vibe_cs_domain::DomainError::InvalidInput(
+                "content-addressed Demo requires a SHA-256 fingerprint".to_owned(),
+            )
+        })?;
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            if let Some(expected) = expected_same_id.as_ref() {
+                if expected.id != demo.id {
+                    return Err(vibe_cs_domain::DomainError::InvalidInput(
+                        "observed Demo identity does not match the replacement ID".to_owned(),
+                    )
+                    .into());
+                }
+                let Some(current) = get_document::<DemoRecord>(&transaction, "demos", expected.id)?
+                else {
+                    return Err(vibe_cs_domain::DomainError::Conflict(
+                        "linked Demo disappeared after the download claim".to_owned(),
+                    )
+                    .into());
+                };
+                if !demo_catalog_identity_matches(expected, &current) {
+                    return Err(vibe_cs_domain::DomainError::Conflict(
+                        "linked Demo changed after the download claim".to_owned(),
+                    )
+                    .into());
+                }
+            }
+            let existing_json = transaction
+                .query_row(
+                    "SELECT document_json FROM demos WHERE content_sha256 = ?1 LIMIT 1",
+                    [hash],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            if let Some(existing_json) = existing_json {
+                let mut existing = decode::<DemoRecord>(&existing_json)?;
+                let match_date_changed = merge_trusted_match_date(&mut existing, demo.match_date)?;
+                let requested_recovery = existing.id == demo.id && existing.path != demo.path;
+                let recovered_missing =
+                    if existing.status == DemoStatus::Missing || requested_recovery {
+                        existing.path = demo.path;
+                        existing.file_name = demo.file_name;
+                        existing.file_size = demo.file_size;
+                        existing.status = if transaction
+                            .query_row(
+                                "SELECT 1 FROM analyses WHERE demo_id = ?1 LIMIT 1",
+                                [existing.id.to_string()],
+                                |_| Ok(()),
+                            )
+                            .optional()?
+                            .is_some()
+                        {
+                            DemoStatus::Ready
+                        } else {
+                            DemoStatus::Discovered
+                        };
+                        existing.updated_at = Utc::now();
+                        true
+                    } else {
+                        false
+                    };
+                if match_date_changed || recovered_missing {
+                    put_demo_row(&transaction, &existing)?;
+                }
+                transaction.commit()?;
+                return Ok(ContentAddressedDemoPut::Existing(existing));
+            }
+            let mut demo = demo;
+            if let Some(current) = get_document::<DemoRecord>(&transaction, "demos", demo.id)? {
+                if current.path == demo.path && expected_same_id.is_none() {
+                    return Err(vibe_cs_domain::DomainError::Conflict(
+                        "content-addressed Demo replacement requires the atomic replacement API"
+                            .to_owned(),
+                    )
+                    .into());
+                }
+                transaction.execute(
+                    "DELETE FROM analyses WHERE demo_id = ?1",
+                    [demo.id.to_string()],
+                )?;
+                demo.created_at = current.created_at;
+                demo.display_name = current.display_name;
+                demo.remark = current.remark;
+            }
+            put_demo_row(&transaction, &demo)?;
+            transaction.commit()?;
+            Ok(ContentAddressedDemoPut::Inserted(demo))
+        })
+        .await
+    }
+
+    /// Atomically replaces the bytes represented by one Demo and invalidates
+    /// its analysis only after the new content hash is proven unclaimed.
+    pub async fn replace_demo_content(&self, demo: DemoRecord) -> Result<DemoRecord> {
+        let hash = demo.content_sha256.clone().ok_or_else(|| {
+            vibe_cs_domain::DomainError::InvalidInput(
+                "Demo content replacement requires a SHA-256 fingerprint".to_owned(),
+            )
+        })?;
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(current) = get_document::<DemoRecord>(&transaction, "demos", demo.id)? else {
+                return Err(vibe_cs_domain::DomainError::NotFound("Demo".to_owned()).into());
+            };
+            if current.path != demo.path {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "Demo content replacement cannot change its cataloged path".to_owned(),
+                )
+                .into());
+            }
+            let conflicting_id = transaction
+                .query_row(
+                    "SELECT id FROM demos WHERE content_sha256 = ?1 AND id <> ?2 LIMIT 1",
+                    params![hash, demo.id.to_string()],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            if conflicting_id.is_some() {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "Demo content is already cataloged at another path".to_owned(),
+                )
+                .into());
+            }
+            transaction.execute(
+                "DELETE FROM analyses WHERE demo_id = ?1",
+                [demo.id.to_string()],
+            )?;
+            put_demo_row(&transaction, &demo)?;
+            transaction.commit()?;
+            Ok(demo)
+        })
+        .await
+    }
+
+    /// Moves a content-addressed catalog row to a separately verified copy if
+    /// and only if its database identity still matches the stale observation.
+    pub async fn recover_content_addressed_demo(
+        &self,
+        recovery: DemoContentRecovery,
+    ) -> Result<Option<DemoRecord>> {
+        if recovery.expected.content_sha256 != recovery.verified_sha256 {
+            return Err(vibe_cs_domain::DomainError::InvalidInput(
+                "Demo recovery bytes do not match the cataloged fingerprint".to_owned(),
+            )
+            .into());
+        }
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(mut current) =
+                get_document::<DemoRecord>(&transaction, "demos", recovery.expected.id)?
+            else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            if current.path != recovery.expected.path
+                || current.status != recovery.expected.status
+                || current.content_sha256.as_deref()
+                    != Some(recovery.expected.content_sha256.as_str())
+                || current.file_size != recovery.expected.file_size
+            {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "content-addressed Demo changed before recovery".to_owned(),
+                )
+                .into());
+            }
+            current.path = recovery.verified_path;
+            current.file_name = recovery.verified_file_name;
+            current.file_size = recovery.verified_size;
+            current.status = if transaction
+                .query_row(
+                    "SELECT 1 FROM analyses WHERE demo_id = ?1 LIMIT 1",
+                    [current.id.to_string()],
+                    |_| Ok(()),
+                )
+                .optional()?
+                .is_some()
+            {
+                DemoStatus::Ready
+            } else {
+                DemoStatus::Discovered
+            };
+            current.updated_at = Utc::now();
+            put_demo_row(&transaction, &current)?;
+            transaction.commit()?;
+            Ok(Some(current))
+        })
+        .await
+    }
+
+    /// Atomically invalidates a Demo whose observed file no longer validates,
+    /// removing all byte-derived analysis and summary truth in the same write.
+    pub async fn invalidate_demo_content(
+        &self,
+        expected: DemoRecord,
+        observed_file_size: u64,
+    ) -> Result<Option<DemoRecord>> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(mut current) = get_document::<DemoRecord>(&transaction, "demos", expected.id)?
+            else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            if current.path != expected.path
+                || current.status != expected.status
+                || current.content_sha256 != expected.content_sha256
+                || current.file_size != expected.file_size
+                || current.updated_at != expected.updated_at
+            {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "Demo changed before invalid content could be recorded".to_owned(),
+                )
+                .into());
+            }
+            transaction.execute(
+                "DELETE FROM analyses WHERE demo_id = ?1",
+                [current.id.to_string()],
+            )?;
+            current.status = DemoStatus::Failed;
+            current.content_sha256 = None;
+            current.file_size = observed_file_size;
+            current.map_name = None;
+            current.match_date = None;
+            current.duration_seconds = None;
+            current.total_rounds = None;
+            current.team_a_name = None;
+            current.team_b_name = None;
+            current.team_a_score = None;
+            current.team_b_score = None;
+            current.player_names.clear();
+            current.updated_at = Utc::now();
+            put_demo_row(&transaction, &current)?;
+            transaction.commit()?;
+            Ok(Some(current))
+        })
+        .await
+    }
+
+    /// Reconciles a trusted match date with an existing Demo in one transaction.
+    /// `None` never manufactures a date, and two different known dates conflict.
+    pub async fn reconcile_demo_match_date(
+        &self,
+        id: Uuid,
+        match_date: Option<DateTime<Utc>>,
+    ) -> Result<Option<DemoRecord>> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(mut demo) = get_document::<DemoRecord>(&transaction, "demos", id)? else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            if merge_trusted_match_date(&mut demo, match_date)? {
+                put_demo_row(&transaction, &demo)?;
+            }
+            transaction.commit()?;
+            Ok(Some(demo))
+        })
+        .await
     }
 
     pub async fn put_demos(&self, demos: Vec<DemoRecord>) -> Result<Vec<DemoRecord>> {
@@ -937,21 +1288,7 @@ impl Storage {
         self.run(move |connection| {
             let transaction = connection.transaction()?;
             for record in &records {
-                transaction.execute(
-                    "INSERT INTO steam_matches(id, steam_id, match_id, synced_at, updated_at, document_json) \
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
-                     ON CONFLICT(id) DO UPDATE SET steam_id = excluded.steam_id, \
-                     match_id = excluded.match_id, synced_at = excluded.synced_at, \
-                     updated_at = excluded.updated_at, document_json = excluded.document_json",
-                    params![
-                        record.id,
-                        record.steam_id,
-                        record.match_id,
-                        record.synced_at.to_rfc3339(),
-                        record.updated_at.to_rfc3339(),
-                        encode(record)?
-                    ],
-                )?;
+                put_steam_match_row(&transaction, record)?;
             }
             transaction.commit()?;
             Ok(records)
@@ -959,9 +1296,217 @@ impl Storage {
         .await
     }
 
+    /// Atomically merges Steam synchronization fields while preserving the
+    /// current download/link workflow and any already-known trusted date.
+    pub async fn merge_synced_steam_matches(
+        &self,
+        records: Vec<SteamMatchRecord>,
+    ) -> Result<(Vec<SteamMatchRecord>, u64)> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let mut merged = Vec::with_capacity(records.len());
+            let mut created = 0_u64;
+            for incoming in records {
+                let record = if let Some(mut current) =
+                    get_steam_match_document(&transaction, &incoming.id)?
+                {
+                    if current.steam_id != incoming.steam_id
+                        || current.match_id != incoming.match_id
+                    {
+                        return Err(vibe_cs_domain::DomainError::Conflict(
+                            "Steam match identity changed during synchronization".to_owned(),
+                        )
+                        .into());
+                    }
+                    current.outcome_id = incoming.outcome_id;
+                    current.token = incoming.token;
+                    if incoming.map_name.is_some() {
+                        current.map_name = incoming.map_name;
+                    }
+                    if incoming.score.is_some() {
+                        current.score = incoming.score;
+                    }
+                    if incoming.result != vibe_cs_domain::MatchHistoryResult::Unknown {
+                        current.result = incoming.result;
+                    }
+                    current.synced_at = incoming.synced_at;
+                    current.updated_at = incoming.updated_at;
+                    current.played_at =
+                        merge_trusted_steam_match_date(current.played_at, incoming.played_at)?;
+                    current
+                } else {
+                    created = created.saturating_add(1);
+                    incoming
+                };
+                put_steam_match_row(&transaction, &record)?;
+                merged.push(record);
+            }
+            transaction.commit()?;
+            Ok((merged, created))
+        })
+        .await
+    }
+
     pub async fn get_match_download_job(&self, id: Uuid) -> Result<Option<MatchDownloadJob>> {
         self.run(move |connection| get_document(connection, "match_download_jobs", id))
             .await
+    }
+
+    /// Atomically claims the only active download slot for a Steam match and
+    /// transitions its current record to `Downloading` in the same transaction.
+    pub async fn claim_match_download(
+        &self,
+        match_record_id: impl Into<String>,
+        observed_demo_id: Option<Uuid>,
+        job_id: Uuid,
+    ) -> Result<Option<MatchDownloadClaim>> {
+        let match_record_id = match_record_id.into();
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(mut record) = get_steam_match_document(&transaction, &match_record_id)? else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            let existing = transaction
+                .query_row(
+                    "SELECT document_json FROM match_download_jobs \
+                     WHERE match_record_id = ?1 AND status NOT IN ('completed', 'cancelled', 'failed') \
+                     LIMIT 1",
+                    [&match_record_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            if let Some(existing) = existing {
+                let existing = decode(&existing)?;
+                transaction.commit()?;
+                return Ok(Some(MatchDownloadClaim::Existing(existing)));
+            }
+            if record.demo_id != observed_demo_id {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "Steam match Demo link changed before the download claim".to_owned(),
+                )
+                .into());
+            }
+            let linked_demo = record
+                .demo_id
+                .map(|id| get_document::<DemoRecord>(&transaction, "demos", id))
+                .transpose()?
+                .flatten()
+                .as_ref()
+                .map(demo_catalog_identity);
+            let now = Utc::now();
+            let job = MatchDownloadJob {
+                id: job_id,
+                match_record_id: record.id.clone(),
+                status: MatchDownloadStatus::Queued,
+                downloaded_bytes: 0,
+                total_bytes: None,
+                progress: 0.0,
+                demo_id: None,
+                error: None,
+                created_at: now,
+                updated_at: now,
+            };
+            put_match_download_job_row(&transaction, &job)?;
+            record.demo_status = vibe_cs_domain::MatchDemoStatus::Downloading;
+            record.last_error = None;
+            record.updated_at = now;
+            put_steam_match_row(&transaction, &record)?;
+            transaction.commit()?;
+            Ok(Some(MatchDownloadClaim::Claimed {
+                job,
+                record: Box::new(record),
+                linked_demo,
+            }))
+        })
+        .await
+    }
+
+    /// Atomically records that an exact, already-cataloged Demo satisfies the
+    /// match download. An existing active owner wins and is returned unchanged.
+    pub async fn complete_existing_match_download(
+        &self,
+        match_record_id: impl Into<String>,
+        observed_demo_id: Option<Uuid>,
+        demo_id: Uuid,
+        observed_demo: DemoContentIdentity,
+        job_id: Uuid,
+    ) -> Result<Option<MatchDownloadClaim>> {
+        let match_record_id = match_record_id.into();
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(mut record) = get_steam_match_document(&transaction, &match_record_id)? else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            let existing = transaction
+                .query_row(
+                    "SELECT document_json FROM match_download_jobs \
+                     WHERE match_record_id = ?1 AND status NOT IN ('completed', 'cancelled', 'failed') \
+                     LIMIT 1",
+                    [&match_record_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            if let Some(existing) = existing {
+                let existing = decode(&existing)?;
+                transaction.commit()?;
+                return Ok(Some(MatchDownloadClaim::Existing(existing)));
+            }
+            if record.demo_id != observed_demo_id || record.demo_id != Some(demo_id) {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "Steam match Demo link changed before fast-path completion".to_owned(),
+                )
+                .into());
+            }
+            let Some(mut demo) = get_document::<DemoRecord>(&transaction, "demos", demo_id)? else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            if observed_demo.id != demo.id
+                || observed_demo.path != demo.path
+                || observed_demo.status != demo.status
+                || demo.content_sha256.as_deref() != Some(observed_demo.content_sha256.as_str())
+                || observed_demo.file_size != demo.file_size
+            {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "downloaded Demo changed after fast-path validation".to_owned(),
+                )
+                .into());
+            }
+            if merge_trusted_match_date(&mut demo, record.played_at)? {
+                put_demo_row(&transaction, &demo)?;
+            }
+            let now = Utc::now();
+            let job = MatchDownloadJob {
+                id: job_id,
+                match_record_id: record.id.clone(),
+                status: MatchDownloadStatus::Completed,
+                downloaded_bytes: 0,
+                total_bytes: None,
+                progress: 1.0,
+                demo_id: Some(demo_id),
+                error: None,
+                created_at: now,
+                updated_at: now,
+            };
+            record.demo_id = Some(demo_id);
+            record.demo_status = vibe_cs_domain::MatchDemoStatus::Downloaded;
+            record.last_error = None;
+            record.updated_at = now;
+            put_match_download_job_row(&transaction, &job)?;
+            put_steam_match_row(&transaction, &record)?;
+            transaction.commit()?;
+            Ok(Some(MatchDownloadClaim::Claimed {
+                job,
+                record: Box::new(record),
+                linked_demo: Some(demo_catalog_identity(&demo)),
+            }))
+        })
+        .await
     }
 
     pub async fn get_active_match_download_job(
@@ -1009,21 +1554,245 @@ impl Storage {
 
     pub async fn put_match_download_job(&self, job: MatchDownloadJob) -> Result<MatchDownloadJob> {
         self.run(move |connection| {
-            connection.execute(
-                "INSERT INTO match_download_jobs(id, match_record_id, status, updated_at, document_json) \
-                 VALUES (?1, ?2, ?3, ?4, ?5) \
-                 ON CONFLICT(id) DO UPDATE SET match_record_id = excluded.match_record_id, \
-                 status = excluded.status, updated_at = excluded.updated_at, \
-                 document_json = excluded.document_json",
-                params![
-                    job.id.to_string(),
-                    job.match_record_id,
-                    match_download_status_text(job.status),
-                    job.updated_at.to_rfc3339(),
-                    encode(&job)?
-                ],
-            )?;
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(current) =
+                get_document::<MatchDownloadJob>(&transaction, "match_download_jobs", job.id)?
+            else {
+                put_match_download_job_row(&transaction, &job)?;
+                transaction.commit()?;
+                return Ok(job);
+            };
+            if current.match_record_id != job.match_record_id {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "match download job ownership changed".to_owned(),
+                )
+                .into());
+            }
+            if !match_download_update_is_monotonic(current.status, job.status) {
+                transaction.commit()?;
+                return Ok(current);
+            }
+            let job = merge_match_download_progress(job, &current);
+            put_match_download_job_row(&transaction, &job)?;
+            transaction.commit()?;
             Ok(job)
+        })
+        .await
+    }
+
+    /// Advances an owned download through its active stages without allowing
+    /// stale progress or stage writers to undo cancellation or terminal truth.
+    pub async fn advance_match_download(
+        &self,
+        job: MatchDownloadJob,
+    ) -> Result<Option<MatchDownloadJob>> {
+        if match_download_stage(job.status).is_none() {
+            return Err(vibe_cs_domain::DomainError::InvalidInput(
+                "match download advancement requires an active worker stage".to_owned(),
+            )
+            .into());
+        }
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(current) =
+                get_document::<MatchDownloadJob>(&transaction, "match_download_jobs", job.id)?
+            else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            if current.match_record_id != job.match_record_id {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "match download job ownership changed".to_owned(),
+                )
+                .into());
+            }
+            if !match_download_update_is_monotonic(current.status, job.status) {
+                transaction.commit()?;
+                return Ok(Some(current));
+            }
+            let job = merge_match_download_progress(job, &current);
+            put_match_download_job_row(&transaction, &job)?;
+            transaction.commit()?;
+            Ok(Some(job))
+        })
+        .await
+    }
+
+    /// Requests cancellation without allowing a stale caller to move a
+    /// terminal job back into the active state set.
+    pub async fn request_match_download_cancel(
+        &self,
+        id: Uuid,
+    ) -> Result<Option<MatchDownloadJob>> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(mut job) =
+                get_document::<MatchDownloadJob>(&transaction, "match_download_jobs", id)?
+            else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            if !job.status.is_terminal() && job.status != MatchDownloadStatus::Cancelling {
+                job.status = MatchDownloadStatus::Cancelling;
+                job.updated_at = Utc::now();
+                put_match_download_job_row(&transaction, &job)?;
+            }
+            transaction.commit()?;
+            Ok(Some(job))
+        })
+        .await
+    }
+
+    /// Commits a terminal download outcome together with the linked Steam
+    /// match. Only the still-active owning job may change the record.
+    pub async fn finalize_match_download(
+        &self,
+        mut job: MatchDownloadJob,
+        expected_demo: Option<DemoContentIdentity>,
+    ) -> Result<Option<MatchDownloadJob>> {
+        if !job.status.is_terminal() {
+            return Err(vibe_cs_domain::DomainError::InvalidInput(
+                "match download finalization requires a terminal status".to_owned(),
+            )
+            .into());
+        }
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(current) =
+                get_document::<MatchDownloadJob>(&transaction, "match_download_jobs", job.id)?
+            else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            if current.match_record_id != job.match_record_id {
+                return Err(vibe_cs_domain::DomainError::Conflict(
+                    "match download job ownership changed".to_owned(),
+                )
+                .into());
+            }
+            if current.status.is_terminal() {
+                transaction.commit()?;
+                return Ok(Some(current));
+            }
+            if current.status == MatchDownloadStatus::Cancelling
+                && job.status != MatchDownloadStatus::Cancelled
+            {
+                return Err(
+                    vibe_cs_domain::DomainError::Conflict("download cancelled".to_owned()).into(),
+                );
+            }
+            let Some(mut record) =
+                get_steam_match_document(&transaction, &current.match_record_id)?
+            else {
+                return Err(vibe_cs_domain::DomainError::NotFound("Steam match".to_owned()).into());
+            };
+            job.created_at = current.created_at;
+            record.updated_at = job.updated_at;
+            match job.status {
+                MatchDownloadStatus::Completed => {
+                    let demo_id = job.demo_id.ok_or_else(|| {
+                        vibe_cs_domain::DomainError::InvalidInput(
+                            "completed match download requires a Demo".to_owned(),
+                        )
+                    })?;
+                    let expected_demo = expected_demo.as_ref().ok_or_else(|| {
+                        vibe_cs_domain::DomainError::InvalidInput(
+                            "completed match download requires a verified Demo identity".to_owned(),
+                        )
+                    })?;
+                    let Some(mut demo) =
+                        get_document::<DemoRecord>(&transaction, "demos", demo_id)?
+                    else {
+                        return Err(vibe_cs_domain::DomainError::NotFound(
+                            "downloaded Demo".to_owned(),
+                        )
+                        .into());
+                    };
+                    if expected_demo.id != demo_id
+                        || expected_demo.path != demo.path
+                        || expected_demo.status != demo.status
+                        || demo.content_sha256.as_deref()
+                            != Some(expected_demo.content_sha256.as_str())
+                        || expected_demo.file_size != demo.file_size
+                    {
+                        return Err(vibe_cs_domain::DomainError::Conflict(
+                            "downloaded Demo changed before completion".to_owned(),
+                        )
+                        .into());
+                    }
+                    if merge_trusted_match_date(&mut demo, record.played_at)? {
+                        put_demo_row(&transaction, &demo)?;
+                    }
+                    record.demo_id = Some(demo_id);
+                    record.demo_status = vibe_cs_domain::MatchDemoStatus::Downloaded;
+                    record.last_error = None;
+                }
+                MatchDownloadStatus::Cancelled => {
+                    record.demo_status = vibe_cs_domain::MatchDemoStatus::Available;
+                    record.last_error = None;
+                }
+                MatchDownloadStatus::Failed => {
+                    record.demo_status = vibe_cs_domain::MatchDemoStatus::Failed;
+                    record.last_error.clone_from(&job.error);
+                }
+                _ => unreachable!("terminal status checked above"),
+            }
+            put_match_download_job_row(&transaction, &job)?;
+            put_steam_match_row(&transaction, &record)?;
+            transaction.commit()?;
+            Ok(Some(job))
+        })
+        .await
+    }
+
+    /// Fails every active Steam download left without an in-process owner in
+    /// one transaction so reservations and match truth cannot diverge.
+    pub async fn recover_orphaned_match_downloads(&self, error: String) -> Result<u64> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let mut statement = transaction.prepare(
+                "SELECT document_json FROM match_download_jobs \
+                 WHERE status NOT IN ('completed', 'cancelled', 'failed') \
+                 ORDER BY updated_at ASC",
+            )?;
+            let mut rows = statement.query([])?;
+            let mut jobs = collect_documents::<MatchDownloadJob>(&mut rows)?;
+            drop(rows);
+            drop(statement);
+            let now = Utc::now();
+            for job in &mut jobs {
+                let cancelled = job.status == MatchDownloadStatus::Cancelling;
+                job.status = if cancelled {
+                    MatchDownloadStatus::Cancelled
+                } else {
+                    MatchDownloadStatus::Failed
+                };
+                job.error = (!cancelled).then(|| error.clone());
+                job.updated_at = now;
+                let Some(mut record) =
+                    get_steam_match_document(&transaction, &job.match_record_id)?
+                else {
+                    return Err(
+                        vibe_cs_domain::DomainError::NotFound("Steam match".to_owned()).into(),
+                    );
+                };
+                record.demo_status = if cancelled {
+                    vibe_cs_domain::MatchDemoStatus::Available
+                } else {
+                    vibe_cs_domain::MatchDemoStatus::Failed
+                };
+                record.last_error = (!cancelled).then(|| error.clone());
+                record.updated_at = now;
+                put_match_download_job_row(&transaction, job)?;
+                put_steam_match_row(&transaction, &record)?;
+            }
+            transaction.commit()?;
+            u64::try_from(jobs.len()).map_err(|_| StorageError::IntegerOutOfRange(u64::MAX))
         })
         .await
     }
@@ -3098,11 +3867,12 @@ fn metadata_is_reparse_point(_metadata: &std::fs::Metadata) -> bool {
 
 fn put_demo_row(connection: &Connection, demo: &DemoRecord) -> Result<()> {
     connection.execute(
-        "INSERT INTO demos(id, path, file_name, display_name, source, status, map_name, match_date, updated_at, content_sha256, document_json) \
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11) \
+        "INSERT INTO demos(id, path, file_name, display_name, source, status, map_name, match_date, created_at, updated_at, content_sha256, document_json) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12) \
          ON CONFLICT(id) DO UPDATE SET path = excluded.path, file_name = excluded.file_name, \
          display_name = excluded.display_name, source = excluded.source, status = excluded.status, \
-         map_name = excluded.map_name, match_date = excluded.match_date, updated_at = excluded.updated_at, \
+         map_name = excluded.map_name, match_date = excluded.match_date, created_at = excluded.created_at, \
+         updated_at = excluded.updated_at, \
          content_sha256 = excluded.content_sha256, document_json = excluded.document_json",
         params![
             demo.id.to_string(),
@@ -3113,12 +3883,160 @@ fn put_demo_row(connection: &Connection, demo: &DemoRecord) -> Result<()> {
             status_text(demo.status),
             demo.map_name,
             demo.match_date.map(|date| date.to_rfc3339()),
+            demo.created_at.to_rfc3339(),
             demo.updated_at.to_rfc3339(),
             demo.content_sha256,
             encode(demo)?
         ],
     )?;
     Ok(())
+}
+
+fn get_steam_match_document(connection: &Connection, id: &str) -> Result<Option<SteamMatchRecord>> {
+    let json = connection
+        .query_row(
+            "SELECT document_json FROM steam_matches WHERE id = ?1",
+            [id],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()?;
+    json.map(|json| decode(&json)).transpose()
+}
+
+fn put_steam_match_row(connection: &Connection, record: &SteamMatchRecord) -> Result<()> {
+    connection.execute(
+        "INSERT INTO steam_matches(id, steam_id, match_id, synced_at, updated_at, document_json) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
+         ON CONFLICT(id) DO UPDATE SET steam_id = excluded.steam_id, \
+         match_id = excluded.match_id, synced_at = excluded.synced_at, \
+         updated_at = excluded.updated_at, document_json = excluded.document_json",
+        params![
+            record.id,
+            record.steam_id,
+            record.match_id,
+            record.synced_at.to_rfc3339(),
+            record.updated_at.to_rfc3339(),
+            encode(record)?
+        ],
+    )?;
+    Ok(())
+}
+
+fn put_match_download_job_row(connection: &Connection, job: &MatchDownloadJob) -> Result<()> {
+    connection.execute(
+        "INSERT INTO match_download_jobs(id, match_record_id, status, updated_at, document_json) \
+         VALUES (?1, ?2, ?3, ?4, ?5) \
+         ON CONFLICT(id) DO UPDATE SET match_record_id = excluded.match_record_id, \
+         status = excluded.status, updated_at = excluded.updated_at, \
+         document_json = excluded.document_json",
+        params![
+            job.id.to_string(),
+            job.match_record_id,
+            match_download_status_text(job.status),
+            job.updated_at.to_rfc3339(),
+            encode(job)?
+        ],
+    )?;
+    Ok(())
+}
+
+const fn match_download_stage(status: MatchDownloadStatus) -> Option<u8> {
+    match status {
+        MatchDownloadStatus::Queued => Some(0),
+        MatchDownloadStatus::Downloading => Some(1),
+        MatchDownloadStatus::Decompressing => Some(2),
+        MatchDownloadStatus::Importing => Some(3),
+        MatchDownloadStatus::Completed
+        | MatchDownloadStatus::Cancelling
+        | MatchDownloadStatus::Cancelled
+        | MatchDownloadStatus::Failed => None,
+    }
+}
+
+fn match_download_update_is_monotonic(
+    current: MatchDownloadStatus,
+    proposed: MatchDownloadStatus,
+) -> bool {
+    if current.is_terminal() || current == MatchDownloadStatus::Cancelling {
+        return false;
+    }
+    match (
+        match_download_stage(current),
+        match_download_stage(proposed),
+    ) {
+        (Some(current), Some(proposed)) => proposed >= current,
+        (Some(_), None) | (None, _) => false,
+    }
+}
+
+fn merge_match_download_progress(
+    mut proposed: MatchDownloadJob,
+    current: &MatchDownloadJob,
+) -> MatchDownloadJob {
+    proposed.created_at = current.created_at;
+    proposed.downloaded_bytes = proposed.downloaded_bytes.max(current.downloaded_bytes);
+    proposed.total_bytes = proposed.total_bytes.or(current.total_bytes);
+    proposed.progress = proposed.progress.max(current.progress);
+    if proposed.updated_at < current.updated_at {
+        proposed.updated_at = current.updated_at;
+    }
+    proposed
+}
+
+fn demo_catalog_identity(demo: &DemoRecord) -> DemoCatalogIdentity {
+    DemoCatalogIdentity {
+        id: demo.id,
+        path: demo.path.clone(),
+        status: demo.status,
+        content_sha256: demo.content_sha256.clone(),
+        file_size: demo.file_size,
+        updated_at: demo.updated_at,
+    }
+}
+
+fn demo_catalog_identity_matches(expected: &DemoCatalogIdentity, current: &DemoRecord) -> bool {
+    expected.id == current.id
+        && expected.path == current.path
+        && expected.status == current.status
+        && expected.content_sha256 == current.content_sha256
+        && expected.file_size == current.file_size
+        && expected.updated_at == current.updated_at
+}
+
+fn merge_trusted_match_date(
+    demo: &mut DemoRecord,
+    trusted_match_date: Option<DateTime<Utc>>,
+) -> Result<bool> {
+    match (demo.match_date.as_ref(), trusted_match_date) {
+        (Some(existing), Some(trusted)) if existing != &trusted => {
+            Err(vibe_cs_domain::DomainError::Conflict(
+                "trusted match date conflicts with the cataloged Demo".to_owned(),
+            )
+            .into())
+        }
+        (None, Some(trusted)) => {
+            demo.match_date = Some(trusted);
+            demo.updated_at = Utc::now();
+            Ok(true)
+        }
+        _ => Ok(false),
+    }
+}
+
+fn merge_trusted_steam_match_date(
+    current: Option<DateTime<Utc>>,
+    incoming: Option<DateTime<Utc>>,
+) -> Result<Option<DateTime<Utc>>> {
+    match (current, incoming) {
+        (Some(current), Some(incoming)) if current != incoming => {
+            Err(vibe_cs_domain::DomainError::Conflict(
+                "Steam match already has a different trusted match date".to_owned(),
+            )
+            .into())
+        }
+        (Some(current), _) => Ok(Some(current)),
+        (None, incoming) => Ok(incoming),
+    }
 }
 
 fn get_editor_project_document(
@@ -4117,7 +5035,7 @@ mod tests {
             display_name: "Match".to_owned(),
             source: "manual".to_owned(),
             status: DemoStatus::Discovered,
-            map_name: None,
+            map_name: Some("de_nuke".to_owned()),
             match_date: None,
             duration_seconds: None,
             total_rounds: None,
@@ -4127,7 +5045,7 @@ mod tests {
             team_b_score: None,
             player_names: Vec::new(),
             remark: String::new(),
-            content_sha256: Some("a".repeat(64)),
+            content_sha256: Some(hex::encode(Sha256::digest(path.as_bytes()))),
             file_size: 42,
             created_at: now,
             updated_at: now,
@@ -5814,6 +6732,1140 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn concurrent_content_addressed_demo_puts_keep_one_hash_and_report_date_conflict() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database = directory.path().join("concurrent-demo.sqlite3");
+        let first_storage = Storage::open(&database).await.expect("first storage");
+        let second_storage = Storage::open(&database).await.expect("second storage");
+        let barrier = Arc::new(tokio::sync::Barrier::new(2));
+        let mut first = demo("C:/matches/first-copy.dem");
+        first.content_sha256 = Some("a".repeat(64));
+        first.match_date = Some(
+            "2025-06-19T20:15:42Z"
+                .parse()
+                .expect("first trusted match date"),
+        );
+        let mut second = demo("C:/matches/second-copy.dem");
+        second.content_sha256 = Some("a".repeat(64));
+        second.match_date = Some(
+            "2025-06-20T20:15:42Z"
+                .parse()
+                .expect("second trusted match date"),
+        );
+        let first_barrier = Arc::clone(&barrier);
+        let first_put = tokio::spawn(async move {
+            first_barrier.wait().await;
+            first_storage.put_content_addressed_demo(first).await
+        });
+        let second_barrier = Arc::clone(&barrier);
+        let second_put = tokio::spawn(async move {
+            second_barrier.wait().await;
+            second_storage.put_content_addressed_demo(second).await
+        });
+
+        let outcomes = [
+            first_put.await.expect("first task"),
+            second_put.await.expect("second task"),
+        ];
+
+        assert_eq!(outcomes.iter().filter(|outcome| outcome.is_ok()).count(), 1);
+        assert_eq!(
+            outcomes
+                .iter()
+                .filter(|outcome| matches!(
+                    outcome,
+                    Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(message)))
+                        if message.contains("match date")
+                ))
+                .count(),
+            1
+        );
+        let verifier = Storage::open(&database)
+            .await
+            .expect("verification storage");
+        let page = verifier
+            .list_demos(DemoQuery::default())
+            .await
+            .expect("list demos");
+        assert_eq!(page.total, 1);
+        let expected_hash = "a".repeat(64);
+        assert_eq!(
+            page.items[0].content_sha256.as_deref(),
+            Some(expected_hash.as_str())
+        );
+    }
+
+    #[tokio::test]
+    async fn content_replacement_conflict_preserves_the_original_demo_and_analysis() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut original = demo("C:/matches/original.dem");
+        original.content_sha256 = Some("1".repeat(64));
+        let mut occupied = demo("C:/matches/occupied.dem");
+        occupied.content_sha256 = Some("2".repeat(64));
+        storage
+            .put_demos(vec![original.clone(), occupied])
+            .await
+            .expect("demos");
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
+                demo_id: original.id,
+                map_name: "de_nuke".to_owned(),
+                duration_seconds: 1.0,
+                tick_rate: 64.0,
+                verified_total_ticks: Some(64),
+                teams: Vec::new(),
+                players: Vec::new(),
+                rounds: Vec::new(),
+                highlights: Vec::new(),
+            },
+        )
+        .await;
+        let before = storage
+            .get_demo(original.id)
+            .await
+            .expect("Demo lookup")
+            .expect("Demo");
+        let mut replacement = before.clone();
+        replacement.content_sha256 = Some("2".repeat(64));
+        replacement.file_size = 99;
+        replacement.status = DemoStatus::Discovered;
+
+        let result = storage.replace_demo_content(replacement).await;
+
+        assert!(matches!(
+            result,
+            Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                _
+            )))
+        ));
+        assert_eq!(
+            storage.get_demo(original.id).await.expect("Demo lookup"),
+            Some(before)
+        );
+        assert!(
+            storage
+                .get_analysis(original.id)
+                .await
+                .expect("analysis lookup")
+                .is_some()
+        );
+    }
+
+    #[tokio::test]
+    async fn content_addressed_same_id_new_hash_atomically_invalidates_old_analysis() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut original = demo("C:/matches/old-bytes.dem");
+        original.content_sha256 = Some("1".repeat(64));
+        original.display_name = "User title".to_owned();
+        original.remark = "User note".to_owned();
+        storage
+            .put_demo(original.clone())
+            .await
+            .expect("original Demo");
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
+                demo_id: original.id,
+                map_name: "de_nuke".to_owned(),
+                duration_seconds: 1.0,
+                tick_rate: 64.0,
+                verified_total_ticks: Some(64),
+                teams: Vec::new(),
+                players: Vec::new(),
+                rounds: Vec::new(),
+                highlights: Vec::new(),
+            },
+        )
+        .await;
+        let mut replacement = demo("C:/matches/new-bytes.dem");
+        replacement.id = original.id;
+        replacement.content_sha256 = Some("2".repeat(64));
+        replacement.file_size = 99;
+
+        let replaced = storage
+            .put_content_addressed_demo(replacement)
+            .await
+            .expect("atomic content replacement")
+            .into_demo();
+
+        assert_eq!(replaced.id, original.id);
+        assert_eq!(
+            replaced.content_sha256.as_deref(),
+            Some("2222222222222222222222222222222222222222222222222222222222222222")
+        );
+        assert_eq!(replaced.display_name, "User title");
+        assert_eq!(replaced.remark, "User note");
+        assert_eq!(replaced.created_at, original.created_at);
+        assert!(
+            storage
+                .get_analysis(original.id)
+                .await
+                .expect("analysis")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn claimed_download_cannot_overwrite_a_concurrently_replaced_linked_demo() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut linked = demo("C:/matches/linked-before-claim.dem");
+        linked.content_sha256 = Some("1".repeat(64));
+        storage.put_demo(linked.clone()).await.expect("linked Demo");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:88".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "88".to_owned(),
+            outcome_id: "880".to_owned(),
+            token: 88,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: Some(linked.id),
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let claim = storage
+            .claim_match_download(record.id, Some(linked.id), Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed {
+            linked_demo: Some(claimed_identity),
+            ..
+        } = claim
+        else {
+            panic!("claim must bind the linked Demo identity");
+        };
+        let mut concurrent = linked.clone();
+        concurrent.content_sha256 = Some("2".repeat(64));
+        concurrent.file_size = 84;
+        concurrent.updated_at = Utc::now();
+        storage
+            .replace_demo_content(concurrent.clone())
+            .await
+            .expect("concurrent replacement");
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
+                demo_id: linked.id,
+                map_name: "de_nuke".to_owned(),
+                duration_seconds: 1.0,
+                tick_rate: 64.0,
+                verified_total_ticks: Some(64),
+                teams: Vec::new(),
+                players: Vec::new(),
+                rounds: Vec::new(),
+                highlights: Vec::new(),
+            },
+        )
+        .await;
+        let current = storage
+            .get_demo(linked.id)
+            .await
+            .expect("Demo")
+            .expect("Demo");
+        let mut stale_download = demo("C:/matches/stale-download.dem");
+        stale_download.id = linked.id;
+        stale_download.content_sha256 = Some("3".repeat(64));
+        stale_download.file_size = 96;
+
+        let result = storage
+            .put_content_addressed_demo_observed(stale_download, Some(claimed_identity))
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(message)))
+                if message.contains("after the download claim")
+        ));
+        assert_eq!(
+            storage.get_demo(linked.id).await.expect("Demo"),
+            Some(current)
+        );
+        assert!(
+            storage
+                .get_analysis(linked.id)
+                .await
+                .expect("analysis")
+                .is_some()
+        );
+    }
+
+    #[tokio::test]
+    async fn invalid_content_atomically_clears_analysis_and_all_byte_derived_demo_truth() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut original = demo("C:/matches/invalidated.dem");
+        original.status = DemoStatus::Ready;
+        original.map_name = Some("de_nuke".to_owned());
+        original.match_date = Some(Utc::now() - chrono::Duration::days(1));
+        original.duration_seconds = Some(120.0);
+        original.total_rounds = Some(12);
+        original.team_a_name = Some("Alpha".to_owned());
+        original.team_b_name = Some("Bravo".to_owned());
+        original.team_a_score = Some(7);
+        original.team_b_score = Some(5);
+        original.player_names = vec!["Player One".to_owned()];
+        original.display_name = "User title".to_owned();
+        original.remark = "User note".to_owned();
+        storage.put_demo(original.clone()).await.expect("Demo");
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
+                demo_id: original.id,
+                map_name: "de_nuke".to_owned(),
+                duration_seconds: 120.0,
+                tick_rate: 64.0,
+                verified_total_ticks: Some(7_680),
+                teams: Vec::new(),
+                players: Vec::new(),
+                rounds: Vec::new(),
+                highlights: Vec::new(),
+            },
+        )
+        .await;
+        let expected = storage
+            .get_demo(original.id)
+            .await
+            .expect("Demo lookup")
+            .expect("Demo");
+
+        let invalidated = storage
+            .invalidate_demo_content(expected, 17)
+            .await
+            .expect("invalidation")
+            .expect("Demo");
+
+        assert_eq!(invalidated.id, original.id);
+        assert_eq!(invalidated.path, original.path);
+        assert_eq!(invalidated.display_name, "User title");
+        assert_eq!(invalidated.remark, "User note");
+        assert_eq!(invalidated.created_at, original.created_at);
+        assert_eq!(invalidated.status, DemoStatus::Failed);
+        assert_eq!(invalidated.content_sha256, None);
+        assert_eq!(invalidated.file_size, 17);
+        assert_eq!(invalidated.map_name, None);
+        assert_eq!(invalidated.match_date, None);
+        assert_eq!(invalidated.duration_seconds, None);
+        assert_eq!(invalidated.total_rounds, None);
+        assert_eq!(invalidated.team_a_name, None);
+        assert_eq!(invalidated.team_b_name, None);
+        assert_eq!(invalidated.team_a_score, None);
+        assert_eq!(invalidated.team_b_score, None);
+        assert!(invalidated.player_names.is_empty());
+        assert!(
+            storage
+                .get_analysis(original.id)
+                .await
+                .expect("analysis")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn concurrent_match_download_claims_create_one_active_job_and_one_downloading_transition()
+    {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database = directory.path().join("concurrent-download.sqlite3");
+        let first_storage = Storage::open(&database).await.expect("first storage");
+        let second_storage = Storage::open(&database).await.expect("second storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:77".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "77".to_owned(),
+            outcome_id: "770".to_owned(),
+            token: 77,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        first_storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let barrier = Arc::new(tokio::sync::Barrier::new(2));
+        let first_barrier = Arc::clone(&barrier);
+        let record_id = record.id.clone();
+        let first_claim = tokio::spawn(async move {
+            first_barrier.wait().await;
+            first_storage
+                .claim_match_download(record_id, None, Uuid::new_v4())
+                .await
+        });
+        let second_barrier = Arc::clone(&barrier);
+        let record_id = record.id.clone();
+        let second_claim = tokio::spawn(async move {
+            second_barrier.wait().await;
+            second_storage
+                .claim_match_download(record_id, None, Uuid::new_v4())
+                .await
+        });
+
+        let claims = [
+            first_claim
+                .await
+                .expect("first claim task")
+                .expect("first claim"),
+            second_claim
+                .await
+                .expect("second claim task")
+                .expect("second claim"),
+        ];
+
+        assert_eq!(
+            claims
+                .iter()
+                .filter(|claim| matches!(claim, Some(MatchDownloadClaim::Claimed { .. })))
+                .count(),
+            1
+        );
+        assert_eq!(
+            claims
+                .iter()
+                .filter(|claim| matches!(claim, Some(MatchDownloadClaim::Existing(_))))
+                .count(),
+            1
+        );
+        let verifier = Storage::open(&database)
+            .await
+            .expect("verification storage");
+        assert_eq!(
+            verifier
+                .list_active_match_download_jobs()
+                .await
+                .expect("active jobs")
+                .len(),
+            1
+        );
+        assert_eq!(
+            verifier
+                .get_steam_match(record.id)
+                .await
+                .expect("Steam match lookup")
+                .expect("Steam match")
+                .demo_status,
+            vibe_cs_domain::MatchDemoStatus::Downloading
+        );
+    }
+
+    #[tokio::test]
+    async fn stale_download_claim_cannot_replace_a_newly_completed_demo_link() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:78".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "78".to_owned(),
+            outcome_id: "780".to_owned(),
+            token: 78,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let linked_demo = demo("C:/matches/completed-between-read-and-claim.dem");
+        storage
+            .put_demo(linked_demo.clone())
+            .await
+            .expect("linked Demo");
+        let mut completed_record = record.clone();
+        completed_record.demo_id = Some(linked_demo.id);
+        completed_record.demo_status = vibe_cs_domain::MatchDemoStatus::Downloaded;
+        completed_record.updated_at = Utc::now();
+        storage
+            .put_steam_match(completed_record.clone())
+            .await
+            .expect("completed match");
+
+        let result = storage
+            .claim_match_download(record.id.clone(), record.demo_id, Uuid::new_v4())
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                _
+            )))
+        ));
+        assert_eq!(
+            storage
+                .get_steam_match(record.id)
+                .await
+                .expect("Steam match lookup"),
+            Some(completed_record)
+        );
+        assert!(
+            storage
+                .list_active_match_download_jobs()
+                .await
+                .expect("active jobs")
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn stale_sync_snapshot_preserves_concurrent_download_and_trusted_match_truth() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let trusted = now - chrono::Duration::days(2);
+        let record = SteamMatchRecord {
+            id: "76561198000000000:83".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "83".to_owned(),
+            outcome_id: "830".to_owned(),
+            token: 83,
+            map_name: Some("de_nuke".to_owned()),
+            played_at: Some(trusted),
+            score: Some("13:10".to_owned()),
+            result: vibe_cs_domain::MatchHistoryResult::Win,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let mut stale_sync = record.clone();
+        stale_sync.played_at = None;
+        stale_sync.map_name = None;
+        stale_sync.score = None;
+        stale_sync.result = vibe_cs_domain::MatchHistoryResult::Unknown;
+        stale_sync.outcome_id = "831".to_owned();
+        stale_sync.token = 84;
+        stale_sync.synced_at = now + chrono::Duration::minutes(1);
+        stale_sync.updated_at = stale_sync.synced_at;
+        let claim = storage
+            .claim_match_download(record.id.clone(), None, Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed { mut job, .. } = claim else {
+            panic!("first owner must claim");
+        };
+        job.status = MatchDownloadStatus::Failed;
+        job.error = Some("download ticket expired".to_owned());
+        job.updated_at = Utc::now();
+        storage
+            .finalize_match_download(job, None)
+            .await
+            .expect("finalize")
+            .expect("job");
+
+        let (merged, created) = storage
+            .merge_synced_steam_matches(vec![stale_sync])
+            .await
+            .expect("merge stale sync snapshot");
+
+        assert_eq!(created, 0);
+        assert_eq!(merged[0].outcome_id, "831");
+        assert_eq!(merged[0].token, 84);
+        assert_eq!(merged[0].map_name.as_deref(), Some("de_nuke"));
+        assert_eq!(merged[0].score.as_deref(), Some("13:10"));
+        assert_eq!(merged[0].result, vibe_cs_domain::MatchHistoryResult::Win);
+        assert_eq!(merged[0].played_at, Some(trusted));
+        assert_eq!(
+            merged[0].demo_status,
+            vibe_cs_domain::MatchDemoStatus::Failed
+        );
+        assert_eq!(
+            merged[0].last_error.as_deref(),
+            Some("download ticket expired")
+        );
+    }
+
+    #[tokio::test]
+    async fn terminal_download_owner_updates_job_and_match_once_without_stale_overwrite() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:79".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "79".to_owned(),
+            outcome_id: "790".to_owned(),
+            token: 79,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let claim = storage
+            .claim_match_download(record.id.clone(), None, Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed { mut job, .. } = claim else {
+            panic!("first owner must claim");
+        };
+        job.status = MatchDownloadStatus::Failed;
+        job.error = Some("network failed".to_owned());
+        job.updated_at = Utc::now();
+        let failed = storage
+            .finalize_match_download(job.clone(), None)
+            .await
+            .expect("failure finalization")
+            .expect("owned job");
+        assert_eq!(failed.status, MatchDownloadStatus::Failed);
+        let mut stale_cancel = job;
+        stale_cancel.status = MatchDownloadStatus::Cancelled;
+        stale_cancel.error = None;
+        stale_cancel.updated_at = Utc::now();
+
+        let observed = storage
+            .finalize_match_download(stale_cancel, None)
+            .await
+            .expect("stale finalization reads terminal truth")
+            .expect("job");
+
+        assert_eq!(observed, failed);
+        let stored_record = storage
+            .get_steam_match(record.id)
+            .await
+            .expect("Steam match lookup")
+            .expect("Steam match");
+        assert_eq!(
+            stored_record.demo_status,
+            vibe_cs_domain::MatchDemoStatus::Failed
+        );
+        assert_eq!(stored_record.last_error.as_deref(), Some("network failed"));
+    }
+
+    #[tokio::test]
+    async fn completed_download_cas_binds_latest_trusted_date_to_the_verified_demo() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let trusted = now - chrono::Duration::hours(3);
+        let record = SteamMatchRecord {
+            id: "76561198000000000:85".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "85".to_owned(),
+            outcome_id: "850".to_owned(),
+            token: 85,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let claim = storage
+            .claim_match_download(record.id.clone(), None, Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed { mut job, .. } = claim else {
+            panic!("first owner must claim");
+        };
+        let imported = demo("C:/matches/latest-trusted-date.dem");
+        storage
+            .put_demo(imported.clone())
+            .await
+            .expect("imported Demo");
+        let mut sync = record;
+        sync.played_at = Some(trusted);
+        sync.synced_at = Utc::now();
+        sync.updated_at = sync.synced_at;
+        storage
+            .merge_synced_steam_matches(vec![sync])
+            .await
+            .expect("trusted date sync");
+        job.status = MatchDownloadStatus::Completed;
+        job.demo_id = Some(imported.id);
+        job.progress = 1.0;
+        job.updated_at = Utc::now();
+
+        let completed = storage
+            .finalize_match_download(
+                job,
+                Some(DemoContentIdentity {
+                    id: imported.id,
+                    path: imported.path.clone(),
+                    status: imported.status,
+                    content_sha256: imported.content_sha256.clone().expect("hash"),
+                    file_size: imported.file_size,
+                }),
+            )
+            .await
+            .expect("completion")
+            .expect("job");
+
+        assert_eq!(completed.status, MatchDownloadStatus::Completed);
+        assert_eq!(
+            storage
+                .get_demo(imported.id)
+                .await
+                .expect("Demo lookup")
+                .expect("Demo")
+                .match_date,
+            Some(trusted)
+        );
+    }
+
+    #[tokio::test]
+    async fn completed_download_rejects_a_demo_replaced_after_import_validation() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:86".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "86".to_owned(),
+            outcome_id: "860".to_owned(),
+            token: 86,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let claim = storage
+            .claim_match_download(record.id.clone(), None, Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed { mut job, .. } = claim else {
+            panic!("first owner must claim");
+        };
+        let imported = demo("C:/matches/replaced-before-finalize.dem");
+        storage
+            .put_demo(imported.clone())
+            .await
+            .expect("imported Demo");
+        let expected = DemoContentIdentity {
+            id: imported.id,
+            path: imported.path.clone(),
+            status: imported.status,
+            content_sha256: imported.content_sha256.clone().expect("hash"),
+            file_size: imported.file_size,
+        };
+        let mut replacement = imported.clone();
+        replacement.content_sha256 = Some("f".repeat(64));
+        replacement.file_size = replacement.file_size.saturating_add(1);
+        replacement.updated_at = Utc::now();
+        storage
+            .replace_demo_content(replacement)
+            .await
+            .expect("concurrent Demo replacement");
+        job.status = MatchDownloadStatus::Completed;
+        job.demo_id = Some(imported.id);
+        job.progress = 1.0;
+        job.updated_at = Utc::now();
+
+        let result = storage
+            .finalize_match_download(job.clone(), Some(expected))
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                _
+            )))
+        ));
+        assert_eq!(
+            storage
+                .get_match_download_job(job.id)
+                .await
+                .expect("job")
+                .expect("job")
+                .status,
+            MatchDownloadStatus::Queued
+        );
+        assert_eq!(
+            storage
+                .get_steam_match(record.id)
+                .await
+                .expect("Steam match")
+                .expect("Steam match")
+                .demo_status,
+            vibe_cs_domain::MatchDemoStatus::Downloading
+        );
+    }
+
+    #[tokio::test]
+    async fn cancellation_before_the_first_stage_cannot_resurrect_a_download() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:81".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "81".to_owned(),
+            outcome_id: "810".to_owned(),
+            token: 81,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let claim = storage
+            .claim_match_download(record.id.clone(), None, Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed { mut job, .. } = claim else {
+            panic!("first owner must claim");
+        };
+        storage
+            .request_match_download_cancel(job.id)
+            .await
+            .expect("cancel request")
+            .expect("job");
+
+        job.status = MatchDownloadStatus::Downloading;
+        job.progress = 0.1;
+        job.updated_at = Utc::now();
+        let observed = storage
+            .advance_match_download(job.clone())
+            .await
+            .expect("stale first stage")
+            .expect("job");
+
+        assert_eq!(observed.status, MatchDownloadStatus::Cancelling);
+        job.status = MatchDownloadStatus::Decompressing;
+        let observed = storage
+            .put_match_download_job(job)
+            .await
+            .expect("generic stale write reads current truth");
+        assert_eq!(observed.status, MatchDownloadStatus::Cancelling);
+    }
+
+    #[tokio::test]
+    async fn cancellation_between_download_and_decompression_is_monotonic() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:82".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "82".to_owned(),
+            outcome_id: "820".to_owned(),
+            token: 82,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let claim = storage
+            .claim_match_download(record.id, None, Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed { mut job, .. } = claim else {
+            panic!("first owner must claim");
+        };
+        job.status = MatchDownloadStatus::Downloading;
+        job.updated_at = Utc::now();
+        job = storage
+            .advance_match_download(job)
+            .await
+            .expect("download stage")
+            .expect("job");
+        assert_eq!(job.status, MatchDownloadStatus::Downloading);
+        storage
+            .request_match_download_cancel(job.id)
+            .await
+            .expect("cancel request")
+            .expect("job");
+
+        job.status = MatchDownloadStatus::Decompressing;
+        job.progress = 0.9;
+        job.updated_at = Utc::now();
+        let observed = storage
+            .advance_match_download(job)
+            .await
+            .expect("stale decompression stage")
+            .expect("job");
+
+        assert_eq!(observed.status, MatchDownloadStatus::Cancelling);
+        assert!(observed.progress.abs() < f64::EPSILON);
+    }
+
+    #[tokio::test]
+    async fn cancellation_during_import_wins_over_a_stale_completed_finalize() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:87".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "87".to_owned(),
+            outcome_id: "870".to_owned(),
+            token: 87,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let claim = storage
+            .claim_match_download(record.id.clone(), None, Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed { mut job, .. } = claim else {
+            panic!("first owner must claim");
+        };
+        job.status = MatchDownloadStatus::Importing;
+        job.progress = 0.97;
+        job.updated_at = Utc::now();
+        job = storage
+            .advance_match_download(job)
+            .await
+            .expect("import stage")
+            .expect("job");
+        let imported = demo("C:/matches/cancelled-during-import.dem");
+        storage
+            .put_demo(imported.clone())
+            .await
+            .expect("imported Demo");
+        storage
+            .request_match_download_cancel(job.id)
+            .await
+            .expect("cancel request")
+            .expect("job");
+        job.status = MatchDownloadStatus::Completed;
+        job.progress = 1.0;
+        job.demo_id = Some(imported.id);
+        job.updated_at = Utc::now();
+
+        let result = storage
+            .finalize_match_download(
+                job.clone(),
+                Some(DemoContentIdentity {
+                    id: imported.id,
+                    path: imported.path.clone(),
+                    status: imported.status,
+                    content_sha256: imported.content_sha256.clone().expect("hash"),
+                    file_size: imported.file_size,
+                }),
+            )
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(message)))
+                if message == "download cancelled"
+        ));
+        assert_eq!(
+            storage
+                .get_match_download_job(job.id)
+                .await
+                .expect("job")
+                .expect("job")
+                .status,
+            MatchDownloadStatus::Cancelling
+        );
+        assert_eq!(
+            storage
+                .get_steam_match(record.id)
+                .await
+                .expect("Steam match")
+                .expect("Steam match")
+                .demo_status,
+            vibe_cs_domain::MatchDemoStatus::Downloading
+        );
+    }
+
+    #[tokio::test]
+    async fn orphaned_download_recovery_atomically_fails_job_and_match() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:80".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "80".to_owned(),
+            outcome_id: "800".to_owned(),
+            token: 80,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let claim = storage
+            .claim_match_download(record.id.clone(), None, Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed { job, .. } = claim else {
+            panic!("first owner must claim");
+        };
+
+        assert_eq!(
+            storage
+                .recover_orphaned_match_downloads("owner stopped".to_owned())
+                .await
+                .expect("recovery"),
+            1
+        );
+
+        assert_eq!(
+            storage
+                .get_match_download_job(job.id)
+                .await
+                .expect("job lookup")
+                .expect("job")
+                .status,
+            MatchDownloadStatus::Failed
+        );
+        let stored_record = storage
+            .get_steam_match(record.id)
+            .await
+            .expect("Steam match lookup")
+            .expect("Steam match");
+        assert_eq!(
+            stored_record.demo_status,
+            vibe_cs_domain::MatchDemoStatus::Failed
+        );
+        assert_eq!(stored_record.last_error.as_deref(), Some("owner stopped"));
+    }
+
+    #[tokio::test]
+    async fn orphaned_cancellation_recovers_as_cancelled_instead_of_failed() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:84".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "84".to_owned(),
+            outcome_id: "840".to_owned(),
+            token: 84,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: vibe_cs_domain::MatchHistoryResult::Unknown,
+            demo_status: vibe_cs_domain::MatchDemoStatus::Available,
+            demo_id: None,
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let claim = storage
+            .claim_match_download(record.id.clone(), None, Uuid::new_v4())
+            .await
+            .expect("claim")
+            .expect("match exists");
+        let MatchDownloadClaim::Claimed { job, .. } = claim else {
+            panic!("first owner must claim");
+        };
+        storage
+            .request_match_download_cancel(job.id)
+            .await
+            .expect("cancel request")
+            .expect("job");
+
+        assert_eq!(
+            storage
+                .recover_orphaned_match_downloads("owner stopped".to_owned())
+                .await
+                .expect("recovery"),
+            1
+        );
+
+        let recovered = storage
+            .get_match_download_job(job.id)
+            .await
+            .expect("job lookup")
+            .expect("job");
+        assert_eq!(recovered.status, MatchDownloadStatus::Cancelled);
+        assert_eq!(recovered.error, None);
+        let stored_record = storage
+            .get_steam_match(record.id)
+            .await
+            .expect("Steam match lookup")
+            .expect("Steam match");
+        assert_eq!(
+            stored_record.demo_status,
+            vibe_cs_domain::MatchDemoStatus::Available
+        );
+        assert_eq!(stored_record.last_error, None);
+    }
+
+    #[tokio::test]
     async fn steam_matches_and_download_jobs_are_paged_and_persisted() {
         let storage = Storage::open_in_memory().await.expect("open storage");
         let now = Utc::now();
@@ -5875,12 +7927,28 @@ mod tests {
                 .expect("active job"),
             Some(job.clone())
         );
+        let downloaded = demo("C:/matches/persisted-download.dem");
+        storage
+            .put_demo(downloaded.clone())
+            .await
+            .expect("downloaded Demo");
         let mut completed = job;
         completed.status = MatchDownloadStatus::Completed;
-        storage
-            .put_match_download_job(completed.clone())
+        completed.demo_id = Some(downloaded.id);
+        let completed = storage
+            .finalize_match_download(
+                completed,
+                Some(DemoContentIdentity {
+                    id: downloaded.id,
+                    path: downloaded.path.clone(),
+                    status: downloaded.status,
+                    content_sha256: downloaded.content_sha256.clone().expect("hash"),
+                    file_size: downloaded.file_size,
+                }),
+            )
             .await
-            .expect("complete job");
+            .expect("complete job")
+            .expect("job");
         assert!(
             storage
                 .get_active_match_download_job(records[0].id.clone())

@@ -757,7 +757,14 @@ export function LibraryPage() {
                 <div><strong>{demo.score_team_b}</strong><span>{demo.team_b_name}</span></div>
               </div> : demo.lifecycle_status === 'ready' ? null : <p className="demo-card__lifecycle">{t(lifecycle.descriptionKey)}</p>}
               {lifecycle.showMatchSummary ? <div className="demo-card__meta">
-                <span><CalendarDays size={13} />{new Intl.DateTimeFormat(currentLocale(), { month: 'short', day: 'numeric' }).format(new Date(demo.played_at))}</span>
+                <span title={t('library.matchDate.catalogedAt').replace(
+                  '{date}',
+                  new Intl.DateTimeFormat(currentLocale(), { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(demo.cataloged_at)),
+                )}>
+                  <CalendarDays size={13} />{demo.match_date
+                    ? new Intl.DateTimeFormat(currentLocale(), { month: 'short', day: 'numeric' }).format(new Date(demo.match_date))
+                    : t('library.matchDate.unavailable')}
+                </span>
                 <span><Clock3 size={13} />{duration(demo.duration_seconds)}</span>
                 <span><Users size={13} />{demo.total_rounds} {msg("m0367")}</span>
               </div> : null}

@@ -1,7 +1,7 @@
 import { GitCompareArrows, MoreHorizontal } from 'lucide-react';
 
 import { currentLocale, useI18n } from '../../shared/i18n';
-import type { PlayerDirectoryItem } from '../../shared/desktop/dto';
+import type { PlayerDirectoryItem, PlayerProjectionCoverage } from '../../shared/desktop/dto';
 import { formatKillDeathRatio } from '../../shared/performanceMetrics';
 import { Badge, Button, Card, IconButton, Notice } from '../../shared/ui';
 import {
@@ -19,6 +19,15 @@ function formatDate(value: string): string {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+  }).format(date);
+}
+
+function formatCatalogedDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.valueOf())) return '—';
+  return new Intl.DateTimeFormat(currentLocale(), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
   }).format(date);
 }
 
@@ -84,6 +93,13 @@ export function PlayerPowerTable({
           {players.map((player) => {
             const compared = comparedIds.has(player.steam_id);
             const evidence = steamEvidence(player.steam);
+            const matchDate = player.last_match_date
+              ? formatDate(player.last_match_date)
+              : t('players.matches.dateUnavailable');
+            const catalogedAt = t('players.matches.catalogedAt').replace(
+              '{date}',
+              formatCatalogedDate(player.last_cataloged_at),
+            );
             return (
               <tr key={player.steam_id} className={compared ? 'is-compared' : undefined} aria-selected={compared}>
                 <td className="player-power-table__select">
@@ -107,7 +123,7 @@ export function PlayerPowerTable({
                 <td className="player-power-table__number">{playerHeadshotRate(player.stats)}</td>
                 <td className="player-power-table__number">{formatOptionalMetric(player.stats.average_adr)}</td>
                 <td className="player-power-table__number">{player.stats.damage.toLocaleString(currentLocale())}</td>
-                <td className="player-power-table__date">{formatDate(player.last_match_at)}</td>
+                <td className="player-power-table__date" title={catalogedAt}>{matchDate}</td>
                 <td><Badge tone={evidence.tone}>{evidence.label}</Badge></td>
                 <td className="player-power-table__actions">
                   <Button size="sm" onClick={() => onToggleCompare(player)}>
@@ -176,14 +192,12 @@ export function PlayerComparisonSelectionBar({
 
 export function PlayerCompareInspector({
   players,
-  scannedDemos,
-  scanComplete,
+  coverage,
   onFocus,
   onClear,
 }: {
   players: readonly [PlayerDirectoryItem, PlayerDirectoryItem];
-  scannedDemos: number;
-  scanComplete: boolean;
+  coverage: PlayerProjectionCoverage;
   onFocus: (player: PlayerDirectoryItem) => void;
   onClear: () => void;
 }) {
@@ -206,10 +220,16 @@ export function PlayerCompareInspector({
         <div><span className="eyebrow">PLAYER COMPARISON</span><h2>{t('players.compare.title')}</h2></div>
         <Button size="sm" onClick={onClear}>{t('players.compare.clear')}</Button>
       </header>
-      {!scanComplete ? (
-        <Notice tone="warning">{formatTemplate(t('players.compare.scopeIncomplete'), { count: scannedDemos })}</Notice>
+      {!coverage.projection_complete ? (
+        <Notice tone="warning">{formatTemplate(t('players.compare.scopeIncomplete'), {
+          projected: coverage.projected_demos,
+          total: coverage.total_analyses,
+        })}</Notice>
       ) : (
-        <p className="player-compare-inspector__scope">{formatTemplate(t('players.compare.scope'), { count: scannedDemos })}</p>
+        <p className="player-compare-inspector__scope">{formatTemplate(t('players.compare.scope'), {
+          projected: coverage.projected_demos,
+          total: coverage.total_analyses,
+        })}</p>
       )}
       <div className="player-compare-identities">
         {players.map((player) => (

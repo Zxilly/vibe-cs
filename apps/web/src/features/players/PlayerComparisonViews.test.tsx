@@ -14,8 +14,10 @@ function player(overrides: Partial<PlayerDirectoryItem> = {}): PlayerDirectoryIt
     steam_id: '76561198000000001',
     name: 'm0NESY',
     aliases: [],
+    aliases_total: 0,
     last_team: 'G2',
-    last_match_at: '2026-08-10T08:00:00Z',
+    last_match_date: null,
+    last_cataloged_at: '2026-08-10T08:00:00Z',
     stats: {
       matches: 12,
       kills: 245,
@@ -74,7 +76,8 @@ describe('player power-table', () => {
     expect(markup).toContain('1.44');
     expect(markup).toContain('40.0%');
     expect(markup).toContain('22,450');
-    expect(markup).toContain('—');
+    expect(markup).toContain('比赛日期不可用');
+    expect(markup).toMatch(/title="编入本地目录：[^"]*2026[^"]*"/);
     expect(markup).toContain('加入对比');
     expect(markup).toContain('查看详情');
     expect(markup).not.toMatch(/Rating|KAST|accuracy/i);
@@ -95,13 +98,13 @@ describe('player power-table', () => {
     expect(markup.match(/aria-sort=/g)).toHaveLength(11);
     expect(markup).toContain('aria-sort="descending"');
     expect(markup).toMatch(/<button[^>]*>玩家/);
-    expect(markup).toMatch(/<button[^>]*>最近比赛/);
+    expect(markup).toMatch(/<button[^>]*>最近已知比赛日期/);
     expect(markup).not.toMatch(/<button[^>]*>Steam 证据/);
   });
 });
 
 describe('two-player comparison inspector', () => {
-  it('compares only evidenced aggregates across the scanned Demo scope', () => {
+  it('compares only evidenced aggregates across one persistent projection scope', () => {
     const markup = renderToStaticMarkup(
       <PlayerCompareInspector
         players={[
@@ -119,8 +122,7 @@ describe('two-player comparison inspector', () => {
             },
           }),
         ]}
-        scannedDemos={87}
-        scanComplete
+        coverage={{ projected_demos: 87, total_analyses: 87, projection_complete: true }}
         onFocus={vi.fn()}
         onClear={vi.fn()}
       />,
@@ -132,7 +134,7 @@ describe('two-player comparison inspector', () => {
     expect(markup).toContain('逐场平均 K/D');
     expect(markup).toContain('1.42');
     expect(markup).toContain('—');
-    expect(markup).toContain('87 个已扫描 Demo');
+    expect(markup).toContain('87 / 87 份已完成分析');
     expect(markup).toContain('查看单人详情');
     expect(markup).toContain('清空对比');
     expect(markup).not.toMatch(/Rating|KAST|accuracy/i);
@@ -147,7 +149,7 @@ describe('player directory data scope', () => {
 
     expect(markup).toContain('第 2 / 4 页');
     expect(markup).toContain('当前页 24 / 82 名玩家');
-    expect(markup).toContain('服务端在已扫描玩家结果集上先搜索、排序，再分页');
+    expect(markup).toContain('服务端在持久玩家比赛索引上先搜索、排序，再分页');
     expect(markup).toContain('最多两个显式玩家选择会跨分页、搜索和排序保留');
   });
 });

@@ -232,6 +232,12 @@ export function PlayerDetailView({
 }) {
   const { t } = useI18n();
   const { player } = profile;
+  const latestMatchDate = player.last_match_date
+    ? formatDate(player.last_match_date)
+    : t('players.matches.dateUnavailable');
+  const projectionCopy = t('players.projection.incomplete')
+    .replace('{projected}', String(profile.coverage.projected_demos))
+    .replace('{total}', String(profile.coverage.total_analyses));
   return (
     <div className="player-detail-view">
       <header className="player-detail-identity">
@@ -240,22 +246,27 @@ export function PlayerDetailView({
           <span className="eyebrow">STEAM64 · {player.steam_id}</span>
           <h2>{player.name}</h2>
           <p>
-            {player.last_team ? msgf("m0740", [player.last_team]) : msg("m0741")}
+            {player.last_team
+              ? t('players.profile.latestCatalogedTeam').replace('{team}', player.last_team)
+              : t('players.profile.teamUnavailable')}
             {' · '}
 
-           {msg("m0735")} {formatDate(player.last_match_at)}
+           {t('players.matches.latestDate').replace('{date}', latestMatchDate)}
           </p>
-          {player.aliases.length > 0 ? (
-            <small>{msg("m0787")}{player.aliases.join('、')}</small>
+          <small>{t('players.matches.catalogedAt').replace(
+            '{date}',
+            formatDate(player.last_cataloged_at),
+          )}</small>
+          {player.aliases_total > 0 ? (
+            <small>{t('players.profile.aliases')
+              .replace('{visible}', String(player.aliases.length))
+              .replace('{total}', String(player.aliases_total))}{player.aliases.join('、')}</small>
           ) : null}
         </div>
       </header>
 
-      {!profile.scan_complete ? (
-        <Notice tone="warning">
-
-         {msg("m0589")} {profile.scanned_demos} {msg("m0201")}
-        </Notice>
+      {!profile.coverage.projection_complete ? (
+        <Notice tone="warning">{projectionCopy}</Notice>
       ) : null}
 
       <PlayerStatsView stats={player.stats} />
@@ -274,6 +285,14 @@ export function PlayerDetailView({
           <div><Gamepad2 size={16} /><strong>{t('players.matches.title')}</strong></div>
           <span>{matches ? `${playerMatchResultRange(matches)} · ${msg("m0182")}` : msg("m0182")}</span>
         </header>
+        <p className="player-match-history__scope">{t('players.matches.order')}</p>
+        {matches && !matches.coverage.projection_complete ? (
+          <Notice tone="warning">
+            {t('players.projection.incomplete')
+              .replace('{projected}', String(matches.coverage.projected_demos))
+              .replace('{total}', String(matches.coverage.total_analyses))}
+          </Notice>
+        ) : null}
         {matchesLoading && !matches ? (
           <div className="players-loading">
             <Spinner label={t('players.matches.loading')} />
@@ -296,8 +315,14 @@ export function PlayerDetailView({
               <article key={match.demo_id} role="listitem">
                 <div className="player-match-main">
                   <strong>{match.map_name ?? msg("m0398")}</strong>
-                  <span><CalendarDays size={12} />{formatDate(match.played_at)}</span>
+                  <span><CalendarDays size={12} />{match.match_date
+                    ? formatDate(match.match_date)
+                    : t('players.matches.dateUnavailable')}</span>
                   <small title={match.demo_name}>{match.demo_name}</small>
+                  <small>{t('players.matches.catalogedAt').replace(
+                    '{date}',
+                    formatDate(match.cataloged_at),
+                  )}</small>
                 </div>
                 <div className="player-match-team">
                   <span>{msg("m1283")}</span>

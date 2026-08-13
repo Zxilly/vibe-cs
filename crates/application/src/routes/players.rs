@@ -180,7 +180,8 @@ mod tests {
     use super::*;
     use crate::{
         PlayerAggregateStats, PlayerComparison, PlayerComparisonQuery, PlayerDirectoryItem,
-        PlayerDirectorySort, PlayerDirectorySortDirection, PlayerPort, PlayerSteamProfile,
+        PlayerDirectorySort, PlayerDirectorySortDirection, PlayerPort, PlayerProjectionCoverage,
+        PlayerSteamProfile,
     };
 
     const PLAYER_ID: &str = "76561198000000001";
@@ -212,8 +213,7 @@ mod tests {
                 total: 0,
                 page: 2,
                 page_size: 25,
-                scanned_demos: 12,
-                scan_complete: true,
+                coverage: coverage(12),
             })
         }
 
@@ -223,28 +223,29 @@ mod tests {
                     steam_id,
                     name: "Local Player".to_owned(),
                     aliases: Vec::new(),
+                    aliases_total: 0,
                     last_team: None,
-                    last_match_at: Utc.timestamp_opt(1_700_000_000, 0).unwrap(),
+                    last_match_date: None,
+                    last_cataloged_at: Utc.timestamp_opt(1_700_000_000, 0).unwrap(),
                     stats: PlayerAggregateStats::default(),
                     steam: PlayerSteamProfile::not_configured(),
                 },
-                scanned_demos: 1,
-                scan_complete: true,
+                coverage: coverage(1),
             })
         }
 
         async fn matches(
             &self,
-            _steam_id: String,
+            steam_id: String,
             query: PlayerMatchQuery,
         ) -> Result<PlayerMatchPage, DomainError> {
             Ok(PlayerMatchPage {
+                steam_id,
                 items: Vec::new(),
                 total: 0,
                 page: query.page,
                 page_size: query.page_size,
-                scanned_demos: 12,
-                scan_complete: true,
+                coverage: coverage(12),
             })
         }
 
@@ -257,15 +258,16 @@ mod tests {
                 steam_id,
                 name: "Local Player".to_owned(),
                 aliases: Vec::new(),
+                aliases_total: 0,
                 last_team: None,
-                last_match_at: Utc.timestamp_opt(1_700_000_000, 0).unwrap(),
+                last_match_date: None,
+                last_cataloged_at: Utc.timestamp_opt(1_700_000_000, 0).unwrap(),
                 stats: PlayerAggregateStats::default(),
                 steam: PlayerSteamProfile::not_configured(),
             };
             Ok(PlayerComparison {
                 players: [player(query.left), player(query.right)],
-                scanned_demos: 12,
-                scan_complete: true,
+                coverage: coverage(12),
             })
         }
 
@@ -298,6 +300,14 @@ mod tests {
                 scan_complete: true,
                 completed_at: Utc.timestamp_opt(1_700_000_000, 0).unwrap(),
             })
+        }
+    }
+
+    const fn coverage(projected_demos: u64) -> PlayerProjectionCoverage {
+        PlayerProjectionCoverage {
+            projected_demos,
+            total_analyses: projected_demos,
+            projection_complete: true,
         }
     }
 
@@ -407,8 +417,10 @@ mod tests {
         .expect("player matches page");
         assert_eq!(page["page"], 2);
         assert_eq!(page["page_size"], 20);
-        assert_eq!(page["scanned_demos"], 12);
-        assert_eq!(page["scan_complete"], true);
+        assert_eq!(page["steam_id"], "76561198000000001");
+        assert_eq!(page["coverage"]["projected_demos"], 12);
+        assert_eq!(page["coverage"]["total_analyses"], 12);
+        assert_eq!(page["coverage"]["projection_complete"], true);
         assert_eq!(page["items"], serde_json::json!([]));
     }
 

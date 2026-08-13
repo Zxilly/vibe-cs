@@ -15,6 +15,8 @@ pub enum StorageError {
     EvidenceProjection(String),
     #[error("activity projection is invalid: {0}")]
     ActivityProjection(String),
+    #[error("player match projection is invalid: {0}")]
+    PlayerProjection(String),
     #[error(
         "database does not match the current unreleased product schema; start with a fresh data directory"
     )]

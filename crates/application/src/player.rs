@@ -146,12 +146,15 @@ pub struct PlayerAggregateStats {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerDirectoryItem {
     pub steam_id: String,
     pub name: String,
     pub aliases: Vec<String>,
+    pub aliases_total: u64,
     pub last_team: Option<String>,
-    pub last_match_at: DateTime<Utc>,
+    pub last_match_date: Option<DateTime<Utc>>,
+    pub last_cataloged_at: DateTime<Utc>,
     pub stats: PlayerAggregateStats,
     pub steam: PlayerSteamProfile,
 }
@@ -162,7 +165,8 @@ pub struct PlayerMatch {
     pub demo_id: Uuid,
     pub demo_name: String,
     pub map_name: Option<String>,
-    pub played_at: DateTime<Utc>,
+    pub match_date: Option<DateTime<Utc>>,
+    pub cataloged_at: DateTime<Utc>,
     pub team: Option<String>,
     pub kills: u32,
     pub deaths: u32,
@@ -173,41 +177,47 @@ pub struct PlayerMatch {
     pub kill_death_ratio: Option<f64>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PlayerProjectionCoverage {
+    pub projected_demos: u64,
+    pub total_analyses: u64,
+    pub projection_complete: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerDirectoryPage {
     pub items: Vec<PlayerDirectoryItem>,
     pub total: u64,
     pub page: u32,
     pub page_size: u32,
-    pub scanned_demos: u32,
-    pub scan_complete: bool,
+    pub coverage: PlayerProjectionCoverage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PlayerMatchPage {
+    pub steam_id: String,
     pub items: Vec<PlayerMatch>,
     pub total: u64,
     pub page: u32,
     pub page_size: u32,
-    pub scanned_demos: u32,
-    pub scan_complete: bool,
+    pub coverage: PlayerProjectionCoverage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PlayerComparison {
     pub players: [PlayerDirectoryItem; 2],
-    pub scanned_demos: u32,
-    pub scan_complete: bool,
+    pub coverage: PlayerProjectionCoverage,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct PlayerProfile {
     pub player: PlayerDirectoryItem,
-    pub scanned_demos: u32,
-    pub scan_complete: bool,
+    pub coverage: PlayerProjectionCoverage,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -384,8 +394,10 @@ mod tests {
                 "steam_id": "76561198000000001",
                 "name": "Local Player",
                 "aliases": [],
+                "aliases_total": 0,
                 "last_team": null,
-                "last_match_at": "2026-08-13T00:00:00Z",
+                "last_match_date": null,
+                "last_cataloged_at": "2026-08-13T00:00:00Z",
                 "stats": {
                     "matches": 2,
                     "kills": 30,
@@ -409,14 +421,72 @@ mod tests {
                     "reason": "Steam Web API key is not configured"
                 }
             },
-            "scanned_demos": 2,
-            "scan_complete": true
+            "coverage": {
+                "projected_demos": 2,
+                "total_analyses": 2,
+                "projection_complete": true
+            }
         });
 
         serde_json::from_value::<PlayerProfile>(current.clone()).expect("current player profile");
+        let mut missing_alias_count = current.clone();
+        missing_alias_count["player"]
+            .as_object_mut()
+            .expect("player object")
+            .remove("aliases_total");
+        assert!(serde_json::from_value::<PlayerProfile>(missing_alias_count).is_err());
         let mut retired = current;
-        retired["recent_matches"] = serde_json::json!([]);
+        retired["scanned_demos"] = serde_json::json!(2);
         assert!(serde_json::from_value::<PlayerProfile>(retired).is_err());
+    }
+
+    #[test]
+    fn player_match_uses_nullable_match_truth_and_explicit_catalog_time_only() {
+        let current = serde_json::json!({
+            "demo_id": "ee98d419-cf81-4a3a-831f-e0e19882d3b0",
+            "demo_name": "M1 Mirage",
+            "map_name": "de_mirage",
+            "match_date": null,
+            "cataloged_at": "2026-08-13T16:51:52.817524300Z",
+            "team": "FURIA",
+            "kills": 9,
+            "deaths": 14,
+            "assists": 6,
+            "headshots": 6,
+            "damage": 1638,
+            "adr": 78.0,
+            "kill_death_ratio": 0.642_857_142_857_142_9
+        });
+        serde_json::from_value::<PlayerMatch>(current.clone()).expect("current player match");
+
+        let mut retired = current;
+        retired["played_at"] = retired["cataloged_at"].take();
+        retired.as_object_mut().unwrap().remove("cataloged_at");
+        assert!(serde_json::from_value::<PlayerMatch>(retired).is_err());
+    }
+
+    #[test]
+    fn player_match_page_requires_the_exact_requested_steam_identity() {
+        let current = serde_json::json!({
+            "steam_id": "76561198000000001",
+            "items": [],
+            "total": 0,
+            "page": 1,
+            "page_size": 20,
+            "coverage": {
+                "projected_demos": 2,
+                "total_analyses": 2,
+                "projection_complete": true
+            }
+        });
+        serde_json::from_value::<PlayerMatchPage>(current.clone())
+            .expect("identity-bound match page");
+        let mut missing_identity = current;
+        missing_identity
+            .as_object_mut()
+            .expect("match page object")
+            .remove("steam_id");
+        assert!(serde_json::from_value::<PlayerMatchPage>(missing_identity).is_err());
     }
 
     #[test]

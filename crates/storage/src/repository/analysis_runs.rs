@@ -294,6 +294,7 @@ impl Storage {
                     "analysis input no longer matches the current Demo record".to_owned(),
                 )));
             }
+            super::players::validate_player_match_projection(&analysis)?;
 
             let total_rounds = u32::try_from(analysis.rounds.len()).map_err(|_| {
                 StorageError::IntegerOutOfRange(
@@ -346,6 +347,11 @@ impl Storage {
                 ],
             )?;
             super::replace_evidence_projection(
+                &transaction,
+                &analysis,
+                &completed_at.to_rfc3339(),
+            )?;
+            super::players::replace_player_match_projection(
                 &transaction,
                 &analysis,
                 &completed_at.to_rfc3339(),
@@ -1108,6 +1114,7 @@ mod tests {
         let parsing_id = Uuid::new_v4();
         let mut validating_demo = demo(validating_id);
         validating_demo.path = "C:/matches/validating.dem".to_owned();
+        validating_demo.content_sha256 = Some("b".repeat(64));
         let mut parsing_demo = demo(parsing_id);
         parsing_demo.path = "C:/matches/parsing.dem".to_owned();
         storage
@@ -1169,6 +1176,7 @@ mod tests {
         .map(|(id, status)| {
             let mut record = demo(id);
             record.path = format!("C:/matches/{id}.dem");
+            record.content_sha256 = Some(hex::encode(id.as_bytes()).repeat(2));
             record.status = status;
             record
         })

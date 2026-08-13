@@ -17,7 +17,8 @@ function demo(overrides: Partial<DemoSummary> = {}): DemoSummary {
     filename: 'major.dem',
     display_name: 'Major final',
     map_name: 'de_mirage',
-    played_at: '2026-08-12T00:00:00Z',
+    match_date: '2026-08-12T00:00:00Z',
+    cataloged_at: '2026-08-12T00:30:00Z',
     duration_seconds: 2_940,
     total_rounds: 21,
     score_team_a: 13,
@@ -51,6 +52,29 @@ describe('library power-table ordering', () => {
 });
 
 describe('library power-table', () => {
+  it('shows an unavailable match date without relabeling the catalog timestamp', () => {
+    const markup = renderToStaticMarkup(
+      <LibraryPowerTable
+        demos={[demo({ match_date: null, cataloged_at: '2026-08-12T00:30:00Z' })]}
+        visibleColumns={new Set(['played'])}
+        selectedIds={new Set()}
+        activeDemoId={null}
+        sort={{ key: 'updated', direction: 'desc' }}
+        playingDemoId={null}
+        playbackDisabled={false}
+        onSort={vi.fn()}
+        onToggleSelected={vi.fn()}
+        onPlay={vi.fn()}
+        onLifecycleAction={vi.fn()}
+        onOpenDetails={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain('data-column="played"');
+    expect(markup).toContain('比赛日期不可用');
+    expect(markup).toContain('title="目录化时间：');
+  });
+
   it('offers only real optional columns and keeps status, name, and actions locked visible', () => {
     const markup = renderToStaticMarkup(
       <LibraryColumnVisibility

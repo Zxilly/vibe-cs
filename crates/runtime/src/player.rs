@@ -1,42 +1,32 @@
-use std::{
-    cmp::Ordering as CmpOrdering,
-    collections::{BTreeMap, BTreeSet, HashSet},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use tokio::{
-    sync::{Mutex, RwLock},
-    time::Instant,
-};
 use url::Url;
 use vibe_cs_application::{
     AvatarCacheCleanup, AvatarCacheStatus, PlayerAggregateStats, PlayerAvatar, PlayerComparison,
     PlayerComparisonQuery, PlayerDirectoryItem, PlayerDirectoryPage, PlayerDirectoryQuery,
     PlayerDirectorySort, PlayerDirectorySortDirection, PlayerMatch, PlayerMatchPage,
-    PlayerMatchQuery, PlayerPort, PlayerProfile, PlayerSteamProfile, SteamProfileState,
+    PlayerMatchQuery, PlayerPort, PlayerProfile, PlayerProjectionCoverage, PlayerSteamProfile,
+    SteamProfileState,
 };
-use vibe_cs_domain::{DemoQuery, DemoRecord, DomainError, MatchAnalysis, PlayerStats};
+use vibe_cs_domain::DomainError;
 use vibe_cs_integrations::{
     IntegrationError, SecretString, SteamAvatarImage, SteamPlayerProfilePort, SteamPlayerSummary,
     SteamProfileClient, is_steam_id,
 };
-
-#[cfg(test)]
-use std::sync::atomic::{AtomicUsize, Ordering};
+use vibe_cs_storage::{
+    PlayerDirectoryQuery as StoragePlayerDirectoryQuery,
+    PlayerDirectorySort as StoragePlayerDirectorySort, PlayerMatchQuery as StoragePlayerMatchQuery,
+    PlayerProjectionCoverage as StoragePlayerProjectionCoverage,
+    PlayerSortDirection as StoragePlayerSortDirection, ProjectedPlayer, ProjectedPlayerMatch,
+};
 
 use crate::avatar_cache::AvatarCache;
 
-const MAXIMUM_DIRECTORY_DEMOS: usize = 1_000;
-const DEMO_PAGE_SIZE: u32 = 200;
 const MAXIMUM_PLAYER_PAGE_SIZE: u32 = 100;
 const MAXIMUM_PLAYER_PAGE: u32 = 10_000;
 const MAXIMUM_SEARCH_CHARS: usize = 128;
-const MAXIMUM_LOCAL_NAME_CHARS: usize = 128;
-const MAXIMUM_DEMO_NAME_CHARS: usize = 256;
-const PLAYER_CATALOG_TTL: std::time::Duration = std::time::Duration::from_secs(5);
 
 #[async_trait]
 trait RuntimePlayerBackend: Send + Sync + std::fmt::Debug {
@@ -79,53 +69,6 @@ pub struct RuntimePlayerPort {
     storage: vibe_cs_storage::Storage,
     backend: Arc<dyn RuntimePlayerBackend>,
     avatar_cache: AvatarCache,
-    catalog_cache: Arc<RwLock<Option<CachedPlayerCatalog>>>,
-    catalog_refresh: Arc<Mutex<()>>,
-    #[cfg(test)]
-    catalog_builds: Arc<AtomicUsize>,
-}
-
-#[derive(Debug, Clone)]
-struct PlayerCatalog {
-    players: Vec<LocalPlayer>,
-    scanned_demos: u32,
-    scan_complete: bool,
-}
-
-#[derive(Debug, Clone)]
-struct CachedPlayerCatalog {
-    inserted_at: Instant,
-    catalog: Arc<PlayerCatalog>,
-}
-
-#[derive(Debug, Clone)]
-struct LocalPlayer {
-    steam_id: String,
-    name: String,
-    aliases: Vec<String>,
-    last_team: Option<String>,
-    last_match_at: DateTime<Utc>,
-    stats: PlayerAggregateStats,
-    match_rows: Vec<PlayerMatch>,
-}
-
-#[derive(Debug, Default)]
-struct PlayerAccumulator {
-    names: BTreeSet<String>,
-    latest_name: Option<String>,
-    latest_team: Option<String>,
-    latest_at: Option<DateTime<Utc>>,
-    matches: u32,
-    kills: u64,
-    deaths: u64,
-    assists: u64,
-    headshots: u64,
-    damage: u64,
-    adr_total: f64,
-    adr_samples: u32,
-    kill_death_ratio_total: f64,
-    kill_death_ratio_samples: u32,
-    match_rows: Vec<PlayerMatch>,
 }
 
 impl RuntimePlayerPort {
@@ -135,10 +78,6 @@ impl RuntimePlayerPort {
             storage,
             backend: Arc::new(SystemPlayerBackend),
             avatar_cache: AvatarCache::new(avatar_cache_dir),
-            catalog_cache: Arc::new(RwLock::new(None)),
-            catalog_refresh: Arc::new(Mutex::new(())),
-            #[cfg(test)]
-            catalog_builds: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -146,87 +85,6 @@ impl RuntimePlayerPort {
     fn with_backend(mut self, backend: Arc<dyn RuntimePlayerBackend>) -> Self {
         self.backend = backend;
         self
-    }
-
-    async fn catalog(&self) -> Result<Arc<PlayerCatalog>, DomainError> {
-        if let Some(catalog) = self.fresh_cached_catalog().await {
-            return Ok(catalog);
-        }
-        let _refresh = self.catalog_refresh.lock().await;
-        if let Some(catalog) = self.fresh_cached_catalog().await {
-            return Ok(catalog);
-        }
-        let catalog = Arc::new(self.build_catalog().await?);
-        *self.catalog_cache.write().await = Some(CachedPlayerCatalog {
-            inserted_at: Instant::now(),
-            catalog: Arc::clone(&catalog),
-        });
-        Ok(catalog)
-    }
-
-    async fn fresh_cached_catalog(&self) -> Option<Arc<PlayerCatalog>> {
-        self.catalog_cache
-            .read()
-            .await
-            .as_ref()
-            .filter(|cached| cached.inserted_at.elapsed() < PLAYER_CATALOG_TTL)
-            .map(|cached| Arc::clone(&cached.catalog))
-    }
-
-    async fn build_catalog(&self) -> Result<PlayerCatalog, DomainError> {
-        #[cfg(test)]
-        self.catalog_builds.fetch_add(1, Ordering::SeqCst);
-        let mut demos = Vec::with_capacity(MAXIMUM_DIRECTORY_DEMOS);
-        let mut total = 0_u64;
-        for page in 1..=5 {
-            let batch = self
-                .storage
-                .list_demos(DemoQuery {
-                    page: Some(page),
-                    page_size: Some(DEMO_PAGE_SIZE),
-                    ..DemoQuery::default()
-                })
-                .await
-                .map_err(|error| storage_error(&error))?;
-            total = batch.total;
-            if batch.items.is_empty() {
-                break;
-            }
-            let remaining = MAXIMUM_DIRECTORY_DEMOS.saturating_sub(demos.len());
-            demos.extend(batch.items.into_iter().take(remaining));
-            if demos.len() >= MAXIMUM_DIRECTORY_DEMOS {
-                break;
-            }
-        }
-
-        let scanned_demos = u32::try_from(demos.len()).unwrap_or(u32::MAX);
-        let mut players = BTreeMap::<String, PlayerAccumulator>::new();
-        for demo in demos {
-            let Some(analysis) = self
-                .storage
-                .get_analysis(demo.id)
-                .await
-                .map_err(|error| storage_error(&error))?
-            else {
-                continue;
-            };
-            aggregate_analysis(&mut players, &demo, &analysis);
-        }
-        let mut players = players
-            .into_iter()
-            .filter_map(|(steam_id, accumulator)| finish_player(steam_id, accumulator))
-            .collect::<Vec<_>>();
-        players.sort_by(|left, right| {
-            right
-                .last_match_at
-                .cmp(&left.last_match_at)
-                .then_with(|| left.steam_id.cmp(&right.steam_id))
-        });
-        Ok(PlayerCatalog {
-            players,
-            scanned_demos,
-            scan_complete: total <= u64::try_from(MAXIMUM_DIRECTORY_DEMOS).unwrap_or(u64::MAX),
-        })
     }
 
     async fn steam_api_key(&self) -> Result<Option<SecretString>, DomainError> {
@@ -278,15 +136,15 @@ impl RuntimePlayerPort {
         Ok(())
     }
 
-    async fn require_local_player(&self, steam_id: &str) -> Result<LocalPlayer, DomainError> {
+    async fn require_local_player(&self, steam_id: &str) -> Result<(), DomainError> {
         validate_steam_id(steam_id)?;
-        self.catalog()
-            .await?
-            .players
-            .iter()
-            .find(|player| player.steam_id == steam_id)
-            .cloned()
-            .ok_or_else(|| DomainError::NotFound("player".to_owned()))
+        let projected = self
+            .storage
+            .get_players([steam_id.to_owned(), steam_id.to_owned()])
+            .await
+            .map_err(|error| storage_error(&error))?;
+        require_projected_player(projected.players[0].as_ref(), projected.coverage, "player")?;
+        Ok(())
     }
 }
 
@@ -294,50 +152,47 @@ impl RuntimePlayerPort {
 impl PlayerPort for RuntimePlayerPort {
     async fn list(&self, query: PlayerDirectoryQuery) -> Result<PlayerDirectoryPage, DomainError> {
         let (page, page_size, search, sort, direction) = validate_query(query)?;
-        let catalog = self.catalog().await?;
-        let mut filtered = catalog
-            .players
-            .iter()
-            .filter(|player| player_matches(player, search.as_deref()))
-            .cloned()
+        let projected = self
+            .storage
+            .list_players(StoragePlayerDirectoryQuery {
+                search,
+                page,
+                page_size,
+                sort: storage_sort(sort),
+                direction: storage_direction(direction),
+            })
+            .await
+            .map_err(|error| storage_error(&error))?;
+        let mut items = projected
+            .items
+            .into_iter()
+            .map(projected_player)
             .collect::<Vec<_>>();
-        sort_player_directory(&mut filtered, sort, direction);
-        let total = u64::try_from(filtered.len()).unwrap_or(u64::MAX);
-        let offset = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(page_size));
-        let offset = usize::try_from(offset).unwrap_or(usize::MAX);
-        let take = usize::try_from(page_size).unwrap_or(usize::MAX);
-        let selected = if offset >= filtered.len() {
-            Vec::new()
-        } else {
-            filtered.drain(offset..).take(take).collect::<Vec<_>>()
-        };
-        let mut items = selected.into_iter().map(local_item).collect::<Vec<_>>();
         self.enrich(&mut items).await?;
         Ok(PlayerDirectoryPage {
             items,
-            total,
-            page,
-            page_size,
-            scanned_demos: catalog.scanned_demos,
-            scan_complete: catalog.scan_complete,
+            total: projected.total,
+            page: projected.page,
+            page_size: projected.page_size,
+            coverage: projection_coverage(projected.coverage),
         })
     }
 
     async fn get(&self, steam_id: String) -> Result<PlayerProfile, DomainError> {
         validate_steam_id(&steam_id)?;
-        let catalog = self.catalog().await?;
-        let local = catalog
-            .players
-            .iter()
-            .find(|player| player.steam_id == steam_id)
-            .cloned()
-            .ok_or_else(|| DomainError::NotFound("player".to_owned()))?;
-        let mut items = vec![local_item(local)];
+        let projected = self
+            .storage
+            .get_players([steam_id.clone(), steam_id])
+            .await
+            .map_err(|error| storage_error(&error))?;
+        let player =
+            require_projected_player(projected.players[0].as_ref(), projected.coverage, "player")?
+                .clone();
+        let mut items = vec![projected_player(player)];
         self.enrich(&mut items).await?;
         Ok(PlayerProfile {
             player: items.remove(0),
-            scanned_demos: catalog.scanned_demos,
-            scan_complete: catalog.scan_complete,
+            coverage: projection_coverage(projected.coverage),
         })
     }
 
@@ -348,30 +203,26 @@ impl PlayerPort for RuntimePlayerPort {
     ) -> Result<PlayerMatchPage, DomainError> {
         validate_steam_id(&steam_id)?;
         let (page, page_size) = validate_match_query(&query)?;
-        let catalog = self.catalog().await?;
-        let player = catalog
-            .players
-            .iter()
-            .find(|player| player.steam_id == steam_id)
-            .ok_or_else(|| DomainError::NotFound("player".to_owned()))?;
-        let total = u64::try_from(player.match_rows.len()).unwrap_or(u64::MAX);
-        let offset = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(page_size));
-        let offset = usize::try_from(offset).unwrap_or(usize::MAX);
-        let take = usize::try_from(page_size).unwrap_or(usize::MAX);
-        let items = player
-            .match_rows
-            .iter()
-            .skip(offset)
-            .take(take)
-            .cloned()
-            .collect();
+        let requested_steam_id = steam_id.clone();
+        let projected = self
+            .storage
+            .list_player_matches(StoragePlayerMatchQuery {
+                steam_id,
+                page,
+                page_size,
+            })
+            .await
+            .map_err(|error| storage_error(&error))?;
+        if projected.total == 0 {
+            return Err(exact_player_absence(projected.coverage, "player"));
+        }
         Ok(PlayerMatchPage {
-            items,
-            total,
-            page,
-            page_size,
-            scanned_demos: catalog.scanned_demos,
-            scan_complete: catalog.scan_complete,
+            steam_id: requested_steam_id,
+            items: projected.items.into_iter().map(projected_match).collect(),
+            total: projected.total,
+            page: projected.page,
+            page_size: projected.page_size,
+            coverage: projection_coverage(projected.coverage),
         })
     }
 
@@ -384,28 +235,34 @@ impl PlayerPort for RuntimePlayerPort {
             ));
         }
 
-        let catalog = self.catalog().await?;
-        let require = |steam_id: &str| {
-            catalog
-                .players
-                .iter()
-                .find(|player| player.steam_id == steam_id)
-                .cloned()
-                .ok_or_else(|| DomainError::NotFound(format!("player {steam_id}")))
-        };
-        let left = require(&query.left)?;
-        let right = require(&query.right)?;
-        let mut players = [local_item(left), local_item(right)];
+        let projected = self
+            .storage
+            .get_players([query.left.clone(), query.right.clone()])
+            .await
+            .map_err(|error| storage_error(&error))?;
+        let [left, right] = projected.players;
+        let left = require_projected_player(
+            left.as_ref(),
+            projected.coverage,
+            &format!("player {}", query.left),
+        )?
+        .clone();
+        let right = require_projected_player(
+            right.as_ref(),
+            projected.coverage,
+            &format!("player {}", query.right),
+        )?
+        .clone();
+        let mut players = [projected_player(left), projected_player(right)];
         self.enrich(&mut players).await?;
         Ok(PlayerComparison {
             players,
-            scanned_demos: catalog.scanned_demos,
-            scan_complete: catalog.scan_complete,
+            coverage: projection_coverage(projected.coverage),
         })
     }
 
     async fn avatar(&self, steam_id: String) -> Result<PlayerAvatar, DomainError> {
-        let _ = self.require_local_player(&steam_id).await?;
+        self.require_local_player(&steam_id).await?;
         let api_key = self.steam_api_key().await?.ok_or_else(|| {
             DomainError::DependencyUnavailable(
                 "Steam avatar is unavailable until a Web API key is configured".to_owned(),
@@ -445,137 +302,72 @@ impl PlayerPort for RuntimePlayerPort {
     }
 }
 
-fn aggregate_analysis(
-    players: &mut BTreeMap<String, PlayerAccumulator>,
-    demo: &DemoRecord,
-    analysis: &MatchAnalysis,
-) {
-    let played_at = demo.match_date.unwrap_or(demo.created_at);
-    let mut seen = HashSet::new();
-    for stats in &analysis.players {
-        if !is_steam_id(&stats.steam_id) || !seen.insert(stats.steam_id.clone()) {
-            continue;
-        }
-        let accumulator = players.entry(stats.steam_id.clone()).or_default();
-        let name = bounded_local_text(&stats.name, MAXIMUM_LOCAL_NAME_CHARS)
-            .unwrap_or_else(|| stats.steam_id.clone());
-        accumulator.names.insert(name.clone());
-        if accumulator
-            .latest_at
-            .is_none_or(|latest| played_at > latest)
-        {
-            accumulator.latest_at = Some(played_at);
-            accumulator.latest_name = Some(name);
-            accumulator.latest_team = bounded_local_text(&stats.team, 32);
-        }
-        accumulator.matches = accumulator.matches.saturating_add(1);
-        accumulator.kills = accumulator.kills.saturating_add(u64::from(stats.kills));
-        accumulator.deaths = accumulator.deaths.saturating_add(u64::from(stats.deaths));
-        accumulator.assists = accumulator.assists.saturating_add(u64::from(stats.assists));
-        accumulator.headshots = accumulator
-            .headshots
-            .saturating_add(u64::from(stats.headshots));
-        accumulator.damage = accumulator.damage.saturating_add(u64::from(stats.damage));
-        add_average_sample(
-            stats.adr,
-            &mut accumulator.adr_total,
-            &mut accumulator.adr_samples,
-        );
-        add_average_sample(
-            stats.kill_death_ratio,
-            &mut accumulator.kill_death_ratio_total,
-            &mut accumulator.kill_death_ratio_samples,
-        );
-        accumulator
-            .match_rows
-            .push(player_match(demo, stats, played_at));
-    }
-}
-
-fn add_average_sample(value: f64, total: &mut f64, samples: &mut u32) {
-    if value.is_finite() {
-        *total += value;
-        *samples = samples.saturating_add(1);
-    }
-}
-
-fn player_match(demo: &DemoRecord, stats: &PlayerStats, played_at: DateTime<Utc>) -> PlayerMatch {
+fn projected_match(projected: ProjectedPlayerMatch) -> PlayerMatch {
     PlayerMatch {
-        demo_id: demo.id,
-        demo_name: bounded_local_text(&demo.display_name, MAXIMUM_DEMO_NAME_CHARS)
-            .or_else(|| bounded_local_text(&demo.file_name, MAXIMUM_DEMO_NAME_CHARS))
-            .unwrap_or_else(|| demo.id.to_string()),
-        map_name: demo
-            .map_name
-            .as_deref()
-            .and_then(|value| bounded_local_text(value, 64)),
-        played_at,
-        team: bounded_local_text(&stats.team, 32),
-        kills: stats.kills,
-        deaths: stats.deaths,
-        assists: stats.assists,
-        headshots: stats.headshots,
-        damage: stats.damage,
-        adr: stats.adr.is_finite().then_some(stats.adr),
-        kill_death_ratio: stats
-            .kill_death_ratio
-            .is_finite()
-            .then_some(stats.kill_death_ratio),
+        demo_id: projected.demo_id,
+        demo_name: projected.demo_name,
+        map_name: projected.map_name,
+        match_date: projected.match_date,
+        cataloged_at: projected.cataloged_at,
+        team: projected.team,
+        kills: projected.kills,
+        deaths: projected.deaths,
+        assists: projected.assists,
+        headshots: projected.headshots,
+        damage: projected.damage,
+        adr: projected.adr,
+        kill_death_ratio: projected.kill_death_ratio,
     }
 }
 
-fn finish_player(steam_id: String, mut accumulator: PlayerAccumulator) -> Option<LocalPlayer> {
-    let last_match_at = accumulator.latest_at?;
-    accumulator.match_rows.sort_by(|left, right| {
-        right
-            .played_at
-            .cmp(&left.played_at)
-            .then_with(|| left.demo_id.cmp(&right.demo_id))
-    });
-    let name = accumulator.latest_name.unwrap_or_else(|| steam_id.clone());
-    let aliases = accumulator
-        .names
-        .into_iter()
-        .filter(|alias| alias != &name)
-        .collect();
-    Some(LocalPlayer {
-        steam_id,
-        name,
-        aliases,
-        last_team: accumulator.latest_team,
-        last_match_at,
-        stats: PlayerAggregateStats {
-            matches: accumulator.matches,
-            kills: accumulator.kills,
-            deaths: accumulator.deaths,
-            assists: accumulator.assists,
-            headshots: accumulator.headshots,
-            damage: accumulator.damage,
-            average_adr: average(accumulator.adr_total, accumulator.adr_samples),
-            average_kill_death_ratio: average(
-                accumulator.kill_death_ratio_total,
-                accumulator.kill_death_ratio_samples,
-            ),
-        },
-        match_rows: accumulator.match_rows,
-    })
-}
-
-fn average(total: f64, samples: u32) -> Option<f64> {
-    (samples > 0)
-        .then(|| total / f64::from(samples))
-        .filter(|value| value.is_finite())
-}
-
-fn local_item(player: LocalPlayer) -> PlayerDirectoryItem {
+fn projected_player(player: ProjectedPlayer) -> PlayerDirectoryItem {
     PlayerDirectoryItem {
         steam_id: player.steam_id,
         name: player.name,
         aliases: player.aliases,
+        aliases_total: player.aliases_total,
         last_team: player.last_team,
-        last_match_at: player.last_match_at,
-        stats: player.stats,
+        last_match_date: player.last_match_date,
+        last_cataloged_at: player.last_cataloged_at,
+        stats: PlayerAggregateStats {
+            matches: player.stats.matches,
+            kills: player.stats.kills,
+            deaths: player.stats.deaths,
+            assists: player.stats.assists,
+            headshots: player.stats.headshots,
+            damage: player.stats.damage,
+            average_adr: player.stats.average_adr,
+            average_kill_death_ratio: player.stats.average_kill_death_ratio,
+        },
         steam: PlayerSteamProfile::not_configured(),
+    }
+}
+
+const fn projection_coverage(
+    coverage: StoragePlayerProjectionCoverage,
+) -> PlayerProjectionCoverage {
+    PlayerProjectionCoverage {
+        projected_demos: coverage.projected_demos,
+        total_analyses: coverage.total_analyses,
+        projection_complete: coverage.projection_complete,
+    }
+}
+
+fn require_projected_player<'a, T>(
+    player: Option<&'a T>,
+    coverage: StoragePlayerProjectionCoverage,
+    resource: &str,
+) -> Result<&'a T, DomainError> {
+    player.ok_or_else(|| exact_player_absence(coverage, resource))
+}
+
+fn exact_player_absence(coverage: StoragePlayerProjectionCoverage, resource: &str) -> DomainError {
+    if coverage.projection_complete {
+        DomainError::NotFound(resource.to_owned())
+    } else {
+        DomainError::DependencyUnavailable(
+            "player projection is incomplete; exact player absence cannot be proven".to_owned(),
+        )
     }
 }
 
@@ -647,132 +439,27 @@ fn validate_match_query(query: &PlayerMatchQuery) -> Result<(u32, u32), DomainEr
     Ok((query.page, query.page_size))
 }
 
-fn sort_player_directory(
-    players: &mut [LocalPlayer],
-    sort: PlayerDirectorySort,
-    direction: PlayerDirectorySortDirection,
-) {
-    players.sort_by(|left, right| {
-        let primary = match sort {
-            PlayerDirectorySort::Player => directed(
-                left.name.to_lowercase().cmp(&right.name.to_lowercase()),
-                direction,
-            ),
-            PlayerDirectorySort::Team => compare_optional(
-                left.last_team.as_ref().map(|value| value.to_lowercase()),
-                right.last_team.as_ref().map(|value| value.to_lowercase()),
-                direction,
-                Ord::cmp,
-            ),
-            PlayerDirectorySort::Matches => {
-                directed(left.stats.matches.cmp(&right.stats.matches), direction)
-            }
-            PlayerDirectorySort::Kd => directed(
-                compare_ratio(
-                    left.stats.kills,
-                    left.stats.deaths,
-                    right.stats.kills,
-                    right.stats.deaths,
-                ),
-                direction,
-            ),
-            PlayerDirectorySort::Kills => {
-                directed(left.stats.kills.cmp(&right.stats.kills), direction)
-            }
-            PlayerDirectorySort::Deaths => {
-                directed(left.stats.deaths.cmp(&right.stats.deaths), direction)
-            }
-            PlayerDirectorySort::Assists => {
-                directed(left.stats.assists.cmp(&right.stats.assists), direction)
-            }
-            PlayerDirectorySort::Headshots => compare_optional(
-                ratio_with_nonzero_denominator(left.stats.headshots, left.stats.kills),
-                ratio_with_nonzero_denominator(right.stats.headshots, right.stats.kills),
-                direction,
-                |left, right| compare_ratio(left.0, left.1, right.0, right.1),
-            ),
-            PlayerDirectorySort::Adr => compare_optional(
-                left.stats.average_adr,
-                right.stats.average_adr,
-                direction,
-                f64::total_cmp,
-            ),
-            PlayerDirectorySort::Damage => {
-                directed(left.stats.damage.cmp(&right.stats.damage), direction)
-            }
-            PlayerDirectorySort::LastMatch => {
-                directed(left.last_match_at.cmp(&right.last_match_at), direction)
-            }
-        };
-        primary.then_with(|| left.steam_id.cmp(&right.steam_id))
-    });
+const fn storage_sort(sort: PlayerDirectorySort) -> StoragePlayerDirectorySort {
+    match sort {
+        PlayerDirectorySort::Player => StoragePlayerDirectorySort::Player,
+        PlayerDirectorySort::Team => StoragePlayerDirectorySort::Team,
+        PlayerDirectorySort::Matches => StoragePlayerDirectorySort::Matches,
+        PlayerDirectorySort::Kd => StoragePlayerDirectorySort::Kd,
+        PlayerDirectorySort::Kills => StoragePlayerDirectorySort::Kills,
+        PlayerDirectorySort::Deaths => StoragePlayerDirectorySort::Deaths,
+        PlayerDirectorySort::Assists => StoragePlayerDirectorySort::Assists,
+        PlayerDirectorySort::Headshots => StoragePlayerDirectorySort::Headshots,
+        PlayerDirectorySort::Adr => StoragePlayerDirectorySort::Adr,
+        PlayerDirectorySort::Damage => StoragePlayerDirectorySort::Damage,
+        PlayerDirectorySort::LastMatch => StoragePlayerDirectorySort::LastMatch,
+    }
 }
 
-fn directed(ordering: CmpOrdering, direction: PlayerDirectorySortDirection) -> CmpOrdering {
+const fn storage_direction(direction: PlayerDirectorySortDirection) -> StoragePlayerSortDirection {
     match direction {
-        PlayerDirectorySortDirection::Asc => ordering,
-        PlayerDirectorySortDirection::Desc => ordering.reverse(),
+        PlayerDirectorySortDirection::Asc => StoragePlayerSortDirection::Asc,
+        PlayerDirectorySortDirection::Desc => StoragePlayerSortDirection::Desc,
     }
-}
-
-fn compare_optional<T>(
-    left: Option<T>,
-    right: Option<T>,
-    direction: PlayerDirectorySortDirection,
-    compare: impl FnOnce(&T, &T) -> CmpOrdering,
-) -> CmpOrdering {
-    match (left, right) {
-        (Some(left), Some(right)) => directed(compare(&left, &right), direction),
-        (Some(_), None) => CmpOrdering::Less,
-        (None, Some(_)) => CmpOrdering::Greater,
-        (None, None) => CmpOrdering::Equal,
-    }
-}
-
-fn compare_ratio(
-    left_numerator: u64,
-    left_denominator: u64,
-    right_numerator: u64,
-    right_denominator: u64,
-) -> CmpOrdering {
-    let left_infinite = left_denominator == 0 && left_numerator > 0;
-    let right_infinite = right_denominator == 0 && right_numerator > 0;
-    match (left_infinite, right_infinite) {
-        (true, true) => CmpOrdering::Equal,
-        (true, false) => CmpOrdering::Greater,
-        (false, true) => CmpOrdering::Less,
-        (false, false) => {
-            let left_denominator = left_denominator.max(1);
-            let right_denominator = right_denominator.max(1);
-            (u128::from(left_numerator) * u128::from(right_denominator))
-                .cmp(&(u128::from(right_numerator) * u128::from(left_denominator)))
-        }
-    }
-}
-
-fn ratio_with_nonzero_denominator(numerator: u64, denominator: u64) -> Option<(u64, u64)> {
-    (denominator > 0).then_some((numerator, denominator))
-}
-
-fn player_matches(player: &LocalPlayer, search: Option<&str>) -> bool {
-    let Some(search) = search else {
-        return true;
-    };
-    let search = search.to_lowercase();
-    player.steam_id.contains(&search)
-        || player.name.to_lowercase().contains(&search)
-        || player
-            .aliases
-            .iter()
-            .any(|alias| alias.to_lowercase().contains(&search))
-}
-
-fn bounded_local_text(value: &str, maximum_chars: usize) -> Option<String> {
-    let value = value.trim();
-    (!value.is_empty()
-        && value.chars().count() <= maximum_chars
-        && !value.contains(['\r', '\n', '\0']))
-    .then(|| value.to_owned())
 }
 
 fn validate_steam_id(steam_id: &str) -> Result<(), DomainError> {
@@ -809,7 +496,9 @@ mod tests {
     use chrono::Duration;
     use tempfile::TempDir;
     use uuid::Uuid;
-    use vibe_cs_domain::{AppConfig, DemoStatus, PlayerStats, TeamSummary};
+    use vibe_cs_domain::{
+        AppConfig, DemoRecord, DemoStatus, MatchAnalysis, PlayerStats, TeamSummary,
+    };
 
     use super::*;
 
@@ -929,8 +618,9 @@ mod tests {
         steam_id: &str,
         name: &str,
         kills: u32,
-    ) {
+    ) -> Uuid {
         let id = Uuid::new_v4();
+        let id_hex = id.simple().to_string();
         storage
             .put_demo(DemoRecord {
                 id,
@@ -949,7 +639,7 @@ mod tests {
                 team_b_score: None,
                 player_names: Vec::new(),
                 remark: String::new(),
-                content_sha256: Some("a".repeat(64)),
+                content_sha256: Some(format!("{id_hex}{id_hex}")),
                 file_size: 1,
                 created_at: played_at,
                 updated_at: played_at,
@@ -990,6 +680,7 @@ mod tests {
         )
         .await
         .expect("analysis");
+        id
     }
 
     #[tokio::test]
@@ -1007,7 +698,10 @@ mod tests {
             .expect("directory");
 
         assert_eq!(page.total, 1);
-        assert_eq!(page.scanned_demos, 2);
+        assert_eq!(page.items[0].aliases_total, 1);
+        assert_eq!(page.coverage.projected_demos, 2);
+        assert_eq!(page.coverage.total_analyses, 2);
+        assert!(page.coverage.projection_complete);
         assert_eq!(page.items[0].name, "New Name");
         assert_eq!(page.items[0].stats.matches, 2);
         assert_eq!(page.items[0].stats.kills, 30);
@@ -1026,12 +720,11 @@ mod tests {
             .await
             .expect("matches");
         assert_eq!(matches.items.len(), 2);
-        assert!(matches.items[0].played_at > matches.items[1].played_at);
-        assert_eq!(port.catalog_builds.load(Ordering::SeqCst), 1);
+        assert!(matches.items[0].match_date > matches.items[1].match_date);
     }
 
     #[tokio::test]
-    async fn player_matches_page_is_windowed_after_the_complete_catalog_result() {
+    async fn player_matches_page_is_windowed_by_the_complete_projection() {
         let (port, _, _temporary) = fixture(false).await;
         let newest = Utc::now();
         for index in 0..23 {
@@ -1056,6 +749,7 @@ mod tests {
             .expect("second player match page");
 
         assert_eq!(page.total, 25);
+        assert_eq!(page.steam_id, PLAYER_ID);
         assert_eq!(page.page, 2);
         assert_eq!(page.page_size, 20);
         assert_eq!(page.items.len(), 5);
@@ -1063,12 +757,13 @@ mod tests {
             page.items.iter().map(|item| item.kills).collect::<Vec<_>>(),
             vec![50, 51, 52, 20, 10]
         );
-        assert_eq!(page.scanned_demos, 25);
-        assert!(page.scan_complete);
+        assert_eq!(page.coverage.projected_demos, 25);
+        assert_eq!(page.coverage.total_analyses, 25);
+        assert!(page.coverage.projection_complete);
     }
 
     #[tokio::test]
-    async fn player_matches_reject_invalid_input_and_a_catalog_missing_player() {
+    async fn player_matches_reject_invalid_input_and_a_projection_missing_player() {
         let (port, _, _temporary) = fixture(false).await;
         let query = || PlayerMatchQuery {
             page: 1,
@@ -1097,7 +792,82 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn comparison_uses_one_catalog_snapshot_and_one_ordered_enrichment() {
+    async fn exact_player_absence_is_not_not_found_until_projection_coverage_is_complete() {
+        let temporary = TempDir::new().expect("temp dir");
+        let database_path = temporary.path().join("players.sqlite");
+        let storage = vibe_cs_storage::Storage::open(&database_path)
+            .await
+            .expect("storage");
+        put_player_match(
+            &storage,
+            Utc::now() - Duration::days(1),
+            PLAYER_ID,
+            "Stale Player",
+            10,
+        )
+        .await;
+        rusqlite::Connection::open(&database_path)
+            .expect("tamper connection")
+            .execute(
+                "UPDATE player_match_projection_state \
+                 SET analysis_updated_at = '2000-01-01T00:00:00Z'",
+                [],
+            )
+            .expect("tamper projection state");
+        let port = RuntimePlayerPort::new(storage, temporary.path().join("avatar-cache"));
+        let missing = "76561198000000999";
+
+        assert!(matches!(
+            port.get(PLAYER_ID.to_owned()).await,
+            Err(DomainError::DependencyUnavailable(_))
+        ));
+        assert!(matches!(
+            port.matches(
+                PLAYER_ID.to_owned(),
+                PlayerMatchQuery {
+                    page: 1,
+                    page_size: 20,
+                },
+            )
+            .await,
+            Err(DomainError::DependencyUnavailable(_))
+        ));
+        assert!(matches!(
+            port.compare(PlayerComparisonQuery {
+                left: PLAYER_ID.to_owned(),
+                right: missing.to_owned(),
+            })
+            .await,
+            Err(DomainError::DependencyUnavailable(_))
+        ));
+
+        let complete_storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("complete empty storage");
+        let complete_port = RuntimePlayerPort::new(
+            complete_storage,
+            temporary.path().join("complete-avatar-cache"),
+        );
+        assert!(matches!(
+            complete_port.get(PLAYER_ID.to_owned()).await,
+            Err(DomainError::NotFound(resource)) if resource == "player"
+        ));
+        assert!(matches!(
+            complete_port
+                .matches(
+                    PLAYER_ID.to_owned(),
+                    PlayerMatchQuery {
+                        page: 1,
+                        page_size: 20,
+                    },
+                )
+                .await,
+            Err(DomainError::NotFound(resource)) if resource == "player"
+        ));
+    }
+
+    #[tokio::test]
+    async fn comparison_uses_one_projection_snapshot_and_one_ordered_enrichment() {
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
@@ -1134,9 +904,9 @@ mod tests {
                 .collect::<Vec<_>>(),
             [left, right]
         );
-        assert_eq!(comparison.scanned_demos, 2);
-        assert!(comparison.scan_complete);
-        assert_eq!(port.catalog_builds.load(Ordering::SeqCst), 1);
+        assert_eq!(comparison.coverage.projected_demos, 2);
+        assert_eq!(comparison.coverage.total_analyses, 2);
+        assert!(comparison.coverage.projection_complete);
         assert_eq!(backend.summary_calls.load(Ordering::SeqCst), 1);
     }
 
@@ -1171,7 +941,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn directory_sorts_the_filtered_catalog_before_pagination() {
+    async fn directory_sorts_the_filtered_projection_before_pagination() {
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");

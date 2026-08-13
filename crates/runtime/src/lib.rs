@@ -136,7 +136,13 @@ pub async fn build_app_state_with_demo_worker(
         data_dir.clone(),
         Arc::clone(&gsi_state),
     ));
-    integrations.recover_orphaned_downloads().await;
+    match integrations.recover_orphaned_downloads().await? {
+        0 => {}
+        recovered => tracing::warn!(
+            recovered,
+            "recovered Steam downloads without a durable runtime owner"
+        ),
+    }
     let recording = Arc::new(RuntimeRecordingPort::new(
         storage.clone(),
         Arc::new(HlaeRecordingBackend::new(data_dir.clone())),

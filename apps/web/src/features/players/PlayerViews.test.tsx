@@ -10,8 +10,10 @@ const profile: PlayerProfile = {
     steam_id: '76561198000000001',
     name: 'Local Player',
     aliases: ['Old Name'],
+    aliases_total: 1,
     last_team: 'CT',
-    last_match_at: '2026-08-10T08:00:00Z',
+    last_match_date: null,
+    last_cataloged_at: '2026-08-10T08:00:00Z',
     stats: {
       matches: 2,
       kills: 30,
@@ -35,16 +37,17 @@ const profile: PlayerProfile = {
       reason: null,
     },
   },
-  scanned_demos: 2,
-  scan_complete: true,
+  coverage: { projected_demos: 2, total_analyses: 2, projection_complete: true },
 };
 
 const matches: PlayerMatchPage = {
+  steam_id: '76561198000000001',
   items: [{
     demo_id: '23d5a6ee-23a4-43b7-8654-b48e1989e231',
     demo_name: 'Local match',
     map_name: 'de_inferno',
-    played_at: '2026-08-10T08:00:00Z',
+    match_date: null,
+    cataloged_at: '2026-08-10T08:00:00Z',
     team: 'CT',
     kills: 20,
     deaths: 10,
@@ -57,8 +60,7 @@ const matches: PlayerMatchPage = {
   total: 2,
   page: 1,
   page_size: 20,
-  scanned_demos: 2,
-  scan_complete: true,
+  coverage: { projected_demos: 2, total_analyses: 2, projection_complete: true },
 };
 
 function render(value: PlayerProfile): string {
@@ -68,6 +70,12 @@ function render(value: PlayerProfile): string {
 }
 
 describe('player detail evidence', () => {
+  it('labels bounded aliases with the complete persisted count', () => {
+    const markup = render(profile);
+
+    expect(markup).toContain('最近曾用名 1 / 1：Old Name');
+  });
+
   it('renders canonical cross-match evidence with exact Round and Replay links', () => {
     const evidence: EvidenceSearchResponse = {
       items: [{
@@ -152,6 +160,8 @@ describe('player detail evidence', () => {
     expect(markup).toContain('不推断胜负');
     expect(markup).toContain('本地比赛明细');
     expect(markup).toContain('1–1 / 2');
+    expect(markup).toContain('比赛日期不可用');
+    expect(markup).toContain('编入本地目录');
     expect(markup).toContain('tab=players&amp;player=76561198000000001');
     expect(markup).toContain('player=76561198000000001&amp;demo_id=23d5a6ee-23a4-43b7-8654-b48e1989e231');
   });

@@ -43,7 +43,10 @@ use vibe_cs_integrations::{
     build_cs2_launch_command, decode_match_sharing_code, decompress_bz2_archive_cancellable,
     discover_paths, is_steam_id, parse_gsi_payload,
 };
-use vibe_cs_storage::Storage;
+use vibe_cs_storage::{
+    DemoCatalogIdentity, DemoContentIdentity, DemoContentRecovery, MatchDownloadClaim, Storage,
+    StorageError,
+};
 
 use crate::analysis::map_demo_error;
 
@@ -440,6 +443,8 @@ pub struct RuntimeIntegrationPort {
     gsi: Arc<RwLock<GsiState>>,
     steam_backend: Arc<dyn RuntimeSteamBackend>,
     steam_downloads: Arc<Mutex<HashMap<Uuid, DownloadCancellation>>>,
+    #[cfg(test)]
+    steam_terminal_failure_budget: Arc<std::sync::atomic::AtomicUsize>,
     tracked_playback: Arc<StdMutex<TrackedPlaybackState>>,
     playback_data_dir: Arc<PlaybackDataDirectory>,
     playback_guards: Arc<StdMutex<HashMap<Uuid, PlaybackLaunchGuard>>>,
@@ -468,6 +473,8 @@ impl RuntimeIntegrationPort {
             gsi,
             steam_backend: Arc::new(SystemSteamBackend),
             steam_downloads: Arc::new(Mutex::new(HashMap::new())),
+            #[cfg(test)]
+            steam_terminal_failure_budget: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
             tracked_playback: Arc::new(StdMutex::new(TrackedPlaybackState::Idle)),
             playback_data_dir,
             playback_guards: Arc::new(StdMutex::new(HashMap::new())),
@@ -477,6 +484,13 @@ impl RuntimeIntegrationPort {
     #[cfg(test)]
     fn with_steam_backend(mut self, backend: Arc<dyn RuntimeSteamBackend>) -> Self {
         self.steam_backend = backend;
+        self
+    }
+
+    #[cfg(test)]
+    fn with_steam_terminal_failures(self, failures: usize) -> Self {
+        self.steam_terminal_failure_budget
+            .store(failures, Ordering::SeqCst);
         self
     }
 
@@ -495,41 +509,17 @@ impl RuntimeIntegrationPort {
 
     /// Marks non-terminal download records left by a previous process as failed.
     /// A new download can then be started explicitly without reusing partial files.
-    pub async fn recover_orphaned_downloads(&self) {
-        let jobs = match self.storage.list_active_match_download_jobs().await {
-            Ok(jobs) => jobs,
-            Err(error) => {
-                tracing::error!(%error, "unable to inspect orphaned Steam download jobs");
-                return;
-            }
-        };
-        for mut job in jobs {
-            let recovery_error = "the local service stopped before the download completed";
-            job.status = MatchDownloadStatus::Failed;
-            job.error = Some(recovery_error.to_owned());
-            job.updated_at = Utc::now();
-            match self
-                .storage
-                .get_steam_match(job.match_record_id.clone())
-                .await
-            {
-                Ok(Some(mut record)) => {
-                    record.demo_status = MatchDemoStatus::Failed;
-                    record.last_error = Some(recovery_error.to_owned());
-                    record.updated_at = job.updated_at;
-                    if let Err(error) = self.storage.put_steam_match(record).await {
-                        tracing::error!(%error, "unable to recover an orphaned Steam match");
-                    }
-                }
-                Ok(None) => {}
-                Err(error) => {
-                    tracing::error!(%error, "unable to load an orphaned Steam match");
-                }
-            }
-            if let Err(error) = self.storage.put_match_download_job(job).await {
-                tracing::error!(%error, "unable to recover an orphaned Steam download job");
-            }
-        }
+    ///
+    /// # Errors
+    ///
+    /// Returns the storage error without starting the runtime when the download
+    /// jobs and their Steam match records cannot be recovered atomically.
+    pub async fn recover_orphaned_downloads(&self) -> vibe_cs_storage::Result<u64> {
+        self.storage
+            .recover_orphaned_match_downloads(
+                "the local service stopped before the download completed".to_owned(),
+            )
+            .await
     }
 
     fn steam_test_config(
@@ -604,42 +594,29 @@ impl RuntimeIntegrationPort {
 
         let now = Utc::now();
         let mut records = Vec::with_capacity(references.len());
-        let mut created = 0_u64;
         for reference in references {
             let id = steam_match_record_id(&config.steam.steam_id, reference.match_id);
-            if let Some(mut existing) = self
-                .storage
-                .get_steam_match(id.clone())
-                .await
-                .map_err(|error| storage_error(&error))?
-            {
-                existing.outcome_id = reference.outcome_id.to_string();
-                existing.token = reference.token;
-                existing.synced_at = now;
-                existing.updated_at = now;
-                records.push(existing);
-            } else {
-                created = created.saturating_add(1);
-                records.push(SteamMatchRecord {
-                    id,
-                    steam_id: config.steam.steam_id.clone(),
-                    match_id: reference.match_id.to_string(),
-                    outcome_id: reference.outcome_id.to_string(),
-                    token: reference.token,
-                    map_name: None,
-                    played_at: None,
-                    score: None,
-                    result: MatchHistoryResult::Unknown,
-                    demo_status: MatchDemoStatus::Available,
-                    demo_id: None,
-                    last_error: None,
-                    synced_at: now,
-                    updated_at: now,
-                });
-            }
+            records.push(SteamMatchRecord {
+                id,
+                steam_id: config.steam.steam_id.clone(),
+                match_id: reference.match_id.to_string(),
+                outcome_id: reference.outcome_id.to_string(),
+                token: reference.token,
+                map_name: None,
+                played_at: None,
+                score: None,
+                result: MatchHistoryResult::Unknown,
+                demo_status: MatchDemoStatus::Available,
+                demo_id: None,
+                last_error: None,
+                synced_at: now,
+                updated_at: now,
+            });
         }
-        self.storage
-            .put_steam_matches(records.clone())
+        let synced = records.len();
+        let (_, created) = self
+            .storage
+            .merge_synced_steam_matches(records)
             .await
             .map_err(|error| storage_error(&error))?;
 
@@ -663,7 +640,7 @@ impl RuntimeIntegrationPort {
             .map_err(|error| storage_error(&error))?
             .total;
         Ok(json!({
-            "synced": records.len(),
+            "synced": synced,
             "created": created,
             "total": total,
             "cursor_advanced": latest_code != config.steam.known_share_code,
@@ -710,6 +687,39 @@ impl RuntimeIntegrationPort {
         config: &AppConfig,
         request: &Value,
     ) -> Result<Value, DomainError> {
+        let runtime = self.clone();
+        let config = config.clone();
+        let request = request.clone();
+        let (response, receiver) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            runtime
+                .start_steam_download_owned(&config, &request, response)
+                .await;
+        });
+        receiver.await.map_err(|_| {
+            DomainError::Internal(
+                "Steam download owner stopped before reporting its claim".to_owned(),
+            )
+        })?
+    }
+
+    async fn start_steam_download_owned(
+        &self,
+        config: &AppConfig,
+        request: &Value,
+        response: tokio::sync::oneshot::Sender<Result<Value, DomainError>>,
+    ) {
+        let result = self.start_steam_download_inner(config, request).await;
+        if response.send(result).is_err() {
+            tracing::debug!("Steam download requester left after detached owner started");
+        }
+    }
+
+    async fn start_steam_download_inner(
+        &self,
+        config: &AppConfig,
+        request: &Value,
+    ) -> Result<Value, DomainError> {
         let steam_id = config.steam.steam_id.as_str();
         if !is_steam_id(steam_id) {
             return Err(DomainError::DependencyUnavailable(
@@ -733,7 +743,7 @@ impl RuntimeIntegrationPort {
             .and_then(Value::as_str)
             .filter(|value| !value.trim().is_empty())
             .ok_or_else(|| DomainError::InvalidInput("match_id is required".to_owned()))?;
-        let mut record = self
+        let record = self
             .storage
             .get_steam_match(match_record_id)
             .await
@@ -742,66 +752,61 @@ impl RuntimeIntegrationPort {
         if record.steam_id != steam_id {
             return Err(DomainError::NotFound("Steam match".to_owned()));
         }
-        if let Some(job) = self
-            .storage
-            .get_active_match_download_job(record.id.clone())
-            .await
-            .map_err(|error| storage_error(&error))?
-        {
-            return serde_json::to_value(job).map_err(|error| json_error(&error));
-        }
         if let Some(demo_id) = record.demo_id
-            && self
+            && let Some(demo) = self
                 .storage
                 .get_demo(demo_id)
                 .await
                 .map_err(|error| storage_error(&error))?
-                .is_some()
+            && reusable_downloaded_demo(&demo).await
         {
-            let now = Utc::now();
-            let job = MatchDownloadJob {
-                id: Uuid::new_v4(),
-                match_record_id: record.id,
-                status: MatchDownloadStatus::Completed,
-                downloaded_bytes: 0,
-                total_bytes: None,
-                progress: 1.0,
-                demo_id: Some(demo_id),
-                error: None,
-                created_at: now,
-                updated_at: now,
+            let Some(content_sha256) = demo.content_sha256.clone() else {
+                return Err(DomainError::Conflict(
+                    "reusable downloaded Demo lost its content identity".to_owned(),
+                ));
             };
-            self.storage
-                .put_match_download_job(job.clone())
+            let completed = self
+                .storage
+                .complete_existing_match_download(
+                    record.id.clone(),
+                    record.demo_id,
+                    demo_id,
+                    DemoContentIdentity {
+                        id: demo.id,
+                        path: demo.path.clone(),
+                        status: demo.status,
+                        content_sha256,
+                        file_size: demo.file_size,
+                    },
+                    Uuid::new_v4(),
+                )
                 .await
-                .map_err(|error| storage_error(&error))?;
+                .map_err(|error| storage_error(&error))?
+                .ok_or_else(|| {
+                    DomainError::NotFound("Steam match or downloaded Demo".to_owned())
+                })?;
+            let job = match completed {
+                MatchDownloadClaim::Claimed { job, .. } | MatchDownloadClaim::Existing(job) => job,
+            };
             return serde_json::to_value(job).map_err(|error| json_error(&error));
         }
 
-        let now = Utc::now();
-        let job = MatchDownloadJob {
-            id: Uuid::new_v4(),
-            match_record_id: record.id.clone(),
-            status: MatchDownloadStatus::Queued,
-            downloaded_bytes: 0,
-            total_bytes: None,
-            progress: 0.0,
-            demo_id: None,
-            error: None,
-            created_at: now,
-            updated_at: now,
+        let claim = self
+            .storage
+            .claim_match_download(record.id.clone(), record.demo_id, Uuid::new_v4())
+            .await
+            .map_err(|error| storage_error(&error))?
+            .ok_or_else(|| DomainError::NotFound("Steam match".to_owned()))?;
+        let (job, record, linked_demo) = match claim {
+            MatchDownloadClaim::Existing(job) => {
+                return serde_json::to_value(job).map_err(|error| json_error(&error));
+            }
+            MatchDownloadClaim::Claimed {
+                job,
+                record,
+                linked_demo,
+            } => (job, *record, linked_demo),
         };
-        self.storage
-            .put_match_download_job(job.clone())
-            .await
-            .map_err(|error| storage_error(&error))?;
-        record.demo_status = MatchDemoStatus::Downloading;
-        record.last_error = None;
-        record.updated_at = now;
-        self.storage
-            .put_steam_match(record.clone())
-            .await
-            .map_err(|error| storage_error(&error))?;
 
         let cancellation = DownloadCancellation::default();
         self.steam_downloads
@@ -812,9 +817,29 @@ impl RuntimeIntegrationPort {
         let runtime = self.clone();
         let api_key = web_api_key.to_owned();
         tokio::spawn(async move {
-            runtime
-                .run_steam_download(job, record, api_key, cancellation)
-                .await;
+            let job_id = job.id;
+            let panic_job = job.clone();
+            let worker_runtime = runtime.clone();
+            let worker = tokio::spawn(async move {
+                worker_runtime
+                    .run_steam_download(job, record, linked_demo, api_key, cancellation)
+                    .await;
+            });
+            if let Err(error) = worker.await {
+                let mut terminal = panic_job;
+                terminal.status = MatchDownloadStatus::Failed;
+                terminal.error = Some(format!(
+                    "Steam download worker stopped unexpectedly: {error}"
+                ));
+                terminal.updated_at = Utc::now();
+                if let Err(reconcile_error) = runtime
+                    .persist_match_download_terminal(terminal, None)
+                    .await
+                {
+                    tracing::error!(%reconcile_error, %job_id, "unable to reconcile panicked Steam download");
+                }
+            }
+            runtime.steam_downloads.lock().await.remove(&job_id);
         });
         serde_json::to_value(response_job).map_err(|error| json_error(&error))
     }
@@ -823,11 +848,18 @@ impl RuntimeIntegrationPort {
         &self,
         mut job: MatchDownloadJob,
         mut record: SteamMatchRecord,
+        linked_demo: Option<DemoCatalogIdentity>,
         api_key: String,
         cancellation: DownloadCancellation,
     ) {
         let result = self
-            .run_steam_download_inner(&mut job, &mut record, &api_key, cancellation.clone())
+            .run_steam_download_inner(
+                &mut job,
+                &mut record,
+                linked_demo,
+                &api_key,
+                cancellation.clone(),
+            )
             .await;
         if let Err(error) = result {
             let cancelled = cancellation.is_cancelled()
@@ -839,27 +871,20 @@ impl RuntimeIntegrationPort {
             };
             job.error = (!cancelled).then(|| error.to_string());
             job.updated_at = Utc::now();
-            record.demo_status = if cancelled {
-                MatchDemoStatus::Available
-            } else {
-                MatchDemoStatus::Failed
-            };
-            record.last_error = job.error.clone();
-            record.updated_at = job.updated_at;
-            if let Err(storage_error) = self.storage.put_match_download_job(job.clone()).await {
-                tracing::error!(%storage_error, job_id = %job.id, "unable to persist failed Steam download");
-            }
-            if let Err(storage_error) = self.storage.put_steam_match(record).await {
-                tracing::error!(%storage_error, job_id = %job.id, "unable to persist Steam match failure");
+            if let Err(storage_error) = self
+                .persist_match_download_terminal(job.clone(), None)
+                .await
+            {
+                tracing::error!(%storage_error, job_id = %job.id, "unable to atomically persist failed Steam download");
             }
         }
-        self.steam_downloads.lock().await.remove(&job.id);
     }
 
     async fn run_steam_download_inner(
         &self,
         job: &mut MatchDownloadJob,
         record: &mut SteamMatchRecord,
+        linked_demo: Option<DemoCatalogIdentity>,
         api_key: &str,
         cancellation: DownloadCancellation,
     ) -> Result<(), DomainError> {
@@ -875,6 +900,9 @@ impl RuntimeIntegrationPort {
             outcome_id,
             token: record.token,
         };
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict("download cancelled".to_owned()));
+        }
         let directory = self.data_dir.join("downloads/steam");
         tokio::fs::create_dir_all(&directory)
             .await
@@ -883,7 +911,7 @@ impl RuntimeIntegrationPort {
         let demo_path = directory.join(format!("{match_id}_{outcome_id}.dem"));
         if demo_path.is_file() {
             match self
-                .complete_steam_import(job, record, &demo_path, &cancellation)
+                .complete_steam_import(job, record, linked_demo.clone(), &demo_path, &cancellation)
                 .await
             {
                 Ok(()) => return Ok(()),
@@ -904,10 +932,7 @@ impl RuntimeIntegrationPort {
 
         job.status = MatchDownloadStatus::Downloading;
         job.updated_at = Utc::now();
-        self.storage
-            .put_match_download_job(job.clone())
-            .await
-            .map_err(|error| storage_error(&error))?;
+        self.advance_steam_download(job).await?;
         let observer: Arc<dyn DemoDownloadObserver> =
             Arc::new(JobDownloadObserver::new(self.storage.clone(), job.id));
         self.steam_backend
@@ -937,10 +962,7 @@ impl RuntimeIntegrationPort {
         job.status = MatchDownloadStatus::Decompressing;
         job.progress = job.progress.max(0.9);
         job.updated_at = Utc::now();
-        self.storage
-            .put_match_download_job(job.clone())
-            .await
-            .map_err(|error| storage_error(&error))?;
+        self.advance_steam_download(job).await?;
         let archive_for_worker = archive.clone();
         let demo_for_worker = demo_path.clone();
         let cancellation_for_worker = cancellation.clone();
@@ -966,7 +988,7 @@ impl RuntimeIntegrationPort {
             return Err(DomainError::Conflict("download cancelled".to_owned()));
         }
 
-        self.complete_steam_import(job, record, &demo_path, &cancellation)
+        self.complete_steam_import(job, record, linked_demo, &demo_path, &cancellation)
             .await
     }
 
@@ -974,6 +996,7 @@ impl RuntimeIntegrationPort {
         &self,
         job: &mut MatchDownloadJob,
         record: &mut SteamMatchRecord,
+        linked_demo: Option<DemoCatalogIdentity>,
         demo_path: &Path,
         cancellation: &DownloadCancellation,
     ) -> Result<(), DomainError> {
@@ -983,30 +1006,137 @@ impl RuntimeIntegrationPort {
         job.status = MatchDownloadStatus::Importing;
         job.progress = 0.97;
         job.updated_at = Utc::now();
-        self.storage
-            .put_match_download_job(job.clone())
-            .await
-            .map_err(|error| storage_error(&error))?;
-        let demo = import_downloaded_demo(&self.storage, demo_path).await?;
-        record.demo_id = Some(demo.id);
-        record.demo_status = MatchDemoStatus::Downloaded;
-        record.last_error = None;
-        record.updated_at = Utc::now();
-        self.storage
-            .put_steam_match(record.clone())
-            .await
-            .map_err(|error| storage_error(&error))?;
-
+        self.advance_steam_download(job).await?;
+        let demo = import_downloaded_demo_replacing(
+            &self.storage,
+            demo_path,
+            record.played_at,
+            linked_demo,
+        )
+        .await?;
+        let demo_identity = demo_content_identity(&demo)?;
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict("download cancelled".to_owned()));
+        }
         job.status = MatchDownloadStatus::Completed;
         job.progress = 1.0;
         job.demo_id = Some(demo.id);
         job.error = None;
         job.updated_at = Utc::now();
-        self.storage
-            .put_match_download_job(job.clone())
-            .await
-            .map_err(|error| storage_error(&error))?;
+        let finalized = self
+            .persist_match_download_terminal(job.clone(), Some(demo_identity))
+            .await?;
+        let completed = finalized.status == MatchDownloadStatus::Completed;
+        *job = finalized;
+        if !completed {
+            return Err(DomainError::Conflict("download cancelled".to_owned()));
+        }
         Ok(())
+    }
+
+    async fn persist_match_download_terminal(
+        &self,
+        mut desired: MatchDownloadJob,
+        mut expected_demo: Option<DemoContentIdentity>,
+    ) -> Result<MatchDownloadJob, DomainError> {
+        const INITIAL_RETRY_DELAY: Duration = Duration::from_millis(100);
+        const MAX_RETRY_DELAY: Duration = Duration::from_secs(5);
+        let mut attempt = 0_u64;
+        let mut retry_delay = INITIAL_RETRY_DELAY;
+        loop {
+            attempt = attempt.saturating_add(1);
+            let current = match self.storage.get_match_download_job(desired.id).await {
+                Ok(Some(current)) => current,
+                Ok(None) => return Err(DomainError::NotFound("Steam download job".to_owned())),
+                Err(error) => {
+                    tracing::warn!(
+                        %error,
+                        job_id = %desired.id,
+                        attempt,
+                        retry_delay_ms = retry_delay.as_millis(),
+                        "unable to inspect Steam download before terminal reconciliation"
+                    );
+                    tokio::time::sleep(retry_delay).await;
+                    retry_delay = retry_delay.saturating_mul(2).min(MAX_RETRY_DELAY);
+                    continue;
+                }
+            };
+            if current.status.is_terminal() {
+                return Ok(current);
+            }
+            desired.downloaded_bytes = desired.downloaded_bytes.max(current.downloaded_bytes);
+            desired.total_bytes = desired.total_bytes.or(current.total_bytes);
+            desired.progress = desired.progress.max(current.progress);
+            if current.status == MatchDownloadStatus::Cancelling {
+                desired.status = MatchDownloadStatus::Cancelled;
+                desired.demo_id = None;
+                desired.error = None;
+                expected_demo = None;
+            }
+            desired.updated_at = Utc::now();
+            #[cfg(test)]
+            if self
+                .steam_terminal_failure_budget
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |remaining| {
+                    remaining.checked_sub(1)
+                })
+                .is_ok()
+            {
+                tracing::warn!(
+                    job_id = %desired.id,
+                    attempt,
+                    retry_delay_ms = retry_delay.as_millis(),
+                    "retrying injected Steam terminal persistence failure"
+                );
+                tokio::time::sleep(retry_delay).await;
+                retry_delay = retry_delay.saturating_mul(2).min(MAX_RETRY_DELAY);
+                continue;
+            }
+            match self
+                .storage
+                .finalize_match_download(desired.clone(), expected_demo.clone())
+                .await
+            {
+                Ok(Some(job)) => return Ok(job),
+                Ok(None) => return Err(DomainError::NotFound("Steam download job".to_owned())),
+                Err(StorageError::Domain(error)) => return Err(error),
+                Err(error) => {
+                    tracing::warn!(
+                        %error,
+                        job_id = %desired.id,
+                        attempt,
+                        retry_delay_ms = retry_delay.as_millis(),
+                        "retrying Steam download terminal persistence"
+                    );
+                }
+            }
+            tokio::time::sleep(retry_delay).await;
+            retry_delay = retry_delay.saturating_mul(2).min(MAX_RETRY_DELAY);
+        }
+    }
+
+    async fn advance_steam_download(&self, job: &mut MatchDownloadJob) -> Result<(), DomainError> {
+        let requested_status = job.status;
+        let current = self
+            .storage
+            .advance_match_download(job.clone())
+            .await
+            .map_err(|error| storage_error(&error))?
+            .ok_or_else(|| DomainError::NotFound("Steam download job".to_owned()))?;
+        let advanced = current.status == requested_status;
+        *job = current;
+        if advanced {
+            Ok(())
+        } else if matches!(
+            job.status,
+            MatchDownloadStatus::Cancelling | MatchDownloadStatus::Cancelled
+        ) {
+            Err(DomainError::Conflict("download cancelled".to_owned()))
+        } else {
+            Err(DomainError::Conflict(
+                "Steam download job is no longer owned by this worker".to_owned(),
+            ))
+        }
     }
 
     async fn steam_download_status(&self, request: &Value) -> Result<Value, DomainError> {
@@ -1047,28 +1177,22 @@ impl RuntimeIntegrationPort {
         let id = parse_request_uuid(request, "job_id")?;
         let mut job = self
             .storage
-            .get_match_download_job(id)
+            .request_match_download_cancel(id)
             .await
             .map_err(|error| storage_error(&error))?
             .ok_or_else(|| DomainError::NotFound("Steam download job".to_owned()))?;
         if job.status.is_terminal() {
             return serde_json::to_value(job).map_err(|error| json_error(&error));
         }
-        job.status = MatchDownloadStatus::Cancelling;
-        job.updated_at = Utc::now();
-        self.storage
-            .put_match_download_job(job.clone())
-            .await
-            .map_err(|error| storage_error(&error))?;
         if let Some(cancellation) = self.steam_downloads.lock().await.get(&id) {
             cancellation.cancel();
         } else {
             job.status = MatchDownloadStatus::Cancelled;
+            job.error = None;
             job.updated_at = Utc::now();
-            self.storage
-                .put_match_download_job(job.clone())
-                .await
-                .map_err(|error| storage_error(&error))?;
+            job = self
+                .persist_match_download_terminal(job.clone(), None)
+                .await?;
         }
         serde_json::to_value(job).map_err(|error| json_error(&error))
     }
@@ -1730,14 +1854,33 @@ impl DemoDownloadObserver for JobDownloadObserver {
         });
         job.updated_at = Utc::now();
         self.storage
-            .put_match_download_job(job)
+            .advance_match_download(job)
             .await
-            .map_err(|error| IntegrationError::Protocol(error.to_string()))?;
+            .map_err(|error| IntegrationError::Protocol(error.to_string()))?
+            .ok_or_else(|| {
+                IntegrationError::Protocol(
+                    "download job disappeared while reporting progress".to_owned(),
+                )
+            })?;
         Ok(())
     }
 }
 
-async fn import_downloaded_demo(storage: &Storage, path: &Path) -> Result<DemoRecord, DomainError> {
+#[cfg(test)]
+async fn import_downloaded_demo(
+    storage: &Storage,
+    path: &Path,
+    played_at: Option<DateTime<Utc>>,
+) -> Result<DemoRecord, DomainError> {
+    import_downloaded_demo_replacing(storage, path, played_at, None).await
+}
+
+async fn import_downloaded_demo_replacing(
+    storage: &Storage,
+    path: &Path,
+    played_at: Option<DateTime<Utc>>,
+    replace_demo: Option<DemoCatalogIdentity>,
+) -> Result<DemoRecord, DomainError> {
     let canonical = tokio::fs::canonicalize(path)
         .await
         .map_err(|error| io_error("resolve downloaded demo", &error))?;
@@ -1752,18 +1895,6 @@ async fn import_downloaded_demo(storage: &Storage, path: &Path) -> Result<DemoRe
     .await
     .map_err(|error| DomainError::Internal(format!("demo validation task failed: {error}")))?
     .map_err(|error| DomainError::InvalidInput(error.to_string()))?;
-    if let Some(existing) = storage
-        .get_demo_by_hash(validated.sha256.clone())
-        .await
-        .map_err(|error| storage_error(&error))?
-    {
-        if Path::new(&existing.path) != validated.path {
-            tokio::fs::remove_file(&validated.path)
-                .await
-                .map_err(|error| io_error("remove duplicate downloaded demo", &error))?;
-        }
-        return Ok(existing);
-    }
     let file_name = validated
         .path
         .file_name()
@@ -1779,31 +1910,112 @@ async fn import_downloaded_demo(storage: &Storage, path: &Path) -> Result<DemoRe
         .unwrap_or(&file_name)
         .to_owned();
     let now = Utc::now();
-    storage
-        .put_demo(DemoRecord {
-            id: Uuid::new_v4(),
-            path: validated.path.to_string_lossy().into_owned(),
-            file_name,
-            display_name,
-            source: "download".to_owned(),
-            status: DemoStatus::Discovered,
-            map_name: None,
-            match_date: None,
-            duration_seconds: None,
-            total_rounds: None,
-            team_a_name: None,
-            team_b_name: None,
-            team_a_score: None,
-            team_b_score: None,
-            player_names: Vec::new(),
-            remark: "Steam 比赛历史下载".to_owned(),
-            content_sha256: Some(validated.sha256),
-            file_size: validated.size,
-            created_at: now,
-            updated_at: now,
-        })
+    let validated_path = validated.path.clone();
+    let validated_sha256 = validated.sha256.clone();
+    let validated_size = validated.size;
+    let result = storage
+        .put_content_addressed_demo_observed(
+            DemoRecord {
+                id: replace_demo
+                    .as_ref()
+                    .map_or_else(Uuid::new_v4, |identity| identity.id),
+                path: validated.path.to_string_lossy().into_owned(),
+                file_name,
+                display_name,
+                source: "download".to_owned(),
+                status: DemoStatus::Discovered,
+                map_name: None,
+                match_date: played_at,
+                duration_seconds: None,
+                total_rounds: None,
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: Vec::new(),
+                remark: "Steam 比赛历史下载".to_owned(),
+                content_sha256: Some(validated_sha256.clone()),
+                file_size: validated_size,
+                created_at: now,
+                updated_at: now,
+            },
+            replace_demo,
+        )
         .await
-        .map_err(|error| storage_error(&error))
+        .map_err(|error| storage_error(&error))?;
+    let mut demo = result.into_demo();
+    if Path::new(&demo.path) != validated_path {
+        if reusable_downloaded_demo(&demo).await {
+            tokio::fs::remove_file(&validated_path)
+                .await
+                .map_err(|error| io_error("remove duplicate downloaded demo", &error))?;
+        } else {
+            let expected = DemoContentIdentity {
+                id: demo.id,
+                path: demo.path.clone(),
+                status: demo.status,
+                content_sha256: demo.content_sha256.clone().ok_or_else(|| {
+                    DomainError::Conflict(
+                        "content-addressed Demo lost its fingerprint before recovery".to_owned(),
+                    )
+                })?,
+                file_size: demo.file_size,
+            };
+            demo = storage
+                .recover_content_addressed_demo(DemoContentRecovery {
+                    expected,
+                    verified_path: validated_path.to_string_lossy().into_owned(),
+                    verified_file_name: validated_path
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .ok_or_else(|| {
+                            DomainError::InvalidInput(
+                                "downloaded demo file name is invalid".to_owned(),
+                            )
+                        })?
+                        .to_owned(),
+                    verified_size: validated_size,
+                    verified_sha256: validated_sha256,
+                })
+                .await
+                .map_err(|error| storage_error(&error))?
+                .ok_or_else(|| DomainError::NotFound("cataloged Demo".to_owned()))?;
+        }
+    }
+    Ok(demo)
+}
+
+async fn reusable_downloaded_demo(demo: &DemoRecord) -> bool {
+    if demo.status == DemoStatus::Missing {
+        return false;
+    }
+    let Some(expected_hash) = demo.content_sha256.clone() else {
+        return false;
+    };
+    let expected_size = demo.file_size;
+    let path = PathBuf::from(&demo.path);
+    tokio::task::spawn_blocking(move || {
+        validate_demo(
+            &path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .is_ok_and(|validated| validated.size == expected_size && validated.sha256 == expected_hash)
+    })
+    .await
+    .unwrap_or(false)
+}
+
+fn demo_content_identity(demo: &DemoRecord) -> Result<DemoContentIdentity, DomainError> {
+    Ok(DemoContentIdentity {
+        id: demo.id,
+        path: demo.path.clone(),
+        status: demo.status,
+        content_sha256: demo.content_sha256.clone().ok_or_else(|| {
+            DomainError::Conflict("downloaded Demo lost its content fingerprint".to_owned())
+        })?,
+        file_size: demo.file_size,
+    })
 }
 
 fn steam_match_record_id(steam_id: &str, match_id: u64) -> String {
@@ -2863,7 +3075,27 @@ fn integration_error(error: IntegrationError) -> DomainError {
 }
 
 fn storage_error(error: &vibe_cs_storage::StorageError) -> DomainError {
-    DomainError::Internal(format!("storage operation failed: {error}"))
+    match error {
+        vibe_cs_storage::StorageError::Domain(DomainError::NotFound(message)) => {
+            DomainError::NotFound(message.clone())
+        }
+        vibe_cs_storage::StorageError::Domain(DomainError::InvalidInput(message)) => {
+            DomainError::InvalidInput(message.clone())
+        }
+        vibe_cs_storage::StorageError::Domain(DomainError::Conflict(message)) => {
+            DomainError::Conflict(message.clone())
+        }
+        vibe_cs_storage::StorageError::Domain(DomainError::DependencyUnavailable(message)) => {
+            DomainError::DependencyUnavailable(message.clone())
+        }
+        vibe_cs_storage::StorageError::Domain(DomainError::CleanupFailed(message)) => {
+            DomainError::CleanupFailed(message.clone())
+        }
+        vibe_cs_storage::StorageError::Domain(DomainError::Internal(message)) => {
+            DomainError::Internal(message.clone())
+        }
+        _ => DomainError::Internal(format!("storage operation failed: {error}")),
+    }
 }
 
 fn json_error(error: &serde_json::Error) -> DomainError {
@@ -2948,6 +3180,42 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct PanickingSteamBackend;
+
+    #[async_trait]
+    impl RuntimeSteamBackend for PanickingSteamBackend {
+        async fn history(
+            &self,
+            _api_key: SecretString,
+            request: MatchHistoryRequest,
+        ) -> Result<Vec<SteamMatchReference>, IntegrationError> {
+            request.validate()?;
+            Ok(Vec::new())
+        }
+
+        async fn download(
+            &self,
+            _api_key: SecretString,
+            _request: DemoDownloadRequest,
+            _cancellation: DownloadCancellation,
+            _observer: Arc<dyn DemoDownloadObserver>,
+        ) -> Result<PathBuf, IntegrationError> {
+            panic!("injected Steam backend panic");
+        }
+    }
+
+    fn same_path_for_test(left: &Path, right: &Path) -> bool {
+        let normalize = |path: &Path| {
+            std::fs::canonicalize(path)
+                .unwrap_or_else(|_| path.to_path_buf())
+                .to_string_lossy()
+                .trim_start_matches(r"\\?\")
+                .to_lowercase()
+        };
+        normalize(left) == normalize(right)
+    }
+
     fn sharing_code(match_id: u64, outcome_id: u64, token: u16) -> String {
         const ALPHABET: &[u8; 57] = b"ABCDEFGHJKLMNOPQRSTUVWXYZabcdefhijkmnopqrstuvwxyz23456789";
         let mut bytes = [0_u8; 18];
@@ -2981,6 +3249,32 @@ mod tests {
             authentication_code: "ABCD-EFGHI-JKLM".to_owned(),
             known_share_code,
             maximum_results: 20,
+        }
+    }
+
+    fn cataloged_demo(path: &str, match_date: Option<DateTime<Utc>>) -> DemoRecord {
+        let now = Utc::now();
+        DemoRecord {
+            id: Uuid::new_v4(),
+            path: path.to_owned(),
+            file_name: "match.dem".to_owned(),
+            display_name: "Cataloged match".to_owned(),
+            source: "download".to_owned(),
+            status: DemoStatus::Ready,
+            map_name: Some("de_nuke".to_owned()),
+            match_date,
+            duration_seconds: Some(2_345.5),
+            total_rounds: Some(24),
+            team_a_name: Some("Alpha".to_owned()),
+            team_b_name: Some("Bravo".to_owned()),
+            team_a_score: Some(13),
+            team_b_score: Some(11),
+            player_names: vec!["Player One".to_owned()],
+            remark: "analyzed locally".to_owned(),
+            content_sha256: Some("a".repeat(64)),
+            file_size: 16,
+            created_at: now - chrono::Duration::days(10),
+            updated_at: now - chrono::Duration::days(1),
         }
     }
 
@@ -3820,6 +4114,16 @@ mod tests {
             .as_str()
             .expect("record id")
             .to_owned();
+        let trusted_played_at = "2025-06-19T20:15:42Z"
+            .parse::<DateTime<Utc>>()
+            .expect("trusted match date");
+        let mut record = storage
+            .get_steam_match(&record_id)
+            .await
+            .expect("match lookup")
+            .expect("synced match");
+        record.played_at = Some(trusted_played_at);
+        storage.put_steam_match(record).await.expect("dated match");
 
         let started = port
             .request("match_history_download", json!({ "match_id": record_id }))
@@ -3850,7 +4154,501 @@ mod tests {
             .expect("demo")
             .expect("imported demo");
         assert_eq!(demo.source, "download");
+        assert_eq!(demo.match_date, Some(trusted_played_at));
         assert!(Path::new(&demo.path).is_file());
+    }
+
+    #[tokio::test]
+    async fn steam_import_adds_a_trusted_date_to_an_undated_duplicate_without_replacing_demo_truth()
+    {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let existing_path = root.path().join("cataloged.dem");
+        let downloaded_path = root.path().join("downloaded.dem");
+        std::fs::write(&existing_path, b"PBDEMS2\0fixture!").expect("cataloged demo");
+        std::fs::write(&downloaded_path, b"PBDEMS2\0fixture!").expect("downloaded demo");
+        let validated = validate_demo(
+            &existing_path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .expect("validated demo");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let trusted_played_at = "2025-06-19T20:15:42Z"
+            .parse::<DateTime<Utc>>()
+            .expect("trusted match date");
+        let existing = DemoRecord {
+            id: Uuid::new_v4(),
+            path: validated.path.to_string_lossy().into_owned(),
+            file_name: "cataloged.dem".to_owned(),
+            display_name: "Cataloged truth".to_owned(),
+            source: "local".to_owned(),
+            status: DemoStatus::Ready,
+            map_name: Some("de_nuke".to_owned()),
+            match_date: None,
+            duration_seconds: Some(2_345.5),
+            total_rounds: Some(24),
+            team_a_name: Some("Alpha".to_owned()),
+            team_b_name: Some("Bravo".to_owned()),
+            team_a_score: Some(13),
+            team_b_score: Some(11),
+            player_names: vec!["Player One".to_owned()],
+            remark: "analyzed locally".to_owned(),
+            content_sha256: Some(validated.sha256),
+            file_size: validated.size,
+            created_at: trusted_played_at - chrono::Duration::days(10),
+            updated_at: trusted_played_at - chrono::Duration::days(1),
+        };
+        storage
+            .put_demo(existing.clone())
+            .await
+            .expect("cataloged demo");
+
+        let imported = import_downloaded_demo(&storage, &downloaded_path, Some(trusted_played_at))
+            .await
+            .expect("duplicate import");
+
+        let mut expected = existing;
+        expected.match_date = Some(trusted_played_at);
+        expected.updated_at = imported.updated_at;
+        assert_eq!(imported, expected);
+        assert_eq!(
+            storage.get_demo(imported.id).await.expect("demo lookup"),
+            Some(imported)
+        );
+    }
+
+    #[tokio::test]
+    async fn steam_import_fails_closed_when_duplicate_match_dates_conflict() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let existing_path = root.path().join("cataloged.dem");
+        let downloaded_path = root.path().join("downloaded.dem");
+        std::fs::write(&existing_path, b"PBDEMS2\0fixture!").expect("cataloged demo");
+        std::fs::write(&downloaded_path, b"PBDEMS2\0fixture!").expect("downloaded demo");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let existing_played_at = "2025-06-19T20:15:42Z"
+            .parse::<DateTime<Utc>>()
+            .expect("existing match date");
+        let conflicting_played_at = "2025-06-20T20:15:42Z"
+            .parse::<DateTime<Utc>>()
+            .expect("conflicting match date");
+        let existing = import_downloaded_demo(&storage, &existing_path, Some(existing_played_at))
+            .await
+            .expect("initial import");
+
+        let error = import_downloaded_demo(&storage, &downloaded_path, Some(conflicting_played_at))
+            .await
+            .expect_err("conflicting trusted dates must reject the duplicate import");
+
+        assert!(
+            matches!(error, DomainError::Conflict(ref message) if message.contains("match date"))
+        );
+        assert_eq!(
+            storage.get_demo(existing.id).await.expect("demo lookup"),
+            Some(existing)
+        );
+    }
+
+    #[tokio::test]
+    async fn steam_import_keeps_match_date_unknown_when_steam_has_no_played_at() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let downloaded_path = root.path().join("downloaded.dem");
+        std::fs::write(&downloaded_path, b"PBDEMS2\0fixture!").expect("downloaded demo");
+        let storage = Storage::open_in_memory().await.expect("storage");
+
+        let imported = import_downloaded_demo(&storage, &downloaded_path, None)
+            .await
+            .expect("undated import");
+
+        assert_eq!(imported.match_date, None);
+        assert_eq!(
+            storage.get_demo(imported.id).await.expect("demo lookup"),
+            Some(imported)
+        );
+    }
+
+    #[tokio::test]
+    async fn steam_import_repairs_an_unusable_same_hash_catalog_entry_without_deleting_the_only_copy()
+     {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let stale_path = root.path().join("stale.dem");
+        let downloaded_path = root.path().join("downloaded.dem");
+        std::fs::write(&downloaded_path, b"PBDEMS2\0fixture!").expect("downloaded demo");
+        let validated = validate_demo(
+            &downloaded_path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .expect("validated demo");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut stale = cataloged_demo(&stale_path.to_string_lossy(), None);
+        stale.status = DemoStatus::Missing;
+        stale.content_sha256 = Some(validated.sha256.clone());
+        stale.file_size = validated.size;
+        storage.put_demo(stale.clone()).await.expect("stale Demo");
+        let stale_identity = DemoCatalogIdentity {
+            id: stale.id,
+            path: stale.path.clone(),
+            status: stale.status,
+            content_sha256: stale.content_sha256.clone(),
+            file_size: stale.file_size,
+            updated_at: stale.updated_at,
+        };
+
+        let repaired = import_downloaded_demo_replacing(
+            &storage,
+            &downloaded_path,
+            None,
+            Some(stale_identity),
+        )
+        .await
+        .expect("repaired import");
+
+        assert_eq!(repaired.id, stale.id);
+        assert_eq!(repaired.status, DemoStatus::Discovered);
+        assert!(Path::new(&repaired.path).is_file());
+        assert_eq!(
+            validate_demo(
+                Path::new(&repaired.path),
+                ValidationLimits::default(),
+                &ParseCancellation::default(),
+            )
+            .expect("repaired Demo validation")
+            .sha256,
+            validated.sha256
+        );
+        assert!(same_path_for_test(
+            Path::new(&repaired.path),
+            &validated.path
+        ));
+    }
+
+    #[tokio::test]
+    async fn steam_import_recovers_a_same_size_tampered_hash_owner_to_the_verified_copy() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let stale_path = root.path().join("stale.dem");
+        let downloaded_path = root.path().join("downloaded.dem");
+        std::fs::write(&stale_path, b"PBDEMS2\0fixture!").expect("cataloged demo");
+        std::fs::write(&downloaded_path, b"PBDEMS2\0fixture!").expect("downloaded demo");
+        let validated = validate_demo(
+            &stale_path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .expect("validated cataloged Demo");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut stale = cataloged_demo(&validated.path.to_string_lossy(), None);
+        stale.content_sha256 = Some(validated.sha256.clone());
+        stale.file_size = validated.size;
+        storage
+            .put_demo(stale.clone())
+            .await
+            .expect("cataloged Demo");
+        std::fs::write(&stale_path, b"PBDEMS2\0tampered").expect("same-size tampering");
+        let expected_incoming =
+            std::fs::canonicalize(&downloaded_path).expect("incoming canonical path before import");
+
+        let repaired = import_downloaded_demo(&storage, &downloaded_path, None)
+            .await
+            .expect("recover from stale hash owner");
+
+        assert_eq!(repaired.id, stale.id);
+        assert_eq!(
+            std::fs::canonicalize(&repaired.path).expect("repaired canonical path"),
+            expected_incoming
+        );
+        assert_eq!(
+            validate_demo(
+                Path::new(&repaired.path),
+                ValidationLimits::default(),
+                &ParseCancellation::default(),
+            )
+            .expect("repaired Demo validation")
+            .sha256,
+            validated.sha256
+        );
+        assert_ne!(Path::new(&repaired.path), stale_path);
+    }
+
+    #[tokio::test]
+    async fn claimed_steam_import_preserves_a_linked_demo_replaced_during_download() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let linked_path = root.path().join("linked.dem");
+        let incoming_path = root.path().join("incoming.dem");
+        std::fs::write(&linked_path, b"PBDEMS2\0original").expect("original Demo");
+        std::fs::write(&incoming_path, b"PBDEMS2\0download").expect("downloaded Demo");
+        let linked_validation = validate_demo(
+            &linked_path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .expect("linked validation");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let mut linked = cataloged_demo(&linked_validation.path.to_string_lossy(), None);
+        linked.content_sha256 = Some(linked_validation.sha256);
+        linked.file_size = linked_validation.size;
+        storage.put_demo(linked.clone()).await.expect("linked Demo");
+        let claimed_identity = DemoCatalogIdentity {
+            id: linked.id,
+            path: linked.path.clone(),
+            status: linked.status,
+            content_sha256: linked.content_sha256.clone(),
+            file_size: linked.file_size,
+            updated_at: linked.updated_at,
+        };
+        std::fs::write(&linked_path, b"PBDEMS2\0newtruth").expect("new linked bytes");
+        let replacement_validation = validate_demo(
+            &linked_path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .expect("replacement validation");
+        let mut replacement = linked.clone();
+        replacement.content_sha256 = Some(replacement_validation.sha256.clone());
+        replacement.file_size = replacement_validation.size;
+        replacement.status = DemoStatus::Discovered;
+        replacement.updated_at = Utc::now();
+        storage
+            .replace_demo_content(replacement.clone())
+            .await
+            .expect("concurrent replacement");
+
+        let result = import_downloaded_demo_replacing(
+            &storage,
+            &incoming_path,
+            None,
+            Some(claimed_identity),
+        )
+        .await;
+
+        assert!(matches!(
+            result,
+            Err(DomainError::Conflict(ref message))
+                if message.contains("after the download claim")
+        ));
+        assert_eq!(
+            storage
+                .get_demo(linked.id)
+                .await
+                .expect("Demo")
+                .expect("Demo")
+                .content_sha256,
+            Some(replacement_validation.sha256)
+        );
+        assert!(incoming_path.is_file());
+    }
+
+    #[tokio::test]
+    async fn already_downloaded_match_backfills_its_trusted_date_before_returning_completed() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let demo_path = root.path().join("already-downloaded.dem");
+        std::fs::write(&demo_path, b"PBDEMS2\0fixture!").expect("downloaded demo");
+        let validated = validate_demo(
+            &demo_path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .expect("validated demo");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        storage
+            .put_config(AppConfig {
+                steam: steam_config(sharing_code(1, 2, 3)),
+                ..AppConfig::default()
+            })
+            .await
+            .expect("config");
+        let trusted_played_at = "2025-06-19T20:15:42Z"
+            .parse::<DateTime<Utc>>()
+            .expect("trusted match date");
+        let mut demo = cataloged_demo(&validated.path.to_string_lossy(), None);
+        demo.content_sha256 = Some(validated.sha256);
+        demo.file_size = validated.size;
+        storage.put_demo(demo.clone()).await.expect("demo");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:42".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "42".to_owned(),
+            outcome_id: "420".to_owned(),
+            token: 42,
+            map_name: Some("de_nuke".to_owned()),
+            played_at: Some(trusted_played_at),
+            score: Some("13:11".to_owned()),
+            result: MatchHistoryResult::Win,
+            demo_status: MatchDemoStatus::Downloaded,
+            demo_id: Some(demo.id),
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let port = RuntimeIntegrationPort::new(storage.clone(), PathBuf::from("unused"));
+
+        let completed = port
+            .request("match_history_download", json!({ "match_id": record.id }))
+            .await
+            .expect("completed download");
+
+        assert_eq!(completed["status"], "completed");
+        assert_eq!(completed["demo_id"], demo.id.to_string());
+        assert_eq!(
+            storage
+                .get_demo(demo.id)
+                .await
+                .expect("demo lookup")
+                .expect("demo")
+                .match_date,
+            Some(trusted_played_at)
+        );
+        let stored_record = storage
+            .get_steam_match(record.id)
+            .await
+            .expect("Steam match lookup")
+            .expect("Steam match");
+        assert_eq!(stored_record.demo_status, MatchDemoStatus::Downloaded);
+        assert_eq!(stored_record.last_error, None);
+    }
+
+    #[tokio::test]
+    async fn already_downloaded_match_rejects_a_conflicting_trusted_date_without_a_job() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let demo_path = root.path().join("already-downloaded-conflict.dem");
+        std::fs::write(&demo_path, b"PBDEMS2\0fixture!").expect("downloaded demo");
+        let validated = validate_demo(
+            &demo_path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .expect("validated demo");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        storage
+            .put_config(AppConfig {
+                steam: steam_config(sharing_code(1, 2, 3)),
+                ..AppConfig::default()
+            })
+            .await
+            .expect("config");
+        let existing_played_at = "2025-06-19T20:15:42Z"
+            .parse::<DateTime<Utc>>()
+            .expect("existing match date");
+        let conflicting_played_at = "2025-06-20T20:15:42Z"
+            .parse::<DateTime<Utc>>()
+            .expect("conflicting match date");
+        let mut demo = cataloged_demo(&validated.path.to_string_lossy(), Some(existing_played_at));
+        demo.content_sha256 = Some(validated.sha256);
+        demo.file_size = validated.size;
+        storage.put_demo(demo.clone()).await.expect("demo");
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:43".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "43".to_owned(),
+            outcome_id: "430".to_owned(),
+            token: 43,
+            map_name: Some("de_nuke".to_owned()),
+            played_at: Some(conflicting_played_at),
+            score: Some("13:11".to_owned()),
+            result: MatchHistoryResult::Win,
+            demo_status: MatchDemoStatus::Downloaded,
+            demo_id: Some(demo.id),
+            last_error: None,
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let port = RuntimeIntegrationPort::new(storage.clone(), PathBuf::from("unused"));
+
+        let error = port
+            .request("match_history_download", json!({ "match_id": record.id }))
+            .await
+            .expect_err("conflicting trusted dates must reject the completed fast path");
+
+        assert!(
+            matches!(error, DomainError::Conflict(ref message) if message.contains("match date"))
+        );
+        assert_eq!(
+            storage.get_demo(demo.id).await.expect("demo lookup"),
+            Some(demo)
+        );
+        assert!(
+            storage
+                .list_match_download_jobs()
+                .await
+                .expect("download jobs")
+                .is_empty()
+        );
+    }
+
+    #[tokio::test]
+    async fn same_size_tampering_never_fast_completes_an_already_linked_demo() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let demo_path = root.path().join("tampered.dem");
+        std::fs::write(&demo_path, b"PBDEMS2\0fixture!").expect("downloaded demo");
+        let validated = validate_demo(
+            &demo_path,
+            ValidationLimits::default(),
+            &ParseCancellation::default(),
+        )
+        .expect("validated demo");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        storage
+            .put_config(AppConfig {
+                steam: steam_config(sharing_code(1, 2, 3)),
+                ..AppConfig::default()
+            })
+            .await
+            .expect("config");
+        let mut demo = cataloged_demo(&validated.path.to_string_lossy(), None);
+        demo.content_sha256 = Some(validated.sha256);
+        demo.file_size = validated.size;
+        storage.put_demo(demo.clone()).await.expect("demo");
+        std::fs::write(&demo_path, b"PBDEMS2\0tampered").expect("same-size tampering");
+        assert_eq!(
+            std::fs::metadata(&demo_path).expect("metadata").len(),
+            demo.file_size
+        );
+        let now = Utc::now();
+        let record = SteamMatchRecord {
+            id: "76561198000000000:44".to_owned(),
+            steam_id: "76561198000000000".to_owned(),
+            match_id: "44".to_owned(),
+            outcome_id: "440".to_owned(),
+            token: 44,
+            map_name: None,
+            played_at: None,
+            score: None,
+            result: MatchHistoryResult::Unknown,
+            demo_status: MatchDemoStatus::Failed,
+            demo_id: Some(demo.id),
+            last_error: Some("previous failure".to_owned()),
+            synced_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_steam_match(record.clone())
+            .await
+            .expect("Steam match");
+        let port = RuntimeIntegrationPort::new(storage.clone(), root.path().join("data"))
+            .with_steam_backend(Arc::new(FakeSteamBackend {
+                history: Vec::new(),
+                block_download: true,
+            }));
+
+        let started = port
+            .request("match_history_download", json!({ "match_id": record.id }))
+            .await
+            .expect("repair download starts");
+
+        assert_eq!(started["status"], "queued");
+        let job_id = Uuid::parse_str(started["id"].as_str().expect("job id")).expect("UUID");
+        port.request("match_history_download_cancel", json!({ "job_id": job_id }))
+            .await
+            .expect("cancel repair download");
     }
 
     #[tokio::test]
@@ -4158,6 +4956,135 @@ mod tests {
         .expect("download cancellation completes");
         assert_eq!(cancelled.status, MatchDownloadStatus::Cancelled);
         assert!(cancelled.demo_id.is_none());
+    }
+
+    #[tokio::test]
+    async fn terminal_persistence_failure_retries_until_the_download_is_durable() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let seed_code = sharing_code(33_000_000_000_000_001, 34_000_000_000_000_001, 203);
+        storage
+            .put_config(AppConfig {
+                steam: steam_config(seed_code),
+                ..AppConfig::default()
+            })
+            .await
+            .expect("config");
+        let port = RuntimeIntegrationPort::new(storage.clone(), root.path().to_path_buf())
+            .with_steam_backend(Arc::new(FakeSteamBackend {
+                history: Vec::new(),
+                block_download: false,
+            }))
+            .with_steam_terminal_failures(1);
+        port.request("match_history_sync", Value::Null)
+            .await
+            .expect("sync history");
+        let history = port
+            .request("match_history", json!({ "page": 1, "page_size": 10 }))
+            .await
+            .expect("list history");
+        let record_id = history["items"][0]["id"]
+            .as_str()
+            .expect("record id")
+            .to_owned();
+        let started = port
+            .request("match_history_download", json!({ "match_id": record_id }))
+            .await
+            .expect("start download");
+        let job_id = Uuid::parse_str(started["id"].as_str().expect("job id")).expect("UUID");
+
+        let completed = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                let job = storage
+                    .get_match_download_job(job_id)
+                    .await
+                    .expect("job")
+                    .expect("job");
+                if job.status.is_terminal()
+                    && !port.steam_downloads.lock().await.contains_key(&job_id)
+                {
+                    break job;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("terminal retry converges");
+        assert_eq!(completed.status, MatchDownloadStatus::Completed);
+
+        let duplicate = port
+            .request("match_history_download", json!({ "match_id": record_id }))
+            .await
+            .expect("duplicate observes completed truth");
+        assert_eq!(duplicate["status"], "completed");
+    }
+
+    #[tokio::test]
+    async fn panicking_download_backend_is_supervised_to_a_failed_terminal_record() {
+        let root = tempfile::tempdir().expect("temporary directory");
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let seed_code = sharing_code(35_000_000_000_000_001, 36_000_000_000_000_001, 204);
+        storage
+            .put_config(AppConfig {
+                steam: steam_config(seed_code),
+                ..AppConfig::default()
+            })
+            .await
+            .expect("config");
+        let port = RuntimeIntegrationPort::new(storage.clone(), root.path().to_path_buf())
+            .with_steam_backend(Arc::new(PanickingSteamBackend));
+        port.request("match_history_sync", Value::Null)
+            .await
+            .expect("sync history");
+        let history = port
+            .request("match_history", json!({ "page": 1, "page_size": 10 }))
+            .await
+            .expect("list history");
+        let record_id = history["items"][0]["id"]
+            .as_str()
+            .expect("record id")
+            .to_owned();
+        let started = port
+            .request("match_history_download", json!({ "match_id": record_id }))
+            .await
+            .expect("start download");
+        let job_id = Uuid::parse_str(started["id"].as_str().expect("job id")).expect("UUID");
+
+        let failed = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                let job = storage
+                    .get_match_download_job(job_id)
+                    .await
+                    .expect("job")
+                    .expect("job");
+                if job.status.is_terminal()
+                    && !port.steam_downloads.lock().await.contains_key(&job_id)
+                {
+                    break job;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("panic supervisor terminalizes");
+        assert_eq!(failed.status, MatchDownloadStatus::Failed);
+        assert!(
+            failed
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("stopped unexpectedly"))
+        );
+        let record = storage
+            .get_steam_match(record_id)
+            .await
+            .expect("Steam match")
+            .expect("Steam match");
+        assert_eq!(record.demo_status, MatchDemoStatus::Failed);
+        let cancelled = port
+            .request("match_history_download_cancel", json!({ "job_id": job_id }))
+            .await
+            .expect("terminal cancellation is idempotent");
+        assert_eq!(cancelled["status"], "failed");
     }
 
     #[tokio::test]

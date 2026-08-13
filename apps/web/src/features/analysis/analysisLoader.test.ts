@@ -10,7 +10,7 @@ import { AnalysisRunError, loadDemoAnalysis } from './analysisLoader';
 
 const demo = (lifecycle_status: DemoSummary['lifecycle_status']): DemoSummary => ({
   id: 'demo-1', path: 'D:\\Demos\\major.dem', filename: 'major.dem', display_name: 'Major final',
-  map_name: 'unknown', played_at: '2026-08-12T00:00:00Z', duration_seconds: 0,
+  map_name: 'unknown', match_date: null, cataloged_at: '2026-08-12T00:00:00Z', duration_seconds: 0,
   total_rounds: 0, score_team_a: null, score_team_b: null, team_a_name: null,
   team_b_name: null, status: lifecycle_status === 'ready' ? 'ready' : 'pending',
   lifecycle_status, players: [], source: 'local', remark: '', updated_at: '2026-08-12T00:00:00Z',

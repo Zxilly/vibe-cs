@@ -98,12 +98,14 @@ import { WeaponAnalysisWorkspace } from './WeaponAnalysisWorkspace';
 import { UtilityAnalysisWorkspace } from './UtilityAnalysisWorkspace';
 import { EconomyAnalysisWorkspace } from './EconomyAnalysisWorkspace';
 import { DuelAnalysisWorkspace } from './DuelAnalysisWorkspace';
+import { OpeningDuelAnalysisWorkspace } from './OpeningDuelAnalysisWorkspace';
 import { economyEvidenceActionContract } from './economyEvidenceActions';
 import { playerEvidenceActionIntent } from './playerEvidenceActions';
 import type { PlayerEvidenceRef } from './playerMatchEvidence';
 import type { EconomyAtomicEvidence } from './economyEvidenceWorkspace';
 import type { WeaponAtomicEvidence } from './weaponEvidenceWorkspace';
 import type { UtilityAtomicEvidence } from './utilityEvidenceWorkspace';
+import type { OpeningDuelEvidence } from './openingDuelWorkspace';
 import { buildRoundContext, type RoundContextGroup, type RoundEvidenceAvailability } from './roundContextModel';
 import { evidenceRangeGroupId, roundNumberFromNavigationKey, roundSectionIsVisible, roundTickPercent, selectedGroupScrollTop, selectedRoundGroupId, tickDurationLabel } from './roundContextPresentation';
 import {
@@ -149,6 +151,7 @@ const tabIcons: Record<AnalysisTab, typeof Activity> = {
   utility: TestTube2,
   economy: DollarSign,
   duels: Swords,
+  openings: Target,
   insights: Zap,
   review: Bot,
   rounds: ListFilter,
@@ -447,6 +450,13 @@ export function AnalysisPage() {
     );
   };
 
+  const watchOpeningEvidence = (evidence: OpeningDuelEvidence) => {
+    void playerEvidenceWatchAction.run(
+      () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: evidence.tick })),
+      msg("m0514"),
+    );
+  };
+
   const addWeaponEvidence = (evidence: WeaponAtomicEvidence) => {
     if (!evidence.actor_id || !workspace.players.some((player) => player.id === evidence.actor_id)) return;
     addCompilation(playerEvidenceActionIntent(workspace, evidence.actor_id, evidence).compilation);
@@ -678,6 +688,26 @@ export function AnalysisPage() {
                 />
               </>
             ) : null}
+            {tab === 'openings' ? (
+              <>
+                {playerEvidenceWatchAction.state.status === 'error'
+                  ? <Notice tone="danger">{playerEvidenceWatchAction.state.message}</Notice>
+                  : null}
+                <OpeningDuelAnalysisWorkspace
+                  workspace={workspace}
+                  selectedPlayerId={params.has('player') ? selectedPlayerId : null}
+                  selectedRound={params.has('round') ? selectedRound : null}
+                  serviceAvailable={source === 'service'}
+                  runtimeIdle={runtimeSession === 'idle'}
+                  watchPending={playerEvidenceWatchAction.state.status === 'loading'}
+                  focusedEvidenceId={selectedEvidenceId}
+                  {...(addedHighlight ? { addedEvidenceIds: new Set([addedHighlight]) } : {})}
+                  onNavigate={navigateAnalysis}
+                  onWatch={watchOpeningEvidence}
+                  onAddProduction={addCompilation}
+                />
+              </>
+            ) : null}
             {tab === 'insights' ? <InsightsView workspace={workspace} selectedPlayer={selectedPlayer} /> : null}
             {tab === 'review' ? <AiReviewPanel key={demoId} demoId={demoId} workspace={workspace} selectedPlayer={selectedPlayer} source={source} configuration={reviewConfiguration} /> : null}
             {tab === 'rounds' ? <RoundsView workspace={workspace} demoId={demoId} playable={source === 'service'} selectedRound={selectedRound} selectedPlayer={selectedPlayer} selectedTick={selectedTick} selectedEvidenceId={selectedEvidenceId} addedId={addedHighlight} onSelectRound={(round) => navigateAnalysis({ round })} onPreviewRound={(round, tick, playerId) => navigateAnalysis({ tab: 'replay', round, tick: tick ?? null, playerId: playerId ?? null })} onCompile={addCompilation} /> : null}
@@ -735,6 +765,7 @@ function AnalysisTabs({
     utility: t('analysis.tab.utility'),
     economy: t('analysis.tab.economy'),
     duels: t('analysis.tab.duels'),
+    openings: t('analysis.tab.openings'),
     insights: t('analysis.tab.insights'),
     review: t('analysis.tab.review'),
     rounds: t('analysis.tab.rounds'),

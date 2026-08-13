@@ -5,6 +5,7 @@ export const ANALYSIS_TABS = [
   'utility',
   'economy',
   'duels',
+  'openings',
   'insights',
   'review',
   'rounds',

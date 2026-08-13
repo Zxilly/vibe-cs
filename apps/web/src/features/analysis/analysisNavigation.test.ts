@@ -53,6 +53,24 @@ describe('analysis URL navigation', () => {
     expect(readAnalysisOpponent(params, ['p1', 'p2'])).toBe('p1');
   });
 
+  it('restores the opening evidence workspace with round, player, tick, and canonical evidence', () => {
+    const params = new URLSearchParams(
+      'tab=openings&round=20&player=p2&tick=161114&evidence=demo%3Ad1%2Fevent%3Aopening-kill',
+    );
+
+    expect(readAnalysisNavigation(params, {
+      roundNumbers: [20],
+      playerIds: ['p1', 'p2'],
+      roundTickRanges: [{ number: 20, startTick: 160_000, endTick: 162_000 }],
+    })).toEqual({
+      tab: 'openings',
+      round: 20,
+      playerId: 'p2',
+      tick: 161_114,
+      evidenceId: 'demo:d1/event:opening-kill',
+    });
+  });
+
   it('preserves a duel opponent across round filters and clears it when the selected player changes', () => {
     const current = new URLSearchParams(
       'demo=d1&tab=duels&round=20&player=p2&opponent=p1&evidence=demo%3Ad1%2Fevent%3Akill-1',

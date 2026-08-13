@@ -33,10 +33,12 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   evidence-annotation contract binds editable user text, free-form tags and open/resolved state to
   one immutable `demo_id/evidence_id/round/tick` locator.
 - `storage` owns the current SQLite schema, explicit transactions, project snapshots, jobs, library
-  records, evidence projections, canonical evidence annotations and the Activity query over its four
-  authoritative sources. Activity summary, filtered total and page rows come from one SQLite
-  transaction; there is no materialized Activity table or compatibility view. Annotation creation
-  verifies the locator against `evidence_search_items`; Demo deletion cascades to annotations.
+  records, durable analysis attempts and their bounded events, evidence projections, canonical
+  evidence annotations and the Activity query over its four authoritative sources. Activity summary,
+  filtered total and page rows come from one SQLite transaction; there is no materialized Activity
+  table or compatibility view. Every analysis result is bound to the exact completed producer run by
+  a composite foreign key. Annotation creation verifies the locator against
+  `evidence_search_items`; Demo deletion cascades to annotations.
 - `demo` owns safe discovery, ZIP extraction, hashing, Source 2 parsing, entity replay, insights,
   heatmaps, highlight classification and narrowly bounded malformed-demo repair planning.
 - `cosmetics` inspects and rewrites a fixed set of observed Source 2 entity fields to a new demo.
@@ -61,10 +63,12 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   active-task tracking, mutation events and Activity API mapping. Activity filtering, counting and
   paging stay at the storage boundary: a kind-specific query reads only that authoritative source;
   a cross-kind query filters, orders and windows each source before the final merge, ordered by
-  `updated_at DESC, activity_id ASC`. Retryability is calculated only for download and recording rows
-  in the returned page. The result is not an event-history store, a materialized unified table or a
-  general database cursor. A failed or cancelled persisted Steam download exposes retry only when it
-  is the latest eligible attempt, the match is not downloaded, the current Steam ID and 32-character
+  `updated_at DESC, activity_id ASC`. Retryability and exact result availability are calculated only
+  for the download, recording and analysis rows in the returned page. The aggregate result is not an
+  event-history store, a materialized unified table or a general database cursor; exact analysis-run
+  detail reads its separate bounded event source. A failed or cancelled persisted Steam download
+  exposes retry only when it is the latest eligible attempt, the match is not downloaded, the
+  current Steam ID and 32-character
   hexadecimal Web API key are syntactically valid, and the record belongs to that current account. A
   failed or cancelled recording exposes retry only when storage can prove one unclaimed unpublished
   suffix; Activity never guesses a resumable capture tick. Activity is private to the desktop process.
@@ -131,6 +135,13 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   true-zero output collection can hide collection controls while retaining that action. An export row
   with a source project links to the Editor by exact project ID; an absent requested project fails
   closed to an explicit notice and blank document instead of selecting another project.
+  Analysis navigation preserves an exact `run=<uuid>` identity for a started or explicitly selected
+  attempt. It polls that run rather than inferring its progress from Demo lifecycle and fetches its
+  completed result through the producer-bound run endpoint; an already-ready Demo opened without a
+  run can still use the Demo result route, whose row is producer-bound in storage. Activity uses
+  `analysis:<run_id>`, displays the persisted stage, input fingerprint, error and ordered events, and
+  starts retry as a new run without rewriting the failed or interrupted attempt. It never invents an
+  analysis percentage.
 
 Platform commands and process spawning do not appear in route handlers or domain records.
 
@@ -171,6 +182,15 @@ Temporary files are created in the target filesystem and become visible only aft
 an atomic or no-clobber publication step. Replay and avatar caches have entry and byte ceilings;
 proxy ownership and cleanup are persisted explicitly.
 
+Analysis attempts live in current-only `analysis_runs` rows. A run carries one required nullable
+SHA-256/size pair, exact status and stage, a required nullable terminal error, and created/updated
+timestamps. `analysis_run_events` is ordered from sequence zero, permits at most 32 rows per run and
+bounds event detail and terminal error to 2,000 characters. Its message-code/stage pairs are fixed to
+`input_validation_started`, `input_verified`, `parser_started`,
+`input_revalidation_started`, `projection_started`, `completed`, `failed` and `interrupted`.
+`analyses.producer_run_id` and its completed producer status bind a result to that exact attempt;
+Demo ID alone is not sufficient provenance for the run-result endpoint.
+
 Evidence annotations also live in SQLite as current-schema records. Their body, tags and review
 state can change without changing the canonical locator. They survive a normal desktop restart,
 are page-queryable with bounded `q`, tag, review-state, Demo and evidence-ID filters, and are removed
@@ -190,6 +210,53 @@ The application dispatcher validates identity and command shape before calling a
 loads persistent state, performs filesystem/network/process work through a bounded adapter and
 persists the resulting domain record. The React client never chooses an arbitrary executable,
 remote avatar origin or LLM evidence document at request time.
+
+Analysis uses one current-only durable attempt contract:
+
+```text
+validating_input -> parser_queued -> parser_running
+  -> verifying_input_after_parse -> projecting -> completed
+          |                  |              |
+          +------------------+--------------+-> failed
+          +------------------+--------------+-> interrupted on startup recovery
+```
+
+`POST /api/demos/{demo_id}/analysis-runs` atomically creates the run, its sequence-zero event and the
+Demo `analyzing` lifecycle, then returns `202` after a background owner has accepted the claim. A
+duplicate start returns the already-active run and does not start a second parser. The owner validates
+and binds the source-path SHA-256/size before parser admission, records `parser_started` only after the
+parser task/process starts, observes the source path again after parsing, then atomically commits the
+completed run/event, producer-bound analysis and evidence projection, and Demo `ready` state. Exact
+state is read through `GET /api/demos/{demo_id}/analysis-runs/active`,
+`GET /api/analysis-runs/{run_id}` and `GET /api/analysis-runs/{run_id}/result`; the last endpoint never
+returns a result produced by a different attempt.
+
+On startup, queued/running analysis attempts become `interrupted` with a durable terminal event. A
+Demo moves to `failed` only if it is still owned by that attempt's `analyzing` lifecycle; a concurrent
+`missing`, newly discovered fingerprint or ready result is not overwritten. Ownerless indexing or
+analyzing Demo lifecycle is also terminalized. If either durable recovery read/write fails, runtime
+composition fails and the desktop does not begin serving an unrecovered active attempt.
+
+Analysis currently has no cancel endpoint, heartbeat/lease or synthetic percentage. A hard host crash
+can still leave an OS worker process or request/response/repair artifacts in `worker-tasks/`; startup
+run recovery does not prove those physical artifacts were reaped. The recorded SHA-256/size values are
+two observations of the Demo source path before and after parsing, not proof that one immutable file
+handle supplied every parser byte. In particular, terminal-tail recovery parses a bounded repair copy,
+and the copy's separate byte provenance is not recorded in the run events. This narrow physical-file
+TOCTOU boundary remains explicit.
+
+The completed-run success path has passed a fresh real-Major product gate at exact source
+`d733b6cf8690996db516a08edc0e0df37b41851c`. The isolated
+`app.vibecs.analysisrun-audit` desktop executable had SHA-256
+`dafa01d17351d9b0730816b6e6bf320a509be201f102679a922d1f2e22100d1d`, and its paired demo worker had
+SHA-256 `2e99e8e365b7047dcd39eebc305d79e84438ea7d58757e2fb1eed4cb14c87255`.
+`agent-browser` connected directly to the Tauri WebView2 CDP endpoint; Computer Use was not used.
+The fresh database completed all three Major runs. The accepted M1 evidence proves six ordered
+persistent events, exact input fingerprint/size, `result_available=true`, a URL retaining both Demo
+and run IDs, and the matching `analysis:<run_id>` Activity/Open Analysis path. Activity had no
+document overflow at 2560×1392 or 1100×700; at 1100 it retained a 698.7px table and 300px independently
+scrollable inspector. This is a success-path product gate only: no analysis failure, interruption,
+retry or cancel was executed, and startup/concurrency recovery remains deterministic-test evidence.
 
 Recording, export and Steam-download records are persisted and queried through Tauri commands. Cancellation is
 cooperative and job-scoped. A normal lifecycle is:

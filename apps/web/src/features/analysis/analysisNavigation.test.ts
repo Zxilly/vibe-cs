@@ -98,6 +98,13 @@ describe('analysis URL navigation', () => {
     })).toMatchObject({ tab: 'economy', round: 20, playerId: 'p2' });
   });
 
+  it('accepts the team round workspace as a stable deep-linkable analysis tab', () => {
+    expect(readAnalysisNavigation(new URLSearchParams('tab=teams&round=20'), {
+      roundNumbers: [20],
+      playerIds: ['p1', 'p2'],
+    })).toMatchObject({ tab: 'teams', round: 20 });
+  });
+
   it('preserves Demo, batch, round, and player context when switching analysis tabs', () => {
     const current = new URLSearchParams('demo=d1&demos=d1%2Cd2&tab=rounds&round=20&player=p2');
 

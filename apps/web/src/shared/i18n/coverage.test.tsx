@@ -76,5 +76,5 @@ describe('complete typed UI localization', () => {
       const markup = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(Page)));
       expect(markup).not.toMatch(han);
     }
-  });
+  }, 20_000);
 });

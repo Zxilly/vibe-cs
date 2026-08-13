@@ -24,6 +24,7 @@ import {
   Radio,
   ScanLine,
   Shield,
+  ShieldCheck,
   Shirt,
   Sparkles,
   Swords,
@@ -99,6 +100,7 @@ import { UtilityAnalysisWorkspace } from './UtilityAnalysisWorkspace';
 import { EconomyAnalysisWorkspace } from './EconomyAnalysisWorkspace';
 import { DuelAnalysisWorkspace } from './DuelAnalysisWorkspace';
 import { OpeningDuelAnalysisWorkspace } from './OpeningDuelAnalysisWorkspace';
+import { TeamRoundAnalysisWorkspace } from './TeamRoundAnalysisWorkspace';
 import { economyEvidenceActionContract } from './economyEvidenceActions';
 import { playerEvidenceActionIntent } from './playerEvidenceActions';
 import type { PlayerEvidenceRef } from './playerMatchEvidence';
@@ -106,6 +108,8 @@ import type { EconomyAtomicEvidence } from './economyEvidenceWorkspace';
 import type { WeaponAtomicEvidence } from './weaponEvidenceWorkspace';
 import type { UtilityAtomicEvidence } from './utilityEvidenceWorkspace';
 import type { OpeningDuelEvidence } from './openingDuelWorkspace';
+import type { TeamRoundEvidence } from './teamRoundWorkspace';
+import { teamRoundEvidenceActionContract } from './teamRoundEvidenceActions';
 import { buildRoundContext, type RoundContextGroup, type RoundEvidenceAvailability } from './roundContextModel';
 import { evidenceRangeGroupId, roundNumberFromNavigationKey, roundSectionIsVisible, roundTickPercent, selectedGroupScrollTop, selectedRoundGroupId, tickDurationLabel } from './roundContextPresentation';
 import {
@@ -152,6 +156,7 @@ const tabIcons: Record<AnalysisTab, typeof Activity> = {
   economy: DollarSign,
   duels: Swords,
   openings: Target,
+  teams: ShieldCheck,
   insights: Zap,
   review: Bot,
   rounds: ListFilter,
@@ -457,6 +462,23 @@ export function AnalysisPage() {
     );
   };
 
+  const watchTeamRoundEvidence = (evidence: TeamRoundEvidence) => {
+    void playerEvidenceWatchAction.run(
+      () => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: evidence.tick })),
+      msg("m0514"),
+    );
+  };
+
+  const addTeamRoundEvidence = (evidence: TeamRoundEvidence) => {
+    const action = teamRoundEvidenceActionContract(workspace, evidence, {
+      serviceAvailable: source === 'service',
+      runtimeIdle: runtimeSession === 'idle',
+      watchPending: playerEvidenceWatchAction.state.status === 'loading',
+      alreadyAdded: addedHighlight === evidence.evidence_id,
+    });
+    if (action.add.compilation) addCompilation(action.add.compilation);
+  };
+
   const addWeaponEvidence = (evidence: WeaponAtomicEvidence) => {
     if (!evidence.actor_id || !workspace.players.some((player) => player.id === evidence.actor_id)) return;
     addCompilation(playerEvidenceActionIntent(workspace, evidence.actor_id, evidence).compilation);
@@ -709,6 +731,24 @@ export function AnalysisPage() {
                 />
               </>
             ) : null}
+            {tab === 'teams' ? (
+              <>
+                {playerEvidenceWatchAction.state.status === 'error'
+                  ? <Notice tone="danger">{playerEvidenceWatchAction.state.message}</Notice>
+                  : null}
+                <TeamRoundAnalysisWorkspace
+                  workspace={workspace}
+                  serviceAvailable={source === 'service'}
+                  runtimeIdle={runtimeSession === 'idle'}
+                  watchPending={playerEvidenceWatchAction.state.status === 'loading'}
+                  focusedEvidenceId={selectedEvidenceId}
+                  {...(addedHighlight ? { addedEvidenceIds: new Set([addedHighlight]) } : {})}
+                  onNavigate={navigateAnalysis}
+                  onWatch={watchTeamRoundEvidence}
+                  onAddProduction={addTeamRoundEvidence}
+                />
+              </>
+            ) : null}
             {tab === 'insights' ? <InsightsView workspace={workspace} selectedPlayer={selectedPlayer} /> : null}
             {tab === 'review' ? <AiReviewPanel key={demoId} demoId={demoId} workspace={workspace} selectedPlayer={selectedPlayer} source={source} configuration={reviewConfiguration} /> : null}
             {tab === 'rounds' ? <RoundsView workspace={workspace} demoId={demoId} playable={source === 'service'} selectedRound={selectedRound} selectedPlayer={selectedPlayer} selectedTick={selectedTick} selectedEvidenceId={selectedEvidenceId} addedId={addedHighlight} onSelectRound={(round) => navigateAnalysis({ round })} onPreviewRound={(round, tick, playerId) => navigateAnalysis({ tab: 'replay', round, tick: tick ?? null, playerId: playerId ?? null })} onCompile={addCompilation} /> : null}
@@ -767,6 +807,7 @@ function AnalysisTabs({
     economy: t('analysis.tab.economy'),
     duels: t('analysis.tab.duels'),
     openings: t('analysis.tab.openings'),
+    teams: t('analysis.tab.teams'),
     insights: t('analysis.tab.insights'),
     review: t('analysis.tab.review'),
     rounds: t('analysis.tab.rounds'),

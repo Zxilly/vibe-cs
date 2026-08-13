@@ -24,6 +24,7 @@ describe('analysis workspace information architecture', () => {
       'economy',
       'duels',
       'openings',
+      'teams',
       'insights',
       'review',
       'heatmap',
@@ -39,6 +40,7 @@ describe('analysis workspace information architecture', () => {
     expect(analysisTabLayout('economy')).toEqual({ group: 'secondary', showsPlayerRail: false });
     expect(analysisTabLayout('duels')).toEqual({ group: 'secondary', showsPlayerRail: false });
     expect(analysisTabLayout('openings')).toEqual({ group: 'secondary', showsPlayerRail: false });
+    expect(analysisTabLayout('teams')).toEqual({ group: 'secondary', showsPlayerRail: false });
     expect(analysisTabLayout('insights')).toEqual({ group: 'secondary', showsPlayerRail: true });
     expect(analysisTabLayout('review')).toEqual({ group: 'secondary', showsPlayerRail: true });
 

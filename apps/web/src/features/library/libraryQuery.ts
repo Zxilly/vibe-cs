@@ -6,6 +6,15 @@ import type {
 import type { LibrarySort, LibrarySortKey } from './libraryTable';
 
 export const LIBRARY_PAGE_SIZES = [20, 50, 100, 200] as const;
+export const DEFAULT_LIBRARY_COLUMNS = [
+  'map',
+  'score',
+  'played',
+  'duration',
+  'rounds',
+  'updated',
+] as const;
+export type LibraryOptionalColumn = (typeof DEFAULT_LIBRARY_COLUMNS)[number];
 const LIBRARY_MAX_PAGE = 100_000;
 
 export type LibraryQueryState = {
@@ -15,6 +24,7 @@ export type LibraryQueryState = {
   sort: DemoSort;
   page: number;
   pageSize: (typeof LIBRARY_PAGE_SIZES)[number];
+  columns: LibraryOptionalColumn[];
 };
 
 export const DEFAULT_LIBRARY_QUERY: LibraryQueryState = {
@@ -24,6 +34,7 @@ export const DEFAULT_LIBRARY_QUERY: LibraryQueryState = {
   sort: 'updated_desc',
   page: 1,
   pageSize: 50,
+  columns: [...DEFAULT_LIBRARY_COLUMNS],
 };
 
 const LIFECYCLE_STATUSES = new Set<DemoLifecycleStatus>([
@@ -44,7 +55,7 @@ const DEMO_SORTS = new Set<DemoSort>([
   'duration_asc', 'duration_desc',
   'rounds_asc', 'rounds_desc',
 ]);
-const LIBRARY_QUERY_PARAMETERS = new Set(['q', 'map', 'status', 'sort', 'page', 'page_size']);
+const LIBRARY_QUERY_PARAMETERS = new Set(['q', 'map', 'status', 'sort', 'page', 'page_size', 'columns']);
 
 function positiveInteger(value: string | null): number | null {
   if (!value || !/^\d+$/.test(value)) return null;
@@ -66,6 +77,8 @@ export function libraryQueryFromParams(params: URLSearchParams): LibraryQuerySta
   const sort = params.get('sort');
   const rawPage = params.get('page');
   const rawPageSize = params.get('page_size');
+  const rawColumns = params.get('columns');
+  const requestedColumns = rawColumns === null || rawColumns === '' ? [] : rawColumns.split(',');
   const page = positiveInteger(rawPage);
   const pageSize = positiveInteger(rawPageSize);
   if (status !== null && !LIFECYCLE_STATUSES.has(status as DemoLifecycleStatus)) {
@@ -80,6 +93,12 @@ export function libraryQueryFromParams(params: URLSearchParams): LibraryQuerySta
   if (rawPageSize !== null && !LIBRARY_PAGE_SIZES.includes(pageSize as LibraryQueryState['pageSize'])) {
     invalidLibraryQuery('page_size');
   }
+  if (rawColumns !== null && (
+    new Set(requestedColumns).size !== requestedColumns.length
+    || requestedColumns.some((column) => !DEFAULT_LIBRARY_COLUMNS.includes(column as LibraryOptionalColumn))
+  )) {
+    invalidLibraryQuery('columns');
+  }
   return {
     search: params.get('q') ?? DEFAULT_LIBRARY_QUERY.search,
     map: params.get('map') ?? DEFAULT_LIBRARY_QUERY.map,
@@ -89,6 +108,9 @@ export function libraryQueryFromParams(params: URLSearchParams): LibraryQuerySta
     pageSize: pageSize === null
       ? DEFAULT_LIBRARY_QUERY.pageSize
       : pageSize as LibraryQueryState['pageSize'],
+    columns: rawColumns === null
+      ? [...DEFAULT_LIBRARY_COLUMNS]
+      : DEFAULT_LIBRARY_COLUMNS.filter((column) => requestedColumns.includes(column)),
   };
 }
 
@@ -100,6 +122,9 @@ export function libraryQueryToParams(query: LibraryQueryState): URLSearchParams 
   if (query.sort !== DEFAULT_LIBRARY_QUERY.sort) params.set('sort', query.sort);
   if (query.page !== DEFAULT_LIBRARY_QUERY.page) params.set('page', String(query.page));
   if (query.pageSize !== DEFAULT_LIBRARY_QUERY.pageSize) params.set('page_size', String(query.pageSize));
+  if (query.columns.join(',') !== DEFAULT_LIBRARY_COLUMNS.join(',')) {
+    params.set('columns', query.columns.join(','));
+  }
   return params;
 }
 
@@ -125,6 +150,17 @@ export function patchLibraryQuery(
     ...patch,
     page: changesResultSet ? 1 : (patch.page ?? current.page),
   };
+}
+
+export function setLibraryColumnVisibility(
+  current: readonly LibraryOptionalColumn[],
+  column: LibraryOptionalColumn,
+  visible: boolean,
+): LibraryOptionalColumn[] {
+  const next = new Set(current);
+  if (visible) next.add(column);
+  else next.delete(column);
+  return DEFAULT_LIBRARY_COLUMNS.filter((candidate) => next.has(candidate));
 }
 
 export function tableSortFromServerSort(sort: DemoSort): LibrarySort {

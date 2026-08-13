@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { DemoSummary } from '../../shared/desktop/dto';
 import {
+  LibraryColumnVisibility,
   LibraryDemoInspector,
   LibraryPagination,
   LibraryPowerTable,
@@ -50,6 +51,59 @@ describe('library power-table ordering', () => {
 });
 
 describe('library power-table', () => {
+  it('offers only real optional columns and keeps status, name, and actions locked visible', () => {
+    const markup = renderToStaticMarkup(
+      <LibraryColumnVisibility
+        visibleColumns={new Set(['map', 'score'])}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(markup).toContain('data-testid="library-column-visibility"');
+    for (const column of ['status', 'file', 'actions']) {
+      const input = markup.match(new RegExp(`<input[^>]*data-column-option="${column}"[^>]*>`))?.[0] ?? '';
+      expect(input).toContain('checked=""');
+      expect(input).toContain('disabled=""');
+    }
+    for (const column of ['map', 'score']) {
+      expect(markup).toMatch(new RegExp(`data-column-option="${column}"[^>]*checked=""`));
+    }
+    for (const column of ['played', 'duration', 'rounds', 'updated']) {
+      expect(markup).toContain(`data-column-option="${column}"`);
+    }
+    expect(markup).not.toContain('data-column-option="size"');
+    expect(markup).toContain('当前列表未提供文件大小');
+  });
+
+  it('keeps core columns visible while showing only the selected factual columns', () => {
+    const markup = renderToStaticMarkup(
+      <LibraryPowerTable
+        demos={[demo()]}
+        visibleColumns={new Set(['map', 'played'])}
+        selectedIds={new Set()}
+        activeDemoId={null}
+        sort={{ key: 'updated', direction: 'desc' }}
+        playingDemoId={null}
+        playbackDisabled={false}
+        onSort={vi.fn()}
+        onToggleSelected={vi.fn()}
+        onOpenDetails={vi.fn()}
+        onPlay={vi.fn()}
+        onLifecycleAction={vi.fn()}
+      />,
+    );
+
+    for (const column of ['status', 'file', 'map', 'played', 'actions']) {
+      expect(markup).toContain(`data-column="${column}"`);
+    }
+    for (const column of ['score', 'duration', 'rounds', 'updated']) {
+      expect(markup).not.toContain(`data-column="${column}"`);
+    }
+    expect(markup).toContain('data-optional-column-count="2"');
+    expect(markup).toContain('比赛日期');
+    expect(markup).toContain('2026');
+  });
+
   it('renders dense factual columns, a truthful missing reason, and row actions', () => {
     const markup = renderToStaticMarkup(
       <LibraryPowerTable
@@ -93,6 +147,8 @@ describe('library power-table', () => {
     expect(markup).toContain('查看详情');
     expect(markup).toContain('观看');
     expect(markup).toContain('打开比赛');
+    expect(markup).toContain('data-testid="library-table-scroll-hint"');
+    expect(markup).toContain('横向滚动查看更多列，操作固定在右侧');
   });
 
   it('discloses the current server page without claiming the table contains the whole library', () => {

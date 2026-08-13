@@ -1,17 +1,76 @@
-import { FolderOpen, MoreHorizontal, Play, Sparkles } from 'lucide-react';
+import { Columns3, FolderOpen, Info, MoreHorizontal, MoveHorizontal, Play, Sparkles } from 'lucide-react';
 
 import type { DemoSummary } from '../../shared/desktop/dto';
 import { currentLocale, useI18n } from '../../shared/i18n';
 import { Badge, Button, Card, IconButton, Spinner } from '../../shared/ui';
 import { demoLifecyclePresentation, hasVerifiedMatchScore } from './libraryPresentation';
-import { LIBRARY_PAGE_SIZES, libraryPageCount } from './libraryQuery';
+import {
+  DEFAULT_LIBRARY_COLUMNS,
+  LIBRARY_PAGE_SIZES,
+  libraryPageCount,
+  type LibraryOptionalColumn,
+} from './libraryQuery';
 import { isDemoAnalyzable } from './librarySelection';
+import './LibraryPowerTable.css';
 
 const UNKNOWN_VALUE = '—';
 
 export type LibrarySortKey = 'status' | 'file' | 'map' | 'score' | 'duration' | 'rounds' | 'updated';
 export type LibrarySortDirection = 'asc' | 'desc';
 export type LibrarySort = { key: LibrarySortKey; direction: LibrarySortDirection };
+
+export function LibraryColumnVisibility({
+  visibleColumns,
+  onChange,
+}: {
+  visibleColumns: ReadonlySet<LibraryOptionalColumn>;
+  onChange: (column: LibraryOptionalColumn, visible: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const optionalLabels: Record<LibraryOptionalColumn, string> = {
+    map: t('library.table.map'),
+    score: t('library.table.result'),
+    played: t('library.table.played'),
+    duration: t('library.table.duration'),
+    rounds: t('library.table.rounds'),
+    updated: t('library.table.updated'),
+  };
+  return (
+    <details className="library-column-visibility" data-testid="library-column-visibility">
+      <summary><Columns3 size={14} /><span>{t('library.columns.title')}</span><Badge tone="neutral">{visibleColumns.size + 3}</Badge></summary>
+      <div className="library-column-visibility__panel">
+        <fieldset>
+          <legend>{t('library.columns.locked')}</legend>
+          {([
+            ['status', t('library.table.status')],
+            ['file', t('library.table.file')],
+            ['actions', t('library.table.actions')],
+          ] as const).map(([column, label]) => (
+            <label key={column}>
+              <input data-column-option={column} type="checkbox" checked disabled readOnly />
+              <span>{label}</span>
+            </label>
+          ))}
+        </fieldset>
+        <fieldset>
+          <legend>{t('library.columns.optional')}</legend>
+          {DEFAULT_LIBRARY_COLUMNS.map((column) => (
+            <label key={column}>
+              <input
+                data-column-option={column}
+                type="checkbox"
+                checked={visibleColumns.has(column)}
+                onChange={(event) => onChange(column, event.target.checked)}
+              />
+              <span>{optionalLabels[column]}</span>
+            </label>
+          ))}
+        </fieldset>
+        <p><Info size={12} />{t('library.columns.sizeUnavailable')}</p>
+      </div>
+    </details>
+  );
+}
 
 function hasKnownText(value: string | undefined): value is string {
   return Boolean(value?.trim()) && value?.trim().toLocaleLowerCase() !== 'unknown';
@@ -157,7 +216,7 @@ function LibrarySortHeader({
 }) {
   const active = sort.key === sortKey;
   return (
-    <th scope="col" aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
+    <th data-column={sortKey} scope="col" aria-sort={active ? (sort.direction === 'asc' ? 'ascending' : 'descending') : 'none'}>
       <button type="button" onClick={() => onSort(sortKey)}>
         {label}<span aria-hidden="true">{active ? (sort.direction === 'asc' ? '↑' : '↓') : '↕'}</span>
       </button>
@@ -172,6 +231,7 @@ function libraryResult(demo: DemoSummary, description: string): string {
 
 export function LibraryPowerTable({
   demos,
+  visibleColumns = new Set(DEFAULT_LIBRARY_COLUMNS),
   selectedIds,
   activeDemoId,
   sort,
@@ -184,6 +244,7 @@ export function LibraryPowerTable({
   onLifecycleAction,
 }: {
   demos: readonly DemoSummary[];
+  visibleColumns?: ReadonlySet<LibraryOptionalColumn>;
   selectedIds: ReadonlySet<string>;
   activeDemoId: string | null;
   sort: LibrarySort;
@@ -198,18 +259,26 @@ export function LibraryPowerTable({
   const { t } = useI18n();
   return (
     <div className="library-power-table__scroll">
-      <table className="library-power-table" aria-label={t('library.table.label')}>
+      <div className="library-power-table__scroll-hint" data-testid="library-table-scroll-hint">
+        <MoveHorizontal size={13} /><span>{t('library.table.horizontalHint')}</span>
+      </div>
+      <table
+        className="library-power-table"
+        data-optional-column-count={visibleColumns.size}
+        aria-label={t('library.table.label')}
+      >
         <thead>
           <tr>
             <th className="library-power-table__select" scope="col"><span className="sr-only">{t('library.table.status')}</span></th>
             <LibrarySortHeader label={t('library.table.status')} sortKey="status" sort={sort} onSort={onSort} />
             <LibrarySortHeader label={t('library.table.file')} sortKey="file" sort={sort} onSort={onSort} />
-            <LibrarySortHeader label={t('library.table.map')} sortKey="map" sort={sort} onSort={onSort} />
-            <LibrarySortHeader label={t('library.table.result')} sortKey="score" sort={sort} onSort={onSort} />
-            <LibrarySortHeader label={t('library.table.duration')} sortKey="duration" sort={sort} onSort={onSort} />
-            <LibrarySortHeader label={t('library.table.rounds')} sortKey="rounds" sort={sort} onSort={onSort} />
-            <LibrarySortHeader label={t('library.table.updated')} sortKey="updated" sort={sort} onSort={onSort} />
-            <th className="library-power-table__actions" scope="col">{t('library.table.actions')}</th>
+            {visibleColumns.has('map') ? <LibrarySortHeader label={t('library.table.map')} sortKey="map" sort={sort} onSort={onSort} /> : null}
+            {visibleColumns.has('score') ? <LibrarySortHeader label={t('library.table.result')} sortKey="score" sort={sort} onSort={onSort} /> : null}
+            {visibleColumns.has('played') ? <th data-column="played" scope="col">{t('library.table.played')}</th> : null}
+            {visibleColumns.has('duration') ? <LibrarySortHeader label={t('library.table.duration')} sortKey="duration" sort={sort} onSort={onSort} /> : null}
+            {visibleColumns.has('rounds') ? <LibrarySortHeader label={t('library.table.rounds')} sortKey="rounds" sort={sort} onSort={onSort} /> : null}
+            {visibleColumns.has('updated') ? <LibrarySortHeader label={t('library.table.updated')} sortKey="updated" sort={sort} onSort={onSort} /> : null}
+            <th className="library-power-table__actions" data-column="actions" scope="col">{t('library.table.actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -226,16 +295,17 @@ export function LibraryPowerTable({
                     onChange={() => onToggleSelected(demo)}
                   /> : null}
                 </td>
-                <td><Badge tone={lifecycle.tone}>{t(lifecycle.labelKey)}</Badge></td>
-                <td className="library-power-table__file"><strong>{demo.display_name}</strong><span title={demo.filename}>{demo.filename}</span></td>
-                <td className="library-power-table__mono">{hasKnownText(demo.map_name) ? demo.map_name : UNKNOWN_VALUE}</td>
-                <td className={hasVerifiedMatchScore(demo) ? 'library-power-table__score' : 'library-power-table__reason'}>
+                <td data-column="status"><Badge tone={lifecycle.tone}>{t(lifecycle.labelKey)}</Badge></td>
+                <td className="library-power-table__file" data-column="file"><strong>{demo.display_name}</strong><span title={demo.filename}>{demo.filename}</span></td>
+                {visibleColumns.has('map') ? <td className="library-power-table__mono" data-column="map">{hasKnownText(demo.map_name) ? demo.map_name : UNKNOWN_VALUE}</td> : null}
+                {visibleColumns.has('score') ? <td className={hasVerifiedMatchScore(demo) ? 'library-power-table__score' : 'library-power-table__reason'} data-column="score">
                   {libraryResult(demo, t(lifecycle.descriptionKey))}
-                </td>
-                <td className="library-power-table__mono">{formatDuration(demo.duration_seconds)}</td>
-                <td className="library-power-table__mono">{demo.total_rounds > 0 ? demo.total_rounds : UNKNOWN_VALUE}</td>
-                <td className="library-power-table__updated">{formatUpdated(demo.updated_at)}</td>
-                <td className="library-power-table__actions">
+                </td> : null}
+                {visibleColumns.has('played') ? <td className="library-power-table__updated" data-column="played">{formatUpdated(demo.played_at)}</td> : null}
+                {visibleColumns.has('duration') ? <td className="library-power-table__mono" data-column="duration">{formatDuration(demo.duration_seconds)}</td> : null}
+                {visibleColumns.has('rounds') ? <td className="library-power-table__mono" data-column="rounds">{demo.total_rounds > 0 ? demo.total_rounds : UNKNOWN_VALUE}</td> : null}
+                {visibleColumns.has('updated') ? <td className="library-power-table__updated" data-column="updated">{formatUpdated(demo.updated_at)}</td> : null}
+                <td className="library-power-table__actions" data-column="actions">
                   <Button
                     size="sm"
                     disabled={demo.status !== 'ready' || playingDemoId !== null || playbackDisabled}

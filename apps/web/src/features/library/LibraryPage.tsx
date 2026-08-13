@@ -57,11 +57,14 @@ import {
   patchLibraryQuery,
   tableSortFromServerSort,
   toggleLibraryTableSort,
+  setLibraryColumnVisibility,
+  type LibraryOptionalColumn,
   type LibraryQueryState,
 } from './libraryQuery';
 import { isDemoAnalyzable, retainLibraryPageSelection } from './librarySelection';
 import {
   LibraryDemoInspector,
+  LibraryColumnVisibility,
   LibraryPagination,
   LibraryPowerTable,
   LibraryResultScope,
@@ -147,6 +150,10 @@ export function LibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const libraryQuery = useMemo(() => libraryQueryFromParams(searchParams), [searchParams]);
   const tableSort = useMemo(() => tableSortFromServerSort(libraryQuery.sort), [libraryQuery.sort]);
+  const visibleTableColumns = useMemo(
+    () => new Set(libraryQuery.columns),
+    [libraryQuery.columns],
+  );
   const runtimeSession = useRuntimeStore((state) => state.session);
   const fileInput = useRef<HTMLInputElement>(null);
   const [demos, setDemos] = useState<DemoSummary[]>([]);
@@ -308,6 +315,12 @@ export function LibraryPage() {
 
   const handleTableSort = (key: LibrarySortKey) => {
     updateLibraryQuery({ sort: toggleLibraryTableSort(libraryQuery.sort, key) });
+  };
+
+  const handleColumnVisibility = (column: LibraryOptionalColumn, visible: boolean) => {
+    updateLibraryQuery({
+      columns: setLibraryColumnVisibility(libraryQuery.columns, column, visible),
+    });
   };
 
   const handleLifecycleAction = (demo: DemoSummary) => {
@@ -556,6 +569,12 @@ export function LibraryPage() {
           </select>
         </label>
         <div className="library-toolbar__spacer" />
+        {view === 'table' ? (
+          <LibraryColumnVisibility
+            visibleColumns={visibleTableColumns}
+            onChange={handleColumnVisibility}
+          />
+        ) : null}
         <SegmentedControl
           label={msg("m1106")}
           value={view}
@@ -597,6 +616,7 @@ export function LibraryPage() {
           {view === 'table' ? (
             <LibraryPowerTable
               demos={demos}
+              visibleColumns={visibleTableColumns}
               selectedIds={selectedIds}
               activeDemoId={activeDemo?.id ?? null}
               sort={tableSort}

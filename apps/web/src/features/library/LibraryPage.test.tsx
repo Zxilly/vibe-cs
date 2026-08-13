@@ -54,6 +54,22 @@ describe('library wide-workspace summary', () => {
 });
 
 describe('library server-query controls', () => {
+  it('restores column visibility from the URL and keeps the selector beside table controls', () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/library?columns=map,played']}>
+        <LibraryPage />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain('data-testid="library-column-visibility"');
+    expect(markup).toContain('data-column="map"');
+    expect(markup).toContain('data-column="played"');
+    expect(markup).not.toContain('data-column="score"');
+    expect(markup).not.toContain('data-column="duration"');
+    expect(markup).not.toContain('data-column="rounds"');
+    expect(markup).not.toContain('data-column="updated"');
+  });
+
   it('restores search, map, exact lifecycle status, and table sort from the URL', () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter initialEntries={['/library?q=m0NESY&map=de_mirage&status=indexing&sort=map_desc&page=3&page_size=20']}>

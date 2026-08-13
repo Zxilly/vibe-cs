@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(new URL('../../styles/index.css', import.meta.url), 'utf8');
+const columnCss = readFileSync(new URL('./LibraryPowerTable.css', import.meta.url), 'utf8');
 
 describe('library power-table responsive contract', () => {
   it('keeps the table dense and contains horizontal overflow inside the data surface', () => {
@@ -22,5 +23,13 @@ describe('library power-table responsive contract', () => {
     expect(css).toMatch(/\.library-pagination\s*\{[^}]*display:\s*flex[^}]*flex-wrap:\s*wrap/s);
     expect(css).toMatch(/@media\s*\(max-width:\s*1180px\)\s*and\s*\(max-height:\s*760px\)[\s\S]*?\.page--library\s+\.library-pagination\s*\{[^}]*position:\s*sticky/s);
     expect(css).toMatch(/\.library-map-filter\s*\{[^}]*min-width:\s*0[^}]*border:\s*0/s);
+  });
+
+  it('anchors the column chooser and derives table width from real visible columns', () => {
+    expect(columnCss).toMatch(/\.library-column-visibility\s*\{[^}]*position:\s*relative/s);
+    expect(columnCss).toMatch(/\.library-column-visibility__panel\s*\{[^}]*position:\s*absolute[^}]*z-index:/s);
+    expect(columnCss).toMatch(/\.library-power-table\[data-optional-column-count="6"\]\s*\{[^}]*min-width:\s*1100px/s);
+    expect(columnCss).toMatch(/\.library-power-table th\[data-column="file"\]\s*\{[^}]*width:\s*auto/s);
+    expect(columnCss).toMatch(/@media\s*\(max-width:\s*1180px\)[\s\S]*\.library-column-visibility__panel\s*\{[^}]*right:\s*0/s);
   });
 });

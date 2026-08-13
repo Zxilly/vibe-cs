@@ -7,11 +7,38 @@ import {
   libraryQueryToDemoQuery,
   libraryQueryToParams,
   patchLibraryQuery,
+  setLibraryColumnVisibility,
   tableSortFromServerSort,
   toggleLibraryTableSort,
 } from './libraryQuery';
 
 describe('library server query', () => {
+  it('restores visible factual columns from the canonical URL state', () => {
+    const query = libraryQueryFromParams(new URLSearchParams(
+      'columns=map,played,duration',
+    ));
+
+    expect(query.columns).toEqual(['map', 'played', 'duration']);
+    expect(libraryQueryToParams(query).toString()).toBe('columns=map%2Cplayed%2Cduration');
+    expect(libraryQueryToDemoQuery(query)).toEqual({
+      sort: 'updated_desc',
+      page: 1,
+      page_size: 50,
+    });
+  });
+
+  it('updates optional columns in canonical order without touching locked columns', () => {
+    expect(setLibraryColumnVisibility(['score', 'map'], 'played', true)).toEqual([
+      'map',
+      'score',
+      'played',
+    ]);
+    expect(setLibraryColumnVisibility(['map', 'score', 'played'], 'score', false)).toEqual([
+      'map',
+      'played',
+    ]);
+  });
+
   it('restores bounded filters, lifecycle status, sort, and page from the URL', () => {
     const query = libraryQueryFromParams(new URLSearchParams(
       'q=m0NESY&map=de_mirage&status=indexing&sort=duration_desc&page=3&page_size=20',
@@ -24,6 +51,7 @@ describe('library server query', () => {
       sort: 'duration_desc',
       page: 3,
       pageSize: 20,
+      columns: ['map', 'score', 'played', 'duration', 'rounds', 'updated'],
     });
     expect(libraryQueryToDemoQuery(query)).toEqual({
       search: 'm0NESY',
@@ -48,6 +76,10 @@ describe('library server query', () => {
     'page=100001',
     'page_size=25',
     'page_size=201',
+    'columns=map,map',
+    'columns=map,size',
+    'columns=status',
+    'columns=map,,score',
   ])('rejects non-canonical or out-of-bounds URL state: %s', (query) => {
     expect(() => libraryQueryFromParams(new URLSearchParams(query))).toThrow('Invalid Library query');
   });

@@ -55,7 +55,7 @@ function unavailable(
   };
 }
 
-function normalizedSide(value: unknown): CompetitiveSide | null {
+export function normalizedCompetitiveSide(value: unknown): CompetitiveSide | null {
   const side = String(value ?? '').trim().toLocaleUpperCase().replaceAll('_', '-');
   if (side === 'T' || side === 'TERRORIST' || side === '2') return 'T';
   if (side === 'CT' || side === 'COUNTER-TERRORIST' || side === '3') return 'CT';
@@ -107,7 +107,7 @@ function roundRoster(
   if (typeof rawRoster !== 'object' || rawRoster === null || Array.isArray(rawRoster)) return null;
   const roster = new Map<string, CompetitiveSide>();
   for (const [playerId, rawSide] of Object.entries(rawRoster)) {
-    const side = normalizedSide(rawSide);
+    const side = normalizedCompetitiveSide(rawSide);
     if (!playerId.trim() || !side) return null;
     roster.set(playerId, side);
   }

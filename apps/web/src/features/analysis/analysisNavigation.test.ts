@@ -44,6 +44,24 @@ describe('analysis URL navigation', () => {
     })).toMatchObject({ tab: 'weapons', round: 20, playerId: 'p2' });
   });
 
+  it('restores the objective review at an exact canonical atom', () => {
+    const params = new URLSearchParams(
+      'tab=objective&round=15&player=p2&tick=133096&evidence=demo%3Am2%2Fevent%3Abomb_planted-133096-2333',
+    );
+
+    expect(readAnalysisNavigation(params, {
+      roundNumbers: [15],
+      playerIds: ['p1', 'p2'],
+      roundTickRanges: [{ number: 15, startTick: 130_000, endTick: 135_720 }],
+    })).toEqual({
+      tab: 'objective',
+      round: 15,
+      playerId: 'p2',
+      tick: 133_096,
+      evidenceId: 'demo:m2/event:bomb_planted-133096-2333',
+    });
+  });
+
   it('accepts the duel evidence workspace as a stable deep-linkable analysis tab', () => {
     const params = new URLSearchParams('tab=duels&round=20&player=p2&opponent=p1');
     expect(readAnalysisNavigation(params, {

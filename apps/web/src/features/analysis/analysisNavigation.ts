@@ -1,5 +1,6 @@
 export const ANALYSIS_TABS = [
   'overview',
+  'objective',
   'players',
   'weapons',
   'utility',

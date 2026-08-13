@@ -537,6 +537,13 @@
 }
 
 @media (max-width: 1180px) and (max-height: 760px) {
+  .team-economy-workspace {
+    align-content: start;
+    grid-template-rows: auto max-content;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
   .team-economy-toolbar {
     min-height: 56px;
     padding: 5px 7px;
@@ -547,7 +554,9 @@
   }
 
   .team-economy-canvas {
-    grid-template-rows: auto minmax(286px, 1fr) 194px;
+    min-height: 680px;
+    grid-template-rows: 200px 286px 194px;
+    overflow: hidden;
   }
 
   .team-economy-matrix__grid {

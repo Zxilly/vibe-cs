@@ -58,7 +58,10 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 - `application` owns use-case validation, status mapping, bounded uploads and media reads,
   active-task tracking, mutation events and the Activity read model. Activity merges persisted
   recording, export, download and analysis facts, then applies stable ordering, filters and a bounded
-  page; it is not an event-history store or a database cursor. It is private to the desktop process.
+  page; it is not an event-history store or a database cursor. Failed or cancelled persisted Steam
+  downloads expose retry and match-history actions. Retry persists a new queued job before background
+  work starts and does not rewrite the old job, error or byte counts. Activity is private to the
+  desktop process.
 - `agent` owns the in-process Rig model/tool loop, provider URL policy, streaming limits, and
   deterministic read/proposal tools. It has no filesystem, shell, or process execution tool.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
@@ -75,6 +78,14 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   player IDs, and marks the round unavailable when that first event cannot be verified. Its 10-by-10
   directional matrix is row-actor/column-target; selecting a cell filters the same canonical atomic
   evidence. It never promotes a later kill or infers trades, KAST or rating.
+  The Team Round workspace is another deterministic projection. It opens only when two exact
+  five-player summary rosters and every exact ten-player round roster prove stable Team A/B identity,
+  teammate/opponent sides, an A/B winner and an in-bounds canonical `round_end`. Its 2-by-2 cells are
+  Team A/B by T/CT and report round wins over rounds played, never a win rate. A selected cell filters
+  kills plus the same canonical round-end evidence; raw T/CT summaries fail closed and no organization
+  entity is inferred. Production previews the bounded persisted Activity read model rather than mock
+  progress. Outputs treats staged cleanup as an independent recovery capability, so a true-zero
+  output collection can hide collection controls while retaining that action.
 
 Platform commands and process spawning do not appear in route handlers or domain records.
 
@@ -147,6 +158,9 @@ job document, so the renderer can still address cancellation while status hydrat
 temporarily unavailable. Startup recovery verifies job-scoped staging/publication evidence: a
 provably published output may complete, while ambiguous running/cancelling work is terminalized.
 This is fail-safe reconciliation, not continuation from an assumed capture tick.
+Creating a download retry is a new durable job transition, not mutation or continuation of the
+terminal job. The old record remains available for diagnosis while the new queued job owns any later
+progress.
 
 Release demo parsing runs in a single globally-admitted, integrity-pinned worker process;
 the desktop locks the worker and its parent across process creation, and the worker enforces parser
@@ -225,3 +239,6 @@ state separate from ready state so a crash cannot make a partial media file look
 - SQLite has one exact schema fingerprint for the current unreleased product. A non-empty database
   that does not match it is rejected with an instruction to use a fresh data directory; the runtime
   does not import, rewrite or upgrade earlier experimental data.
+  Product audits that must preserve an earlier default data tree use a separate build-time Tauri
+  identifier and fresh application-data directory. That isolation is not a migration or compatibility
+  path.

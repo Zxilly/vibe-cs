@@ -165,6 +165,44 @@ export type EvidenceSearchResponse = Paginated<EvidenceSearchItem> & {
   };
 };
 
+export type EvidenceAnnotationReviewState = 'open' | 'resolved';
+
+export type EvidenceAnnotation = {
+  id: string;
+  demo_id: string;
+  evidence_id: string;
+  round: number;
+  tick: number;
+  body: string;
+  tags: string[];
+  review_state: EvidenceAnnotationReviewState;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateEvidenceAnnotation = {
+  demo_id: string;
+  evidence_id: string;
+  round: number;
+  tick: number;
+  body: string;
+  tags: string[];
+};
+
+export type UpdateEvidenceAnnotation = {
+  body: string;
+  tags: string[];
+  review_state: EvidenceAnnotationReviewState;
+};
+
+export type EvidenceAnnotationQuery = {
+  demo_id?: string;
+  evidence_id?: string;
+  review_state?: EvidenceAnnotationReviewState;
+  page?: number;
+  page_size?: number;
+};
+
 export type DemoQuery = {
   search?: string;
   map_name?: string;
@@ -843,6 +881,23 @@ export type ActivityItem = {
 
 export type ActivityFeed = {
   items: ActivityItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  summary: {
+    total: number;
+    active: number;
+    failed: number;
+    completed: number;
+  };
+};
+
+export type ActivityQuery = {
+  search?: string;
+  kind?: ActivityKind;
+  state?: 'active' | 'failed' | 'completed';
+  page?: number;
+  page_size?: number;
 };
 
 export type RuntimeState = {

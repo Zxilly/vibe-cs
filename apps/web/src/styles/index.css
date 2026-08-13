@@ -5331,6 +5331,22 @@ body {
 .activity-search svg { position: absolute; left: 9px; z-index: 1; color: var(--muted); }
 .activity-search input { padding: 0 9px 0 29px; }
 
+.activity-pagination {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 30px;
+  padding: 2px 5px;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-1);
+}
+.activity-pagination .button { min-height: 24px; padding: 0 8px; }
+.activity-pagination > span { color: var(--muted); font: 600 10px/1 var(--font-mono); }
+.activity-pagination > span strong { color: var(--text); }
+
 .activity-workspace {
   display: grid;
   min-width: 0;

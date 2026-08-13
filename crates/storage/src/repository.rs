@@ -24,11 +24,12 @@ use vibe_cs_domain::{
     AppConfig, BeatAlignmentAudioBinding, BeatAlignmentAudioPlacement, BeatAlignmentDraft,
     CosmeticPlan, DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoPatch, DemoQuery, DemoRecord, DemoSort,
     DemoStatus, EditorAudioSeparation, EditorPresetDocument, EditorProject, EditorProjectSnapshot,
-    EventKind, EvidenceEventFamily, EvidenceSearchAvailability, EvidenceSearchCapability,
-    EvidenceSearchItem, EvidenceSearchPage, EvidenceSearchQuery, EvidenceSourceKind, ExportJob,
-    HighlightEditPlan, HighlightKind, MatchAnalysis, MatchDownloadJob, MatchDownloadStatus,
-    MatchHistoryQuery, MediaAsset, MediaProxyStatus, MontageProject, Page, RecordedClip,
-    RecordingJob, SteamMatchRecord,
+    EventKind, EvidenceAnnotation, EvidenceAnnotationQuery, EvidenceAnnotationReviewState,
+    EvidenceEventFamily, EvidenceSearchAvailability, EvidenceSearchCapability, EvidenceSearchItem,
+    EvidenceSearchPage, EvidenceSearchQuery, EvidenceSourceKind, ExportJob, HighlightEditPlan,
+    HighlightKind, MatchAnalysis, MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery,
+    MediaAsset, MediaProxyStatus, MontageProject, Page, RecordedClip, RecordingJob,
+    SteamMatchRecord,
 };
 
 use crate::{Result, StorageError, schema};
@@ -175,6 +176,13 @@ pub enum HighlightEditUpdate {
     Conflict {
         current_revision: u64,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EvidenceAnnotationCreate {
+    Created(EvidenceAnnotation),
+    EvidenceNotFound,
+    EvidenceLocationMismatch,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -814,6 +822,149 @@ impl Storage {
     pub async fn search_evidence(&self, query: EvidenceSearchQuery) -> Result<EvidenceSearchPage> {
         self.run(move |connection| search_evidence_rows(connection, &query))
             .await
+    }
+
+    pub async fn create_evidence_annotation(
+        &self,
+        draft: vibe_cs_domain::CreateEvidenceAnnotation,
+    ) -> Result<EvidenceAnnotationCreate> {
+        let draft = draft.normalize()?;
+        self.run(move |connection| {
+            let locator = connection
+                .query_row(
+                    "SELECT demo_id, round, tick FROM evidence_search_items WHERE evidence_id = ?1",
+                    [draft.evidence_id.as_str()],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, u32>(1)?,
+                            row_u64(row, 2)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            let Some((demo_id, round, tick)) = locator else {
+                return Ok(EvidenceAnnotationCreate::EvidenceNotFound);
+            };
+            if demo_id != draft.demo_id.to_string() || round != draft.round || tick != draft.tick {
+                return Ok(EvidenceAnnotationCreate::EvidenceLocationMismatch);
+            }
+
+            let now = Utc::now();
+            let annotation = EvidenceAnnotation {
+                id: Uuid::new_v4(),
+                demo_id: draft.demo_id,
+                evidence_id: draft.evidence_id,
+                round: draft.round,
+                tick: draft.tick,
+                body: draft.body,
+                tags: draft.tags,
+                review_state: EvidenceAnnotationReviewState::Open,
+                created_at: now,
+                updated_at: now,
+            };
+            connection.execute(
+                "INSERT INTO evidence_annotations(
+                    id, demo_id, evidence_id, round, tick, review_state,
+                    created_at, updated_at, document_json
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    annotation.id.to_string(),
+                    annotation.demo_id.to_string(),
+                    annotation.evidence_id,
+                    i64::from(annotation.round),
+                    sql_u64(annotation.tick)?,
+                    evidence_annotation_state_text(annotation.review_state),
+                    annotation.created_at.to_rfc3339(),
+                    annotation.updated_at.to_rfc3339(),
+                    encode(&annotation)?,
+                ],
+            )?;
+            Ok(EvidenceAnnotationCreate::Created(annotation))
+        })
+        .await
+    }
+
+    pub async fn list_evidence_annotations(
+        &self,
+        query: EvidenceAnnotationQuery,
+    ) -> Result<Page<EvidenceAnnotation>> {
+        query.validate()?;
+        let page = query.page.unwrap_or(1);
+        let page_size = query
+            .page_size
+            .unwrap_or(vibe_cs_domain::EVIDENCE_ANNOTATION_DEFAULT_PAGE_SIZE);
+        let offset = u64::from(page - 1) * u64::from(page_size);
+        let demo_id = query.demo_id.map(|id| id.to_string());
+        let evidence_id = query.evidence_id.map(|value| value.trim().to_owned());
+        let review_state = query.review_state.map(evidence_annotation_state_text);
+        self.run(move |connection| {
+            let total = connection.query_row(
+                "SELECT COUNT(*) FROM evidence_annotations
+                 WHERE (?1 IS NULL OR demo_id = ?1)
+                   AND (?2 IS NULL OR evidence_id = ?2)
+                   AND (?3 IS NULL OR review_state = ?3)",
+                params![demo_id, evidence_id, review_state],
+                |row| row_u64(row, 0),
+            )?;
+            let mut statement = connection.prepare(
+                "SELECT document_json FROM evidence_annotations
+                 WHERE (?1 IS NULL OR demo_id = ?1)
+                   AND (?2 IS NULL OR evidence_id = ?2)
+                   AND (?3 IS NULL OR review_state = ?3)
+                 ORDER BY updated_at DESC, id ASC LIMIT ?4 OFFSET ?5",
+            )?;
+            let mut rows = statement.query(params![
+                demo_id,
+                evidence_id,
+                review_state,
+                i64::from(page_size),
+                sql_u64(offset)?,
+            ])?;
+            Ok(Page {
+                items: collect_documents(&mut rows)?,
+                total,
+                page,
+                page_size,
+            })
+        })
+        .await
+    }
+
+    pub async fn update_evidence_annotation(
+        &self,
+        id: Uuid,
+        update: vibe_cs_domain::UpdateEvidenceAnnotation,
+    ) -> Result<Option<EvidenceAnnotation>> {
+        let update = update.normalize()?;
+        self.run(move |connection| {
+            let Some(mut annotation) =
+                get_document::<EvidenceAnnotation>(connection, "evidence_annotations", id)?
+            else {
+                return Ok(None);
+            };
+            annotation.body = update.body;
+            annotation.tags = update.tags;
+            annotation.review_state = update.review_state;
+            annotation.updated_at = Utc::now();
+            connection.execute(
+                "UPDATE evidence_annotations
+                 SET review_state = ?1, updated_at = ?2, document_json = ?3
+                 WHERE id = ?4",
+                params![
+                    evidence_annotation_state_text(annotation.review_state),
+                    annotation.updated_at.to_rfc3339(),
+                    encode(&annotation)?,
+                    annotation.id.to_string(),
+                ],
+            )?;
+            Ok(Some(annotation))
+        })
+        .await
+    }
+
+    pub async fn delete_evidence_annotation(&self, id: Uuid) -> Result<bool> {
+        self.delete_document("evidence_annotations", id).await
     }
 
     pub async fn list_steam_matches(
@@ -3971,6 +4122,13 @@ fn match_download_status_text(status: MatchDownloadStatus) -> &'static str {
     }
 }
 
+fn evidence_annotation_state_text(state: EvidenceAnnotationReviewState) -> &'static str {
+    match state {
+        EvidenceAnnotationReviewState::Open => "open",
+        EvidenceAnnotationReviewState::Resolved => "resolved",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4552,6 +4710,220 @@ mod tests {
             .expect("search NiKo kill");
         assert_eq!(niko.total, 1);
         assert_eq!(niko.items[0].source_id, "player_death-640-7");
+    }
+
+    #[tokio::test]
+    async fn evidence_annotations_bind_to_projected_evidence_and_survive_reopen() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let database = directory.path().join("annotations.sqlite3");
+        let storage = Storage::open(&database).await.expect("open storage");
+        let record = demo("C:/matches/annotated.dem");
+        let demo_id = record.id;
+        storage.put_demo(record).await.expect("put demo");
+        storage
+            .put_analysis(MatchAnalysis {
+                demo_id,
+                map_name: "de_mirage".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 20.0,
+                verified_total_ticks: Some(1_280),
+                teams: vec![],
+                players: vec![],
+                rounds: vec![vibe_cs_domain::RoundSummary {
+                    number: 2,
+                    start_tick: 100,
+                    end_tick: 900,
+                    winner: String::new(),
+                    reason: String::new(),
+                    team_a_score: 1,
+                    team_b_score: 1,
+                    events: vec![vibe_cs_domain::TimelineEvent {
+                        id: "player_death-640-7".to_owned(),
+                        tick: 640,
+                        seconds: 10.0,
+                        kind: vibe_cs_domain::EventKind::Kill,
+                        actor: Some("fallen".to_owned()),
+                        target: Some("target".to_owned()),
+                        weapon: Some("awp".to_owned()),
+                        headshot: false,
+                        penetrated: false,
+                        position: None,
+                        detail: serde_json::json!({}),
+                    }],
+                }],
+                highlights: vec![],
+            })
+            .await
+            .expect("put analysis");
+        let evidence_id = format!("demo:{demo_id}/event:player_death-640-7");
+
+        let created = storage
+            .create_evidence_annotation(vibe_cs_domain::CreateEvidenceAnnotation {
+                demo_id,
+                evidence_id: evidence_id.clone(),
+                round: 2,
+                tick: 640,
+                body: "Hold this crossfire".to_owned(),
+                tags: vec!["retake".to_owned()],
+            })
+            .await
+            .expect("create annotation");
+        let annotation = match created {
+            EvidenceAnnotationCreate::Created(annotation) => annotation,
+            other => panic!("unexpected create result: {other:?}"),
+        };
+        drop(storage);
+
+        let reopened = Storage::open(&database).await.expect("reopen storage");
+        let page = reopened
+            .list_evidence_annotations(vibe_cs_domain::EvidenceAnnotationQuery {
+                evidence_id: Some(evidence_id),
+                ..vibe_cs_domain::EvidenceAnnotationQuery::default()
+            })
+            .await
+            .expect("list annotation");
+        assert_eq!(page.total, 1);
+        assert_eq!(page.items, vec![annotation.clone()]);
+
+        let updated = reopened
+            .update_evidence_annotation(
+                annotation.id,
+                vibe_cs_domain::UpdateEvidenceAnnotation {
+                    body: "Resolved after the team review".to_owned(),
+                    tags: vec!["retake".to_owned(), "reviewed".to_owned()],
+                    review_state: vibe_cs_domain::EvidenceAnnotationReviewState::Resolved,
+                },
+            )
+            .await
+            .expect("update annotation")
+            .expect("annotation exists");
+        assert_eq!(
+            updated.review_state,
+            EvidenceAnnotationReviewState::Resolved
+        );
+        assert_eq!(updated.body, "Resolved after the team review");
+        assert!(updated.updated_at >= annotation.updated_at);
+
+        assert!(
+            reopened
+                .delete_evidence_annotation(annotation.id)
+                .await
+                .expect("delete annotation")
+        );
+        assert_eq!(
+            reopened
+                .list_evidence_annotations(vibe_cs_domain::EvidenceAnnotationQuery::default())
+                .await
+                .expect("list after annotation deletion")
+                .total,
+            0
+        );
+
+        let recreated = reopened
+            .create_evidence_annotation(vibe_cs_domain::CreateEvidenceAnnotation {
+                demo_id,
+                evidence_id: updated.evidence_id,
+                round: updated.round,
+                tick: updated.tick,
+                body: updated.body,
+                tags: updated.tags,
+            })
+            .await
+            .expect("recreate annotation");
+        assert!(matches!(recreated, EvidenceAnnotationCreate::Created(_)));
+
+        assert!(reopened.delete_demo(demo_id).await.expect("delete demo"));
+        assert_eq!(
+            reopened
+                .list_evidence_annotations(vibe_cs_domain::EvidenceAnnotationQuery::default())
+                .await
+                .expect("list after demo deletion")
+                .total,
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn evidence_annotations_reject_unknown_or_mismatched_evidence_locators() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let record = demo("C:/matches/annotation-contract.dem");
+        let demo_id = record.id;
+        storage.put_demo(record).await.expect("put demo");
+        storage
+            .put_analysis(MatchAnalysis {
+                demo_id,
+                map_name: "de_nuke".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 10.0,
+                verified_total_ticks: Some(640),
+                teams: vec![],
+                players: vec![],
+                rounds: vec![vibe_cs_domain::RoundSummary {
+                    number: 1,
+                    start_tick: 1,
+                    end_tick: 640,
+                    winner: String::new(),
+                    reason: String::new(),
+                    team_a_score: 0,
+                    team_b_score: 0,
+                    events: vec![vibe_cs_domain::TimelineEvent {
+                        id: "player_death-320-1".to_owned(),
+                        tick: 320,
+                        seconds: 5.0,
+                        kind: vibe_cs_domain::EventKind::Kill,
+                        actor: None,
+                        target: None,
+                        weapon: None,
+                        headshot: false,
+                        penetrated: false,
+                        position: None,
+                        detail: serde_json::json!({}),
+                    }],
+                }],
+                highlights: vec![],
+            })
+            .await
+            .expect("put analysis");
+        let valid_id = format!("demo:{demo_id}/event:player_death-320-1");
+        let draft =
+            |evidence_id: String, round: u32, tick: u64| vibe_cs_domain::CreateEvidenceAnnotation {
+                demo_id,
+                evidence_id,
+                round,
+                tick,
+                body: "Review this event".to_owned(),
+                tags: vec![],
+            };
+
+        assert_eq!(
+            storage
+                .create_evidence_annotation(draft(valid_id.clone(), 2, 320))
+                .await
+                .expect("mismatched round"),
+            EvidenceAnnotationCreate::EvidenceLocationMismatch
+        );
+        assert_eq!(
+            storage
+                .create_evidence_annotation(draft(valid_id, 1, 321))
+                .await
+                .expect("mismatched tick"),
+            EvidenceAnnotationCreate::EvidenceLocationMismatch
+        );
+        assert_eq!(
+            storage
+                .create_evidence_annotation(draft("demo:missing/event:nope".to_owned(), 1, 320))
+                .await
+                .expect("unknown evidence"),
+            EvidenceAnnotationCreate::EvidenceNotFound
+        );
+        assert_eq!(
+            storage
+                .list_evidence_annotations(EvidenceAnnotationQuery::default())
+                .await
+                .expect("list annotations")
+                .total,
+            0
+        );
     }
 
     #[tokio::test]

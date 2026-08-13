@@ -3,6 +3,7 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { msg, msgf } from '../i18n';
 import type {
   ActivityFeed,
+  ActivityQuery,
   AnalysisWorkspace,
   AgentChatInput,
   AgentChatResult,
@@ -30,6 +31,7 @@ import type {
   CosmeticPlan,
   CosmeticRewriteRequest,
   CosmeticRewriteResponse,
+  CreateEvidenceAnnotation,
   DeleteOutputResult,
   DemoPlaybackLaunch,
   DemoPlaybackOptions,
@@ -46,6 +48,8 @@ import type {
   EditorPreset,
   EditorPresetDocument,
   EditorProjectDeletionResult,
+  EvidenceAnnotation,
+  EvidenceAnnotationQuery,
   EvidenceSearchQuery,
   EvidenceSearchResponse,
   ExportJobRecord,
@@ -98,6 +102,7 @@ import type {
   RuntimeState,
   ScanResult,
   StorageStatus,
+  UpdateEvidenceAnnotation,
   WaveformResponse,
 } from './dto';
 
@@ -583,6 +588,29 @@ export const commands = {
     const suffix = parameters.size > 0 ? `?${parameters.toString()}` : '';
     return request<EvidenceSearchResponse>(`/evidence/search${suffix}`, { signal });
   },
+  listEvidenceAnnotations: (
+    query: EvidenceAnnotationQuery = {},
+    signal?: AbortSignal,
+  ) => request<Paginated<EvidenceAnnotation>>(
+    `/evidence/annotations${queryString({
+      demo_id: query.demo_id,
+      evidence_id: query.evidence_id,
+      review_state: query.review_state,
+      page: query.page,
+      page_size: query.page_size,
+    })}`,
+    { signal },
+  ),
+  createEvidenceAnnotation: (body: CreateEvidenceAnnotation) =>
+    request<EvidenceAnnotation>('/evidence/annotations', { method: 'POST', body }),
+  updateEvidenceAnnotation: (id: string, body: UpdateEvidenceAnnotation) =>
+    request<EvidenceAnnotation>(`/evidence/annotations/${encodeURIComponent(id)}`, {
+      method: 'PATCH', body,
+    }),
+  deleteEvidenceAnnotation: (id: string) => request<void>(
+    `/evidence/annotations/${encodeURIComponent(id)}`,
+    { method: 'DELETE' },
+  ),
   reviewDemo: (id: string, body: LlmReviewRequest, signal?: AbortSignal) =>
     request<LlmReviewResult>(`/demos/${encodeURIComponent(id)}/review`, {
       method: 'POST',
@@ -661,7 +689,16 @@ export const commands = {
       method: 'POST',
       body: {},
     }),
-  listActivities: (signal?: AbortSignal) => request<ActivityFeed>('/activities', { signal }),
+  listActivities: (query: ActivityQuery = {}, signal?: AbortSignal) => request<ActivityFeed>(
+    `/activities${queryString({
+      search: query.search?.trim(),
+      kind: query.kind,
+      state: query.state,
+      page: query.page,
+      page_size: query.page_size,
+    })}`,
+    { signal },
+  ),
   runtimeState: (signal?: AbortSignal) => request<RuntimeState>('/app/runtime-state', { signal }),
   abortRecording: () => request<void>('/recording/abort', { method: 'POST', body: {} }),
   listRecordedClips: async (signal?: AbortSignal) => {

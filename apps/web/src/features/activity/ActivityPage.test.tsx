@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import type { ActivityItem } from '../../shared/desktop/dto';
-import { ActivityWorkspace } from './ActivityPage';
+import { ActivityPagination, ActivityWorkspace } from './ActivityPage';
 
 const item = (overrides: Partial<ActivityItem>): ActivityItem => ({
   id: 'recording:job-1',
@@ -56,5 +56,23 @@ describe('activity workspace', () => {
     expect(markup).toContain('demo-2');
     expect(markup).toContain('data-action="retry_analysis"');
     expect(markup).not.toContain('analysis:demo-2<!-- -->%');
+  });
+
+  it('keeps cross-workflow paging compact and exposes both navigation bounds', () => {
+    const markup = renderToStaticMarkup(
+      <ActivityPagination
+        page={2}
+        pageSize={50}
+        total={137}
+        onPageChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('class="activity-pagination"');
+    expect(markup).toContain('data-page="2"');
+    expect(markup).toContain('data-page-count="3"');
+    expect(markup).toContain('data-direction="previous"');
+    expect(markup).toContain('data-direction="next"');
+    expect(markup).not.toContain('disabled=""');
   });
 });

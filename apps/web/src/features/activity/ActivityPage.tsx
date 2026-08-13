@@ -10,7 +10,7 @@ import {
   StopCircle,
   Video,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
@@ -26,8 +26,6 @@ import {
   activityActionHref,
   activityProgressLabel,
   activityUnitLabel,
-  filterActivities,
-  isActivityActive,
   type ActivityStateFilter,
 } from './activityPresentation';
 
@@ -76,6 +74,8 @@ const recordingStageKeys: Partial<Record<string, MessageKey>> = {
   'recording.stage.stabilizing': 'queue.recordingStage.stabilizing',
   'recording.stage.encoding': 'queue.recordingStage.encoding',
 };
+
+const ACTIVITY_PAGE_SIZE = 50;
 
 function statusTone(status: ActivityStatus): 'neutral' | 'success' | 'warning' | 'danger' | 'blue' {
   if (status === 'completed') return 'success';
@@ -240,11 +240,58 @@ export function ActivityWorkspace({
   );
 }
 
+export function ActivityPagination({
+  page,
+  pageSize,
+  total,
+  onPageChange,
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}) {
+  const { t } = useI18n();
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  return (
+    <nav
+      className="activity-pagination"
+      aria-label={t('activity.title')}
+      data-page={page}
+      data-page-count={pageCount}
+    >
+      <Button
+        size="sm"
+        variant="ghost"
+        data-direction="previous"
+        disabled={page <= 1}
+        onClick={() => onPageChange(page - 1)}
+      >
+        {t('common.previous')}
+      </Button>
+      <span><strong>{page}</strong> / {pageCount} · {total}</span>
+      <Button
+        size="sm"
+        variant="ghost"
+        data-direction="next"
+        disabled={page >= pageCount}
+        onClick={() => onPageChange(page + 1)}
+      >
+        {t('common.next')}
+      </Button>
+    </nav>
+  );
+}
+
 export function ActivityPage() {
   const { t } = useI18n();
   const [items, setItems] = useState<ActivityItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState({ total: 0, active: 0, failed: 0, completed: 0 });
+  const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const serverQuery = useDeferredValue(query.trim());
   const [kind, setKind] = useState<ActivityKind | ''>('');
   const [state, setState] = useState<ActivityStateFilter>('');
   const [loading, setLoading] = useState(true);
@@ -258,18 +305,30 @@ export function ActivityPage() {
     let timer: number | undefined;
     let disposed = false;
     const load = async (quiet: boolean) => {
-      if (!quiet) setLoading(true);
+      if (!quiet) {
+        setLoading(true);
+        setItems([]);
+        setSelectedId(null);
+      }
       try {
-        const response = await commands.listActivities(controller.signal);
+        const response = await commands.listActivities({
+          page,
+          page_size: ACTIVITY_PAGE_SIZE,
+          ...(serverQuery ? { search: serverQuery } : {}),
+          ...(kind ? { kind } : {}),
+          ...(state ? { state } : {}),
+        }, controller.signal);
         if (disposed) return;
         setItems(response.items);
+        setTotal(response.total);
+        setSummary(response.summary);
         setSelectedId((current) => (
           current && response.items.some((item) => item.id === current)
             ? current
             : response.items[0]?.id ?? null
         ));
         setError(null);
-        if (response.items.some(isActivityActive)) {
+        if (response.summary.active > 0) {
           timer = window.setTimeout(() => void load(true), 1_500);
         }
       } catch (cause) {
@@ -284,23 +343,14 @@ export function ActivityPage() {
       controller.abort();
       if (timer !== undefined) window.clearTimeout(timer);
     };
-  }, [revision]);
+  }, [kind, page, revision, serverQuery, state]);
 
-  const visible = useMemo(
-    () => filterActivities(items, { query, kind, state }),
-    [items, kind, query, state],
-  );
-  const counts = useMemo(() => ({
-    total: items.length,
-    active: items.filter(isActivityActive).length,
-    failed: items.filter((item) => item.status === 'failed').length,
-    completed: items.filter((item) => item.status === 'completed').length,
-  }), [items]);
+  const pageCount = Math.max(1, Math.ceil(total / ACTIVITY_PAGE_SIZE));
 
   useEffect(() => {
-    if (selectedId && visible.some((item) => item.id === selectedId)) return;
-    setSelectedId(visible[0]?.id ?? null);
-  }, [selectedId, visible]);
+    if (page <= pageCount) return;
+    setPage(pageCount);
+  }, [page, pageCount]);
 
   const runAction = useCallback(async (item: ActivityItem, action: ActivityAction) => {
     if (busyId !== null) return;
@@ -341,28 +391,42 @@ export function ActivityPage() {
       {notice ? <Notice tone="success">{notice}</Notice> : null}
 
       <div className="activity-summary" aria-label={t('activity.title')}>
-        <span><strong>{counts.total}</strong>{t('activity.total')}</span>
-        <span><strong>{counts.active}</strong>{t('activity.active')}</span>
-        <span><strong>{counts.failed}</strong>{t('activity.failed')}</span>
-        <span><strong>{counts.completed}</strong>{t('activity.completed')}</span>
+        <span><strong>{summary.total}</strong>{t('activity.total')}</span>
+        <span><strong>{summary.active}</strong>{t('activity.active')}</span>
+        <span><strong>{summary.failed}</strong>{t('activity.failed')}</span>
+        <span><strong>{summary.completed}</strong>{t('activity.completed')}</span>
       </div>
 
       <Card className="activity-toolbar">
         <label className="activity-search">
           <Search size={14} />
           <span className="sr-only">{t('activity.search')}</span>
-          <input value={query} placeholder={t('activity.search')} onChange={(event) => setQuery(event.target.value)} />
+          <input
+            value={query}
+            maxLength={128}
+            placeholder={t('activity.search')}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+          />
         </label>
         <label>
           <span>{t('activity.kind')}</span>
-          <select value={kind} onChange={(event) => setKind(event.target.value as ActivityKind | '')}>
+          <select value={kind} onChange={(event) => {
+            setKind(event.target.value as ActivityKind | '');
+            setPage(1);
+          }}>
             <option value="">{t('activity.all')}</option>
             {(Object.keys(kindKeys) as ActivityKind[]).map((value) => <option key={value} value={value}>{t(kindKeys[value])}</option>)}
           </select>
         </label>
         <label>
           <span>{t('activity.state')}</span>
-          <select value={state} onChange={(event) => setState(event.target.value as ActivityStateFilter)}>
+          <select value={state} onChange={(event) => {
+            setState(event.target.value as ActivityStateFilter);
+            setPage(1);
+          }}>
             <option value="">{t('activity.all')}</option>
             <option value="active">{t('activity.active')}</option>
             <option value="failed">{t('activity.failed')}</option>
@@ -371,11 +435,20 @@ export function ActivityPage() {
         </label>
       </Card>
 
+      {total > 0 ? (
+        <ActivityPagination
+          page={page}
+          pageSize={ACTIVITY_PAGE_SIZE}
+          total={total}
+          onPageChange={setPage}
+        />
+      ) : null}
+
       {loading && items.length === 0 ? (
         <Card className="activity-loading"><Spinner label={t('activity.loading')} /><span>{t('activity.loading')}</span></Card>
       ) : (
         <ActivityWorkspace
-          items={visible}
+          items={items}
           selectedId={selectedId}
           busyId={busyId}
           onSelect={setSelectedId}

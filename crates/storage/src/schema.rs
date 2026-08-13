@@ -176,6 +176,19 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (demo_id) REFERENCES analyses(demo_id) ON DELETE CASCADE
     );
 
+    CREATE TABLE evidence_annotations (
+        id TEXT PRIMARY KEY NOT NULL,
+        demo_id TEXT NOT NULL,
+        evidence_id TEXT NOT NULL,
+        round INTEGER NOT NULL CHECK(round >= 1),
+        tick INTEGER NOT NULL CHECK(tick >= 0),
+        review_state TEXT NOT NULL CHECK(review_state IN ('open', 'resolved')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX demos_status_idx ON demos(status);
     CREATE INDEX demos_map_idx ON demos(map_name);
     CREATE INDEX demos_updated_idx ON demos(updated_at DESC);
@@ -200,6 +213,10 @@ const CURRENT_SCHEMA: &str = r"
     CREATE INDEX evidence_search_map_idx ON evidence_search_items(map_key);
     CREATE INDEX evidence_search_victim_idx
         ON evidence_search_victims(victim_id_key, victim_name_key);
+    CREATE INDEX evidence_annotations_evidence_idx
+        ON evidence_annotations(evidence_id, updated_at DESC);
+    CREATE INDEX evidence_annotations_demo_idx
+        ON evidence_annotations(demo_id, updated_at DESC);
 ";
 
 pub(crate) fn configure(connection: &Connection) -> Result<()> {

@@ -1,4 +1,5 @@
 mod activity;
+mod annotations;
 mod cosmetics;
 mod demos;
 mod evidence;
@@ -24,6 +25,7 @@ use crate::{ApiError, AppState};
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .merge(activity::router())
+        .merge(annotations::router())
         .merge(system::router())
         .merge(cosmetics::router())
         .merge(demos::router())

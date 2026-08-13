@@ -152,6 +152,30 @@ describe('desktop command client', () => {
     });
   });
 
+  it('persists annotations against an exact canonical evidence locator', async () => {
+    invokeMock.mockResolvedValue({ id: 'annotation-1' });
+
+    await commands.createEvidenceAnnotation({
+      demo_id: 'demo-1',
+      evidence_id: 'demo:demo-1/event:kill-7',
+      round: 7,
+      tick: 42_000,
+      body: 'Hold the crossfire',
+      tags: ['retake'],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'post',
+        path: '/evidence/annotations',
+        body: {
+          demo_id: 'demo-1', evidence_id: 'demo:demo-1/event:kill-7',
+          round: 7, tick: 42_000, body: 'Hold the crossfire', tags: ['retake'],
+        },
+      },
+    });
+  });
+
   it('restores persisted active Match History downloads through the local dispatcher', async () => {
     invokeMock.mockResolvedValue([]);
 
@@ -163,12 +187,20 @@ describe('desktop command client', () => {
   });
 
   it('reads the persisted cross-workflow activity projection through one local request', async () => {
-    invokeMock.mockResolvedValue({ items: [] });
+    invokeMock.mockResolvedValue({
+      items: [], total: 0, page: 2, page_size: 25,
+      summary: { total: 0, active: 0, failed: 0, completed: 0 },
+    });
 
-    await commands.listActivities();
+    await commands.listActivities({
+      search: 'FalleN', kind: 'recording', state: 'active', page: 2, page_size: 25,
+    });
 
     expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
-      call: { method: 'get', path: '/activities' },
+      call: {
+        method: 'get',
+        path: '/activities?search=FalleN&kind=recording&state=active&page=2&page_size=25',
+      },
     });
   });
 

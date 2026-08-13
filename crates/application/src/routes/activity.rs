@@ -1,13 +1,16 @@
 use axum::{Json, Router, extract::State, routing::get};
 use chrono::{DateTime, Utc};
-use serde::Serialize;
-use std::cmp::Reverse;
+use serde::{Deserialize, Serialize};
 use vibe_cs_domain::{
     DemoRecord, DemoStatus, JobStatus, MatchDownloadJob, MatchDownloadStatus, RecordingJob,
 };
 use vibe_cs_storage::ExportJobRecord;
 
-use crate::{ApiResult, AppState};
+use crate::{ApiError, ApiQuery, ApiResult, AppState};
+
+const DEFAULT_PAGE_SIZE: u32 = 50;
+const MAXIMUM_PAGE_SIZE: u32 = 100;
+const MAXIMUM_PAGE: u32 = 10_000;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new().route("/api/activities", get(list_activities))
@@ -16,6 +19,45 @@ pub(crate) fn router() -> Router<AppState> {
 #[derive(Debug, Serialize)]
 struct ActivityFeed {
     items: Vec<ActivityItem>,
+    total: u64,
+    page: u32,
+    page_size: u32,
+    summary: ActivitySummary,
+}
+
+#[derive(Debug, Serialize)]
+struct ActivitySummary {
+    total: u64,
+    active: u64,
+    failed: u64,
+    completed: u64,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ActivityQuery {
+    search: Option<String>,
+    kind: Option<ActivityKindFilter>,
+    state: Option<ActivityStateFilter>,
+    page: Option<u32>,
+    page_size: Option<u32>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum ActivityKindFilter {
+    Recording,
+    Export,
+    Download,
+    Analysis,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum ActivityStateFilter {
+    Active,
+    Failed,
+    Completed,
 }
 
 #[derive(Debug, Serialize)]
@@ -38,7 +80,13 @@ struct ActivityItem {
     available_actions: Vec<&'static str>,
 }
 
-async fn list_activities(State(state): State<AppState>) -> ApiResult<Json<ActivityFeed>> {
+async fn list_activities(
+    State(state): State<AppState>,
+    ApiQuery(query): ApiQuery<ActivityQuery>,
+) -> ApiResult<Json<ActivityFeed>> {
+    let page = query.page.unwrap_or(1);
+    let page_size = query.page_size.unwrap_or(DEFAULT_PAGE_SIZE);
+    validate_activity_query(&query, page, page_size)?;
     let mut items = state
         .storage
         .list_recording_jobs()
@@ -70,8 +118,121 @@ async fn list_activities(State(state): State<AppState>) -> ApiResult<Json<Activi
             .into_iter()
             .map(analysis_activity),
     );
-    items.sort_by_key(|item| Reverse(item.updated_at));
-    Ok(Json(ActivityFeed { items }))
+    items.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    let summary = ActivitySummary {
+        total: u64::try_from(items.len()).unwrap_or(u64::MAX),
+        active: count_items(&items, |item| !is_terminal_activity(item.status)),
+        failed: count_items(&items, |item| item.status == "failed"),
+        completed: count_items(&items, |item| item.status == "completed"),
+    };
+    items.retain(|item| query.matches(item));
+    let total = u64::try_from(items.len()).unwrap_or(u64::MAX);
+    let offset_u64 = u64::from(page.saturating_sub(1)) * u64::from(page_size);
+    let offset = usize::try_from(offset_u64).unwrap_or(usize::MAX);
+    let items = items
+        .into_iter()
+        .skip(offset)
+        .take(usize::try_from(page_size).unwrap_or(usize::MAX))
+        .collect();
+    Ok(Json(ActivityFeed {
+        items,
+        total,
+        page,
+        page_size,
+        summary,
+    }))
+}
+
+fn validate_activity_query(query: &ActivityQuery, page: u32, page_size: u32) -> ApiResult<()> {
+    if !(1..=MAXIMUM_PAGE).contains(&page) {
+        return Err(ApiError::invalid(format!(
+            "activity page must be between 1 and {MAXIMUM_PAGE}"
+        )));
+    }
+    if !(1..=MAXIMUM_PAGE_SIZE).contains(&page_size) {
+        return Err(ApiError::invalid(format!(
+            "activity page_size must be between 1 and {MAXIMUM_PAGE_SIZE}"
+        )));
+    }
+    if query
+        .search
+        .as_deref()
+        .is_some_and(|search| search.chars().count() > 128)
+    {
+        return Err(ApiError::invalid(
+            "activity search must contain at most 128 characters",
+        ));
+    }
+    Ok(())
+}
+
+impl ActivityQuery {
+    fn matches(&self, item: &ActivityItem) -> bool {
+        if self.kind.is_some_and(|kind| !kind.matches(item.kind)) {
+            return false;
+        }
+        if self.state.is_some_and(|state| !state.matches(item.status)) {
+            return false;
+        }
+        let Some(search) = self
+            .search
+            .as_deref()
+            .map(str::trim)
+            .filter(|search| !search.is_empty())
+        else {
+            return true;
+        };
+        let search = search.to_lowercase();
+        [
+            Some(item.id.as_str()),
+            Some(item.kind),
+            item.subtype.as_deref(),
+            item.job_id.as_deref(),
+            item.context_id.as_deref(),
+            item.subject.as_deref(),
+            Some(item.status),
+            item.stage.as_deref(),
+            item.error.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .any(|value| value.to_lowercase().contains(&search))
+    }
+}
+
+impl ActivityKindFilter {
+    fn matches(self, kind: &str) -> bool {
+        matches!(
+            (self, kind),
+            (Self::Recording, "recording")
+                | (Self::Export, "export")
+                | (Self::Download, "download")
+                | (Self::Analysis, "analysis")
+        )
+    }
+}
+
+impl ActivityStateFilter {
+    fn matches(self, status: &str) -> bool {
+        match self {
+            Self::Active => !is_terminal_activity(status),
+            Self::Failed => status == "failed",
+            Self::Completed => status == "completed",
+        }
+    }
+}
+
+fn count_items(items: &[ActivityItem], predicate: impl Fn(&ActivityItem) -> bool) -> u64 {
+    u64::try_from(items.iter().filter(|item| predicate(item)).count()).unwrap_or(u64::MAX)
+}
+
+fn is_terminal_activity(status: &str) -> bool {
+    matches!(status, "completed" | "failed" | "cancelled")
 }
 
 fn recording_activity(job: &RecordingJob) -> ActivityItem {

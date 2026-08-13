@@ -339,6 +339,111 @@
   font: 600 10px/1 var(--font-mono);
 }
 
+.evidence-annotations {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.evidence-annotations__composer {
+  display: grid;
+  padding: 12px;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.evidence-annotations__composer label {
+  display: grid;
+  gap: 5px;
+}
+
+.evidence-annotations__composer label > span {
+  color: var(--muted);
+  font: 700 9px/1 var(--font-mono);
+  letter-spacing: .04em;
+}
+
+.evidence-annotations__composer textarea,
+.evidence-annotations__composer input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-1);
+}
+
+.evidence-annotations__composer textarea {
+  min-height: 104px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.evidence-annotations__composer .button {
+  justify-self: end;
+}
+
+.evidence-annotations__loading {
+  display: flex;
+  min-height: 110px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.evidence-annotations__list {
+  display: grid;
+  gap: 8px;
+}
+
+.evidence-annotations__list article {
+  display: grid;
+  padding: 11px;
+  gap: 9px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--orange);
+  border-radius: 8px;
+  background: var(--surface-1);
+}
+
+.evidence-annotations__list article[data-review-state='resolved'] {
+  border-left-color: var(--green);
+}
+
+.evidence-annotations__list header,
+.evidence-annotations__list footer,
+.evidence-annotations__list article > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.evidence-annotations__list header {
+  justify-content: space-between;
+}
+
+.evidence-annotations__list time {
+  color: var(--muted);
+  font: 600 9px/1 var(--font-mono);
+}
+
+.evidence-annotations__list p {
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.evidence-annotations__list footer {
+  justify-content: flex-end;
+  padding-top: 7px;
+  border-top: 1px solid var(--border);
+}
+
 @media (max-width: 900px) {
   .page.page--evidence-search {
     height: auto;

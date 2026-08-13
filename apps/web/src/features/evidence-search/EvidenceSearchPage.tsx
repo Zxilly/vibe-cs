@@ -6,6 +6,7 @@ import {
   Database,
   Filter,
   Map as MapIcon,
+  MessageSquareText,
   Play,
   RotateCcw,
   Search,
@@ -31,6 +32,7 @@ import {
   evidenceSearchResultHref,
   visibleEvidenceAttributes,
 } from './evidenceSearchPresentation';
+import { EvidenceAnnotationPanel } from './EvidenceAnnotationPanel';
 import './EvidenceSearchPage.css';
 
 type SearchState =
@@ -107,6 +109,7 @@ export function EvidenceSearchPage() {
   }, [parameterKey]);
   const [draft, setDraft] = useState<SearchDraft>(() => draftFromQuery(activeQuery));
   const [state, setState] = useState<SearchState>({ status: 'loading', response: null, error: null });
+  const [annotationItem, setAnnotationItem] = useState<EvidenceSearchItem | null>(null);
   const watchAction = useAsyncAction<unknown>();
   const runtimeBusy = useRuntimeStore((runtime) => runtime.session !== 'idle');
 
@@ -215,7 +218,7 @@ export function EvidenceSearchPage() {
                     <div className="evidence-search-row__match" role="cell"><strong>{item.demo_display_name}</strong><span><MapIcon size={11} />{item.map_name.replace('de_', '').toLocaleUpperCase()}</span><small><CalendarDays size={11} />{formatDate(item.match_date)}</small></div>
                     <div className="evidence-search-row__tick" role="cell"><strong>R{item.round}</strong><span>tick {item.tick.toLocaleString(locale)}</span>{item.end_tick > item.tick ? <small>→ {item.end_tick.toLocaleString(locale)}</small> : null}</div>
                     <div className="evidence-search-row__attributes" role="cell">{attributes.length > 0 ? attributes.map((attribute) => <Badge key={attribute} tone="neutral">{t(attribute === 'headshot' ? 'evidenceSearch.headshotAttribute' : 'evidenceSearch.penetratedAttribute')}</Badge>) : <span>—</span>}</div>
-                    <div className="evidence-search-row__actions" role="cell"><Button size="sm" variant="ghost" disabled={runtimeBusy || watchAction.state.status === 'loading'} onClick={() => watch(item)}><Play size={13} /><span>{t('evidenceSearch.watch')}</span></Button><Link className="button button--secondary button--sm" to={evidenceSearchResultHref(item, 'rounds')}><Target size={13} /><span>{t('evidenceSearch.openRound')}</span></Link><Link className="button button--secondary button--sm" to={evidenceSearchResultHref(item, 'replay')}><MapIcon size={13} /><span>{t('evidenceSearch.openReplay')}</span></Link></div>
+                    <div className="evidence-search-row__actions" role="cell"><Button size="sm" variant="ghost" onClick={() => setAnnotationItem(item)}><MessageSquareText size={13} /><span>{t('evidenceSearch.annotations')}</span></Button><Button size="sm" variant="ghost" disabled={runtimeBusy || watchAction.state.status === 'loading'} onClick={() => watch(item)}><Play size={13} /><span>{t('evidenceSearch.watch')}</span></Button><Link className="button button--secondary button--sm" to={evidenceSearchResultHref(item, 'rounds')}><Target size={13} /><span>{t('evidenceSearch.openRound')}</span></Link><Link className="button button--secondary button--sm" to={evidenceSearchResultHref(item, 'replay')}><MapIcon size={13} /><span>{t('evidenceSearch.openReplay')}</span></Link></div>
                   </article>
                 );
               })}
@@ -224,6 +227,7 @@ export function EvidenceSearchPage() {
           {state.status === 'ready' && response && response.total > 0 ? <footer className="evidence-search-pagination"><Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => goToPage(page - 1)}><ChevronLeft size={14} />{t('evidenceSearch.previous')}</Button><span>{t('evidenceSearch.page')} <strong>{page}</strong> / {pageCount}</span><Button variant="ghost" size="sm" disabled={page >= pageCount} onClick={() => goToPage(page + 1)}>{t('evidenceSearch.next')}<ChevronRight size={14} /></Button></footer> : null}
         </section>
       </div>
+      {annotationItem ? <EvidenceAnnotationPanel item={annotationItem} onClose={() => setAnnotationItem(null)} /> : null}
     </div>
   );
 }

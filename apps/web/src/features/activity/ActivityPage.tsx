@@ -61,6 +61,7 @@ const statusKeys: Record<ActivityStatus, MessageKey> = {
 const actionKeys: Record<ActivityAction, MessageKey> = {
   cancel: 'activity.cancel',
   retry_analysis: 'activity.retryAnalysis',
+  retry_download: 'activity.retryDownload',
   open_analysis: 'activity.openAnalysis',
   open_library: 'activity.openLibrary',
   open_match_history: 'activity.openHistory',
@@ -94,8 +95,25 @@ function kindIcon(kind: ActivityKind) {
 
 function actionIcon(action: ActivityAction) {
   if (action === 'cancel') return <StopCircle size={13} />;
-  if (action === 'retry_analysis') return <RotateCcw size={13} />;
+  if (action === 'retry_analysis' || action === 'retry_download') return <RotateCcw size={13} />;
   return <ExternalLink size={13} />;
+}
+
+export async function executeActivityAction(
+  item: ActivityItem,
+  action: ActivityAction,
+): Promise<ActivityStatus | null> {
+  if (action === 'cancel' && item.job_id) {
+    if (item.kind === 'recording') await commands.cancelRecordingJob(item.job_id);
+    else if (item.kind === 'export') await commands.cancelExportJob(item.job_id);
+    else if (item.kind === 'download') await commands.cancelMatchDownload(item.job_id);
+  } else if (action === 'retry_analysis' && item.context_id) {
+    await commands.analyzeDemo(item.context_id);
+  } else if (action === 'retry_download' && item.context_id) {
+    const job = await commands.downloadMatchDemo(item.context_id);
+    return job.status;
+  }
+  return null;
 }
 
 export function ActivityWorkspace({
@@ -358,14 +376,8 @@ export function ActivityPage() {
     setError(null);
     setNotice(null);
     try {
-      if (action === 'cancel' && item.job_id) {
-        if (item.kind === 'recording') await commands.cancelRecordingJob(item.job_id);
-        else if (item.kind === 'export') await commands.cancelExportJob(item.job_id);
-        else if (item.kind === 'download') await commands.cancelMatchDownload(item.job_id);
-      } else if (action === 'retry_analysis' && item.context_id) {
-        await commands.analyzeDemo(item.context_id);
-      }
-      setNotice(t('activity.actionSucceeded'));
+      const persistedStatus = await executeActivityAction(item, action);
+      setNotice(persistedStatus ? t(statusKeys[persistedStatus]) : t('activity.actionSucceeded'));
       setRevision((current) => current + 1);
     } catch (cause) {
       setError(readableError(cause));

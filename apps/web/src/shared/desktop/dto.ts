@@ -857,6 +857,7 @@ export type ActivityStatus =
 export type ActivityAction =
   | 'cancel'
   | 'retry_analysis'
+  | 'retry_download'
   | 'open_analysis'
   | 'open_library'
   | 'open_match_history'

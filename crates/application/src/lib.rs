@@ -1190,6 +1190,483 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn activity_feed_exposes_a_real_retry_for_failed_downloads() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let job_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_steam_matches(vec![SteamMatchRecord {
+                id: "76561198000000000:failed".to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "failed".to_owned(),
+                outcome_id: "failed-outcome".to_owned(),
+                token: 42,
+                map_name: Some("de_anubis".to_owned()),
+                played_at: Some(now),
+                score: Some("10:13".to_owned()),
+                result: MatchHistoryResult::Loss,
+                demo_status: MatchDemoStatus::Failed,
+                demo_id: None,
+                last_error: Some("download ticket expired".to_owned()),
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("persist match record");
+        storage
+            .put_match_download_job(MatchDownloadJob {
+                id: job_id,
+                match_record_id: "76561198000000000:failed".to_owned(),
+                status: MatchDownloadStatus::Failed,
+                downloaded_bytes: 4_096,
+                total_bytes: Some(8_192),
+                progress: 0.5,
+                demo_id: None,
+                error: Some("download ticket expired".to_owned()),
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist failed download job");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(payload["items"][0]["id"], format!("download:{job_id}"));
+        assert_eq!(payload["items"][0]["status"], "failed");
+        assert_eq!(payload["items"][0]["error"], "download ticket expired");
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["retry_download", "open_match_history"])
+        );
+    }
+
+    #[tokio::test]
+    async fn activity_feed_does_not_offer_retry_on_an_old_failure_while_a_newer_download_is_active()
+    {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let failed_job_id = Uuid::new_v4();
+        let active_job_id = Uuid::new_v4();
+        let now = Utc::now();
+        let match_record_id = "76561198000000000:retrying";
+        storage
+            .put_steam_matches(vec![SteamMatchRecord {
+                id: match_record_id.to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "retrying".to_owned(),
+                outcome_id: "retrying-outcome".to_owned(),
+                token: 44,
+                map_name: Some("de_nuke".to_owned()),
+                played_at: Some(now),
+                score: Some("13:11".to_owned()),
+                result: MatchHistoryResult::Win,
+                demo_status: MatchDemoStatus::Downloading,
+                demo_id: None,
+                last_error: None,
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("persist match record");
+        for job in [
+            MatchDownloadJob {
+                id: failed_job_id,
+                match_record_id: match_record_id.to_owned(),
+                status: MatchDownloadStatus::Failed,
+                downloaded_bytes: 1_024,
+                total_bytes: Some(8_192),
+                progress: 0.125,
+                demo_id: None,
+                error: Some("first ticket expired".to_owned()),
+                created_at: now - chrono::Duration::seconds(2),
+                updated_at: now - chrono::Duration::seconds(2),
+            },
+            MatchDownloadJob {
+                id: active_job_id,
+                match_record_id: match_record_id.to_owned(),
+                status: MatchDownloadStatus::Downloading,
+                downloaded_bytes: 2_048,
+                total_bytes: Some(8_192),
+                progress: 0.25,
+                demo_id: None,
+                error: None,
+                created_at: now,
+                updated_at: now,
+            },
+        ] {
+            storage
+                .put_match_download_job(job)
+                .await
+                .expect("persist download job");
+        }
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities?kind=download")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(
+            payload["items"][0]["id"],
+            format!("download:{active_job_id}")
+        );
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["cancel", "open_match_history"])
+        );
+        assert_eq!(
+            payload["items"][1]["id"],
+            format!("download:{failed_job_id}")
+        );
+        assert_eq!(
+            payload["items"][1]["available_actions"],
+            serde_json::json!(["open_match_history"])
+        );
+    }
+
+    #[tokio::test]
+    async fn activity_feed_does_not_offer_retry_when_the_match_already_has_a_downloaded_demo() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let failed_job_id = Uuid::new_v4();
+        let demo_id = Uuid::new_v4();
+        let now = Utc::now();
+        let match_record_id = "76561198000000000:downloaded";
+        storage
+            .put_demo(DemoRecord {
+                id: demo_id,
+                path: "C:/matches/downloaded.dem".to_owned(),
+                file_name: "downloaded.dem".to_owned(),
+                display_name: "Downloaded match".to_owned(),
+                source: "steam".to_owned(),
+                status: DemoStatus::Ready,
+                map_name: Some("de_train".to_owned()),
+                match_date: Some(now),
+                duration_seconds: None,
+                total_rounds: None,
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: vec![],
+                remark: String::new(),
+                content_sha256: Some("cd".repeat(32)),
+                file_size: 8_192,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist downloaded demo");
+        storage
+            .put_steam_matches(vec![SteamMatchRecord {
+                id: match_record_id.to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "downloaded".to_owned(),
+                outcome_id: "downloaded-outcome".to_owned(),
+                token: 45,
+                map_name: Some("de_train".to_owned()),
+                played_at: Some(now),
+                score: Some("13:7".to_owned()),
+                result: MatchHistoryResult::Win,
+                demo_status: MatchDemoStatus::Downloaded,
+                demo_id: Some(demo_id),
+                last_error: None,
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("persist downloaded match record");
+        storage
+            .put_match_download_job(MatchDownloadJob {
+                id: failed_job_id,
+                match_record_id: match_record_id.to_owned(),
+                status: MatchDownloadStatus::Failed,
+                downloaded_bytes: 4_096,
+                total_bytes: Some(8_192),
+                progress: 0.5,
+                demo_id: None,
+                error: Some("stale failed attempt".to_owned()),
+                created_at: now - chrono::Duration::seconds(1),
+                updated_at: now - chrono::Duration::seconds(1),
+            })
+            .await
+            .expect("persist stale failed job");
+        let dispatcher = build_dispatcher(AppState::new(
+            storage.clone(),
+            directory.path().to_path_buf(),
+        ));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities?kind=download")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(
+            payload["items"][0]["id"],
+            format!("download:{failed_job_id}")
+        );
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["open_match_history"])
+        );
+
+        let completed_job_id = Uuid::new_v4();
+        storage
+            .put_match_download_job(MatchDownloadJob {
+                id: completed_job_id,
+                match_record_id: match_record_id.to_owned(),
+                status: MatchDownloadStatus::Completed,
+                downloaded_bytes: 8_192,
+                total_bytes: Some(8_192),
+                progress: 1.0,
+                demo_id: Some(demo_id),
+                error: None,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist newer completed job");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities?kind=download")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(
+            payload["items"][0]["id"],
+            format!("download:{completed_job_id}")
+        );
+        assert_eq!(
+            payload["items"][1]["id"],
+            format!("download:{failed_job_id}")
+        );
+        assert_eq!(
+            payload["items"][1]["available_actions"],
+            serde_json::json!(["open_match_history"])
+        );
+    }
+
+    #[tokio::test]
+    async fn activity_feed_offers_retry_only_on_one_stably_selected_latest_terminal_attempt() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let selected_job_id =
+            Uuid::parse_str("00000000-0000-0000-0000-000000000001").expect("selected job id");
+        let tied_job_id =
+            Uuid::parse_str("00000000-0000-0000-0000-000000000002").expect("tied job id");
+        let old_job_id =
+            Uuid::parse_str("00000000-0000-0000-0000-000000000003").expect("old job id");
+        let now = Utc::now();
+        let match_record_id = "76561198000000000:repeated";
+        storage
+            .put_steam_matches(vec![SteamMatchRecord {
+                id: match_record_id.to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "repeated".to_owned(),
+                outcome_id: "repeated-outcome".to_owned(),
+                token: 46,
+                map_name: Some("de_overpass".to_owned()),
+                played_at: Some(now),
+                score: Some("11:13".to_owned()),
+                result: MatchHistoryResult::Loss,
+                demo_status: MatchDemoStatus::Failed,
+                demo_id: None,
+                last_error: Some("latest terminal attempt failed".to_owned()),
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("persist match record");
+        for job in [
+            MatchDownloadJob {
+                id: old_job_id,
+                match_record_id: match_record_id.to_owned(),
+                status: MatchDownloadStatus::Failed,
+                downloaded_bytes: 0,
+                total_bytes: None,
+                progress: 0.0,
+                demo_id: None,
+                error: Some("old failure".to_owned()),
+                created_at: now - chrono::Duration::seconds(3),
+                updated_at: now - chrono::Duration::seconds(3),
+            },
+            MatchDownloadJob {
+                id: tied_job_id,
+                match_record_id: match_record_id.to_owned(),
+                status: MatchDownloadStatus::Cancelled,
+                downloaded_bytes: 0,
+                total_bytes: None,
+                progress: 0.0,
+                demo_id: None,
+                error: None,
+                created_at: now - chrono::Duration::seconds(2),
+                updated_at: now - chrono::Duration::seconds(1),
+            },
+            MatchDownloadJob {
+                id: selected_job_id,
+                match_record_id: match_record_id.to_owned(),
+                status: MatchDownloadStatus::Failed,
+                downloaded_bytes: 1_024,
+                total_bytes: Some(8_192),
+                progress: 0.125,
+                demo_id: None,
+                error: Some("latest failure".to_owned()),
+                created_at: now - chrono::Duration::seconds(1),
+                updated_at: now - chrono::Duration::seconds(1),
+            },
+        ] {
+            storage
+                .put_match_download_job(job)
+                .await
+                .expect("persist terminal download job");
+        }
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities?kind=download")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+        let items = payload["items"].as_array().expect("activity items");
+        let retryable = items
+            .iter()
+            .filter(|item| {
+                item["available_actions"]
+                    .as_array()
+                    .is_some_and(|actions| actions.iter().any(|action| action == "retry_download"))
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(retryable.len(), 1);
+        assert_eq!(retryable[0]["id"], format!("download:{selected_job_id}"));
+        assert_eq!(items[1]["id"], format!("download:{tied_job_id}"));
+        assert_eq!(items[2]["id"], format!("download:{old_job_id}"));
+    }
+
+    #[tokio::test]
+    async fn activity_feed_exposes_a_real_retry_for_cancelled_downloads() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let job_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_steam_matches(vec![SteamMatchRecord {
+                id: "76561198000000000:cancelled".to_owned(),
+                steam_id: "76561198000000000".to_owned(),
+                match_id: "cancelled".to_owned(),
+                outcome_id: "cancelled-outcome".to_owned(),
+                token: 43,
+                map_name: Some("de_inferno".to_owned()),
+                played_at: Some(now),
+                score: Some("8:13".to_owned()),
+                result: MatchHistoryResult::Loss,
+                demo_status: MatchDemoStatus::Available,
+                demo_id: None,
+                last_error: None,
+                synced_at: now,
+                updated_at: now,
+            }])
+            .await
+            .expect("persist match record");
+        storage
+            .put_match_download_job(MatchDownloadJob {
+                id: job_id,
+                match_record_id: "76561198000000000:cancelled".to_owned(),
+                status: MatchDownloadStatus::Cancelled,
+                downloaded_bytes: 0,
+                total_bytes: None,
+                progress: 0.0,
+                demo_id: None,
+                error: None,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist cancelled download job");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let body = to_bytes(response.into_body(), 64 * 1024)
+            .await
+            .expect("response body");
+        let payload: serde_json::Value = serde_json::from_slice(&body).expect("activity payload");
+
+        assert_eq!(payload["items"][0]["id"], format!("download:{job_id}"));
+        assert_eq!(payload["items"][0]["status"], "cancelled");
+        assert_eq!(
+            payload["items"][0]["available_actions"],
+            serde_json::json!(["retry_download", "open_match_history"])
+        );
+    }
+
+    #[tokio::test]
     async fn activity_feed_projects_failed_analysis_without_claiming_a_job_or_error_detail() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()

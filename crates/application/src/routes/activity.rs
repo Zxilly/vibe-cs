@@ -1,8 +1,10 @@
 use axum::{Json, Router, extract::State, routing::get};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use vibe_cs_domain::{
-    DemoRecord, DemoStatus, JobStatus, MatchDownloadJob, MatchDownloadStatus, RecordingJob,
+    DemoRecord, DemoStatus, JobStatus, MatchDemoStatus, MatchDownloadJob, MatchDownloadStatus,
+    RecordingJob,
 };
 use vibe_cs_storage::ExportJobRecord;
 
@@ -102,14 +104,45 @@ async fn list_activities(
             .into_iter()
             .map(export_activity),
     );
-    items.extend(
-        state
+    let mut download_jobs = state.storage.list_match_download_jobs().await?;
+    download_jobs.sort_by(|left, right| {
+        right
+            .updated_at
+            .cmp(&left.updated_at)
+            .then_with(|| left.id.cmp(&right.id))
+    });
+    let active_download_matches = download_jobs
+        .iter()
+        .filter(|job| !job.status.is_terminal())
+        .map(|job| job.match_record_id.clone())
+        .collect::<HashSet<_>>();
+    let mut seen_download_matches = HashSet::new();
+    let mut retryable_download_jobs = HashSet::new();
+    for job in &download_jobs {
+        if !seen_download_matches.insert(job.match_record_id.clone())
+            || active_download_matches.contains(&job.match_record_id)
+            || !matches!(
+                job.status,
+                MatchDownloadStatus::Failed | MatchDownloadStatus::Cancelled
+            )
+        {
+            continue;
+        }
+        let match_is_not_downloaded = state
             .storage
-            .list_match_download_jobs()
+            .get_steam_match(job.match_record_id.clone())
             .await?
-            .into_iter()
-            .map(download_activity),
-    );
+            .is_some_and(|record| {
+                record.demo_id.is_none() && record.demo_status != MatchDemoStatus::Downloaded
+            });
+        if match_is_not_downloaded {
+            retryable_download_jobs.insert(job.id);
+        }
+    }
+    items.extend(download_jobs.into_iter().map(|job| {
+        let retryable = retryable_download_jobs.contains(&job.id);
+        download_activity(job, retryable)
+    }));
     items.extend(
         state
             .storage
@@ -306,10 +339,17 @@ fn export_activity(record: ExportJobRecord) -> ActivityItem {
     }
 }
 
-fn download_activity(job: MatchDownloadJob) -> ActivityItem {
+fn download_activity(job: MatchDownloadJob, retryable: bool) -> ActivityItem {
     let mut available_actions = Vec::with_capacity(2);
     if !job.status.is_terminal() {
         available_actions.push("cancel");
+    } else if retryable
+        && matches!(
+            job.status,
+            MatchDownloadStatus::Failed | MatchDownloadStatus::Cancelled
+        )
+    {
+        available_actions.push("retry_download");
     }
     available_actions.push("open_match_history");
     let progress_percent = job

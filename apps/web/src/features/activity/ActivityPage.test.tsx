@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import { commands } from '../../shared/desktop/client';
 import type { ActivityItem } from '../../shared/desktop/dto';
-import { ActivityPagination, ActivityWorkspace } from './ActivityPage';
+import { ActivityPagination, ActivityWorkspace, executeActivityAction } from './ActivityPage';
 
 const item = (overrides: Partial<ActivityItem>): ActivityItem => ({
   id: 'recording:job-1',
@@ -74,5 +75,76 @@ describe('activity workspace', () => {
     expect(markup).toContain('data-direction="previous"');
     expect(markup).toContain('data-direction="next"');
     expect(markup).not.toContain('disabled=""');
+  });
+
+  it('retries a failed download through the persisted download command', async () => {
+    const failedDownload = item({
+      id: 'download:failed-job',
+      kind: 'download',
+      job_id: 'failed-job',
+      context_id: 'match-record-42',
+      status: 'failed',
+      error: 'download ticket expired',
+      available_actions: ['retry_download'],
+    });
+    const retry = vi.spyOn(commands, 'downloadMatchDemo').mockResolvedValue({
+      id: 'retry-job',
+      match_record_id: 'match-record-42',
+      status: 'queued',
+      downloaded_bytes: 0,
+      total_bytes: null,
+      progress: 0,
+      demo_id: null,
+      error: null,
+      created_at: '2026-08-13T01:02:00Z',
+      updated_at: '2026-08-13T01:02:00Z',
+    });
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <ActivityWorkspace
+          items={[failedDownload]}
+          selectedId={failedDownload.id}
+          busyId={null}
+          onSelect={() => undefined}
+          onAction={() => undefined}
+        />
+      </MemoryRouter>,
+    );
+
+    await executeActivityAction(failedDownload, 'retry_download');
+
+    expect(markup).toContain('data-action="retry_download"');
+    expect(markup).toContain('download ticket expired');
+    expect(retry).toHaveBeenCalledOnce();
+    expect(retry).toHaveBeenCalledWith('match-record-42');
+    retry.mockRestore();
+  });
+
+  it('reports the persisted download state returned by a retry command', async () => {
+    const failedDownload = item({
+      id: 'download:stale-failed-job',
+      kind: 'download',
+      job_id: 'stale-failed-job',
+      context_id: 'match-record-already-downloaded',
+      status: 'failed',
+      available_actions: ['retry_download'],
+    });
+    const retry = vi.spyOn(commands, 'downloadMatchDemo').mockResolvedValue({
+      id: 'existing-completed-job',
+      match_record_id: 'match-record-already-downloaded',
+      status: 'completed',
+      downloaded_bytes: 0,
+      total_bytes: null,
+      progress: 1,
+      demo_id: 'persisted-demo',
+      error: null,
+      created_at: '2026-08-13T01:02:00Z',
+      updated_at: '2026-08-13T01:02:00Z',
+    });
+
+    const returnedStatus = await executeActivityAction(failedDownload, 'retry_download');
+
+    expect(returnedStatus).toBe('completed');
+    retry.mockRestore();
   });
 });

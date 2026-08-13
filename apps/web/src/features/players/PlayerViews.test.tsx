@@ -2,8 +2,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import type { PlayerProfile } from '../../shared/desktop/dto';
-import { PlayerDetailView } from './PlayerViews';
+import type { EvidenceSearchResponse, PlayerProfile } from '../../shared/desktop/dto';
+import { evidenceParticipants, PlayerCrossMatchEvidence, PlayerDetailView } from './PlayerViews';
 
 const profile: PlayerProfile = {
   player: {
@@ -60,6 +60,73 @@ function render(value: PlayerProfile): string {
 }
 
 describe('player detail evidence', () => {
+  it('renders canonical cross-match evidence with exact Round and Replay links', () => {
+    const evidence: EvidenceSearchResponse = {
+      items: [{
+        evidence_id: 'demo:demo-1/event:kill-7',
+        demo_id: 'demo-1',
+        demo_display_name: 'Major Mirage',
+        map_name: 'de_mirage',
+        match_date: '2026-08-10T08:00:00Z',
+        round: 7,
+        tick: 42_000,
+        end_tick: 42_000,
+        event_type: 'kill',
+        actor_id: '76561198000000001',
+        actor_name: 'Local Player',
+        target_id: '76561198000000002',
+        target_name: 'Opponent',
+        weapon: 'ak47',
+        headshot: true,
+        penetrated: false,
+        source_kind: 'event',
+        source_id: 'kill-7',
+        attributes: {},
+        analysis_href: '/analysis?demo=demo-1&tab=rounds&round=7&tick=42000&evidence=demo%3Ademo-1%2Fevent%3Akill-7',
+        replay_href: '/analysis?demo=demo-1&tab=replay&round=7&tick=42000&evidence=demo%3Ademo-1%2Fevent%3Akill-7',
+      }],
+      total: 18,
+      page: 1,
+      page_size: 10,
+      availability: {
+        indexed_items: 120,
+        indexed_demos: 4,
+        total_analyses: 4,
+        scan_complete: false,
+        match_date: { available: true, indexed_items: 120, reason: null },
+        source: { available: true, indexed_items: 120, reason: null },
+      },
+    };
+
+    const markup = renderToStaticMarkup(
+      <MemoryRouter><PlayerCrossMatchEvidence playerId="76561198000000001" evidence={evidence} /></MemoryRouter>,
+    );
+
+    expect(markup).toContain('跨比赛原子证据');
+    expect(markup).toContain('18');
+    expect(markup).toContain('Major Mirage');
+    expect(markup).toContain('Local Player → Opponent');
+    expect(markup).toContain('tab=rounds');
+    expect(markup).toContain('tab=replay');
+    expect(markup).toContain('player=76561198000000001');
+    expect(markup).toContain('demo:demo-1/event:kill-7');
+    expect(markup).toContain('当前结果只覆盖已经扫描完成的分析');
+    expect(markup).toContain('/evidence-search?player=76561198000000001&amp;page=1&amp;page_size=50');
+
+    expect(evidenceParticipants({
+      ...evidence.items[0]!,
+      source_kind: 'highlight',
+      target_id: null,
+      target_name: null,
+      attributes: { victim_ids: ['victim-a', 'victim-b'], victim_names: ['Victim A', null] },
+    }, 'unknown')).toBe('Local Player → Victim A, victim-b');
+    expect(evidenceParticipants({
+      ...evidence.items[0]!,
+      actor_name: null,
+      target_name: null,
+    }, 'unknown')).toBe('76561198000000001 → 76561198000000002');
+  });
+
   it('renders local statistics, recent matches, and only the local avatar route', () => {
     const markup = render(profile);
 

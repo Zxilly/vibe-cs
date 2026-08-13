@@ -1,9 +1,10 @@
-import { currentLocale, msg, msgf } from '../../shared/i18n';
+import { currentLocale, msg, msgf, useI18n } from '../../shared/i18n';
 import {
   CalendarDays,
   ExternalLink,
   Gamepad2,
   ImageOff,
+  ListFilter,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ import type {
   PlayerDirectoryItem,
   PlayerProfile,
   PlayerSteamProfile,
+  EvidenceSearchResponse,
 } from '../../shared/desktop/dto';
 import { Badge, EmptyState, Notice } from '../../shared/ui';
 import {
@@ -27,6 +29,7 @@ import {
   playerKd,
   steamEvidence,
 } from './playerPresentation';
+import { evidenceSearchResultHref } from '../evidence-search/evidenceSearchPresentation';
 
 const dateFormatter = new Intl.DateTimeFormat(currentLocale(), {
   dateStyle: 'medium',
@@ -119,7 +122,98 @@ export function PlayerStatsView({ stats }: { stats: PlayerAggregateStats }) {
   );
 }
 
-export function PlayerDetailView({ profile }: { profile: PlayerProfile }) {
+export function evidenceParticipants(item: EvidenceSearchResponse['items'][number], unknown: string): string {
+  const actor = item.actor_name ?? item.actor_id;
+  const target = item.target_name ?? item.target_id;
+  if (actor && target) return `${actor} → ${target}`;
+  const victimNames = Array.isArray(item.attributes.victim_names) ? item.attributes.victim_names : [];
+  const victimIds = Array.isArray(item.attributes.victim_ids) ? item.attributes.victim_ids : [];
+  const highlightVictims = Array.from({ length: Math.max(victimNames.length, victimIds.length) }, (_, index) => {
+    const name = victimNames[index];
+    const id = victimIds[index];
+    return typeof name === 'string' && name.length > 0
+      ? name
+      : typeof id === 'string' && id.length > 0
+        ? id
+        : null;
+  }).filter((value): value is string => value !== null);
+  if (actor && highlightVictims.length > 0) {
+    return `${actor} → ${highlightVictims.join(', ')}`;
+  }
+  if (actor) return actor;
+  if (target) return target;
+  return unknown;
+}
+
+export function PlayerCrossMatchEvidence({
+  playerId,
+  evidence,
+}: {
+  playerId: string;
+  evidence: EvidenceSearchResponse;
+}) {
+  const { t } = useI18n();
+  const allEvidenceHref = `/evidence-search?${new URLSearchParams({
+    player: playerId,
+    page: '1',
+    page_size: '50',
+  }).toString()}`;
+  return (
+    <section className="player-cross-match-evidence" aria-label={t('players.evidence.title')}>
+      <header>
+        <div><ListFilter size={16} /><strong>{t('players.evidence.title')}</strong></div>
+        <span>{t('players.evidence.scope')
+          .replace('{0}', String(evidence.items.length))
+          .replace('{1}', String(evidence.total))
+          .replace('{2}', String(evidence.availability.indexed_demos))}</span>
+      </header>
+      {evidence.items.length > 0 ? (
+        <div role="list" aria-label={t('players.evidence.title')}>
+          {evidence.items.map((item) => (
+            <article key={item.evidence_id} role="listitem" data-evidence-id={item.evidence_id}>
+              <div>
+                <strong>{evidenceParticipants(item, t('players.evidence.unknownParticipants'))}</strong>
+                <span>{item.demo_display_name} · {item.map_name} · R{item.round} / TICK {item.tick}</span>
+                <small>{item.weapon ?? item.event_type} · {item.evidence_id}</small>
+              </div>
+              <nav aria-label={t('players.evidence.actions').replace('{0}', item.evidence_id)}>
+                <Link to={evidenceSearchResultHref(item, 'rounds', playerId)}>{t('players.evidence.round')}<ExternalLink size={12} /></Link>
+                <Link to={evidenceSearchResultHref(item, 'replay', playerId)}>{t('players.evidence.replay')}<ExternalLink size={12} /></Link>
+              </nav>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icon={<ListFilter size={24} />}
+          title={t('players.evidence.empty')}
+          description={t('players.evidence.emptyDescription')}
+        />
+      )}
+      {!evidence.availability.scan_complete ? (
+        <Notice tone="info">{t('evidenceSearch.scanIncomplete')}</Notice>
+      ) : null}
+      {evidence.total > evidence.items.length ? (
+        <Link className="player-cross-match-evidence__all" to={allEvidenceHref}>
+          {t('players.evidence.openAll')}<ExternalLink size={12} />
+        </Link>
+      ) : null}
+    </section>
+  );
+}
+
+export function PlayerDetailView({
+  profile,
+  evidence = null,
+  evidenceLoading = false,
+  evidenceError = null,
+}: {
+  profile: PlayerProfile;
+  evidence?: EvidenceSearchResponse | null;
+  evidenceLoading?: boolean;
+  evidenceError?: string | null;
+}) {
+  const { t } = useI18n();
   const { player } = profile;
   return (
     <div className="player-detail-view">
@@ -149,6 +243,14 @@ export function PlayerDetailView({ profile }: { profile: PlayerProfile }) {
 
       <PlayerStatsView stats={player.stats} />
       <SteamEvidenceView profile={player.steam} />
+
+      {evidenceLoading ? (
+        <div className="player-cross-match-evidence__loading">{t('players.evidence.loading')}</div>
+      ) : evidenceError ? (
+        <Notice tone="danger">{evidenceError}</Notice>
+      ) : evidence ? (
+        <PlayerCrossMatchEvidence playerId={player.steam_id} evidence={evidence} />
+      ) : null}
 
       <section className="player-recent-matches">
         <header>

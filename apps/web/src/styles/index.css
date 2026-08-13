@@ -5847,6 +5847,117 @@ body {
   scrollbar-gutter: stable;
 }
 
+.player-cross-match-evidence {
+  display: grid;
+  gap: 7px;
+}
+
+.player-cross-match-evidence > header,
+.player-cross-match-evidence > header > div,
+.player-cross-match-evidence nav,
+.player-cross-match-evidence__all {
+  display: flex;
+  align-items: center;
+}
+
+.player-cross-match-evidence > header {
+  justify-content: space-between;
+  padding: 3px 1px 7px;
+  gap: 8px;
+}
+
+.player-cross-match-evidence > header > div {
+  gap: 6px;
+}
+
+.player-cross-match-evidence > header svg,
+.player-cross-match-evidence__all {
+  color: var(--accent);
+}
+
+.player-cross-match-evidence > header strong {
+  font-size: 10px;
+}
+
+.player-cross-match-evidence > header > span,
+.player-cross-match-evidence__loading {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.player-cross-match-evidence > div[role="list"] {
+  display: grid;
+  gap: 5px;
+}
+
+.player-cross-match-evidence article {
+  display: grid;
+  min-width: 0;
+  min-height: 60px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 8px 9px;
+  gap: 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 60px;
+}
+
+.player-cross-match-evidence article > div {
+  min-width: 0;
+}
+
+.player-cross-match-evidence article strong,
+.player-cross-match-evidence article span,
+.player-cross-match-evidence article small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-cross-match-evidence article strong {
+  font-size: 9px;
+}
+
+.player-cross-match-evidence article span {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 8px;
+}
+
+.player-cross-match-evidence article small {
+  margin-top: 4px;
+  color: var(--muted);
+  font: 7px/1.2 var(--font-mono);
+}
+
+.player-cross-match-evidence nav {
+  gap: 7px;
+}
+
+.player-cross-match-evidence nav a,
+.player-cross-match-evidence__all {
+  min-height: 24px;
+  padding: 4px 5px;
+  gap: 4px;
+  border-radius: 5px;
+  color: var(--accent);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.player-cross-match-evidence nav a:focus-visible,
+.player-cross-match-evidence__all:focus-visible {
+  background: var(--accent-soft);
+}
+
+.player-cross-match-evidence__all {
+  justify-self: end;
+}
+
 .player-compare-inspector {
   display: grid;
   padding: 14px;
@@ -5984,5 +6095,13 @@ body {
 
   .player-compare-identities {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .player-cross-match-evidence article {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .player-cross-match-evidence nav {
+    justify-content: flex-start;
   }
 }

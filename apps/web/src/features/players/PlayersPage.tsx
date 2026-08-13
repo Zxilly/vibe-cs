@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { commands, readableError } from '../../shared/desktop/client';
 import type {
   AvatarCacheStatus,
+  EvidenceSearchResponse,
   PlayerDirectoryItem,
   PlayerProfile,
 } from '../../shared/desktop/dto';
@@ -74,6 +75,9 @@ export function PlayersPage() {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [detailState, setDetailState] = useState<LoadState>('idle');
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [playerEvidence, setPlayerEvidence] = useState<EvidenceSearchResponse | null>(null);
+  const [playerEvidenceState, setPlayerEvidenceState] = useState<LoadState>('idle');
+  const [playerEvidenceError, setPlayerEvidenceError] = useState<string | null>(null);
   const [cache, setCache] = useState<AvatarCacheStatus | null>(null);
   const [cacheState, setCacheState] = useState<LoadState>('idle');
   const [cacheError, setCacheError] = useState<string | null>(null);
@@ -82,6 +86,7 @@ export function PlayersPage() {
   const [refreshRevision, setRefreshRevision] = useState(0);
   const listRequestRevision = useRef(0);
   const detailRequestRevision = useRef(0);
+  const evidenceRequestRevision = useRef(0);
   const cacheStatusRequestRevision = useRef(0);
   const cacheMutationRequestRevision = useRef(0);
   const cacheMutationController = useRef<AbortController | null>(null);
@@ -151,6 +156,34 @@ export function PlayersPage() {
   }, [refreshRevision, selectedId]);
 
   useEffect(() => {
+    if (selectedId === null) {
+      setPlayerEvidence(null);
+      setPlayerEvidenceState('idle');
+      setPlayerEvidenceError(null);
+      return undefined;
+    }
+    const controller = new AbortController();
+    const requestRevision = ++evidenceRequestRevision.current;
+    setPlayerEvidence(null);
+    setPlayerEvidenceState('loading');
+    setPlayerEvidenceError(null);
+    void commands.searchEvidence({
+      player: selectedId,
+      page: 1,
+      page_size: 10,
+    }, controller.signal).then((response) => {
+      if (controller.signal.aborted || !isCurrentRequest(evidenceRequestRevision.current, requestRevision)) return;
+      setPlayerEvidence(response);
+      setPlayerEvidenceState('ready');
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted || !isCurrentRequest(evidenceRequestRevision.current, requestRevision)) return;
+      setPlayerEvidenceError(readableError(error));
+      setPlayerEvidenceState('error');
+    });
+    return () => controller.abort();
+  }, [refreshRevision, selectedId]);
+
+  useEffect(() => {
     const controller = new AbortController();
     const requestRevision = ++cacheStatusRequestRevision.current;
     setCacheState('loading');
@@ -174,6 +207,8 @@ export function PlayersPage() {
     setSelectedId(steamId);
     setProfile(null);
     setDetailError(null);
+    setPlayerEvidence(null);
+    setPlayerEvidenceError(null);
   };
 
   const inspectPlayer = (player: PlayerDirectoryItem) => {
@@ -280,7 +315,13 @@ export function PlayersPage() {
           action={<Button size="sm" onClick={refresh}><RefreshCw size={13} />{t('common.retry')}</Button>}
         />
       ) : profileIsCurrent && profile ? (
-        <PlayerDetailView key={profile.player.steam_id} profile={profile} />
+        <PlayerDetailView
+          key={profile.player.steam_id}
+          profile={profile}
+          evidence={playerEvidence}
+          evidenceLoading={playerEvidenceState === 'loading'}
+          evidenceError={playerEvidenceError}
+        />
       ) : (
         <PlayerDetailPlaceholder />
       )}

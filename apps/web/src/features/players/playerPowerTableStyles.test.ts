@@ -22,4 +22,10 @@ describe('players power-table responsive contract', () => {
     expect(pageSource).toContain('!wideInspector && comparedPlayers.length > 0 && !compactInspectorOpen');
     expect(pageSource).toContain('<div className="player-inspector-drawer">{playerInspector}</div>');
   });
+
+  it('keeps cross-match evidence links operable in the narrow inspector', () => {
+    expect(css).toMatch(/\.player-cross-match-evidence nav a,[\s\S]*?min-height:\s*24px[^}]*padding:\s*4px 5px/s);
+    expect(css).toMatch(/\.player-cross-match-evidence nav a:focus-visible,[\s\S]*?background:\s*var\(--accent-soft\)/s);
+    expect(css).toMatch(/@media\s*\(max-width:\s*780px\)[\s\S]*?\.player-cross-match-evidence article\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+  });
 });

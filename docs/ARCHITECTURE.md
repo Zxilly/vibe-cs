@@ -33,8 +33,8 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   evidence-annotation contract binds editable user text, free-form tags and open/resolved state to
   one immutable `demo_id/evidence_id/round/tick` locator.
 - `storage` owns the current SQLite schema, explicit transactions, project snapshots, jobs, library
-  records, durable analysis attempts and their bounded events, evidence projections, canonical
-  evidence annotations and the Activity query over its four authoritative sources. Activity summary,
+  records, durable analysis attempts and their bounded events, evidence and player-match projections,
+  canonical evidence annotations and the Activity query over its four authoritative sources. Activity summary,
   filtered total and page rows come from one SQLite transaction; there is no materialized Activity
   table or compatibility view. An exact Activity read resolves one canonical lowercase
   `<kind>/<uuid>` against only that kind's authoritative source and calculates retryability and result
@@ -93,16 +93,28 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   explicit confirmation, while a non-404 read failure fails the whole preflight. Match History
   similarly owns one exact `q/page/page_size` URL contract; result-set changes reset the page, and an
   asynchronous response is committed only while its request still matches the current URL and has not
-  been cancelled. The player directory builds one cached, bounded catalog from at most 1,000 Demos,
-  then applies server filtering, stable enum-selected sort with a SteamID tie-break, and finally
-  pagination. It reports the scanned count and completeness; sorting one returned page never stands
-  in for the catalog-wide operation. The current-only player comparison route requires two distinct,
-  valid Steam64 IDs that both belong to that catalog and returns them in the requested order; malformed
-  or duplicate IDs are rejected, a missing member returns no partial comparison, and the client rejects
-  an out-of-order response. The UI retains at most two explicit IDs across page, search, sort and layout
-  changes, replacing the oldest ID when a third is selected. If a comparison becomes missing, exact
-  profile reads remove only identities proven absent. This is explicit selection, not select-all or a
-  filtered-set promise, and a one-page catalog does not establish cross-page or multi-match behavior.
+  been cancelled. The player directory reads a persistent SQLite player-match projection instead of
+  scanning or deserializing a bounded Demo catalog in runtime memory. Analysis completion validates
+  unique canonical Steam64 identities and finite non-negative ADR/K/D values, then commits
+  `player_match_items`, `player_match_projection_state`, the result/evidence projections and Demo
+  `ready` state in one transaction. Queries admit only a projection whose recorded analysis timestamp
+  and player-row count still match the authoritative analysis; search, enum-selected stable sort,
+  count and pagination remain at the SQLite boundary. Directory, profile, match-page and comparison
+  responses all expose `projected_demos`, `total_analyses` and `projection_complete`. An absent exact
+  player is `404` only when coverage is complete; incomplete coverage makes absence unavailable rather
+  than turning a partial projection into a false not-found result. A profile returns at most 32 stored
+  aliases while `aliases_total` reports the complete distinct total.
+  Player match dates are read by joining the current Demo row, not copied into the projection:
+  nullable `match_date`/`last_match_date` mean a trusted competition time, while required
+  `cataloged_at`/`last_cataloged_at` mean local catalog time and never substitute for it. Known match
+  dates sort first; catalog time is only a stable fallback among unknown dates, which the UI labels
+  unavailable. The current-only comparison route requires two distinct valid Steam64 IDs, returns
+  them in request order and never returns a partial pair. The strict Player URL owns
+  `q/page/sort/direction/player/compare/matches_page/inspector`; only `inspector=1` means open. Search
+  debounce and server page correction replace history, user selection/paging/sort actions push it,
+  and Reload/Back restore the exact single-player, ordered-pair and compact-drawer state. The UI keeps
+  at most two explicit IDs, replacing the oldest when a third is selected; exact reconciliation removes
+  only identities proven absent. This is explicit selection, not select-all or a filtered-set promise.
   Evidence Search has an exact participant filter that matches an actor, target or indexed highlight
   victim by normalized player ID or name. The Player profile uses that persistent query for a first-ten
   cross-match evidence preview with total/index completeness, Round/Replay links that retain the
@@ -210,6 +222,11 @@ bounds event detail and terminal error to 2,000 characters. Its message-code/sta
 `analyses.producer_run_id` and its completed producer status bind a result to that exact attempt;
 Demo ID alone is not sufficient provenance for the run-result endpoint.
 
+Player-match projection state is also current-only SQLite data. A zero-valid-player analysis still
+writes its projection-state row, so completeness is not inferred from the existence of player rows.
+Replacing or deleting an Analysis removes its player projection through the same transactional or
+foreign-key boundary; no startup scan of serialized Analysis documents is the normal query path.
+
 Evidence annotations also live in SQLite as current-schema records. Their body, tags and review
 state can change without changing the canonical locator. They survive a normal desktop restart,
 are page-queryable with bounded `q`, tag, review-state, Demo and evidence-ID filters, and are removed
@@ -303,6 +320,26 @@ transformed 2,600 modules, and the paired worker remained
 second same-session retry; automatic dismissal when one exact task advances is supported by the new
 deterministic TDD and 24-test focused gate, not claimed as a repeated visual observation.
 
+The later Player projection product gate used exact source
+`1f7397ec857dc592d4e8525fc9ac4bf299d34db7`, fresh identifier
+`app.vibecs.playerprojection-audit`, desktop SHA-256
+`792eca8491d4ae36dfbfcc5ff3c9fed322edd1d72e58e0e7dc1abb85e1bfad01` and worker SHA-256
+`2e99e8e365b7047dcd39eebc305d79e84438ea7d58757e2fb1eed4cb14c87255`.
+`agent-browser` connected directly to the Tauri WebView2 CDP endpoint; Computer Use was not used.
+A fresh product flow discovered and completed Analysis for the real Major M1/M2/M3 files, then showed
+ten directory players with projection coverage `3/3`. FalleN had three exact local match rows and
+aggregate `37/44/17`, ADR `89.1`, damage `5,615`; every source Demo had `match_date=NULL`, so all three
+rows said that the match date was unavailable and separately labelled local catalog time. The gate
+also retained one exact profile and one exact FalleN/NiKo pair across Reload, then used Back to restore
+the closed single-selection bar. Screenshots `01-players-max-profile-top.png`,
+`02-players-max-match-history.png`, `03-players-1100-profile-drawer.png` and
+`04-players-1100-pair-drawer.png` are under
+`target-playerprojection-audit-20260814/visual/screenshots/`; 2560x1392 and 1100x700 had no document
+overflow, and console/page errors were empty. This establishes the current persistent projection,
+truthful unknown-date presentation and URL-owned drawer flow for a three-Demo database. It is not a
+real multi-page/large-library performance result, did not start Watch/CS2/HLAE and did not execute a
+Steam network download.
+
 Recording, export and Steam-download records are persisted and queried through Tauri commands. Cancellation is
 cooperative and job-scoped. A normal lifecycle is:
 
@@ -327,6 +364,25 @@ progress. Before persisting that new job, the runtime revalidates the syntactic 
 requirements and exact account ownership. Missing configuration or a previous account's record is
 rejected without creating a job or mutating the match record; this does not prove that the key is
 accepted by Steam or that a later network request will succeed.
+
+Demo content identity is current-schema, content-addressed truth: every non-null SHA-256 has one
+catalog owner. Upload, local import, Watch discovery and Steam import validate bytes outside the
+SQLite writer transaction, then atomically claim, merge or recover that identity. Replacing bytes for
+one Demo invalidates its Analysis and dependent projections in the same transaction; a same-hash
+duplicate cannot create a second owner. A Steam download claim creates the active job and moves its
+match record to `downloading` in one immediate transaction while capturing any linked Demo identity.
+Import and completion compare that claim-time identity and the verified path/hash/size again, so a
+stale worker cannot overwrite a concurrently restored Demo or its completed Analysis. Job/record
+terminal state commits together, cancellation wins over stale completion, progress is monotonic,
+worker panic is supervised, transient terminal writes remain owned and retry with capped backoff, and
+startup atomically terminalizes orphaned active downloads or fails composition.
+
+Steam match time has a separate trust boundary. The current share-code synchronization supplies
+`played_at=None` and never derives it from sync time, Demo catalog time or download time. Merge keeps
+an existing trusted value and rejects conflicting known values; only an explicitly trusted
+`played_at=Some(...)` may populate a Demo's nullable `match_date`. These content/download/date
+contracts have deterministic storage/runtime coverage, but the Player projection product gate did
+not perform a real Steam network download.
 
 Creating a recording retry is likewise a new durable job, with an immutable `retry_of` link to one
 failed or cancelled parent. The domain accepts only the unpublished suffix whose published prefix,

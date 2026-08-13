@@ -138,6 +138,26 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   team. A repeated target or duplicate same-tick target makes that round unavailable. Its two-by-two
   matrix is first-lead Team A/B by final winner Team A/B. This is a remaining-uneliminated projection,
   not health/alive/disconnect evidence, a win probability, trade, KAST or rating.
+  Objective Review is another deterministic current-analysis projection over the exact producer-bound
+  Analysis document emitted by the existing pinned demoparser worker; it adds no parser field, schema or
+  spatial decoder. It requires stable five-player Team A/B summary rosters, one exact ten-player roster
+  for every uniquely positive-numbered source round, one canonical plant in each published plant round,
+  one unique in-bounds `round_end` at or after that plant, and nonblank event IDs that are globally unique
+  for every published atom. The canonical window is inclusive:
+  `plant.tick <= atom.tick <= round_end.tick`. Atoms sharing a tick are one atomic group; source-ID order
+  makes rendering deterministic but never claims an order within that tick. The planter must be a
+  canonical T-side player, every non-null combat actor and every target must resolve through the exact
+  round roster, a defuse actor must be canonical CT, and an explosion actor is either null or canonical.
+  Any recognized actor, target, terminal or round-winner side alias that is present but null, invalid,
+  internally conflicting or inconsistent with roster truth makes the round unavailable. A terminal
+  event must be unique, inside the plant window and consistent with the verified winner; its absence is
+  presented only as no canonical terminal recorded.
+  Objective Review publishes canonical plant, kill, damage, defuse, explode and distinct actorless
+  `round_end` atoms. Raw site metadata is accepted only as a non-negative safe-integer number or bounded
+  decimal string and is labelled as a raw code, never as bombsite A/B or spatial evidence. Round, Replay,
+  Watch and Production actions are rebuilt from the current source; Add requires a canonical actor, so
+  the `round_end` boundary has no POV action. This projection does not infer retakes, saves, trades, KAST,
+  rating, bomb position or within-tick chronology.
   The Team Round workspace is another deterministic projection. It opens only when two exact
   five-player summary rosters and every exact ten-player round roster prove stable Team A/B identity,
   teammate/opponent sides, an A/B winner and an in-bounds canonical `round_end`. Its 2-by-2 cells are
@@ -339,6 +359,38 @@ overflow, and console/page errors were empty. This establishes the current persi
 truthful unknown-date presentation and URL-owned drawer flow for a three-Demo database. It is not a
 real multi-page/large-library performance result, did not start Watch/CS2/HLAE and did not execute a
 Steam network download.
+
+The later Objective Review product gate used exact source
+`fbc9c6a2c80fb44099bb62eec6b7e7b322afb58d` / tree
+`ef344b8d699c2088f66ff0db2c3f77066437f31b`, fresh identifier
+`app.vibecs.objective-audit`, desktop SHA-256
+`ab3a18edd0993e2d8f1920dea40f9e30f32cf1b9582e01bf5e71c2f82a4f7c29` and worker SHA-256
+`2e99e8e365b7047dcd39eebc305d79e84438ea7d58757e2fb1eed4cb14c87255`.
+The fresh profile used the real product directory watch/discovery path to find all three Major files,
+but analyzed only M1 Mirage. Demo `12f8900f-5ef4-4e50-b338-2f44f0a7dc45` / run
+`03fda7f2-89d5-4578-a4f8-37d8b20b7bbc` completed with an exact producer-bound result. Its Objective
+Review showed 8/8 verified plant rounds, planting-team wins/losses `7/1`,
+defuse/explode/no-canonical-terminal `1/3/4`, 19 kill atoms and 55 damage-event atoms. R6 showed
+molodoy as Team A / T planter at tick 39930, Team B as winner, a canonical defuse and the distinct
+`round_end` at inclusive boundary tick 40691, and raw site code `407` without an A/B interpretation.
+At 2560x1392 the three-column workspace had no overlap or document overflow. At 1100x700 the desktop
+Inspector was hidden, its trigger remained visible, and the same evidence and enabled footer actions
+were available in a 430x700 drawer; all four actions were enabled for the selected plant atom. Console
+and page errors were empty. `agent-browser` connected
+directly to the Tauri WebView2 CDP endpoint; Computer Use was not used.
+
+Accepted screenshots `01-objective-max.png`, `02-objective-1100.png` and
+`03-objective-1100-inspector.png` are under
+`target-objective-audit-20260814/visual/screenshots/`; structured measurements are in
+`target-objective-audit-20260814/visual/evidence.json`. A separate deterministic, environment-gated,
+read-only SQLite audit reconstructed all three persisted Major analyses as 34 verified plant rounds,
+planting-team wins/losses `29/5`, defuse/explode/no-canonical-terminal `5/16/13`, 80 kill atoms and
+247 damage-event atoms. M2 and M3 remained only discovered in the fresh visual profile, so that
+three-map oracle is not presented as fresh-product visual evidence. The product check did not click
+Round, Replay, Watch or Add and did not start CS2 or HLAE. Alias conflicts, out-of-window terminals,
+inclusive same-tick boundaries, exact action recanonicalization and non-plant round selection are
+deterministic TDD facts, not claims derived from the screenshots. Neither gate establishes bombsite
+A/B or spatial meaning, retake/save/trade/KAST/rating semantics, or real playback/capture success.
 
 Recording, export and Steam-download records are persisted and queried through Tauri commands. Cancellation is
 cooperative and job-scoped. A normal lifecycle is:

@@ -134,6 +134,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn player_directory_rejects_missing_or_unknown_current_sort_contract() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        for path in [
+            "/api/players?page=1&page_size=24",
+            "/api/players?page=1&page_size=24&sort=rating&direction=desc",
+            "/api/players?page=1&page_size=24&sort=kills&direction=sideways",
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(path)
+                        .body(Body::empty())
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
+        }
+    }
+
+    #[tokio::test]
     async fn recorded_clip_collection_is_a_runtime_owned_read_model() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()

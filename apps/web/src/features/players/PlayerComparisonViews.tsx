@@ -75,8 +75,8 @@ export function PlayerPowerTable({
             <PlayerSortHeader label={t('players.table.headshots')} sortKey="headshots" sort={sort} onSort={onSort} />
             <PlayerSortHeader label={t('players.table.adr')} sortKey="adr" sort={sort} onSort={onSort} />
             <PlayerSortHeader label={t('players.table.damage')} sortKey="damage" sort={sort} onSort={onSort} />
-            <PlayerSortHeader label={t('players.table.lastMatch')} sortKey="lastMatch" sort={sort} onSort={onSort} />
-            <PlayerSortHeader label={t('players.table.steam')} sortKey="steam" sort={sort} onSort={onSort} />
+            <PlayerSortHeader label={t('players.table.lastMatch')} sortKey="last_match" sort={sort} onSort={onSort} />
+            <th scope="col">{t('players.table.steam')}</th>
             <th className="player-power-table__actions" scope="col">{t('players.table.actions')}</th>
           </tr>
         </thead>

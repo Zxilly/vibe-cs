@@ -152,6 +152,23 @@ describe('desktop command client', () => {
     });
   });
 
+  it('sends the exact scanned-directory player sort before pagination', async () => {
+    invokeMock.mockResolvedValue({
+      items: [], total: 0, page: 2, page_size: 24, scanned_demos: 3, scan_complete: true,
+    });
+
+    await commands.listPlayers({
+      search: 'FalleN', page: 2, page_size: 24, sort: 'adr', direction: 'desc',
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: '/players?search=FalleN&page=2&page_size=24&sort=adr&direction=desc',
+      },
+    });
+  });
+
   it('persists annotations against an exact canonical evidence locator', async () => {
     invokeMock.mockResolvedValue({ id: 'annotation-1' });
 

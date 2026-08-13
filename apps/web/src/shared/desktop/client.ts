@@ -522,13 +522,21 @@ export const commands = {
   deleteDemo: (id: string) =>
     request<void>(`/demos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listPlayers: (
-    query: { search?: string; page?: number; page_size?: number } = {},
+    query: {
+      search?: string;
+      page?: number;
+      page_size?: number;
+      sort: 'player' | 'team' | 'matches' | 'kd' | 'kills' | 'deaths' | 'assists' | 'headshots' | 'adr' | 'damage' | 'last_match';
+      direction: 'asc' | 'desc';
+    },
     signal?: AbortSignal,
   ) => request<PlayerDirectoryPage>(
     `/players${queryString({
       search: query.search,
       page: query.page,
       page_size: query.page_size,
+      sort: query.sort,
+      direction: query.direction,
     })}`,
     { signal },
   ),

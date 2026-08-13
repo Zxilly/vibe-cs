@@ -1,4 +1,4 @@
-import { currentLocale, msg, msgf } from '../../shared/i18n';
+import { msg, msgf } from '../../shared/i18n';
 import type {
   PlayerAggregateStats,
   PlayerDirectoryItem,
@@ -11,7 +11,7 @@ export const PLAYER_SEARCH_DEBOUNCE_MS = 250;
 export const MAXIMUM_PLAYER_SEARCH_CHARACTERS = 128;
 
 export type PlayerDirectorySort = {
-  key: 'player' | 'team' | 'matches' | 'kd' | 'kills' | 'deaths' | 'assists' | 'headshots' | 'adr' | 'damage' | 'lastMatch' | 'steam';
+  key: 'player' | 'team' | 'matches' | 'kd' | 'kills' | 'deaths' | 'assists' | 'headshots' | 'adr' | 'damage' | 'last_match';
   direction: 'asc' | 'desc';
 };
 
@@ -28,48 +28,6 @@ export function normalizePlayerSearch(value: string): string {
 export function playerPageCount(total: number, pageSize = PLAYER_PAGE_SIZE): number {
   if (!Number.isFinite(total) || !Number.isFinite(pageSize) || pageSize <= 0) return 1;
   return Math.max(1, Math.ceil(Math.max(0, total) / pageSize));
-}
-
-export function sortPlayerDirectory(
-  players: readonly PlayerDirectoryItem[],
-  sort: PlayerDirectorySort,
-): PlayerDirectoryItem[] {
-  return [...players].sort((left, right) => {
-    const leftValue = playerDirectorySortValue(left, sort.key);
-    const rightValue = playerDirectorySortValue(right, sort.key);
-    if (leftValue === null && rightValue === null) return left.name.localeCompare(right.name);
-    if (leftValue === null) return 1;
-    if (rightValue === null) return -1;
-    const comparison = typeof leftValue === 'number' && typeof rightValue === 'number'
-      ? leftValue - rightValue
-      : String(leftValue).localeCompare(String(rightValue), currentLocale(), { numeric: true, sensitivity: 'base' });
-    return sort.direction === 'asc' ? comparison : -comparison;
-  });
-}
-
-function playerDirectorySortValue(
-  player: PlayerDirectoryItem,
-  key: PlayerDirectorySort['key'],
-): string | number | null {
-  switch (key) {
-    case 'player': return player.name.trim() || player.steam_id;
-    case 'team': return player.last_team?.trim() || null;
-    case 'matches': return player.stats.matches;
-    case 'kd': return player.stats.deaths > 0
-      ? player.stats.kills / player.stats.deaths
-      : player.stats.kills > 0 ? Number.POSITIVE_INFINITY : 0;
-    case 'kills': return player.stats.kills;
-    case 'deaths': return player.stats.deaths;
-    case 'assists': return player.stats.assists;
-    case 'headshots': return player.stats.kills > 0 ? player.stats.headshots / player.stats.kills : null;
-    case 'adr': return player.stats.average_adr;
-    case 'damage': return player.stats.damage;
-    case 'lastMatch': {
-      const timestamp = Date.parse(player.last_match_at);
-      return Number.isFinite(timestamp) ? timestamp : null;
-    }
-    case 'steam': return player.steam.state;
-  }
 }
 
 export function toggleComparedPlayer(

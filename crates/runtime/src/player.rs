@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering as CmpOrdering,
     collections::{BTreeMap, BTreeSet, HashSet},
     path::PathBuf,
     sync::Arc,
@@ -13,8 +14,8 @@ use tokio::{
 use url::Url;
 use vibe_cs_application::{
     AvatarCacheCleanup, AvatarCacheStatus, PlayerAggregateStats, PlayerAvatar, PlayerDirectoryItem,
-    PlayerDirectoryPage, PlayerDirectoryQuery, PlayerPort, PlayerProfile, PlayerRecentMatch,
-    PlayerSteamProfile, SteamProfileState,
+    PlayerDirectoryPage, PlayerDirectoryQuery, PlayerDirectorySort, PlayerDirectorySortDirection,
+    PlayerPort, PlayerProfile, PlayerRecentMatch, PlayerSteamProfile, SteamProfileState,
 };
 use vibe_cs_domain::{DemoQuery, DemoRecord, DomainError, MatchAnalysis, PlayerStats};
 use vibe_cs_integrations::{
@@ -292,7 +293,7 @@ impl RuntimePlayerPort {
 #[async_trait]
 impl PlayerPort for RuntimePlayerPort {
     async fn list(&self, query: PlayerDirectoryQuery) -> Result<PlayerDirectoryPage, DomainError> {
-        let (page, page_size, search) = validate_query(query)?;
+        let (page, page_size, search, sort, direction) = validate_query(query)?;
         let catalog = self.catalog().await?;
         let mut filtered = catalog
             .players
@@ -300,6 +301,7 @@ impl PlayerPort for RuntimePlayerPort {
             .filter(|player| player_matches(player, search.as_deref()))
             .cloned()
             .collect::<Vec<_>>();
+        sort_player_directory(&mut filtered, sort, direction);
         let total = u64::try_from(filtered.len()).unwrap_or(u64::MAX);
         let offset = u64::from(page.saturating_sub(1)).saturating_mul(u64::from(page_size));
         let offset = usize::try_from(offset).unwrap_or(usize::MAX);
@@ -545,7 +547,18 @@ fn unix_time(value: Option<u64>) -> Option<DateTime<Utc>> {
         .and_then(|seconds| DateTime::from_timestamp(seconds, 0))
 }
 
-fn validate_query(query: PlayerDirectoryQuery) -> Result<(u32, u32, Option<String>), DomainError> {
+fn validate_query(
+    query: PlayerDirectoryQuery,
+) -> Result<
+    (
+        u32,
+        u32,
+        Option<String>,
+        PlayerDirectorySort,
+        PlayerDirectorySortDirection,
+    ),
+    DomainError,
+> {
     let page = query.page.unwrap_or(1);
     let page_size = query.page_size.unwrap_or(50);
     if page == 0 || page > MAXIMUM_PLAYER_PAGE {
@@ -570,7 +583,114 @@ fn validate_query(query: PlayerDirectoryQuery) -> Result<(u32, u32, Option<Strin
             "search must not exceed {MAXIMUM_SEARCH_CHARS} characters"
         )));
     }
-    Ok((page, page_size, search))
+    Ok((page, page_size, search, query.sort, query.direction))
+}
+
+fn sort_player_directory(
+    players: &mut [LocalPlayer],
+    sort: PlayerDirectorySort,
+    direction: PlayerDirectorySortDirection,
+) {
+    players.sort_by(|left, right| {
+        let primary = match sort {
+            PlayerDirectorySort::Player => directed(
+                left.name.to_lowercase().cmp(&right.name.to_lowercase()),
+                direction,
+            ),
+            PlayerDirectorySort::Team => compare_optional(
+                left.last_team.as_ref().map(|value| value.to_lowercase()),
+                right.last_team.as_ref().map(|value| value.to_lowercase()),
+                direction,
+                Ord::cmp,
+            ),
+            PlayerDirectorySort::Matches => {
+                directed(left.stats.matches.cmp(&right.stats.matches), direction)
+            }
+            PlayerDirectorySort::Kd => directed(
+                compare_ratio(
+                    left.stats.kills,
+                    left.stats.deaths,
+                    right.stats.kills,
+                    right.stats.deaths,
+                ),
+                direction,
+            ),
+            PlayerDirectorySort::Kills => {
+                directed(left.stats.kills.cmp(&right.stats.kills), direction)
+            }
+            PlayerDirectorySort::Deaths => {
+                directed(left.stats.deaths.cmp(&right.stats.deaths), direction)
+            }
+            PlayerDirectorySort::Assists => {
+                directed(left.stats.assists.cmp(&right.stats.assists), direction)
+            }
+            PlayerDirectorySort::Headshots => compare_optional(
+                ratio_with_nonzero_denominator(left.stats.headshots, left.stats.kills),
+                ratio_with_nonzero_denominator(right.stats.headshots, right.stats.kills),
+                direction,
+                |left, right| compare_ratio(left.0, left.1, right.0, right.1),
+            ),
+            PlayerDirectorySort::Adr => compare_optional(
+                left.stats.average_adr,
+                right.stats.average_adr,
+                direction,
+                f64::total_cmp,
+            ),
+            PlayerDirectorySort::Damage => {
+                directed(left.stats.damage.cmp(&right.stats.damage), direction)
+            }
+            PlayerDirectorySort::LastMatch => {
+                directed(left.last_match_at.cmp(&right.last_match_at), direction)
+            }
+        };
+        primary.then_with(|| left.steam_id.cmp(&right.steam_id))
+    });
+}
+
+fn directed(ordering: CmpOrdering, direction: PlayerDirectorySortDirection) -> CmpOrdering {
+    match direction {
+        PlayerDirectorySortDirection::Asc => ordering,
+        PlayerDirectorySortDirection::Desc => ordering.reverse(),
+    }
+}
+
+fn compare_optional<T>(
+    left: Option<T>,
+    right: Option<T>,
+    direction: PlayerDirectorySortDirection,
+    compare: impl FnOnce(&T, &T) -> CmpOrdering,
+) -> CmpOrdering {
+    match (left, right) {
+        (Some(left), Some(right)) => directed(compare(&left, &right), direction),
+        (Some(_), None) => CmpOrdering::Less,
+        (None, Some(_)) => CmpOrdering::Greater,
+        (None, None) => CmpOrdering::Equal,
+    }
+}
+
+fn compare_ratio(
+    left_numerator: u64,
+    left_denominator: u64,
+    right_numerator: u64,
+    right_denominator: u64,
+) -> CmpOrdering {
+    let left_infinite = left_denominator == 0 && left_numerator > 0;
+    let right_infinite = right_denominator == 0 && right_numerator > 0;
+    match (left_infinite, right_infinite) {
+        (true, true) => CmpOrdering::Equal,
+        (true, false) => CmpOrdering::Greater,
+        (false, true) => CmpOrdering::Less,
+        (false, false) => {
+            let left_denominator = left_denominator.max(1);
+            let right_denominator = right_denominator.max(1);
+            (u128::from(left_numerator) * u128::from(right_denominator))
+                .cmp(&(u128::from(right_numerator) * u128::from(left_denominator)))
+        }
+    }
+}
+
+fn ratio_with_nonzero_denominator(numerator: u64, denominator: u64) -> Option<(u64, u64)> {
+    (denominator > 0).then_some((numerator, denominator))
 }
 
 fn player_matches(player: &LocalPlayer, search: Option<&str>) -> bool {
@@ -709,6 +829,16 @@ mod tests {
         name: &str,
         kills: u32,
     ) {
+        put_player_match(storage, played_at, PLAYER_ID, name, kills).await;
+    }
+
+    async fn put_player_match(
+        storage: &vibe_cs_storage::Storage,
+        played_at: DateTime<Utc>,
+        steam_id: &str,
+        name: &str,
+        kills: u32,
+    ) {
         let id = Uuid::new_v4();
         storage
             .put_demo(DemoRecord {
@@ -746,10 +876,10 @@ mod tests {
                     name: "T".to_owned(),
                     side: "T".to_owned(),
                     score: 1,
-                    players: vec![PLAYER_ID.to_owned()],
+                    players: vec![steam_id.to_owned()],
                 }],
                 players: vec![PlayerStats {
-                    steam_id: PLAYER_ID.to_owned(),
+                    steam_id: steam_id.to_owned(),
                     spectator_slot: None,
                     name: name.to_owned(),
                     team: "T".to_owned(),
@@ -777,6 +907,8 @@ mod tests {
                 search: Some("old name".to_owned()),
                 page: Some(1),
                 page_size: Some(10),
+                sort: PlayerDirectorySort::LastMatch,
+                direction: PlayerDirectorySortDirection::Desc,
             })
             .await
             .expect("directory");
@@ -792,6 +924,44 @@ mod tests {
         assert_eq!(profile.recent_matches.len(), 2);
         assert!(profile.recent_matches[0].played_at > profile.recent_matches[1].played_at);
         assert_eq!(port.catalog_builds.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn directory_sorts_the_filtered_catalog_before_pagination() {
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let temporary = TempDir::new().expect("temp dir");
+        let backend = Arc::new(FakeBackend {
+            summary_calls: AtomicUsize::new(0),
+            avatar_calls: AtomicUsize::new(0),
+        });
+        let port = RuntimePlayerPort::new(storage.clone(), temporary.path().join("avatar-cache"))
+            .with_backend(backend);
+        let played_at = Utc::now() - Duration::days(1);
+        put_player_match(&storage, played_at, "76561198000000002", "Higher", 30).await;
+        put_player_match(
+            &storage,
+            played_at - Duration::minutes(1),
+            PLAYER_ID,
+            "Lower",
+            10,
+        )
+        .await;
+
+        let page = port
+            .list(PlayerDirectoryQuery {
+                search: None,
+                page: Some(1),
+                page_size: Some(1),
+                sort: PlayerDirectorySort::Kills,
+                direction: PlayerDirectorySortDirection::Asc,
+            })
+            .await
+            .expect("sorted directory");
+
+        assert_eq!(page.total, 2);
+        assert_eq!(page.items[0].steam_id, PLAYER_ID);
     }
 
     #[tokio::test]
@@ -825,6 +995,8 @@ mod tests {
                 search: None,
                 page: Some(1),
                 page_size: Some(101),
+                sort: PlayerDirectorySort::LastMatch,
+                direction: PlayerDirectorySortDirection::Desc,
             })
             .await,
             Err(DomainError::InvalidInput(_))

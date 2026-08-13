@@ -12,7 +12,6 @@ import {
   playerHeadshotRate,
   playerKd,
   playerPageCount,
-  sortPlayerDirectory,
   steamEvidence,
   retainComparedPlayersOnPage,
   toggleComparedPlayer,
@@ -90,17 +89,6 @@ describe('player presentation', () => {
     expect(formatCacheBytes(1536)).toBe('1.5 KiB');
   });
 
-  it('sorts only the supplied directory page and keeps missing metrics last', () => {
-    const lowAdr = { ...player, steam_id: '1', name: 'Low ADR', stats: { ...player.stats, average_adr: 70 } };
-    const highAdr = { ...player, steam_id: '2', name: 'High ADR', stats: { ...player.stats, average_adr: 95 } };
-    const missingAdr = { ...player, steam_id: '3', name: 'Missing ADR', stats: { ...player.stats, average_adr: null } };
-
-    expect(sortPlayerDirectory([highAdr, missingAdr, lowAdr], { key: 'adr', direction: 'asc' })
-      .map((item) => item.steam_id)).toEqual(['1', '2', '3']);
-    expect(sortPlayerDirectory([lowAdr, missingAdr, highAdr], { key: 'adr', direction: 'desc' })
-      .map((item) => item.steam_id)).toEqual(['2', '1', '3']);
-  });
-
   it('keeps an ordered comparison of at most two real directory players', () => {
     const second = { ...player, steam_id: '2', name: 'Second' };
     const third = { ...player, steam_id: '3', name: 'Third' };
@@ -118,29 +106,4 @@ describe('player presentation', () => {
     expect(retainComparedPlayersOnPage([player], [])).toEqual([]);
   });
 
-  it.each([
-    ['player', 'asc', ['a', 'b']],
-    ['matches', 'desc', ['b', 'a']],
-    ['kd', 'desc', ['b', 'a']],
-    ['headshots', 'desc', ['b', 'a']],
-    ['lastMatch', 'desc', ['b', 'a']],
-  ] as const)('sorts the current page by %s %s', (key, direction, expected) => {
-    const first = {
-      ...player,
-      steam_id: 'a',
-      name: 'Alpha',
-      last_match_at: '2026-08-09T08:00:00Z',
-      stats: { ...player.stats, matches: 2, kills: 10, deaths: 10, headshots: 2 },
-    };
-    const second = {
-      ...player,
-      steam_id: 'b',
-      name: 'Bravo',
-      last_match_at: '2026-08-10T08:00:00Z',
-      stats: { ...player.stats, matches: 4, kills: 20, deaths: 10, headshots: 10 },
-    };
-
-    expect(sortPlayerDirectory([first, second], { key, direction }).map((item) => item.steam_id))
-      .toEqual(expected);
-  });
 });

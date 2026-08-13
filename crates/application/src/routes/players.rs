@@ -148,7 +148,10 @@ mod tests {
     use vibe_cs_domain::DomainError;
 
     use super::*;
-    use crate::{PlayerAggregateStats, PlayerDirectoryItem, PlayerPort, PlayerSteamProfile};
+    use crate::{
+        PlayerAggregateStats, PlayerDirectoryItem, PlayerDirectorySort,
+        PlayerDirectorySortDirection, PlayerPort, PlayerSteamProfile,
+    };
 
     const PLAYER_ID: &str = "76561198000000001";
 
@@ -248,6 +251,8 @@ mod tests {
             search: Some("local".to_owned()),
             page: Some(2),
             page_size: Some(25),
+            sort: PlayerDirectorySort::Kills,
+            direction: PlayerDirectorySortDirection::Asc,
         };
 
         let Json(page) = list_players(State(state), ApiQuery(query.clone()))

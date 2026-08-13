@@ -80,23 +80,23 @@ describe('player power-table', () => {
     expect(markup).not.toMatch(/Rating|KAST|accuracy/i);
   });
 
-  it('exposes each factual data column as a current-page sort control', () => {
+  it('exposes each service-sortable factual column and leaves Steam evidence unsorted', () => {
     const markup = renderToStaticMarkup(
       <PlayerPowerTable
         players={[player()]}
         comparedIds={new Set()}
-        sort={{ key: 'lastMatch', direction: 'desc' }}
+        sort={{ key: 'last_match', direction: 'desc' }}
         onSort={vi.fn()}
         onToggleCompare={vi.fn()}
         onInspect={vi.fn()}
       />,
     );
 
-    expect(markup.match(/aria-sort=/g)).toHaveLength(12);
+    expect(markup.match(/aria-sort=/g)).toHaveLength(11);
     expect(markup).toContain('aria-sort="descending"');
     expect(markup).toMatch(/<button[^>]*>玩家/);
     expect(markup).toMatch(/<button[^>]*>最近比赛/);
-    expect(markup).toMatch(/<button[^>]*>Steam 证据/);
+    expect(markup).not.toMatch(/<button[^>]*>Steam 证据/);
   });
 });
 
@@ -140,15 +140,15 @@ describe('two-player comparison inspector', () => {
 });
 
 describe('player directory data scope', () => {
-  it('separates server pagination/search from current-page column sorting', () => {
+  it('states that server sorting covers the filtered directory before pagination', () => {
     const markup = renderToStaticMarkup(
       <PlayerDirectoryScope page={2} pages={4} visible={24} total={82} />,
     );
 
     expect(markup).toContain('第 2 / 4 页');
     expect(markup).toContain('当前页 24 / 82 名玩家');
-    expect(markup).toContain('搜索由服务端处理');
-    expect(markup).toContain('列排序与对比仅作用于当前页');
+    expect(markup).toContain('服务端在已扫描玩家结果集上先搜索、排序，再分页');
+    expect(markup).toContain('对比选择仅保留在当前页');
   });
 });
 

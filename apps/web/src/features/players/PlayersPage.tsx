@@ -37,7 +37,6 @@ import {
   normalizePlayerSearch,
   playerPageCount,
   retainComparedPlayersOnPage,
-  sortPlayerDirectory,
   toggleComparedPlayer,
   type PlayerDirectorySort,
 } from './playerPresentation';
@@ -66,7 +65,7 @@ export function PlayersPage() {
   const [total, setTotal] = useState(0);
   const [scannedDemos, setScannedDemos] = useState(0);
   const [scanComplete, setScanComplete] = useState(true);
-  const [directorySort, setDirectorySort] = useState<PlayerDirectorySort>({ key: 'lastMatch', direction: 'desc' });
+  const [directorySort, setDirectorySort] = useState<PlayerDirectorySort>({ key: 'last_match', direction: 'desc' });
   const [comparedPlayers, setComparedPlayers] = useState<PlayerDirectoryItem[]>([]);
   const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
   const [listState, setListState] = useState<LoadState>('idle');
@@ -105,6 +104,8 @@ export function PlayersPage() {
       {
         page,
         page_size: PLAYER_PAGE_SIZE,
+        sort: directorySort.key,
+        direction: directorySort.direction,
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
       },
       controller.signal,
@@ -124,7 +125,7 @@ export function PlayersPage() {
       setListState('error');
     });
     return () => controller.abort();
-  }, [debouncedSearch, page, refreshRevision]);
+  }, [debouncedSearch, directorySort, page, refreshRevision]);
 
   useEffect(() => {
     if (selectedId === null) {
@@ -206,6 +207,7 @@ export function PlayersPage() {
   };
 
   const changeDirectorySort = (key: PlayerDirectorySort['key']) => {
+    setPage(1);
     setDirectorySort((current) => ({
       key,
       direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc',
@@ -242,10 +244,6 @@ export function PlayersPage() {
   };
 
   const pageCount = playerPageCount(total);
-  const sortedItems = useMemo(
-    () => sortPlayerDirectory(items, directorySort),
-    [directorySort, items],
-  );
   const comparedIds = useMemo(
     () => new Set(comparedPlayers.map((player) => player.steam_id)),
     [comparedPlayers],
@@ -391,7 +389,7 @@ export function PlayersPage() {
             </Card>
           ) : (
             <PlayerPowerTable
-              players={sortedItems}
+              players={items}
               comparedIds={comparedIds}
               sort={directorySort}
               onSort={changeDirectorySort}

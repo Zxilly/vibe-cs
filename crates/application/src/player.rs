@@ -4,12 +4,37 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use vibe_cs_domain::DomainError;
 
-#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlayerDirectorySort {
+    Player,
+    Team,
+    Matches,
+    Kd,
+    Kills,
+    Deaths,
+    Assists,
+    Headshots,
+    Adr,
+    Damage,
+    LastMatch,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlayerDirectorySortDirection {
+    Asc,
+    Desc,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct PlayerDirectoryQuery {
     pub search: Option<String>,
     pub page: Option<u32>,
     pub page_size: Option<u32>,
+    pub sort: PlayerDirectorySort,
+    pub direction: PlayerDirectorySortDirection,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

@@ -9,7 +9,8 @@ use axum::{
 
 use crate::{
     ApiError, ApiQuery, ApiResult, AppState, AvatarCacheCleanup, AvatarCacheStatus, PlayerAvatar,
-    PlayerDirectoryPage, PlayerDirectoryQuery, PlayerProfile,
+    PlayerComparison, PlayerComparisonQuery, PlayerDirectoryPage, PlayerDirectoryQuery,
+    PlayerProfile,
 };
 
 const AVATAR_CACHE_HEADER: HeaderName = HeaderName::from_static("x-vibe-cs-avatar-cache");
@@ -17,6 +18,7 @@ const AVATAR_CACHE_HEADER: HeaderName = HeaderName::from_static("x-vibe-cs-avata
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/players", get(list_players))
+        .route("/api/players/compare", get(compare_players))
         .route("/api/players/{steam_id}", get(get_player))
         .route(
             "/api/players/{steam_id}/avatar",
@@ -35,6 +37,18 @@ async fn list_players(
     state
         .players
         .list(query)
+        .await
+        .map(Json)
+        .map_err(Into::into)
+}
+
+async fn compare_players(
+    State(state): State<AppState>,
+    ApiQuery(query): ApiQuery<PlayerComparisonQuery>,
+) -> ApiResult<Json<PlayerComparison>> {
+    state
+        .players
+        .compare(query)
         .await
         .map(Json)
         .map_err(Into::into)
@@ -143,14 +157,15 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use async_trait::async_trait;
-    use axum::body::to_bytes;
+    use axum::{body::to_bytes, http::Request};
     use chrono::{TimeZone, Utc};
+    use tower::ServiceExt;
     use vibe_cs_domain::DomainError;
 
     use super::*;
     use crate::{
-        PlayerAggregateStats, PlayerDirectoryItem, PlayerDirectorySort,
-        PlayerDirectorySortDirection, PlayerPort, PlayerSteamProfile,
+        PlayerAggregateStats, PlayerComparison, PlayerComparisonQuery, PlayerDirectoryItem,
+        PlayerDirectorySort, PlayerDirectorySortDirection, PlayerPort, PlayerSteamProfile,
     };
 
     const PLAYER_ID: &str = "76561198000000001";
@@ -158,12 +173,14 @@ mod tests {
     #[derive(Debug)]
     struct FixturePlayers {
         last_query: Mutex<Option<PlayerDirectoryQuery>>,
+        last_comparison: Mutex<Option<PlayerComparisonQuery>>,
     }
 
     impl FixturePlayers {
         fn new() -> Self {
             Self {
                 last_query: Mutex::new(None),
+                last_comparison: Mutex::new(None),
             }
         }
     }
@@ -198,6 +215,27 @@ mod tests {
                 },
                 recent_matches: Vec::new(),
                 scanned_demos: 1,
+                scan_complete: true,
+            })
+        }
+
+        async fn compare(
+            &self,
+            query: PlayerComparisonQuery,
+        ) -> Result<PlayerComparison, DomainError> {
+            *self.last_comparison.lock().expect("comparison lock") = Some(query.clone());
+            let player = |steam_id: String| PlayerDirectoryItem {
+                steam_id,
+                name: "Local Player".to_owned(),
+                aliases: Vec::new(),
+                last_team: None,
+                last_match_at: Utc.timestamp_opt(1_700_000_000, 0).unwrap(),
+                stats: PlayerAggregateStats::default(),
+                steam: PlayerSteamProfile::not_configured(),
+            };
+            Ok(PlayerComparison {
+                players: [player(query.left), player(query.right)],
+                scanned_demos: 12,
                 scan_complete: true,
             })
         }
@@ -264,6 +302,78 @@ mod tests {
             players.last_query.lock().expect("query lock").as_ref(),
             Some(&query)
         );
+    }
+
+    #[tokio::test]
+    async fn player_comparison_forwards_two_explicit_ordered_ids() {
+        let players = Arc::new(FixturePlayers::new());
+        let (_directory, state) = test_state(Arc::clone(&players)).await;
+        let query = PlayerComparisonQuery {
+            left: PLAYER_ID.to_owned(),
+            right: "76561198000000002".to_owned(),
+        };
+
+        let response = router()
+            .with_state(state)
+            .oneshot(
+                Request::builder()
+                    .uri(format!(
+                        "/api/players/compare?left={}&right={}",
+                        query.left, query.right
+                    ))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let comparison: PlayerComparison = serde_json::from_slice(
+            &to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .expect("comparison body"),
+        )
+        .expect("player comparison");
+
+        assert_eq!(
+            comparison
+                .players
+                .iter()
+                .map(|player| player.steam_id.as_str())
+                .collect::<Vec<_>>(),
+            [query.left.as_str(), query.right.as_str()]
+        );
+        assert_eq!(
+            players
+                .last_comparison
+                .lock()
+                .expect("comparison lock")
+                .as_ref(),
+            Some(&query)
+        );
+    }
+
+    #[tokio::test]
+    async fn player_comparison_route_rejects_missing_and_unknown_query_fields() {
+        let players = Arc::new(FixturePlayers::new());
+        let (_directory, state) = test_state(players).await;
+        let dispatcher = router().with_state(state);
+
+        for uri in [
+            format!("/api/players/compare?left={PLAYER_ID}"),
+            format!("/api/players/compare?left={PLAYER_ID}&right=76561198000000002&players=all"),
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(uri)
+                        .body(Body::empty())
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        }
     }
 
     #[tokio::test]

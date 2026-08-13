@@ -30,22 +30,34 @@ export function playerPageCount(total: number, pageSize = PLAYER_PAGE_SIZE): num
   return Math.max(1, Math.ceil(Math.max(0, total) / pageSize));
 }
 
-export function toggleComparedPlayer(
-  current: readonly PlayerDirectoryItem[],
-  player: PlayerDirectoryItem,
-): PlayerDirectoryItem[] {
-  if (current.some((item) => item.steam_id === player.steam_id)) {
-    return current.filter((item) => item.steam_id !== player.steam_id);
+export function toggleComparedPlayerIds(
+  current: readonly string[],
+  playerId: string,
+): string[] {
+  if (current.includes(playerId)) {
+    return current.filter((id) => id !== playerId);
   }
-  return [...current.slice(-1), player];
+  return [...current.slice(-1), playerId];
 }
 
-export function retainComparedPlayersOnPage(
-  current: readonly PlayerDirectoryItem[],
-  pageItems: readonly PlayerDirectoryItem[],
-): PlayerDirectoryItem[] {
-  const currentPageIds = new Set(pageItems.map((item) => item.steam_id));
-  return current.filter((item) => currentPageIds.has(item.steam_id));
+export async function reconcileComparedPlayerIds(
+  ids: readonly string[],
+  load: (id: string) => Promise<void>,
+  isMissing: (error: unknown) => boolean,
+): Promise<{ retainedIds: string[]; missingIds: string[] }> {
+  const states = await Promise.all(ids.map(async (id) => {
+    try {
+      await load(id);
+      return { id, missing: false } as const;
+    } catch (error: unknown) {
+      if (!isMissing(error)) throw error;
+      return { id, missing: true } as const;
+    }
+  }));
+  return {
+    retainedIds: states.filter((state) => !state.missing).map((state) => state.id),
+    missingIds: states.filter((state) => state.missing).map((state) => state.id),
+  };
 }
 
 export function localPlayerAvatarPath(player: PlayerDirectoryItem): string | null {

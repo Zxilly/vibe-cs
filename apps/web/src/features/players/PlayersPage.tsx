@@ -10,10 +10,11 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { commands, readableError } from '../../shared/desktop/client';
+import { DesktopError, commands, readableError } from '../../shared/desktop/client';
 import type {
   AvatarCacheStatus,
   EvidenceSearchResponse,
+  PlayerComparison,
   PlayerDirectoryItem,
   PlayerProfile,
 } from '../../shared/desktop/dto';
@@ -37,8 +38,8 @@ import {
   isCurrentRequest,
   normalizePlayerSearch,
   playerPageCount,
-  retainComparedPlayersOnPage,
-  toggleComparedPlayer,
+  reconcileComparedPlayerIds,
+  toggleComparedPlayerIds,
   type PlayerDirectorySort,
 } from './playerPresentation';
 
@@ -67,7 +68,12 @@ export function PlayersPage() {
   const [scannedDemos, setScannedDemos] = useState(0);
   const [scanComplete, setScanComplete] = useState(true);
   const [directorySort, setDirectorySort] = useState<PlayerDirectorySort>({ key: 'last_match', direction: 'desc' });
-  const [comparedPlayers, setComparedPlayers] = useState<PlayerDirectoryItem[]>([]);
+  const [comparedIds, setComparedIds] = useState<string[]>([]);
+  const [comparison, setComparison] = useState<PlayerComparison | null>(null);
+  const [comparisonState, setComparisonState] = useState<LoadState>('idle');
+  const [comparisonError, setComparisonError] = useState<string | null>(null);
+  const [comparisonNotice, setComparisonNotice] = useState<string | null>(null);
+  const [comparisonRefreshRevision, setComparisonRefreshRevision] = useState(0);
   const [compactInspectorOpen, setCompactInspectorOpen] = useState(false);
   const [listState, setListState] = useState<LoadState>('idle');
   const [listError, setListError] = useState<string | null>(null);
@@ -87,10 +93,14 @@ export function PlayersPage() {
   const listRequestRevision = useRef(0);
   const detailRequestRevision = useRef(0);
   const evidenceRequestRevision = useRef(0);
+  const comparisonRequestRevision = useRef(0);
   const cacheStatusRequestRevision = useRef(0);
   const cacheMutationRequestRevision = useRef(0);
   const cacheMutationController = useRef<AbortController | null>(null);
   const wideInspector = useWidePlayerInspector();
+  const comparedIdsIdentity = comparedIds.join('\0');
+  const comparedIdsIdentityRef = useRef(comparedIdsIdentity);
+  comparedIdsIdentityRef.current = comparedIdsIdentity;
 
   useEffect(() => {
     const timer = globalThis.setTimeout(() => {
@@ -117,8 +127,6 @@ export function PlayersPage() {
     ).then((response) => {
       if (controller.signal.aborted || !isCurrentRequest(listRequestRevision.current, requestRevision)) return;
       setItems(response.items);
-      setComparedPlayers((current) => retainComparedPlayersOnPage(current, response.items));
-      setSelectedId((current) => current && response.items.some((item) => item.steam_id === current) ? current : null);
       setTotal(response.total);
       setPage(response.page);
       setScannedDemos(response.scanned_demos);
@@ -154,6 +162,96 @@ export function PlayersPage() {
     });
     return () => controller.abort();
   }, [refreshRevision, selectedId]);
+
+  useEffect(() => {
+    if (comparedIds.length !== 2) {
+      setComparison(null);
+      setComparisonState('idle');
+      setComparisonError(null);
+      return undefined;
+    }
+
+    const left = comparedIds[0] as string;
+    const right = comparedIds[1] as string;
+    const requestedIds = [left, right] as const;
+    const requestedSelectionIdentity = comparedIdsIdentity;
+    const controller = new AbortController();
+    const requestRevision = ++comparisonRequestRevision.current;
+    setComparison(null);
+    setComparisonState('loading');
+    setComparisonError(null);
+
+    void (async () => {
+      try {
+        const response = await commands.comparePlayers(left, right, controller.signal);
+        if (
+          controller.signal.aborted
+          || !isCurrentRequest(comparisonRequestRevision.current, requestRevision)
+          || comparedIdsIdentityRef.current !== requestedSelectionIdentity
+        ) return;
+        if (
+          response.players[0]?.steam_id !== left
+          || response.players[1]?.steam_id !== right
+        ) {
+          throw new DesktopError(
+            'Player comparison response does not match the current contract.',
+            502,
+            'INVALID_PLAYER_COMPARISON_CONTRACT',
+          );
+        }
+        setComparison(response);
+        setComparisonState('ready');
+      } catch (error: unknown) {
+        if (
+          controller.signal.aborted
+          || !isCurrentRequest(comparisonRequestRevision.current, requestRevision)
+          || comparedIdsIdentityRef.current !== requestedSelectionIdentity
+        ) return;
+        if (error instanceof DesktopError && error.status === 404) {
+          try {
+            const reconciliation = await reconcileComparedPlayerIds(
+              requestedIds,
+              async (id) => { await commands.getPlayer(id, controller.signal); },
+              (readError) => readError instanceof DesktopError && readError.status === 404,
+            );
+            if (
+              controller.signal.aborted
+              || !isCurrentRequest(comparisonRequestRevision.current, requestRevision)
+              || comparedIdsIdentityRef.current !== requestedSelectionIdentity
+            ) return;
+            if (reconciliation.missingIds.length > 0) {
+              setComparedIds((current) => current.join('\0') === requestedSelectionIdentity
+                ? reconciliation.retainedIds
+                : current);
+              setSelectedId(reconciliation.retainedIds[0] ?? null);
+              setProfile(null);
+              setPlayerEvidence(null);
+              setCompactInspectorOpen(reconciliation.retainedIds.length > 0);
+              setComparisonNotice(
+                t('players.compare.missingRemoved').replace(
+                  '{ids}',
+                  reconciliation.missingIds.join(', '),
+                ),
+              );
+              return;
+            }
+          } catch (reconciliationError: unknown) {
+            if (
+              controller.signal.aborted
+              || !isCurrentRequest(comparisonRequestRevision.current, requestRevision)
+              || comparedIdsIdentityRef.current !== requestedSelectionIdentity
+            ) return;
+            setComparisonError(readableError(reconciliationError));
+            setComparisonState('error');
+            return;
+          }
+        }
+        setComparisonError(readableError(error));
+        setComparisonState('error');
+      }
+    })();
+    return () => controller.abort();
+  }, [comparedIdsIdentity, comparisonRefreshRevision, refreshRevision, t]);
 
   useEffect(() => {
     if (selectedId === null) {
@@ -212,23 +310,26 @@ export function PlayersPage() {
   };
 
   const inspectPlayer = (player: PlayerDirectoryItem) => {
-    setComparedPlayers([player]);
+    setComparedIds([player.steam_id]);
+    setComparisonNotice(null);
     setCompactInspectorOpen(true);
     selectPlayer(player.steam_id);
   };
 
   const togglePlayerComparison = (player: PlayerDirectoryItem) => {
-    const next = toggleComparedPlayer(comparedPlayers, player);
-    setComparedPlayers(next);
+    const next = toggleComparedPlayerIds(comparedIds, player.steam_id);
+    setComparedIds(next);
+    setComparisonNotice(null);
     setCompactInspectorOpen(next.length === 2);
     setProfile(null);
     setDetailError(null);
-    if (next.length === 1) setSelectedId(next[0]?.steam_id ?? null);
+    if (next.length === 1) setSelectedId(next[0] ?? null);
     else setSelectedId(null);
   };
 
   const clearPlayerComparison = () => {
-    setComparedPlayers([]);
+    setComparedIds([]);
+    setComparisonNotice(null);
     setCompactInspectorOpen(false);
     setSelectedId(null);
     setProfile(null);
@@ -236,7 +337,8 @@ export function PlayersPage() {
   };
 
   const focusComparedPlayer = (player: PlayerDirectoryItem) => {
-    setComparedPlayers([player]);
+    setComparedIds([player.steam_id]);
+    setComparisonNotice(null);
     setCompactInspectorOpen(true);
     selectPlayer(player.steam_id);
   };
@@ -279,24 +381,47 @@ export function PlayersPage() {
   };
 
   const pageCount = playerPageCount(total);
-  const comparedIds = useMemo(
-    () => new Set(comparedPlayers.map((player) => player.steam_id)),
-    [comparedPlayers],
+  const comparedIdSet = useMemo(
+    () => new Set(comparedIds),
+    [comparedIds],
   );
   const profileIsCurrent = profile?.player.steam_id === selectedId;
   const allProfilesUnconfigured = items.length > 0
     && items.every((item) => item.steam.state === 'not_configured');
-  const comparison = comparedPlayers.length === 2
-    ? [comparedPlayers[0] as PlayerDirectoryItem, comparedPlayers[1] as PlayerDirectoryItem] as const
-    : null;
-  const playerInspector = comparison ? (
-    <PlayerCompareInspector
-      players={comparison}
-      scannedDemos={scannedDemos}
-      scanComplete={scanComplete}
-      onFocus={focusComparedPlayer}
-      onClear={clearPlayerComparison}
-    />
+  const comparisonIsCurrent = comparison !== null
+    && comparison.players[0].steam_id === comparedIds[0]
+    && comparison.players[1].steam_id === comparedIds[1];
+  const playerInspector = comparedIds.length === 2 ? (
+    comparisonIsCurrent && comparison ? (
+      <PlayerCompareInspector
+        players={comparison.players}
+        scannedDemos={comparison.scanned_demos}
+        scanComplete={comparison.scan_complete}
+        onFocus={focusComparedPlayer}
+        onClear={clearPlayerComparison}
+      />
+    ) : (
+      <Card className="player-detail-card">
+        {comparisonState === 'error' ? (
+          <EmptyState
+            icon={<UsersRound size={27} />}
+            title={t('players.compare.error')}
+            description={comparisonError ?? t('players.compare.error')}
+            action={(
+              <Button size="sm" onClick={() => setComparisonRefreshRevision((value) => value + 1)}>
+                <RefreshCw size={13} />{t('common.retry')}
+              </Button>
+            )}
+          />
+        ) : (
+          <div className="players-loading">
+            <Spinner label={t('players.compare.loading')} />
+            <strong>{t('players.compare.loading')}</strong>
+            <span>{t('players.table.scopeBehavior')}</span>
+          </div>
+        )}
+      </Card>
+    )
   ) : (
     <Card className="player-detail-card">
       {selectedId === null ? (
@@ -356,6 +481,7 @@ export function PlayersPage() {
         </Notice>
       ) : null}
       {listError ? <Notice tone="danger">{listError}</Notice> : null}
+      {comparisonNotice ? <Notice tone="warning">{comparisonNotice}</Notice> : null}
 
       <div className="players-toolbar-row">
         <Card className="players-search-card">
@@ -431,7 +557,7 @@ export function PlayersPage() {
           ) : (
             <PlayerPowerTable
               players={items}
-              comparedIds={comparedIds}
+              comparedIds={comparedIdSet}
               sort={directorySort}
               onSort={changeDirectorySort}
               onToggleCompare={togglePlayerComparison}
@@ -442,9 +568,9 @@ export function PlayersPage() {
           {items.length > 0 ? (
             <PlayerDirectoryScope page={page} pages={pageCount} visible={items.length} total={total} />
           ) : null}
-          {!wideInspector && comparedPlayers.length > 0 && !compactInspectorOpen ? (
+          {!wideInspector && comparedIds.length > 0 && !compactInspectorOpen ? (
             <PlayerComparisonSelectionBar
-              count={comparedPlayers.length}
+              count={comparedIds.length}
               onOpen={() => setCompactInspectorOpen(true)}
               onClear={clearPlayerComparison}
             />
@@ -471,9 +597,11 @@ export function PlayersPage() {
       </div>
 
       <Drawer
-        open={!wideInspector && compactInspectorOpen && comparedPlayers.length > 0}
-        title={comparison ? t('players.compare.title') : comparedPlayers[0]?.name ?? t('players.table.details')}
-        description={comparison ? t('players.table.scopeBehavior') : comparedPlayers[0]?.steam_id}
+        open={!wideInspector && compactInspectorOpen && comparedIds.length > 0}
+        title={comparedIds.length === 2
+          ? t('players.compare.title')
+          : profileIsCurrent ? profile.player.name : t('players.table.details')}
+        description={comparedIds.length === 2 ? t('players.table.scopeBehavior') : comparedIds[0]}
         onClose={() => setCompactInspectorOpen(false)}
         footer={<Button onClick={() => setCompactInspectorOpen(false)}>{t('shell.close')}</Button>}
       >

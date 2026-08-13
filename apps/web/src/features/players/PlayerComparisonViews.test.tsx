@@ -148,7 +148,7 @@ describe('player directory data scope', () => {
     expect(markup).toContain('第 2 / 4 页');
     expect(markup).toContain('当前页 24 / 82 名玩家');
     expect(markup).toContain('服务端在已扫描玩家结果集上先搜索、排序，再分页');
-    expect(markup).toContain('对比选择仅保留在当前页');
+    expect(markup).toContain('最多两个显式玩家选择会跨分页、搜索和排序保留');
   });
 });
 

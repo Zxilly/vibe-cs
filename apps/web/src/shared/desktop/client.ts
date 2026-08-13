@@ -86,6 +86,7 @@ import type {
   OutputQuery,
   OutputReference,
   Paginated,
+  PlayerComparison,
   PlayerDirectoryPage,
   PlayerProfile,
   QuickCheckResponse,
@@ -542,6 +543,8 @@ export const commands = {
   ),
   getPlayer: (steamId: string, signal?: AbortSignal) =>
     request<PlayerProfile>(`/players/${encodeURIComponent(steamId)}`, { signal }),
+  comparePlayers: (left: string, right: string, signal?: AbortSignal) =>
+    request<PlayerComparison>(`/players/compare${queryString({ left, right })}`, { signal }),
   avatarCacheStatus: (signal?: AbortSignal) =>
     request<AvatarCacheStatus>('/avatar-cache', { signal }),
   clearAvatarCache: (signal?: AbortSignal) =>

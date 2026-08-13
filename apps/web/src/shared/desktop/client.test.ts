@@ -170,6 +170,26 @@ describe('desktop command client', () => {
     });
   });
 
+  it('requests one ordered explicit player comparison with encoded ids', async () => {
+    invokeMock.mockResolvedValue({
+      players: [], scanned_demos: 3, scan_complete: true,
+    });
+    const controller = new AbortController();
+
+    await commands.comparePlayers(
+      '76561198000000001',
+      '76561198000000002/unsafe',
+      controller.signal,
+    );
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: '/players/compare?left=76561198000000001&right=76561198000000002%2Funsafe',
+      },
+    });
+  });
+
   it('persists annotations against an exact canonical evidence locator', async () => {
     invokeMock.mockResolvedValue({ id: 'annotation-1' });
 

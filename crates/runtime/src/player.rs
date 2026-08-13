@@ -13,9 +13,10 @@ use tokio::{
 };
 use url::Url;
 use vibe_cs_application::{
-    AvatarCacheCleanup, AvatarCacheStatus, PlayerAggregateStats, PlayerAvatar, PlayerDirectoryItem,
-    PlayerDirectoryPage, PlayerDirectoryQuery, PlayerDirectorySort, PlayerDirectorySortDirection,
-    PlayerPort, PlayerProfile, PlayerRecentMatch, PlayerSteamProfile, SteamProfileState,
+    AvatarCacheCleanup, AvatarCacheStatus, PlayerAggregateStats, PlayerAvatar, PlayerComparison,
+    PlayerComparisonQuery, PlayerDirectoryItem, PlayerDirectoryPage, PlayerDirectoryQuery,
+    PlayerDirectorySort, PlayerDirectorySortDirection, PlayerPort, PlayerProfile,
+    PlayerRecentMatch, PlayerSteamProfile, SteamProfileState,
 };
 use vibe_cs_domain::{DemoQuery, DemoRecord, DomainError, MatchAnalysis, PlayerStats};
 use vibe_cs_integrations::{
@@ -339,6 +340,35 @@ impl PlayerPort for RuntimePlayerPort {
         Ok(PlayerProfile {
             player: items.remove(0),
             recent_matches,
+            scanned_demos: catalog.scanned_demos,
+            scan_complete: catalog.scan_complete,
+        })
+    }
+
+    async fn compare(&self, query: PlayerComparisonQuery) -> Result<PlayerComparison, DomainError> {
+        validate_steam_id(&query.left)?;
+        validate_steam_id(&query.right)?;
+        if query.left == query.right {
+            return Err(DomainError::InvalidInput(
+                "player comparison requires two different Steam IDs".to_owned(),
+            ));
+        }
+
+        let catalog = self.catalog().await?;
+        let require = |steam_id: &str| {
+            catalog
+                .players
+                .iter()
+                .find(|player| player.steam_id == steam_id)
+                .cloned()
+                .ok_or_else(|| DomainError::NotFound(format!("player {steam_id}")))
+        };
+        let left = require(&query.left)?;
+        let right = require(&query.right)?;
+        let mut players = [local_item(left), local_item(right)];
+        self.enrich(&mut players).await?;
+        Ok(PlayerComparison {
+            players,
             scanned_demos: catalog.scanned_demos,
             scan_complete: catalog.scan_complete,
         })
@@ -924,6 +954,80 @@ mod tests {
         assert_eq!(profile.recent_matches.len(), 2);
         assert!(profile.recent_matches[0].played_at > profile.recent_matches[1].played_at);
         assert_eq!(port.catalog_builds.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn comparison_uses_one_catalog_snapshot_and_one_ordered_enrichment() {
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let mut config = AppConfig::default();
+        config.steam.web_api_key = "secret".to_owned();
+        storage.put_config(config).await.expect("config");
+        let temporary = TempDir::new().expect("temp dir");
+        let backend = Arc::new(FakeBackend {
+            summary_calls: AtomicUsize::new(0),
+            avatar_calls: AtomicUsize::new(0),
+        });
+        let port = RuntimePlayerPort::new(storage.clone(), temporary.path().join("avatar-cache"))
+            .with_backend(backend.clone());
+        let older = Utc::now() - Duration::days(2);
+        let newer = Utc::now() - Duration::days(1);
+        let left = "76561198000000002";
+        let right = PLAYER_ID;
+        put_player_match(&storage, older, right, "Right", 10).await;
+        put_player_match(&storage, newer, left, "Left", 20).await;
+
+        let comparison = port
+            .compare(PlayerComparisonQuery {
+                left: left.to_owned(),
+                right: right.to_owned(),
+            })
+            .await
+            .expect("comparison");
+
+        assert_eq!(
+            comparison
+                .players
+                .iter()
+                .map(|player| player.steam_id.as_str())
+                .collect::<Vec<_>>(),
+            [left, right]
+        );
+        assert_eq!(comparison.scanned_demos, 2);
+        assert!(comparison.scan_complete);
+        assert_eq!(port.catalog_builds.load(Ordering::SeqCst), 1);
+        assert_eq!(backend.summary_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn comparison_rejects_invalid_duplicate_and_missing_players_without_partial_results() {
+        let (port, _, _temporary) = fixture(false).await;
+        let missing = "76561198000000999";
+
+        for query in [
+            PlayerComparisonQuery {
+                left: "not-a-steam-id".to_owned(),
+                right: PLAYER_ID.to_owned(),
+            },
+            PlayerComparisonQuery {
+                left: PLAYER_ID.to_owned(),
+                right: PLAYER_ID.to_owned(),
+            },
+        ] {
+            assert!(matches!(
+                port.compare(query).await,
+                Err(DomainError::InvalidInput(_))
+            ));
+        }
+        assert!(matches!(
+            port.compare(PlayerComparisonQuery {
+                left: PLAYER_ID.to_owned(),
+                right: missing.to_owned(),
+            })
+            .await,
+            Err(DomainError::NotFound(resource)) if resource.contains(missing)
+        ));
     }
 
     #[tokio::test]

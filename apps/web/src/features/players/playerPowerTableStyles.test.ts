@@ -18,8 +18,8 @@ describe('players power-table responsive contract', () => {
     expect(css).toMatch(/\.player-power-table__actions\s*\{[^}]*position:\s*sticky[^}]*right:\s*0/s);
     expect(css).toMatch(/@media\s*\(max-width:\s*1399px\)[\s\S]*?\.page--players\s+\.players-workspace\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
     expect(pageSource).toContain("window.matchMedia('(min-width: 1400px)')");
-    expect(pageSource).toContain('open={!wideInspector && compactInspectorOpen && comparedPlayers.length > 0}');
-    expect(pageSource).toContain('!wideInspector && comparedPlayers.length > 0 && !compactInspectorOpen');
+    expect(pageSource).toContain('open={!wideInspector && compactInspectorOpen && comparedIds.length > 0}');
+    expect(pageSource).toContain('!wideInspector && comparedIds.length > 0 && !compactInspectorOpen');
     expect(pageSource).toContain('<div className="player-inspector-drawer">{playerInspector}</div>');
   });
 

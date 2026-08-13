@@ -13,8 +13,8 @@ import {
   playerKd,
   playerPageCount,
   steamEvidence,
-  retainComparedPlayersOnPage,
-  toggleComparedPlayer,
+  reconcileComparedPlayerIds,
+  toggleComparedPlayerIds,
 } from './playerPresentation';
 
 const baseSteam: PlayerSteamProfile = {
@@ -90,20 +90,32 @@ describe('player presentation', () => {
   });
 
   it('keeps an ordered comparison of at most two real directory players', () => {
-    const second = { ...player, steam_id: '2', name: 'Second' };
-    const third = { ...player, steam_id: '3', name: 'Third' };
-
-    expect(toggleComparedPlayer([], player)).toEqual([player]);
-    expect(toggleComparedPlayer([player], second)).toEqual([player, second]);
-    expect(toggleComparedPlayer([player, second], third)).toEqual([second, third]);
-    expect(toggleComparedPlayer([player, second], player)).toEqual([second]);
+    expect(toggleComparedPlayerIds([], 'player-1')).toEqual(['player-1']);
+    expect(toggleComparedPlayerIds(['player-1'], 'player-2')).toEqual(['player-1', 'player-2']);
+    expect(toggleComparedPlayerIds(['player-1', 'player-2'], 'player-3')).toEqual(['player-2', 'player-3']);
+    expect(toggleComparedPlayerIds(['player-1', 'player-2'], 'player-1')).toEqual(['player-2']);
   });
 
-  it('drops comparison selections that are not on the current server page', () => {
-    const second = { ...player, steam_id: '2', name: 'Second' };
+  it('removes only ids proven absent by an exact player read', async () => {
+    const missing = new Error('missing');
+    const result = await reconcileComparedPlayerIds(
+      ['player-1', 'player-2'],
+      async (id) => {
+        if (id === 'player-1') throw missing;
+      },
+      (error) => error === missing,
+    );
 
-    expect(retainComparedPlayersOnPage([player, second], [second])).toEqual([second]);
-    expect(retainComparedPlayersOnPage([player], [])).toEqual([]);
+    expect(result).toEqual({ retainedIds: ['player-2'], missingIds: ['player-1'] });
+    await expect(reconcileComparedPlayerIds(
+      ['player-1', 'player-2'],
+      async () => { throw new Error('offline'); },
+      () => false,
+    )).rejects.toThrow('offline');
   });
 
+  it('does not expose a current-page retention helper that could erase explicit ids', async () => {
+    const presentation = await import('./playerPresentation');
+    expect(presentation).not.toHaveProperty('retainComparedPlayersOnPage');
+  });
 });

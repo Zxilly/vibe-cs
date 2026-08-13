@@ -37,6 +37,13 @@ pub struct PlayerDirectoryQuery {
     pub direction: PlayerDirectorySortDirection,
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PlayerComparisonQuery {
+    pub left: String,
+    pub right: String,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SteamProfileState {
@@ -145,6 +152,14 @@ pub struct PlayerDirectoryPage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PlayerComparison {
+    pub players: [PlayerDirectoryItem; 2],
+    pub scanned_demos: u32,
+    pub scan_complete: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PlayerProfile {
     pub player: PlayerDirectoryItem,
     pub recent_matches: Vec<PlayerRecentMatch>,
@@ -197,6 +212,7 @@ pub struct AvatarCacheCleanup {
 pub trait PlayerPort: Send + Sync + std::fmt::Debug {
     async fn list(&self, query: PlayerDirectoryQuery) -> Result<PlayerDirectoryPage, DomainError>;
     async fn get(&self, steam_id: String) -> Result<PlayerProfile, DomainError>;
+    async fn compare(&self, query: PlayerComparisonQuery) -> Result<PlayerComparison, DomainError>;
     async fn avatar(&self, steam_id: String) -> Result<PlayerAvatar, DomainError>;
     async fn avatar_cache_status(&self) -> Result<AvatarCacheStatus, DomainError>;
     async fn clear_avatar_cache(&self) -> Result<AvatarCacheCleanup, DomainError>;
@@ -214,6 +230,15 @@ impl PlayerPort for DisabledPlayerPort {
     }
 
     async fn get(&self, _steam_id: String) -> Result<PlayerProfile, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "player directory adapter".to_owned(),
+        ))
+    }
+
+    async fn compare(
+        &self,
+        _query: PlayerComparisonQuery,
+    ) -> Result<PlayerComparison, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "player directory adapter".to_owned(),
         ))
@@ -241,6 +266,32 @@ impl PlayerPort for DisabledPlayerPort {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn player_comparison_query_requires_exact_current_fields() {
+        let query = serde_json::from_value::<PlayerComparisonQuery>(serde_json::json!({
+            "left": "76561198000000001",
+            "right": "76561198000000002"
+        }))
+        .expect("current comparison query");
+
+        assert_eq!(query.left, "76561198000000001");
+        assert_eq!(query.right, "76561198000000002");
+        assert!(
+            serde_json::from_value::<PlayerComparisonQuery>(serde_json::json!({
+                "left": "76561198000000001"
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<PlayerComparisonQuery>(serde_json::json!({
+                "left": "76561198000000001",
+                "right": "76561198000000002",
+                "players": ["76561198000000001", "76561198000000002"]
+            }))
+            .is_err()
+        );
+    }
 
     #[test]
     fn player_directory_metrics_use_only_explicit_kill_death_ratio_names() {

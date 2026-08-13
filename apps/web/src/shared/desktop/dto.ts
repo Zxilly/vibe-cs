@@ -438,6 +438,12 @@ export type PlayerDirectoryPage = Paginated<PlayerDirectoryItem> & {
   scan_complete: boolean;
 };
 
+export type PlayerComparison = {
+  players: [PlayerDirectoryItem, PlayerDirectoryItem];
+  scanned_demos: number;
+  scan_complete: boolean;
+};
+
 export type PlayerProfile = {
   player: PlayerDirectoryItem;
   recent_matches: PlayerRecentMatch[];

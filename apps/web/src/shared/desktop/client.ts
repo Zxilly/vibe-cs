@@ -593,9 +593,11 @@ export const commands = {
     signal?: AbortSignal,
   ) => request<Paginated<EvidenceAnnotation>>(
     `/evidence/annotations${queryString({
+      q: query.q?.trim(),
+      tag: query.tag?.trim(),
       demo_id: query.demo_id,
-      evidence_id: query.evidence_id,
-      review_state: query.review_state,
+      evidence_id: query.evidence_id?.trim(),
+      state: query.state,
       page: query.page,
       page_size: query.page_size,
     })}`,

@@ -305,12 +305,86 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(create_response.status(), axum::http::StatusCode::CREATED);
+        let body = to_bytes(create_response.into_body(), 64 * 1024)
+            .await
+            .expect("created annotation body");
+        let created: EvidenceAnnotation =
+            serde_json::from_slice(&body).expect("created annotation");
+
+        let update_response = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::PATCH)
+                    .uri(format!("/api/evidence/annotations/{}", created.id))
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "body": "  Review the saved utility timing  ",
+                            "tags": [" Utility ", "Reviewed"],
+                            "review_state": "resolved"
+                        })
+                        .to_string(),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(update_response.status(), axum::http::StatusCode::OK);
+        let body = to_bytes(update_response.into_body(), 64 * 1024)
+            .await
+            .expect("updated annotation body");
+        let updated: EvidenceAnnotation =
+            serde_json::from_slice(&body).expect("updated annotation");
+        assert_eq!(updated.body, "Review the saved utility timing");
+        assert_eq!(updated.tags, ["Utility", "Reviewed"]);
+        assert_eq!(
+            updated.review_state,
+            EvidenceAnnotationReviewState::Resolved
+        );
+        assert_eq!(updated.demo_id, created.demo_id);
+        assert_eq!(updated.evidence_id, created.evidence_id);
+        assert_eq!(updated.round, created.round);
+        assert_eq!(updated.tick, created.tick);
+
+        for invalid_update in [
+            serde_json::json!({
+                "body": "   ",
+                "tags": [],
+                "review_state": "resolved"
+            }),
+            serde_json::json!({
+                "body": "Review the saved utility timing",
+                "tags": ["utility", " UTILITY "],
+                "review_state": "resolved"
+            }),
+            serde_json::json!({
+                "body": "Move this annotation",
+                "tags": [],
+                "review_state": "open",
+                "demo_id": Uuid::new_v4()
+            }),
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::PATCH)
+                        .uri(format!("/api/evidence/annotations/{}", created.id))
+                        .header(axum::http::header::CONTENT_TYPE, "application/json")
+                        .body(Body::from(invalid_update.to_string()))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
+        }
 
         let list_response = dispatcher
             .oneshot(
                 Request::builder()
                     .uri(format!(
-                        "/api/evidence/annotations?demo_id={demo_id}&page=1&page_size=10"
+                        "/api/evidence/annotations?q=saved&tag=utility&state=resolved&demo_id={demo_id}&evidence_id={evidence_id}&page=1&page_size=1"
                     ))
                     .body(Body::empty())
                     .expect("request"),
@@ -325,10 +399,69 @@ mod tests {
             serde_json::from_slice(&body).expect("annotation page");
         assert_eq!(page.total, 1);
         assert_eq!(page.items[0].evidence_id, evidence_id);
+        assert_eq!(page.items[0].body, updated.body);
+        assert_eq!(page.items[0].tags, updated.tags);
         assert_eq!(
             page.items[0].review_state,
-            EvidenceAnnotationReviewState::Open
+            EvidenceAnnotationReviewState::Resolved
         );
+    }
+
+    #[tokio::test]
+    async fn evidence_annotation_query_reports_invalid_filters_at_the_api_boundary() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/evidence/annotations?q=%20%20&page=1&page_size=10")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
+
+        let response = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/evidence/annotations?review_state=resolved")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/evidence/annotations")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "demo_id": Uuid::new_v4(),
+                            "evidence_id": "demo:missing/event:missing",
+                            "round": 1,
+                            "tick": 1,
+                            "body": "Invalid duplicate tags",
+                            "tags": ["review", " REVIEW "]
+                        })
+                        .to_string(),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]

@@ -29,6 +29,7 @@ async fn list_annotations(
     State(state): State<AppState>,
     ApiQuery(query): ApiQuery<EvidenceAnnotationQuery>,
 ) -> ApiResult<Json<Page<EvidenceAnnotation>>> {
+    query.validate()?;
     Ok(Json(state.storage.list_evidence_annotations(query).await?))
 }
 
@@ -36,6 +37,7 @@ async fn create_annotation(
     State(state): State<AppState>,
     ApiJson(draft): ApiJson<CreateEvidenceAnnotation>,
 ) -> ApiResult<(StatusCode, Json<EvidenceAnnotation>)> {
+    let draft = draft.normalize()?;
     match state.storage.create_evidence_annotation(draft).await? {
         EvidenceAnnotationCreate::Created(annotation) => {
             Ok((StatusCode::CREATED, Json(annotation)))
@@ -52,6 +54,7 @@ async fn update_annotation(
     Path(id): Path<Uuid>,
     ApiJson(update): ApiJson<UpdateEvidenceAnnotation>,
 ) -> ApiResult<Json<EvidenceAnnotation>> {
+    let update = update.normalize()?;
     state
         .storage
         .update_evidence_annotation(id, update)

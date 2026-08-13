@@ -6,6 +6,7 @@ use uuid::Uuid;
 pub const EVIDENCE_ANNOTATION_MAX_BODY_CHARS: usize = 4_000;
 pub const EVIDENCE_ANNOTATION_MAX_TAGS: usize = 16;
 pub const EVIDENCE_ANNOTATION_MAX_TAG_CHARS: usize = 64;
+pub const EVIDENCE_ANNOTATION_MAX_QUERY_CHARS: usize = 256;
 pub const EVIDENCE_ANNOTATION_DEFAULT_PAGE_SIZE: u32 = 50;
 pub const EVIDENCE_ANNOTATION_MAX_PAGE_SIZE: u32 = 100;
 
@@ -87,9 +88,11 @@ impl UpdateEvidenceAnnotation {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct EvidenceAnnotationQuery {
+    pub q: Option<String>,
+    pub tag: Option<String>,
     pub demo_id: Option<Uuid>,
     pub evidence_id: Option<String>,
-    pub review_state: Option<EvidenceAnnotationReviewState>,
+    pub state: Option<EvidenceAnnotationReviewState>,
     pub page: Option<u32>,
     pub page_size: Option<u32>,
 }
@@ -101,6 +104,22 @@ impl EvidenceAnnotationQuery {
     ///
     /// Returns [`crate::DomainError::InvalidInput`] when a filter or page is invalid.
     pub fn validate(&self) -> Result<(), crate::DomainError> {
+        if self.q.as_deref().is_some_and(|value| {
+            value.trim().is_empty()
+                || value.trim().chars().count() > EVIDENCE_ANNOTATION_MAX_QUERY_CHARS
+        }) {
+            return Err(crate::DomainError::InvalidInput(format!(
+                "q must contain 1 to {EVIDENCE_ANNOTATION_MAX_QUERY_CHARS} characters"
+            )));
+        }
+        if self.tag.as_deref().is_some_and(|value| {
+            value.trim().is_empty()
+                || value.trim().chars().count() > EVIDENCE_ANNOTATION_MAX_TAG_CHARS
+        }) {
+            return Err(crate::DomainError::InvalidInput(format!(
+                "tag must contain 1 to {EVIDENCE_ANNOTATION_MAX_TAG_CHARS} characters"
+            )));
+        }
         if self
             .evidence_id
             .as_deref()
@@ -198,5 +217,21 @@ mod tests {
             ..normalized
         };
         assert!(duplicate.normalize().is_err());
+    }
+
+    #[test]
+    fn annotation_query_exposes_only_the_current_state_filter() {
+        let query: EvidenceAnnotationQuery = serde_json::from_value(serde_json::json!({
+            "state": "resolved"
+        }))
+        .expect("current state filter");
+        assert_eq!(query.state, Some(EvidenceAnnotationReviewState::Resolved));
+
+        assert!(
+            serde_json::from_value::<EvidenceAnnotationQuery>(serde_json::json!({
+                "review_state": "resolved"
+            }))
+            .is_err()
+        );
     }
 }

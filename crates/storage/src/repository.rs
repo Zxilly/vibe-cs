@@ -897,14 +897,23 @@ impl Storage {
         let offset = u64::from(page - 1) * u64::from(page_size);
         let demo_id = query.demo_id.map(|id| id.to_string());
         let evidence_id = query.evidence_id.map(|value| value.trim().to_owned());
-        let review_state = query.review_state.map(evidence_annotation_state_text);
+        let review_state = query.state.map(evidence_annotation_state_text);
+        let q = query.q.map(|value| value.trim().to_lowercase());
+        let tag = query.tag.map(|value| value.trim().to_lowercase());
         self.run(move |connection| {
             let total = connection.query_row(
                 "SELECT COUNT(*) FROM evidence_annotations
                  WHERE (?1 IS NULL OR demo_id = ?1)
                    AND (?2 IS NULL OR evidence_id = ?2)
-                   AND (?3 IS NULL OR review_state = ?3)",
-                params![demo_id, evidence_id, review_state],
+                   AND (?3 IS NULL OR review_state = ?3)
+                   AND (?4 IS NULL OR instr(
+                       lower(coalesce(json_extract(document_json, '$.body'), '')), ?4
+                   ) > 0)
+                   AND (?5 IS NULL OR EXISTS (
+                       SELECT 1 FROM json_each(evidence_annotations.document_json, '$.tags') AS annotation_tag
+                       WHERE lower(annotation_tag.value) = ?5
+                   ))",
+                params![demo_id, evidence_id, review_state, q, tag],
                 |row| row_u64(row, 0),
             )?;
             let mut statement = connection.prepare(
@@ -912,12 +921,21 @@ impl Storage {
                  WHERE (?1 IS NULL OR demo_id = ?1)
                    AND (?2 IS NULL OR evidence_id = ?2)
                    AND (?3 IS NULL OR review_state = ?3)
-                 ORDER BY updated_at DESC, id ASC LIMIT ?4 OFFSET ?5",
+                   AND (?4 IS NULL OR instr(
+                       lower(coalesce(json_extract(document_json, '$.body'), '')), ?4
+                   ) > 0)
+                   AND (?5 IS NULL OR EXISTS (
+                       SELECT 1 FROM json_each(evidence_annotations.document_json, '$.tags') AS annotation_tag
+                       WHERE lower(annotation_tag.value) = ?5
+                   ))
+                 ORDER BY updated_at DESC, id ASC LIMIT ?6 OFFSET ?7",
             )?;
             let mut rows = statement.query(params![
                 demo_id,
                 evidence_id,
                 review_state,
+                q,
+                tag,
                 i64::from(page_size),
                 sql_u64(offset)?,
             ])?;
@@ -4169,6 +4187,48 @@ mod tests {
         }
     }
 
+    async fn put_annotation_evidence(storage: &Storage, path: &str) -> (Uuid, String) {
+        let record = demo(path);
+        let demo_id = record.id;
+        storage.put_demo(record).await.expect("put demo");
+        storage
+            .put_analysis(MatchAnalysis {
+                demo_id,
+                map_name: "de_anubis".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 10.0,
+                verified_total_ticks: Some(640),
+                teams: vec![],
+                players: vec![],
+                rounds: vec![vibe_cs_domain::RoundSummary {
+                    number: 1,
+                    start_tick: 1,
+                    end_tick: 640,
+                    winner: String::new(),
+                    reason: String::new(),
+                    team_a_score: 0,
+                    team_b_score: 0,
+                    events: vec![vibe_cs_domain::TimelineEvent {
+                        id: "player_death-320-1".to_owned(),
+                        tick: 320,
+                        seconds: 5.0,
+                        kind: vibe_cs_domain::EventKind::Kill,
+                        actor: None,
+                        target: None,
+                        weapon: None,
+                        headshot: false,
+                        penetrated: false,
+                        position: None,
+                        detail: serde_json::json!({}),
+                    }],
+                }],
+                highlights: vec![],
+            })
+            .await
+            .expect("put analysis");
+        (demo_id, format!("demo:{demo_id}/event:player_death-320-1"))
+    }
+
     #[tokio::test]
     async fn cosmetic_plans_round_trip_and_follow_demo_deletion() {
         let storage = Storage::open_in_memory().await.expect("storage");
@@ -4924,6 +4984,207 @@ mod tests {
                 .total,
             0
         );
+    }
+
+    #[tokio::test]
+    async fn evidence_annotation_body_search_filters_before_pagination() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let (demo_id, evidence_id) =
+            put_annotation_evidence(&storage, "C:/matches/annotation-search.dem").await;
+        let create = |body: &str| vibe_cs_domain::CreateEvidenceAnnotation {
+            demo_id,
+            evidence_id: evidence_id.clone(),
+            round: 1,
+            tick: 320,
+            body: body.to_owned(),
+            tags: vec![],
+        };
+
+        let matching = storage
+            .create_evidence_annotation(create("Review the late B retake"))
+            .await
+            .expect("create matching annotation");
+        let matching = match matching {
+            EvidenceAnnotationCreate::Created(annotation) => annotation,
+            other => panic!("unexpected create result: {other:?}"),
+        };
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        let newer = storage
+            .create_evidence_annotation(create("Check the opening path"))
+            .await
+            .expect("create newer annotation");
+        let newer = match newer {
+            EvidenceAnnotationCreate::Created(annotation) => annotation,
+            other => panic!("unexpected create result: {other:?}"),
+        };
+        let unfiltered = storage
+            .list_evidence_annotations(EvidenceAnnotationQuery {
+                page: Some(1),
+                page_size: Some(1),
+                ..EvidenceAnnotationQuery::default()
+            })
+            .await
+            .expect("list unfiltered page");
+        assert_eq!(unfiltered.items[0].id, newer.id);
+
+        let filtered = storage
+            .list_evidence_annotations(EvidenceAnnotationQuery {
+                q: Some("  LATE b RETAKE ".to_owned()),
+                page: Some(1),
+                page_size: Some(1),
+                ..EvidenceAnnotationQuery::default()
+            })
+            .await
+            .expect("search annotation body");
+
+        assert_eq!(filtered.total, 1);
+        assert_eq!(filtered.items.len(), 1);
+        assert_eq!(filtered.items[0].id, matching.id);
+    }
+
+    #[tokio::test]
+    async fn evidence_annotation_tag_filter_is_exact_case_insensitive_and_precedes_pagination() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let (demo_id, evidence_id) =
+            put_annotation_evidence(&storage, "C:/matches/annotation-tags.dem").await;
+        let create = |body: &str, tag: &str| vibe_cs_domain::CreateEvidenceAnnotation {
+            demo_id,
+            evidence_id: evidence_id.clone(),
+            round: 1,
+            tick: 320,
+            body: body.to_owned(),
+            tags: vec![tag.to_owned()],
+        };
+
+        let matching = storage
+            .create_evidence_annotation(create("Review the retake", "Retake"))
+            .await
+            .expect("create matching annotation");
+        let matching = match matching {
+            EvidenceAnnotationCreate::Created(annotation) => annotation,
+            other => panic!("unexpected create result: {other:?}"),
+        };
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        let newer = storage
+            .create_evidence_annotation(create("Review the setup", "retake-plan"))
+            .await
+            .expect("create newer annotation");
+        let newer = match newer {
+            EvidenceAnnotationCreate::Created(annotation) => annotation,
+            other => panic!("unexpected create result: {other:?}"),
+        };
+        let unfiltered = storage
+            .list_evidence_annotations(EvidenceAnnotationQuery {
+                page: Some(1),
+                page_size: Some(1),
+                ..EvidenceAnnotationQuery::default()
+            })
+            .await
+            .expect("list unfiltered page");
+        assert_eq!(unfiltered.items[0].id, newer.id);
+
+        let filtered = storage
+            .list_evidence_annotations(EvidenceAnnotationQuery {
+                tag: Some("  RETAKE ".to_owned()),
+                page: Some(1),
+                page_size: Some(1),
+                ..EvidenceAnnotationQuery::default()
+            })
+            .await
+            .expect("filter annotations by tag");
+
+        assert_eq!(filtered.total, 1);
+        assert_eq!(filtered.items.len(), 1);
+        assert_eq!(filtered.items[0].id, matching.id);
+    }
+
+    #[tokio::test]
+    async fn evidence_annotation_state_and_locator_filters_precede_pagination() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let (demo_id, evidence_id) =
+            put_annotation_evidence(&storage, "C:/matches/annotation-state-a.dem").await;
+        let (other_demo_id, other_evidence_id) =
+            put_annotation_evidence(&storage, "C:/matches/annotation-state-b.dem").await;
+        let create =
+            |demo_id, evidence_id: String, body: &str| vibe_cs_domain::CreateEvidenceAnnotation {
+                demo_id,
+                evidence_id,
+                round: 1,
+                tick: 320,
+                body: body.to_owned(),
+                tags: vec![],
+            };
+
+        let matching = storage
+            .create_evidence_annotation(create(
+                demo_id,
+                evidence_id.clone(),
+                "Resolved evidence review",
+            ))
+            .await
+            .expect("create matching annotation");
+        let matching = match matching {
+            EvidenceAnnotationCreate::Created(annotation) => annotation,
+            other => panic!("unexpected create result: {other:?}"),
+        };
+        let matching = storage
+            .update_evidence_annotation(
+                matching.id,
+                vibe_cs_domain::UpdateEvidenceAnnotation {
+                    body: matching.body,
+                    tags: matching.tags,
+                    review_state: EvidenceAnnotationReviewState::Resolved,
+                },
+            )
+            .await
+            .expect("resolve matching annotation")
+            .expect("matching annotation exists");
+        std::thread::sleep(std::time::Duration::from_millis(2));
+        storage
+            .create_evidence_annotation(create(
+                other_demo_id,
+                other_evidence_id,
+                "Newer resolved review from another demo",
+            ))
+            .await
+            .expect("create other annotation");
+        let other = storage
+            .list_evidence_annotations(EvidenceAnnotationQuery {
+                demo_id: Some(other_demo_id),
+                ..EvidenceAnnotationQuery::default()
+            })
+            .await
+            .expect("list other annotation")
+            .items
+            .into_iter()
+            .next()
+            .expect("other annotation");
+        storage
+            .update_evidence_annotation(
+                other.id,
+                vibe_cs_domain::UpdateEvidenceAnnotation {
+                    body: other.body,
+                    tags: other.tags,
+                    review_state: EvidenceAnnotationReviewState::Resolved,
+                },
+            )
+            .await
+            .expect("resolve other annotation");
+
+        let filtered = storage
+            .list_evidence_annotations(EvidenceAnnotationQuery {
+                demo_id: Some(demo_id),
+                evidence_id: Some(format!("  {evidence_id}  ")),
+                state: Some(EvidenceAnnotationReviewState::Resolved),
+                page: Some(1),
+                page_size: Some(1),
+                ..EvidenceAnnotationQuery::default()
+            })
+            .await
+            .expect("filter by state and canonical locator");
+
+        assert_eq!(filtered.total, 1);
+        assert_eq!(filtered.items, vec![matching]);
     }
 
     #[tokio::test]

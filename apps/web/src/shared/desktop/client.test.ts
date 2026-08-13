@@ -176,6 +176,27 @@ describe('desktop command client', () => {
     });
   });
 
+  it('sends the current annotation filters through one server-side page request', async () => {
+    invokeMock.mockResolvedValue({ items: [], total: 0, page: 2, page_size: 25 });
+
+    await commands.listEvidenceAnnotations({
+      q: '  late retake  ',
+      tag: ' Utility ',
+      demo_id: 'demo-1',
+      evidence_id: ' demo:demo-1/event:kill-7 ',
+      state: 'resolved',
+      page: 2,
+      page_size: 25,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: '/evidence/annotations?q=late+retake&tag=Utility&demo_id=demo-1&evidence_id=demo%3Ademo-1%2Fevent%3Akill-7&state=resolved&page=2&page_size=25',
+      },
+    });
+  });
+
   it('restores persisted active Match History downloads through the local dispatcher', async () => {
     invokeMock.mockResolvedValue([]);
 

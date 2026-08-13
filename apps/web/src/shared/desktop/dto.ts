@@ -196,9 +196,11 @@ export type UpdateEvidenceAnnotation = {
 };
 
 export type EvidenceAnnotationQuery = {
+  q?: string;
+  tag?: string;
   demo_id?: string;
   evidence_id?: string;
-  review_state?: EvidenceAnnotationReviewState;
+  state?: EvidenceAnnotationReviewState;
   page?: number;
   page_size?: number;
 };

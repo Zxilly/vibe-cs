@@ -9,12 +9,17 @@ import {
   playbackReadinessRelevant,
   queueItemDurationSeconds,
   queueItemTickRate,
+  recordingJobCancelTarget,
   recordingJobStage,
   recordingQueueFingerprint,
   requireManagedHlaeForRecording,
 } from './queuePlan';
 
 describe('recording job stage presentation', () => {
+  it('keeps a recovered active job cancellable before status hydration succeeds', () => {
+    expect(recordingJobCancelTarget('persisted-job', null)).toBe('persisted-job');
+  });
+
   it('localizes a stable backend stage code without claiming elapsed-time percent', () => {
     expect(recordingJobStage('recording.stage.capturing')).toEqual({
       key: 'queue.recordingStage.capturing',

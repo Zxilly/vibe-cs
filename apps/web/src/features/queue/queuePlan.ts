@@ -1,5 +1,5 @@
 import { currentLocale, msg, translate } from '../../shared/i18n';
-import type { DemoPlaybackOptions, RecordingQueueRequest } from '../../shared/desktop/dto';
+import type { DemoPlaybackOptions, RecordingJob, RecordingQueueRequest } from '../../shared/desktop/dto';
 
 import type { QueueItem } from './queueStore';
 
@@ -39,6 +39,15 @@ export async function requireManagedHlaeForRecording<
  * terminal messages remain visible verbatim so errors never get hidden. */
 export function recordingJobStage(message: string): RecordingJobStage | null {
   return recordingJobStages[message] ?? null;
+}
+
+/** Keeps the durable runtime identity actionable while the richer job status
+ * is still hydrating (or temporarily unavailable). */
+export function recordingJobCancelTarget(
+  activeJobId: string | null,
+  job: Pick<RecordingJob, 'id'> | null,
+): string | null {
+  return activeJobId ?? job?.id ?? null;
 }
 
 export function queueItemTickRate(item: QueueItem): number | null {

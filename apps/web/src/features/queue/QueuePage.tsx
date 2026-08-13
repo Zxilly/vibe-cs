@@ -45,6 +45,7 @@ import {
   playbackReadinessRelevant,
   queueItemDurationSeconds,
   queueItemTickRate,
+  recordingJobCancelTarget,
   recordingJobStage,
   recordingQueueFingerprint,
   requireManagedHlaeForRecording,
@@ -311,8 +312,9 @@ export function QueuePage() {
   };
 
   const handleCancel = async () => {
-    if (!job) return;
-    const result = await abortAction.run(() => commands.cancelRecordingJob(job.id), msg("m0539"));
+    const targetId = recordingJobCancelTarget(activeJobId, job);
+    if (!targetId) return;
+    const result = await abortAction.run(() => commands.cancelRecordingJob(targetId), msg("m0539"));
     if (result) {
       setJob(result);
       setActiveJobId(result.id);

@@ -46,10 +46,9 @@ missing.
 - Sample controller/pawn entities for positioned replay frames and preserve grenade and bomb
   lifecycles. Event-only evidence remains visible when a complete lifecycle cannot be paired.
   Spatial views return an explicit unavailable result when no trustworthy world coordinates exist.
-- Cache replay payloads in a bounded, versioned, hash-keyed store with concurrent generation
+- Cache replay payloads in a bounded, hash-keyed store with concurrent generation
   deduplication, integrity repair, status and explicit cleanup.
-- Serve the same replay through a bounded ARPL binary transport for the interactive client while
-  retaining the JSON route for compatibility. Player/team/event/floor heatmap dimensions and
+- Serve replay through the bounded ARPL binary transport for the interactive client. Player/team/event/floor heatmap dimensions and
   trustworthy smoke, fire, projectile and bomb lifecycle evidence survive both transports.
 - Read overview metadata and radar resources from loose files or VPK v2. Compiled Source 2 radar
   textures are decoded in Rust with bounded dimensions and buffers; supported raw, LZ4, BC1,
@@ -77,25 +76,20 @@ missing.
 - Preview an evidence-backed director plan before capture. Camera switches are coalesced into
   bounded segments and victim perspectives are offered only when the analysis identifies the
   corresponding stable player.
-- Preflight the game executable, foreground process, managed recovery journal, fresh command/GSI
-  evidence, OBS WebSocket state and managed output directory before capture starts.
-- Execute a persisted, cancellable queue through typed Windows input and OBS WebSocket v5. Each
-  segment acknowledges playback commands, keeps one verified game process, stops OBS on all exit
-  paths and restores timescale, pause, radar visibility and voice volume to explicit saved values.
-- Apply validated camera FOV, viewmodel FOV, flash alpha, grenade trajectory, HUD/radar and
-  per-player voice capture settings for the whole recording job, then restore the exact configured
-  prior values on success, failure or cancellation. Optional first-person HUD resources require an
-  explicit license acknowledgement, hash verification and journaled installation/recovery.
-- Drive optional OBS kill media and keyboard-state sources from bounded event/input buses. A
-  manual latency calibration records samples and applies only the resulting bounded delay; missing
-  evidence disables the effect rather than generating input.
-- Select a victim perspective only when analysis supplies a stable victim identity. Optional
-  keyboard and kill-event overlays are derived from timeline evidence and rendered during a real
-  FFmpeg post-process together with fades; missing input evidence does not produce a fabricated
-  overlay.
-- Probe hardware encoders for post-processing, fall back to LGPL `libopenh264` after an actual hardware
-  session failure, publish a verified non-empty output atomically and register the completed clip
-  with duration, request and tick metadata.
+- Preflight the verified CS2 executable, managed HLAE archive, exact demo content, observer
+  evidence, Media Foundation H.264/AAC candidates and managed output directory before capture.
+- Execute a persisted, cancellable queue through the managed HLAE backend. Each segment is bound to
+  a stable player identity and spectator slot; the authenticated bridge continuously verifies the
+  observer mode and identity instead of treating a console command as proof.
+- Apply validated camera FOV, viewmodel FOV, flash alpha, HUD/radar and voice policy for the whole
+  capture. The isolated process and job-scoped configuration are torn down on success, failure or
+  cancellation.
+- Model only the playback speed, overlays, effects and transitions that the native capture backend
+  implements, so unsupported settings cannot enter a plan or become fabricated output.
+- Plan exact Media Foundation 100ns video/audio timestamps and discover registered Windows H.264/AAC
+  candidates without presenting candidate enumeration as readiness. End-to-end native MP4 output is
+  enabled only after a real Sink Writer session succeeds and the result is read back; publication is
+  atomic and records duration, request and tick metadata.
 
 ## Montage and timeline editing
 
@@ -138,13 +132,13 @@ missing.
   managed files, reveal a path through the desktop shell, remove records independently of external
   files, delete managed files with rollback staging, perform bounded batch deletion and clean stale
   records or staged trash.
-- Configure local paths, language, appearance, recording defaults, Steam, OBS and an
+- Inspect detected CS2 and application-managed movie-engine readiness; configure language,
+  appearance, recording defaults, Steam and an
   OpenAI-compatible provider. Blank secret placeholders retain an existing saved secret and all
   configuration responses redact secret values.
-- Diagnose and start OBS from saved local settings, choose a verified scene, plan output-resolution
-  and frame-rate changes, explicitly apply a fingerprinted plan, and restore or delete one of the
-  bounded integrity-checked OBS video-setting backups. Changes are refused while recording and a
-  failed verification triggers rollback.
+- Prepare an immutable HLAE release from its fixed official URL after explicit user action; verify
+  the archive and every extracted artifact before discovery or launch. Users install only CS2; no
+  capture host, scene, password, FFmpeg path or encoder selector is part of the workflow.
 - Receive authenticated CS2 GSI events only on the loopback API, reject stale timestamps, and keep
   durable recovery information for every managed configuration change.
 - Inspect dependency and storage readiness, clear replay/avatar/proxy caches through ownership-aware
@@ -158,25 +152,22 @@ missing.
 - Write daily local logs with a fourteen-file retention window, open service-owned data/log/recording/export directories through the
   desktop shell, and export a redacted diagnostic JSON snapshot. Browser mode reports its boundary
   instead of pretending it opened a local directory.
-- On an explicitly configured first startup, import a previous data directory through a consistent
-  SQLite snapshot and bounded no-clobber copies of managed recordings, exports, uploads, packages,
-  proxies and caches. Stored JSON and scalar paths below the previous root are remapped in one
-  database transaction; an initialized target is never overwritten.
 
 ## Deliberate boundaries
 
 - The service and desktop host are local-first and loopback-only. There is no cloud account,
   collaborative project service or public network API.
 - Demo bytes that are corrupt or from an unsupported format are rejected. A narrowly defined
-  compatibility action may create a separate copy by removing only an incomplete terminal message
+  recovery action may create a separate copy by removing only an incomplete terminal message
   after a complete file-info message has been verified; it never changes the source or invents
   match evidence.
 - Positioned replay and heatmaps depend on trustworthy entity or event coordinates. The UI states
   when only non-spatial timeline evidence is available.
-- Media probing, waveform decoding, filters, encoding and muxing run in-process through
+- General media probing, waveform decoding, filters, encoding and muxing run in-process through
   `ffmpeg-next`/`ez-ffmpeg` and a bundled LGPL FFmpeg shared build. No media operation launches an
-  FFmpeg executable or command shell. Verified game capture requires
-  Windows, a Steam-discovered or manually selected local game installation, a fresh GSI heartbeat
-  and OBS WebSocket.
+  FFmpeg executable or command shell. The deterministic movie path is Windows-only and targets a
+  verified managed HLAE process plus Media Foundation; until its handshake and MP4 readback gates
+  pass, the product must report capture as unavailable rather than falling back to an unverified
+  external dependency.
 - Steam public data and AI review are optional external integrations. Their absence never blocks
   local demo parsing, analysis or editing.

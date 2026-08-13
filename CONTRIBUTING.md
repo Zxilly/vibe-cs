@@ -9,10 +9,9 @@ Keep changes focused on one vertical capability and preserve the dependency dire
 - Do not invoke a shell to run external tools. Build a program and argument list explicitly.
 - Never log access tokens, API keys, OBS passwords, or complete signed URLs.
 - Treat demo and media files as untrusted input and enforce input, memory, output, and time limits.
-- Keep transport DTOs compatible within a minor release, or add a versioned migration.
+- Keep the single current transport contract synchronized across Rust, desktop, and Web callers.
 - UI changes must remain keyboard-operable, readable at 1100×700, and respectful of reduced-motion preferences.
 
 ## Commit messages
 
 Use Conventional Commits with a concise scope, for example `feat(library): add recursive demo scan` or `fix(export): cancel owned ffmpeg process`.
-

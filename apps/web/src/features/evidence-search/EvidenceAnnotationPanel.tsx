@@ -1,5 +1,5 @@
 import { CheckCircle2, MessageSquareText, Pencil, RotateCcw, Save, Trash2, X } from 'lucide-react';
-import { type FormEvent, useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 
 import { commands, readableError } from '../../shared/desktop/client';
 import type {
@@ -20,6 +20,25 @@ export type EvidenceAnnotationDraft = { body: string; tags: string };
 type PendingAnnotationAction =
   | { kind: 'create'; annotationId: null }
   | { kind: 'edit' | 'state' | 'delete'; annotationId: string };
+
+export function arbitrateEvidenceAnnotationRequests() {
+  let generation = 0;
+  return {
+    async acceptCurrentList<T>(request: Promise<T>): Promise<T | null> {
+      const requestGeneration = ++generation;
+      try {
+        const value = await request;
+        return requestGeneration === generation ? value : null;
+      } catch (cause) {
+        if (requestGeneration !== generation) return null;
+        throw cause;
+      }
+    },
+    mutationSucceeded() {
+      generation += 1;
+    },
+  };
+}
 
 export function evidenceAnnotationUpdate(
   annotation: EvidenceAnnotation,
@@ -153,22 +172,30 @@ export function EvidenceAnnotationPanel({
   const [editing, setEditing] = useState<(EvidenceAnnotationDraft & { annotationId: string }) | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAnnotationAction | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const requests = useRef(arbitrateEvidenceAnnotationRequests()).current;
 
   const load = (signal?: AbortSignal) => {
     setState((current) => ({ status: 'loading', items: current.items, error: null }));
-    void commands.listEvidenceAnnotations({
-      evidence_id: item.evidence_id,
-      page: 1,
-      page_size: 100,
-    }, signal).then((page) => {
-      setState({ status: 'ready', items: page.items, error: null });
-    }).catch((cause: unknown) => {
-      if (!signal?.aborted) {
-        setState((current) => ({
-          status: 'error', items: current.items, error: readableError(cause),
-        }));
-      }
-    });
+    void requests
+      .acceptCurrentList(commands.listEvidenceAnnotations(
+        {
+          evidence_id: item.evidence_id,
+          page: 1,
+          page_size: 100,
+        },
+        signal,
+      ))
+      .then((page) => {
+        if (page === null) return;
+        setState({ status: 'ready', items: page.items, error: null });
+      })
+      .catch((cause: unknown) => {
+        if (!signal?.aborted) {
+          setState((current) => ({
+            status: 'error', items: current.items, error: readableError(cause),
+          }));
+        }
+      });
   };
 
   useEffect(() => {
@@ -202,6 +229,7 @@ export function EvidenceAnnotationPanel({
         body,
         tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
       });
+      requests.mutationSucceeded();
       setState((current) => ({
         status: 'ready', items: [annotation, ...current.items], error: null,
       }));
@@ -223,6 +251,7 @@ export function EvidenceAnnotationPanel({
         annotation.id,
         evidenceAnnotationUpdate(annotation, editing),
       );
+      requests.mutationSucceeded();
       replaceAnnotation(updated);
       setEditing(null);
     } catch (cause) {
@@ -241,6 +270,7 @@ export function EvidenceAnnotationPanel({
         tags: annotation.tags,
         review_state: annotation.review_state === 'open' ? 'resolved' : 'open',
       });
+      requests.mutationSucceeded();
       replaceAnnotation(updated);
     } catch (cause) {
       setMutationError(readableError(cause));
@@ -254,6 +284,7 @@ export function EvidenceAnnotationPanel({
     setMutationError(null);
     try {
       await commands.deleteEvidenceAnnotation(annotation.id);
+      requests.mutationSucceeded();
       setState((current) => ({
         status: 'ready',
         items: current.items.filter((candidate) => candidate.id !== annotation.id),

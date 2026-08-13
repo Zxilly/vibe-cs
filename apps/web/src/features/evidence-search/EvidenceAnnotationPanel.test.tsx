@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { EvidenceAnnotation, EvidenceSearchItem } from '../../shared/desktop/dto';
 import {
+  arbitrateEvidenceAnnotationRequests,
   EvidenceAnnotationPanel,
   EvidenceAnnotationRecord,
   evidenceAnnotationUpdate,
@@ -125,5 +126,18 @@ describe('evidence annotation panel', () => {
     expect(update).not.toHaveProperty('evidence_id');
     expect(update).not.toHaveProperty('round');
     expect(update).not.toHaveProperty('tick');
+  });
+
+  it('rejects an older annotation response after a successful mutation', async () => {
+    let resolveList: ((page: { items: EvidenceAnnotation[] }) => void) | undefined;
+    const oldList = new Promise<{ items: EvidenceAnnotation[] }>((resolve) => {
+      resolveList = resolve;
+    });
+    const requests = arbitrateEvidenceAnnotationRequests();
+    const request = requests.acceptCurrentList(oldList);
+    requests.mutationSucceeded();
+    resolveList?.({ items: [annotation] });
+
+    await expect(request).resolves.toBeNull();
   });
 });

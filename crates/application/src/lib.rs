@@ -1229,6 +1229,7 @@ mod tests {
         let storage = vibe_cs_storage::Storage::open_in_memory()
             .await
             .expect("storage");
+        configure_steam_downloads(&storage, "76561198000000000").await;
         let job_id = Uuid::new_v4();
         let now = Utc::now();
         storage

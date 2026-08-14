@@ -107,18 +107,22 @@ describe('library explicit cross-page selection', () => {
     expect(currentSuccess).toHaveBeenCalledWith({ validIds: ['current'], rejected: [] });
   });
 
-  it('binds membership to search, map, and status while ignoring page, page size, sort, and columns', () => {
+  it('binds membership to every directory filter while ignoring page, page size, sort, and columns', () => {
     const base = {
       search: ' major ',
       map: 'DE_MIRAGE',
       status: 'failed',
+      matchSource: 'faceit',
+      tagId: '11111111-1111-4111-8111-111111111111',
       sort: 'updated_desc',
       page: 1,
       pageSize: 20,
       columns: ['map'],
     } as const;
 
-    expect(librarySelectionIdentity(base)).toBe('major\u0000DE_MIRAGE\u0000failed');
+    expect(librarySelectionIdentity(base)).toBe(
+      'major\u0000DE_MIRAGE\u0000failed\u0000faceit\u000011111111-1111-4111-8111-111111111111',
+    );
     expect(librarySelectionIdentity({
       ...base,
       page: 5,
@@ -129,6 +133,10 @@ describe('library explicit cross-page selection', () => {
     expect(librarySelectionIdentity({ ...base, search: 'final' } as never))
       .not.toBe(librarySelectionIdentity(base));
     expect(librarySelectionIdentity({ ...base, map: 'de_mirage' } as never))
+      .not.toBe(librarySelectionIdentity(base));
+    expect(librarySelectionIdentity({ ...base, matchSource: 'valve' } as never))
+      .not.toBe(librarySelectionIdentity(base));
+    expect(librarySelectionIdentity({ ...base, tagId: '22222222-2222-4222-8222-222222222222' } as never))
       .not.toBe(librarySelectionIdentity(base));
   });
 

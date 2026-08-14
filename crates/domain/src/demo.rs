@@ -8,6 +8,7 @@ pub const DEMO_MAX_PAGE_SIZE: u32 = 200;
 pub const DEMO_COMMENT_MAX_CHARS: usize = 4_000;
 pub const DEMO_TAG_MAX_NAME_CHARS: usize = 64;
 pub const DEMO_TAG_MAX_ASSIGNMENTS: usize = 32;
+pub const DEMO_METADATA_BATCH_MAX_DEMOS: usize = 100;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -61,6 +62,16 @@ pub struct DemoMetadataUpdate {
     pub match_source: Option<DemoMatchSource>,
     pub comment: String,
     pub tag_ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct DemoMetadataBatchUpdate {
+    pub demo_ids: Vec<Uuid>,
+    pub set_match_source: bool,
+    pub match_source: Option<DemoMatchSource>,
+    pub add_tag_ids: Vec<Uuid>,
+    pub remove_tag_ids: Vec<Uuid>,
 }
 
 impl DemoTagCreate {
@@ -117,6 +128,62 @@ impl DemoMetadataUpdate {
         if !self.tag_ids.iter().all(|id| unique.insert(*id)) {
             return Err(crate::DomainError::InvalidInput(
                 "demo tag assignments must be unique".to_owned(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl DemoMetadataBatchUpdate {
+    /// Validates one bounded, explicit, all-or-nothing metadata batch.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::DomainError::InvalidInput`] for empty/oversized or ambiguous requests.
+    pub fn validate(&self) -> Result<(), crate::DomainError> {
+        if self.demo_ids.is_empty() || self.demo_ids.len() > DEMO_METADATA_BATCH_MAX_DEMOS {
+            return Err(crate::DomainError::InvalidInput(
+                "demo metadata batch must contain 1..=100 Demo IDs".to_owned(),
+            ));
+        }
+        let demo_ids = self
+            .demo_ids
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>();
+        if demo_ids.len() != self.demo_ids.len() {
+            return Err(crate::DomainError::InvalidInput(
+                "demo metadata batch Demo IDs must be unique".to_owned(),
+            ));
+        }
+        if !self.set_match_source && self.match_source.is_some() {
+            return Err(crate::DomainError::InvalidInput(
+                "match_source requires set_match_source=true".to_owned(),
+            ));
+        }
+        let added = self
+            .add_tag_ids
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>();
+        let removed = self
+            .remove_tag_ids
+            .iter()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>();
+        if added.len() != self.add_tag_ids.len() || removed.len() != self.remove_tag_ids.len() {
+            return Err(crate::DomainError::InvalidInput(
+                "demo metadata batch tag IDs must be unique".to_owned(),
+            ));
+        }
+        if !added.is_disjoint(&removed) {
+            return Err(crate::DomainError::InvalidInput(
+                "a tag cannot be both added and removed".to_owned(),
+            ));
+        }
+        if !self.set_match_source && added.is_empty() && removed.is_empty() {
+            return Err(crate::DomainError::InvalidInput(
+                "demo metadata batch must change source or tags".to_owned(),
             ));
         }
         Ok(())
@@ -201,6 +268,8 @@ pub struct DemoRecord {
 pub struct DemoQuery {
     pub search: Option<String>,
     pub source: Option<String>,
+    pub match_source: Option<DemoMatchSource>,
+    pub tag_id: Option<Uuid>,
     pub map_name: Option<String>,
     pub status: Option<DemoStatus>,
     pub sort: Option<DemoSort>,

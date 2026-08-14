@@ -5,7 +5,7 @@ use axum::{
     body::Body,
     extract::{DefaultBodyLimit, Path as AxumPath, State},
     http::{Response, StatusCode, header},
-    routing::{get, post},
+    routing::{get, patch, post},
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -16,8 +16,9 @@ use vibe_cs_demo::{
     validate_demo,
 };
 use vibe_cs_domain::{
-    DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoMetadata, DemoMetadataUpdate, DemoPatch, DemoQuery,
-    DemoRecord, DemoSort, DemoStatus, DemoTag, DemoTagCreate, MatchAnalysis, Page, ScanResult,
+    DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoMatchSource, DemoMetadata, DemoMetadataBatchUpdate,
+    DemoMetadataUpdate, DemoPatch, DemoQuery, DemoRecord, DemoSort, DemoStatus, DemoTag,
+    DemoTagCreate, MatchAnalysis, Page, ScanResult,
 };
 use vibe_cs_storage::{DemoContentIdentity, DemoContentRecovery};
 
@@ -58,7 +59,15 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/demos/{id}/metadata",
             get(get_demo_metadata).put(update_demo_metadata),
         )
+        .route(
+            "/api/demos/metadata/batch",
+            post(update_demo_metadata_batch),
+        )
         .route("/api/demo-tags", get(list_demo_tags).post(create_demo_tag))
+        .route(
+            "/api/demo-tags/{id}",
+            patch(update_demo_tag).delete(delete_demo_tag),
+        )
         .route("/api/demos/{id}/analysis", get(get_analysis))
         .route("/api/demos/{id}/replay.bin", get(get_replay_binary))
         .route(
@@ -93,6 +102,8 @@ async fn watch_rescan(State(state): State<AppState>) -> ApiResult<Json<DemoWatch
 struct DemoListQuery {
     search: Option<String>,
     source: Option<String>,
+    match_source: Option<String>,
+    tag_id: Option<String>,
     map_name: Option<String>,
     status: Option<String>,
     sort: Option<String>,
@@ -157,12 +168,20 @@ async fn list_demos(
 ) -> ApiResult<Json<Page<DemoSummaryDto>>> {
     validate_demo_window(query.page, query.page_size)?;
     let status = query.status.as_deref().map(parse_status).transpose()?;
+    let match_source = query
+        .match_source
+        .as_deref()
+        .map(parse_match_source)
+        .transpose()?;
+    let tag_id = query.tag_id.as_deref().map(parse_id).transpose()?;
     let sort = parse_demo_sort(query.sort.as_deref())?;
     let page = state
         .storage
         .list_demos(DemoQuery {
             search: query.search,
             source: query.source,
+            match_source,
+            tag_id,
             map_name: query.map_name,
             status,
             sort,
@@ -176,6 +195,26 @@ async fn list_demos(
         page: page.page,
         page_size: page.page_size,
     }))
+}
+
+fn parse_match_source(value: &str) -> ApiResult<DemoMatchSource> {
+    match value {
+        "challengermode" => Ok(DemoMatchSource::Challengermode),
+        "ebot" => Ok(DemoMatchSource::Ebot),
+        "esl" => Ok(DemoMatchSource::Esl),
+        "esplay" => Ok(DemoMatchSource::Esplay),
+        "esportal" => Ok(DemoMatchSource::Esportal),
+        "esportligaen" => Ok(DemoMatchSource::Esportligaen),
+        "faceit" => Ok(DemoMatchSource::Faceit),
+        "fastcup" => Ok(DemoMatchSource::Fastcup),
+        "five_eplay" => Ok(DemoMatchSource::FiveEplay),
+        "matchzy" => Ok(DemoMatchSource::Matchzy),
+        "perfect_world" => Ok(DemoMatchSource::PerfectWorld),
+        "pracc" => Ok(DemoMatchSource::Pracc),
+        "renown" => Ok(DemoMatchSource::Renown),
+        "valve" => Ok(DemoMatchSource::Valve),
+        _ => Err(ApiError::invalid("unsupported demo match_source")),
+    }
 }
 
 async fn get_demo(
@@ -234,6 +273,19 @@ async fn update_demo_metadata(
     Ok(Json(metadata))
 }
 
+async fn update_demo_metadata_batch(
+    State(state): State<AppState>,
+    ApiJson(update): ApiJson<DemoMetadataBatchUpdate>,
+) -> ApiResult<Json<Vec<DemoMetadata>>> {
+    let metadata = state.storage.update_demo_metadata_batch(update).await?;
+    for item in &metadata {
+        state
+            .events
+            .publish("demo", "metadata_updated", Some(item.demo_id));
+    }
+    Ok(Json(metadata))
+}
+
 async fn list_demo_tags(State(state): State<AppState>) -> ApiResult<Json<Vec<DemoTag>>> {
     Ok(Json(state.storage.list_demo_tags().await?))
 }
@@ -245,6 +297,33 @@ async fn create_demo_tag(
     let tag = state.storage.create_demo_tag(input).await?;
     state.events.publish("demo_tag", "created", Some(tag.id));
     Ok((StatusCode::CREATED, Json(tag)))
+}
+
+async fn update_demo_tag(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+    ApiJson(input): ApiJson<DemoTagCreate>,
+) -> ApiResult<Json<DemoTag>> {
+    let id = parse_id(&id)?;
+    let tag = state
+        .storage
+        .update_demo_tag(id, input)
+        .await?
+        .ok_or_else(|| ApiError::not_found("demo tag"))?;
+    state.events.publish("demo_tag", "updated", Some(id));
+    Ok(Json(tag))
+}
+
+async fn delete_demo_tag(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> ApiResult<StatusCode> {
+    let id = parse_id(&id)?;
+    if !state.storage.delete_demo_tag(id).await? {
+        return Err(ApiError::not_found("demo tag"));
+    }
+    state.events.publish("demo_tag", "deleted", Some(id));
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn delete_demo(

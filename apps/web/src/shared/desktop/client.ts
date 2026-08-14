@@ -3,7 +3,7 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { msg, msgf } from '../i18n';
 import { parseActivityFeed, parseActivityItem } from './activityContract';
 import { parseAnalysisRun, parseAnalysisRunDetail } from './analysisRunContract';
-import { parseDemoMetadata, parseDemoTag, parseDemoTagCatalog } from './demoMetadataContract';
+import { parseDemoMetadata, parseDemoMetadataBatch, parseDemoTag, parseDemoTagCatalog } from './demoMetadataContract';
 import { parseLineupDirectoryPage, parseLineupMapPage } from './lineupContract';
 import {
   parsePlayerComparison,
@@ -53,6 +53,7 @@ import type {
   DemoPlaybackStatus,
   DemoPlaybackStop,
   DemoMetadata,
+  DemoMetadataBatchUpdate,
   DemoMetadataUpdate,
   DemoQuery,
   DemoRecord,
@@ -497,6 +498,8 @@ export const commands = {
     const page = await request<Paginated<DemoRecord>>(
       `/demos/compact${queryString({
         search: query.search,
+        match_source: query.match_source,
+        tag_id: query.tag_id,
         map_name: query.map_name,
         status: query.status,
         sort: query.sort,
@@ -558,10 +561,22 @@ export const commands = {
       }),
       id,
     ),
+  updateDemoMetadataBatch: async (update: DemoMetadataBatchUpdate): Promise<DemoMetadata[]> =>
+    parseDemoMetadataBatch(
+      await request<unknown>('/demos/metadata/batch', { method: 'POST', body: update }),
+      update.demo_ids,
+    ),
   listDemoTags: async (signal?: AbortSignal): Promise<DemoTag[]> =>
     parseDemoTagCatalog(await request<unknown>('/demo-tags', { signal })),
   createDemoTag: async (input: DemoTagCreate): Promise<DemoTag> =>
     parseDemoTag(await request<unknown>('/demo-tags', { method: 'POST', body: input })),
+  updateDemoTag: async (id: string, input: DemoTagCreate): Promise<DemoTag> =>
+    parseDemoTag(await request<unknown>(`/demo-tags/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: input,
+    })),
+  deleteDemoTag: (id: string) =>
+    request<void>(`/demo-tags/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   deleteDemo: (id: string) =>
     request<void>(`/demos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listLineups: async (query: { search: string; page: number; page_size: number }, signal?: AbortSignal) =>

@@ -42,6 +42,9 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE
     );
 
+    CREATE INDEX demo_metadata_match_source_demo_idx
+        ON demo_metadata(match_source, demo_id);
+
     CREATE TABLE demo_tags (
         id TEXT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL,

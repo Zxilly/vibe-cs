@@ -209,6 +209,8 @@ export type EvidenceAnnotationQuery = {
 
 export type DemoQuery = {
   search?: string;
+  match_source?: DemoMatchSource;
+  tag_id?: string;
   map_name?: string;
   status?: DemoLifecycleStatus;
   sort?: DemoSort;
@@ -246,6 +248,14 @@ export type DemoMetadataUpdate = {
   match_source: DemoMatchSource | null;
   comment: string;
   tag_ids: string[];
+};
+
+export type DemoMetadataBatchUpdate = {
+  demo_ids: string[];
+  set_match_source: boolean;
+  match_source: DemoMatchSource | null;
+  add_tag_ids: string[];
+  remove_tag_ids: string[];
 };
 
 export type DemoTagCreate = {

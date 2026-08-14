@@ -41,13 +41,15 @@ describe('library server query', () => {
 
   it('restores bounded filters, lifecycle status, sort, and page from the URL', () => {
     const query = libraryQueryFromParams(new URLSearchParams(
-      'q=m0NESY&map=de_mirage&status=indexing&sort=duration_desc&page=3&page_size=20',
+      'q=m0NESY&map=de_mirage&status=indexing&match_source=faceit&tag=11111111-1111-4111-8111-111111111111&sort=duration_desc&page=3&page_size=20',
     ));
 
     expect(query).toEqual({
       search: 'm0NESY',
       map: 'de_mirage',
       status: 'indexing',
+      matchSource: 'faceit',
+      tagId: '11111111-1111-4111-8111-111111111111',
       sort: 'duration_desc',
       page: 3,
       pageSize: 20,
@@ -57,17 +59,21 @@ describe('library server query', () => {
       search: 'm0NESY',
       map_name: 'de_mirage',
       status: 'indexing',
+      match_source: 'faceit',
+      tag_id: '11111111-1111-4111-8111-111111111111',
       sort: 'duration_desc',
       page: 3,
       page_size: 20,
     });
     expect(libraryQueryToParams(query).toString()).toBe(
-      'q=m0NESY&map=de_mirage&status=indexing&sort=duration_desc&page=3&page_size=20',
+      'q=m0NESY&map=de_mirage&status=indexing&match_source=faceit&tag=11111111-1111-4111-8111-111111111111&sort=duration_desc&page=3&page_size=20',
     );
   });
 
   it.each([
     'status=parsing',
+    'match_source=local',
+    'tag=not-a-uuid',
     'search=m0NESY',
     'map_name=de_mirage',
     'sort=newest',

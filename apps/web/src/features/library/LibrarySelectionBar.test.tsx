@@ -3,10 +3,26 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { LibrarySelectionBar } from './LibrarySelectionBar';
 
+const metadataProps = {
+  tags: [{
+    id: '11111111-1111-4111-8111-111111111111',
+    name: 'Major',
+    color: '#dc2626',
+    created_at: '2026-08-14T01:00:00Z',
+    updated_at: '2026-08-14T01:00:00Z',
+  }],
+  matchSources: ['faceit', 'valve'] as const,
+  metadataBusy: false,
+  onSetMatchSource: vi.fn(),
+  onAddTag: vi.fn(),
+  onRemoveTag: vi.fn(),
+};
+
 describe('library cross-page selection bar', () => {
   it('states the explicit bounded cross-page contract and keeps validation visible', () => {
     const markup = renderToStaticMarkup(
       <LibrarySelectionBar
+        {...metadataProps}
         selectedCount={3}
         state="validating"
         atLimit={false}
@@ -27,6 +43,7 @@ describe('library cross-page selection bar', () => {
   it('announces the hard cap without claiming that every filtered result is selected', () => {
     const markup = renderToStaticMarkup(
       <LibrarySelectionBar
+        {...metadataProps}
         selectedCount={12}
         state="idle"
         atLimit
@@ -42,6 +59,7 @@ describe('library cross-page selection bar', () => {
   it('keeps actions disabled after validation succeeds while navigation is opening', () => {
     const markup = renderToStaticMarkup(
       <LibrarySelectionBar
+        {...metadataProps}
         selectedCount={2}
         state="opening"
         atLimit={false}
@@ -50,6 +68,24 @@ describe('library cross-page selection bar', () => {
       />,
     );
 
-    expect(markup.match(/disabled=""/g)).toHaveLength(2);
+    expect(markup.match(/disabled=""/g)).toHaveLength(5);
+  });
+
+  it('exposes exact source and tag batch controls without claiming filter-wide selection', () => {
+    const markup = renderToStaticMarkup(
+      <LibrarySelectionBar
+        {...metadataProps}
+        selectedCount={2}
+        state="idle"
+        atLimit={false}
+        onClear={vi.fn()}
+        onAnalyze={vi.fn()}
+      />,
+    );
+    expect(markup).toContain('faceit');
+    expect(markup).toContain('Major');
+    expect(markup).toContain('应用来源');
+    expect(markup).toContain('添加标签');
+    expect(markup).toContain('移除标签');
   });
 });

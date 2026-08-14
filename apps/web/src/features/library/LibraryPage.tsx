@@ -201,6 +201,7 @@ export function LibraryPage() {
   const [demoMetadata, setDemoMetadata] = useState<DemoMetadata | null>(null);
   const [demoTags, setDemoTags] = useState<DemoTag[]>([]);
   const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [tagCatalogError, setTagCatalogError] = useState<string | null>(null);
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState('#2563eb');
   const scanAction = useAsyncAction<{ discovered: number; imported: number }>();
@@ -208,6 +209,9 @@ export function LibraryPage() {
   const saveAction = useAsyncAction<DemoSummary>();
   const metadataSaveAction = useAsyncAction<DemoMetadata>();
   const tagCreateAction = useAsyncAction<DemoTag>();
+  const tagUpdateAction = useAsyncAction<DemoTag>();
+  const tagDeleteAction = useAsyncAction<boolean>();
+  const metadataBatchAction = useAsyncAction<DemoMetadata[]>();
   const deleteAction = useAsyncAction<boolean>();
   const playAction = useAsyncAction<{ started: boolean; process_id: number }>();
   const revealAction = useAsyncAction<boolean>();
@@ -342,22 +346,34 @@ export function LibraryPage() {
   };
 
   useEffect(() => {
+    if (source !== 'service') {
+      setDemoTags([]);
+      setTagCatalogError(null);
+      return undefined;
+    }
+    const controller = new AbortController();
+    void commands.listDemoTags(controller.signal).then((tags) => {
+      if (controller.signal.aborted) return;
+      setDemoTags(tags);
+      setTagCatalogError(null);
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) setTagCatalogError(readableError(error));
+    });
+    return () => controller.abort();
+  }, [source]);
+
+  useEffect(() => {
     if (!activeDemo || source !== 'service') {
       setDemoMetadata(null);
-      setDemoTags([]);
       setMetadataError(null);
       return undefined;
     }
     const selectedId = activeDemo.id;
     const controller = new AbortController();
     setMetadataError(null);
-    void Promise.all([
-      commands.getDemoMetadata(selectedId, controller.signal),
-      commands.listDemoTags(controller.signal),
-    ]).then(([metadata, tags]) => {
+    void commands.getDemoMetadata(selectedId, controller.signal).then((metadata) => {
       if (controller.signal.aborted || metadata.demo_id !== selectedId) return;
       setDemoMetadata(metadata);
-      setDemoTags(tags);
       setEditRemark(metadata.comment);
       setEditMatchSource(metadata.match_source ?? '');
       setEditTagIds(new Set(metadata.tags.map((tag) => tag.id)));
@@ -459,6 +475,32 @@ export function LibraryPage() {
         },
       },
     );
+  };
+
+  const handleMetadataBatch = async (change: {
+    set_match_source: boolean;
+    match_source: DemoMatchSource | null;
+    add_tag_ids: string[];
+    remove_tag_ids: string[];
+  }) => {
+    const demoIds = [...selectedIds];
+    if (demoIds.length === 0) return;
+    const requestedSelectionIdentity = selectionIdentity;
+    const requestedSelectionIdsIdentity = selectionIdsIdentity;
+    const updated = await metadataBatchAction.run(
+      () => commands.updateDemoMetadataBatch({ demo_ids: demoIds, ...change }),
+      t('library.selection.metadataUpdated'),
+    );
+    if (!updated
+      || selectionIdentityRef.current !== requestedSelectionIdentity
+      || selectionIdsIdentityRef.current !== requestedSelectionIdsIdentity) return;
+    const activeMetadata = updated.find((item) => item.demo_id === activeDemoIdRef.current);
+    if (activeMetadata) {
+      setDemoMetadata(activeMetadata);
+      setEditMatchSource(activeMetadata.match_source ?? '');
+      setEditTagIds(new Set(activeMetadata.tags.map((tag) => tag.id)));
+    }
+    await refreshDemos();
   };
 
   const handleTableSort = (key: LibrarySortKey) => {
@@ -589,6 +631,46 @@ export function LibraryPage() {
     setNewTagName('');
   };
 
+  const handleRenameTag = async (tag: DemoTag) => {
+    const name = window.prompt(t('library.metadata.renameTagPrompt'), tag.name)?.trim();
+    if (!name || name === tag.name) return;
+    const updated = await tagUpdateAction.run(
+      () => commands.updateDemoTag(tag.id, { name, color: tag.color }),
+      t('library.metadata.tagRenamed'),
+    );
+    if (!updated) return;
+    setDemoTags((current) => current.map((item) => item.id === updated.id ? updated : item)
+      .sort((left, right) => left.name.localeCompare(right.name)));
+    setDemoMetadata((current) => current ? {
+      ...current,
+      tags: current.tags.map((item) => item.id === updated.id ? updated : item),
+    } : current);
+  };
+
+  const handleDeleteTag = async (tag: DemoTag) => {
+    if (!window.confirm(`${t('library.metadata.deleteTagConfirm')} “${tag.name}”?`)) return;
+    const deleted = await tagDeleteAction.run(async () => {
+      await commands.deleteDemoTag(tag.id);
+      return true;
+    }, t('library.metadata.tagDeleted'));
+    if (!deleted) return;
+    setDemoTags((current) => current.filter((item) => item.id !== tag.id));
+    setDemoMetadata((current) => current ? {
+      ...current,
+      tags: current.tags.filter((item) => item.id !== tag.id),
+    } : current);
+    setEditTagIds((current) => {
+      const next = new Set(current);
+      next.delete(tag.id);
+      return next;
+    });
+    if (libraryQuery.tagId === tag.id) {
+      updateLibraryQuery({ tagId: '' }, true);
+    } else {
+      await refreshDemos();
+    }
+  };
+
   const handleDelete = async () => {
     if (!activeDemo) return;
     if (!window.confirm(msgf("m0191", [activeDemo.display_name]))) return;
@@ -672,6 +754,7 @@ export function LibraryPage() {
         <Notice tone={watchAction.state.status === 'error' ? 'danger' : 'success'}>{watchAction.state.message}</Notice>
       ) : null}
       {watchError ? <Notice tone="danger" title={msg("m0709")}>{watchError}</Notice> : null}
+      {tagCatalogError ? <Notice tone="warning" title={t('library.metadata.unavailable')}>{tagCatalogError}</Notice> : null}
 
       {watchStatus ? (
         <Card className="watch-status-card">
@@ -737,6 +820,30 @@ export function LibraryPage() {
         <label className="compact-select">
           <Filter size={14} />
           <select
+            value={libraryQuery.matchSource}
+            onChange={(event) => updateLibraryQuery({ matchSource: event.target.value as 'all' | DemoMatchSource })}
+            aria-label={t('library.metadata.matchSource')}
+          >
+            <option value="all">{t('library.metadata.allMatchSources')}</option>
+            {MATCH_SOURCES.map((matchSource) => (
+              <option key={matchSource} value={matchSource}>{matchSource}</option>
+            ))}
+          </select>
+        </label>
+        <label className="compact-select">
+          <Filter size={14} />
+          <select
+            value={libraryQuery.tagId}
+            onChange={(event) => updateLibraryQuery({ tagId: event.target.value })}
+            aria-label={t('library.metadata.tags')}
+          >
+            <option value="">{t('library.metadata.allTags')}</option>
+            {demoTags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
+          </select>
+        </label>
+        <label className="compact-select">
+          <Filter size={14} />
+          <select
             value={libraryQuery.status}
             onChange={(event) => updateLibraryQuery({ status: event.target.value as 'all' | DemoLifecycleStatus })}
             aria-label={msg("m0976")}
@@ -781,6 +888,11 @@ export function LibraryPage() {
       {selectionNoticeState ? (
         <Notice tone={selectionNoticeState.tone}>{selectionNoticeState.message}</Notice>
       ) : null}
+      {metadataBatchAction.state.message ? (
+        <Notice tone={metadataBatchAction.state.status === 'error' ? 'danger' : 'success'}>
+          {metadataBatchAction.state.message}
+        </Notice>
+      ) : null}
       {selectedIds.size > 0 ? (
         <LibrarySelectionBar
           selectedCount={selectedIds.size}
@@ -792,6 +904,27 @@ export function LibraryPage() {
           atLimit={selectionAtLimit}
           onClear={clearSelection}
           onAnalyze={() => void handleAnalyzeSelection()}
+          tags={demoTags}
+          matchSources={MATCH_SOURCES}
+          metadataBusy={metadataBatchAction.state.status === 'loading'}
+          onSetMatchSource={(matchSource) => void handleMetadataBatch({
+            set_match_source: true,
+            match_source: matchSource,
+            add_tag_ids: [],
+            remove_tag_ids: [],
+          })}
+          onAddTag={(tagId) => void handleMetadataBatch({
+            set_match_source: false,
+            match_source: null,
+            add_tag_ids: [tagId],
+            remove_tag_ids: [],
+          })}
+          onRemoveTag={(tagId) => void handleMetadataBatch({
+            set_match_source: false,
+            match_source: null,
+            add_tag_ids: [],
+            remove_tag_ids: [tagId],
+          })}
         />
       ) : null}
 
@@ -892,7 +1025,13 @@ export function LibraryPage() {
               <FileVideo2 size={26} />
               <h2>{msg("m0895")}</h2>
               <p>{msg("m1154")}</p>
-              <Button onClick={() => updateLibraryQuery({ search: '', map: '', status: 'all' })}><RefreshCw size={14} />{msg("m0932")}</Button>
+              <Button onClick={() => updateLibraryQuery({
+                search: '',
+                map: '',
+                status: 'all',
+                matchSource: 'all',
+                tagId: '',
+              })}><RefreshCw size={14} />{msg("m0932")}</Button>
             </div>
           ) : null}
           {source === 'service' && demoTotal > 0 ? (
@@ -1017,19 +1156,26 @@ export function LibraryPage() {
                     <span>{t('library.metadata.tags')}</span>
                     <div role="group" aria-label={t('library.metadata.tags')}>
                       {demoTags.length === 0 ? <p>{t('library.metadata.noTags')}</p> : demoTags.map((tag) => (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          aria-pressed={editTagIds.has(tag.id)}
-                          onClick={() => setEditTagIds((current) => {
-                            const next = new Set(current);
-                            if (next.has(tag.id)) next.delete(tag.id); else next.add(tag.id);
-                            return next;
-                          })}
-                        >
-                          <span aria-hidden="true" style={{ backgroundColor: tag.color }} />
-                          {tag.name}
-                        </button>
+                        <span className="library-demo-metadata__tag-entry" key={tag.id}>
+                          <button
+                            type="button"
+                            aria-pressed={editTagIds.has(tag.id)}
+                            onClick={() => setEditTagIds((current) => {
+                              const next = new Set(current);
+                              if (next.has(tag.id)) next.delete(tag.id); else next.add(tag.id);
+                              return next;
+                            })}
+                          >
+                            <span aria-hidden="true" style={{ backgroundColor: tag.color }} />
+                            {tag.name}
+                          </button>
+                          <IconButton disabled={tagUpdateAction.state.status === 'loading' || tagDeleteAction.state.status === 'loading'} label={`${t('library.metadata.renameTag')}: ${tag.name}`} onClick={() => void handleRenameTag(tag)}>
+                            <PencilLine size={12} />
+                          </IconButton>
+                          <IconButton disabled={tagUpdateAction.state.status === 'loading' || tagDeleteAction.state.status === 'loading'} label={`${t('library.metadata.deleteTag')}: ${tag.name}`} onClick={() => void handleDeleteTag(tag)}>
+                            <Trash2 size={12} />
+                          </IconButton>
+                        </span>
                       ))}
                     </div>
                     <div className="library-demo-metadata__new-tag">

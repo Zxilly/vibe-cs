@@ -217,6 +217,83 @@ mod tests {
         );
         assert_eq!(metadata.tags, vec![tag]);
 
+        let filtered = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!(
+                        "/api/demos/compact?match_source=faceit&tag_id={}",
+                        metadata.tags[0].id
+                    ))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(filtered.status(), axum::http::StatusCode::OK);
+        let filtered: serde_json::Value = serde_json::from_slice(
+            &to_bytes(filtered.into_body(), 64 * 1024)
+                .await
+                .expect("filtered body"),
+        )
+        .expect("filtered payload");
+        assert_eq!(filtered["total"], 1);
+
+        let batch = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/demos/metadata/batch")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(format!(
+                        r#"{{"demo_ids":["{demo_id}"],"set_match_source":true,"match_source":"valve","add_tag_ids":[],"remove_tag_ids":["{}"]}}"#,
+                        metadata.tags[0].id
+                    )))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(batch.status(), axum::http::StatusCode::OK);
+        let batch: Vec<vibe_cs_domain::DemoMetadata> = serde_json::from_slice(
+            &to_bytes(batch.into_body(), 64 * 1024)
+                .await
+                .expect("batch body"),
+        )
+        .expect("batch payload");
+        assert_eq!(
+            batch[0].match_source,
+            Some(vibe_cs_domain::DemoMatchSource::Valve)
+        );
+        assert!(batch[0].tags.is_empty());
+
+        let rename = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::PATCH)
+                    .uri(format!("/api/demo-tags/{}", metadata.tags[0].id))
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(r##"{"name":"Major event","color":"#b91c1c"}"##))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(rename.status(), axum::http::StatusCode::OK);
+
+        let delete = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::DELETE)
+                    .uri(format!("/api/demo-tags/{}", metadata.tags[0].id))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(delete.status(), axum::http::StatusCode::NO_CONTENT);
+
         let rejected = dispatcher
             .oneshot(
                 Request::builder()

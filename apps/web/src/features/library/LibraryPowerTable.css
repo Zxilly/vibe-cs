@@ -133,7 +133,9 @@
 .library-selection-bar__copy strong { font-size: 10px; }
 .library-selection-bar__copy span { color: var(--text-soft); font-size: 9px; line-height: 1.45; }
 .library-selection-bar__copy small { display: flex; align-items: center; gap: 5px; color: var(--amber); font-size: 9px; }
-.library-selection-bar__actions { display: flex; flex: 0 0 auto; gap: 6px; }
+.library-selection-bar__actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.library-selection-bar__actions label { display: grid; gap: 2px; color: var(--text-soft); font-size: 8px; }
+.library-selection-bar__actions select { min-width: 112px; height: 28px; font-size: 9px; }
 
 @media (max-width: 780px) {
   .library-selection-bar {
@@ -143,11 +145,11 @@
 
   .library-selection-bar__actions {
     width: 100%;
+    flex-wrap: wrap;
   }
 
-  .library-selection-bar__actions .button {
-    flex: 1;
-  }
+  .library-selection-bar__actions label { flex: 1 1 150px; }
+  .library-selection-bar__actions select { width: 100%; }
 }
 
 @media (max-width: 1180px) {

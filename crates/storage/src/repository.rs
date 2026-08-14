@@ -42,8 +42,8 @@ use uuid::Uuid;
 use vibe_cs_domain::{
     AppConfig, BeatAlignmentAudioBinding, BeatAlignmentAudioPlacement, BeatAlignmentDraft,
     CosmeticPlan, DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoMatchSource, DemoMetadata,
-    DemoMetadataUpdate, DemoPatch, DemoQuery, DemoRecord, DemoSort, DemoStatus, DemoTag,
-    DemoTagCreate, EditorAudioSeparation, EditorPresetDocument, EditorProject,
+    DemoMetadataBatchUpdate, DemoMetadataUpdate, DemoPatch, DemoQuery, DemoRecord, DemoSort,
+    DemoStatus, DemoTag, DemoTagCreate, EditorAudioSeparation, EditorPresetDocument, EditorProject,
     EditorProjectSnapshot, EventKind, EvidenceAnnotation, EvidenceAnnotationQuery,
     EvidenceAnnotationReviewState, EvidenceEventFamily, EvidenceSearchAvailability,
     EvidenceSearchCapability, EvidenceSearchItem, EvidenceSearchPage, EvidenceSearchQuery,
@@ -574,16 +574,29 @@ impl Storage {
             }
             let search = query.search.filter(|value| !value.trim().is_empty());
             let source = query.source.filter(|value| !value.trim().is_empty());
+            let match_source = query.match_source.map(match_source_text);
+            let tag_id = query.tag_id.map(|id| id.to_string());
             let map_name = query.map_name.filter(|value| !value.trim().is_empty());
             let status = query.status.map(status_text);
             let order_sql = demo_order_sql(query.sort.unwrap_or_default());
-            let values: [&dyn rusqlite::ToSql; 4] = [&search, &source, &map_name, &status];
+            let values: [&dyn rusqlite::ToSql; 6] = [
+                &search,
+                &source,
+                &map_name,
+                &status,
+                &match_source,
+                &tag_id,
+            ];
             let where_sql = " WHERE (?1 IS NULL OR display_name LIKE '%' || ?1 || '%' OR file_name LIKE '%' || ?1 || '%' \
                              OR EXISTS (SELECT 1 FROM json_each(demos.document_json, '$.player_names') AS player \
                                         WHERE CAST(player.value AS TEXT) LIKE '%' || ?1 || '%')) \
                              AND (?2 IS NULL OR source = ?2) \
                              AND (?3 IS NULL OR map_name = ?3) \
-                             AND (?4 IS NULL OR status = ?4)";
+                             AND (?4 IS NULL OR status = ?4) \
+                             AND (?5 IS NULL OR EXISTS (SELECT 1 FROM demo_metadata AS metadata \
+                                                        WHERE metadata.demo_id = demos.id AND metadata.match_source = ?5)) \
+                             AND (?6 IS NULL OR EXISTS (SELECT 1 FROM demo_tag_assignments AS assignment \
+                                                        WHERE assignment.demo_id = demos.id AND assignment.tag_id = ?6))";
             let total = connection.query_row(
                 &format!("SELECT COUNT(*) FROM demos{where_sql}"),
                 values,
@@ -592,13 +605,15 @@ impl Storage {
 
             let mut statement = connection.prepare(&format!(
                 "SELECT document_json FROM demos{where_sql} \
-                 ORDER BY {order_sql} LIMIT ?5 OFFSET ?6"
+                 ORDER BY {order_sql} LIMIT ?7 OFFSET ?8"
             ))?;
             let mut rows = statement.query(params![
                 search,
                 source,
                 map_name,
                 status,
+                match_source,
+                tag_id,
                 page_size,
                 sql_u64(u64::from(page - 1) * u64::from(page_size))?
             ])?;
@@ -1046,6 +1061,48 @@ impl Storage {
         .await
     }
 
+    pub async fn update_demo_tag(&self, id: Uuid, input: DemoTagCreate) -> Result<Option<DemoTag>> {
+        let input = input.normalize()?;
+        self.run(move |connection| {
+            let Some(created_at) = connection
+                .query_row(
+                    "SELECT created_at FROM demo_tags WHERE id = ?1",
+                    [id.to_string()],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+            else {
+                return Ok(None);
+            };
+            let updated_at = Utc::now();
+            connection.execute(
+                "UPDATE demo_tags SET name = ?2, name_key = ?3, color = ?4, updated_at = ?5 WHERE id = ?1",
+                params![
+                    id.to_string(),
+                    input.name,
+                    input.name.to_lowercase(),
+                    input.color,
+                    updated_at.to_rfc3339(),
+                ],
+            )?;
+            Ok(Some(DemoTag {
+                id,
+                name: input.name,
+                color: input.color,
+                created_at: parse_repository_datetime(&created_at)?,
+                updated_at,
+            }))
+        })
+        .await
+    }
+
+    pub async fn delete_demo_tag(&self, id: Uuid) -> Result<bool> {
+        self.run(move |connection| {
+            Ok(connection.execute("DELETE FROM demo_tags WHERE id = ?1", [id.to_string()])? > 0)
+        })
+        .await
+    }
+
     pub async fn get_demo_metadata(&self, id: Uuid) -> Result<Option<DemoMetadata>> {
         self.run(move |connection| read_demo_metadata(connection, id))
             .await
@@ -1117,6 +1174,96 @@ impl Storage {
             })?;
             transaction.commit()?;
             Ok(Some(metadata))
+        })
+        .await
+    }
+
+    pub async fn update_demo_metadata_batch(
+        &self,
+        update: DemoMetadataBatchUpdate,
+    ) -> Result<Vec<DemoMetadata>> {
+        update.validate()?;
+        self.run(move |connection| {
+            let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let requested_tags = update
+                .add_tag_ids
+                .iter()
+                .chain(update.remove_tag_ids.iter())
+                .copied()
+                .collect::<std::collections::BTreeSet<_>>();
+            for tag_id in &requested_tags {
+                let exists = transaction.query_row(
+                    "SELECT EXISTS(SELECT 1 FROM demo_tags WHERE id = ?1)",
+                    [tag_id.to_string()],
+                    |row| row.get::<_, bool>(0),
+                )?;
+                if !exists {
+                    return Err(StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(
+                        "one or more batch demo tags do not exist".to_owned(),
+                    )));
+                }
+            }
+
+            let now = Utc::now();
+            let removed = update.remove_tag_ids.iter().copied().collect::<std::collections::BTreeSet<_>>();
+            let mut output = Vec::with_capacity(update.demo_ids.len());
+            for demo_id in &update.demo_ids {
+                let Some(mut demo) = get_document::<DemoRecord>(&transaction, "demos", *demo_id)? else {
+                    return Err(StorageError::Domain(vibe_cs_domain::DomainError::NotFound(
+                        format!("demo {demo_id}"),
+                    )));
+                };
+                let current = read_demo_metadata(&transaction, *demo_id)?.ok_or_else(|| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::NotFound(format!("demo {demo_id}")))
+                })?;
+                let mut tag_ids = current.tags.iter().map(|tag| tag.id).collect::<Vec<_>>();
+                tag_ids.retain(|tag_id| !removed.contains(tag_id));
+                for tag_id in &update.add_tag_ids {
+                    if !tag_ids.contains(tag_id) {
+                        tag_ids.push(*tag_id);
+                    }
+                }
+                if tag_ids.len() > vibe_cs_domain::DEMO_TAG_MAX_ASSIGNMENTS {
+                    return Err(StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(
+                        "a demo may have at most 32 tags".to_owned(),
+                    )));
+                }
+
+                demo.updated_at = now;
+                put_demo_row(&transaction, &demo)?;
+                let match_source = if update.set_match_source {
+                    update.match_source
+                } else {
+                    current.match_source
+                };
+                transaction.execute(
+                    "INSERT INTO demo_metadata(demo_id, match_source, updated_at) VALUES (?1, ?2, ?3) \
+                     ON CONFLICT(demo_id) DO UPDATE SET match_source = excluded.match_source, updated_at = excluded.updated_at",
+                    params![demo_id.to_string(), match_source.map(match_source_text), now.to_rfc3339()],
+                )?;
+                transaction.execute(
+                    "DELETE FROM demo_tag_assignments WHERE demo_id = ?1",
+                    [demo_id.to_string()],
+                )?;
+                for (position, tag_id) in tag_ids.iter().enumerate() {
+                    let position = i64::try_from(position).map_err(|_| {
+                        StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(
+                            "demo tag position is out of range".to_owned(),
+                        ))
+                    })?;
+                    transaction.execute(
+                        "INSERT INTO demo_tag_assignments(demo_id, tag_id, position) VALUES (?1, ?2, ?3)",
+                        params![demo_id.to_string(), tag_id.to_string(), position],
+                    )?;
+                }
+                output.push(read_demo_metadata(&transaction, *demo_id)?.ok_or_else(|| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::Internal(
+                        "demo disappeared during its metadata batch transaction".to_owned(),
+                    ))
+                })?);
+            }
+            transaction.commit()?;
+            Ok(output)
         })
         .await
     }
@@ -5346,6 +5493,195 @@ mod tests {
                 .await
                 .expect("read deleted metadata")
                 .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn demo_directory_filters_catalog_metadata_before_pagination() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let faceit = demo("C:/demos/faceit.dem");
+        let valve = demo("C:/demos/valve.dem");
+        storage
+            .put_demos(vec![faceit.clone(), valve.clone()])
+            .await
+            .expect("put demos");
+        let major = storage
+            .create_demo_tag(DemoTagCreate {
+                name: "Major".to_owned(),
+                color: "#dc2626".to_owned(),
+            })
+            .await
+            .expect("create tag");
+        storage
+            .update_demo_metadata(
+                faceit.id,
+                DemoMetadataUpdate {
+                    match_source: Some(DemoMatchSource::Faceit),
+                    comment: String::new(),
+                    tag_ids: vec![major.id],
+                },
+            )
+            .await
+            .expect("faceit metadata");
+        storage
+            .update_demo_metadata(
+                valve.id,
+                DemoMetadataUpdate {
+                    match_source: Some(DemoMatchSource::Valve),
+                    comment: String::new(),
+                    tag_ids: Vec::new(),
+                },
+            )
+            .await
+            .expect("valve metadata");
+
+        let filtered = storage
+            .list_demos(DemoQuery {
+                match_source: Some(DemoMatchSource::Faceit),
+                tag_id: Some(major.id),
+                page: Some(1),
+                page_size: Some(1),
+                ..DemoQuery::default()
+            })
+            .await
+            .expect("filtered directory");
+        assert_eq!(filtered.total, 1);
+        assert_eq!(filtered.items.len(), 1);
+        assert_eq!(filtered.items[0].id, faceit.id);
+    }
+
+    #[tokio::test]
+    async fn demo_tag_catalog_rename_and_delete_updates_assigned_metadata() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let record = demo("C:/demos/tag-catalog.dem");
+        storage.put_demo(record.clone()).await.expect("put demo");
+        let tag = storage
+            .create_demo_tag(DemoTagCreate {
+                name: "Review".to_owned(),
+                color: "#2563eb".to_owned(),
+            })
+            .await
+            .expect("create tag");
+        storage
+            .update_demo_metadata(
+                record.id,
+                DemoMetadataUpdate {
+                    match_source: None,
+                    comment: String::new(),
+                    tag_ids: vec![tag.id],
+                },
+            )
+            .await
+            .expect("assign tag");
+
+        let renamed = storage
+            .update_demo_tag(
+                tag.id,
+                DemoTagCreate {
+                    name: "Needs review".to_owned(),
+                    color: "#dc2626".to_owned(),
+                },
+            )
+            .await
+            .expect("rename tag")
+            .expect("tag exists");
+        assert_eq!(renamed.id, tag.id);
+        assert_eq!(renamed.created_at, tag.created_at);
+        assert_eq!(renamed.name, "Needs review");
+        assert_eq!(renamed.color, "#dc2626");
+        assert_eq!(
+            storage
+                .get_demo_metadata(record.id)
+                .await
+                .expect("metadata")
+                .expect("demo exists")
+                .tags,
+            vec![renamed]
+        );
+
+        assert!(storage.delete_demo_tag(tag.id).await.expect("delete tag"));
+        assert!(
+            storage
+                .get_demo_metadata(record.id)
+                .await
+                .expect("metadata")
+                .expect("demo exists")
+                .tags
+                .is_empty()
+        );
+        assert!(
+            !storage
+                .delete_demo_tag(tag.id)
+                .await
+                .expect("delete missing tag")
+        );
+    }
+
+    #[tokio::test]
+    async fn demo_metadata_batch_is_atomic_across_explicit_demo_ids() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let first = demo("C:/demos/batch-first.dem");
+        let second = demo("C:/demos/batch-second.dem");
+        storage
+            .put_demos(vec![first.clone(), second.clone()])
+            .await
+            .expect("put demos");
+        let tag = storage
+            .create_demo_tag(DemoTagCreate {
+                name: "Major".to_owned(),
+                color: "#dc2626".to_owned(),
+            })
+            .await
+            .expect("create tag");
+
+        let updated = storage
+            .update_demo_metadata_batch(DemoMetadataBatchUpdate {
+                demo_ids: vec![first.id, second.id],
+                set_match_source: true,
+                match_source: Some(DemoMatchSource::Esl),
+                add_tag_ids: vec![tag.id],
+                remove_tag_ids: Vec::new(),
+            })
+            .await
+            .expect("batch update");
+        assert_eq!(updated.len(), 2);
+        assert!(
+            updated
+                .iter()
+                .all(|item| item.match_source == Some(DemoMatchSource::Esl))
+        );
+        assert!(
+            updated.iter().all(
+                |item| item.tags.iter().map(|item| item.id).collect::<Vec<_>>() == vec![tag.id]
+            )
+        );
+
+        let missing = Uuid::new_v4();
+        assert!(
+            storage
+                .update_demo_metadata_batch(DemoMetadataBatchUpdate {
+                    demo_ids: vec![first.id, missing],
+                    set_match_source: true,
+                    match_source: Some(DemoMatchSource::Valve),
+                    add_tag_ids: Vec::new(),
+                    remove_tag_ids: vec![tag.id],
+                })
+                .await
+                .is_err()
+        );
+        let unchanged = storage
+            .get_demo_metadata(first.id)
+            .await
+            .expect("metadata")
+            .expect("demo");
+        assert_eq!(unchanged.match_source, Some(DemoMatchSource::Esl));
+        assert_eq!(
+            unchanged
+                .tags
+                .iter()
+                .map(|item| item.id)
+                .collect::<Vec<_>>(),
+            vec![tag.id]
         );
     }
 

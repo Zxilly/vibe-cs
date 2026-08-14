@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseDemoMetadata, parseDemoTagCatalog } from './demoMetadataContract';
+import { parseDemoMetadata, parseDemoMetadataBatch, parseDemoTagCatalog } from './demoMetadataContract';
 
 const tag = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -45,5 +45,20 @@ describe('demo metadata wire contract', () => {
       ...tag,
       id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
     })))).toThrow();
+  });
+
+  it('binds a batch response to every requested Demo in exact order', () => {
+    const first = '22222222-2222-4222-8222-222222222222';
+    const second = '33333333-3333-4333-8333-333333333333';
+    const item = (demo_id: string) => ({
+      demo_id,
+      match_source: null,
+      comment: '',
+      tags: [],
+      updated_at: '2026-08-14T01:01:00Z',
+    });
+    expect(parseDemoMetadataBatch([item(first), item(second)], [first, second])).toHaveLength(2);
+    expect(() => parseDemoMetadataBatch([item(second), item(first)], [first, second])).toThrow();
+    expect(() => parseDemoMetadataBatch([item(first)], [first, second])).toThrow();
   });
 });

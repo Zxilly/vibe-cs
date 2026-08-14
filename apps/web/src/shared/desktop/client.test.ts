@@ -181,6 +181,60 @@ describe('desktop command client', () => {
     await expect(commands.getDemoMetadata(id)).rejects.toThrow(/current contract/i);
   });
 
+  it('updates and deletes one exact global Demo tag', async () => {
+    const id = '44444444-4444-4444-8444-444444444444';
+    const tag = {
+      id,
+      name: 'Needs review',
+      color: '#dc2626',
+      created_at: '2026-08-14T01:00:00Z',
+      updated_at: '2026-08-14T02:00:00Z',
+    };
+    invokeMock.mockResolvedValue(tag);
+
+    await expect(commands.updateDemoTag(id, {
+      name: 'Needs review',
+      color: '#dc2626',
+    })).resolves.toEqual(tag);
+    expect(invokeMock).toHaveBeenLastCalledWith('desktop_call', {
+      call: {
+        method: 'patch',
+        path: `/demo-tags/${id}`,
+        body: { name: 'Needs review', color: '#dc2626' },
+      },
+    });
+
+    invokeMock.mockResolvedValue(undefined);
+    await commands.deleteDemoTag(id);
+    expect(invokeMock).toHaveBeenLastCalledWith('desktop_call', {
+      call: { method: 'delete', path: `/demo-tags/${id}` },
+    });
+  });
+
+  it('posts one explicit all-or-nothing Demo metadata batch', async () => {
+    const first = '22222222-2222-4222-8222-222222222222';
+    const second = '33333333-3333-4333-8333-333333333333';
+    const update = {
+      demo_ids: [first, second],
+      set_match_source: true,
+      match_source: 'esl' as const,
+      add_tag_ids: ['44444444-4444-4444-8444-444444444444'],
+      remove_tag_ids: [],
+    };
+    invokeMock.mockResolvedValue(update.demo_ids.map((demo_id) => ({
+      demo_id,
+      match_source: 'esl',
+      comment: '',
+      tags: [],
+      updated_at: '2026-08-14T02:00:00Z',
+    })));
+
+    await expect(commands.updateDemoMetadataBatch(update)).resolves.toHaveLength(2);
+    expect(invokeMock).toHaveBeenLastCalledWith('desktop_call', {
+      call: { method: 'post', path: '/demos/metadata/batch', body: update },
+    });
+  });
+
   it('executes the opaque server-side recording plan instead of resending queue items', async () => {
     invokeMock.mockResolvedValue({ job_id: 'job-1', status: 'queued' });
 

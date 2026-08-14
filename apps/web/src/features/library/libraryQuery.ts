@@ -1,5 +1,6 @@
 import type {
   DemoLifecycleStatus,
+  DemoMatchSource,
   DemoQuery,
   DemoSort,
 } from '../../shared/desktop/dto';
@@ -21,6 +22,8 @@ export type LibraryQueryState = {
   search: string;
   map: string;
   status: DemoLifecycleStatus | 'all';
+  matchSource: DemoMatchSource | 'all';
+  tagId: string;
   sort: DemoSort;
   page: number;
   pageSize: (typeof LIBRARY_PAGE_SIZES)[number];
@@ -31,6 +34,8 @@ export const DEFAULT_LIBRARY_QUERY: LibraryQueryState = {
   search: '',
   map: '',
   status: 'all',
+  matchSource: 'all',
+  tagId: '',
   sort: 'updated_desc',
   page: 1,
   pageSize: 50,
@@ -45,6 +50,11 @@ const LIFECYCLE_STATUSES = new Set<DemoLifecycleStatus>([
   'failed',
   'missing',
 ]);
+const MATCH_SOURCES = new Set<DemoMatchSource>([
+  'challengermode', 'ebot', 'esl', 'esplay', 'esportal', 'esportligaen', 'faceit',
+  'fastcup', 'five_eplay', 'matchzy', 'perfect_world', 'pracc', 'renown', 'valve',
+]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const DEMO_SORTS = new Set<DemoSort>([
   'updated_desc', 'updated_asc',
@@ -55,7 +65,9 @@ const DEMO_SORTS = new Set<DemoSort>([
   'duration_asc', 'duration_desc',
   'rounds_asc', 'rounds_desc',
 ]);
-const LIBRARY_QUERY_PARAMETERS = new Set(['q', 'map', 'status', 'sort', 'page', 'page_size', 'columns']);
+const LIBRARY_QUERY_PARAMETERS = new Set([
+  'q', 'map', 'status', 'match_source', 'tag', 'sort', 'page', 'page_size', 'columns',
+]);
 
 function positiveInteger(value: string | null): number | null {
   if (!value || !/^\d+$/.test(value)) return null;
@@ -74,6 +86,8 @@ export function libraryQueryFromParams(params: URLSearchParams): LibraryQuerySta
     }
   }
   const status = params.get('status');
+  const matchSource = params.get('match_source');
+  const tagId = params.get('tag');
   const sort = params.get('sort');
   const rawPage = params.get('page');
   const rawPageSize = params.get('page_size');
@@ -84,6 +98,10 @@ export function libraryQueryFromParams(params: URLSearchParams): LibraryQuerySta
   if (status !== null && !LIFECYCLE_STATUSES.has(status as DemoLifecycleStatus)) {
     invalidLibraryQuery('status');
   }
+  if (matchSource !== null && !MATCH_SOURCES.has(matchSource as DemoMatchSource)) {
+    invalidLibraryQuery('match_source');
+  }
+  if (tagId !== null && !UUID.test(tagId)) invalidLibraryQuery('tag');
   if (sort !== null && !DEMO_SORTS.has(sort as DemoSort)) {
     invalidLibraryQuery('sort');
   }
@@ -103,6 +121,8 @@ export function libraryQueryFromParams(params: URLSearchParams): LibraryQuerySta
     search: params.get('q') ?? DEFAULT_LIBRARY_QUERY.search,
     map: params.get('map') ?? DEFAULT_LIBRARY_QUERY.map,
     status: status === null ? DEFAULT_LIBRARY_QUERY.status : status as DemoLifecycleStatus,
+    matchSource: matchSource === null ? DEFAULT_LIBRARY_QUERY.matchSource : matchSource as DemoMatchSource,
+    tagId: tagId ?? DEFAULT_LIBRARY_QUERY.tagId,
     sort: sort === null ? DEFAULT_LIBRARY_QUERY.sort : sort as DemoSort,
     page: page ?? DEFAULT_LIBRARY_QUERY.page,
     pageSize: pageSize === null
@@ -119,6 +139,8 @@ export function libraryQueryToParams(query: LibraryQueryState): URLSearchParams 
   if (query.search) params.set('q', query.search);
   if (query.map) params.set('map', query.map);
   if (query.status !== 'all') params.set('status', query.status);
+  if (query.matchSource !== 'all') params.set('match_source', query.matchSource);
+  if (query.tagId) params.set('tag', query.tagId);
   if (query.sort !== DEFAULT_LIBRARY_QUERY.sort) params.set('sort', query.sort);
   if (query.page !== DEFAULT_LIBRARY_QUERY.page) params.set('page', String(query.page));
   if (query.pageSize !== DEFAULT_LIBRARY_QUERY.pageSize) params.set('page_size', String(query.pageSize));
@@ -133,6 +155,8 @@ export function libraryQueryToDemoQuery(query: LibraryQueryState): DemoQuery {
     ...(query.search.trim() ? { search: query.search.trim() } : {}),
     ...(query.map.trim() ? { map_name: query.map.trim() } : {}),
     ...(query.status !== 'all' ? { status: query.status } : {}),
+    ...(query.matchSource !== 'all' ? { match_source: query.matchSource } : {}),
+    ...(query.tagId ? { tag_id: query.tagId } : {}),
     sort: query.sort,
     page: query.page,
     page_size: query.pageSize,
@@ -143,7 +167,7 @@ export function patchLibraryQuery(
   current: LibraryQueryState,
   patch: Partial<LibraryQueryState>,
 ): LibraryQueryState {
-  const changesResultSet = (['search', 'map', 'status', 'sort', 'pageSize'] as const)
+  const changesResultSet = (['search', 'map', 'status', 'matchSource', 'tagId', 'sort', 'pageSize'] as const)
     .some((key) => key in patch && patch[key] !== current[key]);
   return {
     ...current,

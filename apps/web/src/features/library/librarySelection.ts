@@ -8,9 +8,9 @@ export function isDemoAnalyzable(status: DemoLifecycleStatus): boolean {
 }
 
 export function librarySelectionIdentity(
-  query: Pick<LibraryQueryState, 'search' | 'map' | 'status'>,
+  query: Pick<LibraryQueryState, 'search' | 'map' | 'status' | 'matchSource' | 'tagId'>,
 ): string {
-  return [query.search, query.map, query.status]
+  return [query.search, query.map, query.status, query.matchSource, query.tagId]
     .map((value) => value.trim())
     .join('\u0000');
 }

@@ -58,3 +58,8 @@ export function parseDemoMetadata(value: unknown, expectedDemoId: string): DemoM
   if (new Set(tags.map((tag) => tag.id)).size !== tags.length) invalid();
   return { ...value, tags } as DemoMetadata;
 }
+
+export function parseDemoMetadataBatch(value: unknown, expectedDemoIds: readonly string[]): DemoMetadata[] {
+  if (!Array.isArray(value) || value.length !== expectedDemoIds.length) invalid();
+  return value.map((item, index) => parseDemoMetadata(item, expectedDemoIds[index] ?? ''));
+}

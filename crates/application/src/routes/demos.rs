@@ -16,8 +16,8 @@ use vibe_cs_demo::{
     validate_demo,
 };
 use vibe_cs_domain::{
-    DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoPatch, DemoQuery, DemoRecord, DemoSort, DemoStatus,
-    MatchAnalysis, Page, ScanResult,
+    DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoMetadata, DemoMetadataUpdate, DemoPatch, DemoQuery,
+    DemoRecord, DemoSort, DemoStatus, DemoTag, DemoTagCreate, MatchAnalysis, Page, ScanResult,
 };
 use vibe_cs_storage::{DemoContentIdentity, DemoContentRecovery};
 
@@ -54,6 +54,11 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/demos/{id}",
             get(get_demo).patch(patch_demo).delete(delete_demo),
         )
+        .route(
+            "/api/demos/{id}/metadata",
+            get(get_demo_metadata).put(update_demo_metadata),
+        )
+        .route("/api/demo-tags", get(list_demo_tags).post(create_demo_tag))
         .route("/api/demos/{id}/analysis", get(get_analysis))
         .route("/api/demos/{id}/replay.bin", get(get_replay_binary))
         .route(
@@ -199,6 +204,47 @@ async fn patch_demo(
         .ok_or_else(|| ApiError::not_found("demo"))?;
     state.events.publish("demo", "updated", Some(id));
     Ok(Json(demo.into()))
+}
+
+async fn get_demo_metadata(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> ApiResult<Json<DemoMetadata>> {
+    let id = parse_id(&id)?;
+    state
+        .storage
+        .get_demo_metadata(id)
+        .await?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("demo"))
+}
+
+async fn update_demo_metadata(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+    ApiJson(update): ApiJson<DemoMetadataUpdate>,
+) -> ApiResult<Json<DemoMetadata>> {
+    let id = parse_id(&id)?;
+    let metadata = state
+        .storage
+        .update_demo_metadata(id, update)
+        .await?
+        .ok_or_else(|| ApiError::not_found("demo"))?;
+    state.events.publish("demo", "metadata_updated", Some(id));
+    Ok(Json(metadata))
+}
+
+async fn list_demo_tags(State(state): State<AppState>) -> ApiResult<Json<Vec<DemoTag>>> {
+    Ok(Json(state.storage.list_demo_tags().await?))
+}
+
+async fn create_demo_tag(
+    State(state): State<AppState>,
+    ApiJson(input): ApiJson<DemoTagCreate>,
+) -> ApiResult<(StatusCode, Json<DemoTag>)> {
+    let tag = state.storage.create_demo_tag(input).await?;
+    state.events.publish("demo_tag", "created", Some(tag.id));
+    Ok((StatusCode::CREATED, Json(tag)))
 }
 
 async fn delete_demo(

@@ -32,6 +32,38 @@ const CURRENT_SCHEMA: &str = r"
         content_sha256 TEXT
     );
 
+    CREATE TABLE demo_metadata (
+        demo_id TEXT PRIMARY KEY NOT NULL,
+        match_source TEXT CHECK(match_source IS NULL OR match_source IN (
+            'challengermode', 'ebot', 'esl', 'esplay', 'esportal', 'esportligaen', 'faceit',
+            'fastcup', 'five_eplay', 'matchzy', 'perfect_world', 'pracc', 'renown', 'valve'
+        )),
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE demo_tags (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        name_key TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL CHECK(length(color) = 7 AND substr(color, 1, 1) = '#'),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE demo_tag_assignments (
+        demo_id TEXT NOT NULL,
+        tag_id TEXT NOT NULL,
+        position INTEGER NOT NULL CHECK(position >= 0 AND position < 32),
+        PRIMARY KEY(demo_id, tag_id),
+        UNIQUE(demo_id, position),
+        FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES demo_tags(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX demo_tag_assignments_tag_demo_idx
+        ON demo_tag_assignments(tag_id, demo_id);
+
     CREATE TABLE analyses (
         demo_id TEXT PRIMARY KEY NOT NULL,
         producer_run_id TEXT NOT NULL UNIQUE,

@@ -25,7 +25,17 @@ import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } f
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { commands, desktopMediaUrl, readableError } from '../../shared/desktop/client';
-import type { AnalysisWorkspace, DemoLifecycleStatus, DemoSummary, DemoWatchStatus, RadarOverviewRecord, ScanResult } from '../../shared/desktop/dto';
+import type {
+  AnalysisWorkspace,
+  DemoLifecycleStatus,
+  DemoMatchSource,
+  DemoMetadata,
+  DemoSummary,
+  DemoTag,
+  DemoWatchStatus,
+  RadarOverviewRecord,
+  ScanResult,
+} from '../../shared/desktop/dto';
 import { chooseLocalDirectories, chooseLocalFiles, isDesktopShell, revealLocalPath } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
@@ -78,6 +88,11 @@ import {
 } from './libraryTable';
 
 type ViewMode = 'table' | 'grid' | 'list';
+
+const MATCH_SOURCES: DemoMatchSource[] = [
+  'challengermode', 'ebot', 'esl', 'esplay', 'esportal', 'esportligaen', 'faceit',
+  'fastcup', 'five_eplay', 'matchzy', 'perfect_world', 'pracc', 'renown', 'valve',
+];
 
 function duration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -175,13 +190,24 @@ export function LibraryPage() {
   } | null>(null);
   const [selectionActionStatus, setSelectionActionStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [activeDemo, setActiveDemo] = useState<DemoSummary | null>(null);
+  const activeDemoIdRef = useRef<string | null>(null);
+  activeDemoIdRef.current = activeDemo?.id ?? null;
   const [detailAnalysis, setDetailAnalysis] = useState<AnalysisWorkspace | null>(null);
   const [detailAnalysisError, setDetailAnalysisError] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editRemark, setEditRemark] = useState('');
+  const [editMatchSource, setEditMatchSource] = useState<DemoMatchSource | ''>('');
+  const [editTagIds, setEditTagIds] = useState<Set<string>>(new Set());
+  const [demoMetadata, setDemoMetadata] = useState<DemoMetadata | null>(null);
+  const [demoTags, setDemoTags] = useState<DemoTag[]>([]);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState('#2563eb');
   const scanAction = useAsyncAction<{ discovered: number; imported: number }>();
   const importAction = useAsyncAction<ScanResult>();
   const saveAction = useAsyncAction<DemoSummary>();
+  const metadataSaveAction = useAsyncAction<DemoMetadata>();
+  const tagCreateAction = useAsyncAction<DemoTag>();
   const deleteAction = useAsyncAction<boolean>();
   const playAction = useAsyncAction<{ started: boolean; process_id: number }>();
   const revealAction = useAsyncAction<boolean>();
@@ -306,8 +332,40 @@ export function LibraryPage() {
     setActiveDemo(demo);
     setEditName(demo.display_name);
     setEditRemark(demo.remark ?? '');
+    setEditMatchSource('');
+    setEditTagIds(new Set());
+    setDemoMetadata(null);
+    setMetadataError(null);
     saveAction.reset();
+    metadataSaveAction.reset();
+    tagCreateAction.reset();
   };
+
+  useEffect(() => {
+    if (!activeDemo || source !== 'service') {
+      setDemoMetadata(null);
+      setDemoTags([]);
+      setMetadataError(null);
+      return undefined;
+    }
+    const selectedId = activeDemo.id;
+    const controller = new AbortController();
+    setMetadataError(null);
+    void Promise.all([
+      commands.getDemoMetadata(selectedId, controller.signal),
+      commands.listDemoTags(controller.signal),
+    ]).then(([metadata, tags]) => {
+      if (controller.signal.aborted || metadata.demo_id !== selectedId) return;
+      setDemoMetadata(metadata);
+      setDemoTags(tags);
+      setEditRemark(metadata.comment);
+      setEditMatchSource(metadata.match_source ?? '');
+      setEditTagIds(new Set(metadata.tags.map((tag) => tag.id)));
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) setMetadataError(readableError(error));
+    });
+    return () => controller.abort();
+  }, [activeDemo?.id, source]);
 
   useEffect(() => {
     if (!activeDemo || source !== 'service' || activeDemo.status !== 'ready') {
@@ -489,12 +547,46 @@ export function LibraryPage() {
   const handleSave = async () => {
     if (!activeDemo) return;
     const updated = await saveAction.run(
-      () => commands.updateDemo(activeDemo.id, { display_name: editName.trim(), remark: editRemark.trim() }),
+      () => commands.updateDemo(activeDemo.id, { display_name: editName.trim() }),
       msg("m1163"),
     );
     if (!updated) return;
     setActiveDemo(updated);
     await refreshDemos();
+  };
+
+  const handleMetadataSave = async () => {
+    if (!activeDemo || !demoMetadata) return;
+    const requestedDemoId = activeDemo.id;
+    const updated = await metadataSaveAction.run(
+      () => commands.updateDemoMetadata(requestedDemoId, {
+        match_source: editMatchSource || null,
+        comment: editRemark,
+        tag_ids: [...editTagIds],
+      }),
+      t('library.metadata.saved'),
+    );
+    if (!updated || activeDemoIdRef.current !== requestedDemoId) return;
+    setDemoMetadata(updated);
+    setActiveDemo((current) => current?.id === updated.demo_id
+      ? { ...current, remark: updated.comment, updated_at: updated.updated_at }
+      : current);
+    await refreshDemos();
+  };
+
+  const handleCreateTag = async () => {
+    const name = newTagName.trim();
+    const requestedDemoId = activeDemo?.id;
+    if (!name || !requestedDemoId) return;
+    const created = await tagCreateAction.run(
+      () => commands.createDemoTag({ name, color: newTagColor }),
+      t('library.metadata.tagCreated'),
+    );
+    if (!created || activeDemoIdRef.current !== requestedDemoId) return;
+    setDemoTags((current) => [...current, created]
+      .sort((left, right) => left.name.localeCompare(right.name)));
+    setEditTagIds((current) => new Set([...current, created.id]));
+    setNewTagName('');
   };
 
   const handleDelete = async () => {
@@ -891,9 +983,92 @@ export function LibraryPage() {
             <Field label={msg("m0726")}>
               <TextInput value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={100} />
             </Field>
-            <Field label={msg("m0415")} hint={msg("m1114")}>
-              <textarea value={editRemark} onChange={(event) => setEditRemark(event.target.value)} rows={5} maxLength={1000} />
-            </Field>
+            <section className="library-demo-metadata" aria-labelledby="library-demo-metadata-title">
+              <header>
+                <div>
+                  <h3 id="library-demo-metadata-title">{t('library.metadata.title')}</h3>
+                  <p>{t('library.metadata.truth')}</p>
+                </div>
+              </header>
+              {metadataError ? (
+                <Notice tone="warning" title={t('library.metadata.unavailable')}>{metadataError}</Notice>
+              ) : demoMetadata ? (
+                <>
+                  <Field label={t('library.metadata.matchSource')} hint={t('library.metadata.matchSourceHint')}>
+                    <select
+                      value={editMatchSource}
+                      onChange={(event) => setEditMatchSource(event.target.value as DemoMatchSource | '')}
+                    >
+                      <option value="">{t('library.metadata.matchSourceUnknown')}</option>
+                      {MATCH_SOURCES.map((matchSource) => (
+                        <option key={matchSource} value={matchSource}>{matchSource}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label={t('library.metadata.comment')} hint={t('library.metadata.commentHint')}>
+                    <textarea
+                      value={editRemark}
+                      onChange={(event) => setEditRemark(event.target.value)}
+                      rows={5}
+                      maxLength={4000}
+                    />
+                  </Field>
+                  <div className="library-demo-metadata__tags">
+                    <span>{t('library.metadata.tags')}</span>
+                    <div role="group" aria-label={t('library.metadata.tags')}>
+                      {demoTags.length === 0 ? <p>{t('library.metadata.noTags')}</p> : demoTags.map((tag) => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          aria-pressed={editTagIds.has(tag.id)}
+                          onClick={() => setEditTagIds((current) => {
+                            const next = new Set(current);
+                            if (next.has(tag.id)) next.delete(tag.id); else next.add(tag.id);
+                            return next;
+                          })}
+                        >
+                          <span aria-hidden="true" style={{ backgroundColor: tag.color }} />
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="library-demo-metadata__new-tag">
+                      <TextInput
+                        value={newTagName}
+                        onChange={(event) => setNewTagName(event.target.value)}
+                        maxLength={64}
+                        placeholder={t('library.metadata.newTag')}
+                      />
+                      <input
+                        type="color"
+                        value={newTagColor}
+                        aria-label={t('library.metadata.tagColor')}
+                        onChange={(event) => setNewTagColor(event.target.value)}
+                      />
+                      <Button
+                        disabled={!newTagName.trim() || tagCreateAction.state.status === 'loading'}
+                        onClick={() => void handleCreateTag()}
+                      >
+                        {t('library.metadata.createTag')}
+                      </Button>
+                    </div>
+                  </div>
+                  {metadataSaveAction.state.message ? (
+                    <Notice tone={metadataSaveAction.state.status === 'error' ? 'danger' : 'success'}>
+                      {metadataSaveAction.state.message}
+                    </Notice>
+                  ) : null}
+                  <Button
+                    variant="primary"
+                    disabled={metadataSaveAction.state.status === 'loading'}
+                    onClick={() => void handleMetadataSave()}
+                  >
+                    {metadataSaveAction.state.status === 'loading' ? <Spinner /> : null}
+                    {t('library.metadata.save')}
+                  </Button>
+                </>
+              ) : <Spinner />}
+            </section>
             {activeDemo.lifecycle_status === 'ready' ? <dl className="detail-list">
               <div><dt>{msg("m0396")}</dt><dd>{activeDemo.map_name}</dd></div>
               {hasVerifiedMatchScore(activeDemo) ? <div><dt>{msg("m0884")}</dt><dd>{activeDemo.score_team_a} : {activeDemo.score_team_b}</dd></div> : null}

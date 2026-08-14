@@ -3,6 +3,7 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { msg, msgf } from '../i18n';
 import { parseActivityFeed, parseActivityItem } from './activityContract';
 import { parseAnalysisRun, parseAnalysisRunDetail } from './analysisRunContract';
+import { parseDemoMetadata, parseDemoTag, parseDemoTagCatalog } from './demoMetadataContract';
 import { parseLineupDirectoryPage, parseLineupMapPage } from './lineupContract';
 import {
   parsePlayerComparison,
@@ -51,9 +52,13 @@ import type {
   DemoPlaybackPreflight,
   DemoPlaybackStatus,
   DemoPlaybackStop,
+  DemoMetadata,
+  DemoMetadataUpdate,
   DemoQuery,
   DemoRecord,
   DemoSummary,
+  DemoTag,
+  DemoTagCreate,
   DemoUpdate,
   DemoWatchStatus,
   DetectedPaths,
@@ -540,6 +545,23 @@ export const commands = {
     });
     return normalizeDemo(record);
   },
+  getDemoMetadata: async (id: string, signal?: AbortSignal): Promise<DemoMetadata> =>
+    parseDemoMetadata(
+      await request<unknown>(`/demos/${encodeURIComponent(id)}/metadata`, { signal }),
+      id,
+    ),
+  updateDemoMetadata: async (id: string, update: DemoMetadataUpdate): Promise<DemoMetadata> =>
+    parseDemoMetadata(
+      await request<unknown>(`/demos/${encodeURIComponent(id)}/metadata`, {
+        method: 'PUT',
+        body: update,
+      }),
+      id,
+    ),
+  listDemoTags: async (signal?: AbortSignal): Promise<DemoTag[]> =>
+    parseDemoTagCatalog(await request<unknown>('/demo-tags', { signal })),
+  createDemoTag: async (input: DemoTagCreate): Promise<DemoTag> =>
+    parseDemoTag(await request<unknown>('/demo-tags', { method: 'POST', body: input })),
   deleteDemo: (id: string) =>
     request<void>(`/demos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listLineups: async (query: { search: string; page: number; page_size: number }, signal?: AbortSignal) =>

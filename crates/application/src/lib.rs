@@ -123,6 +123,117 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn demo_metadata_routes_persist_catalog_tags_comment_and_match_source() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let demo_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_demo(DemoRecord {
+                id: demo_id,
+                path: "C:/matches/metadata.dem".to_owned(),
+                file_name: "metadata.dem".to_owned(),
+                display_name: "Metadata".to_owned(),
+                source: "local".to_owned(),
+                status: DemoStatus::Discovered,
+                map_name: None,
+                match_date: None,
+                duration_seconds: None,
+                total_rounds: None,
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: vec![],
+                remark: String::new(),
+                content_sha256: Some("c".repeat(64)),
+                file_size: 42,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist demo");
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let create = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/demo-tags")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(r##"{"name":"Major","color":"#dc2626"}"##))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(create.status(), axum::http::StatusCode::CREATED);
+        let tag: vibe_cs_domain::DemoTag = serde_json::from_slice(
+            &to_bytes(create.into_body(), 64 * 1024)
+                .await
+                .expect("tag body"),
+        )
+        .expect("tag payload");
+
+        let update = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::PUT)
+                    .uri(format!("/api/demos/{demo_id}/metadata"))
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(format!(
+                        r#"{{"match_source":"faceit","comment":"Review R12","tag_ids":["{}"]}}"#,
+                        tag.id
+                    )))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(update.status(), axum::http::StatusCode::OK);
+
+        let read = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/api/demos/{demo_id}/metadata"))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let metadata: vibe_cs_domain::DemoMetadata = serde_json::from_slice(
+            &to_bytes(read.into_body(), 64 * 1024)
+                .await
+                .expect("metadata body"),
+        )
+        .expect("metadata payload");
+        assert_eq!(metadata.comment, "Review R12");
+        assert_eq!(
+            metadata.match_source,
+            Some(vibe_cs_domain::DemoMatchSource::Faceit)
+        );
+        assert_eq!(metadata.tags, vec![tag]);
+
+        let rejected = dispatcher
+            .oneshot(
+                Request::builder()
+                    .method(Method::PUT)
+                    .uri(format!("/api/demos/{demo_id}/metadata"))
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        r#"{"match_source":null,"comment":"","tag_ids":[],"unexpected":true}"#,
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(rejected.status(), axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
     async fn dispatcher_does_not_expose_retired_obs_control_routes() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()

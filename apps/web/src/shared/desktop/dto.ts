@@ -221,6 +221,38 @@ export type DemoUpdate = {
   remark?: string;
 };
 
+export type DemoMatchSource =
+  | 'challengermode' | 'ebot' | 'esl' | 'esplay' | 'esportal' | 'esportligaen'
+  | 'faceit' | 'fastcup' | 'five_eplay' | 'matchzy' | 'perfect_world' | 'pracc'
+  | 'renown' | 'valve';
+
+export type DemoTag = {
+  id: string;
+  name: string;
+  color: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DemoMetadata = {
+  demo_id: string;
+  match_source: DemoMatchSource | null;
+  comment: string;
+  tags: DemoTag[];
+  updated_at: string;
+};
+
+export type DemoMetadataUpdate = {
+  match_source: DemoMatchSource | null;
+  comment: string;
+  tag_ids: string[];
+};
+
+export type DemoTagCreate = {
+  name: string;
+  color: string;
+};
+
 export type ScanResult = {
   discovered: number;
   imported: number;

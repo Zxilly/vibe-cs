@@ -5,6 +5,123 @@ use uuid::Uuid;
 pub const MAX_DEMO_PLAYER_SUMMARY_NAMES: usize = 64;
 pub const DEMO_MAX_PAGE: u32 = 100_000;
 pub const DEMO_MAX_PAGE_SIZE: u32 = 200;
+pub const DEMO_COMMENT_MAX_CHARS: usize = 4_000;
+pub const DEMO_TAG_MAX_NAME_CHARS: usize = 64;
+pub const DEMO_TAG_MAX_ASSIGNMENTS: usize = 32;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DemoMatchSource {
+    Challengermode,
+    Ebot,
+    Esl,
+    Esplay,
+    Esportal,
+    Esportligaen,
+    Faceit,
+    Fastcup,
+    FiveEplay,
+    Matchzy,
+    PerfectWorld,
+    Pracc,
+    Renown,
+    Valve,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct DemoTag {
+    pub id: Uuid,
+    pub name: String,
+    pub color: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct DemoTagCreate {
+    pub name: String,
+    pub color: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct DemoMetadata {
+    pub demo_id: Uuid,
+    pub match_source: Option<DemoMatchSource>,
+    pub comment: String,
+    pub tags: Vec<DemoTag>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct DemoMetadataUpdate {
+    pub match_source: Option<DemoMatchSource>,
+    pub comment: String,
+    pub tag_ids: Vec<Uuid>,
+}
+
+impl DemoTagCreate {
+    /// Normalizes a user-created catalog tag while preserving its display case.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::DomainError::InvalidInput`] for an empty, oversized, control-character,
+    /// or non-hex-color tag.
+    pub fn normalize(mut self) -> Result<Self, crate::DomainError> {
+        self.name = self.name.trim().to_owned();
+        if self.name.is_empty()
+            || self.name.chars().count() > DEMO_TAG_MAX_NAME_CHARS
+            || self.name.chars().any(char::is_control)
+        {
+            return Err(crate::DomainError::InvalidInput(
+                "demo tag name must contain 1..=64 printable characters".to_owned(),
+            ));
+        }
+        if self.color.len() != 7
+            || !self.color.starts_with('#')
+            || !self.color[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err(crate::DomainError::InvalidInput(
+                "demo tag color must be a #RRGGBB value".to_owned(),
+            ));
+        }
+        self.color.make_ascii_lowercase();
+        Ok(self)
+    }
+}
+
+impl DemoMetadataUpdate {
+    /// Validates the complete replacement document used by the metadata Interface.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::DomainError::InvalidInput`] when the comment or tag assignment set is
+    /// outside the current bounded contract.
+    pub fn validate(&self) -> Result<(), crate::DomainError> {
+        if self.comment.chars().count() > DEMO_COMMENT_MAX_CHARS
+            || self.comment.chars().any(|character| character == '\0')
+        {
+            return Err(crate::DomainError::InvalidInput(
+                "demo comment must contain at most 4000 characters and no NUL bytes".to_owned(),
+            ));
+        }
+        if self.tag_ids.len() > DEMO_TAG_MAX_ASSIGNMENTS {
+            return Err(crate::DomainError::InvalidInput(
+                "a demo may have at most 32 tags".to_owned(),
+            ));
+        }
+        let mut unique = std::collections::BTreeSet::new();
+        if !self.tag_ids.iter().all(|id| unique.insert(*id)) {
+            return Err(crate::DomainError::InvalidInput(
+                "demo tag assignments must be unique".to_owned(),
+            ));
+        }
+        Ok(())
+    }
+}
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
@@ -253,5 +370,48 @@ mod tests {
                 "missing current field {field} must be rejected"
             );
         }
+    }
+
+    #[test]
+    fn demo_metadata_rejects_ambiguous_or_unbounded_user_input() {
+        assert_eq!(
+            DemoTagCreate {
+                name: "  Major  ".to_owned(),
+                color: "#DC2626".to_owned(),
+            }
+            .normalize()
+            .expect("valid tag"),
+            DemoTagCreate {
+                name: "Major".to_owned(),
+                color: "#dc2626".to_owned(),
+            }
+        );
+        assert!(
+            DemoTagCreate {
+                name: "bad\nname".to_owned(),
+                color: "#dc2626".to_owned(),
+            }
+            .normalize()
+            .is_err()
+        );
+        let duplicate = Uuid::new_v4();
+        assert!(
+            DemoMetadataUpdate {
+                match_source: None,
+                comment: String::new(),
+                tag_ids: vec![duplicate, duplicate],
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            DemoMetadataUpdate {
+                match_source: None,
+                comment: "x".repeat(DEMO_COMMENT_MAX_CHARS + 1),
+                tag_ids: Vec::new(),
+            }
+            .validate()
+            .is_err()
+        );
     }
 }

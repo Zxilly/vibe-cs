@@ -41,14 +41,15 @@ use sha2::{Digest, Sha256};
 use uuid::Uuid;
 use vibe_cs_domain::{
     AppConfig, BeatAlignmentAudioBinding, BeatAlignmentAudioPlacement, BeatAlignmentDraft,
-    CosmeticPlan, DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoPatch, DemoQuery, DemoRecord, DemoSort,
-    DemoStatus, EditorAudioSeparation, EditorPresetDocument, EditorProject, EditorProjectSnapshot,
-    EventKind, EvidenceAnnotation, EvidenceAnnotationQuery, EvidenceAnnotationReviewState,
-    EvidenceEventFamily, EvidenceSearchAvailability, EvidenceSearchCapability, EvidenceSearchItem,
-    EvidenceSearchPage, EvidenceSearchQuery, EvidenceSourceKind, ExportJob, HighlightEditPlan,
-    HighlightKind, MatchAnalysis, MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery,
-    MediaAsset, MediaProxyStatus, MontageProject, Page, RecordedClip, RecordingJob,
-    SteamMatchRecord,
+    CosmeticPlan, DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoMatchSource, DemoMetadata,
+    DemoMetadataUpdate, DemoPatch, DemoQuery, DemoRecord, DemoSort, DemoStatus, DemoTag,
+    DemoTagCreate, EditorAudioSeparation, EditorPresetDocument, EditorProject,
+    EditorProjectSnapshot, EventKind, EvidenceAnnotation, EvidenceAnnotationQuery,
+    EvidenceAnnotationReviewState, EvidenceEventFamily, EvidenceSearchAvailability,
+    EvidenceSearchCapability, EvidenceSearchItem, EvidenceSearchPage, EvidenceSearchQuery,
+    EvidenceSourceKind, ExportJob, HighlightEditPlan, HighlightKind, MatchAnalysis,
+    MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery, MediaAsset, MediaProxyStatus,
+    MontageProject, Page, RecordedClip, RecordingJob, SteamMatchRecord,
 };
 
 use crate::{Result, StorageError, schema};
@@ -1000,6 +1001,122 @@ impl Storage {
             demo.updated_at = Utc::now();
             put_demo_row(connection, &demo)?;
             Ok(Some(demo))
+        })
+        .await
+    }
+
+    pub async fn create_demo_tag(&self, input: DemoTagCreate) -> Result<DemoTag> {
+        let input = input.normalize()?;
+        self.run(move |connection| {
+            let now = Utc::now();
+            let tag = DemoTag {
+                id: Uuid::new_v4(),
+                name: input.name,
+                color: input.color,
+                created_at: now,
+                updated_at: now,
+            };
+            connection.execute(
+                "INSERT INTO demo_tags(id, name, name_key, color, created_at, updated_at) \
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    tag.id.to_string(),
+                    tag.name,
+                    tag.name.to_lowercase(),
+                    tag.color,
+                    tag.created_at.to_rfc3339(),
+                    tag.updated_at.to_rfc3339(),
+                ],
+            )?;
+            Ok(tag)
+        })
+        .await
+    }
+
+    pub async fn list_demo_tags(&self) -> Result<Vec<DemoTag>> {
+        self.run(move |connection| {
+            let mut statement = connection.prepare(
+                "SELECT id, name, color, created_at, updated_at FROM demo_tags \
+                 ORDER BY name_key ASC, name ASC, id ASC",
+            )?;
+            let rows = statement.query_map([], read_demo_tag)?;
+            rows.collect::<std::result::Result<Vec<_>, _>>()
+                .map_err(Into::into)
+        })
+        .await
+    }
+
+    pub async fn get_demo_metadata(&self, id: Uuid) -> Result<Option<DemoMetadata>> {
+        self.run(move |connection| read_demo_metadata(connection, id))
+            .await
+    }
+
+    pub async fn update_demo_metadata(
+        &self,
+        id: Uuid,
+        update: DemoMetadataUpdate,
+    ) -> Result<Option<DemoMetadata>> {
+        update.validate()?;
+        self.run(move |connection| {
+            let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(mut demo) = get_document::<DemoRecord>(&transaction, "demos", id)? else {
+                return Ok(None);
+            };
+            let tag_count = if update.tag_ids.is_empty() {
+                0
+            } else {
+                let placeholders = std::iter::repeat_n("?", update.tag_ids.len())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let sql = format!("SELECT COUNT(*) FROM demo_tags WHERE id IN ({placeholders})");
+                let ids = update.tag_ids.iter().map(Uuid::to_string).collect::<Vec<_>>();
+                transaction.query_row(
+                    &sql,
+                    rusqlite::params_from_iter(ids.iter()),
+                    |row| row.get::<_, i64>(0),
+                )?
+            };
+            let requested_tag_count = i64::try_from(update.tag_ids.len()).map_err(|_| {
+                StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(
+                    "demo tag assignment count is out of range".to_owned(),
+                ))
+            })?;
+            if tag_count != requested_tag_count {
+                return Err(StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(
+                    "one or more assigned demo tags do not exist".to_owned(),
+                )));
+            }
+            let now = Utc::now();
+            demo.remark = update.comment;
+            demo.updated_at = now;
+            put_demo_row(&transaction, &demo)?;
+            transaction.execute(
+                "INSERT INTO demo_metadata(demo_id, match_source, updated_at) VALUES (?1, ?2, ?3) \
+                 ON CONFLICT(demo_id) DO UPDATE SET match_source = excluded.match_source, updated_at = excluded.updated_at",
+                params![id.to_string(), update.match_source.map(match_source_text), now.to_rfc3339()],
+            )?;
+            transaction.execute(
+                "DELETE FROM demo_tag_assignments WHERE demo_id = ?1",
+                [id.to_string()],
+            )?;
+            for (position, tag_id) in update.tag_ids.iter().enumerate() {
+                let position = i64::try_from(position).map_err(|_| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(
+                        "demo tag position is out of range".to_owned(),
+                    ))
+                })?;
+                transaction.execute(
+                    "INSERT INTO demo_tag_assignments(demo_id, tag_id, position) VALUES (?1, ?2, ?3)",
+                    params![id.to_string(), tag_id.to_string(), position],
+                )?;
+            }
+            let metadata = read_demo_metadata(&transaction, id)?.ok_or_else(|| {
+                StorageError::Domain(vibe_cs_domain::DomainError::Internal(
+                    "demo disappeared during its metadata transaction".to_owned(),
+                ))
+            })?;
+            transaction.commit()?;
+            Ok(Some(metadata))
         })
         .await
     }
@@ -4949,6 +5066,108 @@ fn status_text(status: DemoStatus) -> &'static str {
     }
 }
 
+fn match_source_text(source: DemoMatchSource) -> &'static str {
+    match source {
+        DemoMatchSource::Challengermode => "challengermode",
+        DemoMatchSource::Ebot => "ebot",
+        DemoMatchSource::Esl => "esl",
+        DemoMatchSource::Esplay => "esplay",
+        DemoMatchSource::Esportal => "esportal",
+        DemoMatchSource::Esportligaen => "esportligaen",
+        DemoMatchSource::Faceit => "faceit",
+        DemoMatchSource::Fastcup => "fastcup",
+        DemoMatchSource::FiveEplay => "five_eplay",
+        DemoMatchSource::Matchzy => "matchzy",
+        DemoMatchSource::PerfectWorld => "perfect_world",
+        DemoMatchSource::Pracc => "pracc",
+        DemoMatchSource::Renown => "renown",
+        DemoMatchSource::Valve => "valve",
+    }
+}
+
+fn parse_match_source(value: &str) -> rusqlite::Result<DemoMatchSource> {
+    match value {
+        "challengermode" => Ok(DemoMatchSource::Challengermode),
+        "ebot" => Ok(DemoMatchSource::Ebot),
+        "esl" => Ok(DemoMatchSource::Esl),
+        "esplay" => Ok(DemoMatchSource::Esplay),
+        "esportal" => Ok(DemoMatchSource::Esportal),
+        "esportligaen" => Ok(DemoMatchSource::Esportligaen),
+        "faceit" => Ok(DemoMatchSource::Faceit),
+        "fastcup" => Ok(DemoMatchSource::Fastcup),
+        "five_eplay" => Ok(DemoMatchSource::FiveEplay),
+        "matchzy" => Ok(DemoMatchSource::Matchzy),
+        "perfect_world" => Ok(DemoMatchSource::PerfectWorld),
+        "pracc" => Ok(DemoMatchSource::Pracc),
+        "renown" => Ok(DemoMatchSource::Renown),
+        "valve" => Ok(DemoMatchSource::Valve),
+        other => Err(rusqlite::Error::FromSqlConversionFailure(
+            0,
+            rusqlite::types::Type::Text,
+            format!("invalid demo match source {other}").into(),
+        )),
+    }
+}
+
+fn parse_repository_datetime(value: &str) -> rusqlite::Result<DateTime<Utc>> {
+    value.parse().map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Text, Box::new(error))
+    })
+}
+
+fn read_demo_tag(row: &rusqlite::Row<'_>) -> rusqlite::Result<DemoTag> {
+    let id = row.get::<_, String>(0)?;
+    Ok(DemoTag {
+        id: Uuid::parse_str(&id).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })?,
+        name: row.get(1)?,
+        color: row.get(2)?,
+        created_at: parse_repository_datetime(&row.get::<_, String>(3)?)?,
+        updated_at: parse_repository_datetime(&row.get::<_, String>(4)?)?,
+    })
+}
+
+fn read_demo_metadata(connection: &Connection, demo_id: Uuid) -> Result<Option<DemoMetadata>> {
+    let Some(demo) = get_document::<DemoRecord>(connection, "demos", demo_id)? else {
+        return Ok(None);
+    };
+    let stored = connection
+        .query_row(
+            "SELECT match_source, updated_at FROM demo_metadata WHERE demo_id = ?1",
+            [demo_id.to_string()],
+            |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, String>(1)?)),
+        )
+        .optional()?;
+    let (match_source, updated_at) = match stored {
+        Some((source, updated_at)) => (
+            source.as_deref().map(parse_match_source).transpose()?,
+            parse_repository_datetime(&updated_at)?,
+        ),
+        None => (None, demo.updated_at),
+    };
+    let mut statement = connection.prepare(
+        "SELECT tag.id, tag.name, tag.color, tag.created_at, tag.updated_at \
+         FROM demo_tag_assignments AS assignment \
+         INNER JOIN demo_tags AS tag ON tag.id = assignment.tag_id \
+         WHERE assignment.demo_id = ?1 ORDER BY assignment.position ASC",
+    )?;
+    let tags = statement
+        .query_map([demo_id.to_string()], read_demo_tag)?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(Some(DemoMetadata {
+        demo_id,
+        match_source,
+        comment: demo.remark,
+        tags,
+        updated_at,
+    }))
+}
+
 const fn demo_order_sql(sort: DemoSort) -> &'static str {
     match sort {
         DemoSort::UpdatedDesc => "updated_at DESC, id ASC",
@@ -5055,6 +5274,79 @@ mod tests {
             created_at: now,
             updated_at: now,
         }
+    }
+
+    #[tokio::test]
+    async fn demo_metadata_persists_provider_comment_and_catalog_tags() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let record = demo("C:/demos/metadata.dem");
+        storage.put_demo(record.clone()).await.expect("put demo");
+
+        let review = storage
+            .create_demo_tag(DemoTagCreate {
+                name: "Review".to_owned(),
+                color: "#2563eb".to_owned(),
+            })
+            .await
+            .expect("create tag");
+        let major = storage
+            .create_demo_tag(DemoTagCreate {
+                name: "Major".to_owned(),
+                color: "#dc2626".to_owned(),
+            })
+            .await
+            .expect("create tag");
+
+        let updated = storage
+            .update_demo_metadata(
+                record.id,
+                DemoMetadataUpdate {
+                    match_source: Some(DemoMatchSource::Faceit),
+                    comment: "Recheck round 12".to_owned(),
+                    tag_ids: vec![review.id, major.id],
+                },
+            )
+            .await
+            .expect("update metadata")
+            .expect("demo exists");
+
+        assert_eq!(updated.demo_id, record.id);
+        assert_eq!(updated.match_source, Some(DemoMatchSource::Faceit));
+        assert_eq!(updated.comment, "Recheck round 12");
+        assert_eq!(updated.tags, vec![review.clone(), major.clone()]);
+        assert_eq!(
+            storage
+                .get_demo(record.id)
+                .await
+                .expect("read demo")
+                .expect("demo exists")
+                .remark,
+            "Recheck round 12"
+        );
+
+        let replaced = storage
+            .update_demo_metadata(
+                record.id,
+                DemoMetadataUpdate {
+                    match_source: Some(DemoMatchSource::Valve),
+                    comment: String::new(),
+                    tag_ids: vec![major.id],
+                },
+            )
+            .await
+            .expect("replace metadata")
+            .expect("demo exists");
+        assert_eq!(replaced.tags, vec![major]);
+        assert_eq!(replaced.match_source, Some(DemoMatchSource::Valve));
+
+        assert!(storage.delete_demo(record.id).await.expect("delete demo"));
+        assert!(
+            storage
+                .get_demo_metadata(record.id)
+                .await
+                .expect("read deleted metadata")
+                .is_none()
+        );
     }
 
     async fn persist_completed_analysis(storage: &Storage, analysis: MatchAnalysis) {

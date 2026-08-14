@@ -152,6 +152,35 @@ describe('desktop command client', () => {
     });
   });
 
+  it('binds Demo metadata reads and writes to the exact requested Demo', async () => {
+    const id = '22222222-2222-4222-8222-222222222222';
+    const metadata = {
+      demo_id: id,
+      match_source: 'faceit',
+      comment: 'Review R12',
+      tags: [],
+      updated_at: '2026-08-14T01:01:00Z',
+    };
+    invokeMock.mockResolvedValue(metadata);
+
+    await commands.updateDemoMetadata(id, {
+      match_source: 'faceit',
+      comment: 'Review R12',
+      tag_ids: [],
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'put',
+        path: `/demos/${id}/metadata`,
+        body: { match_source: 'faceit', comment: 'Review R12', tag_ids: [] },
+      },
+    });
+
+    invokeMock.mockResolvedValue({ ...metadata, demo_id: '33333333-3333-4333-8333-333333333333' });
+    await expect(commands.getDemoMetadata(id)).rejects.toThrow(/current contract/i);
+  });
+
   it('executes the opaque server-side recording plan instead of resending queue items', async () => {
     invokeMock.mockResolvedValue({ job_id: 'job-1', status: 'queued' });
 

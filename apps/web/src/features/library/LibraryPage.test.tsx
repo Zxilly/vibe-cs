@@ -118,3 +118,19 @@ describe('library cross-page selection wiring', () => {
     expect(source).toMatch(/return \(\) => selectionPreflight\.dispose\(\)/);
   });
 });
+
+describe('library Demo metadata wiring', () => {
+  const source = readFileSync(new URL('./LibraryPage.tsx', import.meta.url), 'utf8');
+
+  it('keeps import provenance read-only and edits the distinct match provider contract', () => {
+    expect(source).toMatch(/commands\.getDemoMetadata\(selectedId, controller\.signal\)/);
+    expect(source).toMatch(/commands\.listDemoTags\(controller\.signal\)/);
+    expect(source).toMatch(/match_source: editMatchSource \|\| null/);
+    expect(source).toMatch(/comment: editRemark/);
+    expect(source).toMatch(/tag_ids: \[\.\.\.editTagIds\]/);
+    expect(source).toMatch(/commands\.createDemoTag\(\{ name, color: newTagColor \}\)/);
+    expect(source).toMatch(/if \(!updated \|\| activeDemoIdRef\.current !== requestedDemoId\) return/);
+    expect(source).toMatch(/if \(!created \|\| activeDemoIdRef\.current !== requestedDemoId\) return/);
+    expect(source).toContain("library.metadata.truth");
+  });
+});

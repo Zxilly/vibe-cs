@@ -566,6 +566,16 @@ export const commands = {
       await request<unknown>('/demos/metadata/batch', { method: 'POST', body: update }),
       update.demo_ids,
     ),
+  exportDemos: (format: 'json' | 'xlsx', query: DemoQuery, signal?: AbortSignal) =>
+    requestBinary(`/demos/export${queryString({
+      format,
+      search: query.search,
+      match_source: query.match_source,
+      tag_id: query.tag_id,
+      map_name: query.map_name,
+      status: query.status,
+      sort: query.sort,
+    })}`, signal),
   listDemoTags: async (signal?: AbortSignal): Promise<DemoTag[]> =>
     parseDemoTagCatalog(await request<unknown>('/demo-tags', { signal })),
   createDemoTag: async (input: DemoTagCreate): Promise<DemoTag> =>

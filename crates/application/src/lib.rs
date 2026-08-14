@@ -267,6 +267,51 @@ mod tests {
         );
         assert!(batch[0].tags.is_empty());
 
+        let json_export = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/demos/export?format=json&match_source=valve")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(json_export.status(), axum::http::StatusCode::OK);
+        let json_export: serde_json::Value = serde_json::from_slice(
+            &to_bytes(json_export.into_body(), 1024 * 1024)
+                .await
+                .expect("JSON export body"),
+        )
+        .expect("JSON export");
+        assert_eq!(json_export["schema_version"], 1);
+        assert_eq!(json_export["total"], 1);
+        assert_eq!(json_export["demos"][0]["demo"]["id"], demo_id.to_string());
+
+        let xlsx_export = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/demos/export?format=xlsx&match_source=valve")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(xlsx_export.status(), axum::http::StatusCode::OK);
+        let xlsx_bytes = to_bytes(xlsx_export.into_body(), 8 * 1024 * 1024)
+            .await
+            .expect("XLSX export body");
+        assert!(xlsx_bytes.starts_with(b"PK"));
+        let mut archive =
+            zip::ZipArchive::new(std::io::Cursor::new(xlsx_bytes)).expect("valid XLSX zip");
+        assert!(archive.by_name("xl/workbook.xml").is_ok());
+        assert!(archive.by_name("xl/worksheets/sheet2.xml").is_ok());
+        if let Some(path) = std::env::var_os("VIBE_CS_XLSX_AUDIT_OUTPUT") {
+            std::fs::write(path, archive.into_inner().into_inner())
+                .expect("write XLSX audit fixture");
+        }
+
         let rename = dispatcher
             .clone()
             .oneshot(

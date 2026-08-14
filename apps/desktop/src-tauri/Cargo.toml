@@ -20,6 +20,7 @@ vibe-cs-platform-windows = { path = "../../../crates/platform-windows" }
 axum.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"
 tokio.workspace = true

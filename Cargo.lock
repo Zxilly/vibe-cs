@@ -4449,6 +4449,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rust_xlsxwriter"
+version = "0.96.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd1746025420e17b5d62528b930e550e016e857038794d74e169018126ef3d14"
+dependencies = [
+ "zip 7.2.0",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "2.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6555,6 +6564,7 @@ dependencies = [
  "mime_guess",
  "reqwest",
  "rusqlite",
+ "rust_xlsxwriter",
  "same-file",
  "semver",
  "serde",
@@ -6575,7 +6585,7 @@ dependencies = [
  "vibe-cs-recording",
  "vibe-cs-storage",
  "walkdir",
- "zip",
+ "zip 8.6.0",
 ]
 
 [[package]]
@@ -6606,7 +6616,7 @@ dependencies = [
  "uuid",
  "vibe-cs-domain",
  "walkdir",
- "zip",
+ "zip 8.6.0",
 ]
 
 [[package]]
@@ -6635,6 +6645,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
+ "tauri-plugin-fs",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
  "tempfile",
@@ -6679,7 +6690,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "url",
- "zip",
+ "zip 8.6.0",
 ]
 
 [[package]]
@@ -7894,6 +7905,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "zip"
+version = "7.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c42e33efc22a0650c311c2ef19115ce232583abbe80850bc8b66509ebef02de0"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "indexmap 2.14.0",
+ "memchr",
+ "typed-path",
+ "zopfli",
 ]
 
 [[package]]

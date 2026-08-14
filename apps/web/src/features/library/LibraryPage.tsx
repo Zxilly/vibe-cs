@@ -2,6 +2,7 @@ import { currentLocale, msg, msgf } from '../../shared/i18n';
 import {
   CalendarDays,
   Clock3,
+  Download,
   FileVideo2,
   Filter,
   FolderPlus,
@@ -36,7 +37,7 @@ import type {
   RadarOverviewRecord,
   ScanResult,
 } from '../../shared/desktop/dto';
-import { chooseLocalDirectories, chooseLocalFiles, isDesktopShell, revealLocalPath } from '../../shared/desktop/dialog';
+import { chooseLocalDirectories, chooseLocalFiles, chooseLocalSavePath, isDesktopShell, revealLocalPath, writeLocalBytes } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
 import { formatKillDeathRatioValue } from '../../shared/performanceMetrics';
@@ -215,6 +216,7 @@ export function LibraryPage() {
   const deleteAction = useAsyncAction<boolean>();
   const playAction = useAsyncAction<{ started: boolean; process_id: number }>();
   const revealAction = useAsyncAction<boolean>();
+  const exportAction = useAsyncAction<string>();
   const [playingDemoId, setPlayingDemoId] = useState<string | null>(null);
   const [watchStatus, setWatchStatus] = useState<DemoWatchStatus | null>(null);
   const [watchError, setWatchError] = useState<string | null>(null);
@@ -696,6 +698,23 @@ export function LibraryPage() {
     setPlayingDemoId(null);
   };
 
+  const handleExport = async (format: 'json' | 'xlsx') => {
+    const path = await chooseLocalSavePath({
+      title: t(format === 'json' ? 'library.export.jsonTitle' : 'library.export.xlsxTitle'),
+      defaultFileName: `vibe-cs-demos-${new Date().toISOString().slice(0, 10)}.${format}`,
+      filters: [{
+        name: format === 'json' ? 'JSON' : 'Excel Workbook',
+        extensions: [format],
+      }],
+    });
+    if (!path) return;
+    await exportAction.run(async () => {
+      const bytes = await commands.exportDemos(format, libraryQueryToDemoQuery(libraryQuery));
+      await writeLocalBytes(path, new Uint8Array(bytes));
+      return path;
+    }, t('library.export.saved'));
+  };
+
   const isBusy = scanAction.state.status === 'loading' || importAction.state.status === 'loading';
 
   return (
@@ -716,6 +735,12 @@ export function LibraryPage() {
             />
             <Button onClick={() => void handleImportButton()} disabled={isBusy}>
               <Upload size={15} />{t('library.import')}
+            </Button>
+            <Button onClick={() => void handleExport('json')} disabled={!desktopShell || exportAction.state.status === 'loading'}>
+              <Download size={15} />JSON
+            </Button>
+            <Button onClick={() => void handleExport('xlsx')} disabled={!desktopShell || exportAction.state.status === 'loading'}>
+              <Download size={15} />XLSX
             </Button>
             <Button
               onClick={() => void handleAddWatchDirectories()}
@@ -749,6 +774,9 @@ export function LibraryPage() {
       ) : null}
       {revealAction.state.message ? (
         <Notice tone={revealAction.state.status === 'error' ? 'danger' : 'success'}>{revealAction.state.message}</Notice>
+      ) : null}
+      {exportAction.state.message ? (
+        <Notice tone={exportAction.state.status === 'error' ? 'danger' : 'success'}>{exportAction.state.message}</Notice>
       ) : null}
       {watchAction.state.message ? (
         <Notice tone={watchAction.state.status === 'error' ? 'danger' : 'success'}>{watchAction.state.message}</Notice>

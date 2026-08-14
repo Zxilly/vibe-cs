@@ -52,6 +52,10 @@ impl IntoResponse for ApiError {
 
 impl From<vibe_cs_storage::StorageError> for ApiError {
     fn from(error: vibe_cs_storage::StorageError) -> Self {
+        let error = match error {
+            vibe_cs_storage::StorageError::Domain(error) => return error.into(),
+            error => error,
+        };
         tracing::error!(%error, "storage operation failed");
         Self::new(
             StatusCode::INTERNAL_SERVER_ERROR,

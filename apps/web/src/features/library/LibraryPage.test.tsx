@@ -129,8 +129,17 @@ describe('library Demo metadata wiring', () => {
     expect(source).toMatch(/comment: editRemark/);
     expect(source).toMatch(/tag_ids: \[\.\.\.editTagIds\]/);
     expect(source).toMatch(/commands\.createDemoTag\(\{ name, color: newTagColor \}\)/);
+    expect(source).toMatch(/commands\.updateDemoMetadataBatch\(\{ demo_ids: demoIds, \.\.\.change \}\)/);
     expect(source).toMatch(/if \(!updated \|\| activeDemoIdRef\.current !== requestedDemoId\) return/);
     expect(source).toMatch(/if \(!created \|\| activeDemoIdRef\.current !== requestedDemoId\) return/);
     expect(source).toContain("library.metadata.truth");
+  });
+
+  it('exports the complete URL-owned filter through the desktop save boundary', () => {
+    expect(source).toMatch(/chooseLocalSavePath\(\{/);
+    expect(source).toMatch(/commands\.exportDemos\(format, libraryQueryToDemoQuery\(libraryQuery\)\)/);
+    expect(source).toMatch(/writeLocalBytes\(path, new Uint8Array\(bytes\)\)/);
+    expect(source).toContain("handleExport('json')");
+    expect(source).toContain("handleExport('xlsx')");
   });
 });

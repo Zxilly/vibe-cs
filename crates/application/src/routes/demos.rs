@@ -8,6 +8,7 @@ use axum::{
     routing::{get, patch, post},
 };
 use chrono::{DateTime, Utc};
+use rust_xlsxwriter::{Color, Format, FormatAlign, Workbook};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
@@ -33,6 +34,7 @@ const MAXIMUM_DEMO_UPLOAD_REQUEST_BYTES: usize = 2 * 1024 * 1024 * 1024 + 8 * 10
 const MAXIMUM_EXPANDED_UPLOAD_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAXIMUM_EXPANDED_UPLOAD_DEMOS: usize = 256;
 const MAXIMUM_PLAYBACK_REQUEST_BYTES: usize = 1024;
+const MAXIMUM_DEMO_EXPORT_ROWS: u32 = 10_000;
 const MAXIMUM_BINARY_REPLAY_BYTES: usize = 128 * 1024 * 1024;
 const MAXIMUM_REPLAY_FRAMES: usize = 20_000;
 const MAXIMUM_REPLAY_PLAYERS_PER_FRAME: usize = 64;
@@ -63,6 +65,7 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/demos/metadata/batch",
             post(update_demo_metadata_batch),
         )
+        .route("/api/demos/export", get(export_demos))
         .route("/api/demo-tags", get(list_demo_tags).post(create_demo_tag))
         .route(
             "/api/demo-tags/{id}",
@@ -109,6 +112,33 @@ struct DemoListQuery {
     sort: Option<String>,
     page: Option<u32>,
     page_size: Option<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DemoExportQuery {
+    format: String,
+    search: Option<String>,
+    source: Option<String>,
+    match_source: Option<String>,
+    tag_id: Option<String>,
+    map_name: Option<String>,
+    status: Option<String>,
+    sort: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct DemoExportDocument {
+    schema_version: u32,
+    exported_at: DateTime<Utc>,
+    total: usize,
+    demos: Vec<DemoExportRow>,
+}
+
+#[derive(Debug, Serialize)]
+struct DemoExportRow {
+    demo: DemoRecord,
+    metadata: DemoMetadata,
 }
 
 #[derive(Debug, Serialize)]
@@ -195,6 +225,267 @@ async fn list_demos(
         page: page.page,
         page_size: page.page_size,
     }))
+}
+
+async fn export_demos(
+    State(state): State<AppState>,
+    ApiQuery(query): ApiQuery<DemoExportQuery>,
+) -> ApiResult<Response<Body>> {
+    if !matches!(query.format.as_str(), "json" | "xlsx") {
+        return Err(ApiError::invalid("demo export format must be json or xlsx"));
+    }
+    let status = query.status.as_deref().map(parse_status).transpose()?;
+    let match_source = query
+        .match_source
+        .as_deref()
+        .map(parse_match_source)
+        .transpose()?;
+    let tag_id = query.tag_id.as_deref().map(parse_id).transpose()?;
+    let sort = parse_demo_sort(query.sort.as_deref())?;
+    let rows = state
+        .storage
+        .list_demo_metadata_export(
+            DemoQuery {
+                search: query.search,
+                source: query.source,
+                match_source,
+                tag_id,
+                map_name: query.map_name,
+                status,
+                sort,
+                page: None,
+                page_size: None,
+            },
+            MAXIMUM_DEMO_EXPORT_ROWS,
+        )
+        .await?;
+    let exported_at = Utc::now();
+    let (content_type, extension, bytes) = if query.format == "json" {
+        let document = DemoExportDocument {
+            schema_version: 1,
+            exported_at,
+            total: rows.len(),
+            demos: rows
+                .into_iter()
+                .map(|(demo, metadata)| DemoExportRow { demo, metadata })
+                .collect(),
+        };
+        (
+            "application/json; charset=utf-8",
+            "json",
+            serde_json::to_vec_pretty(&document).map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "demo_export_failed",
+                    error.to_string(),
+                )
+            })?,
+        )
+    } else {
+        (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "xlsx",
+            build_demo_export_workbook(&rows, exported_at).map_err(|error| {
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "demo_export_failed",
+                    error.to_string(),
+                )
+            })?,
+        )
+    };
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!(
+                "attachment; filename=\"vibe-cs-demos-{}.{}\"",
+                exported_at.format("%Y%m%d-%H%M%S"),
+                extension
+            ),
+        )
+        .body(Body::from(bytes))
+        .map_err(|error| {
+            ApiError::new(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "demo_export_failed",
+                error.to_string(),
+            )
+        })
+}
+
+fn build_demo_export_workbook(
+    rows: &[(DemoRecord, DemoMetadata)],
+    exported_at: DateTime<Utc>,
+) -> Result<Vec<u8>, rust_xlsxwriter::XlsxError> {
+    let mut workbook = Workbook::new();
+    let title = Format::new()
+        .set_bold()
+        .set_font_size(16)
+        .set_font_color(Color::White)
+        .set_background_color(Color::RGB(0x0017_3F5F));
+    let header_format = Format::new()
+        .set_bold()
+        .set_font_color(Color::White)
+        .set_background_color(Color::RGB(0x0020_639B))
+        .set_align(FormatAlign::Center);
+    let wrap_format = Format::new().set_text_wrap().set_align(FormatAlign::Top);
+
+    let summary = workbook.add_worksheet().set_name("Export Info")?;
+    summary.set_column_width(0, 24)?;
+    summary.set_column_width(1, 48)?;
+    summary.merge_range(0, 0, 0, 1, "Vibe CS Demo Library Export", &title)?;
+    summary.write_string_with_format(2, 0, "Schema version", &header_format)?;
+    summary.write_number(2, 1, 1)?;
+    summary.write_string_with_format(3, 0, "Exported at (UTC)", &header_format)?;
+    summary.write_string(3, 1, exported_at.to_rfc3339())?;
+    summary.write_string_with_format(4, 0, "Rows", &header_format)?;
+    summary.write_number(4, 1, u32::try_from(rows.len()).unwrap_or(u32::MAX))?;
+    summary.merge_range(
+        6,
+        0,
+        6,
+        1,
+        "Match source is provider metadata. Import source remains separate.",
+        &wrap_format,
+    )?;
+
+    let worksheet = workbook.add_worksheet().set_name("Demos")?;
+    let headers = [
+        "Demo ID",
+        "Name",
+        "File",
+        "Path",
+        "Lifecycle",
+        "Import source",
+        "Match source",
+        "Map",
+        "Match date",
+        "Cataloged at",
+        "Duration seconds",
+        "Rounds",
+        "Team A",
+        "Team B",
+        "Score A",
+        "Score B",
+        "Players",
+        "Comment",
+        "Tags",
+        "SHA-256",
+        "Bytes",
+    ];
+    for (column, value) in headers.iter().enumerate() {
+        worksheet.write_string_with_format(
+            0,
+            u16::try_from(column).unwrap_or(0),
+            *value,
+            &header_format,
+        )?;
+    }
+    worksheet.set_freeze_panes(1, 0)?;
+    if !rows.is_empty() {
+        worksheet.autofilter(
+            0,
+            0,
+            u32::try_from(rows.len()).unwrap_or(u32::MAX),
+            u16::try_from(headers.len() - 1).unwrap_or(0),
+        )?;
+    }
+    for (index, (demo, metadata)) in rows.iter().enumerate() {
+        let row = u32::try_from(index + 1).unwrap_or(u32::MAX);
+        let text_values = [
+            demo.id.to_string(),
+            demo.display_name.clone(),
+            demo.file_name.clone(),
+            demo.path.clone(),
+            json_enum(&demo.status),
+            demo.source.clone(),
+            metadata
+                .match_source
+                .as_ref()
+                .map(json_enum)
+                .unwrap_or_default(),
+            demo.map_name.clone().unwrap_or_default(),
+            demo.match_date
+                .map(|value| value.to_rfc3339())
+                .unwrap_or_default(),
+            demo.created_at.to_rfc3339(),
+        ];
+        for (column, value) in text_values.iter().enumerate() {
+            worksheet.write_string_with_format(
+                row,
+                u16::try_from(column).unwrap_or(0),
+                value,
+                &wrap_format,
+            )?;
+        }
+        if let Some(value) = demo.duration_seconds {
+            worksheet.write_number(row, 10, value)?;
+        }
+        if let Some(value) = demo.total_rounds {
+            worksheet.write_number(row, 11, value)?;
+        }
+        worksheet.write_string_with_format(
+            row,
+            12,
+            demo.team_a_name.as_deref().unwrap_or_default(),
+            &wrap_format,
+        )?;
+        worksheet.write_string_with_format(
+            row,
+            13,
+            demo.team_b_name.as_deref().unwrap_or_default(),
+            &wrap_format,
+        )?;
+        if let Some(value) = demo.team_a_score {
+            worksheet.write_number(row, 14, value)?;
+        }
+        if let Some(value) = demo.team_b_score {
+            worksheet.write_number(row, 15, value)?;
+        }
+        worksheet.write_string_with_format(row, 16, demo.player_names.join("; "), &wrap_format)?;
+        worksheet.write_string_with_format(row, 17, &metadata.comment, &wrap_format)?;
+        worksheet.write_string_with_format(
+            row,
+            18,
+            metadata
+                .tags
+                .iter()
+                .map(|tag| tag.name.as_str())
+                .collect::<Vec<_>>()
+                .join("; "),
+            &wrap_format,
+        )?;
+        worksheet.write_string_with_format(
+            row,
+            19,
+            demo.content_sha256.as_deref().unwrap_or_default(),
+            &wrap_format,
+        )?;
+        if let Ok(value) = u32::try_from(demo.file_size) {
+            worksheet.write_number(row, 20, value)?;
+        } else {
+            worksheet.write_string(row, 20, demo.file_size.to_string())?;
+        }
+    }
+    for (column, width) in [
+        38.0, 24.0, 24.0, 48.0, 14.0, 14.0, 16.0, 14.0, 22.0, 22.0, 16.0, 10.0, 18.0, 18.0, 10.0,
+        10.0, 42.0, 42.0, 28.0, 68.0, 14.0,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        worksheet.set_column_width(u16::try_from(column).unwrap_or(0), width)?;
+    }
+    workbook.save_to_buffer()
+}
+
+fn json_enum(value: &impl Serialize) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|value| value.as_str().map(ToOwned::to_owned))
+        .unwrap_or_default()
 }
 
 fn parse_match_source(value: &str) -> ApiResult<DemoMatchSource> {

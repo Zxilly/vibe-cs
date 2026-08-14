@@ -23,6 +23,7 @@ http.workspace = true
 hex.workspace = true
 mime_guess.workspace = true
 reqwest.workspace = true
+rust_xlsxwriter.workspace = true
 semver.workspace = true
 same-file.workspace = true
 serde.workspace = true

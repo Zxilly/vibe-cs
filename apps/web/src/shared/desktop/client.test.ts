@@ -235,6 +235,21 @@ describe('desktop command client', () => {
     });
   });
 
+  it('exports the full current Demo filter through the binary desktop bridge', async () => {
+    invokeMock.mockResolvedValue(new Uint8Array([0x50, 0x4b]).buffer);
+
+    await expect(commands.exportDemos('xlsx', {
+      match_source: 'faceit',
+      tag_id: '44444444-4444-4444-8444-444444444444',
+      sort: 'updated_desc',
+      page: 9,
+      page_size: 20,
+    })).resolves.toHaveProperty('byteLength', 2);
+    expect(invokeMock).toHaveBeenLastCalledWith('desktop_binary', {
+      path: '/demos/export?format=xlsx&match_source=faceit&tag_id=44444444-4444-4444-8444-444444444444&sort=updated_desc',
+    });
+  });
+
   it('executes the opaque server-side recording plan instead of resending queue items', async () => {
     invokeMock.mockResolvedValue({ job_id: 'job-1', status: 'queued' });
 

@@ -71,6 +71,39 @@ export async function chooseLocalDirectories(options: {
   return typeof selected === 'string' ? [selected] : [];
 }
 
+export async function saveLocalBytes(options: {
+  title: string;
+  defaultFileName: string;
+  filters: LocalDialogFilter[];
+  bytes: Uint8Array;
+}): Promise<string | null> {
+  const path = await chooseLocalSavePath(options);
+  if (!path) return null;
+  await writeLocalBytes(path, options.bytes);
+  return path;
+}
+
+export async function chooseLocalSavePath(options: {
+  title: string;
+  defaultFileName: string;
+  filters: LocalDialogFilter[];
+}): Promise<string | null> {
+  if (!isDesktopShell()) return null;
+  const { save } = await import('@tauri-apps/plugin-dialog');
+  const path = await save({
+    title: options.title,
+    defaultPath: options.defaultFileName,
+    filters: options.filters,
+  });
+  return typeof path === 'string' && path.trim() ? path : null;
+}
+
+export async function writeLocalBytes(path: string, bytes: Uint8Array): Promise<void> {
+  if (!isDesktopShell() || !path.trim()) throw new Error('A desktop save path is required.');
+  const { writeFile } = await import('@tauri-apps/plugin-fs');
+  await writeFile(path, bytes);
+}
+
 /** Reveals a local item using the desktop shell without exposing a command surface. */
 export async function revealLocalPath(path: string): Promise<boolean> {
   if (!isDesktopShell() || !path.trim()) return false;

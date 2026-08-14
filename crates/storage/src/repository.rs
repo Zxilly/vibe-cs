@@ -631,6 +631,69 @@ impl Storage {
         .await
     }
 
+    pub async fn list_demo_metadata_export(
+        &self,
+        query: DemoQuery,
+        maximum_rows: u32,
+    ) -> Result<Vec<(DemoRecord, DemoMetadata)>> {
+        if maximum_rows == 0 {
+            return Err(StorageError::Domain(
+                vibe_cs_domain::DomainError::InvalidInput(
+                    "demo export maximum_rows must be positive".to_owned(),
+                ),
+            ));
+        }
+        self.run(move |connection| {
+            let transaction = connection.transaction()?;
+            let search = query.search.filter(|value| !value.trim().is_empty());
+            let source = query.source.filter(|value| !value.trim().is_empty());
+            let match_source = query.match_source.map(match_source_text);
+            let tag_id = query.tag_id.map(|id| id.to_string());
+            let map_name = query.map_name.filter(|value| !value.trim().is_empty());
+            let status = query.status.map(status_text);
+            let order_sql = demo_order_sql(query.sort.unwrap_or_default());
+            let where_sql = " WHERE (?1 IS NULL OR display_name LIKE '%' || ?1 || '%' OR file_name LIKE '%' || ?1 || '%' \
+                             OR EXISTS (SELECT 1 FROM json_each(demos.document_json, '$.player_names') AS player \
+                                        WHERE CAST(player.value AS TEXT) LIKE '%' || ?1 || '%')) \
+                             AND (?2 IS NULL OR source = ?2) \
+                             AND (?3 IS NULL OR map_name = ?3) \
+                             AND (?4 IS NULL OR status = ?4) \
+                             AND (?5 IS NULL OR EXISTS (SELECT 1 FROM demo_metadata AS metadata \
+                                                        WHERE metadata.demo_id = demos.id AND metadata.match_source = ?5)) \
+                             AND (?6 IS NULL OR EXISTS (SELECT 1 FROM demo_tag_assignments AS assignment \
+                                                        WHERE assignment.demo_id = demos.id AND assignment.tag_id = ?6))";
+            let limit = i64::from(maximum_rows) + 1;
+            let mut statement = transaction.prepare(&format!(
+                "SELECT document_json FROM demos{where_sql} ORDER BY {order_sql} LIMIT ?7"
+            ))?;
+            let documents = statement
+                .query_map(
+                    params![search, source, map_name, status, match_source, tag_id, limit],
+                    |row| row.get::<_, String>(0),
+                )?
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            drop(statement);
+            if documents.len() > usize::try_from(maximum_rows).unwrap_or(usize::MAX) {
+                return Err(StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(
+                    format!("demo export exceeds the {maximum_rows} row limit"),
+                )));
+            }
+            let mut output = Vec::with_capacity(documents.len());
+            for document in documents {
+                let demo = decode::<DemoRecord>(&document)?;
+                let metadata = read_demo_metadata(&transaction, demo.id)?.ok_or_else(|| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::Internal(
+                        "demo disappeared during export snapshot".to_owned(),
+                    ))
+                })?;
+                output.push((demo, metadata));
+            }
+            transaction.commit()?;
+            Ok(output)
+        })
+        .await
+    }
+
     pub async fn get_demo(&self, id: Uuid) -> Result<Option<DemoRecord>> {
         self.run(move |connection| get_document(connection, "demos", id))
             .await
@@ -5682,6 +5745,51 @@ mod tests {
                 .map(|item| item.id)
                 .collect::<Vec<_>>(),
             vec![tag.id]
+        );
+    }
+
+    #[tokio::test]
+    async fn demo_metadata_export_uses_the_full_filtered_snapshot_and_a_hard_bound() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let first = demo("C:/demos/export-first.dem");
+        let second = demo("C:/demos/export-second.dem");
+        storage
+            .put_demos(vec![first.clone(), second.clone()])
+            .await
+            .expect("put demos");
+        storage
+            .update_demo_metadata(
+                first.id,
+                DemoMetadataUpdate {
+                    match_source: Some(DemoMatchSource::Faceit),
+                    comment: "Final".to_owned(),
+                    tag_ids: Vec::new(),
+                },
+            )
+            .await
+            .expect("metadata");
+
+        let rows = storage
+            .list_demo_metadata_export(
+                DemoQuery {
+                    match_source: Some(DemoMatchSource::Faceit),
+                    page: Some(99),
+                    page_size: Some(1),
+                    ..DemoQuery::default()
+                },
+                10,
+            )
+            .await
+            .expect("export");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0.id, first.id);
+        assert_eq!(rows[0].1.comment, "Final");
+
+        assert!(
+            storage
+                .list_demo_metadata_export(DemoQuery::default(), 1)
+                .await
+                .is_err()
         );
     }
 

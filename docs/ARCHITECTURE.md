@@ -549,6 +549,16 @@ default stays on the cooperative parser so cancellation never depends on interru
 parallel parse. Fast statistics do not embed dense entity snapshots; replay and heatmap use
 positioned events as their explicit sparse fallback.
 
+Exact selected-round replay is a separate producer-bound operation rather than an implicit upgrade
+of that sparse fallback. `GET /api/analysis-runs/{run_id}/replay/rounds/{round}/replay.bin` binds the
+completed run, current Analysis and Demo SHA-256/size before the worker reopens that source and
+samples the verified ten-player roster every 16 ticks plus canonical event ticks. Every frame must
+contain exactly the same ten Steam64 identities with finite position/yaw and bounded health, armor,
+life-state and economy values; weapon is explicitly nullable. Its cache key includes the source
+fingerprint, producer run, round and sampling contract, and corrupt or provenance-mismatched entries
+are rejected and regenerated. These are exact samples without interpolation; they do not prove
+shots, visibility, audio, inventory or continuous movement between samples.
+
 The desktop, worker binary and worker manifest form one current release contract. They must be built
 from the same source. A worker response missing a current required field is rejected; the unreleased
 product does not add versioned response shells or fallback decoding for stale sidecars.

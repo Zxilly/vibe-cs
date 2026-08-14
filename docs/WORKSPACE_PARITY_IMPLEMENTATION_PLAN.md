@@ -250,11 +250,13 @@ Clutch Review 只投影能证明 outcome、唯一 `1vN` 场景、canonical playe
 - Evidence 显示当前帧覆盖数、事件流、对象详情和 display controls。
 - Canvas 支持 focus/fullscreen，不保留 card padding。
 - 功能槽位：radar level、drawing、audio sync、kill feed、bomb、projectiles、shortcuts。
-- 默认 `event_sparse`；未来 selected-round high-fidelity 作为独立模式和缓存。
+- Demo-scoped 快速 fallback 仍明确为 `event_sparse`；exact producer run + selected round 已作为独立 `entity_snapshots` 模式和 source-bound cache 落地。
 
 1100×700：只常驻 canvas + transport；HUD/Evidence 各由明确按钮打开 drawer。
 
-当前落地边界：本轮先闭合了能力裁切，1100×700 的 271px radar、transport 和独立滚动 Evidence Inspector 都在 700px 视口内且无 document 横溢出；Evidence 尚未改为 drawer，因此画布尺寸仍小于最终目标。连续 selected-round、高保真 HUD、drawing 与 audio 也仍未实现。
+当前落地边界：`GET /api/analysis-runs/{run_id}/replay/rounds/{round}/replay.bin` 将 completed producer、Analysis、Demo SHA-256/size 和 exact round 绑定后，按每 16 tick + canonical event ticks 请求 selected-tick parser；每帧必须是同一 verified 10-player roster，并携带 position/yaw/health/armor/life-state/money/equipment/helmet 与 nullable weapon。缓存按 fingerprint/run/round/contract 隔离，strict decoder 再验 tick 顺序、10 人身份、side/team 与数值范围。它是无插值的 exact samples，不是连续轨迹，也不证明 shots、LOS、audio 或完整 inventory。
+
+最新真实产品门禁复用 `app.vibecs.review-metadata-audit` 的 M1 Mirage Demo `323941e0-3ef3-4ea7-9c1c-5d29f1d5a186` / run `a8e3271e-8a1b-4d04-bdc2-867c816d2326`，R13 读取 1,457 个 exact frames、57 个 positioned events，当前帧为 10 名 canonical 玩家。基于当前 dirty source 的重链 EXE SHA-256 为 `ec6d04b12722af0f7f86b11325088f72d8b36a70e9ef3ff488b672d0d629687e`，worker 仍为 `c07438df28a19cb45efc4cb92bca8a84ce45c248988d4fa7ab6198969849a472`。最大化与 1100×700 最终证据为 `target-review-metadata-audit-20260814/visual/09-round-replay-max-final.png` 与 `08-round-replay-1100x700-final.png`；两者 document 无横溢出。首次视觉检查发现出生点常驻姓名叠压，第二次发现 compact toolbar 截断 TEAM A/B；两项均经 RED→GREEN 样式契约修复，最终 1100 下全部/A/B 都在 723px toolbar 内可达。Evidence 仍内联而非 drawer；专用 kill feed、round strip、fullscreen/pan/zoom、drawing、audio sync 与 radar level 仍未实现。
 
 ### 4.7 Heatmap
 
@@ -505,7 +507,7 @@ Recording Activity 的 `retry_recording` 只对 failed/cancelled、没有 child 
 6. **Advanced Analysis（进行中）**：Weapons、Duels、Utility、Openings、Clutch Review、Team Round、Team Economy、Man Advantage Review 与 Objective Review 已落。Man Advantage 真实 M1 21/21 verified、矩阵 `7/3/1/10`、首次领先方胜 17/负 4、5 个 lead-change rounds，并通过最大化、1100×700 与 drawer；它严格是 roster minus canonical death targets，不是 health/alive、win probability、trade、KAST 或 rating。Objective Review 真实 M1 为 8/8、种包方 `7/1`、terminal `1/3/4`、19 kill atoms/55 damage-event atoms，最大化三列与 1100×700 Drawer 已过；三场 34-round oracle 仅来自 deterministic read-only SQLite audit。Team Round 真实 M1 2×2 矩阵和 kill/round_end Inspector 双尺寸验收已过，Clutch Review 真实 M1 1100×700 为 20 attempts/0 wins。Team Economy 真实 M1 的四格 purchase/cost/item oracle、top-3+remainder、50 行详情在最大化通过；agent-browser 首次发现 1100×700 overlap，修复与 TDD 后已复验为单一纵向滚动、Inspector 可达且无横向溢出。M2 R16 m0NESY `1v2` 仍只有 TDD/既有 real oracle，未在 currentaudit UI 载入；Watch 未跑。仍缺 equipment value/economy type/freeze-time advantage、site/spatial semantics、持久 Team entity，Utility 的页面内双尺寸验收也仍未完成。
 7. **CSDM Comment/Tags（生产纵切已实现）**：共享 tag catalog、Demo/Player/Round exact metadata、Player Steam64 identity、Round current-source binding与双尺寸 editor 已落；真实 M1 Player/R13 save + restart readback + SQLite lineage 已过。下一步是跨 subject tag filter、批量赋值、Match Chat、Round→Video timeline 与作者/权限。
 8. **Evidence Annotation（生产纵切已实现，Vibe 自有）**：exact locator、分页 CRUD、正文/自由标签编辑、open/resolved、服务端 `q/tag/state/demo/evidence` 筛选、Evidence Search drawer、全局 index 与 Highlights 摘要/CRUD 复用已落；fresh Tauri 验证 canonical Highlight 保存后摘要刷新、双尺寸 drawer 和完整重启精确读回。close-during-pending 只有 TDD。下一步是非空/多页 global index、taxonomy/权限，以及更多 evidence consumer。
-9. **Replay high-fidelity round pass**：连续 selected-round 模式、HUD、kill feed、绘图/音频。
+9. **Replay selected-round pass（核心纵切已实现）**：exact run/round、source-bound selected-tick parser、10-player state、HUD、strict binary decoder 与 per-round cache 已落，并以真实 M1 R13 双尺寸验收。下一步是专用 kill feed/round strip、HUD/Evidence drawer、fullscreen/pan/zoom、绘图、音频同步与 radar level；不得把 16-tick exact samples 写成连续插值轨迹。
 10. **Team continuity**：跨比赛 Player/Team 档案、maps/matches/heatmap。
 
 每一步必须是可见入口 → 公共 route → 持久数据 → 真实 Major 证据 → `agent-browser` 直连 Tauri/WebView2 CDP 的纵向闭环，不能只完成 DTO 或静态页面。

@@ -540,25 +540,25 @@ fresh Tauri 最大化显式选择 M2+M3 后排序仍保留 2 条，thead 没有 
 
 **Vibe CS**
 
-- 目标是“查看可验证的空间证据”：event-sparse 帧、真实 radar、玩家/道具/炸弹、当前证据列表、回合/tick/player deep link、cache、fidelity。
-- R20 真实产品路径为 67 个 scoped frames；不会播放到其他回合。
-- 本轮 1100×700 修复后，workspace 为 `top 203.23 / bottom 699.23 / height 496`，271×271 radar、transport（bottom 698.56）和独立滚动 Inspector（bottom 699.23）都留在视口内，document 无横向溢出。
+- Demo-scoped 快速 fallback 仍是明确标注的 `event_sparse`；exact producer run + selected round 另有 source-bound `entity_snapshots` operation，不把稀疏帧冒充 dense state。
+- exact route 将 completed run、current Analysis、Demo SHA-256/size 与 round 绑定；worker 重新打开 source，取每 16 tick 与 canonical event ticks。每帧必须是同一 verified 10-player roster，含 position/yaw/health/armor/life-state/money/equipment/helmet 与 nullable weapon；Web strict decoder 再次 fail closed。
+- 最新真实 M1 R13 产品路径为 1,457 个 exact frames、57 个 positioned events、当前帧 10 人；无插值播放。最大化与 1100×700 均无 document overflow，Inspector 独立滚动。
+- 首次 fresh 检查发现出生区十个常驻姓名严重叠压；修复后只在 hover/focus/selected 展开姓名，编号和右侧完整列表保持。第二次发现 1100 toolbar 截断 TEAM A/B；compact toolbar 改为两行后，全部/A/B 均在 723px 区域内可达。accepted files 为 `target-review-metadata-audit-20260814/visual/09-round-replay-max-final.png` 与 `08-round-replay-1100x700-final.png`。
 
 **Vibe 做得不好的地方**
 
-1. 稀疏帧不能回答完整移动、交叉火力、转点和阵型演化。
-2. 未知 health/weapon/inputs 很多；UI 必须继续显示“未取证”，不能填默认值。
-3. 缺 shots、kill feed、队伍 HUD、armor/current weapon、round strip。
+1. selected-round 是每 16 tick + event ticks 的 exact samples，不能回答采样间连续移动、插值轨迹、LOS 或完整阵型演化。
+2. weapon 明确 nullable；没有 shots、bullet impact、ammo、完整 inventory 或 audio，不能从缺值填默认事实。
+3. health/armor/money/current equipment/helmet HUD 已有，但仍缺专用 kill feed、round strip 与更完整队伍 HUD。
 4. 缺 fullscreen、pan/zoom、drawing、audio sync 和多层 radar 调节。
-5. “慢/标准/快”是证据步进，不是 0.5×/1×/2×；任何实时措辞都会误导。
-6. 最大化首个证据帧可能只显示 1 名玩家，R20 中后段才出现更多已定位对象；页面应把“当前帧覆盖人数”放在保真状态里，避免大地图看起来像完整战局。
-7. 1100×700 的“播放条落到首屏之外”已经闭合；当前为保留证据栏而把 radar 压到 271px，功能没有丢失，但下一步仍可把证据栏改为 drawer，换取更大的空间画布。
+5. `entity_snapshots` 可按真实 tick 间隔 0.5×/1×/2×；只有 `event_sparse` 继续使用证据步进语义，不能混用文案。
+6. Evidence 仍内联占据 250px；1100 功能可达但下一步仍应改为 HUD/Evidence drawer，换取更大的空间画布。
 
 **建议架构**
 
-- 保留 `event_sparse` 快速默认模式。
-- 增加用户显式触发的 selected-round high-fidelity pass，只为一个回合生成连续实体轨迹并单独缓存。
-- UI 同时显示 fidelity，允许在“证据步进”和“连续回合”之间切换。
+- 保留 `event_sparse` 快速 fallback 与当前 exact-run selected-round cache，两者继续显示不同 fidelity/timing truth。
+- 下一纵切把专用 kill feed/round strip 和 HUD/Evidence drawers 接到现有 exact samples，不再建立第二条 parser path。
+- drawing/audio/fullscreen/radar-level 分别作为独立 adapter 能力，不把缺失数据混入 current replay artifact。
 
 ### 4.16 Highlights
 

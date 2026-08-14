@@ -256,6 +256,12 @@ const CURRENT_SCHEMA: &str = r"
         target_name TEXT,
         target_id_key TEXT,
         target_name_key TEXT,
+        actor_x REAL,
+        actor_y REAL,
+        actor_z REAL,
+        target_x REAL,
+        target_y REAL,
+        target_z REAL,
         weapon TEXT,
         weapon_key TEXT,
         headshot INTEGER CHECK(headshot IS NULL OR headshot IN (0, 1)),
@@ -263,7 +269,11 @@ const CURRENT_SCHEMA: &str = r"
         attributes_json TEXT NOT NULL,
         search_text TEXT NOT NULL,
         FOREIGN KEY (demo_id) REFERENCES analyses(demo_id) ON DELETE CASCADE,
-        UNIQUE(demo_id, source_kind, source_id)
+        UNIQUE(demo_id, source_kind, source_id),
+        CHECK((actor_x IS NULL AND actor_y IS NULL AND actor_z IS NULL)
+           OR (actor_x IS NOT NULL AND actor_y IS NOT NULL AND actor_z IS NOT NULL)),
+        CHECK((target_x IS NULL AND target_y IS NULL AND target_z IS NULL)
+           OR (target_x IS NOT NULL AND target_y IS NOT NULL AND target_z IS NOT NULL))
     );
 
     CREATE TABLE evidence_search_victims (
@@ -403,6 +413,10 @@ const CURRENT_SCHEMA: &str = r"
         ON evidence_search_items(target_id_key, target_name_key);
     CREATE INDEX evidence_search_weapon_idx ON evidence_search_items(weapon_key);
     CREATE INDEX evidence_search_map_idx ON evidence_search_items(map_key);
+    CREATE INDEX evidence_search_player_kills_idx
+        ON evidence_search_items(map_name, event_type, actor_id);
+    CREATE INDEX evidence_search_player_deaths_idx
+        ON evidence_search_items(map_name, event_type, target_id);
     CREATE INDEX evidence_search_victim_idx
         ON evidence_search_victims(victim_id_key, victim_name_key);
     CREATE INDEX evidence_annotations_evidence_idx

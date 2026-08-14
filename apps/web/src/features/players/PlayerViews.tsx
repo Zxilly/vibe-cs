@@ -20,11 +20,13 @@ import { formatKillDeathRatioValue } from '../../shared/performanceMetrics';
 import type {
   PlayerAggregateStats,
   PlayerDirectoryItem,
+  PlayerHeatmap,
   PlayerMapPage,
   PlayerMatchPage,
   PlayerProfile,
   PlayerSteamProfile,
   EvidenceSearchResponse,
+  RadarOverviewRecord,
 } from '../../shared/desktop/dto';
 import { Badge, Button, EmptyState, Notice, Spinner } from '../../shared/ui';
 import {
@@ -37,6 +39,7 @@ import {
   steamEvidence,
 } from './playerPresentation';
 import { evidenceSearchResultHref } from '../evidence-search/evidenceSearchPresentation';
+import { PlayerHeatmapWorkspace } from './PlayerHeatmapWorkspace';
 
 const dateFormatter = new Intl.DateTimeFormat(currentLocale(), {
   dateStyle: 'medium',
@@ -218,6 +221,16 @@ export function PlayerDetailView({
   onRetryMaps = () => undefined,
   onPreviousMaps = () => undefined,
   onNextMaps = () => undefined,
+  heatmap = null,
+  heatmapMap = null,
+  heatmapKind = 'all',
+  heatmapLoading = false,
+  heatmapError = null,
+  heatmapRadar = null,
+  onOpenHeatmap = () => undefined,
+  onCloseHeatmap = () => undefined,
+  onHeatmapKindChange = () => undefined,
+  onRetryHeatmap = () => undefined,
   matchesLoading = false,
   matchesError = null,
   onRetryMatches = () => undefined,
@@ -235,6 +248,16 @@ export function PlayerDetailView({
   onRetryMaps?: () => void;
   onPreviousMaps?: () => void;
   onNextMaps?: () => void;
+  heatmap?: PlayerHeatmap | null;
+  heatmapMap?: string | null;
+  heatmapKind?: 'all' | 'kills' | 'deaths';
+  heatmapLoading?: boolean;
+  heatmapError?: string | null;
+  heatmapRadar?: RadarOverviewRecord | null;
+  onOpenHeatmap?: (mapName: string) => void;
+  onCloseHeatmap?: () => void;
+  onHeatmapKindChange?: (kind: 'all' | 'kills' | 'deaths') => void;
+  onRetryHeatmap?: () => void;
   matchesLoading?: boolean;
   matchesError?: string | null;
   onRetryMatches?: () => void;
@@ -307,6 +330,14 @@ export function PlayerDetailView({
                 <div className="player-map-performance__identity">
                   <strong>{map.map_name ?? t('players.maps.unknown')}</strong>
                   <span>{t('players.maps.matches').replace('{count}', String(map.stats.matches))}</span>
+                  {map.map_name ? (
+                    <Button
+                      size="sm"
+                      variant={heatmapMap === map.map_name ? 'primary' : 'ghost'}
+                      aria-pressed={heatmapMap === map.map_name}
+                      onClick={() => onOpenHeatmap(map.map_name as string)}
+                    >{t('players.heatmap.open')}</Button>
+                  ) : null}
                 </div>
                 <div
                   className="player-map-performance__bar"
@@ -345,6 +376,31 @@ export function PlayerDetailView({
             </footer>
           ) : null}
         </section>
+
+      {heatmapMap ? (
+        heatmapLoading && !heatmap ? (
+          <div className="players-loading player-heatmap-loading">
+            <Spinner label={t('players.heatmap.title')} />
+            <strong>{t('players.heatmap.title')}</strong>
+          </div>
+        ) : heatmapError ? (
+          <Notice tone="danger" title={t('players.heatmap.title')}>
+            <span>{heatmapError}</span>
+            <Button size="sm" variant="ghost" onClick={onRetryHeatmap}>
+              <RefreshCw size={13} />{t('common.retry')}
+            </Button>
+          </Notice>
+        ) : heatmap ? (
+          <PlayerHeatmapWorkspace
+            key={`${heatmap.steam_id}:${heatmap.map_name}`}
+            heatmap={heatmap}
+            radar={heatmapRadar}
+            kind={heatmapKind}
+            onKindChange={onHeatmapKindChange}
+            onClose={onCloseHeatmap}
+          />
+        ) : null
+      ) : null}
 
       {evidenceLoading ? (
         <div className="player-cross-match-evidence__loading">{t('players.evidence.loading')}</div>

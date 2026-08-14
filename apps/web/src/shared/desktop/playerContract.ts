@@ -3,6 +3,8 @@ import type {
   PlayerComparison,
   PlayerDirectoryItem,
   PlayerDirectoryPage,
+  PlayerHeatmap,
+  PlayerHeatmapPoint,
   PlayerMatch,
   PlayerMapItem,
   PlayerMapPage,
@@ -16,6 +18,13 @@ const pageKeys = ['items', 'total', 'page', 'page_size', 'coverage'] as const;
 const matchPageKeys = ['steam_id', ...pageKeys] as const;
 const mapPageKeys = ['steam_id', ...pageKeys] as const;
 const mapItemKeys = ['map_name', 'stats'] as const;
+const heatmapKeys = [
+  'steam_id', 'map_name', 'points', 'total', 'maximum_points', 'complete', 'coverage',
+] as const;
+const heatmapPointKeys = [
+  'demo_id', 'evidence_id', 'round', 'tick', 'kind', 'x', 'y', 'floor',
+  'analysis_href', 'replay_href',
+] as const;
 const matchKeys = [
   'demo_id', 'demo_name', 'map_name', 'match_date', 'cataloged_at', 'team',
   'kills', 'deaths', 'assists', 'headshots', 'damage', 'adr', 'kill_death_ratio',
@@ -73,6 +82,10 @@ function boundedText(value: unknown, maximumCharacters: number): value is string
 
 function nonnegativeInteger(value: unknown): value is number {
   return Number.isSafeInteger(value) && Number(value) >= 0;
+}
+
+function finiteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
 }
 
 function nullableNonnegativeFiniteNumber(value: unknown): value is number | null {
@@ -175,6 +188,49 @@ function parseMapItem(value: unknown): PlayerMapItem {
     map_name: value.map_name,
     stats: parseAggregateStats(value.stats),
   };
+}
+
+function exactHeatmapHref(
+  value: unknown,
+  point: Omit<PlayerHeatmapPoint, 'analysis_href' | 'replay_href'>,
+  steamId: string,
+  tab: 'rounds' | 'replay',
+): value is string {
+  if (typeof value !== 'string' || !value.startsWith('/analysis?')) return false;
+  const url = new URL(value, 'http://vibe-cs.local');
+  const keys = [...url.searchParams.keys()];
+  return url.pathname === '/analysis'
+    && keys.length === 6
+    && new Set(keys).size === 6
+    && url.searchParams.get('demo') === point.demo_id
+    && url.searchParams.get('tab') === tab
+    && url.searchParams.get('round') === String(point.round)
+    && url.searchParams.get('tick') === String(point.tick)
+    && url.searchParams.get('evidence') === point.evidence_id
+    && url.searchParams.get('player') === steamId;
+}
+
+function parseHeatmapPoint(value: unknown, steamId: string): PlayerHeatmapPoint {
+  if (
+    !recordWithExactKeys(value, heatmapPointKeys)
+    || typeof value.demo_id !== 'string'
+    || !uuidPattern.test(value.demo_id)
+    || !boundedText(value.evidence_id, 512)
+    || !value.evidence_id.startsWith(`demo:${value.demo_id}/event:`)
+    || !nonnegativeInteger(value.round)
+    || Number(value.round) < 1
+    || !nonnegativeInteger(value.tick)
+    || !(value.kind === 'kills' || value.kind === 'deaths')
+    || !finiteNumber(value.x)
+    || !finiteNumber(value.y)
+    || !Number.isSafeInteger(value.floor)
+  ) return invalid();
+  const point = value as unknown as PlayerHeatmapPoint;
+  if (
+    !exactHeatmapHref(value.analysis_href, point, steamId, 'rounds')
+    || !exactHeatmapHref(value.replay_href, point, steamId, 'replay')
+  ) return invalid();
+  return point;
 }
 
 function parseSteam(value: unknown): PlayerSteamProfile {
@@ -353,6 +409,38 @@ export function parsePlayerMapPage(value: unknown): PlayerMapPage {
     total: Number(value.total),
     page: Number(value.page),
     page_size: Number(value.page_size),
+    coverage: parseCoverage(value.coverage),
+  };
+}
+
+export function parsePlayerHeatmap(value: unknown): PlayerHeatmap {
+  if (
+    !recordWithExactKeys(value, heatmapKeys)
+    || !isCanonicalSteamId(value.steam_id)
+    || !boundedText(value.map_name, 128)
+    || value.map_name !== value.map_name.trim()
+    || !Array.isArray(value.points)
+    || !nonnegativeInteger(value.total)
+    || !nonnegativeInteger(value.maximum_points)
+    || Number(value.maximum_points) < 1
+    || typeof value.complete !== 'boolean'
+  ) return invalid();
+  const steamId = value.steam_id;
+  const points = value.points.map((point) => parseHeatmapPoint(point, steamId));
+  const complete = Number(value.total) <= Number(value.maximum_points);
+  if (
+    value.complete !== complete
+    || (complete && points.length !== Number(value.total))
+    || (!complete && points.length !== 0)
+    || new Set(points.map((point) => `${point.kind}:${point.evidence_id}`)).size !== points.length
+  ) return invalid();
+  return {
+    steam_id: value.steam_id,
+    map_name: value.map_name,
+    points,
+    total: Number(value.total),
+    maximum_points: Number(value.maximum_points),
+    complete: value.complete,
     coverage: parseCoverage(value.coverage),
   };
 }

@@ -201,6 +201,7 @@ describe('player detail evidence', () => {
     expect(markup).toContain('89.0');
     expect(markup).toContain('1.22');
     expect(markup).toContain('只聚合已验证的本地比赛，不推断地图胜率');
+    expect(markup).toContain('查看热图');
     expect(markup).not.toContain('<dt>胜率</dt>');
   });
 

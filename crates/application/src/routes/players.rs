@@ -10,7 +10,8 @@ use axum::{
 use crate::{
     ApiError, ApiQuery, ApiResult, AppState, AvatarCacheCleanup, AvatarCacheStatus, PlayerAvatar,
     PlayerComparison, PlayerComparisonQuery, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerMapPage, PlayerMapQuery, PlayerMatchPage, PlayerMatchQuery, PlayerProfile,
+    PlayerHeatmap, PlayerHeatmapQuery, PlayerMapPage, PlayerMapQuery, PlayerMatchPage,
+    PlayerMatchQuery, PlayerProfile,
 };
 
 const AVATAR_CACHE_HEADER: HeaderName = HeaderName::from_static("x-vibe-cs-avatar-cache");
@@ -19,6 +20,7 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/players", get(list_players))
         .route("/api/players/compare", get(compare_players))
+        .route("/api/players/{steam_id}/heatmap", get(get_player_heatmap))
         .route("/api/players/{steam_id}/maps", get(list_player_maps))
         .route("/api/players/{steam_id}/matches", get(list_player_matches))
         .route("/api/players/{steam_id}", get(get_player))
@@ -91,6 +93,20 @@ async fn list_player_maps(
     state
         .players
         .maps(steam_id, query)
+        .await
+        .map(Json)
+        .map_err(Into::into)
+}
+
+async fn get_player_heatmap(
+    State(state): State<AppState>,
+    Path(steam_id): Path<String>,
+    ApiQuery(query): ApiQuery<PlayerHeatmapQuery>,
+) -> ApiResult<Json<PlayerHeatmap>> {
+    query.validate()?;
+    state
+        .players
+        .heatmap(steam_id, query)
         .await
         .map(Json)
         .map_err(Into::into)
@@ -195,7 +211,8 @@ mod tests {
     use super::*;
     use crate::{
         PlayerAggregateStats, PlayerComparison, PlayerComparisonQuery, PlayerDirectoryItem,
-        PlayerDirectorySort, PlayerDirectorySortDirection, PlayerPort, PlayerProjectionCoverage,
+        PlayerDirectorySort, PlayerDirectorySortDirection, PlayerHeatmap, PlayerHeatmapKind,
+        PlayerHeatmapPoint, PlayerHeatmapQuery, PlayerPort, PlayerProjectionCoverage,
         PlayerSteamProfile,
     };
 
@@ -275,6 +292,36 @@ mod tests {
                 total: 0,
                 page: query.page,
                 page_size: query.page_size,
+                coverage: coverage(12),
+            })
+        }
+
+        async fn heatmap(
+            &self,
+            steam_id: String,
+            query: PlayerHeatmapQuery,
+        ) -> Result<PlayerHeatmap, DomainError> {
+            Ok(PlayerHeatmap {
+                steam_id,
+                map_name: query.map,
+                points: vec![PlayerHeatmapPoint {
+                    demo_id: uuid::Uuid::nil(),
+                    evidence_id: "demo:00000000-0000-0000-0000-000000000000/event:kill-640"
+                        .to_owned(),
+                    round: 7,
+                    tick: 640,
+                    kind: PlayerHeatmapKind::Kills,
+                    x: 100.0,
+                    y: 200.0,
+                    floor: 1,
+                    analysis_href: "/analysis?demo=00000000-0000-0000-0000-000000000000&tab=rounds&round=7&tick=640"
+                        .to_owned(),
+                    replay_href: "/analysis?demo=00000000-0000-0000-0000-000000000000&tab=replay&round=7&tick=640"
+                        .to_owned(),
+                }],
+                total: 1,
+                maximum_points: 5_000,
+                complete: true,
                 coverage: coverage(12),
             })
         }
@@ -483,6 +530,38 @@ mod tests {
         assert_eq!(page["coverage"]["total_analyses"], 12);
         assert_eq!(page["coverage"]["projection_complete"], true);
         assert_eq!(page["items"], serde_json::json!([]));
+    }
+
+    #[tokio::test]
+    async fn player_heatmap_route_returns_exact_map_scoped_evidence() {
+        let players = Arc::new(FixturePlayers::new());
+        let (_directory, state) = test_state(players).await;
+        let response = router()
+            .with_state(state)
+            .oneshot(
+                Request::builder()
+                    .uri(format!(
+                        "/api/players/{PLAYER_ID}/heatmap?map=de_mirage&kind=all"
+                    ))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let heatmap: serde_json::Value = serde_json::from_slice(
+            &to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .expect("player heatmap body"),
+        )
+        .expect("player heatmap");
+        assert_eq!(heatmap["steam_id"], PLAYER_ID);
+        assert_eq!(heatmap["map_name"], "de_mirage");
+        assert_eq!(heatmap["total"], 1);
+        assert_eq!(heatmap["points"][0]["kind"], "kills");
+        assert_eq!(heatmap["points"][0]["round"], 7);
+        assert_eq!(heatmap["coverage"]["projection_complete"], true);
     }
 
     #[tokio::test]

@@ -18,8 +18,9 @@ pub use lineups::{
 };
 pub use players::{
     PlayerAggregateStats, PlayerComparisonProjection, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerDirectorySort, PlayerMapPage, PlayerMapQuery, PlayerMatchPage, PlayerMatchQuery,
-    PlayerProfile, PlayerProjectionCoverage, PlayerSortDirection, ProjectedPlayer,
+    PlayerDirectorySort, PlayerHeatmapKind, PlayerHeatmapProjection, PlayerHeatmapQuery,
+    PlayerMapPage, PlayerMapQuery, PlayerMatchPage, PlayerMatchQuery, PlayerProfile,
+    PlayerProjectionCoverage, PlayerSortDirection, ProjectedPlayer, ProjectedPlayerHeatPoint,
     ProjectedPlayerMap, ProjectedPlayerMatch,
 };
 
@@ -50,7 +51,7 @@ use vibe_cs_domain::{
     EvidenceSearchCapability, EvidenceSearchItem, EvidenceSearchPage, EvidenceSearchQuery,
     EvidenceSourceKind, ExportJob, HighlightEditPlan, HighlightKind, MatchAnalysis,
     MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery, MediaAsset, MediaProxyStatus,
-    MontageProject, Page, RecordedClip, RecordingJob, SteamMatchRecord,
+    MontageProject, Page, RecordedClip, RecordingJob, SteamMatchRecord, TimelineEvent,
 };
 
 use crate::{Result, StorageError, schema};
@@ -4668,11 +4669,13 @@ fn replace_evidence_projection(
         "INSERT INTO evidence_search_items(\
              evidence_id, demo_id, source_kind, source_id, event_family, event_type, \
              map_name, map_key, round, tick, end_tick, actor_id, actor_name, actor_id_key, \
-             actor_name_key, target_id, target_name, target_id_key, target_name_key, weapon, \
-             weapon_key, headshot, penetrated, attributes_json, search_text\
+             actor_name_key, target_id, target_name, target_id_key, target_name_key, \
+             actor_x, actor_y, actor_z, target_x, target_y, target_z, weapon, weapon_key, \
+             headshot, penetrated, attributes_json, search_text\
          ) VALUES (\
              ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, \
-             ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25\
+             ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, \
+             ?30, ?31\
          )",
     )?;
     let mut insert_victim = transaction.prepare(
@@ -4709,6 +4712,7 @@ fn replace_evidence_projection(
                 event.weapon.as_deref(),
             ]);
             let is_kill = event.kind == EventKind::Kill;
+            let (actor_position, target_position) = evidence_role_positions(event);
             insert_item.execute(params![
                 evidence_id,
                 demo_id,
@@ -4729,6 +4733,12 @@ fn replace_evidence_projection(
                 target_name,
                 event.target.as_deref().map(search_key),
                 target_name.map(search_key),
+                actor_position.map(|position| position[0]),
+                actor_position.map(|position| position[1]),
+                actor_position.map(|position| position[2]),
+                target_position.map(|position| position[0]),
+                target_position.map(|position| position[1]),
+                target_position.map(|position| position[2]),
                 event.weapon,
                 event.weapon.as_deref().map(search_key),
                 is_kill.then_some(i64::from(event.headshot)),
@@ -4795,6 +4805,12 @@ fn replace_evidence_projection(
             actor_name.map(search_key),
             Option::<String>::None,
             Option::<String>::None,
+            Option::<f64>::None,
+            Option::<f64>::None,
+            Option::<f64>::None,
+            Option::<f64>::None,
+            Option::<f64>::None,
+            Option::<f64>::None,
             Option::<String>::None,
             Option::<String>::None,
             Option::<String>::None,
@@ -4838,6 +4854,37 @@ fn replace_evidence_projection(
         ],
     )?;
     Ok(())
+}
+
+fn evidence_role_positions(event: &TimelineEvent) -> (Option<[f64; 3]>, Option<[f64; 3]>) {
+    let actor = (event.kind == EventKind::Kill)
+        .then(|| evidence_detail_position(event, "attacker"))
+        .flatten();
+    let target = matches!(event.kind, EventKind::Kill | EventKind::Damage)
+        .then(|| {
+            evidence_detail_position(event, "user").or_else(|| {
+                let has_attacker_position = ["attacker_X", "attacker_Y", "attacker_Z"]
+                    .into_iter()
+                    .any(|key| event.detail.get(key).is_some());
+                (!has_attacker_position)
+                    .then_some(event.position)
+                    .flatten()
+                    .filter(|position| position.iter().all(|coordinate| coordinate.is_finite()))
+            })
+        })
+        .flatten();
+    (actor, target)
+}
+
+fn evidence_detail_position(event: &TimelineEvent, role: &str) -> Option<[f64; 3]> {
+    let coordinate = |axis: char| {
+        event
+            .detail
+            .get(format!("{role}_{axis}"))
+            .and_then(serde_json::Value::as_f64)
+            .filter(|value| value.is_finite())
+    };
+    Some([coordinate('X')?, coordinate('Y')?, coordinate('Z')?])
 }
 
 const EVIDENCE_SEARCH_WHERE_SQL: &str = " WHERE NOT EXISTS (\

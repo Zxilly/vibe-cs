@@ -504,6 +504,31 @@ export type PlayerMapPage = Paginated<PlayerMapItem> & {
   coverage: PlayerProjectionCoverage;
 };
 
+export type PlayerHeatmapKind = 'kills' | 'deaths';
+
+export type PlayerHeatmapPoint = {
+  demo_id: string;
+  evidence_id: string;
+  round: number;
+  tick: number;
+  kind: PlayerHeatmapKind;
+  x: number;
+  y: number;
+  floor: number;
+  analysis_href: string;
+  replay_href: string;
+};
+
+export type PlayerHeatmap = {
+  steam_id: string;
+  map_name: string;
+  points: PlayerHeatmapPoint[];
+  total: number;
+  maximum_points: number;
+  complete: boolean;
+  coverage: PlayerProjectionCoverage;
+};
+
 export type PlayerComparison = {
   players: [PlayerDirectoryItem, PlayerDirectoryItem];
   coverage: PlayerProjectionCoverage;

@@ -61,6 +61,21 @@ pub struct PlayerMapQuery {
     pub page_size: u32,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlayerHeatmapKind {
+    All,
+    Kills,
+    Deaths,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PlayerHeatmapQuery {
+    pub map: String,
+    pub kind: PlayerHeatmapKind,
+}
+
 impl PlayerMatchQuery {
     /// Validates the exact bounded pagination contract.
     ///
@@ -92,6 +107,29 @@ impl PlayerMapQuery {
     /// supported range.
     pub fn validate(&self) -> Result<(), DomainError> {
         validate_player_page(self.page, self.page_size)
+    }
+}
+
+impl PlayerHeatmapQuery {
+    /// Validates the exact map-scoped heatmap contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when the map is empty, unbounded or contains
+    /// control characters.
+    pub fn validate(&self) -> Result<(), DomainError> {
+        let map = self.map.trim();
+        if map.is_empty()
+            || map.chars().count() > 128
+            || map.chars().any(char::is_control)
+            || map != self.map
+        {
+            return Err(DomainError::InvalidInput(
+                "map must contain 1 to 128 non-control characters without outer whitespace"
+                    .to_owned(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -259,6 +297,33 @@ pub struct PlayerMapPage {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
+pub struct PlayerHeatmapPoint {
+    pub demo_id: Uuid,
+    pub evidence_id: String,
+    pub round: u32,
+    pub tick: u64,
+    pub kind: PlayerHeatmapKind,
+    pub x: f64,
+    pub y: f64,
+    pub floor: i32,
+    pub analysis_href: String,
+    pub replay_href: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PlayerHeatmap {
+    pub steam_id: String,
+    pub map_name: String,
+    pub points: Vec<PlayerHeatmapPoint>,
+    pub total: u64,
+    pub maximum_points: u64,
+    pub complete: bool,
+    pub coverage: PlayerProjectionCoverage,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerComparison {
     pub players: [PlayerDirectoryItem; 2],
     pub coverage: PlayerProjectionCoverage,
@@ -326,6 +391,11 @@ pub trait PlayerPort: Send + Sync + std::fmt::Debug {
         steam_id: String,
         query: PlayerMapQuery,
     ) -> Result<PlayerMapPage, DomainError>;
+    async fn heatmap(
+        &self,
+        steam_id: String,
+        query: PlayerHeatmapQuery,
+    ) -> Result<PlayerHeatmap, DomainError>;
     async fn compare(&self, query: PlayerComparisonQuery) -> Result<PlayerComparison, DomainError>;
     async fn avatar(&self, steam_id: String) -> Result<PlayerAvatar, DomainError>;
     async fn avatar_cache_status(&self) -> Result<AvatarCacheStatus, DomainError>;
@@ -366,6 +436,16 @@ impl PlayerPort for DisabledPlayerPort {
     ) -> Result<PlayerMapPage, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "player directory adapter".to_owned(),
+        ))
+    }
+
+    async fn heatmap(
+        &self,
+        _steam_id: String,
+        _query: PlayerHeatmapQuery,
+    ) -> Result<PlayerHeatmap, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "player heatmap adapter".to_owned(),
         ))
     }
 
@@ -451,6 +531,19 @@ mod tests {
             }))
             .is_err()
         );
+    }
+
+    #[test]
+    fn player_heatmap_query_rejects_every_control_character() {
+        let query = PlayerHeatmapQuery {
+            map: "de_mirage\tpoison".to_owned(),
+            kind: PlayerHeatmapKind::All,
+        };
+
+        assert!(matches!(
+            query.validate(),
+            Err(DomainError::InvalidInput(_))
+        ));
     }
 
     #[test]

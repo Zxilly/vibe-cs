@@ -9,6 +9,42 @@
   --color-brand: #1746d2;
 }
 
+/* Player heatmaps remain source-bound: radar geometry when verified, stable relative space otherwise. */
+.player-map-performance__identity > .button { min-height: 24px; margin-top: 7px; padding-inline: 7px; font-size: 7px; }
+.player-heatmap-workspace { display: flex; min-width: 0; flex-direction: column; padding: 10px; gap: 9px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-2); }
+.player-heatmap-workspace > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.player-heatmap-workspace > header > div { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.player-heatmap-workspace > header > div > svg { flex: 0 0 auto; color: var(--accent); }
+.player-heatmap-workspace > header strong, .player-heatmap-workspace > header span { display: block; }
+.player-heatmap-workspace > header strong { font-size: 10px; }
+.player-heatmap-workspace > header span { margin-top: 3px; color: var(--muted); font: 650 7px/1 var(--font-mono); }
+.player-heatmap-workspace__toolbar { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 5px; }
+.player-heatmap-workspace__toolbar > span:not(.badge) { margin-left: auto; color: var(--muted); font: 650 7px/1 var(--font-mono); }
+.player-heatmap-workspace__body { display: grid; min-width: 0; grid-template-columns: minmax(0,1fr) minmax(150px,.42fr); align-items: start; gap: 9px; }
+.player-heatmap-map { position: relative; width: min(100%,520px); aspect-ratio: 1; overflow: hidden; justify-self: center; border: 1px solid var(--border-strong); border-radius: 8px; background-color: #121722; }
+.player-heatmap-map.is-coordinate-plane { background-image: linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px); background-size: 10% 10%; }
+.player-heatmap-map > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.player-heatmap-map > button { position: absolute; z-index: 2; width: 12px; height: 12px; padding: 0; border: 2px solid #fff; background: var(--accent); box-shadow: 0 2px 6px rgba(0,0,0,.48); translate: -50% -50%; }
+.player-heatmap-map [data-heat-kind="kills"] { border-radius: 50%; background: var(--green); }
+.player-heatmap-map [data-heat-kind="deaths"] { border-radius: 2px; background: var(--red); transform: rotate(45deg); }
+.player-heatmap-map > button.is-selected { z-index: 3; outline: 3px solid var(--accent); outline-offset: 2px; }
+.player-heatmap-map > button:focus-visible { z-index: 4; outline: 3px solid #fff; outline-offset: 2px; }
+.player-heatmap-evidence { display: flex; min-width: 0; max-height: 520px; flex-direction: column; padding: 10px; gap: 7px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-1); }
+.player-heatmap-evidence > strong { font: 750 11px/1 var(--font-mono); }
+.player-heatmap-evidence > span:not(.eyebrow) { color: var(--muted); font-size: 8px; }
+.player-heatmap-evidence > small { overflow-wrap: anywhere; color: var(--muted); font: 6px/1.5 var(--font-mono); }
+.player-heatmap-evidence > nav { display: flex; flex-direction: column; margin-top: auto; gap: 5px; }
+.player-heatmap-evidence > nav a { display: flex; min-height: 28px; align-items: center; justify-content: space-between; padding: 5px 7px; gap: 5px; border: 1px solid var(--accent-border); border-radius: 6px; color: var(--accent); font-size: 8px; }
+.player-heatmap-evidence > nav a:hover, .player-heatmap-evidence > nav a:focus-visible { background: var(--accent-soft); }
+.player-heatmap-workspace > p { color: var(--muted); font-size: 7px; line-height: 1.5; }
+.player-heatmap-loading { min-height: 220px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+
+@media (max-width: 650px) {
+  .player-heatmap-workspace__body { grid-template-columns: minmax(0,1fr); }
+  .player-heatmap-map { width: 100%; max-height: 430px; }
+  .player-heatmap-evidence { max-height: 180px; }
+}
+
 @layer reset, tokens, base, components, pages, responsive;
 
 @layer components {
@@ -6210,6 +6246,10 @@ body {
     min-height: 0;
     flex: 1 1 auto;
     overflow: hidden;
+  }
+
+  .page--players .players-workspace:has(.player-heatmap-workspace) {
+    grid-template-columns: minmax(0, 1.15fr) minmax(520px, .95fr);
   }
 
   .page--players .player-directory {

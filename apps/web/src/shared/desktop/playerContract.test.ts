@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   parsePlayerDirectoryPage,
+  parsePlayerHeatmap,
   parsePlayerMapPage,
   parsePlayerMatchPage,
   parsePlayerComparison,
@@ -40,6 +41,38 @@ describe('player current contract', () => {
       ...current,
       items: [{ ...current.items[0], win_rate: 0.67 }],
     })).toThrow(/current contract/i);
+  });
+
+  it('accepts exact source-bound player heatmap points and rejects partial or mismatched evidence', () => {
+    const demoId = '00000000-0000-0000-0000-000000000001';
+    const evidenceId = `demo:${demoId}/event:kill-640`;
+    const current = {
+      steam_id: '76561198000000001',
+      map_name: 'de_mirage',
+      points: [{
+        demo_id: demoId,
+        evidence_id: evidenceId,
+        round: 7,
+        tick: 640,
+        kind: 'kills',
+        x: 100,
+        y: 200,
+        floor: 1,
+        analysis_href: `/analysis?demo=${demoId}&tab=rounds&round=7&tick=640&evidence=${encodeURIComponent(evidenceId)}&player=76561198000000001`,
+        replay_href: `/analysis?demo=${demoId}&tab=replay&round=7&tick=640&evidence=${encodeURIComponent(evidenceId)}&player=76561198000000001`,
+      }],
+      total: 1,
+      maximum_points: 5000,
+      complete: true,
+      coverage: { projected_demos: 3, total_analyses: 3, projection_complete: true },
+    };
+
+    expect(parsePlayerHeatmap(current).points[0]?.kind).toBe('kills');
+    expect(() => parsePlayerHeatmap({
+      ...current,
+      points: [{ ...current.points[0], demo_id: '00000000-0000-0000-0000-000000000002' }],
+    })).toThrow(/current contract/i);
+    expect(() => parsePlayerHeatmap({ ...current, total: 2 })).toThrow(/current contract/i);
   });
 
   it('keeps an unknown match date nullable instead of substituting the catalog timestamp', () => {

@@ -10,6 +10,8 @@ const PLAYER_DIRECTORY_PARAMETERS = new Set([
   'player',
   'matches_page',
   'maps_page',
+  'heatmap_map',
+  'heatmap_kind',
   'inspector',
 ]);
 const PLAYER_SORT_KEYS = new Set<PlayerDirectorySort['key']>([
@@ -37,6 +39,8 @@ export type PlayerDirectoryQuery = {
   playerId: string | null;
   matchesPage: number;
   mapsPage: number;
+  heatmapMap: string | null;
+  heatmapKind: 'all' | 'kills' | 'deaths';
   inspectorOpen: boolean;
 };
 
@@ -48,6 +52,8 @@ export const DEFAULT_PLAYER_DIRECTORY_QUERY: PlayerDirectoryQuery = {
   playerId: null,
   matchesPage: 1,
   mapsPage: 1,
+  heatmapMap: null,
+  heatmapKind: 'all',
   inspectorOpen: false,
 };
 
@@ -72,6 +78,8 @@ function assertSelection(
   playerId: string | null,
   matchesPage: number,
   mapsPage: number,
+  heatmapMap: string | null,
+  heatmapKind: PlayerDirectoryQuery['heatmapKind'],
   inspectorOpen: boolean,
 ): void {
   assertPage(matchesPage, 'matches_page');
@@ -89,6 +97,16 @@ function assertSelection(
   ) invalid('player');
   if (playerId === null && matchesPage !== 1) invalid('matches_page');
   if (playerId === null && mapsPage !== 1) invalid('maps_page');
+  if (
+    heatmapMap !== null
+    && (playerId === null
+      || heatmapMap !== heatmapMap.trim()
+      || Array.from(heatmapMap).length < 1
+      || Array.from(heatmapMap).length > 128
+      || /[\u0000-\u001f\u007f]/u.test(heatmapMap))
+  ) invalid('heatmap_map');
+  if (!(['all', 'kills', 'deaths'] as const).includes(heatmapKind)) invalid('heatmap_kind');
+  if (heatmapMap === null && heatmapKind !== 'all') invalid('heatmap_kind');
   if (inspectorOpen && comparedIds.length === 0) invalid('inspector');
 }
 
@@ -114,10 +132,21 @@ export function playerDirectoryQueryFromParams(params: URLSearchParams): PlayerD
   const playerId = rawCompare === null ? rawPlayer : null;
   const matchesPage = positivePage(params.get('matches_page'), 'matches_page');
   const mapsPage = positivePage(params.get('maps_page'), 'maps_page');
+  const heatmapMap = params.get('heatmap_map');
+  const rawHeatmapKind = params.get('heatmap_kind');
+  const heatmapKind = (rawHeatmapKind ?? 'all') as PlayerDirectoryQuery['heatmapKind'];
   const rawInspector = params.get('inspector');
   if (rawInspector !== null && rawInspector !== '1') invalid('inspector');
   const inspectorOpen = rawInspector === '1';
-  assertSelection(comparedIds, playerId, matchesPage, mapsPage, inspectorOpen);
+  assertSelection(
+    comparedIds,
+    playerId,
+    matchesPage,
+    mapsPage,
+    heatmapMap,
+    heatmapKind,
+    inspectorOpen,
+  );
   return {
     search,
     page: positivePage(params.get('page'), 'page'),
@@ -130,6 +159,8 @@ export function playerDirectoryQueryFromParams(params: URLSearchParams): PlayerD
     playerId,
     matchesPage,
     mapsPage,
+    heatmapMap,
+    heatmapKind,
     inspectorOpen,
   };
 }
@@ -140,6 +171,8 @@ export function playerDirectoryQueryToParams(query: PlayerDirectoryQuery): URLSe
     query.playerId,
     query.matchesPage,
     query.mapsPage,
+    query.heatmapMap,
+    query.heatmapKind,
     query.inspectorOpen,
   );
   if (Array.from(query.search).length > maximumSearchCharacters) invalid('q');
@@ -157,6 +190,8 @@ export function playerDirectoryQueryToParams(query: PlayerDirectoryQuery): URLSe
   if (query.comparedIds[1]) params.set('compare', query.comparedIds[1]);
   if (query.matchesPage !== 1) params.set('matches_page', String(query.matchesPage));
   if (query.mapsPage !== 1) params.set('maps_page', String(query.mapsPage));
+  if (query.heatmapMap !== null) params.set('heatmap_map', query.heatmapMap);
+  if (query.heatmapKind !== 'all') params.set('heatmap_kind', query.heatmapKind);
   if (query.inspectorOpen) params.set('inspector', '1');
   return params;
 }
@@ -173,6 +208,8 @@ export function patchPlayerDirectoryQuery(
     ))
   );
   const nextSelection = patch.comparedIds ? [...patch.comparedIds] : [...current.comparedIds];
+  const nextPlayerId = patch.playerId === undefined ? current.playerId : patch.playerId;
+  const playerChanged = nextPlayerId !== current.playerId;
   const next = {
     ...current,
     ...patch,
@@ -181,10 +218,24 @@ export function patchPlayerDirectoryQuery(
     page: changesDirectoryResult ? 1 : (patch.page ?? current.page),
     matchesPage: patch.playerId === null ? 1 : (patch.matchesPage ?? current.matchesPage),
     mapsPage: patch.playerId === null ? 1 : (patch.mapsPage ?? current.mapsPage),
+    heatmapMap: nextPlayerId === null || playerChanged
+      ? null
+      : (patch.heatmapMap === undefined ? current.heatmapMap : patch.heatmapMap),
+    heatmapKind: nextPlayerId === null || playerChanged || patch.heatmapMap === null
+      ? 'all' as const
+      : (patch.heatmapKind ?? current.heatmapKind),
     inspectorOpen: nextSelection.length === 0
       ? false
       : (patch.inspectorOpen ?? current.inspectorOpen),
   };
-  assertSelection(next.comparedIds, next.playerId, next.matchesPage, next.mapsPage, next.inspectorOpen);
+  assertSelection(
+    next.comparedIds,
+    next.playerId,
+    next.matchesPage,
+    next.mapsPage,
+    next.heatmapMap,
+    next.heatmapKind,
+    next.inspectorOpen,
+  );
   return next;
 }

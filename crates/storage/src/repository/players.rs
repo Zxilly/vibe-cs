@@ -14,6 +14,7 @@ const MAXIMUM_PLAYER_NAME_CHARS: usize = 128;
 const MAXIMUM_PLAYER_TEAM_CHARS: usize = 32;
 const MAXIMUM_PLAYER_SEARCH_CHARS: usize = 128;
 const MAXIMUM_PLAYER_ALIASES: u32 = 32;
+const MAXIMUM_PLAYER_HEATMAP_POINTS: u64 = 5_000;
 
 macro_rules! valid_player_projections_cte {
     () => {
@@ -26,6 +27,29 @@ macro_rules! valid_player_projections_cte {
              AND state.projected_players = (\
                  SELECT COUNT(*) FROM player_match_items AS counted \
                   WHERE counted.demo_id = analysis.demo_id\
+             )\
+)"
+    };
+}
+
+macro_rules! valid_player_heatmap_projections_cte {
+    () => {
+        "valid_player_heatmap_projections AS (\
+    SELECT analysis.demo_id \
+      FROM analyses AS analysis \
+      INNER JOIN player_match_projection_state AS player_state \
+              ON player_state.demo_id = analysis.demo_id \
+             AND player_state.analysis_updated_at = analysis.updated_at \
+             AND player_state.projected_players = (\
+                 SELECT COUNT(*) FROM player_match_items AS counted_player \
+                  WHERE counted_player.demo_id = analysis.demo_id\
+             ) \
+      INNER JOIN evidence_search_projection_state AS evidence_state \
+              ON evidence_state.demo_id = analysis.demo_id \
+             AND evidence_state.analysis_updated_at = analysis.updated_at \
+             AND evidence_state.indexed_items = (\
+                 SELECT COUNT(*) FROM evidence_search_items AS counted_evidence \
+                  WHERE counted_evidence.demo_id = analysis.demo_id\
              )\
 )"
     };
@@ -199,6 +223,39 @@ const PLAYER_PROJECTION_COVERAGE_SQL: &str = concat!(
     (SELECT COUNT(*) FROM analyses)"
 );
 
+const PLAYER_HEATMAP_CTE: &str = concat!(
+    "WITH ",
+    valid_player_heatmap_projections_cte!(),
+    ", points AS (\
+        SELECT item.demo_id, item.evidence_id, item.round, item.tick, \
+               'kills' AS kind, item.actor_x AS x, item.actor_y AS y, item.actor_z AS z \
+          FROM evidence_search_items AS item \
+          INNER JOIN valid_player_heatmap_projections AS projection \
+                  ON projection.demo_id = item.demo_id \
+         WHERE item.source_kind = 'event' AND item.event_type = 'kill' \
+           AND item.actor_id = ?1 AND item.map_name = ?2 \
+           AND item.actor_x IS NOT NULL \
+        UNION ALL \
+        SELECT item.demo_id, item.evidence_id, item.round, item.tick, \
+               'deaths' AS kind, item.target_x AS x, item.target_y AS y, item.target_z AS z \
+          FROM evidence_search_items AS item \
+          INNER JOIN valid_player_heatmap_projections AS projection \
+                  ON projection.demo_id = item.demo_id \
+         WHERE item.source_kind = 'event' AND item.event_type = 'kill' \
+           AND item.target_id = ?1 AND item.map_name = ?2 \
+           AND item.target_x IS NOT NULL\
+    ), filtered_points AS (\
+        SELECT * FROM points WHERE ?3 = 'all' OR kind = ?3\
+    )"
+);
+
+const PLAYER_HEATMAP_COVERAGE_SQL: &str = concat!(
+    "WITH ",
+    valid_player_heatmap_projections_cte!(),
+    " SELECT (SELECT COUNT(*) FROM valid_player_heatmap_projections), \
+             (SELECT COUNT(*) FROM analyses)"
+);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlayerDirectorySort {
     Player,
@@ -338,6 +395,53 @@ pub struct PlayerMapPage {
     pub coverage: PlayerProjectionCoverage,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlayerHeatmapKind {
+    All,
+    Kills,
+    Deaths,
+}
+
+impl PlayerHeatmapKind {
+    const fn as_sql(self) -> &'static str {
+        match self {
+            Self::All => "all",
+            Self::Kills => "kills",
+            Self::Deaths => "deaths",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlayerHeatmapQuery {
+    pub steam_id: String,
+    pub map_name: String,
+    pub kind: PlayerHeatmapKind,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProjectedPlayerHeatPoint {
+    pub demo_id: Uuid,
+    pub evidence_id: String,
+    pub round: u32,
+    pub tick: u64,
+    pub kind: PlayerHeatmapKind,
+    pub x: f64,
+    pub y: f64,
+    pub floor: i32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlayerHeatmapProjection {
+    pub steam_id: String,
+    pub map_name: String,
+    pub points: Vec<ProjectedPlayerHeatPoint>,
+    pub total: u64,
+    pub maximum_points: u64,
+    pub complete: bool,
+    pub coverage: PlayerProjectionCoverage,
+}
+
 impl Storage {
     pub async fn get_player(&self, steam_id: String) -> Result<Option<PlayerProfile>> {
         validate_steam_id(&steam_id)?;
@@ -464,6 +568,58 @@ impl Storage {
                 total,
                 page: query.page,
                 page_size: query.page_size,
+                coverage,
+            })
+        })
+        .await
+    }
+
+    pub async fn player_heatmap(
+        &self,
+        query: PlayerHeatmapQuery,
+    ) -> Result<PlayerHeatmapProjection> {
+        validate_steam_id(&query.steam_id)?;
+        let map_name = bounded_text(&query.map_name, 128)
+            .ok_or_else(|| StorageError::PlayerProjection("invalid heatmap map name".to_owned()))?;
+        let kind = query.kind.as_sql();
+        self.run(move |connection| {
+            let transaction = connection.transaction()?;
+            let coverage = player_heatmap_coverage(&transaction)?;
+            let count_sql = format!("{PLAYER_HEATMAP_CTE} SELECT COUNT(*) FROM filtered_points");
+            let total = transaction.query_row(
+                &count_sql,
+                params![query.steam_id, map_name, kind],
+                |row| row_u64(row, 0),
+            )?;
+            let complete = total <= MAXIMUM_PLAYER_HEATMAP_POINTS;
+            let points = if complete {
+                let points_sql = format!(
+                    "{PLAYER_HEATMAP_CTE} \
+                     SELECT demo_id, evidence_id, round, tick, kind, x, y, z \
+                       FROM filtered_points \
+                      ORDER BY CASE kind WHEN 'kills' THEN 0 ELSE 1 END, \
+                               demo_id ASC, evidence_id ASC"
+                );
+                let mut statement = transaction.prepare(&points_sql)?;
+                let points = statement
+                    .query_map(
+                        params![query.steam_id, map_name, kind],
+                        projected_player_heat_point,
+                    )?
+                    .collect::<rusqlite::Result<Vec<_>>>()?;
+                drop(statement);
+                points
+            } else {
+                Vec::new()
+            };
+            transaction.commit()?;
+            Ok(PlayerHeatmapProjection {
+                steam_id: query.steam_id,
+                map_name,
+                points,
+                total,
+                maximum_points: MAXIMUM_PLAYER_HEATMAP_POINTS,
+                complete,
                 coverage,
             })
         })
@@ -717,6 +873,18 @@ fn player_projection_coverage(connection: &Connection) -> Result<PlayerProjectio
     })
 }
 
+fn player_heatmap_coverage(connection: &Connection) -> Result<PlayerProjectionCoverage> {
+    let (projected_demos, total_analyses) =
+        connection.query_row(PLAYER_HEATMAP_COVERAGE_SQL, [], |row| {
+            Ok((row_u64(row, 0)?, row_u64(row, 1)?))
+        })?;
+    Ok(PlayerProjectionCoverage {
+        projected_demos,
+        total_analyses,
+        projection_complete: projected_demos == total_analyses,
+    })
+}
+
 fn projected_player_match(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectedPlayerMatch> {
     let demo_id = row.get::<_, String>(0)?;
     Ok(ProjectedPlayerMatch {
@@ -749,6 +917,38 @@ fn projected_player_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectedPl
             average_adr: row.get(7)?,
             average_kill_death_ratio: row.get(8)?,
         },
+    })
+}
+
+fn projected_player_heat_point(
+    row: &rusqlite::Row<'_>,
+) -> rusqlite::Result<ProjectedPlayerHeatPoint> {
+    let demo_id = row.get::<_, String>(0)?;
+    let kind = match row.get::<_, String>(4)?.as_str() {
+        "kills" => PlayerHeatmapKind::Kills,
+        "deaths" => PlayerHeatmapKind::Deaths,
+        value => {
+            return Err(rusqlite::Error::FromSqlConversionFailure(
+                4,
+                rusqlite::types::Type::Text,
+                format!("invalid player heatmap kind {value}").into(),
+            ));
+        }
+    };
+    let z = row.get::<_, f64>(7)?;
+    #[allow(clippy::cast_possible_truncation)]
+    let floor = (z / 256.0)
+        .floor()
+        .clamp(f64::from(i32::MIN), f64::from(i32::MAX)) as i32;
+    Ok(ProjectedPlayerHeatPoint {
+        demo_id: parse_uuid(&demo_id, 0)?,
+        evidence_id: row.get(1)?,
+        round: row_u32(row, 2)?,
+        tick: row_u64(row, 3)?,
+        kind,
+        x: row.get(5)?,
+        y: row.get(6)?,
+        floor,
     })
 }
 
@@ -870,15 +1070,17 @@ mod tests {
     use rusqlite::params;
     use uuid::Uuid;
     use vibe_cs_domain::{
-        AnalysisInputFingerprint, DemoRecord, DemoStatus, MatchAnalysis, PlayerStats,
+        AnalysisInputFingerprint, DemoRecord, DemoStatus, EventKind, MatchAnalysis, PlayerStats,
+        RoundSummary, TimelineEvent,
     };
 
     use super::{
         EXACT_PLAYER_SQL, MAXIMUM_PLAYER_ALIASES, MAXIMUM_PLAYER_NAME_CHARS,
         MAXIMUM_PLAYER_TEAM_CHARS, PLAYER_ALIASES_SQL, PLAYER_DIRECTORY_CTE,
         PLAYER_MATCH_COUNT_SQL, PLAYER_MATCH_PAGE_SQL, PLAYER_PROJECTION_COVERAGE_SQL,
-        PlayerDirectoryQuery, PlayerDirectorySort, PlayerMapQuery, PlayerMatchQuery,
-        PlayerSortDirection, ProjectedPlayerMap, ProjectedPlayerMatch, player_order_sql,
+        PlayerDirectoryQuery, PlayerDirectorySort, PlayerHeatmapKind, PlayerHeatmapQuery,
+        PlayerMapQuery, PlayerMatchQuery, PlayerSortDirection, ProjectedPlayerMap,
+        ProjectedPlayerMatch, player_order_sql,
     };
     use crate::Storage;
 
@@ -1104,6 +1306,99 @@ mod tests {
                     },
                 },
             ]
+        );
+    }
+
+    #[tokio::test]
+    async fn player_heatmap_aggregates_exact_kill_and_death_coordinates_across_matching_maps() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        for (map_name, event_id, player_is_actor, x) in [
+            ("de_mirage", "kill-one", true, 100.0),
+            ("de_mirage", "death-two", false, 200.0),
+            ("de_anubis", "other-map", true, 300.0),
+        ] {
+            let record = demo(Uuid::new_v4());
+            storage.put_demo(record.clone()).await.expect("put demo");
+            let mut result = analysis(record.id);
+            result.map_name = map_name.to_owned();
+            result.rounds = vec![RoundSummary {
+                number: 7,
+                start_tick: 400,
+                end_tick: 800,
+                winner: "A".to_owned(),
+                reason: "target_saved".to_owned(),
+                team_a_score: 4,
+                team_b_score: 3,
+                events: vec![TimelineEvent {
+                    id: event_id.to_owned(),
+                    tick: 640,
+                    seconds: 10.0,
+                    kind: EventKind::Kill,
+                    actor: Some(
+                        if player_is_actor {
+                            PLAYER_ID
+                        } else {
+                            "76561198000000002"
+                        }
+                        .to_owned(),
+                    ),
+                    target: Some(
+                        if player_is_actor {
+                            "76561198000000002"
+                        } else {
+                            PLAYER_ID
+                        }
+                        .to_owned(),
+                    ),
+                    weapon: Some("ak47".to_owned()),
+                    headshot: false,
+                    penetrated: false,
+                    position: Some([x, x + 1.0, 64.0]),
+                    detail: serde_json::json!({
+                        "attacker_X": x + 10.0,
+                        "attacker_Y": x + 11.0,
+                        "attacker_Z": 320.0,
+                        "user_X": x,
+                        "user_Y": x + 1.0,
+                        "user_Z": 64.0
+                    }),
+                }],
+            }];
+            complete(&storage, record.id, result)
+                .await
+                .expect("complete analysis");
+        }
+
+        let heatmap = storage
+            .player_heatmap(PlayerHeatmapQuery {
+                steam_id: PLAYER_ID.to_owned(),
+                map_name: "de_mirage".to_owned(),
+                kind: PlayerHeatmapKind::All,
+            })
+            .await
+            .expect("cross-match heatmap");
+
+        assert_eq!(heatmap.steam_id, PLAYER_ID);
+        assert_eq!(heatmap.map_name, "de_mirage");
+        assert_eq!(heatmap.total, 2);
+        assert!(heatmap.complete);
+        assert_eq!(heatmap.coverage.projected_demos, 3);
+        assert!(heatmap.coverage.projection_complete);
+        assert_eq!(heatmap.points[0].kind, PlayerHeatmapKind::Kills);
+        assert_eq!((heatmap.points[0].x, heatmap.points[0].y), (110.0, 111.0));
+        assert_eq!(heatmap.points[1].kind, PlayerHeatmapKind::Deaths);
+        assert_eq!((heatmap.points[1].x, heatmap.points[1].y), (200.0, 201.0));
+        assert!(
+            heatmap
+                .points
+                .iter()
+                .all(|point| point.round == 7 && point.tick == 640)
+        );
+        assert!(
+            heatmap
+                .points
+                .iter()
+                .all(|point| point.evidence_id.contains("/event:"))
         );
     }
 

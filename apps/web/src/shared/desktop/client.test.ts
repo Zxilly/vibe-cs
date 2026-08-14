@@ -419,6 +419,46 @@ describe('desktop command client', () => {
     });
   });
 
+  it('requests an exact map-scoped player heatmap and binds the response identity', async () => {
+    invokeMock.mockResolvedValue({
+      steam_id: '76561198000000001',
+      map_name: 'de_mirage',
+      points: [],
+      total: 0,
+      maximum_points: 5000,
+      complete: true,
+      coverage: { projected_demos: 3, total_analyses: 3, projection_complete: true },
+    });
+    const controller = new AbortController();
+
+    await commands.getPlayerHeatmap(
+      '76561198000000001',
+      { map: 'de_mirage', kind: 'all' },
+      controller.signal,
+    );
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: '/players/76561198000000001/heatmap?map=de_mirage&kind=all',
+      },
+    });
+
+    invokeMock.mockResolvedValue({
+      steam_id: '76561198000000001',
+      map_name: 'de_anubis',
+      points: [],
+      total: 0,
+      maximum_points: 5000,
+      complete: true,
+      coverage: { projected_demos: 3, total_analyses: 3, projection_complete: true },
+    });
+    await expect(commands.getPlayerHeatmap(
+      '76561198000000001',
+      { map: 'de_mirage', kind: 'kills' },
+    )).rejects.toThrow(/requested exact map/i);
+  });
+
   it('rejects a player match page bound to a different Steam identity', async () => {
     invokeMock.mockResolvedValue({
       steam_id: '76561198000000002',

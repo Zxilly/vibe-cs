@@ -8,6 +8,7 @@ import { parseLineupDirectoryPage, parseLineupMapPage } from './lineupContract';
 import {
   parsePlayerComparison,
   parsePlayerDirectoryPage,
+  parsePlayerHeatmap,
   parsePlayerMapPage,
   parsePlayerMatchPage,
   parsePlayerProfile,
@@ -110,6 +111,7 @@ import type {
   Paginated,
   PlayerComparison,
   PlayerDirectoryPage,
+  PlayerHeatmap,
   PlayerMatchPage,
   PlayerMapPage,
   PlayerProfile,
@@ -655,6 +657,20 @@ export const commands = {
       throw new Error('Player map response does not match the requested exact player.');
     }
     return page;
+  },
+  getPlayerHeatmap: async (
+    steamId: string,
+    query: { map: string; kind: 'all' | 'kills' | 'deaths' },
+    signal?: AbortSignal,
+  ) => {
+    const heatmap = parsePlayerHeatmap(await request<PlayerHeatmap>(
+      `/players/${encodeURIComponent(steamId)}/heatmap${queryString(query)}`,
+      { signal },
+    ));
+    if (heatmap.steam_id !== steamId || heatmap.map_name !== query.map) {
+      throw new Error('Player heatmap response does not match the requested exact map.');
+    }
+    return heatmap;
   },
   comparePlayers: async (left: string, right: string, signal?: AbortSignal) => {
     const comparison = parsePlayerComparison(await request<PlayerComparison>(

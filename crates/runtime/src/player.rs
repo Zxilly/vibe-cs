@@ -6,8 +6,9 @@ use url::Url;
 use vibe_cs_application::{
     AvatarCacheCleanup, AvatarCacheStatus, PlayerAggregateStats, PlayerAvatar, PlayerComparison,
     PlayerComparisonQuery, PlayerDirectoryItem, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerDirectorySort, PlayerDirectorySortDirection, PlayerMapItem, PlayerMapPage,
-    PlayerMapQuery, PlayerMatch, PlayerMatchPage, PlayerMatchQuery, PlayerPort, PlayerProfile,
+    PlayerDirectorySort, PlayerDirectorySortDirection, PlayerHeatmap, PlayerHeatmapKind,
+    PlayerHeatmapPoint, PlayerHeatmapQuery, PlayerMapItem, PlayerMapPage, PlayerMapQuery,
+    PlayerMatch, PlayerMatchPage, PlayerMatchQuery, PlayerPort, PlayerProfile,
     PlayerProjectionCoverage, PlayerSteamProfile, SteamProfileState,
 };
 use vibe_cs_domain::DomainError;
@@ -17,11 +18,12 @@ use vibe_cs_integrations::{
 };
 use vibe_cs_storage::{
     PlayerDirectoryQuery as StoragePlayerDirectoryQuery,
-    PlayerDirectorySort as StoragePlayerDirectorySort, PlayerMapQuery as StoragePlayerMapQuery,
-    PlayerMatchQuery as StoragePlayerMatchQuery,
+    PlayerDirectorySort as StoragePlayerDirectorySort,
+    PlayerHeatmapKind as StoragePlayerHeatmapKind, PlayerHeatmapQuery as StoragePlayerHeatmapQuery,
+    PlayerMapQuery as StoragePlayerMapQuery, PlayerMatchQuery as StoragePlayerMatchQuery,
     PlayerProjectionCoverage as StoragePlayerProjectionCoverage,
-    PlayerSortDirection as StoragePlayerSortDirection, ProjectedPlayer, ProjectedPlayerMap,
-    ProjectedPlayerMatch,
+    PlayerSortDirection as StoragePlayerSortDirection, ProjectedPlayer, ProjectedPlayerHeatPoint,
+    ProjectedPlayerMap, ProjectedPlayerMatch,
 };
 
 use crate::avatar_cache::AvatarCache;
@@ -258,6 +260,42 @@ impl PlayerPort for RuntimePlayerPort {
         })
     }
 
+    async fn heatmap(
+        &self,
+        steam_id: String,
+        query: PlayerHeatmapQuery,
+    ) -> Result<PlayerHeatmap, DomainError> {
+        self.require_local_player(&steam_id).await?;
+        query.validate()?;
+        let projected = self
+            .storage
+            .player_heatmap(StoragePlayerHeatmapQuery {
+                steam_id: steam_id.clone(),
+                map_name: query.map,
+                kind: storage_heatmap_kind(query.kind),
+            })
+            .await
+            .map_err(|error| storage_error(&error))?;
+        if !projected.coverage.projection_complete {
+            return Err(DomainError::DependencyUnavailable(
+                "player heatmap projection is incomplete".to_owned(),
+            ));
+        }
+        Ok(PlayerHeatmap {
+            steam_id,
+            map_name: projected.map_name,
+            points: projected
+                .points
+                .into_iter()
+                .map(|point| projected_heat_point(point, &projected.steam_id))
+                .collect(),
+            total: projected.total,
+            maximum_points: projected.maximum_points,
+            complete: projected.complete,
+            coverage: projection_coverage(projected.coverage),
+        })
+    }
+
     async fn compare(&self, query: PlayerComparisonQuery) -> Result<PlayerComparison, DomainError> {
         validate_steam_id(&query.left)?;
         validate_steam_id(&query.right)?;
@@ -366,6 +404,45 @@ fn projected_map(projected: ProjectedPlayerMap) -> PlayerMapItem {
             average_kill_death_ratio: projected.stats.average_kill_death_ratio,
         },
     }
+}
+
+const fn storage_heatmap_kind(kind: PlayerHeatmapKind) -> StoragePlayerHeatmapKind {
+    match kind {
+        PlayerHeatmapKind::All => StoragePlayerHeatmapKind::All,
+        PlayerHeatmapKind::Kills => StoragePlayerHeatmapKind::Kills,
+        PlayerHeatmapKind::Deaths => StoragePlayerHeatmapKind::Deaths,
+    }
+}
+
+fn projected_heat_point(point: ProjectedPlayerHeatPoint, steam_id: &str) -> PlayerHeatmapPoint {
+    let kind = match point.kind {
+        StoragePlayerHeatmapKind::Kills => PlayerHeatmapKind::Kills,
+        StoragePlayerHeatmapKind::Deaths => PlayerHeatmapKind::Deaths,
+        StoragePlayerHeatmapKind::All => unreachable!("stored heat points are role-specific"),
+    };
+    PlayerHeatmapPoint {
+        analysis_href: player_heatmap_href(&point, steam_id, "rounds"),
+        replay_href: player_heatmap_href(&point, steam_id, "replay"),
+        demo_id: point.demo_id,
+        evidence_id: point.evidence_id,
+        round: point.round,
+        tick: point.tick,
+        kind,
+        x: point.x,
+        y: point.y,
+        floor: point.floor,
+    }
+}
+
+fn player_heatmap_href(point: &ProjectedPlayerHeatPoint, steam_id: &str, tab: &str) -> String {
+    let mut query = url::form_urlencoded::Serializer::new(String::new());
+    query.append_pair("demo", &point.demo_id.to_string());
+    query.append_pair("tab", tab);
+    query.append_pair("round", &point.round.to_string());
+    query.append_pair("tick", &point.tick.to_string());
+    query.append_pair("evidence", &point.evidence_id);
+    query.append_pair("player", steam_id);
+    format!("/analysis?{}", query.finish())
 }
 
 fn projected_player(player: ProjectedPlayer) -> PlayerDirectoryItem {
@@ -550,7 +627,8 @@ mod tests {
     use tempfile::TempDir;
     use uuid::Uuid;
     use vibe_cs_domain::{
-        AppConfig, DemoRecord, DemoStatus, MatchAnalysis, PlayerStats, TeamSummary,
+        AppConfig, DemoRecord, DemoStatus, EventKind, MatchAnalysis, PlayerStats, RoundSummary,
+        TeamSummary, TimelineEvent,
     };
 
     use super::*;
@@ -774,6 +852,94 @@ mod tests {
             .expect("matches");
         assert_eq!(matches.items.len(), 2);
         assert!(matches.items[0].match_date > matches.items[1].match_date);
+    }
+
+    #[tokio::test]
+    async fn exact_player_heatmap_returns_source_bound_evidence_links() {
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let demo_id = put_player_match(&storage, Utc::now(), PLAYER_ID, "FalleN", 1).await;
+        storage
+            .delete_analysis(demo_id)
+            .await
+            .expect("replace fixture analysis");
+        let mut replacement = MatchAnalysis {
+            demo_id,
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 60.0,
+            verified_total_ticks: Some(1_000),
+            teams: Vec::new(),
+            players: vec![PlayerStats {
+                steam_id: PLAYER_ID.to_owned(),
+                spectator_slot: None,
+                name: "FalleN".to_owned(),
+                team: "A".to_owned(),
+                kills: 1,
+                deaths: 0,
+                assists: 0,
+                headshots: 1,
+                damage: 100,
+                adr: 100.0,
+                kill_death_ratio: 1.0,
+                score: 1,
+            }],
+            rounds: vec![RoundSummary {
+                number: 7,
+                start_tick: 600,
+                end_tick: 700,
+                winner: "A".to_owned(),
+                reason: "target_saved".to_owned(),
+                team_a_score: 4,
+                team_b_score: 3,
+                events: vec![TimelineEvent {
+                    id: "kill-640".to_owned(),
+                    tick: 640,
+                    seconds: 10.0,
+                    kind: EventKind::Kill,
+                    actor: Some(PLAYER_ID.to_owned()),
+                    target: Some("76561198000000002".to_owned()),
+                    weapon: Some("ak47".to_owned()),
+                    headshot: true,
+                    penetrated: false,
+                    position: Some([20.0, 30.0, 40.0]),
+                    detail: serde_json::json!({
+                        "attacker_X": 100.0,
+                        "attacker_Y": 200.0,
+                        "attacker_Z": 300.0,
+                        "user_X": 20.0,
+                        "user_Y": 30.0,
+                        "user_Z": 40.0
+                    }),
+                }],
+            }],
+            highlights: Vec::new(),
+        };
+        replacement.normalize_team_continuity();
+        persist_completed_analysis(&storage, replacement)
+            .await
+            .expect("replacement analysis");
+        let temporary = TempDir::new().expect("temp dir");
+        let port = RuntimePlayerPort::new(storage, temporary.path().join("avatar-cache"));
+
+        let heatmap = port
+            .heatmap(
+                PLAYER_ID.to_owned(),
+                PlayerHeatmapQuery {
+                    map: "de_mirage".to_owned(),
+                    kind: PlayerHeatmapKind::All,
+                },
+            )
+            .await
+            .expect("player heatmap");
+
+        assert_eq!(heatmap.points.len(), 1);
+        assert_eq!(heatmap.points[0].kind, PlayerHeatmapKind::Kills);
+        assert!(heatmap.points[0].analysis_href.contains("tab=rounds"));
+        assert!(heatmap.points[0].analysis_href.contains("evidence=demo%3A"));
+        assert!(heatmap.points[0].replay_href.contains("tab=replay"));
+        assert!(heatmap.coverage.projection_complete);
     }
 
     #[tokio::test]

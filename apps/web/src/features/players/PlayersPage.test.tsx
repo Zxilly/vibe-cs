@@ -66,4 +66,15 @@ describe('explicit cross-page player comparison wiring', () => {
     );
     expect(source).toContain("aria-busy={listState === 'loading'}");
   });
+
+  it('loads one URL-owned map heatmap and radar in parallel with stale-request guards', () => {
+    expect(source).toContain('const heatmapMap = playerQuery.heatmapMap');
+    expect(source).toContain('const heatmapKind = playerQuery.heatmapKind');
+    expect(source).toMatch(/commands\.getPlayerHeatmap\([\s\S]*?\{ map: heatmapMap, kind: 'all' \}[\s\S]*?controller\.signal/);
+    expect(source).toMatch(/commands\.getRadarOverview\(heatmapMap, controller\.signal\)/);
+    expect(source).toMatch(/const requestRevision = \+\+heatmapRequestRevision\.current/);
+    expect(source).toMatch(/controller\.signal\.aborted \|\| !isCurrentRequest\(heatmapRequestRevision\.current, requestRevision\)/);
+    expect(source).toMatch(/\[heatmapMap, heatmapRefreshRevision, refreshRevision, selectedId\]/);
+    expect(source).toContain("onCloseHeatmap={() => updatePlayerQuery({ heatmapMap: null, heatmapKind: 'all' })}");
+  });
 });

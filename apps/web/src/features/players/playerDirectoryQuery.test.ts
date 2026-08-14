@@ -10,7 +10,7 @@ import {
 describe('player directory URL query', () => {
   it('round-trips directory paging, sorting, one exact profile, and its match page', () => {
     const parsed = playerDirectoryQueryFromParams(new URLSearchParams(
-      'q=FalleN&page=3&sort=adr&direction=asc&player=76561197960690195&matches_page=2&maps_page=3',
+      'q=FalleN&page=3&sort=adr&direction=asc&player=76561197960690195&matches_page=2&maps_page=3&heatmap_map=de_mirage&heatmap_kind=deaths',
     ));
 
     expect(parsed).toEqual({
@@ -21,6 +21,8 @@ describe('player directory URL query', () => {
       playerId: '76561197960690195',
       matchesPage: 2,
       mapsPage: 3,
+      heatmapMap: 'de_mirage',
+      heatmapKind: 'deaths',
       inspectorOpen: false,
     });
     expect(playerDirectoryQueryFromParams(playerDirectoryQueryToParams(parsed))).toEqual(parsed);
@@ -60,6 +62,10 @@ describe('player directory URL query', () => {
     'page=10001',
     'matches_page=2',
     'maps_page=2',
+    'heatmap_map=de_mirage',
+    'player=76561197960690195&heatmap_kind=kills',
+    'player=76561197960690195&heatmap_map=de_mirage&heatmap_kind=invalid',
+    'player=76561197960690195&heatmap_map=%20de_mirage',
     'inspector=1',
     'player=76561197960690195&inspector=0',
     'player=76561197960690195&inspector=true',
@@ -78,6 +84,8 @@ describe('player directory URL query', () => {
       playerId: '76561197960690195',
       matchesPage: 3,
       mapsPage: 2,
+      heatmapMap: 'de_mirage',
+      heatmapKind: 'kills' as const,
       inspectorOpen: true,
     };
 
@@ -88,6 +96,8 @@ describe('player directory URL query', () => {
       playerId: '76561197960690195',
       matchesPage: 3,
       mapsPage: 2,
+      heatmapMap: 'de_mirage',
+      heatmapKind: 'kills',
       inspectorOpen: true,
     });
     expect(patchPlayerDirectoryQuery(selected, { playerId: null, comparedIds: [] })).toMatchObject({
@@ -96,6 +106,8 @@ describe('player directory URL query', () => {
       playerId: null,
       matchesPage: 1,
       mapsPage: 1,
+      heatmapMap: null,
+      heatmapKind: 'all',
       inspectorOpen: false,
     });
   });

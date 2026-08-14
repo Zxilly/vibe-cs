@@ -17,10 +17,12 @@ import type {
   EvidenceSearchResponse,
   PlayerComparison,
   PlayerDirectoryItem,
+  PlayerHeatmap,
   PlayerMapPage,
   PlayerMatchPage,
   PlayerProfile,
   PlayerProjectionCoverage,
+  RadarOverviewRecord,
 } from '../../shared/desktop/dto';
 import { useI18n } from '../../shared/i18n';
 import { Button, Card, Drawer, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
@@ -97,6 +99,11 @@ export function PlayersPage() {
   const [mapsState, setMapsState] = useState<LoadState>('idle');
   const [mapsError, setMapsError] = useState<string | null>(null);
   const [mapsRefreshRevision, setMapsRefreshRevision] = useState(0);
+  const [heatmap, setHeatmap] = useState<PlayerHeatmap | null>(null);
+  const [heatmapRadar, setHeatmapRadar] = useState<RadarOverviewRecord | null>(null);
+  const [heatmapState, setHeatmapState] = useState<LoadState>('idle');
+  const [heatmapError, setHeatmapError] = useState<string | null>(null);
+  const [heatmapRefreshRevision, setHeatmapRefreshRevision] = useState(0);
   const [playerEvidence, setPlayerEvidence] = useState<EvidenceSearchResponse | null>(null);
   const [playerEvidenceState, setPlayerEvidenceState] = useState<LoadState>('idle');
   const [playerEvidenceError, setPlayerEvidenceError] = useState<string | null>(null);
@@ -110,6 +117,7 @@ export function PlayersPage() {
   const detailRequestRevision = useRef(0);
   const matchesRequestRevision = useRef(0);
   const mapsRequestRevision = useRef(0);
+  const heatmapRequestRevision = useRef(0);
   const evidenceRequestRevision = useRef(0);
   const comparisonRequestRevision = useRef(0);
   const cacheStatusRequestRevision = useRef(0);
@@ -123,6 +131,8 @@ export function PlayersPage() {
   const selectedId = playerQuery.playerId;
   const matchPage = playerQuery.matchesPage;
   const mapPage = playerQuery.mapsPage;
+  const heatmapMap = playerQuery.heatmapMap;
+  const heatmapKind = playerQuery.heatmapKind;
   const compactInspectorOpen = playerQuery.inspectorOpen;
   const comparedIdsIdentity = comparedIds.join('\0');
   const comparedIdsIdentityRef = useRef(comparedIdsIdentity);
@@ -317,6 +327,49 @@ export function PlayersPage() {
   }, [mapPage, mapsRefreshRevision, refreshRevision, selectedId, updatePlayerQuery]);
 
   useEffect(() => {
+    if (selectedId === null || heatmapMap === null) {
+      setHeatmap(null);
+      setHeatmapRadar(null);
+      setHeatmapState('idle');
+      setHeatmapError(null);
+      return undefined;
+    }
+    const controller = new AbortController();
+    const requestRevision = ++heatmapRequestRevision.current;
+    setHeatmap(null);
+    setHeatmapRadar(null);
+    setHeatmapState('loading');
+    setHeatmapError(null);
+
+    void commands.getPlayerHeatmap(
+      selectedId,
+      { map: heatmapMap, kind: 'all' },
+      controller.signal,
+    ).then((response) => {
+      if (controller.signal.aborted || !isCurrentRequest(heatmapRequestRevision.current, requestRevision)) return;
+      setHeatmap(response);
+      setHeatmapState('ready');
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted || !isCurrentRequest(heatmapRequestRevision.current, requestRevision)) return;
+      setHeatmapError(readableError(error));
+      setHeatmapState('error');
+    });
+
+    void commands.getRadarOverview(heatmapMap, controller.signal).then((response) => {
+      if (
+        controller.signal.aborted
+        || !isCurrentRequest(heatmapRequestRevision.current, requestRevision)
+        || response.map_name !== heatmapMap
+      ) return;
+      setHeatmapRadar(response);
+    }).catch(() => {
+      if (controller.signal.aborted || !isCurrentRequest(heatmapRequestRevision.current, requestRevision)) return;
+      setHeatmapRadar(null);
+    });
+    return () => controller.abort();
+  }, [heatmapMap, heatmapRefreshRevision, refreshRevision, selectedId]);
+
+  useEffect(() => {
     if (comparedIds.length !== 2) {
       setComparison(null);
       setComparisonState('idle');
@@ -481,6 +534,9 @@ export function PlayersPage() {
     setMatchesError(null);
     setMaps(null);
     setMapsError(null);
+    setHeatmap(null);
+    setHeatmapError(null);
+    setHeatmapRadar(null);
   };
 
   const inspectPlayer = (player: PlayerDirectoryItem) => {
@@ -504,6 +560,9 @@ export function PlayersPage() {
     setMatchesError(null);
     setMaps(null);
     setMapsError(null);
+    setHeatmap(null);
+    setHeatmapError(null);
+    setHeatmapRadar(null);
   };
 
   const clearPlayerComparison = () => {
@@ -521,6 +580,9 @@ export function PlayersPage() {
     setMatchesError(null);
     setMaps(null);
     setMapsError(null);
+    setHeatmap(null);
+    setHeatmapError(null);
+    setHeatmapRadar(null);
   };
 
   const focusComparedPlayer = (player: PlayerDirectoryItem) => {
@@ -633,6 +695,19 @@ export function PlayersPage() {
           onRetryMaps={() => setMapsRefreshRevision((current) => current + 1)}
           onPreviousMaps={() => updatePlayerQuery({ mapsPage: Math.max(1, mapPage - 1) })}
           onNextMaps={() => updatePlayerQuery({ mapsPage: mapPage + 1 })}
+          heatmap={heatmap}
+          heatmapMap={heatmapMap}
+          heatmapKind={heatmapKind}
+          heatmapLoading={heatmapState === 'loading'}
+          heatmapError={heatmapError}
+          heatmapRadar={heatmapRadar}
+          onOpenHeatmap={(mapName) => updatePlayerQuery({
+            heatmapMap: mapName,
+            heatmapKind: 'all',
+          })}
+          onCloseHeatmap={() => updatePlayerQuery({ heatmapMap: null, heatmapKind: 'all' })}
+          onHeatmapKindChange={(kind) => updatePlayerQuery({ heatmapKind: kind })}
+          onRetryHeatmap={() => setHeatmapRefreshRevision((current) => current + 1)}
           matchesLoading={matchesState === 'loading'}
           matchesError={matchesError}
           onRetryMatches={() => setMatchesRefreshRevision((current) => current + 1)}

@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import type { EvidenceSearchResponse, PlayerMatchPage, PlayerProfile } from '../../shared/desktop/dto';
+import type { EvidenceSearchResponse, PlayerMapPage, PlayerMatchPage, PlayerProfile } from '../../shared/desktop/dto';
 import { evidenceParticipants, PlayerCrossMatchEvidence, PlayerDetailView } from './PlayerViews';
 
 const profile: PlayerProfile = {
@@ -58,6 +58,27 @@ const matches: PlayerMatchPage = {
     kill_death_ratio: 2,
   }],
   total: 2,
+  page: 1,
+  page_size: 20,
+  coverage: { projected_demos: 2, total_analyses: 2, projection_complete: true },
+};
+
+const maps: PlayerMapPage = {
+  steam_id: '76561198000000001',
+  items: [{
+    map_name: 'de_mirage',
+    stats: {
+      matches: 2,
+      kills: 27,
+      deaths: 24,
+      assists: 10,
+      headshots: 15,
+      damage: 3_738,
+      average_adr: 89,
+      average_kill_death_ratio: 1.22,
+    },
+  }],
+  total: 1,
   page: 1,
   page_size: 20,
   coverage: { projected_demos: 2, total_analyses: 2, projection_complete: true },
@@ -164,6 +185,23 @@ describe('player detail evidence', () => {
     expect(markup).toContain('编入本地目录');
     expect(markup).toContain('tab=players&amp;player=76561198000000001');
     expect(markup).toContain('player=76561198000000001&amp;demo_id=23d5a6ee-23a4-43b7-8654-b48e1989e231');
+  });
+
+  it('renders truthful per-map aggregates without inventing a win rate', () => {
+    const markup = renderToStaticMarkup(
+      <MemoryRouter>
+        <PlayerDetailView profile={profile} matches={matches} maps={maps} />
+      </MemoryRouter>,
+    );
+
+    expect(markup).toContain('地图表现');
+    expect(markup).toContain('de_mirage');
+    expect(markup).toContain('2 场');
+    expect(markup).toContain('27 / 24 / 10');
+    expect(markup).toContain('89.0');
+    expect(markup).toContain('1.22');
+    expect(markup).toContain('只聚合已验证的本地比赛，不推断地图胜率');
+    expect(markup).not.toContain('<dt>胜率</dt>');
   });
 
   it('keeps the paged match region pending until the exact window arrives', () => {

@@ -16,7 +16,7 @@ pub use repository::{
     LineupProjectionCoverage, ManagedFileQuarantine, ManagedFileQuarantineEntry,
     ManagedFileStaging, MatchDownloadClaim, MediaAssetUpdate, MediaProxyCleanupPlan,
     PlayerAggregateStats, PlayerComparisonProjection, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerDirectorySort, PlayerMatchPage, PlayerMatchQuery, PlayerProfile,
-    PlayerProjectionCoverage, PlayerSortDirection, PresetApply, PresetDelete, PresetRecord,
-    PresetUpdate, ProjectedPlayer, ProjectedPlayerMatch, Storage,
+    PlayerDirectorySort, PlayerMapPage, PlayerMapQuery, PlayerMatchPage, PlayerMatchQuery,
+    PlayerProfile, PlayerProjectionCoverage, PlayerSortDirection, PresetApply, PresetDelete,
+    PresetRecord, PresetUpdate, ProjectedPlayer, ProjectedPlayerMap, ProjectedPlayerMatch, Storage,
 };

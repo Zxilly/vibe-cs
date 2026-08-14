@@ -2,12 +2,46 @@ import { describe, expect, it } from 'vitest';
 
 import {
   parsePlayerDirectoryPage,
+  parsePlayerMapPage,
   parsePlayerMatchPage,
   parsePlayerComparison,
   parsePlayerProfile,
 } from './playerContract';
 
 describe('player current contract', () => {
+  it('accepts only exact identity-bound per-map aggregates', () => {
+    const current = {
+      steam_id: '76561197960690195',
+      items: [{
+        map_name: 'de_mirage',
+        stats: {
+          matches: 2,
+          kills: 27,
+          deaths: 24,
+          assists: 10,
+          headshots: 15,
+          damage: 3_738,
+          average_adr: 89,
+          average_kill_death_ratio: 1.22,
+        },
+      }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      coverage: {
+        projected_demos: 3,
+        total_analyses: 3,
+        projection_complete: true,
+      },
+    };
+
+    expect(parsePlayerMapPage(current).items[0]?.map_name).toBe('de_mirage');
+    expect(() => parsePlayerMapPage({
+      ...current,
+      items: [{ ...current.items[0], win_rate: 0.67 }],
+    })).toThrow(/current contract/i);
+  });
+
   it('keeps an unknown match date nullable instead of substituting the catalog timestamp', () => {
     const current = {
       steam_id: '76561197960690195',

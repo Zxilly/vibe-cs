@@ -54,6 +54,13 @@ pub struct PlayerMatchQuery {
     pub page_size: u32,
 }
 
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct PlayerMapQuery {
+    pub page: u32,
+    pub page_size: u32,
+}
+
 impl PlayerMatchQuery {
     /// Validates the exact bounded pagination contract.
     ///
@@ -74,6 +81,32 @@ impl PlayerMatchQuery {
         }
         Ok(())
     }
+}
+
+impl PlayerMapQuery {
+    /// Validates the exact bounded pagination contract.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when either pagination field is outside its
+    /// supported range.
+    pub fn validate(&self) -> Result<(), DomainError> {
+        validate_player_page(self.page, self.page_size)
+    }
+}
+
+fn validate_player_page(page: u32, page_size: u32) -> Result<(), DomainError> {
+    if page == 0 || page > MAXIMUM_PLAYER_MATCH_PAGE {
+        return Err(DomainError::InvalidInput(format!(
+            "page must be between 1 and {MAXIMUM_PLAYER_MATCH_PAGE}"
+        )));
+    }
+    if page_size == 0 || page_size > MAXIMUM_PLAYER_MATCH_PAGE_SIZE {
+        return Err(DomainError::InvalidInput(format!(
+            "page_size must be between 1 and {MAXIMUM_PLAYER_MATCH_PAGE_SIZE}"
+        )));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -208,6 +241,24 @@ pub struct PlayerMatchPage {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
+pub struct PlayerMapItem {
+    pub map_name: Option<String>,
+    pub stats: PlayerAggregateStats,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct PlayerMapPage {
+    pub steam_id: String,
+    pub items: Vec<PlayerMapItem>,
+    pub total: u64,
+    pub page: u32,
+    pub page_size: u32,
+    pub coverage: PlayerProjectionCoverage,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct PlayerComparison {
     pub players: [PlayerDirectoryItem; 2],
     pub coverage: PlayerProjectionCoverage,
@@ -270,6 +321,11 @@ pub trait PlayerPort: Send + Sync + std::fmt::Debug {
         steam_id: String,
         query: PlayerMatchQuery,
     ) -> Result<PlayerMatchPage, DomainError>;
+    async fn maps(
+        &self,
+        steam_id: String,
+        query: PlayerMapQuery,
+    ) -> Result<PlayerMapPage, DomainError>;
     async fn compare(&self, query: PlayerComparisonQuery) -> Result<PlayerComparison, DomainError>;
     async fn avatar(&self, steam_id: String) -> Result<PlayerAvatar, DomainError>;
     async fn avatar_cache_status(&self) -> Result<AvatarCacheStatus, DomainError>;
@@ -298,6 +354,16 @@ impl PlayerPort for DisabledPlayerPort {
         _steam_id: String,
         _query: PlayerMatchQuery,
     ) -> Result<PlayerMatchPage, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "player directory adapter".to_owned(),
+        ))
+    }
+
+    async fn maps(
+        &self,
+        _steam_id: String,
+        _query: PlayerMapQuery,
+    ) -> Result<PlayerMapPage, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "player directory adapter".to_owned(),
         ))

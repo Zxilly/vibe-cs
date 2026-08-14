@@ -397,6 +397,28 @@ describe('desktop command client', () => {
     });
   });
 
+  it('requests one exact player map page with explicit paging', async () => {
+    invokeMock.mockResolvedValue({
+      steam_id: '76561198000000001',
+      items: [], total: 0, page: 2, page_size: 20,
+      coverage: { projected_demos: 3, total_analyses: 3, projection_complete: true },
+    });
+    const controller = new AbortController();
+
+    await commands.listPlayerMaps(
+      '76561198000000001',
+      { page: 2, page_size: 20 },
+      controller.signal,
+    );
+
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: {
+        method: 'get',
+        path: '/players/76561198000000001/maps?page=2&page_size=20',
+      },
+    });
+  });
+
   it('rejects a player match page bound to a different Steam identity', async () => {
     invokeMock.mockResolvedValue({
       steam_id: '76561198000000002',

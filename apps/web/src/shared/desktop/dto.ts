@@ -494,6 +494,16 @@ export type PlayerMatchPage = Paginated<PlayerMatch> & {
   coverage: PlayerProjectionCoverage;
 };
 
+export type PlayerMapItem = {
+  map_name: string | null;
+  stats: PlayerAggregateStats;
+};
+
+export type PlayerMapPage = Paginated<PlayerMapItem> & {
+  steam_id: string;
+  coverage: PlayerProjectionCoverage;
+};
+
 export type PlayerComparison = {
   players: [PlayerDirectoryItem, PlayerDirectoryItem];
   coverage: PlayerProjectionCoverage;

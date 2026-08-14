@@ -17,6 +17,7 @@ import type {
   EvidenceSearchResponse,
   PlayerComparison,
   PlayerDirectoryItem,
+  PlayerMapPage,
   PlayerMatchPage,
   PlayerProfile,
   PlayerProjectionCoverage,
@@ -56,6 +57,7 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 type CacheActionState = 'idle' | 'clearing' | 'success' | 'error';
 
 const PLAYER_MATCH_PAGE_SIZE = 20;
+const PLAYER_MAP_PAGE_SIZE = 20;
 
 function useWidePlayerInspector(): boolean {
   const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 1400px)').matches);
@@ -91,6 +93,10 @@ export function PlayersPage() {
   const [matchesState, setMatchesState] = useState<LoadState>('idle');
   const [matchesError, setMatchesError] = useState<string | null>(null);
   const [matchesRefreshRevision, setMatchesRefreshRevision] = useState(0);
+  const [maps, setMaps] = useState<PlayerMapPage | null>(null);
+  const [mapsState, setMapsState] = useState<LoadState>('idle');
+  const [mapsError, setMapsError] = useState<string | null>(null);
+  const [mapsRefreshRevision, setMapsRefreshRevision] = useState(0);
   const [playerEvidence, setPlayerEvidence] = useState<EvidenceSearchResponse | null>(null);
   const [playerEvidenceState, setPlayerEvidenceState] = useState<LoadState>('idle');
   const [playerEvidenceError, setPlayerEvidenceError] = useState<string | null>(null);
@@ -103,6 +109,7 @@ export function PlayersPage() {
   const listRequestRevision = useRef(0);
   const detailRequestRevision = useRef(0);
   const matchesRequestRevision = useRef(0);
+  const mapsRequestRevision = useRef(0);
   const evidenceRequestRevision = useRef(0);
   const comparisonRequestRevision = useRef(0);
   const cacheStatusRequestRevision = useRef(0);
@@ -115,6 +122,7 @@ export function PlayersPage() {
   const comparedIds = playerQuery.comparedIds;
   const selectedId = playerQuery.playerId;
   const matchPage = playerQuery.matchesPage;
+  const mapPage = playerQuery.mapsPage;
   const compactInspectorOpen = playerQuery.inspectorOpen;
   const comparedIdsIdentity = comparedIds.join('\0');
   const comparedIdsIdentityRef = useRef(comparedIdsIdentity);
@@ -263,6 +271,52 @@ export function PlayersPage() {
   }, [matchPage, matchesRefreshRevision, refreshRevision, selectedId, updatePlayerQuery]);
 
   useEffect(() => {
+    if (selectedId === null) {
+      setMaps(null);
+      setMapsState('idle');
+      setMapsError(null);
+      return undefined;
+    }
+    const controller = new AbortController();
+    const requestRevision = ++mapsRequestRevision.current;
+    const requestedPage = mapPage;
+    setMaps(null);
+    setMapsState('loading');
+    setMapsError(null);
+    void commands.listPlayerMaps(
+      selectedId,
+      { page: requestedPage, page_size: PLAYER_MAP_PAGE_SIZE },
+      controller.signal,
+    ).then((response) => {
+      if (controller.signal.aborted || !isCurrentRequest(mapsRequestRevision.current, requestRevision)) return;
+      if (response.page !== requestedPage || response.page_size !== PLAYER_MAP_PAGE_SIZE) {
+        throw new DesktopError(
+          'Player map response does not match the current contract.',
+          502,
+          'INVALID_PLAYER_MAP_CONTRACT',
+        );
+      }
+      const availablePage = requestedPlayerMatchPage(
+        requestedPage,
+        response.total,
+        response.page_size,
+      );
+      if (availablePage !== requestedPage) {
+        updatePlayerQuery({ mapsPage: availablePage }, true);
+        return;
+      }
+      setMaps(response);
+      setMapsState('ready');
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted || !isCurrentRequest(mapsRequestRevision.current, requestRevision)) return;
+      setMaps(null);
+      setMapsError(readableError(error));
+      setMapsState('error');
+    });
+    return () => controller.abort();
+  }, [mapPage, mapsRefreshRevision, refreshRevision, selectedId, updatePlayerQuery]);
+
+  useEffect(() => {
     if (comparedIds.length !== 2) {
       setComparison(null);
       setComparisonState('idle');
@@ -329,6 +383,7 @@ export function PlayersPage() {
                   comparedIds: reconciliation.retainedIds,
                   playerId: retainedPlayer,
                   matchesPage: 1,
+                  mapsPage: 1,
                   inspectorOpen: currentQuery.inspectorOpen
                     && reconciliation.retainedIds.length > 0,
                 }));
@@ -414,6 +469,7 @@ export function PlayersPage() {
       comparedIds: [steamId],
       playerId: steamId,
       matchesPage: 1,
+      mapsPage: 1,
       inspectorOpen: true,
     });
     if (!playerChanged) return;
@@ -423,6 +479,8 @@ export function PlayersPage() {
     setPlayerEvidenceError(null);
     setMatches(null);
     setMatchesError(null);
+    setMaps(null);
+    setMapsError(null);
   };
 
   const inspectPlayer = (player: PlayerDirectoryItem) => {
@@ -436,6 +494,7 @@ export function PlayersPage() {
       comparedIds: next,
       playerId: next.length === 1 ? next[0] ?? null : null,
       matchesPage: 1,
+      mapsPage: 1,
       inspectorOpen: next.length === 2,
     });
     setComparisonNotice(null);
@@ -443,6 +502,8 @@ export function PlayersPage() {
     setDetailError(null);
     setMatches(null);
     setMatchesError(null);
+    setMaps(null);
+    setMapsError(null);
   };
 
   const clearPlayerComparison = () => {
@@ -450,6 +511,7 @@ export function PlayersPage() {
       comparedIds: [],
       playerId: null,
       matchesPage: 1,
+      mapsPage: 1,
       inspectorOpen: false,
     });
     setComparisonNotice(null);
@@ -457,6 +519,8 @@ export function PlayersPage() {
     setDetailError(null);
     setMatches(null);
     setMatchesError(null);
+    setMaps(null);
+    setMapsError(null);
   };
 
   const focusComparedPlayer = (player: PlayerDirectoryItem) => {
@@ -563,6 +627,12 @@ export function PlayersPage() {
           key={profile.player.steam_id}
           profile={profile}
           matches={matches}
+          maps={maps}
+          mapsLoading={mapsState === 'loading'}
+          mapsError={mapsError}
+          onRetryMaps={() => setMapsRefreshRevision((current) => current + 1)}
+          onPreviousMaps={() => updatePlayerQuery({ mapsPage: Math.max(1, mapPage - 1) })}
+          onNextMaps={() => updatePlayerQuery({ mapsPage: mapPage + 1 })}
           matchesLoading={matchesState === 'loading'}
           matchesError={matchesError}
           onRetryMatches={() => setMatchesRefreshRevision((current) => current + 1)}

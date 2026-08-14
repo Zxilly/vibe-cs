@@ -162,6 +162,35 @@ const PLAYER_MATCH_PAGE_SQL: &str = concat!(
  LIMIT ?2 OFFSET ?3"
 );
 
+const PLAYER_MAP_COUNT_SQL: &str = concat!(
+    "WITH ",
+    valid_player_projections_cte!(),
+    " SELECT COUNT(*) FROM (\
+        SELECT demo.map_name \
+          FROM player_match_items AS item \
+          INNER JOIN valid_player_projections AS projection ON projection.demo_id = item.demo_id \
+          INNER JOIN demos AS demo ON demo.id = item.demo_id \
+         WHERE item.steam_id = ?1 \
+         GROUP BY demo.map_name\
+      )"
+);
+
+const PLAYER_MAP_PAGE_SQL: &str = concat!(
+    "WITH ",
+    valid_player_projections_cte!(),
+    " SELECT demo.map_name, COUNT(*), SUM(item.kills), SUM(item.deaths), \
+       SUM(item.assists), SUM(item.headshots), SUM(item.damage), AVG(item.adr), \
+       AVG(item.kill_death_ratio) \
+  FROM player_match_items AS item \
+  INNER JOIN valid_player_projections AS projection ON projection.demo_id = item.demo_id \
+  INNER JOIN demos AS demo ON demo.id = item.demo_id \
+ WHERE item.steam_id = ?1 \
+ GROUP BY demo.map_name \
+ ORDER BY COUNT(*) DESC, (demo.map_name IS NULL) ASC, \
+          lower(demo.map_name) ASC, demo.map_name ASC \
+ LIMIT ?2 OFFSET ?3"
+);
+
 const PLAYER_PROJECTION_COVERAGE_SQL: &str = concat!(
     "WITH ",
     valid_player_projections_cte!(),
@@ -286,6 +315,29 @@ pub struct PlayerMatchPage {
     pub coverage: PlayerProjectionCoverage,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlayerMapQuery {
+    pub steam_id: String,
+    pub page: u32,
+    pub page_size: u32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProjectedPlayerMap {
+    pub map_name: Option<String>,
+    pub stats: PlayerAggregateStats,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlayerMapPage {
+    pub steam_id: String,
+    pub items: Vec<ProjectedPlayerMap>,
+    pub total: u64,
+    pub page: u32,
+    pub page_size: u32,
+    pub coverage: PlayerProjectionCoverage,
+}
+
 impl Storage {
     pub async fn get_player(&self, steam_id: String) -> Result<Option<PlayerProfile>> {
         validate_steam_id(&steam_id)?;
@@ -376,6 +428,37 @@ impl Storage {
             drop(statement);
             transaction.commit()?;
             Ok(PlayerMatchPage {
+                steam_id: query.steam_id,
+                items,
+                total,
+                page: query.page,
+                page_size: query.page_size,
+                coverage,
+            })
+        })
+        .await
+    }
+
+    pub async fn list_player_maps(&self, query: PlayerMapQuery) -> Result<PlayerMapPage> {
+        validate_map_query(&query)?;
+        self.run(move |connection| {
+            let transaction = connection.transaction()?;
+            let coverage = player_projection_coverage(&transaction)?;
+            let total =
+                transaction.query_row(PLAYER_MAP_COUNT_SQL, [query.steam_id.as_str()], |row| {
+                    row_u64(row, 0)
+                })?;
+            let offset = u64::from(query.page - 1) * u64::from(query.page_size);
+            let mut statement = transaction.prepare(PLAYER_MAP_PAGE_SQL)?;
+            let items = statement
+                .query_map(
+                    params![query.steam_id, query.page_size, sql_u64(offset)?],
+                    projected_player_map,
+                )?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            drop(statement);
+            transaction.commit()?;
+            Ok(PlayerMapPage {
                 steam_id: query.steam_id,
                 items,
                 total,
@@ -497,6 +580,27 @@ fn validate_match_query(query: &PlayerMatchQuery) -> Result<()> {
         .into());
     }
     if !(1..=MAXIMUM_PLAYER_MATCH_PAGE_SIZE).contains(&query.page_size) {
+        return Err(DomainError::InvalidInput(format!(
+            "page_size must be between 1 and {MAXIMUM_PLAYER_MATCH_PAGE_SIZE}"
+        ))
+        .into());
+    }
+    Ok(())
+}
+
+fn validate_map_query(query: &PlayerMapQuery) -> Result<()> {
+    validate_steam_id(&query.steam_id)?;
+    validate_pagination(query.page, query.page_size)
+}
+
+fn validate_pagination(page: u32, page_size: u32) -> Result<()> {
+    if !(1..=MAXIMUM_PLAYER_MATCH_PAGE).contains(&page) {
+        return Err(DomainError::InvalidInput(format!(
+            "page must be between 1 and {MAXIMUM_PLAYER_MATCH_PAGE}"
+        ))
+        .into());
+    }
+    if !(1..=MAXIMUM_PLAYER_MATCH_PAGE_SIZE).contains(&page_size) {
         return Err(DomainError::InvalidInput(format!(
             "page_size must be between 1 and {MAXIMUM_PLAYER_MATCH_PAGE_SIZE}"
         ))
@@ -632,6 +736,22 @@ fn projected_player_match(row: &rusqlite::Row<'_>) -> rusqlite::Result<Projected
     })
 }
 
+fn projected_player_map(row: &rusqlite::Row<'_>) -> rusqlite::Result<ProjectedPlayerMap> {
+    Ok(ProjectedPlayerMap {
+        map_name: row.get(0)?,
+        stats: PlayerAggregateStats {
+            matches: row_u32(row, 1)?,
+            kills: row_u64(row, 2)?,
+            deaths: row_u64(row, 3)?,
+            assists: row_u64(row, 4)?,
+            headshots: row_u64(row, 5)?,
+            damage: row_u64(row, 6)?,
+            average_adr: row.get(7)?,
+            average_kill_death_ratio: row.get(8)?,
+        },
+    })
+}
+
 fn persisted_projected_player(
     row: &rusqlite::Row<'_>,
 ) -> rusqlite::Result<PersistedProjectedPlayer> {
@@ -757,8 +877,8 @@ mod tests {
         EXACT_PLAYER_SQL, MAXIMUM_PLAYER_ALIASES, MAXIMUM_PLAYER_NAME_CHARS,
         MAXIMUM_PLAYER_TEAM_CHARS, PLAYER_ALIASES_SQL, PLAYER_DIRECTORY_CTE,
         PLAYER_MATCH_COUNT_SQL, PLAYER_MATCH_PAGE_SQL, PLAYER_PROJECTION_COVERAGE_SQL,
-        PlayerDirectoryQuery, PlayerDirectorySort, PlayerMatchQuery, PlayerSortDirection,
-        ProjectedPlayerMatch, player_order_sql,
+        PlayerDirectoryQuery, PlayerDirectorySort, PlayerMapQuery, PlayerMatchQuery,
+        PlayerSortDirection, ProjectedPlayerMap, ProjectedPlayerMatch, player_order_sql,
     };
     use crate::Storage;
 
@@ -913,6 +1033,77 @@ mod tests {
                 adr: Some(78.0),
                 kill_death_ratio: Some(9.0 / 14.0),
             }]
+        );
+    }
+
+    #[tokio::test]
+    async fn completed_analyses_publish_exact_per_map_player_aggregates() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        for (map_name, kills, deaths, assists, headshots, damage, adr, kd) in [
+            ("de_mirage", 9, 14, 6, 6, 1_638, 78.0, 9.0 / 14.0),
+            ("de_mirage", 18, 10, 4, 9, 2_100, 100.0, 1.8),
+            ("de_anubis", 12, 12, 5, 4, 1_700, 81.0, 1.0),
+        ] {
+            let record = demo(Uuid::new_v4());
+            storage.put_demo(record.clone()).await.expect("put demo");
+            let mut result = analysis(record.id);
+            result.map_name = map_name.to_owned();
+            let player = &mut result.players[0];
+            player.kills = kills;
+            player.deaths = deaths;
+            player.assists = assists;
+            player.headshots = headshots;
+            player.damage = damage;
+            player.adr = adr;
+            player.kill_death_ratio = kd;
+            complete(&storage, record.id, result)
+                .await
+                .expect("complete analysis");
+        }
+
+        let page = storage
+            .list_player_maps(PlayerMapQuery {
+                steam_id: PLAYER_ID.to_owned(),
+                page: 1,
+                page_size: 20,
+            })
+            .await
+            .expect("list map aggregates");
+
+        assert_eq!(page.total, 2);
+        assert_eq!(page.coverage.projected_demos, 3);
+        assert_eq!(page.coverage.total_analyses, 3);
+        assert!(page.coverage.projection_complete);
+        assert_eq!(
+            page.items,
+            vec![
+                ProjectedPlayerMap {
+                    map_name: Some("de_mirage".to_owned()),
+                    stats: super::PlayerAggregateStats {
+                        matches: 2,
+                        kills: 27,
+                        deaths: 24,
+                        assists: 10,
+                        headshots: 15,
+                        damage: 3_738,
+                        average_adr: Some(89.0),
+                        average_kill_death_ratio: Some(f64::midpoint(9.0 / 14.0, 1.8)),
+                    },
+                },
+                ProjectedPlayerMap {
+                    map_name: Some("de_anubis".to_owned()),
+                    stats: super::PlayerAggregateStats {
+                        matches: 1,
+                        kills: 12,
+                        deaths: 12,
+                        assists: 5,
+                        headshots: 4,
+                        damage: 1_700,
+                        average_adr: Some(81.0),
+                        average_kill_death_ratio: Some(1.0),
+                    },
+                },
+            ]
         );
     }
 

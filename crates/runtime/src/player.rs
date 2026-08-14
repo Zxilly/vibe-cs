@@ -6,9 +6,9 @@ use url::Url;
 use vibe_cs_application::{
     AvatarCacheCleanup, AvatarCacheStatus, PlayerAggregateStats, PlayerAvatar, PlayerComparison,
     PlayerComparisonQuery, PlayerDirectoryItem, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerDirectorySort, PlayerDirectorySortDirection, PlayerMatch, PlayerMatchPage,
-    PlayerMatchQuery, PlayerPort, PlayerProfile, PlayerProjectionCoverage, PlayerSteamProfile,
-    SteamProfileState,
+    PlayerDirectorySort, PlayerDirectorySortDirection, PlayerMapItem, PlayerMapPage,
+    PlayerMapQuery, PlayerMatch, PlayerMatchPage, PlayerMatchQuery, PlayerPort, PlayerProfile,
+    PlayerProjectionCoverage, PlayerSteamProfile, SteamProfileState,
 };
 use vibe_cs_domain::DomainError;
 use vibe_cs_integrations::{
@@ -17,9 +17,11 @@ use vibe_cs_integrations::{
 };
 use vibe_cs_storage::{
     PlayerDirectoryQuery as StoragePlayerDirectoryQuery,
-    PlayerDirectorySort as StoragePlayerDirectorySort, PlayerMatchQuery as StoragePlayerMatchQuery,
+    PlayerDirectorySort as StoragePlayerDirectorySort, PlayerMapQuery as StoragePlayerMapQuery,
+    PlayerMatchQuery as StoragePlayerMatchQuery,
     PlayerProjectionCoverage as StoragePlayerProjectionCoverage,
-    PlayerSortDirection as StoragePlayerSortDirection, ProjectedPlayer, ProjectedPlayerMatch,
+    PlayerSortDirection as StoragePlayerSortDirection, ProjectedPlayer, ProjectedPlayerMap,
+    ProjectedPlayerMatch,
 };
 
 use crate::avatar_cache::AvatarCache;
@@ -226,6 +228,36 @@ impl PlayerPort for RuntimePlayerPort {
         })
     }
 
+    async fn maps(
+        &self,
+        steam_id: String,
+        query: PlayerMapQuery,
+    ) -> Result<PlayerMapPage, DomainError> {
+        validate_steam_id(&steam_id)?;
+        let (page, page_size) = validate_map_query(&query)?;
+        let requested_steam_id = steam_id.clone();
+        let projected = self
+            .storage
+            .list_player_maps(StoragePlayerMapQuery {
+                steam_id,
+                page,
+                page_size,
+            })
+            .await
+            .map_err(|error| storage_error(&error))?;
+        if projected.total == 0 {
+            return Err(exact_player_absence(projected.coverage, "player"));
+        }
+        Ok(PlayerMapPage {
+            steam_id: requested_steam_id,
+            items: projected.items.into_iter().map(projected_map).collect(),
+            total: projected.total,
+            page: projected.page,
+            page_size: projected.page_size,
+            coverage: projection_coverage(projected.coverage),
+        })
+    }
+
     async fn compare(&self, query: PlayerComparisonQuery) -> Result<PlayerComparison, DomainError> {
         validate_steam_id(&query.left)?;
         validate_steam_id(&query.right)?;
@@ -317,6 +349,22 @@ fn projected_match(projected: ProjectedPlayerMatch) -> PlayerMatch {
         damage: projected.damage,
         adr: projected.adr,
         kill_death_ratio: projected.kill_death_ratio,
+    }
+}
+
+fn projected_map(projected: ProjectedPlayerMap) -> PlayerMapItem {
+    PlayerMapItem {
+        map_name: projected.map_name,
+        stats: PlayerAggregateStats {
+            matches: projected.stats.matches,
+            kills: projected.stats.kills,
+            deaths: projected.stats.deaths,
+            assists: projected.stats.assists,
+            headshots: projected.stats.headshots,
+            damage: projected.stats.damage,
+            average_adr: projected.stats.average_adr,
+            average_kill_death_ratio: projected.stats.average_kill_death_ratio,
+        },
     }
 }
 
@@ -435,6 +483,11 @@ fn validate_query(
 }
 
 fn validate_match_query(query: &PlayerMatchQuery) -> Result<(u32, u32), DomainError> {
+    query.validate()?;
+    Ok((query.page, query.page_size))
+}
+
+fn validate_map_query(query: &PlayerMapQuery) -> Result<(u32, u32), DomainError> {
     query.validate()?;
     Ok((query.page, query.page_size))
 }

@@ -10,7 +10,7 @@ import {
 describe('player directory URL query', () => {
   it('round-trips directory paging, sorting, one exact profile, and its match page', () => {
     const parsed = playerDirectoryQueryFromParams(new URLSearchParams(
-      'q=FalleN&page=3&sort=adr&direction=asc&player=76561197960690195&matches_page=2',
+      'q=FalleN&page=3&sort=adr&direction=asc&player=76561197960690195&matches_page=2&maps_page=3',
     ));
 
     expect(parsed).toEqual({
@@ -20,6 +20,7 @@ describe('player directory URL query', () => {
       comparedIds: ['76561197960690195'],
       playerId: '76561197960690195',
       matchesPage: 2,
+      mapsPage: 3,
       inspectorOpen: false,
     });
     expect(playerDirectoryQueryFromParams(playerDirectoryQueryToParams(parsed))).toEqual(parsed);
@@ -58,6 +59,7 @@ describe('player directory URL query', () => {
     'player=00000000000000000',
     'page=10001',
     'matches_page=2',
+    'maps_page=2',
     'inspector=1',
     'player=76561197960690195&inspector=0',
     'player=76561197960690195&inspector=true',
@@ -75,6 +77,7 @@ describe('player directory URL query', () => {
       comparedIds: ['76561197960690195'],
       playerId: '76561197960690195',
       matchesPage: 3,
+      mapsPage: 2,
       inspectorOpen: true,
     };
 
@@ -84,6 +87,7 @@ describe('player directory URL query', () => {
       comparedIds: ['76561197960690195'],
       playerId: '76561197960690195',
       matchesPage: 3,
+      mapsPage: 2,
       inspectorOpen: true,
     });
     expect(patchPlayerDirectoryQuery(selected, { playerId: null, comparedIds: [] })).toMatchObject({
@@ -91,6 +95,7 @@ describe('player directory URL query', () => {
       comparedIds: [],
       playerId: null,
       matchesPage: 1,
+      mapsPage: 1,
       inspectorOpen: false,
     });
   });

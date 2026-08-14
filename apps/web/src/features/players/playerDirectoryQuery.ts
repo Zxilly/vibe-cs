@@ -9,6 +9,7 @@ const PLAYER_DIRECTORY_PARAMETERS = new Set([
   'compare',
   'player',
   'matches_page',
+  'maps_page',
   'inspector',
 ]);
 const PLAYER_SORT_KEYS = new Set<PlayerDirectorySort['key']>([
@@ -35,6 +36,7 @@ export type PlayerDirectoryQuery = {
   comparedIds: string[];
   playerId: string | null;
   matchesPage: number;
+  mapsPage: number;
   inspectorOpen: boolean;
 };
 
@@ -45,6 +47,7 @@ export const DEFAULT_PLAYER_DIRECTORY_QUERY: PlayerDirectoryQuery = {
   comparedIds: [],
   playerId: null,
   matchesPage: 1,
+  mapsPage: 1,
   inspectorOpen: false,
 };
 
@@ -68,9 +71,11 @@ function assertSelection(
   comparedIds: readonly string[],
   playerId: string | null,
   matchesPage: number,
+  mapsPage: number,
   inspectorOpen: boolean,
 ): void {
   assertPage(matchesPage, 'matches_page');
+  assertPage(mapsPage, 'maps_page');
   if (
     comparedIds.length > 2
     || comparedIds.some((id) => !isCanonicalSteamId(id))
@@ -83,6 +88,7 @@ function assertSelection(
     || (comparedIds.length === 2 && playerId !== null)
   ) invalid('player');
   if (playerId === null && matchesPage !== 1) invalid('matches_page');
+  if (playerId === null && mapsPage !== 1) invalid('maps_page');
   if (inspectorOpen && comparedIds.length === 0) invalid('inspector');
 }
 
@@ -107,10 +113,11 @@ export function playerDirectoryQueryFromParams(params: URLSearchParams): PlayerD
     : rawCompare === null ? [rawPlayer] : [rawPlayer, rawCompare];
   const playerId = rawCompare === null ? rawPlayer : null;
   const matchesPage = positivePage(params.get('matches_page'), 'matches_page');
+  const mapsPage = positivePage(params.get('maps_page'), 'maps_page');
   const rawInspector = params.get('inspector');
   if (rawInspector !== null && rawInspector !== '1') invalid('inspector');
   const inspectorOpen = rawInspector === '1';
-  assertSelection(comparedIds, playerId, matchesPage, inspectorOpen);
+  assertSelection(comparedIds, playerId, matchesPage, mapsPage, inspectorOpen);
   return {
     search,
     page: positivePage(params.get('page'), 'page'),
@@ -122,6 +129,7 @@ export function playerDirectoryQueryFromParams(params: URLSearchParams): PlayerD
     comparedIds,
     playerId,
     matchesPage,
+    mapsPage,
     inspectorOpen,
   };
 }
@@ -131,6 +139,7 @@ export function playerDirectoryQueryToParams(query: PlayerDirectoryQuery): URLSe
     query.comparedIds,
     query.playerId,
     query.matchesPage,
+    query.mapsPage,
     query.inspectorOpen,
   );
   if (Array.from(query.search).length > maximumSearchCharacters) invalid('q');
@@ -147,6 +156,7 @@ export function playerDirectoryQueryToParams(query: PlayerDirectoryQuery): URLSe
   if (query.comparedIds[0]) params.set('player', query.comparedIds[0]);
   if (query.comparedIds[1]) params.set('compare', query.comparedIds[1]);
   if (query.matchesPage !== 1) params.set('matches_page', String(query.matchesPage));
+  if (query.mapsPage !== 1) params.set('maps_page', String(query.mapsPage));
   if (query.inspectorOpen) params.set('inspector', '1');
   return params;
 }
@@ -170,10 +180,11 @@ export function patchPlayerDirectoryQuery(
     comparedIds: nextSelection,
     page: changesDirectoryResult ? 1 : (patch.page ?? current.page),
     matchesPage: patch.playerId === null ? 1 : (patch.matchesPage ?? current.matchesPage),
+    mapsPage: patch.playerId === null ? 1 : (patch.mapsPage ?? current.mapsPage),
     inspectorOpen: nextSelection.length === 0
       ? false
       : (patch.inspectorOpen ?? current.inspectorOpen),
   };
-  assertSelection(next.comparedIds, next.playerId, next.matchesPage, next.inspectorOpen);
+  assertSelection(next.comparedIds, next.playerId, next.matchesPage, next.mapsPage, next.inspectorOpen);
   return next;
 }

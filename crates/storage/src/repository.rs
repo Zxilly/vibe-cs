@@ -18,8 +18,9 @@ pub use lineups::{
 };
 pub use players::{
     PlayerAggregateStats, PlayerComparisonProjection, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerDirectorySort, PlayerMatchPage, PlayerMatchQuery, PlayerProfile,
-    PlayerProjectionCoverage, PlayerSortDirection, ProjectedPlayer, ProjectedPlayerMatch,
+    PlayerDirectorySort, PlayerMapPage, PlayerMapQuery, PlayerMatchPage, PlayerMatchQuery,
+    PlayerProfile, PlayerProjectionCoverage, PlayerSortDirection, ProjectedPlayer,
+    ProjectedPlayerMap, ProjectedPlayerMatch,
 };
 
 use std::{

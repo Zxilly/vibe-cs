@@ -10,7 +10,7 @@ use axum::{
 use crate::{
     ApiError, ApiQuery, ApiResult, AppState, AvatarCacheCleanup, AvatarCacheStatus, PlayerAvatar,
     PlayerComparison, PlayerComparisonQuery, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerMatchPage, PlayerMatchQuery, PlayerProfile,
+    PlayerMapPage, PlayerMapQuery, PlayerMatchPage, PlayerMatchQuery, PlayerProfile,
 };
 
 const AVATAR_CACHE_HEADER: HeaderName = HeaderName::from_static("x-vibe-cs-avatar-cache");
@@ -19,6 +19,7 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/players", get(list_players))
         .route("/api/players/compare", get(compare_players))
+        .route("/api/players/{steam_id}/maps", get(list_player_maps))
         .route("/api/players/{steam_id}/matches", get(list_player_matches))
         .route("/api/players/{steam_id}", get(get_player))
         .route(
@@ -76,6 +77,20 @@ async fn list_player_matches(
     state
         .players
         .matches(steam_id, query)
+        .await
+        .map(Json)
+        .map_err(Into::into)
+}
+
+async fn list_player_maps(
+    State(state): State<AppState>,
+    Path(steam_id): Path<String>,
+    ApiQuery(query): ApiQuery<PlayerMapQuery>,
+) -> ApiResult<Json<PlayerMapPage>> {
+    query.validate()?;
+    state
+        .players
+        .maps(steam_id, query)
         .await
         .map(Json)
         .map_err(Into::into)
@@ -240,6 +255,21 @@ mod tests {
             query: PlayerMatchQuery,
         ) -> Result<PlayerMatchPage, DomainError> {
             Ok(PlayerMatchPage {
+                steam_id,
+                items: Vec::new(),
+                total: 0,
+                page: query.page,
+                page_size: query.page_size,
+                coverage: coverage(12),
+            })
+        }
+
+        async fn maps(
+            &self,
+            steam_id: String,
+            query: PlayerMapQuery,
+        ) -> Result<PlayerMapPage, DomainError> {
+            Ok(PlayerMapPage {
                 steam_id,
                 items: Vec::new(),
                 total: 0,
@@ -418,6 +448,37 @@ mod tests {
         assert_eq!(page["page"], 2);
         assert_eq!(page["page_size"], 20);
         assert_eq!(page["steam_id"], "76561198000000001");
+        assert_eq!(page["coverage"]["projected_demos"], 12);
+        assert_eq!(page["coverage"]["total_analyses"], 12);
+        assert_eq!(page["coverage"]["projection_complete"], true);
+        assert_eq!(page["items"], serde_json::json!([]));
+    }
+
+    #[tokio::test]
+    async fn player_maps_route_returns_the_exact_requested_page() {
+        let players = Arc::new(FixturePlayers::new());
+        let (_directory, state) = test_state(players).await;
+        let response = router()
+            .with_state(state)
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/api/players/{PLAYER_ID}/maps?page=2&page_size=20"))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+
+        assert_eq!(response.status(), StatusCode::OK);
+        let page: serde_json::Value = serde_json::from_slice(
+            &to_bytes(response.into_body(), 64 * 1024)
+                .await
+                .expect("player maps body"),
+        )
+        .expect("player maps page");
+        assert_eq!(page["page"], 2);
+        assert_eq!(page["page_size"], 20);
+        assert_eq!(page["steam_id"], PLAYER_ID);
         assert_eq!(page["coverage"]["projected_demos"], 12);
         assert_eq!(page["coverage"]["total_analyses"], 12);
         assert_eq!(page["coverage"]["projection_complete"], true);

@@ -1,6 +1,7 @@
 import { currentLocale, msg, msgf, useI18n } from '../../shared/i18n';
 import {
   CalendarDays,
+  ChartNoAxesColumnIncreasing,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -19,6 +20,7 @@ import { formatKillDeathRatioValue } from '../../shared/performanceMetrics';
 import type {
   PlayerAggregateStats,
   PlayerDirectoryItem,
+  PlayerMapPage,
   PlayerMatchPage,
   PlayerProfile,
   PlayerSteamProfile,
@@ -210,6 +212,12 @@ export function PlayerCrossMatchEvidence({
 export function PlayerDetailView({
   profile,
   matches,
+  maps = null,
+  mapsLoading = false,
+  mapsError = null,
+  onRetryMaps = () => undefined,
+  onPreviousMaps = () => undefined,
+  onNextMaps = () => undefined,
   matchesLoading = false,
   matchesError = null,
   onRetryMatches = () => undefined,
@@ -221,6 +229,12 @@ export function PlayerDetailView({
 }: {
   profile: PlayerProfile;
   matches: PlayerMatchPage | null;
+  maps?: PlayerMapPage | null;
+  mapsLoading?: boolean;
+  mapsError?: string | null;
+  onRetryMaps?: () => void;
+  onPreviousMaps?: () => void;
+  onNextMaps?: () => void;
   matchesLoading?: boolean;
   matchesError?: string | null;
   onRetryMatches?: () => void;
@@ -271,6 +285,66 @@ export function PlayerDetailView({
 
       <PlayerStatsView stats={player.stats} />
       <SteamEvidenceView profile={player.steam} />
+
+      <section className="player-map-performance" aria-label={t('players.maps.title')}>
+          <header>
+            <div><ChartNoAxesColumnIncreasing size={16} /><strong>{t('players.maps.title')}</strong></div>
+            <span>{t('players.maps.scope')}</span>
+          </header>
+          {mapsLoading && !maps ? (
+            <div className="players-loading"><Spinner label={t('players.maps.loading')} /></div>
+          ) : mapsError ? (
+            <Notice tone="danger" title={t('players.maps.error')}>
+              <span>{mapsError}</span>
+              <Button size="sm" variant="ghost" onClick={onRetryMaps}>
+                <RefreshCw size={13} />{t('common.retry')}
+              </Button>
+            </Notice>
+          ) : maps && maps.items.length > 0 ? (
+          <div role="list" aria-label={t('players.maps.title')}>
+            {maps.items.map((map) => (
+              <article key={map.map_name ?? '__unknown__'} role="listitem">
+                <div className="player-map-performance__identity">
+                  <strong>{map.map_name ?? t('players.maps.unknown')}</strong>
+                  <span>{t('players.maps.matches').replace('{count}', String(map.stats.matches))}</span>
+                </div>
+                <div
+                  className="player-map-performance__bar"
+                  aria-label={t('players.maps.barLabel')
+                    .replace('{map}', map.map_name ?? t('players.maps.unknown'))
+                    .replace('{count}', String(map.stats.matches))}
+                >
+                  <span style={{ width: `${Math.max(4, (map.stats.matches / Math.max(1, maps.items[0]?.stats.matches ?? 1)) * 100)}%` }} />
+                </div>
+                <dl>
+                  <div><dt>K / D / A</dt><dd>{map.stats.kills} / {map.stats.deaths} / {map.stats.assists}</dd></div>
+                  <div><dt>ADR</dt><dd>{formatOptionalMetric(map.stats.average_adr)}</dd></div>
+                  <div><dt>K/D</dt><dd>{formatKillDeathRatioValue(map.stats.average_kill_death_ratio, 2)}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
+          ) : (
+            <EmptyState
+              icon={<ChartNoAxesColumnIncreasing size={24} />}
+              title={t('players.maps.empty')}
+              description={t('players.maps.emptyDescription')}
+            />
+          )}
+          {maps && maps.total > 0 ? (
+            <footer>
+              <Button size="sm" disabled={maps.page <= 1} onClick={onPreviousMaps}>
+                <ChevronLeft size={13} />{t('common.previous')}
+              </Button>
+              <span>{maps.page} / {Math.max(1, Math.ceil(maps.total / maps.page_size))}</span>
+              <Button
+                size="sm"
+                disabled={maps.page >= Math.ceil(maps.total / maps.page_size)}
+                onClick={onNextMaps}
+              >{t('common.next')}<ChevronRight size={13} /></Button>
+            </footer>
+          ) : null}
+        </section>
 
       {evidenceLoading ? (
         <div className="player-cross-match-evidence__loading">{t('players.evidence.loading')}</div>

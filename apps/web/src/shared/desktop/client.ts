@@ -8,6 +8,7 @@ import { parseLineupDirectoryPage, parseLineupMapPage } from './lineupContract';
 import {
   parsePlayerComparison,
   parsePlayerDirectoryPage,
+  parsePlayerMapPage,
   parsePlayerMatchPage,
   parsePlayerProfile,
 } from './playerContract';
@@ -110,6 +111,7 @@ import type {
   PlayerComparison,
   PlayerDirectoryPage,
   PlayerMatchPage,
+  PlayerMapPage,
   PlayerProfile,
   QuickCheckResponse,
   RadarOverviewRecord,
@@ -637,6 +639,20 @@ export const commands = {
     ));
     if (page.steam_id !== steamId) {
       throw new Error('Player match response does not match the requested exact player.');
+    }
+    return page;
+  },
+  listPlayerMaps: async (
+    steamId: string,
+    query: { page: number; page_size: number },
+    signal?: AbortSignal,
+  ) => {
+    const page = parsePlayerMapPage(await request<PlayerMapPage>(
+      `/players/${encodeURIComponent(steamId)}/maps${queryString(query)}`,
+      { signal },
+    ));
+    if (page.steam_id !== steamId) {
+      throw new Error('Player map response does not match the requested exact player.');
     }
     return page;
   },

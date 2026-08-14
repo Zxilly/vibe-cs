@@ -34,4 +34,10 @@ describe('players power-table responsive contract', () => {
     expect(css).toMatch(/\.player-cross-match-evidence nav a:focus-visible,[\s\S]*?background:\s*var\(--accent-soft\)/s);
     expect(css).toMatch(/@media\s*\(max-width:\s*780px\)[\s\S]*?\.player-cross-match-evidence article\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
   });
+
+  it('keeps truthful map aggregates dense and readable in both inspector widths', () => {
+    expect(css).toMatch(/\.player-map-performance article\s*\{[^}]*grid-template-columns:\s*minmax\(105px,\.65fr\)\s+minmax\(70px,1fr\)\s+minmax\(180px,1fr\)[^}]*content-visibility:\s*auto/s);
+    expect(css).toMatch(/\.player-map-performance__bar\s*\{[^}]*overflow:\s*hidden[^}]*background:\s*var\(--surface-3\)/s);
+    expect(css).toMatch(/@media\s*\(max-width:\s*650px\)[\s\S]*?\.player-map-performance article\s*\{[^}]*grid-template-columns:\s*minmax\(92px,\.65fr\)\s+minmax\(60px,1fr\)/s);
+  });
 });

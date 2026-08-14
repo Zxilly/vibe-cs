@@ -1,8 +1,11 @@
 import type {
+  PlayerAggregateStats,
   PlayerComparison,
   PlayerDirectoryItem,
   PlayerDirectoryPage,
   PlayerMatch,
+  PlayerMapItem,
+  PlayerMapPage,
   PlayerMatchPage,
   PlayerProfile,
   PlayerProjectionCoverage,
@@ -11,6 +14,8 @@ import type {
 
 const pageKeys = ['items', 'total', 'page', 'page_size', 'coverage'] as const;
 const matchPageKeys = ['steam_id', ...pageKeys] as const;
+const mapPageKeys = ['steam_id', ...pageKeys] as const;
+const mapItemKeys = ['map_name', 'stats'] as const;
 const matchKeys = [
   'demo_id', 'demo_name', 'map_name', 'match_date', 'cataloged_at', 'team',
   'kills', 'deaths', 'assists', 'headshots', 'damage', 'adr', 'kill_death_ratio',
@@ -144,6 +149,32 @@ function parseMatch(value: unknown): PlayerMatch {
     || !nullableNonnegativeFiniteNumber(value.kill_death_ratio)
   ) return invalid();
   return value as PlayerMatch;
+}
+
+function parseAggregateStats(value: unknown): PlayerAggregateStats {
+  if (
+    !recordWithExactKeys(value, statsKeys)
+    || !nonnegativeInteger(value.matches)
+    || !nonnegativeInteger(value.kills)
+    || !nonnegativeInteger(value.deaths)
+    || !nonnegativeInteger(value.assists)
+    || !nonnegativeInteger(value.headshots)
+    || !nonnegativeInteger(value.damage)
+    || !nullableNonnegativeFiniteNumber(value.average_adr)
+    || !nullableNonnegativeFiniteNumber(value.average_kill_death_ratio)
+  ) return invalid();
+  return value as PlayerAggregateStats;
+}
+
+function parseMapItem(value: unknown): PlayerMapItem {
+  if (
+    !recordWithExactKeys(value, mapItemKeys)
+    || !(value.map_name === null || boundedText(value.map_name, 128))
+  ) return invalid();
+  return {
+    map_name: value.map_name,
+    stats: parseAggregateStats(value.stats),
+  };
 }
 
 function parseSteam(value: unknown): PlayerSteamProfile {
@@ -286,6 +317,35 @@ export function parsePlayerMatchPage(value: unknown): PlayerMatchPage {
     items.length > Number(value.page_size)
     || items.length > Number(value.total)
     || new Set(items.map((item) => item.demo_id)).size !== items.length
+  ) return invalid();
+  return {
+    steam_id: value.steam_id,
+    items,
+    total: Number(value.total),
+    page: Number(value.page),
+    page_size: Number(value.page_size),
+    coverage: parseCoverage(value.coverage),
+  };
+}
+
+export function parsePlayerMapPage(value: unknown): PlayerMapPage {
+  if (
+    !recordWithExactKeys(value, mapPageKeys)
+    || !isCanonicalSteamId(value.steam_id)
+    || !Array.isArray(value.items)
+    || !nonnegativeInteger(value.total)
+    || !nonnegativeInteger(value.page)
+    || Number(value.page) < 1
+    || Number(value.page) > maximumPage
+    || !nonnegativeInteger(value.page_size)
+    || Number(value.page_size) < 1
+    || Number(value.page_size) > 100
+  ) return invalid();
+  const items = value.items.map(parseMapItem);
+  if (
+    items.length > Number(value.page_size)
+    || items.length > Number(value.total)
+    || new Set(items.map((item) => item.map_name)).size !== items.length
   ) return invalid();
   return {
     steam_id: value.steam_id,

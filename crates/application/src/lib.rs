@@ -1,5 +1,6 @@
 //! In-process application command dispatcher used by the Tauri desktop host.
 
+mod analysis_tasks;
 mod error;
 mod extract;
 mod player;
@@ -14,16 +15,16 @@ use axum::Router;
 pub use error::{ApiError, ApiResult};
 pub use player::*;
 pub use ports::{
-    AnalysisPort, AnalysisProgressReporter, CosmeticCatalogDto, CosmeticCatalogItemDto,
-    CosmeticImageOutput, CosmeticPaintKitDto, CosmeticRewriteOutput, CosmeticsPort, DemoWatchPort,
-    DemoWatchRootStatus, DemoWatchStatus, DisabledAnalysisPort, DisabledCosmeticsPort,
-    DisabledDemoWatchPort, DisabledExportPort, DisabledIntegrationPort, DisabledMediaPort,
-    DisabledProposalExecutionPort, DisabledRecordingPort, DisabledReviewPort,
-    DisabledSourceAssetPort, ExportPort, IntegrationPort, LlmReviewRequest, LlmReviewResult,
-    MediaPort, MediaProxyRequest, ProbedMediaMetadata, ProposalExecutionPort, RadarImageData,
-    RadarOverviewData, RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata,
-    ReplayCacheState, ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone,
-    SourceAssetPort,
+    AnalysisCancellation, AnalysisCancellationSource, AnalysisPort, AnalysisProgressReporter,
+    CosmeticCatalogDto, CosmeticCatalogItemDto, CosmeticImageOutput, CosmeticPaintKitDto,
+    CosmeticRewriteOutput, CosmeticsPort, DemoWatchPort, DemoWatchRootStatus, DemoWatchStatus,
+    DisabledAnalysisPort, DisabledCosmeticsPort, DisabledDemoWatchPort, DisabledExportPort,
+    DisabledIntegrationPort, DisabledMediaPort, DisabledProposalExecutionPort,
+    DisabledRecordingPort, DisabledReviewPort, DisabledSourceAssetPort, ExportPort,
+    IntegrationPort, LlmReviewRequest, LlmReviewResult, MediaPort, MediaProxyRequest,
+    ProbedMediaMetadata, ProposalExecutionPort, RadarImageData, RadarOverviewData,
+    RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata, ReplayCacheState,
+    ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone, SourceAssetPort,
 };
 pub use state::{AppState, ChangedEvent, EventHub};
 pub use vibe_cs_domain::{

@@ -16,6 +16,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { commands, DesktopError, readableError } from '../../shared/desktop/client';
 import type {
   ActivityAction,
+  ActivityFeed,
   ActivityItem,
   ActivityKind,
   ActivityStatus,
@@ -26,6 +27,7 @@ import { Badge, Button, Card, EmptyState, Notice, PageHeader, Spinner } from '..
 import {
   activityActionHref,
   activityProgressLabel,
+  activityStateFilterOptions,
   activityUnitLabel,
   type ActivityStateFilter,
 } from './activityPresentation';
@@ -142,6 +144,14 @@ export async function executeActivityAction(
   action: ActivityAction,
 ): Promise<ActivityActionOutcome> {
   if (action === 'cancel' && item.job_id) {
+    if (item.kind === 'analysis') {
+      const detail = await commands.cancelAnalysisRun(item.job_id);
+      return {
+        status: detail.run.status === 'interrupted' ? 'failed' : detail.run.status,
+        activityId: `analysis:${detail.run.id}`,
+        stage: detail.run.stage,
+      };
+    }
     if (item.kind === 'recording') {
       const job = await commands.cancelRecordingJob(item.job_id);
       return { status: job.status, activityId: `recording:${job.id}`, stage: job.message || null };
@@ -173,7 +183,7 @@ export async function executeActivityAction(
       stage: null,
     };
   }
-  return { status: null, activityId: null, stage: null };
+  throw new Error(`Activity action ${action} cannot be executed for this exact activity.`);
 }
 
 export function activityActionNotice(status: ActivityStatus | null): {
@@ -416,6 +426,19 @@ export function ActivityPagination({
   );
 }
 
+export function ActivitySummary({ summary }: { summary: ActivityFeed['summary'] }) {
+  const { t } = useI18n();
+  return (
+    <div className="activity-summary" aria-label={t('activity.title')}>
+      <span data-summary-state="total"><strong>{summary.total}</strong>{t('activity.total')}</span>
+      <span data-summary-state="active"><strong>{summary.active}</strong>{t('activity.active')}</span>
+      <span data-summary-state="failed"><strong>{summary.failed}</strong>{t('activity.failed')}</span>
+      <span data-summary-state="completed"><strong>{summary.completed}</strong>{t('activity.completed')}</span>
+      <span data-summary-state="cancelled"><strong>{summary.cancelled}</strong>{t('activity.status.cancelled')}</span>
+    </div>
+  );
+}
+
 export function ActivityPage() {
   const { t } = useI18n();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -427,7 +450,9 @@ export function ActivityPage() {
   const invalidSelection = activityParameter !== null && selectedLocator === null;
   const [items, setItems] = useState<ActivityItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [summary, setSummary] = useState({ total: 0, active: 0, failed: 0, completed: 0 });
+  const [summary, setSummary] = useState<ActivityFeed['summary']>({
+    total: 0, active: 0, failed: 0, completed: 0, cancelled: 0,
+  });
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -665,12 +690,7 @@ export function ActivityPage() {
       {error ? <Notice tone="danger">{error}</Notice> : null}
       {notice ? <Notice tone={notice.tone}>{notice.message}</Notice> : null}
 
-      <div className="activity-summary" aria-label={t('activity.title')}>
-        <span><strong>{summary.total}</strong>{t('activity.total')}</span>
-        <span><strong>{summary.active}</strong>{t('activity.active')}</span>
-        <span><strong>{summary.failed}</strong>{t('activity.failed')}</span>
-        <span><strong>{summary.completed}</strong>{t('activity.completed')}</span>
-      </div>
+      <ActivitySummary summary={summary} />
 
       <Card className="activity-toolbar">
         <label className="activity-search">
@@ -703,9 +723,9 @@ export function ActivityPage() {
             setPage(1);
           }}>
             <option value="">{t('activity.all')}</option>
-            <option value="active">{t('activity.active')}</option>
-            <option value="failed">{t('activity.failed')}</option>
-            <option value="completed">{t('activity.completed')}</option>
+            {activityStateFilterOptions.map((option) => (
+              <option key={option.value} value={option.value}>{t(option.key)}</option>
+            ))}
           </select>
         </label>
       </Card>

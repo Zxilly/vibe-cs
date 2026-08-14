@@ -6,7 +6,7 @@ import type {
   AnalysisWorkspace,
   DemoSummary,
 } from '../../shared/desktop/dto';
-import { AnalysisRunError, loadDemoAnalysis } from './analysisLoader';
+import { AnalysisLifecycleError, AnalysisRunError, loadDemoAnalysis } from './analysisLoader';
 
 const demo = (lifecycle_status: DemoSummary['lifecycle_status']): DemoSummary => ({
   id: 'demo-1', path: 'D:\\Demos\\major.dem', filename: 'major.dem', display_name: 'Major final',
@@ -94,6 +94,23 @@ describe('durable analysis lifecycle loader', () => {
     expect(observed).toEqual(['run-1:validating_input', 'run-1:parser_running', 'run-1:completed']);
   });
 
+  it('does not infer Demo analyzing after a start response races an authoritative lifecycle change', async () => {
+    let observedLifecycle: DemoSummary['lifecycle_status'] | null = null;
+    const api = client({
+      getDemo: vi.fn().mockResolvedValue(demo('discovered')),
+      startAnalysisRun: vi.fn().mockImplementation(async () => {
+        observedLifecycle = 'missing';
+        return run('queued');
+      }),
+      getAnalysisRun: vi.fn().mockResolvedValue(detail('cancelled', false)),
+    });
+
+    await expect(loadDemoAnalysis('demo-1', api, undefined, {
+      onLifecycle: (status) => { observedLifecycle = status; },
+    })).rejects.toMatchObject({ status: 'cancelled' });
+    expect(observedLifecycle).toBe('missing');
+  });
+
   it('does not emit the accepted run twice when the first exact read is unchanged', async () => {
     const api = client({
       getDemo: vi.fn().mockResolvedValue(demo('discovered')),
@@ -147,6 +164,21 @@ describe('durable analysis lifecycle loader', () => {
     expect(api.startAnalysisRun).not.toHaveBeenCalled();
   });
 
+  it('reports an analyzing-to-discovered active-run race as authoritative changed lifecycle', async () => {
+    const api = client({
+      getDemo: vi.fn()
+        .mockResolvedValueOnce(demo('analyzing'))
+        .mockResolvedValueOnce(demo('discovered')),
+      getActiveAnalysisRun: vi.fn().mockRejectedValue({ status: 404, code: 'not_found' }),
+    });
+
+    await expect(loadDemoAnalysis('demo-1', api)).rejects.toMatchObject({
+      lifecycle: 'discovered',
+      message: 'The active analysis run changed while this view was loading. Refresh Activity to inspect persisted state.',
+    } satisfies Partial<AnalysisLifecycleError>);
+    expect(api.startAnalysisRun).not.toHaveBeenCalled();
+  });
+
   it('keeps polling indexing until it can start a durable run', async () => {
     const api = client({
       getDemo: vi.fn()
@@ -166,6 +198,21 @@ describe('durable analysis lifecycle loader', () => {
     await expect(loadDemoAnalysis('demo-1', api, undefined, { runId: 'run-1' }))
       .rejects.toMatchObject({ runId: 'run-1', status, message: 'parser stopped' } satisfies Partial<AnalysisRunError>);
     expect(api.getAnalysis).not.toHaveBeenCalled();
+    expect(api.getAnalysisRunResult).not.toHaveBeenCalled();
+  });
+
+  it('surfaces persisted cancellation as its own terminal outcome without polling or reading a result', async () => {
+    const cancelled = detail('cancelled', false);
+    cancelled.events[0]!.detail = 'analysis_cancelled_by_user';
+    const api = client({ getAnalysisRun: vi.fn().mockResolvedValue(cancelled) });
+    const wait = vi.fn().mockResolvedValue(undefined);
+
+    await expect(loadDemoAnalysis('demo-1', api, undefined, { runId: 'run-1', wait }))
+      .rejects.toMatchObject({
+        runId: 'run-1', status: 'cancelled', message: 'Analysis run was cancelled.',
+      } satisfies Partial<AnalysisRunError>);
+    expect(wait).not.toHaveBeenCalled();
+    expect(api.getAnalysisRun).toHaveBeenCalledOnce();
     expect(api.getAnalysisRunResult).not.toHaveBeenCalled();
   });
 

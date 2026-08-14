@@ -33,7 +33,7 @@ export class AnalysisLifecycleError extends Error {
 
 export class AnalysisRunError extends Error {
   readonly runId: string;
-  readonly status: 'failed' | 'interrupted' | 'completed';
+  readonly status: 'failed' | 'interrupted' | 'cancelled' | 'completed';
 
   constructor(run: AnalysisRun, message: string) {
     super(message);
@@ -83,7 +83,9 @@ async function observeRun(
   let detail = initial;
   let lastObserved = observed;
   for (;;) {
+    signal?.throwIfAborted();
     detail ??= await client.getAnalysisRun(runId, signal);
+    signal?.throwIfAborted();
     if (detail.run.id !== runId || detail.run.demo_id !== demoId) {
       throw new Error('Analysis run identity does not match the requested Demo.');
     }
@@ -101,7 +103,9 @@ async function observeRun(
       if (!detail.result_available) {
         throw new AnalysisRunError(detail.run, 'Analysis run completed without a committed result.');
       }
+      signal?.throwIfAborted();
       const workspace = await client.getAnalysisRunResult(runId, signal);
+      signal?.throwIfAborted();
       if (workspace.demo_id !== demoId) {
         throw new Error('Analysis run result identity does not match the requested Demo.');
       }
@@ -113,8 +117,14 @@ async function observeRun(
         detail.run.error ?? `Analysis run ${detail.run.status}. Review its persisted events in Activity.`,
       );
     }
+    if (detail.run.status === 'cancelled') {
+      throw new AnalysisRunError(detail.run, 'Analysis run was cancelled.');
+    }
+    signal?.throwIfAborted();
     await (options.wait ?? waitForPoll)(signal);
+    signal?.throwIfAborted();
     detail = await client.getAnalysisRun(runId, signal);
+    signal?.throwIfAborted();
   }
 }
 
@@ -124,28 +134,43 @@ export async function loadDemoAnalysis(
   signal?: AbortSignal,
   options: AnalysisLoaderOptions = {},
 ): Promise<AnalysisWorkspace> {
+  signal?.throwIfAborted();
   if (options.runId) {
     return observeRun(demoId, options.runId, client, signal, options);
   }
 
   let demo = await client.getDemo(demoId, signal);
+  signal?.throwIfAborted();
   options.onLifecycle?.(demo.lifecycle_status);
   while (demo.lifecycle_status === 'indexing') {
+    signal?.throwIfAborted();
     await (options.wait ?? waitForPoll)(signal);
+    signal?.throwIfAborted();
     demo = await client.getDemo(demoId, signal);
+    signal?.throwIfAborted();
     options.onLifecycle?.(demo.lifecycle_status);
   }
 
-  if (demo.lifecycle_status === 'ready') return client.getAnalysis(demoId, signal);
+  if (demo.lifecycle_status === 'ready') {
+    signal?.throwIfAborted();
+    return client.getAnalysis(demoId, signal);
+  }
   if (demo.lifecycle_status === 'analyzing') {
     try {
+      signal?.throwIfAborted();
       const active = await client.getActiveAnalysisRun(demoId, signal);
+      signal?.throwIfAborted();
       return observeRun(demoId, active.run.id, client, signal, options, active);
     } catch (error) {
       if (!isNotFound(error)) throw error;
+      signal?.throwIfAborted();
       const settled = await client.getDemo(demoId, signal);
+      signal?.throwIfAborted();
       options.onLifecycle?.(settled.lifecycle_status);
-      if (settled.lifecycle_status === 'ready') return client.getAnalysis(demoId, signal);
+      if (settled.lifecycle_status === 'ready') {
+        signal?.throwIfAborted();
+        return client.getAnalysis(demoId, signal);
+      }
       if (settled.lifecycle_status === 'missing') {
         throw new AnalysisLifecycleError(
           'missing',
@@ -161,8 +186,9 @@ export async function loadDemoAnalysis(
     }
   }
   if (demo.lifecycle_status === 'discovered' || demo.lifecycle_status === 'failed') {
+    signal?.throwIfAborted();
     const run = await client.startAnalysisRun(demoId, signal);
-    options.onLifecycle?.('analyzing');
+    signal?.throwIfAborted();
     options.onRun?.(run);
     return observeRun(demoId, run.id, client, signal, options, undefined, run);
   }

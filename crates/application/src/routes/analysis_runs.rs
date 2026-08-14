@@ -9,9 +9,15 @@ use axum::{
     routing::{get, post},
 };
 use uuid::Uuid;
-use vibe_cs_domain::{AnalysisRun, AnalysisRunDetail, DomainError};
+use vibe_cs_domain::{
+    AnalysisInputFingerprint, AnalysisRun, AnalysisRunDetail, AnalysisRunStatus, DomainError,
+    MatchAnalysis,
+};
 
-use crate::{AnalysisProgressReporter, ApiError, ApiResult, AppState};
+use crate::{
+    AnalysisCancellation, AnalysisProgressReporter, ApiError, ApiResult, AppState,
+    analysis_tasks::{AnalysisTaskError, AnalysisTaskOwner},
+};
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
@@ -21,6 +27,7 @@ pub(crate) fn router() -> Router<AppState> {
             get(get_active_analysis_run),
         )
         .route("/api/analysis-runs/{id}", get(get_analysis_run))
+        .route("/api/analysis-runs/{id}/cancel", post(cancel_analysis_run))
         .route(
             "/api/analysis-runs/{id}/result",
             get(get_analysis_run_result),
@@ -75,37 +82,158 @@ async fn supervise_analysis_start(
     };
     let run = claim.run.clone();
     let created = claim.created;
-    let _ = accepted.send(Ok(run.clone()));
     if !created {
+        let response = if state.analysis_tasks.has_owner(run.id) {
+            Ok(run)
+        } else {
+            Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "analysis_owner_unavailable",
+                "The active analysis run has no live owner",
+            ))
+        };
+        let _ = accepted.send(response);
         return;
     }
+    let Ok(owner) = state.analysis_tasks.register(run.id) else {
+        let _ = accepted.send(Err(ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "analysis_owner_registration_failed",
+            "The analysis owner could not be registered",
+        )));
+        return;
+    };
+    let _ = accepted.send(Ok(run.clone()));
 
-    let owner_state = state.clone();
-    let owner = tokio::spawn(async move { own_analysis_run(owner_state, claim).await });
-    match owner.await {
-        Ok(Ok(())) => {}
-        Ok(Err(error)) => {
-            terminalize_owner_failure(&state, run.id, error.to_string()).await;
+    let cancellation = owner.cancellation();
+    let worker_state = state.clone();
+    let worker =
+        tokio::spawn(async move { run_analysis(&worker_state, claim, cancellation).await });
+    let prepared = match worker.await {
+        Ok(result) => result,
+        Err(error) => Err(DomainError::CleanupFailed(format!(
+            "analysis background task stopped without a cleanup acknowledgement: {error}"
+        ))),
+    };
+    settle_analysis_run(&state, run.id, owner, prepared).await;
+}
+
+async fn settle_analysis_run(
+    state: &AppState,
+    run_id: Uuid,
+    owner: AnalysisTaskOwner,
+    prepared: Result<(MatchAnalysis, AnalysisInputFingerprint), DomainError>,
+) {
+    match owner.try_begin_commit() {
+        Err(AnalysisTaskError::CancellationRequested) => {
+            if let Err(DomainError::CleanupFailed(error)) = &prepared {
+                terminalize_owner_failure(
+                    state,
+                    run_id,
+                    format!("analysis cancellation cleanup failed: {error}"),
+                )
+                .await;
+                owner.finish_cancellation_cleanup_failed();
+                return;
+            }
+            match terminalize_owner_cancellation(state, run_id).await {
+                Ok(run) => {
+                    owner.finish_cancelled(run);
+                    state.events.publish("analysis", "cancelled", Some(run_id));
+                }
+                Err(error) => {
+                    tracing::warn!(%run_id, %error, "analysis cancellation could not be terminalized");
+                }
+            }
+        }
+        Ok(()) => {
+            match prepared {
+                Ok((analysis, observed_source_fingerprint_after_parse)) => {
+                    match state
+                        .storage
+                        .complete_analysis_run(
+                            run_id,
+                            analysis,
+                            observed_source_fingerprint_after_parse,
+                        )
+                        .await
+                    {
+                        Ok(_) => {
+                            state.events.publish("analysis", "completed", Some(run_id));
+                        }
+                        Err(error) => {
+                            terminalize_owner_failure(state, run_id, error.to_string()).await;
+                        }
+                    }
+                }
+                Err(error) => {
+                    terminalize_owner_failure(state, run_id, error.to_string()).await;
+                }
+            }
+            owner.finish_terminal();
         }
         Err(error) => {
-            terminalize_owner_failure(
-                &state,
-                run.id,
-                format!("analysis background task failed: {error}"),
-            )
-            .await;
+            tracing::warn!(%run_id, ?error, "analysis owner lost terminal arbitration");
         }
     }
 }
 
-async fn own_analysis_run(
-    state: AppState,
-    claim: vibe_cs_storage::AnalysisRunClaim,
-) -> Result<(), DomainError> {
-    let run_id = claim.run.id;
-    run_analysis(&state, claim).await?;
-    state.events.publish("analysis", "completed", Some(run_id));
-    Ok(())
+async fn terminalize_owner_cancellation(
+    state: &AppState,
+    run_id: Uuid,
+) -> Result<AnalysisRun, DomainError> {
+    const INITIAL_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(100);
+    const MAX_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(5);
+    let mut retry_delay = INITIAL_RETRY_DELAY;
+    loop {
+        match state.storage.get_analysis_run(run_id).await {
+            Ok(Some(detail)) if detail.run.status == AnalysisRunStatus::Cancelled => {
+                return Ok(detail.run);
+            }
+            Ok(Some(detail)) if detail.run.status.is_terminal() => {
+                return Err(DomainError::Conflict(
+                    "analysis run reached another terminal state before cancellation".to_owned(),
+                ));
+            }
+            Ok(Some(_)) => {}
+            Ok(None) => return Err(DomainError::NotFound("analysis run".to_owned())),
+            Err(error) if !error.is_transient() => {
+                return Err(DomainError::Internal(format!(
+                    "analysis cancellation persistence is permanently unavailable: {error}"
+                )));
+            }
+            Err(error) => {
+                tracing::warn!(
+                    %run_id,
+                    %error,
+                    retry_delay_ms = retry_delay.as_millis(),
+                    "retrying analysis cancellation inspection"
+                );
+                tokio::time::sleep(retry_delay).await;
+                retry_delay = retry_delay.saturating_mul(2).min(MAX_RETRY_DELAY);
+                continue;
+            }
+        }
+        match state.storage.cancel_analysis_run(run_id).await {
+            Ok(run) => return Ok(run),
+            Err(vibe_cs_storage::StorageError::Domain(error)) => return Err(error),
+            Err(error) if !error.is_transient() => {
+                return Err(DomainError::Internal(format!(
+                    "analysis cancellation persistence is permanently unavailable: {error}"
+                )));
+            }
+            Err(error) => {
+                tracing::warn!(
+                    %run_id,
+                    %error,
+                    retry_delay_ms = retry_delay.as_millis(),
+                    "retrying analysis cancellation persistence"
+                );
+            }
+        }
+        tokio::time::sleep(retry_delay).await;
+        retry_delay = retry_delay.saturating_mul(2).min(MAX_RETRY_DELAY);
+    }
 }
 
 async fn terminalize_owner_failure(state: &AppState, run_id: Uuid, message: String) {
@@ -120,6 +248,14 @@ async fn terminalize_owner_failure(state: &AppState, run_id: Uuid, message: Stri
             Ok(Some(_)) => {}
             Ok(None) => {
                 tracing::warn!(%run_id, "analysis run disappeared before failure reconciliation");
+                return;
+            }
+            Err(error) if !error.is_transient() => {
+                tracing::error!(
+                    %run_id,
+                    %error,
+                    "analysis failure reconciliation stopped at a permanent storage health boundary"
+                );
                 return;
             }
             Err(error) => {
@@ -144,6 +280,14 @@ async fn terminalize_owner_failure(state: &AppState, run_id: Uuid, message: Stri
                 state.events.publish("analysis", "failed", Some(run_id));
                 return;
             }
+            Err(error) if !error.is_transient() => {
+                tracing::error!(
+                    %run_id,
+                    %error,
+                    "analysis failure persistence stopped at a permanent storage health boundary"
+                );
+                return;
+            }
             Err(error) => {
                 tracing::warn!(
                     %run_id,
@@ -162,36 +306,114 @@ async fn terminalize_owner_failure(state: &AppState, run_id: Uuid, message: Stri
 async fn run_analysis(
     state: &AppState,
     claim: vibe_cs_storage::AnalysisRunClaim,
-) -> Result<(), DomainError> {
+    cancellation: AnalysisCancellation,
+) -> Result<(MatchAnalysis, AnalysisInputFingerprint), DomainError> {
     let run_id = claim.run.id;
-    let initial = state.analysis.validate_input(claim.demo.clone()).await?;
+    ensure_not_cancelled(&cancellation)?;
+    let initial = state
+        .analysis
+        .validate_input(claim.demo.clone(), cancellation.clone())
+        .await?;
+    ensure_not_cancelled(&cancellation)?;
     state
         .storage
         .bind_analysis_run_input(run_id, initial)
         .await
         .map_err(storage_domain_error)?;
+    ensure_not_cancelled(&cancellation)?;
     let progress: Arc<dyn AnalysisProgressReporter> = Arc::new(PersistedAnalysisProgress {
         storage: state.storage.clone(),
         run_id,
     });
-    let analysis = state.analysis.analyze(claim.demo.clone(), progress).await?;
+    let analysis = state
+        .analysis
+        .analyze(claim.demo.clone(), progress, cancellation.clone())
+        .await?;
+    ensure_not_cancelled(&cancellation)?;
     state
         .storage
         .mark_analysis_input_revalidation_started(run_id)
         .await
         .map_err(storage_domain_error)?;
-    let observed_source_fingerprint_after_parse = state.analysis.validate_input(claim.demo).await?;
+    ensure_not_cancelled(&cancellation)?;
+    let observed_source_fingerprint_after_parse = state
+        .analysis
+        .validate_input(claim.demo, cancellation.clone())
+        .await?;
+    ensure_not_cancelled(&cancellation)?;
     state
         .storage
         .mark_analysis_projection_started(run_id)
         .await
         .map_err(storage_domain_error)?;
+    ensure_not_cancelled(&cancellation)?;
+    Ok((analysis, observed_source_fingerprint_after_parse))
+}
+
+fn ensure_not_cancelled(cancellation: &AnalysisCancellation) -> Result<(), DomainError> {
+    if cancellation.is_cancelled() {
+        Err(DomainError::Conflict(
+            "analysis_cancelled_by_user".to_owned(),
+        ))
+    } else {
+        Ok(())
+    }
+}
+
+async fn cancel_analysis_run(
+    State(state): State<AppState>,
+    AxumPath(id): AxumPath<String>,
+) -> ApiResult<Json<AnalysisRunDetail>> {
+    let run_id = parse_id(&id, "analysis run id")?;
+    let detail = state
+        .storage
+        .get_analysis_run(run_id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("analysis run"))?;
+    if detail.run.status == AnalysisRunStatus::Cancelled {
+        return Ok(Json(detail));
+    }
+    if detail.run.status.is_terminal() {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "analysis_run_not_cancellable",
+            "The analysis run is already terminal",
+        ));
+    }
+    let waiter = state
+        .analysis_tasks
+        .request_cancel(run_id)
+        .map_err(|error| {
+            let (code, message) = match error {
+                AnalysisTaskError::CommitInProgress => (
+                    "analysis_commit_in_progress",
+                    "The analysis result is already being committed",
+                ),
+                _ => (
+                    "analysis_owner_unavailable",
+                    "The active analysis run has no live owner",
+                ),
+            };
+            ApiError::new(StatusCode::CONFLICT, code, message)
+        })?;
+    waiter.wait().await.map_err(|error| match error {
+        AnalysisTaskError::CancellationCleanupFailed => ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "analysis_cancellation_cleanup_failed",
+            "The analysis worker stopped with unresolved cleanup debt",
+        ),
+        _ => ApiError::new(
+            StatusCode::CONFLICT,
+            "analysis_owner_unavailable",
+            "The analysis owner stopped before cancellation completed",
+        ),
+    })?;
     state
         .storage
-        .complete_analysis_run(run_id, analysis, observed_source_fingerprint_after_parse)
-        .await
-        .map_err(storage_domain_error)?;
-    Ok(())
+        .get_analysis_run(run_id)
+        .await?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("analysis run"))
 }
 
 async fn get_analysis_run(
@@ -300,7 +522,9 @@ mod tests {
         async fn validate_input(
             &self,
             demo: DemoRecord,
+            cancellation: AnalysisCancellation,
         ) -> Result<AnalysisInputFingerprint, DomainError> {
+            ensure_not_cancelled(&cancellation)?;
             self.validations.fetch_add(1, Ordering::SeqCst);
             Ok(AnalysisInputFingerprint {
                 sha256: demo.content_sha256.unwrap(),
@@ -312,11 +536,17 @@ mod tests {
             &self,
             demo: DemoRecord,
             progress: Arc<dyn AnalysisProgressReporter>,
+            cancellation: AnalysisCancellation,
         ) -> Result<MatchAnalysis, DomainError> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             progress.parser_started().await?;
             self.entered.notify_one();
-            self.release.notified().await;
+            tokio::select! {
+                () = self.release.notified() => {}
+                () = cancellation.cancelled() => {
+                    return Err(DomainError::Conflict("analysis_cancelled_by_user".to_owned()));
+                }
+            }
             if self.fail_after_release {
                 return Err(DomainError::Internal(
                     "parser failed after acceptance".to_owned(),
@@ -565,6 +795,755 @@ mod tests {
         assert_eq!(result.demo_id, demo_id);
     }
 
+    #[tokio::test]
+    async fn exact_cancel_waits_for_the_owner_and_persists_cancelled_without_a_result() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let demo = demo();
+        let demo_id = demo.id;
+        storage.put_demo(demo).await.unwrap();
+        let analysis = Arc::new(BlockingAnalysis::default());
+        let directory = tempfile::tempdir().unwrap();
+        let dispatcher = crate::build_dispatcher(
+            AppState::new(storage.clone(), directory.path().join("data"))
+                .with_analysis(analysis.clone()),
+        );
+        let accepted = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/demos/{demo_id}/analysis-runs"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let accepted: AnalysisRun =
+            serde_json::from_slice(&to_bytes(accepted.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.entered.notified(),
+        )
+        .await
+        .expect("parser entered");
+
+        let cancelled = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            dispatcher.clone().oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/analysis-runs/{}/cancel", accepted.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            ),
+        )
+        .await
+        .expect("cancel owner stopped")
+        .unwrap();
+
+        assert_eq!(cancelled.status(), StatusCode::OK);
+        let cancelled: AnalysisRunDetail =
+            serde_json::from_slice(&to_bytes(cancelled.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        assert_eq!(cancelled.run.id, accepted.id);
+        assert_eq!(cancelled.run.status, AnalysisRunStatus::Cancelled);
+        assert_eq!(cancelled.run.stage, AnalysisRunStage::Cancelled);
+        assert_eq!(cancelled.run.error, None);
+        assert!(!cancelled.result_available);
+        assert_eq!(
+            cancelled.events.last().unwrap().message_code,
+            vibe_cs_domain::AnalysisRunEventCode::Cancelled
+        );
+        assert_eq!(
+            cancelled.events.last().unwrap().detail.as_deref(),
+            Some("analysis_cancelled_by_user")
+        );
+        assert!(
+            storage
+                .get_analysis_for_run(accepted.id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            storage.get_demo(demo_id).await.unwrap().unwrap().status,
+            DemoStatus::Discovered
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_route_is_idempotent_only_for_cancelled_and_rejects_other_exact_states() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let mut records = (0..5)
+            .map(|index| {
+                let mut record = demo();
+                record.id = Uuid::new_v4();
+                record.path = format!("C:/matches/cancel-contract-{index}.dem");
+                record.file_name = format!("cancel-contract-{index}.dem");
+                record.content_sha256 = Some(format!("{:064x}", index + 1));
+                record
+            })
+            .collect::<Vec<_>>();
+        let cancelled_demo = records.remove(0);
+        let failed_demo = records.remove(0);
+        let interrupted_demo = records.remove(0);
+        let completed_demo = records.remove(0);
+        let active_demo = records.remove(0);
+        storage
+            .put_demos(vec![
+                cancelled_demo.clone(),
+                failed_demo.clone(),
+                interrupted_demo.clone(),
+                completed_demo.clone(),
+                active_demo.clone(),
+            ])
+            .await
+            .unwrap();
+
+        let cancelled = storage
+            .start_analysis_run(cancelled_demo.id)
+            .await
+            .unwrap()
+            .run;
+        storage.cancel_analysis_run(cancelled.id).await.unwrap();
+        let failed = storage
+            .start_analysis_run(failed_demo.id)
+            .await
+            .unwrap()
+            .run;
+        storage
+            .fail_analysis_run(failed.id, "parser failed".to_owned())
+            .await
+            .unwrap();
+        let interrupted = storage
+            .start_analysis_run(interrupted_demo.id)
+            .await
+            .unwrap()
+            .run;
+        assert_eq!(storage.recover_orphaned_analysis_runs().await.unwrap(), 1);
+        let completed = storage
+            .start_analysis_run(completed_demo.id)
+            .await
+            .unwrap()
+            .run;
+        let fingerprint = AnalysisInputFingerprint {
+            sha256: completed_demo.content_sha256.clone().unwrap(),
+            size: completed_demo.file_size,
+        };
+        storage
+            .bind_analysis_run_input(completed.id, fingerprint.clone())
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_parser_started(completed.id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_input_revalidation_started(completed.id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_projection_started(completed.id)
+            .await
+            .unwrap();
+        storage
+            .complete_analysis_run(
+                completed.id,
+                MatchAnalysis {
+                    demo_id: completed_demo.id,
+                    map_name: "de_mirage".to_owned(),
+                    tick_rate: 64.0,
+                    duration_seconds: 1.0,
+                    verified_total_ticks: None,
+                    teams: Vec::new(),
+                    players: Vec::new(),
+                    rounds: Vec::new(),
+                    highlights: Vec::new(),
+                },
+                fingerprint,
+            )
+            .await
+            .unwrap();
+        let active = storage
+            .start_analysis_run(active_demo.id)
+            .await
+            .unwrap()
+            .run;
+
+        let directory = tempfile::tempdir().unwrap();
+        let dispatcher =
+            crate::build_dispatcher(AppState::new(storage, directory.path().join("data")));
+        let cancelled_response = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/analysis-runs/{}/cancel", cancelled.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(cancelled_response.status(), StatusCode::OK);
+        let detail: AnalysisRunDetail = serde_json::from_slice(
+            &to_bytes(cancelled_response.into_body(), 64 * 1024)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(detail.run.status, AnalysisRunStatus::Cancelled);
+        assert!(!detail.result_available);
+
+        for run_id in [failed.id, interrupted.id, completed.id, active.id] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri(format!("/api/analysis-runs/{run_id}/cancel"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::CONFLICT);
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct StoppingAnalysis {
+        entered: tokio::sync::Notify,
+        cancellation_seen: tokio::sync::Notify,
+        allow_stop: tokio::sync::Notify,
+    }
+
+    #[async_trait]
+    impl crate::AnalysisPort for StoppingAnalysis {
+        async fn validate_input(
+            &self,
+            demo: DemoRecord,
+            cancellation: AnalysisCancellation,
+        ) -> Result<AnalysisInputFingerprint, DomainError> {
+            ensure_not_cancelled(&cancellation)?;
+            Ok(AnalysisInputFingerprint {
+                sha256: demo.content_sha256.unwrap(),
+                size: demo.file_size,
+            })
+        }
+
+        async fn analyze(
+            &self,
+            _demo: DemoRecord,
+            progress: Arc<dyn AnalysisProgressReporter>,
+            cancellation: AnalysisCancellation,
+        ) -> Result<MatchAnalysis, DomainError> {
+            progress.parser_started().await?;
+            self.entered.notify_one();
+            cancellation.cancelled().await;
+            self.cancellation_seen.notify_one();
+            self.allow_stop.notified().await;
+            Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            ))
+        }
+
+        async fn replay(&self, _: DemoRecord) -> Result<crate::ReplayPayload, DomainError> {
+            unreachable!()
+        }
+        async fn heatmap(&self, _: DemoRecord) -> Result<Vec<HeatPoint>, DomainError> {
+            unreachable!()
+        }
+        async fn replay_cache_status(&self) -> Result<crate::ReplayCacheStatus, DomainError> {
+            unreachable!()
+        }
+        async fn clear_replay_cache(&self) -> Result<crate::ReplayCacheCleanup, DomainError> {
+            unreachable!()
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct CancellationRacingParserFailure {
+        entered: tokio::sync::Notify,
+        cancellation_seen: tokio::sync::Notify,
+        allow_failure: tokio::sync::Notify,
+    }
+
+    #[async_trait]
+    impl crate::AnalysisPort for CancellationRacingParserFailure {
+        async fn validate_input(
+            &self,
+            demo: DemoRecord,
+            cancellation: AnalysisCancellation,
+        ) -> Result<AnalysisInputFingerprint, DomainError> {
+            ensure_not_cancelled(&cancellation)?;
+            Ok(AnalysisInputFingerprint {
+                sha256: demo.content_sha256.unwrap(),
+                size: demo.file_size,
+            })
+        }
+
+        async fn analyze(
+            &self,
+            _demo: DemoRecord,
+            progress: Arc<dyn AnalysisProgressReporter>,
+            cancellation: AnalysisCancellation,
+        ) -> Result<MatchAnalysis, DomainError> {
+            progress.parser_started().await?;
+            self.entered.notify_one();
+            cancellation.cancelled().await;
+            self.cancellation_seen.notify_one();
+            self.allow_failure.notified().await;
+            Err(DomainError::Internal(
+                "parser failed concurrently with cancellation".to_owned(),
+            ))
+        }
+
+        async fn replay(&self, _: DemoRecord) -> Result<crate::ReplayPayload, DomainError> {
+            unreachable!()
+        }
+        async fn heatmap(&self, _: DemoRecord) -> Result<Vec<HeatPoint>, DomainError> {
+            unreachable!()
+        }
+        async fn replay_cache_status(&self) -> Result<crate::ReplayCacheStatus, DomainError> {
+            unreachable!()
+        }
+        async fn clear_replay_cache(&self) -> Result<crate::ReplayCacheCleanup, DomainError> {
+            unreachable!()
+        }
+    }
+
+    #[tokio::test]
+    async fn cancellation_claim_wins_over_a_parser_error_ready_before_settlement() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let demo = demo();
+        let demo_id = demo.id;
+        storage.put_demo(demo).await.unwrap();
+        let analysis = Arc::new(CancellationRacingParserFailure::default());
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(storage.clone(), directory.path().join("data"))
+            .with_analysis(analysis.clone());
+        let dispatcher = crate::build_dispatcher(state.clone());
+        let accepted = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/demos/{demo_id}/analysis-runs"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let accepted: AnalysisRun =
+            serde_json::from_slice(&to_bytes(accepted.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.entered.notified(),
+        )
+        .await
+        .expect("parser entered");
+
+        let cancel_dispatcher = dispatcher.clone();
+        let cancel = tokio::spawn(async move {
+            cancel_dispatcher
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri(format!("/api/analysis-runs/{}/cancel", accepted.id))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap()
+        });
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.cancellation_seen.notified(),
+        )
+        .await
+        .expect("cancellation won the registry phase");
+        analysis.allow_failure.notify_one();
+
+        let response = tokio::time::timeout(std::time::Duration::from_secs(2), cancel)
+            .await
+            .expect("shared waiter must receive the durable winner")
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let detail: AnalysisRunDetail =
+            serde_json::from_slice(&to_bytes(response.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        assert_eq!(detail.run.status, AnalysisRunStatus::Cancelled);
+        assert_eq!(
+            detail
+                .events
+                .iter()
+                .filter(|event| event.stage.is_terminal())
+                .count(),
+            1
+        );
+        assert!(!state.analysis_tasks.has_owner(accepted.id));
+    }
+
+    #[derive(Debug, Default)]
+    struct CleanupFailingAnalysis {
+        entered: tokio::sync::Notify,
+    }
+
+    #[async_trait]
+    impl crate::AnalysisPort for CleanupFailingAnalysis {
+        async fn validate_input(
+            &self,
+            demo: DemoRecord,
+            cancellation: AnalysisCancellation,
+        ) -> Result<AnalysisInputFingerprint, DomainError> {
+            ensure_not_cancelled(&cancellation)?;
+            Ok(AnalysisInputFingerprint {
+                sha256: demo.content_sha256.unwrap(),
+                size: demo.file_size,
+            })
+        }
+
+        async fn analyze(
+            &self,
+            _demo: DemoRecord,
+            progress: Arc<dyn AnalysisProgressReporter>,
+            cancellation: AnalysisCancellation,
+        ) -> Result<MatchAnalysis, DomainError> {
+            progress.parser_started().await?;
+            self.entered.notify_one();
+            cancellation.cancelled().await;
+            Err(DomainError::CleanupFailed(
+                "exact worker request file is still locked".to_owned(),
+            ))
+        }
+
+        async fn replay(&self, _: DemoRecord) -> Result<crate::ReplayPayload, DomainError> {
+            unreachable!()
+        }
+        async fn heatmap(&self, _: DemoRecord) -> Result<Vec<HeatPoint>, DomainError> {
+            unreachable!()
+        }
+        async fn replay_cache_status(&self) -> Result<crate::ReplayCacheStatus, DomainError> {
+            unreachable!()
+        }
+        async fn clear_replay_cache(&self) -> Result<crate::ReplayCacheCleanup, DomainError> {
+            unreachable!()
+        }
+    }
+
+    #[tokio::test]
+    async fn cancellation_cleanup_failure_is_durable_failed_and_never_claimed_cancelled() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let demo = demo();
+        let demo_id = demo.id;
+        storage.put_demo(demo).await.unwrap();
+        let analysis = Arc::new(CleanupFailingAnalysis::default());
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(storage.clone(), directory.path().join("data"))
+            .with_analysis(analysis.clone());
+        let dispatcher = crate::build_dispatcher(state.clone());
+        let accepted = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/demos/{demo_id}/analysis-runs"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let accepted: AnalysisRun =
+            serde_json::from_slice(&to_bytes(accepted.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.entered.notified(),
+        )
+        .await
+        .expect("parser entered");
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/analysis-runs/{}/cancel", accepted.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let detail = storage
+            .get_analysis_run(accepted.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(detail.run.status, AnalysisRunStatus::Failed);
+        assert_eq!(detail.run.stage, AnalysisRunStage::Failed);
+        assert!(
+            detail
+                .run
+                .error
+                .as_deref()
+                .is_some_and(|error| error.contains("cancellation cleanup failed"))
+        );
+        assert_eq!(
+            detail.events.last().unwrap().message_code,
+            vibe_cs_domain::AnalysisRunEventCode::Failed
+        );
+        assert!(!state.analysis_tasks.has_owner(accepted.id));
+    }
+
+    #[tokio::test]
+    async fn disappearing_run_during_runtime_stop_releases_cancel_waiters_without_fabrication() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let demo = demo();
+        let demo_id = demo.id;
+        storage.put_demo(demo).await.unwrap();
+        let analysis = Arc::new(StoppingAnalysis::default());
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(storage.clone(), directory.path().join("data"))
+            .with_analysis(analysis.clone());
+        let dispatcher = crate::build_dispatcher(state.clone());
+        let accepted = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/demos/{demo_id}/analysis-runs"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let accepted: AnalysisRun =
+            serde_json::from_slice(&to_bytes(accepted.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.entered.notified(),
+        )
+        .await
+        .expect("parser entered");
+
+        let cancel_dispatcher = dispatcher.clone();
+        let cancel = tokio::spawn(async move {
+            cancel_dispatcher
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri(format!("/api/analysis-runs/{}/cancel", accepted.id))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap()
+        });
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.cancellation_seen.notified(),
+        )
+        .await
+        .expect("runtime observed cancellation");
+        assert!(storage.delete_demo(demo_id).await.unwrap());
+        analysis.allow_stop.notify_one();
+
+        let response = tokio::time::timeout(std::time::Duration::from_secs(2), cancel)
+            .await
+            .expect("cancel endpoint must not hang")
+            .unwrap();
+        assert!(!response.status().is_success());
+        assert!(!state.analysis_tasks.has_owner(accepted.id));
+        assert!(
+            storage
+                .get_analysis_run(accepted.id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn cancellation_waiter_and_owner_survive_transient_storage_lock_until_durable_terminal() {
+        let root = tempfile::tempdir().unwrap();
+        let database_path = root.path().join("cancel-retry.sqlite");
+        let storage = vibe_cs_storage::Storage::open(&database_path)
+            .await
+            .unwrap();
+        let demo = demo();
+        let demo_id = demo.id;
+        storage.put_demo(demo).await.unwrap();
+        let analysis = Arc::new(StoppingAnalysis::default());
+        let state = AppState::new(storage.clone(), root.path().join("data"))
+            .with_analysis(analysis.clone());
+        let dispatcher = crate::build_dispatcher(state.clone());
+        let accepted = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/demos/{demo_id}/analysis-runs"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let accepted: AnalysisRun =
+            serde_json::from_slice(&to_bytes(accepted.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.entered.notified(),
+        )
+        .await
+        .expect("parser entered");
+
+        let cancel_dispatcher = dispatcher.clone();
+        let cancel = tokio::spawn(async move {
+            cancel_dispatcher
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri(format!("/api/analysis-runs/{}/cancel", accepted.id))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap()
+        });
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.cancellation_seen.notified(),
+        )
+        .await
+        .expect("runtime observed cancellation");
+
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+        let (unlock_tx, unlock_rx) = std::sync::mpsc::channel();
+        let lock_path = database_path.clone();
+        let connection_holder = tokio::task::spawn_blocking(move || {
+            let connection = rusqlite::Connection::open(lock_path)?;
+            connection.execute_batch("PRAGMA foreign_keys = ON; BEGIN EXCLUSIVE;")?;
+            locked_tx.send(()).unwrap();
+            unlock_rx.recv().unwrap();
+            connection.execute_batch("ROLLBACK")?;
+            Ok::<_, rusqlite::Error>(())
+        });
+        locked_rx.recv().unwrap();
+        analysis.allow_stop.notify_one();
+
+        tokio::time::sleep(std::time::Duration::from_secs(11)).await;
+        assert!(
+            !cancel.is_finished(),
+            "waiter must span repeated busy timeouts"
+        );
+        assert!(
+            state.analysis_tasks.has_owner(accepted.id),
+            "owner must remain until Cancelled is durable"
+        );
+
+        unlock_tx.send(()).unwrap();
+        connection_holder.await.unwrap().unwrap();
+        let response = tokio::time::timeout(std::time::Duration::from_secs(7), cancel)
+            .await
+            .expect("cancel retry completion")
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let detail = storage
+            .get_analysis_run(accepted.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(detail.run.status, AnalysisRunStatus::Cancelled);
+        assert!(!state.analysis_tasks.has_owner(accepted.id));
+    }
+
+    #[tokio::test]
+    async fn permanent_storage_corruption_releases_owner_at_an_explicit_health_boundary() {
+        let root = tempfile::tempdir().unwrap();
+        let database_path = root.path().join("corrupt-cancel.sqlite");
+        let storage = vibe_cs_storage::Storage::open(&database_path)
+            .await
+            .unwrap();
+        let demo = demo();
+        let demo_id = demo.id;
+        storage.put_demo(demo).await.unwrap();
+        let analysis = Arc::new(StoppingAnalysis::default());
+        let state = AppState::new(storage.clone(), root.path().join("data"))
+            .with_analysis(analysis.clone());
+        let dispatcher = crate::build_dispatcher(state.clone());
+        let accepted = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/demos/{demo_id}/analysis-runs"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let accepted: AnalysisRun =
+            serde_json::from_slice(&to_bytes(accepted.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.entered.notified(),
+        )
+        .await
+        .expect("parser entered");
+        let cancel_dispatcher = dispatcher.clone();
+        let cancel = tokio::spawn(async move {
+            cancel_dispatcher
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri(format!("/api/analysis-runs/{}/cancel", accepted.id))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap()
+        });
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.cancellation_seen.notified(),
+        )
+        .await
+        .expect("runtime observed cancellation");
+        rusqlite::Connection::open(&database_path)
+            .unwrap()
+            .execute(
+                "UPDATE analysis_runs SET document_json = '{' WHERE id = ?1",
+                [accepted.id.to_string()],
+            )
+            .unwrap();
+        analysis.allow_stop.notify_one();
+
+        let response = tokio::time::timeout(std::time::Duration::from_secs(2), cancel)
+            .await
+            .expect("permanent corruption must not hot-loop")
+            .unwrap();
+        assert!(!response.status().is_success());
+        assert!(!state.analysis_tasks.has_owner(accepted.id));
+        let raw_status: String = rusqlite::Connection::open(database_path)
+            .unwrap()
+            .query_row(
+                "SELECT status FROM analysis_runs WHERE id = ?1",
+                [accepted.id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            raw_status, "running",
+            "corruption must not be fabricated away"
+        );
+    }
+
     #[derive(Debug, Default)]
     struct PanickingAnalysis;
 
@@ -573,6 +1552,7 @@ mod tests {
         async fn validate_input(
             &self,
             demo: DemoRecord,
+            _cancellation: AnalysisCancellation,
         ) -> Result<AnalysisInputFingerprint, DomainError> {
             Ok(AnalysisInputFingerprint {
                 sha256: demo.content_sha256.unwrap(),
@@ -584,6 +1564,7 @@ mod tests {
             &self,
             _demo: DemoRecord,
             progress: Arc<dyn AnalysisProgressReporter>,
+            _cancellation: AnalysisCancellation,
         ) -> Result<MatchAnalysis, DomainError> {
             progress.parser_started().await?;
             panic!("parser task panic fixture")
@@ -625,9 +1606,128 @@ mod tests {
                 .error
                 .as_deref()
                 .unwrap()
-                .contains("background task failed")
+                .contains("stopped without a cleanup acknowledgement")
         );
         assert!(storage.get_analysis(demo_id).await.unwrap().is_none());
+    }
+
+    #[derive(Debug, Default)]
+    struct CancellationRacingPanicAnalysis {
+        entered: tokio::sync::Notify,
+        cancellation_seen: tokio::sync::Notify,
+        allow_panic: tokio::sync::Notify,
+    }
+
+    #[async_trait]
+    impl crate::AnalysisPort for CancellationRacingPanicAnalysis {
+        async fn validate_input(
+            &self,
+            demo: DemoRecord,
+            cancellation: AnalysisCancellation,
+        ) -> Result<AnalysisInputFingerprint, DomainError> {
+            ensure_not_cancelled(&cancellation)?;
+            Ok(AnalysisInputFingerprint {
+                sha256: demo.content_sha256.unwrap(),
+                size: demo.file_size,
+            })
+        }
+
+        async fn analyze(
+            &self,
+            _demo: DemoRecord,
+            progress: Arc<dyn AnalysisProgressReporter>,
+            cancellation: AnalysisCancellation,
+        ) -> Result<MatchAnalysis, DomainError> {
+            progress.parser_started().await?;
+            self.entered.notify_one();
+            cancellation.cancelled().await;
+            self.cancellation_seen.notify_one();
+            self.allow_panic.notified().await;
+            panic!("parser panicked before cleanup acknowledgement")
+        }
+
+        async fn replay(&self, _: DemoRecord) -> Result<crate::ReplayPayload, DomainError> {
+            unreachable!()
+        }
+        async fn heatmap(&self, _: DemoRecord) -> Result<Vec<HeatPoint>, DomainError> {
+            unreachable!()
+        }
+        async fn replay_cache_status(&self) -> Result<crate::ReplayCacheStatus, DomainError> {
+            unreachable!()
+        }
+        async fn clear_replay_cache(&self) -> Result<crate::ReplayCacheCleanup, DomainError> {
+            unreachable!()
+        }
+    }
+
+    #[tokio::test]
+    async fn cancellation_concurrent_with_worker_panic_is_failed_never_cancelled() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let demo = demo();
+        let demo_id = demo.id;
+        storage.put_demo(demo).await.unwrap();
+        let analysis = Arc::new(CancellationRacingPanicAnalysis::default());
+        let directory = tempfile::tempdir().unwrap();
+        let state = AppState::new(storage.clone(), directory.path().join("data"))
+            .with_analysis(analysis.clone());
+        let dispatcher = crate::build_dispatcher(state.clone());
+        let accepted = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri(format!("/api/demos/{demo_id}/analysis-runs"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let accepted: AnalysisRun =
+            serde_json::from_slice(&to_bytes(accepted.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.entered.notified(),
+        )
+        .await
+        .expect("parser entered");
+        let cancel_dispatcher = dispatcher.clone();
+        let cancel = tokio::spawn(async move {
+            cancel_dispatcher
+                .oneshot(
+                    Request::builder()
+                        .method(Method::POST)
+                        .uri(format!("/api/analysis-runs/{}/cancel", accepted.id))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap()
+        });
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.cancellation_seen.notified(),
+        )
+        .await
+        .expect("cancellation reached the worker");
+        analysis.allow_panic.notify_one();
+
+        let response = tokio::time::timeout(std::time::Duration::from_secs(2), cancel)
+            .await
+            .expect("panic cleanup boundary")
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let detail = storage
+            .get_analysis_run(accepted.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(detail.run.status, AnalysisRunStatus::Failed);
+        assert_eq!(
+            detail.events.last().unwrap().message_code,
+            vibe_cs_domain::AnalysisRunEventCode::Failed
+        );
+        assert!(!state.analysis_tasks.has_owner(accepted.id));
     }
 
     #[tokio::test]
@@ -689,6 +1789,68 @@ mod tests {
         let detail = wait_for_terminal(&storage, accepted.id).await;
         assert_eq!(detail.run.status, AnalysisRunStatus::Failed);
         assert_eq!(analysis.calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn failed_analysis_keeps_its_owner_until_the_terminal_write_is_durable() {
+        let root = tempfile::tempdir().unwrap();
+        let database_path = root.path().join("owned-failure.sqlite");
+        let storage = vibe_cs_storage::Storage::open(&database_path)
+            .await
+            .unwrap();
+        let demo = demo();
+        let demo_id = demo.id;
+        storage.put_demo(demo).await.unwrap();
+        let analysis = Arc::new(BlockingAnalysis::failing());
+        let state = AppState::new(storage.clone(), root.path().join("data"))
+            .with_analysis(analysis.clone());
+        let accepted = start_analysis_run(State(state.clone()), AxumPath(demo_id.to_string()))
+            .await
+            .unwrap()
+            .into_response();
+        let accepted: AnalysisRun =
+            serde_json::from_slice(&to_bytes(accepted.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            analysis.entered.notified(),
+        )
+        .await
+        .expect("analysis entered");
+
+        let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+        let (unlock_tx, unlock_rx) = std::sync::mpsc::channel();
+        let lock_path = database_path.clone();
+        let connection_holder = tokio::task::spawn_blocking(move || {
+            let connection = rusqlite::Connection::open(lock_path)?;
+            connection.execute_batch("PRAGMA foreign_keys = ON; BEGIN EXCLUSIVE;")?;
+            locked_tx.send(()).unwrap();
+            unlock_rx.recv().unwrap();
+            connection.execute_batch("ROLLBACK")?;
+            Ok::<_, rusqlite::Error>(())
+        });
+        locked_rx.recv().unwrap();
+        analysis.release.notify_one();
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        assert!(
+            state.analysis_tasks.has_owner(accepted.id),
+            "the unique owner must survive until Failed is durable"
+        );
+        assert_eq!(
+            state
+                .analysis_tasks
+                .request_cancel(accepted.id)
+                .unwrap_err(),
+            AnalysisTaskError::CommitInProgress,
+            "parser failure must atomically claim Committing before durable failure reconciliation"
+        );
+
+        unlock_tx.send(()).unwrap();
+        connection_holder.await.unwrap().unwrap();
+        let detail = wait_for_terminal(&storage, accepted.id).await;
+        assert_eq!(detail.run.status, AnalysisRunStatus::Failed);
+        assert!(!state.analysis_tasks.has_owner(accepted.id));
     }
 
     #[tokio::test]

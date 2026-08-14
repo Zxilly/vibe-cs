@@ -49,4 +49,22 @@ describe('analysis run inspector', () => {
     expect(markup).toContain('data-analysis-run-id="run-1"');
     expect(markup).toContain('data-event-sequence="1"');
   });
+
+  it('renders persisted cancellation as a dedicated stage and event', () => {
+    const cancelled: AnalysisRunDetail = {
+      run: { ...detail.run, status: 'cancelled', stage: 'cancelled', error: null },
+      events: [detail.events[0]!, {
+        run_id: 'run-1', sequence: 1, stage: 'cancelled', message_code: 'cancelled',
+        detail: 'analysis_cancelled_by_user', created_at: '2026-08-13T01:01:00Z',
+      }],
+      result_available: false,
+    };
+
+    const markup = renderToStaticMarkup(
+      <AnalysisRunInspector detail={cancelled} loading={false} error={null} />,
+    );
+    expect(markup).toContain('分析已取消');
+    expect(markup).toContain('analysis_cancelled_by_user');
+    expect(markup).not.toContain('desktop restarted');
+  });
 });

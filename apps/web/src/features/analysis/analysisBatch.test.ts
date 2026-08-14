@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { analysisBatchIds, runBatchAnalysis } from './analysisBatch';
 
@@ -19,5 +19,19 @@ describe('analysis batch workspace', () => {
       (id, state) => states.push(`${id}:${state.status}`),
     );
     expect(states).toEqual(expect.arrayContaining(['a:loading', 'a:ready', 'b:loading', 'b:error']));
+  });
+
+  it('does not begin another Demo after the route owner aborts', async () => {
+    const controller = new AbortController();
+    const analyze = vi.fn(async (id: string) => {
+      controller.abort();
+      return { demo_id: id } as never;
+    });
+
+    await expect(runBatchAnalysis(
+      ['a', 'b'], analyze, () => undefined, 1, controller.signal,
+    )).rejects.toMatchObject({ name: 'AbortError' });
+    expect(analyze).toHaveBeenCalledOnce();
+    expect(analyze).toHaveBeenCalledWith('a');
   });
 });

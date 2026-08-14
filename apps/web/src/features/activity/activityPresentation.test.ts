@@ -4,6 +4,7 @@ import type { ActivityItem } from '../../shared/desktop/dto';
 import {
   activityActionHref,
   activityProgressLabel,
+  activityStateFilterOptions,
   activityUnitLabel,
   filterActivities,
 } from './activityPresentation';
@@ -29,6 +30,11 @@ const activity = (overrides: Partial<ActivityItem>): ActivityItem => ({
 });
 
 describe('activity presentation', () => {
+  it('offers cancelled as its own server-backed state filter', () => {
+    expect(activityStateFilterOptions.map((option) => option.value))
+      .toEqual(['active', 'failed', 'completed', 'cancelled']);
+  });
+
   it('filters the persisted feed by kind, state bucket, and searchable identifiers', () => {
     const items = [
       activity({}),
@@ -40,12 +46,19 @@ describe('activity presentation', () => {
         id: 'download:job-3', kind: 'download', job_id: 'job-3',
         context_id: '7656119:42', subject: '7656119:42', status: 'completed',
       }),
+      activity({
+        id: 'analysis:run-4', kind: 'analysis', job_id: 'run-4', context_id: 'demo-4',
+        subject: 'Major cancelled', status: 'cancelled', stage: 'cancelled', error: null,
+        available_actions: ['retry_analysis', 'open_library'],
+      }),
     ];
 
     expect(filterActivities(items, { query: 'demo-2', kind: 'analysis', state: 'failed' }))
       .toEqual([items[1]]);
     expect(filterActivities(items, { query: '', kind: '', state: 'active' }))
       .toEqual([items[0]]);
+    expect(filterActivities(items, { query: '', kind: 'analysis', state: 'cancelled' }))
+      .toEqual([items[3]]);
   });
 
   it('renders a percentage only when the aggregate supplies one', () => {

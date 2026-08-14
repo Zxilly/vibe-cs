@@ -49,10 +49,10 @@ const CURRENT_SCHEMA: &str = r"
         demo_id TEXT NOT NULL,
         input_sha256 TEXT,
         input_size INTEGER CHECK(input_size IS NULL OR input_size >= 0),
-        status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'completed', 'failed', 'interrupted')),
+        status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'completed', 'failed', 'interrupted', 'cancelled')),
         stage TEXT NOT NULL CHECK(stage IN (
             'validating_input', 'parser_queued', 'parser_running', 'verifying_input_after_parse', 'projecting',
-            'completed', 'failed', 'interrupted'
+            'completed', 'failed', 'interrupted', 'cancelled'
         )),
         error TEXT CHECK(error IS NULL OR length(error) <= 2000),
         created_at TEXT NOT NULL,
@@ -61,7 +61,7 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE,
         UNIQUE(id, demo_id, status),
         CHECK((input_sha256 IS NULL) = (input_size IS NULL)),
-        CHECK(stage IN ('validating_input', 'failed', 'interrupted') OR input_sha256 IS NOT NULL),
+        CHECK(stage IN ('validating_input', 'failed', 'interrupted', 'cancelled') OR input_sha256 IS NOT NULL),
         CHECK(input_sha256 IS NULL OR (
             length(input_sha256) = 64
             AND input_sha256 = lower(input_sha256)
@@ -73,6 +73,7 @@ const CURRENT_SCHEMA: &str = r"
             OR (status = 'completed' AND stage = 'completed')
             OR (status = 'failed' AND stage = 'failed')
             OR (status = 'interrupted' AND stage = 'interrupted')
+            OR (status = 'cancelled' AND stage = 'cancelled')
         ),
         CHECK(
             (status IN ('failed', 'interrupted') AND error IS NOT NULL)
@@ -85,11 +86,11 @@ const CURRENT_SCHEMA: &str = r"
         sequence INTEGER NOT NULL CHECK(sequence >= 0 AND sequence < 32),
         stage TEXT NOT NULL CHECK(stage IN (
             'validating_input', 'parser_queued', 'parser_running', 'verifying_input_after_parse', 'projecting',
-            'completed', 'failed', 'interrupted'
+            'completed', 'failed', 'interrupted', 'cancelled'
         )),
         message_code TEXT NOT NULL CHECK(message_code IN (
             'input_validation_started', 'input_verified', 'parser_started', 'input_revalidation_started',
-            'projection_started', 'completed', 'failed', 'interrupted'
+            'projection_started', 'completed', 'failed', 'interrupted', 'cancelled'
         )),
         detail TEXT CHECK(detail IS NULL OR length(detail) <= 2000),
         created_at TEXT NOT NULL,
@@ -105,6 +106,7 @@ const CURRENT_SCHEMA: &str = r"
             OR (stage = 'completed' AND message_code = 'completed')
             OR (stage = 'failed' AND message_code = 'failed')
             OR (stage = 'interrupted' AND message_code = 'interrupted')
+            OR (stage = 'cancelled' AND message_code = 'cancelled')
         )
     );
 

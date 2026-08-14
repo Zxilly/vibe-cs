@@ -6,6 +6,7 @@ import { commands } from '../../shared/desktop/client';
 import type { ActivityItem } from '../../shared/desktop/dto';
 import {
   ActivityPagination,
+  ActivitySummary,
   ActivityWorkspace,
   activityActionNotice,
   executeActivityAction,
@@ -41,6 +42,15 @@ describe('activity workspace', () => {
     expect(activityActionNotice('failed')).toMatchObject({ tone: 'danger' });
     expect(activityActionNotice('cancelled')).toMatchObject({ tone: 'warning' });
     expect(activityActionNotice('queued')).toMatchObject({ tone: 'info' });
+  });
+
+  it('renders cancelled as a first-class summary bucket', () => {
+    const markup = renderToStaticMarkup(<ActivitySummary summary={{
+      total: 10, active: 2, failed: 1, completed: 4, cancelled: 3,
+    }} />);
+
+    expect(markup).toContain('data-summary-state="cancelled"');
+    expect(markup).toContain('<strong>3</strong>');
   });
 
   it('retires a mutation receipt once the exact activity advances beyond it', () => {
@@ -217,6 +227,47 @@ describe('activity workspace', () => {
       activityId: 'export:export-job',
       stage: null,
     });
+  });
+
+  it('cancels an active analysis by exact run identity and returns its durable receipt', async () => {
+    const activeAnalysis = item({
+      id: 'analysis:run/exact', kind: 'analysis', job_id: 'run/exact', context_id: 'demo-1',
+      status: 'running', stage: 'parser_running', progress_percent: null,
+      available_actions: ['cancel', 'open_library'],
+    });
+    const cancel = vi.spyOn(commands, 'cancelAnalysisRun').mockResolvedValue({
+      run: {
+        id: 'run/exact', demo_id: 'demo-1', input_sha256: 'a'.repeat(64), input_size: 42,
+        status: 'cancelled', stage: 'cancelled', error: null,
+        created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:02:00Z',
+      },
+      events: [{
+        run_id: 'run/exact', sequence: 0, stage: 'validating_input',
+        message_code: 'input_validation_started', detail: null,
+        created_at: '2026-08-13T01:00:00Z',
+      }, {
+        run_id: 'run/exact', sequence: 1, stage: 'cancelled',
+        message_code: 'cancelled', detail: 'analysis_cancelled_by_user',
+        created_at: '2026-08-13T01:02:00Z',
+      }],
+      result_available: false,
+    });
+
+    await expect(executeActivityAction(activeAnalysis, 'cancel')).resolves.toEqual({
+      status: 'cancelled', activityId: 'analysis:run/exact', stage: 'cancelled',
+    });
+    expect(cancel).toHaveBeenCalledWith('run/exact');
+  });
+
+  it('never reports a fake success when an analysis cancellation lacks an exact run', async () => {
+    const invalidAnalysis = item({
+      id: 'analysis:missing-run', kind: 'analysis', job_id: null, context_id: 'demo-1',
+      status: 'running', stage: 'parser_running', progress_percent: null,
+      available_actions: ['cancel', 'open_library'],
+    });
+
+    await expect(executeActivityAction(invalidAnalysis, 'cancel'))
+      .rejects.toThrow('cannot be executed for this exact activity');
   });
 
   it('reports the persisted download state returned by a retry command', async () => {

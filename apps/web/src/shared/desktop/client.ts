@@ -160,6 +160,9 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     signal: callerSignal,
     method = 'GET',
   } = options;
+  if (callerSignal?.aborted) {
+    throw new DesktopError(msg("m1144"), 0, 'REQUEST_ABORTED');
+  }
   if (requestBody instanceof FormData) {
     throw new DesktopError(msg("m0711"), 0, 'NATIVE_UPLOAD_REQUIRED');
   }
@@ -632,6 +635,16 @@ export const commands = {
     ));
     if (detail.run.id !== id) {
       throw new Error('Analysis run response does not match the requested exact run.');
+    }
+    return detail;
+  },
+  cancelAnalysisRun: async (id: string, signal?: AbortSignal) => {
+    const detail = parseAnalysisRunDetail(await request<AnalysisRunDetail>(
+      `/analysis-runs/${encodeURIComponent(id)}/cancel`,
+      { method: 'POST', signal, timeoutMs: null },
+    ));
+    if (detail.run.id !== id) {
+      throw new Error('Analysis cancel response does not match the requested exact run.');
     }
     return detail;
   },

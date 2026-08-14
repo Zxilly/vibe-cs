@@ -41,6 +41,7 @@ function feed(status: ActivityItem['status']): ActivityFeed {
       active: status === 'running' ? 1 : 0,
       failed: 0,
       completed: status === 'completed' ? 1 : 0,
+      cancelled: status === 'cancelled' ? 1 : 0,
     },
   };
 }

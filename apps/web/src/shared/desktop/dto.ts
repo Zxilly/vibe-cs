@@ -599,7 +599,7 @@ export type MatchAnalysisRecord = {
   insights: AnalysisInsightsRecord;
 };
 
-export type AnalysisRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'interrupted';
+export type AnalysisRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'interrupted' | 'cancelled';
 
 export type AnalysisRunStage =
   | 'validating_input'
@@ -609,7 +609,8 @@ export type AnalysisRunStage =
   | 'projecting'
   | 'completed'
   | 'failed'
-  | 'interrupted';
+  | 'interrupted'
+  | 'cancelled';
 
 export type AnalysisRunEventCode =
   | 'input_validation_started'
@@ -619,7 +620,8 @@ export type AnalysisRunEventCode =
   | 'projection_started'
   | 'completed'
   | 'failed'
-  | 'interrupted';
+  | 'interrupted'
+  | 'cancelled';
 
 /** Exact current analysis-run wire. Nullable fields are required by the service contract. */
 export type AnalysisRun = {
@@ -962,13 +964,14 @@ export type ActivityFeed = {
     active: number;
     failed: number;
     completed: number;
+    cancelled: number;
   };
 };
 
 export type ActivityQuery = {
   search?: string;
   kind?: ActivityKind;
-  state?: 'active' | 'failed' | 'completed';
+  state?: 'active' | 'failed' | 'completed' | 'cancelled';
   page?: number;
   page_size?: number;
 };

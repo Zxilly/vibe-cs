@@ -21,6 +21,12 @@ describe('activity workspace density styles', () => {
     expect(contract).toMatch(/\.activity-toolbar\s*>\s*label:not\(\.activity-search\)\s*{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\);[^}]*align-items:\s*center;/s);
   });
 
+  it('keeps all five summary buckets and filters reachable in a narrow window', () => {
+    expect(contract).toMatch(/\.activity-summary\s*{[^}]*overflow-x:\s*auto;/s);
+    expect(contract).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.activity-toolbar\s*{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/s);
+    expect(contract).toMatch(/@media \(max-width:\s*640px\)[\s\S]*?\.activity-search\s*{[^}]*grid-column:\s*1\s*\/\s*-1;/s);
+  });
+
   it('bounds persisted run evidence and wraps long hashes and event details', () => {
     expect(contract).toMatch(/\.analysis-run-detail\s*{[^}]*min-width:\s*0;/s);
     expect(contract).toMatch(/\.analysis-run-events\s*{[^}]*max-height:\s*240px;[^}]*overflow:\s*auto;/s);

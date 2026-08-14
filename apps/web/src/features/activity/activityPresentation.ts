@@ -1,11 +1,22 @@
 import type { ActivityAction, ActivityItem, ActivityKind } from '../../shared/desktop/dto';
+import type { MessageKey } from '../../shared/i18n';
 
-export type ActivityStateFilter = '' | 'active' | 'failed' | 'completed';
+export type ActivityStateFilter = '' | 'active' | 'failed' | 'completed' | 'cancelled';
 export type ActivityFilters = {
   query: string;
   kind: ActivityKind | '';
   state: ActivityStateFilter;
 };
+
+export const activityStateFilterOptions: ReadonlyArray<{
+  value: Exclude<ActivityStateFilter, ''>;
+  key: MessageKey;
+}> = [
+  { value: 'active', key: 'activity.active' },
+  { value: 'failed', key: 'activity.failed' },
+  { value: 'completed', key: 'activity.completed' },
+  { value: 'cancelled', key: 'activity.status.cancelled' },
+];
 
 const terminalStatuses = new Set<ActivityItem['status']>([
   'completed', 'failed', 'cancelled',
@@ -50,6 +61,7 @@ export function filterActivities(items: ActivityItem[], filters: ActivityFilters
     if (filters.state === 'active' && !isActivityActive(item)) return false;
     if (filters.state === 'failed' && item.status !== 'failed') return false;
     if (filters.state === 'completed' && item.status !== 'completed') return false;
+    if (filters.state === 'cancelled' && item.status !== 'cancelled') return false;
     if (!query) return true;
     return [
       item.id,

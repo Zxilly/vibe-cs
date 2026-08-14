@@ -23,6 +23,7 @@ pub enum ActivityState {
     Active,
     Failed,
     Completed,
+    Cancelled,
 }
 
 impl ActivityState {
@@ -31,6 +32,7 @@ impl ActivityState {
             Self::Active => "active",
             Self::Failed => "failed",
             Self::Completed => "completed",
+            Self::Cancelled => "cancelled",
         }
     }
 }
@@ -70,6 +72,7 @@ pub struct ActivitySummary {
     pub active: u64,
     pub failed: u64,
     pub completed: u64,
+    pub cancelled: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -129,6 +132,7 @@ const ACTIVITY_FILTER_SQL: &str = "
         OR (:state = 'active' AND status NOT IN ('completed', 'failed', 'cancelled'))
         OR (:state = 'failed' AND status = 'failed')
         OR (:state = 'completed' AND status = 'completed')
+        OR (:state = 'cancelled' AND status = 'cancelled')
     )
       AND (:search IS NULL OR instr(lower(search_text), lower(:search)) > 0)";
 
@@ -190,34 +194,39 @@ const ACTIVITY_SUMMARY_SQL: &str = "
         COALESCE(SUM(total), 0),
         COALESCE(SUM(active), 0),
         COALESCE(SUM(failed), 0),
-        COALESCE(SUM(completed), 0)
+        COALESCE(SUM(completed), 0),
+        COALESCE(SUM(cancelled), 0)
     FROM (
         SELECT
             COUNT(*) AS total,
             COALESCE(SUM(status NOT IN ('completed', 'failed', 'cancelled')), 0) AS active,
             COALESCE(SUM(status = 'failed'), 0) AS failed,
-            COALESCE(SUM(status = 'completed'), 0) AS completed
+            COALESCE(SUM(status = 'completed'), 0) AS completed,
+            COALESCE(SUM(status = 'cancelled'), 0) AS cancelled
         FROM recording_jobs
         UNION ALL
         SELECT
             COUNT(*),
             COALESCE(SUM(status NOT IN ('completed', 'failed', 'cancelled')), 0),
             COALESCE(SUM(status = 'failed'), 0),
-            COALESCE(SUM(status = 'completed'), 0)
+            COALESCE(SUM(status = 'completed'), 0),
+            COALESCE(SUM(status = 'cancelled'), 0)
         FROM export_jobs
         UNION ALL
         SELECT
             COUNT(*),
             COALESCE(SUM(status NOT IN ('completed', 'failed', 'cancelled')), 0),
             COALESCE(SUM(status = 'failed'), 0),
-            COALESCE(SUM(status = 'completed'), 0)
+            COALESCE(SUM(status = 'completed'), 0),
+            COALESCE(SUM(status = 'cancelled'), 0)
         FROM match_download_jobs
         UNION ALL
         SELECT
             COUNT(*),
             COALESCE(SUM(status IN ('queued', 'running')), 0),
             COALESCE(SUM(status IN ('failed', 'interrupted')), 0),
-            COALESCE(SUM(status = 'completed'), 0)
+            COALESCE(SUM(status = 'completed'), 0),
+            COALESCE(SUM(status = 'cancelled'), 0)
         FROM analysis_runs
     )";
 
@@ -262,7 +271,7 @@ const RECORDING_RETRYABILITY_SQL: &str = "
 const ANALYSIS_RETRYABILITY_SQL: &str = "
     SELECT run.id,
            CASE WHEN
-               run.status IN ('failed', 'interrupted')
+               run.status IN ('failed', 'interrupted', 'cancelled')
                AND NOT EXISTS (
                    SELECT 1 FROM analysis_runs AS active
                    WHERE active.demo_id = run.demo_id
@@ -520,6 +529,7 @@ impl Storage {
                     active: row_u64(row, 1)?,
                     failed: row_u64(row, 2)?,
                     completed: row_u64(row, 3)?,
+                    cancelled: row_u64(row, 4)?,
                 })
             })?;
             let state = query.state.map(ActivityState::as_str);
@@ -1218,6 +1228,52 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(active.total, 0);
+    }
+
+    #[tokio::test]
+    async fn cancelled_analysis_is_a_retryable_first_class_activity_state() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo_id = uuid::Uuid::new_v4();
+        storage
+            .put_demo(analysis_demo(
+                demo_id,
+                vibe_cs_domain::DemoStatus::Discovered,
+            ))
+            .await
+            .expect("put analysis demo");
+        let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+        storage.cancel_analysis_run(run_id).await.unwrap();
+
+        let cancelled = storage
+            .query_activities(ActivityQuery {
+                search: Some(format!("analysis:{run_id}")),
+                kind: Some(ActivityKind::Analysis),
+                state: Some(ActivityState::Cancelled),
+                page: 1,
+                page_size: 10,
+            })
+            .await
+            .expect("cancelled activity");
+
+        assert_eq!(cancelled.total, 1);
+        assert_eq!(cancelled.summary.cancelled, 1);
+        assert_eq!(
+            cancelled.summary.total,
+            cancelled.summary.active
+                + cancelled.summary.failed
+                + cancelled.summary.completed
+                + cancelled.summary.cancelled
+        );
+        assert!(matches!(
+            cancelled.items.as_slice(),
+            [ActivitySource::Analysis {
+                run,
+                retryable: true,
+                result_available: false,
+                ..
+            }] if run.id == run_id
+                && run.status == vibe_cs_domain::AnalysisRunStatus::Cancelled
+        ));
     }
 
     #[tokio::test]

@@ -43,6 +43,7 @@ struct ActivitySummary {
     active: u64,
     failed: u64,
     completed: u64,
+    cancelled: u64,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -70,6 +71,7 @@ enum ActivityStateFilter {
     Active,
     Failed,
     Completed,
+    Cancelled,
 }
 
 #[derive(Debug, Serialize)]
@@ -120,6 +122,7 @@ async fn list_activities(
         active: page_result.summary.active,
         failed: page_result.summary.failed,
         completed: page_result.summary.completed,
+        cancelled: page_result.summary.cancelled,
     };
     Ok(Json(ActivityFeed {
         items,
@@ -236,6 +239,7 @@ impl ActivityStateFilter {
             Self::Active => StoredActivityState::Active,
             Self::Failed => StoredActivityState::Failed,
             Self::Completed => StoredActivityState::Completed,
+            Self::Cancelled => StoredActivityState::Cancelled,
         }
     }
 }
@@ -357,7 +361,9 @@ fn analysis_activity(
     result_available: bool,
 ) -> ActivityItem {
     let mut available_actions = Vec::with_capacity(2);
-    if retryable {
+    if !run.status.is_terminal() {
+        available_actions.push("cancel");
+    } else if retryable {
         available_actions.push("retry_analysis");
     } else if run.status == AnalysisRunStatus::Completed && result_available {
         available_actions.push("open_analysis");
@@ -428,6 +434,7 @@ const fn analysis_run_status(status: AnalysisRunStatus) -> &'static str {
         AnalysisRunStatus::Running => "running",
         AnalysisRunStatus::Completed => "completed",
         AnalysisRunStatus::Failed | AnalysisRunStatus::Interrupted => "failed",
+        AnalysisRunStatus::Cancelled => "cancelled",
     }
 }
 
@@ -441,13 +448,19 @@ const fn analysis_run_stage(stage: vibe_cs_domain::AnalysisRunStage) -> &'static
         vibe_cs_domain::AnalysisRunStage::Completed => "completed",
         vibe_cs_domain::AnalysisRunStage::Failed => "failed",
         vibe_cs_domain::AnalysisRunStage::Interrupted => "interrupted",
+        vibe_cs_domain::AnalysisRunStage::Cancelled => "cancelled",
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::response::IntoResponse as _;
+    use axum::{
+        body::{Body, to_bytes},
+        http::Request,
+        response::IntoResponse as _,
+    };
+    use tower::ServiceExt as _;
 
     #[tokio::test]
     async fn exact_activity_route_returns_the_requested_authoritative_row() {
@@ -521,6 +534,69 @@ mod tests {
                 axum::http::StatusCode::BAD_REQUEST
             );
         }
+    }
+
+    #[tokio::test]
+    async fn cancelled_activity_filter_and_summary_are_exposed_by_http() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let demo_id = Uuid::new_v4();
+        storage
+            .put_demo(vibe_cs_domain::DemoRecord {
+                id: demo_id,
+                path: "C:/demos/cancelled.dem".to_owned(),
+                file_name: "cancelled.dem".to_owned(),
+                display_name: "Cancelled analysis".to_owned(),
+                source: "local".to_owned(),
+                status: vibe_cs_domain::DemoStatus::Discovered,
+                map_name: None,
+                match_date: None,
+                duration_seconds: None,
+                total_rounds: None,
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: Vec::new(),
+                remark: String::new(),
+                content_sha256: Some("a".repeat(64)),
+                file_size: 512,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            })
+            .await
+            .expect("demo");
+        let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+        storage.cancel_analysis_run(run_id).await.unwrap();
+        let dispatcher =
+            crate::build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let response = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/activities?kind=analysis&state=cancelled")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body: serde_json::Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), 64 * 1024).await.unwrap())
+                .unwrap();
+        assert_eq!(body["total"], 1);
+        assert_eq!(body["summary"]["cancelled"], 1);
+        assert_eq!(
+            body["summary"]["total"].as_u64().unwrap(),
+            body["summary"]["active"].as_u64().unwrap()
+                + body["summary"]["failed"].as_u64().unwrap()
+                + body["summary"]["completed"].as_u64().unwrap()
+                + body["summary"]["cancelled"].as_u64().unwrap()
+        );
+        assert_eq!(body["items"][0]["status"], "cancelled");
     }
 
     fn analysis_run(
@@ -611,5 +687,41 @@ mod tests {
             interrupted.available_actions,
             ["retry_analysis", "open_library"]
         );
+    }
+
+    #[test]
+    fn cancelled_analysis_activity_is_not_presented_as_a_failure() {
+        let cancelled = analysis_activity(
+            analysis_run(
+                AnalysisRunStatus::Cancelled,
+                vibe_cs_domain::AnalysisRunStage::Cancelled,
+            ),
+            "Demo".to_owned(),
+            true,
+            false,
+        );
+
+        assert_eq!(cancelled.status, "cancelled");
+        assert_eq!(cancelled.stage.as_deref(), Some("cancelled"));
+        assert_eq!(cancelled.error, None);
+        assert_eq!(
+            cancelled.available_actions,
+            ["retry_analysis", "open_library"]
+        );
+    }
+
+    #[test]
+    fn active_analysis_activity_exposes_exact_run_cancellation() {
+        let active = analysis_activity(
+            analysis_run(
+                AnalysisRunStatus::Running,
+                vibe_cs_domain::AnalysisRunStage::ParserRunning,
+            ),
+            "Demo".to_owned(),
+            false,
+            false,
+        );
+
+        assert_eq!(active.available_actions, ["cancel", "open_library"]);
     }
 }

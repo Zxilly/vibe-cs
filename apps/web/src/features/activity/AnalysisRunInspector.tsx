@@ -13,6 +13,7 @@ const stageKeys: Record<AnalysisRunStage, MessageKey> = {
   completed: 'activity.analysisStage.completed',
   failed: 'activity.analysisStage.failed',
   interrupted: 'activity.analysisStage.interrupted',
+  cancelled: 'activity.analysisStage.cancelled',
 };
 
 const eventKeys: Record<AnalysisRunEventCode, MessageKey> = {
@@ -24,6 +25,7 @@ const eventKeys: Record<AnalysisRunEventCode, MessageKey> = {
   completed: 'activity.analysisEvent.completed',
   failed: 'activity.analysisEvent.failed',
   interrupted: 'activity.analysisEvent.interrupted',
+  cancelled: 'activity.analysisEvent.cancelled',
 };
 
 export function analysisStageKey(stage: string): MessageKey | null {

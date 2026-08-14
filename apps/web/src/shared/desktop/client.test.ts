@@ -400,7 +400,7 @@ describe('desktop command client', () => {
   it('reads the persisted cross-workflow activity projection through one local request', async () => {
     invokeMock.mockResolvedValue({
       items: [], total: 0, page: 2, page_size: 25,
-      summary: { total: 0, active: 0, failed: 0, completed: 0 },
+      summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 },
     });
 
     await commands.listActivities({
@@ -474,29 +474,32 @@ describe('desktop command client', () => {
   it('rejects an activity feed that widens the current wire shape', async () => {
     invokeMock.mockResolvedValue({
       items: [], total: 0, page: 1, page_size: 50,
-      summary: { total: 0, active: 0, failed: 0, completed: 0 },
+      summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 },
       legacy_cursor: null,
     });
 
     await expect(commands.listActivities()).rejects.toThrow('current contract');
   });
 
-  it('does not fake-cancel recording mutations or managed HLAE preparation in the renderer', async () => {
+  it('keeps long-running state mutations attached to their native owner', async () => {
     vi.useFakeTimers();
     invokeMock.mockReturnValue(new Promise(() => undefined));
     let planSettled = false;
     let executeSettled = false;
     let preparationSettled = false;
+    let analysisCancelSettled = false;
 
     void commands.planRecording({ items: [] }).finally(() => { planSettled = true; });
     void commands.executeRecordingPlan('plan-1', false).finally(() => { executeSettled = true; });
     void commands.prepareManagedHlae().finally(() => { preparationSettled = true; });
+    void commands.cancelAnalysisRun('run-1').finally(() => { analysisCancelSettled = true; });
 
     await vi.advanceTimersByTimeAsync(15 * 60_000 + 1);
 
     expect(planSettled).toBe(false);
     expect(executeSettled).toBe(false);
     expect(preparationSettled).toBe(false);
+    expect(analysisCancelSettled).toBe(false);
     vi.clearAllTimers();
     vi.useRealTimers();
   });
@@ -523,6 +526,15 @@ describe('desktop command client', () => {
     controller.abort();
 
     await expect(pending).rejects.toMatchObject({ code: 'REQUEST_ABORTED' });
+  });
+
+  it('never invokes a native request whose owner signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(request('/health', { signal: controller.signal }))
+      .rejects.toMatchObject({ code: 'REQUEST_ABORTED' });
+    expect(invokeMock).not.toHaveBeenCalled();
   });
 
   it('starts one durable analysis run and returns its stable identity immediately', async () => {
@@ -601,6 +613,32 @@ describe('desktop command client', () => {
     });
 
     await expect(commands.getAnalysisRun('requested-run')).rejects.toThrow('exact run');
+  });
+
+  it('cancels one exact analysis run and returns only its durable terminal detail', async () => {
+    const detail = {
+      run: {
+        id: 'run/cancel', demo_id: 'demo-1', input_sha256: 'a'.repeat(64), input_size: 42,
+        status: 'cancelled', stage: 'cancelled', error: null,
+        created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:01:00Z',
+      },
+      events: [{
+        run_id: 'run/cancel', sequence: 0, stage: 'validating_input',
+        message_code: 'input_validation_started', detail: null,
+        created_at: '2026-08-13T01:00:00Z',
+      }, {
+        run_id: 'run/cancel', sequence: 1, stage: 'cancelled',
+        message_code: 'cancelled', detail: 'analysis_cancelled_by_user',
+        created_at: '2026-08-13T01:01:00Z',
+      }],
+      result_available: false,
+    };
+    invokeMock.mockResolvedValue(detail);
+
+    await expect(commands.cancelAnalysisRun('run/cancel')).resolves.toEqual(detail);
+    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
+      call: { method: 'post', path: '/analysis-runs/run%2Fcancel/cancel' },
+    });
   });
 
   it('reads one demo lifecycle without starting analysis', async () => {

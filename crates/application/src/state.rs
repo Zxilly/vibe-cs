@@ -19,6 +19,7 @@ use crate::{
     DisabledMediaPort, DisabledPlayerPort, DisabledProposalExecutionPort, DisabledRecordingPort,
     DisabledReviewPort, DisabledSourceAssetPort, ExportPort, IntegrationPort, MediaPort,
     PlayerPort, ProposalExecutionPort, RecordingPort, ReviewPort, SourceAssetPort,
+    analysis_tasks::AnalysisTaskRegistry,
 };
 
 #[derive(Debug, Clone)]
@@ -222,6 +223,7 @@ impl EventHub {
 pub struct AppState {
     pub(crate) storage: vibe_cs_storage::Storage,
     pub(crate) analysis: Arc<dyn AnalysisPort>,
+    pub(crate) analysis_tasks: AnalysisTaskRegistry,
     pub(crate) review: Arc<dyn ReviewPort>,
     pub(crate) cosmetics: Arc<dyn CosmeticsPort>,
     pub(crate) recording: Arc<dyn RecordingPort>,
@@ -251,6 +253,7 @@ impl std::fmt::Debug for AppState {
             .debug_struct("AppState")
             .field("storage", &self.storage)
             .field("analysis", &self.analysis)
+            .field("analysis_tasks", &self.analysis_tasks)
             .field("review", &self.review)
             .field("cosmetics", &self.cosmetics)
             .field("recording", &self.recording)
@@ -274,6 +277,7 @@ impl AppState {
         Self {
             storage,
             analysis: Arc::new(DisabledAnalysisPort),
+            analysis_tasks: AnalysisTaskRegistry::default(),
             review: Arc::new(DisabledReviewPort),
             cosmetics: Arc::new(DisabledCosmeticsPort),
             recording: Arc::new(DisabledRecordingPort),

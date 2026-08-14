@@ -18,6 +18,58 @@ use vibe_cs_domain::{
 pub trait AnalysisProgressReporter: Send + Sync + std::fmt::Debug {
     async fn parser_started(&self) -> Result<(), DomainError>;
 }
+
+/// Run-scoped cancellation observed by every blocking boundary of an analysis owner.
+#[derive(Debug, Clone)]
+pub struct AnalysisCancellation {
+    receiver: tokio::sync::watch::Receiver<bool>,
+    _keepalive: Arc<tokio::sync::watch::Sender<bool>>,
+}
+
+/// Capability that signals one run-scoped analysis cancellation.
+#[derive(Debug, Clone)]
+pub struct AnalysisCancellationSource {
+    sender: Arc<tokio::sync::watch::Sender<bool>>,
+}
+
+impl AnalysisCancellation {
+    #[must_use]
+    pub fn channel() -> (AnalysisCancellationSource, Self) {
+        let (sender, receiver) = tokio::sync::watch::channel(false);
+        let sender = Arc::new(sender);
+        (
+            AnalysisCancellationSource {
+                sender: Arc::clone(&sender),
+            },
+            Self {
+                receiver,
+                _keepalive: sender,
+            },
+        )
+    }
+
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
+        *self.receiver.borrow()
+    }
+
+    pub async fn cancelled(&self) {
+        let mut receiver = self.receiver.clone();
+        let _ = receiver.wait_for(|cancelled| *cancelled).await;
+    }
+}
+
+impl Default for AnalysisCancellation {
+    fn default() -> Self {
+        Self::channel().1
+    }
+}
+
+impl AnalysisCancellationSource {
+    pub fn cancel(&self) {
+        self.sender.send_replace(true);
+    }
+}
 use vibe_cs_hlae::HlaeBundleLaunchInputs;
 
 #[async_trait]
@@ -137,11 +189,13 @@ pub trait AnalysisPort: Send + Sync + std::fmt::Debug {
     async fn validate_input(
         &self,
         demo: DemoRecord,
+        cancellation: AnalysisCancellation,
     ) -> Result<AnalysisInputFingerprint, DomainError>;
     async fn analyze(
         &self,
         demo: DemoRecord,
         progress: Arc<dyn AnalysisProgressReporter>,
+        cancellation: AnalysisCancellation,
     ) -> Result<MatchAnalysis, DomainError>;
     async fn replay(&self, demo: DemoRecord) -> Result<ReplayPayload, DomainError>;
     async fn heatmap(&self, demo: DemoRecord) -> Result<Vec<HeatPoint>, DomainError>;
@@ -278,6 +332,7 @@ impl AnalysisPort for DisabledAnalysisPort {
     async fn validate_input(
         &self,
         _demo: DemoRecord,
+        _cancellation: AnalysisCancellation,
     ) -> Result<AnalysisInputFingerprint, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "Demo analysis adapter".to_owned(),
@@ -288,6 +343,7 @@ impl AnalysisPort for DisabledAnalysisPort {
         &self,
         _demo: DemoRecord,
         _progress: Arc<dyn AnalysisProgressReporter>,
+        _cancellation: AnalysisCancellation,
     ) -> Result<MatchAnalysis, DomainError> {
         Err(DomainError::DependencyUnavailable(
             "demo analysis adapter".to_owned(),
@@ -677,5 +733,37 @@ impl DemoWatchPort for DisabledDemoWatchPort {
 
     async fn status(&self) -> DemoWatchStatus {
         DemoWatchStatus::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AnalysisCancellation;
+
+    #[tokio::test]
+    async fn analysis_cancellation_has_no_lost_wakeup_for_late_or_parallel_waiters() {
+        for _ in 0..128 {
+            let (source, cancellation) = AnalysisCancellation::channel();
+            let waiters = (0..8)
+                .map(|_| {
+                    let cancellation = cancellation.clone();
+                    tokio::spawn(async move { cancellation.cancelled().await })
+                })
+                .collect::<Vec<_>>();
+            tokio::task::yield_now().await;
+            source.cancel();
+            cancellation.cancelled().await;
+            for waiter in waiters {
+                tokio::time::timeout(std::time::Duration::from_secs(1), waiter)
+                    .await
+                    .expect("parallel cancellation waiter")
+                    .expect("waiter task");
+            }
+
+            let late = cancellation.clone();
+            tokio::time::timeout(std::time::Duration::from_secs(1), late.cancelled())
+                .await
+                .expect("late waiter observes retained cancellation");
+        }
     }
 }

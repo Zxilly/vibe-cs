@@ -5437,7 +5437,8 @@ body {
   min-height: 32px;
   align-items: stretch;
   flex: 0 0 32px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--surface-1);
@@ -5453,6 +5454,7 @@ body {
   color: var(--muted);
   font-size: 11px;
   white-space: nowrap;
+  flex: 1 0 auto;
 }
 .activity-summary > span:last-child { border-right: 0; }
 .activity-summary strong { color: var(--text); font: 700 13px/1 var(--font-mono); }
@@ -5647,6 +5649,16 @@ body {
   .activity-table-panel,
   .activity-inspector { min-height: 0; }
   .activity-inspector { max-height: none; overflow: auto; }
+}
+
+@media (max-width: 640px) {
+  .activity-summary > span { min-width: 88px; justify-content: center; padding-inline: 8px; }
+  .activity-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-basis: auto;
+  }
+  .activity-search { grid-column: 1 / -1; }
+  .activity-toolbar > label:not(.activity-search) { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Players is a full-width evidence table with a responsive comparison inspector. */

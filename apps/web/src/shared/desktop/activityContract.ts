@@ -12,7 +12,7 @@ const itemKeys = [
   'created_at', 'updated_at', 'available_actions',
 ] as const;
 const feedKeys = ['items', 'total', 'page', 'page_size', 'summary'] as const;
-const summaryKeys = ['total', 'active', 'failed', 'completed'] as const;
+const summaryKeys = ['total', 'active', 'failed', 'completed', 'cancelled'] as const;
 const kinds = new Set<ActivityKind>(['recording', 'export', 'download', 'analysis']);
 const statuses = new Set<ActivityStatus>([
   'queued', 'preparing', 'running', 'cancelling', 'completed', 'failed', 'cancelled',
@@ -25,13 +25,13 @@ const actions = new Set<ActivityAction>([
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const analysisStages = new Set([
   'validating_input', 'parser_queued', 'parser_running', 'verifying_input_after_parse',
-  'projecting', 'completed', 'failed', 'interrupted',
+  'projecting', 'completed', 'failed', 'interrupted', 'cancelled',
 ]);
 const actionsByKind: Record<ActivityKind, ReadonlySet<ActivityAction>> = {
   recording: new Set(['cancel', 'retry_recording', 'open_outputs']),
   export: new Set(['cancel', 'open_outputs']),
   download: new Set(['cancel', 'retry_download', 'open_match_history']),
-  analysis: new Set(['retry_analysis', 'open_analysis', 'open_library']),
+  analysis: new Set(['cancel', 'retry_analysis', 'open_analysis', 'open_library']),
 };
 const recordingStageUnits: Readonly<Record<string, number>> = {
   'recording.stage.launching': 1,
@@ -176,7 +176,9 @@ export function parseActivityItem(value: unknown): ActivityItem {
         ? 'running'
         : value.stage === 'completed'
           ? 'completed'
-          : 'failed';
+          : value.stage === 'cancelled'
+            ? 'cancelled'
+            : 'failed';
     if (
       value.subtype !== null
       || typeof value.stage !== 'string'
@@ -186,6 +188,7 @@ export function parseActivityItem(value: unknown): ActivityItem {
       || value.completed_units !== null
       || value.total_units !== null
       || value.unit !== null
+      || (status === 'cancelled' && value.error !== null)
     ) return invalid();
     const actionSetIsCurrent = status === 'completed'
       ? actionsExactly(availableActions, ['open_analysis', 'open_library'])
@@ -193,7 +196,10 @@ export function parseActivityItem(value: unknown): ActivityItem {
       : status === 'failed'
         ? actionsExactly(availableActions, ['retry_analysis', 'open_library'])
           || actionsExactly(availableActions, ['open_library'])
-        : actionsExactly(availableActions, ['open_library']);
+        : status === 'cancelled'
+          ? actionsExactly(availableActions, ['retry_analysis', 'open_library'])
+            || actionsExactly(availableActions, ['open_library'])
+          : actionsExactly(availableActions, ['cancel', 'open_library']);
     if (!actionSetIsCurrent) return invalid();
   }
   return value as ActivityItem;
@@ -222,7 +228,8 @@ export function parseActivityFeed(value: unknown): ActivityFeed {
     || items.length > Number(value.total)
     || new Set(items.map((item) => item.id)).size !== items.length
     || Number(value.total) > summaryTotal
-    || Number(summary.active) + Number(summary.failed) + Number(summary.completed) > summaryTotal
+    || Number(summary.active) + Number(summary.failed) + Number(summary.completed)
+      + Number(summary.cancelled) !== summaryTotal
   ) return invalid();
   return {
     items,

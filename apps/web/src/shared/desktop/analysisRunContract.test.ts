@@ -77,4 +77,40 @@ describe('analysis run wire contract', () => {
       result_available: true,
     })).toThrow('current contract');
   });
+
+  it('accepts only the exact persisted cancelled terminal truth', () => {
+    const cancelled = {
+      ...run(),
+      status: 'cancelled',
+      stage: 'cancelled',
+      error: null,
+      updated_at: '2026-08-13T01:01:00Z',
+    };
+    const events = [{
+      run_id: 'run-1', sequence: 0, stage: 'validating_input',
+      message_code: 'input_validation_started', detail: null,
+      created_at: '2026-08-13T01:00:00Z',
+    }, {
+      run_id: 'run-1', sequence: 1, stage: 'cancelled',
+      message_code: 'cancelled', detail: 'analysis_cancelled_by_user',
+      created_at: '2026-08-13T01:01:00Z',
+    }];
+
+    expect(parseAnalysisRunDetail({ run: cancelled, events, result_available: false }))
+      .toEqual({ run: cancelled, events, result_available: false });
+    expect(() => parseAnalysisRunDetail({
+      run: { ...cancelled, error: 'cancelled' }, events, result_available: false,
+    })).toThrow('current contract');
+    expect(() => parseAnalysisRunDetail({
+      run: { ...cancelled, error: '' }, events, result_available: false,
+    })).toThrow('current contract');
+    expect(() => parseAnalysisRunDetail({
+      run: cancelled,
+      events: [events[0], { ...events[1], detail: null }],
+      result_available: false,
+    })).toThrow('current contract');
+    expect(() => parseAnalysisRunDetail({
+      run: cancelled, events, result_available: true,
+    })).toThrow('current contract');
+  });
 });

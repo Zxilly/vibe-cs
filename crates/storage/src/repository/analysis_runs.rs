@@ -395,6 +395,41 @@ impl Storage {
         .await
     }
 
+    pub async fn cancel_analysis_run(&self, run_id: Uuid) -> Result<AnalysisRun> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let mut run = get_document::<AnalysisRun>(&transaction, "analysis_runs", run_id)?
+                .ok_or_else(|| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::NotFound(
+                        "analysis run".to_owned(),
+                    ))
+                })?;
+            if run.status == AnalysisRunStatus::Cancelled {
+                transaction.commit()?;
+                return Ok(run);
+            }
+            transition_analysis_run(
+                &transaction,
+                &mut run,
+                AnalysisRunEventCode::Cancelled,
+                Some("analysis_cancelled_by_user".to_owned()),
+            )?;
+            let mut demo = get_document::<DemoRecord>(&transaction, "demos", run.demo_id)?
+                .ok_or_else(|| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::NotFound("demo".to_owned()))
+                })?;
+            if demo.status == DemoStatus::Analyzing {
+                demo.status = DemoStatus::Discovered;
+                demo.updated_at = run.updated_at;
+                put_demo_row(&transaction, &demo)?;
+            }
+            transaction.commit()?;
+            Ok(run)
+        })
+        .await
+    }
+
     pub async fn recover_orphaned_analysis_runs(&self) -> Result<u64> {
         self.run(|connection| {
             let transaction =
@@ -572,15 +607,31 @@ fn transition_analysis_run(
         )));
     }
     let detail = detail.map(|value| value.chars().take(2_000).collect::<String>());
-    let sequence = transaction.query_row(
+    let mut sequence = transaction.query_row(
         "SELECT COUNT(*) FROM analysis_run_events WHERE run_id = ?1",
         [run.id.to_string()],
         |row| row.get::<_, u32>(0),
     )?;
-    if sequence >= vibe_cs_domain::MAX_ANALYSIS_RUN_EVENTS {
+    let terminal = stage.status().is_terminal();
+    if !terminal && sequence >= vibe_cs_domain::MAX_ANALYSIS_RUN_EVENTS - 1 {
         return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
-            "analysis run event limit was reached".to_owned(),
+            "analysis run event limit reserved its terminal event".to_owned(),
         )));
+    }
+    if terminal && sequence >= vibe_cs_domain::MAX_ANALYSIS_RUN_EVENTS {
+        let terminal_sequence = vibe_cs_domain::MAX_ANALYSIS_RUN_EVENTS - 1;
+        let removed = transaction.execute(
+            "DELETE FROM analysis_run_events \
+             WHERE run_id = ?1 AND sequence = ?2 \
+               AND stage NOT IN ('completed', 'failed', 'interrupted', 'cancelled')",
+            params![run.id.to_string(), terminal_sequence],
+        )?;
+        if removed != 1 {
+            return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                "analysis run event capacity has no replaceable non-terminal event".to_owned(),
+            )));
+        }
+        sequence = terminal_sequence;
     }
     let now = Utc::now();
     run.stage = stage;
@@ -673,6 +724,7 @@ const fn analysis_run_status(status: AnalysisRunStatus) -> &'static str {
         AnalysisRunStatus::Completed => "completed",
         AnalysisRunStatus::Failed => "failed",
         AnalysisRunStatus::Interrupted => "interrupted",
+        AnalysisRunStatus::Cancelled => "cancelled",
     }
 }
 
@@ -686,6 +738,7 @@ const fn analysis_run_stage(stage: AnalysisRunStage) -> &'static str {
         AnalysisRunStage::Completed => "completed",
         AnalysisRunStage::Failed => "failed",
         AnalysisRunStage::Interrupted => "interrupted",
+        AnalysisRunStage::Cancelled => "cancelled",
     }
 }
 
@@ -699,6 +752,7 @@ const fn analysis_run_event_code(code: AnalysisRunEventCode) -> &'static str {
         AnalysisRunEventCode::Completed => "completed",
         AnalysisRunEventCode::Failed => "failed",
         AnalysisRunEventCode::Interrupted => "interrupted",
+        AnalysisRunEventCode::Cancelled => "cancelled",
     }
 }
 
@@ -708,11 +762,12 @@ mod tests {
     use rusqlite::params;
     use uuid::Uuid;
     use vibe_cs_domain::{
-        AnalysisInputFingerprint, AnalysisRunEventCode, AnalysisRunStage, AnalysisRunStatus,
-        DemoRecord, DemoStatus, MatchAnalysis,
+        AnalysisInputFingerprint, AnalysisRunEvent, AnalysisRunEventCode, AnalysisRunStage,
+        AnalysisRunStatus, DemoRecord, DemoStatus, MAX_ANALYSIS_RUN_EVENTS, MatchAnalysis,
     };
 
     use super::super::{Storage, encode};
+    use super::put_analysis_run_event_row;
 
     fn demo(id: Uuid) -> DemoRecord {
         let now = Utc::now();
@@ -752,6 +807,31 @@ mod tests {
             rounds: Vec::new(),
             highlights: Vec::new(),
         }
+    }
+
+    async fn fill_analysis_event_capacity(storage: &Storage, run_id: Uuid, count: u32) {
+        assert!((1..=MAX_ANALYSIS_RUN_EVENTS).contains(&count));
+        storage
+            .run(move |connection| {
+                let transaction = connection.transaction()?;
+                for sequence in 1..count {
+                    put_analysis_run_event_row(
+                        &transaction,
+                        &AnalysisRunEvent {
+                            run_id,
+                            sequence,
+                            stage: AnalysisRunStage::ValidatingInput,
+                            message_code: AnalysisRunEventCode::InputValidationStarted,
+                            detail: Some(format!("capacity fixture {sequence}")),
+                            created_at: Utc::now(),
+                        },
+                    )?;
+                }
+                transaction.commit()?;
+                Ok(())
+            })
+            .await
+            .expect("fill analysis event capacity");
     }
 
     #[tokio::test]
@@ -1105,6 +1185,350 @@ mod tests {
             Some("input fingerprint did not match")
         );
         assert!(!detail.result_available);
+    }
+
+    #[tokio::test]
+    async fn cancelling_an_analysis_run_persists_a_non_failure_terminal_state() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo_id = Uuid::new_v4();
+        storage.put_demo(demo(demo_id)).await.expect("put demo");
+        let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+
+        let run = storage
+            .cancel_analysis_run(run_id)
+            .await
+            .expect("cancel run");
+
+        assert_eq!(run.status, AnalysisRunStatus::Cancelled);
+        assert_eq!(run.stage, AnalysisRunStage::Cancelled);
+        assert_eq!(run.error, None);
+        assert_eq!(
+            storage.get_demo(demo_id).await.unwrap().unwrap().status,
+            DemoStatus::Discovered
+        );
+        let detail = storage.get_analysis_run(run_id).await.unwrap().unwrap();
+        assert_eq!(detail.events.len(), 2);
+        assert_eq!(
+            detail.events[1].message_code,
+            AnalysisRunEventCode::Cancelled
+        );
+        assert_eq!(
+            detail.events[1].detail.as_deref(),
+            Some("analysis_cancelled_by_user")
+        );
+        assert!(!detail.result_available);
+        assert!(
+            storage
+                .get_analysis_for_run(run_id)
+                .await
+                .unwrap()
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn cancelling_an_already_cancelled_exact_run_is_idempotent() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo_id = Uuid::new_v4();
+        storage.put_demo(demo(demo_id)).await.expect("put demo");
+        let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+        let first = storage.cancel_analysis_run(run_id).await.unwrap();
+
+        let repeated = storage
+            .cancel_analysis_run(run_id)
+            .await
+            .expect("repeat exact cancellation");
+
+        assert_eq!(repeated, first);
+        let detail = storage.get_analysis_run(run_id).await.unwrap().unwrap();
+        assert_eq!(detail.events.len(), 2);
+        assert_eq!(
+            detail.events.last().unwrap().message_code,
+            AnalysisRunEventCode::Cancelled
+        );
+    }
+
+    #[tokio::test]
+    async fn terminal_transitions_keep_an_exact_event_at_the_event_capacity_boundary() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let cancel_reserved_demo = Uuid::new_v4();
+        let cancel_full_demo = Uuid::new_v4();
+        let fail_full_demo = Uuid::new_v4();
+        let interrupt_full_demo = Uuid::new_v4();
+        storage
+            .put_demos(
+                [
+                    cancel_reserved_demo,
+                    cancel_full_demo,
+                    fail_full_demo,
+                    interrupt_full_demo,
+                ]
+                .into_iter()
+                .enumerate()
+                .map(|(index, id)| {
+                    let mut record = demo(id);
+                    record.path = format!("C:/matches/capacity-{index}.dem");
+                    record.file_name = format!("capacity-{index}.dem");
+                    record.content_sha256 = Some(format!("{index:064x}"));
+                    record
+                })
+                .collect(),
+            )
+            .await
+            .expect("put demos");
+
+        let cancel_reserved = storage
+            .start_analysis_run(cancel_reserved_demo)
+            .await
+            .unwrap()
+            .run;
+        fill_analysis_event_capacity(&storage, cancel_reserved.id, 31).await;
+        assert!(
+            storage
+                .bind_analysis_run_input(
+                    cancel_reserved.id,
+                    AnalysisInputFingerprint {
+                        sha256: "0".repeat(64),
+                        size: 512,
+                    },
+                )
+                .await
+                .is_err(),
+            "non-terminal progress must reserve the terminal event slot"
+        );
+        storage
+            .cancel_analysis_run(cancel_reserved.id)
+            .await
+            .expect("cancel at reserved boundary");
+
+        let cancel_full = storage
+            .start_analysis_run(cancel_full_demo)
+            .await
+            .unwrap()
+            .run;
+        fill_analysis_event_capacity(&storage, cancel_full.id, 32).await;
+        storage
+            .cancel_analysis_run(cancel_full.id)
+            .await
+            .expect("cancel a legacy full-capacity run");
+
+        let fail_full = storage
+            .start_analysis_run(fail_full_demo)
+            .await
+            .unwrap()
+            .run;
+        fill_analysis_event_capacity(&storage, fail_full.id, 32).await;
+        storage
+            .fail_analysis_run(fail_full.id, "parser failed".to_owned())
+            .await
+            .expect("fail a legacy full-capacity run");
+
+        let interrupt_full = storage
+            .start_analysis_run(interrupt_full_demo)
+            .await
+            .unwrap()
+            .run;
+        fill_analysis_event_capacity(&storage, interrupt_full.id, 32).await;
+        assert_eq!(storage.recover_orphaned_analysis_runs().await.unwrap(), 1);
+
+        for (run_id, expected) in [
+            (cancel_reserved.id, AnalysisRunEventCode::Cancelled),
+            (cancel_full.id, AnalysisRunEventCode::Cancelled),
+            (fail_full.id, AnalysisRunEventCode::Failed),
+            (interrupt_full.id, AnalysisRunEventCode::Interrupted),
+        ] {
+            let detail = storage.get_analysis_run(run_id).await.unwrap().unwrap();
+            assert_eq!(detail.events.len(), MAX_ANALYSIS_RUN_EVENTS as usize);
+            assert_eq!(detail.events.last().unwrap().sequence, 31);
+            assert_eq!(detail.events.last().unwrap().message_code, expected);
+            assert_eq!(
+                detail
+                    .events
+                    .iter()
+                    .filter(|event| event.message_code == expected)
+                    .count(),
+                1,
+                "terminal event must be unique"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn latest_cancelled_analysis_attempt_can_be_retried_without_mutating_history() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo_id = Uuid::new_v4();
+        storage.put_demo(demo(demo_id)).await.expect("put demo");
+        let cancelled = storage.start_analysis_run(demo_id).await.unwrap().run;
+        storage.cancel_analysis_run(cancelled.id).await.unwrap();
+
+        let retry = storage
+            .start_analysis_run(demo_id)
+            .await
+            .expect("retry cancelled attempt");
+
+        assert!(retry.created);
+        assert_ne!(retry.run.id, cancelled.id);
+        assert_eq!(retry.run.status, AnalysisRunStatus::Queued);
+        let history = storage.list_analysis_runs(demo_id).await.unwrap();
+        assert_eq!(history.len(), 2);
+        assert_eq!(history[0].id, cancelled.id);
+        assert_eq!(history[0].status, AnalysisRunStatus::Cancelled);
+        assert_eq!(history[1].id, retry.run.id);
+    }
+
+    #[tokio::test]
+    async fn cancelling_preserves_demo_lifecycle_and_fingerprint_changed_by_an_external_owner() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        for (index, external_status) in [DemoStatus::Missing, DemoStatus::Discovered]
+            .into_iter()
+            .enumerate()
+        {
+            let demo_id = Uuid::new_v4();
+            let mut record = demo(demo_id);
+            record.path = format!("C:/matches/external-{index}.dem");
+            record.file_name = format!("external-{index}.dem");
+            record.content_sha256 = Some(format!("{index:064x}"));
+            storage.put_demo(record).await.expect("put demo");
+            let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+            let mut external = storage.get_demo(demo_id).await.unwrap().unwrap();
+            external.status = external_status;
+            external.content_sha256 = Some(format!("{:064x}", index + 10));
+            external.file_size += 1_024;
+            storage
+                .put_demo(external.clone())
+                .await
+                .expect("external update");
+
+            storage
+                .cancel_analysis_run(run_id)
+                .await
+                .expect("cancel exact run");
+
+            let current = storage.get_demo(demo_id).await.unwrap().unwrap();
+            assert_eq!(current.status, external_status);
+            assert_eq!(current.content_sha256, external.content_sha256);
+            assert_eq!(current.file_size, external.file_size);
+        }
+    }
+
+    #[tokio::test]
+    async fn startup_recovery_is_a_noop_for_cancelled_attempts() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo_id = Uuid::new_v4();
+        storage.put_demo(demo(demo_id)).await.expect("put demo");
+        let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
+        storage.cancel_analysis_run(run_id).await.unwrap();
+        let before = storage.get_analysis_run(run_id).await.unwrap().unwrap();
+
+        assert_eq!(storage.recover_orphaned_analysis_runs().await.unwrap(), 0);
+
+        let after = storage.get_analysis_run(run_id).await.unwrap().unwrap();
+        assert_eq!(after, before);
+        assert_eq!(after.run.status, AnalysisRunStatus::Cancelled);
+        assert_eq!(
+            after.events.last().unwrap().message_code,
+            AnalysisRunEventCode::Cancelled
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_complete_and_fail_races_commit_one_exact_terminal_event() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let complete_demo_id = Uuid::new_v4();
+        let fail_demo_id = Uuid::new_v4();
+        let mut complete_demo = demo(complete_demo_id);
+        complete_demo.path = "C:/matches/complete-race.dem".to_owned();
+        complete_demo.file_name = "complete-race.dem".to_owned();
+        complete_demo.content_sha256 = Some("c".repeat(64));
+        let mut fail_demo = demo(fail_demo_id);
+        fail_demo.path = "C:/matches/fail-race.dem".to_owned();
+        fail_demo.file_name = "fail-race.dem".to_owned();
+        fail_demo.content_sha256 = Some("f".repeat(64));
+        storage
+            .put_demos(vec![complete_demo, fail_demo])
+            .await
+            .unwrap();
+
+        let complete_run = storage
+            .start_analysis_run(complete_demo_id)
+            .await
+            .unwrap()
+            .run;
+        let complete_fingerprint = AnalysisInputFingerprint {
+            sha256: "c".repeat(64),
+            size: 512,
+        };
+        storage
+            .bind_analysis_run_input(complete_run.id, complete_fingerprint.clone())
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_parser_started(complete_run.id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_input_revalidation_started(complete_run.id)
+            .await
+            .unwrap();
+        storage
+            .mark_analysis_projection_started(complete_run.id)
+            .await
+            .unwrap();
+        let (completed, cancelled) = tokio::join!(
+            storage.complete_analysis_run(
+                complete_run.id,
+                analysis(complete_demo_id),
+                complete_fingerprint,
+            ),
+            storage.cancel_analysis_run(complete_run.id),
+        );
+        assert_ne!(completed.is_ok(), cancelled.is_ok());
+        let complete_detail = storage
+            .get_analysis_run(complete_run.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(matches!(
+            complete_detail.run.status,
+            AnalysisRunStatus::Completed | AnalysisRunStatus::Cancelled
+        ));
+        assert_eq!(
+            complete_detail
+                .events
+                .iter()
+                .filter(|event| event.stage.is_terminal())
+                .count(),
+            1
+        );
+        assert_eq!(
+            complete_detail.result_available,
+            complete_detail.run.status == AnalysisRunStatus::Completed
+        );
+
+        let fail_run = storage.start_analysis_run(fail_demo_id).await.unwrap().run;
+        let (failed, cancelled) = tokio::join!(
+            storage.fail_analysis_run(fail_run.id, "parser failed".to_owned()),
+            storage.cancel_analysis_run(fail_run.id),
+        );
+        assert_ne!(failed.is_ok(), cancelled.is_ok());
+        let fail_detail = storage
+            .get_analysis_run(fail_run.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(matches!(
+            fail_detail.run.status,
+            AnalysisRunStatus::Failed | AnalysisRunStatus::Cancelled
+        ));
+        assert_eq!(
+            fail_detail
+                .events
+                .iter()
+                .filter(|event| event.stage.is_terminal())
+                .count(),
+            1
+        );
+        assert!(!fail_detail.result_available);
     }
 
     #[tokio::test]

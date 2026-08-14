@@ -1,4 +1,5 @@
 import { currentLocale, msg, msgf } from '../../shared/i18n';
+import { useMachine } from '@xstate/react';
 import {
   Activity,
   ArrowLeft,
@@ -33,19 +34,19 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent as ReactKeyboardEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { commands, desktopMediaUrl, normalizeSide, readableError } from '../../shared/desktop/client';
 import type {
   AnalysisWorkspace,
+  AnalysisRun,
   CosmeticCatalog,
   CosmeticFieldName,
   CosmeticInspectionItem,
   CosmeticInspectionReport,
   CosmeticPlan,
   CosmeticRewriteResponse,
-  DemoRecord,
   HeatPointRecord,
   Highlight,
   PlayerAnalysis,
@@ -66,7 +67,6 @@ import { worldPointsToRadarPercent } from '../../shared/radar';
 import { runManagedPlaybackLaunch, useRuntimeStore } from '../../shared/stores/runtimeStore';
 import { Badge, Button, Card, EmptyState, Notice, Spinner } from '../../shared/ui';
 import { useQueueStore, type QueueItem } from '../queue/queueStore';
-import { demoLifecyclePresentation } from '../library/libraryPresentation';
 import {
   buildCosmeticRewriteRequest,
   cosmeticDraftsFromPatches,
@@ -82,8 +82,14 @@ import {
   teamPurchaseForSide,
 } from './analysisInsights';
 import { AiReviewPanel, type ReviewConfiguration } from './AiReviewPanel';
-import { analysisBatchIds, runBatchAnalysis, type BatchAnalysisState } from './analysisBatch';
-import { AnalysisLifecycleError, loadDemoAnalysis } from './analysisLoader';
+import { analysisBatchIds } from './analysisBatch';
+import {
+  analysisLifecycleMachine,
+  analysisLifecycleViewState,
+  analysisRouteKey,
+  emptyAnalysisWorkspace,
+} from './analysisLifecycleMachine';
+import { AnalysisLifecycleNotice } from './AnalysisLifecycleNotice';
 import { persistPrimaryAnalysisRun, selectBatchAnalysisDemo } from './analysisRunNavigation';
 import {
   readAnalysisNavigation,
@@ -186,17 +192,6 @@ const tabIcons: Record<AnalysisTab, typeof Activity> = {
 
 const playerInitials = (name: string) => name.slice(0, 2).toUpperCase();
 
-const emptyWorkspace = (demoId: string): AnalysisWorkspace => ({
-  demo_id: demoId,
-  map_name: '',
-  tick_rate: 0,
-  duration_seconds: 0,
-  teams: [],
-  players: [],
-  rounds: [],
-  highlights: [],
-});
-
 const formatClock = (seconds: number): string => {
   if (!Number.isFinite(seconds) || seconds <= 0) return '—';
   return `${Math.floor(seconds / 60)}:${String(Math.round(seconds % 60)).padStart(2, '0')}`;
@@ -208,17 +203,42 @@ function findPlayerName(workspace: AnalysisWorkspace, id: string): string {
 
 export function AnalysisPage() {
   const { t } = useI18n();
+  const ownerScopeId = useId();
   const [params, setParams] = useSearchParams();
   const demoId = params.get('demo') ?? '';
   const routeRunId = params.get('run');
   const encodedBatch = params.get('demos');
   const batchIds = useMemo(() => demoId ? analysisBatchIds(demoId, encodedBatch) : [], [demoId, encodedBatch]);
   const batchKey = batchIds.join(',');
-  const [batchStates, setBatchStates] = useState<Record<string, BatchAnalysisState>>({});
-  const [workspace, setWorkspace] = useState<AnalysisWorkspace>(() => emptyWorkspace(demoId));
-  const [source, setSource] = useState<'loading' | 'service' | 'error'>(demoId ? 'loading' : 'error');
-  const [error, setError] = useState<string | null>(null);
-  const [lifecycle, setLifecycle] = useState<DemoRecord['status'] | null>(null);
+  const onRunObserved = useCallback((run: AnalysisRun) => {
+    if (batchIds.length <= 1 && routeRunId !== run.id && run.demo_id === demoId) {
+      setParams((current) => persistPrimaryAnalysisRun(current, demoId, run.demo_id, run.id), { replace: true });
+    }
+  }, [batchIds.length, demoId, routeRunId, setParams]);
+  const routeInput = useMemo(() => ({
+    ownerScopeId,
+    demoId,
+    runId: routeRunId,
+    batchIds,
+    onRunObserved,
+  }), [batchIds, demoId, onRunObserved, ownerScopeId, routeRunId]);
+  const [analysisSnapshot, sendAnalysis] = useMachine(analysisLifecycleMachine, { input: routeInput });
+  useEffect(() => {
+    sendAnalysis({ type: 'ROUTE_CHANGED', ...routeInput });
+  }, [routeInput, sendAnalysis]);
+  const currentRoute = analysisSnapshot.context.routeKey === analysisRouteKey(routeInput);
+  const analysisView = currentRoute ? analysisLifecycleViewState(analysisSnapshot) : 'loading';
+  const workspace = currentRoute
+    ? analysisSnapshot.context.workspace
+    : emptyAnalysisWorkspace(demoId);
+  const batchStates = currentRoute ? analysisSnapshot.context.batchStates : {};
+  const lifecycle = currentRoute ? analysisSnapshot.context.lifecycle : null;
+  const error = currentRoute ? analysisSnapshot.context.message : null;
+  const source: 'loading' | 'service' | 'error' = analysisView === 'ready'
+    ? 'service'
+    : analysisView === 'loading' || analysisView === 'observing'
+      ? 'loading'
+      : 'error';
   const [addedHighlight, setAddedHighlight] = useState<string | null>(null);
   const [recordingDefaults, setRecordingDefaults] = useState({
     pre_roll_seconds: 3,
@@ -270,92 +290,6 @@ export function AnalysisPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (batchIds.length > 1) return undefined;
-    if (!demoId) {
-      setWorkspace(emptyWorkspace(''));
-      setSource('error');
-      setError(msg("m0895"));
-      return undefined;
-    }
-    const controller = new AbortController();
-    let active = true;
-    setSource('loading');
-    setLifecycle(null);
-    void loadDemoAnalysis(demoId, commands, controller.signal, {
-      runId: routeRunId,
-      onLifecycle: (status) => {
-        if (active) setLifecycle(status);
-      },
-      onRun: (run) => {
-        if (!active) return;
-        setLifecycle(run.status === 'completed' ? 'ready' : run.status === 'failed' || run.status === 'interrupted' ? 'failed' : 'analyzing');
-        if (routeRunId !== run.id && run.demo_id === demoId) {
-          setParams((current) => persistPrimaryAnalysisRun(current, demoId, run.demo_id, run.id), { replace: true });
-        }
-      },
-    })
-      .then((response) => {
-        if (!active) return;
-        setWorkspace(response);
-        setSource('service');
-        setError(null);
-      })
-      .catch((cause: unknown) => {
-        if (!active || controller.signal.aborted) return;
-        setWorkspace(emptyWorkspace(demoId));
-        setSource('error');
-        setError(readableError(cause));
-        if (cause instanceof AnalysisLifecycleError) setLifecycle(cause.lifecycle);
-        else setLifecycle((current) => current === 'analyzing' ? 'failed' : current);
-      });
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [batchIds.length, demoId, routeRunId, setParams]);
-
-  useEffect(() => {
-    if (batchIds.length <= 1) {
-      setBatchStates({});
-      return undefined;
-    }
-    const controller = new AbortController();
-    let active = true;
-    setBatchStates(Object.fromEntries(batchIds.map((id) => [id, { status: 'pending' }])));
-    setSource('loading');
-    setError(null);
-    void runBatchAnalysis(
-      batchIds,
-      (id) => loadDemoAnalysis(id, commands, controller.signal),
-      (id, state) => {
-        if (!active) return;
-        setBatchStates((current) => ({ ...current, [id]: state }));
-      },
-    );
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [batchIds, batchKey]);
-
-  useEffect(() => {
-    if (batchIds.length <= 1) return;
-    const state = batchStates[demoId];
-    if (state?.status === 'ready') {
-      setWorkspace(state.workspace);
-      setSource('service');
-      setError(null);
-    } else if (state?.status === 'error') {
-      setWorkspace(emptyWorkspace(demoId));
-      setSource('error');
-      setError(state.message);
-    } else {
-      setWorkspace(emptyWorkspace(demoId));
-      setSource('loading');
-    }
-  }, [batchIds.length, batchStates, demoId]);
-
   const navigation = readAnalysisNavigation(
     params,
     source === 'service'
@@ -397,7 +331,6 @@ export function AnalysisPage() {
   const addQueueItems = useQueueStore((state) => state.addMany);
   const batchReady = Object.values(batchStates).filter((state) => state.status === 'ready').length;
   const batchFailed = Object.values(batchStates).filter((state) => state.status === 'error').length;
-  const lifecyclePresentation = lifecycle ? demoLifecyclePresentation(lifecycle) : null;
 
   const queueItemForCompilation = (moment: CompilationMoment): QueueItem => ({
     id: `analysis-${workspace.demo_id}-${moment.id}`,
@@ -681,16 +614,12 @@ export function AnalysisPage() {
 
       {batchIds.length > 1 ? <Notice tone={batchFailed > 0 ? 'warning' : batchReady === batchIds.length ? 'success' : 'info'} title={msg("m0645")}>{msg("m0510")} {batchReady} / {batchIds.length}{batchFailed > 0 ? msgf("m0003", [batchFailed]) : msg("m0007")}</Notice> : null}
 
-      {source !== 'service' ? (
-        <Notice
-          tone={source === 'loading' ? 'info' : 'danger'}
-          title={source === 'loading' && lifecyclePresentation ? t(lifecyclePresentation.labelKey) : source === 'loading' ? msg("m0865") : msg("m0262")}
-        >
-          {source === 'loading'
-            ? <><Spinner />{lifecyclePresentation ? t(lifecyclePresentation.descriptionKey) : msg("m0874")}</>
-            : error ?? msg("m0795")}
-        </Notice>
-      ) : null}
+      <AnalysisLifecycleNotice
+        state={analysisView}
+        lifecycle={lifecycle}
+        message={error}
+        runId={currentRoute ? analysisSnapshot.context.runId : null}
+      />
 
       <div className={`analysis-layout analysis-layout--${workspaceLayout.showsPlayerRail ? 'player-context' : 'full-width'}`}>
         {workspaceLayout.showsPlayerRail ? (

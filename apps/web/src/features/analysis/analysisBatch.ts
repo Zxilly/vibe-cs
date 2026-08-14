@@ -19,16 +19,21 @@ export async function runBatchAnalysis(
   analyze: (id: string) => Promise<AnalysisWorkspace>,
   update: (id: string, state: BatchAnalysisState) => void,
   concurrency = 2,
+  signal?: AbortSignal,
 ): Promise<void> {
   let cursor = 0;
   const worker = async () => {
     while (cursor < ids.length) {
+      signal?.throwIfAborted();
       const id = ids[cursor++];
       if (!id) continue;
       update(id, { status: 'loading' });
       try {
-        update(id, { status: 'ready', workspace: await analyze(id) });
+        const workspace = await analyze(id);
+        signal?.throwIfAborted();
+        update(id, { status: 'ready', workspace });
       } catch (error) {
+        signal?.throwIfAborted();
         update(id, {
           status: 'error',
           message: error instanceof Error ? error.message : String(error),

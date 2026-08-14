@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    future::Future,
     io::Read as _,
     path::{Path, PathBuf},
     process::Stdio,
@@ -15,11 +16,13 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use uuid::Uuid;
 use vibe_cs_application::{
-    AnalysisPort, AnalysisProgressReporter, ReplayCacheCleanup, ReplayCacheStatus, ReplayPayload,
+    AnalysisCancellation, AnalysisPort, AnalysisProgressReporter, ReplayCacheCleanup,
+    ReplayCacheStatus, ReplayPayload,
 };
 use vibe_cs_demo::{
-    DemoEngine, DemoError, ParseCancellation, ValidationLimits, create_terminal_tail_repair_copy,
-    heatmap_from_rounds, replay_artifact_from_events, validate_demo,
+    DemoEngine, DemoError, ParseCancellation, ValidationLimits,
+    create_terminal_tail_repair_copy_cancellable, heatmap_from_rounds, replay_artifact_from_events,
+    validate_demo,
 };
 use vibe_cs_domain::{
     AnalysisInputFingerprint, DemoRecord, DomainError, HeatPoint, MatchAnalysis, ReplayFrame,
@@ -30,6 +33,8 @@ use crate::replay_cache::ReplayCache;
 const ANALYSIS_TIMEOUT: Duration = Duration::from_secs(12 * 60);
 const MAXIMUM_WORKER_RESPONSE_BYTES: u64 = 256 * 1024 * 1024;
 const MAXIMUM_DEMO_WORKER_BYTES: u64 = 128 * 1024 * 1024;
+const WORKER_TASK_CLEANUP_ATTEMPTS: usize = 6;
+const WORKER_TASK_CLEANUP_RETRY_DELAY: Duration = Duration::from_millis(25);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DemoWorkerSidecar {
@@ -80,11 +85,16 @@ struct VerifiedDemoWorker {
 }
 
 #[derive(Debug)]
-struct RepairCopyCleanup(PathBuf);
+struct RepairCopyCleanup {
+    path: PathBuf,
+    armed: bool,
+}
 
 impl Drop for RepairCopyCleanup {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
+        if self.armed {
+            let _ = std::fs::remove_file(&self.path);
+        }
     }
 }
 
@@ -137,8 +147,11 @@ impl RuntimeAnalysisPort {
         &self,
         demo: &DemoRecord,
         progress: Arc<dyn AnalysisProgressReporter>,
+        cancellation: AnalysisCancellation,
     ) -> Result<MatchAnalysis, DomainError> {
-        let initial = self.analyze_direct(demo, Some(progress)).await;
+        let initial = self
+            .analyze_direct(demo, Some(progress), cancellation.clone())
+            .await;
         if initial.is_ok() {
             return initial;
         }
@@ -148,71 +161,130 @@ impl RuntimeAnalysisPort {
         {
             return initial;
         }
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            ));
+        }
         tokio::fs::create_dir_all(&self.task_dir)
             .await
             .map_err(|error| DomainError::Internal(error.to_string()))?;
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            ));
+        }
         let repair_path = self
             .task_dir
             .join(format!(".repair-{}.dem", Uuid::new_v4()));
         let source_path = PathBuf::from(&demo.path);
         let destination = repair_path.clone();
-        let repair = tokio::task::spawn_blocking(move || {
-            create_terminal_tail_repair_copy(source_path, destination)
-        })
-        .await
-        .map_err(|error| {
-            DomainError::Internal(format!("terminal-tail repair inspection failed: {error}"))
-        })?;
-        let Ok(Some(copy)) = repair else {
-            return initial;
+        let repair = run_cancellable_repair_task(
+            cancellation.clone(),
+            repair_path,
+            move |parse_cancellation| {
+                create_terminal_tail_repair_copy_cancellable(
+                    source_path,
+                    destination,
+                    &parse_cancellation,
+                )
+            },
+        )
+        .await;
+        if cancellation.is_cancelled() {
+            if let Ok(Some(copy)) = &repair
+                && let Err(error) = remove_worker_task_file(&copy.path).await
+            {
+                return Err(DomainError::CleanupFailed(format!(
+                    "terminal-tail repair copy {} could not be removed after cancellation: {error}",
+                    copy.path.display()
+                )));
+            }
+            return Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            ));
+        }
+        let copy = match repair {
+            Ok(Some(copy)) => copy,
+            Ok(None) => return initial,
+            Err(error) => return Err(error),
         };
         tracing::warn!(
             source_bytes = copy.source_bytes,
             copied_bytes = copy.copied_bytes,
             "analyzing a bounded repair copy after terminal-tail recovery"
         );
-        let cleanup = RepairCopyCleanup(copy.path.clone());
+        let mut cleanup = RepairCopyCleanup {
+            path: copy.path.clone(),
+            armed: true,
+        };
         let mut repaired_demo = demo.clone();
         repaired_demo.path = copy.path.to_string_lossy().into_owned();
-        let result = self.analyze_direct(&repaired_demo, None).await;
-        drop(cleanup);
-        result
+        let result = self
+            .analyze_direct(&repaired_demo, None, cancellation)
+            .await;
+        match remove_worker_task_file(&cleanup.path).await {
+            Ok(()) => {
+                cleanup.armed = false;
+                result
+            }
+            Err(error) => Err(DomainError::CleanupFailed(format!(
+                "{}; terminal-tail repair copy {} could not be removed after repaired analysis: {error}",
+                result.as_ref().err().map_or(
+                    "repaired analysis completed".to_owned(),
+                    ToString::to_string
+                ),
+                cleanup.path.display()
+            ))),
+        }
     }
 
-    async fn acquire_analysis_permit(&self) -> Result<OwnedSemaphorePermit, DomainError> {
-        Arc::clone(&self.analysis_gate)
-            .acquire_owned()
-            .await
-            .map_err(|_| DomainError::Internal("demo analysis resource gate closed".to_owned()))
+    async fn acquire_analysis_permit(
+        &self,
+        cancellation: &AnalysisCancellation,
+    ) -> Result<OwnedSemaphorePermit, DomainError> {
+        tokio::select! {
+            permit = Arc::clone(&self.analysis_gate).acquire_owned() => permit.map_err(|_| {
+                DomainError::Internal("demo analysis resource gate closed".to_owned())
+            }),
+            () = cancellation.cancelled() => Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            )),
+        }
     }
 
     async fn analyze_direct(
         &self,
         demo: &DemoRecord,
         progress: Option<Arc<dyn AnalysisProgressReporter>>,
+        cancellation: AnalysisCancellation,
     ) -> Result<MatchAnalysis, DomainError> {
         if let Some(worker) = &self.worker {
-            return self.analyze_with_worker(worker, demo, progress).await;
+            return self
+                .analyze_with_worker(worker, demo, progress, cancellation)
+                .await;
         }
         tracing::warn!(
             "demo worker was not found; using the in-process parser with panic isolation"
         );
-        let cancellation = ParseCancellation::default();
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            ));
+        }
         if let Some(progress) = progress {
             progress.parser_started().await?;
         }
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            ));
+        }
+        let parse_cancellation = ParseCancellation::default();
         let parsing = self
             .engine
-            .analyze(&demo.path, demo.id, cancellation.clone());
-        if let Ok(result) = tokio::time::timeout(self.timeout, parsing).await {
-            result.map_err(map_demo_error)
-        } else {
-            cancellation.cancel();
-            Err(DomainError::Conflict(format!(
-                "demo analysis exceeded {} seconds and was cancelled",
-                self.timeout.as_secs()
-            )))
-        }
+            .analyze(&demo.path, demo.id, parse_cancellation.clone());
+        await_in_process_analysis(cancellation, parse_cancellation, self.timeout, parsing).await
     }
 
     async fn analyze_with_worker(
@@ -220,11 +292,27 @@ impl RuntimeAnalysisPort {
         worker: &DemoWorkerSidecar,
         demo: &DemoRecord,
         progress: Option<Arc<dyn AnalysisProgressReporter>>,
+        cancellation: AnalysisCancellation,
     ) -> Result<MatchAnalysis, DomainError> {
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            ));
+        }
         let _verified_worker = verify_demo_worker(worker).await?;
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            ));
+        }
         tokio::fs::create_dir_all(&self.task_dir)
             .await
             .map_err(|error| DomainError::Internal(error.to_string()))?;
+        if cancellation.is_cancelled() {
+            return Err(DomainError::Conflict(
+                "analysis_cancelled_by_user".to_owned(),
+            ));
+        }
         let task_id = Uuid::new_v4();
         let request_path = self.task_dir.join(format!("{task_id}.request.json"));
         let response_path = self.task_dir.join(format!("{task_id}.response.json"));
@@ -235,8 +323,18 @@ impl RuntimeAnalysisPort {
         let request_bytes = serde_json::to_vec(&request)
             .map_err(|error| DomainError::Internal(error.to_string()))?;
         write_new(&request_path, &request_bytes).await?;
+        if cancellation.is_cancelled() {
+            return finish_worker_task_files(
+                Err(DomainError::Conflict(
+                    "analysis_cancelled_by_user".to_owned(),
+                )),
+                &request_path,
+                &response_path,
+            )
+            .await;
+        }
 
-        let mut child = tokio::process::Command::new(&worker.path)
+        let child = tokio::process::Command::new(&worker.path)
             .arg("--input")
             .arg(&request_path)
             .arg("--output")
@@ -245,21 +343,37 @@ impl RuntimeAnalysisPort {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .kill_on_drop(true)
-            .spawn()
-            .map_err(|error| {
-                DomainError::Internal(format!("unable to start demo worker: {error}"))
-            })?;
+            .spawn();
+        let mut child = match child {
+            Ok(child) => child,
+            Err(error) => {
+                let primary =
+                    DomainError::Internal(format!("unable to start demo worker: {error}"));
+                return finish_worker_task_files(Err(primary), &request_path, &response_path).await;
+            }
+        };
+        if cancellation.is_cancelled() {
+            stop_worker(&mut child).await?;
+            return finish_worker_task_files(
+                Err(DomainError::Conflict(
+                    "analysis_cancelled_by_user".to_owned(),
+                )),
+                &request_path,
+                &response_path,
+            )
+            .await;
+        }
         if let Some(progress) = progress
             && let Err(error) = progress.parser_started().await
         {
-            let _ = child.kill().await;
-            let _ = child.wait().await;
-            let _ = tokio::fs::remove_file(&request_path).await;
-            let _ = tokio::fs::remove_file(&response_path).await;
-            return Err(error);
+            stop_worker(&mut child).await?;
+            return finish_worker_task_files(Err(error), &request_path, &response_path).await;
         }
-        let result = match tokio::time::timeout(self.timeout, child.wait()).await {
-            Ok(Ok(status)) => {
+        let deadline = tokio::time::sleep(self.timeout);
+        tokio::pin!(deadline);
+        let result = tokio::select! {
+            status = child.wait() => match status {
+            Ok(status) => {
                 if !status.success() && !response_path.is_file() {
                     Err(DomainError::Internal(format!(
                         "demo worker exited unsuccessfully with {status}"
@@ -268,25 +382,34 @@ impl RuntimeAnalysisPort {
                     read_worker_analysis(&response_path).await
                 }
             }
-            Ok(Err(error)) => {
-                let _ = child.kill().await;
-                let _ = child.wait().await;
-                Err(DomainError::Internal(format!(
-                    "unable to wait for demo worker: {error}"
-                )))
+            Err(error) => {
+                match stop_worker(&mut child).await {
+                    Ok(()) => Err(DomainError::Internal(format!(
+                        "unable to wait for demo worker: {error}"
+                    ))),
+                    Err(stop) => return Err(stop),
+                }
             }
-            Err(_) => {
-                let _ = child.kill().await;
-                let _ = child.wait().await;
-                Err(DomainError::Conflict(format!(
-                    "demo worker exceeded {} seconds and was terminated",
-                    self.timeout.as_secs()
-                )))
+        },
+            () = cancellation.cancelled() => {
+                match stop_worker(&mut child).await {
+                    Ok(()) => Err(DomainError::Conflict(
+                        "analysis_cancelled_by_user".to_owned(),
+                    )),
+                    Err(error) => return Err(error),
+                }
+            }
+            () = &mut deadline => {
+                match stop_worker(&mut child).await {
+                    Ok(()) => Err(DomainError::Conflict(format!(
+                        "demo worker exceeded {} seconds and was terminated",
+                        self.timeout.as_secs()
+                    ))),
+                    Err(error) => return Err(error),
+                }
             }
         };
-        let _ = tokio::fs::remove_file(&request_path).await;
-        let _ = tokio::fs::remove_file(&response_path).await;
-        result
+        finish_worker_task_files(result, &request_path, &response_path).await
     }
 
     async fn stored_analysis(&self, demo_id: Uuid) -> Result<MatchAnalysis, DomainError> {
@@ -295,6 +418,169 @@ impl RuntimeAnalysisPort {
             .await
             .map_err(|error| DomainError::Internal(error.to_string()))?
             .ok_or_else(|| DomainError::NotFound("demo analysis".to_owned()))
+    }
+}
+
+async fn stop_worker(child: &mut tokio::process::Child) -> Result<(), DomainError> {
+    let kill_error = child.kill().await.err();
+    match child.wait().await {
+        Ok(_) => Ok(()),
+        Err(wait_error) => Err(DomainError::CleanupFailed(match kill_error {
+            Some(kill_error) => {
+                format!("demo worker could not be killed ({kill_error}) or reaped ({wait_error})")
+            }
+            None => format!("demo worker could not be reaped: {wait_error}"),
+        })),
+    }
+}
+
+async fn finish_worker_task_files<T>(
+    result: Result<T, DomainError>,
+    request_path: &Path,
+    response_path: &Path,
+) -> Result<T, DomainError> {
+    match cleanup_worker_task_files(request_path, response_path).await {
+        Ok(()) => result,
+        Err(cleanup) => {
+            let primary = result.err().map(|error| error.to_string());
+            Err(DomainError::CleanupFailed(match primary {
+                Some(primary) => format!("{primary}; {cleanup}"),
+                None => cleanup,
+            }))
+        }
+    }
+}
+
+async fn cleanup_worker_task_files(
+    request_path: &Path,
+    response_path: &Path,
+) -> Result<(), String> {
+    let mut failures = Vec::new();
+    for path in [request_path, response_path] {
+        if let Err(error) = remove_worker_task_file(path).await {
+            failures.push(format!("{}: {error}", path.display()));
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "demo worker task-file cleanup remained incomplete after {WORKER_TASK_CLEANUP_ATTEMPTS} attempts: {}",
+            failures.join("; ")
+        ))
+    }
+}
+
+async fn remove_worker_task_file(path: &Path) -> std::io::Result<()> {
+    for attempt in 0..WORKER_TASK_CLEANUP_ATTEMPTS {
+        match tokio::fs::remove_file(path).await {
+            Ok(()) => return Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) if attempt + 1 == WORKER_TASK_CLEANUP_ATTEMPTS => return Err(error),
+            Err(_) => tokio::time::sleep(WORKER_TASK_CLEANUP_RETRY_DELAY).await,
+        }
+    }
+    unreachable!("worker task cleanup attempts are non-zero")
+}
+
+async fn run_cancellable_demo_task<T, F>(
+    cancellation: AnalysisCancellation,
+    context: &'static str,
+    operation: F,
+) -> Result<T, DomainError>
+where
+    T: Send + 'static,
+    F: FnOnce(ParseCancellation) -> Result<T, DemoError> + Send + 'static,
+{
+    let parse_cancellation = ParseCancellation::default();
+    let operation_cancellation = parse_cancellation.clone();
+    let mut task = tokio::task::spawn_blocking(move || operation(operation_cancellation));
+    tokio::select! {
+        result = &mut task => result
+            .map_err(|error| DomainError::Internal(format!("{context} task failed: {error}")))?
+            .map_err(map_demo_error),
+        () = cancellation.cancelled() => {
+            parse_cancellation.cancel();
+            let _ = task.await.map_err(|error| {
+                DomainError::Internal(format!("{context} task failed while stopping: {error}"))
+            })?;
+            Err(DomainError::Conflict("analysis_cancelled_by_user".to_owned()))
+        }
+    }
+}
+
+async fn run_cancellable_repair_task<T, F>(
+    cancellation: AnalysisCancellation,
+    repair_path: PathBuf,
+    operation: F,
+) -> Result<T, DomainError>
+where
+    T: Send + 'static,
+    F: FnOnce(ParseCancellation) -> Result<T, DemoError> + Send + 'static,
+{
+    let parse_cancellation = ParseCancellation::default();
+    let operation_cancellation = parse_cancellation.clone();
+    let mut task = tokio::task::spawn_blocking(move || operation(operation_cancellation));
+    let result = tokio::select! {
+        biased;
+        () = cancellation.cancelled() => {
+            parse_cancellation.cancel();
+            match task.await {
+                Ok(_) => Err(DomainError::Conflict("analysis_cancelled_by_user".to_owned())),
+                Err(error) => Err(DomainError::CleanupFailed(format!(
+                    "terminal-tail repair inspection stopped without a cleanup acknowledgement: {error}"
+                ))),
+            }
+        }
+        result = &mut task => match result {
+            Ok(result) => result.map_err(map_demo_error),
+            Err(error) => Err(DomainError::CleanupFailed(format!(
+                "terminal-tail repair inspection stopped without a cleanup acknowledgement: {error}"
+            ))),
+        },
+    };
+    if result.is_err()
+        && let Err(error) = remove_worker_task_file(&repair_path).await
+    {
+        let primary = result
+            .err()
+            .map(|error| error.to_string())
+            .unwrap_or_default();
+        return Err(DomainError::CleanupFailed(format!(
+            "{primary}; terminal-tail repair copy {} could not be removed after {WORKER_TASK_CLEANUP_ATTEMPTS} attempts: {error}",
+            repair_path.display()
+        )));
+    }
+    result
+}
+
+async fn await_in_process_analysis<F>(
+    cancellation: AnalysisCancellation,
+    parse_cancellation: ParseCancellation,
+    timeout: Duration,
+    parsing: F,
+) -> Result<MatchAnalysis, DomainError>
+where
+    F: Future<Output = Result<MatchAnalysis, DemoError>>,
+{
+    tokio::pin!(parsing);
+    let deadline = tokio::time::sleep(timeout);
+    tokio::pin!(deadline);
+    tokio::select! {
+        result = &mut parsing => result.map_err(map_demo_error),
+        () = cancellation.cancelled() => {
+            parse_cancellation.cancel();
+            let _ = parsing.await;
+            Err(DomainError::Conflict("analysis_cancelled_by_user".to_owned()))
+        }
+        () = &mut deadline => {
+            parse_cancellation.cancel();
+            let _ = parsing.await;
+            Err(DomainError::Conflict(format!(
+                "demo analysis exceeded {} seconds and was cancelled",
+                timeout.as_secs()
+            )))
+        }
     }
 }
 
@@ -310,18 +596,14 @@ impl AnalysisPort for RuntimeAnalysisPort {
     async fn validate_input(
         &self,
         demo: DemoRecord,
+        cancellation: AnalysisCancellation,
     ) -> Result<AnalysisInputFingerprint, DomainError> {
         let path = PathBuf::from(demo.path);
-        let validated = tokio::task::spawn_blocking(move || {
-            validate_demo(
-                path,
-                ValidationLimits::default(),
-                &ParseCancellation::default(),
-            )
-        })
-        .await
-        .map_err(|error| DomainError::Internal(format!("Demo validation task failed: {error}")))?
-        .map_err(map_demo_error)?;
+        let validated =
+            run_cancellable_demo_task(cancellation, "Demo validation", move |parse_cancellation| {
+                validate_demo(path, ValidationLimits::default(), &parse_cancellation)
+            })
+            .await?;
         Ok(AnalysisInputFingerprint {
             sha256: validated.sha256,
             size: validated.size,
@@ -332,9 +614,10 @@ impl AnalysisPort for RuntimeAnalysisPort {
         &self,
         demo: DemoRecord,
         progress: Arc<dyn AnalysisProgressReporter>,
+        cancellation: AnalysisCancellation,
     ) -> Result<MatchAnalysis, DomainError> {
-        let _permit = self.acquire_analysis_permit().await?;
-        self.analyze_inner(&demo, progress).await
+        let _permit = self.acquire_analysis_permit(&cancellation).await?;
+        self.analyze_inner(&demo, progress, cancellation).await
     }
 
     async fn replay(&self, demo: DemoRecord) -> Result<ReplayPayload, DomainError> {
@@ -443,11 +726,17 @@ async fn write_new(path: &Path, bytes: &[u8]) -> Result<(), DomainError> {
             .map_err(|error| DomainError::Internal(error.to_string()))
     }
     .await;
-    if result.is_err() {
-        drop(file);
-        let _ = tokio::fs::remove_file(path).await;
+    let Err(primary) = result else {
+        return Ok(());
+    };
+    drop(file);
+    match remove_worker_task_file(path).await {
+        Ok(()) => Err(primary),
+        Err(cleanup) => Err(DomainError::CleanupFailed(format!(
+            "{primary}; partial worker request {} could not be removed after {WORKER_TASK_CLEANUP_ATTEMPTS} attempts: {cleanup}",
+            path.display()
+        ))),
     }
-    result
 }
 
 async fn read_worker_analysis(path: &Path) -> Result<MatchAnalysis, DomainError> {
@@ -642,12 +931,18 @@ pub(crate) fn map_demo_error(error: DemoError) -> DomainError {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeSet, time::Instant};
+    use std::{
+        collections::BTreeSet,
+        sync::atomic::{AtomicUsize, Ordering},
+        time::Instant,
+    };
 
     use chrono::Utc;
     use serde_json::json;
     use tempfile::TempDir;
-    use vibe_cs_application::{AnalysisProgressReporter, ReplayCacheState, ReplayFidelityMode};
+    use vibe_cs_application::{
+        AnalysisCancellation, AnalysisProgressReporter, ReplayCacheState, ReplayFidelityMode,
+    };
     use vibe_cs_domain::{DemoStatus, EventKind, PlayerStats, RoundSummary, TimelineEvent};
 
     use super::*;
@@ -658,6 +953,30 @@ mod tests {
     #[async_trait]
     impl AnalysisProgressReporter for IgnoredAnalysisProgress {
         async fn parser_started(&self) -> Result<(), DomainError> {
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct CountingAnalysisProgress(AtomicUsize);
+
+    #[async_trait]
+    impl AnalysisProgressReporter for CountingAnalysisProgress {
+        async fn parser_started(&self) -> Result<(), DomainError> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct NotifyingAnalysisProgress {
+        entered: tokio::sync::Notify,
+    }
+
+    #[async_trait]
+    impl AnalysisProgressReporter for NotifyingAnalysisProgress {
+        async fn parser_started(&self) -> Result<(), DomainError> {
+            self.entered.notify_one();
             Ok(())
         }
     }
@@ -740,7 +1059,12 @@ mod tests {
         };
 
         let error = port
-            .analyze_with_worker(&worker, &demo, Some(Arc::new(IgnoredAnalysisProgress)))
+            .analyze_with_worker(
+                &worker,
+                &demo,
+                Some(Arc::new(IgnoredAnalysisProgress)),
+                AnalysisCancellation::default(),
+            )
             .await
             .expect_err("slow worker must time out");
 
@@ -752,6 +1076,232 @@ mod tests {
                 .count(),
             0,
             "request and response files must be removed after the child exits"
+        );
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn cancelled_worker_is_killed_and_reaped_before_exact_task_cleanup() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let worker_path = directory.path().join("cancel-worker.cmd");
+        let completed_marker = directory.path().join("worker-completed.marker");
+        std::fs::write(
+            &worker_path,
+            format!(
+                "@echo off\r\nping -n 30 127.0.0.1 > nul\r\necho completed > \"{}\"\r\n",
+                completed_marker.display()
+            ),
+        )
+        .expect("slow worker fixture");
+        let worker = DemoWorkerSidecar::new(
+            worker_path.clone(),
+            hex::encode(Sha256::digest(std::fs::read(&worker_path).unwrap())),
+        )
+        .expect("worker descriptor");
+        let task_dir = directory.path().join("worker-tasks");
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let port = RuntimeAnalysisPort::new_with_worker(
+            storage,
+            task_dir.clone(),
+            directory.path().join("cache"),
+            Some(worker.clone()),
+        )
+        .with_timeout(Duration::from_secs(30));
+        let demo = DemoRecord {
+            id: Uuid::new_v4(),
+            path: "C:/unused/current.dem".to_owned(),
+            file_name: "current.dem".to_owned(),
+            display_name: "Current".to_owned(),
+            source: "test".to_owned(),
+            status: DemoStatus::Analyzing,
+            map_name: None,
+            match_date: None,
+            duration_seconds: None,
+            total_rounds: None,
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: Vec::new(),
+            remark: String::new(),
+            content_sha256: Some("a".repeat(64)),
+            file_size: 512,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let progress = Arc::new(NotifyingAnalysisProgress::default());
+        let (source, cancellation) = AnalysisCancellation::channel();
+        let task_port = port.clone();
+        let task_progress = Arc::clone(&progress);
+        let task = tokio::spawn(async move {
+            task_port
+                .analyze_with_worker(&worker, &demo, Some(task_progress), cancellation)
+                .await
+        });
+        tokio::time::timeout(Duration::from_secs(2), progress.entered.notified())
+            .await
+            .expect("worker started");
+
+        source.cancel();
+        let error = tokio::time::timeout(Duration::from_secs(2), task)
+            .await
+            .expect("worker cancellation")
+            .expect("worker task")
+            .expect_err("worker must be cancelled");
+
+        assert!(error.to_string().contains("cancelled"));
+        assert_eq!(
+            std::fs::read_dir(&task_dir)
+                .expect("read task directory")
+                .count(),
+            0,
+            "request and response files must be removed only after child exit"
+        );
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(
+            !completed_marker.exists(),
+            "cancelled worker was still alive"
+        );
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn cancelled_worker_reports_cleanup_failure_instead_of_claiming_cancelled() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+
+        const FILE_SHARE_READ: u32 = 0x0000_0001;
+        const FILE_SHARE_WRITE: u32 = 0x0000_0002;
+
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let worker_path = directory.path().join("cleanup-worker.cmd");
+        std::fs::write(&worker_path, "@echo off\r\nping -n 30 127.0.0.1 > nul\r\n")
+            .expect("slow worker fixture");
+        let worker = DemoWorkerSidecar::new(
+            worker_path.clone(),
+            hex::encode(Sha256::digest(std::fs::read(&worker_path).unwrap())),
+        )
+        .expect("worker descriptor");
+        let task_dir = directory.path().join("worker-tasks");
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let port = RuntimeAnalysisPort::new_with_worker(
+            storage,
+            task_dir.clone(),
+            directory.path().join("cache"),
+            Some(worker.clone()),
+        );
+        let demo = DemoRecord {
+            id: Uuid::new_v4(),
+            path: "C:/unused/current.dem".to_owned(),
+            file_name: "current.dem".to_owned(),
+            display_name: "Current".to_owned(),
+            source: "test".to_owned(),
+            status: DemoStatus::Analyzing,
+            map_name: None,
+            match_date: None,
+            duration_seconds: None,
+            total_rounds: None,
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: Vec::new(),
+            remark: String::new(),
+            content_sha256: Some("a".repeat(64)),
+            file_size: 512,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let progress = Arc::new(NotifyingAnalysisProgress::default());
+        let (source, cancellation) = AnalysisCancellation::channel();
+        let task_port = port.clone();
+        let task_progress = Arc::clone(&progress);
+        let task = tokio::spawn(async move {
+            task_port
+                .analyze_with_worker(&worker, &demo, Some(task_progress), cancellation)
+                .await
+        });
+        tokio::time::timeout(Duration::from_secs(2), progress.entered.notified())
+            .await
+            .expect("worker started");
+        let request_path = std::fs::read_dir(&task_dir)
+            .expect("read task dir")
+            .map(|entry| entry.expect("task entry").path())
+            .find(|path| path.to_string_lossy().ends_with(".request.json"))
+            .expect("exact request file");
+        let deletion_blocker = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .open(&request_path)
+            .expect("lock request file against deletion");
+
+        source.cancel();
+        let error = tokio::time::timeout(Duration::from_secs(2), task)
+            .await
+            .expect("bounded cleanup failure")
+            .expect("worker task")
+            .expect_err("incomplete cleanup must not look cancelled");
+
+        assert!(matches!(error, DomainError::CleanupFailed(_)));
+        assert!(
+            request_path.exists(),
+            "locked task file remains explicit debt"
+        );
+        drop(deletion_blocker);
+        std::fs::remove_file(request_path).expect("test cleanup");
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn worker_spawn_failure_removes_the_exact_request_file() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let worker_path = directory.path().join("invalid-worker.exe");
+        std::fs::write(&worker_path, b"not a Windows executable").expect("worker fixture");
+        let worker = DemoWorkerSidecar::new(
+            worker_path.clone(),
+            hex::encode(Sha256::digest(std::fs::read(&worker_path).unwrap())),
+        )
+        .expect("worker descriptor");
+        let task_dir = directory.path().join("worker-tasks");
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let port = RuntimeAnalysisPort::new_with_worker(
+            storage,
+            task_dir.clone(),
+            directory.path().join("cache"),
+            Some(worker.clone()),
+        );
+        let demo = DemoRecord {
+            id: Uuid::new_v4(),
+            path: "C:/unused/current.dem".to_owned(),
+            file_name: "current.dem".to_owned(),
+            display_name: "Current".to_owned(),
+            source: "test".to_owned(),
+            status: DemoStatus::Analyzing,
+            map_name: None,
+            match_date: None,
+            duration_seconds: None,
+            total_rounds: None,
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: Vec::new(),
+            remark: String::new(),
+            content_sha256: Some("a".repeat(64)),
+            file_size: 512,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        port.analyze_with_worker(&worker, &demo, None, AnalysisCancellation::default())
+            .await
+            .expect_err("invalid executable must not spawn");
+
+        assert_eq!(
+            std::fs::read_dir(task_dir)
+                .expect("read task directory")
+                .count(),
+            0,
+            "spawn failure must remove its exact request file"
         );
     }
 
@@ -872,11 +1422,14 @@ mod tests {
             PathBuf::from("unused"),
             PathBuf::from("unused-cache"),
         );
-        let first = port.acquire_analysis_permit().await.expect("first permit");
+        let first = port
+            .acquire_analysis_permit(&AnalysisCancellation::default())
+            .await
+            .expect("first permit");
         let second_port = port.clone();
         let mut second = tokio::spawn(async move {
             second_port
-                .acquire_analysis_permit()
+                .acquire_analysis_permit(&AnalysisCancellation::default())
                 .await
                 .expect("second permit")
         });
@@ -892,6 +1445,242 @@ mod tests {
             .await
             .expect("second permit should become available")
             .expect("permit task");
+    }
+
+    #[tokio::test]
+    async fn cancelling_while_queued_does_not_start_a_heavy_worker() {
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let port = RuntimeAnalysisPort::new(
+            storage,
+            PathBuf::from("unused"),
+            PathBuf::from("unused-cache"),
+        );
+        let _blocker = port
+            .acquire_analysis_permit(&AnalysisCancellation::default())
+            .await
+            .expect("occupy gate");
+        let (cancellation_source, cancellation) = AnalysisCancellation::channel();
+        let progress = Arc::new(CountingAnalysisProgress::default());
+        let task_port = port.clone();
+        let task_progress = Arc::clone(&progress);
+        let task = tokio::spawn(async move {
+            task_port
+                .analyze(
+                    DemoRecord {
+                        id: Uuid::new_v4(),
+                        path: "C:/unused/queued.dem".to_owned(),
+                        file_name: "queued.dem".to_owned(),
+                        display_name: "Queued".to_owned(),
+                        source: "test".to_owned(),
+                        status: DemoStatus::Analyzing,
+                        map_name: None,
+                        match_date: None,
+                        duration_seconds: None,
+                        total_rounds: None,
+                        team_a_name: None,
+                        team_b_name: None,
+                        team_a_score: None,
+                        team_b_score: None,
+                        player_names: Vec::new(),
+                        remark: String::new(),
+                        content_sha256: Some("a".repeat(64)),
+                        file_size: 512,
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
+                    },
+                    task_progress,
+                    cancellation,
+                )
+                .await
+        });
+        tokio::task::yield_now().await;
+
+        cancellation_source.cancel();
+        let error = tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("queued cancellation")
+            .expect("analysis task")
+            .expect_err("queued analysis must be cancelled");
+
+        assert!(error.to_string().contains("cancelled"));
+        assert_eq!(progress.0.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn cancelling_a_blocking_demo_task_waits_until_the_operation_stops() {
+        let (source, cancellation) = AnalysisCancellation::channel();
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
+        let stopped = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stopped_by_task = Arc::clone(&stopped);
+        let task = tokio::spawn(async move {
+            run_cancellable_demo_task(cancellation, "fixture", move |parse_cancellation| {
+                let _ = entered_tx.send(());
+                while !parse_cancellation.is_cancelled() {
+                    std::thread::yield_now();
+                }
+                stopped_by_task.store(true, Ordering::SeqCst);
+                Err::<(), _>(DemoError::Cancelled)
+            })
+            .await
+        });
+        entered_rx.await.expect("blocking task entered");
+
+        source.cancel();
+        let error = tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("blocking task stopped")
+            .expect("join blocking bridge")
+            .expect_err("cancelled blocking task");
+
+        assert!(error.to_string().contains("cancelled"));
+        assert!(stopped.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn cancelling_in_process_analysis_waits_for_the_parser_future_to_stop() {
+        let (source, cancellation) = AnalysisCancellation::channel();
+        let parse_cancellation = ParseCancellation::default();
+        let observed_cancellation = parse_cancellation.clone();
+        let stopped = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stopped_by_parser = Arc::clone(&stopped);
+        let parsing = async move {
+            while !observed_cancellation.is_cancelled() {
+                tokio::task::yield_now().await;
+            }
+            stopped_by_parser.store(true, Ordering::SeqCst);
+            Err::<MatchAnalysis, _>(DemoError::Cancelled)
+        };
+        let task = tokio::spawn(await_in_process_analysis(
+            cancellation,
+            parse_cancellation,
+            Duration::from_secs(30),
+            parsing,
+        ));
+        tokio::task::yield_now().await;
+
+        source.cancel();
+        let error = tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("in-process parser stopped")
+            .expect("parser bridge")
+            .expect_err("parser cancelled");
+
+        assert!(error.to_string().contains("cancelled"));
+        assert!(stopped.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn cancelling_repair_waits_for_blocking_exit_before_cleaning_the_copy() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let repair_path = directory.path().join("repair.dem");
+        let operation_path = repair_path.clone();
+        let (source, cancellation) = AnalysisCancellation::channel();
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
+        let (allow_exit_tx, allow_exit_rx) = std::sync::mpsc::channel();
+        let task = tokio::spawn(run_cancellable_repair_task(
+            cancellation,
+            repair_path.clone(),
+            move |parse_cancellation| {
+                std::fs::write(&operation_path, b"partial repair").unwrap();
+                let _ = entered_tx.send(());
+                while !parse_cancellation.is_cancelled() {
+                    std::thread::yield_now();
+                }
+                allow_exit_rx.recv().unwrap();
+                Err::<(), _>(DemoError::Cancelled)
+            },
+        ));
+        entered_rx.await.expect("repair entered");
+
+        source.cancel();
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(
+            !task.is_finished(),
+            "repair cancellation detached blocking work"
+        );
+        assert!(repair_path.exists());
+        allow_exit_tx.send(()).unwrap();
+        let error = tokio::time::timeout(Duration::from_secs(1), task)
+            .await
+            .expect("repair stopped")
+            .expect("repair bridge")
+            .expect_err("repair cancelled");
+
+        assert!(error.to_string().contains("cancelled"));
+        assert!(
+            !repair_path.exists(),
+            "repair copy must be removed after exit"
+        );
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn cancelling_repair_surfaces_a_locked_copy_as_cleanup_debt() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+
+        const FILE_SHARE_READ: u32 = 0x0000_0001;
+        const FILE_SHARE_WRITE: u32 = 0x0000_0002;
+
+        let directory = tempfile::tempdir().unwrap();
+        let repair_path = directory.path().join("locked-repair.dem");
+        let operation_path = repair_path.clone();
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let (source, cancellation) = AnalysisCancellation::channel();
+        let task = tokio::spawn(run_cancellable_repair_task(
+            cancellation,
+            repair_path.clone(),
+            move |_parse_cancellation| {
+                std::fs::write(&operation_path, b"partial repair").unwrap();
+                entered_tx.send(()).unwrap();
+                release_rx.recv().unwrap();
+                Ok::<_, DemoError>(())
+            },
+        ));
+        entered_rx.await.expect("repair entered");
+        let deletion_blocker = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .open(&repair_path)
+            .expect("lock repair copy against deletion");
+
+        source.cancel();
+        release_tx.send(()).unwrap();
+        let error = task
+            .await
+            .expect("repair bridge")
+            .expect_err("locked repair cleanup must be explicit");
+
+        assert!(matches!(error, DomainError::CleanupFailed(_)));
+        assert!(repair_path.exists());
+        drop(deletion_blocker);
+        std::fs::remove_file(repair_path).expect("test cleanup");
+    }
+
+    #[tokio::test]
+    async fn panicking_repair_still_cleans_its_exact_copy_and_reports_cleanup_uncertainty() {
+        let directory = tempfile::tempdir().unwrap();
+        let repair_path = directory.path().join("panicking-repair.dem");
+        let operation_path = repair_path.clone();
+
+        let error = run_cancellable_repair_task(
+            AnalysisCancellation::default(),
+            repair_path.clone(),
+            move |_parse_cancellation| -> Result<(), DemoError> {
+                std::fs::write(&operation_path, b"partial repair").unwrap();
+                panic!("repair panic fixture")
+            },
+        )
+        .await
+        .expect_err("repair panic must not look like an ordinary parser error");
+
+        assert!(matches!(error, DomainError::CleanupFailed(_)));
+        assert!(
+            !repair_path.exists(),
+            "repair panic path must still be cleaned"
+        );
     }
 
     #[tokio::test]

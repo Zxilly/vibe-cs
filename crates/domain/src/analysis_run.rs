@@ -21,12 +21,16 @@ pub enum AnalysisRunStatus {
     Completed,
     Failed,
     Interrupted,
+    Cancelled,
 }
 
 impl AnalysisRunStatus {
     #[must_use]
     pub const fn is_terminal(self) -> bool {
-        matches!(self, Self::Completed | Self::Failed | Self::Interrupted)
+        matches!(
+            self,
+            Self::Completed | Self::Failed | Self::Interrupted | Self::Cancelled
+        )
     }
 }
 
@@ -41,6 +45,7 @@ pub enum AnalysisRunStage {
     Completed,
     Failed,
     Interrupted,
+    Cancelled,
 }
 
 impl AnalysisRunStage {
@@ -54,12 +59,16 @@ impl AnalysisRunStage {
             Self::Completed => AnalysisRunStatus::Completed,
             Self::Failed => AnalysisRunStatus::Failed,
             Self::Interrupted => AnalysisRunStatus::Interrupted,
+            Self::Cancelled => AnalysisRunStatus::Cancelled,
         }
     }
 
     #[must_use]
     pub const fn is_terminal(self) -> bool {
-        matches!(self, Self::Completed | Self::Failed | Self::Interrupted)
+        matches!(
+            self,
+            Self::Completed | Self::Failed | Self::Interrupted | Self::Cancelled
+        )
     }
 
     #[must_use]
@@ -71,7 +80,8 @@ impl AnalysisRunStage {
                 | (Self::ParserRunning, Self::VerifyingInputAfterParse)
                 | (Self::VerifyingInputAfterParse, Self::Projecting)
                 | (Self::Projecting, Self::Completed)
-        ) || (!self.is_terminal() && matches!(next, Self::Failed | Self::Interrupted))
+        ) || (!self.is_terminal()
+            && matches!(next, Self::Failed | Self::Interrupted | Self::Cancelled))
     }
 }
 
@@ -115,6 +125,7 @@ pub enum AnalysisRunEventCode {
     Completed,
     Failed,
     Interrupted,
+    Cancelled,
 }
 
 impl AnalysisRunEventCode {
@@ -129,6 +140,7 @@ impl AnalysisRunEventCode {
             Self::Completed => AnalysisRunStage::Completed,
             Self::Failed => AnalysisRunStage::Failed,
             Self::Interrupted => AnalysisRunStage::Interrupted,
+            Self::Cancelled => AnalysisRunStage::Cancelled,
         }
     }
 }
@@ -209,6 +221,30 @@ mod tests {
         assert!(AnalysisRunStage::ParserRunning.can_transition_to(AnalysisRunStage::Interrupted));
         assert!(!AnalysisRunStage::ParserQueued.can_transition_to(AnalysisRunStage::Projecting));
         assert!(!AnalysisRunStage::Completed.can_transition_to(AnalysisRunStage::Failed));
+    }
+
+    #[test]
+    fn every_non_terminal_analysis_stage_can_be_cancelled() {
+        for stage in [
+            AnalysisRunStage::ValidatingInput,
+            AnalysisRunStage::ParserQueued,
+            AnalysisRunStage::ParserRunning,
+            AnalysisRunStage::VerifyingInputAfterParse,
+            AnalysisRunStage::Projecting,
+        ] {
+            assert!(stage.can_transition_to(AnalysisRunStage::Cancelled));
+        }
+
+        assert_eq!(
+            AnalysisRunStage::Cancelled.status(),
+            AnalysisRunStatus::Cancelled
+        );
+        assert!(AnalysisRunStage::Cancelled.is_terminal());
+        assert!(!AnalysisRunStage::Cancelled.can_transition_to(AnalysisRunStage::Failed));
+        assert_eq!(
+            AnalysisRunEventCode::Cancelled.stage(),
+            AnalysisRunStage::Cancelled
+        );
     }
 
     #[test]

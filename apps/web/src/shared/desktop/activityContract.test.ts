@@ -105,13 +105,56 @@ describe('activity wire contract', () => {
       .toThrow('current contract');
   });
 
+  it('keeps a cancelled analysis as a distinct retryable terminal outcome', () => {
+    const runId = '66666666-6666-4666-8666-666666666666';
+    const cancelled = {
+      ...item(),
+      id: `analysis:${runId}`,
+      kind: 'analysis',
+      subtype: null,
+      job_id: runId,
+      context_id: 'demo-1',
+      status: 'cancelled',
+      stage: 'cancelled',
+      progress_percent: null,
+      error: null,
+      available_actions: ['retry_analysis', 'open_library'],
+    };
+
+    expect(parseActivityItem(cancelled)).toEqual(cancelled);
+    expect(() => parseActivityItem({ ...cancelled, status: 'failed' }))
+      .toThrow('current contract');
+    expect(() => parseActivityItem({ ...cancelled, error: 'analysis cancelled' }))
+      .toThrow('current contract');
+  });
+
+  it('exposes exact cancellation only for an active analysis run', () => {
+    const runId = '77777777-7777-4777-8777-777777777777';
+    const running = {
+      ...item(),
+      id: `analysis:${runId}`,
+      kind: 'analysis',
+      subtype: null,
+      job_id: runId,
+      context_id: 'demo-1',
+      status: 'running',
+      stage: 'parser_running',
+      progress_percent: null,
+      available_actions: ['cancel', 'open_library'],
+    };
+
+    expect(parseActivityItem(running)).toEqual(running);
+    expect(() => parseActivityItem({ ...running, available_actions: ['open_library'] }))
+      .toThrow('current contract');
+  });
+
   it('accepts only a bounded exact activity feed envelope', () => {
     const feed = {
       items: [item()],
       total: 1,
       page: 1,
       page_size: 50,
-      summary: { total: 1, active: 1, failed: 0, completed: 0 },
+      summary: { total: 1, active: 1, failed: 0, completed: 0, cancelled: 0 },
     };
     expect(parseActivityFeed(feed)).toEqual(feed);
     expect(() => parseActivityFeed({ ...feed, cursor: null })).toThrow('current contract');
@@ -121,7 +164,10 @@ describe('activity wire contract', () => {
     expect(() => parseActivityFeed({ ...feed, summary: { ...feed.summary, total: 0 } }))
       .toThrow('current contract');
     expect(() => parseActivityFeed({
-      ...feed, summary: { total: 1, active: 1, failed: 1, completed: 0 },
+      ...feed, summary: { total: 1, active: 1, failed: 1, completed: 0, cancelled: 0 },
+    })).toThrow('current contract');
+    expect(() => parseActivityFeed({
+      ...feed, summary: { total: 2, active: 1, failed: 0, completed: 0, cancelled: 0 },
     })).toThrow('current contract');
   });
 });

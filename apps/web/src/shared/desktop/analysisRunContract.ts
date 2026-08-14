@@ -13,14 +13,16 @@ const runKeys = [
 ] as const;
 const eventKeys = ['run_id', 'sequence', 'stage', 'message_code', 'detail', 'created_at'] as const;
 const detailKeys = ['run', 'events', 'result_available'] as const;
-const statuses = new Set<AnalysisRunStatus>(['queued', 'running', 'completed', 'failed', 'interrupted']);
+const statuses = new Set<AnalysisRunStatus>([
+  'queued', 'running', 'completed', 'failed', 'interrupted', 'cancelled',
+]);
 const stages = new Set<AnalysisRunStage>([
   'validating_input', 'parser_queued', 'parser_running', 'verifying_input_after_parse',
-  'projecting', 'completed', 'failed', 'interrupted',
+  'projecting', 'completed', 'failed', 'interrupted', 'cancelled',
 ]);
 const eventCodes = new Set<AnalysisRunEventCode>([
   'input_validation_started', 'input_verified', 'parser_started',
-  'input_revalidation_started', 'projection_started', 'completed', 'failed', 'interrupted',
+  'input_revalidation_started', 'projection_started', 'completed', 'failed', 'interrupted', 'cancelled',
 ]);
 const maximumEvents = 32;
 const maximumDetailCharacters = 2_000;
@@ -34,6 +36,7 @@ const eventStage: Record<AnalysisRunEventCode, AnalysisRunStage> = {
   completed: 'completed',
   failed: 'failed',
   interrupted: 'interrupted',
+  cancelled: 'cancelled',
 };
 
 function invalid(): never {
@@ -52,8 +55,11 @@ function nullableString(value: unknown): value is string | null {
 }
 
 function canFollow(previous: AnalysisRunStage, next: AnalysisRunStage): boolean {
-  if (next === 'failed' || next === 'interrupted') {
-    return previous !== 'completed' && previous !== 'failed' && previous !== 'interrupted';
+  if (next === 'failed' || next === 'interrupted' || next === 'cancelled') {
+    return previous !== 'completed'
+      && previous !== 'failed'
+      && previous !== 'interrupted'
+      && previous !== 'cancelled';
   }
   return (
     (previous === 'validating_input' && next === 'parser_queued')
@@ -96,7 +102,9 @@ export function parseAnalysisRun(value: unknown): AnalysisRun {
   if (
     (value.input_sha256 === null) !== (value.input_size === null)
     || (expectsFingerprint && !fingerprintBound)
-    || expectsError !== (typeof value.error === 'string' && value.error.length > 0)
+    || (expectsError
+      ? !(typeof value.error === 'string' && value.error.length > 0)
+      : value.error !== null)
   ) return invalid();
   return value as AnalysisRun;
 }
@@ -113,6 +121,7 @@ function parseAnalysisRunEvent(value: unknown, runId: string): AnalysisRunEvent 
     || !eventCodes.has(value.message_code as AnalysisRunEventCode)
     || eventStage[value.message_code as AnalysisRunEventCode] !== value.stage
     || !nullableString(value.detail)
+    || (value.message_code === 'cancelled' && value.detail !== 'analysis_cancelled_by_user')
     || typeof value.created_at !== 'string'
   ) return invalid();
   return value as AnalysisRunEvent;

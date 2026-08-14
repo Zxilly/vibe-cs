@@ -179,7 +179,10 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   with a source project links to the Editor by exact project ID; an absent requested project fails
   closed to an explicit notice and blank document instead of selecting another project.
   Analysis navigation preserves an exact `run=<uuid>` identity for a started or explicitly selected
-  attempt. It polls that run rather than inferring its progress from Demo lifecycle and fetches its
+  attempt. An XState v5 machine owns only the renderer request/observation lifecycle
+  (`loading -> observing -> ready | cancelled | failed | unavailable`), aborts stale route work and
+  publishes the exact observed run; it does not own durable task truth or infer a terminal outcome
+  from Demo lifecycle. Durable run state remains Rust/SQLite authority. The machine fetches a
   completed result through the producer-bound run endpoint; an already-ready Demo opened without a
   run can still use the Demo result route, whose row is producer-bound in storage. Activity uses
   `analysis:<run_id>`, displays the persisted stage, input fingerprint, error and ordered events, and
@@ -238,7 +241,8 @@ SHA-256/size pair, exact status and stage, a required nullable terminal error, a
 timestamps. `analysis_run_events` is ordered from sequence zero, permits at most 32 rows per run and
 bounds event detail and terminal error to 2,000 characters. Its message-code/stage pairs are fixed to
 `input_validation_started`, `input_verified`, `parser_started`,
-`input_revalidation_started`, `projection_started`, `completed`, `failed` and `interrupted`.
+  `input_revalidation_started`, `projection_started`, `completed`, `failed`, `interrupted` and
+  `cancelled`.
 `analyses.producer_run_id` and its completed producer status bind a result to that exact attempt;
 Demo ID alone is not sufficient provenance for the run-result endpoint.
 
@@ -275,6 +279,7 @@ validating_input -> parser_queued -> parser_running
           |                  |              |
           +------------------+--------------+-> failed
           +------------------+--------------+-> interrupted on startup recovery
+          +------------------+--------------+-> cancelled after owner cleanup
 ```
 
 `POST /api/demos/{demo_id}/analysis-runs` atomically creates the run, its sequence-zero event and the
@@ -287,15 +292,29 @@ state is read through `GET /api/demos/{demo_id}/analysis-runs/active`,
 `GET /api/analysis-runs/{run_id}` and `GET /api/analysis-runs/{run_id}/result`; the last endpoint never
 returns a result produced by a different attempt.
 
+`POST /api/analysis-runs/{run_id}/cancel` addresses one exact active run. The process-local owner
+registry moves that owner from Running to Cancelling, signals validation/parser/sidecar work and waits
+until those futures/processes have stopped and request/response/repair artifacts have been reaped.
+Only then does SQLite atomically persist terminal `cancelled`, the reserved terminal event and a
+truthful Demo lifecycle; an owner already in Committing rejects late cancellation with `409`. Concurrent
+requests against the live owner share its terminal result; a later request for an already-cancelled exact
+run idempotently returns the persisted detail without requiring an owner. Other terminal states and an
+active run without its exact owner return `409`. Cleanup debt, an owner panic or permanent persistence
+failure returns a non-success response and is reconciled as failure where storage remains writable;
+it is never reported as a successful cancellation. A latest cancelled attempt is retryable as a new
+run, leaving the cancelled run and its events unchanged. Activity exposes cancelled as its own summary,
+filter, row and Inspector state rather than grouping it with failure.
+
 On startup, queued/running analysis attempts become `interrupted` with a durable terminal event. A
 Demo moves to `failed` only if it is still owned by that attempt's `analyzing` lifecycle; a concurrent
 `missing`, newly discovered fingerprint or ready result is not overwritten. Ownerless indexing or
 analyzing Demo lifecycle is also terminalized. If either durable recovery read/write fails, runtime
 composition fails and the desktop does not begin serving an unrecovered active attempt.
 
-Analysis currently has no cancel endpoint, heartbeat/lease or synthetic percentage. A hard host crash
-can still leave an OS worker process or request/response/repair artifacts in `worker-tasks/`; startup
-run recovery does not prove those physical artifacts were reaped. The recorded SHA-256/size values are
+Analysis still has no heartbeat/lease or synthetic percentage, and cancellation is not generalized to
+other job kinds by this contract. A hard host crash can still leave an OS worker process or
+request/response/repair artifacts in `worker-tasks/`; startup run recovery does not prove those
+physical artifacts were reaped. The recorded SHA-256/size values are
 two observations of the Demo source path before and after parsing, not proof that one immutable file
 handle supplied every parser byte. In particular, terminal-tail recovery parses a bounded repair copy,
 and the copy's separate byte provenance is not recorded in the run events. This narrow physical-file
@@ -339,6 +358,33 @@ transformed 2,600 modules, and the paired worker remained
 `fc80c5f` product check: loading an exact completed Activity showed no stale receipt. It did not run a
 second same-session retry; automatic dismissal when one exact task advances is supported by the new
 deterministic TDD and 24-test focused gate, not claimed as a repeated visual observation.
+
+The later Analysis cancellation/XState product gate used exact source
+`adf4d08f7b4524a9f451362d30b44bc05ac51db9`, fresh identifier
+`app.vibecs.analysiscancel-xstate-audit`, desktop SHA-256
+`b64c6a94da0e0c9d4259ddc0959a945473a5a343534e72ede2243d71618c3c3` and paired worker/manifest
+SHA-256 `f7f37918e9eca55c58743853649a3ef582dbbaefdd68bd24078062efff589958`.
+`agent-browser` connected directly to Tauri WebView2 CDP; Computer Use was not used. Real M2 run
+`3133c56c-b932-4d9d-bd9f-0c0bd098a262` was cancelled during `validating_input`, then retry created
+distinct run `c08ada94-3d5e-403f-adad-2102e07e6d70` and completed without rewriting the cancelled
+attempt. More importantly, real M3 run `96009b44-b7ca-4bf1-9d20-ae2d4e872192` was observed at
+`running/parser_running`; exact cancel changed worker count `1 -> 0`, task-artifact count `1 -> 0`
+and persisted zero result rows. Its Demo returned to `Discovered` with the original SHA-256 preserved,
+and its event tail was `cancelled/cancelled` with detail `analysis_cancelled_by_user`. Activity exact
+selection survived a full restart, the cancelled-only filter returned the cancelled attempts, and the
+Analysis XState terminal notice linked to that exact Activity run. Accepted screenshots are
+`target-currentaudit-next/analysiscancel-xstate-visual/screenshots/06-activity-parser-running-cancellable-max.png`,
+`07-activity-parser-cancelled-max.png`, `08-activity-parser-cancelled-1100.png`,
+`09-activity-cancelled-restart-1100.png`, `10-activity-cancelled-filter-1100.png` and
+`11-analysis-cancelled-1100.png`; structured product evidence is
+`target-currentaudit-next/analysiscancel-xstate-visual/evidence.json` and build evidence is
+`target-currentaudit-next/analysiscancel-xstate-build-evidence.json`. Same-viewport comparisons at
+`comparison-activity-max.png` and `comparison-activity-1100.png` passed while preserving the existing
+information hierarchy and Inspector geometry. Both checked viewports had no document overflow and
+console/page errors were empty; the desktop, worker and CDP listener were all zero after the gate was
+closed. This gate did not test heartbeat/lease,
+concurrent retry, cancellation for other job kinds, permanent database-corruption quarantine, Watch,
+CS2 or HLAE.
 
 The later Player projection product gate used exact source
 `1f7397ec857dc592d4e8525fc9ac4bf299d34db7`, fresh identifier
@@ -525,6 +571,10 @@ missing and initializes a blank document; it never falls back to the first avail
 - SQLite has one exact schema fingerprint for the current unreleased product. A non-empty database
   that does not match it is rejected with an instruction to use a fresh data directory; the runtime
   does not import, rewrite or upgrade earlier experimental data.
+  Analysis terminalization retries only errors classified as transient. A permanent database-health
+  failure stops cancellation/failure persistence at an explicit health boundary; there is no current
+  quarantine mechanism that can guarantee removal of an active/no-owner row from a permanently
+  corrupted database.
   Product audits that must preserve an earlier default data tree use a separate build-time Tauri
   identifier and fresh application-data directory. That isolation is not a migration or compatibility
   path.

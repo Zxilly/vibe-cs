@@ -62,7 +62,8 @@ mod tests {
     use uuid::Uuid;
     use vibe_cs_domain::{
         DemoRecord, DemoStatus, ExportJob, JobStatus, MatchAnalysis, MatchDemoStatus,
-        MatchDownloadJob, MatchDownloadStatus, MatchHistoryResult, RecordingJob, SteamMatchRecord,
+        MatchDownloadJob, MatchDownloadStatus, MatchHistoryResult, PlayerStats, RecordingJob,
+        RoundSummary, SteamMatchRecord,
     };
     use vibe_cs_storage::ExportJobRecord;
 
@@ -162,7 +163,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method(Method::POST)
-                    .uri("/api/demo-tags")
+                    .uri("/api/review-tags")
                     .header(axum::http::header::CONTENT_TYPE, "application/json")
                     .body(Body::from(r##"{"name":"Major","color":"#dc2626"}"##))
                     .expect("request"),
@@ -170,7 +171,7 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(create.status(), axum::http::StatusCode::CREATED);
-        let tag: vibe_cs_domain::DemoTag = serde_json::from_slice(
+        let tag: vibe_cs_domain::ReviewTag = serde_json::from_slice(
             &to_bytes(create.into_body(), 64 * 1024)
                 .await
                 .expect("tag body"),
@@ -317,7 +318,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method(Method::PATCH)
-                    .uri(format!("/api/demo-tags/{}", metadata.tags[0].id))
+                    .uri(format!("/api/review-tags/{}", metadata.tags[0].id))
                     .header(axum::http::header::CONTENT_TYPE, "application/json")
                     .body(Body::from(r##"{"name":"Major event","color":"#b91c1c"}"##))
                     .expect("request"),
@@ -331,7 +332,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method(Method::DELETE)
-                    .uri(format!("/api/demo-tags/{}", metadata.tags[0].id))
+                    .uri(format!("/api/review-tags/{}", metadata.tags[0].id))
                     .body(Body::empty())
                     .expect("request"),
             )
@@ -353,6 +354,173 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(rejected.status(), axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn player_and_source_bound_round_review_metadata_share_public_tags() {
+        const PLAYER_ID: &str = "76561197960690195";
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let demo_id = Uuid::new_v4();
+        let now = Utc::now();
+        storage
+            .put_demo(DemoRecord {
+                id: demo_id,
+                path: "C:/matches/review-metadata.dem".to_owned(),
+                file_name: "review-metadata.dem".to_owned(),
+                display_name: "Review metadata".to_owned(),
+                source: "local".to_owned(),
+                status: DemoStatus::Discovered,
+                map_name: None,
+                match_date: None,
+                duration_seconds: None,
+                total_rounds: None,
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: vec![],
+                remark: String::new(),
+                content_sha256: Some("d".repeat(64)),
+                file_size: 512,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("persist Demo");
+        persist_completed_analysis(
+            &storage,
+            MatchAnalysis {
+                demo_id,
+                map_name: "de_mirage".to_owned(),
+                tick_rate: 64.0,
+                duration_seconds: 90.0,
+                verified_total_ticks: Some(5_760),
+                teams: Vec::new(),
+                players: vec![PlayerStats {
+                    steam_id: PLAYER_ID.to_owned(),
+                    spectator_slot: Some(1),
+                    name: "FalleN".to_owned(),
+                    team: "A".to_owned(),
+                    kills: 9,
+                    deaths: 14,
+                    assists: 6,
+                    headshots: 6,
+                    damage: 1_638,
+                    adr: 78.0,
+                    kill_death_ratio: 9.0 / 14.0,
+                    score: 20,
+                }],
+                rounds: vec![RoundSummary {
+                    number: 13,
+                    start_tick: 100_000,
+                    end_tick: 110_004,
+                    winner: "A".to_owned(),
+                    reason: "elimination".to_owned(),
+                    team_a_score: 7,
+                    team_b_score: 6,
+                    events: Vec::new(),
+                }],
+                highlights: Vec::new(),
+            },
+        )
+        .await;
+        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
+
+        let create = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(Method::POST)
+                    .uri("/api/review-tags")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(r##"{"name":"Retake","color":"#2563eb"}"##))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(create.status(), axum::http::StatusCode::CREATED);
+        let tag: vibe_cs_domain::ReviewTag = serde_json::from_slice(
+            &to_bytes(create.into_body(), 64 * 1024)
+                .await
+                .expect("tag body"),
+        )
+        .expect("tag payload");
+        let update = format!(
+            r#"{{"comment":"Review utility timing","tag_ids":["{}"]}}"#,
+            tag.id
+        );
+
+        for path in [
+            format!("/api/players/{PLAYER_ID}/metadata"),
+            format!("/api/demos/{demo_id}/rounds/13/metadata"),
+        ] {
+            let response = dispatcher
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(Method::PUT)
+                        .uri(&path)
+                        .header(axum::http::header::CONTENT_TYPE, "application/json")
+                        .body(Body::from(update.clone()))
+                        .expect("request"),
+                )
+                .await
+                .expect("response");
+            assert_eq!(response.status(), axum::http::StatusCode::OK, "{path}");
+        }
+
+        let player = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/api/players/{PLAYER_ID}/metadata"))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let player: vibe_cs_domain::PlayerReviewMetadata = serde_json::from_slice(
+            &to_bytes(player.into_body(), 64 * 1024)
+                .await
+                .expect("player body"),
+        )
+        .expect("player metadata");
+        assert_eq!(player.steam_id, PLAYER_ID);
+        assert_eq!(player.tags, vec![tag.clone()]);
+
+        let round = dispatcher
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/api/demos/{demo_id}/rounds/13/metadata"))
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        let round: vibe_cs_domain::RoundReviewMetadata = serde_json::from_slice(
+            &to_bytes(round.into_body(), 64 * 1024)
+                .await
+                .expect("round body"),
+        )
+        .expect("round metadata");
+        assert_eq!(round.source_sha256, "d".repeat(64));
+        assert_eq!(round.round, 13);
+        assert_eq!(round.tags, vec![tag]);
+
+        let retired = dispatcher
+            .oneshot(
+                Request::builder()
+                    .uri("/api/demo-tags")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(retired.status(), axum::http::StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]

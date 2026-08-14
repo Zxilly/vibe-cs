@@ -3,7 +3,7 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { msg, msgf } from '../i18n';
 import { parseActivityFeed, parseActivityItem } from './activityContract';
 import { parseAnalysisRun, parseAnalysisRunDetail } from './analysisRunContract';
-import { parseDemoMetadata, parseDemoMetadataBatch, parseDemoTag, parseDemoTagCatalog } from './demoMetadataContract';
+import { parseDemoMetadata, parseDemoMetadataBatch } from './demoMetadataContract';
 import { parseLineupDirectoryPage, parseLineupMapPage } from './lineupContract';
 import {
   parsePlayerComparison,
@@ -13,6 +13,12 @@ import {
   parsePlayerMatchPage,
   parsePlayerProfile,
 } from './playerContract';
+import {
+  parsePlayerReviewMetadata,
+  parseReviewTag,
+  parseReviewTagCatalog,
+  parseRoundReviewMetadata,
+} from './reviewMetadataContract';
 import type {
   ActivityFeed,
   ActivityItem,
@@ -60,8 +66,6 @@ import type {
   DemoQuery,
   DemoRecord,
   DemoSummary,
-  DemoTag,
-  DemoTagCreate,
   DemoUpdate,
   DemoWatchStatus,
   DetectedPaths,
@@ -108,6 +112,11 @@ import type {
   OutputPage,
   OutputQuery,
   OutputReference,
+  PlayerReviewMetadata,
+  ReviewMetadataUpdate,
+  ReviewTag,
+  ReviewTagCreate,
+  RoundReviewMetadata,
   Paginated,
   PlayerComparison,
   PlayerDirectoryPage,
@@ -580,17 +589,17 @@ export const commands = {
       status: query.status,
       sort: query.sort,
     })}`, signal),
-  listDemoTags: async (signal?: AbortSignal): Promise<DemoTag[]> =>
-    parseDemoTagCatalog(await request<unknown>('/demo-tags', { signal })),
-  createDemoTag: async (input: DemoTagCreate): Promise<DemoTag> =>
-    parseDemoTag(await request<unknown>('/demo-tags', { method: 'POST', body: input })),
-  updateDemoTag: async (id: string, input: DemoTagCreate): Promise<DemoTag> =>
-    parseDemoTag(await request<unknown>(`/demo-tags/${encodeURIComponent(id)}`, {
+  listReviewTags: async (signal?: AbortSignal): Promise<ReviewTag[]> =>
+    parseReviewTagCatalog(await request<unknown>('/review-tags', { signal })),
+  createReviewTag: async (input: ReviewTagCreate): Promise<ReviewTag> =>
+    parseReviewTag(await request<unknown>('/review-tags', { method: 'POST', body: input })),
+  updateReviewTag: async (id: string, input: ReviewTagCreate): Promise<ReviewTag> =>
+    parseReviewTag(await request<unknown>(`/review-tags/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: input,
     })),
-  deleteDemoTag: (id: string) =>
-    request<void>(`/demo-tags/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  deleteReviewTag: (id: string) =>
+    request<void>(`/review-tags/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   deleteDemo: (id: string) =>
     request<void>(`/demos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listLineups: async (query: { search: string; page: number; page_size: number }, signal?: AbortSignal) =>
@@ -630,6 +639,48 @@ export const commands = {
     }
     return profile;
   },
+  getPlayerReviewMetadata: async (
+    steamId: string,
+    signal?: AbortSignal,
+  ): Promise<PlayerReviewMetadata> => parsePlayerReviewMetadata(
+    await request<unknown>(`/players/${encodeURIComponent(steamId)}/metadata`, { signal }),
+    steamId,
+  ),
+  updatePlayerReviewMetadata: async (
+    steamId: string,
+    update: ReviewMetadataUpdate,
+    signal?: AbortSignal,
+  ): Promise<PlayerReviewMetadata> => parsePlayerReviewMetadata(
+    await request<unknown>(`/players/${encodeURIComponent(steamId)}/metadata`, {
+      method: 'PUT',
+      body: update,
+      signal,
+    }),
+    steamId,
+  ),
+  getRoundReviewMetadata: async (
+    demoId: string,
+    round: number,
+    signal?: AbortSignal,
+  ): Promise<RoundReviewMetadata> => parseRoundReviewMetadata(
+    await request<unknown>(`/demos/${encodeURIComponent(demoId)}/rounds/${round}/metadata`, { signal }),
+    demoId,
+    round,
+  ),
+  updateRoundReviewMetadata: async (
+    demoId: string,
+    round: number,
+    update: ReviewMetadataUpdate,
+    signal?: AbortSignal,
+  ): Promise<RoundReviewMetadata> => parseRoundReviewMetadata(
+    await request<unknown>(`/demos/${encodeURIComponent(demoId)}/rounds/${round}/metadata`, {
+      method: 'PUT',
+      body: update,
+      signal,
+    }),
+    demoId,
+    round,
+  ),
   listPlayerMatches: async (
     steamId: string,
     query: { page: number; page_size: number },

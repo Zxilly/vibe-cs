@@ -77,4 +77,12 @@ describe('explicit cross-page player comparison wiring', () => {
     expect(source).toMatch(/\[heatmapMap, heatmapRefreshRevision, refreshRevision, selectedId\]/);
     expect(source).toContain("onCloseHeatmap={() => updatePlayerQuery({ heatmapMap: null, heatmapKind: 'all' })}");
   });
+
+  it('loads and saves generic Player Comment / Tags against the exact selected Steam64', () => {
+    expect(source).toMatch(/commands\.getPlayerReviewMetadata\(selectedId, signal\)/);
+    expect(source).toMatch(/commands\.updatePlayerReviewMetadata\(selectedId, update, signal\)/);
+    expect(source).toContain('identity={`player:${selectedId}`}');
+    expect(source).toContain("title={t('reviewMetadata.playerTitle')}");
+    expect(source).not.toContain('PlayerEvidenceAnnotation');
+  });
 });

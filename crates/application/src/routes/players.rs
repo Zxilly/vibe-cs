@@ -6,12 +6,13 @@ use axum::{
     response::{IntoResponse, Response},
     routing::get,
 };
+use vibe_cs_domain::{PlayerReviewMetadata, ReviewMetadataUpdate};
 
 use crate::{
-    ApiError, ApiQuery, ApiResult, AppState, AvatarCacheCleanup, AvatarCacheStatus, PlayerAvatar,
-    PlayerComparison, PlayerComparisonQuery, PlayerDirectoryPage, PlayerDirectoryQuery,
-    PlayerHeatmap, PlayerHeatmapQuery, PlayerMapPage, PlayerMapQuery, PlayerMatchPage,
-    PlayerMatchQuery, PlayerProfile,
+    ApiError, ApiJson, ApiQuery, ApiResult, AppState, AvatarCacheCleanup, AvatarCacheStatus,
+    PlayerAvatar, PlayerComparison, PlayerComparisonQuery, PlayerDirectoryPage,
+    PlayerDirectoryQuery, PlayerHeatmap, PlayerHeatmapQuery, PlayerMapPage, PlayerMapQuery,
+    PlayerMatchPage, PlayerMatchQuery, PlayerProfile,
 };
 
 const AVATAR_CACHE_HEADER: HeaderName = HeaderName::from_static("x-vibe-cs-avatar-cache");
@@ -23,6 +24,10 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/players/{steam_id}/heatmap", get(get_player_heatmap))
         .route("/api/players/{steam_id}/maps", get(list_player_maps))
         .route("/api/players/{steam_id}/matches", get(list_player_matches))
+        .route(
+            "/api/players/{steam_id}/metadata",
+            get(get_player_review_metadata).put(update_player_review_metadata),
+        )
         .route("/api/players/{steam_id}", get(get_player))
         .route(
             "/api/players/{steam_id}/avatar",
@@ -32,6 +37,31 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/avatar-cache",
             get(avatar_cache_status).delete(clear_avatar_cache),
         )
+}
+
+async fn get_player_review_metadata(
+    State(state): State<AppState>,
+    Path(steam_id): Path<String>,
+) -> ApiResult<Json<PlayerReviewMetadata>> {
+    state
+        .storage()
+        .get_player_review_metadata(steam_id)
+        .await?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("player"))
+}
+
+async fn update_player_review_metadata(
+    State(state): State<AppState>,
+    Path(steam_id): Path<String>,
+    ApiJson(update): ApiJson<ReviewMetadataUpdate>,
+) -> ApiResult<Json<PlayerReviewMetadata>> {
+    state
+        .storage()
+        .update_player_review_metadata(steam_id, update)
+        .await?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("player"))
 }
 
 async fn list_players(

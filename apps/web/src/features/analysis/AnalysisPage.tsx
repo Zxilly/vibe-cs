@@ -67,6 +67,7 @@ import { worldPointsToRadarPercent } from '../../shared/radar';
 import { runManagedPlaybackLaunch, useRuntimeStore } from '../../shared/stores/runtimeStore';
 import { Badge, Button, Card, EmptyState, Notice, Spinner } from '../../shared/ui';
 import { useQueueStore, type QueueItem } from '../queue/queueStore';
+import { ReviewMetadataPanel } from '../review-metadata/ReviewMetadataPanel';
 import {
   buildCosmeticRewriteRequest,
   cosmeticDraftsFromPatches,
@@ -1293,6 +1294,17 @@ function RoundsView({
     ? workspace.rounds
     : workspace.rounds.filter((item) => item.winner === winnerFilter);
   const round = workspace.rounds.find((item) => item.number === selectedRound) ?? workspace.rounds[0];
+  const loadRoundMetadata = useCallback((signal: AbortSignal) => {
+    if (!round) return Promise.reject(new Error('No exact round is selected.'));
+    return commands.getRoundReviewMetadata(demoId, round.number, signal);
+  }, [demoId, round]);
+  const updateRoundMetadata = useCallback((
+    update: Parameters<typeof commands.updateRoundReviewMetadata>[2],
+    signal: AbortSignal,
+  ) => {
+    if (!round) return Promise.reject(new Error('No exact round is selected.'));
+    return commands.updateRoundReviewMetadata(demoId, round.number, update, signal);
+  }, [demoId, round]);
   const visibleRoundIndex = round ? visibleRounds.findIndex((item) => item.number === round.number) : -1;
   const previousRound = visibleRoundIndex > 0 ? visibleRounds[visibleRoundIndex - 1] : undefined;
   const nextRound = visibleRoundIndex >= 0 ? visibleRounds[visibleRoundIndex + 1] : undefined;
@@ -1520,6 +1532,13 @@ function RoundsView({
               <section className="round-context-inspector__events"><header><strong>{t('analysis.roundContext.atomicEvidence')}</strong><Badge tone="neutral">{selectedGroup.events.length}</Badge></header>{selectedGroup.events.map((event) => <button type="button" key={event.id} onClick={() => onPreviewRound(round.number, event.tick, event.actor)}><time>{event.tick}</time><span><strong>{eventKindLabel[event.kind]}</strong><small>{eventEvidence(event, workspace)}</small></span><ChevronRight size={13} /></button>)}</section>
               <footer data-testid="round-inspector-actions"><Button size="sm" variant="secondary" disabled={!playable || playAction.state.status === 'loading' || runtimeSession !== 'idle'} title={!playable ? msg("m1001") : runtimeSession !== 'idle' ? msg("m0799") : msg("m0390")} onClick={() => void playAction.run(() => runManagedPlaybackLaunch(() => commands.playDemo(demoId, { start_tick: selectedGroup.start_tick })), msg("m0514"))}>{playAction.state.status === 'loading' ? <Spinner /> : <Play size={13} />}{t('analysis.roundContext.watchGame')}</Button><Button size="sm" variant="secondary" onClick={() => onPreviewRound(round.number, selectedGroup.start_tick, groupPlayerId)}><MapIcon size={13} />{t('analysis.roundContext.open2d')}</Button><Button size="sm" disabled={!groupPlayerId} onClick={() => groupPlayerId && onCompile({ id: `group-${selectedGroup.id}`, title: `${msg("m0367")} ${round.number} · ${groupTitle(selectedGroup)}`, playerId: groupPlayerId, startTick: selectedGroup.start_tick, endTick: Math.max(selectedGroup.start_tick + 1, selectedGroup.end_tick), category: selectedGroup.kind === 'encounters' ? 'entry' : selectedGroup.kind === 'utility' || selectedGroup.kind === 'objective' ? 'utility' : 'custom' })}>{addedId === `group-${selectedGroup.id}` ? <Check size={13} /> : <Plus size={13} />}{addedId === `group-${selectedGroup.id}` ? msg("m0502") : t('analysis.roundContext.addProduction')}</Button></footer>
             </> : <EmptyState icon={<CircleDot size={22} />} title={t('analysis.roundContext.noSelection')} description={t('analysis.roundContext.noSelectionDescription')} />}
+            <ReviewMetadataPanel
+              identity={`round:${demoId}:${round.number}`}
+              title={t('reviewMetadata.roundTitle')}
+              description={t('reviewMetadata.roundDescription')}
+              loadMetadata={loadRoundMetadata}
+              updateMetadata={updateRoundMetadata}
+            />
           </Card>
         </div>
       ) : null}

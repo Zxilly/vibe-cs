@@ -32,7 +32,7 @@ import type {
   DemoMatchSource,
   DemoMetadata,
   DemoSummary,
-  DemoTag,
+  ReviewTag,
   DemoWatchStatus,
   RadarOverviewRecord,
   ScanResult,
@@ -200,7 +200,7 @@ export function LibraryPage() {
   const [editMatchSource, setEditMatchSource] = useState<DemoMatchSource | ''>('');
   const [editTagIds, setEditTagIds] = useState<Set<string>>(new Set());
   const [demoMetadata, setDemoMetadata] = useState<DemoMetadata | null>(null);
-  const [demoTags, setDemoTags] = useState<DemoTag[]>([]);
+  const [demoTags, setDemoTags] = useState<ReviewTag[]>([]);
   const [metadataError, setMetadataError] = useState<string | null>(null);
   const [tagCatalogError, setTagCatalogError] = useState<string | null>(null);
   const [newTagName, setNewTagName] = useState('');
@@ -209,8 +209,8 @@ export function LibraryPage() {
   const importAction = useAsyncAction<ScanResult>();
   const saveAction = useAsyncAction<DemoSummary>();
   const metadataSaveAction = useAsyncAction<DemoMetadata>();
-  const tagCreateAction = useAsyncAction<DemoTag>();
-  const tagUpdateAction = useAsyncAction<DemoTag>();
+  const tagCreateAction = useAsyncAction<ReviewTag>();
+  const tagUpdateAction = useAsyncAction<ReviewTag>();
   const tagDeleteAction = useAsyncAction<boolean>();
   const metadataBatchAction = useAsyncAction<DemoMetadata[]>();
   const deleteAction = useAsyncAction<boolean>();
@@ -354,7 +354,7 @@ export function LibraryPage() {
       return undefined;
     }
     const controller = new AbortController();
-    void commands.listDemoTags(controller.signal).then((tags) => {
+    void commands.listReviewTags(controller.signal).then((tags) => {
       if (controller.signal.aborted) return;
       setDemoTags(tags);
       setTagCatalogError(null);
@@ -623,7 +623,7 @@ export function LibraryPage() {
     const requestedDemoId = activeDemo?.id;
     if (!name || !requestedDemoId) return;
     const created = await tagCreateAction.run(
-      () => commands.createDemoTag({ name, color: newTagColor }),
+      () => commands.createReviewTag({ name, color: newTagColor }),
       t('library.metadata.tagCreated'),
     );
     if (!created || activeDemoIdRef.current !== requestedDemoId) return;
@@ -633,11 +633,11 @@ export function LibraryPage() {
     setNewTagName('');
   };
 
-  const handleRenameTag = async (tag: DemoTag) => {
+  const handleRenameTag = async (tag: ReviewTag) => {
     const name = window.prompt(t('library.metadata.renameTagPrompt'), tag.name)?.trim();
     if (!name || name === tag.name) return;
     const updated = await tagUpdateAction.run(
-      () => commands.updateDemoTag(tag.id, { name, color: tag.color }),
+      () => commands.updateReviewTag(tag.id, { name, color: tag.color }),
       t('library.metadata.tagRenamed'),
     );
     if (!updated) return;
@@ -649,10 +649,10 @@ export function LibraryPage() {
     } : current);
   };
 
-  const handleDeleteTag = async (tag: DemoTag) => {
+  const handleDeleteTag = async (tag: ReviewTag) => {
     if (!window.confirm(`${t('library.metadata.deleteTagConfirm')} “${tag.name}”?`)) return;
     const deleted = await tagDeleteAction.run(async () => {
-      await commands.deleteDemoTag(tag.id);
+      await commands.deleteReviewTag(tag.id);
       return true;
     }, t('library.metadata.tagDeleted'));
     if (!deleted) return;

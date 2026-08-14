@@ -7,6 +7,7 @@ mod activity;
 mod analysis_runs;
 mod lineups;
 mod players;
+mod review_metadata;
 
 pub use activity::{
     ActivityKind, ActivityPage, ActivityQuery, ActivitySource, ActivityState, ActivitySummary,
@@ -1097,7 +1098,7 @@ impl Storage {
                 updated_at: now,
             };
             connection.execute(
-                "INSERT INTO demo_tags(id, name, name_key, color, created_at, updated_at) \
+                "INSERT INTO review_tags(id, name, name_key, color, created_at, updated_at) \
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![
                     tag.id.to_string(),
@@ -1116,7 +1117,7 @@ impl Storage {
     pub async fn list_demo_tags(&self) -> Result<Vec<DemoTag>> {
         self.run(move |connection| {
             let mut statement = connection.prepare(
-                "SELECT id, name, color, created_at, updated_at FROM demo_tags \
+                "SELECT id, name, color, created_at, updated_at FROM review_tags \
                  ORDER BY name_key ASC, name ASC, id ASC",
             )?;
             let rows = statement.query_map([], read_demo_tag)?;
@@ -1131,7 +1132,7 @@ impl Storage {
         self.run(move |connection| {
             let Some(created_at) = connection
                 .query_row(
-                    "SELECT created_at FROM demo_tags WHERE id = ?1",
+                    "SELECT created_at FROM review_tags WHERE id = ?1",
                     [id.to_string()],
                     |row| row.get::<_, String>(0),
                 )
@@ -1141,7 +1142,7 @@ impl Storage {
             };
             let updated_at = Utc::now();
             connection.execute(
-                "UPDATE demo_tags SET name = ?2, name_key = ?3, color = ?4, updated_at = ?5 WHERE id = ?1",
+                "UPDATE review_tags SET name = ?2, name_key = ?3, color = ?4, updated_at = ?5 WHERE id = ?1",
                 params![
                     id.to_string(),
                     input.name,
@@ -1163,7 +1164,7 @@ impl Storage {
 
     pub async fn delete_demo_tag(&self, id: Uuid) -> Result<bool> {
         self.run(move |connection| {
-            Ok(connection.execute("DELETE FROM demo_tags WHERE id = ?1", [id.to_string()])? > 0)
+            Ok(connection.execute("DELETE FROM review_tags WHERE id = ?1", [id.to_string()])? > 0)
         })
         .await
     }
@@ -1190,7 +1191,7 @@ impl Storage {
                 let placeholders = std::iter::repeat_n("?", update.tag_ids.len())
                     .collect::<Vec<_>>()
                     .join(",");
-                let sql = format!("SELECT COUNT(*) FROM demo_tags WHERE id IN ({placeholders})");
+                let sql = format!("SELECT COUNT(*) FROM review_tags WHERE id IN ({placeholders})");
                 let ids = update.tag_ids.iter().map(Uuid::to_string).collect::<Vec<_>>();
                 transaction.query_row(
                     &sql,
@@ -1258,7 +1259,7 @@ impl Storage {
                 .collect::<std::collections::BTreeSet<_>>();
             for tag_id in &requested_tags {
                 let exists = transaction.query_row(
-                    "SELECT EXISTS(SELECT 1 FROM demo_tags WHERE id = ?1)",
+                    "SELECT EXISTS(SELECT 1 FROM review_tags WHERE id = ?1)",
                     [tag_id.to_string()],
                     |row| row.get::<_, bool>(0),
                 )?;
@@ -5411,7 +5412,7 @@ fn read_demo_metadata(connection: &Connection, demo_id: Uuid) -> Result<Option<D
     let mut statement = connection.prepare(
         "SELECT tag.id, tag.name, tag.color, tag.created_at, tag.updated_at \
          FROM demo_tag_assignments AS assignment \
-         INNER JOIN demo_tags AS tag ON tag.id = assignment.tag_id \
+         INNER JOIN review_tags AS tag ON tag.id = assignment.tag_id \
          WHERE assignment.demo_id = ?1 ORDER BY assignment.position ASC",
     )?;
     let tags = statement

@@ -124,11 +124,11 @@ describe('library Demo metadata wiring', () => {
 
   it('keeps import provenance read-only and edits the distinct match provider contract', () => {
     expect(source).toMatch(/commands\.getDemoMetadata\(selectedId, controller\.signal\)/);
-    expect(source).toMatch(/commands\.listDemoTags\(controller\.signal\)/);
+    expect(source).toMatch(/commands\.listReviewTags\(controller\.signal\)/);
     expect(source).toMatch(/match_source: editMatchSource \|\| null/);
     expect(source).toMatch(/comment: editRemark/);
     expect(source).toMatch(/tag_ids: \[\.\.\.editTagIds\]/);
-    expect(source).toMatch(/commands\.createDemoTag\(\{ name, color: newTagColor \}\)/);
+    expect(source).toMatch(/commands\.createReviewTag\(\{ name, color: newTagColor \}\)/);
     expect(source).toMatch(/commands\.updateDemoMetadataBatch\(\{ demo_ids: demoIds, \.\.\.change \}\)/);
     expect(source).toMatch(/if \(!updated \|\| activeDemoIdRef\.current !== requestedDemoId\) return/);
     expect(source).toMatch(/if \(!created \|\| activeDemoIdRef\.current !== requestedDemoId\) return/);

@@ -181,7 +181,7 @@ describe('desktop command client', () => {
     await expect(commands.getDemoMetadata(id)).rejects.toThrow(/current contract/i);
   });
 
-  it('updates and deletes one exact global Demo tag', async () => {
+  it('updates and deletes one exact shared review tag', async () => {
     const id = '44444444-4444-4444-8444-444444444444';
     const tag = {
       id,
@@ -192,23 +192,63 @@ describe('desktop command client', () => {
     };
     invokeMock.mockResolvedValue(tag);
 
-    await expect(commands.updateDemoTag(id, {
+    await expect(commands.updateReviewTag(id, {
       name: 'Needs review',
       color: '#dc2626',
     })).resolves.toEqual(tag);
     expect(invokeMock).toHaveBeenLastCalledWith('desktop_call', {
       call: {
         method: 'patch',
-        path: `/demo-tags/${id}`,
+        path: `/review-tags/${id}`,
         body: { name: 'Needs review', color: '#dc2626' },
       },
     });
 
     invokeMock.mockResolvedValue(undefined);
-    await commands.deleteDemoTag(id);
+    await commands.deleteReviewTag(id);
     expect(invokeMock).toHaveBeenLastCalledWith('desktop_call', {
-      call: { method: 'delete', path: `/demo-tags/${id}` },
+      call: { method: 'delete', path: `/review-tags/${id}` },
     });
+  });
+
+  it('binds Player and Round review metadata to their exact public identities', async () => {
+    const steamId = '76561198000000001';
+    const demoId = '22222222-2222-4222-8222-222222222222';
+    const player = {
+      steam_id: steamId,
+      comment: 'Anchor on B executes',
+      tags: [],
+      updated_at: '2026-08-14T01:01:00Z',
+    };
+    const round = {
+      demo_id: demoId,
+      source_sha256: 'a'.repeat(64),
+      round: 13,
+      comment: 'Late utility window',
+      tags: [],
+      updated_at: '2026-08-14T01:02:00Z',
+    };
+    invokeMock.mockResolvedValueOnce(player).mockResolvedValueOnce(round);
+
+    await expect(commands.getPlayerReviewMetadata(steamId)).resolves.toEqual(player);
+    await expect(commands.updateRoundReviewMetadata(demoId, 13, {
+      comment: round.comment,
+      tag_ids: [],
+    })).resolves.toEqual(round);
+
+    expect(invokeMock).toHaveBeenNthCalledWith(1, 'desktop_call', {
+      call: { method: 'get', path: `/players/${steamId}/metadata` },
+    });
+    expect(invokeMock).toHaveBeenNthCalledWith(2, 'desktop_call', {
+      call: {
+        method: 'put',
+        path: `/demos/${demoId}/rounds/13/metadata`,
+        body: { comment: round.comment, tag_ids: [] },
+      },
+    });
+
+    invokeMock.mockResolvedValue({ ...round, round: 14 });
+    await expect(commands.getRoundReviewMetadata(demoId, 13)).rejects.toThrow(/current contract/i);
   });
 
   it('posts one explicit all-or-nothing Demo metadata batch', async () => {

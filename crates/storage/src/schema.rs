@@ -45,7 +45,7 @@ const CURRENT_SCHEMA: &str = r"
     CREATE INDEX demo_metadata_match_source_demo_idx
         ON demo_metadata(match_source, demo_id);
 
-    CREATE TABLE demo_tags (
+    CREATE TABLE review_tags (
         id TEXT PRIMARY KEY NOT NULL,
         name TEXT NOT NULL,
         name_key TEXT NOT NULL UNIQUE,
@@ -61,11 +61,56 @@ const CURRENT_SCHEMA: &str = r"
         PRIMARY KEY(demo_id, tag_id),
         UNIQUE(demo_id, position),
         FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE,
-        FOREIGN KEY (tag_id) REFERENCES demo_tags(id) ON DELETE CASCADE
+        FOREIGN KEY (tag_id) REFERENCES review_tags(id) ON DELETE CASCADE
     );
 
     CREATE INDEX demo_tag_assignments_tag_demo_idx
         ON demo_tag_assignments(tag_id, demo_id);
+
+    CREATE TABLE player_review_metadata (
+        steam_id TEXT PRIMARY KEY NOT NULL,
+        comment TEXT NOT NULL CHECK(length(comment) <= 4000 AND instr(comment, char(0)) = 0),
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE player_review_tag_assignments (
+        steam_id TEXT NOT NULL,
+        tag_id TEXT NOT NULL,
+        position INTEGER NOT NULL CHECK(position >= 0 AND position < 32),
+        PRIMARY KEY(steam_id, tag_id),
+        UNIQUE(steam_id, position),
+        FOREIGN KEY (steam_id) REFERENCES player_review_metadata(steam_id) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES review_tags(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX player_review_tag_assignments_tag_player_idx
+        ON player_review_tag_assignments(tag_id, steam_id);
+
+    CREATE TABLE round_review_metadata (
+        demo_id TEXT NOT NULL,
+        source_sha256 TEXT NOT NULL CHECK(length(source_sha256) = 64),
+        round INTEGER NOT NULL CHECK(round >= 1),
+        comment TEXT NOT NULL CHECK(length(comment) <= 4000 AND instr(comment, char(0)) = 0),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY(demo_id, source_sha256, round),
+        FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE round_review_tag_assignments (
+        demo_id TEXT NOT NULL,
+        source_sha256 TEXT NOT NULL,
+        round INTEGER NOT NULL,
+        tag_id TEXT NOT NULL,
+        position INTEGER NOT NULL CHECK(position >= 0 AND position < 32),
+        PRIMARY KEY(demo_id, source_sha256, round, tag_id),
+        UNIQUE(demo_id, source_sha256, round, position),
+        FOREIGN KEY (demo_id, source_sha256, round)
+            REFERENCES round_review_metadata(demo_id, source_sha256, round) ON DELETE CASCADE,
+        FOREIGN KEY (tag_id) REFERENCES review_tags(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX round_review_tag_assignments_tag_round_idx
+        ON round_review_tag_assignments(tag_id, demo_id, source_sha256, round);
 
     CREATE TABLE analyses (
         demo_id TEXT PRIMARY KEY NOT NULL,

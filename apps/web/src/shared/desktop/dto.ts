@@ -228,7 +228,7 @@ export type DemoMatchSource =
   | 'faceit' | 'fastcup' | 'five_eplay' | 'matchzy' | 'perfect_world' | 'pracc'
   | 'renown' | 'valve';
 
-export type DemoTag = {
+export type ReviewTag = {
   id: string;
   name: string;
   color: string;
@@ -236,11 +236,13 @@ export type DemoTag = {
   updated_at: string;
 };
 
+export type DemoTag = ReviewTag;
+
 export type DemoMetadata = {
   demo_id: string;
   match_source: DemoMatchSource | null;
   comment: string;
-  tags: DemoTag[];
+  tags: ReviewTag[];
   updated_at: string;
 };
 
@@ -261,6 +263,29 @@ export type DemoMetadataBatchUpdate = {
 export type DemoTagCreate = {
   name: string;
   color: string;
+};
+
+export type ReviewTagCreate = DemoTagCreate;
+
+export type ReviewMetadataUpdate = {
+  comment: string;
+  tag_ids: string[];
+};
+
+export type PlayerReviewMetadata = {
+  steam_id: string;
+  comment: string;
+  tags: ReviewTag[];
+  updated_at: string;
+};
+
+export type RoundReviewMetadata = {
+  demo_id: string;
+  source_sha256: string;
+  round: number;
+  comment: string;
+  tags: ReviewTag[];
+  updated_at: string;
 };
 
 export type ScanResult = {

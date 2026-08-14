@@ -14,6 +14,7 @@ mod evidence_search;
 mod insights;
 mod match_history;
 mod recording;
+mod review_metadata;
 mod round_replay;
 
 pub use agent_proposal::*;
@@ -30,6 +31,7 @@ pub use evidence_search::*;
 pub use insights::*;
 pub use match_history::*;
 pub use recording::*;
+pub use review_metadata::*;
 pub use round_replay::*;
 
 use serde::{Deserialize, Serialize};
@@ -132,5 +134,48 @@ mod tests {
         retired["rating"] = retired["kill_death_ratio"].take();
         retired.as_object_mut().unwrap().remove("kill_death_ratio");
         assert!(serde_json::from_value::<PlayerStats>(retired).is_err());
+    }
+
+    #[test]
+    fn review_metadata_has_one_bounded_contract_for_demo_player_and_round_subjects() {
+        let tag_id = uuid::Uuid::new_v4();
+        ReviewMetadataUpdate {
+            comment: "Review the B retake".to_owned(),
+            tag_ids: vec![tag_id],
+        }
+        .validate()
+        .expect("bounded review metadata");
+
+        assert!(
+            ReviewMetadataUpdate {
+                comment: "x".repeat(REVIEW_COMMENT_MAX_CHARS + 1),
+                tag_ids: Vec::new(),
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            ReviewMetadataUpdate {
+                comment: String::new(),
+                tag_ids: vec![tag_id, tag_id],
+            }
+            .validate()
+            .is_err()
+        );
+
+        let round = RoundReviewMetadata {
+            demo_id: uuid::Uuid::new_v4(),
+            source_sha256: "a".repeat(64),
+            round: 13,
+            comment: "Late utility".to_owned(),
+            tags: Vec::new(),
+            updated_at: chrono::Utc::now(),
+        };
+        let encoded = serde_json::to_value(&round).expect("round review metadata");
+        assert_eq!(
+            serde_json::from_value::<RoundReviewMetadata>(encoded)
+                .expect("strict round review metadata"),
+            round
+        );
     }
 }

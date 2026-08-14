@@ -27,6 +27,7 @@ import type {
 import { useI18n } from '../../shared/i18n';
 import { Button, Card, Drawer, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
 import { LibrarySectionNav } from '../library/LibrarySectionNav';
+import { ReviewMetadataPanel } from '../review-metadata/ReviewMetadataPanel';
 import {
   PlayerDetailPlaceholder,
   PlayerDetailView,
@@ -137,6 +138,18 @@ export function PlayersPage() {
   const comparedIdsIdentity = comparedIds.join('\0');
   const comparedIdsIdentityRef = useRef(comparedIdsIdentity);
   comparedIdsIdentityRef.current = comparedIdsIdentity;
+
+  const loadSelectedPlayerMetadata = useCallback((signal: AbortSignal) => {
+    if (selectedId === null) return Promise.reject(new Error('No exact Player is selected.'));
+    return commands.getPlayerReviewMetadata(selectedId, signal);
+  }, [selectedId]);
+  const updateSelectedPlayerMetadata = useCallback((
+    update: Parameters<typeof commands.updatePlayerReviewMetadata>[1],
+    signal: AbortSignal,
+  ) => {
+    if (selectedId === null) return Promise.reject(new Error('No exact Player is selected.'));
+    return commands.updatePlayerReviewMetadata(selectedId, update, signal);
+  }, [selectedId]);
 
   const updatePlayerQuery = useCallback((
     patch: Parameters<typeof patchPlayerDirectoryQuery>[1],
@@ -684,7 +697,7 @@ export function PlayersPage() {
           description={detailError}
           action={<Button size="sm" onClick={refresh}><RefreshCw size={13} />{t('common.retry')}</Button>}
         />
-      ) : profileIsCurrent && profile ? (
+      ) : profileIsCurrent && profile ? (<>
         <PlayerDetailView
           key={profile.player.steam_id}
           profile={profile}
@@ -717,6 +730,14 @@ export function PlayersPage() {
           evidenceLoading={playerEvidenceState === 'loading'}
           evidenceError={playerEvidenceError}
         />
+        <ReviewMetadataPanel
+          identity={`player:${selectedId}`}
+          title={t('reviewMetadata.playerTitle')}
+          description={t('reviewMetadata.playerDescription')}
+          loadMetadata={loadSelectedPlayerMetadata}
+          updateMetadata={updateSelectedPlayerMetadata}
+        />
+      </>
       ) : (
         <PlayerDetailPlaceholder />
       )}

@@ -1,7 +1,7 @@
 import { CheckSquare, Minus, Plus, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 
-import type { DemoMatchSource, DemoTag } from '../../shared/desktop/dto';
+import type { DemoMatchSource, ReviewTag } from '../../shared/desktop/dto';
 import { msg, useI18n } from '../../shared/i18n';
 import { Button, Spinner } from '../../shared/ui';
 import { formatLibrarySelectionMessage } from './librarySelection';
@@ -24,7 +24,7 @@ export function LibrarySelectionBar({
   atLimit: boolean;
   onClear: () => void;
   onAnalyze: () => void;
-  tags: DemoTag[];
+  tags: ReviewTag[];
   matchSources: readonly DemoMatchSource[];
   metadataBusy: boolean;
   onSetMatchSource: (source: DemoMatchSource | null) => void;

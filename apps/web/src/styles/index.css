@@ -2855,6 +2855,9 @@
   grid-area: inspector;
   flex-direction: column;
   gap: 10px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
 }
 
 .page--analysis .round-context-inspector > header {

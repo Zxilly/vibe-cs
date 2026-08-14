@@ -5,9 +5,9 @@ use uuid::Uuid;
 pub const MAX_DEMO_PLAYER_SUMMARY_NAMES: usize = 64;
 pub const DEMO_MAX_PAGE: u32 = 100_000;
 pub const DEMO_MAX_PAGE_SIZE: u32 = 200;
-pub const DEMO_COMMENT_MAX_CHARS: usize = 4_000;
-pub const DEMO_TAG_MAX_NAME_CHARS: usize = 64;
-pub const DEMO_TAG_MAX_ASSIGNMENTS: usize = 32;
+pub const DEMO_COMMENT_MAX_CHARS: usize = crate::REVIEW_COMMENT_MAX_CHARS;
+pub const DEMO_TAG_MAX_NAME_CHARS: usize = crate::REVIEW_TAG_MAX_NAME_CHARS;
+pub const DEMO_TAG_MAX_ASSIGNMENTS: usize = crate::REVIEW_TAG_MAX_ASSIGNMENTS;
 pub const DEMO_METADATA_BATCH_MAX_DEMOS: usize = 100;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -29,22 +29,8 @@ pub enum DemoMatchSource {
     Valve,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct DemoTag {
-    pub id: Uuid,
-    pub name: String,
-    pub color: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(deny_unknown_fields)]
-pub struct DemoTagCreate {
-    pub name: String,
-    pub color: String,
-}
+pub type DemoTag = crate::ReviewTag;
+pub type DemoTagCreate = crate::ReviewTagCreate;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -72,36 +58,6 @@ pub struct DemoMetadataBatchUpdate {
     pub match_source: Option<DemoMatchSource>,
     pub add_tag_ids: Vec<Uuid>,
     pub remove_tag_ids: Vec<Uuid>,
-}
-
-impl DemoTagCreate {
-    /// Normalizes a user-created catalog tag while preserving its display case.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`crate::DomainError::InvalidInput`] for an empty, oversized, control-character,
-    /// or non-hex-color tag.
-    pub fn normalize(mut self) -> Result<Self, crate::DomainError> {
-        self.name = self.name.trim().to_owned();
-        if self.name.is_empty()
-            || self.name.chars().count() > DEMO_TAG_MAX_NAME_CHARS
-            || self.name.chars().any(char::is_control)
-        {
-            return Err(crate::DomainError::InvalidInput(
-                "demo tag name must contain 1..=64 printable characters".to_owned(),
-            ));
-        }
-        if self.color.len() != 7
-            || !self.color.starts_with('#')
-            || !self.color[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
-        {
-            return Err(crate::DomainError::InvalidInput(
-                "demo tag color must be a #RRGGBB value".to_owned(),
-            ));
-        }
-        self.color.make_ascii_lowercase();
-        Ok(self)
-    }
 }
 
 impl DemoMetadataUpdate {

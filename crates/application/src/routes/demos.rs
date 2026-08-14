@@ -18,8 +18,8 @@ use vibe_cs_demo::{
 };
 use vibe_cs_domain::{
     DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoMatchSource, DemoMetadata, DemoMetadataBatchUpdate,
-    DemoMetadataUpdate, DemoPatch, DemoQuery, DemoRecord, DemoSort, DemoStatus, DemoTag,
-    DemoTagCreate, MatchAnalysis, Page, ScanResult,
+    DemoMetadataUpdate, DemoPatch, DemoQuery, DemoRecord, DemoSort, DemoStatus, MatchAnalysis,
+    Page, ReviewMetadataUpdate, ReviewTag, ReviewTagCreate, RoundReviewMetadata, ScanResult,
 };
 use vibe_cs_storage::{DemoContentIdentity, DemoContentRecovery};
 
@@ -62,14 +62,21 @@ pub(crate) fn router() -> Router<AppState> {
             get(get_demo_metadata).put(update_demo_metadata),
         )
         .route(
+            "/api/demos/{id}/rounds/{round}/metadata",
+            get(get_round_review_metadata).put(update_round_review_metadata),
+        )
+        .route(
             "/api/demos/metadata/batch",
             post(update_demo_metadata_batch),
         )
         .route("/api/demos/export", get(export_demos))
-        .route("/api/demo-tags", get(list_demo_tags).post(create_demo_tag))
         .route(
-            "/api/demo-tags/{id}",
-            patch(update_demo_tag).delete(delete_demo_tag),
+            "/api/review-tags",
+            get(list_review_tags).post(create_review_tag),
+        )
+        .route(
+            "/api/review-tags/{id}",
+            patch(update_review_tag).delete(delete_review_tag),
         )
         .route("/api/demos/{id}/analysis", get(get_analysis))
         .route("/api/demos/{id}/replay.bin", get(get_replay_binary))
@@ -577,44 +584,74 @@ async fn update_demo_metadata_batch(
     Ok(Json(metadata))
 }
 
-async fn list_demo_tags(State(state): State<AppState>) -> ApiResult<Json<Vec<DemoTag>>> {
-    Ok(Json(state.storage.list_demo_tags().await?))
+async fn list_review_tags(State(state): State<AppState>) -> ApiResult<Json<Vec<ReviewTag>>> {
+    Ok(Json(state.storage.list_review_tags().await?))
 }
 
-async fn create_demo_tag(
+async fn create_review_tag(
     State(state): State<AppState>,
-    ApiJson(input): ApiJson<DemoTagCreate>,
-) -> ApiResult<(StatusCode, Json<DemoTag>)> {
-    let tag = state.storage.create_demo_tag(input).await?;
-    state.events.publish("demo_tag", "created", Some(tag.id));
+    ApiJson(input): ApiJson<ReviewTagCreate>,
+) -> ApiResult<(StatusCode, Json<ReviewTag>)> {
+    let tag = state.storage.create_review_tag(input).await?;
+    state.events.publish("review_tag", "created", Some(tag.id));
     Ok((StatusCode::CREATED, Json(tag)))
 }
 
-async fn update_demo_tag(
+async fn update_review_tag(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
-    ApiJson(input): ApiJson<DemoTagCreate>,
-) -> ApiResult<Json<DemoTag>> {
+    ApiJson(input): ApiJson<ReviewTagCreate>,
+) -> ApiResult<Json<ReviewTag>> {
     let id = parse_id(&id)?;
     let tag = state
         .storage
-        .update_demo_tag(id, input)
+        .update_review_tag(id, input)
         .await?
-        .ok_or_else(|| ApiError::not_found("demo tag"))?;
-    state.events.publish("demo_tag", "updated", Some(id));
+        .ok_or_else(|| ApiError::not_found("review tag"))?;
+    state.events.publish("review_tag", "updated", Some(id));
     Ok(Json(tag))
 }
 
-async fn delete_demo_tag(
+async fn delete_review_tag(
     State(state): State<AppState>,
     AxumPath(id): AxumPath<String>,
 ) -> ApiResult<StatusCode> {
     let id = parse_id(&id)?;
-    if !state.storage.delete_demo_tag(id).await? {
-        return Err(ApiError::not_found("demo tag"));
+    if !state.storage.delete_review_tag(id).await? {
+        return Err(ApiError::not_found("review tag"));
     }
-    state.events.publish("demo_tag", "deleted", Some(id));
+    state.events.publish("review_tag", "deleted", Some(id));
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn get_round_review_metadata(
+    State(state): State<AppState>,
+    AxumPath((id, round)): AxumPath<(String, u32)>,
+) -> ApiResult<Json<RoundReviewMetadata>> {
+    let id = parse_id(&id)?;
+    state
+        .storage
+        .get_round_review_metadata(id, round)
+        .await?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("round"))
+}
+
+async fn update_round_review_metadata(
+    State(state): State<AppState>,
+    AxumPath((id, round)): AxumPath<(String, u32)>,
+    ApiJson(update): ApiJson<ReviewMetadataUpdate>,
+) -> ApiResult<Json<RoundReviewMetadata>> {
+    let id = parse_id(&id)?;
+    let metadata = state
+        .storage
+        .update_round_review_metadata(id, round, update)
+        .await?
+        .ok_or_else(|| ApiError::not_found("round"))?;
+    state
+        .events
+        .publish("round", "review_metadata_updated", Some(id));
+    Ok(Json(metadata))
 }
 
 async fn delete_demo(

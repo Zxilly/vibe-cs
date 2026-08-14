@@ -41,4 +41,8 @@ describe('analysis 1100×700 responsive styles', () => {
     expect(compactContract).toMatch(/\.round-context-ribbon::-webkit-scrollbar\s*{[^}]*height:\s*8px;/s);
     expect(compactContract).toMatch(/\.round-context-ribbon button\.is-active\s*{[^}]*scroll-margin-inline:\s*48px;/s);
   });
+
+  it('keeps the complete round inspector reachable when comments and tags extend it', () => {
+    expect(styles).toMatch(/\.page--analysis \.round-context-inspector\s*{[^}]*overflow-y:\s*auto;[^}]*scrollbar-width:\s*thin;/s);
+  });
 });

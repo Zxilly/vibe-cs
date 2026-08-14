@@ -110,7 +110,8 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   dates sort first; catalog time is only a stable fallback among unknown dates, which the UI labels
   unavailable. The current-only comparison route requires two distinct valid Steam64 IDs, returns
   them in request order and never returns a partial pair. The strict Player URL owns
-  `q/page/sort/direction/player/compare/matches_page/inspector`; only `inspector=1` means open. Search
+  `q/page/sort/direction/player/compare/matches_page/maps_page/heatmap_map/heatmap_kind/inspector`;
+  only `inspector=1` means open. Search
   debounce and server page correction replace history, user selection/paging/sort actions push it,
   and Reload/Back restore the exact single-player, ordered-pair and compact-drawer state. The UI keeps
   at most two explicit IDs, replacing the oldest when a third is selected; exact reconciliation removes
@@ -119,6 +120,16 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   victim by normalized player ID or name. The Player profile uses that persistent query for a first-ten
   cross-match evidence preview with total/index completeness, Round/Replay links that retain the
   inspected player, and a link to the exact full search; it is not a complete profile analytics model.
+  The same profile can request one exact map-scoped cross-match heatmap. Its read model reuses the
+  producer-bound Evidence Search projection: completion stores finite attacker and victim role
+  coordinates, while the query admits only evidence and player projections whose producer timestamp
+  and row counts still match the current Analysis. Kills use the canonical attacker coordinate and
+  deaths use the canonical victim coordinate. Responses are capped at 5,000 points; an over-limit
+  response reports the exact total but returns no partial point set. The renderer loads the complete
+  bounded artifact once, filters kill/death visibility locally so relative fallback coordinates do not
+  drift, and keeps every point bound to exact Demo/evidence/round/tick/player Round and Replay URLs.
+  A verified local radar transform is preferred; otherwise the UI labels an aspect-preserving relative
+  coordinate plane and does not infer visibility, paths, regions, map control or win probability.
   Evidence Search also exposes canonical
   annotation records through a global index whose URL owns bounded `q/tag/state/page` selection and
   whose rows deep-link back to Round or Replay. Canonical Highlight cards read the same records,
@@ -405,6 +416,24 @@ overflow, and console/page errors were empty. This establishes the current persi
 truthful unknown-date presentation and URL-owned drawer flow for a three-Demo database. It is not a
 real multi-page/large-library performance result, did not start Watch/CS2/HLAE and did not execute a
 Steam network download.
+
+The later cross-match Player heatmap gate used exact feature commit
+`ba06e65`, identifier `app.vibecs.playerheatmap-audit` and desktop SHA-256
+`c16d49785b7eec8fd9292fd8ed0ce31393d2c4a48038b5c43acec82e6a8e51e5`.
+The isolated current-schema profile was created by the current app, then seeded with the three
+previously product-gated Major Analysis/player rows while deliberately omitting evidence projection;
+current startup rebuilt all `11,548` evidence rows from those persisted real Analysis documents. This
+is a current-code projection/rebuild and UI gate, not a fresh parser run. FalleN
+`76561197960690195` returned Mirage `9` kill and `14` death points, Anubis `18/15`, and Inferno
+`10/15`, with no invalid coordinates. At `1440x900` the maximized Inspector was about `525px` wide,
+the radar was `292.4x292.4`, and the document had no horizontal overflow. At `1100x700` the same
+capability moved into the existing Drawer, the radar was `352.3x352.3`, and the document again had no
+horizontal overflow. Reload preserved the nine-point kill filter, Back restored all 23 Mirage points,
+and the selected R13/tick 110004 point stayed at `25.0797%, 27.3389%` across the filter change.
+Accepted local screenshots are `target-currentaudit-next/player-heatmap-ba06e65-max.png` and
+`target-currentaudit-next/player-heatmap-ba06e65-1100.png`; they are audit artifacts and are not
+tracked. The gate did not reparse M1/M2/M3, start Watch/CS2/HLAE, or establish Team heatmaps,
+intensity normalization, region aggregation, rank history or a large-library performance result.
 
 The later Objective Review product gate used exact source
 `fbc9c6a2c80fb44099bb62eec6b7e7b322afb58d` / tree

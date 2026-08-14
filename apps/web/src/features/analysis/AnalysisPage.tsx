@@ -140,7 +140,7 @@ import {
   replayPlaybackControlPresentation,
   replayPlayerVitalPresentation,
 } from './replayPresentation';
-import { decodeReplayBinary } from './replayBinary';
+import { decodeRoundReplayBinary } from './roundReplayBinary';
 import {
   filterHeatmapPoints,
   heatmapEvidenceIntent,
@@ -848,7 +848,7 @@ export function AnalysisPage() {
             {tab === 'insights' ? <InsightsView workspace={workspace} selectedPlayer={selectedPlayer} /> : null}
             {tab === 'review' ? <AiReviewPanel key={demoId} demoId={demoId} workspace={workspace} selectedPlayer={selectedPlayer} source={source} configuration={reviewConfiguration} /> : null}
             {tab === 'rounds' ? <RoundsView workspace={workspace} demoId={demoId} playable={source === 'service'} selectedRound={selectedRound} selectedPlayer={selectedPlayer} selectedTick={selectedTick} selectedEvidenceId={selectedEvidenceId} addedId={addedHighlight} onSelectRound={(round) => navigateAnalysis({ round })} onPreviewRound={(round, tick, playerId) => navigateAnalysis({ tab: 'replay', round, tick: tick ?? null, playerId: playerId ?? null })} onCompile={addCompilation} /> : null}
-            {tab === 'replay' ? <ReplayView demoId={demoId} workspace={workspace} source={source} roundNumber={selectedRound} targetTick={selectedTick} selectedPlayerId={selectedPlayerId} onSelectPlayer={(playerId) => navigateAnalysis({ playerId })} /> : null}
+            {tab === 'replay' ? <ReplayView demoId={demoId} producerRunId={analysisSnapshot.context.runId} workspace={workspace} source={source} roundNumber={selectedRound} targetTick={selectedTick} selectedPlayerId={selectedPlayerId} onSelectPlayer={(playerId) => navigateAnalysis({ playerId })} /> : null}
             {tab === 'heatmap' ? (
               <HeatmapView
                 demoId={demoId}
@@ -1601,6 +1601,7 @@ function useReplayWorkspaceDensity(): ReplayWorkspaceDensity {
 
 function ReplayView({
   demoId,
+  producerRunId,
   workspace,
   source,
   roundNumber,
@@ -1609,6 +1610,7 @@ function ReplayView({
   onSelectPlayer,
 }: {
   demoId: string;
+  producerRunId: string | null;
   workspace: AnalysisWorkspace;
   source: 'loading' | 'service' | 'error';
   roundNumber: number;
@@ -1630,7 +1632,7 @@ function ReplayView({
   const workspaceDensity = useReplayWorkspaceDensity();
 
   useEffect(() => {
-    if (source !== 'service') {
+    if (source !== 'service' || !producerRunId) {
       setFrames([]);
       setCache(null);
       setFidelity(null);
@@ -1641,10 +1643,12 @@ function ReplayView({
     let active = true;
     setState('loading');
     setError(null);
-    void commands.getReplayBinary(demoId, controller.signal).then(decodeReplayBinary).then((response) => {
+    void commands.getAnalysisRunRoundReplayBinary(producerRunId, roundNumber, controller.signal)
+      .then((buffer) => decodeRoundReplayBinary(buffer, { runId: producerRunId, demoId, round: roundNumber }))
+      .then((response) => {
       if (!active) return;
       setFrames(response.frames);
-      setCache(response.cache);
+      setCache(null);
       setFidelity(response.fidelity);
       setFrameIndex(0);
       setState('ready');
@@ -1660,7 +1664,7 @@ function ReplayView({
       active = false;
       controller.abort();
     };
-  }, [demoId, source]);
+  }, [demoId, producerRunId, roundNumber, source]);
 
   const round = useMemo(
     () => workspace.rounds.find((item) => item.number === roundNumber) ?? workspace.rounds[0] ?? null,
@@ -1724,6 +1728,7 @@ function ReplayView({
   const total = replayTickRate > 0 ? (endTick - startTick) / replayTickRate : 0;
   const fidelityPresentation = fidelity ? replayFidelityPresentation(fidelity) : null;
   const playbackControl = replayPlaybackControlPresentation(replayTimingMode, speed);
+  const frameEvents = round?.events.filter((event) => event.tick === currentFrame.tick) ?? [];
 
   return (
     <div className="replay-layout" data-replay-density={workspaceDensity} data-testid="replay-workspace">
@@ -1785,6 +1790,7 @@ function ReplayView({
       <Card className="replay-events" data-testid="replay-inspector">
         <div className="card-heading"><div><span className="eyebrow">FRAME EVIDENCE</span><h2>{msg("m0572")}</h2></div><ScanLine size={16} /></div>
         {visiblePlayers.map((player) => { const inputs = activeInputLabels(player); const vital = replayPlayerVitalPresentation(player); const selected = player.id === selectedPlayerId; return <div className={selected ? 'is-current' : undefined} key={player.id}><time>{vital.healthLabel}</time><span className="event-type-icon"><Crosshair size={13} /></span><p>{player.name}{selected ? ` · ${t('analysis.replay.focusedPlayer')}` : ''}{player.weapon ? ` · ${player.weapon}` : ''} · {vital.statusLabel}{inputs.length > 0 ? ` · ${inputs.join('+')}` : ''}</p></div>; })}
+        {frameEvents.map((event) => <div key={event.id} data-testid={`replay-event-${event.id}`}><time>{event.tick}</time><span className="event-type-icon"><Radio size={13} /></span><p>{event.kind} · {event.actor ? findPlayerName(workspace, event.actor) : msg("m0764")}{event.target ? ` → ${findPlayerName(workspace, event.target)}` : ''}{event.weapon ? ` · ${event.weapon}` : ''}</p></div>)}
         {activeProjectiles.map((projectile, index) => { const item = replayEffectPresentation(projectile.kind); return <div key={`${projectile.kind}-${index}`}><time>{msg("m0680")}</time><span className="event-type-icon"><Zap size={13} /></span><p>{item.label}{item.eventOnly ? msg("m0004") : msg("m0006")}</p></div>; })}
         {currentFrame.bomb ? <div><time>{msg("m1013")}</time><span className="event-type-icon"><CircleDot size={13} /></span><p>{msg("m0941")} {currentFrame.bomb.state === 'planted' ? msg("m0509") : currentFrame.bomb.state === 'defused' ? msg("m0516") : currentFrame.bomb.state === 'exploded' ? msg("m0532") : currentFrame.bomb.state}</p></div> : null}
       </Card>

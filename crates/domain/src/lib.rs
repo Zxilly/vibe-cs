@@ -14,6 +14,7 @@ mod evidence_search;
 mod insights;
 mod match_history;
 mod recording;
+mod round_replay;
 
 pub use agent_proposal::*;
 pub use analysis::*;
@@ -29,6 +30,7 @@ pub use evidence_search::*;
 pub use insights::*;
 pub use match_history::*;
 pub use recording::*;
+pub use round_replay::*;
 
 use serde::{Deserialize, Serialize};
 

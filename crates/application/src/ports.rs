@@ -198,6 +198,15 @@ pub trait AnalysisPort: Send + Sync + std::fmt::Debug {
         cancellation: AnalysisCancellation,
     ) -> Result<MatchAnalysis, DomainError>;
     async fn replay(&self, demo: DemoRecord) -> Result<ReplayPayload, DomainError>;
+    async fn replay_round(
+        &self,
+        _run_id: uuid::Uuid,
+        _round: u32,
+    ) -> Result<vibe_cs_domain::RoundReplayArtifact, DomainError> {
+        Err(DomainError::DependencyUnavailable(
+            "selected-round replay adapter".to_owned(),
+        ))
+    }
     async fn heatmap(&self, demo: DemoRecord) -> Result<Vec<HeatPoint>, DomainError>;
     async fn replay_cache_status(&self) -> Result<ReplayCacheStatus, DomainError>;
     async fn clear_replay_cache(&self) -> Result<ReplayCacheCleanup, DomainError>;

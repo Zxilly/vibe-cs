@@ -8,6 +8,7 @@ mod error;
 mod highlight;
 mod recovery;
 mod replay;
+mod round_replay;
 mod validation;
 
 pub use discovery::*;
@@ -17,4 +18,5 @@ pub use error::*;
 pub use highlight::*;
 pub use recovery::*;
 pub use replay::*;
+pub use round_replay::*;
 pub use validation::*;

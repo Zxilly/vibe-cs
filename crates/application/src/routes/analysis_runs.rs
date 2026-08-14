@@ -3,9 +3,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use axum::{
     Json, Router,
+    body::Body,
     extract::{Path as AxumPath, State},
-    http::StatusCode,
-    response::IntoResponse,
+    http::{HeaderValue, StatusCode, header},
+    response::{IntoResponse, Response},
     routing::{get, post},
 };
 use uuid::Uuid;
@@ -31,6 +32,10 @@ pub(crate) fn router() -> Router<AppState> {
         .route(
             "/api/analysis-runs/{id}/result",
             get(get_analysis_run_result),
+        )
+        .route(
+            "/api/analysis-runs/{id}/replay/rounds/{round}/replay.bin",
+            get(get_analysis_run_round_replay),
         )
 }
 
@@ -455,6 +460,56 @@ async fn get_analysis_run_result(
         .ok_or_else(|| ApiError::not_found("analysis run result"))
 }
 
+async fn get_analysis_run_round_replay(
+    State(state): State<AppState>,
+    AxumPath((id, round)): AxumPath<(String, String)>,
+) -> ApiResult<Response> {
+    const MAXIMUM_ROUND_REPLAY_BYTES: usize = 128 * 1024 * 1024;
+    let run_id = parse_id(&id, "analysis run id")?;
+    let round = round.parse::<u32>().map_err(|_| {
+        ApiError::invalid("analysis replay round must be a positive integer".to_owned())
+    })?;
+    if round == 0 {
+        return Err(ApiError::invalid(
+            "analysis replay round must be a positive integer".to_owned(),
+        ));
+    }
+    let artifact = state.analysis.replay_round(run_id, round).await?;
+    let payload = serde_json::to_vec(&artifact).map_err(|error| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "round_replay_serialization_failed",
+            error.to_string(),
+        )
+    })?;
+    if payload.len() > MAXIMUM_ROUND_REPLAY_BYTES {
+        return Err(ApiError::new(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "round_replay_too_large",
+            "The selected-round replay exceeds the response budget",
+        ));
+    }
+    let payload_len = u32::try_from(payload.len()).map_err(|_| {
+        ApiError::new(
+            StatusCode::PAYLOAD_TOO_LARGE,
+            "round_replay_too_large",
+            "The selected-round replay exceeds the response budget",
+        )
+    })?;
+    let mut body = Vec::with_capacity(12 + payload.len());
+    body.extend_from_slice(b"RRPL");
+    body.extend_from_slice(&1_u16.to_le_bytes());
+    body.extend_from_slice(&0_u16.to_le_bytes());
+    body.extend_from_slice(&payload_len.to_le_bytes());
+    body.extend_from_slice(&payload);
+    let mut response = Response::new(Body::from(body));
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/vnd.vibe-cs.round-replay"),
+    );
+    Ok(response)
+}
+
 fn parse_id(value: &str, label: &str) -> ApiResult<Uuid> {
     Uuid::parse_str(value).map_err(|_| ApiError::invalid(format!("{label} must be a UUID")))
 }
@@ -568,6 +623,13 @@ mod tests {
         async fn replay(&self, _: DemoRecord) -> Result<crate::ReplayPayload, DomainError> {
             unreachable!()
         }
+        async fn replay_round(
+            &self,
+            run_id: Uuid,
+            round: u32,
+        ) -> Result<vibe_cs_domain::RoundReplayArtifact, DomainError> {
+            Ok(round_replay_artifact(run_id, round))
+        }
         async fn heatmap(&self, _: DemoRecord) -> Result<Vec<HeatPoint>, DomainError> {
             unreachable!()
         }
@@ -605,6 +667,39 @@ mod tests {
         }
     }
 
+    fn round_replay_artifact(run_id: Uuid, round: u32) -> vibe_cs_domain::RoundReplayArtifact {
+        vibe_cs_domain::RoundReplayArtifact {
+            metadata: vibe_cs_domain::RoundReplayMetadata {
+                producer_run_id: run_id,
+                demo_id: Uuid::new_v4(),
+                input_sha256: "a".repeat(64),
+                input_size: 1,
+                round,
+                start_tick: 100,
+                end_tick: 100,
+                tick_rate: 64.0,
+                sampling_contract_version: 1,
+                sample_interval_ticks: 16,
+                requested_tick_count: 1,
+                accepted_tick_count: 1,
+                event_tick_count: 0,
+                players_per_frame: 10,
+                fields: vibe_cs_domain::RoundReplayFields {
+                    position: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    yaw: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    health: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    armor: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    life_state: vibe_cs_domain::RoundReplayFieldAvailability::Required,
+                    active_weapon_name: vibe_cs_domain::RoundReplayFieldAvailability::Nullable,
+                },
+            },
+            frames: vec![vibe_cs_domain::RoundReplayFrame {
+                tick: 100,
+                players: Vec::new(),
+            }],
+        }
+    }
+
     async fn wait_for_terminal(
         storage: &vibe_cs_storage::Storage,
         run_id: Uuid,
@@ -620,6 +715,43 @@ mod tests {
         })
         .await
         .expect("analysis terminal state")
+    }
+
+    #[tokio::test]
+    async fn exact_run_round_replay_route_returns_the_versioned_bounded_envelope() {
+        let storage = vibe_cs_storage::Storage::open_in_memory().await.unwrap();
+        let directory = tempfile::TempDir::new().unwrap();
+        let run_id = Uuid::new_v4();
+        let response = crate::build_dispatcher(
+            AppState::new(storage, directory.path().join("data"))
+                .with_analysis(Arc::new(BlockingAnalysis::default())),
+        )
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/analysis-runs/{run_id}/replay/rounds/20/replay.bin"
+                ))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/vnd.vibe-cs.round-replay"
+        );
+        let bytes = to_bytes(response.into_body(), 1024 * 1024).await.unwrap();
+        assert_eq!(&bytes[..4], b"RRPL");
+        assert_eq!(u16::from_le_bytes(bytes[4..6].try_into().unwrap()), 1);
+        assert_eq!(u16::from_le_bytes(bytes[6..8].try_into().unwrap()), 0);
+        let length = u32::from_le_bytes(bytes[8..12].try_into().unwrap()) as usize;
+        assert_eq!(length, bytes.len() - 12);
+        let artifact: vibe_cs_domain::RoundReplayArtifact =
+            serde_json::from_slice(&bytes[12..]).unwrap();
+        assert_eq!(artifact.metadata.producer_run_id, run_id);
+        assert_eq!(artifact.metadata.round, 20);
     }
 
     #[tokio::test]

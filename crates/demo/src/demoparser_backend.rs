@@ -316,7 +316,7 @@ fn team_number_at(values: &VarVec, index: usize) -> Option<i64> {
     }
 }
 
-fn parser_resource_policy_error(error: ParserResourceError) -> DemoError {
+pub(crate) fn parser_resource_policy_error(error: ParserResourceError) -> DemoError {
     let (resource, limit, actual) = match error {
         ParserResourceError::InvalidThreadCount { requested, maximum } => {
             ("rayon_threads", maximum, requested)
@@ -340,7 +340,7 @@ fn parser_resource_policy_error(error: ParserResourceError) -> DemoError {
     }
 }
 
-fn parser_decode_error(error: DemoParserError) -> DemoError {
+pub(crate) fn parser_decode_error(error: DemoParserError) -> DemoError {
     match error {
         DemoParserError::ResourceLimitExceeded {
             resource,

@@ -10,9 +10,9 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
 use vibe_cs_demo::{
     DemoEngine, DemoEngineConfig, DemoError, DemoParserBackend, ParseCancellation,
-    heatmap_from_events, replay_frames_from_events,
+    extract_round_replay, heatmap_from_events, replay_frames_from_events,
 };
-use vibe_cs_domain::{MatchAnalysis, TimelineEvent};
+use vibe_cs_domain::{MatchAnalysis, RoundReplayRequest, TimelineEvent};
 
 const MAXIMUM_REQUEST_BYTES: u64 = 8 * 1024 * 1024;
 const MAXIMUM_RESPONSE_BYTES: usize = 256 * 1024 * 1024;
@@ -95,9 +95,20 @@ impl Arguments {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
 enum WorkerRequest {
-    Analyze { demo_path: String, demo_id: Uuid },
-    Replay { analysis: MatchAnalysis },
-    Heatmap { analysis: MatchAnalysis },
+    Analyze {
+        demo_path: String,
+        demo_id: Uuid,
+    },
+    ReplayRound {
+        demo_path: String,
+        request: RoundReplayRequest,
+    },
+    Replay {
+        analysis: MatchAnalysis,
+    },
+    Heatmap {
+        analysis: MatchAnalysis,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -167,6 +178,14 @@ async fn execute(request: WorkerRequest) -> Result<Value, WorkerFailure> {
             let events = analysis_events(analysis);
             let replay =
                 replay_frames_from_events(&events).map_err(|error| demo_failure(&error))?;
+            serde_json::to_value(replay).map_err(|error| internal(&error))
+        }
+        WorkerRequest::ReplayRound { demo_path, request } => {
+            if demo_path.trim().is_empty() {
+                return Err(invalid("replay_round requires a non-empty demo_path"));
+            }
+            let replay = extract_round_replay(demo_path, &request, &ParseCancellation::default())
+                .map_err(|error| demo_failure(&error))?;
             serde_json::to_value(replay).map_err(|error| internal(&error))
         }
         WorkerRequest::Heatmap { analysis } => {

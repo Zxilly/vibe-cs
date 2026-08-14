@@ -17,6 +17,14 @@ pub struct AnalysisRunClaim {
     pub created: bool,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnalysisReplaySource {
+    pub run: AnalysisRun,
+    pub demo: DemoRecord,
+    pub analysis: MatchAnalysis,
+    pub fingerprint: AnalysisInputFingerprint,
+}
+
 impl Storage {
     pub async fn start_analysis_run(&self, demo_id: Uuid) -> Result<AnalysisRunClaim> {
         self.run(move |connection| {
@@ -129,6 +137,78 @@ impl Storage {
                 .optional()?
                 .map(|document| decode(&document))
                 .transpose()
+        })
+        .await
+    }
+
+    /// Reads the exact completed producer, its result, and the current Demo in one snapshot.
+    pub async fn get_analysis_replay_source(
+        &self,
+        run_id: Uuid,
+    ) -> Result<Option<AnalysisReplaySource>> {
+        self.run(move |connection| {
+            let transaction = connection.transaction()?;
+            let Some(run) = get_document::<AnalysisRun>(&transaction, "analysis_runs", run_id)?
+            else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            if run.status != AnalysisRunStatus::Completed {
+                return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                    "round replay requires a completed analysis run".to_owned(),
+                )));
+            }
+            let analysis = transaction
+                .query_row(
+                    "SELECT analysis.document_json FROM analyses AS analysis \
+                     WHERE analysis.demo_id = ?1 AND analysis.producer_run_id = ?2",
+                    params![run.demo_id.to_string(), run.id.to_string()],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+                .map(|document| decode::<MatchAnalysis>(&document))
+                .transpose()?
+                .ok_or_else(|| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::DependencyUnavailable(
+                        "analysis run result is no longer current".to_owned(),
+                    ))
+                })?;
+            let demo = get_document::<DemoRecord>(&transaction, "demos", run.demo_id)?.ok_or_else(
+                || {
+                    StorageError::Domain(vibe_cs_domain::DomainError::DependencyUnavailable(
+                        "analysis Demo is no longer available".to_owned(),
+                    ))
+                },
+            )?;
+            let fingerprint = AnalysisInputFingerprint {
+                sha256: run.input_sha256.clone().ok_or_else(|| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::DependencyUnavailable(
+                        "analysis run input fingerprint is unavailable".to_owned(),
+                    ))
+                })?,
+                size: run.input_size.ok_or_else(|| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::DependencyUnavailable(
+                        "analysis run input size is unavailable".to_owned(),
+                    ))
+                })?,
+            };
+            if analysis.demo_id != run.demo_id
+                || demo.content_sha256.as_deref() != Some(fingerprint.sha256.as_str())
+                || demo.file_size != fingerprint.size
+            {
+                return Err(StorageError::Domain(
+                    vibe_cs_domain::DomainError::DependencyUnavailable(
+                        "analysis replay source is no longer current".to_owned(),
+                    ),
+                ));
+            }
+            transaction.commit()?;
+            Ok(Some(AnalysisReplaySource {
+                run,
+                demo,
+                analysis,
+                fingerprint,
+            }))
         })
         .await
     }

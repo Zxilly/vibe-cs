@@ -18,6 +18,7 @@ mod proposal_execution;
 mod recording;
 mod recording_progress;
 mod replay_cache;
+mod round_replay_cache;
 mod source_assets;
 
 use std::{path::PathBuf, sync::Arc};

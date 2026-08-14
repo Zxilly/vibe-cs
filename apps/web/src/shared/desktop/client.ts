@@ -744,6 +744,11 @@ export const commands = {
     }),
   getReplayBinary: (id: string, signal?: AbortSignal) =>
     requestBinary(`/demos/${encodeURIComponent(id)}/replay.bin`, signal),
+  getAnalysisRunRoundReplayBinary: (runId: string, round: number, signal?: AbortSignal) =>
+    requestBinary(
+      `/analysis-runs/${encodeURIComponent(runId)}/replay/rounds/${encodeURIComponent(String(round))}/replay.bin`,
+      signal,
+    ),
   replayCacheStatus: (signal?: AbortSignal) =>
     request<ReplayCacheStatus>('/replay-cache', { signal }),
   clearReplayCache: () =>

@@ -21,14 +21,16 @@ use vibe_cs_application::{
 };
 use vibe_cs_demo::{
     DemoEngine, DemoError, ParseCancellation, ValidationLimits,
-    create_terminal_tail_repair_copy_cancellable, heatmap_from_rounds, replay_artifact_from_events,
-    validate_demo,
+    create_terminal_tail_repair_copy_cancellable, extract_round_replay, heatmap_from_rounds,
+    replay_artifact_from_events, validate_demo,
 };
 use vibe_cs_domain::{
     AnalysisInputFingerprint, DemoRecord, DomainError, HeatPoint, MatchAnalysis, ReplayFrame,
+    RoundReplayArtifact, RoundReplayRequest,
 };
 
 use crate::replay_cache::ReplayCache;
+use crate::round_replay_cache::RoundReplayCache;
 
 const ANALYSIS_TIMEOUT: Duration = Duration::from_secs(12 * 60);
 const MAXIMUM_WORKER_RESPONSE_BYTES: u64 = 256 * 1024 * 1024;
@@ -105,6 +107,7 @@ pub struct RuntimeAnalysisPort {
     worker: Option<DemoWorkerSidecar>,
     task_dir: PathBuf,
     replay_cache: ReplayCache,
+    round_replay_cache: RoundReplayCache,
     timeout: Duration,
     analysis_gate: Arc<Semaphore>,
 }
@@ -126,12 +129,14 @@ impl RuntimeAnalysisPort {
         replay_cache_dir: PathBuf,
         worker: Option<DemoWorkerSidecar>,
     ) -> Self {
+        let round_replay_cache = RoundReplayCache::new(replay_cache_dir.join("rounds"));
         Self {
             storage,
             engine: DemoEngine::default(),
             worker,
             task_dir,
             replay_cache: ReplayCache::new(replay_cache_dir),
+            round_replay_cache,
             timeout: ANALYSIS_TIMEOUT,
             analysis_gate: Arc::new(Semaphore::new(1)),
         }
@@ -419,6 +424,66 @@ impl RuntimeAnalysisPort {
             .map_err(|error| DomainError::Internal(error.to_string()))?
             .ok_or_else(|| DomainError::NotFound("demo analysis".to_owned()))
     }
+
+    async fn round_replay_with_worker(
+        &self,
+        worker: &DemoWorkerSidecar,
+        demo_path: &str,
+        request: &RoundReplayRequest,
+    ) -> Result<RoundReplayArtifact, DomainError> {
+        let _verified_worker = verify_demo_worker(worker).await?;
+        tokio::fs::create_dir_all(&self.task_dir)
+            .await
+            .map_err(|error| DomainError::Internal(error.to_string()))?;
+        let task_id = Uuid::new_v4();
+        let request_path = self.task_dir.join(format!("{task_id}.request.json"));
+        let response_path = self.task_dir.join(format!("{task_id}.response.json"));
+        let request_bytes = serde_json::to_vec(&WorkerRequest::ReplayRound { demo_path, request })
+            .map_err(|error| DomainError::Internal(error.to_string()))?;
+        write_new(&request_path, &request_bytes).await?;
+        let child = tokio::process::Command::new(&worker.path)
+            .arg("--input")
+            .arg(&request_path)
+            .arg("--output")
+            .arg(&response_path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .kill_on_drop(true)
+            .spawn();
+        let mut child = match child {
+            Ok(child) => child,
+            Err(error) => {
+                return finish_worker_task_files(
+                    Err(DomainError::Internal(format!(
+                        "unable to start demo worker: {error}"
+                    ))),
+                    &request_path,
+                    &response_path,
+                )
+                .await;
+            }
+        };
+        let result = match tokio::time::timeout(self.timeout, child.wait()).await {
+            Ok(Ok(status)) if status.success() || response_path.is_file() => {
+                read_worker_result::<RoundReplayArtifact>(&response_path, "round replay").await
+            }
+            Ok(Ok(status)) => Err(DomainError::Internal(format!(
+                "demo worker exited unsuccessfully with {status}"
+            ))),
+            Ok(Err(error)) => Err(DomainError::Internal(format!(
+                "unable to wait for demo worker: {error}"
+            ))),
+            Err(_) => match stop_worker(&mut child).await {
+                Ok(()) => Err(DomainError::Conflict(format!(
+                    "demo worker exceeded {} seconds and was terminated",
+                    self.timeout.as_secs()
+                ))),
+                Err(error) => return Err(error),
+            },
+        };
+        finish_worker_task_files(result, &request_path, &response_path).await
+    }
 }
 
 async fn stop_worker(child: &mut tokio::process::Child) -> Result<(), DomainError> {
@@ -642,6 +707,51 @@ impl AnalysisPort for RuntimeAnalysisPort {
             .await
     }
 
+    async fn replay_round(
+        &self,
+        run_id: Uuid,
+        round: u32,
+    ) -> Result<RoundReplayArtifact, DomainError> {
+        let source = self
+            .storage
+            .get_analysis_replay_source(run_id)
+            .await
+            .map_err(storage_error)?
+            .ok_or_else(|| DomainError::NotFound("analysis run".to_owned()))?;
+        let request = RoundReplayRequest::from_analysis(
+            run_id,
+            &source.fingerprint,
+            &source.analysis,
+            round,
+        )?;
+        self.round_replay_cache
+            .resolve(&request, || async {
+                if let Some(worker) = &self.worker {
+                    return self
+                        .round_replay_with_worker(worker, &source.demo.path, &request)
+                        .await;
+                }
+                tracing::warn!(
+                    "demo worker was not found; using the in-process selected-round parser with panic isolation"
+                );
+                let demo_path = PathBuf::from(source.demo.path);
+                let request = request.clone();
+                tokio::task::spawn_blocking(move || {
+                    extract_round_replay(
+                        demo_path,
+                        &request,
+                        &ParseCancellation::default(),
+                    )
+                    .map_err(map_demo_error)
+                })
+                .await
+                .map_err(|error| {
+                    DomainError::Internal(format!("selected-round replay task failed: {error}"))
+                })?
+            })
+            .await
+    }
+
     async fn heatmap(&self, demo: DemoRecord) -> Result<Vec<HeatPoint>, DomainError> {
         let analysis = self.stored_analysis(demo.id).await?;
         heatmap_from_rounds(&analysis.rounds).map_err(map_demo_error)
@@ -653,6 +763,13 @@ impl AnalysisPort for RuntimeAnalysisPort {
 
     async fn clear_replay_cache(&self) -> Result<ReplayCacheCleanup, DomainError> {
         self.replay_cache.clear().await
+    }
+}
+
+fn storage_error(error: vibe_cs_storage::StorageError) -> DomainError {
+    match error {
+        vibe_cs_storage::StorageError::Domain(error) => error,
+        error => DomainError::Internal(error.to_string()),
     }
 }
 
@@ -691,7 +808,14 @@ fn apply_stable_replay_player_identity(
 #[derive(Debug, Serialize)]
 #[serde(tag = "operation", rename_all = "snake_case")]
 enum WorkerRequest<'a> {
-    Analyze { demo_path: &'a str, demo_id: Uuid },
+    Analyze {
+        demo_path: &'a str,
+        demo_id: Uuid,
+    },
+    ReplayRound {
+        demo_path: &'a str,
+        request: &'a RoundReplayRequest,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -740,6 +864,13 @@ async fn write_new(path: &Path, bytes: &[u8]) -> Result<(), DomainError> {
 }
 
 async fn read_worker_analysis(path: &Path) -> Result<MatchAnalysis, DomainError> {
+    read_worker_result(path, "analysis").await
+}
+
+async fn read_worker_result<T>(path: &Path, label: &str) -> Result<T, DomainError>
+where
+    T: serde::de::DeserializeOwned,
+{
     let metadata = tokio::fs::metadata(path)
         .await
         .map_err(|error| DomainError::Internal(format!("worker result is missing: {error}")))?;
@@ -767,7 +898,7 @@ async fn read_worker_analysis(path: &Path) -> Result<MatchAnalysis, DomainError>
         .map_err(|error| DomainError::Internal(format!("invalid worker response: {error}")))?;
     match response {
         WorkerResponse::Success { result } => serde_json::from_value(result)
-            .map_err(|error| DomainError::Internal(format!("invalid analysis result: {error}"))),
+            .map_err(|error| DomainError::Internal(format!("invalid {label} result: {error}"))),
         WorkerResponse::Failure { error } => Err(map_worker_failure(error)),
     }
 }
@@ -1895,6 +2026,52 @@ mod tests {
         assert!(
             !task_dir.exists(),
             "replay must use stored sparse evidence without launching the dense parser"
+        );
+    }
+
+    #[tokio::test]
+    #[ignore = "requires VIBE_CS_REAL_APP_DATA_DIR with the imported Major M1 analysis"]
+    async fn real_major_m1_round_20_dense_replay_is_exact_run_bound_and_cached() {
+        let data_dir = PathBuf::from(
+            std::env::var("VIBE_CS_REAL_APP_DATA_DIR")
+                .expect("VIBE_CS_REAL_APP_DATA_DIR points at a copied app-data directory"),
+        );
+        let run_id = std::env::var("VIBE_CS_REAL_RUN_ID")
+            .unwrap_or_else(|_| "9505732b-a35f-47e3-b1bf-166cc2d9960a".to_owned())
+            .parse::<Uuid>()
+            .expect("VIBE_CS_REAL_RUN_ID is a UUID");
+        let storage = vibe_cs_storage::Storage::open(data_dir.join("vibe-cs.db"))
+            .await
+            .expect("open copied desktop storage");
+        let temporary = TempDir::new().expect("temporary runtime directories");
+        let cache_dir = temporary.path().join("replay-cache");
+        let port =
+            RuntimeAnalysisPort::new(storage, temporary.path().join("tasks"), cache_dir.clone());
+
+        let first = port
+            .replay_round(run_id, 20)
+            .await
+            .expect("generate exact selected-round replay");
+        let second = port
+            .replay_round(run_id, 20)
+            .await
+            .expect("read exact selected-round replay cache");
+
+        assert_eq!(first.metadata, second.metadata);
+        assert_eq!(first.frames.len(), second.frames.len());
+        assert_eq!(first.metadata.producer_run_id, run_id);
+        assert_eq!(first.metadata.round, 20);
+        assert_eq!(first.metadata.start_tick, 156_234);
+        assert_eq!(first.metadata.end_tick, 161_310);
+        assert!(first.metadata.event_tick_count > 0);
+        assert!(first.frames.len() >= 319);
+        assert!(first.frames.iter().all(|frame| frame.players.len() == 10));
+        assert_eq!(
+            std::fs::read_dir(cache_dir.join("rounds"))
+                .expect("round cache directory")
+                .filter_map(Result::ok)
+                .count(),
+            1
         );
     }
 

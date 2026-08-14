@@ -45,7 +45,7 @@ export function decodeRoundReplayBinary(buffer: ArrayBuffer, expected: ExpectedR
   const metadata = record(root.metadata, [
     'producer_run_id', 'demo_id', 'input_sha256', 'input_size', 'round', 'start_tick', 'end_tick',
     'tick_rate', 'sampling_contract_version', 'sample_interval_ticks', 'requested_tick_count',
-    'accepted_tick_count', 'event_tick_count', 'players_per_frame', 'fields',
+    'accepted_tick_count', 'event_tick_count', 'freeze_end_tick', 'players_per_frame', 'fields',
   ], 'round replay metadata');
   if (metadata.producer_run_id !== expected.runId || !uuid.test(String(metadata.producer_run_id))
       || metadata.demo_id !== expected.demoId || !uuid.test(String(metadata.demo_id))
@@ -56,11 +56,17 @@ export function decodeRoundReplayBinary(buffer: ArrayBuffer, expected: ExpectedR
   const startTick = integer(metadata.start_tick, 0, Number.MAX_SAFE_INTEGER, 'round replay start tick');
   const endTick = integer(metadata.end_tick, startTick, Number.MAX_SAFE_INTEGER, 'round replay end tick');
   const tickRate = finite(metadata.tick_rate, 8, 1024, 'round replay tick rate');
-  if (metadata.sampling_contract_version !== 1 || metadata.sample_interval_ticks !== 16 || metadata.players_per_frame !== 10) {
+  if (metadata.sampling_contract_version !== 2 || metadata.sample_interval_ticks !== 16 || metadata.players_per_frame !== 10) {
     throw new Error('Unsupported round replay sampling contract');
   }
-  const fields = record(metadata.fields, ['position', 'yaw', 'health', 'armor', 'life_state', 'active_weapon_name'], 'round replay fields');
-  for (const required of ['position', 'yaw', 'health', 'armor', 'life_state']) {
+  const fields = record(metadata.fields, [
+    'position', 'yaw', 'health', 'armor', 'life_state', 'money', 'current_equipment_value',
+    'round_start_equipment_value', 'has_helmet', 'active_weapon_name',
+  ], 'round replay fields');
+  for (const required of [
+    'position', 'yaw', 'health', 'armor', 'life_state', 'money', 'current_equipment_value',
+    'round_start_equipment_value', 'has_helmet',
+  ]) {
     if (fields[required] !== 'required') throw new Error('Invalid round replay field availability');
   }
   if (fields.active_weapon_name !== 'nullable') throw new Error('Invalid round replay weapon availability');
@@ -68,6 +74,9 @@ export function decodeRoundReplayBinary(buffer: ArrayBuffer, expected: ExpectedR
   const rawFrames = root.frames;
   const frameCount = integer(metadata.accepted_tick_count, 1, maximumFrames, 'accepted tick count');
   const eventTickCount = integer(metadata.event_tick_count, 0, maximumFrames, 'event tick count');
+  const freezeEndTick = metadata.freeze_end_tick === null
+    ? null
+    : integer(metadata.freeze_end_tick, startTick, endTick, 'freeze end tick');
   if (metadata.requested_tick_count !== frameCount || rawFrames.length !== frameCount) throw new Error('Round replay frame count mismatch');
 
   let previousTick: number | null = null;
@@ -84,7 +93,8 @@ export function decodeRoundReplayBinary(buffer: ArrayBuffer, expected: ExpectedR
     const sides = { T: 0, CT: 0 };
     const players = frame.players.map((rawPlayer) => {
       const player = record(rawPlayer, [
-        'steam_id', 'name', 'team', 'side', 'position', 'yaw', 'health', 'armor', 'life_state', 'alive', 'active_weapon_name',
+        'steam_id', 'name', 'team', 'side', 'position', 'yaw', 'health', 'armor', 'life_state', 'alive',
+        'money', 'current_equipment_value', 'round_start_equipment_value', 'has_helmet', 'active_weapon_name',
       ], 'round replay player');
       const id = String(player.steam_id);
       if (!/^7656119[0-9]{10}$/.test(id) || roster.has(id)) throw new Error('Invalid round replay player identity');
@@ -99,6 +109,10 @@ export function decodeRoundReplayBinary(buffer: ArrayBuffer, expected: ExpectedR
       const armor = integer(player.armor, 0, 200, 'round replay armor');
       const lifeState = integer(player.life_state, 0, 255, 'round replay life state');
       if (typeof player.alive !== 'boolean' || player.alive !== (lifeState === 0 && health > 0)) throw new Error('Invalid round replay alive state');
+      const money = integer(player.money, 0, 100_000, 'round replay money');
+      const currentEquipmentValue = integer(player.current_equipment_value, 0, 100_000, 'round replay current equipment value');
+      const roundStartEquipmentValue = integer(player.round_start_equipment_value, 0, 100_000, 'round replay round-start equipment value');
+      if (typeof player.has_helmet !== 'boolean') throw new Error('Invalid round replay helmet state');
       if (!(player.active_weapon_name === null || (typeof player.active_weapon_name === 'string' && player.active_weapon_name.length <= 128))) {
         throw new Error('Invalid round replay weapon');
       }
@@ -112,6 +126,10 @@ export function decodeRoundReplayBinary(buffer: ArrayBuffer, expected: ExpectedR
         armor,
         alive: player.alive,
         weapon: player.active_weapon_name ?? '',
+        money,
+        current_equipment_value: currentEquipmentValue,
+        round_start_equipment_value: roundStartEquipmentValue,
+        has_helmet: player.has_helmet,
         input: null,
       };
     });
@@ -127,6 +145,10 @@ export function decodeRoundReplayBinary(buffer: ArrayBuffer, expected: ExpectedR
       mode: 'entity_snapshots', tick_rate: tickRate, frame_count: frameCount,
       positioned_event_count: eventTickCount, start_tick: startTick, end_tick: endTick,
     },
-    cache: { state: 'bypassed', key: null, bytes: buffer.byteLength, generated_at: null, repaired: false, reason: 'selected_round_source_bound' },
+    cache: {
+      state: 'bypassed', key: null, bytes: buffer.byteLength, generated_at: null, repaired: false,
+      reason: freezeEndTick === null ? 'selected_round_source_bound' : `freeze_end_tick:${freezeEndTick}`,
+    },
+    freeze_end_tick: freezeEndTick,
   };
 }

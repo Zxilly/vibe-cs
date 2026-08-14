@@ -29,7 +29,7 @@ use crate::{
     validate_demo,
 };
 
-pub const ROUND_REPLAY_SAMPLING_CONTRACT_VERSION: u32 = 1;
+pub const ROUND_REPLAY_SAMPLING_CONTRACT_VERSION: u32 = 2;
 pub const ROUND_REPLAY_SAMPLE_INTERVAL_TICKS: u32 = 16;
 pub const MAXIMUM_ROUND_REPLAY_FRAMES: usize = 2_048;
 
@@ -80,6 +80,7 @@ pub fn extract_round_replay(
         });
     }
 
+    let freeze_end_tick = parse_freeze_end_tick(&bytes, request, cancellation)?;
     let frames = parse_selected_ticks(&bytes, request, &requested_ticks, cancellation)?;
     let tick_count = u32::try_from(requested_ticks.len())
         .map_err(|_| DemoError::MetadataUnavailable("selected-round replay tick count overflow"))?;
@@ -108,6 +109,7 @@ pub fn extract_round_replay(
             .map_err(|_| {
                 DemoError::MetadataUnavailable("selected-round replay event tick count overflow")
             })?,
+            freeze_end_tick,
             players_per_frame: 10,
             fields: RoundReplayFields {
                 position: RoundReplayFieldAvailability::Required,
@@ -115,6 +117,10 @@ pub fn extract_round_replay(
                 health: RoundReplayFieldAvailability::Required,
                 armor: RoundReplayFieldAvailability::Required,
                 life_state: RoundReplayFieldAvailability::Required,
+                money: RoundReplayFieldAvailability::Required,
+                current_equipment_value: RoundReplayFieldAvailability::Required,
+                round_start_equipment_value: RoundReplayFieldAvailability::Required,
+                has_helmet: RoundReplayFieldAvailability::Required,
                 active_weapon_name: RoundReplayFieldAvailability::Nullable,
             },
         },
@@ -137,6 +143,10 @@ fn parse_selected_ticks(
         "armor",
         "life_state",
         "team_num",
+        "balance",
+        "current_equip_value",
+        "round_start_equip_value",
+        "has_helmet",
         "active_weapon_name",
     ]
     .into_iter()
@@ -195,6 +205,58 @@ fn parse_selected_ticks(
     materialize_frames(&output.df_per_player, request, requested_ticks, prop_ids)
 }
 
+fn parse_freeze_end_tick(
+    bytes: &[u8],
+    request: &RoundReplayRequest,
+    cancellation: &ParseCancellation,
+) -> DemoResult<Option<u64>> {
+    cancellation.check()?;
+    let huffman = create_huffman_lookup_table();
+    let inputs = ParserInputs {
+        real_name_to_og_name: AHashMap::default(),
+        wanted_players: Vec::new(),
+        wanted_player_props: Vec::new(),
+        wanted_other_props: Vec::new(),
+        wanted_prop_states: AHashMap::default(),
+        wanted_ticks: Vec::new(),
+        wanted_events: vec!["round_freeze_end".to_owned()],
+        parse_ents: false,
+        parse_projectiles: false,
+        parse_grenades: false,
+        only_header: false,
+        only_convars: false,
+        huffman_lookup_table: &huffman,
+        order_by_steamid: false,
+        list_props: false,
+        fallback_bytes: None,
+    };
+    let mut parser = FastParser::with_resource_options(
+        inputs,
+        ParsingMode::Normal,
+        ParserResourceOptions {
+            max_game_events: 10_000,
+            max_collected_rows: 0,
+            ..ParserResourceOptions::default()
+        },
+    )
+    .map_err(parser_resource_policy_error)?;
+    let output = parser.parse_demo(bytes).map_err(parser_decode_error)?;
+    cancellation.check()?;
+    let ticks = output
+        .game_events
+        .iter()
+        .filter(|event| event.name == "round_freeze_end")
+        .filter_map(|event| u64::try_from(event.tick).ok())
+        .filter(|tick| (request.start_tick..=request.end_tick).contains(tick))
+        .collect::<BTreeSet<_>>();
+    if ticks.len() > 1 {
+        return Err(DemoError::Parse(
+            "selected-round replay contains ambiguous freeze-end events".to_owned(),
+        ));
+    }
+    Ok(ticks.into_iter().next())
+}
+
 #[derive(Debug, Clone, Copy)]
 struct ReplayPropertyIds {
     x: u32,
@@ -205,6 +267,10 @@ struct ReplayPropertyIds {
     armor: u32,
     life_state: u32,
     team_num: u32,
+    money: u32,
+    current_equipment_value: u32,
+    round_start_equipment_value: u32,
+    has_helmet: u32,
     active_weapon_name: u32,
 }
 
@@ -232,6 +298,10 @@ impl ReplayPropertyIds {
             armor: find("armor")?,
             life_state: find("life_state")?,
             team_num: find("team_num")?,
+            money: find("balance")?,
+            current_equipment_value: find("current_equip_value")?,
+            round_start_equipment_value: find("round_start_equip_value")?,
+            has_helmet: find("has_helmet")?,
             active_weapon_name: find("active_weapon_name")?,
         })
     }
@@ -305,6 +375,15 @@ fn materialize_frames(
             let health = bounded_u32_at(columns.get(&ids.health), index, 200)?;
             let armor = bounded_u32_at(columns.get(&ids.armor), index, 200)?;
             let life_state = bounded_u32_at(columns.get(&ids.life_state), index, 255)?;
+            let money = bounded_u32_at(columns.get(&ids.money), index, 100_000)?;
+            let current_equipment_value =
+                bounded_u32_at(columns.get(&ids.current_equipment_value), index, 100_000)?;
+            let round_start_equipment_value = bounded_u32_at(
+                columns.get(&ids.round_start_equipment_value),
+                index,
+                100_000,
+            )?;
+            let has_helmet = bool_at(columns.get(&ids.has_helmet), index)?;
             let active_weapon_name = string_at(columns.get(&ids.active_weapon_name), index)
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
@@ -331,6 +410,10 @@ fn materialize_frames(
                     armor,
                     life_state,
                     alive: life_state == 0 && health > 0,
+                    money,
+                    current_equipment_value,
+                    round_start_equipment_value,
+                    has_helmet,
                     active_weapon_name,
                 });
         }
@@ -416,6 +499,17 @@ fn string_at(column: Option<&PropColumn>, index: usize) -> Option<&str> {
     match column.and_then(|column| column.data.as_ref()) {
         Some(VarVec::String(values)) => values.get(index)?.as_deref(),
         _ => None,
+    }
+}
+
+fn bool_at(column: Option<&PropColumn>, index: usize) -> DemoResult<bool> {
+    match column.and_then(|column| column.data.as_ref()) {
+        Some(VarVec::Bool(values)) => values.get(index).copied().flatten().ok_or_else(|| {
+            DemoError::Parse("selected-round replay required boolean state is absent".to_owned())
+        }),
+        _ => Err(DemoError::Parse(
+            "selected-round replay required boolean state is absent".to_owned(),
+        )),
     }
 }
 
@@ -653,12 +747,23 @@ mod tests {
 
         assert_eq!(artifact.metadata.requested_tick_count, 319);
         assert_eq!(artifact.metadata.accepted_tick_count, 319);
+        assert!(artifact.metadata.freeze_end_tick.is_some());
         assert_eq!(artifact.frames.len(), 319);
         assert!(
             artifact
                 .frames
                 .iter()
                 .all(|frame| frame.players.len() == 10)
+        );
+        assert!(
+            artifact
+                .frames
+                .iter()
+                .all(|frame| frame.players.iter().all(|player| {
+                    player.money <= 100_000
+                        && player.current_equipment_value <= 100_000
+                        && player.round_start_equipment_value <= 100_000
+                }))
         );
         assert_eq!(artifact.frames.first().unwrap().tick, 156_234);
         assert_eq!(artifact.frames.last().unwrap().tick, 161_310);

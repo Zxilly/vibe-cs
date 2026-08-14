@@ -121,6 +121,7 @@ export function decodeReplayBinary(buffer: ArrayBuffer): ReplayPayload {
       const mask = reader.u16();
       players.push({
         id, name, team, position, yaw, health, armor, alive, weapon,
+        money: null, current_equipment_value: null, round_start_equipment_value: null, has_helmet: null,
         input: mask === 0xffff ? null : {
           forward: Boolean(mask & 1), left: Boolean(mask & 2), backward: Boolean(mask & 4), right: Boolean(mask & 8),
           jump: Boolean(mask & 16), crouch: Boolean(mask & 32), walk: Boolean(mask & 64), reload: Boolean(mask & 128),

@@ -150,6 +150,7 @@ import {
   type HeatmapSide,
 } from './heatmapPresentation';
 import { replayWorldBounds, worldPointsToRelativePercent } from './replayCoordinates';
+import { freezeSampleIndex, replayTeamEquipmentValues } from './replayEconomy';
 import { nextScopedFrameIndex, scopeReplayFrames } from './replayRoundScope';
 import { replayWorkspaceDensity, type ReplayWorkspaceDensity } from './replayWorkspaceLayout';
 import {
@@ -1622,6 +1623,7 @@ function ReplayView({
   const [frames, setFrames] = useState<ReplayFrameRecord[]>([]);
   const [cache, setCache] = useState<ReplayCacheMetadata | null>(null);
   const [fidelity, setFidelity] = useState<ReplayFidelityMetadata | null>(null);
+  const [freezeEndTick, setFreezeEndTick] = useState<number | null>(null);
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -1636,6 +1638,7 @@ function ReplayView({
       setFrames([]);
       setCache(null);
       setFidelity(null);
+      setFreezeEndTick(null);
       setState('idle');
       return undefined;
     }
@@ -1650,6 +1653,7 @@ function ReplayView({
       setFrames(response.frames);
       setCache(null);
       setFidelity(response.fidelity);
+      setFreezeEndTick(response.freeze_end_tick ?? null);
       setFrameIndex(0);
       setState('ready');
     }).catch((cause: unknown) => {
@@ -1657,6 +1661,7 @@ function ReplayView({
       setFrames([]);
       setCache(null);
       setFidelity(null);
+      setFreezeEndTick(null);
       setState('error');
       setError(readableError(cause));
     });
@@ -1729,6 +1734,9 @@ function ReplayView({
   const fidelityPresentation = fidelity ? replayFidelityPresentation(fidelity) : null;
   const playbackControl = replayPlaybackControlPresentation(replayTimingMode, speed);
   const frameEvents = round?.events.filter((event) => event.tick === currentFrame.tick) ?? [];
+  const teamEquipment = replayTeamEquipmentValues(currentFrame.players);
+  const selectedFreezeSampleIndex = freezeSampleIndex(roundFrames, freezeEndTick);
+  const freezeSample = selectedFreezeSampleIndex >= 0 ? roundFrames[selectedFreezeSampleIndex] ?? null : null;
 
   return (
     <div className="replay-layout" data-replay-density={workspaceDensity} data-testid="replay-workspace">
@@ -1739,6 +1747,9 @@ function ReplayView({
             <strong>{workspace.map_name ? workspace.map_name.replace('de_', '').toUpperCase() : 'MAP'}</strong>
             {radarTransform ? <Badge tone="neutral">{msg("m0397")}</Badge> : <Badge tone="neutral">{msg("m1023")}</Badge>}
             {cache ? <span title={cache.reason ?? `${cache.bytes.toLocaleString(currentLocale())} bytes`}><Badge tone={cache.state === 'hit' ? 'success' : cache.state === 'bypassed' ? 'warning' : 'neutral'}>{replayCacheLabel(cache)}</Badge></span> : null}
+            <Badge tone="neutral">A {t('analysis.replay.equipmentValue')} ${teamEquipment.A.toLocaleString(currentLocale())}</Badge>
+            <Badge tone="neutral">B {t('analysis.replay.equipmentValue')} ${teamEquipment.B.toLocaleString(currentLocale())}</Badge>
+            {freezeSample ? <Button size="sm" variant="ghost" title={t('analysis.replay.freezeSampleDescription')} onClick={() => { setPlaying(false); setFrameIndex(selectedFreezeSampleIndex); }}>{t('analysis.replay.freezeSample')} {freezeSample.tick}{freezeEndTick !== null && freezeSample.tick > freezeEndTick ? ` (+${freezeSample.tick - freezeEndTick})` : ''}</Button> : null}
           </div>
           <div className="mini-segmented" aria-label={msg("m0658")}>
             {(['all', 'A', 'B'] as const).map((side) => <button type="button" key={side} className={sideFilter === side ? 'is-active' : undefined} onClick={() => setSideFilter(side)}>{side === 'all' ? msg("m0229") : `TEAM ${side}`}</button>)}
@@ -1765,7 +1776,7 @@ function ReplayView({
             const inputs = activeInputLabels(player);
             const vital = replayPlayerVitalPresentation(player);
             const selected = player.id === selectedPlayerId;
-            return <button type="button" className={`replay-player replay-player--${side === 'A' ? 'a' : side === 'B' ? 'b' : 'unknown'}${selected ? ' is-selected' : ''}`} key={player.id} style={{ left: `${position[0]}%`, top: `${position[1]}%`, opacity: player.alive ? 1 : .35 }} title={`${player.name} · ${vital.healthLabel} · ${vital.statusLabel}${player.weapon ? ` · ${player.weapon}` : ''}${inputs.length > 0 ? ` · ${inputs.join('+')}` : ''}`} aria-pressed={selected} onClick={() => onSelectPlayer(player.id)}><span>{index + 1}</span><small>{player.name}</small></button>;
+            return <button type="button" className={`replay-player replay-player--${side === 'A' ? 'a' : side === 'B' ? 'b' : 'unknown'}${selected ? ' is-selected' : ''}`} key={player.id} style={{ left: `${position[0]}%`, top: `${position[1]}%`, opacity: player.alive ? 1 : .35 }} title={`${player.name} · ${vital.healthLabel} · ${vital.statusLabel}${player.weapon ? ` · ${player.weapon}` : ''}${player.money !== null && player.money !== undefined ? ` · ${t('analysis.replay.money')} $${player.money.toLocaleString(currentLocale())}` : ''}${player.current_equipment_value !== null && player.current_equipment_value !== undefined ? ` · ${t('analysis.replay.equipmentValue')} $${player.current_equipment_value.toLocaleString(currentLocale())}` : ''}${inputs.length > 0 ? ` · ${inputs.join('+')}` : ''}`} aria-pressed={selected} onClick={() => onSelectPlayer(player.id)}><span>{index + 1}</span><small>{player.name}</small></button>;
           })}
           {activeProjectiles.map((projectile, index) => {
             const position = projectileCoordinates[index] ?? [50, 50];
@@ -1789,7 +1800,7 @@ function ReplayView({
       </Card>
       <Card className="replay-events" data-testid="replay-inspector">
         <div className="card-heading"><div><span className="eyebrow">FRAME EVIDENCE</span><h2>{msg("m0572")}</h2></div><ScanLine size={16} /></div>
-        {visiblePlayers.map((player) => { const inputs = activeInputLabels(player); const vital = replayPlayerVitalPresentation(player); const selected = player.id === selectedPlayerId; return <div className={selected ? 'is-current' : undefined} key={player.id}><time>{vital.healthLabel}</time><span className="event-type-icon"><Crosshair size={13} /></span><p>{player.name}{selected ? ` · ${t('analysis.replay.focusedPlayer')}` : ''}{player.weapon ? ` · ${player.weapon}` : ''} · {vital.statusLabel}{inputs.length > 0 ? ` · ${inputs.join('+')}` : ''}</p></div>; })}
+        {visiblePlayers.map((player) => { const inputs = activeInputLabels(player); const vital = replayPlayerVitalPresentation(player); const selected = player.id === selectedPlayerId; return <div className={selected ? 'is-current' : undefined} key={player.id}><time>{vital.healthLabel}</time><span className="event-type-icon"><Crosshair size={13} /></span><p>{player.name}{selected ? ` · ${t('analysis.replay.focusedPlayer')}` : ''}{player.weapon ? ` · ${player.weapon}` : ''} · {vital.statusLabel}{player.money !== null && player.money !== undefined ? ` · ${t('analysis.replay.money')} $${player.money.toLocaleString(currentLocale())}` : ''}{player.current_equipment_value !== null && player.current_equipment_value !== undefined ? ` · ${t('analysis.replay.equipmentValue')} $${player.current_equipment_value.toLocaleString(currentLocale())}` : ''}{player.has_helmet ? ` · ${t('analysis.replay.helmet')}` : ''}{inputs.length > 0 ? ` · ${inputs.join('+')}` : ''}</p></div>; })}
         {frameEvents.map((event) => <div key={event.id} data-testid={`replay-event-${event.id}`}><time>{event.tick}</time><span className="event-type-icon"><Radio size={13} /></span><p>{event.kind} · {event.actor ? findPlayerName(workspace, event.actor) : msg("m0764")}{event.target ? ` → ${findPlayerName(workspace, event.target)}` : ''}{event.weapon ? ` · ${event.weapon}` : ''}</p></div>)}
         {activeProjectiles.map((projectile, index) => { const item = replayEffectPresentation(projectile.kind); return <div key={`${projectile.kind}-${index}`}><time>{msg("m0680")}</time><span className="event-type-icon"><Zap size={13} /></span><p>{item.label}{item.eventOnly ? msg("m0004") : msg("m0006")}</p></div>; })}
         {currentFrame.bomb ? <div><time>{msg("m1013")}</time><span className="event-type-icon"><CircleDot size={13} /></span><p>{msg("m0941")} {currentFrame.bomb.state === 'planted' ? msg("m0509") : currentFrame.bomb.state === 'defused' ? msg("m0516") : currentFrame.bomb.state === 'exploded' ? msg("m0532") : currentFrame.bomb.state}</p></div> : null}

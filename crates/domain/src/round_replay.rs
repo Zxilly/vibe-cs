@@ -172,6 +172,10 @@ pub struct RoundReplayFields {
     pub health: RoundReplayFieldAvailability,
     pub armor: RoundReplayFieldAvailability,
     pub life_state: RoundReplayFieldAvailability,
+    pub money: RoundReplayFieldAvailability,
+    pub current_equipment_value: RoundReplayFieldAvailability,
+    pub round_start_equipment_value: RoundReplayFieldAvailability,
+    pub has_helmet: RoundReplayFieldAvailability,
     pub active_weapon_name: RoundReplayFieldAvailability,
 }
 
@@ -191,6 +195,8 @@ pub struct RoundReplayMetadata {
     pub requested_tick_count: u32,
     pub accepted_tick_count: u32,
     pub event_tick_count: u32,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub freeze_end_tick: Option<u64>,
     pub players_per_frame: u32,
     pub fields: RoundReplayFields,
 }
@@ -208,6 +214,10 @@ pub struct RoundReplayPlayer {
     pub armor: u32,
     pub life_state: u32,
     pub alive: bool,
+    pub money: u32,
+    pub current_equipment_value: u32,
+    pub round_start_equipment_value: u32,
+    pub has_helmet: bool,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub active_weapon_name: Option<String>,
 }

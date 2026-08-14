@@ -725,6 +725,10 @@ export type ReplayPlayerRecord = {
   armor: number;
   alive: boolean;
   weapon: string;
+  money?: number | null;
+  current_equipment_value?: number | null;
+  round_start_equipment_value?: number | null;
+  has_helmet?: boolean | null;
   input: {
     forward: boolean;
     left: boolean;
@@ -782,6 +786,7 @@ export type ReplayPayload = {
   frames: ReplayFrameRecord[];
   fidelity: ReplayFidelityMetadata;
   cache: ReplayCacheMetadata;
+  freeze_end_tick?: number | null;
 };
 
 export type ReplayCacheStatus = {

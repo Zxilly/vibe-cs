@@ -122,7 +122,10 @@ fn cache_key(request: &RoundReplayRequest) -> Result<String, DomainError> {
     let bytes = serde_json::to_vec(request).map_err(|error| {
         DomainError::Internal(format!("unable to encode round replay key: {error}"))
     })?;
-    Ok(hex::encode(Sha256::digest(bytes)))
+    let mut digest = Sha256::new();
+    digest.update(b"round-replay-contract-v2\0");
+    digest.update(bytes);
+    Ok(hex::encode(digest.finalize()))
 }
 
 async fn read_document(
@@ -170,9 +173,12 @@ fn validate_artifact(
         || metadata.round != request.round
         || metadata.start_tick != request.start_tick
         || metadata.end_tick != request.end_tick
-        || metadata.sampling_contract_version != 1
+        || metadata.sampling_contract_version != 2
         || metadata.sample_interval_ticks != 16
         || metadata.players_per_frame != 10
+        || metadata
+            .freeze_end_tick
+            .is_some_and(|tick| !(request.start_tick..=request.end_tick).contains(&tick))
         || metadata.accepted_tick_count as usize != artifact.frames.len()
         || artifact.frames.first().map(|frame| frame.tick) != Some(request.start_tick)
         || artifact.frames.last().map(|frame| frame.tick) != Some(request.end_tick)
@@ -224,6 +230,9 @@ fn validate_artifact(
                 || player.health > 200
                 || player.armor > 200
                 || player.life_state > 255
+                || player.money > 100_000
+                || player.current_equipment_value > 100_000
+                || player.round_start_equipment_value > 100_000
                 || player.alive != (player.life_state == 0 && player.health > 0)
                 || player.active_weapon_name.as_ref().is_some_and(|weapon| {
                     weapon.len() > 128 || weapon.chars().any(char::is_control)
@@ -335,6 +344,10 @@ mod tests {
                 armor: 100,
                 life_state: 0,
                 alive: true,
+                money: 800,
+                current_equipment_value: 200,
+                round_start_equipment_value: 200,
+                has_helmet: false,
                 active_weapon_name: None,
             })
             .collect::<Vec<_>>();
@@ -348,11 +361,12 @@ mod tests {
                 start_tick: request.start_tick,
                 end_tick: request.end_tick,
                 tick_rate: request.tick_rate,
-                sampling_contract_version: 1,
+                sampling_contract_version: 2,
                 sample_interval_ticks: 16,
                 requested_tick_count: 2,
                 accepted_tick_count: 2,
                 event_tick_count: 0,
+                freeze_end_tick: Some(100),
                 players_per_frame: 10,
                 fields: RoundReplayFields {
                     position: RoundReplayFieldAvailability::Required,
@@ -360,6 +374,10 @@ mod tests {
                     health: RoundReplayFieldAvailability::Required,
                     armor: RoundReplayFieldAvailability::Required,
                     life_state: RoundReplayFieldAvailability::Required,
+                    money: RoundReplayFieldAvailability::Required,
+                    current_equipment_value: RoundReplayFieldAvailability::Required,
+                    round_start_equipment_value: RoundReplayFieldAvailability::Required,
+                    has_helmet: RoundReplayFieldAvailability::Required,
                     active_weapon_name: RoundReplayFieldAvailability::Nullable,
                 },
             },

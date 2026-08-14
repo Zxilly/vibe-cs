@@ -45,4 +45,15 @@ describe('analysis 1100×700 responsive styles', () => {
   it('keeps the complete round inspector reachable when comments and tags extend it', () => {
     expect(styles).toMatch(/\.page--analysis \.round-context-inspector\s*{[^}]*overflow-y:\s*auto;[^}]*scrollbar-width:\s*thin;/s);
   });
+
+  it('keeps dense replay spawn clusters legible until one player is intentionally focused', () => {
+    expect(styles).toMatch(/\.replay-player small\s*{[^}]*opacity:\s*0;[^}]*pointer-events:\s*none;/s);
+    expect(styles).toMatch(/\.replay-player:is\(:hover,\s*:focus-visible,\s*\.is-selected\) small\s*{[^}]*opacity:\s*1;/s);
+  });
+
+  it('keeps every replay side filter reachable in the compact toolbar', () => {
+    expect(compactReplayContract).toMatch(/\.replay-map-toolbar\s*{[^}]*height:\s*auto;[^}]*flex-wrap:\s*wrap;/s);
+    expect(compactReplayContract).toMatch(/\.replay-map-toolbar > div:first-child\s*{[^}]*width:\s*100%;[^}]*overflow-x:\s*auto;/s);
+    expect(compactReplayContract).toMatch(/\.replay-map-toolbar > div:last-child\s*{[^}]*width:\s*100%;[^}]*justify-content:\s*flex-end;/s);
+  });
 });

@@ -48,6 +48,16 @@
 @layer reset, tokens, base, components, pages, responsive;
 
 @layer components {
+  .replay-player small {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 100ms ease;
+  }
+
+  .replay-player:is(:hover, :focus-visible, .is-selected) small {
+    opacity: 1;
+  }
+
   .replay-player.is-selected {
     z-index: 6;
     box-shadow: 0 0 0 3px var(--surface-1), 0 0 0 6px var(--accent), 0 4px 12px rgba(0, 0, 0, .38);
@@ -4702,6 +4712,26 @@ body {
 .page--analysis .replay-layout[data-replay-density="compact"] .replay-legend,
 .page--analysis .replay-layout[data-replay-density="compact"] .replay-controls {
   background: var(--surface-1);
+}
+
+.page--analysis .replay-layout[data-replay-density="compact"] .replay-map-toolbar {
+  height: auto;
+  min-height: 42px;
+  flex-wrap: wrap;
+  padding-block: 4px;
+  gap: 4px;
+}
+
+.page--analysis .replay-layout[data-replay-density="compact"] .replay-map-toolbar > div:first-child {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.page--analysis .replay-layout[data-replay-density="compact"] .replay-map-toolbar > div:last-child {
+  width: 100%;
+  justify-content: flex-end;
 }
 
 .page--analysis .replay-layout[data-replay-density="compact"] .replay-events {

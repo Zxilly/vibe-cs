@@ -90,6 +90,11 @@ pub(crate) fn create_tools(state: &ToolState) -> Vec<DynamicTool> {
 fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
     vec![
         (
+            "read_workspace_context",
+            "Read the exact visible Vibe CS workflow, destination, and selected round, tick, player, Demo, and editor project identifiers. Values may be null and must not be inferred.",
+            object_schema(json!({}), &[]),
+        ),
+        (
             "read_demo_evidence",
             "Read verified local demo metadata, highlights, rounds, or players. Use this before giving match-specific guidance.",
             object_schema(
@@ -247,6 +252,7 @@ fn execute_tool(
 ) -> Result<(Value, Option<CapturedPlan>), String> {
     ensure_object(input)?;
     match name {
+        "read_workspace_context" => Ok((read_workspace_context(context, input)?, None)),
         "read_demo_evidence" => Ok((read_demo_evidence(context, input)?, None)),
         "search_rounds" => Ok((search_rounds(context, input)?, None)),
         "read_round_context" => Ok((read_round_context(context, input)?, None)),
@@ -263,6 +269,13 @@ fn execute_tool(
     }
 }
 
+fn read_workspace_context(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    if !ensure_object(input)?.is_empty() {
+        return Err("read_workspace_context accepts no fields".into());
+    }
+    Ok(context.workspace.clone())
+}
+
 fn navigate_workspace(context: &AgentContext, input: &Value) -> Result<Value, String> {
     let object = ensure_object(input)?;
     if object.len() != 1 {
@@ -272,8 +285,8 @@ fn navigate_workspace(context: &AgentContext, input: &Value) -> Result<Value, St
         input,
         "destination",
         &[
-            "review", "players", "evidence", "replay", "heatmap", "edit", "queue",
-            "studio", "outputs",
+            "review", "players", "evidence", "replay", "heatmap", "edit", "queue", "studio",
+            "outputs",
         ],
     )?;
     let requires_demo = matches!(destination, "replay" | "heatmap");
@@ -985,12 +998,36 @@ mod tests {
             json!({"accepted":true,"destination":"replay","reason":null})
         );
         assert!(plan.is_none());
-        assert!(execute_tool(
-            "navigate_workspace",
-            &context(),
-            &json!({"destination":"/settings"}),
-        )
-        .is_err());
+        assert!(
+            execute_tool(
+                "navigate_workspace",
+                &context(),
+                &json!({"destination":"/settings"}),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn workspace_context_is_read_only_and_exact() {
+        let mut value = context();
+        value.workspace = json!({
+            "workflow":"review","destination":"replay","demoId":"demo-1",
+            "projectId":null,"playerId":"76561198000000001","roundNumber":7,"tick":640
+        });
+        let (output, plan) =
+            execute_tool("read_workspace_context", &value, &json!({})).expect("workspace context");
+        assert_eq!(output["destination"], "replay");
+        assert_eq!(output["tick"], 640);
+        assert!(plan.is_none());
+        assert!(
+            execute_tool(
+                "read_workspace_context",
+                &value,
+                &json!({"path":"/settings"}),
+            )
+            .is_err()
+        );
     }
 
     #[test]

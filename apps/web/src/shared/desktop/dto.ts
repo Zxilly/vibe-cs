@@ -1886,6 +1886,15 @@ export type AgentChatInput = {
   demoId: EntityId | null;
   editorProjectId: EntityId | null;
   audioAssetId: EntityId | null;
+  workspaceContext: {
+    workflow: 'review' | 'edit' | 'neutral';
+    destination: 'review' | 'players' | 'evidence' | 'replay' | 'heatmap' | 'edit' | 'queue' | 'studio' | 'outputs' | 'neutral';
+    demoId: EntityId | null;
+    projectId: EntityId | null;
+    playerId: string | null;
+    roundNumber: number | null;
+    tick: number | null;
+  };
   mode: AgentMode;
   message: string;
 };

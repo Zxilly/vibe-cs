@@ -18,6 +18,10 @@ export type AgentNavigationContext = {
 
 export type AgentRouteContext = AgentNavigationContext & {
   workflow: 'review' | 'edit' | 'neutral';
+  destination: AgentWorkspaceDestination | 'neutral';
+  playerId: string | null;
+  roundNumber: number | null;
+  tick: number | null;
 };
 
 const destinations = new Set<AgentWorkspaceDestination>([
@@ -25,6 +29,18 @@ const destinations = new Set<AgentWorkspaceDestination>([
   'edit', 'queue', 'studio', 'outputs',
 ]);
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const steamIdPattern = /^\d{17}$/u;
+
+function exactParameter(parameters: URLSearchParams, key: string): string | null {
+  const values = parameters.getAll(key);
+  return values.length === 1 ? values[0] ?? null : null;
+}
+
+function boundedInteger(value: string | null, minimum: number, maximum: number): number | null {
+  if (value === null || !/^\d+$/u.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null;
+}
 
 function exactRecord(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -40,12 +56,35 @@ export function deriveAgentRouteContext(pathname: string, search: string): Agent
   const reviewPaths = new Set(['/library', '/players', '/lineups', '/evidence-search', '/match-history', '/analysis']);
   const editPaths = new Set(['/production', '/queue', '/studio', '/montage', '/studio/editor', '/outputs']);
   const parameters = new URLSearchParams(search);
-  const demo = parameters.get('demo');
-  const project = parameters.get('project');
+  const demo = exactParameter(parameters, 'demo');
+  const project = exactParameter(parameters, 'project');
+  const player = exactParameter(parameters, 'player');
+  const tab = exactParameter(parameters, 'tab');
+  const destination: AgentRouteContext['destination'] = pathname === '/players'
+    ? 'players'
+    : pathname === '/evidence-search'
+      ? 'evidence'
+      : pathname === '/analysis' && (tab === 'replay' || tab === 'heatmap')
+        ? tab
+        : pathname === '/analysis' || pathname === '/library' || pathname === '/lineups' || pathname === '/match-history'
+          ? 'review'
+          : pathname === '/queue'
+            ? 'queue'
+            : pathname === '/studio' || pathname === '/studio/editor' || pathname === '/montage'
+              ? 'studio'
+              : pathname === '/outputs'
+                ? 'outputs'
+                : pathname === '/production'
+                  ? 'edit'
+                  : 'neutral';
   return {
     workflow: reviewPaths.has(pathname) ? 'review' : editPaths.has(pathname) ? 'edit' : 'neutral',
+    destination,
     demoId: demo && uuidPattern.test(demo) ? demo : null,
     projectId: project && uuidPattern.test(project) ? project : null,
+    playerId: player && steamIdPattern.test(player) ? player : null,
+    roundNumber: boundedInteger(exactParameter(parameters, 'round'), 1, 10_000),
+    tick: boundedInteger(exactParameter(parameters, 'tick'), 0, 2_147_483_647),
   };
 }
 

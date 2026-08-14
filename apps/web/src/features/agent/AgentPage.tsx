@@ -30,7 +30,7 @@ import type {
   MediaAsset,
   ProposalPrerequisite,
 } from '../../shared/desktop/dto';
-import { useI18n } from '../../shared/i18n';
+import { type MessageKey, useI18n } from '../../shared/i18n';
 import { Badge, Button, EmptyState, Notice, PageHeader, SegmentedControl, Spinner } from '../../shared/ui';
 import { applyAgentEvent, proposalActivityKey, rollbackOptimisticRun } from './agentSession';
 import { deriveAgentRouteContext, resolveAgentNavigation } from './agentNavigation';
@@ -634,6 +634,19 @@ function ContextSelect({
 
 type AgentWorkspaceSurface = 'page' | 'dock';
 
+const workspaceDestinationKeys = {
+  review: 'nav.review',
+  players: 'players.title',
+  evidence: 'nav.evidenceSearch',
+  replay: 'analysis.tab.replay',
+  heatmap: 'analysis.tab.heatmap',
+  edit: 'nav.edit',
+  queue: 'queue.title',
+  studio: 'studio.title',
+  outputs: 'outputs.title',
+  neutral: 'shell.workspace',
+} satisfies Record<ReturnType<typeof deriveAgentRouteContext>['destination'], MessageKey>;
+
 export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurface }) {
   const { t } = useI18n();
   const location = useLocation();
@@ -656,14 +669,17 @@ export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurfac
   const [proposalMutationOwner, setProposalMutationOwner] = useState<string | null>(null);
   const generationRef = useRef(0);
   const requestIdRef = useRef<string | null>(null);
+  const routeContext = useMemo(
+    () => deriveAgentRouteContext(location.pathname, location.search),
+    [location.pathname, location.search],
+  );
 
   useEffect(() => {
-    const context = deriveAgentRouteContext(location.pathname, location.search);
-    if (context.demoId) setDemoId(context.demoId);
-    if (context.projectId) setProjectId(context.projectId);
-    if (context.workflow === 'review') setMode('guide');
-    if (context.workflow === 'edit') setMode('edit');
-  }, [location.pathname, location.search]);
+    if (routeContext.demoId) setDemoId(routeContext.demoId);
+    if (routeContext.projectId) setProjectId(routeContext.projectId);
+    if (routeContext.workflow === 'review') setMode('guide');
+    if (routeContext.workflow === 'edit') setMode('edit');
+  }, [routeContext]);
 
   useEffect(() => {
     return proposalMutationCoordinator.subscribe(setProposalMutationOwner);
@@ -709,7 +725,7 @@ export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurfac
     const generation = generationRef.current + 1;
     generationRef.current = generation;
     requestIdRef.current = requestId;
-    const contextSnapshot = { threadId, demoId, projectId, audioAssetId, mode };
+    const contextSnapshot = { threadId, demoId, projectId, audioAssetId, mode, routeContext };
     setMessages((current) => [
       ...current,
       { id: userId, role: 'user', content, createdAt, toolCalls: [], proposals: [] },
@@ -724,6 +740,7 @@ export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurfac
         demoId: contextSnapshot.demoId || null,
         editorProjectId: contextSnapshot.projectId || null,
         audioAssetId: contextSnapshot.audioAssetId || null,
+        workspaceContext: contextSnapshot.routeContext,
         mode: contextSnapshot.mode,
         message: content,
       }, (event) => {
@@ -754,7 +771,7 @@ export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurfac
         setIsRunning(false);
       }
     }
-  }, [audioAssetId, demoId, isRunning, mode, navigate, projectId, proposalMutationCoordinator, threadId]);
+  }, [audioAssetId, demoId, isRunning, mode, navigate, projectId, proposalMutationCoordinator, routeContext, threadId]);
 
   const onCancel = useCallback(async () => {
     const requestId = requestIdRef.current;
@@ -808,8 +825,12 @@ export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurfac
         </header>
         {error ? <Notice tone="danger">{error}</Notice> : null}
         <section className="ai-workspace-dock__context" aria-label={t('copilot.context')}>
-          <span>{demoId ? t('copilot.matchFile') : t('copilot.none')}</span>
-          <span>{projectId ? t('copilot.project') : t('copilot.none')}</span>
+          <span>{t(workspaceDestinationKeys[routeContext.destination])}</span>
+          <span title={demoId || undefined}>{demoId ? t('copilot.matchFile') : t('copilot.none')}</span>
+          <span title={projectId || undefined}>{projectId ? t('copilot.project') : t('copilot.none')}</span>
+          {routeContext.roundNumber !== null ? <span>R{routeContext.roundNumber}</span> : null}
+          {routeContext.tick !== null ? <span>T{routeContext.tick}</span> : null}
+          {routeContext.playerId ? <span title={routeContext.playerId}>STEAM64</span> : null}
         </section>
         <section className="ai-workspace-dock__thread">
           <AssistantRuntimeProvider runtime={runtime}><AgentThread /></AssistantRuntimeProvider>

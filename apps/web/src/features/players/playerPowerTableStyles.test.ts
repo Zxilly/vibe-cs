@@ -29,6 +29,11 @@ describe('players power-table responsive contract', () => {
     expect(pageSource).toContain('<div className="player-inspector-drawer">{playerInspector}</div>');
   });
 
+  it('keeps the always-visible AI dock outside desktop Drawer overlays', () => {
+    expect(css).toContain('@media (min-width: 651px)');
+    expect(css).toContain('.drawer-layer { right: var(--ai-dock-width); }');
+  });
+
   it('keeps cross-match evidence links operable in the narrow inspector', () => {
     expect(css).toMatch(/\.player-cross-match-evidence nav a,[\s\S]*?min-height:\s*24px[^}]*padding:\s*4px 5px/s);
     expect(css).toMatch(/\.player-cross-match-evidence nav a:focus-visible,[\s\S]*?background:\s*var\(--accent-soft\)/s);

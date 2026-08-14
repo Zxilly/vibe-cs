@@ -11,6 +11,7 @@ import type {
 import { useI18n } from '../../shared/i18n';
 import { worldPointsToRadarPercent } from '../../shared/radar';
 import { Badge, Button, EmptyState, Notice } from '../../shared/ui';
+import { aggregateHeatmapDensity, heatmapDensityDivisions } from './heatmapDensity';
 
 type HeatmapKind = 'all' | 'kills' | 'deaths';
 
@@ -74,6 +75,15 @@ export function PlayerHeatmapWorkspace({
   const radarImage = radar?.transform && radar.browser_displayable && radar.image_url
     ? desktopMediaUrl(radar.image_url)
     : null;
+  const density = useMemo(() => aggregateHeatmapDensity(visiblePoints.map((point) => {
+    const coordinate = coordinateByEvidenceId.get(point.evidence_id) ?? [50, 50];
+    return {
+      evidenceId: point.evidence_id,
+      kind: point.kind,
+      xPercent: coordinate[0] ?? 50,
+      yPercent: coordinate[1] ?? 50,
+    };
+  })), [coordinateByEvidenceId, visiblePoints]);
 
   return (
     <section className="player-heatmap-workspace" aria-label={t('players.heatmap.title')}>
@@ -121,6 +131,21 @@ export function PlayerHeatmapWorkspace({
             data-coordinate-space={radar?.transform ? 'map-overview' : 'whole-artifact-relative'}
           >
             {radarImage ? <img src={radarImage} alt={t('players.heatmap.radarAlt').replace('{map}', heatmap.map_name)} /> : null}
+            <div className="player-heatmap-density" aria-hidden="true">
+              {density.cells.map((cell) => (
+                <span
+                  key={cell.key}
+                  data-density-count={cell.count}
+                  data-density-kills={cell.kills}
+                  data-density-deaths={cell.deaths}
+                  style={{
+                    left: `${(cell.column / heatmapDensityDivisions) * 100}%`,
+                    top: `${(cell.row / heatmapDensityDivisions) * 100}%`,
+                    opacity: .16 + (cell.count / Math.max(1, density.maximum)) * .58,
+                  }}
+                />
+              ))}
+            </div>
             {visiblePoints.map((point) => {
               const coordinate = coordinateByEvidenceId.get(point.evidence_id) ?? [50, 50];
               return (

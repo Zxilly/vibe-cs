@@ -351,6 +351,15 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
         demo_id: Some(demo_id),
         editor_project_id: None,
         audio_asset_id: None,
+        workspace_context: AgentWorkspaceContext {
+            workflow: AgentWorkspaceWorkflow::Edit,
+            destination: AgentWorkspaceDestination::Edit,
+            demo_id: Some(demo_id),
+            project_id: None,
+            player_id: None,
+            round_number: None,
+            tick: None,
+        },
         mode: AgentMode::Edit,
         message: "Create an impact edit from ace-1 with two seconds of context.".to_owned(),
     };

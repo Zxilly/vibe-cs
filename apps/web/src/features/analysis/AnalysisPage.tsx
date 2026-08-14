@@ -850,7 +850,7 @@ export function AnalysisPage() {
             {tab === 'insights' ? <InsightsView workspace={workspace} selectedPlayer={selectedPlayer} /> : null}
             {tab === 'review' ? <AiReviewPanel key={demoId} demoId={demoId} producerRunId={analysisSnapshot.context.runId} workspace={workspace} selectedPlayer={selectedPlayer} source={source} configuration={reviewConfiguration} /> : null}
             {tab === 'rounds' ? <RoundsView workspace={workspace} demoId={demoId} playable={source === 'service'} selectedRound={selectedRound} selectedPlayer={selectedPlayer} selectedTick={selectedTick} selectedEvidenceId={selectedEvidenceId} addedId={addedHighlight} onSelectRound={(round) => navigateAnalysis({ round })} onPreviewRound={(round, tick, playerId) => navigateAnalysis({ tab: 'replay', round, tick: tick ?? null, playerId: playerId ?? null })} onCompile={addCompilation} /> : null}
-            {tab === 'replay' ? <ReplayView demoId={demoId} producerRunId={analysisSnapshot.context.runId} workspace={workspace} source={source} roundNumber={selectedRound} targetTick={selectedTick} selectedPlayerId={selectedPlayerId} onSelectPlayer={(playerId) => navigateAnalysis({ playerId })} /> : null}
+            {tab === 'replay' ? <ReplayView demoId={demoId} producerRunId={analysisSnapshot.context.runId} workspace={workspace} source={source} roundNumber={selectedRound} targetTick={selectedTick} selectedPlayerId={selectedPlayerId} onSelectPlayer={(playerId) => navigateAnalysis({ playerId })} onFocusFrame={(tick) => navigateAnalysis({ tick })} /> : null}
             {tab === 'heatmap' ? (
               <HeatmapView
                 demoId={demoId}
@@ -1628,6 +1628,7 @@ function ReplayView({
   targetTick,
   selectedPlayerId,
   onSelectPlayer,
+  onFocusFrame,
 }: {
   demoId: string;
   producerRunId: string | null;
@@ -1637,6 +1638,7 @@ function ReplayView({
   targetTick: number | null;
   selectedPlayerId: string | null;
   onSelectPlayer: (playerId: string) => void;
+  onFocusFrame: (tick: number) => void;
 }) {
   const { t } = useI18n();
   const [frames, setFrames] = useState<ReplayFrameRecord[]>([]);
@@ -1769,6 +1771,15 @@ function ReplayView({
             <Badge tone="neutral">A {t('analysis.replay.equipmentValue')} ${teamEquipment.A.toLocaleString(currentLocale())}</Badge>
             <Badge tone="neutral">B {t('analysis.replay.equipmentValue')} ${teamEquipment.B.toLocaleString(currentLocale())}</Badge>
             {freezeSample ? <Button size="sm" variant="ghost" title={t('analysis.replay.freezeSampleDescription')} onClick={() => { setPlaying(false); setFrameIndex(selectedFreezeSampleIndex); }}>{t('analysis.replay.freezeSample')} {freezeSample.tick}{freezeEndTick !== null && freezeSample.tick > freezeEndTick ? ` (+${freezeSample.tick - freezeEndTick})` : ''}</Button> : null}
+            <Button
+              size="sm"
+              variant="ghost"
+              data-action="focus-replay-frame-for-ai"
+              aria-pressed={targetTick === currentFrame.tick}
+              onClick={() => { setPlaying(false); onFocusFrame(currentFrame.tick); }}
+            >
+              <Bot size={13} />{t('analysis.replay.focusAi')} · {currentFrame.tick}
+            </Button>
           </div>
           <div className="mini-segmented" aria-label={msg("m0658")}>
             {(['all', 'A', 'B'] as const).map((side) => <button type="button" key={side} className={sideFilter === side ? 'is-active' : undefined} onClick={() => setSideFilter(side)}>{side === 'all' ? msg("m0229") : `TEAM ${side}`}</button>)}

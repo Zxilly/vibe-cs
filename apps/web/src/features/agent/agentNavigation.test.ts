@@ -33,14 +33,21 @@ describe('AI workspace navigation', () => {
   it('derives review and edit context only from canonical route parameters', () => {
     expect(deriveAgentRouteContext(
       '/analysis',
-      '?demo=11111111-1111-4111-8111-111111111111&tab=heatmap',
-    )).toEqual({ workflow: 'review', demoId: '11111111-1111-4111-8111-111111111111', projectId: null });
+      '?demo=11111111-1111-4111-8111-111111111111&tab=replay&round=7&tick=640&player=76561198000000001',
+    )).toEqual({
+      workflow: 'review', destination: 'replay', demoId: '11111111-1111-4111-8111-111111111111',
+      projectId: null, playerId: '76561198000000001', roundNumber: 7, tick: 640,
+    });
     expect(deriveAgentRouteContext(
       '/studio/editor',
       '?project=22222222-2222-4222-8222-222222222222',
-    )).toEqual({ workflow: 'edit', demoId: null, projectId: '22222222-2222-4222-8222-222222222222' });
+    )).toEqual({
+      workflow: 'edit', destination: 'studio', demoId: null,
+      projectId: '22222222-2222-4222-8222-222222222222', playerId: null, roundNumber: null, tick: null,
+    });
     expect(deriveAgentRouteContext('/analysis', '?demo=../forged')).toEqual({
-      workflow: 'review', demoId: null, projectId: null,
+      workflow: 'review', destination: 'review', demoId: null, projectId: null,
+      playerId: null, roundNumber: null, tick: null,
     });
   });
 });

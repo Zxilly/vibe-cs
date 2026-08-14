@@ -66,6 +66,7 @@ describe('PlayerHeatmapWorkspace', () => {
     expect(markup).toContain('data-coordinate-space="map-overview"');
     expect(markup).toContain('data-heat-kind="kills"');
     expect(markup).toContain('data-heat-kind="deaths"');
+    expect(markup).toContain('data-density-count="1"');
     expect(markup).toContain('2 / 2');
     expect(markup).toContain('tab=rounds');
     expect(markup).toContain('tab=replay');
@@ -109,5 +110,6 @@ describe('PlayerHeatmapWorkspace', () => {
     expect(allMarkup.match(killPosition)?.[1]).toBe(killMarkup.match(killPosition)?.[1]);
     expect(killMarkup).toContain('1 / 2');
     expect(killMarkup).not.toContain('data-heat-kind="deaths"');
+    expect(killMarkup).not.toContain('data-density-deaths="1"');
   });
 });

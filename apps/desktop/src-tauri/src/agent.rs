@@ -242,8 +242,49 @@ pub(crate) struct AgentChatInput {
     editor_project_id: Option<Uuid>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     audio_asset_id: Option<Uuid>,
+    workspace_context: AgentWorkspaceContext,
     mode: AgentMode,
     message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct AgentWorkspaceContext {
+    pub(crate) workflow: AgentWorkspaceWorkflow,
+    pub(crate) destination: AgentWorkspaceDestination,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) demo_id: Option<Uuid>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) project_id: Option<Uuid>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) player_id: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) round_number: Option<u16>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) tick: Option<u32>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum AgentWorkspaceWorkflow {
+    Review,
+    Edit,
+    Neutral,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum AgentWorkspaceDestination {
+    Review,
+    Players,
+    Evidence,
+    Replay,
+    Heatmap,
+    Edit,
+    Queue,
+    Studio,
+    Outputs,
+    Neutral,
 }
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -409,6 +450,7 @@ async fn chat(
             "agent message must contain between 1 and 8000 characters",
         ));
     }
+    validate_workspace_context(&input)?;
     let thread_id = input.thread_id.unwrap_or_else(Uuid::new_v4);
     let cancellation = Arc::new(Cancellation::new());
     {
@@ -429,6 +471,54 @@ async fn chat(
         cancellations.remove(&input.request_id);
     }
     result
+}
+
+fn validate_workspace_context(input: &AgentChatInput) -> Result<(), AgentCommandError> {
+    let context = &input.workspace_context;
+    if context
+        .player_id
+        .as_deref()
+        .is_some_and(|value| value.len() != 17 || !value.bytes().all(|byte| byte.is_ascii_digit()))
+        || context.round_number == Some(0)
+        || context.demo_id.is_some_and(|id| Some(id) != input.demo_id)
+        || context
+            .project_id
+            .is_some_and(|id| Some(id) != input.editor_project_id)
+    {
+        return Err(AgentCommandError::invalid(
+            "agent workspace context is outside the supported bounds",
+        ));
+    }
+    let review_destination = matches!(
+        context.destination,
+        AgentWorkspaceDestination::Review
+            | AgentWorkspaceDestination::Players
+            | AgentWorkspaceDestination::Evidence
+            | AgentWorkspaceDestination::Replay
+            | AgentWorkspaceDestination::Heatmap
+    );
+    let edit_destination = matches!(
+        context.destination,
+        AgentWorkspaceDestination::Edit
+            | AgentWorkspaceDestination::Queue
+            | AgentWorkspaceDestination::Studio
+            | AgentWorkspaceDestination::Outputs
+    );
+    if (review_destination && !matches!(context.workflow, AgentWorkspaceWorkflow::Review))
+        || (edit_destination && !matches!(context.workflow, AgentWorkspaceWorkflow::Edit))
+        || (matches!(
+            context.destination,
+            AgentWorkspaceDestination::Replay | AgentWorkspaceDestination::Heatmap
+        ) && context.demo_id.is_none())
+        || ((context.round_number.is_some() || context.tick.is_some()) && context.demo_id.is_none())
+        || (context.player_id.is_some()
+            && !matches!(context.workflow, AgentWorkspaceWorkflow::Review))
+    {
+        return Err(AgentCommandError::invalid(
+            "agent workspace context is inconsistent with the selected workflow",
+        ));
+    }
+    Ok(())
 }
 
 async fn run_scheduled_agent_chat(
@@ -585,6 +675,8 @@ async fn run_agent_chat(
             custom_instructions: config.llm.prompt,
         },
         context: EmbeddedAgentContext {
+            workspace: serde_json::to_value(&input.workspace_context)
+                .map_err(|error| AgentCommandError::internal(error.to_string()))?,
             demo: summarize_demo(&demo),
             analysis: summarize_analysis(&analysis),
             editor_project: summarize_editor_project(&editor_project),
@@ -1045,13 +1137,28 @@ mod tests {
             "demoId": null,
             "editorProjectId": null,
             "audioAssetId": null,
+            "workspaceContext": {
+                "workflow": "review",
+                "destination": "review",
+                "demoId": null,
+                "projectId": null,
+                "playerId": null,
+                "roundNumber": null,
+                "tick": null
+            },
             "mode": "guide",
             "message": "Review this match"
         });
         serde_json::from_value::<AgentChatInput>(current.clone())
             .expect("current explicit agent chat request");
 
-        for field in ["threadId", "demoId", "editorProjectId", "audioAssetId"] {
+        for field in [
+            "threadId",
+            "demoId",
+            "editorProjectId",
+            "audioAssetId",
+            "workspaceContext",
+        ] {
             let mut missing = current.clone();
             missing
                 .as_object_mut()
@@ -1062,6 +1169,48 @@ mod tests {
                 "missing {field} must not select an implicit context default"
             );
         }
+
+        for field in ["demoId", "projectId", "playerId", "roundNumber", "tick"] {
+            let mut missing = current.clone();
+            missing["workspaceContext"]
+                .as_object_mut()
+                .expect("workspace context")
+                .remove(field);
+            assert!(
+                serde_json::from_value::<AgentChatInput>(missing).is_err(),
+                "missing workspace {field} must not select an implicit context default"
+            );
+        }
+    }
+
+    #[test]
+    fn agent_workspace_context_rejects_cross_selection_and_impossible_surfaces() {
+        let demo_id = Uuid::new_v4();
+        let other_demo_id = Uuid::new_v4();
+        let request = AgentChatInput {
+            request_id: Uuid::new_v4(),
+            thread_id: None,
+            demo_id: Some(demo_id),
+            editor_project_id: None,
+            audio_asset_id: None,
+            workspace_context: AgentWorkspaceContext {
+                workflow: AgentWorkspaceWorkflow::Review,
+                destination: AgentWorkspaceDestination::Replay,
+                demo_id: Some(other_demo_id),
+                project_id: None,
+                player_id: Some("76561198000000001".to_owned()),
+                round_number: Some(7),
+                tick: Some(640),
+            },
+            mode: AgentMode::Guide,
+            message: "Explain this frame".to_owned(),
+        };
+        assert!(validate_workspace_context(&request).is_err());
+
+        let mut impossible = request;
+        impossible.workspace_context.demo_id = Some(demo_id);
+        impossible.workspace_context.workflow = AgentWorkspaceWorkflow::Edit;
+        assert!(validate_workspace_context(&impossible).is_err());
     }
 
     #[test]

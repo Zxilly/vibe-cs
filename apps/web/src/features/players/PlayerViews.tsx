@@ -40,6 +40,7 @@ import {
 } from './playerPresentation';
 import { evidenceSearchResultHref } from '../evidence-search/evidenceSearchPresentation';
 import { PlayerHeatmapWorkspace } from './PlayerHeatmapWorkspace';
+import { PlayerTrendWorkspace } from './PlayerTrendWorkspace';
 
 const dateFormatter = new Intl.DateTimeFormat(currentLocale(), {
   dateStyle: 'medium',
@@ -409,6 +410,8 @@ export function PlayerDetailView({
       ) : evidence ? (
         <PlayerCrossMatchEvidence playerId={player.steam_id} evidence={evidence} />
       ) : null}
+
+      {matches && matches.items.length > 0 ? <PlayerTrendWorkspace matches={matches} /> : null}
 
       <section className="player-match-history">
         <header>

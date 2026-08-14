@@ -2,6 +2,7 @@ import { applyLocale, msg, type MessageKey } from '../shared/i18n';
 import {
   Activity,
   Archive,
+  Bot,
   ChevronRight,
   CircleHelp,
   Clapperboard,
@@ -26,7 +27,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
-import { type KeyboardEvent, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, type KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { commands, readableError } from '../shared/desktop/client';
@@ -35,7 +36,11 @@ import { useRuntimeStore } from '../shared/stores/runtimeStore';
 import { useUiStore } from '../shared/stores/uiStore';
 import { IconButton, useDialogFocus } from '../shared/ui';
 import { WindowTitleBar } from './WindowTitleBar';
-import { AgentDock } from '../features/agent/AgentPage';
+
+const AgentDock = lazy(async () => {
+  const module = await import('../features/agent/AgentPage');
+  return { default: module.AgentDock };
+});
 
 type NavItem = {
   path: string;
@@ -347,7 +352,13 @@ export function AppShell() {
         </main>
       </div>
 
-      <AgentDock />
+      <Suspense fallback={(
+        <aside className="ai-workspace-dock" aria-label={t('copilot.workspaceDock')}>
+          <header><Bot size={17} /><strong>{t('copilot.workspaceDock')}</strong></header>
+        </aside>
+      )}>
+        <AgentDock />
+      </Suspense>
 
       {paletteOpen ? (
         <div className="command-layer" role="presentation" onMouseDown={() => setPaletteOpen(false)}>

@@ -74,6 +74,7 @@ pub struct AgentConfig {
 
 #[derive(Debug, Clone, Default)]
 pub struct AgentContext {
+    pub workspace: Value,
     pub demo: Value,
     pub analysis: Value,
     pub editor_project: Value,
@@ -251,6 +252,7 @@ fn validate_request(request: &AgentRequest) -> Result<(), AgentError> {
     }
     validate_base_url(&request.config.base_url)?;
     let context_bytes = serde_json::to_vec(&serde_json::json!({
+        "workspace": request.context.workspace,
         "demo": request.context.demo,
         "analysis": request.context.analysis,
         "editorProject": request.context.editor_project,

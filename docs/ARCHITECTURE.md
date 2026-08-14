@@ -31,10 +31,13 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
 
 - `domain` contains serializable records, validation and errors and performs no I/O. The current
   evidence-annotation contract binds editable user text, free-form tags and open/resolved state to
-  one immutable `demo_id/evidence_id/round/tick` locator.
+  one immutable `demo_id/evidence_id/round/tick` locator. The separate review-metadata contract
+  models the CS Demo Manager-style Comment/Tags surfaces for Demo, canonical Player Steam64 and
+  exact current-source Round identities; it is not an alias for Evidence Annotation.
 - `storage` owns the current SQLite schema, explicit transactions, project snapshots, jobs, library
   records, durable analysis attempts and their bounded events, evidence and player-match projections,
-  canonical evidence annotations and the Activity query over its four authoritative sources. Activity summary,
+  canonical evidence annotations, the shared review-tag catalog and Demo/Player/Round review metadata,
+  and the Activity query over its four authoritative sources. Activity summary,
   filtered total and page rows come from one SQLite transaction; there is no materialized Activity
   table or compatibility view. An exact Activity read resolves one canonical lowercase
   `<kind>/<uuid>` against only that kind's authoritative source and calculates retryability and result
@@ -274,6 +277,16 @@ the close-during-pending race remains a deterministic test rather than a visual 
 Annotations are not aliases for the older Demo remark field, an algorithmic highlight tag, or an
 Agent thread; Agent, Round, Editor, Library and Player-profile review surfaces still do not all
 consume them.
+
+CS Demo Manager-style Comment/Tags use a separate current-only SQLite model. `review_tags` is the
+shared catalog. Demo assignments remain attached to the Demo catalog identity; Player metadata is
+keyed by one canonical Steam64 and therefore survives Analysis replacement; Round metadata is keyed
+by `demo_id/source_sha256/round` and is readable or writable only when the current completed producer,
+Demo fingerprint and unique round all agree. A same-ID content replacement therefore cannot carry an
+old Round comment onto different bytes. The renderer uses one strict, abortable editor for Player and
+Round subjects, while Library retains the Demo editor. Evidence Annotation continues to bind one
+canonical evidence locator and open/resolved state; it is a Vibe-native review workflow and is not
+counted as CS Demo Manager Comment/Tags parity.
 
 ## Command and task flow
 

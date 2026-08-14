@@ -36,7 +36,8 @@ describe('players power-table responsive contract', () => {
   });
 
   it('keeps truthful map aggregates dense and readable in both inspector widths', () => {
-    expect(css).toMatch(/\.player-map-performance article\s*\{[^}]*grid-template-columns:\s*minmax\(105px,\.65fr\)\s+minmax\(70px,1fr\)\s+minmax\(180px,1fr\)[^}]*content-visibility:\s*auto/s);
+    expect(css).toMatch(/\.player-map-performance article\s*\{[^}]*grid-template-columns:\s*minmax\(105px,\.65fr\)\s+minmax\(70px,1fr\)[^}]*content-visibility:\s*auto/s);
+    expect(css).toMatch(/\.player-map-performance article dl\s*\{[^}]*grid-column:\s*1\s*\/\s*-1[^}]*grid-template-columns:\s*repeat\(3,minmax\(48px,1fr\)\)/s);
     expect(css).toMatch(/\.player-map-performance__bar\s*\{[^}]*overflow:\s*hidden[^}]*background:\s*var\(--surface-3\)/s);
     expect(css).toMatch(/@media\s*\(max-width:\s*650px\)[\s\S]*?\.player-map-performance article\s*\{[^}]*grid-template-columns:\s*minmax\(92px,\.65fr\)\s+minmax\(60px,1fr\)/s);
   });

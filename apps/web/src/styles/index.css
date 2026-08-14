@@ -4400,13 +4400,13 @@ body {
   .player-map-performance > header strong { font-size: 10px; }
   .player-map-performance > header > span { max-width: 64%; color: var(--muted); font-size: 7px; text-align: right; }
   .player-map-performance > div[role="list"] { display: flex; flex-direction: column; gap: 5px; }
-  .player-map-performance article { display: grid; min-height: 57px; grid-template-columns: minmax(105px,.65fr) minmax(70px,1fr) minmax(180px,1fr); align-items: center; padding: 8px 9px; gap: 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); content-visibility: auto; contain-intrinsic-size: auto 57px; }
+  .player-map-performance article { display: grid; min-height: 82px; grid-template-columns: minmax(105px,.65fr) minmax(70px,1fr); align-items: center; padding: 8px 9px; gap: 8px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); content-visibility: auto; contain-intrinsic-size: auto 82px; }
   .player-map-performance__identity strong, .player-map-performance__identity span { display: block; }
   .player-map-performance__identity strong { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
   .player-map-performance__identity span { margin-top: 5px; color: var(--muted); font: 650 7px/1 var(--font-mono); }
   .player-map-performance__bar { overflow: hidden; height: 7px; border-radius: 999px; background: var(--surface-3); }
   .player-map-performance__bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,var(--accent),var(--blue)); }
-  .player-map-performance article dl { display: grid; grid-template-columns: repeat(3,minmax(48px,1fr)); margin: 0; gap: 5px; }
+  .player-map-performance article dl { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(3,minmax(48px,1fr)); margin: 0; gap: 5px; }
   .player-map-performance article dt { color: var(--muted); font-size: 6px; }
   .player-map-performance article dd { margin: 5px 0 0; font: 650 7px/1 var(--font-mono); }
   .player-map-performance > footer { display: flex; align-items: center; justify-content: flex-end; margin-top: 2px; gap: 8px; }

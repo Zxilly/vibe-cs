@@ -210,6 +210,16 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
                 &["acknowledgeAdvisoryOnly"],
             ),
         ),
+        (
+            "navigate_workspace",
+            "Navigate the visible Vibe CS workspace through a typed destination. Use this when the user asks to open Review, Players, Evidence, Replay, Heatmap, Edit, Queue, Studio, or Outputs.",
+            object_schema(
+                json!({
+                    "destination": {"type":"string","enum":["review","players","evidence","replay","heatmap","edit","queue","studio","outputs"]}
+                }),
+                &["destination"],
+            ),
+        ),
     ]
 }
 
@@ -248,8 +258,39 @@ fn execute_tool(
         "draft_hlae_plan" => draft_hlae_plan(context, input),
         "read_audio_analysis" => Ok((read_audio_analysis(context, input), None)),
         "draft_beat_alignment" => draft_beat_alignment(context, input),
+        "navigate_workspace" => Ok((navigate_workspace(context, input)?, None)),
         _ => Err(format!("unknown tool: {name}")),
     }
+}
+
+fn navigate_workspace(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    let object = ensure_object(input)?;
+    if object.len() != 1 {
+        return Err("navigate_workspace accepts only destination".into());
+    }
+    let destination = enum_value(
+        input,
+        "destination",
+        &[
+            "review", "players", "evidence", "replay", "heatmap", "edit", "queue",
+            "studio", "outputs",
+        ],
+    )?;
+    let requires_demo = matches!(destination, "replay" | "heatmap");
+    let has_demo = context
+        .demo
+        .get("id")
+        .and_then(Value::as_str)
+        .is_some_and(|id| !id.is_empty())
+        && context.analysis.is_object();
+    if requires_demo && !has_demo {
+        return Ok(json!({
+            "accepted": false,
+            "destination": destination,
+            "reason": "A completed analyzed Demo must be selected for this destination"
+        }));
+    }
+    Ok(json!({"accepted":true,"destination":destination,"reason":null}))
 }
 
 fn ensure_object(input: &Value) -> Result<&Map<String, Value>, String> {
@@ -929,6 +970,27 @@ mod tests {
             analysis: json!({"tick_rate":64,"highlights":[{"id":"ace-1","kind":"ace","title":"ACE","start_tick":640,"end_tick":1280,"description":"five kills"}]}),
             ..AgentContext::default()
         }
+    }
+
+    #[test]
+    fn workspace_navigation_emits_only_a_typed_destination() {
+        let (output, plan) = execute_tool(
+            "navigate_workspace",
+            &context(),
+            &json!({"destination":"replay"}),
+        )
+        .expect("typed navigation");
+        assert_eq!(
+            output,
+            json!({"accepted":true,"destination":"replay","reason":null})
+        );
+        assert!(plan.is_none());
+        assert!(execute_tool(
+            "navigate_workspace",
+            &context(),
+            &json!({"destination":"/settings"}),
+        )
+        .is_err());
     }
 
     #[test]

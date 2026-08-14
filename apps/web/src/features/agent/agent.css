@@ -1,4 +1,21 @@
 .agent-page { min-height: 0; }
+.ai-workspace-dock { display: flex; min-width: 0; min-height: 0; flex-direction: column; border-left: 1px solid var(--border); background: var(--surface-1); }
+.ai-workspace-dock__header, .ai-workspace-dock > header { display: flex; min-height: var(--titlebar-height); align-items: center; justify-content: space-between; padding: 0 12px; gap: 8px; border-bottom: 1px solid var(--border); }
+.ai-workspace-dock__header > span, .ai-workspace-dock > header > span { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.ai-workspace-dock__header svg, .ai-workspace-dock > header svg { color: var(--accent); }
+.ai-workspace-dock__header strong, .ai-workspace-dock > header strong { font-size: 12px; }
+.ai-workspace-dock__context { display: flex; min-height: 34px; align-items: center; padding: 6px 10px; gap: 6px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.ai-workspace-dock__context span { max-width: 140px; overflow: hidden; padding: 4px 7px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.ai-workspace-dock__thread { flex: 1; min-height: 0; }
+.ai-workspace-dock .agent-thread { height: 100%; min-height: 0; }
+.ai-workspace-dock .agent-thread__viewport { padding: 12px; }
+.ai-workspace-dock .agent-message { max-width: 94%; }
+.ai-workspace-dock__loading { display: grid; flex: 1; place-items: center; }
+
+@media (max-width: 650px) {
+  .ai-workspace-dock { position: fixed; z-index: 70; right: 8px; bottom: 8px; width: calc(100vw - 16px); height: 58px; overflow: hidden; border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); }
+  .ai-workspace-dock__context, .ai-workspace-dock__thread, .ai-workspace-dock > .notice { display: none; }
+}
 .agent-context { margin-bottom: 16px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-1); box-shadow: var(--shadow-sm); }
 .agent-context__heading, .agent-context__status { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .agent-context__heading > strong { font-size: 15px; }

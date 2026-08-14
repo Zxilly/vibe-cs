@@ -50,7 +50,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { DesktopError, commands, desktopMediaUrl, readableError } from '../../shared/desktop/client';
 import type { EditorPreset, EditorPresetDocument, EditorProjectDeletionResult, EditorProjectSnapshot, EditorTransitionName, ExportJobRecord, EditorAudioSeparation, EditorPackageExport, EditorPackageImport, EditorProject, MediaAsset, RecordedClip, TimelineClipDto, TimelineTrackDto } from '../../shared/desktop/dto';
-import { chooseLocalFile, isDesktopShell } from '../../shared/desktop/dialog';
+import { chooseLocalFile, isDesktopShell, revealLocalPath } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button, EmptyState, Field, IconButton, Notice, Spinner, TextInput, useDialogFocus } from '../../shared/ui';
@@ -77,6 +77,7 @@ import { synchronizeMediaPreview } from './previewSync';
 import { selectEditorProjectFromUrl } from './editorProjectSelection';
 import { EditorTimeline } from './EditorTimeline';
 import { EditorWaveform } from './EditorWaveform';
+import { EditDeliveryResult } from './EditDeliveryResult';
 import { interpolateTimelineProperty, type TimelineClip, type TimelineKeyframeProperty, type TimelineOperationResult, type TimelineTrack, useTimelineStore } from './timelineStore';
 
 type InspectorTab = 'clip' | 'color' | 'audio' | 'preset';
@@ -1655,6 +1656,15 @@ export function EditorPage() {
     if (result) setExportJob(result);
   };
 
+  const revealExport = async (path: string) => {
+    try {
+      await revealLocalPath(path);
+      setExportPollError(null);
+    } catch (cause) {
+      setExportPollError(readableError(cause));
+    }
+  };
+
   const openSnapshots = async () => {
     if (isPreview) return;
     if (snapshotListOpen) {
@@ -1803,6 +1813,7 @@ export function EditorPage() {
         {timelineNotice ? <Notice className="editor-notice" tone="info"><span aria-live="polite">{timelineNotice}</span><IconButton label={msg("m0246")} onClick={() => setTimelineNotice(null)}><Trash2 size={11} /></IconButton></Notice> : null}
         {exportPollError ? <Notice className="editor-notice" tone="warning">{exportPollError}{msg("m1335")}</Notice> : null}
         {exportJob ? <div className="editor-export-progress" aria-live="polite"><span>{exportJob.job.status}</span><div><i style={{ width: `${Math.max(0, Math.min(100, exportJob.job.progress * 100))}%` }} /></div><strong>{Math.round(exportJob.job.progress * 100)}%</strong><small>{exportJob.job.error ?? (exportJob.job.output_path || msg("m0794"))}</small>{exportJobId ? <Button size="sm" variant="danger" disabled={cancelExportAction.state.status === 'loading'} onClick={() => void cancelExport()}>{cancelExportAction.state.status === 'loading' ? <Spinner /> : <Pause size={12} />}{msg("m0325")}</Button> : null}</div> : null}
+        {exportJob ? <EditDeliveryResult record={exportJob} desktop={isDesktopShell()} onReveal={(path) => void revealExport(path)} /> : null}
       </div>
 
       {inspectorDrawerOpen ? <button type="button" className="editor-inspector-backdrop" data-testid="editor-inspector-backdrop" tabIndex={-1} aria-hidden="true" onClick={() => setInspectorDrawerOpen(false)} /> : null}

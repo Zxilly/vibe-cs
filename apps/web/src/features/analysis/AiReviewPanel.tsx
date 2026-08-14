@@ -1,9 +1,15 @@
-import { currentLocale, msg, msgf } from '../../shared/i18n';
-import { Bot, CircleStop, ShieldCheck, Sparkles } from 'lucide-react';
+import { currentLocale, msg, msgf, useI18n } from '../../shared/i18n';
+import { Bot, CircleStop, Download, ShieldCheck, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
+import {
+  chooseLocalSavePath,
+  isDesktopShell,
+  revealLocalPath,
+  writeLocalBytes,
+} from '../../shared/desktop/dialog';
 import type {
   AnalysisWorkspace,
   LlmReviewResult,
@@ -17,6 +23,7 @@ import {
   maximumReviewHighlights,
   toggleReviewHighlight,
 } from './aiReview';
+import { buildReviewDelivery } from './reviewDelivery';
 
 export type ReviewConfiguration = {
   status: 'loading' | 'ready' | 'error';
@@ -49,27 +56,42 @@ function formattedTime(value: string): string {
 
 export function AiReviewPanel({
   demoId,
+  producerRunId,
   workspace,
   selectedPlayer,
   source,
   configuration,
 }: {
   demoId: string;
+  producerRunId: string | null;
   workspace: AnalysisWorkspace;
   selectedPlayer: PlayerAnalysis | null;
   source: AnalysisSource;
   configuration: ReviewConfiguration;
 }) {
+  const { t } = useI18n();
   const [scope, setScope] = useState<LlmReviewScope>('match');
   const [tone, setTone] = useState<LlmReviewTone>('analytical');
   const [selectedHighlightIds, setSelectedHighlightIds] = useState<string[]>([]);
   const [status, setStatus] = useState<'idle' | 'running'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LlmReviewResult | null>(null);
+  const [deliveryStatus, setDeliveryStatus] = useState<'idle' | 'saving'>('idle');
+  const [deliveryNotice, setDeliveryNotice] = useState<string | null>(null);
+  const [deliveryPath, setDeliveryPath] = useState<string | null>(null);
   const requestRef = useRef<AbortController | null>(null);
+  const deliveryGeneration = useRef(0);
+  const mounted = useRef(true);
   const availableHighlights = workspace.highlights.slice(0, maximumReviewHighlights);
 
-  useEffect(() => () => requestRef.current?.abort(), []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      deliveryGeneration.current += 1;
+      requestRef.current?.abort();
+    };
+  }, []);
 
   const generate = async () => {
     if (status === 'running' || source !== 'service' || !configuration.configured) return;
@@ -77,6 +99,8 @@ export function AiReviewPanel({
     requestRef.current = controller;
     setStatus('running');
     setError(null);
+    setDeliveryNotice(null);
+    setDeliveryPath(null);
     try {
       const response = await commands.reviewDemo(
         demoId,
@@ -105,6 +129,62 @@ export function AiReviewPanel({
     requestRef.current?.abort();
     requestRef.current = null;
     setStatus('idle');
+  };
+
+  const exportDelivery = async () => {
+    if (!result || !producerRunId || deliveryStatus === 'saving') return;
+    const generation = deliveryGeneration.current + 1;
+    deliveryGeneration.current = generation;
+    setDeliveryStatus('saving');
+    setDeliveryNotice(null);
+    setDeliveryPath(null);
+    setError(null);
+    try {
+      const delivery = buildReviewDelivery({
+        workspace,
+        review: result,
+        producerRunId,
+        labels: {
+          matchResult: t('analysis.reviewDelivery.matchResult'),
+          team: t('analysis.reviewDelivery.team'),
+          score: t('analysis.reviewDelivery.score'),
+          playerPerformance: t('analysis.reviewDelivery.playerPerformance'),
+          player: t('analysis.reviewDelivery.player'),
+          aiReview: t('analysis.reviewDelivery.aiReview'),
+          highlights: t('analysis.reviewDelivery.highlights'),
+          noHighlights: t('analysis.reviewDelivery.noHighlights'),
+          evidenceReferences: t('analysis.reviewDelivery.evidenceReferences'),
+          noEvidence: t('analysis.reviewDelivery.noEvidence'),
+        },
+      });
+      const path = await chooseLocalSavePath({
+        title: t('analysis.reviewDelivery.saveTitle'),
+        defaultFileName: delivery.fileName,
+        filters: [{ name: 'HTML', extensions: ['html'] }],
+      });
+      if (!path || !mounted.current || deliveryGeneration.current !== generation) return;
+      await writeLocalBytes(path, new TextEncoder().encode(delivery.html));
+      if (!mounted.current || deliveryGeneration.current !== generation) return;
+      setDeliveryPath(path);
+      setDeliveryNotice(t('analysis.reviewDelivery.saved'));
+    } catch (cause) {
+      if (mounted.current && deliveryGeneration.current === generation) {
+        setError(readableError(cause));
+      }
+    } finally {
+      if (mounted.current && deliveryGeneration.current === generation) {
+        setDeliveryStatus('idle');
+      }
+    }
+  };
+
+  const revealDelivery = async () => {
+    if (!deliveryPath) return;
+    try {
+      await revealLocalPath(deliveryPath);
+    } catch (cause) {
+      if (mounted.current) setError(readableError(cause));
+    }
   };
 
   const canGenerate = source === 'service'
@@ -229,6 +309,26 @@ export function AiReviewPanel({
               <span>{formattedTime(result.generated_at)}</span>
               <span title={result.evidence_sha256}>{msg("m1120")} {result.evidence_sha256.slice(0, 12)}</span>
             </footer>
+            <div className="ai-review-delivery">
+              <Button
+                variant="primary"
+                disabled={!producerRunId || !isDesktopShell() || deliveryStatus === 'saving'}
+                onClick={() => void exportDelivery()}
+              >
+                {deliveryStatus === 'saving' ? <Spinner /> : <Download size={14} />}
+                {t('analysis.reviewDelivery.export')}
+              </Button>
+              <small>{t('analysis.reviewDelivery.lineage')}</small>
+            </div>
+            {deliveryNotice ? <Notice tone="success">{deliveryNotice}</Notice> : null}
+            {deliveryPath ? (
+              <div className="ai-review-delivery__result">
+                <code title={deliveryPath}>{deliveryPath}</code>
+                <Button size="sm" onClick={() => void revealDelivery()}>
+                  {t('analysis.reviewDelivery.reveal')}
+                </Button>
+              </div>
+            ) : null}
           </article>
         )}
       </Card>

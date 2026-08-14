@@ -262,7 +262,7 @@
     white-space: nowrap !important; border: 0 !important;
   }
 
-  .app-shell { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); width: 100vw; height: 100vh; background: var(--page); }
+  .app-shell { display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--ai-dock-width); width: 100vw; height: 100vh; background: var(--page); }
   .app-shell.is-sidebar-collapsed { --sidebar-width: 60px; }
   .sidebar { position: relative; z-index: 20; display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--border); background: var(--sidebar); transition: width 180ms ease; }
   .sidebar__brand { display: flex; align-items: center; height: 64px; padding: 0 13px; gap: 10px; border-bottom: 1px solid var(--border); overflow: hidden; }
@@ -3412,6 +3412,7 @@ body {
 
 .app-shell {
   --sidebar-width: 200px;
+  --ai-dock-width: 340px;
   --titlebar-height: 42px;
 }
 
@@ -3423,6 +3424,23 @@ body {
 .sidebar__nav {
   padding: 14px 9px;
   gap: 4px;
+  overflow-y: auto;
+}
+
+.sidebar__workspace-group {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+  gap: 4px;
+}
+
+.sidebar__group-label {
+  padding: 0 11px 5px;
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
 }
 
 .sidebar-link {
@@ -3450,11 +3468,13 @@ body {
 @media (max-width: 1279px) and (min-width: 651px) {
   .app-shell {
     --sidebar-width: 68px;
+    --ai-dock-width: 300px;
   }
 
   .app-shell .brand-copy,
   .app-shell .sidebar__collapse,
   .app-shell .sidebar__label,
+  .app-shell .sidebar__group-label,
   .app-shell .sidebar-link span,
   .app-shell .sidebar__version {
     display: none;
@@ -5073,6 +5093,83 @@ body {
   .page--guide .workflow-card {
     min-height: 158px;
   }
+}
+
+.ai-review-delivery {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.ai-review-delivery > small {
+  color: var(--muted);
+}
+
+.ai-review-delivery__result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ai-review-delivery__result code {
+  overflow: hidden;
+  color: var(--text-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-delivery-result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 12px;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--green), transparent 65%);
+  background: var(--green-soft);
+}
+
+.edit-delivery-result > svg {
+  color: var(--green);
+}
+
+.edit-delivery-result strong,
+.edit-delivery-result small,
+.edit-delivery-result span {
+  display: block;
+}
+
+.edit-delivery-result span {
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 750;
+}
+
+.edit-delivery-result strong {
+  margin-top: 4px;
+  overflow: hidden;
+  font: 650 9px/1.3 var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-delivery-result small {
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.edit-delivery-result small code + code {
+  margin-left: 8px;
+}
+
+.edit-delivery-result nav {
+  display: flex;
+  gap: 6px;
 }
 
 /* Match History is a full-width data workspace. */

@@ -6,7 +6,6 @@ import { AppShell } from './AppShell';
 import { NotFound, RouteError } from './RouteError';
 
 const GuidePage = lazy(() => import('../features/guide/GuidePage').then((module) => ({ default: module.GuidePage })));
-const AgentPage = lazy(() => import('../features/agent/AgentPage').then((module) => ({ default: module.AgentPage })));
 const LibraryPage = lazy(() => import('../features/library/LibraryPage').then((module) => ({ default: module.LibraryPage })));
 const EvidenceSearchPage = lazy(() => import('../features/evidence-search/EvidenceSearchPage').then((module) => ({ default: module.EvidenceSearchPage })));
 const AnalysisPage = lazy(() => import('../features/analysis/AnalysisPage').then((module) => ({ default: module.AnalysisPage })));
@@ -34,7 +33,6 @@ function suspense(element: ReactNode) {
 
 export const routePaths = [
   '/',
-  '/copilot',
   '/library',
   '/evidence-search',
   '/analysis',
@@ -67,7 +65,6 @@ export const appRoutes: RouteObject[] = [
     errorElement: <RouteError />,
     children: [
       { id: 'guide', index: true, element: suspense(<GuidePage />) },
-      { id: 'copilot', path: 'copilot', element: suspense(<AgentPage />) },
       { id: 'library', path: 'library', element: suspense(<LibraryPage />) },
       { id: 'evidence-search', path: 'evidence-search', element: suspense(<EvidenceSearchPage />) },
       { id: 'analysis', path: 'analysis', element: suspense(<AnalysisPage />) },

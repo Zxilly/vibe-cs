@@ -848,7 +848,7 @@ export function AnalysisPage() {
               </>
             ) : null}
             {tab === 'insights' ? <InsightsView workspace={workspace} selectedPlayer={selectedPlayer} /> : null}
-            {tab === 'review' ? <AiReviewPanel key={demoId} demoId={demoId} workspace={workspace} selectedPlayer={selectedPlayer} source={source} configuration={reviewConfiguration} /> : null}
+            {tab === 'review' ? <AiReviewPanel key={demoId} demoId={demoId} producerRunId={analysisSnapshot.context.runId} workspace={workspace} selectedPlayer={selectedPlayer} source={source} configuration={reviewConfiguration} /> : null}
             {tab === 'rounds' ? <RoundsView workspace={workspace} demoId={demoId} playable={source === 'service'} selectedRound={selectedRound} selectedPlayer={selectedPlayer} selectedTick={selectedTick} selectedEvidenceId={selectedEvidenceId} addedId={addedHighlight} onSelectRound={(round) => navigateAnalysis({ round })} onPreviewRound={(round, tick, playerId) => navigateAnalysis({ tab: 'replay', round, tick: tick ?? null, playerId: playerId ?? null })} onCompile={addCompilation} /> : null}
             {tab === 'replay' ? <ReplayView demoId={demoId} producerRunId={analysisSnapshot.context.runId} workspace={workspace} source={source} roundNumber={selectedRound} targetTick={selectedTick} selectedPlayerId={selectedPlayerId} onSelectPlayer={(playerId) => navigateAnalysis({ playerId })} /> : null}
             {tab === 'heatmap' ? (

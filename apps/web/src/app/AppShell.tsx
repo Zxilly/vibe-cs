@@ -2,7 +2,6 @@ import { applyLocale, msg, type MessageKey } from '../shared/i18n';
 import {
   Activity,
   Archive,
-  Bot,
   ChevronRight,
   CircleHelp,
   Clapperboard,
@@ -36,6 +35,7 @@ import { useRuntimeStore } from '../shared/stores/runtimeStore';
 import { useUiStore } from '../shared/stores/uiStore';
 import { IconButton, useDialogFocus } from '../shared/ui';
 import { WindowTitleBar } from './WindowTitleBar';
+import { AgentDock } from '../features/agent/AgentPage';
 
 type NavItem = {
   path: string;
@@ -47,27 +47,39 @@ type NavItem = {
 
 const primaryNav: NavItem[] = [
   { path: '/', code: '01', labelKey: 'nav.home', icon: Home, end: true },
-  { path: '/copilot', code: '02', labelKey: 'nav.copilot', icon: Bot },
-  { path: '/library', code: '03', labelKey: 'nav.matches', icon: Archive },
-  { path: '/evidence-search', code: '04', labelKey: 'nav.evidenceSearch', icon: Search },
-  { path: '/production', code: '05', labelKey: 'nav.production', icon: Clapperboard },
-  { path: '/activity', code: '06', labelKey: 'nav.activity', icon: Activity },
-  { path: '/outputs', code: '07', labelKey: 'nav.works', icon: FileOutput },
 ];
 
 const secondaryNav: NavItem[] = [
+  { path: '/activity', code: '80', labelKey: 'nav.activity', icon: Activity },
   { path: '/settings', code: '90', labelKey: 'nav.settings', icon: Settings },
 ];
 
-const standaloneDestinations: NavItem[] = [
+const reviewDestinations: NavItem[] = [
+  { path: '/library', code: '10', labelKey: 'nav.matches', icon: Archive },
   { path: '/players', code: '02.2', labelKey: 'players.title', icon: UsersRound },
   { path: '/lineups', code: '02.2.1', labelKey: 'lineups.title', icon: Shield },
+  { path: '/evidence-search', code: '04', labelKey: 'nav.evidenceSearch', icon: Search },
   { path: '/match-history', code: '02.3', labelKey: 'history.title', icon: History },
+];
+
+const editDestinations: NavItem[] = [
+  { path: '/production', code: '20', labelKey: 'nav.production', icon: Clapperboard },
   { path: '/queue', code: '03.1', labelKey: 'queue.title', icon: PlaySquare },
   { path: '/studio', code: '03.2', labelKey: 'studio.title', icon: Film },
   { path: '/montage', code: '03.2.1', labelKey: 'montage.title', icon: Clapperboard },
   { path: '/studio/editor', code: '03.2.1', labelKey: 'editor.title', icon: Film },
+  { path: '/outputs', code: '07', labelKey: 'nav.works', icon: FileOutput },
+];
+
+const standaloneDestinations: NavItem[] = [
+  ...reviewDestinations,
+  ...editDestinations,
   { path: '/recovery', code: '90.1', labelKey: 'recovery.title', icon: ShieldCheck },
+];
+
+export const workspaceNavigationGroups = [
+  { id: 'review' as const, labelKey: 'nav.review' as MessageKey, items: reviewDestinations },
+  { id: 'edit' as const, labelKey: 'nav.edit' as MessageKey, items: editDestinations },
 ];
 
 const contextualDestinations: NavItem[] = [
@@ -274,6 +286,12 @@ export function AppShell() {
         <nav className="sidebar__nav">
           <span className="sidebar__label">{t('shell.workspace')}</span>
           {renderNav(primaryNav)}
+          {workspaceNavigationGroups.map((group) => (
+            <section className="sidebar__workspace-group" key={group.id} aria-labelledby={`workspace-${group.id}`}>
+              <span className="sidebar__group-label" id={`workspace-${group.id}`}>{t(group.labelKey)}</span>
+              {renderNav(group.items)}
+            </section>
+          ))}
         </nav>
 
         <div className="sidebar__bottom">
@@ -328,6 +346,8 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+
+      <AgentDock />
 
       {paletteOpen ? (
         <div className="command-layer" role="presentation" onMouseDown={() => setPaletteOpen(false)}>

@@ -10,7 +10,7 @@ import {
 } from '@assistant-ui/react';
 import { Bot, CheckCircle2, Film, FolderOpen, Music2, Send, Sparkles, Square, Wrench } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
 import type {
@@ -33,6 +33,7 @@ import type {
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button, EmptyState, Notice, PageHeader, SegmentedControl, Spinner } from '../../shared/ui';
 import { applyAgentEvent, proposalActivityKey, rollbackOptimisticRun } from './agentSession';
+import { deriveAgentRouteContext, resolveAgentNavigation } from './agentNavigation';
 import { HLAE_BUNDLE_EXPORTED_EVENT, HlaeHandoffPanel } from './HlaeHandoffPanel';
 import { ProposalMutationBusyError, ProposalMutationCoordinator } from './proposalMutation';
 
@@ -631,8 +632,12 @@ function ContextSelect({
   );
 }
 
-export function AgentPage() {
+type AgentWorkspaceSurface = 'page' | 'dock';
+
+export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurface }) {
   const { t } = useI18n();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [status, setStatus] = useState<AgentStatus | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [initialThreadId] = useState(storedThreadId);
@@ -651,6 +656,14 @@ export function AgentPage() {
   const [proposalMutationOwner, setProposalMutationOwner] = useState<string | null>(null);
   const generationRef = useRef(0);
   const requestIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const context = deriveAgentRouteContext(location.pathname, location.search);
+    if (context.demoId) setDemoId(context.demoId);
+    if (context.projectId) setProjectId(context.projectId);
+    if (context.workflow === 'review') setMode('guide');
+    if (context.workflow === 'edit') setMode('edit');
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     return proposalMutationCoordinator.subscribe(setProposalMutationOwner);
@@ -720,6 +733,13 @@ export function AgentPage() {
           persistThreadId(event.threadId);
         } else {
           setMessages((current) => applyAgentEvent(current, assistantId, event));
+          if (event.type === 'toolCall') {
+            const target = resolveAgentNavigation(event.toolCall, {
+              demoId: contextSnapshot.demoId || null,
+              projectId: contextSnapshot.projectId || null,
+            });
+            if (target) void navigate(target);
+          }
           if (event.type === 'error') setError(event.message);
         }
       });
@@ -734,7 +754,7 @@ export function AgentPage() {
         setIsRunning(false);
       }
     }
-  }, [audioAssetId, demoId, isRunning, mode, projectId, proposalMutationCoordinator, threadId]);
+  }, [audioAssetId, demoId, isRunning, mode, navigate, projectId, proposalMutationCoordinator, threadId]);
 
   const onCancel = useCallback(async () => {
     const requestId = requestIdRef.current;
@@ -763,6 +783,14 @@ export function AgentPage() {
   const audioAssets = useMemo(() => assets.filter((asset) => asset.has_audio), [assets]);
 
   if (isLoading) {
+    if (surface === 'dock') {
+      return (
+        <aside className="ai-workspace-dock" aria-label={t('copilot.workspaceDock')}>
+          <header><Bot size={17} /><strong>{t('copilot.workspaceDock')}</strong></header>
+          <div className="ai-workspace-dock__loading"><Spinner label={t('copilot.loading')} /></div>
+        </aside>
+      );
+    }
     return <div className="page-state"><Spinner label={t('copilot.loading')} /><span>{t('copilot.loading')}</span></div>;
   }
 
@@ -770,6 +798,25 @@ export function AgentPage() {
   const statusText = !status?.runtimeAvailable
     ? t('copilot.noRuntime')
     : status.configured ? t('copilot.ready') : t('copilot.notConfigured');
+
+  if (surface === 'dock') {
+    return (
+      <aside className="ai-workspace-dock" aria-label={t('copilot.workspaceDock')}>
+        <header className="ai-workspace-dock__header">
+          <span><Bot size={17} /><strong>{t('copilot.workspaceDock')}</strong></span>
+          <Badge tone={statusTone}>{statusText}</Badge>
+        </header>
+        {error ? <Notice tone="danger">{error}</Notice> : null}
+        <section className="ai-workspace-dock__context" aria-label={t('copilot.context')}>
+          <span>{demoId ? t('copilot.matchFile') : t('copilot.none')}</span>
+          <span>{projectId ? t('copilot.project') : t('copilot.none')}</span>
+        </section>
+        <section className="ai-workspace-dock__thread">
+          <AssistantRuntimeProvider runtime={runtime}><AgentThread /></AssistantRuntimeProvider>
+        </section>
+      </aside>
+    );
+  }
 
   return (
     <main className="page agent-page">
@@ -847,4 +894,8 @@ export function AgentPage() {
       </div>
     </main>
   );
+}
+
+export function AgentDock() {
+  return <AgentPage surface="dock" />;
 }

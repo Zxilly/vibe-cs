@@ -22,6 +22,7 @@ function render(configuration: ReviewConfiguration, source: 'service' | 'preview
     <MemoryRouter>
       <AiReviewPanel
         demoId="demo-1"
+        producerRunId="22222222-2222-4222-8222-222222222222"
         workspace={workspace}
         selectedPlayer={null}
         source={source}

@@ -5,6 +5,7 @@ mod cosmetics;
 mod demos;
 mod evidence;
 mod integrations;
+mod lineups;
 mod media;
 mod outputs;
 mod players;
@@ -41,6 +42,7 @@ pub(crate) fn router() -> Router<AppState> {
         .merge(proposals::router())
         .merge(product::router())
         .merge(integrations::router())
+        .merge(lineups::router())
         .route("/api/events", get(system::events))
         .route("/api/{*path}", any(not_found))
 }

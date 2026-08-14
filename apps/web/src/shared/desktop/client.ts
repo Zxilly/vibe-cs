@@ -3,6 +3,7 @@ import { Channel, invoke } from '@tauri-apps/api/core';
 import { msg, msgf } from '../i18n';
 import { parseActivityFeed, parseActivityItem } from './activityContract';
 import { parseAnalysisRun, parseAnalysisRunDetail } from './analysisRunContract';
+import { parseLineupDirectoryPage, parseLineupMapPage } from './lineupContract';
 import {
   parsePlayerComparison,
   parsePlayerDirectoryPage,
@@ -88,6 +89,8 @@ import type {
   MatchAnalysisRecord,
   MatchHistoryItem,
   MatchHistorySyncResult,
+  LineupDirectoryPage,
+  LineupMapPage,
   MatchDownloadJob,
   MediaAsset,
   MediaProxyCleanup,
@@ -539,6 +542,14 @@ export const commands = {
   },
   deleteDemo: (id: string) =>
     request<void>(`/demos/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  listLineups: async (query: { search: string; page: number; page_size: number }, signal?: AbortSignal) =>
+    parseLineupDirectoryPage(await request<LineupDirectoryPage>(
+      `/lineups${queryString(query)}`, { signal },
+    )),
+  listLineupMaps: async (lineupId: string, query: { page: number; page_size: number }, signal?: AbortSignal) =>
+    parseLineupMapPage(await request<LineupMapPage>(
+      `/lineups/${encodeURIComponent(lineupId)}/maps${queryString(query)}`, { signal },
+    ), lineupId),
   listPlayers: async (
     query: {
       search?: string;

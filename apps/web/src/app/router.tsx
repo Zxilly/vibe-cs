@@ -11,6 +11,7 @@ const LibraryPage = lazy(() => import('../features/library/LibraryPage').then((m
 const EvidenceSearchPage = lazy(() => import('../features/evidence-search/EvidenceSearchPage').then((module) => ({ default: module.EvidenceSearchPage })));
 const AnalysisPage = lazy(() => import('../features/analysis/AnalysisPage').then((module) => ({ default: module.AnalysisPage })));
 const PlayersPage = lazy(() => import('../features/players/PlayersPage').then((module) => ({ default: module.PlayersPage })));
+const LineupsPage = lazy(() => import('../features/lineups/LineupsPage').then((module) => ({ default: module.LineupsPage })));
 const ProductionPage = lazy(() => import('../features/production/ProductionPage').then((module) => ({ default: module.ProductionPage })));
 const QueuePage = lazy(() => import('../features/queue/QueuePage').then((module) => ({ default: module.QueuePage })));
 const StudioPage = lazy(() => import('../features/studio/StudioPage').then((module) => ({ default: module.StudioPage })));
@@ -38,6 +39,7 @@ export const routePaths = [
   '/evidence-search',
   '/analysis',
   '/players',
+  '/lineups',
   '/production',
   '/queue',
   '/studio',
@@ -70,6 +72,7 @@ export const appRoutes: RouteObject[] = [
       { id: 'evidence-search', path: 'evidence-search', element: suspense(<EvidenceSearchPage />) },
       { id: 'analysis', path: 'analysis', element: suspense(<AnalysisPage />) },
       { id: 'players', path: 'players', element: suspense(<PlayersPage />) },
+      { id: 'lineups', path: 'lineups', element: suspense(<LineupsPage />) },
       { id: 'production', path: 'production', element: suspense(<ProductionPage />) },
       { id: 'queue', path: 'queue', element: suspense(<QueuePage />) },
       { id: 'studio', path: 'studio', element: suspense(<StudioPage />) },

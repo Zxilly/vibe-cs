@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize, Serializer};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -160,6 +161,77 @@ impl MatchAnalysis {
         ];
         true
     }
+
+    /// Projects the two local five-player lineups proven by every competitive
+    /// round roster. The stable identifier is derived only from the five
+    /// canonical Steam64 identities; file names and display labels never
+    /// participate in identity.
+    #[must_use]
+    pub fn verified_local_lineups(&self) -> Option<[VerifiedLocalLineup; 2]> {
+        let continuity = TeamContinuity::derive(self)?;
+        let team_a = lineup_members(&continuity.team_a)?;
+        let team_b = lineup_members(&continuity.team_b)?;
+        let anchor_lineup_id = local_lineup_id(&team_a);
+        let opponent_lineup_id = local_lineup_id(&team_b);
+        Some([
+            VerifiedLocalLineup {
+                lineup_id: anchor_lineup_id.clone(),
+                opponent_lineup_id: opponent_lineup_id.clone(),
+                team_slot: "A".to_owned(),
+                members: team_a,
+                rounds_for: continuity.team_a_score,
+                rounds_against: continuity.team_b_score,
+            },
+            VerifiedLocalLineup {
+                lineup_id: opponent_lineup_id,
+                opponent_lineup_id: anchor_lineup_id,
+                team_slot: "B".to_owned(),
+                members: team_b,
+                rounds_for: continuity.team_b_score,
+                rounds_against: continuity.team_a_score,
+            },
+        ])
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiedLocalLineup {
+    pub lineup_id: String,
+    pub opponent_lineup_id: String,
+    pub team_slot: String,
+    pub members: [String; 5],
+    pub rounds_for: u32,
+    pub rounds_against: u32,
+}
+
+fn lineup_members(players: &BTreeSet<String>) -> Option<[String; 5]> {
+    let members = players
+        .iter()
+        .filter(|player| is_canonical_steam64(player))
+        .cloned()
+        .collect::<Vec<_>>();
+    members.try_into().ok()
+}
+
+fn local_lineup_id(members: &[String; 5]) -> String {
+    let mut digest = Sha256::new();
+    digest.update(members.join("\n").as_bytes());
+    hex::encode(digest.finalize())
+}
+
+fn is_canonical_steam64(value: &str) -> bool {
+    if value.len() != 17 || !value.bytes().all(|byte| byte.is_ascii_digit()) {
+        return false;
+    }
+    let Ok(steam_id) = value.parse::<u64>() else {
+        return false;
+    };
+    let universe = (steam_id >> 56) & 0xff;
+    let account_type = (steam_id >> 52) & 0x0f;
+    let instance = (steam_id >> 32) & 0x000f_ffff;
+    let account_id = steam_id & u64::from(u32::MAX);
+    universe == 1 && account_type == 1 && instance == 1 && account_id != 0
 }
 
 #[derive(Debug)]
@@ -1065,6 +1137,51 @@ mod tests {
             )),
             Some(("B", 8, 13))
         );
+    }
+
+    #[test]
+    fn verified_local_lineups_use_only_the_exact_five_player_rosters() {
+        let team_a = [
+            "76561198000000001",
+            "76561198000000002",
+            "76561198000000003",
+            "76561198000000004",
+            "76561198000000005",
+        ];
+        let team_b = [
+            "76561198000000006",
+            "76561198000000007",
+            "76561198000000008",
+            "76561198000000009",
+            "76561198000000010",
+        ];
+        let analysis = MatchAnalysis {
+            demo_id: Uuid::new_v4(),
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 120.0,
+            verified_total_ticks: None,
+            teams: vec![team_summary("A", 1, &team_a), team_summary("B", 2, &team_b)],
+            players: team_a
+                .iter()
+                .map(|id| player(id, "A"))
+                .chain(team_b.iter().map(|id| player(id, "B")))
+                .collect(),
+            rounds: vec![
+                round(1, "A", roster(&team_a, "T", &team_b, "CT")),
+                round(2, "B", roster(&team_a, "T", &team_b, "CT")),
+                round(3, "B", roster(&team_a, "CT", &team_b, "T")),
+            ],
+            highlights: vec![],
+        };
+
+        let lineups = analysis.verified_local_lineups().expect("verified lineups");
+        assert_eq!(lineups.len(), 2);
+        assert_eq!(lineups[0].members, team_a.map(str::to_owned));
+        assert_eq!(lineups[0].rounds_for, 1);
+        assert_eq!(lineups[0].rounds_against, 2);
+        assert_eq!(lineups[0].opponent_lineup_id, lineups[1].lineup_id);
+        assert_eq!(lineups[0].lineup_id.len(), 64);
     }
 
     fn roster(

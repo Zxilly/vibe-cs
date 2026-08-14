@@ -436,6 +436,11 @@ impl Storage {
                 &analysis,
                 &completed_at.to_rfc3339(),
             )?;
+            super::lineups::replace_lineup_projection(
+                &transaction,
+                &analysis,
+                &completed_at.to_rfc3339(),
+            )?;
             put_demo_row(&transaction, &demo)?;
             transaction.commit()?;
             Ok(run)

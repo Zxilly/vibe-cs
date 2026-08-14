@@ -20,6 +20,7 @@ import {
   PauseCircle,
   PlaySquare,
   ShieldCheck,
+  Shield,
   Search,
   Settings,
   Sun,
@@ -60,6 +61,7 @@ const secondaryNav: NavItem[] = [
 
 const standaloneDestinations: NavItem[] = [
   { path: '/players', code: '02.2', labelKey: 'players.title', icon: UsersRound },
+  { path: '/lineups', code: '02.2.1', labelKey: 'lineups.title', icon: Shield },
   { path: '/match-history', code: '02.3', labelKey: 'history.title', icon: History },
   { path: '/queue', code: '03.1', labelKey: 'queue.title', icon: PlaySquare },
   { path: '/studio', code: '03.2', labelKey: 'studio.title', icon: Film },
@@ -219,7 +221,7 @@ export function AppShell() {
   const pageLabel = currentNavItem ? t(currentNavItem.labelKey) : 'Vibe CS';
 
   const contextActive = (path: string) => {
-    if (path === '/library') return ['/library', '/analysis', '/players', '/match-history'].includes(location.pathname);
+    if (path === '/library') return ['/library', '/analysis', '/players', '/lineups', '/match-history'].includes(location.pathname);
     if (path === '/production') return ['/production', '/queue', '/studio', '/montage', '/studio/editor'].includes(location.pathname);
     if (path === '/settings') return ['/settings', '/recovery'].includes(location.pathname);
     return false;

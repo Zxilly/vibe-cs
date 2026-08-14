@@ -462,6 +462,45 @@ export type PlayerProfile = {
   coverage: PlayerProjectionCoverage;
 };
 
+export type LineupProjectionCoverage = {
+  evaluated_demos: number;
+  verified_demos: number;
+  total_analyses: number;
+  projection_complete: boolean;
+};
+
+export type LineupDirectoryItem = {
+  lineup_id: string;
+  members: [string, string, string, string, string];
+  maps: number;
+  wins: number;
+  losses: number;
+  ties: number;
+  rounds_for: number;
+  rounds_against: number;
+};
+
+export type LineupDirectoryPage = Paginated<LineupDirectoryItem> & {
+  coverage: LineupProjectionCoverage;
+};
+
+export type LineupMapItem = {
+  demo_id: EntityId;
+  map_name: string | null;
+  match_date: string | null;
+  cataloged_at: string;
+  opponent_lineup_id: string;
+  team_slot: 'A' | 'B';
+  rounds_for: number;
+  rounds_against: number;
+};
+
+export type LineupMapPage = Paginated<LineupMapItem> & {
+  lineup_id: string;
+  members: [string, string, string, string, string];
+  coverage: LineupProjectionCoverage;
+};
+
 export type AvatarCacheStatus = {
   entries: number;
   bytes: number;

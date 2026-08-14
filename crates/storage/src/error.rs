@@ -17,6 +17,8 @@ pub enum StorageError {
     ActivityProjection(String),
     #[error("player match projection is invalid: {0}")]
     PlayerProjection(String),
+    #[error("local lineup projection is invalid: {0}")]
+    LineupProjection(String),
     #[error(
         "database does not match the current unreleased product schema; start with a fresh data directory"
     )]
@@ -72,6 +74,7 @@ impl StorageError {
             | Self::EvidenceProjection(_)
             | Self::ActivityProjection(_)
             | Self::PlayerProjection(_)
+            | Self::LineupProjection(_)
             | Self::CurrentSchemaRequired
             | Self::EditorProjectRevisionOverflow(_)
             | Self::EditorProjectAlreadyExists(_)

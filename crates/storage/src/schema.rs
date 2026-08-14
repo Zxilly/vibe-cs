@@ -276,6 +276,43 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (demo_id) REFERENCES analyses(demo_id) ON DELETE CASCADE
     );
 
+    CREATE TABLE lineup_projection_state (
+        demo_id TEXT PRIMARY KEY NOT NULL,
+        analysis_updated_at TEXT NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('verified', 'unavailable')),
+        reason TEXT,
+        projected_lineups INTEGER NOT NULL CHECK(projected_lineups IN (0, 2)),
+        projected_members INTEGER NOT NULL CHECK(projected_members IN (0, 10)),
+        FOREIGN KEY (demo_id) REFERENCES analyses(demo_id) ON DELETE CASCADE,
+        CHECK((status = 'verified' AND reason IS NULL AND projected_lineups = 2 AND projected_members = 10)
+           OR (status = 'unavailable' AND reason IS NOT NULL AND projected_lineups = 0 AND projected_members = 0))
+    );
+
+    CREATE TABLE lineup_map_items (
+        demo_id TEXT NOT NULL,
+        lineup_id TEXT NOT NULL CHECK(length(lineup_id) = 64),
+        opponent_lineup_id TEXT NOT NULL CHECK(length(opponent_lineup_id) = 64),
+        team_slot TEXT NOT NULL CHECK(team_slot IN ('A', 'B')),
+        rounds_for INTEGER NOT NULL CHECK(rounds_for >= 0),
+        rounds_against INTEGER NOT NULL CHECK(rounds_against >= 0),
+        PRIMARY KEY(demo_id, lineup_id),
+        UNIQUE(demo_id, team_slot),
+        FOREIGN KEY (demo_id) REFERENCES analyses(demo_id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE lineup_map_members (
+        demo_id TEXT NOT NULL,
+        lineup_id TEXT NOT NULL,
+        position INTEGER NOT NULL CHECK(position BETWEEN 0 AND 4),
+        steam_id TEXT NOT NULL,
+        PRIMARY KEY(demo_id, lineup_id, steam_id),
+        UNIQUE(demo_id, lineup_id, position),
+        FOREIGN KEY (demo_id, lineup_id) REFERENCES lineup_map_items(demo_id, lineup_id)
+            ON DELETE CASCADE,
+        FOREIGN KEY (demo_id, steam_id) REFERENCES player_match_items(demo_id, steam_id)
+            ON DELETE CASCADE
+    );
+
     CREATE TABLE evidence_annotations (
         id TEXT PRIMARY KEY NOT NULL,
         demo_id TEXT NOT NULL,
@@ -343,6 +380,10 @@ const CURRENT_SCHEMA: &str = r"
         ON player_match_items(player_name_key, steam_id);
     CREATE INDEX player_match_team_idx
         ON player_match_items(team_key, steam_id);
+    CREATE INDEX lineup_map_lineup_idx
+        ON lineup_map_items(lineup_id, demo_id);
+    CREATE INDEX lineup_member_player_idx
+        ON lineup_map_members(steam_id, lineup_id);
 ";
 
 pub(crate) fn configure(connection: &Connection) -> Result<()> {

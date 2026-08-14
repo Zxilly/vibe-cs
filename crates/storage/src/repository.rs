@@ -5,12 +5,17 @@
 
 mod activity;
 mod analysis_runs;
+mod lineups;
 mod players;
 
 pub use activity::{
     ActivityKind, ActivityPage, ActivityQuery, ActivitySource, ActivityState, ActivitySummary,
 };
 pub use analysis_runs::{AnalysisReplaySource, AnalysisRunClaim};
+pub use lineups::{
+    LineupDirectoryItem, LineupDirectoryPage, LineupDirectoryQuery, LineupMapItem, LineupMapPage,
+    LineupProjectionCoverage,
+};
 pub use players::{
     PlayerAggregateStats, PlayerComparisonProjection, PlayerDirectoryPage, PlayerDirectoryQuery,
     PlayerDirectorySort, PlayerMatchPage, PlayerMatchQuery, PlayerProfile,

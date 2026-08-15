@@ -10,6 +10,9 @@ export { Blueprint, type BlueprintElement, type BlueprintProps } from './Bluepri
 export {
   COLLAPSE_BREAKPOINT_PX,
   COLLAPSE_MEDIA_QUERY,
+  CONTEXT_BAR_BREAKPOINT_PX,
+  collapseMediaQuery,
+  useBelowWidth,
   useCollapsed,
   useShellCollapsed,
 } from './collapse';

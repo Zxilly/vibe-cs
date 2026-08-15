@@ -19,13 +19,14 @@
  *
  * Presentational and connected pieces are separate on purpose: `…Marker` and
  * `…Banner` take their state as props so the `markup` project can render every
- * state statically, while `…Indicator` and `…Notice` read the context.
+ * state statically, while `…Notice` reads the context. There is no `…Indicator`
+ * — `AppShell` calls `useService()` once for the title bar and passes the
+ * status to `ServiceStatusMarker`, so the dot has one subscription and one
+ * implementation.
  *
- * Data path: `@tanstack/react-query` over `shared/desktop/client`'s `commands`,
- * read-only. Spec §4.1 puts server reads in `data/**`; the probe is inlined
- * here because this round owns `app/boundary/` alone — moving it to
- * `data/health.ts` is a one-line change and is reported as a follow-up. The
- * client comes from context (`useQueryClient`) rather than the singleton in
+ * Data path: `@tanstack/react-query` over `data/health`'s `probeServiceHealth`,
+ * read-only — spec §4.1 puts every server read in `data/**`. The QueryClient
+ * comes from context (`useQueryClient`) rather than the singleton in
  * `data/queryClient.ts`, so a test tree gets its own cache.
  */
 
@@ -42,9 +43,9 @@ import {
   type ReactNode,
 } from 'react';
 
+import { probeServiceHealth } from '../../data/health';
 import { Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { cx } from '../../design/primitives';
-import { commands } from '../../shared/desktop/client';
 import type { ApiHealth } from '../../shared/desktop/dto';
 import {
   SERVICE_HEALTH_KEY,
@@ -79,8 +80,8 @@ const ServiceContext = createContext<ServiceState | null>(null);
 export interface ServiceGateProps {
   children: ReactNode;
   /**
-   * The health probe. Defaults to the desktop IPC command; tests and the
-   * eventual `data/health.ts` pass their own.
+   * The health probe. Defaults to `data/health`'s `probeServiceHealth`; tests
+   * pass their own.
    */
   probe?: (signal?: AbortSignal) => Promise<ApiHealth>;
   /**
@@ -91,7 +92,7 @@ export interface ServiceGateProps {
   poll?: boolean;
 }
 
-export function ServiceGate({ children, probe = commands.health, poll = true }: ServiceGateProps) {
+export function ServiceGate({ children, probe = probeServiceHealth, poll = true }: ServiceGateProps) {
   const client = useQueryClient();
 
   const query = useQuery({

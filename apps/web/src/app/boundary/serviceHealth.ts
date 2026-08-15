@@ -21,6 +21,7 @@
  * The shell owns the state once; pages consume it.
  */
 
+import { qk } from '../../data/keys';
 import type { ApiHealth } from '../../shared/desktop/dto';
 
 /**
@@ -28,8 +29,12 @@ import type { ApiHealth } from '../../shared/desktop/dto';
  * namespace `ServiceGate` excludes when it invalidates everything else on
  * recovery — invalidating the probe from inside its own success handler would
  * loop.
+ *
+ * It comes from `data/keys` rather than being declared here: every other key in
+ * the app is minted there, and two independent declarations that must stay
+ * deep-equal is exactly the drift a key factory exists to prevent.
  */
-export const SERVICE_HEALTH_KEY = ['service', 'health'] as const;
+export const SERVICE_HEALTH_KEY = qk.service.health();
 
 /** Background probe cadence while the service answers. */
 export const SERVICE_POLL_ONLINE_MS = 30_000;

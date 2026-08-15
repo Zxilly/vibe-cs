@@ -680,3 +680,60 @@ export function renderInteractive(ui: ReactElement): RenderResult
 7. **§8 折叠三条规则本轮只落地第 1 条**（侧栏 216→56）。第 2 条（Inspector → 底部 44px 摘要 + 抽屉）与第 3 条（工作区视图导航 → 顶部标签）住在 `design/layout/Inspector` 与 `SubNav`，阶段 0 已实现并自带断点，由页面在 3c 接。
 8. **`/recovery` 没有侧栏入口**（Frame 没画），命令面板是键盘唯一到得了它的路。若产品要求独立入口，需设计稿补画。
 9. **§10.1 缺口 3（Inspector 与 Drawer 两套焦点管理）仍未收口**——它在 `design/layout/`，本轮四个 agent 的目录范围都不含它。顺延到阶段 2。
+
+---
+
+## 10.3 阶段 2 落地记录（2026-08-15）
+
+出口条件全部达成：`lint` / `typecheck` / `build` / `cargo check --workspace --all-targets` 退出码 0；`vitest` 三项目 **319 文件 2629 用例**通过（unit 165 / markup 114 / interaction 43，合计 322 文件正好等于全量文件数）；`lingui extract` 报 en-US Missing = 0（336 条）；阶段 1 的 258 个测试文件逐一核对仍在跑，`comm` 差集为 0。
+
+交付：`domain/{match,map,media,task}/` 共 24 个组件、94 个文件；`data/` 的 keys 工厂 + health + 六个领域 hooks；`domain/densityFixtures.ts` + 6 个密度测试文件。
+
+### 1100×700 密度复核（§9 风险 6，本阶段的出口条件）
+
+16 项测量，查出 **7 项真实违规**，全部当场修掉：
+
+| 组件 | 数据量 | 问题 | 修法 |
+| --- | --- | --- | --- |
+| `media/ClipStrip` | 24 个片段 = 5538px | `<ul>` 上没有任何 overflow 容器，横向滚动会落到 body 上（阶段 1 AppShell 明令禁止） | `overflow-x-auto overscroll-x-contain`，ready 与 loading 两条路径都加 |
+| `media/FilmStrip` | 62 帧 = 8428px | 同一形状；8 格 placeholder 的 loading 行 1064px 也已超过 996px | 同上 |
+| `task/TaskDetail` | 120 行阶段日志 ≈ 3360px | `<ol>` 无 overflow-y，所在左列缺 `min-h-0` → 详情页长出第二条滚动条，阶段条被顶出视野 | `min-h-0 flex-1 overflow-y-auto` + 左列补 `min-h-0` |
+| `match/MatchContextBar` | 10 人首发 ≈ 600px | 聚焦选手无上限，`flex-none` 的 Tag 既不能缩也不能换行，把 §8 明令不得折叠的主动作推出窗口 | `FOCUS_INLINE_MAX=4`，其余进折叠盘，徽标用 Plural 数**被折进去的那部分** |
+| `match/MatchContextBar` | — | metadata / focus 写了 `flex-wrap` 却住在固定 56px 栏里——在固定高度里换行等于溢出 | wrap 从常量改成构造器参数：栏内 `flex-nowrap overflow-hidden`（宁可裁剪），面板内 `flex-wrap` |
+| `match/MatchContextBar` | 4 个半场（含两个加时） | `periods` 传进栏内 Scoreboard，外层 `flex-none` 按 max-content 定宽，把记分板撑到 ~450px，溢出约 40px | 周期明细只进折叠面板；栏里只剩「13 : 11」，正是画板画的 |
+| `match/RoundTimeline` | 30 回合 @ 380px Inspector | 面板头是 `flex-wrap` 配固定 `h-[var(--h-panel-head)]`，一换行就溢出盒子 | 改成 `min-h-`，画板的 40px 从上限变成下限 |
+
+不需要改的九项也留了算术：248 行资料库分页后表里 20 行且页脚印「共 248 条」；12 000 个热力采样归到 864 个格子（比原始点少 13.9 倍）；6200 个峰值只产出 2 个 `<path>`，节点数与音频长度无关；50 条任务记录里 `role="progressbar"` 恰好 5 个——**只有真有分母的在跑任务画进度条**。
+
+### 与规格的偏离
+
+| # | 偏离 | 处置 |
+| --- | --- | --- |
+| 1 | §8 只有 1100 一个断点，但**跨过 1100 向上会让内容列变窄**：侧栏 56→216、Agent 竖条出现，1101px 窗口给页面 ~791px，而 1100px 折叠态给的是 ~996px。比赛上下文栏展开需要 ~1300px，所以 1101–1600 区间结构性超载 | **新增组件级断点** `CONTEXT_BAR_BREAKPOINT_PX = 1600`（≈1300+216+46+48）与通用的 `useBelowWidth(px)`，`useCollapsed(forced, breakpointPx?)` 收第二个参数。壳层仍然只有一个折叠断点，这一个不重排任何壳层节点。测试用改造过的 `stubMatchMedia(width)` 真的在 1101 / 1599 / 1601 三个宽度上走了一遍 |
+| 2 | `de_inferno` 的雷达标定拿不到权威值 | 落成 `confidence:'provisional'` + `provenance:'PLACEHOLDER …'`，MapCanvas 用占位标定时渲染 warn 色提示，并有一条测试专门钉住它。`de_mirage` 的 pos_x -3230 / pos_y 1713 / scale 5 是 `crates/source-assets/src/overview.rs:448` 的仓库内 fixture，可核对 |
+| 3 | §3.4 把 `--h-row-evidence`(52) 命名为「双行证据条目」，但 EvidenceRow 的 comfortable / inline 两档用了 42 / 38 | 画稿的证据检索行确实是 42、Agent 引用行是单行，属于按 §3.4 归并而非新造尺寸。若复核认为「证据行一律 52」，要改的是组件的 HEIGHT_CLASS 表而不是 token |
+| 4 | `--w-track-head`(132) 有 token，配套的 74px 缩略图高度没有 | FilmStrip 用 `w-[var(--w-track-head)] aspect-video` 得 74.25px（74/132=0.5606 vs 9/16=0.5625，差 0.3%）。要精确 74 需要在 theme.css 补 `--h-thumb`，本轮未补 |
+| 5 | 画板 08 的时码是 `00:13.1`（mm:ss.十分之一），`timeScale.ts` 只有 mm:ss 与 hh:mm:ss:ff | Transport 只提供 `frames`（默认，对应画板 10）与 `clock`（退到 mm:ss）两档，没有偷偷写第三份格式化。要还原画板 08 需在 `timeScale.ts` 补 `formatDecimalTimecode` |
+| 6 | §4.1 的 Query 默认项里没有 `refetchInterval`，而任务面天然要轮询（§4.7 确认后端只有 `agent_chat` 一个流式命令，没有任务事件通道） | 每个 hook 加 `pollMs` 选项、**默认不轮询**，节奏留给页面——首页两行任务、交付页任务记录、任务详情三处密度不同，不该由 data 层统一决定。阶段 3a 必须拍数 |
+| 7 | `TaskKind` 五类，dto 的 `ActivityKind` 只有四类（无 montage） | 已在文件头写明。页面层要么从 subtype 推，要么后端补，属 §4.6 的契约缺口 |
+| 8 | `data/test/renderDataHook.tsx` 是第二个测试渲染入口 | `src/test/render.tsx` 固定包 I18nProvider 且不把 QueryClient 还给调用方，而 hook 测试需要拿到 client 去 invalidate。若要统一，需给 `src/test/render.tsx` 加一个返回 queryClient 的变体 |
+
+### 本轮收口掉的
+
+- `app/boundary/serviceHealth.ts` 的 `SERVICE_HEALTH_KEY` 改成 `qk.service.health()`。原先它自己声明一份、`keys.test.ts` 反向 import `app/**` 来盯住两者不漂移——**键工厂存在的意义就是不要有第二份声明**，现在 data 不再反向依赖 app。
+- 「回合」一个 msgid 两个词义（工作区子视图标签的复数 Rounds、证据种类的单数 Round）用 `context` 拆开，与上一轮的「跳转」同一处方。
+- `ServiceGate.tsx` 文件头里对已删除的 `…Indicator` 的描述改正。
+
+### 留给后续阶段的已知缺口
+
+1. **`PathLayer` 在 240 条轨迹 × 600 采样下产出 2.65 MB markup。** 节点数只有 720，没问题，问题是字节。组件收到什么画什么，改不了——需要页面层（3c/3d）定策略：按回合分批，或在 `data/` 层下采样后再交给图层。`map/density.test.tsx` 已经立了 1MB–8MB 的边界，越界会红。
+2. **`Toolbar` 的 `inlineActionsWhenCollapsed` 复核结论**：组件默认 0 保留（组件量不到自己的标题宽度），但短标题页（library / delivery）应显式传 2——折叠下 940px 减去标题 132 + meta 170 + 更多 62 + 主动作 104 + gap 58 = 剩 414px，一个三字 ghost 按钮约 76px。现在 15 个页面全是占位页、没有一处传 actions，所以这条要由阶段 3 接页面时落实。算术写在 `domain/density.test.tsx` 的注释里。
+3. **§10.1 缺口 3 / §10.2 缺口 9 仍未收口**（`design/layout/Inspector` 与 `design/feedback/Drawer` 两套焦点陷阱）。本轮只验证了 Inspector 折叠态的结构契约（46px 摘要条 + 主动作留在条上 + 抽屉入口在），没有碰焦点管理。
+4. **分析流水线的 5 个阶段没有中文标签。** §4.3 只写了「阶段 3/5」这个位置，没有四个阶段的用户可读名。`ANALYSIS_STAGE_IDS` 取 dto 的 `AnalysisRunStage` 去掉四个终态，剩下的裸 id 由页面层传 label——要么产品补名，要么确认后端 `ActivityItem.stage` 可直接给用户看。
+5. **`MAX_TASK_ATTEMPTS = 3`、`cancelled.RESTART`、「只有录制需要显式确认」三条都是推断**，§4.3 / §4.5.3 没写。每条都在 `taskMachine.ts` 注释里写了依据，但需要产品确认。
+6. **楼层（多层地图）只有 `heatBinning` 做了过滤。** `PathLayer` / `EngagementLayer` / `CameraPathLayer` 的记录带 floor 字段但没有筛选，也没有楼层切换控件——3c 要判断楼层是图层自己的事还是页面的事。
+7. **热力图需要服务端聚合。** 上万个点不能从前端顶起来，需要一份按 demo 的采样查询，落在 `data/**`；`HeatLayer` 只吃已经分好箱的 `HeatDistribution`。
+8. **底图图片没有交付路径。** Tauri CSP 是 `default-src 'self'`，雷达底图只能走 `vibe-cs-media:` 或本地打包资源。`MapCanvas` 只留了 `basemap: ReactNode` 的口子，3c 接页面时要定。
+9. **`ClipStrip` 的指针拖拽同样没用 `setPointerCapture`**（jsdom 不实现它），与 `design/timeline` 是同一处已知缺口，一并在 3f 处理。落点计算是纯函数并单测，interaction 只覆盖键盘路径。
+10. **组件内部几何常量仍未 token 化**：`ClipStrip` 的 210px 片段宽、112px 缩略图、`Waveform` 的 168px 最小高。它们是内容盒的纵横比参数，不在 §3.4 栏高表也不在 §3.5 宽度表，按阶段 0 的先例保持现状并注了出处。
+11. **`domain/agent/` 与 `data/{sessions,plans,editNotifier}.ts` 尚未存在**（属 3e，模型 §4.5 要跟后端一起定）。`keys.ts` 已经预留 sessions / plans 两个命名空间的键形状（含 §4.5.1 的反向索引 `sessions.ofObject(kind,id)`），3e 不需要给缓存重新编号。那批落地后必须重跑一次 `i18n:extract` —— **i18n 这一步不是永久关闭的**。

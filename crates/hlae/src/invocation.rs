@@ -106,9 +106,9 @@ pub fn build_hlae_custom_loader_invocation(
 /// Builds the reviewed custom-loader invocation for one already-published
 /// managed startup configuration.
 ///
-/// The only additional Source 2 argument is the fixed `+exec` basename. The
-/// file must still match the process-free bootstrap artifact byte-for-byte and
-/// live below the launch profile's isolated `USRLOCALCSGO/cfg` directory.
+/// The validated bootstrap commands are encoded directly in Source 2's fixed
+/// `+command` syntax. This avoids the startup race where `+exec` is processed
+/// before HLAE has mounted the isolated `USRLOCALCSGO` search path.
 ///
 /// # Errors
 ///
@@ -135,8 +135,10 @@ pub fn build_hlae_managed_session_invocation(
         .ok_or_else(|| {
             HlaeError::InvalidPlan("custom-loader command line is not Unicode".to_owned())
         })?;
-    invocation.arguments[cmdline_index] =
-        OsString::from(format!("{command_line} +exec vibe_cs_managed_session.cfg"));
+    invocation.arguments[cmdline_index] = OsString::from(format!(
+        "{command_line} {}",
+        bootstrap.command_line_suffix()
+    ));
     Ok(invocation)
 }
 
@@ -146,9 +148,9 @@ fn validate_published_managed_bootstrap(
 ) -> Result<(), HlaeError> {
     let path = bootstrap.path();
     validate_safe_path(path, "managedSessionConfig", true)?;
-    if path.file_name().and_then(|name| name.to_str()) != Some("vibe_cs_managed_session.cfg") {
+    if path.file_name().and_then(|name| name.to_str()) != Some("autoexec.cfg") {
         return Err(HlaeError::InvalidPlan(
-            "managed session config must use the fixed filename".to_owned(),
+            "managed session config must use the isolated autoexec filename".to_owned(),
         ));
     }
     let metadata = std::fs::symlink_metadata(path).map_err(|error| HlaeError::ArtifactIo {

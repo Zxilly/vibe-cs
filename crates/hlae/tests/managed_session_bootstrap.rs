@@ -46,7 +46,7 @@ fn compiles_one_fixed_offline_startup_config_that_loads_evidence_before_the_demo
 }
 
 #[test]
-fn managed_invocation_executes_only_the_fixed_job_config() {
+fn managed_invocation_passes_only_the_fixed_validated_startup_commands() {
     let root = tempfile::tempdir().unwrap();
     let job = root.path().join("job");
     let cfg = job.join("cfg");
@@ -102,9 +102,38 @@ fn managed_invocation_executes_only_the_fixed_job_config() {
         .unwrap();
     assert_eq!(
         arguments[cmdline_index + 1],
-        OsString::from(
+        OsString::from(format!(
             "-steam -insecure +sv_lan 1 -console -sw -w 1920 -h 1080 \
-             -afxDisableSteamStorage +exec vibe_cs_managed_session.cfg"
-        )
+             -afxDisableSteamStorage +mirv_cmd clear +mirv_cmd load \"{}\" \
+             +mirv_cmd enabled 1 +mirv_script_load \"{}\" +playdemo \"{}\"",
+            commands.display(),
+            bridge.display(),
+            demo.display(),
+        ))
     );
+    assert_eq!(bootstrap.path(), job.join("cfg/autoexec.cfg"));
+}
+
+#[cfg(windows)]
+#[test]
+fn managed_bootstrap_never_emits_verbatim_windows_console_paths() {
+    let root = tempfile::tempdir().unwrap();
+    let job = root.path().join("job");
+    fs::create_dir_all(&job).unwrap();
+    let demo = root.path().join("major.dem");
+    let commands = job.join("vibe_cs_commands.xml");
+    let bridge = job.join("vibe_cs_bridge.js");
+    fs::write(&demo, b"demo").unwrap();
+    fs::write(&commands, b"commands").unwrap();
+    fs::write(&bridge, b"bridge").unwrap();
+
+    let bootstrap = compile_hlae_managed_session_bootstrap(
+        &fs::canonicalize(&job).unwrap(),
+        &fs::canonicalize(&demo).unwrap(),
+        &fs::canonicalize(&commands).unwrap(),
+        &fs::canonicalize(&bridge).unwrap(),
+    )
+    .unwrap();
+
+    assert!(!bootstrap.contents().contains(r"\\?\"));
 }

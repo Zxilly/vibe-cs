@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     ffi::{OsStr, OsString},
     path::{Path, PathBuf},
     time::Duration,
@@ -7,7 +7,7 @@ use std::{
 
 #[cfg(windows)]
 use std::sync::{
-    Arc,
+    Arc, Mutex,
     atomic::{AtomicBool, Ordering},
 };
 
@@ -16,14 +16,40 @@ use crate::{PlatformError, PlatformResult, ProcessCancellation};
 const MAXIMUM_PROCESS_TREE_ARGUMENTS: usize = 256;
 const MAXIMUM_ENVIRONMENT_OVERRIDES: usize = 64;
 const MAXIMUM_WINDOWS_STRING_UTF16: usize = 32_767;
-const BASELINE_ENVIRONMENT_NAMES: [&str; 7] = [
-    "SYSTEMROOT",
-    "WINDIR",
-    "SYSTEMDRIVE",
+const BASELINE_ENVIRONMENT_NAMES: [&str; 33] = [
+    "ALLUSERSPROFILE",
+    "APPDATA",
+    "COMMONPROGRAMFILES",
+    "COMMONPROGRAMFILES(X86)",
+    "COMMONPROGRAMW6432",
+    "COMPUTERNAME",
     "COMSPEC",
+    "DRIVERDATA",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "LOCALAPPDATA",
+    "LOGONSERVER",
+    "NUMBER_OF_PROCESSORS",
+    "OS",
     "PATHEXT",
+    "PROCESSOR_ARCHITECTURE",
+    "PROCESSOR_IDENTIFIER",
+    "PROCESSOR_LEVEL",
+    "PROCESSOR_REVISION",
+    "PROGRAMDATA",
+    "PROGRAMFILES",
+    "PROGRAMFILES(X86)",
+    "PROGRAMW6432",
+    "PUBLIC",
+    "SYSTEMDRIVE",
+    "SYSTEMROOT",
     "TEMP",
     "TMP",
+    "USERDOMAIN",
+    "USERDOMAIN_ROAMINGPROFILE",
+    "USERNAME",
+    "USERPROFILE",
+    "WINDIR",
 ];
 #[cfg(windows)]
 const MAXIMUM_JOB_MEMBERS: usize = 256;
@@ -38,10 +64,14 @@ const MANAGED_TERMINATION_EXIT_CODE: u32 = 1_223;
 use windows::{
     Win32::{
         Foundation::{
-            CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, HANDLE, WAIT_OBJECT_0,
-            WAIT_TIMEOUT,
+            CloseHandle, DUPLICATE_SAME_ACCESS, DuplicateHandle, ERROR_NO_MORE_FILES, HANDLE,
+            WAIT_OBJECT_0, WAIT_TIMEOUT,
         },
         System::{
+            Diagnostics::ToolHelp::{
+                CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
+                TH32CS_SNAPPROCESS,
+            },
             JobObjects::{
                 AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
                 JOBOBJECT_BASIC_PROCESS_ID_LIST, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
@@ -51,12 +81,13 @@ use windows::{
             Threading::{
                 CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, CreateProcessW, GetCurrentProcess,
                 GetExitCodeProcess, OpenProcess, PROCESS_INFORMATION, PROCESS_NAME_FORMAT,
-                PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW, ResumeThread,
-                STARTUPINFOW, TerminateProcess, WaitForSingleObject,
+                PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
+                QueryFullProcessImageNameW, ResumeThread, STARTUPINFOW, TerminateProcess,
+                WaitForSingleObject,
             },
         },
     },
-    core::{PCWSTR, PWSTR},
+    core::{Error, HRESULT, PCWSTR, PWSTR},
 };
 
 /// A direct, shell-free process launch whose descendants are owned as one tree.
@@ -66,6 +97,7 @@ pub struct ProcessTreeSpec {
     args: Vec<OsString>,
     current_dir: PathBuf,
     environment_overrides: BTreeMap<String, OsString>,
+    track_direct_child: bool,
 }
 
 impl std::fmt::Debug for ProcessTreeSpec {
@@ -79,6 +111,7 @@ impl std::fmt::Debug for ProcessTreeSpec {
                 "environment_override_names",
                 &self.environment_overrides.keys().collect::<Vec<_>>(),
             )
+            .field("track_direct_child", &self.track_direct_child)
             .finish()
     }
 }
@@ -103,7 +136,19 @@ impl ProcessTreeSpec {
             program,
             args: Vec::new(),
             environment_overrides: BTreeMap::new(),
+            track_direct_child: false,
         })
+    }
+
+    /// Launches the primary process outside the owned Job Object, then
+    /// identity-checks and retains a termination handle for one exact-path
+    /// direct child. The child is deliberately not assigned to the Job Object:
+    /// injected games such as CS2 rely on their native process context while
+    /// initializing NVIDIA's NVAPI extensions.
+    #[must_use]
+    pub fn track_direct_child(mut self) -> Self {
+        self.track_direct_child = true;
+        self
     }
 
     /// Adds one literal argv element; no command interpreter is involved.
@@ -135,7 +180,7 @@ impl ProcessTreeSpec {
                 "process-tree working directory must be an existing absolute directory".to_owned(),
             ));
         }
-        let directory = std::fs::canonicalize(&directory).map_err(|error| {
+        let directory = dunce::canonicalize(&directory).map_err(|error| {
             PlatformError::InvalidInput(format!(
                 "process-tree working directory could not be canonicalized: {error}"
             ))
@@ -208,7 +253,7 @@ impl ProcessTreeSpec {
                 "environment path override must be an existing absolute directory".to_owned(),
             ));
         }
-        let directory = std::fs::canonicalize(directory).map_err(|error| {
+        let directory = dunce::canonicalize(directory).map_err(|error| {
             PlatformError::InvalidInput(format!(
                 "environment path override could not be canonicalized: {error}"
             ))
@@ -223,7 +268,7 @@ fn canonical_existing_file(path: &Path, label: &str) -> PlatformResult<PathBuf> 
             "{label} must be an existing absolute file"
         )));
     }
-    let canonical = std::fs::canonicalize(path).map_err(|error| {
+    let canonical = dunce::canonicalize(path).map_err(|error| {
         PlatformError::InvalidInput(format!("{label} could not be canonicalized: {error}"))
     })?;
     if !canonical.is_file() {
@@ -298,14 +343,18 @@ pub struct ProcessTreeExit {
     pub exit_code: u32,
 }
 
-/// Owns a primary process and every descendant assigned to its Windows Job Object.
+/// Owns a primary process plus either its Job-owned descendants or one
+/// identity-checked direct child retained by an explicit process handle.
 #[derive(Debug)]
 pub struct ManagedProcessTree {
     primary_process_id: u32,
+    track_direct_child: bool,
     #[cfg(windows)]
     job: Option<OwnedWin32Handle>,
     #[cfg(windows)]
     primary_process: Option<OwnedWin32Handle>,
+    #[cfg(windows)]
+    tracked_direct_child: Arc<Mutex<Option<OwnedWin32Handle>>>,
     #[cfg(windows)]
     cancellation_watcher_stop: Arc<AtomicBool>,
     #[cfg(windows)]
@@ -328,8 +377,15 @@ impl ManagedProcessTree {
         }
 
         let job = create_kill_on_close_job()?;
-        let (primary_process, primary_thread, primary_process_id) = create_suspended_process(spec)?;
-        if let Err(error) = assign_and_resume(&job, &primary_process, &primary_thread) {
+        let primary_starts_suspended = !spec.track_direct_child;
+        let (primary_process, primary_thread, primary_process_id) =
+            create_process(spec, primary_starts_suspended)?;
+        let launch_result = if primary_starts_suspended {
+            assign_and_resume(&job, &primary_process, &primary_thread)
+        } else {
+            Ok(())
+        };
+        if let Err(error) = launch_result {
             let _ = terminate_process(&primary_process);
             let _ = terminate_job(&job);
             return Err(error);
@@ -337,6 +393,12 @@ impl ManagedProcessTree {
         drop(primary_thread);
 
         let watcher_job = duplicate_handle(&job)?;
+        let watcher_primary = spec
+            .track_direct_child
+            .then(|| duplicate_handle(&primary_process))
+            .transpose()?;
+        let tracked_direct_child = Arc::new(Mutex::new(None));
+        let watcher_direct_child = Arc::clone(&tracked_direct_child);
         let watcher_stop = Arc::new(AtomicBool::new(false));
         let watcher_stop_for_thread = Arc::clone(&watcher_stop);
         let watcher_cancellation = cancellation.clone();
@@ -346,6 +408,10 @@ impl ManagedProcessTree {
                 while !watcher_stop_for_thread.load(Ordering::Acquire) {
                     if watcher_cancellation.is_cancelled() {
                         let _ = terminate_job(&watcher_job);
+                        let _ = terminate_tracked_process(&watcher_direct_child);
+                        if let Some(primary) = &watcher_primary {
+                            let _ = terminate_process_if_running(primary);
+                        }
                         return;
                     }
                     std::thread::sleep(PROCESS_POLL_INTERVAL);
@@ -353,6 +419,7 @@ impl ManagedProcessTree {
             })
             .map_err(|error| {
                 let _ = terminate_job(&job);
+                let _ = terminate_process_if_running(&primary_process);
                 PlatformError::Windows(format!(
                     "starting managed process cancellation watcher failed: {error}"
                 ))
@@ -360,8 +427,10 @@ impl ManagedProcessTree {
 
         Ok(Self {
             primary_process_id,
+            track_direct_child: spec.track_direct_child,
             job: Some(job),
             primary_process: Some(primary_process),
+            tracked_direct_child,
             cancellation_watcher_stop: watcher_stop,
             cancellation_watcher: Some(watcher),
         })
@@ -402,6 +471,10 @@ impl ManagedProcessTree {
             if cancellation.is_cancelled() {
                 if let Some(job) = &self.job {
                     let _ = terminate_job(job);
+                }
+                let _ = terminate_tracked_process(&self.tracked_direct_child);
+                if self.track_direct_child {
+                    let _ = terminate_process_if_running(process);
                 }
                 return Err(PlatformError::Cancelled {
                     process_id: Some(self.primary_process_id),
@@ -456,9 +529,25 @@ impl ManagedProcessTree {
             PlatformError::Windows("managed process-tree job handle is closed".to_owned())
         })?;
         let deadline = tokio::time::Instant::now() + timeout;
+        let mut observed_direct_children = BTreeSet::new();
         loop {
             if cancellation.is_cancelled() {
                 let _ = terminate_job(job);
+                let _ = terminate_tracked_process(&self.tracked_direct_child);
+                if self.track_direct_child {
+                    if let Ok(children) = query_direct_child_process_ids(self.primary_process_id) {
+                        for process_id in children {
+                            if let Ok(process) =
+                                open_tracked_direct_child(process_id, &expected_executable)
+                            {
+                                let _ = terminate_process_if_running(&process);
+                            }
+                        }
+                    }
+                    if let Some(primary) = &self.primary_process {
+                        let _ = terminate_process_if_running(primary);
+                    }
+                }
                 return Err(PlatformError::Cancelled {
                     process_id: Some(self.primary_process_id),
                 });
@@ -470,6 +559,34 @@ impl ManagedProcessTree {
                         .unwrap_or(false)
                 {
                     matches.push(process_id);
+                }
+            }
+            if matches.is_empty() && self.track_direct_child {
+                let candidates = query_direct_child_process_ids(self.primary_process_id)?;
+                for process_id in candidates {
+                    if let Some(actual_executable) = query_process_image(process_id) {
+                        observed_direct_children
+                            .insert(format!("{process_id}:{}", actual_executable.display()));
+                        if same_file::is_same_file(&actual_executable, &expected_executable)
+                            .unwrap_or(false)
+                        {
+                            matches.push(process_id);
+                        }
+                    }
+                }
+                if let [process_id] = matches.as_slice() {
+                    let process = open_tracked_direct_child(*process_id, &expected_executable)?;
+                    let mut tracked = self.tracked_direct_child.lock().map_err(|_| {
+                        PlatformError::Windows(
+                            "tracked direct-child process lock was poisoned".to_owned(),
+                        )
+                    })?;
+                    if tracked.is_some() {
+                        return Err(PlatformError::InvalidInput(
+                            "managed process tree already tracks a direct child".to_owned(),
+                        ));
+                    }
+                    *tracked = Some(process);
                 }
             }
             match matches.as_slice() {
@@ -484,9 +601,17 @@ impl ManagedProcessTree {
             }
             if tokio::time::Instant::now() >= deadline {
                 return Err(PlatformError::ProcessNotFound(format!(
-                    "unique managed process {} within {} ms",
+                    "unique managed process {} within {} ms; observed direct children: {}",
                     expected_executable.display(),
-                    timeout.as_millis()
+                    timeout.as_millis(),
+                    if observed_direct_children.is_empty() {
+                        "none".to_owned()
+                    } else {
+                        observed_direct_children
+                            .into_iter()
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    }
                 )));
             }
             tokio::time::sleep(PROCESS_POLL_INTERVAL).await;
@@ -528,12 +653,22 @@ impl ManagedProcessTree {
         self.cancellation_watcher_stop
             .store(true, Ordering::Release);
         let termination = self.job.as_ref().map_or(Ok(()), terminate_job);
+        let direct_child_termination = terminate_tracked_process(&self.tracked_direct_child);
+        let primary_termination = if self.track_direct_child {
+            self.primary_process
+                .as_ref()
+                .map_or(Ok(()), terminate_process_if_running)
+        } else {
+            Ok(())
+        };
         if let Some(watcher) = self.cancellation_watcher.take() {
             let _ = watcher.join();
         }
         self.primary_process.take();
         self.job.take();
         termination
+            .and(direct_child_termination)
+            .and(primary_termination)
     }
 }
 
@@ -597,8 +732,9 @@ fn create_kill_on_close_job() -> PlatformResult<OwnedWin32Handle> {
 }
 
 #[cfg(windows)]
-fn create_suspended_process(
+fn create_process(
     spec: &ProcessTreeSpec,
+    suspended: bool,
 ) -> PlatformResult<(OwnedWin32Handle, OwnedWin32Handle, u32)> {
     let mut command_line = quote_windows_argument(spec.program.as_os_str());
     for argument in &spec.args {
@@ -621,6 +757,10 @@ fn create_suspended_process(
         ..Default::default()
     };
     let mut process = PROCESS_INFORMATION::default();
+    let mut creation_flags = CREATE_UNICODE_ENVIRONMENT;
+    if suspended {
+        creation_flags |= CREATE_SUSPENDED;
+    }
     // SAFETY: all pointers reference live, NUL-terminated mutable buffers and output structs;
     // handle inheritance is disabled and no security pointers are supplied.
     unsafe {
@@ -630,7 +770,7 @@ fn create_suspended_process(
             None,
             None,
             false,
-            CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT,
+            creation_flags,
             Some(environment.as_ptr().cast()),
             PCWSTR(current_directory.as_ptr()),
             &raw mut startup,
@@ -745,6 +885,14 @@ fn terminate_process(process: &OwnedWin32Handle) -> PlatformResult<()> {
 }
 
 #[cfg(windows)]
+fn terminate_process_if_running(process: &OwnedWin32Handle) -> PlatformResult<()> {
+    if matches!(wait_for_handle(process, 0)?, HandleWait::Signalled) {
+        return Ok(());
+    }
+    terminate_process(process)
+}
+
+#[cfg(windows)]
 enum HandleWait {
     Signalled,
     TimedOut,
@@ -767,6 +915,86 @@ fn process_exit_code(process: &OwnedWin32Handle) -> PlatformResult<u32> {
     unsafe { GetExitCodeProcess(process.raw(), &raw mut exit_code) }
         .map_err(|error| win32_error("reading managed primary process exit code", &error))?;
     Ok(exit_code)
+}
+
+#[cfg(windows)]
+fn query_direct_child_process_ids(parent_process_id: u32) -> PlatformResult<Vec<u32>> {
+    // SAFETY: the returned snapshot is a newly owned kernel handle.
+    let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }
+        .map_err(|error| win32_error("creating managed child process snapshot", &error))?;
+    let snapshot = OwnedWin32Handle::new(snapshot, "creating managed child process snapshot")?;
+    let mut entry = PROCESSENTRY32W {
+        dwSize: u32::try_from(std::mem::size_of::<PROCESSENTRY32W>()).map_err(|_| {
+            PlatformError::Windows("PROCESSENTRY32W size did not fit u32".to_owned())
+        })?,
+        ..Default::default()
+    };
+    // SAFETY: `entry` is correctly sized and writable for the snapshot enumeration.
+    let mut current = unsafe { Process32FirstW(snapshot.raw(), &raw mut entry) };
+    let mut children = Vec::new();
+    loop {
+        match current {
+            Ok(()) => {
+                if entry.th32ProcessID != 0 && entry.th32ParentProcessID == parent_process_id {
+                    children.push(entry.th32ProcessID);
+                }
+                // SAFETY: snapshot and entry remain valid and exclusive.
+                current = unsafe { Process32NextW(snapshot.raw(), &raw mut entry) };
+            }
+            Err(error) if is_no_more_files(&error) => break,
+            Err(error) => {
+                return Err(win32_error(
+                    "enumerating managed child process snapshot",
+                    &error,
+                ));
+            }
+        }
+    }
+    Ok(children)
+}
+
+#[cfg(windows)]
+fn open_tracked_direct_child(
+    process_id: u32,
+    expected_executable: &Path,
+) -> PlatformResult<OwnedWin32Handle> {
+    // SAFETY: the identity-matched PID is opened only with the rights required
+    // to query, wait, and terminate it during cancellation or shutdown.
+    let process = unsafe {
+        OpenProcess(
+            PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE | PROCESS_TERMINATE,
+            false,
+            process_id,
+        )
+    }
+    .map_err(|error| win32_error("opening tracked direct child", &error))?;
+    let process = OwnedWin32Handle::new(process, "opening tracked direct child")?;
+    let actual_executable = query_process_image_from_handle(&process).ok_or_else(|| {
+        PlatformError::Windows("querying tracked direct-child image failed".to_owned())
+    })?;
+    if !same_file::is_same_file(&actual_executable, expected_executable).unwrap_or(false) {
+        return Err(PlatformError::InvalidInput(format!(
+            "tracked direct child changed identity from {} to {}",
+            expected_executable.display(),
+            actual_executable.display()
+        )));
+    }
+    Ok(process)
+}
+
+#[cfg(windows)]
+fn terminate_tracked_process(tracked: &Mutex<Option<OwnedWin32Handle>>) -> PlatformResult<()> {
+    let tracked = tracked.lock().map_err(|_| {
+        PlatformError::Windows("tracked direct-child process lock was poisoned".to_owned())
+    })?;
+    tracked
+        .as_ref()
+        .map_or(Ok(()), terminate_process_if_running)
+}
+
+#[cfg(windows)]
+fn is_no_more_files(error: &Error) -> bool {
+    error.code() == HRESULT::from_win32(ERROR_NO_MORE_FILES.0)
 }
 
 #[cfg(windows)]
@@ -827,11 +1055,16 @@ fn query_job_process_ids(job: &OwnedWin32Handle) -> PlatformResult<Vec<u32>> {
 
 #[cfg(windows)]
 fn query_process_image(process_id: u32) -> Option<PathBuf> {
-    use std::os::windows::ffi::OsStringExt;
-
     let handle =
         unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, process_id) }.ok()?;
     let handle = OwnedWin32Handle::new(handle, "opening managed job member").ok()?;
+    query_process_image_from_handle(&handle)
+}
+
+#[cfg(windows)]
+fn query_process_image_from_handle(handle: &OwnedWin32Handle) -> Option<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+
     let mut buffer = vec![0u16; 32_768];
     let mut length = u32::try_from(buffer.len()).ok()?;
     // SAFETY: the process handle and writable UTF-16 output buffer are valid.
@@ -876,6 +1109,56 @@ mod tests {
             ProcessTreeSpec::new(missing),
             Err(PlatformError::InvalidInput(_))
         ));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn process_tree_uses_dotnet_compatible_canonical_paths() {
+        let spec = ProcessTreeSpec::new(std::env::current_exe().unwrap()).unwrap();
+        assert!(
+            !spec
+                .program
+                .as_os_str()
+                .to_string_lossy()
+                .starts_with(r"\\?\")
+        );
+        assert!(
+            !spec
+                .current_dir
+                .as_os_str()
+                .to_string_lossy()
+                .starts_with(r"\\?\")
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn process_tree_preserves_the_standard_windows_desktop_environment() {
+        let spec = ProcessTreeSpec::new(std::env::current_exe().unwrap()).unwrap();
+        let block = build_environment_block(&spec).unwrap();
+        let entries = String::from_utf16_lossy(&block)
+            .split('\0')
+            .filter_map(|entry| entry.split_once('=').map(|(name, _)| name.to_owned()))
+            .collect::<BTreeSet<_>>();
+
+        for required in [
+            "APPDATA",
+            "LOCALAPPDATA",
+            "PROGRAMDATA",
+            "PROGRAMFILES",
+            "USERDOMAIN",
+            "USERNAME",
+            "USERPROFILE",
+        ] {
+            assert!(
+                entries.contains(required),
+                "managed desktop environment omitted {required}"
+            );
+        }
+        assert!(
+            !entries.contains("CODEX_THREAD_ID"),
+            "unreviewed parent variables must remain excluded"
+        );
     }
 
     #[test]
@@ -954,14 +1237,18 @@ mod tests {
             return;
         }
         assert!(
-            std::env::var_os("USERPROFILE").is_none(),
+            std::env::var_os("CODEX_THREAD_ID").is_none(),
             "unlisted parent environment must not leak into the managed process"
+        );
+        assert!(
+            std::env::var_os("USERPROFILE").is_some(),
+            "the standard Windows desktop environment must remain available"
         );
         let expected_directory = PathBuf::from(
             std::env::var_os("VIBE_CS_EXPECTED_CURRENT_DIR").expect("expected current directory"),
         );
         assert_eq!(
-            std::fs::canonicalize(std::env::current_dir().unwrap()).unwrap(),
+            dunce::canonicalize(std::env::current_dir().unwrap()).unwrap(),
             expected_directory
         );
         std::process::exit(37);
@@ -972,7 +1259,7 @@ mod tests {
     #[ignore = "spawns a real suspended Windows process and Job Object"]
     async fn managed_tree_reports_primary_pid_and_exit_code() {
         let executable = std::env::current_exe().unwrap();
-        let expected_directory = std::fs::canonicalize(executable.parent().unwrap()).unwrap();
+        let expected_directory = dunce::canonicalize(executable.parent().unwrap()).unwrap();
         let spec = nested_test_spec("managed_tree_exit_helper")
             .environment_override("VIBE_CS_MANAGED_EXIT_HELPER", "1")
             .unwrap()
@@ -1010,6 +1297,69 @@ mod tests {
             PathBuf::from(std::env::var_os("VIBE_CS_MANAGED_PID_FILE").expect("managed PID file"));
         std::fs::write(pid_file, child.id().to_string()).expect("write descendant PID");
         let _ = child.wait();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "helper for the managed breakaway descendant smoke test"]
+    fn managed_tree_breakaway_descendant_helper() {
+        if std::env::var_os("VIBE_CS_MANAGED_BREAKAWAY_HELPER").is_none() {
+            return;
+        }
+        let system_root = std::env::var_os("SYSTEMROOT").expect("SYSTEMROOT baseline");
+        let ping = PathBuf::from(system_root).join("System32").join("PING.EXE");
+        let mut child = std::process::Command::new(ping)
+            .args(["-t", "127.0.0.1"])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("spawn breakaway ping descendant");
+        let _ = child.wait();
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    #[ignore = "spawns a breakaway ping.exe and proves it is tracked outside the Job Object"]
+    async fn managed_tree_tracks_an_exact_direct_breakaway_child_without_reparenting() {
+        use windows::Win32::System::Threading::{
+            OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
+        };
+
+        let spec = nested_test_spec("managed_tree_breakaway_descendant_helper")
+            .environment_override("VIBE_CS_MANAGED_BREAKAWAY_HELPER", "1")
+            .unwrap()
+            .track_direct_child();
+        let system_root = std::env::var_os("SYSTEMROOT").unwrap();
+        let ping = PathBuf::from(system_root).join("System32").join("PING.EXE");
+        let cancellation = ProcessCancellation::default();
+        let tree = ManagedProcessTree::spawn(&spec, &cancellation).unwrap();
+        let ping_process_id = tree
+            .wait_for_unique_process(&ping, Duration::from_secs(10), &cancellation)
+            .await
+            .unwrap();
+        // SAFETY: the PID was identity-checked and retained by the managed tree.
+        let ping_handle = unsafe {
+            OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
+                false,
+                ping_process_id,
+            )
+        }
+        .unwrap();
+        let ping_handle = OwnedWin32Handle::new(ping_handle, "opening tracked ping").unwrap();
+        let assigned_to_vibe_job = query_job_process_ids(tree.job.as_ref().expect("managed job"))
+            .unwrap()
+            .contains(&ping_process_id);
+        assert!(
+            !assigned_to_vibe_job,
+            "a tracked HLAE game child must retain its native process context"
+        );
+        tree.close().unwrap();
+        assert!(matches!(
+            wait_for_handle(&ping_handle, 5_000).unwrap(),
+            HandleWait::Signalled
+        ));
     }
 
     #[cfg(windows)]

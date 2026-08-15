@@ -172,7 +172,12 @@ pub fn build_hlae_launch_profile(
     );
     environment.insert(
         "USRLOCALCSGO".to_owned(),
-        moviemaking_config_root.to_string_lossy().into_owned(),
+        // HLAE forwards this value into Source 2's search paths. Windows
+        // verbatim paths are valid for Win32 file APIs but not as Source 2
+        // search-path strings, so expose the ordinary DOS form.
+        dunce::simplified(moviemaking_config_root)
+            .to_string_lossy()
+            .into_owned(),
     );
     Ok(HlaeLaunchProfile {
         hlae_executable: installation.executable.clone(),
@@ -281,6 +286,11 @@ fn compile_command_system(plan: &HlaePlan, camera_paths: &[GeneratedArtifact]) -
 
 fn capture_start_command(plan: &HlaePlan) -> String {
     let mut commands = vec![
+        "demo_ui_mode 0".to_owned(),
+        "gameui_hide".to_owned(),
+        "cl_showdemooverlay 0".to_owned(),
+        "spec_autodirector 0".to_owned(),
+        "spec_show_xray 0".to_owned(),
         format!(
             "mirv_streams record name \"{}\"",
             console_path(&plan.output_directory)
@@ -436,6 +446,7 @@ mod tests {
         let xml = &compiled.command_system.contents;
         assert!(xml.contains("afxClassic"));
         assert!(xml.contains("vibe_depth"));
+        assert!(xml.contains("demo_ui_mode 0; gameui_hide; cl_showdemooverlay 0"));
         assert!(xml.contains("record start"));
         assert!(xml.contains("record end"));
         assert!(!xml.to_ascii_lowercase().contains("ffmpeg"));

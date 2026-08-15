@@ -18,6 +18,7 @@ const MAX_FRAME_RATE_DENOMINATOR: u32 = 1_000_000;
 const MAX_FRAME_RATE: u32 = 1_000;
 const MIN_AUDIO_SAMPLE_RATE_HZ: u32 = 8_000;
 const MAX_AUDIO_SAMPLE_RATE_HZ: u32 = 768_000;
+const AAC_LC_SAMPLE_FRAMES_PER_ACCESS_UNIT: u64 = 1_024;
 const MIN_NATIVE_MP4_DIMENSION: u32 = 48;
 const MAX_NATIVE_MP4_WIDTH: u32 = 4_096;
 const MAX_NATIVE_MP4_HEIGHT: u32 = 2_304;
@@ -481,9 +482,12 @@ impl NativeMp4VideoWriter {
                         || !inspection.audio_timestamps_are_monotonic
                         || expected_duration.is_none_or(|duration| {
                             u64::try_from(inspection.audio_duration_100ns).map_or(true, |actual| {
-                                actual.abs_diff(duration)
-                                    > frame_boundary_100ns(1, writer.config.frame_rate)
-                                        .unwrap_or(u64::MAX)
+                                audio_read_back_duration_tolerance_100ns(
+                                    audio.sample_rate_hz,
+                                    writer.config.frame_rate,
+                                    inspection.audio_sample_count,
+                                )
+                                .is_none_or(|tolerance| actual.abs_diff(duration) > tolerance)
                             })
                         })
                 })
@@ -526,6 +530,22 @@ impl NativeMp4VideoWriter {
             Err(PlatformError::Unsupported)
         }
     }
+}
+
+/// Media Foundation's AAC-LC encoder can expose one padded access unit at the
+/// tail of a finalized stream. Source Reader also rounds each compressed sample
+/// duration independently to the 100ns time base. Keep validation strict to one
+/// AAC access unit plus that bounded per-sample rounding, while preserving the
+/// historical one-video-frame allowance at lower frame rates.
+fn audio_read_back_duration_tolerance_100ns(
+    sample_rate_hz: u32,
+    frame_rate: RationalFrameRate,
+    encoded_sample_count: u64,
+) -> Option<u64> {
+    let video_frame = frame_boundary_100ns(1, frame_rate).ok()?;
+    let aac_access_unit =
+        sample_boundary_100ns(AAC_LC_SAMPLE_FRAMES_PER_ACCESS_UNIT, sample_rate_hz).ok()?;
+    Some(video_frame.max(aac_access_unit.saturating_add(encoded_sample_count)))
 }
 
 /// Opens a finalized MP4 through Media Foundation and inspects its compressed
@@ -2092,6 +2112,43 @@ mod tests {
             plan.audio.unwrap().adjustment,
             HlaeAudioLengthAdjustment::Exact
         );
+    }
+
+    #[test]
+    fn aac_read_back_tolerance_accepts_one_tail_access_unit_at_sixty_fps() {
+        let frame_rate = RationalFrameRate {
+            numerator: 60,
+            denominator: 1,
+        };
+        let tolerance = audio_read_back_duration_tolerance_100ns(48_000, frame_rate, 723)
+            .expect("valid AAC tolerance");
+        let expected_duration = 167_666_667_u64;
+        let observed_duration = 167_880_271_u64;
+
+        assert_eq!(tolerance, 214_056);
+        assert!(observed_duration.abs_diff(expected_duration) <= tolerance);
+        assert!(
+            expected_duration
+                .saturating_add(tolerance)
+                .saturating_add(1)
+                .abs_diff(expected_duration)
+                > tolerance
+        );
+    }
+
+    #[test]
+    fn aac_read_back_tolerance_keeps_one_video_frame_at_thirty_fps() {
+        let tolerance = audio_read_back_duration_tolerance_100ns(
+            48_000,
+            RationalFrameRate {
+                numerator: 30,
+                denominator: 1,
+            },
+            20,
+        )
+        .expect("valid AAC tolerance");
+
+        assert_eq!(tolerance, 333_333);
     }
 
     #[test]

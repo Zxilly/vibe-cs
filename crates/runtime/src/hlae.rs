@@ -612,7 +612,7 @@ fn managed_hlae_process_tree_spec(
     for argument in invocation.arguments() {
         spec = spec.arg(argument.clone())?;
     }
-    Ok(spec)
+    Ok(spec.track_direct_child())
 }
 
 fn canonical_expected_cs2_executable(path: &Path) -> Result<PathBuf, PlatformError> {
@@ -1187,12 +1187,18 @@ mod tests {
                 .arg(argument.clone())
                 .expect("expected literal argument");
         }
+        expected = expected.track_direct_child();
 
         assert_eq!(actual, expected);
+        assert!(fixture.invocation.arguments().iter().all(|argument| {
+            argument
+                .to_str()
+                .is_none_or(|value| !value.contains("+exec"))
+        }));
         assert!(fixture.invocation.arguments().iter().any(|argument| {
             argument
                 .to_str()
-                .is_some_and(|value| value.ends_with("+exec vibe_cs_managed_session.cfg"))
+                .is_some_and(|value| value.contains("+mirv_script_load"))
         }));
         assert!(
             !format!("{actual:?}")

@@ -66,6 +66,7 @@ fn compiles_a_bounded_player_pov_program_without_fake_camera_artifacts() {
     assert!(xml.contains("spec_mode 2; spec_player 7"));
     assert_eq!(xml.matches("spec_mode 2").count(), 1);
     assert_eq!(xml.matches("spec_player 7").count(), 1);
+    assert!(xml.contains("demo_ui_mode 0; gameui_hide; cl_showdemooverlay 0"));
     assert!(xml.contains("mirv_streams record screen enabled 1"));
     assert!(xml.contains("mirv_streams record startMovieWav 1"));
     assert!(xml.contains("mirv_streams record start"));

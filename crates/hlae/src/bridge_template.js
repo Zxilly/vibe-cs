@@ -15,8 +15,11 @@
     let CAPTURE_END_TICK = __CAPTURE_END_TICK__;
     let CAPTURE_END_MAX_TICK = __CAPTURE_END_MAX_TICK__;
     const EVENT_ID = "vibe-cs/managed-bridge";
-    const FRAME_START = SOURCESDK_CS2.ClientFrameStage_t.FRAME_START;
-    const FRAME_RENDER_PASS = SOURCESDK_CS2.ClientFrameStage_t.FRAME_RENDER_PASS;
+    // These are HLAE's documented TypeScript `const enum` values. `const enum`
+    // members are compile-time constants and no SOURCESDK_CS2 object exists in
+    // the embedded JavaScript runtime.
+    const FRAME_START = 0;
+    const FRAME_RENDER_PASS = 12;
     const MAX_MESSAGE_BYTES = 16384;
     const MAX_TAKES = __MAX_TAKES__;
     const MAX_TICK = __MAX_TICK__;

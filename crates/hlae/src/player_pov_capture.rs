@@ -323,7 +323,7 @@ fn compile_player_pov_command_system(plan: &HlaePlayerPovCapturePlan, setup_tick
         plan.spectator_slot,
     );
     let capture_start = format!(
-        "mirv_streams record name \"{}\"; mirv_streams record fps {}; mirv_streams record startMovieWav {}; mirv_streams settings edit afxDefault settings afxClassic; mirv_streams record screen enabled 1; mirv_streams record start",
+        "demo_ui_mode 0; gameui_hide; cl_showdemooverlay 0; spec_autodirector 0; spec_show_xray 0; mirv_streams record name \"{}\"; mirv_streams record fps {}; mirv_streams record startMovieWav {}; mirv_streams settings edit afxDefault settings afxClassic; mirv_streams record screen enabled 1; mirv_streams record start",
         console_path(&plan.output_directory),
         plan.capture.fps,
         u8::from(plan.capture.record_wav),

@@ -1,4 +1,8 @@
-use std::{ffi::OsString, fs, path::PathBuf};
+use std::{
+    ffi::OsString,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use tempfile::TempDir;
 use vibe_cs_hlae::{
@@ -100,6 +104,41 @@ fn builds_the_documented_custom_loader_argv_without_a_shell() {
             )),
         ]
     );
+}
+
+#[cfg(windows)]
+#[test]
+fn launch_profile_never_exposes_a_verbatim_usr_local_csgo_search_path() {
+    let fixture = launch_fixture();
+    let installation = HlaeInstallation {
+        root: fixture.hlae.parent().unwrap().to_path_buf(),
+        executable: fixture.hlae.clone(),
+        source2_hook: fixture.hook.clone(),
+        source: HlaeDiscoverySource::Managed,
+    };
+    let verbatim_root = PathBuf::from(format!(r"\\?\{}", fixture.moviemaking_config.display()));
+
+    let profile = build_hlae_launch_profile(
+        &installation,
+        &fixture.game,
+        &fixture.steam,
+        &verbatim_root,
+        LaunchResolution {
+            width: 1280,
+            height: 720,
+        },
+    )
+    .expect("launch profile");
+
+    let value = profile
+        .environment
+        .get("USRLOCALCSGO")
+        .expect("USRLOCALCSGO");
+    assert!(
+        !value.starts_with(r"\\?\"),
+        "unexpected verbatim path: {value}"
+    );
+    assert_eq!(Path::new(value), fixture.moviemaking_config);
 }
 
 #[test]

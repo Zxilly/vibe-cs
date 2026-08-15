@@ -133,6 +133,18 @@ fn observes_demo_seek_and_recording_through_reviewed_hlae_apis() {
 }
 
 #[test]
+fn bridge_inlines_hlae_const_enum_values_for_the_javascript_runtime() {
+    let source = compile_mirv_script_bridge(ENDPOINT, &token(), contract())
+        .expect("bridge")
+        .source()
+        .to_owned();
+
+    assert!(source.contains("const FRAME_START = 0;"));
+    assert!(source.contains("const FRAME_RENDER_PASS = 12;"));
+    assert!(!source.contains("SOURCESDK_CS2.ClientFrameStage_t"));
+}
+
+#[test]
 fn null_demo_path_and_unavailable_or_negative_tick_retry_until_wall_clock_deadline() {
     let source = compile_mirv_script_bridge(ENDPOINT, &token(), contract())
         .expect("bridge")

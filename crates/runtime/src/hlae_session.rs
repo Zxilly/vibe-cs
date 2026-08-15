@@ -570,7 +570,7 @@ impl RuntimeHlaeSessionOrchestrator {
         )?;
         atomic_write_new(bootstrap.path(), bootstrap.contents().as_bytes())?;
         artifacts.push(ArtifactToPublish {
-            relative_path: PathBuf::from("cfg/vibe_cs_managed_session.cfg"),
+            relative_path: PathBuf::from(vibe_cs_hlae::HLAE_MANAGED_SESSION_CONFIG_RELATIVE_PATH),
             bytes: bootstrap.contents().as_bytes().to_vec(),
         });
 
@@ -1942,7 +1942,7 @@ mod tests {
         assert!(job.join(RUNTIME_HLAE_SESSION_MANIFEST_FILE).is_file());
         assert!(job.join("vibe_cs_commands.xml").is_file());
         assert!(job.join("vibe_cs_bridge.js").is_file());
-        assert!(job.join("cfg/vibe_cs_managed_session.cfg").is_file());
+        assert!(job.join("cfg/autoexec.cfg").is_file());
         assert!(
             !job.join("capture").exists(),
             "verified source frames must not be retained by default"

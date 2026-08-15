@@ -972,6 +972,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let attempt = |id, retry_of| vibe_cs_domain::RecordingJob {
             id,
@@ -1119,6 +1120,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let attempt = |id, retry_of| vibe_cs_domain::RecordingJob {
             id,

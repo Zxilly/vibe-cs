@@ -10,7 +10,8 @@ use sha2::{Digest as _, Sha256};
 use tokio::time::{Duration, MissedTickBehavior};
 use uuid::Uuid;
 use vibe_cs_domain::{
-    DirectorPlan, DirectorShotKind, JobStatus, MatchAnalysis, RecordingJob, RecordingRequest,
+    DirectorPlan, DirectorShotKind, HlaeCameraStyle, JobStatus, MatchAnalysis, RecordingJob,
+    RecordingRequest,
 };
 use vibe_cs_recording::{DirectorPolicy, build_director_plan};
 
@@ -55,6 +56,8 @@ struct RecordingQueueItem {
     pre_roll_seconds: f64,
     post_roll_seconds: f64,
     victim_pov: bool,
+    #[serde(default)]
+    camera_style: HlaeCameraStyle,
 }
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -630,6 +633,7 @@ fn executable_director_requests(
             if shot.kind == DirectorShotKind::VictimReaction {
                 request.player_id.clone_from(&first.player_id);
                 request.victim_pov = true;
+                request.camera_style = HlaeCameraStyle::Pov;
                 request.title = format!("{} · 受害者反应", request.title);
                 request.pre_roll_seconds = 0.0;
                 request.post_roll_seconds = 0.0;
@@ -842,6 +846,7 @@ fn convert_item(item: RecordingQueueItem) -> Result<RecordingRequest, String> {
         pre_roll_seconds: item.pre_roll_seconds,
         post_roll_seconds: item.post_roll_seconds,
         victim_pov: item.victim_pov,
+        camera_style: item.camera_style,
     };
     request.validate().map_err(|error| error.to_string())?;
     Ok(request)
@@ -1148,6 +1153,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         }
     }
 
@@ -1204,7 +1210,8 @@ mod tests {
             "end_tick": 200,
             "pre_roll_seconds": 1.0,
             "post_roll_seconds": 2.0,
-            "victim_pov": false
+            "victim_pov": false,
+            "camera_style": "pov"
         });
         serde_json::from_value::<RecordingQueueItem>(current.clone())
             .expect("current recording queue item");
@@ -1229,6 +1236,18 @@ mod tests {
             );
         }
 
+        let mut legacy = current.clone();
+        legacy
+            .as_object_mut()
+            .expect("recording item object")
+            .remove("camera_style");
+        assert_eq!(
+            serde_json::from_value::<RecordingQueueItem>(legacy)
+                .expect("legacy queue item")
+                .camera_style,
+            HlaeCameraStyle::Pov
+        );
+
         for retired in ["client_id", "demo_name", "player_name", "perspective"] {
             let mut invalid = current.clone();
             invalid[retired] = serde_json::json!("retired");
@@ -1252,6 +1271,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         assert!(convert_item(item).is_err());
     }
@@ -1269,6 +1289,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         })
         .expect("current native contract");
 
@@ -1293,6 +1314,7 @@ mod tests {
             pre_roll_seconds: 3.0,
             post_roll_seconds: 2.0,
             victim_pov: true,
+            camera_style: Default::default(),
         };
         let plan = DirectorPlan {
             shots: vec![
@@ -1348,6 +1370,7 @@ mod tests {
             pre_roll_seconds: 1.0,
             post_roll_seconds: 2.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let analysis = MatchAnalysis {
             demo_id,
@@ -1384,6 +1407,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let mut second = first.clone();
         second.id = Uuid::new_v4().to_string();
@@ -1870,6 +1894,7 @@ mod tests {
                     pre_roll_seconds: 0.0,
                     post_roll_seconds: 0.0,
                     victim_pov: false,
+                    camera_style: Default::default(),
                 }],
             }),
         )
@@ -2184,6 +2209,7 @@ mod tests {
                     pre_roll_seconds: 0.0,
                     post_roll_seconds: 0.0,
                     victim_pov: false,
+                    camera_style: Default::default(),
                 }],
             }),
         )
@@ -2211,6 +2237,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let mut invalid = valid.clone();
         invalid.end_tick = invalid.start_tick.saturating_sub(1);

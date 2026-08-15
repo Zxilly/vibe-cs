@@ -54,6 +54,8 @@ pub struct RecordingRequest {
     pub pre_roll_seconds: f64,
     pub post_roll_seconds: f64,
     pub victim_pov: bool,
+    #[serde(default)]
+    pub camera_style: crate::HlaeCameraStyle,
 }
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -121,6 +123,11 @@ impl RecordingRequest {
         {
             return Err(crate::DomainError::InvalidInput(
                 "pre-roll and post-roll must be finite values from 0 to 60 seconds".to_owned(),
+            ));
+        }
+        if self.victim_pov && self.camera_style != crate::HlaeCameraStyle::Pov {
+            return Err(crate::DomainError::InvalidInput(
+                "victim POV cannot be combined with cinematic camera movement".to_owned(),
             ));
         }
         Ok(())
@@ -376,6 +383,7 @@ mod tests {
             pre_roll_seconds: 1.0,
             post_roll_seconds: 2.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let job = RecordingJob {
             id: Uuid::new_v4(),
@@ -423,6 +431,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let valid = RecordingJob {
             id: Uuid::new_v4(),
@@ -490,6 +499,7 @@ mod tests {
             pre_roll_seconds: 1.0,
             post_roll_seconds: 2.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
 
         let wire = serde_json::to_value(&request).expect("recording request wire");
@@ -507,7 +517,39 @@ mod tests {
             );
         }
 
-        assert_exact_current_document(&request);
+        let decoded = serde_json::from_value::<RecordingRequest>(wire.clone())
+            .expect("current recording request shape");
+        assert_eq!(decoded, request);
+        for field in wire
+            .as_object()
+            .expect("recording request object")
+            .keys()
+            .filter(|field| field.as_str() != "camera_style")
+        {
+            let mut missing = wire.clone();
+            missing
+                .as_object_mut()
+                .expect("recording request object")
+                .remove(field);
+            assert!(
+                serde_json::from_value::<RecordingRequest>(missing).is_err(),
+                "missing current field {field} must be rejected"
+            );
+        }
+        let mut legacy = wire.clone();
+        legacy
+            .as_object_mut()
+            .expect("recording request object")
+            .remove("camera_style");
+        assert_eq!(
+            serde_json::from_value::<RecordingRequest>(legacy)
+                .expect("legacy recording request")
+                .camera_style,
+            crate::HlaeCameraStyle::Pov
+        );
+        let mut unknown = wire;
+        unknown["retired_field"] = serde_json::json!(true);
+        assert!(serde_json::from_value::<RecordingRequest>(unknown).is_err());
     }
 
     #[test]

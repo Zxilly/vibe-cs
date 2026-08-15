@@ -14,12 +14,17 @@ pub enum AgentProposalAction {
     ApplyHighlightEdit,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum HlaeCameraStyle {
+    #[default]
     Pov,
     Orbit,
     Dolly,
+    Static,
+    Tracking,
+    Crane,
+    Flyby,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

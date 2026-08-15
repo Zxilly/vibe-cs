@@ -144,10 +144,13 @@ pub async fn build_app_state_with_demo_worker(
             "recovered Steam downloads without a durable runtime owner"
         ),
     }
-    let recording = Arc::new(RuntimeRecordingPort::new(
-        storage.clone(),
-        Arc::new(HlaeRecordingBackend::new(data_dir.clone())),
-    ));
+    let recording = Arc::new(
+        RuntimeRecordingPort::new(
+            storage.clone(),
+            Arc::new(HlaeRecordingBackend::new(data_dir.clone())),
+        )
+        .with_analysis(analysis.clone()),
+    );
     recording.recover_orphaned_jobs().await;
     let proposal_execution: Arc<dyn vibe_cs_application::ProposalExecutionPort> =
         match RuntimeProposalExecutionPort::new(&data_dir) {

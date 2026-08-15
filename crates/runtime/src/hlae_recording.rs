@@ -15,12 +15,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest as _, Sha256};
 use uuid::Uuid;
-use vibe_cs_domain::{AppConfig, DomainError, RecordedClip, RecordingJob};
+use vibe_cs_domain::{AppConfig, DomainError, HlaeCameraStyle, RecordedClip, RecordingJob};
 use vibe_cs_hlae::{
-    CaptureLayers, CaptureSettings, HLAE_SESSION_MAX_TAKES, HLAE_TAKE_MAX_FRAMES,
-    HlaeBundleLaunchInputs, HlaeDiscoverySource, HlaeHudVisibility, HlaePlayerPovCapturePlan,
-    HlaePlayerPovPresentation, HlaeRadarVisibility, HlaeVoicePolicy, LaunchResolution,
-    discover_managed_hlae,
+    CameraShot, CaptureLayers, CaptureSettings, HLAE_SESSION_MAX_TAKES, HLAE_TAKE_MAX_FRAMES,
+    HlaeBundleLaunchInputs, HlaeDiscoverySource, HlaeHudVisibility, HlaePlan, HlaePlanMode,
+    HlaePlayerPovCapturePlan, HlaePlayerPovPresentation, HlaeRadarVisibility, HlaeVoicePolicy,
+    LaunchResolution, PositionInterpolation, RotationInterpolation, discover_managed_hlae,
+    validate_hlae_plan,
 };
 use vibe_cs_integrations::discover_paths;
 use vibe_cs_platform_windows::{
@@ -1211,6 +1212,72 @@ fn build_player_pov_plan(
     })
 }
 
+fn build_camera_plan(
+    item: &PreparedRecording,
+    managed_job_root: &Path,
+    capture: CaptureSettings,
+) -> Result<HlaePlan, DomainError> {
+    let candidates = item
+        .replay_frames
+        .iter()
+        .filter(|frame| {
+            frame.tick >= item.segment.start_tick && frame.tick <= item.segment.end_tick
+        })
+        .filter_map(|frame| {
+            frame
+                .players
+                .iter()
+                .find(|player| player.id == item.segment.player_id)
+                .map(|player| (frame.tick, (player, frame)))
+        })
+        .collect::<Vec<_>>();
+    let samples = crate::proposal_execution::sample_four_frames(&candidates).ok_or_else(|| {
+        DomainError::DependencyUnavailable(
+            "this shot needs at least four spatial replay samples for camera movement".to_owned(),
+        )
+    })?;
+    let duration = item.segment.end_tick - item.segment.start_tick;
+    let target_ticks = [
+        item.segment.start_tick,
+        item.segment.start_tick + duration / 3,
+        item.segment.start_tick + duration.saturating_mul(2) / 3,
+        item.segment.end_tick,
+    ];
+    let keyframes = samples
+        .iter()
+        .zip(target_ticks)
+        .enumerate()
+        .map(|(index, ((_, (player, frame)), tick))| {
+            crate::proposal_execution::camera_keyframe_for_scene(
+                tick,
+                player,
+                samples[0].1.0,
+                item.request.camera_style,
+                index,
+                crate::proposal_execution::engagement_focus(frame, player),
+            )
+        })
+        .collect();
+    let plan = HlaePlan {
+        mode: HlaePlanMode::Capture,
+        tick_rate: item.segment.tick_rate,
+        demo_path: item.segment.demo_path.clone(),
+        output_directory: managed_job_root.join("capture"),
+        pre_roll_ticks: item.segment.start_tick.saturating_sub(1).min(128),
+        capture,
+        shots: vec![CameraShot {
+            id: format!("clip_{:02}", item.item_index + 1),
+            start_tick: item.segment.start_tick,
+            end_tick: item.segment.end_tick,
+            position_interpolation: PositionInterpolation::Cubic,
+            rotation_interpolation: RotationInterpolation::SphericalCubic,
+            keyframes,
+        }],
+    };
+    validate_hlae_plan(&plan).map_err(|error| DomainError::InvalidInput(error.to_string()))?;
+    Ok(plan)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct HlaeRecordingSessionResult {
     output_path: PathBuf,
@@ -1397,7 +1464,7 @@ struct HlaeRecordingClipContext {
     binding: PreparedRecording,
     expected_output_mp4: PathBuf,
     job_root: PathBuf,
-    plan: HlaePlayerPovCapturePlan,
+    plan: RuntimeHlaeCaptureProgram,
     verified_total_ticks: u32,
     maximum_end_overshoot: u32,
 }
@@ -1417,15 +1484,22 @@ impl HlaeRecordingJobContext {
         let first = &self.clips[0];
         let shares_demo = self.clips.iter().all(|clip| {
             clip.binding.demo.id == first.binding.demo.id
-                && clip.plan.demo_path == first.plan.demo_path
+                && capture_program_demo_path(&clip.plan) == capture_program_demo_path(&first.plan)
                 && clip.verified_total_ticks == first.verified_total_ticks
         });
         HlaeSessionJobContract {
             job_id: self.job_id,
-            shared_demo: shares_demo.then(|| first.plan.demo_path.clone()),
+            shared_demo: shares_demo.then(|| capture_program_demo_path(&first.plan).to_path_buf()),
             verified_total_ticks: shares_demo.then_some(first.verified_total_ticks),
             take_count: self.clips.len(),
         }
+    }
+}
+
+fn capture_program_demo_path(program: &RuntimeHlaeCaptureProgram) -> &Path {
+    match program {
+        RuntimeHlaeCaptureProgram::Camera(plan) => &plan.demo_path,
+        RuntimeHlaeCaptureProgram::PlayerPov(plan) => &plan.demo_path,
     }
 }
 
@@ -1716,7 +1790,16 @@ impl HlaeRecordingBackend {
                 ));
             }
             let job_root = managed_job_path(&roots, item.job_id, item.item_index);
-            let plan = build_player_pov_plan(item, &job_root, capture.clone(), presentation)?;
+            let plan = match item.request.camera_style {
+                HlaeCameraStyle::Pov => RuntimeHlaeCaptureProgram::PlayerPov(
+                    build_player_pov_plan(item, &job_root, capture.clone(), presentation)?,
+                ),
+                _ => RuntimeHlaeCaptureProgram::Camera(build_camera_plan(
+                    item,
+                    &job_root,
+                    capture.clone(),
+                )?),
+            };
             let verified_total_ticks = item.segment.verified_total_ticks.ok_or_else(|| {
                 DomainError::DependencyUnavailable(
                     "this Demo must be reanalyzed before recording".to_owned(),
@@ -1948,7 +2031,7 @@ impl RecordingBackend for HlaeRecordingBackend {
         let process_cancellation = ProcessCancellation::default();
         let session_timeouts = self.session_timeouts;
         let request = RuntimeHlaeSessionRequest {
-            capture_program: RuntimeHlaeCaptureProgram::PlayerPov(clip_context.plan.clone()),
+            capture_program: clip_context.plan.clone(),
             launch_inputs: context.launch_inputs.clone(),
             verified_total_ticks: clip_context.verified_total_ticks,
             managed_job_root: clip_context.job_root.clone(),
@@ -2065,7 +2148,8 @@ impl RecordingBackend for HlaeRecordingBackend {
                 "observed_end_tick": result.observed_end_tick,
                 "observer_steam_id64": result.observer_steam_id64.map(|value| value.to_string()),
                 "observer_mode_raw": result.observer_mode_raw,
-                "observer_identity_validation": "continuous_bridge_lock_with_start_and_stop_evidence",
+                "observer_identity_validation": if item.request.camera_style == HlaeCameraStyle::Pov { "continuous_bridge_lock_with_start_and_stop_evidence" } else { "not_required_for_camera_path" },
+                "camera_style": item.request.camera_style,
                 "observer_verified_before_capture_tick": result.observer_verified_before_capture_tick,
                 "observer_verified_at_capture_stop_tick": result.observer_verified_at_capture_stop_tick,
                 "output_bytes": result.output_bytes,
@@ -2240,7 +2324,9 @@ mod tests {
     use serde_json::Value;
     use sha2::Digest as _;
     use uuid::Uuid;
-    use vibe_cs_domain::{DemoRecord, DemoStatus, JobStatus, RecordingRequest};
+    use vibe_cs_domain::{
+        DemoRecord, DemoStatus, JobStatus, RecordingRequest, ReplayFrame, ReplayPlayer,
+    };
     use vibe_cs_hlae::{CaptureLayers, CaptureSettings, HlaeDiscoverySource, HlaeInstallation};
     use vibe_cs_recording::SegmentPlan;
 
@@ -2263,6 +2349,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let segment = SegmentPlan {
             demo_id,
@@ -2309,6 +2396,7 @@ mod tests {
                     updated_at: now,
                 },
                 segment,
+                replay_frames: Vec::new(),
             },
         )
     }
@@ -2770,6 +2858,47 @@ mod tests {
         assert!((plan.tick_rate - 64.0).abs() <= f64::EPSILON);
         assert_eq!(plan.capture, capture());
         assert!(!job.exists());
+    }
+
+    #[test]
+    fn cinematic_queue_item_becomes_an_evidence_backed_camera_plan() {
+        let (directory, mut item) = fixture();
+        item.request.camera_style = HlaeCameraStyle::Crane;
+        item.replay_frames = [1_000, 1_106, 1_213, 1_320]
+            .into_iter()
+            .enumerate()
+            .map(|(index, tick)| ReplayFrame {
+                tick,
+                players: vec![ReplayPlayer {
+                    id: item.segment.player_id.clone(),
+                    name: "FalleN".to_owned(),
+                    team: "T".to_owned(),
+                    position: [f64::from(index as u32) * 16.0, 32.0, 4.0],
+                    yaw: 90.0,
+                    health: 100,
+                    armor: 100,
+                    alive: true,
+                    weapon: "ak47".to_owned(),
+                    input: None,
+                }],
+                projectiles: Vec::new(),
+                bomb: None,
+            })
+            .collect();
+        let job = directory.path().join("camera-job");
+
+        let plan = build_camera_plan(&item, &job, capture()).expect("camera plan");
+
+        assert_eq!(plan.mode, HlaePlanMode::Capture);
+        assert_eq!(plan.output_directory, job.join("capture"));
+        assert_eq!(plan.shots.len(), 1);
+        assert_eq!(plan.shots[0].keyframes.len(), 4);
+        assert_eq!(plan.shots[0].start_tick, item.segment.start_tick);
+        assert_eq!(plan.shots[0].end_tick, item.segment.end_tick);
+        assert_ne!(
+            plan.shots[0].keyframes[0].position,
+            plan.shots[0].keyframes[1].position
+        );
     }
 
     #[test]

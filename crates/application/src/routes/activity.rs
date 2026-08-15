@@ -639,6 +639,7 @@ mod tests {
                 pre_roll_seconds: 0.0,
                 post_roll_seconds: 0.0,
                 victim_pov: false,
+                camera_style: Default::default(),
             }],
             current_index: 0,
             progress: 0.0,

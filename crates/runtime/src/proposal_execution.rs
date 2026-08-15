@@ -1,6 +1,6 @@
 use std::{
     collections::hash_map::DefaultHasher,
-    f64::consts::TAU,
+    f64::consts::{PI, TAU},
     fs,
     hash::{Hash, Hasher},
     path::{Path, PathBuf},
@@ -14,7 +14,7 @@ use vibe_cs_application::ProposalExecutionPort;
 use vibe_cs_domain::{
     AgentProposalAction, DomainError, HlaeCameraStyle, HlaeProposalEvidence,
     HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalMode, HlaeProposalPreview,
-    ProposalConfirmation, ProposalPrerequisite, ReplayPlayer,
+    ProposalConfirmation, ProposalPrerequisite, ReplayFrame, ReplayPlayer,
 };
 use vibe_cs_hlae::{
     CameraKeyframe, CameraPosition, CameraRotation, CameraShot, CaptureSettings,
@@ -498,7 +498,7 @@ fn build_evidence_plan(
                     .players
                     .iter()
                     .find(|player| player.id == highlight.player_id)
-                    .map(|player| (frame.tick, player))
+                    .map(|player| (frame.tick, (player, frame)))
             })
             .collect::<Vec<_>>();
         let Some(samples) = sample_four_frames(&candidates) else {
@@ -522,8 +522,15 @@ fn build_evidence_plan(
             .iter()
             .zip(target_ticks)
             .enumerate()
-            .map(|(index, ((_, player), target_tick))| {
-                camera_keyframe(target_tick, player, intent.camera_style, index)
+            .map(|(index, ((_, (player, frame)), target_tick))| {
+                camera_keyframe_for_scene(
+                    target_tick,
+                    player,
+                    samples[0].1.0,
+                    intent.camera_style,
+                    index,
+                    engagement_focus(frame, player),
+                )
             })
             .collect::<Vec<_>>();
         sampled_evidence.push(serde_json::json!({
@@ -532,9 +539,10 @@ fn build_evidence_plan(
             "tailSeconds": intent.tail_seconds,
             "windowStartTick": window_start,
             "windowEndTick": window_end,
-            "frames": samples.iter().map(|(tick, player)| serde_json::json!({
+            "frames": samples.iter().map(|(tick, (player, frame))| serde_json::json!({
                 "sourceTick": tick,
                 "player": player,
+                "engagementFocus": engagement_focus(frame, player),
             })).collect::<Vec<_>>(),
         }));
         shots.push(CameraShot {
@@ -589,9 +597,7 @@ fn seconds_to_ticks(seconds: f64, tick_rate: f64) -> Option<u64> {
     Some(value as u64)
 }
 
-fn sample_four_frames<'a>(
-    frames: &[(u64, &'a ReplayPlayer)],
-) -> Option<[(u64, &'a ReplayPlayer); 4]> {
+pub(crate) fn sample_four_frames<T: Copy>(frames: &[(u64, T)]) -> Option<[(u64, T); 4]> {
     if frames.len() < 4 {
         return None;
     }
@@ -604,18 +610,50 @@ fn sample_four_frames<'a>(
     Some(samples)
 }
 
+#[cfg(test)]
 fn camera_keyframe(
     tick: u64,
     player: &ReplayPlayer,
+    anchor: &ReplayPlayer,
     style: HlaeCameraStyle,
     index: usize,
 ) -> CameraKeyframe {
+    camera_keyframe_for_scene(tick, player, anchor, style, index, None)
+}
+
+pub(crate) fn camera_keyframe_for_scene(
+    tick: u64,
+    player: &ReplayPlayer,
+    anchor: &ReplayPlayer,
+    style: HlaeCameraStyle,
+    index: usize,
+    engagement_focus: Option<[f64; 3]>,
+) -> CameraKeyframe {
     let phase = f64::from(u32::try_from(index).unwrap_or_default());
+    let progress = phase / 3.0;
     let target = [
         player.position[0],
         player.position[1],
         player.position[2] + 64.0,
     ];
+    let focus = engagement_focus.unwrap_or([
+        target[0] + 256.0 * player.yaw.to_radians().cos(),
+        target[1] + 256.0 * player.yaw.to_radians().sin(),
+        target[2],
+    ]);
+    let interaction = [
+        (target[0] + focus[0]) * 0.5,
+        (target[1] + focus[1]) * 0.5,
+        (target[2] + focus[2]) * 0.5,
+    ];
+    let engagement_dx = focus[0] - target[0];
+    let engagement_dy = focus[1] - target[1];
+    let engagement_distance = engagement_dx.hypot(engagement_dy).clamp(96.0, 512.0);
+    let engagement_angle = if engagement_dx.abs() + engagement_dy.abs() > f64::EPSILON {
+        engagement_dy.atan2(engagement_dx)
+    } else {
+        player.yaw.to_radians()
+    };
     let (position, rotation, fov) = match style {
         HlaeCameraStyle::Pov => (
             CameraPosition {
@@ -631,23 +669,68 @@ fn camera_keyframe(
             90.0,
         ),
         HlaeCameraStyle::Orbit => {
-            let angle = player.yaw.to_radians() + TAU * phase / 4.0;
+            let angle = engagement_angle + TAU * phase / 4.0;
+            let radius = (engagement_distance * 0.32).clamp(72.0, 128.0);
             let camera = [
-                player.position[0] + 128.0 * angle.cos(),
-                player.position[1] + 128.0 * angle.sin(),
+                interaction[0] + radius * angle.cos(),
+                interaction[1] + radius * angle.sin(),
                 player.position[2] + 80.0,
             ];
-            (camera_position(camera), look_at(camera, target), 78.0)
+            (camera_position(camera), look_at(camera, interaction), 78.0)
         }
         HlaeCameraStyle::Dolly => {
-            let angle = player.yaw.to_radians();
-            let distance = 192.0 - 24.0 * phase;
+            let angle = engagement_angle;
+            let distance = (engagement_distance * 0.46).clamp(112.0, 192.0) - 20.0 * phase;
             let camera = [
-                player.position[0] - distance * angle.cos(),
-                player.position[1] - distance * angle.sin(),
+                interaction[0] - distance * angle.cos(),
+                interaction[1] - distance * angle.sin(),
                 player.position[2] + 56.0,
             ];
-            (camera_position(camera), look_at(camera, target), 72.0)
+            (camera_position(camera), look_at(camera, interaction), 72.0)
+        }
+        HlaeCameraStyle::Static => {
+            let angle = engagement_angle;
+            let lateral = (engagement_distance * 0.22).clamp(64.0, 96.0);
+            let rear = (engagement_distance * 0.34).clamp(96.0, 160.0);
+            let camera = [
+                anchor.position[0] - rear * angle.cos() - lateral * angle.sin(),
+                anchor.position[1] - rear * angle.sin() + lateral * angle.cos(),
+                anchor.position[2] + 92.0,
+            ];
+            (camera_position(camera), look_at(camera, interaction), 76.0)
+        }
+        HlaeCameraStyle::Tracking => {
+            let angle = engagement_angle;
+            let lateral = (engagement_distance * 0.24).clamp(72.0, 112.0);
+            let camera = [
+                player.position[0] - 40.0 * angle.cos() - lateral * angle.sin(),
+                player.position[1] - 40.0 * angle.sin() + lateral * angle.cos(),
+                player.position[2] + 72.0,
+            ];
+            (camera_position(camera), look_at(camera, interaction), 80.0)
+        }
+        HlaeCameraStyle::Crane => {
+            let angle = engagement_angle;
+            let distance = (engagement_distance * 0.38).clamp(112.0, 176.0) - 32.0 * progress;
+            let camera = [
+                interaction[0] - distance * angle.cos(),
+                interaction[1] - distance * angle.sin(),
+                player.position[2] + 48.0 + 176.0 * progress,
+            ];
+            (camera_position(camera), look_at(camera, interaction), 74.0)
+        }
+        HlaeCameraStyle::Flyby => {
+            let angle = engagement_angle;
+            let travel = (engagement_distance * 0.72).clamp(240.0, 440.0);
+            let longitudinal = -travel * 0.5 + travel * progress;
+            let lateral_span = (engagement_distance * 0.24).clamp(72.0, 120.0);
+            let lateral = lateral_span - lateral_span * 2.0 * progress;
+            let camera = [
+                interaction[0] + longitudinal * angle.cos() - lateral * angle.sin(),
+                interaction[1] + longitudinal * angle.sin() + lateral * angle.cos(),
+                player.position[2] + 72.0 + 20.0 * (PI * progress).sin(),
+            ];
+            (camera_position(camera), look_at(camera, interaction), 82.0)
         }
     };
     CameraKeyframe {
@@ -656,6 +739,33 @@ fn camera_keyframe(
         rotation,
         fov,
     }
+}
+
+pub(crate) fn engagement_focus(frame: &ReplayFrame, player: &ReplayPlayer) -> Option<[f64; 3]> {
+    frame
+        .players
+        .iter()
+        .filter(|candidate| {
+            candidate.id != player.id
+                && candidate.alive
+                && !candidate.team.is_empty()
+                && candidate.team != player.team
+        })
+        .min_by(|left, right| {
+            planar_distance_squared(left.position, player.position)
+                .total_cmp(&planar_distance_squared(right.position, player.position))
+        })
+        .map(|opponent| {
+            [
+                opponent.position[0],
+                opponent.position[1],
+                opponent.position[2] + 56.0,
+            ]
+        })
+}
+
+fn planar_distance_squared(left: [f64; 3], right: [f64; 3]) -> f64 {
+    (left[0] - right[0]).powi(2) + (left[1] - right[1]).powi(2)
 }
 
 const fn camera_position(value: [f64; 3]) -> CameraPosition {
@@ -882,6 +992,88 @@ mod tests {
             expected_revision: PROPOSAL_REVISION,
             confirm: true,
         }
+    }
+
+    #[test]
+    fn cinematic_camera_styles_generate_distinct_evidence_backed_paths() {
+        let player = |position: [f64; 3]| ReplayPlayer {
+            id: "player-1".to_owned(),
+            name: "Player".to_owned(),
+            team: "CT".to_owned(),
+            position,
+            yaw: 30.0,
+            health: 100,
+            armor: 100,
+            alive: true,
+            weapon: "ak47".to_owned(),
+            input: None,
+        };
+        let anchor = player([0.0, 0.0, 0.0]);
+        let moved = player([96.0, 48.0, 0.0]);
+
+        let locked_start = camera_keyframe(100, &anchor, &anchor, HlaeCameraStyle::Static, 0);
+        let locked_end = camera_keyframe(200, &moved, &anchor, HlaeCameraStyle::Static, 3);
+        assert_eq!(locked_start.position, locked_end.position);
+        assert_ne!(locked_start.rotation, locked_end.rotation);
+
+        let tracking_start = camera_keyframe(100, &anchor, &anchor, HlaeCameraStyle::Tracking, 0);
+        let tracking_end = camera_keyframe(200, &moved, &anchor, HlaeCameraStyle::Tracking, 3);
+        assert_ne!(tracking_start.position, tracking_end.position);
+
+        let crane_start = camera_keyframe(100, &anchor, &anchor, HlaeCameraStyle::Crane, 0);
+        let crane_end = camera_keyframe(200, &moved, &anchor, HlaeCameraStyle::Crane, 3);
+        assert!(crane_end.position.z > crane_start.position.z);
+
+        let flyby_start = camera_keyframe(100, &anchor, &anchor, HlaeCameraStyle::Flyby, 0);
+        let flyby_end = camera_keyframe(200, &moved, &anchor, HlaeCameraStyle::Flyby, 3);
+        assert_ne!(flyby_start.position, flyby_end.position);
+    }
+
+    #[test]
+    fn cinematic_camera_uses_the_nearest_live_opponent_as_the_engagement_axis() {
+        let player = ReplayPlayer {
+            id: "player-1".to_owned(),
+            name: "Player".to_owned(),
+            team: "T".to_owned(),
+            position: [0.0, 0.0, 0.0],
+            yaw: 180.0,
+            health: 100,
+            armor: 100,
+            alive: true,
+            weapon: "ak47".to_owned(),
+            input: None,
+        };
+        let opponent = ReplayPlayer {
+            id: "opponent-1".to_owned(),
+            name: "Opponent".to_owned(),
+            team: "CT".to_owned(),
+            position: [320.0, 0.0, 0.0],
+            yaw: 180.0,
+            health: 100,
+            armor: 100,
+            alive: true,
+            weapon: "m4a1".to_owned(),
+            input: None,
+        };
+        let frame = ReplayFrame {
+            tick: 100,
+            players: vec![player.clone(), opponent],
+            projectiles: Vec::new(),
+            bomb: None,
+        };
+        let focus = engagement_focus(&frame, &player).expect("live opponent focus");
+        assert_eq!(focus, [320.0, 0.0, 56.0]);
+
+        let keyframe = camera_keyframe_for_scene(
+            100,
+            &player,
+            &player,
+            HlaeCameraStyle::Dolly,
+            0,
+            Some(focus),
+        );
+        assert!(keyframe.position.x < 160.0);
+        assert!(keyframe.rotation.yaw.abs() < 1.0);
     }
 
     #[tokio::test]

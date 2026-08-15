@@ -13,10 +13,10 @@ use serde_json::json;
 use sha2::{Digest as _, Sha256};
 use tokio::sync::Mutex;
 use uuid::Uuid;
-use vibe_cs_application::RecordingPort;
+use vibe_cs_application::{AnalysisPort, RecordingPort};
 use vibe_cs_domain::{
     AppConfig, DemoRecord, DomainError, Highlight, HighlightKind, JobStatus, MatchAnalysis,
-    RecordedClip, RecordingJob, RecordingRequest,
+    RecordedClip, RecordingJob, RecordingRequest, ReplayFrame,
 };
 use vibe_cs_recording::SegmentPlan;
 use vibe_cs_storage::Storage;
@@ -43,6 +43,7 @@ pub struct PreparedRecording {
     pub request: RecordingRequest,
     pub demo: DemoRecord,
     pub segment: SegmentPlan,
+    pub replay_frames: Vec<ReplayFrame>,
 }
 
 struct PreparedRecordingJob {
@@ -224,6 +225,7 @@ pub struct RuntimeRecordingPort {
     storage: Storage,
     backend: Arc<dyn RecordingBackend>,
     active: ActiveRecordings,
+    analysis: Option<Arc<dyn AnalysisPort>>,
 }
 
 impl std::fmt::Debug for RuntimeRecordingPort {
@@ -243,7 +245,14 @@ impl RuntimeRecordingPort {
             storage,
             backend,
             active: Arc::new(Mutex::new(HashMap::new())),
+            analysis: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_analysis(mut self, analysis: Arc<dyn AnalysisPort>) -> Self {
+        self.analysis = Some(analysis);
+        self
     }
 
     /// Reconciles active records that cannot survive a process restart.
@@ -468,12 +477,27 @@ impl RuntimeRecordingPort {
                 tick_rate,
                 Uuid::new_v4(),
             )?;
+            let replay_frames = if request.camera_style == vibe_cs_domain::HlaeCameraStyle::Pov {
+                Vec::new()
+            } else {
+                self.analysis
+                    .as_ref()
+                    .ok_or_else(|| {
+                        DomainError::DependencyUnavailable(
+                            "camera movement requires replay evidence".to_owned(),
+                        )
+                    })?
+                    .replay(demo.clone())
+                    .await?
+                    .frames
+            };
             prepared.push(PreparedRecording {
                 job_id: job.id,
                 item_index,
                 request: request.clone(),
                 demo,
                 segment,
+                replay_frames,
             });
             demo_guards.push(demo_guard);
         }
@@ -1296,6 +1320,7 @@ fn build_segment_plan(
             "tick_rate_source": "persisted_analysis",
             "victim_pov_requested": request.victim_pov,
             "perspective": if request.victim_pov { "victim" } else { "player" },
+            "camera_style": request.camera_style,
             "camera_player_id": camera_player_id,
             "camera_player_name": player_name,
             "hud": {
@@ -2307,6 +2332,7 @@ mod tests {
                 pre_roll_seconds: 0.0,
                 post_roll_seconds: 0.0,
                 victim_pov: false,
+                camera_style: Default::default(),
             }],
             current_index: 0,
             progress: 0.0,
@@ -2385,6 +2411,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let clip = |metadata| RecordedClip {
             id: Uuid::new_v4(),

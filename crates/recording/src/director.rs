@@ -192,6 +192,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: true,
+            camera_style: Default::default(),
         }
     }
 

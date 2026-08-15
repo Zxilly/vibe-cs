@@ -8960,6 +8960,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let parent = RecordingJob {
             id: parent_id,
@@ -9039,6 +9040,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let parent = RecordingJob {
             id: parent_id,
@@ -9113,6 +9115,7 @@ mod tests {
                 pre_roll_seconds: 0.0,
                 post_roll_seconds: 0.0,
                 victim_pov: false,
+                camera_style: Default::default(),
             }],
             current_index: 0,
             progress: 0.0,
@@ -9153,6 +9156,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let parent_id = Uuid::new_v4();
         let attempt = |id, retry_of| RecordingJob {
@@ -9222,6 +9226,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let parent_id = Uuid::new_v4();
         let child_id = Uuid::new_v4();
@@ -9295,6 +9300,7 @@ mod tests {
                     pre_roll_seconds: 0.0,
                     post_roll_seconds: 0.0,
                     victim_pov: false,
+                    camera_style: Default::default(),
                 },
                 vibe_cs_domain::RecordingRequest {
                     id: Some(Uuid::new_v4()),
@@ -9307,6 +9313,7 @@ mod tests {
                     pre_roll_seconds: 0.0,
                     post_roll_seconds: 0.0,
                     victim_pov: false,
+                    camera_style: Default::default(),
                 },
             ],
             current_index: 1,
@@ -9356,6 +9363,7 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
+            camera_style: Default::default(),
         };
         let parent_id = Uuid::new_v4();
         let attempt = |id, status| RecordingJob {

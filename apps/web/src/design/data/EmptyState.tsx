@@ -55,6 +55,17 @@ export interface EmptyStateProps {
 
 const HEADING_TAG = { 2: 'h2', 3: 'h3', 4: 'h4' } as const;
 
+/**
+ * 172px, drawn six times over on 「补齐 · 规范与状态」. `tokens.data.ts` keeps it
+ * out of the §3.4 bar inventory on purpose — it is a content box, not a bar —
+ * and records the disposition "应在 EmptyState 里固化为组件常量". This is that
+ * constant. `min-h` rather than `h`, because the artboard's cells hold two
+ * lines and a real error message can run longer. Exported so the states that
+ * stand in for an EmptyState — a loading skeleton in the same slot — can hold
+ * the same box without copying the number.
+ */
+export const EMPTY_STATE_MIN_HEIGHT_CLASS = 'min-h-[172px]';
+
 export function EmptyState({
   preset,
   tone,
@@ -77,6 +88,7 @@ export function EmptyState({
       aria-labelledby={headingId}
       data-tone={resolvedTone}
       className={cx(
+        EMPTY_STATE_MIN_HEIGHT_CLASS,
         'flex flex-col items-center justify-center gap-2 border p-5 text-center',
         resolvedTone === 'error' ? 'border-fail-border' : 'border-divider',
         className,

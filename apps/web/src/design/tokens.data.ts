@@ -559,7 +559,8 @@ export type PanelWidthToken =
   | '--w-inspector'
   | '--w-inspector-wide'
   | '--w-split'
-  | '--w-track-head';
+  | '--w-track-head'
+  | '--w-overlay';
 
 export const PANEL_WIDTH_PX: Record<PanelWidthToken, number> = {
   '--w-nav': 216,
@@ -571,6 +572,12 @@ export const PANEL_WIDTH_PX: Record<PanelWidthToken, number> = {
   '--w-inspector-wide': 440,
   '--w-split': 520,
   '--w-track-head': 132,
+  /* The command palette, drawn `left:172px;top:84px;width:600px`. Absolutely
+     positioned, so `EXTRACTION_RULES.panelWidth` excluded it by construction —
+     it is not in OBSERVED_PANEL_WIDTHS and therefore carries no MERGE entry.
+     Recorded here because the palette still has to get its width from a token,
+     and every existing token would be a fold rather than a match. */
+  '--w-overlay': 600,
 };
 
 /**

@@ -1,74 +1,168 @@
-import { renderToStaticMarkup } from 'react-dom/server';
-import { MemoryRouter } from 'react-router-dom';
+/*
+ * `markup` project — the assembled frame.
+ *
+ * What this file is for: proving the shell mounts every band, in the right
+ * order, with the right widths, and that the two states a static render can
+ * reach (expanded and §8-folded) are both structurally correct. Focus, the
+ * keyboard and the fold *transition* are `AppShell.interaction.test.tsx`.
+ */
+
+import type { ReactNode } from 'react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { useUiStore } from '../shared/stores/uiStore';
-import { AppShell, commandPaletteDestinations, workspaceNavigationGroups } from './AppShell';
-import { routePaths } from './router';
+import type { ApiHealth } from '../shared/desktop/dto';
+import { renderMarkup } from '../test/render';
+import { AppShell } from './AppShell';
+import { resetShellStore } from './shell';
 
-function renderShell() {
-  return renderToStaticMarkup(
-    <MemoryRouter initialEntries={['/']}>
-      <AppShell />
+/** Never settles, so a static render only ever sees the `checking` state. */
+function pendingProbe(): Promise<ApiHealth> {
+  return new Promise<ApiHealth>(() => {});
+}
+
+function renderShell(
+  at: string,
+  options: { collapsed?: boolean; page?: ReactNode } = {},
+): string {
+  const page = options.page ?? <span data-test-page>页面内容</span>;
+  return renderMarkup(
+    <MemoryRouter initialEntries={[at]}>
+      <Routes>
+        <Route
+          element={
+            <AppShell
+              adapter={null}
+              probe={pendingProbe}
+              poll={false}
+              {...(options.collapsed === undefined ? {} : { collapsed: options.collapsed })}
+            />
+          }
+        >
+          <Route path="*" element={page} />
+        </Route>
+      </Routes>
     </MemoryRouter>,
   );
 }
 
-describe('application shell navigation', () => {
+describe('AppShell — the assembled frame', () => {
   beforeEach(() => {
-    useUiStore.setState({
-      sidebarCollapsed: false,
-      language: 'zh-CN',
-      theme: 'light',
-    });
+    resetShellStore();
   });
 
-  it('keeps every icon-only-capable navigation link named and titled when persisted collapse is off', () => {
-    const markup = renderShell();
+  it('mounts the title bar, the rail, the outlet and the Agent column in one column-then-row frame', () => {
+    const html = renderShell('/library');
 
-    expect(markup).not.toContain('is-sidebar-collapsed');
-    for (const label of ['总览', '比赛', '玩家目录', '本地五人阵容', '证据检索', '制作', '录制计划', '剪辑工程', '集锦编排', '剪辑工作台', '交付', '任务活动', '设置']) {
-      expect(markup).toContain(`aria-label="${label}" title="${label}"`);
-    }
-    expect(markup).toContain('>复盘<');
-    expect(markup).toContain('>剪辑<');
-    expect(markup).not.toContain('aria-label="AI 协作" title="AI 协作"');
-    expect(markup).toContain('class="ai-workspace-dock"');
-    expect(markup).toContain('aria-label="AI 工作台"');
+    expect(html).toContain('data-app-shell');
+    expect(html).toContain('data-shell-titlebar');
+    expect(html).toContain('data-shell-nav="expanded"');
+    expect(html).toContain('data-shell-main');
+    expect(html).toContain('data-agent-rail="collapsed"');
+    expect(html).toContain('data-test-page');
   });
 
-  it('defines exactly two primary delivery workflows', () => {
-    expect(workspaceNavigationGroups.map((group) => group.id)).toEqual(['review', 'edit']);
-    expect(workspaceNavigationGroups[0]?.items.map((item) => item.path)).toEqual([
-      '/library', '/players', '/lineups', '/evidence-search', '/match-history',
-    ]);
-    expect(workspaceNavigationGroups[1]?.items.map((item) => item.path)).toEqual([
-      '/production', '/queue', '/studio', '/montage', '/studio/editor', '/outputs',
-    ]);
+  it('puts the rail before the outlet and the Agent column after it', () => {
+    const html = renderShell('/library');
+    const nav = html.indexOf('data-shell-nav');
+    const main = html.indexOf('data-shell-main');
+    const rail = html.indexOf('data-agent-rail');
+
+    expect(nav).toBeGreaterThan(-1);
+    expect(nav).toBeLessThan(main);
+    expect(main).toBeLessThan(rail);
   });
 
-  it('offers every reachable core workspace in the command palette without a demo-less analysis deep link', () => {
-    const paths = commandPaletteDestinations.map((destination) => destination.path);
-    const reachablePaths = new Set<string>(routePaths);
+  it('keeps the scroll boundary in the page, never in the shell', () => {
+    const html = renderShell('/library');
 
-    expect(paths).toEqual(expect.arrayContaining([
-      '/',
-      '/library',
-      '/evidence-search',
-      '/production',
-      '/activity',
-      '/outputs',
-      '/settings',
-      '/players',
-      '/match-history',
-      '/queue',
-      '/studio',
-      '/montage',
-      '/studio/editor',
-      '/recovery',
-    ]));
-    expect(paths).not.toContain('/analysis');
-    expect(paths).not.toContain('/copilot');
-    expect(paths.every((path) => reachablePaths.has(path))).toBe(true);
+    // The row and the main column clip; `design/layout/Page` owns the scroller.
+    expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
+    expect(html).toContain('flex h-full min-h-0 flex-col overflow-hidden');
+  });
+
+  it('names the main region so a skip link and aria have something to point at', () => {
+    expect(renderShell('/')).toContain('id="main-content"');
+  });
+
+  it('renders no command palette until it is opened', () => {
+    expect(renderShell('/')).not.toContain('command-palette');
+  });
+
+  it('renders no offline banner while the probe has not answered', () => {
+    expect(renderShell('/')).not.toContain('本地服务未连接，分析、录制和导出暂时无法开始');
+  });
+});
+
+describe('AppShell — the title bar crumb', () => {
+  beforeEach(() => {
+    resetShellStore();
+  });
+
+  it('names the group and the entry for a rail destination', () => {
+    expect(renderShell('/library')).toContain('资料库 › Demo 资料库');
+  });
+
+  it('drops the group for 工作台, which has none', () => {
+    const html = renderShell('/');
+    expect(html).toContain('>工作台<');
+    expect(html).not.toContain('› 工作台');
+  });
+
+  it('reads the query, so 输出 and 任务记录 are told apart on one path', () => {
+    expect(renderShell('/delivery?view=tasks')).toContain('交付 › 任务记录');
+    expect(renderShell('/delivery')).toContain('交付 › 输出');
+  });
+
+  it('names the leaf for the detail routes the rail cannot list', () => {
+    expect(renderShell('/match/aurora-meridian')).toContain('资料库 › 比赛工作区');
+    expect(renderShell('/players/kael')).toContain('资料库 › 玩家档案');
+    expect(renderShell('/delivery/task/t-1')).toContain('交付 › 任务详情');
+    expect(renderShell('/recovery')).toContain('设置与诊断 › 恢复中心');
+  });
+
+  it('leaves the crumb empty for an address outside the table', () => {
+    const html = renderShell('/does-not-exist');
+    expect(html).toContain('data-titlebar-crumb');
+    expect(html).toMatch(/data-titlebar-crumb="true" class="[^"]*"><\/span>/u);
+  });
+});
+
+describe('AppShell — the §8 fold at 1100 × 700', () => {
+  beforeEach(() => {
+    resetShellStore();
+  });
+
+  it('collapses the rail to the 56px icon column', () => {
+    const html = renderShell('/library', { collapsed: true });
+
+    expect(html).toContain('data-shell-folded="true"');
+    expect(html).toContain('data-shell-nav="collapsed"');
+    expect(html).toContain('w-[var(--w-nav-collapsed)]');
+  });
+
+  it('narrows the title bar brand block with it, so brand and rail keep one edge', () => {
+    expect(renderShell('/library', { collapsed: true })).toContain(
+      'data-shell-titlebar="nav-collapsed"',
+    );
+    expect(renderShell('/library')).toContain('data-shell-titlebar="nav-expanded"');
+  });
+
+  it('drops the Agent column entirely, as the 1100 × 700 board draws it', () => {
+    const html = renderShell('/library', { collapsed: true });
+
+    expect(html).not.toContain('data-agent-rail');
+  });
+
+  it('still reaches the Agent from the icon rail, so nothing is hidden without a route', () => {
+    const html = renderShell('/library', { collapsed: true });
+
+    // The sparkle item survives the fold: it is the artboard's own entry point
+    // and the reason the right column can go.
+    expect(html).toContain('data-nav-item="agent"');
+  });
+
+  it('renders the expanded rail at full width when nothing is folded', () => {
+    expect(renderShell('/library')).toContain('w-[var(--w-nav)]');
   });
 });

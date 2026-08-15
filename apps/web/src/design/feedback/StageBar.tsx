@@ -113,7 +113,10 @@ export type RecordingStageId = (typeof RECORDING_STAGE_IDS)[number];
 export function recordingStages(states: readonly StageState[]): Stage[] {
   const label: Record<RecordingStageId, ReactNode> = {
     launch: <Trans>启动</Trans>,
-    seek: <Trans>跳转</Trans>,
+    /* Same two characters as the command palette's 「跳转」 hint, a different
+       word: this one is playback seeking to a tick, that one is "navigate to".
+       `context` splits the msgid so English can say Seek here, Go to there. */
+    seek: <Trans context="recording-stage">跳转</Trans>,
     capture: <Trans>采集</Trans>,
     settle: <Trans>稳定</Trans>,
     encode: <Trans>编码</Trans>,

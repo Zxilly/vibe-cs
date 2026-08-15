@@ -228,6 +228,16 @@
      thumbnail has to reach for a bare value the layer lint would reject. */
   --w-track-head: 132px;
 
+  /* The centred overlay. The command-palette artboard draws it as
+     `left:172px;top:84px;width:600px` — an absolutely positioned card, not a
+     layout column, so `EXTRACTION_RULES.panelWidth` (which requires
+     `flex:none` / `border-left` / `border-right`) never saw it and §3.5 has no
+     entry for it. It is a genuinely new role rather than a missed one, so it
+     gets its own token instead of folding onto --w-split: the 80px gap would be
+     the widest fold in the table, and folding a centred overlay onto a split
+     pane makes the two move together for no reason. */
+  --w-overlay: 600px;
+
   /* — Elevation (Industry, verbatim) —
      Soft ink-tinted shadows on a light ground.
 

@@ -13,7 +13,816 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/test/render.interaction.test.tsx:11
-#: src/test/render.test.tsx:12
-msgid "确认并生成视频"
-msgstr "Confirm and generate video"
+#: src/app/boundary/ServiceGate.tsx:214
+msgid "· 需要服务"
+msgstr "· Service required"
+
+#: src/pages/TaskDetailPage.tsx:25
+msgid "‹ 任务记录"
+msgstr "‹ Tasks"
+
+#: src/pages/PlayerProfilePage.tsx:29
+msgid "‹ 玩家目录"
+msgstr "‹ Players"
+
+#: src/pages/RecoveryPage.tsx:22
+msgid "‹ 设置与诊断"
+msgstr "‹ Settings"
+
+#: src/pages/MatchWorkspacePage.tsx:64
+msgid "‹ 资料库"
+msgstr "‹ Library"
+
+#. placeholder {0}: clip.label
+#: src/design/timeline/ClipView.tsx:94
+msgid "{0}，{from} 至 {to}"
+msgstr "{0}, {from} to {to}"
+
+#: src/app/command/CommandPalette.tsx:318
+msgid "{hidden, plural, other {还有 # 条 · 继续输入以缩小范围}}"
+msgstr "{hidden, plural, one {# more · keep typing to narrow it down} other {# more · keep typing to narrow it down}}"
+
+#: src/app/shell/AgentRail.tsx:145
+#: src/app/shell/AgentRail.tsx:172
+msgid "{pendingCount, plural, other {# 待确认}}"
+msgstr "{pendingCount, plural, one {# pending} other {# pending}}"
+
+#: src/design/data/Pagination.tsx:64
+msgid "{total, plural, other {共 # 条}}"
+msgstr "{total, plural, one {# row} other {# rows}}"
+
+#: src/app/command/CommandPalette.tsx:329
+msgid "↑↓ 选择"
+msgstr "↑↓ Select"
+
+#: src/app/command/CommandPalette.tsx:332
+msgid "↵ 打开"
+msgstr "↵ Open"
+
+#. placeholder {0}: scale.pixelsPerSecond
+#: src/design/timeline/TimelinePrototype.tsx:173
+msgid "1 秒 = {0} px"
+msgstr "1s = {0} px"
+
+#: src/app/command/commandRegistry.ts:176
+#: src/app/shell/navigation.tsx:99
+#: src/pages/AgentPage.tsx:33
+msgid "Agent 创作"
+msgstr "Agent studio"
+
+#: src/pages/SettingsPage.tsx:25
+msgid "AI 与 Agent"
+msgstr "AI & Agent"
+
+#: src/app/shell/AgentRail.tsx:138
+#: src/app/shell/AgentRail.tsx:168
+msgid "AI 工作台"
+msgstr "AI workbench"
+
+#: src/app/command/commandRegistry.ts:157
+#: src/app/shell/navigation.tsx:89
+#: src/pages/LibraryPage.tsx:28
+msgid "Demo 资料库"
+msgstr "Demo library"
+
+#: src/app/command/CommandPalette.tsx:235
+msgid "ESC 关闭"
+msgstr "ESC Close"
+
+#: src/pages/MatchWorkspacePage.tsx:48
+msgid "Review 与注释"
+msgstr "Review & notes"
+
+#: src/pages/HistoryPage.tsx:19
+msgid "Steam 上的对局记录与回放下载"
+msgstr "Match records on Steam and demo downloads"
+
+#: src/app/command/CommandPalette.tsx:335
+msgid "TAB 切换分组"
+msgstr "TAB Switch group"
+
+#: src/design/data/Pagination.tsx:77
+msgid "上一页"
+msgstr "Previous page"
+
+#: src/design/data/Pagination.tsx:108
+msgid "下一页"
+msgstr "Next page"
+
+#: src/design/timeline/ClipView.tsx:118
+msgid "不能放在这里"
+msgstr "Cannot drop here"
+
+#: src/app/shell/SideNav.tsx:165
+msgid "主导航"
+msgstr "Main navigation"
+
+#: src/app/shell/navigation.tsx:108
+msgid "交付"
+msgstr "Delivery"
+
+#: src/pages/DeliveryPage.tsx:41
+msgid "交付页把成片和产生它的任务放在一起：从一条输出可以回到它的阶段日志，反过来也一样。"
+msgstr "Delivery keeps a finished video next to the task that produced it: from an output you can jump to its stage log, and back again."
+
+#: src/app/command/commandRegistry.ts:204
+#: src/app/shell/navigation.tsx:111
+#: src/pages/DeliveryPage.tsx:27
+msgid "任务记录"
+msgstr "Tasks"
+
+#: src/app/routeCrumb.ts:48
+#: src/pages/TaskDetailPage.tsx:28
+msgid "任务详情"
+msgstr "Task detail"
+
+#: src/pages/AgentPage.tsx:24
+msgid "候选镜头"
+msgstr "Takes"
+
+#: src/design/timeline/TimelinePrototype.tsx:139
+msgid "先选中一个片段"
+msgstr "Select a clip first"
+
+#: src/design/data/DataTable.tsx:232
+msgid "全选本页"
+msgstr "Select all on this page"
+
+#: src/pages/MontagePage.tsx:19
+msgid "全部合辑"
+msgstr "All montages"
+
+#: src/pages/EditorPage.tsx:27
+msgid "全部工程"
+msgstr "All projects"
+
+#: src/pages/RecordingPage.tsx:26
+msgid "全部录制任务"
+msgstr "All recording tasks"
+
+#: src/design/layout/Inspector.tsx:270
+msgid "关闭"
+msgstr "Close"
+
+#: src/design/feedback/Drawer.tsx:106
+msgid "关闭抽屉"
+msgstr "Close drawer"
+
+#: src/design/feedback/Notice.tsx:158
+msgid "关闭提示"
+msgstr "Dismiss notice"
+
+#: src/app/shell/WindowTitleBar.tsx:306
+#: src/app/shell/WindowTitleBar.tsx:307
+msgid "关闭窗口"
+msgstr "Close window"
+
+#: src/design/data/EmptyState.tsx:134
+msgid "其余功能不受影响。你可以返回工作台，或把这次错误导出给开发者。"
+msgstr "Everything else keeps working. Go back to the dashboard, or export this error for the developers."
+
+#: src/app/shell/WindowTitleBar.tsx:296
+#: src/app/shell/WindowTitleBar.tsx:297
+msgid "最大化或还原窗口"
+msgstr "Maximize or restore window"
+
+#: src/app/shell/WindowTitleBar.tsx:286
+#: src/app/shell/WindowTitleBar.tsx:287
+msgid "最小化窗口"
+msgstr "Minimize window"
+
+#: src/pages/HomePage.tsx:21
+msgid "最近的比赛、进行中的任务和待确认的方案"
+msgstr "Recent matches, running tasks, and plans awaiting confirmation"
+
+#: src/pages/PlayersPage.tsx:13
+msgid "出现在已分析比赛里的选手"
+msgstr "Players who appear in analyzed matches"
+
+#: src/pages/DeliveryPage.tsx:30
+msgid "分析、录制与导出的执行记录"
+msgstr "Run log for analysis, recording, and export"
+
+#: src/design/data/EmptyState.tsx:122
+msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。"
+msgstr "Rounds, evidence, and highlights only exist after analysis. A 40-minute match takes about 3 minutes."
+
+#: src/design/data/Pagination.tsx:57
+msgid "分页"
+msgstr "Pagination"
+
+#: src/pages/AgentPage.tsx:38
+msgid "创作页承载方案、会话与修订：Agent 提出变更，你逐条接受或改写，确认后才进入录制。"
+msgstr "The studio holds plans, sessions, and revisions: the Agent proposes changes, you accept or rewrite them one by one, and only a confirmed plan goes to recording."
+
+#: src/app/shell/navigation.tsx:97
+msgid "制作"
+msgstr "Create"
+
+#: src/design/timeline/TimelinePrototype.tsx:77
+msgid "剃刀"
+msgstr "Blade"
+
+#: src/design/data/Skeleton.tsx:64
+msgid "加载中"
+msgstr "Loading"
+
+#: src/app/command/commandRegistry.ts:82
+msgid "动作"
+msgstr "Actions"
+
+#: src/pages/LibraryPage.tsx:29
+msgid "卡片视图"
+msgstr "Card view"
+
+#: src/design/feedback/StageBar.tsx:123
+msgid "发布"
+msgstr "Publish"
+
+#: src/design/feedback/Dialog.tsx:106
+msgid "取消"
+msgstr "Cancel"
+
+#: src/pages/AgentPage.tsx:22
+msgid "变更列表"
+msgstr "Changes"
+
+#: src/pages/MontagePage.tsx:26
+msgid "合辑用一条模板把选中的片段串起来，不进多轨编辑器也能直接导出。"
+msgstr "A montage strings the selected clips together with one template, so you can export without opening the multitrack editor."
+
+#: src/design/feedback/StageBar.tsx:115
+msgid "启动"
+msgstr "Launch"
+
+#: src/design/timeline/TimelinePrototype.tsx:145
+#: src/design/timeline/TimelinePrototype.tsx:146
+msgid "吸附"
+msgstr "Snap"
+
+#: src/app/command/CommandPalette.tsx:251
+msgid "命令"
+msgstr "Commands"
+
+#: src/app/command/CommandPalette.tsx:199
+msgid "命令面板"
+msgstr "Command palette"
+
+#: src/pages/MatchWorkspacePage.tsx:42
+msgid "回合"
+msgstr "Rounds"
+
+#: src/pages/MatchWorkspacePage.tsx:46
+msgid "回放与热力图"
+msgstr "Replay & heatmap"
+
+#: src/design/timeline/TimelinePrototype.tsx:133
+msgid "在播放头切开"
+msgstr "Cut at playhead"
+
+#: src/design/timeline/TimelinePrototype.tsx:119
+msgid "多轨时间轴"
+msgstr "Multitrack timeline"
+
+#: src/app/shell/navigation.tsx:103
+msgid "多轨编辑"
+msgstr "Multitrack"
+
+#: src/app/command/commandRegistry.ts:189
+#: src/pages/EditorPage.tsx:26
+msgid "多轨编辑器"
+msgstr "Multitrack editor"
+
+#: src/design/feedback/StageBar.tsx:72
+msgid "失败"
+msgstr "Failed"
+
+#: src/design/data/EmptyState.tsx:130
+msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
+msgstr "Once a recording or export finishes, the video shows up here, linked back to the task that made it."
+
+#: src/pages/MatchWorkspacePage.tsx:44
+msgid "对位"
+msgstr "Matchups"
+
+#: src/design/data/EmptyState.tsx:118
+msgid "导入一个 .dem，或添加一个监听目录自动发现"
+msgstr "Import a .dem, or add a watched folder to pick them up automatically"
+
+#: src/app/boundary/RouteBoundary.tsx:123
+msgid "导出诊断"
+msgstr "Export diagnostics"
+
+#: src/pages/AgentPage.tsx:23
+msgid "就地编辑"
+msgstr "Inline edit"
+
+#: src/app/shell/SideNav.tsx:215
+#: src/app/shell/SideNav.tsx:218
+msgid "展开侧栏"
+msgstr "Expand sidebar"
+
+#: src/pages/MatchWorkspacePage.tsx:75
+msgid "工作区把一场比赛的回合、选手、对位、道具、回放、高光与 Review 收在同一个地址下， 右侧 Inspector 统一承载证据详情与「加入视频」。"
+msgstr "The workspace keeps one match — rounds, players, matchups, utility, replay, highlights and review — under a single address, and the Inspector on the right carries every evidence detail and its “Add to video”."
+
+#: src/app/command/commandRegistry.ts:154
+#: src/app/shell/navigation.tsx:83
+#: src/pages/HomePage.tsx:20
+msgid "工作台"
+msgstr "Dashboard"
+
+#: src/design/timeline/TimelinePrototype.tsx:130
+msgid "工具"
+msgstr "Tools"
+
+#: src/design/timeline/TimelinePrototype.tsx:194
+msgid "已吸附"
+msgstr "Snapped"
+
+#: src/design/feedback/StageBar.tsx:70
+msgid "已完成"
+msgstr "Done"
+
+#: src/app/boundary/ServiceGate.tsx:291
+msgid "已导入的比赛和已生成的视频仍可浏览。正在进行的任务会在服务恢复后自动接续状态。"
+msgstr "Imported matches and finished videos stay browsable. Running tasks pick their state back up once the service returns."
+
+#: src/pages/DeliveryPage.tsx:32
+msgid "已生成的成片，链接回它的来源任务"
+msgstr "Finished videos, linked back to the task that made them"
+
+#: src/design/timeline/ClipView.tsx:113
+msgid "已选中"
+msgstr "Selected"
+
+#. placeholder {0}: selectedClip.label
+#: src/design/timeline/TimelinePrototype.tsx:186
+msgid "已选中 {0}"
+msgstr "{0} selected"
+
+#: src/pages/SettingsPage.tsx:22
+msgid "应用"
+msgstr "App"
+
+#: src/app/command/commandRegistry.ts:182
+#: src/app/shell/navigation.tsx:100
+#: src/pages/RecordingPage.tsx:25
+msgid "录制计划"
+msgstr "Recording plan"
+
+#: src/pages/RecordingPage.tsx:33
+msgid "录制页把镜头逐个排好并给出预览，确认后交给游戏内录制，进度回到任务记录。"
+msgstr "The recording page lines the shots up one by one with a preview; once confirmed it hands off to in-game recording and progress goes back to Tasks."
+
+#: src/design/primitives/Field.tsx:84
+msgid "必填"
+msgstr "Required"
+
+#: src/app/command/commandRegistry.ts:186
+#: src/app/shell/navigation.tsx:101
+#: src/pages/MontagePage.tsx:18
+msgid "快速合辑"
+msgstr "Quick montage"
+
+#: src/app/command/commandRegistry.ts:216
+#: src/app/routeCrumb.ts:51
+#: src/pages/RecoveryPage.tsx:25
+msgid "恢复中心"
+msgstr "Recovery center"
+
+#: src/pages/RecoveryPage.tsx:33
+msgid "恢复中心处理损坏的索引、残留的中间文件和被中断的任务，每一项都写明它会动什么。"
+msgstr "Recovery handles broken indexes, leftover intermediate files and interrupted tasks, and every item spells out what it will touch."
+
+#: src/design/feedback/Notice.tsx:110
+msgid "成功"
+msgstr "Success"
+
+#: src/pages/HomePage.tsx:34
+msgid "打开 Demo 资料库"
+msgstr "Open demo library"
+
+#: src/app/boundary/RouteBoundary.tsx:143
+msgid "找不到这个页面"
+msgstr "Page not found"
+
+#: src/pages/EvidencePage.tsx:32
+msgid "按选手、事件类型和时间范围跨比赛检索证据，命中的片段可以直接加入视频。"
+msgstr "Search evidence across matches by player, event type and time range; a hit goes straight into a video."
+
+#: src/app/command/CommandPalette.tsx:247
+msgid "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
+msgstr "Try a shorter keyword, or a page name, a path, or an English name. No pinyin, no fuzzy matching."
+
+#: src/design/feedback/Notice.tsx:108
+msgid "提示"
+msgstr "Info"
+
+#: src/app/command/CommandPalette.tsx:225
+#: src/app/command/CommandPalette.tsx:339
+msgid "搜索比赛、选手、证据、页面和动作"
+msgstr "Search matches, players, evidence, pages and actions"
+
+#: src/design/timeline/TimelinePrototype.tsx:155
+msgid "撤销"
+msgstr "Undo"
+
+#: src/design/timeline/TimeRuler.tsx:88
+msgid "播放头"
+msgstr "Playhead"
+
+#. placeholder {0}: formatTimecode(timeline.playhead)
+#: src/design/timeline/TimelinePrototype.tsx:265
+msgid "播放头 {0}"
+msgstr "Playhead {0}"
+
+#: src/app/shell/AgentRail.tsx:186
+msgid "收起"
+msgstr "Collapse"
+
+#: src/app/shell/AgentRail.tsx:182
+msgid "收起 AI 工作台"
+msgstr "Collapse AI workbench"
+
+#: src/app/shell/SideNav.tsx:215
+#: src/app/shell/SideNav.tsx:218
+msgid "收起侧栏"
+msgstr "Collapse sidebar"
+
+#: src/design/timeline/TimelinePrototype.tsx:175
+msgid "放大"
+msgstr "Zoom in"
+
+#: src/design/data/EmptyState.tsx:126
+msgid "放宽时间范围通常最有效。"
+msgstr "Widening the time range usually helps most."
+
+#: src/pages/RecoveryPage.tsx:26
+msgid "数据库、缓存与中断任务的修复"
+msgstr "Repairs for the database, caches and interrupted tasks"
+
+#: src/pages/SettingsPage.tsx:23
+msgid "文件与目录"
+msgstr "Files & folders"
+
+#: src/design/layout/OverflowMenu.tsx:169
+msgid "更多"
+msgstr "More"
+
+#: src/design/layout/Toolbar.tsx:193
+msgid "更多操作"
+msgstr "More actions"
+
+#: src/design/layout/SubNav.tsx:186
+msgid "更多视图"
+msgstr "More views"
+
+#: src/design/feedback/StageBar.tsx:66
+msgid "未开始"
+msgstr "Not started"
+
+#: src/design/timeline/TimelinePrototype.tsx:184
+msgid "未选中片段"
+msgstr "No clip selected"
+
+#: src/app/boundary/ServiceGate.tsx:248
+msgid "本地服务在线"
+msgstr "Local service online"
+
+#: src/app/boundary/ServiceGate.tsx:249
+msgid "本地服务未连接"
+msgstr "Local service offline"
+
+#: src/app/boundary/ServiceGate.tsx:301
+msgid "本地服务未连接，分析、录制和导出暂时无法开始"
+msgstr "Local service offline — analysis, recording and export cannot start right now"
+
+#: src/app/boundary/ServiceGate.tsx:209
+msgid "本地服务未连接，恢复后无需刷新页面即可继续"
+msgstr "Local service offline — it resumes on its own, no page reload needed"
+
+#: src/pages/PagePlaceholder.tsx:38
+msgid "本页在阶段 {phase} 实现"
+msgstr "This page ships in phase {phase}"
+
+#: src/pages/PlayerProfilePage.tsx:39
+msgid "档案页给出这名选手的出场、命中分布与近期趋势，并链接回他出现过的比赛。"
+msgstr "The profile gives this player their appearances, hit distribution and recent trend, linked back to the matches they played."
+
+#: src/pages/MatchWorkspacePage.tsx:41
+msgid "概览"
+msgstr "Overview"
+
+#: src/app/boundary/RouteBoundary.tsx:75
+msgid "正在打开这个页面"
+msgstr "Opening this page"
+
+#: src/app/boundary/ServiceGate.tsx:250
+msgid "正在连接本地服务"
+msgstr "Connecting to the local service"
+
+#: src/app/boundary/ServiceGate.tsx:208
+msgid "正在连接本地服务，稍后即可使用"
+msgstr "Connecting to the local service — ready in a moment"
+
+#: src/app/boundary/ServiceGate.tsx:296
+msgid "正在重连"
+msgstr "Reconnecting"
+
+#: src/design/primitives/Button.tsx:158
+msgid "此动作当前不可用：{disabledReason}"
+msgstr "This action is unavailable right now: {disabledReason}"
+
+#: src/app/command/commandRegistry.ts:78
+msgid "比赛"
+msgstr "Matches"
+
+#: src/app/command/commandRegistry.ts:163
+#: src/app/shell/navigation.tsx:90
+#: src/pages/HistoryPage.tsx:18
+msgid "比赛历史"
+msgstr "Match history"
+
+#: src/app/routeCrumb.ts:46
+msgid "比赛工作区"
+msgstr "Match workspace"
+
+#: src/app/command/CommandPalette.tsx:242
+msgid "没有匹配的结果"
+msgstr "No results"
+
+#: src/design/timeline/TimelinePrototype.tsx:64
+msgid "没有变化"
+msgstr "No change"
+
+#: src/design/timeline/TimelinePrototype.tsx:152
+msgid "没有可撤销的操作"
+msgstr "Nothing to undo"
+
+#: src/design/timeline/TimelinePrototype.tsx:161
+msgid "没有可重做的操作"
+msgstr "Nothing to redo"
+
+#: src/design/data/EmptyState.tsx:125
+msgid "没有命中的证据"
+msgstr "No evidence found"
+
+#: src/design/timeline/TimelinePrototype.tsx:142
+msgid "波纹删除"
+msgstr "Ripple delete"
+
+#: src/pages/EvidencePage.tsx:25
+msgid "注释"
+msgstr "Notes"
+
+#: src/pages/SettingsPage.tsx:24
+msgid "游戏与录制"
+msgstr "Game & recording"
+
+#: src/design/timeline/TimelinePrototype.tsx:78
+msgid "滑移"
+msgstr "Slip"
+
+#: src/design/timeline/TimelinePrototype.tsx:62
+msgid "片段不在时间轴上"
+msgstr "The clip is not on the timeline"
+
+#: src/pages/MatchWorkspacePage.tsx:43
+msgid "玩家"
+msgstr "Players"
+
+#: src/app/routeCrumb.ts:47
+#: src/pages/PlayerProfilePage.tsx:32
+msgid "玩家档案"
+msgstr "Player profile"
+
+#: src/app/command/commandRegistry.ts:167
+#: src/app/shell/navigation.tsx:91
+#: src/pages/PlayersPage.tsx:13
+msgid "玩家目录"
+msgstr "Players"
+
+#: src/pages/PlayersPage.tsx:17
+msgid "目录按出场数与近期表现排序，点进一名选手可以看他的档案与趋势。"
+msgstr "The directory sorts by appearances and recent form; open a player for their profile and trend."
+
+#: src/design/timeline/TimelinePrototype.tsx:202
+msgid "知道了"
+msgstr "Got it"
+
+#: src/design/feedback/StageBar.tsx:121
+msgid "稳定"
+msgstr "Settle"
+
+#: src/app/shell/SideNav.tsx:217
+msgid "窗口宽度不足 1100px，侧栏保持为图标条"
+msgstr "The window is under 1100px wide, so the sidebar stays an icon rail"
+
+#: src/app/shell/WindowTitleBar.tsx:280
+msgid "窗口操作失败"
+msgstr "Window action failed"
+
+#: src/design/data/Pagination.tsx:68
+msgid "第 {from}–{to} 条"
+msgstr "Rows {from}–{to}"
+
+#: src/design/data/Pagination.tsx:93
+msgid "第 {slot} 页"
+msgstr "Page {slot}"
+
+#: src/design/timeline/TimelinePrototype.tsx:59
+msgid "素材已经到头了，没有可以滑移的余量"
+msgstr "The source is at its end, with no slack left to slip"
+
+#: src/design/feedback/StageBar.tsx:122
+msgid "编码"
+msgstr "Encode"
+
+#: src/pages/EditorPage.tsx:34
+msgid "编辑器是剃刀、滑移、波纹删除、吸附与多轨拖拽的地方，时间轴在这一阶段接上真实素材。"
+msgstr "The editor is where blade, slip, ripple delete, snapping and multitrack dragging live; the timeline gets real footage in this phase."
+
+#: src/app/shell/AgentRail.tsx:196
+msgid "编辑镜头、接受变更和确认录制都在 Agent 创作页完成，这条竖栏不承载方案编辑。"
+msgstr "Editing shots, accepting changes and confirming a recording all happen on the Agent studio page; this rail does not carry plan editing."
+
+#: src/design/timeline/TimelinePrototype.tsx:169
+msgid "缩小"
+msgstr "Zoom out"
+
+#: src/pages/LibraryPage.tsx:29
+msgid "表格视图"
+msgstr "Table view"
+
+#: src/app/command/commandRegistry.ts:210
+#: src/app/shell/navigation.tsx:119
+#: src/pages/SettingsPage.tsx:35
+msgid "设置与诊断"
+msgstr "Settings & diagnostics"
+
+#: src/pages/SettingsPage.tsx:40
+msgid "设置分应用、文件与目录、游戏与录制、AI 与 Agent、高级五节，诊断信息也在这一页。"
+msgstr "Settings has five sections — App, Files & folders, Game & recording, AI & Agent, Advanced — and diagnostics live on this page too."
+
+#: src/app/command/commandRegistry.ts:80
+#: src/pages/EvidencePage.tsx:25
+msgid "证据"
+msgstr "Evidence"
+
+#: src/app/command/commandRegistry.ts:170
+#: src/app/shell/navigation.tsx:92
+#: src/pages/EvidencePage.tsx:24
+msgid "证据检索"
+msgstr "Evidence search"
+
+#: src/design/layout/Inspector.tsx:233
+msgid "详情"
+msgstr "Details"
+
+#: src/pages/TaskDetailPage.tsx:36
+msgid "详情页给出这条任务的阶段进度与日志：启动、跳转、采集、稳定、编码、发布。"
+msgstr "The detail page gives this task its stage progress and log: launch, jump, capture, settle, encode, publish."
+
+#: src/design/feedback/Notice.tsx:112
+msgid "警告"
+msgstr "Warning"
+
+#: src/app/shell/navigation.tsx:87
+msgid "资料库"
+msgstr "Library"
+
+#: src/pages/LibraryPage.tsx:36
+msgid "资料库列出已导入的比赛，右侧 Inspector 承载单场详情，导入与目录监听也在这一页。"
+msgstr "The library lists imported matches, the Inspector on the right carries single-match detail, and import and folder watching live here too."
+
+#: src/app/command/commandRegistry.ts:137
+msgctxt "palette-hint"
+msgid "跳转"
+msgstr "Go to"
+
+#: src/design/feedback/StageBar.tsx:119
+msgctxt "recording-stage"
+msgid "跳转"
+msgstr "Seek"
+
+#: src/app/command/CommandPalette.tsx:226
+#: src/app/shell/WindowTitleBar.tsx:259
+msgid "跳转、搜索比赛或证据"
+msgstr "Jump to a page, search matches or evidence"
+
+#: src/design/timeline/TimelinePrototype.tsx:55
+msgid "轨道已锁定"
+msgstr "The track is locked"
+
+#: src/design/timeline/TimelinePrototype.tsx:53
+msgid "轨道类型不同，视频不能放到音频轨上"
+msgstr "Track types differ — video cannot go on an audio track"
+
+#: src/app/command/commandRegistry.ts:198
+#: src/app/shell/navigation.tsx:110
+#: src/pages/DeliveryPage.tsx:27
+msgid "输出"
+msgstr "Outputs"
+
+#: src/app/boundary/RouteBoundary.tsx:114
+#: src/app/boundary/RouteBoundary.tsx:148
+#: src/pages/PagePlaceholder.tsx:43
+msgid "返回工作台"
+msgstr "Back to dashboard"
+
+#: src/design/data/EmptyState.tsx:117
+msgid "还没有比赛"
+msgstr "No matches yet"
+
+#: src/design/data/EmptyState.tsx:129
+msgid "还没有输出"
+msgstr "No outputs yet"
+
+#: src/pages/HistoryPage.tsx:26
+msgid "这一页列出账号在 Steam 上的历史对局，下载回放后它会出现在 Demo 资料库里。"
+msgstr "This page lists this account's past matches on Steam; once a demo is downloaded it shows up in the demo library."
+
+#: src/design/timeline/TimelinePrototype.tsx:57
+msgid "这个位置没有可以操作的片段"
+msgstr "No clip at this position"
+
+#: src/app/boundary/RouteBoundary.tsx:144
+msgid "这个地址不存在，或者它在这一版里已经下线。其余功能不受影响。"
+msgstr "This address does not exist, or it went away in this build. Everything else keeps working."
+
+#: src/design/data/EmptyState.tsx:133
+msgid "这个页面没能打开"
+msgstr "This page failed to open"
+
+#: src/design/data/EmptyState.tsx:121
+msgid "这场还没分析"
+msgstr "This match is not analyzed yet"
+
+#: src/design/timeline/TimelinePrototype.tsx:51
+msgid "这里已经有片段了，没有移动"
+msgstr "There is already a clip here, so nothing moved"
+
+#: src/design/feedback/StageBar.tsx:68
+msgid "进行中"
+msgstr "Running"
+
+#: src/app/command/commandRegistry.ts:79
+msgid "选手"
+msgstr "Players"
+
+#: src/design/timeline/TimelinePrototype.tsx:76
+msgid "选择"
+msgstr "Select"
+
+#: src/pages/MatchWorkspacePage.tsx:45
+msgid "道具与经济"
+msgstr "Utility & economy"
+
+#: src/design/feedback/StageBar.tsx:120
+msgid "采集"
+msgstr "Capture"
+
+#: src/design/timeline/TimelinePrototype.tsx:164
+msgid "重做"
+msgstr "Redo"
+
+#: src/app/boundary/ServiceGate.tsx:296
+msgid "重新连接"
+msgstr "Reconnect"
+
+#: src/app/boundary/RouteBoundary.tsx:110
+msgid "重试"
+msgstr "Retry"
+
+#: src/design/feedback/Notice.tsx:114
+msgid "错误"
+msgstr "Error"
+
+#: src/pages/MatchWorkspacePage.tsx:49
+msgid "阵容"
+msgstr "Rosters"
+
+#: src/app/boundary/ServiceGate.tsx:337
+msgid "需要服务"
+msgstr "Service required"
+
+#: src/app/command/commandRegistry.ts:81
+msgid "页面"
+msgstr "Pages"
+
+#: src/app/boot.ts:26
+msgid "页面根节点 #root 不存在，应用无法启动"
+msgstr "The page root node #root is missing, so the app cannot start"
+
+#: src/pages/HomePage.tsx:28
+msgid "首页汇总最近导入的比赛、正在跑的分析与录制任务，以及 Agent 等你确认的方案。"
+msgstr "The home page rolls up recently imported matches, running analysis and recording tasks, and the Agent plans waiting for you to confirm."
+
+#: src/pages/MatchWorkspacePage.tsx:47
+msgid "高光"
+msgstr "Highlights"
+
+#: src/pages/SettingsPage.tsx:26
+msgid "高级"
+msgstr "Advanced"

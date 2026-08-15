@@ -641,3 +641,42 @@ export function renderInteractive(ui: ReactElement): RenderResult
 6. **`Toolbar` 折叠时默认把全部 actions 收进「更多」**（`inlineActionsWhenCollapsed` 默认 0），依据是 1100×700 画板上顶栏只剩一个按钮。阶段 2 用真实数据量复核时（§9 风险 6），部分页面可能要显式传 1 或 2。
 7. **`Tag` 没有 ok/warn/fail 三色。** 设计稿零个状态标签——所有成败态都是 `Notice` 或 `StatusDot`。若领域组件确实需要状态胶囊，按 `--color-*-surface` / `--color-*-text` 补三档，不要另起配色。
 8. **组件内部几何写成 Tailwind 任意值**（Toggle 34×18 轨道 + 16×16 滑块、Slider 4px 轨 + 14×14 拇指、Checkbox 13/15px 盒）。§3 没有对应 token 族，硬造会暗示一套不存在的刻度。每处都注了出处，保持现状。
+
+---
+
+## 10.2 阶段 0.5 + 1 落地记录（2026-08-15）
+
+出口条件全部达成：`lint`（= `i18n:compile --strict` + 分层 lint + `tsc -b`）/ `typecheck` / `build`（`vite build`，本轮首次真跑）/ `cargo check --workspace --all-targets` 退出码 0；`vitest` 三项目 **255 文件 1871 用例**通过（3 skip 同上，与本轮无关）；`lingui extract` 报 en-US Missing = 0；阶段 0 基线的 217 个测试文件仅 `app/WindowTitleBar.test.tsx` 一条位移到 `app/shell/`，5 条用例逐一有承接且多出 4 条。
+
+交付：`design/timeline/`（35 文件，算法层零 React）、`app/shell/`、`app/command/`、`app/boundary/`、重写的 `app/AppShell.tsx` + `app/router.tsx` + `src/routes.tsx`、`pages/` 15 个占位页。
+
+### 与规格的偏离
+
+| # | 偏离 | 处置 |
+| --- | --- | --- |
+| 1 | §2 把 `routes.tsx` 画在 `app/`，但 §2.1 第 3 条禁止 `app/` ↔ `pages/` 互相 import，路由表点名页面必然违规 | **采纳依赖倒置**：`app/router.tsx` 持有全部路径 / id / 重定向 / 壳层元素，导出穷举接口 `RoutePages` 与 `createAppRoutes(pages)`；`src/routes.tsx`（src 根，与 `main.tsx` 同级，在两层之上）做唯一知道两边名字的接缝。加一条路由却不给页面会编译失败。lint 规则不动 |
+| 2 | 命令面板画板宽 600px，§3.5 无对应 token | **新增 `--w-overlay: 600`**。它是绝对定位的浮层卡片，`EXTRACTION_RULES.panelWidth`（要求 `flex:none` / `border-left` / `border-right`）按构造就看不见它，所以既不在 `OBSERVED_PANEL_WIDTHS` 也没有 MERGE 条目。这是新角色而非漏掉的值——折到 `--w-split`(520) 会成为全表最宽的一次归并，且让居中浮层与分栏面板从此一起变 |
+| 3 | 1100×700 画板不画右侧 Agent 竖条 | **照画板执行：折叠时整列不渲染。** 入口没丢——`SideNav` 的 sparkle 项（`agent` → `/agent`）就在 56px 图标条上、带同一颗徽标点，正是画板画的那颗。留一条只剩「跳 /agent」的 46px 列等于把同一个控件放两遍，还花掉折叠本要收回的 46px |
+| 4 | `main.tsx` 只 import `design/theme.css`，而非任务书要求的三个 css | `theme.css` 首行即 `@import 'tailwindcss'; @import './fonts.css'; @import './base.css';`。三个都引会重复引入 fonts 与 base，并可能把 base 的无 layer 元素规则排到 utilities 之后。顺序由 CSS 的 `@import` 保证 |
+| 5 | 「标记」没做成时间轴上的一条轨道 | 画板画的是 `top:0;bottom:0` 贯穿全部轨道的竖线，那是序列属性不是某一行的属性。`markers` 是文档上的独立数组，标尺是它们的车道。要改回真轨道只动渲染层 |
+| 6 | `/analysis` 重定向丢 `tab` / `run` 查询参数 | 有意。§7 的 18 tab → 9 view 是归并不是改名（advantage/objective→rounds、clutches→highlights、insights→review），把工作区看不懂的 `tab` 带过去比落在默认「概览」更糟。要做映射表，扩展点是 `app/router.tsx` 的 `LegacyAnalysisRedirect` |
+| 7 | `lingui.config.ts` 的 `include: ['src']` 无 exclude，把 54 条测试夹具中文串当成品文案打进目录 | **已加 exclude**（`**/*.test.ts(x)`、`**/*.interaction.test.tsx`、`**/test/**`）。目录从 246 条降到 192 条 |
+
+### 本轮收口掉的重复与孤儿
+
+- `app/RouteError.tsx` 已删（新 router 用 `boundary/RouteErrorElement`）。
+- `ServiceStatusIndicator` 已删；`WindowTitleBar` 改渲染 `ServiceStatusMarker`，`ShellServiceStatus` 变成 `ServiceStatus` 的别名。全应用只剩一处「● 本地服务在线」的实现。
+- 172px 状态盒回到设计层：`EmptyState` 自己带上 `EMPTY_STATE_MIN_HEIGHT_CLASS` 并导出，`RouteLoading` 的骨架复用同一个类。
+- 「跳转」一个 msgid 两个词义（面板的 Go to、录制流水线的 Seek）已用 `context` 拆开。
+
+### 留给后续阶段的已知缺口
+
+1. **时间轴没有帧网格。** 时间是浮点秒，比较靠 `TIME_EPSILON=1e-6`。导出到真实素材前必须补 fps 与量化，否则会出现半帧入出点。建议 fps 放 `Timeline` 上、只在提交处量化（预览量化会让吸附发涩）。阶段 3f 拍板。
+2. **拖拽没用 `setPointerCapture`**，改在 window 上监听 pointermove/pointerup——因为 jsdom 没实现它，用了那 21 个真指针拖拽测试就跑不了。代价真实：拖到窗口外松手收不到 pointerup，手势会卡住。阶段 3f 决定是否接受为此把部分拖拽测试改成手动验证。
+3. **§0.5 点名的六项能力只是多轨编辑器的一半。** 修剪（拖片段左右边缘改入出点）、拖到边缘自动滚动、行虚拟化都不在那六项里，却是 3f 必须有的，工作量各自与「拖拽」一档。按 `design/timeline/README.md` 第 2 节估工时，不要按「§0.5 已跑通」估。
+4. **@xzdarcy 的取舍结论是「保留自研」，但理由不是已经写完了。** 它的 `TimelineAction` 只有 `{id,start,end,effectId}`，没有素材入点、素材时长、链接关系，所以滑移在它的模型里表达不出来、剃刀右半算不出正确 `sourceIn`——这是模型差距。反过来它在修剪 / 自动滚动 / 虚拟化 / 播放引擎 / 吸附辅助线 / 轨道重排上明确更成熟。3f 定。
+5. **`shell/navigation.tsx` 与 `command/commandRegistry.ts` 是两张表。** 没有合并（一张要 Frame 顺序与图标，一张要搜索词），改成**绑定**：`router.test.tsx` 把每条侧栏 `to` 和每条 `PAGE_COMMANDS`（通过真的 `run({navigate})` 捕获目标）都过一遍 `matchRoutes`。漂移会变成红测试而不是死链。
+6. **命令面板的三个分组（比赛 / 选手 / 证据）本轮是空的**，动作类命令（导入 Demo · CTRL I、用 Agent 制作视频 · CTRL G）也没注册——前者要 `data/**` 的 hooks，后者要文件对话框（3b）与 Agent 会话状态（3e）。扩展点是 `buildCommandList(extensions)`。
+7. **§8 折叠三条规则本轮只落地第 1 条**（侧栏 216→56）。第 2 条（Inspector → 底部 44px 摘要 + 抽屉）与第 3 条（工作区视图导航 → 顶部标签）住在 `design/layout/Inspector` 与 `SubNav`，阶段 0 已实现并自带断点，由页面在 3c 接。
+8. **`/recovery` 没有侧栏入口**（Frame 没画），命令面板是键盘唯一到得了它的路。若产品要求独立入口，需设计稿补画。
+9. **§10.1 缺口 3（Inspector 与 Drawer 两套焦点管理）仍未收口**——它在 `design/layout/`，本轮四个 agent 的目录范围都不含它。顺延到阶段 2。

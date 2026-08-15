@@ -12,6 +12,12 @@ const config: ReturnType<typeof defineConfig> = defineConfig({
     {
       path: '<rootDir>/src/locales/{locale}/messages',
       include: ['src'],
+      // Test files author Chinese fixture strings — match names, evidence
+      // sentences, table captions — and those are not product copy. Without
+      // this they extract like any other message: they ship in the compiled
+      // catalog, and every fixture edit churns both `.po` files and demands an
+      // English translation for a string no user can reach.
+      exclude: ['**/*.test.ts', '**/*.test.tsx', '**/*.interaction.test.tsx', '**/test/**'],
     },
   ],
 });

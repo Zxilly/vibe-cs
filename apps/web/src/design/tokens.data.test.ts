@@ -425,6 +425,7 @@ describe('§3.5 panel widths', () => {
       '--w-inspector-wide': 440,
       '--w-split': 520,
       '--w-track-head': 132,
+      '--w-overlay': 600,
     });
     expect(DESIGN_DISTINCT_VALUE_COUNTS.panelWidth).toBe(numericKeys(OBSERVED_PANEL_WIDTHS).length);
   });

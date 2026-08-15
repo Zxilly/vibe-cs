@@ -1,420 +1,185 @@
-import { applyLocale, msg, type MessageKey } from '../shared/i18n';
+/*
+ * App shell — the frame every route renders inside (spec §10, phase 1).
+ *
+ * ── The composition ──────────────────────────────────────────────────────
+ *
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │ WindowTitleBar                       44px  `--h-titlebar` │  flex-none
+ *   ├──────────────────────────────────────────────────────────┤
+ *   │ ServiceOfflineNotice        only while status === offline │  flex-none
+ *   ├──────────┬──────────────────────────────────┬────────────┤
+ *   │ SideNav  │ <main> RouteBoundary → Outlet    │ AgentRail  │  flex-1
+ *   │ 216 / 56 │ flex-1, min-w-0                  │ 46 / 380   │  min-h-0
+ *   └──────────┴──────────────────────────────────┴────────────┘
+ *   CommandPalette — fixed, above everything, mounted last
+ *
+ * Every piece already exists: this file owns the arrangement, the three
+ * decisions the artboards left to the container, and nothing else.
+ *
+ * ── Decision 1: who scrolls ──────────────────────────────────────────────
+ *
+ * Nobody above the page. `base.css` puts `overflow: hidden` on `body` because
+ * the window *is* the viewport; the shell root is `h-full` and every band in it
+ * is `flex-none` except the row, which is `flex-1 min-h-0`. `<main>` is
+ * `overflow-hidden`, so the scroll boundary is `design/layout/Page`'s
+ * `data-page-body` — one scroller per page, and the title bar, rail and Agent
+ * column never move. `min-w-0` on `<main>` is what stops a wide table from
+ * pushing the Agent rail off the right edge instead of scrolling inside itself.
+ *
+ * ── Decision 2: the stacking order ───────────────────────────────────────
+ *
+ * The design layer already spends z-index: sticky table head 10, OverflowMenu
+ * and the collapsed rail's flyout 30, Drawer and the folded Inspector 40,
+ * Dialog 50. The palette is mounted last in the shell and takes 50 as well, so
+ * it sits above a page's Dialog by DOM order — which is right: Ctrl K is a
+ * shell-level surface, and its scrim deliberately starts *below* the title bar
+ * so the window controls stay usable while it is open. Nothing else in this
+ * file positions anything, so the whole shell is one flow layer under those.
+ *
+ * ── Decision 3: the Agent rail at ≤1100px ────────────────────────────────
+ *
+ * `AgentRail.tsx` states this is the container's call. The 1100 × 700 board
+ * draws no right column at all, and that is followed literally: below the fold
+ * the rail is not rendered. It is not a lost entry point — `SideNav`'s own
+ * sparkle item (`agent`, → `/agent`) is in the icon rail with the same badge
+ * dot, which is exactly what the artboard draws — so keeping a 46px column
+ * whose only remaining gesture is "go to /agent" would put the same control on
+ * screen twice and spend the 46px the fold exists to reclaim. The fold's
+ * companion rules do the same thing elsewhere: the Inspector becomes a 44px
+ * summary, the view nav becomes tabs. Nothing here is hidden without a route.
+ */
+
+import { useLingui } from '@lingui/react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+
+import { useShellCollapsed } from '../design/layout';
 import {
-  Activity,
-  Archive,
-  Bot,
-  ChevronRight,
-  CircleHelp,
-  Clapperboard,
-  Command,
-  Film,
-  FileOutput,
-  FolderKanban,
-  History,
-  Home,
-  Languages,
-  Menu,
-  Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PauseCircle,
-  PlaySquare,
-  ShieldCheck,
-  Shield,
-  Search,
-  Settings,
-  Sun,
-  UsersRound,
-  X,
-} from 'lucide-react';
-import { lazy, Suspense, type KeyboardEvent, useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+  RouteBoundary,
+  ServiceGate,
+  ServiceOfflineNotice,
+  useService,
+  type ServiceGateProps,
+} from './boundary';
+import { CommandPalette, useCommandPalette } from './command';
+import { CRUMB_SEPARATOR, routeCrumb } from './routeCrumb';
+import {
+  AgentRail,
+  SideNav,
+  useShellStore,
+  WindowTitleBar,
+  type DesktopWindowAdapter,
+  type ShellNavItemId,
+} from './shell';
 
-import { commands, readableError } from '../shared/desktop/client';
-import { useI18n } from '../shared/i18n';
-import { useRuntimeStore } from '../shared/stores/runtimeStore';
-import { useUiStore } from '../shared/stores/uiStore';
-import { IconButton, useDialogFocus } from '../shared/ui';
-import { WindowTitleBar } from './WindowTitleBar';
+export interface AppShellProps {
+  /**
+   * Pins the §8 fold. Omitted, the shell follows the 1100px media query —
+   * which `renderToStaticMarkup` cannot observe, so the `markup` project needs
+   * this to render the folded frame at all.
+   */
+  collapsed?: boolean | undefined;
+  /**
+   * The desktop window. `undefined` resolves the real one lazily, `null` means
+   * "no window" (browser dev server). Tests pass their own.
+   */
+  adapter?: DesktopWindowAdapter | null | undefined;
+  /** The health probe `ServiceGate` polls. Defaults to the desktop IPC command. */
+  probe?: ServiceGateProps['probe'] | undefined;
+  /** Background health polling. Tests turn it off so no timer outlives them. */
+  poll?: boolean | undefined;
+  /**
+   * The rail badges — 「Agent 创作」 and 「任务记录」 in Frame. Empty this round:
+   * both counts are server data (phases 3e and 3a).
+   */
+  badges?: Readonly<Partial<Record<ShellNavItemId, number>>> | undefined;
+}
 
-const AgentDock = lazy(async () => {
-  const module = await import('../features/agent/AgentPage');
-  return { default: module.AgentDock };
-});
+export function AppShell({ collapsed, adapter, probe, poll, badges }: AppShellProps) {
+  /* `exactOptionalPropertyTypes`: `ServiceGate` declares `probe?: (…) => …`
+     without `| undefined`, so the prop has to be absent rather than undefined. */
+  return (
+    <ServiceGate
+      {...(probe === undefined ? {} : { probe })}
+      {...(poll === undefined ? {} : { poll })}
+    >
+      <ShellFrame collapsed={collapsed} adapter={adapter} badges={badges} />
+    </ServiceGate>
+  );
+}
 
-type NavItem = {
-  path: string;
-  code: string;
-  labelKey: MessageKey;
-  icon: typeof Home;
-  end?: boolean;
-};
+interface ShellFrameProps {
+  collapsed?: boolean | undefined;
+  adapter?: DesktopWindowAdapter | null | undefined;
+  badges?: Readonly<Partial<Record<ShellNavItemId, number>>> | undefined;
+}
 
-const primaryNav: NavItem[] = [
-  { path: '/', code: '01', labelKey: 'nav.home', icon: Home, end: true },
-];
-
-const secondaryNav: NavItem[] = [
-  { path: '/activity', code: '80', labelKey: 'nav.activity', icon: Activity },
-  { path: '/settings', code: '90', labelKey: 'nav.settings', icon: Settings },
-];
-
-const reviewDestinations: NavItem[] = [
-  { path: '/library', code: '10', labelKey: 'nav.matches', icon: Archive },
-  { path: '/players', code: '02.2', labelKey: 'players.title', icon: UsersRound },
-  { path: '/lineups', code: '02.2.1', labelKey: 'lineups.title', icon: Shield },
-  { path: '/evidence-search', code: '04', labelKey: 'nav.evidenceSearch', icon: Search },
-  { path: '/match-history', code: '02.3', labelKey: 'history.title', icon: History },
-];
-
-const editDestinations: NavItem[] = [
-  { path: '/production', code: '20', labelKey: 'nav.production', icon: Clapperboard },
-  { path: '/queue', code: '03.1', labelKey: 'queue.title', icon: PlaySquare },
-  { path: '/studio', code: '03.2', labelKey: 'studio.title', icon: Film },
-  { path: '/montage', code: '03.2.1', labelKey: 'montage.title', icon: Clapperboard },
-  { path: '/studio/editor', code: '03.2.1', labelKey: 'editor.title', icon: Film },
-  { path: '/outputs', code: '07', labelKey: 'nav.works', icon: FileOutput },
-];
-
-const standaloneDestinations: NavItem[] = [
-  ...reviewDestinations,
-  ...editDestinations,
-  { path: '/recovery', code: '90.1', labelKey: 'recovery.title', icon: ShieldCheck },
-];
-
-export const workspaceNavigationGroups = [
-  { id: 'review' as const, labelKey: 'nav.review' as MessageKey, items: reviewDestinations },
-  { id: 'edit' as const, labelKey: 'nav.edit' as MessageKey, items: editDestinations },
-];
-
-const contextualDestinations: NavItem[] = [
-  { path: '/analysis', code: '02.1', labelKey: 'analysis.title', icon: Activity },
-  ...standaloneDestinations,
-];
-
-export const commandPaletteDestinations = [
-  ...primaryNav,
-  ...secondaryNav,
-  ...standaloneDestinations,
-];
-
-const allDestinations = [...primaryNav, ...secondaryNav, ...contextualDestinations];
-
-export function AppShell() {
-  const { t } = useI18n();
+/**
+ * The frame proper. Split from `AppShell` because the title bar's status dot
+ * reads `useService()`, which only resolves *inside* the gate.
+ */
+function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
+  const { i18n } = useLingui();
   const location = useLocation();
   const navigate = useNavigate();
-  const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
-  const toggleSidebar = useUiStore((state) => state.toggleSidebar);
-  const theme = useUiStore((state) => state.theme);
-  const setTheme = useUiStore((state) => state.setTheme);
-  const language = useUiStore((state) => state.language);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [serviceState, setServiceState] = useState<'checking' | 'online' | 'offline'>('checking');
-  const [appVersion, setAppVersion] = useState('0.1.0');
-  const runtimeSession = useRuntimeStore((state) => state.session);
-  const beginRemoteRead = useRuntimeStore((state) => state.beginRemoteRead);
-  const applyRemoteSession = useRuntimeStore((state) => state.applyRemoteSession);
-  const beginPlaybackStop = useRuntimeStore((state) => state.beginPlaybackStop);
-  const completeRuntimeTransition = useRuntimeStore((state) => state.completeTransition);
-  const [sessionError, setSessionError] = useState<string | null>(null);
-  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
-  const paletteRef = useDialogFocus<HTMLElement>(paletteOpen, () => setPaletteOpen(false));
+  const service = useService();
+  const palette = useCommandPalette();
+  const viewportFolded = useShellCollapsed();
+  const storedNavCollapsed = useShellStore((state) => state.navCollapsed);
 
-  useEffect(() => {
-    const media = window.matchMedia('(prefers-color-scheme: light)');
-    const apply = () => {
-      const resolved = theme === 'system' ? (media.matches ? 'light' : 'dark') : theme;
-      document.documentElement.dataset.theme = resolved;
-      document.documentElement.style.colorScheme = resolved;
-    };
-    apply();
-    media.addEventListener('change', apply);
-    return () => media.removeEventListener('change', apply);
-  }, [theme]);
+  const folded = collapsed ?? viewportFolded;
+  /* §8 rule 1: below the breakpoint the rail is an icon rail whatever the
+     preference says. The title bar's brand block is the same width as the rail,
+     so it is told the resolved state rather than re-deriving it. */
+  const navCollapsed = storedNavCollapsed || folded;
 
-  useEffect(() => {
-    document.documentElement.lang = language;
-  }, [language]);
+  const crumb = routeCrumb(location.pathname, location.search)
+    .map((segment) => i18n._(segment))
+    .join(CRUMB_SEPARATOR);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void commands.getConfig(controller.signal).then((config) => {
-      if (config.locale === 'zh-CN' || config.locale === 'en-US') applyLocale(config.locale);
-      if (config.theme === 'dark' || config.theme === 'light' || config.theme === 'system') setTheme(config.theme);
-    }).catch(() => undefined);
-    return () => controller.abort();
-  }, [setTheme]);
-
-  useEffect(() => {
-    const handleShortcut = (event: globalThis.KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setPaletteOpen((open) => !open);
-      }
-    };
-    window.addEventListener('keydown', handleShortcut);
-    return () => window.removeEventListener('keydown', handleShortcut);
-  }, []);
-
-  useEffect(() => {
-    if (!mobileNavOpen) return undefined;
-    const previousOverflow = document.body.style.overflow;
-    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') setMobileNavOpen(false);
-    };
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [mobileNavOpen]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    let timer: number | undefined;
-    const check = async () => {
-      const runtimeStamp = beginRemoteRead();
-      const [health, runtime] = await Promise.allSettled([
-        commands.health(controller.signal),
-        commands.runtimeState(controller.signal),
-      ]);
-      if (controller.signal.aborted) return;
-      setServiceState(health.status === 'fulfilled' ? 'online' : 'offline');
-      if (health.status === 'fulfilled') setAppVersion(health.value.version);
-      if (
-        runtime.status === 'fulfilled'
-        && applyRemoteSession(runtime.value.runtime_session, runtimeStamp)
-      ) setSessionError(null);
-      timer = window.setTimeout(() => void check(), 5_000);
-    };
-    void check();
-    return () => {
-      controller.abort();
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [applyRemoteSession, beginRemoteRead]);
-
-  useEffect(() => {
-    if (!sessionNotice) return undefined;
-    const timer = window.setTimeout(() => setSessionNotice(null), 8_000);
-    return () => window.clearTimeout(timer);
-  }, [sessionNotice]);
-
-  const stopPlayback = async () => {
-    if (!window.confirm(msg("m0219"))) return;
-    const revision = beginPlaybackStop();
-    if (revision === null) return;
-    setSessionError(null);
-    setSessionNotice(null);
-    try {
-      const result = await commands.stopPlayback();
-      completeRuntimeTransition(revision, 'idle');
-      setSessionNotice(result.forced_process_stop
-        ? msg("m0807")
-        : msg("m0780"));
-    } catch (cause) {
-      setSessionError(readableError(cause));
-      try {
-        const current = await commands.runtimeState();
-        completeRuntimeTransition(revision, current.runtime_session);
-      } catch {
-        completeRuntimeTransition(revision, 'playback_stopping');
-      }
-    }
-  };
-
-  const filteredNav = useMemo(() => {
-    const normalized = query.toLocaleLowerCase();
-    return commandPaletteDestinations.filter((item) =>
-      t(item.labelKey).toLocaleLowerCase().includes(normalized),
-    );
-  }, [query, t]);
-
-  const currentNavItem = allDestinations.find((item) => item.path === location.pathname);
-  const pageLabel = currentNavItem ? t(currentNavItem.labelKey) : 'Vibe CS';
-
-  const contextActive = (path: string) => {
-    if (path === '/library') return ['/library', '/analysis', '/players', '/lineups', '/match-history'].includes(location.pathname);
-    if (path === '/production') return ['/production', '/queue', '/studio', '/montage', '/studio/editor'].includes(location.pathname);
-    if (path === '/settings') return ['/settings', '/recovery'].includes(location.pathname);
-    return false;
-  };
-
-  const renderNav = (items: NavItem[]) =>
-    items.map(({ path, labelKey, icon: Icon, end }) => (
-      <NavLink
-        key={path}
-        to={path}
-        {...(end ? { end: true } : {})}
-        className={({ isActive }) => `sidebar-link${isActive || contextActive(path) ? ' is-active' : ''}`}
-        onClick={() => setMobileNavOpen(false)}
-        aria-label={t(labelKey)}
-        title={t(labelKey)}
-      >
-        <Icon size={17} strokeWidth={1.8} />
-        <span>{t(labelKey)}</span>
-      </NavLink>
-    ));
-
-  const onPaletteKeyDown = (event: KeyboardEvent<HTMLButtonElement>, path: string) => {
-    if (event.key === 'Enter') {
-      setPaletteOpen(false);
-      void navigate(path);
-    }
+  const goTo = (to: string) => {
+    void navigate(to);
   };
 
   return (
     <div
-      className={`app-shell${sidebarCollapsed ? ' is-sidebar-collapsed' : ''}${mobileNavOpen ? ' is-mobile-nav-open' : ''}`}
-      data-route={location.pathname}
+      data-app-shell
+      data-shell-folded={String(folded)}
+      className="flex h-full min-h-0 flex-col overflow-hidden bg-bg text-text"
     >
-      <aside id="app-sidebar" className="sidebar" aria-label={t('shell.mainNavigation')}>
-        <div className="sidebar__brand">
-          <div className="brand-mark" aria-hidden="true"><span>AL</span></div>
-          <div className="brand-copy">
-            <strong>Vibe CS</strong>
-            <span>STUDIO</span>
-          </div>
-          <IconButton
-            className="sidebar__collapse"
-            label={sidebarCollapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}
-            onClick={toggleSidebar}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-          </IconButton>
-        </div>
-
-        <nav className="sidebar__nav">
-          <span className="sidebar__label">{t('shell.workspace')}</span>
-          {renderNav(primaryNav)}
-          {workspaceNavigationGroups.map((group) => (
-            <section className="sidebar__workspace-group" key={group.id} aria-labelledby={`workspace-${group.id}`}>
-              <span className="sidebar__group-label" id={`workspace-${group.id}`}>{t(group.labelKey)}</span>
-              {renderNav(group.items)}
-            </section>
-          ))}
-        </nav>
-
-        <div className="sidebar__bottom">
-          <nav>{renderNav(secondaryNav)}</nav>
-          <div className="sidebar__utility">
-            <IconButton
-              label={t('shell.manageLanguage')}
-              onClick={() => void navigate('/settings')}
-            >
-              <Languages size={16} />
-            </IconButton>
-            <IconButton
-              label={theme === 'light' ? msg("m0278") : msg("m0277")}
-              onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-            >
-              {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-            </IconButton>
-            <span className="sidebar__version">v{appVersion}</span>
-          </div>
-        </div>
-      </aside>
-
-      <button
-        className="mobile-sidebar-backdrop"
-        type="button"
-        aria-label={t('shell.close')}
-        onClick={() => setMobileNavOpen(false)}
+      <WindowTitleBar
+        crumb={crumb}
+        serviceStatus={service.status}
+        navCollapsed={navCollapsed}
+        adapter={adapter}
+        onOpenCommandPalette={palette.openPalette}
       />
 
-      <div className="app-main">
-        <WindowTitleBar>
-          <div className="titlebar__crumb">
-            <span className="titlebar__index" aria-hidden="true">{currentNavItem?.code ?? '00'}</span>
-            <FolderKanban size={14} />
-            <span>{pageLabel}</span>
-          </div>
-          <button className="command-trigger" type="button" onClick={() => setPaletteOpen(true)}>
-            <Search size={14} />
-            <span>{t('shell.jumpSearch')}</span>
-            <kbd>Ctrl K</kbd>
-          </button>
-          <div className="titlebar__status" title={serviceState === 'online' ? msg("m0790") : serviceState === 'offline' ? msg("m0712") : msg("m0854")}>
-            {sessionError ? <span className="titlebar__session-error" role="alert">{sessionError}</span> : null}
-            {sessionNotice ? <span className="titlebar__session-notice" role="status">{sessionNotice}</span> : null}
-            {runtimeSession === 'playback' || runtimeSession === 'playback_launching' || runtimeSession === 'playback_stopping' ? <button className="titlebar__session-stop" type="button" disabled={runtimeSession !== 'playback'} onClick={() => void stopPlayback()} aria-label={t('shell.stopPlayback')}><PauseCircle size={13} />{runtimeSession === 'playback_launching' ? t('shell.launching') : runtimeSession === 'playback_stopping' ? t('shell.stopping') : t('shell.stopPlayback')}</button> : null}
-            <span className={`status-dot${serviceState === 'online' ? ' status-dot--online' : serviceState === 'offline' ? ' status-dot--offline' : ''}`} />
-            <span>{serviceState === 'online' ? t('shell.serviceOnline') : serviceState === 'offline' ? t('shell.serviceOffline') : t('shell.connecting')}</span>
-          </div>
-        </WindowTitleBar>
+      {/* 「重连成功后横幅收起」 falls out of the state: the notice renders null
+          while the service answers, so it is mounted unconditionally. */}
+      <ServiceOfflineNotice />
 
-        <main className="content" id="main-content">
-          <Outlet />
+      <div data-shell-row className="flex min-h-0 flex-1">
+        <SideNav collapsed={navCollapsed} badges={badges} />
+
+        <main
+          id="main-content"
+          data-shell-main
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+        >
+          {/* `location.key` changes on every navigation, so leaving a broken
+              route is itself the recovery — without it the caught error would
+              survive onto the next page. */}
+          <RouteBoundary resetKey={location.key} onGoHome={() => goTo('/')}>
+            <Outlet />
+          </RouteBoundary>
         </main>
+
+        {/* Decision 3: no right column below the fold. `SideNav` keeps the
+            Agent entry and its badge. */}
+        {folded ? null : <AgentRail />}
       </div>
 
-      <Suspense fallback={(
-        <aside className="ai-workspace-dock" aria-label={t('copilot.workspaceDock')}>
-          <header><Bot size={17} /><strong>{t('copilot.workspaceDock')}</strong></header>
-        </aside>
-      )}>
-        <AgentDock />
-      </Suspense>
-
-      {paletteOpen ? (
-        <div className="command-layer" role="presentation" onMouseDown={() => setPaletteOpen(false)}>
-          <section
-            ref={paletteRef}
-            className="command-palette"
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('shell.jumpSearch')}
-            tabIndex={-1}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <div className="command-palette__search">
-              <Search size={17} />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder={t('shell.searchPlaceholder')}
-              />
-              <IconButton label={t('shell.close')} onClick={() => setPaletteOpen(false)}><X size={15} /></IconButton>
-            </div>
-            <div className="command-palette__results">
-              {filteredNav.map(({ path, labelKey, icon: Icon }) => (
-                <button
-                  type="button"
-                  key={path}
-                  onClick={() => {
-                    setPaletteOpen(false);
-                    void navigate(path);
-                  }}
-                  onKeyDown={(event) => onPaletteKeyDown(event, path)}
-                >
-                  <Icon size={16} />
-                  <span>{t(labelKey)}</span>
-                  <ChevronRight size={14} />
-                </button>
-              ))}
-              {filteredNav.length === 0 ? (
-                <div className="command-palette__empty"><CircleHelp size={18} />{t('shell.noMatches')}</div>
-              ) : null}
-            </div>
-            <footer><Command size={13} />{t('shell.keyboardHelp')}</footer>
-          </section>
-        </div>
-      ) : null}
-
-      <button
-        className="mobile-sidebar-toggle"
-        type="button"
-        aria-label={mobileNavOpen ? t('shell.close') : t('shell.mainNavigation')}
-        aria-controls="app-sidebar"
-        aria-expanded={mobileNavOpen}
-        onClick={() => setMobileNavOpen((open) => !open)}
-      >
-        {mobileNavOpen ? <X size={18} /> : <Menu size={18} />}
-      </button>
+      <CommandPalette open={palette.open} onClose={palette.closePalette} navigate={goTo} />
     </div>
   );
 }

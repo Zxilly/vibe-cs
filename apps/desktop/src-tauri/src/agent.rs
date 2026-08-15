@@ -5,6 +5,7 @@ use std::{
     time::Duration,
 };
 
+use async_trait::async_trait;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -14,8 +15,9 @@ use uuid::Uuid;
 use vibe_cs_agent::{
     AgentConfig as EmbeddedAgentConfig, AgentContext as EmbeddedAgentContext,
     AgentMode as EmbeddedAgentMode, AgentRequest as EmbeddedAgentRequest,
-    AgentStreamEvent as EmbeddedAgentStreamEvent, Cancellation, HistoryMessage,
+    AgentStreamEvent as EmbeddedAgentStreamEvent, AgentToolHost, Cancellation, HistoryMessage,
 };
+use vibe_cs_domain::{AnalysisRunStatus, RoundReplayArtifact};
 
 use crate::bridge::{DesktopBridge, DesktopCall, DesktopMethod};
 
@@ -23,6 +25,288 @@ const MAXIMUM_THREAD_MESSAGES: usize = 80;
 const MAXIMUM_THREAD_BYTES: usize = 1024 * 1024;
 const TEXT_DELTA_BATCH_BYTES: usize = 256;
 const MAXIMUM_STREAM_TEXT_EVENTS_BEFORE_FINAL: usize = 979;
+const ROUND_REPLAY_ENVELOPE_BYTES: usize = 12;
+const MAXIMUM_CINEMATIC_SAMPLES: usize = 16;
+
+#[derive(Debug, Clone)]
+struct CinematicHighlight {
+    id: String,
+    round: u32,
+    start_tick: u64,
+    end_tick: u64,
+    player_id: String,
+    engagements: Vec<CinematicEngagement>,
+}
+
+#[derive(Debug, Clone)]
+struct CinematicEngagement {
+    tick: u64,
+    target_id: String,
+    target_position: [f64; 3],
+}
+
+#[derive(Debug)]
+struct CinematicReplayHost {
+    storage: vibe_cs_storage::Storage,
+    dispatcher: DesktopBridge,
+    demo_id: Uuid,
+    highlights: HashMap<String, CinematicHighlight>,
+    replay_cache: Mutex<HashMap<u32, Arc<RoundReplayArtifact>>>,
+}
+
+impl CinematicReplayHost {
+    fn new(
+        storage: vibe_cs_storage::Storage,
+        dispatcher: DesktopBridge,
+        demo_id: Uuid,
+        analysis: &Value,
+    ) -> Self {
+        let highlights = analysis
+            .get("highlights")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|highlight| {
+                let id = highlight.get("id")?.as_str()?.to_owned();
+                let round = u32::try_from(highlight.get("round")?.as_u64()?).ok()?;
+                let start_tick = highlight.get("start_tick")?.as_u64()?;
+                let end_tick = highlight.get("end_tick")?.as_u64()?;
+                let player_id = highlight.get("player_id")?.as_str()?.to_owned();
+                let engagements = analysis
+                    .get("rounds")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .find(|candidate| {
+                        candidate.get("number").and_then(Value::as_u64) == Some(u64::from(round))
+                    })
+                    .and_then(|value| value.get("events"))
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|event| {
+                        let tick = event.get("tick")?.as_u64()?;
+                        (event.get("kind").and_then(Value::as_str) == Some("kill")
+                            && event.get("actor").and_then(Value::as_str)
+                                == Some(player_id.as_str())
+                            && tick >= start_tick
+                            && tick <= end_tick)
+                            .then_some(())?;
+                        Some(CinematicEngagement {
+                            tick,
+                            target_id: event.get("target")?.as_str()?.to_owned(),
+                            target_position: json_position(event.get("position")?)?,
+                        })
+                    })
+                    .collect();
+                let descriptor = CinematicHighlight {
+                    id,
+                    round,
+                    start_tick,
+                    end_tick,
+                    player_id,
+                    engagements,
+                };
+                Some((descriptor.id.clone(), descriptor))
+            })
+            .collect();
+        Self {
+            storage,
+            dispatcher,
+            demo_id,
+            highlights,
+            replay_cache: Mutex::new(HashMap::new()),
+        }
+    }
+
+    async fn round_replay(&self, round: u32) -> Result<Arc<RoundReplayArtifact>, String> {
+        if let Some(cached) = self.replay_cache.lock().await.get(&round).cloned() {
+            return Ok(cached);
+        }
+        let runs = self
+            .storage
+            .list_analysis_runs(self.demo_id)
+            .await
+            .map_err(|error| format!("unable to list analysis runs: {error}"))?;
+        let run = runs
+            .into_iter()
+            .filter(|run| run.status == AnalysisRunStatus::Completed)
+            .max_by_key(|run| run.created_at)
+            .ok_or_else(|| {
+                "no completed analysis run is available for replay evidence".to_owned()
+            })?;
+        let path = format!("/analysis-runs/{}/replay/rounds/{round}/replay.bin", run.id);
+        let bytes = self
+            .dispatcher
+            .dispatch_binary(&path)
+            .await
+            .map_err(|error| format!("unable to read selected-round replay: {error:?}"))?;
+        let artifact = decode_round_replay_envelope(&bytes)?;
+        if artifact.metadata.producer_run_id != run.id
+            || artifact.metadata.demo_id != self.demo_id
+            || artifact.metadata.round != round
+        {
+            return Err("selected-round replay identity does not match the request".to_owned());
+        }
+        let artifact = Arc::new(artifact);
+        self.replay_cache
+            .lock()
+            .await
+            .insert(round, artifact.clone());
+        Ok(artifact)
+    }
+}
+
+#[async_trait]
+impl AgentToolHost for CinematicReplayHost {
+    async fn read_cinematic_context(&self, highlight_ids: &[String]) -> Result<Value, String> {
+        let mut scenes = Vec::new();
+        for id in highlight_ids {
+            let Some(highlight) = self.highlights.get(id) else {
+                continue;
+            };
+            let artifact = self.round_replay(highlight.round).await?;
+            scenes.push(cinematic_scene_from_replay(highlight, &artifact));
+        }
+        Ok(json!({ "scenes": scenes }))
+    }
+}
+
+fn decode_round_replay_envelope(bytes: &[u8]) -> Result<RoundReplayArtifact, String> {
+    if bytes.len() < ROUND_REPLAY_ENVELOPE_BYTES || &bytes[..4] != b"RRPL" {
+        return Err("selected-round replay has an invalid envelope".to_owned());
+    }
+    let version = u16::from_le_bytes([bytes[4], bytes[5]]);
+    let flags = u16::from_le_bytes([bytes[6], bytes[7]]);
+    let payload_length = u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]) as usize;
+    if version != 1 || flags != 0 || payload_length != bytes.len() - ROUND_REPLAY_ENVELOPE_BYTES {
+        return Err("selected-round replay has an unsupported envelope".to_owned());
+    }
+    serde_json::from_slice(&bytes[ROUND_REPLAY_ENVELOPE_BYTES..])
+        .map_err(|error| format!("invalid selected-round replay payload: {error}"))
+}
+
+fn cinematic_scene_from_replay(
+    highlight: &CinematicHighlight,
+    artifact: &RoundReplayArtifact,
+) -> Value {
+    let start_tick = highlight.start_tick.max(artifact.metadata.start_tick);
+    let end_tick = highlight.end_tick.min(artifact.metadata.end_tick);
+    let eligible = artifact
+        .frames
+        .iter()
+        .filter(|frame| frame.tick >= start_tick && frame.tick <= end_tick)
+        .filter(|frame| {
+            frame
+                .players
+                .iter()
+                .any(|player| player.steam_id == highlight.player_id)
+        })
+        .collect::<Vec<_>>();
+    let selected_indices = evenly_spaced_indices(eligible.len(), MAXIMUM_CINEMATIC_SAMPLES);
+    let positioned = selected_indices
+        .into_iter()
+        .filter_map(|index| {
+            let frame = eligible.get(index)?;
+            let player = frame
+                .players
+                .iter()
+                .find(|player| player.steam_id == highlight.player_id)?;
+            let opponent = frame
+                .players
+                .iter()
+                .filter(|candidate| {
+                    candidate.alive
+                        && candidate.steam_id != player.steam_id
+                        && candidate.team != player.team
+                })
+                .min_by(|left, right| {
+                    horizontal_distance(player.position, left.position)
+                        .total_cmp(&horizontal_distance(player.position, right.position))
+                });
+            Some(json!({
+                "tick": frame.tick,
+                "kind": "player_sample",
+                "actor": player.steam_id,
+                "position": player.position,
+                "yaw": player.yaw,
+                "alive": player.alive,
+                "nearestOpponentPosition": opponent.map(|value| value.position),
+                "nearestOpponentId": opponent.map(|value| value.steam_id.as_str()),
+                "nearestOpponentDistanceUnits": opponent.map(|value| horizontal_distance(player.position, value.position)),
+            }))
+        })
+        .collect::<Vec<_>>();
+    let verified_engagements = highlight
+        .engagements
+        .iter()
+        .filter_map(|engagement| {
+            let frame = artifact
+                .frames
+                .iter()
+                .min_by_key(|frame| frame.tick.abs_diff(engagement.tick))?;
+            let player = frame
+                .players
+                .iter()
+                .find(|player| player.steam_id == highlight.player_id)?;
+            let axis = [
+                engagement.target_position[0] - player.position[0],
+                engagement.target_position[1] - player.position[1],
+                engagement.target_position[2] - player.position[2],
+            ];
+            Some(json!({
+                "tick": engagement.tick,
+                "target": engagement.target_id,
+                "playerPosition": player.position,
+                "targetPosition": engagement.target_position,
+                "axis": axis,
+                "distanceUnits": horizontal_distance(player.position, engagement.target_position),
+            }))
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "highlightId": highlight.id,
+        "positionedAction": positioned,
+        "verifiedEngagements": verified_engagements,
+        "fidelity": {
+            "source": "selected_round_replay",
+            "round": artifact.metadata.round,
+            "artifactStartTick": artifact.metadata.start_tick,
+            "artifactEndTick": artifact.metadata.end_tick,
+            "requestedStartTick": highlight.start_tick,
+            "requestedEndTick": highlight.end_tick,
+            "effectiveStartTick": start_tick,
+            "effectiveEndTick": end_tick,
+            "sampleIntervalTicks": artifact.metadata.sample_interval_ticks,
+            "acceptedTickCount": artifact.metadata.accepted_tick_count,
+            "targetFrameCount": eligible.len(),
+            "returnedSampleCount": positioned.len(),
+            "clampedToArtifactEnd": highlight.end_tick > artifact.metadata.end_tick,
+        }
+    })
+}
+
+fn json_position(value: &Value) -> Option<[f64; 3]> {
+    let values = value.as_array()?;
+    Some([
+        values.first()?.as_f64()?,
+        values.get(1)?.as_f64()?,
+        values.get(2)?.as_f64()?,
+    ])
+}
+
+fn evenly_spaced_indices(length: usize, maximum: usize) -> Vec<usize> {
+    if length <= maximum {
+        return (0..length).collect();
+    }
+    (0..maximum)
+        .map(|index| index * (length - 1) / (maximum - 1))
+        .collect()
+}
+
+fn horizontal_distance(left: [f64; 3], right: [f64; 3]) -> f64 {
+    (right[0] - left[0]).hypot(right[1] - left[1])
+}
 
 #[derive(Debug, Clone)]
 pub(crate) struct AgentBridge {
@@ -304,7 +588,11 @@ enum AgentMode {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase", tag = "type")]
+#[serde(
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase",
+    tag = "type"
+)]
 pub(crate) enum AgentEvent {
     Started { thread_id: Uuid },
     TextDelta { delta: String },
@@ -586,6 +874,33 @@ async fn run_agent_chat(
         }
         None => Value::Null,
     };
+    let map_context = match analysis
+        .get("map_name")
+        .and_then(Value::as_str)
+        .filter(|name| {
+            !name.is_empty()
+                && name.len() <= 128
+                && name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+        }) {
+        Some(map_name) => state
+            .dispatcher
+            .dispatch(DesktopCall {
+                method: DesktopMethod::Get,
+                path: format!("/maps/{map_name}/radar/metadata"),
+                body: None,
+            })
+            .await
+            .unwrap_or_else(|_| {
+                json!({
+                    "map_name": map_name,
+                    "transform": null,
+                    "browser_displayable": false,
+                })
+            }),
+        None => Value::Null,
+    };
     let editor_project = match input.editor_project_id {
         Some(id) => serde_json::to_value(state.storage.get_editor_project(id).await.map_err(
             |error| AgentCommandError::internal(format!("unable to read editor project: {error}")),
@@ -658,6 +973,15 @@ async fn run_agent_chat(
             content: entry.content.clone(),
         })
         .collect::<Vec<_>>();
+    let summarized_analysis = summarize_analysis(&analysis);
+    let tool_host = input.demo_id.map(|demo_id| {
+        Arc::new(CinematicReplayHost::new(
+            state.storage.clone(),
+            state.dispatcher.clone(),
+            demo_id,
+            &analysis,
+        )) as Arc<dyn AgentToolHost>
+    });
     let request = EmbeddedAgentRequest {
         request_id: input.request_id.to_string(),
         mode: match input.mode {
@@ -678,12 +1002,14 @@ async fn run_agent_chat(
             workspace: serde_json::to_value(&input.workspace_context)
                 .map_err(|error| AgentCommandError::internal(error.to_string()))?,
             demo: summarize_demo(&demo),
-            analysis: summarize_analysis(&analysis),
+            analysis: summarized_analysis,
+            map_context,
             editor_project: summarize_editor_project(&editor_project),
             selected_audio,
             audio_analysis,
             beat_alignment_draft,
         },
+        tool_host,
     };
     let mut pending_text = String::new();
     let mut text_event_count = 0_usize;
@@ -878,6 +1204,52 @@ fn summarize_highlights(value: Option<&Value>, maximum: usize) -> Vec<Value> {
         .collect()
 }
 
+fn summarize_round_event(event: &Value) -> Option<Value> {
+    let source = event.as_object()?;
+    Some(json!({
+        "id": source.get("id"),
+        "tick": source.get("tick"),
+        "seconds": source.get("seconds"),
+        "kind": source.get("kind"),
+        "actor": source.get("actor"),
+        "target": source.get("target"),
+        "weapon": source.get("weapon"),
+        "headshot": source.get("headshot"),
+        "penetrated": source.get("penetrated"),
+        "position": source.get("position"),
+    }))
+}
+
+fn summarize_rounds(value: Option<&Value>, maximum: usize) -> Vec<Value> {
+    value
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .take(maximum)
+        .filter_map(|round| {
+            let source = round.as_object()?;
+            let events = source
+                .get("events")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .take(128)
+                .filter_map(summarize_round_event)
+                .collect::<Vec<_>>();
+            Some(json!({
+                "number": source.get("number"),
+                "start_tick": source.get("start_tick"),
+                "end_tick": source.get("end_tick"),
+                "winner": source.get("winner"),
+                "reason": source.get("reason"),
+                "team_a_score": source.get("team_a_score"),
+                "team_b_score": source.get("team_b_score"),
+                "events": events,
+            }))
+        })
+        .collect()
+}
+
 fn summarize_analysis(analysis: &Value) -> Value {
     let Some(source) = analysis.as_object() else {
         return Value::Null;
@@ -897,7 +1269,7 @@ fn summarize_analysis(analysis: &Value) -> Value {
         "demo_id": source.get("demo_id"), "map_name": source.get("map_name"),
         "tick_rate": source.get("tick_rate"), "duration_seconds": source.get("duration_seconds"),
         "teams": capped_array(source.get("teams"), 2), "players": capped_array(source.get("players"), 32),
-        "rounds": capped_array(source.get("rounds"), 64), "highlights": summarize_highlights(source.get("highlights"), 128),
+        "rounds": summarize_rounds(source.get("rounds"), 64), "highlights": summarize_highlights(source.get("highlights"), 128),
         "insights": insights,
     })
 }
@@ -984,6 +1356,89 @@ fn beat_alignment_clips(editor_project: &Value, analysis: &Value) -> Vec<Value> 
 
 fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> {
     match proposal.kind.as_str() {
+        "video_render" => {
+            let payload = proposal.payload.as_object().ok_or_else(|| {
+                AgentCommandError::internal("agent returned an invalid video task")
+            })?;
+            if payload
+                .get("requires_user_confirmation")
+                .and_then(Value::as_bool)
+                != Some(true)
+            {
+                return Err(AgentCommandError::internal(
+                    "agent video task must require explicit user confirmation",
+                ));
+            }
+            if payload
+                .get("output")
+                .and_then(Value::as_object)
+                .and_then(|output| output.get("container"))
+                .and_then(Value::as_str)
+                != Some("mp4")
+            {
+                return Err(AgentCommandError::internal(
+                    "agent video task must deliver an MP4",
+                ));
+            }
+            let items = payload
+                .get("items")
+                .and_then(Value::as_array)
+                .filter(|items| !items.is_empty() && items.len() <= 16)
+                .ok_or_else(|| {
+                    AgentCommandError::internal(
+                        "agent video task violates its recording-item bounds",
+                    )
+                })?;
+            let shot_designs = payload
+                .get("shot_designs")
+                .and_then(Value::as_array)
+                .filter(|designs| designs.len() == items.len())
+                .ok_or_else(|| {
+                    AgentCommandError::internal(
+                        "agent video task must explain one map-aware design per recording item",
+                    )
+                })?;
+            for item in items {
+                let request =
+                    serde_json::from_value::<vibe_cs_domain::RecordingRequest>(item.clone())
+                        .map_err(|error| {
+                            AgentCommandError::internal(format!(
+                                "agent returned an invalid video recording item: {error}"
+                            ))
+                        })?;
+                if request.id.is_none() {
+                    return Err(AgentCommandError::internal(
+                        "agent video recording item has no persistent identifier",
+                    ));
+                }
+                request.validate().map_err(|error| {
+                    AgentCommandError::internal(format!(
+                        "agent returned an invalid video recording item: {error}"
+                    ))
+                })?;
+            }
+            for (item, design) in items.iter().zip(shot_designs) {
+                let highlight_id = item.get("highlight_id").and_then(Value::as_str);
+                let rationale = design.get("rationale").and_then(Value::as_str);
+                if design.get("highlight_id").and_then(Value::as_str) != highlight_id
+                    || design
+                        .get("camera_intent")
+                        .and_then(Value::as_str)
+                        .is_none()
+                    || design.get("camera_style").and_then(Value::as_str)
+                        != item
+                            .get("camera_style")
+                            .and_then(Value::as_str)
+                            .or(Some("pov"))
+                    || rationale.is_none_or(|value| value.trim().chars().count() < 8)
+                    || design.get("requires_user_review").and_then(Value::as_bool) != Some(true)
+                {
+                    return Err(AgentCommandError::internal(
+                        "agent video shot design is missing its evidence, intent, or rationale",
+                    ));
+                }
+            }
+        }
         "hlae" => {
             let intent = serde_json::from_value::<vibe_cs_domain::HlaeProposalIntent>(
                 proposal.payload.clone(),
@@ -1042,6 +1497,137 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn cinematic_host_keeps_exact_kill_events_from_unsummarized_analysis() {
+        let demo_id = Uuid::new_v4();
+        let highlight_id = "21:76561198041683378:173550-multikill";
+        let analysis = json!({
+            "highlights": [{
+                "id": highlight_id,
+                "round": 21,
+                "start_tick": 173422,
+                "end_tick": 174142,
+                "player_id": "76561198041683378"
+            }],
+            "rounds": [{
+                "number": 21,
+                "events": [
+                    {"tick":173550,"kind":"kill","actor":"76561198041683378","target":"YEKINDAR","position":[-1921.4,-255.9,-127.9]},
+                    {"tick":173671,"kind":"damage","actor":"yuurih","target":"TeSeS","position":[-2530.4,244.3,-167.9]},
+                    {"tick":173950,"kind":"kill","actor":"76561198041683378","target":"yuurih","position":[-1550.8,130.4,-167.9]}
+                ]
+            }]
+        });
+        let host = CinematicReplayHost::new(
+            vibe_cs_storage::Storage::open_in_memory()
+                .await
+                .expect("in-memory storage"),
+            DesktopBridge::new(Arc::new(tokio::sync::OnceCell::new())),
+            demo_id,
+            &analysis,
+        );
+
+        let highlight = host
+            .highlights
+            .get(highlight_id)
+            .expect("highlight binding");
+        assert_eq!(highlight.engagements.len(), 2);
+        assert_eq!(highlight.engagements[0].tick, 173550);
+        assert_eq!(highlight.engagements[0].target_id, "YEKINDAR");
+        assert_eq!(highlight.engagements[1].tick, 173950);
+        assert_eq!(highlight.engagements[1].target_id, "yuurih");
+    }
+
+    #[test]
+    fn replay_scene_uses_steam_id_and_clamps_highlight_to_artifact() {
+        let run_id = Uuid::new_v4();
+        let demo_id = Uuid::new_v4();
+        let artifact: RoundReplayArtifact = serde_json::from_value(json!({
+            "metadata": {
+                "producer_run_id": run_id,
+                "demo_id": demo_id,
+                "input_sha256": "a".repeat(64),
+                "input_size": 1024,
+                "round": 21,
+                "start_tick": 161630,
+                "end_tick": 173950,
+                "tick_rate": 64.0,
+                "sampling_contract_version": 1,
+                "sample_interval_ticks": 16,
+                "requested_tick_count": 900,
+                "accepted_tick_count": 900,
+                "event_tick_count": 12,
+                "freeze_end_tick": 162000,
+                "players_per_frame": 10,
+                "fields": {
+                    "position": "required", "yaw": "required", "health": "required",
+                    "armor": "required", "life_state": "required", "money": "required",
+                    "current_equipment_value": "required",
+                    "round_start_equipment_value": "required", "has_helmet": "required",
+                    "active_weapon_name": "nullable"
+                }
+            },
+            "frames": [
+                {
+                    "tick": 173422,
+                    "players": [
+                        replay_player("76561198041683378", "A", [-1552.0, -190.0, -161.0]),
+                        replay_player("enemy-1", "B", [-1250.0, -100.0, -160.0])
+                    ]
+                },
+                {
+                    "tick": 173950,
+                    "players": [
+                        replay_player("76561198041683378", "A", [-1714.0, -232.0, -167.0]),
+                        replay_player("enemy-1", "B", [-1400.0, -120.0, -165.0])
+                    ]
+                }
+            ]
+        }))
+        .expect("round replay fixture");
+        let highlight = CinematicHighlight {
+            id: "21:76561198041683378:173550-multikill".to_owned(),
+            round: 21,
+            start_tick: 173422,
+            end_tick: 174142,
+            player_id: "76561198041683378".to_owned(),
+            engagements: vec![CinematicEngagement {
+                tick: 173550,
+                target_id: "enemy-1".to_owned(),
+                target_position: [-1250.0, -100.0, -160.0],
+            }],
+        };
+
+        let scene = cinematic_scene_from_replay(&highlight, &artifact);
+
+        assert_eq!(scene["positionedAction"].as_array().map(Vec::len), Some(2));
+        assert_eq!(scene["positionedAction"][0]["actor"], highlight.player_id);
+        assert_eq!(scene["positionedAction"][0]["nearestOpponentId"], "enemy-1");
+        assert_eq!(scene["verifiedEngagements"][0]["target"], "enemy-1");
+        assert_eq!(scene["fidelity"]["effectiveEndTick"], 173950);
+        assert_eq!(scene["fidelity"]["clampedToArtifactEnd"], true);
+    }
+
+    fn replay_player(steam_id: &str, team: &str, position: [f64; 3]) -> Value {
+        json!({
+            "steam_id": steam_id,
+            "name": steam_id,
+            "team": team,
+            "side": if team == "A" { "T" } else { "CT" },
+            "position": position,
+            "yaw": 20.0,
+            "health": 100,
+            "armor": 100,
+            "life_state": 0,
+            "alive": true,
+            "money": 1000,
+            "current_equipment_value": 4000,
+            "round_start_equipment_value": 4000,
+            "has_helmet": true,
+            "active_weapon_name": "ak47"
+        })
+    }
+
     #[test]
     fn status_never_serializes_a_key() {
         let status = AgentStatus {
@@ -1058,6 +1644,70 @@ mod tests {
             serde_json::from_str::<Value>(&encoded).expect("JSON")["runtimeAvailable"],
             true
         );
+    }
+
+    #[test]
+    fn streamed_agent_event_fields_use_the_frontend_camel_case_contract() {
+        let thread_id = Uuid::new_v4();
+        let started =
+            serde_json::to_value(AgentEvent::Started { thread_id }).expect("started event JSON");
+        assert_eq!(started["threadId"], thread_id.to_string());
+        assert!(started.get("thread_id").is_none());
+
+        let tool_call = serde_json::to_value(AgentEvent::ToolCall {
+            tool_call: AgentToolCall {
+                name: "draft_hlae_plan".to_owned(),
+                input: json!({}),
+                output: json!({}),
+            },
+        })
+        .expect("tool event JSON");
+        assert_eq!(tool_call["toolCall"]["name"], "draft_hlae_plan");
+        assert!(tool_call.get("tool_call").is_none());
+    }
+
+    #[test]
+    fn video_render_proposal_requires_executable_mp4_items() {
+        let proposal = AgentProposal {
+            kind: "video_render".to_owned(),
+            title: "NiKo highlight".to_owned(),
+            payload: json!({
+                "items": [{
+                    "id": "00000000-0000-4000-8000-0000000000a1",
+                    "demo_id": "00000000-0000-4000-8000-0000000000d1",
+                    "highlight_id": "round-21-niko",
+                    "player_id": "76561198041683378",
+                    "title": "NiKo round 21",
+                    "start_tick": 173422,
+                    "end_tick": 174142,
+                    "pre_roll_seconds": 2.5,
+                    "post_roll_seconds": 2.0,
+                    "victim_pov": false,
+                    "camera_style": "tracking"
+                }],
+                "shot_designs": [{
+                    "highlight_id": "round-21-niko",
+                    "map_name": "de_mirage",
+                    "camera_intent": "follow_entry",
+                    "camera_style": "tracking",
+                    "rationale": "Follow the proven route and keep the engagement lane readable.",
+                    "spatial_evidence": null,
+                    "requires_user_review": true
+                }],
+                "output": {"container": "mp4"},
+                "source_highlight_ids": ["round-21-niko"],
+                "requires_user_confirmation": true
+            }),
+        };
+        validate_proposal(&proposal).expect("valid video task");
+
+        let mut invalid = proposal;
+        invalid.payload["output"]["container"] = json!("hlae_bundle");
+        assert!(validate_proposal(&invalid).is_err());
+
+        invalid.payload["output"]["container"] = json!("mp4");
+        invalid.payload["requires_user_confirmation"] = json!(false);
+        assert!(validate_proposal(&invalid).is_err());
     }
 
     #[test]
@@ -1114,6 +1764,52 @@ mod tests {
         for round in 1..=21 {
             assert!(selected.iter().any(|item| item["round"] == round));
         }
+    }
+
+    #[test]
+    fn analysis_summary_bounds_round_event_payloads_for_agent_context() {
+        let rounds = (1..=21)
+            .map(|round| {
+                json!({
+                    "number": round,
+                    "start_tick": round * 10_000,
+                    "end_tick": round * 10_000 + 9_999,
+                    "winner": "CT",
+                    "reason": "elimination",
+                    "team_a_score": round / 2,
+                    "team_b_score": round - round / 2,
+                    "events": (0..160).map(|event| json!({
+                        "id": format!("event-{round}-{event}"),
+                        "tick": round * 10_000 + event,
+                        "seconds": event,
+                        "kind": "player_death",
+                        "actor": "76561198041683378",
+                        "target": "76561198000000001",
+                        "weapon": "ak47",
+                        "headshot": true,
+                        "unbounded_parser_payload": "x".repeat(2_048),
+                    })).collect::<Vec<_>>(),
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let summary = summarize_analysis(&json!({ "rounds": rounds }));
+        let encoded = serde_json::to_vec(&summary).expect("summary JSON");
+        assert!(
+            encoded.len() < 1024 * 1024,
+            "bounded Agent analysis context, got {} bytes",
+            encoded.len()
+        );
+        assert_eq!(summary["rounds"].as_array().map(Vec::len), Some(21));
+        assert_eq!(
+            summary["rounds"][0]["events"].as_array().map(Vec::len),
+            Some(128)
+        );
+        assert!(
+            summary["rounds"][0]["events"][0]
+                .get("unbounded_parser_payload")
+                .is_none()
+        );
     }
 
     #[test]

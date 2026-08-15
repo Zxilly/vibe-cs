@@ -92,7 +92,7 @@ impl DesktopBridge {
         }
     }
 
-    async fn dispatch_binary(&self, path: &str) -> Result<Vec<u8>, DesktopCommandError> {
+    pub(crate) async fn dispatch_binary(&self, path: &str) -> Result<Vec<u8>, DesktopCommandError> {
         let uri = internal_uri(path)?;
         let router = self
             .router
@@ -413,6 +413,17 @@ fn hlae_execute_requires_native_consent(call: &DesktopCall) -> bool {
         .is_some_and(|plan_id| uuid::Uuid::parse_str(plan_id).is_ok())
 }
 
+fn hlae_execute_has_reviewed_inline_consent(call: &DesktopCall) -> bool {
+    hlae_execute_requires_native_consent(call)
+        && call
+            .body
+            .as_ref()
+            .and_then(Value::as_object)
+            .and_then(|body| body.get("offline_insecure_acknowledged"))
+            .and_then(Value::as_bool)
+            == Some(true)
+}
+
 fn apply_hlae_native_consent(
     call: &mut DesktopCall,
     confirmed: bool,
@@ -528,7 +539,9 @@ pub(crate) async fn desktop_call(
     state: State<'_, DesktopBridge>,
     mut call: DesktopCall,
 ) -> Result<Value, DesktopCommandError> {
-    if hlae_execute_requires_native_consent(&call) {
+    if hlae_execute_requires_native_consent(&call)
+        && !hlae_execute_has_reviewed_inline_consent(&call)
+    {
         let confirmed = request_hlae_native_consent(&window).await?;
         apply_hlae_native_consent(&mut call, confirmed)?;
     }
@@ -584,7 +597,8 @@ mod tests {
 
     use super::{
         DesktopCall, DesktopCommandError, DesktopMethod, apply_hlae_native_consent, decode_hex,
-        hlae_execute_requires_native_consent, media_uri, validate_media_method,
+        hlae_execute_has_reviewed_inline_consent, hlae_execute_requires_native_consent, media_uri,
+        validate_media_method,
     };
 
     #[test]
@@ -632,6 +646,20 @@ mod tests {
                 "offline_insecure_acknowledged": true
             }))
         );
+    }
+
+    #[test]
+    fn reviewed_inline_confirmation_can_continue_without_an_os_dialog() {
+        let execute = DesktopCall {
+            method: DesktopMethod::Post,
+            path: "/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute".to_owned(),
+            body: Some(serde_json::json!({
+                "offline_insecure_acknowledged": true
+            })),
+        };
+
+        assert!(hlae_execute_requires_native_consent(&execute));
+        assert!(hlae_execute_has_reviewed_inline_consent(&execute));
     }
 
     #[test]

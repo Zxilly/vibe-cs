@@ -8,8 +8,9 @@ use rig_core::tool::{ToolExecutionError, ToolOutput};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
-use crate::AgentContext;
+use crate::{AgentContext, AgentToolHost};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -36,13 +37,17 @@ struct Captures {
 #[derive(Debug, Clone)]
 pub(crate) struct ToolState {
     context: Arc<AgentContext>,
+    tool_host: Option<Arc<dyn AgentToolHost>>,
+    cinematic_cache: Arc<Mutex<HashMap<String, Value>>>,
     captures: Arc<Mutex<Captures>>,
 }
 
 impl ToolState {
-    pub(crate) fn new(context: AgentContext) -> Self {
+    pub(crate) fn new(context: AgentContext, tool_host: Option<Arc<dyn AgentToolHost>>) -> Self {
         Self {
             context: Arc::new(context),
+            tool_host,
+            cinematic_cache: Arc::new(Mutex::new(HashMap::new())),
             captures: Arc::new(Mutex::new(Captures::default())),
         }
     }
@@ -53,8 +58,16 @@ impl ToolState {
     }
 
     async fn execute(&self, name: &str, input: Value) -> Result<Value, ToolExecutionError> {
+        let external_cinematic = if matches!(name, "read_cinematic_context" | "draft_video_plan") {
+            self.external_cinematic_context(&input)
+                .await
+                .map_err(ToolExecutionError::other)?
+        } else {
+            None
+        };
         let (output, plan) =
-            execute_tool(name, &self.context, &input).map_err(ToolExecutionError::invalid_args)?;
+            execute_tool_with_cinematic(name, &self.context, &input, external_cinematic.as_ref())
+                .map_err(ToolExecutionError::invalid_args)?;
         let mut captures = self.captures.lock().await;
         if captures.tool_calls.len() >= 32 {
             return Err(ToolExecutionError::other("tool call limit exceeded"));
@@ -71,6 +84,39 @@ impl ToolState {
             captures.plans.push(plan);
         }
         Ok(output)
+    }
+
+    async fn external_cinematic_context(&self, input: &Value) -> Result<Option<Value>, String> {
+        let ids = string_vec_required(input, "highlightIds", 16)?;
+        let missing = {
+            let cache = self.cinematic_cache.lock().await;
+            ids.iter()
+                .filter(|id| !cache.contains_key(*id))
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        if !missing.is_empty() {
+            if let Some(host) = &self.tool_host {
+                let supplied = host.read_cinematic_context(&missing).await?;
+                let mut cache = self.cinematic_cache.lock().await;
+                for scene in supplied
+                    .get("scenes")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
+                    if let Some(id) = scene.get("highlightId").and_then(Value::as_str) {
+                        cache.insert(id.to_owned(), scene.clone());
+                    }
+                }
+            }
+        }
+        let cache = self.cinematic_cache.lock().await;
+        let scenes = ids
+            .iter()
+            .filter_map(|id| cache.get(id).cloned())
+            .collect::<Vec<_>>();
+        Ok((!scenes.is_empty()).then(|| json!({ "scenes": scenes })))
     }
 }
 
@@ -161,6 +207,16 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
             ),
         ),
         (
+            "read_cinematic_context",
+            "Read the selected highlights as map-space scenes: exact map, round, positioned action, spatial spread, movement axis, and camera-intent recommendations. Call this before drafting any cinematic video shot.",
+            object_schema(
+                json!({
+                    "highlightIds": string_array_schema(16)
+                }),
+                &["highlightIds"],
+            ),
+        ),
+        (
             "read_editor_timeline",
             "Read selected editor project and its real tracks, clips, markers, dimensions, frame rate, and revision.",
             object_schema(
@@ -183,16 +239,19 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
             ),
         ),
         (
-            "draft_hlae_plan",
-            "Draft a reviewable HLAE camera intent from verified demo ticks. Preview inspects paths; capture exports image-sequence commands. Emits data only.",
+            "draft_video_plan",
+            "Draft a complete video task from selected Demo highlights. The user reviews the shots and confirms before recording starts.",
             object_schema(
                 json!({
-                    "highlightIds": string_array_schema(16), "cameraStyle": {"type":"string","enum":["pov","orbit","dolly"]},
-                    "mode": {"type":"string","enum":["preview","capture"],"default":"preview"},
+                    "highlightIds": string_array_schema(16),
                     "leadSeconds": {"type":"number","minimum":0.5,"maximum":8,"default":2.5},
-                    "tailSeconds": {"type":"number","minimum":0.5,"maximum":8,"default":2}
+                    "tailSeconds": {"type":"number","minimum":0.5,"maximum":8,"default":2},
+                    "cameraStyle": {"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"],"default":"pov"},
+                    "cameraStyles": {"type":"array","items":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"]},"maxItems":16,"default":[]},
+                    "cameraIntents": {"type":"array","items":{"type":"string","enum":["player_pov","establish_location","follow_entry","reveal_duel","hold_crossfire","rise_after_climax","transition_through_space"]},"minItems":1,"maxItems":16},
+                    "cameraRationales": {"type":"array","items":{"type":"string","minLength":1,"maxLength":128},"minItems":1,"maxItems":16}
                 }),
-                &["highlightIds", "cameraStyle"],
+                &["highlightIds", "cameraIntents", "cameraRationales"],
             ),
         ),
         (
@@ -245,10 +304,20 @@ fn event_array_schema() -> Value {
     json!({"type":"array","items":{"type":"string","enum":["round_start","round_end","kill","damage","bomb_plant","bomb_defuse","bomb_explode","grenade","purchase"]},"maxItems":9,"default":[]})
 }
 
+#[cfg(test)]
 fn execute_tool(
     name: &str,
     context: &AgentContext,
     input: &Value,
+) -> Result<(Value, Option<CapturedPlan>), String> {
+    execute_tool_with_cinematic(name, context, input, None)
+}
+
+fn execute_tool_with_cinematic(
+    name: &str,
+    context: &AgentContext,
+    input: &Value,
+    external_cinematic: Option<&Value>,
 ) -> Result<(Value, Option<CapturedPlan>), String> {
     ensure_object(input)?;
     match name {
@@ -259,8 +328,14 @@ fn execute_tool(
         "read_round_events" => Ok((read_round_events(context, input)?, None)),
         "read_player_matchups" => Ok((read_player_matchups(context, input)?, None)),
         "read_highlights" => Ok((read_highlights(context, input)?, None)),
+        "read_cinematic_context" => Ok((
+            read_cinematic_context(context, input, external_cinematic)?,
+            None,
+        )),
         "read_editor_timeline" => Ok((read_editor_timeline(context, input), None)),
         "draft_edit_plan" => draft_edit_plan(context, input),
+        "draft_video_plan" => draft_video_plan(context, input, external_cinematic),
+        // Kept for persisted pre-video conversations, but no longer exposed to the model.
         "draft_hlae_plan" => draft_hlae_plan(context, input),
         "read_audio_analysis" => Ok((read_audio_analysis(context, input), None)),
         "draft_beat_alignment" => draft_beat_alignment(context, input),
@@ -511,6 +586,255 @@ fn read_highlights(context: &AgentContext, input: &Value) -> Result<Value, Strin
     Ok(json!({"available":!highlights.is_empty(),"highlights":highlights}))
 }
 
+fn read_cinematic_context(
+    context: &AgentContext,
+    input: &Value,
+    external_cinematic: Option<&Value>,
+) -> Result<Value, String> {
+    let ids = string_vec_required(input, "highlightIds", 16)?;
+    let binding = bind_highlights(&context.analysis, &ids);
+    if !binding.ready() {
+        return Ok(json!({
+            "available": false,
+            "mapName": context.analysis.get("map_name"),
+            "scenes": [],
+            "missingHighlightIds": binding.missing,
+            "duplicateHighlightIds": binding.duplicates,
+            "ambiguousHighlightIds": binding.ambiguous,
+        }));
+    }
+    let map_name = text(context.analysis.get("map_name")).unwrap_or("unknown");
+    let radar_transform = context
+        .map_context
+        .get("transform")
+        .filter(|value| value.is_object());
+    let scenes = binding
+        .selected
+        .iter()
+        .map(|highlight| {
+            let highlight_id = text(highlight.get("id")).unwrap_or("unknown");
+            let round = number_value(highlight.get("round"))
+                .map(|value| value.round() as i64)
+                .unwrap_or_default();
+            let start_tick = number_value(highlight.get("startTick")).unwrap_or_default();
+            let end_tick = number_value(highlight.get("endTick")).unwrap_or_default();
+            let replay_scene = external_cinematic
+                .and_then(|value| value.get("scenes"))
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .find(|scene| {
+                    text(scene.get("highlightId")) == Some(highlight_id)
+                });
+            let replay_positioned = replay_scene
+                .and_then(|scene| scene.get("positionedAction"))
+                .and_then(Value::as_array)
+                .filter(|samples| !samples.is_empty());
+            let mut positioned = replay_positioned.cloned().unwrap_or_else(|| rounds(&context.analysis)
+                .find(|candidate| round_number(candidate) == Some(round))
+                .into_iter()
+                .flat_map(round_events)
+                .filter(|event| {
+                    number_value(event.get("tick"))
+                        .is_some_and(|tick| tick >= start_tick && tick <= end_tick)
+                })
+                .filter_map(|event| {
+                    let position = event.get("position").and_then(spatial_position)?;
+                    let radar_percent = radar_transform
+                        .and_then(|transform| world_to_radar_percent(position, transform));
+                    Some(json!({
+                        "tick": event.get("tick"),
+                        "kind": event.get("kind"),
+                        "actor": event.get("actor"),
+                        "target": event.get("target"),
+                        "position": position,
+                        "radarPercent": radar_percent,
+                    }))
+                })
+                .take(32)
+                .collect::<Vec<_>>());
+            for sample in &mut positioned {
+                let Some(object) = sample.as_object_mut() else {
+                    continue;
+                };
+                let radar_percent = object
+                    .get("position")
+                    .and_then(spatial_position)
+                    .and_then(|position| {
+                        radar_transform.and_then(|transform| {
+                            world_to_radar_percent(position, transform)
+                        })
+                    });
+                object.insert("radarPercent".into(), json!(radar_percent));
+                if let Some(focus) = object
+                    .get("nearestOpponentPosition")
+                    .and_then(spatial_position)
+                {
+                    let focus_percent = radar_transform.and_then(|transform| {
+                        world_to_radar_percent(focus, transform)
+                    });
+                    object.insert("nearestOpponentRadarPercent".into(), json!(focus_percent));
+                }
+            }
+            let mut verified_engagements = replay_scene
+                .and_then(|scene| scene.get("verifiedEngagements"))
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            for engagement in &mut verified_engagements {
+                let Some(object) = engagement.as_object_mut() else {
+                    continue;
+                };
+                for (position_key, radar_key) in [
+                    ("playerPosition", "playerRadarPercent"),
+                    ("targetPosition", "targetRadarPercent"),
+                ] {
+                    let radar_percent = object
+                        .get(position_key)
+                        .and_then(spatial_position)
+                        .and_then(|position| {
+                            radar_transform.and_then(|transform| {
+                                world_to_radar_percent(position, transform)
+                            })
+                        });
+                    object.insert(radar_key.into(), json!(radar_percent));
+                }
+            }
+            let points = positioned
+                .iter()
+                .filter_map(|event| event.get("position").and_then(spatial_position))
+                .collect::<Vec<_>>();
+            let (bounds, movement_distance, movement_axis, spread) = spatial_scene_metrics(&points);
+            let victims = array(highlight.get("victims")).count();
+            let mut intents = Vec::new();
+            if points.is_empty() {
+                intents.push(json!({
+                    "intent":"player_pov",
+                    "cameraStyle":"pov",
+                    "reason":"No positioned action is available; preserve verified player perspective."
+                }));
+            } else {
+                if spread > 384.0 {
+                    intents.push(json!({
+                        "intent":"establish_location",
+                        "cameraStyle":"crane",
+                        "reason":"The action spans a broad part of the map; establish the route before the kills."
+                    }));
+                }
+                if movement_distance > 192.0 {
+                    intents.push(json!({
+                        "intent":"follow_entry",
+                        "cameraStyle":"tracking",
+                        "reason":"The action moves through map space; follow the player's route and engagement direction."
+                    }));
+                }
+                if victims >= 2 && spread <= 384.0 {
+                    intents.push(json!({
+                        "intent":"hold_crossfire",
+                        "cameraStyle":"static",
+                        "reason":"Multiple eliminations happen in one compact engagement; hold a readable crossfire angle."
+                    }));
+                }
+                intents.push(json!({
+                    "intent":"reveal_duel",
+                    "cameraStyle":"dolly",
+                    "reason":"Reveal the player-to-opponent lane while keeping the duel readable."
+                }));
+                if victims >= 3 {
+                    intents.push(json!({
+                        "intent":"rise_after_climax",
+                        "cameraStyle":"crane",
+                        "reason":"Use the final elimination as the climax, then widen to show the won space."
+                    }));
+                }
+            }
+            json!({
+                "highlightId": highlight_id,
+                "mapName": map_name,
+                "round": round,
+                "playerId": highlight.get("playerId"),
+                "startTick": start_tick,
+                "endTick": end_tick,
+                "positionedAction": positioned,
+                "mapSpace": {
+                    "evidence": if points.is_empty() { "unavailable" } else if replay_positioned.is_some() { "selected_round_replay" } else { "positioned_demo_events" },
+                    "bounds": bounds,
+                    "spreadUnits": spread,
+                    "movementUnits": movement_distance,
+                    "movementAxis": movement_axis,
+                    "collisionGeometryAvailable": false,
+                    "radarTransformAvailable": radar_transform.is_some(),
+                    "replayFidelity": replay_scene.and_then(|scene| scene.get("fidelity")),
+                    "verifiedEngagements": verified_engagements,
+                },
+                "recommendedDesigns": intents,
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(json!({
+        "available": true,
+        "mapName": map_name,
+        "coordinateSystem": "CS2 world coordinates",
+        "radar": context.map_context,
+        "scenes": scenes,
+        "designRule": "Choose a shot for a stated map-space purpose. If positioned action is unavailable, use player_pov. Camera paths remain subject to user review because collision geometry is not reconstructed.",
+    }))
+}
+
+fn world_to_radar_percent(position: [f64; 3], transform: &Value) -> Option<[f64; 2]> {
+    let position_x = number_value(transform.get("pos_x"))?;
+    let position_y = number_value(transform.get("pos_y"))?;
+    let scale = number_value(transform.get("scale"))?;
+    if !position_x.is_finite() || !position_y.is_finite() || !scale.is_finite() || scale <= 0.0 {
+        return None;
+    }
+    // Valve's overview transform already describes the final authored orientation. `rotate`
+    // is metadata, not an instruction to rotate these coordinates a second time.
+    let x = (position[0] - position_x) / (scale * 1024.0) * 100.0;
+    let y = (position_y - position[1]) / (scale * 1024.0) * 100.0;
+    (x.is_finite() && y.is_finite()).then_some([x, y])
+}
+
+fn spatial_position(value: &Value) -> Option<[f64; 3]> {
+    let values = value.as_array()?;
+    if values.len() != 3 {
+        return None;
+    }
+    let point = [
+        number_value(values.first())?,
+        number_value(values.get(1))?,
+        number_value(values.get(2))?,
+    ];
+    point
+        .iter()
+        .all(|coordinate| coordinate.is_finite())
+        .then_some(point)
+}
+
+fn spatial_scene_metrics(points: &[[f64; 3]]) -> (Value, f64, Value, f64) {
+    let Some(first) = points.first() else {
+        return (Value::Null, 0.0, Value::Null, 0.0);
+    };
+    let mut minimum = *first;
+    let mut maximum = *first;
+    for point in &points[1..] {
+        for axis in 0..3 {
+            minimum[axis] = minimum[axis].min(point[axis]);
+            maximum[axis] = maximum[axis].max(point[axis]);
+        }
+    }
+    let last = points.last().unwrap_or(first);
+    let movement = [last[0] - first[0], last[1] - first[1], last[2] - first[2]];
+    let movement_distance = movement[0].hypot(movement[1]);
+    let spread = (maximum[0] - minimum[0]).hypot(maximum[1] - minimum[1]);
+    (
+        json!({"minimum":minimum,"maximum":maximum}),
+        movement_distance,
+        json!(movement),
+        spread,
+    )
+}
+
 fn read_editor_timeline(context: &AgentContext, input: &Value) -> Value {
     let Some(project) = context.editor_project.as_object() else {
         return json!({"available":false,"project":null});
@@ -588,7 +912,13 @@ fn draft_hlae_plan(
     input: &Value,
 ) -> Result<(Value, Option<CapturedPlan>), String> {
     let ids = string_vec_required(input, "highlightIds", 16)?;
-    let camera = enum_value(input, "cameraStyle", &["pov", "orbit", "dolly"])?;
+    let camera = enum_value(
+        input,
+        "cameraStyle",
+        &[
+            "pov", "orbit", "dolly", "static", "tracking", "crane", "flyby",
+        ],
+    )?;
     let mode = enum_value_default(input, "mode", "preview", &["preview", "capture"])?;
     let lead = bounded_f64(input, "leadSeconds", 2.5, 0.5, 8.0)?;
     let tail = bounded_f64(input, "tailSeconds", 2.0, 0.5, 8.0)?;
@@ -638,6 +968,199 @@ fn draft_hlae_plan(
         json!({"accepted":accepted,"plan":review,"missingEvidence":missing}),
         plan,
     ))
+}
+
+fn draft_video_plan(
+    context: &AgentContext,
+    input: &Value,
+    external_cinematic: Option<&Value>,
+) -> Result<(Value, Option<CapturedPlan>), String> {
+    let ids = string_vec_required(input, "highlightIds", 16)?;
+    let lead = bounded_f64(input, "leadSeconds", 2.5, 0.5, 8.0)?;
+    let tail = bounded_f64(input, "tailSeconds", 2.0, 0.5, 8.0)?;
+    let allowed_camera_styles = [
+        "pov", "orbit", "dolly", "static", "tracking", "crane", "flyby",
+    ];
+    let _ = enum_value_default(input, "cameraStyle", "pov", &allowed_camera_styles)?;
+    let camera_styles = optional_enum_vec(input, "cameraStyles", 16, &allowed_camera_styles)?;
+    if !camera_styles.is_empty() && camera_styles.len() != ids.len() {
+        return Err("cameraStyles must be empty or match highlightIds length".into());
+    }
+    let allowed_camera_intents = [
+        "player_pov",
+        "establish_location",
+        "follow_entry",
+        "reveal_duel",
+        "hold_crossfire",
+        "rise_after_climax",
+        "transition_through_space",
+    ];
+    let camera_intents = optional_enum_vec(input, "cameraIntents", 16, &allowed_camera_intents)?;
+    let camera_rationales = string_vec_required(input, "cameraRationales", 16)?;
+    if camera_intents.len() != ids.len() || camera_rationales.len() != ids.len() {
+        return Err("cameraIntents and cameraRationales must match highlightIds length".into());
+    }
+    let resolved_camera_styles = ids
+        .iter()
+        .enumerate()
+        .map(|(index, _)| {
+            camera_styles
+                .get(index)
+                .map(String::as_str)
+                .unwrap_or_else(|| camera_style_for_intent(&camera_intents[index]))
+        })
+        .collect::<Vec<_>>();
+    for ((intent, style), rationale) in camera_intents
+        .iter()
+        .zip(&resolved_camera_styles)
+        .zip(&camera_rationales)
+    {
+        if !camera_style_supports_intent(intent, style) {
+            return Err(format!(
+                "camera style {style} does not express camera intent {intent}"
+            ));
+        }
+        if rationale.trim().chars().count() < 8 {
+            return Err("each camera rationale must explain a concrete map-space purpose".into());
+        }
+    }
+    let binding = bind_highlights(&context.analysis, &ids);
+    let demo_id = text(context.demo.get("id"));
+    let valid_demo_id = demo_id.and_then(|value| Uuid::parse_str(value).ok());
+    let missing_players = binding
+        .selected
+        .iter()
+        .filter_map(|item| {
+            text(item.get("playerId"))
+                .filter(|value| !value.is_empty())
+                .is_none()
+                .then(|| text(item.get("id")).unwrap_or("unknown").to_owned())
+        })
+        .collect::<Vec<_>>();
+    let accepted = binding.ready() && valid_demo_id.is_some() && missing_players.is_empty();
+    let items = if accepted {
+        binding
+            .selected
+            .iter()
+            .enumerate()
+            .map(|(index, item)| {
+                let item_camera_style = resolved_camera_styles[index];
+                json!({
+                    "id": Uuid::new_v4(),
+                    "demo_id": valid_demo_id,
+                    "highlight_id": text(item.get("id")),
+                    "player_id": text(item.get("playerId")),
+                    "title": text(item.get("title")).unwrap_or("Highlight video"),
+                    "start_tick": number_value(item.get("startTick")).unwrap_or_default().round() as u64,
+                    "end_tick": number_value(item.get("endTick")).unwrap_or_default().round() as u64,
+                    "pre_roll_seconds": lead,
+                    "post_roll_seconds": tail,
+                    "victim_pov": false,
+                    "camera_style": item_camera_style
+                })
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    let cinematic_context =
+        read_cinematic_context(context, &json!({"highlightIds":&ids}), external_cinematic)?;
+    let scenes = cinematic_context
+        .get("scenes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    for (index, intent) in camera_intents.iter().enumerate() {
+        let has_spatial_evidence = scenes
+            .get(index)
+            .and_then(|scene| scene.get("mapSpace"))
+            .and_then(|space| space.get("evidence"))
+            .and_then(Value::as_str)
+            .is_some_and(|evidence| {
+                matches!(evidence, "positioned_demo_events" | "selected_round_replay")
+            });
+        if !has_spatial_evidence && intent != "player_pov" {
+            return Err(format!(
+                "highlight {} has no positioned map-space evidence; cameraIntent must be player_pov",
+                ids[index]
+            ));
+        }
+    }
+    let shot_designs = if accepted {
+        ids.iter()
+            .enumerate()
+            .map(|(index, id)| {
+                json!({
+                    "highlight_id": id,
+                    "map_name": context.analysis.get("map_name"),
+                    "camera_intent": camera_intents[index],
+                    "camera_style": resolved_camera_styles[index],
+                    "rationale": camera_rationales[index],
+                    "spatial_evidence": scenes.get(index),
+                    "requires_user_review": true,
+                })
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
+    let mut rejection_reasons = binding.rejection_reasons();
+    if valid_demo_id.is_none() {
+        rejection_reasons
+            .push("The selected Demo does not have a valid persistent identifier.".into());
+    }
+    for highlight_id in &missing_players {
+        rejection_reasons.push(format!(
+            "Highlight {highlight_id} has no verified player identifier."
+        ));
+    }
+    let payload = json!({
+        "items": items,
+        "shot_designs": shot_designs,
+        "output": {"container":"mp4"},
+        "source_highlight_ids": if accepted { ids.clone() } else { Vec::new() },
+        "requires_user_confirmation": true
+    });
+    let plan = accepted.then(|| CapturedPlan {
+        kind: "video_render".into(),
+        title: "Highlight video generation".into(),
+        payload: payload.clone(),
+    });
+    Ok((
+        json!({
+            "accepted": accepted,
+            "plan": payload,
+            "rejectionReasons": rejection_reasons,
+            "delivery": "mp4",
+            "captureEngine": "managed_hlae"
+        }),
+        plan,
+    ))
+}
+
+fn camera_style_for_intent(intent: &str) -> &'static str {
+    match intent {
+        "player_pov" => "pov",
+        "establish_location" | "hold_crossfire" => "static",
+        "follow_entry" => "tracking",
+        "reveal_duel" => "dolly",
+        "rise_after_climax" => "crane",
+        "transition_through_space" => "flyby",
+        _ => "pov",
+    }
+}
+
+fn camera_style_supports_intent(intent: &str, style: &str) -> bool {
+    match intent {
+        "player_pov" => style == "pov",
+        "establish_location" => matches!(style, "static" | "crane"),
+        "follow_entry" => matches!(style, "tracking" | "dolly"),
+        "reveal_duel" => matches!(style, "dolly" | "orbit"),
+        "hold_crossfire" => style == "static",
+        "rise_after_climax" => style == "crane",
+        "transition_through_space" => style == "flyby",
+        _ => false,
+    }
 }
 
 fn read_audio_analysis(context: &AgentContext, input: &Value) -> Value {
@@ -866,6 +1389,34 @@ fn enum_value_default<'a>(
         None => Ok(default),
     }
 }
+fn optional_enum_vec(
+    input: &Value,
+    key: &str,
+    maximum: usize,
+    allowed: &[&str],
+) -> Result<Vec<String>, String> {
+    let Some(value) = input.get(key) else {
+        return Ok(Vec::new());
+    };
+    let values = value
+        .as_array()
+        .ok_or_else(|| format!("{key} must be an array"))?;
+    if values.len() > maximum {
+        return Err(format!("{key} exceeds the maximum item count"));
+    }
+    values
+        .iter()
+        .map(|value| {
+            let value = value
+                .as_str()
+                .ok_or_else(|| format!("{key} must contain only strings"))?;
+            allowed
+                .contains(&value)
+                .then(|| value.to_owned())
+                .ok_or_else(|| format!("{key} has an unsupported value"))
+        })
+        .collect()
+}
 fn bounded_usize(
     input: &Value,
     key: &str,
@@ -980,7 +1531,19 @@ mod tests {
     fn context() -> AgentContext {
         AgentContext {
             demo: json!({"id":"demo-1"}),
-            analysis: json!({"tick_rate":64,"highlights":[{"id":"ace-1","kind":"ace","title":"ACE","start_tick":640,"end_tick":1280,"description":"five kills"}]}),
+            map_context: json!({
+                "map_name":"de_mirage",
+                "transform":{"pos_x":-2000.0,"pos_y":1500.0,"scale":4.0,"rotate":false}
+            }),
+            analysis: json!({
+                "map_name":"de_mirage",
+                "tick_rate":64,
+                "highlights":[{"id":"ace-1","kind":"ace","title":"ACE","round":1,"start_tick":640,"end_tick":1280,"description":"five kills"}],
+                "rounds":[{"number":1,"events":[
+                    {"tick":700,"kind":"kill","actor":"player-1","target":"enemy-1","position":[-1000.0,500.0,32.0]},
+                    {"tick":1100,"kind":"kill","actor":"player-1","target":"enemy-2","position":[-720.0,620.0,40.0]}
+                ]}]
+            }),
             ..AgentContext::default()
         }
     }
@@ -1039,6 +1602,155 @@ mod tests {
         .unwrap();
         assert_eq!(output["accepted"], true);
         assert_eq!(plan.unwrap().payload["highlight_ids"], json!(["ace-1"]));
+    }
+
+    #[test]
+    fn cinematic_context_exposes_map_space_and_recommends_purposeful_motion() {
+        let (output, plan) = execute_tool(
+            "read_cinematic_context",
+            &context(),
+            &json!({"highlightIds":["ace-1"]}),
+        )
+        .expect("cinematic context");
+
+        assert!(plan.is_none());
+        assert_eq!(output["mapName"], "de_mirage");
+        assert_eq!(
+            output["scenes"][0]["mapSpace"]["radarTransformAvailable"],
+            true
+        );
+        assert!(output["scenes"][0]["positionedAction"][0]["radarPercent"].is_array());
+        assert_eq!(
+            output["scenes"][0]["mapSpace"]["evidence"],
+            "positioned_demo_events"
+        );
+        assert!(
+            output["scenes"][0]["mapSpace"]["movementUnits"]
+                .as_f64()
+                .unwrap()
+                > 250.0
+        );
+        assert!(
+            output["scenes"][0]["recommendedDesigns"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|design| design["intent"] == "follow_entry")
+        );
+    }
+
+    #[test]
+    fn cinematic_context_prefers_selected_round_replay_samples() {
+        let replay = json!({
+            "scenes": [{
+                "highlightId": "ace-1",
+                "positionedAction": [
+                    {
+                        "tick": 700,
+                        "kind": "player_sample",
+                        "actor": "player-1",
+                        "position": [-1552.0, -190.0, -161.0],
+                        "yaw": 20.0,
+                        "nearestOpponentPosition": [-1250.0, -100.0, -160.0]
+                    },
+                    {
+                        "tick": 1100,
+                        "kind": "player_sample",
+                        "actor": "player-1",
+                        "position": [-1714.0, -232.0, -167.0],
+                        "yaw": 35.0,
+                        "nearestOpponentPosition": [-1400.0, -120.0, -165.0]
+                    }
+                ],
+                "verifiedEngagements": [{
+                    "tick": 700,
+                    "target": "enemy-1",
+                    "playerPosition": [-1552.0, -190.0, -161.0],
+                    "targetPosition": [-1250.0, -100.0, -160.0],
+                    "axis": [302.0, 90.0, 1.0],
+                    "distanceUnits": 315.1
+                }],
+                "fidelity": {
+                    "source": "selected_round_replay",
+                    "targetFrameCount": 38,
+                    "clampedToArtifactEnd": true
+                }
+            }]
+        });
+        let (output, _) = execute_tool_with_cinematic(
+            "read_cinematic_context",
+            &context(),
+            &json!({"highlightIds":["ace-1"]}),
+            Some(&replay),
+        )
+        .expect("replay-backed cinematic context");
+
+        let scene = &output["scenes"][0];
+        assert_eq!(scene["mapSpace"]["evidence"], "selected_round_replay");
+        assert_eq!(scene["mapSpace"]["replayFidelity"]["targetFrameCount"], 38);
+        assert_eq!(scene["positionedAction"].as_array().map(Vec::len), Some(2));
+        assert!(scene["positionedAction"][0]["radarPercent"].is_array());
+        assert!(scene["positionedAction"][0]["nearestOpponentRadarPercent"].is_array());
+        assert!(scene["mapSpace"]["verifiedEngagements"][0]["targetRadarPercent"].is_array());
+    }
+
+    #[test]
+    fn video_plan_binds_verified_highlights_to_executable_recording_items() {
+        let mut context = context();
+        context.demo = json!({"id":"00000000-0000-4000-8000-0000000000d1"});
+        context.analysis["highlights"][0]["player_id"] = json!("player-1");
+        context.analysis["highlights"]
+            .as_array_mut()
+            .expect("highlights")
+            .push(json!({
+                "id":"clutch-2","kind":"clutch","title":"Clutch",
+                "round":1,"start_tick":1400,"end_tick":1800,"description":"round win",
+                "player_id":"player-1"
+            }));
+        context.analysis["rounds"][0]["events"]
+            .as_array_mut()
+            .expect("round events")
+            .push(json!({
+                "tick":1500,"kind":"kill","actor":"player-1","target":"enemy-3",
+                "position":[-300.0,900.0,48.0]
+            }));
+
+        let (output, plan) = execute_tool(
+            "draft_video_plan",
+            &context,
+            &json!({
+                "highlightIds":["ace-1","clutch-2"],
+                "leadSeconds":2.0,
+                "tailSeconds":2.5,
+                "cameraStyles":["crane","flyby"],
+                "cameraIntents":["establish_location","transition_through_space"],
+                "cameraRationales":[
+                    "Establish the occupied map lane before the eliminations.",
+                    "Travel through the proven action axis into the clutch."
+                ]
+            }),
+        )
+        .expect("video plan");
+
+        assert_eq!(output["accepted"], true);
+        let plan = plan.expect("accepted video proposal");
+        assert_eq!(plan.kind, "video_render");
+        assert_eq!(plan.payload["output"]["container"], "mp4");
+        assert_eq!(plan.payload["items"][0]["demo_id"], context.demo["id"]);
+        assert_eq!(plan.payload["items"][0]["highlight_id"], "ace-1");
+        assert_eq!(plan.payload["items"][0]["player_id"], "player-1");
+        assert_eq!(plan.payload["items"][0]["start_tick"], 640);
+        assert_eq!(plan.payload["items"][0]["end_tick"], 1280);
+        assert_eq!(plan.payload["items"][0]["pre_roll_seconds"], 2.0);
+        assert_eq!(plan.payload["items"][0]["post_roll_seconds"], 2.5);
+        assert_eq!(plan.payload["items"][0]["victim_pov"], false);
+        assert_eq!(plan.payload["items"][0]["camera_style"], "crane");
+        assert_eq!(plan.payload["items"][1]["highlight_id"], "clutch-2");
+        assert_eq!(plan.payload["items"][1]["camera_style"], "flyby");
+        assert_eq!(
+            plan.payload["shot_designs"][0]["camera_intent"],
+            "establish_location"
+        );
     }
 
     #[test]

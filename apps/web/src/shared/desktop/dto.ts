@@ -1928,6 +1928,298 @@ export type AgentEvent =
 
 export type AgentChatResult = { thread_id: EntityId };
 
+/* ---------------------------------------------------------------------------
+ * Agent session layer (spec §4.6).
+ *
+ * These mirror `crates/domain/src/agent_session.rs` and are reached through the
+ * `/api/agent/...` routes, not through a Tauri command. They are deliberately
+ * separate from the `AgentThread` / `AgentMessage` / `AgentProposal` shapes
+ * above, which belong to the streaming `agent_chat` command.
+ * ------------------------------------------------------------------------- */
+
+export type AgentObjectKind = 'plan' | 'recording_task' | 'edit_project' | 'output';
+
+export type AgentObjectLocator = {
+  kind: AgentObjectKind;
+  id: EntityId;
+};
+
+/** A session's record of one object it touched. Server owns `touch_count`. */
+export type AgentObjectRef = {
+  kind: AgentObjectKind;
+  id: EntityId;
+  label: string;
+  touched_at: string;
+  touch_count: number;
+  summary: string;
+  status: string;
+};
+
+/** The reverse direction: which session touched one object. */
+export type AgentObjectSessionRef = {
+  session_id: EntityId;
+  /** Null once that session has been deleted; the reference itself survives. */
+  session_title: string | null;
+  kind: AgentObjectKind;
+  id: EntityId;
+  label: string;
+  touched_at: string;
+  touch_count: number;
+  summary: string;
+  status: string;
+};
+
+export type AgentObjectRefTouch = {
+  kind: AgentObjectKind;
+  id: EntityId;
+  label: string;
+  summary: string;
+  status: string;
+};
+
+export type AgentSessionToolCall = {
+  name: string;
+  input: unknown;
+  output: unknown;
+};
+
+/** `based_on_revision` is what decides whether this proposal is still current. */
+export type AgentSessionProposal = {
+  kind: string;
+  title: string;
+  plan_id: EntityId | null;
+  based_on_revision: number | null;
+  payload: unknown;
+};
+
+export type WorkspaceEditOperation = 'updated' | 'removed' | 'inserted' | 'restored';
+
+export type WorkspaceEditChange = {
+  /** One-based shot position, matching the shot cards. */
+  shot: number;
+  op: WorkspaceEditOperation;
+  field: string | null;
+  from: string | null;
+  to: string | null;
+};
+
+export type WorkspaceEditNotice = {
+  object: AgentObjectLocator;
+  /** The revision the authoritative write produced. Never client-authored. */
+  revision: number;
+  by: 'user';
+  at: string;
+  changes: WorkspaceEditChange[];
+  note: string | null;
+};
+
+/** The third entry kind is a system line, not a bubble. */
+export type AgentSessionEntry =
+  | { kind: 'user'; id: EntityId; at: string; content: string }
+  | {
+      kind: 'assistant';
+      id: EntityId;
+      at: string;
+      content: string;
+      tool_calls: AgentSessionToolCall[];
+      proposals: AgentSessionProposal[];
+    }
+  | { kind: 'workspace_edit'; id: EntityId; at: string; notice: WorkspaceEditNotice };
+
+/** A `workspace_edit` entry is never drafted by a client. */
+export type AgentSessionEntryDraft =
+  | { kind: 'user'; content: string }
+  | {
+      kind: 'assistant';
+      content: string;
+      tool_calls: AgentSessionToolCall[];
+      proposals: AgentSessionProposal[];
+    };
+
+export type AgentSession = {
+  id: EntityId;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  entries: AgentSessionEntry[];
+  refs: AgentObjectRef[];
+};
+
+export type AgentSessionSummary = {
+  id: EntityId;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  entry_count: number;
+  refs: AgentObjectRef[];
+};
+
+export type AgentSessionPage = {
+  items: AgentSessionSummary[];
+  total: number;
+};
+
+/** `q` matches the session title and its conversation text. */
+export type AgentSessionQuery = {
+  q?: string;
+  limit?: number;
+};
+
+export type AgentPlanStatus = 'draft' | 'awaiting_confirmation' | 'confirmed' | 'archived';
+export type AgentPlanAuthor = 'agent' | 'user';
+export type AgentShotView = 'observer' | 'player_pov';
+
+export type AgentPlanShot = {
+  id: EntityId;
+  title: string;
+  kind: RecordingRequest['camera_style'];
+  view: AgentShotView;
+  start_tick: number;
+  end_tick: number;
+  duration_seconds: number;
+  rationale: string;
+  evidence_refs: string[];
+  risks: string[];
+  source: AgentPlanAuthor;
+  /** Set while a shot is soft-removed, so the removal stays undoable. */
+  removed_by: AgentPlanAuthor | null;
+  params: unknown;
+};
+
+/** One entry of the plan's change-origin trail, newest first. */
+export type AgentPlanOrigin = {
+  at: string;
+  session_id: EntityId;
+  /** Captured at edit time, so it survives deletion of that session. */
+  session_title: string;
+  summary: string;
+};
+
+export type AgentPlanOriginDraft = {
+  session_id: EntityId;
+  session_title: string;
+  summary: string;
+};
+
+/** The immutable Agent version, behind "restore the Agent version". */
+export type AgentPlanBaseline = {
+  revision: number;
+  captured_at: string;
+  shots: AgentPlanShot[];
+};
+
+export type AgentPlan = {
+  id: EntityId;
+  title: string;
+  status: AgentPlanStatus;
+  /** Server-authoritative and strictly increasing. */
+  revision: number;
+  shots: AgentPlanShot[];
+  origin: AgentPlanOrigin[];
+  agent_baseline: AgentPlanBaseline;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentPlanCreate = {
+  title: string;
+  status: AgentPlanStatus;
+  shots: AgentPlanShot[];
+  origin: AgentPlanOriginDraft | null;
+};
+
+/**
+ * One manual edit. `expected_revision` makes the write conditional, and
+ * `changes` becomes the `workspace_edit` notice injected into the session.
+ */
+export type AgentPlanEdit = {
+  plan_id: EntityId;
+  expected_revision: number;
+  status: AgentPlanStatus;
+  shots: AgentPlanShot[];
+  origin: AgentPlanOriginDraft;
+  changes: WorkspaceEditChange[];
+  note: string | null;
+};
+
+export type AgentPlanRestore = {
+  plan_id: EntityId;
+  expected_revision: number;
+  origin: AgentPlanOriginDraft;
+  note: string | null;
+};
+
+export type AgentPlanSummary = {
+  id: EntityId;
+  title: string;
+  status: AgentPlanStatus;
+  revision: number;
+  shot_count: number;
+  origin_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgentPlanQuery = {
+  status?: AgentPlanStatus;
+  limit?: number;
+};
+
+export type AgentSessionRetention =
+  | { mode: 'all' }
+  | { mode: 'recent_count'; count: number }
+  | { mode: 'max_age_days'; days: number }
+  | { mode: 'none' };
+
+export type AgentWorkspaceSettings = {
+  session_retention: AgentSessionRetention;
+  take_limit: number;
+};
+
+export type AgentSessionStorageStats = {
+  session_count: number;
+  entry_count: number;
+  object_ref_count: number;
+  plan_count: number;
+  plan_origin_count: number;
+  /** Bytes a clear would reclaim. */
+  conversation_bytes: number;
+  /** Bytes held by plans, which a clear never removes. */
+  plan_bytes: number;
+  oldest_session_at: string | null;
+  newest_session_at: string | null;
+};
+
+export type AgentSessionExport = {
+  exported_at: string;
+  settings: AgentWorkspaceSettings;
+  sessions: AgentSession[];
+};
+
+export type AgentSessionPurge = {
+  removed_sessions: number;
+};
+
+/** One row of the "currently in progress" reference picker. */
+export type AgentWorkspaceReference = {
+  kind: AgentObjectKind;
+  id: EntityId;
+  label: string;
+  status: string;
+  progress_percent: number | null;
+  item_count: number | null;
+  error: string | null;
+  updated_at: string;
+};
+
+/** The cross-source answer to "what is going on in the workspace right now". */
+export type AgentWorkspaceReferences = {
+  pending_plans: AgentWorkspaceReference[];
+  running_recording_tasks: AgentWorkspaceReference[];
+  edit_projects: AgentWorkspaceReference[];
+  failed_outputs: AgentWorkspaceReference[];
+};
+
 export type AudioBeat = {
   index: number;
   time_seconds: number;

@@ -4,6 +4,7 @@
 )]
 
 mod activity;
+mod agent_sessions;
 mod analysis_runs;
 mod lineups;
 mod players;

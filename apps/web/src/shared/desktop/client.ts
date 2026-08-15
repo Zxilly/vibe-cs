@@ -30,8 +30,28 @@ import type {
   AgentChatInput,
   AgentChatResult,
   AgentEvent,
+  AgentObjectKind,
+  AgentObjectRef,
+  AgentObjectRefTouch,
+  AgentObjectSessionRef,
+  AgentPlan,
+  AgentPlanCreate,
+  AgentPlanEdit,
+  AgentPlanQuery,
+  AgentPlanRestore,
+  AgentPlanSummary,
+  AgentSession,
+  AgentSessionEntry,
+  AgentSessionEntryDraft,
+  AgentSessionExport,
+  AgentSessionPage,
+  AgentSessionPurge,
+  AgentSessionQuery,
+  AgentSessionStorageStats,
   AgentStatus,
   AgentThread,
+  AgentWorkspaceReferences,
+  AgentWorkspaceSettings,
   ApiHealth,
   AudioAnalysis,
   AudioAnalysisOptions,
@@ -472,6 +492,79 @@ export const commands = {
       throw new DesktopError(msg("m0711"), 0, 'AGENT_COMMAND_FAILED');
     }
   },
+  // --- Agent session layer (spec §4.6). Plain routes under the one desktop_call. ---
+  /** Session drawer list and search over session title, Demo and player. */
+  listAgentSessions: (query: AgentSessionQuery = {}, signal?: AbortSignal) =>
+    request<AgentSessionPage>(
+      `/agent/sessions${queryString({ q: query.q, limit: query.limit })}`,
+      { signal },
+    ),
+  createAgentSession: (title: string) =>
+    request<AgentSession>('/agent/sessions', { method: 'POST', body: { title } }),
+  getAgentSession: (sessionId: string, signal?: AbortSignal) =>
+    request<AgentSession>(`/agent/sessions/${encodeURIComponent(sessionId)}`, { signal }),
+  renameAgentSession: (sessionId: string, title: string) =>
+    request<AgentSession>(`/agent/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'PATCH', body: { title },
+    }),
+  /** Removes the conversation only; referenced plans, tasks and outputs stay. */
+  deleteAgentSession: (sessionId: string) =>
+    request<void>(`/agent/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' }),
+  appendAgentSessionEntry: (sessionId: string, draft: AgentSessionEntryDraft) =>
+    request<AgentSessionEntry>(`/agent/sessions/${encodeURIComponent(sessionId)}/entries`, {
+      method: 'POST', body: draft,
+    }),
+  touchAgentObjectRef: (sessionId: string, touch: AgentObjectRefTouch) =>
+    request<AgentObjectRef>(`/agent/sessions/${encodeURIComponent(sessionId)}/refs`, {
+      method: 'POST', body: touch,
+    }),
+  listAgentObjectSessions: (kind: AgentObjectKind, objectId: string, signal?: AbortSignal) =>
+    request<AgentObjectSessionRef[]>(
+      `/agent/objects/${encodeURIComponent(kind)}/${encodeURIComponent(objectId)}/sessions`,
+      { signal },
+    ),
+  listAgentPlans: (query: AgentPlanQuery = {}, signal?: AbortSignal) =>
+    request<AgentPlanSummary[]>(
+      `/agent/plans${queryString({ status: query.status, limit: query.limit })}`,
+      { signal },
+    ),
+  getAgentPlan: (planId: string, signal?: AbortSignal) =>
+    request<AgentPlan>(`/agent/plans/${encodeURIComponent(planId)}`, { signal }),
+  createAgentPlan: (create: AgentPlanCreate) =>
+    request<AgentPlan>('/agent/plans', { method: 'POST', body: create }),
+  /**
+   * One manual plan edit: it bumps the server-authoritative revision, appends to
+   * the origin trail and writes the `workspace_edit` notice into the session, all
+   * in one conditional write. This is the workspace edit notification path - the
+   * notice is never sent separately, because its revision must be the one this
+   * write produced. Rejects with status 409 when `expected_revision` is stale.
+   */
+  applyAgentPlanEdit: (edit: AgentPlanEdit) =>
+    request<AgentPlan>(`/agent/plans/${encodeURIComponent(edit.plan_id)}`, {
+      method: 'PATCH', body: edit,
+    }),
+  /** Restores the immutable Agent version as an ordinary conditional edit. */
+  restoreAgentPlanBaseline: (restore: AgentPlanRestore) =>
+    request<AgentPlan>(`/agent/plans/${encodeURIComponent(restore.plan_id)}/restore`, {
+      method: 'POST', body: restore,
+    }),
+  /** Cross-source list of what is currently in progress in the workspace. */
+  listAgentWorkspaceReferences: (signal?: AbortSignal) =>
+    request<AgentWorkspaceReferences>('/agent/workspace/referencable', { signal }),
+  getAgentWorkspaceSettings: (signal?: AbortSignal) =>
+    request<AgentWorkspaceSettings>('/agent/workspace/settings', { signal }),
+  updateAgentWorkspaceSettings: (settings: AgentWorkspaceSettings) =>
+    request<AgentWorkspaceSettings>('/agent/workspace/settings', { method: 'PUT', body: settings }),
+  getAgentSessionStorage: (signal?: AbortSignal) =>
+    request<AgentSessionStorageStats>('/agent/workspace/storage', { signal }),
+  exportAgentSessions: () =>
+    request<AgentSessionExport>('/agent/workspace/storage/export', { timeoutMs: 60_000 }),
+  clearAgentSessions: () =>
+    request<AgentSessionPurge>('/agent/workspace/storage', { method: 'DELETE', timeoutMs: null }),
+  applyAgentSessionRetention: () =>
+    request<AgentSessionPurge>('/agent/workspace/storage/retention', {
+      method: 'POST', timeoutMs: null,
+    }),
   analyzeAudioAsset: (assetId: string, options?: AudioAnalysisOptions) =>
     request<AudioAnalysis>(`/media/assets/${encodeURIComponent(assetId)}/audio-analysis${queryString(options ?? DEFAULT_AUDIO_ANALYSIS_OPTIONS)}`),
   alignClipsToBeats: (body: BeatAlignmentRequest) =>

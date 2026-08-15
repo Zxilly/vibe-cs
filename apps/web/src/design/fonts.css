@@ -1,0 +1,66 @@
+/*
+ * Design system, layer 1 of 3 — self-hosted type.
+ *
+ * The Industry kit's styles.css opens with
+ *   @import url('https://fonts.googleapis.com/css2?family=Barlow…')
+ * which cannot survive in the desktop build: apps/desktop/src-tauri/tauri.conf.json
+ * pins the CSP to `default-src 'self' …; font-src 'self' vibe-cs-media: … data:`,
+ * so both the stylesheet request to fonts.googleapis.com and the font request
+ * to fonts.gstatic.com are blocked outright. Every face is therefore shipped
+ * from apps/web/public/fonts/ and referenced by an absolute same-origin path.
+ *
+ * Faces, and only these — spec §1.3 asks for Barlow 400/500/700 and Barlow
+ * Condensed 400/600, which is exactly what --font-body and --font-heading
+ * (weight 600) use. Adding a face means adding a file, not adding a rule.
+ *
+ * The files are the upstream Google Fonts OFL releases re-flavoured to woff2
+ * with no subsetting and no glyph edits, so `unicode-range` is deliberately
+ * absent: each file carries the family's full Latin / Latin-Extended /
+ * Vietnamese coverage. Provenance, versions and hashes are recorded in
+ * THIRD_PARTY.md and docs/DEPENDENCY_PROVENANCE.md. The licence text ships
+ * beside the fonts at public/fonts/OFL.txt.
+ *
+ * `font-display: swap` matches the kit's original `&display=swap`. On a local
+ * file:// origin the fonts are effectively immediate, but swap keeps the first
+ * paint readable if the webview defers them.
+ */
+
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Barlow-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Barlow-Medium.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Barlow-Bold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/BarlowCondensed-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/BarlowCondensed-SemiBold.woff2') format('woff2');
+}

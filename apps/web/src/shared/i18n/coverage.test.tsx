@@ -7,11 +7,24 @@ import { describe, expect, it, vi } from 'vitest';
 
 const han = /\p{Script=Han}/u;
 
+// Lingui owns the layered tree (design/ domain/ pages/ app/ data/) and the
+// compiled catalogs under locales/: source copy lives inline as `<Trans>` / `t`
+// macros there and is validated by `lingui extract --clean` plus @lingui/cli,
+// not by this file. This guard is the last line of defence for the hand-rolled
+// `shared/i18n` catalog only, and is deleted in phase 4 together with
+// shared/i18n, features/ and scripts/check-web-i18n.mjs.
+const linguiOwnedRoots = ['design', 'domain', 'pages', 'app', 'data', 'locales'].map((name) =>
+  path.resolve(import.meta.dirname, '../..', name),
+);
+
 function productionModules(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const target = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      return target.endsWith(path.join('shared', 'i18n')) ? [] : productionModules(target);
+      if (target.endsWith(path.join('shared', 'i18n')) || linguiOwnedRoots.includes(target)) {
+        return [];
+      }
+      return productionModules(target);
     }
     return /\.(ts|tsx)$/u.test(entry.name) && !/\.(test|spec)\.(ts|tsx)$/u.test(entry.name) ? [target] : [];
   });

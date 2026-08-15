@@ -20,6 +20,8 @@ Managed editor-file quarantine and playback-cache operations use Bytecode Allian
 
 The Editor timeline uses `@xzdarcy/react-timeline-editor` 1.0.0 (MIT). The selected-audio inspector loads `wavesurfer.js` 7.12.11 (BSD-3-Clause) on demand. Neither package is used as a renderer: persisted projects remain Vibe CS domain records and final media is still produced by the bounded Rust/FFmpeg pipeline.
 
+The desktop interface sets its type in Barlow and Barlow Condensed (SIL Open Font License 1.1) by Jeremy Tribby. Five static faces — Barlow Regular/Medium/Bold and Barlow Condensed Regular/SemiBold, all version 1.408 — are checked into `apps/web/public/fonts/` as unsubsetted woff2 and loaded by `@font-face` from the application origin. No webfont service is contacted: the desktop content security policy allows fonts only from `'self'`, so a hosted stylesheet would fail closed to the system stack instead of failing loudly. The OFL text ships beside the files at `apps/web/public/fonts/OFL.txt`, and `docs/DEPENDENCY_PROVENANCE.md` records the upstream commits and per-file hashes.
+
 Confirmation tokens for bounded application proposals use RustCrypto `hmac` (MIT OR Apache-2.0) with `sha2`. Session and confirmation key material is obtained through `getrandom` (MIT OR Apache-2.0).
 
 Before redistributing a packaged build, generate a dependency license report and include the applicable notices. If FFmpeg is bundled, its build configuration determines the corresponding LGPL or GPL obligations.

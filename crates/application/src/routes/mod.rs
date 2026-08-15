@@ -1,4 +1,5 @@
 mod activity;
+mod agent_sessions;
 mod analysis_runs;
 mod annotations;
 mod cosmetics;
@@ -27,6 +28,7 @@ use crate::{ApiError, AppState};
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .merge(activity::router())
+        .merge(agent_sessions::router())
         .merge(analysis_runs::router())
         .merge(annotations::router())
         .merge(system::router())

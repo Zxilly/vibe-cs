@@ -416,6 +416,73 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE agent_sessions (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL CHECK(length(title) <= 200 AND instr(title, char(0)) = 0),
+        title_key TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE agent_session_entries (
+        session_id TEXT NOT NULL,
+        sequence INTEGER NOT NULL CHECK(sequence >= 0),
+        kind TEXT NOT NULL CHECK(kind IN ('user', 'assistant', 'workspace_edit')),
+        created_at TEXT NOT NULL,
+        search_text TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        PRIMARY KEY(session_id, sequence),
+        FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
+    );
+
+    -- A reference is the durable record of one touch, not ownership. It has no
+    -- foreign key to the referenced plan, recording job, editor project or
+    -- output, so deleting a session removes the conversation only and deleting
+    -- an object leaves the historical reference readable.
+    CREATE TABLE agent_session_object_refs (
+        session_id TEXT NOT NULL,
+        object_kind TEXT NOT NULL CHECK(object_kind IN (
+            'plan', 'recording_task', 'edit_project', 'output'
+        )),
+        object_id TEXT NOT NULL,
+        label TEXT NOT NULL CHECK(length(label) <= 200 AND instr(label, char(0)) = 0),
+        summary TEXT NOT NULL CHECK(length(summary) <= 400),
+        status TEXT NOT NULL CHECK(length(status) <= 120),
+        touch_count INTEGER NOT NULL CHECK(touch_count >= 1),
+        touched_at TEXT NOT NULL,
+        PRIMARY KEY(session_id, object_kind, object_id),
+        FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE agent_plans (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL CHECK(length(title) <= 200 AND instr(title, char(0)) = 0),
+        status TEXT NOT NULL CHECK(status IN (
+            'draft', 'awaiting_confirmation', 'confirmed', 'archived'
+        )),
+        revision INTEGER NOT NULL CHECK(revision >= 1),
+        baseline_revision INTEGER NOT NULL CHECK(baseline_revision >= 1),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        shots_json TEXT NOT NULL,
+        agent_baseline_json TEXT NOT NULL,
+        CHECK(baseline_revision <= revision)
+    );
+
+    -- The origin trail keeps the session identity and its title as captured at
+    -- edit time. It has no foreign key to agent_sessions: deleting a session
+    -- must never rewrite the history of a plan it changed.
+    CREATE TABLE agent_plan_origins (
+        plan_id TEXT NOT NULL,
+        sequence INTEGER NOT NULL CHECK(sequence >= 0),
+        at TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        session_title TEXT NOT NULL CHECK(length(session_title) <= 200),
+        summary TEXT NOT NULL CHECK(length(summary) <= 400),
+        PRIMARY KEY(plan_id, sequence),
+        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX demos_status_idx ON demos(status);
     CREATE INDEX demos_activity_status_idx ON demos(status, updated_at DESC, id);
     CREATE INDEX demos_map_idx ON demos(map_name);
@@ -478,6 +545,15 @@ const CURRENT_SCHEMA: &str = r"
         ON lineup_map_items(lineup_id, demo_id);
     CREATE INDEX lineup_member_player_idx
         ON lineup_map_members(steam_id, lineup_id);
+    CREATE INDEX agent_sessions_updated_idx ON agent_sessions(updated_at DESC, id);
+    CREATE INDEX agent_session_entries_kind_idx ON agent_session_entries(session_id, kind);
+    CREATE INDEX agent_session_object_refs_object_idx
+        ON agent_session_object_refs(object_kind, object_id, touched_at DESC, session_id);
+    CREATE INDEX agent_session_object_refs_session_idx
+        ON agent_session_object_refs(session_id, touched_at DESC);
+    CREATE INDEX agent_plans_updated_idx ON agent_plans(updated_at DESC, id);
+    CREATE INDEX agent_plan_origins_plan_idx ON agent_plan_origins(plan_id, at DESC, sequence DESC);
+    CREATE INDEX agent_plan_origins_session_idx ON agent_plan_origins(session_id, at DESC);
 ";
 
 pub(crate) fn configure(connection: &Connection) -> Result<()> {

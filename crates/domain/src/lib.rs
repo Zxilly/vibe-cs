@@ -1,6 +1,7 @@
 //! Shared, transport-agnostic models for the `Vibe CS` application.
 
 mod agent_proposal;
+mod agent_session;
 mod analysis;
 mod analysis_run;
 mod audio_intelligence;
@@ -18,6 +19,7 @@ mod review_metadata;
 mod round_replay;
 
 pub use agent_proposal::*;
+pub use agent_session::*;
 pub use analysis::*;
 pub use analysis_run::*;
 pub use audio_intelligence::*;

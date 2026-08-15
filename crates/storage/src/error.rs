@@ -39,6 +39,8 @@ pub enum StorageError {
     RecordingRetryLineageImmutable(Uuid),
     #[error("editor preset {0} revision cannot be incremented")]
     EditorPresetRevisionOverflow(Uuid),
+    #[error("agent plan {0} revision cannot be incremented")]
+    AgentPlanRevisionOverflow(Uuid),
     #[error("integer {0} cannot be represented by SQLite")]
     IntegerOutOfRange(u64),
     #[error("LLM API key could not be protected for secure persistence")]
@@ -82,6 +84,7 @@ impl StorageError {
             | Self::RecordingRetryAlreadyClaimed(_)
             | Self::RecordingRetryLineageImmutable(_)
             | Self::EditorPresetRevisionOverflow(_)
+            | Self::AgentPlanRevisionOverflow(_)
             | Self::IntegerOutOfRange(_)
             | Self::SecretProtection
             | Self::SecretRecovery

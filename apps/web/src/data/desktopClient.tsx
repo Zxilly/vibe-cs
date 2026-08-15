@@ -97,6 +97,20 @@ export type DesktopClient = Pick<
   | 'deleteOutput'
   | 'cleanupMissingOutputs'
   | 'cleanupStagedOutputs'
+  /* ── match workspace (data/match.ts) ──
+     Added in phase 3c. `getAnalysis` is the one read all nine §7 views share;
+     the rest are the reads a single view needs, plus the three annotation
+     writes §10.4 gap 16 left disabled once this `Pick` was widened. */
+  | 'getAnalysis'
+  | 'getHeatmap'
+  | 'getRadarOverview'
+  | 'getReplayBinary'
+  | 'getRoundReviewMetadata'
+  | 'updateRoundReviewMetadata'
+  | 'createEvidenceAnnotation'
+  | 'updateEvidenceAnnotation'
+  | 'deleteEvidenceAnnotation'
+  | 'reviewDemo'
 >;
 
 /**

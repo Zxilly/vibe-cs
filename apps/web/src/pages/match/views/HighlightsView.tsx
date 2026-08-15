@@ -1,0 +1,375 @@
+/*
+ * pages/match/views — 高光 (`?view=highlights`), artboard 「补齐 · 比赛工作区子视图 ·
+ * 高光列表」.
+ *
+ * §7 merges the retired `clutches` tab into this view: 「残局是一种高光标签，和
+ * 多杀、穿墙同级」. So 残局 is one option of the type filter and not a sub-view,
+ * which is exactly what `domain/match/matchEnums`'s `HighlightKind` already
+ * encodes.
+ *
+ * The artboard's table is 「checkbox / 回合 / 类型 / 选手 / 说明 / tick 区间 /
+ * 加入视频」 — column for column what `domain/match/HighlightRow` draws at its
+ * default density, which is the density that component exists for. The rows are
+ * therefore `HighlightRow`s and not a page-local `<table>`: the same row appears
+ * in the player profile and in the Agent's citation list, and three spellings of
+ * one row is the drift `domain/` was created to stop.
+ *
+ * ── The batch action, and where it can go ──────────────────────────────────
+ *
+ * The strip under the list is `design/layout/SelectionBar` with the artboard's
+ * two actions:
+ *
+ *   加入录制队列        disabled, with the workspace's one reason. The queue is
+ *                       not server state (`data/match.ts` gap 2) and the shell
+ *                       hands every view the same `addToVideo` so the nine of
+ *                       them say one sentence.
+ *   用 Agent 制作视频   navigates to `/agent`, which is a real §7 route.
+ *                       **The selection does not travel with it**: §7 fixes
+ *                       `/agent`'s query as `plan / session / mode`, there is no
+ *                       parameter for a set of highlights, and inventing one
+ *                       that phase 3e will not read would be a silent failure
+ *                       dressed as a feature. Reported as a contract gap.
+ */
+
+import { t } from '@lingui/core/macro';
+import { useLingui } from '@lingui/react';
+import { Trans } from '@lingui/react/macro';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+
+import { dataErrorMessage } from '../../../data/errors';
+import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
+import { EmptyState } from '../../../design/data';
+import { Notice } from '../../../design/feedback';
+import { Button, Seg, Tag } from '../../../design/primitives';
+import { SelectionBar } from '../../../design/layout';
+import {
+  HIGHLIGHT_KIND,
+  HighlightRow,
+  HighlightRowSkeleton,
+  formatTickRange,
+  formatTickRangeSeconds,
+  type HighlightKind,
+} from '../../../domain/match';
+import { MatchInspectorPanel } from '../MatchInspectorPanel';
+import { NotAnalysedState } from './viewChrome';
+import type { MatchViewModule, MatchViewProps } from '../viewContract';
+import {
+  currentHighlightId,
+  filterHighlights,
+  highlightKindCounts,
+  matchHighlights,
+  toggleSelected,
+  visibleSelection,
+} from './highlightModel';
+
+type FilterValue = 'all' | HighlightKind;
+
+/* ── the body ────────────────────────────────────────────────────────────── */
+
+function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchViewProps) {
+  const id = demoId === '' ? null : demoId;
+  const analysis = useMatchAnalysis(id);
+  const navigate = useNavigate();
+  const { i18n } = useLingui();
+
+  const [filter, setFilter] = useState<FilterValue>('all');
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+
+  const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
+  const counts = useMemo(() => highlightKindCounts(highlights), [highlights]);
+  const visible = useMemo(
+    () => filterHighlights(highlights, filter === 'all' ? null : filter),
+    [highlights, filter],
+  );
+  const batch = useMemo(() => visibleSelection(selected, visible), [selected, visible]);
+  const current = currentHighlightId(highlights, context.round, context.tick);
+
+  if (analysisIsMissing(analysis.error)) {
+    return (
+      <Frame state="empty">
+        <NotAnalysedState demoId={demoId} />
+      </Frame>
+    );
+  }
+
+  const failure = dataErrorMessage(analysis.error);
+  if (failure !== null) {
+    return (
+      <Frame state="error">
+        <div className="p-3.5">
+          <Notice
+            tone="danger"
+            action={{ label: <Trans>重试</Trans>, onAction: () => void analysis.refetch() }}
+            detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
+          >
+            <Trans>读不到这场比赛的高光：{failure}</Trans>
+          </Notice>
+        </div>
+      </Frame>
+    );
+  }
+
+  if (analysis.isPending) {
+    return (
+      <Frame state="loading">
+        <div data-highlights="loading" className="min-h-0 flex-1 overflow-y-auto">
+          {Array.from({ length: 8 }, (_, index) => (
+            <HighlightRowSkeleton key={index} />
+          ))}
+        </div>
+      </Frame>
+    );
+  }
+
+  if (highlights.length === 0) {
+    return (
+      <Frame state="empty">
+        <EmptyState
+          className="m-3.5"
+          title={<Trans>这场比赛没有检出高光</Trans>}
+          description={<Trans>检测器在这场里没有找到残局、多杀或穿墙这类可以单独成片的片段。</Trans>}
+          actions={
+            <Button variant="secondary" onClick={() => updateContext({ view: 'rounds' })}>
+              <Trans>逐回合看</Trans>
+            </Button>
+          }
+        />
+      </Frame>
+    );
+  }
+
+  return (
+    <Frame>
+      {/* The chip row of the artboard, as a real radio group: a filter has to be
+          reachable by keyboard, and a `Tag` is a label, not a control. */}
+      <header className="flex min-h-[var(--h-bar)] flex-none flex-wrap items-center gap-2.5 border-b border-divider px-3.5 py-2">
+        <Seg
+          name="highlight-kind"
+          size="sm"
+          aria-label={t`高光类型`}
+          value={filter}
+          onChange={(value) => setFilter(value as FilterValue)}
+          options={[
+            { value: 'all', label: <><Trans>全部</Trans> {highlights.length}</> },
+            ...counts.map((entry) => ({
+              value: entry.kind,
+              label: (
+                <>
+                  {i18n._(HIGHLIGHT_KIND[entry.kind].label)} {entry.count}
+                </>
+              ),
+            })),
+          ]}
+        />
+        <div className="flex-1" aria-hidden="true" />
+        <p className="text-xs text-neutral-600">
+          <Trans>按回合排序</Trans>
+        </p>
+      </header>
+
+      {visible.length === 0 ? (
+        <EmptyState
+          className="m-3.5"
+          title={<Trans>这个类型下没有高光</Trans>}
+          description={<Trans>其余类型仍然有 {highlights.length} 条。</Trans>}
+          actions={
+            <Button variant="secondary" onClick={() => setFilter('all')}>
+              <Trans>显示全部</Trans>
+            </Button>
+          }
+        />
+      ) : (
+        <ul data-highlights="list" className="min-h-0 flex-1 list-none overflow-y-auto overscroll-y-contain">
+          {visible.map((highlight) => (
+            <li key={highlight.id}>
+              <HighlightRow
+                highlight={highlight}
+                selected={selected.has(highlight.id)}
+                onSelectedChange={(next) =>
+                  setSelected((current_) => toggleSelected(current_, highlight.id, next))
+                }
+                current={highlight.id === current}
+                action={
+                  <span className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => updateContext({ round: highlight.round, tick: highlight.startTick })}
+                    >
+                      <Trans>定位</Trans>
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={addToVideo.disabled}
+                      {...(addToVideo.disabledReason === undefined
+                        ? {}
+                        : { disabledReason: addToVideo.disabledReason })}
+                      onClick={() =>
+                        addToVideo.onAdd?.({
+                          round: highlight.round,
+                          highlightId: highlight.id,
+                          startTick: highlight.startTick,
+                          endTick: highlight.endTick,
+                        })
+                      }
+                    >
+                      <Trans>加入视频</Trans>
+                    </Button>
+                  </span>
+                }
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <footer className="flex-none">
+        <p className="border-t border-divider px-3.5 py-2 text-xs text-neutral-600">
+          <Trans>
+            共 {highlights.length} 条高光，当前筛出 {visible.length} 条。
+          </Trans>
+        </p>
+        {batch.length === 0 ? null : (
+          <SelectionBar
+            summary={<Trans>已选 {batch.length} 条</Trans>}
+            primary={
+              <Button variant="primary" size="sm" onClick={() => void navigate('/agent')}>
+                <Trans>用 Agent 制作视频</Trans>
+              </Button>
+            }
+          >
+            <Button variant="secondary" size="sm" onClick={() => setSelected(new Set())}>
+              {/* 清空 rather than 清除: `PlayersPage` and `PlayerComparePanel`
+                  already publish this exact sentence, and one catalogue entry
+                  for one action is the point. */}
+              <Trans>清空选择</Trans>
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={addToVideo.disabled}
+              {...(addToVideo.disabledReason === undefined
+                ? {}
+                : { disabledReason: addToVideo.disabledReason })}
+              onClick={() => {
+                for (const highlight of batch) {
+                  addToVideo.onAdd?.({
+                    round: highlight.round,
+                    highlightId: highlight.id,
+                    startTick: highlight.startTick,
+                    endTick: highlight.endTick,
+                  });
+                }
+              }}
+            >
+              <Trans>加入录制队列</Trans>
+            </Button>
+          </SelectionBar>
+        )}
+      </footer>
+    </Frame>
+  );
+}
+
+/* ── the Inspector ───────────────────────────────────────────────────────── */
+
+function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchViewProps) {
+  const { i18n } = useLingui();
+  const id = demoId === '' ? null : demoId;
+  const analysis = useMatchAnalysis(id);
+  const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
+  const currentId = currentHighlightId(highlights, context.round, context.tick);
+  const highlight = highlights.find((entry) => entry.id === currentId) ?? null;
+
+  if (highlight === null) {
+    return (
+      <MatchInspectorPanel
+        title={<Trans>未选中高光</Trans>}
+        summary={<Trans>共 {highlights.length} 条高光</Trans>}
+        addToVideo={addToVideo}
+        collapsed={collapsed}
+      >
+        <p className="text-sm text-neutral-700">
+          <Trans>点一行的「定位」，这里会显示那条高光的回合、选手与 tick 区间，并且随地址一起可分享。</Trans>
+        </p>
+      </MatchInspectorPanel>
+    );
+  }
+
+  const seconds = formatTickRangeSeconds(highlight.startTick, highlight.endTick, highlight.tickRate);
+
+  return (
+    <MatchInspectorPanel
+      title={<Trans>选中：第 {highlight.round} 回合的高光</Trans>}
+      summary={highlight.label ?? i18n._(HIGHLIGHT_KIND[highlight.kind].label)}
+      addToVideo={addToVideo}
+      addLabel={<Trans>把这条高光加入视频</Trans>}
+      selection={{
+        round: highlight.round,
+        highlightId: highlight.id,
+        startTick: highlight.startTick,
+        endTick: highlight.endTick,
+      }}
+      collapsed={collapsed}
+    >
+      <dl className="flex flex-col gap-3 text-sm">
+        <Row label={<Trans>类型</Trans>}>
+          <Tag tone="accent">{highlight.label ?? i18n._(HIGHLIGHT_KIND[highlight.kind].label)}</Tag>
+        </Row>
+        {highlight.subject === undefined ? null : (
+          <Row label={<Trans>选手</Trans>}>{highlight.subject}</Row>
+        )}
+        {highlight.description === undefined ? null : (
+          <Row label={<Trans>说明</Trans>}>{highlight.description}</Row>
+        )}
+        <Row label={<Trans>tick 区间</Trans>}>
+          <span className="font-mono text-xs">
+            {formatTickRange(highlight.startTick, highlight.endTick)}
+          </span>
+        </Row>
+        <Row label={<Trans>时长</Trans>}>
+          <Trans>{seconds} 秒</Trans>
+        </Row>
+      </dl>
+    </MatchInspectorPanel>
+  );
+}
+
+/* ── small pieces ────────────────────────────────────────────────────────── */
+
+/**
+ * The bordered block the supplement artboard draws every sub-view in.
+ *
+ * `data-match-view` and `data-match-view-state` are the two probes the other
+ * views expose through `viewChrome.tsx`'s `ViewFrame`; they are spelled the
+ * same here so a test or a bug report reads any of the nine the same way. The
+ * frames themselves have not been consolidated yet — see the report.
+ */
+function Frame({ state = 'ready', children }: { readonly state?: string; readonly children: ReactNode }) {
+  return (
+    <section
+      data-match-view="highlights"
+      data-match-view-state={state}
+      className="m-6 flex min-h-0 min-w-0 flex-1 flex-col border border-divider"
+    >
+      {children}
+    </section>
+  );
+}
+
+function Row({ label, children }: { readonly label: ReactNode; readonly children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <dt className="font-heading text-2xs tracking-caps text-neutral-600">{label}</dt>
+      <dd className="min-w-0 break-words text-text">{children}</dd>
+    </div>
+  );
+}
+
+export const HighlightsView: MatchViewModule = {
+  id: 'highlights',
+  Body: HighlightsBody,
+  Inspector: HighlightsInspector,
+};

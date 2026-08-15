@@ -44,6 +44,15 @@ const CORPUS: ReadonlyArray<readonly [QueryNamespace, string, readonly unknown[]
   ['demos', 'demos.watch()', qk.demos.watch()],
   ['demos', 'demos.reviewTags()', qk.demos.reviewTags()],
 
+  ['match', 'match.workspace(a)', qk.match.workspace('demo-a')],
+  ['match', 'match.workspace(b)', qk.match.workspace('demo-b')],
+  ['match', 'match.analysis(a)', qk.match.analysis('demo-a')],
+  ['match', 'match.heat(a)', qk.match.heat('demo-a')],
+  ['match', 'match.replay(a)', qk.match.replay('demo-a')],
+  ['match', 'match.roundReview(a,21)', qk.match.roundReview('demo-a', 21)],
+  ['match', 'match.roundReview(a,22)', qk.match.roundReview('demo-a', 22)],
+  ['match', 'match.radar(mirage)', qk.match.radar('de_mirage')],
+
   ['history', 'history.list(p1)', qk.history.list({ page: 1, page_size: 50 })],
   ['history', 'history.list(p2)', qk.history.list({ page: 2, page_size: 50 })],
   ['history', 'history.list(search)', qk.history.list({ page: 1, page_size: 50, search: 'mirage' })],
@@ -103,6 +112,7 @@ const CORPUS: ReadonlyArray<readonly [QueryNamespace, string, readonly unknown[]
 const NAMESPACE_ROOT: Record<QueryNamespace, readonly unknown[]> = {
   service: qk.service.all,
   demos: qk.demos.all,
+  match: qk.match.all,
   history: qk.history.all,
   players: qk.players.all,
   evidence: qk.evidence.all,
@@ -265,6 +275,18 @@ describe('qk — 参数进键', () => {
       page: 1,
       page_size: 20,
     }))).toBe(false);
+
+    // One match: the analysis, the heat points, the replay and every per-round
+    // read hang below `workspace`, so `invalidateMatch` reaches all of them.
+    const match = qk.match.workspace('demo-a');
+    expect(isKeyPrefixOf(match, qk.match.analysis('demo-a'))).toBe(true);
+    expect(isKeyPrefixOf(match, qk.match.heat('demo-a'))).toBe(true);
+    expect(isKeyPrefixOf(match, qk.match.replay('demo-a'))).toBe(true);
+    expect(isKeyPrefixOf(match, qk.match.roundReview('demo-a', 21))).toBe(true);
+    expect(isKeyPrefixOf(qk.match.workspace('demo-b'), qk.match.analysis('demo-a'))).toBe(false);
+    // The radar is a map's, not a match's: invalidating one match must not drop
+    // the calibration every other demo on that map shares.
+    expect(isKeyPrefixOf(match, qk.match.radar('de_mirage'))).toBe(false);
 
     // The raw job record hangs below the activity item it describes, so
     // invalidating the task refreshes both.

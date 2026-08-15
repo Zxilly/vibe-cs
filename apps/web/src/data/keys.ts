@@ -122,6 +122,7 @@ export interface MatchHistoryQuery {
 export const QUERY_NAMESPACE = {
   service: 'service',
   demos: 'demos',
+  match: 'match',
   history: 'history',
   players: 'players',
   evidence: 'evidence',
@@ -163,6 +164,46 @@ export const qk = {
     metadata: (demoId: string) => [QUERY_NAMESPACE.demos, DETAIL, demoId, 'metadata'] as const,
     watch: () => [QUERY_NAMESPACE.demos, 'watch'] as const,
     reviewTags: () => [QUERY_NAMESPACE.demos, 'review-tags'] as const,
+  },
+
+  /**
+   * The match workspace (§7 `/match/:demoId`, spec §4.1's own example
+   * `match: { workspace: (demoId) => ['match', demoId] }`). Added in phase 3c —
+   * phase 2 built the namespaces the pages of that round needed, and no page
+   * read a match analysis until the workspace existed.
+   *
+   * Why a namespace of its own rather than more sub-resources under
+   * `qk.demos.detail(id)`: a `demos` invalidation is what the *library*
+   * performs after an import, a rename, a tag edit or a scan, and none of those
+   * change a single number in a parsed analysis. Hanging the analysis, the heat
+   * points and the replay under `demos` would make every rename re-decode a
+   * replay. The two are invalidated together exactly once — when an analysis
+   * run completes — and `data/match.ts` states that at the call site.
+   *
+   * `workspace(demoId)` is the detail root; everything about one match hangs
+   * below it, so `invalidateMatch(client, demoId)` reaches the analysis, the
+   * heat points, the replay and every per-round read in one call.
+   *
+   * `radar` is the exception that sits beside it rather than under it: a map's
+   * radar calibration belongs to the *map*, and every demo played on Mirage
+   * wants the same answer. Keyed by demo it would be refetched per match and
+   * invalidated by an event that cannot change it.
+   */
+  match: {
+    all: [QUERY_NAMESPACE.match] as const,
+    /** Everything about one match. Also the invalidation handle. */
+    workspace: (demoId: string) => [QUERY_NAMESPACE.match, DETAIL, demoId] as const,
+    /** `getAnalysis` — rounds, players, highlights, insights, teams. */
+    analysis: (demoId: string) => [QUERY_NAMESPACE.match, DETAIL, demoId, 'analysis'] as const,
+    /** `getHeatmap` — the positioned events of one match. */
+    heat: (demoId: string) => [QUERY_NAMESPACE.match, DETAIL, demoId, 'heat'] as const,
+    /** `getReplayBinary` — decoded 2D replay frames. */
+    replay: (demoId: string) => [QUERY_NAMESPACE.match, DETAIL, demoId, 'replay'] as const,
+    /** One round's review note and tags. Below the match, above nothing. */
+    roundReview: (demoId: string, round: number) =>
+      [QUERY_NAMESPACE.match, DETAIL, demoId, 'round', round, 'review'] as const,
+    /** Radar calibration for a map — see the note above on why it is a sibling. */
+    radar: (mapName: string) => [QUERY_NAMESPACE.match, 'radar', mapName] as const,
   },
 
   /**

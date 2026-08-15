@@ -797,3 +797,81 @@ export function renderInteractive(ui: ReactElement): RenderResult
 4. **`data/index.ts` 桶文件没有跟上**：本轮新增的 hooks 都没挂进去，页面走深路径 import（`app/boundary` 早有先例）。要不要统一走桶，收口时定。
 5. **§10.1 缺口 3 / §10.2 缺口 9 仍未收口**（`Inspector` 与 `Drawer` 两套焦点陷阱）。
 6. **`check-web-i18n.mjs` 依旧全红**（~190 行 Han literal）。它是旧 i18n 体系的守卫，假设源码里没有中文，而重构的 `sourceLocale` 就是 zh-CN——两者根本对立。它不在 `pnpm lint` 里，§10 阶段 4 已排定删除。
+
+---
+
+## 10.5 阶段 3c 落地记录 —— 比赛工作区（2026-08-16）
+
+出口条件全部达成，命令由我自己复跑：`pnpm --filter @vibe-cs/web lint` 退出码 0（`lingui compile --strict` → `layer check passed: 498 source files` → `tsc -b` 无诊断）；`typecheck` 0；`vitest` **394 通过 / 3 跳过（397 文件）· 3578 通过 / 4 跳过（3582 用例）**；`build` 0（`MatchWorkspacePage` 分片 119.34 kB / gzip 31.31 kB）；`cargo check --workspace --all-targets` 0；`lingui extract` 报 zh-CN 999 / en-US 999，**Missing = 0**。阶段 3a/3b/3d 的 364 个测试文件一个都没有掉出收集集（397 = 364 + 33）。`src/routes.tsx` 与 `app/router.tsx` 一字未动。
+
+`/match/:demoId` 从占位变成九个子视图：概览 / 回合 / 玩家 / 对位 / 道具与经济 / 回放与热力图 / 高光 / Review 与注释 / 队伍。
+
+### 契约先行，然后三组并行
+
+本阶段是全程唯一一次「串行一步 + 并行三组」：壳层 agent 先独占产出 `pages/match/viewContract.ts`，三个视图 agent 再各写三个视图。理由是契约错了三组视图会一起返工，一次往返换掉整类返工。
+
+骨架 agent 把任务书写的「id → 组件」改成了 **id → 模块**（`MatchViewModule { id, Body, Inspector? }`），理由我认可并采纳：正文列与 Inspector 在树里的父节点不同，且在 §8 折叠时**独立移动**（面板变抽屉，正文不变）。一个组件同时渲染两半再由壳层 portal，会让九个视图各自持有一份完全相同的摆放逻辑，还会把折叠抽屉 portal 进一个正在滚动的容器。注册表 `MATCH_VIEWS: Record<MatchViewId, MatchViewModule>` 少一个成员编译不过。
+
+`MatchViewProps` 只有五个字段（`demoId` / `context` / `updateContext` / `addToVideo` / `collapsed`），**不含分析数据**——九个视图各自调 `useMatchAnalysis`，TanStack 按键去重成一次请求；穿 props 会让壳层在每次 refetch 时重渲染九个视图。选中态回写只有 `updateContext(patch, { replace? })` 一个口子，没有 `onSelectRound/onSelectPlayer/onSeek` 三件套；一条不变式由 `workspaceContext.ts` 统一执行：**换到不同的回合会丢掉过期的 tick 与 evidence**，换视图则什么都不丢。
+
+### 页面层拍下的板
+
+| 决定 | 值 | 依据 |
+| --- | --- | --- |
+| 播放循环归属 | 视图（`views/usePlaybackClock.ts`），不在 `Transport` 里 | §10.3 已立「Transport 是受控件，不许在里面开 rAF」。用 rAF 而非 `setInterval`：窗口被遮挡时浏览器自己停，桌面应用要的正是这个；耗时取回调的 timestamp 参数，掉帧变成一次大步进而不是漂移 |
+| 步进 | `STEP_MS = 66`（≈15Hz） | 地图一步要重画几百个 SVG 节点，60Hz 是给不出可读性的白烧。playhead 是 tick 不是帧序号，所以粗步进不丢数据精度 |
+| tick 写回 URL | 播放时最多 1000ms 一次，全部 `{replace:true}`；用户主动的 seek / 跳出入点 / 点交战轴立即写 | 下界 1s ＝「复制出去的链接和眼睛看到的差不超过一秒」，比任何人会剪的最短片段还短；上界是路由器——每次写都是整个工作区重渲染，在 15Hz 步进下低于 ~500ms 就把地址放进了动画的关键路径。一个 ref 记住「本视图上次写进去的 tick」，据此区分外来的 `?tick=`（深链 / Inspector 的定位 / Agent 的定位），外来的接管本地 playhead |
+| 卸载停循环 | 有测试证明，不是「effect 里写了 cleanup」了事 | `ReplayView.interaction.test.tsx` 用一个手动驱动的 rAF 队列：`pending()` 是真实队列长度（cancel 真的把回调从 Map 里删掉），unmount 后 `pending()` 为 0，再 flush 两次既不跑回调也不再写地址。另一条证明暂停同样清空队列 |
+| 轨迹抽稀 | 每条 ≤240 采样点，stride 值印在画布出处行 | §10.3 缺口 1 量到未抽稀的 240×600 是 2.65MB；抽稀后整张画布含 12000 点热力云 < 1MB，格子 ≤48²，标记恰好 10 个 |
+
+### 与规格的偏离
+
+| # | 偏离 | 处置 |
+| --- | --- | --- |
+| 1 | **`data/keys.ts` 没有 match 命名空间**，而 `data/match.ts` 的七个读一个都没法用 `qk` 表达 | 骨架 agent 自行**纯增量**加了 `match` 命名空间并当即报备。我复核后保留：§4.1 的示例本来就写着 `match: { workspace: (demoId) => ['match', demoId] }`，是阶段 2 漏建。它挂在 `demos` 旁边而不是下面——资料库的重命名/扫描会失效 `demos`，那不该让回放重新解码一遍。`radar` 同理挂在 match **旁边**（属于地图，Mirage 上每场比赛共用一条），有测试钉住「失效一场比赛不会丢标定」 |
+| 2 | **概览没有 Inspector，也没有第二块 Scoreboard** | 两条钉死的壳层测试逼的：`matchWorkspace.interaction.test.tsx` 用 `findByText('Aurora')`，而 `MatchContextBar` 在任何宽度都留着自己的 Scoreboard，正文再放一块就是两个 `textContent === 'Aurora'`；`matchWorkspace.test.tsx` 断言 `/match/aurora` 渲染**壳层**的回落面板，而壳层只在 `view.Inspector === undefined` 时才给。`MatchViewModule.Inspector` 是静态的，做不到「选中回合时是回合面板、否则是壳层的」。**后果我要认下来**：深链 `?view=overview&round=21` 会出现「条上 R21 已选中、Inspector 说没选中」。要修得让 Inspector 也能是函数，或者让壳层回落面板可被视图运行时接管 |
+| 3 | **回放 / 高光 / Review 三个视图没走 `viewChrome` 的 `ViewFrame`** | 回放是满幅布局（190px 图层栏 + 画布 + 底部 transport），套上 `gap-5 p-6` 的面板堆叠等于给一个本身就是盒子的页面再加一层边框与内边距。这条我采纳。**但它们各自手写的 404 恢复少了主动作**——六个视图给「开始分析（服务离线时禁用并写明原因）+ 回到资料库」，这三个只给一条「回到资料库开始分析」的链接，把用户支去另一页按一个本页就能按的按钮。收口时把 404 恢复提成 `viewChrome.NotAnalysedState`，九个视图共用一份；三个视图保留自己的框。三条 markup 测试从断言那句合成文案改成分别断言两个动作 |
+| 4 | **`首杀` 一词两义** | `domain/match/matchEnums` 的高光种类是「Opening kill」（指标名），而 `DuelsView` 的首杀对决表用它当**列头指人**——一列选手名顶着 "Opening kill" 是错的词性。给指人的那一对（首杀 / 被击杀）打 `context: 'duel-column'` → Opening killer / Victim。**同表的 回合 / 武器 / 时间码 故意不打**：它们与全应用同词同义，分叉只会产生两条能各自漂移的条目——`穿墙`、`爆头` 今天各被八处共用，那才是该学的样子。这条与 §10.4 偏离 3 的「整套词表一起打标签」不矛盾：那条针对的是闭集词表，这条针对的是一对语义确实分叉的列头 |
+| 5 | `清除选择` 与 `清空选择` 两条 msgid 同义 | 收口时统一成 `清空选择`——`PlayersPage` 与 `PlayerComparePanel` 早已发布这句，一个动作一条条目 |
+| 6 | Review 的 AI 点评列用 `--w-inspector-wide`(440) 承载画板的 400px | §3.5 宽度表没有 400，440 是最近的一档。若认为要精确 400，该改的是 `theme.css` / `tokens.data.ts` 而不是页面 |
+| 7 | 时码差一档 | 画板 04 的 `01:12.4`（mm:ss.十分之一）在 `design/timeline/timeScale.ts` 里不存在（§10.3 偏离 5），用了 Transport 的 clock 档，显示 `01:12` |
+| 8 | 「加入视频」全工作区 disabled | 录制队列不是服务端状态（见下方缺口 2），壳层下发**同一句**原因给九个视图，行内与批量两处都是 disabled + 写明原因，没有一个被隐藏，也没有偷偷写 localStorage |
+
+### 后端契约缺口（本轮撞到的）
+
+一样，全部**没有**用假数据兜住。
+
+1. **没有半场边界。** `Scoreboard` 收 `periods`，但 `TeamSummary.side` 说的是「现在」（整场结束时那一次），回合只带累计比分。「上半 / 下半 / 攻守已交换」推不出来。按第 12 回合切等于把 MR12 规则套在一份从不声明自己赛制的文档上，一份 MR15 的 demo 会印出两个假的半场比分。**整块省略。** 需要 `RoundSummary` 补逐回合阵营，或 `AnalysisWorkspace` 补显式的半场列表。
+2. **「加入视频」没有任何命令。** `planRecording` 生成的是带 `expires_at` 的临时方案，真正的持久队列是 `features/queue/queueStore.ts` 这个客户端 zustand store，而 §4.2 的替代品要到阶段 4 才动 `shared/stores`。
+3. **回合经济按阵营记而不是按队伍。** `RoundEconomyInsightRecord.teams[].team` 是 `'CT'|'T'`，`crates/domain/src/insights.rs` 在构造它的那一行自己写了原因：选手的阵营半场会变，一次购买事件只对它自己那一回合的阵营有效。所以经济表保留阵营标注并在表头写明「购买事件带的是当回合的阵营，不是队伍」，而不是把半场比赛记到错误的队名下。
+4. **残局只有候选数，没有胜负。** 画板的「残局 3 / 5」是胜/尝试。线上只有 `kind: 'clutch'` 的高光（检测器产物），另有一个 `fail` 但它标记**任何**失败候选（包括失败的多杀），映射过去会把失败的多杀归进残局筛选。只印「残局候选 N」并注明「按高光类型统计，胜负未记录」。
+5. **没有开火事件**，所以画板「AK-47 16 杀 · 命中 34%」的分母不存在。按武器的击杀数可由 `rounds[].events` 推出，命中率省略——`players.test.tsx` 有一条断言钉住页面里不出现「命中」二字。
+6. **击杀事件只带一个 `position`**，没有字段说明它是击杀者的还是被击杀者的。`domain/map` 的 `Engagement` 需要 attacker + victim 两个坐标。对位视图因此一行蓝图图层都没画（画了就是把一个真点和一个编出来的点连起来还挂上「经击杀验证的交战轴」的图例）。回放视图退而求其次：从击杀 tick 所在的**回放帧**里读双方位置，回放不可用时一条轴都画不出来，数量已计数并印在出处行。
+7. **`TimelineEvent.position` 是世界坐标，产品里没有 callout 表**，所以「回合内事件」表的「位置」列（中路 / A 大道 / A 连接）整列省略而不是在一个承诺地名的表头下印三个浮点数。需要一张逐地图的「世界多边形 → 名字」表；这与 §10.3 缺口 8（雷达底图交付）相邻但是另一份资产。
+8. **`TimelineEvent.actor` / `target` 是自由文本**，按 demo 不同可能是 id 也可能是名字。三处（回放选手匹配、对位名单、首杀归属）都先按 id 再按名字（大小写不敏感）匹配，两者都对不上的击杀被丢弃并计数印出。需要后端明确这两个字段的语义。
+9. **`TimelineEvent.id` 与 `EvidenceSearchItem.evidence_id` 不是同一个 id 空间**（不同 pass 生成），而 §4.4 的 `evidence` 参数指的是后者。所以回合事件表的「定位」**只写 `tick`**，不写 `evidence`；从 `/evidence` 深链过来对不上时只是「没有选中」，不会出错。若两者其实可对齐，说一声就能一行都写。
+10. **`PlayerAnalysis` 没有首杀、没有残局**，`RoundSummary.key`（关键回合）在 wire 上不存在，`TimelineEvent` 没有拆弹倒计时，投掷物没有实体 id（`detail` 是 `unknown`，一次投掷连不上它自己的引爆与致盲）。对应的列 / 标记 / 逐条表全部省略或换成数据真正支持的粒度（逐选手 `insights.player_utility`），没有一处渲染成 0。
+11. **回合起始装备价值不存在。** `TeamPurchaseInsight.spend` 是**已解码购买事件**的花费，且只要一条没带价格就整体为 `null`。画板的柱图（柱高＝回合起始装备价值）与「枪局胜率 9/14」「经济劣势翻盘 3」都没做。
+12. **teams 视图接管不了 `/lineups`。** `listLineups` 是按 lineup_id 的跨比赛目录，而没有任何读能把一个 demo 映射到它的 lineup_id。队伍视图只由本场的 `teams` + `insights.round_economy` 构成。
+13. **§10.4 缺口 8 仍未关闭**（没有「某个 demo 的历次 analysis run」查询），所以 `getAnalysisRunRoundReplayBinary(runId, round)` 拿不到 runId。回放只能整场取 `getReplayBinary(demoId)`，按回合切片是前端做的。
+14. **`ReplayFrameRecord` 不带楼层**（`HeatPointRecord` 带）。所以楼层控件只筛热力叠加，路径 / 标记 / 交战轴筛不了；控件只在采样点确实跨两层以上时才出现，并在下面写明这条限制。
+15. **Review 没有导出命令**（`DesktopClient` 里没有任何复盘导出路由），「导出 HTML」渲染成 disabled + 写明原因。AI 点评的语气写死 `analytical`——画板把「语气：专业」画成 Tag 不是控件。
+16. **注释必须先有锚点**：`CreateEvidenceAnnotation` 要 `evidence_id` + `round` + `tick`，所以只有三者齐全时输入框与按钮才可用，否则 disabled 并写明「注释要挂在具体的 tick 上」。这是契约决定的，不是设计取舍。
+17. **高光类型词表两头对不齐**：wire 的 `knife` / `taser` / `defuse` / `fail` / `timeline` 在 `HighlightKind` 里没有成员，全部折进「其他」（行上仍印分析器自己的 label）；反过来 `opening-kill` / `match-point` / `eco-comeback` 在 wire 里没有对应 kind，这三个筛选片永远不出现（计数由真实数据算出，不印 0）。要么补 `matchEnums` 成员，要么补分析器的 kind。
+18. **`/agent` 带不走选中集**：§7 把它的 query 定死为 `plan / session / mode`，没有参数能表达一组高光。按「用现有路由能到的地方」处理——按钮可用、`navigate('/agent')`，但选中的 N 条不会跟过去。这与 §4.6 缺口 8 是同一件事，阶段 3e 要给 `/agent` 定一个引用入参。
+19. **`RadarOverviewRecord.image_url` 本轮一律不用**（§10.3 缺口 8 未定 + Tauri CSP `default-src 'self'`）。画布画的是蓝图网格，只用 transform 做世界坐标→图像坐标标定。本轮没有引入任何图片资源。
+
+### 我引入的技术债与已知风险
+
+1. **`data/match.ts` import 了 `features/analysis/replayBinary.ts`。** 那是仓库里唯一的 ARPL 解码器，复制第二份必然漂移；代价是它还说着旧 `shared/i18n`（`msg("m0176")`）。**阶段 4 删旧 i18n 时，这个解码器必须搬进 `data/`（或搬进 worker）而不是随 `features/` 一起删。** 已核实：旧字典本来就因 `shared/desktop/client.ts` 在主 chunk 里，所以今天不增加体积。
+2. **`decodeReplayBinary` 同步跑在主线程**，最多 20 000 帧，`data/` 层没有 worker 接缝。打开回放视图会有一次可感知的卡顿。没有藏，写在 `useMatchReplay` 的注释里（该 hook 也是这一层唯一默认 `enabled: false` 的，因为工作区开在概览，九分之七的视图不需要几 MB 的帧）。
+3. **回放的「选手位置」图层画在页面层**（`views/ReplayCanvas.tsx` 的 `PlayerLayer`），因为 `domain/map` 没有当前帧选手标记组件而本轮不许改 `domain/**`。它走 `MapCanvas` 的 projection 回调这个官方接缝并复用 `useRovingSelection`。建议后续**原样上提**为 `domain/map/PlayerLayer`（是搬家不是重写）。同理缺 `ProjectileLayer` / `BombLayer`——画板 04 的图层清单有「投掷物与火」「C4 生命周期」，`ReplayFrameRecord` 里数据是有的，本轮两个开关一个都没画（不画死开关）。
+4. **对位的「对手」半边不在地址里。** §4.4 只有一个 `player` 位，而选中一个矩阵单元格选的是**一对人**。行方选手写进 URL，对手留在视图本地 state（换行方选手时清掉）。复制出去的链接能还原「Kael」，还原不了「Kael → Sable」。没有把对手塞进 `?evidence=`（那个字段的语义是一条证据的 id，不是人）。要修得改 `workspaceContext.ts` 加第六个参数——同一个决定还卡着 Review 的分区 Seg（`?view=review` 的深链只能落在「结论」）。
+5. **回放没做全屏。** 画板 04 有这个按钮；画布是停靠布局里的一格，全屏时壳层其余部分怎么处理没有产品决定，所以没造。「跨比赛热力图」同理没做——`data/match.ts` 全部按单个 demo 取数，跨比赛热力图现在只存在于 `/players/:id`。
+
+### 留给后续阶段的已知缺口
+
+1. **§10.4 的 6 条全部仍然成立**，其中缺口 4（`data/index.ts` 桶文件）到本轮为止已连续三轮被提。**收口决定：不做桶。** `data/` 的每个模块对应一个页面组，一个桶会把九组 hook 全拉进任何 import 其一的分片，恰好抵消 `MatchWorkspacePage` 独立分片的意义。深路径 import 是既定写法，`app/boundary` 早有先例。这条从缺口清单里划掉。
+2. **概览深链的 Inspector 不一致**（本节偏离 2），要修得先决定 `MatchViewModule.Inspector` 能不能是运行时可选的。
+3. **`viewChrome.ViewFrame` 与满幅视图的两分**（本节偏离 3）：要么给 `viewChrome` 补一个满幅变体，要么承认回放/高光/Review 是例外。本轮只统一了 404 恢复与两个探针属性（`data-match-view` + `data-match-view-state`），九个视图现在能用同一种方式读状态。
+4. **四条「读不到分析」的句子各写各的**（壳层的、回放的、高光的、Review 的）。本轮**没有**统一：它们各自带着视图特有的名词（「读不到这场比赛的高光」），比一句通用文案更有用。若日后认为该收成一条，那是 catalogue 的取舍不是 bug。

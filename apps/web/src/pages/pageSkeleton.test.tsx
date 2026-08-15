@@ -64,6 +64,16 @@ interface PageCase {
   readonly phase: string;
   /** Whether that phase has landed. See the file header. */
   readonly built: boolean;
+  /**
+   * What sits in the `Page`'s toolbar slot. Fourteen pages put a
+   * `design/layout/Toolbar` there. `/match/:demoId` puts
+   * `domain/match/MatchContextBar` there instead, and that is not a shortcut:
+   * §3.4 names `--h-topbar` 「页面顶栏 / 比赛上下文栏」, the 03 artboard draws the
+   * scoreline and the focus chips in that 56px band, and the bar has to be *the
+   * same object* across all nine sub-views (§7). Its title is the rail's active
+   * entry, not a heading of its own.
+   */
+  readonly chrome?: 'toolbar' | 'context-bar';
 }
 
 const PAGES: readonly PageCase[] = [
@@ -114,7 +124,8 @@ const PAGES: readonly PageCase[] = [
     Component: MatchWorkspacePage,
     title: '概览',
     phase: '3c',
-    built: false,
+    built: true,
+    chrome: 'context-bar',
   },
   {
     pattern: '/agent',
@@ -192,7 +203,7 @@ function renderPage(pattern: string, at: string, Component: ComponentType): stri
   );
 }
 
-describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase, built }) => {
+describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase, built, chrome }) => {
   const html = renderPage(pattern, at, Component);
 
   it('is a Page with the four slots, not a bare div', () => {
@@ -201,9 +212,15 @@ describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase, built }) =>
     expect(html).toContain('data-page-body');
   });
 
-  it('carries its title in a Toolbar', () => {
-    expect(html).toContain('data-toolbar=');
-    expect(html).toContain(`data-toolbar-title="true"`);
+  it('carries its title in the bar the artboard gives it', () => {
+    if ((chrome ?? 'toolbar') === 'toolbar') {
+      expect(html).toContain('data-toolbar=');
+      expect(html).toContain(`data-toolbar-title="true"`);
+    } else {
+      expect(html).toContain('data-match-context-bar=');
+      // The workspace's own heading is the rail entry that is current.
+      expect(html).toContain('aria-current="page"');
+    }
     expect(html).toContain(title);
   });
 

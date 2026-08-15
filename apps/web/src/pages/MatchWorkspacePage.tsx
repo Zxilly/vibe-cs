@@ -6,78 +6,269 @@
  * is a first-class identity, not a filter on the analysis page. The old
  * `/analysis?demo=…` redirects here (`app/router.tsx`).
  *
- * `?view=` selects one of the nine merged views. This round resolves and names
- * the current one; the 190px view rail (and its ≤1100px fold into top tabs,
- * §8 rule 3) is `design/layout/SubNav` and belongs to phase 3c together with
- * the context bar, so the skeleton deliberately stops at the toolbar rather
- * than half-building a navigation that 3c would have to undo.
+ * ── What this file owns ────────────────────────────────────────────────────
+ *
+ * The shell, and only the shell: the context bar, the view rail, the Inspector
+ * frame, and the address. The nine views are `pages/match/views/*` and are
+ * addressed through the exhaustive registry in `pages/match/viewContract.ts` —
+ * which is also where the contract they are written against is documented.
+ *
+ * Three things are deliberately constant across all nine views, because the
+ * reference draws them that way:
+ *
+ *   `domain/match/MatchContextBar`   the identity of the match
+ *   `design/layout/SubNav`           the 190px rail (`--w-subnav`)
+ *   `design/layout/Inspector`        the 380px detail panel
+ *
+ * ── §8, all three collapse rules at once ───────────────────────────────────
+ *
+ * This is the only page in the product where all three fire:
+ *
+ *   rule 1  the shell's side nav folds — `app/`, not here
+ *   rule 2  the Inspector becomes a 46px summary strip plus a drawer, so it
+ *           moves out of the content row and into `Page`'s footer slot
+ *   rule 3  the rail becomes a row of top tabs, so it moves out of the content
+ *           row and into `Page`'s bar slot
+ *
+ * `SubNav` and `Inspector` each implement their own fold; what a component
+ * cannot do is re-parent itself, so the *placement* is decided here. Both are
+ * handed the same `collapsed` value, observed once with `useCollapsed`, because
+ * two independent subscriptions can be read in different states mid-transition
+ * and the two halves must fold together. No media query is written in this
+ * file.
+ *
+ * The context bar folds on its own, later, at `CONTEXT_BAR_BREAKPOINT_PX`
+ * (1600) — crossing 1100 upward makes the content column *narrower*, which
+ * §10.3 deviation 1 explains. That is the component's business and is not
+ * repeated here.
+ *
+ * ── Where the data comes from ──────────────────────────────────────────────
+ *
+ * Two reads, both shared with the views by query key rather than by props:
+ *
+ *   `useDemo`           the library record — map, date, team names and the
+ *                       final score. It answers even for a demo that has never
+ *                       been analysed, which is the state the bar has to look
+ *                       right in.
+ *   `useMatchAnalysis`  the parsed match. The bar prefers it where it has an
+ *                       answer (tick rate, real round count), and the rail's
+ *                       「高光 18」 badge is its highlight count.
+ *
+ * The shell does **not** render the analysis's loading or error states: eight
+ * of the nine views call the same hook and each renders its own three states
+ * next to the thing that failed (§4.1 sets `throwOnError: false` for exactly
+ * that). What the shell does own is the failure of the *identity* read — if the
+ * demo record cannot be fetched the bar says so in place and keeps 「‹ 资料库」
+ * reachable, which is what a user whose workspace failed to open needs.
+ *
+ * ── 「加入视频」 is disabled, and says why ──────────────────────────────────
+ *
+ * The action appears on scoreboard rows, highlight rows and the Inspector
+ * footer. It has no command behind it: `planRecording` builds an ephemeral plan
+ * and the persistent queue is `features/queue`'s client-side store, which §4.2's
+ * replacement has not been written (see `data/match.ts`, gap 2). So it is
+ * disabled with the reason attached — 「不隐藏、不静默失败」 — and the state is
+ * passed to every view so the nine of them say one sentence rather than nine.
  */
 
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import type { ReactNode } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useLingui } from '@lingui/react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
-import { Page, Toolbar } from '../design/layout';
-import { PagePlaceholder } from './PagePlaceholder';
-import { pickQueryValue } from './routeQuery';
+import { useDemo } from '../data/demos';
+import { dataErrorMessage } from '../data/errors';
+import { useMatchAnalysis } from '../data/match';
+import { Page, SubNav, useCollapsed, type SubNavItem } from '../design/layout';
+import { Button } from '../design/primitives';
+import { MatchContextBar } from '../domain/match';
+import { MatchInspectorPanel } from './match/MatchInspectorPanel';
+import { focusedPlayers, matchIdentity, matchTeams, roundLabel } from './match/matchModel';
+import {
+  MATCH_VIEW,
+  MATCH_VIEW_IDS,
+  MATCH_VIEWS,
+  type MatchContextUpdateOptions,
+  type MatchVideoAction,
+  type MatchViewId,
+  type MatchViewProps,
+} from './match/viewContract';
 import { RouteLink } from './RouteLink';
-
-/** §7's merge table, in the order artboard 03 draws the rail. */
-export const MATCH_VIEWS = [
-  'overview',
-  'rounds',
-  'players',
-  'duels',
-  'utility',
-  'replay',
-  'highlights',
-  'review',
-  'teams',
-] as const;
-
-export type MatchView = (typeof MATCH_VIEWS)[number];
-
-const VIEW_LABEL: Record<MatchView, ReactNode> = {
-  overview: <Trans>概览</Trans>,
-  rounds: <Trans>回合</Trans>,
-  players: <Trans>玩家</Trans>,
-  duels: <Trans>对位</Trans>,
-  utility: <Trans>道具与经济</Trans>,
-  replay: <Trans>回放与热力图</Trans>,
-  highlights: <Trans>高光</Trans>,
-  review: <Trans>Review 与注释</Trans>,
-  teams: <Trans>阵容</Trans>,
-};
+import {
+  patchWorkspaceContext,
+  readWorkspaceContext,
+  writeWorkspaceContext,
+  type MatchContextPatch,
+} from './match/workspaceContext';
 
 export function MatchWorkspacePage() {
   const { demoId = '' } = useParams<{ demoId: string }>();
-  const [params] = useSearchParams();
-  const view = pickQueryValue(params.get('view'), MATCH_VIEWS, 'overview');
+  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { i18n } = useLingui();
+  const collapsed = useCollapsed(undefined);
+
+  const context = readWorkspaceContext(params);
+  const view = MATCH_VIEWS[context.view];
+
+  const id = demoId === '' ? null : demoId;
+  const demo = useDemo(id);
+  const analysis = useMatchAnalysis(id);
+
+  const updateContext = (patch: MatchContextPatch, options?: MatchContextUpdateOptions) => {
+    setParams(writeWorkspaceContext(patchWorkspaceContext(context, patch)), {
+      replace: options?.replace === true,
+    });
+  };
+
+  /* The one sentence the whole workspace uses for the action that has no
+     command behind it. Declared inside the component so the macro resolves
+     against the active locale rather than at import time. */
+  const addToVideo: MatchVideoAction = {
+    disabled: true,
+    disabledReason: t`录制队列尚未接通`,
+  };
+
+  const viewProps: MatchViewProps = {
+    demoId,
+    context,
+    updateContext,
+    addToVideo,
+    collapsed,
+  };
+
+  const identity = matchIdentity(demoId, { demo: demo.data, analysis: analysis.data });
+  const { teamA, teamB } = matchTeams({ demo: demo.data, analysis: analysis.data });
+  const focus = focusedPlayers(analysis.data, context.player).map((player) => ({
+    ...player,
+    onRemove: () => updateContext({ player: null }),
+  }));
+
+  const highlightCount = analysis.data?.highlights.length ?? null;
+  const items: readonly SubNavItem[] = MATCH_VIEW_IDS.map((viewId) => ({
+    id: viewId,
+    label: i18n._(MATCH_VIEW[viewId].label),
+    /* The count is drawn only once it is known. A badge that reads 0 while the
+       analysis is still loading is a claim, not a placeholder. */
+    ...(viewId === 'highlights' && highlightCount !== null ? { badge: highlightCount } : {}),
+  }));
+
+  const identityError = dataErrorMessage(demo.error);
+  const round = roundLabel(context.round);
+
+  /* `SubNav` speaks in plain ids because it is a design-layer component and
+     knows nothing about §7. Narrowing here rather than casting means a rail
+     item that ever stopped matching the union would be ignored instead of
+     writing an unreachable `?view=` into the address. */
+  const selectView = (next: string) => {
+    const target = MATCH_VIEW_IDS.find((candidate): candidate is MatchViewId => candidate === next);
+    if (target !== undefined) updateContext({ view: target });
+  };
+
+  const inspector =
+    view.Inspector === undefined ? (
+      <MatchInspectorPanel
+        title={<Trans>选中项</Trans>}
+        summary={<Trans>未选中任何内容</Trans>}
+        addToVideo={addToVideo}
+        collapsed={collapsed}
+      >
+        <p className="text-sm text-neutral-700">
+          <Trans>
+            在左侧选择一个回合、一名选手或一条证据，详情会出现在这里，
+            并且随地址一起可分享、可后退。
+          </Trans>
+        </p>
+      </MatchInspectorPanel>
+    ) : (
+      <view.Inspector {...viewProps} />
+    );
 
   return (
     <Page
+      scroll={false}
       toolbar={
-        <Toolbar
-          tone="chrome"
-          leading={
+        <MatchContextBar
+          match={identity}
+          teamA={teamA}
+          teamB={teamB}
+          backLink={
+            /* A real anchor (`RouteLink` resolves the hash-mode href), because
+               the artboard draws 「‹ 资料库」 as a link and middle-click, the
+               status bar and the back button all have to keep working. The bar
+               draws the chevron itself. */
             <RouteLink to="/library">
-              <Trans>‹ 资料库</Trans>
+              <Trans>资料库</Trans>
             </RouteLink>
           }
-          title={VIEW_LABEL[view]}
-          meta={demoId}
+          {...(round === null ? {} : { roundRange: <Trans>当前 {round}</Trans> })}
+          focusedPlayers={focus}
+          loading={demo.isPending}
+          {...(identityError === null
+            ? {}
+            : {
+                failure: {
+                  message: identityError,
+                  onRetry: () => void demo.refetch(),
+                },
+              })}
+          actions={
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => updateContext({ view: 'review' })}
+              >
+                <Trans>AI 点评</Trans>
+              </Button>
+              {/* §8's non-negotiable line: the primary action is visible at
+                  every width and never enters an overflow menu. `MatchContextBar`
+                  keeps its `actions` slot out of the fold for that reason. */}
+              <Button variant="primary" size="sm" onClick={() => void navigate('/agent')}>
+                <Trans>用 Agent 制作视频</Trans>
+              </Button>
+            </>
+          }
         />
       }
+      /* §8 rule 3: folded, the rail is a row of tabs under the context bar. */
+      bar={
+        collapsed ? (
+          <SubNav
+            items={items}
+            activeId={context.view}
+            onSelect={selectView}
+            label={t`比赛工作区视图`}
+            collapsed
+          />
+        ) : null
+      }
+      /* §8 rule 2: folded, the Inspector is a 46px summary strip at the bottom
+         plus a drawer it pulls out. */
+      footer={collapsed ? inspector : null}
     >
-      <PagePlaceholder
-        phase="3c"
-        description={
-          <Trans>
-            工作区把一场比赛的回合、选手、对位、道具、回放、高光与 Review 收在同一个地址下，
-            右侧 Inspector 统一承载证据详情与「加入视频」。
-          </Trans>
-        }
-      />
+      <div className="flex min-h-0 min-w-0 flex-1">
+        {collapsed ? null : (
+          <SubNav
+            items={items}
+            activeId={context.view}
+            onSelect={selectView}
+            label={t`比赛工作区视图`}
+            collapsed={false}
+          />
+        )}
+        <main
+          data-match-content=""
+          /* The demo id is on the frame, not in a caption: the artboard's bar
+             says 「Aurora 13 : 11 Meridian」, never the file id, but a test (and
+             a bug report) still has to be able to see which match is open. */
+          data-match-demo={demoId}
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-auto"
+        >
+          <view.Body {...viewProps} />
+        </main>
+        {collapsed ? null : inspector}
+      </div>
     </Page>
   );
 }

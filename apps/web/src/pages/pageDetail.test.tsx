@@ -20,7 +20,8 @@ import { DeliveryPage } from './DeliveryPage';
 import { EditorPage } from './EditorPage';
 import { EvidencePage } from './EvidencePage';
 import { LibraryPage } from './LibraryPage';
-import { MatchWorkspacePage, MATCH_VIEWS } from './MatchWorkspacePage';
+import { MatchWorkspacePage } from './MatchWorkspacePage';
+import { MATCH_VIEW_IDS } from './match/viewContract';
 import { MontagePage } from './MontagePage';
 import { PlayerProfilePage } from './PlayerProfilePage';
 import { RecordingPage } from './RecordingPage';
@@ -81,20 +82,25 @@ describe('the §7 queries', () => {
     if (section === 'ai') expect(html).toContain('AI 与 Agent');
   });
 
-  it.each(MATCH_VIEWS)('/match/:demoId?view=%s', (view) => {
+  it.each(MATCH_VIEW_IDS)('/match/:demoId?view=%s', (view) => {
     const html = at('/match/:demoId', `/match/aurora?view=${view}`, <MatchWorkspacePage />);
-    expect(html).toContain('aurora');
-    expect(html).toContain('data-toolbar-title');
+    // The bar prints the map and the teams, never the file id, so the frame
+    // carries the id the route was opened on.
+    expect(html).toContain('data-match-demo="aurora"');
+    expect(html).toContain('data-match-context-bar');
+    expect(html).toContain(`data-match-view="${view}"`);
   });
 
   it('/match/:demoId opens on 概览, the §7 default', () => {
-    expect(at('/match/:demoId', '/match/aurora', <MatchWorkspacePage />)).toContain('>概览<');
-    expect(at('/match/:demoId', '/match/aurora?view=nonsense', <MatchWorkspacePage />)).toContain('>概览<');
+    const bare = at('/match/:demoId', '/match/aurora', <MatchWorkspacePage />);
+    const unknown = at('/match/:demoId', '/match/aurora?view=nonsense', <MatchWorkspacePage />);
+    expect(bare).toContain('data-match-view="overview"');
+    expect(unknown).toContain('data-match-view="overview"');
   });
 
   it('declares nine match views, per §7 s merge table', () => {
-    expect(MATCH_VIEWS).toHaveLength(9);
-    expect(MATCH_VIEWS).toContain('teams');
+    expect(MATCH_VIEW_IDS).toHaveLength(9);
+    expect(MATCH_VIEW_IDS).toContain('teams');
   });
 });
 
@@ -126,7 +132,11 @@ describe('the §7 path parameters', () => {
 describe('the back links on detail routes', () => {
   it('takes the match workspace back to the library', () => {
     const html = at('/match/:demoId', '/match/aurora', <MatchWorkspacePage />);
-    expect(html).toContain('‹ 资料库');
+    /* 「‹ 资料库」 is now the context bar's own back slot: the chevron is a Lucide
+       glyph the bar draws (`data-match-back`), the word is a real anchor, so
+       middle-click and the status bar keep working. */
+    expect(html).toContain('data-match-back=');
+    expect(html).toContain('资料库');
     expect(html).toContain('href="/library"');
   });
 

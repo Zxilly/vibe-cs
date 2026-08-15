@@ -17,8 +17,9 @@
  *
  * `DesktopClient` is `Pick<typeof commands, …>` rather than a hand-written
  * interface: it stays exactly the real signatures, and a stub that drifts from
- * the wire fails to typecheck. It lists only what this layer reads today —
- * widening it is how a new hook declares its dependency.
+ * the wire fails to typecheck. It lists what this layer calls today — widening
+ * it is how a new hook declares its dependency, and the list is the honest
+ * answer to "what does the UI actually need from the 141-method bridge".
  */
 
 import { createContext, use, type ReactNode } from 'react';
@@ -35,6 +36,9 @@ export type DesktopClient = Pick<
   | 'getDemoMetadata'
   | 'getDemoWatchStatus'
   | 'listReviewTags'
+  // match history
+  | 'listMatchHistory'
+  | 'listActiveMatchDownloadJobs'
   // players
   | 'listPlayers'
   | 'getPlayer'
@@ -62,7 +66,45 @@ export type DesktopClient = Pick<
   | 'getHlaeStatus'
   | 'recoveryStatus'
   | 'runtimeState'
+  /* ── writes ──
+     Added in phase 3. Each name below is called by exactly one hook in this
+     layer; the grouping matches the file that owns it. Three files declared
+     their own `Pick` slices while phase 3 ran in parallel — they could not edit
+     this shared file — and folding them back here is what removes both the
+     duplicate types and `demos.ts`'s `as unknown as` narrowing. */
+  // demos (data/demos.ts)
+  | 'importDemoPaths'
+  | 'importDemos'
+  | 'scanDemos'
+  | 'rescanDemoWatch'
+  | 'updateDemo'
+  | 'updateDemoMetadata'
+  | 'updateDemoMetadataBatch'
+  | 'deleteDemo'
+  | 'createReviewTag'
+  | 'updateReviewTag'
+  | 'deleteReviewTag'
+  | 'playDemo'
+  // tasks (data/tasks.ts)
+  | 'cancelRecordingJob'
+  | 'cancelExportJob'
+  | 'cancelAnalysisRun'
+  | 'cancelMatchDownload'
+  | 'planRecordingRetry'
+  | 'startAnalysisRun'
+  | 'downloadMatchDemo'
+  // outputs (data/outputs.ts)
+  | 'deleteOutput'
+  | 'cleanupMissingOutputs'
+  | 'cleanupStagedOutputs'
 >;
+
+/**
+ * What a test hands to `DesktopClientProvider`. Every test stubs a handful of
+ * methods, never all of them, so the partial is the shape they actually build —
+ * declared once here rather than per data module.
+ */
+export type DesktopClientStub = Partial<DesktopClient>;
 
 const DesktopClientContext = createContext<DesktopClient>(commands);
 

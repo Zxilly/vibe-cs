@@ -737,3 +737,63 @@ export function renderInteractive(ui: ReactElement): RenderResult
 9. **`ClipStrip` 的指针拖拽同样没用 `setPointerCapture`**（jsdom 不实现它），与 `design/timeline` 是同一处已知缺口，一并在 3f 处理。落点计算是纯函数并单测，interaction 只覆盖键盘路径。
 10. **组件内部几何常量仍未 token 化**：`ClipStrip` 的 210px 片段宽、112px 缩略图、`Waveform` 的 168px 最小高。它们是内容盒的纵横比参数，不在 §3.4 栏高表也不在 §3.5 宽度表，按阶段 0 的先例保持现状并注了出处。
 11. **`domain/agent/` 与 `data/{sessions,plans,editNotifier}.ts` 尚未存在**（属 3e，模型 §4.5 要跟后端一起定）。`keys.ts` 已经预留 sessions / plans 两个命名空间的键形状（含 §4.5.1 的反向索引 `sessions.ofObject(kind,id)`），3e 不需要给缓存重新编号。那批落地后必须重跑一次 `i18n:extract` —— **i18n 这一步不是永久关闭的**。
+
+---
+
+## 10.4 阶段 3a + 3b + 3d 落地记录（2026-08-16）
+
+出口条件全部达成：`lint` / `typecheck` / `build` / `cargo check --workspace --all-targets` 退出码 0；`vitest` 三项目 **361 文件 3064 用例**通过（unit 178 / markup 131 / interaction 55）；`lingui extract` 报 en-US Missing = 0（687 条）；阶段 2 的 322 个测试文件 `comm` 差集为 0；`src/routes.tsx` 与 `app/router.tsx` 一字未动，15 条路由仍全部可达。
+
+八个页面不再是占位：交付（输出 / 任务记录）、任务详情、工作台首页、Demo 资料库 + 5 个对话框、证据检索、玩家目录、玩家档案、比赛历史。`data/` 从只读扩到读写：`tasks` / `outputs` / `demos` / `config` / `history` 都有了 mutation。
+
+### 页面层拍下的三个板
+
+| 决定 | 值 | 依据 |
+| --- | --- | --- |
+| 轮询节奏（§10.3 缺口 1） | 任务详情 2s / 任务记录 5s / 首页 digest 10s | 录制阶段以秒计（画板：片段 1 采集完成 · 3.0 秒），慢于 2s 会整段跳过阶段；50 行列表读的是完成/失败这种整体事件，5s 还与断线重连探测同频不打拍；首页是一瞥不是盯 |
+| 停轮 | 真的实现了 | 不是页面算出 `pollMs` 回传（那会与屏幕上的数据错位），而是 `refetchInterval` 做成读 query 自身缓存答案的函数（`feedHasActiveTask` / `activityIsActive` / `analysisRunIsActive`），第一次拿到「全部终态」后 interval 变 false。两条 interaction 测试分别证明「有在跑就继续问」「全空闲就彻底停」。不丢事件的理由：任务只可能由本 app 的 mutation 启动，而每个 mutation 都失效 `qk.tasks.all` |
+| `Toolbar.inlineActionsWhenCollapsed`（§10.3 缺口 2） | 交付页显式传 2 | 折叠下 940px 减去标题/meta/更多/主动作/间距后剩 414px，够放两个三字 ghost 按钮。`deliveryCollapse.interaction.test.tsx` 在 1100px 上验证 Seg 与「清理无效记录」都没进「更多」 |
+
+失效链路每条都写了理由，其中一条是**故意不失效**：`planRecordingRetry` 只生成方案、没有任务发生变化，多打一次请求不会返回任何不同的东西——测试直接断言调用次数没变。
+
+### 与规格的偏离
+
+| # | 偏离 | 处置 |
+| --- | --- | --- |
+| 1 | **本轮任务书自相矛盾**：要求页面用 `app/boundary` 的 `useServiceAction()`，而 §2.1 规则 3 禁止 `pages/**` import `app/**` | 三个 agent 各自按 lint 执行——两个写了自己的替身（`pages/{delivery,library}/serviceAction.tsx`），第三个干脆没有离线降级。**这是任务书的错，不是 agent 的错。** 已收口：`serviceHealth.ts` 从 `app/boundary/` 移到 `data/`（它全是对健康查询的纯派生，本来就是数据层的东西），新增 `data/serviceAction.tsx` 作为唯一实现，`app/boundary` 保留同名再导出。两个替身删除，调用点改一行 import |
+| 2 | `data/desktopClient.tsx` 的 `DesktopClient` 只列了阶段 2 的读，三个 agent 各自声明了局部 `Pick` 切片绕开它 | 已把三份写方法并进中心 `Pick`，删掉两个 `requireCommand` 运行时守卫和 `demos.ts` 的 `as unknown as`，`DesktopClientStub = Partial<DesktopClient>` 声明一次。**这次收口抓到一个真 bug**：`LibraryPage.interaction.test.tsx` 给 `startAnalysisRun` 的桩返回 `{id:'run-1'}` 而不是一个完整的 `AnalysisRun`，被那个强转掩盖着 |
+| 3 | 五组 msgid 一词两义 | 全部用 `context` 拆开：`应用`（设置分节 App / 对话框确认 Apply——确认按钮当时写着 "App"）、`分析`（任务种类名词 Analysis / 行内动作动词 Analyze）、`击杀`·`死亡`（证据种类单数 Kill·Death / 计数列头 Kills·Deaths）、`比赛`·`选手`（命令面板分组复数 / 表格列头单数）。**整套词表一起打标签**而不是只标撞上的那个词，否则下一个新增成员会静默继承别的屏幕的译法。注意 `msg` 是编译期宏，不能包进 helper 函数——包了 extract 什么都读不到 |
+| 4 | 「饰品与 Demo 改写」（§10 排在 3b）一行未做 | 设计稿只在两处写了「已建议移入资料库 Inspector，需要独立编辑器再画」，**全稿没有任何一块画了它长什么样**。后端能力是齐的（8 个 cosmetic 命令）。需要一块正稿才能接 |
+| 5 | 「保存为视图」与「列配置」只活在页面 state，刷新即失 | §4.2 说它们该进持久化的 zustand store，但 `shared/stores/uiStore.ts` 只有三个键且 `shared/**` 要到阶段 4 才动。没有偷偷写 localStorage（那会变成 §4.2 之外的第二套持久化），保存对话框里明写「本轮的视图只保留到应用关闭为止」 |
+| 6 | 证据种类分段控件与画板不一致 | 画板画的是 击杀·死亡·回合·目标事件·道具（那是「行」的词表），而索引的过滤字段 `EvidenceSearchEventFamily` 只有 kill/multi_kill/objective/round_start。按索引**能真正回答的**四项落地，否则其中两个筛选会静默返回 0 条并让用户以为是自己搜错了 |
+| 7 | 「已过期 · Valve 不再保留」不是后端字段 | `MatchHistoryItem.demo_status` 只有 available/downloading/downloaded/failed。用 `played_at` + `DEMO_RETENTION_DAYS = 14` 推导，依据写在 `matchHistoryRows.ts`：宁可少判过期，多判会让用户看不到本来还能下的回放 |
+
+### 后端契约缺口（本轮撞到的，按影响排序）
+
+这一轮页面接真数据，撞出的缺口比前三轮加起来还多。每一条都**没有**用假数据兜住：
+
+1. **`ActivityItem.error` 是自由文本，旁边没有错误码。** 所以 `TaskFailureReason` 的五个具名值（磁盘空间不足 / 游戏不可用 / 源文件缺失 / 服务离线 / 超时）无法从线上数据还原，一律映射成 unknown 并把服务端原句放进 `Notice`。代价是状态行会出现「失败 · 未知原因」。要还原画板需要 `ActivityItem` 补一个 `code`。
+2. **只有 analysis 有真正的阶段日志**（`AnalysisRunDetail.events`，9 个闭集 code）。recording 只有一个「当前阶段」字段、无历史，export / download 什么都没有。所以四分之三的任务类型的「阶段日志」是空态——没有用状态变化伪造日志行。
+3. **没有 `retry_export`。** `ActivityAction` 只有 retry_analysis / retry_download / retry_recording；重跑一次导出需要原始 `EditorExportOptions`，活动记录不保存。失败的导出因此以「打开工程」作为恢复动作——这正是画板 11 画的。没有为此发明命令。
+4. **recording 输出回链不到来源任务**：export 输出的 id 就是 job id（可拼成 `export:<id>`），recording 输出的 id 是 clip id，没有 job 可指。所以「来源任务」只对导出/合辑出现。
+5. **`OutputItem` 没有时长 / 帧率 / 编码 / 分辨率 / 缩略图**，画板 11 的「42 秒 · 60 fps · 186 MB · H.264 / AAC」只印得出体积。「播放」也没实现——CSP 是 `default-src 'self'` 且没有命令返回可播放 URL（与 §10.3 缺口 8 同源）。
+6. **`DemoSummary` 没有 tags**，标签只能逐 demo `getDemoMetadata`（一页 20 次往返）。**删掉了这一列而不是留一列永远空白**——永远空的列和静默截断是同一个谎。
+7. **`normalizeDemo` 丢掉了 `file_size` 与 `content_sha256`**，Inspector 的「大小」「校验」两行渲染不出来，没有渲染成空行。
+8. **没有「某个 demo 的历次 analysis run」查询**，只有 `getActiveAnalysisRun`，所以 Inspector 的「分析历史」时间线做不出来。
+9. **`DemoRecord.status` 没有「已分析」**（只有 discovered/indexing/ready/analyzing/failed/missing）。需要产品确认 ready 是否等价，或后端补标志。
+10. **`AnalysisRun` 没有分母**，画板的「分析中 62%」做不了，§4.3 明令前端不模拟进度。
+11. **没有原生文件/目录选择命令**：导入走浏览器 `<input type=file>` + 拖放（可用），但「添加监听目录」只能手打路径。也没有 reveal-in-explorer、没有 demo 重定位、没有把 `exportDemos` 的 ArrayBuffer 落盘的命令——三处都渲染成 disabled + 写明原因。
+12. **`scanDemos` 把 `recursive` 写死为 true**，`demo_watch_paths` 是裸 `string[]`，没有每目录的递归开关。「包含子目录」渲染成 checked + disabled 并写明「服务按目录递归监听，暂不能只监听顶层」。
+13. **`PlayerAggregateStats` 没有 首杀 / 残局胜率 / 常用地图**，按地图表没有 `wins`，`EvidenceSearchItem` 没有 距离 / 交战轴 / 回合情境。**都省略而不是渲染 0.0m**；爆头率能由 headshots ÷ kills 推出所以照常显示。
+14. **证据结果的「注释」列需要按 evidence_id 批量查注释状态**，没有这样的读，逐行查会 N+1，本轮留空。
+15. **§10.3 缺口 7 仍未关闭**：`GET /players/:id/heatmap` 返回原始点不是分箱。缓解是路由自带 `maximum_points = 5000`，前端一次 O(n) 过 `binWorldSamples`，DOM 节点被 48²=2304 上界钉死；`complete=false` 时页面明写「取样 5000 / 12480 …这张图画的是这批取样，不是全部」。
+16. **`DesktopClient` 此前不含证据/选手的写方法**，所以 `data/evidence.ts` 与 `data/players.ts` 本轮仍然只读，页面上的写按钮全是 disabled + 写明原因。现在中心 `Pick` 已经打开，3c/3e 加 hook 即可。
+
+### 留给后续阶段的已知缺口
+
+1. **分析流水线 5 个阶段的中文名仍是提案**（校验输入 / 排队等待解析 / 解析比赛数据 / 复核解析结果 / 位置采样），连同 9 个 `AnalysisRunEventCode` 的中文，都集中在 `pages/delivery/taskModel.tsx` 与 `taskDetailModel.tsx` 两张表里，方便被替换。需要产品确认。
+2. **`MAX_TASK_ATTEMPTS = 3`、`cancelled.RESTART`、「只有录制需要显式确认」** 三条仍是 §10.3 缺口 5 里的推断，未确认。
+3. **`domain/task` 的 `TaskCard.onCancel` / `TaskDetail.onRetry` 是裸回调**，没有 `{disabled, disabledReason}` 槽。所以服务离线时「取消」是全页唯一被隐藏而不是禁用的动作，与「不隐藏、不静默失败」相抵。建议给这两个组件补上 `Button` 早就有的那对属性。
+4. **`data/index.ts` 桶文件没有跟上**：本轮新增的 hooks 都没挂进去，页面走深路径 import（`app/boundary` 早有先例）。要不要统一走桶，收口时定。
+5. **§10.1 缺口 3 / §10.2 缺口 9 仍未收口**（`Inspector` 与 `Drawer` 两套焦点陷阱）。
+6. **`check-web-i18n.mjs` 依旧全红**（~190 行 Han literal）。它是旧 i18n 体系的守卫，假设源码里没有中文，而重构的 `sourceLocale` 就是 zh-CN——两者根本对立。它不在 `pnpm lint` 里，§10 阶段 4 已排定删除。

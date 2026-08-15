@@ -30,7 +30,6 @@
  * `data/queryClient.ts`, so a test tree gets its own cache.
  */
 
-import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -49,14 +48,13 @@ import { cx } from '../../design/primitives';
 import type { ApiHealth } from '../../shared/desktop/dto';
 import {
   SERVICE_HEALTH_KEY,
-  serviceActionBlocked,
   serviceErrorMessage,
   servicePollIntervalMs,
   serviceStatusOf,
   shouldRefreshAfterRecovery,
   isServiceDegraded,
   type ServiceStatus,
-} from './serviceHealth';
+} from '../../data/serviceHealth';
 
 /* ── the contract pages consume ──────────────────────────────────────────── */
 
@@ -162,61 +160,19 @@ export function useService(): ServiceState {
   return value;
 }
 
-/**
- * Spreadable onto `design/primitives/Button`. `disabledReason` is *absent*
- * rather than `undefined` when the service is up — the workspace compiles with
- * `exactOptionalPropertyTypes`, so an explicit `undefined` would not satisfy
- * Button's optional prop.
+/*
+ * `useServiceAction` and its two types live in `data/serviceAction` — pages
+ * call them and §2.1 rule 3 keeps pages out of `app/**`. Re-exported here
+ * because this module published the name first; the implementation reads the
+ * very query this gate owns, so there is still exactly one derivation.
  */
-export interface ServiceActionButtonProps {
-  readonly disabled: boolean;
-  readonly disabledReason?: string;
-}
-
-export interface ServiceActionState {
-  readonly blocked: boolean;
-  /** 「禁用并写明原因」, in the two props Button already understands. */
-  readonly buttonProps: ServiceActionButtonProps;
-  /**
-   * The label tail the artboard appends to a blocked action
-   * (「导入 Demo · 需要服务」). `undefined` while the service is up, so
-   * `{label}{suffix}` needs no branch at the call site.
-   */
-  readonly suffix: ReactNode | undefined;
-}
-
-/**
- * Everything a service-backed action needs, in one call:
- *
- *   const service = useServiceAction();
- *   <Button {...service.buttonProps}>
- *     <Trans>导入 Demo</Trans>{service.suffix}
- *   </Button>
- */
-export function useServiceAction(): ServiceActionState {
-  const { status } = useService();
-
-  if (!serviceActionBlocked(status)) {
-    return { blocked: false, buttonProps: { disabled: false }, suffix: undefined };
-  }
-
-  return {
-    blocked: true,
-    buttonProps: {
-      disabled: true,
-      disabledReason:
-        status === 'checking'
-          ? t`正在连接本地服务，稍后即可使用`
-          : t`本地服务未连接，恢复后无需刷新页面即可继续`,
-    },
-    suffix: (
-      <>
-        {' '}
-        <Trans>· 需要服务</Trans>
-      </>
-    ),
-  };
-}
+export {
+  serviceActionState,
+  useServiceAction,
+  useServiceStatus,
+  type ServiceActionButtonProps,
+  type ServiceActionState,
+} from '../../data/serviceAction';
 
 /* ── the title-bar marker ────────────────────────────────────────────────── */
 

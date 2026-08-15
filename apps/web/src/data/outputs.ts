@@ -1,14 +1,21 @@
 /**
  * data layer — delivery outputs (spec §2 `data/outputs.ts`).
  *
- * Feeds `/delivery?view=outputs` (§7). Reads only; the writes (rename, delete,
- * batch delete, cleanup) are phase 3a, and every one of them invalidates the
- * whole namespace — see the note on `useOutputList`.
+ * Feeds `/delivery?view=outputs` (§7). Phase 3a adds the two writes that page
+ * performs — 移除记录 and 清理无效记录 — and one shell action that is not a
+ * write at all (定位文件). Every write invalidates the whole namespace; see the
+ * note on `useOutputList`.
+ *
+ * Rename and batch delete are deliberately still absent: 「11 输出与任务记录」
+ * draws 批量重命名 / 批量删除 on a selection bar, and a selection bar with its
+ * confirmation dialog is phase 3b's subject. `commands.renameOutput` and
+ * `commands.batchDeleteOutputs` exist and are ready for it.
  */
 
-import { useQuery, type QueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
-import type { OutputQuery } from '../shared/desktop/dto';
+import { revealLocalPath } from '../shared/desktop/dialog';
+import type { DeleteOutputResult, OutputKind, OutputQuery } from '../shared/desktop/dto';
 import { useDesktopClient } from './desktopClient';
 import { qk } from './keys';
 import { resolveQueryTuning, type DataQueryTuning } from './queryTuning';
@@ -45,6 +52,82 @@ export function useRecordedClips(tuning: DataQueryTuning = {}) {
     queryKey: qk.outputs.recordedClips(),
     queryFn: ({ signal }) => client.listRecordedClips(signal),
     ...resolveQueryTuning(tuning),
+  });
+}
+
+/* ── writes ──────────────────────────────────────────────────────────────── */
+
+
+export interface DeleteOutputInput {
+  readonly kind: OutputKind;
+  readonly id: string;
+  /**
+   * Whether to remove the file as well as the record. Defaults to `false` —
+   * 「移除记录不会删除文件」 is what the artboard prints under an external file,
+   * and the destructive form is opt-in per call rather than per user.
+   */
+  readonly deleteFile?: boolean | undefined;
+}
+
+/**
+ * 「移除记录」/「删除」 one output.
+ *
+ * Invalidates `qk.outputs.all` — the list and the recorded-clip list both, since
+ * a recording output and a recorded clip are two views of one file (see
+ * `useRecordedClips`). The task feed is **not** invalidated: deleting an output
+ * does not change any task record, and the source-task link on the card points
+ * at a record that still exists.
+ *
+ * The result is returned rather than swallowed: `DeleteOutputResult.file_action`
+ * distinguishes 「外部文件已保留」 from 「受管文件已进入暂存」, which is the
+ * sentence the delivery page prints afterwards. A caller that ignores it is
+ * choosing not to say which of the two happened.
+ */
+export function useDeleteOutput() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ kind, id, deleteFile }: DeleteOutputInput): Promise<DeleteOutputResult> =>
+      client.deleteOutput(kind, id, deleteFile ?? false),
+    onSuccess: () => invalidateOutputs(queryClient),
+  });
+}
+
+/**
+ * 「清理无效记录」 — the topbar action of 「11 输出与任务记录」.
+ *
+ * Drops the records whose file is gone. Invalidates `qk.outputs.all`, which is
+ * the whole point of the button; `CleanupMissingOutputsResult.scan_limited`
+ * comes back so the page can say the sweep was partial instead of implying the
+ * list is now clean.
+ */
+export function useCleanupMissingOutputs() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (kind?: OutputKind) => client.cleanupMissingOutputs(kind),
+    onSuccess: () => invalidateOutputs(queryClient),
+  });
+}
+
+/**
+ * 「定位文件」 — reveal the file in the desktop file manager.
+ *
+ * Not a server write, so it invalidates nothing and lives outside the
+ * `DesktopClient` seam: `shared/desktop/dialog`'s `revealLocalPath` talks to the
+ * Tauri opener plugin, not to the service. It is still exposed as a hook here
+ * rather than imported by the page, because §2.1 rule 6 keeps `pages/**` out of
+ * `shared/desktop/**` entirely and one exception would be one too many.
+ *
+ * Resolves `false` outside the desktop shell (a browser dev server, a test) —
+ * the page reports that as 「只有桌面端能定位文件」 rather than pretending it
+ * worked.
+ */
+export function useRevealOutput() {
+  return useMutation({
+    mutationFn: (path: string): Promise<boolean> => revealLocalPath(path),
   });
 }
 

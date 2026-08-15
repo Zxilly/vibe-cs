@@ -3,10 +3,24 @@
  *
  * One table over all fifteen pages, because the thing being asserted is the
  * same for all of them and it is a contract, not a coincidence: each route
- * renders a `design/layout/Page` with a `Toolbar` carrying its title, and a
- * content area holding the phase notice. Phase 3 replaces the notice and keeps
- * everything else, so this file is what tells its owner they only changed the
- * body.
+ * renders a `design/layout/Page` with a `Toolbar` carrying its own title, and a
+ * content area.
+ *
+ * ── What the `phase` column is for ─────────────────────────────────────────
+ *
+ * Phase 1 gave every route a stub whose body was one `EmptyState` saying 「本页
+ * 在阶段 X 实现」, and this file pinned that sentence for all fifteen. A phase
+ * that lands *replaces* the sentence, so the column now carries `built` as well
+ * as the phase, and the two halves are asserted in opposite directions:
+ *
+ *   built: false   the notice is still there, word for word, with a way out
+ *   built: true    the notice is **gone** — a page that shipped its real body
+ *                  and left 「本页在阶段 X 实现」 standing beside it would be
+ *                  lying twice over, and only this direction catches that.
+ *
+ * So flipping a flag here is part of landing a phase, and forgetting to flip it
+ * fails rather than passes. `phase` itself stays because §10 assigns every page
+ * to one and the last assertion in this file checks the assignment is covered.
  *
  * The per-page detail — parameters, queries, back links — is
  * `pageDetail.test.tsx`.
@@ -39,46 +53,133 @@ interface PageCase {
   /** A concrete address for it. */
   readonly at: string;
   readonly Component: ComponentType;
-  /** The `Toolbar` title, as rendered. */
+  /**
+   * The `Toolbar` title, as rendered. It is the *page's* heading, which is not
+   * always the rail entry: `/` is 「今日工作」 under a rail that says 「工作台」,
+   * and `/delivery` is 「交付」 under two entries that say 输出 and 任务记录 —
+   * both straight off the artboards (01 and 11).
+   */
   readonly title: string;
   /** The spec §10 phase that fills the body in. */
   readonly phase: string;
+  /** Whether that phase has landed. See the file header. */
+  readonly built: boolean;
 }
 
 const PAGES: readonly PageCase[] = [
-  { pattern: '/', at: '/', Component: HomePage, title: '工作台', phase: '3g' },
-  { pattern: '/library', at: '/library', Component: LibraryPage, title: 'Demo 资料库', phase: '3b' },
-  { pattern: '/history', at: '/history', Component: HistoryPage, title: '比赛历史', phase: '3d' },
-  { pattern: '/players', at: '/players', Component: PlayersPage, title: '玩家目录', phase: '3d' },
+  { pattern: '/', at: '/', Component: HomePage, title: '今日工作', phase: '3g', built: true },
+  {
+    pattern: '/library',
+    at: '/library',
+    Component: LibraryPage,
+    title: 'Demo 资料库',
+    phase: '3b',
+    built: true,
+  },
+  {
+    pattern: '/history',
+    at: '/history',
+    Component: HistoryPage,
+    title: '比赛历史',
+    phase: '3d',
+    built: true,
+  },
+  {
+    pattern: '/players',
+    at: '/players',
+    Component: PlayersPage,
+    title: '玩家目录',
+    phase: '3d',
+    built: true,
+  },
   {
     pattern: '/players/:playerId',
     at: '/players/kael',
     Component: PlayerProfilePage,
     title: '玩家档案',
     phase: '3d',
+    built: true,
   },
-  { pattern: '/evidence', at: '/evidence', Component: EvidencePage, title: '证据检索', phase: '3d' },
+  {
+    pattern: '/evidence',
+    at: '/evidence',
+    Component: EvidencePage,
+    title: '证据检索',
+    phase: '3d',
+    built: true,
+  },
   {
     pattern: '/match/:demoId',
     at: '/match/aurora-vs-meridian',
     Component: MatchWorkspacePage,
     title: '概览',
     phase: '3c',
+    built: false,
   },
-  { pattern: '/agent', at: '/agent', Component: AgentPage, title: 'Agent 创作', phase: '3e' },
-  { pattern: '/recording', at: '/recording', Component: RecordingPage, title: '录制计划', phase: '3f' },
-  { pattern: '/montage', at: '/montage', Component: MontagePage, title: '快速合辑', phase: '3f' },
-  { pattern: '/editor', at: '/editor', Component: EditorPage, title: '多轨编辑器', phase: '3f' },
-  { pattern: '/delivery', at: '/delivery', Component: DeliveryPage, title: '输出', phase: '3a' },
+  {
+    pattern: '/agent',
+    at: '/agent',
+    Component: AgentPage,
+    title: 'Agent 创作',
+    phase: '3e',
+    built: false,
+  },
+  {
+    pattern: '/recording',
+    at: '/recording',
+    Component: RecordingPage,
+    title: '录制计划',
+    phase: '3f',
+    built: false,
+  },
+  {
+    pattern: '/montage',
+    at: '/montage',
+    Component: MontagePage,
+    title: '快速合辑',
+    phase: '3f',
+    built: false,
+  },
+  {
+    pattern: '/editor',
+    at: '/editor',
+    Component: EditorPage,
+    title: '多轨编辑器',
+    phase: '3f',
+    built: false,
+  },
+  {
+    pattern: '/delivery',
+    at: '/delivery',
+    Component: DeliveryPage,
+    title: '交付',
+    phase: '3a',
+    built: true,
+  },
   {
     pattern: '/delivery/task/:taskId',
     at: '/delivery/task/t-42',
     Component: TaskDetailPage,
     title: '任务详情',
     phase: '3a',
+    built: true,
   },
-  { pattern: '/settings', at: '/settings', Component: SettingsPage, title: '设置与诊断', phase: '3g' },
-  { pattern: '/recovery', at: '/recovery', Component: RecoveryPage, title: '恢复中心', phase: '3g' },
+  {
+    pattern: '/settings',
+    at: '/settings',
+    Component: SettingsPage,
+    title: '设置与诊断',
+    phase: '3g',
+    built: false,
+  },
+  {
+    pattern: '/recovery',
+    at: '/recovery',
+    Component: RecoveryPage,
+    title: '恢复中心',
+    phase: '3g',
+    built: false,
+  },
 ];
 
 function renderPage(pattern: string, at: string, Component: ComponentType): string {
@@ -91,7 +192,7 @@ function renderPage(pattern: string, at: string, Component: ComponentType): stri
   );
 }
 
-describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase }) => {
+describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase, built }) => {
   const html = renderPage(pattern, at, Component);
 
   it('is a Page with the four slots, not a bare div', () => {
@@ -106,17 +207,35 @@ describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase }) => {
     expect(html).toContain(title);
   });
 
-  it('says which phase fills the content area, and offers a way out of it', () => {
-    expect(html).toContain(`本页在阶段 ${phase} 实现`);
-    // `EmptyState` makes the recovery action a required prop; this is it.
-    expect(html).toMatch(/返回工作台|打开 Demo 资料库/u);
-  });
+  if (built) {
+    it('has replaced the phase notice rather than shipping beside it', () => {
+      expect(html).not.toContain('本页在阶段');
+    });
+  } else {
+    it('says which phase fills the content area, and offers a way out of it', () => {
+      expect(html).toContain(`本页在阶段 ${phase} 实现`);
+      // `EmptyState` makes the recovery action a required prop; this is it.
+      expect(html).toMatch(/返回工作台|打开 Demo 资料库/u);
+    });
+  }
 
-  it('invents no data — no counts, no names, no fake progress', () => {
+  it('invents no data — no names, no fake progress', () => {
+    /* These pages render with no service and an empty cache, so anything
+       recognisable from a fixture would mean the page is drawing something it
+       was never given. A progress bar is the same failure in numeric form:
+       §4.3 allows one only when the denominator is real. */
     expect(html).not.toContain('Aurora');
-    expect(html).not.toContain('%');
     expect(html).not.toContain('role="progressbar"');
   });
+
+  if (!built) {
+    it('shows no percentage at all — a stub has nothing to be a fraction of', () => {
+      /* Only asked of a stub. A built page's markup carries percentages that
+         are not claims about data: `design/data`'s skeleton bars are sized in
+         `%`, and every hover token is a `color-mix(… 7%)`. */
+      expect(html).not.toContain('%');
+    });
+  }
 });
 
 describe('the page table', () => {

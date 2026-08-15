@@ -137,6 +137,67 @@ export function useUpdateAppConfig() {
   });
 }
 
+/* ── the watched folders ─────────────────────────────────────────────────── */
+
+/**
+ * 「添加监听目录」 / 「停止监听」.
+ *
+ * The watched folders are a field of the config document (`demo_watch_paths`),
+ * so the write is the same `updateConfig` PUT — which is why this hook lives
+ * here and not in `demos.ts` even though the library is the page that calls it.
+ *
+ * The whole document is taken as an argument rather than read out of the cache:
+ * `updateConfig` replaces the document, so a hook that fetched its own copy
+ * could overwrite an edit the caller had already made. The library page holds
+ * the config it rendered the list from, and hands that same object back.
+ *
+ * Invalidation is `useUpdateAppConfig`'s, for the same reason — a watch path
+ * change is read back by `useAppConfig`, `useDemoWatchStatus` *and* the demo
+ * list — so it delegates rather than restating the chain.
+ */
+export function useSetDemoWatchPaths() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ config, paths }: { config: AppConfig; paths: readonly string[] }) =>
+      client.updateConfig({ ...config, demo_watch_paths: [...paths] }),
+    onSuccess: async () => {
+      await Promise.all([
+        invalidateConfig(queryClient),
+        queryClient.invalidateQueries({ queryKey: qk.demos.all }),
+      ]);
+    },
+  });
+}
+
+/**
+ * Whether `path` may join `existing`.
+ *
+ * Pure, and exported, because the 「添加监听目录」 dialog has to disable its
+ * confirm button on the same answer it would otherwise only discover after the
+ * round trip. 「不接受符号链接根目录」 from the artboard is *not* checked here:
+ * the renderer cannot resolve a symlink, and the service rejects it — the
+ * dialog states the rule and the service enforces it.
+ */
+export type WatchPathRejection = 'empty' | 'duplicate';
+
+export function rejectWatchPath(
+  path: string,
+  existing: readonly string[],
+): WatchPathRejection | null {
+  const trimmed = path.trim();
+  if (trimmed === '') return 'empty';
+  // Windows paths differ only by case and by a trailing separator; two entries
+  // that name one folder would make 「停止监听」 remove the wrong row.
+  const normalised = normaliseWatchPath(trimmed);
+  return existing.some((entry) => normaliseWatchPath(entry) === normalised) ? 'duplicate' : null;
+}
+
+function normaliseWatchPath(path: string): string {
+  return path.trim().replaceAll('\\', '/').replace(/\/+$/u, '').toLowerCase();
+}
+
 /* ── invalidation ────────────────────────────────────────────────────────── */
 
 /** The config document and every probe derived from it. */

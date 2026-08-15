@@ -21,8 +21,8 @@
  * The shell owns the state once; pages consume it.
  */
 
-import { qk } from '../../data/keys';
-import type { ApiHealth } from '../../shared/desktop/dto';
+import { qk } from './keys';
+import type { ApiHealth } from '../shared/desktop/dto';
 
 /**
  * The query key for the health probe. Its first segment doubles as the

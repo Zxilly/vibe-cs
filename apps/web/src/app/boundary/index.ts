@@ -55,7 +55,7 @@ export {
   SERVICE_POLL_ONLINE_MS,
   type ServiceQuerySnapshot,
   type ServiceStatus,
-} from './serviceHealth';
+} from '../../data/serviceHealth';
 
 export {
   NotFound,

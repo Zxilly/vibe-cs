@@ -74,12 +74,21 @@ export const COMMAND_GROUP_ORDER: readonly CommandGroupId[] = [
   'action',
 ];
 
+/*
+ * `context: 'palette-group'` on every entry. These are collection headings —
+ * English wants Matches / Players — while the same characters are singular
+ * column headers elsewhere (比赛 = Match in the library table, 选手 = Player in
+ * an evidence filter). The whole record is tagged for the same reason the
+ * evidence-kind vocabulary is: so a later group cannot pick up a column's
+ * translation by accident. Written out per entry because `msg` is a
+ * compile-time macro — a helper function would extract nothing.
+ */
 export const COMMAND_GROUP_LABEL: Record<CommandGroupId, MessageDescriptor> = {
-  match: msg`比赛`,
-  player: msg`选手`,
-  evidence: msg`证据`,
-  page: msg`页面`,
-  action: msg`动作`,
+  match: msg({ message: '比赛', context: 'palette-group' }),
+  player: msg({ message: '选手', context: 'palette-group' }),
+  evidence: msg({ message: '证据', context: 'palette-group' }),
+  page: msg({ message: '页面', context: 'palette-group' }),
+  action: msg({ message: '动作', context: 'palette-group' }),
 };
 
 /**

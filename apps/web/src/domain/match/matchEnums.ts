@@ -144,15 +144,23 @@ export interface EvidenceKindMeta {
   readonly icon: LucideIcon;
 }
 
+/*
+ * Every member carries `context: 'evidence-kind'`, not just the ones that
+ * collide today. Each label names *one event* and is singular in English —
+ * Kill, Death, Round — while the same two or three characters elsewhere in the
+ * app are a plural column header (击杀 = Kills on the player directory), a view
+ * tab (回合 = Rounds) or a heatmap mode. Tagging the whole vocabulary keeps the
+ * split from being a per-word accident, and stops the next added kind from
+ * silently inheriting some other screen's translation. The call has to be
+ * written out per member: `msg` is a compile-time macro, so wrapping it in a
+ * helper leaves nothing for the extractor to read.
+ */
 export const EVIDENCE_KIND: Readonly<Record<EvidenceKind, EvidenceKindMeta>> = {
-  kill: { label: msg`击杀`, icon: Crosshair },
-  death: { label: msg`死亡`, icon: Skull },
-  /* `context` because the workspace sub-nav tab is also 「回合」 and means the
-     plural view, "Rounds". This one is a single evidence kind and reads
-     "Round", parallel to 击杀 / 死亡 / 目标事件 / 道具. Same split as 「跳转」. */
+  kill: { label: msg({ message: '击杀', context: 'evidence-kind' }), icon: Crosshair },
+  death: { label: msg({ message: '死亡', context: 'evidence-kind' }), icon: Skull },
   round: { label: msg({ message: '回合', context: 'evidence-kind' }), icon: Flag },
-  objective: { label: msg`目标事件`, icon: Bomb },
-  utility: { label: msg`道具`, icon: Flame },
+  objective: { label: msg({ message: '目标事件', context: 'evidence-kind' }), icon: Bomb },
+  utility: { label: msg({ message: '道具', context: 'evidence-kind' }), icon: Flame },
 };
 
 /* ── highlight ───────────────────────────────────────────────────────────── */

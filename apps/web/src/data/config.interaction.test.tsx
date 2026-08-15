@@ -18,8 +18,10 @@ import type {
 } from '../shared/desktop/dto';
 import {
   invalidateConfig,
+  rejectWatchPath,
   useAppConfig,
   useQuickCheck,
+  useSetDemoWatchPaths,
   useStorageStatus,
   useUpdateAppConfig,
 } from './config';
@@ -223,5 +225,67 @@ describe('useUpdateAppConfig', () => {
     expect(dataErrorMessage(result.current.save.error)).toBe('写入被拒绝');
     // A rejected write must not pretend the server state moved.
     expect(config.calls()).toBe(1);
+  });
+});
+
+describe('useSetDemoWatchPaths', () => {
+  it('writes the shortened list back and refreshes both the config and the library', async () => {
+    const config = countingStub(CONFIG);
+    const update = countingStub(CONFIG);
+    const watch = countingStub(WATCH);
+
+    const { result } = renderDataHook(
+      () => ({
+        config: useAppConfig(),
+        watch: useDemoWatchStatus(),
+        save: useSetDemoWatchPaths(),
+      }),
+      {
+        client: {
+          getConfig: config.call,
+          updateConfig: update.call,
+          getDemoWatchStatus: watch.call,
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.config.isSuccess).toBe(true);
+      expect(result.current.watch.isSuccess).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.save.mutateAsync({ config: CONFIG, paths: ['C:/demos', 'D:/more'] });
+    });
+
+    // The whole document goes back, with only `demo_watch_paths` moved — the
+    // PUT replaces the config, so a partial body would drop everything else.
+    expect(update.lastArgs()[0]).toEqual({ ...CONFIG, demo_watch_paths: ['C:/demos', 'D:/more'] });
+
+    await waitFor(() => {
+      expect(config.calls()).toBe(2);
+      // 「监听目录」 is read back by the watch status, which lives under the
+      // `demos` namespace — the second half of the invalidation.
+      expect(watch.calls()).toBe(2);
+    });
+  });
+});
+
+describe('rejectWatchPath', () => {
+  it('refuses an empty path', () => {
+    expect(rejectWatchPath('', [])).toBe('empty');
+    expect(rejectWatchPath('   ', [])).toBe('empty');
+  });
+
+  it('refuses a duplicate however it is spelled', () => {
+    // Windows paths differ by case and by a trailing separator while naming
+    // one folder; two entries for one folder would make 「停止监听」 remove the
+    // wrong row.
+    expect(rejectWatchPath('D:\\CS2\\demos', ['D:\\CS2\\demos\\'])).toBe('duplicate');
+    expect(rejectWatchPath('d:/cs2/demos/', ['D:\\CS2\\demos'])).toBe('duplicate');
+  });
+
+  it('accepts a new folder', () => {
+    expect(rejectWatchPath('E:\\replays', ['D:\\CS2\\demos'])).toBeNull();
   });
 });

@@ -11,12 +11,25 @@
  * domain files assert their own shapes against it rather than repeating it.
  */
 
+import { useQuery } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { DesktopError } from '../shared/desktop/client';
-import type { DemoSummary, Paginated } from '../shared/desktop/dto';
-import { invalidateDemo, invalidateDemos, useDemo, useDemoList, useReviewTags } from './demos';
+import type { DemoSummary, Paginated, ScanResult } from '../shared/desktop/dto';
+import {
+  invalidateDemo,
+  invalidateDemos,
+  useDeleteDemos,
+  useDemo,
+  useDemoList,
+  useImportDemoFiles,
+  useLaunchDemoPlayback,
+  useReviewTags,
+  useStartDemoAnalysis,
+  useUpdateDemo,
+} from './demos';
+import { useRuntimeState, useStorageStatus } from './config';
 import { dataErrorMessage, toDataError } from './errors';
 import { qk } from './keys';
 import { countingStub, renderDataHook } from './test/renderDataHook';
@@ -205,6 +218,251 @@ describe('useReviewTags', () => {
     });
     await waitFor(() => {
       expect(tags.calls()).toBe(2);
+    });
+  });
+});
+
+/* ── the phase 3b writes ─────────────────────────────────────────────────── */
+
+const SCAN_RESULT: ScanResult = {
+  discovered: 2,
+  imported: 2,
+  updated: 0,
+  skipped: 0,
+  errors: [],
+};
+
+describe('useImportDemoFiles', () => {
+  it('re-runs the list after a successful import — the invalidation chain, proved', async () => {
+    const list = countingStub(page([DEMO]));
+    const importer = countingStub(SCAN_RESULT);
+
+    const { result } = renderDataHook(
+      () => ({ list: useDemoList({}), importer: useImportDemoFiles() }),
+      { client: { listDemos: list.call, importDemos: importer.call } as never },
+    );
+
+    await waitFor(() => {
+      expect(result.current.list.data?.items).toHaveLength(1);
+    });
+    expect(list.calls()).toBe(1);
+
+    list.succeed(page([DEMO, { ...DEMO, id: 'demo-b', display_name: 'Nova vs Pulse' }]));
+    await act(async () => {
+      await result.current.importer.mutateAsync([new File([], 'nova.dem')]);
+    });
+
+    // Not "invalidateQueries was called" — the query actually ran again and the
+    // new rows reached the caller. That is the only assertion that would have
+    // caught an invalidation aimed at the wrong key.
+    await waitFor(() => {
+      expect(list.calls()).toBe(2);
+      expect(result.current.list.data?.items).toHaveLength(2);
+    });
+  });
+
+  it('leaves the cache alone when the import fails', async () => {
+    const list = countingStub(page([DEMO]));
+    const importer = countingStub(SCAN_RESULT);
+    importer.fail(new DesktopError('磁盘空间不足', 507, 'STORAGE_FULL'));
+
+    const { result } = renderDataHook(
+      () => ({ list: useDemoList({}), importer: useImportDemoFiles() }),
+      { client: { listDemos: list.call, importDemos: importer.call } as never },
+    );
+
+    await waitFor(() => {
+      expect(result.current.list.isSuccess).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.importer.mutateAsync([new File([], 'nova.dem')]).catch(() => undefined);
+    });
+
+    await waitFor(() => {
+      expect(result.current.importer.isError).toBe(true);
+    });
+    expect(dataErrorMessage(result.current.importer.error)).toBe('磁盘空间不足');
+    // A rejected write must not pretend the server state moved.
+    expect(list.calls()).toBe(1);
+  });
+});
+
+describe('useDeleteDemos', () => {
+  it('deletes one id at a time and refreshes the rows and the storage figure', async () => {
+    const list = countingStub(page([DEMO]));
+    const remove = countingStub(undefined);
+
+    const storage = countingStub({ ok: true } as never);
+
+    // The storage probe is *mounted*, not seeded: `gcTime: 0` drops an entry
+    // with no observers the moment it is written, so a seeded key would be gone
+    // before the invalidation could reach it. A live observer is also the
+    // stronger claim — it re-runs, rather than merely being marked stale.
+    const { result } = renderDataHook(
+      () => ({
+        list: useDemoList({}),
+        storage: useStorageStatus(),
+        remove: useDeleteDemos(),
+      }),
+      {
+        client: {
+          listDemos: list.call,
+          deleteDemo: remove.call,
+          storageStatus: storage.call,
+        } as never,
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.list.isSuccess).toBe(true);
+      expect(result.current.storage.isSuccess).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.remove.mutateAsync(['demo-a', 'demo-b']);
+    });
+
+    // Sequential, not `Promise.all`: the service stages managed files, and a
+    // partial failure has to be reportable.
+    expect(remove.calls()).toBe(2);
+    expect(remove.lastArgs()[0]).toBe('demo-b');
+    await waitFor(() => {
+      expect(list.calls()).toBe(2);
+      // 「受管文件进入可回滚暂存」 — the bytes moved, so the占用 figure is stale.
+      expect(storage.calls()).toBe(2);
+    });
+  });
+
+  it('still refreshes after a partial failure, because some ids are already gone', async () => {
+    const list = countingStub(page([DEMO]));
+    const remove = countingStub(undefined);
+    remove.fail(new DesktopError('文件被占用', 409, 'DEMO_LOCKED'));
+
+    const { result } = renderDataHook(
+      () => ({ list: useDemoList({}), remove: useDeleteDemos() }),
+      { client: { listDemos: list.call, deleteDemo: remove.call } as never },
+    );
+
+    await waitFor(() => {
+      expect(result.current.list.isSuccess).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.remove.mutateAsync(['demo-a']).catch(() => undefined);
+    });
+
+    await waitFor(() => {
+      expect(result.current.remove.isError).toBe(true);
+    });
+    expect(dataErrorMessage(result.current.remove.error)).toBe('文件被占用');
+    // `onSettled`, not `onSuccess`: a delete that failed halfway still changed
+    // the server, and leaving the stale rows on screen would be worse.
+    await waitFor(() => {
+      expect(list.calls()).toBe(2);
+    });
+  });
+});
+
+describe('useStartDemoAnalysis', () => {
+  it('invalidates both namespaces, because one event moves rows and tasks', async () => {
+    const list = countingStub(page([DEMO]));
+    const start = countingStub({ id: 'run-1' });
+
+    const feed = countingStub({ items: [], total: 0, page: 1, page_size: 20 });
+
+    // The task feed is observed through a bare `useQuery` on `qk.tasks.feed`
+    // rather than through `data/tasks.ts`'s hook: this file is asserting that
+    // *this* mutation reaches the tasks namespace, and borrowing the other
+    // file's hook would make the assertion depend on its options too.
+    const { result } = renderDataHook(
+      () => ({
+        list: useDemoList({}),
+        feed: useQuery({ queryKey: qk.tasks.feed({}), queryFn: () => feed.call() }),
+        start: useStartDemoAnalysis(),
+      }),
+      { client: { listDemos: list.call, startAnalysisRun: start.call } as never },
+    );
+
+    await waitFor(() => {
+      expect(result.current.list.isSuccess).toBe(true);
+      expect(result.current.feed.isSuccess).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.start.mutateAsync(['demo-a']);
+    });
+
+    expect(start.calls()).toBe(1);
+    await waitFor(() => {
+      // the row's 状态 column flips to 「分析中」 …
+      expect(list.calls()).toBe(2);
+      // … and the run appears in the activity feed
+      expect(feed.calls()).toBe(2);
+    });
+  });
+});
+
+describe('useLaunchDemoPlayback', () => {
+  it('refreshes the runtime state and nothing else', async () => {
+    const list = countingStub(page([DEMO]));
+    const play = countingStub({ launched: true });
+
+    const runtime = countingStub({ version: '0.1.0' } as never);
+
+    const { result } = renderDataHook(
+      () => ({
+        list: useDemoList({}),
+        runtime: useRuntimeState(),
+        play: useLaunchDemoPlayback(),
+      }),
+      {
+        client: { listDemos: list.call, playDemo: play.call, runtimeState: runtime.call } as never,
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.list.isSuccess).toBe(true);
+      expect(result.current.runtime.isSuccess).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.play.mutateAsync('demo-a');
+    });
+
+    await waitFor(() => {
+      // `RuntimeState` carries the playback session — the only read this moves.
+      expect(runtime.calls()).toBe(2);
+    });
+    // Launching a replay does not move a single row.
+    expect(list.calls()).toBe(1);
+  });
+});
+
+describe('useUpdateDemo', () => {
+  it('refreshes the whole namespace, because the list shows the name and the remark', async () => {
+    const list = countingStub(page([DEMO]));
+    const update = countingStub(DEMO);
+
+    const { result } = renderDataHook(
+      () => ({ list: useDemoList({}), update: useUpdateDemo() }),
+      { client: { listDemos: list.call, updateDemo: update.call } as never },
+    );
+
+    await waitFor(() => {
+      expect(result.current.list.isSuccess).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.update.mutateAsync({
+        demoId: 'demo-a',
+        update: { remark: 'Kael 第 21 回合的 1v3 值得做成片' },
+      });
+    });
+
+    expect(update.lastArgs()[0]).toBe('demo-a');
+    await waitFor(() => {
+      expect(list.calls()).toBe(2);
     });
   });
 });

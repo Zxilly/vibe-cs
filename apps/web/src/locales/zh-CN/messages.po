@@ -13,15 +13,19 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
-#: src/app/boundary/ServiceGate.tsx:215
+#: src/pages/evidence/EvidenceEmpty.tsx:113
+msgid "。放宽时间范围通常最有效。"
+msgstr "。放宽时间范围通常最有效。"
+
+#: src/data/serviceAction.tsx:81
 msgid "· 需要服务"
 msgstr "· 需要服务"
 
-#: src/pages/TaskDetailPage.tsx:25
+#: src/pages/TaskDetailPage.tsx:63
 msgid "‹ 任务记录"
 msgstr "‹ 任务记录"
 
-#: src/pages/PlayerProfilePage.tsx:29
+#: src/pages/PlayerProfilePage.tsx:118
 msgid "‹ 玩家目录"
 msgstr "‹ 玩家目录"
 
@@ -33,10 +37,66 @@ msgstr "‹ 设置与诊断"
 msgid "‹ 资料库"
 msgstr "‹ 资料库"
 
+#. placeholder {0}: watch.data?.roots.length ?? 0
+#: src/pages/LibraryPage.tsx:296
+msgid "{0, plural, other {# 个监听目录}}"
+msgstr "{0, plural, other {# 个监听目录}}"
+
+#. placeholder {0}: roots.length
+#: src/pages/library/WatchDirectoriesDrawer.tsx:72
+msgid "{0, plural, other {# 个目录}}"
+msgstr "{0, plural, other {# 个目录}}"
+
 #. placeholder {0}: match.roundCount
 #: src/domain/match/MatchContextBar.tsx:195
 msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, other {# 回合}}"
+
+#. placeholder {0}: list.data?.total ?? 0
+#: src/pages/LibraryPage.tsx:294
+msgid "{0, plural, other {# 场}}"
+msgstr "{0, plural, other {# 场}}"
+
+#. placeholder {0}: external.length
+#: src/pages/library/DeleteDemosDialog.tsx:74
+msgid "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
+msgstr "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
+
+#. placeholder {0}: managed.length
+#: src/pages/library/DeleteDemosDialog.tsx:68
+msgid "{0, plural, other {其中 # 条是受管文件，会进入可回滚暂存，24 小时后清除。}}"
+msgstr "{0, plural, other {其中 # 条是受管文件，会进入可回滚暂存，24 小时后清除。}}"
+
+#. placeholder {0}: selected.size
+#: src/pages/LibraryPage.tsx:216
+msgid "{0, plural, other {分析选中的 # 场}}"
+msgstr "{0, plural, other {分析选中的 # 场}}"
+
+#. placeholder {0}: demos.length
+#: src/pages/library/DeleteDemosDialog.tsx:59
+msgid "{0, plural, other {删除 # 条记录？}}"
+msgstr "{0, plural, other {删除 # 条记录？}}"
+
+#. placeholder {0}: staged.length
+#: src/pages/library/ImportDemoDialog.tsx:100
+msgid "{0, plural, other {导入 # 个文件}}"
+msgstr "{0, plural, other {导入 # 个文件}}"
+
+#. placeholder {0}: row.demo_display_name
+#. placeholder {1}: row.map_name
+#. placeholder {2}: row.round
+#. placeholder {3}: formatTickCount(row.tick)
+#: src/pages/evidence/EvidenceDetail.tsx:120
+msgid "{0} · {1} · 第 {2} 回合 · tick {3}"
+msgstr "{0} · {1} · 第 {2} 回合 · tick {3}"
+
+#. placeholder {0}: player.last_team ?? NO_VALUE
+#. placeholder {1}: player.stats.matches
+#. placeholder {2}: player.aliases_total
+#. placeholder {3}: formatMonthDay(player.last_match_date)
+#: src/pages/PlayerProfilePage.tsx:135
+msgid "{0} · {1} 场 · 别名 {2} 个 · 最近出场 {3}"
+msgstr "{0} · {1} 场 · 别名 {2} 个 · 最近出场 {3}"
 
 #. placeholder {0}: path.shotLabel
 #. placeholder {1}: label ?? keyframe.kind
@@ -53,6 +113,28 @@ msgstr "{0} 关键点 {1}，tick {2}"
 msgid "{0} 关键点 {1}，tick {2}，朝向 {3}°"
 msgstr "{0} 关键点 {1}，tick {2}，朝向 {3}°"
 
+#. placeholder {0}: formatRounds(demo.total_rounds)
+#: src/pages/library/LibraryCards.tsx:184
+#: src/pages/library/LibraryInspector.tsx:197
+msgid "{0} 回合"
+msgstr "{0} 回合"
+
+#. placeholder {0}: player.stats.matches
+#: src/pages/players/PlayerComparePanel.tsx:103
+msgid "{0} 场"
+msgstr "{0} 场"
+
+#. placeholder {0}: availability.indexed_demos
+#. placeholder {1}: availability.indexed_items
+#: src/pages/EvidencePage.tsx:160
+msgid "{0} 场比赛 · {1} 条规范化证据"
+msgstr "{0} 场比赛 · {1} 条规范化证据"
+
+#. placeholder {0}: mapName === '' ? '—' : mapName
+#: src/pages/players/PlayerHeatmapPanel.tsx:129
+msgid "{0} 热图"
+msgstr "{0} 热图"
+
 #. placeholder {0}: resolved.mapName
 #: src/domain/map/MapCanvas.tsx:309
 msgid "{0} 用的是占位标定，坐标可能整体偏移；接上本地雷达后会自动改用真实变换。"
@@ -65,6 +147,15 @@ msgstr "{0} 用的是占位标定，坐标可能整体偏移；接上本地雷�
 #: src/domain/map/PathLayer.tsx:137
 msgid "{0} 的移动路线，{1} 个位置样本，tick {2} 到 {3}"
 msgstr "{0} 的移动路线，{1} 个位置样本，tick {2} 到 {3}"
+
+#. placeholder {0}: metricName(metric)
+#. placeholder {1}: points.length
+#. placeholder {2}: printValue(metric, geometry.minimum)
+#. placeholder {3}: printValue(metric, geometry.maximum)
+#. placeholder {4}: printValue(metric, average)
+#: src/pages/players/PlayerTrend.tsx:136
+msgid "{0} 趋势，共 {1} 场，从 {2} 到 {3}，均值 {4}"
+msgstr "{0} 趋势，共 {1} 场，从 {2} 到 {3}，均值 {4}"
 
 #. placeholder {0}: clip.label
 #: src/design/timeline/ClipView.tsx:94
@@ -104,6 +195,10 @@ msgstr "{minWeight} 次"
 msgid "{pendingCount, plural, other {# 待确认}}"
 msgstr "{pendingCount, plural, other {# 待确认}}"
 
+#: src/pages/players/PlayerHeatmapPanel.tsx:149
+msgid "{playerName} 在 {mapName} 的位置热图"
+msgstr "{playerName} 在 {mapName} 的位置热图"
+
 #: src/domain/match/HighlightRow.tsx:156
 msgid "{seconds} 秒"
 msgstr "{seconds} 秒"
@@ -111,6 +206,10 @@ msgstr "{seconds} 秒"
 #: src/domain/media/FilmStrip.tsx:139
 msgid "{stamp} 的画面"
 msgstr "{stamp} 的画面"
+
+#: src/pages/evidence/EvidenceDetail.tsx:114
+msgid "{subject} → {target}"
+msgstr "{subject} → {target}"
 
 #: src/domain/match/RoundTimeline.tsx:169
 msgid "{teamAName} 胜"
@@ -125,8 +224,22 @@ msgid "{tickRate} tick"
 msgstr "{tickRate} tick"
 
 #: src/design/data/Pagination.tsx:64
+#: src/pages/library/LibraryTable.tsx:154
 msgid "{total, plural, other {共 # 条}}"
 msgstr "{total, plural, other {共 # 条}}"
+
+#: src/pages/DeliveryPage.tsx:85
+msgid "{total} 个输出"
+msgstr "{total} 个输出"
+
+#: src/pages/DeliveryPage.tsx:87
+msgid "{total} 个输出 · {available} 可用"
+msgstr "{total} 个输出 · {available} 可用"
+
+#. placeholder {0}: directory.data.coverage.projected_demos
+#: src/pages/PlayersPage.tsx:215
+msgid "{total} 名选手 · 来自 {0} 场已分析比赛"
+msgstr "{total} 名选手 · 来自 {0} 场已分析比赛"
 
 #: src/domain/task/TaskDuration.tsx:38
 msgid "{value} 分"
@@ -144,6 +257,11 @@ msgstr "{value} 秒"
 msgid "{winnerName} 胜"
 msgstr "{winnerName} 胜"
 
+#. placeholder {0}: state.search
+#: src/pages/PlayersPage.tsx:319
+msgid "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
+msgstr "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
+
 #: src/app/command/CommandPalette.tsx:329
 msgid "↑↓ 选择"
 msgstr "↑↓ 选择"
@@ -152,20 +270,48 @@ msgstr "↑↓ 选择"
 msgid "↵ 打开"
 msgstr "↵ 打开"
 
+#. placeholder {0}: textFieldLabel(field)
+#: src/pages/evidence/EvidenceConditions.tsx:249
+msgid "＋ {0}"
+msgstr "＋ {0}"
+
+#: src/pages/evidence/EvidenceConditions.tsx:261
+msgid "＋ 仅爆头"
+msgstr "＋ 仅爆头"
+
 #: src/domain/match/MatchContextBar.tsx:240
 msgid "＋ 添加选手"
 msgstr "＋ 添加选手"
+
+#: src/pages/evidence/EvidenceConditions.tsx:279
+msgid "＋ 近 {RECENT_WINDOW_DAYS} 天"
+msgstr "＋ 近 {RECENT_WINDOW_DAYS} 天"
 
 #. placeholder {0}: scale.pixelsPerSecond
 #: src/design/timeline/TimelinePrototype.tsx:173
 msgid "1 秒 = {0} px"
 msgstr "1 秒 = {0} px"
 
-#: src/app/command/commandRegistry.ts:176
+#: src/pages/evidence/EvidenceDetail.tsx:100
+msgid "2D 回放定位"
+msgstr "2D 回放定位"
+
+#: src/pages/players/PlayerComparePanel.tsx:56
+#: src/pages/players/PlayerMapTable.tsx:46
+#: src/pages/players/PlayerTrend.tsx:64
+#: src/pages/PlayersPage.tsx:107
+msgid "ADR"
+msgstr "ADR"
+
+#: src/app/command/commandRegistry.ts:185
 #: src/app/shell/navigation.tsx:99
 #: src/pages/AgentPage.tsx:33
 msgid "Agent 创作"
 msgstr "Agent 创作"
+
+#: src/pages/HomePage.tsx:56
+msgid "Agent 完成选材与镜头设计后，方案会出现在最上面，等你审阅。"
+msgstr "Agent 完成选材与镜头设计后，方案会出现在最上面，等你审阅。"
 
 #: src/pages/SettingsPage.tsx:25
 msgid "AI 与 Agent"
@@ -176,15 +322,38 @@ msgstr "AI 与 Agent"
 msgid "AI 工作台"
 msgstr "AI 工作台"
 
-#: src/app/command/commandRegistry.ts:157
+#: src/pages/library/AddWatchDirectoryDialog.tsx:98
+msgid "D:\\CS2\\demos\\"
+msgstr "D:\\CS2\\demos\\"
+
+#: src/app/command/commandRegistry.ts:166
 #: src/app/shell/navigation.tsx:89
-#: src/pages/LibraryPage.tsx:28
+#: src/pages/LibraryPage.tsx:291
 msgid "Demo 资料库"
 msgstr "Demo 资料库"
+
+#: src/pages/library/LibraryCards.tsx:113
+msgid "Demo 资料库 · 卡片视图"
+msgstr "Demo 资料库 · 卡片视图"
+
+#: src/pages/library/LibraryTable.tsx:110
+msgid "Demo 资料库 · 表格视图"
+msgstr "Demo 资料库 · 表格视图"
 
 #: src/app/command/CommandPalette.tsx:235
 msgid "ESC 关闭"
 msgstr "ESC 关闭"
+
+#: src/pages/players/PlayerComparePanel.tsx:49
+#: src/pages/players/PlayerMapTable.tsx:39
+#: src/pages/players/PlayerTrend.tsx:62
+#: src/pages/PlayersPage.tsx:99
+msgid "K/D"
+msgstr "K/D"
+
+#: src/pages/evidence/EvidenceConditions.tsx:190
+msgid "Kael 的穿墙击杀"
+msgstr "Kael 的穿墙击杀"
 
 #. placeholder {0}: highlight.round
 #: src/domain/match/HighlightRow.tsx:116
@@ -195,9 +364,23 @@ msgstr "R{0}"
 msgid "Review 与注释"
 msgstr "Review 与注释"
 
-#: src/pages/HistoryPage.tsx:19
+#. placeholder {0}: formatSyncedAt(syncedAt)
+#: src/pages/HistoryPage.tsx:137
+msgid "Steam · 上次同步 {0}"
+msgstr "Steam · 上次同步 {0}"
+
+#: src/pages/HistoryPage.tsx:135
 msgid "Steam 上的对局记录与回放下载"
 msgstr "Steam 上的对局记录与回放下载"
+
+#: src/pages/history/MatchHistoryTable.tsx:194
+msgid "Steam 比赛历史"
+msgstr "Steam 比赛历史"
+
+#: src/pages/HistoryPage.tsx:144
+#: src/pages/HistoryPage.tsx:147
+msgid "Steam 设置"
+msgstr "Steam 设置"
 
 #: src/app/command/CommandPalette.tsx:335
 msgid "TAB 切换分组"
@@ -207,6 +390,15 @@ msgstr "TAB 切换分组"
 msgid "tick"
 msgstr "tick"
 
+#. placeholder {0}: formatTickCount(annotation.tick)
+#: src/pages/evidence/EvidenceAnnotations.tsx:94
+msgid "tick {0}"
+msgstr "tick {0}"
+
+#: src/pages/HistoryPage.tsx:186
+msgid "Valve 官方链路。FACEIT 等平台连接器尚未提供"
+msgstr "Valve 官方链路。FACEIT 等平台连接器尚未提供"
+
 #: src/domain/media/Transport.tsx:174
 msgid "上一帧"
 msgstr "上一帧"
@@ -214,6 +406,13 @@ msgstr "上一帧"
 #: src/design/data/Pagination.tsx:77
 msgid "上一页"
 msgstr "上一页"
+
+#. placeholder {0}: status.imported
+#. placeholder {1}: status.updated
+#. placeholder {2}: status.missing
+#: src/pages/library/WatchDirectoriesDrawer.tsx:137
+msgid "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
+msgstr "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 
 #: src/domain/media/Transport.tsx:197
 msgid "下一帧"
@@ -224,8 +423,50 @@ msgid "下一页"
 msgstr "下一页"
 
 #: src/domain/task/taskVocabulary.tsx:31
+#: src/pages/history/MatchHistoryTable.tsx:185
 msgid "下载"
 msgstr "下载"
+
+#: src/pages/history/MatchHistoryTable.tsx:41
+msgid "下载中"
+msgstr "下载中"
+
+#: src/pages/HistoryPage.tsx:181
+msgid "下载中 {activeCount}"
+msgstr "下载中 {activeCount}"
+
+#: src/pages/HistoryPage.tsx:213
+msgid "下载后自动分析"
+msgstr "下载后自动分析"
+
+#: src/pages/history/MatchHistoryTable.tsx:45
+msgid "下载失败"
+msgstr "下载失败"
+
+#. placeholder {0}: selected.size
+#: src/pages/HistoryPage.tsx:201
+msgid "下载选中的 {0} 场"
+msgstr "下载选中的 {0} 场"
+
+#: src/pages/evidence/EvidenceDetail.tsx:149
+msgid "不可用"
+msgstr "不可用"
+
+#: src/pages/library/AddWatchDirectoryDialog.tsx:88
+msgid "不接受符号链接根目录"
+msgstr "不接受符号链接根目录"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/conditionSummary.tsx:36
+#: src/pages/evidence/EvidenceConditions.tsx:105
+msgid "不早于 {0}"
+msgstr "不早于 {0}"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/conditionSummary.tsx:38
+#: src/pages/evidence/EvidenceConditions.tsx:107
+msgid "不晚于 {0}"
+msgstr "不晚于 {0}"
 
 #: src/design/timeline/ClipView.tsx:118
 msgid "不能放在这里"
@@ -240,12 +481,13 @@ msgid "主导航"
 msgstr "主导航"
 
 #: src/app/shell/navigation.tsx:108
+#: src/pages/DeliveryPage.tsx:82
 msgid "交付"
 msgstr "交付"
 
-#: src/pages/DeliveryPage.tsx:41
-msgid "交付页把成片和产生它的任务放在一起：从一条输出可以回到它的阶段日志，反过来也一样。"
-msgstr "交付页把成片和产生它的任务放在一起：从一条输出可以回到它的阶段日志，反过来也一样。"
+#: src/pages/DeliveryPage.tsx:98
+msgid "交付视图"
+msgstr "交付视图"
 
 #: src/domain/map/EngagementLayer.tsx:109
 msgid "交战轴 {degrees}°"
@@ -259,6 +501,15 @@ msgstr "交火"
 msgid "交火：这一段没有经击杀验证的交战轴"
 msgstr "交火：这一段没有经击杀验证的交战轴"
 
+#: src/pages/evidence/conditionSummary.tsx:34
+#: src/pages/evidence/EvidenceConditions.tsx:103
+msgid "仅爆头"
+msgstr "仅爆头"
+
+#: src/pages/HomePage.tsx:77
+msgid "今日工作"
+msgstr "今日工作"
+
 #: src/domain/media/ClipStrip.tsx:219
 msgid "从录制结果里挑几段，它们会按这里的顺序拼成视频。"
 msgstr "从录制结果里挑几段，它们会按这里的顺序拼成视频。"
@@ -267,15 +518,23 @@ msgstr "从录制结果里挑几段，它们会按这里的顺序拼成视频。
 msgid "任务每进入一个阶段，都会在这里留下一行。"
 msgstr "任务每进入一个阶段，都会在这里留下一行。"
 
-#: src/app/command/commandRegistry.ts:204
+#: src/pages/delivery/TaskDetailBody.tsx:124
+msgid "任务编号"
+msgstr "任务编号"
+
+#: src/app/command/commandRegistry.ts:213
 #: src/app/shell/navigation.tsx:111
-#: src/pages/DeliveryPage.tsx:27
+#: src/pages/delivery/TaskRecordRail.tsx:54
+#: src/pages/delivery/TaskRecordView.tsx:89
+#: src/pages/DeliveryPage.tsx:94
+#: src/pages/DeliveryPage.tsx:103
+#: src/pages/DeliveryPage.tsx:135
 msgid "任务记录"
 msgstr "任务记录"
 
 #: src/app/routeCrumb.ts:48
 #: src/domain/task/TaskDetail.tsx:105
-#: src/pages/TaskDetailPage.tsx:28
+#: src/pages/TaskDetailPage.tsx:66
 msgid "任务详情"
 msgstr "任务详情"
 
@@ -288,17 +547,102 @@ msgstr "任务进度"
 msgid "任务阶段"
 msgstr "任务阶段"
 
+#: src/pages/library/LibraryInspector.tsx:225
+msgid "位置"
+msgstr "位置"
+
+#: src/pages/delivery/taskModel.tsx:163
+msgid "位置采样"
+msgstr "位置采样"
+
+#. placeholder {0}: printValue(metric, points.length === 0 ? null : geometry.minimum)
+#: src/pages/players/PlayerTrend.tsx:170
+msgid "低 {0}"
+msgstr "低 {0}"
+
+#: src/pages/delivery/TaskDetailBody.tsx:132
+msgid "作业编号"
+msgstr "作业编号"
+
+#: src/pages/library/SaveViewDialog.tsx:54
+msgid "保存"
+msgstr "保存"
+
+#: src/pages/EvidencePage.tsx:173
+#: src/pages/EvidencePage.tsx:176
+#: src/pages/library/LibraryFilters.tsx:188
+#: src/pages/library/SaveViewDialog.tsx:52
+msgid "保存为视图"
+msgstr "保存为视图"
+
+#: src/pages/library/LibraryInspector.tsx:267
+msgid "保存备注"
+msgstr "保存备注"
+
+#: src/pages/library/SaveViewDialog.tsx:80
+msgid "保存当前的搜索、筛选、排序和列配置"
+msgstr "保存当前的搜索、筛选、排序和列配置"
+
+#. placeholder {0}: view.name
+#: src/pages/library/LibraryFilters.tsx:184
+msgid "保存的视图 · {0}"
+msgstr "保存的视图 · {0}"
+
 #: src/pages/AgentPage.tsx:24
 msgid "候选镜头"
 msgstr "候选镜头"
+
+#: src/pages/PlayerProfilePage.tsx:143
+msgid "做一条集锦"
+msgstr "做一条集锦"
+
+#: src/pages/library/WatchDirectoriesDrawer.tsx:129
+msgid "停止监听"
+msgstr "停止监听"
+
+#. placeholder {0}: root.path
+#: src/pages/library/WatchDirectoriesDrawer.tsx:123
+msgid "停止监听 {0}"
+msgstr "停止监听 {0}"
+
+#. placeholder {0}: left.name
+#: src/pages/players/PlayerComparePanel.tsx:146
+msgid "先看 {0} 的档案"
+msgstr "先看 {0} 的档案"
 
 #: src/design/timeline/TimelinePrototype.tsx:139
 msgid "先选中一个片段"
 msgstr "先选中一个片段"
 
+#: src/pages/library/LibraryInspector.tsx:228
+msgid "入库时间"
+msgstr "入库时间"
+
 #: src/design/data/DataTable.tsx:232
 msgid "全选本页"
 msgstr "全选本页"
+
+#: src/pages/delivery/OutputsView.tsx:49
+#: src/pages/delivery/TaskRecordView.tsx:52
+#: src/pages/evidence/EvidenceConditions.tsx:49
+#: src/pages/library/LibraryFilters.tsx:138
+#: src/pages/library/LibraryFilters.tsx:226
+#: src/pages/library/LibraryFilters.tsx:244
+#: src/pages/players/PlayerHeatmapPanel.tsx:69
+msgid "全部"
+msgstr "全部"
+
+#: src/pages/HistoryPage.tsx:168
+msgid "全部 {total}"
+msgstr "全部 {total}"
+
+#: src/pages/home/HomeTasksPanel.tsx:67
+msgid "全部任务"
+msgstr "全部任务"
+
+#: src/pages/delivery/TaskRecordRail.tsx:80
+msgid "全部任务记录"
+msgstr "全部任务记录"
 
 #: src/pages/MontagePage.tsx:19
 msgid "全部合辑"
@@ -312,9 +656,40 @@ msgstr "全部工程"
 msgid "全部录制任务"
 msgstr "全部录制任务"
 
+#: src/pages/home/RecentOutputsPanel.tsx:66
+msgid "全部输出"
+msgstr "全部输出"
+
+#. placeholder {0}: truncation.total
+#: src/pages/players/PlayerHeatmapPanel.tsx:162
+msgid "共 {0} 个位置，全部计入。"
+msgstr "共 {0} 个位置，全部计入。"
+
+#: src/pages/PlayersPage.tsx:346
+msgid "共 {total} 名选手"
+msgstr "共 {total} 名选手"
+
+#: src/pages/HistoryPage.tsx:282
+msgid "共 {total} 场对局"
+msgstr "共 {total} 场对局"
+
+#: src/pages/evidence/EvidenceAnnotations.tsx:137
+msgid "共 {total} 条注释"
+msgstr "共 {total} 条注释"
+
 #: src/domain/match/matchEnums.ts:110
 msgid "关键回合"
 msgstr "关键回合"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/conditionSummary.tsx:26
+msgid "关键词 {0}"
+msgstr "关键词 {0}"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/EvidenceConditions.tsx:95
+msgid "关键词：{0}"
+msgstr "关键词：{0}"
 
 #: src/design/layout/Inspector.tsx:270
 msgid "关闭"
@@ -333,13 +708,17 @@ msgstr "关闭提示"
 msgid "关闭窗口"
 msgstr "关闭窗口"
 
-#: src/domain/match/matchEnums.ts:209
+#: src/domain/match/matchEnums.ts:217
 msgid "其他"
 msgstr "其他"
 
 #: src/design/data/EmptyState.tsx:146
 msgid "其余功能不受影响。你可以返回工作台，或把这次错误导出给开发者。"
 msgstr "其余功能不受影响。你可以返回工作台，或把这次错误导出给开发者。"
+
+#: src/pages/players/PlayerComparePanel.tsx:154
+msgid "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
+msgstr "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
 
 #: src/app/shell/WindowTitleBar.tsx:300
 #: src/app/shell/WindowTitleBar.tsx:301
@@ -351,17 +730,63 @@ msgstr "最大化或还原窗口"
 msgid "最小化窗口"
 msgstr "最小化窗口"
 
-#: src/pages/HomePage.tsx:21
-msgid "最近的比赛、进行中的任务和待确认的方案"
-msgstr "最近的比赛、进行中的任务和待确认的方案"
+#. placeholder {0}: points.length
+#: src/pages/players/PlayerTrend.tsx:116
+msgid "最近 {TREND_WINDOW} 场里有 {0} 场有这个指标 · 灰线为个人均值"
+msgstr "最近 {TREND_WINDOW} 场里有 {0} 场有这个指标 · 灰线为个人均值"
 
-#: src/pages/PlayersPage.tsx:13
-msgid "出现在已分析比赛里的选手"
-msgstr "出现在已分析比赛里的选手"
+#: src/pages/PlayersPage.tsx:139
+msgid "最近出场"
+msgstr "最近出场"
 
-#: src/domain/match/matchEnums.ts:148
+#: src/pages/HomePage.tsx:65
+msgid "最近导入的比赛、它们的分析状态，以及每一场的下一步。"
+msgstr "最近导入的比赛、它们的分析状态，以及每一场的下一步。"
+
+#: src/pages/delivery/TaskDetailBody.tsx:101
+msgid "最近更新"
+msgstr "最近更新"
+
+#: src/pages/HomePage.tsx:64
+#: src/pages/PlayerProfilePage.tsx:212
+msgid "最近比赛"
+msgstr "最近比赛"
+
+#: src/pages/PlayerProfilePage.tsx:219
+msgid "最近比赛没能读出来：{matchesError}"
+msgstr "最近比赛没能读出来：{matchesError}"
+
+#: src/pages/home/RecentOutputsPanel.tsx:63
+#: src/pages/HomePage.tsx:93
+msgid "最近输出"
+msgstr "最近输出"
+
+#: src/pages/library/LibraryInspector.tsx:254
+msgid "写下这场值得回头看的地方"
+msgstr "写下这场值得回头看的地方"
+
+#: src/pages/evidence/EvidenceDetail.tsx:170
+msgid "写注释"
+msgstr "写注释"
+
+#: src/pages/evidence/EvidenceConditions.tsx:51
+#: src/pages/players/PlayerHeatmapPanel.tsx:71
+#: src/pages/PlayersPage.tsx:123
 msgid "击杀"
 msgstr "击杀"
+
+#: src/domain/match/matchEnums.ts:159
+msgctxt "evidence-kind"
+msgid "击杀"
+msgstr "击杀"
+
+#: src/pages/players/PlayerHeatmapPanel.tsx:80
+msgid "击杀与死亡位置"
+msgstr "击杀与死亡位置"
+
+#: src/pages/players/PlayerHeatmapPanel.tsx:82
+msgid "击杀位置"
+msgstr "击杀位置"
 
 #: src/domain/match/matchEnums.ts:102
 msgid "击杀清场"
@@ -371,25 +796,89 @@ msgstr "击杀清场"
 msgid "分析"
 msgstr "分析"
 
-#: src/pages/DeliveryPage.tsx:30
-msgid "分析、录制与导出的执行记录"
-msgstr "分析、录制与导出的执行记录"
+#: src/pages/library/libraryColumns.tsx:234
+msgctxt "row-action"
+msgid "分析"
+msgstr "分析"
+
+#: src/pages/delivery/TaskRecordRail.tsx:55
+msgid "分析 · 下载 · 录制 · 导出"
+msgstr "分析 · 下载 · 录制 · 导出"
+
+#: src/pages/delivery/TaskRecordView.tsx:123
+msgid "分析、下载、录制与导出都会在这里留下一条记录，包含阶段与失败原因。"
+msgstr "分析、下载、录制与导出都会在这里留下一条记录，包含阶段与失败原因。"
+
+#: src/pages/delivery/TaskRecordRail.tsx:66
+msgid "分析、下载、录制与导出都会在这里留下一条记录。"
+msgstr "分析、下载、录制与导出都会在这里留下一条记录。"
+
+#: src/pages/home/HomeTasksPanel.tsx:79
+msgid "分析、录制与导出开始后会出现在这里，可以从这里直接停止。"
+msgstr "分析、录制与导出开始后会出现在这里，可以从这里直接停止。"
+
+#: src/pages/library/LibraryFilters.tsx:49
+#: src/pages/library/libraryFormat.ts:125
+msgid "分析中"
+msgstr "分析中"
 
 #: src/design/data/EmptyState.tsx:134
 msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。"
 msgstr "分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。"
 
+#: src/pages/delivery/taskDetailModel.tsx:135
+msgid "分析失败"
+msgstr "分析失败"
+
+#: src/pages/delivery/taskDetailModel.tsx:134
+msgid "分析完成"
+msgstr "分析完成"
+
 #: src/domain/map/MapCanvas.tsx:235
 msgid "分析完成后才有位置样本、朝向与经击杀验证的交战轴。"
 msgstr "分析完成后才有位置样本、朝向与经击杀验证的交战轴。"
+
+#: src/pages/delivery/taskDetailModel.tsx:137
+msgid "分析已取消"
+msgstr "分析已取消"
+
+#: src/pages/delivery/taskDetailModel.tsx:136
+msgid "分析被中断"
+msgstr "分析被中断"
+
+#: src/pages/players/PlayerMapTable.tsx:81
+msgid "分析这名选手的比赛之后，每张地图的场次与命中会在这里累积。"
+msgstr "分析这名选手的比赛之后，每张地图的场次与命中会在这里累积。"
 
 #: src/design/data/Pagination.tsx:57
 msgid "分页"
 msgstr "分页"
 
+#: src/pages/LibraryPage.tsx:306
+msgid "切换视图"
+msgstr "切换视图"
+
+#: src/pages/library/ColumnConfigDialog.tsx:66
+#: src/pages/library/LibraryFilters.tsx:194
+msgid "列配置"
+msgstr "列配置"
+
 #: src/pages/AgentPage.tsx:38
 msgid "创作页承载方案、会话与修订：Agent 提出变更，你逐条接受或改写，确认后才进入录制。"
 msgstr "创作页承载方案、会话与修订：Agent 提出变更，你逐条接受或改写，确认后才进入录制。"
+
+#: src/pages/delivery/OutputCard.tsx:145
+#: src/pages/library/DeleteDemosDialog.tsx:61
+msgid "删除"
+msgstr "删除"
+
+#: src/pages/delivery/OutputsView.tsx:202
+msgid "删除受管文件会先进入可回滚暂存，24 小时后清除。移除记录不会删除外部文件。"
+msgstr "删除受管文件会先进入可回滚暂存，24 小时后清除。移除记录不会删除外部文件。"
+
+#: src/pages/LibraryPage.tsx:248
+msgid "删除记录"
+msgstr "删除记录"
 
 #: src/app/shell/navigation.tsx:97
 msgid "制作"
@@ -399,6 +888,15 @@ msgstr "制作"
 msgid "剃刀"
 msgstr "剃刀"
 
+#: src/pages/EvidencePage.tsx:233
+msgid "加入录制队列"
+msgstr "加入录制队列"
+
+#: src/pages/evidence/EvidenceDetail.tsx:103
+#: src/pages/evidence/EvidenceResults.tsx:184
+msgid "加入视频"
+msgstr "加入视频"
+
 #: src/design/data/Skeleton.tsx:64
 msgid "加载中"
 msgstr "加载中"
@@ -407,25 +905,63 @@ msgstr "加载中"
 msgid "加载任务记录"
 msgstr "加载任务记录"
 
-#: src/app/command/commandRegistry.ts:82
+#: src/app/command/commandRegistry.ts:91
+msgctxt "palette-group"
 msgid "动作"
 msgstr "动作"
 
-#: src/pages/LibraryPage.tsx:29
-msgid "卡片视图"
-msgstr "卡片视图"
+#: src/pages/players/PlayerComparePanel.tsx:129
+msgid "勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆头率并排放在一起。"
+msgstr "勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆头率并排放在一起。"
+
+#: src/pages/library/AddWatchDirectoryDialog.tsx:109
+msgid "包含子目录"
+msgstr "包含子目录"
+
+#: src/pages/LibraryPage.tsx:314
+msgid "卡片"
+msgstr "卡片"
+
+#: src/pages/HistoryPage.tsx:271
+msgid "去 Demo 资料库"
+msgstr "去 Demo 资料库"
+
+#: src/pages/HistoryPage.tsx:234
+msgid "去设置检查 Steam 连接"
+msgstr "去设置检查 Steam 连接"
+
+#: src/pages/evidence/EvidenceEmpty.tsx:76
+#: src/pages/PlayerProfilePage.tsx:227
+#: src/pages/PlayersPage.tsx:327
+msgid "去资料库分析一场"
+msgstr "去资料库分析一场"
+
+#: src/pages/delivery/TaskRecordRail.tsx:69
+#: src/pages/delivery/TaskRecordView.tsx:127
+#: src/pages/home/HomeTasksPanel.tsx:82
+msgid "去资料库开始一次分析"
+msgstr "去资料库开始一次分析"
 
 #: src/domain/match/matchEnums.ts:67
 msgid "反恐精英"
 msgstr "反恐精英"
 
 #: src/design/feedback/StageBar.tsx:123
+#: src/pages/delivery/taskModel.tsx:217
 msgid "发布"
 msgstr "发布"
+
+#. placeholder {0}: truncation.shown
+#. placeholder {1}: truncation.total
+#. placeholder {2}: truncation.limit
+#: src/pages/players/PlayerHeatmapPanel.tsx:157
+msgid "取样 {0} / {1} 个位置（服务端上限 {2}）。 这张图画的是这批取样，不是全部。"
+msgstr "取样 {0} / {1} 个位置（服务端上限 {2}）。 这张图画的是这批取样，不是全部。"
 
 #: src/design/feedback/Dialog.tsx:106
 #: src/domain/task/TaskCard.tsx:193
 #: src/domain/task/TaskDetail.tsx:138
+#: src/pages/history/MatchHistoryTable.tsx:172
 msgid "取消"
 msgstr "取消"
 
@@ -437,9 +973,31 @@ msgstr "取消中"
 msgid "受害者被闪"
 msgstr "受害者被闪"
 
+#: src/pages/delivery/OutputCard.tsx:113
+msgid "受管文件"
+msgstr "受管文件"
+
 #: src/pages/AgentPage.tsx:22
 msgid "变更列表"
 msgstr "变更列表"
+
+#. placeholder {0}: failed - 1
+#: src/pages/home/HomeFailureNotice.tsx:55
+msgid "另有 {0} 条失败记录"
+msgstr "另有 {0} 条失败记录"
+
+#: src/pages/delivery/OutputsView.tsx:92
+#: src/pages/home/RecentOutputsPanel.tsx:47
+msgid "只有桌面端能在文件管理器里定位文件。"
+msgstr "只有桌面端能在文件管理器里定位文件。"
+
+#: src/pages/evidence/EvidenceDetail.tsx:149
+msgid "可用"
+msgstr "可用"
+
+#: src/pages/delivery/useTaskActions.tsx:159
+msgid "可重新发起"
+msgstr "可重新发起"
 
 #: src/domain/task/taskVocabulary.tsx:29
 msgid "合辑"
@@ -449,7 +1007,24 @@ msgstr "合辑"
 msgid "合辑用一条模板把选中的片段串起来，不进多轨编辑器也能直接导出。"
 msgstr "合辑用一条模板把选中的片段串起来，不进多轨编辑器也能直接导出。"
 
+#: src/pages/HistoryPage.tsx:240
+msgid "同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。"
+msgstr "同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。"
+
+#: src/pages/HistoryPage.tsx:264
+msgid "同步之后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放， 过期的对局会留在列表里但不再可下载。"
+msgstr "同步之后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放， 过期的对局会留在列表里但不再可下载。"
+
+#: src/pages/HistoryPage.tsx:159
+msgid "同步最近比赛"
+msgstr "同步最近比赛"
+
+#: src/pages/library/SaveViewDialog.tsx:64
+msgid "名称"
+msgstr "名称"
+
 #: src/design/feedback/StageBar.tsx:115
+#: src/pages/delivery/taskModel.tsx:212
 msgid "启动"
 msgstr "启动"
 
@@ -457,6 +1032,19 @@ msgstr "启动"
 #: src/design/timeline/TimelinePrototype.tsx:146
 msgid "吸附"
 msgstr "吸附"
+
+#. placeholder {0}: search.data.total
+#: src/pages/EvidencePage.tsx:219
+msgid "命中 {0} 条 · 排序：时间倒序"
+msgstr "命中 {0} 条 · 排序：时间倒序"
+
+#: src/pages/evidence/EvidenceResults.tsx:197
+msgid "命中 {total} 条"
+msgstr "命中 {total} 条"
+
+#: src/pages/evidence/EvidenceDetail.tsx:131
+msgid "命中方式"
+msgstr "命中方式"
 
 #: src/app/command/CommandPalette.tsx:251
 msgid "命令"
@@ -466,14 +1054,28 @@ msgstr "命令"
 msgid "命令面板"
 msgstr "命令面板"
 
+#: src/pages/TaskDetailPage.tsx:79
+msgid "回到任务记录"
+msgstr "回到任务记录"
+
+#: src/pages/EvidencePage.tsx:307
+msgid "回到证据视图"
+msgstr "回到证据视图"
+
+#: src/pages/library/libraryColumns.tsx:111
+#: src/pages/library/libraryColumns.tsx:112
 #: src/pages/MatchWorkspacePage.tsx:42
 msgid "回合"
 msgstr "回合"
 
-#: src/domain/match/matchEnums.ts:153
+#: src/domain/match/matchEnums.ts:161
 msgctxt "evidence-kind"
 msgid "回合"
 msgstr "回合"
+
+#: src/pages/evidence/EvidenceConditions.tsx:59
+msgid "回合开始"
+msgstr "回合开始"
 
 #: src/domain/match/RoundTimeline.tsx:162
 #: src/domain/match/RoundTimeline.tsx:282
@@ -488,11 +1090,75 @@ msgstr "回合时间线加载中"
 msgid "回放与热力图"
 msgstr "回放与热力图"
 
+#: src/pages/library/LibraryInspector.tsx:111
+msgid "在左侧选一场比赛，这里会显示它的文件、状态与下一步。"
+msgstr "在左侧选一场比赛，这里会显示它的文件、状态与下一步。"
+
 #: src/design/timeline/TimelinePrototype.tsx:133
 msgid "在播放头切开"
 msgstr "在播放头切开"
 
-#: src/domain/match/matchEnums.ts:202
+#: src/pages/evidence/EvidenceDetail.tsx:90
+#: src/pages/evidence/EvidenceDetail.tsx:96
+msgid "在比赛工作区打开"
+msgstr "在比赛工作区打开"
+
+#: src/pages/EvidencePage.tsx:301
+msgid "在证据视图里选一条结果、写下为什么它值得剪，注释就会出现在这里，并且跨比赛可检索。"
+msgstr "在证据视图里选一条结果、写下为什么它值得剪，注释就会出现在这里，并且跨比赛可检索。"
+
+#: src/pages/evidence/EvidenceConditions.tsx:73
+#: src/pages/evidence/EvidenceConditions.tsx:84
+#: src/pages/history/MatchHistoryTable.tsx:125
+#: src/pages/library/libraryColumns.tsx:85
+#: src/pages/library/libraryColumns.tsx:86
+#: src/pages/library/LibraryFilters.tsx:167
+#: src/pages/players/PlayerMapTable.tsx:25
+msgid "地图"
+msgstr "地图"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/conditionSummary.tsx:30
+msgid "地图 {0}"
+msgstr "地图 {0}"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/EvidenceConditions.tsx:99
+msgid "地图：{0}"
+msgstr "地图：{0}"
+
+#: src/pages/PlayerProfilePage.tsx:172
+msgid "地图与最近比赛"
+msgstr "地图与最近比赛"
+
+#: src/pages/players/PlayerMapTable.tsx:32
+msgid "场次"
+msgstr "场次"
+
+#. placeholder {0}: printValue(metric, average)
+#: src/pages/players/PlayerTrend.tsx:173
+msgid "均值 {0}"
+msgstr "均值 {0}"
+
+#: src/pages/library/AddWatchDirectoryDialog.tsx:135
+msgid "填写一个目录的完整路径"
+msgstr "填写一个目录的完整路径"
+
+#: src/pages/library/LibraryInspector.tsx:248
+#: src/pages/library/LibraryInspector.tsx:252
+msgid "备注"
+msgstr "备注"
+
+#: src/pages/delivery/taskModel.tsx:162
+msgid "复核解析结果"
+msgstr "复核解析结果"
+
+#: src/pages/delivery/OutputCard.tsx:113
+msgid "外部文件"
+msgstr "外部文件"
+
+#: src/domain/match/matchEnums.ts:210
+#: src/pages/evidence/EvidenceConditions.tsx:53
 msgid "多杀"
 msgstr "多杀"
 
@@ -504,15 +1170,20 @@ msgstr "多轨时间轴"
 msgid "多轨编辑"
 msgstr "多轨编辑"
 
-#: src/app/command/commandRegistry.ts:189
+#: src/app/command/commandRegistry.ts:198
 #: src/pages/EditorPage.tsx:26
 msgid "多轨编辑器"
 msgstr "多轨编辑器"
 
 #: src/design/feedback/StageBar.tsx:72
 #: src/domain/task/taskVocabulary.tsx:48
+#: src/pages/delivery/TaskRecordView.tsx:54
 msgid "失败"
 msgstr "失败"
+
+#: src/pages/home/HomeFailureNotice.tsx:50
+msgid "失败可恢复"
+msgstr "失败可恢复"
 
 #: src/domain/task/taskVocabulary.tsx:75
 msgctxt "task-progress"
@@ -524,8 +1195,14 @@ msgid "完成一次录制或导出后，成片会出现在这里，并链接回�
 msgstr "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 
 #: src/domain/match/EvidenceRow.tsx:80
+#: src/pages/evidence/EvidenceAnnotations.tsx:126
 msgid "定位"
 msgstr "定位"
+
+#: src/pages/delivery/OutputCard.tsx:129
+#: src/pages/library/LibraryInspector.tsx:176
+msgid "定位文件"
+msgstr "定位文件"
 
 #: src/domain/map/HeatLayer.tsx:178
 msgid "密度"
@@ -539,6 +1216,11 @@ msgstr "密度色阶，从 {minWeight} 次到 {maxWeight} 次"
 msgid "对位"
 msgstr "对位"
 
+#: src/pages/library/ImportDemoDialog.tsx:93
+#: src/pages/LibraryPage.tsx:182
+msgid "导入 Demo"
+msgstr "导入 Demo"
+
 #: src/design/data/EmptyState.tsx:130
 msgid "导入一个 .dem，或添加一个监听目录自动发现"
 msgstr "导入一个 .dem，或添加一个监听目录自动发现"
@@ -546,6 +1228,25 @@ msgstr "导入一个 .dem，或添加一个监听目录自动发现"
 #: src/domain/task/taskVocabulary.tsx:30
 msgid "导出"
 msgstr "导出"
+
+#: src/pages/library/LibraryFilters.tsx:200
+#: src/pages/LibraryPage.tsx:243
+msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
+msgstr "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
+
+#: src/pages/library/LibraryFilters.tsx:202
+#: src/pages/LibraryPage.tsx:245
+msgid "导出元数据"
+msgstr "导出元数据"
+
+#: src/pages/delivery/OutputsView.tsx:51
+msgid "导出成片"
+msgstr "导出成片"
+
+#: src/pages/EvidencePage.tsx:183
+#: src/pages/EvidencePage.tsx:186
+msgid "导出结果"
+msgstr "导出结果"
 
 #: src/app/boundary/RouteBoundary.tsx:121
 msgid "导出诊断"
@@ -560,13 +1261,16 @@ msgstr "就地编辑"
 msgid "展开侧栏"
 msgstr "展开侧栏"
 
+#: src/pages/library/libraryColumns.tsx:218
+msgid "工作区"
+msgstr "工作区"
+
 #: src/pages/MatchWorkspacePage.tsx:75
 msgid "工作区把一场比赛的回合、选手、对位、道具、回放、高光与 Review 收在同一个地址下， 右侧 Inspector 统一承载证据详情与「加入视频」。"
 msgstr "工作区把一场比赛的回合、选手、对位、道具、回放、高光与 Review 收在同一个地址下， 右侧 Inspector 统一承载证据详情与「加入视频」。"
 
-#: src/app/command/commandRegistry.ts:154
+#: src/app/command/commandRegistry.ts:163
 #: src/app/shell/navigation.tsx:83
-#: src/pages/HomePage.tsx:20
 msgid "工作台"
 msgstr "工作台"
 
@@ -574,7 +1278,12 @@ msgstr "工作台"
 msgid "工具"
 msgstr "工具"
 
+#: src/pages/history/MatchHistoryTable.tsx:39
+msgid "已入库"
+msgstr "已入库"
+
 #: src/domain/task/taskVocabulary.tsx:49
+#: src/pages/delivery/TaskRecordView.tsx:56
 msgid "已取消"
 msgstr "已取消"
 
@@ -582,22 +1291,76 @@ msgstr "已取消"
 msgid "已吸附"
 msgstr "已吸附"
 
+#: src/pages/evidence/EvidenceAnnotations.tsx:102
+msgid "已处理"
+msgstr "已处理"
+
 #: src/design/feedback/StageBar.tsx:70
 #: src/domain/task/taskVocabulary.tsx:47
+#: src/pages/delivery/TaskRecordView.tsx:55
 msgid "已完成"
 msgstr "已完成"
 
-#: src/app/boundary/ServiceGate.tsx:292
+#: src/pages/library/libraryFormat.ts:156
+msgid "已导入"
+msgstr "已导入"
+
+#: src/pages/library/LibraryTable.tsx:102
+msgid "已导入的比赛仍在本地，重试通常就能恢复列表。"
+msgstr "已导入的比赛仍在本地，重试通常就能恢复列表。"
+
+#: src/app/boundary/ServiceGate.tsx:248
 msgid "已导入的比赛和已生成的视频仍可浏览。正在进行的任务会在服务恢复后自动接续状态。"
 msgstr "已导入的比赛和已生成的视频仍可浏览。正在进行的任务会在服务恢复后自动接续状态。"
 
-#: src/pages/DeliveryPage.tsx:32
-msgid "已生成的成片，链接回它的来源任务"
-msgstr "已生成的成片，链接回它的来源任务"
+#: src/pages/library/LibraryFilters.tsx:48
+#: src/pages/library/libraryFormat.ts:124
+msgid "已就绪"
+msgstr "已就绪"
 
 #: src/domain/task/TaskDuration.tsx:73
 msgid "已用 {duration}"
 msgstr "已用 {duration}"
+
+#: src/pages/evidence/EvidenceEmpty.tsx:89
+msgid "已索引 {indexedDemos} / {totalAnalyses} 场，共 {indexedItems} 条证据。你要找的这条可能还没进来，等一会儿再试一次。"
+msgstr "已索引 {indexedDemos} / {totalAnalyses} 场，共 {indexedItems} 条证据。你要找的这条可能还没进来，等一会儿再试一次。"
+
+#: src/pages/library/SaveViewDialog.tsx:65
+msgid "已经有一个同名的视图"
+msgstr "已经有一个同名的视图"
+
+#: src/pages/history/MatchHistoryTable.tsx:47
+msgid "已过期"
+msgstr "已过期"
+
+#: src/pages/history/MatchHistoryTable.tsx:65
+msgid "已过期 · Valve 不再保留"
+msgstr "已过期 · Valve 不再保留"
+
+#. placeholder {0}: state.compare.length
+#: src/pages/PlayersPage.tsx:257
+msgid "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
+msgstr "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
+
+#. placeholder {0}: selected.size
+#: src/pages/HistoryPage.tsx:193
+msgid "已选 {0} 场"
+msgstr "已选 {0} 场"
+
+#. placeholder {0}: selected.size
+#: src/pages/LibraryPage.tsx:203
+msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
+msgstr "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
+
+#. placeholder {0}: left.name
+#: src/pages/players/PlayerComparePanel.tsx:143
+msgid "已选 {0}，还差一名"
+msgstr "已选 {0}，还差一名"
+
+#: src/pages/EvidencePage.tsx:230
+msgid "已选 1 条证据"
+msgstr "已选 1 条证据"
 
 #: src/design/timeline/ClipView.tsx:113
 msgid "已选中"
@@ -612,13 +1375,52 @@ msgstr "已选中 {0}"
 msgid "应用"
 msgstr "应用"
 
+#: src/pages/library/ColumnConfigDialog.tsx:70
+msgctxt "dialog-confirm"
+msgid "应用"
+msgstr "应用"
+
+#: src/pages/delivery/TaskDetailBody.tsx:100
+msgid "开始"
+msgstr "开始"
+
+#: src/pages/delivery/taskDetailModel.tsx:133
+msgid "开始位置采样"
+msgstr "开始位置采样"
+
+#: src/pages/library/LibraryInspector.tsx:143
+#: src/pages/library/LibraryInspector.tsx:162
+msgid "开始分析"
+msgstr "开始分析"
+
+#: src/pages/delivery/taskDetailModel.tsx:129
+msgid "开始校验输入文件"
+msgstr "开始校验输入文件"
+
+#: src/pages/library/AddWatchDirectoryDialog.tsx:81
+msgid "开始监听"
+msgstr "开始监听"
+
+#: src/pages/delivery/taskDetailModel.tsx:131
+msgid "开始解析比赛数据"
+msgstr "开始解析比赛数据"
+
 #: src/domain/media/Transport.tsx:222
 msgid "当前时间"
 msgstr "当前时间"
 
+#: src/pages/evidence/EvidenceEmpty.tsx:111
+msgid "当前条件："
+msgstr "当前条件："
+
 #: src/domain/map/HeatLayer.tsx:155
 msgid "当前条件下没有采样点，因此没有密度可比。"
 msgstr "当前条件下没有采样点，因此没有密度可比。"
+
+#. placeholder {0}: distribution.sampleCount
+#: src/pages/players/PlayerHeatmapPanel.tsx:177
+msgid "当前统计：{subject}，共 {0} 个采样点。"
+msgstr "当前统计：{subject}，共 {0} 个采样点。"
 
 #: src/domain/task/taskVocabulary.tsx:28
 msgid "录制"
@@ -632,7 +1434,11 @@ msgstr "录制完成后会自动抽帧；也可以先在时间轴上按时间预
 msgid "录制环境未就绪"
 msgstr "录制环境未就绪"
 
-#: src/app/command/commandRegistry.ts:182
+#: src/pages/delivery/OutputsView.tsx:50
+msgid "录制结果"
+msgstr "录制结果"
+
+#: src/app/command/commandRegistry.ts:191
 #: src/app/shell/navigation.tsx:100
 #: src/pages/RecordingPage.tsx:25
 msgid "录制计划"
@@ -642,11 +1448,28 @@ msgstr "录制计划"
 msgid "录制页把镜头逐个排好并给出预览，确认后交给游戏内录制，进度回到任务记录。"
 msgstr "录制页把镜头逐个排好并给出预览，确认后交给游戏内录制，进度回到任务记录。"
 
+#: src/pages/library/SaveViewDialog.tsx:71
+msgid "待剪素材"
+msgstr "待剪素材"
+
+#: src/pages/evidence/EvidenceAnnotations.tsx:104
+msgid "待处理"
+msgstr "待处理"
+
+#: src/pages/HomePage.tsx:55
+msgid "待确认的方案"
+msgstr "待确认的方案"
+
+#: src/pages/library/LibraryFilters.tsx:46
+#: src/pages/library/libraryFormat.ts:122
+msgid "待索引"
+msgstr "待索引"
+
 #: src/design/primitives/Field.tsx:84
 msgid "必填"
 msgstr "必填"
 
-#: src/app/command/commandRegistry.ts:186
+#: src/app/command/commandRegistry.ts:195
 #: src/app/shell/navigation.tsx:101
 #: src/pages/MontagePage.tsx:18
 msgid "快速合辑"
@@ -660,8 +1483,9 @@ msgstr "总时长"
 msgid "恐怖分子"
 msgstr "恐怖分子"
 
-#: src/app/command/commandRegistry.ts:216
+#: src/app/command/commandRegistry.ts:225
 #: src/app/routeCrumb.ts:51
+#: src/pages/delivery/TaskRecordRail.tsx:84
 #: src/pages/RecoveryPage.tsx:25
 msgid "恢复中心"
 msgstr "恢复中心"
@@ -670,21 +1494,61 @@ msgstr "恢复中心"
 msgid "恢复中心处理损坏的索引、残留的中间文件和被中断的任务，每一项都写明它会动什么。"
 msgstr "恢复中心处理损坏的索引、残留的中间文件和被中断的任务，每一项都写明它会动什么。"
 
+#: src/pages/library/ColumnConfigDialog.tsx:99
+msgid "恢复默认"
+msgstr "恢复默认"
+
 #: src/design/feedback/Notice.tsx:110
 msgid "成功"
 msgstr "成功"
 
-#: src/pages/HomePage.tsx:34
-msgid "打开 Demo 资料库"
-msgstr "打开 Demo 资料库"
+#. placeholder {0}: comparePlayers[0]?.name
+#: src/pages/PlayersPage.tsx:266
+msgid "打开 {0} 的档案"
+msgstr "打开 {0} 的档案"
+
+#. placeholder {0}: demo.display_name
+#: src/pages/library/LibraryCards.tsx:158
+msgid "打开 {0} 的详情"
+msgstr "打开 {0} 的详情"
+
+#: src/pages/history/MatchHistoryTable.tsx:159
+msgid "打开工作区"
+msgstr "打开工作区"
+
+#: src/pages/delivery/useTaskActions.tsx:212
+#: src/pages/delivery/useTaskActions.tsx:244
+msgid "打开工程"
+msgstr "打开工程"
+
+#: src/pages/players/PlayerComparePanel.tsx:174
+msgid "打开档案"
+msgstr "打开档案"
+
+#: src/pages/library/LibraryInspector.tsx:139
+#: src/pages/library/LibraryInspector.tsx:152
+msgid "打开比赛工作区"
+msgstr "打开比赛工作区"
+
+#: src/pages/EvidencePage.tsx:238
+msgid "批量注释"
+msgstr "批量注释"
 
 #: src/app/boundary/RouteBoundary.tsx:141
 msgid "找不到这个页面"
 msgstr "找不到这个页面"
 
+#: src/pages/TaskDetailPage.tsx:75
+msgid "找不到这条任务"
+msgstr "找不到这条任务"
+
 #: src/domain/task/TaskDetail.tsx:204
 msgid "技术细节"
 msgstr "技术细节"
+
+#: src/pages/library/ImportDemoDialog.tsx:126
+msgid "把 .dem 或 .zip 拖到这里"
+msgstr "把 .dem 或 .zip 拖到这里"
 
 #: src/domain/match/matchEnums.ts:104
 msgid "拆弹成功"
@@ -694,17 +1558,37 @@ msgstr "拆弹成功"
 msgid "按住 Ctrl 与左右方向键可以调整片段顺序。"
 msgstr "按住 Ctrl 与左右方向键可以调整片段顺序。"
 
-#: src/pages/EvidencePage.tsx:32
-msgid "按选手、事件类型和时间范围跨比赛检索证据，命中的片段可以直接加入视频。"
-msgstr "按选手、事件类型和时间范围跨比赛检索证据，命中的片段可以直接加入视频。"
+#: src/pages/players/PlayerMapTable.tsx:69
+msgid "按地图"
+msgstr "按地图"
+
+#: src/pages/players/PlayerMapTable.tsx:72
+msgid "按地图的成绩"
+msgstr "按地图的成绩"
+
+#: src/pages/delivery/TaskRecordView.tsx:101
+msgid "按状态筛选任务"
+msgstr "按状态筛选任务"
+
+#: src/pages/delivery/OutputsView.tsx:133
+msgid "按类型筛选输出"
+msgstr "按类型筛选输出"
 
 #: src/app/command/CommandPalette.tsx:247
 msgid "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
 msgstr "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
 
+#: src/pages/PlayerProfilePage.tsx:193
+msgid "换一张图"
+msgstr "换一张图"
+
 #: src/domain/task/taskVocabulary.tsx:44
 msgid "排队中"
 msgstr "排队中"
+
+#: src/pages/delivery/taskModel.tsx:160
+msgid "排队等待解析"
+msgstr "排队等待解析"
 
 #: src/design/feedback/Notice.tsx:108
 msgid "提示"
@@ -714,6 +1598,16 @@ msgstr "提示"
 #: src/app/command/CommandPalette.tsx:339
 msgid "搜索比赛、选手、证据、页面和动作"
 msgstr "搜索比赛、选手、证据、页面和动作"
+
+#: src/pages/library/LibraryFilters.tsx:158
+#: src/pages/library/LibraryFilters.tsx:159
+msgid "搜索比赛、选手或文件名"
+msgstr "搜索比赛、选手或文件名"
+
+#: src/pages/PlayersPage.tsx:234
+#: src/pages/PlayersPage.tsx:235
+msgid "搜索选手或别名"
+msgstr "搜索选手或别名"
 
 #: src/design/timeline/TimelinePrototype.tsx:155
 msgid "撤销"
@@ -765,13 +1659,50 @@ msgstr "放大"
 msgid "放宽时间范围通常最有效。"
 msgstr "放宽时间范围通常最有效。"
 
+#: src/pages/players/PlayerComparePanel.tsx:228
+msgid "数据不可用"
+msgstr "数据不可用"
+
 #: src/pages/RecoveryPage.tsx:26
 msgid "数据库、缓存与中断任务的修复"
 msgstr "数据库、缓存与中断任务的修复"
 
+#: src/pages/library/LibraryInspector.tsx:224
+msgid "文件"
+msgstr "文件"
+
+#: src/pages/delivery/OutputCard.tsx:99
+msgid "文件不在原位"
+msgstr "文件不在原位"
+
 #: src/pages/SettingsPage.tsx:23
 msgid "文件与目录"
 msgstr "文件与目录"
+
+#: src/pages/delivery/OutputsView.tsx:52
+#: src/pages/library/LibraryFilters.tsx:51
+#: src/pages/library/libraryFormat.ts:127
+msgid "文件缺失"
+msgstr "文件缺失"
+
+#: src/pages/delivery/OutputsView.tsx:94
+#: src/pages/home/RecentOutputsPanel.tsx:48
+msgid "无法定位这个文件。"
+msgstr "无法定位这个文件。"
+
+#: src/pages/library/libraryColumns.tsx:94
+#: src/pages/library/libraryColumns.tsx:95
+msgid "日期"
+msgstr "日期"
+
+#: src/pages/library/libraryColumns.tsx:102
+#: src/pages/library/libraryColumns.tsx:103
+msgid "时长"
+msgstr "时长"
+
+#: src/pages/history/MatchHistoryTable.tsx:131
+msgid "时间"
+msgstr "时间"
 
 #: src/domain/match/matchEnums.ts:105
 msgid "时间耗尽"
@@ -780,6 +1711,10 @@ msgstr "时间耗尽"
 #: src/domain/media/Transport.tsx:185
 msgid "暂停"
 msgstr "暂停"
+
+#: src/pages/delivery/taskModel.tsx:280
+msgid "暂无可用的恢复动作"
+msgstr "暂无可用的恢复动作"
 
 #: src/design/layout/OverflowMenu.tsx:169
 msgid "更多"
@@ -793,6 +1728,22 @@ msgstr "更多操作"
 msgid "更多视图"
 msgstr "更多视图"
 
+#: src/pages/library/AddWatchDirectoryDialog.tsx:112
+msgid "服务按目录递归监听，暂不能只监听顶层"
+msgstr "服务按目录递归监听，暂不能只监听顶层"
+
+#: src/pages/TaskDetailPage.tsx:90
+msgid "服务没有返回这条任务记录。"
+msgstr "服务没有返回这条任务记录。"
+
+#: src/pages/HistoryPage.tsx:211
+msgid "服务端的下载接口还没有「下载后自动分析」这个选项"
+msgstr "服务端的下载接口还没有「下载后自动分析」这个选项"
+
+#: src/pages/history/MatchHistoryTable.tsx:43
+msgid "未下载"
+msgstr "未下载"
+
 #: src/design/feedback/StageBar.tsx:66
 msgid "未开始"
 msgstr "未开始"
@@ -805,23 +1756,35 @@ msgstr "未知"
 msgid "未知原因"
 msgstr "未知原因"
 
+#: src/pages/history/MatchHistoryTable.tsx:198
+msgid "未知地图"
+msgstr "未知地图"
+
+#: src/pages/library/LibraryInspector.tsx:102
+msgid "未选中比赛"
+msgstr "未选中比赛"
+
 #: src/design/timeline/TimelinePrototype.tsx:184
 msgid "未选中片段"
 msgstr "未选中片段"
 
-#: src/app/boundary/ServiceGate.tsx:249
+#: src/pages/library/libraryFormat.ts:157
+msgid "本地文件"
+msgstr "本地文件"
+
+#: src/app/boundary/ServiceGate.tsx:205
 msgid "本地服务在线"
 msgstr "本地服务在线"
 
-#: src/app/boundary/ServiceGate.tsx:250
+#: src/app/boundary/ServiceGate.tsx:206
 msgid "本地服务未连接"
 msgstr "本地服务未连接"
 
-#: src/app/boundary/ServiceGate.tsx:302
+#: src/app/boundary/ServiceGate.tsx:258
 msgid "本地服务未连接，分析、录制和导出暂时无法开始"
 msgstr "本地服务未连接，分析、录制和导出暂时无法开始"
 
-#: src/app/boundary/ServiceGate.tsx:210
+#: src/data/serviceAction.tsx:76
 msgid "本地服务未连接，恢复后无需刷新页面即可继续"
 msgstr "本地服务未连接，恢复后无需刷新页面即可继续"
 
@@ -829,25 +1792,151 @@ msgstr "本地服务未连接，恢复后无需刷新页面即可继续"
 msgid "本地服务离线"
 msgstr "本地服务离线"
 
+#: src/pages/library/SaveViewDialog.tsx:83
+msgid "本轮的视图只保留到应用关闭为止"
+msgstr "本轮的视图只保留到应用关闭为止"
+
 #: src/pages/PagePlaceholder.tsx:38
 msgid "本页在阶段 {phase} 实现"
 msgstr "本页在阶段 {phase} 实现"
 
-#: src/pages/PlayerProfilePage.tsx:39
-msgid "档案页给出这名选手的出场、命中分布与近期趋势，并链接回他出现过的比赛。"
-msgstr "档案页给出这名选手的出场、命中分布与近期趋势，并链接回他出现过的比赛。"
+#. placeholder {0}: counts.downloaded
+#: src/pages/HistoryPage.tsx:174
+msgid "本页已入库 {0}"
+msgstr "本页已入库 {0}"
+
+#. placeholder {0}: counts.expired
+#: src/pages/HistoryPage.tsx:177
+msgid "本页已过期 {0}"
+msgstr "本页已过期 {0}"
+
+#. placeholder {0}: counts.available
+#: src/pages/HistoryPage.tsx:171
+msgid "本页未下载 {0}"
+msgstr "本页未下载 {0}"
+
+#: src/pages/evidence/EvidenceConditions.tsx:203
+msgid "条件"
+msgstr "条件"
+
+#: src/pages/evidence/EvidenceDetail.tsx:140
+#: src/pages/library/libraryColumns.tsx:120
+#: src/pages/library/libraryColumns.tsx:121
+#: src/pages/library/LibraryFilters.tsx:169
+#: src/pages/library/LibraryInspector.tsx:226
+msgid "来源"
+msgstr "来源"
+
+#: src/pages/delivery/OutputCard.tsx:134
+msgid "来源任务"
+msgstr "来源任务"
+
+#: src/pages/delivery/TaskDetailBody.tsx:135
+msgid "来源对象"
+msgstr "来源对象"
+
+#: src/pages/library/libraryColumns.tsx:210
+msgid "查看"
+msgstr "查看"
+
+#. placeholder {0}: left.name
+#: src/pages/players/PlayerComparePanel.tsx:186
+msgid "查看 {0} 的档案"
+msgstr "查看 {0} 的档案"
+
+#: src/pages/delivery/useTaskActions.tsx:239
+msgid "查看阶段"
+msgstr "查看阶段"
+
+#: src/pages/delivery/useTaskActions.tsx:216
+msgid "查看阶段日志"
+msgstr "查看阶段日志"
+
+#: src/pages/library/LibraryFilters.tsx:170
+#: src/pages/library/LibraryInspector.tsx:234
+msgid "标签"
+msgstr "标签"
+
+#: src/pages/evidence/EvidenceAnnotations.tsx:123
+msgid "标记已处理"
+msgstr "标记已处理"
+
+#: src/pages/library/ImportDemoDialog.tsx:135
+msgid "校验文件头与大小；同一份内容不会重复入库"
+msgstr "校验文件头与大小；同一份内容不会重复入库"
+
+#: src/pages/delivery/taskModel.tsx:159
+msgid "校验输入"
+msgstr "校验输入"
+
+#: src/pages/library/LibraryInspector.tsx:174
+msgid "桌面端尚未提供“在文件管理器中显示”的命令"
+msgstr "桌面端尚未提供“在文件管理器中显示”的命令"
+
+#: src/pages/library/libraryColumns.tsx:198
+msgid "桌面端尚未提供重新定位 Demo 文件的命令"
+msgstr "桌面端尚未提供重新定位 Demo 文件的命令"
+
+#: src/pages/PlayersPage.tsx:155
+msgid "档案"
+msgstr "档案"
+
+#: src/pages/PlayerProfilePage.tsx:154
+msgid "档案是只读的，重试不会改动任何数据。"
+msgstr "档案是只读的，重试不会改动任何数据。"
+
+#: src/pages/evidence/EvidenceConditions.tsx:195
+msgid "检索"
+msgstr "检索"
+
+#. placeholder {0}: error.message
+#: src/pages/evidence/EvidenceResults.tsx:128
+msgid "检索没能完成：{0}"
+msgstr "检索没能完成：{0}"
+
+#: src/pages/evidence/EvidenceConditions.tsx:189
+msgid "检索证据"
+msgstr "检索证据"
 
 #: src/pages/MatchWorkspacePage.tsx:41
 msgid "概览"
 msgstr "概览"
 
+#: src/pages/library/LibraryInspector.tsx:218
+msgid "正在分析"
+msgstr "正在分析"
+
+#: src/pages/delivery/OutputCard.tsx:176
+msgid "正在加载输出"
+msgstr "正在加载输出"
+
+#: src/pages/HistoryPage.tsx:159
+msgid "正在同步…"
+msgstr "正在同步…"
+
 #: src/app/boundary/RouteBoundary.tsx:73
 msgid "正在打开这个页面"
 msgstr "正在打开这个页面"
 
+#: src/pages/evidence/EvidenceResults.tsx:148
+msgid "正在检索证据"
+msgstr "正在检索证据"
+
 #: src/domain/media/FilmStrip.tsx:77
 msgid "正在生成缩略图"
 msgstr "正在生成缩略图"
+
+#: src/pages/library/LibraryInspector.tsx:107
+msgid "正在读取"
+msgstr "正在读取"
+
+#: src/pages/TaskDetailPage.tsx:103
+msgid "正在读取任务详情"
+msgstr "正在读取任务详情"
+
+#: src/pages/HistoryPage.tsx:258
+msgid "正在读取比赛历史"
+msgstr "正在读取比赛历史"
 
 #: src/domain/media/Waveform.tsx:129
 msgid "正在读取波形"
@@ -857,19 +1946,32 @@ msgstr "正在读取波形"
 msgid "正在读取片段"
 msgstr "正在读取片段"
 
+#: src/pages/PlayersPage.tsx:308
+msgid "正在读取玩家目录"
+msgstr "正在读取玩家目录"
+
+#: src/pages/library/WatchDirectoriesDrawer.tsx:95
+msgid "正在读取监听状态"
+msgstr "正在读取监听状态"
+
 #: src/domain/map/MapCanvas.tsx:215
 msgid "正在读取空间证据"
 msgstr "正在读取空间证据"
 
-#: src/app/boundary/ServiceGate.tsx:251
+#: src/pages/library/LibraryCards.tsx:90
+#: src/pages/library/LibraryTable.tsx:127
+msgid "正在读取资料库"
+msgstr "正在读取资料库"
+
+#: src/app/boundary/ServiceGate.tsx:207
 msgid "正在连接本地服务"
 msgstr "正在连接本地服务"
 
-#: src/app/boundary/ServiceGate.tsx:209
+#: src/data/serviceAction.tsx:75
 msgid "正在连接本地服务，稍后即可使用"
 msgstr "正在连接本地服务，稍后即可使用"
 
-#: src/app/boundary/ServiceGate.tsx:297
+#: src/app/boundary/ServiceGate.tsx:253
 msgid "正在重连"
 msgstr "正在重连"
 
@@ -877,13 +1979,51 @@ msgstr "正在重连"
 msgid "此动作当前不可用：{disabledReason}"
 msgstr "此动作当前不可用：{disabledReason}"
 
-#: src/domain/match/matchEnums.ts:149
+#: src/pages/evidence/EvidenceConditions.tsx:75
+#: src/pages/evidence/EvidenceConditions.tsx:86
+#: src/pages/evidence/EvidenceDetail.tsx:128
+msgid "武器"
+msgstr "武器"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/conditionSummary.tsx:32
+msgid "武器 {0}"
+msgstr "武器 {0}"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/EvidenceConditions.tsx:101
+msgid "武器：{0}"
+msgstr "武器：{0}"
+
+#: src/pages/players/PlayerHeatmapPanel.tsx:73
+#: src/pages/PlayersPage.tsx:131
 msgid "死亡"
 msgstr "死亡"
 
-#: src/domain/match/matchEnums.ts:201
+#: src/domain/match/matchEnums.ts:160
+msgctxt "evidence-kind"
+msgid "死亡"
+msgstr "死亡"
+
+#: src/pages/players/PlayerHeatmapPanel.tsx:84
+msgid "死亡位置"
+msgstr "死亡位置"
+
+#: src/domain/match/matchEnums.ts:209
 msgid "残局"
 msgstr "残局"
+
+#: src/pages/players/PlayerComparePanel.tsx:225
+msgid "段位分布"
+msgstr "段位分布"
+
+#: src/pages/PlayerProfilePage.tsx:250
+msgid "段位历史不可用：这批 Demo 不含段位字段。"
+msgstr "段位历史不可用：这批 Demo 不含段位字段。"
+
+#: src/pages/history/MatchHistoryTable.tsx:138
+msgid "比分"
+msgstr "比分"
 
 #. placeholder {0}: spoken(teamA)
 #. placeholder {1}: spoken(teamB)
@@ -891,7 +2031,15 @@ msgstr "残局"
 msgid "比分 {0} 比 {1}"
 msgstr "比分 {0} 比 {1}"
 
-#: src/app/command/commandRegistry.ts:78
+#: src/pages/history/MatchHistoryTable.tsx:117
+#: src/pages/library/libraryColumns.tsx:73
+#: src/pages/library/libraryColumns.tsx:74
+#: src/pages/PlayersPage.tsx:91
+msgid "比赛"
+msgstr "比赛"
+
+#: src/app/command/commandRegistry.ts:87
+msgctxt "palette-group"
 msgid "比赛"
 msgstr "比赛"
 
@@ -899,19 +2047,58 @@ msgstr "比赛"
 msgid "比赛信息"
 msgstr "比赛信息"
 
-#: src/app/command/commandRegistry.ts:163
+#: src/app/command/commandRegistry.ts:172
 #: src/app/shell/navigation.tsx:90
-#: src/pages/HistoryPage.tsx:18
+#: src/pages/HistoryPage.tsx:132
 msgid "比赛历史"
 msgstr "比赛历史"
+
+#: src/pages/HistoryPage.tsx:226
+msgid "比赛历史没能读出来：{readError}"
+msgstr "比赛历史没能读出来：{readError}"
 
 #: src/app/routeCrumb.ts:46
 msgid "比赛工作区"
 msgstr "比赛工作区"
 
+#: src/pages/players/PlayerComparePanel.tsx:70
+msgid "比赛数"
+msgstr "比赛数"
+
+#: src/pages/evidence/EvidenceDetail.tsx:143
+msgid "比赛日期"
+msgstr "比赛日期"
+
+#: src/pages/library/LibraryInspector.tsx:227
+msgid "比赛时间"
+msgstr "比赛时间"
+
+#: src/pages/library/LibraryInspector.tsx:100
+#: src/pages/library/LibraryInspector.tsx:101
+#: src/pages/library/LibraryInspector.tsx:128
+#: src/pages/library/LibraryInspector.tsx:129
+msgid "比赛详情"
+msgstr "比赛详情"
+
+#: src/pages/players/PlayerComparePanel.tsx:125
+#: src/pages/players/PlayerComparePanel.tsx:140
+#: src/pages/players/PlayerComparePanel.tsx:164
+msgid "比较"
+msgstr "比较"
+
+#. placeholder {0}: left.name
+#. placeholder {1}: right.name
+#: src/pages/players/PlayerComparePanel.tsx:168
+msgid "比较 {0} 与 {1}"
+msgstr "比较 {0} 与 {1}"
+
 #: src/app/command/CommandPalette.tsx:242
 msgid "没有匹配的结果"
 msgstr "没有匹配的结果"
+
+#: src/pages/PlayersPage.tsx:313
+msgid "没有匹配的选手"
+msgstr "没有匹配的选手"
 
 #: src/design/timeline/TimelinePrototype.tsx:64
 msgid "没有变化"
@@ -937,17 +2124,69 @@ msgstr "没有找到 {mapName} 的 overview 变换，世界坐标无法落到画
 msgid "波纹删除"
 msgstr "波纹删除"
 
-#: src/pages/EvidencePage.tsx:25
+#: src/pages/evidence/EvidenceDetail.tsx:156
+#: src/pages/EvidencePage.tsx:198
 msgid "注释"
 msgstr "注释"
+
+#: src/pages/EvidencePage.tsx:88
+msgid "注释与录制队列的写入尚未接通"
+msgstr "注释与录制队列的写入尚未接通"
+
+#: src/pages/evidence/EvidenceAnnotations.tsx:57
+msgid "注释没有被改动，重试是安全的。"
+msgstr "注释没有被改动，重试是安全的。"
+
+#. placeholder {0}: error.message
+#: src/pages/evidence/EvidenceAnnotations.tsx:59
+msgid "注释没能读出来：{0}"
+msgstr "注释没能读出来：{0}"
+
+#: src/pages/LibraryPage.tsx:222
+#: src/pages/LibraryPage.tsx:223
+msgid "添加标签"
+msgstr "添加标签"
 
 #: src/domain/media/ClipStrip.tsx:334
 msgid "添加片段"
 msgstr "添加片段"
 
+#: src/pages/library/AddWatchDirectoryDialog.tsx:79
+msgid "添加监听目录"
+msgstr "添加监听目录"
+
+#: src/pages/library/WatchDirectoriesDrawer.tsx:80
+#: src/pages/LibraryPage.tsx:191
+msgid "添加目录"
+msgstr "添加目录"
+
+#: src/pages/DeliveryPage.tsx:111
+#: src/pages/DeliveryPage.tsx:121
+msgid "清理无效记录"
+msgstr "清理无效记录"
+
+#: src/pages/PlayersPage.tsx:334
+msgid "清空搜索"
+msgstr "清空搜索"
+
+#: src/pages/evidence/EvidenceEmpty.tsx:124
+#: src/pages/library/LibraryCards.tsx:100
+#: src/pages/library/LibraryTable.tsx:136
+msgid "清空条件"
+msgstr "清空条件"
+
+#: src/pages/players/PlayerComparePanel.tsx:180
+#: src/pages/PlayersPage.tsx:272
+msgid "清空选择"
+msgstr "清空选择"
+
 #: src/pages/SettingsPage.tsx:24
 msgid "游戏与录制"
 msgstr "游戏与录制"
+
+#: src/pages/library/LibraryInspector.tsx:168
+msgid "游戏内回放"
+msgstr "游戏内回放"
 
 #: src/domain/task/taskVocabulary.tsx:62
 msgid "源文件不在原位"
@@ -960,6 +2199,10 @@ msgstr "滑移"
 #: src/domain/match/matchEnums.ts:103
 msgid "炸弹引爆"
 msgstr "炸弹引爆"
+
+#: src/pages/evidence/EvidenceDetail.tsx:65
+msgid "点一行结果，这里会给出它的比赛、回合、tick 和可以做的事。"
+msgstr "点一行结果，这里会给出它的比赛、回合、tick 和可以做的事。"
 
 #: src/domain/match/RoundTimeline.tsx:165
 msgid "点击回合进入逐回合复盘"
@@ -981,10 +2224,29 @@ msgstr "热力叠加：{subject}，共 {sampleCount} 个采样点，最密处 {m
 msgid "热力叠加：没有采样点"
 msgstr "热力叠加：没有采样点"
 
+#. placeholder {0}: error.message
+#: src/pages/players/PlayerHeatmapPanel.tsx:143
+msgid "热图没能读出来：{0}"
+msgstr "热图没能读出来：{0}"
+
+#: src/pages/players/PlayerHeatmapPanel.tsx:137
+msgid "热图种类"
+msgstr "热图种类"
+
 #: src/domain/map/EngagementLayer.tsx:104
-#: src/domain/match/matchEnums.ts:204
+#: src/domain/match/matchEnums.ts:212
+#: src/pages/evidence/EvidenceDetail.tsx:134
+#: src/pages/evidence/EvidenceResults.tsx:71
 msgid "爆头"
 msgstr "爆头"
+
+#: src/pages/players/PlayerComparePanel.tsx:63
+#: src/pages/players/PlayerMapTable.tsx:53
+#: src/pages/players/PlayerTrend.tsx:66
+#: src/pages/players/PlayerTrend.tsx:77
+#: src/pages/PlayersPage.tsx:115
+msgid "爆头率"
+msgstr "爆头率"
 
 #: src/domain/task/taskVocabulary.tsx:74
 msgctxt "task-progress"
@@ -999,20 +2261,42 @@ msgstr "片段不在时间轴上"
 msgid "片段顺序，共 {count} 段，合计 {total}"
 msgstr "片段顺序，共 {count} 段，合计 {total}"
 
+#: src/pages/history/MatchHistoryTable.tsx:145
+#: src/pages/library/libraryColumns.tsx:128
+#: src/pages/library/libraryColumns.tsx:129
+#: src/pages/library/LibraryFilters.tsx:168
+msgid "状态"
+msgstr "状态"
+
 #: src/pages/MatchWorkspacePage.tsx:43
 msgid "玩家"
 msgstr "玩家"
 
 #: src/app/routeCrumb.ts:47
-#: src/pages/PlayerProfilePage.tsx:32
+#: src/pages/PlayerProfilePage.tsx:130
 msgid "玩家档案"
 msgstr "玩家档案"
 
-#: src/app/command/commandRegistry.ts:167
+#: src/app/command/commandRegistry.ts:176
 #: src/app/shell/navigation.tsx:91
-#: src/pages/PlayersPage.tsx:13
+#: src/pages/PlayersPage.tsx:212
+#: src/pages/PlayersPage.tsx:292
 msgid "玩家目录"
 msgstr "玩家目录"
+
+#: src/pages/PlayersPage.tsx:287
+msgid "玩家目录没能读出来：{error}"
+msgstr "玩家目录没能读出来：{error}"
+
+#: src/pages/home/HomeTasksPanel.tsx:78
+msgid "现在没有任务在跑"
+msgstr "现在没有任务在跑"
+
+#: src/pages/delivery/OutputsView.tsx:174
+#: src/pages/home/RecentOutputsPanel.tsx:92
+#: src/pages/HomePage.tsx:81
+msgid "用 Agent 制作视频"
+msgstr "用 Agent 制作视频"
 
 #: src/domain/task/TaskDetail.tsx:252
 msgid "用户语言；实现细节收在「技术细节」里"
@@ -1027,15 +2311,39 @@ msgctxt "task-progress"
 msgid "百分比"
 msgstr "百分比"
 
-#: src/pages/PlayersPage.tsx:17
-msgid "目录按出场数与近期表现排序，点进一名选手可以看他的档案与趋势。"
-msgstr "目录按出场数与近期表现排序，点进一名选手可以看他的档案与趋势。"
+#: src/pages/library/libraryFormat.ts:155
+#: src/pages/library/WatchDirectoriesDrawer.tsx:71
+#: src/pages/LibraryPage.tsx:324
+#: src/pages/LibraryPage.tsx:330
+msgid "监听目录"
+msgstr "监听目录"
 
-#: src/domain/match/matchEnums.ts:154
+#: src/pages/library/AddWatchDirectoryDialog.tsx:87
+msgid "目录"
+msgstr "目录"
+
+#: src/pages/delivery/OutputsView.tsx:129
+msgid "目录很大，只扫描了一部分"
+msgstr "目录很大，只扫描了一部分"
+
+#: src/pages/PlayersPage.tsx:317
+msgid "目录是从已分析的比赛里累积出来的。分析一场之后，出场的选手就会出现在这里。"
+msgstr "目录是从已分析的比赛里累积出来的。分析一场之后，出场的选手就会出现在这里。"
+
+#: src/pages/PlayersPage.tsx:285
+msgid "目录是只读的，重试不会改动任何数据。"
+msgstr "目录是只读的，重试不会改动任何数据。"
+
+#: src/pages/evidence/EvidenceConditions.tsx:55
 msgid "目标事件"
 msgstr "目标事件"
 
-#: src/domain/match/matchEnums.ts:205
+#: src/domain/match/matchEnums.ts:162
+msgctxt "evidence-kind"
+msgid "目标事件"
+msgstr "目标事件"
+
+#: src/domain/match/matchEnums.ts:213
 msgid "盲狙"
 msgstr "盲狙"
 
@@ -1048,12 +2356,28 @@ msgid "相机起点"
 msgstr "相机起点"
 
 #: src/design/timeline/TimelinePrototype.tsx:202
+#: src/pages/delivery/OutputsView.tsx:148
+#: src/pages/home/RecentOutputsPanel.tsx:73
 msgid "知道了"
 msgstr "知道了"
 
 #: src/domain/task/taskVocabulary.tsx:60
 msgid "磁盘空间不足"
 msgstr "磁盘空间不足"
+
+#: src/pages/LibraryPage.tsx:310
+msgid "视图"
+msgstr "视图"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/conditionSummary.tsx:24
+msgid "种类 {0}"
+msgstr "种类 {0}"
+
+#. placeholder {0}: familyLabel(condition.value as EvidenceFamily)
+#: src/pages/evidence/EvidenceConditions.tsx:93
+msgid "种类：{0}"
+msgstr "种类：{0}"
 
 #: src/domain/map/PathLayer.tsx:109
 msgid "移动路线"
@@ -1063,12 +2387,32 @@ msgstr "移动路线"
 msgid "移动路线：这一段没有位置样本"
 msgstr "移动路线：这一段没有位置样本"
 
+#: src/pages/evidence/EvidenceConditions.tsx:212
+msgid "移除条件"
+msgstr "移除条件"
+
+#: src/pages/delivery/OutputCard.tsx:145
+msgid "移除记录"
+msgstr "移除记录"
+
+#: src/pages/delivery/OutputsView.tsx:116
+#: src/pages/home/RecentOutputsPanel.tsx:55
+msgid "移除记录失败。"
+msgstr "移除记录失败。"
+
 #: src/design/feedback/StageBar.tsx:121
+#: src/pages/delivery/taskModel.tsx:215
 msgid "稳定"
 msgstr "稳定"
 
+#: src/pages/evidence/EvidenceDetail.tsx:146
+msgid "空间证据"
+msgstr "空间证据"
+
 #: src/domain/map/EngagementLayer.tsx:103
-#: src/domain/match/matchEnums.ts:203
+#: src/domain/match/matchEnums.ts:211
+#: src/pages/evidence/EvidenceDetail.tsx:133
+#: src/pages/evidence/EvidenceResults.tsx:71
 msgid "穿墙"
 msgstr "穿墙"
 
@@ -1080,10 +2424,17 @@ msgstr "窗口宽度不足 1100px，侧栏保持为图标条"
 msgid "窗口操作失败"
 msgstr "窗口操作失败"
 
+#. placeholder {0}: item.map_name ?? '—'
+#: src/pages/history/MatchHistoryTable.tsx:121
+msgid "竞技 · {0}"
+msgstr "竞技 · {0}"
+
+#. placeholder {0}: annotation.round
 #. placeholder {0}: evidence.round
 #. placeholder {0}: round.number
 #: src/domain/match/EvidenceRow.tsx:136
 #: src/domain/match/RoundTimeline.tsx:259
+#: src/pages/evidence/EvidenceAnnotations.tsx:97
 msgid "第 {0} 回合"
 msgstr "第 {0} 回合"
 
@@ -1108,11 +2459,41 @@ msgstr "等待确认"
 msgid "等待超时"
 msgstr "等待超时"
 
+#: src/pages/delivery/TaskDetailBody.tsx:127
+msgid "类型"
+msgstr "类型"
+
 #: src/design/timeline/TimelinePrototype.tsx:59
 msgid "素材已经到头了，没有可以滑移的余量"
 msgstr "素材已经到头了，没有可以滑移的余量"
 
-#: src/domain/match/matchEnums.ts:208
+#: src/pages/library/LibraryFilters.tsx:47
+#: src/pages/library/libraryFormat.ts:123
+msgid "索引中"
+msgstr "索引中"
+
+#: src/pages/library/LibraryFilters.tsx:50
+#: src/pages/library/libraryFormat.ts:126
+msgid "索引失败"
+msgstr "索引失败"
+
+#: src/pages/evidence/EvidenceResults.tsx:126
+msgid "索引没有被改动，重试是安全的。"
+msgstr "索引没有被改动，重试是安全的。"
+
+#: src/pages/evidence/EvidenceEmpty.tsx:87
+msgid "索引还在建立"
+msgstr "索引还在建立"
+
+#: src/pages/evidence/EvidenceEmpty.tsx:108
+msgid "索引里有 {indexedItems} 条证据，但这次检索一条也没匹配上。"
+msgstr "索引里有 {indexedItems} 条证据，但这次检索一条也没匹配上。"
+
+#: src/pages/evidence/EvidenceEmpty.tsx:68
+msgid "索引里还没有证据"
+msgstr "索引里还没有证据"
+
+#: src/domain/match/matchEnums.ts:216
 msgid "经济翻盘"
 msgstr "经济翻盘"
 
@@ -1121,6 +2502,7 @@ msgid "结束原因未知"
 msgstr "结束原因未知"
 
 #: src/design/feedback/StageBar.tsx:122
+#: src/pages/delivery/taskModel.tsx:216
 msgid "编码"
 msgstr "编码"
 
@@ -1149,11 +2531,36 @@ msgstr "缺少这张地图的雷达标定"
 msgid "聚焦选手"
 msgstr "聚焦选手"
 
-#: src/pages/LibraryPage.tsx:29
-msgid "表格视图"
-msgstr "表格视图"
+#: src/pages/library/libraryColumns.tsx:136
+#: src/pages/library/libraryColumns.tsx:137
+msgid "行操作"
+msgstr "行操作"
 
-#: src/app/command/commandRegistry.ts:210
+#: src/pages/LibraryPage.tsx:313
+msgid "表格"
+msgstr "表格"
+
+#: src/pages/delivery/taskDetailModel.tsx:132
+msgid "解析后复核输入"
+msgstr "解析后复核输入"
+
+#: src/pages/delivery/taskModel.tsx:161
+msgid "解析比赛数据"
+msgstr "解析比赛数据"
+
+#: src/pages/delivery/OutputCard.tsx:116
+msgid "记录仍在，文件已被移动或删除"
+msgstr "记录仍在，文件已被移动或删除"
+
+#: src/pages/delivery/OutputsView.tsx:113
+msgid "记录已移除，外部文件未被删除。"
+msgstr "记录已移除，外部文件未被删除。"
+
+#: src/pages/delivery/OutputsView.tsx:112
+msgid "记录已移除，文件仍在原处。"
+msgstr "记录已移除，文件仍在原处。"
+
+#: src/app/command/commandRegistry.ts:219
 #: src/app/shell/navigation.tsx:119
 #: src/pages/SettingsPage.tsx:35
 msgid "设置与诊断"
@@ -1163,24 +2570,63 @@ msgstr "设置与诊断"
 msgid "设置分应用、文件与目录、游戏与录制、AI 与 Agent、高级五节，诊断信息也在这一页。"
 msgstr "设置分应用、文件与目录、游戏与录制、AI 与 Agent、高级五节，诊断信息也在这一页。"
 
-#: src/app/command/commandRegistry.ts:80
-#: src/pages/EvidencePage.tsx:25
+#: src/pages/EvidencePage.tsx:198
 msgid "证据"
 msgstr "证据"
 
-#: src/app/command/commandRegistry.ts:170
+#: src/app/command/commandRegistry.ts:89
+msgctxt "palette-group"
+msgid "证据"
+msgstr "证据"
+
+#: src/pages/evidence/EvidenceEmpty.tsx:70
+msgid "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有一场进入证据索引，所以任何条件都会是零命中。"
+msgstr "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有一场进入证据索引，所以任何条件都会是零命中。"
+
+#: src/app/command/commandRegistry.ts:179
 #: src/app/shell/navigation.tsx:92
-#: src/pages/EvidencePage.tsx:24
+#: src/pages/EvidencePage.tsx:157
 msgid "证据检索"
 msgstr "证据检索"
+
+#: src/pages/EvidencePage.tsx:201
+msgid "证据检索视图"
+msgstr "证据检索视图"
+
+#: src/pages/evidence/EvidenceConditions.tsx:181
+msgid "证据种类"
+msgstr "证据种类"
+
+#: src/pages/evidence/EvidenceDetail.tsx:62
+#: src/pages/evidence/EvidenceDetail.tsx:80
+msgid "证据详情"
+msgstr "证据详情"
 
 #: src/design/layout/Inspector.tsx:233
 msgid "详情"
 msgstr "详情"
 
-#: src/pages/TaskDetailPage.tsx:36
-msgid "详情页给出这条任务的阶段进度与日志：启动、跳转、采集、稳定、编码、发布。"
-msgstr "详情页给出这条任务的阶段进度与日志：启动、跳转、采集、稳定、编码、发布。"
+#: src/pages/delivery/TaskRecordRail.tsx:47
+#: src/pages/delivery/TaskRecordView.tsx:81
+msgid "读取任务记录失败。"
+msgstr "读取任务记录失败。"
+
+#: src/pages/HistoryPage.tsx:224
+msgid "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
+msgstr "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
+
+#: src/pages/delivery/OutputsView.tsx:86
+#: src/pages/home/RecentOutputsPanel.tsx:83
+msgid "读取输出列表失败。"
+msgstr "读取输出列表失败。"
+
+#: src/pages/home/HomeTasksPanel.tsx:56
+msgid "读取进行中的任务失败。"
+msgstr "读取进行中的任务失败。"
+
+#: src/pages/delivery/TaskDetailBody.tsx:75
+msgid "读取阶段日志失败。"
+msgstr "读取阶段日志失败。"
 
 #: src/design/feedback/Notice.tsx:112
 msgid "警告"
@@ -1190,13 +2636,13 @@ msgstr "警告"
 msgid "资料库"
 msgstr "资料库"
 
-#: src/pages/LibraryPage.tsx:36
-msgid "资料库列出已导入的比赛，右侧 Inspector 承载单场详情，导入与目录监听也在这一页。"
-msgstr "资料库列出已导入的比赛，右侧 Inspector 承载单场详情，导入与目录监听也在这一页。"
-
-#: src/domain/match/matchEnums.ts:207
+#: src/domain/match/matchEnums.ts:215
 msgid "赛点"
 msgstr "赛点"
+
+#: src/pages/players/PlayerTrend.tsx:112
+msgid "趋势指标"
+msgstr "趋势指标"
 
 #: src/domain/map/EngagementLayer.tsx:113
 msgid "距离 {metres}m"
@@ -1214,12 +2660,13 @@ msgstr "跳到入点"
 msgid "跳到出点"
 msgstr "跳到出点"
 
-#: src/app/command/commandRegistry.ts:137
+#: src/app/command/commandRegistry.ts:146
 msgctxt "palette-hint"
 msgid "跳转"
 msgstr "跳转"
 
 #: src/design/feedback/StageBar.tsx:119
+#: src/pages/delivery/taskModel.tsx:213
 msgctxt "recording-stage"
 msgid "跳转"
 msgstr "跳转"
@@ -1237,9 +2684,15 @@ msgstr "轨道已锁定"
 msgid "轨道类型不同，视频不能放到音频轨上"
 msgstr "轨道类型不同，视频不能放到音频轨上"
 
-#: src/app/command/commandRegistry.ts:198
+#: src/pages/delivery/taskDetailModel.tsx:130
+msgid "输入文件校验通过"
+msgstr "输入文件校验通过"
+
+#: src/app/command/commandRegistry.ts:207
 #: src/app/shell/navigation.tsx:110
-#: src/pages/DeliveryPage.tsx:27
+#: src/pages/delivery/OutputsView.tsx:128
+#: src/pages/DeliveryPage.tsx:94
+#: src/pages/DeliveryPage.tsx:102
 msgid "输出"
 msgstr "输出"
 
@@ -1253,11 +2706,29 @@ msgstr "运行中"
 msgid "返回工作台"
 msgstr "返回工作台"
 
+#: src/pages/delivery/TaskRecordRail.tsx:65
+#: src/pages/delivery/TaskRecordView.tsx:121
+msgid "还没有任务记录"
+msgstr "还没有任务记录"
+
 #: src/domain/media/Transport.tsx:104
 msgid "还没有可播放的素材"
 msgstr "还没有可播放的素材"
 
+#: src/pages/HistoryPage.tsx:262
+msgid "还没有可显示的对局"
+msgstr "还没有可显示的对局"
+
+#: src/pages/players/PlayerTrend.tsx:124
+msgid "还没有可画的趋势"
+msgstr "还没有可画的趋势"
+
+#: src/pages/players/PlayerMapTable.tsx:80
+msgid "还没有按地图的数据"
+msgstr "还没有按地图的数据"
+
 #: src/design/data/EmptyState.tsx:129
+#: src/pages/PlayerProfilePage.tsx:223
 msgid "还没有比赛"
 msgstr "还没有比赛"
 
@@ -1265,9 +2736,21 @@ msgstr "还没有比赛"
 msgid "还没有波形"
 msgstr "还没有波形"
 
+#: src/pages/EvidencePage.tsx:299
+msgid "还没有注释"
+msgstr "还没有注释"
+
 #: src/domain/media/ClipStrip.tsx:218
 msgid "还没有片段"
 msgstr "还没有片段"
+
+#: src/pages/PlayersPage.tsx:313
+msgid "还没有玩家"
+msgstr "还没有玩家"
+
+#: src/pages/library/WatchDirectoriesDrawer.tsx:101
+msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
+msgstr "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 
 #: src/domain/media/FilmStrip.tsx:99
 msgid "还没有缩略图"
@@ -1277,13 +2760,21 @@ msgstr "还没有缩略图"
 msgid "还没有输出"
 msgstr "还没有输出"
 
+#: src/pages/evidence/EvidenceDetail.tsx:64
+msgid "还没有选中证据"
+msgstr "还没有选中证据"
+
+#: src/pages/players/PlayerComparePanel.tsx:127
+msgid "还没有选中选手"
+msgstr "还没有选中选手"
+
 #: src/domain/task/TaskDetail.tsx:258
 msgid "还没有阶段日志"
 msgstr "还没有阶段日志"
 
-#: src/pages/HistoryPage.tsx:26
-msgid "这一页列出账号在 Steam 上的历史对局，下载回放后它会出现在 Demo 资料库里。"
-msgstr "这一页列出账号在 Steam 上的历史对局，下载回放后它会出现在 Demo 资料库里。"
+#: src/pages/HomePage.tsx:122
+msgid "这一块在阶段 {phase} 接入。"
+msgstr "这一块在阶段 {phase} 接入。"
 
 #: src/design/timeline/TimelinePrototype.tsx:57
 msgid "这个位置没有可以操作的片段"
@@ -1293,17 +2784,58 @@ msgstr "这个位置没有可以操作的片段"
 msgid "这个地址不存在，或者它在这一版里已经下线。其余功能不受影响。"
 msgstr "这个地址不存在，或者它在这一版里已经下线。其余功能不受影响。"
 
+#: src/pages/TaskDetailPage.tsx:76
+msgid "这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。"
+msgstr "这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。"
+
+#: src/pages/library/AddWatchDirectoryDialog.tsx:137
+msgid "这个目录已经在监听中"
+msgstr "这个目录已经在监听中"
+
 #: src/design/data/EmptyState.tsx:145
 msgid "这个页面没能打开"
 msgstr "这个页面没能打开"
+
+#. placeholder {0}: metricName(metric)
+#: src/pages/players/PlayerTrend.tsx:126
+msgid "这名选手最近的比赛里没有 {0} 的取值，所以这里没有线可画。"
+msgstr "这名选手最近的比赛里没有 {0} 的取值，所以这里没有线可画。"
+
+#: src/pages/PlayerProfilePage.tsx:156
+msgid "这名选手的档案没能读出来：{profileError}"
+msgstr "这名选手的档案没能读出来：{profileError}"
+
+#: src/pages/PlayerProfilePage.tsx:224
+msgid "这名选手还没有出现在任何一场已分析的比赛里。"
+msgstr "这名选手还没有出现在任何一场已分析的比赛里。"
 
 #: src/design/data/EmptyState.tsx:133
 msgid "这场还没分析"
 msgstr "这场还没分析"
 
+#: src/pages/players/PlayerHeatmapPanel.tsx:152
+msgid "这张地图上还没有这名选手的位置样本。分析更多这张图的比赛之后就会有。"
+msgstr "这张地图上还没有这名选手的位置样本。分析更多这张图的比赛之后就会有。"
+
 #: src/domain/map/MapCanvas.tsx:234
 msgid "这张地图还没有空间证据"
 msgstr "这张地图还没有空间证据"
+
+#: src/pages/EvidencePage.tsx:215
+msgid "这批索引没有比赛日期，无法按时间筛选"
+msgstr "这批索引没有比赛日期，无法按时间筛选"
+
+#: src/pages/TaskDetailPage.tsx:89
+msgid "这条任务没能打开"
+msgstr "这条任务没能打开"
+
+#: src/pages/evidence/EvidenceDetail.tsx:159
+msgid "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
+msgstr "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
+
+#: src/pages/HistoryPage.tsx:242
+msgid "这次操作没有成功：{writeError}"
+msgstr "这次操作没有成功：{writeError}"
 
 #: src/domain/media/Waveform.tsx:143
 msgid "这段素材还没有分析出峰值，或者它本来就没有声音。"
@@ -1313,27 +2845,99 @@ msgstr "这段素材还没有分析出峰值，或者它本来就没有声音。
 msgid "这里已经有片段了，没有移动"
 msgstr "这里已经有片段了，没有移动"
 
+#: src/pages/delivery/TaskDetailBody.tsx:107
+msgid "进度"
+msgstr "进度"
+
 #: src/domain/task/TaskDetail.tsx:206
 msgid "进程、tick、编码参数"
 msgstr "进程、tick、编码参数"
 
 #: src/design/feedback/StageBar.tsx:68
+#: src/pages/delivery/TaskRecordView.tsx:53
+#: src/pages/home/HomeTasksPanel.tsx:63
 msgid "进行中"
 msgstr "进行中"
 
-#: src/app/command/commandRegistry.ts:79
+#. placeholder {0}: feed.data.summary.active
+#. placeholder {1}: feed.data.summary.failed
+#. placeholder {2}: feed.data.summary.completed
+#: src/pages/delivery/TaskRecordView.tsx:92
+msgid "进行中 {0} · 失败 {1} · 已完成 {2}"
+msgstr "进行中 {0} · 失败 {1} · 已完成 {2}"
+
+#: src/pages/home/HomeTasksPanel.tsx:60
+msgid "进行中的任务"
+msgstr "进行中的任务"
+
+#: src/pages/HomePage.tsx:78
+msgid "进行中的任务、失败可恢复的任务和最近的成片"
+msgstr "进行中的任务、失败可恢复的任务和最近的成片"
+
+#: src/pages/library/LibraryCards.tsx:75
+msgid "适合几十场以内的个人资料库；大库仍建议用表格"
+msgstr "适合几十场以内的个人资料库；大库仍建议用表格"
+
+#. placeholder {0}: demo.display_name
+#. placeholder {1}: demo.map_name
+#: src/pages/library/LibraryInspector.tsx:131
+msgid "选中 {0} · {1}"
+msgstr "选中 {0} · {1}"
+
+#. placeholder {0}: row.round
+#. placeholder {1}: formatTickCount(row.tick)
+#: src/pages/evidence/EvidenceDetail.tsx:84
+msgid "选中 {subject} · 第 {0} 回合 · tick {1}"
+msgstr "选中 {subject} · 第 {0} 回合 · tick {1}"
+
+#: src/pages/evidence/EvidenceConditions.tsx:71
+#: src/pages/evidence/EvidenceConditions.tsx:82
+#: src/pages/PlayersPage.tsx:75
 msgid "选手"
 msgstr "选手"
+
+#: src/app/command/commandRegistry.ts:88
+msgctxt "palette-group"
+msgid "选手"
+msgstr "选手"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/conditionSummary.tsx:28
+msgid "选手 {0}"
+msgstr "选手 {0}"
+
+#. placeholder {0}: condition.value
+#: src/pages/evidence/EvidenceConditions.tsx:97
+msgid "选手：{0}"
+msgstr "选手：{0}"
 
 #: src/design/timeline/TimelinePrototype.tsx:76
 msgid "选择"
 msgstr "选择"
 
+#. placeholder {0}: demo.display_name
+#: src/pages/library/LibraryTable.tsx:114
+msgid "选择 {0}"
+msgstr "选择 {0}"
+
+#: src/pages/library/ImportDemoDialog.tsx:98
+msgid "选择文件"
+msgstr "选择文件"
+
+#: src/pages/library/ImportDemoDialog.tsx:170
+msgid "选择要导入的 Demo 文件"
+msgstr "选择要导入的 Demo 文件"
+
 #: src/domain/match/HighlightRow.tsx:74
 msgid "选择这条高光"
 msgstr "选择这条高光"
 
-#: src/domain/match/matchEnums.ts:155
+#: src/pages/evidence/EvidenceDetail.tsx:141
+msgid "逐事件时间轴"
+msgstr "逐事件时间轴"
+
+#: src/domain/match/matchEnums.ts:163
+msgctxt "evidence-kind"
 msgid "道具"
 msgstr "道具"
 
@@ -1341,7 +2945,12 @@ msgstr "道具"
 msgid "道具与经济"
 msgstr "道具与经济"
 
+#: src/pages/LibraryPage.tsx:162
+msgid "配置还没读出来，稍后再试"
+msgstr "配置还没读出来，稍后再试"
+
 #: src/design/feedback/StageBar.tsx:120
+#: src/pages/delivery/taskModel.tsx:214
 msgid "采集"
 msgstr "采集"
 
@@ -1350,21 +2959,60 @@ msgid "重做"
 msgstr "重做"
 
 #: src/domain/task/TaskDetail.tsx:238
+#: src/pages/delivery/OutputsView.tsx:157
+#: src/pages/delivery/TaskFeedList.tsx:67
+#: src/pages/home/RecentOutputsPanel.tsx:81
+#: src/pages/TaskDetailPage.tsx:93
 msgid "重新加载"
 msgstr "重新加载"
 
 #: src/domain/task/TaskDetail.tsx:143
+#: src/pages/delivery/TaskFeedList.tsx:130
 msgid "重新发起"
 msgstr "重新发起"
 
-#: src/app/boundary/ServiceGate.tsx:297
+#: src/pages/library/libraryColumns.tsx:200
+msgid "重新定位"
+msgstr "重新定位"
+
+#: src/pages/library/WatchDirectoriesDrawer.tsx:76
+msgid "重新扫描"
+msgstr "重新扫描"
+
+#: src/pages/evidence/EvidenceEmpty.tsx:95
+#: src/pages/evidence/EvidenceEmpty.tsx:120
+msgid "重新检索"
+msgstr "重新检索"
+
+#: src/app/boundary/ServiceGate.tsx:253
 msgid "重新连接"
 msgstr "重新连接"
+
+#: src/pages/library/ImportDemoDialog.tsx:151
+msgid "重新选择"
+msgstr "重新选择"
 
 #: src/app/boundary/RouteBoundary.tsx:108
 #: src/domain/match/MatchContextBar.tsx:355
 #: src/domain/match/RoundTimeline.tsx:180
 #: src/domain/task/TaskDetail.tsx:143
+#: src/pages/delivery/useTaskActions.tsx:204
+#: src/pages/evidence/EvidenceAnnotations.tsx:56
+#: src/pages/evidence/EvidenceResults.tsx:125
+#: src/pages/HistoryPage.tsx:223
+#: src/pages/library/AddWatchDirectoryDialog.tsx:123
+#: src/pages/library/DeleteDemosDialog.tsx:95
+#: src/pages/library/ImportDemoDialog.tsx:159
+#: src/pages/library/LibraryCards.tsx:82
+#: src/pages/library/LibraryInspector.tsx:115
+#: src/pages/library/LibraryInspector.tsx:183
+#: src/pages/library/LibraryTable.tsx:101
+#: src/pages/library/WatchDirectoriesDrawer.tsx:88
+#: src/pages/LibraryPage.tsx:365
+#: src/pages/PlayerProfilePage.tsx:153
+#: src/pages/PlayerProfilePage.tsx:217
+#: src/pages/players/PlayerHeatmapPanel.tsx:142
+#: src/pages/PlayersPage.tsx:284
 msgid "重试"
 msgstr "重试"
 
@@ -1401,7 +3049,11 @@ msgstr "阶段 {index}/{count} {label}"
 msgid "阶段日志"
 msgstr "阶段日志"
 
-#: src/app/boundary/ServiceGate.tsx:338
+#: src/pages/PlayerProfilePage.tsx:142
+msgid "集锦制作要从比赛工作区或 Agent 发起"
+msgstr "集锦制作要从比赛工作区或 Agent 发起"
+
+#: src/app/boundary/ServiceGate.tsx:294
 msgid "需要服务"
 msgstr "需要服务"
 
@@ -1417,7 +3069,8 @@ msgstr "音频波形，全长 {total}"
 msgid "音频波形，全长 {total}，已选 {from} 至 {to}"
 msgstr "音频波形，全长 {total}，已选 {from} 至 {to}"
 
-#: src/app/command/commandRegistry.ts:81
+#: src/app/command/commandRegistry.ts:90
+msgctxt "palette-group"
 msgid "页面"
 msgstr "页面"
 
@@ -1425,17 +3078,26 @@ msgstr "页面"
 msgid "页面根节点 #root 不存在，应用无法启动"
 msgstr "页面根节点 #root 不存在，应用无法启动"
 
-#: src/domain/match/matchEnums.ts:206
+#: src/domain/match/matchEnums.ts:214
 msgid "首杀"
 msgstr "首杀"
 
-#: src/pages/HomePage.tsx:28
-msgid "首页汇总最近导入的比赛、正在跑的分析与录制任务，以及 Agent 等你确认的方案。"
-msgstr "首页汇总最近导入的比赛、正在跑的分析与录制任务，以及 Agent 等你确认的方案。"
+#: src/pages/players/PlayerComparePanel.tsx:236
+msgid "首杀、残局胜率与常用地图这三列这批分析还没有产出，所以既不在表里也不在这里。"
+msgstr "首杀、残局胜率与常用地图这三列这批分析还没有产出，所以既不在表里也不在这里。"
+
+#. placeholder {0}: printValue(metric, points.length === 0 ? null : geometry.maximum)
+#: src/pages/players/PlayerTrend.tsx:176
+msgid "高 {0}"
+msgstr "高 {0}"
 
 #: src/pages/MatchWorkspacePage.tsx:47
 msgid "高光"
 msgstr "高光"
+
+#: src/pages/evidence/EvidenceDetail.tsx:141
+msgid "高光检测"
+msgstr "高光检测"
 
 #: src/pages/SettingsPage.tsx:26
 msgid "高级"

@@ -44,6 +44,11 @@ const CORPUS: ReadonlyArray<readonly [QueryNamespace, string, readonly unknown[]
   ['demos', 'demos.watch()', qk.demos.watch()],
   ['demos', 'demos.reviewTags()', qk.demos.reviewTags()],
 
+  ['history', 'history.list(p1)', qk.history.list({ page: 1, page_size: 50 })],
+  ['history', 'history.list(p2)', qk.history.list({ page: 2, page_size: 50 })],
+  ['history', 'history.list(search)', qk.history.list({ page: 1, page_size: 50, search: 'mirage' })],
+  ['history', 'history.activeDownloads()', qk.history.activeDownloads()],
+
   ['players', 'players.list', qk.players.list({ sort: 'adr', direction: 'desc' })],
   ['players', 'players.list(asc)', qk.players.list({ sort: 'adr', direction: 'asc' })],
   ['players', 'players.detail', qk.players.detail('7656119')],
@@ -98,6 +103,7 @@ const CORPUS: ReadonlyArray<readonly [QueryNamespace, string, readonly unknown[]
 const NAMESPACE_ROOT: Record<QueryNamespace, readonly unknown[]> = {
   service: qk.service.all,
   demos: qk.demos.all,
+  history: qk.history.all,
   players: qk.players.all,
   evidence: qk.evidence.all,
   tasks: qk.tasks.all,
@@ -120,6 +126,13 @@ describe('qk — 键的形状', () => {
     expect(qk.demos.metadata('demo-a')).toEqual(['demos', 'detail', 'demo-a', 'metadata']);
     expect(qk.demos.watch()).toEqual(['demos', 'watch']);
     expect(qk.demos.reviewTags()).toEqual(['demos', 'review-tags']);
+
+    expect(qk.history.list({ page: 2, page_size: 50 })).toEqual([
+      'history',
+      'list',
+      { page: 2, page_size: 50 },
+    ]);
+    expect(qk.history.activeDownloads()).toEqual(['history', 'downloads', 'active']);
 
     expect(qk.players.detail('7656119')).toEqual(['players', 'detail', '7656119']);
     // id first, then the sub-resource name, then its arguments — never the

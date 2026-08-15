@@ -50,12 +50,22 @@ describe('the §7 queries', () => {
     expect(at('/evidence', '/evidence', <EvidencePage />)).toContain('证据检索');
   });
 
-  it('/delivery?view=outputs|tasks changes the title, because they are two rail entries', () => {
+  it('/delivery?view=outputs|tasks swaps the face, because they are two rail entries', () => {
     const outputs = at('/delivery', '/delivery', <DeliveryPage />);
     const tasks = at('/delivery', '/delivery?view=tasks', <DeliveryPage />);
 
-    expect(outputs).toContain('已生成的成片');
-    expect(tasks).toContain('分析、录制与导出的执行记录');
+    /* Both faces print both words — the Seg in the topbar carries 输出 and
+       任务记录 whichever is showing — so the title is no longer what tells them
+       apart. Their own filter strips are: 输出 filters by output kind, 任务记录
+       by task state, and neither control exists on the other face. */
+    expect(outputs).toContain('name="delivery-output-filter"');
+    expect(outputs).not.toContain('name="delivery-task-state"');
+    expect(tasks).toContain('name="delivery-task-state"');
+    expect(tasks).not.toContain('name="delivery-output-filter"');
+
+    // …and the Seg reports which one the address asked for.
+    expect(outputs).toContain('name="delivery-view" checked="" value="outputs"');
+    expect(tasks).toContain('name="delivery-view" checked="" value="tasks"');
   });
 
   it('/agent?mode=changes|inline|takes', () => {

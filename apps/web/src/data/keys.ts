@@ -98,6 +98,20 @@ export interface PlayerHeatmapQuery {
   kind: 'all' | 'kills' | 'deaths';
 }
 
+/**
+ * `commands.listMatchHistory` takes positional arguments
+ * (`page, pageSize, signal, search`) rather than a query object, so the object
+ * is declared here and `data/history.ts` spreads it at the call. Field names
+ * follow the wire (`page_size`), like `PlayerDirectoryQuery` above, and `search`
+ * is optional-absent rather than `| undefined` so an omitted filter and an
+ * explicit `undefined` cannot become two cache entries for one list.
+ */
+export interface MatchHistoryQuery {
+  page: number;
+  page_size: number;
+  search?: string;
+}
+
 /* ── namespaces ──────────────────────────────────────────────────────────── */
 
 /**
@@ -108,6 +122,7 @@ export interface PlayerHeatmapQuery {
 export const QUERY_NAMESPACE = {
   service: 'service',
   demos: 'demos',
+  history: 'history',
   players: 'players',
   evidence: 'evidence',
   tasks: 'tasks',
@@ -148,6 +163,28 @@ export const qk = {
     metadata: (demoId: string) => [QUERY_NAMESPACE.demos, DETAIL, demoId, 'metadata'] as const,
     watch: () => [QUERY_NAMESPACE.demos, 'watch'] as const,
     reviewTags: () => [QUERY_NAMESPACE.demos, 'review-tags'] as const,
+  },
+
+  /**
+   * Steam match history — the list `/history` reads and the download jobs it
+   * starts. A namespace of its own rather than a corner of `demos`: a match
+   * record exists before any demo does, and 「同步最近比赛」 changes every row
+   * without touching the library.
+   *
+   * Written by: `syncMatchHistory`, `downloadMatchDemo`, `cancelMatchDownload`
+   * → invalidate `qk.history.all`. The same writes also touch `qk.tasks.all`
+   * (a download is an `ActivityKind`, so it appears in the task feed) and, once
+   * a download completes, `qk.demos.all` — `history.ts` states which write does
+   * which.
+   *
+   * `activeDownloads` sits below the namespace root but beside the list: it is
+   * refreshed by the same writes, and the page polls it while anything is in
+   * flight without re-fetching the table on every tick.
+   */
+  history: {
+    all: [QUERY_NAMESPACE.history] as const,
+    list: (query: MatchHistoryQuery) => [QUERY_NAMESPACE.history, LIST, query] as const,
+    activeDownloads: () => [QUERY_NAMESPACE.history, 'downloads', 'active'] as const,
   },
 
   /**

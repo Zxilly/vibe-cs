@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ApiHealth } from '../../shared/desktop/dto';
+import type { ApiHealth } from '../shared/desktop/dto';
 import {
   isServiceDegraded,
   serviceActionBlocked,

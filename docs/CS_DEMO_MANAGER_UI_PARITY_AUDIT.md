@@ -8,11 +8,13 @@
 > 退役说明（2026-08-13）：本文中 OBS、OBS WebSocket、OBS diagnosis 和 OBS backup 的
 > 描述是本轮审计开始时的历史界面证据，不是当前可执行能力。公开入口、控制路由和录制
 > 实现已经退役，仅保留不会恢复 OBS 能力的旧配置/校准兼容字段；当前录制方向是应用托管 HLAE +
-> Windows Media Foundation，且真实 CS2 + HLAE 端到端验收前保持 fail-closed。
+> Windows Media Foundation，并保持 fail-closed。
 
 ## 1. 结论
 
 Vibe CS 目前还不是 CS Demo Manager 的完整替代品。它已经补上跨三场 Major 的 Evidence Search、exact player-involvement 查询、绑定 canonical evidence 的持久复盘注释与全局注释索引、Highlights 对同一注释的摘要/CRUD 复用、CSDM-style Demo/Player/Round Comment/Tags、单场 Player Atomic Evidence、全局 Player profile 的 first-10 持久证据预览、SQLite 持久 Player-match projection 上的全局筛选/稳定排序/分页/coverage、最多两个 URL-owned 显式 ID 的 exact compare、跨比赛 Player 地图热图、Clutch Review、带 10×10 方向对位矩阵的 Openings、基于逐回合 5v5 roster 真值的 Team Round、Team Economy、Man Advantage Review 与 producer-bound Objective Review、SQLite 边界分页和 exact kind/UUID detail 的 Activity Center、current-only durable Analysis Run/bounded events/exact producer result、exact-run cooperative cancel 与 cancelled 一等 Activity、Production exact task deep link、只重放可证明 unpublished suffix 的 recording retry，以及 Library 服务端查询、power table/Inspector、真实 URL 列选择和最多 12 个显式 ID 的批量 Analysis 选择。Analysis 页面用 XState v5 管理 renderer request/observation 与 stale-route abort，Rust/SQLite 仍独占 durable truth。既有产品库已索引 M1/M2/M3 共 11,548 条证据并报告 `scan_complete=true`；Player fresh gate 另证明 10 人、projection coverage `3/3`、三条日期未知但目录时间单独标注的本地比赛明细，以及 single/pair URL Reload/Back；后续 current projection gate 证明 FalleN 三图 heatmap 与双尺寸。最新 Comment/Tags gate 以真实 M1 证明共享标签、Player Steam64 评论、source-bound R13 评论、restart readback 与双尺寸；Evidence Annotation 仍明确是 Vibe 自有。剩余差距集中在持久团队实体、尚缺的高级指标/矩阵、跨 subject tag filter/权限、连续高保真回放，以及真实 CS2 + HLAE 成片与 retry 门禁：
+
+2026-08-15 的当前产品 Tauri CDP 验证已通过真实 M1 的 NiKo R21 `2K` canonical highlight 成片门禁：Agent 建立 MP4 任务，受管 HLAE 启动 exact CS2 child、鉴权本地 bridge、跳转并采集 tick 173423–174143，Windows Media Foundation 最终发布 677 帧、11.28 秒、21,834,672 bytes 的 H.264/AAC MP4。此前 `NVAPI_ACCESS_DENIED` 的根因是受管进程缺少标准 Windows desktop environment，而非 NVIDIA 驱动；同时修复了 Win32 verbatim 搜索路径、启动 cfg 时序和 mirv-script `const enum` 运行时引用。
 
 分类边界：Evidence Annotation、exact evidence locator、Analysis Run、Activity、Man Advantage 与 Objective Review 是 Vibe 自有增强；CS Demo Manager 没有 Evidence Annotation。它们可以提升产品，但不能被计入 CSDM parity。真正的对齐项仍按 CSDM 的通用 Comment/Tags、Player/Team heatmap、Rank、Ban、导出与数据库维护分别验收。
 
@@ -89,10 +91,10 @@ Player projection gate 位于 `target-playerprojection-audit-20260814/visual/scr
 | Activity | CSDM Analyses/Downloads 队列 | 历史 `target-manadv-activity-audit-20260814/screenshots/04-08`；当前 `target-currentaudit-next/analysiscancel-xstate-visual/screenshots/06-11` | exact kind/UUID row 独立于 list filter/page，Production deep link、filter-out/reload 与 startup interrupted→distinct retry 保持已过。当前 gate 另证明真实 M2 validation cancel→distinct completed retry、真实 M3 parser-running cancel 的 worker/artifact cleanup、cancelled summary/filter/Inspector、重启保持及 Analysis exact Activity link；双尺寸 comparison PASS。仍未验其他 kind mutation、多页/性能、heartbeat/lease、concurrent retry 或永久 DB corruption quarantine。 |
 | Production | CSDM Video queue | `product-audit-20260813-current-build/05-production-max-2560x1392.png`、`06-production-1100x700.png`、`07-production-activity-1100x700.png`、`target-manadv-activity-audit-20260814/screenshots/04-activity-exact-max.png` | 页面已移除文章式宽度上限；最近持久 Activity row 现在进入 exact `activity=<kind:uuid>`，不再依赖当前 Activity list window。本轮用真实 M1 completed row完成深链；没有由此执行 HLAE、录制、下载或导出。 |
 | Outputs | CSDM Videos queue/output folder | `product-audit-20260813-current-build/08-outputs-zero-1100x700.png`、`09-outputs-zero-max-2560x1392.png` | true-zero 会隐藏无意义的筛选、批量和分页控件，保留“制作中心”以及独立的 staged-cleanup recovery 动作；两个宽度均无 document 横向溢出。该空态不能证明有真实 output 时的表格、metadata、rename/reveal/delete 或 cleanup 执行成功。 |
-| 视频与制作 | `csdm/03-official-video-interface-doc.png` | `11-editor-drawer-1100x700.png`、`13-editor-maximized-2560x1392.png`、`17-queue-empty-compact-nav-1100x700.png`、`compare-queue-before-after.png` | Queue 零项时已移除无意义统计/操作 dock，仅保留一个去资料库 CTA；Editor 1100px 用同一属性面板的 modal drawer，焦点约束、Esc 和焦点归还实测通过。当前代码让恢复出的 active recording id 在详情 hydration 前可取消，并能把一个 identity-proven unpublished suffix 作为新 durable child retry；两条路径都只有 focused/TDD 门禁，未用真实 HLAE job 验收，真实 HLAE 成片仍未通过。 |
+| 视频与制作 | `csdm/03-official-video-interface-doc.png` | `11-editor-drawer-1100x700.png`、`13-editor-maximized-2560x1392.png`、`17-queue-empty-compact-nav-1100x700.png`、`compare-queue-before-after.png` | Queue 零项时已移除无意义统计/操作 dock，仅保留一个去资料库 CTA；Editor 1100px 用同一属性面板的 modal drawer。Agent 视频提案现在展开真实 Queue，用户调整选择后由 inline alertdialog 确认；真实 NiKo R21 已完成 HLAE 采集和 H.264/AAC MP4 发布。active recording recovery 与 suffix retry 仍需各自真实故障门禁。 |
 | 下载 | `csdm/04-official-download-view-doc.png` | Vibe Match History 当前界面与代码 | CSDM 在一处呈现多平台、比赛详情与下载队列；Vibe 只覆盖 Steam 工作流，跨平台能力不足。 |
 | Settings | `csdm/06-official-settings-doc.png` 与 Settings 源码 | `vibe/18-settings-general-max.png`、`vibe/19-settings-paths-max.png` | 两者大屏都有窄内容列/长设置页问题；Vibe 分组更少，但 General 混入外观、存储、更新、诊断与迁移，并暴露占位更新地址。 |
-| AI 协作 | CSDM 无对应界面 | `vibe/20-copilot-empty-max.png`、`vibe/21-copilot-m1-selected-max.png`、`vibe/22-copilot-m1-1100x700.png` | 这是 Vibe 独有优势；当前未配置模型时能明确阻断，但 Demo/BGM/工程上下文与 HLAE handoff 占据首屏，真实对话和 proposal 历史还不是视觉中心。 |
+| AI 协作 | CSDM 无对应界面 | `vibe/20-copilot-empty-max.png`、`vibe/21-copilot-m1-selected-max.png`、`vibe/22-copilot-m1-1100x700.png` | 这是 Vibe 独有优势；当前 Agent 从 canonical highlight 生成 `video_render` MP4 任务后会展开真实录制编辑区，用户选择与确认后跟随 durable job。HLAE 是内部采集工具；真实 NiKo R21 成片门禁已通过。 |
 
 这里的“最大化通过”只表示没有裁切且主任务可以完成，不表示功能 parity 已完成。Library 已有服务端查询窗口、power table/逐条 Inspector、当前 URL 列选择和 explicit batch Analysis selection；Players 已以持久 SQLite projection、coverage、truthful nullable date 与 URL-owned explicit compare 把宽屏空间交给真实对比/证据，Team Economy 同样使用矩阵/证据。Activity 已在 SQLite 边界稳定查询四个权威来源；聚合 feed 仍不是物化统一 history 或任意规模性能结论，但 exact Analysis detail 已有 bounded 持久事件。Production 的持久 Activity preview 与 Outputs 的 true-zero 恢复入口已过旧双尺寸检查；durable Analysis Run Inspector、非零 recording/export/output、Steam/recording retry、Library/Players 真实多页与大库性能、非分析任务日志和通用可恢复动作仍需要继续实测。Editor 的大画布与空时间线属于工具语义，不应和资料页的无效留白混为一谈。
 
@@ -130,7 +132,7 @@ Player projection gate 位于 `target-playerprojection-audit-20260814/visual/scr
 | 封禁统计 | 玩家封禁标记和全局 Ban charts | 无 | 缺失 | 若目标包含 MM 用户研究，这是信息缺口；若只服务职业赛可列为可选范围。 |
 | 输出管理 | 主要围绕 video queue 与输出文件夹 | 独立 Output Library，搜索/筛选/进度/rename/reveal/delete/cleanup | 更好 | true-zero 已隐藏无意义 collection 控件，并保留 Production 与 staged cleanup；非零结果视觉门禁仍待复核。HLAE bundle 继续保持与普通 media output 不同的 handoff 语义。 |
 | Montage / Timeline Editor | 生成素材后依赖外部 NLE | 内置 Montage、multi-track Editor、BGM 卡点、字幕/图像/音频、undo/redo、package | 独有 | 是 Vibe 的核心差异，不能为了 CSDM parity 被挤到边缘入口。 |
-| AI 协作 | 无 LLM Agent | 证据工具、typed proposal、preview/confirm/apply、HLAE/beat/edit intent | 独有 | 仍需用真实录制素材证明最终剪辑质量；Agent 不能替代全局确定性证据搜索。 |
+| AI 协作 | 无 LLM Agent | 证据工具、typed proposal、preview/confirm/apply、MP4/beat/edit intent | 独有 | Agent 的视频任务现在端到端指向 MP4，HLAE 只作为内部工具。仍需用真实成片证明最终质量；Agent 不能替代全局确定性证据搜索。 |
 | 恢复 / 诊断 | 分析日志、数据库优化、常规日志入口 | Recovery Center、redacted diagnostics、cache/storage/managed HLAE/sidecar 状态 | 更好 | 入口较深，且 Settings 信息量过大。 |
 | 设置 | 13 类：UI/Folders/Tags/Maps/Download/Playback/Analyze/Video/Cameras/Ban/Integrations/Database/About | 6 类：General/Paths/Steam/Video/Analysis/Recording | 部分 | Vibe 分组更少更易扫读，但每页过长；缺 tags/maps/provider accounts/analyze concurrency/database maintenance UI。 |
 | 快捷键 | 系统化快捷键文档，列表/Viewer/前后比赛均覆盖 | Ctrl+K 与少量 Editor/回放操作 | 部分 | Vibe 没有可发现的快捷键总览，More 与上下文页主要依赖鼠标。 |
@@ -192,7 +194,7 @@ Player projection gate 位于 `target-playerprojection-audit-20260814/visual/scr
 
 **Vibe CS**
 
-- 可选择真实 Demo、剪辑工程和 BGM，将证据工具调用、proposal 预览、显式确认、HLAE handoff 放在同一工作区。
+- 可选择真实 Demo、剪辑工程和 BGM；MP4 proposal 会展开对应的录制编辑区，用户在那里调整镜头选择，再预览并显式确认，Agent 随后跟随录制进度和最终输出。
 - 缺模型凭据、录制素材、HLAE 或工程时会阻止对应动作；proposal 不会因为聊天输出而自动写入工程。
 
 **Vibe 做得不好的地方**
@@ -632,7 +634,7 @@ fresh Tauri 最大化显式选择 M2+M3 后排序仍保留 2 条，thead 没有 
 
 1. export output 已能按精确 `project_id` 深链回 Editor；如果 source project 已删除，Editor 显式显示所请求 ID 不可用并打开空白工程，不会静默选中另一个项目。该 fail-closed 路径已在真实 Tauri 1100×700 验证；分析证据、recorded clip、editor clip 三种 ID 的完整 lineage 仍缺。
 2. 从 Highlight 进入 Queue、录制完成进入 Studio、再进入 Editor 的跨页状态容易丢上下文。
-3. 真实 Agent 自动剪辑仍依赖已经录好的 managed clip；Demo 本身不能直接被时间线当成视频。
+3. Agent 已可把 Demo highlight 直接提交为受管采集与 MP4 编码任务；Demo 本身仍不能被时间线假装成已有视频，只有已发布的 managed clip 才能进入后续剪辑。
 4. Editor 的复杂能力没有统一快捷键/帮助和新手渐进模式。
 5. Studio 在零素材/零工程时仍提供“开始编排/打开编辑器”，却没有唯一素材导入路径；动作先于前置条件。
 6. Editor 的该 P0 已闭合：最大化仍保留 Media/Preview/Inspector 三栏；1100×700 有常驻“属性”触发器并复用同一个面板作为 `role=dialog`、`aria-modal=true` 的 drawer。真实键盘检查确认初始焦点在关闭按钮、Shift+Tab 不逃逸、Esc 关闭并把焦点还给触发器，document 无横向溢出。尚未验收的是有真实素材时的预览/时间线编辑密度，而不是属性能力丢失。
@@ -648,7 +650,7 @@ fresh Tauri 最大化显式选择 M2+M3 后排序仍保留 2 条，thead 没有 
 
 - 缺媒体缩略图、时长/分辨率/codec 的统一详情面板。
 - export 行已提供 source project 深链；仍缺 proposal、recorded clips 和 evidence 的完整 lineage。若精确 source project 已删除，Editor 会 fail closed，不回退到任意首个项目。
-- HLAE bundle 不是普通视频输出，当前 handoff 必须继续显示 manifest、README、launch profile 和完整性状态。
+- 旧 HLAE bundle 不是普通视频输出，仅作为历史兼容 handoff；当前 Agent 视频任务的成功结果必须是经过验证并发布的 MP4。
 - true-zero 已隐藏筛选、批量与分页外壳，显示紧凑空态、直接进入 Production 的下一步，并保留独立 staged-cleanup recovery 动作；该动作不依赖已有 output 行。
 - current-build 的最大化与 1100×700 空态均无 document 横向溢出；本轮另以非零 export 的 source-project 动作进入 Editor，并在删除 source 后于 1100×700 验证 fail-closed notice，见 `target/product-audit-20260813-player-directory/08-editor-missing-lineage-1100x700.png`。这不证明非零表格密度、metadata、rename/reveal/delete 或 cleanup 已通过。
 

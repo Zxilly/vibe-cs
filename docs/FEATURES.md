@@ -68,6 +68,17 @@ missing.
   through fixed HTTPS endpoints; avatar bytes are MIME-checked and served from a bounded local
   cache rather than exposing a remote image origin to the browser.
 
+## Agent video generation
+
+- Ask the in-process Rust Agent for a complete highlight video from an analyzed Demo. The Agent
+  selects only persisted evidence and returns a typed `video_render` proposal containing concrete
+  recording requests and an MP4 output contract.
+- Preview revalidates the Demo, highlight IDs, players, ticks and managed HLAE readiness locally.
+  Explicit confirmation starts the durable recording job; the Agent surface follows launch, seek,
+  capture, stabilization and encode stages and links the published output.
+- HLAE is an internal offline capture dependency. It is never presented as the final Agent artifact,
+  and the model cannot provide raw console commands, arbitrary paths, or process arguments.
+
 ## Recording
 
 - Build deterministic recording plans with validated demos, tick ranges, per-demo tick rates,

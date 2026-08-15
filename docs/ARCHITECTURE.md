@@ -79,7 +79,11 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   failed or cancelled recording exposes retry only when storage can prove one unclaimed unpublished
   suffix; Activity never guesses a resumable capture tick. Activity is private to the desktop process.
 - `agent` owns the in-process Rig model/tool loop, provider URL policy, streaming limits, and
-  deterministic read/proposal tools. It has no filesystem, shell, or process execution tool.
+  deterministic read/proposal tools. Its `video_render` proposal contains validated recording
+  requests and an MP4 contract. The web host expands those requests into the recording workspace;
+  the user edits the real queue, previews its current fingerprint, and explicitly confirms before
+  the desktop/application boundary—not the model—executes the durable recording job. HLAE remains
+  an internal runtime capture tool. The model has no filesystem, shell, or process execution tool.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
   media, cache and source-asset ports.
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and

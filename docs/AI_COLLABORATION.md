@@ -1,9 +1,10 @@
 # AI collaboration architecture
 
-Vibe CS treats AI as a proposal author, not as an unbounded automation surface. The agent may read
-bounded match and project evidence, generate an edit or camera proposal, and explain the evidence
-behind it. Any operation that changes a project, writes an HLAE configuration, starts capture, or
-uses only bounded local tools; maintainers perform external product research outside the product Agent.
+Vibe CS treats AI as an end-to-end video author behind typed, reviewable boundaries rather than as
+an unbounded automation surface. The Agent may read bounded match evidence, select highlights, draft
+an executable MP4 task, and—after explicit user confirmation—hand that task to the deterministic
+recording state machine. HLAE is an internal capture tool of that workflow, not the Agent's product
+output. The model never receives filesystem, shell, process, SQL, or arbitrary HLAE-console access.
 
 ## Product flow
 
@@ -15,11 +16,13 @@ chat room:
    frames, media metadata, and the current optimistic project revision.
 3. The in-process Rig runtime streams explanations and tool state through the existing Tauri
    channel into the React assistant thread.
-4. Planning tools return typed proposals. They do not mutate storage or launch external programs.
-5. The UI renders a diff card with timing changes, evidence, confidence, unsupported operations,
-   estimated cost, and recovery behavior.
-6. The user can reject, revise, or explicitly apply a proposal. Apply commands revalidate the base
-   revision and the proposal fingerprint inside Rust before committing.
+4. Planning tools return typed proposals. `draft_video_plan` binds selected evidence to validated
+   recording requests and an MP4 output contract; it does not launch a process by itself.
+5. A video proposal opens the real recording workspace and selects the proposed shots. The user
+   can add/remove shots and edit perspective or lead/tail context in that workspace.
+6. The deterministic preview renders tick bounds, estimated duration, output format, safety policy,
+   and recovery behavior. Only the final inline confirmation starts managed HLAE/CS2 in offline
+   `-insecure` mode; Rust then follows the durable job, encodes the take, and publishes the MP4.
 
 This follows the useful division seen in Descript's co-editor, Premiere's evidence-backed media
 search, and Resolve's visible beat markers: conversation lowers the cost of reaching a draft, while
@@ -38,7 +41,7 @@ desktop host (Rust)
         |
         | typed tool request / response
         v
-Rust application/runtime ports -> SQLite, demo parser, media, HLAE planner
+Rust application/runtime ports -> SQLite, demo parser, recording job, HLAE capture, native MP4
 ```
 
 The browser never receives a provider key. The desktop host owns cancellation, message and token
@@ -50,33 +53,34 @@ and size-limited.
 
 ### Read-only
 
-- `list_demos`: filters persisted demos and returns identifiers plus bounded metadata.
-- `get_demo_evidence`: returns score, rounds, players, highlights, utility, and spatial availability
-  for selected evidence identifiers; it never sends the raw demo to a model.
-- `search_rounds` and `read_round_events`: query the already parsed local timeline through strict
-  player, round, tick, purchase-item, winning-side, and event-kind bounds.
-- `get_editor_project`: reads one project and its current revision with source availability.
-- `get_media_summary`: returns codec, duration, dimensions, audio presence, and managed identity.
-- `get_audio_analysis`: returns a measured beat grid, tempo, energy sections, confidence, and
-  limitations from the local in-process decoder.
-- `preview_hlae_plan`: validates typed camera keyframes and compiles a bounded configuration
-  preview without launching HLAE or CS2.
+- `read_workspace_context` and `read_demo_evidence`: return bounded selected-workspace, summary,
+  highlight, round and player facts; the raw Demo is never sent to the model.
+- `search_rounds`, `read_round_context`, `read_round_events`, and `read_player_matchups`: query the
+  already parsed timeline through strict result and event bounds.
+- `read_highlights`: resolves stable evidence IDs, players and tick windows used by proposal tools.
+- `read_editor_timeline` and `read_audio_analysis`: return a bounded project view and measured beat
+  evidence without exposing arbitrary media or filesystem reads.
+- The recording workspace validates the user's edited `video_render` selection as concrete
+  recording requests, performs managed HLAE readiness checks, and creates a short-lived executable
+  plan. The chat card does not execute the proposal directly.
 
 ### Proposal-only
 
-- `propose_highlight_edit`: maps evidence-backed moments to a project patch without applying it.
-- `propose_beat_alignment`: aligns selected clips to measured beats while preserving source bounds
+- `draft_edit_plan`: maps evidence-backed moments to a project patch without applying it.
+- `draft_beat_alignment`: aligns selected clips to measured beats while preserving source bounds
   and reports every trim, speed change, and unused clip.
-- `propose_hlae_camera_path`: creates typed campath/input/command operations; raw console text and
-  arbitrary script paths are not accepted.
+- `draft_video_plan`: creates an evidence-bound `video_render` proposal whose items deserialize as
+  concrete recording requests and whose output container is fixed to MP4.
+- `navigate_workspace`: returns only one allow-listed destination intent; the host owns navigation.
 ### Confirmed mutations
 
 - `apply_editor_proposal`: compares the project revision and proposal fingerprint, then commits one
   transaction and snapshot. Conflicts return a new diff instead of overwriting newer work.
-- `export_hlae_config`: writes a new managed configuration after validation; it does not inject into
-  a running game or join a VAC-secured server.
-- `enqueue_capture`: submits only a previously validated recording plan through the existing
-  recording state machine.
+- Confirming `video_render` in the recording workspace submits only the plan returned by the
+  deterministic preview for the current queue fingerprint.
+  The host then follows the durable job through launch, seek, capture, stabilization, native encode,
+  and atomic MP4 publication. Legacy HLAE proposal data may still be read for compatibility, but it
+  is not exposed as the current Agent video-generation tool.
 
 The first release does not provide generic filesystem, process, shell, SQL, HTTP fetch, JavaScript,
 or raw HLAE-console tools.
@@ -95,7 +99,7 @@ product users configure credentials only in Vibe CS Settings.
 Kimi Code and the Kimi Open Platform are separate products. A Kimi Code credential uses the
 OpenAI-compatible `https://api.kimi.com/coding/v1` endpoint and an entitled model ID such as `k3`,
 `k3-256k`. It must not be sent to the Open Platform endpoint. The product Agent exposes only
-bounded local Demo, analysis, editor, audio, and HLAE tools; it has no general network tool.
+bounded local Demo, analysis, editor, audio, and video-planning tools; it has no general network tool.
 External design research is a maintainer activity during development and is not exposed to users.
 
 ## HLAE safety policy

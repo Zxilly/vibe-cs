@@ -96,6 +96,7 @@ describe('queue plan model', () => {
 
     expect(request.items.map((item) => item.highlight_id)).toEqual(['parsed-highlight-1', 'parsed-highlight-2']);
     expect(request.items.map((item) => item.victim_pov)).toEqual([false, true]);
+    expect(request.items.map((item) => item.camera_style)).toEqual(['pov', 'pov']);
     for (const item of request.items) {
       expect(item).not.toHaveProperty('playback_speed');
       expect(item).not.toHaveProperty('show_keyboard');
@@ -125,6 +126,7 @@ describe('queue plan model', () => {
     expect(demoPlaybackBlockReason(realItem, true)).toContain('录制任务');
     expect(demoPlaybackBlockReason(realItem, false, true)).toContain('显式停止');
     expect(demoPlaybackBlockReason({ ...realItem, perspective: 'victim' }, false)).toContain('受害者视角');
+    expect(demoPlaybackBlockReason({ ...realItem, cameraStyle: 'flyby' }, false)).toContain('正式生成');
     expect(demoPlaybackBlockReason({ ...realItem, origin: 'preview' }, false)).toContain('示例');
   });
 
@@ -159,6 +161,7 @@ describe('queue plan model', () => {
       [{ ...realItem, preRollSeconds: realItem.preRollSeconds + 0.5 }, second],
       [{ ...realItem, postRollSeconds: realItem.postRollSeconds + 0.5 }, second],
       [{ ...realItem, perspective: 'victim' }, second],
+      [{ ...realItem, cameraStyle: 'crane' }, second],
       [{ ...realItem, tickRate: 64 }, second],
     ];
 

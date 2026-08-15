@@ -23,10 +23,11 @@ const detail: AnalysisRunDetail = {
 };
 
 describe('analysis run inspector', () => {
-  it('renders persisted identity, stage, bounded events, and error without a percentage', () => {
+  it('renders stage, events, and error without internal file identity', () => {
     const markup = renderToStaticMarkup(<AnalysisRunInspector detail={detail} loading={false} error={null} />);
     expect(markup).toContain('data-analysis-run-id="run-1"');
-    expect(markup).toContain('a'.repeat(64));
+    expect(markup).not.toContain('a'.repeat(64));
+    expect(markup).not.toContain('SHA-256');
     expect(markup).toContain('desktop restarted');
     expect(markup).toContain('data-event-sequence="1"');
     expect(markup).not.toContain('<progress');

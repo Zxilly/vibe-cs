@@ -24,6 +24,34 @@ describe('queue store', () => {
     expect(useQueueStore.getState().selectedId).toBe(realItem.id);
   });
 
+  it('deduplicates the same parsed highlight even when callers generate fresh UUIDs', () => {
+    const first = { ...realItem, highlightId: 'round-21-niko-2k' };
+    const second = {
+      ...first,
+      id: '62a37954-5437-4bd7-b472-3392b44b0570',
+    };
+
+    useQueueStore.setState({ items: [], selectedId: null });
+    useQueueStore.getState().add(first);
+    useQueueStore.getState().add(second);
+
+    expect(useQueueStore.getState().items).toEqual([first]);
+    expect(useQueueStore.getState().selectedId).toBe(first.id);
+  });
+
+  it('replaces the workspace with an agent draft and expands its last item', () => {
+    const second = {
+      ...realItem,
+      id: 'ed447970-8bd4-4dc4-81f2-480b47775f68',
+      title: 'Agent second shot',
+    };
+
+    useQueueStore.getState().replace([realItem, second]);
+
+    expect(useQueueStore.getState().items).toEqual([realItem, second]);
+    expect(useQueueStore.getState().selectedId).toBe(second.id);
+  });
+
   it('reorders items without losing their identity', () => {
     const initialIds = useQueueStore.getState().items.map((item) => item.id);
     useQueueStore.getState().reorder(0, 2);
@@ -40,6 +68,15 @@ describe('queue store', () => {
 
     useQueueStore.getState().remove(id);
     expect(useQueueStore.getState().selectedId).toBe(useQueueStore.getState().items[0]?.id ?? null);
+  });
+
+  it('keeps victim perspective and cinematic camera movement mutually exclusive', () => {
+    const id = queueTestItems[0]!.id;
+    useQueueStore.getState().update(id, { cameraStyle: 'orbit' });
+    expect(useQueueStore.getState().items[0]).toMatchObject({ cameraStyle: 'orbit', perspective: 'pov' });
+
+    useQueueStore.getState().update(id, { perspective: 'victim' });
+    expect(useQueueStore.getState().items[0]).toMatchObject({ cameraStyle: 'pov', perspective: 'victim' });
   });
 
   it('stores only parameters supported by the current native capture model', () => {
@@ -72,5 +109,24 @@ describe('queue store', () => {
 
     expect(useQueueStore.getState().items).toEqual([realItem]);
     expect(useQueueStore.getState().selectedId).toBe(realItem.id);
+  });
+
+  it('repairs legacy analysis queue IDs before they reach the native UUID contract', async () => {
+    const options = useQueueStore.persist.getOptions();
+    const storageName = options.name;
+    expect(storageName).toBeDefined();
+    if (!storageName) throw new Error('queue persistence storage name is required');
+    const legacyItem = { ...realItem, id: 'analysis-demo-highlight' };
+    await options.storage?.setItem(storageName, {
+      state: { items: [legacyItem], selectedId: legacyItem.id },
+      version: 0,
+    });
+
+    await useQueueStore.persist.rehydrate();
+
+    const repaired = useQueueStore.getState().items[0];
+    expect(repaired?.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    expect(useQueueStore.getState().selectedId).toBe(repaired?.id);
+    expect(repaired).toMatchObject({ demoId: realItem.demoId, title: realItem.title });
   });
 });

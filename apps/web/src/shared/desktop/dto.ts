@@ -986,6 +986,7 @@ export type RecordingRequest = {
   pre_roll_seconds: number;
   post_roll_seconds: number;
   victim_pov: boolean;
+  camera_style: 'pov' | 'orbit' | 'dolly' | 'static' | 'tracking' | 'crane' | 'flyby';
 };
 
 export type RecordingQueueRequest = {
@@ -1697,16 +1698,34 @@ export type AgentToolCall = {
 };
 
 export type AgentProposal = {
-  kind: 'highlight_edit' | 'beat_alignment' | 'hlae';
+  kind: 'highlight_edit' | 'beat_alignment' | 'hlae' | 'video_render';
   title: string;
   payload: unknown;
+};
+
+export type AgentVideoProposal = {
+  items: RecordingRequest[];
+  shot_designs: AgentShotDesign[];
+  output: { container: 'mp4' };
+  source_highlight_ids: string[];
+  requires_user_confirmation: true;
+};
+
+export type AgentShotDesign = {
+  highlight_id: string;
+  map_name: string | null;
+  camera_intent: 'player_pov' | 'establish_location' | 'follow_entry' | 'reveal_duel' | 'hold_crossfire' | 'rise_after_climax' | 'transition_through_space';
+  camera_style: RecordingRequest['camera_style'];
+  rationale: string;
+  spatial_evidence: unknown;
+  requires_user_review: true;
 };
 
 export type ProposalPrerequisite = { code: string; message: string };
 export type HlaeProposalIntent = {
   demo_id: EntityId;
   highlight_ids: string[];
-  camera_style: 'pov' | 'orbit' | 'dolly';
+  camera_style: 'pov' | 'orbit' | 'dolly' | 'static' | 'tracking' | 'crane' | 'flyby';
   mode: 'preview' | 'capture';
   lead_seconds: number;
   tail_seconds: number;

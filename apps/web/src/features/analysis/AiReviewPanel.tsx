@@ -307,7 +307,6 @@ export function AiReviewPanel({
             <footer>
               <span>{result.provider} / {result.model}</span>
               <span>{formattedTime(result.generated_at)}</span>
-              <span title={result.evidence_sha256}>{msg("m1120")} {result.evidence_sha256.slice(0, 12)}</span>
             </footer>
             <div className="ai-review-delivery">
               <Button
@@ -318,7 +317,6 @@ export function AiReviewPanel({
                 {deliveryStatus === 'saving' ? <Spinner /> : <Download size={14} />}
                 {t('analysis.reviewDelivery.export')}
               </Button>
-              <small>{t('analysis.reviewDelivery.lineage')}</small>
             </div>
             {deliveryNotice ? <Notice tone="success">{deliveryNotice}</Notice> : null}
             {deliveryPath ? (

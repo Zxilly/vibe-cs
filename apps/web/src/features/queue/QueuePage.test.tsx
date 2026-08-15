@@ -86,7 +86,7 @@ describe('recording queue workspace', () => {
     expect(markup).toBe('');
   });
 
-  it('describes an active playback heartbeat as local preview control instead of a recording dependency', () => {
+  it('describes unavailable preview progress without exposing heartbeat internals', () => {
     const markup = renderToStaticMarkup(
       <QueuePlaybackReadiness
         itemCount={0}
@@ -97,7 +97,9 @@ describe('recording queue workspace', () => {
     );
 
     expect(markup).toContain('本地预览控制');
-    expect(markup).toContain('不影响 HLAE 录制');
+    expect(markup).toContain('可能无法显示当前回放进度');
+    expect(markup).not.toContain('HLAE');
+    expect(markup).not.toContain('状态心跳');
     expect(markup).not.toContain('请安装');
     expect(markup).not.toContain('自动录制');
   });
@@ -118,7 +120,7 @@ describe('recording queue workspace', () => {
     expect(markup).not.toContain('queue-empty-workspace');
   });
 
-  it('presents the only current native capture path without retired repair UI', () => {
+  it('keeps implementation details out of the recording inspector', () => {
     queueState.items = [...queueTestItems];
     queueState.selectedId = queueTestItems[0]?.id ?? null;
 
@@ -128,7 +130,9 @@ describe('recording queue workspace', () => {
       </MemoryRouter>,
     );
 
-    expect(markup).toContain('当前成片链路以 1.0× 确定性回放采集画面和游戏音频');
+    expect(markup).not.toContain('HLAE');
+    expect(markup).not.toContain('Media Foundation');
+    expect(markup).not.toContain('确定性回放');
     expect(markup).not.toContain('这个旧队列项包含');
     expect(markup).not.toContain('改为原生默认值');
   });

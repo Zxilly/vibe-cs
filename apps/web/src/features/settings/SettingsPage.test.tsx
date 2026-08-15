@@ -16,16 +16,18 @@ describe('current settings contract', () => {
   });
 });
 
-describe('movie pipeline settings', () => {
-  it('presents the managed HLAE pipeline without OBS controls', () => {
+describe('video generation settings', () => {
+  it('presents the output without exposing implementation tools', () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter>
         <VideoSettings />
       </MemoryRouter>,
     );
 
-    expect(markup).toContain('HLAE');
+    expect(markup).toContain('视频生成');
     expect(markup).toContain('MP4');
+    expect(markup).not.toContain('HLAE');
+    expect(markup).not.toContain('Media Foundation');
     expect(markup).not.toContain('OBS');
     expect(markup).not.toContain('WebSocket');
     expect(markup).not.toMatch(/ffmpeg|ffprobe|libx264/i);
@@ -34,16 +36,18 @@ describe('movie pipeline settings', () => {
   });
 });
 
-describe('managed HLAE recording settings', () => {
-  it('shows only controls implemented by the native capture pipeline', () => {
+describe('recording settings', () => {
+  it('shows user-facing video controls without the capture pipeline', () => {
     const markup = renderToStaticMarkup(
       <MemoryRouter>
         <RecordingSettings config={defaultConfig} updateRecording={() => undefined} />
       </MemoryRouter>,
     );
 
-    expect(markup).toContain('HLAE');
+    expect(markup).toContain('画面质量');
     expect(markup).toContain('FOV');
+    expect(markup).not.toContain('HLAE');
+    expect(markup).not.toContain('Media Foundation');
     expect(markup).not.toContain('恢复');
     expect(markup).not.toContain('按键可视化');
     expect(markup).not.toContain('投掷物轨迹');

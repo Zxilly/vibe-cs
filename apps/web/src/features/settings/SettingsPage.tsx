@@ -227,7 +227,6 @@ function SteamSettings({ config, setConfig, updateSteam }: { config: AppConfig; 
   return (
     <div className="settings-stack-page">
       <SettingsSection eyebrow="STEAM MATCH HISTORY" title={msg("m1211")} description={msg("m0788")}>
-        <Notice tone="info">{msg("m1289")}</Notice>
         <Field label="Steam ID 64" hint={msg("m0616")}><TextInput value={config.steam.steam_id} onChange={(event) => updateSteam('steam_id', event.target.value.replace(/\D/g, '').slice(0, 17))} inputMode="numeric" placeholder="7656119…" /></Field>
         <Field label="Steam Web API Key" hint={config.steam_has_web_api_key ? msg("m0493") : msg("m0187")}><TextInput type="password" value={config.steam.web_api_key} onChange={(event) => updateSteam('web_api_key', event.target.value)} autoComplete="new-password" placeholder={config.steam_has_web_api_key ? msg("m0508") : msg("m0020")} /></Field>
         <Field label={msg("m0935")} hint={config.steam_has_authentication_code ? msg("m0491") : msg("m0829")}><TextInput type="password" value={config.steam.authentication_code} onChange={(event) => updateSteam('authentication_code', event.target.value)} autoComplete="new-password" placeholder={config.steam_has_authentication_code ? msg("m0508") : 'XXXX-XXXXX-XXXX'} /></Field>
@@ -239,7 +238,6 @@ function SteamSettings({ config, setConfig, updateSteam }: { config: AppConfig; 
         </div>
         {testAction.state.message ? <Notice tone={testAction.state.status === 'error' ? 'danger' : 'success'}>{testAction.state.message}</Notice> : null}
         {disconnectAction.state.message ? <Notice tone={disconnectAction.state.status === 'error' ? 'danger' : 'success'}>{disconnectAction.state.message}</Notice> : null}
-        <div className="privacy-note"><KeyRound size={14} /><span>{msg("m1258")}</span></div>
       </SettingsSection>
     </div>
   );
@@ -463,9 +461,6 @@ function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: Rea
           placeholder="C:\Program Files\...\cs2.exe"
           browse={{ kind: 'file', title: msg("m1217"), filters: [{ name: msg("m0081"), extensions: ['exe'] }] }}
         />
-        <Notice tone="info">
-          {t('settings.hlaeManagedDescription')}
-        </Notice>
         <div className="settings-inline-actions">
           {!hlaeStatusAction.state.data?.managed_release.prepared ? (
             <Button size="sm" disabled={hlaeStatusAction.state.status === 'loading'} onClick={() => void prepareHlae()}>
@@ -483,9 +478,7 @@ function PathSettings({ config, setConfig }: { config: AppConfig; setConfig: Rea
         </div>
         {hlaeStatusAction.state.data ? (
           <Notice tone={hlaeStatusAction.state.data.launch_profile_ready ? 'info' : 'warning'}>
-            {hlaeStatusAction.state.data.managed_release.version}
-            {' · '}{hlaeStatusAction.state.data.executable ?? hlaeStatusAction.state.data.messages[0]}
-            {' · '}{t('settings.hlaeSafety')}
+            {hlaeStatusAction.state.data.available ? t('settings.hlaeReady') : t('settings.hlaeMissing')}
           </Notice>
         ) : hlaeStatusAction.state.message ? (
           <Notice tone="danger">{hlaeStatusAction.state.message}</Notice>
@@ -526,13 +519,11 @@ export function VideoSettings() {
 
   return (
     <div className="settings-stack-page">
-      <SettingsSection eyebrow="MOVIE PIPELINE" title={t('settings.moviePipeline')} description={t('settings.moviePipelineDescription')}>
+      <SettingsSection eyebrow="VIDEO" title={t('settings.moviePipeline')} description={t('settings.moviePipelineDescription')}>
         <div className="dependency-inline">
           <span className="setup-row__icon"><FileVideo2 size={15} /></span>
-          <div><strong>HLAE → MP4</strong><small>{t('settings.moviePipelineManaged')}</small></div>
-          <Badge tone="neutral">{t('settings.noExternalTools')}</Badge>
+          <div><strong>MP4</strong><small>{t('settings.moviePipelineManaged')}</small></div>
         </div>
-        <Notice tone="info">{t('settings.moviePipelineAutomaticEncoding')}</Notice>
       </SettingsSection>
     </div>
   );
@@ -592,7 +583,6 @@ function AnalysisSettings({ config, source, updateLlm, clearLlmApiKey }: { confi
         {cleanupAction.state.status === 'success' ? <Notice tone={cleanupAction.state.data.failed_entries > 0 || !cleanupAction.state.data.scan_complete ? 'warning' : 'success'}>{msg("m0499")} {cleanupAction.state.data.removed_entries.toLocaleString(currentLocale())} {msg("m1309")} {formatBytes(cleanupAction.state.data.freed_bytes)}。{cleanupAction.state.data.failed_entries > 0 ? msgf("m0002", [cleanupAction.state.data.failed_entries.toLocaleString(currentLocale())]) : ''}{cleanupAction.state.data.scan_complete ? '' : msg("m0012")}</Notice> : cleanupAction.state.status === 'error' ? <Notice tone="danger">{cleanupAction.state.message}</Notice> : null}
       </SettingsSection>
       <SettingsSection eyebrow="OPTIONAL ASSISTANCE" title={msg("m1179")} description={msg("m0340")}>
-        <Notice tone="info">{msg("m0150")}</Notice>
         <div className="field-row"><Field label={msg("m0664")}><select value={config.llm.provider} onChange={(event) => updateLlm('provider', event.target.value)}><option value="">{msg("m0772")}</option><option value="kimi-code">Kimi Code</option><option value="openai-compatible">{msg("m0066")}</option><option value="local">{msg("m0796")}</option></select></Field><Field label={msg("m0834")}><TextInput value={config.llm.model} onChange={(event) => updateLlm('model', event.target.value)} placeholder={msg("m0835")} /></Field></div>
         <Field label={msg("m0745")} hint={config.llm.provider === 'local' ? msg("m0785") : msg("m1206")}><TextInput value={config.llm.base_url} onChange={(event) => updateLlm('base_url', event.target.value)} placeholder={config.llm.provider === 'local' ? 'http://127.0.0.1:11434/v1' : 'https://.../v1'} /></Field>
         <Field label={msg("m0024")} hint={config.llm_has_api_key ? msg("m0493") : undefined}><TextInput type="password" value={config.llm.api_key} onChange={(event) => updateLlm('api_key', event.target.value)} autoComplete="new-password" placeholder={config.llm_has_api_key ? msg("m0508") : undefined} /></Field>
@@ -615,12 +605,10 @@ export function RecordingSettings({ config, updateRecording }: { config: AppConf
       <SettingsSection eyebrow="CLIP PACING" title={msg("m0967")} description={msg("m0693")}>
         <div className="field-row"><Field label={msg("m0297")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={config.recording.pre_roll_seconds} onChange={(event) => updateRecording('pre_roll_seconds', Number(event.target.value))} /><span>{msg("m1044")}</span></div></Field><Field label={msg("m0361")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={config.recording.post_roll_seconds} onChange={(event) => updateRecording('post_roll_seconds', Number(event.target.value))} /><span>{msg("m1044")}</span></div></Field></div>
       </SettingsSection>
-      <SettingsSection eyebrow="NATIVE PIPELINE" title={t('settings.hlaeCaptureDefaults')} description={t('settings.hlaeCaptureDefaultsDescription')}>
-        <Notice tone="info">HLAE → Windows Media Foundation → MP4 · {t('settings.noExternalTools')}</Notice>
+      <SettingsSection eyebrow="VIDEO" title={t('settings.hlaeCaptureDefaults')} description={t('settings.hlaeCaptureDefaultsDescription')}>
         <div className="field-row"><Field label={msg("m0275")}><select value={config.recording.resolution} onChange={(event) => updateRecording('resolution', event.target.value)}><option value="1920x1080">1920 × 1080</option><option value="2560x1440">2560 × 1440</option><option value="3840x2160">3840 × 2160</option></select></Field><Field label={msg("m0549")}><select value={config.recording.fps} onChange={(event) => updateRecording('fps', Number(event.target.value))}><option value="30">30 FPS</option><option value="60">60 FPS</option></select></Field></div>
       </SettingsSection>
-      <SettingsSection eyebrow="VERIFIED PRESENTATION" title={t('settings.hlaePresentation')} description={t('settings.hlaePresentationDescription')}>
-        <Notice tone="info">{t('settings.hlaeJobIsolation')}</Notice>
+      <SettingsSection eyebrow="PRESENTATION" title={t('settings.hlaePresentation')} description={t('settings.hlaePresentationDescription')}>
         <div className="toggle-list">
           <label><span><Gamepad2 size={15} /><span><strong>{msg("m0600")}</strong><small>{msg("m0594")}</small></span></span><input type="checkbox" checked={config.recording.show_radar} onChange={(event) => updateRecording('show_radar', event.target.checked)} /></label>
           <label><span><Gamepad2 size={15} /><span><strong>{msg("m0729")}</strong><small>{msg("m0602")}</small></span></span><input type="checkbox" checked={config.recording.show_hud} onChange={(event) => updateRecording('show_hud', event.target.checked)} /></label>

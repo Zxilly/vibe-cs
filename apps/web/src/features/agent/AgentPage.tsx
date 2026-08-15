@@ -18,6 +18,7 @@ import type {
   AgentMode,
   AgentProposal,
   AgentStatus,
+  AgentVideoProposal,
   BeatAlignmentProposalPreview,
   BeatAlignmentProposalRequest,
   DemoSummary,
@@ -29,13 +30,16 @@ import type {
   HlaeProposalPreview,
   MediaAsset,
   ProposalPrerequisite,
+  RecordingJob,
+  RecordingPlanResponse,
 } from '../../shared/desktop/dto';
 import { type MessageKey, useI18n } from '../../shared/i18n';
 import { Badge, Button, EmptyState, Notice, PageHeader, SegmentedControl, Spinner } from '../../shared/ui';
 import { applyAgentEvent, proposalActivityKey, rollbackOptimisticRun } from './agentSession';
 import { deriveAgentRouteContext, resolveAgentNavigation } from './agentNavigation';
-import { HLAE_BUNDLE_EXPORTED_EVENT, HlaeHandoffPanel } from './HlaeHandoffPanel';
 import { ProposalMutationBusyError, ProposalMutationCoordinator } from './proposalMutation';
+import { recordingJobStage, requireManagedHlaeForRecording } from '../queue/queuePlan';
+import { type QueueItem, useQueueStore } from '../queue/queueStore';
 
 import './agent.css';
 
@@ -82,29 +86,95 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function proposalSummary(proposal: AgentProposal): string {
+function proposalSummary(proposal: AgentProposal, t: (key: MessageKey) => string): string {
   const payload = record(proposal.payload);
-  if (!payload) return 'Validated local draft';
+  if (!payload) return t('copilot.summary.draft');
   if (proposal.kind === 'beat_alignment') {
     const draft = record(payload.draft);
     const count = Array.isArray(draft?.clips) ? draft.clips.length : 0;
-    return `Native beat alignment · ${count} clips · advisory only`;
+    return `${t('copilot.summary.beatAlignment')} · ${count} ${t('copilot.clipChanges')}`;
   }
   if (proposal.kind === 'hlae') {
     const highlights = Array.isArray(payload.highlight_ids) ? payload.highlight_ids.length : 0;
-    return `HLAE intent · ${highlights} highlights · Rust preview required`;
+    return `${t('copilot.summary.shotPlan')} · ${highlights} ${t('copilot.highlights')}`;
+  }
+  if (proposal.kind === 'video_render') {
+    const items = Array.isArray(payload.items) ? payload.items.length : 0;
+    return `${t('copilot.summary.video')} · ${items} ${t('copilot.highlights')}`;
   }
   const highlights = Array.isArray(payload.highlight_ids) ? payload.highlight_ids.length : 0;
-  return `Recorded highlight edit · ${highlights} highlights · local assets required`;
+  return `${t('copilot.summary.edit')} · ${highlights} ${t('copilot.highlights')}`;
+}
+
+function proposalTitle(proposal: AgentProposal, t: (key: MessageKey) => string): string {
+  if (proposal.kind === 'video_render') return t('copilot.summary.video');
+  if (proposal.kind === 'hlae') return t('copilot.summary.shotPlan');
+  if (proposal.kind === 'beat_alignment') return t('copilot.summary.beatAlignment');
+  return t('copilot.summary.edit');
+}
+
+function toolTitle(name: string, t: (key: MessageKey) => string): string {
+  if (name === 'draft_video_plan') return t('copilot.tool.videoDraft');
+  if (name === 'draft_hlae_plan') return t('copilot.tool.shotPlan');
+  if (name === 'draft_edit_plan' || name === 'draft_beat_alignment') return t('copilot.tool.editDraft');
+  if (name === 'read_editor_timeline') return t('copilot.tool.readEdit');
+  if (name === 'read_audio_analysis') return t('copilot.tool.readAudio');
+  if (name === 'navigate_workspace') return t('copilot.tool.navigate');
+  if (name.startsWith('read_')) return t('copilot.tool.readMatch');
+  return t('copilot.tool.action');
+}
+
+function agentVideoQueueItems(proposal: AgentVideoProposal): QueueItem[] {
+  return proposal.items.map((item, index) => {
+    const design = proposal.shot_designs?.[index];
+    const evidence = `${item.highlight_id ?? ''} ${item.title}`.toLocaleLowerCase();
+    const category: QueueItem['category'] = evidence.includes('multikill') || evidence.includes('multi-kill')
+      ? 'multi-kill'
+      : evidence.includes('clutch')
+        ? 'clutch'
+        : evidence.includes('entry')
+          ? 'entry'
+          : evidence.includes('utility')
+            ? 'utility'
+            : 'custom';
+    return {
+      id: item.id,
+      demoId: item.demo_id,
+      ...(item.highlight_id ? { highlightId: item.highlight_id } : {}),
+      demoName: `Demo ${item.demo_id.slice(0, 8)}`,
+      playerId: item.player_id,
+      playerName: item.title.split(/\s+/u)[0] || item.player_id,
+      title: item.title,
+      category,
+      startTick: item.start_tick,
+      endTick: item.end_tick,
+      preRollSeconds: item.pre_roll_seconds,
+      postRollSeconds: item.post_roll_seconds,
+      perspective: item.victim_pov ? 'victim' : 'pov',
+      cameraStyle: item.camera_style ?? 'pov',
+      ...(design ? {
+        cameraIntent: design.camera_intent,
+        cameraRationale: design.rationale,
+        ...(design.map_name ? { mapName: design.map_name } : {}),
+      } : {}),
+      enabled: true,
+      origin: 'demo',
+    };
+  });
 }
 
 type ProposalPreview =
+  | { kind: 'video_render'; value: RecordingPlanResponse; request: AgentVideoProposal }
   | { kind: 'hlae'; value: HlaeProposalPreview; request: HlaeProposalIntent }
   | { kind: 'beat_alignment'; value: BeatAlignmentProposalPreview; request: BeatAlignmentProposalRequest }
   | { kind: 'highlight_edit'; value: HighlightEditProposalPreview; request: HighlightEditProposalRequest };
 
 function prerequisites(preview: ProposalPreview | null): ProposalPrerequisite[] {
-  return preview?.value.prerequisites ?? [];
+  return preview && preview.kind !== 'video_render' ? preview.value.prerequisites : [];
+}
+
+function previewReady(preview: ProposalPreview | null): boolean {
+  return preview !== null && (preview.kind === 'video_render' || preview.value.ready);
 }
 
 function numberField(value: Record<string, unknown> | null, key: string): number | null {
@@ -143,20 +213,38 @@ function HlaeExportResult({ result, onReveal }: {
     <section className="agent-proposal-details agent-proposal-details--exported" aria-label={t('copilot.exportComplete')}>
       <div className="agent-proposal-details__export-heading">
         <CheckCircle2 size={18} aria-hidden="true" />
-        <div><strong>{t('copilot.exportComplete')}</strong><span>{t('copilot.notLaunched')}</span></div>
+        <div><strong>{t('copilot.exportComplete')}</strong></div>
       </div>
-      <dl>
-        <div className="agent-proposal-details__wide"><dt>{t('copilot.bundleDirectory')}</dt><dd title={result.directory}>{result.directory}</dd></div>
-        <div><dt>{t('copilot.generatedFiles')}</dt><dd>{result.files.length}</dd></div>
-        <div><dt>{t('copilot.launched')}</dt><dd>{result.launched ? '—' : t('copilot.never')}</dd></div>
-        <div className="agent-proposal-details__wide"><dt>{t('copilot.completeMarker')}</dt><dd title={result.completion_marker}>{result.completion_marker}</dd></div>
-      </dl>
-      <ul className="agent-proposal-details__export-files">
-        {result.files.map((path) => <li key={path} title={path}>{path}</li>)}
-      </ul>
       <Button size="sm" variant="secondary" onClick={() => onReveal(result.directory)}>
         <FolderOpen size={14} />{t('copilot.revealBundle')}
       </Button>
+    </section>
+  );
+}
+
+function VideoRenderResult({ job, onCancel }: { job: RecordingJob; onCancel: () => void }) {
+  const { t } = useI18n();
+  const stage = recordingJobStage(job.message);
+  const terminal = ['completed', 'failed', 'cancelled'].includes(job.status);
+  return (
+    <section className="agent-proposal-details agent-video-result" aria-label={t('copilot.videoJob')}>
+      <div className="agent-proposal-details__export-heading">
+        {job.status === 'completed' ? <CheckCircle2 size={18} aria-hidden="true" /> : <Film size={18} aria-hidden="true" />}
+        <div>
+          <strong>{job.status === 'completed' ? t('copilot.videoComplete') : t('copilot.videoJob')}</strong>
+          <span>{stage ? `${t(stage.key)} · ${stage.ordinal}/${stage.total}` : job.message}</span>
+        </div>
+      </div>
+      <progress max={1} value={Math.max(0, Math.min(1, job.progress))} />
+      {job.outputs.length > 0 ? (
+        <ul className="agent-proposal-details__export-files">
+          {job.outputs.map((output) => <li key={output.id} title={output.path}>{output.path}</li>)}
+        </ul>
+      ) : null}
+      <div className="agent-proposal-card__actions">
+        {!terminal ? <Button size="sm" variant="secondary" onClick={onCancel}>{t('common.cancel')}</Button> : null}
+        {job.outputs.length > 0 ? <Link className="button button--secondary button--sm" to="/outputs">{t('copilot.openVideo')}</Link> : null}
+      </div>
     </section>
   );
 }
@@ -181,7 +269,9 @@ function hasReviewableChanges(
   project: EditorProject | undefined,
   selectedAudioAssetId: string,
 ): boolean {
-  if (!preview?.value.ready) return false;
+  if (!preview) return false;
+  if (preview.kind === 'video_render') return preview.value.items.length > 0;
+  if (!preview.value.ready) return false;
   if (preview.kind === 'hlae') {
     const plan = record(preview.value.typed_plan);
     const compiled = record(preview.value.compiled_preview);
@@ -195,6 +285,31 @@ function hasReviewableChanges(
 
 function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview; project?: EditorProject }) {
   const { t } = useI18n();
+  if (preview.kind === 'video_render') {
+    return (
+      <section className="agent-proposal-details" aria-label={t('copilot.videoPlan')}>
+        <dl>
+          <div><dt>{t('copilot.delivery')}</dt><dd>MP4</dd></div>
+          <div><dt>{t('copilot.highlights')}</dt><dd>{preview.value.items.length}</dd></div>
+          <div><dt>{t('copilot.estimatedDuration')}</dt><dd>{preview.value.estimated_seconds === null ? '—' : `${preview.value.estimated_seconds.toFixed(1)}s`}</dd></div>
+        </dl>
+        <ol className="agent-proposal-details__changes">
+          {preview.value.items.map((item, index) => {
+            const design = preview.request.shot_designs?.[index];
+            return (
+            <li key={item.id}>
+              <strong>{item.title}</strong>
+              <span>{item.start_tick} → {item.end_tick} tick</span>
+              <span>{item.pre_roll_seconds.toFixed(1)}s / {item.post_roll_seconds.toFixed(1)}s context</span>
+              {design ? <span>{design.map_name ?? 'Map'} · {design.camera_style} · {design.camera_intent}</span> : null}
+              {design ? <span>{design.rationale}</span> : null}
+            </li>
+            );
+          })}
+        </ol>
+      </section>
+    );
+  }
   if (!preview.value.ready) {
     if (preview.kind !== 'hlae' || !preview.value.installation_status) return null;
     const status = preview.value.installation_status;
@@ -284,20 +399,10 @@ function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview
     );
   }
 
-  const plan = record(preview.value.typed_plan);
   const compiled = record(preview.value.compiled_preview);
-  const capture = record(plan?.capture);
   const shots = hlaeShotRecords(preview.value);
   const firstTick = numberField(compiled, 'firstTick');
   const lastTick = numberField(compiled, 'lastTick');
-  const cameraPaths = Array.isArray(compiled?.cameraPaths) ? compiled.cameraPaths : [];
-  const artifacts = [compiled?.bootstrapConfig, compiled?.commandSystem, ...cameraPaths]
-    .map(record)
-    .map((artifact) => stringField(artifact, 'path'))
-    .filter((path): path is string => path !== null);
-  const outputDirectory = stringField(plan, 'outputDirectory');
-  const tickRate = numberField(plan, 'tickRate');
-  const status = preview.value.installation_status;
   return (
     <section className="agent-proposal-details" aria-label={t('copilot.changeReview')}>
       <dl>
@@ -305,19 +410,10 @@ function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview
         <div><dt>{t('copilot.cameraStyle')}</dt><dd>{preview.request.camera_style}</dd></div>
         <div><dt>{t('copilot.mode')}</dt><dd>{preview.request.mode}</dd></div>
         <div><dt>{t('copilot.contextWindow')}</dt><dd>{preview.request.lead_seconds.toFixed(2)}s / {preview.request.tail_seconds.toFixed(2)}s</dd></div>
-        <div><dt>{t('copilot.tickRate')}</dt><dd>{tickRate?.toFixed(3) ?? '—'} tick/s</dd></div>
         <div><dt>{t('copilot.shots')}</dt><dd>{shots.length}</dd></div>
         <div><dt>{t('copilot.highlights')}</dt><dd>{preview.request.highlight_ids.length}</dd></div>
         <div><dt>{t('copilot.tickRange')}</dt><dd>{firstTick ?? '—'} → {lastTick ?? '—'}</dd></div>
-        <div><dt>{t('copilot.capture')}</dt><dd>{numberField(capture, 'width') ?? '—'}×{numberField(capture, 'height') ?? '—'} · {numberField(capture, 'fps') ?? '—'} fps</dd></div>
-        <div className="agent-proposal-details__wide"><dt>{t('copilot.outputDirectory')}</dt><dd title={outputDirectory ?? undefined}>{outputDirectory ?? '—'}</dd></div>
-        <div><dt>{t('copilot.generatedPaths')}</dt><dd>{artifacts.length}</dd></div>
-        <div className="agent-proposal-details__wide"><dt>{t('copilot.highlights')}</dt><dd>{preview.request.highlight_ids.join(', ')}</dd></div>
-        <div><dt>{t('copilot.hlaeInstallStatus')}</dt><dd>{status?.available ? t('copilot.hlaeInstalled') : t('copilot.hlaeMissing')}</dd></div>
-        <div><dt>{t('copilot.launchProfile')}</dt><dd>{status?.launch_profile_ready ? t('copilot.profileReady') : t('copilot.profileNotReady')}</dd></div>
-        <div className="agent-proposal-details__wide"><dt>HLAE.exe</dt><dd title={status?.executable ?? undefined}>{status?.executable ?? '—'}</dd></div>
       </dl>
-      <Notice tone="info">{t('copilot.hlaeSafetyBoundary')}</Notice>
       <ol className="agent-proposal-details__changes">
         {shots.map((shot, index) => {
           const keyframes = Array.isArray(shot.keyframes) ? shot.keyframes.length : 0;
@@ -330,16 +426,32 @@ function ProposalPreviewDetails({ preview, project }: { preview: ProposalPreview
           );
         })}
       </ol>
-      <div className="agent-proposal-details__artifacts">
-        <strong>{t('copilot.generatedPaths')}</strong>
-        <ul>{artifacts.map((path) => <li key={path} title={path}>{path}</li>)}</ul>
+    </section>
+  );
+}
+
+export function AgentProposalConfirmation({
+  message,
+  target,
+  actionLabel,
+  onCancel,
+  onConfirm,
+}: {
+  message: string;
+  target: string;
+  actionLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <section className="agent-proposal-confirmation" role="alertdialog" aria-label={message}>
+      <p>{message}</p>
+      <strong>{target}</strong>
+      <div className="agent-proposal-card__actions">
+        <Button size="sm" variant="secondary" onClick={onCancel}>{t('common.cancel')}</Button>
+        <Button size="sm" variant="primary" onClick={onConfirm}>{actionLabel}</Button>
       </div>
-      {preview.value.notices.length > 0 ? (
-        <div className="agent-proposal-details__notices">
-          <strong>{t('copilot.notices')}</strong>
-          <ul>{preview.value.notices.map((notice, index) => <li key={`${index}:${notice}`}>{notice}</li>)}</ul>
-        </div>
-      ) : null}
     </section>
   );
 }
@@ -365,6 +477,9 @@ function ProposalCard({
   const [hlaeMode, setHlaeMode] = useState<HlaeProposalIntent['mode']>(initialMode);
   const [preview, setPreview] = useState<ProposalPreview | null>(null);
   const [exported, setExported] = useState<HlaeProposalExportResult | null>(null);
+  const [recordingJobId, setRecordingJobId] = useState<string | null>(null);
+  const [recordingJob, setRecordingJob] = useState<RecordingJob | null>(null);
+  const [confirmationTarget, setConfirmationTarget] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const generationRef = useRef(0);
@@ -382,6 +497,9 @@ function ProposalCard({
     generationRef.current += 1;
     setPreview(null);
     setExported(null);
+    setRecordingJobId(null);
+    setRecordingJob(null);
+    setConfirmationTarget(null);
     setHlaeMode(initialMode);
     setError(null);
     setBusy(false);
@@ -394,9 +512,37 @@ function ProposalCard({
     if (proposal.kind !== 'beat_alignment' || mutationActiveRef.current) return;
     generationRef.current += 1;
     setPreview(null);
+    setConfirmationTarget(null);
     setError(null);
     setBusy(false);
   }, [proposal.kind, selectedAudioAssetId]);
+
+  useEffect(() => {
+    if (!recordingJobId) return;
+    let disposed = false;
+    let timer: number | undefined;
+    const controller = new AbortController();
+    const refresh = async () => {
+      try {
+        const next = await commands.getRecordingJob(recordingJobId, controller.signal);
+        if (disposed) return;
+        setRecordingJob(next);
+        if (!['completed', 'failed', 'cancelled'].includes(next.status)) {
+          timer = window.setTimeout(() => void refresh(), 750);
+        }
+      } catch (cause) {
+        if (disposed) return;
+        setError(readableError(cause));
+        timer = window.setTimeout(() => void refresh(), 2_000);
+      }
+    };
+    void refresh();
+    return () => {
+      disposed = true;
+      controller.abort();
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [recordingJobId]);
 
   const inspect = useCallback(async () => {
     if (busy || mutationLocked) return;
@@ -406,7 +552,18 @@ function ProposalCard({
     setError(null);
     try {
       let next: ProposalPreview;
-      if (proposal.kind === 'hlae') {
+      if (proposal.kind === 'video_render') {
+        const request = proposal.payload as AgentVideoProposal;
+        await requireManagedHlaeForRecording(
+          commands.prepareManagedHlae,
+          t('copilot.videoEnginePreparationFailed'),
+        );
+        next = {
+          kind: 'video_render',
+          request,
+          value: await commands.planRecording({ items: request.items }),
+        };
+      } else if (proposal.kind === 'hlae') {
         const request = hlaeIntent(proposal, hlaeMode);
         next = { kind: 'hlae', request, value: await commands.previewHlaeProposal(request) };
       } else if (proposal.kind === 'beat_alignment') {
@@ -425,21 +582,36 @@ function ProposalCard({
     } finally {
       if (generationRef.current === generation) setBusy(false);
     }
-  }, [busy, hlaeMode, mutationLocked, proposal, selectedAudioAssetId]);
+  }, [busy, hlaeMode, mutationLocked, proposal, selectedAudioAssetId, t]);
 
-  const apply = useCallback(async () => {
+  const requestApply = useCallback(() => {
     if (!preview || !reviewable || busy || mutationLocked) return;
-    const target = preview.kind === 'hlae'
+    const target = preview.kind === 'video_render'
+      ? `${preview.value.items.length} ${t('copilot.highlights')} · MP4 · ${preview.value.estimated_seconds?.toFixed(1) ?? '—'}s`
+      : preview.kind === 'hlae'
       ? `Demo ${preview.request.demo_id} · ${hlaeShotRecords(preview.value).length} ${t('copilot.shots')}`
       : preview.kind === 'beat_alignment'
         ? `${t('copilot.project')} ${preview.value.project_id} · ${preview.value.changes.length} ${t('copilot.clipChanges')}`
         : `${t('copilot.project')} ${preview.value.target_project_id ?? '—'} · ${preview.value.insertions.length} ${t('copilot.clipChanges')}`;
-    if (!window.confirm(`${t(preview.kind === 'hlae' ? 'copilot.confirmExport' : 'copilot.confirmApply')}\n\n${target}`)) return;
+    setConfirmationTarget(target);
+  }, [busy, mutationLocked, preview, reviewable, t]);
+
+  const apply = useCallback(async () => {
+    if (!preview || !reviewable || !confirmationTarget || busy || mutationLocked) return;
+    setConfirmationTarget(null);
     setBusy(true);
     setError(null);
     mutationActiveRef.current = true;
     try {
       await mutationCoordinator.run(proposalId, async () => {
+        if (preview.kind === 'video_render') {
+          // This value is only sent after the CDP-visible alertdialog above was
+          // explicitly confirmed. Other recording entry points keep native consent.
+          const result = await commands.executeRecordingPlan(preview.value.plan_id, true);
+          setRecordingJob(null);
+          setRecordingJobId(result.job_id);
+          return;
+        }
         const value = preview.value;
         if (!value.base_fingerprint || !value.proposal_fingerprint || !value.confirmation_token) {
           throw new Error(t('copilot.previewExpired'));
@@ -456,7 +628,6 @@ function ProposalCard({
         if (preview.kind === 'hlae') {
           const result = await commands.exportHlaeProposal(preview.request, confirmation);
           setExported(result);
-          window.dispatchEvent(new Event(HLAE_BUNDLE_EXPORTED_EVENT));
         } else if (preview.kind === 'beat_alignment') {
           const result = await commands.applyBeatAlignmentProposal(preview.request, confirmation);
           navigate(`/studio/editor?project=${encodeURIComponent(result.project_id)}`);
@@ -472,7 +643,7 @@ function ProposalCard({
       mutationActiveRef.current = false;
       setBusy(false);
     }
-  }, [busy, mutationCoordinator, mutationLocked, navigate, preview, proposalId, reviewable, t]);
+  }, [busy, confirmationTarget, mutationCoordinator, mutationLocked, navigate, preview, proposalId, reviewable, t]);
 
   const revealExport = useCallback(async (directory: string) => {
     if (busy || mutationLocked) return;
@@ -489,11 +660,37 @@ function ProposalCard({
     }
   }, [busy, mutationCoordinator, mutationLocked, proposalId]);
 
+  const cancelRecording = useCallback(async () => {
+    if (!recordingJobId || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const cancelled = await commands.cancelRecordingJob(recordingJobId);
+      setRecordingJob(cancelled);
+    } catch (cause) {
+      setError(readableError(cause));
+    } finally {
+      setBusy(false);
+    }
+  }, [busy, recordingJobId]);
+
+  const openVideoWorkspace = useCallback(() => {
+    if (proposal.kind !== 'video_render' || busy || mutationLocked) return;
+    const request = proposal.payload as AgentVideoProposal;
+    const items = agentVideoQueueItems(request);
+    if (items.length === 0) {
+      setError(t('copilot.previewIncomplete'));
+      return;
+    }
+    useQueueStore.getState().replace(items);
+    navigate('/queue?source=agent');
+  }, [busy, mutationLocked, navigate, proposal, t]);
+
   const missing = prerequisites(preview);
   return (
     <div className="agent-proposal-card">
-      <strong>{proposal.title}</strong>
-      <p>{proposalSummary(proposal)}</p>
+      <strong>{proposalTitle(proposal, t)}</strong>
+      <p>{proposalSummary(proposal, t)}</p>
       {proposal.kind === 'hlae' ? (
         <SegmentedControl
           label={t('copilot.hlaeOutputMode')}
@@ -502,6 +699,7 @@ function ProposalCard({
             setHlaeMode(value);
             setPreview(null);
             setExported(null);
+            setConfirmationTarget(null);
           }}
           disabled={busy || mutationLocked}
           options={[
@@ -513,11 +711,11 @@ function ProposalCard({
       {error ? <span className="agent-proposal-card__error">{error}</span> : null}
       {preview ? (
         <>
-          <Badge tone={preview.value.ready ? 'success' : 'warning'}>
-            {preview.value.ready ? t('copilot.previewReady') : t('copilot.previewBlocked')}
+          <Badge tone={previewReady(preview) ? 'success' : 'warning'}>
+            {previewReady(preview) ? t('copilot.previewReady') : t('copilot.previewBlocked')}
           </Badge>
           <ProposalPreviewDetails preview={preview} {...(beatProject ? { project: beatProject } : {})} />
-          {preview.value.ready && !reviewable ? (
+          {previewReady(preview) && !reviewable ? (
             <span className="agent-proposal-card__error">{t('copilot.previewIncomplete')}</span>
           ) : null}
         </>
@@ -525,18 +723,89 @@ function ProposalCard({
       {missing.length > 0 ? (
         <ul>{missing.map((item) => <li key={item.code}>{item.message}</li>)}</ul>
       ) : null}
-      {exported ? <HlaeExportResult result={exported} onReveal={(directory) => void revealExport(directory)} /> : null}
-      <div className="agent-proposal-card__actions">
-        <Button size="sm" variant="secondary" disabled={busy || mutationLocked} onClick={() => void inspect()}>
-          {busy ? <Spinner /> : null}{t('copilot.preview')}
-        </Button>
-        <Button size="sm" variant="primary" disabled={busy || mutationLocked || !reviewable} onClick={() => void apply()}>
-          {proposal.kind === 'hlae'
+      {confirmationTarget && preview ? (
+        <AgentProposalConfirmation
+          message={t(preview.kind === 'video_render' ? 'copilot.confirmVideo' : preview.kind === 'hlae' ? 'copilot.confirmExport' : 'copilot.confirmApply')}
+          target={confirmationTarget}
+          actionLabel={preview.kind === 'video_render'
+            ? t('copilot.generateVideo')
+            : preview.kind === 'hlae'
             ? t(hlaeMode === 'capture' ? 'copilot.exportCaptureBundle' : 'copilot.exportPreviewBundle')
             : t('copilot.apply')}
-        </Button>
+          onCancel={() => setConfirmationTarget(null)}
+          onConfirm={() => void apply()}
+        />
+      ) : null}
+      {exported ? <HlaeExportResult result={exported} onReveal={(directory) => void revealExport(directory)} /> : null}
+      {recordingJob ? <VideoRenderResult job={recordingJob} onCancel={() => void cancelRecording()} /> : null}
+      <div className="agent-proposal-card__actions">
+        {proposal.kind === 'video_render' ? (
+          <Button size="sm" variant="primary" disabled={busy || mutationLocked} onClick={openVideoWorkspace}>
+            <Film size={14} />{t('copilot.openRecordingWorkspace')}
+          </Button>
+        ) : (
+          <>
+            <Button size="sm" variant="secondary" disabled={busy || mutationLocked} onClick={() => void inspect()}>
+              {busy ? <Spinner /> : null}{t('copilot.preview')}
+            </Button>
+            <Button size="sm" variant="primary" disabled={busy || mutationLocked || !reviewable} onClick={requestApply}>
+              {proposal.kind === 'hlae'
+                ? t(hlaeMode === 'capture' ? 'copilot.exportCaptureBundle' : 'copilot.exportPreviewBundle')
+                : t('copilot.apply')}
+            </Button>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+type AgentActivityItem =
+  | { id: string; kind: 'tool'; name: string; summary: string }
+  | { id: string; kind: 'proposal'; name: string; summary: string; proposal: AgentProposal };
+
+export function AgentActivityPanel({
+  activity,
+  projects,
+  selectedAudioAssetId,
+  mutationCoordinator,
+  mutationOwner,
+  variant = 'page',
+}: {
+  activity: AgentActivityItem[];
+  projects: EditorProject[];
+  selectedAudioAssetId: string;
+  mutationCoordinator: ProposalMutationCoordinator;
+  mutationOwner: string | null;
+  variant?: 'page' | 'dock';
+}) {
+  const { t } = useI18n();
+  return (
+    <aside className={`agent-activity${variant === 'dock' ? ' agent-activity--dock' : ''}`}>
+      <header><Wrench size={17} /><strong>{t('copilot.activity')}</strong></header>
+      {activity.length === 0 ? <p>{t('copilot.noActivity')}</p> : (
+        <ol>
+          {activity.map((item) => (
+            <li key={item.id}>
+              <Badge tone={item.kind === 'proposal' ? 'accent' : 'neutral'}>
+                {item.kind === 'proposal' ? t('copilot.proposal') : t('copilot.tool')}
+              </Badge>
+              {item.kind === 'proposal' ? (
+                <ProposalCard
+                  proposalId={item.id}
+                  proposal={item.proposal}
+                  projects={projects}
+                  selectedAudioAssetId={selectedAudioAssetId}
+                  mutationCoordinator={mutationCoordinator}
+                  mutationOwner={mutationOwner}
+                />
+              ) : <><strong>{toolTitle(item.name, t)}</strong><p>{item.summary}</p></>}
+            </li>
+          ))}
+        </ol>
+      )}
+      <Notice tone="info">{t('copilot.advisory')}</Notice>
+    </aside>
   );
 }
 
@@ -787,14 +1056,14 @@ export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurfac
     onCancel,
   });
 
-  const activity = useMemo(() => messages.flatMap((message) => [
+  const activity = useMemo<AgentActivityItem[]>(() => messages.flatMap((message) => [
     ...message.toolCalls.map((toolCall, index) => ({
       id: `${message.id}:tool:${index}`, kind: 'tool' as const,
       name: toolCall.name, summary: t('copilot.toolComplete'),
     })),
     ...message.proposals.map((proposal: AgentProposal, index) => ({
       id: proposalActivityKey(message.id, index), kind: 'proposal' as const,
-      name: proposal.title, summary: proposalSummary(proposal), proposal,
+      name: proposal.title, summary: proposalSummary(proposal, t), proposal,
     })),
   ]).reverse().slice(0, 12), [messages, t]);
   const audioAssets = useMemo(() => assets.filter((asset) => asset.has_audio), [assets]);
@@ -832,6 +1101,29 @@ export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurfac
           {routeContext.tick !== null ? <span>T{routeContext.tick}</span> : null}
           {routeContext.playerId ? <span title={routeContext.playerId}>STEAM64</span> : null}
         </section>
+        <div className="ai-workspace-dock__mode">
+          <SegmentedControl
+            label={t('copilot.context')}
+            value={mode}
+            onChange={setMode}
+            disabled={isRunning || proposalMutationOwner !== null}
+            options={[
+              { value: 'guide', label: t('copilot.mode.guide') },
+              { value: 'edit', label: t('copilot.mode.edit') },
+              { value: 'hlae', label: t('copilot.mode.hlae') },
+            ]}
+          />
+        </div>
+        {activity.length > 0 ? (
+          <AgentActivityPanel
+            activity={activity}
+            projects={projects}
+            selectedAudioAssetId={audioAssetId}
+            mutationCoordinator={proposalMutationCoordinator}
+            mutationOwner={proposalMutationOwner}
+            variant="dock"
+          />
+        ) : null}
         <section className="ai-workspace-dock__thread">
           <AssistantRuntimeProvider runtime={runtime}><AgentThread /></AssistantRuntimeProvider>
         </section>
@@ -882,36 +1174,17 @@ export function AgentPage({ surface = 'page' }: { surface?: AgentWorkspaceSurfac
             : <Link className="button button--secondary button--sm" to="/settings">{t('copilot.configure')}</Link>}
         </div>
       </section>
-      <HlaeHandoffPanel />
       <div className="agent-workspace">
         <section className="agent-chat-panel">
           <AssistantRuntimeProvider runtime={runtime}><AgentThread /></AssistantRuntimeProvider>
         </section>
-        <aside className="agent-activity">
-          <header><Wrench size={17} /><strong>{t('copilot.activity')}</strong></header>
-          {activity.length === 0 ? <p>{t('copilot.noActivity')}</p> : (
-            <ol>
-              {activity.map((item) => (
-                <li key={item.id}>
-                  <Badge tone={item.kind === 'proposal' ? 'accent' : 'neutral'}>
-                    {item.kind === 'proposal' ? t('copilot.proposal') : t('copilot.tool')}
-                  </Badge>
-                  {item.kind === 'proposal' ? (
-                    <ProposalCard
-                      proposalId={item.id}
-                      proposal={item.proposal}
-                      projects={projects}
-                      selectedAudioAssetId={audioAssetId}
-                      mutationCoordinator={proposalMutationCoordinator}
-                      mutationOwner={proposalMutationOwner}
-                    />
-                  ) : <><strong>{item.name}</strong><p>{item.summary}</p></>}
-                </li>
-              ))}
-            </ol>
-          )}
-          <Notice tone="info">{t('copilot.advisory')}</Notice>
-        </aside>
+        <AgentActivityPanel
+          activity={activity}
+          projects={projects}
+          selectedAudioAssetId={audioAssetId}
+          mutationCoordinator={proposalMutationCoordinator}
+          mutationOwner={proposalMutationOwner}
+        />
       </div>
     </main>
   );

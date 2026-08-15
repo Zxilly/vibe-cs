@@ -335,7 +335,7 @@ export function AnalysisPage() {
   const batchFailed = Object.values(batchStates).filter((state) => state.status === 'error').length;
 
   const queueItemForCompilation = (moment: CompilationMoment): QueueItem => ({
-    id: `analysis-${workspace.demo_id}-${moment.id}`,
+    id: crypto.randomUUID(),
     demoId: workspace.demo_id,
     ...(moment.highlightId ? { highlightId: moment.highlightId } : {}),
     ...(moment.hasVictimPov !== undefined ? { hasVictimPov: moment.hasVictimPov } : {}),
@@ -350,6 +350,7 @@ export function AnalysisPage() {
     preRollSeconds: recordingDefaults.pre_roll_seconds,
     postRollSeconds: recordingDefaults.post_roll_seconds,
     perspective: 'pov',
+    cameraStyle: 'pov',
     enabled: true,
     origin: 'demo',
   });

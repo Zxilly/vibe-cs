@@ -48,7 +48,7 @@ const labels = {
 };
 
 describe('review delivery', () => {
-  it('builds an escaped standalone report with exact producer lineage', () => {
+  it('builds an escaped standalone report without internal lineage fields', () => {
     const delivery = buildReviewDelivery({
       workspace,
       review,
@@ -57,8 +57,9 @@ describe('review delivery', () => {
     });
 
     expect(delivery.fileName).toMatch(/^vibe-cs-review-mirage-/);
-    expect(delivery.html).toContain('22222222-2222-4222-8222-222222222222');
-    expect(delivery.html).toContain('a'.repeat(64));
+    expect(delivery.html).not.toContain('22222222-2222-4222-8222-222222222222');
+    expect(delivery.html).not.toContain('a'.repeat(64));
+    expect(delivery.html).not.toContain('Evidence SHA-256');
     expect(delivery.html).toContain('&lt;img src=x onerror=alert(1)&gt;');
     expect(delivery.html).toContain('&lt;b&gt;Alice&lt;/b&gt;');
     expect(delivery.html).not.toContain('<script>alert(1)</script>');

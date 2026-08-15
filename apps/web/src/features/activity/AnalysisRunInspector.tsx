@@ -59,8 +59,6 @@ export function AnalysisRunInspector({
       <dl className="activity-inspector__facts">
         <div><dt>{t('activity.analysisRunStage')}</dt><dd>{t(stageKeys[run.stage])}</dd></div>
         <div><dt>{t('activity.analysisRunResult')}</dt><dd>{detail.result_available ? t('activity.analysisRunResultReady') : t('activity.analysisRunResultPending')}</dd></div>
-        <div><dt>SHA-256</dt><dd title={run.input_sha256 ?? undefined}>{run.input_sha256 ?? t('activity.analysisRunFingerprintPending')}</dd></div>
-        <div><dt>{t('activity.analysisRunInputSize')}</dt><dd>{run.input_size === null ? '—' : `${run.input_size.toLocaleString()} B`}</dd></div>
       </dl>
       {run.error ? <Notice tone="danger" title={t('activity.error')}>{run.error}</Notice> : null}
       <div className="analysis-run-events">

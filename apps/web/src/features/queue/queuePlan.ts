@@ -85,6 +85,7 @@ export function demoPlaybackFingerprint(item: QueueItem): string {
     demoId: item.demoId,
     origin: item.origin,
     perspective: item.perspective,
+    cameraStyle: item.cameraStyle,
     options: buildDemoPlaybackOptions(item),
   })}`;
 }
@@ -103,6 +104,9 @@ export function demoPlaybackBlockReason(
   }
   if (item.perspective === 'victim') {
     return msg("m0333");
+  }
+  if (item.cameraStyle !== 'pov') {
+    return translate(currentLocale(), 'queue.cinematicPreviewUnavailable');
   }
   return null;
 }
@@ -131,6 +135,7 @@ export function buildRecordingQueueRequest(items: readonly QueueItem[]): Recordi
         pre_roll_seconds: item.preRollSeconds,
         post_roll_seconds: item.postRollSeconds,
         victim_pov: item.perspective === 'victim',
+        camera_style: item.cameraStyle,
       })),
   };
 }
@@ -157,6 +162,10 @@ export function recordingQueueFingerprint(items: readonly QueueItem[]): string {
     preRollSeconds: item.preRollSeconds,
     postRollSeconds: item.postRollSeconds,
     perspective: item.perspective,
+    cameraStyle: item.cameraStyle,
+    cameraIntent: item.cameraIntent ?? null,
+    cameraRationale: item.cameraRationale ?? null,
+    mapName: item.mapName ?? null,
     enabled: item.enabled,
     origin: item.origin,
   }));

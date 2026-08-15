@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
 import type {
@@ -127,6 +127,7 @@ export function QueuePlaybackReadiness({
 
 export function QueuePage() {
   const { t } = useI18n();
+  const [searchParameters] = useSearchParams();
   const items = useQueueStore((state) => state.items);
   const selectedId = useQueueStore((state) => state.selectedId);
   const select = useQueueStore((state) => state.select);
@@ -158,6 +159,7 @@ export function QueuePage() {
     tone: 'info' | 'success' | 'warning' | 'danger';
     message: string;
   } | null>(null);
+  const [executionConfirmationOpen, setExecutionConfirmationOpen] = useState(false);
   const abortAction = useAsyncAction<RecordingJob>();
   const previewAction = useAsyncAction<DemoPlaybackLaunch>();
   const stopPlaybackAction = useAsyncAction<DemoPlaybackStop>();
@@ -206,6 +208,7 @@ export function QueuePage() {
   const selectedPlaybackFingerprint = selected ? demoPlaybackFingerprint(selected) : null;
   const selectedPlaybackFingerprintRef = useRef(selectedPlaybackFingerprint);
   selectedPlaybackFingerprintRef.current = selectedPlaybackFingerprint;
+  const openedFromAgent = searchParameters.get('source') === 'agent';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -235,6 +238,10 @@ export function QueuePage() {
       preflightController.current?.abort();
     };
   }, [selectedPlaybackFingerprint]);
+
+  useEffect(() => {
+    setExecutionConfirmationOpen(false);
+  }, [currentFingerprint]);
 
   useEffect(() => {
     if (runtimeSession !== 'idle' || stopPlaybackAction.state.status !== 'error') return;
@@ -307,11 +314,12 @@ export function QueuePage() {
     }
     const planId = validatedPlan?.response.plan_id;
     if (!planId) return;
+    setExecutionConfirmationOpen(false);
     setExecutionNotice(null);
     const result = await executeAction.run(
-      // The trusted confirmation is owned by the native desktop bridge. The
-      // renderer never grants itself permission to start an insecure CS2.
-      () => commands.executeRecordingPlan(planId, false),
+      // This value is sent only after the CDP-visible alertdialog below is
+      // explicitly confirmed against the current queue fingerprint.
+      () => commands.executeRecordingPlan(planId, true),
     );
     if (result) {
       const outcome = recordingExecutionOutcome(result.status);
@@ -488,6 +496,12 @@ export function QueuePage() {
       />
       <ProductionSectionNav />
 
+      {openedFromAgent ? (
+        <Notice tone="info" title={t('queue.agentDraftTitle')}>
+          {t('queue.agentDraftDescription')}
+        </Notice>
+      ) : null}
+
       {previewOnly ? (
         <Notice tone="warning" title={msg("m0591")}>
 
@@ -510,7 +524,7 @@ export function QueuePage() {
       {previewAction.state.message ? <Notice tone={previewAction.state.status === 'error' ? 'danger' : 'success'}>{previewAction.state.message}</Notice> : null}
       {stopPlaybackAction.state.message ? <Notice tone={stopPlaybackAction.state.status === 'error' ? 'danger' : 'success'}>{stopPlaybackAction.state.message}</Notice> : null}
       {stopReconcileNotice ? <Notice tone="warning">{stopReconcileNotice}</Notice> : null}
-      {preflightState.message ? <Notice tone={preflightState.status === 'error' ? 'danger' : 'success'}>{preflightState.message}{preflightState.data ? msgf("m0011", [(preflightState.data.demo_size / 1_048_576).toFixed(1), preflightState.data.demo_sha256.slice(0, 12)]) : ''}</Notice> : null}
+      {preflightState.message ? <Notice tone={preflightState.status === 'error' ? 'danger' : 'success'}>{preflightState.message}</Notice> : null}
       {jobPollError ? <Notice tone="warning" title={msg("m0605")}>{jobPollError}{msg("m1337")}</Notice> : null}
       {job ? (
         <Card className="queue-job-progress" aria-live="polite">
@@ -588,7 +602,7 @@ export function QueuePage() {
                       <span className="queue-item__grip"><GripVertical size={16} /></span>
                       <span className={`queue-item__index category-${item.category}`}>{String(index + 1).padStart(2, '0')}</span>
                       <span className="queue-item__copy"><span><Badge tone={item.category === 'clutch' ? 'warning' : 'blue'}>{categoryLabel[item.category]}</Badge>{item.origin === 'preview' ? <Badge tone="neutral">{msg("m1038")}</Badge> : null}</span><strong>{item.title}</strong><small>{item.demoName} · {item.playerName}</small></span>
-                      <span className="queue-item__timing"><strong>{durationSeconds === null ? t('queue.durationUnavailable') : `${durationSeconds.toFixed(1)}s`}</strong><small>{item.perspective === 'victim' ? msg("m0331") : msg("m1017")} · 1×</small></span>
+                      <span className="queue-item__timing"><strong>{durationSeconds === null ? t('queue.durationUnavailable') : `${durationSeconds.toFixed(1)}s`}</strong><small>{item.perspective === 'victim' ? msg("m0331") : t(`queue.camera.${item.cameraStyle}`)} · 1×</small></span>
                       <ChevronRight size={16} />
                     </button>
                     <div className="queue-item__buttons">
@@ -610,6 +624,13 @@ export function QueuePage() {
             <>
               <div className="inspector-header"><div><span className="eyebrow">CLIP INSPECTOR</span><h2>{msg("m0955")}</h2></div><Badge tone={selected.enabled ? 'success' : 'neutral'}>{selected.enabled ? msg("m0365") : msg("m0222")}</Badge></div>
               <div className="queue-preview"><div className="mini-crosshair"><span /><span /></div><span>{selected.demoName}</span><strong>{selected.title}</strong><small>tick {selected.startTick.toLocaleString(currentLocale())} — {selected.endTick.toLocaleString(currentLocale())}</small><div className="queue-preview__actions"><Button size="sm" disabled={preflightBlockReason !== null || preflightState.status === 'loading'} title={preflightBlockReason ?? (selected.perspective === 'victim' ? msg("m0823") : msg("m0822"))} onClick={() => void handlePlaybackPreflight()}>{preflightState.status === 'loading' ? <Spinner /> : <ListChecks size={13} />}{msg("m0364")}</Button><Button size="sm" disabled={playbackBlockReason !== null || previewAction.state.status === 'loading' || playbackStatus?.ready_to_launch === false} title={playbackBlockReason ?? (playbackStatus?.ready_to_launch === false ? msg("m0801") : msg("m1326"))} onClick={() => void handlePreview()}>{previewAction.state.status === 'loading' ? <Spinner /> : <Play size={13} />}{msg("m1311")}</Button></div>{selected.perspective === 'victim' ? <small role="status">{playbackBlockReason}</small> : null}</div>
+              {selected.cameraIntent && selected.cameraRationale ? (
+                <div className="queue-camera-intent">
+                  <strong>{t('queue.cameraIntent')}</strong>
+                  <span>{selected.mapName ? `${selected.mapName} · ` : ''}{t(`queue.cameraIntent.${selected.cameraIntent}`)}</span>
+                  <small>{selected.cameraRationale}</small>
+                </div>
+              ) : null}
               <div className="inspector-fields">
                 <Field label={msg("m0964")}><TextInput value={selected.title} onChange={(event) => update(selected.id, { title: event.target.value })} /></Field>
                 <Field label={msg("m1275")} hint={selected.hasVictimPov ? msg("m0332") : msg("m0583")}>
@@ -618,14 +639,21 @@ export function QueuePage() {
                     <option value="victim" disabled={!selected.hasVictimPov}>{msg("m0331")}</option>
                   </select>
                 </Field>
+                <Field label={t('queue.cameraMovement')} hint={t('queue.cameraMovementHint')}>
+                  <select value={selected.cameraStyle} onChange={(event) => update(selected.id, { cameraStyle: event.target.value as QueueItem['cameraStyle'] })}>
+                    <option value="pov">{t('queue.camera.pov')}</option>
+                    <option value="orbit">{t('queue.camera.orbit')}</option>
+                    <option value="dolly">{t('queue.camera.dolly')}</option>
+                    <option value="static">{t('queue.camera.static')}</option>
+                    <option value="tracking">{t('queue.camera.tracking')}</option>
+                    <option value="crane">{t('queue.camera.crane')}</option>
+                    <option value="flyby">{t('queue.camera.flyby')}</option>
+                  </select>
+                </Field>
                 <div className="field-row">
                   <Field label={msg("m0297")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={selected.preRollSeconds} onChange={(event) => update(selected.id, { preRollSeconds: Number(event.target.value) })} /><span>{msg("m1044")}</span></div></Field>
                   <Field label={msg("m0361")}><div className="number-control"><input type="number" min="0" max="15" step="0.5" value={selected.postRollSeconds} onChange={(event) => update(selected.id, { postRollSeconds: Number(event.target.value) })} /><span>{msg("m1044")}</span></div></Field>
                 </div>
-                <Notice tone="info">
-                  <strong>{t('queue.nativeCaptureTitle')}</strong> · {t('queue.nativeCaptureDescription')}
-                </Notice>
-                <Field label={t('queue.deterministicSpeed')}><div className="number-control"><strong>1.0×</strong><span>HLAE</span></div></Field>
                 <div className="toggle-list">
                   <label><span><PauseCircle size={15} /><span><strong>{msg("m0319")}</strong><small>{msg("m0245")}</small></span></span><input type="checkbox" checked={selected.enabled} onChange={(event) => update(selected.id, { enabled: event.target.checked })} /></label>
                 </div>
@@ -642,9 +670,22 @@ export function QueuePage() {
         <div className="queue-action-dock__actions">
           {jobIsActive ? <Button variant="danger" onClick={() => void handleCancel()} disabled={abortAction.state.status === 'loading' || job?.status === 'cancelling'}>{abortAction.state.status === 'loading' ? <Spinner /> : <PauseCircle size={15} />}{msg("m1075")}</Button> : null}
           <Button disabled={realEnabledItems.length === 0 || planAction.state.status === 'loading' || hlaePreparationAction.state.status === 'loading'} onClick={() => void handlePlan()}>{planAction.state.status === 'loading' || hlaePreparationAction.state.status === 'loading' ? <Spinner /> : <ListChecks size={15} />}{msg("m0990")}</Button>
-          <Button variant="primary" title={directorBlocked ? msg("m0742") : undefined} disabled={!currentPlan || directorBlocked || realEnabledItems.length === 0 || executeAction.state.status === 'loading' || jobIsActive} onClick={() => void handleExecute()}>{executeAction.state.status === 'loading' ? <Spinner /> : <Play size={15} />}{msg("m0558")}</Button>
+          <Button variant="primary" title={directorBlocked ? msg("m0742") : undefined} disabled={!currentPlan || directorBlocked || realEnabledItems.length === 0 || executeAction.state.status === 'loading' || jobIsActive} onClick={() => setExecutionConfirmationOpen(true)}>{executeAction.state.status === 'loading' ? <Spinner /> : <Play size={15} />}{msg("m0558")}</Button>
         </div>
       </div>
+      {executionConfirmationOpen && currentPlan ? (
+        <section className="queue-execution-confirmation" role="alertdialog" aria-label={t('queue.confirmRecording')}>
+          <div>
+            <strong>{t('queue.confirmRecording')}</strong>
+            <p>{t('queue.confirmRecordingDescription')}</p>
+            <small>{currentPlan.active_items} {t('copilot.highlights')} · {new Set(realEnabledItems.map((item) => t(`queue.camera.${item.cameraStyle}`))).size === 1 ? t(`queue.camera.${realEnabledItems[0]?.cameraStyle ?? 'pov'}`) : t('queue.camera.mixed')} · {estimatedSeconds === null ? '—' : `${estimatedSeconds.toFixed(1)}s`} · MP4</small>
+          </div>
+          <div className="queue-execution-confirmation__actions">
+            <Button variant="secondary" onClick={() => setExecutionConfirmationOpen(false)}>{t('common.cancel')}</Button>
+            <Button variant="primary" onClick={() => void handleExecute()}>{t('queue.confirmAndRecord')}</Button>
+          </div>
+        </section>
+      ) : null}
       </>}
     </div>
   );

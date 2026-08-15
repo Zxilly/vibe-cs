@@ -4,15 +4,42 @@
  * §7 names the five sections and records the fifth-round rename: the fourth is
  * 「AI 与 Agent」, split into 模型 / 会话 / 行为边界. The section ids are the
  * addressable part, so they are fixed here and the labels travel with them.
+ *
+ * ── The seam phase 3g fills in ────────────────────────────────────────────
+ *
+ * Phase 3e owns exactly one of the five bodies — 「AI 与 Agent」, because the
+ * Agent workspace's retention, take limit and storage controls are part of
+ * §4.5 rather than of the settings page. The other four are 3g's, and the shape
+ * of the hand-over is `SECTION_BODY`:
+ *
+ *   · one component per section id, `null` while nobody has written it;
+ *   · the component takes **no props** — a section reads what it needs through
+ *     `data/**` hooks, the way `AiAgentSection` reads `useAgentWorkspaceSettings`
+ *     and `useAppConfig`. Threading a config document down from here would make
+ *     every section re-render on every other section's write;
+ *   · a `null` entry keeps rendering `PagePlaceholder`, so the shared
+ *     `pageSkeleton.test.tsx` assertion (「本页在阶段 3g 实现」, with a way out)
+ *     stays true for the four that have not landed. **Flipping that page's
+ *     `built` flag is 3g's last step, not this one's**: `/settings` renders
+ *     `app` by default and `app` is still a placeholder.
+ *
+ * So 3g adds four files under `pages/settings/`, writes four names into
+ * `SECTION_BODY`, and touches nothing else here.
+ *
+ * The rail is `design/layout/SubNav`, which is the artboard's 190px column of
+ * 38px rows and folds to tabs at §8's breakpoint on its own — there is no media
+ * query in this file.
  */
 
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { Page, Toolbar } from '../design/layout';
+import { Page, SubNav, Toolbar } from '../design/layout';
 import { PagePlaceholder } from './PagePlaceholder';
 import { pickQueryValue } from './routeQuery';
+import { AiAgentSection } from './settings/AiAgentSection';
 
 export const SETTINGS_SECTIONS = ['app', 'files', 'game', 'ai', 'advanced'] as const;
 
@@ -26,20 +53,53 @@ const SECTION_LABEL: Record<SettingsSection, ReactNode> = {
   advanced: <Trans>高级</Trans>,
 };
 
+/** What each section renders. `null` means 「阶段 3g 还没写」 — see the header. */
+const SECTION_BODY: Record<SettingsSection, ComponentType | null> = {
+  app: null,
+  files: null,
+  game: null,
+  ai: AiAgentSection,
+  advanced: null,
+};
+
+/** The placeholder copy per section, so the stub still says what lands there. */
+const SECTION_PLACEHOLDER: Record<SettingsSection, ReactNode> = {
+  app: <Trans>语言、主题、更新源，以及启动时的行为。</Trans>,
+  files: <Trans>数据目录、监听目录，以及占用与清理。</Trans>,
+  game: <Trans>CS2 与 Steam 路径、HLAE，以及录制的默认画质。</Trans>,
+  ai: <Trans>模型、会话与行为边界。</Trans>,
+  advanced: <Trans>诊断信息、日志与导出诊断包。</Trans>,
+};
+
 export function SettingsPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const section = pickQueryValue(params.get('section'), SETTINGS_SECTIONS, 'app');
+  const Body = SECTION_BODY[section];
 
   return (
     <Page
+      scroll={false}
       toolbar={<Toolbar title={<Trans>设置与诊断</Trans>} meta={SECTION_LABEL[section]} />}
     >
-      <PagePlaceholder
-        phase="3g"
-        description={
-          <Trans>设置分应用、文件与目录、游戏与录制、AI 与 Agent、高级五节，诊断信息也在这一页。</Trans>
-        }
-      />
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <SubNav
+          label={t`设置分节`}
+          activeId={section}
+          items={SETTINGS_SECTIONS.map((id) => ({ id, label: SECTION_LABEL[id] }))}
+          onSelect={(id) => {
+            const next = new URLSearchParams(params);
+            next.set('section', id);
+            setParams(next);
+          }}
+        />
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+          {Body === null ? (
+            <PagePlaceholder phase="3g" description={SECTION_PLACEHOLDER[section]} />
+          ) : (
+            <Body />
+          )}
+        </div>
+      </div>
     </Page>
   );
 }

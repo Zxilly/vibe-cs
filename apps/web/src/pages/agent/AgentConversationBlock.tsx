@@ -1,0 +1,550 @@
+/*
+ * pages/agent — block A: the conversation, and the three shapes it takes
+ * (「07 Agent 创作面板」, 「Agent 形态 · 第二轮」, 「补齐 · 手动编辑与编辑感知」).
+ *
+ * `agentContract.ts` is the contract; this file is the half of it that renders
+ * the transcript, the proposals inside it, and the instruction bar.
+ *
+ * ── The shape is the address ──────────────────────────────────────────────
+ *
+ * `?mode=changes|inline|takes` and nothing else. The switch writes
+ * `updateContext({ mode })`, which clears neither `plan` nor `session`
+ * (invariant 4), so a copied link restores the same shape over the same plan
+ * and the same session. An unknown value falls back to `changes` in
+ * `readAgentContext` — a stale deep link is a navigation, not an error — and
+ * the fallback happens *before* the block sees it, so nothing here re-decides
+ * it.
+ *
+ * ── What survives a shape switch, and what this block does not own ───────
+ *
+ * The selection — the shot 2b attaches the conversation to — is owned by this
+ * component rather than by the three heads, precisely so that switching shape
+ * does not throw it away. It is not in the address either: §7 fixes three
+ * parameters, and a fourth that nothing else in the product writes would be an
+ * invented address (see `ConversationModes.tsx`).
+ *
+ * The **decisions are not this block's** (invariant 6). The same change is drawn
+ * again in the plan panel, and 「已接受」 is a fact about the change rather than
+ * about the column it was pressed in, so the map lives on the shell and arrives
+ * as `props.changes`. This block reads it and writes through
+ * `props.changes.accept` / `.decide`; it holds no `useState` of its own for
+ * them, which is what makes a shape switch — and a glance at the panel — keep
+ * the same answer. There is still no route that stores a decision
+ * (`agentContract.ts` gap 3), so the line above the composer still says they
+ * are lost on reload.
+ *
+ * ── §4.5.3 ①, in this block ──────────────────────────────────────────────
+ *
+ * 「接受变更不触发录制」. No hook in this file can start anything —
+ * `useAgentPlan`, `useAgentSession` and `useCreateAgentSession` are the whole
+ * list — and 接受 goes to `props.changes.accept`, which is `applyPlanChange`
+ * plus an `editNotifier.record`: an ordinary buffered plan edit and nothing
+ * that could execute. The 「确认并生成视频」 button lives on the shell's toolbar
+ * and is the only place recording could ever begin.
+ *
+ * Accepting *does* change the plan, and that is the point: a card that turned
+ * 已接受 while the shots stayed where they were told the user something had
+ * happened that had not. What the payload cannot carry out — `replace` and
+ * `insert` have prose and no shot — is disabled with the reason written on it
+ * (`changeApplicability`), the same way the panel does it, rather than accepted
+ * into nothing.
+ *
+ * ── Streaming ────────────────────────────────────────────────────────────
+ *
+ * The stream belongs to the shell (`props.chat`), which is why the composer,
+ * the transcript and the confirm action cannot disagree about whether the Agent
+ * is speaking. This block never opens a `Channel`: `data/sessions.ts` keeps
+ * in-flight text in React state and out of the query cache, and
+ * `AgentTranscript`'s `streamingContent` is the other end of that decision.
+ * Cancelling goes through `chat.cancel`, and a cancelled reply is never written
+ * into the session.
+ *
+ * The end-to-end case the artboard 「修订冲突 · 旧提议自动过期」 draws — the user
+ * edits the plan while a reply is being generated — needs no code here at all,
+ * and that is the point: the revision the proposal was stamped with is compared
+ * against the revision `useAgentPlan` currently holds, every render, by
+ * `resolveChangeSet`. When the edit lands the plan query moves and the card
+ * that arrives is already `stale`.
+ */
+
+import { t } from '@lingui/core/macro';
+import { useLingui } from '@lingui/react';
+import { Trans } from '@lingui/react/macro';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+
+import { dataErrorMessage } from '../../data/errors';
+import { useAgentPlan } from '../../data/plans';
+import { useAgentSession, useCreateAgentSession } from '../../data/sessions';
+import { EmptyState, Skeleton } from '../../design/data';
+import { Notice } from '../../design/feedback';
+import { Button, Seg, cx } from '../../design/primitives';
+import {
+  AgentProposalCard,
+  AgentTranscript,
+  PlanChangeCard,
+  type AgentEntryExtras,
+  type PlanChange,
+  type PlanChangeSet,
+} from '../../domain/agent';
+import type { AgentPlan, AgentPlanShot, AgentSessionEntry } from '../../shared/desktop/dto';
+import {
+  AGENT_MODE,
+  AGENT_MODES,
+  type AgentBlock,
+  type AgentBlockProps,
+  type AgentGuardedAction,
+} from './agentContract';
+import { AgentComposer } from './AgentComposer';
+import { AGENT_MODE_HEAD } from './ConversationModes';
+import { changeApplicability } from './planChangeApply';
+import {
+  changeDecisionKey,
+  changesForShot,
+  collectProposals,
+  pendingTotal,
+  proposalsByEntry,
+  resolveChangeSet,
+  shotLabelOf,
+  staleTotal,
+  type ProposalSlot,
+} from './conversationModel';
+
+export const AgentConversationBlock: AgentBlock = ({
+  context,
+  updateContext,
+  changes,
+  chat,
+  service,
+  edit,
+  collapsed,
+}: AgentBlockProps) => {
+  const { i18n } = useLingui();
+
+  const plan = useAgentPlan(context.plan);
+  const session = useAgentSession(context.session);
+  const createSession = useCreateAgentSession();
+
+  const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const lastMessageRef = useRef<string | null>(null);
+
+  const decisions = changes.decisions;
+  const planData = plan.data;
+  const sessionData = session.data;
+  /* The shots the shell holds, which include the edits §4.5.4 has not written
+     yet. Reading `planData.shots` instead would draw 2b's shot band and the
+     change cards' 「02 跟随突破」 from a plan the panel next door is already
+     past — the same two-answers-on-one-screen the decisions had. */
+  const bufferedShots = changes.shots;
+  const shots = bufferedShots ?? planData?.shots ?? EMPTY_SHOTS;
+  const headPlan: AgentPlan | undefined = useMemo(
+    () =>
+      planData === undefined || bufferedShots === null
+        ? planData
+        : { ...planData, shots: [...bufferedShots] },
+    [planData, bufferedShots],
+  );
+  const revision = planData === undefined ? null : planData.revision;
+
+  const slots = useMemo(() => collectProposals(sessionData?.entries ?? []), [sessionData]);
+  const byEntry = useMemo(() => proposalsByEntry(slots), [slots]);
+  const setByKey = useMemo(() => {
+    const resolved = new Map<string, PlanChangeSet | null>();
+    for (const slot of slots) resolved.set(slot.key, resolveChangeSet(slot, decisions, revision));
+    return resolved;
+  }, [slots, decisions, revision]);
+  const pendingChanges = useMemo(() => pendingTotal([...setByKey.values()]), [setByKey]);
+  const staleChanges = useMemo(() => staleTotal([...setByKey.values()]), [setByKey]);
+  const hasChangeSets = useMemo(
+    () => [...setByKey.values()].some((set) => set !== null),
+    [setByKey],
+  );
+
+  /* A plan switch can leave a selection pointing at a shot that is gone; the
+     id is only ever read back through the plan, so a stale one selects
+     nothing rather than filtering everything away. */
+  const selectedShot = shots.find((shot) => shot.id === selectedShotId) ?? null;
+  const filterShotId = context.mode === 'inline' ? (selectedShot?.id ?? null) : null;
+
+  /* 接受 is the shell's one path — apply, record, decide — and 拒绝 is a
+     decision and nothing else. Neither is re-implemented here (invariant 6). */
+  const onAccept = useCallback(
+    (slotKey: string, change: PlanChange) => {
+      changes.accept(changeDecisionKey(slotKey, change.id), change);
+    },
+    [changes],
+  );
+
+  const onReject = useCallback(
+    (slotKey: string, changeId: string) => {
+      changes.decide(changeDecisionKey(slotKey, changeId), 'rejected');
+    },
+    [changes],
+  );
+
+  const onSelectShot = useCallback((shot: AgentPlanShot) => {
+    /* Clicking the selected shot again clears the filter: 2b has no 「全部」
+       option, and a filter with no way out is a trap. */
+    setSelectedShotId((current) => (current === shot.id ? null : shot.id));
+  }, []);
+
+  const send = useCallback(
+    (message: string) => {
+      lastMessageRef.current = message;
+      setDraft('');
+      /* `chat.send` is the shell's wrapper: it flushes the edit notifier first,
+         so the model reads the manual edit before the question about it. */
+      void chat.send({ message });
+    },
+    [chat],
+  );
+
+  const sendDisabledReason =
+    service.blocked
+      ? service.buttonProps.disabledReason
+      : context.session === null
+        ? t`先选择或新建一条会话`
+        : chat.streaming
+          ? t`Agent 正在回答，先等它说完或点停止`
+          : undefined;
+
+  const Head = AGENT_MODE_HEAD[context.mode];
+
+  const renderExtras = (entry: AgentSessionEntry): AgentEntryExtras | undefined => {
+    const entrySlots = byEntry.get(entry.id);
+    if (entrySlots === undefined || entrySlots.length === 0) return undefined;
+    return {
+      children: entrySlots.map((slot) => (
+        <ProposalBlock
+          key={slot.key}
+          slot={slot}
+          changeSet={setByKey.get(slot.key) ?? null}
+          shots={shots}
+          currentRevision={revision}
+          filterShotId={filterShotId}
+          edit={edit}
+          onAccept={onAccept}
+          onReject={onReject}
+        />
+      )),
+    };
+  };
+
+  return (
+    <section
+      data-agent-block="conversation"
+      data-agent-mode={context.mode}
+      className="flex min-h-0 min-w-0 flex-1 flex-col"
+    >
+      <div className="flex flex-none flex-col gap-2 border-b border-divider p-3.5">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <Seg
+            name="agent-conversation-mode"
+            value={context.mode}
+            size="sm"
+            aria-label={t`对话形态`}
+            options={AGENT_MODES.map((mode) => ({
+              value: mode,
+              label: i18n._(AGENT_MODE[mode].label),
+            }))}
+            onChange={(mode) => updateContext({ mode })}
+          />
+          {collapsed ? null : (
+            <p data-agent-mode-hint="" className="min-w-0 flex-1 text-xs text-neutral-600">
+              {i18n._(AGENT_MODE[context.mode].hint)}
+            </p>
+          )}
+        </div>
+
+        <Head
+          context={context}
+          updateContext={updateContext}
+          plan={headPlan}
+          planPending={context.plan !== null && plan.isPending}
+          pendingChanges={pendingChanges}
+          staleChanges={staleChanges}
+          selectedShotId={selectedShot === null ? null : selectedShot.id}
+          onSelectShot={onSelectShot}
+          collapsed={collapsed}
+        />
+      </div>
+
+      {chat.error === null ? null : (
+        <Notice
+          className="m-3.5 mb-0"
+          tone="danger"
+          action={{
+            label: <Trans>重试</Trans>,
+            onAction: () => {
+              const message = lastMessageRef.current;
+              if (message !== null) void chat.send({ message });
+            },
+          }}
+        >
+          <Trans>这次回答没有完成：{chat.error}</Trans>
+        </Notice>
+      )}
+
+      <Transcript
+        sessionId={context.session}
+        pending={session.isPending}
+        failure={dataErrorMessage(session.error)}
+        onRetry={() => void session.refetch()}
+        title={sessionData?.title ?? ''}
+        entries={sessionData?.entries ?? EMPTY_ENTRIES}
+        renderExtras={renderExtras}
+        streaming={chat.streaming}
+        draft={chat.draft}
+        creating={createSession.isPending}
+        serviceDisabled={service.blocked ? service.buttonProps : undefined}
+        serviceSuffix={service.suffix}
+        onCreateSession={() => {
+          createSession.mutate(planData?.title ?? t`新的会话`, {
+            onSuccess: (created) => updateContext({ session: created.id }),
+          });
+        }}
+        onFocusComposer={() => composerRef.current?.focus()}
+      />
+
+      {hasChangeSets ? (
+        <p
+          data-agent-change-note=""
+          className="flex-none border-t border-divider px-3.5 pt-2.5 text-xs leading-normal text-neutral-700"
+        >
+          <Trans>接受变更不会启动录制：录制只在顶部确认一次之后才开始。</Trans>{' '}
+          <Trans>你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。</Trans>
+        </p>
+      ) : null}
+
+      <AgentComposer
+        mode={context.mode}
+        value={draft}
+        onChange={setDraft}
+        onSend={send}
+        streaming={chat.streaming}
+        onCancel={chat.cancel}
+        inputRef={composerRef}
+        {...(sendDisabledReason === undefined ? {} : { disabledReason: sendDisabledReason })}
+        hint={
+          context.mode === 'inline' && selectedShot !== null ? (
+            <Trans>只影响这一个镜头：{selectedShot.title}</Trans>
+          ) : (
+            <Trans>手动编辑不会打断 Agent，也不需要它批准</Trans>
+          )
+        }
+      />
+    </section>
+  );
+};
+
+/* ── the transcript, and its three states ────────────────────────────────── */
+
+interface TranscriptProps {
+  readonly sessionId: string | null;
+  readonly pending: boolean;
+  readonly failure: string | null;
+  readonly onRetry: () => void;
+  readonly title: string;
+  readonly entries: readonly AgentSessionEntry[];
+  readonly renderExtras: (entry: AgentSessionEntry) => AgentEntryExtras | undefined;
+  readonly streaming: boolean;
+  readonly draft: string;
+  readonly creating: boolean;
+  readonly serviceDisabled: { readonly disabled: boolean; readonly disabledReason?: string } | undefined;
+  readonly serviceSuffix: ReactNode;
+  readonly onCreateSession: () => void;
+  readonly onFocusComposer: () => void;
+}
+
+function Transcript({
+  sessionId,
+  pending,
+  failure,
+  onRetry,
+  title,
+  entries,
+  renderExtras,
+  streaming,
+  draft,
+  creating,
+  serviceDisabled,
+  serviceSuffix,
+  onCreateSession,
+  onFocusComposer,
+}: TranscriptProps) {
+  if (sessionId === null) {
+    return (
+      <Frame state="no-session">
+        <EmptyState
+          className="m-3.5"
+          title={<Trans>还没有选择会话</Trans>}
+          description={
+            <Trans>
+              这一页说的每一句话都记在一条会话里，方案的每一次改动也会写进去。选一条现有的，或者现在开一条新的。
+            </Trans>
+          }
+          actions={
+            <Button
+              variant="primary"
+              onClick={onCreateSession}
+              {...(creating ? { disabled: true } : (serviceDisabled ?? {}))}
+            >
+              <Trans>新建会话</Trans>
+              {serviceSuffix}
+            </Button>
+          }
+        />
+      </Frame>
+    );
+  }
+
+  if (failure !== null) {
+    return (
+      <Frame state="error">
+        <Notice
+          className="m-3.5"
+          tone="danger"
+          action={{ label: <Trans>重试</Trans>, onAction: onRetry }}
+          detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
+        >
+          <Trans>读不到这条会话：{failure}</Trans>
+        </Notice>
+      </Frame>
+    );
+  }
+
+  if (pending) {
+    return (
+      <Frame state="loading">
+        {/* Bars, never a percentage: a transcript that has not arrived has no
+            length to state. */}
+        <div role="status" aria-busy="true" className="flex flex-col gap-3 p-3.5">
+          {['62%', '84%', '48%', '76%'].map((width, index) => (
+            <Skeleton
+              key={width}
+              width={width}
+              className={cx('h-10', index % 2 === 0 ? 'self-end' : null)}
+            />
+          ))}
+        </div>
+      </Frame>
+    );
+  }
+
+  return (
+    <AgentTranscript
+      className="p-3.5"
+      label={title === '' ? t`会话` : t`会话 · ${title}`}
+      entries={entries}
+      renderExtras={renderExtras}
+      {...(streaming ? { streamingContent: draft } : {})}
+      empty={
+        <EmptyState
+          className="m-3.5"
+          title={<Trans>这条会话还没有对话</Trans>}
+          description={
+            <Trans>说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。</Trans>
+          }
+          actions={
+            <Button variant="secondary" onClick={onFocusComposer}>
+              <Trans>写第一条指令</Trans>
+            </Button>
+          }
+        />
+      }
+    />
+  );
+}
+
+function Frame({ state, children }: { readonly state: string; readonly children: ReactNode }) {
+  return (
+    <div data-agent-transcript-state={state} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      {children}
+    </div>
+  );
+}
+
+/* ── one proposal, with its change cards ─────────────────────────────────── */
+
+interface ProposalBlockProps {
+  readonly slot: ProposalSlot;
+  readonly changeSet: PlanChangeSet | null;
+  readonly shots: readonly AgentPlanShot[];
+  readonly currentRevision: number | null;
+  /** 2b's 「只影响这一个镜头」. `null` in the other two shapes. */
+  readonly filterShotId: string | null;
+  readonly edit: AgentGuardedAction;
+  readonly onAccept: (slotKey: string, change: PlanChange) => void;
+  readonly onReject: (slotKey: string, changeId: string) => void;
+}
+
+function ProposalBlock({
+  slot,
+  changeSet,
+  shots,
+  currentRevision,
+  filterShotId,
+  edit,
+  onAccept,
+  onReject,
+}: ProposalBlockProps) {
+  const { i18n } = useLingui();
+  const visible = changeSet === null ? [] : changesForShot(changeSet.changes, filterShotId);
+  const filteredOut = changeSet !== null && filterShotId !== null && visible.length === 0;
+
+  return (
+    <AgentProposalCard
+      proposal={slot.proposal}
+      changeSet={changeSet}
+      {...(currentRevision === null ? {} : { currentRevision })}
+    >
+      {/* 2a's 「本次变更 来自『把它压到 30 秒以内』」. Printed only when it adds
+          something the title does not already say. */}
+      {slot.prompt === null || slot.prompt === slot.proposal.title ? null : (
+        <p data-proposal-prompt="" className="min-w-0 truncate text-xs text-neutral-600">
+          <Trans>来自「{slot.prompt}」</Trans>
+        </p>
+      )}
+
+      {filteredOut ? (
+        <p data-proposal-filtered="" className="text-xs text-neutral-600">
+          <Trans>这条提议没有涉及选中的镜头。</Trans>
+        </p>
+      ) : null}
+
+      {visible.map((change, index) => {
+        const label = shotLabelOf(shots, change.targetShotId);
+        /* The same pair of reasons the panel prints, in the same order: why the
+           page cannot edit at all first, then why this particular change cannot
+           be carried out. 接受 here is the panel's 接受, so it must be dead in
+           exactly the cases the panel's is dead in. */
+        const applicability = changeApplicability(change, shots);
+        const blockedReason = edit.disabled
+          ? edit.disabledReason
+          : applicability.reason === null
+            ? undefined
+            : i18n._(applicability.reason);
+
+        return (
+          <PlanChangeCard
+            key={change.id}
+            change={change}
+            index={index + 1}
+            {...(label === null ? {} : { targetLabel: `${label.number} ${label.title}` })}
+            {...(blockedReason === undefined ? {} : { acceptDisabledReason: blockedReason })}
+            onAccept={() => {
+              onAccept(slot.key, change);
+            }}
+            onReject={() => {
+              onReject(slot.key, change.id);
+            }}
+          />
+        );
+      })}
+    </AgentProposalCard>
+  );
+}
+
+const EMPTY_SHOTS: readonly AgentPlanShot[] = [];
+const EMPTY_ENTRIES: readonly AgentSessionEntry[] = [];

@@ -111,6 +111,43 @@ export type DesktopClient = Pick<
   | 'updateEvidenceAnnotation'
   | 'deleteEvidenceAnnotation'
   | 'reviewDemo'
+  /* ── Agent sessions (data/sessions.ts) ──
+     Added in phase 3e. These are the §4.6 contract routes, which landed on the
+     backend before this phase started, so nothing here is an adapter and no
+     part of the session model is kept in browser storage. */
+  | 'listAgentSessions'
+  | 'createAgentSession'
+  | 'getAgentSession'
+  | 'renameAgentSession'
+  | 'deleteAgentSession'
+  | 'appendAgentSessionEntry'
+  | 'touchAgentObjectRef'
+  | 'listAgentObjectSessions'
+  | 'listAgentWorkspaceReferences'
+  | 'getAgentWorkspaceSettings'
+  | 'updateAgentWorkspaceSettings'
+  | 'getAgentSessionStorage'
+  | 'exportAgentSessions'
+  | 'clearAgentSessions'
+  | 'applyAgentSessionRetention'
+  /* 设置 › AI 与 Agent › 模型 is `AppConfig.llm` (data/config.ts) plus this one
+     probe, which is 「测试连接」 on the artboard. */
+  | 'testLlm'
+  /* The streaming half. `streamAgentChat` is the one Tauri `Channel` command in
+     the whole bridge (§4.7), so it is the one read this layer does not express
+     as a query — see `data/sessions.ts`, 「流式期间 data/ 怎么表达」. */
+  | 'agentStatus'
+  | 'streamAgentChat'
+  | 'cancelAgentChat'
+  /* ── Agent plans (data/plans.ts) ──
+     `applyAgentPlanEdit` is the conditional write that carries the manual edit,
+     bumps the revision and injects the `workspace_edit` notice in one
+     transaction (§10 deviation 5). There is no separate notify route. */
+  | 'listAgentPlans'
+  | 'getAgentPlan'
+  | 'createAgentPlan'
+  | 'applyAgentPlanEdit'
+  | 'restoreAgentPlanBaseline'
 >;
 
 /**

@@ -875,3 +875,79 @@ export function renderInteractive(ui: ReactElement): RenderResult
 2. **概览深链的 Inspector 不一致**（本节偏离 2），要修得先决定 `MatchViewModule.Inspector` 能不能是运行时可选的。
 3. **`viewChrome.ViewFrame` 与满幅视图的两分**（本节偏离 3）：要么给 `viewChrome` 补一个满幅变体，要么承认回放/高光/Review 是例外。本轮只统一了 404 恢复与两个探针属性（`data-match-view` + `data-match-view-state`），九个视图现在能用同一种方式读状态。
 4. **四条「读不到分析」的句子各写各的**（壳层的、回放的、高光的、Review 的）。本轮**没有**统一：它们各自带着视图特有的名词（「读不到这场比赛的高光」），比一句通用文案更有用。若日后认为该收成一条，那是 catalogue 的取舍不是 bug。
+
+---
+
+## 10.6 阶段 3e 落地记录 —— Agent 创作面板（2026-08-16）
+
+出口条件全部达成，命令由我自己复跑：`pnpm --filter @vibe-cs/web lint` 退出码 0（`layer check passed: 605 source files`）；`typecheck` 0；`vitest` **452 通过 / 3 跳过（455 文件）· 4214 通过 / 4 跳过（4218 用例）**；`build` 0（`AgentPage` 分片 77.67 kB / gzip 21.70 kB，是真代码不是壳）；`cargo check --workspace --all-targets` 0（本轮零 Rust 改动）；`lingui extract` 报 zh-CN 1268 / en-US 1268，**Missing = 0**。阶段 3c 的 397 个测试文件一个都没掉出收集集。
+
+`/agent` 从占位变成完整页面：对话流与三种形态（`?mode=changes|inline|takes`）、方案面板与手动编辑、会话抽屉与新建会话、设置「AI 与 Agent」。
+
+### §4.6 是关的，所以这一轮没有适配器
+
+动手前先核实：`crates/application/src/routes/agent_sessions.rs` 的路由齐全（会话列表与搜索 / 重命名 / 删除 / 追加条目 / 触及引用 / 反向索引 / 方案列表与详情 / PATCH 编辑 / 还原 / 可引用对象 / 设置 / 存储统计与导出与清空 / 保留策略），`crates/domain/src/agent_session.rs` 有 `AgentObjectRef` / `based_on_revision` / `WorkspaceEditAuthor`，`shared/desktop/client.ts:493-570` 有全部方法。§4.6 的十项缺口在更早的阶段就补齐了。
+
+所以 §10 给 3e 定的出口条件「适配器已换成真实后端命令」，本轮用**从来没有写过适配器**来满足。goal 里直接 grep：`data/{sessions,plans,editNotifier}.ts` 与 `pages/agent/**` 里没有 `localStorage` / `sessionStorage` / `indexedDB`，只有两处文档注释在说「不这么干」。
+
+### 收口时抓到的一个真 bug
+
+A 块（对话流）与 B 块（方案面板）在同一轮里各自实现了「变更卡 + 接受 / 拒绝」。B 块的 agent 在报告里主动点了名，他是对的。两个后果：
+
+1. **在 `?mode=changes` 的对话流里按「接受」，卡片变成已接受，方案一个字没改。** A 的 handler 只写决定态，既不把变更落到镜头上也不 `record` 编辑；B 的 `onAccept` 会 `applyPlanChange(shots, change)` 再 `record(result)`。这是一次**静默的空操作**——用户会以为改动生效了。
+2. 决定态存在两处独立的 `useState`，键的形状还不一样（A 用 `#` 分隔、B 用 `:`）。同一条变更在同一块屏幕上，方案面板说「已接受」，对话流里还是「待处理」。
+
+**这是连续第三轮同一形状的问题**（§10.4 是两份 `serviceAction` 替身，§10.5 是三份缺了主动作的 404 恢复）。并行切分本身有效，错在**跨块共享的那一件东西没有由壳层持有**：`editNotifier` 这轮做对了（契约里写成不变式 5），决定态漏了。
+
+收口方式：新增 `pages/agent/changeDesk.ts` 的 `useAgentChangeDesk`，由 `AgentPage` 调用一次，经 `AgentBlockProps.changes` 下发，并在契约里补成**不变式 6**（写法照抄不变式 5：同一条变更画在两列里，「已接受」是变更的事实，不是某一列的事实）。`accept` = `applyPlanChange` + `record` + `decide`，三件事一起做或都不做；`reject` 不动镜头，只写决定。两个块都不再持有自己的 state。`conversationModel.ts` 成为唯一的模型（`resolveChangeSet` 只剩一处实现，decisions 覆盖在前、`markStale` 覆盖在后的顺序未动），`planProposals.ts` 只保留它真正独有的 `PlanProposal` + `readPlanProposals`，重复的部分删掉且**没有留兼容别名**。
+
+收口任务书要求那条测试**先写、先看它红、再改代码**。红的输出留档：`applies the change to the plan rather than only colouring the card` → `expected '…8.5s…' to contain '3.0s'`；`hands the edit to the one notifier` → `expected [] to have a length of 1`；`marks the panel's card accepted when the transcript's is pressed` → `expected 'pending' to be 'accepted'`。7 条全红，改完 7 条全绿。
+
+顺带修掉的两条：`EditFlushReason` 补 `'restore'` 成员（「还原为 Agent 版本」原先借用 `'switch-plan'`，日志里会看到一个与事实不符的 reason）；`useEditNotifier` 的 `onError` 原先是空壳，现在用 `isRevisionConflict` 分开——冲突走已有的「基于修订 N 重算」，别的失败给一条就地 Notice。
+
+另外，B 块的 agent 在实现中自己修掉了一个真 bug 并报备：`commitEdit` 闭包捕获了旧的 `planData` / `sessionData`，而 `switch-session` / `switch-plan` 的 flush **发生在地址已经变了之后**，那一帧新选中的 query 还在 pending，取值是 `undefined` → `commitEdit` 抛出 → notifier 吞掉 → **通知被静默丢弃**。这正是 §4.5.4 要防的事。改成读 ref 里的待写快照并校验 `plan.id === pending.planId`。
+
+### 本轮拍下的三个板
+
+| 决定 | 值 | 依据 |
+| --- | --- | --- |
+| §10.5 缺口 18（`/agent` 带不走选中集） | **不加第四个 query 参数。** 高光页把选中的 N 条先 `createAgentPlan` 成一个方案，再 `navigate` 到 `?plan=` | ① 方案本来就是「N 个镜头」，不需要新类型；② 已创建的对象扛得住刷新、复制链接、第二条会话，`?clips=a,b,c` 一样都扛不住，而且 `AgentObjectKind` 里根本没有「三条高光」这个种类，双向引用记不下；③ §4.5.1 说会话是**接管**已有对象，接管的前提是对象先存在——在发送侧创建才能接管，在接收侧创建等于「打开 /agent 就写库」。接收侧零改动：新建的方案是 draft，自动出现在 `listAgentWorkspaceReferences().pending_plans` |
+| §10.1 缺口 2（保留策略没有调度器） | **周期性清理归后端 runtime，前端不做启动即扫。** 面板里只有一个触发点「立即应用」，带破坏性二次确认并回报 `removed_sessions` | ① 渲染进程不是调度器，只在开着窗口时扫会让「30 天」变成「30 天，如果你最近开过应用」；② 启动即扫是一次没有任何用户动作触发的**不可逆删除**，而且发生在用户能看到（更别说改正）策略之前，一个误设的「不保留」会在下次启动时静默清空；③ 与 §4.5.3 ① 同形：会毁东西的活儿要一次显式确认。**要后端加一个跟随 runtime 生命周期的清扫任务** |
+| 镜头种类 | **7 个不是 5 个** | `AgentPlanShot.kind` 就是 `RecordingRequest['camera_style']`，比 §4.5.2 多 orbit 与 dolly，而画板正文自己写着「第 2 个镜头由 Dolly 改为 Tracking」。按 5 个建表会渲染不出后端合法返回的方案。记为与规格的偏离 |
+
+### 与规格的偏离
+
+| # | 偏离 | 处置 |
+| --- | --- | --- |
+| 1 | 两份变更处理，其中一份的「接受」是空操作 | 见上。并成一份，补成不变式 6 |
+| 2 | `AgentPlanShot.kind` 是 7 个成员 | 按 wire 建表，两个多出来的照样给标签，文件头写明 |
+| 3 | `domain/agent/types.ts` **不重抄 wire 结构** | 与 `domain/match` 的先例相反，理由写进文件头：比赛是只读的，一份展示副本只花一个 mapper；方案要**写回**（`applyAgentPlanEdit` 要整个 `shots` 数组 + `expected_revision`），副本就要反向 mapper，而反向 mapper 正是 `params: unknown` 被悄悄丢掉的地方 |
+| 4 | i18n 只给**两整套**词表打 `context` | `agent-object`（「输出」在 `/delivery` 是复数导航节，这里是单个对象种类）与 `plan-change`（「已过期」在比赛历史页是「Valve 不再保留」，这里是「基于旧修订」，根本不是错误）。**「等待确认」故意不打**——`domain/task` 早就发布了同词同义的这条，拆开只会产生两条各自漂移的条目（§10.5 偏离 4 的教训） |
+| 5 | `SettingsPage.tsx` 改动大于「只挂上一节」 | 除挂上 `AiAgentSection` 外，还加了 `design/layout/SubNav` 的 190px 侧栏与 `?section=` 接线——否则 `?section=ai` 只能靠手敲地址才到得了。其余四节仍是 3g 的占位，`SECTION_BODY` 是 `Record<SettingsSection, ComponentType \| null>`，3g 只需在 `pages/settings/` 下加四个文件、把四个名字写进表里 |
+| 6 | 「录制前始终由你确认」用 `Toggle locked` 而不是 `disabled` | `disabled` 会把它压成 45% 不透明度，读起来像「这个设置没加载出来」。`locked` 是 on + `aria-disabled` + 点了不动 + 一行 `aria-describedby` 的原因。**它的 checked 值来自 `domain/task` 的 `TASK_REQUIRES_CONFIRMATION.recording`**，也就是产品里真正拒绝无确认录制的那张表，而不是这个文件里敲的一个 `true`，有测试断言两者相等 |
+| 7 | 跨页面目录 import | `pages/settings/AiAgentSection.tsx` 用了 `pages/delivery/outputModel.ts` 的 `formatBytes`（全仓只有那一个字节格式化器，第二个拼写就是 38 MB 和 36.2 MiB 出现在同一屏的方式）。分层 lint 允许，`pages/home/**` 早有先例。若要「页面目录互不依赖」，该把 `formatBytes` 提到共享模块 |
+
+### 后端契约缺口（本轮撞到的）
+
+1. **`AgentPlan` 不绑定 Demo，`AgentPlanShot` 没有 `demo_id` / `player_id`。** 而 `planRecording` 的每条 `RecordingRequest` 都要这两样。**「确认并生成视频」因此拼不出请求体**，渲染成 disabled + 写明原因，没有从 `params: unknown` 里猜字段。这一条同时削弱了上面那个 handoff 决定：高光页造出来的方案说不出这几条高光来自哪个 Demo。地址那层定死了，载荷这层没有，而载荷不是 query 参数能补的。
+2. **线上没有任何 `ChangeSet` / `Change` 类型。** `AgentSessionProposal` 是 `{kind, title, plan_id, based_on_revision, payload: unknown}`，逐条变更全在 payload 里。落地方式：`readPlanChangeSet` 解析器——形状对不上返回 `null`（提议只印标题、不出变更卡），单条缺 `op` 或 `target` 才丢弃，缺 `rationale` / `delta` 只置 null。没有发明字段。`payload` 的 `replace` / `insert` 只有散字段没有镜头，所以这两个 op 的「接受」是禁用 + 写明原因。
+3. **没有 accept / reject 的任何存储。** 哪几条变更被处理过只活在页面 state，刷新即失。而且「接受一条 Agent 变更」在线上表达成一次普通 `applyAgentPlanEdit`，`WorkspaceEditNotice.by` 恒为 `'user'`，所以线上分不清「我接受了 Agent 的建议」和「我自己改的」。
+4. **流式 `AgentProposal` 不带 `plan_id` / `based_on_revision`**，且它的 `kind` 是四成员闭集（highlight_edit / beat_alignment / hlae / video_render），没有「方案变更」这一类。所以 `based_on_revision` 只能由前端在按下发送时按当时读到的 `plan.revision` 盖章——**这是全链路里唯一存在这个数字的地方，§4.5.3 规则 ③ 目前靠它成立。**
+5. **流式 Agent 与会话存储是两套。** `agent_chat` 写它自己的 `AgentThread`，`AgentChatInput` 只有 `threadId` 没有 `sessionId`；`/api/agent/sessions` 是另一套。`useAgentChatStream` 做桥接（发送前写 user 条目、complete 后写 assistant 条目），后果记在文件头：user 条目写入后流中断，会话里会留下一个没有回答的问题。
+6. **`AgentWorkspaceSettings` 只有 `session_retention` + `take_limit`。** 画板的五个开关（应用剪辑变更前先预览 / 显示 Agent 读取了哪些证据 / 默认成片时长 / 点评语气 / 自动带入当前选中的 Demo 与选手）**一个都没有字段，一个都没有画**。「录制前始终由你确认」本来就是不可关闭的常量，按常量处理。
+7. **没有 Take 模型。** §4.5.2 的 `Take` / `Composition` 没有线上类型也没有路由，而 `AgentWorkspaceSettings.take_limit` 却在限制一个 API 列不出来的东西。`?mode=takes` 因此**没有编一张白板**：只比较真实存在的两个版本（`plan.agent_baseline` 与当前 `plan`），指标只用真有的字段，`CompositionRow` 一行不渲染并固定印一句「后端还没有 Take 模型」，markup 测试断言页面里不出现「Take A/B」。
+8. **`exportAgentSessions` 导出的文档没有落点。** 路由返回一份 JSON，而 bridge 的 141 个命令里没有任何通用的「保存文件 / 选择保存位置」命令。所以「导出」今天能做的只有取回文档、印一句「已导出 N 条会话」。没有假装成功，也没有用 `<a download>`（Tauri 沙箱里本来就不工作）。
+9. **引用只能加，不能撤。** `touchAgentObjectRef` 是 POST，没有对应的删除路由，而画板「新建会话」右栏画了一个「取消引用」按钮。落地：创建之前「引用」只是本地选中，可以整体清空；创建之后没有任何办法撤销一次 touch，那个按钮就没有画。要修：一条 `DELETE /agent/sessions/{id}/refs/{kind}/{id}`。
+10. **`AgentPlan` 没有 tick rate。** 编辑「时长 5.0s → 8.5s」时同一次改动的结果也该是 tick 顺着移动，但 64 与 128 之间只能猜。落地：把时长 / 起始 tick / 结束 tick 做成三个独立字段，并在时长旁写一句 hint 说 tick 区间不随它动。
+11. **`AgentSessionEntry` 没有 token / 耗时 / 模型字段**，画板 07 的「工作进度」只能从 `tool_calls` 反推，而它的 `input` / `output` 都是 `unknown`。**`AgentSession` 也没有上下文字段**，所以「新建会话」的那排 chip（＋Demo ＋选手 ＋证据 ＋BGM）与会话行第二行「Aurora vs Meridian · Kael · R21」都没有落点，整块省略（不是画成不可点）。
+12. **`AgentObjectRef.status` 与 `AgentWorkspaceReference.status` 都是自由文本**，映射不到 `StatusDot` 的闭集，各块直接印服务端原句。
+13. **没有任何「预览这条」。** 2a 的逐条变更预览与 2b 的「换一个镜头」预览都没有命令（与 §10.3 缺口 8 同源：CSP `default-src 'self'`，没有可播放 URL）。同板的「影响」指标（录制耗时 6 分 → 5 分）也没有任何字段。
+14. **`data/config.ts` 没有 `useTestLlm`。** `testLlm` 已经在 `DesktopClient` 的 Pick 里，但没有 hook 包它，所以设置「模型」块的「测试连接」与「连接正常 · 支持工具调用」那一行没有画。落地只要加一个 mutation 返回 `LlmTestResult`。没有在页面里直接 `useDesktopClient()` 绕过去——那会是全仓第一个这么干的页面。
+15. **`output` 种类的引用 chip 点不进那个文件。** §7 给 `/delivery` 的只有 `?view=outputs|tasks`，没有 `/delivery/output/:id`。所以它落到列表页（最近的可寻址位置），理由写进 `sessionDrawerModel.ts` 并有测试钉住。要改得给 §7 加一个输出的一等地址——那是路由表的事，不该由页面偷偷加一个参数。
+
+### 留给后续阶段的已知缺口
+
+1. **409 冲突只做到「不静默」，没做到「不丢」。** 手动编辑撞上修订冲突时，界面会说清「屏幕上的改动还没有写进方案」并给出「基于修订 N 重算」，但那是**让 Agent 重新给变更**，不是把用户丢掉的编辑按新修订重放一遍。`createEditNotifier` 故意不重排队，重放需要壳层里第二条 commit 路径。报了没做。
+2. **`domain/agent/AgentSessionRow` 的 `now` 是可选 prop，不传就每一行都退化成「08-15」这种日期形式**，画板的三档时间戳（09:02 / 昨天 / 08-13）会静默丢掉两档。抽屉自己读一次时钟并有一条**故意不传 `now`** 的测试盯着；以后用这个 row 的地方（方案详情的「改动来源」）要注意同一个坑。建议把 `now` 改成必填。
+3. **§10.4 缺口 1 / 3 / 5、§10.5 的四条**仍然成立。
+4. **`check-web-i18n.mjs` 依旧全红**（267 个文件），它是旧 typed-literal 体系的守卫，与 `sourceLocale: 'zh-CN'` 根本对立，不在 `pnpm lint` 里，§10 阶段 4 已排定删除。

@@ -133,7 +133,10 @@ const PAGES: readonly PageCase[] = [
     Component: AgentPage,
     title: 'Agent 创作',
     phase: '3e',
-    built: false,
+    /* Phase 3e landed all three blocks (conversation, plan panel, sessions),
+       so the phase notice is gone from `/agent` for the reason this column
+       exists. */
+    built: true,
   },
   {
     pattern: '/recording',

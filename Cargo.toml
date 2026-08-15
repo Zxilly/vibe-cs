@@ -40,6 +40,7 @@ bytes = "1.10"
 cap-std = "4.0.2"
 chrono = { version = "0.4", features = ["serde"] }
 directories = "6.0"
+dunce = "1.0"
 ez-ffmpeg = "0.17.1"
 ffmpeg-next = "=8.1.0"
 futures-util = "0.3"

@@ -10,6 +10,7 @@ description = "Desktop shell for Vibe CS"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+async-trait.workspace = true
 vibe-cs-application = { path = "../../../crates/application" }
 vibe-cs-agent = { path = "../../../crates/agent" }
 vibe-cs-domain = { path = "../../../crates/domain" }

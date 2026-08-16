@@ -13,49 +13,59 @@
  * this table lives inside a column that has to keep its own scroll off `body`.
  */
 
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { useMemo } from 'react';
 
 import { DataTable, EmptyState, type DataTableColumn } from '../../design/data';
 import type { PlayerMapItem } from '../../shared/desktop/dto';
 import { formatFixed, formatPercent, headshotRate, NO_VALUE } from './playerStats';
 
-const COLUMNS: readonly DataTableColumn<PlayerMapItem>[] = [
-  {
-    id: 'map',
-    header: <Trans>地图</Trans>,
-    headerLabel: '地图',
-    truncate: true,
-    cell: (row) => row.map_name ?? NO_VALUE,
-  },
-  {
-    id: 'matches',
-    header: <Trans>场次</Trans>,
-    headerLabel: '场次',
-    variant: 'numeric',
-    cell: (row) => formatFixed(row.stats.matches, 0),
-  },
-  {
-    id: 'kd',
-    header: <Trans>K/D</Trans>,
-    headerLabel: 'K/D',
-    variant: 'numeric',
-    cell: (row) => formatFixed(row.stats.average_kill_death_ratio, 2),
-  },
-  {
-    id: 'adr',
-    header: <Trans>ADR</Trans>,
-    headerLabel: 'ADR',
-    variant: 'numeric',
-    cell: (row) => formatFixed(row.stats.average_adr, 1),
-  },
-  {
-    id: 'headshots',
-    header: <Trans>爆头率</Trans>,
-    headerLabel: '爆头率',
-    variant: 'numeric',
-    cell: (row) => formatPercent(headshotRate(row.stats)),
-  },
-];
+/*
+ * A function, not a `const` table: `headerLabel` is copy — it is the column's
+ * accessible name and its entry in 列配置 — so it goes through a `t` macro, and
+ * a macro evaluated at module scope freezes whichever locale was active when
+ * the module first loaded. Built per render, memoised by the caller.
+ */
+function mapColumns(): readonly DataTableColumn<PlayerMapItem>[] {
+  return [
+    {
+      id: 'map',
+      header: <Trans>地图</Trans>,
+      headerLabel: t`地图`,
+      truncate: true,
+      cell: (row) => row.map_name ?? NO_VALUE,
+    },
+    {
+      id: 'matches',
+      header: <Trans>场次</Trans>,
+      headerLabel: t`场次`,
+      variant: 'numeric',
+      cell: (row) => formatFixed(row.stats.matches, 0),
+    },
+    {
+      id: 'kd',
+      header: <Trans>K/D</Trans>,
+      headerLabel: t`K/D`,
+      variant: 'numeric',
+      cell: (row) => formatFixed(row.stats.average_kill_death_ratio, 2),
+    },
+    {
+      id: 'adr',
+      header: <Trans>ADR</Trans>,
+      headerLabel: t`ADR`,
+      variant: 'numeric',
+      cell: (row) => formatFixed(row.stats.average_adr, 1),
+    },
+    {
+      id: 'headshots',
+      header: <Trans>爆头率</Trans>,
+      headerLabel: t`爆头率`,
+      variant: 'numeric',
+      cell: (row) => formatPercent(headshotRate(row.stats)),
+    },
+  ];
+}
 
 export interface PlayerMapTableProps {
   readonly rows: readonly PlayerMapItem[];
@@ -63,6 +73,11 @@ export interface PlayerMapTableProps {
 }
 
 export function PlayerMapTable({ rows, loading = false }: PlayerMapTableProps) {
+  // Empty deps: the locale is fixed for the life of the process (a language
+  // change is stored and applies at next launch), so the only thing this has
+  // to avoid is being built before `boot.ts` activates it.
+  const columns = useMemo(mapColumns, []);
+
   return (
     <section className="flex min-h-0 flex-1 flex-col border border-divider" data-player-maps="">
       <div className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-divider px-3 font-heading text-2xs tracking-caps">
@@ -70,7 +85,7 @@ export function PlayerMapTable({ rows, loading = false }: PlayerMapTableProps) {
       </div>
       <DataTable
         caption={<Trans>按地图的成绩</Trans>}
-        columns={COLUMNS}
+        columns={columns}
         rows={rows}
         rowId={(row) => row.map_name ?? 'unknown'}
         loading={loading}

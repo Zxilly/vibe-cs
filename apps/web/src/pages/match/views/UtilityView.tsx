@@ -167,7 +167,7 @@ export function UtilityTable({
       {
         id: 'player',
         header: <Trans>选手</Trans>,
-        headerLabel: '选手',
+        headerLabel: t`选手`,
         hideable: false,
         truncate: true,
         cell: (row) => <span className="truncate text-base">{row.name}</span>,
@@ -175,14 +175,14 @@ export function UtilityTable({
       {
         id: 'throws',
         header: <Trans>投出</Trans>,
-        headerLabel: '投出',
+        headerLabel: t`投出`,
         variant: 'numeric',
         cell: (row) => formatFixed(row.throws, 0),
       },
       {
         id: 'detonations',
         header: <Trans>生效</Trans>,
-        headerLabel: '生效',
+        headerLabel: t`生效`,
         variant: 'numeric',
         cell: (row) => formatFixed(row.detonations, 0),
       },
@@ -195,7 +195,7 @@ export function UtilityTable({
       built.push({
         id: 'damage',
         header: <Trans>道具伤害</Trans>,
-        headerLabel: '道具伤害',
+        headerLabel: t`道具伤害`,
         variant: 'numeric',
         cell: (row) => formatFixed(row.damage, 0),
       });
@@ -205,21 +205,21 @@ export function UtilityTable({
         {
           id: 'flash',
           header: <Trans>致盲人次</Trans>,
-          headerLabel: '致盲人次',
+          headerLabel: t`致盲人次`,
           variant: 'numeric',
           cell: (row) => formatFixed(row.flashEvents, 0),
         },
         {
           id: 'flashed',
           header: <Trans>致盲人数</Trans>,
-          headerLabel: '致盲人数',
+          headerLabel: t`致盲人数`,
           variant: 'numeric',
           cell: (row) => formatFixed(row.playersFlashed, 0),
         },
         {
           id: 'blind',
           header: <Trans>致盲时长</Trans>,
-          headerLabel: '致盲时长',
+          headerLabel: t`致盲时长`,
           variant: 'numeric',
           /* `null` when one decoded blind event omitted its duration — the wire
              says so explicitly, so the dash is the service's own answer. */
@@ -232,7 +232,7 @@ export function UtilityTable({
     built.push({
       id: 'items',
       header: <Trans>投掷物构成</Trans>,
-      headerLabel: '投掷物构成',
+      headerLabel: t`投掷物构成`,
       truncate: true,
       cell: (row) => <ItemSummary items={row.items} label={(key) => i18n._(UTILITY_ITEM_LABEL[key])} />,
     });
@@ -311,7 +311,7 @@ export function EconomyTable({
       {
         id: 'round',
         header: <Trans>回合</Trans>,
-        headerLabel: '回合',
+        headerLabel: t`回合`,
         variant: 'numeric',
         hideable: false,
         width: '72px',
@@ -320,7 +320,7 @@ export function EconomyTable({
       {
         id: 'winner',
         header: <Trans>胜方</Trans>,
-        headerLabel: '胜方',
+        headerLabel: t`胜方`,
         truncate: true,
         cell: (row) => {
           if (row.winner === null) return NO_VALUE;
@@ -355,7 +355,7 @@ export function EconomyTable({
     built.push({
       id: 'unattributed',
       header: <Trans>未归属</Trans>,
-      headerLabel: '未归属',
+      headerLabel: t`未归属`,
       variant: 'numeric',
       /* The service counts purchases whose event carried no side. Printed
          rather than folded into a side, because folding would invent an owner. */

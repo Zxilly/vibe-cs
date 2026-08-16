@@ -89,16 +89,14 @@ import {
 } from '@tanstack/react-query';
 
 /*
- * The replay wire is a binary frame stream (`ARPL`), not JSON, and the only
- * decoder in the repository is `features/analysis/replayBinary.ts`. It is
- * imported rather than copied: a second decoder for one byte format is how the
- * two silently drift apart, and this one is already covered by the contract
- * tests beside it. The debt is real and named in the phase report — that module
- * still speaks the pre-redesign `shared/i18n` runtime, so when phase 4 deletes
- * that runtime the decoder has to move into `data/` (or into a worker) rather
- * than be deleted with `features/`.
+ * The replay wire is a binary frame stream (`ARPL`), not JSON. The decoder was
+ * `features/analysis/replayBinary.ts` and this file imported it across the
+ * layer boundary, with a comment saying phase 4 would have to move it here
+ * rather than delete it with the rest of `features/**`. Phase 4 did: it is
+ * `./replayBinary` now, and it speaks Lingui instead of the retired
+ * `shared/i18n` runtime.
  */
-import { decodeReplayBinary } from '../features/analysis/replayBinary';
+import { decodeReplayBinary } from './replayBinary';
 import type {
   CreateEvidenceAnnotation,
   EvidenceAnnotationQuery,

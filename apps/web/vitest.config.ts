@@ -15,6 +15,10 @@ const macroPlugins = (): PluginOption[] => [
 
 const INTERACTION_GLOB = 'src/**/*.interaction.test.tsx';
 
+// All three projects need an active locale: a Lingui macro throws without one,
+// and macros are not confined to components — see the file's own comment.
+const I18N_SETUP = './src/test/setup.i18n.ts';
+
 export default defineConfig({
   test: {
     coverage: {
@@ -33,6 +37,7 @@ export default defineConfig({
           css: false,
           include: ['src/**/*.test.ts'],
           exclude: [...configDefaults.exclude],
+          setupFiles: [I18N_SETUP],
         },
       },
       {
@@ -43,6 +48,7 @@ export default defineConfig({
           css: false,
           include: ['src/**/*.test.tsx'],
           exclude: [...configDefaults.exclude, INTERACTION_GLOB],
+          setupFiles: [I18N_SETUP],
         },
       },
       {
@@ -53,7 +59,7 @@ export default defineConfig({
           css: false,
           include: [INTERACTION_GLOB],
           exclude: [...configDefaults.exclude],
-          setupFiles: ['./src/test/setup.interaction.ts'],
+          setupFiles: [I18N_SETUP, './src/test/setup.interaction.ts'],
         },
       },
     ],

@@ -30,6 +30,7 @@
  * so the shell never grows a second scrollbar at the 1100px fold.
  */
 
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useMemo, useState, type ReactNode } from 'react';
 
@@ -124,7 +125,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
     {
       id: 'name',
       header: <Trans>选手</Trans>,
-      headerLabel: '选手',
+      headerLabel: t`选手`,
       hideable: false,
       sortable: true,
       truncate: true,
@@ -133,7 +134,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
     {
       id: 'team',
       header: <Trans>队伍</Trans>,
-      headerLabel: '队伍',
+      headerLabel: t`队伍`,
       truncate: true,
       /* An unnamed team prints the dash rather than 「队伍 A」 — the context bar
          above already carries whatever name the demo record knows. */
@@ -142,7 +143,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
     {
       id: 'kills',
       header: <Trans>击杀</Trans>,
-      headerLabel: '击杀',
+      headerLabel: t`击杀`,
       variant: 'numeric',
       sortable: true,
       cell: (row) => formatFixed(row.kills, 0),
@@ -150,7 +151,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
     {
       id: 'deaths',
       header: <Trans>死亡</Trans>,
-      headerLabel: '死亡',
+      headerLabel: t`死亡`,
       variant: 'numeric',
       sortable: true,
       cell: (row) => formatFixed(row.deaths, 0),
@@ -158,7 +159,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
     {
       id: 'assists',
       header: <Trans>助攻</Trans>,
-      headerLabel: '助攻',
+      headerLabel: t`助攻`,
       variant: 'numeric',
       sortable: true,
       cell: (row) => formatFixed(row.assists, 0),
@@ -166,7 +167,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
     {
       id: 'kd',
       header: <Trans>K/D</Trans>,
-      headerLabel: 'K/D',
+      headerLabel: t`K/D`,
       variant: 'numeric',
       sortable: true,
       cell: (row) => formatFixed(row.killDeathRatio, 2),
@@ -174,7 +175,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
     {
       id: 'adr',
       header: <Trans>ADR</Trans>,
-      headerLabel: 'ADR',
+      headerLabel: t`ADR`,
       variant: 'numeric',
       sortable: true,
       cell: (row) => formatFixed(row.adr, 1),
@@ -182,7 +183,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
     {
       id: 'headshot',
       header: <Trans>爆头率</Trans>,
-      headerLabel: '爆头率',
+      headerLabel: t`爆头率`,
       variant: 'numeric',
       sortable: true,
       cell: (row) => formatPercent(row.headshotRate),
@@ -197,7 +198,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
     columns.push({
       id: 'opening',
       header: <Trans>首杀 / 首死</Trans>,
-      headerLabel: '首杀与首死',
+      headerLabel: t`首杀与首死`,
       variant: 'numeric',
       sortable: true,
       cell: (row) => `${formatFixed(row.openingKills, 0)} / ${formatFixed(row.openingDeaths, 0)}`,
@@ -207,7 +208,7 @@ function scoreboardColumns(showOpeningDuels: boolean): readonly DataTableColumn<
   columns.push({
     id: 'highlights',
     header: <Trans>高光</Trans>,
-    headerLabel: '高光',
+    headerLabel: t`高光`,
     variant: 'numeric',
     sortable: true,
     cell: (row) => formatFixed(row.highlights, 0),

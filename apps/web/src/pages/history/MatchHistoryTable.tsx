@@ -115,7 +115,7 @@ export function MatchHistoryTable({
     {
       id: 'match',
       header: <Trans>比赛</Trans>,
-      headerLabel: '比赛',
+      headerLabel: t`比赛`,
       hideable: false,
       truncate: true,
       cell: (item) => <Trans>竞技 · {item.map_name ?? '—'}</Trans>,
@@ -123,32 +123,32 @@ export function MatchHistoryTable({
     {
       id: 'map',
       header: <Trans>地图</Trans>,
-      headerLabel: '地图',
+      headerLabel: t`地图`,
       cell: (item) => item.map_name ?? '—',
     },
     {
       id: 'played_at',
       header: <Trans>时间</Trans>,
-      headerLabel: '时间',
+      headerLabel: t`时间`,
       variant: 'numeric',
       cell: (item) => (item.played_at === null ? '—' : item.played_at.slice(0, 16).replace('T', ' ')),
     },
     {
       id: 'score',
       header: <Trans>比分</Trans>,
-      headerLabel: '比分',
+      headerLabel: t`比分`,
       variant: 'numeric',
       cell: (item) => item.score ?? '—',
     },
     {
       id: 'state',
       header: <Trans>状态</Trans>,
-      headerLabel: '状态',
+      headerLabel: t`状态`,
       cell: (item) => <StateCell item={item} state={stateOf(item)} />,
     },
     {
       id: 'action',
-      headerLabel: '操作',
+      headerLabel: t`操作`,
       hideable: false,
       width: '120px',
       cell: (item) => {

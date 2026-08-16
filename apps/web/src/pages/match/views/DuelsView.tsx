@@ -118,7 +118,7 @@ export function DuelMatrixTable({
             {rowTeamName} ＼ {columnTeamName}
           </>
         ),
-      headerLabel: '行方与列方',
+      headerLabel: t`行方与列方`,
       hideable: false,
       truncate: true,
       cell: (row) => <span className="truncate">{row.player.name}</span>,
@@ -154,7 +154,7 @@ export function DuelMatrixTable({
     const total: DataTableColumn<DuelMatrixRow> = {
       id: 'total',
       header: <Trans>合计</Trans>,
-      headerLabel: '合计',
+      headerLabel: t`合计`,
       align: 'end',
       variant: 'numeric',
       hideable: false,
@@ -249,7 +249,7 @@ export function OpeningDuelTable({
       {
         id: 'round',
         header: <Trans>回合</Trans>,
-        headerLabel: '回合',
+        headerLabel: t`回合`,
         variant: 'numeric',
         hideable: false,
         width: '72px',
@@ -271,21 +271,21 @@ export function OpeningDuelTable({
       {
         id: 'killer',
         header: <Trans context="duel-column">首杀</Trans>,
-        headerLabel: '首杀',
+        headerLabel: t`首杀`,
         truncate: true,
         cell: (duel) => index.get(duel.killerId)?.name ?? duel.killerId,
       },
       {
         id: 'victim',
         header: <Trans context="duel-column">被击杀</Trans>,
-        headerLabel: '被击杀',
+        headerLabel: t`被击杀`,
         truncate: true,
         cell: (duel) => index.get(duel.victimId)?.name ?? duel.victimId,
       },
       {
         id: 'weapon',
         header: <Trans>武器</Trans>,
-        headerLabel: '武器',
+        headerLabel: t`武器`,
         truncate: true,
         /* Rendered verbatim, as `domain/map/EngagementLayer` already
            established: the demo spells it `ak47` and no rename table exists. */
@@ -294,19 +294,19 @@ export function OpeningDuelTable({
       {
         id: 'marks',
         header: <Trans>标记</Trans>,
-        headerLabel: '标记',
+        headerLabel: t`标记`,
         cell: (duel) => <DuelMarks headshot={duel.headshot} penetrated={duel.penetrated} />,
       },
       {
         id: 'timecode',
         header: <Trans>时间码</Trans>,
-        headerLabel: '时间码',
+        headerLabel: t`时间码`,
         variant: 'numeric',
         cell: (duel) => formatTickTimecode(duel.tick, tickRate),
       },
       {
         id: 'locate',
-        headerLabel: '定位',
+        headerLabel: t`定位`,
         hideable: false,
         width: '86px',
         cell: (duel) => (

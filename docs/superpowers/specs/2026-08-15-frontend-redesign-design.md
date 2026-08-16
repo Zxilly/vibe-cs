@@ -617,7 +617,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 | 3f-2 | 多轨编辑器（10） | ✓ 完成（§10.10）。两步：先补齐时间轴内核（修剪 / 自动滚动 / 帧网格 / 变速 / 虚拟化 / 指针捕获，`TrackKind` 对齐线上），再接真素材（适配层 + `data/editor.ts` + 六个面板） |
 | 3g-be | **后端并行任务**：Agent 设置五个开关 / 引用删除路由 / 保留策略调度 / `OutputItem` 媒体元数据与输出流 / 活动错误码 / **`GET /api/recording/plans/{id}`（§10.8 缺口 1 与 2 同因，一条路由修两个）** | ✓ 完成（§10.11）。六项全部落地，`cargo test --workspace` 全绿 |
 | 3g | 设置 5 节 / 恢复中心 / 工作台首页余下五块 / **`/guide` 与首次使用三步提示条** / 原生外壳能力回填 | ✓ 完成（§10.12）。四次提交：语音三值化与 AI 五开关 / 设置四节 / 恢复中心与首页四块 / `/guide` 与三步条与外壳回填 |
-| 4 | i18n 英文收口；测试回归；删除 `styles/index.css`、旧 `features/`、旧 `shared/ui`、旧 `shared/i18n`、`check-web-i18n.mjs`、三个被移除的依赖 | `pnpm lint && pnpm typecheck && pnpm test` 全绿，旧目录清零 |
+| 4 | i18n 英文收口；测试回归；删除 `styles/index.css`、旧 `features/`、旧 `shared/ui`、旧 `shared/i18n`、`check-web-i18n.mjs`、三个被移除的依赖 | ✓ 完成（§10.13）。删 316 个文件；**被移除的依赖是四个不是三个**；搬走一个解码器；重建 en-US 渲染门并用它抓出 55 处漏掉宏的裸串 |
 | 5 | `design/` 组件库回流到一个**新建的** Claude Design 设计系统项目（`Industry` 是共用基底，不动） | 下一轮画板的起点是真正被建出来的那套 token 与控件 |
 
 ---
@@ -1425,3 +1425,61 @@ A 块（对话流）与 B 块（方案面板）在同一轮里各自实现了「
 3. **语言与主题只写存储值，不切换正在运行的应用。** 壳层已经拥有这两个作为活动状态，两个写入方会分歧。改动保存了、下次启动生效，这句话印在行上。
 4. **首页的方案行没有时长与主体行**（§10.5 缺口 1 的下游）。
 5. **导出诊断包没有路由**（本节 10.12.2）。
+
+
+---
+
+## 10.13 阶段 4 落地记录 —— 删掉旧前端（2026-08-16）
+
+出口条件：`pnpm lint` / `typecheck` / `build` 退出码 0；vitest 333 文件 4129 用例通过；`lingui extract` 报 en-US 缺失 0 条；`src/` 下只剩 `app data design domain locales pages shared/desktop test` 与三个根文件。
+
+### 10.13.1 删除清单
+
+316 个文件。计划里的六项之外多了三处，都是同一类东西——**没有任何新层引用者的旧代码**：`shared/stores/`（`runtimeStore` + `uiStore`）、`shared/hooks/`、`shared/radar.ts` 与 `shared/performanceMetrics.ts`。`domain/map/mapProjection.ts` 引用 `radar.ts` 的地方全在注释里，说的是「这个投影和它已有的算法一致」，那是历史说明不是依赖。
+
+`shared/` 下现在只有 `desktop/`，也就是分层规则里唯一允许 `data/**` 直接触达的那一层。
+
+### 10.13.2 被移除的依赖是四个，不是三个
+
+`@assistant-ui/react`、`@xzdarcy/react-timeline-editor`、`wavesurfer.js` 是计划里的三个，**`@xstate/react` 是第四个**：多轨编辑器用的是自己写的 store，没有任何组件订阅状态机。`xstate` 本体留着——`domain/task/taskMachine.ts` 与 `pages/delivery/taskTransitions.ts` 在用。
+
+同时加了一个 devDependency：`@lingui/message-utils`，理由见 10.13.4。
+
+### 10.13.3 一个解码器要搬家，不是删掉
+
+`features/analysis/replayBinary.ts` 是回放线格式（`ARPL`）唯一的解码器，而 `data/match.ts` 是它唯一的调用方——这一点 3 阶段就写在那句跨层 import 的注释里了：「phase 4 会不得不把它搬过来而不是跟着 `features/**` 一起删」。搬到了 `data/replayBinary.ts`，连同 8 个字节格式契约用例。
+
+搬家顺手把它从退役的 `shared/i18n` 编号表接到了 Lingui：24 处 `msg("mNNNN")`。`shared/desktop/client.ts` 同样处理，12 处。
+
+`roundReplayBinary.ts` 则是真的删了：只有旧的 `AnalysisPage` 用它，新的 `ReplayView` 解的是整场 ARPL 而不是回合级。需要时 git 历史里有。
+
+### 10.13.4 三个测试项目都要激活 locale
+
+**Lingui 的宏在没有激活 locale 时抛错,不回退。** 旧的编号表不会——`msg()` 查不到就返回 key。所以解码器一接上宏，`unit` 项目里三个断言拒绝路径的用例立刻炸了：它们测的是纯逻辑，附近没有任何 React 树，而 `test/render.tsx` 的激活只发生在渲染时。
+
+修法是一个所有项目共享的 setup（`test/setup.i18n.ts`），载入**空目录**：宏把作者写的 zh-CN 原文烤进自己的产物，目录里查不到就回退到它，于是测试读到的是源文本，而不需要 `lingui compile` 先跑过一遍。
+
+### 10.13.5 重建 en-US 渲染门——它当场抓出 55 处
+
+删掉的 `shared/i18n/coverage.test.tsx` 有两条断言。第一条守的是那张编号表，随表一起走，它自己的注释就是这么写的。**第二条不能一起走**：`lingui extract` 只能数它认识的消息，而一个直接写进 JSX 的中文串**根本没有 msgid**——目录报缺失 0 条，字幕却在每种语言下都是中文。这是全套测试里没有第二个地方能看见的东西。
+
+于是重建为 `src/localeCoverage.test.tsx`：切到 en-US，渲染 `APP_PAGES` 的每一个目的地，断言标记里不含任何汉字。相对旧版有三处不同：
+
+- **读真的 `en-US/messages.po`，不 mock 翻译函数**，所以一条**错**的翻译也会被抓到，而不只是漏掉的宏；
+- **页面清单来自 `APP_PAGES`**，所以新增路由在被绑定的那一刻就进入覆盖，而不是等谁想起来补一行；
+- **失败时打印犯规的那段文本**，因为这个测试的失败现场需要回答的是「哪一句漏了」。
+
+两个实现细节各自值得记一笔：
+
+**用 `prerenderToNodeStream` 而不是 `renderToStaticMarkup`。** `routes.tsx` 的每个页面都是 `lazy()`，这是一棵异步树，用同步 API 渲染它只能抛异常——第一版试着「渲染、让出、重试」，那是在拿重试循环绕过一个用错了的 API，而且十次也没绕过去。React 19 的预渲染 API 会等动态 import 和每一个 Suspense 边界。
+
+**目录的 key 要自己算。** `.po` 以源文本为 msgid，运行时以它的**哈希**为 id——`lingui compile` 做的正是这层转换。所以解析后用 Lingui 自己的 `generateMessageId` 生成 key（这就是那个新 devDependency）。不直接 import `messages.mjs`，是因为它是编译产物、不在 git 里：依赖它会让干净检出上的 `pnpm test` 必须先跑一次 `pnpm lint`。
+
+**它抓到的 55 处全是属性位置的裸串**，一个 JSX 文本节点都没有——`headerLabel`（50 处）、`configLabel`、`Inspector` 的 `label`（5 处）。原因很直白：写 `<Trans>状态</Trans>` 的人下一行写 `headerLabel: '状态'`，而后者**看起来不像会显示的东西**。它显示：`headerLabel` 是列的无障碍名称，会渲染成 `sr-only`，也是「列配置」对话框里那一行的名字。
+
+**其中两个文件的列表是模块级 `const`，改成了函数。** 宏在模块作用域求值会烤进「模块首次加载时」激活的那个 locale，而模块加载发生在 `boot.ts` 激活之前。组件里 `useMemo(fn, [])` 调用——空依赖是对的，因为语言在进程生命周期内不变（§10.12 缺口 3：改语言存下来、下次启动生效）。
+
+### 缺口
+
+1. **`headerLabel` 这类属性没有静态防线。** 现在靠渲染门抓，而渲染门只覆盖首屏能渲染出来的部分——一个藏在对话框里、默认不展开的裸串仍然逃得掉（本轮 50 处 `headerLabel` 里，正是只有两处「没有 `header` 只有 `headerLabel`」的列被抓出来，其余 48 处是顺带一起改的）。真正的防线是 ESLint 的 JSX 字面量规则，本轮没上。
+2. **`docs/CS_DEMO_MANAGER_UI_PARITY_AUDIT.md` 里的链接指向已删的 `features/**`。** 那是一份历史审计，记录的是当时的对照，没有改。

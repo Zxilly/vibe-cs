@@ -21,6 +21,7 @@
  * the bar can never be the only place a reader gets the fact.
  */
 
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
@@ -122,7 +123,7 @@ export function PlayerComparePanel({ players, limit, onClear }: PlayerComparePan
 
   if (left === undefined) {
     return (
-      <Inspector title={<Trans>比较</Trans>} label="比较" width="wide">
+      <Inspector title={<Trans>比较</Trans>} label={t`比较`} width="wide">
         <EmptyState
           title={<Trans>还没有选中选手</Trans>}
           description={
@@ -138,7 +139,7 @@ export function PlayerComparePanel({ players, limit, onClear }: PlayerComparePan
     return (
       <Inspector
         title={<Trans>比较</Trans>}
-        label="比较"
+        label={t`比较`}
         width="wide"
         summary={<Trans>已选 {left.name}，还差一名</Trans>}
         footer={
@@ -162,7 +163,7 @@ export function PlayerComparePanel({ players, limit, onClear }: PlayerComparePan
   return (
     <Inspector
       title={<Trans>比较</Trans>}
-      label="比较"
+      label={t`比较`}
       width="wide"
       summary={
         <Trans>

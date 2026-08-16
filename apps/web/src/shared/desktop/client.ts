@@ -1,6 +1,6 @@
 import { Channel, invoke } from '@tauri-apps/api/core';
 
-import { msg, msgf } from '../i18n';
+import { t } from '@lingui/core/macro';
 import { parseActivityFeed, parseActivityItem } from './activityContract';
 import { parseAnalysisRun, parseAnalysisRunDetail } from './analysisRunContract';
 import { parseDemoMetadata, parseDemoMetadataBatch } from './demoMetadataContract';
@@ -192,7 +192,7 @@ export function desktopMediaUrl(path: string): string {
       : 'vibe-cs-media://localhost';
     return `${origin}${managedPath}`;
   }
-  throw new DesktopError(msg("m0432"), 0, 'INVALID_MEDIA_URL');
+  throw new DesktopError(t`媒体地址不是本地服务路径。`, 0, 'INVALID_MEDIA_URL');
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -203,10 +203,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     method = 'GET',
   } = options;
   if (callerSignal?.aborted) {
-    throw new DesktopError(msg("m1144"), 0, 'REQUEST_ABORTED');
+    throw new DesktopError(t`请求超时或已取消，请稍后重试。`, 0, 'REQUEST_ABORTED');
   }
   if (requestBody instanceof FormData) {
-    throw new DesktopError(msg("m0711"), 0, 'NATIVE_UPLOAD_REQUIRED');
+    throw new DesktopError(t`无法连接到本地服务，请确认服务正在运行。`, 0, 'NATIVE_UPLOAD_REQUIRED');
   }
   const controller = new AbortController();
   const timer = timeoutMs === null
@@ -226,7 +226,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     });
     const cancellation = new Promise<never>((_resolve, reject) => {
       controller.signal.addEventListener('abort', () => {
-        reject(new DesktopError(msg("m1144"), 0, 'REQUEST_ABORTED'));
+        reject(new DesktopError(t`请求超时或已取消，请稍后重试。`, 0, 'REQUEST_ABORTED'));
       }, { once: true });
     });
     return await Promise.race([invocation, cancellation]);
@@ -235,7 +235,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     if (isDesktopCommandFailure(error)) {
       throw new DesktopError(error.message, error.status, error.code);
     }
-    throw new DesktopError(msg("m0711"), 0, 'DESKTOP_COMMAND_FAILED');
+    throw new DesktopError(t`无法连接到本地服务，请确认服务正在运行。`, 0, 'DESKTOP_COMMAND_FAILED');
   } finally {
     if (timer !== null) globalThis.clearTimeout(timer);
     callerSignal?.removeEventListener('abort', abortFromCaller);
@@ -251,11 +251,11 @@ async function requestBinary(path: string, signal?: AbortSignal): Promise<ArrayB
     const invocation = invoke<ArrayBuffer>('desktop_binary', { path });
     const cancellation = new Promise<never>((_resolve, reject) => {
       controller.signal.addEventListener('abort', () => {
-        reject(new DesktopError(msg("m1144"), 0, 'REQUEST_ABORTED'));
+        reject(new DesktopError(t`请求超时或已取消，请稍后重试。`, 0, 'REQUEST_ABORTED'));
       }, { once: true });
     });
     const buffer = await Promise.race([invocation, cancellation]);
-    if (buffer.byteLength > 128 * 1024 * 1024) throw new DesktopError(msg("m0177"), 413, 'REPLAY_TOO_LARGE');
+    if (buffer.byteLength > 128 * 1024 * 1024) throw new DesktopError(t`二进制回放超过 128 MiB 上限。`, 413, 'REPLAY_TOO_LARGE');
     return buffer;
   } finally {
     globalThis.clearTimeout(timer);
@@ -296,7 +296,7 @@ async function uploadNativeFile<T>(path: string, file: File, projectId?: string)
     );
   } catch (error) {
     if (isDesktopCommandFailure(error)) throw new DesktopError(error.message, error.status, error.code);
-    throw new DesktopError(msg("m0711"), 0, 'DESKTOP_UPLOAD_FAILED');
+    throw new DesktopError(t`无法连接到本地服务，请确认服务正在运行。`, 0, 'DESKTOP_UPLOAD_FAILED');
   }
 }
 
@@ -358,7 +358,7 @@ export function normalizeSide(value: string | number): 'A' | 'B' | null {
 
 function requireSide(value: string | number): 'A' | 'B' {
   const side = normalizeSide(value);
-  if (!side) throw new DesktopError(msgf("m0264", [String(value)]), 502, 'INVALID_TEAM_SIDE');
+  if (!side) throw new DesktopError(t`分析响应包含未知阵营：${String(value)}`, 502, 'INVALID_TEAM_SIDE');
   return side;
 }
 
@@ -429,7 +429,7 @@ export function normalizeRecordedClip(record: RecordedClipRecord): RecordedClip 
   return {
     id: record.id,
     title: record.title,
-    player_name: record.player_name ?? msg("m0764"),
+    player_name: record.player_name ?? t`未知玩家`,
     map_name: record.map_name || 'unknown',
     duration_seconds: record.duration_seconds,
     created_at: record.created_at,
@@ -488,7 +488,7 @@ export const commands = {
       return await invoke<AgentChatResult>('agent_chat', { input, onEvent: channel });
     } catch (error) {
       if (isDesktopCommandFailure(error)) throw new DesktopError(error.message, error.status, error.code);
-      throw new DesktopError(msg("m0711"), 0, 'AGENT_COMMAND_FAILED');
+      throw new DesktopError(t`无法连接到本地服务，请确认服务正在运行。`, 0, 'AGENT_COMMAND_FAILED');
     }
   },
   // --- Agent session layer (spec §4.6). Plain routes under the one desktop_call. ---
@@ -1412,5 +1412,5 @@ export const commands = {
 
 export function readableError(error: unknown): string {
   if (error instanceof DesktopError) return error.message;
-  return msg("m0324");
+  return t`发生未知错误，请重试。`;
 }

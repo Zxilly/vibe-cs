@@ -18,6 +18,7 @@
  * distance nobody measured would be worse than one that stays quiet.
  */
 
+import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
@@ -59,7 +60,7 @@ export function EvidenceDetail({
 }: EvidenceDetailProps) {
   if (row === null) {
     return (
-      <Inspector title={<Trans>证据详情</Trans>} label="证据详情" width="wide">
+      <Inspector title={<Trans>证据详情</Trans>} label={t`证据详情`} width="wide">
         <EmptyState
           title={<Trans>还没有选中证据</Trans>}
           description={<Trans>点一行结果，这里会给出它的比赛、回合、tick 和可以做的事。</Trans>}
@@ -78,7 +79,7 @@ export function EvidenceDetail({
   return (
     <Inspector
       title={<Trans>证据详情</Trans>}
-      label="证据详情"
+      label={t`证据详情`}
       width="wide"
       summary={
         <Trans>

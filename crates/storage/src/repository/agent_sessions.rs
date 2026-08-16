@@ -25,7 +25,9 @@ use vibe_cs_domain::{
     DomainError, WorkspaceEditAuthor, WorkspaceEditNotice, normalize_session_title,
 };
 
-use super::{Storage, decode, encode, parse_repository_datetime};
+use super::{
+    Storage, decode, encode, parse_optional_repository_datetime, parse_repository_datetime,
+};
 use crate::{Result, StorageError};
 
 /// `app_config` key holding the Agent workspace settings document.
@@ -389,6 +391,8 @@ impl Storage {
                 title: create.title,
                 status: create.status,
                 revision: 1,
+                // A plan nobody has seen cannot have been pushed away.
+                snoozed_until: None,
                 shots: create.shots.clone(),
                 origin: Vec::new(),
                 agent_baseline: AgentPlanBaseline {
@@ -504,6 +508,36 @@ impl Storage {
         .await
     }
 
+    /// Sets or clears 「稍后处理」.
+    ///
+    /// Not a plan edit: it does not touch `revision`, `updated_at` or the shots,
+    /// and it writes no origin entry. Snoozing is a reader's preference about a
+    /// list, not a change to the plan — bumping the revision would make every
+    /// open editor think someone modified it, and would collide with a real
+    /// edit made at the same moment.
+    pub async fn snooze_agent_plan(
+        &self,
+        plan_id: Uuid,
+        until: Option<DateTime<Utc>>,
+    ) -> Result<Option<AgentPlan>> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let updated = transaction.execute(
+                "UPDATE agent_plans SET snoozed_until = ?2 WHERE id = ?1",
+                params![plan_id.to_string(), until.map(|at| at.to_rfc3339())],
+            )?;
+            if updated == 0 {
+                transaction.commit()?;
+                return Ok(None);
+            }
+            let plan = read_plan(&transaction, plan_id)?;
+            transaction.commit()?;
+            Ok(plan)
+        })
+        .await
+    }
+
     /// Restores a plan to the Agent version captured when it was created.
     ///
     /// The restore is an ordinary user edit: it is conditional on the caller's
@@ -585,7 +619,8 @@ impl Storage {
             let limit = i64::from(query.effective_limit());
             let status = query.status.map(AgentPlanStatus::as_str);
             let mut statement = connection.prepare(
-                "SELECT id, title, status, revision, created_at, updated_at, shots_json, \
+                "SELECT id, title, status, revision, created_at, updated_at, snoozed_until, \
+                    shots_json, \
                     (SELECT COUNT(*) FROM agent_plan_origins \
                      WHERE agent_plan_origins.plan_id = agent_plans.id) \
                  FROM agent_plans \
@@ -602,14 +637,26 @@ impl Storage {
                         row.get::<_, i64>(3)?,
                         parse_repository_datetime(&row.get::<_, String>(4)?)?,
                         parse_repository_datetime(&row.get::<_, String>(5)?)?,
-                        row.get::<_, String>(6)?,
-                        row.get::<_, i64>(7)?,
+                        parse_optional_repository_datetime(
+                            row.get::<_, Option<String>>(6)?.as_deref(),
+                        )?,
+                        row.get::<_, String>(7)?,
+                        row.get::<_, i64>(8)?,
                     ))
                 })?
                 .collect::<rusqlite::Result<Vec<_>>>()?;
             let mut summaries = Vec::with_capacity(rows.len());
-            for (id, title, status, revision, created_at, updated_at, shots_json, origin_count) in
-                rows
+            for (
+                id,
+                title,
+                status,
+                revision,
+                created_at,
+                updated_at,
+                snoozed_until,
+                shots_json,
+                origin_count,
+            ) in rows
             {
                 let shots: Vec<AgentPlanShot> = decode(&shots_json)?;
                 // Soft-removed shots are excluded from both figures. They stay in
@@ -626,6 +673,7 @@ impl Storage {
                     title,
                     status,
                     revision,
+                    snoozed_until,
                     shot_count: u32::try_from(live.count()).unwrap_or(u32::MAX),
                     total_duration_seconds,
                     origin_count: u32::try_from(origin_count).unwrap_or(u32::MAX),
@@ -805,25 +853,34 @@ fn read_plan_head(connection: &Connection, id: Uuid) -> Result<Option<PlanHead>>
 }
 
 fn read_plan(connection: &Connection, id: Uuid) -> Result<Option<AgentPlan>> {
-    let Some((title, status, revision, created_at, updated_at, shots_json, baseline_json)) =
-        connection
-            .query_row(
-                "SELECT title, status, revision, created_at, updated_at, shots_json, \
-                    agent_baseline_json FROM agent_plans WHERE id = ?1",
-                params![id.to_string()],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        parse_plan_status(&row.get::<_, String>(1)?)?,
-                        row.get::<_, i64>(2)?,
-                        parse_repository_datetime(&row.get::<_, String>(3)?)?,
-                        parse_repository_datetime(&row.get::<_, String>(4)?)?,
-                        row.get::<_, String>(5)?,
-                        row.get::<_, String>(6)?,
-                    ))
-                },
-            )
-            .optional()?
+    let Some((
+        title,
+        status,
+        revision,
+        created_at,
+        updated_at,
+        snoozed_until,
+        shots_json,
+        baseline_json,
+    )) = connection
+        .query_row(
+            "SELECT title, status, revision, created_at, updated_at, snoozed_until, shots_json, \
+                agent_baseline_json FROM agent_plans WHERE id = ?1",
+            params![id.to_string()],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    parse_plan_status(&row.get::<_, String>(1)?)?,
+                    row.get::<_, i64>(2)?,
+                    parse_repository_datetime(&row.get::<_, String>(3)?)?,
+                    parse_repository_datetime(&row.get::<_, String>(4)?)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, String>(7)?,
+                ))
+            },
+        )
+        .optional()?
     else {
         return Ok(None);
     };
@@ -832,6 +889,7 @@ fn read_plan(connection: &Connection, id: Uuid) -> Result<Option<AgentPlan>> {
         title,
         status,
         revision,
+        snoozed_until: parse_optional_repository_datetime(snoozed_until.as_deref())?,
         shots: decode(&shots_json)?,
         origin: read_plan_origins(connection, id)?,
         agent_baseline: decode(&baseline_json)?,

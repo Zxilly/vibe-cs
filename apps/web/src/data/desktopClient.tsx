@@ -197,6 +197,7 @@ export type DesktopClient = Pick<
   | 'createAgentPlan'
   | 'applyAgentPlanEdit'
   | 'restoreAgentPlanBaseline'
+  | 'snoozeAgentPlan'
   /* 「08 录制计划与镜头预览」's 「来自方案 #P-118」 door, and the 「确认并生成视频」
      button §10.6 gap 1 left disabled. Same `RecordingPlanResponse` as
      `planRecording`. */

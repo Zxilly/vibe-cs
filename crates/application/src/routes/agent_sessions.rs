@@ -60,6 +60,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/agent/plans", get(list_plans).post(create_plan))
         .route("/api/agent/plans/{id}", get(get_plan).patch(edit_plan))
         .route("/api/agent/plans/{id}/restore", post(restore_plan))
+        .route("/api/agent/plans/{id}/snooze", post(snooze_plan))
         .route("/api/agent/plans/{id}/recording-plan", post(plan_recording))
         .route("/api/agent/workspace/referencable", get(list_referencable))
         .route(
@@ -285,6 +286,41 @@ async fn restore_plan(
         ));
     }
     plan_update(state.storage.restore_agent_plan_baseline(restore).await?)
+}
+
+/// 「稍后处理」 — the body carries the instant the plan comes back.
+///
+/// The client computes it because 「今天不再提醒」 means *their* next local
+/// midnight and the service does not know their timezone. A null clears the
+/// snooze, which is how 「现在就看」 undoes it.
+#[derive(Debug, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct AgentPlanSnooze {
+    #[ts(optional = nullable)]
+    until: Option<DateTime<Utc>>,
+}
+
+/// Pushes a plan out of the workbench list until an instant of the caller's
+/// choosing.
+///
+/// Deliberately not an edit: no revision bump, no origin entry, no change to
+/// the shots. Snoozing is a preference about a list, and treating it as an
+/// edit would make every open editor believe the plan had been modified.
+///
+/// An instant in the past is accepted and means the same thing as clearing it —
+/// there is nothing to gain from refusing a snooze that has already expired.
+async fn snooze_plan(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    ApiJson(snooze): ApiJson<AgentPlanSnooze>,
+) -> ApiResult<Json<AgentPlan>> {
+    state
+        .storage
+        .snooze_agent_plan(id, snooze.until)
+        .await?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("agent plan"))
 }
 
 /// The plan still holds shots that name no footage. Closed set, so the page can
@@ -1220,6 +1256,66 @@ mod tests {
         assert_eq!(outputs[0]["kind"], "output");
         assert_eq!(outputs[0]["label"], "Aurora_final.mp4");
         assert_eq!(outputs[0]["error"], "ffmpeg exited with 1");
+    }
+
+    #[tokio::test]
+    async fn snoozing_a_plan_hides_it_without_touching_the_plan() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage.clone());
+        let plan = storage
+            .create_agent_plan(vibe_cs_domain::AgentPlanCreate {
+                title: "Kael Mirage 1v3".to_owned(),
+                status: AgentPlanStatus::AwaitingConfirmation,
+                shots: Vec::new(),
+                origin: None,
+            })
+            .await
+            .expect("plan");
+
+        let (status, snoozed) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/plans/{}/snooze", plan.id),
+            Some(json!({ "until": "2026-08-18T16:00:00Z" })),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(snoozed["snoozed_until"], json!("2026-08-18T16:00:00Z"));
+        // Not an edit: the revision is what an open editor compares against, and
+        // a preference about a list must not make it think the plan changed.
+        assert_eq!(snoozed["revision"], json!(1));
+        assert_eq!(
+            snoozed["updated_at"],
+            serde_json::to_value(plan.updated_at).expect("serialize")
+        );
+        assert!(snoozed["origin"].as_array().expect("origin").is_empty());
+
+        // The list carries it, so the workbench can hide the row without
+        // fetching every plan's body.
+        let (status, plans) = call(&router, Method::GET, "/api/agent/plans", None).await;
+        assert_eq!(status, 200);
+        assert_eq!(plans[0]["snoozed_until"], json!("2026-08-18T16:00:00Z"));
+
+        // Null is 「现在就看」.
+        let (status, cleared) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/plans/{}/snooze", plan.id),
+            Some(json!({ "until": null })),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(cleared["snoozed_until"], json!(null));
+
+        let (status, missing) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/plans/{}/snooze", Uuid::new_v4()),
+            Some(json!({ "until": null })),
+        )
+        .await;
+        assert_eq!(status, 404);
+        assert_eq!(missing["code"], "not_found");
     }
 
     #[tokio::test]

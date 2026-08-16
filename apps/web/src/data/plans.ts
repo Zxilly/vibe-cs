@@ -190,6 +190,42 @@ export function useRestoreAgentPlanBaseline() {
   });
 }
 
+/**
+ * 「稍后处理」 / 「现在就看」.
+ *
+ * `until` is computed here rather than by the service, because 「今天不再提醒」
+ * means the user's *own* next midnight and only the browser knows their
+ * timezone. `null` clears it.
+ *
+ * Not an edit, so no `expected_revision` and no conflict to handle: two tabs
+ * snoozing the same plan agree, and a snooze racing a real edit does not
+ * cost either of them.
+ */
+export function useSnoozeAgentPlan() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ planId, until }: { planId: string; until: string | null }) =>
+      client.snoozeAgentPlan(planId, until),
+    onSuccess: (plan) => {
+      queryClient.setQueryData(qk.plans.detail(plan.id), plan);
+      return invalidateAfterPlanWrite(queryClient, plan.id);
+    },
+  });
+}
+
+/**
+ * The instant 「今天不再提醒」 means: the next local midnight.
+ *
+ * Local, so a plan snoozed at 23:50 is back ten minutes later — which is what
+ * the words say, and is why this is not "24 hours".
+ */
+export function nextLocalMidnight(now = new Date()): string {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+  return midnight.toISOString();
+}
+
 /* ── invalidation ────────────────────────────────────────────────────────── */
 
 /** Every plan read. A write changes the revision, which every summary prints. */

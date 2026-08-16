@@ -7,8 +7,8 @@
  * is honest; a hard-coded 「Aurora vs Meridian」 row would not be.
  */
 
-import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ActivityQuery, OutputItem, OutputPage } from '../../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../../shared/desktop/viewModels';
@@ -135,6 +135,86 @@ describe('工作台首页', () => {
     });
     expect(row.textContent).toContain('42.0s');
     expect(row.textContent).toContain('4 个镜头');
+  });
+
+  it('hides a snoozed plan until its instant has passed', async () => {
+    const base = {
+      title: 'Kael Mirage 1v3',
+      status: 'awaiting_confirmation' as const,
+      revision: 3,
+      shot_count: 4,
+      total_duration_seconds: 42,
+      origin_count: 3,
+      created_at: '2026-08-15T09:00:00.000Z',
+      updated_at: '2026-08-15T09:30:00.000Z',
+    };
+    const plans = [
+      { ...base, id: 'plan-open', snoozed_until: null },
+      // Pushed away until a moment that has not arrived.
+      { ...base, id: 'plan-later', snoozed_until: '2099-01-01T00:00:00.000Z' },
+      // Pushed away, and the moment came: it is back on its own, with nothing
+      // having had to clear a flag.
+      { ...base, id: 'plan-returned', snoozed_until: '2020-01-01T00:00:00.000Z' },
+    ];
+    renderPage({
+      element: <HomePage />,
+      client: { ...CLIENT, listAgentPlans: () => Promise.resolve(plans) },
+      route: '/',
+      health: HEALTHY,
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-plan="plan-open"]')).not.toBeNull();
+    });
+    expect(document.querySelector('[data-plan="plan-returned"]')).not.toBeNull();
+    expect(document.querySelector('[data-plan="plan-later"]')).toBeNull();
+  });
+
+  it('snoozes a plan until the reader s own next midnight', async () => {
+    const snoozeAgentPlan = vi.fn(async (planId: string, until: string | null) => ({
+      id: planId,
+      title: 'Kael Mirage 1v3',
+      status: 'awaiting_confirmation' as const,
+      revision: 3,
+      snoozed_until: until,
+      shots: [],
+      origin: [],
+      agent_baseline: { revision: 1, captured_at: '2026-08-15T09:00:00.000Z', shots: [] },
+      created_at: '2026-08-15T09:00:00.000Z',
+      updated_at: '2026-08-15T09:30:00.000Z',
+    }));
+    const plans = [
+      {
+        id: 'plan-1',
+        title: 'Kael Mirage 1v3',
+        status: 'awaiting_confirmation' as const,
+        revision: 3,
+        snoozed_until: null,
+        shot_count: 4,
+        total_duration_seconds: 42,
+        origin_count: 3,
+        created_at: '2026-08-15T09:00:00.000Z',
+        updated_at: '2026-08-15T09:30:00.000Z',
+      },
+    ];
+    renderPage({
+      element: <HomePage />,
+      client: { ...CLIENT, listAgentPlans: () => Promise.resolve(plans), snoozeAgentPlan },
+      route: '/',
+      health: HEALTHY,
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: /稍后处理/u }));
+
+    await waitFor(() => expect(snoozeAgentPlan).toHaveBeenCalledTimes(1));
+    const until = snoozeAgentPlan.mock.calls[0]?.[1];
+    expect(until).toBeTypeOf('string');
+    // Midnight in the reader's own zone, which is the whole reason the client
+    // computes it: the service cannot.
+    const at = new Date(until as string);
+    expect(at.getHours()).toBe(0);
+    expect(at.getMinutes()).toBe(0);
+    expect(at.getTime()).toBeGreaterThan(Date.now());
   });
 
   it('raises the one failure that can still be recovered', async () => {

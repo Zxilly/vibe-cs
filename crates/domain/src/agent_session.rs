@@ -807,6 +807,18 @@ pub struct AgentPlan {
     pub title: String,
     pub status: AgentPlanStatus,
     pub revision: i64,
+    /// When the user asked not to be shown this plan again until.
+    ///
+    /// 「稍后处理」 on the workbench. Distinct from `Archived`, which is the
+    /// permanent 「不做了」 — a snoozed plan is still awaiting confirmation and
+    /// comes back on its own.
+    ///
+    /// An instant rather than a flag, and computed by the client: 「今天不再
+    /// 提醒」 means the user's next local midnight, and the service does not
+    /// know their timezone. Storing the instant means a plan snoozed at 23:50
+    /// is back ten minutes later, which is what the words say.
+    #[ts(optional = nullable)]
+    pub snoozed_until: Option<DateTime<Utc>>,
     pub shots: Vec<AgentPlanShot>,
     pub origin: Vec<AgentPlanOrigin>,
     pub agent_baseline: AgentPlanBaseline,
@@ -1119,6 +1131,10 @@ pub struct AgentPlanSummary {
     /// it, and so does the plan strip. This count is what a list row shows a
     /// person, so it has to agree with the page they open next.
     pub shot_count: u32,
+    /// Mirrors [`AgentPlan::snoozed_until`], so a list can hide what the user
+    /// pushed away without fetching every plan.
+    #[ts(optional = nullable)]
+    pub snoozed_until: Option<DateTime<Utc>>,
     /// The plan's length, as the sum of what `shot_count` counted.
     ///
     /// On the summary rather than derived by the client: the whole point of a

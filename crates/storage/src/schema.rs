@@ -476,6 +476,10 @@ const CURRENT_SCHEMA: &str = r"
         baseline_revision INTEGER NOT NULL CHECK(baseline_revision >= 1),
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
+        -- 「稍后处理」: the instant the plan comes back on its own. NULL is the
+        -- normal state. It is not a status, because a snoozed plan is still
+        -- awaiting confirmation — `archived` is the permanent answer.
+        snoozed_until TEXT,
         shots_json TEXT NOT NULL,
         agent_baseline_json TEXT NOT NULL,
         CHECK(baseline_revision <= revision)

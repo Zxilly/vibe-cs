@@ -20,6 +20,11 @@ export type AgentPlanSummary = {
    */
   shot_count: number;
   /**
+   * Mirrors [`AgentPlan::snoozed_until`], so a list can hide what the user
+   * pushed away without fetching every plan.
+   */
+  snoozed_until?: string | null;
+  /**
    * The plan's length, as the sum of what `shot_count` counted.
    *
    * On the summary rather than derived by the client: the whole point of a

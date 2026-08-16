@@ -543,6 +543,17 @@ export const commands = {
     request<AgentPlan>(`/agent/plans/${encodeURIComponent(edit.plan_id)}`, {
       method: 'PATCH', body: edit,
     }),
+  /**
+   * 「稍后处理」 / 「现在就看」. `until` is an instant the caller computed,
+   * because 「今天不再提醒」 means the *user's* next local midnight and the
+   * service does not know their timezone. `null` clears it.
+   *
+   * Not an edit: it carries no `expected_revision` and bumps nothing.
+   */
+  snoozeAgentPlan: (planId: string, until: string | null) =>
+    request<AgentPlan>(`/agent/plans/${encodeURIComponent(planId)}/snooze`, {
+      method: 'POST', body: { until },
+    }),
   /** Restores the immutable Agent version as an ordinary conditional edit. */
   restoreAgentPlanBaseline: (restore: AgentPlanRestore) =>
     request<AgentPlan>(`/agent/plans/${encodeURIComponent(restore.plan_id)}/restore`, {

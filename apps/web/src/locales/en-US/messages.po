@@ -102,12 +102,12 @@ msgid "{0, plural, other {# 个目录}}"
 msgstr "{0, plural, one {# folder} other {# folders}}"
 
 #. placeholder {0}: items.length
-#: src/pages/home/PendingPlansPanel.tsx:69
+#: src/pages/home/PendingPlansPanel.tsx:88
 msgid "{0, plural, other {# 个等待确认}}"
 msgstr "{0, plural, other {# awaiting confirmation}}"
 
 #. placeholder {0}: plan.shot_count
-#: src/pages/home/PendingPlansPanel.tsx:118
+#: src/pages/home/PendingPlansPanel.tsx:152
 msgid "{0, plural, other {# 个镜头}}"
 msgstr "{0, plural, other {# shots}}"
 
@@ -137,7 +137,7 @@ msgid "{0, plural, other {# 段素材}}"
 msgstr "{0, plural, other {# clips}}"
 
 #. placeholder {0}: plan.origin_count
-#: src/pages/home/PendingPlansPanel.tsx:122
+#: src/pages/home/PendingPlansPanel.tsx:156
 msgid "{0, plural, other {依据 # 条证据}}"
 msgstr "{0, plural, other {on # pieces of evidence}}"
 
@@ -192,7 +192,7 @@ msgid "{0, plural, other {清空已选 #}}"
 msgstr "{0, plural, one {Clear # selected} other {Clear # selected}}"
 
 #. placeholder {0}: items.length - SHOWN
-#: src/pages/home/PendingPlansPanel.tsx:99
+#: src/pages/home/PendingPlansPanel.tsx:125
 msgid "{0, plural, other {还有 # 个，去 Agent 面板看}}"
 msgstr "{0, plural, other {# more — open the Agent panel}}"
 
@@ -2289,7 +2289,7 @@ msgstr "Counter-Terrorists"
 msgid "发布"
 msgstr "Publish"
 
-#: src/shared/desktop/client.ts:1419
+#: src/shared/desktop/client.ts:1430
 msgid "发生未知错误，请重试。"
 msgstr "Something went wrong. Please try again."
 
@@ -2940,7 +2940,7 @@ msgstr "Locate the opening kill of round {0}"
 msgid "定位文件"
 msgstr "Locate file"
 
-#: src/pages/home/PendingPlansPanel.tsx:130
+#: src/pages/home/PendingPlansPanel.tsx:174
 msgid "审阅方案"
 msgstr "Review plan"
 
@@ -3811,7 +3811,7 @@ msgstr "Pending"
 msgid "待定 · 还有片段的素材长度没读到"
 msgstr "Pending · some clips' source lengths have not been read"
 
-#: src/pages/home/PendingPlansPanel.tsx:65
+#: src/pages/home/PendingPlansPanel.tsx:84
 msgid "待确认的方案"
 msgstr "Plans awaiting confirmation"
 
@@ -5103,6 +5103,7 @@ msgstr "Starting the recording"
 msgid "正在启动游戏，请稍候"
 msgstr "The game is starting — wait a moment"
 
+#: src/pages/home/PendingPlansPanel.tsx:166
 #: src/pages/RecoveryPage.tsx:73
 msgid "正在处理"
 msgstr "Working"
@@ -5531,7 +5532,7 @@ msgstr "No overview transform was found for {mapName}, so world coordinates cann
 msgid "没有数据目录"
 msgstr "No data directory"
 
-#: src/pages/home/PendingPlansPanel.tsx:88
+#: src/pages/home/PendingPlansPanel.tsx:107
 msgid "没有等待确认的方案。"
 msgstr "No plans awaiting confirmation."
 
@@ -6364,6 +6365,10 @@ msgstr "Remove this clip"
 msgid "移除配乐"
 msgstr "Remove the music"
 
+#: src/pages/home/PendingPlansPanel.tsx:169
+msgid "稍后处理"
+msgstr "Later"
+
 #: src/design/feedback/StageBar.tsx:121
 #: src/pages/delivery/taskModel.tsx:220
 msgid "稳定"
@@ -6973,7 +6978,7 @@ msgstr "Could not read the usage figures"
 msgid "读不到工作区里正在进行的对象：{referencesError}"
 msgstr "What is going on in the workspace could not be read: {referencesError}"
 
-#: src/pages/home/PendingPlansPanel.tsx:76
+#: src/pages/home/PendingPlansPanel.tsx:95
 msgid "读不到待确认的方案：{error}"
 msgstr "Could not read the plans awaiting confirmation: {error}"
 
@@ -8427,7 +8432,7 @@ msgstr "Choose again"
 #: src/pages/GuidePage.tsx:96
 #: src/pages/HistoryPage.tsx:223
 #: src/pages/home/ActiveProjectsPanel.tsx:83
-#: src/pages/home/PendingPlansPanel.tsx:75
+#: src/pages/home/PendingPlansPanel.tsx:94
 #: src/pages/home/RecentMatchesPanel.tsx:57
 #: src/pages/library/AddWatchDirectoryDialog.tsx:123
 #: src/pages/library/DeleteDemosDialog.tsx:95

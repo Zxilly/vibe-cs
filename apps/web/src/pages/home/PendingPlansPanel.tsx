@@ -29,19 +29,29 @@
  * rather than of this row: a plan the user has taken two shots out of reads
  * the same here as it does on the page this row opens.
  *
- * ── 「稍后处理」 is not drawn ─────────────────────────────────────────────
+ * ── 「稍后处理」 ─────────────────────────────────────────────────────────
  *
- * The board has 审阅方案 and 稍后处理. There is no "snooze" anywhere in the
- * plan model — no dismissed-at, no reminder — so a button labelled 稍后处理
- * would either do nothing or hide the row until reload, which is worse than
- * not offering it. Recorded as a gap.
+ * 「今天不再提醒」, computed here as the next *local* midnight: a plan pushed
+ * away at 23:50 is back ten minutes later, which is what the words say and is
+ * why it is not 「24 小时」. The service stores the instant and cannot compute
+ * it, because it does not know the reader's timezone.
+ *
+ * It is not `Archived`. Archiving is the permanent 「不做了」; a snoozed plan is
+ * still awaiting confirmation and returns on its own. Nothing is hidden
+ * forever, which is why there is no 「已忽略」 list to go find it in.
+ *
+ * The filter runs here rather than in the query: the服务 answers with the
+ * plans and their `snoozed_until`, and a row whose instant has passed comes
+ * back on the next read without anything having to clear a flag.
  */
 
+import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
 
 import { Skeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { useAgentPlanList } from '../../data/plans';
+import { Button } from '../../design/primitives';
+import { nextLocalMidnight, useAgentPlanList, useSnoozeAgentPlan } from '../../data/plans';
 import { dataErrorMessage } from '../../data/errors';
 import type { AgentPlanSummary } from '../../shared/desktop/dto';
 import { formatShotDuration } from '../../domain/agent';
@@ -52,8 +62,17 @@ const SHOWN = 3;
 
 export function PendingPlansPanel() {
   const plans = useAgentPlanList({ status: 'awaiting_confirmation', limit: 10 });
+  const snooze = useSnoozeAgentPlan();
   const error = dataErrorMessage(plans.error);
-  const items = plans.data ?? [];
+  /* `Date.now()` at render: the list is re-read often enough that a snooze
+     expiring between two renders is not worth a timer, and a timer that woke
+     the workbench up to show one row would be the wrong trade. */
+  const now = Date.now();
+  const items = (plans.data ?? []).filter(
+    // `== null` on purpose: the field is `?: string | null`, so an absent key
+    // and an explicit null both mean 「没有被推迟」.
+    (plan) => plan.snoozed_until == null || Date.parse(plan.snoozed_until) <= now,
+  );
 
   /* The heading is outside every branch: a block that disappears while it
      loads makes the whole workbench jump as five queries land at five
@@ -91,7 +110,14 @@ export function PendingPlansPanel() {
         <>
           <ul className="flex flex-col gap-2.5">
             {items.slice(0, SHOWN).map((plan) => (
-              <PlanRow key={plan.id} plan={plan} />
+              <PlanRow
+                key={plan.id}
+                plan={plan}
+                snoozing={snooze.isPending}
+                onSnooze={(planId) => {
+                  snooze.mutate({ planId, until: nextLocalMidnight() });
+                }}
+              />
             ))}
           </ul>
           {items.length > SHOWN ? (
@@ -105,7 +131,15 @@ export function PendingPlansPanel() {
   );
 }
 
-function PlanRow({ plan }: { readonly plan: AgentPlanSummary }) {
+function PlanRow({
+  plan,
+  onSnooze,
+  snoozing,
+}: {
+  readonly plan: AgentPlanSummary;
+  readonly onSnooze: (planId: string) => void;
+  readonly snoozing: boolean;
+}) {
   return (
     <li className="flex items-center justify-between gap-3 border border-divider p-3" data-plan={plan.id}>
       <div className="flex min-w-0 flex-col gap-1">
@@ -124,11 +158,22 @@ function PlanRow({ plan }: { readonly plan: AgentPlanSummary }) {
           ) : null}
         </p>
       </div>
-      {/* A link, not a `Button` with `navigate` — it goes to an address, and a
-          link is what a middle-click and a screen reader expect there. */}
-      <RouteLink to={`/agent?plan=${encodeURIComponent(plan.id)}`} className="flex-none">
-        <Trans>审阅方案</Trans>
-      </RouteLink>
+      <div className="flex flex-none items-center gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={snoozing}
+          disabledReason={t`正在处理`}
+          onClick={() => onSnooze(plan.id)}
+        >
+          <Trans>稍后处理</Trans>
+        </Button>
+        {/* A link, not a `Button` with `navigate` — it goes to an address, and a
+            link is what a middle-click and a screen reader expect there. */}
+        <RouteLink to={`/agent?plan=${encodeURIComponent(plan.id)}`}>
+          <Trans>审阅方案</Trans>
+        </RouteLink>
+      </div>
     </li>
   );
 }

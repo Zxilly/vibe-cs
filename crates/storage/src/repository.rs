@@ -5381,6 +5381,13 @@ fn parse_repository_datetime(value: &str) -> rusqlite::Result<DateTime<Utc>> {
     })
 }
 
+/// The nullable form. A column that is NULL is an absent value, not a failure.
+fn parse_optional_repository_datetime(
+    value: Option<&str>,
+) -> rusqlite::Result<Option<DateTime<Utc>>> {
+    value.map(parse_repository_datetime).transpose()
+}
+
 fn read_demo_tag(row: &rusqlite::Row<'_>) -> rusqlite::Result<DemoTag> {
     let id = row.get::<_, String>(0)?;
     Ok(DemoTag {

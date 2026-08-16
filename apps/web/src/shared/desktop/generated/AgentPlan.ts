@@ -13,6 +13,19 @@ export type AgentPlan = {
   title: string;
   status: AgentPlanStatus;
   revision: number;
+  /**
+   * When the user asked not to be shown this plan again until.
+   *
+   * 「稍后处理」 on the workbench. Distinct from `Archived`, which is the
+   * permanent 「不做了」 — a snoozed plan is still awaiting confirmation and
+   * comes back on its own.
+   *
+   * An instant rather than a flag, and computed by the client: 「今天不再
+   * 提醒」 means the user's next local midnight, and the service does not
+   * know their timezone. Storing the instant means a plan snoozed at 23:50
+   * is back ten minutes later, which is what the words say.
+   */
+  snoozed_until?: string | null;
   shots: Array<AgentPlanShot>;
   origin: Array<AgentPlanOrigin>;
   agent_baseline: AgentPlanBaseline;

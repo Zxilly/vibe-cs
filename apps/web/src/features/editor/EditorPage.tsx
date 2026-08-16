@@ -62,8 +62,8 @@ import type {
   ExportJobRecord,
   JobAccepted,
   MediaAsset,
-  TimelineClipDto,
-  TimelineTrackDto,
+  EditorClip,
+  EditorTrack,
 } from '../../shared/desktop/dto';
 import type { RecordedClip } from '../../shared/desktop/viewModels';
 import { chooseLocalFile, isDesktopShell, revealLocalPath } from '../../shared/desktop/dialog';
@@ -335,7 +335,7 @@ const emptyProjectTracks = (): TimelineTrack[] => [
 const projectTracks = (project: EditorProject): TimelineTrack[] =>
   project.tracks.length > 0 ? toStoreTracks(project.tracks) : emptyProjectTracks();
 
-const toStoreTracks = (tracks: TimelineTrackDto[]): TimelineTrack[] => tracks.map((track) => ({
+const toStoreTracks = (tracks: EditorTrack[]): TimelineTrack[] => tracks.map((track) => ({
   id: track.id,
   name: track.name,
   kind: track.kind,
@@ -366,7 +366,7 @@ const toStoreTracks = (tracks: TimelineTrackDto[]): TimelineTrack[] => tracks.ma
   })),
 }));
 
-const toWireClip = (clip: TimelineClip): TimelineClipDto => ({
+const toWireClip = (clip: TimelineClip): EditorClip => ({
   id: clip.id,
   asset_id: clip.assetId,
   name: clip.name,
@@ -388,7 +388,7 @@ const toWireClip = (clip: TimelineClip): TimelineClipDto => ({
   speed_segments: clip.speedSegments ?? [],
 });
 
-const toWireTracks = (tracks: TimelineTrack[]): TimelineTrackDto[] => tracks.map((track, index) => ({
+const toWireTracks = (tracks: TimelineTrack[]): EditorTrack[] => tracks.map((track, index) => ({
   id: track.id,
   name: track.name,
   kind: track.kind,

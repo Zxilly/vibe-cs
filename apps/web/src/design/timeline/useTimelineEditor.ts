@@ -47,8 +47,10 @@ import {
   getClip,
   linkGroup,
   timelineDuration,
+  withMarkers,
   withPlayhead,
   type Clip,
+  type Marker,
   type EditRefusal,
   type EditResult,
   type Timeline,
@@ -158,6 +160,16 @@ export interface TimelineEditor {
   slipSelection: (deltaSeconds: number) => void;
   trimSelection: (edge: TrimEdge, deltaSeconds: number) => void;
   setSelectionSpeed: (speed: number) => void;
+  /** Adds a marker. Undoable — it is part of the document. */
+  addMarker: (marker: Marker) => void;
+  removeMarker: (markerId: string) => void;
+  /**
+   * Replaces the document with one an outside edit produced, as one undoable
+   * step. The editor owns the undo stack, so an edit made anywhere else — a
+   * clip inserted from the media library, for instance — has to enter through
+   * here or 「撤销」 would skip straight past it.
+   */
+  replaceTimeline: (timeline: Timeline) => void;
   moveSelectionToAdjacentTrack: (direction: 1 | -1) => void;
   undo: () => void;
   redo: () => void;
@@ -375,6 +387,43 @@ export function useTimelineEditor({
       commit(setClipSpeed(timeline, selectedClipId, speed, { minFrames: minTrimFrames }));
     },
     [commit, minTrimFrames, selectedClipId, timeline],
+  );
+
+  /*
+   * Markers are edits, not view state: they are stored on the project, they
+   * survive a save, and 「撤销」 has to be able to take one back. So both of
+   * these go through `commit` — which also quantises them onto the frame grid,
+   * since a marker off the grid is a razor target off the grid.
+   */
+  const addMarker = useCallback(
+    (marker: Marker) => {
+      commit({
+        timeline: withMarkers(timeline, [...timeline.markers.filter((each) => each.id !== marker.id), marker]),
+        applied: true,
+      });
+    },
+    [commit, timeline],
+  );
+
+  const removeMarker = useCallback(
+    (markerId: string) => {
+      if (!timeline.markers.some((marker) => marker.id === markerId)) {
+        setRefusal('no-change');
+        return;
+      }
+      commit({
+        timeline: withMarkers(timeline, timeline.markers.filter((marker) => marker.id !== markerId)),
+        applied: true,
+      });
+    },
+    [commit, timeline],
+  );
+
+  const replaceTimeline = useCallback(
+    (next: Timeline) => {
+      commit({ timeline: next, applied: true });
+    },
+    [commit],
   );
 
   const moveSelectionToAdjacentTrack = useCallback(
@@ -715,6 +764,9 @@ export function useTimelineEditor({
     slipSelection,
     trimSelection,
     setSelectionSpeed,
+    addMarker,
+    removeMarker,
+    replaceTimeline,
     moveSelectionToAdjacentTrack,
     undo,
     redo,

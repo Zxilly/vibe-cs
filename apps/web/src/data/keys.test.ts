@@ -111,6 +111,12 @@ const CORPUS: ReadonlyArray<readonly [QueryNamespace, string, readonly unknown[]
   ['recording', 'recording.shotPresets()', qk.recording.shotPresets()],
   ['recording', 'recording.playback()', qk.recording.playback()],
 
+  ['editor', 'editor.list()', qk.editor.list()],
+  ['editor', 'editor.detail(a)', qk.editor.detail('project-a')],
+  ['editor', 'editor.detail(b)', qk.editor.detail('project-b')],
+  ['editor', 'editor.snapshots(a)', qk.editor.snapshots('project-a')],
+  ['editor', 'editor.presets()', qk.editor.presets()],
+
   ['montage', 'montage.list()', qk.montage.list()],
   ['montage', 'montage.detail(a)', qk.montage.detail('project-a')],
   ['montage', 'montage.detail(b)', qk.montage.detail('project-b')],
@@ -138,6 +144,7 @@ const NAMESPACE_ROOT: Record<QueryNamespace, readonly unknown[]> = {
   sessions: qk.sessions.all,
   plans: qk.plans.all,
   recording: qk.recording.all,
+  editor: qk.editor.all,
   montage: qk.montage.all,
   media: qk.media.all,
 };
@@ -221,6 +228,10 @@ describe('qk — 键的形状', () => {
     expect(qk.plans.detail('P-118')).toEqual(['plans', 'detail', 'P-118']);
 
     expect(qk.recording.shotPresets()).toEqual(['recording', 'shot-presets']);
+    expect(qk.editor.list()).toEqual(['editor', 'list']);
+    expect(qk.editor.detail('e-1')).toEqual(['editor', 'detail', 'e-1']);
+    expect(qk.editor.snapshots('e-1')).toEqual(['editor', 'detail', 'e-1', 'snapshots']);
+    expect(qk.editor.presets()).toEqual(['editor', 'presets']);
     expect(qk.montage.list()).toEqual(['montage', 'list']);
     expect(qk.montage.detail('m-1')).toEqual(['montage', 'detail', 'm-1']);
     expect(qk.montage.exports('m-1')).toEqual(['montage', 'exports', 'm-1']);

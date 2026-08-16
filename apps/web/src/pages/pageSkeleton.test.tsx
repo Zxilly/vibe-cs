@@ -162,7 +162,8 @@ const PAGES: readonly PageCase[] = [
     Component: EditorPage,
     title: '多轨编辑器',
     phase: '3f',
-    built: false,
+    /* Phase 3f-2 landed the workspace and the bare project list. */
+    built: true,
   },
   {
     pattern: '/delivery',

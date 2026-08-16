@@ -114,6 +114,25 @@ export type DesktopClient = Pick<
   | 'putMontageProject'
   | 'deleteMontageProject'
   | 'exportMontageProject'
+  /* ── the multi-track editor (phase 3f-2, 「10」) ──
+     `data/editor.ts`. `saveEditorProject` is the whole-document PATCH whose
+     body carries the `expected_revision`; the rest are the reads and the four
+     writes 「10」 has controls for. `duplicateEditorProject`,
+     `deleteEditorProjects` and the package pair are here because the project
+     list and 「导出工程包」 are part of the same page. */
+  | 'listEditorProjects'
+  | 'getEditorProject'
+  | 'createEditorProject'
+  | 'saveEditorProject'
+  | 'duplicateEditorProject'
+  | 'deleteEditorProjects'
+  | 'listEditorSnapshots'
+  | 'restoreEditorSnapshot'
+  | 'listEditorPresets'
+  | 'applyEditorPreset'
+  | 'separateEditorAudio'
+  | 'exportEditorProject'
+  | 'exportEditorPackage'
   | 'listMediaAssets'
   | 'getMediaAsset'
   | 'importMediaAsset'

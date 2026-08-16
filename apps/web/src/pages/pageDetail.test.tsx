@@ -156,8 +156,17 @@ describe('the back links on detail routes', () => {
 
 describe('the editor', () => {
   it('takes the scroll boundary over — a timeline manages its own viewport', () => {
-    const html = at('/editor/:projectId?', '/editor', <EditorPage />);
+    /* A *project* is asked for, not the bare `/editor`: the bare address is
+       the project table, which scrolls like every other table page. It is the
+       workspace that owns its viewport, because `tl-viewport` is what the
+       zoom anchor and the auto-scroll loop measure. */
+    const html = at('/editor/:projectId?', '/editor/p-1', <EditorPage />);
     expect(html).toContain('data-page-body');
     expect(html).not.toMatch(/data-page-body="true" class="[^"]*overflow-auto/u);
+  });
+
+  it('lets the bare project list scroll, because it is a table', () => {
+    const html = at('/editor/:projectId?', '/editor', <EditorPage />);
+    expect(html).toMatch(/data-page-body="true" class="[^"]*overflow-auto/u);
   });
 });

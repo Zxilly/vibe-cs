@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { TimelineTrackDto } from '../../shared/desktop/dto';
+import type { EditorTrack } from '../../shared/desktop/dto';
 import {
   MAX_EDITOR_TIMELINE_SECONDS,
   boundedTimelineValue,
@@ -14,7 +14,7 @@ import {
   trimMarkersToDuration,
 } from './projectState';
 
-const tracks: TimelineTrackDto[] = [
+const tracks: EditorTrack[] = [
   {
     id: 'video',
     name: '主画面',
@@ -59,7 +59,7 @@ describe('Editor project state', () => {
   });
 
   it('snaps to marker and clip edges inside the pixel-derived threshold', () => {
-    const populated: TimelineTrackDto[] = [{
+    const populated: EditorTrack[] = [{
       ...tracks[0]!,
       clips: [{
         id: 'clip-a', asset_id: null, name: 'A', start: 3, duration: 2,

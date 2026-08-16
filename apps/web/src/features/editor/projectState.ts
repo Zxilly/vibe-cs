@@ -1,5 +1,5 @@
 import { msg } from '../../shared/i18n';
-import type { EditorPresetDocument, EditorMarker, TimelineTrackDto } from '../../shared/desktop/dto';
+import type { EditorPresetDocument, EditorMarker, EditorTrack } from '../../shared/desktop/dto';
 
 export const MAX_EDITOR_TIMELINE_SECONDS = 86_400;
 
@@ -62,7 +62,7 @@ export function formatTimelineTime(seconds: number, fps: number): string {
 }
 
 export function presetCompatibilityReason(
-  trackKind: TimelineTrackDto['kind'] | null,
+  trackKind: EditorTrack['kind'] | null,
   hasText: boolean,
   currentVolume: number | null,
   document: EditorPresetDocument | null,
@@ -106,7 +106,7 @@ export type ProjectTransitionDecision = 'stay' | 'proceed' | 'confirm';
 
 export function projectEditFingerprint(
   name: string,
-  tracks: TimelineTrackDto[],
+  tracks: EditorTrack[],
   markers: EditorMarker[] = [],
   settings: unknown = {},
   durationSeconds = 0,
@@ -118,7 +118,7 @@ export type SnapResult = { time: number; snapped: boolean };
 
 export function snapTimelineTime(
   candidate: number,
-  tracks: TimelineTrackDto[],
+  tracks: EditorTrack[],
   markers: EditorMarker[],
   playhead: number,
   thresholdSeconds: number,

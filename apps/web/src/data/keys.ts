@@ -134,6 +134,7 @@ export const QUERY_NAMESPACE = {
   plans: 'plans',
   recording: 'recording',
   montage: 'montage',
+  editor: 'editor',
   media: 'media',
 } as const;
 
@@ -413,6 +414,45 @@ export const qk = {
     detail: (projectId: string) => [QUERY_NAMESPACE.montage, DETAIL, projectId] as const,
     /** `listExportJobs(projectId)`. A sibling — see the note above. */
     exports: (projectId: string) => [QUERY_NAMESPACE.montage, 'exports', projectId] as const,
+  },
+
+  /**
+   * 「10 多轨编辑器」 (phase 3f-2) — editor projects, their version history and
+   * the clip presets the Inspector applies.
+   *
+   * ── why `snapshots` hangs below `detail` and `presets` does not ───────────
+   *
+   * A snapshot is a version *of one project*: taking one, restoring one and
+   * saving the project all change the same thing, so `snapshots(id)` sits
+   * under `detail(id)` and a save that invalidates the project refreshes its
+   * history for free. That is the 「版本历史」 panel of the artboard, which
+   * prints 「已保存 · 版本 24」 from the same number the detail carries.
+   *
+   * Presets are the opposite: `PresetRecord` is a library shared by every
+   * project (`/editor/presets`, no project id in the path), and applying one
+   * changes the *project*, not the preset. So `presets()` is a sibling of
+   * `list()`, and `applyEditorPreset` invalidates the project alone.
+   *
+   * Written by: `saveEditorProject` / `restoreEditorSnapshot` /
+   * `applyEditorPreset` / `separateEditorAudio` → `editor.detail(id)` **and**
+   * `editor.list()`. Both, for the same reason `montage` does it: the project
+   * switcher prints a name and a modified time that a detail-only refresh
+   * would leave stale.
+   *
+   * `exportEditorProject` invalidates neither — an export reads the project
+   * and writes an output, so it reaches `qk.tasks.all` and `qk.outputs.all`
+   * and leaves the document alone. `exportEditorPackage` is the same shape.
+   */
+  editor: {
+    all: [QUERY_NAMESPACE.editor] as const,
+    /** `listEditorProjects`. The route takes no filter. */
+    list: () => [QUERY_NAMESPACE.editor, LIST] as const,
+    detail: (projectId: string) => [QUERY_NAMESPACE.editor, DETAIL, projectId] as const,
+    /** `listEditorSnapshots(projectId)` — a child, so a save refreshes it. */
+    snapshots: (projectId: string) =>
+      [QUERY_NAMESPACE.editor, DETAIL, projectId, 'snapshots'] as const,
+    /** `listEditorPresets`. A library, not a property of any project. */
+    presets: () => [QUERY_NAMESPACE.editor, 'presets'] as const,
   },
 
   /**

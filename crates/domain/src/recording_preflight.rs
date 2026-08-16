@@ -41,6 +41,7 @@
 //! permanent green.
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 
 use crate::DomainError;
@@ -54,8 +55,9 @@ pub const RECORDING_PREFLIGHT_MAX_DETAIL_CHARS: usize = 400;
 pub const RECORDING_PREFLIGHT_MAX_AFFECTED_ITEMS: usize = 64;
 
 /// The outcome of one check.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum RecordingPreflightState {
     /// The condition holds.
     Ok,
@@ -70,8 +72,9 @@ pub enum RecordingPreflightState {
 ///
 /// Membership is decided by "does this application observe the fact", never by
 /// the artboard. See the module documentation for the source of each member.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum RecordingPreflightCode {
     /// A CS2 executable is discoverable. Managed capture launches it for
     /// offline Demo playback, so a missing game cannot be worked around.
@@ -159,8 +162,9 @@ impl RecordingPreflightCode {
 }
 
 /// One row of the pre-recording check list.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RecordingPreflightCheck {
     pub code: RecordingPreflightCode,
     pub state: RecordingPreflightState,
@@ -221,8 +225,9 @@ impl RecordingPreflightCheck {
 /// cannot do. Publishing the count rather than making each client fold over
 /// `checks` keeps that decision on the side that decided which codes can block
 /// at all.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RecordingPreflight {
     pub checks: Vec<RecordingPreflightCheck>,
     /// Number of `checks` whose state is [`RecordingPreflightState::Blocked`].

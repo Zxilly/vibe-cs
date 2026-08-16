@@ -1053,62 +1053,20 @@ export type RecordingPlanResponse = {
   director: DirectorPlan;
 };
 
-/** Mirrors `vibe-cs-domain::RecordingPreflightState`. */
-export type RecordingPreflightState = 'ok' | 'warning' | 'blocked';
-
-/**
- * The closed set of pre-recording checks. Mirrors
- * `vibe-cs-domain::RecordingPreflightCode`.
- *
- * Every member is backed by a fact the application observes; there is
- * deliberately no member for a check with no data source. The client looks the
- * code up in its own label table — `detail` carries only the parts that cannot
- * be enumerated (byte counts, versions, file names) and arrives in English.
- *
- * - `game_ready` — a CS2 executable was discovered
- * - `capture_component_ready` — the managed HLAE release is prepared
- * - `demo_content_matches` — every Demo still matches what was analyzed
- * - `output_directory_writable` — the managed output root is writable, with room
- * - `spectator_evidence_complete` — every POV item has a parsed spectator slot
- * - `encoder_available` — H.264 and AAC encoders are registered
- * - `tick_range_within_demo` — every tick window lies inside the Demo
- * - `camera_collision_unverified` — camera-path coordinates cannot be checked
- *   against map geometry before an in-game preview. Never `blocked`; `ok` when
- *   the plan contains no observer shot at all.
- */
-export type RecordingPreflightCode =
-  | 'game_ready'
-  | 'capture_component_ready'
-  | 'demo_content_matches'
-  | 'output_directory_writable'
-  | 'spectator_evidence_complete'
-  | 'encoder_available'
-  | 'tick_range_within_demo'
-  | 'camera_collision_unverified';
-
-export type RecordingPreflightCheck = {
-  code: RecordingPreflightCode;
-  state: RecordingPreflightState;
-  /** English facts the code cannot carry. Localize around it, not from it. */
-  detail: string;
-  /**
-   * The `RecordingRequest.id`s this check speaks about, when it speaks about
-   * only some of them. Empty means the whole plan — never "unknown".
-   */
-  affected_item_ids: EntityId[];
-};
-
-/**
- * The pre-recording check list. Mirrors `vibe-cs-domain::RecordingPreflight`.
+/*
+ * The pre-recording check list — the first group to come from `generated/`
+ * rather than from a hand-kept mirror. See this file's header: the shapes and
+ * their prose are written once, in `crates/domain/src/recording_preflight.rs`,
+ * and `cargo test` writes them out here. Nothing to keep in step by hand.
  *
  * `blocking` is the number of `blocked` rows and is server-computed. Its
  * contract is one sentence: **while `blocking > 0` the start-recording action
  * is disabled.** A warning never disables it.
  */
-export type RecordingPreflight = {
-  checks: RecordingPreflightCheck[];
-  blocking: number;
-};
+export type { RecordingPreflight } from './generated/RecordingPreflight';
+export type { RecordingPreflightCheck } from './generated/RecordingPreflightCheck';
+export type { RecordingPreflightCode } from './generated/RecordingPreflightCode';
+export type { RecordingPreflightState } from './generated/RecordingPreflightState';
 
 /**
  * A saved set of shot settings, behind the shot inspector's "save as preset".

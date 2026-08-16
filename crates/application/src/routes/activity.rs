@@ -597,7 +597,11 @@ mod tests {
         // own sentence is 「释放 4.2 GB 后可重试」 — an instruction first.
         assert!(!failure.retryable);
         // The message survives beside it; the code does not replace it.
-        assert!(activity.error.is_some_and(|error| error.contains("no space left")));
+        assert!(
+            activity
+                .error
+                .is_some_and(|error| error.contains("no space left"))
+        );
     }
 
     #[tokio::test]

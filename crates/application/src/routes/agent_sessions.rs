@@ -1263,13 +1263,8 @@ mod tests {
         assert_eq!(settings["commentary_tone"], json!("broadcast"));
 
         // …and they survive a read, which is the point of persisting them.
-        let (status, stored) = call(
-            &router,
-            Method::GET,
-            "/api/agent/workspace/settings",
-            None,
-        )
-        .await;
+        let (status, stored) =
+            call(&router, Method::GET, "/api/agent/workspace/settings", None).await;
         assert_eq!(status, 200);
         assert_eq!(stored["commentary_tone"], json!("broadcast"));
         assert_eq!(stored["default_video_seconds"], json!(90));

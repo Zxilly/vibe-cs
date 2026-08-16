@@ -148,12 +148,20 @@ pub struct RecordingDefaults {
     pub resolution: String,
     pub fps: u32,
     pub show_radar: bool,
-    pub mute_voice: bool,
     pub camera_fov: f64,
     pub viewmodel_fov: f64,
     pub flash_alpha: u8,
     pub show_hud: bool,
-    pub isolate_target_voice: bool,
+    /// What the recorder does with voice communication.
+    ///
+    /// One three-valued enum rather than the two booleans this used to be
+    /// (`mute_voice` + `isolate_target_voice`). Two booleans express four
+    /// states and only three of them are legal — the fourth, "mute everyone
+    /// *and* isolate the target", was rejected at runtime as the first thing
+    /// `presentation` did. A configuration shape that can hold an illegal
+    /// value needs a guard at every read; one that cannot, does not. §10 note 5
+    /// scheduled this collapse for the settings pane that finally exposes it.
+    pub voice: crate::RecordingVoicePolicy,
 }
 
 impl Default for RecordingDefaults {
@@ -164,12 +172,11 @@ impl Default for RecordingDefaults {
             resolution: "1920x1080".to_owned(),
             fps: 60,
             show_radar: true,
-            mute_voice: false,
             camera_fov: 90.0,
             viewmodel_fov: 68.0,
             flash_alpha: 255,
             show_hud: true,
-            isolate_target_voice: false,
+            voice: crate::RecordingVoicePolicy::AllPlayers,
         }
     }
 }

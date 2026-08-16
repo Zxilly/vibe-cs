@@ -41,13 +41,17 @@
  * periodic sweep belongs to the backend runtime (it is the only party that runs
  * when no window does); that is filed as a blocker rather than approximated.
  *
- * ── Three artboard controls that have no field, and are therefore absent ──
+ * ── The five switches that used to have nowhere to go ────────────────────
  *
  * 「自动带入当前选中的 Demo 与选手」 in 会话, and 「应用剪辑变更前先预览」 /
- * 「显示 Agent 读取了哪些证据」 / 「默认成片时长」 / 「点评语气」 in 行为边界.
- * `AgentWorkspaceSettings` is `{ session_retention, take_limit }` and nothing
- * else, so none of them is drawn — a switch with nowhere to store its answer is
- * a switch that lies the moment the panel is reopened.
+ * 「显示 Agent 读取了哪些证据」 / 「默认成片时长」 / 「点评语气」 in 行为边界
+ * were all absent through phase 3e, because `AgentWorkspaceSettings` was
+ * `{ session_retention, take_limit }` and a switch with nowhere to store its
+ * answer lies the moment the panel is reopened.
+ *
+ * Phase 3g-be added the fields (§10.11), so they are drawn now. Each writes the
+ * *whole* settings document — the route replaces it, so a partial write would
+ * silently reset whatever it omitted.
  */
 
 import { t } from '@lingui/core/macro';
@@ -202,6 +206,16 @@ export function AiAgentSection() {
               applySuffix={service.suffix}
             />
 
+            <SwitchRow
+              label={<Trans>自动带入当前选中的 Demo 与选手</Trans>}
+              hint={<Trans>影响：新建会话时上下文是否预填，随时可手动改。</Trans>}
+              name="auto-attach-context"
+              ariaLabel={t`自动带入当前选中的 Demo 与选手`}
+              checked={current.auto_attach_context}
+              disabled={service.blocked || updateSettings.isPending}
+              onChange={(next) => void write({ ...current, auto_attach_context: next })}
+            />
+
             <TakeLimitRow
               value={current.take_limit}
               disabled={service.blocked || updateSettings.isPending}
@@ -251,6 +265,64 @@ export function AiAgentSection() {
             aria-describedby="agent-confirm-locked"
           />
         </div>
+
+        {current === undefined ? null : (
+          <>
+            <SwitchRow
+              label={<Trans>应用剪辑变更前先预览</Trans>}
+              hint={<Trans>关闭后，接受变更会直接改工程，仍可撤销。</Trans>}
+              name="preview-before-apply"
+              ariaLabel={t`应用剪辑变更前先预览`}
+              checked={current.preview_before_apply}
+              disabled={service.blocked || updateSettings.isPending}
+              onChange={(next) => void write({ ...current, preview_before_apply: next })}
+            />
+
+            <SwitchRow
+              label={<Trans>显示 Agent 读取了哪些证据</Trans>}
+              hint={<Trans>影响：工作进度里是否展开每次读取的回合与事件。</Trans>}
+              name="show-evidence-reads"
+              ariaLabel={t`显示 Agent 读取了哪些证据`}
+              checked={current.show_evidence_reads}
+              disabled={service.blocked || updateSettings.isPending}
+              onChange={(next) => void write({ ...current, show_evidence_reads: next })}
+            />
+
+            <VideoLengthRow
+              value={current.default_video_seconds}
+              disabled={service.blocked || updateSettings.isPending}
+              onCommit={(seconds) => void write({ ...current, default_video_seconds: seconds })}
+            />
+
+            <div className="flex flex-col gap-2">
+              <p className="text-base">
+                <Trans>点评语气</Trans>
+              </p>
+              <Seg
+                name="commentary-tone"
+                size="sm"
+                value={current.commentary_tone}
+                aria-label={t`点评语气`}
+                options={[
+                  {
+                    value: 'professional' as const,
+                    label: <Trans>专业</Trans>,
+                    disabled: service.blocked || updateSettings.isPending,
+                  },
+                  {
+                    value: 'broadcast' as const,
+                    label: <Trans>节目化</Trans>,
+                    disabled: service.blocked || updateSettings.isPending,
+                  },
+                ]}
+                onChange={(tone) => void write({ ...current, commentary_tone: tone })}
+              />
+              <p className="text-xs leading-normal text-neutral-600">
+                <Trans>影响：Agent 写点评与镜头意图时的措辞。</Trans>
+              </p>
+            </div>
+          </>
+        )}
       </Block>
 
       <Dialog
@@ -482,6 +554,97 @@ function TakeLimitRow({ value, disabled, onCommit }: TakeLimitRowProps) {
       <p className="text-xs leading-normal text-neutral-600">
         <Trans>影响：超过后最早的 take 会被丢弃。</Trans>
       </p>
+    </div>
+  );
+}
+
+interface SwitchRowProps {
+  readonly label: ReactNode;
+  readonly hint: ReactNode;
+  /** Becomes `data-setting`, so a test names the switch rather than its index. */
+  readonly name: string;
+  readonly ariaLabel: string;
+  readonly checked: boolean;
+  readonly disabled: boolean;
+  readonly onChange: (next: boolean) => void;
+}
+
+/**
+ * One labelled switch with its 「影响：…」 line.
+ *
+ * The hint is not decoration: every row of this artboard states what the
+ * setting *changes*, because a switch called 「显示 Agent 读取了哪些证据」 is
+ * otherwise a guess about where the evidence would show up.
+ */
+function SwitchRow({ label, hint, name, ariaLabel, checked, disabled, onChange }: SwitchRowProps) {
+  const hintId = `agent-${name}-hint`;
+  return (
+    <div className="flex items-center gap-3.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-base">{label}</p>
+        <p id={hintId} className="mt-1 text-xs leading-normal text-neutral-600">
+          {hint}
+        </p>
+      </div>
+      <Toggle
+        checked={checked}
+        disabled={disabled}
+        data-setting={name}
+        aria-label={ariaLabel}
+        aria-describedby={hintId}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
+interface VideoLengthRowProps {
+  readonly value: number;
+  readonly disabled: boolean;
+  readonly onCommit: (seconds: number) => void;
+}
+
+/** See `VideoLengthRow` — the lengths people actually ask a highlight for. */
+const VIDEO_LENGTH_STOPS = [20, 40, 60, 90] as const;
+
+/**
+ * 「默认成片时长」. The artboard draws 「40 秒左右」 and 「左右」 is the whole
+ * point: this is a target, not a ceiling, and the hint says so. A plan that
+ * needs 44 seconds is not truncated to fit it.
+ *
+ * Stops rather than a free slider, because the answer is one of four numbers in
+ * practice — and because the service accepts 5…3600, a value set elsewhere is
+ * printed rather than hidden, or the panel would look like it had reset it.
+ */
+function VideoLengthRow({ value, disabled, onCommit }: VideoLengthRowProps) {
+  const known = VIDEO_LENGTH_STOPS.some((seconds) => seconds === value);
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-base">
+        <Trans>默认成片时长</Trans>
+      </p>
+      <Seg
+        name="default-video-seconds"
+        size="sm"
+        value={String(value)}
+        aria-label={t`默认成片时长`}
+        options={VIDEO_LENGTH_STOPS.map((seconds) => ({
+          value: String(seconds),
+          label: t`${seconds} 秒左右`,
+          disabled,
+        }))}
+        onChange={(next) => onCommit(Number(next))}
+      />
+      <p className="text-xs leading-normal text-neutral-600">
+        <Trans>
+          影响：Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。
+        </Trans>
+      </p>
+      {known ? null : (
+        <p className="text-xs leading-normal text-neutral-600" data-video-length-custom={value}>
+          <Trans>当前是 {value} 秒，不在上面这几档里。</Trans>
+        </p>
+      )}
     </div>
   );
 }

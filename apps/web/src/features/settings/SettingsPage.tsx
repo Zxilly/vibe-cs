@@ -87,12 +87,11 @@ export const defaultConfig: AppConfig = {
     resolution: '1920x1080',
     fps: 60,
     show_radar: true,
-    mute_voice: false,
     camera_fov: 90,
     viewmodel_fov: 68,
     flash_alpha: 255,
     show_hud: true,
-    isolate_target_voice: false,
+    voice: 'all_players',
   },
 };
 
@@ -612,8 +611,11 @@ export function RecordingSettings({ config, updateRecording }: { config: AppConf
         <div className="toggle-list">
           <label><span><Gamepad2 size={15} /><span><strong>{msg("m0600")}</strong><small>{msg("m0594")}</small></span></span><input type="checkbox" checked={config.recording.show_radar} onChange={(event) => updateRecording('show_radar', event.target.checked)} /></label>
           <label><span><Gamepad2 size={15} /><span><strong>{msg("m0729")}</strong><small>{msg("m0602")}</small></span></span><input type="checkbox" checked={config.recording.show_hud} onChange={(event) => updateRecording('show_hud', event.target.checked)} /></label>
-          <label><span><Radio size={15} /><span><strong>{msg("m0601")}</strong><small>{msg("m0196")}</small></span></span><input type="checkbox" checked={config.recording.mute_voice} onChange={(event) => { updateRecording('mute_voice', event.target.checked); if (event.target.checked) updateRecording('isolate_target_voice', false); }} /></label>
-          <label><span><Radio size={15} /><span><strong>{msg("m0339")}</strong><small>{msg("m0181")}</small></span></span><input type="checkbox" checked={config.recording.isolate_target_voice} onChange={(event) => { updateRecording('isolate_target_voice', event.target.checked); if (event.target.checked) updateRecording('mute_voice', false); }} /></label>
+          {/* One three-valued field where two mutually-exclusive checkboxes
+              used to be (§10 note 5) — the pair could express a fourth state
+              the service rejected, and this cannot. */}
+          <label><span><Radio size={15} /><span><strong>{msg("m0601")}</strong><small>{msg("m0196")}</small></span></span><input type="checkbox" checked={config.recording.voice === 'muted'} onChange={(event) => updateRecording('voice', event.target.checked ? 'muted' : 'all_players')} /></label>
+          <label><span><Radio size={15} /><span><strong>{msg("m0339")}</strong><small>{msg("m0181")}</small></span></span><input type="checkbox" checked={config.recording.voice === 'target_only'} onChange={(event) => updateRecording('voice', event.target.checked ? 'target_only' : 'all_players')} /></label>
         </div>
         <div className="field-row"><Field label={msg("m1274")}><div className="number-control"><input type="number" min="60" max="140" value={config.recording.camera_fov} onChange={(event) => updateRecording('camera_fov', Number(event.target.value))} /><span>°</span></div></Field><Field label={msg("m0654")}><div className="number-control"><input type="number" min="54" max="68" value={config.recording.viewmodel_fov} onChange={(event) => updateRecording('viewmodel_fov', Number(event.target.value))} /><span>°</span></div></Field><Field label={msg("m1278")}><div className="number-control"><input type="number" min="0" max="255" value={config.recording.flash_alpha} onChange={(event) => updateRecording('flash_alpha', Number(event.target.value))} /><span>/255</span></div></Field></div>
       </SettingsSection>

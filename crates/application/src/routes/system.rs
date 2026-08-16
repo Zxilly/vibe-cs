@@ -646,11 +646,9 @@ fn validate_config(config: &AppConfig) -> ApiResult<()> {
             "recording viewmodel FOV must be between 54 and 68",
         ));
     }
-    if recording.mute_voice && recording.isolate_target_voice {
-        return Err(ApiError::invalid(
-            "recording global voice mute and target-player isolation are mutually exclusive",
-        ));
-    }
+    // The mutually-exclusive check that used to live here is gone with the two
+    // booleans it guarded: `RecordingDefaults.voice` is a three-valued enum and
+    // the illegal fourth state cannot be expressed. §10 note 5.
     if !(1..=100).contains(&config.steam.maximum_results) {
         return Err(crate::ApiError::invalid(
             "Steam history result limit must be between 1 and 100",
@@ -960,14 +958,15 @@ mod tests {
                 "camera_fov",
                 "flash_alpha",
                 "fps",
-                "isolate_target_voice",
-                "mute_voice",
                 "post_roll_seconds",
                 "pre_roll_seconds",
                 "resolution",
                 "show_hud",
                 "show_radar",
                 "viewmodel_fov",
+                // One three-valued enum where `mute_voice` and
+                // `isolate_target_voice` used to be. §10 note 5.
+                "voice",
             ]
         );
     }
@@ -1167,9 +1166,17 @@ mod tests {
         config.recording.viewmodel_fov = 40.0;
         assert!(validate_config(&config).is_err());
         config.recording.viewmodel_fov = 68.0;
-        config.recording.mute_voice = true;
-        config.recording.isolate_target_voice = true;
-        assert!(validate_config(&config).is_err());
+        // The voice combination this used to reject is unrepresentable now
+        // (§10 note 5): `voice` is one three-valued enum, so every value it can
+        // hold is legal and there is nothing left here to validate.
+        for policy in [
+            vibe_cs_domain::RecordingVoicePolicy::AllPlayers,
+            vibe_cs_domain::RecordingVoicePolicy::Muted,
+            vibe_cs_domain::RecordingVoicePolicy::TargetOnly,
+        ] {
+            config.recording.voice = policy;
+            assert!(validate_config(&config).is_ok());
+        }
     }
 
     #[test]

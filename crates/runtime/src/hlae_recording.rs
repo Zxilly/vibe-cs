@@ -1792,14 +1792,13 @@ impl HlaeRecordingBackend {
     /// This is what a shot that carries no presentation of its own records
     /// with. [`take_presentation`] decides, per take, whether the fallback or
     /// the shot's own presentation applies.
-    fn presentation(config: &AppConfig) -> Result<HlaePlayerPovPresentation, DomainError> {
-        if config.recording.mute_voice && config.recording.isolate_target_voice {
-            return Err(DomainError::InvalidInput(
-                "global voice muting and target-player voice isolation are mutually exclusive"
-                    .to_owned(),
-            ));
-        }
-        Ok(HlaePlayerPovPresentation {
+    ///
+    /// It no longer validates anything: `RecordingDefaults.voice` is a
+    /// three-valued enum, so the illegal combination this used to reject
+    /// cannot be written down. That is the point of the collapse — the guard
+    /// moved from every read to the type.
+    fn presentation(config: &AppConfig) -> HlaePlayerPovPresentation {
+        HlaePlayerPovPresentation {
             radar: if config.recording.show_radar {
                 HlaeRadarVisibility::Visible
             } else {
@@ -1813,14 +1812,12 @@ impl HlaeRecordingBackend {
             camera_fov: config.recording.camera_fov,
             viewmodel_fov: config.recording.viewmodel_fov,
             flash_alpha: config.recording.flash_alpha,
-            voice: if config.recording.mute_voice {
-                HlaeVoicePolicy::Muted
-            } else if config.recording.isolate_target_voice {
-                HlaeVoicePolicy::TargetOnly
-            } else {
-                HlaeVoicePolicy::AllPlayers
+            voice: match config.recording.voice {
+                vibe_cs_domain::RecordingVoicePolicy::Muted => HlaeVoicePolicy::Muted,
+                vibe_cs_domain::RecordingVoicePolicy::TargetOnly => HlaeVoicePolicy::TargetOnly,
+                vibe_cs_domain::RecordingVoicePolicy::AllPlayers => HlaeVoicePolicy::AllPlayers,
             },
-        })
+        }
     }
 
     async fn prepare_job_context(
@@ -1834,7 +1831,7 @@ impl HlaeRecordingBackend {
             &self.encoder_capability_probe.probe(),
             capture.record_wav,
         )?;
-        let fallback_presentation = Self::presentation(config)?;
+        let fallback_presentation = Self::presentation(config);
         let roots = self.ensure_managed_roots().await?;
         let launch_inputs = self.launch_environment.resolve(
             config,
@@ -3007,8 +3004,8 @@ mod tests {
         let mut config = AppConfig::default();
         config.recording.show_radar = false;
         config.recording.flash_alpha = 102;
-        config.recording.isolate_target_voice = true;
-        let fallback = HlaeRecordingBackend::presentation(&config).expect("global defaults");
+        config.recording.voice = vibe_cs_domain::RecordingVoicePolicy::TargetOnly;
+        let fallback = HlaeRecordingBackend::presentation(&config);
         let (_directory, item) = fixture();
         assert_eq!(item.request.presentation, None);
 
@@ -3019,22 +3016,35 @@ mod tests {
     }
 
     #[test]
-    fn the_two_global_voice_bools_can_never_reach_a_capture_together() {
-        let mut config = AppConfig::default();
-        config.recording.mute_voice = true;
-        config.recording.isolate_target_voice = true;
-
-        let error = HlaeRecordingBackend::presentation(&config)
-            .expect_err("muting everyone and isolating the target are mutually exclusive");
-
-        assert!(matches!(error, DomainError::InvalidInput(_)));
+    fn every_global_voice_policy_reaches_the_capture_as_itself() {
+        // The old test here asserted that two booleans could not both be set.
+        // They no longer exist: `RecordingDefaults.voice` is a three-valued
+        // enum, so the illegal combination is unrepresentable rather than
+        // rejected, and what is worth pinning now is the mapping.
+        for (policy, expected) in [
+            (
+                vibe_cs_domain::RecordingVoicePolicy::AllPlayers,
+                HlaeVoicePolicy::AllPlayers,
+            ),
+            (
+                vibe_cs_domain::RecordingVoicePolicy::Muted,
+                HlaeVoicePolicy::Muted,
+            ),
+            (
+                vibe_cs_domain::RecordingVoicePolicy::TargetOnly,
+                HlaeVoicePolicy::TargetOnly,
+            ),
+        ] {
+            let mut config = AppConfig::default();
+            config.recording.voice = policy;
+            assert_eq!(HlaeRecordingBackend::presentation(&config).voice, expected);
+        }
     }
 
     #[test]
     fn every_take_of_one_job_resolves_its_own_presentation() {
         let (directory, mut muted) = fixture();
-        let fallback =
-            HlaeRecordingBackend::presentation(&AppConfig::default()).expect("global defaults");
+        let fallback = HlaeRecordingBackend::presentation(&AppConfig::default());
         muted.request.presentation = Some(vibe_cs_domain::RecordingPresentation {
             voice: RecordingVoicePolicy::Muted,
             show_hud: false,
@@ -3081,8 +3091,7 @@ mod tests {
             voice: RecordingVoicePolicy::TargetOnly,
             ..vibe_cs_domain::RecordingPresentation::default()
         });
-        let fallback =
-            HlaeRecordingBackend::presentation(&AppConfig::default()).expect("global defaults");
+        let fallback = HlaeRecordingBackend::presentation(&AppConfig::default());
         let presentation = take_presentation(fallback, &item.request);
 
         let plan = build_camera_plan(
@@ -3113,8 +3122,7 @@ mod tests {
             voice: RecordingVoicePolicy::TargetOnly,
             ..vibe_cs_domain::RecordingPresentation::default()
         });
-        let fallback =
-            HlaeRecordingBackend::presentation(&AppConfig::default()).expect("global defaults");
+        let fallback = HlaeRecordingBackend::presentation(&AppConfig::default());
         let presentation = take_presentation(fallback, &item.request);
 
         let error = build_camera_plan(

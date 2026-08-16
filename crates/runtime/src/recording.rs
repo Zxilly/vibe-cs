@@ -1011,12 +1011,11 @@ impl RecordingPort for RuntimeRecordingPort {
             item.segment.metadata["capture"] = json!({
                 "backend": "managed_hlae_windows_mf",
                 "show_radar": config.recording.show_radar,
-                "mute_voice": config.recording.mute_voice,
                 "camera_fov": config.recording.camera_fov,
                 "viewmodel_fov": config.recording.viewmodel_fov,
                 "flash_alpha": config.recording.flash_alpha,
                 "show_hud": config.recording.show_hud,
-                "isolate_target_voice": config.recording.isolate_target_voice,
+                "voice": config.recording.voice.as_str(),
                 "voice_participants": voice_participants,
             });
         }

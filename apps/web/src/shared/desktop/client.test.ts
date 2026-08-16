@@ -106,7 +106,7 @@ describe('desktop command client', () => {
       recording: {
         pre_roll_seconds: 3, post_roll_seconds: 2.5,
         resolution: '1920x1080', fps: 60, show_radar: true, show_hud: true,
-        mute_voice: false, isolate_target_voice: false, camera_fov: 90,
+        voice: 'all_players', camera_fov: 90,
         viewmodel_fov: 68, flash_alpha: 255,
       },
     };

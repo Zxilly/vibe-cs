@@ -52,8 +52,7 @@ const DEFAULTS: AppConfig['recording'] = {
   fps: 60,
   show_radar: true,
   show_hud: true,
-  mute_voice: false,
-  isolate_target_voice: false,
+  voice: 'all_players',
   camera_fov: 90,
   viewmodel_fov: 68,
   flash_alpha: 255,
@@ -216,21 +215,14 @@ describe('presentationFieldsFor', () => {
 });
 
 describe('globalPresentationDefaults', () => {
-  it('maps the two voice booleans onto the three-member policy the wire uses', () => {
-    expect(globalPresentationDefaults(DEFAULTS).voice).toBe('all_players');
-    expect(
-      globalPresentationDefaults({ ...DEFAULTS, isolate_target_voice: true }).voice,
-    ).toBe('target_only');
-    expect(globalPresentationDefaults({ ...DEFAULTS, mute_voice: true }).voice).toBe('muted');
-    /* Config validation rejects both being set, so this combination cannot be
-       stored; mute winning mirrors `crates/runtime/src/hlae_recording.rs`. */
-    expect(
-      globalPresentationDefaults({
-        ...DEFAULTS,
-        mute_voice: true,
-        isolate_target_voice: true,
-      }).voice,
-    ).toBe('muted');
+  it('passes the stored voice policy through, because there is nothing to map', () => {
+    /* This test used to assert a precedence rule over two booleans, including
+       the combination config validation refused. Phase 3g collapsed the config
+       to the same three-member enum the wire uses (§10 note 5), so the illegal
+       combination is unrepresentable and the mapping is a field copy. */
+    for (const voice of ['all_players', 'muted', 'target_only'] as const) {
+      expect(globalPresentationDefaults({ ...DEFAULTS, voice }).voice).toBe(voice);
+    }
   });
 
   it('carries the other five values through unchanged', () => {

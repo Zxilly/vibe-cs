@@ -242,7 +242,6 @@ import type {
   RecordingPreflightCode,
   RecordingPresentation,
   RecordingRequest,
-  RecordingVoicePolicy,
 } from '../../shared/desktop/dto';
 
 /* ── the address ─────────────────────────────────────────────────────────── */
@@ -378,28 +377,24 @@ export type RecordingDefaults = AppConfig['recording'];
 /**
  * The global defaults a shot with `presentation: null` follows.
  *
- * `AppConfig.recording` still carries voice as two booleans while the wire type
- * carries the three-member enum, so the mapping is spelled here — mirrored
- * exactly from `crates/runtime/src/hlae_recording.rs`: mute wins, then isolate,
- * then everyone. The fourth combination (both set) cannot be stored — config
- * validation rejects it — so it needs no branch of its own beyond mute winning.
+ * This used to carry a mapping: `AppConfig.recording` held voice as two
+ * booleans while the wire type held the three-member enum, so the precedence
+ * (mute wins, then isolate, then everyone) was mirrored here from
+ * `crates/runtime/src/hlae_recording.rs`. Phase 3g collapsed the config side to
+ * the same enum (§10 note 5), and the mapping went with it — which is what a
+ * successful collapse looks like from the far end: a paragraph of precedence
+ * rules becomes a field copy.
  */
 export function globalPresentationDefaults(
   defaults: RecordingDefaults,
 ): RecordingPresentation {
-  const voice: RecordingVoicePolicy = defaults.mute_voice
-    ? 'muted'
-    : defaults.isolate_target_voice
-      ? 'target_only'
-      : 'all_players';
-
   return {
     camera_fov: defaults.camera_fov,
     viewmodel_fov: defaults.viewmodel_fov,
     flash_alpha: defaults.flash_alpha,
     show_hud: defaults.show_hud,
     show_radar: defaults.show_radar,
-    voice,
+    voice: defaults.voice,
   };
 }
 

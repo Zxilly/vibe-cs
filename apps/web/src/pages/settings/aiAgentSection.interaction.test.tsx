@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   AgentSessionStorageStats,
   AgentWorkspaceSettings,
+  ApiHealth,
   AppConfig,
 } from '../../shared/desktop/dto';
 import { HEALTHY, renderPage } from '../delivery/test/renderPage';
@@ -60,7 +61,19 @@ interface Harness {
   readonly stub: Record<string, unknown>;
 }
 
-function renderSection(overrides: Partial<Record<string, unknown>> = {}): Harness {
+/**
+ * `health: undefined` seeds nothing, which is how a test says 「未连接」 — the
+ * state every service-backed control is disabled in. Omitting the key seeds
+ * `HEALTHY`, because most tests here are not about the service being down.
+ */
+interface RenderOptions {
+  readonly health?: ApiHealth | undefined;
+}
+
+function renderSection(
+  overrides: Partial<Record<string, unknown>> = {},
+  options: RenderOptions = {},
+): Harness {
   const written: AgentWorkspaceSettings[] = [];
   const swept: number[] = [];
   const cleared: number[] = [];
@@ -100,7 +113,8 @@ function renderSection(overrides: Partial<Record<string, unknown>> = {}): Harnes
   /* `HEALTHY` seeds the entry `app/boundary/ServiceGate` owns. Without it every
      service-backed action is disabled 「正在连接本地服务」 — which is a real
      state, and the reason the harness makes seeding explicit. */
-  renderPage({ element: <AiAgentSection />, client, health: HEALTHY });
+  const health = Object.hasOwn(options, 'health') ? options.health : HEALTHY;
+  renderPage({ element: <AiAgentSection />, client, health });
 
   return { written, swept, cleared, exported, reached, stub };
 }
@@ -218,6 +232,112 @@ describe('take 上限', () => {
     await waitFor(() => {
       expect(written).toEqual([{ ...SETTINGS, take_limit: 8 }]);
     });
+  });
+});
+
+describe('the five switches phase 3g-be gave a field to', () => {
+  /* Every one of these was drawn on the artboard and absent through 3e,
+     because `AgentWorkspaceSettings` had nowhere to put the answer. §10.11
+     added the fields; these tests pin that each writes the *whole* document,
+     since the route replaces it and a partial write would reset the rest. */
+
+  it('writes the auto-attach switch with everything else intact', async () => {
+    const { written } = renderSection();
+    await ready();
+
+    fireEvent.click(screen.getByRole('switch', { name: '自动带入当前选中的 Demo 与选手' }));
+
+    await waitFor(() => {
+      expect(written).toEqual([{ ...SETTINGS, auto_attach_context: false }]);
+    });
+  });
+
+  it('writes the preview and evidence switches', async () => {
+    const { written } = renderSection();
+    await ready();
+
+    fireEvent.click(screen.getByRole('switch', { name: '应用剪辑变更前先预览' }));
+    await waitFor(() => {
+      expect(written).toEqual([{ ...SETTINGS, preview_before_apply: false }]);
+    });
+
+    fireEvent.click(screen.getByRole('switch', { name: '显示 Agent 读取了哪些证据' }));
+    await waitFor(() => {
+      expect(written).toHaveLength(2);
+    });
+    /* The second write carries the first one's change: the mutation's response
+       replaces the cached settings, so the panel is editing what it just
+       saved. Two switches in a row compose instead of the second undoing the
+       first — which is the property that matters when the route replaces the
+       whole document. */
+    expect(written[1]).toEqual({
+      ...SETTINGS,
+      preview_before_apply: false,
+      show_evidence_reads: false,
+    });
+  });
+
+  it('states what each switch changes, because a switch alone does not', async () => {
+    renderSection();
+    await ready();
+
+    const evidence = screen.getByRole('switch', { name: '显示 Agent 读取了哪些证据' });
+    const hint = document.getElementById(evidence.getAttribute('aria-describedby') ?? '');
+    expect(hint?.textContent).toContain('工作进度里是否展开');
+  });
+
+  it('picks a video length target and says it is a target', async () => {
+    const { written } = renderSection();
+    await ready();
+
+    fireEvent.click(screen.getByRole('radio', { name: '90 秒左右' }));
+
+    await waitFor(() => {
+      expect(written).toEqual([{ ...SETTINGS, default_video_seconds: 90 }]);
+    });
+    // 「左右」 is the whole point — a plan that needs longer is not truncated.
+    expect(document.body.textContent).toContain('它是目标不是上限');
+  });
+
+  it('prints a length that is not one of the stops rather than hiding it', async () => {
+    // The route accepts 5…3600. A value set elsewhere has no radio of its own,
+    // and dropping it silently would make the panel look like it had reset the
+    // setting.
+    renderSection({
+      getAgentWorkspaceSettings: () =>
+        Promise.resolve({ ...SETTINGS, default_video_seconds: 137 }),
+    });
+    await ready();
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-video-length-custom="137"]')).not.toBeNull();
+    });
+    expect(document.body.textContent).toContain('137 秒');
+  });
+
+  it('switches the commentary tone', async () => {
+    const { written } = renderSection();
+    await ready();
+
+    fireEvent.click(screen.getByRole('radio', { name: '节目化' }));
+
+    await waitFor(() => {
+      expect(written).toEqual([{ ...SETTINGS, commentary_tone: 'broadcast' }]);
+    });
+  });
+
+  it('disables all five while the service is down, and says why once', async () => {
+    renderSection({}, { health: undefined });
+    await ready();
+
+    for (const name of [
+      '自动带入当前选中的 Demo 与选手',
+      '应用剪辑变更前先预览',
+      '显示 Agent 读取了哪些证据',
+    ]) {
+      expect(screen.getByRole('switch', { name }).hasAttribute('disabled')).toBe(true);
+    }
+    expect(screen.getByRole('radio', { name: '节目化' }).hasAttribute('disabled')).toBe(true);
   });
 });
 

@@ -1,7 +1,7 @@
 /*
  * Interaction tests for the three sections phase 3g added — 应用, 文件与资料库
  * and 游戏与录制. (「AI 与 Agent」 has its own file from 3e; 「高级与诊断」 is a
- * readout with one button and is covered by the markup suite.)
+ * readout whose one button now does something, so it has a case here too.)
  *
  * What these pin is the part that is easy to get wrong and invisible when it
  * is: **a settings write sends the whole config document.** `updateConfig`
@@ -14,6 +14,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { AppConfig, QuickCheckResponse, StorageStatus } from '../../shared/desktop/dto';
 import { HEALTHY, renderPage } from '../delivery/test/renderPage';
+import { AdvancedSection } from './AdvancedSection';
 import { AppSection } from './AppSection';
 import { FilesSection } from './FilesSection';
 import { GameSection } from './GameSection';
@@ -266,5 +267,87 @@ describe('游戏与录制', () => {
     expect(sent.recording.camera_fov).toBe(90);
     expect(sent.recording.resolution).toBe('1920x1080');
     expect(sent.cs2_path).toBe(CONFIG.cs2_path);
+  });
+});
+
+describe('高级与诊断', () => {
+  /* This section reads more of the runtime and HLAE documents than the other
+     three do — it *is* the diagnostics readout — so it needs fuller stubs. */
+  const DIAGNOSTIC_STUBS = {
+    runtimeState: () =>
+      Promise.resolve({
+        status: 'ok',
+        version: '0.4.2',
+        started_at: '2026-08-17T01:00:00.000Z',
+        runtime_session: 'session-1',
+        active_recording_job: null,
+        data_dir: 'D:\CS2',
+      }),
+    getHlaeStatus: () =>
+      Promise.resolve({
+        available: true,
+        executable: 'D:\hlae\HLAE.exe',
+        messages: [],
+        automatic_launch_enabled: false,
+      }),
+  };
+
+  it('writes a report and offers to locate it', async () => {
+    const exportDiagnostics = vi.fn(() =>
+      Promise.resolve({
+        path: String.raw`D:\CS2\diagnostics\report-2026-08-17.json`,
+        created_at: '2026-08-17T02:00:00.000Z',
+        contains_secrets: false,
+      }),
+    );
+    render(<AdvancedSection />, { ...DIAGNOSTIC_STUBS, exportDiagnostics });
+
+    fireEvent.click(await screen.findByRole('button', { name: /^导出$/u }));
+
+    await waitFor(() => expect(exportDiagnostics).toHaveBeenCalledTimes(1));
+    // Queried by marker, not by text: `<Trans>` puts the interpolated path in
+    // its own node, so the sentence is split across elements.
+    const result = await waitFor(() => {
+      const node = document.querySelector('[data-diagnostics-result]');
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+    // The path, because a filename the user never saw is not findable.
+    expect(result.textContent).toContain('report-2026-08-17.json');
+    expect(result.textContent).toContain('不含任何密钥或媒体内容');
+    expect(screen.getByRole('button', { name: /定位文件/u })).not.toBeNull();
+  });
+
+  it('says 不含密钥 only when the service said so', async () => {
+    const exportDiagnostics = vi.fn(() =>
+      Promise.resolve({
+        path: String.raw`D:\CS2\diagnostics\report.json`,
+        created_at: '2026-08-17T02:00:00.000Z',
+        // The page reads the flag rather than assuming it — a report that ever
+        // does carry one must not be handed over under a promise that it does not.
+        contains_secrets: true,
+      }),
+    );
+    render(<AdvancedSection />, { ...DIAGNOSTIC_STUBS, exportDiagnostics });
+
+    fireEvent.click(await screen.findByRole('button', { name: /^导出$/u }));
+
+    const result = await waitFor(() => {
+      const node = document.querySelector('[data-diagnostics-result]');
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+    expect(result.textContent).toContain('report.json');
+    expect(result.textContent).not.toContain('不含任何密钥');
+  });
+
+  it('offers a retry when the write fails', async () => {
+    const exportDiagnostics = vi.fn(() => Promise.reject(new Error('disk full')));
+    render(<AdvancedSection />, { ...DIAGNOSTIC_STUBS, exportDiagnostics });
+
+    fireEvent.click(await screen.findByRole('button', { name: /^导出$/u }));
+
+    await screen.findByRole('button', { name: /重试/u });
+    expect(exportDiagnostics).toHaveBeenCalledTimes(1);
   });
 });

@@ -13,14 +13,20 @@
  * it came from, and a read that failed says so instead of rendering an empty
  * table that looks like a clean bill of health.
  *
- * ── 导出诊断包 is drawn, disabled, with the reason ────────────────────────
+ * ── 导出诊断包 ───────────────────────────────────────────────────────────
  *
- * The board lists it and there is no route: nothing on the bridge assembles a
- * diagnostics bundle. `exportAgentSessions` exports conversations and is a
- * different thing. Drawing it disabled with that sentence is the §10 rule for a
- * control the artboard promises and the service cannot serve — better than
- * omitting it (the user goes looking) or faking it by saving whatever this page
- * happens to have in memory, which is not a diagnostics bundle.
+ * This was drawn disabled with 「服务端还没有打包诊断信息的接口」, and that
+ * sentence was wrong: `POST /api/app/diagnostics/export` has existed all along,
+ * and so has `productApi.exportDiagnostics`. Nothing called it, so nobody
+ * noticed — the whole of `shared/desktop/product.ts` had no consumer.
+ *
+ * The report is a JSON file under 「数据目录」/diagnostics: version, runtime
+ * session, OS and arch, and which things are *configured* — never a credential
+ * value, never media. The row says so, because the file is one the user is
+ * about to hand to someone else.
+ *
+ * The path comes back and is shown with 定位文件, rather than leaving the user
+ * to hunt for a filename they never saw.
  */
 
 import { t } from '@lingui/core/macro';
@@ -29,7 +35,8 @@ import { Trans } from '@lingui/react/macro';
 import { Skeleton } from '../../design/data';
 import { Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { Button } from '../../design/primitives';
-import { useHlaeStatus, useQuickCheck, useRuntimeState } from '../../data/config';
+import { useExportDiagnostics, useHlaeStatus, useQuickCheck, useRuntimeState } from '../../data/config';
+import { useNativeShell } from '../../data/nativeShell';
 import { dataErrorMessage } from '../../data/errors';
 import { useServiceAction } from '../../data/serviceAction';
 import { PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
@@ -39,6 +46,8 @@ export function AdvancedSection() {
   const checks = useQuickCheck();
   const hlae = useHlaeStatus();
   const service = useServiceAction();
+  const exportDiagnostics = useExportDiagnostics();
+  const shell = useNativeShell();
 
   const runtimeError = dataErrorMessage(runtime.error);
   const checksError = dataErrorMessage(checks.error);
@@ -199,17 +208,56 @@ export function AdvancedSection() {
           label={<Trans>导出诊断包</Trans>}
           hint={<Trans>影响：报告问题时可以附上的一份运行记录。</Trans>}
         >
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled
-            /* §10 rule for a control the board promises and the service cannot
-               serve: draw it, disable it, say why. */
-            disabledReason={t`服务端还没有打包诊断信息的接口，这一版做不了`}
-          >
-            <Trans>导出</Trans>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={exportDiagnostics.isPending || service.blocked}
+              disabledReason={
+                exportDiagnostics.isPending
+                  ? t`正在写入报告`
+                  : (service.buttonProps.disabledReason ?? '')
+              }
+              onClick={() => exportDiagnostics.mutate()}
+            >
+              <Trans>导出</Trans>
+            </Button>
+            {exportDiagnostics.data === undefined ? null : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void shell.openDirectory(exportDiagnostics.data.path)}
+              >
+                <Trans>定位文件</Trans>
+              </Button>
+            )}
+          </div>
         </SettingsRow>
+        {exportDiagnostics.data === undefined ? null : (
+          /* A sentence, not a `Notice`: every notice carries a recovery action
+             by design, and a report that was written has nothing to recover
+             from. The path is the whole message. */
+          <p className="px-3 pb-3 text-sm text-neutral-700" data-diagnostics-result="">
+            {/* The flag, not the assumption: this page promises 「不含密钥」 only
+                because the service said so on the wire. */}
+            {exportDiagnostics.data.contains_secrets ? (
+              <Trans>报告已写入 {exportDiagnostics.data.path}。</Trans>
+            ) : (
+              <Trans>报告已写入 {exportDiagnostics.data.path}，不含任何密钥或媒体内容。</Trans>
+            )}
+          </p>
+        )}
+        {exportDiagnostics.error == null ? null : (
+          <Notice
+            tone="danger"
+            action={{
+              label: <Trans>重试</Trans>,
+              onAction: () => exportDiagnostics.mutate(),
+            }}
+          >
+            {dataErrorMessage(exportDiagnostics.error)}
+          </Notice>
+        )}
       </SettingsBlock>
     </div>
   );

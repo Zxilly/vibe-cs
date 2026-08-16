@@ -981,7 +981,7 @@ msgid "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 msgstr "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 
 #. placeholder {0}: new Date(checks.data.checked_at).toLocaleString()
-#: src/pages/settings/AdvancedSection.tsx:132
+#: src/pages/settings/AdvancedSection.tsx:141
 #: src/pages/settings/GameSection.tsx:270
 msgid "上次检查 {0}"
 msgstr "上次检查 {0}"
@@ -1057,7 +1057,7 @@ msgid "不可关闭：录制会启动游戏并写出文件，必须有一次人�
 msgstr "不可关闭：录制会启动游戏并写出文件，必须有一次人工确认。"
 
 #: src/pages/evidence/EvidenceDetail.tsx:150
-#: src/pages/settings/AdvancedSection.tsx:167
+#: src/pages/settings/AdvancedSection.tsx:176
 msgid "不可用"
 msgstr "不可用"
 
@@ -1160,7 +1160,7 @@ msgstr "二进制回放炸弹标记无效"
 msgid "二进制回放超过 128 MiB 上限"
 msgstr "二进制回放超过 128 MiB 上限"
 
-#: src/shared/desktop/client.ts:258
+#: src/shared/desktop/client.ts:259
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "二进制回放超过 128 MiB 上限。"
 
@@ -1387,7 +1387,7 @@ msgstr "例如：R21 的穿墙点可做教学"
 msgid "依据"
 msgstr "依据"
 
-#: src/pages/settings/AdvancedSection.tsx:99
+#: src/pages/settings/AdvancedSection.tsx:108
 msgid "依赖检查"
 msgstr "依赖检查"
 
@@ -1969,7 +1969,7 @@ msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约
 msgstr "分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。"
 
 #. placeholder {0}: String(value)
-#: src/shared/desktop/client.ts:361
+#: src/shared/desktop/client.ts:362
 msgid "分析响应包含未知阵营：{0}"
 msgstr "分析响应包含未知阵营：{0}"
 
@@ -2285,7 +2285,7 @@ msgstr "反恐精英"
 msgid "发布"
 msgstr "发布"
 
-#: src/shared/desktop/client.ts:1415
+#: src/shared/desktop/client.ts:1419
 msgid "发生未知错误，请重试。"
 msgstr "发生未知错误，请重试。"
 
@@ -2322,7 +2322,7 @@ msgstr "受害者"
 msgid "受害者被闪"
 msgstr "受害者被闪"
 
-#: src/pages/settings/AdvancedSection.tsx:151
+#: src/pages/settings/AdvancedSection.tsx:160
 msgid "受管 HLAE 的安装与安全边界。来自 /hlae/status。"
 msgstr "受管 HLAE 的安装与安全边界。来自 /hlae/status。"
 
@@ -2412,7 +2412,7 @@ msgstr "可录制的方案与全部录制任务"
 msgid "可用"
 msgstr "可用"
 
-#: src/pages/settings/AdvancedSection.tsx:162
+#: src/pages/settings/AdvancedSection.tsx:171
 msgid "可用性"
 msgstr "可用性"
 
@@ -2501,11 +2501,11 @@ msgstr "后面没有剪切点了"
 msgid "启动"
 msgstr "启动"
 
-#: src/pages/settings/AdvancedSection.tsx:66
+#: src/pages/settings/AdvancedSection.tsx:75
 msgid "启动于"
 msgstr "启动于"
 
-#: src/pages/settings/AdvancedSection.tsx:171
+#: src/pages/settings/AdvancedSection.tsx:180
 msgid "启动方式"
 msgstr "启动方式"
 
@@ -2875,7 +2875,7 @@ msgstr "失败可恢复"
 msgid "失败的导出"
 msgstr "失败的导出"
 
-#: src/shared/desktop/client.ts:195
+#: src/shared/desktop/client.ts:196
 msgid "媒体地址不是本地服务路径。"
 msgstr "媒体地址不是本地服务路径。"
 
@@ -2932,6 +2932,7 @@ msgstr "定位到第 {0} 回合的首杀"
 
 #: src/pages/delivery/OutputCard.tsx:129
 #: src/pages/library/LibraryInspector.tsx:177
+#: src/pages/settings/AdvancedSection.tsx:231
 msgid "定位文件"
 msgstr "定位文件"
 
@@ -3045,7 +3046,7 @@ msgstr "导入素材"
 
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:279
-#: src/pages/settings/AdvancedSection.tsx:210
+#: src/pages/settings/AdvancedSection.tsx:223
 #: src/pages/settings/AiAgentSection.tsx:750
 msgid "导出"
 msgstr "导出"
@@ -3107,7 +3108,7 @@ msgstr "导出结果"
 msgid "导出诊断"
 msgstr "导出诊断"
 
-#: src/pages/settings/AdvancedSection.tsx:199
+#: src/pages/settings/AdvancedSection.tsx:208
 msgid "导出诊断包"
 msgstr "导出诊断包"
 
@@ -3146,7 +3147,7 @@ msgstr "就地编辑"
 msgid "就地编辑需要一个方案"
 msgstr "就地编辑需要一个方案"
 
-#: src/pages/settings/AdvancedSection.tsx:167
+#: src/pages/settings/AdvancedSection.tsx:176
 msgid "就绪"
 msgstr "就绪"
 
@@ -3496,7 +3497,7 @@ msgstr "当前 quality {0}（CRF {1}），最接近这一档"
 msgid "当前 R{round}"
 msgstr "当前 R{round}"
 
-#: src/pages/settings/AdvancedSection.tsx:72
+#: src/pages/settings/AdvancedSection.tsx:81
 msgid "当前会话"
 msgstr "当前会话"
 
@@ -3699,7 +3700,7 @@ msgstr "影响：之后所有新文件的落点。已经写好的文件不会被
 msgid "影响：会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。"
 msgstr "影响：会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。"
 
-#: src/pages/settings/AdvancedSection.tsx:66
+#: src/pages/settings/AdvancedSection.tsx:75
 msgid "影响：判断服务是不是刚重启过。"
 msgstr "影响：判断服务是不是刚重启过。"
 
@@ -3707,11 +3708,11 @@ msgstr "影响：判断服务是不是刚重启过。"
 msgid "影响：工作进度里是否展开每次读取的回合与事件。"
 msgstr "影响：工作进度里是否展开每次读取的回合与事件。"
 
-#: src/pages/settings/AdvancedSection.tsx:74
+#: src/pages/settings/AdvancedSection.tsx:83
 msgid "影响：录制与回放是互斥的，这里说明为什么某个动作现在不可用。"
 msgstr "影响：录制与回放是互斥的，这里说明为什么某个动作现在不可用。"
 
-#: src/pages/settings/AdvancedSection.tsx:172
+#: src/pages/settings/AdvancedSection.tsx:181
 msgid "影响：录制时是否由本应用拉起游戏。"
 msgstr "影响：录制时是否由本应用拉起游戏。"
 
@@ -3731,11 +3732,11 @@ msgstr "影响：成片画面里是否出现界面元素。"
 msgid "影响：手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 msgstr "影响：手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 
-#: src/pages/settings/AdvancedSection.tsx:200
+#: src/pages/settings/AdvancedSection.tsx:209
 msgid "影响：报告问题时可以附上的一份运行记录。"
 msgstr "影响：报告问题时可以附上的一份运行记录。"
 
-#: src/pages/settings/AdvancedSection.tsx:61
+#: src/pages/settings/AdvancedSection.tsx:70
 msgid "影响：报告问题时要附上的号码。"
 msgstr "影响：报告问题时要附上的号码。"
 
@@ -3767,7 +3768,7 @@ msgstr "影响：磁盘剩余空间。清理入口在「输出与任务记录」
 msgid "影响：能否启动回放与录制。"
 msgstr "影响：能否启动回放与录制。"
 
-#: src/pages/settings/AdvancedSection.tsx:163
+#: src/pages/settings/AdvancedSection.tsx:172
 msgid "影响：能否开始录制。不可用时录制会在预检阶段被拒。"
 msgstr "影响：能否开始录制。不可用时录制会在预检阶段被拒。"
 
@@ -3775,7 +3776,7 @@ msgstr "影响：能否开始录制。不可用时录制会在预检阶段被拒
 msgid "影响：超过后最早的 take 会被丢弃。"
 msgstr "影响：超过后最早的 take 会被丢弃。"
 
-#: src/pages/settings/AdvancedSection.tsx:86
+#: src/pages/settings/AdvancedSection.tsx:95
 msgid "影响：这项任务结束前，其它录制与回放都会被拒绝。"
 msgstr "影响：这项任务结束前，其它录制与回放都会被拒绝。"
 
@@ -3886,7 +3887,7 @@ msgstr "战术回放缓存元数据超过上限"
 msgid "所有对话记录都会被删除，且不能恢复。方案、录制任务和已生成的视频不受影响，它们占用的空间也不会因此释放。"
 msgstr "所有对话记录都会被删除，且不能恢复。方案、录制任务和已生成的视频不受影响，它们占用的空间也不会因此释放。"
 
-#: src/pages/settings/AdvancedSection.tsx:175
+#: src/pages/settings/AdvancedSection.tsx:184
 msgid "手动启动"
 msgstr "手动启动"
 
@@ -4048,6 +4049,16 @@ msgstr "投掷物"
 #: src/pages/match/views/UtilityView.tsx:548
 msgid "投掷物构成"
 msgstr "投掷物构成"
+
+#. placeholder {0}: exportDiagnostics.data.path
+#: src/pages/settings/AdvancedSection.tsx:246
+msgid "报告已写入 {0}，不含任何密钥或媒体内容。"
+msgstr "报告已写入 {0}，不含任何密钥或媒体内容。"
+
+#. placeholder {0}: exportDiagnostics.data.path
+#: src/pages/settings/AdvancedSection.tsx:244
+msgid "报告已写入 {0}。"
+msgstr "报告已写入 {0}。"
 
 #: src/pages/match/views/RoundsView.tsx:83
 msgid "拆包"
@@ -4495,14 +4506,14 @@ msgstr "旋转"
 msgid "无法定位这个文件。"
 msgstr "无法定位这个文件。"
 
-#: src/shared/desktop/client.ts:209
-#: src/shared/desktop/client.ts:238
-#: src/shared/desktop/client.ts:299
-#: src/shared/desktop/client.ts:491
+#: src/shared/desktop/client.ts:210
+#: src/shared/desktop/client.ts:239
+#: src/shared/desktop/client.ts:300
+#: src/shared/desktop/client.ts:492
 msgid "无法连接到本地服务，请确认服务正在运行。"
 msgstr "无法连接到本地服务，请确认服务正在运行。"
 
-#: src/pages/settings/AdvancedSection.tsx:195
+#: src/pages/settings/AdvancedSection.tsx:204
 msgid "日志与诊断包"
 msgstr "日志与诊断包"
 
@@ -4562,7 +4573,7 @@ msgstr "显示 Agent 读取了哪些证据"
 msgid "显示全部"
 msgstr "显示全部"
 
-#: src/pages/settings/AdvancedSection.tsx:196
+#: src/pages/settings/AdvancedSection.tsx:205
 msgid "普通使用不需要打开这一节。"
 msgstr "普通使用不需要打开这一节。"
 
@@ -4687,8 +4698,8 @@ msgid "服务端说明：{unavailableReason}"
 msgstr "服务端说明：{unavailableReason}"
 
 #: src/pages/settings/AdvancedSection.tsx:208
-msgid "服务端还没有打包诊断信息的接口，这一版做不了"
-msgstr "服务端还没有打包诊断信息的接口，这一版做不了"
+#~ msgid "服务端还没有打包诊断信息的接口，这一版做不了"
+#~ msgstr "服务端还没有打包诊断信息的接口，这一版做不了"
 
 #: src/pages/recording/PreflightBlock.tsx:273
 msgid "服务返回"
@@ -4749,7 +4760,7 @@ msgstr "未知原因"
 msgid "未知地图"
 msgstr "未知地图"
 
-#: src/shared/desktop/client.ts:432
+#: src/shared/desktop/client.ts:433
 msgid "未知玩家"
 msgstr "未知玩家"
 
@@ -4805,7 +4816,7 @@ msgstr "本地文件"
 msgid "本地服务在线"
 msgstr "本地服务在线"
 
-#: src/pages/settings/AdvancedSection.tsx:51
+#: src/pages/settings/AdvancedSection.tsx:60
 msgid "本地服务当前的状态。来自 /app/runtime-state。"
 msgstr "本地服务当前的状态。来自 /app/runtime-state。"
 
@@ -5048,6 +5059,10 @@ msgstr "正在从方案生成预览计划"
 msgid "正在保存"
 msgstr "正在保存"
 
+#: src/pages/settings/AdvancedSection.tsx:218
+msgid "正在写入报告"
+msgstr "正在写入报告"
+
 #: src/pages/recording/ShotInspectorBlock.tsx:519
 msgid "正在写出 HLAE 脚本…"
 msgstr "正在写出 HLAE 脚本…"
@@ -5093,7 +5108,7 @@ msgstr "正在处理上一次操作"
 msgid "正在建立方案"
 msgstr "正在建立方案"
 
-#: src/pages/settings/AdvancedSection.tsx:85
+#: src/pages/settings/AdvancedSection.tsx:94
 msgid "正在录制"
 msgstr "正在录制"
 
@@ -5114,7 +5129,7 @@ msgid "正在校验"
 msgstr "正在校验"
 
 #: src/pages/GuidePage.tsx:88
-#: src/pages/settings/AdvancedSection.tsx:139
+#: src/pages/settings/AdvancedSection.tsx:148
 #: src/pages/settings/GameSection.tsx:277
 msgid "正在检查"
 msgstr "正在检查"
@@ -5500,7 +5515,7 @@ msgstr "没有待处理的变更"
 msgid "没有找到 {mapName} 的 overview 变换，世界坐标无法落到画面上。安装 CS2 后可从本地雷达读取。"
 msgstr "没有找到 {mapName} 的 overview 变换，世界坐标无法落到画面上。安装 CS2 后可从本地雷达读取。"
 
-#: src/pages/settings/AdvancedSection.tsx:93
+#: src/pages/settings/AdvancedSection.tsx:102
 msgid "没有数据目录"
 msgstr "没有数据目录"
 
@@ -5938,7 +5953,7 @@ msgstr "片段顺序，共 {count} 段，合计 {total}"
 
 #: src/pages/editor/EditorProjectList.tsx:117
 #: src/pages/editor/EditorProjectList.tsx:118
-#: src/pages/settings/AdvancedSection.tsx:61
+#: src/pages/settings/AdvancedSection.tsx:70
 msgid "版本"
 msgstr "版本"
 
@@ -6659,7 +6674,7 @@ msgstr "胜方"
 msgid "脚本已经写好，共 {0} 个文件。目录里的 README 说明怎么在 HLAE 里加载它；游戏不会自动加载。"
 msgstr "脚本已经写好，共 {0} 个文件。目录里的 README 说明怎么在 HLAE 里加载它；游戏不会自动加载。"
 
-#: src/pages/settings/AdvancedSection.tsx:175
+#: src/pages/settings/AdvancedSection.tsx:184
 msgid "自动启动"
 msgstr "自动启动"
 
@@ -6907,9 +6922,9 @@ msgstr "说清你想要什么，它给出方案与镜头；录制前还会等你
 msgid "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 msgstr "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 
-#: src/shared/desktop/client.ts:206
-#: src/shared/desktop/client.ts:229
-#: src/shared/desktop/client.ts:254
+#: src/shared/desktop/client.ts:207
+#: src/shared/desktop/client.ts:230
+#: src/shared/desktop/client.ts:255
 msgid "请求超时或已取消，请稍后重试。"
 msgstr "请求超时或已取消，请稍后重试。"
 
@@ -6925,7 +6940,7 @@ msgstr "读不到会话列表：{listError}"
 msgid "读不到会话占用：{error}"
 msgstr "读不到会话占用：{error}"
 
-#: src/pages/settings/AdvancedSection.tsx:104
+#: src/pages/settings/AdvancedSection.tsx:113
 msgid "读不到依赖检查：{checksError}"
 msgstr "读不到依赖检查：{checksError}"
 
@@ -6980,7 +6995,7 @@ msgstr "读不到环境自检：{error}"
 msgid "读不到设置：{configError}"
 msgstr "读不到设置：{configError}"
 
-#: src/pages/settings/AdvancedSection.tsx:55
+#: src/pages/settings/AdvancedSection.tsx:64
 msgid "读不到运行时状态：{runtimeError}"
 msgstr "读不到运行时状态：{runtimeError}"
 
@@ -7008,7 +7023,7 @@ msgstr "读不到这场比赛的高光：{failure}"
 msgid "读不到这条会话：{failure}"
 msgstr "读不到这条会话：{failure}"
 
-#: src/pages/settings/AdvancedSection.tsx:155
+#: src/pages/settings/AdvancedSection.tsx:164
 msgid "读不到采集组件状态：{hlaeError}"
 msgstr "读不到采集组件状态：{hlaeError}"
 
@@ -7117,7 +7132,7 @@ msgstr "跟随"
 msgid "跟随全局默认"
 msgstr "跟随全局默认"
 
-#: src/pages/settings/AdvancedSection.tsx:100
+#: src/pages/settings/AdvancedSection.tsx:109
 msgid "路径、进程与编码器的逐项校验。来自 /app/quick-check。"
 msgstr "路径、进程与编码器的逐项校验。来自 /app/quick-check。"
 
@@ -7236,7 +7251,7 @@ msgstr "运行中"
 msgid "运行录制前校验"
 msgstr "运行录制前校验"
 
-#: src/pages/settings/AdvancedSection.tsx:50
+#: src/pages/settings/AdvancedSection.tsx:59
 msgid "运行时"
 msgstr "运行时"
 
@@ -7909,7 +7924,7 @@ msgstr "这次改动没能写进方案：{failure}"
 msgid "这次改动的说明（可选）"
 msgstr "这次改动的说明（可选）"
 
-#: src/pages/settings/AdvancedSection.tsx:126
+#: src/pages/settings/AdvancedSection.tsx:135
 msgid "这次检查没有返回任何项。"
 msgstr "这次检查没有返回任何项。"
 
@@ -8255,7 +8270,7 @@ msgstr "配置还没读出来，稍后再试"
 msgid "采集"
 msgstr "采集"
 
-#: src/pages/settings/AdvancedSection.tsx:150
+#: src/pages/settings/AdvancedSection.tsx:159
 msgid "采集组件"
 msgstr "采集组件"
 
@@ -8316,7 +8331,7 @@ msgid "重新校验"
 msgstr "重新校验"
 
 #: src/pages/GuidePage.tsx:91
-#: src/pages/settings/AdvancedSection.tsx:142
+#: src/pages/settings/AdvancedSection.tsx:151
 #: src/pages/settings/GameSection.tsx:280
 msgid "重新检查"
 msgstr "重新检查"
@@ -8422,9 +8437,10 @@ msgstr "重新选择"
 #: src/pages/RecordingPage.tsx:328
 #: src/pages/RecordingPage.tsx:425
 #: src/pages/RecoveryPage.tsx:91
-#: src/pages/settings/AdvancedSection.tsx:54
-#: src/pages/settings/AdvancedSection.tsx:103
-#: src/pages/settings/AdvancedSection.tsx:154
+#: src/pages/settings/AdvancedSection.tsx:63
+#: src/pages/settings/AdvancedSection.tsx:112
+#: src/pages/settings/AdvancedSection.tsx:163
+#: src/pages/settings/AdvancedSection.tsx:254
 #: src/pages/settings/AiAgentSection.tsx:183
 #: src/pages/settings/AiAgentSection.tsx:402
 #: src/pages/settings/AiAgentSection.tsx:697

@@ -1,4 +1,6 @@
 import { request } from './client';
+import type { DiagnosticExport } from './generated/DiagnosticExport';
+import type { ManagedLocations } from './generated/ManagedLocations';
 
 export type UpdateInfo = {
   current_version: string;
@@ -17,20 +19,14 @@ export type UpdateCheckResult = {
   checked_at: string;
 };
 
-export type ManagedLocations = {
-  data: string;
-  logs: string;
-  recordings: string;
-  exports: string;
-  diagnostics: string;
-  desktop_open_supported: boolean;
-};
-
-export type DiagnosticExport = {
-  path: string;
-  created_at: string;
-  contains_secrets: false;
-};
+export type { ManagedLocations } from './generated/ManagedLocations';
+/**
+ * `contains_secrets` is `boolean`, not the literal `false` this file used to
+ * assert. The service always sends false and the report is built to make that
+ * true, but a generated type cannot say "always" — and a page that promises
+ * 「不含密钥」 should read the flag rather than the type.
+ */
+export type { DiagnosticExport } from './generated/DiagnosticExport';
 
 export const productApi = {
   updateInfo: (signal?: AbortSignal) => request<UpdateInfo>('/app/update-info', { signal }),

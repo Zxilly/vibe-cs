@@ -94,6 +94,7 @@ export { invalidateOutputs, useOutputList, useRecordedClips } from './outputs';
 export {
   invalidateConfig,
   useAppConfig,
+  useExportDiagnostics,
   useHlaeStatus,
   useQuickCheck,
   useRecoveryStatus,

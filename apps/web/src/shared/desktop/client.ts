@@ -159,6 +159,7 @@ import type {
   UpdateEvidenceAnnotation,
   WaveformResponse,
 } from './dto';
+import type { DiagnosticExport } from './product';
 import type { ActivityFeed, ActivityItem } from './viewModels';
 import type { AnalysisWorkspace, DemoSummary, RecordedClip } from './viewModels';
 
@@ -1408,6 +1409,9 @@ export const commands = {
     request<RecoveryStatus>('/config-backup/status', { signal }),
   recoverConfiguration: () =>
     request<RecoveryStatus>('/config-backup/restore', { method: 'POST', body: {} }),
+  /** Writes a diagnostic report under the data directory and answers its path. */
+  exportDiagnostics: () =>
+    request<DiagnosticExport>('/app/diagnostics/export', { method: 'POST', body: {} }),
 };
 
 export function readableError(error: unknown): string {

@@ -138,6 +138,19 @@ export function useRecoverConfiguration() {
   });
 }
 
+/**
+ * Writes a diagnostic report and answers where it landed.
+ *
+ * Nothing is invalidated: the report is a file beside the data directory, and
+ * writing one does not change a single thing this app reads. The path comes
+ * back so the page can offer 定位文件 rather than telling the user to go
+ * looking under 「数据目录」 for a name they never saw.
+ */
+export function useExportDiagnostics() {
+  const client = useDesktopClient();
+  return useMutation({ mutationFn: () => client.exportDiagnostics() });
+}
+
 export function useUpdateAppConfig() {
   const client = useDesktopClient();
   const queryClient = useQueryClient();

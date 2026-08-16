@@ -20,6 +20,8 @@ use tokio::io::AsyncWriteExt;
 use url::Url;
 use uuid::Uuid;
 
+use ts_rs::TS;
+
 use crate::{ApiError, ApiResult, AppState};
 
 const MAXIMUM_MANIFEST_BYTES: usize = 64 * 1024;
@@ -299,7 +301,9 @@ fn is_public_ip(address: IpAddr) -> bool {
     }
 }
 
-#[derive(Debug, Serialize)]
+/// The directories the application owns, for 设置 · 文件与资料库.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct ManagedLocations {
     data: String,
     logs: String,
@@ -328,7 +332,13 @@ async fn managed_locations(State(state): State<AppState>) -> ApiResult<Json<Mana
     }))
 }
 
-#[derive(Debug, Serialize)]
+/// Where the diagnostic report was written.
+///
+/// `contains_secrets` is always false and is sent anyway: the report is a file
+/// the user is about to hand to someone else, and a flag that says so on the
+/// wire is what lets the page promise it without the page deciding it.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct DiagnosticExport {
     path: String,
     created_at: DateTime<Utc>,

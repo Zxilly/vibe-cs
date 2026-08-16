@@ -247,7 +247,7 @@ export function PlayerProfilePage() {
           {/* Verbatim from the artboard: a dashed note for a statistic the demo
               files do not contain, rather than an empty chart. */}
           <p className="border border-dashed border-neutral-400 p-3 text-2xs leading-normal text-neutral-700">
-            <Trans>段位历史不可用：这批 Demo 不含段位字段。</Trans>
+            <Trans>段位历史不可用：这批 Demo 里没有段位信息。</Trans>
           </p>
         </aside>
       </div>

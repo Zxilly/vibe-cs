@@ -37,7 +37,6 @@ import type { ComponentType, ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { Page, SubNav, Toolbar } from '../design/layout';
-import { PagePlaceholder } from './PagePlaceholder';
 import { pickQueryValue } from './routeQuery';
 import { AdvancedSection } from './settings/AdvancedSection';
 import { AiAgentSection } from './settings/AiAgentSection';
@@ -60,25 +59,16 @@ const SECTION_LABEL: Record<SettingsSection, ReactNode> = {
 };
 
 /**
- * What each section renders. Every entry is filled as of phase 3g; the `null`
- * arm is kept because the shape of the hand-over is the point — a section that
- * has not been written renders the placeholder rather than an empty pane.
+ * What each section renders. All five are written, so there is no absent arm:
+ * a section that lost its component would be a compile error here rather than
+ * a pane telling the reader which internal phase was meant to build it.
  */
-const SECTION_BODY: Record<SettingsSection, ComponentType | null> = {
+const SECTION_BODY: Record<SettingsSection, ComponentType> = {
   app: AppSection,
   files: FilesSection,
   game: GameSection,
   ai: AiAgentSection,
   advanced: AdvancedSection,
-};
-
-/** The placeholder copy per section, for any that is `null` above. */
-const SECTION_PLACEHOLDER: Record<SettingsSection, ReactNode> = {
-  app: <Trans>语言、主题、更新源，以及启动时的行为。</Trans>,
-  files: <Trans>数据目录、监听目录，以及占用与清理。</Trans>,
-  game: <Trans>CS2 与 Steam 路径、HLAE，以及录制的默认画质。</Trans>,
-  ai: <Trans>模型、会话与行为边界。</Trans>,
-  advanced: <Trans>诊断信息、日志与导出诊断包。</Trans>,
 };
 
 export function SettingsPage() {
@@ -103,11 +93,7 @@ export function SettingsPage() {
           }}
         />
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-          {Body === null ? (
-            <PagePlaceholder phase="3g" description={SECTION_PLACEHOLDER[section]} />
-          ) : (
-            <Body />
-          )}
+          <Body />
         </div>
       </div>
     </Page>

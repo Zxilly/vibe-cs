@@ -194,7 +194,7 @@ export function TeamRosterPanel({
             headingLevel={4}
             className="border-0"
             title={<Trans>这一队没有选手记录</Trans>}
-            description={<Trans>解析结果里没有归属到这一队的选手。</Trans>}
+            description={<Trans>这场分析里没有属于这一队的选手。</Trans>}
             actions={
               <Button variant="secondary" onClick={() => onUpdateContext({ view: 'overview' })}>
                 <Trans>回到概览</Trans>

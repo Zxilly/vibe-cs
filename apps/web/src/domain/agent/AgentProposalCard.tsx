@@ -89,11 +89,11 @@ export function AgentProposalCard({
       {proposal.based_on_revision === null ? null : (
         <p data-proposal-revision="" className="flex flex-wrap items-center gap-3 text-xs text-neutral-600">
           <span className="font-mono">
-            <Trans>基于修订 {proposal.based_on_revision}</Trans>
+            <Trans>基于第 {proposal.based_on_revision} 版</Trans>
           </span>
           {currentRevision === undefined ? null : (
             <span className="font-mono">
-              <Trans>当前修订 {currentRevision}</Trans>
+              <Trans>当前第 {currentRevision} 版</Trans>
             </span>
           )}
           {pending === 0 ? null : (

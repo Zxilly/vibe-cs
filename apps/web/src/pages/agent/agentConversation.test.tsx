@@ -217,7 +217,7 @@ describe('proposals', () => {
     const html = at();
 
     expect(html).toContain('3 项变更待处理');
-    expect(html).toContain('修订 6');
+    expect(html).toContain('第 6 版');
   });
 
   it('says the changes cannot be judged when no plan is selected', () => {
@@ -315,14 +315,14 @@ describe('候选镜头', () => {
     expect(html).toContain('data-take-card=');
     expect(html).toContain('Agent 版本');
     expect(html).toContain('当前');
-    expect(html).toContain('修订 1');
-    expect(html).toContain('修订 6');
+    expect(html).toContain('第 1 版');
+    expect(html).toContain('第 6 版');
   });
 
   it('says the branch model is missing instead of inventing takes', () => {
     const html = at({ context: { mode: 'takes' } });
 
-    expect(html).toContain('后端还没有 Take 模型');
+    expect(html).toContain('这里比较的是方案自己的两个版本');
     expect(html).not.toContain('Take A');
     // No composition panel: `Composition` has no wire type either.
     expect(html).not.toContain('data-composition-slot=');

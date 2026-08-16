@@ -139,7 +139,7 @@ export function NotFound({
   return (
     <EmptyState
       title={<Trans>找不到这个页面</Trans>}
-      description={<Trans>这个地址不存在，或者它在这一版里已经下线。其余功能不受影响。</Trans>}
+      description={<Trans>这个地址不存在。其余功能不受影响。</Trans>}
       className={className}
       actions={
         <Button variant="primary" size="sm" onClick={onGoHome ?? goHome}>

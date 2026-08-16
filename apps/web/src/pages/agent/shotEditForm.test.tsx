@@ -77,7 +77,7 @@ describe('what the card does not have', () => {
       expect(html).not.toContain(word);
     }
     // What it says instead: the edit is recorded and the Agent is told.
-    expect(html).toContain('改动会记入方案修订，并通知 Agent');
+    expect(html).toContain('改动会记入方案版本，并通知 Agent');
     expect(html).toContain('你改过');
   });
 
@@ -103,6 +103,6 @@ describe('when editing is blocked', () => {
     const html = form({ draft: { ...readShotDraft(SHOT_TRACKING), endTick: '1' } });
 
     expect(html).toContain('结束 tick 不能早于起始 tick');
-    expect(html).toContain('还有字段填得不对');
+    expect(html).toContain('还有内容填得不对');
   });
 });

@@ -345,7 +345,7 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
                 onChange={(value) => setFloor(value === 'all' ? null : Number(value))}
               />
               <p className="mt-2 text-2xs leading-normal text-neutral-600">
-                <Trans>楼层只筛热力叠加：回放帧不带楼层字段。</Trans>
+                <Trans>楼层只筛热力叠加：回放数据不记录楼层。</Trans>
               </p>
             </section>
           ) : null}

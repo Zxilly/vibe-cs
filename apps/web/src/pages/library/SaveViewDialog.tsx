@@ -80,7 +80,7 @@ export function SaveViewDialog({ open, onClose, existingNames, onSave }: SaveVie
           <Trans>保存当前的搜索、筛选、排序和列配置</Trans>
         </p>
         <p className="text-xs leading-normal text-neutral-600">
-          <Trans>本轮的视图只保留到应用关闭为止</Trans>
+          <Trans>保存的视图只保留到关闭应用为止</Trans>
         </p>
       </div>
     </Dialog>

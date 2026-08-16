@@ -64,7 +64,7 @@ describe('the head', () => {
     const html = markupPanel(<PlanPanel {...blockProps()} />);
 
     expect(html).toContain('data-plan-revision="7"');
-    expect(html).toContain('修订 7');
+    expect(html).toContain('第 7 版');
     expect(html).toContain('等待确认');
   });
 
@@ -136,7 +136,7 @@ describe('the change cards', () => {
     const html = markupPanel(<PlanPanel {...blockProps()} />);
 
     expect(html).toContain('本次变更');
-    expect(html).toContain('基于修订 6');
+    expect(html).toContain('基于第 6 版');
     expect(html).toContain('把它压到 30 秒以内');
   });
 
@@ -147,7 +147,7 @@ describe('the change cards', () => {
     expect(html).toContain('已过期');
     expect(html).toContain('opacity-55');
     expect(html).toContain('data-plan-stale-notice');
-    expect(html).toContain('基于修订 7 重算');
+    expect(html).toContain('基于第 7 版重算');
   });
 
   it('keeps an expired card fully legible — 过期不等于错误', () => {

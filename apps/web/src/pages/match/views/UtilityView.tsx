@@ -417,7 +417,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
           gate.analysis === undefined ? undefined : mode === 'utility' ? (
             <Trans>共 {rows.length} 名选手有道具记录 · 点一行看他的构成</Trans>
           ) : (
-            <Trans>共 {economy.length} 个回合 · 解出 {purchaseTotal} 条购买事件</Trans>
+            <Trans>共 {economy.length} 个回合 · 解析出 {purchaseTotal} 条购买记录</Trans>
           )
         }
         actions={
@@ -471,7 +471,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
               className="m-3.5"
               headingLevel={4}
               title={<Trans>没有购买记录</Trans>}
-              description={<Trans>这份分析没有解出物品购买事件，所以每回合的经济账目是空的。</Trans>}
+              description={<Trans>这场比赛没有解析出物品购买记录，所以每回合的经济账目是空的。</Trans>}
               actions={
                 <Button variant="secondary" onClick={() => setMode('utility')}>
                   <Trans>改看道具</Trans>
@@ -502,7 +502,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
           <p className="border-t border-divider px-3.5 py-2.5 text-2xs text-neutral-600">
             {/* The service's own English sentence, verbatim, so a bug report can
                 quote the reason the block above is degraded. */}
-            <Trans>服务端说明：{degraded}</Trans>
+            <Trans>说明：{degraded}</Trans>
           </p>
         )}
       </ViewPanel>

@@ -307,7 +307,7 @@ describe('the edit reaches the server, once, and only on an occasion', () => {
     await editShot();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /基于修订 7 重算/u }));
+      fireEvent.click(screen.getByRole('button', { name: /基于第 7 版重算/u }));
     });
 
     await waitFor(() => {
@@ -352,7 +352,7 @@ describe('a merged edit that does not reach the plan', () => {
     expect(screen.getByRole('button', { name: '重新读取方案' })).toBeTruthy();
   });
 
-  it('offers 「基于修订 N 重算」 when the plan moved under the edit', async () => {
+  it('offers 「基于第 N 版重算」 when the plan moved under the edit', async () => {
     mount({ failEdit: { message: '修订冲突', status: 409 } });
     await openEditor();
 
@@ -368,7 +368,7 @@ describe('a merged edit that does not reach the plan', () => {
     expect(screen.getByText('方案在这期间被改过了，这次改动没有写进方案。')).toBeTruthy();
     // Scoped to the notice: the panel's stale banner offers the same recovery
     // for the *proposals*, and this assertion is about the failed write.
-    expect(within(failureNotice()).getByRole('button', { name: /基于修订 7 重算/u })).toBeTruthy();
+    expect(within(failureNotice()).getByRole('button', { name: /基于第 7 版重算/u })).toBeTruthy();
   });
 
   it('is silent when the write lands', async () => {

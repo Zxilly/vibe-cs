@@ -72,7 +72,7 @@ describe('NotFound', () => {
 
   it('reads as an absence rather than a malfunction', () => {
     expect(html).toContain('找不到这个页面');
-    expect(html).toContain('这个地址不存在，或者它在这一版里已经下线。其余功能不受影响。');
+    expect(html).toContain('这个地址不存在。其余功能不受影响。');
     // The empty tone, not the failure card: the reference draws no 404 state,
     // and a missing route is not a broken one.
     expect(html).toContain('data-tone="empty"');

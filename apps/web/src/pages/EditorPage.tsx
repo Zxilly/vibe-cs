@@ -423,7 +423,7 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
                   variant="secondary"
                   size="md"
                   disabled={dirty || service.blocked}
-                  disabledReason={dirty ? t`先保存改动，导出用的是服务端存着的工程` : ''}
+                  disabledReason={dirty ? t`先保存改动，导出用的是已保存的版本` : ''}
                   onClick={() => exportPackage.mutate({ projectId })}
                 >
                   <Trans>导出工程包</Trans>

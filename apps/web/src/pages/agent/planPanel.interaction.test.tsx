@@ -288,7 +288,7 @@ describe('the Agent’s change cards', () => {
     const accept = within(changeCard('change-1')).getByRole('button', { name: '接受' });
 
     expect(accept.hasAttribute('disabled')).toBe(true);
-    expect(screen.getAllByText(/基于旧的方案修订/u).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/基于方案的旧版本/u).length).toBeGreaterThan(0);
     expect(within(changeCard('change-1')).getByText(/只保留从中路进入 A 大道的一段/u)).toBeTruthy();
 
     fireEvent.click(accept);
@@ -306,10 +306,10 @@ describe('the Agent’s change cards', () => {
 
   it('asks the Agent to recompute against the revision the plan is actually at', () => {
     const { send } = mount();
-    fireEvent.click(screen.getByRole('button', { name: /基于修订 7 重算/u }));
+    fireEvent.click(screen.getByRole('button', { name: /基于第 7 版重算/u }));
 
     expect(send).toHaveBeenCalledTimes(1);
-    expect(String((send.mock.calls[0]?.[0] as { message: string }).message)).toContain('修订 7');
+    expect(String((send.mock.calls[0]?.[0] as { message: string }).message)).toContain('第 7 版');
   });
 
   it('cannot recompute while the Agent is already speaking', () => {
@@ -329,7 +329,7 @@ describe('the Agent’s change cards', () => {
     );
 
     expect(
-      screen.getByRole('button', { name: /基于修订 7 重算/u }).hasAttribute('disabled'),
+      screen.getByRole('button', { name: /基于第 7 版重算/u }).hasAttribute('disabled'),
     ).toBe(true);
   });
 });

@@ -212,7 +212,7 @@ export function EvidencePage() {
               ? {}
               : {
                   dateDisabledReason:
-                    dateGap.reason ?? t`这批索引没有比赛日期，无法按时间筛选`,
+                    dateGap.reason ?? t`这批证据没有比赛日期，无法按时间筛选`,
                 })}
             summary={
               search.data === undefined ? null : (

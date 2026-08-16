@@ -208,7 +208,7 @@ export function HistoryPage() {
               variant="secondary"
               size="sm"
               disabled
-              disabledReason={t`服务端的下载接口还没有「下载后自动分析」这个选项`}
+              disabledReason={t`暂不支持下载后自动分析，下载完成可在资料库里开始分析`}
             >
               <Trans>下载后自动分析</Trans>
             </Button>

@@ -95,7 +95,7 @@ export function FilesSection() {
 
       <SettingsBlock
         title={<Trans>数据目录</Trans>}
-        description={<Trans>录制结果、导出成片、代理文件和索引都写在这里。</Trans>}
+        description={<Trans>录制结果、导出成片和应用自己的数据都放在这里。</Trans>}
       >
         {current === undefined ? (
           <Skeleton />

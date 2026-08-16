@@ -259,7 +259,7 @@ function CameraPathState({
         action={{ label: <Trans>重试</Trans>, onAction: camera.reload }}
         detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
       >
-        <Trans>编译相机路径失败：{dataErrorMessage(camera.error) ?? ''}</Trans>
+        <Trans>算不出相机路径：{dataErrorMessage(camera.error) ?? ''}</Trans>
       </Notice>
     );
   }
@@ -320,7 +320,7 @@ function CameraPathState({
     return (
       <EmptyState
         title={<Trans>还不知道这个片段属于哪张地图</Trans>}
-        description={<Trans>路径已经编译出来了，但没有地图就没有可以把坐标放上去的底图。</Trans>}
+        description={<Trans>相机路径已经算好了，但缺少这张地图的底图，没法把它画出来。</Trans>}
         actions={null}
       />
     );

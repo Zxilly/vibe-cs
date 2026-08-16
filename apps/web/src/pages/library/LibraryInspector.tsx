@@ -172,7 +172,7 @@ export function LibraryInspector({
             <Button
               size="sm"
               grow
-              {...unavailableAction(t`桌面端尚未提供“在文件管理器中显示”的命令`)}
+              {...unavailableAction(t`暂不支持在文件管理器中显示`)}
             >
               <Trans>定位文件</Trans>
             </Button>

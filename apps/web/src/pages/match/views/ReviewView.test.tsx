@@ -148,7 +148,7 @@ describe('AI 点评', () => {
     scene();
     const html = markupView(<ReviewView.Body {...viewProps()} />);
     expect(html).toContain('导出 HTML');
-    expect(html).toContain('没有导出复盘 HTML 的命令');
+    expect(html).toContain('暂不支持导出复盘网页');
   });
 });
 

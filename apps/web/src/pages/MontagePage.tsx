@@ -269,7 +269,7 @@ function MontageWorkspace({ projectId }: { readonly projectId: string }) {
                    * different table. Disabled with the reason written on it,
                    * and recorded as a backend gap.
                    */
-                  disabledReason={t`后端还没有「把合辑转成多轨工程」的接口，合辑与多轨是两套工程`}
+                  disabledReason={t`快速合辑和多轨工程是两种工程，暂时不能互相转换`}
                 >
                   <Trans>在多轨编辑器中打开</Trans>
                 </Button>
@@ -368,7 +368,7 @@ function WorkspaceNotices({
           action={{ label: <Trans>重新载入</Trans>, onAction: onReload }}
           detail={
             <Trans>
-              合辑工程按整份文档保存，没有修订号可以合并，所以这次改动没有写入，以免覆盖别处的保存。
+              这份合辑在别处被改过了。为避免覆盖那次改动，这次没有保存——请刷新后重做。
             </Trans>
           }
         >

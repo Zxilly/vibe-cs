@@ -199,7 +199,7 @@ export function LibraryFilters({
         size="sm"
         variant="ghost"
         className="flex-none"
-        {...unavailableAction(t`导出会返回一份文件，桌面端还没有保存到磁盘的命令`)}
+        {...unavailableAction(t`暂不支持把导出的文件保存到磁盘`)}
       >
         <Trans>导出元数据</Trans>
       </Button>

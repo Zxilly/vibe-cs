@@ -88,7 +88,7 @@ export function PlanChangeCard({
   const OpIcon = op.icon;
   const affordance = planChangeAffordance(change);
 
-  /* The affordance's reason wins: 「这条变更基于旧的方案修订」 explains why the
+  /* The affordance's reason wins: 「这条变更基于方案的旧版本」 explains why the
      button is dead better than 「请先选择会话」 does, and both being true does
      not make the second one the useful one. */
   const acceptReason =

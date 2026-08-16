@@ -255,7 +255,7 @@ function PlanPanelBody({
      recomputes against a plan it has already been told about. */
   const onRecompute = () => {
     void chat.send({
-      message: t`方案已经是修订 ${plan.revision} 了，请基于最新的镜头重新给出变更。`,
+      message: t`方案已经是第 ${plan.revision} 版了，请基于最新的镜头重新给出变更。`,
     });
   };
 
@@ -330,7 +330,7 @@ function PlanPanelBody({
           <Trans>镜头方案</Trans>
         </h2>
         <Tag tone="accent" data-plan-revision={plan.revision}>
-          <Trans>修订 {plan.revision}</Trans>
+          <Trans>第 {plan.revision} 版</Trans>
         </Tag>
         <Tag tone="neutral">{i18n._(status.label)}</Tag>
         <Button
@@ -581,7 +581,7 @@ function ProposalSection({
               <div className="flex flex-wrap items-baseline gap-x-2">
                 <h4 className="min-w-0 flex-1 truncate font-heading text-sm">{changeSet.title}</h4>
                 <span className="flex-none font-mono text-2xs text-neutral-600">
-                  <Trans>基于修订 {changeSet.basedOnRevision}</Trans>
+                  <Trans>基于第 {changeSet.basedOnRevision} 版</Trans>
                 </span>
               </div>
 
@@ -593,7 +593,7 @@ function ProposalSection({
                   <Notice
                     tone="warning"
                     action={{
-                      label: <Trans>基于修订 {revision} 重算</Trans>,
+                      label: <Trans>基于第 {revision} 版重算</Trans>,
                       onAction: onRecompute,
                       disabled: recomputeDisabled,
                     }}
@@ -609,7 +609,7 @@ function ProposalSection({
                     }
                   >
                     <Trans>
-                      这组变更基于修订 {changeSet.basedOnRevision}，方案已经是修订 {revision}。内容仍可查看。
+                      这组变更基于第 {changeSet.basedOnRevision} 版，方案已经是第 {revision} 版。内容仍可查看。
                     </Trans>
                   </Notice>
                 </div>

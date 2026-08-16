@@ -719,7 +719,7 @@ msgstr "Shot strip of the Agent version"
 msgid "Agent 读取的内容"
 msgstr "What the Agent read"
 
-#: src/pages/SettingsPage.tsx:58
+#: src/pages/SettingsPage.tsx:57
 msgid "AI 与 Agent"
 msgstr "AI & Agent"
 
@@ -735,8 +735,8 @@ msgid "AI 点评"
 msgstr "AI commentary"
 
 #: src/pages/SettingsPage.tsx:79
-msgid "CS2 与 Steam 路径、HLAE，以及录制的默认画质。"
-msgstr "CS2 and Steam paths, HLAE, and the default recording quality."
+#~ msgid "CS2 与 Steam 路径、HLAE，以及录制的默认画质。"
+#~ msgstr "CS2 and Steam paths, HLAE, and the default recording quality."
 
 #: src/pages/settings/GameSection.tsx:121
 msgid "CS2 位置"
@@ -1426,6 +1426,10 @@ msgstr "Save changes"
 msgid "保存的视图 · {0}"
 msgstr "Saved view · {0}"
 
+#: src/pages/library/SaveViewDialog.tsx:83
+msgid "保存的视图只保留到关闭应用为止"
+msgstr "Saved views last until the app is closed"
+
 #: src/pages/montage/ClipTrimDrawer.tsx:123
 msgid "保存裁切"
 msgstr "Save the trim"
@@ -1456,8 +1460,8 @@ msgstr "Changing any clip voids the current preview plan, and the preview has to
 #: src/pages/agent/ConversationModes.tsx:121
 #: src/pages/agent/ConversationModes.tsx:288
 #: src/pages/agent/PlanPanel.tsx:333
-msgid "修订 {0}"
-msgstr "Revision {0}"
+#~ msgid "修订 {0}"
+#~ msgstr "Revision {0}"
 
 #: src/pages/agent/agentContract.ts:256
 msgctxt "agent-mode"
@@ -1494,11 +1498,18 @@ msgstr "Stop watching {0}"
 msgid "停止预览"
 msgstr "Stop preview"
 
+#: src/pages/editor/InspectorPanel.tsx:250
+msgid "先保存当前改动，再应用预设"
+msgstr "Save your changes first, then apply the preset"
+
 #: src/pages/EditorPage.tsx:528
 msgid "先保存或放弃当前改动，恢复会覆盖它们"
 msgstr "Save or discard the current changes first — restoring overwrites them"
 
 #: src/pages/EditorPage.tsx:426
+msgid "先保存改动，导出用的是已保存的版本"
+msgstr "Save your changes first — the export uses the saved version"
+
 #: src/pages/EditorPage.tsx:443
 msgid "先保存改动，导出用的是服务端存着的工程"
 msgstr "Save first: an export renders the project the service has stored"
@@ -1658,8 +1669,13 @@ msgstr "{0} positions in total, all of them counted."
 
 #. placeholder {0}: economy.length
 #: src/pages/match/views/UtilityView.tsx:420
-msgid "共 {0} 个回合 · 解出 {purchaseTotal} 条购买事件"
-msgstr "{0} rounds · {purchaseTotal} purchase events decoded"
+#~ msgid "共 {0} 个回合 · 解出 {purchaseTotal} 条购买事件"
+#~ msgstr "{0} rounds · {purchaseTotal} purchase events decoded"
+
+#. placeholder {0}: economy.length
+#: src/pages/match/views/UtilityView.tsx:420
+msgid "共 {0} 个回合 · 解析出 {purchaseTotal} 条购买记录"
+msgstr "{0} rounds · {purchaseTotal} purchases parsed"
 
 #. placeholder {0}: duels.length
 #: src/pages/match/views/DuelsView.tsx:527
@@ -1998,8 +2014,8 @@ msgid "分析结果没有被改动，重试是安全的。"
 msgstr "The analysis result was not changed, so a retry is safe."
 
 #: src/pages/match/views/ReviewView.tsx:292
-msgid "分析结果里既没有可归因的击杀，也没有道具与对位统计。"
-msgstr "The analysis result carries neither attributable kills nor utility and matchup statistics."
+#~ msgid "分析结果里既没有可归因的击杀，也没有道具与对位统计。"
+#~ msgstr "The analysis result carries neither attributable kills nor utility and matchup statistics."
 
 #: src/pages/delivery/taskDetailModel.tsx:136
 msgid "分析被中断"
@@ -2302,8 +2318,15 @@ msgstr "Send"
 #. placeholder {1}: truncation.total
 #. placeholder {2}: truncation.limit
 #: src/pages/players/PlayerHeatmapPanel.tsx:157
-msgid "取样 {0} / {1} 个位置（服务端上限 {2}）。 这张图画的是这批取样，不是全部。"
-msgstr "Sampled {0} of {1} positions (server limit {2}). This map draws that sample, not the whole set."
+msgid "取样 {0} / {1} 个位置（上限 {2}）。 这张图画的是这批取样，不是全部。"
+msgstr "Sampled {0} of {1} positions (limit {2}). This map shows the sample, not all of them."
+
+#. placeholder {0}: truncation.shown
+#. placeholder {1}: truncation.total
+#. placeholder {2}: truncation.limit
+#: src/pages/players/PlayerHeatmapPanel.tsx:157
+#~ msgid "取样 {0} / {1} 个位置（服务端上限 {2}）。 这张图画的是这批取样，不是全部。"
+#~ msgstr "Sampled {0} of {1} positions (server limit {2}). This map draws that sample, not the whole set."
 
 #: src/design/feedback/Dialog.tsx:106
 #: src/domain/task/TaskCard.tsx:193
@@ -2327,8 +2350,12 @@ msgid "受害者被闪"
 msgstr "Victim flashed"
 
 #: src/pages/settings/AdvancedSection.tsx:160
-msgid "受管 HLAE 的安装与安全边界。来自 /hlae/status。"
-msgstr "The managed HLAE install and its safety boundary. From /hlae/status."
+#~ msgid "受管 HLAE 的安装与安全边界。来自 /hlae/status。"
+#~ msgstr "The managed HLAE install and its safety boundary. From /hlae/status."
+
+#: src/pages/settings/AdvancedSection.tsx:160
+msgid "受管 HLAE 的安装状态与安全边界。"
+msgstr "The managed HLAE installation and its safety boundary."
 
 #: src/pages/delivery/OutputCard.tsx:113
 msgid "受管文件"
@@ -2433,8 +2460,8 @@ msgid "各片段的转场不一致，选择后会统一。"
 msgstr "The clips carry different transitions; choosing one applies it to all of them."
 
 #: src/pages/agent/ConversationModes.tsx:206
-msgid "合成结果需要后端的 Take 模型，本轮不能从不同版本里挑镜头"
-msgstr "Compositing needs a Take model on the backend, so shots cannot be picked across versions in this round"
+#~ msgid "合成结果需要后端的 Take 模型，本轮不能从不同版本里挑镜头"
+#~ msgstr "Compositing needs a Take model on the backend, so shots cannot be picked across versions in this round"
 
 #: src/pages/match/views/DuelsView.tsx:156
 #: src/pages/match/views/DuelsView.tsx:157
@@ -2458,8 +2485,8 @@ msgid "合辑工程"
 msgstr "Montage projects"
 
 #: src/pages/MontagePage.tsx:370
-msgid "合辑工程按整份文档保存，没有修订号可以合并，所以这次改动没有写入，以免覆盖别处的保存。"
-msgstr "A montage project is saved as one whole document and has no revision to merge on, so this change was not written, to keep it from overwriting a save made elsewhere."
+#~ msgid "合辑工程按整份文档保存，没有修订号可以合并，所以这次改动没有写入，以免覆盖别处的保存。"
+#~ msgstr "A montage project is saved as one whole document and has no revision to merge on, so this change was not written, to keep it from overwriting a save made elsewhere."
 
 #: src/pages/HistoryPage.tsx:240
 msgid "同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。"
@@ -2489,12 +2516,12 @@ msgid "后留白"
 msgstr "Lead-out"
 
 #: src/pages/agent/ConversationModes.tsx:213
-msgid "后端还没有 Take 模型，这里只能比较方案自己有的两个版本：Agent 出的那一版，和你现在编辑的这一版。"
-msgstr "The backend has no Take model yet, so this can only compare the two versions the plan itself has: the one the Agent produced, and the one you are editing now."
+#~ msgid "后端还没有 Take 模型，这里只能比较方案自己有的两个版本：Agent 出的那一版，和你现在编辑的这一版。"
+#~ msgstr "The backend has no Take model yet, so this can only compare the two versions the plan itself has: the one the Agent produced, and the one you are editing now."
 
 #: src/pages/MontagePage.tsx:272
-msgid "后端还没有「把合辑转成多轨工程」的接口，合辑与多轨是两套工程"
-msgstr "The backend has no route for turning a montage into a multitrack project; a montage and a multitrack project are two separate kinds of project"
+#~ msgid "后端还没有「把合辑转成多轨工程」的接口，合辑与多轨是两套工程"
+#~ msgstr "The backend has no route for turning a montage into a multitrack project; a montage and a multitrack project are two separate kinds of project"
 
 #: src/pages/editor/ProgramMonitor.tsx:224
 msgid "后面没有剪切点了"
@@ -2807,13 +2834,25 @@ msgstr "Coordinates come from the local overview radar calibration; this stretch
 #. placeholder {0}: proposal.based_on_revision
 #: src/domain/agent/AgentProposalCard.tsx:92
 #: src/pages/agent/PlanPanel.tsx:584
-msgid "基于修订 {0}"
-msgstr "Based on revision {0}"
+#~ msgid "基于修订 {0}"
+#~ msgstr "Based on revision {0}"
 
 #: src/pages/agent/PlanPanel.tsx:596
 #: src/pages/AgentPage.tsx:430
-msgid "基于修订 {revision} 重算"
-msgstr "Recompute on revision {revision}"
+#~ msgid "基于修订 {revision} 重算"
+#~ msgstr "Recompute on revision {revision}"
+
+#. placeholder {0}: changeSet.basedOnRevision
+#. placeholder {0}: proposal.based_on_revision
+#: src/domain/agent/AgentProposalCard.tsx:92
+#: src/pages/agent/PlanPanel.tsx:584
+msgid "基于第 {0} 版"
+msgstr "Based on version {0}"
+
+#: src/pages/agent/PlanPanel.tsx:596
+#: src/pages/AgentPage.tsx:430
+msgid "基于第 {revision} 版重算"
+msgstr "Recompute against version {revision}"
 
 #: src/pages/agent/ConversationModes.tsx:291
 msgid "基准"
@@ -2903,8 +2942,8 @@ msgid "存为预设"
 msgstr "Save as preset"
 
 #: src/pages/editor/InspectorPanel.tsx:260
-msgid "存为预设要先能改画面参数，这一版还没有"
-msgstr "Saving a preset needs editable picture settings, which this round does not have"
+#~ msgid "存为预设要先能改画面参数，这一版还没有"
+#~ msgstr "Saving a preset needs editable picture settings, which this round does not have"
 
 #: src/pages/montage/AddClipsDialog.tsx:96
 msgid "完成一次录制后，片段会出现在这里。"
@@ -3063,7 +3102,6 @@ msgstr "Export HTML"
 #~ msgid "导出与波形都会失败"
 #~ msgstr "exports and waveforms will fail"
 
-#: src/pages/library/LibraryFilters.tsx:202
 #: src/pages/LibraryPage.tsx:243
 msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 msgstr "Export returns a file, and the desktop build has no command to save it to disk yet"
@@ -3291,6 +3329,10 @@ msgctxt "plan-change"
 msgid "已接受"
 msgstr "Accepted"
 
+#: src/pages/evidence/EvidenceEmpty.tsx:108
+msgid "已有 {indexedItems} 条证据，但这次检索一条也没匹配上。"
+msgstr "There are {indexedItems} pieces of evidence, but nothing matched this search."
+
 #. placeholder {0}: formatBytes(storage.data.directory_bytes)
 #. placeholder {1}: formatBytes(storage.data.filesystem_available_bytes)
 #: src/pages/settings/FilesSection.tsx:157
@@ -3388,7 +3430,7 @@ msgstr "Evidence with coordinates"
 msgid "帧率"
 msgstr "Frame rate"
 
-#: src/pages/SettingsPage.tsx:55
+#: src/pages/SettingsPage.tsx:54
 msgid "应用"
 msgstr "App"
 
@@ -3409,8 +3451,8 @@ msgid "应用剪辑变更前先预览"
 msgstr "Preview an edit change before applying it"
 
 #: src/pages/editor/InspectorPanel.tsx:250
-msgid "应用预设由服务端改工程，先保存当前改动再应用"
-msgstr "Applying a preset edits the project on the service — save the current changes first"
+#~ msgid "应用预设由服务端改工程，先保存当前改动再应用"
+#~ msgstr "Applying a preset edits the project on the service — save the current changes first"
 
 #: src/pages/delivery/TaskDetailBody.tsx:100
 msgid "开始"
@@ -3506,8 +3548,8 @@ msgid "当前会话"
 msgstr "Current session"
 
 #: src/domain/agent/AgentProposalCard.tsx:96
-msgid "当前修订 {currentRevision}"
-msgstr "Current revision {currentRevision}"
+#~ msgid "当前修订 {currentRevision}"
+#~ msgstr "Current revision {currentRevision}"
 
 #: src/pages/settings/AiAgentSection.tsx:753
 msgid "当前占用 {conversation}"
@@ -3557,6 +3599,10 @@ msgstr "Shot strip of the current version"
 #: src/pages/RecoveryPage.tsx:273
 msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 msgstr "The current configuration file will be overwritten by the last automatic backup. This cannot be undone, and any setting changed since that backup is lost."
+
+#: src/domain/agent/AgentProposalCard.tsx:96
+msgid "当前第 {currentRevision} 版"
+msgstr "Now at version {currentRevision}"
 
 #. placeholder {0}: distribution.sampleCount
 #: src/pages/players/PlayerHeatmapPanel.tsx:177
@@ -3645,8 +3691,12 @@ msgid "录制结果"
 msgstr "Recordings"
 
 #: src/pages/settings/FilesSection.tsx:98
-msgid "录制结果、导出成片、代理文件和索引都写在这里。"
-msgstr "Recordings, exported cuts, proxies and indexes are all written here."
+#~ msgid "录制结果、导出成片、代理文件和索引都写在这里。"
+#~ msgstr "Recordings, exported cuts, proxies and indexes are all written here."
+
+#: src/pages/settings/FilesSection.tsx:98
+msgid "录制结果、导出成片和应用自己的数据都放在这里。"
+msgstr "Recordings, finished cuts and the app's own data all live here."
 
 #: src/pages/montage/AddClipsDialog.tsx:80
 msgid "录制结果没能读取：{error}"
@@ -3709,8 +3759,8 @@ msgid "影响：会话抽屉里能翻到多久以前。已生成的视频和任�
 msgstr "Affects: how far back the session drawer reaches. Finished videos and the task record are untouched."
 
 #: src/pages/settings/AdvancedSection.tsx:75
-msgid "影响：判断服务是不是刚重启过。"
-msgstr "Affects: telling whether the service restarted recently."
+#~ msgid "影响：判断服务是不是刚重启过。"
+#~ msgstr "Affects: telling whether the service restarted recently."
 
 #: src/pages/settings/AiAgentSection.tsx:288
 msgid "影响：工作进度里是否展开每次读取的回合与事件。"
@@ -3760,6 +3810,10 @@ msgstr "Affects: where new recordings are stored. It follows the data directory 
 msgid "影响：每个片段自动多录多少。"
 msgstr "Affects: how much extra each clip records."
 
+#: src/pages/settings/AdvancedSection.tsx:75
+msgid "影响：用于判断应用是不是刚重启过。"
+msgstr "Affects: telling whether the app has just restarted."
+
 #: src/pages/settings/AppSection.tsx:91
 msgid "影响：界面文案。改动会保存，下次启动应用时生效。"
 msgstr "Affects: interface wording. The change is saved and applies the next time the app starts."
@@ -3777,8 +3831,12 @@ msgid "影响：能否启动回放与录制。"
 msgstr "Affects: whether playback and recording can start at all."
 
 #: src/pages/settings/AdvancedSection.tsx:172
-msgid "影响：能否开始录制。不可用时录制会在预检阶段被拒。"
-msgstr "Affects: whether recording can start. When unavailable, a recording is refused at preflight."
+#~ msgid "影响：能否开始录制。不可用时录制会在预检阶段被拒。"
+#~ msgstr "Affects: whether recording can start. When unavailable, a recording is refused at preflight."
+
+#: src/pages/settings/AdvancedSection.tsx:172
+msgid "影响：能否开始录制。不可用时录制无法启动。"
+msgstr "Affects: whether recording can start. Recording cannot begin while this is unavailable."
 
 #: src/pages/settings/AiAgentSection.tsx:583
 msgid "影响：超过后最早的 take 会被丢弃。"
@@ -3830,6 +3888,10 @@ msgstr "Required"
 #: src/pages/montage/MontageProjectList.tsx:148
 msgid "快速合辑"
 msgstr "Quick montage"
+
+#: src/pages/MontagePage.tsx:272
+msgid "快速合辑和多轨工程是两种工程，暂时不能互相转换"
+msgstr "A quick montage and a multi-track project are two different kinds of project; converting between them is not supported yet"
 
 #: src/pages/recording/shotModel.ts:100
 msgid "快速掠过一段空间，适合两个地点之间的过渡"
@@ -4296,8 +4358,12 @@ msgid "改了策略不会立刻清理。要现在生效，用右边这个按钮�
 msgstr "Changing the policy sweeps nothing right away. To apply it now, use the button on the right."
 
 #: src/pages/agent/ShotEditForm.tsx:297
-msgid "改动会记入方案修订，并通知 Agent"
-msgstr "The change enters a plan revision and notifies the Agent"
+#~ msgid "改动会记入方案修订，并通知 Agent"
+#~ msgstr "The change enters a plan revision and notifies the Agent"
+
+#: src/pages/agent/ShotEditForm.tsx:297
+msgid "改动会记入方案版本，并通知 Agent"
+msgstr "The change is recorded as a new plan version, and the Agent is told"
 
 #: src/pages/agent/PlanPanel.tsx:491
 msgid "改动来源"
@@ -4361,8 +4427,8 @@ msgid "数据目录"
 msgstr "Data directory"
 
 #: src/pages/SettingsPage.tsx:78
-msgid "数据目录、监听目录，以及占用与清理。"
-msgstr "The data folder, the watched folders, and disk usage and cleanup."
+#~ msgid "数据目录、监听目录，以及占用与清理。"
+#~ msgstr "The data folder, the watched folders, and disk usage and cleanup."
 
 #: src/pages/match/views/ReplayView.tsx:517
 msgid "整场 · 事件"
@@ -4384,7 +4450,7 @@ msgstr "File"
 msgid "文件不在原位"
 msgstr "File moved"
 
-#: src/pages/SettingsPage.tsx:56
+#: src/pages/SettingsPage.tsx:55
 msgid "文件与资料库"
 msgstr "Files and library"
 
@@ -4470,8 +4536,15 @@ msgstr "The plan changed in the meantime, so this change was not written to it."
 #. placeholder {0}: plan.revision
 #: src/pages/agent/PlanPanel.tsx:258
 #: src/pages/AgentPage.tsx:328
-msgid "方案已经是修订 {0} 了，请基于最新的镜头重新给出变更。"
-msgstr "The plan is already at revision {0}; propose the changes again from the latest shots."
+#~ msgid "方案已经是修订 {0} 了，请基于最新的镜头重新给出变更。"
+#~ msgstr "The plan is already at revision {0}; propose the changes again from the latest shots."
+
+#. placeholder {0}: String(revision)
+#. placeholder {0}: plan.revision
+#: src/pages/agent/PlanPanel.tsx:258
+#: src/pages/AgentPage.tsx:328
+msgid "方案已经是第 {0} 版了，请基于最新的镜头重新给出变更。"
+msgstr "The plan is already at version {0}. Please base your changes on the current shots."
 
 #: src/pages/agent/PlanPanel.tsx:108
 msgid "方案是 Agent 交出来的镜头列表。在对话里让它出一份，或者从工作台打开一份已有的。"
@@ -4585,6 +4658,34 @@ msgstr "Show all"
 msgid "普通使用不需要打开这一节。"
 msgstr "Ordinary use never needs this section."
 
+#: src/pages/HistoryPage.tsx:211
+msgid "暂不支持下载后自动分析，下载完成可在资料库里开始分析"
+msgstr "Analysing automatically after a download is not supported yet; start the analysis from the library once it finishes"
+
+#: src/pages/agent/ConversationModes.tsx:206
+msgid "暂不支持从不同版本里挑镜头合成"
+msgstr "Composing shots picked from different versions is not supported yet"
+
+#: src/pages/library/LibraryInspector.tsx:175
+msgid "暂不支持在文件管理器中显示"
+msgstr "Showing the file in the file manager is not supported yet"
+
+#: src/pages/editor/InspectorPanel.tsx:260
+msgid "暂不支持存为预设"
+msgstr "Saving as a preset is not supported yet"
+
+#: src/pages/match/views/ReviewView.tsx:152
+msgid "暂不支持导出复盘网页"
+msgstr "Exporting the review as a web page is not supported yet"
+
+#: src/pages/library/LibraryFilters.tsx:202
+msgid "暂不支持把导出的文件保存到磁盘"
+msgstr "Saving the exported file to disk is not supported yet"
+
+#: src/pages/library/libraryColumns.tsx:198
+msgid "暂不支持重新定位 Demo 文件"
+msgstr "Relocating a demo file is not supported yet"
+
 #: src/domain/media/Transport.tsx:185
 #: src/pages/editor/ProgramMonitor.tsx:199
 msgid "暂停"
@@ -4694,16 +4795,16 @@ msgid "服务没有返回这条任务记录。"
 msgstr "The service did not return this task record."
 
 #: src/pages/HistoryPage.tsx:211
-msgid "服务端的下载接口还没有「下载后自动分析」这个选项"
-msgstr "The service download endpoint has no “analyze after download” option yet"
+#~ msgid "服务端的下载接口还没有「下载后自动分析」这个选项"
+#~ msgstr "The service download endpoint has no “analyze after download” option yet"
 
 #: src/pages/match/views/UtilityView.tsx:505
-msgid "服务端说明：{degraded}"
-msgstr "The service says: {degraded}"
+#~ msgid "服务端说明：{degraded}"
+#~ msgstr "The service says: {degraded}"
 
 #: src/pages/match/views/DuelsView.tsx:607
-msgid "服务端说明：{unavailableReason}"
-msgstr "The service says: {unavailableReason}"
+#~ msgid "服务端说明：{unavailableReason}"
+#~ msgstr "The service says: {unavailableReason}"
 
 #: src/pages/settings/AdvancedSection.tsx:208
 #~ msgid "服务端还没有打包诊断信息的接口，这一版做不了"
@@ -4825,8 +4926,12 @@ msgid "本地服务在线"
 msgstr "Local service online"
 
 #: src/pages/settings/AdvancedSection.tsx:60
-msgid "本地服务当前的状态。来自 /app/runtime-state。"
-msgstr "What the local service is doing right now. From /app/runtime-state."
+msgid "本地服务当前的状态。"
+msgstr "What the local service is doing right now."
+
+#: src/pages/settings/AdvancedSection.tsx:60
+#~ msgid "本地服务当前的状态。来自 /app/runtime-state。"
+#~ msgstr "What the local service is doing right now. From /app/runtime-state."
 
 #: src/app/boundary/ServiceGate.tsx:206
 msgid "本地服务未连接"
@@ -4857,12 +4962,12 @@ msgid "本次变更"
 msgstr "This round of changes"
 
 #: src/pages/library/SaveViewDialog.tsx:83
-msgid "本轮的视图只保留到应用关闭为止"
-msgstr "A view saved in this session lasts only until the app closes"
+#~ msgid "本轮的视图只保留到应用关闭为止"
+#~ msgstr "A view saved in this session lasts only until the app closes"
 
 #: src/pages/PagePlaceholder.tsx:38
-msgid "本页在阶段 {phase} 实现"
-msgstr "This page ships in phase {phase}"
+#~ msgid "本页在阶段 {phase} 实现"
+#~ msgstr "This page ships in phase {phase}"
 
 #. placeholder {0}: counts.downloaded
 #: src/pages/HistoryPage.tsx:174
@@ -4991,12 +5096,12 @@ msgid "校验输入"
 msgstr "Validating input"
 
 #: src/pages/library/LibraryInspector.tsx:175
-msgid "桌面端尚未提供“在文件管理器中显示”的命令"
-msgstr "The desktop build has no “Show in file manager” command yet"
+#~ msgid "桌面端尚未提供“在文件管理器中显示”的命令"
+#~ msgstr "The desktop build has no “Show in file manager” command yet"
 
 #: src/pages/library/libraryColumns.tsx:198
-msgid "桌面端尚未提供重新定位 Demo 文件的命令"
-msgstr "The desktop build has no command for relinking a Demo file yet"
+#~ msgid "桌面端尚未提供重新定位 Demo 文件的命令"
+#~ msgstr "The desktop build has no command for relinking a Demo file yet"
 
 #: src/pages/PlayersPage.tsx:158
 #: src/pages/PlayersPage.tsx:163
@@ -5034,8 +5139,12 @@ msgid "楼层"
 msgstr "Floor"
 
 #: src/pages/match/views/ReplayView.tsx:348
-msgid "楼层只筛热力叠加：回放帧不带楼层字段。"
-msgstr "The floor filters the heatmap overlay only: replay frames carry no floor field."
+#~ msgid "楼层只筛热力叠加：回放帧不带楼层字段。"
+#~ msgstr "The floor filters the heatmap overlay only: replay frames carry no floor field."
+
+#: src/pages/match/views/ReplayView.tsx:348
+msgid "楼层只筛热力叠加：回放数据不记录楼层。"
+msgstr "Floors filter the heat overlay only — replay data does not record a floor."
 
 #: src/pages/match/views/OverviewView.tsx:263
 msgid "概览"
@@ -5051,8 +5160,8 @@ msgid "模型"
 msgstr "Model"
 
 #: src/pages/SettingsPage.tsx:80
-msgid "模型、会话与行为边界。"
-msgstr "The model, sessions and behavior limits."
+#~ msgid "模型、会话与行为边界。"
+#~ msgstr "The model, sessions and behavior limits."
 
 #: src/pages/montage/montageSettings.ts:146
 msgid "模糊"
@@ -5313,8 +5422,12 @@ msgid "段位分布"
 msgstr "Rank distribution"
 
 #: src/pages/PlayerProfilePage.tsx:250
-msgid "段位历史不可用：这批 Demo 不含段位字段。"
-msgstr "Rank history is unavailable: these Demo files carry no rank field."
+#~ msgid "段位历史不可用：这批 Demo 不含段位字段。"
+#~ msgstr "Rank history is unavailable: these Demo files carry no rank field."
+
+#: src/pages/PlayerProfilePage.tsx:250
+msgid "段位历史不可用：这批 Demo 里没有段位信息。"
+msgstr "No rank history: these demos carry no rank information."
 
 #: src/pages/recording/recordingContract.ts:568
 msgid "每一份 Demo 都还和分析时的内容相同"
@@ -5457,6 +5570,10 @@ msgstr "Compare"
 msgid "比较 {0} 与 {1}"
 msgstr "Compare {0} with {1}"
 
+#: src/pages/evidence/EvidenceResults.tsx:126
+msgid "没有任何数据被改动，可以直接重试。"
+msgstr "Nothing was changed, so a retry is safe."
+
 #: src/pages/agent/AgentConversationBlock.tsx:409
 #: src/pages/match/views/HighlightsView.tsx:143
 #: src/pages/match/views/ReplayView.tsx:240
@@ -5509,8 +5626,8 @@ msgid "没有命中的证据"
 msgstr "No evidence found"
 
 #: src/pages/match/views/ReviewView.tsx:152
-msgid "没有导出复盘 HTML 的命令，服务端还没有这条路由"
-msgstr "There is no command for exporting the review as HTML; the service has no such route yet"
+#~ msgid "没有导出复盘 HTML 的命令，服务端还没有这条路由"
+#~ msgstr "There is no command for exporting the review as HTML; the service has no such route yet"
 
 #: src/pages/recording/PreflightBlock.tsx:175
 msgid "没有开始录制，游戏也没有被启动。"
@@ -5743,7 +5860,7 @@ msgstr "Clear the selection"
 msgid "游戏"
 msgstr "Game"
 
-#: src/pages/SettingsPage.tsx:57
+#: src/pages/SettingsPage.tsx:56
 msgid "游戏与录制"
 msgstr "Game & recording"
 
@@ -6209,6 +6326,10 @@ msgstr "Camera path"
 msgid "相机路径会被写成一组 HLAE 脚本文件，CS2 会被启动并跳到这个镜头的起始 tick。"
 msgstr "The camera path is written out as a set of HLAE script files, and CS2 is started at the first tick of this shot."
 
+#: src/pages/recording/DirectorPreviewBlock.tsx:323
+msgid "相机路径已经算好了，但缺少这张地图的底图，没法把它画出来。"
+msgstr "The camera path is ready, but this map has no base image to draw it on."
+
 #: src/pages/recording/DirectorPreviewBlock.tsx:248
 msgid "相机路径是从高光的回放证据里采样出来的，没有高光就没有可以画的路径。"
 msgstr "A camera path is sampled from the replay evidence of a highlight, so with no highlight there is no path to draw."
@@ -6453,6 +6574,14 @@ msgstr "Round {0} falls outside the range of the replay stream."
 msgid "第 {0} 拍"
 msgstr "Beat {0}"
 
+#. placeholder {0}: plan.revision
+#. placeholder {0}: version.revision
+#: src/pages/agent/ConversationModes.tsx:121
+#: src/pages/agent/ConversationModes.tsx:288
+#: src/pages/agent/PlanPanel.tsx:333
+msgid "第 {0} 版"
+msgstr "Version {0}"
+
 #: src/pages/match/views/ReplayView.tsx:641
 msgid "第 {floor} 层"
 msgstr "Floor {floor}"
@@ -6486,6 +6615,11 @@ msgstr "Plans awaiting confirmation"
 #: src/domain/task/taskVocabulary.tsx:64
 msgid "等待超时"
 msgstr "Timed out"
+
+#. placeholder {0}: dataErrorMessage(camera.error) ?? ''
+#: src/pages/recording/DirectorPreviewBlock.tsx:262
+msgid "算不出相机路径：{0}"
+msgstr "The camera path could not be computed: {0}"
 
 #: src/pages/delivery/TaskDetailBody.tsx:127
 #: src/pages/match/views/HighlightsView.tsx:371
@@ -6528,20 +6662,20 @@ msgid "索引失败"
 msgstr "Indexing failed"
 
 #: src/pages/evidence/EvidenceResults.tsx:126
-msgid "索引没有被改动，重试是安全的。"
-msgstr "The index was not changed, so a retry is safe."
+#~ msgid "索引没有被改动，重试是安全的。"
+#~ msgstr "The index was not changed, so a retry is safe."
 
 #: src/pages/evidence/EvidenceEmpty.tsx:87
-msgid "索引还在建立"
-msgstr "The index is still building"
+#~ msgid "索引还在建立"
+#~ msgstr "The index is still building"
 
 #: src/pages/evidence/EvidenceEmpty.tsx:108
-msgid "索引里有 {indexedItems} 条证据，但这次检索一条也没匹配上。"
-msgstr "The index holds {indexedItems} evidence rows, but this search matched none of them."
+#~ msgid "索引里有 {indexedItems} 条证据，但这次检索一条也没匹配上。"
+#~ msgstr "The index holds {indexedItems} evidence rows, but this search matched none of them."
 
 #: src/pages/evidence/EvidenceEmpty.tsx:68
-msgid "索引里还没有证据"
-msgstr "No evidence in the index yet"
+#~ msgid "索引里还没有证据"
+#~ msgstr "No evidence in the index yet"
 
 #: src/pages/montage/montageContract.ts:431
 msgid "线框"
@@ -6611,8 +6745,8 @@ msgstr "Encoders available"
 
 #. placeholder {0}: dataErrorMessage(camera.error) ?? ''
 #: src/pages/recording/DirectorPreviewBlock.tsx:262
-msgid "编译相机路径失败：{0}"
-msgstr "Compiling the camera path failed: {0}"
+#~ msgid "编译相机路径失败：{0}"
+#~ msgstr "Compiling the camera path failed: {0}"
 
 #: src/pages/agent/PlanPanel.tsx:464
 msgid "编辑"
@@ -6823,8 +6957,8 @@ msgid "解析比赛数据"
 msgstr "Parsing match data"
 
 #: src/pages/match/views/TeamsView.tsx:197
-msgid "解析结果里没有归属到这一队的选手。"
-msgstr "The parse result carries no player attributed to this team."
+#~ msgid "解析结果里没有归属到这一队的选手。"
+#~ msgstr "The parse result carries no player attributed to this team."
 
 #: src/pages/recording/PreflightBlock.tsx:122
 msgid "计划提示（服务返回）"
@@ -6852,11 +6986,11 @@ msgstr "The record was removed; the file is still in place."
 
 #: src/app/command/commandRegistry.ts:219
 #: src/app/shell/navigation.tsx:119
-#: src/pages/SettingsPage.tsx:92
+#: src/pages/SettingsPage.tsx:82
 msgid "设置与诊断"
 msgstr "Settings & diagnostics"
 
-#: src/pages/SettingsPage.tsx:96
+#: src/pages/SettingsPage.tsx:86
 msgid "设置分节"
 msgstr "Settings sections"
 
@@ -6898,9 +7032,13 @@ msgstr "Evidence kind"
 msgid "证据详情"
 msgstr "Evidence detail"
 
+#: src/pages/evidence/EvidenceEmpty.tsx:87
+msgid "证据还在整理中"
+msgstr "Evidence is still being collected"
+
 #: src/pages/SettingsPage.tsx:81
-msgid "诊断信息、日志与导出诊断包。"
-msgstr "Diagnostics, logs, and exporting a diagnostic bundle."
+#~ msgid "诊断信息、日志与导出诊断包。"
+#~ msgstr "Diagnostics, logs, and exporting a diagnostic bundle."
 
 #: src/design/layout/Inspector.tsx:233
 #: src/pages/match/MatchInspectorPanel.tsx:79
@@ -6916,8 +7054,8 @@ msgid "语言"
 msgstr "Language"
 
 #: src/pages/SettingsPage.tsx:77
-msgid "语言、主题、更新源，以及启动时的行为。"
-msgstr "Language, theme, update channel, and what happens at startup."
+#~ msgid "语言、主题、更新源，以及启动时的行为。"
+#~ msgstr "Language, theme, update channel, and what happens at startup."
 
 #: src/pages/settings/GameSection.tsx:222
 msgid "语音"
@@ -6931,6 +7069,14 @@ msgstr "Decoy"
 #: src/pages/match/views/HighlightsView.tsx:378
 msgid "说明"
 msgstr "Description"
+
+#: src/pages/match/views/UtilityView.tsx:505
+msgid "说明：{degraded}"
+msgstr "Detail: {degraded}"
+
+#: src/pages/match/views/DuelsView.tsx:607
+msgid "说明：{unavailableReason}"
+msgstr "Detail: {unavailableReason}"
 
 #: src/pages/home/firstRunSteps.ts:50
 msgid "说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。"
@@ -6963,8 +7109,8 @@ msgid "读不到依赖检查：{checksError}"
 msgstr "Could not read the dependency checks: {checksError}"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:181
-msgid "读不到全局录制默认值，画面参数没法显示：{failure}"
-msgstr "The global recording defaults could not be read, so the picture settings cannot be shown: {failure}"
+#~ msgid "读不到全局录制默认值，画面参数没法显示：{failure}"
+#~ msgstr "The global recording defaults could not be read, so the picture settings cannot be shown: {failure}"
 
 #: src/pages/home/RecentMatchesPanel.tsx:58
 msgid "读不到最近的比赛：{error}"
@@ -6977,6 +7123,10 @@ msgstr "Could not read the usage figures"
 #: src/pages/agent/NewSessionPane.tsx:214
 msgid "读不到工作区里正在进行的对象：{referencesError}"
 msgstr "What is going on in the workspace could not be read: {referencesError}"
+
+#: src/pages/recording/ShotInspectorBlock.tsx:181
+msgid "读不到录制默认值，画面参数暂时无法显示：{failure}"
+msgstr "Could not read the recording defaults, so the picture settings cannot be shown: {failure}"
 
 #: src/pages/home/PendingPlansPanel.tsx:95
 msgid "读不到待确认的方案：{error}"
@@ -7151,12 +7301,16 @@ msgid "跟随全局默认"
 msgstr "Following the global defaults"
 
 #: src/pages/settings/AdvancedSection.tsx:109
-msgid "路径、进程与编码器的逐项校验。来自 /app/quick-check。"
-msgstr "Path, process and encoder checks, one by one. From /app/quick-check."
+#~ msgid "路径、进程与编码器的逐项校验。来自 /app/quick-check。"
+#~ msgstr "Path, process and encoder checks, one by one. From /app/quick-check."
+
+#: src/pages/settings/AdvancedSection.tsx:109
+msgid "路径、进程与编码器的逐项检查。"
+msgstr "Per-item checks of paths, processes and encoders."
 
 #: src/pages/recording/DirectorPreviewBlock.tsx:323
-msgid "路径已经编译出来了，但没有地图就没有可以把坐标放上去的底图。"
-msgstr "The path is compiled, but without a map there is no basemap to place the coordinates on."
+#~ msgid "路径已经编译出来了，但没有地图就没有可以把坐标放上去的底图。"
+#~ msgstr "The path is compiled, but without a map there is no basemap to place the coordinates on."
 
 #: src/pages/recording/ShotInspectorBlock.tsx:579
 msgid "路径要在 HLAE 里加载这组脚本之后才会画出来，本地服务不会替你加载；启动后这里会给出脚本目录。"
@@ -7276,7 +7430,6 @@ msgstr "Runtime"
 #: src/app/boundary/RouteBoundary.tsx:112
 #: src/app/boundary/RouteBoundary.tsx:146
 #: src/pages/agent/PlanPanel.tsx:114
-#: src/pages/PagePlaceholder.tsx:43
 msgid "返回工作台"
 msgstr "Back to dashboard"
 
@@ -7323,8 +7476,12 @@ msgid "还有 {0} 条购买事件没有带阵营，无法归属到任何一方�
 msgstr "{0} more purchase events carry no side and cannot be attributed to either team."
 
 #: src/pages/agent/ShotEditForm.tsx:110
-msgid "还有字段填得不对"
-msgstr "Some fields are still wrong"
+msgid "还有内容填得不对"
+msgstr "Something here is still wrong"
+
+#: src/pages/agent/ShotEditForm.tsx:110
+#~ msgid "还有字段填得不对"
+#~ msgstr "Some fields are still wrong"
 
 #: src/pages/agent/ConversationModes.tsx:365
 msgid "还没有任何方案。先在对话里说清楚你要的片子，Agent 会给出第一版。"
@@ -7355,6 +7512,10 @@ msgstr "No footage to play yet"
 #: src/pages/HistoryPage.tsx:262
 msgid "还没有可显示的对局"
 msgstr "No match to show yet"
+
+#: src/pages/evidence/EvidenceEmpty.tsx:68
+msgid "还没有可检索的证据"
+msgstr "No evidence to search yet"
 
 #: src/pages/players/PlayerTrend.tsx:124
 msgid "还没有可画的趋势"
@@ -7580,8 +7741,12 @@ msgid "这个动作需要桌面应用，浏览器里无法访问本机文件"
 msgstr "This action needs the desktop app; a browser cannot reach local files"
 
 #: src/app/boundary/RouteBoundary.tsx:142
-msgid "这个地址不存在，或者它在这一版里已经下线。其余功能不受影响。"
-msgstr "This address does not exist, or it went away in this build. Everything else keeps working."
+#~ msgid "这个地址不存在，或者它在这一版里已经下线。其余功能不受影响。"
+#~ msgstr "This address does not exist, or it went away in this build. Everything else keeps working."
+
+#: src/app/boundary/RouteBoundary.tsx:142
+msgid "这个地址不存在。其余功能不受影响。"
+msgstr "This address does not exist. Everything else still works."
 
 #: src/pages/TaskDetailPage.tsx:76
 msgid "这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。"
@@ -7688,16 +7853,20 @@ msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "The full parse result of these highlights cannot be read yet, so no plan can be created"
 
 #: src/pages/match/views/DuelsView.tsx:551
-msgid "这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。服务端给出的原因见下方。"
-msgstr "This analysis decoded no paired kill and damage events, so the matrix is empty. The reason from the service is below."
+msgid "这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。原因见下方。"
+msgstr "This analysis found no paired kill and damage events, so the matrix is empty. The reason is below."
+
+#: src/pages/match/views/DuelsView.tsx:551
+#~ msgid "这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。服务端给出的原因见下方。"
+#~ msgstr "This analysis decoded no paired kill and damage events, so the matrix is empty. The reason from the service is below."
 
 #: src/pages/match/views/UtilityView.tsx:449
 msgid "这份分析没有解出投掷物的生命周期事件，所以逐选手的道具账目是空的。"
 msgstr "This analysis decoded no grenade lifecycle events, so the per-player utility ledger is empty."
 
 #: src/pages/match/views/UtilityView.tsx:474
-msgid "这份分析没有解出物品购买事件，所以每回合的经济账目是空的。"
-msgstr "This analysis decoded no item purchase events, so the per-round economy ledger is empty."
+#~ msgid "这份分析没有解出物品购买事件，所以每回合的经济账目是空的。"
+#~ msgstr "This analysis decoded no item purchase events, so the per-round economy ledger is empty."
 
 #: src/pages/match/views/DuelsView.tsx:673
 msgid "这份分析没有这名选手的对位记录。"
@@ -7726,6 +7895,10 @@ msgstr "This analysis does not hold this player. The selection stays in the addr
 #: src/pages/match/views/PlayersView.tsx:245
 msgid "这份分析里没有选手"
 msgstr "No player in this analysis"
+
+#: src/pages/MontagePage.tsx:370
+msgid "这份合辑在别处被改过了。为避免覆盖那次改动，这次没有保存——请刷新后重做。"
+msgstr "This montage was changed somewhere else. Nothing was saved, so that change is not overwritten — refresh and redo yours."
 
 #. placeholder {0}: loadMessage ?? ''
 #: src/pages/MontagePage.tsx:361
@@ -7803,6 +7976,14 @@ msgstr "This player has not appeared in any analyzed match yet."
 msgid "这场共记录了 {0} 组对位。"
 msgstr "{0} matchup pairs are recorded in this match."
 
+#: src/pages/match/views/TeamsView.tsx:197
+msgid "这场分析里没有属于这一队的选手。"
+msgstr "This analysis has no players on this team."
+
+#: src/pages/match/views/ReviewView.tsx:292
+msgid "这场比赛既没有解析出击杀，也没有道具与对位数据。"
+msgstr "This match parsed no kills, and no grenade or matchup data either."
+
 #: src/pages/match/views/HighlightsView.tsx:169
 msgid "这场比赛没有检出高光"
 msgstr "No highlight detected in this match"
@@ -7810,6 +7991,10 @@ msgstr "No highlight detected in this match"
 #: src/pages/match/views/RoundsView.tsx:479
 msgid "这场比赛没有第 {selectedRound} 回合"
 msgstr "This match has no round {selectedRound}"
+
+#: src/pages/match/views/UtilityView.tsx:474
+msgid "这场比赛没有解析出物品购买记录，所以每回合的经济账目是空的。"
+msgstr "This match parsed no purchases, so the per-round economy is empty."
 
 #. placeholder {0}: dataErrorMessage(query.error) ?? ''
 #: src/pages/match/views/viewChrome.tsx:266
@@ -7850,8 +8035,12 @@ msgid "这批 Demo 没有可用的购买事件{0}"
 msgstr "These Demo files carry no usable purchase event{0}"
 
 #: src/pages/EvidencePage.tsx:215
-msgid "这批索引没有比赛日期，无法按时间筛选"
-msgstr "This index carries no match dates, so it cannot be filtered by time"
+#~ msgid "这批索引没有比赛日期，无法按时间筛选"
+#~ msgstr "This index carries no match dates, so it cannot be filtered by time"
+
+#: src/pages/EvidencePage.tsx:215
+msgid "这批证据没有比赛日期，无法按时间筛选"
+msgstr "This evidence carries no match dates, so it cannot be filtered by time"
 
 #: src/pages/TaskDetailPage.tsx:89
 msgid "这条任务没能打开"
@@ -7866,8 +8055,12 @@ msgid "这条变更只给了说明，没有给出可以直接落到方案上的�
 msgstr "This change gives only a description, nothing that can land on the plan directly"
 
 #: src/domain/agent/planRevision.ts:154
-msgid "这条变更基于旧的方案修订，内容仍可查看，但不能直接应用"
-msgstr "This change is based on an older plan revision: it stays readable, but it cannot be applied directly"
+msgid "这条变更基于方案的旧版本，内容仍可查看，但不能直接应用"
+msgstr "This change is based on an older version of the plan. It can still be read, but not applied as is"
+
+#: src/domain/agent/planRevision.ts:154
+#~ msgid "这条变更基于旧的方案修订，内容仍可查看，但不能直接应用"
+#~ msgstr "This change is based on an older plan revision: it stays readable, but it cannot be applied directly"
 
 #: src/domain/agent/planRevision.ts:140
 msgid "这条变更已经接受过了"
@@ -7968,13 +8161,22 @@ msgstr "This music has no usable beats"
 
 #. placeholder {0}: changeSet.basedOnRevision
 #: src/pages/agent/PlanPanel.tsx:611
-msgid "这组变更基于修订 {0}，方案已经是修订 {revision}。内容仍可查看。"
-msgstr "This change set is based on revision {0}, and the plan is already at revision {revision}. It stays readable."
+#~ msgid "这组变更基于修订 {0}，方案已经是修订 {revision}。内容仍可查看。"
+#~ msgstr "This change set is based on revision {0}, and the plan is already at revision {revision}. It stays readable."
+
+#. placeholder {0}: changeSet.basedOnRevision
+#: src/pages/agent/PlanPanel.tsx:611
+msgid "这组变更基于第 {0} 版，方案已经是第 {revision} 版。内容仍可查看。"
+msgstr "These changes are based on version {0}; the plan is at version {revision}. They can still be read."
 
 #: src/design/timeline/TimelinePrototype.tsx:51
 #: src/pages/editor/editorMessages.ts:30
 msgid "这里已经有片段了，没有移动"
 msgstr "There is already a clip here, so nothing moved"
+
+#: src/pages/agent/ConversationModes.tsx:213
+msgid "这里比较的是方案自己的两个版本：Agent 出的那一版，和你现在编辑的这一版。"
+msgstr "This compares the plan's own two versions: the one the Agent produced, and the one you are editing."
 
 #: src/pages/delivery/TaskDetailBody.tsx:107
 msgid "进度"
@@ -8795,7 +8997,7 @@ msgctxt "utility-item"
 msgid "高爆"
 msgstr "HE"
 
-#: src/pages/SettingsPage.tsx:59
+#: src/pages/SettingsPage.tsx:58
 msgid "高级与诊断"
 msgstr "Advanced and diagnostics"
 

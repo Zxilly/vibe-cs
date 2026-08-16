@@ -151,7 +151,7 @@ export const PLAN_CHANGE_AFFORDANCE: Readonly<Record<PlanChangeState, PlanChange
     acceptDisabled: true,
     rejectDisabled: false,
     statusLabel: PLAN_CHANGE_STATE.stale.label,
-    acceptDisabledReason: msg`这条变更基于旧的方案修订，内容仍可查看，但不能直接应用`,
+    acceptDisabledReason: msg`这条变更基于方案的旧版本，内容仍可查看，但不能直接应用`,
   },
 };
 

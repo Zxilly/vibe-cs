@@ -34,7 +34,7 @@ describe('nothing indexed', () => {
   );
 
   it('blames the index, not the query', () => {
-    expect(html).toContain('索引里还没有证据');
+    expect(html).toContain('还没有可检索的证据');
     expect(html).toContain('已分析 12 场');
   });
 
@@ -84,7 +84,7 @@ describe('a complete index and no match', () => {
 
   it('states the corpus size when there was nothing to relax', () => {
     const html = render(<EvidenceEmpty {...base} indexState="complete" indexedItems={4200} />);
-    expect(html).toContain('索引里有 4200 条证据');
+    expect(html).toContain('已有 4200 条证据');
     expect(html).toContain('重新检索');
   });
 });

@@ -195,7 +195,7 @@ function RowAction({
       <Button
         size="sm"
         variant="ghost"
-        {...unavailableAction(t`桌面端尚未提供重新定位 Demo 文件的命令`)}
+        {...unavailableAction(t`暂不支持重新定位 Demo 文件`)}
       >
         <Trans>重新定位</Trans>
       </Button>

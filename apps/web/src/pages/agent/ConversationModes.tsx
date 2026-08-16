@@ -118,7 +118,7 @@ function ChangesHead({ plan, planPending, pendingChanges, staleChanges }: Conver
             <Trans>当前 {formatShotDuration(planDuration(plan.shots))}</Trans>
           </span>
           <span className="font-mono text-neutral-700">
-            <Trans>修订 {plan.revision}</Trans>
+            <Trans>第 {plan.revision} 版</Trans>
           </span>
           <span className="text-neutral-600">{i18n._(AGENT_PLAN_STATUS[plan.status].label)}</span>
         </>
@@ -203,7 +203,7 @@ function TakesHead({ context, updateContext, plan, planPending }: ConversationMo
 
   const versions = planVersions(plan);
   const baseline = versions.length > 1 ? (versions[0] ?? null) : null;
-  const pickReason = t`合成结果需要后端的 Take 模型，本轮不能从不同版本里挑镜头`;
+  const pickReason = t`暂不支持从不同版本里挑镜头合成`;
 
   return (
     <div data-agent-mode-head="takes" className="flex flex-col gap-2">
@@ -211,7 +211,7 @@ function TakesHead({ context, updateContext, plan, planPending }: ConversationMo
           this is a standing fact about the contract (gap 8). */}
       <p data-takes-gap="" className="text-xs leading-normal text-neutral-700">
         <Trans>
-          后端还没有 Take 模型，这里只能比较方案自己有的两个版本：Agent 出的那一版，和你现在编辑的这一版。
+          这里比较的是方案自己的两个版本：Agent 出的那一版，和你现在编辑的这一版。
         </Trans>
       </p>
 
@@ -285,7 +285,7 @@ function TakesHead({ context, updateContext, plan, planPending }: ConversationMo
                   {' · '}
                   <Trans>{planShotCount(version.shots)} 个镜头</Trans>
                   {' · '}
-                  <Trans>修订 {version.revision}</Trans>
+                  <Trans>第 {version.revision} 版</Trans>
                 </>
               }
               badge={version.current ? <Trans>正在编辑</Trans> : <Trans>基准</Trans>}

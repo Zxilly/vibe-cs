@@ -178,7 +178,7 @@ function ConfigState({ config }: { readonly config: ReturnType<typeof useAppConf
         tone="danger"
         action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}
       >
-        <Trans>读不到全局录制默认值，画面参数没法显示：{failure}</Trans>
+        <Trans>读不到录制默认值，画面参数暂时无法显示：{failure}</Trans>
       </Notice>
     );
   }

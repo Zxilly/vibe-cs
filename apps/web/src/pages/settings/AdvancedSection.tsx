@@ -57,7 +57,7 @@ export function AdvancedSection() {
     <div className="flex flex-col">
       <SettingsBlock
         title={<Trans>运行时</Trans>}
-        description={<Trans>本地服务当前的状态。来自 /app/runtime-state。</Trans>}
+        description={<Trans>本地服务当前的状态。</Trans>}
       >
         {runtimeError !== null ? (
           <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void runtime.refetch() }}>
@@ -72,7 +72,7 @@ export function AdvancedSection() {
                 {runtime.data.version}
               </span>
             </SettingsRow>
-            <SettingsRow label={<Trans>启动于</Trans>} hint={<Trans>影响：判断服务是不是刚重启过。</Trans>}>
+            <SettingsRow label={<Trans>启动于</Trans>} hint={<Trans>影响：用于判断应用是不是刚重启过。</Trans>}>
               <span className="font-mono text-xs text-neutral-700">
                 {new Date(runtime.data.started_at).toLocaleString()}
               </span>
@@ -106,7 +106,7 @@ export function AdvancedSection() {
 
       <SettingsBlock
         title={<Trans>依赖检查</Trans>}
-        description={<Trans>路径、进程与编码器的逐项校验。来自 /app/quick-check。</Trans>}
+        description={<Trans>路径、进程与编码器的逐项检查。</Trans>}
       >
         {checksError !== null ? (
           <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void checks.refetch() }}>
@@ -157,7 +157,7 @@ export function AdvancedSection() {
 
       <SettingsBlock
         title={<Trans>采集组件</Trans>}
-        description={<Trans>受管 HLAE 的安装与安全边界。来自 /hlae/status。</Trans>}
+        description={<Trans>受管 HLAE 的安装状态与安全边界。</Trans>}
       >
         {hlaeError !== null ? (
           <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void hlae.refetch() }}>
@@ -169,7 +169,7 @@ export function AdvancedSection() {
           <>
             <SettingsRow
               label={<Trans>可用性</Trans>}
-              hint={<Trans>影响：能否开始录制。不可用时录制会在预检阶段被拒。</Trans>}
+              hint={<Trans>影响：能否开始录制。不可用时录制无法启动。</Trans>}
             >
               <span className="flex items-center gap-2 text-xs text-neutral-700">
                 <StatusDot status={hlae.data.available ? 'ok' : 'fail'} />

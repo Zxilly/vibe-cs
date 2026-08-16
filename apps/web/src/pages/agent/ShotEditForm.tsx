@@ -107,7 +107,7 @@ export function ShotEditForm({
       : formatShotDuration(shot.duration_seconds);
 
   const saveBlocked = disabled || !valid;
-  const saveReason = disabled ? disabledReason : valid ? undefined : t`还有字段填得不对`;
+  const saveReason = disabled ? disabledReason : valid ? undefined : t`还有内容填得不对`;
 
   const patch = (part: Partial<ShotDraft>) => {
     onChange({ ...draft, ...part });
@@ -294,7 +294,7 @@ export function ShotEditForm({
 
       <div className="flex flex-wrap items-center gap-2">
         <p className="min-w-0 flex-1 text-xs text-neutral-600">
-          <Trans>改动会记入方案修订，并通知 Agent</Trans>
+          <Trans>改动会记入方案版本，并通知 Agent</Trans>
           {' · '}
           <Trans>Esc 放弃 · ⌘↵ 保存</Trans>
         </p>

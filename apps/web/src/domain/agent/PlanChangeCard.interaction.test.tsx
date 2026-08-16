@@ -44,7 +44,7 @@ describe('PlanChangeCard · a stale card cannot be accepted', () => {
     const accept = getByRole('button', { name: '接受' }) as HTMLButtonElement;
 
     expect(accept.disabled).toBe(true);
-    expect(accept.getAttribute('title')).toContain('基于旧的方案修订');
+    expect(accept.getAttribute('title')).toContain('基于方案的旧版本');
 
     fireEvent.click(accept);
     expect(onAccept).not.toHaveBeenCalled();
@@ -143,7 +143,7 @@ describe('PlanChangeCard · a caller-supplied reason', () => {
     );
 
     expect((getByRole('button', { name: '接受' }) as HTMLButtonElement).getAttribute('title')).toContain(
-      '基于旧的方案修订',
+      '基于方案的旧版本',
     );
   });
 });

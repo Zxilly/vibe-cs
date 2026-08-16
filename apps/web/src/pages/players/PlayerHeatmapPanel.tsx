@@ -155,7 +155,7 @@ export function PlayerHeatmapPanel({
         footnote={
           truncation === null ? undefined : truncation.truncated ? (
             <Trans>
-              取样 {truncation.shown} / {truncation.total} 个位置（服务端上限 {truncation.limit}）。
+              取样 {truncation.shown} / {truncation.total} 个位置（上限 {truncation.limit}）。
               这张图画的是这批取样，不是全部。
             </Trans>
           ) : (

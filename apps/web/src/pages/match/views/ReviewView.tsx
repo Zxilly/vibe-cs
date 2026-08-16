@@ -149,7 +149,7 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
           variant="secondary"
           size="sm"
           disabled
-          disabledReason={t`没有导出复盘 HTML 的命令，服务端还没有这条路由`}
+          disabledReason={t`暂不支持导出复盘网页`}
         >
           <Trans>导出 HTML</Trans>
         </Button>
@@ -289,7 +289,7 @@ function InsightCards({
     return (
       <EmptyState
         title={<Trans>这场还推不出结论</Trans>}
-        description={<Trans>分析结果里既没有可归因的击杀，也没有道具与对位统计。</Trans>}
+        description={<Trans>这场比赛既没有解析出击杀，也没有道具与对位数据。</Trans>}
         actions={
           <Button variant="secondary" onClick={() => updateContext({ view: 'rounds' })}>
             <Trans>逐回合看</Trans>

@@ -325,7 +325,7 @@ export function AgentPage() {
             setEditFailure(null);
             void plan.refetch();
             void chat.send({
-              message: t`方案已经是修订 ${String(revision)} 了，请基于最新的镜头重新给出变更。`,
+              message: t`方案已经是第 ${String(revision)} 版了，请基于最新的镜头重新给出变更。`,
             });
           }}
           onReread={() => {
@@ -427,7 +427,7 @@ function EditFailureNotice({
         action={
           conflict && revision !== null
             ? {
-              label: <Trans>基于修订 {revision} 重算</Trans>,
+              label: <Trans>基于第 {revision} 版重算</Trans>,
               onAction: () => {
                 onRecompute(revision);
               },

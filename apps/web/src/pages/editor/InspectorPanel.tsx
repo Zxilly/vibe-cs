@@ -247,7 +247,7 @@ export function InspectorPanel({ desk, service }: EditorPanelProps) {
                 disabled={service.blocked || desk.saveState === 'unsaved'}
                 disabledReason={
                   desk.saveState === 'unsaved'
-                    ? t`应用预设由服务端改工程，先保存当前改动再应用`
+                    ? t`先保存当前改动，再应用预设`
                     : (service.buttonProps.disabledReason ?? '')
                 }
                 onClick={() => desk.applyPreset(preset.id)}
@@ -257,7 +257,7 @@ export function InspectorPanel({ desk, service }: EditorPanelProps) {
             ))}
           </div>
         )}
-        <Button variant="secondary" size="sm" disabled disabledReason={t`存为预设要先能改画面参数，这一版还没有`}>
+        <Button variant="secondary" size="sm" disabled disabledReason={t`暂不支持存为预设`}>
           <Trans>存为预设</Trans>
         </Button>
       </div>

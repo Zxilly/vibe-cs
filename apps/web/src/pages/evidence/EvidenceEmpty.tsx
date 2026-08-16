@@ -65,7 +65,7 @@ export function EvidenceEmpty({
     return (
       <EmptyState
         className="m-7"
-        title={<Trans>索引里还没有证据</Trans>}
+        title={<Trans>还没有可检索的证据</Trans>}
         description={
           <Trans>
             证据是分析产出的。已分析 {totalAnalyses} 场，但还没有一场进入证据索引，所以任何条件都会是零命中。
@@ -84,7 +84,7 @@ export function EvidenceEmpty({
     return (
       <EmptyState
         className="m-7"
-        title={<Trans>索引还在建立</Trans>}
+        title={<Trans>证据还在整理中</Trans>}
         description={
           <Trans>
             已索引 {indexedDemos} / {totalAnalyses} 场，共 {indexedItems} 条证据。你要找的这条可能还没进来，等一会儿再试一次。
@@ -105,7 +105,7 @@ export function EvidenceEmpty({
       preset="no-hits"
       description={
         conditions.length === 0 ? (
-          <Trans>索引里有 {indexedItems} 条证据，但这次检索一条也没匹配上。</Trans>
+          <Trans>已有 {indexedItems} 条证据，但这次检索一条也没匹配上。</Trans>
         ) : (
           <>
             <Trans>当前条件：</Trans>

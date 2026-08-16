@@ -123,7 +123,7 @@ export function EvidenceResults({
         <Notice
           tone="danger"
           action={{ label: <Trans>重试</Trans>, onAction: error.onRetry }}
-          detail={<Trans>索引没有被改动，重试是安全的。</Trans>}
+          detail={<Trans>没有任何数据被改动，可以直接重试。</Trans>}
         >
           <Trans>检索没能完成：{error.message}</Trans>
         </Notice>

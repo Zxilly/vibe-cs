@@ -549,7 +549,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
                 title={<Trans>没有可用的对位数据</Trans>}
                 description={
                   <Trans>
-                    这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。服务端给出的原因见下方。
+                    这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。原因见下方。
                   </Trans>
                 }
                 actions={
@@ -604,7 +604,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
           <p className="border-t border-divider px-3.5 py-2.5 text-2xs text-neutral-600">
             {/* The service's own English sentence, kept verbatim under the
                 authored Chinese above so a bug report can quote it. */}
-            <Trans>服务端说明：{unavailableReason}</Trans>
+            <Trans>说明：{unavailableReason}</Trans>
           </p>
         )}
       </ViewPanel>

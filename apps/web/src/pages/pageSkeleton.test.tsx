@@ -14,7 +14,7 @@
  * as the phase, and the two halves are asserted in opposite directions:
  *
  *   built: false   the notice is still there, word for word, with a way out
- *   built: true    the notice is **gone** — a page that shipped its real body
+ *    the notice is **gone** — a page that shipped its real body
  *                  and left 「本页在阶段 X 实现」 standing beside it would be
  *                  lying twice over, and only this direction catches that.
  *
@@ -62,9 +62,7 @@ interface PageCase {
    */
   readonly title: string;
   /** The spec §10 phase that fills the body in. */
-  readonly phase: string;
   /** Whether that phase has landed. See the file header. */
-  readonly built: boolean;
   /**
    * What sits in the `Page`'s toolbar slot. Fourteen pages put a
    * `design/layout/Toolbar` there. `/match/:demoId` puts
@@ -78,54 +76,42 @@ interface PageCase {
 }
 
 const PAGES: readonly PageCase[] = [
-  { pattern: '/', at: '/', Component: HomePage, title: '今日工作', phase: '3g', built: true },
+  { pattern: '/', at: '/', Component: HomePage, title: '今日工作' },
   {
     pattern: '/library',
     at: '/library',
     Component: LibraryPage,
     title: 'Demo 资料库',
-    phase: '3b',
-    built: true,
   },
   {
     pattern: '/history',
     at: '/history',
     Component: HistoryPage,
     title: '比赛历史',
-    phase: '3d',
-    built: true,
   },
   {
     pattern: '/players',
     at: '/players',
     Component: PlayersPage,
     title: '玩家目录',
-    phase: '3d',
-    built: true,
   },
   {
     pattern: '/players/:playerId',
     at: '/players/kael',
     Component: PlayerProfilePage,
     title: '玩家档案',
-    phase: '3d',
-    built: true,
   },
   {
     pattern: '/evidence',
     at: '/evidence',
     Component: EvidencePage,
     title: '证据检索',
-    phase: '3d',
-    built: true,
   },
   {
     pattern: '/match/:demoId',
     at: '/match/aurora-vs-meridian',
     Component: MatchWorkspacePage,
     title: '概览',
-    phase: '3c',
-    built: true,
     chrome: 'context-bar',
   },
   {
@@ -133,80 +119,54 @@ const PAGES: readonly PageCase[] = [
     at: '/agent',
     Component: AgentPage,
     title: 'Agent 创作',
-    phase: '3e',
-    /* Phase 3e landed all three blocks (conversation, plan panel, sessions),
-       so the phase notice is gone from `/agent` for the reason this column
-       exists. */
-    built: true,
   },
   {
     pattern: '/recording',
     at: '/recording',
     Component: RecordingPage,
     title: '录制计划',
-    phase: '3f',
-    /* Phase 3f landed the plan board and the bare list, so the phase notice is
-       gone from `/recording` for the reason this column exists. */
-    built: true,
   },
   {
     pattern: '/montage',
     at: '/montage',
     Component: MontagePage,
     title: '快速合辑',
-    phase: '3f',
-    built: true,
   },
   {
     pattern: '/editor',
     at: '/editor',
     Component: EditorPage,
     title: '多轨编辑器',
-    phase: '3f',
-    /* Phase 3f-2 landed the workspace and the bare project list. */
-    built: true,
   },
   {
     pattern: '/delivery',
     at: '/delivery',
     Component: DeliveryPage,
     title: '交付',
-    phase: '3a',
-    built: true,
   },
   {
     pattern: '/delivery/task/:taskId',
     at: '/delivery/task/t-42',
     Component: TaskDetailPage,
     title: '任务详情',
-    phase: '3a',
-    built: true,
   },
   {
     pattern: '/settings',
     at: '/settings',
     Component: SettingsPage,
     title: '设置与诊断',
-    phase: '3g',
-    /* Phase 3g filled all five sections; `?section=app` is the default and it
-       is a real pane now. */
-    built: true,
   },
   {
     pattern: '/recovery',
     at: '/recovery',
     Component: RecoveryPage,
     title: '恢复中心',
-    phase: '3g',
-    built: true,
   },
   {
     pattern: '/guide',
     at: '/guide',
     Component: GuidePage,
     title: '使用引导',
-    phase: '3g',
-    built: true,
   },
 ];
 
@@ -220,7 +180,7 @@ function renderPage(pattern: string, at: string, Component: ComponentType): stri
   );
 }
 
-describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase, built, chrome }) => {
+describe.each(PAGES)('$at', ({ pattern, at, Component, title, chrome }) => {
   const html = renderPage(pattern, at, Component);
 
   it('is a Page with the four slots, not a bare div', () => {
@@ -241,17 +201,11 @@ describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase, built, chro
     expect(html).toContain(title);
   });
 
-  if (built) {
-    it('has replaced the phase notice rather than shipping beside it', () => {
-      expect(html).not.toContain('本页在阶段');
-    });
-  } else {
-    it('says which phase fills the content area, and offers a way out of it', () => {
-      expect(html).toContain(`本页在阶段 ${phase} 实现`);
-      // `EmptyState` makes the recovery action a required prop; this is it.
-      expect(html).toMatch(/返回工作台|打开 Demo 资料库/u);
-    });
-  }
+  it('ships a real body, not a notice about which phase would build one', () => {
+    // The scaffolding this once guarded is gone: there is no placeholder
+    // component left to render, and no page that would want it.
+    expect(html).not.toContain('本页在阶段');
+  });
 
   it('invents no data — no names, no fake progress', () => {
     /* These pages render with no service and an empty cache, so anything
@@ -262,14 +216,6 @@ describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase, built, chro
     expect(html).not.toContain('role="progressbar"');
   });
 
-  if (!built) {
-    it('shows no percentage at all — a stub has nothing to be a fraction of', () => {
-      /* Only asked of a stub. A built page's markup carries percentages that
-         are not claims about data: `design/data`'s skeleton bars are sized in
-         `%`, and every hover token is a `color-mix(… 7%)`. */
-      expect(html).not.toContain('%');
-    });
-  }
 });
 
 describe('the page table', () => {
@@ -282,11 +228,5 @@ describe('the page table', () => {
     expect(PAGES).toHaveLength(16);
     expect(new Set(PAGES.map((entry) => entry.pattern)).size).toBe(PAGES.length);
     expect(new Set(PAGES.map((entry) => entry.Component)).size).toBe(PAGES.length);
-  });
-
-  it('reaches every phase §10 assigns a page to', () => {
-    expect(new Set(PAGES.map((entry) => entry.phase))).toEqual(
-      new Set(['3a', '3b', '3c', '3d', '3e', '3f', '3g']),
-    );
   });
 });

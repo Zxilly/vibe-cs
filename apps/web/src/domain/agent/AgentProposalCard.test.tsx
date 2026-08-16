@@ -22,8 +22,8 @@ describe('AgentProposalCard', () => {
       <AgentProposalCard proposal={PLAN_PROPOSAL} changeSet={CHANGE_SET} currentRevision={7} />,
     );
 
-    expect(html).toContain('基于修订 6');
-    expect(html).toContain('当前修订 7');
+    expect(html).toContain('基于第 6 版');
+    expect(html).toContain('当前第 7 版');
   });
 
   it('counts only the changes that still need a decision', () => {
@@ -56,7 +56,7 @@ describe('AgentProposalCard', () => {
     const html = renderMarkup(<AgentProposalCard proposal={PLAN_PROPOSAL} changeSet={CHANGE_SET} />);
 
     expect(html).not.toContain('data-proposal-state');
-    expect(html).not.toContain('当前修订');
+    expect(html).not.toContain('当前第');
   });
 
   it('prints the title alone for a payload it does not recognise', () => {

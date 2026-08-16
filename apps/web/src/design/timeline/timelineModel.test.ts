@@ -37,6 +37,7 @@ function clip(overrides: Partial<Clip> & Pick<Clip, 'id'>): Clip {
     duration: 4,
     sourceIn: 0,
     sourceDuration: 10,
+    speed: 1,
     label: overrides.id,
     ...overrides,
   };

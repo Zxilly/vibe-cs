@@ -16,7 +16,7 @@ describe('vertical geometry', () => {
       { trackId: 'v1', kind: 'video', top: 62, height: 62 },
       { trackId: 'a1', kind: 'audio', top: 124, height: 52 },
       { trackId: 'a2', kind: 'audio', top: 176, height: 52 },
-      { trackId: 't1', kind: 'subtitle', top: 228, height: 44 },
+      { trackId: 't1', kind: 'text', top: 228, height: 44 },
     ]);
   });
 
@@ -46,7 +46,10 @@ describe('vertical geometry', () => {
   });
 
   it('agrees with the heights the stylesheet is given', () => {
-    expect(TRACK_HEIGHT_PX).toEqual({ video: 62, audio: 52, subtitle: 44 });
+    // `overlay` has no lane on the artboard and takes the video geometry —
+    // see `geometry.ts`. It is asserted here so that a future change to it is
+    // a change to a test, not a silent difference between two lane kinds.
+    expect(TRACK_HEIGHT_PX).toEqual({ video: 62, overlay: 62, audio: 52, text: 44 });
   });
 });
 

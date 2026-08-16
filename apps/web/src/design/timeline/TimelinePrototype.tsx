@@ -57,6 +57,10 @@ function refusalMessage(reason: EditRefusal): string {
       return t`这个位置没有可以操作的片段`;
     case 'no-headroom':
       return t`素材已经到头了，没有可以滑移的余量`;
+    case 'too-short':
+      return t`再修剪就不足一帧了`;
+    case 'speed-out-of-range':
+      return t`速度只能在 5% 到 1600% 之间`;
     case 'unknown-clip':
     case 'unknown-track':
       return t`片段不在时间轴上`;
@@ -80,15 +84,22 @@ export function TimelinePrototype({ initial, nudgeSeconds = 0.1, className = '' 
 
   // A keydown on a clip implies focus, and focus has already selected it, so
   // every command below reads the selection rather than taking the clip id.
+  //
+  // Alt is the trim modifier: Alt+← / Alt+→ move the in point, and adding
+  // Shift moves the out point instead. That pairing is deliberate — trimming
+  // is the one gesture with two targets, and a separate key for each edge
+  // would need four bindings where the hand already knows two.
   const handleClipKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    const step = nudgeStep(nudgeSeconds, event.shiftKey);
+    const step = nudgeStep(nudgeSeconds, event.shiftKey && !event.altKey);
     switch (event.key) {
       case 'ArrowLeft':
-        if (editor.tool === 'slip') editor.slipSelection(-step);
+        if (event.altKey) editor.trimSelection(event.shiftKey ? 'out' : 'in', -step);
+        else if (editor.tool === 'slip') editor.slipSelection(-step);
         else editor.nudgeSelection(-step);
         break;
       case 'ArrowRight':
-        if (editor.tool === 'slip') editor.slipSelection(step);
+        if (event.altKey) editor.trimSelection(event.shiftKey ? 'out' : 'in', step);
+        else if (editor.tool === 'slip') editor.slipSelection(step);
         else editor.nudgeSelection(step);
         break;
       case 'ArrowUp':
@@ -234,13 +245,21 @@ export function TimelinePrototype({ initial, nudgeSeconds = 0.1, className = '' 
                 data-locked={String(track.locked === true)}
                 style={timelineStyle({ '--tl-lane-h': TRACK_HEIGHT_PX[track.kind] })}
               >
-                {timeline.clips
+                {editor.mountedClips
                   .filter((clip) => clip.trackId === track.id)
                   .map((clip) => {
                     const dragging = drag?.clipId === clip.id;
                     // The whole link group follows the pointer, not just the
                     // clip under it — that is what 「音视频可链接」 looks like.
                     const moving = drag !== null && drag.mode === 'move' && linkedClipIds.has(clip.id) ? drag : null;
+                    // A trim moves the group too, and by the same delta, so
+                    // the partner's preview is derived from its own numbers
+                    // rather than copied from the clip under the pointer.
+                    const trimming =
+                      drag !== null && drag.mode === 'trim' && drag.trim !== null && linkedClipIds.has(clip.id)
+                        ? drag
+                        : null;
+                    const delta = trimming?.trim?.appliedDelta ?? 0;
                     return (
                       <ClipView
                         key={clip.id}
@@ -251,8 +270,15 @@ export function TimelinePrototype({ initial, nudgeSeconds = 0.1, className = '' 
                         dragging={dragging}
                         blocked={moving !== null && moving.refusal !== null}
                         dragOffsetPx={moving?.offsetPx ?? 0}
-                        showSourceWindow={editor.tool === 'slip'}
+                        showSourceWindow={editor.tool === 'slip' || trimming !== null}
+                        trimmingEdge={trimming?.edge ?? null}
+                        {...(trimming === null
+                          ? {}
+                          : trimming.edge === 'in'
+                            ? { previewStart: clip.start + delta, previewDuration: clip.duration - delta }
+                            : { previewStart: clip.start, previewDuration: clip.duration + delta })}
                         onPointerDown={(event) => editor.beginClipDrag(clip.id, event)}
+                        onTrimPointerDown={(edge, event) => editor.beginTrimDrag(clip.id, edge, event)}
                         onKeyDown={handleClipKeyDown}
                         onFocus={() => editor.select(clip.id)}
                       />

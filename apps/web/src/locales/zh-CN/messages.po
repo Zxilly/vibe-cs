@@ -72,7 +72,7 @@ msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, other {# 个监听目录}}"
 
 #. placeholder {0}: roots.length
-#: src/pages/library/WatchDirectoriesDrawer.tsx:72
+#: src/pages/library/WatchDirectoriesDrawer.tsx:76
 msgid "{0, plural, other {# 个目录}}"
 msgstr "{0, plural, other {# 个目录}}"
 
@@ -191,18 +191,18 @@ msgid "{0} 个回合有首杀 · {1} 条未归属"
 msgstr "{0} 个回合有首杀 · {1} 条未归属"
 
 #. placeholder {0}: items.length
-#: src/pages/RecordingPage.tsx:291
+#: src/pages/RecordingPage.tsx:299
 msgid "{0} 个片段"
 msgstr "{0} 个片段"
 
 #. placeholder {0}: items.length
 #. placeholder {1}: Math.round(estimated)
-#: src/pages/RecordingPage.tsx:293
+#: src/pages/RecordingPage.tsx:301
 msgid "{0} 个片段 · {1} 秒"
 msgstr "{0} 个片段 · {1} 秒"
 
 #. placeholder {0}: plan.items.length
-#: src/pages/recording/ShotInspectorBlock.tsx:700
+#: src/pages/recording/ShotInspectorBlock.tsx:701
 msgid "{0} 个片段的镜头类型、视角、前后留白与画面参数都会变成这个片段的设置。"
 msgstr "{0} 个片段的镜头类型、视角、前后留白与画面参数都会变成这个片段的设置。"
 
@@ -252,8 +252,8 @@ msgid "{0} 分 {1} 秒"
 msgstr "{0} 分 {1} 秒"
 
 #. placeholder {0}: formatRounds(demo.total_rounds)
-#: src/pages/library/LibraryCards.tsx:184
-#: src/pages/library/LibraryInspector.tsx:197
+#: src/pages/library/LibraryCards.tsx:185
+#: src/pages/library/LibraryInspector.tsx:198
 msgid "{0} 回合"
 msgstr "{0} 回合"
 
@@ -285,8 +285,8 @@ msgstr "{0} 拿下了 {1} 个回合里的 {2} 次首杀"
 
 #. placeholder {0}: matchup.kills
 #. placeholder {1}: matchup.deaths
-#: src/pages/match/views/DuelsView.tsx:458
-#: src/pages/match/views/DuelsView.tsx:685
+#: src/pages/match/views/DuelsView.tsx:459
+#: src/pages/match/views/DuelsView.tsx:686
 msgid "{0} 杀 / {1} 死"
 msgstr "{0} 杀 / {1} 死"
 
@@ -345,7 +345,7 @@ msgid "{0} 趋势，共 {1} 场，从 {2} 到 {3}，均值 {4}"
 msgstr "{0} 趋势，共 {1} 场，从 {2} 到 {3}，均值 {4}"
 
 #. placeholder {0}: clip.label
-#: src/design/timeline/ClipView.tsx:94
+#: src/design/timeline/ClipView.tsx:131
 msgid "{0}，{from} 至 {to}"
 msgstr "{0}，{from} 至 {to}"
 
@@ -355,6 +355,11 @@ msgstr "{0}，{from} 至 {to}"
 #: src/pages/match/views/ReplayCanvas.tsx:90
 msgid "{0}，剩余 {1} 点生命，手持 {2}"
 msgstr "{0}，剩余 {1} 点生命，手持 {2}"
+
+#. placeholder {0}: Math.round(clip.speed * 100)
+#: src/design/timeline/ClipView.tsx:167
+msgid "{0}%"
+msgstr "{0}%"
 
 #: src/domain/map/EngagementLayer.tsx:102
 msgid "{attacker} → {victim} · {weapon}"
@@ -393,15 +398,15 @@ msgid "{hiddenFocusCount, plural, other {聚焦 #}}"
 msgstr "{hiddenFocusCount, plural, other {聚焦 #}}"
 
 #. placeholder {0}: kills.length
-#: src/pages/match/views/DuelsView.tsx:390
+#: src/pages/match/views/DuelsView.tsx:391
 msgid "{killerName} → {victimName} 的 {0} 次交手"
 msgstr "{killerName} → {victimName} 的 {0} 次交手"
 
-#: src/pages/match/views/DuelsView.tsx:210
+#: src/pages/match/views/DuelsView.tsx:211
 msgid "{killerName} 击杀 {victimName} {kills} 次"
 msgstr "{killerName} 击杀 {victimName} {kills} 次"
 
-#: src/pages/match/views/DuelsView.tsx:618
+#: src/pages/match/views/DuelsView.tsx:619
 msgid "{killerName} 的对位"
 msgstr "{killerName} 的对位"
 
@@ -500,7 +505,7 @@ msgid "{tickRate} tick"
 msgstr "{tickRate} tick"
 
 #: src/design/data/Pagination.tsx:64
-#: src/pages/library/LibraryTable.tsx:154
+#: src/pages/library/LibraryTable.tsx:155
 msgid "{total, plural, other {共 # 条}}"
 msgstr "{total, plural, other {共 # 条}}"
 
@@ -562,7 +567,7 @@ msgstr "＋ {0}"
 msgid "＋ 仅爆头"
 msgstr "＋ 仅爆头"
 
-#: src/pages/recording/ShotListBlock.tsx:206
+#: src/pages/recording/ShotListBlock.tsx:210
 msgid "＋ 从高光添加片段"
 msgstr "＋ 从高光添加片段"
 
@@ -579,11 +584,11 @@ msgid "0.05 到 5 秒；转场比相邻片段还长时渲染会拒绝。"
 msgstr "0.05 到 5 秒；转场比相邻片段还长时渲染会拒绝。"
 
 #. placeholder {0}: scale.pixelsPerSecond
-#: src/design/timeline/TimelinePrototype.tsx:173
+#: src/design/timeline/TimelinePrototype.tsx:184
 msgid "1 秒 = {0} px"
 msgstr "1 秒 = {0} px"
 
-#: src/pages/match/views/DuelsView.tsx:739
+#: src/pages/match/views/DuelsView.tsx:740
 #: src/pages/match/views/PlayersView.tsx:496
 #: src/pages/match/views/RoundsView.tsx:687
 msgid "2D 回放"
@@ -608,9 +613,9 @@ msgstr "A"
 msgid "ADR"
 msgstr "ADR"
 
-#: src/domain/agent/types.ts:218
 #: src/domain/agent/types.ts:219
-#: src/domain/agent/types.ts:300
+#: src/domain/agent/types.ts:220
+#: src/domain/agent/types.ts:340
 msgid "Agent"
 msgstr "Agent"
 
@@ -620,7 +625,7 @@ msgstr "Agent"
 msgid "Agent 创作"
 msgstr "Agent 创作"
 
-#: src/domain/agent/types.ts:220
+#: src/domain/agent/types.ts:221
 msgid "Agent 删除的"
 msgstr "Agent 删除的"
 
@@ -663,7 +668,7 @@ msgstr "AI 点评"
 msgid "CS2 与 Steam 路径、HLAE，以及录制的默认画质。"
 msgstr "CS2 与 Steam 路径、HLAE，以及录制的默认画质。"
 
-#: src/pages/recording/recordingContract.ts:546
+#: src/pages/recording/recordingContract.ts:564
 msgid "CS2 已就绪"
 msgstr "CS2 已就绪"
 
@@ -689,7 +694,7 @@ msgstr "D"
 msgid "D:\\CS2\\demos\\"
 msgstr "D:\\CS2\\demos\\"
 
-#: src/pages/recording/recordingContract.ts:554
+#: src/pages/recording/recordingContract.ts:572
 msgid "Demo 内容一致"
 msgstr "Demo 内容一致"
 
@@ -699,15 +704,15 @@ msgstr "Demo 内容一致"
 msgid "Demo 资料库"
 msgstr "Demo 资料库"
 
-#: src/pages/library/LibraryCards.tsx:113
+#: src/pages/library/LibraryCards.tsx:114
 msgid "Demo 资料库 · 卡片视图"
 msgstr "Demo 资料库 · 卡片视图"
 
-#: src/pages/library/LibraryTable.tsx:110
+#: src/pages/library/LibraryTable.tsx:111
 msgid "Demo 资料库 · 表格视图"
 msgstr "Demo 资料库 · 表格视图"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:705
+#: src/pages/recording/ShotInspectorBlock.tsx:706
 msgid "Demo、选手与 tick 区间不会被改动。改完之后需要重新生成预览计划。"
 msgstr "Demo、选手与 tick 区间不会被改动。改完之后需要重新生成预览计划。"
 
@@ -719,8 +724,8 @@ msgstr "ESC 关闭"
 msgid "Esc 放弃 · ⌘↵ 保存"
 msgstr "Esc 放弃 · ⌘↵ 保存"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:346
-#: src/pages/recording/ShotInspectorBlock.tsx:350
+#: src/pages/recording/ShotInspectorBlock.tsx:347
+#: src/pages/recording/ShotInspectorBlock.tsx:351
 msgid "HUD"
 msgstr "HUD"
 
@@ -750,7 +755,7 @@ msgstr "Kael 的穿墙击杀"
 #. placeholder {0}: highlight.round
 #. placeholder {0}: kill.round
 #: src/domain/match/HighlightRow.tsx:116
-#: src/pages/match/views/DuelsView.tsx:406
+#: src/pages/match/views/DuelsView.tsx:407
 msgid "R{0}"
 msgstr "R{0}"
 
@@ -843,7 +848,7 @@ msgstr "tick 区间"
 msgid "tick 区间不会跟着动"
 msgstr "tick 区间不会跟着动"
 
-#: src/pages/recording/recordingContract.ts:570
+#: src/pages/recording/recordingContract.ts:588
 msgid "tick 区间在 Demo 范围内"
 msgstr "tick 区间在 Demo 范围内"
 
@@ -870,7 +875,7 @@ msgstr "上一页"
 #. placeholder {0}: status.imported
 #. placeholder {1}: status.updated
 #. placeholder {2}: status.missing
-#: src/pages/library/WatchDirectoriesDrawer.tsx:137
+#: src/pages/library/WatchDirectoriesDrawer.tsx:141
 msgid "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 msgstr "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 
@@ -916,7 +921,7 @@ msgstr "下载失败"
 msgid "下载选中的 {0} 场"
 msgstr "下载选中的 {0} 场"
 
-#: src/pages/recording/ShotListBlock.tsx:334
+#: src/pages/recording/ShotListBlock.tsx:338
 msgid "下面这些镜头还没有绑定素材，方案要先给它们选好 Demo 与选手。"
 msgstr "下面这些镜头还没有绑定素材，方案要先给它们选好 Demo 与选手。"
 
@@ -948,7 +953,7 @@ msgstr "不早于 {0}"
 msgid "不晚于 {0}"
 msgstr "不晚于 {0}"
 
-#: src/design/timeline/ClipView.tsx:118
+#: src/design/timeline/ClipView.tsx:177
 msgid "不能放在这里"
 msgstr "不能放在这里"
 
@@ -1031,13 +1036,13 @@ msgstr "从他起跳开始"
 msgid "从低处升起或从高处落下，适合高潮之后"
 msgstr "从低处升起或从高处落下，适合高潮之后"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:109
+#: src/pages/montage/ClipTrimDrawer.tsx:110
 msgid "从合辑中移除"
 msgstr "从合辑中移除"
 
 #: src/pages/montage/AddClipsDialog.tsx:62
-#: src/pages/montage/ClipOrderBlock.tsx:146
-#: src/pages/montage/ClipOrderBlock.tsx:172
+#: src/pages/montage/ClipOrderBlock.tsx:147
+#: src/pages/montage/ClipOrderBlock.tsx:173
 msgid "从录制结果添加"
 msgstr "从录制结果添加"
 
@@ -1045,7 +1050,7 @@ msgstr "从录制结果添加"
 msgid "从录制结果里挑几段，它们会按这里的顺序拼成视频。"
 msgstr "从录制结果里挑几段，它们会按这里的顺序拼成视频。"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:640
+#: src/pages/recording/ShotInspectorBlock.tsx:641
 msgid "从预设应用"
 msgstr "从预设应用"
 
@@ -1086,7 +1091,7 @@ msgstr "任务阶段"
 msgid "会作为通知的备注一起发给 Agent"
 msgstr "会作为通知的备注一起发给 Agent"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:479
+#: src/pages/recording/ShotInspectorBlock.tsx:480
 msgid "会把相机路径写成 HLAE 脚本落到磁盘，并启动 CS2 跳到这个镜头的起点。只是预览，不会录制任何画面。"
 msgstr "会把相机路径写成 HLAE 脚本落到磁盘，并启动 CS2 跳到这个镜头的起点。只是预览，不会录制任何画面。"
 
@@ -1126,15 +1131,15 @@ msgstr "会话是一条独立的对话线程，可以直接接管工作区里已
 msgid "会话的新名称"
 msgstr "会话的新名称"
 
-#: src/pages/match/views/DuelsView.tsx:664
+#: src/pages/match/views/DuelsView.tsx:665
 msgid "伤害 出 / 入"
 msgstr "伤害 出 / 入"
 
-#: src/pages/library/LibraryInspector.tsx:225
+#: src/pages/library/LibraryInspector.tsx:226
 msgid "位置"
 msgstr "位置"
 
-#: src/pages/delivery/taskModel.tsx:163
+#: src/pages/delivery/taskModel.tsx:164
 msgid "位置采样"
 msgstr "位置采样"
 
@@ -1147,12 +1152,12 @@ msgstr "低 {0}"
 msgid "作业编号"
 msgstr "作业编号"
 
-#: src/domain/agent/types.ts:224
-#: src/domain/agent/types.ts:299
+#: src/domain/agent/types.ts:225
+#: src/domain/agent/types.ts:339
 msgid "你"
 msgstr "你"
 
-#: src/domain/agent/types.ts:226
+#: src/domain/agent/types.ts:227
 msgid "你删除的"
 msgstr "你删除的"
 
@@ -1165,7 +1170,7 @@ msgstr "你在{kindLabel}上做了 {count, plural, other {# 处改动}}，Agent 
 msgid "你在这份方案上的 {touched} 处改动会被 Agent 的第 {0} 版覆盖。这一步也会记入会话。"
 msgstr "你在这份方案上的 {touched} 处改动会被 Agent 的第 {0} 版覆盖。这一步也会记入会话。"
 
-#: src/domain/agent/types.ts:225
+#: src/domain/agent/types.ts:226
 msgid "你改过"
 msgstr "你改过"
 
@@ -1191,7 +1196,7 @@ msgstr "依据"
 
 #: src/pages/agent/SessionDrawer.tsx:331
 #: src/pages/library/SaveViewDialog.tsx:54
-#: src/pages/recording/ShotInspectorBlock.tsx:662
+#: src/pages/recording/ShotInspectorBlock.tsx:663
 msgid "保存"
 msgstr "保存"
 
@@ -1202,7 +1207,7 @@ msgstr "保存"
 msgid "保存为视图"
 msgstr "保存为视图"
 
-#: src/pages/library/LibraryInspector.tsx:267
+#: src/pages/library/LibraryInspector.tsx:268
 msgid "保存备注"
 msgstr "保存备注"
 
@@ -1219,7 +1224,7 @@ msgstr "保存改动"
 msgid "保存的视图 · {0}"
 msgstr "保存的视图 · {0}"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:122
+#: src/pages/montage/ClipTrimDrawer.tsx:123
 msgid "保存裁切"
 msgstr "保存裁切"
 
@@ -1227,7 +1232,7 @@ msgstr "保存裁切"
 msgid "保留多久"
 msgstr "保留多久"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:206
+#: src/pages/montage/ClipTrimDrawer.tsx:207
 msgid "保留时长"
 msgstr "保留时长"
 
@@ -1235,12 +1240,12 @@ msgstr "保留时长"
 msgid "保留策略没有应用成功"
 msgstr "保留策略没有应用成功"
 
-#: src/domain/agent/types.ts:319
+#: src/domain/agent/types.ts:359
 msgctxt "plan-change"
 msgid "修改"
 msgstr "修改"
 
-#: src/pages/recording/ShotListBlock.tsx:236
+#: src/pages/recording/ShotListBlock.tsx:240
 msgid "修改任何片段都会让当前预览计划失效，需要重新生成预览。"
 msgstr "修改任何片段都会让当前预览计划失效，需要重新生成预览。"
 
@@ -1274,16 +1279,16 @@ msgstr "做一条集锦"
 msgid "停止"
 msgstr "停止"
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:129
+#: src/pages/library/WatchDirectoriesDrawer.tsx:133
 msgid "停止监听"
 msgstr "停止监听"
 
 #. placeholder {0}: root.path
-#: src/pages/library/WatchDirectoriesDrawer.tsx:123
+#: src/pages/library/WatchDirectoriesDrawer.tsx:127
 msgid "停止监听 {0}"
 msgstr "停止监听 {0}"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:493
+#: src/pages/recording/ShotInspectorBlock.tsx:494
 msgid "停止预览"
 msgstr "停止预览"
 
@@ -1300,7 +1305,7 @@ msgstr "先在上面添加片段，这里会给出它们与拍点的关系。"
 msgid "先看 {0} 的档案"
 msgstr "先看 {0} 的档案"
 
-#: src/pages/RecordingPage.tsx:458
+#: src/pages/RecordingPage.tsx:466
 msgid "先运行录制前校验"
 msgstr "先运行录制前校验"
 
@@ -1308,11 +1313,11 @@ msgstr "先运行录制前校验"
 msgid "先选一个回合"
 msgstr "先选一个回合"
 
-#: src/design/timeline/TimelinePrototype.tsx:139
+#: src/design/timeline/TimelinePrototype.tsx:150
 msgid "先选中一个片段"
 msgstr "先选中一个片段"
 
-#: src/pages/montage/ClipOrderBlock.tsx:125
+#: src/pages/montage/ClipOrderBlock.tsx:126
 msgid "先选中一段再裁切"
 msgstr "先选中一段再裁切"
 
@@ -1325,7 +1330,7 @@ msgstr "先选择一个方案"
 msgid "先选择或新建一条会话"
 msgstr "先选择或新建一条会话"
 
-#: src/pages/library/LibraryInspector.tsx:228
+#: src/pages/library/LibraryInspector.tsx:229
 msgid "入库时间"
 msgstr "入库时间"
 
@@ -1334,11 +1339,11 @@ msgstr "入库时间"
 msgid "入点"
 msgstr "入点"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:161
+#: src/pages/montage/ClipTrimDrawer.tsx:162
 msgid "入点（秒）"
 msgstr "入点（秒）"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:116
+#: src/pages/montage/ClipTrimDrawer.tsx:117
 msgid "入点与出点必须落在素材长度之内，且出点在入点之后"
 msgstr "入点与出点必须落在素材长度之内，且出点在入点之后"
 
@@ -1416,7 +1421,7 @@ msgid "共 {0} 个回合 · 解出 {purchaseTotal} 条购买事件"
 msgstr "共 {0} 个回合 · 解出 {purchaseTotal} 条购买事件"
 
 #. placeholder {0}: duels.length
-#: src/pages/match/views/DuelsView.tsx:526
+#: src/pages/match/views/DuelsView.tsx:527
 msgid "共 {0} 个回合有可归属的首杀"
 msgstr "共 {0} 个回合有可归属的首杀"
 
@@ -1463,7 +1468,7 @@ msgid "共 {0} 条高光，当前筛出 {1} 条。"
 msgstr "共 {0} 条高光，当前筛出 {1} 条。"
 
 #. placeholder {0}: reference.item_count
-#: src/domain/agent/AgentReferenceRow.tsx:96
+#: src/domain/agent/AgentReferenceRow.tsx:94
 msgid "共 {0} 项"
 msgstr "共 {0} 项"
 
@@ -1552,6 +1557,10 @@ msgstr "其余功能不受影响。你可以返回工作台，或把这次错误
 msgid "其余类型仍然有 {0} 条。"
 msgstr "其余类型仍然有 {0} 条。"
 
+#: src/design/timeline/TimelinePrototype.tsx:61
+msgid "再修剪就不足一帧了"
+msgstr "再修剪就不足一帧了"
+
 #: src/pages/players/PlayerComparePanel.tsx:154
 msgid "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
 msgstr "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
@@ -1611,7 +1620,7 @@ msgstr "最近的录制任务"
 msgid "最近输出"
 msgstr "最近输出"
 
-#: src/pages/library/LibraryInspector.tsx:254
+#: src/pages/library/LibraryInspector.tsx:255
 msgid "写下这场值得回头看的地方"
 msgstr "写下这场值得回头看的地方"
 
@@ -1623,7 +1632,7 @@ msgstr "写注释"
 msgid "写第一条指令"
 msgstr "写第一条指令"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:177
+#: src/pages/montage/ClipTrimDrawer.tsx:178
 msgid "出点（秒）"
 msgstr "出点（秒）"
 
@@ -1688,7 +1697,7 @@ msgid "分析、录制与导出开始后会出现在这里，可以从这里直�
 msgstr "分析、录制与导出开始后会出现在这里，可以从这里直接停止。"
 
 #: src/pages/library/LibraryFilters.tsx:49
-#: src/pages/library/libraryFormat.ts:125
+#: src/pages/library/libraryFormat.ts:126
 msgid "分析中"
 msgstr "分析中"
 
@@ -1772,8 +1781,8 @@ msgstr "创建"
 msgid "删除"
 msgstr "删除"
 
-#: src/domain/agent/types.ts:320
-#: src/domain/agent/types.ts:339
+#: src/domain/agent/types.ts:360
+#: src/domain/agent/types.ts:379
 msgctxt "plan-change"
 msgid "删除"
 msgstr "删除"
@@ -1810,19 +1819,19 @@ msgstr "别贴这么近"
 msgid "制作"
 msgstr "制作"
 
-#: src/design/timeline/TimelinePrototype.tsx:77
+#: src/design/timeline/TimelinePrototype.tsx:81
 msgid "剃刀"
 msgstr "剃刀"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:258
+#: src/pages/recording/ShotInspectorBlock.tsx:259
 msgid "前留白"
 msgstr "前留白"
 
-#: src/pages/agent/sessionDrawerModel.ts:105
+#: src/pages/agent/sessionDrawerModel.ts:108
 msgid "剪辑工程"
 msgstr "剪辑工程"
 
-#: src/domain/agent/types.ts:272
+#: src/domain/agent/types.ts:312
 msgctxt "agent-object"
 msgid "剪辑工程"
 msgstr "剪辑工程"
@@ -1875,7 +1884,7 @@ msgstr "勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆�
 msgid "包含子目录"
 msgstr "包含子目录"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:681
+#: src/pages/recording/ShotInspectorBlock.tsx:682
 msgid "包含视野、HUD、雷达、语音与前后留白，应用时作为一次原子变更。"
 msgstr "包含视野、HUD、雷达、语音与前后留白，应用时作为一次原子变更。"
 
@@ -1888,16 +1897,16 @@ msgstr "包装"
 msgid "包装与导出"
 msgstr "包装与导出"
 
-#: src/domain/agent/types.ts:184
+#: src/domain/agent/types.ts:185
 #: src/pages/recording/shotModel.ts:95
 msgid "升降"
 msgstr "升降"
 
-#: src/pages/match/views/DuelsView.tsx:524
+#: src/pages/match/views/DuelsView.tsx:525
 msgid "单元格＝行方对列方的击杀数，点开进入这一对的交手"
 msgstr "单元格＝行方对列方的击杀数，点开进入这一对的交手"
 
-#: src/pages/match/views/DuelsView.tsx:742
+#: src/pages/match/views/DuelsView.tsx:743
 #: src/pages/match/views/UtilityView.tsx:657
 msgid "单场记分板"
 msgstr "单场记分板"
@@ -1955,7 +1964,7 @@ msgid "反恐精英"
 msgstr "反恐精英"
 
 #: src/design/feedback/StageBar.tsx:123
-#: src/pages/delivery/taskModel.tsx:217
+#: src/pages/delivery/taskModel.tsx:218
 msgid "发布"
 msgstr "发布"
 
@@ -1996,7 +2005,7 @@ msgstr "受害者被闪"
 msgid "受管文件"
 msgstr "受管文件"
 
-#: src/pages/recording/recordingContract.ts:551
+#: src/pages/recording/recordingContract.ts:569
 msgid "受管的采集组件已下载并通过校验"
 msgstr "受管的采集组件已下载并通过校验"
 
@@ -2046,7 +2055,7 @@ msgstr "可以画进 2D 回放的事件"
 msgid "可录制的方案"
 msgstr "可录制的方案"
 
-#: src/pages/RecordingPage.tsx:115
+#: src/pages/RecordingPage.tsx:117
 msgid "可录制的方案与全部录制任务"
 msgstr "可录制的方案与全部录制任务"
 
@@ -2070,7 +2079,7 @@ msgstr "各片段的转场不一致，选择后会统一。"
 msgid "合成结果需要后端的 Take 模型，本轮不能从不同版本里挑镜头"
 msgstr "合成结果需要后端的 Take 模型，本轮不能从不同版本里挑镜头"
 
-#: src/pages/match/views/DuelsView.tsx:155
+#: src/pages/match/views/DuelsView.tsx:156
 msgid "合计"
 msgstr "合计"
 
@@ -2114,7 +2123,7 @@ msgstr "同步最近比赛"
 msgid "名称"
 msgstr "名称"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:274
+#: src/pages/recording/ShotInspectorBlock.tsx:275
 msgid "后留白"
 msgstr "后留白"
 
@@ -2127,16 +2136,16 @@ msgid "后端还没有「把合辑转成多轨工程」的接口，合辑与多�
 msgstr "后端还没有「把合辑转成多轨工程」的接口，合辑与多轨是两套工程"
 
 #: src/design/feedback/StageBar.tsx:115
-#: src/pages/delivery/taskModel.tsx:212
+#: src/pages/delivery/taskModel.tsx:213
 msgid "启动"
 msgstr "启动"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:566
+#: src/pages/recording/ShotInspectorBlock.tsx:567
 msgid "启动游戏"
 msgstr "启动游戏"
 
-#: src/design/timeline/TimelinePrototype.tsx:145
-#: src/design/timeline/TimelinePrototype.tsx:146
+#: src/design/timeline/TimelinePrototype.tsx:156
+#: src/design/timeline/TimelinePrototype.tsx:157
 msgid "吸附"
 msgstr "吸附"
 
@@ -2186,7 +2195,7 @@ msgstr "回到资料库"
 
 #: src/pages/library/libraryColumns.tsx:111
 #: src/pages/library/libraryColumns.tsx:112
-#: src/pages/match/views/DuelsView.tsx:250
+#: src/pages/match/views/DuelsView.tsx:251
 #: src/pages/match/views/TeamsView.tsx:235
 #: src/pages/match/views/UtilityView.tsx:313
 msgid "回合"
@@ -2240,7 +2249,7 @@ msgstr "回放与热力图"
 msgid "回放图层与选手"
 msgstr "回放图层与选手"
 
-#: src/domain/agent/types.ts:181
+#: src/domain/agent/types.ts:182
 #: src/pages/recording/shotModel.ts:79
 msgid "固定机位"
 msgstr "固定机位"
@@ -2279,7 +2288,7 @@ msgstr "在多轨编辑器中打开"
 msgid "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 msgstr "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 
-#: src/pages/library/LibraryInspector.tsx:111
+#: src/pages/library/LibraryInspector.tsx:112
 msgid "在左侧选一场比赛，这里会显示它的文件、状态与下一步。"
 msgstr "在左侧选一场比赛，这里会显示它的文件、状态与下一步。"
 
@@ -2287,7 +2296,7 @@ msgstr "在左侧选一场比赛，这里会显示它的文件、状态与下一
 msgid "在左侧选择一个回合、一名选手或一条证据，详情会出现在这里， 并且随地址一起可分享、可后退。"
 msgstr "在左侧选择一个回合、一名选手或一条证据，详情会出现在这里， 并且随地址一起可分享、可后退。"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:150
+#: src/pages/recording/ShotInspectorBlock.tsx:151
 msgid "在左边选一个片段，这里会显示它的镜头类型、视角与画面参数。"
 msgstr "在左边选一个片段，这里会显示它的镜头类型、视角与画面参数。"
 
@@ -2295,7 +2304,7 @@ msgstr "在左边选一个片段，这里会显示它的镜头类型、视角与
 msgid "在左边选一个片段，这里会画出它的相机路径与朝向。"
 msgstr "在左边选一个片段，这里会画出它的相机路径与朝向。"
 
-#: src/design/timeline/TimelinePrototype.tsx:133
+#: src/design/timeline/TimelinePrototype.tsx:144
 msgid "在播放头切开"
 msgstr "在播放头切开"
 
@@ -2303,11 +2312,11 @@ msgstr "在播放头切开"
 msgid "在新建会话时引用"
 msgstr "在新建会话时引用"
 
-#: src/pages/recording/ShotListBlock.tsx:213
+#: src/pages/recording/ShotListBlock.tsx:217
 msgid "在方案里挑高光加成镜头，回到这里重新生成预览计划。"
 msgstr "在方案里挑高光加成镜头，回到这里重新生成预览计划。"
 
-#: src/pages/RecordingPage.tsx:379
+#: src/pages/RecordingPage.tsx:387
 msgid "在方案里给这些镜头选好 Demo 与选手之后，这一页就能生成预览计划。"
 msgstr "在方案里给这些镜头选好 Demo 与选手之后，这一页就能生成预览计划。"
 
@@ -2316,15 +2325,15 @@ msgstr "在方案里给这些镜头选好 Demo 与选手之后，这一页就能
 msgid "在比赛工作区打开"
 msgstr "在比赛工作区打开"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:476
+#: src/pages/recording/ShotInspectorBlock.tsx:477
 msgid "在游戏里看这个镜头"
 msgstr "在游戏里看这个镜头"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:505
+#: src/pages/recording/ShotInspectorBlock.tsx:506
 msgid "在游戏里预览"
 msgstr "在游戏里预览"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:565
+#: src/pages/recording/ShotInspectorBlock.tsx:566
 msgid "在游戏里预览这个镜头？"
 msgstr "在游戏里预览这个镜头？"
 
@@ -2401,12 +2410,12 @@ msgstr "基准"
 msgid "填写一个目录的完整路径"
 msgstr "填写一个目录的完整路径"
 
-#: src/pages/library/LibraryInspector.tsx:248
-#: src/pages/library/LibraryInspector.tsx:252
+#: src/pages/library/LibraryInspector.tsx:249
+#: src/pages/library/LibraryInspector.tsx:253
 msgid "备注"
 msgstr "备注"
 
-#: src/pages/delivery/taskModel.tsx:162
+#: src/pages/delivery/taskModel.tsx:163
 msgid "复核解析结果"
 msgstr "复核解析结果"
 
@@ -2419,7 +2428,7 @@ msgstr "外部文件"
 msgid "多杀"
 msgstr "多杀"
 
-#: src/design/timeline/TimelinePrototype.tsx:119
+#: src/design/timeline/TimelinePrototype.tsx:130
 msgid "多轨时间轴"
 msgstr "多轨时间轴"
 
@@ -2442,7 +2451,7 @@ msgstr "失败"
 msgid "失败可恢复"
 msgstr "失败可恢复"
 
-#: src/pages/agent/sessionDrawerModel.ts:106
+#: src/pages/agent/sessionDrawerModel.ts:109
 msgid "失败的导出"
 msgstr "失败的导出"
 
@@ -2451,8 +2460,8 @@ msgctxt "task-progress"
 msgid "字节"
 msgstr "字节"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:627
-#: src/pages/recording/ShotInspectorBlock.tsx:661
+#: src/pages/recording/ShotInspectorBlock.tsx:628
+#: src/pages/recording/ShotInspectorBlock.tsx:662
 msgid "存为预设"
 msgstr "存为预设"
 
@@ -2466,8 +2475,8 @@ msgstr "完成一次录制或导出后，成片会出现在这里，并链接回
 
 #: src/domain/match/EvidenceRow.tsx:80
 #: src/pages/evidence/EvidenceAnnotations.tsx:126
-#: src/pages/match/views/DuelsView.tsx:315
-#: src/pages/match/views/DuelsView.tsx:414
+#: src/pages/match/views/DuelsView.tsx:316
+#: src/pages/match/views/DuelsView.tsx:415
 #: src/pages/match/views/HighlightsView.tsx:239
 #: src/pages/match/views/RoundsView.tsx:317
 #: src/pages/match/views/RoundsView.tsx:426
@@ -2480,7 +2489,7 @@ msgid "定位到第 {0} 回合的首杀"
 msgstr "定位到第 {0} 回合的首杀"
 
 #: src/pages/delivery/OutputCard.tsx:129
-#: src/pages/library/LibraryInspector.tsx:176
+#: src/pages/library/LibraryInspector.tsx:177
 msgid "定位文件"
 msgstr "定位文件"
 
@@ -2496,7 +2505,7 @@ msgstr "密度色阶，从 {minWeight} 次到 {maxWeight} 次"
 msgid "密钥已配置"
 msgstr "密钥已配置"
 
-#: src/pages/match/views/DuelsView.tsx:521
+#: src/pages/match/views/DuelsView.tsx:522
 #: src/pages/match/views/TeamsView.tsx:556
 msgid "对位"
 msgstr "对位"
@@ -2506,23 +2515,23 @@ msgctxt "match-view"
 msgid "对位"
 msgstr "对位"
 
-#: src/pages/match/views/DuelsView.tsx:661
+#: src/pages/match/views/DuelsView.tsx:662
 msgid "对位击杀"
 msgstr "对位击杀"
 
-#: src/pages/match/views/DuelsView.tsx:662
+#: src/pages/match/views/DuelsView.tsx:663
 msgid "对位死亡"
 msgstr "对位死亡"
 
-#: src/pages/match/views/DuelsView.tsx:536
+#: src/pages/match/views/DuelsView.tsx:537
 msgid "对位矩阵"
 msgstr "对位矩阵"
 
-#: src/pages/match/views/DuelsView.tsx:171
+#: src/pages/match/views/DuelsView.tsx:172
 msgid "对位矩阵：行方对列方的击杀数"
 msgstr "对位矩阵：行方对列方的击杀数"
 
-#: src/pages/match/views/DuelsView.tsx:534
+#: src/pages/match/views/DuelsView.tsx:535
 msgid "对位视图"
 msgstr "对位视图"
 
@@ -2664,7 +2673,7 @@ msgstr "工作区里没有正在进行的对象"
 msgid "工作台"
 msgstr "工作台"
 
-#: src/design/timeline/TimelinePrototype.tsx:130
+#: src/design/timeline/TimelinePrototype.tsx:141
 msgid "工具"
 msgstr "工具"
 
@@ -2694,7 +2703,7 @@ msgstr "已删除"
 msgid "已取消"
 msgstr "已取消"
 
-#: src/design/timeline/TimelinePrototype.tsx:194
+#: src/design/timeline/TimelinePrototype.tsx:205
 msgid "已吸附"
 msgstr "已吸附"
 
@@ -2715,11 +2724,11 @@ msgstr "已处理"
 msgid "已完成"
 msgstr "已完成"
 
-#: src/pages/library/libraryFormat.ts:156
+#: src/pages/library/libraryFormat.ts:157
 msgid "已导入"
 msgstr "已导入"
 
-#: src/pages/library/LibraryTable.tsx:102
+#: src/pages/library/LibraryTable.tsx:103
 msgid "已导入的比赛仍在本地，重试通常就能恢复列表。"
 msgstr "已导入的比赛仍在本地，重试通常就能恢复列表。"
 
@@ -2728,24 +2737,24 @@ msgid "已导入的比赛和已生成的视频仍可浏览。正在进行的任�
 msgstr "已导入的比赛和已生成的视频仍可浏览。正在进行的任务会在服务恢复后自动接续状态。"
 
 #: src/pages/library/LibraryFilters.tsx:48
-#: src/pages/library/libraryFormat.ts:124
+#: src/pages/library/libraryFormat.ts:125
 msgid "已就绪"
 msgstr "已就绪"
 
-#: src/domain/agent/AgentReferenceRow.tsx:112
+#: src/domain/agent/AgentReferenceRow.tsx:110
 msgid "已引用"
 msgstr "已引用"
 
-#: src/domain/agent/types.ts:249
+#: src/domain/agent/types.ts:250
 msgid "已归档"
 msgstr "已归档"
 
-#: src/domain/agent/types.ts:361
+#: src/domain/agent/types.ts:401
 msgctxt "plan-change"
 msgid "已拒绝"
 msgstr "已拒绝"
 
-#: src/domain/agent/types.ts:360
+#: src/domain/agent/types.ts:400
 msgctxt "plan-change"
 msgid "已接受"
 msgstr "已接受"
@@ -2754,7 +2763,7 @@ msgstr "已接受"
 msgid "已用 {duration}"
 msgstr "已用 {duration}"
 
-#: src/domain/agent/types.ts:248
+#: src/domain/agent/types.ts:249
 msgid "已确认"
 msgstr "已确认"
 
@@ -2778,7 +2787,7 @@ msgstr "已经有一个同名的视图"
 msgid "已过期"
 msgstr "已过期"
 
-#: src/domain/agent/types.ts:362
+#: src/domain/agent/types.ts:402
 msgctxt "plan-change"
 msgid "已过期"
 msgstr "已过期"
@@ -2816,12 +2825,12 @@ msgstr "已选 {0}，还差一名"
 msgid "已选 1 条证据"
 msgstr "已选 1 条证据"
 
-#: src/design/timeline/ClipView.tsx:113
+#: src/design/timeline/ClipView.tsx:172
 msgid "已选中"
 msgstr "已选中"
 
 #. placeholder {0}: selectedClip.label
-#: src/design/timeline/TimelinePrototype.tsx:186
+#: src/design/timeline/TimelinePrototype.tsx:197
 msgid "已选中 {0}"
 msgstr "已选中 {0}"
 
@@ -2843,8 +2852,8 @@ msgctxt "dialog-confirm"
 msgid "应用"
 msgstr "应用"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:631
-#: src/pages/recording/ShotInspectorBlock.tsx:692
+#: src/pages/recording/ShotInspectorBlock.tsx:632
+#: src/pages/recording/ShotInspectorBlock.tsx:693
 msgid "应用到全部"
 msgstr "应用到全部"
 
@@ -2860,8 +2869,8 @@ msgstr "开始一次录制之后，过程与失败原因都会记在这里。"
 msgid "开始位置采样"
 msgstr "开始位置采样"
 
-#: src/pages/library/LibraryInspector.tsx:143
-#: src/pages/library/LibraryInspector.tsx:162
+#: src/pages/library/LibraryInspector.tsx:144
+#: src/pages/library/LibraryInspector.tsx:163
 #: src/pages/match/views/viewChrome.tsx:203
 msgid "开始分析"
 msgstr "开始分析"
@@ -2892,7 +2901,7 @@ msgstr "开始监听"
 msgid "开始解析比赛数据"
 msgstr "开始解析比赛数据"
 
-#: src/domain/agent/AgentReferenceRow.tsx:124
+#: src/domain/agent/AgentReferenceRow.tsx:122
 msgid "引用"
 msgstr "引用"
 
@@ -2998,7 +3007,7 @@ msgstr "当前锚点是一条证据，可以在「我的注释」里为它写注
 msgid "录制"
 msgstr "录制"
 
-#: src/domain/agent/types.ts:268
+#: src/domain/agent/types.ts:308
 msgctxt "agent-object"
 msgid "录制任务"
 msgstr "录制任务"
@@ -3022,7 +3031,7 @@ msgstr "录制前始终由你确认"
 msgid "录制前校验"
 msgstr "录制前校验"
 
-#: src/pages/RecordingPage.tsx:461
+#: src/pages/RecordingPage.tsx:469
 msgid "录制前校验有阻塞项，先解决它们"
 msgstr "录制前校验有阻塞项，先解决它们"
 
@@ -3056,8 +3065,8 @@ msgstr "录制结果没能读取：{error}"
 
 #: src/app/command/commandRegistry.ts:191
 #: src/app/shell/navigation.tsx:100
-#: src/pages/RecordingPage.tsx:114
-#: src/pages/RecordingPage.tsx:285
+#: src/pages/RecordingPage.tsx:116
+#: src/pages/RecordingPage.tsx:293
 msgid "录制计划"
 msgstr "录制计划"
 
@@ -3088,7 +3097,7 @@ msgstr "待剪素材"
 msgid "待处理"
 msgstr "待处理"
 
-#: src/domain/agent/types.ts:359
+#: src/domain/agent/types.ts:399
 msgctxt "plan-change"
 msgid "待处理"
 msgstr "待处理"
@@ -3106,7 +3115,7 @@ msgid "待确认的方案"
 msgstr "待确认的方案"
 
 #: src/pages/library/LibraryFilters.tsx:46
-#: src/pages/library/libraryFormat.ts:122
+#: src/pages/library/libraryFormat.ts:123
 msgid "待索引"
 msgstr "待索引"
 
@@ -3152,7 +3161,7 @@ msgstr "恢复默认"
 msgid "成功"
 msgstr "成功"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:675
+#: src/pages/recording/ShotInspectorBlock.tsx:676
 msgid "我的 POV 参数"
 msgstr "我的 POV 参数"
 
@@ -3183,7 +3192,7 @@ msgid "打开 {0} 的档案"
 msgstr "打开 {0} 的档案"
 
 #. placeholder {0}: demo.display_name
-#: src/pages/library/LibraryCards.tsx:158
+#: src/pages/library/LibraryCards.tsx:159
 msgid "打开 {0} 的详情"
 msgstr "打开 {0} 的详情"
 
@@ -3212,9 +3221,9 @@ msgstr "打开工作区"
 msgid "打开工程"
 msgstr "打开工程"
 
-#: src/pages/recording/ShotListBlock.tsx:324
-#: src/pages/recording/ShotListBlock.tsx:349
-#: src/pages/RecordingPage.tsx:384
+#: src/pages/recording/ShotListBlock.tsx:328
+#: src/pages/recording/ShotListBlock.tsx:353
+#: src/pages/RecordingPage.tsx:392
 msgid "打开方案"
 msgstr "打开方案"
 
@@ -3222,8 +3231,8 @@ msgstr "打开方案"
 msgid "打开档案"
 msgstr "打开档案"
 
-#: src/pages/library/LibraryInspector.tsx:139
-#: src/pages/library/LibraryInspector.tsx:152
+#: src/pages/library/LibraryInspector.tsx:140
+#: src/pages/library/LibraryInspector.tsx:153
 msgid "打开比赛工作区"
 msgstr "打开比赛工作区"
 
@@ -3232,7 +3241,7 @@ msgstr "打开比赛工作区"
 msgid "打开第 {0} 回合"
 msgstr "打开第 {0} 回合"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:548
+#: src/pages/recording/ShotInspectorBlock.tsx:549
 msgid "打开脚本目录"
 msgstr "打开脚本目录"
 
@@ -3256,7 +3265,7 @@ msgstr "找不到这个页面"
 msgid "找不到这条任务"
 msgstr "找不到这条任务"
 
-#: src/pages/recording/recordingContract.ts:547
+#: src/pages/recording/recordingContract.ts:565
 msgid "找到了可用的游戏程序，录制会以离线模式启动它"
 msgstr "找到了可用的游戏程序，录制会以离线模式启动它"
 
@@ -3283,11 +3292,11 @@ msgstr "把片段 {position} 的时长改为 {0}s（{offset}）"
 msgid "把这个回合加入视频"
 msgstr "把这个回合加入视频"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:691
+#: src/pages/recording/ShotInspectorBlock.tsx:692
 msgid "把这个片段的参数应用到全部？"
 msgstr "把这个片段的参数应用到全部？"
 
-#: src/pages/match/views/DuelsView.tsx:733
+#: src/pages/match/views/DuelsView.tsx:734
 #: src/pages/match/views/PlayersView.tsx:487
 #: src/pages/match/views/TeamsView.tsx:547
 #: src/pages/match/views/UtilityView.tsx:652
@@ -3324,15 +3333,15 @@ msgstr "拆弹成功"
 msgid "拒绝"
 msgstr "拒绝"
 
-#: src/pages/recording/ShotListBlock.tsx:106
+#: src/pages/recording/ShotListBlock.tsx:110
 msgid "拖动可排序，Alt+↑↓ 也可以"
 msgstr "拖动可排序，Alt+↑↓ 也可以"
 
-#: src/pages/montage/ClipOrderBlock.tsx:117
+#: src/pages/montage/ClipOrderBlock.tsx:118
 msgid "拖拽排序 · 双击裁切 · Ctrl 与左右方向键也可以移动"
 msgstr "拖拽排序 · 双击裁切 · Ctrl 与左右方向键也可以移动"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:314
+#: src/pages/recording/ShotInspectorBlock.tsx:315
 msgid "持枪视野"
 msgstr "持枪视野"
 
@@ -3388,11 +3397,11 @@ msgstr "换来源"
 msgid "排队中"
 msgstr "排队中"
 
-#: src/pages/delivery/taskModel.tsx:160
+#: src/pages/delivery/taskModel.tsx:161
 msgid "排队等待解析"
 msgstr "排队等待解析"
 
-#: src/domain/agent/types.ts:185
+#: src/domain/agent/types.ts:186
 #: src/pages/recording/shotModel.ts:99
 msgid "掠过"
 msgstr "掠过"
@@ -3405,7 +3414,7 @@ msgstr "接受"
 msgid "接受变更不会启动录制：录制只在顶部确认一次之后才开始。"
 msgstr "接受变更不会启动录制：录制只在顶部确认一次之后才开始。"
 
-#: src/domain/agent/types.ts:187
+#: src/domain/agent/types.ts:188
 #: src/pages/recording/shotModel.ts:91
 msgid "推轨"
 msgstr "推轨"
@@ -3418,7 +3427,7 @@ msgstr "推近"
 msgid "提示"
 msgstr "提示"
 
-#: src/domain/agent/types.ts:341
+#: src/domain/agent/types.ts:381
 msgctxt "plan-change"
 msgid "插入"
 msgstr "插入"
@@ -3447,7 +3456,7 @@ msgstr "搜索比赛、选手或文件名"
 msgid "搜索选手或别名"
 msgstr "搜索选手或别名"
 
-#: src/design/timeline/TimelinePrototype.tsx:155
+#: src/design/timeline/TimelinePrototype.tsx:166
 msgid "撤销"
 msgstr "撤销"
 
@@ -3468,7 +3477,7 @@ msgid "播放头"
 msgstr "播放头"
 
 #. placeholder {0}: formatTimecode(timeline.playhead)
-#: src/design/timeline/TimelinePrototype.tsx:265
+#: src/design/timeline/TimelinePrototype.tsx:291
 msgid "播放头 {0}"
 msgstr "播放头 {0}"
 
@@ -3498,7 +3507,7 @@ msgstr "收起 AI 工作台"
 msgid "收起侧栏"
 msgstr "收起侧栏"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:640
+#: src/pages/recording/ShotInspectorBlock.tsx:641
 msgid "收起预设"
 msgstr "收起预设"
 
@@ -3518,11 +3527,11 @@ msgstr "改动来源"
 msgid "改动没有保存：{saveMessage}"
 msgstr "改动没有保存：{saveMessage}"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:409
+#: src/pages/recording/ShotInspectorBlock.tsx:410
 msgid "改回全局默认"
 msgstr "改回全局默认"
 
-#: src/pages/match/views/DuelsView.tsx:585
+#: src/pages/match/views/DuelsView.tsx:586
 msgid "改看对位矩阵"
 msgstr "改看对位矩阵"
 
@@ -3534,7 +3543,7 @@ msgstr "改看经济"
 msgid "改看道具"
 msgstr "改看道具"
 
-#: src/pages/match/views/DuelsView.tsx:556
+#: src/pages/match/views/DuelsView.tsx:557
 msgid "改看首杀对决"
 msgstr "改看首杀对决"
 
@@ -3542,7 +3551,7 @@ msgstr "改看首杀对决"
 msgid "攻守已交换"
 msgstr "攻守已交换"
 
-#: src/design/timeline/TimelinePrototype.tsx:175
+#: src/design/timeline/TimelinePrototype.tsx:186
 msgid "放大"
 msgstr "放大"
 
@@ -3582,7 +3591,7 @@ msgstr "整条选用"
 msgid "整段几乎贴平，高度变化不到 1 个单位"
 msgstr "整段几乎贴平，高度变化不到 1 个单位"
 
-#: src/pages/library/LibraryInspector.tsx:224
+#: src/pages/library/LibraryInspector.tsx:225
 msgid "文件"
 msgstr "文件"
 
@@ -3600,11 +3609,11 @@ msgstr "文件名由服务在任务开始时确定，任务 id 在这之前还�
 
 #: src/pages/delivery/OutputsView.tsx:52
 #: src/pages/library/LibraryFilters.tsx:51
-#: src/pages/library/libraryFormat.ts:127
+#: src/pages/library/libraryFormat.ts:128
 msgid "文件缺失"
 msgstr "文件缺失"
 
-#: src/domain/agent/types.ts:321
+#: src/domain/agent/types.ts:361
 msgctxt "plan-change"
 msgid "新增"
 msgstr "新增"
@@ -3641,7 +3650,7 @@ msgstr "新建空会话"
 msgid "新的会话"
 msgstr "新的会话"
 
-#: src/domain/agent/types.ts:266
+#: src/domain/agent/types.ts:306
 msgctxt "agent-object"
 msgid "方案"
 msgstr "方案"
@@ -3673,15 +3682,15 @@ msgstr "方案是 Agent 交出来的镜头列表。在对话里让它出一份�
 msgid "方案本身没有被改动，重试是安全的。"
 msgstr "方案本身没有被改动，重试是安全的。"
 
-#: src/pages/RecordingPage.tsx:387
+#: src/pages/RecordingPage.tsx:395
 msgid "方案里有镜头还没有绑定素材，暂时不能转成录制计划。"
 msgstr "方案里有镜头还没有绑定素材，暂时不能转成录制计划。"
 
-#: src/pages/recording/ShotListBlock.tsx:321
+#: src/pages/recording/ShotListBlock.tsx:325
 msgid "方案里的镜头绑定好 Demo 与选手之后，这里会列出可录制的片段。"
 msgstr "方案里的镜头绑定好 Demo 与选手之后，这里会列出可录制的片段。"
 
-#: src/pages/RecordingPage.tsx:381
+#: src/pages/RecordingPage.tsx:389
 msgid "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 msgstr "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 
@@ -3731,7 +3740,7 @@ msgstr "时长要写成一个不小于 0 的秒数"
 msgid "时间"
 msgstr "时间"
 
-#: src/pages/match/views/DuelsView.tsx:301
+#: src/pages/match/views/DuelsView.tsx:302
 msgid "时间码"
 msgstr "时间码"
 
@@ -3751,7 +3760,7 @@ msgstr "显示全部"
 msgid "暂停"
 msgstr "暂停"
 
-#: src/pages/delivery/taskModel.tsx:280
+#: src/pages/delivery/taskModel.tsx:281
 msgid "暂无可用的恢复动作"
 msgstr "暂无可用的恢复动作"
 
@@ -3776,7 +3785,7 @@ msgstr "更换音乐"
 msgid "更新时间"
 msgstr "更新时间"
 
-#: src/domain/agent/types.ts:340
+#: src/domain/agent/types.ts:380
 msgctxt "plan-change"
 msgid "替换"
 msgstr "替换"
@@ -3829,7 +3838,7 @@ msgstr "服务端的下载接口还没有「下载后自动分析」这个选项
 msgid "服务端说明：{degraded}"
 msgstr "服务端说明：{degraded}"
 
-#: src/pages/match/views/DuelsView.tsx:606
+#: src/pages/match/views/DuelsView.tsx:607
 msgid "服务端说明：{unavailableReason}"
 msgstr "服务端说明：{unavailableReason}"
 
@@ -3891,7 +3900,7 @@ msgstr "未选中任何内容"
 msgid "未选中任何回合"
 msgstr "未选中任何回合"
 
-#: src/pages/match/views/DuelsView.tsx:717
+#: src/pages/match/views/DuelsView.tsx:718
 msgid "未选中任何对位"
 msgstr "未选中任何对位"
 
@@ -3904,13 +3913,13 @@ msgstr "未选中任何选手"
 msgid "未选中任何选手或回合"
 msgstr "未选中任何选手或回合"
 
-#: src/pages/library/LibraryInspector.tsx:102
+#: src/pages/library/LibraryInspector.tsx:103
 msgid "未选中比赛"
 msgstr "未选中比赛"
 
-#: src/design/timeline/TimelinePrototype.tsx:184
-#: src/pages/recording/ShotInspectorBlock.tsx:134
-#: src/pages/recording/ShotInspectorBlock.tsx:149
+#: src/design/timeline/TimelinePrototype.tsx:195
+#: src/pages/recording/ShotInspectorBlock.tsx:135
+#: src/pages/recording/ShotInspectorBlock.tsx:150
 msgid "未选中片段"
 msgstr "未选中片段"
 
@@ -3922,7 +3931,7 @@ msgstr "未选中高光"
 msgid "未选择配乐"
 msgstr "未选择配乐"
 
-#: src/pages/library/libraryFormat.ts:157
+#: src/pages/library/libraryFormat.ts:158
 msgid "本地文件"
 msgstr "本地文件"
 
@@ -3989,7 +3998,7 @@ msgstr "条件"
 #: src/pages/library/libraryColumns.tsx:120
 #: src/pages/library/libraryColumns.tsx:121
 #: src/pages/library/LibraryFilters.tsx:169
-#: src/pages/library/LibraryInspector.tsx:226
+#: src/pages/library/LibraryInspector.tsx:227
 msgid "来源"
 msgstr "来源"
 
@@ -4006,7 +4015,7 @@ msgstr "来源对象"
 msgid "来自「{0}」"
 msgstr "来自「{0}」"
 
-#: src/pages/RecordingPage.tsx:298
+#: src/pages/RecordingPage.tsx:306
 msgid "来自方案 #{agentPlanId}"
 msgstr "来自方案 #{agentPlanId}"
 
@@ -4048,11 +4057,11 @@ msgid "标注风险的镜头"
 msgstr "标注风险的镜头"
 
 #: src/pages/library/LibraryFilters.tsx:170
-#: src/pages/library/LibraryInspector.tsx:234
+#: src/pages/library/LibraryInspector.tsx:235
 msgid "标签"
 msgstr "标签"
 
-#: src/pages/match/views/DuelsView.tsx:295
+#: src/pages/match/views/DuelsView.tsx:296
 msgid "标记"
 msgstr "标记"
 
@@ -4077,11 +4086,11 @@ msgstr "校验只做检查，没有任何数据被改动，重试是安全的。
 msgid "校验文件头与大小；同一份内容不会重复入库"
 msgstr "校验文件头与大小；同一份内容不会重复入库"
 
-#: src/pages/delivery/taskModel.tsx:159
+#: src/pages/delivery/taskModel.tsx:160
 msgid "校验输入"
 msgstr "校验输入"
 
-#: src/pages/library/LibraryInspector.tsx:174
+#: src/pages/library/LibraryInspector.tsx:175
 msgid "桌面端尚未提供“在文件管理器中显示”的命令"
 msgstr "桌面端尚未提供“在文件管理器中显示”的命令"
 
@@ -4148,15 +4157,15 @@ msgstr "模型、会话与行为边界。"
 msgid "模糊"
 msgstr "模糊"
 
-#: src/pages/RecordingPage.tsx:289
+#: src/pages/RecordingPage.tsx:297
 msgid "正在从方案生成预览计划"
 msgstr "正在从方案生成预览计划"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:518
+#: src/pages/recording/ShotInspectorBlock.tsx:519
 msgid "正在写出 HLAE 脚本…"
 msgstr "正在写出 HLAE 脚本…"
 
-#: src/pages/library/LibraryInspector.tsx:218
+#: src/pages/library/LibraryInspector.tsx:219
 msgid "正在分析"
 msgstr "正在分析"
 
@@ -4172,11 +4181,11 @@ msgstr "正在加载输出"
 msgid "正在同步…"
 msgstr "正在同步…"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:520
+#: src/pages/recording/ShotInspectorBlock.tsx:521
 msgid "正在启动 CS2…"
 msgstr "正在启动 CS2…"
 
-#: src/pages/RecordingPage.tsx:448
+#: src/pages/RecordingPage.tsx:456
 msgid "正在启动录制"
 msgstr "正在启动录制"
 
@@ -4233,7 +4242,7 @@ msgstr "正在编译相机路径"
 msgid "正在编辑"
 msgstr "正在编辑"
 
-#: src/pages/library/LibraryInspector.tsx:107
+#: src/pages/library/LibraryInspector.tsx:108
 msgid "正在读取"
 msgstr "正在读取"
 
@@ -4241,7 +4250,7 @@ msgstr "正在读取"
 msgid "正在读取任务详情"
 msgstr "正在读取任务详情"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:186
+#: src/pages/recording/ShotInspectorBlock.tsx:187
 msgid "正在读取全局录制默认值…"
 msgstr "正在读取全局录制默认值…"
 
@@ -4285,7 +4294,7 @@ msgstr "正在读取片段"
 msgid "正在读取玩家目录"
 msgstr "正在读取玩家目录"
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:95
+#: src/pages/library/WatchDirectoriesDrawer.tsx:99
 msgid "正在读取监听状态"
 msgstr "正在读取监听状态"
 
@@ -4293,16 +4302,16 @@ msgstr "正在读取监听状态"
 msgid "正在读取空间证据"
 msgstr "正在读取空间证据"
 
-#: src/pages/library/LibraryCards.tsx:90
-#: src/pages/library/LibraryTable.tsx:127
+#: src/pages/library/LibraryCards.tsx:91
+#: src/pages/library/LibraryTable.tsx:128
 msgid "正在读取资料库"
 msgstr "正在读取资料库"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:730
+#: src/pages/recording/ShotInspectorBlock.tsx:731
 msgid "正在读取预设…"
 msgstr "正在读取预设…"
 
-#: src/pages/agent/sessionDrawerModel.ts:104
+#: src/pages/agent/sessionDrawerModel.ts:107
 msgid "正在跑的录制任务"
 msgstr "正在跑的录制任务"
 
@@ -4325,7 +4334,7 @@ msgstr "此动作当前不可用：{disabledReason}"
 #: src/pages/evidence/EvidenceConditions.tsx:75
 #: src/pages/evidence/EvidenceConditions.tsx:86
 #: src/pages/evidence/EvidenceDetail.tsx:128
-#: src/pages/match/views/DuelsView.tsx:286
+#: src/pages/match/views/DuelsView.tsx:287
 #: src/pages/match/views/PlayersView.tsx:316
 msgid "武器"
 msgstr "武器"
@@ -4371,7 +4380,7 @@ msgstr "段位分布"
 msgid "段位历史不可用：这批 Demo 不含段位字段。"
 msgstr "段位历史不可用：这批 Demo 不含段位字段。"
 
-#: src/pages/recording/recordingContract.ts:555
+#: src/pages/recording/recordingContract.ts:573
 msgid "每一份 Demo 都还和分析时的内容相同"
 msgstr "每一份 Demo 都还和分析时的内容相同"
 
@@ -4383,7 +4392,7 @@ msgstr "每一段都已经落在拍点上（误差小于 {BEAT_SUGGESTION_TOLERA
 msgid "每一行是一种结束原因，数字是用这种方式赢下的回合数"
 msgstr "每一行是一种结束原因，数字是用这种方式赢下的回合数"
 
-#: src/pages/match/views/DuelsView.tsx:578
+#: src/pages/match/views/DuelsView.tsx:579
 msgid "每个回合的第一次击杀都缺少击杀者或被击杀者，因此无法成对。"
 msgstr "每个回合的第一次击杀都缺少击杀者或被击杀者，因此无法成对。"
 
@@ -4391,15 +4400,15 @@ msgstr "每个回合的第一次击杀都缺少击杀者或被击杀者，因此
 msgid "每个回合的购买记录"
 msgstr "每个回合的购买记录"
 
-#: src/pages/match/views/DuelsView.tsx:328
+#: src/pages/match/views/DuelsView.tsx:329
 msgid "每个回合的首杀对决"
 msgstr "每个回合的首杀对决"
 
-#: src/pages/recording/recordingContract.ts:571
+#: src/pages/recording/recordingContract.ts:589
 msgid "每个片段的时间窗口都落在 Demo 自身的长度里"
 msgstr "每个片段的时间窗口都落在 Demo 自身的长度里"
 
-#: src/pages/recording/recordingContract.ts:563
+#: src/pages/recording/recordingContract.ts:581
 msgid "每个选手 POV 镜头都能在解析结果里找到对应的观察位"
 msgstr "每个选手 POV 镜头都能在解析结果里找到对应的观察位"
 
@@ -4483,14 +4492,14 @@ msgstr "比赛数"
 msgid "比赛日期"
 msgstr "比赛日期"
 
-#: src/pages/library/LibraryInspector.tsx:227
+#: src/pages/library/LibraryInspector.tsx:228
 msgid "比赛时间"
 msgstr "比赛时间"
 
-#: src/pages/library/LibraryInspector.tsx:100
 #: src/pages/library/LibraryInspector.tsx:101
-#: src/pages/library/LibraryInspector.tsx:128
+#: src/pages/library/LibraryInspector.tsx:102
 #: src/pages/library/LibraryInspector.tsx:129
+#: src/pages/library/LibraryInspector.tsx:130
 msgid "比赛详情"
 msgstr "比赛详情"
 
@@ -4530,23 +4539,23 @@ msgstr "没有匹配的结果"
 msgid "没有匹配的选手"
 msgstr "没有匹配的选手"
 
-#: src/design/timeline/TimelinePrototype.tsx:64
+#: src/design/timeline/TimelinePrototype.tsx:68
 msgid "没有变化"
 msgstr "没有变化"
 
-#: src/pages/match/views/DuelsView.tsx:575
+#: src/pages/match/views/DuelsView.tsx:576
 msgid "没有可归属的首杀"
 msgstr "没有可归属的首杀"
 
-#: src/design/timeline/TimelinePrototype.tsx:152
+#: src/design/timeline/TimelinePrototype.tsx:163
 msgid "没有可撤销的操作"
 msgstr "没有可撤销的操作"
 
-#: src/pages/match/views/DuelsView.tsx:548
+#: src/pages/match/views/DuelsView.tsx:549
 msgid "没有可用的对位数据"
 msgstr "没有可用的对位数据"
 
-#: src/design/timeline/TimelinePrototype.tsx:161
+#: src/design/timeline/TimelinePrototype.tsx:172
 msgid "没有可重做的操作"
 msgstr "没有可重做的操作"
 
@@ -4562,7 +4571,7 @@ msgstr "没有导出复盘 HTML 的命令，服务端还没有这条路由"
 msgid "没有开始录制，游戏也没有被启动。"
 msgstr "没有开始录制，游戏也没有被启动。"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:557
+#: src/pages/recording/ShotInspectorBlock.tsx:558
 msgid "没有录制任何画面。"
 msgstr "没有录制任何画面。"
 
@@ -4586,11 +4595,11 @@ msgstr "没有选中方案，无法判断这些变更是否仍然成立"
 msgid "没有道具记录"
 msgstr "没有道具记录"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:655
+#: src/pages/recording/ShotInspectorBlock.tsx:656
 msgid "没能保存预设：{createFailure}"
 msgstr "没能保存预设：{createFailure}"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:559
+#: src/pages/recording/ShotInspectorBlock.tsx:560
 msgid "没能在游戏里打开这个镜头：{failure}"
 msgstr "没能在游戏里打开这个镜头：{failure}"
 
@@ -4610,7 +4619,7 @@ msgstr "沿一条直线平移，适合进场与收尾"
 msgid "沿真实移动轴跟随，适合交代路线"
 msgstr "沿真实移动轴跟随，适合交代路线"
 
-#: src/design/timeline/TimelinePrototype.tsx:142
+#: src/design/timeline/TimelinePrototype.tsx:153
 msgid "波纹删除"
 msgstr "波纹删除"
 
@@ -4682,7 +4691,7 @@ msgstr "添加片段"
 msgid "添加监听目录"
 msgstr "添加监听目录"
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:80
+#: src/pages/library/WatchDirectoriesDrawer.tsx:84
 #: src/pages/LibraryPage.tsx:191
 msgid "添加目录"
 msgstr "添加目录"
@@ -4692,7 +4701,7 @@ msgstr "添加目录"
 msgid "清理无效记录"
 msgstr "清理无效记录"
 
-#: src/pages/montage/ClipOrderBlock.tsx:207
+#: src/pages/montage/ClipOrderBlock.tsx:208
 msgid "清空"
 msgstr "清空"
 
@@ -4711,8 +4720,8 @@ msgid "清空搜索"
 msgstr "清空搜索"
 
 #: src/pages/evidence/EvidenceEmpty.tsx:124
-#: src/pages/library/LibraryCards.tsx:100
-#: src/pages/library/LibraryTable.tsx:136
+#: src/pages/library/LibraryCards.tsx:101
+#: src/pages/library/LibraryTable.tsx:137
 msgid "清空条件"
 msgstr "清空条件"
 
@@ -4720,11 +4729,11 @@ msgstr "清空条件"
 msgid "清空没有成功"
 msgstr "清空没有成功"
 
-#: src/pages/montage/ClipOrderBlock.tsx:138
+#: src/pages/montage/ClipOrderBlock.tsx:139
 msgid "清空片段"
 msgstr "清空片段"
 
-#: src/pages/montage/ClipOrderBlock.tsx:206
+#: src/pages/montage/ClipOrderBlock.tsx:207
 msgid "清空这份合辑的片段？"
 msgstr "清空这份合辑的片段？"
 
@@ -4738,7 +4747,7 @@ msgstr "清空选择"
 msgid "游戏与录制"
 msgstr "游戏与录制"
 
-#: src/pages/library/LibraryInspector.tsx:168
+#: src/pages/library/LibraryInspector.tsx:169
 msgid "游戏内回放"
 msgstr "游戏内回放"
 
@@ -4750,7 +4759,7 @@ msgstr "游戏正在回放另一段 Demo，先停止它再预览这个镜头"
 msgid "源文件不在原位"
 msgstr "源文件不在原位"
 
-#: src/design/timeline/TimelinePrototype.tsx:78
+#: src/design/timeline/TimelinePrototype.tsx:82
 msgid "滑移"
 msgstr "滑移"
 
@@ -4764,7 +4773,7 @@ msgstr "滑移"
 msgid "炸弹引爆"
 msgstr "炸弹引爆"
 
-#: src/pages/match/views/DuelsView.tsx:615
+#: src/pages/match/views/DuelsView.tsx:616
 msgid "点一个单元格看这一对的每一次交手，点行首看这名选手的全部对位。"
 msgstr "点一个单元格看这一对的每一次交手，点行首看这名选手的全部对位。"
 
@@ -4784,7 +4793,7 @@ msgstr "点击回合进入逐回合复盘"
 msgid "点左侧记分板的一行，这里会显示他这一场的 K/D/A、武器分布和高光。"
 msgstr "点左侧记分板的一行，这里会显示他这一场的 K/D/A、武器分布和高光。"
 
-#: src/pages/match/views/DuelsView.tsx:722
+#: src/pages/match/views/DuelsView.tsx:723
 msgid "点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。"
 msgstr "点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。"
 
@@ -4844,14 +4853,14 @@ msgstr "燃烧"
 #: src/domain/match/matchEnums.ts:212
 #: src/pages/evidence/EvidenceDetail.tsx:134
 #: src/pages/evidence/EvidenceResults.tsx:71
-#: src/pages/match/views/DuelsView.tsx:351
+#: src/pages/match/views/DuelsView.tsx:352
 #: src/pages/match/views/ReplayView.tsx:595
 #: src/pages/match/views/RoundsView.tsx:98
 #: src/pages/match/views/RoundsView.tsx:273
 msgid "爆头"
 msgstr "爆头"
 
-#: src/pages/match/views/DuelsView.tsx:663
+#: src/pages/match/views/DuelsView.tsx:664
 msgid "爆头击杀"
 msgstr "爆头击杀"
 
@@ -4887,7 +4896,7 @@ msgstr "片尾已开启但没有标题，渲染会拒绝"
 #: src/pages/montage/MontageProjectList.tsx:98
 #: src/pages/montage/MusicBeatBlock.tsx:540
 #: src/pages/montage/MusicBeatBlock.tsx:541
-#: src/pages/recording/ShotListBlock.tsx:125
+#: src/pages/recording/ShotListBlock.tsx:129
 msgid "片段"
 msgstr "片段"
 
@@ -4896,7 +4905,7 @@ msgctxt "task-progress"
 msgid "片段"
 msgstr "片段"
 
-#: src/design/timeline/TimelinePrototype.tsx:62
+#: src/design/timeline/TimelinePrototype.tsx:66
 msgid "片段不在时间轴上"
 msgstr "片段不在时间轴上"
 
@@ -4904,26 +4913,26 @@ msgstr "片段不在时间轴上"
 msgid "片段与拍点"
 msgstr "片段与拍点"
 
-#: src/pages/recording/ShotListBlock.tsx:98
-#: src/pages/recording/ShotListBlock.tsx:103
+#: src/pages/recording/ShotListBlock.tsx:102
+#: src/pages/recording/ShotListBlock.tsx:107
 msgid "片段列表"
 msgstr "片段列表"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:128
-#: src/pages/recording/ShotInspectorBlock.tsx:133
+#: src/pages/recording/ShotInspectorBlock.tsx:129
+#: src/pages/recording/ShotInspectorBlock.tsx:134
 msgid "片段属性"
 msgstr "片段属性"
 
 #. placeholder {0}: String(index + 1).padStart(2, '0')
-#: src/pages/recording/ShotInspectorBlock.tsx:130
+#: src/pages/recording/ShotInspectorBlock.tsx:131
 msgid "片段属性 · {0}"
 msgstr "片段属性 · {0}"
 
-#: src/pages/recording/ShotListBlock.tsx:221
+#: src/pages/recording/ShotListBlock.tsx:225
 msgid "片段已修改，当前预览计划已失效，需要重新生成预览。"
 msgstr "片段已修改，当前预览计划已失效，需要重新生成预览。"
 
-#: src/pages/RecordingPage.tsx:452
+#: src/pages/RecordingPage.tsx:460
 msgid "片段已修改，需要重新生成预览计划"
 msgstr "片段已修改，需要重新生成预览计划"
 
@@ -4935,7 +4944,7 @@ msgstr "片段改过之后需要重新生成预览计划，再运行一次校验
 msgid "片段转场"
 msgstr "片段转场"
 
-#: src/pages/montage/ClipOrderBlock.tsx:114
+#: src/pages/montage/ClipOrderBlock.tsx:115
 msgid "片段顺序"
 msgstr "片段顺序"
 
@@ -4979,7 +4988,7 @@ msgstr "玩家目录没能读出来：{error}"
 msgid "玩家视图"
 msgstr "玩家视图"
 
-#: src/domain/agent/types.ts:186
+#: src/domain/agent/types.ts:187
 #: src/pages/recording/shotModel.ts:87
 msgid "环绕"
 msgstr "环绕"
@@ -5015,7 +5024,7 @@ msgid "生成视频"
 msgstr "生成视频"
 
 #. placeholder {0}: message ?? ''
-#: src/pages/RecordingPage.tsx:419
+#: src/pages/RecordingPage.tsx:427
 msgid "生成预览计划失败：{0}"
 msgstr "生成预览计划失败：{0}"
 
@@ -5059,11 +5068,11 @@ msgstr "画质优先"
 msgid "画质策略"
 msgstr "画质策略"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:297
+#: src/pages/recording/ShotInspectorBlock.tsx:298
 msgid "画面"
 msgstr "画面"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:342
+#: src/pages/recording/ShotInspectorBlock.tsx:343
 msgid "画面元素"
 msgstr "画面元素"
 
@@ -5075,7 +5084,7 @@ msgstr "留白"
 msgid "留空就叫「未命名」，随时可以改"
 msgstr "留空就叫「未命名」，随时可以改"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:179
+#: src/pages/montage/ClipTrimDrawer.tsx:180
 msgid "留空表示用到素材末尾"
 msgstr "留空表示用到素材末尾"
 
@@ -5084,8 +5093,8 @@ msgctxt "task-progress"
 msgid "百分比"
 msgstr "百分比"
 
-#: src/pages/library/libraryFormat.ts:155
-#: src/pages/library/WatchDirectoriesDrawer.tsx:71
+#: src/pages/library/libraryFormat.ts:156
+#: src/pages/library/WatchDirectoriesDrawer.tsx:75
 #: src/pages/LibraryPage.tsx:324
 #: src/pages/LibraryPage.tsx:330
 msgid "监听目录"
@@ -5133,7 +5142,7 @@ msgstr "相机起点"
 msgid "相机路径"
 msgstr "相机路径"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:574
+#: src/pages/recording/ShotInspectorBlock.tsx:575
 msgid "相机路径会被写成一组 HLAE 脚本文件，CS2 会被启动并跳到这个镜头的起始 tick。"
 msgstr "相机路径会被写成一组 HLAE 脚本文件，CS2 会被启动并跳到这个镜头的起始 tick。"
 
@@ -5150,15 +5159,15 @@ msgid "相机高度随时间的变化"
 msgstr "相机高度随时间的变化"
 
 #. placeholder {0}: director.merged_item_count
-#: src/pages/recording/ShotListBlock.tsx:264
+#: src/pages/recording/ShotListBlock.tsx:268
 msgid "相邻镜头会在导播预览中合并，这份计划里合并了 {0} 个片段。"
 msgstr "相邻镜头会在导播预览中合并，这份计划里合并了 {0} 个片段。"
 
-#: src/pages/recording/ShotListBlock.tsx:260
+#: src/pages/recording/ShotListBlock.tsx:264
 msgid "相邻镜头会在导播预览中合并，这份计划里没有发生合并。"
 msgstr "相邻镜头会在导播预览中合并，这份计划里没有发生合并。"
 
-#: src/pages/recording/ShotListBlock.tsx:251
+#: src/pages/recording/ShotListBlock.tsx:255
 msgid "相邻镜头会在导播预览中合并。"
 msgstr "相邻镜头会在导播预览中合并。"
 
@@ -5179,7 +5188,7 @@ msgstr "看整场"
 msgid "看道具与经济"
 msgstr "看道具与经济"
 
-#: src/design/timeline/TimelinePrototype.tsx:202
+#: src/design/timeline/TimelinePrototype.tsx:213
 #: src/pages/agent/NewSessionPane.tsx:179
 #: src/pages/agent/SessionDrawer.tsx:235
 #: src/pages/delivery/OutputsView.tsx:148
@@ -5198,7 +5207,7 @@ msgstr "硬切"
 msgid "确认并生成视频"
 msgstr "确认并生成视频"
 
-#: src/pages/recording/recordingContract.ts:574
+#: src/pages/recording/recordingContract.ts:592
 msgid "碰撞几何未知"
 msgstr "碰撞几何未知"
 
@@ -5211,12 +5220,12 @@ msgid "视图"
 msgstr "视图"
 
 #: src/pages/agent/ShotEditForm.tsx:249
-#: src/pages/recording/ShotInspectorBlock.tsx:242
-#: src/pages/recording/ShotInspectorBlock.tsx:247
+#: src/pages/recording/ShotInspectorBlock.tsx:243
+#: src/pages/recording/ShotInspectorBlock.tsx:248
 msgid "视角"
 msgstr "视角"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:303
+#: src/pages/recording/ShotInspectorBlock.tsx:304
 msgid "视野 FOV"
 msgstr "视野 FOV"
 
@@ -5230,8 +5239,8 @@ msgstr "种类 {0}"
 msgid "种类：{0}"
 msgstr "种类：{0}"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:270
-#: src/pages/recording/ShotInspectorBlock.tsx:288
+#: src/pages/recording/ShotInspectorBlock.tsx:271
+#: src/pages/recording/ShotInspectorBlock.tsx:289
 msgid "秒"
 msgstr "秒"
 
@@ -5262,7 +5271,7 @@ msgstr "移除记录"
 msgid "移除记录失败。"
 msgstr "移除记录失败。"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:129
+#: src/pages/montage/ClipTrimDrawer.tsx:130
 msgid "移除这一段"
 msgstr "移除这一段"
 
@@ -5271,7 +5280,7 @@ msgid "移除配乐"
 msgstr "移除配乐"
 
 #: src/design/feedback/StageBar.tsx:121
-#: src/pages/delivery/taskModel.tsx:215
+#: src/pages/delivery/taskModel.tsx:216
 msgid "稳定"
 msgstr "稳定"
 
@@ -5283,7 +5292,7 @@ msgstr "空间证据"
 #: src/domain/match/matchEnums.ts:211
 #: src/pages/evidence/EvidenceDetail.tsx:133
 #: src/pages/evidence/EvidenceResults.tsx:71
-#: src/pages/match/views/DuelsView.tsx:356
+#: src/pages/match/views/DuelsView.tsx:357
 #: src/pages/match/views/ReplayView.tsx:594
 #: src/pages/match/views/RoundsView.tsx:96
 #: src/pages/match/views/RoundsView.tsx:278
@@ -5375,12 +5384,12 @@ msgstr "第 {slot} 页"
 msgid "等待你确认"
 msgstr "等待你确认"
 
-#: src/domain/agent/types.ts:247
+#: src/domain/agent/types.ts:248
 #: src/domain/task/taskVocabulary.tsx:43
 msgid "等待确认"
 msgstr "等待确认"
 
-#: src/pages/agent/sessionDrawerModel.ts:103
+#: src/pages/agent/sessionDrawerModel.ts:106
 msgid "等待确认的方案"
 msgstr "等待确认的方案"
 
@@ -5393,7 +5402,7 @@ msgstr "等待超时"
 msgid "类型"
 msgstr "类型"
 
-#: src/pages/recording/recordingContract.ts:567
+#: src/pages/recording/recordingContract.ts:585
 msgid "系统里注册了录制需要的视频与音频编码器"
 msgstr "系统里注册了录制需要的视频与音频编码器"
 
@@ -5401,7 +5410,7 @@ msgstr "系统里注册了录制需要的视频与音频编码器"
 msgid "素材已经到头了，没有可以滑移的余量"
 msgstr "素材已经到头了，没有可以滑移的余量"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:198
+#: src/pages/montage/ClipTrimDrawer.tsx:199
 msgid "素材长度"
 msgstr "素材长度"
 
@@ -5410,12 +5419,12 @@ msgid "素材长度还没读到，稍后再试"
 msgstr "素材长度还没读到，稍后再试"
 
 #: src/pages/library/LibraryFilters.tsx:47
-#: src/pages/library/libraryFormat.ts:123
+#: src/pages/library/libraryFormat.ts:124
 msgid "索引中"
 msgstr "索引中"
 
 #: src/pages/library/LibraryFilters.tsx:50
-#: src/pages/library/libraryFormat.ts:126
+#: src/pages/library/libraryFormat.ts:127
 msgid "索引失败"
 msgstr "索引失败"
 
@@ -5493,11 +5502,11 @@ msgid "继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」"
 msgstr "继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」"
 
 #: src/design/feedback/StageBar.tsx:122
-#: src/pages/delivery/taskModel.tsx:216
+#: src/pages/delivery/taskModel.tsx:217
 msgid "编码"
 msgstr "编码"
 
-#: src/pages/recording/recordingContract.ts:566
+#: src/pages/recording/recordingContract.ts:584
 msgid "编码器可用"
 msgstr "编码器可用"
 
@@ -5518,7 +5527,7 @@ msgstr "编辑会记入会话，请先选择或新建一条会话"
 msgid "编辑器是剃刀、滑移、波纹删除、吸附与多轨拖拽的地方，时间轴在这一阶段接上真实素材。"
 msgstr "编辑器是剃刀、滑移、波纹删除、吸附与多轨拖拽的地方，时间轴在这一阶段接上真实素材。"
 
-#: src/domain/agent/types.ts:301
+#: src/domain/agent/types.ts:341
 msgid "编辑通知"
 msgstr "编辑通知"
 
@@ -5530,7 +5539,7 @@ msgstr "编辑镜头 {number}"
 msgid "编辑镜头、接受变更和确认录制都在 Agent 创作页完成，这条竖栏不承载方案编辑。"
 msgstr "编辑镜头、接受变更和确认录制都在 Agent 创作页完成，这条竖栏不承载方案编辑。"
 
-#: src/design/timeline/TimelinePrototype.tsx:169
+#: src/design/timeline/TimelinePrototype.tsx:180
 msgid "缩小"
 msgstr "缩小"
 
@@ -5539,7 +5548,7 @@ msgstr "缩小"
 msgid "缩略图条，共 {0} 帧"
 msgstr "缩略图条，共 {0} 帧"
 
-#: src/domain/agent/types.ts:338
+#: src/domain/agent/types.ts:378
 msgctxt "plan-change"
 msgid "缩短"
 msgstr "缩短"
@@ -5570,7 +5579,7 @@ msgid "胜方"
 msgstr "胜方"
 
 #. placeholder {0}: bundle.files.length
-#: src/pages/recording/ShotInspectorBlock.tsx:535
+#: src/pages/recording/ShotInspectorBlock.tsx:536
 msgid "脚本已经写好，共 {0} 个文件。目录里的 README 说明怎么在 HLAE 里加载它；游戏不会自动加载。"
 msgstr "脚本已经写好，共 {0} 个文件。目录里的 README 说明怎么在 HLAE 里加载它；游戏不会自动加载。"
 
@@ -5608,7 +5617,7 @@ msgstr "节拍建议没能算出来：{error}"
 msgid "花费"
 msgstr "花费"
 
-#: src/domain/agent/types.ts:246
+#: src/domain/agent/types.ts:247
 msgid "草案"
 msgstr "草案"
 
@@ -5621,7 +5630,7 @@ msgstr "行为边界"
 msgid "行操作"
 msgstr "行操作"
 
-#: src/pages/match/views/DuelsView.tsx:114
+#: src/pages/match/views/DuelsView.tsx:115
 msgid "行方 ＼ 列方"
 msgstr "行方 ＼ 列方"
 
@@ -5629,29 +5638,29 @@ msgstr "行方 ＼ 列方"
 msgid "表格"
 msgstr "表格"
 
-#: src/pages/match/views/DuelsView.tsx:279
+#: src/pages/match/views/DuelsView.tsx:280
 msgctxt "duel-column"
 msgid "被击杀"
 msgstr "被击杀"
 
-#: src/pages/montage/ClipOrderBlock.tsx:128
+#: src/pages/montage/ClipOrderBlock.tsx:129
 msgid "裁切"
 msgstr "裁切"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:97
+#: src/pages/montage/ClipTrimDrawer.tsx:98
 msgid "裁切片段"
 msgstr "裁切片段"
 
-#: src/domain/agent/types.ts:196
+#: src/domain/agent/types.ts:197
 #: src/pages/recording/shotModel.ts:121
 msgid "观察者"
 msgstr "观察者"
 
-#: src/pages/recording/recordingContract.ts:562
+#: src/pages/recording/recordingContract.ts:580
 msgid "观察者证据完整"
 msgstr "观察者证据完整"
 
-#: src/pages/recording/recordingContract.ts:345
+#: src/pages/recording/recordingContract.ts:363
 msgid "观察者镜头的视野由相机路径逐帧决定，也不会绘制持枪画面"
 msgstr "观察者镜头的视野由相机路径逐帧决定，也不会绘制持枪画面"
 
@@ -5663,7 +5672,7 @@ msgstr "解析出的比赛没有可归属的选手记录，记分板因此是空
 msgid "解析后复核输入"
 msgstr "解析后复核输入"
 
-#: src/pages/delivery/taskModel.tsx:161
+#: src/pages/delivery/taskModel.tsx:162
 msgid "解析比赛数据"
 msgstr "解析比赛数据"
 
@@ -5779,7 +5788,7 @@ msgstr "读不到会话列表：{listError}"
 msgid "读不到会话占用：{error}"
 msgstr "读不到会话占用：{error}"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:180
+#: src/pages/recording/ShotInspectorBlock.tsx:181
 msgid "读不到全局录制默认值，画面参数没法显示：{failure}"
 msgstr "读不到全局录制默认值，画面参数没法显示：{failure}"
 
@@ -5800,7 +5809,7 @@ msgstr "读不到模型配置：{error}"
 msgid "读不到注释：{error}"
 msgstr "读不到注释：{error}"
 
-#: src/pages/RecordingPage.tsx:322
+#: src/pages/RecordingPage.tsx:330
 msgid "读不到这个方案：{agentFailure}"
 msgstr "读不到这个方案：{agentFailure}"
 
@@ -5824,7 +5833,7 @@ msgstr "读不到这场比赛的高光：{failure}"
 msgid "读不到这条会话：{failure}"
 msgstr "读不到这条会话：{failure}"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:723
+#: src/pages/recording/ShotInspectorBlock.tsx:724
 msgid "读不到预设：{failure}"
 msgstr "读不到预设：{failure}"
 
@@ -5895,7 +5904,7 @@ msgstr "起始 tick 要写成一个不小于 0 的整数"
 msgid "超出当前保留策略的会话会被删除，删掉的是对话本身。它们改过的方案、录制任务和已生成的视频都留下。"
 msgstr "超出当前保留策略的会话会被删除，删掉的是对话本身。它们改过的方案、录制任务和已生成的视频都留下。"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:163
+#: src/pages/montage/ClipTrimDrawer.tsx:164
 msgid "超出素材范围"
 msgstr "超出素材范围"
 
@@ -5907,12 +5916,12 @@ msgstr "趋势指标"
 msgid "距离 {metres}m"
 msgstr "距离 {metres}m"
 
-#: src/domain/agent/types.ts:182
+#: src/domain/agent/types.ts:183
 #: src/pages/recording/shotModel.ts:83
 msgid "跟随"
 msgstr "跟随"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:403
+#: src/pages/recording/ShotInspectorBlock.tsx:404
 msgid "跟随全局默认"
 msgstr "跟随全局默认"
 
@@ -5920,7 +5929,7 @@ msgstr "跟随全局默认"
 msgid "路径已经编译出来了，但没有地图就没有可以把坐标放上去的底图。"
 msgstr "路径已经编译出来了，但没有地图就没有可以把坐标放上去的底图。"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:578
+#: src/pages/recording/ShotInspectorBlock.tsx:579
 msgid "路径要在 HLAE 里加载这组脚本之后才会画出来，本地服务不会替你加载；启动后这里会给出脚本目录。"
 msgstr "路径要在 HLAE 里加载这组脚本之后才会画出来，本地服务不会替你加载；启动后这里会给出脚本目录。"
 
@@ -5942,7 +5951,7 @@ msgid "跳转"
 msgstr "跳转"
 
 #: src/design/feedback/StageBar.tsx:119
-#: src/pages/delivery/taskModel.tsx:213
+#: src/pages/delivery/taskModel.tsx:214
 msgctxt "recording-stage"
 msgid "跳转"
 msgstr "跳转"
@@ -5984,7 +5993,7 @@ msgstr "输入文件校验通过"
 msgid "输出"
 msgstr "输出"
 
-#: src/domain/agent/types.ts:275
+#: src/domain/agent/types.ts:315
 msgctxt "agent-object"
 msgid "输出"
 msgstr "输出"
@@ -5993,11 +6002,11 @@ msgstr "输出"
 msgid "输出目录"
 msgstr "输出目录"
 
-#: src/pages/recording/recordingContract.ts:558
+#: src/pages/recording/recordingContract.ts:576
 msgid "输出目录可写"
 msgstr "输出目录可写"
 
-#: src/pages/recording/recordingContract.ts:559
+#: src/pages/recording/recordingContract.ts:577
 msgid "输出目录能写入，且剩余空间够这次录制"
 msgstr "输出目录能写入，且剩余空间够这次录制"
 
@@ -6005,7 +6014,7 @@ msgstr "输出目录能写入，且剩余空间够这次录制"
 msgid "过黑"
 msgstr "过黑"
 
-#: src/pages/recording/recordingContract.ts:575
+#: src/pages/recording/recordingContract.ts:593
 msgid "运动镜头的坐标要进游戏预览之后才能与地图几何核对，这里只是提醒，不会拦住录制"
 msgstr "运动镜头的坐标要进游戏预览之后才能与地图几何核对，这里只是提醒，不会拦住录制"
 
@@ -6024,8 +6033,8 @@ msgstr "运行录制前校验"
 msgid "返回工作台"
 msgstr "返回工作台"
 
-#: src/pages/RecordingPage.tsx:304
-#: src/pages/RecordingPage.tsx:307
+#: src/pages/RecordingPage.tsx:312
+#: src/pages/RecordingPage.tsx:315
 msgid "返回方案"
 msgstr "返回方案"
 
@@ -6037,7 +6046,7 @@ msgstr "还不知道这个片段属于哪张地图"
 msgid "还原"
 msgstr "还原"
 
-#: src/domain/agent/types.ts:322
+#: src/domain/agent/types.ts:362
 msgctxt "plan-change"
 msgid "还原"
 msgstr "还原"
@@ -6083,7 +6092,7 @@ msgstr "还没有任务记录"
 msgid "还没有会话"
 msgstr "还没有会话"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:739
+#: src/pages/recording/ShotInspectorBlock.tsx:740
 msgid "还没有保存过预设。"
 msgstr "还没有保存过预设。"
 
@@ -6158,7 +6167,7 @@ msgstr "还没有玩家"
 msgid "还没有生成点评。没有配置模型时这一栏不会有内容，自动洞察不受影响。"
 msgstr "还没有生成点评。没有配置模型时这一栏不会有内容，自动洞察不受影响。"
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:101
+#: src/pages/library/WatchDirectoriesDrawer.tsx:105
 msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 msgstr "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 
@@ -6203,7 +6212,7 @@ msgid "还没有阶段日志"
 msgstr "还没有阶段日志"
 
 #: src/pages/recording/PreflightBlock.tsx:307
-#: src/pages/RecordingPage.tsx:449
+#: src/pages/RecordingPage.tsx:457
 msgid "还没有预览计划，先生成一份"
 msgstr "还没有预览计划，先生成一份"
 
@@ -6243,7 +6252,7 @@ msgstr "这一场的高光"
 msgid "这一块在阶段 {phase} 接入。"
 msgstr "这一块在阶段 {phase} 接入。"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:130
+#: src/pages/montage/ClipTrimDrawer.tsx:131
 msgid "这一段对应的录制结果已经不在了，无法预览或裁切。"
 msgstr "这一段对应的录制结果已经不在了，无法预览或裁切。"
 
@@ -6251,7 +6260,7 @@ msgstr "这一段对应的录制结果已经不在了，无法预览或裁切。
 msgid "这一段没有可列出的事件"
 msgstr "这一段没有可列出的事件"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:156
+#: src/pages/montage/ClipTrimDrawer.tsx:157
 msgid "这一段素材的波形"
 msgstr "这一段素材的波形"
 
@@ -6267,7 +6276,7 @@ msgstr "这一页说的每一句话都记在一条会话里，方案的每一次
 msgid "这一项统计不可用"
 msgstr "这一项统计不可用"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:583
+#: src/pages/recording/ShotInspectorBlock.tsx:584
 msgid "这不是录制：不会采集任何画面，也不会产生输出。"
 msgstr "这不是录制：不会采集任何画面，也不会产生输出。"
 
@@ -6303,7 +6312,7 @@ msgstr "这个方案还没有偏离 Agent 版本，只有一个版本可比。"
 msgid "这个方案还没有镜头，先让 Agent 出一版，或在右侧手动添加。"
 msgstr "这个方案还没有镜头，先让 Agent 出一版，或在右侧手动添加。"
 
-#: src/pages/RecordingPage.tsx:389
+#: src/pages/RecordingPage.tsx:397
 msgid "这个方案里没有可录制的镜头。"
 msgstr "这个方案里没有可录制的镜头。"
 
@@ -6344,7 +6353,7 @@ msgstr "这个页面没能打开"
 msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "这些高光还读不到完整的解析结果，无法建立方案"
 
-#: src/pages/match/views/DuelsView.tsx:550
+#: src/pages/match/views/DuelsView.tsx:551
 msgid "这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。服务端给出的原因见下方。"
 msgstr "这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。服务端给出的原因见下方。"
 
@@ -6356,11 +6365,11 @@ msgstr "这份分析没有解出投掷物的生命周期事件，所以逐选手
 msgid "这份分析没有解出物品购买事件，所以每回合的经济账目是空的。"
 msgstr "这份分析没有解出物品购买事件，所以每回合的经济账目是空的。"
 
-#: src/pages/match/views/DuelsView.tsx:672
+#: src/pages/match/views/DuelsView.tsx:673
 msgid "这份分析没有这名选手的对位记录。"
 msgstr "这份分析没有这名选手的对位记录。"
 
-#: src/pages/match/views/DuelsView.tsx:396
+#: src/pages/match/views/DuelsView.tsx:397
 msgid "这份分析没有逐条击杀事件，所以列不出这一对的交手。"
 msgstr "这份分析没有逐条击杀事件，所以列不出这一对的交手。"
 
@@ -6368,7 +6377,7 @@ msgstr "这份分析没有逐条击杀事件，所以列不出这一对的交手
 msgid "这份分析没有逐条击杀事件，武器分布无法统计。"
 msgstr "这份分析没有逐条击杀事件，武器分布无法统计。"
 
-#: src/pages/match/views/DuelsView.tsx:580
+#: src/pages/match/views/DuelsView.tsx:581
 msgid "这份分析没有逐条击杀事件，首杀要靠事件流才能推出来。"
 msgstr "这份分析没有逐条击杀事件，首杀要靠事件流才能推出来。"
 
@@ -6389,14 +6398,14 @@ msgstr "这份分析里没有选手"
 msgid "这份合辑没能打开：{0}"
 msgstr "这份合辑没能打开：{0}"
 
-#: src/pages/montage/ClipOrderBlock.tsx:135
+#: src/pages/montage/ClipOrderBlock.tsx:136
 #: src/pages/montage/montageSettings.ts:232
 #: src/pages/montage/MusicBeatBlock.tsx:362
 msgid "这份合辑还没有片段"
 msgstr "这份合辑还没有片段"
 
 #. placeholder {0}: ordered.length
-#: src/pages/montage/ClipOrderBlock.tsx:216
+#: src/pages/montage/ClipOrderBlock.tsx:217
 msgid "这份合辑里的 {0} 段都会被移出，包装与导出设置保持不变。录制结果本身留在输出里。"
 msgstr "这份合辑里的 {0} 段都会被移出，包装与导出设置保持不变。录制结果本身留在输出里。"
 
@@ -6417,20 +6426,20 @@ msgstr "这份方案还没有被任何会话改动过。"
 msgid "这份方案还没有镜头"
 msgstr "这份方案还没有镜头"
 
-#: src/pages/RecordingPage.tsx:450
+#: src/pages/RecordingPage.tsx:458
 msgid "这份计划里没有片段"
 msgstr "这份计划里没有片段"
 
-#: src/pages/recording/ShotListBlock.tsx:320
+#: src/pages/recording/ShotListBlock.tsx:324
 msgid "这份计划里还没有片段"
 msgstr "这份计划里还没有片段"
 
-#: src/pages/RecordingPage.tsx:406
+#: src/pages/RecordingPage.tsx:414
 msgid "这份预览计划已经不在了，本地服务可能重启过。"
 msgstr "这份预览计划已经不在了，本地服务可能重启过。"
 
-#: src/pages/RecordingPage.tsx:337
-#: src/pages/RecordingPage.tsx:404
+#: src/pages/RecordingPage.tsx:345
+#: src/pages/RecordingPage.tsx:412
 msgid "这份预览计划已经过期。"
 msgstr "这份预览计划已经过期。"
 
@@ -6639,7 +6648,7 @@ msgstr "进行中的任务、失败可恢复的任务和最近的成片"
 msgid "退出预览"
 msgstr "退出预览"
 
-#: src/pages/library/LibraryCards.tsx:75
+#: src/pages/library/LibraryCards.tsx:76
 msgid "适合几十场以内的个人资料库；大库仍建议用表格"
 msgstr "适合几十场以内的个人资料库；大库仍建议用表格"
 
@@ -6649,7 +6658,7 @@ msgstr "选一段音乐后，这里会给出可解释的卡点建议。"
 
 #. placeholder {0}: demo.display_name
 #. placeholder {1}: demo.map_name
-#: src/pages/library/LibraryInspector.tsx:131
+#: src/pages/library/LibraryInspector.tsx:132
 msgid "选中 {0} · {1}"
 msgstr "选中 {0} · {1}"
 
@@ -6662,7 +6671,7 @@ msgstr "选中 {subject} · 第 {0} 回合 · tick {1}"
 #. placeholder {0}: player.name
 #. placeholder {0}: player?.name ?? utilityRow.name
 #. placeholder {0}: row.name
-#: src/pages/match/views/DuelsView.tsx:730
+#: src/pages/match/views/DuelsView.tsx:731
 #: src/pages/match/views/PlayersView.tsx:484
 #: src/pages/match/views/TeamsView.tsx:544
 #: src/pages/match/views/UtilityView.tsx:649
@@ -6685,7 +6694,7 @@ msgstr "选中：第 {0} 回合"
 msgid "选中：第 {0} 回合的高光"
 msgstr "选中：第 {0} 回合的高光"
 
-#: src/pages/match/views/DuelsView.tsx:716
+#: src/pages/match/views/DuelsView.tsx:717
 #: src/pages/match/views/PlayersView.tsx:466
 #: src/pages/match/views/RoundsView.tsx:660
 #: src/pages/match/views/TeamsView.tsx:525
@@ -6719,7 +6728,7 @@ msgstr "选手"
 msgid "选手 {0}"
 msgstr "选手 {0}"
 
-#: src/domain/agent/types.ts:197
+#: src/domain/agent/types.ts:198
 #: src/pages/recording/shotModel.ts:75
 #: src/pages/recording/shotModel.ts:122
 msgid "选手 POV"
@@ -6740,17 +6749,17 @@ msgstr "选手位置"
 msgid "选手名牌"
 msgstr "选手名牌"
 
-#: src/domain/agent/types.ts:183
+#: src/domain/agent/types.ts:184
 msgid "选手视角"
 msgstr "选手视角"
 
-#: src/design/timeline/TimelinePrototype.tsx:76
+#: src/design/timeline/TimelinePrototype.tsx:80
 msgid "选择"
 msgstr "选择"
 
 #. placeholder {0}: demo.display_name
 #. placeholder {0}: take.title
-#: src/pages/library/LibraryTable.tsx:114
+#: src/pages/library/LibraryTable.tsx:115
 #: src/pages/montage/AddClipsDialog.tsx:137
 msgid "选择 {0}"
 msgstr "选择 {0}"
@@ -6775,7 +6784,7 @@ msgstr "选择配乐"
 msgid "选择音乐"
 msgstr "选择音乐"
 
-#: src/pages/match/views/DuelsView.tsx:668
+#: src/pages/match/views/DuelsView.tsx:669
 msgid "逐个对手"
 msgstr "逐个对手"
 
@@ -6800,6 +6809,10 @@ msgstr "逐回合详情"
 #: src/pages/montage/montageSettings.ts:66
 msgid "速度优先"
 msgstr "速度优先"
+
+#: src/design/timeline/TimelinePrototype.tsx:63
+msgid "速度只能在 5% 到 1600% 之间"
+msgstr "速度只能在 5% 到 1600% 之间"
 
 #: src/pages/match/views/UtilityView.tsx:430
 msgid "道具"
@@ -6854,11 +6867,11 @@ msgid "配置还没读出来，稍后再试"
 msgstr "配置还没读出来，稍后再试"
 
 #: src/design/feedback/StageBar.tsx:120
-#: src/pages/delivery/taskModel.tsx:214
+#: src/pages/delivery/taskModel.tsx:215
 msgid "采集"
 msgstr "采集"
 
-#: src/pages/recording/recordingContract.ts:550
+#: src/pages/recording/recordingContract.ts:568
 msgid "采集组件已准备"
 msgstr "采集组件已准备"
 
@@ -6866,7 +6879,7 @@ msgstr "采集组件已准备"
 msgid "采集组件还没准备好，无法在游戏里预览"
 msgstr "采集组件还没准备好，无法在游戏里预览"
 
-#: src/design/timeline/TimelinePrototype.tsx:164
+#: src/design/timeline/TimelinePrototype.tsx:175
 msgid "重做"
 msgstr "重做"
 
@@ -6900,7 +6913,7 @@ msgstr "重新定位"
 msgid "重新打开"
 msgstr "重新打开"
 
-#: src/pages/library/WatchDirectoriesDrawer.tsx:76
+#: src/pages/library/WatchDirectoriesDrawer.tsx:80
 msgid "重新扫描"
 msgstr "重新扫描"
 
@@ -6914,9 +6927,9 @@ msgid "重新检索"
 msgstr "重新检索"
 
 #: src/pages/recording/PreflightBlock.tsx:174
-#: src/pages/recording/ShotListBlock.tsx:231
-#: src/pages/RecordingPage.tsx:332
-#: src/pages/RecordingPage.tsx:401
+#: src/pages/recording/ShotListBlock.tsx:235
+#: src/pages/RecordingPage.tsx:340
+#: src/pages/RecordingPage.tsx:409
 msgid "重新生成预览计划"
 msgstr "重新生成预览计划"
 
@@ -6971,11 +6984,11 @@ msgstr "重新选择"
 #: src/pages/library/AddWatchDirectoryDialog.tsx:123
 #: src/pages/library/DeleteDemosDialog.tsx:95
 #: src/pages/library/ImportDemoDialog.tsx:159
-#: src/pages/library/LibraryCards.tsx:82
-#: src/pages/library/LibraryInspector.tsx:115
-#: src/pages/library/LibraryInspector.tsx:183
-#: src/pages/library/LibraryTable.tsx:101
-#: src/pages/library/WatchDirectoriesDrawer.tsx:88
+#: src/pages/library/LibraryCards.tsx:83
+#: src/pages/library/LibraryInspector.tsx:116
+#: src/pages/library/LibraryInspector.tsx:184
+#: src/pages/library/LibraryTable.tsx:102
+#: src/pages/library/WatchDirectoriesDrawer.tsx:92
 #: src/pages/LibraryPage.tsx:365
 #: src/pages/match/views/HighlightsView.tsx:142
 #: src/pages/match/views/ReplayView.tsx:239
@@ -6994,12 +7007,12 @@ msgstr "重新选择"
 #: src/pages/PlayersPage.tsx:284
 #: src/pages/recording/DirectorPreviewBlock.tsx:259
 #: src/pages/recording/PreflightBlock.tsx:98
-#: src/pages/recording/ShotInspectorBlock.tsx:178
-#: src/pages/recording/ShotInspectorBlock.tsx:556
-#: src/pages/recording/ShotInspectorBlock.tsx:653
-#: src/pages/recording/ShotInspectorBlock.tsx:722
-#: src/pages/RecordingPage.tsx:320
-#: src/pages/RecordingPage.tsx:417
+#: src/pages/recording/ShotInspectorBlock.tsx:179
+#: src/pages/recording/ShotInspectorBlock.tsx:557
+#: src/pages/recording/ShotInspectorBlock.tsx:654
+#: src/pages/recording/ShotInspectorBlock.tsx:723
+#: src/pages/RecordingPage.tsx:328
+#: src/pages/RecordingPage.tsx:425
 #: src/pages/settings/AiAgentSection.tsx:179
 #: src/pages/settings/AiAgentSection.tsx:330
 #: src/pages/settings/AiAgentSection.tsx:534
@@ -7037,7 +7050,7 @@ msgid "镜头标题"
 msgstr "镜头标题"
 
 #: src/pages/agent/ShotEditForm.tsx:162
-#: src/pages/recording/ShotInspectorBlock.tsx:216
+#: src/pages/recording/ShotInspectorBlock.tsx:217
 msgid "镜头类型"
 msgstr "镜头类型"
 
@@ -7054,11 +7067,11 @@ msgctxt "utility-item"
 msgid "闪光"
 msgstr "闪光"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:325
+#: src/pages/recording/ShotInspectorBlock.tsx:326
 msgid "闪光强度"
 msgstr "闪光强度"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:336
+#: src/pages/recording/ShotInspectorBlock.tsx:337
 msgid "闪光强度是画面上还剩多少闪光：100% 是完整的闪光弹，0% 是完全不闪。"
 msgstr "闪光强度是画面上还剩多少闪光：100% 是完整的闪光弹，0% 是完全不闪。"
 
@@ -7102,8 +7115,8 @@ msgstr "队伍 B"
 msgid "队伍名单与本场数据"
 msgstr "队伍名单与本场数据"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:371
-#: src/pages/recording/ShotInspectorBlock.tsx:377
+#: src/pages/recording/ShotInspectorBlock.tsx:372
+#: src/pages/recording/ShotInspectorBlock.tsx:378
 msgid "队内语音"
 msgstr "队内语音"
 
@@ -7124,8 +7137,8 @@ msgstr "阶段日志"
 msgid "集锦制作要从比赛工作区或 Agent 发起"
 msgstr "集锦制作要从比赛工作区或 Agent 发起"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:356
-#: src/pages/recording/ShotInspectorBlock.tsx:360
+#: src/pages/recording/ShotInspectorBlock.tsx:357
+#: src/pages/recording/ShotInspectorBlock.tsx:361
 msgid "雷达"
 msgstr "雷达"
 
@@ -7185,11 +7198,11 @@ msgstr "预览中"
 msgid "预览中 · 工程尚未改动"
 msgstr "预览中 · 工程尚未改动"
 
-#: src/pages/RecordingPage.tsx:330
+#: src/pages/RecordingPage.tsx:338
 msgid "预览计划只保留五分钟，重新生成后导播预览与录制前校验都会重算。"
 msgstr "预览计划只保留五分钟，重新生成后导播预览与录制前校验都会重算。"
 
-#: src/pages/RecordingPage.tsx:455
+#: src/pages/RecordingPage.tsx:463
 msgid "预览计划已过期，需要重新生成"
 msgstr "预览计划已过期，需要重新生成"
 
@@ -7197,7 +7210,7 @@ msgstr "预览计划已过期，需要重新生成"
 msgid "预览这条"
 msgstr "预览这条"
 
-#: src/pages/montage/ClipTrimDrawer.tsx:136
+#: src/pages/montage/ClipTrimDrawer.tsx:137
 msgid "预览需要桌面应用，浏览器里无法读取本机录制文件。"
 msgstr "预览需要桌面应用，浏览器里无法读取本机录制文件。"
 
@@ -7206,11 +7219,11 @@ msgstr "预览需要桌面应用，浏览器里无法读取本机录制文件。
 msgid "预计时长"
 msgstr "预计时长"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:685
+#: src/pages/recording/ShotInspectorBlock.tsx:686
 msgid "预设不包含 Demo、选手与 tick 区间，套用它不会改变录的是哪一段。"
 msgstr "预设不包含 Demo、选手与 tick 区间，套用它不会改变录的是哪一段。"
 
-#: src/pages/recording/ShotInspectorBlock.tsx:670
+#: src/pages/recording/ShotInspectorBlock.tsx:671
 msgid "预设名称"
 msgstr "预设名称"
 
@@ -7218,7 +7231,7 @@ msgstr "预设名称"
 msgid "首杀"
 msgstr "首杀"
 
-#: src/pages/match/views/DuelsView.tsx:272
+#: src/pages/match/views/DuelsView.tsx:273
 msgctxt "duel-column"
 msgid "首杀"
 msgstr "首杀"
@@ -7236,7 +7249,7 @@ msgstr "首杀、残局胜率与常用地图这三列这批分析还没有产出
 msgid "首杀取每个回合最早的一次击杀事件。"
 msgstr "首杀取每个回合最早的一次击杀事件。"
 
-#: src/pages/match/views/DuelsView.tsx:537
+#: src/pages/match/views/DuelsView.tsx:538
 msgid "首杀对决"
 msgstr "首杀对决"
 

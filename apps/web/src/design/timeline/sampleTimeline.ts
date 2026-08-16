@@ -24,8 +24,20 @@
  *     library lists Aurora_R13_ace.mp4 at 28.0 s while the Inspector reads its
  *     in / out as 00:00:04:08 / 00:00:32:02, which needs at least 32.03 s of
  *     source. The Inspector's in point is kept and the source lengthened.
- *   · the V2 name plates are `video` clips on a `video` lane, so a cross-track
- *     drag between V1 and V2 is legal and testable.
+ *   · the V2 name plates stay `video` clips on a `video` lane. `overlay` is a
+ *     real `TrackKind` now, and a name plate is the thing it describes — but
+ *     the artboard draws the lane as 「V2」, and a V lane is a video lane. The
+ *     kind is what the document would say; the fixture is what the artboard
+ *     drew. It also keeps a cross-track drag between V1 and V2 legal, which
+ *     several tests need and no pair of lanes in the artboard would otherwise
+ *     provide.
+ *   · the times are the drawn pixels ÷ 12 and are therefore *not* on the 60fps
+ *     grid: 42.167 s is frame 2530.02. That is left alone deliberately. A
+ *     project arriving from elsewhere is not on the grid either, and the
+ *     editor's answer is the same in both cases — the first commit quantises
+ *     the document (`frameGrid.ts`), so a test that edits this fixture sees
+ *     42.166666… afterwards. Rewriting the fixture to pre-quantised values
+ *     would hide the one behaviour the grid exists to provide.
  */
 
 import { createTimeline, type Timeline } from './timelineModel';
@@ -38,7 +50,7 @@ export function createSampleTimeline(): Timeline {
       { id: 'v1', kind: 'video', name: 'V1', role: '主画面' },
       { id: 'a1', kind: 'audio', name: 'A1', role: '原声' },
       { id: 'a2', kind: 'audio', name: 'A2', role: '音乐' },
-      { id: 't1', kind: 'subtitle', name: 'T1', role: '字幕' },
+      { id: 't1', kind: 'text', name: 'T1', role: '字幕' },
     ],
     clips: [
       {

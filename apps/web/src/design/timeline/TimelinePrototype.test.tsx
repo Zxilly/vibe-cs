@@ -59,7 +59,10 @@ describe('TimelinePrototype markup', () => {
   });
 
   it('sizes the canvas from the sequence length, in seconds', () => {
-    expect(markup).toContain('--tl-length:86.667');
+    // 5200 frames. The fixture transcribes the artboard's 1040px as 86.667s,
+    // which is 5200.02 frames at 60fps; the editor quantises the document on
+    // mount, so what reaches the stylesheet is the frame. See `frameGrid.ts`.
+    expect(markup).toContain(`--tl-length:${5200 / 60}`);
     expect(markup).toContain('--tl-scroll:0');
   });
 });

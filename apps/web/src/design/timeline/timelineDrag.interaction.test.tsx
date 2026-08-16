@@ -31,6 +31,13 @@ function pointerEvent(type: string, clientX: number, clientY: number): MouseEven
   return new MouseEvent(type, { bubbles: true, cancelable: true, clientX, clientY });
 }
 
+/**
+ * A time in frames — see the note in `TimelinePrototype.interaction.test.tsx`.
+ * The fixture is the artboard's pixels ÷ 12 and the editor holds the document
+ * on the 60fps grid, so 42.167s reaches the DOM as `2530 / 60`.
+ */
+const frames = (count: number) => count / 60;
+
 function setup(initial: Timeline = createSampleTimeline()) {
   const view = renderInteractive(<TimelinePrototype initial={initial} />);
   const { container, getByRole } = view;
@@ -116,7 +123,7 @@ describe('dragging within a lane', () => {
     const { grab, release, start, clip } = setup();
     grab('v1-aurora');
     release(0);
-    expect(start('v1-aurora')).toBe(42.167);
+    expect(start('v1-aurora')).toBe(frames(2530));
     // …but it did select the clip, which is what a click on a clip means.
     expect(clip('v1-aurora').getAttribute('aria-pressed')).toBe('true');
   });
@@ -215,7 +222,7 @@ describe('dragging across lanes', () => {
     const { drag, start, queryByRole } = setup();
     // Aurora dragged left onto Kael, which V1 already occupies.
     drag('v1-aurora', -240);
-    expect(start('v1-aurora')).toBe(42.167);
+    expect(start('v1-aurora')).toBe(frames(2530));
     expect(queryByRole('alert')?.textContent).toContain('这里已经有片段了');
   });
 });
@@ -235,7 +242,7 @@ describe('linked A/V', () => {
   it('commits both, keeping them in sync', () => {
     const { drag, start } = setup();
     drag('v1-aurora', 1200);
-    expect(start('v1-aurora')).toBeCloseTo(142.167, 6);
+    expect(start('v1-aurora')).toBeCloseTo(frames(8530), 9);
     expect(start('a1-aurora')).toBe(start('v1-aurora'));
   });
 
@@ -257,7 +264,7 @@ describe('the razor tool', () => {
 
     grab('v1-kael'); // the playhead is at 31.167, inside it
     expect(container.querySelectorAll('.tl-clip')).toHaveLength(12);
-    expect(clip('v1-kael~2').dataset.start).toBe('31.167');
+    expect(clip('v1-kael~2').dataset.start).toBe(String(frames(1870)));
   });
 
   it('says so when the blade misses the clip it was aimed at', () => {
@@ -282,7 +289,7 @@ describe('the slip tool', () => {
     expect(clip('v1-aurora').style.getPropertyValue('--tl-dx')).toBe('0');
 
     release(24);
-    expect(start('v1-aurora')).toBe(42.167);
+    expect(start('v1-aurora')).toBe(frames(2530));
     expect(Number(clip('v1-aurora').dataset.sourceIn)).toBeCloseTo(before + 2, 6);
     expect(Number(clip('a1-aurora').dataset.sourceIn)).toBeCloseTo(before + 2, 6);
   });

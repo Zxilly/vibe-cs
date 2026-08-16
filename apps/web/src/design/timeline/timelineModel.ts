@@ -23,11 +23,41 @@
  * window into the source media (`sourceIn`, `sourceDuration`). Keeping the two
  * apart is what makes 滑移 (slip) expressible at all — slip moves one and not
  * the other — and it is what the Inspector's 入点 / 出点 rows read from.
+ *
+ * ## Phase 3f-2: the model now says what `EditorProject` says
+ *
+ * The prototype invented its own vocabulary because it had no wire type to
+ * answer to. It has one now — `crates/domain/src/editor.rs`, generated into
+ * `shared/desktop/generated/` — and three of its words were wrong:
+ *
+ *   · `TrackKind` was `video | audio | subtitle`. The document's is
+ *     `video | audio | text | overlay`. An adapter mapping one onto the other
+ *     would have to invent an answer for `overlay`, so the model takes the
+ *     document's four.
+ *   · a clip had no `speed`, and the arithmetic assumed 100% throughout
+ *     (README gap 9). `EditorClip.speed` is real, bounded 0.05…16 by
+ *     `EditorProject::validate`, and it changes what `duration` means: a
+ *     second of timeline consumes `speed` seconds of source.
+ *   · a timeline had no frame rate, so every time was a free float and an out
+ *     point could land half a frame from a real one (README gap 3).
+ *     `EditorProject.fps` is the grid; `frameGrid.ts` is the only place that
+ *     rounds to it, and it does so at commit, never during a preview.
+ *
+ * `sourceDuration` stays the prototype's own: the document keeps `source_out`
+ * (this clip's window) and the *media's* full length lives on `MediaAsset`.
+ * Both numbers are needed — the window to render, the full length to know how
+ * far a slip or a trim may still travel — so the model carries both and the
+ * adapter joins them.
  */
 
 import { TIME_EPSILON } from './timeScale';
 
-export type TrackKind = 'video' | 'audio' | 'subtitle';
+/** The four lanes of `EditorTrack.kind`, verbatim. */
+export type TrackKind = 'video' | 'audio' | 'text' | 'overlay';
+
+/** `EditorProject::validate`'s bounds, so a clip the editor accepts saves. */
+export const MIN_CLIP_SPEED = 0.05;
+export const MAX_CLIP_SPEED = 16;
 
 export interface Track {
   id: string;
@@ -49,8 +79,17 @@ export interface Clip {
   duration: number;
   /** Offset of the clip's first frame inside the source media, seconds. */
   sourceIn: number;
-  /** Full length of the source media, seconds. `duration` may not exceed it. */
+  /**
+   * Full length of the source media, seconds — `MediaAsset.duration_seconds`,
+   * not the clip's window. The window is `[sourceIn, clipSourceOut(clip))` and
+   * it may not run past this.
+   */
   sourceDuration: number;
+  /**
+   * Playback rate. 1 is 100%; 2 plays the source twice as fast, so one second
+   * of timeline eats two seconds of source. `EditorClip.speed`.
+   */
+  speed: number;
   label: string;
   /**
    * Clips sharing a `linkId` are one A/V pair: they move, split, ripple and
@@ -71,14 +110,30 @@ export interface Timeline {
   readonly markers: readonly Marker[];
   /** Seconds. Snapping treats it as a target; the ruler draws it. */
   readonly playhead: number;
+  /**
+   * Frames per second — `EditorProject.fps`. Every committed time is a whole
+   * number of these; see `frameGrid.ts` for why nothing else rounds.
+   */
+  readonly fps: number;
 }
+
+/** The default frame rate: what the artboard's 1080p60 sources are shot at. */
+export const DEFAULT_FPS = 60;
+
+/**
+ * A clip as a caller writes one. `speed` is optional because 100% is what a
+ * clip has until someone changes it, and making every literal say `speed: 1`
+ * would be noise in the one place the model is read most — its own tests.
+ */
+export type ClipInput = Omit<Clip, 'speed'> & { speed?: number };
 
 /** The shape a caller hands to `createTimeline`; ordering is not its problem. */
 export interface TimelineInput {
   tracks: readonly Track[];
-  clips: readonly Clip[];
+  clips: readonly ClipInput[];
   markers?: readonly Marker[];
   playhead?: number;
+  fps?: number;
 }
 
 /* ── construction ────────────────────────────────────────────────────────── */
@@ -103,6 +158,9 @@ export function sortClips(timeline: Pick<Timeline, 'tracks'>, clips: readonly Cl
  * document would hide the bug that produced it.
  */
 export function createTimeline(input: TimelineInput): Timeline {
+  const fps = input.fps ?? DEFAULT_FPS;
+  if (!(fps >= 1 && fps <= 240)) throw new Error(`frame rate out of range: ${fps}`);
+
   const trackIds = new Set<string>();
   for (const track of input.tracks) {
     if (trackIds.has(track.id)) throw new Error(`duplicate track id: ${track.id}`);
@@ -110,14 +168,20 @@ export function createTimeline(input: TimelineInput): Timeline {
   }
 
   const clipIds = new Set<string>();
-  for (const clip of input.clips) {
+  const clips = input.clips.map((clip) => ({ ...clip, speed: clip.speed ?? 1 }));
+  for (const clip of clips) {
     if (clipIds.has(clip.id)) throw new Error(`duplicate clip id: ${clip.id}`);
     clipIds.add(clip.id);
     if (!trackIds.has(clip.trackId)) throw new Error(`clip ${clip.id} names an unknown track: ${clip.trackId}`);
     if (!(clip.duration > 0)) throw new Error(`clip ${clip.id} has a non-positive duration`);
     if (clip.start < -TIME_EPSILON) throw new Error(`clip ${clip.id} starts before zero`);
     if (clip.sourceIn < -TIME_EPSILON) throw new Error(`clip ${clip.id} has a negative source in point`);
-    if (clip.sourceIn + clip.duration > clip.sourceDuration + TIME_EPSILON) {
+    if (!(clip.speed >= MIN_CLIP_SPEED && clip.speed <= MAX_CLIP_SPEED)) {
+      throw new Error(`clip ${clip.id} has a speed outside 0.05…16: ${clip.speed}`);
+    }
+    // With speed the window is `duration * speed` long, not `duration`. The
+    // old form was this one with speed pinned at 1.
+    if (clipSourceOut(clip) > clip.sourceDuration + TIME_EPSILON) {
       throw new Error(`clip ${clip.id} runs past the end of its source`);
     }
   }
@@ -130,9 +194,10 @@ export function createTimeline(input: TimelineInput): Timeline {
 
   return {
     tracks: [...input.tracks],
-    clips: sortClips(input, input.clips),
+    clips: sortClips(input, clips),
     markers: [...(input.markers ?? [])].sort((a, b) => a.time - b.time || (a.id < b.id ? -1 : 1)),
     playhead: Math.max(0, input.playhead ?? 0),
+    fps,
   };
 }
 
@@ -142,14 +207,31 @@ export function clipEnd(clip: Clip): number {
   return clip.start + clip.duration;
 }
 
-/** Out point inside the source media. Speed is fixed at 100% in this prototype. */
-export function clipSourceOut(clip: Clip): number {
-  return clip.sourceIn + clip.duration;
+/**
+ * Length of source a clip consumes. At 100% this is its timeline duration; at
+ * 200% it is twice that, because it plays twice as much media in the same time.
+ */
+export function clipSourceSpan(clip: Pick<Clip, 'duration' | 'speed'>): number {
+  return clip.duration * clip.speed;
+}
+
+/** Out point inside the source media — the far edge of the window. */
+export function clipSourceOut(clip: Pick<Clip, 'sourceIn' | 'duration' | 'speed'>): number {
+  return clip.sourceIn + clipSourceSpan(clip);
 }
 
 /** How far the source window can still travel left / right — the slip range. */
 export function slipRange(clip: Clip): { min: number; max: number } {
   return { min: -clip.sourceIn, max: clip.sourceDuration - clipSourceOut(clip) };
+}
+
+/**
+ * Timeline seconds a clip could still gain at each edge before running out of
+ * source. Trimming reads this; slipping does not (a slip keeps the window's
+ * length and so keeps the total headroom, it only redistributes it).
+ */
+export function trimHeadroom(clip: Clip): { in: number; out: number } {
+  return { in: clip.sourceIn / clip.speed, out: (clip.sourceDuration - clipSourceOut(clip)) / clip.speed };
 }
 
 /** Touching edges do not overlap: `[0,4)` and `[4,8)` are neighbours. */
@@ -299,6 +381,10 @@ export type EditRefusal =
   | 'out-of-bounds'
   /** A slip with no source left to slip into — a different thing to say. */
   | 'no-headroom'
+  /** A trim that would leave less than one frame. */
+  | 'too-short'
+  /** A speed outside 0.05…16, which the document would reject on save. */
+  | 'speed-out-of-range'
   | 'no-change';
 
 export interface EditResult {

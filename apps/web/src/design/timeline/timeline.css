@@ -172,6 +172,14 @@
   background: color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
+/* An overlay lane is a video lane that sits above the programme, so it takes
+   the video treatment at a lighter weight rather than a colour of its own —
+   「时间轴颜色只表达轨道类型」 and these two kinds are one family. */
+.tl-clip[data-kind='overlay'] {
+  border: 1px solid var(--color-accent-600);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
 .tl-clip[data-kind='audio'] {
   border: 1px solid var(--color-neutral-500);
   background: repeating-linear-gradient(
@@ -183,7 +191,7 @@
   );
 }
 
-.tl-clip[data-kind='subtitle'] {
+.tl-clip[data-kind='text'] {
   border: 1px solid var(--color-neutral-500);
   background: var(--color-bg);
 }
@@ -221,6 +229,61 @@
   display: block;
   font-family: var(--font-mono);
   color: var(--color-neutral-700);
+}
+
+/* Only drawn away from 100%: a badge on every clip would say nothing. */
+.tl-clip-speed {
+  position: absolute;
+  top: 3px;
+  right: 8px;
+  padding: 0 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-text) 12%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--color-neutral-700);
+}
+
+/* ── trim handles ────────────────────────────────────────────────────────── */
+
+/* 6px is the strip the pointer has to hit. It is deliberately narrower than
+   the 8px snap radius: a handle wider than the snap threshold would make the
+   edges of adjacent clips overlap in hit-testing, and the user would grab the
+   neighbour's in point while aiming at this one's out point. */
+.tl-clip-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.tl-clip-handle[data-edge='in'] {
+  left: 0;
+}
+
+.tl-clip-handle[data-edge='out'] {
+  right: 0;
+}
+
+/* Invisible until the clip is worth trimming — a hover or a selection. Handles
+   drawn on every clip would turn a dense track into a picket fence. */
+.tl-clip:hover .tl-clip-handle,
+.tl-clip[data-selected='true'] .tl-clip-handle {
+  background: color-mix(in srgb, var(--color-accent-900) 55%, transparent);
+}
+
+.tl-clip[data-trimming='in'] .tl-clip-handle[data-edge='in'],
+.tl-clip[data-trimming='out'] .tl-clip-handle[data-edge='out'] {
+  background: var(--color-accent-900);
+}
+
+/* A clip mid-trim leads its neighbours, so the edge being dragged is never
+   drawn underneath the one it is approaching. */
+.tl-clip[data-trimming='in'],
+.tl-clip[data-trimming='out'] {
+  z-index: 2;
 }
 
 /* ── markers and the playhead ────────────────────────────────────────────── */

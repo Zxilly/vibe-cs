@@ -25,12 +25,16 @@ export {
   clipsOnTrack,
   clipsOverlap,
   clipSourceOut,
+  clipSourceSpan,
   createTimeline,
+  DEFAULT_FPS,
   findOverlapping,
   getClip,
   getTrack,
   linkGroup,
   linkIdSet,
+  MAX_CLIP_SPEED,
+  MIN_CLIP_SPEED,
   mintId,
   patchClips,
   rangesOverlap,
@@ -40,10 +44,12 @@ export {
   sortClips,
   timelineDuration,
   trackIndex,
+  trimHeadroom,
   withClips,
   withMarkers,
   withPlayhead,
   type Clip,
+  type ClipInput,
   type EditRefusal,
   type EditResult,
   type Marker,
@@ -52,6 +58,47 @@ export {
   type Track,
   type TrackKind,
 } from './timelineModel';
+
+export {
+  ceilToFrame,
+  floorToFrame,
+  frameAt,
+  frameDuration,
+  isOnFrame,
+  quantizeClip,
+  quantizeTimeline,
+  quantizeToFrame,
+} from './frameGrid';
+
+export {
+  groupTrimRange,
+  trimClip,
+  trimPreview,
+  trimRange,
+  type TrimEdge,
+  type TrimOptions,
+  type TrimResult,
+} from './trim';
+
+export { durationAtSpeed, setClipSpeed, speedToFit, type SpeedOptions, type SpeedResult } from './speed';
+
+export {
+  advanceScroll,
+  autoScrollVelocity,
+  DEFAULT_EDGE_BAND_PX,
+  DEFAULT_MAX_AUTO_SCROLL_PX_PER_SECOND,
+  maxScrollPx,
+  type AutoScrollInput,
+} from './autoScroll';
+
+export {
+  culledClipCount,
+  DEFAULT_OVERSCAN_PX,
+  visibleClips,
+  visibleTimeRange,
+  type TimelineViewport,
+  type VirtualizeOptions,
+} from './virtualize';
 
 export {
   BASE_PIXELS_PER_SECOND,
@@ -142,7 +189,9 @@ export { timelineStyle, type TimelineVars } from './style';
 export {
   nudgeStep,
   useTimelineEditor,
+  type DragMode,
   type DragState,
+  type PointerGesture,
   type TimelineEditor,
   type TimelineTool,
   type UseTimelineEditorOptions,

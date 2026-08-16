@@ -18,6 +18,18 @@ import { createSampleTimeline } from './sampleTimeline';
 import { TimelinePrototype } from './TimelinePrototype';
 import { createTimeline, type Timeline } from './timelineModel';
 
+/**
+ * A time in frames, as the editor holds it.
+ *
+ * The fixture transcribes the artboard's pixels ÷ 12, which does not land on
+ * the 60fps grid: 42.167s is 2530.02 frames. `useTimelineEditor` quantises the
+ * document on mount and after every commit (`frameGrid.ts`), so the DOM
+ * carries `2530 / 60` and not the transcription. Writing the frame count is
+ * how these assertions stay readable — and `frames(2530)` says the artboard's
+ * 42.167s in the unit the editor actually works in.
+ */
+const frames = (count: number) => count / 60;
+
 function setup(initial: Timeline = createSampleTimeline()) {
   const view = renderInteractive(<TimelinePrototype initial={initial} />);
   const { container, getByRole } = view;
@@ -68,7 +80,7 @@ describe('the playhead', () => {
 
     slider.focus();
     expect(document.activeElement).toBe(slider);
-    expect(slider.getAttribute('aria-valuenow')).toBe('31.167');
+    expect(slider.getAttribute('aria-valuenow')).toBe(String(frames(1870)));
 
     fireEvent.keyDown(slider, { key: 'Home' });
     expect(slider.getAttribute('aria-valuenow')).toBe('0');
@@ -107,10 +119,10 @@ describe('剃刀 — cutting at the playhead', () => {
     // At 31.167 the blade crosses V1 Kael, its A1 partner and the A2 music.
     expect(clipCount()).toBe(13);
     expect(start('v1-kael')).toBe(0);
-    expect(Number(clip('v1-kael')?.dataset.duration)).toBeCloseTo(31.167, 6);
-    expect(start('v1-kael~2')).toBe(31.167);
+    expect(Number(clip('v1-kael')?.dataset.duration)).toBeCloseTo(frames(1870), 9);
+    expect(start('v1-kael~2')).toBe(frames(1870));
     // The right half starts 31.167s into the same source file.
-    expect(sourceIn('v1-kael~2')).toBeCloseTo(31.167, 6);
+    expect(sourceIn('v1-kael~2')).toBeCloseTo(frames(1870), 9);
     expect(sourceIn('v1-kael')).toBe(0);
   });
 
@@ -118,7 +130,7 @@ describe('剃刀 — cutting at the playhead', () => {
     const { button, clip } = setup();
     fireEvent.click(button('在播放头切开'));
     expect(clip('a1-kael~2')).not.toBeNull();
-    expect(Number(clip('a1-kael~2')?.dataset.start)).toBe(31.167);
+    expect(Number(clip('a1-kael~2')?.dataset.start)).toBe(frames(1870));
   });
 
   it('says so instead of doing nothing when the blade misses everything', () => {
@@ -158,8 +170,8 @@ describe('波纹删除', () => {
     expect(clip('a1-kael')).toBeNull();
     expect(clipCount()).toBe(8);
     // 42.167 − 42 on both lanes, and they stay in sync.
-    expect(start('v1-aurora')).toBeCloseTo(0.167, 6);
-    expect(start('a1-aurora')).toBeCloseTo(0.167, 6);
+    expect(start('v1-aurora')).toBeCloseTo(frames(10), 9);
+    expect(start('a1-aurora')).toBeCloseTo(frames(10), 9);
     // A2's music never moves: the default scope is the link group, not all lanes.
     expect(start('a2-music')).toBe(0);
   });
@@ -169,7 +181,7 @@ describe('波纹删除', () => {
     select('v1-kael');
     fireEvent.keyDown(clip('v1-kael')!, { key: 'Delete', shiftKey: true });
     expect(clip('v1-kael')).toBeNull();
-    expect(start('v1-aurora')).toBeCloseTo(0.167, 6);
+    expect(start('v1-aurora')).toBeCloseTo(frames(10), 9);
   });
 
   it('plain Delete leaves the gap where it was', () => {
@@ -177,7 +189,7 @@ describe('波纹删除', () => {
     select('v1-kael');
     fireEvent.keyDown(clip('v1-kael')!, { key: 'Delete' });
     expect(clip('v1-kael')).toBeNull();
-    expect(start('v1-aurora')).toBe(42.167);
+    expect(start('v1-aurora')).toBe(frames(2530));
   });
 });
 
@@ -198,9 +210,13 @@ describe('滑移', () => {
 
   it('shows the source in / out points while the tool is active', () => {
     const { getByRole, container } = setup();
-    expect(container.textContent).not.toContain('00:00:04:07');
+    // `00:00:04:08` is the artboard's own Inspector reading for Aurora's in
+    // point, and until the frame grid existed the timeline printed 04:07: the
+    // fixture's 4.133s is 247.98 frames, and a timecode floors. Quantising the
+    // document on mount makes it frame 248, which is what was drawn.
+    expect(container.textContent).not.toContain('00:00:04:08');
     fireEvent.click(getByRole('radio', { name: '滑移' }));
-    expect(container.textContent).toContain('00:00:04:07');
+    expect(container.textContent).toContain('00:00:04:08');
   });
 
   it('stops at the end of the source and says why', () => {
@@ -241,7 +257,7 @@ describe('keyboard editing with the select tool', () => {
     select('v1-aurora');
     // V1 Kael ends at 42 and Aurora starts at 42.167: one 1s shove collides.
     fireEvent.keyDown(clip('v1-aurora')!, { key: 'ArrowLeft', shiftKey: true });
-    expect(start('v1-aurora')).toBe(42.167);
+    expect(start('v1-aurora')).toBe(frames(2530));
     expect(notice()?.textContent).toContain('这里已经有片段了');
   });
 
@@ -318,7 +334,7 @@ describe('缩放', () => {
     const { button, container } = setup();
     fireEvent.click(button('放大'));
     // Everything positions itself in seconds; one --tl-pps drives them all.
-    expect(container.querySelector<HTMLElement>('.tl-playhead')?.dataset.time).toBe('31.167');
+    expect(container.querySelector<HTMLElement>('.tl-playhead')?.dataset.time).toBe(String(frames(1870)));
     expect(container.querySelector<HTMLElement>('.tl-tick')?.style.getPropertyValue('--tl-t')).toBe('0');
     expect(container.querySelectorAll('[style*="--tl-pps"]')).toHaveLength(1);
   });

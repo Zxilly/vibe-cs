@@ -21,6 +21,25 @@
  *   · 「· 已选中」 is dropped from the visible label and stated in `aria-pressed`
  *     plus an `sr-only` word. The border already says it, in colour and weight.
  *
+ * ## The trim handles (phase 3f-2)
+ *
+ * Two 6px strips at the edges, and they are `<span>`s inside the button rather
+ * than buttons of their own. A button inside a button is invalid HTML and the
+ * browser un-nests it; a focusable handle would also put two extra tab stops
+ * in front of every clip, which for a hundred-clip sequence is two hundred
+ * stops between the user and the next lane.
+ *
+ * The keyboard reaches trimming the way it reaches everything else — through
+ * the clip itself, with a modifier (see `TimelinePrototype`'s key handler) —
+ * so nothing here is mouse-only. That is the same arrangement the razor has:
+ * a pointer gesture on the clip body, and `S` on the keyboard.
+ *
+ * While a trim drags, the clip draws `previewStart` / `previewDuration`
+ * instead of its own numbers. The document has not changed yet — the whole
+ * point of the preview — so the edge follows the cursor and stops where the
+ * trim will stop, which is how the user learns the source ran out before they
+ * let go.
+ *
  * The colour is decided by the *track kind*, not by the clip: 「时间轴颜色只表达
  * 轨道类型」 on the artboard's own caption. (The artboard contradicts itself by
  * drawing V2's name plates in neutral; the caption wins — see README.md.)
@@ -32,8 +51,9 @@ import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerE
 
 import { CLIP_INSET_PX } from './geometry';
 import { timelineStyle } from './style';
-import { clipEnd, clipSourceOut, type Clip, type TrackKind } from './timelineModel';
+import type { Clip, TrackKind } from './timelineModel';
 import { formatFrameTimecode, formatTimecode } from './timeScale';
+import type { TrimEdge } from './trim';
 
 import './timeline.css';
 
@@ -51,7 +71,15 @@ export interface ClipViewProps {
   dragOffsetPx?: number;
   /** Show the source in / out points instead of the timeline position. */
   showSourceWindow?: boolean;
+  /** Where a live trim would put the clip's left edge, seconds. */
+  previewStart?: number;
+  /** …and how long it would be. Both or neither. */
+  previewDuration?: number;
+  /** Which edge a live trim has hold of, for the handle's active state. */
+  trimmingEdge?: TrimEdge | null;
   onPointerDown?: (event: ReactPointerEvent<HTMLButtonElement>) => void;
+  /** Absent means the clip cannot be trimmed and no handles are drawn. */
+  onTrimPointerDown?: (edge: TrimEdge, event: ReactPointerEvent<HTMLSpanElement>) => void;
   onKeyDown?: (event: ReactKeyboardEvent<HTMLButtonElement>) => void;
   onFocus?: () => void;
   ref?: Ref<HTMLButtonElement>;
@@ -67,14 +95,21 @@ export function ClipView({
   dragging = false,
   dragOffsetPx = 0,
   showSourceWindow = false,
+  previewStart,
+  previewDuration,
+  trimmingEdge = null,
   onPointerDown,
+  onTrimPointerDown,
   onKeyDown,
   onFocus,
   ref,
   className = '',
 }: ClipViewProps) {
-  const from = formatTimecode(clip.start);
-  const to = formatTimecode(clipEnd(clip));
+  const start = previewStart ?? clip.start;
+  const duration = previewDuration ?? clip.duration;
+  const from = formatTimecode(start);
+  const to = formatTimecode(start + duration);
+  const sourceIn = clip.sourceIn + (start - clip.start) * clip.speed;
 
   return (
     <button
@@ -87,14 +122,16 @@ export function ClipView({
       data-linked={String(linked)}
       data-blocked={String(blocked)}
       data-dragging={String(dragging)}
-      data-start={clip.start}
-      data-duration={clip.duration}
-      data-source-in={clip.sourceIn}
+      data-trimming={trimmingEdge ?? 'false'}
+      data-start={start}
+      data-duration={duration}
+      data-source-in={sourceIn}
+      data-speed={clip.speed}
       aria-pressed={selected}
       aria-label={t`${clip.label}，${from} 至 ${to}`}
       style={timelineStyle({
-        '--tl-t0': clip.start,
-        '--tl-dur': clip.duration,
+        '--tl-t0': start,
+        '--tl-dur': duration,
         '--tl-inset': CLIP_INSET_PX[kind],
         '--tl-dx': dragOffsetPx,
       })}
@@ -102,12 +139,34 @@ export function ClipView({
       onKeyDown={onKeyDown}
       onFocus={onFocus}
     >
+      {onTrimPointerDown === undefined ? null : (
+        <span
+          className="tl-clip-handle"
+          data-edge="in"
+          data-testid={`trim-in-${clip.id}`}
+          // Not focusable and not a button — see the module comment. The label
+          // is still announced, because a pointer user with a screen reader
+          // exists and 「不隐藏」 applies to the handles too.
+          aria-hidden="true"
+          onPointerDown={(event) => {
+            // Without this the clip's own pointerdown starts a move as well,
+            // and the gesture would be a trim and a drag at once.
+            event.stopPropagation();
+            onTrimPointerDown('in', event);
+          }}
+        />
+      )}
       <span className="tl-clip-label">{clip.label}</span>
       <span className="tl-clip-meta">
         {showSourceWindow
-          ? `${formatFrameTimecode(clip.sourceIn)} / ${formatFrameTimecode(clipSourceOut(clip))}`
+          ? `${formatFrameTimecode(sourceIn)} / ${formatFrameTimecode(sourceIn + duration * clip.speed)}`
           : `${from}–${to}`}
       </span>
+      {clip.speed === 1 ? null : (
+        <span className="tl-clip-speed" data-testid={`speed-${clip.id}`}>
+          {t`${Math.round(clip.speed * 100)}%`}
+        </span>
+      )}
       {selected ? (
         <span className="sr-only">
           <Trans>已选中</Trans>
@@ -118,6 +177,18 @@ export function ClipView({
           <Trans>不能放在这里</Trans>
         </span>
       ) : null}
+      {onTrimPointerDown === undefined ? null : (
+        <span
+          className="tl-clip-handle"
+          data-edge="out"
+          data-testid={`trim-out-${clip.id}`}
+          aria-hidden="true"
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            onTrimPointerDown('out', event);
+          }}
+        />
+      )}
     </button>
   );
 }

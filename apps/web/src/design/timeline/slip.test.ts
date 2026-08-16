@@ -141,14 +141,14 @@ describe('slipping a link group', () => {
 describe('groupSlipRange', () => {
   it('intersects the members’ ranges', () => {
     const clips: Clip[] = [
-      { id: 'v', trackId: 'v1', start: 0, duration: 4, sourceIn: 5, sourceDuration: 20, label: 'v' },
-      { id: 'a', trackId: 'a1', start: 0, duration: 4, sourceIn: 2, sourceDuration: 10, label: 'a' },
+      { id: 'v', trackId: 'v1', start: 0, duration: 4, sourceIn: 5, sourceDuration: 20, speed: 1, label: 'v' },
+      { id: 'a', trackId: 'a1', start: 0, duration: 4, sourceIn: 2, sourceDuration: 10, speed: 1, label: 'a' },
     ];
     expect(groupSlipRange(clips)).toEqual({ min: -2, max: 4 });
   });
 
   it('equals the single clip’s range for a group of one', () => {
-    const clip: Clip = { id: 'v', trackId: 'v1', start: 0, duration: 4, sourceIn: 5, sourceDuration: 20, label: 'v' };
+    const clip: Clip = { id: 'v', trackId: 'v1', start: 0, duration: 4, sourceIn: 5, sourceDuration: 20, speed: 1, label: 'v' };
     expect(groupSlipRange([clip])).toEqual(slipRange(clip));
   });
 

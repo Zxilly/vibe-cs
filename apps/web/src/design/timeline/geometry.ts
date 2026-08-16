@@ -11,7 +11,14 @@
  *   <div style="height:62px;…">V1 主画面</div>
  *   <div style="height:52px;…">A1 原声</div>                    ← audio
  *   <div style="height:52px;…">A2 音乐</div>
- *   <div style="height:44px;…">T1 字幕</div>                    ← subtitle
+ *   <div style="height:44px;…">T1 字幕</div>                    ← text
+ *
+ * `TrackKind` took the document's four in phase 3f-2 (see `timelineModel.ts`),
+ * and the artboard draws three of them. The fourth, `overlay`, has no lane
+ * here — so it is given the video geometry, which is what it is: a lane above
+ * the programme, holding the same kind of material. `text` keeps the shorter
+ * height 「T1 字幕」 was drawn at. Nothing is invented for `overlay` beyond the
+ * height it must have to be laid out at all.
  *
  * with the clips inset 8px in a video lane and 6px in the others (`padding:8px 0`
  * / `padding:6px 0` on the lane, and `top:8px` / `top:6px` on the clip).
@@ -30,15 +37,17 @@ import type { Timeline, TrackKind } from './timelineModel';
 /** Lane heights, by kind. */
 export const TRACK_HEIGHT_PX: Record<TrackKind, number> = {
   video: 62,
+  overlay: 62,
   audio: 52,
-  subtitle: 44,
+  text: 44,
 };
 
 /** Vertical inset of a clip inside its lane, by kind. */
 export const CLIP_INSET_PX: Record<TrackKind, number> = {
   video: 8,
+  overlay: 8,
   audio: 6,
-  subtitle: 6,
+  text: 6,
 };
 
 /** The ruler strip above the first lane — and the marker lane (see README). */

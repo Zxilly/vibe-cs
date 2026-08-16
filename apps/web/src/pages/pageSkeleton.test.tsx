@@ -187,7 +187,9 @@ const PAGES: readonly PageCase[] = [
     Component: SettingsPage,
     title: '设置与诊断',
     phase: '3g',
-    built: false,
+    /* Phase 3g filled all five sections; `?section=app` is the default and it
+       is a real pane now. */
+    built: true,
   },
   {
     pattern: '/recovery',

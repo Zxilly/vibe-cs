@@ -66,6 +66,11 @@ msgstr "‹ Settings"
 msgid "（{seconds} 秒）"
 msgstr "({seconds}s)"
 
+#. placeholder {0}: watchPaths.length
+#: src/pages/settings/FilesSection.tsx:247
+msgid "{0, plural, =0 {影响：目前不会自动发现任何 Demo。} other {影响：这 # 个目录里的新 Demo 会自动进入资料库。}}"
+msgstr "{0, plural, =0 {Affects: nothing is discovered automatically right now.} other {Affects: new Demos in these # folders join the library automatically.}}"
+
 #. placeholder {0}: watch.data?.roots.length ?? 0
 #: src/pages/LibraryPage.tsx:296
 msgid "{0, plural, other {# 个监听目录}}"
@@ -328,6 +333,12 @@ msgstr "{0} movement path, {1} position samples, tick {2} to {3}"
 #: src/pages/match/views/ReviewView.tsx:352
 msgid "{0} 的道具打出 {1} 点伤害"
 msgstr "The utility of {0} dealt {1} damage"
+
+#. placeholder {0}: shown.toFixed(1)
+#: src/pages/settings/GameSection.tsx:370
+#: src/pages/settings/GameSection.tsx:376
+msgid "{0} 秒"
+msgstr "{0}s"
 
 #. placeholder {0}: mapDisplayName(mapName) ?? demoId
 #. placeholder {1}: context.round
@@ -664,7 +675,7 @@ msgstr "Shot strip of the Agent version"
 msgid "Agent 读取的内容"
 msgstr "What the Agent read"
 
-#: src/pages/SettingsPage.tsx:52
+#: src/pages/SettingsPage.tsx:58
 msgid "AI 与 Agent"
 msgstr "AI & Agent"
 
@@ -679,9 +690,13 @@ msgstr "AI workbench"
 msgid "AI 点评"
 msgstr "AI commentary"
 
-#: src/pages/SettingsPage.tsx:69
+#: src/pages/SettingsPage.tsx:79
 msgid "CS2 与 Steam 路径、HLAE，以及录制的默认画质。"
 msgstr "CS2 and Steam paths, HLAE, and the default recording quality."
+
+#: src/pages/settings/GameSection.tsx:112
+msgid "CS2 位置"
+msgstr "CS2 location"
 
 #: src/pages/recording/recordingContract.ts:559
 msgid "CS2 已就绪"
@@ -741,6 +756,8 @@ msgstr "Esc to discard · ⌘↵ to save"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:347
 #: src/pages/recording/ShotInspectorBlock.tsx:351
+#: src/pages/settings/GameSection.tsx:192
+#: src/pages/settings/GameSection.tsx:195
 msgid "HUD"
 msgstr "HUD"
 
@@ -898,6 +915,12 @@ msgstr "Previous page"
 msgid "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 msgstr "Last scan: {0} imported · {1} updated · {2} missing"
 
+#. placeholder {0}: new Date(checks.data.checked_at).toLocaleString()
+#: src/pages/settings/AdvancedSection.tsx:132
+#: src/pages/settings/GameSection.tsx:261
+msgid "上次检查 {0}"
+msgstr "Last checked {0}"
+
 #: src/pages/editor/ProgramMonitor.tsx:222
 msgid "下一个剪切点"
 msgstr "Next cut"
@@ -957,6 +980,7 @@ msgid "不可关闭：录制会启动游戏并写出文件，必须有一次人�
 msgstr "Cannot be turned off: recording launches the game and writes files, so it takes one human confirmation."
 
 #: src/pages/evidence/EvidenceDetail.tsx:149
+#: src/pages/settings/AdvancedSection.tsx:167
 msgid "不可用"
 msgstr "Unavailable"
 
@@ -1009,12 +1033,18 @@ msgid "主导航"
 msgstr "Main navigation"
 
 #: src/pages/montage/PackagingBlock.tsx:84
+#: src/pages/settings/AppSection.tsx:106
+#: src/pages/settings/AppSection.tsx:114
 msgid "主题"
 msgstr "Theme"
 
 #: src/pages/montage/MontageProjectList.tsx:206
 msgid "之后可以在工程里改。"
 msgstr "It can be renamed inside the project later."
+
+#: src/pages/settings/FilesSection.tsx:269
+msgid "之后的新文件会写到 {movingTo}。已经在旧目录里的录制结果、成片和索引不会被搬过去， 资料库里它们的记录也还指向旧位置。"
+msgstr "New files will be written to {movingTo}. Recordings, cuts and indexes already in the old directory are not moved, and the library's records still point at the old location."
 
 #: src/pages/match/views/RoundsView.tsx:259
 msgid "事件"
@@ -1172,6 +1202,7 @@ msgstr "Damage dealt / taken"
 
 #: src/pages/editor/InspectorPanel.tsx:204
 #: src/pages/library/LibraryInspector.tsx:226
+#: src/pages/settings/FilesSection.tsx:105
 msgid "位置"
 msgstr "Location"
 
@@ -1229,6 +1260,10 @@ msgstr "For example: the wallbang spot in R21 is worth teaching"
 #: src/domain/agent/PlanShotRow.tsx:75
 msgid "依据"
 msgstr "Evidence"
+
+#: src/pages/settings/AdvancedSection.tsx:99
+msgid "依赖检查"
+msgstr "Dependency checks"
 
 #: src/pages/agent/SessionDrawer.tsx:331
 #: src/pages/EditorPage.tsx:351
@@ -1447,6 +1482,7 @@ msgid "全部任务记录"
 msgstr "The full task record"
 
 #: src/pages/settings/AiAgentSection.tsx:495
+#: src/pages/settings/GameSection.tsx:283
 msgid "全部保留"
 msgstr "Keep all"
 
@@ -1480,6 +1516,10 @@ msgstr "All outputs"
 #: src/pages/recording/shotModel.ts:377
 msgid "全部选手"
 msgstr "All players"
+
+#: src/pages/settings/GameSection.tsx:287
+msgid "全部静音"
+msgstr "Mute everything"
 
 #. placeholder {0}: truncation.total
 #: src/pages/players/PlayerHeatmapPanel.tsx:162
@@ -1930,6 +1970,7 @@ msgid "剃刀"
 msgstr "Blade"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:259
+#: src/pages/settings/GameSection.tsx:177
 msgid "前留白"
 msgstr "Lead-in"
 
@@ -1945,6 +1986,11 @@ msgstr "Edit projects"
 msgctxt "agent-object"
 msgid "剪辑工程"
 msgstr "Edit project"
+
+#. placeholder {0}: formatBytes(storage.data.filesystem_available_bytes)
+#: src/pages/settings/GameSection.tsx:153
+msgid "剩余 {0}"
+msgstr "{0} free"
 
 #: src/pages/agent/conversationModel.ts:310
 msgid "加 0.5 秒尾巴"
@@ -2024,6 +2070,10 @@ msgstr "Match scoreboard"
 #: src/pages/editor/ProgramMonitor.tsx:149
 msgid "单轨预览，不含叠加与调色"
 msgstr "Single-lane preview — no overlays, no grade"
+
+#: src/pages/settings/FilesSection.tsx:146
+msgid "占用"
+msgstr "Usage"
 
 #: src/pages/LibraryPage.tsx:314
 msgid "卡片"
@@ -2115,6 +2165,10 @@ msgstr "Victim"
 msgid "受害者被闪"
 msgstr "Victim flashed"
 
+#: src/pages/settings/AdvancedSection.tsx:151
+msgid "受管 HLAE 的安装与安全边界。来自 /hlae/status。"
+msgstr "The managed HLAE install and its safety boundary. From /hlae/status."
+
 #: src/pages/delivery/OutputCard.tsx:113
 msgid "受管文件"
 msgstr "Managed file"
@@ -2141,6 +2195,10 @@ msgstr "{0} more failed records"
 msgid "只保留击杀"
 msgstr "Keep only the kills"
 
+#: src/pages/settings/GameSection.tsx:286
+msgid "只保留目标选手"
+msgstr "Recorded player only"
+
 #. placeholder {0}: rows.length
 #: src/pages/match/views/ReplayView.tsx:576
 msgid "只列击杀与目标事件，共 {0} 条。"
@@ -2150,6 +2208,10 @@ msgstr "Kill and objective events only, {0} in total."
 #: src/pages/agent/AgentConversationBlock.tsx:331
 msgid "只影响这一个镜头：{0}"
 msgstr "Affects only this one shot: {0}"
+
+#: src/pages/settings/AppSection.tsx:165
+msgid "只接受 https:// 开头的地址。"
+msgstr "Only https:// addresses are accepted."
 
 #: src/pages/editor/InspectorPanel.tsx:225
 msgid "只有引用了视频素材的片段可以分离音频"
@@ -2184,6 +2246,10 @@ msgstr "Recordable plans and every recording task"
 #: src/pages/evidence/EvidenceDetail.tsx:149
 msgid "可用"
 msgstr "Available"
+
+#: src/pages/settings/AdvancedSection.tsx:162
+msgid "可用性"
+msgstr "Availability"
 
 #: src/pages/match/views/RoundsView.tsx:404
 msgid "可能是一次很快结束的回合，也可能是解析结果不完整。"
@@ -2248,6 +2314,7 @@ msgid "名称"
 msgstr "Name"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:275
+#: src/pages/settings/GameSection.tsx:184
 msgid "后留白"
 msgstr "Lead-out"
 
@@ -2266,6 +2333,14 @@ msgstr "No cut after this one"
 #: src/design/feedback/StageBar.tsx:115
 #: src/pages/delivery/taskModel.tsx:213
 msgid "启动"
+msgstr "Launch"
+
+#: src/pages/settings/AdvancedSection.tsx:66
+msgid "启动于"
+msgstr "Started"
+
+#: src/pages/settings/AdvancedSection.tsx:171
+msgid "启动方式"
 msgstr "Launch"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:567
@@ -2558,6 +2633,10 @@ msgstr "Note"
 msgid "复核解析结果"
 msgstr "Reviewing the parse result"
 
+#: src/pages/settings/AppSection.tsx:81
+msgid "外观与语言"
+msgstr "Appearance and language"
+
 #: src/pages/delivery/OutputCard.tsx:113
 msgid "外部文件"
 msgstr "External file"
@@ -2744,6 +2823,7 @@ msgstr "Importing needs a file picker, which this round has not wired up yet"
 
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:279
+#: src/pages/settings/AdvancedSection.tsx:210
 #: src/pages/settings/AiAgentSection.tsx:750
 msgid "导出"
 msgstr "Export"
@@ -2789,6 +2869,10 @@ msgstr "Export results"
 msgid "导出诊断"
 msgstr "Export diagnostics"
 
+#: src/pages/settings/AdvancedSection.tsx:199
+msgid "导出诊断包"
+msgstr "Export a diagnostics bundle"
+
 #: src/pages/recording/DirectorPreviewBlock.tsx:584
 msgid "导播编排依据"
 msgstr "Director's reasoning"
@@ -2823,6 +2907,10 @@ msgstr "Inline edit"
 #: src/pages/agent/ConversationModes.tsx:155
 msgid "就地编辑需要一个方案"
 msgstr "Inline edit needs a plan"
+
+#: src/pages/settings/AdvancedSection.tsx:167
+msgid "就绪"
+msgstr "Ready"
 
 #: src/pages/AgentPage.tsx:425
 msgid "屏幕上的改动还没有写进方案。"
@@ -2956,6 +3044,12 @@ msgctxt "plan-change"
 msgid "已接受"
 msgstr "Accepted"
 
+#. placeholder {0}: formatBytes(storage.data.directory_bytes)
+#. placeholder {1}: formatBytes(storage.data.filesystem_available_bytes)
+#: src/pages/settings/FilesSection.tsx:157
+msgid "已用 {0} · 可用 {1}"
+msgstr "{0} used · {1} free"
+
 #: src/domain/task/TaskDuration.tsx:73
 msgid "已用 {duration}"
 msgstr "Elapsed {duration}"
@@ -3047,7 +3141,7 @@ msgstr "Evidence with coordinates"
 msgid "帧率"
 msgstr "Frame rate"
 
-#: src/pages/SettingsPage.tsx:49
+#: src/pages/SettingsPage.tsx:55
 msgid "应用"
 msgstr "App"
 
@@ -3159,6 +3253,10 @@ msgstr "Current quality {0} (CRF {1}), nearest to this tier"
 #: src/pages/match/views/viewChrome.tsx:117
 msgid "当前 R{round}"
 msgstr "Current R{round}"
+
+#: src/pages/settings/AdvancedSection.tsx:72
+msgid "当前会话"
+msgstr "Current session"
 
 #: src/domain/agent/AgentProposalCard.tsx:96
 msgid "当前修订 {currentRevision}"
@@ -3278,6 +3376,10 @@ msgstr "Recording environment not ready"
 msgid "录制结果"
 msgstr "Recordings"
 
+#: src/pages/settings/FilesSection.tsx:98
+msgid "录制结果、导出成片、代理文件和索引都写在这里。"
+msgstr "Recordings, exported cuts, proxies and indexes are all written here."
+
 #: src/pages/montage/AddClipsDialog.tsx:80
 msgid "录制结果没能读取：{error}"
 msgstr "The recordings could not be read: {error}"
@@ -3289,9 +3391,21 @@ msgstr "The recordings could not be read: {error}"
 msgid "录制计划"
 msgstr "Recording plan"
 
+#: src/pages/settings/GameSection.tsx:221
+msgid "录制语音"
+msgstr "Recording voice"
+
+#: src/pages/settings/GameSection.tsx:142
+msgid "录制输出目录"
+msgstr "Recording output directory"
+
 #: src/pages/MatchWorkspacePage.tsx:129
 msgid "录制队列尚未接通"
 msgstr "The recording queue is not wired up yet"
+
+#: src/pages/settings/GameSection.tsx:171
+msgid "录制默认值"
+msgstr "Recording defaults"
 
 #. placeholder {0}: check.affected_item_ids.length
 #: src/pages/recording/PreflightBlock.tsx:284
@@ -3306,21 +3420,93 @@ msgstr "Affects: how the Agent words its commentary and shot intents."
 msgid "影响：Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。"
 msgstr "Affects: the length the Agent designs shots towards. It is a target, not a ceiling — a plan that needs longer is not truncated."
 
+#: src/pages/settings/FilesSection.tsx:107
+msgid "影响：之后所有新文件的落点。已经写好的文件不会被搬走，仍留在原来的目录里。"
+msgstr "Affects: where every new file lands. Files already written are not moved and stay in the old directory."
+
 #: src/pages/settings/AiAgentSection.tsx:474
 msgid "影响：会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。"
 msgstr "Affects: how far back the session drawer reaches. Finished videos and the task record are untouched."
+
+#: src/pages/settings/AdvancedSection.tsx:66
+msgid "影响：判断服务是不是刚重启过。"
+msgstr "Affects: telling whether the service restarted recently."
 
 #: src/pages/settings/AiAgentSection.tsx:283
 msgid "影响：工作进度里是否展开每次读取的回合与事件。"
 msgstr "Affects: whether the work log expands the rounds and events behind each read."
 
+#: src/pages/settings/AdvancedSection.tsx:74
+msgid "影响：录制与回放是互斥的，这里说明为什么某个动作现在不可用。"
+msgstr "Affects: recording and playback are mutually exclusive; this says why an action is unavailable right now."
+
+#: src/pages/settings/AdvancedSection.tsx:172
+msgid "影响：录制时是否由本应用拉起游戏。"
+msgstr "Affects: whether this app starts the game for a recording."
+
+#: src/pages/settings/GameSection.tsx:214
+msgid "影响：录制音轨里是否包含人声。"
+msgstr "Affects: whether voice ends up in the recorded audio."
+
+#: src/pages/settings/GameSection.tsx:203
+msgid "影响：成片画面里是否出现小地图。"
+msgstr "Affects: whether the radar appears in the finished picture."
+
+#: src/pages/settings/GameSection.tsx:193
+msgid "影响：成片画面里是否出现界面元素。"
+msgstr "Affects: whether interface elements appear in the finished picture."
+
+#: src/pages/settings/AppSection.tsx:133
+msgid "影响：手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
+msgstr "Affects: the manifest a manual update check reads. Empty means no update check, which is the default."
+
+#: src/pages/settings/AdvancedSection.tsx:200
+msgid "影响：报告问题时可以附上的一份运行记录。"
+msgstr "Affects: having a run log to attach to a bug report."
+
+#: src/pages/settings/AdvancedSection.tsx:61
+msgid "影响：报告问题时要附上的号码。"
+msgstr "Affects: the number to quote in a bug report."
+
 #: src/pages/settings/AiAgentSection.tsx:211
 msgid "影响：新建会话时上下文是否预填，随时可手动改。"
 msgstr "Affects: whether a new session starts with the context prefilled. You can always change it."
 
+#: src/pages/settings/GameSection.tsx:145
+msgid "影响：新录制文件的存放位置。它跟着数据目录走，在「文件与资料库」里改。"
+msgstr "Affects: where new recordings are stored. It follows the data directory — change it under Files and library."
+
+#: src/pages/settings/GameSection.tsx:358
+msgid "影响：每个片段自动多录多少。"
+msgstr "Affects: how much extra each clip records."
+
+#: src/pages/settings/AppSection.tsx:88
+msgid "影响：界面文案。改动会保存，下次启动应用时生效。"
+msgstr "Affects: interface wording. The change is saved and applies the next time the app starts."
+
+#: src/pages/settings/AppSection.tsx:107
+msgid "影响：界面配色。改动会保存，下次启动应用时生效。"
+msgstr "Affects: interface colours. The change is saved and applies the next time the app starts."
+
+#: src/pages/settings/FilesSection.tsx:147
+msgid "影响：磁盘剩余空间。清理入口在「输出与任务记录」。"
+msgstr "Affects: free disk space. Cleanup lives under Outputs and activity."
+
+#: src/pages/settings/GameSection.tsx:113
+msgid "影响：能否启动回放与录制。"
+msgstr "Affects: whether playback and recording can start at all."
+
+#: src/pages/settings/AdvancedSection.tsx:163
+msgid "影响：能否开始录制。不可用时录制会在预检阶段被拒。"
+msgstr "Affects: whether recording can start. When unavailable, a recording is refused at preflight."
+
 #: src/pages/settings/AiAgentSection.tsx:555
 msgid "影响：超过后最早的 take 会被丢弃。"
 msgstr "Affects: past the limit, the oldest take is dropped."
+
+#: src/pages/settings/AdvancedSection.tsx:86
+msgid "影响：这项任务结束前，其它录制与回放都会被拒绝。"
+msgstr "Affects: until this job ends, other recordings and playbacks are refused."
 
 #: src/pages/library/SaveViewDialog.tsx:71
 msgid "待剪素材"
@@ -3417,6 +3603,10 @@ msgstr "I understand that CS2 starts in offline (-insecure) mode"
 msgid "所有对话记录都会被删除，且不能恢复。方案、录制任务和已生成的视频不受影响，它们占用的空间也不会因此释放。"
 msgstr "Every conversation record is deleted and cannot be recovered. Plans, recording tasks and finished videos are untouched, and the space they take is not freed either."
 
+#: src/pages/settings/AdvancedSection.tsx:175
+msgid "手动启动"
+msgstr "Manual"
+
 #: src/pages/agent/AgentConversationBlock.tsx:333
 msgid "手动编辑不会打断 Agent，也不需要它批准"
 msgstr "A manual edit neither interrupts the Agent nor needs its approval"
@@ -3475,6 +3665,11 @@ msgstr "Open profile"
 msgid "打开比赛工作区"
 msgstr "Open the match workspace"
 
+#: src/pages/settings/FilesSection.tsx:120
+#: src/pages/settings/GameSection.tsx:162
+msgid "打开目录"
+msgstr "Open folder"
+
 #. placeholder {0}: firstRound.number
 #: src/pages/match/views/RoundsView.tsx:497
 msgid "打开第 {0} 回合"
@@ -3519,6 +3714,10 @@ msgstr "Drop a .dem or a .zip here"
 #: src/pages/montage/MontageProjectList.tsx:190
 msgid "把录制结果串成一条视频，不进多轨编辑器也能直接导出。"
 msgstr "String the recordings into one video and export it without going into the multitrack editor."
+
+#: src/pages/settings/FilesSection.tsx:259
+msgid "把数据目录改到这里？"
+msgstr "Move the data directory here?"
 
 #. placeholder {0}: suggestion.plannedDurationSeconds.toFixed(1)
 #: src/pages/montage/MusicBeatBlock.tsx:457
@@ -3770,6 +3969,10 @@ msgstr "Collapse sidebar"
 msgid "收起预设"
 msgstr "Collapse the presets"
 
+#: src/pages/settings/FilesSection.tsx:260
+msgid "改为这个目录"
+msgstr "Use this folder"
+
 #: src/pages/settings/AiAgentSection.tsx:481
 msgid "改了策略不会立刻清理。要现在生效，用右边这个按钮。"
 msgstr "Changing the policy sweeps nothing right away. To apply it now, use the button on the right."
@@ -3835,7 +4038,11 @@ msgstr "No data"
 msgid "数据库、缓存与中断任务的修复"
 msgstr "Repairs for the database, caches and interrupted tasks"
 
-#: src/pages/SettingsPage.tsx:68
+#: src/pages/settings/FilesSection.tsx:97
+msgid "数据目录"
+msgstr "Data directory"
+
+#: src/pages/SettingsPage.tsx:78
 msgid "数据目录、监听目录，以及占用与清理。"
 msgstr "The data folder, the watched folders, and disk usage and cleanup."
 
@@ -3859,9 +4066,9 @@ msgstr "File"
 msgid "文件不在原位"
 msgstr "File moved"
 
-#: src/pages/SettingsPage.tsx:50
-msgid "文件与目录"
-msgstr "Files & folders"
+#: src/pages/SettingsPage.tsx:56
+msgid "文件与资料库"
+msgstr "Files and library"
 
 #: src/pages/montage/ExportBlock.tsx:202
 msgid "文件名由服务在任务开始时确定，任务 id 在这之前还不存在。"
@@ -3980,6 +4187,10 @@ msgstr "Spin"
 msgid "无法定位这个文件。"
 msgstr "Could not locate this file."
 
+#: src/pages/settings/AdvancedSection.tsx:195
+msgid "日志与诊断包"
+msgstr "Logs and diagnostics"
+
 #: src/pages/library/libraryColumns.tsx:94
 #: src/pages/library/libraryColumns.tsx:95
 msgid "日期"
@@ -4034,6 +4245,10 @@ msgstr "Show which evidence the Agent read"
 msgid "显示全部"
 msgstr "Show all"
 
+#: src/pages/settings/AdvancedSection.tsx:196
+msgid "普通使用不需要打开这一节。"
+msgstr "Ordinary use never needs this section."
+
 #: src/domain/media/Transport.tsx:185
 #: src/pages/editor/ProgramMonitor.tsx:199
 msgid "暂停"
@@ -4059,12 +4274,29 @@ msgstr "More views"
 msgid "更换音乐"
 msgstr "Change music"
 
+#: src/pages/settings/FilesSection.tsx:139
+#: src/pages/settings/GameSection.tsx:135
+msgid "更改"
+msgstr "Change"
+
+#: src/pages/settings/AppSection.tsx:126
+msgid "更新"
+msgstr "Updates"
+
 #: src/pages/editor/EditorProjectList.tsx:126
 #: src/pages/editor/EditorProjectList.tsx:127
 #: src/pages/montage/MontageProjectList.tsx:115
 #: src/pages/montage/MontageProjectList.tsx:116
 msgid "更新时间"
 msgstr "Updated"
+
+#: src/pages/settings/AppSection.tsx:131
+msgid "更新源"
+msgstr "Update source"
+
+#: src/pages/settings/AppSection.tsx:144
+msgid "更新源地址"
+msgstr "Update source address"
 
 #: src/domain/agent/types.ts:380
 msgctxt "plan-change"
@@ -4128,6 +4360,10 @@ msgstr "The service says: {degraded}"
 #: src/pages/match/views/DuelsView.tsx:607
 msgid "服务端说明：{unavailableReason}"
 msgstr "The service says: {unavailableReason}"
+
+#: src/pages/settings/AdvancedSection.tsx:208
+msgid "服务端还没有打包诊断信息的接口，这一版做不了"
+msgstr "The service has no route that assembles a diagnostics bundle, so this round cannot do it"
 
 #: src/pages/recording/PreflightBlock.tsx:273
 msgid "服务返回"
@@ -4234,6 +4470,10 @@ msgstr "Local file"
 #: src/app/boundary/ServiceGate.tsx:205
 msgid "本地服务在线"
 msgstr "Local service online"
+
+#: src/pages/settings/AdvancedSection.tsx:51
+msgid "本地服务当前的状态。来自 /app/runtime-state。"
+msgstr "What the local service is doing right now. From /app/runtime-state."
 
 #: src/app/boundary/ServiceGate.tsx:206
 msgid "本地服务未连接"
@@ -4455,7 +4695,7 @@ msgstr "Overview"
 msgid "模型"
 msgstr "Model"
 
-#: src/pages/SettingsPage.tsx:70
+#: src/pages/SettingsPage.tsx:80
 msgid "模型、会话与行为边界。"
 msgstr "The model, sessions and behavior limits."
 
@@ -4468,6 +4708,7 @@ msgid "正在从方案生成预览计划"
 msgstr "Generating the preview plan from the plan"
 
 #: src/pages/EditorPage.tsx:347
+#: src/pages/settings/FilesSection.tsx:197
 msgid "正在保存"
 msgstr "Saving"
 
@@ -4512,6 +4753,10 @@ msgstr "The previous action is still running"
 msgid "正在建立方案"
 msgstr "Creating the plan"
 
+#: src/pages/settings/AdvancedSection.tsx:85
+msgid "正在录制"
+msgstr "Recording"
+
 #: src/pages/recording/cameraDesk.ts:352
 msgid "正在录制，录制期间不能再启动一次回放"
 msgstr "A recording is running, and no replay can be started while it is"
@@ -4527,6 +4772,11 @@ msgstr "Creating this session"
 #: src/pages/recording/PreflightBlock.tsx:308
 msgid "正在校验"
 msgstr "The preflight is already running"
+
+#: src/pages/settings/AdvancedSection.tsx:139
+#: src/pages/settings/GameSection.tsx:268
+msgid "正在检查"
+msgstr "Checking"
 
 #: src/pages/recording/PreflightBlock.tsx:105
 msgid "正在检查 CS2、采集组件、Demo 内容、编码器与输出目录…"
@@ -4900,6 +5150,10 @@ msgstr "No pending changes"
 msgid "没有找到 {mapName} 的 overview 变换，世界坐标无法落到画面上。安装 CS2 后可从本地雷达读取。"
 msgstr "No overview transform was found for {mapName}, so world coordinates cannot be placed on the canvas. Install CS2 and it can be read from the local radar."
 
+#: src/pages/settings/AdvancedSection.tsx:93
+msgid "没有数据目录"
+msgstr "No data directory"
+
 #: src/pages/match/views/UtilityView.tsx:473
 msgid "没有购买记录"
 msgstr "No purchase record"
@@ -4993,6 +5247,14 @@ msgstr "The notes could not be read: {0}"
 msgid "注释要挂在具体的 tick 上：先在回放或回合里选中一条证据"
 msgstr "A note hangs on a specific tick: select an evidence row in the replay or in a round first"
 
+#: src/pages/settings/AppSection.tsx:116
+msgid "浅色"
+msgstr "Light"
+
+#: src/pages/settings/AppSection.tsx:117
+msgid "深色"
+msgstr "Dark"
+
 #. placeholder {0}: picked.size
 #: src/pages/montage/AddClipsDialog.tsx:63
 msgid "添加 {0} 段"
@@ -5023,6 +5285,7 @@ msgstr "Add a watched folder"
 
 #: src/pages/library/WatchDirectoriesDrawer.tsx:84
 #: src/pages/LibraryPage.tsx:191
+#: src/pages/settings/FilesSection.tsx:243
 msgid "添加目录"
 msgstr "Add folder"
 
@@ -5073,7 +5336,11 @@ msgstr "Clear the clips of this montage?"
 msgid "清空选择"
 msgstr "Clear the selection"
 
-#: src/pages/SettingsPage.tsx:51
+#: src/pages/settings/GameSection.tsx:104
+msgid "游戏"
+msgstr "Game"
+
+#: src/pages/SettingsPage.tsx:57
 msgid "游戏与录制"
 msgstr "Game & recording"
 
@@ -5293,6 +5560,7 @@ msgstr "Clip order, {count} clips, {total} total"
 
 #: src/pages/editor/EditorProjectList.tsx:117
 #: src/pages/editor/EditorProjectList.tsx:118
+#: src/pages/settings/AdvancedSection.tsx:61
 msgid "版本"
 msgstr "Revision"
 
@@ -5437,7 +5705,12 @@ msgstr "Picture"
 msgid "画面元素"
 msgstr "On-screen elements"
 
+#: src/pages/settings/AppSection.tsx:95
+msgid "界面语言"
+msgstr "Interface language"
+
 #: src/domain/agent/PlanStrip.tsx:58
+#: src/pages/settings/GameSection.tsx:369
 msgid "留白"
 msgstr "Lead-in"
 
@@ -5458,12 +5731,17 @@ msgstr "Percent"
 #: src/pages/library/WatchDirectoriesDrawer.tsx:75
 #: src/pages/LibraryPage.tsx:324
 #: src/pages/LibraryPage.tsx:330
+#: src/pages/settings/FilesSection.tsx:177
 msgid "监听目录"
 msgstr "Watched folders"
 
 #: src/pages/library/AddWatchDirectoryDialog.tsx:87
 msgid "目录"
 msgstr "Folder"
+
+#: src/pages/settings/FilesSection.tsx:169
+msgid "目录太大，这次只统计了一部分，实际占用比上面多。"
+msgstr "The directory was too large to walk fully, so this counted part of it — actual usage is higher."
 
 #: src/pages/delivery/OutputsView.tsx:129
 msgid "目录很大，只扫描了一部分"
@@ -5563,6 +5841,9 @@ msgstr "See utility & economy"
 #: src/pages/match/views/ReviewView.tsx:680
 #: src/pages/settings/AiAgentSection.tsx:146
 #: src/pages/settings/AiAgentSection.tsx:160
+#: src/pages/settings/AppSection.tsx:76
+#: src/pages/settings/FilesSection.tsx:85
+#: src/pages/settings/GameSection.tsx:98
 msgid "知道了"
 msgstr "Got it"
 
@@ -5596,6 +5877,10 @@ msgstr "View"
 msgid "视野 FOV"
 msgstr "Camera FOV"
 
+#: src/pages/settings/GameSection.tsx:235
+msgid "视频输出能力"
+msgstr "Video output capability"
+
 #. placeholder {0}: condition.value
 #: src/pages/evidence/conditionSummary.tsx:24
 msgid "种类 {0}"
@@ -5624,6 +5909,10 @@ msgstr "Movement paths: no position samples in this stretch"
 #: src/pages/match/views/ReplayView.tsx:675
 msgid "移动路线每 {stride} 帧取一个采样点。"
 msgstr "The movement paths take one sample every {stride} frames."
+
+#: src/pages/settings/FilesSection.tsx:208
+msgid "移除"
+msgstr "Remove"
 
 #: src/pages/evidence/EvidenceConditions.tsx:212
 msgid "移除条件"
@@ -5968,6 +6257,10 @@ msgstr "Winner"
 msgid "脚本已经写好，共 {0} 个文件。目录里的 README 说明怎么在 HLAE 里加载它；游戏不会自动加载。"
 msgstr "The scripts are written, {0} files in all. The README in the folder explains how to load them in HLAE; the game does not load them on its own."
 
+#: src/pages/settings/AdvancedSection.tsx:175
+msgid "自动启动"
+msgstr "Automatic"
+
 #: src/pages/settings/AiAgentSection.tsx:210
 #: src/pages/settings/AiAgentSection.tsx:213
 msgid "自动带入当前选中的 Demo 与选手"
@@ -6101,11 +6394,11 @@ msgstr "The record was removed; the file is still in place."
 
 #: src/app/command/commandRegistry.ts:219
 #: src/app/shell/navigation.tsx:119
-#: src/pages/SettingsPage.tsx:82
+#: src/pages/SettingsPage.tsx:92
 msgid "设置与诊断"
 msgstr "Settings & diagnostics"
 
-#: src/pages/SettingsPage.tsx:86
+#: src/pages/SettingsPage.tsx:96
 msgid "设置分节"
 msgstr "Settings sections"
 
@@ -6145,7 +6438,7 @@ msgstr "Evidence kind"
 msgid "证据详情"
 msgstr "Evidence detail"
 
-#: src/pages/SettingsPage.tsx:71
+#: src/pages/SettingsPage.tsx:81
 msgid "诊断信息、日志与导出诊断包。"
 msgstr "Diagnostics, logs, and exporting a diagnostic bundle."
 
@@ -6158,9 +6451,17 @@ msgstr "Details"
 msgid "语气：专业"
 msgstr "Tone: analytical"
 
-#: src/pages/SettingsPage.tsx:67
+#: src/pages/settings/AppSection.tsx:87
+msgid "语言"
+msgstr "Language"
+
+#: src/pages/SettingsPage.tsx:77
 msgid "语言、主题、更新源，以及启动时的行为。"
 msgstr "Language, theme, update channel, and what happens at startup."
+
+#: src/pages/settings/GameSection.tsx:213
+msgid "语音"
+msgstr "Voice"
 
 #: src/pages/match/views/utilityModel.ts:89
 msgctxt "utility-item"
@@ -6187,9 +6488,17 @@ msgstr "The session list could not be read: {listError}"
 msgid "读不到会话占用：{error}"
 msgstr "The session disk usage could not be read: {error}"
 
+#: src/pages/settings/AdvancedSection.tsx:104
+msgid "读不到依赖检查：{checksError}"
+msgstr "Could not read the dependency checks: {checksError}"
+
 #: src/pages/recording/ShotInspectorBlock.tsx:181
 msgid "读不到全局录制默认值，画面参数没法显示：{failure}"
 msgstr "The global recording defaults could not be read, so the picture settings cannot be shown: {failure}"
+
+#: src/pages/settings/FilesSection.tsx:153
+msgid "读不到占用统计"
+msgstr "Could not read the usage figures"
 
 #: src/pages/agent/NewSessionPane.tsx:214
 msgid "读不到工作区里正在进行的对象：{referencesError}"
@@ -6207,6 +6516,16 @@ msgstr "The model configuration could not be read: {error}"
 #: src/pages/match/views/ReviewView.tsx:696
 msgid "读不到注释：{error}"
 msgstr "The notes could not be read: {error}"
+
+#: src/pages/settings/AppSection.tsx:72
+#: src/pages/settings/FilesSection.tsx:78
+#: src/pages/settings/GameSection.tsx:94
+msgid "读不到设置：{configError}"
+msgstr "Could not read the settings: {configError}"
+
+#: src/pages/settings/AdvancedSection.tsx:55
+msgid "读不到运行时状态：{runtimeError}"
+msgstr "Could not read the runtime state: {runtimeError}"
 
 #: src/pages/RecordingPage.tsx:330
 msgid "读不到这个方案：{agentFailure}"
@@ -6231,6 +6550,10 @@ msgstr "The highlights of this match could not be read: {failure}"
 #: src/pages/agent/AgentConversationBlock.tsx:411
 msgid "读不到这条会话：{failure}"
 msgstr "This session could not be read: {failure}"
+
+#: src/pages/settings/AdvancedSection.tsx:155
+msgid "读不到采集组件状态：{hlaeError}"
+msgstr "Could not read the capture component state: {hlaeError}"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:724
 msgid "读不到预设：{failure}"
@@ -6328,6 +6651,10 @@ msgstr "Follow"
 #: src/pages/recording/ShotInspectorBlock.tsx:404
 msgid "跟随全局默认"
 msgstr "Following the global defaults"
+
+#: src/pages/settings/AdvancedSection.tsx:100
+msgid "路径、进程与编码器的逐项校验。来自 /app/quick-check。"
+msgstr "Path, process and encoder checks, one by one. From /app/quick-check."
 
 #: src/pages/recording/DirectorPreviewBlock.tsx:323
 msgid "路径已经编译出来了，但没有地图就没有可以把坐标放上去的底图。"
@@ -6443,6 +6770,10 @@ msgstr "Running"
 #: src/pages/recording/PreflightBlock.tsx:140
 msgid "运行录制前校验"
 msgstr "Run the preflight"
+
+#: src/pages/settings/AdvancedSection.tsx:50
+msgid "运行时"
+msgstr "Runtime"
 
 #: src/app/boundary/RouteBoundary.tsx:112
 #: src/app/boundary/RouteBoundary.tsx:146
@@ -6597,6 +6928,10 @@ msgstr "No players yet"
 msgid "还没有生成点评。没有配置模型时这一栏不会有内容，自动洞察不受影响。"
 msgstr "No commentary generated yet. With no model configured this column stays empty, and the automatic insights are unaffected."
 
+#: src/pages/settings/FilesSection.tsx:186
+msgid "还没有监听目录。加一个之后，新的 Demo 会自己进来。"
+msgstr "No watched folders yet. Add one and new Demos arrive on their own."
+
 #: src/pages/library/WatchDirectoriesDrawer.tsx:105
 msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 msgstr "No watched folder yet. Add one and a new .dem is cataloged automatically."
@@ -6608,6 +6943,12 @@ msgstr "No media yet"
 #: src/domain/media/FilmStrip.tsx:99
 msgid "还没有缩略图"
 msgstr "No thumbnails yet"
+
+#: src/pages/settings/FilesSection.tsx:143
+#: src/pages/settings/GameSection.tsx:139
+#: src/pages/settings/GameSection.tsx:166
+msgid "还没有设置"
+msgstr "Not set yet"
 
 #: src/design/data/EmptyState.tsx:141
 msgid "还没有输出"
@@ -6828,6 +7169,14 @@ msgstr "This audio could not be imported into the media library: {0}"
 msgid "这个页面没能打开"
 msgstr "This page failed to open"
 
+#: src/pages/settings/FilesSection.tsx:178
+msgid "这些文件夹里出现新的 Demo 会被自动收进资料库。"
+msgstr "New Demos appearing in these folders are added to the library automatically."
+
+#: src/pages/settings/GameSection.tsx:105
+msgid "这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。"
+msgstr "These settings decide how video is recorded. Changes apply only to recording tasks created afterwards."
+
 #: src/pages/match/views/HighlightsView.tsx:469
 msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "The full parse result of these highlights cannot be read yet, so no plan can be created"
@@ -6921,6 +7270,10 @@ msgstr "This preview plan is gone; the local service may have restarted."
 #: src/pages/RecordingPage.tsx:412
 msgid "这份预览计划已经过期。"
 msgstr "This preview plan has expired."
+
+#: src/pages/settings/GameSection.tsx:236
+msgid "这台机器能不能写出成片。检查的是本机的编码器，不是设置。"
+msgstr "Whether this machine can write a finished file. These check the local encoders, not a setting."
 
 #. placeholder {0}: metricName(metric)
 #: src/pages/players/PlayerTrend.tsx:126
@@ -7061,6 +7414,12 @@ msgstr "That action did not finish: {writeError}"
 msgid "这次操作没有成功：{writeError}"
 msgstr "That action did not succeed: {writeError}"
 
+#: src/pages/settings/AppSection.tsx:77
+#: src/pages/settings/FilesSection.tsx:92
+#: src/pages/settings/GameSection.tsx:99
+msgid "这次改动没有保存：{writeError}"
+msgstr "This change was not saved: {writeError}"
+
 #: src/pages/AgentPage.tsx:442
 msgid "这次改动没能写进方案：{failure}"
 msgstr "This change could not be written to the plan: {failure}"
@@ -7068,6 +7427,14 @@ msgstr "This change could not be written to the plan: {failure}"
 #: src/pages/agent/ShotEditForm.tsx:280
 msgid "这次改动的说明（可选）"
 msgstr "A note about this change (optional)"
+
+#: src/pages/settings/AdvancedSection.tsx:126
+msgid "这次检查没有返回任何项。"
+msgstr "This check returned nothing."
+
+#: src/pages/settings/GameSection.tsx:255
+msgid "这次检查里没有编码器项。完整的检查列表在「高级与诊断」。"
+msgstr "No encoder checks in this run. The full list is under Advanced and diagnostics."
 
 #: src/pages/match/views/ReviewView.tsx:241
 msgid "这次直接用了同一批证据上次的结果。"
@@ -7251,6 +7618,14 @@ msgstr "Select"
 msgid "选择 {0}"
 msgstr "Select {0}"
 
+#: src/pages/settings/GameSection.tsx:127
+msgid "选择 CS2 安装目录"
+msgstr "Choose the CS2 install folder"
+
+#: src/pages/settings/FilesSection.tsx:131
+msgid "选择数据目录"
+msgstr "Choose the data directory"
+
 #: src/pages/library/ImportDemoDialog.tsx:98
 msgid "选择文件"
 msgstr "Choose files"
@@ -7258,6 +7633,10 @@ msgstr "Choose files"
 #: src/pages/library/ImportDemoDialog.tsx:170
 msgid "选择要导入的 Demo 文件"
 msgstr "Choose the Demo files to import"
+
+#: src/pages/settings/FilesSection.tsx:224
+msgid "选择要监听的目录"
+msgstr "Choose folders to watch"
 
 #: src/domain/match/HighlightRow.tsx:74
 msgid "选择这条高光"
@@ -7363,6 +7742,10 @@ msgstr "The configuration has not been read yet — try again shortly"
 msgid "采集"
 msgstr "Capture"
 
+#: src/pages/settings/AdvancedSection.tsx:150
+msgid "采集组件"
+msgstr "Capture component"
+
 #: src/pages/recording/recordingContract.ts:563
 msgid "采集组件已准备"
 msgstr "Capture component ready"
@@ -7418,6 +7801,11 @@ msgstr "Rescan"
 #: src/pages/recording/PreflightBlock.tsx:140
 msgid "重新校验"
 msgstr "Run the preflight again"
+
+#: src/pages/settings/AdvancedSection.tsx:142
+#: src/pages/settings/GameSection.tsx:271
+msgid "重新检查"
+msgstr "Check again"
 
 #: src/pages/evidence/EvidenceEmpty.tsx:95
 #: src/pages/evidence/EvidenceEmpty.tsx:120
@@ -7515,10 +7903,16 @@ msgstr "Choose again"
 #: src/pages/recording/ShotInspectorBlock.tsx:723
 #: src/pages/RecordingPage.tsx:328
 #: src/pages/RecordingPage.tsx:425
+#: src/pages/settings/AdvancedSection.tsx:54
+#: src/pages/settings/AdvancedSection.tsx:103
+#: src/pages/settings/AdvancedSection.tsx:154
 #: src/pages/settings/AiAgentSection.tsx:183
 #: src/pages/settings/AiAgentSection.tsx:402
 #: src/pages/settings/AiAgentSection.tsx:697
 #: src/pages/settings/AiAgentSection.tsx:703
+#: src/pages/settings/AppSection.tsx:71
+#: src/pages/settings/FilesSection.tsx:77
+#: src/pages/settings/GameSection.tsx:93
 msgid "重试"
 msgstr "Retry"
 
@@ -7641,6 +8035,8 @@ msgstr "A highlight reel is started from the match workspace or from the Agent"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:357
 #: src/pages/recording/ShotInspectorBlock.tsx:361
+#: src/pages/settings/GameSection.tsx:202
+#: src/pages/settings/GameSection.tsx:205
 msgid "雷达"
 msgstr "Radar"
 
@@ -7819,9 +8215,9 @@ msgctxt "utility-item"
 msgid "高爆"
 msgstr "HE"
 
-#: src/pages/SettingsPage.tsx:53
-msgid "高级"
-msgstr "Advanced"
+#: src/pages/SettingsPage.tsx:59
+msgid "高级与诊断"
+msgstr "Advanced and diagnostics"
 
 #: src/pages/settings/AiAgentSection.tsx:624
 #: src/pages/settings/AiAgentSection.tsx:630

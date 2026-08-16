@@ -86,11 +86,24 @@ describe('the settings seam', () => {
     expect(html).not.toContain('本页在阶段 3g 实现');
   });
 
-  it('leaves the other four sections to phase 3g, notice and all', () => {
-    for (const id of ['app', 'files', 'game', 'advanced']) {
+  it('renders each section’s own body, and never the AI one by accident', () => {
+    /* All five landed in phase 3g. What is still worth pinning is that the
+       rail's selection actually changes the body: an `?section=` that fell
+       through to a default would look like a working page. */
+    /* Each marker is a *block heading*, which renders before the config
+       arrives. A row label would not: with no service these panes are all
+       skeletons, and asserting on one would be asserting that the fetch
+       resolved rather than that the right section mounted. */
+    for (const [id, marker] of [
+      ['app', '外观与语言'],
+      ['files', '监听目录'],
+      ['game', '录制默认值'],
+      ['advanced', '依赖检查'],
+    ] as const) {
       const html = settingsAt(`/settings?section=${id}`);
-      expect(html).toContain('本页在阶段 3g 实现');
+      expect(html).toContain(marker);
       expect(html).not.toContain('data-settings-section="ai"');
+      expect(html).not.toContain('本页在阶段 3g 实现');
     }
   });
 

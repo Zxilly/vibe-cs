@@ -39,30 +39,40 @@ import { useSearchParams } from 'react-router-dom';
 import { Page, SubNav, Toolbar } from '../design/layout';
 import { PagePlaceholder } from './PagePlaceholder';
 import { pickQueryValue } from './routeQuery';
+import { AdvancedSection } from './settings/AdvancedSection';
 import { AiAgentSection } from './settings/AiAgentSection';
+import { AppSection } from './settings/AppSection';
+import { FilesSection } from './settings/FilesSection';
+import { GameSection } from './settings/GameSection';
 
 export const SETTINGS_SECTIONS = ['app', 'files', 'game', 'ai', 'advanced'] as const;
 
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
 
+/* The fifth round renamed two of these — 「文件与资料库」 and 「高级与诊断」 —
+   in the 「补齐 · Agent 会话历史与设置」 board. */
 const SECTION_LABEL: Record<SettingsSection, ReactNode> = {
   app: <Trans>应用</Trans>,
-  files: <Trans>文件与目录</Trans>,
+  files: <Trans>文件与资料库</Trans>,
   game: <Trans>游戏与录制</Trans>,
   ai: <Trans>AI 与 Agent</Trans>,
-  advanced: <Trans>高级</Trans>,
+  advanced: <Trans>高级与诊断</Trans>,
 };
 
-/** What each section renders. `null` means 「阶段 3g 还没写」 — see the header. */
+/**
+ * What each section renders. Every entry is filled as of phase 3g; the `null`
+ * arm is kept because the shape of the hand-over is the point — a section that
+ * has not been written renders the placeholder rather than an empty pane.
+ */
 const SECTION_BODY: Record<SettingsSection, ComponentType | null> = {
-  app: null,
-  files: null,
-  game: null,
+  app: AppSection,
+  files: FilesSection,
+  game: GameSection,
   ai: AiAgentSection,
-  advanced: null,
+  advanced: AdvancedSection,
 };
 
-/** The placeholder copy per section, so the stub still says what lands there. */
+/** The placeholder copy per section, for any that is `null` above. */
 const SECTION_PLACEHOLDER: Record<SettingsSection, ReactNode> = {
   app: <Trans>语言、主题、更新源，以及启动时的行为。</Trans>,
   files: <Trans>数据目录、监听目录，以及占用与清理。</Trans>,

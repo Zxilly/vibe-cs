@@ -24,7 +24,7 @@ import { Checkbox } from '../../design/primitives';
 import { dataErrorMessage } from '../../data/errors';
 import { useRecordedClips } from '../../data/outputs';
 import { formatTaskClock } from '../../domain/task';
-import type { RecordedClip } from '../../shared/desktop/dto';
+import type { RecordedClip } from '../../shared/desktop/viewModels';
 import { RouteLink } from '../RouteLink';
 
 export interface AddClipsDialogProps {

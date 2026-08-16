@@ -18,6 +18,7 @@
 import type { EvidenceKind } from '../../domain/match';
 import type { EvidenceItem } from '../../domain/match';
 import type { EvidenceSearchItem } from '../../shared/desktop/dto';
+import { jsonMember } from '../../shared/desktop/json';
 
 /* ── the kind ────────────────────────────────────────────────────────────── */
 
@@ -155,7 +156,7 @@ export function toEvidenceIdentity(
 /**
  * The world position the projector stored on the row, or `null`.
  *
- * `attributes` is `Record<string, unknown>` on the wire — the projector writes
+ * `attributes` is a free-form JSON bag on the wire — the projector writes
  * `{"position": [x, y, z]}` for an event and a different bag for a highlight
  * (`crates/storage/src/repository.rs`) — so it is narrowed structurally here
  * rather than cast. `null` is the honest answer for a row with no position, and
@@ -163,7 +164,7 @@ export function toEvidenceIdentity(
  * a missing row and a missing *field* are different facts.
  */
 export function evidencePosition(row: EvidenceSearchItem): readonly [number, number, number] | null {
-  const value = row.attributes['position'];
+  const value = jsonMember(row.attributes, 'position');
   if (!Array.isArray(value) || value.length < 3) return null;
   const [x, y, z] = value;
   if (typeof x !== 'number' || typeof y !== 'number' || typeof z !== 'number') return null;

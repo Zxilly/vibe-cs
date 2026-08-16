@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Bounded settings for deterministic, local music analysis.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AudioAnalysisOptions {
     /// Analysis sample rate. Inputs above this rate are downsampled in-process.
     pub sample_rate: u32,
@@ -27,7 +29,8 @@ impl Default for AudioAnalysisOptions {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct AudioBeat {
     pub index: usize,
     pub time_seconds: f64,
@@ -37,20 +40,23 @@ pub struct AudioBeat {
     pub phrase_position: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct AudioOnset {
     pub time_seconds: f64,
     pub strength: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct AudioEnergyPoint {
     pub time_seconds: f64,
     pub rms: f32,
     pub peak: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct AudioSection {
     pub start_seconds: f64,
     pub end_seconds: f64,
@@ -60,7 +66,8 @@ pub struct AudioSection {
     pub confidence: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct AudioAnalysis {
     pub duration_seconds: f64,
     pub analysis_sample_rate: u32,
@@ -74,22 +81,27 @@ pub struct AudioAnalysis {
     pub limitations: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct BeatAlignmentClip {
     pub clip_id: String,
     pub source_duration_seconds: f64,
     #[serde(default)]
+    #[ts(optional)]
     pub minimum_duration_seconds: Option<f64>,
     #[serde(default)]
+    #[ts(optional)]
     pub maximum_duration_seconds: Option<f64>,
     /// Optional preferred beat span. When absent, source duration wins.
     #[serde(default)]
+    #[ts(optional)]
     pub preferred_beats: Option<u16>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct BeatAlignmentOptions {
     pub timeline_start_seconds: f64,
     pub maximum_duration_change_ratio: f64,
@@ -108,15 +120,17 @@ impl Default for BeatAlignmentOptions {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct BeatAlignmentRequest {
     pub beats: Vec<AudioBeat>,
     pub clips: Vec<BeatAlignmentClip>,
     pub options: BeatAlignmentOptions,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct BeatAlignedClip {
     pub clip_id: String,
     pub timeline_start_seconds: f64,
@@ -129,7 +143,8 @@ pub struct BeatAlignedClip {
     pub rationale: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct BeatAlignmentDraft {
     /// This is an advisory plan only. Applying it requires a separate editor action.
     pub advisory_only: bool,

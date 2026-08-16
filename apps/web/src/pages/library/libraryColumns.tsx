@@ -26,7 +26,7 @@ import type { ReactNode } from 'react';
 import type { DataTableColumn } from '../../design/data';
 import { Button, cx, Tag } from '../../design/primitives';
 import { StatusDot } from '../../design/feedback';
-import type { DemoSummary } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { RouteLink } from '../RouteLink';
 import {
   demoSourceLabel,

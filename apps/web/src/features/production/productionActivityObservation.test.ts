@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { ActivityFeed, ActivityItem } from '../../shared/desktop/dto';
+import type { ActivityFeed, ActivityItem } from '../../shared/desktop/viewModels';
 import {
   startProductionActivityObservationAfterInitial,
   startProductionActivityObservation,

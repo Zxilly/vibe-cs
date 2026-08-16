@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { commands } from '../../shared/desktop/client';
-import type { ActivityItem } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import {
   ActivityPagination,
   ActivitySummary,

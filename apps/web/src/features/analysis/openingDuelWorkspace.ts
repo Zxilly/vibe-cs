@@ -1,8 +1,5 @@
-import type {
-  AnalysisWorkspace,
-  PlayerAnalysis,
-  TimelineEvent,
-} from '../../shared/desktop/dto';
+import type { TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import type { PlayerEvidenceAvailability, PlayerEvidenceRef } from './playerMatchEvidence';
 
 export type OpeningDuelOutcome = 'all' | 'opening_kill' | 'opening_death';

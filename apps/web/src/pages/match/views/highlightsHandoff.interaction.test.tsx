@@ -26,7 +26,8 @@ import { DesktopClientProvider, type DesktopClient } from '../../../data/desktop
 import { qk } from '../../../data/keys';
 import { useMatchAnalysis } from '../../../data/match';
 import { renderInteractive } from '../../../test/render';
-import type { AgentPlan, AgentPlanCreate, AnalysisWorkspace } from '../../../shared/desktop/dto';
+import type { AgentPlan, AgentPlanCreate } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { HighlightsView } from './HighlightsView';
 import { ANALYSIS } from './test/fixtures';
 import { queryResult, viewProps } from './test/renderView';

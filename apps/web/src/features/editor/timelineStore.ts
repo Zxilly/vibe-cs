@@ -1,7 +1,7 @@
 import { msg, msgf } from '../../shared/i18n';
 import { create } from 'zustand';
 
-import type { EditorMarker } from '../../shared/desktop/dto';
+import type { EditorMarker, JsonValue } from '../../shared/desktop/dto';
 import { MAX_EDITOR_TIMELINE_SECONDS, boundedTimelineValue, trimMarkersToDuration } from './projectState';
 
 export type TimelineKeyframeProperty =
@@ -40,7 +40,7 @@ export type TimelineClip = {
     rotation: number;
     opacity: number;
   } | undefined;
-  effects?: Array<{ id: string; kind: string; enabled: boolean; parameters: unknown }> | undefined;
+  effects?: Array<{ id: string; kind: string; enabled: boolean; parameters: JsonValue }> | undefined;
   transitionIn?: string | null | undefined;
   transitionOut?: string | null | undefined;
   text?: {
@@ -52,7 +52,7 @@ export type TimelineClip = {
     background: string | null;
     align: string;
   } | null | undefined;
-  metadata?: unknown;
+  metadata?: JsonValue | undefined;
   groupId?: string | null | undefined;
   linkGroupId?: string | null | undefined;
   keyframes?: TimelineKeyframe[] | undefined;

@@ -21,7 +21,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { COLLAPSE_BREAKPOINT_PX } from '../../design/layout';
 import { stubMatchMedia, type MatchMediaStub } from '../../design/layout/collapse.testing';
-import type { ActivityFeed, OutputPage } from '../../shared/desktop/dto';
+import type { OutputPage } from '../../shared/desktop/dto';
+import type { ActivityFeed } from '../../shared/desktop/viewModels';
 import { DeliveryPage } from '../DeliveryPage';
 import { HEALTHY, renderPage } from './test/renderPage';
 

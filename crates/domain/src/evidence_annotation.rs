@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use ts_rs::TS;
 use uuid::Uuid;
 
 pub const EVIDENCE_ANNOTATION_MAX_BODY_CHARS: usize = 4_000;
@@ -10,15 +11,17 @@ pub const EVIDENCE_ANNOTATION_MAX_QUERY_CHARS: usize = 256;
 pub const EVIDENCE_ANNOTATION_DEFAULT_PAGE_SIZE: u32 = 50;
 pub const EVIDENCE_ANNOTATION_MAX_PAGE_SIZE: u32 = 100;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum EvidenceAnnotationReviewState {
     Open,
     Resolved,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EvidenceAnnotation {
     pub id: Uuid,
     pub demo_id: Uuid,
@@ -32,8 +35,9 @@ pub struct EvidenceAnnotation {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CreateEvidenceAnnotation {
     pub demo_id: Uuid,
     pub evidence_id: String,
@@ -64,8 +68,9 @@ impl CreateEvidenceAnnotation {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct UpdateEvidenceAnnotation {
     pub body: String,
     pub tags: Vec<String>,
@@ -85,15 +90,23 @@ impl UpdateEvidenceAnnotation {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EvidenceAnnotationQuery {
+    #[ts(optional)]
     pub q: Option<String>,
+    #[ts(optional)]
     pub tag: Option<String>,
+    #[ts(optional)]
     pub demo_id: Option<Uuid>,
+    #[ts(optional)]
     pub evidence_id: Option<String>,
+    #[ts(optional)]
     pub state: Option<EvidenceAnnotationReviewState>,
+    #[ts(optional)]
     pub page: Option<u32>,
+    #[ts(optional)]
     pub page_size: Option<u32>,
 }
 

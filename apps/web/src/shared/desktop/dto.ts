@@ -1,1063 +1,297 @@
+/**
+ * The wire contract, mirrored from Rust.
+ *
+ * This file used to be 2400 lines of hand-copied structure. It is now almost
+ * entirely re-exports of `./generated/**`, which `cargo test` writes out of the
+ * `#[derive(TS)]` types in `crates/**`. A Rust structure that changes and a
+ * binding that does not is a red diff in CI (`.github/workflows/ci.yml`, step
+ * "wire types are in step with the Rust"), which is the whole point: the mirror
+ * had drifted in eighteen places before it was generated, and nothing could
+ * see it.
+ *
+ * ## How to read a re-export
+ *
+ * `export type { ConfigDto as AppConfig } from './generated/ConfigDto';`
+ * means the Rust item is `ConfigDto` and the name this application has always
+ * used for it is `AppConfig`. The alias is deliberate: renaming the Rust type
+ * to flatter the binding would be reshaping the server to please the client.
+ *
+ * Explanatory prose that the Rust doc comments already carry is **not**
+ * repeated here — open the generated file, it is in the TSDoc. What stays here
+ * is what Rust cannot know: how the client uses a value.
+ *
+ * ## What is still hand-written, and why
+ *
+ * Four groups, each marked where it appears:
+ *
+ *   1. **Untyped routes.** `DemoPlaybackStatus`, `DemoPlaybackPreflight`,
+ *      `DemoPlaybackLaunch`, `DemoPlaybackStop`, `LlmTestResult`,
+ *      `MatchHistorySyncResult` and `RecoveryStatus` are served as
+ *      `Json<serde_json::Value>` built with `json!` in
+ *      `crates/runtime/src/integration.rs`. There is no Rust structure to
+ *      generate from. Each is a backend gap, not a naming problem.
+ *   2. **Tauri-side types.** The streaming Agent chat contract
+ *      (`AgentStatus`, `AgentMessage`, `AgentThread`, `AgentChatInput`,
+ *      `AgentEvent`, `AgentChatResult`, `AgentProposal`, `AgentVideoProposal`,
+ *      `AgentShotDesign`) and `HlaeBundleHandoff` live in
+ *      `apps/desktop/src-tauri/src/`, which is not part of the ts-rs wiring.
+ *   3. **Client-side narrowings of an untyped field.** `DependencyKind`,
+ *      `DependencyState`, `ActivityKind`, `ActivityStatus` and
+ *      `ActivityAction` narrow fields that Rust types as `&'static str`
+ *      produced by `match` arms. The generated types say `string`, correctly.
+ *      These unions are the client's own reading of the closed set and are
+ *      **not** guaranteed by the server.
+ *   4. **Frontend aliases.** `EntityId`.
+ *
+ * View models — shapes this application derives from the wire rather than
+ * receives — moved to `./viewModels`. `dto.ts` is the wire, not a type
+ * cupboard.
+ */
+
+/** An opaque server-owned identifier. Rust spells these `Uuid` or `String`. */
 export type EntityId = string;
 
-export type ApiHealth = {
-  status: 'ok' | 'degraded';
-  version: string;
-  started_at: string;
-};
+/* ── service health, storage, setup ───────────────────────────────────────── */
 
+export type { HealthResponse as ApiHealth } from './generated/HealthResponse';
+export type { StorageStatusResponse as StorageStatus } from './generated/StorageStatusResponse';
+export type { DetectedPathsResponse as DetectedPaths } from './generated/DetectedPathsResponse';
+
+/**
+ * The two setup-check discriminators.
+ *
+ * `crates/application/src/routes/system.rs` types both as `&'static str`
+ * written by `match` arms, so `generated/DependencyCheck.ts` says `string` and
+ * these unions are the client's own reading of what those arms can produce.
+ * Nothing in Rust stops a new arm from being added — turning them into real
+ * serde enums is the fix, and it is a backend change.
+ */
 export type DependencyKind = 'game';
 export type DependencyState = 'ready' | 'warning' | 'missing' | 'checking';
 
-export type DependencyCheck = {
-  kind: DependencyKind;
-  state: DependencyState;
-  label: string;
-  detail: string;
-  action_path?: string;
-};
+export type { DependencyCheck } from './generated/DependencyCheck';
+export type { QuickCheckResponse } from './generated/QuickCheckResponse';
 
-export type QuickCheckResponse = {
-  checks: DependencyCheck[];
-  checked_at: string;
-};
-
-export type StorageStatus = {
-  data_dir: string;
-  directory_bytes: number;
-  filesystem_total_bytes: number;
-  filesystem_available_bytes: number;
-  file_count: number;
-  directory_count: number;
-  scan_complete: boolean;
-  checked_at: string;
-};
-
-export type DetectedPaths = {
-  cs2_path: string | null;
-  steam_path: string | null;
-};
-
-export type DemoStatus = 'pending' | 'parsing' | 'ready' | 'error';
-
-/** Current demo-summary wire returned by the desktop API. */
-export type DemoRecord = {
-  id: EntityId;
-  path: string;
-  file_name: string;
-  display_name: string;
-  source: string;
-  status: 'discovered' | 'indexing' | 'ready' | 'analyzing' | 'failed' | 'missing';
-  map_name: string | null;
-  match_date: string | null;
-  duration_seconds: number | null;
-  total_rounds: number | null;
-  team_a_name: string | null;
-  team_b_name: string | null;
-  team_a_score: number | null;
-  team_b_score: number | null;
-  players: string[];
-  remark: string;
-  content_sha256: string | null;
-  file_size: number;
-  created_at: string;
-  updated_at: string;
-};
-
-export type DemoLifecycleStatus = DemoRecord['status'];
-
-export type DemoSort =
-  | 'updated_desc' | 'updated_asc'
-  | 'file_asc' | 'file_desc'
-  | 'status_asc' | 'status_desc'
-  | 'map_asc' | 'map_desc'
-  | 'score_asc' | 'score_desc'
-  | 'duration_asc' | 'duration_desc'
-  | 'rounds_asc' | 'rounds_desc';
-
-export type DemoSummary = {
-  id: EntityId;
-  path: string;
-  filename: string;
-  display_name: string;
-  map_name: string;
-  match_date: string | null;
-  cataloged_at: string;
-  duration_seconds: number;
-  total_rounds: number;
-  score_team_a: number | null;
-  score_team_b: number | null;
-  team_a_name: string | null;
-  team_b_name: string | null;
-  status: DemoStatus;
-  lifecycle_status: DemoRecord['status'];
-  players: string[];
-  source: 'watch' | 'upload' | 'local';
-  remark: string;
-  updated_at: string;
-};
-
-export type Paginated<T> = {
-  items: T[];
-  total: number;
-  page: number;
-  page_size: number;
-};
-
-export type EvidenceSearchEventFamily = 'kill' | 'multi_kill' | 'objective' | 'round_start';
-export type EvidenceSearchSourceKind = 'event' | 'highlight';
-
-export type EvidenceSearchQuery = {
-  q?: string;
-  event_family?: EvidenceSearchEventFamily;
-  actor?: string;
-  victim?: string;
-  player?: string;
-  weapon?: string;
-  map?: string;
-  source?: string;
-  headshot?: boolean;
-  round?: number;
-  match_date_from?: string;
-  match_date_to?: string;
-  source_kind?: EvidenceSearchSourceKind;
-  demo_id?: string;
-  page?: number;
-  page_size?: number;
-};
-
-export type EvidenceSearchItem = {
-  evidence_id: string;
-  demo_id: string;
-  demo_display_name: string;
-  map_name: string;
-  match_date: string | null;
-  round: number;
-  tick: number;
-  end_tick: number;
-  event_type: string;
-  actor_id: string | null;
-  actor_name: string | null;
-  target_id: string | null;
-  target_name: string | null;
-  weapon: string | null;
-  headshot: boolean | null;
-  penetrated: boolean | null;
-  source_kind: EvidenceSearchSourceKind;
-  source_id: string;
-  attributes: Record<string, unknown>;
-  analysis_href: string;
-  replay_href: string;
-};
-
-export type EvidenceSearchCapability = {
-  available: boolean;
-  indexed_items: number;
-  reason: string | null;
-};
-
-export type EvidenceSearchResponse = Paginated<EvidenceSearchItem> & {
-  availability: {
-    indexed_items: number;
-    indexed_demos: number;
-    total_analyses: number;
-    scan_complete: boolean;
-    match_date: EvidenceSearchCapability;
-    source: EvidenceSearchCapability;
-  };
-};
-
-export type EvidenceAnnotationReviewState = 'open' | 'resolved';
-
-export type EvidenceAnnotation = {
-  id: string;
-  demo_id: string;
-  evidence_id: string;
-  round: number;
-  tick: number;
-  body: string;
-  tags: string[];
-  review_state: EvidenceAnnotationReviewState;
-  created_at: string;
-  updated_at: string;
-};
-
-export type CreateEvidenceAnnotation = {
-  demo_id: string;
-  evidence_id: string;
-  round: number;
-  tick: number;
-  body: string;
-  tags: string[];
-};
-
-export type UpdateEvidenceAnnotation = {
-  body: string;
-  tags: string[];
-  review_state: EvidenceAnnotationReviewState;
-};
-
-export type EvidenceAnnotationQuery = {
-  q?: string;
-  tag?: string;
-  demo_id?: string;
-  evidence_id?: string;
-  state?: EvidenceAnnotationReviewState;
-  page?: number;
-  page_size?: number;
-};
-
-export type DemoQuery = {
-  search?: string;
-  match_source?: DemoMatchSource;
-  tag_id?: string;
-  map_name?: string;
-  status?: DemoLifecycleStatus;
-  sort?: DemoSort;
-  page?: number;
-  page_size?: number;
-};
-
-export type DemoUpdate = {
-  display_name?: string;
-  remark?: string;
-};
-
-export type DemoMatchSource =
-  | 'challengermode' | 'ebot' | 'esl' | 'esplay' | 'esportal' | 'esportligaen'
-  | 'faceit' | 'fastcup' | 'five_eplay' | 'matchzy' | 'perfect_world' | 'pracc'
-  | 'renown' | 'valve';
-
-export type ReviewTag = {
-  id: string;
-  name: string;
-  color: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type DemoTag = ReviewTag;
-
-export type DemoMetadata = {
-  demo_id: string;
-  match_source: DemoMatchSource | null;
-  comment: string;
-  tags: ReviewTag[];
-  updated_at: string;
-};
-
-export type DemoMetadataUpdate = {
-  match_source: DemoMatchSource | null;
-  comment: string;
-  tag_ids: string[];
-};
-
-export type DemoMetadataBatchUpdate = {
-  demo_ids: string[];
-  set_match_source: boolean;
-  match_source: DemoMatchSource | null;
-  add_tag_ids: string[];
-  remove_tag_ids: string[];
-};
-
-export type DemoTagCreate = {
-  name: string;
-  color: string;
-};
-
-export type ReviewTagCreate = DemoTagCreate;
-
-export type ReviewMetadataUpdate = {
-  comment: string;
-  tag_ids: string[];
-};
-
-export type PlayerReviewMetadata = {
-  steam_id: string;
-  comment: string;
-  tags: ReviewTag[];
-  updated_at: string;
-};
-
-export type RoundReviewMetadata = {
-  demo_id: string;
-  source_sha256: string;
-  round: number;
-  comment: string;
-  tags: ReviewTag[];
-  updated_at: string;
-};
-
-export type ScanResult = {
-  discovered: number;
-  imported: number;
-  updated: number;
-  skipped: number;
-  errors: string[];
-};
-
-export type DemoWatchRootStatus = {
-  path: string;
-  state: 'watching' | 'missing' | 'rejected' | 'duplicate' | 'error' | 'disabled';
-  message: string | null;
-};
-
-export type DemoWatchStatus = {
-  running: boolean;
-  roots: DemoWatchRootStatus[];
-  last_scan_at: string | null;
-  last_event_at: string | null;
-  last_error: string | null;
-  imported: number;
-  updated: number;
-  missing: number;
-};
-
-export type ScanRequest = {
-  paths: string[];
-  recursive: boolean;
-};
-
-export type CosmeticFieldName = 'paint_kit' | 'seed' | 'wear' | 'stat_trak';
-
-export type StablePlayerIdentity = {
-  /** Decimal string because Steam64 values exceed JavaScript's safe integer range. */
-  steam_id64: string;
-  account_id: number;
-};
-
-export type CosmeticInspectionItem = {
-  owner: StablePlayerIdentity;
-  item_definition_index: number;
-  match_basis: 'account_id' | 'steam_id64' | 'both';
-  entity_handles: number[];
-  class_names: string[];
-  paint_kit: number | null;
-  seed: number | null;
-  wear: number | null;
-  stat_trak: number | null;
-  incompatible_fields: CosmeticFieldName[];
-  conflicting_fields: CosmeticFieldName[];
-};
-
-export type CosmeticInspectionReport = {
-  input_path: string;
-  input_bytes: number;
-  demo_messages: number;
-  entity_updates: number;
-  distinct_entities: number;
-  items: CosmeticInspectionItem[];
-};
-
-export type CosmeticValues = {
-  paint_kit?: number;
-  seed?: number;
-  wear?: number;
-  stat_trak?: number;
-};
-
-export type CosmeticRewriteRequest = {
-  confirm_new_file: true;
-  patches: Array<{
-    target: {
-      owner: StablePlayerIdentity;
-      item_definition_index: number;
-    };
-    values: CosmeticValues;
-  }>;
-};
-
-export type CosmeticRewriteReport = {
-  input_path: string;
-  output_path: string;
-  input_bytes: number;
-  output_bytes: number;
-  demo_messages: number;
-  rewrite: {
-    entity_updates: number;
-    distinct_entities: number;
-    patches: Array<{
-      patch_index: number;
-      matched_entities: number;
-      field_hits: Array<{ field: CosmeticFieldName; hits: number }>;
-      incompatible_type_occurrences: number;
-    }>;
-  };
-};
-
-export type CosmeticRewriteResponse = {
-  demo: DemoRecord;
-  report: CosmeticRewriteReport;
-};
-
-export type CosmeticCatalogItem = {
-  item_definition_index: number;
-  internal_name: string;
-  display_name: string;
-  category: 'weapon' | 'knife' | 'gloves' | 'agent' | 'equipment';
-  base_image_available: boolean;
-  paint_kit_ids: number[];
-};
-
-export type CosmeticPaintKit = {
-  id: number;
-  internal_name: string;
-  display_name: string;
-  wear_min: number;
-  wear_max: number;
-  compatible_item_definition_indices: number[];
-};
-
-export type CosmeticCatalog = {
-  items: CosmeticCatalogItem[];
-  paint_kits: CosmeticPaintKit[];
-};
-
-export type CosmeticPlan = {
-  id: string;
-  demo_id: string;
-  name: string;
-  patches: CosmeticRewriteRequest['patches'];
-  created_at: string;
-  updated_at: string;
-};
-
-export type PlayerAnalysis = {
-  id: EntityId;
-  name: string;
-  team: 'A' | 'B';
-  kills: number;
-  deaths: number;
-  assists: number;
-  headshot_rate: number;
-  kill_death_ratio: number;
-  adr: number;
-};
-
-/** Wire DTO mirrored from vibe-cs-domain::PlayerStats. */
-export type PlayerStats = {
-  steam_id: string;
-  name: string;
-  team: string;
-  kills: number;
-  deaths: number;
-  assists: number;
-  headshots: number;
-  damage: number;
-  adr: number;
-  kill_death_ratio: number;
-  score: number;
-};
-
-export type SteamProfileState = 'available' | 'not_configured' | 'unavailable';
-
-export type PlayerSteamProfile = {
-  state: SteamProfileState;
-  persona_name: string | null;
-  real_name: string | null;
-  profile_url: string | null;
-  country_code: string | null;
-  persona_state: number | null;
-  last_logoff: string | null;
-  created_at: string | null;
-  /** A service-owned route when available; never a third-party image URL. */
-  avatar_url: string | null;
-  reason: string | null;
-};
-
-export type PlayerAggregateStats = {
-  matches: number;
-  kills: number;
-  deaths: number;
-  assists: number;
-  headshots: number;
-  damage: number;
-  average_adr: number | null;
-  average_kill_death_ratio: number | null;
-};
-
-export type PlayerDirectoryItem = {
-  steam_id: string;
-  name: string;
-  aliases: string[];
-  aliases_total: number;
-  last_team: string | null;
-  last_match_date: string | null;
-  last_cataloged_at: string;
-  stats: PlayerAggregateStats;
-  steam: PlayerSteamProfile;
-};
-
-export type PlayerMatch = {
-  demo_id: EntityId;
-  demo_name: string;
-  map_name: string | null;
-  match_date: string | null;
-  cataloged_at: string;
-  team: string | null;
-  kills: number;
-  deaths: number;
-  assists: number;
-  headshots: number;
-  damage: number;
-  adr: number | null;
-  kill_death_ratio: number | null;
-};
-
-export type PlayerProjectionCoverage = {
-  projected_demos: number;
-  total_analyses: number;
-  projection_complete: boolean;
-};
-
-export type PlayerDirectoryPage = Paginated<PlayerDirectoryItem> & {
-  coverage: PlayerProjectionCoverage;
-};
-
-export type PlayerMatchPage = Paginated<PlayerMatch> & {
-  steam_id: string;
-  coverage: PlayerProjectionCoverage;
-};
-
-export type PlayerMapItem = {
-  map_name: string | null;
-  stats: PlayerAggregateStats;
-};
-
-export type PlayerMapPage = Paginated<PlayerMapItem> & {
-  steam_id: string;
-  coverage: PlayerProjectionCoverage;
-};
-
-export type PlayerHeatmapKind = 'kills' | 'deaths';
-
-export type PlayerHeatmapPoint = {
-  demo_id: string;
-  evidence_id: string;
-  round: number;
-  tick: number;
-  kind: PlayerHeatmapKind;
-  x: number;
-  y: number;
-  floor: number;
-  analysis_href: string;
-  replay_href: string;
-};
-
-export type PlayerHeatmap = {
-  steam_id: string;
-  map_name: string;
-  points: PlayerHeatmapPoint[];
-  total: number;
-  maximum_points: number;
-  complete: boolean;
-  coverage: PlayerProjectionCoverage;
-};
-
-export type PlayerComparison = {
-  players: [PlayerDirectoryItem, PlayerDirectoryItem];
-  coverage: PlayerProjectionCoverage;
-};
-
-export type PlayerProfile = {
-  player: PlayerDirectoryItem;
-  coverage: PlayerProjectionCoverage;
-};
-
-export type LineupProjectionCoverage = {
-  evaluated_demos: number;
-  verified_demos: number;
-  total_analyses: number;
-  projection_complete: boolean;
-};
-
-export type LineupDirectoryItem = {
-  lineup_id: string;
-  members: [string, string, string, string, string];
-  maps: number;
-  wins: number;
-  losses: number;
-  ties: number;
-  rounds_for: number;
-  rounds_against: number;
-};
-
-export type LineupDirectoryPage = Paginated<LineupDirectoryItem> & {
-  coverage: LineupProjectionCoverage;
-};
-
-export type LineupMapItem = {
-  demo_id: EntityId;
-  map_name: string | null;
-  match_date: string | null;
-  cataloged_at: string;
-  opponent_lineup_id: string;
-  team_slot: 'A' | 'B';
-  rounds_for: number;
-  rounds_against: number;
-};
-
-export type LineupMapPage = Paginated<LineupMapItem> & {
-  lineup_id: string;
-  members: [string, string, string, string, string];
-  coverage: LineupProjectionCoverage;
-};
-
-export type AvatarCacheStatus = {
-  entries: number;
-  bytes: number;
-  maximum_entries: number;
-  maximum_bytes: number;
-  scan_complete: boolean;
-  checked_at: string;
-};
-
-export type AvatarCacheCleanup = {
-  removed_entries: number;
-  freed_bytes: number;
-  failed_entries: number;
-  scan_complete: boolean;
-  completed_at: string;
-};
-
-export type TeamSummary = {
-  name: string;
-  side: string;
-  score: number;
-  players: string[];
-};
-
-export type TimelineEvent = {
-  id: string;
-  tick: number;
-  seconds: number;
-  kind: 'round_start' | 'round_end' | 'kill' | 'damage' | 'bomb_plant' | 'bomb_defuse' | 'bomb_explode' | 'grenade' | 'purchase';
-  actor: string | null;
-  target: string | null;
-  weapon: string | null;
-  headshot: boolean;
-  penetrated: boolean;
-  position: [number, number, number] | null;
-  detail: unknown;
-};
-
-export type AnalysisRoundRecord = {
-  number: number;
-  start_tick: number;
-  end_tick: number;
-  winner: string;
-  reason: string;
-  team_a_score: number;
-  team_b_score: number;
-  events: TimelineEvent[];
-};
-
-export type AnalysisHighlightRecord = {
-  id: string;
-  player_id: string;
-  round: number;
-  start_tick: number;
-  end_tick: number;
-  kind: 'multi_kill' | 'clutch' | 'one_tap' | 'wallbang' | 'no_scope' | 'knife' | 'taser' | 'defuse' | 'fail' | 'timeline';
-  title: string;
-  description: string;
-  score: number;
-  tags: string[];
-  victims: string[];
-};
-
-export type InsightCapabilityRecord = {
-  available: boolean;
-  reason: string | null;
-};
-
-export type CountedItemRecord = {
-  name: string;
-  count: number;
-};
-
-export type TeamPurchaseInsightRecord = {
-  team: string;
-  purchase_count: number;
-  items: CountedItemRecord[];
-  spend: number | null;
-};
-
-export type RoundEconomyInsightRecord = {
-  round: number;
-  teams: TeamPurchaseInsightRecord[];
-  unattributed_purchase_count: number;
-};
-
-export type PlayerUtilityInsightRecord = {
-  player_id: string;
-  throws: number;
-  detonations: number;
-  items: CountedItemRecord[];
-  damage: number;
-  damage_events: number;
-  flash_events: number;
-  players_flashed: number;
-  flash_duration_seconds: number | null;
-};
-
-export type PlayerMatchupInsightRecord = {
-  player_id: string;
-  opponent_id: string;
-  kills: number;
-  deaths: number;
-  headshot_kills: number;
-  damage_dealt: number;
-  damage_taken: number;
-  damage_events: number;
-};
-
-export type AnalysisInsightsRecord = {
-  round_economy: RoundEconomyInsightRecord[];
-  player_utility: PlayerUtilityInsightRecord[];
-  matchups: PlayerMatchupInsightRecord[];
-  availability: {
-    purchase_events: InsightCapabilityRecord;
-    purchase_spend: InsightCapabilityRecord;
-    utility_events: InsightCapabilityRecord;
-    utility_damage: InsightCapabilityRecord;
-    flash_effects: InsightCapabilityRecord;
-    matchups: InsightCapabilityRecord;
-  };
-};
-
-/** Wire DTO mirrored from vibe-cs-domain::MatchAnalysis. */
-export type MatchAnalysisRecord = {
-  demo_id: string;
-  map_name: string;
-  tick_rate: number;
-  duration_seconds: number;
-  verified_total_ticks: number | null;
-  teams: TeamSummary[];
-  players: PlayerStats[];
-  rounds: AnalysisRoundRecord[];
-  highlights: AnalysisHighlightRecord[];
-  insights: AnalysisInsightsRecord;
-};
-
-export type AnalysisRunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'interrupted' | 'cancelled';
-
-export type AnalysisRunStage =
-  | 'validating_input'
-  | 'parser_queued'
-  | 'parser_running'
-  | 'verifying_input_after_parse'
-  | 'projecting'
-  | 'completed'
-  | 'failed'
-  | 'interrupted'
-  | 'cancelled';
-
-export type AnalysisRunEventCode =
-  | 'input_validation_started'
-  | 'input_verified'
-  | 'parser_started'
-  | 'input_revalidation_started'
-  | 'projection_started'
-  | 'completed'
-  | 'failed'
-  | 'interrupted'
-  | 'cancelled';
-
-/** Exact current analysis-run wire. Nullable fields are required by the service contract. */
-export type AnalysisRun = {
-  id: EntityId;
-  demo_id: EntityId;
-  input_sha256: string | null;
-  input_size: number | null;
-  status: AnalysisRunStatus;
-  stage: AnalysisRunStage;
-  error: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AnalysisRunEvent = {
-  run_id: EntityId;
-  sequence: number;
-  stage: AnalysisRunStage;
-  message_code: AnalysisRunEventCode;
-  detail: string | null;
-  created_at: string;
-};
-
-export type AnalysisRunDetail = {
-  run: AnalysisRun;
-  events: AnalysisRunEvent[];
-  result_available: boolean;
-};
-
-export type LlmReviewScope = 'match' | 'highlights' | 'player';
-export type LlmReviewTone = 'analytical' | 'coach' | 'direct';
-
-export type LlmReviewRequest = {
-  scope: LlmReviewScope;
-  player_id: EntityId | null;
-  highlight_ids: EntityId[];
-  tone: LlmReviewTone;
-};
-
-export type LlmReviewResult = {
-  demo_id: EntityId;
-  scope: LlmReviewScope;
-  player_id: EntityId | null;
-  highlight_ids: EntityId[];
-  tone: LlmReviewTone;
-  commentary: string;
-  evidence_ids: string[];
-  evidence_sha256: string;
-  provider: string;
-  model: string;
-  generated_at: string;
-  cached: boolean;
-};
-
-export type RoundSummary = {
-  number: number;
-  winner: 'A' | 'B';
-  reason: string;
-  start_tick: number;
-  end_tick: number;
-  team_a_score: number;
-  team_b_score: number;
-  events: TimelineEvent[];
-};
-
-export type Highlight = {
-  id: EntityId;
-  label: string;
-  category: 'multi-kill' | 'clutch' | 'entry' | 'utility';
-  kind: AnalysisHighlightRecord['kind'];
-  description: string;
-  tags: string[];
-  victims: string[];
-  player_id: EntityId;
-  round: number;
-  start_tick: number;
-  end_tick: number;
-  confidence: number;
-};
-
-export type AnalysisWorkspace = {
-  demo_id: EntityId;
-  map_name: string;
-  tick_rate: number;
-  duration_seconds: number;
-  teams: TeamSummary[];
-  players: PlayerAnalysis[];
-  rounds: RoundSummary[];
-  highlights: Highlight[];
-  /** Derived capability payload; absent only in in-memory loading/error workspaces. */
-  insights?: AnalysisInsightsRecord;
-};
-
-export type ReplayPlayerRecord = {
-  id: string;
-  name: string;
-  team: string;
-  position: [number, number, number];
-  yaw: number;
-  health: number;
-  armor: number;
-  alive: boolean;
-  weapon: string;
-  money?: number | null;
-  current_equipment_value?: number | null;
-  round_start_equipment_value?: number | null;
-  has_helmet?: boolean | null;
-  input: {
-    forward: boolean;
-    left: boolean;
-    backward: boolean;
-    right: boolean;
-    jump: boolean;
-    crouch: boolean;
-    walk: boolean;
-    reload: boolean;
-    fire: boolean;
-    secondary_fire: boolean;
-  } | null;
-};
-
-export type ReplayProjectileRecord = {
-  kind: string;
-  position: [number, number, number];
-  active: boolean;
-  radius: number | null;
-  masks_vision: boolean;
-};
-
-export type ReplayBombRecord = {
-  position: [number, number, number];
-  state: string;
-  carrier_id: string | null;
-};
-
-export type ReplayFrameRecord = {
-  tick: number;
-  players: ReplayPlayerRecord[];
-  projectiles: ReplayProjectileRecord[];
-  bomb: ReplayBombRecord | null;
-};
-
-export type ReplayCacheMetadata = {
-  state: 'hit' | 'generated' | 'bypassed';
-  key: string | null;
-  bytes: number;
-  generated_at: string | null;
-  repaired: boolean;
-  reason: string | null;
-};
-
-export type ReplayFidelityMetadata = {
-  mode: 'entity_snapshots' | 'hybrid' | 'event_sparse';
-  tick_rate: number;
-  frame_count: number;
-  positioned_event_count: number;
-  start_tick: number;
-  end_tick: number;
-};
-
-export type ReplayPayload = {
-  frames: ReplayFrameRecord[];
-  fidelity: ReplayFidelityMetadata;
-  cache: ReplayCacheMetadata;
-  freeze_end_tick?: number | null;
-};
-
-export type ReplayCacheStatus = {
-  entries: number;
-  bytes: number;
-  maximum_entries: number;
-  maximum_bytes: number;
-  scan_complete: boolean;
-  checked_at: string;
-};
-
-export type ReplayCacheCleanup = {
-  removed_entries: number;
-  freed_bytes: number;
-  failed_entries: number;
-  scan_complete: boolean;
-  completed_at: string;
-};
-
-export type HeatPointRecord = {
-  id: string;
-  round: number | null;
-  tick: number;
-  x: number;
-  y: number;
-  weight: number;
-  floor: number;
-  kind: string;
-  player_id: string | null;
-  side: 'T' | 'CT' | null;
-  event_kind: string | null;
-};
-
-export type RadarOverviewRecord = {
-  map_name: string;
-  transform: {
-    pos_x: number;
-    pos_y: number;
-    scale: number;
-    rotate: boolean;
-    zoom: number | null;
-  } | null;
-  image_url: string | null;
-  image_mime: string | null;
-  browser_displayable: boolean;
-};
+/* ── the demo library ─────────────────────────────────────────────────────── */
 
 /**
- * Whose voice is audible in a capture. Mirrors
- * `vibe-cs-domain::RecordingVoicePolicy`.
- *
- * One closed choice rather than the two independent booleans
- * (`mute_voice` + `isolate_target_voice`) that `AppConfig.recording` still
- * carries: two booleans spell four combinations and one of them is rejected by
- * the capture pipeline, so the enum removes the illegal state instead of
- * validating it away.
+ * The demo lifecycle. Both names are the same generated enum: `DemoStatus` is
+ * what Rust calls it, `DemoLifecycleStatus` is what most of this application
+ * calls it.
  */
-export type RecordingVoicePolicy = 'all_players' | 'muted' | 'target_only';
+export type { DemoStatus } from './generated/DemoStatus';
+export type { DemoStatus as DemoLifecycleStatus } from './generated/DemoStatus';
 
 /**
- * Per-shot capture presentation. Mirrors
- * `vibe-cs-domain::RecordingPresentation`.
+ * The `/api/demos` list row.
  *
- * `camera_fov` (60–140) and `viewmodel_fov` (54–68) only mean something for
- * `camera_style: 'pov'`. Every other style takes its field of view from the
- * camera path and draws no viewmodel, so the backend **rejects** a non-neutral
- * value there rather than ignoring it — an observer shot must send
- * `camera_fov: 90` and `viewmodel_fov: 68`. The other four apply to both kinds.
+ * Two Rust types wear this name. This one is application's `DemoSummaryDto`,
+ * which renames `player_names` to `players`; domain's own `DemoRecord` is the
+ * export/cosmetic-rewrite shape and is re-exported below as
+ * `DemoCatalogRecord`. They are not interchangeable.
  */
-export type RecordingPresentation = {
-  camera_fov: number;
-  viewmodel_fov: number;
-  /** Remaining flash alpha in the CS2 0–255 scale. */
-  flash_alpha: number;
-  show_hud: boolean;
-  show_radar: boolean;
-  voice: RecordingVoicePolicy;
-};
+export type { DemoSummaryDto as DemoRecord } from './generated/DemoSummaryDto';
 
-export type RecordingRequest = {
-  id: EntityId;
-  demo_id: EntityId;
-  highlight_id: string | null;
-  player_id: string;
-  title: string;
-  start_tick: number;
-  end_tick: number;
-  pre_roll_seconds: number;
-  post_roll_seconds: number;
-  victim_pov: boolean;
-  camera_style: 'pov' | 'orbit' | 'dolly' | 'static' | 'tracking' | 'crane' | 'flyby';
-  /**
-   * Per-shot overrides of the six `AppConfig.recording` presentation defaults.
-   *
-   * Optional, and `null` rather than an expanded object, because "the user
-   * never touched these controls" and "the user set them to exactly today's
-   * global default" have to stay distinguishable: absent or `null` means
-   * *follow the global defaults*, and the defaults are only expanded inside the
-   * capture pipeline. A response always carries the key (`null` when unset);
-   * a request may omit it.
-   */
-  presentation?: RecordingPresentation | null;
-};
+/**
+ * Domain's catalog record — the shape `CosmeticRewriteResponse.demo` carries
+ * and the demo-export endpoint returns. Its player list is `player_names`.
+ */
+export type { DemoRecord as DemoCatalogRecord } from './generated/DemoRecord';
 
-export type RecordingQueueRequest = {
-  items: RecordingRequest[];
-};
+export type { DemoSort } from './generated/DemoSort';
+export type { DemoQuery } from './generated/DemoQuery';
+export type { DemoPatch as DemoUpdate } from './generated/DemoPatch';
+export type { DemoMatchSource } from './generated/DemoMatchSource';
+export type { ScanRequest } from './generated/ScanRequest';
+export type { ScanResult } from './generated/ScanResult';
+export type { DemoWatchRootStatus } from './generated/DemoWatchRootStatus';
+export type { DemoWatchStatus } from './generated/DemoWatchStatus';
 
-export type RecordingPlanResponse = {
-  plan_id: EntityId;
-  expires_at: string;
-  active_items: number;
-  disabled_items: number;
-  estimated_seconds: number | null;
-  /**
-   * Free-text plan notices. This is *not* the pre-recording check list — see
-   * `RecordingPreflight`, which is a closed set. Both exist because a plan can
-   * report things that are neither a check nor localizable (an unavailable
-   * duration estimate, for example).
-   */
-  warnings: string[];
-  items: RecordingRequest[];
-  director: DirectorPlan;
-};
+/** The generic page envelope every paginated route flattens into its response. */
+export type { Page as Paginated } from './generated/Page';
+
+/* ── review metadata: tags, comments ──────────────────────────────────────── */
+
+export type { ReviewTag } from './generated/ReviewTag';
+export type { ReviewTag as DemoTag } from './generated/ReviewTag';
+export type { ReviewTagCreate } from './generated/ReviewTagCreate';
+export type { ReviewTagCreate as DemoTagCreate } from './generated/ReviewTagCreate';
+export type { ReviewMetadataUpdate } from './generated/ReviewMetadataUpdate';
+export type { DemoMetadata } from './generated/DemoMetadata';
+export type { DemoMetadataUpdate } from './generated/DemoMetadataUpdate';
+export type { DemoMetadataBatchUpdate } from './generated/DemoMetadataBatchUpdate';
+export type { PlayerReviewMetadata } from './generated/PlayerReviewMetadata';
+export type { RoundReviewMetadata } from './generated/RoundReviewMetadata';
+
+/* ── evidence search and annotations ──────────────────────────────────────── */
+
+export type { EvidenceEventFamily as EvidenceSearchEventFamily } from './generated/EvidenceEventFamily';
+export type { EvidenceSourceKind as EvidenceSearchSourceKind } from './generated/EvidenceSourceKind';
+export type { EvidenceSearchQuery } from './generated/EvidenceSearchQuery';
+export type { EvidenceSearchItem } from './generated/EvidenceSearchItem';
+export type { EvidenceSearchCapability } from './generated/EvidenceSearchCapability';
+export type { EvidenceSearchAvailability } from './generated/EvidenceSearchAvailability';
+export type { EvidenceSearchPage as EvidenceSearchResponse } from './generated/EvidenceSearchPage';
+export type { EvidenceAnnotationReviewState } from './generated/EvidenceAnnotationReviewState';
+export type { EvidenceAnnotation } from './generated/EvidenceAnnotation';
+export type { CreateEvidenceAnnotation } from './generated/CreateEvidenceAnnotation';
+export type { UpdateEvidenceAnnotation } from './generated/UpdateEvidenceAnnotation';
+export type { EvidenceAnnotationQuery } from './generated/EvidenceAnnotationQuery';
+
+/* ── cosmetics ────────────────────────────────────────────────────────────── */
+
+export type { CosmeticField } from './generated/CosmeticField';
+export type { CosmeticField as CosmeticFieldName } from './generated/CosmeticField';
+export type { MatchBasis } from './generated/MatchBasis';
+export type { StablePlayerIdentity } from './generated/StablePlayerIdentity';
+export type { CosmeticInspectionItem } from './generated/CosmeticInspectionItem';
+export type { CosmeticInspectionReport } from './generated/CosmeticInspectionReport';
+export type { CosmeticValues } from './generated/CosmeticValues';
+export type { CosmeticTarget } from './generated/CosmeticTarget';
+export type { CosmeticPatch } from './generated/CosmeticPatch';
+
+/**
+ * The rewrite request body.
+ *
+ * `confirm_new_file` is `boolean` here and not the literal `true` the mirror
+ * used to assert: the constraint is real but it lives in the Rust validator,
+ * which rejects `false`, and no TypeScript type can be generated from a
+ * runtime check.
+ */
+export type { CosmeticRewriteBody as CosmeticRewriteRequest } from './generated/CosmeticRewriteBody';
+
+export type { RewriteReport as CosmeticRewriteReport } from './generated/RewriteReport';
+export type { BackendReport } from './generated/BackendReport';
+export type { PatchRewriteReport } from './generated/PatchRewriteReport';
+export type { FieldHit } from './generated/FieldHit';
+export type { CosmeticRewriteResponse } from './generated/CosmeticRewriteResponse';
+export type { CosmeticCatalogItemDto as CosmeticCatalogItem } from './generated/CosmeticCatalogItemDto';
+export type { CosmeticPaintKitDto as CosmeticPaintKit } from './generated/CosmeticPaintKitDto';
+export type { CosmeticCatalogDto as CosmeticCatalog } from './generated/CosmeticCatalogDto';
+
+/**
+ * A saved cosmetic plan.
+ *
+ * `patches` is `JsonValue` and not `CosmeticPatch[]`: storage keeps the
+ * document as `serde_json::Value`, so the *mirror* was more precise than the
+ * server. Narrow it with `CosmeticPatch[]` at the point of use until the Rust
+ * field is tightened.
+ */
+export type { CosmeticPlan } from './generated/CosmeticPlan';
+
+/* ── match analysis ───────────────────────────────────────────────────────── */
+
+export type { PlayerStats } from './generated/PlayerStats';
+export type { TeamSummary } from './generated/TeamSummary';
+export type { EventKind } from './generated/EventKind';
+export type { TimelineEvent } from './generated/TimelineEvent';
+export type { RoundSummary as AnalysisRoundRecord } from './generated/RoundSummary';
+export type { HighlightKind } from './generated/HighlightKind';
+export type { Highlight as AnalysisHighlightRecord } from './generated/Highlight';
+export type { InsightCapability as InsightCapabilityRecord } from './generated/InsightCapability';
+export type { CountedItem as CountedItemRecord } from './generated/CountedItem';
+export type { TeamPurchaseInsight as TeamPurchaseInsightRecord } from './generated/TeamPurchaseInsight';
+export type { RoundEconomyInsight as RoundEconomyInsightRecord } from './generated/RoundEconomyInsight';
+export type { PlayerUtilityInsight as PlayerUtilityInsightRecord } from './generated/PlayerUtilityInsight';
+export type { PlayerMatchupInsight as PlayerMatchupInsightRecord } from './generated/PlayerMatchupInsight';
+export type { AnalysisInsightAvailability } from './generated/AnalysisInsightAvailability';
+export type { AnalysisInsights as AnalysisInsightsRecord } from './generated/AnalysisInsights';
+export type { MatchAnalysis as MatchAnalysisRecord } from './generated/MatchAnalysis';
+
+export type { AnalysisRunStatus } from './generated/AnalysisRunStatus';
+export type { AnalysisRunStage } from './generated/AnalysisRunStage';
+export type { AnalysisRunEventCode } from './generated/AnalysisRunEventCode';
+export type { AnalysisRun } from './generated/AnalysisRun';
+export type { AnalysisRunEvent } from './generated/AnalysisRunEvent';
+export type { AnalysisRunDetail } from './generated/AnalysisRunDetail';
+
+export type { ReviewScope as LlmReviewScope } from './generated/ReviewScope';
+export type { ReviewTone as LlmReviewTone } from './generated/ReviewTone';
+export type { LlmReviewRequest } from './generated/LlmReviewRequest';
+export type { LlmReviewResult } from './generated/LlmReviewResult';
+
+/* ── replay, heat points, radar ───────────────────────────────────────────── */
+
+export type { ReplayInputState } from './generated/ReplayInputState';
+export type { ReplayPlayer as ReplayPlayerRecord } from './generated/ReplayPlayer';
+export type { ReplayProjectile as ReplayProjectileRecord } from './generated/ReplayProjectile';
+export type { ReplayBomb as ReplayBombRecord } from './generated/ReplayBomb';
+export type { ReplayFrame as ReplayFrameRecord } from './generated/ReplayFrame';
+export type { ReplayCacheState } from './generated/ReplayCacheState';
+export type { ReplayCacheMetadata } from './generated/ReplayCacheMetadata';
+export type { ReplayFidelityMode } from './generated/ReplayFidelityMode';
+export type { ReplayFidelityMetadata } from './generated/ReplayFidelityMetadata';
+export type { ReplayPayload } from './generated/ReplayPayload';
+export type { ReplayCacheStatus } from './generated/ReplayCacheStatus';
+export type { ReplayCacheCleanup } from './generated/ReplayCacheCleanup';
+export type { HeatPoint as HeatPointRecord } from './generated/HeatPoint';
+
+/**
+ * The radar calibration for one map. `image_url` addresses this service's own
+ * radar route, so the client never fetches a third-party image.
+ */
+export type { RadarMetadataResponse as RadarOverviewRecord } from './generated/RadarMetadataResponse';
+export type { RadarTransformResponse } from './generated/RadarTransformResponse';
+
+/* ── players and lineups ──────────────────────────────────────────────────── */
+
+export type { SteamProfileState } from './generated/SteamProfileState';
+export type { PlayerSteamProfile } from './generated/PlayerSteamProfile';
+export type { PlayerAggregateStats } from './generated/PlayerAggregateStats';
+export type { PlayerDirectoryItem } from './generated/PlayerDirectoryItem';
+export type { PlayerMatch } from './generated/PlayerMatch';
+export type { PlayerProjectionCoverage } from './generated/PlayerProjectionCoverage';
+export type { PlayerDirectoryPage } from './generated/PlayerDirectoryPage';
+export type { PlayerMatchPage } from './generated/PlayerMatchPage';
+export type { PlayerMapItem } from './generated/PlayerMapItem';
+export type { PlayerMapPage } from './generated/PlayerMapPage';
+export type { PlayerHeatmapKind } from './generated/PlayerHeatmapKind';
+export type { PlayerHeatmapPoint } from './generated/PlayerHeatmapPoint';
+export type { PlayerHeatmap } from './generated/PlayerHeatmap';
+export type { PlayerComparison } from './generated/PlayerComparison';
+export type { PlayerProfile } from './generated/PlayerProfile';
+export type { AvatarCacheStatus } from './generated/AvatarCacheStatus';
+export type { AvatarCacheCleanup } from './generated/AvatarCacheCleanup';
+
+export type { LineupProjectionCoverage } from './generated/LineupProjectionCoverage';
+export type { LineupDirectoryItem } from './generated/LineupDirectoryItem';
+export type { LineupDirectoryPage } from './generated/LineupDirectoryPage';
+
+/**
+ * One map a lineup played.
+ *
+ * `team_slot` is `string`, not `'A' | 'B'`: `crates/storage` declares the
+ * column as `String` and nothing in Rust closes it, so an exhaustive client
+ * switch over two members was unsound. Treat an unrecognized slot as unknown.
+ */
+export type { LineupMapItem } from './generated/LineupMapItem';
+export type { LineupMapPage } from './generated/LineupMapPage';
+
+/* ── recording ────────────────────────────────────────────────────────────── */
+
+export type { HlaeCameraStyle } from './generated/HlaeCameraStyle';
+export type { RecordingVoicePolicy } from './generated/RecordingVoicePolicy';
+export type { RecordingPresentation } from './generated/RecordingPresentation';
+
+/**
+ * One shot of a recording plan.
+ *
+ * `id` is nullable: Rust holds `Option<Uuid>` and
+ * `RecordingJob::retryable_suffix` reasons explicitly about the `None` case
+ * ("published recording request has no durable identity"). The request side of
+ * the queue is `RecordingQueueItem`, whose `id` is required.
+ */
+export type { RecordingRequest } from './generated/RecordingRequest';
+export type { RecordingQueueItem } from './generated/RecordingQueueItem';
+export type { RecordingQueueRequest } from './generated/RecordingQueueRequest';
+export type { RecordingPlanResponse } from './generated/RecordingPlanResponse';
+export type { DirectorShotKind } from './generated/DirectorShotKind';
+export type { DirectorShot } from './generated/DirectorShot';
+export type { DirectorPlan } from './generated/DirectorPlan';
 
 /*
  * The pre-recording check list — the first group to come from `generated/`
- * rather than from a hand-kept mirror. See this file's header: the shapes and
- * their prose are written once, in `crates/domain/src/recording_preflight.rs`,
- * and `cargo test` writes them out here. Nothing to keep in step by hand.
+ * rather than from a hand-kept mirror.
  *
  * `blocking` is the number of `blocked` rows and is server-computed. Its
  * contract is one sentence: **while `blocking > 0` the start-recording action
@@ -1070,98 +304,65 @@ export type { RecordingPreflightState } from './generated/RecordingPreflightStat
 
 /**
  * A saved set of shot settings, behind the shot inspector's "save as preset".
- * Mirrors
- * `vibe-cs-domain::RecordingShotPreset`.
  *
  * Deliberately not `EditorPreset`, which is a multi-track editor clip preset
- * bound to a project revision and shares no field with this one. A preset holds
- * only the shot-scoped inputs of a `RecordingRequest`: no `demo_id`,
- * `player_id`, tick window or title, because a preset that carried those would
- * silently retarget the recording it is applied to.
+ * bound to a project revision and shares no field with this one.
  */
-export type RecordingShotPreset = {
-  id: EntityId;
-  name: string;
-  camera_style: RecordingRequest['camera_style'];
-  victim_pov: boolean;
-  pre_roll_seconds: number;
-  post_roll_seconds: number;
-  /** Always concrete here — a preset with no presentation is not a preset. */
-  presentation: RecordingPresentation;
-  created_at: string;
-  updated_at: string;
-};
+export type { RecordingShotPreset } from './generated/RecordingShotPreset';
+export type { RecordingShotPresetDraft } from './generated/RecordingShotPresetDraft';
 
-/** The caller-supplied half; identity and timestamps are server-owned. */
-export type RecordingShotPresetDraft = Omit<
-  RecordingShotPreset,
-  'id' | 'created_at' | 'updated_at'
->;
+export type { JobStatus } from './generated/JobStatus';
+export type { RecordingExecutionResponse } from './generated/RecordingExecutionResponse';
 
-export type DirectorShot = {
-  demo_id: EntityId;
-  source_item_ids: EntityId[];
-  player_id: string;
-  kind: 'player' | 'victim_reaction';
-  start_tick: number;
-  end_tick: number;
-  score: number;
-  evidence: string[];
-  explanation: string;
-};
+/** The domain record a recording job produces. Application's list DTO adds
+ * `map_name` and `stream_url` on top of it — that one is `RecordedClipRecord`. */
+export type { RecordedClip as RecordingJobOutput } from './generated/RecordedClip';
+export type { RecordingJob } from './generated/RecordingJob';
 
-export type DirectorPlan = {
-  shots: DirectorShot[];
-  warnings: string[];
-  source_item_count: number;
-  merged_item_count: number;
-  victim_reaction_count: number;
-  unresolved_victim_requests: number;
-};
+/* ── the HLAE camera plan ─────────────────────────────────────────────────── */
 
-export type RecordingExecutionResponse = {
-  job_id: EntityId;
-  status: JobStatus;
-};
+/*
+ * The whole camera-plan subtree, which the mirror used to type away as
+ * `unknown`. Every per-frame coordinate an HLAE proposal preview carries is
+ * described here. Note the spelling: this subtree is camelCase on the wire
+ * while every REST DTO around it is snake_case.
+ */
+export type { HlaePlan } from './generated/HlaePlan';
+export type { HlaePlanMode } from './generated/HlaePlanMode';
+export type { CaptureSettings } from './generated/CaptureSettings';
+export type { CaptureLayers } from './generated/CaptureLayers';
+export type { HlaeScenePresentation } from './generated/HlaeScenePresentation';
+export type { HlaeRadarVisibility } from './generated/HlaeRadarVisibility';
+export type { HlaeHudVisibility } from './generated/HlaeHudVisibility';
+export type { HlaeVoicePolicy } from './generated/HlaeVoicePolicy';
+export type { CameraShot } from './generated/CameraShot';
+export type { CameraKeyframe } from './generated/CameraKeyframe';
+export type { CameraPosition } from './generated/CameraPosition';
+export type { CameraRotation } from './generated/CameraRotation';
+export type { PositionInterpolation } from './generated/PositionInterpolation';
+export type { RotationInterpolation } from './generated/RotationInterpolation';
+export type { CompiledHlaePlan } from './generated/CompiledHlaePlan';
+export type { GeneratedArtifact } from './generated/GeneratedArtifact';
+export type { HlaeNotice } from './generated/HlaeNotice';
+export type { HlaeNoticeCode } from './generated/HlaeNoticeCode';
 
-export type JobStatus =
-  | 'queued'
-  | 'preparing'
-  | 'running'
-  | 'cancelling'
-  | 'completed'
-  | 'failed'
-  | 'cancelled';
+/* ── activity feed ────────────────────────────────────────────────────────── */
 
-export type RecordingJobOutput = {
-  id: EntityId;
-  path: string;
-  title: string;
-  duration_seconds: number;
-  demo_id: EntityId | null;
-  player_name: string | null;
-  category: string;
-  tags: string[];
-  metadata: unknown;
-  created_at: string;
-};
-
-export type RecordingJob = {
-  id: EntityId;
-  retry_of: EntityId | null;
-  status: JobStatus;
-  items: RecordingRequest[];
-  current_index: number;
-  progress: number;
-  message: string;
-  outputs: RecordingJobOutput[];
-  created_at: string;
-  updated_at: string;
-};
-
+/**
+ * The three activity discriminators.
+ *
+ * `crates/application/src/routes/activity.rs` emits `ActivityItem.kind`,
+ * `.status`, `.unit` and `.available_actions` as `&'static str` from `match`
+ * arms, so `generated/ActivityItem.ts` types all four as `string`. These
+ * unions are the client's reading of those arms and are not enforced by the
+ * server: compare against them, never assume exhaustiveness.
+ *
+ * `ActivityKindFilter` and `ActivityStateFilter` are the *query* side and are
+ * real serde enums, which is why those two are generated.
+ */
 export type ActivityKind = 'recording' | 'export' | 'download' | 'analysis';
 export type ActivityStatus =
-  | JobStatus
+  | import('./generated/JobStatus').JobStatus
   | 'downloading'
   | 'decompressing'
   | 'importing'
@@ -1176,61 +377,28 @@ export type ActivityAction =
   | 'open_match_history'
   | 'open_outputs';
 
-export type ActivityItem = {
-  id: string;
-  kind: ActivityKind;
-  subtype: string | null;
-  job_id: EntityId | null;
-  context_id: string | null;
-  subject: string | null;
-  status: ActivityStatus;
-  stage: string | null;
-  progress_percent: number | null;
-  completed_units: number | null;
-  total_units: number | null;
-  unit: 'bytes' | 'stages' | null;
-  error: string | null;
-  created_at: string;
-  updated_at: string;
-  available_actions: ActivityAction[];
-};
+export type { ActivityKindFilter } from './generated/ActivityKindFilter';
+export type { ActivityStateFilter } from './generated/ActivityStateFilter';
+export type { ActivityItem } from './generated/ActivityItem';
+export type { ActivitySummary } from './generated/ActivitySummary';
+export type { ActivityFeed } from './generated/ActivityFeed';
+export type { ActivityQuery } from './generated/ActivityQuery';
 
-export type ActivityFeed = {
-  items: ActivityItem[];
-  total: number;
-  page: number;
-  page_size: number;
-  summary: {
-    total: number;
-    active: number;
-    failed: number;
-    completed: number;
-    cancelled: number;
-  };
-};
+/* ── runtime state and demo playback ──────────────────────────────────────── */
 
-export type ActivityQuery = {
-  search?: string;
-  kind?: ActivityKind;
-  state?: 'active' | 'failed' | 'completed' | 'cancelled';
-  page?: number;
-  page_size?: number;
-};
+export type { RuntimeStateResponse as RuntimeState } from './generated/RuntimeStateResponse';
+export type { DemoPlaybackRequest as DemoPlaybackOptions } from './generated/DemoPlaybackRequest';
 
-export type RuntimeState = {
-  status: 'ready';
-  version: string;
-  started_at: string;
-  data_dir: string;
-  active_recording_job: EntityId | null;
-  runtime_session: 'idle' | 'playback_launching' | 'playback' | 'playback_stopping' | 'recording';
-};
-
-export type DemoPlaybackOptions = {
-  start_tick?: number;
-  player?: string;
-  timescale?: number;
-};
+/*
+ * The four playback responses below are hand-written because there is nothing
+ * to generate them from: `preflight_demo`, `play_demo` and `stop_playback` in
+ * `crates/application/src/routes/demos.rs` all return
+ * `Json<serde_json::Value>`, proxied verbatim from the integrations port,
+ * which builds the documents with `json!` in
+ * `crates/runtime/src/integration.rs`. This is a hole in the contract, not a
+ * naming problem: until those three routes answer with a real struct, nothing
+ * can make a change to them turn a diff red.
+ */
 
 export type DemoPlaybackStatus = {
   executable_available: boolean;
@@ -1275,415 +443,76 @@ export type DemoPlaybackStop = {
   forced_process_stop: boolean;
 };
 
-export type RecordedClip = {
-  id: EntityId;
-  title: string;
-  player_name: string;
-  map_name: string;
-  duration_seconds: number;
-  created_at: string;
-  stream_url: string;
-};
+/* ── recorded clips, montage, editor, outputs ─────────────────────────────── */
 
-/** Wire DTO mirrored from vibe-cs-domain::RecordedClip. */
-export type RecordedClipRecord = {
-  id: EntityId;
-  path: string;
-  title: string;
-  duration_seconds: number;
-  demo_id: EntityId | null;
-  player_name: string | null;
-  map_name: string;
-  category: string;
-  tags: string[];
-  metadata: unknown;
-  created_at: string;
-  stream_url: string;
-};
+/** The media-route clip row: domain's `RecordedClip` plus `map_name` and the
+ * service-owned `stream_url`. */
+export type { RecordedClipDto as RecordedClipRecord } from './generated/RecordedClipDto';
 
-export type MontageClipRecord = {
-  clip_id: EntityId;
-  order: number;
-  trim_start: number;
-  trim_end: number | null;
-  transition: string;
-  title: string | null;
-  avatar_asset_id: EntityId | null;
-};
+export type { MontageClip as MontageClipRecord } from './generated/MontageClip';
+export type { MontageBrandingTheme } from './generated/MontageBrandingTheme';
+export type { MontageSettings as MontageSettingsRecord } from './generated/MontageSettings';
+export type { MontageProject as MontageProjectRecord } from './generated/MontageProject';
+export type { CreateMontageRequest as CreateMontageProject } from './generated/CreateMontageRequest';
 
-export type MontageBrandingTheme = 'vibe' | 'broadcast' | 'minimal' | 'neon';
+export type { EditorExportRequest as EditorExportOptions } from './generated/EditorExportRequest';
+export type { WaveformResponse } from './generated/WaveformResponse';
+export type { JobAccepted } from './generated/JobAccepted';
+export type { ExportJob } from './generated/ExportJob';
+export type { ExportJobRecord } from './generated/ExportJobRecord';
 
-export type MontageSettingsRecord = {
-  width: number;
-  height: number;
-  fps: number;
-  encoder: 'auto';
-  quality: number;
-  background_music: string | null;
-  music_volume: number;
-  transition_seconds: number;
-  intro_title: string | null;
-  intro_duration_seconds: number;
-  include_name_cards: boolean;
-  name_card_duration_seconds: number;
-  outro_title: string | null;
-  outro_duration_seconds: number;
-  branding_theme: MontageBrandingTheme;
-};
+export type { OutputKind } from './generated/OutputKind';
+export type { OutputAvailability } from './generated/OutputAvailability';
+export type { OutputItemDto as OutputItem } from './generated/OutputItemDto';
+export type { OutputListQuery as OutputQuery } from './generated/OutputListQuery';
+export type { OutputPageDto as OutputPage } from './generated/OutputPageDto';
+export type { DeleteOutputResult } from './generated/DeleteOutputResult';
+export type { OutputReference } from './generated/OutputReference';
+export type { BatchDeleteItemResult } from './generated/BatchDeleteItemResult';
+export type { BatchDeleteResponse as BatchDeleteOutputResult } from './generated/BatchDeleteResponse';
+export type { CleanupMissingResponse as CleanupMissingOutputsResult } from './generated/CleanupMissingResponse';
+export type { CleanupStagedResponse as CleanupStagedOutputsResult } from './generated/CleanupStagedResponse';
 
-export type MontageProjectRecord = {
-  id: EntityId;
-  name: string;
-  clips: MontageClipRecord[];
-  settings: MontageSettingsRecord;
-  created_at: string;
-  updated_at: string;
-};
+export type { Transform } from './generated/Transform';
+export type { TextStyle } from './generated/TextStyle';
+export type { EditorEffect } from './generated/EditorEffect';
+export type { EditorKeyframeProperty } from './generated/EditorKeyframeProperty';
+export type { EditorKeyframe } from './generated/EditorKeyframe';
+export type { EditorSpeedSegment } from './generated/EditorSpeedSegment';
+export type { EditorClip as TimelineClipDto } from './generated/EditorClip';
+export type { TrackKind } from './generated/TrackKind';
+export type { EditorTrack as TimelineTrackDto } from './generated/EditorTrack';
+export type { EditorMarker } from './generated/EditorMarker';
+export type { EditorProject } from './generated/EditorProject';
+export type { EditorProjectSnapshot } from './generated/EditorProjectSnapshot';
+export type { CreateEditorProjectRequest as CreateEditorProject } from './generated/CreateEditorProjectRequest';
+export type { EditorColorAdjustPreset } from './generated/EditorColorAdjustPreset';
+export type { EditorPresetDocument } from './generated/EditorPresetDocument';
+export type { EditorTransitionPreset as EditorTransitionName } from './generated/EditorTransitionPreset';
+export type { PresetRecord as EditorPreset } from './generated/PresetRecord';
+export type { EditorProjectDeletionResponse as EditorProjectDeletionResult } from './generated/EditorProjectDeletionResponse';
 
-export type CreateMontageProject = Pick<MontageProjectRecord, 'name' | 'clips' | 'settings'>;
+export type { MediaProxyStatus } from './generated/MediaProxyStatus';
+export type { MediaMetadataStatus } from './generated/MediaMetadataStatus';
+export type { MediaAsset } from './generated/MediaAsset';
+export type { SeparateEditorAudioResponse as EditorAudioSeparation } from './generated/SeparateEditorAudioResponse';
+export type { EditorPackageExportResponse as EditorPackageExport } from './generated/EditorPackageExportResponse';
+export type { EditorPackageImportResponse as EditorPackageImport } from './generated/EditorPackageImportResponse';
+export type { ProxyCleanupResponse as MediaProxyCleanup } from './generated/ProxyCleanupResponse';
 
-export type EditorExportOptions = {
-  encoder: 'auto';
-  quality: number;
-  range_start_seconds?: number;
-  range_end_seconds?: number;
-};
+/* ── configuration ────────────────────────────────────────────────────────── */
 
-export type WaveformResponse = {
-  waveform: number[];
-  cached: boolean;
-};
+export type { SteamConfig } from './generated/SteamConfig';
+export type { LlmConfig } from './generated/LlmConfig';
+export type { RecordingDefaults } from './generated/RecordingDefaults';
+export type { ConfigDto as AppConfig } from './generated/ConfigDto';
 
-export type JobAccepted = {
-  job_id: EntityId;
-  status: 'queued' | 'running';
-};
-
-export type ExportJobRecord = {
-  kind: string;
-  job: {
-    id: EntityId;
-    project_id: EntityId;
-    status: JobStatus;
-    progress: number;
-    output_path: string;
-    error: string | null;
-    created_at: string;
-    updated_at: string;
-  };
-};
-
-export type OutputKind = 'recording' | 'export';
-export type OutputAvailability = 'present' | 'missing' | 'unsafe';
-
-export type OutputItem = {
-  id: EntityId;
-  output_kind: OutputKind;
-  media_kind: string;
-  title: string;
-  status: JobStatus;
-  progress: number;
-  path: string;
-  file_name: string;
-  availability: OutputAvailability;
-  managed: boolean;
-  mutable: boolean;
-  size_bytes: number | null;
-  project_id: EntityId | null;
-  demo_id: EntityId | null;
-  error: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export type OutputQuery = {
-  page?: number;
-  page_size?: number;
-  kind?: OutputKind;
-  status?: JobStatus;
-  availability?: OutputAvailability;
-  search?: string;
-};
-
-export type OutputPage = Paginated<OutputItem> & {
-  scan_limited: boolean;
-};
-
-export type DeleteOutputResult = {
-  id: EntityId;
-  output_kind: OutputKind;
-  record_deleted: boolean;
-  file_deleted: boolean;
-  file_action:
-    | 'record_only'
-    | 'missing_record_removed'
-    | 'external_file_preserved'
-    | 'managed_file_deleted'
-    | 'managed_file_pending_cleanup';
-  warning: string | null;
-};
-
-export type OutputReference = {
-  kind: OutputKind;
-  id: EntityId;
-};
-
-export type BatchDeleteOutputResult = {
-  requested: number;
-  deleted: number;
-  failed: number;
-  items: Array<{
-    kind: OutputKind;
-    id: EntityId;
-    result: DeleteOutputResult | null;
-    error: string | null;
-  }>;
-};
-
-export type CleanupMissingOutputsResult = {
-  inspected: number;
-  deleted: number;
-  scan_limited: boolean;
-};
-
-export type CleanupStagedOutputsResult = {
-  inspected: number;
-  deleted: number;
-  failed: number;
-  scan_limited: boolean;
-};
-
-export type TimelineClipDto = {
-  id: EntityId;
-  asset_id: EntityId | null;
-  name: string;
-  start: number;
-  duration: number;
-  source_in: number;
-  source_out: number;
-  speed: number;
-  volume: number;
-  transform: {
-    x: number;
-    y: number;
-    scale_x: number;
-    scale_y: number;
-    rotation: number;
-    opacity: number;
-  };
-  effects: Array<{ id: string; kind: string; enabled: boolean; parameters: unknown }>;
-  transition_in: string | null;
-  transition_out: string | null;
-  text: {
-    content: string;
-    font_family: string;
-    font_asset_id: EntityId | null;
-    font_size: number;
-    color: string;
-    background: string | null;
-    align: string;
-  } | null;
-  metadata: unknown;
-  group_id: EntityId | null;
-  link_group_id: EntityId | null;
-  keyframes: Array<{
-    id: EntityId;
-    time: number;
-    property: 'x' | 'y' | 'scale_x' | 'scale_y' | 'rotation' | 'opacity' | 'volume';
-    value: number;
-  }>;
-  speed_segments: Array<{
-    id: EntityId;
-    start: number;
-    end: number;
-    speed: number;
-  }>;
-};
-
-export type TimelineTrackDto = {
-  id: EntityId;
-  name: string;
-  kind: 'video' | 'audio' | 'text' | 'overlay';
-  order: number;
-  muted: boolean;
-  locked: boolean;
-  hidden: boolean;
-  clips: TimelineClipDto[];
-};
-
-export type EditorProject = {
-  id: EntityId;
-  name: string;
-  width: number;
-  height: number;
-  fps: number;
-  updated_at: string;
-  created_at: string;
-  duration_seconds: number;
-  tracks: TimelineTrackDto[];
-  markers: EditorMarker[];
-  settings: unknown;
-  revision: number;
-};
-
-export type EditorMarker = {
-  id: EntityId;
-  time: number;
-  label: string;
-  color: string;
-};
-
-export type EditorProjectSnapshot = {
-  id: EntityId;
-  project_id: EntityId;
-  revision: number;
-  name: string;
-  created_at: string;
-};
-
-export type CreateEditorProject = {
-  name: string;
-  width: number;
-  height: number;
-  fps: number;
-};
-
-export type EditorPresetDocument = {
-  transform: TimelineClipDto['transform'];
-  volume: number;
-  color_adjust: {
-    brightness: number;
-    contrast: number;
-    saturation: number;
-  } | null;
-  grayscale: boolean;
-  blur_radius: number | null;
-  transition_in: EditorTransitionName | null;
-  transition_out: EditorTransitionName | null;
-};
-
-export type EditorTransitionName =
-  | 'fade'
-  | 'flash'
-  | 'dip'
-  | 'zoom'
-  | 'wipe'
-  | 'slide'
-  | 'blur'
-  | 'glitch'
-  | 'spin';
-
-export type EditorPreset = {
-  id: EntityId;
-  name: string;
-  revision: number;
-  document: EditorPresetDocument;
-  created_at: string;
-  updated_at: string;
-};
-
-export type EditorProjectDeletionResult = {
-  deleted_project_ids: EntityId[];
-  deleted_asset_ids: EntityId[];
-  preserved_shared_asset_ids: EntityId[];
-  removed_files: number;
-  preserved_external_files: number;
-  failed_files: string[];
-};
-
-export type MediaAsset = {
-  id: EntityId;
-  project_id: EntityId | null;
-  path: string;
-  name: string;
-  kind: string;
-  duration_seconds: number | null;
-  width: number | null;
-  height: number | null;
-  file_size: number;
-  has_audio: boolean;
-  proxy_path: string | null;
-  proxy_status:
-    | { status: 'not_requested' }
-    | { status: 'generating'; started_at: string; lease_id: EntityId; expires_at: string }
-    | { status: 'ready'; generated_at: string }
-    | { status: 'failed'; message: string; failed_at: string };
-  waveform: number[] | null;
-  metadata_status:
-    | { status: 'pending' }
-    | { status: 'ready' }
-    | { status: 'unavailable'; message: string };
-  created_at: string;
-};
-
-export type EditorAudioSeparation = {
-  project: EditorProject;
-  asset: MediaAsset;
-};
-
-export type EditorPackageExport = {
-  package_id: EntityId;
-  name: string;
-  path: string;
-  size: number;
-  sha256: string;
-  download_url: string | null;
-};
-
-export type EditorPackageImport = {
-  project: EditorProject;
-  assets: MediaAsset[];
-};
-
-export type MediaProxyCleanup = {
-  removed_files: number;
-  freed_bytes: number;
-  failed_files: string[];
-  skipped_generating: number;
-};
-
-export type AppConfig = {
-  locale: string;
-  theme: string;
-  update_manifest_url: string;
-  data_dir: string;
-  demo_watch_paths: string[];
-  cs2_path: string;
-  steam_path: string;
-  steam: {
-    steam_id: string;
-    web_api_key: string;
-    authentication_code: string;
-    known_share_code: string;
-    maximum_results: number;
-  };
-  steam_has_web_api_key: boolean;
-  steam_has_authentication_code: boolean;
-  steam_has_share_code: boolean;
-  llm: {
-    provider: string;
-    model: string;
-    base_url: string;
-    api_key: string;
-    prompt: string;
-  };
-  llm_has_api_key: boolean;
-  clear_llm_api_key: boolean;
-  recording: {
-    pre_roll_seconds: number;
-    post_roll_seconds: number;
-    resolution: string;
-    fps: number;
-    show_radar: boolean;
-    show_hud: boolean;
-    mute_voice: boolean;
-    isolate_target_voice: boolean;
-    camera_fov: number;
-    viewmodel_fov: number;
-    flash_alpha: number;
-  };
-};
-
+/**
+ * `/api/llm/test`.
+ *
+ * Hand-written: `crates/runtime/src/integration.rs` builds this body with
+ * `json!`, so there is no Rust structure to generate from. A backend gap.
+ */
 export type LlmTestResult = {
   ok: true;
   provider: string;
@@ -1696,28 +525,32 @@ export type LlmTestResult = {
   };
 };
 
-export type HlaeStatus = {
-  available: boolean;
-  executable: string | null;
-  source2_hook: string | null;
-  source: 'managed' | null;
-  managed_release: {
-    version: string;
-    archive_sha256: string;
-    signing_fingerprint: string;
-    prepared: boolean;
-  };
-  messages: string[];
-  cs2_executable: string | null;
-  launch_profile_ready: boolean;
-  automatic_launch_enabled: boolean;
-  safety_boundary: {
-    insecure_mode_required: true;
-    vac_servers_prohibited: true;
-    demo_playback_only: true;
-  };
-};
+/* ── HLAE integration status ──────────────────────────────────────────────── */
 
+/**
+ * `/api/hlae/status`.
+ *
+ * This is application's `ManagedHlaeStatusDto`, which re-nests the three
+ * safety booleans under `safety_boundary`. Domain's own `HlaeStatus` — the one
+ * `HlaeProposalPreview.installation_status` carries — keeps those three flat
+ * at the top level and is re-exported below as `HlaeInstallationStatus`. Two
+ * different shapes; do not read `safety_boundary` off the flat one.
+ */
+export type { ManagedHlaeStatusDto as HlaeStatus } from './generated/ManagedHlaeStatusDto';
+export type { HlaeSafetyBoundaryDto } from './generated/HlaeSafetyBoundaryDto';
+export type { ManagedHlaeReleaseStatus } from './generated/ManagedHlaeReleaseStatus';
+
+/** Domain's flat installation status, as embedded in an HLAE proposal preview. */
+export type { HlaeStatus as HlaeInstallationStatus } from './generated/HlaeStatus';
+
+/**
+ * The bundle the desktop shell hands to HLAE.
+ *
+ * Hand-written because its only definition is
+ * `apps/desktop/src-tauri/src/hlae_output.rs`, which is outside the ts-rs
+ * wiring. It is also the one type here with camelCase keys, for the same
+ * reason.
+ */
 export type HlaeBundleHandoff = {
   directory: string;
   files: string[];
@@ -1725,23 +558,20 @@ export type HlaeBundleHandoff = {
   createdAtEpochMs: number;
 };
 
-export type MatchHistoryItem = {
-  id: EntityId;
-  steam_id: string;
-  match_id: string;
-  outcome_id: string;
-  token: number;
-  map_name: string | null;
-  played_at: string | null;
-  score: string | null;
-  result: 'win' | 'loss' | 'draw' | 'unknown';
-  demo_status: 'available' | 'downloading' | 'downloaded' | 'failed';
-  demo_id: EntityId | null;
-  last_error: string | null;
-  synced_at: string;
-  updated_at: string;
-};
+/* ── Steam match history ──────────────────────────────────────────────────── */
 
+export type { MatchHistoryResult } from './generated/MatchHistoryResult';
+export type { MatchDemoStatus } from './generated/MatchDemoStatus';
+export type { SteamMatchRecord as MatchHistoryItem } from './generated/SteamMatchRecord';
+export type { MatchDownloadStatus } from './generated/MatchDownloadStatus';
+export type { MatchDownloadJob } from './generated/MatchDownloadJob';
+
+/**
+ * The share-code sync summary.
+ *
+ * Hand-written: `crates/runtime/src/integration.rs` answers with a `json!`
+ * document. A backend gap.
+ */
 export type MatchHistorySyncResult = {
   synced: number;
   created: number;
@@ -1749,19 +579,13 @@ export type MatchHistorySyncResult = {
   cursor_advanced: boolean;
 };
 
-export type MatchDownloadJob = {
-  id: EntityId;
-  match_record_id: string;
-  status: 'queued' | 'downloading' | 'decompressing' | 'importing' | 'completed' | 'cancelling' | 'cancelled' | 'failed';
-  downloaded_bytes: number;
-  total_bytes: number | null;
-  progress: number;
-  demo_id: EntityId | null;
-  error: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
+/**
+ * The crash-recovery marker.
+ *
+ * Hand-written for the same reason as `MatchHistorySyncResult`. Note that
+ * `crates/platform-windows/src/backup.rs` has a `RecoveryStatus` of its own
+ * with a different shape and no `Serialize`; this is not it.
+ */
 export type RecoveryStatus = {
   recovery_required: boolean;
   reason?: string;
@@ -1769,13 +593,31 @@ export type RecoveryStatus = {
   affected_files: string[];
 };
 
-export type ApiProblem = {
-  code?: string;
-  message?: string;
-  detail?: string | { code?: string; message?: string; params?: Record<string, unknown> };
-};
+/* ── errors ───────────────────────────────────────────────────────────────── */
 
-export type AgentMode = 'guide' | 'edit' | 'hlae';
+/**
+ * The error envelope every route answers with.
+ *
+ * All three fields are always present and `detail` is a plain string or null.
+ * `ApiProblem` is the historical name for it.
+ */
+export type { ErrorBody } from './generated/ErrorBody';
+export type { ErrorBody as ApiProblem } from './generated/ErrorBody';
+
+/* ── the streaming Agent chat command ─────────────────────────────────────── */
+
+/*
+ * These reach the renderer through the Tauri `agent_chat` command, not through
+ * `/api/agent/...`. Their Rust definitions live in
+ * `apps/desktop/src-tauri/src/agent.rs`, which is outside the ts-rs wiring, so
+ * everything below that is not `AgentMode` or `AgentToolCall` stays
+ * hand-written. `crates/agent` holds semantically identical copies of the
+ * three that are generated; a drift between the two Rust copies would still
+ * not turn any diff red. Closing that needs ts-rs in `src-tauri`.
+ */
+
+export type { AgentMode } from './generated/AgentMode';
+export type { CapturedToolCall as AgentToolCall } from './generated/CapturedToolCall';
 
 export type AgentStatus = {
   runtimeAvailable: boolean;
@@ -1785,20 +627,28 @@ export type AgentStatus = {
   streaming: boolean;
 };
 
-export type AgentToolCall = {
-  name: string;
-  input: unknown;
-  output: unknown;
-};
-
+/**
+ * One proposal the model emitted.
+ *
+ * `kind` is narrowed here to the four values `crates/agent/src/tools.rs`
+ * actually emits, but Rust types the field as `String` at both hops
+ * (`generated/CapturedPlan.ts` says `kind: string`), so a fifth kind would
+ * compile everywhere and be unrepresentable in this type. It is a closed set
+ * that is not modelled as one.
+ */
 export type AgentProposal = {
   kind: 'highlight_edit' | 'beat_alignment' | 'hlae' | 'video_render';
   title: string;
-  payload: unknown;
+  payload: import('./generated/serde_json/JsonValue').JsonValue;
 };
 
 export type AgentVideoProposal = {
-  items: RecordingRequest[];
+  /**
+   * Queue items, not plan items: `crates/agent/src/tools.rs` mints a fresh
+   * `Uuid` for every one of them, so each carries the durable identity a
+   * `RecordingRequest` read back from a plan may lack.
+   */
+  items: import('./generated/RecordingQueueItem').RecordingQueueItem[];
   shot_designs: AgentShotDesign[];
   output: { container: 'mp4' };
   source_highlight_ids: string[];
@@ -1808,174 +658,18 @@ export type AgentVideoProposal = {
 export type AgentShotDesign = {
   highlight_id: string;
   map_name: string | null;
-  camera_intent: 'player_pov' | 'establish_location' | 'follow_entry' | 'reveal_duel' | 'hold_crossfire' | 'rise_after_climax' | 'transition_through_space';
-  camera_style: RecordingRequest['camera_style'];
+  camera_intent:
+    | 'player_pov'
+    | 'establish_location'
+    | 'follow_entry'
+    | 'reveal_duel'
+    | 'hold_crossfire'
+    | 'rise_after_climax'
+    | 'transition_through_space';
+  camera_style: import('./generated/HlaeCameraStyle').HlaeCameraStyle;
   rationale: string;
   spatial_evidence: unknown;
   requires_user_review: true;
-};
-
-export type ProposalPrerequisite = { code: string; message: string };
-export type HlaeProposalIntent = {
-  demo_id: EntityId;
-  highlight_ids: string[];
-  camera_style: 'pov' | 'orbit' | 'dolly' | 'static' | 'tracking' | 'crane' | 'flyby';
-  mode: 'preview' | 'capture';
-  lead_seconds: number;
-  tail_seconds: number;
-};
-export type ProposalConfirmation = {
-  base_fingerprint: string;
-  proposal_fingerprint: string;
-  confirmation_token: string;
-  expected_revision: number;
-  confirm: true;
-};
-export type HlaeProposalPreview = {
-  proposal_revision: number;
-  ready: boolean;
-  prerequisites: ProposalPrerequisite[];
-  base_fingerprint: string | null;
-  proposal_fingerprint: string | null;
-  confirmation_token: string | null;
-  typed_plan: unknown | null;
-  compiled_preview: unknown | null;
-  notices: string[];
-  installation_status: HlaeStatus | null;
-};
-export type HlaeProposalExportResult = {
-  directory: string;
-  files: string[];
-  completion_marker: string;
-  launched: false;
-};
-export type BeatAlignmentProposalRequest = {
-  project_id: EntityId;
-  expected_revision: number;
-  audio_asset_id: EntityId;
-  audio_placement: BeatAlignmentAudioPlacementIntent;
-  draft: BeatAlignmentDraft;
-};
-export type BeatAlignmentAudioPlacementIntent = {
-  timeline_start_seconds: number;
-  source_in_seconds: number;
-  volume: number;
-};
-export type BeatAlignmentAudioBinding = {
-  asset_id: EntityId;
-  name: string;
-  kind: string;
-  file_size: number;
-  duration_seconds: number;
-  asset_fingerprint: string;
-  content_sha256: string;
-  analysis_sha256: string;
-};
-export type BeatAlignmentAudioPlacement = {
-  track_id: EntityId;
-  clip_id: EntityId;
-  timeline_start_seconds: number;
-  timeline_end_seconds: number;
-  source_in_seconds: number;
-  source_out_seconds: number;
-  volume: number;
-  insert_audio_track: boolean;
-  insert_audio_clip: boolean;
-};
-export type BeatAlignmentProposalPreview = {
-  ready: boolean;
-  prerequisites: ProposalPrerequisite[];
-  project_id: EntityId;
-  expected_revision: number;
-  base_fingerprint: string | null;
-  proposal_fingerprint: string | null;
-  confirmation_token: string | null;
-  audio: BeatAlignmentAudioBinding | null;
-  audio_placement: BeatAlignmentAudioPlacement | null;
-  changes: BeatAlignmentDraft['clips'];
-};
-export type BeatAlignmentApplyResult = {
-  project_id: EntityId;
-  previous_revision: number;
-  revision: number;
-  applied_clip_ids: EntityId[];
-  audio_track_id: EntityId;
-  audio_clip_id: EntityId;
-  audio_clip_inserted: boolean;
-  snapshot_created: boolean;
-};
-export type HighlightEditProposalRequest = {
-  demo_id: EntityId;
-  highlight_ids: string[];
-  intent: HighlightEditProposalIntent;
-  target_project_id: EntityId | null;
-  expected_revision: number | null;
-  new_project_name: string | null;
-};
-export type HighlightEditProposalIntent = {
-  pacing: 'measured' | 'energetic' | 'impact';
-  include_context_seconds: number;
-  transition: 'cut' | 'fade' | 'flash' | 'slide';
-};
-export type HighlightAssetMapping = {
-  highlight_id: string;
-  recorded_clip_id: EntityId;
-  path: string;
-  duration_seconds: number;
-  file_size: number;
-  content_sha256: string;
-  capture_start_tick: number;
-  capture_end_tick: number;
-  tick_rate: number;
-  capture_playback_speed: number;
-};
-export type HighlightEditClipInsert = {
-  highlight_id: string;
-  recorded_clip_id: EntityId;
-  editor_clip_id: EntityId;
-  timeline_start_seconds: number;
-  timeline_end_seconds: number;
-  source_in_seconds: number;
-  source_out_seconds: number;
-  source_start_tick: number;
-  source_end_tick: number;
-  playback_speed: number;
-  transition_in: 'cut' | 'fade' | 'flash' | 'slide' | null;
-  transition_duration_seconds: number | null;
-};
-export type HighlightEditPlan = {
-  demo_id: EntityId;
-  intent: HighlightEditProposalIntent;
-  project_id: EntityId;
-  project_name: string;
-  create_project: boolean;
-  expected_revision: number;
-  target_track_id: EntityId;
-  create_track: boolean;
-  mappings: HighlightAssetMapping[];
-  insertions: HighlightEditClipInsert[];
-};
-export type HighlightEditProposalPreview = {
-  ready: boolean;
-  prerequisites: ProposalPrerequisite[];
-  mappings: HighlightAssetMapping[];
-  insertions: HighlightEditClipInsert[];
-  target_project_id: EntityId | null;
-  creates_new_project: boolean;
-  expected_revision: number;
-  base_fingerprint: string | null;
-  proposal_fingerprint: string | null;
-  confirmation_token: string | null;
-  plan: HighlightEditPlan | null;
-};
-export type HighlightEditApplyResult = {
-  project_id: EntityId;
-  previous_revision: number;
-  revision: number;
-  inserted_clip_ids: EntityId[];
-  project_created: boolean;
-  snapshot_created: boolean;
-  already_applied: boolean;
 };
 
 export type AgentMessage = {
@@ -1983,7 +677,7 @@ export type AgentMessage = {
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
-  toolCalls: AgentToolCall[];
+  toolCalls: import('./generated/CapturedToolCall').CapturedToolCall[];
   proposals: AgentProposal[];
 };
 
@@ -2001,421 +695,170 @@ export type AgentChatInput = {
   audioAssetId: EntityId | null;
   workspaceContext: {
     workflow: 'review' | 'edit' | 'neutral';
-    destination: 'review' | 'players' | 'evidence' | 'replay' | 'heatmap' | 'edit' | 'queue' | 'studio' | 'outputs' | 'neutral';
+    destination:
+      | 'review'
+      | 'players'
+      | 'evidence'
+      | 'replay'
+      | 'heatmap'
+      | 'edit'
+      | 'queue'
+      | 'studio'
+      | 'outputs'
+      | 'neutral';
     demoId: EntityId | null;
     projectId: EntityId | null;
     playerId: string | null;
     roundNumber: number | null;
     tick: number | null;
   };
-  mode: AgentMode;
+  mode: import('./generated/AgentMode').AgentMode;
   message: string;
 };
 
 export type AgentEvent =
   | { type: 'started'; threadId: EntityId }
   | { type: 'textDelta'; delta: string }
-  | { type: 'toolCall'; toolCall: AgentToolCall }
+  | { type: 'toolCall'; toolCall: import('./generated/CapturedToolCall').CapturedToolCall }
   | { type: 'proposal'; proposal: AgentProposal }
   | { type: 'complete'; thread: AgentThread }
   | { type: 'error'; message: string };
 
 export type AgentChatResult = { thread_id: EntityId };
 
-/* ---------------------------------------------------------------------------
- * Agent session layer (spec §4.6).
- *
- * These mirror `crates/domain/src/agent_session.rs` and are reached through the
- * `/api/agent/...` routes, not through a Tauri command. They are deliberately
- * separate from the `AgentThread` / `AgentMessage` / `AgentProposal` shapes
- * above, which belong to the streaming `agent_chat` command.
- * ------------------------------------------------------------------------- */
+/* ── agent proposals: HLAE, beat alignment, highlight edit ────────────────── */
 
-export type AgentObjectKind = 'plan' | 'recording_task' | 'edit_project' | 'output';
-
-export type AgentObjectLocator = {
-  kind: AgentObjectKind;
-  id: EntityId;
-};
-
-/** A session's record of one object it touched. Server owns `touch_count`. */
-export type AgentObjectRef = {
-  kind: AgentObjectKind;
-  id: EntityId;
-  label: string;
-  touched_at: string;
-  touch_count: number;
-  summary: string;
-  status: string;
-};
-
-/** The reverse direction: which session touched one object. */
-export type AgentObjectSessionRef = {
-  session_id: EntityId;
-  /** Null once that session has been deleted; the reference itself survives. */
-  session_title: string | null;
-  kind: AgentObjectKind;
-  id: EntityId;
-  label: string;
-  touched_at: string;
-  touch_count: number;
-  summary: string;
-  status: string;
-};
-
-export type AgentObjectRefTouch = {
-  kind: AgentObjectKind;
-  id: EntityId;
-  label: string;
-  summary: string;
-  status: string;
-};
-
-export type AgentSessionToolCall = {
-  name: string;
-  input: unknown;
-  output: unknown;
-};
-
-/** `based_on_revision` is what decides whether this proposal is still current. */
-export type AgentSessionProposal = {
-  kind: string;
-  title: string;
-  plan_id: EntityId | null;
-  based_on_revision: number | null;
-  payload: unknown;
-};
-
-export type WorkspaceEditOperation = 'updated' | 'removed' | 'inserted' | 'restored';
-
-export type WorkspaceEditChange = {
-  /** One-based shot position, matching the shot cards. */
-  shot: number;
-  op: WorkspaceEditOperation;
-  field: string | null;
-  from: string | null;
-  to: string | null;
-};
-
-export type WorkspaceEditNotice = {
-  object: AgentObjectLocator;
-  /** The revision the authoritative write produced. Never client-authored. */
-  revision: number;
-  by: 'user';
-  at: string;
-  changes: WorkspaceEditChange[];
-  note: string | null;
-};
-
-/** The third entry kind is a system line, not a bubble. */
-export type AgentSessionEntry =
-  | { kind: 'user'; id: EntityId; at: string; content: string }
-  | {
-      kind: 'assistant';
-      id: EntityId;
-      at: string;
-      content: string;
-      tool_calls: AgentSessionToolCall[];
-      proposals: AgentSessionProposal[];
-    }
-  | { kind: 'workspace_edit'; id: EntityId; at: string; notice: WorkspaceEditNotice };
-
-/** A `workspace_edit` entry is never drafted by a client. */
-export type AgentSessionEntryDraft =
-  | { kind: 'user'; content: string }
-  | {
-      kind: 'assistant';
-      content: string;
-      tool_calls: AgentSessionToolCall[];
-      proposals: AgentSessionProposal[];
-    };
-
-export type AgentSession = {
-  id: EntityId;
-  title: string;
-  created_at: string;
-  updated_at: string;
-  entries: AgentSessionEntry[];
-  refs: AgentObjectRef[];
-};
-
-export type AgentSessionSummary = {
-  id: EntityId;
-  title: string;
-  created_at: string;
-  updated_at: string;
-  entry_count: number;
-  refs: AgentObjectRef[];
-};
-
-export type AgentSessionPage = {
-  items: AgentSessionSummary[];
-  total: number;
-};
-
-/** `q` matches the session title and its conversation text. */
-export type AgentSessionQuery = {
-  q?: string;
-  limit?: number;
-};
-
-export type AgentPlanStatus = 'draft' | 'awaiting_confirmation' | 'confirmed' | 'archived';
-export type AgentPlanAuthor = 'agent' | 'user';
-export type AgentShotView = 'observer' | 'player_pov';
+export type { ProposalPrerequisite } from './generated/ProposalPrerequisite';
 
 /**
- * What binds one plan shot to real footage. Mirrors
- * `vibe-cs-domain::AgentShotRecording`.
+ * The confirmation half of every proposal apply.
  *
- * These are typed fields rather than entries in `AgentPlanShot.params` on
- * purpose: reading `demo_id` and `player_id` back out of the free bag to build
- * a `RecordingRequest` would write the same schema twice, with nothing to fail
- * when the two drift — the reason the reverse mapper was rejected once already
- * (§10.6 deviation 3).
- *
- * `camera_style`, the tick window and the title are deliberately **absent**:
- * they come from `AgentPlanShot.kind`, `start_tick`/`end_tick` and `title`. A
- * second copy here could disagree with the shot on screen and nothing would
- * notice which one was stale.
+ * `confirm` is `boolean` and not the literal `true` the mirror asserted: the
+ * server rejects `false` at runtime and no generated type can say so.
  */
-export type AgentShotRecording = {
-  demo_id: EntityId;
-  /** Canonical non-zero 17-digit SteamID64; the backend rejects anything else. */
-  player_id: string;
-  highlight_id: string | null;
-  victim_pov: boolean;
-  pre_roll_seconds: number;
-  post_roll_seconds: number;
-  /** `null` follows the global `AppConfig.recording` defaults. */
-  presentation: RecordingPresentation | null;
-};
+export type { ProposalConfirmation } from './generated/ProposalConfirmation';
 
-export type AgentPlanShot = {
-  id: EntityId;
-  title: string;
-  kind: RecordingRequest['camera_style'];
-  view: AgentShotView;
-  start_tick: number;
-  end_tick: number;
-  duration_seconds: number;
-  rationale: string;
-  evidence_refs: string[];
-  risks: string[];
-  source: AgentPlanAuthor;
-  /** Set while a shot is soft-removed, so the removal stays undoable. */
-  removed_by: AgentPlanAuthor | null;
-  params: unknown;
-  /**
-   * The footage this shot will be captured from, once it has any.
-   *
-   * Optional and nullable because a plan is meaningful before it is bound: the
-   * Agent designs shots first and lands them on material afterwards, and every
-   * plan stored before this field existed decodes without it. A shot with
-   * `recording === null` cannot be turned into a `RecordingRequest` — that is
-   * the honest reason the "confirm and produce the video" action stays
-   * unavailable for it, rather than guessing fields out of `params`.
-   */
-  recording?: AgentShotRecording | null;
-};
-
-/** One entry of the plan's change-origin trail, newest first. */
-export type AgentPlanOrigin = {
-  at: string;
-  session_id: EntityId;
-  /** Captured at edit time, so it survives deletion of that session. */
-  session_title: string;
-  summary: string;
-};
-
-export type AgentPlanOriginDraft = {
-  session_id: EntityId;
-  session_title: string;
-  summary: string;
-};
-
-/** The immutable Agent version, behind "restore the Agent version". */
-export type AgentPlanBaseline = {
-  revision: number;
-  captured_at: string;
-  shots: AgentPlanShot[];
-};
-
-export type AgentPlan = {
-  id: EntityId;
-  title: string;
-  status: AgentPlanStatus;
-  /** Server-authoritative and strictly increasing. */
-  revision: number;
-  shots: AgentPlanShot[];
-  origin: AgentPlanOrigin[];
-  agent_baseline: AgentPlanBaseline;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AgentPlanCreate = {
-  title: string;
-  status: AgentPlanStatus;
-  shots: AgentPlanShot[];
-  origin: AgentPlanOriginDraft | null;
-};
+export type { HlaeProposalMode } from './generated/HlaeProposalMode';
+export type { HlaeProposalIntent } from './generated/HlaeProposalIntent';
 
 /**
- * One manual edit. `expected_revision` makes the write conditional, and
- * `changes` becomes the `workspace_edit` notice injected into the session.
+ * An HLAE proposal preview.
+ *
+ * `typed_plan` and `compiled_preview` are `JsonValue` because the Rust fields
+ * really are `Option<serde_json::Value>` — the weakness is in the Rust, not in
+ * the mirror. Their contents are `HlaePlan` and `CompiledHlaePlan`, both of
+ * which are now generated types above; narrow with those at the point of use.
+ * Tightening the Rust field would make `crates/domain` depend on
+ * `crates/hlae`, which is an architecture decision, not a binding fix.
  */
-export type AgentPlanEdit = {
-  plan_id: EntityId;
-  expected_revision: number;
-  status: AgentPlanStatus;
-  shots: AgentPlanShot[];
-  origin: AgentPlanOriginDraft;
-  changes: WorkspaceEditChange[];
-  note: string | null;
-};
+export type { HlaeProposalPreview } from './generated/HlaeProposalPreview';
+export type { HlaeProposalExportResult } from './generated/HlaeProposalExportResult';
 
-export type AgentPlanRestore = {
-  plan_id: EntityId;
-  expected_revision: number;
-  origin: AgentPlanOriginDraft;
-  note: string | null;
-};
+export type { BeatAlignmentAudioPlacementIntent } from './generated/BeatAlignmentAudioPlacementIntent';
+export type { BeatAlignmentProposalRequest } from './generated/BeatAlignmentProposalRequest';
+export type { BeatAlignmentAudioBinding } from './generated/BeatAlignmentAudioBinding';
+export type { BeatAlignmentAudioPlacement } from './generated/BeatAlignmentAudioPlacement';
+export type { BeatAlignmentProposalPreview } from './generated/BeatAlignmentProposalPreview';
+export type { BeatAlignmentApplyResult } from './generated/BeatAlignmentApplyResult';
 
-export type AgentPlanSummary = {
-  id: EntityId;
-  title: string;
-  status: AgentPlanStatus;
-  revision: number;
-  shot_count: number;
-  origin_count: number;
-  created_at: string;
-  updated_at: string;
-};
+export type { HighlightEditPacing } from './generated/HighlightEditPacing';
+export type { HighlightEditTransition } from './generated/HighlightEditTransition';
+export type { HighlightEditProposalIntent } from './generated/HighlightEditProposalIntent';
+export type { HighlightEditProposalRequest } from './generated/HighlightEditProposalRequest';
+export type { HighlightAssetMapping } from './generated/HighlightAssetMapping';
+export type { HighlightEditClipInsert } from './generated/HighlightEditClipInsert';
+export type { HighlightEditPlan } from './generated/HighlightEditPlan';
+export type { HighlightEditProposalPreview } from './generated/HighlightEditProposalPreview';
+export type { HighlightEditApplyResult } from './generated/HighlightEditApplyResult';
 
-export type AgentPlanQuery = {
-  status?: AgentPlanStatus;
-  limit?: number;
-};
+/* ── the Agent session layer (spec §4.6) ──────────────────────────────────── */
 
-export type AgentSessionRetention =
-  | { mode: 'all' }
-  | { mode: 'recent_count'; count: number }
-  | { mode: 'max_age_days'; days: number }
-  | { mode: 'none' };
+/*
+ * Reached through `/api/agent/...`, not through a Tauri command, and
+ * deliberately separate from the `AgentThread` / `AgentMessage` /
+ * `AgentProposal` shapes above.
+ *
+ * Rust calls the two entry payloads `AgentToolCall` and `AgentProposal`; this
+ * application has always called them `AgentSessionToolCall` and
+ * `AgentSessionProposal` to keep them apart from the streaming pair. The alias
+ * is what keeps that distinction visible.
+ */
 
-export type AgentWorkspaceSettings = {
-  session_retention: AgentSessionRetention;
-  take_limit: number;
-};
+export type { AgentObjectKind } from './generated/AgentObjectKind';
+export type { AgentObjectLocator } from './generated/AgentObjectLocator';
+export type { AgentObjectRef } from './generated/AgentObjectRef';
+export type { AgentObjectSessionRef } from './generated/AgentObjectSessionRef';
+export type { AgentObjectRefTouch } from './generated/AgentObjectRefTouch';
+export type { AgentToolCall as AgentSessionToolCall } from './generated/AgentToolCall';
+export type { AgentProposal as AgentSessionProposal } from './generated/AgentProposal';
 
-export type AgentSessionStorageStats = {
-  session_count: number;
-  entry_count: number;
-  object_ref_count: number;
-  plan_count: number;
-  plan_origin_count: number;
-  /** Bytes a clear would reclaim. */
-  conversation_bytes: number;
-  /** Bytes held by plans, which a clear never removes. */
-  plan_bytes: number;
-  oldest_session_at: string | null;
-  newest_session_at: string | null;
-};
+export type { WorkspaceEditOperation } from './generated/WorkspaceEditOperation';
+export type { WorkspaceEditAuthor } from './generated/WorkspaceEditAuthor';
+export type { WorkspaceEditChange } from './generated/WorkspaceEditChange';
+export type { WorkspaceEditNotice } from './generated/WorkspaceEditNotice';
 
-export type AgentSessionExport = {
-  exported_at: string;
-  settings: AgentWorkspaceSettings;
-  sessions: AgentSession[];
-};
+export type { AgentSessionEntry } from './generated/AgentSessionEntry';
+export type { AgentSessionEntryDraft } from './generated/AgentSessionEntryDraft';
+export type { AgentSession } from './generated/AgentSession';
+export type { AgentSessionSummary } from './generated/AgentSessionSummary';
+export type { AgentSessionPage } from './generated/AgentSessionPage';
+export type { AgentSessionQuery } from './generated/AgentSessionQuery';
 
-export type AgentSessionPurge = {
-  removed_sessions: number;
-};
+export type { AgentPlanStatus } from './generated/AgentPlanStatus';
+export type { AgentPlanAuthor } from './generated/AgentPlanAuthor';
+export type { AgentShotView } from './generated/AgentShotView';
+export type { AgentShotRecording } from './generated/AgentShotRecording';
+export type { AgentPlanShot } from './generated/AgentPlanShot';
+export type { AgentPlanOrigin } from './generated/AgentPlanOrigin';
+export type { AgentPlanOriginDraft } from './generated/AgentPlanOriginDraft';
+export type { AgentPlanBaseline } from './generated/AgentPlanBaseline';
+export type { AgentPlan } from './generated/AgentPlan';
+export type { AgentPlanCreate } from './generated/AgentPlanCreate';
+export type { AgentPlanEdit } from './generated/AgentPlanEdit';
+export type { AgentPlanRestore } from './generated/AgentPlanRestore';
+export type { AgentPlanSummary } from './generated/AgentPlanSummary';
+export type { AgentPlanQuery } from './generated/AgentPlanQuery';
 
-/** One row of the "currently in progress" reference picker. */
-export type AgentWorkspaceReference = {
-  kind: AgentObjectKind;
-  id: EntityId;
-  label: string;
-  status: string;
-  progress_percent: number | null;
-  item_count: number | null;
-  error: string | null;
-  updated_at: string;
-};
+export type { AgentSessionRetention } from './generated/AgentSessionRetention';
+export type { AgentWorkspaceSettings } from './generated/AgentWorkspaceSettings';
+export type { AgentSessionStorageStats } from './generated/AgentSessionStorageStats';
+export type { AgentSessionExport } from './generated/AgentSessionExport';
+export type { AgentSessionPurge } from './generated/AgentSessionPurge';
 
-/** The cross-source answer to "what is going on in the workspace right now". */
-export type AgentWorkspaceReferences = {
-  pending_plans: AgentWorkspaceReference[];
-  running_recording_tasks: AgentWorkspaceReference[];
-  edit_projects: AgentWorkspaceReference[];
-  failed_outputs: AgentWorkspaceReference[];
-};
+/**
+ * The "currently in progress" reference picker.
+ *
+ * `WorkspaceReference.kind` is `string`: its own Rust doc comment calls it "the
+ * persisted `AgentObjectKind` discriminator", but the field is declared
+ * `&'static str`. Compare it against `AgentObjectKind` values rather than
+ * switching exhaustively.
+ */
+export type { WorkspaceReference as AgentWorkspaceReference } from './generated/WorkspaceReference';
+export type { WorkspaceReferences as AgentWorkspaceReferences } from './generated/WorkspaceReferences';
 
-export type AudioBeat = {
-  index: number;
-  time_seconds: number;
-  strength: number;
-  phrase_position: number;
-};
+/* ── audio intelligence ───────────────────────────────────────────────────── */
 
-export type AudioAnalysis = {
-  duration_seconds: number;
-  analysis_sample_rate: number;
-  bpm: number | null;
-  tempo_confidence: number;
-  beats: AudioBeat[];
-  onsets: Array<{ time_seconds: number; strength: number }>;
-  energy: Array<{ time_seconds: number; rms: number; peak: number }>;
-  sections: Array<{
-    start_seconds: number;
-    end_seconds: number;
-    character: string;
-    mean_energy: number;
-    confidence: number;
-  }>;
-  limitations: string[];
-};
+export type { AudioBeat } from './generated/AudioBeat';
+export type { AudioOnset } from './generated/AudioOnset';
+export type { AudioEnergyPoint } from './generated/AudioEnergyPoint';
+export type { AudioSection } from './generated/AudioSection';
+export type { AudioAnalysis } from './generated/AudioAnalysis';
+export type { AudioAnalysisOptions } from './generated/AudioAnalysisOptions';
+export type { BeatAlignmentClip } from './generated/BeatAlignmentClip';
+export type { BeatAlignmentOptions } from './generated/BeatAlignmentOptions';
+export type { BeatAlignmentRequest } from './generated/BeatAlignmentRequest';
+export type { BeatAlignedClip } from './generated/BeatAlignedClip';
 
-export type AudioAnalysisOptions = {
-  sample_rate: number;
-  maximum_duration_seconds: number;
-  maximum_beats: number;
-  maximum_onsets: number;
-  energy_points: number;
-  maximum_sections: number;
-};
+/**
+ * A beat-alignment draft.
+ *
+ * `advisory_only` is `boolean` rather than the literal `true` the mirror
+ * asserted: `apply_beat_alignment_draft` rejects `false` at runtime, and that
+ * is where the constraint lives.
+ */
+export type { BeatAlignmentDraft } from './generated/BeatAlignmentDraft';
 
-export type BeatAlignmentRequest = {
-  beats: AudioBeat[];
-  clips: Array<{
-    clip_id: string;
-    source_duration_seconds: number;
-    minimum_duration_seconds?: number;
-    maximum_duration_seconds?: number;
-    preferred_beats?: number;
-  }>;
-  options: {
-    timeline_start_seconds: number;
-    maximum_duration_change_ratio: number;
-    beats_per_phrase: number;
-    prefer_strong_boundaries: boolean;
-  };
-};
+/* ── the raw JSON value ───────────────────────────────────────────────────── */
 
-export type BeatAlignmentDraft = {
-  advisory_only: true;
-  clips: Array<{
-    clip_id: string;
-    timeline_start_seconds: number;
-    timeline_end_seconds: number;
-    planned_duration_seconds: number;
-    source_duration_seconds: number;
-    duration_change_ratio: number;
-    start_beat_index: number;
-    end_beat_index: number;
-    rationale: string[];
-  }>;
-  unplaced_clip_ids: string[];
-  constraints: string[];
-};
+/** What ts-rs emits for `serde_json::Value`. Strictly narrower than `unknown`. */
+export type { JsonValue } from './generated/serde_json/JsonValue';

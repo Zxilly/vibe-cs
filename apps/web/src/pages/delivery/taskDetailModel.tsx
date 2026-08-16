@@ -40,11 +40,11 @@ import {
 } from '../../domain/task';
 import { RECORDING_STAGE_IDS } from '../../design/feedback';
 import type {
-  ActivityItem,
   ActivityKind,
   AnalysisRunEvent,
   AnalysisRunEventCode,
 } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { analysisStageLabels, RECORDING_STAGE_BY_MESSAGE } from './taskModel';
 
 /* ── the address ─────────────────────────────────────────────────────────── */

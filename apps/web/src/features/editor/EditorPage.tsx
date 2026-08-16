@@ -49,7 +49,23 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { DesktopError, commands, desktopMediaUrl, readableError } from '../../shared/desktop/client';
-import type { EditorPreset, EditorPresetDocument, EditorProjectDeletionResult, EditorProjectSnapshot, EditorTransitionName, ExportJobRecord, EditorAudioSeparation, EditorPackageExport, EditorPackageImport, EditorProject, MediaAsset, RecordedClip, TimelineClipDto, TimelineTrackDto } from '../../shared/desktop/dto';
+import type {
+  EditorAudioSeparation,
+  EditorPackageExport,
+  EditorPackageImport,
+  EditorPreset,
+  EditorPresetDocument,
+  EditorProject,
+  EditorProjectDeletionResult,
+  EditorProjectSnapshot,
+  EditorTransitionName,
+  ExportJobRecord,
+  JobAccepted,
+  MediaAsset,
+  TimelineClipDto,
+  TimelineTrackDto,
+} from '../../shared/desktop/dto';
+import type { RecordedClip } from '../../shared/desktop/viewModels';
 import { chooseLocalFile, isDesktopShell, revealLocalPath } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
@@ -490,7 +506,7 @@ export function EditorPage() {
   const saveAction = useAsyncAction<EditorProject>();
   const createAction = useAsyncAction<EditorProject>();
   const duplicateAction = useAsyncAction<EditorProject>();
-  const exportAction = useAsyncAction<{ job_id: string; status: 'queued' | 'running' }>();
+  const exportAction = useAsyncAction<JobAccepted>();
   const cancelExportAction = useAsyncAction<ExportJobRecord>();
   const snapshotAction = useAsyncAction<{ items: EditorProjectSnapshot[] }>();
   const restoreAction = useAsyncAction<EditorProject>();

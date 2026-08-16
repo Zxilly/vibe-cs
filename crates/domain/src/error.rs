@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct ErrorBody {
     pub code: String,
     pub message: String,

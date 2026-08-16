@@ -3,6 +3,7 @@ use std::{
     io::{Read as _, Write as _},
     path::{Path as FilePath, PathBuf},
 };
+use ts_rs::TS;
 
 use axum::{
     Json, Router,
@@ -50,14 +51,16 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/recording/abort", post(abort_active))
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct RecordingQueueRequest {
     items: Vec<RecordingQueueItem>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct RecordingQueueItem {
     id: String,
     demo_id: String,
@@ -74,6 +77,7 @@ struct RecordingQueueItem {
     camera_style: HlaeCameraStyle,
     /// `None` keeps the global `AppConfig.recording` defaults for this shot.
     #[serde(default)]
+    #[ts(optional = nullable)]
     presentation: Option<RecordingPresentation>,
 }
 
@@ -88,7 +92,8 @@ where
 /// The single recording-plan contract. It is `pub(super)` rather than private
 /// because [`create_recording_plan`] is also the entry point the Agent plan
 /// route uses; both paths must answer with the same document.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 pub(super) struct RecordingPlanResponse {
     plan_id: Uuid,
     expires_at: chrono::DateTime<Utc>,
@@ -352,7 +357,8 @@ fn estimated_recording_seconds(
     })
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct RecordingExecutionResponse {
     job_id: Uuid,
     status: &'static str,

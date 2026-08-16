@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import { HighlightsView } from './AnalysisPage';
 
 const workspace: AnalysisWorkspace = {

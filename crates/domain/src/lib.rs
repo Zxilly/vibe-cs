@@ -41,8 +41,10 @@ pub use review_metadata::*;
 pub use round_replay::*;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct Page<T> {
     pub items: Vec<T>,
     pub total: u64,

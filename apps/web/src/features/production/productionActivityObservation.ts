@@ -1,5 +1,5 @@
 import { readableError } from '../../shared/desktop/client';
-import type { ActivityFeed } from '../../shared/desktop/dto';
+import type { ActivityFeed } from '../../shared/desktop/viewModels';
 
 const ACTIVE_POLL_MS = 1_500;
 const MAXIMUM_RETRY_MS = 15_000;

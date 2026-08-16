@@ -53,9 +53,9 @@ import type {
   CountedItemRecord,
   InsightCapabilityRecord,
   PlayerUtilityInsightRecord,
-  RoundSummary,
   TeamPurchaseInsightRecord,
 } from '../../../shared/desktop/dto';
+import type { RoundSummary } from '../../../shared/desktop/viewModels';
 import type { RosterEntry } from './duelsModel';
 
 /* ── the item vocabulary ─────────────────────────────────────────────────── */

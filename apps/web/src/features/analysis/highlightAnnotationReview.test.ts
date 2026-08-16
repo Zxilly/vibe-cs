@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, EvidenceAnnotation, Highlight } from '../../shared/desktop/dto';
+import type { EvidenceAnnotation } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/viewModels';
 import {
   canonicalHighlightAnnotationItem,
   createHighlightAnnotationReviewState,

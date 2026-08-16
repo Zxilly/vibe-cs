@@ -9,7 +9,7 @@
 import { i18n } from '@lingui/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import type { DemoSummary } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 import {
   demoSourceLabel,
   demoStatusMeta,

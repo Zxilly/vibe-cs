@@ -1,10 +1,5 @@
-import type {
-  ActivityAction,
-  ActivityFeed,
-  ActivityItem,
-  ActivityKind,
-  ActivityStatus,
-} from './dto';
+import type { ActivityAction, ActivityKind, ActivityStatus } from './dto';
+import type { ActivityFeed, ActivityItem } from './viewModels';
 
 const itemKeys = [
   'id', 'kind', 'subtype', 'job_id', 'context_id', 'subject', 'status', 'stage',

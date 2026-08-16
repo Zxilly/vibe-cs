@@ -1,11 +1,10 @@
 import type {
-  AnalysisWorkspace,
   EvidenceAnnotation,
   EvidenceAnnotationQuery,
   EvidenceSearchItem,
-  Highlight,
   Paginated,
 } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/viewModels';
 
 export type HighlightAnnotationSummary = {
   total: number;

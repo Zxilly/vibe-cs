@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, LlmReviewResult } from '../../shared/desktop/dto';
+import type { LlmReviewResult } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import { buildReviewDelivery } from './reviewDelivery';
 
 const workspace: AnalysisWorkspace = {

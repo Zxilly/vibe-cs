@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { HIGHLIGHT_KINDS, type HighlightCandidate } from '../../../domain/match';
-import type { Highlight } from '../../../shared/desktop/dto';
+import type { Highlight } from '../../../shared/desktop/viewModels';
 import {
   HIGHLIGHT_WIRE_KIND,
   currentHighlightId,

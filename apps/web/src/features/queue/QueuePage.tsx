@@ -21,6 +21,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { asJobStatus } from '../../domain/task';
 import { commands, readableError } from '../../shared/desktop/client';
 import type {
   DemoPlaybackLaunch,
@@ -322,7 +323,11 @@ export function QueuePage() {
       () => commands.executeRecordingPlan(planId, true),
     );
     if (result) {
-      const outcome = recordingExecutionOutcome(result.status);
+      const status = asJobStatus(result.status);
+      if (status === null) {
+        throw new Error(`Unknown recording job status ${result.status}.`);
+      }
+      const outcome = recordingExecutionOutcome(status);
       setValidatedPlan(null);
       setJobPollError(null);
       if (outcome.tracksActiveJob) {

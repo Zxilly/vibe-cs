@@ -73,7 +73,7 @@ import {
   type HighlightHandoffSource,
 } from '../../agent/agentHandoff';
 import { useAgentVideoHandoff } from '../../agent/useAgentVideoHandoff';
-import type { AnalysisWorkspace } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import { NotAnalysedState } from './viewChrome';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';

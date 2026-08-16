@@ -34,12 +34,8 @@
  * place name.
  */
 
-import type {
-  AnalysisWorkspace,
-  PlayerAnalysis,
-  RoundSummary as WireRound,
-  TimelineEvent,
-} from '../../../shared/desktop/dto';
+import type { AnalysisRoundRecord as WireRound, TimelineEvent } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../../shared/desktop/viewModels';
 import {
   normaliseRoundEndReason,
   type EvidenceKind,

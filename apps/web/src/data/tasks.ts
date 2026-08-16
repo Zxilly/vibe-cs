@@ -40,8 +40,6 @@
 import { useMutation, useQueryClient, skipToken, useQuery, type QueryClient } from '@tanstack/react-query';
 
 import type {
-  ActivityFeed,
-  ActivityItem,
   ActivityKind,
   ActivityQuery,
   ActivityStatus,
@@ -49,6 +47,7 @@ import type {
   AnalysisRunStatus,
   RecordingPlanResponse,
 } from '../shared/desktop/dto';
+import type { ActivityFeed, ActivityItem } from '../shared/desktop/viewModels';
 import { invalidateDemos } from './demos';
 import { useDesktopClient } from './desktopClient';
 import { qk } from './keys';

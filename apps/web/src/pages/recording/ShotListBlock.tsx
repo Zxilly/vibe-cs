@@ -46,9 +46,13 @@ import { EmptyState, Skeleton } from '../../design/data';
 import { StatusDot } from '../../design/feedback';
 import { Button, cx } from '../../design/primitives';
 import { formatShotDuration, formatTickRange } from '../../domain/agent';
-import type { AgentPlan, RecordingRequest } from '../../shared/desktop/dto';
+import type { AgentPlan } from '../../shared/desktop/dto';
 import { agentPlanHandoff } from '../agent/agentHandoff';
-import { agentPlanShotsNeedingBinding, type RecordingBlockProps } from './recordingContract';
+import {
+  agentPlanShotsNeedingBinding,
+  type RecordingBlockProps,
+  type RecordingShot,
+} from './recordingContract';
 import { CAMERA_STYLE, SHOT_VIEW, nextShotIndex, shotDurationSeconds, shotViewOf } from './shotModel';
 
 export function ShotListBlock({ agentPlanId, plan, selection, service }: RecordingBlockProps) {
@@ -370,8 +374,8 @@ function ordinal(index: number): string {
  */
 function tickRateIndex(
   plan: AgentPlan | undefined,
-  items: readonly RecordingRequest[],
-): (item: RecordingRequest) => number | null {
+  items: readonly RecordingShot[],
+): (item: RecordingShot) => number | null {
   const rates = new Map<string, number>();
   for (const shot of plan?.shots ?? []) {
     const ticks = shot.end_tick - shot.start_tick;

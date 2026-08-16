@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, PlayerAnalysis, TimelineEvent } from '../../shared/desktop/dto';
+import type { TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import { teamEconomyEvidenceActionContract } from './teamEconomyEvidenceActions';
 import { buildTeamEconomyWorkspace } from './teamEconomyWorkspace';
 

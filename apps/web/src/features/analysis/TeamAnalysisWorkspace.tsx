@@ -1,7 +1,7 @@
 import { DollarSign, ShieldCheck } from 'lucide-react';
 import { type KeyboardEvent, useRef, useState } from 'react';
 
-import type { AnalysisWorkspace } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import { useI18n } from '../../shared/i18n';
 import type { AnalysisNavigationPatch } from './analysisNavigation';
 import { TeamEconomyAnalysisWorkspace } from './TeamEconomyAnalysisWorkspace';

@@ -1,4 +1,4 @@
-import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/viewModels';
 import { EvidenceAnnotationPanel } from '../evidence-search/EvidenceAnnotationPanel';
 import { HighlightAnnotationReviewButton } from './HighlightAnnotationReviewButton';
 import {

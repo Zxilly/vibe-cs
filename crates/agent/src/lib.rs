@@ -15,6 +15,7 @@ use rig_core::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::Notify;
+use ts_rs::TS;
 
 pub use tools::{CapturedPlan, CapturedToolCall};
 
@@ -49,8 +50,10 @@ impl Cancellation {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+/// Which set of tools and instructions one conversation runs with.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum AgentMode {
     Guide,
     Edit,

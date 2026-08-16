@@ -1,11 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import type {
-  AnalysisRun,
-  AnalysisRunDetail,
-  AnalysisWorkspace,
-  DemoSummary,
-} from '../../shared/desktop/dto';
+import type { AnalysisRun, AnalysisRunDetail } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, DemoSummary } from '../../shared/desktop/viewModels';
 import { AnalysisLifecycleError, AnalysisRunError, loadDemoAnalysis } from './analysisLoader';
 
 const demo = (lifecycle_status: DemoSummary['lifecycle_status']): DemoSummary => ({

@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { economyAvailability, economyTotals, sideEconomyRows } from './economyModel';
 import { ANALYSIS, BARE_ANALYSIS, INSIGHTS } from './test/matchFixture';
 

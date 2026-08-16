@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { HIGHLIGHT_KINDS, TICK_GROUP_SEPARATOR } from '../../../domain/match';
-import type { Highlight } from '../../../shared/desktop/dto';
+import type { Highlight } from '../../../shared/desktop/viewModels';
 import {
   formatCount,
   formatFixed,

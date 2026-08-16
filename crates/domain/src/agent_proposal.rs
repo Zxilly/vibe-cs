@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 
 use crate::{
@@ -14,8 +15,9 @@ pub enum AgentProposalAction {
     ApplyHighlightEdit,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum HlaeCameraStyle {
     #[default]
     Pov,
@@ -27,15 +29,17 @@ pub enum HlaeCameraStyle {
     Flyby,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum HlaeProposalMode {
     Preview,
     Capture,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HlaeProposalIntent {
     pub demo_id: Uuid,
     pub highlight_ids: Vec<String>,
@@ -56,14 +60,16 @@ pub struct HlaeProposalEvidence {
     pub replay_frames: Vec<ReplayFrame>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct ProposalPrerequisite {
     pub code: String,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HlaeProposalPreview {
     pub proposal_revision: u64,
     pub ready: bool,
@@ -100,8 +106,9 @@ impl HlaeProposalPreview {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ProposalConfirmation {
     pub base_fingerprint: String,
     pub proposal_fingerprint: String,
@@ -118,7 +125,8 @@ pub struct HlaeProposalExportRequest {
     pub confirmation: ProposalConfirmation,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct HlaeProposalExportResult {
     pub base_fingerprint: String,
     pub proposal_fingerprint: String,
@@ -129,8 +137,9 @@ pub struct HlaeProposalExportResult {
     pub launched: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct BeatAlignmentProposalRequest {
     pub project_id: Uuid,
     pub expected_revision: u64,
@@ -139,15 +148,17 @@ pub struct BeatAlignmentProposalRequest {
     pub draft: BeatAlignmentDraft,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct BeatAlignmentAudioPlacementIntent {
     pub timeline_start_seconds: f64,
     pub source_in_seconds: f64,
     pub volume: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct BeatAlignmentAudioBinding {
     pub asset_id: Uuid,
     pub name: String,
@@ -159,7 +170,8 @@ pub struct BeatAlignmentAudioBinding {
     pub analysis_sha256: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct BeatAlignmentAudioPlacement {
     pub track_id: Uuid,
     pub clip_id: Uuid,
@@ -172,7 +184,8 @@ pub struct BeatAlignmentAudioPlacement {
     pub insert_audio_clip: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct BeatAlignmentProposalPreview {
     pub ready: bool,
     pub prerequisites: Vec<ProposalPrerequisite>,
@@ -197,7 +210,8 @@ pub struct BeatAlignmentApplyRequest {
     pub confirmation: ProposalConfirmation,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct BeatAlignmentApplyResult {
     pub project_id: Uuid,
     pub previous_revision: u64,
@@ -209,16 +223,18 @@ pub struct BeatAlignmentApplyResult {
     pub snapshot_created: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HighlightEditProposalIntent {
     pub pacing: HighlightEditPacing,
     pub include_context_seconds: f64,
     pub transition: HighlightEditTransition,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum HighlightEditPacing {
     Measured,
     Energetic,
@@ -245,8 +261,9 @@ impl HighlightEditPacing {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum HighlightEditTransition {
     Cut,
     Fade,
@@ -254,8 +271,9 @@ pub enum HighlightEditTransition {
     Slide,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HighlightEditProposalRequest {
     pub demo_id: Uuid,
     pub highlight_ids: Vec<String>,
@@ -278,8 +296,9 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HighlightAssetMapping {
     pub highlight_id: String,
     pub recorded_clip_id: Uuid,
@@ -296,8 +315,9 @@ pub struct HighlightAssetMapping {
     pub capture_playback_speed: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HighlightEditClipInsert {
     pub highlight_id: String,
     pub recorded_clip_id: Uuid,
@@ -315,8 +335,9 @@ pub struct HighlightEditClipInsert {
     pub transition_duration_seconds: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HighlightEditPlan {
     pub demo_id: Uuid,
     pub intent: HighlightEditProposalIntent,
@@ -332,7 +353,8 @@ pub struct HighlightEditPlan {
     pub insertions: Vec<HighlightEditClipInsert>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct HighlightEditProposalPreview {
     pub ready: bool,
     pub prerequisites: Vec<ProposalPrerequisite>,
@@ -356,7 +378,8 @@ pub struct HighlightEditApplyRequest {
     pub confirmation: ProposalConfirmation,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct HighlightEditApplyResult {
     pub project_id: Uuid,
     pub previous_revision: u64,

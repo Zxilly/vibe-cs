@@ -35,15 +35,13 @@ import { Trans } from '@lingui/react/macro';
 import { Check, CircleAlert } from 'lucide-react';
 
 import { Button, cx } from '../../design/primitives';
-import type { AgentWorkspaceReference } from '../../shared/desktop/dto';
-
-import { AGENT_OBJECT_KIND } from './types';
+import { AGENT_OBJECT_KIND, type KnownWorkspaceReference } from './types';
 
 export interface AgentReferenceRowProps {
-  readonly reference: AgentWorkspaceReference;
+  readonly reference: KnownWorkspaceReference;
   /** The session already references this object — 「已引用 ✓」. */
   readonly referenced?: boolean | undefined;
-  readonly onReference?: ((reference: AgentWorkspaceReference) => void) | undefined;
+  readonly onReference?: ((reference: KnownWorkspaceReference) => void) | undefined;
   readonly referenceDisabledReason?: string | undefined;
   /** The 等待确认 plan the artboard highlights as the one about to be taken over. */
   readonly emphasis?: boolean | undefined;

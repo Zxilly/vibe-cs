@@ -3,13 +3,15 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::DomainError;
+use ts_rs::TS;
 
 pub const REVIEW_COMMENT_MAX_CHARS: usize = 4_000;
 pub const REVIEW_TAG_MAX_NAME_CHARS: usize = 64;
 pub const REVIEW_TAG_MAX_ASSIGNMENTS: usize = 32;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReviewTag {
     pub id: Uuid,
     pub name: String,
@@ -18,22 +20,25 @@ pub struct ReviewTag {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReviewTagCreate {
     pub name: String,
     pub color: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReviewMetadataUpdate {
     pub comment: String,
     pub tag_ids: Vec<Uuid>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerReviewMetadata {
     pub steam_id: String,
     pub comment: String,
@@ -41,8 +46,9 @@ pub struct PlayerReviewMetadata {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RoundReviewMetadata {
     pub demo_id: Uuid,
     pub source_sha256: String,

@@ -15,7 +15,7 @@
 import { Plural, Trans } from '@lingui/react/macro';
 
 import { Dialog, Notice } from '../../design/feedback';
-import type { DemoSummary } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { partitionForDelete } from './libraryFormat';
 import type { ServiceActionButtonProps } from './serviceAction';
 

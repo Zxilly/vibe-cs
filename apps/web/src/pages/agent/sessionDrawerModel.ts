@@ -40,12 +40,15 @@
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
 
+import {
+  knownWorkspaceReferences,
+  type KnownWorkspaceReference,
+} from '../../domain/agent';
 import type {
   AgentObjectKind,
   AgentObjectRef,
   AgentObjectRefTouch,
   AgentSessionQuery,
-  AgentWorkspaceReference,
   AgentWorkspaceReferences,
 } from '../../shared/desktop/dto';
 
@@ -107,7 +110,7 @@ export const WORKSPACE_REFERENCE_GROUPS: readonly WorkspaceReferenceGroupMeta[] 
 ];
 
 export interface WorkspaceReferenceGroup extends WorkspaceReferenceGroupMeta {
-  readonly items: readonly AgentWorkspaceReference[];
+  readonly items: readonly KnownWorkspaceReference[];
 }
 
 /**
@@ -122,7 +125,7 @@ export function workspaceReferenceGroups(
 
   const groups: WorkspaceReferenceGroup[] = [];
   for (const meta of WORKSPACE_REFERENCE_GROUPS) {
-    const items = references[meta.id];
+    const items = knownWorkspaceReferences(references[meta.id]);
     if (items.length > 0) groups.push({ ...meta, items });
   }
   return groups;
@@ -159,7 +162,7 @@ export function referencedKeys(refs: readonly AgentObjectRef[]): ReadonlySet<str
  * in one place and translated like everything else.
  */
 export function toObjectRefTouch(
-  reference: AgentWorkspaceReference,
+  reference: KnownWorkspaceReference,
   summary: string,
 ): AgentObjectRefTouch {
   return {
@@ -202,8 +205,8 @@ export function selectedPlanId(
 export function selectedReferences(
   references: AgentWorkspaceReferences | undefined,
   selection: ReadonlySet<string>,
-): readonly AgentWorkspaceReference[] {
-  const picked: AgentWorkspaceReference[] = [];
+): readonly KnownWorkspaceReference[] {
+  const picked: KnownWorkspaceReference[] = [];
   for (const group of workspaceReferenceGroups(references)) {
     for (const item of group.items) {
       if (selection.has(objectRefKey(item.kind, item.id))) picked.push(item);

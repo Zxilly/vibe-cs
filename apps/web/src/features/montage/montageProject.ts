@@ -1,4 +1,5 @@
-import type { CreateMontageProject, RecordedClip } from '../../shared/desktop/dto';
+import type { CreateMontageProject } from '../../shared/desktop/dto';
+import type { RecordedClip } from '../../shared/desktop/viewModels';
 
 export type MontageTransition = 'cut' | 'fade' | 'flash' | 'dip' | 'zoom' | 'wipe' | 'whip' | 'blur' | 'glitch' | 'spin';
 export type MontageBrandingTheme = 'vibe' | 'broadcast' | 'minimal' | 'neon';

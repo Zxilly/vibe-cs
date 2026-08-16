@@ -37,7 +37,7 @@ import { dataErrorMessage } from '../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
 import { useServiceAction } from '../../../data/serviceAction';
 import { CS2_TICK_RATE } from '../../../domain/match';
-import type { AnalysisWorkspace } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { RouteLink } from '../../RouteLink';
 import type { MatchViewId } from '../viewContract';
 

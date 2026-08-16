@@ -1,4 +1,5 @@
-import type { AnalysisWorkspace, TimelineEvent } from '../../shared/desktop/dto';
+import type { TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import type { QueueItem } from '../queue/queueStore';
 import type { AnalysisNavigationPatch } from './analysisNavigation';
 import type { PlayerEvidenceRef } from './playerMatchEvidence';

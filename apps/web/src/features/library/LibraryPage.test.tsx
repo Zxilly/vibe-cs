@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { DemoSummary } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { LibraryPage, LibraryWorkspaceSummary } from './LibraryPage';
 
 function demo(overrides: Partial<DemoSummary>): DemoSummary {

@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, Highlight, PlayerAnalysis } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import { ClutchReviewAnalysisWorkspace } from './ClutchReviewAnalysisWorkspace';
 
 const player = (id: string, name: string, team: PlayerAnalysis['team']): PlayerAnalysis => ({

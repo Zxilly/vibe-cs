@@ -55,12 +55,24 @@ trait ExportTestBackend: Send + Sync + std::fmt::Debug {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+/// The editor export request body.
+///
+/// It reaches this port as a `serde_json::Value` forwarded by the HTTP layer,
+/// so this struct is the only place the shape is written down and therefore
+/// the only honest source for the TypeScript binding.
+#[derive(Debug, serde::Deserialize, ts_rs::TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct EditorExportRequest {
+    /// Encoder selection. `auto` lets the media layer choose.
     encoder: String,
     quality: u8,
+    /// Trim the export to a window of the timeline. Both bounds may be omitted.
+    #[serde(default)]
+    #[ts(optional)]
     range_start_seconds: Option<f64>,
+    #[serde(default)]
+    #[ts(optional)]
     range_end_seconds: Option<f64>,
 }
 

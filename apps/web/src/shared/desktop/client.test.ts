@@ -17,7 +17,7 @@ function matchAnalysisRecord(): MatchAnalysisRecord {
     verified_total_ticks: null,
     teams: [],
     players: [{
-      steam_id: '7656119', name: 'Player', team: 'CT', kills: 1, deaths: 0,
+      steam_id: '7656119', spectator_slot: 3, name: 'Player', team: 'CT', kills: 1, deaths: 0,
       assists: 0, headshots: 1, damage: 100, adr: 100, kill_death_ratio: 1.5, score: 2,
     }],
     rounds: [],

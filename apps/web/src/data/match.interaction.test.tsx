@@ -17,13 +17,13 @@ import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type {
-  AnalysisWorkspace,
   EvidenceAnnotation,
   HeatPointRecord,
   LlmReviewResult,
   RadarOverviewRecord,
   RoundReviewMetadata,
 } from '../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../shared/desktop/viewModels';
 import {
   analysisIsMissing,
   invalidateMatch,

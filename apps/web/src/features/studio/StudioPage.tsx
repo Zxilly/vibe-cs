@@ -12,7 +12,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
-import type { EditorProject, OutputItem, RecordedClip } from '../../shared/desktop/dto';
+import type { EditorProject, OutputItem } from '../../shared/desktop/dto';
+import type { RecordedClip } from '../../shared/desktop/viewModels';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Card, Notice, PageHeader, Spinner } from '../../shared/ui';
 import { ProductionSectionNav } from '../production/ProductionSectionNav';

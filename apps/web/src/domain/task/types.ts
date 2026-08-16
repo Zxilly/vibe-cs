@@ -20,6 +20,8 @@
 
 import type { ReactNode } from 'react';
 
+import type { JobStatus } from '../../shared/desktop/dto';
+
 /**
  * The four task types the brief names plus 下载, which the 任务记录 rail header
  * lists verbatim (「任务记录 · 分析 · 下载 · 录制 · 导出」) and draws as its
@@ -30,6 +32,31 @@ import type { ReactNode } from 'react';
  * with its own page, and the artboard labels its output 「合辑导出 · 快速合辑」 —
  * a montage that fails has a different recovery (回到合辑) from a plain export.
  */
+/**
+ * The seven job states, and the narrowing that recovers them from the wire.
+ *
+ * `RecordingExecutionResponse.status` and `JobAccepted.status` are
+ * `&'static str` in `crates/application` — written by `match` arms over
+ * `JobStatus` but typed as plain strings, so the generated bindings say
+ * `string` and nothing in the contract closes the set. Every caller that needs
+ * the closed enum goes through `asJobStatus`, which answers `null` for a value
+ * this application has never seen rather than letting it flow on as a state
+ * the compiler believes is impossible.
+ */
+export const JOB_STATUSES: readonly JobStatus[] = [
+  'queued',
+  'preparing',
+  'running',
+  'cancelling',
+  'completed',
+  'failed',
+  'cancelled',
+];
+
+export function asJobStatus(value: string): JobStatus | null {
+  return JOB_STATUSES.includes(value as JobStatus) ? (value as JobStatus) : null;
+}
+
 export type TaskKind = 'analysis' | 'recording' | 'montage' | 'export' | 'download';
 
 /**

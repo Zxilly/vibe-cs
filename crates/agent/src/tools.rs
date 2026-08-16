@@ -8,20 +8,27 @@ use rig_core::tool::{ToolExecutionError, ToolOutput};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use tokio::sync::Mutex;
+use ts_rs::TS;
 use uuid::Uuid;
 
 use crate::{AgentContext, AgentToolHost};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// One tool invocation the model made during a turn, with its arguments and
+/// result verbatim.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct CapturedToolCall {
     pub name: String,
     pub input: Value,
     pub output: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// One proposal the model emitted during a turn. `kind` selects how a client
+/// renders `payload`; neither is interpreted here.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct CapturedPlan {
     pub kind: String,
     pub title: String,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, Highlight, PlayerAnalysis, TimelineEvent } from '../../shared/desktop/dto';
+import type { TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import { buildClutchReviewWorkspace } from './clutchReviewWorkspace';
 
 const m0nesy = '76561198074762801';

@@ -1,4 +1,5 @@
 use std::{path::PathBuf, sync::Arc};
+use ts_rs::TS;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -212,16 +213,18 @@ pub trait AnalysisPort: Send + Sync + std::fmt::Debug {
     async fn clear_replay_cache(&self) -> Result<ReplayCacheCleanup, DomainError>;
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum ReplayCacheState {
     Hit,
     Generated,
     Bypassed,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReplayCacheMetadata {
     pub state: ReplayCacheState,
     pub key: Option<String>,
@@ -231,15 +234,17 @@ pub struct ReplayCacheMetadata {
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct ReplayPayload {
     pub frames: Vec<ReplayFrame>,
     pub fidelity: ReplayFidelityMetadata,
     pub cache: ReplayCacheMetadata,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReplayCacheStatus {
     pub entries: u64,
     pub bytes: u64,
@@ -249,7 +254,8 @@ pub struct ReplayCacheStatus {
     pub checked_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct ReplayCacheCleanup {
     pub removed_entries: u64,
     pub freed_bytes: u64,
@@ -258,24 +264,27 @@ pub struct ReplayCacheCleanup {
     pub completed_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum ReviewScope {
     Match,
     Highlights,
     Player,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum ReviewTone {
     Analytical,
     Coach,
     Direct,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct LlmReviewRequest {
     pub scope: ReviewScope,
     #[serde(deserialize_with = "deserialize_required_nullable")]
@@ -292,7 +301,8 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct LlmReviewResult {
     pub demo_id: Uuid,
     pub scope: ReviewScope,
@@ -390,7 +400,8 @@ pub struct CosmeticRewriteOutput {
     pub report: RewriteReport,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct CosmeticCatalogItemDto {
     pub item_definition_index: u16,
     pub internal_name: String,
@@ -400,7 +411,8 @@ pub struct CosmeticCatalogItemDto {
     pub paint_kit_ids: Vec<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct CosmeticPaintKitDto {
     pub id: u32,
     pub internal_name: String,
@@ -410,7 +422,8 @@ pub struct CosmeticPaintKitDto {
     pub compatible_item_definition_indices: Vec<u16>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct CosmeticCatalogDto {
     pub items: Vec<CosmeticCatalogItemDto>,
     pub paint_kits: Vec<CosmeticPaintKitDto>,
@@ -691,14 +704,16 @@ impl IntegrationPort for DisabledIntegrationPort {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct DemoWatchRootStatus {
     pub path: String,
     pub state: String,
     pub message: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct DemoWatchStatus {
     pub running: bool,
     pub roots: Vec<DemoWatchRootStatus>,

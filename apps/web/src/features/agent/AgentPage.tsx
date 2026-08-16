@@ -21,18 +21,18 @@ import type {
   AgentVideoProposal,
   BeatAlignmentProposalPreview,
   BeatAlignmentProposalRequest,
-  DemoSummary,
   EditorProject,
   HighlightEditProposalPreview,
   HighlightEditProposalRequest,
-  HlaeProposalIntent,
   HlaeProposalExportResult,
+  HlaeProposalIntent,
   HlaeProposalPreview,
   MediaAsset,
   ProposalPrerequisite,
   RecordingJob,
   RecordingPlanResponse,
 } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { type MessageKey, useI18n } from '../../shared/i18n';
 import { Badge, Button, EmptyState, Notice, PageHeader, SegmentedControl, Spinner } from '../../shared/ui';
 import { applyAgentEvent, proposalActivityKey, rollbackOptimisticRun } from './agentSession';

@@ -613,7 +613,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 | 3e-be | **后端并行任务**：§4.6 的 10 项契约缺口，含 `storage` schema 变更（会话表加 title/refs、会话↔对象引用表、方案 revision 与 origin、保留策略清理） | 前端适配器可整体拆除 |
 | 3f-be | **后端并行任务**：每镜头拍摄参数 / 录制前校验 / 镜头预设 / 方案↔录制绑定（§10.6 缺口 1），外加把 CI 的 `cargo clippy -D warnings` 门清零 | 画板 08 的四块不再靠「禁用 + 写明原因」 |
 | 3f-1 | 录制计划（08）/ 快速合辑（09） | ✓ 完成（§10.8）。两页接真数据；导播预览画真实相机路径；Agent 页的「确认并生成视频」不再是死按钮 |
-| 3f-cg | **强类型收口**：`utoipa` 标注路由 → `openapi.json` → `openapi-typescript` → `schema.d.ts` 加一个约 40 行的强类型 `call()`；`dto.ts` 退化成再导出，`shared/desktop/` 之上一行不改。两道漂移门：`cargo test` 重新生成并比对 `openapi.json`，`pnpm lint` 重新生成并比对 `schema.d.ts` | 手写的 259 个 dto 类型不再可能和 Rust 结构漂移 |
+| 3f-cg | **强类型收口**：`ts-rs` 在 Rust 类型上 derive，`cargo test` 写出 `shared/desktop/generated/`，`dto.ts` 退化成再导出。CI 的 rust job 加一道漂移门 | ✓ 完成（§10.9）。dto.ts 2421 → 864 行，抓出并修掉 21 处真实漂移。**原计划的 utoipa 方案在清点出 155 条路由后换成了 ts-rs**，理由见 §10.9 开头 |
 | 3f-2 | 多轨编辑器（10） | 时间轴接真素材，补齐修剪 / 自动滚动 / 帧网格 / 变速 |
 | 3g-be | **后端并行任务**：Agent 设置五个开关 / 引用删除路由 / 保留策略调度 / `OutputItem` 媒体元数据与输出流 / 活动错误码 / **`GET /api/recording/plans/{id}`（§10.8 缺口 1 与 2 同因，一条路由修两个）** | 3g 的页面不再有「后端没有这个字段」的空位 |
 | 3g | 设置 5 节 / 恢复中心 / 工作台首页余下五块 / **`/guide` 与首次使用三步提示条** / 原生外壳能力回填 | |
@@ -1119,3 +1119,77 @@ A 块（对话流）与 B 块（方案面板）在同一轮里各自实现了「
 3f-be 那一轮统计出来是 724 次工具调用 / 9 个 agent / 91 分钟，其中 **108 次 cargo 调用**（58 clippy + 38 test + 12 check）。实测空转 `cargo clippy --workspace --all-targets` 31 秒，改一个 domain 文件后 16 秒，`cargo test --workspace` 要链接跑 30 个测试二进制。三条结构性浪费都是任务书自己写出来的：收敛循环每轮重跑整套门禁（约 10 分钟、完全串行、跑了两轮）；四个实现 agent 各自验证同一批 crate；**后端轮次的 agent 在跑 vitest 和 `pnpm build`，前端轮次的 agent 在跑 `cargo check`**——两边都在验证自己一行都没碰的东西。
 
 从下一轮起改成：迭代期用 `cargo check`，只在最后一次用 clippy；实现 agent 只跑 `-p <自己的 crate>`，workspace 级验证只在收敛阶段发生一次；后端轮次不跑 vitest / build，前端轮次不跑 cargo，改成用一条 `git diff --stat` 断言那一侧没有改动；收敛循环先跑便宜的（typecheck / lint / diff），全过了才跑贵的。本轮已经按最后三条执行——Rust 一行未动，也一次 cargo 都没跑。
+
+---
+
+## 10.9 阶段 3f-cg 落地记录 —— 线上类型改成生成（2026-08-16）
+
+`shared/desktop/dto.ts` **2421 行 → 864 行**。259 个手抄的类型定义换成 303 条再导出，指向 `shared/desktop/generated/` 下 299 个由 `cargo test` 写出来的文件。
+
+出口条件达成：`check-web-layers`（954 个文件）/ `typecheck` / `lint` / `build` 退出码 0；vitest 473 文件 4574 用例通过，与 3f-1 一字不差；`cargo clippy --workspace --all-targets -- -D warnings` 退出码 0；`cargo test --workspace` 全绿（domain 从 89 涨到 267，多出来的 178 个是 ts-rs 自己生成的 `export_bindings_*`）；`check-rust-format.ps1` 退出码 0。改动 543 个文件，+5750/−2911。
+
+### 为什么是 ts-rs 而不是 utoipa
+
+原计划是 utoipa → `openapi.json` → openapi-typescript。清点之后发现是 155 条路由加约 250 个类型，而**这个 session 里真实发生过的每一处漂移，ts-rs 都能抓到**：一个完整的 `HlaePlan` 被写成 `unknown`、八条校验的枚举靠手抄、`branding_theme` 四个成员被记成三个。utoipa 额外保证的是「哪条路径返回哪个类型」——那个映射由 `client.ts` 一个文件承担，是 grep 得到的，而且从来没出过错。
+
+代价差了一个数量级：ts-rs 是 250 个 derive、路由零改动；utoipa 是 155 条 `#[utoipa::path]` 标注加重写 `client.ts` 的 180 个方法。选了便宜的那条。
+
+### 机制
+
+- 根 `Cargo.toml`：`ts-rs = { version = "12.0", features = ["chrono-impl", "uuid-impl", "serde-json-impl", "format"] }`（MIT，2026-06-22 发布，MSRV 1.88）
+- `.cargo/config.toml`：`TS_RS_EXPORT_DIR = apps/web/src/shared/desktop/generated`（相对根），`TS_RS_LARGE_INT = "number"`
+- 类型上 `#[derive(..., TS)]` 加 `#[ts(export)]`，`cargo test` 时写盘，文件签入仓库
+- CI 的 rust job 在 `cargo test --workspace` 之后加一步 `git add --intent-to-add` 再 `git diff --exit-code -- .../generated/`。`--intent-to-add` 不是修饰：新 derive 的类型生成的是**未跟踪**文件，不加它 `git diff` 看不见，这道门就会对新增类型永远放行
+
+**`TS_RS_LARGE_INT = "number"` 不是可选项**：这条线上每一个 tick、字节数和时长都是 `i64`，默认绑定是 `bigint`，而 JSON 永远不会产生 bigint。
+
+**Rust 的文档注释会带进 TSDoc。** 这是附带的最大好处——解释一个字段为什么长这样的那段话，从此只存在一份，而且在离定义最近的地方。dto.ts 因此删掉了大量重复的散文，只留下 Rust 侧不可能知道的东西：客户端怎么用这个值。
+
+### 抓到的漂移（21 处，都是真的）
+
+按影响排：
+
+1. **`PlayerStats` 少了一整个字段。** 手写那份的注释原话是「Wire DTO mirrored from `vibe-cs-domain::PlayerStats`」，而它漏了 `spectator_slot: number | null`。这个字段不是装饰：它是 `RecordingPreflightCode::SpectatorEvidenceComplete` 检查的那个「解析器观测到的 CS2 观察位」，`build_player_pov_plan` 拒绝凭空发明的就是它。domain 里甚至有一条专门的测试（`analysis_without_current_spectator_slot_contract_is_rejected`）钉住它是线上必需的。前端一直看不见它。
+2. **`DemoStatus` 手写四个成员，真枚举六个，只重合一个。** 手写的是 `'pending' | 'parsing' | 'ready' | 'error'`，Rust 是 `discovered / indexing / ready / analyzing / failed / missing`。**资料库的状态筛选一直是错的。** 四态的显示折叠搬到了 `viewModels.DemoDisplayStatus` 并改了名，免得再被当成生命周期枚举。
+3. **`RecordingRequest.id` 是可空的**（Rust 是 `Option<Uuid>` 加 `deserialize_required_nullable`），手写的是非空 `EntityId`。这是本轮最大的一处连带：录制页的选中、逐镜头编辑、移除、导播查找和风险徽章全部按这个 id 做键。修法是在边界上收窄——`recordingContract.ts` 加了 `RecordingShot = RecordingRequest & { id: string }` 与 `identifiedShots()`，没有持久身份的镜头在边界处被丢掉，而不是带着一个 `null` 当键走下去。`RecordingJob::retryable_suffix` 明确处理 `id == None`（「published recording request has no durable identity」），所以 null 是后端真会产生并会推理的状态。
+4. **两个 Rust 类型共用一个 TS 名字，两处。**
+   - `DemoRecord`：`/api/demos` 那一行其实是 application 的 `DemoSummaryDto`（把 `player_names` 改名成 `players`），而 domain 自己的 `DemoRecord` 是导出/饰品改写那条路的形状。现在分成 `DemoRecord` 与 `DemoCatalogRecord`。
+   - `HlaeStatus`：`/api/hlae/status` 返回的是 application 的 `ManagedHlaeStatusDto`，把三个安全布尔重新嵌进 `safety_boundary`；而 `HlaeProposalPreview.installation_status` 是 domain 的 `HlaeStatus`，**是平的**。也就是说 `preview.installation_status.safety_boundary` 在运行时永远是 `undefined`，而 typecheck 是绿的。现在分成 `HlaeStatus` 与 `HlaeInstallationStatus`。
+5. **`ReplayPlayer` 带着四个 API 从不发送的字段**（`money`、`current_equipment_value`、`round_start_equipment_value`、`has_helmet`），`ReplayPayload` 多一个 `freeze_end_tick`。根因查清了：前端有**两个解码器共用一个类型**——`replayBinary.ts` 解的是 `encode_binary_replay`，`roundReplayBinary.ts` 解的是解析器的回合回放产物（`crates/demo/src/round_replay.rs`），后者确实有这五个。拆开了。
+6. **`HlaePlan` 与 `CompiledHlaePlan` 被写成 `unknown`。** 现在是 18 个生成文件的真实类型树。这是 §10.8 归位建议里的第一条，本轮顺手做掉。
+7. `PlayerHeatmapKind` 是三个成员不是两个；`CosmeticValues` 的可选性**正好写反**（响应上每个键都在且可空，手写的是可选且非空）；`CosmeticPlan.patches` 其实是 `JsonValue`（storage 存的是 `serde_json::Value`），**手写那份比服务端更精确**——这个方向的漂移同样危险；`DemoQuery` 少了后端支持的 `source` 筛选；`ApiProblem` 允许一个结构化的 `detail` 对象，那个形状在整个 `crates/` 里不存在。
+
+### 三类必须手写的类型，以及它们各自是什么问题
+
+改写之后 dto.ts 里剩下的手写定义只有四组，每一组都在文件里标了出处：
+
+1. **无类型路由**（`DemoPlaybackStatus`、`DemoPlaybackPreflight`、`DemoPlaybackLaunch`、`DemoPlaybackStop`、`LlmTestResult`、`MatchHistorySyncResult`、`RecoveryStatus`）——`crates/runtime/src/integration.rs` 用 `json!` 现搭文档，以 `Json<serde_json::Value>` 发出去，Rust 侧根本没有结构体可生成。**这是七个后端缺口，不是命名问题。**（顺带一个陷阱：`crates/platform-windows/src/backup.rs` 有一个同名但形状不同、且没有 `Serialize` 的 `RecoveryStatus`，名字对上了不代表是原型。）
+2. **Tauri 侧类型**——流式 Agent 对话契约（`AgentStatus` / `AgentMessage` / `AgentThread` / `AgentChatInput` / `AgentEvent` / `AgentChatResult` / `AgentProposal` / `AgentVideoProposal` / `AgentShotDesign`）与 `HlaeBundleHandoff` 定义在 `apps/desktop/src-tauri/src/`，不在 ts-rs 的接线范围里。`HlaeBundleHandoff` 也是这里唯一一个 camelCase 键的类型，同一个原因。
+3. **客户端对无类型字段的收窄**——`DependencyKind`、`DependencyState`、`ActivityKind`、`ActivityStatus`、`ActivityAction`。Rust 侧这些是 `match` 臂写出来的 `&'static str`，生成的类型说 `string`，**这是对的**。这几个联合是客户端自己对那组封闭值的读法，**服务端不保证**。文件里写明了这一点。把它们变成真正的 serde 枚举是后端改动。（注意活动的**查询侧** `ActivityKindFilter` / `ActivityStateFilter` 是真枚举，已生成；只有响应侧是裸字符串。）
+4. **前端别名**——只剩 `EntityId`。
+
+### 视图模型搬出了 dto.ts
+
+一批「这个应用从线上数据推出来的形状」原本混在 dto.ts 里冒充线上契约。它们搬进了新的 `shared/desktop/viewModels.ts`：`PlayerAnalysis`（`headshot_rate` 是客户端算的）、`RoundSummary`、`Highlight`（`confidence` 在线上根本没有对应物）、`AnalysisWorkspace`（`crates/` 里没有任何 `struct AnalysisWorkspace`，它是 `normalizeAnalysis` 拼出来的）、`DemoSummary`、`DemoDisplayStatus`、`RecordedClip` 的短形态、以及 `ActivityItem` / `ActivityFeed` 的收窄形态。回合回放的三个记录类型搬去了 `features/analysis/roundReplayBinary.ts`，因为那份产物从来不以类型化 body 过 HTTP。
+
+**dto.ts 是线上契约的镜像，不是类型杂物间。** 一个 UI 派生的形状放在这里，看起来就像服务端承诺过它。
+
+另外新增 `shared/desktop/json.ts`（`jsonObject` / `jsonMember`）作为 `JsonValue` 的**唯一**收窄点——`serde_json::Value` 现在会如实生成成 `JsonValue` 而不是 `unknown`，读它的地方需要一个统一的检查入口。
+
+### 偏离与代价
+
+| # | 事项 | 处置 |
+| --- | --- | --- |
+| 1 | `Option<T>` 生成成 `x: T \| null`（必需键、可空值），不是 `x?: T` | ts-rs 12 在决定可选性时**不认** `#[serde(default)]` 与 `#[serde(skip_serializing_if)]`，这一点在 `ErrorBody.detail`、`RecordingRequest.presentation`、`AgentPlanShot.recording` 三处逐一验证过。这是本轮 diff 体量的最大来源。**没有用 `#[ts(optional)]`**：请求体上诚实的形状确实是「可以不传」，响应体上诚实的形状确实是「一定在、可能是 null」，逐字段选哪个是契约决定不是机械替换。留着，等真被卡住时按字段做 |
+| 2 | 改了 `features/**` 124 个文件 | 那是阶段 4 要删的旧前端，但在删掉之前它必须能通过 typecheck。21 处漂移里有相当一部分的调用点在那里 |
+| 3 | 每次编译有 140 条 ts-rs 警告 | 两种：`deserialize_with = "deserialize_required_nullable"` 136 条、`deny_unknown_fields` 4 条。**两种都核过，忽略它们是对的**——前者要的就是「键必需、值可空」，正是 ts-rs 的默认输出；后者在 TypeScript 里没有对应表达。**没有开 `no-serde-warnings`**：开了会连同将来真正不受支持的属性一起静音，而那正是要看见的信号。基线记在这里，第 141 条出现时是新的 |
+| 4 | `format` feature 把 dprint 与 swc 拉进了构建 | 值得：这些文件是当 diff 读的，一个四十字段结构体的未格式化 diff 没法审 |
+| 5 | `generated/` 里有 299 个文件，前端未必每个都 import | 传递规则决定的——一个 `#[ts(export)]` 类型能到达的每个类型也必须导出，否则 ts-rs 生成的 import 会指向不存在的文件 |
+
+### 留给后续阶段的已知缺口
+
+1. **七个 `json!` 路由应该有真结构体**（上面第 1 组）。做掉之后 dto.ts 的手写部分只剩 Tauri 侧和 `EntityId`。
+2. **五个响应侧的 `&'static str` 应该变成 serde 枚举**（上面第 3 组）。现在客户端在猜一组它无法验证的封闭值。
+3. **`LineupMapItem.team_slot` 是 `string`**，`crates/storage` 声明的就是 `String`，没有任何东西把它收成 `'A' | 'B'`。dto.ts 如实再导出并写明了原因。
+4. §10.8 的十条缺口全部仍然成立，其中「`typed_plan` 该回到 dto.ts」这条**本轮已经做掉**（而且做得更彻底：整棵 `HlaePlan` 树都是真类型了）。
+5. `apps/desktop/src-tauri` 不在 ts-rs 接线范围里。把它接进来需要给那个 crate 也加 ts-rs，是一轮小活，可以随 3g 顺手做。

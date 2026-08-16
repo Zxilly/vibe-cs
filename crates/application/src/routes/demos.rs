@@ -1,4 +1,5 @@
 use std::path::{Path, PathBuf};
+use ts_rs::TS;
 
 use axum::{
     Json, Router,
@@ -148,7 +149,8 @@ struct DemoExportRow {
     metadata: DemoMetadata,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct DemoSummaryDto {
     id: Uuid,
     file_name: String,
@@ -1757,11 +1759,15 @@ async fn get_heatmap(
     Ok(Json(state.analysis.heatmap(demo).await?))
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct DemoPlaybackRequest {
+    #[ts(optional)]
     start_tick: Option<u64>,
+    #[ts(optional)]
     player: Option<String>,
+    #[ts(optional)]
     timescale: Option<f64>,
 }
 

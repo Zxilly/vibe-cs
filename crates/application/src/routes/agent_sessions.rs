@@ -29,6 +29,7 @@ use vibe_cs_domain::{
 use vibe_cs_storage::ExportJobRecord;
 
 use crate::{ApiError, ApiJson, ApiQuery, ApiResult, AppState};
+use ts_rs::TS;
 
 /// How many rows of one kind the reference picker shows. The picker is a
 /// shortlist of what is currently in progress, not a directory.
@@ -391,7 +392,8 @@ fn plan_update(update: AgentPlanUpdate) -> ApiResult<Json<AgentPlan>> {
 // ---------------------------------------------------------------------------
 
 /// One row of the "currently in progress" reference picker.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct WorkspaceReference {
     /// The persisted [`AgentObjectKind`] discriminator, so the value can be sent
     /// straight back when the session records the reference.
@@ -407,7 +409,8 @@ struct WorkspaceReference {
 
 /// Contract gap 8: the cross-source query behind "what is going on in the
 /// workspace right now", answered from four independent lifecycles.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct WorkspaceReferences {
     /// Plans waiting for the user to confirm them.
     pending_plans: Vec<WorkspaceReference>,

@@ -31,12 +31,8 @@
  * data rather than from a fixed sentence.
  */
 
-import type {
-  AnalysisWorkspace,
-  Highlight,
-  InsightCapabilityRecord,
-  TimelineEvent,
-} from '../../../shared/desktop/dto';
+import type { InsightCapabilityRecord, TimelineEvent } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../../shared/desktop/viewModels';
 
 /* ── capabilities ────────────────────────────────────────────────────────── */
 

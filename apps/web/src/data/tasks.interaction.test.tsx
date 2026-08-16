@@ -13,7 +13,8 @@
 import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivityFeed, ActivityItem, RecordingJob } from '../shared/desktop/dto';
+import type { RecordingJob } from '../shared/desktop/dto';
+import type { ActivityFeed, ActivityItem } from '../shared/desktop/viewModels';
 import { dataErrorMessage } from './errors';
 import {
   invalidateTask,

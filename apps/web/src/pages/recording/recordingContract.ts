@@ -305,6 +305,24 @@ export const NEUTRAL_VIEWMODEL_FOV = 68;
 export const CAMERA_FOV_RANGE = { min: 60, max: 140 } as const;
 export const VIEWMODEL_FOV_RANGE = { min: 54, max: 68 } as const;
 
+/**
+ * A plan shot this page can address.
+ *
+ * `RecordingRequest.id` is `Option<Uuid>` in Rust and the wire really does
+ * carry `null` for it — `RecordingJob::retryable_suffix` reasons about the
+ * case in so many words ("published recording request has no durable
+ * identity"). Every affordance on this page is keyed by that id: selection,
+ * per-shot edits, removal, the director lookup and the risk badges. A shot
+ * without one cannot take part in any of them, so `identifiedShots` drops it
+ * at the boundary rather than letting `null` travel as though it were a key.
+ */
+export type RecordingShot = RecordingRequest & { id: string };
+
+/** The plan items that carry a durable identity, in order. */
+export function identifiedShots(items: readonly RecordingRequest[]): readonly RecordingShot[] {
+  return items.filter((item): item is RecordingShot => item.id !== null);
+}
+
 export type CameraStyle = RecordingRequest['camera_style'];
 
 /** The one style that draws a first-person view. Everything else is a camera
@@ -608,7 +626,7 @@ export interface RecordingPlanState {
   readonly plan: RecordingPlanResponse | null;
   /** The shots as edited, which is what block A and D render. Equal to
    *  `plan.items` until the first edit. */
-  readonly items: readonly RecordingRequest[];
+  readonly items: readonly RecordingShot[];
   readonly loading: boolean;
   readonly error: unknown;
   /** Edited since the lease was minted. Disables 开始录制 with a written reason

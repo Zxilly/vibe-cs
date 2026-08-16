@@ -1,4 +1,4 @@
-import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import {
   buildPlayerMatchEvidence,
   type PlayerDuelInteraction,

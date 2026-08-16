@@ -27,7 +27,8 @@ import { Trans } from '@lingui/react/macro';
 import { EmptyState, Pagination } from '../../design/data';
 import { Notice, StatusDot } from '../../design/feedback';
 import { Button, cx, Tag } from '../../design/primitives';
-import type { DemoSummary, Paginated } from '../../shared/desktop/dto';
+import type { Paginated } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 import {
   demoStatusMeta,
   formatMatchDate,

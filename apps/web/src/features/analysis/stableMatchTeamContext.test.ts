@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  AnalysisWorkspace,
-  PlayerAnalysis,
-  TimelineEvent,
-} from '../../shared/desktop/dto';
+import type { JsonValue, TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import { deriveStableMatchTeamContext } from './stableMatchTeamContext';
 
 const teamA = ['a1', 'a2', 'a3', 'a4', 'a5'] as const;
@@ -28,7 +25,7 @@ function event(
   id: string,
   tick: number,
   kind: TimelineEvent['kind'],
-  detail: Record<string, unknown> = {},
+  detail: JsonValue = {},
 ): TimelineEvent {
   return {
     id,

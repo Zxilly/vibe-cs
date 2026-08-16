@@ -19,7 +19,7 @@ import { Trans } from '@lingui/react/macro';
 import { dataErrorMessage } from '../../data/errors';
 import { useAnalysisRun } from '../../data/tasks';
 import { TaskDetail, formatTaskClock, type TaskFact, type TaskLink } from '../../domain/task';
-import type { ActivityItem } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import {
   analysisLogEntries,
   analysisStageEntries,

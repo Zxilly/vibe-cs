@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
-import type { AnalysisWorkspace } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button, EmptyState } from '../../shared/ui';
 import type { AnalysisNavigationPatch } from './analysisNavigation';

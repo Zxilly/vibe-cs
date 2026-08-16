@@ -18,7 +18,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { RecordingPreflightGate } from '../../data/recording';
 import { renderMarkup } from '../../test/render';
-import type { RecordingRequest } from '../../shared/desktop/dto';
 import { RecordingPage } from '../RecordingPage';
 import { PreflightBlock } from './PreflightBlock';
 import { ShotListBlock } from './ShotListBlock';
@@ -32,6 +31,7 @@ import {
 import type {
   RecordingBlockProps,
   RecordingPlanState,
+  RecordingShot,
   RecordingStartDesk,
 } from './recordingContract';
 
@@ -271,7 +271,7 @@ describe('录制前校验', () => {
 
 describe('§4.5.3 rule ①', () => {
   it('puts exactly one 开始录制 on the page', () => {
-    const items: RecordingRequest[] = [...ITEMS];
+    const items: RecordingShot[] = [...ITEMS];
     const html = render(
       <>
         <ShotListBlock {...blockProps({ plan: planState({ items }) })} />

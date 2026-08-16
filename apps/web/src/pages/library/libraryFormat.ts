@@ -25,7 +25,8 @@ import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
 
 import { formatTimecode } from '../../design/timeline';
-import type { DemoLifecycleStatus, DemoSummary } from '../../shared/desktop/dto';
+import type { DemoLifecycleStatus } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 
 /** What a cell shows when the record simply has no value for it. */
 export const EMPTY_CELL = '—';

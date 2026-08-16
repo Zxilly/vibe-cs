@@ -20,19 +20,21 @@
  */
 
 import type {
-  AnalysisWorkspace,
   EvidenceAnnotation,
   HeatPointRecord,
-  Highlight,
   LlmReviewResult,
   Paginated,
   RadarOverviewRecord,
   ReplayFrameRecord,
   ReplayPayload,
   ReplayPlayerRecord,
-  RoundSummary,
   TimelineEvent,
 } from '../../../../shared/desktop/dto';
+import type {
+  AnalysisWorkspace,
+  Highlight,
+  RoundSummary,
+} from '../../../../shared/desktop/viewModels';
 
 export const DEMO_ID = 'aurora-vs-meridian';
 export const TICK_RATE = 64;

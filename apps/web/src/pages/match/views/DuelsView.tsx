@@ -41,7 +41,8 @@ import { useMatchAnalysis } from '../../../data/match';
 import { DataTable, EmptyState, type DataTableColumn } from '../../../design/data';
 import { Button, Seg, Tag } from '../../../design/primitives';
 import { formatTickTimecode } from '../../../domain/match';
-import type { AnalysisWorkspace, PlayerMatchupInsightRecord } from '../../../shared/desktop/dto';
+import type { PlayerMatchupInsightRecord } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import {

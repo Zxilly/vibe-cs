@@ -1,8 +1,5 @@
-import type {
-  AnalysisWorkspace,
-  CountedItemRecord,
-  TimelineEvent,
-} from '../../shared/desktop/dto';
+import type { CountedItemRecord, TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import type { PlayerEvidenceRef } from './playerMatchEvidence';
 
 export type EconomySide = 'T' | 'CT';

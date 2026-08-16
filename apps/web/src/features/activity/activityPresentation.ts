@@ -1,4 +1,5 @@
-import type { ActivityAction, ActivityItem, ActivityKind } from '../../shared/desktop/dto';
+import type { ActivityAction, ActivityKind } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import type { MessageKey } from '../../shared/i18n';
 
 export type ActivityStateFilter = '' | 'active' | 'failed' | 'completed' | 'cancelled';

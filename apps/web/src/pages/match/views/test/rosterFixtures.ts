@@ -15,13 +15,12 @@
  * ones the events would produce, so a test may assert either against the other.
  */
 
+import type { AnalysisInsightsRecord, TimelineEvent } from '../../../../shared/desktop/dto';
 import type {
-  AnalysisInsightsRecord,
   AnalysisWorkspace,
   Highlight,
   RoundSummary,
-  TimelineEvent,
-} from '../../../../shared/desktop/dto';
+} from '../../../../shared/desktop/viewModels';
 
 export const DEMO_ID = 'aurora-vs-meridian';
 

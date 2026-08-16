@@ -3,6 +3,7 @@ use std::{
     io::{Read, SeekFrom, Write},
     path::{Component, Path as FsPath, PathBuf},
 };
+use ts_rs::TS;
 
 use axum::{
     Json, Router,
@@ -179,7 +180,8 @@ struct ItemList<T> {
     items: Vec<T>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct RecordedClipDto {
     id: Uuid,
     title: String,
@@ -350,7 +352,8 @@ const fn default_waveform_buckets() -> usize {
     1_000
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct WaveformResponse {
     waveform: Vec<f32>,
     cached: bool,
@@ -526,8 +529,9 @@ async fn list_montages(State(state): State<AppState>) -> ApiResult<Json<ItemList
     }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct CreateMontageRequest {
     name: String,
     clips: Vec<MontageClip>,
@@ -755,8 +759,9 @@ async fn list_editor_projects(
     }))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct CreateEditorProjectRequest {
     name: String,
     width: u32,
@@ -968,7 +973,8 @@ struct DeleteEditorProjectItem {
     expected_revision: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct EditorProjectDeletionResponse {
     deleted_project_ids: Vec<Uuid>,
     deleted_asset_ids: Vec<Uuid>,
@@ -1171,7 +1177,8 @@ struct ExportEditorPackageRequest {
     output_path: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct EditorPackageExportResponse {
     package_id: Uuid,
     name: String,
@@ -1181,7 +1188,8 @@ struct EditorPackageExportResponse {
     download_url: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct EditorPackageImportResponse {
     project: EditorProject,
     assets: Vec<MediaAsset>,
@@ -2515,7 +2523,8 @@ async fn remove_managed_proxy(state: &AppState, path: Option<&str>) {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct ProxyCleanupResponse {
     removed_files: usize,
     freed_bytes: u64,
@@ -2762,7 +2771,8 @@ struct SeparateEditorAudioRequest {
     mute_source: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct SeparateEditorAudioResponse {
     project: EditorProject,
     asset: MediaAsset,
@@ -3417,7 +3427,8 @@ async fn apply_editor_preset(
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct JobAccepted {
     job_id: Uuid,
     status: &'static str,

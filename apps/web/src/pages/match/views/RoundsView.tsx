@@ -60,7 +60,7 @@ import {
   type EvidenceItem,
 } from '../../../domain/match';
 import { useRoundReview } from '../../../data/match';
-import type { AnalysisWorkspace } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import { roundSummaries } from '../matchModel';
 import type { MatchContextPatch } from '../workspaceContext';

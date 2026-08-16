@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 use vibe_cs_domain::DomainError;
 
@@ -61,8 +62,9 @@ pub struct PlayerMapQuery {
     pub page_size: u32,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum PlayerHeatmapKind {
     All,
     Kills,
@@ -147,15 +149,17 @@ fn validate_player_page(page: u32, page_size: u32) -> Result<(), DomainError> {
     Ok(())
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum SteamProfileState {
     Available,
     NotConfigured,
     Unavailable,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct PlayerSteamProfile {
     pub state: SteamProfileState,
     pub persona_name: Option<String>,
@@ -203,8 +207,9 @@ impl PlayerSteamProfile {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerAggregateStats {
     pub matches: u32,
     pub kills: u64,
@@ -216,8 +221,9 @@ pub struct PlayerAggregateStats {
     pub average_kill_death_ratio: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerDirectoryItem {
     pub steam_id: String,
     pub name: String,
@@ -230,8 +236,9 @@ pub struct PlayerDirectoryItem {
     pub steam: PlayerSteamProfile,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerMatch {
     pub demo_id: Uuid,
     pub demo_name: String,
@@ -248,16 +255,18 @@ pub struct PlayerMatch {
     pub kill_death_ratio: Option<f64>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerProjectionCoverage {
     pub projected_demos: u64,
     pub total_analyses: u64,
     pub projection_complete: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerDirectoryPage {
     pub items: Vec<PlayerDirectoryItem>,
     pub total: u64,
@@ -266,8 +275,9 @@ pub struct PlayerDirectoryPage {
     pub coverage: PlayerProjectionCoverage,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerMatchPage {
     pub steam_id: String,
     pub items: Vec<PlayerMatch>,
@@ -277,15 +287,17 @@ pub struct PlayerMatchPage {
     pub coverage: PlayerProjectionCoverage,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerMapItem {
     pub map_name: Option<String>,
     pub stats: PlayerAggregateStats,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerMapPage {
     pub steam_id: String,
     pub items: Vec<PlayerMapItem>,
@@ -295,8 +307,9 @@ pub struct PlayerMapPage {
     pub coverage: PlayerProjectionCoverage,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerHeatmapPoint {
     pub demo_id: Uuid,
     pub evidence_id: String,
@@ -310,8 +323,9 @@ pub struct PlayerHeatmapPoint {
     pub replay_href: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerHeatmap {
     pub steam_id: String,
     pub map_name: String,
@@ -322,15 +336,17 @@ pub struct PlayerHeatmap {
     pub coverage: PlayerProjectionCoverage,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerComparison {
     pub players: [PlayerDirectoryItem; 2],
     pub coverage: PlayerProjectionCoverage,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerProfile {
     pub player: PlayerDirectoryItem,
     pub coverage: PlayerProjectionCoverage,
@@ -358,7 +374,8 @@ impl std::fmt::Debug for PlayerAvatar {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct AvatarCacheStatus {
     pub entries: u64,
     pub bytes: u64,
@@ -368,7 +385,8 @@ pub struct AvatarCacheStatus {
     pub checked_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct AvatarCacheCleanup {
     pub removed_entries: u64,
     pub freed_bytes: u64,

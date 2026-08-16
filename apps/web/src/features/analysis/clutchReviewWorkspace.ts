@@ -1,4 +1,4 @@
-import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/viewModels';
 
 export type ClutchOutcome = 'won' | 'attempt';
 

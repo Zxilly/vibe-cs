@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  AnalysisWorkspace,
-  PlayerAnalysis,
-  TimelineEvent,
-} from '../../shared/desktop/dto';
+import type { TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import {
   buildTeamRoundWorkspace,
   initialTeamRoundSelection,
@@ -221,7 +218,12 @@ describe('team round workspace', () => {
   it('fails closed with the exact round when a roster cannot prove both five-player teams', () => {
     const incomplete = workspace();
     const start = incomplete.rounds[1]?.events[0];
-    if (start) start.detail = { _round_roster: { ...roster('CT'), b5: undefined } };
+    // `b5` present but not a string is what an incomplete roster looks like on
+    // the wire; `undefined` is not a JSON value, so the omission is spelled out.
+    if (start) {
+      const { b5: _dropped, ...withoutB5 } = roster('CT');
+      start.detail = { _round_roster: withoutB5 };
+    }
 
     const result = buildTeamRoundWorkspace(incomplete, { team: 'A', side: 'CT' });
 

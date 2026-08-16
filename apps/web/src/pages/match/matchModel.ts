@@ -23,7 +23,8 @@
  * dash: 「分析后才有比分」, not 「0 : 0」.
  */
 
-import type { AnalysisWorkspace, DemoSummary, TeamSummary } from '../../shared/desktop/dto';
+import type { TeamSummary } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, DemoSummary } from '../../shared/desktop/viewModels';
 import type {
   FocusedPlayer,
   MatchIdentity,

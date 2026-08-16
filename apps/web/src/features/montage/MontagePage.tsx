@@ -33,8 +33,8 @@ import type {
   JobAccepted,
   MediaAsset,
   MontageProjectRecord,
-  RecordedClip,
 } from '../../shared/desktop/dto';
+import type { RecordedClip } from '../../shared/desktop/viewModels';
 import { chooseLocalFile, isDesktopShell } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';

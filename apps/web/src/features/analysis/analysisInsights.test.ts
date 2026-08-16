@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  AnalysisInsightsRecord,
-  AnalysisWorkspace,
-  Highlight,
-  PlayerAnalysis,
-} from '../../shared/desktop/dto';
+import type { AnalysisInsightsRecord } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import {
   analysisInsightsForWorkspace,
   emptyAnalysisInsights,

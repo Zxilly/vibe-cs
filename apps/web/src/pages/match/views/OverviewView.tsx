@@ -57,7 +57,7 @@ import { Trans } from '@lingui/react/macro';
 
 import { Button } from '../../../design/primitives';
 import { HighlightRow, RoundTimeline } from '../../../domain/match';
-import type { AnalysisWorkspace } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { roundSummaries } from '../matchModel';
 import type { MatchContextPatch } from '../workspaceContext';
 import type { MatchVideoAction, MatchViewModule, MatchViewProps } from '../viewContract';

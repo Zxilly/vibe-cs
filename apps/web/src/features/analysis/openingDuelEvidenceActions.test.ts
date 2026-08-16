@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import type { OpeningDuelEvidence } from './openingDuelWorkspace';
 import { openingDuelEvidenceActionContract } from './openingDuelEvidenceActions';
 

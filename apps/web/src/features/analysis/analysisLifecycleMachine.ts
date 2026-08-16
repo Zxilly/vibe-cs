@@ -1,11 +1,8 @@
 import { assign, fromPromise, setup, type SnapshotFrom } from 'xstate';
 
 import { commands } from '../../shared/desktop/client';
-import type {
-  AnalysisRun,
-  AnalysisWorkspace,
-  DemoLifecycleStatus,
-} from '../../shared/desktop/dto';
+import type { AnalysisRun, DemoLifecycleStatus } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import { runBatchAnalysis, type BatchAnalysisState } from './analysisBatch';
 import {
   AnalysisLifecycleError,

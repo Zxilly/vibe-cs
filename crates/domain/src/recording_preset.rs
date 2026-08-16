@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{DomainError, HlaeCameraStyle, RecordingPresentation};
+use ts_rs::TS;
 
 /// Longest preset name. Matches the label bound used across the Agent workspace
 /// so one text field cannot be valid in one pane and rejected in another.
@@ -31,8 +32,9 @@ pub const RECORDING_SHOT_PRESET_MAX_NAME_CHARS: usize = 200;
 pub const RECORDING_SHOT_PRESET_MAX_ROLL_SECONDS: f64 = 60.0;
 
 /// A named, reusable set of shot settings.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RecordingShotPreset {
     pub id: Uuid,
     pub name: String,
@@ -76,8 +78,9 @@ impl RecordingShotPreset {
 
 /// The caller-supplied half of a preset. Identity and timestamps stay
 /// server-owned, exactly as they do for plans and sessions.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RecordingShotPresetDraft {
     pub name: String,
     pub camera_style: HlaeCameraStyle,

@@ -65,7 +65,8 @@ import type {
   TaskStatus,
   TaskSummary,
 } from '../../domain/task';
-import type { ActivityItem, ActivityStatus } from '../../shared/desktop/dto';
+import type { ActivityStatus } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 
 /* ── status ──────────────────────────────────────────────────────────────── */
 

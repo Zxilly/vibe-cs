@@ -1,4 +1,5 @@
-import type { AnalysisWorkspace, LlmReviewResult } from '../../shared/desktop/dto';
+import type { LlmReviewResult } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 
 export type ReviewDelivery = {
   fileName: string;

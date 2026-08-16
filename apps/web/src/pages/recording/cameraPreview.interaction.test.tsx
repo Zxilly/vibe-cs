@@ -88,7 +88,9 @@ function mount(options: MountOptions = {}): Harness {
         directory: 'C:\\VibeCS\\hlae-plans\\x',
         files: ['bootstrap.cfg'],
         completion_marker: 'done.json',
-        launched: false as const,
+        base_fingerprint: 'base',
+        proposal_fingerprint: 'proposal',
+        launched: false,
       }),
     playDemo: (_demoId: string, playback?: DemoPlaybackOptions) => {
       playbackOptions.push(playback ?? {});

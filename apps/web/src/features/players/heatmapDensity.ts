@@ -1,8 +1,14 @@
-import type { PlayerHeatmapKind } from '../../shared/desktop/dto';
+/**
+ * `PlayerHeatmapKind` has three members on the wire — `all`, `kills` and
+ * `deaths`. Only the last two are counted per cell: `all` is the *query* a
+ * caller can ask for, and a point that comes back under it is already either a
+ * kill or a death, so a bucket for it would double-count.
+ */
+export type HeatmapDensityKind = 'kills' | 'deaths';
 
 export type HeatmapDensityPoint = {
   evidenceId: string;
-  kind: PlayerHeatmapKind;
+  kind: HeatmapDensityKind;
   xPercent: number;
   yPercent: number;
 };

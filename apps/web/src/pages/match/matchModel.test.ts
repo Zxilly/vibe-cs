@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, DemoSummary } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, DemoSummary } from '../../shared/desktop/viewModels';
 import {
   focusedPlayers,
   formatMatchDay,

@@ -59,7 +59,7 @@ import {
   TEAM_SIDE,
   type TeamSide,
 } from '../../../domain/match';
-import type { AnalysisWorkspace, PlayerAnalysis } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../../shared/desktop/viewModels';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import type { MatchContextPatch } from '../workspaceContext';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';

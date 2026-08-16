@@ -1,13 +1,11 @@
 import { msg } from '../../shared/i18n';
 import type {
   AnalysisInsightsRecord,
-  AnalysisWorkspace,
-  Highlight,
-  PlayerAnalysis,
   PlayerMatchupInsightRecord,
   RoundEconomyInsightRecord,
   TeamPurchaseInsightRecord,
 } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight, PlayerAnalysis } from '../../shared/desktop/viewModels';
 
 const unavailable = (reason: string) => ({ available: false, reason });
 

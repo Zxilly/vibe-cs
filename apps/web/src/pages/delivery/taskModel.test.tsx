@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { ActivityItem } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import {
   taskKindOfActivity,
   taskProgressOfActivity,

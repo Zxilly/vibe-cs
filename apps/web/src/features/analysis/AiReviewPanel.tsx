@@ -10,13 +10,8 @@ import {
   revealLocalPath,
   writeLocalBytes,
 } from '../../shared/desktop/dialog';
-import type {
-  AnalysisWorkspace,
-  LlmReviewResult,
-  LlmReviewScope,
-  LlmReviewTone,
-  PlayerAnalysis,
-} from '../../shared/desktop/dto';
+import type { LlmReviewResult, LlmReviewScope, LlmReviewTone } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import { Badge, Button, Card, EmptyState, Notice, Spinner } from '../../shared/ui';
 import {
   buildReviewRequest,

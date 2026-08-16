@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::HlaeScenePresentation;
 
@@ -41,8 +42,10 @@ pub struct HlaeDiscovery {
     pub messages: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// Whether a compiled plan only draws its camera paths or records frames.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum HlaePlanMode {
     /// Loads and draws camera paths without starting a recording.
     Preview,
@@ -50,51 +53,64 @@ pub enum HlaePlanMode {
     Capture,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// How camera positions are interpolated between two keyframes.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum PositionInterpolation {
     Linear,
     Cubic,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// How camera orientations are interpolated between two keyframes.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum RotationInterpolation {
     SphericalLinear,
     SphericalCubic,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+/// A camera location in CS2 world coordinates.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CameraPosition {
     pub x: f64,
     pub y: f64,
     pub z: f64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+/// A camera orientation in degrees.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CameraRotation {
     pub pitch: f64,
     pub yaw: f64,
     pub roll: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// One sampled camera state, anchored to a demo tick.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CameraKeyframe {
     pub tick: u64,
     pub position: CameraPosition,
     pub rotation: CameraRotation,
+    /// Horizontal field of view at this keyframe, in degrees.
     pub fov: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// One camera path covering a closed tick window.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CameraShot {
     /// Stable ASCII identifier used only to derive artifact file names.
     pub id: String,
@@ -105,9 +121,11 @@ pub struct CameraShot {
     pub keyframes: Vec<CameraKeyframe>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// The image streams HLAE writes for a capture.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CaptureLayers {
     /// Final game presentation, including Panorama UI when visible.
     pub screen: bool,
@@ -127,9 +145,11 @@ impl Default for CaptureLayers {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// Resolution, frame rate and streams for one capture.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CaptureSettings {
     pub fps: u32,
     pub width: u32,
@@ -150,9 +170,12 @@ impl Default for CaptureSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// The closed camera-plan contract. This is exactly what an HLAE proposal
+/// preview carries in `typed_plan`, and exactly what an export compiles.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HlaePlan {
     pub mode: HlaePlanMode,
     /// Tick rate parsed from the selected demo. Camera times are derived from
@@ -176,8 +199,10 @@ pub struct HlaePlan {
     pub shots: Vec<CameraShot>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// The closed set of non-blocking review notices a plan can raise.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum HlaeNoticeCode {
     ShortKeyframeGap,
     ShotGap,
@@ -186,25 +211,34 @@ pub enum HlaeNoticeCode {
     CameraCollisionNotChecked,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// One review notice. The English `message` is the free half; `code` is what a
+/// client looks up.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export)]
 pub struct HlaeNotice {
     pub code: HlaeNoticeCode,
     pub message: String,
+    /// The shot this notice speaks about, when it speaks about only one.
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub shot_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// One file a compiled plan would write, with its full contents.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export)]
 pub struct GeneratedArtifact {
     pub path: PathBuf,
     pub media_type: String,
     pub contents: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+/// A dry-run bundle: every artifact a plan would produce, before anything is
+/// written. This is what an HLAE proposal preview carries in `compiled_preview`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export)]
 pub struct CompiledHlaePlan {
     pub mode: HlaePlanMode,
     pub first_tick: u64,

@@ -18,6 +18,7 @@ use vibe_cs_domain::{JobStatus, RecordedClip};
 use vibe_cs_storage::ExportJobRecord;
 
 use crate::{ApiError, ApiJson, ApiQuery, ApiResult, AppState};
+use ts_rs::TS;
 
 const MAXIMUM_BATCH_SIZE: usize = 200;
 const MAXIMUM_OUTPUT_SCAN_PER_KIND: u32 = 2_000;
@@ -41,8 +42,9 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/outputs/cleanup-staged", post(cleanup_staged_outputs))
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 enum OutputKind {
     Recording,
     Export,
@@ -58,15 +60,17 @@ impl OutputKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 enum OutputAvailability {
     Present,
     Missing,
     Unsafe,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 struct OutputItemDto {
     id: Uuid,
     output_kind: OutputKind,
@@ -87,18 +91,26 @@ struct OutputItemDto {
     updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct OutputListQuery {
+    #[ts(optional)]
     page: Option<u32>,
+    #[ts(optional)]
     page_size: Option<u32>,
+    #[ts(optional)]
     kind: Option<OutputKind>,
+    #[ts(optional)]
     status: Option<JobStatus>,
+    #[ts(optional)]
     availability: Option<OutputAvailability>,
+    #[ts(optional)]
     search: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct OutputPageDto {
     items: Vec<OutputItemDto>,
     total: u64,
@@ -509,7 +521,8 @@ struct DeleteOutputQuery {
     delete_file: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
 struct DeleteOutputResult {
     id: Uuid,
     output_kind: OutputKind,
@@ -617,14 +630,16 @@ struct BatchDeleteRequest {
     delete_files: bool,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, Hash, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct OutputReference {
     kind: OutputKind,
     id: Uuid,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct BatchDeleteItemResult {
     kind: OutputKind,
     id: Uuid,
@@ -632,7 +647,8 @@ struct BatchDeleteItemResult {
     error: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct BatchDeleteResponse {
     requested: usize,
     deleted: usize,
@@ -688,7 +704,8 @@ struct CleanupMissingRequest {
     kind: Option<OutputKind>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct CleanupMissingResponse {
     inspected: usize,
     deleted: usize,
@@ -747,7 +764,8 @@ async fn cleanup_missing_outputs(
     }))
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct CleanupStagedResponse {
     inspected: usize,
     deleted: usize,

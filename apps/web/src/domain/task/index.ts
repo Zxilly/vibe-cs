@@ -62,6 +62,7 @@ export {
   taskProgressUnitLabels,
   taskStatusLabels,
 } from './taskVocabulary';
+export { JOB_STATUSES, asJobStatus } from './types';
 export type {
   FailedTask,
   TaskArtifact,

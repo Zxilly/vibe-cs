@@ -14,7 +14,7 @@ import type {
   DemoSummary,
   Highlight,
   RoundSummary,
-} from '../../../shared/desktop/dto';
+} from '../../../shared/desktop/viewModels';
 
 export const DEMO_ID = 'aurora-vs-meridian';
 

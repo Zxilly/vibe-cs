@@ -34,8 +34,8 @@ import type {
   ApiHealth,
   MontageClipRecord,
   MontageProjectRecord,
-  RecordedClip,
 } from '../../../shared/desktop/dto';
+import type { RecordedClip } from '../../../shared/desktop/viewModels';
 import { renderInteractive } from '../../../test/render';
 import { MontagePage } from '../../MontagePage';
 import { defaultMontageSettings } from '../montageSettings';

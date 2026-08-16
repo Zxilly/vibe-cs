@@ -4,7 +4,8 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { ActivityItem, AnalysisRunEvent } from '../../shared/desktop/dto';
+import type { AnalysisRunEvent } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import {
   analysisLogEntries,
   analysisStageEntries,

@@ -1,4 +1,40 @@
-import type { ReplayPayload } from '../../shared/desktop/dto';
+import type {
+  ReplayFrameRecord,
+  ReplayPayload,
+  ReplayPlayerRecord,
+} from '../../shared/desktop/dto';
+
+/**
+ * The selected-round replay artifact is a different document from the
+ * whole-match replay.
+ *
+ * `/api/analysis-runs/{id}/rounds/{n}/replay` is produced by the parser
+ * (`crates/demo/src/round_replay.rs`), not by
+ * `crates/application::encode_binary_replay`, and it carries four economy
+ * fields and a freeze-time boundary that the whole-match payload has never
+ * had. The wire types in `shared/desktop/dto` describe the whole-match
+ * payload; these three widen them for this one artifact.
+ *
+ * There is no generated binding for the round-replay document because it
+ * never crosses the HTTP boundary as a typed body — it arrives as a binary
+ * envelope this file decodes by hand.
+ */
+export type RoundReplayPlayerRecord = ReplayPlayerRecord & {
+  money: number;
+  current_equipment_value: number;
+  round_start_equipment_value: number;
+  has_helmet: boolean;
+};
+
+export type RoundReplayFrameRecord = Omit<ReplayFrameRecord, 'players'> & {
+  players: RoundReplayPlayerRecord[];
+};
+
+export type RoundReplayPayload = Omit<ReplayPayload, 'frames'> & {
+  frames: RoundReplayFrameRecord[];
+  /** The tick freeze time ended on, when the artifact could establish one. */
+  freeze_end_tick: number | null;
+};
 
 const maximumBytes = 128 * 1024 * 1024;
 const maximumFrames = 2_048;
@@ -32,7 +68,10 @@ function finite(value: unknown, minimum: number, maximum: number, label: string)
   return value;
 }
 
-export function decodeRoundReplayBinary(buffer: ArrayBuffer, expected: ExpectedRoundReplay): ReplayPayload {
+export function decodeRoundReplayBinary(
+  buffer: ArrayBuffer,
+  expected: ExpectedRoundReplay,
+): RoundReplayPayload {
   if (buffer.byteLength < 12 || buffer.byteLength > maximumBytes) throw new Error('Invalid round replay envelope');
   const bytes = new Uint8Array(buffer);
   if (new TextDecoder().decode(bytes.subarray(0, 4)) !== 'RRPL') throw new Error('Invalid round replay magic');

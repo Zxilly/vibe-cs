@@ -1,8 +1,5 @@
-import type {
-  AnalysisWorkspace,
-  InsightCapabilityRecord,
-  TimelineEvent,
-} from '../../shared/desktop/dto';
+import type { InsightCapabilityRecord, TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import type { PlayerEvidenceRef } from './playerMatchEvidence';
 
 export type UtilityType = 'smoke' | 'flash' | 'he' | 'fire' | 'decoy' | 'other';

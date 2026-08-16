@@ -9,7 +9,8 @@
 import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { OutputItem, OutputPage, Paginated, RecordedClip } from '../shared/desktop/dto';
+import type { OutputItem, OutputPage, Paginated } from '../shared/desktop/dto';
+import type { RecordedClip } from '../shared/desktop/viewModels';
 import { dataErrorMessage } from './errors';
 import { invalidateOutputs, useOutputList, useRecordedClips } from './outputs';
 import { countingStub, renderDataHook } from './test/renderDataHook';

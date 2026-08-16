@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 
 pub const MAX_DEMO_PLAYER_SUMMARY_NAMES: usize = 64;
@@ -10,8 +11,9 @@ pub const DEMO_TAG_MAX_NAME_CHARS: usize = crate::REVIEW_TAG_MAX_NAME_CHARS;
 pub const DEMO_TAG_MAX_ASSIGNMENTS: usize = crate::REVIEW_TAG_MAX_ASSIGNMENTS;
 pub const DEMO_METADATA_BATCH_MAX_DEMOS: usize = 100;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum DemoMatchSource {
     Challengermode,
     Ebot,
@@ -32,8 +34,9 @@ pub enum DemoMatchSource {
 pub type DemoTag = crate::ReviewTag;
 pub type DemoTagCreate = crate::ReviewTagCreate;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct DemoMetadata {
     pub demo_id: Uuid,
     pub match_source: Option<DemoMatchSource>,
@@ -42,16 +45,18 @@ pub struct DemoMetadata {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct DemoMetadataUpdate {
     pub match_source: Option<DemoMatchSource>,
     pub comment: String,
     pub tag_ids: Vec<Uuid>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct DemoMetadataBatchUpdate {
     pub demo_ids: Vec<Uuid>,
     pub set_match_source: bool,
@@ -154,8 +159,9 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum DemoStatus {
     #[default]
     Discovered,
@@ -166,8 +172,9 @@ pub enum DemoStatus {
     Missing,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum DemoSort {
     #[default]
     UpdatedDesc,
@@ -186,8 +193,9 @@ pub enum DemoSort {
     RoundsDesc,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct DemoRecord {
     pub id: Uuid,
     pub path: String,
@@ -220,33 +228,48 @@ pub struct DemoRecord {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct DemoQuery {
+    #[ts(optional)]
     pub search: Option<String>,
+    #[ts(optional)]
     pub source: Option<String>,
+    #[ts(optional)]
     pub match_source: Option<DemoMatchSource>,
+    #[ts(optional)]
     pub tag_id: Option<Uuid>,
+    #[ts(optional)]
     pub map_name: Option<String>,
+    #[ts(optional)]
     pub status: Option<DemoStatus>,
+    #[ts(optional)]
     pub sort: Option<DemoSort>,
+    #[ts(optional)]
     pub page: Option<u32>,
+    #[ts(optional)]
     pub page_size: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct DemoPatch {
+    #[ts(optional)]
     pub display_name: Option<String>,
+    #[ts(optional)]
     pub remark: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ScanRequest {
     pub paths: Vec<String>,
     pub recursive: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct ScanResult {
     pub discovered: u64,
     pub imported: u64,
@@ -255,7 +278,8 @@ pub struct ScanResult {
     pub errors: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq, TS)]
+#[ts(export)]
 pub struct PlayerStats {
     pub steam_id: String,
     /// One-based CS2 spectator target derived from `CMsgPlayerInfo.userid`.
@@ -330,8 +354,9 @@ impl<'de> Deserialize<'de> for PlayerStats {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct TeamSummary {
     pub name: String,
     pub side: String,

@@ -36,7 +36,8 @@ import {
   HIGHLIGHTS_PER_MATCH,
   makeHeatSamples,
 } from '../../../domain/densityFixtures';
-import type { AnalysisWorkspace, Highlight, ReplayFrameRecord } from '../../../shared/desktop/dto';
+import type { ReplayFrameRecord } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../../shared/desktop/viewModels';
 import { HighlightsView } from './HighlightsView';
 import { ReplayCanvas } from './ReplayCanvas';
 import { ReviewView } from './ReviewView';

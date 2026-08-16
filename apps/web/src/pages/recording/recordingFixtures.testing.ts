@@ -15,13 +15,13 @@ import type {
   AgentPlan,
   AgentPlanShot,
   AppConfig,
-  DemoSummary,
   DirectorPlan,
   HlaeProposalPreview,
   RecordingPlanResponse,
   RecordingPreflight,
-  RecordingRequest,
 } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
+import type { RecordingShot } from './recordingContract';
 
 export const DEMO_ID = '0d1f0a2c-0000-4000-8000-000000000001';
 export const AGENT_PLAN_ID = 'P-118';
@@ -41,7 +41,7 @@ export const RECORDING_DEFAULTS: AppConfig['recording'] = {
   flash_alpha: 255,
 };
 
-export function recordingItem(overrides: Partial<RecordingRequest> = {}): RecordingRequest {
+export function recordingItem(overrides: Partial<RecordingShot> = {}): RecordingShot {
   return {
     id: 'item-1',
     demo_id: DEMO_ID,
@@ -60,7 +60,7 @@ export function recordingItem(overrides: Partial<RecordingRequest> = {}): Record
 }
 
 /** The artboard's four: 建立地点 / 跟随突破 / 选手 POV · 三杀 / 高潮后升起. */
-export const ITEMS: readonly RecordingRequest[] = [
+export const ITEMS: readonly RecordingShot[] = [
   recordingItem({ id: 'item-1', title: '建立地点', camera_style: 'static' }),
   recordingItem({
     id: 'item-2',

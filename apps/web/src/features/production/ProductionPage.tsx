@@ -12,7 +12,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { commands, readableError } from '../../shared/desktop/client';
-import type { ActivityItem, ActivityStatus } from '../../shared/desktop/dto';
+import type { ActivityStatus } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { type MessageKey, useI18n } from '../../shared/i18n';
 import { useQueueStore } from '../queue/queueStore';
 import { Notice, PageHeader } from '../../shared/ui';

@@ -12,6 +12,7 @@
 //! keeps the old text.
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::HlaeError;
 
@@ -20,22 +21,28 @@ use crate::HlaeError;
 /// `spec_player`.
 const MAXIMUM_SPECTATOR_SLOT: u8 = 64;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// Whether the recorded scene draws the radar.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum HlaeRadarVisibility {
     Visible,
     Hidden,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// How much of the HUD the recorded scene draws.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum HlaeHudVisibility {
     Visible,
     DeathNoticesOnly,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// Whose voice is audible in the recorded scene.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum HlaeVoicePolicy {
     AllPlayers,
     Muted,
@@ -48,9 +55,10 @@ pub enum HlaeVoicePolicy {
 /// Field of view is deliberately absent: it belongs to
 /// [`crate::HlaePlayerPovPresentation`] because a camera path already carries a
 /// field of view on every keyframe and draws no viewmodel at all.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HlaeScenePresentation {
     pub radar: HlaeRadarVisibility,
     pub hud: HlaeHudVisibility,

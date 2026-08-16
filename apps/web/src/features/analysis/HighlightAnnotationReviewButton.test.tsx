@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/viewModels';
 import {
   HighlightAnnotationReviewButton,
   type HighlightAnnotationReviewButtonProps,

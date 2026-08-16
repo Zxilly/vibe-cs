@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 
 pub const MAX_ANALYSIS_RUN_EVENTS: u32 = 32;
@@ -13,8 +14,9 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum AnalysisRunStatus {
     Queued,
     Running,
@@ -34,8 +36,9 @@ impl AnalysisRunStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum AnalysisRunStage {
     ValidatingInput,
     ParserQueued,
@@ -85,8 +88,9 @@ impl AnalysisRunStage {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AnalysisRun {
     pub id: Uuid,
     pub demo_id: Uuid,
@@ -102,8 +106,9 @@ pub struct AnalysisRun {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AnalysisRunEvent {
     pub run_id: Uuid,
     pub sequence: u32,
@@ -114,8 +119,9 @@ pub struct AnalysisRunEvent {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum AnalysisRunEventCode {
     InputValidationStarted,
     InputVerified,
@@ -145,8 +151,9 @@ impl AnalysisRunEventCode {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AnalysisRunDetail {
     pub run: AnalysisRun,
     pub events: Vec<AnalysisRunEvent>,

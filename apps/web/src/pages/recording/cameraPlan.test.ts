@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import type { HlaeProposalPreview } from '../../shared/desktop/dto';
+import type { HlaeProposalPreview, JsonValue } from '../../shared/desktop/dto';
 import {
   cameraHeightProfile,
   cameraHeightRange,
@@ -71,7 +71,7 @@ function preview(overrides: Partial<HlaeProposalPreview> = {}): HlaeProposalPrev
     base_fingerprint: 'base',
     proposal_fingerprint: 'proposal',
     confirmation_token: 'token',
-    typed_plan: typedPlan(),
+    typed_plan: typedPlan() as JsonValue,
     compiled_preview: null,
     notices: [],
     installation_status: null,
@@ -155,7 +155,7 @@ describe('readHlaeCameraPlan', () => {
     if ('zeroTickRate' in mutation) document['tickRate'] = 0;
     if ('scalarShots' in mutation) document['shots'] = 4;
 
-    expect(readHlaeCameraPlan(preview({ typed_plan: document }))).toBeNull();
+    expect(readHlaeCameraPlan(preview({ typed_plan: document as JsonValue }))).toBeNull();
   });
 
   it('does not throw on a hostile document', () => {

@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useMemo } from 'react';
 
-import type { AnalysisWorkspace } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import { msg, useI18n } from '../../shared/i18n';
 import { Badge, Button } from '../../shared/ui';
 import type {

@@ -13,15 +13,15 @@ import {
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { asJobStatus } from '../../domain/task';
 import { commands, DesktopError, readableError } from '../../shared/desktop/client';
 import type {
   ActivityAction,
-  ActivityFeed,
-  ActivityItem,
   ActivityKind,
   ActivityStatus,
   AnalysisRunDetail,
 } from '../../shared/desktop/dto';
+import type { ActivityFeed, ActivityItem } from '../../shared/desktop/viewModels';
 import { type MessageKey, useI18n } from '../../shared/i18n';
 import { Badge, Button, Card, EmptyState, Notice, PageHeader, Spinner } from '../../shared/ui';
 import {
@@ -178,7 +178,10 @@ export async function executeActivityAction(
     const plan = await commands.planRecordingRetry(item.job_id);
     const execution = await commands.executeRecordingPlan(plan.plan_id, false);
     return {
-      status: execution.status,
+      // `RecordingExecutionResponse.status` is a plain string on the wire; an
+      // unrecognised value is reported as "no status" rather than narrowed by
+      // assertion.
+      status: asJobStatus(execution.status),
       activityId: `recording:${execution.job_id}`,
       stage: null,
     };

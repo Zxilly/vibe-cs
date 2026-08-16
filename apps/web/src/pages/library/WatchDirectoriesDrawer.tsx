@@ -20,11 +20,15 @@ import type { ReactNode } from 'react';
 
 import { Drawer, Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { Button } from '../../design/primitives';
-import type { DemoWatchRootStatus, DemoWatchStatus } from '../../shared/desktop/dto';
+import type { DemoWatchStatus } from '../../shared/desktop/dto';
 import { alsoDisabled, type ServiceActionButtonProps } from './serviceAction';
 
-/** The service's six root states, in dots. */
-const ROOT_DOT: Readonly<Record<DemoWatchRootStatus['state'], StatusDotStatus>> = {
+/**
+ * `DemoWatchRootStatus.state` is a plain `string` on the wire — Rust writes it
+ * as a `&'static str` from a `match` arm — so this table is a lookup with a
+ * fallback, not a total mapping.
+ */
+const ROOT_DOT: Readonly<Record<string, StatusDotStatus>> = {
   watching: 'ok',
   missing: 'fail',
   rejected: 'fail',
@@ -108,7 +112,7 @@ export function WatchDirectoriesDrawer({
               key={root.path}
               className="flex min-h-[var(--h-row)] items-center gap-3 border-b border-divider py-2"
             >
-              <StatusDot status={ROOT_DOT[root.state]} size="sm" />
+              <StatusDot status={ROOT_DOT[root.state] ?? 'idle'} size="sm" />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate font-mono text-xs" title={root.path}>
                   {root.path}

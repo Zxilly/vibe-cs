@@ -37,7 +37,7 @@ import { useMatchAnalysis } from '../../../data/match';
 import { DataTable, EmptyState, type DataTableColumn, type SortState } from '../../../design/data';
 import { Button } from '../../../design/primitives';
 import { HighlightRow, type HighlightCandidate } from '../../../domain/match';
-import type { AnalysisWorkspace, Highlight } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../../shared/desktop/viewModels';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import { rosterIndex } from './duelsModel';

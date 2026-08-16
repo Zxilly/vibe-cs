@@ -32,7 +32,8 @@ import { Dialog } from '../../design/feedback';
 import { Button, cx } from '../../design/primitives';
 import { useRecordedClips } from '../../data/outputs';
 import { ClipStrip, type MediaClip } from '../../domain/media';
-import type { MontageClipRecord, RecordedClip } from '../../shared/desktop/dto';
+import type { MontageClipRecord } from '../../shared/desktop/dto';
+import type { RecordedClip } from '../../shared/desktop/viewModels';
 import { AddClipsDialog } from './AddClipsDialog';
 import { ClipTrimDrawer } from './ClipTrimDrawer';
 import {

@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::RewriteError;
 
@@ -15,11 +16,18 @@ pub const ORIGINAL_OWNER_LOW_PATH: &str = "m_AttributeManager.m_Item.m_OriginalO
 pub const ORIGINAL_OWNER_HIGH_PATH: &str = "m_AttributeManager.m_Item.m_OriginalOwnerXuidHigh";
 
 /// Stable player identity used for ownership matching.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct StablePlayerIdentity {
     /// 64-bit Steam identity.
+    ///
+    /// A decimal **string** on the wire: `u64_string` serializes it that way
+    /// because Steam64 values exceed JavaScript's safe integer range. ts-rs
+    /// cannot read a `serde(with = ...)` module, so the wire type is restated
+    /// here.
     #[serde(with = "u64_string")]
+    #[ts(as = "String")]
     pub steam_id64: u64,
     /// Stable 32-bit account component. It must equal the low 32 bits of
     /// `steam_id64`.
@@ -84,8 +92,9 @@ impl StablePlayerIdentity {
 }
 
 /// Item selection for one cosmetic patch.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CosmeticTarget {
     /// Stable owner identity.
     pub owner: StablePlayerIdentity,
@@ -95,8 +104,9 @@ pub struct CosmeticTarget {
 }
 
 /// Values that may replace existing, recognized cosmetic fields.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CosmeticValues {
     /// Paint kit identifier. Zero is permitted to clear a fallback value.
     pub paint_kit: Option<u32>,
@@ -127,8 +137,9 @@ impl CosmeticValues {
 }
 
 /// One stable-target cosmetic patch.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CosmeticPatch {
     /// Stable owner and optional item filter.
     pub target: CosmeticTarget,
@@ -292,8 +303,9 @@ impl RewriteLimits {
 }
 
 /// Cosmetic field names accepted by the writer.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum CosmeticField {
     /// Fallback paint kit.
     PaintKit,
@@ -405,8 +417,9 @@ pub struct EntitySnapshot {
 }
 
 /// Identity evidence used for a successful match.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum MatchBasis {
     /// Item account ID matched.
     AccountId,
@@ -452,8 +465,9 @@ impl EntityRewritePlan {
 }
 
 /// Hit count for one requested field.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct FieldHit {
     /// Field represented by this count.
     pub field: CosmeticField,
@@ -462,8 +476,9 @@ pub struct FieldHit {
 }
 
 /// Per-patch rewrite result.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PatchRewriteReport {
     /// Request patch index.
     pub patch_index: usize,
@@ -485,8 +500,9 @@ impl PatchRewriteReport {
 }
 
 /// Backend counters returned before safe publication.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct BackendReport {
     /// Packet entity records examined.
     pub entity_updates: u64,
@@ -506,8 +522,9 @@ impl BackendReport {
 }
 
 /// Successfully synchronized and atomically published rewrite result.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RewriteReport {
     /// Canonical input path.
     pub input_path: PathBuf,
@@ -528,8 +545,9 @@ pub struct RewriteReport {
 /// Repeated entity handles with the same owner and item definition are
 /// intentionally grouped because the writer targets that stable pair rather
 /// than a transient Source 2 entity handle.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CosmeticInspectionItem {
     /// Stable owner identity accepted by [`CosmeticTarget`].
     pub owner: StablePlayerIdentity,
@@ -556,8 +574,9 @@ pub struct CosmeticInspectionItem {
 }
 
 /// Bounded, read-only cosmetic inventory inspection.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CosmeticInspectionReport {
     /// Canonical input path.
     pub input_path: PathBuf,

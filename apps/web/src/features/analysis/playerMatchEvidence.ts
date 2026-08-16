@@ -1,12 +1,10 @@
 import type {
-  AnalysisWorkspace,
   CountedItemRecord,
-  Highlight,
   InsightCapabilityRecord,
-  PlayerAnalysis,
   PlayerMatchupInsightRecord,
   TimelineEvent,
 } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight, PlayerAnalysis } from '../../shared/desktop/viewModels';
 
 export type PlayerEvidenceAvailability = {
   state: 'available' | 'partial' | 'unavailable';

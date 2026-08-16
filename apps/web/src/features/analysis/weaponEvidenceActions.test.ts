@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import type { WeaponAtomicEvidence } from './weaponEvidenceWorkspace';
 import { weaponEvidenceActionContract } from './weaponEvidenceActions';
 

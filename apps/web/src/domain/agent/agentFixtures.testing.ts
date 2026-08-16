@@ -20,9 +20,9 @@ import type {
   AgentSessionEntry,
   AgentSessionProposal,
   AgentSessionSummary,
-  AgentWorkspaceReference,
   WorkspaceEditNotice,
 } from '../../shared/desktop/dto';
+import type { KnownWorkspaceReference } from './types';
 
 /* ── the plan ────────────────────────────────────────────────────────────── */
 
@@ -216,7 +216,7 @@ export const PLAN_PROPOSAL: AgentSessionProposal = {
 
 /* ── the workspace ───────────────────────────────────────────────────────── */
 
-export const REFERENCE_PLAN: AgentWorkspaceReference = {
+export const REFERENCE_PLAN: KnownWorkspaceReference = {
   kind: 'plan',
   id: 'P-118',
   label: '方案 · Kael Mirage 1v3 · 4 个镜头 · 42 秒',
@@ -227,7 +227,7 @@ export const REFERENCE_PLAN: AgentWorkspaceReference = {
   updated_at: '2026-08-15T09:24:00.000Z',
 };
 
-export const REFERENCE_TASK: AgentWorkspaceReference = {
+export const REFERENCE_TASK: KnownWorkspaceReference = {
   kind: 'recording_task',
   id: 'A-2483',
   label: '录制任务 · Rhea 双杀',
@@ -238,7 +238,7 @@ export const REFERENCE_TASK: AgentWorkspaceReference = {
   updated_at: '2026-08-15T09:40:00.000Z',
 };
 
-export const REFERENCE_FAILED_OUTPUT: AgentWorkspaceReference = {
+export const REFERENCE_FAILED_OUTPUT: KnownWorkspaceReference = {
   kind: 'output',
   id: 'E-131',
   label: '导出任务 · Aurora 赛点集锦',

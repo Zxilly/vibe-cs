@@ -32,7 +32,8 @@ import { useEffect, useState } from 'react';
 import { Inspector } from '../../design/layout';
 import { Notice, StatusDot } from '../../design/feedback';
 import { Button, Tag, TextInput } from '../../design/primitives';
-import type { DemoMetadata, DemoSummary } from '../../shared/desktop/dto';
+import type { DemoMetadata } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 import {
   demoSourceLabel,
   demoStatusMeta,

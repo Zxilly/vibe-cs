@@ -43,6 +43,7 @@ use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use sha2::{Digest, Sha256};
+use ts_rs::TS;
 use uuid::Uuid;
 use vibe_cs_domain::{
     AppConfig, BeatAlignmentAudioBinding, BeatAlignmentAudioPlacement, BeatAlignmentDraft,
@@ -411,15 +412,17 @@ impl ContentAddressedDemoPut {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ExportJobRecord {
     pub kind: String,
     pub job: ExportJob,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PresetRecord {
     pub id: Uuid,
     pub name: String,

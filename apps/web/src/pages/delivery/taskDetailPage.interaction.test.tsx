@@ -11,7 +11,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivityItem, AnalysisRunDetail } from '../../shared/desktop/dto';
+import type { AnalysisRunDetail } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { TaskDetailPage } from '../TaskDetailPage';
 import { HEALTHY, renderPage } from './test/renderPage';
 

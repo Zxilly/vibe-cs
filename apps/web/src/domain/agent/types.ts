@@ -133,6 +133,7 @@ import type {
   AgentSessionEntry,
   AgentSessionProposal,
   AgentShotView,
+  AgentWorkspaceReference,
   WorkspaceEditOperation,
 } from '../../shared/desktop/dto';
 
@@ -257,6 +258,45 @@ export const AGENT_OBJECT_KINDS: readonly AgentObjectKind[] = [
   'edit_project',
   'output',
 ];
+
+/**
+ * Narrows the `kind` of a workspace reference.
+ *
+ * `WorkspaceReference.kind` is typed `string` in Rust — its own doc comment
+ * calls it "the persisted `AgentObjectKind` discriminator", but the field is a
+ * `&'static str` written by a `match` arm, so nothing in the contract closes
+ * it. A row whose kind this application does not know is dropped rather than
+ * rendered as a blank chip.
+ */
+/**
+ * A workspace reference whose `kind` this application recognises.
+ *
+ * The picker never renders an unknown kind, because every affordance it draws
+ * — icon, label, destination — is keyed by the four members of
+ * `AgentObjectKind`. `knownWorkspaceReferences` is the one place a row is
+ * dropped.
+ */
+export type KnownWorkspaceReference = Omit<AgentWorkspaceReference, 'kind'> & {
+  kind: AgentObjectKind;
+};
+
+/** Drops reference rows whose `kind` is outside `AGENT_OBJECT_KINDS`. */
+export function knownWorkspaceReferences(
+  items: readonly AgentWorkspaceReference[],
+): readonly KnownWorkspaceReference[] {
+  const known: KnownWorkspaceReference[] = [];
+  for (const item of items) {
+    const kind = asAgentObjectKind(item.kind);
+    if (kind !== null) known.push({ ...item, kind });
+  }
+  return known;
+}
+
+export function asAgentObjectKind(value: string): AgentObjectKind | null {
+  return AGENT_OBJECT_KINDS.includes(value as AgentObjectKind)
+    ? (value as AgentObjectKind)
+    : null;
+}
 
 /**
  * §4.5.1's four object lifecycles. Whole-table `context: 'agent-object'` — see

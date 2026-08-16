@@ -1,4 +1,5 @@
-import type { AnalysisWorkspace, CountedItemRecord } from '../../shared/desktop/dto';
+import type { CountedItemRecord } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import { analysisInsightsForWorkspace, matchupsForPlayer } from './analysisInsights';
 
 export type OverviewWeaponEvidence = {

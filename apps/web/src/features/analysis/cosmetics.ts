@@ -2,6 +2,8 @@ import { msg, msgf } from '../../shared/i18n';
 import type {
   CosmeticFieldName,
   CosmeticInspectionItem,
+  CosmeticPatch,
+  CosmeticPlan,
   CosmeticRewriteRequest,
   CosmeticValues,
 } from '../../shared/desktop/dto';
@@ -24,6 +26,28 @@ export function initialCosmeticDrafts(items: CosmeticInspectionItem[]): Cosmetic
   ]));
 }
 
+/**
+ * The patches of a saved plan.
+ *
+ * `CosmeticPlan.patches` is a `JsonValue` because storage keeps the document
+ * as `serde_json::Value` — the hand-written mirror used to claim a typed array
+ * the server never guaranteed. Everything that is not a recognisable patch is
+ * dropped rather than trusted.
+ */
+export function cosmeticPlanPatches(plan: CosmeticPlan): CosmeticPatch[] {
+  if (!Array.isArray(plan.patches)) return [];
+  return plan.patches.filter((entry): entry is CosmeticPatch & Record<string, never> => {
+    if (entry === null || typeof entry !== 'object' || Array.isArray(entry)) return false;
+    const target = (entry as Record<string, unknown>).target;
+    const values = (entry as Record<string, unknown>).values;
+    if (target === null || typeof target !== 'object' || Array.isArray(target)) return false;
+    if (values === null || typeof values !== 'object' || Array.isArray(values)) return false;
+    const owner = (target as Record<string, unknown>).owner;
+    if (owner === null || typeof owner !== 'object' || Array.isArray(owner)) return false;
+    return typeof (owner as Record<string, unknown>).steam_id64 === 'string';
+  }) as unknown as CosmeticPatch[];
+}
+
 export function cosmeticDraftsFromPatches(
   items: CosmeticInspectionItem[],
   patches: CosmeticRewriteRequest['patches'],
@@ -38,9 +62,11 @@ export function cosmeticDraftsFromPatches(
     const key = cosmeticItemKey(item);
     const draft = drafts[key];
     if (!draft) return;
-    (Object.entries(patch.values) as Array<[CosmeticFieldName, number]>).forEach(([field, value]) => {
-      if (cosmeticFieldEditable(item, field)) draft[field] = value.toString();
-    });
+    (Object.entries(patch.values) as Array<[CosmeticFieldName, number | null]>)
+      .forEach(([field, value]) => {
+        if (value === null) return;
+        if (cosmeticFieldEditable(item, field)) draft[field] = value.toString();
+      });
   });
   return drafts;
 }
@@ -66,7 +92,7 @@ export function buildCosmeticRewriteRequest(
   for (const item of items) {
     const draft = drafts[cosmeticItemKey(item)];
     if (!draft) continue;
-    const values: CosmeticValues = {};
+    const values: CosmeticValues = { paint_kit: null, seed: null, wear: null, stat_trak: null };
     for (const field of ['paint_kit', 'seed', 'wear', 'stat_trak'] as const) {
       const raw = draft[field].trim();
       if (!raw || !cosmeticFieldEditable(item, field)) continue;
@@ -77,7 +103,7 @@ export function buildCosmeticRewriteRequest(
       values[field] = parsed;
       changedFields += 1;
     }
-    if (Object.keys(values).length > 0) {
+    if (Object.values(values).some((value) => value !== null)) {
       patches.push({
         target: {
           owner: item.owner,

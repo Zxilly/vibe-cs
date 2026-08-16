@@ -1,6 +1,6 @@
 import { MessageSquareText } from 'lucide-react';
 
-import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../shared/desktop/viewModels';
 import { useI18n } from '../../shared/i18n';
 import { Badge, Button } from '../../shared/ui';
 import {

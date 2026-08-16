@@ -7,6 +7,7 @@ use axum::{
     routing::get,
 };
 use serde::Serialize;
+use ts_rs::TS;
 
 use crate::{ApiError, ApiResult, AppState, RadarOverviewData};
 
@@ -16,7 +17,9 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/maps/{map_name}/radar/metadata", get(radar_metadata))
 }
 
-#[derive(Debug, Serialize)]
+/// The radar overview transform published by `/api/maps/{map}/radar/metadata`.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct RadarTransformResponse {
     pos_x: f64,
     pos_y: f64,
@@ -25,7 +28,10 @@ struct RadarTransformResponse {
     zoom: Option<f64>,
 }
 
-#[derive(Debug, Serialize)]
+/// Radar overview metadata. `image_url` points at this service's own radar
+/// route, never at a third-party image host.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct RadarMetadataResponse {
     map_name: String,
     transform: Option<RadarTransformResponse>,

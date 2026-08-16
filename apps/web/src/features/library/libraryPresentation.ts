@@ -1,9 +1,10 @@
-import type { DemoRecord, DemoStatus, DemoSummary } from '../../shared/desktop/dto';
+import type { DemoRecord } from '../../shared/desktop/dto';
+import type { DemoDisplayStatus, DemoSummary } from '../../shared/desktop/viewModels';
 
 export type DemoLifecycleAction = 'start' | 'progress' | 'open' | 'retry' | 'locate';
 
 export type DemoLifecyclePresentation = {
-  status: DemoStatus;
+  status: DemoDisplayStatus;
   tone: 'neutral' | 'warning' | 'success' | 'danger';
   action: DemoLifecycleAction | null;
   enabled: boolean;

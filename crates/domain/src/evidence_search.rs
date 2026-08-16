@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ts_rs::TS;
 use uuid::Uuid;
 
 pub const EVIDENCE_SEARCH_DEFAULT_PAGE_SIZE: u32 = 50;
@@ -10,8 +11,9 @@ pub const EVIDENCE_SEARCH_MAX_QUERY_CHARS: usize = 128;
 pub const EVIDENCE_SEARCH_MAX_FILTER_CHARS: usize = 128;
 pub const EVIDENCE_SEARCH_MAX_ROUND: u32 = 256;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum EvidenceEventFamily {
     Kill,
     MultiKill,
@@ -19,31 +21,49 @@ pub enum EvidenceEventFamily {
     RoundStart,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum EvidenceSourceKind {
     Event,
     Highlight,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EvidenceSearchQuery {
+    #[ts(optional)]
     pub q: Option<String>,
+    #[ts(optional)]
     pub event_family: Option<EvidenceEventFamily>,
+    #[ts(optional)]
     pub actor: Option<String>,
+    #[ts(optional)]
     pub victim: Option<String>,
+    #[ts(optional)]
     pub player: Option<String>,
+    #[ts(optional)]
     pub weapon: Option<String>,
+    #[ts(optional)]
     pub map: Option<String>,
+    #[ts(optional)]
     pub source: Option<String>,
+    #[ts(optional)]
     pub headshot: Option<bool>,
+    #[ts(optional)]
     pub round: Option<u32>,
+    #[ts(optional)]
     pub match_date_from: Option<DateTime<Utc>>,
+    #[ts(optional)]
     pub match_date_to: Option<DateTime<Utc>>,
+    #[ts(optional)]
     pub source_kind: Option<EvidenceSourceKind>,
+    #[ts(optional)]
     pub demo_id: Option<Uuid>,
+    #[ts(optional)]
     pub page: Option<u32>,
+    #[ts(optional)]
     pub page_size: Option<u32>,
 }
 
@@ -116,7 +136,8 @@ impl EvidenceSearchQuery {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct EvidenceSearchItem {
     pub evidence_id: String,
     pub demo_id: Uuid,
@@ -141,14 +162,16 @@ pub struct EvidenceSearchItem {
     pub replay_href: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct EvidenceSearchCapability {
     pub available: bool,
     pub indexed_items: u64,
     pub reason: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
 pub struct EvidenceSearchAvailability {
     pub indexed_items: u64,
     /// Analyses whose durable projection timestamp and row count are current.
@@ -160,7 +183,8 @@ pub struct EvidenceSearchAvailability {
     pub source: EvidenceSearchCapability,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct EvidenceSearchPage {
     pub items: Vec<EvidenceSearchItem>,
     pub total: u64,

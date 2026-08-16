@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, TimelineEvent } from '../../shared/desktop/dto';
+import type { JsonValue, TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import { buildRoundContext } from './roundContextModel';
 
 const FALLEN = '76561197960690195';
@@ -125,7 +126,7 @@ describe('round context model', () => {
       tick: number,
       kind: TimelineEvent['kind'],
       actor: string | null,
-      detail: Record<string, unknown> = {},
+      detail: JsonValue = {},
     ): TimelineEvent => ({
       id,
       tick,

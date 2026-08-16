@@ -32,10 +32,10 @@
 
 import type {
   AnalysisInsightsRecord,
-  AnalysisWorkspace,
   RoundEconomyInsightRecord,
-  RoundSummary as WireRound,
+  AnalysisRoundRecord as WireRound,
 } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { normaliseRoundEndReason, type RoundEndReason, type RoundWinner } from '../../../domain/match';
 
 /** The two sides a purchase event can name. Not a team — see the header. */

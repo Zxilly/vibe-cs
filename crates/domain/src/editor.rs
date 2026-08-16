@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 
 pub const MAX_EDITOR_KEYFRAMES_PER_CLIP: usize = 128;
@@ -14,8 +15,9 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorProject {
     pub id: Uuid,
     pub name: String,
@@ -47,8 +49,9 @@ pub struct EditorAudioSeparation {
 ///
 /// The full project document is retained by storage and restored through the
 /// snapshot identifier; list operations can therefore stay lightweight.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorProjectSnapshot {
     pub id: Uuid,
     pub project_id: Uuid,
@@ -549,8 +552,9 @@ fn is_editor_color(value: &str) -> bool {
         && value[1..].bytes().all(|byte| byte.is_ascii_hexdigit())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorTrack {
     pub id: Uuid,
     pub name: String,
@@ -562,8 +566,9 @@ pub struct EditorTrack {
     pub clips: Vec<EditorClip>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum TrackKind {
     Video,
     Audio,
@@ -571,8 +576,9 @@ pub enum TrackKind {
     Overlay,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorClip {
     pub id: Uuid,
     #[serde(deserialize_with = "deserialize_required_nullable")]
@@ -601,8 +607,9 @@ pub struct EditorClip {
     pub speed_segments: Vec<EditorSpeedSegment>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum EditorKeyframeProperty {
     X,
     Y,
@@ -613,8 +620,9 @@ pub enum EditorKeyframeProperty {
     Volume,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorKeyframe {
     pub id: Uuid,
     pub time: f64,
@@ -623,8 +631,9 @@ pub struct EditorKeyframe {
 }
 
 /// One constant-speed interval on the clip-local output timeline.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorSpeedSegment {
     pub id: Uuid,
     pub start: f64,
@@ -632,8 +641,9 @@ pub struct EditorSpeedSegment {
     pub speed: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct Transform {
     pub x: f64,
     pub y: f64,
@@ -656,8 +666,9 @@ impl Default for Transform {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorEffect {
     pub id: String,
     pub kind: String,
@@ -665,8 +676,9 @@ pub struct EditorEffect {
     pub parameters: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct TextStyle {
     pub content: String,
     pub font_family: String,
@@ -681,8 +693,9 @@ pub struct TextStyle {
     pub align: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorMarker {
     pub id: Uuid,
     pub time: f64,
@@ -691,8 +704,9 @@ pub struct EditorMarker {
 }
 
 /// The closed set of clip properties that the current renderer supports.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorPresetDocument {
     pub transform: Transform,
     pub volume: f64,
@@ -865,16 +879,18 @@ impl EditorPresetDocument {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct EditorColorAdjustPreset {
     pub brightness: f64,
     pub contrast: f64,
     pub saturation: f64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum EditorTransitionPreset {
     Fade,
     Flash,
@@ -887,8 +903,9 @@ pub enum EditorTransitionPreset {
     Spin,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct MediaAsset {
     pub id: Uuid,
     #[serde(deserialize_with = "deserialize_required_nullable")]
@@ -914,8 +931,9 @@ pub struct MediaAsset {
 }
 
 /// Lifecycle of the optional low-resolution editing proxy.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+#[ts(export)]
 pub enum MediaProxyStatus {
     NotRequested,
     Generating {
@@ -955,16 +973,18 @@ pub struct EditorPackageAsset {
 }
 
 /// Describes whether media metadata probing has completed successfully.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
+#[ts(export)]
 pub enum MediaMetadataStatus {
     Pending,
     Ready,
     Unavailable { message: String },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ExportJob {
     pub id: Uuid,
     pub project_id: Uuid,

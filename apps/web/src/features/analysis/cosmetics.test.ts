@@ -23,6 +23,14 @@ const item: CosmeticInspectionItem = {
 };
 
 describe('cosmetic rewrite request', () => {
+  /*
+   * `CosmeticValues` carries all four keys, `null` for the ones the user did
+   * not touch. That is the shape the service both accepts and answers with:
+   * every field is `Option<T>` with no `skip_serializing_if`, so an omitted key
+   * and an explicit `null` decode to the same `None` — and a *response* always
+   * spells the nulls out. The mirror used to declare the four keys optional,
+   * which was exactly backwards for the read direction.
+   */
   it('emits only changed, allow-listed values with the stable target', () => {
     const drafts = initialCosmeticDrafts([item]);
     const key = Object.keys(drafts)[0]!;
@@ -32,7 +40,7 @@ describe('cosmetic rewrite request', () => {
     if (built.request) {
       expect(built.request).toEqual({ confirm_new_file: true, patches: [{
         target: { owner: item.owner, item_definition_index: 7 },
-        values: { paint_kit: 700 },
+        values: { paint_kit: 700, seed: null, wear: null, stat_trak: null },
       }] });
       expect(built.changedFields).toBe(1);
     }
@@ -52,7 +60,7 @@ describe('cosmetic rewrite request', () => {
   it('loads a saved plan only into the matching stable item and writable fields', () => {
     const drafts = cosmeticDraftsFromPatches([item], [{
       target: { owner: item.owner, item_definition_index: 7 },
-      values: { paint_kit: 701, stat_trak: 99 },
+      values: { paint_kit: 701, seed: null, wear: null, stat_trak: 99 },
     }]);
     const draft = drafts[Object.keys(drafts)[0]!]!;
     expect(draft.paint_kit).toBe('701');

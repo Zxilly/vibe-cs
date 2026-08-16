@@ -1,6 +1,6 @@
 import { Columns3, FolderOpen, Info, MoreHorizontal, MoveHorizontal, Play, Sparkles } from 'lucide-react';
 
-import type { DemoSummary } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { currentLocale, useI18n } from '../../shared/i18n';
 import { Badge, Button, Card, IconButton, Spinner } from '../../shared/ui';
 import { demoLifecyclePresentation, hasVerifiedMatchScore } from './libraryPresentation';

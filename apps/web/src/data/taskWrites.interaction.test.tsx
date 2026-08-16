@@ -15,15 +15,14 @@ import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type {
-  ActivityFeed,
-  ActivityItem,
   AnalysisRun,
   AnalysisRunDetail,
-  DemoSummary,
   OutputPage,
   Paginated,
   RecordingJob,
 } from '../shared/desktop/dto';
+import type { ActivityFeed, ActivityItem } from '../shared/desktop/viewModels';
+import type { DemoSummary } from '../shared/desktop/viewModels';
 import { useDemoList } from './demos';
 import { useOutputList } from './outputs';
 import {

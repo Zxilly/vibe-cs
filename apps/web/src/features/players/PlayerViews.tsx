@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { desktopMediaUrl } from '../../shared/desktop/client';
+import { jsonMember } from '../../shared/desktop/json';
 import { formatKillDeathRatioValue } from '../../shared/performanceMetrics';
 import type {
   PlayerAggregateStats,
@@ -137,8 +138,10 @@ export function evidenceParticipants(item: EvidenceSearchResponse['items'][numbe
   const actor = item.actor_name ?? item.actor_id;
   const target = item.target_name ?? item.target_id;
   if (actor && target) return `${actor} → ${target}`;
-  const victimNames = Array.isArray(item.attributes.victim_names) ? item.attributes.victim_names : [];
-  const victimIds = Array.isArray(item.attributes.victim_ids) ? item.attributes.victim_ids : [];
+  const rawVictimNames = jsonMember(item.attributes, 'victim_names');
+  const rawVictimIds = jsonMember(item.attributes, 'victim_ids');
+  const victimNames = Array.isArray(rawVictimNames) ? rawVictimNames : [];
+  const victimIds = Array.isArray(rawVictimIds) ? rawVictimIds : [];
   const highlightVictims = Array.from({ length: Math.max(victimNames.length, victimIds.length) }, (_, index) => {
     const name = victimNames[index];
     const id = victimIds[index];

@@ -75,14 +75,19 @@ export function PlayerHeatmapWorkspace({
   const radarImage = radar?.transform && radar.browser_displayable && radar.image_url
     ? desktopMediaUrl(radar.image_url)
     : null;
-  const density = useMemo(() => aggregateHeatmapDensity(visiblePoints.map((point) => {
+  // `PlayerHeatmapKind` is a three-member enum on the wire: `all` is a query a
+  // caller can ask for, and a point that comes back under it is still either a
+  // kill or a death. A point that names neither is not counted rather than
+  // being folded into one of the two buckets.
+  const density = useMemo(() => aggregateHeatmapDensity(visiblePoints.flatMap((point) => {
+    if (point.kind !== 'kills' && point.kind !== 'deaths') return [];
     const coordinate = coordinateByEvidenceId.get(point.evidence_id) ?? [50, 50];
-    return {
+    return [{
       evidenceId: point.evidence_id,
       kind: point.kind,
       xPercent: coordinate[0] ?? 50,
       yPercent: coordinate[1] ?? 50,
-    };
+    }];
   })), [coordinateByEvidenceId, visiblePoints]);
 
   return (

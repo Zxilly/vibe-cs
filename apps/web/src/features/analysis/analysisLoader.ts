@@ -1,9 +1,5 @@
-import type {
-  AnalysisRun,
-  AnalysisRunDetail,
-  AnalysisWorkspace,
-  DemoSummary,
-} from '../../shared/desktop/dto';
+import type { AnalysisRun, AnalysisRunDetail } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, DemoSummary } from '../../shared/desktop/viewModels';
 
 export type AnalysisLifecycleClient = {
   getDemo(id: string, signal?: AbortSignal): Promise<DemoSummary>;

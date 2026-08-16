@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, TimelineEvent } from '../../shared/desktop/dto';
+import type { TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import { buildOverviewEvidence } from './analysisOverview';
 
 const event = (overrides: Partial<TimelineEvent>): TimelineEvent => ({

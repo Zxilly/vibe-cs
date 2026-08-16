@@ -17,6 +17,7 @@ use vibe_cs_storage::{
 };
 
 use crate::{ApiError, ApiQuery, ApiResult, AppState};
+use ts_rs::TS;
 
 const DEFAULT_PAGE_SIZE: u32 = 50;
 const MAXIMUM_PAGE_SIZE: u32 = 100;
@@ -28,7 +29,8 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/activities/{kind}/{id}", get(get_activity))
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct ActivityFeed {
     items: Vec<ActivityItem>,
     total: u64,
@@ -37,7 +39,8 @@ struct ActivityFeed {
     summary: ActivitySummary,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct ActivitySummary {
     total: u64,
     active: u64,
@@ -46,18 +49,25 @@ struct ActivitySummary {
     cancelled: u64,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct ActivityQuery {
+    #[ts(optional)]
     search: Option<String>,
+    #[ts(optional)]
     kind: Option<ActivityKindFilter>,
+    #[ts(optional)]
     state: Option<ActivityStateFilter>,
+    #[ts(optional)]
     page: Option<u32>,
+    #[ts(optional)]
     page_size: Option<u32>,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 enum ActivityKindFilter {
     Recording,
     Export,
@@ -65,8 +75,9 @@ enum ActivityKindFilter {
     Analysis,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 enum ActivityStateFilter {
     Active,
     Failed,
@@ -74,7 +85,8 @@ enum ActivityStateFilter {
     Cancelled,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct ActivityItem {
     id: String,
     kind: &'static str,

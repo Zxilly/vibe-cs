@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
-import type { AnalysisWorkspace, PlayerAnalysis, TimelineEvent } from '../../shared/desktop/dto';
+import type { TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import { currentLocale, translate } from '../../shared/i18n';
 import { TeamEconomyAnalysisWorkspace } from './TeamEconomyAnalysisWorkspace';
 

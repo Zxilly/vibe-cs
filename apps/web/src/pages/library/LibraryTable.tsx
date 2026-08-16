@@ -38,7 +38,8 @@ import {
 } from '../../design/data';
 import { Notice } from '../../design/feedback';
 import { Button } from '../../design/primitives';
-import type { DemoSummary, Paginated } from '../../shared/desktop/dto';
+import type { Paginated } from '../../shared/desktop/dto';
+import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { DEMO_SELECTION_LIMIT, LIBRARY_PAGE_SIZE } from './libraryQuery';
 
 export interface LibraryTableProps {

@@ -31,7 +31,7 @@ import type {
   AnalysisWorkspace,
   Highlight,
   RoundSummary,
-} from '../../../shared/desktop/dto';
+} from '../../../shared/desktop/viewModels';
 import { TICK_GROUP_SEPARATOR, type HighlightKind } from '../../../domain/match';
 import { hasKillEvents, openingDuels, openingTallies } from './duelsModel';
 

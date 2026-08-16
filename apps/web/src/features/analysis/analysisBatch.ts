@@ -1,4 +1,4 @@
-import type { AnalysisWorkspace } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 
 export const maximumBatchDemos = 12;
 

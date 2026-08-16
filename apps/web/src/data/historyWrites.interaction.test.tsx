@@ -10,13 +10,9 @@
 import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type {
-  ActivityFeed,
-  DemoSummary,
-  MatchDownloadJob,
-  MatchHistoryItem,
-  Paginated,
-} from '../shared/desktop/dto';
+import type { MatchDownloadJob, MatchHistoryItem, Paginated } from '../shared/desktop/dto';
+import type { ActivityFeed } from '../shared/desktop/viewModels';
+import type { DemoSummary } from '../shared/desktop/viewModels';
 import { useDemoList } from './demos';
 import {
   useActiveMatchDownloads,

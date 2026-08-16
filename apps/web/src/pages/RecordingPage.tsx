@@ -88,11 +88,13 @@ import { ShotListBlock } from './recording/ShotListBlock';
 import { useCameraDesk } from './recording/cameraDesk';
 import { reorderShots } from './recording/shotModel';
 import {
+  identifiedShots,
   recordingShotSignature,
   recordingTaskHref,
   type RecordingBlockProps,
   type RecordingGuardedAction,
   type RecordingPlanState,
+  type RecordingShot,
   type RecordingStartDesk,
 } from './recording/recordingContract';
 
@@ -134,7 +136,7 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
 
   /* The lease, and the shots as edited. Two pieces of state rather than one
      because they diverge on purpose: `dirty` *is* the divergence. */
-  const [items, setItems] = useState<readonly RecordingRequest[]>(EMPTY_ITEMS);
+  const [items, setItems] = useState<readonly RecordingShot[]>(EMPTY_ITEMS);
   const [dirty, setDirty] = useState(false);
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
 
@@ -155,12 +157,13 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
     mintedFor.current = agentPlanId;
     planning.mutate(agentPlanId, {
       onSuccess: (minted) => {
-        setItems(minted.items);
+        const shots = identifiedShots(minted.items);
+        setItems(shots);
         setDirty(false);
         setSelectedShotId((current) =>
-          current !== null && minted.items.some((item) => item.id === current)
+          current !== null && shots.some((item) => item.id === current)
             ? current
-            : (minted.items[0]?.id ?? null),
+            : (shots[0]?.id ?? null),
         );
       },
     });
@@ -174,7 +177,7 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
     mintedFor.current = agentPlanId;
     planning.mutate(agentPlanId, {
       onSuccess: (minted) => {
-        setItems(minted.items);
+        setItems(identifiedShots(minted.items));
         setDirty(false);
       },
     });
@@ -182,13 +185,18 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
 
   const editShot = useCallback((shotId: string, patch: Partial<RecordingRequest>) => {
     if (Object.keys(patch).length === 0) return;
-    setItems((current) => current.map((item) => (item.id === shotId ? { ...item, ...patch } : item)));
+    // `id` is restated after the patch: an edit never changes a shot's
+    // identity, and `Partial<RecordingRequest>` would otherwise allow the wire
+    // type's nullable `id` to overwrite it.
+    setItems((current) => current.map(
+      (item) => (item.id === shotId ? { ...item, ...patch, id: item.id } : item),
+    ));
     setDirty(true);
   }, []);
 
   const editEveryShot = useCallback((patch: Partial<RecordingRequest>) => {
     if (Object.keys(patch).length === 0) return;
-    setItems((current) => current.map((item) => ({ ...item, ...patch })));
+    setItems((current) => current.map((item) => ({ ...item, ...patch, id: item.id })));
     setDirty(true);
   }, []);
 
@@ -352,7 +360,7 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
 
 /* ── the two failures a plan mint can end in ─────────────────────────────── */
 
-const EMPTY_ITEMS: readonly RecordingRequest[] = [];
+const EMPTY_ITEMS: readonly RecordingShot[] = [];
 
 function planFailureNotice(input: {
   readonly error: unknown;

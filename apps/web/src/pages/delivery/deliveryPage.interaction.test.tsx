@@ -16,7 +16,8 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivityFeed, ActivityItem, OutputItem, OutputPage } from '../../shared/desktop/dto';
+import type { OutputItem, OutputPage } from '../../shared/desktop/dto';
+import type { ActivityFeed, ActivityItem } from '../../shared/desktop/viewModels';
 import { DeliveryPage } from '../DeliveryPage';
 import { HEALTHY, renderPage } from './test/renderPage';
 

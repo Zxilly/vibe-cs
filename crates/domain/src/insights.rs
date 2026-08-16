@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{EventKind, MatchAnalysis, TimelineEvent};
+use ts_rs::TS;
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
@@ -12,8 +13,9 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AnalysisInsights {
     pub round_economy: Vec<RoundEconomyInsight>,
     pub player_utility: Vec<PlayerUtilityInsight>,
@@ -21,16 +23,18 @@ pub struct AnalysisInsights {
     pub availability: AnalysisInsightAvailability,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RoundEconomyInsight {
     pub round: u32,
     pub teams: Vec<TeamPurchaseInsight>,
     pub unattributed_purchase_count: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct TeamPurchaseInsight {
     pub team: String,
     pub purchase_count: u32,
@@ -41,15 +45,17 @@ pub struct TeamPurchaseInsight {
     pub spend: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct CountedItem {
     pub name: String,
     pub count: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerUtilityInsight {
     pub player_id: String,
     pub throws: u32,
@@ -64,8 +70,9 @@ pub struct PlayerUtilityInsight {
     pub flash_duration_seconds: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct PlayerMatchupInsight {
     pub player_id: String,
     pub opponent_id: String,
@@ -77,8 +84,9 @@ pub struct PlayerMatchupInsight {
     pub damage_events: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AnalysisInsightAvailability {
     pub purchase_events: InsightCapability,
     pub purchase_spend: InsightCapability,
@@ -88,8 +96,9 @@ pub struct AnalysisInsightAvailability {
     pub matchups: InsightCapability,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct InsightCapability {
     pub available: bool,
     #[serde(deserialize_with = "deserialize_required_nullable")]

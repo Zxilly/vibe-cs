@@ -87,6 +87,7 @@ import {
   resolveShotPresentation,
   type RecordingBlockProps,
   type RecordingDefaults,
+  type RecordingShot,
 } from './recordingContract';
 import {
   CAMERA_STYLE,
@@ -595,7 +596,7 @@ function ShotActions({
   plan,
   service,
 }: {
-  readonly shot: RecordingRequest;
+  readonly shot: RecordingShot;
   readonly defaults: RecordingDefaults;
   readonly plan: RecordingBlockProps['plan'];
   readonly service: RecordingBlockProps['service'];

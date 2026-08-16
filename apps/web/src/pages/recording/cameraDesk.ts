@@ -75,9 +75,9 @@ import type {
   HlaeProposalPreview,
   ProposalPrerequisite,
   RecordingPreflight,
-  RecordingRequest,
 } from '../../shared/desktop/dto';
 import { readHlaeCameraPlan, type CameraPlan } from './cameraPlan';
+import type { RecordingShot } from './recordingContract';
 
 /* ── the intent ──────────────────────────────────────────────────────────── */
 
@@ -91,7 +91,7 @@ import { readHlaeCameraPlan, type CameraPlan } from './cameraPlan';
  * honest answer is to say that rather than to send an empty array and read the
  * 422 back as though it were about something else.
  */
-export function cameraIntentForShot(item: RecordingRequest | null): HlaeProposalIntent | null {
+export function cameraIntentForShot(item: RecordingShot | null): HlaeProposalIntent | null {
   if (item === null) return null;
   const highlightId = item.highlight_id;
   if (highlightId === null || highlightId === '') return null;
@@ -173,7 +173,7 @@ export interface CameraDesk {
 }
 
 export interface CameraDeskOptions {
-  readonly shot: RecordingRequest | null;
+  readonly shot: RecordingShot | null;
   readonly service: ServiceActionState;
   /** The check list, when one has been run. Two of its rows decide whether the
    *  in-game door is open; nothing here probes for itself. */

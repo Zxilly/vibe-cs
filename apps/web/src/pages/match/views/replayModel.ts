@@ -37,13 +37,13 @@
 import type { EvidenceKind } from '../../../domain/match';
 import type { Engagement, HeatSample, MapSide, PathSample, PlayerPath } from '../../../domain/map';
 import type {
-  AnalysisWorkspace,
   HeatPointRecord,
   ReplayFrameRecord,
   ReplayPayload,
   ReplayPlayerRecord,
   TimelineEvent,
 } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 
 /* ── the slice ───────────────────────────────────────────────────────────── */
 

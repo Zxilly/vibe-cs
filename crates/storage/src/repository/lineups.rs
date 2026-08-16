@@ -1,13 +1,15 @@
 use chrono::{DateTime, Utc};
 use rusqlite::{Transaction, params};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use vibe_cs_domain::MatchAnalysis;
 
 use super::Storage;
 use crate::{Result, StorageError};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct LineupProjectionCoverage {
     pub evaluated_demos: u64,
     pub verified_demos: u64,
@@ -23,8 +25,9 @@ pub struct LineupDirectoryQuery {
     pub page_size: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct LineupDirectoryItem {
     pub lineup_id: String,
     pub members: [String; 5],
@@ -36,8 +39,9 @@ pub struct LineupDirectoryItem {
     pub rounds_against: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct LineupDirectoryPage {
     pub items: Vec<LineupDirectoryItem>,
     pub total: u64,
@@ -46,8 +50,9 @@ pub struct LineupDirectoryPage {
     pub coverage: LineupProjectionCoverage,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct LineupMapItem {
     pub demo_id: String,
     pub map_name: Option<String>,
@@ -59,8 +64,9 @@ pub struct LineupMapItem {
     pub rounds_against: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct LineupMapPage {
     pub lineup_id: String,
     pub members: [String; 5],

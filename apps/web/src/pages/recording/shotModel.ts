@@ -311,11 +311,11 @@ export function nextShotIndex(from: number, delta: number, length: number): numb
 
 /** The reorder itself, so a page never calls `moveItem` with an unbounded
  *  index and so both the pointer and the keyboard path go through one door. */
-export function reorderShots(
-  items: readonly RecordingRequest[],
+export function reorderShots<T extends RecordingRequest>(
+  items: readonly T[],
   from: number,
   to: number,
-): RecordingRequest[] {
+): T[] {
   return moveItem(items, from, to);
 }
 

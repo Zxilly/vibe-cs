@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use uuid::Uuid;
 
 /// Lowest camera field of view the managed capture grammar accepts.
@@ -42,8 +43,9 @@ pub const RECORDING_NEUTRAL_VIEWMODEL_FOV: f64 = 68.0;
 /// [`crate::RecordingDefaults`] is deliberately left unchanged: it is read and
 /// written by the configuration file and the settings pane, and folding its two
 /// bools into this enum belongs with runtime, which already owns the mapping.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum RecordingVoicePolicy {
     /// Every player's voice is audible.
     #[default]
@@ -93,8 +95,9 @@ impl RecordingVoicePolicy {
 /// default would silently stop applying to shots that were only ever meant to
 /// follow it. Expansion happens in runtime, at the point the capture program is
 /// compiled and the configuration is in hand.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RecordingPresentation {
     /// Camera field of view, `60.0..=140.0`. POV shots only.
     pub camera_fov: f64,
@@ -187,8 +190,9 @@ fn is_neutral(value: f64, neutral: f64) -> bool {
     (value - neutral).abs() <= f64::EPSILON
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum JobStatus {
     #[default]
     Queued,
@@ -224,8 +228,9 @@ impl JobStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RecordingRequest {
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub id: Option<Uuid>,
@@ -246,6 +251,7 @@ pub struct RecordingRequest {
     /// before this field existed, which is why it is `#[serde(default)]`
     /// despite `deny_unknown_fields` on the rest of the struct.
     #[serde(default)]
+    #[ts(optional = nullable)]
     pub presentation: Option<RecordingPresentation>,
 }
 
@@ -257,14 +263,16 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum DirectorShotKind {
     Player,
     VictimReaction,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct DirectorShot {
     pub demo_id: Uuid,
     pub source_item_ids: Vec<Uuid>,
@@ -277,7 +285,8 @@ pub struct DirectorShot {
     pub explanation: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
 pub struct DirectorPlan {
     pub shots: Vec<DirectorShot>,
     pub warnings: Vec<String>,
@@ -328,8 +337,9 @@ impl RecordingRequest {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RecordingJob {
     pub id: Uuid,
     #[serde(deserialize_with = "deserialize_required_nullable")]
@@ -389,8 +399,9 @@ impl RecordingJob {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RecordedClip {
     pub id: Uuid,
     pub path: String,
@@ -406,8 +417,9 @@ pub struct RecordedClip {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct MontageProject {
     pub id: Uuid,
     pub name: String,
@@ -417,8 +429,9 @@ pub struct MontageProject {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct MontageClip {
     pub clip_id: Uuid,
     pub order: u32,
@@ -430,8 +443,9 @@ pub struct MontageClip {
     pub avatar_asset_id: Option<Uuid>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct MontageSettings {
     pub width: u32,
     pub height: u32,
@@ -459,8 +473,9 @@ pub struct MontageSettings {
     pub branding_theme: MontageBrandingTheme,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum MontageBrandingTheme {
     #[default]
     Vibe,

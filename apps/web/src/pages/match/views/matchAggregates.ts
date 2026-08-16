@@ -37,12 +37,12 @@
  *     says what it counts.
  */
 
+import type { AnalysisRoundRecord as WireRound } from '../../../shared/desktop/dto';
 import type {
   AnalysisWorkspace,
   Highlight,
   PlayerAnalysis,
-  RoundSummary as WireRound,
-} from '../../../shared/desktop/dto';
+} from '../../../shared/desktop/viewModels';
 import {
   normaliseRoundEndReason,
   type HighlightCandidate,

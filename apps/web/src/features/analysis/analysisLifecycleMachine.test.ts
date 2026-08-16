@@ -2,7 +2,8 @@ import { createActor, fromPromise } from 'xstate';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { commands } from '../../shared/desktop/client';
-import type { AnalysisRun, AnalysisWorkspace } from '../../shared/desktop/dto';
+import type { AnalysisRun } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import {
   analysisLifecycleMachine,
   type AnalysisRouteLoaderInput,

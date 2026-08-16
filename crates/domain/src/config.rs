@@ -1,6 +1,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -53,8 +54,9 @@ impl Default for AppConfig {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct SteamConfig {
     pub steam_id: String,
     pub web_api_key: String,
@@ -102,8 +104,9 @@ fn secret_debug_value(value: &str) -> &'static str {
     }
 }
 
-#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct LlmConfig {
     pub provider: String,
     pub model: String,
@@ -132,12 +135,13 @@ impl fmt::Debug for LlmConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "independent managed-HLAE presentation toggles are part of the current config contract"
 )]
+#[ts(export)]
 pub struct RecordingDefaults {
     pub pre_roll_seconds: f64,
     pub post_roll_seconds: f64,
@@ -186,12 +190,13 @@ pub struct SetupStatus {
 }
 
 /// Read-only product status for the managed HLAE integration.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "independent installation and immutable safety-policy facts are part of the status wire contract"
 )]
+#[ts(export)]
 pub struct HlaeStatus {
     pub available: bool,
     pub executable: Option<String>,
@@ -212,8 +217,9 @@ pub struct HlaeStatus {
     pub demo_playback_only: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ManagedHlaeReleaseStatus {
     pub version: String,
     pub archive_sha256: String,

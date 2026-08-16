@@ -27,7 +27,7 @@ import { EmptyState } from '../../design/data';
 import { Notice } from '../../design/feedback';
 import { Button, cx } from '../../design/primitives';
 import { TaskCard, TaskCardSkeleton } from '../../domain/task';
-import type { ActivityItem } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import type { TaskCardBindings } from './useTaskActions';
 
 export interface TaskFeedListProps {

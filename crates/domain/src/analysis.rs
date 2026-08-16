@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize, Serializer};
 use sha2::{Digest, Sha256};
+use ts_rs::TS;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,7 +84,14 @@ impl<'de> Deserialize<'de> for MatchAnalysis {
     }
 }
 
-#[derive(Serialize)]
+/// One analyzed match.
+///
+/// `insights` is derived from the round events rather than stored, which is why
+/// this wire mirror - not [`MatchAnalysis`] itself - is the type the bindings
+/// are generated from: the struct in memory has no `insights` field, and the
+/// document on the wire always does.
+#[derive(Serialize, TS)]
+#[ts(export, rename = "MatchAnalysis")]
 struct MatchAnalysisWire<'a> {
     demo_id: &'a Uuid,
     map_name: &'a str,
@@ -373,8 +381,9 @@ fn normalized_team_label(team: &str) -> Option<&'static str> {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct RoundSummary {
     pub number: u32,
     pub start_tick: u64,
@@ -386,8 +395,9 @@ pub struct RoundSummary {
     pub events: Vec<TimelineEvent>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct TimelineEvent {
     pub id: String,
     pub tick: u64,
@@ -406,8 +416,9 @@ pub struct TimelineEvent {
     pub detail: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum EventKind {
     RoundStart,
     RoundEnd,
@@ -420,8 +431,9 @@ pub enum EventKind {
     Purchase,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct Highlight {
     pub id: String,
     pub player_id: String,
@@ -436,8 +448,9 @@ pub struct Highlight {
     pub victims: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum HighlightKind {
     MultiKill,
     Clutch,
@@ -451,8 +464,9 @@ pub enum HighlightKind {
     Timeline,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReplayFrame {
     pub tick: u64,
     pub players: Vec<ReplayPlayer>,
@@ -461,8 +475,9 @@ pub struct ReplayFrame {
     pub bomb: Option<ReplayBomb>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum ReplayFidelityMode {
     /// Periodic entity snapshots are the spatial source.
     EntitySnapshots,
@@ -474,8 +489,9 @@ pub enum ReplayFidelityMode {
 
 /// Machine-readable replay provenance. Consumers must use `tick_rate` and the
 /// source tick distance between frames rather than assuming a fixed frame rate.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReplayFidelityMetadata {
     pub mode: ReplayFidelityMode,
     pub tick_rate: f64,
@@ -492,8 +508,9 @@ pub struct ReplayArtifact {
     pub fidelity: ReplayFidelityMetadata,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReplayPlayer {
     pub id: String,
     pub name: String,
@@ -509,9 +526,10 @@ pub struct ReplayPlayer {
     pub input: Option<ReplayInputState>,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
 #[allow(clippy::struct_excessive_bools)] // Each bit is an independent player input.
+#[ts(export)]
 pub struct ReplayInputState {
     pub forward: bool,
     pub left: bool,
@@ -525,8 +543,9 @@ pub struct ReplayInputState {
     pub secondary_fire: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReplayProjectile {
     pub kind: String,
     pub position: [f64; 3],
@@ -540,8 +559,9 @@ pub struct ReplayProjectile {
     pub masks_vision: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct ReplayBomb {
     pub position: [f64; 3],
     pub state: String,
@@ -549,8 +569,9 @@ pub struct ReplayBomb {
     pub carrier_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct HeatPoint {
     /// Stable evidence identity within a demo analysis.
     pub id: String,

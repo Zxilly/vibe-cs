@@ -14,6 +14,7 @@ use vibe_cs_cosmetics::{
 use vibe_cs_domain::{CosmeticPlan, DemoRecord};
 
 use crate::{ApiError, ApiJson, ApiResult, AppState};
+use ts_rs::TS;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
@@ -179,14 +180,16 @@ async fn inspect_cosmetics(
     Ok(Json(state.cosmetics.inspect(demo).await?))
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct CosmeticRewriteResponse {
     demo: DemoRecord,
     report: RewriteReport,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 struct CosmeticRewriteBody {
     confirm_new_file: bool,
     patches: Vec<CosmeticPatch>,

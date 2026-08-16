@@ -35,11 +35,11 @@ import { qk } from '../../../data/keys';
 import type {
   AppConfig,
   DemoMetadata,
-  DemoSummary,
   DemoWatchStatus,
   Paginated,
   ReviewTag,
 } from '../../../shared/desktop/dto';
+import type { DemoSummary } from '../../../shared/desktop/viewModels';
 import { LibraryPage } from '../../LibraryPage';
 import { libraryDemoQuery, readLibraryAddress } from '../libraryQuery';
 

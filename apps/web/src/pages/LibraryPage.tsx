@@ -67,7 +67,7 @@ import { dataErrorMessage } from '../data/errors';
 import { Notice } from '../design/feedback';
 import { OverflowMenu, Page, SelectionBar, Toolbar, useShellCollapsed } from '../design/layout';
 import { Button, Seg } from '../design/primitives';
-import type { DemoSummary } from '../shared/desktop/dto';
+import type { DemoSummary } from '../shared/desktop/viewModels';
 import { AddWatchDirectoryDialog } from './library/AddWatchDirectoryDialog';
 import { ColumnConfigDialog } from './library/ColumnConfigDialog';
 import { DeleteDemosDialog } from './library/DeleteDemosDialog';

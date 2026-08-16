@@ -34,7 +34,7 @@
  */
 
 import { HIGHLIGHT_KINDS, type HighlightCandidate, type HighlightKind } from '../../../domain/match';
-import type { AnalysisWorkspace, Highlight } from '../../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight } from '../../../shared/desktop/viewModels';
 
 /** See the module note for every line of this table. */
 export const HIGHLIGHT_WIRE_KIND: Readonly<Record<Highlight['kind'], HighlightKind>> = {

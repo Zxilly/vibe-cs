@@ -10,7 +10,8 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { ActivityFeed, ActivityItem, ActivityQuery, OutputItem, OutputPage } from '../../shared/desktop/dto';
+import type { ActivityQuery, OutputItem, OutputPage } from '../../shared/desktop/dto';
+import type { ActivityFeed, ActivityItem } from '../../shared/desktop/viewModels';
 import { HomePage } from '../HomePage';
 import { HEALTHY, renderPage } from '../delivery/test/renderPage';
 

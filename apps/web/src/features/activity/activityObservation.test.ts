@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { DesktopError } from '../../shared/desktop/client';
-import type { ActivityItem } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { startActivityObservation, type ActivityObservation } from './activityObservation';
 
 const jobId = '11111111-1111-4111-8111-111111111111';

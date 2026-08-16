@@ -39,7 +39,6 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { commands, desktopMediaUrl, normalizeSide, readableError } from '../../shared/desktop/client';
 import type {
-  AnalysisWorkspace,
   AnalysisRun,
   CosmeticCatalog,
   CosmeticFieldName,
@@ -48,14 +47,12 @@ import type {
   CosmeticPlan,
   CosmeticRewriteResponse,
   HeatPointRecord,
-  Highlight,
-  PlayerAnalysis,
   RadarOverviewRecord,
   ReplayCacheMetadata,
   ReplayFidelityMetadata,
-  ReplayFrameRecord,
   TimelineEvent,
 } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, Highlight, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import { replayFrameDelayMs } from './replayClock';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';
@@ -73,6 +70,7 @@ import {
   cosmeticDraftsFromPatches,
   cosmeticFieldEditable,
   cosmeticItemKey,
+  cosmeticPlanPatches,
   initialCosmeticDrafts,
   type CosmeticDrafts,
 } from './cosmetics';
@@ -141,7 +139,10 @@ import {
   replayPlaybackControlPresentation,
   replayPlayerVitalPresentation,
 } from './replayPresentation';
-import { decodeRoundReplayBinary } from './roundReplayBinary';
+import {
+  decodeRoundReplayBinary,
+  type RoundReplayFrameRecord,
+} from './roundReplayBinary';
 import {
   filterHeatmapPoints,
   heatmapEvidenceIntent,
@@ -1587,7 +1588,7 @@ function useRadarOverview(mapName: string, enabled: boolean): RadarOverviewState
   return radarState;
 }
 
-function activeInputLabels(player: ReplayFrameRecord['players'][number]): string[] {
+function activeInputLabels(player: RoundReplayFrameRecord['players'][number]): string[] {
   if (!player.input) return [];
   return [
     player.input.forward ? 'W' : null,
@@ -1642,7 +1643,7 @@ function ReplayView({
   onFocusFrame: (tick: number) => void;
 }) {
   const { t } = useI18n();
-  const [frames, setFrames] = useState<ReplayFrameRecord[]>([]);
+  const [frames, setFrames] = useState<RoundReplayFrameRecord[]>([]);
   const [cache, setCache] = useState<ReplayCacheMetadata | null>(null);
   const [fidelity, setFidelity] = useState<ReplayFidelityMetadata | null>(null);
   const [freezeEndTick, setFreezeEndTick] = useState<number | null>(null);
@@ -2349,7 +2350,7 @@ function CosmeticsView({
     }
   };
   const loadPlan = (plan: CosmeticPlan) => {
-    const nextDrafts = cosmeticDraftsFromPatches(inspection.items, plan.patches);
+    const nextDrafts = cosmeticDraftsFromPatches(inspection.items, cosmeticPlanPatches(plan));
     const applicable = buildCosmeticRewriteRequest(inspection.items, nextDrafts);
     setDrafts(nextDrafts);
     setConfirmed(false);
@@ -2402,7 +2403,7 @@ function CosmeticsView({
           <label><span className="visually-hidden">{msg("m0701")}</span><input className="text-input" value={planName} maxLength={80} placeholder={msg("m0701")} onChange={(event) => setPlanName(event.target.value)} /></label>
           <Button size="sm" disabled={planBusy || !build.request} onClick={() => void savePlan()}>{msg("m0213")}</Button>
         </div>
-        {plans.length > 0 ? <div className="cosmetic-plan-list">{plans.map((plan) => <div key={plan.id}><button type="button" disabled={planBusy} onClick={() => loadPlan(plan)}><strong>{plan.name}</strong><small>{plan.patches.length} {msg("m0160")} {new Date(plan.updated_at).toLocaleString(currentLocale())}</small></button><Button size="sm" variant="ghost" disabled={planBusy} onClick={() => void deletePlan(plan)}>{msg("m0284")}</Button></div>)}</div> : <small>{msg("m1198")}</small>}
+        {plans.length > 0 ? <div className="cosmetic-plan-list">{plans.map((plan) => <div key={plan.id}><button type="button" disabled={planBusy} onClick={() => loadPlan(plan)}><strong>{plan.name}</strong><small>{cosmeticPlanPatches(plan).length} {msg("m0160")} {new Date(plan.updated_at).toLocaleString(currentLocale())}</small></button><Button size="sm" variant="ghost" disabled={planBusy} onClick={() => void deletePlan(plan)}>{msg("m0284")}</Button></div>)}</div> : <small>{msg("m1198")}</small>}
         {planNotice ? <Notice tone={planNotice.tone}>{planNotice.message}</Notice> : null}
       </Card>
 

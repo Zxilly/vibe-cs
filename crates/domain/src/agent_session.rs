@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{DomainError, HlaeCameraStyle, RecordingPresentation, RecordingRequest};
+use ts_rs::TS;
 
 pub const AGENT_SESSION_MAX_TITLE_CHARS: usize = 200;
 pub const AGENT_SESSION_MAX_CONTENT_CHARS: usize = 32_000;
@@ -46,8 +47,9 @@ pub const AGENT_PLAN_MAX_LIMIT: u32 = 200;
 
 /// The four workspace object kinds a session can touch. Every kind keeps its own
 /// lifecycle; a reference never implies ownership.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum AgentObjectKind {
     Plan,
     RecordingTask,
@@ -81,8 +83,9 @@ impl AgentObjectKind {
 }
 
 /// One exact workspace object identity.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentObjectLocator {
     pub kind: AgentObjectKind,
     pub id: Uuid,
@@ -90,8 +93,9 @@ pub struct AgentObjectLocator {
 
 /// A session's durable record of one object it touched. `touch_count` is the
 /// server-authoritative "changed it N times" fact behind the drawer label.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentObjectRef {
     pub kind: AgentObjectKind,
     pub id: Uuid,
@@ -103,8 +107,9 @@ pub struct AgentObjectRef {
 }
 
 /// The reverse direction of the same reference: which session touched an object.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentObjectSessionRef {
     pub session_id: Uuid,
     /// The current session title, or `None` when that session has been deleted
@@ -121,8 +126,9 @@ pub struct AgentObjectSessionRef {
 
 /// Caller-supplied part of a reference. `touched_at` and `touch_count` stay
 /// server-authoritative.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentObjectRefTouch {
     pub kind: AgentObjectKind,
     pub id: Uuid,
@@ -146,8 +152,9 @@ impl AgentObjectRefTouch {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentToolCall {
     pub name: String,
     pub input: serde_json::Value,
@@ -157,8 +164,9 @@ pub struct AgentToolCall {
 /// An Agent proposal. `based_on_revision` is the plan revision the model saw;
 /// an unhandled proposal whose base is older than the current plan revision is
 /// stale and can no longer be applied.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentProposal {
     pub kind: String,
     pub title: String,
@@ -208,14 +216,16 @@ impl AgentProposal {
 
 /// Who authored a workspace edit. A manual edit never needs Agent approval, so
 /// the notice records the user as its author.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum WorkspaceEditAuthor {
     User,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum WorkspaceEditOperation {
     Updated,
     Removed,
@@ -224,8 +234,9 @@ pub enum WorkspaceEditOperation {
 }
 
 /// One field-level difference inside a workspace edit notice.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct WorkspaceEditChange {
     /// One-based shot position inside the plan, matching the shot cards.
     pub shot: u32,
@@ -264,8 +275,9 @@ impl WorkspaceEditChange {
 /// The typed payload injected into the session after a manual edit. It is not a
 /// chat message: it renders as one system line and can be expanded to this exact
 /// document, which is also what the model receives.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct WorkspaceEditNotice {
     pub object: AgentObjectLocator,
     /// The plan revision produced by this edit. Server-authoritative.
@@ -278,8 +290,9 @@ pub struct WorkspaceEditNotice {
 
 /// One entry in a session. Only `user` and `assistant` are bubbles; a
 /// `workspace_edit` entry is a system line that never enters the bubble stream.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export)]
 pub enum AgentSessionEntry {
     User {
         id: Uuid,
@@ -343,8 +356,9 @@ impl AgentSessionEntry {
 
 /// A caller-authored session entry. Workspace edit entries are never drafted by
 /// a client: they are produced by the authoritative plan edit itself.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[ts(export)]
 pub enum AgentSessionEntryDraft {
     User {
         content: String,
@@ -397,8 +411,9 @@ impl AgentSessionEntryDraft {
 }
 
 /// One conversation thread. It neither inherits nor locks any task.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentSession {
     pub id: Uuid,
     pub title: String,
@@ -409,8 +424,9 @@ pub struct AgentSession {
 }
 
 /// The session drawer row: the thread plus the objects it touched.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentSessionSummary {
     pub id: Uuid,
     pub title: String,
@@ -420,18 +436,22 @@ pub struct AgentSessionSummary {
     pub refs: Vec<AgentObjectRef>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentSessionPage {
     pub items: Vec<AgentSessionSummary>,
     pub total: u64,
 }
 
 /// Bounded session list query used by the drawer's search field.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentSessionQuery {
+    #[ts(optional)]
     pub q: Option<String>,
+    #[ts(optional)]
     pub limit: Option<u32>,
 }
 
@@ -469,8 +489,9 @@ impl AgentSessionQuery {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum AgentPlanStatus {
     Draft,
     AwaitingConfirmation,
@@ -503,15 +524,17 @@ impl AgentPlanStatus {
 
 /// Who a shot came from. The badge distinguishes an Agent shot from one the user
 /// edited; the Agent must never silently roll a user edit back.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum AgentPlanAuthor {
     Agent,
     User,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum AgentShotView {
     Observer,
     PlayerPov,
@@ -535,8 +558,9 @@ pub enum AgentShotView {
 /// shot itself, and the title from [`AgentPlanShot::title`]. Storing a second
 /// copy here is storing something that can disagree with the shot the user is
 /// looking at, and nothing would notice which copy was stale.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentShotRecording {
     pub demo_id: Uuid,
     /// Canonical non-zero 17-digit `SteamID64`, checked during normalization
@@ -591,8 +615,9 @@ impl AgentShotRecording {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlanShot {
     pub id: Uuid,
     pub title: String,
@@ -618,6 +643,7 @@ pub struct AgentPlanShot {
     /// written before this field existed keep decoding, which matters because
     /// the schema is a fingerprinted whole with no migration step.
     #[serde(default)]
+    #[ts(optional = nullable)]
     pub recording: Option<AgentShotRecording>,
 }
 
@@ -743,8 +769,9 @@ impl AgentPlanShot {
 
 /// One entry of a plan's change-origin trail: which session changed it, when,
 /// and what changed. Ordered newest first for presentation.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlanOrigin {
     pub at: DateTime<Utc>,
     pub session_id: Uuid,
@@ -755,8 +782,9 @@ pub struct AgentPlanOrigin {
 
 /// The immutable Agent version of a plan, kept so a user edit can always be
 /// reverted to what the Agent originally produced.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlanBaseline {
     pub revision: i64,
     pub captured_at: DateTime<Utc>,
@@ -765,8 +793,9 @@ pub struct AgentPlanBaseline {
 
 /// A plan. `revision` is server-authoritative and strictly increasing: it is the
 /// only fact that decides whether an outstanding Agent proposal still applies.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlan {
     pub id: Uuid,
     pub title: String,
@@ -779,8 +808,9 @@ pub struct AgentPlan {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlanCreate {
     pub title: String,
     pub status: AgentPlanStatus,
@@ -808,8 +838,9 @@ impl AgentPlanCreate {
 }
 
 /// The caller-supplied part of an origin entry; the timestamp is server-owned.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlanOriginDraft {
     pub session_id: Uuid,
     pub session_title: String,
@@ -836,8 +867,9 @@ impl AgentPlanOriginDraft {
 
 /// One manual edit of a plan. `expected_revision` makes the write conditional so
 /// two sessions editing the same plan cannot silently overwrite each other.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlanEdit {
     pub plan_id: Uuid,
     pub expected_revision: i64,
@@ -880,8 +912,9 @@ impl AgentPlanEdit {
 }
 
 /// A revert of the plan to its immutable Agent baseline.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlanRestore {
     pub plan_id: Uuid,
     pub expected_revision: i64,
@@ -919,8 +952,9 @@ pub enum AgentPlanUpdate {
 
 /// How long Agent conversations are kept. Deleting a session by policy removes
 /// the conversation only; generated videos and task records are untouched.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case", tag = "mode")]
+#[ts(export)]
 pub enum AgentSessionRetention {
     /// Keep every session.
     #[default]
@@ -966,8 +1000,9 @@ impl AgentSessionRetention {
 
 /// Agent workspace settings. Persisted separately from [`crate::AppConfig`] so
 /// the existing configuration contract stays unchanged.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentWorkspaceSettings {
     pub session_retention: AgentSessionRetention,
     /// Takes retained per session. A take that was used in a composition is
@@ -1004,8 +1039,9 @@ impl AgentWorkspaceSettings {
 
 /// A plan row for list views: the head facts without the shot bodies. It is the
 /// shape the "in progress" reference picker and the plan directory read.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlanSummary {
     pub id: Uuid,
     pub title: String,
@@ -1018,10 +1054,13 @@ pub struct AgentPlanSummary {
 }
 
 /// Bounded plan list query.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentPlanQuery {
+    #[ts(optional)]
     pub status: Option<AgentPlanStatus>,
+    #[ts(optional)]
     pub limit: Option<u32>,
 }
 
@@ -1056,8 +1095,9 @@ impl AgentPlanQuery {
 /// The byte figures cover the conversation rows only - the plans, recording
 /// tasks, editor projects and outputs a session touched are counted separately
 /// because clearing conversations never removes them.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentSessionStorageStats {
     pub session_count: u64,
     pub entry_count: u64,
@@ -1074,8 +1114,9 @@ pub struct AgentSessionStorageStats {
 
 /// A portable dump of the Agent conversation layer, used by the settings pane's
 /// export action. Plans are excluded: they outlive the conversations.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentSessionExport {
     pub exported_at: DateTime<Utc>,
     pub settings: AgentWorkspaceSettings,
@@ -1084,8 +1125,9 @@ pub struct AgentSessionExport {
 
 /// Outcome of a retention sweep or a manual clear. Only conversations are
 /// counted, because only conversations are removed.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
+#[ts(export)]
 pub struct AgentSessionPurge {
     pub removed_sessions: u64,
 }

@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import type {
-  AnalysisWorkspace,
-  PlayerAnalysis,
-  TimelineEvent,
-} from '../../shared/desktop/dto';
+import type { TimelineEvent } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/viewModels';
 import { buildObjectiveReviewWorkspace } from './objectiveReviewWorkspace';
 
 const teamA = ['a1', 'a2', 'a3', 'a4', 'a5'] as const;
@@ -384,7 +381,7 @@ describe('objective review workspace', () => {
       end_tick: 4_000,
       events: [
         event('start-r1-again', 3_000, 'round_start', {
-          detail: duplicate.rounds[0]!.events[0]!.detail as Record<string, unknown>,
+          detail: duplicate.rounds[0]!.events[0]!.detail,
         }),
       ],
     });

@@ -42,7 +42,7 @@ import { useHref, useNavigate } from 'react-router-dom';
 
 import { useCancelTask, useRetryRecordingPlan, useRetryTask } from '../../data/tasks';
 import type { TaskLink, TaskSummary } from '../../domain/task';
-import type { ActivityItem } from '../../shared/desktop/dto';
+import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { taskKindOfActivity, taskStagePositionOf, taskStatusOfActivity, toTaskSummary } from './taskModel';
 import { canCancelTask, taskRestartEvent } from './taskTransitions';
 import type { ServiceActionState } from '../../data/serviceAction';

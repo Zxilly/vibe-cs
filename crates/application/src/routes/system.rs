@@ -26,6 +26,7 @@ use vibe_cs_integrations::discover_paths;
 use walkdir::WalkDir;
 
 use crate::{ApiError, ApiJson, ApiResult, AppState};
+use ts_rs::TS;
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
@@ -42,7 +43,8 @@ pub(crate) fn router() -> Router<AppState> {
 
 const MAXIMUM_STORAGE_SCAN_ENTRIES: usize = 500_000;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct StorageStatusResponse {
     data_dir: String,
     directory_bytes: u64,
@@ -124,11 +126,12 @@ fn directory_usage(root: &Path, maximum_entries: usize) -> DirectoryUsage {
     usage
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[allow(
     clippy::struct_field_names,
     reason = "the stable wire contract names each independently detected value with a _path suffix"
 )]
+#[ts(export)]
 struct DetectedPathsResponse {
     cs2_path: Option<String>,
     steam_path: Option<String>,
@@ -152,7 +155,8 @@ async fn detect_paths(State(state): State<AppState>) -> ApiResult<Json<DetectedP
     }))
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct ManagedHlaeStatusDto {
     available: bool,
     executable: Option<String>,
@@ -166,7 +170,8 @@ struct ManagedHlaeStatusDto {
     safety_boundary: HlaeSafetyBoundaryDto,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct HlaeSafetyBoundaryDto {
     insecure_mode_required: bool,
     vac_servers_prohibited: bool,
@@ -439,7 +444,8 @@ fn lossy_path(path: Option<&Path>) -> Option<String> {
     path.map(|path| path.to_string_lossy().into_owned())
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct HealthResponse {
     status: &'static str,
     version: &'static str,
@@ -454,7 +460,8 @@ async fn health(State(state): State<AppState>) -> Json<HealthResponse> {
     })
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct RuntimeStateResponse {
     status: &'static str,
     version: &'static str,
@@ -476,12 +483,13 @@ async fn runtime_state(State(state): State<AppState>) -> Json<RuntimeStateRespon
     })
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 #[allow(
     clippy::struct_excessive_bools,
     reason = "the settings contract exposes one presence bit per independently stored secret"
 )]
+#[ts(export)]
 struct ConfigDto {
     theme: String,
     update_manifest_url: String,
@@ -790,19 +798,22 @@ async fn setup_status(State(state): State<AppState>) -> ApiResult<Json<SetupStat
     }))
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct QuickCheckResponse {
     checks: Vec<DependencyCheck>,
     checked_at: chrono::DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
 struct DependencyCheck {
     kind: &'static str,
     state: &'static str,
     label: &'static str,
     detail: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     action_path: Option<&'static str>,
 }
 

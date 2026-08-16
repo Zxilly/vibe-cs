@@ -1,7 +1,4 @@
-import type {
-  AnalysisWorkspace,
-  PlayerAnalysis,
-} from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, PlayerAnalysis } from '../../shared/desktop/viewModels';
 
 export type StableMatchTeam = PlayerAnalysis['team'];
 export type CompetitiveSide = 'T' | 'CT';

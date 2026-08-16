@@ -1,4 +1,4 @@
-import type { AnalysisWorkspace } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import type { AnalysisNavigationPatch } from './analysisNavigation';
 import {
   playerEvidenceActionIntent,

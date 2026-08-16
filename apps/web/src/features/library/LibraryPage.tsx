@@ -27,16 +27,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { commands, desktopMediaUrl, readableError } from '../../shared/desktop/client';
 import type {
-  AnalysisWorkspace,
   DemoLifecycleStatus,
   DemoMatchSource,
   DemoMetadata,
-  DemoSummary,
-  ReviewTag,
   DemoWatchStatus,
   RadarOverviewRecord,
+  ReviewTag,
   ScanResult,
 } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace, DemoSummary } from '../../shared/desktop/viewModels';
 import { chooseLocalDirectories, chooseLocalFiles, chooseLocalSavePath, isDesktopShell, revealLocalPath, writeLocalBytes } from '../../shared/desktop/dialog';
 import { useAsyncAction } from '../../shared/hooks/useAsyncAction';
 import { useI18n } from '../../shared/i18n';

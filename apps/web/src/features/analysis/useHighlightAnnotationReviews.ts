@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { commands, readableError } from '../../shared/desktop/client';
-import type { AnalysisWorkspace, EvidenceAnnotation } from '../../shared/desktop/dto';
+import type { EvidenceAnnotation } from '../../shared/desktop/dto';
+import type { AnalysisWorkspace } from '../../shared/desktop/viewModels';
 import {
   canonicalHighlightAnnotationItem,
   createHighlightAnnotationReviewState,

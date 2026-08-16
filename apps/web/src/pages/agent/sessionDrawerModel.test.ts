@@ -9,10 +9,10 @@
 
 import { describe, expect, it } from 'vitest';
 
+import type { KnownWorkspaceReference } from '../../domain/agent';
 import type {
   AgentObjectKind,
   AgentObjectRef,
-  AgentWorkspaceReference,
   AgentWorkspaceReferences,
 } from '../../shared/desktop/dto';
 import {
@@ -34,8 +34,8 @@ const OBJECT_KINDS: readonly AgentObjectKind[] = ['plan', 'recording_task', 'edi
 function reference(
   kind: AgentObjectKind,
   id: string,
-  overrides: Partial<AgentWorkspaceReference> = {},
-): AgentWorkspaceReference {
+  overrides: Partial<KnownWorkspaceReference> = {},
+): KnownWorkspaceReference {
   return {
     kind,
     id,

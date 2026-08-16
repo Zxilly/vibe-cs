@@ -17,11 +17,29 @@ const linguiOwnedRoots = ['design', 'domain', 'pages', 'app', 'data', 'locales']
   path.resolve(import.meta.dirname, '../..', name),
 );
 
+/*
+ * `shared/desktop/generated/` is written by `cargo test` from the Rust types
+ * (phase 3f-cg), and Rust doc comments carry into TSDoc — so a struct whose
+ * documentation quotes the artboard ("「设置 · AI 与 Agent」") produces a
+ * generated file containing Han text.
+ *
+ * That is not UI copy and cannot become UI copy: these files declare types and
+ * nothing else. There is no JSX, no macro and no string constant in any of
+ * them — the only place a character can appear is inside a comment. Rewriting
+ * the Rust documentation to avoid Han would cost the most useful thing those
+ * comments carry, which is the artboard's own wording for the field.
+ */
+const generatedRoot = path.resolve(import.meta.dirname, '..', 'desktop', 'generated');
+
 function productionModules(directory: string): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const target = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      if (target.endsWith(path.join('shared', 'i18n')) || linguiOwnedRoots.includes(target)) {
+      if (
+        target.endsWith(path.join('shared', 'i18n')) ||
+        target === generatedRoot ||
+        linguiOwnedRoots.includes(target)
+      ) {
         return [];
       }
       return productionModules(target);

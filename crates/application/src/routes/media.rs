@@ -402,7 +402,7 @@ async fn recorded_clip_waveform(
     }))
 }
 
-async fn stream_media_file(
+pub(super) async fn stream_media_file(
     path: &str,
     headers: HeaderMap,
     head_only: bool,
@@ -3704,6 +3704,9 @@ mod tests {
                 width: Some(1920),
                 height: Some(1080),
                 has_audio: true,
+                frame_rate: None,
+                video_codec: None,
+                audio_codec: None,
             })
         }
 
@@ -3771,6 +3774,9 @@ mod tests {
                 width: None,
                 height: None,
                 has_audio: true,
+                frame_rate: None,
+                video_codec: None,
+                audio_codec: None,
             })
         }
 
@@ -3806,6 +3812,9 @@ mod tests {
                 width: None,
                 height: None,
                 has_audio: true,
+                frame_rate: None,
+                video_codec: None,
+                audio_codec: None,
             })
         }
 

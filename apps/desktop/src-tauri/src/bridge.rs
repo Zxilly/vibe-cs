@@ -267,6 +267,11 @@ fn validate_media_path(path: &str) -> Result<(), DesktopCommandError> {
         | ["media", "assets", id, "stream"]
         | ["editor", "packages", id, "download"]
         | ["media", "assets", id, "proxy", "stream"] => is_uuid(id),
+        // 「11 输出与任务记录」's 「播放」. The kind is one of the two the
+        // outputs route knows, spelled out rather than matched loosely: this
+        // list is what keeps the media protocol from becoming a way to read
+        // arbitrary service paths.
+        ["outputs", kind, id, "stream"] => matches!(*kind, "recording" | "export") && is_uuid(id),
         ["players", steam_id, "avatar"] => is_decimal(steam_id),
         [
             "cosmetics",
@@ -739,6 +744,8 @@ mod tests {
             format!("/recorded-clips/{ID}/stream"),
             format!("/media/assets/{ID}/proxy/stream"),
             format!("/editor/packages/{ID}/download"),
+            format!("/outputs/recording/{ID}/stream"),
+            format!("/outputs/export/{ID}/stream"),
             "/players/76561198000000001/avatar".to_owned(),
             "/cosmetics/catalog/items/7/paint-kits/600/image".to_owned(),
             "/maps/de_mirage/radar".to_owned(),
@@ -749,6 +756,9 @@ mod tests {
             assert!(media_uri(&valid).is_ok(), "unexpectedly blocked {path}");
         }
         for invalid in [
+            // A kind outside the two the outputs route knows: the allowlist
+            // matches the exact words, not "some segment here".
+            "http://vibe-cs-media.localhost/outputs/anything/2f872494-53ca-46c4-967a-f7e63ec60116/stream",
             "http://vibe-cs-media.localhost/api/external/file",
             "http://vibe-cs-media.localhost/recording/plans/2f872494-53ca-46c4-967a-f7e63ec60116/execute",
             "http://vibe-cs-media.localhost/config",

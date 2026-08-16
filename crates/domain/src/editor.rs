@@ -993,6 +993,11 @@ pub struct ExportJob {
     pub output_path: String,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub error: Option<String>,
+    /// The classified reason, beside the free-text one. See
+    /// [`crate::JobFailureCode`] — `error` says what happened, this says what
+    /// the user can do about it.
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub error_code: Option<crate::JobFailureCode>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -1153,6 +1158,7 @@ mod tests {
             progress: 0.0,
             output_path: "C:/exports/round.mp4".to_owned(),
             error: None,
+            error_code: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         })
@@ -1170,6 +1176,7 @@ mod tests {
             progress: 0.0,
             output_path: "C:/exports/round.mp4".to_owned(),
             error: None,
+            error_code: None,
             created_at: Utc::now(),
             updated_at: Utc::now(),
         })

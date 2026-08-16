@@ -1746,6 +1746,7 @@ impl Storage {
                 progress: 0.0,
                 demo_id: None,
                 error: None,
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             };
@@ -1830,6 +1831,7 @@ impl Storage {
                 progress: 1.0,
                 demo_id: Some(demo_id),
                 error: None,
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             };
@@ -8708,6 +8710,7 @@ mod tests {
             progress: 0.25,
             demo_id: None,
             error: None,
+            error_code: None,
             created_at: now,
             updated_at: now,
         };
@@ -8858,6 +8861,7 @@ mod tests {
                 progress: 0.0,
                 message: "recording.stage.launching".to_owned(),
                 outputs: vec![],
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -8885,6 +8889,7 @@ mod tests {
                         progress: 0.0,
                         output_path: format!("C:/exports/{id}.mp4"),
                         error: None,
+                        error_code: None,
                         created_at: updated_at,
                         updated_at,
                     },
@@ -8975,6 +8980,7 @@ mod tests {
             items: vec![request.clone()],
             current_index: 0,
             progress: 0.0,
+            error_code: None,
             message: "capture interrupted".to_owned(),
             outputs: Vec::new(),
             created_at: now,
@@ -8993,6 +8999,7 @@ mod tests {
             progress: 0.0,
             message: "Queued retry".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };
@@ -9056,6 +9063,7 @@ mod tests {
             items: vec![request.clone()],
             current_index: 0,
             progress: 0.0,
+            error_code: None,
             message: "capture interrupted".to_owned(),
             outputs: Vec::new(),
             created_at: now,
@@ -9072,6 +9080,7 @@ mod tests {
             progress: 0.0,
             message: "Queued retry".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };
@@ -9129,6 +9138,7 @@ mod tests {
             progress: 0.0,
             message: "Queued retry".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };
@@ -9175,6 +9185,7 @@ mod tests {
             items: vec![request.clone()],
             current_index: 0,
             progress: 0.0,
+            error_code: None,
             message: "capture interrupted".to_owned(),
             outputs: Vec::new(),
             created_at: now,
@@ -9247,6 +9258,7 @@ mod tests {
             items: vec![request.clone()],
             current_index: 0,
             progress: 0.0,
+            error_code: None,
             message: "capture interrupted".to_owned(),
             outputs: Vec::new(),
             created_at: now,
@@ -9330,6 +9342,7 @@ mod tests {
             ],
             current_index: 1,
             progress: 0.5,
+            error_code: None,
             message: "capture interrupted".to_owned(),
             outputs: vec![vibe_cs_domain::RecordedClip {
                 id: Uuid::new_v4(),
@@ -9388,6 +9401,7 @@ mod tests {
             progress: 0.0,
             message: "recording state".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };
@@ -9462,6 +9476,7 @@ mod tests {
                 progress: 0.0,
                 demo_id: None,
                 error: Some("network".to_owned()),
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -9504,6 +9519,7 @@ mod tests {
                 progress: 0.0,
                 output_path: "C:/exports/live.mp4".to_owned(),
                 error: None,
+                error_code: None,
                 created_at: now,
                 updated_at,
             },
@@ -9584,6 +9600,7 @@ mod tests {
                     progress: 0.0,
                     message: "recording.stage.capturing".to_owned(),
                     outputs: vec![],
+                    error_code: None,
                     created_at: now,
                     updated_at: now,
                 })
@@ -9622,6 +9639,7 @@ mod tests {
                 progress: 0.0,
                 output_path: "output.mp4".to_owned(),
                 error: None,
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             },

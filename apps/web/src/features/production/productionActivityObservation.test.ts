@@ -24,6 +24,7 @@ function item(status: ActivityItem['status']): ActivityItem {
     total_units: null,
     unit: null,
     error: null,
+    failure: null,
     created_at: '2026-08-13T01:00:00Z',
     updated_at: '2026-08-13T01:01:00Z',
     available_actions: status === 'completed' ? ['open_outputs'] : ['cancel', 'open_outputs'],

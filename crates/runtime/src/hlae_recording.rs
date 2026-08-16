@@ -2515,6 +2515,7 @@ mod tests {
             progress: 0.5,
             message: "recording.stage.capturing".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         }

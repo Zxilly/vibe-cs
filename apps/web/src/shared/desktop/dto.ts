@@ -380,6 +380,8 @@ export type ActivityAction =
 export type { ActivityKindFilter } from './generated/ActivityKindFilter';
 export type { ActivityStateFilter } from './generated/ActivityStateFilter';
 export type { ActivityItem } from './generated/ActivityItem';
+export type { ActivityFailure } from './generated/ActivityFailure';
+export type { JobFailureCode } from './generated/JobFailureCode';
 export type { ActivitySummary } from './generated/ActivitySummary';
 export type { ActivityFeed } from './generated/ActivityFeed';
 export type { ActivityQuery } from './generated/ActivityQuery';
@@ -464,6 +466,7 @@ export type { ExportJobRecord } from './generated/ExportJobRecord';
 export type { OutputKind } from './generated/OutputKind';
 export type { OutputAvailability } from './generated/OutputAvailability';
 export type { OutputItemDto as OutputItem } from './generated/OutputItemDto';
+export type { OutputMediaInfo } from './generated/OutputMediaInfo';
 export type { OutputListQuery as OutputQuery } from './generated/OutputListQuery';
 export type { OutputPageDto as OutputPage } from './generated/OutputPageDto';
 export type { DeleteOutputResult } from './generated/DeleteOutputResult';
@@ -821,6 +824,7 @@ export type { AgentPlanQuery } from './generated/AgentPlanQuery';
 
 export type { AgentSessionRetention } from './generated/AgentSessionRetention';
 export type { AgentWorkspaceSettings } from './generated/AgentWorkspaceSettings';
+export type { CommentaryTone } from './generated/CommentaryTone';
 export type { AgentSessionStorageStats } from './generated/AgentSessionStorageStats';
 export type { AgentSessionExport } from './generated/AgentSessionExport';
 export type { AgentSessionPurge } from './generated/AgentSessionPurge';

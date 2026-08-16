@@ -615,7 +615,7 @@ export function renderInteractive(ui: ReactElement): RenderResult
 | 3f-1 | 录制计划（08）/ 快速合辑（09） | ✓ 完成（§10.8）。两页接真数据；导播预览画真实相机路径；Agent 页的「确认并生成视频」不再是死按钮 |
 | 3f-cg | **强类型收口**：`ts-rs` 在 Rust 类型上 derive，`cargo test` 写出 `shared/desktop/generated/`，`dto.ts` 退化成再导出。CI 的 rust job 加一道漂移门 | ✓ 完成（§10.9）。dto.ts 2421 → 864 行，抓出并修掉 21 处真实漂移。**原计划的 utoipa 方案在清点出 155 条路由后换成了 ts-rs**，理由见 §10.9 开头 |
 | 3f-2 | 多轨编辑器（10） | ✓ 完成（§10.10）。两步：先补齐时间轴内核（修剪 / 自动滚动 / 帧网格 / 变速 / 虚拟化 / 指针捕获，`TrackKind` 对齐线上），再接真素材（适配层 + `data/editor.ts` + 六个面板） |
-| 3g-be | **后端并行任务**：Agent 设置五个开关 / 引用删除路由 / 保留策略调度 / `OutputItem` 媒体元数据与输出流 / 活动错误码 / **`GET /api/recording/plans/{id}`（§10.8 缺口 1 与 2 同因，一条路由修两个）** | 3g 的页面不再有「后端没有这个字段」的空位 |
+| 3g-be | **后端并行任务**：Agent 设置五个开关 / 引用删除路由 / 保留策略调度 / `OutputItem` 媒体元数据与输出流 / 活动错误码 / **`GET /api/recording/plans/{id}`（§10.8 缺口 1 与 2 同因，一条路由修两个）** | ✓ 完成（§10.11）。六项全部落地，`cargo test --workspace` 全绿 |
 | 3g | 设置 5 节 / 恢复中心 / 工作台首页余下五块 / **`/guide` 与首次使用三步提示条** / 原生外壳能力回填 | |
 | 4 | i18n 英文收口；测试回归；删除 `styles/index.css`、旧 `features/`、旧 `shared/ui`、旧 `shared/i18n`、`check-web-i18n.mjs`、三个被移除的依赖 | `pnpm lint && pnpm typecheck && pnpm test` 全绿，旧目录清零 |
 | 5 | `design/` 组件库回流到一个**新建的** Claude Design 设计系统项目（`Industry` 是共用基底，不动） | 下一轮画板的起点是真正被建出来的那套 token 与控件 |
@@ -1268,3 +1268,73 @@ A 块（对话流）与 B 块（方案面板）在同一轮里各自实现了「
 7. **`EditorProject` 没有「新建轨道」路由**。轨道只能随片段一起出现（适配层在没有对应类型轨道时自己造一条，保存时随文档一起过去）。用户想要一条空的 V2 叠加轨，没有地方点。
 8. **`speed_segments` 没有编辑入口**，前端也没有模型。文档禁止它与非 1 的基础速度并存，画板只画了一个「速度」字段，而速度斜坡是曲线界面不是数字。
 9. `EditorExportRequest` 是 `{ encoder, quality, range_* }`，画板没有导出对话框，所以页面固定发 `encoder: 'auto', quality: 85`。要让用户选，需要先有画板。
+
+
+---
+
+## 10.11 阶段 3g-be 落地记录 —— 后端补齐（2026-08-16）
+
+六项全部做掉。出口条件：`cargo clippy --workspace --all-targets -- -D warnings` 退出码 0；`cargo test --workspace` 全绿；`check-rust-format.ps1` 退出码 0；前端 `typecheck` / `lint` / `build` 退出码 0，vitest 484 文件 4722 用例通过。
+
+**前提说明**：用户明确「不需要任何兼容，该系统从未上线过」。所以新字段一律是**必需字段**，没有 `#[serde(default)]`，没有迁移，也没有为旧文档写兜底——旧文档不存在。这也是为什么四个作业结构体能直接加字段：它们的实体存在 `document_json` 里，列只是索引，schema 一行没动。
+
+### 1. Agent 设置五个开关（§10.5 缺口 6）
+
+`AgentWorkspaceSettings` 从两个字段变成七个：`auto_attach_context` / `preview_before_apply` / `show_evidence_reads` / `default_video_seconds` / `commentary_tone`（新枚举 `CommentaryTone`，专业 / 节目化）。默认值逐个取自画板的绘制态。
+
+**「录制前始终由你确认」故意没有字段。** 画板自己写的是「不可关闭」，所以它是产品常量而不是设置项——一个谁都不许设成 false 的布尔，最终一定会被设成 false。
+
+`default_video_seconds` 有值域 5…3600 并在 `validate` 里拒绝越界：它是 Agent 瞄准的目标长度，0 秒不是目标。
+
+### 2. 引用删除路由（§10.5 缺口 9）
+
+`DELETE /api/agent/sessions/{id}/refs/{kind}/{object_id}`。画板右栏画了「取消引用」而没有路由可调，所以那个按钮一直没画出来。
+
+**幂等**：删一个不存在的引用答 204 而不是 404。按两次、或者另一个窗口已经删过，都不是失败——调用方要的是「这条引用没了」，而它确实没了。404 留给真正缺的东西：会话本身。
+
+删引用**不动会话的 `updated_at`**，除非真的删掉了什么。一次没删到东西的请求不是编辑，让它顶起会话列表的排序是错的。
+
+### 3. 保留策略调度（§10.1 缺口 2 / §10.5 决议）
+
+`crates/runtime/src/session_retention.rs`，跟随 runtime 生命周期。**渲染进程不是调度器**——只在开着窗口时扫，会把「30 天」变成「30 天，如果你最近开过应用」。
+
+**第一次扫描延迟 5 分钟**，这是对「启动即扫」那条反对意见的软化而不是消除：用户启动后看到「不保留」并在这段时间内改掉，就不会丢东西。诚实的说法是**它让误设在常见情况下可挽回，而不是不可能发生**——五分钟是对人反应速度的猜测，不是契约。
+
+失败只记日志、下一轮重试，不结束任务：数据库忙是暂态的，而一个第一次失败就停掉的清扫器会让策略在整个会话期间失效且无人知晓。
+
+### 4. `OutputItem` 媒体元数据与输出流
+
+画板 11 每行印的是「42 秒 · 60 fps · 186 MB · H.264 / AAC」和「1920×1080」。新增 `OutputMediaInfo`（分辨率 / 时长 / 帧率 / 编码），字段全部可空，**每个可空各有一个理由**而不是一律兜底：静态图没有时长和帧率，纯音频导出没有分辨率，文件不在了根本探测不了，容器打不开就答不出来而不是从扩展名猜。
+
+帧率是**精确有理数字符串**（`"60"` / `"30000/1001"`）。浮点会让 29.97 和 30 在界面精度下变成同一个数，而它们是两种不同的格式。为此给 `MediaStream` 加了 `frame_rate`，取 `avg_frame_rate` 而不是 `r_frame_rate`——后者对 VFR 素材可能是 1000/1。
+
+**探测发生在分页之后**，不在 `into_dto` 里。后者对库里每一个输出都跑一次，在过滤与分页之前——为了渲染二十行会打开几百个容器，而且是在搜索框每敲一个字的时候。带一个按「路径 + 大小」为键的进程内缓存，**大小进键**是为了原地替换的文件会被重新探测而不是沿用上一个文件的分辨率。探测失败也缓存，免得每次翻页都重开一个打不开的容器。
+
+`GET|HEAD /api/outputs/{kind}/{id}/stream` 是「播放」的落点。它是独立路由而不是复用录制片段的流：一个导出只有 `ExportJob` 的 id 和路径，没有 clip 记录可查。两种 kind 都在这里解析成文件，共用同一个 range 工具，所以两者不会在 seek 或 `Content-Type` 上分叉。**availability 不是 Present 的直接拒绝**——列表已经告诉页面它播不了，一个越过这道检查的流路由就是一条读任意路径的通道。桥接白名单加了 `["outputs", kind, id, "stream"]`，`kind` 写死两个词而不是宽松匹配。
+
+### 5. 活动失败码
+
+`JobFailureCode`：Cancelled / Interrupted / DiskFull / InputMissing / PermissionDenied / DependencyMissing / DependencyFailed / InvalidInput / Timeout / Unknown。四个作业结构体各加一个 `error_code`，`ActivityItem` 暴露 `failure: { code, retryable }`。
+
+**成员的划分标准是「用户下一步做什么」，不是子系统。** FFmpeg 挂了和 HLAE 挂了都是 `DependencyFailed`；`DiskFull` 和 `PermissionDenied` 都是「写失败」，分开是因为一个靠删文件解决、另一个不是。
+
+**`DiskFull` 不可重试。** 重试会以同样方式失败，而提供重试就是界面在明知答案的情况下说「再试一次」。画板自己的句子是「释放 4.2 GB 后可重试」——先是指令，然后才是重试。
+
+**`Unknown` 是一个真答案**，不是不好意思的兜底：它表示这次失败不在这套分类里，而页面还有 `error` 原文可印。从消息文本猜一个码，比承认不知道更糟。
+
+打码的位置是**错误产生处**：导出链路完整映射了 `MediaError`（含 `Io` 的 `ErrorKind::StorageFull` → `DiskFull`，这正是画板画的那个），重启打断与取消也各自打码。**其余链路目前多数是 `None`**，这是如实的现状，不是完成度声明——见下面的缺口 3。
+
+### 6. `GET /api/recording/plans/{id}`（§10.8 缺口 1 + 2）
+
+一条路由修两个：刷新页面丢租约，和 delivery 的「重试录制」把**租约 id** 交给一个按**方案 id** 解释参数的页面。
+
+租约现在**原样存下它答复过的文档**（`Arc<RecordingPlanResponse>`），读的时候原样交回。重算是显而易见的替代方案，也是错的：导播计划和时长估计都来自持久化的分析，而两次读之间分析可能变过，同一个 id 会得到不同的文档。`binding_sha256` 存在的全部意义就是「一个租约描述一组固定的输入」，那么它产出的方案也是固定的。
+
+**过期答 `410 Gone` 而不是 `404`**：两件不同的事，页面要说不同的话——过期的方案可以从同一个队列重新创建，从来不存在的不行。正在启动中的租约（`Starting`）不按过期处理，`execute_plan` 会在移交给录制器的过程中持有它。
+
+### 缺口
+
+1. **`RecordingJob` 没有 `error` 字段**，它用 `message` 兼作失败文本，所以那条链路只有 `error_code` 没有配套原文。要么给它加 `error`，要么承认 `message` 就是。本轮按后者处理并写在类型注释里。
+2. **`AppConfig` 与其它 `document_json` 结构体加字段时会读不出旧文档**（`deny_unknown_fields` + 无 `serde(default)`）。本轮不成问题（未上线），但**上线之后第一次加字段就会撞上**，届时需要一个真的迁移机制。
+3. **下载 / 分析 / 录制三条链路的 `error_code` 目前基本是 `None`。** 类型、存储与呈现都通了，缺的是在各自的错误产生处打码——每条链路的错误类型不同，逐条映射是独立的活。**这是本轮如实的完成度**，不是「已支持」。
+4. **`OutputMediaInfo` 的探测是同步顺序的**：当页每个输出依次 `probe`。一页二十行、每次几毫秒可以接受，但没有并发也没有量过。

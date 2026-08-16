@@ -95,13 +95,17 @@ impl MediaPort for RuntimeMediaPort {
             ));
         };
         let video = probe.streams.iter().find(|stream| stream.kind == "video");
+        let audio = probe.streams.iter().find(|stream| stream.kind == "audio");
         Ok(ProbedMediaMetadata {
             duration_seconds: probe
                 .duration_seconds
                 .filter(|duration| duration.is_finite() && *duration >= 0.0),
             width: video.and_then(|stream| stream.width),
             height: video.and_then(|stream| stream.height),
-            has_audio: probe.streams.iter().any(|stream| stream.kind == "audio"),
+            has_audio: audio.is_some(),
+            frame_rate: video.and_then(|stream| stream.frame_rate.clone()),
+            video_codec: video.map(|stream| stream.codec.clone()),
+            audio_codec: audio.map(|stream| stream.codec.clone()),
         })
     }
 

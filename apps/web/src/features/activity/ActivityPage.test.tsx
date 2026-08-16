@@ -28,6 +28,7 @@ const item = (overrides: Partial<ActivityItem>): ActivityItem => ({
   total_units: null,
   unit: null,
   error: null,
+  failure: null,
   created_at: '2026-08-13T01:00:00Z',
   updated_at: '2026-08-13T01:01:00Z',
   available_actions: ['cancel', 'open_outputs'],
@@ -170,6 +171,7 @@ describe('activity workspace', () => {
       context_id: 'match-record-42',
       status: 'failed',
       error: 'download ticket expired',
+      failure: null,
       available_actions: ['retry_download'],
     });
     const retry = vi.spyOn(commands, 'downloadMatchDemo').mockResolvedValue({
@@ -181,6 +183,7 @@ describe('activity workspace', () => {
       progress: 0,
       demo_id: null,
       error: null,
+      error_code: null,
       created_at: '2026-08-13T01:02:00Z',
       updated_at: '2026-08-13T01:02:00Z',
     });
@@ -218,6 +221,7 @@ describe('activity workspace', () => {
       job: {
         id: 'export-job', project_id: 'project-1', status: 'cancelling', progress: 0.42,
         output_path: 'C:/exports/exact.mp4', error: null,
+        error_code: null,
         created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:02:00Z',
       },
     });
@@ -239,6 +243,7 @@ describe('activity workspace', () => {
       run: {
         id: 'run/exact', demo_id: 'demo-1', input_sha256: 'a'.repeat(64), input_size: 42,
         status: 'cancelled', stage: 'cancelled', error: null,
+        error_code: null,
         created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:02:00Z',
       },
       events: [{
@@ -286,6 +291,7 @@ describe('activity workspace', () => {
       downloaded_bytes: 0,
       total_bytes: null,
       progress: 1,
+      error_code: null,
       demo_id: 'persisted-demo',
       error: null,
       created_at: '2026-08-13T01:02:00Z',
@@ -305,6 +311,7 @@ describe('activity workspace', () => {
       job_id: 'failed/job',
       status: 'failed',
       error: 'capture interrupted',
+      failure: null,
       available_actions: ['retry_recording'],
     });
     const plan = vi.spyOn(commands, 'planRecordingRetry').mockResolvedValue({
@@ -389,6 +396,7 @@ describe('activity workspace', () => {
     const created = {
       id: 'new-run', demo_id: 'demo-1', input_sha256: null, input_size: null,
       status: 'queued' as const, stage: 'validating_input' as const, error: null,
+      error_code: null,
       created_at: '2026-08-13T01:02:00Z', updated_at: '2026-08-13T01:02:00Z',
     };
     const retry = vi.spyOn(commands, 'startAnalysisRun').mockResolvedValue(created);

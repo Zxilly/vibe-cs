@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     io::{Read as _, Write as _},
     path::{Path as FilePath, PathBuf},
+    sync::Arc,
 };
 use ts_rs::TS;
 
@@ -43,6 +44,7 @@ const MAXIMUM_RECORDING_PLAN_LEASES: usize = 32;
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/recording/plan", post(plan))
+        .route("/api/recording/plans/{id}", get(get_plan))
         .route("/api/recording/plans/{id}/execute", post(execute_plan))
         .route("/api/recording/plans/{id}/preflight", post(preflight_plan))
         .route("/api/recording/jobs/{id}", get(get_job))
@@ -92,9 +94,9 @@ where
 /// The single recording-plan contract. It is `pub(super)` rather than private
 /// because [`create_recording_plan`] is also the entry point the Agent plan
 /// route uses; both paths must answer with the same document.
-#[derive(Debug, Serialize, TS)]
+#[derive(Debug, Clone, Serialize, TS)]
 #[ts(export)]
-pub(super) struct RecordingPlanResponse {
+pub(crate) struct RecordingPlanResponse {
     plan_id: Uuid,
     expires_at: chrono::DateTime<Utc>,
     active_items: usize,
@@ -185,6 +187,19 @@ pub(super) async fn create_recording_plan(
     let expires_at = Utc::now() + RECORDING_PLAN_TTL;
     let deadline = tokio::time::Instant::now() + RECORDING_PLAN_TTL_DURATION;
     let (transitions, _) = tokio::sync::watch::channel(RecordingPlanLeaseState::Ready);
+    // Built once and shared: the lease keeps it so a reload answers the same
+    // document, and the caller gets a clone of that same value rather than a
+    // second one assembled from the same inputs.
+    let response = Arc::new(RecordingPlanResponse {
+        plan_id,
+        expires_at,
+        active_items: active_items.len(),
+        disabled_items,
+        estimated_seconds,
+        warnings,
+        items: executable_items.clone(),
+        director,
+    });
     {
         let mut leases = state.recording_plans.lock().await;
         let now = Utc::now();
@@ -203,8 +218,9 @@ pub(super) async fn create_recording_plan(
         leases.insert(
             plan_id,
             RecordingPlanLease {
-                items: executable_items.clone(),
+                items: executable_items,
                 retry_of,
+                response: Arc::clone(&response),
                 binding_sha256,
                 expires_at,
                 deadline,
@@ -213,16 +229,44 @@ pub(super) async fn create_recording_plan(
             },
         );
     }
-    Ok(Json(RecordingPlanResponse {
-        plan_id,
-        expires_at,
-        active_items: active_items.len(),
-        disabled_items,
-        estimated_seconds,
-        warnings,
-        items: executable_items,
-        director,
-    }))
+    Ok(Json((*response).clone()))
+}
+
+/// §10.8 gaps 1 and 2, both of which are the same gap: a recording plan could
+/// only ever be read once, at the moment it was created.
+///
+/// The consequences were a page that lost its plan on reload — the lease was
+/// still alive on the service, the browser simply had no way to ask for it —
+/// and 「重试录制」 in 「11 输出与任务记录」 handing `/recording/<id>` a *lease*
+/// id that the page had no route to resolve. One route fixes both.
+///
+/// A plan that has expired answers `410 Gone` rather than `404`. They are
+/// different facts and the page says different things about them: a plan that
+/// expired can be recreated from the same queue, and one that never existed
+/// cannot.
+async fn get_plan(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> ApiResult<Json<RecordingPlanResponse>> {
+    let plan_id = parse_id(&id)?;
+    let leases = state.recording_plans.lock().await;
+    let lease = leases
+        .get(&plan_id)
+        .ok_or_else(|| ApiError::not_found("recording plan"))?;
+    // A lease mid-launch is not expired however old its clock says it is —
+    // `execute_plan` holds it across the handoff to the recorder, and the page
+    // watching that job still needs to read the plan it is running.
+    let starting = matches!(lease.state, RecordingPlanLeaseState::Starting { .. });
+    if !starting
+        && (lease.expires_at <= Utc::now() || lease.deadline <= tokio::time::Instant::now())
+    {
+        return Err(ApiError::new(
+            StatusCode::GONE,
+            "recording_plan_expired",
+            "This recording plan has expired; create it again from the queue",
+        ));
+    }
+    Ok(Json((*lease.response).clone()))
 }
 
 #[derive(Serialize)]
@@ -488,6 +532,7 @@ async fn start_recording_job(
         progress: 0.0,
         message: "Queued".to_owned(),
         outputs: Vec::new(),
+        error_code: None,
         created_at: now,
         updated_at: now,
     };
@@ -2053,6 +2098,7 @@ mod tests {
             items: vec![request],
             current_index: 0,
             progress: 0.0,
+            error_code: None,
             message: "capture interrupted".to_owned(),
             outputs: Vec::new(),
             created_at: now,
@@ -2077,6 +2123,7 @@ mod tests {
             progress: 0.0,
             message: "test".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         }
@@ -2547,6 +2594,7 @@ mod tests {
             items: vec![first, second.clone()],
             current_index: 1,
             progress: 0.5,
+            error_code: None,
             message: "capture interrupted".to_owned(),
             outputs: vec![vibe_cs_domain::RecordedClip {
                 id: Uuid::new_v4(),
@@ -3034,6 +3082,85 @@ mod tests {
                 .await
                 .contains_key(&planned.0.plan_id)
         );
+    }
+
+    #[tokio::test]
+    async fn a_plan_can_be_read_back_and_is_the_same_document() {
+        // §10.8 gaps 1 and 2: a plan could only ever be read once, at the
+        // moment it was created. Reloading the recording page lost it, and
+        // 「重试录制」 handed `/recording/<id>` a lease id nothing could resolve.
+        let recording = Arc::new(CountingRecordingPort::default());
+        let (_directory, state) = state_with_recording(Arc::clone(&recording)).await;
+        let demo_id = Uuid::new_v4();
+        persist_plan_demo(&state, demo_id).await;
+        let planned = plan(
+            State(state.clone()),
+            ApiJson(RecordingQueueRequest {
+                items: vec![plan_queue_item(demo_id)],
+            }),
+        )
+        .await
+        .expect("recording plan");
+
+        let reread = get_plan(State(state.clone()), Path(planned.0.plan_id.to_string()))
+            .await
+            .expect("plan is readable")
+            .0;
+
+        // The *same* document, not one recomputed from the same inputs: the
+        // director plan and the estimate come from analyses that can move.
+        assert_eq!(reread.plan_id, planned.0.plan_id);
+        assert_eq!(reread.expires_at, planned.0.expires_at);
+        assert_eq!(reread.items.len(), planned.0.items.len());
+        assert_eq!(
+            serde_json::to_value(&reread.director).expect("director"),
+            serde_json::to_value(&planned.0.director).expect("director")
+        );
+
+        // Reading it does not consume it — that is `execute_plan`'s job.
+        assert!(
+            state
+                .recording_plans
+                .lock()
+                .await
+                .contains_key(&planned.0.plan_id)
+        );
+
+        let missing = get_plan(State(state.clone()), Path(Uuid::new_v4().to_string()))
+            .await
+            .expect_err("an unknown plan is not found");
+        assert_eq!(missing.into_response().status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn an_expired_plan_is_gone_rather_than_missing() {
+        // Different facts, and the page says different things about them: an
+        // expired plan can be recreated from the same queue, one that never
+        // existed cannot.
+        let recording = Arc::new(CountingRecordingPort::default());
+        let (_directory, state) = state_with_recording(Arc::clone(&recording)).await;
+        let demo_id = Uuid::new_v4();
+        persist_plan_demo(&state, demo_id).await;
+        let planned = plan(
+            State(state.clone()),
+            ApiJson(RecordingQueueRequest {
+                items: vec![plan_queue_item(demo_id)],
+            }),
+        )
+        .await
+        .expect("recording plan");
+
+        {
+            let mut leases = state.recording_plans.lock().await;
+            let lease = leases.get_mut(&planned.0.plan_id).expect("lease");
+            lease.expires_at = Utc::now() - chrono::Duration::seconds(1);
+            lease.deadline = tokio::time::Instant::now();
+        }
+
+        let expired = get_plan(State(state), Path(planned.0.plan_id.to_string()))
+            .await
+            .expect_err("an expired plan is gone");
+        assert_eq!(expired.into_response().status(), StatusCode::GONE);
     }
 
     #[tokio::test]

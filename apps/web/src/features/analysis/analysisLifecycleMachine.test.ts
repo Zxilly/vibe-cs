@@ -29,6 +29,7 @@ const cancelledRun = (demoId: string, id = 'run-1'): AnalysisRun => ({
   status: 'cancelled',
   stage: 'cancelled',
   error: null,
+  error_code: null,
   created_at: '2026-08-13T01:00:00Z',
   updated_at: '2026-08-13T01:01:00Z',
 });

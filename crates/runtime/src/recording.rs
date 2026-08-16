@@ -974,6 +974,7 @@ impl RecordingPort for RuntimeRecordingPort {
             progress: 0.0,
             message: "Preflight".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };
@@ -2339,6 +2340,7 @@ mod tests {
             progress: 0.0,
             message: "Queued".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };

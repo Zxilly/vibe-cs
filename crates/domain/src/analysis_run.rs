@@ -102,6 +102,10 @@ pub struct AnalysisRun {
     pub stage: AnalysisRunStage,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub error: Option<String>,
+    /// The classified reason beside the free-text one — see
+    /// [`crate::JobFailureCode`].
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub error_code: Option<crate::JobFailureCode>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -185,6 +189,7 @@ mod tests {
             status: AnalysisRunStatus::Queued,
             stage: AnalysisRunStage::ValidatingInput,
             error: None,
+            error_code: None,
             created_at: now,
             updated_at: now,
         }

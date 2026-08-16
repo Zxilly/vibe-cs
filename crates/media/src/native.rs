@@ -44,6 +44,11 @@ pub struct MediaStream {
     pub height: Option<u32>,
     pub sample_rate: Option<u32>,
     pub channels: Option<u32>,
+    /// Frames per second, as a rational reduced to a string (`"60"`,
+    /// `"30000/1001"`). Kept exact rather than converted to a float: 29.97 is
+    /// 30000/1001 and printing it as `29.97 fps` loses the distinction between
+    /// NTSC rates and the round numbers a capture actually uses.
+    pub frame_rate: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -149,7 +154,21 @@ fn native_stream(stream: &ffmpeg::Stream<'_>) -> MediaStream {
         height: None,
         sample_rate: None,
         channels: None,
+        frame_rate: None,
     };
+    if medium == ffmpeg::media::Type::Video {
+        // `avg_frame_rate` over `r_frame_rate`: the average is what the file
+        // actually contains, while `r` is the smallest rate every timestamp is
+        // a multiple of — for a VFR capture that can be 1000/1.
+        let rate = stream.avg_frame_rate();
+        if rate.denominator() > 0 && rate.numerator() > 0 {
+            result.frame_rate = Some(if rate.denominator() == 1 {
+                rate.numerator().to_string()
+            } else {
+                format!("{}/{}", rate.numerator(), rate.denominator())
+            });
+        }
+    }
     let Ok(context) = ffmpeg::codec::context::Context::from_parameters(parameters) else {
         return result;
     };

@@ -10,7 +10,7 @@ use serde_json::Value;
 use tokio::sync::{Mutex, mpsc};
 use uuid::Uuid;
 use vibe_cs_application::ExportPort;
-use vibe_cs_domain::{DomainError, ExportJob, JobStatus};
+use vibe_cs_domain::{DomainError, ExportJob, JobFailureCode, JobStatus};
 use vibe_cs_media::{
     EditorMediaKind, EditorMediaSource, EditorRenderOptions, EncoderSelection, FilterPlan,
     MediaError, MontageSource, ProcessCancellation, ProgressCallback,
@@ -136,6 +136,10 @@ impl RuntimeExportPort {
                 }
                 .to_owned(),
             );
+            record.job.error_code = Some(match record.job.status {
+                JobStatus::Cancelled => JobFailureCode::Cancelled,
+                _ => JobFailureCode::Interrupted,
+            });
             if let Err(error) = self.storage.put_export_job(record).await {
                 tracing::error!(%error, "unable to persist orphaned export terminal state");
             }
@@ -172,6 +176,7 @@ impl RuntimeExportPort {
             progress: 0.0,
             output_path: output.to_string_lossy().into_owned(),
             error: None,
+            error_code: None,
             created_at: now,
             updated_at: now,
         };
@@ -416,14 +421,17 @@ impl RuntimeExportPort {
                 (true, _) | (false, Err(MediaError::Cancelled)) => {
                     record.job.status = JobStatus::Cancelled;
                     record.job.error = Some("export was cancelled".to_owned());
+                    record.job.error_code = Some(JobFailureCode::Cancelled);
                 }
                 (false, Ok(())) => {
                     record.job.status = JobStatus::Completed;
                     record.job.progress = 1.0;
                     record.job.error = None;
+                    record.job.error_code = None;
                 }
                 (false, Err(error)) => {
                     record.job.status = JobStatus::Failed;
+                    record.job.error_code = Some(export_failure_code(&error));
                     record.job.error = Some(error.to_string().chars().take(2_000).collect());
                 }
             }
@@ -539,6 +547,31 @@ fn map_media_error(error: MediaError) -> DomainError {
         | MediaError::EmptyOutput(_)
         | MediaError::Io { .. }
         | MediaError::Json(_)) => DomainError::Internal(error.to_string()),
+    }
+}
+
+/// Classifies a render failure for 「11 输出与任务记录」.
+///
+/// The interesting one is `Io`: 「磁盘空间不足」 is the failure the artboard
+/// actually draws, and `std::io::ErrorKind::StorageFull` is where that fact
+/// exists. Everything else is mapped by what the user would do next, not by
+/// which subsystem produced it — `ProcessFailed` and `NativeFfmpeg` are both
+/// "`FFmpeg` ran and did not like it", and the message is the only thing that
+/// separates them.
+fn export_failure_code(error: &MediaError) -> JobFailureCode {
+    match error {
+        MediaError::Cancelled => JobFailureCode::Cancelled,
+        MediaError::Io { source, .. } => JobFailureCode::from_io(source.kind()),
+        MediaError::ExecutableNotFound(_) => JobFailureCode::DependencyMissing,
+        MediaError::InvalidInput(_) | MediaError::UnsupportedWave(_) => {
+            JobFailureCode::InvalidInput
+        }
+        MediaError::EmptyOutput(_) | MediaError::OutputExists(_) => JobFailureCode::Unknown,
+        MediaError::ProcessFailed { .. }
+        | MediaError::NativeFfmpeg(_)
+        | MediaError::InvalidToolOutput(_)
+        | MediaError::Json(_)
+        | MediaError::OutputLimit { .. } => JobFailureCode::DependencyFailed,
     }
 }
 
@@ -777,6 +810,7 @@ mod tests {
                         progress: 0.5,
                         output_path: String::new(),
                         error: None,
+                        error_code: None,
                         created_at: now,
                         updated_at: now,
                     },

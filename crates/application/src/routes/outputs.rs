@@ -34,6 +34,10 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/outputs/{kind}/{id}",
             patch(rename_output).delete(delete_output),
         )
+        .route(
+            "/api/outputs/{kind}/{id}/stream",
+            get(stream_output).head(head_output),
+        )
         .route("/api/outputs/batch-delete", post(batch_delete_outputs))
         .route(
             "/api/outputs/cleanup-missing",
@@ -69,6 +73,27 @@ enum OutputAvailability {
     Unsafe,
 }
 
+/// What the artboard prints under an output's name: 「42 秒 · 60 fps · 186 MB ·
+/// H.264 / AAC」 and the 「1920×1080」 plate beside it.
+///
+/// Every field is optional and for one reason each, not as a blanket hedge: a
+/// still image has no duration or frame rate, an audio-only export has no
+/// resolution, a file that has gone missing cannot be probed at all, and a
+/// container the linked `FFmpeg` cannot open answers nothing rather than
+/// guessing from the extension.
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
+pub(crate) struct OutputMediaInfo {
+    width: Option<u32>,
+    height: Option<u32>,
+    duration_seconds: Option<f64>,
+    /// Exact, as a reduced rational string — `"60"`, `"30000/1001"`. A 29.97
+    /// printed as a float stops being distinguishable from 30.
+    frame_rate: Option<String>,
+    video_codec: Option<String>,
+    audio_codec: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, TS)]
 #[ts(export)]
 struct OutputItemDto {
@@ -84,6 +109,11 @@ struct OutputItemDto {
     managed: bool,
     mutable: bool,
     size_bytes: Option<u64>,
+    /// Probed from the file, and `None` whenever it could not be — see
+    /// [`OutputMediaInfo`]. Filled for the current page only: probing every
+    /// output in the library to render twenty rows would open several hundred
+    /// containers per keystroke in the search box.
+    media: Option<OutputMediaInfo>,
     project_id: Option<Uuid>,
     demo_id: Option<Uuid>,
     error: Option<String>,
@@ -314,6 +344,7 @@ impl StoredOutput {
                 managed: path_state.managed,
                 mutable: path_state.mutable(),
                 size_bytes: path_state.size_bytes,
+                media: None,
                 project_id: None,
                 demo_id: clip.demo_id,
                 error: None,
@@ -340,6 +371,7 @@ impl StoredOutput {
                     managed: path_state.managed,
                     mutable,
                     size_bytes: path_state.size_bytes,
+                    media: None,
                     project_id: Some(record.job.project_id),
                     demo_id: None,
                     error: record.job.error,
@@ -445,11 +477,12 @@ async fn list_outputs(
         .collect::<Vec<_>>();
     let total = u64::try_from(filtered.len()).unwrap_or(u64::MAX);
     let skip = usize::try_from(u64::from(page - 1) * u64::from(page_size)).unwrap_or(usize::MAX);
-    let items = filtered
+    let mut items: Vec<OutputItemDto> = filtered
         .into_iter()
         .skip(skip)
         .take(page_size as usize)
         .collect();
+    attach_media_info(&state, &mut items).await;
     Ok(Json(OutputPageDto {
         items,
         total,
@@ -458,6 +491,109 @@ async fn list_outputs(
         scan_limited,
     }))
 }
+
+/// The artboard's 「播放」 button on an output row.
+///
+/// It is a route of its own rather than a reuse of the recorded-clip stream
+/// because an output is not always a recorded clip — an export has an
+/// `ExportJob` id and a path, and no clip record to look it up by. Both kinds
+/// resolve to a file here, and the same range-serving helper answers both, so
+/// the two do not drift on seeking or on `Content-Type`.
+///
+/// A file that is missing or outside the managed roots is refused rather than
+/// served: `availability` already told the page it could not be played, and a
+/// stream route that reached past that check would be a way to read any path
+/// the process can open.
+async fn resolve_output_path(state: &AppState, kind: &str, id: &str) -> ApiResult<String> {
+    let kind = OutputKind::parse(kind)?;
+    let id = parse_id(id)?;
+    let roots = ManagedRoots::discover(state.data_dir()).await?;
+    let (items, _) = list_all_outputs(state, &roots, Some(kind)).await?;
+    let item = items
+        .into_iter()
+        .find(|item| item.id == id)
+        .ok_or_else(|| ApiError::not_found("output"))?;
+    if item.availability != OutputAvailability::Present {
+        return Err(ApiError::not_found("output file"));
+    }
+    Ok(item.path)
+}
+
+async fn stream_output(
+    State(state): State<AppState>,
+    Path((kind, id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
+) -> ApiResult<axum::response::Response<axum::body::Body>> {
+    let path = resolve_output_path(&state, &kind, &id).await?;
+    super::media::stream_media_file(&path, headers, false, "output file").await
+}
+
+async fn head_output(
+    State(state): State<AppState>,
+    Path((kind, id)): Path<(String, String)>,
+    headers: axum::http::HeaderMap,
+) -> ApiResult<axum::response::Response<axum::body::Body>> {
+    let path = resolve_output_path(&state, &kind, &id).await?;
+    super::media::stream_media_file(&path, headers, true, "output file").await
+}
+
+/// Fills in [`OutputMediaInfo`] for the rows about to be rendered.
+///
+/// ── why this is here and not in `into_dto` ────────────────────────────────
+///
+/// `into_dto` runs for *every* output in the library, before filtering and
+/// paging. Probing there would open one container per output per request — a
+/// few hundred, on every keystroke in the search box — to render twenty rows.
+/// Probing after the page is cut opens exactly as many as are shown.
+///
+/// ── the cache ─────────────────────────────────────────────────────────────
+///
+/// Keyed on path *and size*, so a file replaced in place is re-probed rather
+/// than serving the previous file's resolution. It is bounded and dropped
+/// wholesale when it grows past the bound: an LRU would be more precise and
+/// this is a cache of a millisecond-scale operation, where the eviction policy
+/// matters less than the bound existing at all.
+///
+/// A file that cannot be probed caches its failure, so a container `FFmpeg` does
+/// not understand is not re-opened on every page turn.
+async fn attach_media_info(state: &AppState, items: &mut [OutputItemDto]) {
+    for item in items.iter_mut() {
+        // A missing file has nothing to probe, and an unsafe path is one this
+        // service has already decided not to touch.
+        if item.availability != OutputAvailability::Present {
+            continue;
+        }
+        let key = (item.path.clone(), item.size_bytes);
+        if let Some(cached) = state.output_media_cache.lock().await.get(&key) {
+            item.media.clone_from(cached);
+            continue;
+        }
+        let probed = state
+            .media
+            .probe(PathBuf::from(&item.path))
+            .await
+            .ok()
+            .map(|probe| OutputMediaInfo {
+                width: probe.width,
+                height: probe.height,
+                duration_seconds: probe.duration_seconds,
+                frame_rate: probe.frame_rate,
+                video_codec: probe.video_codec,
+                audio_codec: probe.audio_codec,
+            });
+        let mut cache = state.output_media_cache.lock().await;
+        if cache.len() >= MAXIMUM_MEDIA_CACHE_ENTRIES {
+            cache.clear();
+        }
+        cache.insert(key, probed.clone());
+        item.media = probed;
+    }
+}
+
+/// Enough for several pages of a large library. Each entry is a handful of
+/// small options, so the bound is about not growing without limit rather than
+/// about memory pressure.
+const MAXIMUM_MEDIA_CACHE_ENTRIES: usize = 512;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1341,6 +1477,7 @@ mod tests {
                         .to_string_lossy()
                         .into_owned(),
                     error: None,
+                    error_code: None,
                     created_at: now,
                     updated_at: now,
                 },

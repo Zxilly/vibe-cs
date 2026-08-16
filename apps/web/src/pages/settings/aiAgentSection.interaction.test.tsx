@@ -25,6 +25,13 @@ import { AiAgentSection } from './AiAgentSection';
 const SETTINGS: AgentWorkspaceSettings = {
   session_retention: { mode: 'recent_count', count: 50 },
   take_limit: 5,
+  /* The five switches 3g-be added. Required keys — the settings route replaces
+     the whole document, so a partial body would reset whatever it omitted. */
+  auto_attach_context: true,
+  preview_before_apply: true,
+  show_evidence_reads: true,
+  default_video_seconds: 40,
+  commentary_tone: 'professional',
 };
 
 const STORAGE: AgentSessionStorageStats = {
@@ -158,8 +165,11 @@ describe('保留多久', () => {
     fireEvent.click(screen.getByRole('radio', { name: '30 天' }));
 
     await waitFor(() => {
+      /* The whole document, including the five switches 3g-be added: the
+         route replaces the settings, so a write that omitted them would
+         reset them to their defaults. */
       expect(written).toEqual([
-        { session_retention: { mode: 'max_age_days', days: 30 }, take_limit: 5 },
+        { ...SETTINGS, session_retention: { mode: 'max_age_days', days: 30 } },
       ]);
     });
   });
@@ -206,9 +216,7 @@ describe('take 上限', () => {
     fireEvent.blur(slider);
 
     await waitFor(() => {
-      expect(written).toEqual([
-        { session_retention: { mode: 'recent_count', count: 50 }, take_limit: 8 },
-      ]);
+      expect(written).toEqual([{ ...SETTINGS, take_limit: 8 }]);
     });
   });
 });

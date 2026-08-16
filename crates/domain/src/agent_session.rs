@@ -38,6 +38,12 @@ pub const WORKSPACE_EDIT_MAX_VALUE_CHARS: usize = 200;
 pub const AGENT_TAKE_LIMIT_MIN: u32 = 1;
 pub const AGENT_TAKE_LIMIT_MAX: u32 = 50;
 pub const AGENT_TAKE_LIMIT_DEFAULT: u32 = 5;
+/// 「默认成片时长」 — the artboard's own 「40 秒左右」.
+pub const AGENT_VIDEO_SECONDS_DEFAULT: u32 = 40;
+/// Five seconds is one shot; an hour is past what a highlight cut ever is, and
+/// past it the number stops being a target and starts being a mistake.
+pub const AGENT_VIDEO_SECONDS_MIN: u32 = 5;
+pub const AGENT_VIDEO_SECONDS_MAX: u32 = 3_600;
 pub const AGENT_SESSION_RETENTION_DEFAULT_COUNT: u32 = 50;
 pub const AGENT_SESSION_RETENTION_DEFAULT_DAYS: u32 = 30;
 pub const AGENT_SESSION_RETENTION_MAX_COUNT: u32 = 10_000;
@@ -998,8 +1004,28 @@ impl AgentSessionRetention {
     }
 }
 
+/// How the Agent writes its commentary. The 「点评语气」 row of the settings
+/// artboard, which offers exactly these two.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum CommentaryTone {
+    /// Measured and factual — the default, because it is the one that does not
+    /// put words in a player's mouth.
+    #[default]
+    Professional,
+    /// Broadcast-style, the register a caster would use.
+    Broadcast,
+}
+
 /// Agent workspace settings. Persisted separately from [`crate::AppConfig`] so
 /// the existing configuration contract stays unchanged.
+///
+/// The five switches below are the ones the 「设置 · AI 与 Agent」 artboard draws
+/// under 会话 and 行为边界. One thing it draws is deliberately *not* here:
+/// 「录制前始终由你确认」 is documented on that board as 「不可关闭」, so it is a
+/// constant of the product rather than a field. A boolean nobody may set to
+/// false is a boolean that will eventually be set to false.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
 #[ts(export)]
@@ -1008,6 +1034,19 @@ pub struct AgentWorkspaceSettings {
     /// Takes retained per session. A take that was used in a composition is
     /// never discarded by this ceiling.
     pub take_limit: u32,
+    /// Prefill a new session's context with whatever Demo and player are
+    /// selected. 「影响：新建会话时上下文是否预填，随时可手动改」.
+    pub auto_attach_context: bool,
+    /// Show a preview before an accepted edit change is written to the project.
+    /// 「关闭后，接受变更会直接改工程，仍可撤销」 — so this is about a
+    /// confirmation step, not about whether the edit is reversible.
+    pub preview_before_apply: bool,
+    /// Expand which rounds and events the Agent read, inside 工作进度.
+    pub show_evidence_reads: bool,
+    /// The length the Agent aims a finished cut at, in seconds. A target, not a
+    /// constraint: a plan that needs 44 seconds is not truncated to fit.
+    pub default_video_seconds: u32,
+    pub commentary_tone: CommentaryTone,
 }
 
 impl Default for AgentWorkspaceSettings {
@@ -1015,6 +1054,12 @@ impl Default for AgentWorkspaceSettings {
         Self {
             session_retention: AgentSessionRetention::default(),
             take_limit: AGENT_TAKE_LIMIT_DEFAULT,
+            // Each default is the artboard's own drawn state.
+            auto_attach_context: true,
+            preview_before_apply: true,
+            show_evidence_reads: true,
+            default_video_seconds: AGENT_VIDEO_SECONDS_DEFAULT,
+            commentary_tone: CommentaryTone::Professional,
         }
     }
 }
@@ -1031,6 +1076,13 @@ impl AgentWorkspaceSettings {
         if !(AGENT_TAKE_LIMIT_MIN..=AGENT_TAKE_LIMIT_MAX).contains(&self.take_limit) {
             return Err(DomainError::InvalidInput(format!(
                 "take_limit must be between {AGENT_TAKE_LIMIT_MIN} and {AGENT_TAKE_LIMIT_MAX}"
+            )));
+        }
+        if !(AGENT_VIDEO_SECONDS_MIN..=AGENT_VIDEO_SECONDS_MAX)
+            .contains(&self.default_video_seconds)
+        {
+            return Err(DomainError::InvalidInput(format!(
+                "default_video_seconds must be between {AGENT_VIDEO_SECONDS_MIN} and {AGENT_VIDEO_SECONDS_MAX}"
             )));
         }
         Ok(())
@@ -1408,6 +1460,7 @@ mod tests {
             AgentWorkspaceSettings {
                 session_retention: policy,
                 take_limit: AGENT_TAKE_LIMIT_DEFAULT,
+                ..AgentWorkspaceSettings::default()
             }
             .validate()
             .expect("current retention policy");
@@ -1417,6 +1470,7 @@ mod tests {
             AgentWorkspaceSettings {
                 session_retention: AgentSessionRetention::RecentCount { count: 0 },
                 take_limit: AGENT_TAKE_LIMIT_DEFAULT,
+                ..AgentWorkspaceSettings::default()
             }
             .validate()
             .is_err()
@@ -1425,6 +1479,7 @@ mod tests {
             AgentWorkspaceSettings {
                 session_retention: AgentSessionRetention::All,
                 take_limit: AGENT_TAKE_LIMIT_MAX + 1,
+                ..AgentWorkspaceSettings::default()
             }
             .validate()
             .is_err()

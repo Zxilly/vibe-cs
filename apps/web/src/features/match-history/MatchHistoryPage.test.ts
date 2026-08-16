@@ -109,6 +109,7 @@ describe('matchesCsv', () => {
       progress: 0.25,
       demo_id: null,
       error: null,
+      error_code: null,
       created_at: pending.synced_at,
       updated_at: pending.updated_at,
     };

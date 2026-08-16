@@ -573,6 +573,12 @@ pub struct ProbedMediaMetadata {
     pub width: Option<u32>,
     pub height: Option<u32>,
     pub has_audio: bool,
+    /// Exact frame rate as a reduced rational string — `"60"`, `"30000/1001"`.
+    /// A float would make 29.97 and 30 the same number at the precision the UI
+    /// prints, and those are different formats.
+    pub frame_rate: Option<String>,
+    pub video_codec: Option<String>,
+    pub audio_codec: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

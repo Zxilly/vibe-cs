@@ -103,6 +103,10 @@ pub struct MatchDownloadJob {
     pub demo_id: Option<Uuid>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub error: Option<String>,
+    /// The classified reason beside the free-text one — see
+    /// [`crate::JobFailureCode`].
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub error_code: Option<crate::JobFailureCode>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -184,6 +188,7 @@ mod tests {
             progress: 0.0,
             demo_id: None,
             error: None,
+            error_code: None,
             created_at: now,
             updated_at: now,
         };

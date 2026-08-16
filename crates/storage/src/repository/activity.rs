@@ -789,6 +789,7 @@ mod tests {
                 progress: 0.0,
                 message: "recording.stage.capturing".to_owned(),
                 outputs: vec![],
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -804,6 +805,7 @@ mod tests {
                     progress: 1.0,
                     output_path: "C:/exports/copied-id.mp4".to_owned(),
                     error: None,
+                    error_code: None,
                     created_at: now,
                     updated_at: now,
                 },
@@ -839,6 +841,7 @@ mod tests {
                 progress: 0.0,
                 demo_id: None,
                 error: Some("network".to_owned()),
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -932,6 +935,7 @@ mod tests {
                     progress: 1.0,
                     output_path: "C:/exports/exact.mp4".to_owned(),
                     error: None,
+                    error_code: None,
                     created_at: now,
                     updated_at: now,
                 },
@@ -984,6 +988,7 @@ mod tests {
             progress: 0.0,
             message: "capture interrupted".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };
@@ -1048,6 +1053,7 @@ mod tests {
                 progress: 0.0,
                 demo_id: None,
                 error: Some("network".to_owned()),
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -1133,6 +1139,7 @@ mod tests {
             progress: 0.0,
             message: "capture interrupted".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };

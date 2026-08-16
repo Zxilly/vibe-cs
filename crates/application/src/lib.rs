@@ -1347,6 +1347,7 @@ mod tests {
                 progress: 0.425,
                 message: "recording.stage.capturing".to_owned(),
                 outputs: vec![],
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -1405,6 +1406,7 @@ mod tests {
                 progress: 0.0,
                 message: "recording.stage.launching".to_owned(),
                 outputs: vec![],
+                error_code: None,
                 created_at: now,
                 updated_at: now + chrono::Duration::seconds(2),
             })
@@ -1420,6 +1422,7 @@ mod tests {
                     progress: 1.0,
                     output_path: "C:/exports/middle.mp4".to_owned(),
                     error: None,
+                    error_code: None,
                     created_at: now - chrono::Duration::seconds(1),
                     updated_at: now + chrono::Duration::seconds(1),
                 },
@@ -1499,6 +1502,7 @@ mod tests {
                 progress: 0.0,
                 message: "recording.stage.launching".to_owned(),
                 outputs: vec![],
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -1599,6 +1603,7 @@ mod tests {
                     progress: 0.67,
                     output_path: "C:/exports/major-m1.mp4".to_owned(),
                     error: Some("encoder stopped".to_owned()),
+                    error_code: None,
                     created_at: now,
                     updated_at: now,
                 },
@@ -1671,6 +1676,7 @@ mod tests {
                 progress: 0.8,
                 demo_id: None,
                 error: None,
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -1744,6 +1750,7 @@ mod tests {
                 progress: 0.5,
                 demo_id: None,
                 error: Some("download ticket expired".to_owned()),
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -1811,6 +1818,7 @@ mod tests {
                 progress: 0.5,
                 demo_id: None,
                 error: Some("download ticket expired".to_owned()),
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -1876,6 +1884,7 @@ mod tests {
                 progress: 0.5,
                 demo_id: None,
                 error: Some("download ticket expired".to_owned()),
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -1944,6 +1953,7 @@ mod tests {
                 progress: 0.125,
                 demo_id: None,
                 error: Some("first ticket expired".to_owned()),
+                error_code: None,
                 created_at: now - chrono::Duration::seconds(2),
                 updated_at: now - chrono::Duration::seconds(2),
             },
@@ -1956,6 +1966,7 @@ mod tests {
                 progress: 0.25,
                 demo_id: None,
                 error: None,
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             },
@@ -2064,6 +2075,7 @@ mod tests {
                 progress: 0.5,
                 demo_id: None,
                 error: Some("stale failed attempt".to_owned()),
+                error_code: None,
                 created_at: now - chrono::Duration::seconds(1),
                 updated_at: now - chrono::Duration::seconds(1),
             })
@@ -2108,6 +2120,7 @@ mod tests {
                 progress: 1.0,
                 demo_id: Some(demo_id),
                 error: None,
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -2186,6 +2199,7 @@ mod tests {
                 progress: 0.0,
                 demo_id: None,
                 error: Some("old failure".to_owned()),
+                error_code: None,
                 created_at: now - chrono::Duration::seconds(3),
                 updated_at: now - chrono::Duration::seconds(3),
             },
@@ -2198,6 +2212,7 @@ mod tests {
                 progress: 0.0,
                 demo_id: None,
                 error: None,
+                error_code: None,
                 created_at: now - chrono::Duration::seconds(2),
                 updated_at: now - chrono::Duration::seconds(1),
             },
@@ -2210,6 +2225,7 @@ mod tests {
                 progress: 0.125,
                 demo_id: None,
                 error: Some("latest failure".to_owned()),
+                error_code: None,
                 created_at: now - chrono::Duration::seconds(1),
                 updated_at: now - chrono::Duration::seconds(1),
             },
@@ -2288,6 +2304,7 @@ mod tests {
                 progress: 0.0,
                 demo_id: None,
                 error: None,
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })

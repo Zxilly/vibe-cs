@@ -50,6 +50,7 @@ const RUNNING: ActivityItem = {
   total_units: 5,
   unit: 'stages',
   error: null,
+  failure: null,
   created_at: '2026-08-15T09:05:00.000Z',
   updated_at: '2026-08-15T09:09:00.000Z',
   available_actions: ['cancel'],
@@ -80,6 +81,7 @@ const RECORDING_JOB: RecordingJob = {
   current_index: 0,
   progress: 0.6,
   message: '',
+  error_code: null,
   outputs: [],
   created_at: '2026-08-15T09:05:00.000Z',
   updated_at: '2026-08-15T09:09:00.000Z',
@@ -93,6 +95,7 @@ const ANALYSIS_RUN: AnalysisRun = {
   status: 'cancelled',
   stage: 'cancelled',
   error: null,
+  error_code: null,
   created_at: '2026-08-15T09:00:00.000Z',
   updated_at: '2026-08-15T09:02:00.000Z',
 };

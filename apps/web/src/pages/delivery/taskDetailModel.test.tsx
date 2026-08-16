@@ -27,6 +27,7 @@ const ITEM: ActivityItem = {
   total_units: 5,
   unit: 'stages',
   error: null,
+  failure: null,
   created_at: '2026-08-15T09:05:00.000Z',
   updated_at: '2026-08-15T09:11:41.000Z',
   available_actions: ['cancel'],

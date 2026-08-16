@@ -19,6 +19,7 @@ mod recording;
 mod recording_progress;
 mod replay_cache;
 mod round_replay_cache;
+mod session_retention;
 mod source_assets;
 
 use std::{path::PathBuf, sync::Arc};
@@ -162,6 +163,9 @@ pub async fn build_app_state_with_demo_worker(
         };
 
     let state = vibe_cs_application::AppState::new(storage.clone(), data_dir);
+    // §10.1 gap 2 / §10.5: retention is enforced by the runtime on a clock, not
+    // by the renderer at startup. See `session_retention`.
+    session_retention::start(storage.clone(), state.event_hub());
     let demo_watch = Arc::new(
         RuntimeDemoWatchPort::start(storage, state.event_hub(), config.demo_watch_paths).await,
     );

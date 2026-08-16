@@ -7,8 +7,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use vibe_cs_domain::{
-    AnalysisRun, AnalysisRunStatus, JobStatus, MatchDownloadJob, MatchDownloadStatus, RecordingJob,
-    SteamConfig,
+    AnalysisRun, AnalysisRunStatus, JobFailureCode, JobStatus, MatchDownloadJob,
+    MatchDownloadStatus, RecordingJob, SteamConfig,
 };
 use vibe_cs_integrations::is_steam_id;
 use vibe_cs_storage::{
@@ -101,9 +101,36 @@ struct ActivityItem {
     total_units: Option<u64>,
     unit: Option<&'static str>,
     error: Option<String>,
+    /// The classified failure, when the service could classify it.
+    ///
+    /// `error` stays beside it and is still the only thing that carries the
+    /// specifics — the code says 「磁盘空间不足」 and whether 重试 is worth
+    /// offering, the message says which volume and how much was needed. A code
+    /// without the message would be a row that cannot be acted on; a message
+    /// without the code is what this page had before, and it could not be
+    /// translated or grouped.
+    failure: Option<ActivityFailure>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
     available_actions: Vec<&'static str>,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+struct ActivityFailure {
+    code: JobFailureCode,
+    /// Whether re-running could succeed without the user changing something
+    /// first. `DiskFull` is false — see [`JobFailureCode::retryable`].
+    retryable: bool,
+}
+
+impl ActivityFailure {
+    fn of(code: Option<JobFailureCode>) -> Option<Self> {
+        code.map(|code| Self {
+            code,
+            retryable: code.retryable(),
+        })
+    }
 }
 
 async fn list_activities(
@@ -285,6 +312,7 @@ fn recording_activity(job: &RecordingJob, retryable: bool) -> ActivityItem {
         total_units: completed_units.map(|_| 5),
         unit: completed_units.map(|_| "stages"),
         error,
+        failure: ActivityFailure::of(job.error_code),
         created_at: job.created_at,
         updated_at: job.updated_at,
         available_actions,
@@ -322,6 +350,7 @@ fn export_activity(record: ExportJobRecord) -> ActivityItem {
         completed_units: None,
         total_units: None,
         unit: None,
+        failure: ActivityFailure::of(job.error_code),
         error: job.error,
         created_at: job.created_at,
         updated_at: job.updated_at,
@@ -359,6 +388,7 @@ fn download_activity(job: MatchDownloadJob, retryable: bool) -> ActivityItem {
         completed_units: Some(job.downloaded_bytes),
         total_units: job.total_bytes,
         unit: Some("bytes"),
+        failure: ActivityFailure::of(job.error_code),
         error: job.error,
         created_at: job.created_at,
         updated_at: job.updated_at,
@@ -394,6 +424,7 @@ fn analysis_activity(
         completed_units: None,
         total_units: None,
         unit: None,
+        failure: ActivityFailure::of(run.error_code),
         error: run.error,
         created_at: run.created_at,
         updated_at: run.updated_at,
@@ -492,6 +523,7 @@ mod tests {
                     progress: 1.0,
                     output_path: "C:/exports/exact.mp4".to_owned(),
                     error: None,
+                    error_code: None,
                     created_at: now,
                     updated_at: now,
                 },
@@ -520,6 +552,89 @@ mod tests {
             missing.into_response().status(),
             axum::http::StatusCode::NOT_FOUND
         );
+    }
+
+    #[tokio::test]
+    async fn a_failed_job_carries_a_classified_reason_beside_its_message() {
+        // §10 gap: 「11 输出与任务记录」 draws 「失败 · 磁盘空间不足」 and offers
+        // 重试 only where a retry could work. Free text could drive neither.
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let now = Utc::now();
+        let job_id = Uuid::new_v4();
+        storage
+            .put_export_job(ExportJobRecord {
+                kind: "editor".to_owned(),
+                job: vibe_cs_domain::ExportJob {
+                    id: job_id,
+                    project_id: Uuid::new_v4(),
+                    status: JobStatus::Failed,
+                    progress: 0.4,
+                    output_path: "C:/exports/full-disk.mp4".to_owned(),
+                    error: Some("I/O error for C:/exports: no space left".to_owned()),
+                    error_code: Some(JobFailureCode::DiskFull),
+                    created_at: now,
+                    updated_at: now,
+                },
+            })
+            .await
+            .expect("export job");
+        let state = AppState::new(storage, directory.path().to_path_buf());
+
+        let activity = get_activity(
+            State(state),
+            Path(("export".to_owned(), job_id.to_string())),
+        )
+        .await
+        .expect("activity")
+        .0;
+
+        let failure = activity.failure.expect("classified failure");
+        assert_eq!(failure.code, JobFailureCode::DiskFull);
+        // Not retryable: the retry would fail the same way, and the artboard's
+        // own sentence is 「释放 4.2 GB 后可重试」 — an instruction first.
+        assert!(!failure.retryable);
+        // The message survives beside it; the code does not replace it.
+        assert!(activity.error.is_some_and(|error| error.contains("no space left")));
+    }
+
+    #[tokio::test]
+    async fn an_ordinary_completed_job_has_no_failure_at_all() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let now = Utc::now();
+        let job_id = Uuid::new_v4();
+        storage
+            .put_export_job(ExportJobRecord {
+                kind: "editor".to_owned(),
+                job: vibe_cs_domain::ExportJob {
+                    id: job_id,
+                    project_id: Uuid::new_v4(),
+                    status: JobStatus::Completed,
+                    progress: 1.0,
+                    output_path: "C:/exports/fine.mp4".to_owned(),
+                    error: None,
+                    error_code: None,
+                    created_at: now,
+                    updated_at: now,
+                },
+            })
+            .await
+            .expect("export job");
+        let state = AppState::new(storage, directory.path().to_path_buf());
+
+        let activity = get_activity(
+            State(state),
+            Path(("export".to_owned(), job_id.to_string())),
+        )
+        .await
+        .expect("activity")
+        .0;
+        assert!(activity.failure.is_none());
     }
 
     #[tokio::test]
@@ -628,6 +743,7 @@ mod tests {
                 AnalysisRunStatus::Failed | AnalysisRunStatus::Interrupted
             )
             .then(|| "analysis stopped".to_owned()),
+            error_code: None,
             created_at: now,
             updated_at: now,
         }
@@ -658,6 +774,7 @@ mod tests {
             progress: 0.0,
             message: "capture interrupted".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };

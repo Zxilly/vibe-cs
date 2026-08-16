@@ -53,6 +53,7 @@ const JOB: MatchDownloadJob = {
   progress: 0,
   demo_id: null,
   error: null,
+  error_code: null,
   created_at: '2026-08-15T08:41:00.000Z',
   updated_at: '2026-08-15T08:41:00.000Z',
 };

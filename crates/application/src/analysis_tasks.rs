@@ -232,6 +232,7 @@ mod tests {
             status: AnalysisRunStatus::Cancelled,
             stage: AnalysisRunStage::Cancelled,
             error: None,
+            error_code: None,
             created_at: now,
             updated_at: now,
         }

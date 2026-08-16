@@ -4887,6 +4887,7 @@ mod tests {
                     progress: 0.1,
                     demo_id: None,
                     error: None,
+                    error_code: None,
                     created_at: now,
                     updated_at: now,
                 })

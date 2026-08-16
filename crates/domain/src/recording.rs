@@ -350,6 +350,11 @@ pub struct RecordingJob {
     pub progress: f64,
     pub message: String,
     pub outputs: Vec<RecordedClip>,
+    /// Why a failed job failed, classified. `message` carries the stage the
+    /// job was in when it stopped and doubles as the failure text, which is
+    /// why there is no separate `error` here — see [`crate::JobFailureCode`].
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub error_code: Option<crate::JobFailureCode>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -568,6 +573,7 @@ mod tests {
             progress: 0.0,
             message: "queued".to_owned(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         };
@@ -602,6 +608,7 @@ mod tests {
             items: vec![request(first_id), request(second_id)],
             current_index: 1,
             progress: 0.5,
+            error_code: None,
             message: "capture interrupted".to_owned(),
             outputs: vec![RecordedClip {
                 id: Uuid::new_v4(),
@@ -651,6 +658,7 @@ mod tests {
             items: vec![request(first_id), request(Uuid::new_v4())],
             current_index: 1,
             progress: 0.5,
+            error_code: None,
             message: "capture interrupted".to_owned(),
             outputs: vec![RecordedClip {
                 id: Uuid::new_v4(),

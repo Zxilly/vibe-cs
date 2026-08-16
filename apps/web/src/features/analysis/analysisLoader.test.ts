@@ -17,7 +17,8 @@ const run = (status: AnalysisRun['status'], error: string | null = null): Analys
   input_size: status === 'queued' ? null : 42, status,
   stage: status === 'queued' ? 'validating_input'
     : status === 'running' ? 'parser_running' : status,
-  error, created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:01:00Z',
+  error, error_code: null,
+  created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:01:00Z',
 });
 
 const detail = (

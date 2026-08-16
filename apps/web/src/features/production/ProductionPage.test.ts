@@ -18,6 +18,7 @@ function activity(jobId: string, updatedAt: string): ActivityItem {
     total_units: null,
     unit: null,
     error: null,
+    failure: null,
     created_at: updatedAt,
     updated_at: updatedAt,
     available_actions: ['open_outputs'],

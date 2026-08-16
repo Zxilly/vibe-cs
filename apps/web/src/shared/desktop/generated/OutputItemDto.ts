@@ -2,6 +2,7 @@
 import type { JobStatus } from "./JobStatus";
 import type { OutputAvailability } from "./OutputAvailability";
 import type { OutputKind } from "./OutputKind";
+import type { OutputMediaInfo } from "./OutputMediaInfo";
 
 export type OutputItemDto = {
   id: string;
@@ -16,6 +17,13 @@ export type OutputItemDto = {
   managed: boolean;
   mutable: boolean;
   size_bytes: number | null;
+  /**
+   * Probed from the file, and `None` whenever it could not be — see
+   * [`OutputMediaInfo`]. Filled for the current page only: probing every
+   * output in the library to render twenty rows would open several hundred
+   * containers per keystroke in the search box.
+   */
+  media: OutputMediaInfo | null;
   project_id: string | null;
   demo_id: string | null;
   error: string | null;

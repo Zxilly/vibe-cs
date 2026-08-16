@@ -14,6 +14,7 @@ const completed: ExportJobRecord = {
     progress: 1,
     output_path: 'C:/exports/final.mp4',
     error: null,
+    error_code: null,
     created_at: '2026-08-14T08:00:00Z',
     updated_at: '2026-08-14T08:05:00Z',
   },

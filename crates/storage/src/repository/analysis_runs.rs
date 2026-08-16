@@ -84,6 +84,7 @@ impl Storage {
                 status: AnalysisRunStatus::Queued,
                 stage: AnalysisRunStage::ValidatingInput,
                 error: None,
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             };

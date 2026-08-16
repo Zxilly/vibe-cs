@@ -113,6 +113,7 @@ describe('the selection', () => {
       status: 'running',
       stage: 'parser_running',
       error: null,
+      error_code: null,
       created_at: '2026-08-15T09:00:00Z',
       updated_at: '2026-08-15T09:00:00Z',
     });

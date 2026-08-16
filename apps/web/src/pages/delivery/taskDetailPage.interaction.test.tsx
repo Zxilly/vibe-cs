@@ -30,6 +30,7 @@ const ANALYSIS: ActivityItem = {
   total_units: null,
   unit: null,
   error: '解析器在第 3 阶段退出',
+  failure: null,
   created_at: '2026-08-15T09:00:00.000Z',
   updated_at: '2026-08-15T09:04:00.000Z',
   available_actions: ['retry_analysis', 'open_library'],
@@ -44,6 +45,7 @@ const RUN: AnalysisRunDetail = {
     status: 'failed',
     stage: 'parser_running',
     error: '解析器在第 3 阶段退出',
+    error_code: null,
     created_at: '2026-08-15T09:00:00.000Z',
     updated_at: '2026-08-15T09:04:00.000Z',
   },
@@ -153,6 +155,7 @@ describe('the stage log', () => {
       status: 'running',
       stage: 'recording.stage.capturing',
       error: null,
+      failure: null,
       available_actions: ['cancel'],
     };
     const { client } = stubs(recording);
@@ -187,6 +190,7 @@ describe('重试 / 取消', () => {
       status: 'running',
       stage: 'recording.stage.capturing',
       error: null,
+      failure: null,
       available_actions: ['cancel'],
     };
     const { client, cancelled } = stubs(recording);
@@ -203,6 +207,7 @@ describe('重试 / 取消', () => {
       ...ANALYSIS,
       status: 'completed',
       error: null,
+      failure: null,
       available_actions: ['open_analysis', 'open_library'],
     };
     const { client } = stubs(done);

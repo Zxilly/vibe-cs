@@ -25,6 +25,7 @@ const OUTPUT: OutputItem = {
   managed: true,
   mutable: true,
   size_bytes: 186_000_000,
+  media: null,
   project_id: null,
   demo_id: 'demo-1',
   error: null,

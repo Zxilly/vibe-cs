@@ -239,6 +239,47 @@ impl Storage {
         .await
     }
 
+    /// Removes one session's reference to one object.
+    ///
+    /// Deleting a reference deletes *the record of a touch*, never the object.
+    /// A plan a session referenced and then un-referenced is exactly as much a
+    /// plan as it was before, which is the same rule deleting a session
+    /// follows — a reference has never implied ownership.
+    ///
+    /// Answers `Some(false)` for a session that exists and has no such
+    /// reference, and `None` for a session that does not exist. The route needs
+    /// both: one is a 404 and the other is idempotent success, and collapsing
+    /// them would make un-referencing twice look like a missing session.
+    pub async fn delete_agent_object_ref(
+        &self,
+        session_id: Uuid,
+        kind: AgentObjectKind,
+        id: Uuid,
+    ) -> Result<Option<bool>> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            if !session_exists(&transaction, session_id)? {
+                return Ok(None);
+            }
+            let removed = transaction.execute(
+                "DELETE FROM agent_session_object_refs \
+                 WHERE session_id = ?1 AND object_kind = ?2 AND object_id = ?3",
+                params![session_id.to_string(), kind.as_str(), id.to_string()],
+            )?;
+            // The session's own `updated_at` moves only when something actually
+            // went: an un-reference that removed nothing is not an edit, and
+            // bumping the timestamp would reorder the session list for a
+            // no-op.
+            if removed > 0 {
+                touch_session(&transaction, session_id, Utc::now())?;
+            }
+            transaction.commit()?;
+            Ok(Some(removed > 0))
+        })
+        .await
+    }
+
     /// Reads the reverse direction of the reference index: which sessions
     /// touched one exact object, newest first. A row whose session has been
     /// deleted is not returned; the object itself is never affected.
@@ -1165,6 +1206,7 @@ mod tests {
             progress: 0.0,
             message: String::new(),
             outputs: Vec::new(),
+            error_code: None,
             created_at: now,
             updated_at: now,
         }
@@ -1754,6 +1796,7 @@ mod tests {
             .set_agent_workspace_settings(AgentWorkspaceSettings {
                 session_retention: AgentSessionRetention::RecentCount { count: 1 },
                 take_limit: 5,
+                ..AgentWorkspaceSettings::default()
             })
             .await
             .expect("save settings");
@@ -1777,6 +1820,7 @@ mod tests {
             .set_agent_workspace_settings(AgentWorkspaceSettings {
                 session_retention: AgentSessionRetention::None,
                 take_limit: 5,
+                ..AgentWorkspaceSettings::default()
             })
             .await
             .expect("save settings");
@@ -1801,6 +1845,7 @@ mod tests {
                 .set_agent_workspace_settings(AgentWorkspaceSettings {
                     session_retention: AgentSessionRetention::MaxAgeDays { days: 0 },
                     take_limit: 5,
+                    ..AgentWorkspaceSettings::default()
                 })
                 .await
                 .is_err()

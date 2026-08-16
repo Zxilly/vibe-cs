@@ -13,7 +13,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse as _, Response},
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -49,6 +49,10 @@ pub(crate) fn router() -> Router<AppState> {
         )
         .route("/api/agent/sessions/{id}/entries", post(append_entry))
         .route("/api/agent/sessions/{id}/refs", post(touch_object_ref))
+        .route(
+            "/api/agent/sessions/{id}/refs/{kind}/{object_id}",
+            delete(delete_object_ref),
+        )
         .route(
             "/api/agent/objects/{kind}/{id}/sessions",
             get(list_object_sessions),
@@ -171,6 +175,33 @@ async fn touch_object_ref(
         .await?
         .map(Json)
         .ok_or_else(|| ApiError::not_found("agent session"))
+}
+
+/// §10.5 gap 9: a reference could be added and never taken back, so the
+/// artboard's 「取消引用」 button had nothing to call and was not drawn.
+///
+/// The response is `204` whether or not a reference was there to remove. That
+/// is deliberate: pressing 「取消引用」 twice, or on a reference another window
+/// already removed, is not a failure — the caller asked for the reference to be
+/// gone and it is gone. A 404 is kept for the one thing that really is missing,
+/// the session itself.
+async fn delete_object_ref(
+    State(state): State<AppState>,
+    Path((id, kind, object_id)): Path<(Uuid, String, Uuid)>,
+) -> ApiResult<StatusCode> {
+    let kind = AgentObjectKind::from_str_exact(&kind)
+        .ok_or_else(|| ApiError::invalid(format!("unknown agent object kind {kind}")))?;
+    let removed = state
+        .storage
+        .delete_agent_object_ref(id, kind, object_id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("agent session"))?;
+    if removed {
+        state
+            .events
+            .publish("agent_session", "ref_removed", Some(id));
+    }
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// Contract gap 4, reverse direction: which sessions touched one object.
@@ -848,6 +879,64 @@ mod tests {
         assert_eq!(status, 200);
         assert_eq!(page["total"], 0);
 
+        // §10.5 gap 9: a reference can be taken back, so the artboard's
+        // 「取消引用」 has something to call.
+        let (status, _) = call(
+            &router,
+            Method::DELETE,
+            &format!("/api/agent/sessions/{session_id}/refs/plan/{plan_id}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 204);
+        let (status, session) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/sessions/{session_id}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(session["refs"].as_array().expect("refs").len(), 0);
+
+        // Idempotent: pressing it twice, or on a reference another window
+        // already removed, is not a failure.
+        let (status, _) = call(
+            &router,
+            Method::DELETE,
+            &format!("/api/agent/sessions/{session_id}/refs/plan/{plan_id}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 204);
+
+        // …but a session that does not exist still 404s: that is the one
+        // thing that really is missing.
+        let (status, _) = call(
+            &router,
+            Method::DELETE,
+            &format!("/api/agent/sessions/{}/refs/plan/{plan_id}", Uuid::new_v4()),
+            None,
+        )
+        .await;
+        assert_eq!(status, 404);
+
+        // Put it back, so the reverse index below still has something to find.
+        let (status, _) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/sessions/{session_id}/refs"),
+            Some(json!({
+                "kind": "plan",
+                "id": plan_id,
+                "label": "方案 #P-118",
+                "summary": "改过 1 次",
+                "status": "等待确认"
+            })),
+        )
+        .await;
+        assert_eq!(status, 200);
+
         // The reverse index answers "which sessions touched this plan".
         let (status, sessions) = call(
             &router,
@@ -1019,6 +1108,7 @@ mod tests {
                 progress: 0.42,
                 message: String::new(),
                 outputs: Vec::new(),
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -1034,6 +1124,7 @@ mod tests {
                 progress: 1.0,
                 message: String::new(),
                 outputs: Vec::new(),
+                error_code: None,
                 created_at: now,
                 updated_at: now,
             })
@@ -1067,6 +1158,7 @@ mod tests {
                     progress: 0.65,
                     output_path: "C:/outputs/Aurora_final.mp4".to_owned(),
                     error: Some("ffmpeg exited with 1".to_owned()),
+                    error_code: None,
                     created_at: now,
                     updated_at: now,
                 },
@@ -1150,12 +1242,56 @@ mod tests {
             "/api/agent/workspace/settings",
             Some(json!({
                 "session_retention": { "mode": "recent_count", "count": 50 },
-                "take_limit": 5
+                "take_limit": 5,
+                // The five switches of 「设置 · AI 与 Agent」. Every one is a
+                // required key: the route replaces the settings document, and
+                // a partial body would silently reset whatever it omitted.
+                "auto_attach_context": false,
+                "preview_before_apply": false,
+                "show_evidence_reads": true,
+                "default_video_seconds": 90,
+                "commentary_tone": "broadcast"
             })),
         )
         .await;
         assert_eq!(status, 200);
         assert_eq!(settings["session_retention"]["count"], 50);
+        assert_eq!(settings["auto_attach_context"], json!(false));
+        assert_eq!(settings["preview_before_apply"], json!(false));
+        assert_eq!(settings["show_evidence_reads"], json!(true));
+        assert_eq!(settings["default_video_seconds"], json!(90));
+        assert_eq!(settings["commentary_tone"], json!("broadcast"));
+
+        // …and they survive a read, which is the point of persisting them.
+        let (status, stored) = call(
+            &router,
+            Method::GET,
+            "/api/agent/workspace/settings",
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(stored["commentary_tone"], json!("broadcast"));
+        assert_eq!(stored["default_video_seconds"], json!(90));
+
+        // A length outside 5…3600 is refused rather than stored: it is a
+        // target the Agent aims at, and 0 seconds is not a target.
+        let (status, _) = call(
+            &router,
+            Method::PUT,
+            "/api/agent/workspace/settings",
+            Some(json!({
+                "session_retention": { "mode": "all" },
+                "take_limit": 5,
+                "auto_attach_context": true,
+                "preview_before_apply": true,
+                "show_evidence_reads": true,
+                "default_video_seconds": 0,
+                "commentary_tone": "professional"
+            })),
+        )
+        .await;
+        assert_eq!(status, 400);
 
         let (status, invalid) = call(
             &router,

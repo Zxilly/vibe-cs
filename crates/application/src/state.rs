@@ -22,10 +22,25 @@ use crate::{
     analysis_tasks::AnalysisTaskRegistry,
 };
 
+/// Keyed by path *and* size, so a file replaced in place is probed again
+/// rather than serving the previous file's resolution.
+pub(crate) type OutputMediaCache =
+    Arc<Mutex<HashMap<(String, Option<u64>), Option<crate::routes::outputs::OutputMediaInfo>>>>;
+
 #[derive(Debug, Clone)]
 pub(crate) struct RecordingPlanLease {
     pub(crate) items: Vec<vibe_cs_domain::RecordingRequest>,
     pub(crate) retry_of: Option<Uuid>,
+    /// The document this plan was answered with, kept verbatim so
+    /// `GET /api/recording/plans/{id}` can hand back *the same* plan.
+    ///
+    /// Recomputing it on read would be the obvious alternative and it is the
+    /// wrong one: the director plan and the duration estimate are derived from
+    /// persisted analyses, and an analysis that changed between the plan and
+    /// the reload would produce a different document under the same id. The
+    /// whole point of `binding_sha256` is that a lease describes one fixed set
+    /// of inputs, so the plan it produced is fixed too.
+    pub(crate) response: Arc<crate::routes::recording::RecordingPlanResponse>,
     pub(crate) binding_sha256: String,
     pub(crate) expires_at: DateTime<Utc>,
     pub(crate) deadline: Instant,
@@ -240,6 +255,10 @@ pub struct AppState {
     runtime_session: Arc<Mutex<RuntimeSessionState>>,
     pub(crate) recording_monitors: Arc<Mutex<HashSet<Uuid>>>,
     pub(crate) recording_plans: Arc<Mutex<HashMap<Uuid, RecordingPlanLease>>>,
+    /// Probed media facts for the outputs list, keyed by path and size. See
+    /// `routes::outputs::attach_media_info` for why it exists and what
+    /// invalidates it.
+    pub(crate) output_media_cache: OutputMediaCache,
     pub(crate) output_mutations: Arc<Mutex<()>>,
     pub(crate) hlae_preparation: Arc<Mutex<()>>,
     pub(crate) gsi_last_timestamp: Arc<Mutex<Option<i64>>>,
@@ -294,6 +313,7 @@ impl AppState {
             runtime_session: Arc::new(Mutex::new(RuntimeSessionState::Idle)),
             recording_monitors: Arc::new(Mutex::new(HashSet::new())),
             recording_plans: Arc::new(Mutex::new(HashMap::new())),
+            output_media_cache: Arc::new(Mutex::new(HashMap::new())),
             output_mutations: Arc::new(Mutex::new(())),
             hlae_preparation: Arc::new(Mutex::new(())),
             gsi_last_timestamp: Arc::new(Mutex::new(None)),

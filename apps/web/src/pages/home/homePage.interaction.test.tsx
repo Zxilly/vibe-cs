@@ -29,6 +29,7 @@ const RUNNING: ActivityItem = {
   total_units: null,
   unit: null,
   error: null,
+  failure: null,
   created_at: '2026-08-15T09:00:00.000Z',
   updated_at: '2026-08-15T09:02:00.000Z',
   available_actions: ['cancel'],
@@ -46,6 +47,7 @@ const FAILED: ActivityItem = {
   stage: null,
   progress_percent: null,
   error: '磁盘空间不足，已保留工程与素材',
+  failure: null,
   available_actions: ['open_outputs'],
 };
 
@@ -62,6 +64,7 @@ const OUTPUT: OutputItem = {
   managed: true,
   mutable: true,
   size_bytes: 186_000_000,
+  media: null,
   project_id: null,
   demo_id: 'demo-1',
   error: null,

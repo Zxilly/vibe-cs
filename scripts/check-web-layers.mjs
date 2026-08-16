@@ -12,6 +12,8 @@
  *      arbitrary value; a dimension arbitrary value (`w-[380px]`) is allowed only
  *      when the number is in the panel width table of `design/tokens.data.ts`
  *   6. pages/** domain/** must not import `shared/desktop/client` directly
+ *   7. design/** domain/** pages/** app/** must not put authored Han copy in a
+ *      JSX attribute or a known UI prop; it belongs in a `t` / `Trans` macro
  *
  * Follows the shape of `check-web-i18n.mjs`: walk, collect a `failures` array,
  * print every failure and exit non-zero. Directories that do not exist yet are
@@ -67,6 +69,37 @@ const NO_BARE_HEX = new Set(['pages', 'app', 'domain']);
 
 /** Rule 5: layers whose Tailwind arbitrary values are constrained. */
 const ARBITRARY_VALUE_CHECKED = new Set(['pages', 'app']);
+
+/** Rule 7: layers whose rendered copy must go through Lingui. */
+const MACRO_REQUIRED = new Set(['design', 'domain', 'pages', 'app']);
+
+/**
+ * Object keys that carry copy to a component.
+ *
+ * Deliberately a list rather than "any string with Han in it". This codebase
+ * writes Chinese in plenty of places that are not UI copy — the artboard names
+ * in `design/tokens.data.ts`, fixture data, the command palette's extra search
+ * keywords — and a rule that flagged those would be turned off within a week.
+ *
+ * Every name here was found the hard way: `headerLabel` is a column's
+ * accessible name and its row in 列配置, and fifty of them were written as bare
+ * strings because the line above said `header: <Trans>…</Trans>` and this one
+ * did not look like it would be displayed.
+ */
+const COPY_PROPS = [
+  'headerLabel',
+  'configLabel',
+  'label',
+  'title',
+  'placeholder',
+  'caption',
+  'hint',
+  'description',
+  'summary',
+  'reason',
+  'emptyLabel',
+  'ariaLabel',
+];
 
 /* ── patterns ────────────────────────────────────────────────────────────── */
 
@@ -165,6 +198,78 @@ function layerOf(relativePath) {
   return null;
 }
 
+
+/**
+ * Rule 7.
+ *
+ * Two shapes, both of which put a string on screen without a macro:
+ *
+ *   `label="未探测到编码器"`     — a JSX attribute
+ *   `headerLabel: '操作',`       — a copy-carrying key in an object literal
+ *
+ * The second is where the fifty-odd real cases were: a column definition writes
+ * `header: <Trans>状态</Trans>` on one line and `headerLabel: '状态'` on the
+ * next, and the second one does not look like it will be rendered. It is — as
+ * the column's accessible name, and as its row in 列配置.
+ *
+ * What this deliberately does not check: any Han string anywhere. The artboard
+ * names in `design/tokens.data.ts`, fixture data, wire enum values and the
+ * command palette's extra search keywords are all Chinese and all correct. A
+ * rule that flagged 685 lines to catch 55 is a rule that gets suppressed.
+ * `src/localeCoverage.test.tsx` covers the rest by rendering every page in
+ * en-US and failing on any Han character that survives.
+ */
+function checkUntranslatedCopy({ file, layer, source, failures }) {
+  if (!MACRO_REQUIRED.has(layer)) return;
+
+  if (NON_PRODUCT_FILE.test(file)) return;
+
+  const code = withoutComments(source);
+  for (const match of code.matchAll(JSX_ATTRIBUTE_COPY)) {
+    if (MACRO_BRANCH_ATTRIBUTE.has(match[1])) continue;
+    if (isExempt(source, match.index)) continue;
+    failures.push(
+      `${file}:${lineOf(source, match.index)}: JSX attribute ${match[1]} carries authored copy (${match[2]}); use a t\`…\` macro`,
+    );
+  }
+  for (const match of code.matchAll(COPY_PROP_LITERAL)) {
+    if (isExempt(source, match.index)) continue;
+    failures.push(
+      `${file}:${lineOf(source, match.index)}: ${match[1]} carries authored copy (${match[2]}); use a t\`…\` macro`,
+    );
+  }
+}
+
+/**
+ * Blanks out comments so rule 7 only reads code.
+ *
+ * Every comment in this codebase is prose about the decision the code makes,
+ * and most of the interesting ones are in Chinese. Newlines survive so
+ * `lineOf` still reports the right line.
+ */
+function withoutComments(source) {
+  let out = '';
+  let index = 0;
+  while (index < source.length) {
+    const two = source.slice(index, index + 2);
+    if (two === '//') {
+      const end = source.indexOf('\n', index);
+      const stop = end === -1 ? source.length : end;
+      out += ' '.repeat(stop - index);
+      index = stop;
+    } else if (two === '/*') {
+      const end = source.indexOf('*/', index + 2);
+      const stop = end === -1 ? source.length : end + 2;
+      out += source.slice(index, stop).replace(/[^\n]/gu, ' ');
+      index = stop;
+    } else {
+      out += source[index];
+      index += 1;
+    }
+  }
+  return out;
+}
+
 function lineOf(source, index) {
   let line = 1;
   for (let cursor = 0; cursor < index; cursor += 1) {
@@ -197,6 +302,74 @@ export function readPanelWidths(root) {
   return widths.size > 0 ? widths : null;
 }
 
+
+/**
+ * Rule 7, first shape: a JSX attribute whose value is a quoted string with Han
+ * in it. `label={t`比较`}` is a brace expression and does not match.
+ */
+const JSX_ATTRIBUTE_COPY = /\s([A-Za-z][\w-]*)=("[^"\n]*[一-鿿][^"\n]*"|'[^'\n]*[一-鿿][^'\n]*')/gu;
+
+/** Rule 7, second shape: `headerLabel: '操作'` and friends. */
+const COPY_PROP_LITERAL = new RegExp(
+  String.raw`\b(${COPY_PROPS.join('|')})\s*:\s*("[^"\n]*[一-鿿][^"\n]*"|'[^'\n]*[一-鿿][^'\n]*')`,
+  'gu',
+);
+
+/**
+ * `<Plural one="…" other="…" />` and `<Select …>` carry copy in attributes by
+ * design — those are macro arms and `lingui extract` reads them. Skipping the
+ * names is cruder than identifying the element, and it is enough: no component
+ * here takes a prop called `other` or `few`.
+ */
+const MACRO_BRANCH_ATTRIBUTE = new Set(['zero', 'one', 'two', 'few', 'many', 'other']);
+
+/**
+ * Files whose Chinese strings are data rather than copy.
+ *
+ * Fixtures and sample timelines exist to be rendered by tests, and their text
+ * is the test's own subject — a fixture that said `t\`Kael 的 1v3\`` would be
+ * asserting on a translation. `tokens.data.ts` is the artboard survey: its
+ * `reason` fields are the record of why a token does or does not exist, read by
+ * whoever picks up the design system, and never rendered.
+ */
+const NON_PRODUCT_FILE =
+  /(?:\.testing\.tsx?|[Ff]ixtures\.tsx?|\/test\/|sampleTimeline\.ts|tokens\.data\.ts)$|\/test\//u;
+
+/** Marker that exempts one line, for the cases below. */
+const COPY_EXEMPTION = 'lint-copy-ok';
+
+/**
+ * Whether the line holding `index` opted out.
+ *
+ * There are two legitimate reasons to write Chinese in one of these positions,
+ * and both are proper nouns that must not be translated: a brand (「完美世界」
+ * beside Esportal and FastCup) and a language endonym (「简体中文」 beside
+ * English — a language picker that translated its own options would show the
+ * reader only names they cannot read). Each such line says why.
+ */
+function isExempt(source, index) {
+  const start = source.lastIndexOf('\n', index) + 1;
+  const end = source.indexOf('\n', index);
+  const line = source.slice(start, end === -1 ? source.length : end);
+  if (line.includes(COPY_EXEMPTION)) return true;
+
+  // The reason is usually a comment above the line rather than a trailing note,
+  // because it takes a sentence or two. Look back over the contiguous comment
+  // block: blank line or code ends it.
+  let cursor = start;
+  while (cursor > 0) {
+    const previousEnd = cursor - 1;
+    const previousStart = source.lastIndexOf('\n', previousEnd - 1) + 1;
+    const previous = source.slice(previousStart, previousEnd).trim();
+    if (!previous.startsWith('//') && !previous.startsWith('*') && !previous.startsWith('/*')) {
+      return false;
+    }
+    if (previous.includes(COPY_EXEMPTION)) return true;
+    cursor = previousStart;
+  }
+  return false;
+}
+
 /* ── the rules ───────────────────────────────────────────────────────────── */
 
 /**
@@ -227,6 +400,7 @@ export function checkWebLayers({ root, panelWidths } = {}) {
     if (!isTest) {
       checkBareHex({ file, layer, source, failures });
       checkArbitraryValues({ file, layer, source, widths, failures });
+      checkUntranslatedCopy({ file, layer, source, failures });
     }
   }
 

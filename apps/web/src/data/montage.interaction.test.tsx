@@ -7,6 +7,7 @@
  * checkable, including the case it *cannot* fix.
  */
 
+import { QueryClient } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
@@ -184,7 +185,19 @@ describe('useSaveMontageProject', () => {
   it('refreshes the document and the list, because the list prints the clip count', async () => {
     const read = countingStub(project());
     const write = countingStub(project({ updated_at: '2026-08-15T09:50:00.000Z' }));
+    /* This one assertion is about what is *in* the cache, and the shared test
+       client sets `gcTime: 0` — an entry `setQueryData` wrote with no observer
+       mounted is collected the moment `invalidateQueries` sweeps, so the read
+       below raced the sweep and failed about one run in four. A montage panel
+       that just saved is still subscribed to its own document, so keeping the
+       entry is the realistic setting here, not a relaxed one. */
     const { result, queryClient } = renderDataHook(() => useSaveMontageProject(), {
+      queryClient: new QueryClient({
+        defaultOptions: {
+          queries: { refetchOnWindowFocus: false, retry: false, staleTime: 30_000, gcTime: Infinity },
+          mutations: { retry: false },
+        },
+      }),
       client: {
         getMontageProject: read.call,
         putMontageProject: write.call,

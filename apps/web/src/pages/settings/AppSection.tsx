@@ -41,6 +41,9 @@ import { SettingsBlock, SettingsRow } from './settingsShared';
 
 /** The two Lingui catalogues that exist. A third would need a catalogue first. */
 const LOCALES = [
+  // lint-copy-ok: endonyms. A language picker whose options are translated into
+  // the language currently active shows the reader only the names they cannot
+  // read — the one place where not translating is the accessible choice.
   { value: 'zh-CN', label: '简体中文' },
   { value: 'en-US', label: 'English' },
 ] as const;

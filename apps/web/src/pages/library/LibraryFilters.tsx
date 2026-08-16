@@ -67,6 +67,8 @@ const MATCH_SOURCE_OPTIONS: readonly { value: DemoMatchSource; label: string }[]
   { value: 'fastcup', label: 'FastCup' },
   { value: 'five_eplay', label: '5EPlay' },
   { value: 'matchzy', label: 'MatchZy' },
+  // lint-copy-ok: a brand, like every other name in this list. Perfect World
+  // publishes CS in China under this name and does not use a Latin one there.
   { value: 'perfect_world', label: '完美世界' },
   { value: 'pracc', label: 'PRACC' },
   { value: 'renown', label: 'Renown' },

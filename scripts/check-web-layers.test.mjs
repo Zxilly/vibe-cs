@@ -260,6 +260,65 @@ describe('empty and missing trees', () => {
   });
 });
 
+
+describe('rule 7 — copy goes through a macro', () => {
+  it('rejects a JSX attribute holding authored copy', () => {
+    const failure = onlyFailure(
+      run({ 'pages/library/Filters.tsx': 'const x = <Inspector label="比较" />;\n' }),
+    );
+    assert.match(failure, /^pages\/library\/Filters\.tsx:1: JSX attribute label carries authored copy/u);
+  });
+
+  it('rejects a copy-carrying key in an object literal', () => {
+    const failure = onlyFailure(
+      run({ 'pages/history/Table.tsx': "const column = { id: 'action', headerLabel: '操作' };\n" }),
+    );
+    assert.match(failure, /^pages\/history\/Table\.tsx:1: headerLabel carries authored copy/u);
+  });
+
+  it('accepts the macro forms', () => {
+    const result = run({
+      'pages/history/Table.tsx':
+        'const a = <Inspector label={t`比较`} />;\n' +
+        'const b = { headerLabel: t`操作` };\n' +
+        'const c = <span>{/* 注释里的中文不算 */}<Trans>状态</Trans></span>;\n',
+    });
+    assert.deepEqual(result.failures, []);
+  });
+
+  it('accepts a plural macro, whose arms are attributes on purpose', () => {
+    const result = run({
+      'domain/agent/Chip.tsx': 'const x = <Plural value={n} one="# 处改动" other="# 处改动" />;\n',
+    });
+    assert.deepEqual(result.failures, []);
+  });
+
+  it('accepts an exempted line and the comment above it', () => {
+    const result = run({
+      'pages/settings/AppSection.tsx':
+        '// lint-copy-ok: endonyms — a translated language picker is unreadable.\n' +
+        "const locales = [{ value: 'zh-CN', label: '简体中文' }];\n",
+      'pages/library/Filters.tsx':
+        "const platforms = [{ value: 'pw', label: '完美世界' }]; // lint-copy-ok: a brand\n",
+    });
+    assert.deepEqual(result.failures, []);
+  });
+
+  it('leaves fixtures, sample data and the token survey alone', () => {
+    const result = run({
+      'domain/agent/agentFixtures.testing.ts': "export const thread = { title: '建立地点' };\n",
+      'design/timeline/sampleTimeline.ts': "export const clip = { label: '入场' };\n",
+      'pages/match/test/fixtures.ts': "export const row = { label: '残局' };\n",
+    });
+    assert.deepEqual(result.failures, []);
+  });
+
+  it('leaves data/** alone — it is the wire, not the screen', () => {
+    const result = run({ 'data/keys.ts': "export const seed = { label: '操作' };\n" });
+    assert.deepEqual(result.failures, []);
+  });
+});
+
 describe('the real apps/web/src tree', () => {
   const root = path.resolve(scriptDir, '../apps/web/src');
 

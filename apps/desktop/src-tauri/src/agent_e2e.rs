@@ -72,7 +72,10 @@ async fn rig_video_proposal_emits_an_executable_recording_request() {
             .is_some_and(|messages| messages.iter().any(|message| message["role"] == "tool"))
     );
     assert_eq!(response.plans.len(), 1);
-    assert_eq!(response.plans[0].kind, "video_render");
+    assert_eq!(
+        response.plans[0].kind,
+        vibe_cs_agent::CapturedPlanKind::VideoRender
+    );
     assert_eq!(response.tool_calls[0].name, "draft_video_plan");
     let payload = &response.plans[0].payload;
     assert_eq!(payload["output"]["container"], "mp4");

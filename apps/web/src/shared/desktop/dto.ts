@@ -544,12 +544,12 @@ export type { DesktopAgentCommandError as AgentCommandError } from './generated/
 /**
  * One proposal the model emitted, as it arrives on the stream.
  *
- * `kind` is `string` and not the four values `crates/agent/src/tools.rs`
- * emits: the plan is minted there as a `CapturedPlan` whose `kind` is a
- * `String`, and this hop only forwards it. Closing it means an enum in
- * `crates/agent`, not here — a narrowing written at this end would be a
- * client-side guess about a set neither Rust copy enforces.
+ * `kind` used to be `string` here, and this comment used to say that closing it
+ * belonged in `crates/agent` rather than at this hop. It does, and it happened:
+ * `CapturedPlanKind` is the enum, minted by the four tool handlers, and both
+ * this type and `CapturedPlan` carry it.
  */
+export type { CapturedPlanKind } from './generated/CapturedPlanKind';
 export type { DesktopAgentProposal as AgentProposal } from './generated/DesktopAgentProposal';
 
 /* ── agent proposals: HLAE, beat alignment, highlight edit ────────────────── */

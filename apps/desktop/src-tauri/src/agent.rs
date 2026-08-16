@@ -15,7 +15,8 @@ use uuid::Uuid;
 use vibe_cs_agent::{
     AgentConfig as EmbeddedAgentConfig, AgentContext as EmbeddedAgentContext,
     AgentMode as EmbeddedAgentMode, AgentRequest as EmbeddedAgentRequest,
-    AgentStreamEvent as EmbeddedAgentStreamEvent, AgentToolHost, Cancellation, HistoryMessage,
+    AgentStreamEvent as EmbeddedAgentStreamEvent, AgentToolHost, Cancellation, CapturedPlanKind,
+    HistoryMessage,
 };
 use vibe_cs_domain::{AnalysisRunStatus, RoundReplayArtifact};
 
@@ -537,7 +538,7 @@ pub(crate) struct AgentToolCall {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, rename = "DesktopAgentProposal")]
 pub(crate) struct AgentProposal {
-    kind: String,
+    kind: CapturedPlanKind,
     title: String,
     payload: Value,
 }
@@ -1378,8 +1379,11 @@ fn beat_alignment_clips(editor_project: &Value, analysis: &Value) -> Vec<Value> 
 }
 
 fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> {
-    match proposal.kind.as_str() {
-        "video_render" => {
+    // Exhaustive over the enum, so the arm that used to answer
+    // 「unknown proposal kind」 is gone: a fifth kind is a compile error here,
+    // which is where the decision about how to validate it belongs.
+    match proposal.kind {
+        CapturedPlanKind::VideoRender => {
             let payload = proposal.payload.as_object().ok_or_else(|| {
                 AgentCommandError::internal("agent returned an invalid video task")
             })?;
@@ -1462,7 +1466,7 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
                 }
             }
         }
-        "hlae" => {
+        CapturedPlanKind::Hlae => {
             let intent = serde_json::from_value::<vibe_cs_domain::HlaeProposalIntent>(
                 proposal.payload.clone(),
             )
@@ -1477,7 +1481,7 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
                 ));
             }
         }
-        "beat_alignment" => {
+        CapturedPlanKind::BeatAlignment => {
             let request = serde_json::from_value::<vibe_cs_domain::BeatAlignmentProposalRequest>(
                 proposal.payload.clone(),
             )
@@ -1492,7 +1496,7 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
                 ));
             }
         }
-        "highlight_edit" => {
+        CapturedPlanKind::HighlightEdit => {
             let request = serde_json::from_value::<vibe_cs_domain::HighlightEditProposalRequest>(
                 proposal.payload.clone(),
             )
@@ -1506,11 +1510,6 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
                     "agent highlight-edit proposal violates its bounds",
                 ));
             }
-        }
-        _ => {
-            return Err(AgentCommandError::internal(
-                "agent returned an unknown proposal kind",
-            ));
         }
     }
     Ok(())
@@ -1692,7 +1691,7 @@ mod tests {
     #[test]
     fn video_render_proposal_requires_executable_mp4_items() {
         let proposal = AgentProposal {
-            kind: "video_render".to_owned(),
+            kind: CapturedPlanKind::VideoRender,
             title: "NiKo highlight".to_owned(),
             payload: json!({
                 "items": [{

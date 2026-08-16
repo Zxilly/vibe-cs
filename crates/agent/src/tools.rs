@@ -24,13 +24,34 @@ pub struct CapturedToolCall {
     pub output: Value,
 }
 
+/// What kind of proposal the model emitted, which selects how a client renders
+/// the payload beside it.
+///
+/// A closed set: every value is minted by one of the four tool handlers in this
+/// file, and a fifth would be a new handler. It was a `String`, so the binding
+/// said `string` and the web app carried the four-member union in a comment
+/// with a note that Rust did not enforce it.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum CapturedPlanKind {
+    /// A change to an existing highlight edit.
+    HighlightEdit,
+    /// Music beats aligned against the cut.
+    BeatAlignment,
+    /// An HLAE bundle to review before it is written.
+    Hlae,
+    /// A recording queue, which is the one that needs an explicit confirmation.
+    VideoRender,
+}
+
 /// One proposal the model emitted during a turn. `kind` selects how a client
-/// renders `payload`; neither is interpreted here.
+/// renders `payload`; the payload itself is not interpreted here.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CapturedPlan {
-    pub kind: String,
+    pub kind: CapturedPlanKind,
     pub title: String,
     pub payload: Value,
 }
@@ -896,7 +917,7 @@ fn draft_edit_plan(
     };
     let payload = json!({"pacing":pacing,"tickRate":tick_rate,"clips":clips,"missingHighlightIds":binding.missing,"duplicateHighlightIds":binding.duplicates,"ambiguousHighlightIds":binding.ambiguous,"rejectionReasons":rejection_reasons});
     let plan = accepted.then(|| CapturedPlan {
-        kind: "highlight_edit".into(),
+        kind: CapturedPlanKind::HighlightEdit,
         title: "Recorded highlight edit draft".into(),
         payload: json!({
             "demo_id": demo_id,
@@ -939,7 +960,7 @@ fn draft_hlae_plan(
     let selected_ids = if accepted { ids.clone() } else { Vec::new() };
     let payload = json!({"demo_id":demo_id,"highlight_ids":selected_ids,"camera_style":camera,"mode":mode,"lead_seconds":lead,"tail_seconds":tail});
     let plan = accepted.then(|| CapturedPlan {
-        kind: "hlae".into(),
+        kind: CapturedPlanKind::Hlae,
         title: "HLAE camera proposal".into(),
         payload: payload.clone(),
     });
@@ -1125,7 +1146,7 @@ fn draft_video_plan(
         "requires_user_confirmation": true
     });
     let plan = accepted.then(|| CapturedPlan {
-        kind: "video_render".into(),
+        kind: CapturedPlanKind::VideoRender,
         title: "Highlight video generation".into(),
         payload: payload.clone(),
     });
@@ -1201,7 +1222,7 @@ fn draft_beat_alignment(
         .get("placement")
         .filter(|value| value.is_object());
     let plan = project_id.zip(revision).zip(audio_id).zip(placement).map(|(((project_id, revision), audio_id), placement)| CapturedPlan {
-        kind:"beat_alignment".into(), title:"BGM beat alignment".into(),
+        kind: CapturedPlanKind::BeatAlignment, title:"BGM beat alignment".into(),
         payload:json!({"project_id":project_id,"expected_revision":revision,"audio_asset_id":audio_id,"audio_placement":placement,"draft":draft}),
     });
     Ok((json!({"available":true,"draft":draft}), plan))
@@ -1762,7 +1783,7 @@ mod tests {
 
         assert_eq!(output["accepted"], true);
         let plan = plan.expect("accepted video proposal");
-        assert_eq!(plan.kind, "video_render");
+        assert_eq!(plan.kind, CapturedPlanKind::VideoRender);
         assert_eq!(plan.payload["output"]["container"], "mp4");
         assert_eq!(plan.payload["items"][0]["demo_id"], context.demo["id"]);
         assert_eq!(plan.payload["items"][0]["highlight_id"], "ace-1");

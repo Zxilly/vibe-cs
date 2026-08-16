@@ -375,7 +375,10 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
         .and_then(|message| message.proposals.first())
         .expect("Rig-generated proposal")
         .clone();
-    assert_eq!(proposal.kind, "highlight_edit");
+    assert_eq!(
+        proposal.kind,
+        vibe_cs_agent::CapturedPlanKind::HighlightEdit
+    );
     assert_eq!(proposal.payload["highlight_ids"][0], "ace-1");
 
     let preview = dispatcher
@@ -482,7 +485,7 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
             .messages
             .last()
             .and_then(|message| message.proposals.first())
-            .map(|proposal| proposal.kind.as_str()),
-        Some("highlight_edit")
+            .map(|proposal| proposal.kind),
+        Some(vibe_cs_agent::CapturedPlanKind::HighlightEdit)
     );
 }

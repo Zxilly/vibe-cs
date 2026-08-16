@@ -17,7 +17,7 @@ use serde_json::Value;
 use tokio::sync::Notify;
 use ts_rs::TS;
 
-pub use tools::{CapturedPlan, CapturedToolCall};
+pub use tools::{CapturedPlan, CapturedPlanKind, CapturedToolCall};
 
 const MAXIMUM_CONTEXT_BYTES: usize = 2 * 1024 * 1024;
 const MAXIMUM_RESPONSE_CHARS: usize = 64_000;
@@ -469,7 +469,7 @@ mod tests {
         );
         assert!(deltas.contains("ace-1"));
         assert_eq!(response.tool_calls[0].name, "draft_video_plan");
-        assert_eq!(response.plans[0].kind, "video_render");
+        assert_eq!(response.plans[0].kind, CapturedPlanKind::VideoRender);
         assert_eq!(
             response.plans[0].payload["source_highlight_ids"],
             json!(["ace-1"])

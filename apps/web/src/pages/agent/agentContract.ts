@@ -164,12 +164,12 @@
  *     bridges them by appending both entries itself. A consequence: a stream
  *     that is interrupted between the user entry and the assistant entry leaves
  *     a question with no answer in the transcript.
- *  6. **The streaming `AgentProposal` carries no `plan_id` / `based_on_revision`
- *     and its `kind` is a four-member union** (`highlight_edit` /
- *     `beat_alignment` / `hlae` / `video_render`) with no plan-change member. So
- *     the revision a proposal is based on is stamped by the client from what it
- *     read when the user pressed send. That is the only place the number
- *     exists, and it is why §4.5.3 ③ works at all here.
+ *  6. **The streaming `AgentProposal` carries no `plan_id` / `based_on_revision`.**
+ *     Its `kind` is `CapturedPlanKind` — a real enum since the gap-closing
+ *     round, and still with no plan-change member. So the revision a proposal
+ *     is based on is stamped by the client from what it read when the user
+ *     pressed send. That is the only place the number exists, and it is why
+ *     §4.5.3 ③ works at all here.
  *  7. **`AgentSessionEntry` has no per-entry token / cost / model.** The
  *     工作进度 block of artboard 07 (读取比赛结构 · 筛选候选片段 · 读取空间证据 ·
  *     设计镜头) can only be rebuilt from `tool_calls`, whose `input` / `output`

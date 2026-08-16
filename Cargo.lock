@@ -7192,6 +7192,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "ts-rs",
  "uuid",
  "vibe-cs-agent",
  "vibe-cs-application",

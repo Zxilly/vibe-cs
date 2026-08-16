@@ -32,8 +32,9 @@ impl ManagedHlaeRoot {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, rename = "DesktopHlaeBundleHandoff")]
 pub(crate) struct HlaeBundleHandoff {
     pub(crate) directory: String,
     pub(crate) files: Vec<String>,

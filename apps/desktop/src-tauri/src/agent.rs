@@ -469,8 +469,9 @@ fn serialize_bounded_thread(thread: &mut AgentThread) -> Result<Vec<u8>, AgentCo
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export, rename = "DesktopAgentStatus")]
 pub(crate) struct AgentStatus {
     runtime_available: bool,
     configured: bool,
@@ -479,43 +480,71 @@ pub(crate) struct AgentStatus {
     streaming: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Who wrote a message in the desktop chat transcript.
+///
+/// Two values. It was a `String` beside `HistoryMessage.role`, which is the
+/// LLM API's own role field and genuinely open — that one carries `system` and
+/// `tool` as well. This one is only ever the two the transcript renders, and
+/// the renderer was already switching on exactly those.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, rename = "DesktopAgentRole")]
+pub(crate) enum AgentRole {
+    User,
+    Assistant,
+}
+
+impl AgentRole {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::User => "user",
+            Self::Assistant => "assistant",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, rename = "DesktopAgentMessage")]
 pub(crate) struct AgentMessage {
     id: Uuid,
-    role: String,
+    role: AgentRole,
     content: String,
     created_at: String,
     tool_calls: Vec<AgentToolCall>,
     proposals: Vec<AgentProposal>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, rename = "DesktopAgentThread")]
 pub(crate) struct AgentThread {
     id: Uuid,
     messages: Vec<AgentMessage>,
     updated_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, rename = "DesktopAgentToolCall")]
 pub(crate) struct AgentToolCall {
     name: String,
     input: Value,
     output: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, rename = "DesktopAgentProposal")]
 pub(crate) struct AgentProposal {
     kind: String,
     title: String,
     payload: Value,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, rename = "DesktopAgentChatInput")]
 pub(crate) struct AgentChatInput {
     request_id: Uuid,
     #[serde(deserialize_with = "deserialize_required_nullable")]
@@ -527,12 +556,13 @@ pub(crate) struct AgentChatInput {
     #[serde(deserialize_with = "deserialize_required_nullable")]
     audio_asset_id: Option<Uuid>,
     workspace_context: AgentWorkspaceContext,
-    mode: AgentMode,
+    mode: EmbeddedAgentMode,
     message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, rename = "DesktopAgentWorkspaceContext")]
 pub(crate) struct AgentWorkspaceContext {
     pub(crate) workflow: AgentWorkspaceWorkflow,
     pub(crate) destination: AgentWorkspaceDestination,
@@ -548,16 +578,18 @@ pub(crate) struct AgentWorkspaceContext {
     pub(crate) tick: Option<u32>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export, rename = "DesktopAgentWorkspaceWorkflow")]
 pub(crate) enum AgentWorkspaceWorkflow {
     Review,
     Edit,
     Neutral,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export, rename = "DesktopAgentWorkspaceDestination")]
 pub(crate) enum AgentWorkspaceDestination {
     Review,
     Players,
@@ -579,20 +611,13 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum AgentMode {
-    Guide,
-    Edit,
-    Hlae,
-}
-
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ts_rs::TS)]
 #[serde(
     rename_all = "camelCase",
     rename_all_fields = "camelCase",
     tag = "type"
 )]
+#[ts(export, rename = "DesktopAgentEvent")]
 pub(crate) enum AgentEvent {
     Started { thread_id: Uuid },
     TextDelta { delta: String },
@@ -622,12 +647,14 @@ impl From<vibe_cs_agent::CapturedPlan> for AgentProposal {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ts_rs::TS)]
+#[ts(export, rename = "DesktopAgentChatResult")]
 pub(crate) struct AgentChatResult {
     thread_id: Uuid,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ts_rs::TS)]
+#[ts(export, rename = "DesktopAgentCommandError")]
 pub(crate) struct AgentCommandError {
     status: u16,
     code: String,
@@ -969,7 +996,7 @@ async fn run_agent_chat(
         .into_iter()
         .rev()
         .map(|entry| HistoryMessage {
-            role: entry.role.clone(),
+            role: entry.role.as_str().to_owned(),
             content: entry.content.clone(),
         })
         .collect::<Vec<_>>();
@@ -984,11 +1011,7 @@ async fn run_agent_chat(
     });
     let request = EmbeddedAgentRequest {
         request_id: input.request_id.to_string(),
-        mode: match input.mode {
-            AgentMode::Guide => EmbeddedAgentMode::Guide,
-            AgentMode::Edit => EmbeddedAgentMode::Edit,
-            AgentMode::Hlae => EmbeddedAgentMode::Hlae,
-        },
+        mode: input.mode,
         message: message.to_owned(),
         history,
         config: EmbeddedAgentConfig {
@@ -1072,7 +1095,7 @@ async fn run_agent_chat(
     let now = Utc::now().to_rfc3339();
     thread.messages.push(AgentMessage {
         id: Uuid::new_v4(),
-        role: "user".to_owned(),
+        role: AgentRole::User,
         content: message.to_owned(),
         created_at: now.clone(),
         tool_calls: Vec::new(),
@@ -1080,7 +1103,7 @@ async fn run_agent_chat(
     });
     thread.messages.push(AgentMessage {
         id: Uuid::new_v4(),
-        role: "assistant".to_owned(),
+        role: AgentRole::Assistant,
         content: response.content,
         created_at: now.clone(),
         tool_calls,
@@ -1898,7 +1921,7 @@ mod tests {
                 round_number: Some(7),
                 tick: Some(640),
             },
-            mode: AgentMode::Guide,
+            mode: EmbeddedAgentMode::Guide,
             message: "Explain this frame".to_owned(),
         };
         assert!(validate_workspace_context(&request).is_err());
@@ -1916,7 +1939,11 @@ mod tests {
             messages: (0..40)
                 .map(|index| AgentMessage {
                     id: Uuid::new_v4(),
-                    role: if index % 2 == 0 { "user" } else { "assistant" }.to_owned(),
+                    role: if index % 2 == 0 {
+                        AgentRole::User
+                    } else {
+                        AgentRole::Assistant
+                    },
                     content: format!("{index}:{}", "x".repeat(40_000)),
                     created_at: Utc::now().to_rfc3339(),
                     tool_calls: Vec::new(),

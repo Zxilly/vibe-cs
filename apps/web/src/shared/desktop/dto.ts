@@ -515,123 +515,42 @@ export type { ErrorBody as ApiProblem } from './generated/ErrorBody';
 
 /*
  * These reach the renderer through the Tauri `agent_chat` command, not through
- * `/api/agent/...`. Their Rust definitions live in
- * `apps/desktop/src-tauri/src/agent.rs`, which is outside the ts-rs wiring, so
- * everything below that is not `AgentMode` or `AgentToolCall` stays
- * hand-written. `crates/agent` holds semantically identical copies of the
- * three that are generated; a drift between the two Rust copies would still
- * not turn any diff red. Closing that needs ts-rs in `src-tauri`.
+ * `/api/agent/...`. `apps/desktop/src-tauri` derives `TS` now, so they are
+ * generated like everything else — under a `Desktop` prefix, because two of
+ * them (`AgentProposal`, `AgentToolCall`) collide with `crates/domain` types of
+ * the same name and a different shape. The prefix is the honest distinction:
+ * the domain pair is the persisted session, this pair is the streaming chat.
+ *
+ * `src-tauri` also had its own copy of `AgentMode` with the same three
+ * variants, which is the drift this file's previous note warned about. It is
+ * gone; the command takes `vibe_cs_agent::AgentMode` directly.
  */
 
 export type { AgentMode } from './generated/AgentMode';
-export type { CapturedToolCall as AgentToolCall } from './generated/CapturedToolCall';
 
-export type AgentStatus = {
-  runtimeAvailable: boolean;
-  configured: boolean;
-  provider: string;
-  model: string;
-  streaming: boolean;
-};
+export type { DesktopAgentStatus as AgentStatus } from './generated/DesktopAgentStatus';
+export type { DesktopAgentRole as AgentRole } from './generated/DesktopAgentRole';
+export type { DesktopAgentMessage as AgentMessage } from './generated/DesktopAgentMessage';
+export type { DesktopAgentThread as AgentThread } from './generated/DesktopAgentThread';
+export type { DesktopAgentToolCall as AgentToolCall } from './generated/DesktopAgentToolCall';
+export type { DesktopAgentChatInput as AgentChatInput } from './generated/DesktopAgentChatInput';
+export type { DesktopAgentWorkspaceContext as AgentWorkspaceContext } from './generated/DesktopAgentWorkspaceContext';
+export type { DesktopAgentWorkspaceWorkflow as AgentWorkspaceWorkflow } from './generated/DesktopAgentWorkspaceWorkflow';
+export type { DesktopAgentWorkspaceDestination as AgentWorkspaceDestination } from './generated/DesktopAgentWorkspaceDestination';
+export type { DesktopAgentEvent as AgentEvent } from './generated/DesktopAgentEvent';
+export type { DesktopAgentChatResult as AgentChatResult } from './generated/DesktopAgentChatResult';
+export type { DesktopAgentCommandError as AgentCommandError } from './generated/DesktopAgentCommandError';
 
 /**
- * One proposal the model emitted.
+ * One proposal the model emitted, as it arrives on the stream.
  *
- * `kind` is narrowed here to the four values `crates/agent/src/tools.rs`
- * actually emits, but Rust types the field as `String` at both hops
- * (`generated/CapturedPlan.ts` says `kind: string`), so a fifth kind would
- * compile everywhere and be unrepresentable in this type. It is a closed set
- * that is not modelled as one.
+ * `kind` is `string` and not the four values `crates/agent/src/tools.rs`
+ * emits: the plan is minted there as a `CapturedPlan` whose `kind` is a
+ * `String`, and this hop only forwards it. Closing it means an enum in
+ * `crates/agent`, not here — a narrowing written at this end would be a
+ * client-side guess about a set neither Rust copy enforces.
  */
-export type AgentProposal = {
-  kind: 'highlight_edit' | 'beat_alignment' | 'hlae' | 'video_render';
-  title: string;
-  payload: import('./generated/serde_json/JsonValue').JsonValue;
-};
-
-export type AgentVideoProposal = {
-  /**
-   * Queue items, not plan items: `crates/agent/src/tools.rs` mints a fresh
-   * `Uuid` for every one of them, so each carries the durable identity a
-   * `RecordingRequest` read back from a plan may lack.
-   */
-  items: import('./generated/RecordingQueueItem').RecordingQueueItem[];
-  shot_designs: AgentShotDesign[];
-  output: { container: 'mp4' };
-  source_highlight_ids: string[];
-  requires_user_confirmation: true;
-};
-
-export type AgentShotDesign = {
-  highlight_id: string;
-  map_name: string | null;
-  camera_intent:
-    | 'player_pov'
-    | 'establish_location'
-    | 'follow_entry'
-    | 'reveal_duel'
-    | 'hold_crossfire'
-    | 'rise_after_climax'
-    | 'transition_through_space';
-  camera_style: import('./generated/HlaeCameraStyle').HlaeCameraStyle;
-  rationale: string;
-  spatial_evidence: unknown;
-  requires_user_review: true;
-};
-
-export type AgentMessage = {
-  id: EntityId;
-  role: 'user' | 'assistant';
-  content: string;
-  createdAt: string;
-  toolCalls: import('./generated/CapturedToolCall').CapturedToolCall[];
-  proposals: AgentProposal[];
-};
-
-export type AgentThread = {
-  id: EntityId;
-  messages: AgentMessage[];
-  updatedAt: string;
-};
-
-export type AgentChatInput = {
-  requestId: EntityId;
-  threadId: EntityId | null;
-  demoId: EntityId | null;
-  editorProjectId: EntityId | null;
-  audioAssetId: EntityId | null;
-  workspaceContext: {
-    workflow: 'review' | 'edit' | 'neutral';
-    destination:
-      | 'review'
-      | 'players'
-      | 'evidence'
-      | 'replay'
-      | 'heatmap'
-      | 'edit'
-      | 'queue'
-      | 'studio'
-      | 'outputs'
-      | 'neutral';
-    demoId: EntityId | null;
-    projectId: EntityId | null;
-    playerId: string | null;
-    roundNumber: number | null;
-    tick: number | null;
-  };
-  mode: import('./generated/AgentMode').AgentMode;
-  message: string;
-};
-
-export type AgentEvent =
-  | { type: 'started'; threadId: EntityId }
-  | { type: 'textDelta'; delta: string }
-  | { type: 'toolCall'; toolCall: import('./generated/CapturedToolCall').CapturedToolCall }
-  | { type: 'proposal'; proposal: AgentProposal }
-  | { type: 'complete'; thread: AgentThread }
-  | { type: 'error'; message: string };
-
-export type AgentChatResult = { thread_id: EntityId };
+export type { DesktopAgentProposal as AgentProposal } from './generated/DesktopAgentProposal';
 
 /* ── agent proposals: HLAE, beat alignment, highlight edit ────────────────── */
 

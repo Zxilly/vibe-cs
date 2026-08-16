@@ -411,6 +411,166 @@ struct ManagedPlaybackSnapshot {
     file: CapabilityFile,
 }
 
+/* ── typed responses ──────────────────────────────────────────────────────────
+ *
+ * This port answers `request(name, Value) -> Value`, so for a long time every
+ * document below was built inline with `json!` and the only written-down record
+ * of its shape was a hand-maintained type in `apps/web/src/shared/desktop/
+ * dto.ts`. Nothing connected the two: renaming a key here left the TypeScript
+ * saying the old name, and no diff went red.
+ *
+ * These structs are that record. The port still returns `Value` — the string
+ * dispatch is a separate design question — but a `Value` may now only be built
+ * by serialising one of these, so `cargo test` regenerates the bindings and CI
+ * fails on drift, which is the property the hand-written types never had.
+ */
+
+/// Whether a managed CS2 playback can be launched, and what is missing if not.
+///
+/// Six booleans, and clippy is right that a struct of flags usually wants a
+/// state machine — but this one describes a wire document the client already
+/// reads field by field, and each flag is an independent probe (an executable
+/// can be present while GSI is stale, and the reverse). Folding them into
+/// variants would change the JSON, not the design.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "wire shape: independent probe results, not a state machine"
+)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
+struct DemoPlaybackStatus {
+    executable_available: bool,
+    executable: Option<String>,
+    gsi_installed: bool,
+    gsi_fresh: bool,
+    gsi_sequence: u64,
+    gsi_received_at: Option<DateTime<Utc>>,
+    map_name: Option<String>,
+    map_phase: Option<String>,
+    player_name: Option<String>,
+    player_activity: Option<String>,
+    /// Mirrors `executable_available`: playback needs the executable, nothing
+    /// else. GSI freshness gates the recording controls, not the launch.
+    ready_to_launch: bool,
+    gsi_ready: bool,
+    warnings: Vec<String>,
+}
+
+/// The launch a preflight would perform, with everything it verified first.
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
+struct DemoPlaybackPreflight {
+    /// Always `true`: a preflight that is not ready is an error, not a body.
+    ready: bool,
+    executable: String,
+    demo_path: String,
+    /// Equals `demo_path` until the launch stages a managed copy.
+    launch_path: String,
+    demo_size: u64,
+    demo_sha256: String,
+    arguments: Vec<String>,
+    managed_copy: bool,
+    status: DemoPlaybackStatus,
+    warnings: Vec<String>,
+}
+
+/// A started playback process.
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
+struct DemoPlaybackLaunch {
+    /// Always `true`, for the same reason as `DemoPlaybackPreflight::ready`.
+    started: bool,
+    process_id: u32,
+    /// Echoed from the request. Optional because the request is a free-form
+    /// `Value` that is not required to carry one — the launch identifies the
+    /// demo by path, not by id.
+    #[ts(optional)]
+    demo_id: Option<String>,
+    preflight: DemoPlaybackPreflight,
+}
+
+/// The result of stopping playback, including stopping one already stopped.
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
+struct DemoPlaybackStop {
+    /// Always `true`: after this call nothing managed is playing, whether or
+    /// not this call is what ended it.
+    stopped: bool,
+    process_id: Option<u32>,
+    already_stopped: bool,
+    /// The process ignored the graceful stop and was terminated.
+    forced_process_stop: bool,
+}
+
+/// What one share-code sync pass wrote.
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
+struct MatchHistorySyncResult {
+    /// How many share codes this pass walked. A `usize` because it counts a
+    /// vector this process built; the two below come from storage as `u64`.
+    synced: usize,
+    created: u64,
+    /// Every match now stored for this Steam id, not just this pass's.
+    total: u64,
+    cursor_advanced: bool,
+}
+
+/// The reachability probe for the configured LLM.
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
+struct LlmTestResult {
+    /// Always `true`: an unreachable provider answers with an error.
+    ok: bool,
+    provider: String,
+    model: String,
+    capabilities: LlmCapabilities,
+}
+
+/// What the provider's API supports, as probed.
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
+struct LlmCapabilities {
+    protocol: LlmProtocol,
+    chat: bool,
+    stream: bool,
+    tools: bool,
+}
+
+/// The wire protocol spoken to the provider. One variant today; it is an enum
+/// rather than a string so adding a second one is a contract change the
+/// TypeScript sees.
+#[derive(Debug, Clone, Copy, Serialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum LlmProtocol {
+    OpenaiChatCompletions,
+}
+
+/// Whether a crashed run left managed configuration behind.
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[ts(export)]
+struct RecoveryStatus {
+    recovery_required: bool,
+    /// Present only when recovery is required.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    backup_created_at: Option<DateTime<Utc>>,
+    affected_files: Vec<String>,
+}
+
+/// Serialise one of the typed responses above into the `Value` the port hands
+/// back. None of them can actually fail — no non-string map keys, no NaN — but
+/// the error is mapped rather than unwrapped so a future field cannot turn a
+/// serialisation problem into a panic inside a request handler.
+fn typed_response<T: Serialize>(response: T) -> Result<Value, DomainError> {
+    serde_json::to_value(response).map_err(|error| {
+        DomainError::Internal(format!("integration response failed to serialise: {error}"))
+    })
+}
+
 #[async_trait]
 impl RuntimeSteamBackend for SystemSteamBackend {
     async fn history(
@@ -639,12 +799,12 @@ impl RuntimeIntegrationPort {
             .await
             .map_err(|error| storage_error(&error))?
             .total;
-        Ok(json!({
-            "synced": synced,
-            "created": created,
-            "total": total,
-            "cursor_advanced": latest_code != config.steam.known_share_code,
-        }))
+        typed_response(MatchHistorySyncResult {
+            synced,
+            created,
+            total,
+            cursor_advanced: latest_code != config.steam.known_share_code,
+        })
     }
 
     async fn list_steam_history(
@@ -1295,12 +1455,17 @@ impl RuntimeIntegrationPort {
             .agent_capabilities()
             .await
             .map_err(integration_error)?;
-        Ok(json!({
-            "ok": true,
-            "provider": config.llm.provider,
-            "model": config.llm.model,
-            "capabilities": capabilities,
-        }))
+        typed_response(LlmTestResult {
+            ok: true,
+            provider: config.llm.provider.clone(),
+            model: config.llm.model.clone(),
+            capabilities: LlmCapabilities {
+                protocol: LlmProtocol::OpenaiChatCompletions,
+                chat: capabilities.chat,
+                stream: capabilities.stream,
+                tools: capabilities.tools,
+            },
+        })
     }
 
     async fn gsi_status(&self, config: &AppConfig) -> Result<Value, DomainError> {
@@ -1313,7 +1478,7 @@ impl RuntimeIntegrationPort {
         }))
     }
 
-    async fn playback_status(&self, config: &AppConfig) -> Result<Value, DomainError> {
+    async fn playback_status(&self, config: &AppConfig) -> Result<DemoPlaybackStatus, DomainError> {
         let discovery_config = config.clone();
         let discovered = tokio::task::spawn_blocking(move || discover_paths(&discovery_config))
             .await
@@ -1350,36 +1515,36 @@ impl RuntimeIntegrationPort {
         } else if !provider_is_cs2 {
             warnings.push("the latest GSI heartbeat does not identify CS2".to_owned());
         }
-        Ok(json!({
-            "executable_available": executable_available,
-            "executable": executable,
-            "gsi_installed": gsi_installed,
-            "gsi_fresh": gsi_fresh,
-            "gsi_sequence": state.sequence,
-            "gsi_received_at": state.received_at,
-            "map_name": latest
+        Ok(DemoPlaybackStatus {
+            executable_available,
+            executable,
+            gsi_installed,
+            gsi_fresh,
+            gsi_sequence: state.sequence,
+            gsi_received_at: state.received_at,
+            map_name: latest
                 .and_then(|payload| payload.map.as_ref())
-                .and_then(|map| map.name.as_deref()),
-            "map_phase": latest
+                .and_then(|map| map.name.clone()),
+            map_phase: latest
                 .and_then(|payload| payload.map.as_ref())
-                .and_then(|map| map.phase.as_deref()),
-            "player_name": latest
+                .and_then(|map| map.phase.clone()),
+            player_name: latest
                 .and_then(|payload| payload.player.as_ref())
-                .and_then(|player| player.name.as_deref()),
-            "player_activity": latest
+                .and_then(|player| player.name.clone()),
+            player_activity: latest
                 .and_then(|payload| payload.player.as_ref())
-                .and_then(|player| player.activity.as_deref()),
-            "ready_to_launch": executable_available,
-            "gsi_ready": gsi_ready,
-            "warnings": warnings,
-        }))
+                .and_then(|player| player.activity.clone()),
+            ready_to_launch: executable_available,
+            gsi_ready,
+            warnings,
+        })
     }
 
     async fn playback_preflight(
         &self,
         config: &AppConfig,
         request: &Value,
-    ) -> Result<(ValidatedDemo, Value), DomainError> {
+    ) -> Result<(ValidatedDemo, DemoPlaybackPreflight), DomainError> {
         let preflight_config = config.clone();
         let preflight_request = request.clone();
         let (command, validated) = tokio::task::spawn_blocking(move || {
@@ -1408,34 +1573,30 @@ impl RuntimeIntegrationPort {
         })??;
 
         let status = self.playback_status(config).await?;
-        let mut warnings = status
-            .get("warnings")
-            .and_then(Value::as_array)
-            .cloned()
-            .unwrap_or_default();
-        if status.get("gsi_ready").and_then(Value::as_bool) != Some(true) {
-            warnings.push(Value::String(
+        let mut warnings = status.warnings.clone();
+        if !status.gsi_ready {
+            warnings.push(
                 "launch is available, but recording controls cannot be verified until GSI is fresh"
                     .to_owned(),
-            ));
+            );
         }
         let arguments = command
             .args
             .iter()
             .map(|argument| argument.to_string_lossy().into_owned())
             .collect::<Vec<_>>();
-        let response = json!({
-            "ready": true,
-            "executable": command.program.to_string_lossy(),
-            "demo_path": validated.path.to_string_lossy(),
-            "launch_path": validated.path.to_string_lossy(),
-            "demo_size": validated.size,
-            "demo_sha256": validated.sha256,
-            "arguments": arguments,
-            "managed_copy": false,
-            "status": status,
-            "warnings": warnings,
-        });
+        let response = DemoPlaybackPreflight {
+            ready: true,
+            executable: command.program.to_string_lossy().into_owned(),
+            demo_path: validated.path.to_string_lossy().into_owned(),
+            launch_path: validated.path.to_string_lossy().into_owned(),
+            demo_size: validated.size,
+            demo_sha256: validated.sha256.clone(),
+            arguments,
+            managed_copy: false,
+            status,
+            warnings,
+        };
         Ok((validated, response))
     }
 
@@ -1523,23 +1684,18 @@ impl RuntimeIntegrationPort {
             ))
         })??;
         tracked_launch.ensure_not_cancelled()?;
-        if let Some(object) = preflight.as_object_mut() {
-            object.insert(
-                "launch_path".to_owned(),
-                Value::String(launch_path.to_string_lossy().into_owned()),
-            );
-            object.insert("managed_copy".to_owned(), Value::Bool(true));
-            object.insert(
-                "arguments".to_owned(),
-                json!(
-                    command
-                        .args
-                        .iter()
-                        .map(|argument| argument.to_string_lossy().into_owned())
-                        .collect::<Vec<_>>()
-                ),
-            );
-        }
+        // The preflight described the demo where it was found; the launch runs a
+        // staged copy with its own argument list. Three fields, assigned — the
+        // `as_object_mut()` this replaces returned an `Option`, so a preflight
+        // that was somehow not an object skipped all three in silence and the
+        // response claimed an unmanaged launch of the original path.
+        preflight.launch_path = launch_path.to_string_lossy().into_owned();
+        preflight.managed_copy = true;
+        preflight.arguments = command
+            .args
+            .iter()
+            .map(|argument| argument.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
         let child = spawn_managed_playback(&command)?;
         self.retain_playback_guard(session_token, managed);
         let (process_id, cancelled_after_spawn) = match tracked_launch.activate(child) {
@@ -1558,12 +1714,18 @@ impl RuntimeIntegrationPort {
                 "managed playback launch was cancelled while the process started".to_owned(),
             ));
         }
-        Ok(json!({
-            "started": true,
-            "process_id": process_id,
-            "demo_id": request.get("demo_id"),
-            "preflight": preflight,
-        }))
+        typed_response(DemoPlaybackLaunch {
+            started: true,
+            process_id,
+            // Echoed only when the caller sent a string. It used to be forwarded
+            // as whatever `Value` arrived, so a number or an object would have
+            // been reflected back under a key the TypeScript calls an id.
+            demo_id: request
+                .get("demo_id")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            preflight,
+        })
     }
 
     async fn stop_demo(&self, request: &Value) -> Result<Value, DomainError> {
@@ -1775,9 +1937,34 @@ impl RuntimeIntegrationPort {
 
     async fn recovery_status(&self) -> Result<Value, DomainError> {
         let marker = read_marker(&self.data_dir).await?;
-        Ok(marker.map_or_else(
-            || json!({ "recovery_required": false }),
-            |marker| json!(marker),
+        // The marker is this port's own on-disk record — `target`, `had_previous`,
+        // `installed_at` — and it used to be serialised straight out to a client
+        // that reads `reason`, `backup_created_at` and `affected_files`. None of
+        // those three were ever sent, so the recovery page rendered a hard-coded
+        // fallback for the reason and read `.length` off an absent array. Same
+        // information, translated into what the route promises.
+        typed_response(marker.map_or_else(
+            || RecoveryStatus {
+                recovery_required: false,
+                reason: None,
+                backup_created_at: None,
+                affected_files: Vec::new(),
+            },
+            |marker| {
+                RecoveryStatus {
+                    recovery_required: marker.recovery_required,
+                    reason: Some(
+                        if marker.had_previous {
+                            "managed GSI configuration replaced an existing file"
+                        } else {
+                            "managed GSI configuration is still installed"
+                        }
+                        .to_owned(),
+                    ),
+                    backup_created_at: Some(marker.installed_at),
+                    affected_files: vec![marker.target],
+                }
+            },
         ))
     }
 }
@@ -2055,11 +2242,11 @@ impl IntegrationPort for RuntimeIntegrationPort {
             "gsi_install" => self.install_gsi(&config, &request).await,
             "gsi_remove" | "config_backup_restore" => self.restore_gsi(&config).await,
             "config_backup_status" => self.recovery_status().await,
-            "demo_playback_status" => self.playback_status(&config).await,
+            "demo_playback_status" => self.playback_status(&config).await.and_then(typed_response),
             "demo_playback_preflight" => self
                 .playback_preflight(&config, &request)
                 .await
-                .map(|(_, response)| response),
+                .and_then(|(_, response)| typed_response(response)),
             "demo_play" => self.play_demo(&config, &request).await,
             "demo_stop" => self.stop_demo(&request).await,
             "match_history" => self.list_steam_history(&config, &request).await,
@@ -3032,12 +3219,16 @@ fn playback_stopped_response(
     already_stopped: bool,
     forced_process_stop: bool,
 ) -> Value {
-    json!({
-        "stopped": true,
-        "process_id": process_id,
-        "already_stopped": already_stopped,
-        "forced_process_stop": forced_process_stop,
+    // Infallible for this shape, and the callers return it directly rather than
+    // through `Result`, so a null here would be a bug that shows up as a body of
+    // `null` — which is exactly how it would read: nothing was stopped.
+    serde_json::to_value(DemoPlaybackStop {
+        stopped: true,
+        process_id,
+        already_stopped,
+        forced_process_stop,
     })
+    .unwrap_or(Value::Null)
 }
 
 fn integration_error(error: IntegrationError) -> DomainError {

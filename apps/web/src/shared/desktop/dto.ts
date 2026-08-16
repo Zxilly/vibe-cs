@@ -22,26 +22,20 @@
  *
  * ## What is still hand-written, and why
  *
- * Four groups, each marked where it appears:
+ * Three groups, each marked where it appears:
  *
- *   1. **Untyped routes.** `DemoPlaybackStatus`, `DemoPlaybackPreflight`,
- *      `DemoPlaybackLaunch`, `DemoPlaybackStop`, `LlmTestResult`,
- *      `MatchHistorySyncResult` and `RecoveryStatus` are served as
- *      `Json<serde_json::Value>` built with `json!` in
- *      `crates/runtime/src/integration.rs`. There is no Rust structure to
- *      generate from. Each is a backend gap, not a naming problem.
- *   2. **Tauri-side types.** The streaming Agent chat contract
+ *   1. **Tauri-side types.** The streaming Agent chat contract
  *      (`AgentStatus`, `AgentMessage`, `AgentThread`, `AgentChatInput`,
  *      `AgentEvent`, `AgentChatResult`, `AgentProposal`, `AgentVideoProposal`,
  *      `AgentShotDesign`) and `HlaeBundleHandoff` live in
  *      `apps/desktop/src-tauri/src/`, which is not part of the ts-rs wiring.
- *   3. **Client-side narrowings of an untyped field.** `DependencyKind`,
+ *   2. **Client-side narrowings of an untyped field.** `DependencyKind`,
  *      `DependencyState`, `ActivityKind`, `ActivityStatus` and
  *      `ActivityAction` narrow fields that Rust types as `&'static str`
  *      produced by `match` arms. The generated types say `string`, correctly.
  *      These unions are the client's own reading of the closed set and are
  *      **not** guaranteed by the server.
- *   4. **Frontend aliases.** `EntityId`.
+ *   3. **Frontend aliases.** `EntityId`.
  *
  * View models — shapes this application derives from the wire rather than
  * receives — moved to `./viewModels`. `dto.ts` is the wire, not a type
@@ -392,58 +386,17 @@ export type { RuntimeStateResponse as RuntimeState } from './generated/RuntimeSt
 export type { DemoPlaybackRequest as DemoPlaybackOptions } from './generated/DemoPlaybackRequest';
 
 /*
- * The four playback responses below are hand-written because there is nothing
- * to generate them from: `preflight_demo`, `play_demo` and `stop_playback` in
- * `crates/application/src/routes/demos.rs` all return
- * `Json<serde_json::Value>`, proxied verbatim from the integrations port,
- * which builds the documents with `json!` in
- * `crates/runtime/src/integration.rs`. This is a hole in the contract, not a
- * naming problem: until those three routes answer with a real struct, nothing
- * can make a change to them turn a diff red.
+ * The four playback responses were hand-written until the port grew structs
+ * for them. The routes still answer `Json<serde_json::Value>` — the port's
+ * `request(name, Value) -> Value` dispatch is a separate design question — but
+ * that `Value` can now only be built by serialising a struct, so a renamed key
+ * turns this diff red instead of silently disagreeing with the client.
  */
 
-export type DemoPlaybackStatus = {
-  executable_available: boolean;
-  executable: string | null;
-  gsi_installed: boolean;
-  gsi_fresh: boolean;
-  gsi_sequence: number;
-  gsi_received_at: string | null;
-  map_name: string | null;
-  map_phase: string | null;
-  player_name: string | null;
-  player_activity: string | null;
-  ready_to_launch: boolean;
-  gsi_ready: boolean;
-  warnings: string[];
-};
-
-export type DemoPlaybackPreflight = {
-  ready: true;
-  executable: string;
-  demo_path: string;
-  launch_path: string;
-  demo_size: number;
-  demo_sha256: string;
-  arguments: string[];
-  managed_copy: boolean;
-  status: DemoPlaybackStatus;
-  warnings: string[];
-};
-
-export type DemoPlaybackLaunch = {
-  started: true;
-  process_id: number;
-  demo_id: EntityId;
-  preflight: DemoPlaybackPreflight;
-};
-
-export type DemoPlaybackStop = {
-  stopped: true;
-  process_id: number | null;
-  already_stopped: boolean;
-  forced_process_stop: boolean;
-};
+export type { DemoPlaybackStatus } from './generated/DemoPlaybackStatus';
+export type { DemoPlaybackPreflight } from './generated/DemoPlaybackPreflight';
+export type { DemoPlaybackLaunch } from './generated/DemoPlaybackLaunch';
+export type { DemoPlaybackStop } from './generated/DemoPlaybackStop';
 
 /* ── recorded clips, montage, editor, outputs ─────────────────────────────── */
 
@@ -510,23 +463,10 @@ export type { LlmConfig } from './generated/LlmConfig';
 export type { RecordingDefaults } from './generated/RecordingDefaults';
 export type { ConfigDto as AppConfig } from './generated/ConfigDto';
 
-/**
- * `/api/llm/test`.
- *
- * Hand-written: `crates/runtime/src/integration.rs` builds this body with
- * `json!`, so there is no Rust structure to generate from. A backend gap.
- */
-export type LlmTestResult = {
-  ok: true;
-  provider: string;
-  model: string;
-  capabilities: {
-    protocol: 'openai_chat_completions';
-    chat: true;
-    stream: true;
-    tools: true;
-  };
-};
+/** `/api/llm/test`. */
+export type { LlmTestResult } from './generated/LlmTestResult';
+export type { LlmCapabilities } from './generated/LlmCapabilities';
+export type { LlmProtocol } from './generated/LlmProtocol';
 
 /* ── HLAE integration status ──────────────────────────────────────────────── */
 
@@ -569,32 +509,16 @@ export type { SteamMatchRecord as MatchHistoryItem } from './generated/SteamMatc
 export type { MatchDownloadStatus } from './generated/MatchDownloadStatus';
 export type { MatchDownloadJob } from './generated/MatchDownloadJob';
 
-/**
- * The share-code sync summary.
- *
- * Hand-written: `crates/runtime/src/integration.rs` answers with a `json!`
- * document. A backend gap.
- */
-export type MatchHistorySyncResult = {
-  synced: number;
-  created: number;
-  total: number;
-  cursor_advanced: boolean;
-};
+/** The share-code sync summary. */
+export type { MatchHistorySyncResult } from './generated/MatchHistorySyncResult';
 
 /**
  * The crash-recovery marker.
  *
- * Hand-written for the same reason as `MatchHistorySyncResult`. Note that
- * `crates/platform-windows/src/backup.rs` has a `RecoveryStatus` of its own
- * with a different shape and no `Serialize`; this is not it.
+ * Note that `crates/platform-windows/src/backup.rs` has a `RecoveryStatus` of
+ * its own with a different shape and no `Serialize`; this is not it.
  */
-export type RecoveryStatus = {
-  recovery_required: boolean;
-  reason?: string;
-  backup_created_at?: string;
-  affected_files: string[];
-};
+export type { RecoveryStatus } from './generated/RecoveryStatus';
 
 /* ── errors ───────────────────────────────────────────────────────────────── */
 

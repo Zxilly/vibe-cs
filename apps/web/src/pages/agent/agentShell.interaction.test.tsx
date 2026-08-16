@@ -6,13 +6,20 @@
  * parameters), and §4.5.3 rule ① at the page level — 「切换会话不触发录制」.
  */
 
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { AgentPage } from '../AgentPage';
 import { DesktopClientProvider, type DesktopClient } from '../../data/desktopClient';
-import type { AgentPlan, AgentSession } from '../../shared/desktop/dto';
+import { qk } from '../../data/keys';
+import type {
+  AgentPlan,
+  AgentPlanShot,
+  AgentSession,
+  AgentShotRecording,
+} from '../../shared/desktop/dto';
 import { renderInteractive } from '../../test/render';
 
 const PLAN: AgentPlan = {
@@ -36,10 +43,70 @@ const SESSION: AgentSession = {
   refs: [],
 };
 
+const BOUND: AgentShotRecording = {
+  demo_id: 'D-1',
+  player_id: '76561198000000001',
+  highlight_id: null,
+  victim_pov: false,
+  pre_roll_seconds: 1,
+  post_roll_seconds: 1,
+  presentation: null,
+};
+
+function shot(id: string, recording: AgentShotRecording | null): AgentPlanShot {
+  return {
+    id,
+    title: id,
+    kind: 'pov',
+    view: 'player_pov',
+    start_tick: 1000,
+    end_tick: 1640,
+    duration_seconds: 10,
+    rationale: '',
+    evidence_refs: [],
+    risks: [],
+    source: 'agent',
+    removed_by: null,
+    params: null,
+    recording,
+  };
+}
+
 /** Anything that could make the game run or a file appear. */
 const RECORDING_METHOD = /record|execute|capture|render|export/iu;
 
-function harness(url: string) {
+/** Stands in for `/recording/:taskId` so the handover is observable without
+ *  mounting the recording page and its own bridge calls. */
+function RecordingLanding() {
+  const { taskId } = useParams<{ taskId?: string }>();
+  return <p data-testid="recording-landing">{taskId ?? ''}</p>;
+}
+
+let queryClientRef: QueryClient | null = null;
+
+function QueryProbe() {
+  queryClientRef = useQueryClient();
+  return null;
+}
+
+afterEach(() => {
+  queryClientRef = null;
+});
+
+/**
+ * `ServiceGate` lives in `app/**` and is not mounted here, so nothing answers
+ * the health probe and every service-backed action would sit disabled behind
+ * 「正在连接本地服务」 — including the one these tests are about. Seeding the
+ * probe's cache entry is how the other Agent interaction tests open that gate.
+ */
+async function serviceOnline(): Promise<void> {
+  await act(async () => {
+    queryClientRef?.setQueryData(qk.service.health(), { status: 'ok' } as never);
+    await Promise.resolve();
+  });
+}
+
+function harness(url: string, plan?: Partial<AgentPlan>) {
   const reached: string[] = [];
   const planIds: string[] = [];
   const sessionIds: string[] = [];
@@ -47,7 +114,7 @@ function harness(url: string) {
   const stub = {
     getAgentPlan: (planId: string) => {
       planIds.push(planId);
-      return Promise.resolve(PLAN);
+      return Promise.resolve({ ...PLAN, ...plan });
     },
     getAgentSession: (sessionId: string) => {
       sessionIds.push(sessionId);
@@ -66,8 +133,10 @@ function harness(url: string) {
   const view = renderInteractive(
     <DesktopClientProvider client={client}>
       <MemoryRouter initialEntries={[url]}>
+        <QueryProbe />
         <Routes>
           <Route path="/agent" element={<AgentPage />} />
+          <Route path="/recording/:taskId" element={<RecordingLanding />} />
         </Routes>
       </MemoryRouter>
     </DesktopClientProvider>,
@@ -119,14 +188,72 @@ describe('§4.5.3 rule ①, at the page level', () => {
     expect(reached.filter((name) => RECORDING_METHOD.test(name))).toEqual([]);
   });
 
-  it('leaves 「确认并生成视频」 inert, and says why', async () => {
+  it('refuses 「确认并生成视频」 for a plan with nothing left to record', async () => {
+    // `PLAN.shots` is empty — the client-side half of `agent_plan_not_recordable`.
     const { reached } = harness('/agent?plan=P-118&session=S-1');
+    await serviceOnline();
 
     const confirm = await screen.findByRole('button', { name: /确认并生成视频/u });
     expect(confirm.hasAttribute('disabled')).toBe(true);
+    // Twice on purpose: `Button` puts the reason in `title` and again in the
+    // `aria-describedby` span, which is the 「不隐藏、不静默失败」 arrangement.
+    expect(await screen.findAllByText(/没有可以录制的内容/u)).not.toHaveLength(0);
 
     fireEvent.click(confirm);
 
+    expect(reached.filter((name) => RECORDING_METHOD.test(name))).toEqual([]);
+  });
+
+  it('refuses it, and counts, while a shot is still unbound', async () => {
+    const { reached } = harness('/agent?plan=P-118&session=S-1', {
+      shots: [shot('shot-01', BOUND), shot('shot-02', null)],
+    });
+    await serviceOnline();
+
+    const confirm = await screen.findByRole('button', { name: /确认并生成视频/u });
+    expect(confirm.hasAttribute('disabled')).toBe(true);
+    expect(await screen.findAllByText(/还有 1 个镜头没有绑定/u)).not.toHaveLength(0);
+
+    fireEvent.click(confirm);
+
+    expect(reached.filter((name) => RECORDING_METHOD.test(name))).toEqual([]);
+  });
+
+  it('ignores a soft-removed unbound shot, the way the server does', async () => {
+    const { reached } = harness('/agent?plan=P-118&session=S-1', {
+      shots: [shot('shot-01', BOUND), { ...shot('shot-02', null), removed_by: 'user' }],
+    });
+    await serviceOnline();
+
+    const confirm = await screen.findByRole('button', { name: /确认并生成视频/u });
+    await waitFor(() => {
+      expect(confirm.hasAttribute('disabled')).toBe(false);
+    });
+    expect(reached.filter((name) => RECORDING_METHOD.test(name))).toEqual([]);
+  });
+
+  /*
+   * The seam phase 3f-be opened. Confirming does **not** record — §4.5.3 rule ①
+   * keeps 开始录制 on 「08」, under the check list — so what this pins is that the
+   * address changes and that nothing on the way there queued a job.
+   */
+  it('hands a bound plan to `/recording/<planId>` without recording anything', async () => {
+    const { reached } = harness('/agent?plan=P-118&session=S-1', {
+      shots: [shot('shot-01', BOUND)],
+    });
+    await serviceOnline();
+
+    const confirm = await screen.findByRole('button', { name: /确认并生成视频/u });
+    await waitFor(() => {
+      expect(confirm.hasAttribute('disabled')).toBe(false);
+    });
+
+    await act(async () => {
+      fireEvent.click(confirm);
+    });
+
+    const landing = await screen.findByTestId('recording-landing');
+    expect(landing.textContent).toBe('P-118');
     expect(reached.filter((name) => RECORDING_METHOD.test(name))).toEqual([]);
   });
 });

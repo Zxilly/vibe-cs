@@ -48,6 +48,7 @@ import type {
   AgentObjectKind,
   AgentPlanQuery,
   AgentSessionQuery,
+  AudioAnalysisOptions,
   DemoQuery,
   EvidenceAnnotationQuery,
   EvidenceSearchQuery,
@@ -131,6 +132,9 @@ export const QUERY_NAMESPACE = {
   config: 'config',
   sessions: 'sessions',
   plans: 'plans',
+  recording: 'recording',
+  montage: 'montage',
+  media: 'media',
 } as const;
 
 export type QueryNamespace = (typeof QUERY_NAMESPACE)[keyof typeof QUERY_NAMESPACE];
@@ -331,6 +335,149 @@ export const qk = {
     all: [QUERY_NAMESPACE.plans] as const,
     list: (query: AgentPlanQuery) => [QUERY_NAMESPACE.plans, LIST, query] as const,
     detail: (planId: string) => [QUERY_NAMESPACE.plans, DETAIL, planId] as const,
+  },
+
+  /**
+   * 「08 录制计划与镜头预览」 (phase 3f). Three keys, and the interesting part of
+   * this namespace is **what is missing from it**.
+   *
+   * ── the recording plan itself is not cached, on purpose ───────────────────
+   *
+   * `planRecording` / `planRecordingFromAgentPlan` / `planRecordingRetry` are
+   * POSTs that mint a **5-minute lease** (`RECORDING_PLAN_TTL`,
+   * `crates/application/src/routes/recording.rs`) and run the director
+   * orchestration that merges adjacent shots. Give that a query key and
+   * TanStack is free to refetch it — on a remount, on an invalidation, on a
+   * `staleTime` expiry — and every refetch would mint a *different* plan with a
+   * *different* director result under the preview the user is watching. 「修改
+   * 任何片段都会让当前预览计划失效，需要重新生成预览」 is a decision the user
+   * makes, never a cache eviction. So a plan lives in `data/recording.ts` as a
+   * mutation result held by the page, and expiry is surfaced as a boolean
+   * rather than papered over by a silent re-plan.
+   *
+   * The same reasoning covers `preflightRecordingPlan`: it is a POST that
+   * probes the disk, re-hashes every Demo and asks the OS for encoders. It is
+   * a mutation with a caller-held result, keyed by the shot list it was run
+   * against (see `useRecordingPreflight`), not a query.
+   *
+   * ── what a write here invalidates ─────────────────────────────────────────
+   *
+   *   `createRecordingShotPreset` / `putRecordingShotPreset` /
+   *   `deleteRecordingShotPreset`  → `qk.recording.shotPresets()`. Nothing
+   *   else: nothing on the server dereferences a preset id, so applying one
+   *   copies values into a shot and no other read can change.
+   *
+   *   `executeRecordingPlan`       → **`qk.tasks.all` and `qk.outputs.all`**,
+   *   not this namespace. Starting a recording creates an activity record and,
+   *   as shots land, outputs — 「最近输出」 is empty forever if the second half
+   *   of that pair is forgotten. `data/recording.ts` performs both.
+   *
+   *   `playDemo` / `stopPlayback`  → `qk.recording.playback()`, the one read
+   *   here that a write in this file changes.
+   */
+  recording: {
+    all: [QUERY_NAMESPACE.recording] as const,
+    /** `listRecordingShotPresets` — 「存为预设」's catalogue. */
+    shotPresets: () => [QUERY_NAMESPACE.recording, 'shot-presets'] as const,
+    /**
+     * `playbackStatus` — whether CS2 is already playing a Demo. Read before
+     * 「在游戏里预览」 so the page can say why the action is unavailable rather
+     * than launching a second process.
+     */
+    playback: () => [QUERY_NAMESPACE.recording, 'playback'] as const,
+  },
+
+  /**
+   * 「09 快速合辑」 (phase 3f) — montage projects and the export jobs they start.
+   *
+   * Written by: `createMontageProject` / `putMontageProject` /
+   * `deleteMontageProject` → invalidate **both** `montage.detail(id)` and
+   * `montage.list()`. The list is not a projection of the detail: its rows
+   * print 「5 段素材 · 2 分 04 秒 · 上次保存 3 分钟前」, so a save that only
+   * refreshed the open project would leave the switcher printing a stale clip
+   * count. `data/montage.ts` does both in one helper for that reason.
+   *
+   * `exports(projectId)` is a **sibling** of `detail(projectId)` rather than a
+   * child of it, which is the one place this namespace departs from the
+   * house rule at the top of this file. A save invalidates the detail several
+   * times a minute and cannot change a single export job; hanging the job list
+   * underneath would re-fetch `/exports` on every keystroke-driven autosave.
+   * The reverse direction is real and is honoured: `exportMontageProject`
+   * invalidates `exports(id)` *plus* `qk.tasks.all` and `qk.outputs.all`,
+   * because an export is an activity that ends in an output.
+   */
+  montage: {
+    all: [QUERY_NAMESPACE.montage] as const,
+    /** `listMontageProjects`. No query object — the route takes no filter. */
+    list: () => [QUERY_NAMESPACE.montage, LIST] as const,
+    detail: (projectId: string) => [QUERY_NAMESPACE.montage, DETAIL, projectId] as const,
+    /** `listExportJobs(projectId)`. A sibling — see the note above. */
+    exports: (projectId: string) => [QUERY_NAMESPACE.montage, 'exports', projectId] as const,
+  },
+
+  /**
+   * Media assets, waveforms and audio analysis (phase 3f, 「09」's 配乐与节拍).
+   *
+   * ── the one rule that shapes this namespace ───────────────────────────────
+   *
+   * **A waveform and an audio analysis are recomputations, not reads.**
+   * `/media/assets/{id}/waveform` decodes the file (90-second client timeout)
+   * and `/media/assets/{id}/audio-analysis` runs beat, onset, energy and
+   * section detection over it. Both answer the same bytes with the same numbers
+   * forever: they change when the *file* changes, and a file behind an asset id
+   * only changes through `relinkMediaAsset` / `replaceMediaAsset`.
+   *
+   * So they are deliberately **not** nested under `asset(id)`. Importing an
+   * asset, generating a proxy or extracting an audio track all touch the asset
+   * record, and every one of them would drag a minute of DSP along behind it if
+   * the analysis hung below the detail key. The three groups are siblings:
+   *
+   *   `assets(projectId)`   cheap list        invalidated by every asset write
+   *   `asset(id)`           cheap record      invalidated by writes to that one
+   *   `waveform` / `audioAnalysis`            invalidated by **nothing**;
+   *                                           *removed* when the asset is
+   *                                           deleted (`waveformsOf`)
+   *
+   * A corollary worth stating because it is easy to break: **never invalidate
+   * `qk.media.all`.** It is here so `keys.test.ts` can prove the namespace is a
+   * prefix of its members, and so a future full-cache sweep still reaches these
+   * entries — not as a write handle. `data/mediaAssets.ts` exports
+   * `invalidateMediaAssets` (the lists) and `forgetMediaAsset` (removal), and
+   * no whole-namespace invalidator.
+   *
+   * `clipWaveform` is keyed here rather than under `outputs` for the same
+   * reason: `qk.outputs.all` is invalidated whenever any recording or export
+   * finishes, and a recorded clip's waveform costs a decode it would then
+   * repeat.
+   *
+   * `projectId` is `string | null` in the key — `listMediaAssets()` with no
+   * project is the whole library, a different list from any project's, and
+   * spelling the absence as `null` keeps the two from hashing alike.
+   */
+  media: {
+    all: [QUERY_NAMESPACE.media] as const,
+    /** Every asset list. The invalidation handle for an import or a delete. */
+    assetsAll: [QUERY_NAMESPACE.media, 'assets'] as const,
+    assets: (projectId: string | null) =>
+      [QUERY_NAMESPACE.media, 'assets', projectId] as const,
+    asset: (assetId: string) => [QUERY_NAMESPACE.media, DETAIL, assetId] as const,
+    /** Peaks at a bucket count. Different bucket counts are different pictures,
+     *  so the count is in the key rather than resampled from a cached one. */
+    waveform: (assetId: string, buckets: number) =>
+      [QUERY_NAMESPACE.media, 'waveform', 'asset', assetId, buckets] as const,
+    /** Every bucket count of one asset — the removal handle. */
+    waveformsOf: (assetId: string) =>
+      [QUERY_NAMESPACE.media, 'waveform', 'asset', assetId] as const,
+    clipWaveform: (clipId: string, buckets: number) =>
+      [QUERY_NAMESPACE.media, 'waveform', 'recorded-clip', clipId, buckets] as const,
+    /** `analyzeAudioAsset`. `options` is `null` for the client's own defaults,
+     *  which is a different (and much more common) request than any explicit
+     *  option set. */
+    audioAnalysis: (assetId: string, options: AudioAnalysisOptions | null) =>
+      [QUERY_NAMESPACE.media, 'audio-analysis', assetId, options] as const,
+    /** Every option set of one asset — the removal handle, like `waveformsOf`. */
+    audioAnalysesOf: (assetId: string) =>
+      [QUERY_NAMESPACE.media, 'audio-analysis', assetId] as const,
   },
 } as const;
 

@@ -190,6 +190,49 @@ export type DesktopClient = Pick<
      the eight status rows at the bottom of the board. A write in the HTTP sense
      only: it measures, never mutates the plan lease. */
   | 'preflightRecordingPlan'
+  /* ── the recording plan lifecycle (phase 3f, 「08 录制计划与镜头预览」) ──
+     `planRecording` mints the 5-minute lease from a hand-built queue; the two
+     other doors onto the same document (`planRecordingFromAgentPlan`,
+     `planRecordingRetry`) are already listed above.
+
+     `executeRecordingPlan` is the **only** command in this whole `Pick` that
+     launches CS2. §4.5.3 rule ① — 「录制只由一次显式确认启动」 — is enforced
+     three deep: it is reachable through exactly one hook
+     (`useExecuteRecordingPlan`), that hook demands a branded confirmation value
+     no query can produce, and `recording.interaction.test.tsx` walks the stub to
+     prove no read path touches it.
+
+     `abortRecording` is 「停止这次录制？」's second half — a process-level stop
+     that exists beside `cancelRecordingJob` because a wedged CS2 outlives the
+     job record. */
+  | 'planRecording'
+  | 'executeRecordingPlan'
+  | 'abortRecording'
+  /* ── 「在游戏里预览」 (phase 3f, 「08」) ──
+     The recovery action behind the `camera_collision_unverified` warning: the
+     preflight row says a camera path cannot be checked against map geometry
+     *until it has been previewed in game*, so the page has to be able to offer
+     that. `previewHlaeProposal` compiles the path and reports prerequisites,
+     `exportHlaeProposal` writes the script files, and the playback trio starts
+     and stops the Demo they were written for. Nothing here records. */
+  | 'previewHlaeProposal'
+  | 'exportHlaeProposal'
+  | 'preflightDemo'
+  | 'stopPlayback'
+  | 'playbackStatus'
+  /* ── beat suggestions and peaks (phase 3f, 「09 快速合辑」) ──
+     `alignClipsToBeats` is 「节拍建议」. It is a pure computation over beats and
+     clip durations — it takes no project id and writes nothing — which is what
+     makes 「节拍建议不会直接修改工程，应用前可逐条预览」 true by construction
+     rather than by discipline. See `data/montage.ts` for why the *proposal*
+     routes (`previewBeatAlignmentProposal` / `applyBeatAlignmentProposal`) are
+     deliberately absent from this list.
+
+     The two waveform reads back 「low-orbit.mp3 · 128 BPM」's picture and the
+     per-clip strips; `analyzeAudioAsset` above supplies the beats themselves. */
+  | 'alignClipsToBeats'
+  | 'getAssetWaveform'
+  | 'getRecordedClipWaveform'
 >;
 
 /**

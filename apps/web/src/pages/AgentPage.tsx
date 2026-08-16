@@ -41,22 +41,26 @@
  * query key — the arrangement `MatchWorkspacePage` and the nine match views
  * already use for `useMatchAnalysis`.
  *
- * ── 「确认并生成视频」 is disabled, and says why ───────────────────────────
+ * ── 「确认并生成视频」 goes to `/recording/<planId>`, and does not record ────
  *
  * §8 forbids the main action from ever folding into an overflow menu, so it is
- * on the toolbar at every width — and it is disabled, because an `AgentPlan`
- * carries no Demo and an `AgentPlanShot` carries no `demo_id` / `player_id`, so
- * there is nothing to build the `RecordingQueueRequest` from (gap 1 in the
- * contract's header). Nothing here invents those fields, and §4.5.3 rule ① is
- * kept trivially: the only place recording could ever start from is this one
- * button.
+ * on the toolbar at every width. Until phase 3f-be it was also permanently
+ * disabled: an `AgentPlanShot` carried no Demo or player, so there was nothing
+ * to build a recording queue from. `AgentPlanShot.recording` closed that (§10.6
+ * gap 1 → §10.7), so the button now navigates, and `confirmGuard` refuses only
+ * for the two reasons the server would — every shot removed, or some shot still
+ * unbound — said before the round trip rather than after it.
+ *
+ * §4.5.3 rule ① is unchanged and is the reason this navigates rather than
+ * starts: recording begins at exactly one 开始录制, on 「08」, under the check
+ * list. This button hands over a plan; it does not queue a job.
  */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
 import { useCallback, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useEditNotifier, type PendingPlanEdit } from '../data/editNotifier';
 import { dataErrorMessage } from '../data/errors';
@@ -67,7 +71,7 @@ import { Notice } from '../design/feedback';
 import { Page, SplitPane, Toolbar, useCollapsed } from '../design/layout';
 import { Button } from '../design/primitives';
 import { AGENT_PLAN_STATUS } from '../domain/agent';
-import type { AgentPlanShot } from '../shared/desktop/dto';
+import type { AgentPlan, AgentPlanShot } from '../shared/desktop/dto';
 import {
   AGENT_MODE,
   patchAgentContext,
@@ -82,9 +86,15 @@ import { AgentConversationBlock } from './agent/AgentConversationBlock';
 import { AgentSessionsBlock, agentSessionsToolbarAction } from './agent/AgentSessionsBlock';
 import { useAgentChangeDesk } from './agent/changeDesk';
 import { PlanPanel } from './agent/PlanPanel';
+import {
+  agentPlanHasRecordableShot,
+  agentPlanShotsNeedingBinding,
+  recordingHref,
+} from './recording/recordingContract';
 
 export function AgentPage() {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const { i18n } = useLingui();
   const collapsed = useCollapsed(undefined);
   const service = useServiceAction();
@@ -220,11 +230,7 @@ export function AgentPage() {
     service,
   });
 
-  /* Gap 1: no Demo binding on a plan, so nothing can be queued for recording. */
-  const confirm: AgentGuardedAction = {
-    disabled: true,
-    disabledReason: t`方案的镜头没有带上 Demo 与选手，暂时不能转成录制任务`,
-  };
+  const confirm = confirmGuard({ plan: planData ?? null, service });
 
   const blockProps: AgentBlockProps = {
     context,
@@ -276,16 +282,24 @@ export function AgentPage() {
           primary={
             /* The eighth flush occasion, and the last one left to a caller:
                「确认并生成视频」 must plan the recording from what the user last
-               saw, so the merge window is written out before anything else
-               happens. It is wired here rather than in a block because this is
-               the one button §8 keeps on the toolbar at every width — and while
-               gap 1 stands the button is disabled, so the flush is unreachable
-               in practice. Wiring it now is what keeps it from being forgotten
-               on the day the gap closes. */
+               saw, so the merge window is written out **before** the address
+               changes. `/recording/<planId>` mints its lease from the stored
+               plan, so a buffered edit that had not been committed yet would be
+               recorded as though it never happened. Awaited, therefore, not
+               fired alongside.
+
+               It is wired here rather than in a block because this is the one
+               button §8 keeps on the toolbar at every width. */
             <Button
               variant="primary"
               {...confirm}
-              onClick={() => void editNotifier.flush('confirm-video')}
+              onClick={() => {
+                if (planData === undefined) return;
+                void (async () => {
+                  await editNotifier.flush('confirm-video');
+                  await navigate(recordingHref(planData.id));
+                })();
+              }}
             >
               <Trans>确认并生成视频</Trans>
             </Button>
@@ -430,6 +444,39 @@ function EditFailureNotice({
       </Notice>
     </div>
   );
+}
+
+/**
+ * 「确认并生成视频」's state.
+ *
+ * Until phase 3f-be this returned a hard `disabled: true` with the reason 「方案
+ * 的镜头没有带上 Demo 与选手」, which stopped being true the day `AgentPlanShot`
+ * gained `recording` (§10.6 gap 1, closed in §10.7). The two refusals below are
+ * the client-side halves of the two 422s `POST /agent/plans/{id}/recording-plan`
+ * can answer with — said *before* the round trip, so the button explains itself
+ * instead of failing and then explaining.
+ *
+ * Enabled, it does not record. It navigates to `/recording/<planId>`, where the
+ * plan is reviewed and 开始录制 is pressed — §4.5.3 rule ① keeps exactly one
+ * place recording can start from, and this is not it.
+ */
+function confirmGuard(input: {
+  plan: AgentPlan | null;
+  service: ServiceActionState;
+}): AgentGuardedAction {
+  if (input.service.blocked) return input.service.buttonProps;
+  if (input.plan === null) return { disabled: true, disabledReason: t`先选择一个方案` };
+  if (!agentPlanHasRecordableShot(input.plan)) {
+    return { disabled: true, disabledReason: t`方案里的镜头都被移除了，没有可以录制的内容` };
+  }
+  const unbound = agentPlanShotsNeedingBinding(input.plan);
+  if (unbound.length > 0) {
+    return {
+      disabled: true,
+      disabledReason: t`还有 ${unbound.length} 个镜头没有绑定 Demo 与选手，不能转成录制任务`,
+    };
+  }
+  return { disabled: false };
 }
 
 function editGuard(input: {

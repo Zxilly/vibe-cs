@@ -612,9 +612,10 @@ export function renderInteractive(ui: ReactElement): RenderResult
 | 3e | Agent：2a + 2b + 2c、会话抽屉、新建会话与引用、手动编辑与修订号、编辑通知、过期变更、设置「AI 与 Agent」 | 验证提案折叠 + `markStale` + flush 时机；**出口条件包含「适配器已换成真实后端命令」**（§4.6） |
 | 3e-be | **后端并行任务**：§4.6 的 10 项契约缺口，含 `storage` schema 变更（会话表加 title/refs、会话↔对象引用表、方案 revision 与 origin、保留策略清理） | 前端适配器可整体拆除 |
 | 3f-be | **后端并行任务**：每镜头拍摄参数 / 录制前校验 / 镜头预设 / 方案↔录制绑定（§10.6 缺口 1），外加把 CI 的 `cargo clippy -D warnings` 门清零 | 画板 08 的四块不再靠「禁用 + 写明原因」 |
-| 3f-1 | 录制计划（08）/ 快速合辑（09） | 两页接真数据；导播预览画真实相机路径 |
+| 3f-1 | 录制计划（08）/ 快速合辑（09） | ✓ 完成（§10.8）。两页接真数据；导播预览画真实相机路径；Agent 页的「确认并生成视频」不再是死按钮 |
+| 3f-cg | **强类型收口**：`utoipa` 标注路由 → `openapi.json` → `openapi-typescript` → `schema.d.ts` 加一个约 40 行的强类型 `call()`；`dto.ts` 退化成再导出，`shared/desktop/` 之上一行不改。两道漂移门：`cargo test` 重新生成并比对 `openapi.json`，`pnpm lint` 重新生成并比对 `schema.d.ts` | 手写的 259 个 dto 类型不再可能和 Rust 结构漂移 |
 | 3f-2 | 多轨编辑器（10） | 时间轴接真素材，补齐修剪 / 自动滚动 / 帧网格 / 变速 |
-| 3g-be | **后端并行任务**：Agent 设置五个开关 / 引用删除路由 / 保留策略调度 / `OutputItem` 媒体元数据与输出流 / 活动错误码 | 3g 的页面不再有「后端没有这个字段」的空位 |
+| 3g-be | **后端并行任务**：Agent 设置五个开关 / 引用删除路由 / 保留策略调度 / `OutputItem` 媒体元数据与输出流 / 活动错误码 / **`GET /api/recording/plans/{id}`（§10.8 缺口 1 与 2 同因，一条路由修两个）** | 3g 的页面不再有「后端没有这个字段」的空位 |
 | 3g | 设置 5 节 / 恢复中心 / 工作台首页余下五块 / **`/guide` 与首次使用三步提示条** / 原生外壳能力回填 | |
 | 4 | i18n 英文收口；测试回归；删除 `styles/index.css`、旧 `features/`、旧 `shared/ui`、旧 `shared/i18n`、`check-web-i18n.mjs`、三个被移除的依赖 | `pnpm lint && pnpm typecheck && pnpm test` 全绿，旧目录清零 |
 | 5 | `design/` 组件库回流到一个**新建的** Claude Design 设计系统项目（`Industry` 是共用基底，不动） | 下一轮画板的起点是真正被建出来的那套 token 与控件 |
@@ -1053,3 +1054,68 @@ A 块（对话流）与 B 块（方案面板）在同一轮里各自实现了「
 - **`/guide` 独立页**，§7 新增一条路由。内容不是凭空造：旧的 `features/guide/GuidePage.tsx`（198 行）已经定死了这一页装什么——CS2 环境自检（逐项 `DependencyCheck` + 重新检查）加一排入口卡——本轮之后是**把一页已有内容换成新设计语言重述**，与 3d 把旧分析页搬成九个子视图同类。路由表的改动由 3g 的壳层步骤统一做（`routes.tsx` + `app/router.tsx` + `pageSkeleton.test.tsx` + 侧栏与命令面板注册），不许页面 agent 顺手加参数（§10.6 缺口 15 的教训）
 
 旧的 `features/guide/` 仍按 §10 阶段 4 删除。
+
+---
+
+## 10.8 阶段 3f-1 落地记录 —— 录制计划与快速合辑（2026-08-16）
+
+画板 08 与 09 接上真数据。3f-be 刚补的四件事（每镜头拍摄参数 / 八条录制前校验 / 镜头预设 / 方案↔录制绑定）在这一轮全部有了调用点，`agentHandoff.ts` 也终于有了调用者——它从写出来那天起一直没有。
+
+出口条件达成：`pnpm lint`（含 `i18n:compile --strict` 与分层检查 653 个文件）/ `typecheck` / `build` 退出码 0；vitest 473 文件 4574 用例通过（3 文件 4 用例 skip 是既有的 `features/analysis` 外部数据库审计），相对 3f-be 的 455/4218 净增 18 文件 356 用例；lingui 1608 条，英文缺失 0。Rust 一行未动（这是纯前端轮次，见本节末尾的「时间去哪了」）。
+
+### 这一轮建了什么
+
+**四个数据层模块**：`data/recording.ts`（683 行）、`data/montage.ts`（413）、`data/mediaAssets.ts`（343）、`data/nativeShell.ts`（279）。最后一个是 §10.7 那条更正的收口——原生对话框在 `shared/desktop/dialog.ts` 里一直是有的，页面此前只是不知道，现在页面通过 `data/nativeShell.ts` 这道缝去用它，不直接碰 `shared/`。
+
+**08 录制计划与镜头预览**，`pages/recording/` 17 个文件 + `RecordingPage.tsx`。要点：
+
+- **`/recording/:taskId` 的 `taskId` 是 Agent 方案 id，不是录制任务 id。** 这一页此前的注释写反了。已经在跑的录制任务本来就有一个一等地址 `/delivery/task/:taskId`（带阶段日志、重试提示与输出），在这里再建一个就是一个对象两个地址，正是 §2 要防的那件事。所以：`/recording` 是可录制方案列表加最近任务，`/recording/<planId>` 是画板全貌，「返回方案」回 `/agent?plan=`，开始录制成功后去 `/delivery/task/<jobId>`。
+- **租约只铸一次。** `POST /api/recording/plan` 给的是五分钟租约，是 mutation 不是 query；用 `useQuery` 会在重挂载时把导播的结果换掉，而用户正看着那份预览。「重新生成预览计划」是一个按钮，不是一个副作用。
+- **编辑镜头会让校验列表消失而不是变陈旧。** 编辑改的是租约绑定的 sha256，所以 `recordingShotSignature(items)` 一变，上一次的八条校验就作废——不是标灰，是不显示。
+- **导播预览画的是真实相机路径**：`HlaeProposalPreview.typed_plan` 是完整的 `HlaePlan`，`cameraPlan.ts` 是一个不用 `as` 的检查式解析器（25 条单测）。路径、朝向箭头、视场角楔形与高度带都画了。
+- **八条校验是闭集**，`blocking > 0` 是禁用开始录制的全部契约。`camera_collision_unverified` 在方案里有非 POV 镜头时是 warning，全 POV 时是 ok，永远不会 blocked。
+
+**09 快速合辑**，`pages/montage/` 18 个文件 + `MontagePage.tsx`。
+
+### 偏离与更正
+
+| # | 偏离 | 处置 |
+| --- | --- | --- |
+| 1 | 两处 msgid 撞车，英文会印错词 | `MusicBeatBlock` 的「应用」是动词 Apply，而裸 msgid「应用」是设置页的名词 App（已译成 "App"）；`montageSettings` 的转场「滑移」撞上 `design/timeline` 的 slip 工具（已译成 "Slip"）。两处都按 `ColumnConfigDialog` 立的先例加 `context`（`dialog-confirm` / `video-transition`），没有改动既有译文。**这是「语义确实分叉才加 context」的正例**——不是为了消歧而消歧，是英文里它们真的是两个词 |
+| 2 | `branding_theme` 四个成员画板只画三个 | 按 wire 建表，四个都给标签（线框 / 极简 / 转播 / 霓虹），穷举测试钉住。同 §10.6 偏离 2 的先例——存着 `neon` 的工程要能渲染出来 |
+| 3 | 节拍建议卡文案改写 | 画板写「把片段 02 的入点移到 00:24.0」，但合辑模型没有时间轴位置（下面缺口 6），只能改 `trim_end`。卡片改写成「把片段 02 的时长改为 20.0s（+1.60s）· 对齐第 85 拍到第 125 拍，之后的片段会跟着前后移动」——描述真会发生的事 |
+| 4 | 画板第二张建议卡「在 01:12.5 加入切换」未实现 | 在某一时刻插入切点要把一个片段切成两段，`MontageClipRecord` 没有这个操作（一个 `clip_id` 只能出现一次）。建议一律按片段给，不做假的切点卡 |
+| 5 | 情景标签（回合 / 类型）整块省略 | `MontageSettingsRecord` 没有这个字段。省略，不渲染一个永远关着的开关 |
+| 6 | 导出面板不印体积预估，也不给「更改导出目录」 | `quality` 走恒定质量（`quality_to_crf`），码率随内容差数倍，「约 540 MB」会错在用户据以清磁盘的方向；导出目录是 `export.rs` 里写死的 `data_dir/exports`，改它等于搬整个应用数据目录，那是设置页的事。面板只读地显示目录，给「打开输出目录」（真原生能力），并印出真实的命名规则而不是编一个文件名 |
+| 7 | `AgentPage.tsx` 的「确认并生成视频」由本轮收口，不在页面 agent 的范围内 | 它此前硬禁用，理由写着「方案的镜头没有带上 Demo 与选手」——**3f-be 之后这句话是假的**。屏幕上的一句假话比一个缺的功能更糟，所以这一轮把它接上了：`confirmGuard` 只为服务端真会拒绝的两件事拒绝（镜头全被移除 / 还有镜头未绑定），并且**在跳转前 await 一次 `editNotifier.flush('confirm-video')`**——`/recording/<planId>` 是从存下来的方案铸租约的，没提交的编辑会被当成没发生过。按下去不录制，只换地址：§4.5.3 规则 ① 说录制只从 08 的「开始录制」开始 |
+
+### 后端契约缺口（本轮撞到的）
+
+1. **租约不可寻址。** 没有 `GET /api/recording/plans/{id}`，所以在途的租约活不过一次刷新，`/recording/<planId>` 重载会重新铸。这里能接受只是因为地址里的 id 是**方案 id** 而不是租约 id。
+2. **`pages/delivery/useTaskActions.tsx:144` 现在是坏的。** 「重试录制」拿 `planRecordingRetry` 返回的 `RecordingPlanResponse.plan_id`（一个**租约 id**）去跳 `/recording/<id>`，而这一页现在按**方案 id** 解释这个参数，会读不到方案。3a 写下它时 `/recording/:id` 还是空壳，所以一直没暴露。**成因和缺口 1 是同一个，一条路由能同时修掉两个**，所以留到 3g-be 一起做，不在这里塞一个之后要删的 router-state 传递。
+3. **结构化 422 body 仍到不了渲染进程**（§10.7 缺口 1 的延续）。已处理不是绕过：`agentPlanShotsNeedingBinding(plan)` 从页面本来就拿着的方案里还原同一批镜头，422 的 `code` 决定说哪句话。
+4. **没有路由能启动导出的 HLAE 包。** `exportHlaeProposal` 答 `launched: false`，`playDemo` 走 `build_playback_command`——是带 `+demo_gototick` 的普通 CS2，不是 HLAE 的自定义 loader，所以那个进程里没有 `mirv_*`，相机路径**不会被画出来**，除非手动加载导出的 bootstrap。没有粉饰：确认对话框写明服务不会加载它，启动后面板印出包目录并给「打开脚本目录」。要闭掉它需要一条「以预览模式在某个包上启动受管 HLAE 会话」的路由（机器在 `crates/runtime/src/hlae_session.rs`，目前只在录制路径后面）。
+5. **`AgentPlanSummary` 说不出一个方案的镜头有没有绑定**（没有 `recordable_shot_count`，`GET /api/agent/plans` 也没有 `?recordable=`）。所以裸 `/recording` 列出所有 `shot_count > 0` 的方案，答案要等打开才知道（422 `agent_plan_shots_unbound`）。summary 上加一个字段就能让这一列改成过滤而不是承诺。
+6. **`MontageProjectRecord` 没有 `revision`** —— 没有 If-Match，没有 409，与 `EditorProject`、`AgentPlan` 都不同。`useSaveMontageProject` 用读-改-写缓解（从服务重读，把调用方的编辑函数应用到新文档上，再 PUT），另给一个可选的 `baseUpdatedAt` 守卫抛 `MontageWriteConflictError` 并带上新文档。**这是收窄不是关闭**：`updated_at` 是秒级的，同一秒内的两次保存分不出来。照实记，不粉饰。
+7. **`MontageClipRecord` 没有源时长也没有时间轴位置。** `trim_end: null` 的片段在录制片段列表加载出来之前长度未知，`montageTimeline` 返回 `null`（不是 0），头部写「时长待定」。片段严格顺序排列，所以拍点建议只能靠改上游的 `trim_end` 实现，需要留空隙的建议无法应用。
+8. **`background_music` 存的是绝对路径不是 asset id**，而 BPM 与拍点来自 media asset，页面只能用 path 反查素材库。没导入过的音乐仍能导出但没有分析，界面明说「未在素材库中，无法分析节拍」。
+9. **合辑转多轨没有路由。** `MontageProjectRecord`（有 clips 无 revision）与 `EditorProject`（有 tracks 有 revision）是两张表，没有任何接口把前者变成后者。顶栏「在多轨编辑器中打开」保留、禁用、写明原因，不跳到一个不存在的工程 id。
+10. **没有「预设应用到全部」的服务端语义**（§10.7 缺口 4 的延续）：那是 N 次本地赋值加一次重新铸租约，没有原子调用，也没有部分失败态。撤销由前端负责。
+
+### 归位建议（都是搬家，不是重写）
+
+- `HlaeProposalPreview.typed_plan` 在 dto 里是 `unknown | null`，其实是完整的 `HlaePlan`。类型该回到 `shared/desktop/dto.ts` 的 HLAE 组里，`cameraPlan.ts` 的解析器随之搬进 `data/recording.ts`。
+- `domain/map/CameraPathLayer` 画了轨迹、端点与关键帧，但没画朝向箭头和视场角楔形，`WorldPoint` 也没有 `z`。这两样本轮画在页面级图层里（走 `MapCanvas` 的投影回调，`ReplayCanvas.PlayerLayer` 是先例）。把 `HeadingLayer` 与高度带提到 `domain/map` 是搬家。
+- `domain/task/TaskCard` 的 `onCancel` 仍是裸的，没有 `{disabled, disabledReason}` 槽（3a 已报）。裸 `/recording` 列表复用 `TaskFeedList`，继承了这个问题。
+
+### 留给后续阶段的已知缺口
+
+1. **`scripts/check-web-i18n.mjs` 退出 1**，先于本轮存在且是结构性的：它拒绝生产源码里出现任何汉字字面量，而 Lingui 宏体制落地之后全仓每个文件都有。它也不检查 `src/locales/**`。§10 阶段 4 本来就要删它，现在确认它已经无法通过，删除是正确处置而不是回避。
+2. §10.7 的四条「留给后续阶段」全部仍然成立（`rust-toolchain.toml`、四条重复的 runtime 规则、`RecordingDefaults` 三值化、`vendor/demoparser` 的 fmt）。
+3. 本节缺口 1 与 2 应在 3g-be 一并做掉：一条 `GET /api/recording/plans/{id}` 同时修好刷新丢租约和 delivery 的重试跳转。
+
+### 时间去哪了（对上一轮 91 分钟的回答）
+
+3f-be 那一轮统计出来是 724 次工具调用 / 9 个 agent / 91 分钟，其中 **108 次 cargo 调用**（58 clippy + 38 test + 12 check）。实测空转 `cargo clippy --workspace --all-targets` 31 秒，改一个 domain 文件后 16 秒，`cargo test --workspace` 要链接跑 30 个测试二进制。三条结构性浪费都是任务书自己写出来的：收敛循环每轮重跑整套门禁（约 10 分钟、完全串行、跑了两轮）；四个实现 agent 各自验证同一批 crate；**后端轮次的 agent 在跑 vitest 和 `pnpm build`，前端轮次的 agent 在跑 `cargo check`**——两边都在验证自己一行都没碰的东西。
+
+从下一轮起改成：迭代期用 `cargo check`，只在最后一次用 clippy；实现 agent 只跑 `-p <自己的 crate>`，workspace 级验证只在收敛阶段发生一次；后端轮次不跑 vitest / build，前端轮次不跑 cargo，改成用一条 `git diff --stat` 断言那一侧没有改动；收敛循环先跑便宜的（typecheck / lint / diff），全过了才跑贵的。本轮已经按最后三条执行——Rust 一行未动，也一次 cargo 都没跑。

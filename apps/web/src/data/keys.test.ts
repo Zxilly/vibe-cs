@@ -107,6 +107,22 @@ const CORPUS: ReadonlyArray<readonly [QueryNamespace, string, readonly unknown[]
 
   ['plans', 'plans.list({})', qk.plans.list({})],
   ['plans', 'plans.detail', qk.plans.detail('P-118')],
+
+  ['recording', 'recording.shotPresets()', qk.recording.shotPresets()],
+  ['recording', 'recording.playback()', qk.recording.playback()],
+
+  ['montage', 'montage.list()', qk.montage.list()],
+  ['montage', 'montage.detail(a)', qk.montage.detail('project-a')],
+  ['montage', 'montage.detail(b)', qk.montage.detail('project-b')],
+  ['montage', 'montage.exports(a)', qk.montage.exports('project-a')],
+
+  ['media', 'media.assets(null)', qk.media.assets(null)],
+  ['media', 'media.assets(a)', qk.media.assets('project-a')],
+  ['media', 'media.asset(x)', qk.media.asset('asset-x')],
+  ['media', 'media.waveform(x,120)', qk.media.waveform('asset-x', 120)],
+  ['media', 'media.waveform(x,480)', qk.media.waveform('asset-x', 480)],
+  ['media', 'media.clipWaveform(c,120)', qk.media.clipWaveform('clip-c', 120)],
+  ['media', 'media.audioAnalysis(x,null)', qk.media.audioAnalysis('asset-x', null)],
 ];
 
 const NAMESPACE_ROOT: Record<QueryNamespace, readonly unknown[]> = {
@@ -121,6 +137,9 @@ const NAMESPACE_ROOT: Record<QueryNamespace, readonly unknown[]> = {
   config: qk.config.all,
   sessions: qk.sessions.all,
   plans: qk.plans.all,
+  recording: qk.recording.all,
+  montage: qk.montage.all,
+  media: qk.media.all,
 };
 
 describe('qk — 键的形状', () => {
@@ -200,6 +219,35 @@ describe('qk — 键的形状', () => {
       'P-118',
     ]);
     expect(qk.plans.detail('P-118')).toEqual(['plans', 'detail', 'P-118']);
+
+    expect(qk.recording.shotPresets()).toEqual(['recording', 'shot-presets']);
+    expect(qk.montage.list()).toEqual(['montage', 'list']);
+    expect(qk.montage.detail('m-1')).toEqual(['montage', 'detail', 'm-1']);
+    expect(qk.montage.exports('m-1')).toEqual(['montage', 'exports', 'm-1']);
+    expect(qk.media.assets(null)).toEqual(['media', 'assets', null]);
+    expect(qk.media.waveform('a-1', 120)).toEqual(['media', 'waveform', 'asset', 'a-1', 120]);
+  });
+
+  /* The three departures from the house rule, pinned so a later tidy-up cannot
+     "fix" them back into the shape the note in `keys.ts` argues against. */
+  it('keeps an expensive recomputation out from under the record it belongs to', () => {
+    expect(isKeyPrefixOf(qk.media.asset('a-1'), qk.media.waveform('a-1', 120))).toBe(false);
+    expect(isKeyPrefixOf(qk.media.asset('a-1'), qk.media.audioAnalysis('a-1', null))).toBe(false);
+    expect(isKeyPrefixOf(qk.media.assetsAll, qk.media.waveform('a-1', 120))).toBe(false);
+    /* …while the removal handle still reaches every bucket count of one asset. */
+    expect(isKeyPrefixOf(qk.media.waveformsOf('a-1'), qk.media.waveform('a-1', 120))).toBe(true);
+    expect(isKeyPrefixOf(qk.media.waveformsOf('a-1'), qk.media.waveform('a-1', 480))).toBe(true);
+    expect(isKeyPrefixOf(qk.media.waveformsOf('a-1'), qk.media.waveform('a-2', 120))).toBe(false);
+  });
+
+  it('keeps a montage export list out from under the project that autosaves', () => {
+    expect(isKeyPrefixOf(qk.montage.detail('m-1'), qk.montage.exports('m-1'))).toBe(false);
+    expect(isKeyPrefixOf(qk.montage.all, qk.montage.exports('m-1'))).toBe(true);
+  });
+
+  it('reaches every asset list from one handle', () => {
+    expect(isKeyPrefixOf(qk.media.assetsAll, qk.media.assets(null))).toBe(true);
+    expect(isKeyPrefixOf(qk.media.assetsAll, qk.media.assets('project-a'))).toBe(true);
   });
 
   it('starts every key with its own declared namespace', () => {

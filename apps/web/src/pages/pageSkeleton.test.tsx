@@ -144,7 +144,9 @@ const PAGES: readonly PageCase[] = [
     Component: RecordingPage,
     title: '录制计划',
     phase: '3f',
-    built: false,
+    /* Phase 3f landed the plan board and the bare list, so the phase notice is
+       gone from `/recording` for the reason this column exists. */
+    built: true,
   },
   {
     pattern: '/montage',
@@ -152,7 +154,7 @@ const PAGES: readonly PageCase[] = [
     Component: MontagePage,
     title: '快速合辑',
     phase: '3f',
-    built: false,
+    built: true,
   },
   {
     pattern: '/editor',

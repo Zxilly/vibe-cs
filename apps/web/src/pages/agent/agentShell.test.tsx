@@ -45,9 +45,11 @@ describe('the toolbar', () => {
     const html = at('/agent?plan=P-118');
     expect(html).toContain('确认并生成视频');
     expect(html).toContain('disabled');
-    // 「不隐藏、不静默失败」 — the reason is on the element, not in a tooltip
-    // nobody can read.
-    expect(html).toContain('没有带上 Demo 与选手');
+    /* 「不隐藏、不静默失败」 — the reason is on the element, not in a tooltip
+       nobody can read. This markup renders before the bridge answers, so the
+       reason here is the service one; the two plan-shaped refusals are pinned
+       in `agentShell.interaction.test.tsx`, which has a plan to refuse. */
+    expect(html).toContain('正在连接本地服务');
   });
 });
 

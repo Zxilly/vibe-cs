@@ -23,22 +23,39 @@
  *                       not server state (`data/match.ts` gap 2) and the shell
  *                       hands every view the same `addToVideo` so the nine of
  *                       them say one sentence.
- *   用 Agent 制作视频   navigates to `/agent`, which is a real §7 route.
- *                       **The selection does not travel with it**: §7 fixes
- *                       `/agent`'s query as `plan / session / mode`, there is no
- *                       parameter for a set of highlights, and inventing one
- *                       that phase 3e will not read would be a silent failure
- *                       dressed as a feature. Reported as a contract gap.
+ *   用 Agent 制作视频   **creates a plan from the selection and opens it.**
+ *
+ * ── The selection now travels, and how ────────────────────────────────────
+ *
+ * This note used to say the opposite: §7 fixes `/agent`'s query as
+ * `plan / session / mode`, there is no parameter for a set of highlights, and a
+ * fourth one would put the route table and the implementation out of step. All
+ * of that is still true — what changed is that the selection no longer needs a
+ * parameter. §10.6 settled the shape (the sender creates the object and
+ * navigates to it) and phase 3f-be supplied the payload: `AgentPlanShot`
+ * carries `recording` with `demo_id` / `player_id` / `highlight_id`, so N
+ * selected highlights become N **bound** shots of a real plan.
+ *
+ * `useAgentVideoHandoff` owns both steps. What this view owns is the mapping
+ * from its rows to `HighlightHandoffSource` — which is why it reads
+ * `analysis.data.highlights` rather than the `HighlightCandidate` rows on
+ * screen: `player_id` is dropped on the way to a row (the row shows a *name*)
+ * and `demo_id` never was on one.
+ *
+ * A selection that cannot be bound — no Demo, a player the analysis identifies
+ * some way other than a SteamID64, a zero-length window — **disables the action
+ * and says which**, rather than creating a plan the recording page could only
+ * refuse.
  */
 
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { dataErrorMessage } from '../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
+import { useServiceAction, type ServiceActionState } from '../../../data/serviceAction';
 import { EmptyState } from '../../../design/data';
 import { Notice } from '../../../design/feedback';
 import { Button, Seg, Tag } from '../../../design/primitives';
@@ -51,6 +68,12 @@ import {
   formatTickRangeSeconds,
   type HighlightKind,
 } from '../../../domain/match';
+import {
+  handoffRefusalFor,
+  type HighlightHandoffSource,
+} from '../../agent/agentHandoff';
+import { useAgentVideoHandoff } from '../../agent/useAgentVideoHandoff';
+import type { AnalysisWorkspace } from '../../../shared/desktop/dto';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import { NotAnalysedState } from './viewChrome';
 import type { MatchViewModule, MatchViewProps } from '../viewContract';
@@ -70,7 +93,7 @@ type FilterValue = 'all' | HighlightKind;
 function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchViewProps) {
   const id = demoId === '' ? null : demoId;
   const analysis = useMatchAnalysis(id);
-  const navigate = useNavigate();
+  const service = useServiceAction();
   const { i18n } = useLingui();
 
   const [filter, setFilter] = useState<FilterValue>('all');
@@ -84,6 +107,22 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
   );
   const batch = useMemo(() => visibleSelection(selected, visible), [selected, visible]);
   const current = currentHighlightId(highlights, context.round, context.tick);
+
+  /*
+   * The handoff's payload, built from the *wire* highlights rather than from
+   * the rows: a row shows a player's name, and the plan needs their SteamID64.
+   */
+  const handoff = useAgentVideoHandoff();
+  const handoffSources = useMemo(
+    () => handoffSourcesFor(analysis.data, batch.map((entry) => entry.id)),
+    [analysis.data, batch],
+  );
+  const handoffGate = handoffGuard({
+    sources: handoffSources,
+    selected: batch.length,
+    pending: handoff.pending,
+    service,
+  });
 
   if (analysisIsMissing(analysis.error)) {
     return (
@@ -235,7 +274,21 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
           <SelectionBar
             summary={<Trans>已选 {batch.length} 条</Trans>}
             primary={
-              <Button variant="primary" size="sm" onClick={() => void navigate('/agent')}>
+              <Button
+                variant="primary"
+                size="sm"
+                data-agent-handoff="true"
+                disabled={handoffGate.disabled}
+                {...(handoffGate.disabledReason === undefined
+                  ? {}
+                  : { disabledReason: handoffGate.disabledReason })}
+                onClick={() => {
+                  void handoff.run({
+                    title: handoffTitle(analysis.data, batch.length),
+                    highlights: handoffSources,
+                  });
+                }}
+              >
                 <Trans>用 Agent 制作视频</Trans>
               </Button>
             }
@@ -357,6 +410,83 @@ function Frame({ state = 'ready', children }: { readonly state?: string; readonl
       {children}
     </section>
   );
+}
+
+/* ── the handoff's payload ───────────────────────────────────────────────── */
+
+/**
+ * The selected highlights, in the shape `agentPlanDraftFromHighlights` binds.
+ *
+ * Read from `AnalysisWorkspace` rather than from the rows: `HighlightCandidate`
+ * carries `subject` (a *name*, resolved for display) where the plan needs
+ * `player_id`, and it never carried the Demo at all. Order follows the
+ * selection's own order, which is round order — the order the video will play
+ * in unless the recording page is told otherwise.
+ */
+export function handoffSourcesFor(
+  analysis: AnalysisWorkspace | undefined,
+  selectedIds: readonly string[],
+): HighlightHandoffSource[] {
+  if (analysis === undefined) return [];
+  const wanted = new Set(selectedIds);
+  const byId = new Map(analysis.highlights.map((highlight) => [highlight.id, highlight]));
+
+  return selectedIds
+    .filter((id) => wanted.has(id) && byId.has(id))
+    .map((id) => {
+      const highlight = byId.get(id) as AnalysisWorkspace['highlights'][number];
+      const label = highlight.label.trim();
+      return {
+        highlightId: highlight.id,
+        title: label === '' ? highlight.description.trim() : label,
+        demoId: analysis.demo_id,
+        playerId: highlight.player_id,
+        startTick: highlight.start_tick,
+        endTick: highlight.end_tick,
+        tickRate: Number.isFinite(analysis.tick_rate) ? analysis.tick_rate : null,
+        ...(highlight.description.trim() === '' ? {} : { rationale: highlight.description.trim() }),
+      };
+    });
+}
+
+/**
+ * 「禁用并写明原因」 for the handoff, in the order a reader would ask.
+ *
+ * The three refusals are separate sentences because they are separate problems
+ * with separate fixes: a missing Demo is an analysis that has not landed, a
+ * player the analysis identifies some other way is a Demo this build cannot
+ * bind, and a zero-length window is a detector artefact.
+ */
+export function handoffGuard(input: {
+  readonly sources: readonly HighlightHandoffSource[];
+  readonly selected: number;
+  readonly pending: boolean;
+  readonly service: ServiceActionState;
+}): { disabled: boolean; disabledReason?: string } {
+  if (input.service.blocked) return input.service.buttonProps;
+  if (input.pending) return { disabled: true, disabledReason: t`正在建立方案` };
+  if (input.sources.length === 0 || input.sources.length !== input.selected) {
+    return { disabled: true, disabledReason: t`这些高光还读不到完整的解析结果，无法建立方案` };
+  }
+  for (const source of input.sources) {
+    const refusal = handoffRefusalFor(source);
+    if (refusal === 'no_demo') {
+      return { disabled: true, disabledReason: t`这条高光没有关联的 Demo，无法建立方案` };
+    }
+    if (refusal === 'no_player') {
+      return { disabled: true, disabledReason: t`这条高光的选手没有可用的 SteamID，无法建立方案` };
+    }
+    if (refusal === 'empty_window') {
+      return { disabled: true, disabledReason: t`这条高光的 tick 区间是空的，无法建立方案` };
+    }
+  }
+  return { disabled: false };
+}
+
+/** 「Mirage · 3 条高光」 — the plan's title, from what the sender knows. */
+export function handoffTitle(analysis: AnalysisWorkspace | undefined, count: number): string {
+  const map = analysis?.map_name ?? '';
+  return map === '' ? t`${count} 条高光` : t`${map} · ${count} 条高光`;
 }
 
 function Row({ label, children }: { readonly label: ReactNode; readonly children: ReactNode }) {

@@ -58,6 +58,7 @@ export type DesktopClient = Pick<
   // outputs
   | 'listOutputs'
   | 'listRecordedClips'
+  | 'listExportJobs'
   // config
   | 'getConfig'
   | 'updateConfig'
@@ -97,6 +98,30 @@ export type DesktopClient = Pick<
   | 'deleteOutput'
   | 'cleanupMissingOutputs'
   | 'cleanupStagedOutputs'
+  | 'patchRecordedClip'
+  | 'deleteRecordedClip'
+  /* ── montage and media (phase 3f, 「09 快速合辑」 and 「10 多轨编辑器」) ──
+     Every name here is a route this bridge already reaches; they were simply
+     never called from `data/**`. Verified against
+     `crates/application/src/routes/media.rs` before being listed. Note the
+     three that already exist under a different name and are therefore *not*
+     repeated: `generateMediaProxy` (`/media/assets/{id}/proxy`),
+     `cleanupMediaProxies` (`/media/proxies/cleanup`) and `analyzeAudioAsset`
+     (`/media/assets/{id}/audio-analysis`). */
+  | 'listMontageProjects'
+  | 'getMontageProject'
+  | 'createMontageProject'
+  | 'putMontageProject'
+  | 'deleteMontageProject'
+  | 'exportMontageProject'
+  | 'listMediaAssets'
+  | 'getMediaAsset'
+  | 'importMediaAsset'
+  | 'deleteMediaAsset'
+  | 'extractAssetAudio'
+  | 'generateMediaProxy'
+  | 'cleanupMediaProxies'
+  | 'analyzeAudioAsset'
   /* ── match workspace (data/match.ts) ──
      Added in phase 3c. `getAnalysis` is the one read all nine §7 views share;
      the rest are the reads a single view needs, plus the three annotation
@@ -148,6 +173,23 @@ export type DesktopClient = Pick<
   | 'createAgentPlan'
   | 'applyAgentPlanEdit'
   | 'restoreAgentPlanBaseline'
+  /* 「08 录制计划与镜头预览」's 「来自方案 #P-118」 door, and the 「确认并生成视频」
+     button §10.6 gap 1 left disabled. Same `RecordingPlanResponse` as
+     `planRecording`. */
+  | 'planRecordingFromAgentPlan'
+  /* ── recording shot presets (phase 3f, 「08 录制计划与镜头预览」) ──
+     `/api/recording/shot-presets`, behind the shot inspector's 「存为预设」.
+     There is no `expected_revision` anywhere in this group: nothing on the
+     server dereferences a preset id, so a preset has no revision to pin. */
+  | 'listRecordingShotPresets'
+  | 'createRecordingShotPreset'
+  | 'putRecordingShotPreset'
+  | 'deleteRecordingShotPreset'
+  /* ── pre-recording checks (phase 3f, 「08 录制计划与镜头预览」) ──
+     `POST /api/recording/plans/{id}/preflight`, the closed check list behind
+     the eight status rows at the bottom of the board. A write in the HTTP sense
+     only: it measures, never mutates the plan lease. */
+  | 'preflightRecordingPlan'
 >;
 
 /**

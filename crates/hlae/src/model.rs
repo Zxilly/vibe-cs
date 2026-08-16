@@ -2,6 +2,8 @@ use std::{collections::BTreeMap, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::HlaeScenePresentation;
+
 pub const HLAE_BUNDLE_MANIFEST_FILE: &str = "vibe_cs_bundle.complete.json";
 pub const HLAE_BUNDLE_MANIFEST_PRODUCER: &str = "vibe-cs-hlae";
 pub const HLAE_BUNDLE_README_FILE: &str = "README.txt";
@@ -163,6 +165,14 @@ pub struct HlaePlan {
     /// Number of demo ticks to seek before the first scheduled command.
     pub pre_roll_ticks: u64,
     pub capture: CaptureSettings,
+    /// Radar, HUD, flash and voice for the whole capture. These four controls
+    /// describe the recorded scene rather than the camera, so an observer take
+    /// honours them exactly as a first-person take does.
+    ///
+    /// `#[serde(default)]` keeps every plan document written before the field
+    /// existed readable, and the default is the neutral, unchanged scene.
+    #[serde(default)]
+    pub presentation: HlaeScenePresentation,
     pub shots: Vec<CameraShot>,
 }
 

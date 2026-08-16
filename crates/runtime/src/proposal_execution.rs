@@ -582,6 +582,9 @@ fn build_evidence_plan(
         output_directory,
         pre_roll_ticks,
         capture: CaptureSettings::default(),
+        // A proposal describes camera movement only; the scene keeps whatever
+        // the running session already shows.
+        presentation: vibe_cs_hlae::HlaeScenePresentation::default(),
         shots,
     };
     validate_hlae_plan(&plan).map_err(map_hlae_error)?;
@@ -646,11 +649,15 @@ pub(crate) fn camera_keyframe_for_scene(
         (target[1] + focus[1]) * 0.5,
         (target[2] + focus[2]) * 0.5,
     ];
-    let engagement_dx = focus[0] - target[0];
-    let engagement_dy = focus[1] - target[1];
-    let engagement_distance = engagement_dx.hypot(engagement_dy).clamp(96.0, 512.0);
-    let engagement_angle = if engagement_dx.abs() + engagement_dy.abs() > f64::EPSILON {
-        engagement_dy.atan2(engagement_dx)
+    // Planar offset from the shooter to the engagement focus, kept as one
+    // binding so the two axes never read as a pair of near-identical names.
+    let engagement_offset = [focus[0] - target[0], focus[1] - target[1]];
+    let engagement_distance = engagement_offset[0]
+        .hypot(engagement_offset[1])
+        .clamp(96.0, 512.0);
+    let engagement_angle = if engagement_offset[0].abs() + engagement_offset[1].abs() > f64::EPSILON
+    {
+        engagement_offset[1].atan2(engagement_offset[0])
     } else {
         player.yaw.to_radians()
     };
@@ -1062,7 +1069,12 @@ mod tests {
             bomb: None,
         };
         let focus = engagement_focus(&frame, &player).expect("live opponent focus");
-        assert_eq!(focus, [320.0, 0.0, 56.0]);
+        for (axis, (actual, expected)) in focus.iter().zip([320.0, 0.0, 56.0]).enumerate() {
+            assert!(
+                (actual - expected).abs() < 1e-9,
+                "focus axis {axis} was {actual}, expected {expected}"
+            );
+        }
 
         let keyframe = camera_keyframe_for_scene(
             100,

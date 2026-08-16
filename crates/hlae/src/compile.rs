@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, fmt::Write as _, path::Path};
 
+use crate::scene_presentation::{SCENE_RESET_COMMANDS, scene_setup_commands};
 use crate::validate::{validate_hlae_plan, validate_safe_path};
 use crate::{
     CameraShot, CompiledHlaePlan, GeneratedArtifact, HlaeError, HlaeInstallation,
@@ -51,7 +52,7 @@ pub fn compile_hlae_plan(
     let command_system = GeneratedArtifact {
         path: command_path.clone(),
         media_type: "application/xml".to_owned(),
-        contents: compile_command_system(plan, &camera_paths),
+        contents: compile_command_system(plan, &camera_paths)?,
     };
     let seek_tick = first_tick.saturating_sub(plan.pre_roll_ticks);
     let bootstrap_config = GeneratedArtifact {
@@ -239,7 +240,10 @@ fn compile_camera_path(shot: &CameraShot, tick_rate: f64) -> String {
     xml
 }
 
-fn compile_command_system(plan: &HlaePlan, camera_paths: &[GeneratedArtifact]) -> String {
+fn compile_command_system(
+    plan: &HlaePlan,
+    camera_paths: &[GeneratedArtifact],
+) -> Result<String, HlaeError> {
     let first_tick = plan.shots.first().map_or(0, |shot| shot.start_tick);
     let last_tick = plan.shots.last().map_or(0, |shot| shot.end_tick);
     let mut commands = Vec::new();
@@ -265,7 +269,7 @@ fn compile_command_system(plan: &HlaePlan, camera_paths: &[GeneratedArtifact]) -
         }
     }
     if plan.mode == HlaePlanMode::Capture {
-        commands.push((first_tick, 1_u8, capture_start_command(plan)));
+        commands.push((first_tick, 1_u8, capture_start_command(plan)?));
         commands.push((last_tick, 1_u8, capture_stop_command(plan)));
     }
     commands.sort_by_key(|(tick, phase, _)| (*tick, *phase));
@@ -281,11 +285,15 @@ fn compile_command_system(plan: &HlaePlan, camera_paths: &[GeneratedArtifact]) -
         .expect("writing to String cannot fail");
     }
     xml.push_str("</commands>\n</commandSystem>\n");
-    xml
+    Ok(xml)
 }
 
-fn capture_start_command(plan: &HlaePlan) -> String {
+fn capture_start_command(plan: &HlaePlan) -> Result<String, HlaeError> {
     let mut commands = vec![
+        // Radar, HUD, flash and voice come from the one shared generator, the
+        // same one the player-POV compiler uses. Preview mode records nothing,
+        // so it leaves the running session's scene untouched.
+        scene_setup_commands(plan.presentation)?,
         "demo_ui_mode 0".to_owned(),
         "gameui_hide".to_owned(),
         "cl_showdemooverlay 0".to_owned(),
@@ -325,7 +333,7 @@ fn capture_start_command(plan: &HlaePlan) -> String {
         ]);
     }
     commands.push("mirv_streams record start".to_owned());
-    commands.join("; ")
+    Ok(commands.join("; "))
 }
 
 fn capture_stop_command(plan: &HlaePlan) -> String {
@@ -342,6 +350,9 @@ fn capture_stop_command(plan: &HlaePlan) -> String {
     if plan.capture.layers.depth {
         commands.push("mirv_streams remove vibe_depth".to_owned());
     }
+    // One managed session records several takes, so the scene this take
+    // changed has to be handed back unchanged.
+    commands.push(SCENE_RESET_COMMANDS.to_owned());
     commands.join("; ")
 }
 
@@ -363,7 +374,8 @@ mod tests {
     use super::*;
     use crate::{
         CameraKeyframe, CameraPosition, CameraRotation, CameraShot, CaptureLayers, CaptureSettings,
-        HlaeDiscoverySource,
+        HlaeDiscoverySource, HlaeHudVisibility, HlaeRadarVisibility, HlaeScenePresentation,
+        HlaeVoicePolicy,
     };
     use std::path::PathBuf;
 
@@ -382,6 +394,7 @@ mod tests {
                 },
                 ..CaptureSettings::default()
             },
+            presentation: HlaeScenePresentation::default(),
             shots: vec![CameraShot {
                 id: "opening".to_owned(),
                 start_tick: 1_000,
@@ -450,6 +463,84 @@ mod tests {
         assert!(xml.contains("record start"));
         assert!(xml.contains("record end"));
         assert!(!xml.to_ascii_lowercase().contains("ffmpeg"));
+    }
+
+    #[test]
+    fn an_observer_capture_applies_and_restores_the_shared_scene_grammar() {
+        let root = tempfile::tempdir().unwrap();
+        let mut authored = plan(HlaePlanMode::Capture, root.path().join("capture"));
+        authored.presentation = HlaeScenePresentation {
+            radar: HlaeRadarVisibility::Hidden,
+            hud: HlaeHudVisibility::DeathNoticesOnly,
+            flash_alpha: 102,
+            voice: HlaeVoicePolicy::TargetOnly,
+            voice_target_slot: Some(7),
+        };
+        let compiled = compile_hlae_plan(&authored, root.path()).unwrap();
+        let xml = &compiled.command_system.contents;
+
+        // The same fixed strings the player-POV compiler emits.
+        assert!(xml.contains("cl_drawhud_force_radar -1"));
+        assert!(xml.contains("cl_draw_only_deathnotices 1"));
+        assert!(xml.contains("mirv_noflash 0.6"));
+        assert!(xml.contains("tv_listen_voice_indices 64"));
+        // A camera path carries its own per-keyframe field of view, so an
+        // observer capture must never touch the two POV-only controls.
+        assert!(!xml.contains("mirv_viewmodel"));
+        assert!(!xml.contains("mirv_fov handleZoom"));
+
+        let applied = xml.find("cl_drawhud_force_radar -1").unwrap();
+        let restored = xml.find("cl_drawhud_force_radar 0").unwrap();
+        let capture_start = xml.find("mirv_streams record start").unwrap();
+        let capture_end = xml.find("mirv_streams record end").unwrap();
+        assert!(applied < capture_start);
+        assert!(capture_end < restored);
+    }
+
+    #[test]
+    fn a_neutral_observer_capture_leaves_the_running_session_alone() {
+        let root = tempfile::tempdir().unwrap();
+        let compiled = compile_hlae_plan(
+            &plan(HlaePlanMode::Capture, root.path().join("capture")),
+            root.path(),
+        )
+        .unwrap();
+        let xml = &compiled.command_system.contents;
+
+        assert!(xml.contains("cl_drawhud_force_radar 1"));
+        assert!(xml.contains("cl_draw_only_deathnotices 0"));
+        assert!(xml.contains("snd_voipvolume 1"));
+    }
+
+    #[test]
+    fn a_preview_never_changes_the_scene_it_is_only_drawing() {
+        let root = tempfile::tempdir().unwrap();
+        let mut authored = plan(HlaePlanMode::Preview, root.path().join("capture"));
+        authored.presentation = HlaeScenePresentation {
+            radar: HlaeRadarVisibility::Hidden,
+            ..HlaeScenePresentation::default()
+        };
+        let compiled = compile_hlae_plan(&authored, root.path()).unwrap();
+
+        assert!(
+            !compiled
+                .command_system
+                .contents
+                .contains("cl_drawhud_force_radar")
+        );
+    }
+
+    #[test]
+    fn an_observer_capture_never_isolates_a_voice_without_a_parser_backed_slot() {
+        let root = tempfile::tempdir().unwrap();
+        let mut authored = plan(HlaePlanMode::Capture, root.path().join("capture"));
+        authored.presentation = HlaeScenePresentation {
+            voice: HlaeVoicePolicy::TargetOnly,
+            voice_target_slot: None,
+            ..HlaeScenePresentation::default()
+        };
+
+        assert!(compile_hlae_plan(&authored, root.path()).is_err());
     }
 
     #[test]

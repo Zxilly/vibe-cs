@@ -13,6 +13,7 @@ mod players;
 mod product;
 mod proposals;
 mod recording;
+mod recording_presets;
 mod review;
 mod source_assets;
 mod system;
@@ -36,6 +37,7 @@ pub(crate) fn router() -> Router<AppState> {
         .merge(demos::router())
         .merge(evidence::router())
         .merge(recording::router())
+        .merge(recording_presets::router())
         .merge(review::router())
         .merge(source_assets::router())
         .merge(media::router())

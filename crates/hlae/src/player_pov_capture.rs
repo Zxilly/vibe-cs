@@ -7,7 +7,9 @@ use std::{fmt::Write as _, fs, path::Path};
 
 use crate::{
     CaptureLayers, CaptureSettings, GeneratedArtifact, HLAE_TAKE_MAX_ESTIMATED_BYTES,
-    HlaeCaptureResourceEstimate, HlaeError, estimate_hlae_capture_span_resources,
+    HlaeCaptureResourceEstimate, HlaeError, HlaeHudVisibility, HlaeRadarVisibility,
+    HlaeScenePresentation, HlaeVoicePolicy, estimate_hlae_capture_span_resources,
+    scene_presentation::{SCENE_RESET_COMMANDS, bounded_decimal, scene_setup_commands},
     validate::validate_safe_path,
 };
 
@@ -19,6 +21,11 @@ const MAXIMUM_COMMAND_SYSTEM_BYTES: usize = 64 * 1_024;
 /// Closed, typed presentation controls supported by the managed CS2 movie
 /// session. Every field compiles to a fixed command grammar; callers cannot
 /// inject free-form console input.
+///
+/// The four style-independent controls are the same ones
+/// [`HlaeScenePresentation`] carries, and they compile through that one shared
+/// generator. Only `camera_fov` and `viewmodel_fov` are specific to a
+/// first-person take.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct HlaePlayerPovPresentation {
     pub radar: HlaeRadarVisibility,
@@ -30,25 +37,6 @@ pub struct HlaePlayerPovPresentation {
     pub voice: HlaeVoicePolicy,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HlaeRadarVisibility {
-    Visible,
-    Hidden,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HlaeHudVisibility {
-    Visible,
-    DeathNoticesOnly,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HlaeVoicePolicy {
-    AllPlayers,
-    Muted,
-    TargetOnly,
-}
-
 impl Default for HlaePlayerPovPresentation {
     fn default() -> Self {
         Self {
@@ -58,6 +46,24 @@ impl Default for HlaePlayerPovPresentation {
             viewmodel_fov: 68.0,
             flash_alpha: u8::MAX,
             voice: HlaeVoicePolicy::AllPlayers,
+        }
+    }
+}
+
+impl HlaePlayerPovPresentation {
+    /// The style-independent half of this presentation.
+    ///
+    /// `voice_target_slot` is the parser-backed spectator slot the recorded
+    /// player occupies; [`HlaeVoicePolicy::TargetOnly`] cannot compile without
+    /// it. A first-person plan always knows the slot, so it passes `Some`.
+    #[must_use]
+    pub const fn scene(self, voice_target_slot: Option<u8>) -> HlaeScenePresentation {
+        HlaeScenePresentation {
+            radar: self.radar,
+            hud: self.hud,
+            flash_alpha: self.flash_alpha,
+            voice: self.voice,
+            voice_target_slot,
         }
     }
 }
@@ -203,7 +209,7 @@ pub fn compile_hlae_player_pov_capture(
         )));
     }
 
-    let contents = compile_player_pov_command_system(plan, setup_tick);
+    let contents = compile_player_pov_command_system(plan, setup_tick)?;
     if contents.len() > MAXIMUM_COMMAND_SYSTEM_BYTES {
         return Err(invalid_error(
             "player POV command system exceeds its 64 KiB limit",
@@ -316,8 +322,11 @@ fn validate_regular_path(
     Ok(())
 }
 
-fn compile_player_pov_command_system(plan: &HlaePlayerPovCapturePlan, setup_tick: u32) -> String {
-    let presentation = compile_presentation_setup(plan);
+fn compile_player_pov_command_system(
+    plan: &HlaePlayerPovCapturePlan,
+    setup_tick: u32,
+) -> Result<String, HlaeError> {
+    let presentation = compile_presentation_setup(plan)?;
     let spectator = format!(
         "mirv_campath enabled 0; mirv_campath draw enabled 0; spec_mode 2; spec_player {}; {presentation}",
         plan.spectator_slot,
@@ -328,13 +337,15 @@ fn compile_player_pov_command_system(plan: &HlaePlayerPovCapturePlan, setup_tick
         plan.capture.fps,
         u8::from(plan.capture.record_wav),
     );
-    let capture_stop = "mirv_streams record end; demo_pause; mirv_streams record screen enabled 0; cl_drawhud_force_radar 0; cl_draw_only_deathnotices 0; mirv_fov default; mirv_viewmodel enabled 0; mirv_noflash 0; snd_voipvolume 1; tv_listen_voice_indices 0; tv_listen_voice_indices_h 0";
+    let capture_stop = format!(
+        "mirv_streams record end; demo_pause; mirv_streams record screen enabled 0; mirv_fov default; mirv_viewmodel enabled 0; {SCENE_RESET_COMMANDS}"
+    );
     let mut xml =
         String::from("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<commandSystem>\n<commands>\n");
     for (tick, command) in [
         (u64::from(setup_tick), spectator.as_str()),
         (plan.start_tick, capture_start.as_str()),
-        (plan.end_tick, capture_stop),
+        (plan.end_tick, capture_stop.as_str()),
     ] {
         writeln!(
             xml,
@@ -344,50 +355,19 @@ fn compile_player_pov_command_system(plan: &HlaePlayerPovCapturePlan, setup_tick
         .expect("writing to String cannot fail");
     }
     xml.push_str("</commands>\n</commandSystem>\n");
-    xml
+    Ok(xml)
 }
 
-fn compile_presentation_setup(plan: &HlaePlayerPovCapturePlan) -> String {
+fn compile_presentation_setup(plan: &HlaePlayerPovCapturePlan) -> Result<String, HlaeError> {
     let presentation = plan.presentation;
-    let noflash = 1.0 - f64::from(presentation.flash_alpha) / f64::from(u8::MAX);
-    let (voice_volume, voice_low, voice_high) = match presentation.voice {
-        HlaeVoicePolicy::Muted => (0_u8, 0_i32, 0_i32),
-        HlaeVoicePolicy::TargetOnly => {
-            let bit = u32::from(plan.spectator_slot - 1);
-            let (low, high) = if bit < 32 {
-                (1_i32.wrapping_shl(bit), 0)
-            } else {
-                (0, 1_i32.wrapping_shl(bit - 32))
-            };
-            (1, low, high)
-        }
-        HlaeVoicePolicy::AllPlayers => (1, -1, -1),
-    };
-    format!(
-        "cl_drawhud_force_radar {}; cl_drawhud 1; cl_draw_only_deathnotices {}; mirv_fov handleZoom minUnzoomedFov 90; mirv_fov handleZoom enabled 1; mirv_fov {}; mirv_viewmodel set * * * {} *; mirv_viewmodel enabled 1; mirv_noflash {}; snd_voipvolume {voice_volume}; tv_listen_voice_indices {voice_low}; tv_listen_voice_indices_h {voice_high}",
-        match presentation.radar {
-            HlaeRadarVisibility::Visible => 1,
-            HlaeRadarVisibility::Hidden => -1,
-        },
-        match presentation.hud {
-            HlaeHudVisibility::Visible => 0,
-            HlaeHudVisibility::DeathNoticesOnly => 1,
-        },
+    // The four style-independent controls come from the one shared generator,
+    // so a first-person take and an observer take can never drift apart.
+    let scene = scene_setup_commands(presentation.scene(Some(plan.spectator_slot)))?;
+    Ok(format!(
+        "{scene}; mirv_fov handleZoom minUnzoomedFov 90; mirv_fov handleZoom enabled 1; mirv_fov {}; mirv_viewmodel set * * * {} *; mirv_viewmodel enabled 1",
         bounded_decimal(presentation.camera_fov),
         bounded_decimal(presentation.viewmodel_fov),
-        bounded_decimal(noflash),
-    )
-}
-
-fn bounded_decimal(value: f64) -> String {
-    let mut rendered = format!("{value:.6}");
-    while rendered.ends_with('0') {
-        rendered.pop();
-    }
-    if rendered.ends_with('.') {
-        rendered.pop();
-    }
-    rendered
+    ))
 }
 
 fn console_path(path: &Path) -> String {

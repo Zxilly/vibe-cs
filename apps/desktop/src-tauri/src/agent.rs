@@ -1505,16 +1505,16 @@ mod tests {
             "highlights": [{
                 "id": highlight_id,
                 "round": 21,
-                "start_tick": 173422,
-                "end_tick": 174142,
+                "start_tick": 173_422,
+                "end_tick": 174_142,
                 "player_id": "76561198041683378"
             }],
             "rounds": [{
                 "number": 21,
                 "events": [
-                    {"tick":173550,"kind":"kill","actor":"76561198041683378","target":"YEKINDAR","position":[-1921.4,-255.9,-127.9]},
-                    {"tick":173671,"kind":"damage","actor":"yuurih","target":"TeSeS","position":[-2530.4,244.3,-167.9]},
-                    {"tick":173950,"kind":"kill","actor":"76561198041683378","target":"yuurih","position":[-1550.8,130.4,-167.9]}
+                    {"tick":173_550,"kind":"kill","actor":"76561198041683378","target":"YEKINDAR","position":[-1921.4,-255.9,-127.9]},
+                    {"tick":173_671,"kind":"damage","actor":"yuurih","target":"TeSeS","position":[-2530.4,244.3,-167.9]},
+                    {"tick":173_950,"kind":"kill","actor":"76561198041683378","target":"yuurih","position":[-1550.8,130.4,-167.9]}
                 ]
             }]
         });
@@ -1532,9 +1532,9 @@ mod tests {
             .get(highlight_id)
             .expect("highlight binding");
         assert_eq!(highlight.engagements.len(), 2);
-        assert_eq!(highlight.engagements[0].tick, 173550);
+        assert_eq!(highlight.engagements[0].tick, 173_550);
         assert_eq!(highlight.engagements[0].target_id, "YEKINDAR");
-        assert_eq!(highlight.engagements[1].tick, 173950);
+        assert_eq!(highlight.engagements[1].tick, 173_950);
         assert_eq!(highlight.engagements[1].target_id, "yuurih");
     }
 
@@ -1549,15 +1549,15 @@ mod tests {
                 "input_sha256": "a".repeat(64),
                 "input_size": 1024,
                 "round": 21,
-                "start_tick": 161630,
-                "end_tick": 173950,
+                "start_tick": 161_630,
+                "end_tick": 173_950,
                 "tick_rate": 64.0,
                 "sampling_contract_version": 1,
                 "sample_interval_ticks": 16,
                 "requested_tick_count": 900,
                 "accepted_tick_count": 900,
                 "event_tick_count": 12,
-                "freeze_end_tick": 162000,
+                "freeze_end_tick": 162_000,
                 "players_per_frame": 10,
                 "fields": {
                     "position": "required", "yaw": "required", "health": "required",
@@ -1569,14 +1569,14 @@ mod tests {
             },
             "frames": [
                 {
-                    "tick": 173422,
+                    "tick": 173_422,
                     "players": [
                         replay_player("76561198041683378", "A", [-1552.0, -190.0, -161.0]),
                         replay_player("enemy-1", "B", [-1250.0, -100.0, -160.0])
                     ]
                 },
                 {
-                    "tick": 173950,
+                    "tick": 173_950,
                     "players": [
                         replay_player("76561198041683378", "A", [-1714.0, -232.0, -167.0]),
                         replay_player("enemy-1", "B", [-1400.0, -120.0, -165.0])
@@ -1588,11 +1588,11 @@ mod tests {
         let highlight = CinematicHighlight {
             id: "21:76561198041683378:173550-multikill".to_owned(),
             round: 21,
-            start_tick: 173422,
-            end_tick: 174142,
+            start_tick: 173_422,
+            end_tick: 174_142,
             player_id: "76561198041683378".to_owned(),
             engagements: vec![CinematicEngagement {
-                tick: 173550,
+                tick: 173_550,
                 target_id: "enemy-1".to_owned(),
                 target_position: [-1250.0, -100.0, -160.0],
             }],
@@ -1604,7 +1604,7 @@ mod tests {
         assert_eq!(scene["positionedAction"][0]["actor"], highlight.player_id);
         assert_eq!(scene["positionedAction"][0]["nearestOpponentId"], "enemy-1");
         assert_eq!(scene["verifiedEngagements"][0]["target"], "enemy-1");
-        assert_eq!(scene["fidelity"]["effectiveEndTick"], 173950);
+        assert_eq!(scene["fidelity"]["effectiveEndTick"], 173_950);
         assert_eq!(scene["fidelity"]["clampedToArtifactEnd"], true);
     }
 
@@ -1678,8 +1678,8 @@ mod tests {
                     "highlight_id": "round-21-niko",
                     "player_id": "76561198041683378",
                     "title": "NiKo round 21",
-                    "start_tick": 173422,
-                    "end_tick": 174142,
+                    "start_tick": 173_422,
+                    "end_tick": 174_142,
                     "pre_roll_seconds": 2.5,
                     "post_roll_seconds": 2.0,
                     "victim_pov": false,

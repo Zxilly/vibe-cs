@@ -16,6 +16,7 @@ mod invocation;
 mod managed;
 mod model;
 mod player_pov_capture;
+mod scene_presentation;
 mod session;
 mod session_bootstrap;
 mod validate;
@@ -30,6 +31,9 @@ pub use invocation::*;
 pub use managed::*;
 pub use model::*;
 pub use player_pov_capture::*;
+pub use scene_presentation::{
+    HlaeHudVisibility, HlaeRadarVisibility, HlaeScenePresentation, HlaeVoicePolicy,
+};
 pub use session::*;
 pub use session_bootstrap::*;
 pub use validate::validate_hlae_plan;

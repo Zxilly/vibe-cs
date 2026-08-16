@@ -1109,6 +1109,7 @@ mod tests {
             source,
             removed_by: None,
             params: serde_json::json!({}),
+            recording: None,
         }
     }
 

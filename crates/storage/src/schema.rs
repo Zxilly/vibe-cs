@@ -253,6 +253,18 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (retry_of) REFERENCES recording_jobs(id)
     );
 
+    -- Saved shot settings behind the shot inspector's save-as-preset action.
+    -- Only what the preset list is ordered and addressed by is a column; the
+    -- settings themselves live in document_json, exactly as agent_plans keeps
+    -- its shots. The name bound matches RECORDING_SHOT_PRESET_MAX_NAME_CHARS.
+    CREATE TABLE recording_shot_presets (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL CHECK(length(name) <= 200 AND instr(name, char(0)) = 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        document_json TEXT NOT NULL
+    );
+
     CREATE TABLE steam_matches (
         id TEXT PRIMARY KEY NOT NULL,
         steam_id TEXT NOT NULL,
@@ -501,6 +513,8 @@ const CURRENT_SCHEMA: &str = r"
     CREATE INDEX recording_jobs_activity_idx ON recording_jobs(updated_at DESC, id);
     CREATE INDEX recording_jobs_activity_status_idx ON recording_jobs(status, updated_at DESC, id);
     CREATE INDEX recording_jobs_retry_of_idx ON recording_jobs(retry_of);
+    CREATE INDEX recording_shot_presets_updated_idx
+        ON recording_shot_presets(updated_at DESC, id);
     CREATE INDEX steam_matches_account_idx ON steam_matches(steam_id, match_id DESC);
     CREATE INDEX match_download_jobs_match_idx
         ON match_download_jobs(match_record_id, updated_at DESC);

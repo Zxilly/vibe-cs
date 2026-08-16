@@ -45,6 +45,7 @@ pub fn validate_hlae_plan(plan: &HlaePlan) -> Result<Vec<HlaeNotice>, HlaeError>
     if !plan.capture.layers.screen && !plan.capture.layers.world && !plan.capture.layers.depth {
         return invalid("at least one capture layer must be enabled");
     }
+    plan.presentation.validate()?;
     if plan.shots.is_empty() || plan.shots.len() > 256 {
         return invalid("a plan must contain between 1 and 256 shots");
     }
@@ -261,6 +262,7 @@ mod tests {
             output_directory: std::env::temp_dir().join("vibe-cs-hlae-output"),
             pre_roll_ticks: 128,
             capture: CaptureSettings::default(),
+            presentation: crate::HlaeScenePresentation::default(),
             shots: vec![CameraShot {
                 id: "opening".to_owned(),
                 start_tick: 1_000,

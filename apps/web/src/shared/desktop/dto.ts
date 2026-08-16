@@ -975,6 +975,38 @@ export type RadarOverviewRecord = {
   browser_displayable: boolean;
 };
 
+/**
+ * Whose voice is audible in a capture. Mirrors
+ * `vibe-cs-domain::RecordingVoicePolicy`.
+ *
+ * One closed choice rather than the two independent booleans
+ * (`mute_voice` + `isolate_target_voice`) that `AppConfig.recording` still
+ * carries: two booleans spell four combinations and one of them is rejected by
+ * the capture pipeline, so the enum removes the illegal state instead of
+ * validating it away.
+ */
+export type RecordingVoicePolicy = 'all_players' | 'muted' | 'target_only';
+
+/**
+ * Per-shot capture presentation. Mirrors
+ * `vibe-cs-domain::RecordingPresentation`.
+ *
+ * `camera_fov` (60–140) and `viewmodel_fov` (54–68) only mean something for
+ * `camera_style: 'pov'`. Every other style takes its field of view from the
+ * camera path and draws no viewmodel, so the backend **rejects** a non-neutral
+ * value there rather than ignoring it — an observer shot must send
+ * `camera_fov: 90` and `viewmodel_fov: 68`. The other four apply to both kinds.
+ */
+export type RecordingPresentation = {
+  camera_fov: number;
+  viewmodel_fov: number;
+  /** Remaining flash alpha in the CS2 0–255 scale. */
+  flash_alpha: number;
+  show_hud: boolean;
+  show_radar: boolean;
+  voice: RecordingVoicePolicy;
+};
+
 export type RecordingRequest = {
   id: EntityId;
   demo_id: EntityId;
@@ -987,6 +1019,17 @@ export type RecordingRequest = {
   post_roll_seconds: number;
   victim_pov: boolean;
   camera_style: 'pov' | 'orbit' | 'dolly' | 'static' | 'tracking' | 'crane' | 'flyby';
+  /**
+   * Per-shot overrides of the six `AppConfig.recording` presentation defaults.
+   *
+   * Optional, and `null` rather than an expanded object, because "the user
+   * never touched these controls" and "the user set them to exactly today's
+   * global default" have to stay distinguishable: absent or `null` means
+   * *follow the global defaults*, and the defaults are only expanded inside the
+   * capture pipeline. A response always carries the key (`null` when unset);
+   * a request may omit it.
+   */
+  presentation?: RecordingPresentation | null;
 };
 
 export type RecordingQueueRequest = {
@@ -999,10 +1042,103 @@ export type RecordingPlanResponse = {
   active_items: number;
   disabled_items: number;
   estimated_seconds: number | null;
+  /**
+   * Free-text plan notices. This is *not* the pre-recording check list — see
+   * `RecordingPreflight`, which is a closed set. Both exist because a plan can
+   * report things that are neither a check nor localizable (an unavailable
+   * duration estimate, for example).
+   */
   warnings: string[];
   items: RecordingRequest[];
   director: DirectorPlan;
 };
+
+/** Mirrors `vibe-cs-domain::RecordingPreflightState`. */
+export type RecordingPreflightState = 'ok' | 'warning' | 'blocked';
+
+/**
+ * The closed set of pre-recording checks. Mirrors
+ * `vibe-cs-domain::RecordingPreflightCode`.
+ *
+ * Every member is backed by a fact the application observes; there is
+ * deliberately no member for a check with no data source. The client looks the
+ * code up in its own label table — `detail` carries only the parts that cannot
+ * be enumerated (byte counts, versions, file names) and arrives in English.
+ *
+ * - `game_ready` — a CS2 executable was discovered
+ * - `capture_component_ready` — the managed HLAE release is prepared
+ * - `demo_content_matches` — every Demo still matches what was analyzed
+ * - `output_directory_writable` — the managed output root is writable, with room
+ * - `spectator_evidence_complete` — every POV item has a parsed spectator slot
+ * - `encoder_available` — H.264 and AAC encoders are registered
+ * - `tick_range_within_demo` — every tick window lies inside the Demo
+ * - `camera_collision_unverified` — camera-path coordinates cannot be checked
+ *   against map geometry before an in-game preview. Never `blocked`; `ok` when
+ *   the plan contains no observer shot at all.
+ */
+export type RecordingPreflightCode =
+  | 'game_ready'
+  | 'capture_component_ready'
+  | 'demo_content_matches'
+  | 'output_directory_writable'
+  | 'spectator_evidence_complete'
+  | 'encoder_available'
+  | 'tick_range_within_demo'
+  | 'camera_collision_unverified';
+
+export type RecordingPreflightCheck = {
+  code: RecordingPreflightCode;
+  state: RecordingPreflightState;
+  /** English facts the code cannot carry. Localize around it, not from it. */
+  detail: string;
+  /**
+   * The `RecordingRequest.id`s this check speaks about, when it speaks about
+   * only some of them. Empty means the whole plan — never "unknown".
+   */
+  affected_item_ids: EntityId[];
+};
+
+/**
+ * The pre-recording check list. Mirrors `vibe-cs-domain::RecordingPreflight`.
+ *
+ * `blocking` is the number of `blocked` rows and is server-computed. Its
+ * contract is one sentence: **while `blocking > 0` the start-recording action
+ * is disabled.** A warning never disables it.
+ */
+export type RecordingPreflight = {
+  checks: RecordingPreflightCheck[];
+  blocking: number;
+};
+
+/**
+ * A saved set of shot settings, behind the shot inspector's "save as preset".
+ * Mirrors
+ * `vibe-cs-domain::RecordingShotPreset`.
+ *
+ * Deliberately not `EditorPreset`, which is a multi-track editor clip preset
+ * bound to a project revision and shares no field with this one. A preset holds
+ * only the shot-scoped inputs of a `RecordingRequest`: no `demo_id`,
+ * `player_id`, tick window or title, because a preset that carried those would
+ * silently retarget the recording it is applied to.
+ */
+export type RecordingShotPreset = {
+  id: EntityId;
+  name: string;
+  camera_style: RecordingRequest['camera_style'];
+  victim_pov: boolean;
+  pre_roll_seconds: number;
+  post_roll_seconds: number;
+  /** Always concrete here — a preset with no presentation is not a preset. */
+  presentation: RecordingPresentation;
+  created_at: string;
+  updated_at: string;
+};
+
+/** The caller-supplied half; identity and timestamps are server-owned. */
+export type RecordingShotPresetDraft = Omit<
+  RecordingShotPreset,
+  'id' | 'created_at' | 'updated_at'
+>;
 
 export type DirectorShot = {
   demo_id: EntityId;
@@ -2069,6 +2205,33 @@ export type AgentPlanStatus = 'draft' | 'awaiting_confirmation' | 'confirmed' | 
 export type AgentPlanAuthor = 'agent' | 'user';
 export type AgentShotView = 'observer' | 'player_pov';
 
+/**
+ * What binds one plan shot to real footage. Mirrors
+ * `vibe-cs-domain::AgentShotRecording`.
+ *
+ * These are typed fields rather than entries in `AgentPlanShot.params` on
+ * purpose: reading `demo_id` and `player_id` back out of the free bag to build
+ * a `RecordingRequest` would write the same schema twice, with nothing to fail
+ * when the two drift — the reason the reverse mapper was rejected once already
+ * (§10.6 deviation 3).
+ *
+ * `camera_style`, the tick window and the title are deliberately **absent**:
+ * they come from `AgentPlanShot.kind`, `start_tick`/`end_tick` and `title`. A
+ * second copy here could disagree with the shot on screen and nothing would
+ * notice which one was stale.
+ */
+export type AgentShotRecording = {
+  demo_id: EntityId;
+  /** Canonical non-zero 17-digit SteamID64; the backend rejects anything else. */
+  player_id: string;
+  highlight_id: string | null;
+  victim_pov: boolean;
+  pre_roll_seconds: number;
+  post_roll_seconds: number;
+  /** `null` follows the global `AppConfig.recording` defaults. */
+  presentation: RecordingPresentation | null;
+};
+
 export type AgentPlanShot = {
   id: EntityId;
   title: string;
@@ -2084,6 +2247,17 @@ export type AgentPlanShot = {
   /** Set while a shot is soft-removed, so the removal stays undoable. */
   removed_by: AgentPlanAuthor | null;
   params: unknown;
+  /**
+   * The footage this shot will be captured from, once it has any.
+   *
+   * Optional and nullable because a plan is meaningful before it is bound: the
+   * Agent designs shots first and lands them on material afterwards, and every
+   * plan stored before this field existed decodes without it. A shot with
+   * `recording === null` cannot be turned into a `RecordingRequest` — that is
+   * the honest reason the "confirm and produce the video" action stays
+   * unavailable for it, rather than guessing fields out of `params`.
+   */
+  recording?: AgentShotRecording | null;
 };
 
 /** One entry of the plan's change-origin trail, newest first. */

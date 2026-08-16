@@ -425,6 +425,7 @@ mod tests {
             output_directory: output,
             pre_roll_ticks: 128,
             capture: CaptureSettings::default(),
+            presentation: crate::HlaeScenePresentation::default(),
             shots: vec![CameraShot {
                 id: "shot_1".to_owned(),
                 start_tick: 1_000,

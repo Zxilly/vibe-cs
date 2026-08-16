@@ -153,7 +153,10 @@ import type {
   RecordingExecutionResponse,
   RecordingJob,
   RecordingPlanResponse,
+  RecordingPreflight,
   RecordingQueueRequest,
+  RecordingShotPreset,
+  RecordingShotPresetDraft,
   RecoveryStatus,
   RuntimeState,
   ScanResult,
@@ -548,6 +551,23 @@ export const commands = {
     request<AgentPlan>(`/agent/plans/${encodeURIComponent(restore.plan_id)}/restore`, {
       method: 'POST', body: restore,
     }),
+  /**
+   * Turns a plan into a recording plan in one step, answering with the very
+   * same `RecordingPlanResponse` as `planRecording`: the recording plan screen
+   * (board 08) is the same page whichever door it was reached through.
+   *
+   * Soft-removed shots are left out; a shot whose `recording` is null rejects
+   * the call with status 422. The two codes are `agent_plan_shots_unbound` and
+   * `agent_plan_not_recordable`. The bridge keeps only `{status, code,
+   * message}` of an error, so *which* shots are unbound is not on the rejection
+   * — read it from the plan itself, where `shots[].recording === null` is the
+   * same fact.
+   */
+  planRecordingFromAgentPlan: (planId: string) =>
+    request<RecordingPlanResponse>(
+      `/agent/plans/${encodeURIComponent(planId)}/recording-plan`,
+      { method: 'POST', body: {}, timeoutMs: null },
+    ),
   /** Cross-source list of what is currently in progress in the workspace. */
   listAgentWorkspaceReferences: (signal?: AbortSignal) =>
     request<AgentWorkspaceReferences>('/agent/workspace/referencable', { signal }),
@@ -1014,6 +1034,23 @@ export const commands = {
         timeoutMs: null,
       },
     ),
+  /**
+   * Runs the closed pre-recording check list for one leased plan.
+   *
+   * A POST, and not because it writes: every call re-discovers CS2, re-hashes
+   * the plan's Demos, write-probes the output root and re-queries the encoder
+   * inventory, so the answer is a measurement and must never be replayed from a
+   * cache. It leaves the plan lease untouched, so it can be re-run as often as
+   * the user asks, and `timeoutMs: null` keeps it attached while it hashes.
+   *
+   * Blocked rows disable starting the recording: the server publishes the count
+   * as `blocking`. Warnings never do.
+   */
+  preflightRecordingPlan: (planId: string) =>
+    request<RecordingPreflight>(
+      `/recording/plans/${encodeURIComponent(planId)}/preflight`,
+      { method: 'POST', body: {}, timeoutMs: null },
+    ),
   getRecordingJob: (id: string, signal?: AbortSignal) =>
     request<RecordingJob>(`/recording/jobs/${encodeURIComponent(id)}`, { signal }),
   cancelRecordingJob: (id: string) =>
@@ -1021,6 +1058,22 @@ export const commands = {
       method: 'POST',
       body: {},
     }),
+  listRecordingShotPresets: (signal?: AbortSignal) =>
+    request<{ items: RecordingShotPreset[] }>('/recording/shot-presets', { signal }),
+  createRecordingShotPreset: (draft: RecordingShotPresetDraft) =>
+    request<RecordingShotPreset>('/recording/shot-presets', { method: 'POST', body: draft }),
+  /**
+   * Whole-document replace. The preset keeps its id and creation time; there is
+   * no `expected_revision` because nothing on the server dereferences a preset
+   * id — applying one copies its values into the shot.
+   */
+  putRecordingShotPreset: (id: string, draft: RecordingShotPresetDraft) =>
+    request<RecordingShotPreset>(`/recording/shot-presets/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: draft,
+    }),
+  deleteRecordingShotPreset: (id: string) =>
+    request<void>(`/recording/shot-presets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listActivities: async (query: ActivityQuery = {}, signal?: AbortSignal) =>
     parseActivityFeed(await request<ActivityFeed>(
       `/activities${queryString({
@@ -1048,8 +1101,36 @@ export const commands = {
     const page = await request<Paginated<RecordedClipRecord>>('/recorded-clips', { signal });
     return { ...page, items: page.items.map(normalizeRecordedClip) };
   },
+  /**
+   * Returns the unreduced wire record rather than the `RecordedClip` shape
+   * `listRecordedClips` normalizes to: an inspector that just edited the title
+   * needs `path`, `tags` and `metadata` back, and those are exactly what the
+   * normalization drops.
+   */
+  patchRecordedClip: (
+    id: string,
+    patch: Partial<Pick<RecordedClipRecord, 'title' | 'player_name' | 'category' | 'tags' | 'metadata'>>,
+  ) =>
+    request<RecordedClipRecord>(`/recorded-clips/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: patch,
+    }),
+  deleteRecordedClip: (id: string) =>
+    request<void>(`/recorded-clips/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  listMontageProjects: (signal?: AbortSignal) =>
+    request<{ items: MontageProjectRecord[] }>('/montage/projects', { signal }),
+  getMontageProject: (id: string, signal?: AbortSignal) =>
+    request<MontageProjectRecord>(`/montage/projects/${encodeURIComponent(id)}`, { signal }),
   createMontageProject: (body: CreateMontageProject) =>
     request<MontageProjectRecord>('/montage/projects', { method: 'POST', body }),
+  /** Whole-document replace. `project.id` must equal `id`; the server rejects a mismatch. */
+  putMontageProject: (id: string, project: MontageProjectRecord) =>
+    request<MontageProjectRecord>(`/montage/projects/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: project,
+    }),
+  deleteMontageProject: (id: string) =>
+    request<void>(`/montage/projects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   exportMontageProject: (id: string) =>
     request<JobAccepted>(`/montage/projects/${encodeURIComponent(id)}/export`, {
       method: 'POST',
@@ -1180,6 +1261,34 @@ export const commands = {
       timeoutMs: 60 * 60_000,
       },
     ),
+  /**
+   * Registers a file already on disk as a managed asset, without copying it
+   * through the upload path. Every field of the body is required by the route
+   * even when it is `null`, so all four are always sent.
+   */
+  importMediaAsset: (
+    path: string,
+    options: { projectId?: string | undefined; name?: string | undefined; kind?: string | undefined } = {},
+  ) =>
+    request<MediaAsset>('/media/assets/import', {
+      method: 'POST',
+      body: {
+        path,
+        project_id: options.projectId ?? null,
+        name: options.name ?? null,
+        kind: options.kind ?? null,
+      },
+      timeoutMs: 90_000,
+    }),
+  deleteMediaAsset: (id: string) =>
+    request<void>(`/media/assets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  /** Renders the asset's audio stream into a second, managed audio asset. */
+  extractAssetAudio: (id: string) =>
+    request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/extract-audio`, {
+      method: 'POST',
+      body: {},
+      timeoutMs: 20 * 60_000,
+    }),
   relinkMediaAsset: (id: string, path: string) =>
     request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}/relink`, {
       method: 'POST',
@@ -1204,6 +1313,11 @@ export const commands = {
     request<WaveformResponse>(
       `/recorded-clips/${encodeURIComponent(id)}/waveform${queryString({ buckets })}`,
       { signal, timeoutMs: 90_000 },
+    ),
+  listExportJobs: (projectId?: string, signal?: AbortSignal) =>
+    request<{ items: ExportJobRecord[] }>(
+      `/exports${queryString({ project_id: projectId })}`,
+      { signal },
     ),
   getExportJob: (id: string, signal?: AbortSignal) =>
     request<ExportJobRecord>(`/exports/${encodeURIComponent(id)}`, { signal }),

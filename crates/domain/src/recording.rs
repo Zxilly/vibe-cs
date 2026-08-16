@@ -2,6 +2,191 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+/// Lowest camera field of view the managed capture grammar accepts.
+///
+/// Copied from `vibe_cs_hlae::player_pov_capture::validate_player_pov_plan`,
+/// which rejects anything outside `60.0..=140.0`. It is repeated here, at the
+/// API boundary, on purpose: the HLAE compiler only runs once a recording job
+/// has already prepared its managed roots, verified the Demo content and
+/// launched CS2, so a `140.1` accepted at `POST` time would surface as a
+/// failure minutes later, after the user has been waiting. The two ranges must
+/// stay identical - this one is the early, cheap copy, never a looser one.
+pub const RECORDING_CAMERA_FOV_MIN: f64 = 60.0;
+/// Highest camera field of view the managed capture grammar accepts.
+/// See [`RECORDING_CAMERA_FOV_MIN`] for why the range is duplicated here.
+pub const RECORDING_CAMERA_FOV_MAX: f64 = 140.0;
+/// Lowest viewmodel field of view the managed capture grammar accepts.
+/// See [`RECORDING_CAMERA_FOV_MIN`] for why the range is duplicated here.
+pub const RECORDING_VIEWMODEL_FOV_MIN: f64 = 54.0;
+/// Highest viewmodel field of view the managed capture grammar accepts.
+/// See [`RECORDING_CAMERA_FOV_MIN`] for why the range is duplicated here.
+pub const RECORDING_VIEWMODEL_FOV_MAX: f64 = 68.0;
+
+/// Neutral camera field of view. Matches `HlaePlayerPovPresentation::default()`
+/// and [`crate::RecordingDefaults::default`].
+pub const RECORDING_NEUTRAL_CAMERA_FOV: f64 = 90.0;
+/// Neutral viewmodel field of view. Matches `HlaePlayerPovPresentation::default()`
+/// and [`crate::RecordingDefaults::default`].
+pub const RECORDING_NEUTRAL_VIEWMODEL_FOV: f64 = 68.0;
+
+/// Whose voice communication is audible in a capture.
+///
+/// This is one closed three-state choice rather than the two independent bools
+/// (`mute_voice` + `isolate_target_voice`) that [`crate::RecordingDefaults`]
+/// still carries. Two bools express four combinations, and the runtime's
+/// `presentation(config)` rejects one of them ("mute everyone" together with
+/// "isolate the target") as its very first act. Encoding the same choice as an
+/// enum removes the illegal state instead of validating it away, so no
+/// per-shot value can ever reach the capture pipeline in that combination.
+///
+/// [`crate::RecordingDefaults`] is deliberately left unchanged: it is read and
+/// written by the configuration file and the settings pane, and folding its two
+/// bools into this enum belongs with runtime, which already owns the mapping.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordingVoicePolicy {
+    /// Every player's voice is audible.
+    #[default]
+    AllPlayers,
+    /// No voice communication is captured.
+    Muted,
+    /// Only the recorded player's voice is captured.
+    TargetOnly,
+}
+
+impl RecordingVoicePolicy {
+    /// The canonical persisted discriminator for this policy.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AllPlayers => "all_players",
+            Self::Muted => "muted",
+            Self::TargetOnly => "target_only",
+        }
+    }
+
+    /// Parses the canonical persisted discriminator.
+    #[must_use]
+    pub fn from_str_exact(value: &str) -> Option<Self> {
+        match value {
+            "all_players" => Some(Self::AllPlayers),
+            "muted" => Some(Self::Muted),
+            "target_only" => Some(Self::TargetOnly),
+            _ => None,
+        }
+    }
+}
+
+/// Per-shot capture presentation: the six controls the shot inspector exposes
+/// beyond timing and camera choice.
+///
+/// These six values exist today only on [`crate::RecordingDefaults`], where they
+/// are one global default for the whole application. Carrying them per shot is
+/// what lets one plan mix, say, a HUD-less establishing shot with a HUD-on POV
+/// shot.
+///
+/// A [`RecordingRequest`] holds this as `Option<RecordingPresentation>`, and
+/// `None` means "use the global [`crate::RecordingDefaults`]". The defaults are
+/// deliberately **not** expanded at this layer: once expanded, "the user never
+/// touched these controls" and "the user set them to exactly today's global
+/// default" are the same bytes in storage, so a later change to the global
+/// default would silently stop applying to shots that were only ever meant to
+/// follow it. Expansion happens in runtime, at the point the capture program is
+/// compiled and the configuration is in hand.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct RecordingPresentation {
+    /// Camera field of view, `60.0..=140.0`. POV shots only.
+    pub camera_fov: f64,
+    /// Viewmodel (held weapon) field of view, `54.0..=68.0`. POV shots only.
+    pub viewmodel_fov: f64,
+    /// Remaining flash alpha in the CS2 `0..=255` scale. Every `u8` is valid,
+    /// which is why the type carries no range check for it.
+    pub flash_alpha: u8,
+    pub show_hud: bool,
+    pub show_radar: bool,
+    pub voice: RecordingVoicePolicy,
+}
+
+impl Default for RecordingPresentation {
+    fn default() -> Self {
+        Self {
+            camera_fov: RECORDING_NEUTRAL_CAMERA_FOV,
+            viewmodel_fov: RECORDING_NEUTRAL_VIEWMODEL_FOV,
+            flash_alpha: u8::MAX,
+            show_hud: true,
+            show_radar: true,
+            voice: RecordingVoicePolicy::AllPlayers,
+        }
+    }
+}
+
+impl RecordingPresentation {
+    /// Validates the fields that are meaningful for every camera style.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::DomainError::InvalidInput`] when a field of view is not
+    /// finite or leaves the range the managed capture grammar accepts.
+    pub fn validate(&self) -> Result<(), crate::DomainError> {
+        if !self.camera_fov.is_finite()
+            || !(RECORDING_CAMERA_FOV_MIN..=RECORDING_CAMERA_FOV_MAX).contains(&self.camera_fov)
+        {
+            return Err(crate::DomainError::InvalidInput(format!(
+                "camera_fov must be finite and between {RECORDING_CAMERA_FOV_MIN} and {RECORDING_CAMERA_FOV_MAX}"
+            )));
+        }
+        if !self.viewmodel_fov.is_finite()
+            || !(RECORDING_VIEWMODEL_FOV_MIN..=RECORDING_VIEWMODEL_FOV_MAX)
+                .contains(&self.viewmodel_fov)
+        {
+            return Err(crate::DomainError::InvalidInput(format!(
+                "viewmodel_fov must be finite and between {RECORDING_VIEWMODEL_FOV_MIN} and {RECORDING_VIEWMODEL_FOV_MAX}"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Validates this presentation against the camera style that will render it.
+    ///
+    /// `camera_fov` and `viewmodel_fov` only mean something for
+    /// [`crate::HlaeCameraStyle::Pov`]. Every other style compiles through the
+    /// cinematic camera-path compiler, where the field of view comes from each
+    /// keyframe of the path and no viewmodel is drawn at all. A non-POV shot
+    /// must therefore leave both at their neutral value; a non-neutral one is
+    /// rejected rather than ignored, because silently ignoring it is exactly
+    /// "the interface offered a slider that does nothing".
+    ///
+    /// The remaining four fields (`flash_alpha`, `show_hud`, `show_radar`,
+    /// `voice`) apply to both kinds of shot and are not constrained here.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::DomainError::InvalidInput`] when [`Self::validate`]
+    /// fails, or when an observer shot carries a non-neutral field of view.
+    pub fn validate_for(
+        &self,
+        camera_style: crate::HlaeCameraStyle,
+    ) -> Result<(), crate::DomainError> {
+        self.validate()?;
+        if camera_style == crate::HlaeCameraStyle::Pov {
+            return Ok(());
+        }
+        if !is_neutral(self.camera_fov, RECORDING_NEUTRAL_CAMERA_FOV)
+            || !is_neutral(self.viewmodel_fov, RECORDING_NEUTRAL_VIEWMODEL_FOV)
+        {
+            return Err(crate::DomainError::InvalidInput(
+                "observer shots take their field of view from the camera path, so camera_fov and viewmodel_fov must stay at their neutral values".to_owned(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn is_neutral(value: f64, neutral: f64) -> bool {
+    (value - neutral).abs() <= f64::EPSILON
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum JobStatus {
@@ -56,6 +241,12 @@ pub struct RecordingRequest {
     pub victim_pov: bool,
     #[serde(default)]
     pub camera_style: crate::HlaeCameraStyle,
+    /// Per-shot capture presentation. `None` means "use the global
+    /// [`crate::RecordingDefaults`]" and is the shape of every document written
+    /// before this field existed, which is why it is `#[serde(default)]`
+    /// despite `deny_unknown_fields` on the rest of the struct.
+    #[serde(default)]
+    pub presentation: Option<RecordingPresentation>,
 }
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -129,6 +320,9 @@ impl RecordingRequest {
             return Err(crate::DomainError::InvalidInput(
                 "victim POV cannot be combined with cinematic camera movement".to_owned(),
             ));
+        }
+        if let Some(presentation) = &self.presentation {
+            presentation.validate_for(self.camera_style)?;
         }
         Ok(())
     }
@@ -383,7 +577,8 @@ mod tests {
             pre_roll_seconds: 1.0,
             post_roll_seconds: 2.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: crate::HlaeCameraStyle::default(),
+            presentation: None,
         };
         let job = RecordingJob {
             id: Uuid::new_v4(),
@@ -431,7 +626,8 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: crate::HlaeCameraStyle::default(),
+            presentation: None,
         };
         let valid = RecordingJob {
             id: Uuid::new_v4(),
@@ -499,7 +695,8 @@ mod tests {
             pre_roll_seconds: 1.0,
             post_roll_seconds: 2.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: crate::HlaeCameraStyle::default(),
+            presentation: None,
         };
 
         let wire = serde_json::to_value(&request).expect("recording request wire");
@@ -524,7 +721,7 @@ mod tests {
             .as_object()
             .expect("recording request object")
             .keys()
-            .filter(|field| field.as_str() != "camera_style")
+            .filter(|field| !matches!(field.as_str(), "camera_style" | "presentation"))
         {
             let mut missing = wire.clone();
             missing
@@ -536,6 +733,17 @@ mod tests {
                 "missing current field {field} must be rejected"
             );
         }
+        let mut without_presentation = wire.clone();
+        without_presentation
+            .as_object_mut()
+            .expect("recording request object")
+            .remove("presentation");
+        assert_eq!(
+            serde_json::from_value::<RecordingRequest>(without_presentation)
+                .expect("a document written before per-shot presentation existed")
+                .presentation,
+            None
+        );
         let mut legacy = wire.clone();
         legacy
             .as_object_mut()
@@ -568,6 +776,199 @@ mod tests {
         };
 
         assert_exact_current_document(&clip);
+    }
+
+    #[test]
+    fn presentation_field_of_view_is_bounded_by_the_managed_capture_grammar() {
+        RecordingPresentation::default()
+            .validate()
+            .expect("the neutral presentation is inside every bound");
+
+        for camera_fov in [
+            RECORDING_CAMERA_FOV_MIN,
+            RECORDING_CAMERA_FOV_MAX,
+            RECORDING_NEUTRAL_CAMERA_FOV,
+        ] {
+            RecordingPresentation {
+                camera_fov,
+                ..RecordingPresentation::default()
+            }
+            .validate()
+            .expect("an in-range camera FOV");
+        }
+        for camera_fov in [
+            RECORDING_CAMERA_FOV_MIN - 0.1,
+            RECORDING_CAMERA_FOV_MAX + 0.1,
+            f64::NAN,
+            f64::INFINITY,
+        ] {
+            assert!(
+                RecordingPresentation {
+                    camera_fov,
+                    ..RecordingPresentation::default()
+                }
+                .validate()
+                .is_err(),
+                "camera_fov {camera_fov} must be rejected at the API boundary"
+            );
+        }
+
+        for viewmodel_fov in [RECORDING_VIEWMODEL_FOV_MIN, RECORDING_VIEWMODEL_FOV_MAX] {
+            RecordingPresentation {
+                viewmodel_fov,
+                ..RecordingPresentation::default()
+            }
+            .validate()
+            .expect("an in-range viewmodel FOV");
+        }
+        for viewmodel_fov in [
+            RECORDING_VIEWMODEL_FOV_MIN - 0.1,
+            RECORDING_VIEWMODEL_FOV_MAX + 0.1,
+            f64::NAN,
+        ] {
+            assert!(
+                RecordingPresentation {
+                    viewmodel_fov,
+                    ..RecordingPresentation::default()
+                }
+                .validate()
+                .is_err(),
+                "viewmodel_fov {viewmodel_fov} must be rejected at the API boundary"
+            );
+        }
+    }
+
+    #[test]
+    fn voice_policy_is_one_closed_choice_and_never_two_bools() {
+        for policy in [
+            RecordingVoicePolicy::AllPlayers,
+            RecordingVoicePolicy::Muted,
+            RecordingVoicePolicy::TargetOnly,
+        ] {
+            assert_eq!(
+                RecordingVoicePolicy::from_str_exact(policy.as_str()),
+                Some(policy)
+            );
+            assert_eq!(
+                serde_json::to_value(policy).expect("voice policy wire"),
+                serde_json::json!(policy.as_str())
+            );
+        }
+        assert_eq!(RecordingVoicePolicy::from_str_exact("mute_voice"), None);
+        // The combination the runtime has to reject when it reads two bools
+        // cannot even be spelled here.
+        assert!(
+            serde_json::from_value::<RecordingVoicePolicy>(serde_json::json!(
+                "muted_and_target_only"
+            ))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn observer_shots_reject_a_field_of_view_that_would_never_be_applied() {
+        let neutral = RecordingPresentation::default();
+        let zoomed = RecordingPresentation {
+            camera_fov: 110.0,
+            ..neutral
+        };
+        let narrow_viewmodel = RecordingPresentation {
+            viewmodel_fov: 54.0,
+            ..neutral
+        };
+
+        neutral
+            .validate_for(crate::HlaeCameraStyle::Pov)
+            .expect("POV keeps the neutral values");
+        zoomed
+            .validate_for(crate::HlaeCameraStyle::Pov)
+            .expect("POV is the only style a camera FOV reaches");
+        narrow_viewmodel
+            .validate_for(crate::HlaeCameraStyle::Pov)
+            .expect("POV is the only style a viewmodel FOV reaches");
+
+        for style in [
+            crate::HlaeCameraStyle::Orbit,
+            crate::HlaeCameraStyle::Dolly,
+            crate::HlaeCameraStyle::Static,
+            crate::HlaeCameraStyle::Tracking,
+            crate::HlaeCameraStyle::Crane,
+            crate::HlaeCameraStyle::Flyby,
+        ] {
+            neutral
+                .validate_for(style)
+                .expect("observer shots accept the neutral field of view");
+            assert!(
+                zoomed.validate_for(style).is_err(),
+                "{style:?} takes its field of view from the camera path"
+            );
+            assert!(
+                narrow_viewmodel.validate_for(style).is_err(),
+                "{style:?} draws no viewmodel at all"
+            );
+
+            // The four style-independent controls stay free on both kinds.
+            RecordingPresentation {
+                flash_alpha: 102,
+                show_hud: false,
+                show_radar: false,
+                voice: RecordingVoicePolicy::TargetOnly,
+                ..neutral
+            }
+            .validate_for(style)
+            .expect("flash, HUD, radar and voice apply to observer shots too");
+        }
+    }
+
+    #[test]
+    fn a_request_carries_its_presentation_through_its_own_validation() {
+        let request = RecordingRequest {
+            id: None,
+            demo_id: Uuid::new_v4(),
+            highlight_id: None,
+            player_id: "76561198000000000".to_owned(),
+            title: "02 跟随突破".to_owned(),
+            start_tick: 148_812,
+            end_tick: 149_356,
+            pre_roll_seconds: 1.5,
+            post_roll_seconds: 1.0,
+            victim_pov: false,
+            camera_style: crate::HlaeCameraStyle::Tracking,
+            presentation: None,
+        };
+        request
+            .validate()
+            .expect("no presentation means the global defaults apply");
+
+        let with_hidden_hud = RecordingRequest {
+            presentation: Some(RecordingPresentation {
+                show_hud: false,
+                ..RecordingPresentation::default()
+            }),
+            ..request.clone()
+        };
+        with_hidden_hud
+            .validate()
+            .expect("HUD visibility is meaningful for an observer shot");
+
+        let with_zoom = RecordingRequest {
+            presentation: Some(RecordingPresentation {
+                camera_fov: 120.0,
+                ..RecordingPresentation::default()
+            }),
+            ..request.clone()
+        };
+        assert!(with_zoom.validate().is_err());
+
+        let out_of_range = RecordingRequest {
+            camera_style: crate::HlaeCameraStyle::Pov,
+            presentation: Some(RecordingPresentation {
+                camera_fov: 140.1,
+                ..RecordingPresentation::default()
+            }),
+            ..request
+        };
+        assert!(out_of_range.validate().is_err());
     }
 
     #[test]

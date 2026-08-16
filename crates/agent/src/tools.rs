@@ -95,19 +95,19 @@ impl ToolState {
                 .cloned()
                 .collect::<Vec<_>>()
         };
-        if !missing.is_empty() {
-            if let Some(host) = &self.tool_host {
-                let supplied = host.read_cinematic_context(&missing).await?;
-                let mut cache = self.cinematic_cache.lock().await;
-                for scene in supplied
-                    .get("scenes")
-                    .and_then(Value::as_array)
-                    .into_iter()
-                    .flatten()
-                {
-                    if let Some(id) = scene.get("highlightId").and_then(Value::as_str) {
-                        cache.insert(id.to_owned(), scene.clone());
-                    }
+        if !missing.is_empty()
+            && let Some(host) = &self.tool_host
+        {
+            let supplied = host.read_cinematic_context(&missing).await?;
+            let mut cache = self.cinematic_cache.lock().await;
+            for scene in supplied
+                .get("scenes")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                if let Some(id) = scene.get("highlightId").and_then(Value::as_str) {
+                    cache.insert(id.to_owned(), scene.clone());
                 }
             }
         }
@@ -614,7 +614,7 @@ fn read_cinematic_context(
         .map(|highlight| {
             let highlight_id = text(highlight.get("id")).unwrap_or("unknown");
             let round = number_value(highlight.get("round"))
-                .map(|value| value.round() as i64)
+                .map(round_to_i64)
                 .unwrap_or_default();
             let start_tick = number_value(highlight.get("startTick")).unwrap_or_default();
             let end_tick = number_value(highlight.get("endTick")).unwrap_or_default();
@@ -1004,10 +1004,10 @@ fn draft_video_plan(
         .iter()
         .enumerate()
         .map(|(index, _)| {
-            camera_styles
-                .get(index)
-                .map(String::as_str)
-                .unwrap_or_else(|| camera_style_for_intent(&camera_intents[index]))
+            camera_styles.get(index).map_or_else(
+                || camera_style_for_intent(&camera_intents[index]),
+                String::as_str,
+            )
         })
         .collect::<Vec<_>>();
     for ((intent, style), rationale) in camera_intents
@@ -1030,12 +1030,8 @@ fn draft_video_plan(
     let missing_players = binding
         .selected
         .iter()
-        .filter_map(|item| {
-            text(item.get("playerId"))
-                .filter(|value| !value.is_empty())
-                .is_none()
-                .then(|| text(item.get("id")).unwrap_or("unknown").to_owned())
-        })
+        .filter(|item| text(item.get("playerId")).is_none_or(str::is_empty))
+        .map(|item| text(item.get("id")).unwrap_or("unknown").to_owned())
         .collect::<Vec<_>>();
     let accepted = binding.ready() && valid_demo_id.is_some() && missing_players.is_empty();
     let items = if accepted {
@@ -1051,8 +1047,8 @@ fn draft_video_plan(
                     "highlight_id": text(item.get("id")),
                     "player_id": text(item.get("playerId")),
                     "title": text(item.get("title")).unwrap_or("Highlight video"),
-                    "start_tick": number_value(item.get("startTick")).unwrap_or_default().round() as u64,
-                    "end_tick": number_value(item.get("endTick")).unwrap_or_default().round() as u64,
+                    "start_tick": round_to_tick(number_value(item.get("startTick")).unwrap_or_default()),
+                    "end_tick": round_to_tick(number_value(item.get("endTick")).unwrap_or_default()),
                     "pre_roll_seconds": lead,
                     "post_roll_seconds": tail,
                     "victim_pov": false,
@@ -1140,12 +1136,13 @@ fn draft_video_plan(
 
 fn camera_style_for_intent(intent: &str) -> &'static str {
     match intent {
-        "player_pov" => "pov",
         "establish_location" | "hold_crossfire" => "static",
         "follow_entry" => "tracking",
         "reveal_duel" => "dolly",
         "rise_after_climax" => "crane",
         "transition_through_space" => "flyby",
+        // `player_pov`, plus anything outside the validated intent set, keeps
+        // the first-person camera.
         _ => "pov",
     }
 }
@@ -1345,6 +1342,30 @@ fn number_value(value: Option<&Value>) -> Option<f64> {
     value
         .and_then(Value::as_f64)
         .filter(|value| value.is_finite())
+}
+/// Rounds a tool-supplied JSON number to the nearest signed integer.
+///
+/// Tool arguments arrive as JSON numbers, so they are only available as `f64`.
+/// A float-to-integer `as` cast saturates at the target bounds instead of
+/// wrapping, which is the clamp we want for values we do not control.
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "the saturating float-to-int cast is the intended clamp for tool-supplied numbers"
+)]
+fn round_to_i64(value: f64) -> i64 {
+    value.round() as i64
+}
+/// Rounds a tool-supplied JSON number to the nearest tick.
+///
+/// Ticks are non-negative; `max(0.0)` states that domain explicitly and the
+/// saturating `as` cast clamps anything beyond `u64::MAX` rather than wrapping.
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "ticks are clamped into the non-negative range before the saturating cast"
+)]
+fn round_to_tick(value: f64) -> u64 {
+    value.round().max(0.0) as u64
 }
 fn integer(value: Option<&Value>) -> Option<i64> {
     value.and_then(Value::as_i64).or_else(|| {

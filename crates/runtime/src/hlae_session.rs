@@ -1563,6 +1563,7 @@ mod tests {
                 record_wav: false,
                 ..CaptureSettings::default()
             },
+            presentation: vibe_cs_hlae::HlaeScenePresentation::default(),
             shots: vec![CameraShot {
                 id: "opening".to_owned(),
                 start_tick: 10,

@@ -12,6 +12,7 @@ use axum::{
     Json, Router,
     extract::{Path, State},
     http::StatusCode,
+    response::{IntoResponse as _, Response},
     routing::{get, post},
 };
 use chrono::{DateTime, Utc};
@@ -54,6 +55,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/agent/plans", get(list_plans).post(create_plan))
         .route("/api/agent/plans/{id}", get(get_plan).patch(edit_plan))
         .route("/api/agent/plans/{id}/restore", post(restore_plan))
+        .route("/api/agent/plans/{id}/recording-plan", post(plan_recording))
         .route("/api/agent/workspace/referencable", get(list_referencable))
         .route(
             "/api/agent/workspace/settings",
@@ -251,6 +253,125 @@ async fn restore_plan(
         ));
     }
     plan_update(state.storage.restore_agent_plan_baseline(restore).await?)
+}
+
+/// The plan still holds shots that name no footage. Closed set, so the page can
+/// look the reason up rather than read the English sentence.
+const AGENT_PLAN_SHOTS_UNBOUND: &str = "agent_plan_shots_unbound";
+/// The plan holds nothing that could be recorded at all.
+const AGENT_PLAN_NOT_RECORDABLE: &str = "agent_plan_not_recordable";
+
+/// One shot that keeps the plan from becoming a recording queue.
+#[derive(Debug, Serialize)]
+struct UnboundPlanShot {
+    id: Uuid,
+    title: String,
+}
+
+/// The 422 body of [`plan_recording`].
+///
+/// It is a superset of [`vibe_cs_domain::ErrorBody`]: `code` and `message` sit
+/// where every other error in this application puts them, and `shots` names the
+/// exact cards that are still unbound, because "some shots are not bound" is
+/// not something a user can act on.
+///
+/// # Known transport limitation
+///
+/// The desktop bridge (`apps/desktop/src-tauri/src/bridge.rs`,
+/// `DesktopCommandError::from_problem`) flattens every error body to
+/// `{status, code, message}`, so `shots` does not reach the renderer today.
+/// Until that changes the page must read the same fact from the plan it is
+/// already displaying - a shot whose `recording` is `null` is an unbound shot -
+/// and use `code` to decide what to say about it.
+#[derive(Debug, Serialize)]
+struct UnrecordablePlan {
+    code: &'static str,
+    message: String,
+    shots: Vec<UnboundPlanShot>,
+}
+
+impl UnrecordablePlan {
+    fn response(self) -> Response {
+        (StatusCode::UNPROCESSABLE_ENTITY, Json(self)).into_response()
+    }
+}
+
+/// Design §10.6 gap 1: the one step from an Agent plan to a recording plan.
+///
+/// The plan is what the recording page names at its top ("from plan #P-118"),
+/// so this route answers with exactly the same document as
+/// `/api/recording/plan`: the page after this call is the same page, whichever
+/// door it was reached through. Nothing here reimplements the queue - the
+/// assembled requests go straight into
+/// [`super::recording::create_recording_plan`], which owns the director
+/// orchestration, the duration estimate and the plan lease.
+///
+/// The two 422 answers exist so the page never has to explain a message written
+/// for a different screen: told only "recording queue must contain at least one
+/// executable item", a user looking at four shot cards has no way to learn that
+/// none of them names a Demo.
+async fn plan_recording(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Response> {
+    let plan = state
+        .storage
+        .get_agent_plan(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("agent plan"))?;
+    // A soft-removed shot stays in the plan so the removal can be undone. It is
+    // not material to record, and honouring `removed_by` here is what keeps
+    // "undo" and "record" from disagreeing about what the plan contains.
+    let recordable = plan
+        .shots
+        .iter()
+        .filter(|shot| shot.removed_by.is_none())
+        .collect::<Vec<_>>();
+    if recordable.is_empty() {
+        let message = if plan.shots.is_empty() {
+            "this plan contains no shot to record".to_owned()
+        } else {
+            format!(
+                "this plan has no shot left to record: all {} of its shots are removed",
+                plan.shots.len()
+            )
+        };
+        return Ok(UnrecordablePlan {
+            code: AGENT_PLAN_NOT_RECORDABLE,
+            message,
+            shots: Vec::new(),
+        }
+        .response());
+    }
+    let unbound = recordable
+        .iter()
+        .filter(|shot| shot.recording.is_none())
+        .map(|shot| UnboundPlanShot {
+            id: shot.id,
+            title: shot.title.clone(),
+        })
+        .collect::<Vec<_>>();
+    if !unbound.is_empty() {
+        return Ok(UnrecordablePlan {
+            code: AGENT_PLAN_SHOTS_UNBOUND,
+            message: format!(
+                "{} of the {} shots in this plan are not bound to a Demo and a player yet",
+                unbound.len(),
+                recordable.len()
+            ),
+            shots: unbound,
+        }
+        .response());
+    }
+    let mut items = Vec::with_capacity(recordable.len());
+    for shot in recordable {
+        // The shot identity becomes the request identity, so a queue item stays
+        // traceable to the card the user is looking at.
+        items.push(shot.recording_request(shot.id)?);
+    }
+    Ok(super::recording::create_recording_plan(&state, items, None)
+        .await?
+        .into_response())
 }
 
 fn plan_update(update: AgentPlanUpdate) -> ApiResult<Json<AgentPlan>> {
@@ -496,7 +617,7 @@ mod tests {
     };
     use serde_json::{Value, json};
     use tower::ServiceExt as _;
-    use vibe_cs_domain::{ExportJob, RecordingRequest};
+    use vibe_cs_domain::{DomainError, ExportJob, RecordingRequest};
     use vibe_cs_storage::Storage;
 
     use super::*;
@@ -505,6 +626,115 @@ mod tests {
         let directory = tempfile::tempdir().expect("temporary directory");
         let state = AppState::new(storage, directory.path().join("data"));
         (crate::build_dispatcher(state), directory)
+    }
+
+    /// A recording port that accepts whatever the plan route hands it. Managed
+    /// HLAE is the only thing stubbed out; everything the plan route decides -
+    /// which shots survive, what they are bound to - is still the real code.
+    #[derive(Debug)]
+    struct AcceptingRecordingPort;
+
+    #[async_trait::async_trait]
+    impl crate::RecordingPort for AcceptingRecordingPort {
+        async fn preflight(&self, _items: &[RecordingRequest]) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn execute(&self, job: RecordingJob) -> Result<RecordingJob, DomainError> {
+            Ok(job)
+        }
+
+        async fn cancel(&self, job: RecordingJob) -> Result<RecordingJob, DomainError> {
+            Ok(job)
+        }
+    }
+
+    fn recording_dispatcher(storage: Storage) -> (Router, tempfile::TempDir) {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let recording: std::sync::Arc<dyn crate::RecordingPort> =
+            std::sync::Arc::new(AcceptingRecordingPort);
+        let state = AppState::new(storage, directory.path().join("data")).with_recording(recording);
+        (crate::build_dispatcher(state), directory)
+    }
+
+    /// The recording plan binds itself to the Demo row, so the row has to exist.
+    /// No file is touched: nothing in this test reaches a parser or CS2.
+    async fn persist_demo(storage: &Storage, demo_id: Uuid) {
+        let now = Utc::now();
+        storage
+            .put_demo(vibe_cs_domain::DemoRecord {
+                id: demo_id,
+                path: format!("C:/demos/{demo_id}.dem"),
+                file_name: format!("{demo_id}.dem"),
+                display_name: "Plan fixture".to_owned(),
+                source: "test".to_owned(),
+                status: vibe_cs_domain::DemoStatus::Ready,
+                map_name: Some("de_mirage".to_owned()),
+                match_date: None,
+                duration_seconds: Some(10.0),
+                total_rounds: Some(1),
+                team_a_name: None,
+                team_b_name: None,
+                team_a_score: None,
+                team_b_score: None,
+                player_names: vec!["Kael".to_owned()],
+                remark: String::new(),
+                content_sha256: Some("ab".repeat(32)),
+                file_size: 1_024,
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("plan demo");
+    }
+
+    fn binding(demo_id: Uuid) -> Value {
+        json!({
+            "demo_id": demo_id,
+            "player_id": "76561197960690195",
+            "highlight_id": null,
+            "victim_pov": false,
+            "pre_roll_seconds": 1.5,
+            "post_roll_seconds": 1.0,
+            "presentation": null
+        })
+    }
+
+    fn bound_shot(title: &str, demo_id: Uuid) -> Value {
+        let mut value = shot(title, 5.0);
+        value["recording"] = binding(demo_id);
+        value
+    }
+
+    fn removed(mut value: Value) -> Value {
+        value["removed_by"] = json!("user");
+        value
+    }
+
+    /// Moves a shot far enough away that the director cannot merge it into its
+    /// neighbour, so a shot that leaks into the queue shows up as an extra item
+    /// instead of disappearing into a merge.
+    fn at_ticks(mut value: Value, start: u64, end: u64) -> Value {
+        value["start_tick"] = json!(start);
+        value["end_tick"] = json!(end);
+        value
+    }
+
+    async fn plan_with_shots(router: &Router, shots: Vec<Value>) -> Uuid {
+        let (status, plan) = call(
+            router,
+            Method::POST,
+            "/api/agent/plans",
+            Some(json!({
+                "title": "Kael Mirage 1v3",
+                "status": "awaiting_confirmation",
+                "shots": shots,
+                "origin": null
+            })),
+        )
+        .await;
+        assert_eq!(status, 201);
+        serde_json::from_value(plan["id"].clone()).expect("plan id")
     }
 
     async fn call(router: &Router, method: Method, uri: &str, body: Option<Value>) -> (u16, Value) {
@@ -780,6 +1010,7 @@ mod tests {
                     post_roll_seconds: 1.0,
                     victim_pov: false,
                     camera_style: vibe_cs_domain::HlaeCameraStyle::Tracking,
+                    presentation: None,
                 }],
                 current_index: 0,
                 progress: 0.42,
@@ -1043,5 +1274,242 @@ mod tests {
         .await;
         assert_eq!(status, 400);
         assert_eq!(error["code"], "invalid_input");
+    }
+
+    /// The handover stage 3e depends on: the highlight page creates a plan and
+    /// navigates to `?plan=`. Unless the Demo and the player survive that write
+    /// verbatim, the recording page has a plan it cannot record.
+    #[tokio::test]
+    async fn a_recording_binding_survives_plan_create_read_and_edit_field_for_field() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage);
+        let demo_id = Uuid::new_v4();
+
+        let (status, session) = call(
+            &router,
+            Method::POST,
+            "/api/agent/sessions",
+            Some(json!({ "title": "Kael 的 1v3" })),
+        )
+        .await;
+        assert_eq!(status, 201);
+        let session_id: Uuid = serde_json::from_value(session["id"].clone()).expect("session id");
+
+        let plan_id = plan_with_shots(
+            &router,
+            vec![bound_shot("02 跟随突破", demo_id), shot("03 收尾", 4.0)],
+        )
+        .await;
+
+        let (status, stored) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/plans/{plan_id}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        let recording = &stored["shots"][0]["recording"];
+        assert_eq!(recording["demo_id"], json!(demo_id));
+        assert_eq!(recording["player_id"], "76561197960690195");
+        assert_eq!(recording["highlight_id"], Value::Null);
+        assert_eq!(recording["victim_pov"], false);
+        assert_eq!(recording["pre_roll_seconds"], 1.5);
+        assert_eq!(recording["post_roll_seconds"], 1.0);
+        assert_eq!(recording["presentation"], Value::Null);
+        // A plan is meaningful before it is bound, so the second shot keeps its
+        // absent binding rather than being rejected or filled in.
+        assert_eq!(stored["shots"][1]["recording"], Value::Null);
+
+        // The same door on the edit path: landing a shot on footage is an
+        // ordinary conditional plan edit.
+        let mut landed = stored["shots"][1].clone();
+        landed["recording"] = binding(demo_id);
+        landed["recording"]["highlight_id"] = json!("demo:match/event:kill-7");
+        landed["recording"]["presentation"] = json!({
+            "camera_fov": 90.0,
+            "viewmodel_fov": 68.0,
+            "flash_alpha": 102,
+            "show_hud": false,
+            "show_radar": true,
+            "voice": "target_only"
+        });
+        let (status, edited) = call(
+            &router,
+            Method::PATCH,
+            &format!("/api/agent/plans/{plan_id}"),
+            Some(json!({
+                "plan_id": plan_id,
+                "expected_revision": 1,
+                "status": "awaiting_confirmation",
+                "shots": [stored["shots"][0].clone(), landed],
+                "origin": {
+                    "session_id": session_id,
+                    "session_title": "Kael 的 1v3",
+                    "summary": "镜头 03 落到 Demo 上"
+                },
+                "changes": [],
+                "note": null
+            })),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(edited["revision"], 2);
+        let landed = &edited["shots"][1]["recording"];
+        assert_eq!(landed["demo_id"], json!(demo_id));
+        assert_eq!(landed["highlight_id"], "demo:match/event:kill-7");
+        assert_eq!(landed["presentation"]["flash_alpha"], 102);
+        assert_eq!(landed["presentation"]["show_hud"], false);
+        assert_eq!(landed["presentation"]["voice"], "target_only");
+    }
+
+    /// Design §10.6 gap 1, the blocking case: the answer has to name the shots,
+    /// because "some shots are not bound" leaves a user staring at four cards
+    /// with no way to learn which ones.
+    #[tokio::test]
+    async fn a_plan_with_unbound_shots_names_every_shot_that_blocks_the_recording() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage);
+        let demo_id = Uuid::new_v4();
+        let plan_id = plan_with_shots(
+            &router,
+            vec![
+                bound_shot("02 跟随突破", demo_id),
+                shot("03 换点", 4.0),
+                shot("04 收尾", 3.0),
+            ],
+        )
+        .await;
+
+        let (status, plan) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/plans/{plan_id}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        let shots = plan["shots"].as_array().expect("shots");
+
+        let (status, problem) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/plans/{plan_id}/recording-plan"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 422);
+        assert_eq!(problem["code"], "agent_plan_shots_unbound");
+        let blocking = problem["shots"].as_array().expect("blocking shots");
+        assert_eq!(blocking.len(), 2);
+        assert_eq!(blocking[0]["id"], shots[1]["id"]);
+        assert_eq!(blocking[0]["title"], "03 换点");
+        assert_eq!(blocking[1]["id"], shots[2]["id"]);
+        assert_eq!(blocking[1]["title"], "04 收尾");
+
+        let (status, _) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/plans/{}/recording-plan", Uuid::new_v4()),
+            None,
+        )
+        .await;
+        assert_eq!(status, 404);
+    }
+
+    /// A soft-removed shot stays in the plan so the removal can be undone. It
+    /// must not reach the capture queue, and it must not block the queue either.
+    #[tokio::test]
+    async fn a_soft_removed_shot_neither_records_nor_blocks_the_recording_plan() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let demo_id = Uuid::new_v4();
+        persist_demo(&storage, demo_id).await;
+        let (router, _directory) = recording_dispatcher(storage);
+        let plan_id = plan_with_shots(
+            &router,
+            vec![
+                bound_shot("02 跟随突破", demo_id),
+                // Removed and unbound: were `removed_by` ignored, this shot
+                // would block the whole plan.
+                removed(shot("03 换点", 4.0)),
+                // Removed and bound: were `removed_by` ignored, this shot would
+                // be recorded as a second, unmergeable queue item.
+                removed(at_ticks(bound_shot("04 收尾", demo_id), 200_000, 200_500)),
+            ],
+        )
+        .await;
+
+        let (status, planned) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/plans/{plan_id}/recording-plan"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200, "unexpected body: {planned}");
+        let items = planned["items"].as_array().expect("queue items");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["title"], "02 跟随突破");
+        assert_eq!(items[0]["demo_id"], json!(demo_id));
+        assert_eq!(items[0]["player_id"], "76561197960690195");
+        // The three fields the binding deliberately does not duplicate come
+        // from the shot itself.
+        assert_eq!(items[0]["camera_style"], "tracking");
+        assert_eq!(items[0]["start_tick"], 148_812);
+        assert_eq!(items[0]["end_tick"], 149_132);
+        assert_eq!(items[0]["pre_roll_seconds"], 1.5);
+        // The answer is the same document `/api/recording/plan` returns, so the
+        // page after this call is the same page.
+        assert!(planned["plan_id"].is_string());
+        assert!(planned["director"]["shots"].is_array());
+    }
+
+    /// An empty queue must never be explained with the recording queue's own
+    /// wording: "must contain at least one executable item" is unreadable in
+    /// front of a plan whose shots were all removed.
+    #[tokio::test]
+    async fn a_plan_with_nothing_left_to_record_says_so_in_its_own_terms() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage);
+        let demo_id = Uuid::new_v4();
+
+        let all_removed = plan_with_shots(
+            &router,
+            vec![
+                removed(bound_shot("02 跟随突破", demo_id)),
+                removed(shot("03 换点", 4.0)),
+            ],
+        )
+        .await;
+        let (status, problem) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/plans/{all_removed}/recording-plan"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 422);
+        assert_eq!(problem["code"], "agent_plan_not_recordable");
+        assert!(problem["shots"].as_array().expect("shots").is_empty());
+        let message = problem["message"].as_str().expect("message");
+        assert!(
+            message.contains("all 2 of its shots are removed"),
+            "{message}"
+        );
+        assert!(!message.contains("executable item"), "{message}");
+
+        let empty = plan_with_shots(&router, Vec::new()).await;
+        let (status, problem) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/plans/{empty}/recording-plan"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 422);
+        assert_eq!(problem["code"], "agent_plan_not_recordable");
+        let message = problem["message"].as_str().expect("message");
+        assert!(message.contains("no shot to record"), "{message}");
+        assert!(!message.contains("executable item"), "{message}");
     }
 }

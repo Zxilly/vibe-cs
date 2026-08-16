@@ -611,9 +611,13 @@ export function renderInteractive(ui: ReactElement): RenderResult
 | 3d | 证据检索 / 玩家目录 / 玩家档案 / 比赛历史 | |
 | 3e | Agent：2a + 2b + 2c、会话抽屉、新建会话与引用、手动编辑与修订号、编辑通知、过期变更、设置「AI 与 Agent」 | 验证提案折叠 + `markStale` + flush 时机；**出口条件包含「适配器已换成真实后端命令」**（§4.6） |
 | 3e-be | **后端并行任务**：§4.6 的 10 项契约缺口，含 `storage` schema 变更（会话表加 title/refs、会话↔对象引用表、方案 revision 与 origin、保留策略清理） | 前端适配器可整体拆除 |
-| 3f | 录制计划 / 快速合辑 / 多轨编辑器 | 时间轴接真数据 |
-| 3g | 设置 5 节 / 恢复中心 / 工作台首页 | |
+| 3f-be | **后端并行任务**：每镜头拍摄参数 / 录制前校验 / 镜头预设 / 方案↔录制绑定（§10.6 缺口 1），外加把 CI 的 `cargo clippy -D warnings` 门清零 | 画板 08 的四块不再靠「禁用 + 写明原因」 |
+| 3f-1 | 录制计划（08）/ 快速合辑（09） | 两页接真数据；导播预览画真实相机路径 |
+| 3f-2 | 多轨编辑器（10） | 时间轴接真素材，补齐修剪 / 自动滚动 / 帧网格 / 变速 |
+| 3g-be | **后端并行任务**：Agent 设置五个开关 / 引用删除路由 / 保留策略调度 / `OutputItem` 媒体元数据与输出流 / 活动错误码 | 3g 的页面不再有「后端没有这个字段」的空位 |
+| 3g | 设置 5 节 / 恢复中心 / 工作台首页余下五块 / **`/guide` 与首次使用三步提示条** / 原生外壳能力回填 | |
 | 4 | i18n 英文收口；测试回归；删除 `styles/index.css`、旧 `features/`、旧 `shared/ui`、旧 `shared/i18n`、`check-web-i18n.mjs`、三个被移除的依赖 | `pnpm lint && pnpm typecheck && pnpm test` 全绿，旧目录清零 |
+| 5 | `design/` 组件库回流到一个**新建的** Claude Design 设计系统项目（`Industry` 是共用基底，不动） | 下一轮画板的起点是真正被建出来的那套 token 与控件 |
 
 ---
 
@@ -782,7 +786,8 @@ export function renderInteractive(ui: ReactElement): RenderResult
 8. **没有「某个 demo 的历次 analysis run」查询**，只有 `getActiveAnalysisRun`，所以 Inspector 的「分析历史」时间线做不出来。
 9. **`DemoRecord.status` 没有「已分析」**（只有 discovered/indexing/ready/analyzing/failed/missing）。需要产品确认 ready 是否等价，或后端补标志。
 10. **`AnalysisRun` 没有分母**，画板的「分析中 62%」做不了，§4.3 明令前端不模拟进度。
-11. **没有原生文件/目录选择命令**：导入走浏览器 `<input type=file>` + 拖放（可用），但「添加监听目录」只能手打路径。也没有 reveal-in-explorer、没有 demo 重定位、没有把 `exportDemos` 的 ArrayBuffer 落盘的命令——三处都渲染成 disabled + 写明原因。
+11. ~~**没有原生文件/目录选择命令**：导入走浏览器 `<input type=file>` + 拖放（可用），但「添加监听目录」只能手打路径。也没有 reveal-in-explorer、没有 demo 重定位、没有把 `exportDemos` 的 ArrayBuffer 落盘的命令——三处都渲染成 disabled + 写明原因。~~
+    **✗ 这条是错的，§10.7 已更正。** `shared/desktop/dialog.ts` 一直就有目录选择、文件选择、另存为、写文件、资源管理器定位与打开目录，插件与权限都配齐了。当时没有去读 `shared/**`（铁律把它划成只读，于是连读都没读）。
 12. **`scanDemos` 把 `recursive` 写死为 true**，`demo_watch_paths` 是裸 `string[]`，没有每目录的递归开关。「包含子目录」渲染成 checked + disabled 并写明「服务按目录递归监听，暂不能只监听顶层」。
 13. **`PlayerAggregateStats` 没有 首杀 / 残局胜率 / 常用地图**，按地图表没有 `wins`，`EvidenceSearchItem` 没有 距离 / 交战轴 / 回合情境。**都省略而不是渲染 0.0m**；爆头率能由 headshots ÷ kills 推出所以照常显示。
 14. **证据结果的「注释」列需要按 evidence_id 批量查注释状态**，没有这样的读，逐行查会 N+1，本轮留空。
@@ -859,7 +864,8 @@ export function renderInteractive(ui: ReactElement): RenderResult
 16. **注释必须先有锚点**：`CreateEvidenceAnnotation` 要 `evidence_id` + `round` + `tick`，所以只有三者齐全时输入框与按钮才可用，否则 disabled 并写明「注释要挂在具体的 tick 上」。这是契约决定的，不是设计取舍。
 17. **高光类型词表两头对不齐**：wire 的 `knife` / `taser` / `defuse` / `fail` / `timeline` 在 `HighlightKind` 里没有成员，全部折进「其他」（行上仍印分析器自己的 label）；反过来 `opening-kill` / `match-point` / `eco-comeback` 在 wire 里没有对应 kind，这三个筛选片永远不出现（计数由真实数据算出，不印 0）。要么补 `matchEnums` 成员，要么补分析器的 kind。
 18. **`/agent` 带不走选中集**：§7 把它的 query 定死为 `plan / session / mode`，没有参数能表达一组高光。按「用现有路由能到的地方」处理——按钮可用、`navigate('/agent')`，但选中的 N 条不会跟过去。这与 §4.6 缺口 8 是同一件事，阶段 3e 要给 `/agent` 定一个引用入参。
-19. **`RadarOverviewRecord.image_url` 本轮一律不用**（§10.3 缺口 8 未定 + Tauri CSP `default-src 'self'`）。画布画的是蓝图网格，只用 transform 做世界坐标→图像坐标标定。本轮没有引入任何图片资源。
+19. ~~**`RadarOverviewRecord.image_url` 本轮一律不用**（§10.3 缺口 8 未定 + Tauri CSP `default-src 'self'`）。画布画的是蓝图网格，只用 transform 做世界坐标→图像坐标标定。本轮没有引入任何图片资源。~~
+    **✗ 括号里的理由是错的，§10.7 已更正。** CSP 放行 `vibe-cs-media:`，bridge 的 `media_uri` 白名单里就有 `/maps/{map}/radar`，路由 `/api/maps/{map}/radar` 与 `/radar/metadata`（带 `browser_displayable`）都在，`desktopMediaUrl()` 也在。真雷达底图是能画的。蓝图网格可以在后续轮次换掉。
 
 ### 我引入的技术债与已知风险
 
@@ -936,7 +942,8 @@ A 块（对话流）与 B 块（方案面板）在同一轮里各自实现了「
 5. **流式 Agent 与会话存储是两套。** `agent_chat` 写它自己的 `AgentThread`，`AgentChatInput` 只有 `threadId` 没有 `sessionId`；`/api/agent/sessions` 是另一套。`useAgentChatStream` 做桥接（发送前写 user 条目、complete 后写 assistant 条目），后果记在文件头：user 条目写入后流中断，会话里会留下一个没有回答的问题。
 6. **`AgentWorkspaceSettings` 只有 `session_retention` + `take_limit`。** 画板的五个开关（应用剪辑变更前先预览 / 显示 Agent 读取了哪些证据 / 默认成片时长 / 点评语气 / 自动带入当前选中的 Demo 与选手）**一个都没有字段，一个都没有画**。「录制前始终由你确认」本来就是不可关闭的常量，按常量处理。
 7. **没有 Take 模型。** §4.5.2 的 `Take` / `Composition` 没有线上类型也没有路由，而 `AgentWorkspaceSettings.take_limit` 却在限制一个 API 列不出来的东西。`?mode=takes` 因此**没有编一张白板**：只比较真实存在的两个版本（`plan.agent_baseline` 与当前 `plan`），指标只用真有的字段，`CompositionRow` 一行不渲染并固定印一句「后端还没有 Take 模型」，markup 测试断言页面里不出现「Take A/B」。
-8. **`exportAgentSessions` 导出的文档没有落点。** 路由返回一份 JSON，而 bridge 的 141 个命令里没有任何通用的「保存文件 / 选择保存位置」命令。所以「导出」今天能做的只有取回文档、印一句「已导出 N 条会话」。没有假装成功，也没有用 `<a download>`（Tauri 沙箱里本来就不工作）。
+8. ~~**`exportAgentSessions` 导出的文档没有落点。** 路由返回一份 JSON，而 bridge 的 141 个命令里没有任何通用的「保存文件 / 选择保存位置」命令。所以「导出」今天能做的只有取回文档、印一句「已导出 N 条会话」。没有假装成功，也没有用 `<a download>`（Tauri 沙箱里本来就不工作）。~~
+   **✗ 这条是错的，§10.7 已更正。** 落点是 `shared/desktop/dialog.ts` 的 `chooseLocalSavePath` + `saveLocalBytes`。「没有通用的保存命令」这句话只有在不读 `shared/**` 时才成立。
 9. **引用只能加，不能撤。** `touchAgentObjectRef` 是 POST，没有对应的删除路由，而画板「新建会话」右栏画了一个「取消引用」按钮。落地：创建之前「引用」只是本地选中，可以整体清空；创建之后没有任何办法撤销一次 touch，那个按钮就没有画。要修：一条 `DELETE /agent/sessions/{id}/refs/{kind}/{id}`。
 10. **`AgentPlan` 没有 tick rate。** 编辑「时长 5.0s → 8.5s」时同一次改动的结果也该是 tick 顺着移动，但 64 与 128 之间只能猜。落地：把时长 / 起始 tick / 结束 tick 做成三个独立字段，并在时长旁写一句 hint 说 tick 区间不随它动。
 11. **`AgentSessionEntry` 没有 token / 耗时 / 模型字段**，画板 07 的「工作进度」只能从 `tool_calls` 反推，而它的 `input` / `output` 都是 `unknown`。**`AgentSession` 也没有上下文字段**，所以「新建会话」的那排 chip（＋Demo ＋选手 ＋证据 ＋BGM）与会话行第二行「Aurora vs Meridian · Kael · R21」都没有落点，整块省略（不是画成不可点）。
@@ -951,3 +958,98 @@ A 块（对话流）与 B 块（方案面板）在同一轮里各自实现了「
 2. **`domain/agent/AgentSessionRow` 的 `now` 是可选 prop，不传就每一行都退化成「08-15」这种日期形式**，画板的三档时间戳（09:02 / 昨天 / 08-13）会静默丢掉两档。抽屉自己读一次时钟并有一条**故意不传 `now`** 的测试盯着；以后用这个 row 的地方（方案详情的「改动来源」）要注意同一个坑。建议把 `now` 改成必填。
 3. **§10.4 缺口 1 / 3 / 5、§10.5 的四条**仍然成立。
 4. **`check-web-i18n.mjs` 依旧全红**（267 个文件），它是旧 typed-literal 体系的守卫，与 `sourceLocale: 'zh-CN'` 根本对立，不在 `pnpm lint` 里，§10 阶段 4 已排定删除。
+
+---
+
+## 10.7 阶段 3f-be 落地记录 —— 录制的四件事与 CI 的 Rust 门（2026-08-16）
+
+第一轮纯后端。出口条件全部达成，命令由我自己复跑：`cargo clippy --workspace --all-targets -- -D warnings` 退出 **0**（**这条在 `feb1889` 上是红的**，见下）；`cargo test --workspace` 退出 0，30 个测试二进制 753 个用例全过；`pnpm --filter @vibe-cs/web lint` 退出 0（`layer check passed: 605 source files`）；`typecheck` 0；`build` 0（`✓ built in 2.54s`）；`vitest` **452 通过 / 3 跳过（455 文件）· 4214 通过 / 4 跳过（4218 用例）**；`lingui extract` 报 zh-CN 1268 / en-US 1268，**Missing = 0**。
+
+后两个数字**与 3e 逐字相同，这正是本轮该有的样子**：没有一行前端 UI 被改，也没有一条新文案。`git diff --stat feb1889 -- apps/web/src/{pages,design,domain,features,styles}` 无输出；`apps/web/src/data` 只动了 `desktopClient.tsx`，且只往 `Pick` 里加了 24 个方法名。
+
+改动规模：30 个文件、+3541 / −171，另有 5 个新文件（`domain/recording_preflight.rs`、`domain/recording_preset.rs`、`hlae/scene_presentation.rs`、`application/routes/recording_presets.rs`、`storage/repository/recording_presets.rs`）。
+
+### 动手前先纠三条错：前几轮把已经有的能力记成了后端缺口
+
+这一轮我在写任务书之前把 Tauri 外壳和 bridge 通读了一遍，撞见三条**记录本身是错的**的缺口。它们不是新做的功能，是**一直都在、但没人去读**：
+
+1. **§10.4 缺口 11「没有原生文件/目录选择命令」是错的。** `apps/web/src/shared/desktop/dialog.ts` 里有 `chooseLocalFile(s)` / `chooseLocalDirectories` / `chooseLocalSavePath` / `saveLocalBytes` / `writeLocalBytes` / `revealLocalPath`（资源管理器里定位）/ `openLocalDirectory` / `openExternalHttpsUrl`，Tauri 的 dialog / fs / opener 三个插件与对应权限在 `capabilities/vibe-cs-workspace.json` 里配齐。
+2. **§10.5 缺口 19 / §10.3 缺口 8「CSP 是 `default-src 'self'`，没有可播放 URL、不能用雷达底图」是错的。** 真实 CSP 是 `default-src 'self' customprotocol: asset:`，外加一个 `vibe-cs-media:` 自定义协议，`media-src` / `img-src` / `font-src` 全部放行；`bridge.rs` 的 `media_uri` 白名单包含 `/recorded-clips/{id}/stream`、`/media/assets/{id}/stream`、`/media/assets/{id}/proxy/stream`、`/players/{id}/avatar`、`/cosmetics/…/image`、**`/maps/{map}/radar`**；`client.ts` 一直有 `desktopMediaUrl(path)`。**视频预览、音频源、真雷达底图都是能做的。**
+3. **§10.6 缺口 8「导出的文档没有落点」是错的。** 落点就是 `saveLocalBytes`。
+
+三条同源：铁律把 `shared/**` 划成只读，于是并行 agent 连读都没读，于是「我这层做不到」被写成了「后端没有」。**只读不等于不用读。** 后续轮次的任务书已经改成显式点名 `shared/desktop/dialog.ts` 与 `desktopMediaUrl`，并要求页面经 `data/nativeShell.ts` 这层接缝去用（`pages/**` 不许直接 import `shared/**`）。
+
+本轮又添两条同类纠错：
+
+4. **相机路径的逐帧坐标一直拿得到。** `POST /api/agent/proposals/hlae/preview` 返回的 `HlaeProposalPreview.typed_plan` **就是一份 `HlaePlan`**：`shots[].keyframes[]` 每个带 `position{x,y,z}` / `rotation{pitch,yaw,roll}` / `fov`，插值 Cubic / SphericalCubic，关键帧由 `sample_four_frames` 从回放证据采样。dto.ts 把它写成 `unknown`，所以没人发现。画板 08 的导播预览因此**能画真实路径**，不是示意。
+5. **我给出的「client 缺失方法」清单有四条是假的。** `generateAssetProxy` 实为 `generateMediaProxy`、`cleanupAssetProxies` 实为 `cleanupMediaProxies`、`getAssetAudioAnalysis` 实为 `analyzeAudioAsset`、`getRadarMetadata` 实为 `getRadarOverview`。我那份清单是路由表机器比对出来的，agent 逐个核实后没有加重复方法——**任务书里「我这份清单可能有误，先核实」那句话是有用的，保留**。
+
+### CI 的 Rust 门在 `feb1889` 上就是红的
+
+`.github/workflows/ci.yml:26` 是 `cargo clippy --workspace --all-targets -- -D warnings`。我在动手前跑基线：不带 `-D warnings` 退出 0 但产出 **59 条 warning**；带上 `-D warnings` 退出 **101**，11 条 error 就把编译停在 `crates/agent/src/tools.rs`（10 条）与 `crates/hlae/src/session_bootstrap.rs`（1 条），下游 crate 根本没被 lint 到——这也是那 27 处 `camera_style: Default::default()` 从来没人看见的原因。
+
+仓库没有 `rust-toolchain.toml`，本机是 rustc / clippy 1.97.1（2026-07-14），这批基本是新版 clippy 新增 lint 扫出来的存量。**与本次重构无关，但既然要动 Rust 就一起清了**，作为本轮的一个串行步骤（四个实现 agent 停手之后再跑，避免撞车）。现在 `-D warnings` 退出 0。
+
+**建议加一个 `rust-toolchain.toml` 把工具链钉住**，否则下一次 stable 发布会再次把门弄红，而且是在一个和改动无关的时刻。这条没做，记在这里。
+
+### 本轮补的四件事
+
+| # | 补了什么 | 为什么非补不可 |
+| --- | --- | --- |
+| 1 | **每镜头拍摄参数**：`RecordingRequest.presentation: Option<RecordingPresentation>`（camera_fov / viewmodel_fov / flash_alpha / show_hud / show_radar / voice） | 画板 08 的「片段属性」把这六项画在**单个镜头**上，而线上它们只存在于 `AppConfig.recording` 的全局默认里。`HlaePlayerPovPresentation` 这个结构在 hlae crate 里早就有——画板显然是照它画的——但从没接到每个镜头上 |
+| 2 | **录制前校验**：`POST /api/recording/plans/{id}/preflight` → 闭集 `RecordingPreflightCheck { code, state, detail, affected_item_ids }` + `blocking` | 线上只有 `warnings: Vec<String>` 自由文本，界面逐行渲染不了，更做不出画板的「影响 N 个镜头」 |
+| 3 | **镜头预设**：`recording_shot_presets` 表 + `/api/recording/shot-presets` 四个动作 | 「存为预设」无处可存；`EditorPreset` 是多轨编辑器的片段预设，与它零字段重合 |
+| 4 | **方案 → 录制**：`AgentPlanShot.recording: Option<AgentShotRecording>` + `POST /api/agent/plans/{id}/recording-plan` | §10.6 缺口 1。方案拼不出 `RecordingRequest`，所以 3e 的「确认并生成视频」至今禁用，`pages/agent/agentHandoff.ts` 至今零调用点 |
+
+三条实现上的要点：
+
+- **`None` 表示「用全局默认」，不表示「关掉」。** 不在类型层展开默认值，否则「用户没设」与「用户设成了和默认一样」在存储里就分不出来。展开发生在 runtime。
+- **每个 take 用自己的 presentation**，有测试证明同一个 job 的两段拿到不同的值。原先 `presentation(config)` 返回一个值给整个 job。
+- **非 POV 镜头的 HUD / 雷达 / 队内语音 / 闪光四项也接上了**（原先 `build_camera_plan` 完全不吃 presentation），命令文本抽进新的 `crates/hlae/src/scene_presentation.rs` 由两条采集路径共用，**不是第二份字符串拼接**——那个模块刻意做成闭集编译，调用方不能注入自由控制台输入。
+
+### 本轮拍下的四个板
+
+| 决定 | 值 | 依据 |
+| --- | --- | --- |
+| 非 POV 镜头传 `camera_fov` / `viewmodel_fov` | **拒绝（InvalidInput），不静默忽略** | 观察者镜头的视野由相机路径的逐帧 `fov` 决定，viewmodel 根本不存在。静默忽略等于界面上摆一个不生效的滑块。界面上这两项对非 POV 禁用并写明原因 |
+| `RecordingPreflightCode::CameraCollisionUnverified` | **保留** | 它不测量碰撞，它报告「这几个镜头的坐标在进游戏预览之前无法与地图几何核对」——而这正是画板第八行写的「碰撞几何未知（**影响 1 个镜头**）」。背后是真实存在的 `HlaeNoticeCode::CameraCollisionNotChecked`（`validate_hlae_plan` 对每份相机路径计划无条件抛出）。它**不是永远绿**：有非 POV 镜头时是 Warning 并列出 item id，全是 POV 时是 Ok（POV 采集不含任何编造坐标），且 `can_block()` 恒为 false。这一条会随「游戏内预览」按钮落地而变得可行动 |
+| 镜头预设**不要** `expected_revision` | 与 `/api/editor/presets` 相反 | 编辑器预设会被套用到工程片段上并钉住工程修订；镜头预设只是把几个数复制进一个镜头，**服务端没有任何地方解引用预设 id**，没有可钉的东西。理由写进模块 doc comment |
+| `presentation` 计入 plan binding 哈希 | **是** | `recording_plan_binding` 序列化 `items`，所以改一个镜头的 FOV 会让已生成的计划租约失效。这是对的：改了参数还录旧计划，用户看到的预览就不是要录的那份 |
+
+### 与规格的偏离
+
+| # | 偏离 | 处置 |
+| --- | --- | --- |
+| 1 | `crates/application` 新增依赖 `vibe-cs-platform-windows` | `EncoderAvailable` 那条检查要读真实的 Media Foundation 编码器探测，实现在那个 crate 里。`recording` / `runtime` / `storage` 三个 crate 早就依赖它，application 加入不引入任何新约束；CI 的 Rust job 本来就是 `windows-latest` |
+| 2 | 四条 runtime 规则在 application 里重写了一遍 | runtime 依赖 application 而不是反过来，原件又是 `pub(crate)` 或私有。**这是真重复，会漂移**。要收口得把这四条提到 domain 或一个共享 crate。已报，未做 |
+| 3 | `crates/storage/src/schema.rs` 指纹变了 | 加 `recording_shot_presets` 表与索引，改动 `CURRENT_SCHEMA` 即换指纹，既有本地库会以 `StorageError::CurrentSchemaRequired` 拒绝启动。产品未发布，这是该文件顶上写明的既定做法，但**它是一次真实的破坏性变更**，记在这里 |
+| 4 | 契约 agent 改了任务范围外的 `routes/recording.rs` | 不可避免：给 `RecordingRequest` 加一个 Rust 侧必填字段，会强制更新全仓 22 处字面量（8 个文件，机械的 `presentation: None`）。另加 4 行把 `presentation` 透传进私有的 `RecordingQueueItem`——不加的话该结构 `deny_unknown_fields`，任何带 `presentation` 的请求都会 400，那份 dto 镜像从第一次请求起就是假的 |
+| 5 | `RecordingDefaults` 保持两个 bool（`mute_voice` + `isolate_target_voice`）不动 | 新的 `RecordingVoicePolicy` 是三值枚举，两个 bool 表达三个状态、第四个组合非法（runtime 里第一件事就是拒绝它）。但改配置结构会牵动配置读写与设置页，不是本轮的活。runtime 负责把两个 bool 折成枚举。**3g 做设置「游戏与录制」那一节时应该一并收口** |
+
+### 后端契约缺口（本轮撞到的）
+
+1. **结构化的 422 body 到不了渲染进程。** `POST /agent/plans/{id}/recording-plan` 在有镜头未绑定时返回 `{code, message, shots:[{id,title}]}`，但 `bridge.rs` 的 `DesktopCommandError::from_problem` 把任何错误体压成 `{status, code, message}`，`client.ts` 的 `DesktopError` 也只有这三样，`shots` 在路由与页面之间被丢掉。**前端不需要它**：`recording === null` 的镜头就是未绑定的镜头，而那份方案页面本来就拿在手里；422 的 `code` 决定说哪句话，方案决定标哪几张卡。Rust 侧与 JSDoc 两处都写明了这一点，免得下一个人去找一个永远不会到的字段。要真honour它，`DesktopCommandError` 与 `DesktopError` 各加一个透传字段，约 10 行
+2. **两行校验在自动化测试里永远绿不了**：`capture_component_ready` 需要 data dir 下有一份准备好的受管 HLAE，`encoder_available` 读的是本机真实的 Media Foundation 注册表。测试只能覆盖「缺失时的形状」，不能覆盖「就绪时的形状」
+3. **`AgentShotRecording` 没有 tick rate**（§10.6 缺口 10 的延续）：绑定里存的是秒（前后留白），镜头本体存的是 tick，两者之间的换算仍然要靠 Demo 的 tick rate，而方案不绑定 Demo 之外的任何东西
+4. **没有「预设应用到全部」的服务端语义**：那是界面上的一次批量赋值，服务端看到的只是 N 个改过的镜头。撤销要由前端负责
+
+### 留给后续阶段的已知缺口
+
+1. **加 `rust-toolchain.toml`。** 本轮把 clippy 清零了，但没钉工具链，下一次 stable 发布会以同样的方式把 CI 弄红
+2. **偏离 2 的四条重复规则要找一个共享的家。**
+3. **偏离 5 的 `RecordingDefaults` 三值化**，随 3g 的设置「游戏与录制」一节做
+4. **`vendor/demoparser` 在 `cargo fmt --check` 下是脏的**，本轮未动。它是 vendored 外部代码，要么排除在 fmt 之外，要么一次格式化掉
+5. **§10.4 缺口 1 / 3 / 5、§10.5 的四条、§10.6 的四条**仍然成立，其中 §10.4 缺口 11 与 §10.5 缺口 19、§10.6 缺口 8 **已按本节开头更正为「不是缺口」**
+
+### 产品决定：饰品与 Demo 改写不做
+
+设计稿在「仍未画」清单里把它列为「已建议移入资料库 Inspector，需要独立编辑器再画」，至今没有画板。**决定：不做。** 后端 `crates/application/src/routes/cosmetics.rs`（521 行，检查 / 改写 / 目录）保留不动，界面不建。这一条从此**不是缺口**——缺口是等着被补的，这个是定了不补。
+
+### 产品决定：使用引导做两块
+
+设计稿的处置建议是「工作台首页已接管入口，引导建议改成首次使用时的三步提示条」。决定做**两块**：
+
+- **首页三步提示条**（导入 Demo → 分析 → 用 Agent 制作视频）。三步的完成状态**从真实数据推，不存标志位**：资料库里有 Demo 第一步就完成，有一场已分析第二步就完成。三步都真完成它自己消失，也能手动关掉（关闭状态进 `app/shell/shellStore`，与 `sidebarCollapsed` 同类，符合 §4.2）。一个纯标志位会对着一个空资料库说「你已经完成引导了」
+- **`/guide` 独立页**，§7 新增一条路由。内容不是凭空造：旧的 `features/guide/GuidePage.tsx`（198 行）已经定死了这一页装什么——CS2 环境自检（逐项 `DependencyCheck` + 重新检查）加一排入口卡——本轮之后是**把一页已有内容换成新设计语言重述**，与 3d 把旧分析页搬成九个子视图同类。路由表的改动由 3g 的壳层步骤统一做（`routes.tsx` + `app/router.tsx` + `pageSkeleton.test.tsx` + 侧栏与命令面板注册），不许页面 agent 顺手加参数（§10.6 缺口 15 的教训）
+
+旧的 `features/guide/` 仍按 §10 阶段 4 删除。

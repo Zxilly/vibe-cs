@@ -1,3 +1,9 @@
+use std::{
+    collections::{HashMap, HashSet},
+    io::{Read as _, Write as _},
+    path::{Path as FilePath, PathBuf},
+};
+
 use axum::{
     Json, Router,
     extract::{Path, State},
@@ -10,8 +16,15 @@ use sha2::{Digest as _, Sha256};
 use tokio::time::{Duration, MissedTickBehavior};
 use uuid::Uuid;
 use vibe_cs_domain::{
-    DirectorPlan, DirectorShotKind, HlaeCameraStyle, JobStatus, MatchAnalysis, RecordingJob,
-    RecordingRequest,
+    DemoRecord, DirectorPlan, DirectorShotKind, HlaeCameraStyle, JobStatus, MatchAnalysis,
+    RECORDING_PREFLIGHT_MAX_AFFECTED_ITEMS, RECORDING_PREFLIGHT_MAX_DETAIL_CHARS, RecordingJob,
+    RecordingPreflight, RecordingPreflightCheck, RecordingPreflightCode, RecordingPreflightState,
+    RecordingPresentation, RecordingRequest,
+};
+use vibe_cs_hlae::{CaptureLayers, CaptureSettings, estimate_hlae_capture_span_resources};
+use vibe_cs_platform_windows::{
+    HlaeSequenceEncoderCapabilityReport, probe_hlae_sequence_encoder_capabilities,
+    recommended_hlae_staging_safety_reserve,
 };
 use vibe_cs_recording::{DirectorPolicy, build_director_plan};
 
@@ -30,6 +43,7 @@ pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/recording/plan", post(plan))
         .route("/api/recording/plans/{id}/execute", post(execute_plan))
+        .route("/api/recording/plans/{id}/preflight", post(preflight_plan))
         .route("/api/recording/jobs/{id}", get(get_job))
         .route("/api/recording/jobs/{id}/retry-plan", post(retry_plan))
         .route("/api/recording/jobs/{id}/cancel", post(cancel_job))
@@ -58,6 +72,9 @@ struct RecordingQueueItem {
     victim_pov: bool,
     #[serde(default)]
     camera_style: HlaeCameraStyle,
+    /// `None` keeps the global `AppConfig.recording` defaults for this shot.
+    #[serde(default)]
+    presentation: Option<RecordingPresentation>,
 }
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
@@ -68,8 +85,11 @@ where
     Option::<T>::deserialize(deserializer)
 }
 
+/// The single recording-plan contract. It is `pub(super)` rather than private
+/// because [`create_recording_plan`] is also the entry point the Agent plan
+/// route uses; both paths must answer with the same document.
 #[derive(Debug, Serialize)]
-struct RecordingPlanResponse {
+pub(super) struct RecordingPlanResponse {
     plan_id: Uuid,
     expires_at: chrono::DateTime<Utc>,
     active_items: usize,
@@ -103,7 +123,14 @@ async fn retry_plan(
     create_recording_plan(&state, items, Some(parent_id)).await
 }
 
-async fn create_recording_plan(
+/// Turns an assembled queue into a leased, preflighted recording plan.
+///
+/// Every route that produces a recording plan goes through this one function -
+/// `/api/recording/plan`, the retry plan, and the Agent plan route in
+/// [`super::agent_sessions`]. The director orchestration, the duration
+/// estimate, the plan lease and its TTL all live here, so a second caller that
+/// reimplemented them would be a second, silently diverging behaviour.
+pub(super) async fn create_recording_plan(
     state: &AppState,
     active_items: Vec<RecordingRequest>,
     retry_of: Option<Uuid>,
@@ -833,6 +860,855 @@ async fn clear_active_job(state: &AppState, id: Uuid) {
     state.release_recording_session(id).await;
 }
 
+// ---------------------------------------------------------------------------
+// Pre-recording checks
+// ---------------------------------------------------------------------------
+
+/// The managed recordings directory. Mirrors runtime's
+/// `RECORDED_CLIP_DIRECTORY`: every published clip is a direct child of
+/// `<data dir>/recordings`, and the capture stages its frames on the same
+/// volume.
+const RECORDING_OUTPUT_DIRECTORY: &str = "recordings";
+/// Largest Demo the capture pipeline will open. Mirrors runtime's
+/// `MAXIMUM_RECORDING_DEMO_BYTES`.
+const MAXIMUM_PREFLIGHT_DEMO_BYTES: u64 = 8 * 1_024 * 1_024 * 1_024;
+/// Ticks the capture scheduler may overshoot past the requested end. Mirrors
+/// runtime's `CAPTURE_SCHEDULER_OVERSHOOT_TICKS`; the staging estimate is taken
+/// over the same span the session actually captures.
+const PREFLIGHT_CAPTURE_OVERSHOOT_TICKS: u32 = 8;
+
+/// Runs the closed pre-recording check list for one leased plan.
+///
+/// # Why this hangs off a plan id
+///
+/// Half of the checks are statements about *these shots*: whether this Demo
+/// still hashes to what was analyzed, whether this shot's tick window fits
+/// inside the Demo, whether this player-POV shot has a parser-observed
+/// spectator slot. A parameterless environment probe could not answer any of
+/// them, and could not fill [`RecordingPreflightCheck::affected_item_ids`].
+/// The plan id is the same [`RecordingPlanLease`] `execute` consumes, so the
+/// rows describe exactly the shots the next `execute` would run.
+///
+/// # Why POST
+///
+/// Each call discovers the CS2 executable, verifies the managed HLAE
+/// installation, hashes every Demo the plan references, creates and write-probes
+/// the managed output directory, queries free space and probes the Media
+/// Foundation encoder inventory. None of that is cacheable and all of it is a
+/// point-in-time measurement, so it is a POST, not a GET a proxy may replay.
+/// Unlike `execute` it is read-only with respect to the lease: it never claims,
+/// starts, or evicts a plan, so the check list can be re-run as often as the
+/// user presses the button.
+///
+/// # Relationship to `RecordingPlanResponse.warnings`
+///
+/// `warnings` stays what it always was: free text noticed while a plan was
+/// being built, printable but not renderable as a row with a state. This is the
+/// closed, per-row list. The one overlap today is the single warning
+/// `create_recording_plan` pushes when no Demo has a usable analyzed tick rate;
+/// [`RecordingPreflightCode::TickRangeWithinDemo`] reports that same missing
+/// evidence as a blocking row, so that warning is the first candidate for
+/// removal once clients read this list. Nothing is removed in this change.
+async fn preflight_plan(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> ApiResult<Json<RecordingPreflight>> {
+    let plan_id = parse_id(&id)?;
+    let items = leased_plan_items(&state, plan_id).await?;
+    let facts = recording_preflight_facts(&state, &items).await?;
+    Ok(Json(build_recording_preflight(&facts)?))
+}
+
+/// Reads a live plan lease's shots without consuming it.
+///
+/// The two failure codes are `execute`'s, deliberately: a client that already
+/// handles a lost or expired plan there needs no second vocabulary here. Unlike
+/// `execute` this never removes the expired entry, so a later `execute` still
+/// answers `recording_plan_expired` rather than `recording_plan_unavailable`.
+async fn leased_plan_items(state: &AppState, plan_id: Uuid) -> ApiResult<Vec<RecordingRequest>> {
+    let leases = state.recording_plans.lock().await;
+    let Some(lease) = leases.get(&plan_id) else {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "recording_plan_unavailable",
+            "Recording plan is missing or no longer available",
+        ));
+    };
+    let expired = lease.expires_at <= Utc::now() || lease.deadline <= tokio::time::Instant::now();
+    if expired && !matches!(lease.state, RecordingPlanLeaseState::Starting { .. }) {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "recording_plan_expired",
+            "Recording plan expired; create a new plan before recording",
+        ));
+    }
+    Ok(lease.items.clone())
+}
+
+/// Everything the check list is computed from, measured once per request.
+#[derive(Debug)]
+struct RecordingPreflightFacts {
+    /// The discovered CS2 executable, the same fact `/api/status/setup` reports.
+    game_executable: Option<String>,
+    capture_component: CaptureComponentFacts,
+    encoder: HlaeSequenceEncoderCapabilityReport,
+    output: OutputRootFacts,
+    /// One entry per distinct Demo the plan references.
+    demos: Vec<DemoContentFacts>,
+    /// One entry per plan item, in plan order.
+    items: Vec<PlanItemFacts>,
+}
+
+#[derive(Debug)]
+struct CaptureComponentFacts {
+    prepared: bool,
+    available: bool,
+    launch_profile_ready: bool,
+    version: String,
+    messages: Vec<String>,
+}
+
+#[derive(Debug)]
+struct OutputRootFacts {
+    path: String,
+    /// Why the directory could not be created or written to, when it could not.
+    unwritable: Option<String>,
+    available_bytes: u64,
+    /// What one take of this plan stages at its worst case, plus the free-space
+    /// reserve the capture session keeps. `None` when the plan carries no
+    /// estimable span - the tick rows report that same evidence gap.
+    required_bytes: Option<u64>,
+}
+
+#[derive(Debug)]
+struct DemoContentFacts {
+    /// Why this Demo no longer matches what was analyzed, when it does not.
+    mismatch: Option<String>,
+    /// The plan items that record from this Demo.
+    item_ids: Vec<Uuid>,
+}
+
+#[derive(Debug)]
+struct PlanItemFacts {
+    id: Option<Uuid>,
+    /// True for a camera-path shot: the shots whose coordinates the HLAE plan
+    /// validator refuses to check against map geometry. Player-POV shots carry
+    /// no invented coordinates.
+    observer_shot: bool,
+    /// Why this player-POV shot has no parser-observed spectator slot, when it
+    /// has none. Always `None` for a camera-path shot, which needs no slot.
+    missing_spectator_evidence: Option<String>,
+    /// Why this shot's tick window is not provably inside the Demo, when it is
+    /// not.
+    tick_window_problem: Option<String>,
+}
+
+fn build_recording_preflight(
+    facts: &RecordingPreflightFacts,
+) -> Result<RecordingPreflight, vibe_cs_domain::DomainError> {
+    RecordingPreflight::new(vec![
+        game_ready_check(facts),
+        capture_component_check(facts),
+        demo_content_check(facts),
+        output_directory_check(facts),
+        spectator_evidence_check(facts),
+        encoder_check(facts),
+        tick_range_check(facts),
+        camera_collision_check(facts),
+    ])
+}
+
+fn game_ready_check(facts: &RecordingPreflightFacts) -> RecordingPreflightCheck {
+    facts.game_executable.as_ref().map_or_else(
+        || {
+            preflight_row(
+                RecordingPreflightCode::GameReady,
+                RecordingPreflightState::Blocked,
+                "no CS2 executable was discovered",
+                Vec::new(),
+            )
+        },
+        |path| {
+            preflight_row(
+                RecordingPreflightCode::GameReady,
+                RecordingPreflightState::Ok,
+                &format!("CS2 executable: {path}"),
+                Vec::new(),
+            )
+        },
+    )
+}
+
+fn capture_component_check(facts: &RecordingPreflightFacts) -> RecordingPreflightCheck {
+    let component = &facts.capture_component;
+    let version = &component.version;
+    if component.prepared && component.available && component.launch_profile_ready {
+        return preflight_row(
+            RecordingPreflightCode::CaptureComponentReady,
+            RecordingPreflightState::Ok,
+            &format!("managed HLAE {version} is prepared and its launch profile is complete"),
+            Vec::new(),
+        );
+    }
+    let messages = component.messages.join("; ");
+    preflight_row(
+        RecordingPreflightCode::CaptureComponentReady,
+        RecordingPreflightState::Blocked,
+        &format!(
+            "managed HLAE {version}: prepared={}, installation verified={}, launch profile ready={}. {messages}",
+            component.prepared, component.available, component.launch_profile_ready
+        ),
+        Vec::new(),
+    )
+}
+
+fn demo_content_check(facts: &RecordingPreflightFacts) -> RecordingPreflightCheck {
+    let mismatches = facts
+        .demos
+        .iter()
+        .filter(|demo| demo.mismatch.is_some())
+        .collect::<Vec<_>>();
+    if mismatches.is_empty() {
+        return preflight_row(
+            RecordingPreflightCode::DemoContentMatches,
+            RecordingPreflightState::Ok,
+            &format!(
+                "{} Demo file(s) still hash to the content that was analyzed",
+                facts.demos.len()
+            ),
+            Vec::new(),
+        );
+    }
+    let detail = mismatches
+        .iter()
+        .filter_map(|demo| demo.mismatch.clone())
+        .collect::<Vec<_>>()
+        .join("; ");
+    let affected = mismatches
+        .iter()
+        .flat_map(|demo| demo.item_ids.iter().copied())
+        .collect::<Vec<_>>();
+    preflight_row(
+        RecordingPreflightCode::DemoContentMatches,
+        RecordingPreflightState::Blocked,
+        &detail,
+        affected,
+    )
+}
+
+fn output_directory_check(facts: &RecordingPreflightFacts) -> RecordingPreflightCheck {
+    let output = &facts.output;
+    let path = &output.path;
+    if let Some(reason) = &output.unwritable {
+        return preflight_row(
+            RecordingPreflightCode::OutputDirectoryWritable,
+            RecordingPreflightState::Blocked,
+            &format!("{path}: {reason}"),
+            Vec::new(),
+        );
+    }
+    let available = describe_bytes(output.available_bytes);
+    let Some(required_bytes) = output.required_bytes else {
+        return preflight_row(
+            RecordingPreflightCode::OutputDirectoryWritable,
+            RecordingPreflightState::Ok,
+            &format!("{path}: writable, {available} free; the staging estimate is unavailable"),
+            Vec::new(),
+        );
+    };
+    let required = describe_bytes(required_bytes);
+    if output.available_bytes < required_bytes {
+        return preflight_row(
+            RecordingPreflightCode::OutputDirectoryWritable,
+            RecordingPreflightState::Blocked,
+            &format!("{path}: {available} free, {required} required by the longest shot"),
+            Vec::new(),
+        );
+    }
+    preflight_row(
+        RecordingPreflightCode::OutputDirectoryWritable,
+        RecordingPreflightState::Ok,
+        &format!("{path}: writable, {available} free, {required} required by the longest shot"),
+        Vec::new(),
+    )
+}
+
+fn spectator_evidence_check(facts: &RecordingPreflightFacts) -> RecordingPreflightCheck {
+    let pov_items = facts
+        .items
+        .iter()
+        .filter(|item| !item.observer_shot)
+        .count();
+    if pov_items == 0 {
+        return preflight_row(
+            RecordingPreflightCode::SpectatorEvidenceComplete,
+            RecordingPreflightState::Ok,
+            "the plan contains no player-POV shot",
+            Vec::new(),
+        );
+    }
+    let missing = facts
+        .items
+        .iter()
+        .filter(|item| item.missing_spectator_evidence.is_some())
+        .collect::<Vec<_>>();
+    if missing.is_empty() {
+        return preflight_row(
+            RecordingPreflightCode::SpectatorEvidenceComplete,
+            RecordingPreflightState::Ok,
+            &format!("{pov_items} player-POV shot(s) have a parser-observed CS2 spectator slot"),
+            Vec::new(),
+        );
+    }
+    let detail = missing
+        .iter()
+        .filter_map(|item| item.missing_spectator_evidence.clone())
+        .collect::<Vec<_>>()
+        .join("; ");
+    preflight_row(
+        RecordingPreflightCode::SpectatorEvidenceComplete,
+        RecordingPreflightState::Blocked,
+        &detail,
+        missing.iter().filter_map(|item| item.id).collect(),
+    )
+}
+
+fn encoder_check(facts: &RecordingPreflightFacts) -> RecordingPreflightCheck {
+    let report = &facts.encoder;
+    let counts = format!(
+        "H.264 encoders: {}, AAC encoders: {}",
+        report.registered_h264_encoder_count, report.registered_aac_encoder_count
+    );
+    // The same rule runtime's `verify_native_encoder_candidates` applies before
+    // a capture, with `require_audio` true: managed capture always records WAV.
+    let blocked = !report.media_foundation_started
+        || report.registered_h264_encoder_count == 0
+        || report.registered_aac_encoder_count == 0;
+    if blocked {
+        return preflight_row(
+            RecordingPreflightCode::EncoderAvailable,
+            RecordingPreflightState::Blocked,
+            &format!("{counts}. {}", report.detail),
+            Vec::new(),
+        );
+    }
+    preflight_row(
+        RecordingPreflightCode::EncoderAvailable,
+        RecordingPreflightState::Ok,
+        &counts,
+        Vec::new(),
+    )
+}
+
+fn tick_range_check(facts: &RecordingPreflightFacts) -> RecordingPreflightCheck {
+    let outside = facts
+        .items
+        .iter()
+        .filter(|item| item.tick_window_problem.is_some())
+        .collect::<Vec<_>>();
+    if outside.is_empty() {
+        return preflight_row(
+            RecordingPreflightCode::TickRangeWithinDemo,
+            RecordingPreflightState::Ok,
+            &format!(
+                "{} shot(s) lie inside their Demo's parser-verified tick count",
+                facts.items.len()
+            ),
+            Vec::new(),
+        );
+    }
+    let detail = outside
+        .iter()
+        .filter_map(|item| item.tick_window_problem.clone())
+        .collect::<Vec<_>>()
+        .join("; ");
+    preflight_row(
+        RecordingPreflightCode::TickRangeWithinDemo,
+        RecordingPreflightState::Blocked,
+        &detail,
+        outside.iter().filter_map(|item| item.id).collect(),
+    )
+}
+
+fn camera_collision_check(facts: &RecordingPreflightFacts) -> RecordingPreflightCheck {
+    let observer_items = facts
+        .items
+        .iter()
+        .filter(|item| item.observer_shot)
+        .collect::<Vec<_>>();
+    if observer_items.is_empty() {
+        return preflight_row(
+            RecordingPreflightCode::CameraCollisionUnverified,
+            RecordingPreflightState::Ok,
+            "the plan contains no camera-path shot",
+            Vec::new(),
+        );
+    }
+    preflight_row(
+        RecordingPreflightCode::CameraCollisionUnverified,
+        RecordingPreflightState::Warning,
+        &format!(
+            "{} camera-path shot(s): camera coordinates cannot be checked against map geometry before HLAE preview",
+            observer_items.len()
+        ),
+        observer_items.iter().filter_map(|item| item.id).collect(),
+    )
+}
+
+/// Builds one row, keeping both bounded fields inside the domain's limits.
+///
+/// The caller composes facts, not lengths: a Windows path plus several Demo
+/// names can outgrow [`RECORDING_PREFLIGHT_MAX_DETAIL_CHARS`], and a plan can
+/// carry more shots than [`RECORDING_PREFLIGHT_MAX_AFFECTED_ITEMS`]. Truncating
+/// here keeps an oversized measurement from turning the whole check list into an
+/// error - the count in `detail` still states how many shots there really are.
+fn preflight_row(
+    code: RecordingPreflightCode,
+    state: RecordingPreflightState,
+    detail: &str,
+    affected_item_ids: Vec<Uuid>,
+) -> RecordingPreflightCheck {
+    RecordingPreflightCheck {
+        code,
+        state,
+        detail: bounded_detail(detail),
+        affected_item_ids: bounded_affected_items(affected_item_ids),
+    }
+}
+
+fn bounded_detail(detail: &str) -> String {
+    let detail = detail.trim();
+    if detail.chars().count() <= RECORDING_PREFLIGHT_MAX_DETAIL_CHARS {
+        return detail.to_owned();
+    }
+    let mut bounded = detail
+        .chars()
+        .take(RECORDING_PREFLIGHT_MAX_DETAIL_CHARS - 3)
+        .collect::<String>();
+    bounded.push_str("...");
+    bounded
+}
+
+fn bounded_affected_items(ids: Vec<Uuid>) -> Vec<Uuid> {
+    let mut seen = HashSet::with_capacity(ids.len());
+    ids.into_iter()
+        .filter(|id| seen.insert(*id))
+        .take(RECORDING_PREFLIGHT_MAX_AFFECTED_ITEMS)
+        .collect()
+}
+
+/// Formats a measured byte count as both a rounded figure and the exact count.
+fn describe_bytes(bytes: u64) -> String {
+    const UNITS: [(&str, u64); 4] = [
+        ("TB", 1_000_000_000_000),
+        ("GB", 1_000_000_000),
+        ("MB", 1_000_000),
+        ("kB", 1_000),
+    ];
+    for (unit, divisor) in UNITS {
+        if bytes >= divisor {
+            let whole = bytes / divisor;
+            let tenth = bytes % divisor * 10 / divisor;
+            return format!("{whole}.{tenth} {unit} ({bytes} bytes)");
+        }
+    }
+    format!("{bytes} bytes")
+}
+
+async fn recording_preflight_facts(
+    state: &AppState,
+    items: &[RecordingRequest],
+) -> ApiResult<RecordingPreflightFacts> {
+    let config = state.storage.get_config().await?.unwrap_or_default();
+    let hlae = super::system::current_hlae_status(state).await?;
+    let discovery_config = config.clone();
+    let game_executable = tokio::task::spawn_blocking(move || {
+        vibe_cs_integrations::discover_paths(&discovery_config)
+            .cs2
+            .filter(|path| path.is_file())
+            .map(|path| path.to_string_lossy().into_owned())
+    })
+    .await
+    .map_err(|error| preflight_task_error("path discovery", &error))?;
+    let encoder = tokio::task::spawn_blocking(probe_hlae_sequence_encoder_capabilities)
+        .await
+        .map_err(|error| preflight_task_error("encoder capability probe", &error))?;
+
+    let mut demo_ids = items.iter().map(|item| item.demo_id).collect::<Vec<_>>();
+    demo_ids.sort_unstable();
+    demo_ids.dedup();
+    let mut demos = Vec::with_capacity(demo_ids.len());
+    let mut analysis_by_demo = HashMap::with_capacity(demo_ids.len());
+    for demo_id in demo_ids {
+        let record = state.storage.get_demo(demo_id).await?;
+        if let Some(analysis) = state.storage.get_analysis(demo_id).await? {
+            analysis_by_demo.insert(demo_id, analysis);
+        }
+        let item_ids = items
+            .iter()
+            .filter(|item| item.demo_id == demo_id)
+            .filter_map(|item| item.id)
+            .collect::<Vec<_>>();
+        let mismatch = match record {
+            Some(record) => tokio::task::spawn_blocking(move || demo_content_mismatch(&record))
+                .await
+                .map_err(|error| preflight_task_error("Demo content verification", &error))?,
+            None => Some(format!(
+                "Demo {demo_id} is no longer in the library and cannot be verified"
+            )),
+        };
+        demos.push(DemoContentFacts { mismatch, item_ids });
+    }
+
+    let capture = capture_settings(&config);
+    let mut item_facts = Vec::with_capacity(items.len());
+    let mut staging_bytes = 0_u64;
+    for item in items {
+        let analysis = analysis_by_demo.get(&item.demo_id);
+        let observer_shot = item.camera_style != HlaeCameraStyle::Pov;
+        let window = capture_tick_window(item, analysis, observer_shot);
+        if let (Ok(window), Some(capture)) = (&window, capture.as_ref()) {
+            staging_bytes = staging_bytes.max(
+                estimate_hlae_capture_span_resources(
+                    window.first_tick,
+                    window.allowed_last_tick,
+                    window.tick_rate,
+                    capture,
+                )
+                .map_or(0, |estimate| estimate.total_bytes),
+            );
+        }
+        item_facts.push(PlanItemFacts {
+            id: item.id,
+            observer_shot,
+            missing_spectator_evidence: if observer_shot {
+                None
+            } else {
+                missing_spectator_evidence(item, analysis)
+            },
+            tick_window_problem: window.err(),
+        });
+    }
+    let required_bytes = (staging_bytes > 0)
+        .then(|| {
+            recommended_hlae_staging_safety_reserve(staging_bytes)
+                .ok()
+                .and_then(|reserve| staging_bytes.checked_add(reserve))
+        })
+        .flatten();
+
+    let output_root = state.data_dir().join(RECORDING_OUTPUT_DIRECTORY);
+    let output =
+        tokio::task::spawn_blocking(move || probe_output_root(&output_root, required_bytes))
+            .await
+            .map_err(|error| preflight_task_error("output directory probe", &error))?;
+
+    Ok(RecordingPreflightFacts {
+        game_executable,
+        capture_component: CaptureComponentFacts {
+            prepared: hlae.managed_release.prepared,
+            available: hlae.available,
+            launch_profile_ready: hlae.launch_profile_ready,
+            version: hlae.managed_release.version,
+            messages: hlae.messages,
+        },
+        encoder,
+        output,
+        demos,
+        items: item_facts,
+    })
+}
+
+fn preflight_task_error(what: &str, error: &tokio::task::JoinError) -> ApiError {
+    ApiError::new(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "recording_preflight_failed",
+        format!("Recording preflight {what} task failed: {error}"),
+    )
+}
+
+/// The capture settings runtime derives from the same configuration. `None`
+/// when the configured resolution or frame rate is outside the native MP4
+/// contract, which leaves the staging estimate unavailable rather than guessed.
+fn capture_settings(config: &vibe_cs_domain::AppConfig) -> Option<CaptureSettings> {
+    let (width, height) = config.recording.resolution.trim().split_once('x')?;
+    let width = width.parse::<u32>().ok()?;
+    let height = height.parse::<u32>().ok()?;
+    if !(320..=4_096).contains(&width)
+        || !(240..=2_304).contains(&height)
+        || !width.is_multiple_of(2)
+        || !height.is_multiple_of(2)
+        || !matches!(config.recording.fps, 30 | 60)
+    {
+        return None;
+    }
+    Some(CaptureSettings {
+        fps: config.recording.fps,
+        width,
+        height,
+        record_wav: true,
+        layers: CaptureLayers::default(),
+    })
+}
+
+/// The tick span one shot actually captures.
+#[derive(Debug)]
+struct CaptureTickWindow {
+    first_tick: u32,
+    allowed_last_tick: u32,
+    tick_rate: f64,
+}
+
+/// Re-derives the window runtime's `build_segment_plan` computes and checks it
+/// against the parser-verified Demo length.
+///
+/// The `Err` string is the row's `detail`: it names the shot's title so a list
+/// of several problems stays readable.
+fn capture_tick_window(
+    item: &RecordingRequest,
+    analysis: Option<&MatchAnalysis>,
+    observer_shot: bool,
+) -> Result<CaptureTickWindow, String> {
+    let title = item.title.trim();
+    let Some(analysis) = analysis else {
+        return Err(format!("{title}: the Demo has no persisted analysis"));
+    };
+    let tick_rate = analysis.tick_rate;
+    if !tick_rate.is_finite() || !(1.0..=256.0).contains(&tick_rate) {
+        return Err(format!("{title}: the Demo has no analyzed tick rate"));
+    }
+    let Some(verified_total_ticks) = analysis.verified_total_ticks.filter(|ticks| *ticks > 0)
+    else {
+        return Err(format!(
+            "{title}: the Demo has no parser-verified total tick count"
+        ));
+    };
+    let pre_roll_ticks = roll_ticks(item.pre_roll_seconds, tick_rate)
+        .ok_or_else(|| format!("{title}: the pre-roll is outside the supported tick range"))?;
+    let post_roll_ticks = roll_ticks(item.post_roll_seconds, tick_rate)
+        .ok_or_else(|| format!("{title}: the post-roll is outside the supported tick range"))?;
+    let first_tick = item.start_tick.saturating_sub(pre_roll_ticks);
+    let last_tick = item
+        .end_tick
+        .checked_add(post_roll_ticks)
+        .ok_or_else(|| format!("{title}: the post-roll exceeds the tick range"))?;
+    if last_tick <= first_tick {
+        return Err(format!("{title}: the tick window is empty"));
+    }
+    if last_tick > u64::from(verified_total_ticks) {
+        return Err(format!(
+            "{title}: ticks {first_tick}-{last_tick} exceed the Demo's {verified_total_ticks} verified ticks"
+        ));
+    }
+    // `build_player_pov_plan` seeks one tick before the window and refuses to
+    // start a POV capture below tick 3.
+    if !observer_shot && first_tick < 3 {
+        return Err(format!(
+            "{title}: player-POV capture starts at tick {first_tick}, before the Demo's tick 3"
+        ));
+    }
+    let first_tick = u32::try_from(first_tick)
+        .map_err(|_| format!("{title}: the start tick is outside the capture range"))?;
+    let last_tick = u32::try_from(last_tick)
+        .map_err(|_| format!("{title}: the end tick is outside the capture range"))?;
+    Ok(CaptureTickWindow {
+        first_tick,
+        allowed_last_tick: last_tick.saturating_add(
+            verified_total_ticks
+                .saturating_sub(last_tick)
+                .min(PREFLIGHT_CAPTURE_OVERSHOOT_TICKS),
+        ),
+        tick_rate,
+    })
+}
+
+fn roll_ticks(seconds: f64, tick_rate: f64) -> Option<u64> {
+    let ticks = seconds * tick_rate;
+    if !ticks.is_finite() || ticks < 0.0 || ticks > 2_f64.powi(53) {
+        return None;
+    }
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "the value was just proven finite, non-negative and below 2^53"
+    )]
+    Some(ticks.ceil() as u64)
+}
+
+/// Mirrors runtime's `resolve_camera_player` and `resolved_spectator_slot`:
+/// the slot must come from the parser, name exactly one player, and be the only
+/// player holding it.
+///
+/// Every path that cannot produce a slot returns a reason. A missing analysis or
+/// an unresolvable victim is exactly the "no parser-observed slot" this check
+/// reports - answering `None` there would turn an unanswered question into a
+/// green row.
+fn missing_spectator_evidence(
+    item: &RecordingRequest,
+    analysis: Option<&MatchAnalysis>,
+) -> Option<String> {
+    let title = item.title.trim();
+    let Some(analysis) = analysis else {
+        return Some(format!("{title}: the Demo has no persisted analysis"));
+    };
+    let camera_player = if item.victim_pov {
+        let Some(highlight_id) = item.highlight_id.as_deref() else {
+            return Some(format!(
+                "{title}: a victim-reaction shot needs a highlight id before its victim can be named"
+            ));
+        };
+        let Some(highlight) = analysis
+            .highlights
+            .iter()
+            .find(|highlight| highlight.id == highlight_id)
+        else {
+            return Some(format!(
+                "{title}: highlight {highlight_id} is not in the persisted analysis"
+            ));
+        };
+        let Some(victim) = highlight.victims.iter().find(|victim| {
+            analysis
+                .players
+                .iter()
+                .any(|player| player.steam_id == victim.as_str())
+        }) else {
+            return Some(format!(
+                "{title}: highlight {highlight_id} names no victim the analysis knows"
+            ));
+        };
+        victim.clone()
+    } else {
+        item.player_id.clone()
+    };
+    let mut named = analysis
+        .players
+        .iter()
+        .filter(|player| player.steam_id == camera_player);
+    let Some(player) = named.next() else {
+        return Some(format!(
+            "{title}: the analysis does not list player {camera_player}"
+        ));
+    };
+    if named.next().is_some() {
+        return Some(format!(
+            "{title}: the analysis lists {camera_player} more than once, so no spectator slot is unambiguous"
+        ));
+    }
+    let Some(slot) = player.spectator_slot.filter(|slot| (1..=64).contains(slot)) else {
+        return Some(format!(
+            "{title}: the analysis records no CS2 spectator slot for {camera_player}"
+        ));
+    };
+    if analysis
+        .players
+        .iter()
+        .filter(|player| player.spectator_slot == Some(slot))
+        .count()
+        == 1
+    {
+        None
+    } else {
+        Some(format!(
+            "{title}: spectator slot {slot} is claimed by more than one player"
+        ))
+    }
+}
+
+/// Re-checks the Demo the way runtime's `verify_recording_demo_content` does
+/// before every take: the file must still be a bounded regular non-link file
+/// whose bytes hash to the fingerprint the analysis was bound to.
+fn demo_content_mismatch(demo: &DemoRecord) -> Option<String> {
+    let name = demo.file_name.trim();
+    let Some(expected) = demo
+        .content_sha256
+        .as_deref()
+        .filter(|value| value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()))
+    else {
+        return Some(format!(
+            "{name}: no analyzed content hash is stored; reimport it before recording"
+        ));
+    };
+    let path = FilePath::new(&demo.path);
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) => return Some(format!("{name}: {error}")),
+    };
+    if !metadata.is_file() || metadata.file_type().is_symlink() {
+        return Some(format!("{name}: is not a regular file"));
+    }
+    if metadata.len() > MAXIMUM_PREFLIGHT_DEMO_BYTES {
+        return Some(format!(
+            "{name}: {} exceeds the {MAXIMUM_PREFLIGHT_DEMO_BYTES} byte recording limit",
+            metadata.len()
+        ));
+    }
+    if metadata.len() != demo.file_size {
+        return Some(format!(
+            "{name}: {} bytes on disk, {} bytes when analyzed",
+            metadata.len(),
+            demo.file_size
+        ));
+    }
+    match hash_file(path) {
+        Ok(actual) if actual.eq_ignore_ascii_case(expected) => None,
+        Ok(_) => Some(format!(
+            "{name}: content no longer matches the SHA-256 the analysis was bound to"
+        )),
+        Err(error) => Some(format!("{name}: {error}")),
+    }
+}
+
+fn hash_file(path: &FilePath) -> std::io::Result<String> {
+    let mut file = std::fs::File::open(path)?;
+    let mut hash = Sha256::new();
+    let mut buffer = vec![0_u8; 64 * 1_024].into_boxed_slice();
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            break;
+        }
+        hash.update(&buffer[..read]);
+    }
+    Ok(hex::encode(hash.finalize()))
+}
+
+/// Creates, write-probes and measures the managed output directory.
+fn probe_output_root(path: &FilePath, required_bytes: Option<u64>) -> OutputRootFacts {
+    let display = path.display().to_string();
+    match write_probe_output_root(path) {
+        Ok(available_bytes) => OutputRootFacts {
+            path: display,
+            unwritable: None,
+            available_bytes,
+            required_bytes,
+        },
+        Err(error) => OutputRootFacts {
+            path: display,
+            unwritable: Some(error.to_string()),
+            available_bytes: 0,
+            required_bytes,
+        },
+    }
+}
+
+fn write_probe_output_root(path: &FilePath) -> std::io::Result<u64> {
+    std::fs::create_dir_all(path)?;
+    let probe: PathBuf = path.join(format!(".recording-preflight-{}.tmp", Uuid::new_v4()));
+    let written = (|| -> std::io::Result<()> {
+        let mut file = std::fs::OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&probe)?;
+        file.write_all(b"preflight")?;
+        file.flush()?;
+        file.sync_all()
+    })();
+    let removed = std::fs::remove_file(&probe);
+    written?;
+    removed?;
+    fs4::available_space(path)
+}
+
 fn convert_item(item: RecordingQueueItem) -> Result<RecordingRequest, String> {
     let demo_id = Uuid::parse_str(&item.demo_id).map_err(|_| "demo_id must be a UUID")?;
     let request = RecordingRequest {
@@ -847,6 +1723,7 @@ fn convert_item(item: RecordingQueueItem) -> Result<RecordingRequest, String> {
         post_roll_seconds: item.post_roll_seconds,
         victim_pov: item.victim_pov,
         camera_style: item.camera_style,
+        presentation: item.presentation,
     };
     request.validate().map_err(|error| error.to_string())?;
     Ok(request)
@@ -1153,7 +2030,8 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: HlaeCameraStyle::default(),
+            presentation: None,
         }
     }
 
@@ -1271,7 +2149,8 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: HlaeCameraStyle::default(),
+            presentation: None,
         };
         assert!(convert_item(item).is_err());
     }
@@ -1289,7 +2168,8 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: HlaeCameraStyle::default(),
+            presentation: None,
         })
         .expect("current native contract");
 
@@ -1314,7 +2194,8 @@ mod tests {
             pre_roll_seconds: 3.0,
             post_roll_seconds: 2.0,
             victim_pov: true,
-            camera_style: Default::default(),
+            camera_style: HlaeCameraStyle::default(),
+            presentation: None,
         };
         let plan = DirectorPlan {
             shots: vec![
@@ -1370,7 +2251,8 @@ mod tests {
             pre_roll_seconds: 1.0,
             post_roll_seconds: 2.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: HlaeCameraStyle::default(),
+            presentation: None,
         };
         let analysis = MatchAnalysis {
             demo_id,
@@ -1407,7 +2289,8 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: HlaeCameraStyle::default(),
+            presentation: None,
         };
         let mut second = first.clone();
         second.id = Uuid::new_v4().to_string();
@@ -1894,7 +2777,8 @@ mod tests {
                     pre_roll_seconds: 0.0,
                     post_roll_seconds: 0.0,
                     victim_pov: false,
-                    camera_style: Default::default(),
+                    camera_style: HlaeCameraStyle::default(),
+                    presentation: None,
                 }],
             }),
         )
@@ -2209,7 +3093,8 @@ mod tests {
                     pre_roll_seconds: 0.0,
                     post_roll_seconds: 0.0,
                     victim_pov: false,
-                    camera_style: Default::default(),
+                    camera_style: HlaeCameraStyle::default(),
+                    presentation: None,
                 }],
             }),
         )
@@ -2237,7 +3122,8 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: HlaeCameraStyle::default(),
+            presentation: None,
         };
         let mut invalid = valid.clone();
         invalid.end_tick = invalid.start_tick.saturating_sub(1);
@@ -2251,6 +3137,59 @@ mod tests {
         .await
         .expect_err("plan must never hide an invalid enabled item as a warning");
         assert_eq!(error.into_response().status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn plan_rejects_a_field_of_view_an_observer_shot_would_never_apply() {
+        let recording = Arc::new(CountingRecordingPort::default());
+        let (_directory, state) = state_with_recording(recording).await;
+        let mut item = plan_queue_item(Uuid::new_v4());
+        item.camera_style = HlaeCameraStyle::Tracking;
+        item.presentation = Some(RecordingPresentation {
+            camera_fov: 120.0,
+            ..RecordingPresentation::default()
+        });
+
+        let error = plan(
+            State(state),
+            ApiJson(RecordingQueueRequest { items: vec![item] }),
+        )
+        .await
+        .expect_err("an observer shot takes its field of view from the camera path");
+
+        let message = error.to_string();
+        assert!(
+            message.contains("camera_fov") && message.contains("camera path"),
+            "the rejection must name the field and the reason: {message}"
+        );
+        assert_eq!(error.into_response().status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn plan_accepts_the_scene_controls_that_do_apply_to_an_observer_shot() {
+        let recording = Arc::new(CountingRecordingPort::default());
+        let (_directory, state) = state_with_recording(Arc::clone(&recording)).await;
+        let demo_id = Uuid::new_v4();
+        persist_plan_demo(&state, demo_id).await;
+        let mut item = plan_queue_item(demo_id);
+        item.camera_style = HlaeCameraStyle::Tracking;
+        item.presentation = Some(RecordingPresentation {
+            show_hud: false,
+            show_radar: false,
+            flash_alpha: 102,
+            voice: vibe_cs_domain::RecordingVoicePolicy::TargetOnly,
+            ..RecordingPresentation::default()
+        });
+        let expected = item.presentation;
+
+        let response = plan(
+            State(state),
+            ApiJson(RecordingQueueRequest { items: vec![item] }),
+        )
+        .await
+        .expect("HUD, radar, flash and voice are meaningful for an observer shot");
+
+        assert_eq!(response.0.items[0].presentation, expected);
     }
 
     #[tokio::test]
@@ -2289,5 +3228,534 @@ mod tests {
 
         assert_eq!(*state.active_recording.lock().await, None);
         assert!(state.recording_monitors.lock().await.is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // Pre-recording checks
+    // -----------------------------------------------------------------------
+
+    async fn error_code(error: ApiError) -> (StatusCode, String) {
+        let response = error.into_response();
+        let status = response.status();
+        let body = axum::body::to_bytes(response.into_body(), 4 * 1024)
+            .await
+            .expect("error body");
+        let problem: vibe_cs_domain::ErrorBody =
+            serde_json::from_slice(&body).expect("error payload");
+        (status, problem.code)
+    }
+
+    fn preflight_check(
+        preflight: &RecordingPreflight,
+        code: RecordingPreflightCode,
+    ) -> &RecordingPreflightCheck {
+        preflight
+            .checks
+            .iter()
+            .find(|check| check.code == code)
+            .unwrap_or_else(|| panic!("the list must report {}", code.as_str()))
+    }
+
+    fn registered_encoders() -> HlaeSequenceEncoderCapabilityReport {
+        HlaeSequenceEncoderCapabilityReport {
+            status: vibe_cs_platform_windows::HlaeSequenceEncoderProbeStatus::EncoderCandidatesRegistered,
+            media_foundation_started: true,
+            registered_h264_encoder_count: 1,
+            registered_hardware_h264_encoder_count: 0,
+            registered_aac_encoder_count: 1,
+            end_to_end_mp4_encode_verified: false,
+            detail: "deterministic test inventory".to_owned(),
+        }
+    }
+
+    fn satisfied_pov_item(id: Uuid) -> PlanItemFacts {
+        PlanItemFacts {
+            id: Some(id),
+            observer_shot: false,
+            missing_spectator_evidence: None,
+            tick_window_problem: None,
+        }
+    }
+
+    /// Facts in which every observable condition holds.
+    fn satisfied_facts(item_id: Uuid) -> RecordingPreflightFacts {
+        RecordingPreflightFacts {
+            game_executable: Some("C:/Games/csgo/game/bin/win64/cs2.exe".to_owned()),
+            capture_component: CaptureComponentFacts {
+                prepared: true,
+                available: true,
+                launch_profile_ready: true,
+                version: "2.150".to_owned(),
+                messages: Vec::new(),
+            },
+            encoder: registered_encoders(),
+            output: OutputRootFacts {
+                path: "C:/vibe-cs/recordings".to_owned(),
+                unwritable: None,
+                available_bytes: 218_400_000_000,
+                required_bytes: Some(3_100_000_000),
+            },
+            demos: vec![DemoContentFacts {
+                mismatch: None,
+                item_ids: vec![item_id],
+            }],
+            items: vec![satisfied_pov_item(item_id)],
+        }
+    }
+
+    fn analysis_with_players(
+        demo_id: Uuid,
+        players: Vec<vibe_cs_domain::PlayerStats>,
+    ) -> MatchAnalysis {
+        MatchAnalysis {
+            demo_id,
+            map_name: "de_mirage".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 10.0,
+            verified_total_ticks: Some(640),
+            teams: Vec::new(),
+            players,
+            rounds: Vec::new(),
+            highlights: Vec::new(),
+        }
+    }
+
+    fn player(steam_id: &str, spectator_slot: Option<u8>) -> vibe_cs_domain::PlayerStats {
+        vibe_cs_domain::PlayerStats {
+            steam_id: steam_id.to_owned(),
+            spectator_slot,
+            name: "Player".to_owned(),
+            team: "T".to_owned(),
+            kills: 1,
+            deaths: 0,
+            assists: 0,
+            headshots: 1,
+            damage: 100,
+            adr: 100.0,
+            kill_death_ratio: 1.0,
+            score: 2,
+        }
+    }
+
+    #[test]
+    fn a_satisfied_plan_reports_every_code_and_blocks_nothing() {
+        let item_id = Uuid::new_v4();
+        let preflight =
+            build_recording_preflight(&satisfied_facts(item_id)).expect("a well-formed check list");
+
+        assert_eq!(preflight.checks.len(), RecordingPreflightCode::all().len());
+        for code in RecordingPreflightCode::all() {
+            assert_eq!(
+                preflight_check(&preflight, code).state,
+                RecordingPreflightState::Ok,
+                "{} must hold",
+                code.as_str()
+            );
+        }
+        assert_eq!(preflight.blocking, 0);
+        assert!(!preflight.is_blocked());
+        preflight.validate().expect("self-consistent document");
+        let output = preflight_check(&preflight, RecordingPreflightCode::OutputDirectoryWritable);
+        assert!(
+            output.detail.contains("218.4 GB (218400000000 bytes)"),
+            "the row must carry the measured byte count: {}",
+            output.detail
+        );
+    }
+
+    #[test]
+    fn blocking_counts_only_the_rows_that_stop_a_capture() {
+        let item_id = Uuid::new_v4();
+        let observer_id = Uuid::new_v4();
+        let mut facts = satisfied_facts(item_id);
+        facts.output.unwritable = Some("Access is denied. (os error 5)".to_owned());
+        facts.demos[0].mismatch =
+            Some("match.dem: 12 bytes on disk, 34 bytes when analyzed".to_owned());
+        facts.items.push(PlanItemFacts {
+            id: Some(observer_id),
+            observer_shot: true,
+            missing_spectator_evidence: None,
+            tick_window_problem: None,
+        });
+
+        let preflight = build_recording_preflight(&facts).expect("a well-formed check list");
+
+        assert_eq!(preflight.blocking, 2);
+        assert!(preflight.is_blocked());
+        assert_eq!(
+            preflight_check(&preflight, RecordingPreflightCode::OutputDirectoryWritable).state,
+            RecordingPreflightState::Blocked
+        );
+        assert_eq!(
+            preflight_check(&preflight, RecordingPreflightCode::DemoContentMatches).state,
+            RecordingPreflightState::Blocked
+        );
+        assert_eq!(
+            preflight_check(
+                &preflight,
+                RecordingPreflightCode::CameraCollisionUnverified
+            )
+            .state,
+            RecordingPreflightState::Warning,
+            "a preview limitation is never counted as blocking"
+        );
+    }
+
+    #[test]
+    fn a_check_names_only_the_shots_it_speaks_about() {
+        let pov_id = Uuid::new_v4();
+        let observer_id = Uuid::new_v4();
+        let mut facts = satisfied_facts(pov_id);
+        facts.items[0].missing_spectator_evidence = Some(
+            "Ace: the analysis records no CS2 spectator slot for 76561198000000001".to_owned(),
+        );
+        facts.items.push(PlanItemFacts {
+            id: Some(observer_id),
+            observer_shot: true,
+            missing_spectator_evidence: None,
+            tick_window_problem: Some(
+                "Flyby: ticks 0-900 exceed the Demo's 640 verified ticks".to_owned(),
+            ),
+        });
+
+        let preflight = build_recording_preflight(&facts).expect("a well-formed check list");
+
+        assert_eq!(
+            preflight_check(
+                &preflight,
+                RecordingPreflightCode::SpectatorEvidenceComplete
+            )
+            .affected_item_ids,
+            vec![pov_id],
+            "the camera-path shot needs no spectator slot"
+        );
+        assert_eq!(
+            preflight_check(&preflight, RecordingPreflightCode::TickRangeWithinDemo)
+                .affected_item_ids,
+            vec![observer_id]
+        );
+        assert_eq!(
+            preflight_check(
+                &preflight,
+                RecordingPreflightCode::CameraCollisionUnverified
+            )
+            .affected_item_ids,
+            vec![observer_id]
+        );
+        assert!(
+            preflight_check(&preflight, RecordingPreflightCode::EncoderAvailable)
+                .affected_item_ids
+                .is_empty(),
+            "a whole-plan check names no shot"
+        );
+    }
+
+    #[test]
+    fn an_oversized_measurement_never_invalidates_the_check_list() {
+        let mut facts = satisfied_facts(Uuid::new_v4());
+        facts.items = (0..=RECORDING_PREFLIGHT_MAX_AFFECTED_ITEMS)
+            .map(|index| PlanItemFacts {
+                id: Some(Uuid::new_v4()),
+                observer_shot: true,
+                missing_spectator_evidence: None,
+                tick_window_problem: Some(format!("shot {index}: no persisted analysis")),
+            })
+            .collect();
+
+        let preflight = build_recording_preflight(&facts).expect("a bounded check list");
+
+        let ticks = preflight_check(&preflight, RecordingPreflightCode::TickRangeWithinDemo);
+        assert_eq!(
+            ticks.affected_item_ids.len(),
+            RECORDING_PREFLIGHT_MAX_AFFECTED_ITEMS
+        );
+        assert!(ticks.detail.chars().count() <= RECORDING_PREFLIGHT_MAX_DETAIL_CHARS);
+        assert!(ticks.detail.ends_with("..."));
+    }
+
+    #[test]
+    fn demo_content_is_compared_against_the_analyzed_fingerprint() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let path = directory.path().join("match.dem");
+        std::fs::write(&path, b"demo bytes").expect("demo fixture");
+        let now = Utc::now();
+        let demo = DemoRecord {
+            id: Uuid::new_v4(),
+            path: path.to_string_lossy().into_owned(),
+            file_name: "match.dem".to_owned(),
+            display_name: "Fixture".to_owned(),
+            source: "test".to_owned(),
+            status: vibe_cs_domain::DemoStatus::Ready,
+            map_name: None,
+            match_date: None,
+            duration_seconds: None,
+            total_rounds: None,
+            team_a_name: None,
+            team_b_name: None,
+            team_a_score: None,
+            team_b_score: None,
+            player_names: Vec::new(),
+            remark: String::new(),
+            content_sha256: Some(hex::encode(Sha256::digest(b"demo bytes"))),
+            file_size: 10,
+            created_at: now,
+            updated_at: now,
+        };
+
+        assert_eq!(demo_content_mismatch(&demo), None);
+
+        let mut without_hash = demo.clone();
+        without_hash.content_sha256 = None;
+        assert!(
+            demo_content_mismatch(&without_hash)
+                .expect("an unbound Demo cannot be verified")
+                .contains("no analyzed content hash")
+        );
+
+        let mut resized = demo.clone();
+        resized.file_size = 11;
+        assert!(
+            demo_content_mismatch(&resized)
+                .expect("a resized Demo is a mismatch")
+                .contains("10 bytes on disk, 11 bytes when analyzed")
+        );
+
+        std::fs::write(&path, b"other bytes").expect("rewritten fixture");
+        let mut rewritten = demo;
+        rewritten.file_size = 11;
+        assert!(
+            demo_content_mismatch(&rewritten)
+                .expect("rewritten content is a mismatch")
+                .contains("SHA-256")
+        );
+    }
+
+    #[test]
+    fn the_tick_window_is_the_one_the_capture_actually_records() {
+        let demo_id = Uuid::new_v4();
+        let analysis = analysis_with_players(demo_id, Vec::new());
+        let mut item = RecordingRequest {
+            id: Some(Uuid::new_v4()),
+            demo_id,
+            highlight_id: None,
+            player_id: "76561198000000001".to_owned(),
+            title: "Ace".to_owned(),
+            start_tick: 200,
+            end_tick: 400,
+            pre_roll_seconds: 1.0,
+            post_roll_seconds: 1.0,
+            victim_pov: false,
+            camera_style: HlaeCameraStyle::Pov,
+            presentation: None,
+        };
+
+        let window =
+            capture_tick_window(&item, Some(&analysis), false).expect("a window inside the Demo");
+        assert_eq!(window.first_tick, 136);
+        assert_eq!(window.allowed_last_tick, 472);
+
+        item.end_tick = 639;
+        let outside = capture_tick_window(&item, Some(&analysis), false)
+            .expect_err("the post-roll leaves the verified Demo length");
+        assert!(outside.contains("640 verified ticks"), "{outside}");
+
+        item.end_tick = 400;
+        item.start_tick = 1;
+        item.pre_roll_seconds = 0.0;
+        assert!(
+            capture_tick_window(&item, Some(&analysis), false)
+                .expect_err("POV capture cannot start below tick 3")
+                .contains("tick 3")
+        );
+        capture_tick_window(&item, Some(&analysis), true)
+            .expect("a camera-path shot carries no observer seek floor");
+
+        assert!(
+            capture_tick_window(&item, None, false)
+                .expect_err("an unanalyzed Demo proves nothing")
+                .contains("no persisted analysis")
+        );
+
+        let mut unverified = analysis;
+        unverified.verified_total_ticks = None;
+        assert!(
+            capture_tick_window(&item, Some(&unverified), false)
+                .expect_err("an estimated tick count is not evidence")
+                .contains("parser-verified")
+        );
+    }
+
+    #[test]
+    fn spectator_evidence_comes_from_the_parser_or_not_at_all() {
+        let demo_id = Uuid::new_v4();
+        let item = RecordingRequest {
+            id: Some(Uuid::new_v4()),
+            demo_id,
+            highlight_id: None,
+            player_id: "76561198000000001".to_owned(),
+            title: "Ace".to_owned(),
+            start_tick: 200,
+            end_tick: 400,
+            pre_roll_seconds: 0.0,
+            post_roll_seconds: 0.0,
+            victim_pov: false,
+            camera_style: HlaeCameraStyle::Pov,
+            presentation: None,
+        };
+
+        let resolved = analysis_with_players(demo_id, vec![player("76561198000000001", Some(7))]);
+        assert_eq!(missing_spectator_evidence(&item, Some(&resolved)), None);
+
+        let unslotted = analysis_with_players(demo_id, vec![player("76561198000000001", None)]);
+        assert!(
+            missing_spectator_evidence(&item, Some(&unslotted))
+                .expect("a slotless player has no evidence")
+                .contains("no CS2 spectator slot")
+        );
+
+        let ambiguous = analysis_with_players(
+            demo_id,
+            vec![
+                player("76561198000000001", Some(7)),
+                player("76561198000000002", Some(7)),
+            ],
+        );
+        assert!(
+            missing_spectator_evidence(&item, Some(&ambiguous))
+                .expect("a shared slot is not evidence")
+                .contains("more than one player")
+        );
+
+        assert!(
+            missing_spectator_evidence(&item, None)
+                .expect("an unanalyzed Demo has no slot")
+                .contains("no persisted analysis"),
+            "a missing analysis must never read as a satisfied check"
+        );
+    }
+
+    #[tokio::test]
+    async fn preflight_rejects_a_missing_or_expired_plan_exactly_like_execution() {
+        let recording = Arc::new(CountingRecordingPort::default());
+        let (_directory, state) = state_with_recording(Arc::clone(&recording)).await;
+        let demo_id = Uuid::new_v4();
+        persist_plan_demo(&state, demo_id).await;
+
+        let (status, code) = error_code(
+            preflight_plan(State(state.clone()), Path(Uuid::new_v4().to_string()))
+                .await
+                .expect_err("an unknown plan cannot be checked"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(code, "recording_plan_unavailable");
+
+        let planned = plan(
+            State(state.clone()),
+            ApiJson(RecordingQueueRequest {
+                items: vec![plan_queue_item(demo_id)],
+            }),
+        )
+        .await
+        .expect("recording plan");
+        state
+            .recording_plans
+            .lock()
+            .await
+            .get_mut(&planned.0.plan_id)
+            .expect("plan lease")
+            .deadline = tokio::time::Instant::now() - Duration::from_millis(1);
+
+        let (status, code) = error_code(
+            preflight_plan(State(state.clone()), Path(planned.0.plan_id.to_string()))
+                .await
+                .expect_err("an expired plan cannot be checked"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CONFLICT);
+        assert_eq!(code, "recording_plan_expired");
+        let (execute_status, execute_code) = error_code(
+            execute_plan(
+                State(state),
+                Path(planned.0.plan_id.to_string()),
+                ApiJson(ExecuteRecordingPlanRequest {
+                    offline_insecure_acknowledged: true,
+                }),
+            )
+            .await
+            .expect_err("the same lease is expired for execution"),
+        )
+        .await;
+        assert_eq!((execute_status, execute_code), (status, code));
+        assert_eq!(recording.executions.load(Ordering::Relaxed), 0);
+    }
+
+    #[tokio::test]
+    async fn preflight_measures_the_leased_shots_without_consuming_the_plan() {
+        let recording = Arc::new(CountingRecordingPort::default());
+        let (_directory, state) = state_with_recording(Arc::clone(&recording)).await;
+        let demo_id = Uuid::new_v4();
+        persist_plan_demo(&state, demo_id).await;
+        let planned = plan(
+            State(state.clone()),
+            ApiJson(RecordingQueueRequest {
+                items: vec![plan_queue_item(demo_id)],
+            }),
+        )
+        .await
+        .expect("recording plan");
+        let item_id = planned.0.items[0].id.expect("a server-assigned shot id");
+
+        let preflight = preflight_plan(State(state.clone()), Path(planned.0.plan_id.to_string()))
+            .await
+            .expect("the leased plan can be checked")
+            .0;
+
+        assert_eq!(
+            preflight
+                .checks
+                .iter()
+                .map(|check| check.code)
+                .collect::<Vec<_>>(),
+            RecordingPreflightCode::all().to_vec(),
+            "every code is reported once, in list order"
+        );
+        preflight.validate().expect("self-consistent document");
+        // The fixture Demo record points at a path that does not exist, so the
+        // content row is blocking and names the one shot that reads it. Rows
+        // that depend on the host machine are deliberately not asserted here.
+        let content = preflight_check(&preflight, RecordingPreflightCode::DemoContentMatches);
+        assert_eq!(content.state, RecordingPreflightState::Blocked);
+        assert_eq!(content.affected_item_ids, vec![item_id]);
+        let output = preflight_check(&preflight, RecordingPreflightCode::OutputDirectoryWritable);
+        assert_eq!(
+            output.state,
+            RecordingPreflightState::Ok,
+            "the managed output root is created and write-probed: {}",
+            output.detail
+        );
+        assert_eq!(
+            preflight_check(
+                &preflight,
+                RecordingPreflightCode::CameraCollisionUnverified
+            )
+            .state,
+            RecordingPreflightState::Ok,
+            "a player-POV plan carries no unverifiable camera coordinates"
+        );
+
+        assert!(
+            state
+                .recording_plans
+                .lock()
+                .await
+                .contains_key(&planned.0.plan_id),
+            "checking a plan must never consume its lease"
+        );
+        let recheck = preflight_plan(State(state), Path(planned.0.plan_id.to_string()))
+            .await
+            .expect("the check list can be re-run")
+            .0;
+        assert_eq!(recheck.blocking, preflight.blocking);
     }
 }

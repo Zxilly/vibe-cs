@@ -176,7 +176,7 @@ fn merge_adjacent_shots(mut shots: Vec<DirectorShot>, maximum_gap: u64) -> Vec<D
 #[cfg(test)]
 mod tests {
     use uuid::Uuid;
-    use vibe_cs_domain::{HighlightKind, MatchAnalysis};
+    use vibe_cs_domain::{HighlightKind, HlaeCameraStyle, MatchAnalysis};
 
     use super::*;
 
@@ -192,7 +192,8 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: true,
-            camera_style: Default::default(),
+            camera_style: HlaeCameraStyle::default(),
+            presentation: None,
         }
     }
 

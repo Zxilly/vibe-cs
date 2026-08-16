@@ -14,7 +14,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{DomainError, HlaeCameraStyle};
+use crate::{DomainError, HlaeCameraStyle, RecordingPresentation, RecordingRequest};
 
 pub const AGENT_SESSION_MAX_TITLE_CHARS: usize = 200;
 pub const AGENT_SESSION_MAX_CONTENT_CHARS: usize = 32_000;
@@ -517,6 +517,80 @@ pub enum AgentShotView {
     PlayerPov,
 }
 
+/// What binds one plan shot to real footage, so a plan can be turned into a
+/// recording queue without guessing.
+///
+/// # Why this is typed and not `params`
+///
+/// `AgentPlanShot::params` is a free bag. Reading `demo_id` and `player_id`
+/// back out of it to assemble a [`RecordingRequest`] would write the same
+/// schema in two places - once where the Agent fills the bag, once where the
+/// recording route empties it - with nothing to fail when the two drift. That
+/// is the exact reason the reverse mapper was rejected once already
+/// (design §10.6 deviation 3). Typed fields make the drift a compile error.
+///
+/// # Why the three remaining request fields are absent
+///
+/// `camera_style` comes from [`AgentPlanShot::kind`], the tick window from the
+/// shot itself, and the title from [`AgentPlanShot::title`]. Storing a second
+/// copy here is storing something that can disagree with the shot the user is
+/// looking at, and nothing would notice which copy was stale.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct AgentShotRecording {
+    pub demo_id: Uuid,
+    /// Canonical non-zero 17-digit `SteamID64`, checked during normalization
+    /// because managed player-POV capture rejects anything else and doing it
+    /// here means the rejection arrives while the plan is still on screen.
+    pub player_id: String,
+    pub highlight_id: Option<String>,
+    pub victim_pov: bool,
+    pub pre_roll_seconds: f64,
+    pub post_roll_seconds: f64,
+    /// Per-shot capture presentation. `None` follows the global
+    /// [`crate::RecordingDefaults`], exactly as it does on a
+    /// [`RecordingRequest`].
+    pub presentation: Option<RecordingPresentation>,
+}
+
+impl AgentShotRecording {
+    /// Normalizes the binding.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when the player identifier is not
+    /// a canonical `SteamID64`, the highlight reference exceeds its bound, or a
+    /// roll value is out of range.
+    pub fn normalize(mut self) -> Result<Self, DomainError> {
+        if self.player_id.len() != 17
+            || !self.player_id.bytes().all(|byte| byte.is_ascii_digit())
+            || !matches!(self.player_id.parse::<u64>(), Ok(value) if value != 0)
+        {
+            return Err(DomainError::InvalidInput(
+                "player_id must be a canonical non-zero 17-digit SteamID64".to_owned(),
+            ));
+        }
+        self.highlight_id = self
+            .highlight_id
+            .map(|value| {
+                required_text(&value, AGENT_SESSION_MAX_LABEL_CHARS, "highlight reference")
+            })
+            .transpose()?;
+        if !self.pre_roll_seconds.is_finite()
+            || !self.post_roll_seconds.is_finite()
+            || self.pre_roll_seconds < 0.0
+            || self.post_roll_seconds < 0.0
+            || self.pre_roll_seconds > 60.0
+            || self.post_roll_seconds > 60.0
+        {
+            return Err(DomainError::InvalidInput(
+                "pre-roll and post-roll must be finite values from 0 to 60 seconds".to_owned(),
+            ));
+        }
+        Ok(self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct AgentPlanShot {
@@ -535,15 +609,31 @@ pub struct AgentPlanShot {
     /// undoable instead of dropping the shot from the plan.
     pub removed_by: Option<AgentPlanAuthor>,
     pub params: serde_json::Value,
+    /// The footage this shot will be captured from, once it has one.
+    ///
+    /// Optional because a plan is meaningful before it is bound: the Agent
+    /// designs the shots first and lands them on material afterwards, and an
+    /// unbound plan must stay editable rather than being rejected at write
+    /// time. `#[serde(default)]` is what lets every `shots_json` document
+    /// written before this field existed keep decoding, which matters because
+    /// the schema is a fingerprinted whole with no migration step.
+    #[serde(default)]
+    pub recording: Option<AgentShotRecording>,
 }
 
 impl AgentPlanShot {
     /// Normalizes shot text and validates its bounded window.
     ///
+    /// A shot that carries a recording binding is additionally held to
+    /// everything [`RecordingRequest::validate`] demands - notably a strictly
+    /// positive tick window, where an unbound shot may still be a zero-length
+    /// placeholder. A bound shot claims to be recordable, so it has to be.
+    ///
     /// # Errors
     ///
     /// Returns [`DomainError::InvalidInput`] when the tick window, duration,
-    /// text or reference lists are outside the current contract.
+    /// text or reference lists are outside the current contract, or when the
+    /// recording binding cannot produce a valid [`RecordingRequest`].
     pub fn normalize(mut self) -> Result<Self, DomainError> {
         self.title = required_text(&self.title, AGENT_SESSION_MAX_LABEL_CHARS, "shot title")?;
         self.rationale = optional_text(
@@ -586,7 +676,68 @@ impl AgentPlanShot {
             .iter()
             .map(|value| required_text(value, AGENT_SESSION_MAX_SUMMARY_CHARS, "risk"))
             .collect::<Result<Vec<_>, _>>()?;
+        self.recording = self
+            .recording
+            .map(AgentShotRecording::normalize)
+            .transpose()?;
+        if let Some(recording) = &self.recording {
+            self.to_recording_request(Uuid::nil(), recording)?;
+        }
         Ok(self)
+    }
+
+    /// Assembles the recording request for this shot.
+    ///
+    /// This is the single place a plan becomes a capture queue item. It exists
+    /// in the domain, next to both halves, so the mapping cannot be written a
+    /// second time in a route: `camera_style` comes from [`Self::kind`], the
+    /// tick window and title from the shot, and everything else from the typed
+    /// binding.
+    ///
+    /// `request_id` is supplied by the caller because it is the durable
+    /// identity a failed job proves its published prefix against
+    /// ([`crate::RecordingJob::retryable_suffix`]); it belongs to the queue,
+    /// not to the plan.
+    ///
+    /// Soft-removed shots are not filtered here - `removed_by` is a plan-level
+    /// fact and the caller decides whether a removed shot belongs in the queue.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when this shot has no recording
+    /// binding, or when the assembled request fails
+    /// [`RecordingRequest::validate`].
+    pub fn recording_request(&self, request_id: Uuid) -> Result<RecordingRequest, DomainError> {
+        let recording = self.recording.as_ref().ok_or_else(|| {
+            DomainError::InvalidInput(format!(
+                "plan shot {} is not bound to a Demo and a player yet",
+                self.id
+            ))
+        })?;
+        self.to_recording_request(request_id, recording)
+    }
+
+    fn to_recording_request(
+        &self,
+        request_id: Uuid,
+        recording: &AgentShotRecording,
+    ) -> Result<RecordingRequest, DomainError> {
+        let request = RecordingRequest {
+            id: Some(request_id),
+            demo_id: recording.demo_id,
+            highlight_id: recording.highlight_id.clone(),
+            player_id: recording.player_id.clone(),
+            title: self.title.clone(),
+            start_tick: self.start_tick,
+            end_tick: self.end_tick,
+            pre_roll_seconds: recording.pre_roll_seconds,
+            post_roll_seconds: recording.post_roll_seconds,
+            victim_pov: recording.victim_pov,
+            camera_style: self.kind,
+            presentation: recording.presentation,
+        };
+        request.validate()?;
+        Ok(request)
     }
 }
 
@@ -1047,6 +1198,19 @@ mod tests {
             source: AgentPlanAuthor::Agent,
             removed_by: None,
             params: serde_json::json!({}),
+            recording: None,
+        }
+    }
+
+    fn binding() -> AgentShotRecording {
+        AgentShotRecording {
+            demo_id: Uuid::new_v4(),
+            player_id: "76561198000000000".to_owned(),
+            highlight_id: Some("demo:match/event:kill-7".to_owned()),
+            victim_pov: false,
+            pre_roll_seconds: 1.5,
+            post_roll_seconds: 1.0,
+            presentation: None,
         }
     }
 
@@ -1227,6 +1391,145 @@ mod tests {
         let encoded = serde_json::to_value(AgentWorkspaceSettings::default()).expect("encode");
         assert_eq!(encoded["session_retention"]["mode"], "all");
         assert_eq!(encoded["take_limit"], AGENT_TAKE_LIMIT_DEFAULT);
+    }
+
+    #[test]
+    fn an_unbound_plan_shot_stays_readable_and_decodable() {
+        let shot = shot("01 建立地点");
+        assert_eq!(shot.recording, None);
+
+        let wire = serde_json::to_value(&shot).expect("shot wire");
+        assert_eq!(wire["recording"], serde_json::Value::Null);
+
+        // Documents written before the binding existed keep decoding: the
+        // schema is a fingerprinted whole with no migration step.
+        let mut legacy = wire;
+        legacy
+            .as_object_mut()
+            .expect("shot object")
+            .remove("recording");
+        assert_eq!(
+            serde_json::from_value::<AgentPlanShot>(legacy)
+                .expect("a shot document written before the binding existed")
+                .recording,
+            None
+        );
+
+        assert!(
+            shot.recording_request(Uuid::new_v4()).is_err(),
+            "an unbound shot cannot name a Demo or a player"
+        );
+    }
+
+    #[test]
+    fn a_bound_shot_assembles_its_recording_request_from_the_shot_itself() {
+        let bound = AgentPlanShot {
+            recording: Some(binding()),
+            ..shot("02 跟随突破")
+        }
+        .normalize()
+        .expect("a valid binding");
+        let recording = bound.recording.clone().expect("binding");
+        let request_id = Uuid::new_v4();
+        let request = bound
+            .recording_request(request_id)
+            .expect("bound shots become queue items");
+
+        assert_eq!(request.id, Some(request_id));
+        assert_eq!(request.demo_id, recording.demo_id);
+        assert_eq!(request.player_id, recording.player_id);
+        assert_eq!(request.highlight_id, recording.highlight_id);
+        // The three fields the binding deliberately does not duplicate.
+        assert_eq!(request.camera_style, bound.kind);
+        assert_eq!(request.start_tick, bound.start_tick);
+        assert_eq!(request.end_tick, bound.end_tick);
+        assert_eq!(request.title, bound.title);
+    }
+
+    #[test]
+    fn a_binding_is_rejected_before_it_can_reach_the_capture_pipeline() {
+        for player_id in [
+            String::new(),
+            "7656119800000000".to_owned(),
+            "765611980000000000".to_owned(),
+            "STEAM_1:1:12345678".to_owned(),
+            "0".repeat(17),
+        ] {
+            assert!(
+                AgentShotRecording {
+                    player_id,
+                    ..binding()
+                }
+                .normalize()
+                .is_err()
+            );
+        }
+        for (pre, post) in [(-1.0, 0.0), (0.0, 60.1), (f64::NAN, 0.0)] {
+            assert!(
+                AgentShotRecording {
+                    pre_roll_seconds: pre,
+                    post_roll_seconds: post,
+                    ..binding()
+                }
+                .normalize()
+                .is_err()
+            );
+        }
+
+        // A cinematic shot cannot be bound to a victim point of view, and the
+        // shot's own kind is what decides that - not a second copy.
+        assert!(
+            AgentPlanShot {
+                kind: HlaeCameraStyle::Tracking,
+                recording: Some(AgentShotRecording {
+                    victim_pov: true,
+                    ..binding()
+                }),
+                ..shot("02 跟随突破")
+            }
+            .normalize()
+            .is_err()
+        );
+        AgentPlanShot {
+            kind: HlaeCameraStyle::Pov,
+            recording: Some(AgentShotRecording {
+                victim_pov: true,
+                ..binding()
+            }),
+            ..shot("03 选手 POV · 三杀")
+        }
+        .normalize()
+        .expect("victim POV belongs to a POV shot");
+
+        // An observer shot cannot carry a field of view the camera path would
+        // override, and that is checked while the plan is still on screen.
+        assert!(
+            AgentPlanShot {
+                kind: HlaeCameraStyle::Crane,
+                recording: Some(AgentShotRecording {
+                    presentation: Some(crate::RecordingPresentation {
+                        camera_fov: 110.0,
+                        ..crate::RecordingPresentation::default()
+                    }),
+                    ..binding()
+                }),
+                ..shot("04 高潮后升起")
+            }
+            .normalize()
+            .is_err()
+        );
+
+        // A bound shot must have a recordable window.
+        assert!(
+            AgentPlanShot {
+                start_tick: 148_812,
+                end_tick: 148_812,
+                recording: Some(binding()),
+                ..shot("00 零长度")
+            }
+            .normalize()
+            .is_err()
+        );
     }
 
     #[test]

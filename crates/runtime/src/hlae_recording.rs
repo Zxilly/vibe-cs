@@ -15,13 +15,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest as _, Sha256};
 use uuid::Uuid;
-use vibe_cs_domain::{AppConfig, DomainError, HlaeCameraStyle, RecordedClip, RecordingJob};
+use vibe_cs_domain::{
+    AppConfig, DomainError, HlaeCameraStyle, RecordedClip, RecordingJob, RecordingRequest,
+    RecordingVoicePolicy,
+};
 use vibe_cs_hlae::{
     CameraShot, CaptureLayers, CaptureSettings, HLAE_SESSION_MAX_TAKES, HLAE_TAKE_MAX_FRAMES,
     HlaeBundleLaunchInputs, HlaeDiscoverySource, HlaeHudVisibility, HlaePlan, HlaePlanMode,
-    HlaePlayerPovCapturePlan, HlaePlayerPovPresentation, HlaeRadarVisibility, HlaeVoicePolicy,
-    LaunchResolution, PositionInterpolation, RotationInterpolation, discover_managed_hlae,
-    validate_hlae_plan,
+    HlaePlayerPovCapturePlan, HlaePlayerPovPresentation, HlaeRadarVisibility,
+    HlaeScenePresentation, HlaeVoicePolicy, LaunchResolution, PositionInterpolation,
+    RotationInterpolation, discover_managed_hlae, validate_hlae_plan,
 };
 use vibe_cs_integrations::discover_paths;
 use vibe_cs_platform_windows::{
@@ -1212,10 +1215,83 @@ fn build_player_pov_plan(
     })
 }
 
+/// Resolves the presentation one take records with.
+///
+/// A request that carries no presentation of its own follows the global
+/// `AppConfig.recording` defaults, which is what `fallback` holds. A request
+/// that carries one overrides every one of the six controls at once: the shot
+/// inspector always sends a complete presentation, so a partial merge would
+/// only invent a state the interface cannot express.
+///
+/// The mutual exclusion the fallback has to police - "mute everyone" together
+/// with "isolate the target" - cannot be spelled by an override at all, because
+/// [`RecordingVoicePolicy`] is one closed choice instead of two bools.
+fn take_presentation(
+    fallback: HlaePlayerPovPresentation,
+    request: &RecordingRequest,
+) -> HlaePlayerPovPresentation {
+    let Some(shot) = request.presentation else {
+        return fallback;
+    };
+    HlaePlayerPovPresentation {
+        radar: if shot.show_radar {
+            HlaeRadarVisibility::Visible
+        } else {
+            HlaeRadarVisibility::Hidden
+        },
+        hud: if shot.show_hud {
+            HlaeHudVisibility::Visible
+        } else {
+            HlaeHudVisibility::DeathNoticesOnly
+        },
+        camera_fov: shot.camera_fov,
+        viewmodel_fov: shot.viewmodel_fov,
+        flash_alpha: shot.flash_alpha,
+        voice: match shot.voice {
+            RecordingVoicePolicy::AllPlayers => HlaeVoicePolicy::AllPlayers,
+            RecordingVoicePolicy::Muted => HlaeVoicePolicy::Muted,
+            RecordingVoicePolicy::TargetOnly => HlaeVoicePolicy::TargetOnly,
+        },
+    }
+}
+
+/// Resolves the scene half of a presentation for an observer take.
+///
+/// `camera_fov` and `viewmodel_fov` are dropped on purpose: a camera path
+/// carries a field of view on every keyframe and draws no viewmodel, so there
+/// is nothing here for those two values to control. `RecordingPresentation`
+/// already rejects a non-neutral field of view for every non-POV style at the
+/// API boundary, which is why this is a silent drop rather than a second,
+/// later error.
+fn scene_presentation(
+    item: &PreparedRecording,
+    presentation: HlaePlayerPovPresentation,
+) -> Result<HlaeScenePresentation, DomainError> {
+    let voice_target_slot = match presentation.voice {
+        HlaeVoicePolicy::TargetOnly => {
+            let slot = item.segment.spectator_slot.ok_or_else(|| {
+                DomainError::DependencyUnavailable(
+                    "this Demo must be reanalyzed before its verified CS2 spectator slot can isolate the recorded player's voice"
+                        .to_owned(),
+                )
+            })?;
+            if !(1..=64).contains(&slot) {
+                return Err(DomainError::InvalidInput(
+                    "the parser-backed CS2 spectator slot is outside 1..=64".to_owned(),
+                ));
+            }
+            Some(slot)
+        }
+        HlaeVoicePolicy::AllPlayers | HlaeVoicePolicy::Muted => None,
+    };
+    Ok(presentation.scene(voice_target_slot))
+}
+
 fn build_camera_plan(
     item: &PreparedRecording,
     managed_job_root: &Path,
     capture: CaptureSettings,
+    presentation: HlaePlayerPovPresentation,
 ) -> Result<HlaePlan, DomainError> {
     let candidates = item
         .replay_frames
@@ -1265,6 +1341,7 @@ fn build_camera_plan(
         output_directory: managed_job_root.join("capture"),
         pre_roll_ticks: item.segment.start_tick.saturating_sub(1).min(128),
         capture,
+        presentation: scene_presentation(item, presentation)?,
         shots: vec![CameraShot {
             id: format!("clip_{:02}", item.item_index + 1),
             start_tick: item.segment.start_tick,
@@ -1709,6 +1786,12 @@ impl HlaeRecordingBackend {
         Ok(())
     }
 
+    /// The job-wide fallback presentation, read from the global
+    /// `AppConfig.recording` defaults.
+    ///
+    /// This is what a shot that carries no presentation of its own records
+    /// with. [`take_presentation`] decides, per take, whether the fallback or
+    /// the shot's own presentation applies.
     fn presentation(config: &AppConfig) -> Result<HlaePlayerPovPresentation, DomainError> {
         if config.recording.mute_voice && config.recording.isolate_target_voice {
             return Err(DomainError::InvalidInput(
@@ -1751,7 +1834,7 @@ impl HlaeRecordingBackend {
             &self.encoder_capability_probe.probe(),
             capture.record_wav,
         )?;
-        let presentation = Self::presentation(config)?;
+        let fallback_presentation = Self::presentation(config)?;
         let roots = self.ensure_managed_roots().await?;
         let launch_inputs = self.launch_environment.resolve(
             config,
@@ -1790,6 +1873,10 @@ impl HlaeRecordingBackend {
                 ));
             }
             let job_root = managed_job_path(&roots, item.job_id, item.item_index);
+            // Every take resolves its own presentation. A job whose first shot
+            // is muted and whose second keeps team voice has to record two
+            // different soundtracks, so this cannot be hoisted out of the loop.
+            let presentation = take_presentation(fallback_presentation, &item.request);
             let plan = match item.request.camera_style {
                 HlaeCameraStyle::Pov => RuntimeHlaeCaptureProgram::PlayerPov(
                     build_player_pov_plan(item, &job_root, capture.clone(), presentation)?,
@@ -1798,6 +1885,7 @@ impl HlaeRecordingBackend {
                     item,
                     &job_root,
                     capture.clone(),
+                    presentation,
                 )?),
             };
             let verified_total_ticks = item.segment.verified_total_ticks.ok_or_else(|| {
@@ -2349,7 +2437,8 @@ mod tests {
             pre_roll_seconds: 0.0,
             post_roll_seconds: 0.0,
             victim_pov: false,
-            camera_style: Default::default(),
+            camera_style: HlaeCameraStyle::default(),
+            presentation: None,
         };
         let segment = SegmentPlan {
             demo_id,
@@ -2860,8 +2949,7 @@ mod tests {
         assert!(!job.exists());
     }
 
-    #[test]
-    fn cinematic_queue_item_becomes_an_evidence_backed_camera_plan() {
+    fn cinematic_fixture() -> (tempfile::TempDir, PreparedRecording) {
         let (directory, mut item) = fixture();
         item.request.camera_style = HlaeCameraStyle::Crane;
         item.replay_frames = [1_000, 1_106, 1_213, 1_320]
@@ -2873,7 +2961,12 @@ mod tests {
                     id: item.segment.player_id.clone(),
                     name: "FalleN".to_owned(),
                     team: "T".to_owned(),
-                    position: [f64::from(index as u32) * 16.0, 32.0, 4.0],
+                    position: [
+                        f64::from(u32::try_from(index).expect("fixture frame index fits u32"))
+                            * 16.0,
+                        32.0,
+                        4.0,
+                    ],
                     yaw: 90.0,
                     health: 100,
                     armor: 100,
@@ -2885,9 +2978,16 @@ mod tests {
                 bomb: None,
             })
             .collect();
+        (directory, item)
+    }
+
+    #[test]
+    fn cinematic_queue_item_becomes_an_evidence_backed_camera_plan() {
+        let (directory, item) = cinematic_fixture();
         let job = directory.path().join("camera-job");
 
-        let plan = build_camera_plan(&item, &job, capture()).expect("camera plan");
+        let plan = build_camera_plan(&item, &job, capture(), HlaePlayerPovPresentation::default())
+            .expect("camera plan");
 
         assert_eq!(plan.mode, HlaePlanMode::Capture);
         assert_eq!(plan.output_directory, job.join("capture"));
@@ -2899,6 +2999,147 @@ mod tests {
             plan.shots[0].keyframes[0].position,
             plan.shots[0].keyframes[1].position
         );
+    }
+
+    #[test]
+    fn a_shot_without_a_presentation_records_with_the_global_defaults() {
+        let mut config = AppConfig::default();
+        config.recording.show_radar = false;
+        config.recording.flash_alpha = 102;
+        config.recording.isolate_target_voice = true;
+        let fallback = HlaeRecordingBackend::presentation(&config).expect("global defaults");
+        let (_directory, item) = fixture();
+        assert_eq!(item.request.presentation, None);
+
+        assert_eq!(take_presentation(fallback, &item.request), fallback);
+        assert_eq!(fallback.radar, HlaeRadarVisibility::Hidden);
+        assert_eq!(fallback.voice, HlaeVoicePolicy::TargetOnly);
+        assert_eq!(fallback.flash_alpha, 102);
+    }
+
+    #[test]
+    fn the_two_global_voice_bools_can_never_reach_a_capture_together() {
+        let mut config = AppConfig::default();
+        config.recording.mute_voice = true;
+        config.recording.isolate_target_voice = true;
+
+        let error = HlaeRecordingBackend::presentation(&config)
+            .expect_err("muting everyone and isolating the target are mutually exclusive");
+
+        assert!(matches!(error, DomainError::InvalidInput(_)));
+    }
+
+    #[test]
+    fn every_take_of_one_job_resolves_its_own_presentation() {
+        let (directory, mut muted) = fixture();
+        let fallback =
+            HlaeRecordingBackend::presentation(&AppConfig::default()).expect("global defaults");
+        muted.request.presentation = Some(vibe_cs_domain::RecordingPresentation {
+            voice: RecordingVoicePolicy::Muted,
+            show_hud: false,
+            ..vibe_cs_domain::RecordingPresentation::default()
+        });
+        let mut team_voice = muted.clone();
+        team_voice.item_index = 1;
+        team_voice.request.presentation = Some(vibe_cs_domain::RecordingPresentation {
+            voice: RecordingVoicePolicy::AllPlayers,
+            ..vibe_cs_domain::RecordingPresentation::default()
+        });
+
+        let first = take_presentation(fallback, &muted.request);
+        let second = take_presentation(fallback, &team_voice.request);
+        assert_ne!(first, second);
+        assert_eq!(first.voice, HlaeVoicePolicy::Muted);
+        assert_eq!(first.hud, HlaeHudVisibility::DeathNoticesOnly);
+        assert_eq!(second.voice, HlaeVoicePolicy::AllPlayers);
+        assert_eq!(second.hud, HlaeHudVisibility::Visible);
+
+        // The two takes of the same job compile into two different programs.
+        let first_plan =
+            build_player_pov_plan(&muted, &directory.path().join("take-0"), capture(), first)
+                .expect("first take");
+        let second_plan = build_player_pov_plan(
+            &team_voice,
+            &directory.path().join("take-1"),
+            capture(),
+            second,
+        )
+        .expect("second take");
+        assert_ne!(first_plan.presentation, second_plan.presentation);
+        assert_eq!(first_plan.presentation.voice, HlaeVoicePolicy::Muted);
+        assert_eq!(second_plan.presentation.voice, HlaeVoicePolicy::AllPlayers);
+    }
+
+    #[test]
+    fn an_observer_take_carries_hud_radar_flash_and_voice_into_its_camera_plan() {
+        let (directory, mut item) = cinematic_fixture();
+        item.request.presentation = Some(vibe_cs_domain::RecordingPresentation {
+            show_hud: false,
+            show_radar: false,
+            flash_alpha: 102,
+            voice: RecordingVoicePolicy::TargetOnly,
+            ..vibe_cs_domain::RecordingPresentation::default()
+        });
+        let fallback =
+            HlaeRecordingBackend::presentation(&AppConfig::default()).expect("global defaults");
+        let presentation = take_presentation(fallback, &item.request);
+
+        let plan = build_camera_plan(
+            &item,
+            &directory.path().join("camera-job"),
+            capture(),
+            presentation,
+        )
+        .expect("camera plan");
+
+        assert_eq!(
+            plan.presentation,
+            HlaeScenePresentation {
+                radar: HlaeRadarVisibility::Hidden,
+                hud: HlaeHudVisibility::DeathNoticesOnly,
+                flash_alpha: 102,
+                voice: HlaeVoicePolicy::TargetOnly,
+                voice_target_slot: item.segment.spectator_slot,
+            }
+        );
+    }
+
+    #[test]
+    fn an_observer_take_never_isolates_a_voice_without_parser_evidence() {
+        let (directory, mut item) = cinematic_fixture();
+        item.segment.spectator_slot = None;
+        item.request.presentation = Some(vibe_cs_domain::RecordingPresentation {
+            voice: RecordingVoicePolicy::TargetOnly,
+            ..vibe_cs_domain::RecordingPresentation::default()
+        });
+        let fallback =
+            HlaeRecordingBackend::presentation(&AppConfig::default()).expect("global defaults");
+        let presentation = take_presentation(fallback, &item.request);
+
+        let error = build_camera_plan(
+            &item,
+            &directory.path().join("camera-job"),
+            capture(),
+            presentation,
+        )
+        .expect_err("an isolated voice needs the parser-backed spectator slot");
+
+        assert!(matches!(error, DomainError::DependencyUnavailable(_)));
+        assert!(error.to_string().contains("reanalyzed"));
+
+        // Every other voice policy still records without that evidence.
+        item.request.presentation = Some(vibe_cs_domain::RecordingPresentation {
+            voice: RecordingVoicePolicy::Muted,
+            ..vibe_cs_domain::RecordingPresentation::default()
+        });
+        let muted = take_presentation(fallback, &item.request);
+        build_camera_plan(
+            &item,
+            &directory.path().join("camera-job"),
+            capture(),
+            muted,
+        )
+        .expect("muting everyone needs no spectator slot");
     }
 
     #[test]

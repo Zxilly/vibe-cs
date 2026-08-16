@@ -6584,6 +6584,7 @@ dependencies = [
  "vibe-cs-domain",
  "vibe-cs-hlae",
  "vibe-cs-integrations",
+ "vibe-cs-platform-windows",
  "vibe-cs-recording",
  "vibe-cs-storage",
  "walkdir",

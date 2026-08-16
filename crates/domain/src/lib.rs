@@ -15,6 +15,8 @@ mod evidence_search;
 mod insights;
 mod match_history;
 mod recording;
+mod recording_preflight;
+mod recording_preset;
 mod review_metadata;
 mod round_replay;
 
@@ -33,6 +35,8 @@ pub use evidence_search::*;
 pub use insights::*;
 pub use match_history::*;
 pub use recording::*;
+pub use recording_preflight::*;
+pub use recording_preset::*;
 pub use review_metadata::*;
 pub use round_replay::*;
 

@@ -104,6 +104,7 @@ mod tests {
             preview_before_apply: true,
             show_evidence_reads: true,
             default_video_seconds: 40,
+            default_shot_view: vibe_cs_domain::AgentShotView::Observer,
             commentary_tone: CommentaryTone::Professional,
         }
     }

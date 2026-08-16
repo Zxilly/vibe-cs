@@ -22,6 +22,7 @@ import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useCreateAgentPlan } from '../../data/plans';
+import { useAgentWorkspaceSettings } from '../../data/sessions';
 import {
   agentPlanDraftFromHighlights,
   agentPlanHandoff,
@@ -38,10 +39,17 @@ export interface AgentVideoHandoff {
 export function useAgentVideoHandoff(): AgentVideoHandoff {
   const navigate = useNavigate();
   const createPlan = useCreateAgentPlan();
+  const settings = useAgentWorkspaceSettings();
 
   const run = useCallback(
     async (input: HighlightHandoffInput) => {
-      const draft = agentPlanDraftFromHighlights(input);
+      /* `observer` while the settings are still loading, which is the same
+         value the document defaults to — the alternative is refusing a handover
+         because a preference has not arrived. */
+      const draft = agentPlanDraftFromHighlights(
+        input,
+        settings.data?.default_shot_view ?? 'observer',
+      );
       /* A refused draft never reaches the service. The sender is expected to
          have disabled the action already — this is the second lock, not the
          first, and it returns quietly because the disabled reason has already
@@ -50,7 +58,7 @@ export function useAgentVideoHandoff(): AgentVideoHandoff {
       const plan = await createPlan.mutateAsync(draft.plan);
       await navigate(agentPlanHandoff(plan.id));
     },
-    [createPlan, navigate],
+    [createPlan, navigate, settings.data?.default_shot_view],
   );
 
   return { run, pending: createPlan.isPending, error: createPlan.error };

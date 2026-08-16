@@ -32,6 +32,7 @@ const SETTINGS: AgentWorkspaceSettings = {
   preview_before_apply: true,
   show_evidence_reads: true,
   default_video_seconds: 40,
+  default_shot_view: 'observer',
   commentary_tone: 'professional',
 };
 

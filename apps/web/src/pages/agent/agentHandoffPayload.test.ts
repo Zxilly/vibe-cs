@@ -39,14 +39,14 @@ const newId = (): string => `shot-${(counter += 1)}`;
 
 describe('agentPlanShotFromHighlight', () => {
   it('binds demo_id, player_id and highlight_id — the three §10.6 was waiting for', () => {
-    const shot = agentPlanShotFromHighlight(source(), newId);
+    const shot = agentPlanShotFromHighlight(source(), newId, 'observer');
     expect(shot?.recording?.demo_id).toBe('0d1f0a2c-0000-4000-8000-000000000001');
     expect(shot?.recording?.player_id).toBe('76561198000000001');
     expect(shot?.recording?.highlight_id).toBe('h-1');
   });
 
   it('gives the shot its own identity, not the highlight’s', () => {
-    const shot = agentPlanShotFromHighlight(source(), () => 'fresh');
+    const shot = agentPlanShotFromHighlight(source(), () => 'fresh', 'observer');
     expect(shot?.id).toBe('fresh');
     /* The highlight still travels — twice, and both are read: the binding is
        what the recording plan uses, the evidence reference is what a reader
@@ -55,26 +55,34 @@ describe('agentPlanShotFromHighlight', () => {
   });
 
   it('computes duration_seconds from the analysis’ own tick rate', () => {
-    expect(agentPlanShotFromHighlight(source({ tickRate: 64 }), newId)?.duration_seconds)
+    expect(agentPlanShotFromHighlight(source({ tickRate: 64 }), newId, 'observer')?.duration_seconds)
       .toBeCloseTo(23.75, 5);
-    expect(agentPlanShotFromHighlight(source({ tickRate: 128 }), newId)?.duration_seconds)
+    expect(agentPlanShotFromHighlight(source({ tickRate: 128 }), newId, 'observer')?.duration_seconds)
       .toBeCloseTo(11.875, 5);
   });
 
+  it('takes the view from the caller, which is 设置 · 默认视角', () => {
+    // The module hard-coded `observer` for a round, with a comment saying that
+    // choosing here would be guessing at a creative decision it had no input
+    // for. The setting is that input; the shot inspector still overrides it.
+    expect(agentPlanShotFromHighlight(source(), newId, 'player_pov')?.view).toBe('player_pov');
+    expect(agentPlanShotFromHighlight(source(), newId, 'observer')?.view).toBe('observer');
+  });
+
   it('writes 0 rather than a guess when the tick rate is unknown', () => {
-    expect(agentPlanShotFromHighlight(source({ tickRate: null }), newId)?.duration_seconds).toBe(0);
+    expect(agentPlanShotFromHighlight(source({ tickRate: null }), newId, 'observer')?.duration_seconds).toBe(0);
   });
 
   it('follows the global presentation defaults rather than freezing today’s', () => {
-    expect(agentPlanShotFromHighlight(source(), newId)?.recording?.presentation).toBeNull();
+    expect(agentPlanShotFromHighlight(source(), newId, 'observer')?.recording?.presentation).toBeNull();
   });
 
   it('sends params as an object — the backend rejects anything else', () => {
-    expect(agentPlanShotFromHighlight(source(), newId)?.params).toEqual({});
+    expect(agentPlanShotFromHighlight(source(), newId, 'observer')?.params).toEqual({});
   });
 
   it('starts as an observer shot; 视角 is 「08」’s decision, not this module’s', () => {
-    const shot = agentPlanShotFromHighlight(source(), newId);
+    const shot = agentPlanShotFromHighlight(source(), newId, 'observer');
     expect(shot?.view).toBe('observer');
     expect(shot?.kind).toBe('tracking');
     expect(shot?.recording?.victim_pov).toBe(false);
@@ -124,7 +132,7 @@ describe('agentPlanDraftFromHighlights', () => {
       title: 'Mirage · 2 条高光',
       highlights: [source({ highlightId: 'h-1' }), source({ highlightId: 'h-2' })],
       newId,
-    });
+    }, 'observer');
     expect(draft.ok).toBe(true);
     if (!draft.ok) return;
     expect(draft.plan.title).toBe('Mirage · 2 条高光');
@@ -134,7 +142,7 @@ describe('agentPlanDraftFromHighlights', () => {
   });
 
   it('creates no session — a handoff arrives before any conversation exists', () => {
-    const draft = agentPlanDraftFromHighlights({ title: 't', highlights: [source()], newId });
+    const draft = agentPlanDraftFromHighlights({ title: 't', highlights: [source()], newId }, 'observer');
     expect(draft.ok && draft.plan.origin).toBeNull();
   });
 
@@ -143,7 +151,7 @@ describe('agentPlanDraftFromHighlights', () => {
       title: 't',
       highlights: [source({ highlightId: 'h-1' }), source({ highlightId: 'h-1' })],
       newId,
-    });
+    }, 'observer');
     expect(draft.ok).toBe(true);
     if (!draft.ok) return;
     expect(new Set(draft.plan.shots.map((shot) => shot.id)).size).toBe(2);
@@ -154,12 +162,12 @@ describe('agentPlanDraftFromHighlights', () => {
       title: 't',
       highlights: [source(), source({ highlightId: 'h-2', demoId: null })],
       newId,
-    });
+    }, 'observer');
     expect(draft).toEqual({ ok: false, refusal: 'no_demo' });
   });
 
   it('refuses an empty selection', () => {
-    expect(agentPlanDraftFromHighlights({ title: 't', highlights: [], newId })).toEqual({
+    expect(agentPlanDraftFromHighlights({ title: 't', highlights: [], newId }, 'observer')).toEqual({
       ok: false,
       refusal: 'no_selection',
     });
@@ -167,7 +175,7 @@ describe('agentPlanDraftFromHighlights', () => {
 
   it('reports the first missing fact, so one sentence can explain it', () => {
     expect(
-      agentPlanDraftFromHighlights({ title: 't', highlights: [source({ playerId: '0' })], newId }),
+      agentPlanDraftFromHighlights({ title: 't', highlights: [source({ playerId: '0' })], newId }, 'observer'),
     ).toEqual({ ok: false, refusal: 'no_player' });
   });
 });

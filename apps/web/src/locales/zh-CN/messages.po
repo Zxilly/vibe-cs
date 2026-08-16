@@ -122,7 +122,7 @@ msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, other {# 场}}"
 
 #. placeholder {0}: retention.days
-#: src/pages/settings/AiAgentSection.tsx:499
+#: src/pages/settings/AiAgentSection.tsx:527
 msgid "{0, plural, other {# 天}}"
 msgstr "{0, plural, other {# 天}}"
 
@@ -152,7 +152,7 @@ msgid "{0, plural, other {其中 # 条是受管文件，会进入可回滚暂存
 msgstr "{0, plural, other {其中 # 条是受管文件，会进入可回滚暂存，24 小时后清除。}}"
 
 #. placeholder {0}: retention.count
-#: src/pages/settings/AiAgentSection.tsx:497
+#: src/pages/settings/AiAgentSection.tsx:525
 msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, other {最近 # 条}}"
 
@@ -172,7 +172,7 @@ msgid "{0, plural, other {导入 # 个文件}}"
 msgstr "{0, plural, other {导入 # 个文件}}"
 
 #. placeholder {0}: exportResult.count
-#: src/pages/settings/AiAgentSection.tsx:710
+#: src/pages/settings/AiAgentSection.tsx:738
 msgid "{0, plural, other {已导出 # 条会话}}"
 msgstr "{0, plural, other {已导出 # 条会话}}"
 
@@ -503,7 +503,7 @@ msgstr "{pendingCount, plural, other {# 待确认}}"
 msgid "{playerName} 在 {mapName} 的位置热图"
 msgstr "{playerName} 在 {mapName} 的位置热图"
 
-#: src/pages/settings/AiAgentSection.tsx:166
+#: src/pages/settings/AiAgentSection.tsx:171
 msgid "{removed, plural, other {已删除 # 条会话，方案、任务和视频都还在}}"
 msgstr "{removed, plural, other {已删除 # 条会话，方案、任务和视频都还在}}"
 
@@ -516,11 +516,11 @@ msgstr "{score} 回合"
 msgid "{seconds} 秒"
 msgstr "{seconds} 秒"
 
-#: src/pages/settings/AiAgentSection.tsx:633
+#: src/pages/settings/AiAgentSection.tsx:661
 msgid "{seconds} 秒左右"
 msgstr "{seconds} 秒左右"
 
-#: src/pages/settings/AiAgentSection.tsx:728
+#: src/pages/settings/AiAgentSection.tsx:756
 msgid "{sessionCount, plural, other {# 条会话}}"
 msgstr "{sessionCount, plural, other {# 条会话}}"
 
@@ -1048,11 +1048,11 @@ msgstr "不会动：任何还在磁盘上的文件。只有已经找不到的记
 msgid "不会动：已经完成的录制结果与成片，以及它们在资料库里的记录。"
 msgstr "不会动：已经完成的录制结果与成片，以及它们在资料库里的记录。"
 
-#: src/pages/settings/AiAgentSection.tsx:501
+#: src/pages/settings/AiAgentSection.tsx:529
 msgid "不保留"
 msgstr "不保留"
 
-#: src/pages/settings/AiAgentSection.tsx:257
+#: src/pages/settings/AiAgentSection.tsx:262
 msgid "不可关闭：录制会启动游戏并写出文件，必须有一次人工确认。"
 msgstr "不可关闭：录制会启动游戏并写出文件，必须有一次人工确认。"
 
@@ -1101,7 +1101,7 @@ msgstr "与 Agent 版本：时长"
 msgid "与视频链接"
 msgstr "与视频链接"
 
-#: src/pages/settings/AiAgentSection.tsx:309
+#: src/pages/settings/AiAgentSection.tsx:337
 msgid "专业"
 msgstr "专业"
 
@@ -1283,7 +1283,7 @@ msgstr "会把相机路径写成 HLAE 脚本落到磁盘，并启动 CS2 跳到�
 
 #: src/pages/agent/AgentConversationBlock.tsx:438
 #: src/pages/agent/SessionDrawer.tsx:174
-#: src/pages/settings/AiAgentSection.tsx:179
+#: src/pages/settings/AiAgentSection.tsx:184
 msgid "会话"
 msgstr "会话"
 
@@ -1291,7 +1291,7 @@ msgstr "会话"
 msgid "会话 · {title}"
 msgstr "会话 · {title}"
 
-#: src/pages/settings/AiAgentSection.tsx:454
+#: src/pages/settings/AiAgentSection.tsx:482
 msgid "会话保留多久"
 msgstr "会话保留多久"
 
@@ -1430,7 +1430,7 @@ msgstr "保存的视图 · {0}"
 msgid "保存裁切"
 msgstr "保存裁切"
 
-#: src/pages/settings/AiAgentSection.tsx:450
+#: src/pages/settings/AiAgentSection.tsx:478
 msgid "保留多久"
 msgstr "保留多久"
 
@@ -1438,7 +1438,7 @@ msgstr "保留多久"
 msgid "保留时长"
 msgstr "保留时长"
 
-#: src/pages/settings/AiAgentSection.tsx:125
+#: src/pages/settings/AiAgentSection.tsx:130
 msgid "保留策略没有应用成功"
 msgstr "保留策略没有应用成功"
 
@@ -1611,7 +1611,7 @@ msgstr "全部任务"
 msgid "全部任务记录"
 msgstr "全部任务记录"
 
-#: src/pages/settings/AiAgentSection.tsx:495
+#: src/pages/settings/AiAgentSection.tsx:523
 #: src/pages/settings/GameSection.tsx:292
 msgid "全部保留"
 msgstr "全部保留"
@@ -1626,7 +1626,7 @@ msgstr "全部合辑"
 msgid "全部合辑 · {0} 份工程"
 msgstr "全部合辑 · {0} 份工程"
 
-#: src/pages/settings/AiAgentSection.tsx:732
+#: src/pages/settings/AiAgentSection.tsx:760
 msgid "全部存在本机，不上传。"
 msgstr "全部存在本机，不上传。"
 
@@ -1766,7 +1766,7 @@ msgstr "关键词：{0}"
 msgid "关闭"
 msgstr "关闭"
 
-#: src/pages/settings/AiAgentSection.tsx:273
+#: src/pages/settings/AiAgentSection.tsx:278
 msgid "关闭后，接受变更会直接改工程，仍可撤销。"
 msgstr "关闭后，接受变更会直接改工程，仍可撤销。"
 
@@ -2952,7 +2952,7 @@ msgstr "密度"
 msgid "密度色阶，从 {minWeight} 次到 {maxWeight} 次"
 msgstr "密度色阶，从 {minWeight} 次到 {maxWeight} 次"
 
-#: src/pages/settings/AiAgentSection.tsx:417
+#: src/pages/settings/AiAgentSection.tsx:445
 msgid "密钥已配置"
 msgstr "密钥已配置"
 
@@ -3051,7 +3051,7 @@ msgstr "导入素材"
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:279
 #: src/pages/settings/AdvancedSection.tsx:223
-#: src/pages/settings/AiAgentSection.tsx:750
+#: src/pages/settings/AiAgentSection.tsx:778
 msgid "导出"
 msgstr "导出"
 
@@ -3094,7 +3094,7 @@ msgstr "导出成片会失败"
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
 msgstr "导出成片需要它。录制与分析不受影响，但导不出文件。"
 
-#: src/pages/settings/AiAgentSection.tsx:704
+#: src/pages/settings/AiAgentSection.tsx:732
 msgid "导出没有完成：{exportError}"
 msgstr "导出没有完成：{exportError}"
 
@@ -3403,8 +3403,8 @@ msgstr "应用"
 msgid "应用到全部"
 msgstr "应用到全部"
 
-#: src/pages/settings/AiAgentSection.tsx:272
-#: src/pages/settings/AiAgentSection.tsx:275
+#: src/pages/settings/AiAgentSection.tsx:277
+#: src/pages/settings/AiAgentSection.tsx:280
 msgid "应用剪辑变更前先预览"
 msgstr "应用剪辑变更前先预览"
 
@@ -3509,7 +3509,7 @@ msgstr "当前会话"
 msgid "当前修订 {currentRevision}"
 msgstr "当前修订 {currentRevision}"
 
-#: src/pages/settings/AiAgentSection.tsx:725
+#: src/pages/settings/AiAgentSection.tsx:753
 msgid "当前占用 {conversation}"
 msgstr "当前占用 {conversation}"
 
@@ -3526,7 +3526,7 @@ msgstr "当前方案"
 msgid "当前时间"
 msgstr "当前时间"
 
-#: src/pages/settings/AiAgentSection.tsx:645
+#: src/pages/settings/AiAgentSection.tsx:673
 msgid "当前是 {value} 秒，不在上面这几档里。"
 msgstr "当前是 {value} 秒，不在上面这几档里。"
 
@@ -3594,8 +3594,8 @@ msgstr "录制会启动 CS2，逐个采集 {0} 个片段，完成后把成片发
 msgid "录制会启动 CS2，逐个采集片段，完成后把成片发布到输出里。"
 msgstr "录制会启动 CS2，逐个采集片段，完成后把成片发布到输出里。"
 
-#: src/pages/settings/AiAgentSection.tsx:254
-#: src/pages/settings/AiAgentSection.tsx:264
+#: src/pages/settings/AiAgentSection.tsx:259
+#: src/pages/settings/AiAgentSection.tsx:269
 msgid "录制前始终由你确认"
 msgstr "录制前始终由你确认"
 
@@ -3688,11 +3688,15 @@ msgstr "录制默认值"
 msgid "影响 {0} 个片段，定位第一个"
 msgstr "影响 {0} 个片段，定位第一个"
 
-#: src/pages/settings/AiAgentSection.tsx:321
+#: src/pages/settings/AiAgentSection.tsx:349
 msgid "影响：Agent 写点评与镜头意图时的措辞。"
 msgstr "影响：Agent 写点评与镜头意图时的措辞。"
 
-#: src/pages/settings/AiAgentSection.tsx:639
+#: src/pages/settings/AiAgentSection.tsx:307
+msgid "影响：Agent 把镜头交过来时的初始视角。每个镜头仍可在方案里单独改。"
+msgstr "影响：Agent 把镜头交过来时的初始视角。每个镜头仍可在方案里单独改。"
+
+#: src/pages/settings/AiAgentSection.tsx:667
 msgid "影响：Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。"
 msgstr "影响：Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。"
 
@@ -3700,7 +3704,7 @@ msgstr "影响：Agent 设计镜头时瞄准的长度。它是目标不是上限
 msgid "影响：之后所有新文件的落点。已经写好的文件不会被搬走，仍留在原来的目录里。"
 msgstr "影响：之后所有新文件的落点。已经写好的文件不会被搬走，仍留在原来的目录里。"
 
-#: src/pages/settings/AiAgentSection.tsx:474
+#: src/pages/settings/AiAgentSection.tsx:502
 msgid "影响：会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。"
 msgstr "影响：会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。"
 
@@ -3708,7 +3712,7 @@ msgstr "影响：会话抽屉里能翻到多久以前。已生成的视频和任
 msgid "影响：判断服务是不是刚重启过。"
 msgstr "影响：判断服务是不是刚重启过。"
 
-#: src/pages/settings/AiAgentSection.tsx:283
+#: src/pages/settings/AiAgentSection.tsx:288
 msgid "影响：工作进度里是否展开每次读取的回合与事件。"
 msgstr "影响：工作进度里是否展开每次读取的回合与事件。"
 
@@ -3744,7 +3748,7 @@ msgstr "影响：报告问题时可以附上的一份运行记录。"
 msgid "影响：报告问题时要附上的号码。"
 msgstr "影响：报告问题时要附上的号码。"
 
-#: src/pages/settings/AiAgentSection.tsx:211
+#: src/pages/settings/AiAgentSection.tsx:216
 msgid "影响：新建会话时上下文是否预填，随时可手动改。"
 msgstr "影响：新建会话时上下文是否预填，随时可手动改。"
 
@@ -3776,7 +3780,7 @@ msgstr "影响：能否启动回放与录制。"
 msgid "影响：能否开始录制。不可用时录制会在预检阶段被拒。"
 msgstr "影响：能否开始录制。不可用时录制会在预检阶段被拒。"
 
-#: src/pages/settings/AiAgentSection.tsx:555
+#: src/pages/settings/AiAgentSection.tsx:583
 msgid "影响：超过后最早的 take 会被丢弃。"
 msgstr "影响：超过后最早的 take 会被丢弃。"
 
@@ -3887,7 +3891,7 @@ msgstr "战术回放缓存元数据无效"
 msgid "战术回放缓存元数据超过上限"
 msgstr "战术回放缓存元数据超过上限"
 
-#: src/pages/settings/AiAgentSection.tsx:355
+#: src/pages/settings/AiAgentSection.tsx:383
 msgid "所有对话记录都会被删除，且不能恢复。方案、录制任务和已生成的视频不受影响，它们占用的空间也不会因此释放。"
 msgstr "所有对话记录都会被删除，且不能恢复。方案、录制任务和已生成的视频不受影响，它们占用的空间也不会因此释放。"
 
@@ -4287,7 +4291,7 @@ msgstr "收起预设"
 msgid "改为这个目录"
 msgstr "改为这个目录"
 
-#: src/pages/settings/AiAgentSection.tsx:481
+#: src/pages/settings/AiAgentSection.tsx:509
 msgid "改了策略不会立刻清理。要现在生效，用右边这个按钮。"
 msgstr "改了策略不会立刻清理。要现在生效，用右边这个按钮。"
 
@@ -4450,7 +4454,7 @@ msgctxt "agent-object"
 msgid "方案"
 msgstr "方案"
 
-#: src/pages/settings/AiAgentSection.tsx:736
+#: src/pages/settings/AiAgentSection.tsx:764
 msgid "方案另占 {plans}，清空会话不会释放这部分。"
 msgstr "方案另占 {plans}，清空会话不会释放这部分。"
 
@@ -4568,8 +4572,8 @@ msgstr "时间轴"
 msgid "昨天"
 msgstr "昨天"
 
-#: src/pages/settings/AiAgentSection.tsx:282
-#: src/pages/settings/AiAgentSection.tsx:285
+#: src/pages/settings/AiAgentSection.tsx:287
+#: src/pages/settings/AiAgentSection.tsx:290
 msgid "显示 Agent 读取了哪些证据"
 msgstr "显示 Agent 读取了哪些证据"
 
@@ -5042,7 +5046,7 @@ msgctxt "match-view"
 msgid "概览"
 msgstr "概览"
 
-#: src/pages/settings/AiAgentSection.tsx:400
+#: src/pages/settings/AiAgentSection.tsx:428
 msgid "模型"
 msgstr "模型"
 
@@ -5103,8 +5107,8 @@ msgstr "正在启动游戏，请稍候"
 msgid "正在处理"
 msgstr "正在处理"
 
-#: src/pages/settings/AiAgentSection.tsx:748
-#: src/pages/settings/AiAgentSection.tsx:757
+#: src/pages/settings/AiAgentSection.tsx:776
+#: src/pages/settings/AiAgentSection.tsx:785
 msgid "正在处理上一次操作"
 msgstr "正在处理上一次操作"
 
@@ -5355,8 +5359,8 @@ msgstr "每回合按阵营统计的购买事件"
 msgid "每条下方是它触及过的对象"
 msgstr "每条下方是它触及过的对象"
 
-#: src/pages/settings/AiAgentSection.tsx:526
-#: src/pages/settings/AiAgentSection.tsx:536
+#: src/pages/settings/AiAgentSection.tsx:554
+#: src/pages/settings/AiAgentSection.tsx:564
 msgid "每条会话保留的 take 上限"
 msgstr "每条会话保留的 take 上限"
 
@@ -5696,12 +5700,12 @@ msgstr "清理未完成的暂存输出？"
 msgid "清空"
 msgstr "清空"
 
-#: src/pages/settings/AiAgentSection.tsx:348
-#: src/pages/settings/AiAgentSection.tsx:759
+#: src/pages/settings/AiAgentSection.tsx:376
+#: src/pages/settings/AiAgentSection.tsx:787
 msgid "清空会话"
 msgstr "清空会话"
 
-#: src/pages/settings/AiAgentSection.tsx:347
+#: src/pages/settings/AiAgentSection.tsx:375
 msgid "清空全部会话？"
 msgstr "清空全部会话？"
 
@@ -5716,7 +5720,7 @@ msgstr "清空搜索"
 msgid "清空条件"
 msgstr "清空条件"
 
-#: src/pages/settings/AiAgentSection.tsx:136
+#: src/pages/settings/AiAgentSection.tsx:141
 msgid "清空没有成功"
 msgstr "清空没有成功"
 
@@ -5793,8 +5797,8 @@ msgstr "点左侧记分板的一行，这里会显示他这一场的 K/D/A、武
 msgid "点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。"
 msgstr "点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。"
 
-#: src/pages/settings/AiAgentSection.tsx:299
-#: src/pages/settings/AiAgentSection.tsx:305
+#: src/pages/settings/AiAgentSection.tsx:327
+#: src/pages/settings/AiAgentSection.tsx:333
 msgid "点评语气"
 msgstr "点评语气"
 
@@ -6019,7 +6023,7 @@ msgstr "玩家视图"
 msgid "环绕"
 msgstr "环绕"
 
-#: src/pages/settings/AiAgentSection.tsx:331
+#: src/pages/settings/AiAgentSection.tsx:359
 msgid "现在按保留策略清理会话？"
 msgstr "现在按保留策略清理会话？"
 
@@ -6255,8 +6259,8 @@ msgstr "看道具与经济"
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
 #: src/pages/RecoveryPage.tsx:99
-#: src/pages/settings/AiAgentSection.tsx:146
-#: src/pages/settings/AiAgentSection.tsx:160
+#: src/pages/settings/AiAgentSection.tsx:151
+#: src/pages/settings/AiAgentSection.tsx:165
 #: src/pages/settings/AppSection.tsx:79
 #: src/pages/settings/FilesSection.tsx:85
 #: src/pages/settings/GameSection.tsx:107
@@ -6388,8 +6392,8 @@ msgstr "窗口宽度不足 1100px，侧栏保持为图标条"
 msgid "窗口操作失败"
 msgstr "窗口操作失败"
 
-#: src/pages/settings/AiAgentSection.tsx:332
-#: src/pages/settings/AiAgentSection.tsx:484
+#: src/pages/settings/AiAgentSection.tsx:360
+#: src/pages/settings/AiAgentSection.tsx:512
 msgid "立即应用"
 msgstr "立即应用"
 
@@ -6687,8 +6691,8 @@ msgstr "脚本已经写好，共 {0} 个文件。目录里的 README 说明怎�
 msgid "自动启动"
 msgstr "自动启动"
 
-#: src/pages/settings/AiAgentSection.tsx:210
-#: src/pages/settings/AiAgentSection.tsx:213
+#: src/pages/settings/AiAgentSection.tsx:215
+#: src/pages/settings/AiAgentSection.tsx:218
 msgid "自动带入当前选中的 Demo 与选手"
 msgstr "自动带入当前选中的 Demo 与选手"
 
@@ -6725,7 +6729,7 @@ msgstr "节拍建议不会直接修改工程，应用前可逐条预览。"
 msgid "节拍建议没能算出来：{error}"
 msgstr "节拍建议没能算出来：{error}"
 
-#: src/pages/settings/AiAgentSection.tsx:314
+#: src/pages/settings/AiAgentSection.tsx:342
 msgid "节目化"
 msgstr "节目化"
 
@@ -6742,7 +6746,7 @@ msgstr "花费"
 msgid "草案"
 msgstr "草案"
 
-#: src/pages/settings/AiAgentSection.tsx:250
+#: src/pages/settings/AiAgentSection.tsx:255
 msgid "行为边界"
 msgstr "行为边界"
 
@@ -6851,7 +6855,7 @@ msgstr "设置与诊断"
 msgid "设置分节"
 msgstr "设置分节"
 
-#: src/pages/settings/AiAgentSection.tsx:114
+#: src/pages/settings/AiAgentSection.tsx:119
 msgid "设置没有保存成功"
 msgstr "设置没有保存成功"
 
@@ -6937,7 +6941,7 @@ msgstr "说清楚你要的片子——多长、重点在哪、给谁看——Age
 msgid "请求超时或已取消，请稍后重试。"
 msgstr "请求超时或已取消，请稍后重试。"
 
-#: src/pages/settings/AiAgentSection.tsx:185
+#: src/pages/settings/AiAgentSection.tsx:190
 msgid "读不到 Agent 的会话设置：{settingsError}"
 msgstr "读不到 Agent 的会话设置：{settingsError}"
 
@@ -6945,7 +6949,7 @@ msgstr "读不到 Agent 的会话设置：{settingsError}"
 msgid "读不到会话列表：{listError}"
 msgstr "读不到会话列表：{listError}"
 
-#: src/pages/settings/AiAgentSection.tsx:698
+#: src/pages/settings/AiAgentSection.tsx:726
 msgid "读不到会话占用：{error}"
 msgstr "读不到会话占用：{error}"
 
@@ -6982,7 +6986,7 @@ msgstr "读不到恢复状态：{statusError}"
 msgid "读不到方案列表：{failure}"
 msgstr "读不到方案列表：{failure}"
 
-#: src/pages/settings/AiAgentSection.tsx:403
+#: src/pages/settings/AiAgentSection.tsx:431
 msgid "读不到模型配置：{error}"
 msgstr "读不到模型配置：{error}"
 
@@ -7116,7 +7120,7 @@ msgstr "起始 tick"
 msgid "起始 tick 要写成一个不小于 0 的整数"
 msgstr "起始 tick 要写成一个不小于 0 的整数"
 
-#: src/pages/settings/AiAgentSection.tsx:339
+#: src/pages/settings/AiAgentSection.tsx:367
 msgid "超出当前保留策略的会话会被删除，删掉的是对话本身。它们改过的方案、录制任务和已生成的视频都留下。"
 msgstr "超出当前保留策略的会话会被删除，删掉的是对话本身。它们改过的方案、录制任务和已生成的视频都留下。"
 
@@ -7471,7 +7475,7 @@ msgstr "还没有选择会话"
 msgid "还没有配乐"
 msgstr "还没有配乐"
 
-#: src/pages/settings/AiAgentSection.tsx:417
+#: src/pages/settings/AiAgentSection.tsx:445
 msgid "还没有配置密钥"
 msgstr "还没有配置密钥"
 
@@ -8462,10 +8466,10 @@ msgstr "重新选择"
 #: src/pages/settings/AdvancedSection.tsx:112
 #: src/pages/settings/AdvancedSection.tsx:163
 #: src/pages/settings/AdvancedSection.tsx:254
-#: src/pages/settings/AiAgentSection.tsx:183
-#: src/pages/settings/AiAgentSection.tsx:402
-#: src/pages/settings/AiAgentSection.tsx:697
-#: src/pages/settings/AiAgentSection.tsx:703
+#: src/pages/settings/AiAgentSection.tsx:188
+#: src/pages/settings/AiAgentSection.tsx:430
+#: src/pages/settings/AiAgentSection.tsx:725
+#: src/pages/settings/AiAgentSection.tsx:731
 #: src/pages/settings/AppSection.tsx:74
 #: src/pages/settings/FilesSection.tsx:77
 #: src/pages/settings/GameSection.tsx:102
@@ -8790,7 +8794,12 @@ msgstr "高爆"
 msgid "高级与诊断"
 msgstr "高级与诊断"
 
-#: src/pages/settings/AiAgentSection.tsx:624
-#: src/pages/settings/AiAgentSection.tsx:630
+#: src/pages/settings/AiAgentSection.tsx:652
+#: src/pages/settings/AiAgentSection.tsx:658
 msgid "默认成片时长"
 msgstr "默认成片时长"
+
+#: src/pages/settings/AiAgentSection.tsx:304
+#: src/pages/settings/AiAgentSection.tsx:315
+msgid "默认视角"
+msgstr "默认视角"

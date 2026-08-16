@@ -1250,6 +1250,7 @@ mod tests {
                 "preview_before_apply": false,
                 "show_evidence_reads": true,
                 "default_video_seconds": 90,
+                "default_shot_view": "player_pov",
                 "commentary_tone": "broadcast"
             })),
         )
@@ -1260,6 +1261,8 @@ mod tests {
         assert_eq!(settings["preview_before_apply"], json!(false));
         assert_eq!(settings["show_evidence_reads"], json!(true));
         assert_eq!(settings["default_video_seconds"], json!(90));
+        // The stored fallback the plan handover reads when it mints a shot.
+        assert_eq!(settings["default_shot_view"], json!("player_pov"));
         assert_eq!(settings["commentary_tone"], json!("broadcast"));
 
         // …and they survive a read, which is the point of persisting them.
@@ -1282,6 +1285,7 @@ mod tests {
                 "preview_before_apply": true,
                 "show_evidence_reads": true,
                 "default_video_seconds": 0,
+                "default_shot_view": "observer",
                 "commentary_tone": "professional"
             })),
         )

@@ -54,6 +54,7 @@
  * silently reset whatever it omitted.
  */
 
+import { useLingui } from '@lingui/react';
 import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
 import { useState, type ReactNode } from 'react';
@@ -70,6 +71,7 @@ import {
   useExportAgentSessions,
   useUpdateAgentWorkspaceSettings,
 } from '../../data/sessions';
+import { AGENT_SHOT_VIEW, AGENT_SHOT_VIEWS } from '../../domain/agent';
 import { Skeleton } from '../../design/data';
 import { Dialog, Notice } from '../../design/feedback';
 import { Button, Seg, Slider, Toggle } from '../../design/primitives';
@@ -88,6 +90,9 @@ import {
 type PendingConfirmation = 'retention' | 'clear' | null;
 
 export function AiAgentSection() {
+  // The vocabulary tables hold `MessageDescriptor`s so the words are looked up
+  // at render rather than frozen at import — see `domain/agent/types.ts`.
+  const { i18n } = useLingui();
   const service = useServiceAction();
 
   const config = useAppConfig();
@@ -293,6 +298,29 @@ export function AiAgentSection() {
               disabled={service.blocked || updateSettings.isPending}
               onCommit={(seconds) => void write({ ...current, default_video_seconds: seconds })}
             />
+
+            <div className="flex flex-col gap-2">
+              <p className="text-base">
+                <Trans>默认视角</Trans>
+              </p>
+              <p className="text-xs text-neutral-600">
+                <Trans>
+                  影响：Agent 把镜头交过来时的初始视角。每个镜头仍可在方案里单独改。
+                </Trans>
+              </p>
+              <Seg
+                name="default-shot-view"
+                size="sm"
+                value={current.default_shot_view}
+                aria-label={t`默认视角`}
+                options={AGENT_SHOT_VIEWS.map((view) => ({
+                  value: view,
+                  label: i18n._(AGENT_SHOT_VIEW[view].label),
+                  disabled: service.blocked || updateSettings.isPending,
+                }))}
+                onChange={(next) => void write({ ...current, default_shot_view: next })}
+              />
+            </div>
 
             <div className="flex flex-col gap-2">
               <p className="text-base">

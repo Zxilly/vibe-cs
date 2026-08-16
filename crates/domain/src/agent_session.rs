@@ -1046,6 +1046,15 @@ pub struct AgentWorkspaceSettings {
     /// The length the Agent aims a finished cut at, in seconds. A target, not a
     /// constraint: a plan that needs 44 seconds is not truncated to fit.
     pub default_video_seconds: u32,
+    /// The view a shot starts with when nothing decided it.
+    ///
+    /// Shots are handed over from Agent proposals one at a time, and the view
+    /// is a creative choice the proposal does not carry — so the handover has
+    /// to pick one. It used to pick `observer` in the client's own code. This
+    /// is the same decision, stored, which is what the settings row 「默认视角」
+    /// describes: the fallback, not a per-shot setting. The shot inspector
+    /// still changes it per shot.
+    pub default_shot_view: AgentShotView,
     pub commentary_tone: CommentaryTone,
 }
 
@@ -1059,6 +1068,8 @@ impl Default for AgentWorkspaceSettings {
             preview_before_apply: true,
             show_evidence_reads: true,
             default_video_seconds: AGENT_VIDEO_SECONDS_DEFAULT,
+            // The artboard's drawn state, and what the handover hard-coded.
+            default_shot_view: AgentShotView::Observer,
             commentary_tone: CommentaryTone::Professional,
         }
     }

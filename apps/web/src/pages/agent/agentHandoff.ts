@@ -76,13 +76,14 @@
  *     (`AgentPlanShot::normalize`), and a zero-length window that would be a
  *     legal placeholder on an unbound shot is rejected on a bound one.
  *
- * What still has no home on `AgentPlanShot` is the *view*: `AgentShotView` is
- * `observer | player_pov` and a highlight does not say which one it wants, so
- * every handed-over shot starts as an observer shot and 「08」's inspector is
- * where that is chosen. That is a product decision, not a gap.
+ * The *view* comes from the caller. `AgentShotView` is `observer | player_pov`
+ * and a highlight does not say which one it wants, so something has to choose:
+ * that something is 设置 · AI 与 Agent 「默认视角」, and 「08」's inspector still
+ * changes it per shot. It was hard-coded to `observer` for a round, which is
+ * the same decision without a way to change it.
  */
 
-import type { AgentPlanCreate, AgentPlanShot } from '../../shared/desktop/dto';
+import type { AgentPlanCreate, AgentPlanShot, AgentShotView } from '../../shared/desktop/dto';
 import {
   DEFAULT_AGENT_MODE,
   agentHref,
@@ -172,6 +173,7 @@ export function isSteamId64(value: string): boolean {
 export function agentPlanShotFromHighlight(
   source: HighlightHandoffSource,
   newId: () => string,
+  view: AgentShotView,
 ): AgentPlanShot | null {
   if (handoffRefusalFor(source) !== null) return null;
   const demoId = source.demoId ?? '';
@@ -183,13 +185,19 @@ export function agentPlanShotFromHighlight(
   return {
     id: newId(),
     title: source.title,
-    /* Every handed-over shot starts as an observer tracking shot. 「08」's
-       inspector is where 视角 and 镜头类型 are chosen, and choosing them here
-       would be this module guessing at a creative decision it has no input for.
+    /* The view is the caller's — 设置 · AI 与 Agent 「默认视角」. This module
+       used to hard-code `observer` with a note that choosing here would be
+       guessing at a creative decision it had no input for; that setting is the
+       input. 「08」's inspector still changes it per shot.
+
+       `kind` stays hard-coded: 镜头类型 has seven members chosen per shot from
+       the evidence, and a single default for all of them would be a worse
+       guess than the one this comment used to describe.
+
        `AgentShotView` has no 「受害者」 member either — that one is
        `recording.victim_pov`, and it is off. */
     kind: 'tracking',
-    view: 'observer',
+    view,
     start_tick: source.startTick,
     end_tick: source.endTick,
     duration_seconds: durationSeconds,
@@ -248,6 +256,7 @@ export type HighlightHandoffDraft =
  */
 export function agentPlanDraftFromHighlights(
   input: HighlightHandoffInput,
+  view: AgentShotView,
 ): HighlightHandoffDraft {
   if (input.highlights.length === 0) return { ok: false, refusal: 'no_selection' };
 
@@ -256,7 +265,7 @@ export function agentPlanDraftFromHighlights(
   for (const source of input.highlights) {
     const refusal = handoffRefusalFor(source);
     if (refusal !== null) return { ok: false, refusal };
-    const shot = agentPlanShotFromHighlight(source, newId);
+    const shot = agentPlanShotFromHighlight(source, newId, view);
     if (shot === null) return { ok: false, refusal: 'no_demo' };
     shots.push(shot);
   }

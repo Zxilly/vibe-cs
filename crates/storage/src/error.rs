@@ -91,6 +91,27 @@ impl StorageError {
             | Self::SecretPersistenceUnsupported => false,
         }
     }
+
+    /// How this failure should be classified on a job row.
+    ///
+    /// Coarse on purpose. The only distinctions worth making here are the ones
+    /// that change what the user is offered: a full disk is not retryable and
+    /// says so, a busy database is, and everything else is a defect in this
+    /// program that no button on the activity page can fix.
+    #[must_use]
+    pub fn failure_code(&self) -> vibe_cs_domain::JobFailureCode {
+        use vibe_cs_domain::JobFailureCode;
+        match self {
+            Self::Domain(error) => JobFailureCode::from(error),
+            Self::Database(rusqlite::Error::SqliteFailure(error, _))
+                if error.code == rusqlite::ErrorCode::DiskFull =>
+            {
+                JobFailureCode::DiskFull
+            }
+            _ if self.is_transient() => JobFailureCode::Timeout,
+            _ => JobFailureCode::Unknown,
+        }
+    }
 }
 
 pub type Result<T> = std::result::Result<T, StorageError>;
@@ -127,6 +148,48 @@ mod tests {
                 serde_json::from_str::<serde_json::Value>("{").unwrap_err()
             )
             .is_transient()
+        );
+    }
+
+    #[test]
+    fn failure_classification_separates_a_full_disk_from_a_busy_one() {
+        use vibe_cs_domain::JobFailureCode;
+
+        let sqlite = |code| {
+            StorageError::Database(Error::SqliteFailure(
+                ffi::Error {
+                    code,
+                    extended_code: 0,
+                },
+                None,
+            ))
+        };
+
+        // The distinction that matters on the activity row: a full disk is not
+        // retryable and tells the user to free space, a busy database is.
+        assert_eq!(
+            sqlite(ErrorCode::DiskFull).failure_code(),
+            JobFailureCode::DiskFull
+        );
+        assert!(!JobFailureCode::DiskFull.retryable());
+        assert_eq!(
+            sqlite(ErrorCode::DatabaseBusy).failure_code(),
+            JobFailureCode::Timeout
+        );
+        assert!(JobFailureCode::Timeout.retryable());
+
+        // A domain error keeps its own classification rather than being
+        // flattened into "something went wrong in storage".
+        assert_eq!(
+            StorageError::Domain(vibe_cs_domain::DomainError::NotFound("demo".to_owned()))
+                .failure_code(),
+            JobFailureCode::InputMissing
+        );
+
+        // Corruption is a defect no button on the page can fix.
+        assert_eq!(
+            sqlite(ErrorCode::DatabaseCorrupt).failure_code(),
+            JobFailureCode::Unknown
         );
     }
 }

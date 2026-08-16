@@ -15,8 +15,8 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 use vibe_cs_application::{AnalysisPort, RecordingPort};
 use vibe_cs_domain::{
-    AppConfig, DemoRecord, DomainError, Highlight, HighlightKind, JobStatus, MatchAnalysis,
-    RecordedClip, RecordingJob, RecordingRequest, ReplayFrame,
+    AppConfig, DemoRecord, DomainError, Highlight, HighlightKind, JobFailureCode, JobStatus,
+    MatchAnalysis, RecordedClip, RecordingJob, RecordingRequest, ReplayFrame,
 };
 use vibe_cs_recording::SegmentPlan;
 use vibe_cs_storage::Storage;
@@ -131,10 +131,15 @@ impl Drop for RecordingStartupGuard {
                         }
                         Ok(()) => {
                             job.status = JobStatus::Failed;
+                            job.error_code = Some(JobFailureCode::Interrupted);
                             "recording startup was interrupted".clone_into(&mut job.message);
                         }
                         Err(cleanup) => {
+                            // The interruption is still the reason the job ended;
+                            // the failed cleanup is an additional fact in the
+                            // message, not a different recovery.
                             job.status = JobStatus::Failed;
+                            job.error_code = Some(JobFailureCode::Interrupted);
                             job.message = truncate_message(&format!(
                                 "recording startup was interrupted; additionally failed to restore recording job resources: {cleanup}"
                             ));
@@ -561,6 +566,7 @@ impl RuntimeRecordingPort {
                 Err(error) => {
                     tracing::error!(job_id = %job.id, %error, "recording job failed");
                     job.status = JobStatus::Failed;
+                    job.error_code = Some(JobFailureCode::from(&error));
                     job.message = truncate_message(&error.to_string());
                 }
             }
@@ -1055,6 +1061,7 @@ impl RecordingPort for RuntimeRecordingPort {
             let cleanup = self.backend.finish_job(job.id).await;
             if job.retry_of.is_some() {
                 job.status = JobStatus::Failed;
+                job.error_code = Some(JobFailureCode::from(&error));
                 job.message = truncate_message(&match &cleanup {
                     Ok(()) => error.to_string(),
                     Err(cleanup) => format!(
@@ -1100,7 +1107,12 @@ impl RecordingPort for RuntimeRecordingPort {
                             "Cancelled".clone_into(&mut terminal.message);
                         }
                         Err(cleanup) => {
+                            // Cancelled, but not cleanly: something of this job
+                            // is still on disk. `Cancelled` would be retryable
+                            // and would say the job simply stopped, so this is
+                            // the one place a failed cleanup decides the code.
                             terminal.status = JobStatus::Failed;
+                            terminal.error_code = Some(JobFailureCode::Unknown);
                             terminal.message = truncate_message(&format!(
                                 "recording was cancelled while preparing; additionally failed to restore recording job resources: {cleanup}"
                             ));
@@ -1136,6 +1148,7 @@ impl RecordingPort for RuntimeRecordingPort {
             let primary = storage_error(&error);
             if job.retry_of.is_some() {
                 job.status = JobStatus::Failed;
+                job.error_code = Some(JobFailureCode::from(&primary));
                 job.message = truncate_message(&match &cleanup {
                     Ok(()) => primary.to_string(),
                     Err(cleanup) => format!(

@@ -185,7 +185,7 @@ impl MatchAnalysis {
             VerifiedLocalLineup {
                 lineup_id: anchor_lineup_id.clone(),
                 opponent_lineup_id: opponent_lineup_id.clone(),
-                team_slot: "A".to_owned(),
+                team_slot: TeamSlot::A,
                 members: team_a,
                 rounds_for: continuity.team_a_score,
                 rounds_against: continuity.team_b_score,
@@ -193,7 +193,7 @@ impl MatchAnalysis {
             VerifiedLocalLineup {
                 lineup_id: opponent_lineup_id,
                 opponent_lineup_id: anchor_lineup_id,
-                team_slot: "B".to_owned(),
+                team_slot: TeamSlot::B,
                 members: team_b,
                 rounds_for: continuity.team_b_score,
                 rounds_against: continuity.team_a_score,
@@ -202,12 +202,49 @@ impl MatchAnalysis {
     }
 }
 
+/// Which side of a map a lineup played.
+///
+/// Two values, and the database has said so since the schema was written:
+/// `CHECK(team_slot IN ('A', 'B'))`. Everything above it carried a `String`
+/// anyway, so the generated TypeScript said `string` and the web app kept a
+/// runtime guard for the pair — the one check `SQLite` had already made.
+///
+/// It is a slot, not a side: `A` is whichever lineup the projection anchored
+/// on, not the terrorists. Nothing here maps to CT/T.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export)]
+pub enum TeamSlot {
+    A,
+    B,
+}
+
+impl std::fmt::Display for TeamSlot {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(match self {
+            Self::A => "A",
+            Self::B => "B",
+        })
+    }
+}
+
+impl std::str::FromStr for TeamSlot {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "A" => Ok(Self::A),
+            "B" => Ok(Self::B),
+            other => Err(format!("unknown team slot: {other}")),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct VerifiedLocalLineup {
     pub lineup_id: String,
     pub opponent_lineup_id: String,
-    pub team_slot: String,
+    pub team_slot: TeamSlot,
     pub members: [String; 5],
     pub rounds_for: u32,
     pub rounds_against: u32,

@@ -32,8 +32,9 @@ use vibe_cs_demo::{
     ParseCancellation, SOURCE2_DEMO_MAGIC, ValidatedDemo, ValidationLimits, validate_demo,
 };
 use vibe_cs_domain::{
-    AppConfig, DemoRecord, DemoStatus, DomainError, MatchDemoStatus, MatchDownloadJob,
-    MatchDownloadStatus, MatchHistoryQuery, MatchHistoryResult, SteamConfig, SteamMatchRecord,
+    AppConfig, DemoRecord, DemoStatus, DomainError, JobFailureCode, MatchDemoStatus,
+    MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery, MatchHistoryResult, SteamConfig,
+    SteamMatchRecord,
 };
 use vibe_cs_integrations::{
     DemoDecompressionLimits, DemoDownloadObserver, DemoDownloadPort, DemoDownloadProgress,
@@ -988,6 +989,10 @@ impl RuntimeIntegrationPort {
             if let Err(error) = worker.await {
                 let mut terminal = panic_job;
                 terminal.status = MatchDownloadStatus::Failed;
+                // The worker task itself died — a panic or a cancelled join, not
+                // a download that failed on its own terms. Retrying is the right
+                // offer, which `Interrupted` makes and `Unknown` would not.
+                terminal.error_code = Some(JobFailureCode::Interrupted);
                 terminal.error = Some(format!(
                     "Steam download worker stopped unexpectedly: {error}"
                 ));
@@ -1030,6 +1035,11 @@ impl RuntimeIntegrationPort {
                 MatchDownloadStatus::Failed
             };
             job.error = (!cancelled).then(|| error.to_string());
+            job.error_code = if cancelled {
+                Some(JobFailureCode::Cancelled)
+            } else {
+                Some(JobFailureCode::from(&error))
+            };
             job.updated_at = Utc::now();
             if let Err(storage_error) = self
                 .persist_match_download_terminal(job.clone(), None)

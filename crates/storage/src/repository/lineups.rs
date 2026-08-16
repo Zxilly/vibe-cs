@@ -59,7 +59,7 @@ pub struct LineupMapItem {
     pub match_date: Option<DateTime<Utc>>,
     pub cataloged_at: DateTime<Utc>,
     pub opponent_lineup_id: String,
-    pub team_slot: String,
+    pub team_slot: vibe_cs_domain::TeamSlot,
     pub rounds_for: u32,
     pub rounds_against: u32,
 }
@@ -92,7 +92,7 @@ pub(super) fn replace_lineup_projection(
                 "INSERT INTO lineup_map_items(demo_id, lineup_id, opponent_lineup_id, team_slot, rounds_for, rounds_against) \
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
                 params![analysis.demo_id.to_string(), lineup.lineup_id, lineup.opponent_lineup_id,
-                    lineup.team_slot, i64::from(lineup.rounds_for), i64::from(lineup.rounds_against)],
+                    lineup.team_slot.to_string(), i64::from(lineup.rounds_for), i64::from(lineup.rounds_against)],
             )?;
             for (position, steam_id) in lineup.members.iter().enumerate() {
                 transaction.execute(
@@ -203,7 +203,7 @@ impl Storage {
             let mut statement = transaction.prepare("SELECT item.demo_id, demo.map_name, demo.match_date, demo.created_at, item.opponent_lineup_id, item.team_slot, item.rounds_for, item.rounds_against FROM lineup_map_items item JOIN lineup_projection_state state ON state.demo_id=item.demo_id AND state.status='verified' AND state.projected_lineups=(SELECT COUNT(*) FROM lineup_map_items counted WHERE counted.demo_id=state.demo_id) AND state.projected_members=(SELECT COUNT(*) FROM lineup_map_members counted WHERE counted.demo_id=state.demo_id) JOIN analyses a ON a.demo_id=item.demo_id AND a.updated_at=state.analysis_updated_at JOIN demos demo ON demo.id=item.demo_id WHERE item.lineup_id=?1 ORDER BY (demo.match_date IS NULL), demo.match_date DESC, demo.created_at DESC, item.demo_id ASC LIMIT ?2 OFFSET ?3")?;
             let items = statement.query_map(params![lineup_id, i64::from(page_size), offset], |row| {
                 let match_date = row.get::<_, Option<String>>(2)?;
-                Ok(LineupMapItem { demo_id: row.get(0)?, map_name: row.get(1)?, match_date: parse_optional_datetime(match_date.as_deref())?, cataloged_at: parse_datetime(&row.get::<_, String>(3)?)?, opponent_lineup_id: row.get(4)?, team_slot: row.get(5)?, rounds_for: u32::try_from(row.get::<_, i64>(6)?).map_err(|e| rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Integer, Box::new(e)))?, rounds_against: u32::try_from(row.get::<_, i64>(7)?).map_err(|e| rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Integer, Box::new(e)))? })
+                Ok(LineupMapItem { demo_id: row.get(0)?, map_name: row.get(1)?, match_date: parse_optional_datetime(match_date.as_deref())?, cataloged_at: parse_datetime(&row.get::<_, String>(3)?)?, opponent_lineup_id: row.get(4)?, team_slot: row.get::<_, String>(5)?.parse().map_err(|error: String| rusqlite::Error::FromSqlConversionFailure(5, rusqlite::types::Type::Text, Box::new(std::io::Error::new(std::io::ErrorKind::InvalidData, error))))?, rounds_for: u32::try_from(row.get::<_, i64>(6)?).map_err(|e| rusqlite::Error::FromSqlConversionFailure(6, rusqlite::types::Type::Integer, Box::new(e)))?, rounds_against: u32::try_from(row.get::<_, i64>(7)?).map_err(|e| rusqlite::Error::FromSqlConversionFailure(7, rusqlite::types::Type::Integer, Box::new(e)))? })
             })?.collect::<rusqlite::Result<Vec<_>>>()?;
             drop(statement);
             transaction.commit()?;

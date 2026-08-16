@@ -1304,7 +1304,11 @@ mod tests {
                 .unwrap();
             let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
             storage
-                .fail_analysis_run(run_id, "fixture failure".to_owned())
+                .fail_analysis_run(
+                    run_id,
+                    "fixture failure".to_owned(),
+                    vibe_cs_domain::JobFailureCode::Unknown,
+                )
                 .await
                 .unwrap();
             storage.set_demo_status(demo_id, status).await.unwrap();

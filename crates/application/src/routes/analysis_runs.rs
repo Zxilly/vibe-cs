@@ -12,7 +12,7 @@ use axum::{
 use uuid::Uuid;
 use vibe_cs_domain::{
     AnalysisInputFingerprint, AnalysisRun, AnalysisRunDetail, AnalysisRunStatus, DomainError,
-    MatchAnalysis,
+    JobFailureCode, MatchAnalysis,
 };
 
 use crate::{
@@ -136,6 +136,10 @@ async fn settle_analysis_run(
                     state,
                     run_id,
                     format!("analysis cancellation cleanup failed: {error}"),
+                    // Cancelled, but something this run wrote is still on disk.
+                    // `Cancelled` would read as a clean stop and would offer a
+                    // retry that walks into the same leftover state.
+                    JobFailureCode::Unknown,
                 )
                 .await;
                 owner.finish_cancellation_cleanup_failed();
@@ -167,12 +171,15 @@ async fn settle_analysis_run(
                             state.events.publish("analysis", "completed", Some(run_id));
                         }
                         Err(error) => {
-                            terminalize_owner_failure(state, run_id, error.to_string()).await;
+                            // The parse succeeded and the write did not.
+                            let code = error.failure_code();
+                            terminalize_owner_failure(state, run_id, error.to_string(), code).await;
                         }
                     }
                 }
                 Err(error) => {
-                    terminalize_owner_failure(state, run_id, error.to_string()).await;
+                    let code = JobFailureCode::from(&error);
+                    terminalize_owner_failure(state, run_id, error.to_string(), code).await;
                 }
             }
             owner.finish_terminal();
@@ -241,7 +248,12 @@ async fn terminalize_owner_cancellation(
     }
 }
 
-async fn terminalize_owner_failure(state: &AppState, run_id: Uuid, message: String) {
+async fn terminalize_owner_failure(
+    state: &AppState,
+    run_id: Uuid,
+    message: String,
+    code: JobFailureCode,
+) {
     const INITIAL_RETRY_DELAY: std::time::Duration = std::time::Duration::from_millis(100);
     const MAX_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(5);
     let mut attempt = 0_u64;
@@ -278,7 +290,7 @@ async fn terminalize_owner_failure(state: &AppState, run_id: Uuid, message: Stri
         }
         match state
             .storage
-            .fail_analysis_run(run_id, message.clone())
+            .fail_analysis_run(run_id, message.clone(), code)
             .await
         {
             Ok(_) => {
@@ -1051,7 +1063,11 @@ mod tests {
             .unwrap()
             .run;
         storage
-            .fail_analysis_run(failed.id, "parser failed".to_owned())
+            .fail_analysis_run(
+                failed.id,
+                "parser failed".to_owned(),
+                vibe_cs_domain::JobFailureCode::DependencyFailed,
+            )
             .await
             .unwrap();
         let interrupted = storage

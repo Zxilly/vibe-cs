@@ -449,7 +449,18 @@ impl Storage {
         .await
     }
 
-    pub async fn fail_analysis_run(&self, run_id: Uuid, error: String) -> Result<AnalysisRun> {
+    /// Terminalises a run as failed.
+    ///
+    /// `code` is the caller's classification, not something derivable here: by
+    /// the time a failure reaches storage it is a string, and the error type
+    /// that could have been classified — a `DomainError`, a parser failure, a
+    /// write that ran out of disk — is three frames up.
+    pub async fn fail_analysis_run(
+        &self,
+        run_id: Uuid,
+        error: String,
+        code: vibe_cs_domain::JobFailureCode,
+    ) -> Result<AnalysisRun> {
         let error = bounded_terminal_detail(&error, "analysis failed");
         self.run(move |connection| {
             let transaction =
@@ -460,6 +471,7 @@ impl Storage {
                         "analysis run".to_owned(),
                     ))
                 })?;
+            run.error_code = Some(code);
             transition_analysis_run(
                 &transaction,
                 &mut run,
@@ -990,7 +1002,11 @@ mod tests {
         assert!(!active.result_available);
 
         storage
-            .fail_analysis_run(run_id, "fixture failure".to_owned())
+            .fail_analysis_run(
+                run_id,
+                "fixture failure".to_owned(),
+                vibe_cs_domain::JobFailureCode::Unknown,
+            )
             .await
             .unwrap();
         assert!(
@@ -1204,7 +1220,11 @@ mod tests {
             let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
             if terminal_failure {
                 storage
-                    .fail_analysis_run(run_id, "fixture failure".to_owned())
+                    .fail_analysis_run(
+                        run_id,
+                        "fixture failure".to_owned(),
+                        vibe_cs_domain::JobFailureCode::Unknown,
+                    )
                     .await
                     .unwrap();
             }
@@ -1249,7 +1269,11 @@ mod tests {
             .id;
 
         let run = storage
-            .fail_analysis_run(run_id, "input fingerprint did not match".to_owned())
+            .fail_analysis_run(
+                run_id,
+                "input fingerprint did not match".to_owned(),
+                vibe_cs_domain::JobFailureCode::InvalidInput,
+            )
             .await
             .expect("fail run");
 
@@ -1405,7 +1429,11 @@ mod tests {
             .run;
         fill_analysis_event_capacity(&storage, fail_full.id, 32).await;
         storage
-            .fail_analysis_run(fail_full.id, "parser failed".to_owned())
+            .fail_analysis_run(
+                fail_full.id,
+                "parser failed".to_owned(),
+                vibe_cs_domain::JobFailureCode::DependencyFailed,
+            )
             .await
             .expect("fail a legacy full-capacity run");
 
@@ -1593,7 +1621,11 @@ mod tests {
 
         let fail_run = storage.start_analysis_run(fail_demo_id).await.unwrap().run;
         let (failed, cancelled) = tokio::join!(
-            storage.fail_analysis_run(fail_run.id, "parser failed".to_owned()),
+            storage.fail_analysis_run(
+                fail_run.id,
+                "parser failed".to_owned(),
+                vibe_cs_domain::JobFailureCode::DependencyFailed
+            ),
             storage.cancel_analysis_run(fail_run.id),
         );
         assert_ne!(failed.is_ok(), cancelled.is_ok());
@@ -1892,7 +1924,11 @@ mod tests {
             .await
             .unwrap();
         storage
-            .fail_analysis_run(failed_id, "source disappeared".to_owned())
+            .fail_analysis_run(
+                failed_id,
+                "source disappeared".to_owned(),
+                vibe_cs_domain::JobFailureCode::InputMissing,
+            )
             .await
             .unwrap();
         assert_eq!(
@@ -1943,7 +1979,11 @@ mod tests {
                 storage.recover_orphaned_analysis_runs().await.unwrap();
             } else {
                 storage
-                    .fail_analysis_run(run_id, "old attempt failed".to_owned())
+                    .fail_analysis_run(
+                        run_id,
+                        "old attempt failed".to_owned(),
+                        vibe_cs_domain::JobFailureCode::Unknown,
+                    )
                     .await
                     .unwrap();
             }

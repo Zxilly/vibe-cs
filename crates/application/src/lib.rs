@@ -110,7 +110,11 @@ mod tests {
     ) -> Uuid {
         let run_id = storage.start_analysis_run(demo_id).await.unwrap().run.id;
         storage
-            .fail_analysis_run(run_id, error.to_owned())
+            .fail_analysis_run(
+                run_id,
+                error.to_owned(),
+                vibe_cs_domain::JobFailureCode::Unknown,
+            )
             .await
             .unwrap();
         run_id

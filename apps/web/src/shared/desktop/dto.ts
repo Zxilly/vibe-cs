@@ -245,10 +245,12 @@ export type { LineupDirectoryPage } from './generated/LineupDirectoryPage';
 /**
  * One map a lineup played.
  *
- * `team_slot` is `string`, not `'A' | 'B'`: `crates/storage` declares the
- * column as `String` and nothing in Rust closes it, so an exhaustive client
- * switch over two members was unsound. Treat an unrecognized slot as unknown.
+ * `team_slot` was `string` here for as long as `crates/storage` declared the
+ * column as one — the schema's `CHECK(team_slot IN ('A', 'B'))` closed the set
+ * in SQLite and nowhere else, so an exhaustive client switch was unsound. It is
+ * `TeamSlot` now and a switch over the two is sound.
  */
+export type { TeamSlot } from './generated/TeamSlot';
 export type { LineupMapItem } from './generated/LineupMapItem';
 export type { LineupMapPage } from './generated/LineupMapPage';
 

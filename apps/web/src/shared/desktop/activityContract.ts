@@ -11,7 +11,7 @@ const summaryKeys = ['total', 'active', 'failed', 'completed', 'cancelled'] as c
 const kinds = new Set<ActivityKind>(['recording', 'export', 'download', 'analysis']);
 const statuses = new Set<ActivityStatus>([
   'queued', 'preparing', 'running', 'cancelling', 'completed', 'failed', 'cancelled',
-  'downloading', 'decompressing', 'importing', 'analyzing',
+  'downloading', 'decompressing', 'importing',
 ]);
 const actions = new Set<ActivityAction>([
   'cancel', 'retry_analysis', 'retry_download', 'retry_recording', 'open_analysis',

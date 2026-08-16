@@ -28,7 +28,7 @@ const ONE_DEMO = {
 
 const CHECKS = {
   checks: [
-    { kind: 'cs2', state: 'ready', label: 'CS2', detail: '版本 1.40.9.6' },
+    { kind: 'game', state: 'ready', label: 'CS2', detail: '版本 1.40.9.6' },
     { kind: 'hlae', state: 'missing', label: '受管 HLAE', detail: '未探测到可执行文件' },
   ],
   checked_at: '2026-08-16T08:02:00.000Z',
@@ -105,7 +105,7 @@ describe('使用引导', () => {
   it('says what each dependency is for', async () => {
     render(<GuidePage />);
     await waitFor(() => {
-      expect(document.querySelector('[data-guide-check="cs2"]')).not.toBeNull();
+      expect(document.querySelector('[data-guide-check="game"]')).not.toBeNull();
     });
     expect(document.body.textContent).toContain('回放与录制都用它');
   });

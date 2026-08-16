@@ -525,6 +525,24 @@ impl ExportPort for RuntimeExportPort {
         cancellation.cancel();
         Ok(record.job)
     }
+
+    async fn encoders(&self) -> Vec<String> {
+        // Compiled into the linked libavcodec, so this is a registry lookup, not
+        // a process spawn — but `ffmpeg::init()` runs on the first call, which is
+        // why it goes to a blocking thread. A failure here means the build
+        // cannot encode at all, which reads the same as an empty list.
+        match &self.backend {
+            ExportBackend::Native => tokio::task::spawn_blocking(|| {
+                native_ffmpeg_info()
+                    .map(|info| info.encoders)
+                    .unwrap_or_default()
+            })
+            .await
+            .unwrap_or_default(),
+            #[cfg(test)]
+            ExportBackend::Test(backend) => backend.encoders(),
+        }
+    }
 }
 
 fn storage_error(error: &vibe_cs_storage::StorageError) -> DomainError {

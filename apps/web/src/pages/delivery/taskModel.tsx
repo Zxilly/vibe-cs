@@ -80,6 +80,11 @@ import type { ActivityItem } from '../../shared/desktop/viewModels';
  * `queued` for the reason `domain/task/types.ts` already gives — the artboard
  * has one 排队中 marker and no 准备中 word.
  *
+ * There is no `analyzing` either, though this table had one: an analysis run
+ * reports `running` like any other job, and the stage it is in travels in
+ * `stage`. The key was accepted because `ActivityStatus` was a hand-written
+ * union; the enum does not have it.
+ *
  * There is no `awaiting-confirmation` on the wire. It is a state the front end
  * owns (§4.5.3 ①), reached by `taskMachine` before a recording is confirmed and
  * never reported by the service, so nothing maps onto it.
@@ -91,7 +96,6 @@ export const ACTIVITY_STATUS_TO_TASK_STATUS: Readonly<Record<ActivityStatus, Tas
   downloading: 'running',
   decompressing: 'running',
   importing: 'running',
-  analyzing: 'running',
   cancelling: 'cancelling',
   completed: 'succeeded',
   failed: 'failed',

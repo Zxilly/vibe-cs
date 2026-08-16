@@ -38,7 +38,7 @@ import { Button } from '../design/primitives';
 import { useQuickCheck } from '../data/config';
 import { dataErrorMessage } from '../data/errors';
 import { useServiceAction } from '../data/serviceAction';
-import type { DependencyCheck } from '../shared/desktop/dto';
+import type { DependencyCheck, DependencyState } from '../shared/desktop/dto';
 import { FIRST_RUN_STEPS } from './home/firstRunSteps';
 import { RouteLink } from './RouteLink';
 
@@ -135,22 +135,17 @@ export function GuidePage() {
   );
 }
 
-/** Same reading of the open `state` string as the settings sections use. */
-function dotStatus(state: string): StatusDotStatus {
-  switch (state) {
-    case 'ready':
-    case 'ok':
-      return 'ok';
-    case 'warning':
-    case 'degraded':
-      return 'warn';
-    case 'missing':
-    case 'error':
-    case 'blocked':
-      return 'fail';
-    default:
-      return 'idle';
-  }
+/**
+ * Two states, so two dots.
+ *
+ * This used to take a `string` and answer for seven values — `ok`, `warning`,
+ * `degraded`, `error`, `blocked` and a neutral fallback — because the wire type
+ * was an open string and nobody could say which ones arrived. The route answers
+ * with an enum now: the probe either found the dependency or it did not, and
+ * there is no third answer to paint.
+ */
+function dotStatus(state: DependencyState): StatusDotStatus {
+  return state === 'ready' ? 'ok' : 'fail';
 }
 
 /**
@@ -162,9 +157,9 @@ function dotStatus(state: string): StatusDotStatus {
  * `home/EnvironmentNotice` does it that way.
  */
 function enablesSentence(check: DependencyCheck): string {
-  const broken = check.state === 'missing' || check.state === 'blocked' || check.state === 'error';
+  const broken = check.state === 'missing';
   switch (check.kind) {
-    case 'cs2':
+    case 'game':
       return broken
         ? t`回放与录制都需要它。导入和分析不受影响，可以先做那两步。`
         : t`回放与录制都用它。`;
@@ -173,11 +168,8 @@ function enablesSentence(check: DependencyCheck): string {
         ? t`录制需要它。导入、分析和剪辑都不受影响。`
         : t`录制用它接管画面。`;
     case 'encoder':
-    case 'ffmpeg':
       return broken
         ? t`导出成片需要它。录制与分析不受影响，但导不出文件。`
         : t`导出成片与波形分析用它。`;
-    default:
-      return broken ? t`这一项现在不可用。` : t`这一项就绪。`;
   }
 }

@@ -22,20 +22,14 @@
  *
  * ## What is still hand-written, and why
  *
- * Three groups, each marked where it appears:
+ * Two groups, each marked where it appears:
  *
  *   1. **Tauri-side types.** The streaming Agent chat contract
  *      (`AgentStatus`, `AgentMessage`, `AgentThread`, `AgentChatInput`,
  *      `AgentEvent`, `AgentChatResult`, `AgentProposal`, `AgentVideoProposal`,
  *      `AgentShotDesign`) and `HlaeBundleHandoff` live in
  *      `apps/desktop/src-tauri/src/`, which is not part of the ts-rs wiring.
- *   2. **Client-side narrowings of an untyped field.** `DependencyKind`,
- *      `DependencyState`, `ActivityKind`, `ActivityStatus` and
- *      `ActivityAction` narrow fields that Rust types as `&'static str`
- *      produced by `match` arms. The generated types say `string`, correctly.
- *      These unions are the client's own reading of the closed set and are
- *      **not** guaranteed by the server.
- *   3. **Frontend aliases.** `EntityId`.
+ *   2. **Frontend aliases.** `EntityId`.
  *
  * View models — shapes this application derives from the wire rather than
  * receives — moved to `./viewModels`. `dto.ts` is the wire, not a type
@@ -52,17 +46,14 @@ export type { StorageStatusResponse as StorageStatus } from './generated/Storage
 export type { DetectedPathsResponse as DetectedPaths } from './generated/DetectedPathsResponse';
 
 /**
- * The two setup-check discriminators.
+ * The quick-check pair.
  *
- * `crates/application/src/routes/system.rs` types both as `&'static str`
- * written by `match` arms, so `generated/DependencyCheck.ts` says `string` and
- * these unions are the client's own reading of what those arms can produce.
- * Nothing in Rust stops a new arm from being added — turning them into real
- * serde enums is the fix, and it is a backend change.
+ * Both were hand-written unions until `routes/system.rs` grew real enums for
+ * them; the guesses were `'game'` for the kind (right) and four states where
+ * the probe only ever produces two (wrong — see the generated TSDoc).
  */
-export type DependencyKind = 'game';
-export type DependencyState = 'ready' | 'warning' | 'missing' | 'checking';
-
+export type { DependencyKind } from './generated/DependencyKind';
+export type { DependencyState } from './generated/DependencyState';
 export type { DependencyCheck } from './generated/DependencyCheck';
 export type { QuickCheckResponse } from './generated/QuickCheckResponse';
 
@@ -343,33 +334,20 @@ export type { HlaeNoticeCode } from './generated/HlaeNoticeCode';
 /* ── activity feed ────────────────────────────────────────────────────────── */
 
 /**
- * The three activity discriminators.
+ * The activity discriminators.
  *
- * `crates/application/src/routes/activity.rs` emits `ActivityItem.kind`,
- * `.status`, `.unit` and `.available_actions` as `&'static str` from `match`
- * arms, so `generated/ActivityItem.ts` types all four as `string`. These
- * unions are the client's reading of those arms and are not enforced by the
- * server: compare against them, never assume exhaustiveness.
+ * These were the client's own unions over fields Rust typed as `&'static str`,
+ * with a note that the server did not guarantee them. It does now: they are
+ * serde enums in `crates/application/src/routes/activity.rs`, generated like
+ * the query-side filters beside them.
  *
- * `ActivityKindFilter` and `ActivityStateFilter` are the *query* side and are
- * real serde enums, which is why those two are generated.
+ * `ActivityStatus` is a superset of the three pipelines' own status enums —
+ * `JobStatus` plus the transfer states — flattened for one feed.
  */
-export type ActivityKind = 'recording' | 'export' | 'download' | 'analysis';
-export type ActivityStatus =
-  | import('./generated/JobStatus').JobStatus
-  | 'downloading'
-  | 'decompressing'
-  | 'importing'
-  | 'analyzing';
-export type ActivityAction =
-  | 'cancel'
-  | 'retry_analysis'
-  | 'retry_download'
-  | 'retry_recording'
-  | 'open_analysis'
-  | 'open_library'
-  | 'open_match_history'
-  | 'open_outputs';
+export type { ActivityKind } from './generated/ActivityKind';
+export type { ActivityStatus } from './generated/ActivityStatus';
+export type { ActivityAction } from './generated/ActivityAction';
+export type { ActivityUnit } from './generated/ActivityUnit';
 
 export type { ActivityKindFilter } from './generated/ActivityKindFilter';
 export type { ActivityStateFilter } from './generated/ActivityStateFilter';

@@ -11,18 +11,15 @@
  *
  * ── Which checks block, and which are only worth knowing ─────────────────
  *
- * `DependencyCheck.state` is an open string on the wire (§10.9 group 3), and
- * only two of its values mean "this stops work": `missing` and `blocked`. A
- * `warning` is a thing worth reading in the diagnostics section and is not a
- * reason to put a banner on the workbench — that is the difference between a
- * page that is informative and a page that is nagging.
+ * `DependencyCheck.state` is `ready` or `missing` — the route answers with an
+ * enum, so "which values block" is no longer a judgement call: `missing` does.
  *
- * An unrecognised state is treated as **not blocking**. That is the cautious
- * direction here, and it is the opposite of what `GameSection`'s dot does: a
- * dot that cannot classify a state paints neutral rather than green because it
- * is *describing* the dependency, while this block is *interrupting the user*,
- * and interrupting on a state nobody has defined yet is how a banner becomes
- * something people learn to ignore.
+ * This paragraph used to weigh a `warning` state against a `blocked` one and
+ * settle on treating anything unrecognised as non-blocking, since the wire type
+ * was an open string and no one could enumerate it. Neither value was ever
+ * sent. The reasoning still holds if a third state is ever added — a banner
+ * that interrupts on states nobody has defined is one people learn to ignore —
+ * but it is now a decision to make then, not a defence to carry.
  *
  * ── It is not the service gate ───────────────────────────────────────────
  *
@@ -39,16 +36,20 @@ import { useNavigate } from 'react-router-dom';
 
 import { Notice } from '../../design/feedback';
 import { useQuickCheck } from '../../data/config';
-import type { DependencyCheck } from '../../shared/desktop/dto';
+import type {
+  DependencyCheck,
+  DependencyKind,
+  DependencyState,
+} from '../../shared/desktop/dto';
 
-/** The two states that stop work. See the module comment. */
-const BLOCKING_STATES = ['missing', 'blocked'];
+/** The state that stops work. See the module comment. */
+const BLOCKING_STATE: DependencyState = 'missing';
 
 export function EnvironmentNotice() {
   const checks = useQuickCheck();
   const navigate = useNavigate();
-  const blocking = (checks.data?.checks ?? []).filter((check) =>
-    BLOCKING_STATES.includes(check.state),
+  const blocking = (checks.data?.checks ?? []).filter(
+    (check) => check.state === BLOCKING_STATE,
   );
 
   /* Silence is the normal state — including while the check is still in
@@ -106,21 +107,16 @@ function blockingSentence(check: DependencyCheck): string {
  * go through the macro at call time — a module-scope object would freeze the
  * strings at import in whichever locale happened to be active.
  *
- * An unknown kind falls back to a generic sentence rather than being dropped:
- * a blocked dependency this page cannot name is still a blocked dependency,
- * and hiding it would be the one outcome worse than a vague banner.
+ * Exhaustive over the enum, so a new kind is a compile error here rather than a
+ * banner that says 「相关功能不可用」 about something this page could have named.
  */
-function consequenceOf(kind: string): string {
+function consequenceOf(kind: DependencyKind): string {
   switch (kind) {
-    case 'cs2':
+    case 'game':
       return t`回放与录制都起不来`;
     case 'hlae':
       return t`录制起不来，分析与编辑不受影响`;
     case 'encoder':
       return t`导出成片会失败`;
-    case 'ffmpeg':
-      return t`导出与波形都会失败`;
-    default:
-      return t`相关功能不可用`;
   }
 }

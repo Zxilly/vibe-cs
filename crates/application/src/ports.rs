@@ -542,6 +542,14 @@ pub trait ExportPort: Send + Sync + std::fmt::Debug {
 
     /// Persists the cancellation request before signalling the active process.
     async fn cancel(&self, job_id: Uuid) -> Result<ExportJob, DomainError>;
+
+    /// The video encoders this build can actually write with.
+    ///
+    /// Empty means exporting is unavailable, which is what the disabled adapter
+    /// answers. The quick check reports it: a machine that can record but not
+    /// encode has a specific problem, and "export failed" at the end of a render
+    /// is a bad time to discover it.
+    async fn encoders(&self) -> Vec<String>;
 }
 
 #[derive(Debug, Default)]
@@ -564,6 +572,10 @@ impl ExportPort for DisabledExportPort {
         Err(DomainError::DependencyUnavailable(
             "export adapter".to_owned(),
         ))
+    }
+
+    async fn encoders(&self) -> Vec<String> {
+        Vec::new()
     }
 }
 

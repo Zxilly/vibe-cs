@@ -85,21 +85,95 @@ enum ActivityStateFilter {
     Cancelled,
 }
 
+/* ── response discriminators ──────────────────────────────────────────────────
+ *
+ * These four were `&'static str` written by `match` arms, so the generated
+ * bindings said `string` and the web app kept its own union beside them with a
+ * note that the server did not guarantee it. That note was accurate: adding an
+ * arm here could not fail any check, and the client would have compared against
+ * a set that no longer matched.
+ *
+ * The query side (`ActivityKindFilter`, `ActivityStateFilter`) was already
+ * enums, which is the shape this brings the response side up to.
+ */
+
+/// Which pipeline produced the row.
+///
+/// The same four values as `ActivityKindFilter`, kept separate because that one
+/// is the query and this is the answer: a filter may gain "all" without the
+/// response gaining a kind.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum ActivityKind {
+    Recording,
+    Export,
+    Download,
+    Analysis,
+}
+
+/// The row's state, flattened from the three pipelines' own status enums.
+///
+/// A superset: `queued` / `running` / `completed` / `failed` / `cancelled` are
+/// shared, `preparing` and `cancelling` come from jobs, and the three transfer
+/// states come from downloads. `AnalysisRunStatus::Interrupted` deliberately
+/// arrives as `failed` — an interrupted run is a failed one from here, and the
+/// distinction belongs to the analysis page.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum ActivityStatus {
+    Queued,
+    Preparing,
+    Running,
+    Cancelling,
+    Completed,
+    Failed,
+    Cancelled,
+    Downloading,
+    Decompressing,
+    Importing,
+}
+
+/// What `completed_units` / `total_units` are counting on this row.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum ActivityUnit {
+    Stages,
+    Bytes,
+}
+
+/// What the row offers, in the order it is offered.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum ActivityAction {
+    Cancel,
+    RetryRecording,
+    RetryDownload,
+    RetryAnalysis,
+    OpenOutputs,
+    OpenMatchHistory,
+    OpenAnalysis,
+    OpenLibrary,
+}
+
 #[derive(Debug, Serialize, TS)]
 #[ts(export)]
 struct ActivityItem {
     id: String,
-    kind: &'static str,
+    kind: ActivityKind,
     subtype: Option<String>,
     job_id: Option<String>,
     context_id: Option<String>,
     subject: Option<String>,
-    status: &'static str,
+    status: ActivityStatus,
     stage: Option<String>,
     progress_percent: Option<u8>,
     completed_units: Option<u64>,
     total_units: Option<u64>,
-    unit: Option<&'static str>,
+    unit: Option<ActivityUnit>,
     error: Option<String>,
     /// The classified failure, when the service could classify it.
     ///
@@ -112,7 +186,7 @@ struct ActivityItem {
     failure: Option<ActivityFailure>,
     created_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
-    available_actions: Vec<&'static str>,
+    available_actions: Vec<ActivityAction>,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -291,14 +365,14 @@ fn recording_activity(job: &RecordingJob, retryable: bool) -> ActivityItem {
         .flatten();
     let mut available_actions = Vec::with_capacity(2);
     if !job.status.is_terminal() {
-        available_actions.push("cancel");
+        available_actions.push(ActivityAction::Cancel);
     } else if retryable {
-        available_actions.push("retry_recording");
+        available_actions.push(ActivityAction::RetryRecording);
     }
-    available_actions.push("open_outputs");
+    available_actions.push(ActivityAction::OpenOutputs);
     ActivityItem {
         id: format!("recording:{}", job.id),
-        kind: "recording",
+        kind: ActivityKind::Recording,
         subtype: None,
         job_id: Some(job.id.to_string()),
         context_id: job.items.first().map(|item| item.demo_id.to_string()),
@@ -310,7 +384,7 @@ fn recording_activity(job: &RecordingJob, retryable: bool) -> ActivityItem {
         progress_percent: None,
         completed_units,
         total_units: completed_units.map(|_| 5),
-        unit: completed_units.map(|_| "stages"),
+        unit: completed_units.map(|_| ActivityUnit::Stages),
         error,
         failure: ActivityFailure::of(job.error_code),
         created_at: job.created_at,
@@ -334,12 +408,12 @@ fn export_activity(record: ExportJobRecord) -> ActivityItem {
     let job = record.job;
     let mut available_actions = Vec::with_capacity(2);
     if !job.status.is_terminal() {
-        available_actions.push("cancel");
+        available_actions.push(ActivityAction::Cancel);
     }
-    available_actions.push("open_outputs");
+    available_actions.push(ActivityAction::OpenOutputs);
     ActivityItem {
         id: format!("export:{}", job.id),
-        kind: "export",
+        kind: ActivityKind::Export,
         subtype: Some(record.kind),
         job_id: Some(job.id.to_string()),
         context_id: Some(job.project_id.to_string()),
@@ -361,23 +435,23 @@ fn export_activity(record: ExportJobRecord) -> ActivityItem {
 fn download_activity(job: MatchDownloadJob, retryable: bool) -> ActivityItem {
     let mut available_actions = Vec::with_capacity(2);
     if !job.status.is_terminal() {
-        available_actions.push("cancel");
+        available_actions.push(ActivityAction::Cancel);
     } else if retryable
         && matches!(
             job.status,
             MatchDownloadStatus::Failed | MatchDownloadStatus::Cancelled
         )
     {
-        available_actions.push("retry_download");
+        available_actions.push(ActivityAction::RetryDownload);
     }
-    available_actions.push("open_match_history");
+    available_actions.push(ActivityAction::OpenMatchHistory);
     let progress_percent = job
         .total_bytes
         .filter(|total| *total > 0)
         .and_then(|total| rounded_integer_percent(job.downloaded_bytes.min(total), total));
     ActivityItem {
         id: format!("download:{}", job.id),
-        kind: "download",
+        kind: ActivityKind::Download,
         subtype: None,
         job_id: Some(job.id.to_string()),
         context_id: Some(job.match_record_id.clone()),
@@ -387,7 +461,7 @@ fn download_activity(job: MatchDownloadJob, retryable: bool) -> ActivityItem {
         progress_percent,
         completed_units: Some(job.downloaded_bytes),
         total_units: job.total_bytes,
-        unit: Some("bytes"),
+        unit: Some(ActivityUnit::Bytes),
         failure: ActivityFailure::of(job.error_code),
         error: job.error,
         created_at: job.created_at,
@@ -404,16 +478,16 @@ fn analysis_activity(
 ) -> ActivityItem {
     let mut available_actions = Vec::with_capacity(2);
     if !run.status.is_terminal() {
-        available_actions.push("cancel");
+        available_actions.push(ActivityAction::Cancel);
     } else if retryable {
-        available_actions.push("retry_analysis");
+        available_actions.push(ActivityAction::RetryAnalysis);
     } else if run.status == AnalysisRunStatus::Completed && result_available {
-        available_actions.push("open_analysis");
+        available_actions.push(ActivityAction::OpenAnalysis);
     }
-    available_actions.push("open_library");
+    available_actions.push(ActivityAction::OpenLibrary);
     ActivityItem {
         id: format!("analysis:{}", run.id),
-        kind: "analysis",
+        kind: ActivityKind::Analysis,
         subtype: None,
         job_id: Some(run.id.to_string()),
         context_id: Some(run.demo_id.to_string()),
@@ -446,38 +520,38 @@ fn rounded_integer_percent(completed: u64, total: u64) -> Option<u8> {
     u8::try_from(rounded).ok()
 }
 
-const fn job_status(status: JobStatus) -> &'static str {
+const fn job_status(status: JobStatus) -> ActivityStatus {
     match status {
-        JobStatus::Queued => "queued",
-        JobStatus::Preparing => "preparing",
-        JobStatus::Running => "running",
-        JobStatus::Cancelling => "cancelling",
-        JobStatus::Completed => "completed",
-        JobStatus::Failed => "failed",
-        JobStatus::Cancelled => "cancelled",
+        JobStatus::Queued => ActivityStatus::Queued,
+        JobStatus::Preparing => ActivityStatus::Preparing,
+        JobStatus::Running => ActivityStatus::Running,
+        JobStatus::Cancelling => ActivityStatus::Cancelling,
+        JobStatus::Completed => ActivityStatus::Completed,
+        JobStatus::Failed => ActivityStatus::Failed,
+        JobStatus::Cancelled => ActivityStatus::Cancelled,
     }
 }
 
-const fn match_download_status(status: MatchDownloadStatus) -> &'static str {
+const fn match_download_status(status: MatchDownloadStatus) -> ActivityStatus {
     match status {
-        MatchDownloadStatus::Queued => "queued",
-        MatchDownloadStatus::Downloading => "downloading",
-        MatchDownloadStatus::Decompressing => "decompressing",
-        MatchDownloadStatus::Importing => "importing",
-        MatchDownloadStatus::Completed => "completed",
-        MatchDownloadStatus::Cancelling => "cancelling",
-        MatchDownloadStatus::Cancelled => "cancelled",
-        MatchDownloadStatus::Failed => "failed",
+        MatchDownloadStatus::Queued => ActivityStatus::Queued,
+        MatchDownloadStatus::Downloading => ActivityStatus::Downloading,
+        MatchDownloadStatus::Decompressing => ActivityStatus::Decompressing,
+        MatchDownloadStatus::Importing => ActivityStatus::Importing,
+        MatchDownloadStatus::Completed => ActivityStatus::Completed,
+        MatchDownloadStatus::Cancelling => ActivityStatus::Cancelling,
+        MatchDownloadStatus::Cancelled => ActivityStatus::Cancelled,
+        MatchDownloadStatus::Failed => ActivityStatus::Failed,
     }
 }
 
-const fn analysis_run_status(status: AnalysisRunStatus) -> &'static str {
+const fn analysis_run_status(status: AnalysisRunStatus) -> ActivityStatus {
     match status {
-        AnalysisRunStatus::Queued => "queued",
-        AnalysisRunStatus::Running => "running",
-        AnalysisRunStatus::Completed => "completed",
-        AnalysisRunStatus::Failed | AnalysisRunStatus::Interrupted => "failed",
-        AnalysisRunStatus::Cancelled => "cancelled",
+        AnalysisRunStatus::Queued => ActivityStatus::Queued,
+        AnalysisRunStatus::Running => ActivityStatus::Running,
+        AnalysisRunStatus::Completed => ActivityStatus::Completed,
+        AnalysisRunStatus::Failed | AnalysisRunStatus::Interrupted => ActivityStatus::Failed,
+        AnalysisRunStatus::Cancelled => ActivityStatus::Cancelled,
     }
 }
 
@@ -788,9 +862,12 @@ mod tests {
 
         assert_eq!(
             retryable.available_actions,
-            vec!["retry_recording", "open_outputs"]
+            vec![ActivityAction::RetryRecording, ActivityAction::OpenOutputs]
         );
-        assert_eq!(superseded.available_actions, vec!["open_outputs"]);
+        assert_eq!(
+            superseded.available_actions,
+            vec![ActivityAction::OpenOutputs]
+        );
     }
 
     #[test]
@@ -803,9 +880,12 @@ mod tests {
         let without_result = analysis_activity(completed, "Demo".to_owned(), false, false);
         assert_eq!(
             with_result.available_actions,
-            ["open_analysis", "open_library"]
+            [ActivityAction::OpenAnalysis, ActivityAction::OpenLibrary]
         );
-        assert_eq!(without_result.available_actions, ["open_library"]);
+        assert_eq!(
+            without_result.available_actions,
+            [ActivityAction::OpenLibrary]
+        );
 
         let interrupted = analysis_activity(
             analysis_run(
@@ -816,11 +896,11 @@ mod tests {
             true,
             false,
         );
-        assert_eq!(interrupted.status, "failed");
+        assert_eq!(interrupted.status, ActivityStatus::Failed);
         assert_eq!(interrupted.stage.as_deref(), Some("interrupted"));
         assert_eq!(
             interrupted.available_actions,
-            ["retry_analysis", "open_library"]
+            [ActivityAction::RetryAnalysis, ActivityAction::OpenLibrary]
         );
     }
 
@@ -836,12 +916,12 @@ mod tests {
             false,
         );
 
-        assert_eq!(cancelled.status, "cancelled");
+        assert_eq!(cancelled.status, ActivityStatus::Cancelled);
         assert_eq!(cancelled.stage.as_deref(), Some("cancelled"));
         assert_eq!(cancelled.error, None);
         assert_eq!(
             cancelled.available_actions,
-            ["retry_analysis", "open_library"]
+            [ActivityAction::RetryAnalysis, ActivityAction::OpenLibrary]
         );
     }
 
@@ -857,6 +937,9 @@ mod tests {
             false,
         );
 
-        assert_eq!(active.available_actions, ["cancel", "open_library"]);
+        assert_eq!(
+            active.available_actions,
+            [ActivityAction::Cancel, ActivityAction::OpenLibrary]
+        );
     }
 }

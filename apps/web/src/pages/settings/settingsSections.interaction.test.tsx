@@ -68,9 +68,9 @@ const STORAGE: StorageStatus = {
 
 const CHECKS: QuickCheckResponse = {
   checks: [
-    { kind: 'cs2', state: 'ready', label: 'CS2', detail: '版本 1.40.9.6' },
-    { kind: 'encoder', state: 'ready', label: 'H.264', detail: '可用' },
-    { kind: 'ffmpeg', state: 'missing', label: 'AAC', detail: '未探测到编码器' },
+    { kind: 'game', state: 'ready', label: 'CS2', detail: '版本 1.40.9.6' },
+    { kind: 'hlae', state: 'ready', label: 'HLAE', detail: 'C:/hlae/HLAE.exe' },
+    { kind: 'encoder', state: 'missing', label: 'Video encoder', detail: '未探测到编码器' },
   ],
   checked_at: '2026-08-16T08:02:00.000Z',
 };
@@ -220,7 +220,7 @@ describe('游戏与录制', () => {
     render(<GameSection />);
     await loaded('视频输出能力');
     await waitFor(() => {
-      expect(document.body.textContent).toContain('H.264');
+      expect(document.body.textContent).toContain('未探测到编码器');
     });
     expect(document.body.textContent).toContain('未探测到编码器');
     expect(document.body.textContent).toContain('上次检查');

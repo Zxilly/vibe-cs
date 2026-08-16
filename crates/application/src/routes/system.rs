@@ -803,11 +803,43 @@ struct QuickCheckResponse {
     checked_at: chrono::DateTime<Utc>,
 }
 
+/// Which dependency a check is about.
+///
+/// Writing it down is what showed the check was incomplete. This route is the
+/// environment self-check behind `/guide`, and that page has a sentence for the
+/// game, for HLAE and for the encoder — but the route only ever answered about
+/// the game, so two of those three could not appear and the one that did fell
+/// through to a generic line. The client's `&'static str` union could not
+/// notice; an enum does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum DependencyKind {
+    Game,
+    Hlae,
+    Encoder,
+}
+
+/// Whether the dependency was found.
+///
+/// Two states, not four: this check is a filesystem probe, so it either found
+/// the path or it did not. There is no partial result to call a warning, and
+/// "checking" is the client's own loading state — its query knows it is in
+/// flight without the server saying so.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum DependencyState {
+    Ready,
+    Missing,
+}
+
 #[derive(Debug, Serialize, TS)]
 #[ts(export)]
 struct DependencyCheck {
-    kind: &'static str,
-    state: &'static str,
+    kind: DependencyKind,
+    state: DependencyState,
+    /// The product's own name, for display. Free text, not a discriminator.
     label: &'static str,
     detail: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -827,31 +859,78 @@ async fn quick_check(State(state): State<AppState>) -> ApiResult<Json<QuickCheck
                 format!("dependency discovery task failed: {error}"),
             )
         })?;
-    let checks = build_quick_checks(&paths);
+    let hlae = current_hlae_status(&state).await?;
+    let encoders = state.exports.encoders().await;
+    let checks = build_quick_checks(&paths, &hlae, &encoders);
     Ok(Json(QuickCheckResponse {
         checks,
         checked_at: Utc::now(),
     }))
 }
 
-fn build_quick_checks(paths: &vibe_cs_integrations::DiscoveredPaths) -> Vec<DependencyCheck> {
-    vec![check_discovered_path(
-        "game",
-        "Counter-Strike 2",
-        paths.cs2.as_deref(),
-        Some("/settings"),
-    )]
+fn build_quick_checks(
+    paths: &vibe_cs_integrations::DiscoveredPaths,
+    hlae: &HlaeStatus,
+    encoders: &[String],
+) -> Vec<DependencyCheck> {
+    vec![
+        check_discovered_path(
+            DependencyKind::Game,
+            "Counter-Strike 2",
+            paths.cs2.as_deref(),
+            Some("/settings"),
+        ),
+        DependencyCheck {
+            kind: DependencyKind::Hlae,
+            state: if hlae.available {
+                DependencyState::Ready
+            } else {
+                DependencyState::Missing
+            },
+            label: "HLAE",
+            // `messages` is the status's own account of what is wrong, and it is
+            // more specific than anything reconstructed from a boolean.
+            detail: hlae.executable.clone().unwrap_or_else(|| {
+                hlae.messages
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "HLAE was not found".to_owned())
+            }),
+            action_path: Some("/settings"),
+        },
+        DependencyCheck {
+            kind: DependencyKind::Encoder,
+            state: if encoders.is_empty() {
+                DependencyState::Missing
+            } else {
+                DependencyState::Ready
+            },
+            label: "Video encoder",
+            detail: if encoders.is_empty() {
+                "this build has no usable video encoder".to_owned()
+            } else {
+                encoders.join(", ")
+            },
+            // No settings row picks an encoder — the export request does, and it
+            // is chosen per export. A path here would lead nowhere.
+            action_path: None,
+        },
+    ]
 }
 
 fn check_discovered_path(
-    kind: &'static str,
+    kind: DependencyKind,
     label: &'static str,
     path: Option<&Path>,
     action_path: Option<&'static str>,
 ) -> DependencyCheck {
     DependencyCheck {
         kind,
-        state: if path.is_some() { "ready" } else { "missing" },
+        state: if path.is_some() {
+            DependencyState::Ready
+        } else {
+            DependencyState::Missing
+        },
         label,
         detail: path.map_or_else(
             || format!("{label} was not found"),
@@ -971,14 +1050,70 @@ mod tests {
         );
     }
 
-    #[test]
-    fn workspace_readiness_contains_only_the_user_supplied_cs2_dependency() {
-        let checks = build_quick_checks(&vibe_cs_integrations::DiscoveredPaths::default());
+    /// An HLAE status with nothing installed — the state a first run is in.
+    fn absent_hlae() -> HlaeStatus {
+        HlaeStatus {
+            available: false,
+            executable: None,
+            source2_hook: None,
+            source: None,
+            managed_release: ManagedHlaeReleaseStatus {
+                version: "reviewed-release".to_owned(),
+                archive_sha256: "a".repeat(64),
+                signing_fingerprint: "reviewed-fingerprint".to_owned(),
+                prepared: false,
+            },
+            messages: vec!["prepare the managed movie engine".to_owned()],
+            cs2_executable: None,
+            launch_profile_ready: false,
+            automatic_launch_enabled: false,
+            insecure_mode_required: true,
+            vac_servers_prohibited: true,
+            demo_playback_only: true,
+        }
+    }
 
+    #[test]
+    fn quick_check_answers_for_every_dependency_the_guide_explains() {
+        let checks = build_quick_checks(
+            &vibe_cs_integrations::DiscoveredPaths::default(),
+            &absent_hlae(),
+            &[],
+        );
+
+        // Order is the order `/guide` renders, and every kind must appear:
+        // a page that explains three dependencies and receives one shows the
+        // other two as nothing at all.
         assert_eq!(
             checks.iter().map(|check| check.kind).collect::<Vec<_>>(),
-            vec!["game"]
+            vec![
+                DependencyKind::Game,
+                DependencyKind::Hlae,
+                DependencyKind::Encoder
+            ]
         );
+        // Nothing discovered, so every one of them is missing rather than absent.
+        assert!(
+            checks
+                .iter()
+                .all(|check| check.state == DependencyState::Missing)
+        );
+    }
+
+    #[test]
+    fn a_build_with_encoders_reports_them_as_the_detail() {
+        let checks = build_quick_checks(
+            &vibe_cs_integrations::DiscoveredPaths::default(),
+            &absent_hlae(),
+            &["libx264".to_owned(), "h264_nvenc".to_owned()],
+        );
+
+        let encoder = checks
+            .iter()
+            .find(|check| check.kind == DependencyKind::Encoder)
+            .expect("the encoder check");
+        assert_eq!(encoder.state, DependencyState::Ready);
+        assert_eq!(encoder.detail, "libx264, h264_nvenc");
     }
 
     #[cfg(windows)]

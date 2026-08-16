@@ -41,7 +41,13 @@ import { useAppConfig, useQuickCheck, useStorageStatus, useUpdateAppConfig } fro
 import { dataErrorMessage } from '../../data/errors';
 import { useNativeShell, useNativeShellAction } from '../../data/nativeShell';
 import { useServiceAction } from '../../data/serviceAction';
-import type { AppConfig, DependencyCheck, RecordingVoicePolicy } from '../../shared/desktop/dto';
+import type {
+  AppConfig,
+  DependencyCheck,
+  DependencyKind,
+  DependencyState,
+  RecordingVoicePolicy,
+} from '../../shared/desktop/dto';
 import {
   formatBytes,
   PathReadout,
@@ -56,12 +62,15 @@ const ROLL_MAX = 10;
 const ROLL_STEP = 0.5;
 
 /**
- * The checks 「视频输出能力」 is about. `DependencyCheck.kind` is a `&'static
- * str` on the wire (§10.9 group 3), so this list is the client's reading of a
- * closed set the service does not promise — an unrecognised kind simply does
- * not appear in this block, and 高级与诊断 lists every check without filtering.
+ * The checks 「视频输出能力」 is about.
+ *
+ * This was `['encoder', 'ffmpeg', 'media']` when `kind` was an open string and
+ * the list was a guess at names the service might use; two of the three never
+ * existed. `DependencyKind` is an enum now, so this is the actual set — and a
+ * new kind will not silently fall out of this block, because adding one to the
+ * enum without deciding whether it belongs here is a decision, not an accident.
  */
-const ENCODER_CHECK_KINDS = ['encoder', 'ffmpeg', 'media'];
+const ENCODER_CHECK_KINDS: readonly DependencyKind[] = ['encoder'];
 
 export function GameSection() {
   const config = useAppConfig();
@@ -114,7 +123,7 @@ export function GameSection() {
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
             >
               <div className="flex items-center gap-2.5">
-                <CheckDot checks={checks.data?.checks ?? []} kind="cs2" />
+                <CheckDot checks={checks.data?.checks ?? []} kind="game" />
                 <Button
                   variant="secondary"
                   size="sm"
@@ -291,7 +300,13 @@ function encoderChecks(checks: readonly DependencyCheck[]): DependencyCheck[] {
   return checks.filter((check) => ENCODER_CHECK_KINDS.includes(check.kind));
 }
 
-function CheckDot({ checks, kind }: { readonly checks: readonly DependencyCheck[]; readonly kind: string }) {
+function CheckDot({
+  checks,
+  kind,
+}: {
+  readonly checks: readonly DependencyCheck[];
+  readonly kind: DependencyKind;
+}) {
   const check = checks.find((each) => each.kind === kind);
   if (check === undefined) return null;
   return (
@@ -303,29 +318,16 @@ function CheckDot({ checks, kind }: { readonly checks: readonly DependencyCheck[
 }
 
 /**
- * `DependencyCheck.state` is an open string on the wire (§10.9 group 3), so
- * this is the client's reading of a closed set the service does not promise.
+ * Two states, so two dots.
  *
- * An unrecognised state falls to `idle`, not to `ok`: `StatusDot` has no
- * 「不知道」 colour, and painting an unclassifiable dependency green is the one
- * answer that could be actively wrong. `idle` is the neutral dot, which reads
- * as "no claim" rather than as "fine".
+ * The paragraph here used to argue that an unclassifiable state should paint
+ * `idle` rather than `ok`, because `StatusDot` has no 「不知道」 colour and
+ * green would be the one answer that could be actively wrong. That argument was
+ * about an open string; `DependencyState` is `ready | missing`, and there is
+ * nothing left to be unable to classify.
  */
-function dotStatus(state: string): StatusDotStatus {
-  switch (state) {
-    case 'ready':
-    case 'ok':
-      return 'ok';
-    case 'warning':
-    case 'degraded':
-      return 'warn';
-    case 'missing':
-    case 'error':
-    case 'blocked':
-      return 'fail';
-    default:
-      return 'idle';
-  }
+function dotStatus(state: DependencyState): StatusDotStatus {
+  return state === 'ready' ? 'ok' : 'fail';
 }
 
 interface RollRowProps {

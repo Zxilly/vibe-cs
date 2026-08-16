@@ -52,7 +52,6 @@ describe('status', () => {
     expect(taskStatusOfActivity('downloading')).toBe('running');
     expect(taskStatusOfActivity('decompressing')).toBe('running');
     expect(taskStatusOfActivity('importing')).toBe('running');
-    expect(taskStatusOfActivity('analyzing')).toBe('running');
     expect(taskStatusOfActivity('preparing')).toBe('queued');
     expect(taskStatusOfActivity('completed')).toBe('succeeded');
   });

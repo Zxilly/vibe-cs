@@ -2256,7 +2256,7 @@ async fn relink_asset_path(
 /// `source_out` now runs past the end of it. Nothing downstream catches that:
 /// `EditorProject::validate` cannot see the asset, and the export's own
 /// `validate_editor_clip` only checks `source_out > source_in`. The render then
-/// asks FFmpeg to read past the end of the file, and what comes out is a short
+/// asks `FFmpeg` to read past the end of the file, and what comes out is a short
 /// clip or black frames rather than an error anyone can point at.
 ///
 /// 「重新定位」 means *the same file moved*. A genuinely different take is

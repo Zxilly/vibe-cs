@@ -1483,3 +1483,96 @@ A 块（对话流）与 B 块（方案面板）在同一轮里各自实现了「
 
 1. **`headerLabel` 这类属性没有静态防线。** 现在靠渲染门抓，而渲染门只覆盖首屏能渲染出来的部分——一个藏在对话框里、默认不展开的裸串仍然逃得掉（本轮 50 处 `headerLabel` 里，正是只有两处「没有 `header` 只有 `headerLabel`」的列被抓出来，其余 48 处是顺带一起改的）。真正的防线是 ESLint 的 JSX 字面量规则，本轮没上。
 2. **`docs/CS_DEMO_MANAGER_UI_PARITY_AUDIT.md` 里的链接指向已删的 `features/**`。** 那是一份历史审计，记录的是当时的对照，没有改。
+
+
+---
+
+## 10.14 缺口收口记录 —— 契约、防线与轨道（2026-08-17）
+
+六次提交，做的是 §10.9 与 §10.11 记下来但没做的那些「缺口」。出口条件每次都跑满：`cargo clippy --workspace --all-targets -- -D warnings` / `cargo test --workspace` / `check-rust-format.ps1` / `pnpm lint` / `typecheck` / `test` / `build` 全绿，en-US 目录零缺失。
+
+### 10.14.1 七个 `json!` 路由 → 真结构体
+
+`RuntimeIntegrationPort` 的分发是 `request(name, Value) -> Value`，所以每份文档都是 `json!` 现搭的，形状唯一的书面记录是 `dto.ts` 里一个手维护的类型。两者之间没有任何东西相连。
+
+端口签名没动（字符串分发是另一个设计问题），变的是**一个 `Value` 现在只能由序列化结构体产生**，于是 `cargo test` 会重写绑定、CI 会因漂移变红——这正是手写类型从来没有的性质。
+
+**类型化当场找出三处它掩盖的东西：**
+
+1. **`recovery_status` 发的是它自己的磁盘记录。** `RecoveryMarker` 的字段是 `target` / `had_previous` / `installed_at`，而客户端读的是 `reason` / `backup_created_at` / `affected_files`——**三个字段一个都没发过**。恢复页因此在「原因」的位置渲染写死的兜底句，并且对一个不存在的数组读 `.length`。同样的信息，翻译成这条路由承诺的形状。
+2. **启动时那三个字段的覆写会静默跳过。** `preflight.as_object_mut()` 返回 `Option`，用 `if let` 接的——一个万一不是对象的 preflight 会**一声不响地跳过全部三个赋值**，然后响应声称这是一次未托管的、对原始路径的启动。现在是三次字段赋值。
+3. **`demo_id` 原样回传请求里的任意 `Value`。** 一个数字或一个对象会被反射回一个客户端类型称之为 id 的键下面。现在是 `Option<String>`，只回传字符串。
+
+`AgentCapabilities.protocol` 顺手变成单变体枚举：加第二个协议现在是 TypeScript 看得见的契约变更。
+
+### 10.14.2 五个响应侧 `&'static str` → serde 枚举
+
+`ActivityKind` / `ActivityStatus` / `ActivityUnit` / `ActivityAction` / `DependencyKind` / `DependencyState`。查询侧本来就是枚举，这次是把响应侧补齐到同一水平。
+
+**枚举找出来的东西比缺口本身重要：**
+
+- **`/api/config/quick-check` 是 `/guide` 背后的环境自检，而它只答了游戏一项。** 那一页为游戏、HLAE、编码器各写了一句话——**两句永远不会出现**，出现的那句掉进通用兜底。现在三项都答。编码器那项需要 `ExportPort::encoders`：编码器是编译进链接的 libavcodec 的，所以它报告的是这份构建**真的能写什么**，空列表就是禁用适配器在说导出不可用。
+- **`DependencyState` 被三个组件按七个值读**（`ok` / `warning` / `degraded` / `error` / `blocked` 加两种中性兜底）。探测只产生两个。每个组件都有一段推理「无法分类的状态该当作什么」——**那段推理对开放字符串是成立的**，只是现在没有东西还需要被分类了。
+- **`ActivityStatus` 有一个服务端从不发的 `analyzing`。** 分析运行和别的作业一样报 `running`，阶段走 `stage`。它能被接受，只因为那个联合是手写的。
+- **`GameSection` 按 `['encoder', 'ffmpeg', 'media']` 过滤编码器检查**，三个名字里两个从未存在过。
+
+### 10.14.3 `team_slot` 与三条链路的失败分类
+
+**`team_slot`** 从 `crates/storage` 往上是 `String`。schema 从写下来那天就闭合了这个集合——`CHECK(team_slot IN ('A', 'B'))`——所以 SQLite 是**唯一**在执行它的东西，生成的 TypeScript 说 `string`，而 web 端带着一个运行时守卫，重做一遍 SQLite 已经做过的检查。
+
+**`error_code`** 在 3g-be 就定了类型、存储与呈现，四条链路里三条留着 `None`，因为分类必须发生在失败发生的地方，而每条链路的错误类型都不同。这次补齐：
+
+- **录制六处。** 中断的启动是 `Interrupted`；带 `DomainError` 的失败走 `From<&DomainError>`。**需要一个判断的是那处「取消时清理也失败了」**：那不是 `Cancelled`——`Cancelled` 可重试且表示作业只是停了，而这个作业写下的东西还留在磁盘上。
+- **下载两处。** 在 join 里死掉的 worker 是 `Interrupted`：任务没了，下载本身并没有以自己的方式失败，重试是对的提议。
+- **分析。** `fail_analysis_run` 从调用方拿码而不是猜：失败走到存储层时已经是一个字符串，本来可以分类的那个错误在三帧之外。`StorageError` 长出 `failure_code`，**故意粗**——值得画的区分只有会改变用户被提议什么的那些：磁盘满不可重试并说明要腾空间，数据库忙可以重试，而损坏是这一页上任何按钮都修不了的缺陷。
+
+### 10.14.4 分层检查规则 7：文案必须走宏
+
+阶段 4 的 en-US 渲染门抓出 55 处没走宏的中文，并记下**没有任何静态防线**能拦住下一处：渲染门只看得见首屏画出来的东西。
+
+规则 7 覆盖那 55 处**实际采取的两种形态**——JSX 属性（`label="比较"`）与对象字面量里承载文案的键（`headerLabel: '操作'`）。这两个位置上的中文只可能是 UI 文案。
+
+**它故意不报所有汉字串。** 那有 685 处，而且几乎全是对的：`design/tokens.data.ts` 的画板普查、fixtures、线上枚举值、命令面板的补充搜索词。**一条为了抓 55 处而报 685 行的规则，一周之内就会被关掉。**
+
+两处豁免，都是专有名词，理由写在行上：「完美世界」是与 Esportal、FastCup 并列的品牌，「简体中文」是语言自称——一个把选项翻译成当前语言的语言选择器，只会给读者看他读不懂的名字。
+
+**顺带修掉一个真的偶发失败**：`montage.interaction` 的缓存断言与 `invalidateQueries` 抢跑，因为共享测试客户端设了 `gcTime: 0`，`setQueryData` 写进去、没有观察者挂载的条目会在扫描时被回收——**大约每四次跑挂一次**。刚保存完的合辑面板仍然订阅着自己的文档，所以留住条目才是贴近真实的设置，不是放松。
+
+### 10.14.5 `src-tauri` 进入漂移门
+
+Tauri 的 `agent_chat` 命令说十三个 ts-rs 从没见过的类型，`dto.ts` 手抄了一份。现在它们 derive `TS`。
+
+**带 `Desktop` 前缀，因为有两个撞名**：`crates/domain` 也有 `AgentProposal` 与 `AgentToolCall`，形状不同——domain 那对是持久化的会话，这一对是流式聊天。第一次生成时**它静默覆盖了 domain 的 `AgentProposal.ts`**，那正是这整件事要解决的问题，只不过发生在隔壁目录。
+
+`src-tauri` 还留着自己的 `AgentMode`——和 `vibe_cs_agent::AgentMode` 一样的三个变体，中间夹着一段三行的 match。那就是 `dto.ts` 注释里警告过的漂移；副本与 match 都删了。
+
+**`AgentMessage.role` 收成枚举。** 它原来是 `String`，紧挨着 `HistoryMessage.role`——**那一个是 LLM API 自己的 role 字段，确实是开放的**，还带 `system` 与 `tool`。这一个只会是转录渲染的那两个，而渲染端本来就在对这两个做 switch，所以不收就等于把客户端放宽回 `string`。
+
+`AgentProposal.kind` 保持 `string` 并写明原因：它在 `crates/agent` 被铸成 `CapturedPlan`，收口属于那里，在这一跳收是对着两份 Rust 副本都不执行的集合做猜测。
+
+### 10.14.6 编辑器的轨道
+
+缺口写的是「`EditorProject` 没有『新建轨道』路由」。**从来就不需要一条路由**：轨道是文档的一部分，随保存一起过去，而 `EditorProject::validate` 接受没有片段的轨道。缺的是编辑器这一侧。
+
+`addTrack` **插入而不是追加**。栈是自上而下读的，第二条视频轨属于第一条**上方**——画板的 V2 就是这个意思，追加会把它画到下面。适配层铸 uuid，并在同一趟里把引用它的片段重新指过去：留在旧 id 上的片段会落到一个不存在的轨道上，然后被一声不响地丢掉。
+
+菜单而不是按钮，因为四种轨道不可互换：一个总是加视频轨的按钮会让另外三种无从抵达。
+
+### 剩余缺口
+
+**做不了的只有需要新的产品决定的那些**，各自的理由已经印在界面上：
+
+1. **「重新定位」** 需要 `relinkMediaAsset` **加上**一个决定：已经引用旧文件的片段怎么办。那是修复流程不是选择器。
+2. **「稍后处理」** 方案模型里没有任何 snooze 字段。
+3. **「导出诊断包」** 没有打包路由。
+4. **「默认视角」** 任何地方都没有字段。
+
+**记录在案、有理由不做的：**
+
+- **编辑器导出固定 `auto`/85**：画板没有导出对话框。理由写在调用点。
+- **`speed_segments` 不可编辑**：画板只画了一个速度字段，而变速斜坡是曲线 UI 不是数字。适配层拒绝并说明原因。
+
+**仍然可做的：**
+
+- `AgentProposal.kind` 在 `crates/agent` 收成枚举。
+- 首页方案行的时长与主体行，需要 summary 带上镜头数（§10.5 缺口 1）。

@@ -78,6 +78,7 @@ import {
   useSeparateEditorAudio,
 } from '../data/editor';
 import { useImportMediaAsset, useMediaAssets } from '../data/mediaAssets';
+import { useNativeShell } from '../data/nativeShell';
 import { useServiceAction } from '../data/serviceAction';
 import type { MediaAsset } from '../shared/desktop/dto';
 import { EditorProjectList } from './editor/EditorProjectList';
@@ -180,6 +181,7 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
   const exportVideo = useExportEditorProject();
   const exportPackage = useExportEditorPackage();
   const importAsset = useImportMediaAsset();
+  const shell = useNativeShell();
 
   /* The project as it was when this workspace mounted. The remount key means
      this is stable for the life of the component — which is what makes it a
@@ -267,7 +269,35 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
       editor.select(result.clipId);
     },
     importAssets: () => {
-      setNotice(t`导入需要挑选文件，这一版还没有接上文件对话框`);
+      if (!shell.available) {
+        setNotice(t`导入本机文件需要桌面应用，浏览器里做不到`);
+        return;
+      }
+      setNotice(null);
+      void shell
+        .chooseFiles({
+          title: t`选择要导入的素材`,
+          filters: [
+            {
+              name: t`视频与音频`,
+              extensions: ['mp4', 'mov', 'mkv', 'avi', 'webm', 'mp3', 'wav', 'flac', 'aac', 'm4a'],
+            },
+          ],
+        })
+        .then(async (paths) => {
+          if (paths.length === 0) return;
+          /* Imported one at a time and sequentially: each import probes the
+             file, and firing twenty at once would queue twenty probes against
+             a service that answers one request per connection anyway. The
+             first failure stops the run and is reported — silently importing
+             seven of ten would leave the user counting rows to find out. */
+          for (const path of paths) {
+            await importAsset.mutateAsync({ path, projectId });
+          }
+        })
+        .catch((error: unknown) => {
+          setNotice(dataErrorMessage(error) ?? t`导入没有完成`);
+        });
     },
     applyPreset: (presetId) => {
       const preset = (presets.data ?? []).find((each) => each.id === presetId);

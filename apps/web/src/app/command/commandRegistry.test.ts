@@ -64,6 +64,7 @@ describe('PAGE_COMMANDS', () => {
       '/delivery?view=tasks',
       '/settings',
       '/recovery',
+      '/guide',
     ]);
   });
 

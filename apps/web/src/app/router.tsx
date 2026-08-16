@@ -82,6 +82,7 @@ export interface RoutePages {
   readonly deliveryTask: ReactNode;
   readonly settings: ReactNode;
   readonly recovery: ReactNode;
+  readonly guide: ReactNode;
 }
 
 /**
@@ -105,6 +106,7 @@ export const ROUTE_PATHS = [
   '/delivery/task/:taskId',
   '/settings',
   '/recovery',
+  '/guide',
 ] as const;
 
 /**
@@ -184,6 +186,7 @@ export function createAppRoutes(pages: RoutePages): RouteObject[] {
         { id: 'delivery-task', path: 'delivery/task/:taskId', element: pages.deliveryTask },
         { id: 'settings', path: 'settings', element: pages.settings },
         { id: 'recovery', path: 'recovery', element: pages.recovery },
+        { id: 'guide', path: 'guide', element: pages.guide },
         ...legacyRoutes,
         { id: 'not-found', path: '*', element: <NotFound /> },
       ],

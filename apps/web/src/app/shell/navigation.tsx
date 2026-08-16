@@ -143,6 +143,10 @@ const PREFIX_RULES: readonly (readonly [string, ShellNavItemId])[] = [
   ['/editor', 'editor'],
   ['/settings', 'settings'],
   ['/recovery', 'settings'],
+  /* The guide has no rail entry of its own; it lights 设置 for the same
+     reason 恢复中心 does — it is reached from there and from the palette,
+     and an unlit rail during a visit reads as "you are nowhere". */
+  ['/guide', 'settings'],
 ];
 
 /** `/library/` and `/library` are the same destination; `/` stays `/`. */

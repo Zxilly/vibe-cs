@@ -23,7 +23,9 @@ import {
   PROJECT_ID,
   sampleEditorProject,
 } from './editorFixtures.testing';
-import { editorClient, renderEditor } from './test/renderEditor';
+import { unavailableNativeShell } from '../../data/nativeShell';
+import { sampleAssets } from './editorFixtures.testing';
+import { editorClient, renderEditor, testNativeShell } from './test/renderEditor';
 
 function clip(id: string): HTMLElement {
   const element = document.querySelector<HTMLElement>(`[data-clip="${id}"]`);
@@ -227,6 +229,64 @@ describe('the media library', () => {
     const add = screen.getByRole('button', { name: /添加到时间轴/u });
     expect(add.hasAttribute('disabled')).toBe(true);
     expect(document.body.textContent).toContain('还没读到这个素材的时长');
+  });
+});
+
+describe('importing media', () => {
+  it('picks files through the shell and imports each one', async () => {
+    const importMediaAsset = vi.fn(
+      async (_path: string, _options: { projectId?: string }) => [...sampleAssets().values()][0],
+    );
+    const chooseFiles = vi.fn(async () => ['C:/clips/a.mp4', 'C:/clips/b.mp4']);
+    const view = renderEditor({
+      client: editorClient({ importMediaAsset }),
+      shell: testNativeShell({ chooseFiles }),
+    });
+    await screen.findByRole('button', { name: /保存/u });
+
+    fireEvent.click(screen.getByRole('button', { name: '导入' }));
+
+    await waitFor(() => expect(importMediaAsset).toHaveBeenCalledTimes(2));
+    expect(chooseFiles).toHaveBeenCalledTimes(1);
+    /* Imported under the project, so the asset list this page reads is the one
+       the new files land in. */
+    expect(importMediaAsset.mock.calls[0]?.[1]).toMatchObject({ projectId: PROJECT_ID });
+    view.unmount();
+  });
+
+  it('says so rather than opening nothing outside the desktop shell', async () => {
+    const importMediaAsset = vi.fn();
+    renderEditor({
+      client: editorClient({ importMediaAsset }),
+      shell: unavailableNativeShell,
+    });
+    await screen.findByRole('button', { name: /保存/u });
+
+    fireEvent.click(screen.getByRole('button', { name: '导入' }));
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('需要桌面应用');
+    });
+    expect(importMediaAsset).not.toHaveBeenCalled();
+  });
+
+  it('reports a failed import instead of stopping quietly', async () => {
+    // Importing ten files and silently landing seven would leave the user
+    // counting rows to find out.
+    const importMediaAsset = vi.fn(async () => {
+      throw new Error('磁盘没有空间');
+    });
+    renderEditor({
+      client: editorClient({ importMediaAsset }),
+      shell: testNativeShell({ chooseFiles: async () => ['C:/clips/a.mp4'] }),
+    });
+    await screen.findByRole('button', { name: /保存/u });
+
+    fireEvent.click(screen.getByRole('button', { name: '导入' }));
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('磁盘没有空间');
+    });
   });
 });
 

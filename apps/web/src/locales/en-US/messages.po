@@ -934,6 +934,18 @@ msgstr "tick not located"
 msgid "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 msgstr "The official Valve link. Connectors for platforms such as FACEIT are not available yet"
 
+#: src/pages/GuidePage.tsx:62
+msgid "三步"
+msgstr "Three steps"
+
+#: src/pages/home/FirstRunStrip.tsx:53
+msgid "三步做出第一条视频"
+msgstr "Three steps to your first video"
+
+#: src/pages/GuidePage.tsx:55
+msgid "三步做出第一条视频，以及这台机器现在能做什么"
+msgstr "Three steps to your first video, and what this machine can do right now"
+
 #: src/pages/editor/ProgramMonitor.tsx:186
 msgid "上一个剪切点"
 msgstr "Previous cut"
@@ -1148,7 +1160,7 @@ msgstr "Alive"
 msgid "仅爆头"
 msgstr "Headshots only"
 
-#: src/pages/HomePage.tsx:80
+#: src/pages/HomePage.tsx:84
 msgid "今日工作"
 msgstr "Today’s work"
 
@@ -1324,6 +1336,11 @@ msgstr "Shots you changed"
 msgid "你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。"
 msgstr "Your accepts and rejects are held on this page only for now; a refresh puts them back to pending."
 
+#: src/app/command/commandRegistry.ts:231
+#: src/pages/GuidePage.tsx:54
+msgid "使用引导"
+msgstr "Getting started"
+
 #: src/pages/match/views/ReviewView.tsx:646
 msgid "例如：R21 的穿墙点可做教学"
 msgstr "For example: the wallbang spot in R21 is worth teaching"
@@ -1337,13 +1354,13 @@ msgid "依赖检查"
 msgstr "Dependency checks"
 
 #: src/pages/agent/SessionDrawer.tsx:331
-#: src/pages/EditorPage.tsx:351
+#: src/pages/EditorPage.tsx:381
 #: src/pages/library/SaveViewDialog.tsx:54
 #: src/pages/recording/ShotInspectorBlock.tsx:663
 msgid "保存"
 msgstr "Save"
 
-#: src/pages/EditorPage.tsx:317
+#: src/pages/EditorPage.tsx:347
 msgid "保存中…"
 msgstr "Saving…"
 
@@ -1439,12 +1456,12 @@ msgstr "Stop watching {0}"
 msgid "停止预览"
 msgstr "Stop preview"
 
-#: src/pages/EditorPage.tsx:468
+#: src/pages/EditorPage.tsx:498
 msgid "先保存或放弃当前改动，恢复会覆盖它们"
 msgstr "Save or discard the current changes first — restoring overwrites them"
 
-#: src/pages/EditorPage.tsx:366
-#: src/pages/EditorPage.tsx:383
+#: src/pages/EditorPage.tsx:396
+#: src/pages/EditorPage.tsx:413
 msgid "先保存改动，导出用的是服务端存着的工程"
 msgstr "Save first: an export renders the project the service has stored"
 
@@ -1756,7 +1773,7 @@ msgstr "Tick one more player to compare. Up to {limit} — more than two columns
 msgid "再快一点"
 msgstr "A bit faster"
 
-#: src/pages/EditorPage.tsx:415
+#: src/pages/EditorPage.tsx:445
 msgid "再试一次"
 msgstr "Try again"
 
@@ -1803,7 +1820,7 @@ msgid "最近的录制任务"
 msgstr "Recent recording tasks"
 
 #: src/pages/home/RecentOutputsPanel.tsx:63
-#: src/pages/HomePage.tsx:96
+#: src/pages/HomePage.tsx:100
 msgid "最近输出"
 msgstr "Recent outputs"
 
@@ -1896,6 +1913,10 @@ msgstr "Analysis, download, recording and export each leave a record here."
 #: src/pages/home/HomeTasksPanel.tsx:79
 msgid "分析、录制与导出开始后会出现在这里，可以从这里直接停止。"
 msgstr "Analysis, recording and export show up here once they start, and can be stopped from here."
+
+#: src/pages/home/firstRunSteps.ts:43
+msgid "分析一场比赛"
+msgstr "Analyse a match"
 
 #: src/pages/library/LibraryFilters.tsx:49
 #: src/pages/library/libraryFormat.ts:126
@@ -2520,9 +2541,17 @@ msgstr "How rounds ended"
 msgid "回合胜负"
 msgstr "Rounds won"
 
+#: src/pages/GuidePage.tsx:170
+msgid "回放与录制都用它。"
+msgstr "Playback and recording both use it."
+
 #: src/pages/home/EnvironmentNotice.tsx:116
 msgid "回放与录制都起不来"
 msgstr "neither playback nor recording can start"
+
+#: src/pages/GuidePage.tsx:169
+msgid "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
+msgstr "Playback and recording both need it. Importing and analysing are unaffected — those two steps can be done first."
 
 #: src/pages/match/viewContract.ts:233
 msgctxt "match-view"
@@ -2736,8 +2765,8 @@ msgstr "Multitrack"
 
 #: src/app/command/commandRegistry.ts:198
 #: src/pages/editor/EditorProjectList.tsx:159
-#: src/pages/EditorPage.tsx:124
-#: src/pages/EditorPage.tsx:140
+#: src/pages/EditorPage.tsx:125
+#: src/pages/EditorPage.tsx:141
 msgid "多轨编辑器"
 msgstr "Multitrack editor"
 
@@ -2781,6 +2810,10 @@ msgstr "Once a recording finishes, its clips show up here."
 #: src/design/data/EmptyState.tsx:142
 msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 msgstr "Once a recording or export finishes, the video shows up here, linked back to the task that made it."
+
+#: src/pages/home/FirstRunStrip.tsx:75
+msgid "完整的使用引导与环境自检"
+msgstr "The full guide and environment self-check"
 
 #: src/domain/match/EvidenceRow.tsx:80
 #: src/pages/evidence/EvidenceAnnotations.tsx:126
@@ -2883,6 +2916,7 @@ msgstr "Aligns it from beat {0} to beat {1}; the clips after it shift along with
 msgid "导入"
 msgstr "Import"
 
+#: src/pages/home/firstRunSteps.ts:37
 #: src/pages/library/ImportDemoDialog.tsx:93
 #: src/pages/LibraryPage.tsx:182
 msgid "导入 Demo"
@@ -2896,14 +2930,18 @@ msgstr "Import a .dem, or add a watched folder to pick them up automatically"
 msgid "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 msgstr "Import local video or audio and it becomes media this project can use."
 
+#: src/pages/EditorPage.tsx:273
+msgid "导入本机文件需要桌面应用，浏览器里做不到"
+msgstr "Importing local files needs the desktop app; a browser cannot do it"
+
+#: src/pages/EditorPage.tsx:299
+msgid "导入没有完成"
+msgstr "The import did not finish"
+
 #: src/pages/editor/EditorTimelinePanel.tsx:235
 #: src/pages/editor/MediaLibraryPanel.tsx:131
 msgid "导入素材"
 msgstr "Import media"
-
-#: src/pages/EditorPage.tsx:270
-msgid "导入需要挑选文件，这一版还没有接上文件对话框"
-msgstr "Importing needs a file picker, which this round has not wired up yet"
 
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:279
@@ -2930,8 +2968,8 @@ msgstr "Export returns a file, and the desktop build has no command to save it t
 msgid "导出元数据"
 msgstr "Export metadata"
 
-#: src/pages/EditorPage.tsx:358
-#: src/pages/EditorPage.tsx:369
+#: src/pages/EditorPage.tsx:388
+#: src/pages/EditorPage.tsx:399
 msgid "导出工程包"
 msgstr "Export package"
 
@@ -2939,16 +2977,24 @@ msgstr "Export package"
 msgid "导出成片"
 msgstr "Exports"
 
+#: src/pages/GuidePage.tsx:179
+msgid "导出成片与波形分析用它。"
+msgstr "Exporting a finished cut and analysing waveforms use it."
+
 #: src/pages/home/EnvironmentNotice.tsx:120
 msgid "导出成片会失败"
 msgstr "exporting a finished cut will fail"
+
+#: src/pages/GuidePage.tsx:178
+msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
+msgstr "Exporting a finished cut needs it. Recording and analysis are unaffected, but nothing can be written out."
 
 #: src/pages/settings/AiAgentSection.tsx:704
 msgid "导出没有完成：{exportError}"
 msgstr "The export did not finish: {exportError}"
 
-#: src/pages/EditorPage.tsx:375
-#: src/pages/EditorPage.tsx:393
+#: src/pages/EditorPage.tsx:405
+#: src/pages/EditorPage.tsx:423
 msgid "导出视频"
 msgstr "Export video"
 
@@ -3066,7 +3112,7 @@ msgstr "The project was not changed, so a retry is safe."
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "Configuration restored from the backup; it takes effect once re-read."
 
-#: src/pages/EditorPage.tsx:321
+#: src/pages/EditorPage.tsx:351
 msgid "已保存"
 msgstr "Saved"
 
@@ -3480,6 +3526,10 @@ msgstr "Recording environment not ready"
 msgid "录制环境还没准备好，需要它的任务现在起不来。"
 msgstr "The recording environment is not ready, so the jobs that need it cannot start."
 
+#: src/pages/GuidePage.tsx:174
+msgid "录制用它接管画面。"
+msgstr "Recording uses it to take over the picture."
+
 #: src/pages/delivery/OutputsView.tsx:50
 msgid "录制结果"
 msgstr "Recordings"
@@ -3514,6 +3564,10 @@ msgstr "Recording output directory"
 #: src/pages/MatchWorkspacePage.tsx:129
 msgid "录制队列尚未接通"
 msgstr "The recording queue is not wired up yet"
+
+#: src/pages/GuidePage.tsx:173
+msgid "录制需要它。导入、分析和剪辑都不受影响。"
+msgstr "Recording needs it. Importing, analysis and editing are unaffected."
 
 #: src/pages/settings/GameSection.tsx:171
 msgid "录制默认值"
@@ -3821,6 +3875,10 @@ msgstr "Technical details"
 msgid "把 .dem 或 .zip 拖到这里"
 msgstr "Drop a .dem or a .zip here"
 
+#: src/pages/home/firstRunSteps.ts:38
+msgid "把 .dem 文件加进资料库，或者设一个监听目录让它们自己进来。"
+msgstr "Add .dem files to the library, or set a watched folder and let them arrive on their own."
+
 #: src/pages/montage/MontageProjectList.tsx:190
 msgid "把录制结果串成一条视频，不进多轨编辑器也能直接导出。"
 msgstr "String the recordings into one video and export it without going into the multitrack editor."
@@ -4025,7 +4083,7 @@ msgstr "Undo delete"
 msgid "撤销拒绝"
 msgstr "Undo reject"
 
-#: src/pages/EditorPage.tsx:435
+#: src/pages/EditorPage.tsx:465
 msgid "撤销这次修改"
 msgstr "Undo this change"
 
@@ -4052,7 +4110,7 @@ msgstr "Nothing playable under the playhead"
 msgid "播放头下没有画面"
 msgstr "No picture under the playhead"
 
-#: src/pages/EditorPage.tsx:258
+#: src/pages/EditorPage.tsx:260
 msgid "播放头这个位置已经有片段了，把播放头挪到空处再试"
 msgstr "There is already a clip at the playhead — move it to an empty spot and try again"
 
@@ -4431,7 +4489,7 @@ msgstr "Replace"
 
 #. placeholder {0}: keyframeLoss.clips
 #. placeholder {1}: keyframeLoss.keyframes
-#: src/pages/EditorPage.tsx:439
+#: src/pages/EditorPage.tsx:469
 msgid "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 {1} 个关键帧。"
 msgstr "{0} clips were shortened; saving drops the {1} keyframes that now fall outside them."
 
@@ -4507,7 +4565,7 @@ msgstr "Facing and field of view"
 msgid "未下载"
 msgstr "Not downloaded"
 
-#: src/pages/EditorPage.tsx:319
+#: src/pages/EditorPage.tsx:349
 msgid "未保存"
 msgstr "Unsaved"
 
@@ -4621,7 +4679,7 @@ msgstr "Local service offline — analysis, recording and export cannot start ri
 msgid "本地服务未连接，恢复后无需刷新页面即可继续"
 msgstr "Local service offline — it resumes on its own, no page reload needed"
 
-#: src/pages/EditorPage.tsx:128
+#: src/pages/EditorPage.tsx:129
 msgid "本地服务没有连接，这个工程读不出来。服务恢复后无需刷新页面。"
 msgstr "The local service is not connected, so this project cannot be read. No refresh is needed once it recovers."
 
@@ -4841,7 +4899,7 @@ msgstr "Blur"
 msgid "正在从方案生成预览计划"
 msgstr "Generating the preview plan from the plan"
 
-#: src/pages/EditorPage.tsx:347
+#: src/pages/EditorPage.tsx:377
 #: src/pages/settings/FilesSection.tsx:197
 msgid "正在保存"
 msgstr "Saving"
@@ -4911,6 +4969,7 @@ msgstr "Creating this session"
 msgid "正在校验"
 msgstr "The preflight is already running"
 
+#: src/pages/GuidePage.tsx:88
 #: src/pages/settings/AdvancedSection.tsx:139
 #: src/pages/settings/GameSection.tsx:268
 msgid "正在检查"
@@ -5312,7 +5371,7 @@ msgstr "No clip selected"
 msgid "没有道具记录"
 msgstr "No utility record"
 
-#: src/pages/EditorPage.tsx:347
+#: src/pages/EditorPage.tsx:377
 msgid "没有需要保存的改动"
 msgstr "Nothing to save"
 
@@ -5730,7 +5789,7 @@ msgstr "Revision"
 #. placeholder {0}: query.data.revision
 #. placeholder {0}: snapshot.revision
 #: src/pages/editor/VersionHistoryPanel.tsx:72
-#: src/pages/EditorPage.tsx:326
+#: src/pages/EditorPage.tsx:356
 msgid "版本 {0}"
 msgstr "Revision {0}"
 
@@ -5822,7 +5881,7 @@ msgstr "Detonated"
 
 #: src/pages/delivery/OutputsView.tsx:174
 #: src/pages/home/RecentOutputsPanel.tsx:92
-#: src/pages/HomePage.tsx:84
+#: src/pages/HomePage.tsx:88
 #: src/pages/match/views/HighlightsView.tsx:292
 #: src/pages/MatchWorkspacePage.tsx:228
 msgid "用 Agent 制作视频"
@@ -5936,7 +5995,7 @@ msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "Objective"
 
-#: src/pages/EditorPage.tsx:257
+#: src/pages/EditorPage.tsx:259
 msgid "目标轨道已锁定"
 msgstr "The target track is locked"
 
@@ -6011,7 +6070,7 @@ msgstr "See utility & economy"
 #: src/pages/agent/SessionDrawer.tsx:235
 #: src/pages/delivery/OutputsView.tsx:148
 #: src/pages/editor/EditorTimelinePanel.tsx:222
-#: src/pages/EditorPage.tsx:424
+#: src/pages/EditorPage.tsx:454
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
 #: src/pages/RecoveryPage.tsx:99
@@ -6052,6 +6111,10 @@ msgstr "View"
 #: src/pages/recording/ShotInspectorBlock.tsx:304
 msgid "视野 FOV"
 msgstr "Camera FOV"
+
+#: src/pages/EditorPage.tsx:282
+msgid "视频与音频"
+msgstr "Video and audio"
 
 #: src/pages/settings/GameSection.tsx:235
 msgid "视频输出能力"
@@ -6536,6 +6599,10 @@ msgstr "Observer evidence complete"
 msgid "观察者镜头的视野由相机路径逐帧决定，也不会绘制持枪画面"
 msgstr "An observer shot takes its field of view from the camera path frame by frame, and draws no viewmodel"
 
+#: src/pages/home/firstRunSteps.ts:44
+msgid "解析出回合、击杀与移动轨迹，之后的所有选材都基于它。"
+msgstr "Parses rounds, kills and movement — everything selected later is based on it."
+
 #: src/pages/match/views/PlayersView.tsx:246
 msgid "解析出的比赛没有可归属的选手记录，记分板因此是空的。重新分析这场比赛通常能补上。"
 msgstr "The parsed match carries no attributable player record, so the scoreboard is empty. Re-analyzing this match usually fills it in."
@@ -6559,6 +6626,10 @@ msgstr "Plan notices (from the service)"
 #: src/pages/montage/MusicBeatBlock.tsx:383
 msgid "计算节拍建议"
 msgstr "Compute beat suggestions"
+
+#: src/pages/home/firstRunSteps.ts:49
+msgid "让 Agent 做一条视频"
+msgstr "Ask the Agent for a video"
 
 #: src/pages/delivery/OutputCard.tsx:116
 msgid "记录仍在，文件已被移动或删除"
@@ -6652,6 +6723,10 @@ msgstr "Decoy"
 msgid "说明"
 msgstr "Description"
 
+#: src/pages/home/firstRunSteps.ts:50
+msgid "说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。"
+msgstr "Say what you want and it proposes a plan and shots; it still waits for one confirmation before recording."
+
 #: src/pages/agent/AgentConversationBlock.tsx:447
 msgid "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 msgstr "Spell out the video you want — how long, what it centers on, who it is for — and the Agent gives a first shot plan for you to work through one by one."
@@ -6712,6 +6787,10 @@ msgstr "The notes could not be read: {error}"
 #: src/pages/RecoveryPage.tsx:118
 msgid "读不到状态"
 msgstr "Could not read the state"
+
+#: src/pages/GuidePage.tsx:97
+msgid "读不到环境自检：{error}"
+msgstr "Could not read the environment self-check: {error}"
 
 #: src/pages/settings/AppSection.tsx:72
 #: src/pages/settings/FilesSection.tsx:78
@@ -6810,6 +6889,10 @@ msgstr "Purchase spend statistics unavailable"
 #: src/pages/MatchWorkspacePage.tsx:201
 msgid "资料库"
 msgstr "Library"
+
+#: src/pages/home/FirstRunStrip.tsx:56
+msgid "资料库里还没有东西，从第一步开始。这一条在导入之后会自动消失。"
+msgstr "The library is empty, so start at step one. This strip disappears once something is imported."
 
 #: src/pages/home/RecentMatchesPanel.tsx:67
 msgid "资料库里还没有比赛。导入 Demo 之后它们会出现在这里。"
@@ -7200,7 +7283,7 @@ msgid "还没读到这个素材的时长，不知道可以滑移多少"
 msgstr "This asset's length has not been read, so there is no way to know how far it can slip"
 
 #: src/pages/editor/MediaLibraryPanel.tsx:78
-#: src/pages/EditorPage.tsx:255
+#: src/pages/EditorPage.tsx:257
 msgid "还没读到这个素材的时长，读完才能放到时间轴上"
 msgstr "This asset's length has not been read yet; it can go on the timeline once it has"
 
@@ -7256,6 +7339,14 @@ msgstr "No player record for this team"
 msgid "这一页说的每一句话都记在一条会话里，方案的每一次改动也会写进去。选一条现有的，或者现在开一条新的。"
 msgstr "Every sentence said on this page is recorded in a session, and so is every change to a plan. Pick an existing session, or start a new one now."
 
+#: src/pages/GuidePage.tsx:181
+msgid "这一项就绪。"
+msgstr "This one is ready."
+
+#: src/pages/GuidePage.tsx:181
+msgid "这一项现在不可用。"
+msgstr "This one is unavailable right now."
+
 #: src/pages/match/views/ReviewView.tsx:445
 msgid "这一项统计不可用"
 msgstr "This statistic is unavailable"
@@ -7281,11 +7372,11 @@ msgstr "This address does not exist, or it went away in this build. Everything e
 msgid "这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。"
 msgstr "This address is not the id of a task record. Every row in the task record can be opened from the list."
 
-#: src/pages/EditorPage.tsx:407
+#: src/pages/EditorPage.tsx:437
 msgid "这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。"
 msgstr "This project was changed elsewhere, so that save did not take effect. Reloading discards the unsaved changes here."
 
-#: src/pages/EditorPage.tsx:130
+#: src/pages/EditorPage.tsx:131
 msgid "这个工程没能打开：{loadError}"
 msgstr "This project would not open: {loadError}"
 
@@ -7471,6 +7562,10 @@ msgstr "This preview plan is gone; the local service may have restarted."
 msgid "这份预览计划已经过期。"
 msgstr "This preview plan has expired."
 
+#: src/pages/GuidePage.tsx:82
+msgid "这台机器现在能做什么"
+msgstr "What this machine can do right now"
+
 #: src/pages/settings/GameSection.tsx:236
 msgid "这台机器能不能写出成片。检查的是本机的编码器，不是设置。"
 msgstr "Whether this machine can write a finished file. These check the local encoders, not a setting."
@@ -7609,7 +7704,7 @@ msgid "这次恢复没有完成：{actionError}"
 msgstr "This recovery did not finish: {actionError}"
 
 #: src/pages/editor/EditorProjectList.tsx:179
-#: src/pages/EditorPage.tsx:418
+#: src/pages/EditorPage.tsx:448
 #: src/pages/montage/MontageProjectList.tsx:174
 msgid "这次操作没有完成：{writeError}"
 msgstr "That action did not finish: {writeError}"
@@ -7692,7 +7787,7 @@ msgstr "{0} running · {1} failed · {2} done"
 msgid "进行中的任务"
 msgstr "Running tasks"
 
-#: src/pages/HomePage.tsx:81
+#: src/pages/HomePage.tsx:85
 msgid "进行中的任务、失败可恢复的任务和最近的成片"
 msgstr "Running tasks, recoverable failures, and the most recent videos"
 
@@ -7842,6 +7937,10 @@ msgstr "Choose files"
 msgid "选择要导入的 Demo 文件"
 msgstr "Choose the Demo files to import"
 
+#: src/pages/EditorPage.tsx:279
+msgid "选择要导入的素材"
+msgstr "Choose media to import"
+
 #: src/pages/settings/FilesSection.tsx:224
 msgid "选择要监听的目录"
 msgstr "Choose folders to watch"
@@ -7879,6 +7978,10 @@ msgstr "Look round by round"
 #: src/pages/match/views/RoundsView.tsx:526
 msgid "逐回合详情"
 msgstr "Round-by-round detail"
+
+#: src/pages/GuidePage.tsx:127
+msgid "逐项的原始状态与路径校验在<0>设置 · 高级与诊断</0>。"
+msgstr "The raw per-item states and path checks are under <0>Settings · Advanced and diagnostics</0>."
 
 #: src/pages/editor/InspectorPanel.tsx:174
 msgid "速度"
@@ -8011,8 +8114,8 @@ msgid "重新定位"
 msgstr "Relink"
 
 #: src/pages/editor/MediaLibraryPanel.tsx:178
-msgid "重新定位需要挑选替换文件，这一版还没有接上文件对话框"
-msgstr "Relocating needs a replacement file picker, which this round has not wired up yet"
+msgid "重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程"
+msgstr "Relocating has to decide what happens to the clips already referencing this file, and that repair flow is not built in this round"
 
 #: src/pages/match/views/ReviewView.tsx:746
 msgid "重新打开"
@@ -8026,6 +8129,7 @@ msgstr "Rescan"
 msgid "重新校验"
 msgstr "Run the preflight again"
 
+#: src/pages/GuidePage.tsx:91
 #: src/pages/settings/AdvancedSection.tsx:142
 #: src/pages/settings/GameSection.tsx:271
 msgid "重新检查"
@@ -8060,7 +8164,7 @@ msgstr "Read the replay again"
 msgid "重新读取方案"
 msgstr "Read the plan again"
 
-#: src/pages/EditorPage.tsx:405
+#: src/pages/EditorPage.tsx:435
 #: src/pages/MontagePage.tsx:368
 #: src/pages/MontagePage.tsx:380
 #: src/pages/MontagePage.tsx:386
@@ -8091,9 +8195,10 @@ msgstr "Choose again"
 #: src/pages/delivery/useTaskActions.tsx:204
 #: src/pages/editor/EditorProjectList.tsx:173
 #: src/pages/editor/EditorProjectList.tsx:178
-#: src/pages/EditorPage.tsx:126
+#: src/pages/EditorPage.tsx:127
 #: src/pages/evidence/EvidenceAnnotations.tsx:56
 #: src/pages/evidence/EvidenceResults.tsx:125
+#: src/pages/GuidePage.tsx:96
 #: src/pages/HistoryPage.tsx:223
 #: src/pages/home/ActiveProjectsPanel.tsx:83
 #: src/pages/home/PendingPlansPanel.tsx:70

@@ -226,6 +226,12 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
     to: '/recovery',
     keywords: ['recovery', '恢复', '损坏', '修复'],
   }),
+  pageCommand({
+    id: 'guide',
+    title: msg`使用引导`,
+    to: '/guide',
+    keywords: ['guide', '引导', '帮助', '上手', '自检'],
+  }),
 ];
 
 /**

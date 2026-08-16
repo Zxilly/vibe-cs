@@ -42,6 +42,7 @@ import { Button } from '../design/primitives';
 import { useServiceAction } from '../data/serviceAction';
 import { ActiveProjectsPanel } from './home/ActiveProjectsPanel';
 import { EnvironmentNotice } from './home/EnvironmentNotice';
+import { FirstRunStrip } from './home/FirstRunStrip';
 import { HomeFailureNotice } from './home/HomeFailureNotice';
 import { PendingPlansPanel } from './home/PendingPlansPanel';
 import { RecentMatchesPanel } from './home/RecentMatchesPanel';
@@ -59,6 +60,9 @@ export function HomePage() {
           when it is: a broken capture environment makes the blocks below it
           unactionable. */}
       <EnvironmentNotice />
+
+      {/* Only while the library is empty — see `home/FirstRunStrip`. */}
+      <FirstRunStrip />
 
       <PendingPlansPanel />
 

@@ -35,6 +35,7 @@ import { AgentPage } from './AgentPage';
 import { DeliveryPage } from './DeliveryPage';
 import { EditorPage } from './EditorPage';
 import { EvidencePage } from './EvidencePage';
+import { GuidePage } from './GuidePage';
 import { HistoryPage } from './HistoryPage';
 import { HomePage } from './HomePage';
 import { LibraryPage } from './LibraryPage';
@@ -199,6 +200,14 @@ const PAGES: readonly PageCase[] = [
     phase: '3g',
     built: true,
   },
+  {
+    pattern: '/guide',
+    at: '/guide',
+    Component: GuidePage,
+    title: '使用引导',
+    phase: '3g',
+    built: true,
+  },
 ];
 
 function renderPage(pattern: string, at: string, Component: ComponentType): string {
@@ -265,7 +274,12 @@ describe.each(PAGES)('$at', ({ pattern, at, Component, title, phase, built, chro
 
 describe('the page table', () => {
   it('covers every §7 destination exactly once', () => {
-    expect(PAGES).toHaveLength(15);
+    /* A count, not a comparison against `ROUTE_PATHS` — §2.1 rule 3 keeps
+       `pages/**` out of `app/**`, and this file is under `pages/`. The real
+       cross-check lives in `src/routes.test.tsx`, which is the composition
+       root and is allowed to see both sides; it is what catches a route added
+       without a page. */
+    expect(PAGES).toHaveLength(16);
     expect(new Set(PAGES.map((entry) => entry.pattern)).size).toBe(PAGES.length);
     expect(new Set(PAGES.map((entry) => entry.Component)).size).toBe(PAGES.length);
   });

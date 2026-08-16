@@ -44,6 +44,7 @@ const STUB_PAGES: RoutePages = {
   deliveryTask: <span data-stub="delivery-task" />,
   settings: <span data-stub="settings" />,
   recovery: <span data-stub="recovery" />,
+  guide: <span data-stub="guide" />,
 };
 
 const appRoutes = createAppRoutes(STUB_PAGES);
@@ -67,8 +68,11 @@ describe('application routes', () => {
     expect(routerMode).toBe('hash');
   });
 
-  it('declares the fifteen §7 destinations and one catch-all, all inside the shell', () => {
-    expect(ROUTE_PATHS).toHaveLength(15);
+  it('declares the sixteen §7 destinations and one catch-all, all inside the shell', () => {
+    /* Sixteen since phase 3g added `/guide` (§10 note: the board wanted the
+       old guide page retired, and §10 kept it for the environment self-check
+       the three-step strip cannot carry). */
+    expect(ROUTE_PATHS).toHaveLength(16);
 
     const shell = appRoutes.find((route) => route.id === 'app-shell');
     expect(shell?.children?.some((child) => child.id === 'not-found')).toBe(true);

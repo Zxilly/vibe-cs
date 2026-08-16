@@ -22,14 +22,14 @@
  * so 「添加到时间轴」 cannot know how long a clip to make. Collapsing pending
  * into missing would tell the user to relocate a file that is fine.
  *
- * ── 「重新定位」 is disabled, and says why ─────────────────────────────────
+ * ── 导入 is wired; 「重新定位」 is not ────────────────────────────────────
  *
- * `relinkMediaAsset` exists on the bridge and is deliberately **not** wired up.
- * Relocating means picking a replacement file, which needs a native file
- * dialog this page has no route to — `importMediaAsset` takes a path the
- * caller already has. The artboard draws the button, so it is drawn, disabled,
- * with the reason on it. Recorded as a gap rather than faked with a text box
- * asking the user to type a Windows path.
+ * Both need the native file picker and only one of them is built. 导入 goes
+ * through `chooseFiles` → `importMediaAsset` (phase 3g); 「重新定位」 needs
+ * `relinkMediaAsset` *and* a decision about what happens to the clips already
+ * pointing at the old file, which is a repair flow rather than a picker. The
+ * artboard draws the button, so it is drawn, disabled, with the reason on it —
+ * not faked with a text box asking the user to type a Windows path.
  */
 
 import { t } from '@lingui/core/macro';
@@ -175,7 +175,7 @@ export function MediaLibraryPanel({ desk, service }: EditorPanelProps) {
           variant="secondary"
           size="sm"
           disabled
-          disabledReason={t`重新定位需要挑选替换文件，这一版还没有接上文件对话框`}
+          disabledReason={t`重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程`}
         >
           <Trans>重新定位</Trans>
         </Button>

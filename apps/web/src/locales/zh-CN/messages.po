@@ -934,6 +934,18 @@ msgstr "tick 未定位"
 msgid "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 msgstr "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 
+#: src/pages/GuidePage.tsx:62
+msgid "三步"
+msgstr "三步"
+
+#: src/pages/home/FirstRunStrip.tsx:53
+msgid "三步做出第一条视频"
+msgstr "三步做出第一条视频"
+
+#: src/pages/GuidePage.tsx:55
+msgid "三步做出第一条视频，以及这台机器现在能做什么"
+msgstr "三步做出第一条视频，以及这台机器现在能做什么"
+
 #: src/pages/editor/ProgramMonitor.tsx:186
 msgid "上一个剪切点"
 msgstr "上一个剪切点"
@@ -1148,7 +1160,7 @@ msgstr "人数"
 msgid "仅爆头"
 msgstr "仅爆头"
 
-#: src/pages/HomePage.tsx:80
+#: src/pages/HomePage.tsx:84
 msgid "今日工作"
 msgstr "今日工作"
 
@@ -1324,6 +1336,11 @@ msgstr "你改过的镜头"
 msgid "你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。"
 msgstr "你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。"
 
+#: src/app/command/commandRegistry.ts:231
+#: src/pages/GuidePage.tsx:54
+msgid "使用引导"
+msgstr "使用引导"
+
 #: src/pages/match/views/ReviewView.tsx:646
 msgid "例如：R21 的穿墙点可做教学"
 msgstr "例如：R21 的穿墙点可做教学"
@@ -1337,13 +1354,13 @@ msgid "依赖检查"
 msgstr "依赖检查"
 
 #: src/pages/agent/SessionDrawer.tsx:331
-#: src/pages/EditorPage.tsx:351
+#: src/pages/EditorPage.tsx:381
 #: src/pages/library/SaveViewDialog.tsx:54
 #: src/pages/recording/ShotInspectorBlock.tsx:663
 msgid "保存"
 msgstr "保存"
 
-#: src/pages/EditorPage.tsx:317
+#: src/pages/EditorPage.tsx:347
 msgid "保存中…"
 msgstr "保存中…"
 
@@ -1439,12 +1456,12 @@ msgstr "停止监听 {0}"
 msgid "停止预览"
 msgstr "停止预览"
 
-#: src/pages/EditorPage.tsx:468
+#: src/pages/EditorPage.tsx:498
 msgid "先保存或放弃当前改动，恢复会覆盖它们"
 msgstr "先保存或放弃当前改动，恢复会覆盖它们"
 
-#: src/pages/EditorPage.tsx:366
-#: src/pages/EditorPage.tsx:383
+#: src/pages/EditorPage.tsx:396
+#: src/pages/EditorPage.tsx:413
 msgid "先保存改动，导出用的是服务端存着的工程"
 msgstr "先保存改动，导出用的是服务端存着的工程"
 
@@ -1756,7 +1773,7 @@ msgstr "再勾一名选手才能比较。上限 {limit} 名——超过两列的
 msgid "再快一点"
 msgstr "再快一点"
 
-#: src/pages/EditorPage.tsx:415
+#: src/pages/EditorPage.tsx:445
 msgid "再试一次"
 msgstr "再试一次"
 
@@ -1803,7 +1820,7 @@ msgid "最近的录制任务"
 msgstr "最近的录制任务"
 
 #: src/pages/home/RecentOutputsPanel.tsx:63
-#: src/pages/HomePage.tsx:96
+#: src/pages/HomePage.tsx:100
 msgid "最近输出"
 msgstr "最近输出"
 
@@ -1896,6 +1913,10 @@ msgstr "分析、下载、录制与导出都会在这里留下一条记录。"
 #: src/pages/home/HomeTasksPanel.tsx:79
 msgid "分析、录制与导出开始后会出现在这里，可以从这里直接停止。"
 msgstr "分析、录制与导出开始后会出现在这里，可以从这里直接停止。"
+
+#: src/pages/home/firstRunSteps.ts:43
+msgid "分析一场比赛"
+msgstr "分析一场比赛"
 
 #: src/pages/library/LibraryFilters.tsx:49
 #: src/pages/library/libraryFormat.ts:126
@@ -2520,9 +2541,17 @@ msgstr "回合结束方式"
 msgid "回合胜负"
 msgstr "回合胜负"
 
+#: src/pages/GuidePage.tsx:170
+msgid "回放与录制都用它。"
+msgstr "回放与录制都用它。"
+
 #: src/pages/home/EnvironmentNotice.tsx:116
 msgid "回放与录制都起不来"
 msgstr "回放与录制都起不来"
+
+#: src/pages/GuidePage.tsx:169
+msgid "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
+msgstr "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
 
 #: src/pages/match/viewContract.ts:233
 msgctxt "match-view"
@@ -2736,8 +2765,8 @@ msgstr "多轨编辑"
 
 #: src/app/command/commandRegistry.ts:198
 #: src/pages/editor/EditorProjectList.tsx:159
-#: src/pages/EditorPage.tsx:124
-#: src/pages/EditorPage.tsx:140
+#: src/pages/EditorPage.tsx:125
+#: src/pages/EditorPage.tsx:141
 msgid "多轨编辑器"
 msgstr "多轨编辑器"
 
@@ -2781,6 +2810,10 @@ msgstr "完成一次录制后，片段会出现在这里。"
 #: src/design/data/EmptyState.tsx:142
 msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 msgstr "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
+
+#: src/pages/home/FirstRunStrip.tsx:75
+msgid "完整的使用引导与环境自检"
+msgstr "完整的使用引导与环境自检"
 
 #: src/domain/match/EvidenceRow.tsx:80
 #: src/pages/evidence/EvidenceAnnotations.tsx:126
@@ -2883,6 +2916,7 @@ msgstr "对齐第 {0} 拍到第 {1} 拍，之后的片段会跟着前后移动�
 msgid "导入"
 msgstr "导入"
 
+#: src/pages/home/firstRunSteps.ts:37
 #: src/pages/library/ImportDemoDialog.tsx:93
 #: src/pages/LibraryPage.tsx:182
 msgid "导入 Demo"
@@ -2896,14 +2930,18 @@ msgstr "导入一个 .dem，或添加一个监听目录自动发现"
 msgid "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 msgstr "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 
+#: src/pages/EditorPage.tsx:273
+msgid "导入本机文件需要桌面应用，浏览器里做不到"
+msgstr "导入本机文件需要桌面应用，浏览器里做不到"
+
+#: src/pages/EditorPage.tsx:299
+msgid "导入没有完成"
+msgstr "导入没有完成"
+
 #: src/pages/editor/EditorTimelinePanel.tsx:235
 #: src/pages/editor/MediaLibraryPanel.tsx:131
 msgid "导入素材"
 msgstr "导入素材"
-
-#: src/pages/EditorPage.tsx:270
-msgid "导入需要挑选文件，这一版还没有接上文件对话框"
-msgstr "导入需要挑选文件，这一版还没有接上文件对话框"
 
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:279
@@ -2930,8 +2968,8 @@ msgstr "导出会返回一份文件，桌面端还没有保存到磁盘的命令
 msgid "导出元数据"
 msgstr "导出元数据"
 
-#: src/pages/EditorPage.tsx:358
-#: src/pages/EditorPage.tsx:369
+#: src/pages/EditorPage.tsx:388
+#: src/pages/EditorPage.tsx:399
 msgid "导出工程包"
 msgstr "导出工程包"
 
@@ -2939,16 +2977,24 @@ msgstr "导出工程包"
 msgid "导出成片"
 msgstr "导出成片"
 
+#: src/pages/GuidePage.tsx:179
+msgid "导出成片与波形分析用它。"
+msgstr "导出成片与波形分析用它。"
+
 #: src/pages/home/EnvironmentNotice.tsx:120
 msgid "导出成片会失败"
 msgstr "导出成片会失败"
+
+#: src/pages/GuidePage.tsx:178
+msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
+msgstr "导出成片需要它。录制与分析不受影响，但导不出文件。"
 
 #: src/pages/settings/AiAgentSection.tsx:704
 msgid "导出没有完成：{exportError}"
 msgstr "导出没有完成：{exportError}"
 
-#: src/pages/EditorPage.tsx:375
-#: src/pages/EditorPage.tsx:393
+#: src/pages/EditorPage.tsx:405
+#: src/pages/EditorPage.tsx:423
 msgid "导出视频"
 msgstr "导出视频"
 
@@ -3066,7 +3112,7 @@ msgstr "工程没有被改动，重试是安全的。"
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "已从备份恢复配置，重新读取后生效。"
 
-#: src/pages/EditorPage.tsx:321
+#: src/pages/EditorPage.tsx:351
 msgid "已保存"
 msgstr "已保存"
 
@@ -3480,6 +3526,10 @@ msgstr "录制环境未就绪"
 msgid "录制环境还没准备好，需要它的任务现在起不来。"
 msgstr "录制环境还没准备好，需要它的任务现在起不来。"
 
+#: src/pages/GuidePage.tsx:174
+msgid "录制用它接管画面。"
+msgstr "录制用它接管画面。"
+
 #: src/pages/delivery/OutputsView.tsx:50
 msgid "录制结果"
 msgstr "录制结果"
@@ -3514,6 +3564,10 @@ msgstr "录制输出目录"
 #: src/pages/MatchWorkspacePage.tsx:129
 msgid "录制队列尚未接通"
 msgstr "录制队列尚未接通"
+
+#: src/pages/GuidePage.tsx:173
+msgid "录制需要它。导入、分析和剪辑都不受影响。"
+msgstr "录制需要它。导入、分析和剪辑都不受影响。"
 
 #: src/pages/settings/GameSection.tsx:171
 msgid "录制默认值"
@@ -3821,6 +3875,10 @@ msgstr "技术细节"
 msgid "把 .dem 或 .zip 拖到这里"
 msgstr "把 .dem 或 .zip 拖到这里"
 
+#: src/pages/home/firstRunSteps.ts:38
+msgid "把 .dem 文件加进资料库，或者设一个监听目录让它们自己进来。"
+msgstr "把 .dem 文件加进资料库，或者设一个监听目录让它们自己进来。"
+
 #: src/pages/montage/MontageProjectList.tsx:190
 msgid "把录制结果串成一条视频，不进多轨编辑器也能直接导出。"
 msgstr "把录制结果串成一条视频，不进多轨编辑器也能直接导出。"
@@ -4025,7 +4083,7 @@ msgstr "撤销删除"
 msgid "撤销拒绝"
 msgstr "撤销拒绝"
 
-#: src/pages/EditorPage.tsx:435
+#: src/pages/EditorPage.tsx:465
 msgid "撤销这次修改"
 msgstr "撤销这次修改"
 
@@ -4052,7 +4110,7 @@ msgstr "播放头下没有可播放的素材"
 msgid "播放头下没有画面"
 msgstr "播放头下没有画面"
 
-#: src/pages/EditorPage.tsx:258
+#: src/pages/EditorPage.tsx:260
 msgid "播放头这个位置已经有片段了，把播放头挪到空处再试"
 msgstr "播放头这个位置已经有片段了，把播放头挪到空处再试"
 
@@ -4431,7 +4489,7 @@ msgstr "替换"
 
 #. placeholder {0}: keyframeLoss.clips
 #. placeholder {1}: keyframeLoss.keyframes
-#: src/pages/EditorPage.tsx:439
+#: src/pages/EditorPage.tsx:469
 msgid "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 {1} 个关键帧。"
 msgstr "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 {1} 个关键帧。"
 
@@ -4507,7 +4565,7 @@ msgstr "朝向与视野"
 msgid "未下载"
 msgstr "未下载"
 
-#: src/pages/EditorPage.tsx:319
+#: src/pages/EditorPage.tsx:349
 msgid "未保存"
 msgstr "未保存"
 
@@ -4621,7 +4679,7 @@ msgstr "本地服务未连接，分析、录制和导出暂时无法开始"
 msgid "本地服务未连接，恢复后无需刷新页面即可继续"
 msgstr "本地服务未连接，恢复后无需刷新页面即可继续"
 
-#: src/pages/EditorPage.tsx:128
+#: src/pages/EditorPage.tsx:129
 msgid "本地服务没有连接，这个工程读不出来。服务恢复后无需刷新页面。"
 msgstr "本地服务没有连接，这个工程读不出来。服务恢复后无需刷新页面。"
 
@@ -4841,7 +4899,7 @@ msgstr "模糊"
 msgid "正在从方案生成预览计划"
 msgstr "正在从方案生成预览计划"
 
-#: src/pages/EditorPage.tsx:347
+#: src/pages/EditorPage.tsx:377
 #: src/pages/settings/FilesSection.tsx:197
 msgid "正在保存"
 msgstr "正在保存"
@@ -4911,6 +4969,7 @@ msgstr "正在新建这条会话"
 msgid "正在校验"
 msgstr "正在校验"
 
+#: src/pages/GuidePage.tsx:88
 #: src/pages/settings/AdvancedSection.tsx:139
 #: src/pages/settings/GameSection.tsx:268
 msgid "正在检查"
@@ -5312,7 +5371,7 @@ msgstr "没有选中片段"
 msgid "没有道具记录"
 msgstr "没有道具记录"
 
-#: src/pages/EditorPage.tsx:347
+#: src/pages/EditorPage.tsx:377
 msgid "没有需要保存的改动"
 msgstr "没有需要保存的改动"
 
@@ -5730,7 +5789,7 @@ msgstr "版本"
 #. placeholder {0}: query.data.revision
 #. placeholder {0}: snapshot.revision
 #: src/pages/editor/VersionHistoryPanel.tsx:72
-#: src/pages/EditorPage.tsx:326
+#: src/pages/EditorPage.tsx:356
 msgid "版本 {0}"
 msgstr "版本 {0}"
 
@@ -5822,7 +5881,7 @@ msgstr "生效"
 
 #: src/pages/delivery/OutputsView.tsx:174
 #: src/pages/home/RecentOutputsPanel.tsx:92
-#: src/pages/HomePage.tsx:84
+#: src/pages/HomePage.tsx:88
 #: src/pages/match/views/HighlightsView.tsx:292
 #: src/pages/MatchWorkspacePage.tsx:228
 msgid "用 Agent 制作视频"
@@ -5936,7 +5995,7 @@ msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "目标事件"
 
-#: src/pages/EditorPage.tsx:257
+#: src/pages/EditorPage.tsx:259
 msgid "目标轨道已锁定"
 msgstr "目标轨道已锁定"
 
@@ -6011,7 +6070,7 @@ msgstr "看道具与经济"
 #: src/pages/agent/SessionDrawer.tsx:235
 #: src/pages/delivery/OutputsView.tsx:148
 #: src/pages/editor/EditorTimelinePanel.tsx:222
-#: src/pages/EditorPage.tsx:424
+#: src/pages/EditorPage.tsx:454
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
 #: src/pages/RecoveryPage.tsx:99
@@ -6052,6 +6111,10 @@ msgstr "视角"
 #: src/pages/recording/ShotInspectorBlock.tsx:304
 msgid "视野 FOV"
 msgstr "视野 FOV"
+
+#: src/pages/EditorPage.tsx:282
+msgid "视频与音频"
+msgstr "视频与音频"
 
 #: src/pages/settings/GameSection.tsx:235
 msgid "视频输出能力"
@@ -6536,6 +6599,10 @@ msgstr "观察者证据完整"
 msgid "观察者镜头的视野由相机路径逐帧决定，也不会绘制持枪画面"
 msgstr "观察者镜头的视野由相机路径逐帧决定，也不会绘制持枪画面"
 
+#: src/pages/home/firstRunSteps.ts:44
+msgid "解析出回合、击杀与移动轨迹，之后的所有选材都基于它。"
+msgstr "解析出回合、击杀与移动轨迹，之后的所有选材都基于它。"
+
 #: src/pages/match/views/PlayersView.tsx:246
 msgid "解析出的比赛没有可归属的选手记录，记分板因此是空的。重新分析这场比赛通常能补上。"
 msgstr "解析出的比赛没有可归属的选手记录，记分板因此是空的。重新分析这场比赛通常能补上。"
@@ -6559,6 +6626,10 @@ msgstr "计划提示（服务返回）"
 #: src/pages/montage/MusicBeatBlock.tsx:383
 msgid "计算节拍建议"
 msgstr "计算节拍建议"
+
+#: src/pages/home/firstRunSteps.ts:49
+msgid "让 Agent 做一条视频"
+msgstr "让 Agent 做一条视频"
 
 #: src/pages/delivery/OutputCard.tsx:116
 msgid "记录仍在，文件已被移动或删除"
@@ -6652,6 +6723,10 @@ msgstr "诱饵"
 msgid "说明"
 msgstr "说明"
 
+#: src/pages/home/firstRunSteps.ts:50
+msgid "说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。"
+msgstr "说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。"
+
 #: src/pages/agent/AgentConversationBlock.tsx:447
 msgid "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 msgstr "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
@@ -6712,6 +6787,10 @@ msgstr "读不到注释：{error}"
 #: src/pages/RecoveryPage.tsx:118
 msgid "读不到状态"
 msgstr "读不到状态"
+
+#: src/pages/GuidePage.tsx:97
+msgid "读不到环境自检：{error}"
+msgstr "读不到环境自检：{error}"
 
 #: src/pages/settings/AppSection.tsx:72
 #: src/pages/settings/FilesSection.tsx:78
@@ -6810,6 +6889,10 @@ msgstr "购买金额统计不可用"
 #: src/pages/MatchWorkspacePage.tsx:201
 msgid "资料库"
 msgstr "资料库"
+
+#: src/pages/home/FirstRunStrip.tsx:56
+msgid "资料库里还没有东西，从第一步开始。这一条在导入之后会自动消失。"
+msgstr "资料库里还没有东西，从第一步开始。这一条在导入之后会自动消失。"
 
 #: src/pages/home/RecentMatchesPanel.tsx:67
 msgid "资料库里还没有比赛。导入 Demo 之后它们会出现在这里。"
@@ -7200,7 +7283,7 @@ msgid "还没读到这个素材的时长，不知道可以滑移多少"
 msgstr "还没读到这个素材的时长，不知道可以滑移多少"
 
 #: src/pages/editor/MediaLibraryPanel.tsx:78
-#: src/pages/EditorPage.tsx:255
+#: src/pages/EditorPage.tsx:257
 msgid "还没读到这个素材的时长，读完才能放到时间轴上"
 msgstr "还没读到这个素材的时长，读完才能放到时间轴上"
 
@@ -7256,6 +7339,14 @@ msgstr "这一队没有选手记录"
 msgid "这一页说的每一句话都记在一条会话里，方案的每一次改动也会写进去。选一条现有的，或者现在开一条新的。"
 msgstr "这一页说的每一句话都记在一条会话里，方案的每一次改动也会写进去。选一条现有的，或者现在开一条新的。"
 
+#: src/pages/GuidePage.tsx:181
+msgid "这一项就绪。"
+msgstr "这一项就绪。"
+
+#: src/pages/GuidePage.tsx:181
+msgid "这一项现在不可用。"
+msgstr "这一项现在不可用。"
+
 #: src/pages/match/views/ReviewView.tsx:445
 msgid "这一项统计不可用"
 msgstr "这一项统计不可用"
@@ -7281,11 +7372,11 @@ msgstr "这个地址不存在，或者它在这一版里已经下线。其余功
 msgid "这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。"
 msgstr "这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。"
 
-#: src/pages/EditorPage.tsx:407
+#: src/pages/EditorPage.tsx:437
 msgid "这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。"
 msgstr "这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。"
 
-#: src/pages/EditorPage.tsx:130
+#: src/pages/EditorPage.tsx:131
 msgid "这个工程没能打开：{loadError}"
 msgstr "这个工程没能打开：{loadError}"
 
@@ -7471,6 +7562,10 @@ msgstr "这份预览计划已经不在了，本地服务可能重启过。"
 msgid "这份预览计划已经过期。"
 msgstr "这份预览计划已经过期。"
 
+#: src/pages/GuidePage.tsx:82
+msgid "这台机器现在能做什么"
+msgstr "这台机器现在能做什么"
+
 #: src/pages/settings/GameSection.tsx:236
 msgid "这台机器能不能写出成片。检查的是本机的编码器，不是设置。"
 msgstr "这台机器能不能写出成片。检查的是本机的编码器，不是设置。"
@@ -7609,7 +7704,7 @@ msgid "这次恢复没有完成：{actionError}"
 msgstr "这次恢复没有完成：{actionError}"
 
 #: src/pages/editor/EditorProjectList.tsx:179
-#: src/pages/EditorPage.tsx:418
+#: src/pages/EditorPage.tsx:448
 #: src/pages/montage/MontageProjectList.tsx:174
 msgid "这次操作没有完成：{writeError}"
 msgstr "这次操作没有完成：{writeError}"
@@ -7692,7 +7787,7 @@ msgstr "进行中 {0} · 失败 {1} · 已完成 {2}"
 msgid "进行中的任务"
 msgstr "进行中的任务"
 
-#: src/pages/HomePage.tsx:81
+#: src/pages/HomePage.tsx:85
 msgid "进行中的任务、失败可恢复的任务和最近的成片"
 msgstr "进行中的任务、失败可恢复的任务和最近的成片"
 
@@ -7842,6 +7937,10 @@ msgstr "选择文件"
 msgid "选择要导入的 Demo 文件"
 msgstr "选择要导入的 Demo 文件"
 
+#: src/pages/EditorPage.tsx:279
+msgid "选择要导入的素材"
+msgstr "选择要导入的素材"
+
 #: src/pages/settings/FilesSection.tsx:224
 msgid "选择要监听的目录"
 msgstr "选择要监听的目录"
@@ -7879,6 +7978,10 @@ msgstr "逐回合看"
 #: src/pages/match/views/RoundsView.tsx:526
 msgid "逐回合详情"
 msgstr "逐回合详情"
+
+#: src/pages/GuidePage.tsx:127
+msgid "逐项的原始状态与路径校验在<0>设置 · 高级与诊断</0>。"
+msgstr "逐项的原始状态与路径校验在<0>设置 · 高级与诊断</0>。"
 
 #: src/pages/editor/InspectorPanel.tsx:174
 msgid "速度"
@@ -8011,8 +8114,8 @@ msgid "重新定位"
 msgstr "重新定位"
 
 #: src/pages/editor/MediaLibraryPanel.tsx:178
-msgid "重新定位需要挑选替换文件，这一版还没有接上文件对话框"
-msgstr "重新定位需要挑选替换文件，这一版还没有接上文件对话框"
+msgid "重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程"
+msgstr "重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程"
 
 #: src/pages/match/views/ReviewView.tsx:746
 msgid "重新打开"
@@ -8026,6 +8129,7 @@ msgstr "重新扫描"
 msgid "重新校验"
 msgstr "重新校验"
 
+#: src/pages/GuidePage.tsx:91
 #: src/pages/settings/AdvancedSection.tsx:142
 #: src/pages/settings/GameSection.tsx:271
 msgid "重新检查"
@@ -8060,7 +8164,7 @@ msgstr "重新读取回放"
 msgid "重新读取方案"
 msgstr "重新读取方案"
 
-#: src/pages/EditorPage.tsx:405
+#: src/pages/EditorPage.tsx:435
 #: src/pages/MontagePage.tsx:368
 #: src/pages/MontagePage.tsx:380
 #: src/pages/MontagePage.tsx:386
@@ -8091,9 +8195,10 @@ msgstr "重新选择"
 #: src/pages/delivery/useTaskActions.tsx:204
 #: src/pages/editor/EditorProjectList.tsx:173
 #: src/pages/editor/EditorProjectList.tsx:178
-#: src/pages/EditorPage.tsx:126
+#: src/pages/EditorPage.tsx:127
 #: src/pages/evidence/EvidenceAnnotations.tsx:56
 #: src/pages/evidence/EvidenceResults.tsx:125
+#: src/pages/GuidePage.tsx:96
 #: src/pages/HistoryPage.tsx:223
 #: src/pages/home/ActiveProjectsPanel.tsx:83
 #: src/pages/home/PendingPlansPanel.tsx:70

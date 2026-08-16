@@ -39,6 +39,7 @@ const TaskDetailPage = lazy(async () => ({
 }));
 const SettingsPage = lazy(async () => ({ default: (await import('./pages/SettingsPage')).SettingsPage }));
 const RecoveryPage = lazy(async () => ({ default: (await import('./pages/RecoveryPage')).RecoveryPage }));
+const GuidePage = lazy(async () => ({ default: (await import('./pages/GuidePage')).GuidePage }));
 
 /** Exhaustive by construction — `RoutePages` has one field per §7 destination. */
 export const APP_PAGES: RoutePages = {
@@ -57,6 +58,7 @@ export const APP_PAGES: RoutePages = {
   deliveryTask: <TaskDetailPage />,
   settings: <SettingsPage />,
   recovery: <RecoveryPage />,
+  guide: <GuidePage />,
 };
 
 export const appRoutes: RouteObject[] = createAppRoutes(APP_PAGES);

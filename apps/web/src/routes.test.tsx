@@ -30,6 +30,7 @@ const pageRouteIds = [
   'delivery-task',
   'settings',
   'recovery',
+  'guide',
 ] as const;
 
 describe('the page bindings', () => {

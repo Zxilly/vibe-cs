@@ -87,6 +87,35 @@ describe('saving', () => {
     expect(sent.tracks).toHaveLength(3);
   });
 
+  it('adds an empty lane that survives the save with a real uuid', async () => {
+    const saveEditorProject = vi.fn(async (project: EditorProject) => ({
+      ...project,
+      revision: project.revision + 1,
+    }));
+    await openWorkspace({ saveEditorProject });
+
+    fireEvent.click(screen.getByRole('button', { name: /新建轨道/u }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /字幕轨/u }));
+
+    await waitFor(() => expect(screen.getByTestId('editor-save-state').textContent).toContain('未保存'));
+    fireEvent.click(screen.getByRole('button', { name: /保存/u }));
+
+    await waitFor(() => expect(saveEditorProject).toHaveBeenCalledTimes(1));
+    const sent = saveEditorProject.mock.calls[0]?.[0] as EditorProject;
+    expect(sent.tracks).toHaveLength(4);
+
+    const added = sent.tracks.find((track) => track.kind === 'text');
+    expect(added).toBeDefined();
+    // A lane with no clips is what was asked for, and `EditorProject::validate`
+    // accepts it — the point of the whole feature is an empty V2 to drop onto.
+    expect(added?.clips).toEqual([]);
+    // The id the editor made up is not a uuid; the adapter mints one, and the
+    // document would be rejected if it had not.
+    expect(added?.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+    );
+  });
+
   it('keeps the wire fields the timeline never touched', async () => {
     // The hard rule of `editorDocument.ts`, asserted end to end: nudging a
     // clip must not cost the *other* clip its colour grade or its metadata.

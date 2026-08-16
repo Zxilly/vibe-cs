@@ -44,8 +44,11 @@ import { liftDelete, rippleDelete, type RippleScope } from './rippleEdit';
 import { slipClip } from './slip';
 import { setClipSpeed } from './speed';
 import {
+  addTrack,
   getClip,
+  getTrack,
   linkGroup,
+  removeTrack,
   timelineDuration,
   withMarkers,
   withPlayhead,
@@ -54,6 +57,7 @@ import {
   type EditRefusal,
   type EditResult,
   type Timeline,
+  type Track,
 } from './timelineModel';
 import { createTimeScale, nextZoom, timeToPx, zoomAtAnchor, type TimeScale } from './timeScale';
 import { trimClip, trimPreview, type TrimEdge } from './trim';
@@ -163,6 +167,13 @@ export interface TimelineEditor {
   /** Adds a marker. Undoable — it is part of the document. */
   addMarker: (marker: Marker) => void;
   removeMarker: (markerId: string) => void;
+  /**
+   * Adds an empty lane. Undoable, like every other document edit — the lane is
+   * part of the saved project even before anything is dropped on it.
+   */
+  addTrack: (track: Track) => void;
+  /** Removes a lane and its clips. Refused when the lane is locked. */
+  removeTrack: (trackId: string) => void;
   /**
    * Replaces the document with one an outside edit produced, as one undoable
    * step. The editor owns the undo stack, so an edit made anywhere else — a
@@ -401,6 +412,25 @@ export function useTimelineEditor({
         timeline: withMarkers(timeline, [...timeline.markers.filter((each) => each.id !== marker.id), marker]),
         applied: true,
       });
+    },
+    [commit, timeline],
+  );
+
+  const addLane = useCallback(
+    (track: Track) => {
+      commit({ timeline: addTrack(timeline, track), applied: true });
+    },
+    [commit, timeline],
+  );
+
+  const removeLane = useCallback(
+    (trackId: string) => {
+      const track = getTrack(timeline, trackId);
+      if (track === undefined || track.locked === true) {
+        setRefusal('track-locked');
+        return;
+      }
+      commit({ timeline: removeTrack(timeline, trackId), applied: true });
     },
     [commit, timeline],
   );
@@ -765,6 +795,8 @@ export function useTimelineEditor({
     trimSelection,
     setSelectionSpeed,
     addMarker,
+    addTrack: addLane,
+    removeTrack: removeLane,
     removeMarker,
     replaceTimeline,
     moveSelectionToAdjacentTrack,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createLinearTimeline, createSampleTimeline } from './sampleTimeline';
 import {
+  addTrack,
   clipAt,
   clipContains,
   clipEnd,
@@ -17,6 +18,7 @@ import {
   patchClips,
   rangesOverlap,
   removeClips,
+  removeTrack,
   slipRange,
   timelineDuration,
   trackIndex,
@@ -197,6 +199,61 @@ describe('immutable updates', () => {
 
   it('clamps the playhead at zero', () => {
     expect(withPlayhead(createLinearTimeline(), -5).playhead).toBe(0);
+  });
+});
+
+
+describe('track edits', () => {
+  const base = () =>
+    createTimeline({
+      fps: 30,
+      tracks: TRACKS,
+      clips: [clip({ id: 'c1' }), clip({ id: 'c2', trackId: 'a1' })],
+    });
+
+  it('inserts a new lane above the topmost one of its kind', () => {
+    const next = addTrack(base(), { id: 'v2', kind: 'video', name: 'V2', role: '叠加' });
+
+    // Above V1, not appended: the stack reads top to bottom, and a second video
+    // lane is an overlay over the first.
+    expect(next.tracks.map((track) => track.id)).toEqual(['v2', 'v1', 'a1']);
+  });
+
+  it('appends when no lane of that kind exists yet', () => {
+    const next = addTrack(base(), { id: 't1', kind: 'text', name: 'T1', role: '字幕' });
+    expect(next.tracks.map((track) => track.id)).toEqual(['v1', 'a1', 't1']);
+  });
+
+  it('re-sorts the clips, because the lane order they sort by just changed', () => {
+    const next = addTrack(base(), { id: 'v2', kind: 'video', name: 'V2', role: '叠加' });
+    // Nothing moved in time; the clip list is ordered by track index and the
+    // audio lane is now third rather than second.
+    expect(next.clips.map((each) => each.id)).toEqual(['c1', 'c2']);
+  });
+
+  it('refuses a duplicate id rather than shadowing the existing lane', () => {
+    expect(() => addTrack(base(), { id: 'v1', kind: 'video', name: 'V1', role: '主画面' })).toThrow(
+      /already exists/u,
+    );
+  });
+
+  it('removes a lane and every clip on it', () => {
+    const next = removeTrack(base(), 'a1');
+    expect(next.tracks.map((track) => track.id)).toEqual(['v1']);
+    expect(next.clips.map((each) => each.id)).toEqual(['c1']);
+  });
+
+  it('refuses to remove a locked lane', () => {
+    const locked = createTimeline({
+      fps: 30,
+      tracks: [{ id: 'v1', kind: 'video', name: 'V1', role: '主画面', locked: true }],
+      clips: [],
+    });
+    expect(() => removeTrack(locked, 'v1')).toThrow(/locked/u);
+  });
+
+  it('refuses an unknown lane', () => {
+    expect(() => removeTrack(base(), 'v9')).toThrow(/unknown track/u);
   });
 });
 

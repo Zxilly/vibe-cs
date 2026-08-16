@@ -380,8 +380,8 @@ msgid "{0} 的道具打出 {1} 点伤害"
 msgstr "{0} 的道具打出 {1} 点伤害"
 
 #. placeholder {0}: shown.toFixed(1)
-#: src/pages/settings/GameSection.tsx:370
-#: src/pages/settings/GameSection.tsx:376
+#: src/pages/settings/GameSection.tsx:372
+#: src/pages/settings/GameSection.tsx:378
 msgid "{0} 秒"
 msgstr "{0} 秒"
 
@@ -651,7 +651,7 @@ msgstr "0.05 到 5 秒；转场比相邻片段还长时渲染会拒绝。"
 
 #. placeholder {0}: scale.pixelsPerSecond
 #: src/design/timeline/TimelinePrototype.tsx:184
-#: src/pages/editor/EditorTimelinePanel.tsx:199
+#: src/pages/editor/EditorTimelinePanel.tsx:230
 msgid "1 秒 = {0} px"
 msgstr "1 秒 = {0} px"
 
@@ -738,7 +738,7 @@ msgstr "AI 点评"
 msgid "CS2 与 Steam 路径、HLAE，以及录制的默认画质。"
 msgstr "CS2 与 Steam 路径、HLAE，以及录制的默认画质。"
 
-#: src/pages/settings/GameSection.tsx:112
+#: src/pages/settings/GameSection.tsx:121
 msgid "CS2 位置"
 msgstr "CS2 位置"
 
@@ -801,8 +801,8 @@ msgstr "Esc 放弃 · ⌘↵ 保存"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:347
 #: src/pages/recording/ShotInspectorBlock.tsx:351
-#: src/pages/settings/GameSection.tsx:192
-#: src/pages/settings/GameSection.tsx:195
+#: src/pages/settings/GameSection.tsx:201
+#: src/pages/settings/GameSection.tsx:204
 msgid "HUD"
 msgstr "HUD"
 
@@ -982,7 +982,7 @@ msgstr "上次扫描导入 {0} 个 · 更新 {1} 个 · 缺失 {2} 个"
 
 #. placeholder {0}: new Date(checks.data.checked_at).toLocaleString()
 #: src/pages/settings/AdvancedSection.tsx:132
-#: src/pages/settings/GameSection.tsx:261
+#: src/pages/settings/GameSection.tsx:270
 msgid "上次检查 {0}"
 msgstr "上次检查 {0}"
 
@@ -1114,8 +1114,8 @@ msgid "主导航"
 msgstr "主导航"
 
 #: src/pages/montage/PackagingBlock.tsx:84
-#: src/pages/settings/AppSection.tsx:106
-#: src/pages/settings/AppSection.tsx:114
+#: src/pages/settings/AppSection.tsx:109
+#: src/pages/settings/AppSection.tsx:117
 msgid "主题"
 msgstr "主题"
 
@@ -1327,7 +1327,7 @@ msgstr "伤害 出 / 入"
 msgid "位置"
 msgstr "位置"
 
-#: src/pages/delivery/taskModel.tsx:164
+#: src/pages/delivery/taskModel.tsx:168
 msgid "位置采样"
 msgstr "位置采样"
 
@@ -1404,7 +1404,7 @@ msgstr "保存中…"
 
 #: src/pages/EvidencePage.tsx:173
 #: src/pages/EvidencePage.tsx:176
-#: src/pages/library/LibraryFilters.tsx:188
+#: src/pages/library/LibraryFilters.tsx:190
 #: src/pages/library/SaveViewDialog.tsx:52
 msgid "保存为视图"
 msgstr "保存为视图"
@@ -1422,7 +1422,7 @@ msgid "保存改动"
 msgstr "保存改动"
 
 #. placeholder {0}: view.name
-#: src/pages/library/LibraryFilters.tsx:184
+#: src/pages/library/LibraryFilters.tsx:186
 msgid "保存的视图 · {0}"
 msgstr "保存的视图 · {0}"
 
@@ -1529,7 +1529,7 @@ msgid "先选一个素材"
 msgstr "先选一个素材"
 
 #: src/design/timeline/TimelinePrototype.tsx:150
-#: src/pages/editor/EditorTimelinePanel.tsx:147
+#: src/pages/editor/EditorTimelinePanel.tsx:177
 msgid "先选中一个片段"
 msgstr "先选中一个片段"
 
@@ -1581,9 +1581,9 @@ msgstr "全选本页"
 #: src/pages/delivery/OutputsView.tsx:49
 #: src/pages/delivery/TaskRecordView.tsx:52
 #: src/pages/evidence/EvidenceConditions.tsx:49
-#: src/pages/library/LibraryFilters.tsx:138
-#: src/pages/library/LibraryFilters.tsx:226
-#: src/pages/library/LibraryFilters.tsx:244
+#: src/pages/library/LibraryFilters.tsx:140
+#: src/pages/library/LibraryFilters.tsx:228
+#: src/pages/library/LibraryFilters.tsx:246
 #: src/pages/match/views/HighlightsView.tsx:193
 #: src/pages/match/views/ReplayView.tsx:339
 #: src/pages/players/PlayerHeatmapPanel.tsx:69
@@ -1608,7 +1608,7 @@ msgid "全部任务记录"
 msgstr "全部任务记录"
 
 #: src/pages/settings/AiAgentSection.tsx:495
-#: src/pages/settings/GameSection.tsx:283
+#: src/pages/settings/GameSection.tsx:292
 msgid "全部保留"
 msgstr "全部保留"
 
@@ -1643,7 +1643,7 @@ msgstr "全部输出"
 msgid "全部选手"
 msgstr "全部选手"
 
-#: src/pages/settings/GameSection.tsx:287
+#: src/pages/settings/GameSection.tsx:296
 msgid "全部静音"
 msgstr "全部静音"
 
@@ -2035,7 +2035,7 @@ msgid "列表只收击杀与目标事件；伤害、购买与投掷物在证据�
 msgstr "列表只收击杀与目标事件；伤害、购买与投掷物在证据检索里。"
 
 #: src/pages/library/ColumnConfigDialog.tsx:66
-#: src/pages/library/LibraryFilters.tsx:194
+#: src/pages/library/LibraryFilters.tsx:196
 msgid "列配置"
 msgstr "列配置"
 
@@ -2099,12 +2099,12 @@ msgid "制作"
 msgstr "制作"
 
 #: src/design/timeline/TimelinePrototype.tsx:81
-#: src/pages/editor/EditorTimelinePanel.tsx:81
+#: src/pages/editor/EditorTimelinePanel.tsx:82
 msgid "剃刀"
 msgstr "剃刀"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:259
-#: src/pages/settings/GameSection.tsx:177
+#: src/pages/settings/GameSection.tsx:186
 msgid "前留白"
 msgstr "前留白"
 
@@ -2122,7 +2122,7 @@ msgid "剪辑工程"
 msgstr "剪辑工程"
 
 #. placeholder {0}: formatBytes(storage.data.filesystem_available_bytes)
-#: src/pages/settings/GameSection.tsx:153
+#: src/pages/settings/GameSection.tsx:162
 msgid "剩余 {0}"
 msgstr "剩余 {0}"
 
@@ -2244,7 +2244,7 @@ msgstr "去录制"
 msgid "去掉运动镜头"
 msgstr "去掉运动镜头"
 
-#: src/pages/home/EnvironmentNotice.tsx:66
+#: src/pages/home/EnvironmentNotice.tsx:67
 msgid "去设置"
 msgstr "去设置"
 
@@ -2281,7 +2281,7 @@ msgid "反恐精英"
 msgstr "反恐精英"
 
 #: src/design/feedback/StageBar.tsx:123
-#: src/pages/delivery/taskModel.tsx:218
+#: src/pages/delivery/taskModel.tsx:222
 msgid "发布"
 msgstr "发布"
 
@@ -2343,6 +2343,14 @@ msgctxt "agent-mode"
 msgid "变更列表"
 msgstr "变更列表"
 
+#: src/pages/editor/EditorTimelinePanel.tsx:99
+msgid "叠加"
+msgstr "叠加"
+
+#: src/pages/editor/EditorTimelinePanel.tsx:102
+msgid "叠加轨"
+msgstr "叠加轨"
+
 #. placeholder {0}: failed - 1
 #: src/pages/home/HomeFailureNotice.tsx:55
 msgid "另有 {0} 条失败记录"
@@ -2352,7 +2360,7 @@ msgstr "另有 {0} 条失败记录"
 msgid "只保留击杀"
 msgstr "只保留击杀"
 
-#: src/pages/settings/GameSection.tsx:286
+#: src/pages/settings/GameSection.tsx:295
 msgid "只保留目标选手"
 msgstr "只保留目标选手"
 
@@ -2366,7 +2374,7 @@ msgstr "只列击杀与目标事件，共 {0} 条。"
 msgid "只影响这一个镜头：{0}"
 msgstr "只影响这一个镜头：{0}"
 
-#: src/pages/settings/AppSection.tsx:165
+#: src/pages/settings/AppSection.tsx:168
 msgid "只接受 https:// 开头的地址。"
 msgstr "只接受 https:// 开头的地址。"
 
@@ -2472,7 +2480,7 @@ msgid "名称"
 msgstr "名称"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:275
-#: src/pages/settings/GameSection.tsx:184
+#: src/pages/settings/GameSection.tsx:193
 msgid "后留白"
 msgstr "后留白"
 
@@ -2489,7 +2497,7 @@ msgid "后面没有剪切点了"
 msgstr "后面没有剪切点了"
 
 #: src/design/feedback/StageBar.tsx:115
-#: src/pages/delivery/taskModel.tsx:213
+#: src/pages/delivery/taskModel.tsx:217
 msgid "启动"
 msgstr "启动"
 
@@ -2507,8 +2515,8 @@ msgstr "启动游戏"
 
 #: src/design/timeline/TimelinePrototype.tsx:156
 #: src/design/timeline/TimelinePrototype.tsx:157
-#: src/pages/editor/EditorTimelinePanel.tsx:153
-#: src/pages/editor/EditorTimelinePanel.tsx:154
+#: src/pages/editor/EditorTimelinePanel.tsx:183
+#: src/pages/editor/EditorTimelinePanel.tsx:184
 msgid "吸附"
 msgstr "吸附"
 
@@ -2609,7 +2617,7 @@ msgstr "回合胜负"
 msgid "回放 tick 超出浏览器安全整数范围"
 msgstr "回放 tick 超出浏览器安全整数范围"
 
-#: src/pages/GuidePage.tsx:170
+#: src/pages/GuidePage.tsx:165
 msgid "回放与录制都用它。"
 msgstr "回放与录制都用它。"
 
@@ -2617,7 +2625,7 @@ msgstr "回放与录制都用它。"
 msgid "回放与录制都起不来"
 msgstr "回放与录制都起不来"
 
-#: src/pages/GuidePage.tsx:169
+#: src/pages/GuidePage.tsx:164
 msgid "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
 msgstr "回放与录制都需要它。导入和分析不受影响，可以先做那两步。"
 
@@ -2642,6 +2650,10 @@ msgstr "固定机位"
 #: src/pages/match/views/ReplayView.tsx:272
 msgid "图层"
 msgstr "图层"
+
+#: src/pages/editor/EditorTimelinePanel.tsx:102
+msgid "图形"
+msgstr "图形"
 
 #. placeholder {0}: pending.changes.length
 #: src/pages/AgentPage.tsx:505
@@ -2673,7 +2685,7 @@ msgstr "在多轨编辑器中打开"
 msgid "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 msgstr "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 
-#: src/pages/editor/EditorTimelinePanel.tsx:232
+#: src/pages/editor/EditorTimelinePanel.tsx:263
 msgid "在左侧素材库里选一个素材，按「添加到时间轴」——第一条轨道会随它一起建好。"
 msgstr "在左侧素材库里选一个素材，按「添加到时间轴」——第一条轨道会随它一起建好。"
 
@@ -2694,7 +2706,7 @@ msgid "在左边选一个片段，这里会画出它的相机路径与朝向。"
 msgstr "在左边选一个片段，这里会画出它的相机路径与朝向。"
 
 #: src/design/timeline/TimelinePrototype.tsx:144
-#: src/pages/editor/EditorTimelinePanel.tsx:141
+#: src/pages/editor/EditorTimelinePanel.tsx:171
 msgid "在播放头切开"
 msgstr "在播放头切开"
 
@@ -2741,7 +2753,7 @@ msgstr "在证据视图里选一条结果、写下为什么它值得剪，注释
 #: src/pages/history/MatchHistoryTable.tsx:126
 #: src/pages/library/libraryColumns.tsx:85
 #: src/pages/library/libraryColumns.tsx:86
-#: src/pages/library/LibraryFilters.tsx:167
+#: src/pages/library/LibraryFilters.tsx:169
 #: src/pages/players/PlayerMapTable.tsx:34
 #: src/pages/players/PlayerMapTable.tsx:35
 msgid "地图"
@@ -2812,11 +2824,11 @@ msgstr "填写一个目录的完整路径"
 msgid "备注"
 msgstr "备注"
 
-#: src/pages/delivery/taskModel.tsx:163
+#: src/pages/delivery/taskModel.tsx:167
 msgid "复核解析结果"
 msgstr "复核解析结果"
 
-#: src/pages/settings/AppSection.tsx:81
+#: src/pages/settings/AppSection.tsx:84
 msgid "外观与语言"
 msgstr "外观与语言"
 
@@ -2866,6 +2878,14 @@ msgstr "失败的导出"
 #: src/shared/desktop/client.ts:195
 msgid "媒体地址不是本地服务路径。"
 msgstr "媒体地址不是本地服务路径。"
+
+#: src/pages/editor/EditorTimelinePanel.tsx:101
+msgid "字幕"
+msgstr "字幕"
+
+#: src/pages/editor/EditorTimelinePanel.tsx:101
+msgid "字幕轨"
+msgstr "字幕轨"
 
 #: src/domain/task/taskVocabulary.tsx:75
 msgctxt "task-progress"
@@ -3018,7 +3038,7 @@ msgstr "导入本机文件需要桌面应用，浏览器里做不到"
 msgid "导入没有完成"
 msgstr "导入没有完成"
 
-#: src/pages/editor/EditorTimelinePanel.tsx:235
+#: src/pages/editor/EditorTimelinePanel.tsx:266
 #: src/pages/editor/MediaLibraryPanel.tsx:131
 msgid "导入素材"
 msgstr "导入素材"
@@ -3035,15 +3055,15 @@ msgid "导出 HTML"
 msgstr "导出 HTML"
 
 #: src/pages/home/EnvironmentNotice.tsx:122
-msgid "导出与波形都会失败"
-msgstr "导出与波形都会失败"
+#~ msgid "导出与波形都会失败"
+#~ msgstr "导出与波形都会失败"
 
-#: src/pages/library/LibraryFilters.tsx:200
+#: src/pages/library/LibraryFilters.tsx:202
 #: src/pages/LibraryPage.tsx:243
 msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 msgstr "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 
-#: src/pages/library/LibraryFilters.tsx:202
+#: src/pages/library/LibraryFilters.tsx:204
 #: src/pages/LibraryPage.tsx:245
 msgid "导出元数据"
 msgstr "导出元数据"
@@ -3057,7 +3077,7 @@ msgstr "导出工程包"
 msgid "导出成片"
 msgstr "导出成片"
 
-#: src/pages/GuidePage.tsx:179
+#: src/pages/GuidePage.tsx:173
 msgid "导出成片与波形分析用它。"
 msgstr "导出成片与波形分析用它。"
 
@@ -3065,7 +3085,7 @@ msgstr "导出成片与波形分析用它。"
 msgid "导出成片会失败"
 msgstr "导出成片会失败"
 
-#: src/pages/GuidePage.tsx:178
+#: src/pages/GuidePage.tsx:172
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
 msgstr "导出成片需要它。录制与分析不受影响，但导不出文件。"
 
@@ -3167,7 +3187,7 @@ msgid "工作台"
 msgstr "工作台"
 
 #: src/design/timeline/TimelinePrototype.tsx:141
-#: src/pages/editor/EditorTimelinePanel.tsx:132
+#: src/pages/editor/EditorTimelinePanel.tsx:162
 msgid "工具"
 msgstr "工具"
 
@@ -3347,7 +3367,7 @@ msgstr "已选中"
 msgid "已选中 {0}"
 msgstr "已选中 {0}"
 
-#: src/pages/editor/EditorTimelinePanel.tsx:208
+#: src/pages/editor/EditorTimelinePanel.tsx:239
 msgid "已选中 1 个片段"
 msgstr "已选中 1 个片段"
 
@@ -3607,11 +3627,11 @@ msgstr "录制期间这台机器会被游戏占用，中途停止会保留已完
 msgid "录制环境未就绪"
 msgstr "录制环境未就绪"
 
-#: src/pages/home/EnvironmentNotice.tsx:81
+#: src/pages/home/EnvironmentNotice.tsx:82
 msgid "录制环境还没准备好，需要它的任务现在起不来。"
 msgstr "录制环境还没准备好，需要它的任务现在起不来。"
 
-#: src/pages/GuidePage.tsx:174
+#: src/pages/GuidePage.tsx:169
 msgid "录制用它接管画面。"
 msgstr "录制用它接管画面。"
 
@@ -3634,7 +3654,7 @@ msgstr "录制结果没能读取：{error}"
 msgid "录制计划"
 msgstr "录制计划"
 
-#: src/pages/settings/GameSection.tsx:221
+#: src/pages/settings/GameSection.tsx:230
 msgid "录制语音"
 msgstr "录制语音"
 
@@ -3642,7 +3662,7 @@ msgstr "录制语音"
 msgid "录制起不来，分析与编辑不受影响"
 msgstr "录制起不来，分析与编辑不受影响"
 
-#: src/pages/settings/GameSection.tsx:142
+#: src/pages/settings/GameSection.tsx:151
 msgid "录制输出目录"
 msgstr "录制输出目录"
 
@@ -3650,11 +3670,11 @@ msgstr "录制输出目录"
 msgid "录制队列尚未接通"
 msgstr "录制队列尚未接通"
 
-#: src/pages/GuidePage.tsx:173
+#: src/pages/GuidePage.tsx:168
 msgid "录制需要它。导入、分析和剪辑都不受影响。"
 msgstr "录制需要它。导入、分析和剪辑都不受影响。"
 
-#: src/pages/settings/GameSection.tsx:171
+#: src/pages/settings/GameSection.tsx:180
 msgid "录制默认值"
 msgstr "录制默认值"
 
@@ -3695,19 +3715,19 @@ msgstr "影响：录制与回放是互斥的，这里说明为什么某个动作
 msgid "影响：录制时是否由本应用拉起游戏。"
 msgstr "影响：录制时是否由本应用拉起游戏。"
 
-#: src/pages/settings/GameSection.tsx:214
+#: src/pages/settings/GameSection.tsx:223
 msgid "影响：录制音轨里是否包含人声。"
 msgstr "影响：录制音轨里是否包含人声。"
 
-#: src/pages/settings/GameSection.tsx:203
+#: src/pages/settings/GameSection.tsx:212
 msgid "影响：成片画面里是否出现小地图。"
 msgstr "影响：成片画面里是否出现小地图。"
 
-#: src/pages/settings/GameSection.tsx:193
+#: src/pages/settings/GameSection.tsx:202
 msgid "影响：成片画面里是否出现界面元素。"
 msgstr "影响：成片画面里是否出现界面元素。"
 
-#: src/pages/settings/AppSection.tsx:133
+#: src/pages/settings/AppSection.tsx:136
 msgid "影响：手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 msgstr "影响：手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 
@@ -3723,19 +3743,19 @@ msgstr "影响：报告问题时要附上的号码。"
 msgid "影响：新建会话时上下文是否预填，随时可手动改。"
 msgstr "影响：新建会话时上下文是否预填，随时可手动改。"
 
-#: src/pages/settings/GameSection.tsx:145
+#: src/pages/settings/GameSection.tsx:154
 msgid "影响：新录制文件的存放位置。它跟着数据目录走，在「文件与资料库」里改。"
 msgstr "影响：新录制文件的存放位置。它跟着数据目录走，在「文件与资料库」里改。"
 
-#: src/pages/settings/GameSection.tsx:358
+#: src/pages/settings/GameSection.tsx:360
 msgid "影响：每个片段自动多录多少。"
 msgstr "影响：每个片段自动多录多少。"
 
-#: src/pages/settings/AppSection.tsx:88
+#: src/pages/settings/AppSection.tsx:91
 msgid "影响：界面文案。改动会保存，下次启动应用时生效。"
 msgstr "影响：界面文案。改动会保存，下次启动应用时生效。"
 
-#: src/pages/settings/AppSection.tsx:107
+#: src/pages/settings/AppSection.tsx:110
 msgid "影响：界面配色。改动会保存，下次启动应用时生效。"
 msgstr "影响：界面配色。改动会保存，下次启动应用时生效。"
 
@@ -3743,7 +3763,7 @@ msgstr "影响：界面配色。改动会保存，下次启动应用时生效。
 msgid "影响：磁盘剩余空间。清理入口在「输出与任务记录」。"
 msgstr "影响：磁盘剩余空间。清理入口在「输出与任务记录」。"
 
-#: src/pages/settings/GameSection.tsx:113
+#: src/pages/settings/GameSection.tsx:122
 msgid "影响：能否启动回放与录制。"
 msgstr "影响：能否启动回放与录制。"
 
@@ -3930,7 +3950,7 @@ msgid "打开比赛工作区"
 msgstr "打开比赛工作区"
 
 #: src/pages/settings/FilesSection.tsx:120
-#: src/pages/settings/GameSection.tsx:162
+#: src/pages/settings/GameSection.tsx:171
 msgid "打开目录"
 msgstr "打开目录"
 
@@ -4113,7 +4133,7 @@ msgstr "换来源"
 msgid "排队中"
 msgstr "排队中"
 
-#: src/pages/delivery/taskModel.tsx:161
+#: src/pages/delivery/taskModel.tsx:165
 msgid "排队等待解析"
 msgstr "排队等待解析"
 
@@ -4162,8 +4182,8 @@ msgstr "搜索会话、Demo 或选手"
 msgid "搜索比赛、选手、证据、页面和动作"
 msgstr "搜索比赛、选手、证据、页面和动作"
 
-#: src/pages/library/LibraryFilters.tsx:158
-#: src/pages/library/LibraryFilters.tsx:159
+#: src/pages/library/LibraryFilters.tsx:160
+#: src/pages/library/LibraryFilters.tsx:161
 msgid "搜索比赛、选手或文件名"
 msgstr "搜索比赛、选手或文件名"
 
@@ -4173,7 +4193,7 @@ msgid "搜索选手或别名"
 msgstr "搜索选手或别名"
 
 #: src/design/timeline/TimelinePrototype.tsx:166
-#: src/pages/editor/EditorTimelinePanel.tsx:181
+#: src/pages/editor/EditorTimelinePanel.tsx:212
 msgid "撤销"
 msgstr "撤销"
 
@@ -4200,7 +4220,7 @@ msgstr "播放头"
 
 #. placeholder {0}: formatTimecode(timeline.playhead)
 #: src/design/timeline/TimelinePrototype.tsx:291
-#: src/pages/editor/EditorTimelinePanel.tsx:319
+#: src/pages/editor/EditorTimelinePanel.tsx:350
 msgid "播放头 {0}"
 msgstr "播放头 {0}"
 
@@ -4293,7 +4313,7 @@ msgid "攻守已交换"
 msgstr "攻守已交换"
 
 #: src/design/timeline/TimelinePrototype.tsx:186
-#: src/pages/editor/EditorTimelinePanel.tsx:201
+#: src/pages/editor/EditorTimelinePanel.tsx:232
 msgid "放大"
 msgstr "放大"
 
@@ -4400,6 +4420,11 @@ msgstr "新建工程"
 #: src/pages/agent/NewSessionPane.tsx:237
 msgid "新建空会话"
 msgstr "新建空会话"
+
+#: src/pages/editor/EditorTimelinePanel.tsx:204
+#: src/pages/editor/EditorTimelinePanel.tsx:204
+msgid "新建轨道"
+msgstr "新建轨道"
 
 #: src/pages/agent/AgentConversationBlock.tsx:303
 msgid "新的会话"
@@ -4520,7 +4545,7 @@ msgstr "时间码"
 msgid "时间耗尽"
 msgstr "时间耗尽"
 
-#: src/pages/editor/EditorTimelinePanel.tsx:122
+#: src/pages/editor/EditorTimelinePanel.tsx:152
 msgid "时间轴"
 msgstr "时间轴"
 
@@ -4550,7 +4575,7 @@ msgstr "暂停"
 msgid "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
 msgstr "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
 
-#: src/pages/delivery/taskModel.tsx:281
+#: src/pages/delivery/taskModel.tsx:285
 msgid "暂无可用的恢复动作"
 msgstr "暂无可用的恢复动作"
 
@@ -4571,11 +4596,11 @@ msgid "更换音乐"
 msgstr "更换音乐"
 
 #: src/pages/settings/FilesSection.tsx:139
-#: src/pages/settings/GameSection.tsx:135
+#: src/pages/settings/GameSection.tsx:144
 msgid "更改"
 msgstr "更改"
 
-#: src/pages/settings/AppSection.tsx:126
+#: src/pages/settings/AppSection.tsx:129
 msgid "更新"
 msgstr "更新"
 
@@ -4586,11 +4611,11 @@ msgstr "更新"
 msgid "更新时间"
 msgstr "更新时间"
 
-#: src/pages/settings/AppSection.tsx:131
+#: src/pages/settings/AppSection.tsx:134
 msgid "更新源"
 msgstr "更新源"
 
-#: src/pages/settings/AppSection.tsx:144
+#: src/pages/settings/AppSection.tsx:147
 msgid "更新源地址"
 msgstr "更新源地址"
 
@@ -4754,7 +4779,7 @@ msgid "未选中比赛"
 msgstr "未选中比赛"
 
 #: src/design/timeline/TimelinePrototype.tsx:195
-#: src/pages/editor/EditorTimelinePanel.tsx:208
+#: src/pages/editor/EditorTimelinePanel.tsx:239
 #: src/pages/recording/ShotInspectorBlock.tsx:135
 #: src/pages/recording/ShotInspectorBlock.tsx:150
 msgid "未选中片段"
@@ -4846,7 +4871,7 @@ msgstr "条件"
 #: src/pages/evidence/EvidenceDetail.tsx:141
 #: src/pages/library/libraryColumns.tsx:120
 #: src/pages/library/libraryColumns.tsx:121
-#: src/pages/library/LibraryFilters.tsx:169
+#: src/pages/library/LibraryFilters.tsx:171
 #: src/pages/library/LibraryInspector.tsx:227
 msgid "来源"
 msgstr "来源"
@@ -4905,19 +4930,19 @@ msgstr "查看阶段日志"
 msgid "标注风险的镜头"
 msgstr "标注风险的镜头"
 
-#: src/pages/library/LibraryFilters.tsx:170
+#: src/pages/library/LibraryFilters.tsx:172
 #: src/pages/library/LibraryInspector.tsx:235
 msgid "标签"
 msgstr "标签"
 
-#: src/pages/editor/EditorTimelinePanel.tsx:172
+#: src/pages/editor/EditorTimelinePanel.tsx:202
 #: src/pages/match/views/DuelsView.tsx:296
 #: src/pages/match/views/DuelsView.tsx:297
 msgid "标记"
 msgstr "标记"
 
 #. placeholder {0}: timeline.markers.length
-#: src/pages/editor/EditorTimelinePanel.tsx:212
+#: src/pages/editor/EditorTimelinePanel.tsx:243
 msgid "标记 {0}"
 msgstr "标记 {0}"
 
@@ -4942,7 +4967,7 @@ msgstr "校验只做检查，没有任何数据被改动，重试是安全的。
 msgid "校验文件头与大小；同一份内容不会重复入库"
 msgstr "校验文件头与大小；同一份内容不会重复入库"
 
-#: src/pages/delivery/taskModel.tsx:160
+#: src/pages/delivery/taskModel.tsx:164
 msgid "校验输入"
 msgstr "校验输入"
 
@@ -5090,7 +5115,7 @@ msgstr "正在校验"
 
 #: src/pages/GuidePage.tsx:88
 #: src/pages/settings/AdvancedSection.tsx:139
-#: src/pages/settings/GameSection.tsx:268
+#: src/pages/settings/GameSection.tsx:277
 msgid "正在检查"
 msgstr "正在检查"
 
@@ -5438,7 +5463,7 @@ msgid "没有可归属的首杀"
 msgstr "没有可归属的首杀"
 
 #: src/design/timeline/TimelinePrototype.tsx:163
-#: src/pages/editor/EditorTimelinePanel.tsx:178
+#: src/pages/editor/EditorTimelinePanel.tsx:209
 msgid "没有可撤销的操作"
 msgstr "没有可撤销的操作"
 
@@ -5447,7 +5472,7 @@ msgid "没有可用的对位数据"
 msgstr "没有可用的对位数据"
 
 #: src/design/timeline/TimelinePrototype.tsx:172
-#: src/pages/editor/EditorTimelinePanel.tsx:187
+#: src/pages/editor/EditorTimelinePanel.tsx:218
 msgid "没有可重做的操作"
 msgstr "没有可重做的操作"
 
@@ -5528,7 +5553,7 @@ msgid "沿真实移动轴跟随，适合交代路线"
 msgstr "沿真实移动轴跟随，适合交代路线"
 
 #: src/design/timeline/TimelinePrototype.tsx:153
-#: src/pages/editor/EditorTimelinePanel.tsx:150
+#: src/pages/editor/EditorTimelinePanel.tsx:180
 msgid "波纹删除"
 msgstr "波纹删除"
 
@@ -5576,11 +5601,11 @@ msgstr "注释没能读出来：{0}"
 msgid "注释要挂在具体的 tick 上：先在回放或回合里选中一条证据"
 msgstr "注释要挂在具体的 tick 上：先在回放或回合里选中一条证据"
 
-#: src/pages/settings/AppSection.tsx:116
+#: src/pages/settings/AppSection.tsx:119
 msgid "浅色"
 msgstr "浅色"
 
-#: src/pages/settings/AppSection.tsx:117
+#: src/pages/settings/AppSection.tsx:120
 msgid "深色"
 msgstr "深色"
 
@@ -5686,7 +5711,7 @@ msgstr "清空这份合辑的片段？"
 msgid "清空选择"
 msgstr "清空选择"
 
-#: src/pages/settings/GameSection.tsx:104
+#: src/pages/settings/GameSection.tsx:113
 msgid "游戏"
 msgstr "游戏"
 
@@ -5707,7 +5732,7 @@ msgid "源文件不在原位"
 msgstr "源文件不在原位"
 
 #: src/design/timeline/TimelinePrototype.tsx:82
-#: src/pages/editor/EditorTimelinePanel.tsx:82
+#: src/pages/editor/EditorTimelinePanel.tsx:83
 msgid "滑移"
 msgstr "滑移"
 
@@ -5933,7 +5958,7 @@ msgstr "版本历史"
 #: src/pages/history/MatchHistoryTable.tsx:146
 #: src/pages/library/libraryColumns.tsx:128
 #: src/pages/library/libraryColumns.tsx:129
-#: src/pages/library/LibraryFilters.tsx:168
+#: src/pages/library/LibraryFilters.tsx:170
 msgid "状态"
 msgstr "状态"
 
@@ -6068,12 +6093,12 @@ msgstr "画面"
 msgid "画面元素"
 msgstr "画面元素"
 
-#: src/pages/settings/AppSection.tsx:95
+#: src/pages/settings/AppSection.tsx:98
 msgid "界面语言"
 msgstr "界面语言"
 
 #: src/domain/agent/PlanStrip.tsx:58
-#: src/pages/settings/GameSection.tsx:369
+#: src/pages/settings/GameSection.tsx:371
 msgid "留白"
 msgstr "留白"
 
@@ -6137,8 +6162,8 @@ msgid "盲狙"
 msgstr "盲狙"
 
 #: src/pages/home/EnvironmentNotice.tsx:124
-msgid "相关功能不可用"
-msgstr "相关功能不可用"
+#~ msgid "相关功能不可用"
+#~ msgstr "相关功能不可用"
 
 #: src/domain/map/CameraPathLayer.tsx:183
 msgid "相机终点"
@@ -6202,16 +6227,16 @@ msgstr "看道具与经济"
 #: src/pages/agent/NewSessionPane.tsx:179
 #: src/pages/agent/SessionDrawer.tsx:235
 #: src/pages/delivery/OutputsView.tsx:148
-#: src/pages/editor/EditorTimelinePanel.tsx:222
+#: src/pages/editor/EditorTimelinePanel.tsx:253
 #: src/pages/EditorPage.tsx:454
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
 #: src/pages/RecoveryPage.tsx:99
 #: src/pages/settings/AiAgentSection.tsx:146
 #: src/pages/settings/AiAgentSection.tsx:160
-#: src/pages/settings/AppSection.tsx:76
+#: src/pages/settings/AppSection.tsx:79
 #: src/pages/settings/FilesSection.tsx:85
-#: src/pages/settings/GameSection.tsx:98
+#: src/pages/settings/GameSection.tsx:107
 msgid "知道了"
 msgstr "知道了"
 
@@ -6249,7 +6274,11 @@ msgstr "视野 FOV"
 msgid "视频与音频"
 msgstr "视频与音频"
 
-#: src/pages/settings/GameSection.tsx:235
+#: src/pages/editor/EditorTimelinePanel.tsx:99
+msgid "视频轨"
+msgstr "视频轨"
+
+#: src/pages/settings/GameSection.tsx:244
 msgid "视频输出能力"
 msgstr "视频输出能力"
 
@@ -6308,7 +6337,7 @@ msgid "移除配乐"
 msgstr "移除配乐"
 
 #: src/design/feedback/StageBar.tsx:121
-#: src/pages/delivery/taskModel.tsx:216
+#: src/pages/delivery/taskModel.tsx:220
 msgid "稳定"
 msgstr "稳定"
 
@@ -6539,7 +6568,7 @@ msgid "继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」"
 msgstr "继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」"
 
 #: src/design/feedback/StageBar.tsx:122
-#: src/pages/delivery/taskModel.tsx:217
+#: src/pages/delivery/taskModel.tsx:221
 msgid "编码"
 msgstr "编码"
 
@@ -6577,7 +6606,7 @@ msgid "编辑镜头、接受变更和确认录制都在 Agent 创作页完成，
 msgstr "编辑镜头、接受变更和确认录制都在 Agent 创作页完成，这条竖栏不承载方案编辑。"
 
 #: src/design/timeline/TimelinePrototype.tsx:180
-#: src/pages/editor/EditorTimelinePanel.tsx:195
+#: src/pages/editor/EditorTimelinePanel.tsx:226
 msgid "缩小"
 msgstr "缩小"
 
@@ -6756,7 +6785,7 @@ msgstr "解析出的比赛没有可归属的选手记录，记分板因此是空
 msgid "解析后复核输入"
 msgstr "解析后复核输入"
 
-#: src/pages/delivery/taskModel.tsx:162
+#: src/pages/delivery/taskModel.tsx:166
 msgid "解析比赛数据"
 msgstr "解析比赛数据"
 
@@ -6849,7 +6878,7 @@ msgstr "详情"
 msgid "语气：专业"
 msgstr "语气：专业"
 
-#: src/pages/settings/AppSection.tsx:87
+#: src/pages/settings/AppSection.tsx:90
 msgid "语言"
 msgstr "语言"
 
@@ -6857,7 +6886,7 @@ msgstr "语言"
 msgid "语言、主题、更新源，以及启动时的行为。"
 msgstr "语言、主题、更新源，以及启动时的行为。"
 
-#: src/pages/settings/GameSection.tsx:213
+#: src/pages/settings/GameSection.tsx:222
 msgid "语音"
 msgstr "语音"
 
@@ -6945,9 +6974,9 @@ msgstr "读不到状态"
 msgid "读不到环境自检：{error}"
 msgstr "读不到环境自检：{error}"
 
-#: src/pages/settings/AppSection.tsx:72
+#: src/pages/settings/AppSection.tsx:75
 #: src/pages/settings/FilesSection.tsx:78
-#: src/pages/settings/GameSection.tsx:94
+#: src/pages/settings/GameSection.tsx:103
 msgid "读不到设置：{configError}"
 msgstr "读不到设置：{configError}"
 
@@ -7118,7 +7147,7 @@ msgid "跳转"
 msgstr "跳转"
 
 #: src/design/feedback/StageBar.tsx:119
-#: src/pages/delivery/taskModel.tsx:214
+#: src/pages/delivery/taskModel.tsx:218
 msgctxt "recording-stage"
 msgid "跳转"
 msgstr "跳转"
@@ -7385,8 +7414,8 @@ msgid "还没有缩略图"
 msgstr "还没有缩略图"
 
 #: src/pages/settings/FilesSection.tsx:143
-#: src/pages/settings/GameSection.tsx:139
-#: src/pages/settings/GameSection.tsx:166
+#: src/pages/settings/GameSection.tsx:148
+#: src/pages/settings/GameSection.tsx:175
 msgid "还没有设置"
 msgstr "还没有设置"
 
@@ -7493,12 +7522,12 @@ msgid "这一页说的每一句话都记在一条会话里，方案的每一次�
 msgstr "这一页说的每一句话都记在一条会话里，方案的每一次改动也会写进去。选一条现有的，或者现在开一条新的。"
 
 #: src/pages/GuidePage.tsx:181
-msgid "这一项就绪。"
-msgstr "这一项就绪。"
+#~ msgid "这一项就绪。"
+#~ msgstr "这一项就绪。"
 
 #: src/pages/GuidePage.tsx:181
-msgid "这一项现在不可用。"
-msgstr "这一项现在不可用。"
+#~ msgid "这一项现在不可用。"
+#~ msgstr "这一项现在不可用。"
 
 #: src/pages/match/views/ReviewView.tsx:445
 msgid "这一项统计不可用"
@@ -7533,7 +7562,7 @@ msgstr "这个工程在别处被改过，刚才那次保存没有生效。重新
 msgid "这个工程没能打开：{loadError}"
 msgstr "这个工程没能打开：{loadError}"
 
-#: src/pages/editor/EditorTimelinePanel.tsx:231
+#: src/pages/editor/EditorTimelinePanel.tsx:262
 msgid "这个工程还没有内容"
 msgstr "这个工程还没有内容"
 
@@ -7564,7 +7593,7 @@ msgstr "这个方案里没有可录制的镜头。"
 msgid "这个片段不能修剪"
 msgstr "这个片段不能修剪"
 
-#: src/pages/editor/EditorTimelinePanel.tsx:138
+#: src/pages/editor/EditorTimelinePanel.tsx:168
 msgid "这个片段不能切开"
 msgstr "这个片段不能切开"
 
@@ -7617,7 +7646,7 @@ msgstr "这个页面没能打开"
 msgid "这些文件夹里出现新的 Demo 会被自动收进资料库。"
 msgstr "这些文件夹里出现新的 Demo 会被自动收进资料库。"
 
-#: src/pages/settings/GameSection.tsx:105
+#: src/pages/settings/GameSection.tsx:114
 msgid "这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。"
 msgstr "这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。"
 
@@ -7719,7 +7748,7 @@ msgstr "这份预览计划已经过期。"
 msgid "这台机器现在能做什么"
 msgstr "这台机器现在能做什么"
 
-#: src/pages/settings/GameSection.tsx:236
+#: src/pages/settings/GameSection.tsx:245
 msgid "这台机器能不能写出成片。检查的是本机的编码器，不是设置。"
 msgstr "这台机器能不能写出成片。检查的是本机的编码器，不是设置。"
 
@@ -7866,9 +7895,9 @@ msgstr "这次操作没有完成：{writeError}"
 msgid "这次操作没有成功：{writeError}"
 msgstr "这次操作没有成功：{writeError}"
 
-#: src/pages/settings/AppSection.tsx:77
+#: src/pages/settings/AppSection.tsx:80
 #: src/pages/settings/FilesSection.tsx:92
-#: src/pages/settings/GameSection.tsx:99
+#: src/pages/settings/GameSection.tsx:108
 msgid "这次改动没有保存：{writeError}"
 msgstr "这次改动没有保存：{writeError}"
 
@@ -7884,7 +7913,7 @@ msgstr "这次改动的说明（可选）"
 msgid "这次检查没有返回任何项。"
 msgstr "这次检查没有返回任何项。"
 
-#: src/pages/settings/GameSection.tsx:255
+#: src/pages/settings/GameSection.tsx:264
 msgid "这次检查里没有编码器项。完整的检查列表在「高级与诊断」。"
 msgstr "这次检查里没有编码器项。完整的检查列表在「高级与诊断」。"
 
@@ -8066,7 +8095,7 @@ msgid "选手视角"
 msgstr "选手视角"
 
 #: src/design/timeline/TimelinePrototype.tsx:80
-#: src/pages/editor/EditorTimelinePanel.tsx:80
+#: src/pages/editor/EditorTimelinePanel.tsx:81
 msgid "选择"
 msgstr "选择"
 
@@ -8077,7 +8106,7 @@ msgstr "选择"
 msgid "选择 {0}"
 msgstr "选择 {0}"
 
-#: src/pages/settings/GameSection.tsx:127
+#: src/pages/settings/GameSection.tsx:136
 msgid "选择 CS2 安装目录"
 msgstr "选择 CS2 安装目录"
 
@@ -8222,7 +8251,7 @@ msgid "配置还没读出来，稍后再试"
 msgstr "配置还没读出来，稍后再试"
 
 #: src/design/feedback/StageBar.tsx:120
-#: src/pages/delivery/taskModel.tsx:215
+#: src/pages/delivery/taskModel.tsx:219
 msgid "采集"
 msgstr "采集"
 
@@ -8239,7 +8268,7 @@ msgid "采集组件还没准备好，无法在游戏里预览"
 msgstr "采集组件还没准备好，无法在游戏里预览"
 
 #: src/design/timeline/TimelinePrototype.tsx:175
-#: src/pages/editor/EditorTimelinePanel.tsx:190
+#: src/pages/editor/EditorTimelinePanel.tsx:221
 msgid "重做"
 msgstr "重做"
 
@@ -8288,7 +8317,7 @@ msgstr "重新校验"
 
 #: src/pages/GuidePage.tsx:91
 #: src/pages/settings/AdvancedSection.tsx:142
-#: src/pages/settings/GameSection.tsx:271
+#: src/pages/settings/GameSection.tsx:280
 msgid "重新检查"
 msgstr "重新检查"
 
@@ -8400,9 +8429,9 @@ msgstr "重新选择"
 #: src/pages/settings/AiAgentSection.tsx:402
 #: src/pages/settings/AiAgentSection.tsx:697
 #: src/pages/settings/AiAgentSection.tsx:703
-#: src/pages/settings/AppSection.tsx:71
+#: src/pages/settings/AppSection.tsx:74
 #: src/pages/settings/FilesSection.tsx:77
-#: src/pages/settings/GameSection.tsx:93
+#: src/pages/settings/GameSection.tsx:102
 msgid "重试"
 msgstr "重试"
 
@@ -8526,8 +8555,8 @@ msgstr "集锦制作要从比赛工作区或 Agent 发起"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:357
 #: src/pages/recording/ShotInspectorBlock.tsx:361
-#: src/pages/settings/GameSection.tsx:202
-#: src/pages/settings/GameSection.tsx:205
+#: src/pages/settings/GameSection.tsx:211
+#: src/pages/settings/GameSection.tsx:214
 msgid "雷达"
 msgstr "雷达"
 
@@ -8547,6 +8576,10 @@ msgstr "霓虹"
 #: src/pages/recording/shotModel.ts:379
 msgid "静音"
 msgstr "静音"
+
+#: src/pages/editor/EditorTimelinePanel.tsx:100
+msgid "音乐"
+msgstr "音乐"
 
 #: src/pages/editor/InspectorPanel.tsx:214
 msgid "音量"
@@ -8568,6 +8601,10 @@ msgstr "音频波形，全长 {total}"
 #: src/domain/media/Waveform.tsx:225
 msgid "音频波形，全长 {total}，已选 {from} 至 {to}"
 msgstr "音频波形，全长 {total}，已选 {from} 至 {to}"
+
+#: src/pages/editor/EditorTimelinePanel.tsx:100
+msgid "音频轨"
+msgstr "音频轨"
 
 #: src/app/command/commandRegistry.ts:90
 msgctxt "palette-group"

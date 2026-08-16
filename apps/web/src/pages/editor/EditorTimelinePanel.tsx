@@ -31,6 +31,7 @@ import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import { EmptyState } from '../../design/data';
 import { Notice } from '../../design/feedback';
+import { OverflowMenu, type OverflowMenuItem } from '../../design/layout';
 import { Button, Seg, Toggle } from '../../design/primitives';
 import {
   ClipView,
@@ -81,6 +82,35 @@ export function EditorTimelinePanel({ desk, service }: EditorPanelProps) {
     { value: 'razor', label: <Trans>剃刀</Trans> },
     { value: 'slip', label: <Trans>滑移</Trans> },
   ];
+
+  /**
+   * 「新建轨道」 — one item per `TrackKind`.
+   *
+   * A menu rather than a single button because the four lanes are not
+   * interchangeable: an overlay lane and a subtitle lane hold different clips,
+   * and a button that always added a video lane would make the other three
+   * unreachable. The role word beside the code is the same vocabulary the
+   * artboard uses for the lanes it drew.
+   *
+   * The id is a real uuid from the start, so the adapter has nothing to mint
+   * and the lane keeps one identity across the save.
+   */
+  const laneMenu: OverflowMenuItem[] = [
+    { kind: 'video' as const, role: t`叠加`, label: <Trans>视频轨</Trans> },
+    { kind: 'audio' as const, role: t`音乐`, label: <Trans>音频轨</Trans> },
+    { kind: 'text' as const, role: t`字幕`, label: <Trans>字幕轨</Trans> },
+    { kind: 'overlay' as const, role: t`图形`, label: <Trans>叠加轨</Trans> },
+  ].map(({ kind, role, label }) => ({
+    id: kind,
+    label,
+    onSelect: () => {
+      const id = mintUuid();
+      // `name` is the lane code the head column shows, and it is recomputed
+      // from the stack on every load (`laneCodes`), so anything written here is
+      // a placeholder until the next save round trip.
+      editor.addTrack({ id, kind, name: '', role });
+    },
+  }));
 
   const handleClipKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     const step = nudgeStep(NUDGE_SECONDS, event.shiftKey && !event.altKey);
@@ -171,6 +201,7 @@ export function EditorTimelinePanel({ desk, service }: EditorPanelProps) {
         >
           <Trans>标记</Trans>
         </Button>
+        <OverflowMenu label={t`新建轨道`} triggerLabel={<Trans>新建轨道</Trans>} items={laneMenu} />
         <Button
           variant="secondary"
           size="sm"

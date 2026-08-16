@@ -401,6 +401,14 @@ export function toEditorProject(document: EditorDocument, mint: MintUuid): Edito
   // linked to agree about the group they landed in.
   const clipIds = new Map<string, string>();
   const linkIds = new Map<string, string>();
+  // A lane added in the editor has whatever id the caller made up; the document
+  // wants a uuid. Mint here rather than at the call site so the clips that
+  // reference it are repointed in the same pass — a clip left on the old id
+  // would land on a track that does not exist and be dropped without a word.
+  const trackIds = new Map<string, string>();
+  for (const track of timeline.tracks) {
+    if (!UUID.test(track.id)) trackIds.set(track.id, mint());
+  }
   for (const clip of timeline.clips) {
     if (!UUID.test(clip.id)) clipIds.set(clip.id, mint());
     if (clip.linkId !== undefined && !UUID.test(clip.linkId) && !linkIds.has(clip.linkId)) {
@@ -435,22 +443,24 @@ export function toEditorProject(document: EditorDocument, mint: MintUuid): Edito
         ? { keyframes: [], speed_segments: [] }
         : { keyframes: keyframesInside(shadow, clip.duration) }),
     };
-    const lane = byTrack.get(clip.trackId);
-    if (lane === undefined) byTrack.set(clip.trackId, [wire]);
+    const trackId = trackIds.get(clip.trackId) ?? clip.trackId;
+    const lane = byTrack.get(trackId);
+    if (lane === undefined) byTrack.set(trackId, [wire]);
     else lane.push(wire);
   }
 
   const tracks: EditorTrack[] = timeline.tracks.map((track, index) => {
     const shadow = trackShadows.get(track.id);
+    const id = trackIds.get(track.id) ?? track.id;
     return {
-      id: track.id,
+      id,
       name: shadow?.name ?? track.role,
       kind: track.kind,
       order: index,
       muted: shadow?.muted ?? false,
       locked: track.locked ?? false,
       hidden: shadow?.hidden ?? false,
-      clips: byTrack.get(track.id) ?? [],
+      clips: byTrack.get(id) ?? [],
     };
   });
   dissolveOrphanedGroups(tracks);

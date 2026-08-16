@@ -305,6 +305,51 @@ export function timelineDuration(timeline: Timeline): number {
 
 /* ── immutable updates ───────────────────────────────────────────────────── */
 
+/**
+ * Adds an empty track above the topmost one of its kind.
+ *
+ * Position, not append: `tracks` is the stack from top to bottom, and a second
+ * video lane is an overlay *above* the first — that is what V2 means on the
+ * artboard, and appending would draw it underneath. Within a kind the new lane
+ * goes first; the kinds keep the order they already have, so adding a video
+ * lane never moves the audio ones.
+ *
+ * The id is the caller's: this layer has no uuid source, and the adapter mints
+ * a real one on save (`toEditorProject`) the same way it does for a razored
+ * clip.
+ */
+export function addTrack(timeline: Timeline, track: Track): Timeline {
+  if (timeline.tracks.some((existing) => existing.id === track.id)) {
+    throw new Error(`track ${track.id} already exists`);
+  }
+  const at = timeline.tracks.findIndex((existing) => existing.kind === track.kind);
+  const tracks =
+    at === -1
+      ? [...timeline.tracks, track]
+      : [...timeline.tracks.slice(0, at), track, ...timeline.tracks.slice(at)];
+  // `sortClips` keys off track order, so the clip list is re-sorted even though
+  // no clip moved: an empty lane inserted above V1 renumbers what follows it.
+  return { ...timeline, tracks, clips: sortClips({ tracks }, timeline.clips) };
+}
+
+/**
+ * Removes a track and every clip on it.
+ *
+ * Refuses the last track of its kind only when clips would be orphaned — an
+ * empty lane is always removable, which is the case that matters: a lane added
+ * by mistake should not need a save-and-reload to undo.
+ */
+export function removeTrack(timeline: Timeline, trackId: string): Timeline {
+  const track = getTrack(timeline, trackId);
+  if (track === undefined) throw new Error(`unknown track ${trackId}`);
+  if (track.locked === true) throw new Error(`track ${trackId} is locked`);
+  return {
+    ...timeline,
+    tracks: timeline.tracks.filter((existing) => existing.id !== trackId),
+    clips: timeline.clips.filter((clip) => clip.trackId !== trackId),
+  };
+}
+
 /** Replaces the clip set wholesale, re-sorting. Everything else is preserved. */
 export function withClips(timeline: Timeline, clips: readonly Clip[]): Timeline {
   return { ...timeline, clips: sortClips(timeline, clips) };

@@ -197,7 +197,7 @@ const PAGES: readonly PageCase[] = [
     Component: RecoveryPage,
     title: '恢复中心',
     phase: '3g',
-    built: false,
+    built: true,
   },
 ];
 

@@ -120,6 +120,24 @@ export function useRuntimeState(tuning: DataQueryTuning = {}) {
  * 「保存成功后才切换，不会切到一半」 (§5.2) off exactly this: the language does
  * not change while the write is still settling.
  */
+/**
+ * 恢复中心's 「用备份恢复」.
+ *
+ * Overwrites the configuration file with the last automatic backup and
+ * re-reads it. Invalidates the *whole* config namespace rather than just the
+ * document: the dependency checks, the storage figures and the HLAE status are
+ * all derived from paths the restore may have changed.
+ */
+export function useRecoverConfiguration() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => client.recoverConfiguration(),
+    onSuccess: () => invalidateConfig(queryClient),
+  });
+}
+
 export function useUpdateAppConfig() {
   const client = useDesktopClient();
   const queryClient = useQueryClient();

@@ -113,6 +113,29 @@ export function useCleanupMissingOutputs() {
 }
 
 /**
+ * 恢复中心's 「清理暂存输出」.
+ *
+ * Deletes the files a failed recording or export left in the staging
+ * directory. Separate from `useCleanupMissingOutputs` because they undo
+ * different accidents: this one removes *files* that no record points at, that
+ * one removes *records* that no file backs.
+ *
+ * `CleanupStagedResponse` carries `failed` as well as `deleted`, and the page
+ * prints it: a cleanup that could not remove three locked files has not
+ * cleaned up, and reporting only the successes would leave the user pressing
+ * the button again.
+ */
+export function useCleanupStagedOutputs() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => client.cleanupStagedOutputs(),
+    onSuccess: () => invalidateOutputs(queryClient),
+  });
+}
+
+/**
  * 「定位文件」 — reveal the file in the desktop file manager.
  *
  * Not a server write, so it invalidates nothing and lives outside the

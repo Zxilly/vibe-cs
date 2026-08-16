@@ -7,7 +7,7 @@
  * is honest; a hard-coded 「Aurora vs Meridian」 row would not be.
  */
 
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type { ActivityQuery, OutputItem, OutputPage } from '../../shared/desktop/dto';
@@ -120,13 +120,59 @@ describe('工作台首页', () => {
     expect(screen.getByRole('link', { name: '全部输出' }).getAttribute('href')).toBe('/delivery');
   });
 
-  it('names the blocks it does not build yet instead of faking them', async () => {
+  it('draws all five blocks, in the order the board puts them', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
 
     expect(await screen.findByText('待确认的方案')).toBeTruthy();
-    expect(screen.getByText(/这一块在阶段 3e 接入/u)).toBeTruthy();
     expect(screen.getByText('最近比赛')).toBeTruthy();
-    expect(screen.getByText(/这一块在阶段 3b 接入/u)).toBeTruthy();
+    expect(screen.getByText('进行中的工程')).toBeTruthy();
+    expect(screen.queryByText(/这一块在阶段/u)).toBeNull();
+
+    /* 「待确认方案在最上」 — the board's own instruction, and the reason this
+       page is ordered by what is waiting on the user rather than by
+       subsystem. */
+    const plans = document.querySelector('[data-home-block="plans"]');
+    const matches = document.querySelector('[data-home-block="matches"]');
+    expect(plans).not.toBeNull();
+    expect(matches).not.toBeNull();
+    if (plans === null || matches === null) throw new Error('both blocks must render');
+    expect(plans.compareDocumentPosition(matches) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('says nothing about the environment while nothing is blocked', async () => {
+    // 「环境问题只在阻塞相应任务时出现在这里」 — a banner on a healthy
+    // workbench is the thing that sentence rules out.
+    renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
+    await screen.findByText('待确认的方案');
+    expect(document.querySelector('[data-home-block="environment"]')).toBeNull();
+  });
+
+  it('says what a blocked dependency stops, not just that it is missing', async () => {
+    renderPage({
+      element: <HomePage />,
+      client: {
+        ...CLIENT,
+        quickCheck: () =>
+          Promise.resolve({
+            checks: [
+              { kind: 'hlae', state: 'missing', label: '受管 HLAE', detail: '未探测到可执行文件' },
+              { kind: 'cs2', state: 'warning', label: 'CS2', detail: '版本较旧' },
+            ],
+            checked_at: '2026-08-16T08:00:00.000Z',
+          }),
+      },
+      route: '/',
+      health: HEALTHY,
+    });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-home-block="environment"]')).not.toBeNull();
+    });
+    // The consequence, beside the service's own words.
+    expect(document.body.textContent).toContain('录制起不来');
+    expect(document.body.textContent).toContain('未探测到可执行文件');
+    // A warning is worth reading in diagnostics and is not worth a banner.
+    expect(document.querySelector('[data-blocking-check="cs2"]')).toBeNull();
   });
 
   it('keeps the main action on the bar at any width', async () => {

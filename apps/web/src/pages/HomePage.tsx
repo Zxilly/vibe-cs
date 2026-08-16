@@ -1,26 +1,29 @@
 /*
  * pages/ — 01 工作台首页 (spec §7 `/`).
  *
- * §10 schedules this page for phase 3g. Two of its five blocks are task and
- * output surfaces, and phase 3a owns both data files — so those two are built
- * here now and the rest are named, not approximated:
+ * All five blocks are built as of phase 3g. Each one was waiting on the data
+ * file that defines its shape, and the order they arrived in is why this page
+ * grew in three rounds:
  *
- *   待确认方案        phase 3e. It is an Agent proposal (§4.5) with a model that
- *                     is still being settled with the backend; `data/plans.ts`
- *                     does not exist yet and inventing a card for it would mean
- *                     inventing the shape it reads.
- *   最近比赛          phase 3b/3d. `data/demos.ts` exists, but the table, its
- *                     status column and its 「下一步」 action are the library's
- *                     own contract and belong with the page that defines them.
- *   进行中的工程      phase 3f, with the editor and montage projects.
- *   环境提示          the shell already owns service state
- *                     (`app/boundary/ServiceGate`); 「环境问题只在阻塞相应任务时
- *                     出现」 is a rule about *task* blocking that phase 3g should
- *                     wire to the same gate rather than a second probe here.
+ *   任务 / 失败       phase 3a, with `data/tasks.ts`
+ *   最近输出          phase 3a, with `data/outputs.ts`
+ *   待确认方案        phase 3e, with `data/plans.ts`
+ *   最近比赛          phase 3b, with `data/demos.ts`
+ *   进行中的工程      phase 3f, with the editor and montage projects
+ *   环境提示          phase 3g, and it is *not* the service gate — see
+ *                     `home/EnvironmentNotice`
  *
- * The placeholders are `EmptyState`s naming their phase — the same convention
- * the phase-1 route stubs used for a whole page — so the workbench is honest at
- * every width instead of looking finished with two blocks missing.
+ * ── The board's own instruction, and what it rules out ───────────────────
+ *
+ * 「从『功能入口集合』改为『今日需要处理的工作』：待确认方案在最上，环境问题只在
+ * 阻塞时出现。」 Two rules, both structural:
+ *
+ *   · the order is by *what is waiting on the user*, not by subsystem. Plans
+ *     first, then what is running, then what broke, then what to look at.
+ *   · a block with nothing in it says so in one line rather than filling its
+ *     slot with an empty state. An empty queue is the good outcome on a
+ *     workbench, and a full-height 「还没有…」 box for each of five blocks
+ *     would make a healthy day look like a broken one.
  *
  * ── Layout ────────────────────────────────────────────────────────────────
  *
@@ -32,14 +35,16 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { EmptyState } from '../design/data';
 import { Page, SplitPane, Toolbar, useShellCollapsed } from '../design/layout';
 import { Button } from '../design/primitives';
 import { useServiceAction } from '../data/serviceAction';
+import { ActiveProjectsPanel } from './home/ActiveProjectsPanel';
+import { EnvironmentNotice } from './home/EnvironmentNotice';
 import { HomeFailureNotice } from './home/HomeFailureNotice';
+import { PendingPlansPanel } from './home/PendingPlansPanel';
+import { RecentMatchesPanel } from './home/RecentMatchesPanel';
 import { HomeTasksPanel } from './home/HomeTasksPanel';
 import { RecentOutputsPanel } from './home/RecentOutputsPanel';
 
@@ -50,20 +55,18 @@ export function HomePage() {
 
   const tasks = (
     <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
-      <PhaseBlock
-        phase="3e"
-        title={<Trans>待确认的方案</Trans>}
-        description={<Trans>Agent 完成选材与镜头设计后，方案会出现在最上面，等你审阅。</Trans>}
-      />
+      {/* Only when something is actually blocked, and above everything else
+          when it is: a broken capture environment makes the blocks below it
+          unactionable. */}
+      <EnvironmentNotice />
+
+      <PendingPlansPanel />
 
       <HomeTasksPanel service={service} />
       <HomeFailureNotice service={service} />
 
-      <PhaseBlock
-        phase="3b"
-        title={<Trans>最近比赛</Trans>}
-        description={<Trans>最近导入的比赛、它们的分析状态，以及每一场的下一步。</Trans>}
-      />
+      <RecentMatchesPanel />
+      <ActiveProjectsPanel />
     </div>
   );
 
@@ -95,35 +98,5 @@ export function HomePage() {
         </SplitPane>
       )}
     </Page>
-  );
-}
-
-/**
- * A block that is not built yet, saying which phase builds it. `EmptyState`
- * requires a recovery action; there is none here — the block is not broken, it
- * is scheduled — so the slot is filled with nothing rather than with a button
- * that would go somewhere unrelated. `domain/task/TaskDetail` does the same for
- * its empty log.
- */
-function PhaseBlock({
-  phase,
-  title,
-  description,
-}: {
-  readonly phase: string;
-  readonly title: ReactNode;
-  readonly description: ReactNode;
-}) {
-  return (
-    <EmptyState
-      title={title}
-      description={
-        <>
-          {description} <Trans>这一块在阶段 {phase} 接入。</Trans>
-        </>
-      }
-      actions={null}
-      headingLevel={3}
-    />
   );
 }

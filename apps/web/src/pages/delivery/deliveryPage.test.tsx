@@ -93,9 +93,14 @@ describe('/', () => {
     expect(html).toContain('data-toolbar-primary');
   });
 
-  it('names the blocks that are not built yet', () => {
-    expect(html).toContain('这一块在阶段 3e 接入');
-    expect(html).toContain('这一块在阶段 3b 接入');
+  it('draws every block, with no phase placeholder left', () => {
+    /* All five landed by phase 3g. With no service these render their own
+       empty or loading state, which is why the headings are what is asserted
+       rather than any row. */
+    for (const heading of ['待确认的方案', '最近比赛', '进行中的工程']) {
+      expect(html).toContain(heading);
+    }
+    expect(html).not.toContain('这一块在阶段');
   });
 
   it('puts 最近输出 in the 440px column the artboard draws', () => {

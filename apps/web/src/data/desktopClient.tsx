@@ -98,6 +98,9 @@ export type DesktopClient = Pick<
   | 'deleteOutput'
   | 'cleanupMissingOutputs'
   | 'cleanupStagedOutputs'
+  /* 恢复中心 (phase 3g). `recoveryStatus` was already read by
+     `useRecoveryStatus`; the restore that acts on it was not reachable. */
+  | 'recoverConfiguration'
   | 'patchRecordedClip'
   | 'deleteRecordedClip'
   /* ── montage and media (phase 3f, 「09 快速合辑」 and 「10 多轨编辑器」) ──

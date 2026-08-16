@@ -13,6 +13,16 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#. placeholder {0}: cleanupStaged.data.failed
+#: src/pages/RecoveryPage.tsx:208
+msgid " 另有 {0} 个删不掉，可能正被占用。"
+msgstr " {0} more could not be deleted, possibly in use."
+
+#: src/pages/RecoveryPage.tsx:211
+#: src/pages/RecoveryPage.tsx:253
+msgid " 这次只扫描了一部分，可能还有剩余。"
+msgstr " This pass scanned only part of it; some may remain."
+
 #: src/pages/evidence/EvidenceEmpty.tsx:113
 msgid "。放宽时间范围通常最有效。"
 msgstr ". Widening the time range usually helps most."
@@ -58,7 +68,7 @@ msgstr "‹ Tasks"
 msgid "‹ 玩家目录"
 msgstr "‹ Players"
 
-#: src/pages/RecoveryPage.tsx:22
+#: src/pages/RecoveryPage.tsx:81
 msgid "‹ 设置与诊断"
 msgstr "‹ Settings"
 
@@ -71,6 +81,16 @@ msgstr "({seconds}s)"
 msgid "{0, plural, =0 {影响：目前不会自动发现任何 Demo。} other {影响：这 # 个目录里的新 Demo 会自动进入资料库。}}"
 msgstr "{0, plural, =0 {Affects: nothing is discovered automatically right now.} other {Affects: new Demos in these # folders join the library automatically.}}"
 
+#. placeholder {0}: cleanupMissing.data.deleted
+#: src/pages/RecoveryPage.tsx:247
+msgid "{0, plural, =0 {没有失效记录。} other {已移除 # 条失效记录。}}"
+msgstr "{0, plural, =0 {No stale records.} other {Removed # stale records.}}"
+
+#. placeholder {0}: cleanupStaged.data.deleted
+#: src/pages/RecoveryPage.tsx:200
+msgid "{0, plural, =0 {没有需要清理的暂存文件。} other {已清理 # 个暂存文件。}}"
+msgstr "{0, plural, =0 {Nothing staged to clean.} other {Cleaned # staged files.}}"
+
 #. placeholder {0}: watch.data?.roots.length ?? 0
 #: src/pages/LibraryPage.tsx:296
 msgid "{0, plural, other {# 个监听目录}}"
@@ -80,6 +100,16 @@ msgstr "{0, plural, one {# watched folder} other {# watched folders}}"
 #: src/pages/library/WatchDirectoriesDrawer.tsx:76
 msgid "{0, plural, other {# 个目录}}"
 msgstr "{0, plural, one {# folder} other {# folders}}"
+
+#. placeholder {0}: items.length
+#: src/pages/home/PendingPlansPanel.tsx:64
+msgid "{0, plural, other {# 个等待确认}}"
+msgstr "{0, plural, other {# awaiting confirmation}}"
+
+#. placeholder {0}: plan.shot_count
+#: src/pages/home/PendingPlansPanel.tsx:111
+msgid "{0, plural, other {# 个镜头}}"
+msgstr "{0, plural, other {# shots}}"
 
 #. placeholder {0}: match.roundCount
 #: src/domain/match/MatchContextBar.tsx:195
@@ -100,6 +130,16 @@ msgstr "{0, plural, one {# day} other {# days}}"
 #: src/pages/library/DeleteDemosDialog.tsx:74
 msgid "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
 msgstr "{0, plural, one {# of them is an external file: only the record is removed, and the file on disk is kept.} other {# of them are external files: only the records are removed, and the files on disk are kept.}}"
+
+#. placeholder {0}: row.clipCount
+#: src/pages/home/ActiveProjectsPanel.tsx:114
+msgid "{0, plural, other {# 段素材}}"
+msgstr "{0, plural, other {# clips}}"
+
+#. placeholder {0}: plan.origin_count
+#: src/pages/home/PendingPlansPanel.tsx:115
+msgid "{0, plural, other {依据 # 条证据}}"
+msgstr "{0, plural, other {on # pieces of evidence}}"
 
 #. placeholder {0}: session.entry_count
 #: src/domain/agent/AgentSessionRow.tsx:120
@@ -150,6 +190,11 @@ msgstr "{0, plural, one {Create and reference # object} other {Create and refere
 #: src/pages/agent/NewSessionPane.tsx:204
 msgid "{0, plural, other {清空已选 #}}"
 msgstr "{0, plural, one {Clear # selected} other {Clear # selected}}"
+
+#. placeholder {0}: items.length - SHOWN
+#: src/pages/home/PendingPlansPanel.tsx:94
+msgid "{0, plural, other {还有 # 个，去 Agent 面板看}}"
+msgstr "{0, plural, other {# more — open the Agent panel}}"
 
 #. placeholder {0}: row.demo_display_name
 #. placeholder {1}: row.map_name
@@ -655,10 +700,6 @@ msgstr "Agent studio"
 msgid "Agent 删除的"
 msgstr "Removed by the Agent"
 
-#: src/pages/HomePage.tsx:56
-msgid "Agent 完成选材与镜头设计后，方案会出现在最上面，等你审阅。"
-msgstr "Once the Agent has picked the material and designed the shots, the plan shows up at the top for your review."
-
 #: src/pages/agent/AgentConversationBlock.tsx:209
 msgid "Agent 正在回答，先等它说完或点停止"
 msgstr "The Agent is answering — wait for it to finish, or press Stop"
@@ -730,6 +771,7 @@ msgstr "Demo content matches"
 
 #: src/app/command/commandRegistry.ts:166
 #: src/app/shell/navigation.tsx:89
+#: src/pages/home/RecentMatchesPanel.tsx:52
 #: src/pages/LibraryPage.tsx:291
 msgid "Demo 资料库"
 msgstr "Demo library"
@@ -908,6 +950,11 @@ msgstr "Previous frame"
 msgid "上一页"
 msgstr "Previous page"
 
+#. placeholder {0}: formatTaskClock(row.updatedAt, { now: new Date() })
+#: src/pages/home/ActiveProjectsPanel.tsx:116
+msgid "上次保存 {0}"
+msgstr "Saved {0}"
+
 #. placeholder {0}: status.imported
 #. placeholder {1}: status.updated
 #. placeholder {2}: status.missing
@@ -970,6 +1017,18 @@ msgstr "Download the {0} selected matches"
 #: src/pages/recording/ShotListBlock.tsx:338
 msgid "下面这些镜头还没有绑定素材，方案要先给它们选好 Demo 与选手。"
 msgstr "These shots are not bound to any footage yet; the plan has to pick a Demo and a player for them first."
+
+#: src/pages/RecoveryPage.tsx:138
+msgid "不会动：Demo、录制结果、成片、编辑工程和会话记录。"
+msgstr "Leaves alone: Demos, recordings, finished cuts, edit projects and session history."
+
+#: src/pages/RecoveryPage.tsx:230
+msgid "不会动：任何还在磁盘上的文件。只有已经找不到的记录会被移除。"
+msgstr "Leaves alone: any file still on disk. Only records whose file is already gone are removed."
+
+#: src/pages/RecoveryPage.tsx:184
+msgid "不会动：已经完成的录制结果与成片，以及它们在资料库里的记录。"
+msgstr "Leaves alone: completed recordings and cuts, and their records in the library."
 
 #: src/pages/settings/AiAgentSection.tsx:501
 msgid "不保留"
@@ -1089,7 +1148,7 @@ msgstr "Alive"
 msgid "仅爆头"
 msgstr "Headshots only"
 
-#: src/pages/HomePage.tsx:77
+#: src/pages/HomePage.tsx:80
 msgid "今日工作"
 msgstr "Today’s work"
 
@@ -1155,6 +1214,18 @@ msgstr "Task stages"
 #: src/pages/agent/ShotEditForm.tsx:281
 msgid "会作为通知的备注一起发给 Agent"
 msgstr "Sent to the Agent as the note on the notice"
+
+#: src/pages/RecoveryPage.tsx:183
+msgid "会做什么：删除暂存目录里未完成的输出文件。"
+msgstr "What it does: deletes the unfinished output files in the staging directory."
+
+#: src/pages/RecoveryPage.tsx:225
+msgid "会做什么：删除这些记录本身。"
+msgstr "What it does: deletes the records themselves."
+
+#: src/pages/RecoveryPage.tsx:136
+msgid "会做什么：用上一次自动备份覆盖当前配置文件，然后重新读取。"
+msgstr "What it does: overwrites the configuration file with the last automatic backup and re-reads it."
 
 #: src/pages/recording/ShotInspectorBlock.tsx:480
 msgid "会把相机路径写成 HLAE 脚本落到磁盘，并启动 CS2 跳到这个镜头的起点。只是预览，不会录制任何画面。"
@@ -1708,10 +1779,6 @@ msgstr "{0} of the last {TREND_WINDOW} matches carry this metric · the grey lin
 msgid "最近出场"
 msgstr "Last seen"
 
-#: src/pages/HomePage.tsx:65
-msgid "最近导入的比赛、它们的分析状态，以及每一场的下一步。"
-msgstr "Recently imported matches, their analysis state, and the next step for each of them."
-
 #: src/pages/montage/MusicBeatBlock.tsx:591
 #: src/pages/montage/MusicBeatBlock.tsx:592
 msgid "最近拍点"
@@ -1721,7 +1788,7 @@ msgstr "Nearest beat"
 msgid "最近更新"
 msgstr "Last update"
 
-#: src/pages/HomePage.tsx:64
+#: src/pages/home/RecentMatchesPanel.tsx:49
 #: src/pages/PlayerProfilePage.tsx:212
 msgid "最近比赛"
 msgstr "Recent matches"
@@ -1736,7 +1803,7 @@ msgid "最近的录制任务"
 msgstr "Recent recording tasks"
 
 #: src/pages/home/RecentOutputsPanel.tsx:63
-#: src/pages/HomePage.tsx:93
+#: src/pages/HomePage.tsx:96
 msgid "最近输出"
 msgstr "Recent outputs"
 
@@ -2099,6 +2166,10 @@ msgstr "Go to recording"
 msgid "去掉运动镜头"
 msgstr "Drop the moving shots"
 
+#: src/pages/home/EnvironmentNotice.tsx:66
+msgid "去设置"
+msgstr "Open settings"
+
 #: src/pages/HistoryPage.tsx:234
 msgid "去设置检查 Steam 连接"
 msgstr "Check the Steam connection in Settings"
@@ -2110,6 +2181,10 @@ msgstr "Go to the evidence search"
 #: src/pages/match/views/ReviewView.tsx:712
 msgid "去证据检索看全部注释"
 msgstr "See every note in the evidence search"
+
+#: src/pages/home/RecentMatchesPanel.tsx:96
+msgid "去资料库分析"
+msgstr "Analyse in the library"
 
 #: src/pages/evidence/EvidenceEmpty.tsx:76
 #: src/pages/PlayerProfilePage.tsx:227
@@ -2445,6 +2520,10 @@ msgstr "How rounds ended"
 msgid "回合胜负"
 msgstr "Rounds won"
 
+#: src/pages/home/EnvironmentNotice.tsx:116
+msgid "回放与录制都起不来"
+msgstr "neither playback nor recording can start"
+
 #: src/pages/match/viewContract.ts:233
 msgctxt "match-view"
 msgid "回放与热力图"
@@ -2651,6 +2730,7 @@ msgid "多轨时间轴"
 msgstr "Multitrack timeline"
 
 #: src/app/shell/navigation.tsx:103
+#: src/pages/home/ActiveProjectsPanel.tsx:112
 msgid "多轨编辑"
 msgstr "Multitrack"
 
@@ -2721,6 +2801,10 @@ msgstr "Locate the opening kill of round {0}"
 #: src/pages/library/LibraryInspector.tsx:177
 msgid "定位文件"
 msgstr "Locate file"
+
+#: src/pages/home/PendingPlansPanel.tsx:123
+msgid "审阅方案"
+msgstr "Review plan"
 
 #: src/domain/map/HeatLayer.tsx:178
 msgid "密度"
@@ -2832,6 +2916,10 @@ msgstr "Export"
 msgid "导出 HTML"
 msgstr "Export HTML"
 
+#: src/pages/home/EnvironmentNotice.tsx:122
+msgid "导出与波形都会失败"
+msgstr "exports and waveforms will fail"
+
 #: src/pages/library/LibraryFilters.tsx:200
 #: src/pages/LibraryPage.tsx:243
 msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
@@ -2850,6 +2938,10 @@ msgstr "Export package"
 #: src/pages/delivery/OutputsView.tsx:51
 msgid "导出成片"
 msgstr "Exports"
+
+#: src/pages/home/EnvironmentNotice.tsx:120
+msgid "导出成片会失败"
+msgstr "exporting a finished cut will fail"
 
 #: src/pages/settings/AiAgentSection.tsx:704
 msgid "导出没有完成：{exportError}"
@@ -2969,6 +3061,10 @@ msgstr "Project name"
 #: src/pages/MontagePage.tsx:359
 msgid "工程没有被改动，重试是安全的。"
 msgstr "The project was not changed, so a retry is safe."
+
+#: src/pages/RecoveryPage.tsx:168
+msgid "已从备份恢复配置，重新读取后生效。"
+msgstr "Configuration restored from the backup; it takes effect once re-read."
 
 #: src/pages/EditorPage.tsx:321
 msgid "已保存"
@@ -3302,6 +3398,10 @@ msgstr "No samples under the current filters, so there is no density to compare.
 msgid "当前版本的镜头带"
 msgstr "Shot strip of the current version"
 
+#: src/pages/RecoveryPage.tsx:273
+msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
+msgstr "The current configuration file will be overwritten by the last automatic backup. This cannot be undone, and any setting changed since that backup is lost."
+
 #. placeholder {0}: distribution.sampleCount
 #: src/pages/players/PlayerHeatmapPanel.tsx:177
 msgid "当前统计：{subject}，共 {0} 个采样点。"
@@ -3364,6 +3464,10 @@ msgstr "The preflight did not finish: {failure}"
 msgid "录制完成后会自动抽帧；也可以先在时间轴上按时间预览。"
 msgstr "Frames are pulled automatically once recording finishes; until then you can preview by time on the timeline."
 
+#: src/pages/RecoveryPage.tsx:180
+msgid "录制或导出中断时会留下暂存文件，它们不会自己消失。"
+msgstr "An interrupted recording or export leaves staged files behind, and they do not clear themselves."
+
 #: src/pages/recording/PreflightBlock.tsx:207
 msgid "录制期间这台机器会被游戏占用，中途停止会保留已完成的片段。"
 msgstr "The game takes over this machine while it records; stopping partway keeps the clips already finished."
@@ -3371,6 +3475,10 @@ msgstr "The game takes over this machine while it records; stopping partway keep
 #: src/domain/task/taskVocabulary.tsx:61
 msgid "录制环境未就绪"
 msgstr "Recording environment not ready"
+
+#: src/pages/home/EnvironmentNotice.tsx:81
+msgid "录制环境还没准备好，需要它的任务现在起不来。"
+msgstr "The recording environment is not ready, so the jobs that need it cannot start."
 
 #: src/pages/delivery/OutputsView.tsx:50
 msgid "录制结果"
@@ -3394,6 +3502,10 @@ msgstr "Recording plan"
 #: src/pages/settings/GameSection.tsx:221
 msgid "录制语音"
 msgstr "Recording voice"
+
+#: src/pages/home/EnvironmentNotice.tsx:118
+msgid "录制起不来，分析与编辑不受影响"
+msgstr "recording cannot start; analysis and editing are unaffected"
 
 #: src/pages/settings/GameSection.tsx:142
 msgid "录制输出目录"
@@ -3531,7 +3643,7 @@ msgstr "Pending"
 msgid "待定 · 还有片段的素材长度没读到"
 msgstr "Pending · some clips' source lengths have not been read"
 
-#: src/pages/HomePage.tsx:55
+#: src/pages/home/PendingPlansPanel.tsx:60
 msgid "待确认的方案"
 msgstr "Plans awaiting confirmation"
 
@@ -3546,6 +3658,7 @@ msgstr "Required"
 
 #: src/app/command/commandRegistry.ts:195
 #: src/app/shell/navigation.tsx:101
+#: src/pages/home/ActiveProjectsPanel.tsx:112
 #: src/pages/montage/MontageProjectList.tsx:148
 msgid "快速合辑"
 msgstr "Quick montage"
@@ -3570,13 +3683,9 @@ msgstr "Restore"
 #: src/app/command/commandRegistry.ts:225
 #: src/app/routeCrumb.ts:51
 #: src/pages/delivery/TaskRecordRail.tsx:84
-#: src/pages/RecoveryPage.tsx:25
+#: src/pages/RecoveryPage.tsx:84
 msgid "恢复中心"
 msgstr "Recovery center"
-
-#: src/pages/RecoveryPage.tsx:33
-msgid "恢复中心处理损坏的索引、残留的中间文件和被中断的任务，每一项都写明它会动什么。"
-msgstr "Recovery handles broken indexes, leftover intermediate files and interrupted tasks, and every item spells out what it will touch."
 
 #: src/pages/library/ColumnConfigDialog.tsx:99
 msgid "恢复默认"
@@ -3642,6 +3751,7 @@ msgid "打开回合视图"
 msgstr "Open the rounds view"
 
 #: src/pages/history/MatchHistoryTable.tsx:159
+#: src/pages/home/RecentMatchesPanel.tsx:96
 msgid "打开工作区"
 msgstr "Open workspace"
 
@@ -3782,6 +3892,14 @@ msgstr "Drag to reorder · double-click to trim · Ctrl with the left and right 
 #: src/pages/recording/ShotInspectorBlock.tsx:315
 msgid "持枪视野"
 msgstr "Viewmodel FOV"
+
+#: src/pages/RecoveryPage.tsx:219
+msgid "指向不存在文件的记录"
+msgstr "Records pointing at files that are gone"
+
+#: src/pages/RecoveryPage.tsx:310
+msgid "指向不存在文件的记录会被移除。如果文件只是被挪走了，先把它放回去再清理，否则记录会一起消失。"
+msgstr "Records pointing at a file that is gone will be removed. If a file was only moved, put it back before cleaning, or its record goes with it."
 
 #: src/domain/media/ClipStrip.tsx:234
 msgid "按住 Ctrl 与左右方向键可以调整片段顺序。"
@@ -4034,7 +4152,7 @@ msgstr "Glitch"
 msgid "数据不可用"
 msgstr "No data"
 
-#: src/pages/RecoveryPage.tsx:26
+#: src/pages/RecoveryPage.tsx:85
 msgid "数据库、缓存与中断任务的修复"
 msgstr "Repairs for the database, caches and interrupted tasks"
 
@@ -4079,6 +4197,10 @@ msgstr "The service settles the file name when the task starts, and the task id 
 #: src/pages/library/libraryFormat.ts:128
 msgid "文件缺失"
 msgstr "File missing"
+
+#: src/pages/RecoveryPage.tsx:222
+msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
+msgstr "When a file is moved or deleted by hand, the library's record points at a location that no longer exists."
 
 #: src/domain/agent/types.ts:361
 msgctxt "plan-change"
@@ -4254,6 +4376,10 @@ msgstr "Ordinary use never needs this section."
 msgid "暂停"
 msgstr "Pause"
 
+#: src/pages/RecoveryPage.tsx:290
+msgid "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
+msgstr "Unfinished files in the staging directory will be deleted. If a recording or export is still worth salvaging, copy it out first."
+
 #: src/pages/delivery/taskModel.tsx:281
 msgid "暂无可用的恢复动作"
 msgstr "No recovery action available"
@@ -4312,6 +4438,10 @@ msgstr "{0} clips were shortened; saving drops the {1} keyframes that now fall o
 #: src/pages/montage/MusicBeatBlock.tsx:411
 msgid "有 {unplaced} 段在允许的时长范围内找不到合适的拍点，保持原样。"
 msgstr "{unplaced} clips found no suitable beat inside the allowed duration range and are left as they are."
+
+#: src/pages/home/ActiveProjectsPanel.tsx:90
+msgid "有一份工程列表没能读出来：{error}"
+msgstr "One of the project lists would not load: {error}"
 
 #: src/pages/match/views/TeamsView.tsx:345
 msgid "有回合缺少价格，花费合计以「—」表示而不是少算"
@@ -4389,6 +4519,10 @@ msgstr "Untitled"
 #: src/pages/montage/MusicBeatBlock.tsx:269
 msgid "未在素材库中，无法分析节拍"
 msgstr "Not in the media library, so its beats cannot be analyzed"
+
+#: src/pages/RecoveryPage.tsx:174
+msgid "未完成的暂存输出"
+msgstr "Unfinished staged outputs"
 
 #: src/design/feedback/StageBar.tsx:66
 msgid "未开始"
@@ -4743,6 +4877,10 @@ msgstr "Starting the recording"
 #: src/pages/recording/cameraDesk.ts:358
 msgid "正在启动游戏，请稍候"
 msgstr "The game is starting — wait a moment"
+
+#: src/pages/RecoveryPage.tsx:73
+msgid "正在处理"
+msgstr "Working"
 
 #: src/pages/settings/AiAgentSection.tsx:748
 #: src/pages/settings/AiAgentSection.tsx:757
@@ -5154,6 +5292,10 @@ msgstr "No overview transform was found for {mapName}, so world coordinates cann
 msgid "没有数据目录"
 msgstr "No data directory"
 
+#: src/pages/home/PendingPlansPanel.tsx:83
+msgid "没有等待确认的方案。"
+msgstr "No plans awaiting confirmation."
+
 #: src/pages/match/views/UtilityView.tsx:473
 msgid "没有购买记录"
 msgstr "No purchase record"
@@ -5289,10 +5431,31 @@ msgstr "Add a watched folder"
 msgid "添加目录"
 msgstr "Add folder"
 
+#: src/pages/RecoveryPage.tsx:282
+#: src/pages/RecoveryPage.tsx:299
+msgid "清理"
+msgstr "Clean up"
+
+#: src/pages/RecoveryPage.tsx:241
+msgid "清理失效记录"
+msgstr "Clean stale records"
+
+#: src/pages/RecoveryPage.tsx:298
+msgid "清理失效记录？"
+msgstr "Clean stale records?"
+
 #: src/pages/DeliveryPage.tsx:111
 #: src/pages/DeliveryPage.tsx:121
 msgid "清理无效记录"
 msgstr "Clean up dead records"
+
+#: src/pages/RecoveryPage.tsx:194
+msgid "清理暂存输出"
+msgstr "Clean staged outputs"
+
+#: src/pages/RecoveryPage.tsx:281
+msgid "清理未完成的暂存输出？"
+msgstr "Clean unfinished staged outputs?"
 
 #: src/pages/montage/ClipOrderBlock.tsx:208
 msgid "清空"
@@ -5659,11 +5822,19 @@ msgstr "Detonated"
 
 #: src/pages/delivery/OutputsView.tsx:174
 #: src/pages/home/RecentOutputsPanel.tsx:92
-#: src/pages/HomePage.tsx:81
+#: src/pages/HomePage.tsx:84
 #: src/pages/match/views/HighlightsView.tsx:292
 #: src/pages/MatchWorkspacePage.tsx:228
 msgid "用 Agent 制作视频"
 msgstr "Make a video with the Agent"
+
+#: src/pages/RecoveryPage.tsx:163
+msgid "用备份恢复"
+msgstr "Restore from backup"
+
+#: src/pages/RecoveryPage.tsx:264
+msgid "用备份覆盖当前配置？"
+msgstr "Overwrite the configuration with the backup?"
 
 #: src/domain/task/TaskDetail.tsx:252
 msgid "用户语言；实现细节收在「技术细节」里"
@@ -5773,6 +5944,10 @@ msgstr "The target track is locked"
 msgid "盲狙"
 msgstr "No-scope"
 
+#: src/pages/home/EnvironmentNotice.tsx:124
+msgid "相关功能不可用"
+msgstr "the features that depend on it are unavailable"
+
 #: src/domain/map/CameraPathLayer.tsx:183
 msgid "相机终点"
 msgstr "Camera end"
@@ -5839,6 +6014,7 @@ msgstr "See utility & economy"
 #: src/pages/EditorPage.tsx:424
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
+#: src/pages/RecoveryPage.tsx:99
 #: src/pages/settings/AiAgentSection.tsx:146
 #: src/pages/settings/AiAgentSection.tsx:160
 #: src/pages/settings/AppSection.tsx:76
@@ -6343,6 +6519,10 @@ msgstr "Trim"
 msgid "裁切片段"
 msgstr "Trim clip"
 
+#: src/pages/RecoveryPage.tsx:265
+msgid "覆盖并恢复"
+msgstr "Overwrite and restore"
+
 #: src/domain/agent/types.ts:197
 #: src/pages/recording/shotModel.ts:121
 msgid "观察者"
@@ -6496,6 +6676,10 @@ msgstr "Could not read the dependency checks: {checksError}"
 msgid "读不到全局录制默认值，画面参数没法显示：{failure}"
 msgstr "The global recording defaults could not be read, so the picture settings cannot be shown: {failure}"
 
+#: src/pages/home/RecentMatchesPanel.tsx:58
+msgid "读不到最近的比赛：{error}"
+msgstr "Could not read the recent matches: {error}"
+
 #: src/pages/settings/FilesSection.tsx:153
 msgid "读不到占用统计"
 msgstr "Could not read the usage figures"
@@ -6503,6 +6687,14 @@ msgstr "Could not read the usage figures"
 #: src/pages/agent/NewSessionPane.tsx:214
 msgid "读不到工作区里正在进行的对象：{referencesError}"
 msgstr "What is going on in the workspace could not be read: {referencesError}"
+
+#: src/pages/home/PendingPlansPanel.tsx:71
+msgid "读不到待确认的方案：{error}"
+msgstr "Could not read the plans awaiting confirmation: {error}"
+
+#: src/pages/RecoveryPage.tsx:92
+msgid "读不到恢复状态：{statusError}"
+msgstr "Could not read the recovery state: {statusError}"
 
 #: src/pages/agent/ConversationModes.tsx:352
 #: src/pages/recording/RecordingIndex.tsx:183
@@ -6516,6 +6708,10 @@ msgstr "The model configuration could not be read: {error}"
 #: src/pages/match/views/ReviewView.tsx:696
 msgid "读不到注释：{error}"
 msgstr "The notes could not be read: {error}"
+
+#: src/pages/RecoveryPage.tsx:118
+msgid "读不到状态"
+msgstr "Could not read the state"
 
 #: src/pages/settings/AppSection.tsx:72
 #: src/pages/settings/FilesSection.tsx:78
@@ -6614,6 +6810,10 @@ msgstr "Purchase spend statistics unavailable"
 #: src/pages/MatchWorkspacePage.tsx:201
 msgid "资料库"
 msgstr "Library"
+
+#: src/pages/home/RecentMatchesPanel.tsx:67
+msgid "资料库里还没有比赛。导入 Demo 之后它们会出现在这里。"
+msgstr "No matches in the library yet. Import a Demo and they appear here."
 
 #: src/domain/match/matchEnums.ts:215
 msgid "赛点"
@@ -6878,6 +7078,10 @@ msgstr "The preflight has not been run against this clip list yet."
 msgid "还没有工程"
 msgstr "No projects yet"
 
+#: src/pages/home/ActiveProjectsPanel.tsx:101
+msgid "还没有工程。快速合辑串一条视频，多轨编辑器做需要叠加与字幕的片子。"
+msgstr "No projects yet. A quick montage strings clips into one video; the multi-track editor is for cuts that need overlays and captions."
+
 #: src/pages/recording/RecordingIndex.tsx:148
 msgid "还没有录制任务"
 msgstr "No recording task yet"
@@ -7031,10 +7235,6 @@ msgstr "The scoreboard of this match"
 #: src/pages/match/views/PlayersView.tsx:349
 msgid "这一场的高光"
 msgstr "The highlights of this match"
-
-#: src/pages/HomePage.tsx:122
-msgid "这一块在阶段 {phase} 接入。"
-msgstr "This block gets wired up in phase {phase}."
 
 #: src/pages/montage/ClipTrimDrawer.tsx:131
 msgid "这一段对应的录制结果已经不在了，无法预览或裁切。"
@@ -7404,6 +7604,10 @@ msgstr "This analysis detected no highlight candidate. The round timeline still 
 msgid "这次回答没有完成：{0}"
 msgstr "This answer did not finish: {0}"
 
+#: src/pages/RecoveryPage.tsx:107
+msgid "这次恢复没有完成：{actionError}"
+msgstr "This recovery did not finish: {actionError}"
+
 #: src/pages/editor/EditorProjectList.tsx:179
 #: src/pages/EditorPage.tsx:418
 #: src/pages/montage/MontageProjectList.tsx:174
@@ -7488,9 +7692,13 @@ msgstr "{0} running · {1} failed · {2} done"
 msgid "进行中的任务"
 msgstr "Running tasks"
 
-#: src/pages/HomePage.tsx:78
+#: src/pages/HomePage.tsx:81
 msgid "进行中的任务、失败可恢复的任务和最近的成片"
 msgstr "Running tasks, recoverable failures, and the most recent videos"
+
+#: src/pages/home/ActiveProjectsPanel.tsx:76
+msgid "进行中的工程"
+msgstr "Projects in progress"
 
 #: src/pages/montage/MusicBeatBlock.tsx:387
 #: src/pages/montage/MusicBeatBlock.tsx:474
@@ -7733,6 +7941,22 @@ msgstr "Music & beats"
 msgid "配乐波形"
 msgstr "Music waveform"
 
+#: src/pages/RecoveryPage.tsx:112
+msgid "配置恢复"
+msgstr "Configuration recovery"
+
+#: src/pages/RecoveryPage.tsx:131
+msgid "配置文件正常，不需要恢复"
+msgstr "The configuration file is fine; no recovery needed"
+
+#: src/pages/RecoveryPage.tsx:158
+msgid "配置文件没有损坏，不需要恢复"
+msgstr "The configuration file is not damaged, so there is nothing to restore"
+
+#: src/pages/RecoveryPage.tsx:123
+msgid "配置文件读不出来"
+msgstr "The configuration file cannot be read"
+
 #: src/pages/LibraryPage.tsx:162
 msgid "配置还没读出来，稍后再试"
 msgstr "The configuration has not been read yet — try again shortly"
@@ -7871,6 +8095,9 @@ msgstr "Choose again"
 #: src/pages/evidence/EvidenceAnnotations.tsx:56
 #: src/pages/evidence/EvidenceResults.tsx:125
 #: src/pages/HistoryPage.tsx:223
+#: src/pages/home/ActiveProjectsPanel.tsx:83
+#: src/pages/home/PendingPlansPanel.tsx:70
+#: src/pages/home/RecentMatchesPanel.tsx:57
 #: src/pages/library/AddWatchDirectoryDialog.tsx:123
 #: src/pages/library/DeleteDemosDialog.tsx:95
 #: src/pages/library/ImportDemoDialog.tsx:159
@@ -7903,6 +8130,7 @@ msgstr "Choose again"
 #: src/pages/recording/ShotInspectorBlock.tsx:723
 #: src/pages/RecordingPage.tsx:328
 #: src/pages/RecordingPage.tsx:425
+#: src/pages/RecoveryPage.tsx:91
 #: src/pages/settings/AdvancedSection.tsx:54
 #: src/pages/settings/AdvancedSection.tsx:103
 #: src/pages/settings/AdvancedSection.tsx:154

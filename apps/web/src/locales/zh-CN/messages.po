@@ -102,12 +102,12 @@ msgid "{0, plural, other {# 个目录}}"
 msgstr "{0, plural, other {# 个目录}}"
 
 #. placeholder {0}: items.length
-#: src/pages/home/PendingPlansPanel.tsx:64
+#: src/pages/home/PendingPlansPanel.tsx:69
 msgid "{0, plural, other {# 个等待确认}}"
 msgstr "{0, plural, other {# 个等待确认}}"
 
 #. placeholder {0}: plan.shot_count
-#: src/pages/home/PendingPlansPanel.tsx:111
+#: src/pages/home/PendingPlansPanel.tsx:118
 msgid "{0, plural, other {# 个镜头}}"
 msgstr "{0, plural, other {# 个镜头}}"
 
@@ -137,7 +137,7 @@ msgid "{0, plural, other {# 段素材}}"
 msgstr "{0, plural, other {# 段素材}}"
 
 #. placeholder {0}: plan.origin_count
-#: src/pages/home/PendingPlansPanel.tsx:115
+#: src/pages/home/PendingPlansPanel.tsx:122
 msgid "{0, plural, other {依据 # 条证据}}"
 msgstr "{0, plural, other {依据 # 条证据}}"
 
@@ -192,7 +192,7 @@ msgid "{0, plural, other {清空已选 #}}"
 msgstr "{0, plural, other {清空已选 #}}"
 
 #. placeholder {0}: items.length - SHOWN
-#: src/pages/home/PendingPlansPanel.tsx:94
+#: src/pages/home/PendingPlansPanel.tsx:99
 msgid "{0, plural, other {还有 # 个，去 Agent 面板看}}"
 msgstr "{0, plural, other {还有 # 个，去 Agent 面板看}}"
 
@@ -1392,13 +1392,13 @@ msgid "依赖检查"
 msgstr "依赖检查"
 
 #: src/pages/agent/SessionDrawer.tsx:331
-#: src/pages/EditorPage.tsx:381
+#: src/pages/EditorPage.tsx:411
 #: src/pages/library/SaveViewDialog.tsx:54
 #: src/pages/recording/ShotInspectorBlock.tsx:663
 msgid "保存"
 msgstr "保存"
 
-#: src/pages/EditorPage.tsx:347
+#: src/pages/EditorPage.tsx:377
 msgid "保存中…"
 msgstr "保存中…"
 
@@ -1494,12 +1494,12 @@ msgstr "停止监听 {0}"
 msgid "停止预览"
 msgstr "停止预览"
 
-#: src/pages/EditorPage.tsx:498
+#: src/pages/EditorPage.tsx:528
 msgid "先保存或放弃当前改动，恢复会覆盖它们"
 msgstr "先保存或放弃当前改动，恢复会覆盖它们"
 
-#: src/pages/EditorPage.tsx:396
-#: src/pages/EditorPage.tsx:413
+#: src/pages/EditorPage.tsx:426
+#: src/pages/EditorPage.tsx:443
 msgid "先保存改动，导出用的是服务端存着的工程"
 msgstr "先保存改动，导出用的是服务端存着的工程"
 
@@ -1524,7 +1524,7 @@ msgstr "先运行录制前校验"
 msgid "先选一个回合"
 msgstr "先选一个回合"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:76
+#: src/pages/editor/MediaLibraryPanel.tsx:81
 msgid "先选一个素材"
 msgstr "先选一个素材"
 
@@ -1532,6 +1532,10 @@ msgstr "先选一个素材"
 #: src/pages/editor/EditorTimelinePanel.tsx:177
 msgid "先选中一个片段"
 msgstr "先选中一个片段"
+
+#: src/pages/editor/MediaLibraryPanel.tsx:184
+msgid "先选中一个素材"
+msgstr "先选中一个素材"
 
 #: src/pages/montage/ClipOrderBlock.tsx:126
 msgid "先选中一段再裁切"
@@ -1811,7 +1815,7 @@ msgstr "再勾一名选手才能比较。上限 {limit} 名——超过两列的
 msgid "再快一点"
 msgstr "再快一点"
 
-#: src/pages/EditorPage.tsx:445
+#: src/pages/EditorPage.tsx:475
 msgid "再试一次"
 msgstr "再试一次"
 
@@ -2936,7 +2940,7 @@ msgstr "定位到第 {0} 回合的首杀"
 msgid "定位文件"
 msgstr "定位文件"
 
-#: src/pages/home/PendingPlansPanel.tsx:123
+#: src/pages/home/PendingPlansPanel.tsx:130
 msgid "审阅方案"
 msgstr "审阅方案"
 
@@ -3013,7 +3017,7 @@ msgstr "对齐依据（服务返回）"
 msgid "对齐第 {0} 拍到第 {1} 拍，之后的片段会跟着前后移动。"
 msgstr "对齐第 {0} 拍到第 {1} 拍，之后的片段会跟着前后移动。"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:161
+#: src/pages/editor/MediaLibraryPanel.tsx:166
 msgid "导入"
 msgstr "导入"
 
@@ -3027,20 +3031,20 @@ msgstr "导入 Demo"
 msgid "导入一个 .dem，或添加一个监听目录自动发现"
 msgstr "导入一个 .dem，或添加一个监听目录自动发现"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:128
+#: src/pages/editor/MediaLibraryPanel.tsx:133
 msgid "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 msgstr "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 
-#: src/pages/EditorPage.tsx:273
+#: src/pages/EditorPage.tsx:303
 msgid "导入本机文件需要桌面应用，浏览器里做不到"
 msgstr "导入本机文件需要桌面应用，浏览器里做不到"
 
-#: src/pages/EditorPage.tsx:299
+#: src/pages/EditorPage.tsx:329
 msgid "导入没有完成"
 msgstr "导入没有完成"
 
 #: src/pages/editor/EditorTimelinePanel.tsx:266
-#: src/pages/editor/MediaLibraryPanel.tsx:131
+#: src/pages/editor/MediaLibraryPanel.tsx:136
 msgid "导入素材"
 msgstr "导入素材"
 
@@ -3069,8 +3073,8 @@ msgstr "导出会返回一份文件，桌面端还没有保存到磁盘的命令
 msgid "导出元数据"
 msgstr "导出元数据"
 
-#: src/pages/EditorPage.tsx:388
-#: src/pages/EditorPage.tsx:399
+#: src/pages/EditorPage.tsx:418
+#: src/pages/EditorPage.tsx:429
 msgid "导出工程包"
 msgstr "导出工程包"
 
@@ -3094,8 +3098,8 @@ msgstr "导出成片需要它。录制与分析不受影响，但导不出文件
 msgid "导出没有完成：{exportError}"
 msgstr "导出没有完成：{exportError}"
 
-#: src/pages/EditorPage.tsx:405
-#: src/pages/EditorPage.tsx:423
+#: src/pages/EditorPage.tsx:435
+#: src/pages/EditorPage.tsx:453
 msgid "导出视频"
 msgstr "导出视频"
 
@@ -3213,7 +3217,7 @@ msgstr "工程没有被改动，重试是安全的。"
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "已从备份恢复配置，重新读取后生效。"
 
-#: src/pages/EditorPage.tsx:351
+#: src/pages/EditorPage.tsx:381
 msgid "已保存"
 msgstr "已保存"
 
@@ -3803,7 +3807,7 @@ msgstr "待定"
 msgid "待定 · 还有片段的素材长度没读到"
 msgstr "待定 · 还有片段的素材长度没读到"
 
-#: src/pages/home/PendingPlansPanel.tsx:60
+#: src/pages/home/PendingPlansPanel.tsx:65
 msgid "待确认的方案"
 msgstr "待确认的方案"
 
@@ -4216,7 +4220,7 @@ msgstr "撤销删除"
 msgid "撤销拒绝"
 msgstr "撤销拒绝"
 
-#: src/pages/EditorPage.tsx:465
+#: src/pages/EditorPage.tsx:495
 msgid "撤销这次修改"
 msgstr "撤销这次修改"
 
@@ -4243,7 +4247,7 @@ msgstr "播放头下没有可播放的素材"
 msgid "播放头下没有画面"
 msgstr "播放头下没有画面"
 
-#: src/pages/EditorPage.tsx:260
+#: src/pages/EditorPage.tsx:262
 msgid "播放头这个位置已经有片段了，把播放头挪到空处再试"
 msgstr "播放头这个位置已经有片段了，把播放头挪到空处再试"
 
@@ -4637,7 +4641,7 @@ msgstr "替换"
 
 #. placeholder {0}: keyframeLoss.clips
 #. placeholder {1}: keyframeLoss.keyframes
-#: src/pages/EditorPage.tsx:469
+#: src/pages/EditorPage.tsx:499
 msgid "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 {1} 个关键帧。"
 msgstr "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 {1} 个关键帧。"
 
@@ -4713,7 +4717,7 @@ msgstr "朝向与视野"
 msgid "未下载"
 msgstr "未下载"
 
-#: src/pages/EditorPage.tsx:349
+#: src/pages/EditorPage.tsx:379
 msgid "未保存"
 msgstr "未保存"
 
@@ -5054,7 +5058,7 @@ msgstr "模糊"
 msgid "正在从方案生成预览计划"
 msgstr "正在从方案生成预览计划"
 
-#: src/pages/EditorPage.tsx:377
+#: src/pages/EditorPage.tsx:407
 #: src/pages/settings/FilesSection.tsx:197
 msgid "正在保存"
 msgstr "正在保存"
@@ -5242,6 +5246,10 @@ msgstr "正在连接本地服务"
 #: src/data/serviceAction.tsx:75
 msgid "正在连接本地服务，稍后即可使用"
 msgstr "正在连接本地服务，稍后即可使用"
+
+#: src/pages/editor/MediaLibraryPanel.tsx:184
+msgid "正在重新定位"
+msgstr "正在重新定位"
 
 #: src/app/boundary/ServiceGate.tsx:253
 msgid "正在重连"
@@ -5519,7 +5527,7 @@ msgstr "没有找到 {mapName} 的 overview 变换，世界坐标无法落到画
 msgid "没有数据目录"
 msgstr "没有数据目录"
 
-#: src/pages/home/PendingPlansPanel.tsx:83
+#: src/pages/home/PendingPlansPanel.tsx:88
 msgid "没有等待确认的方案。"
 msgstr "没有等待确认的方案。"
 
@@ -5539,7 +5547,7 @@ msgstr "没有选中片段"
 msgid "没有道具记录"
 msgstr "没有道具记录"
 
-#: src/pages/EditorPage.tsx:377
+#: src/pages/EditorPage.tsx:407
 msgid "没有需要保存的改动"
 msgstr "没有需要保存的改动"
 
@@ -5629,7 +5637,7 @@ msgstr "深色"
 msgid "添加 {0} 段"
 msgstr "添加 {0} 段"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:172
+#: src/pages/editor/MediaLibraryPanel.tsx:177
 msgid "添加到时间轴"
 msgstr "添加到时间轴"
 
@@ -5960,7 +5968,7 @@ msgstr "版本"
 #. placeholder {0}: query.data.revision
 #. placeholder {0}: snapshot.revision
 #: src/pages/editor/VersionHistoryPanel.tsx:72
-#: src/pages/EditorPage.tsx:356
+#: src/pages/EditorPage.tsx:386
 msgid "版本 {0}"
 msgstr "版本 {0}"
 
@@ -6168,7 +6176,7 @@ msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "目标事件"
 
-#: src/pages/EditorPage.tsx:259
+#: src/pages/EditorPage.tsx:261
 msgid "目标轨道已锁定"
 msgstr "目标轨道已锁定"
 
@@ -6243,7 +6251,7 @@ msgstr "看道具与经济"
 #: src/pages/agent/SessionDrawer.tsx:235
 #: src/pages/delivery/OutputsView.tsx:148
 #: src/pages/editor/EditorTimelinePanel.tsx:253
-#: src/pages/EditorPage.tsx:454
+#: src/pages/EditorPage.tsx:484
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
 #: src/pages/RecoveryPage.tsx:99
@@ -6285,7 +6293,8 @@ msgstr "视角"
 msgid "视野 FOV"
 msgstr "视野 FOV"
 
-#: src/pages/EditorPage.tsx:282
+#: src/pages/EditorPage.tsx:284
+#: src/pages/EditorPage.tsx:312
 msgid "视频与音频"
 msgstr "视频与音频"
 
@@ -6486,8 +6495,8 @@ msgstr "素材已经到头了，没有可以滑移的余量"
 msgid "素材已经到头了，没有可用的余量"
 msgstr "素材已经到头了，没有可用的余量"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:119
-#: src/pages/editor/MediaLibraryPanel.tsx:121
+#: src/pages/editor/MediaLibraryPanel.tsx:124
+#: src/pages/editor/MediaLibraryPanel.tsx:126
 msgid "素材库"
 msgstr "素材库"
 
@@ -6639,7 +6648,7 @@ msgctxt "plan-change"
 msgid "缩短"
 msgstr "缩短"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:150
+#: src/pages/editor/MediaLibraryPanel.tsx:155
 msgid "缺失"
 msgstr "缺失"
 
@@ -6960,7 +6969,7 @@ msgstr "读不到占用统计"
 msgid "读不到工作区里正在进行的对象：{referencesError}"
 msgstr "读不到工作区里正在进行的对象：{referencesError}"
 
-#: src/pages/home/PendingPlansPanel.tsx:71
+#: src/pages/home/PendingPlansPanel.tsx:76
 msgid "读不到待确认的方案：{error}"
 msgstr "读不到待确认的方案：{error}"
 
@@ -7031,7 +7040,7 @@ msgstr "读不到采集组件状态：{hlaeError}"
 msgid "读不到预设：{failure}"
 msgstr "读不到预设：{failure}"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:106
+#: src/pages/editor/MediaLibraryPanel.tsx:111
 #: src/pages/montage/ExportBlock.tsx:234
 msgid "读取中"
 msgstr "读取中"
@@ -7420,7 +7429,7 @@ msgstr "还没有监听目录。加一个之后，新的 Demo 会自己进来。
 msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 msgstr "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:127
+#: src/pages/editor/MediaLibraryPanel.tsx:132
 msgid "还没有素材"
 msgstr "还没有素材"
 
@@ -7479,8 +7488,8 @@ msgstr "还没有预览计划，先生成一份"
 msgid "还没读到这个素材的时长，不知道可以滑移多少"
 msgstr "还没读到这个素材的时长，不知道可以滑移多少"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:78
-#: src/pages/EditorPage.tsx:257
+#: src/pages/editor/MediaLibraryPanel.tsx:83
+#: src/pages/EditorPage.tsx:259
 msgid "还没读到这个素材的时长，读完才能放到时间轴上"
 msgstr "还没读到这个素材的时长，读完才能放到时间轴上"
 
@@ -7569,7 +7578,7 @@ msgstr "这个地址不存在，或者它在这一版里已经下线。其余功
 msgid "这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。"
 msgstr "这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。"
 
-#: src/pages/EditorPage.tsx:437
+#: src/pages/EditorPage.tsx:467
 msgid "这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。"
 msgstr "这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。"
 
@@ -7901,7 +7910,7 @@ msgid "这次恢复没有完成：{actionError}"
 msgstr "这次恢复没有完成：{actionError}"
 
 #: src/pages/editor/EditorProjectList.tsx:179
-#: src/pages/EditorPage.tsx:448
+#: src/pages/EditorPage.tsx:478
 #: src/pages/montage/MontageProjectList.tsx:174
 msgid "这次操作没有完成：{writeError}"
 msgstr "这次操作没有完成：{writeError}"
@@ -8137,13 +8146,17 @@ msgstr "选择文件"
 msgid "选择要导入的 Demo 文件"
 msgstr "选择要导入的 Demo 文件"
 
-#: src/pages/EditorPage.tsx:279
+#: src/pages/EditorPage.tsx:309
 msgid "选择要导入的素材"
 msgstr "选择要导入的素材"
 
 #: src/pages/settings/FilesSection.tsx:224
 msgid "选择要监听的目录"
 msgstr "选择要监听的目录"
+
+#: src/pages/EditorPage.tsx:281
+msgid "选择这个素材移动到的位置"
+msgstr "选择这个素材移动到的位置"
 
 #: src/domain/match/HighlightRow.tsx:74
 msgid "选择这条高光"
@@ -8309,14 +8322,22 @@ msgstr "重新加载"
 msgid "重新发起"
 msgstr "重新发起"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:180
+#: src/pages/editor/MediaLibraryPanel.tsx:190
 #: src/pages/library/libraryColumns.tsx:200
 msgid "重新定位"
 msgstr "重新定位"
 
+#: src/pages/EditorPage.tsx:298
+msgid "重新定位没有完成"
+msgstr "重新定位没有完成"
+
 #: src/pages/editor/MediaLibraryPanel.tsx:178
-msgid "重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程"
-msgstr "重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程"
+#~ msgid "重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程"
+#~ msgstr "重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程"
+
+#: src/pages/EditorPage.tsx:275
+msgid "重新定位需要桌面应用，浏览器里选不到本机文件"
+msgstr "重新定位需要桌面应用，浏览器里选不到本机文件"
 
 #: src/pages/match/views/ReviewView.tsx:746
 msgid "重新打开"
@@ -8365,7 +8386,7 @@ msgstr "重新读取回放"
 msgid "重新读取方案"
 msgstr "重新读取方案"
 
-#: src/pages/EditorPage.tsx:435
+#: src/pages/EditorPage.tsx:465
 #: src/pages/MontagePage.tsx:368
 #: src/pages/MontagePage.tsx:380
 #: src/pages/MontagePage.tsx:386
@@ -8402,7 +8423,7 @@ msgstr "重新选择"
 #: src/pages/GuidePage.tsx:96
 #: src/pages/HistoryPage.tsx:223
 #: src/pages/home/ActiveProjectsPanel.tsx:83
-#: src/pages/home/PendingPlansPanel.tsx:70
+#: src/pages/home/PendingPlansPanel.tsx:75
 #: src/pages/home/RecentMatchesPanel.tsx:57
 #: src/pages/library/AddWatchDirectoryDialog.tsx:123
 #: src/pages/library/DeleteDemosDialog.tsx:95
@@ -8581,7 +8602,7 @@ msgid "需要服务"
 msgstr "需要服务"
 
 #: src/domain/media/ClipStrip.tsx:313
-#: src/pages/editor/MediaLibraryPanel.tsx:104
+#: src/pages/editor/MediaLibraryPanel.tsx:109
 msgid "需要重新定位"
 msgstr "需要重新定位"
 
@@ -8602,7 +8623,7 @@ msgid "音量"
 msgstr "音量"
 
 #: src/pages/editor/InspectorPanel.tsx:212
-#: src/pages/editor/MediaLibraryPanel.tsx:141
+#: src/pages/editor/MediaLibraryPanel.tsx:146
 msgid "音频"
 msgstr "音频"
 

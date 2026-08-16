@@ -77,7 +77,7 @@ import {
   useSaveEditorProject,
   useSeparateEditorAudio,
 } from '../data/editor';
-import { useImportMediaAsset, useMediaAssets } from '../data/mediaAssets';
+import { useImportMediaAsset, useMediaAssets, useRelinkMediaAsset } from '../data/mediaAssets';
 import { useNativeShell } from '../data/nativeShell';
 import { useServiceAction } from '../data/serviceAction';
 import type { MediaAsset } from '../shared/desktop/dto';
@@ -181,6 +181,7 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
   const exportVideo = useExportEditorProject();
   const exportPackage = useExportEditorPackage();
   const importAsset = useImportMediaAsset();
+  const relinkAsset = useRelinkMediaAsset();
   const shell = useNativeShell();
 
   /* The project as it was when this workspace mounted. The remount key means
@@ -247,6 +248,7 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
     save: runSave,
     reload: onReload,
     importing: importAsset.isPending,
+    relinking: relinkAsset.isPending,
     addAssetToTimeline: (assetId) => {
       const asset = assetsById.get(assetId);
       if (asset === undefined || document === null) return;
@@ -267,6 +269,34 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
       setDocument(result.document);
       editor.replaceTimeline(result.document.timeline);
       editor.select(result.clipId);
+    },
+    relinkAsset: (assetId: string) => {
+      if (!shell.available) {
+        setNotice(t`重新定位需要桌面应用，浏览器里选不到本机文件`);
+        return;
+      }
+      setNotice(null);
+      void shell
+        .chooseFiles({
+          title: t`选择这个素材移动到的位置`,
+          filters: [
+            {
+              name: t`视频与音频`,
+              extensions: ['mp4', 'mov', 'mkv', 'avi', 'webm', 'mp3', 'wav', 'flac', 'aac', 'm4a'],
+            },
+          ],
+        })
+        .then(async (paths) => {
+          const [path] = paths;
+          if (path === undefined) return;
+          await relinkAsset.mutateAsync({ id: assetId, path });
+        })
+        .catch((error: unknown) => {
+          /* The service's own words: when it refuses, the message carries both
+             durations, and 「重新定位没有完成」 would throw away the only part
+             the user can act on. */
+          setNotice(dataErrorMessage(error) ?? t`重新定位没有完成`);
+        });
     },
     importAssets: () => {
       if (!shell.available) {

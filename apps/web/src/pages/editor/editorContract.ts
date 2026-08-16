@@ -92,6 +92,17 @@ export interface EditorDesk {
   importAssets: () => void;
   /** True while an import is in flight. */
   importing: boolean;
+  /**
+   * Points an asset at the file it moved to, keeping its identity — so every
+   * clip that references it follows without being touched.
+   *
+   * The service refuses a replacement shorter than the original, because those
+   * clips would then be cut from footage that no longer reaches that far. That
+   * refusal is a message with both lengths in it and is shown as-is.
+   */
+  relinkAsset: (assetId: string) => void;
+  /** True while a relink is in flight. */
+  relinking: boolean;
   /** Applies a preset to the selected clip. */
   applyPreset: (presetId: string) => void;
   /** Splits the selected video clip's audio onto its own lane. */

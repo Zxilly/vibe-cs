@@ -362,3 +362,58 @@ describe('offline', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /导出视频/u }).hasAttribute('disabled')).toBe(true));
   });
 });
+
+describe('relinking media', () => {
+  it('points the asset at the file the user picked', async () => {
+    const asset = [...sampleAssets().values()][0]!;
+    const relinkMediaAsset = vi.fn(async (_id: string, path: string) => ({ ...asset, path }));
+    const chooseFiles = vi.fn(async () => ['D:/moved/kael.mp4']);
+    const view = renderEditor({
+      client: editorClient({ relinkMediaAsset }),
+      shell: testNativeShell({ chooseFiles }),
+    });
+    await screen.findByRole('button', { name: /保存/u });
+
+    fireEvent.click(
+      await waitFor(() => {
+        const row = document.querySelector(`[data-asset="${asset.id}"]`);
+        expect(row).not.toBeNull();
+        return row as HTMLElement;
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '重新定位' }));
+
+    await waitFor(() => expect(relinkMediaAsset).toHaveBeenCalledTimes(1));
+    expect(relinkMediaAsset.mock.calls[0]?.[0]).toBe(asset.id);
+    expect(relinkMediaAsset.mock.calls[0]?.[1]).toBe('D:/moved/kael.mp4');
+    view.unmount();
+  });
+
+  it('prints the service s refusal, which is where both durations are', async () => {
+    const asset = [...sampleAssets().values()][0]!;
+    // What the service answers for a shorter replacement. The numbers are the
+    // actionable part — 「重新定位没有完成」 alone would send the user hunting.
+    const relinkMediaAsset = vi.fn(() =>
+      Promise.reject(
+        new Error('the replacement is 10.0s shorter than the file it replaces (20.0s vs 30.0s)'),
+      ),
+    );
+    const view = renderEditor({
+      client: editorClient({ relinkMediaAsset }),
+      shell: testNativeShell({ chooseFiles: async () => ['D:/moved/short.mp4'] }),
+    });
+    await screen.findByRole('button', { name: /保存/u });
+
+    fireEvent.click(
+      await waitFor(() => {
+        const row = document.querySelector(`[data-asset="${asset.id}"]`);
+        expect(row).not.toBeNull();
+        return row as HTMLElement;
+      }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: '重新定位' }));
+
+    expect(await screen.findByText(/10\.0s shorter/u)).toBeTruthy();
+    view.unmount();
+  });
+});

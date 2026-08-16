@@ -199,6 +199,26 @@ export interface ImportMediaAssetInput {
  * untouched: importing asset B cannot change asset A's beats, and asset B has
  * none cached yet.
  */
+/**
+ * Points an asset at the file it moved to, keeping its identity.
+ *
+ * Every clip references the asset by id, so nothing about the clips changes —
+ * which is exactly why the service refuses a replacement that is *shorter*
+ * than the original (`replacement_is_shorter`): those clips would then be cut
+ * from footage that no longer reaches that far. The refusal arrives as an
+ * error with both lengths in it, and the panel prints it.
+ */
+export function useRelinkMediaAsset() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, path }: { id: string; path: string }): Promise<MediaAsset> =>
+      client.relinkMediaAsset(id, path),
+    onSuccess: () => invalidateMediaAssets(queryClient),
+  });
+}
+
 export function useImportMediaAsset() {
   const client = useDesktopClient();
   const queryClient = useQueryClient();

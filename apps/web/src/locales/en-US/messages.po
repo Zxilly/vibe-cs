@@ -102,12 +102,12 @@ msgid "{0, plural, other {# 个目录}}"
 msgstr "{0, plural, one {# folder} other {# folders}}"
 
 #. placeholder {0}: items.length
-#: src/pages/home/PendingPlansPanel.tsx:64
+#: src/pages/home/PendingPlansPanel.tsx:69
 msgid "{0, plural, other {# 个等待确认}}"
 msgstr "{0, plural, other {# awaiting confirmation}}"
 
 #. placeholder {0}: plan.shot_count
-#: src/pages/home/PendingPlansPanel.tsx:111
+#: src/pages/home/PendingPlansPanel.tsx:118
 msgid "{0, plural, other {# 个镜头}}"
 msgstr "{0, plural, other {# shots}}"
 
@@ -137,7 +137,7 @@ msgid "{0, plural, other {# 段素材}}"
 msgstr "{0, plural, other {# clips}}"
 
 #. placeholder {0}: plan.origin_count
-#: src/pages/home/PendingPlansPanel.tsx:115
+#: src/pages/home/PendingPlansPanel.tsx:122
 msgid "{0, plural, other {依据 # 条证据}}"
 msgstr "{0, plural, other {on # pieces of evidence}}"
 
@@ -192,7 +192,7 @@ msgid "{0, plural, other {清空已选 #}}"
 msgstr "{0, plural, one {Clear # selected} other {Clear # selected}}"
 
 #. placeholder {0}: items.length - SHOWN
-#: src/pages/home/PendingPlansPanel.tsx:94
+#: src/pages/home/PendingPlansPanel.tsx:99
 msgid "{0, plural, other {还有 # 个，去 Agent 面板看}}"
 msgstr "{0, plural, other {# more — open the Agent panel}}"
 
@@ -1392,13 +1392,13 @@ msgid "依赖检查"
 msgstr "Dependency checks"
 
 #: src/pages/agent/SessionDrawer.tsx:331
-#: src/pages/EditorPage.tsx:381
+#: src/pages/EditorPage.tsx:411
 #: src/pages/library/SaveViewDialog.tsx:54
 #: src/pages/recording/ShotInspectorBlock.tsx:663
 msgid "保存"
 msgstr "Save"
 
-#: src/pages/EditorPage.tsx:347
+#: src/pages/EditorPage.tsx:377
 msgid "保存中…"
 msgstr "Saving…"
 
@@ -1494,12 +1494,12 @@ msgstr "Stop watching {0}"
 msgid "停止预览"
 msgstr "Stop preview"
 
-#: src/pages/EditorPage.tsx:498
+#: src/pages/EditorPage.tsx:528
 msgid "先保存或放弃当前改动，恢复会覆盖它们"
 msgstr "Save or discard the current changes first — restoring overwrites them"
 
-#: src/pages/EditorPage.tsx:396
-#: src/pages/EditorPage.tsx:413
+#: src/pages/EditorPage.tsx:426
+#: src/pages/EditorPage.tsx:443
 msgid "先保存改动，导出用的是服务端存着的工程"
 msgstr "Save first: an export renders the project the service has stored"
 
@@ -1524,7 +1524,7 @@ msgstr "Run the preflight first"
 msgid "先选一个回合"
 msgstr "Pick a round first"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:76
+#: src/pages/editor/MediaLibraryPanel.tsx:81
 msgid "先选一个素材"
 msgstr "Select an asset first"
 
@@ -1532,6 +1532,10 @@ msgstr "Select an asset first"
 #: src/pages/editor/EditorTimelinePanel.tsx:177
 msgid "先选中一个片段"
 msgstr "Select a clip first"
+
+#: src/pages/editor/MediaLibraryPanel.tsx:184
+msgid "先选中一个素材"
+msgstr "Select a media item first"
 
 #: src/pages/montage/ClipOrderBlock.tsx:126
 msgid "先选中一段再裁切"
@@ -1811,7 +1815,7 @@ msgstr "Tick one more player to compare. Up to {limit} — more than two columns
 msgid "再快一点"
 msgstr "A bit faster"
 
-#: src/pages/EditorPage.tsx:445
+#: src/pages/EditorPage.tsx:475
 msgid "再试一次"
 msgstr "Try again"
 
@@ -2936,7 +2940,7 @@ msgstr "Locate the opening kill of round {0}"
 msgid "定位文件"
 msgstr "Locate file"
 
-#: src/pages/home/PendingPlansPanel.tsx:123
+#: src/pages/home/PendingPlansPanel.tsx:130
 msgid "审阅方案"
 msgstr "Review plan"
 
@@ -3013,7 +3017,7 @@ msgstr "Alignment reasoning (from the service)"
 msgid "对齐第 {0} 拍到第 {1} 拍，之后的片段会跟着前后移动。"
 msgstr "Aligns it from beat {0} to beat {1}; the clips after it shift along with it."
 
-#: src/pages/editor/MediaLibraryPanel.tsx:161
+#: src/pages/editor/MediaLibraryPanel.tsx:166
 msgid "导入"
 msgstr "Import"
 
@@ -3027,20 +3031,20 @@ msgstr "Import Demo"
 msgid "导入一个 .dem，或添加一个监听目录自动发现"
 msgstr "Import a .dem, or add a watched folder to pick them up automatically"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:128
+#: src/pages/editor/MediaLibraryPanel.tsx:133
 msgid "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 msgstr "Import local video or audio and it becomes media this project can use."
 
-#: src/pages/EditorPage.tsx:273
+#: src/pages/EditorPage.tsx:303
 msgid "导入本机文件需要桌面应用，浏览器里做不到"
 msgstr "Importing local files needs the desktop app; a browser cannot do it"
 
-#: src/pages/EditorPage.tsx:299
+#: src/pages/EditorPage.tsx:329
 msgid "导入没有完成"
 msgstr "The import did not finish"
 
 #: src/pages/editor/EditorTimelinePanel.tsx:266
-#: src/pages/editor/MediaLibraryPanel.tsx:131
+#: src/pages/editor/MediaLibraryPanel.tsx:136
 msgid "导入素材"
 msgstr "Import media"
 
@@ -3069,8 +3073,8 @@ msgstr "Export returns a file, and the desktop build has no command to save it t
 msgid "导出元数据"
 msgstr "Export metadata"
 
-#: src/pages/EditorPage.tsx:388
-#: src/pages/EditorPage.tsx:399
+#: src/pages/EditorPage.tsx:418
+#: src/pages/EditorPage.tsx:429
 msgid "导出工程包"
 msgstr "Export package"
 
@@ -3094,8 +3098,8 @@ msgstr "Exporting a finished cut needs it. Recording and analysis are unaffected
 msgid "导出没有完成：{exportError}"
 msgstr "The export did not finish: {exportError}"
 
-#: src/pages/EditorPage.tsx:405
-#: src/pages/EditorPage.tsx:423
+#: src/pages/EditorPage.tsx:435
+#: src/pages/EditorPage.tsx:453
 msgid "导出视频"
 msgstr "Export video"
 
@@ -3213,7 +3217,7 @@ msgstr "The project was not changed, so a retry is safe."
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "Configuration restored from the backup; it takes effect once re-read."
 
-#: src/pages/EditorPage.tsx:351
+#: src/pages/EditorPage.tsx:381
 msgid "已保存"
 msgstr "Saved"
 
@@ -3803,7 +3807,7 @@ msgstr "Pending"
 msgid "待定 · 还有片段的素材长度没读到"
 msgstr "Pending · some clips' source lengths have not been read"
 
-#: src/pages/home/PendingPlansPanel.tsx:60
+#: src/pages/home/PendingPlansPanel.tsx:65
 msgid "待确认的方案"
 msgstr "Plans awaiting confirmation"
 
@@ -4216,7 +4220,7 @@ msgstr "Undo delete"
 msgid "撤销拒绝"
 msgstr "Undo reject"
 
-#: src/pages/EditorPage.tsx:465
+#: src/pages/EditorPage.tsx:495
 msgid "撤销这次修改"
 msgstr "Undo this change"
 
@@ -4243,7 +4247,7 @@ msgstr "Nothing playable under the playhead"
 msgid "播放头下没有画面"
 msgstr "No picture under the playhead"
 
-#: src/pages/EditorPage.tsx:260
+#: src/pages/EditorPage.tsx:262
 msgid "播放头这个位置已经有片段了，把播放头挪到空处再试"
 msgstr "There is already a clip at the playhead — move it to an empty spot and try again"
 
@@ -4637,7 +4641,7 @@ msgstr "Replace"
 
 #. placeholder {0}: keyframeLoss.clips
 #. placeholder {1}: keyframeLoss.keyframes
-#: src/pages/EditorPage.tsx:469
+#: src/pages/EditorPage.tsx:499
 msgid "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 {1} 个关键帧。"
 msgstr "{0} clips were shortened; saving drops the {1} keyframes that now fall outside them."
 
@@ -4713,7 +4717,7 @@ msgstr "Facing and field of view"
 msgid "未下载"
 msgstr "Not downloaded"
 
-#: src/pages/EditorPage.tsx:349
+#: src/pages/EditorPage.tsx:379
 msgid "未保存"
 msgstr "Unsaved"
 
@@ -5054,7 +5058,7 @@ msgstr "Blur"
 msgid "正在从方案生成预览计划"
 msgstr "Generating the preview plan from the plan"
 
-#: src/pages/EditorPage.tsx:377
+#: src/pages/EditorPage.tsx:407
 #: src/pages/settings/FilesSection.tsx:197
 msgid "正在保存"
 msgstr "Saving"
@@ -5242,6 +5246,10 @@ msgstr "Connecting to the local service"
 #: src/data/serviceAction.tsx:75
 msgid "正在连接本地服务，稍后即可使用"
 msgstr "Connecting to the local service — ready in a moment"
+
+#: src/pages/editor/MediaLibraryPanel.tsx:184
+msgid "正在重新定位"
+msgstr "Relocating"
 
 #: src/app/boundary/ServiceGate.tsx:253
 msgid "正在重连"
@@ -5519,7 +5527,7 @@ msgstr "No overview transform was found for {mapName}, so world coordinates cann
 msgid "没有数据目录"
 msgstr "No data directory"
 
-#: src/pages/home/PendingPlansPanel.tsx:83
+#: src/pages/home/PendingPlansPanel.tsx:88
 msgid "没有等待确认的方案。"
 msgstr "No plans awaiting confirmation."
 
@@ -5539,7 +5547,7 @@ msgstr "No clip selected"
 msgid "没有道具记录"
 msgstr "No utility record"
 
-#: src/pages/EditorPage.tsx:377
+#: src/pages/EditorPage.tsx:407
 msgid "没有需要保存的改动"
 msgstr "Nothing to save"
 
@@ -5629,7 +5637,7 @@ msgstr "Dark"
 msgid "添加 {0} 段"
 msgstr "Add {0} clips"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:172
+#: src/pages/editor/MediaLibraryPanel.tsx:177
 msgid "添加到时间轴"
 msgstr "Add to timeline"
 
@@ -5960,7 +5968,7 @@ msgstr "Revision"
 #. placeholder {0}: query.data.revision
 #. placeholder {0}: snapshot.revision
 #: src/pages/editor/VersionHistoryPanel.tsx:72
-#: src/pages/EditorPage.tsx:356
+#: src/pages/EditorPage.tsx:386
 msgid "版本 {0}"
 msgstr "Revision {0}"
 
@@ -6168,7 +6176,7 @@ msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "Objective"
 
-#: src/pages/EditorPage.tsx:259
+#: src/pages/EditorPage.tsx:261
 msgid "目标轨道已锁定"
 msgstr "The target track is locked"
 
@@ -6243,7 +6251,7 @@ msgstr "See utility & economy"
 #: src/pages/agent/SessionDrawer.tsx:235
 #: src/pages/delivery/OutputsView.tsx:148
 #: src/pages/editor/EditorTimelinePanel.tsx:253
-#: src/pages/EditorPage.tsx:454
+#: src/pages/EditorPage.tsx:484
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
 #: src/pages/RecoveryPage.tsx:99
@@ -6285,7 +6293,8 @@ msgstr "View"
 msgid "视野 FOV"
 msgstr "Camera FOV"
 
-#: src/pages/EditorPage.tsx:282
+#: src/pages/EditorPage.tsx:284
+#: src/pages/EditorPage.tsx:312
 msgid "视频与音频"
 msgstr "Video and audio"
 
@@ -6486,8 +6495,8 @@ msgstr "The source is at its end, with no slack left to slip"
 msgid "素材已经到头了，没有可用的余量"
 msgstr "The source has run out — there is no headroom left"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:119
-#: src/pages/editor/MediaLibraryPanel.tsx:121
+#: src/pages/editor/MediaLibraryPanel.tsx:124
+#: src/pages/editor/MediaLibraryPanel.tsx:126
 msgid "素材库"
 msgstr "Media"
 
@@ -6639,7 +6648,7 @@ msgctxt "plan-change"
 msgid "缩短"
 msgstr "Shorten"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:150
+#: src/pages/editor/MediaLibraryPanel.tsx:155
 msgid "缺失"
 msgstr "Missing"
 
@@ -6960,7 +6969,7 @@ msgstr "Could not read the usage figures"
 msgid "读不到工作区里正在进行的对象：{referencesError}"
 msgstr "What is going on in the workspace could not be read: {referencesError}"
 
-#: src/pages/home/PendingPlansPanel.tsx:71
+#: src/pages/home/PendingPlansPanel.tsx:76
 msgid "读不到待确认的方案：{error}"
 msgstr "Could not read the plans awaiting confirmation: {error}"
 
@@ -7031,7 +7040,7 @@ msgstr "Could not read the capture component state: {hlaeError}"
 msgid "读不到预设：{failure}"
 msgstr "The presets could not be read: {failure}"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:106
+#: src/pages/editor/MediaLibraryPanel.tsx:111
 #: src/pages/montage/ExportBlock.tsx:234
 msgid "读取中"
 msgstr "Reading"
@@ -7420,7 +7429,7 @@ msgstr "No watched folders yet. Add one and new Demos arrive on their own."
 msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 msgstr "No watched folder yet. Add one and a new .dem is cataloged automatically."
 
-#: src/pages/editor/MediaLibraryPanel.tsx:127
+#: src/pages/editor/MediaLibraryPanel.tsx:132
 msgid "还没有素材"
 msgstr "No media yet"
 
@@ -7479,8 +7488,8 @@ msgstr "No preview plan yet — generate one first"
 msgid "还没读到这个素材的时长，不知道可以滑移多少"
 msgstr "This asset's length has not been read, so there is no way to know how far it can slip"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:78
-#: src/pages/EditorPage.tsx:257
+#: src/pages/editor/MediaLibraryPanel.tsx:83
+#: src/pages/EditorPage.tsx:259
 msgid "还没读到这个素材的时长，读完才能放到时间轴上"
 msgstr "This asset's length has not been read yet; it can go on the timeline once it has"
 
@@ -7569,7 +7578,7 @@ msgstr "This address does not exist, or it went away in this build. Everything e
 msgid "这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。"
 msgstr "This address is not the id of a task record. Every row in the task record can be opened from the list."
 
-#: src/pages/EditorPage.tsx:437
+#: src/pages/EditorPage.tsx:467
 msgid "这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。"
 msgstr "This project was changed elsewhere, so that save did not take effect. Reloading discards the unsaved changes here."
 
@@ -7901,7 +7910,7 @@ msgid "这次恢复没有完成：{actionError}"
 msgstr "This recovery did not finish: {actionError}"
 
 #: src/pages/editor/EditorProjectList.tsx:179
-#: src/pages/EditorPage.tsx:448
+#: src/pages/EditorPage.tsx:478
 #: src/pages/montage/MontageProjectList.tsx:174
 msgid "这次操作没有完成：{writeError}"
 msgstr "That action did not finish: {writeError}"
@@ -8137,13 +8146,17 @@ msgstr "Choose files"
 msgid "选择要导入的 Demo 文件"
 msgstr "Choose the Demo files to import"
 
-#: src/pages/EditorPage.tsx:279
+#: src/pages/EditorPage.tsx:309
 msgid "选择要导入的素材"
 msgstr "Choose media to import"
 
 #: src/pages/settings/FilesSection.tsx:224
 msgid "选择要监听的目录"
 msgstr "Choose folders to watch"
+
+#: src/pages/EditorPage.tsx:281
+msgid "选择这个素材移动到的位置"
+msgstr "Choose where this media moved to"
 
 #: src/domain/match/HighlightRow.tsx:74
 msgid "选择这条高光"
@@ -8309,14 +8322,22 @@ msgstr "Reload"
 msgid "重新发起"
 msgstr "Start again"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:180
+#: src/pages/editor/MediaLibraryPanel.tsx:190
 #: src/pages/library/libraryColumns.tsx:200
 msgid "重新定位"
 msgstr "Relink"
 
+#: src/pages/EditorPage.tsx:298
+msgid "重新定位没有完成"
+msgstr "The relocation did not finish"
+
 #: src/pages/editor/MediaLibraryPanel.tsx:178
-msgid "重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程"
-msgstr "Relocating has to decide what happens to the clips already referencing this file, and that repair flow is not built in this round"
+#~ msgid "重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程"
+#~ msgstr "Relocating has to decide what happens to the clips already referencing this file, and that repair flow is not built in this round"
+
+#: src/pages/EditorPage.tsx:275
+msgid "重新定位需要桌面应用，浏览器里选不到本机文件"
+msgstr "Relocating needs the desktop app; a browser cannot reach local files"
 
 #: src/pages/match/views/ReviewView.tsx:746
 msgid "重新打开"
@@ -8365,7 +8386,7 @@ msgstr "Read the replay again"
 msgid "重新读取方案"
 msgstr "Read the plan again"
 
-#: src/pages/EditorPage.tsx:435
+#: src/pages/EditorPage.tsx:465
 #: src/pages/MontagePage.tsx:368
 #: src/pages/MontagePage.tsx:380
 #: src/pages/MontagePage.tsx:386
@@ -8402,7 +8423,7 @@ msgstr "Choose again"
 #: src/pages/GuidePage.tsx:96
 #: src/pages/HistoryPage.tsx:223
 #: src/pages/home/ActiveProjectsPanel.tsx:83
-#: src/pages/home/PendingPlansPanel.tsx:70
+#: src/pages/home/PendingPlansPanel.tsx:75
 #: src/pages/home/RecentMatchesPanel.tsx:57
 #: src/pages/library/AddWatchDirectoryDialog.tsx:123
 #: src/pages/library/DeleteDemosDialog.tsx:95
@@ -8581,7 +8602,7 @@ msgid "需要服务"
 msgstr "Service required"
 
 #: src/domain/media/ClipStrip.tsx:313
-#: src/pages/editor/MediaLibraryPanel.tsx:104
+#: src/pages/editor/MediaLibraryPanel.tsx:109
 msgid "需要重新定位"
 msgstr "Needs relinking"
 
@@ -8602,7 +8623,7 @@ msgid "音量"
 msgstr "Volume"
 
 #: src/pages/editor/InspectorPanel.tsx:212
-#: src/pages/editor/MediaLibraryPanel.tsx:141
+#: src/pages/editor/MediaLibraryPanel.tsx:146
 msgid "音频"
 msgstr "Audio"
 

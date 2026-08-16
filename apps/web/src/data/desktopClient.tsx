@@ -140,6 +140,7 @@ export type DesktopClient = Pick<
   | 'listMediaAssets'
   | 'getMediaAsset'
   | 'importMediaAsset'
+  | 'relinkMediaAsset'
   | 'deleteMediaAsset'
   | 'extractAssetAudio'
   | 'generateMediaProxy'

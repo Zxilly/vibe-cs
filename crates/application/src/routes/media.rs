@@ -2243,9 +2243,49 @@ async fn relink_asset_path(
         None,
     )
     .await?;
+    reject_shorter_relink(&existing, &replacement)?;
     commit_asset_relink(&state, existing, replacement)
         .await
         .map(Json)
+}
+
+/// Refuses a relink whose replacement is shorter than the file it replaces.
+///
+/// Relinking keeps the asset id, and clips reference the asset by id, so every
+/// clip follows the new file automatically — including the ones whose
+/// `source_out` now runs past the end of it. Nothing downstream catches that:
+/// `EditorProject::validate` cannot see the asset, and the export's own
+/// `validate_editor_clip` only checks `source_out > source_in`. The render then
+/// asks FFmpeg to read past the end of the file, and what comes out is a short
+/// clip or black frames rather than an error anyone can point at.
+///
+/// 「重新定位」 means *the same file moved*. A genuinely different take is
+/// `replace_asset_upload`, which is not held to this and does not pretend the
+/// clips are unaffected.
+///
+/// Only refuses when both lengths are known: an asset whose probe has not
+/// landed yet has no duration, and blocking on 「不知道」 would make the repair
+/// unavailable exactly when the file is hardest to reason about.
+fn reject_shorter_relink(existing: &MediaAsset, replacement: &MediaAsset) -> ApiResult<()> {
+    let (Some(current), Some(next)) = (existing.duration_seconds, replacement.duration_seconds)
+    else {
+        return Ok(());
+    };
+    // A frame of tolerance at 60 fps: two encodes of one source disagree in the
+    // last decimal, and refusing over 4 milliseconds would be refusing noise.
+    if next + 0.017 >= current {
+        return Ok(());
+    }
+    Err(ApiError::new(
+        StatusCode::CONFLICT,
+        "replacement_is_shorter",
+        format!(
+            "the replacement is {:.1}s shorter than the file it replaces ({:.1}s vs {:.1}s);              clips cut from the original would run past its end",
+            current - next,
+            next,
+            current
+        ),
+    ))
 }
 
 async fn replace_asset_upload(
@@ -3546,6 +3586,68 @@ mod tests {
     };
 
     use super::*;
+
+    fn asset_of_length(seconds: Option<f64>) -> MediaAsset {
+        MediaAsset {
+            id: Uuid::new_v4(),
+            project_id: None,
+            path: "D:/footage/kael.mp4".to_owned(),
+            name: "kael.mp4".to_owned(),
+            kind: "video".to_owned(),
+            duration_seconds: seconds,
+            width: Some(1920),
+            height: Some(1080),
+            file_size: 42_000_000,
+            has_audio: true,
+            proxy_path: None,
+            proxy_status: MediaProxyStatus::NotRequested,
+            waveform: None,
+            metadata_status: MediaMetadataStatus::Ready,
+            created_at: Utc::now(),
+        }
+    }
+
+    #[test]
+    fn a_relink_to_a_shorter_file_is_refused_with_the_difference() {
+        let error =
+            reject_shorter_relink(&asset_of_length(Some(30.0)), &asset_of_length(Some(20.0)))
+                .expect_err("a shorter replacement must be refused");
+
+        // The numbers are the message: a user who is told 「更短」 without them
+        // has to go measure both files to know whether it matters.
+        let body = format!("{error:?}");
+        assert!(body.contains("10.0s shorter"), "{body}");
+        assert!(body.contains("20.0s vs 30.0s"), "{body}");
+    }
+
+    #[test]
+    fn a_relink_to_the_same_or_a_longer_file_is_allowed() {
+        assert!(
+            reject_shorter_relink(&asset_of_length(Some(30.0)), &asset_of_length(Some(30.0)))
+                .is_ok()
+        );
+        assert!(
+            reject_shorter_relink(&asset_of_length(Some(30.0)), &asset_of_length(Some(45.0)))
+                .is_ok()
+        );
+        // One frame at 60 fps of disagreement between two encodes is noise, not
+        // a shorter file.
+        assert!(
+            reject_shorter_relink(&asset_of_length(Some(30.0)), &asset_of_length(Some(29.99)))
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn an_unmeasured_length_does_not_block_the_repair() {
+        // The probe has not landed, or did not land. Refusing on 「不知道」 would
+        // make the fix unavailable exactly when the file is hardest to reason
+        // about — which is the state a missing asset is usually in.
+        assert!(reject_shorter_relink(&asset_of_length(None), &asset_of_length(Some(5.0))).is_ok());
+        assert!(
+            reject_shorter_relink(&asset_of_length(Some(30.0)), &asset_of_length(None)).is_ok()
+        );
+    }
 
     #[test]
     fn media_json_bodies_accept_only_the_current_exact_shapes() {

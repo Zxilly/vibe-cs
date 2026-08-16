@@ -22,14 +22,19 @@
  * so 「添加到时间轴」 cannot know how long a clip to make. Collapsing pending
  * into missing would tell the user to relocate a file that is fine.
  *
- * ── 导入 is wired; 「重新定位」 is not ────────────────────────────────────
+ * ── 导入 and 「重新定位」 ─────────────────────────────────────────────────
  *
- * Both need the native file picker and only one of them is built. 导入 goes
- * through `chooseFiles` → `importMediaAsset` (phase 3g); 「重新定位」 needs
- * `relinkMediaAsset` *and* a decision about what happens to the clips already
- * pointing at the old file, which is a repair flow rather than a picker. The
- * artboard draws the button, so it is drawn, disabled, with the reason on it —
- * not faked with a text box asking the user to type a Windows path.
+ * Both go through the native picker. 「重新定位」 was disabled for a round with
+ * 「要决定已经引用这个文件的片段怎么办」 on it, and that turned out to be the
+ * wrong question: relinking keeps the asset id and clips reference the asset by
+ * id, so every clip follows the new file without being touched.
+ *
+ * The real question was length. A shorter replacement leaves clips cut past the
+ * end of it, and nothing downstream catches that — the export just asks FFmpeg
+ * to read past the end of a file. The service refuses those now, with both
+ * durations in the message, and this panel prints what it said. A genuinely
+ * different take is `replaceMediaAsset`, which is a different button and is
+ * still not built.
  */
 
 import { t } from '@lingui/core/macro';
@@ -174,8 +179,13 @@ export function MediaLibraryPanel({ desk, service }: EditorPanelProps) {
         <Button
           variant="secondary"
           size="sm"
-          disabled
-          disabledReason={t`重新定位要决定已经引用这个文件的片段怎么办，这一版还没有做这条修复流程`}
+          disabled={selectedAsset === null || desk.relinking}
+          disabledReason={
+            selectedAsset === null ? t`先选中一个素材` : t`正在重新定位`
+          }
+          onClick={() => {
+            if (selectedAsset !== null) desk.relinkAsset(selectedAsset.id);
+          }}
         >
           <Trans>重新定位</Trans>
         </Button>

@@ -7077,6 +7077,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.20",
  "tokio",
+ "ts-rs",
  "url",
  "uuid",
 ]
@@ -7107,6 +7108,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
+ "ts-rs",
  "url",
  "uuid",
  "vibe-cs-cosmetics",
@@ -7130,6 +7132,7 @@ dependencies = [
  "source2-demo",
  "tempfile",
  "thiserror 2.0.20",
+ "ts-rs",
 ]
 
 [[package]]
@@ -7146,6 +7149,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
+ "ts-rs",
  "uuid",
  "vibe-cs-domain",
  "walkdir",
@@ -7225,6 +7229,7 @@ dependencies = [
  "sha2 0.11.0",
  "tempfile",
  "thiserror 2.0.20",
+ "ts-rs",
  "url",
  "zip 8.6.0",
 ]
@@ -7245,6 +7250,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
+ "ts-rs",
  "url",
  "uuid",
  "vibe-cs-domain",
@@ -7264,6 +7270,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
+ "ts-rs",
  "uuid",
  "vibe-cs-domain",
 ]
@@ -7283,6 +7290,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tokio",
+ "ts-rs",
  "url",
  "uuid",
  "windows 0.62.2",
@@ -7329,6 +7337,7 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.30.0",
  "tracing",
+ "ts-rs",
  "url",
  "uuid",
  "vibe-cs-application",
@@ -7373,6 +7382,7 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "tracing",
+ "ts-rs",
  "url",
  "uuid",
  "vibe-cs-domain",

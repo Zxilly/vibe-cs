@@ -15,15 +15,19 @@
  *
  *   ✓ 4 个镜头        `shot_count`
  *   ✓ 依据 3 条证据   `origin_count`
- *   ✗ 预计 42 秒      no duration on the summary — it is the sum of the shots'
- *                     durations, and the summary deliberately omits the shot
- *                     bodies (that is what makes it a summary)
+ *   ✓ 预计 42 秒      `total_duration_seconds`, added to the summary in the
+ *                     gap-closing round. It is computed where the shot bodies
+ *                     already are — the alternative was N more requests to
+ *                     print one number per row.
  *   ✗ Kael · Mirage   no Demo or player binding on a plan at all (§10.5 gap 1)
  *
- * So the row prints the title, the shot count and the evidence count, and does
- * **not** print a duration or a subject. Fetching every plan's full body to
- * total its shots would be N requests to render a list, and inventing the
- * subject line is not available at any price.
+ * So the row prints the title, the length, the shot count and the evidence
+ * count, and does **not** print a subject. Inventing the subject line is not
+ * available at any price.
+ *
+ * Both counts exclude soft-removed shots, which is a property of the summary
+ * rather than of this row: a plan the user has taken two shots out of reads
+ * the same here as it does on the page this row opens.
  *
  * ── 「稍后处理」 is not drawn ─────────────────────────────────────────────
  *
@@ -40,6 +44,7 @@ import { Notice } from '../../design/feedback';
 import { useAgentPlanList } from '../../data/plans';
 import { dataErrorMessage } from '../../data/errors';
 import type { AgentPlanSummary } from '../../shared/desktop/dto';
+import { formatShotDuration } from '../../domain/agent';
 import { RouteLink } from '../RouteLink';
 
 /** Enough to show the queue without turning the workbench into a list page. */
@@ -106,8 +111,10 @@ function PlanRow({ plan }: { readonly plan: AgentPlanSummary }) {
       <div className="flex min-w-0 flex-col gap-1">
         <p className="truncate text-sm">{plan.title}</p>
         <p className="text-xs text-neutral-600">
-          {/* Only what the summary carries. The board's 「预计 42 秒」 and its
-              subject line have no field — see the module comment. */}
+          {/* Only what the summary carries. The board's subject line has no
+              field — see the module comment. */}
+          {formatShotDuration(plan.total_duration_seconds)}
+          {' · '}
           <Plural value={plan.shot_count} other="# 个镜头" />
           {plan.origin_count > 0 ? (
             <>

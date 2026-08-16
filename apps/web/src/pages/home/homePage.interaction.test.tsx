@@ -104,6 +104,39 @@ describe('工作台首页', () => {
     expect(bar?.getAttribute('aria-valuenow')).toBe('62');
   });
 
+  it('prints a plan s length beside its shot count', async () => {
+    const plans = [
+      {
+        id: 'plan-1',
+        title: 'Kael Mirage 1v3',
+        status: 'awaiting_confirmation' as const,
+        revision: 3,
+        // Both figures come from the summary and both exclude soft-removed
+        // shots — the service computes them where the shot bodies already are,
+        // so a list of plans does not become a list of requests.
+        shot_count: 4,
+        total_duration_seconds: 42,
+        origin_count: 3,
+        created_at: '2026-08-15T09:00:00.000Z',
+        updated_at: '2026-08-15T09:30:00.000Z',
+      },
+    ];
+    renderPage({
+      element: <HomePage />,
+      client: { ...CLIENT, listAgentPlans: () => Promise.resolve(plans) },
+      route: '/',
+      health: HEALTHY,
+    });
+
+    const row = await waitFor(() => {
+      const node = document.querySelector('[data-plan="plan-1"]');
+      expect(node).not.toBeNull();
+      return node as HTMLElement;
+    });
+    expect(row.textContent).toContain('42.0s');
+    expect(row.textContent).toContain('4 个镜头');
+  });
+
   it('raises the one failure that can still be recovered', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
 

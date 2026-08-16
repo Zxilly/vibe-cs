@@ -1091,7 +1091,9 @@ impl AgentWorkspaceSettings {
 
 /// A plan row for list views: the head facts without the shot bodies. It is the
 /// shape the "in progress" reference picker and the plan directory read.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+// `Eq` is gone with the arrival of a duration: `f64` has no total equality, and
+// a summary is compared in tests rather than used as a key.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(deny_unknown_fields)]
 #[ts(export)]
 pub struct AgentPlanSummary {
@@ -1099,7 +1101,19 @@ pub struct AgentPlanSummary {
     pub title: String,
     pub status: AgentPlanStatus,
     pub revision: i64,
+    /// Shots that are still in the plan, soft-removed ones excluded.
+    ///
+    /// A removed shot stays in the document so the removal can be undone, and
+    /// each consumer decides whether it counts — the recording route excludes
+    /// it, and so does the plan strip. This count is what a list row shows a
+    /// person, so it has to agree with the page they open next.
     pub shot_count: u32,
+    /// The plan's length, as the sum of what `shot_count` counted.
+    ///
+    /// On the summary rather than derived by the client: the whole point of a
+    /// summary is that it omits the shot bodies, so a list of ten plans would
+    /// otherwise need ten more requests to print one number per row.
+    pub total_duration_seconds: f64,
     pub origin_count: u32,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

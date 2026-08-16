@@ -10,7 +10,23 @@ export type AgentPlanSummary = {
   title: string;
   status: AgentPlanStatus;
   revision: number;
+  /**
+   * Shots that are still in the plan, soft-removed ones excluded.
+   *
+   * A removed shot stays in the document so the removal can be undone, and
+   * each consumer decides whether it counts — the recording route excludes
+   * it, and so does the plan strip. This count is what a list row shows a
+   * person, so it has to agree with the page they open next.
+   */
   shot_count: number;
+  /**
+   * The plan's length, as the sum of what `shot_count` counted.
+   *
+   * On the summary rather than derived by the client: the whole point of a
+   * summary is that it omits the shot bodies, so a list of ten plans would
+   * otherwise need ten more requests to print one number per row.
+   */
+  total_duration_seconds: number;
   origin_count: number;
   created_at: string;
   updated_at: string;

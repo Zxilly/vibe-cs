@@ -612,12 +612,22 @@ impl Storage {
                 rows
             {
                 let shots: Vec<AgentPlanShot> = decode(&shots_json)?;
+                // Soft-removed shots are excluded from both figures. They stay in
+                // the document so the removal can be undone, but a list row that
+                // counted them would disagree with the page it opens.
+                let live = shots.iter().filter(|shot| shot.removed_by.is_none());
+                let total_duration_seconds = live
+                    .clone()
+                    .map(|shot| shot.duration_seconds)
+                    .filter(|seconds| seconds.is_finite() && *seconds > 0.0)
+                    .sum();
                 summaries.push(AgentPlanSummary {
                     id,
                     title,
                     status,
                     revision,
-                    shot_count: u32::try_from(shots.len()).unwrap_or(u32::MAX),
+                    shot_count: u32::try_from(live.count()).unwrap_or(u32::MAX),
+                    total_duration_seconds,
                     origin_count: u32::try_from(origin_count).unwrap_or(u32::MAX),
                     created_at,
                     updated_at,
@@ -1127,10 +1137,11 @@ mod tests {
     use uuid::Uuid;
     use vibe_cs_domain::{
         AgentObjectKind, AgentObjectRefTouch, AgentPlanAuthor, AgentPlanCreate, AgentPlanEdit,
-        AgentPlanOriginDraft, AgentPlanRestore, AgentPlanShot, AgentPlanStatus, AgentPlanUpdate,
-        AgentSessionEntry, AgentSessionEntryDraft, AgentSessionQuery, AgentSessionRetention,
-        AgentShotView, AgentWorkspaceSettings, EditorProject, HlaeCameraStyle, JobStatus,
-        RecordedClip, RecordingJob, WorkspaceEditChange, WorkspaceEditOperation,
+        AgentPlanOriginDraft, AgentPlanQuery, AgentPlanRestore, AgentPlanShot, AgentPlanStatus,
+        AgentPlanUpdate, AgentSessionEntry, AgentSessionEntryDraft, AgentSessionQuery,
+        AgentSessionRetention, AgentShotView, AgentWorkspaceSettings, EditorProject,
+        HlaeCameraStyle, JobStatus, RecordedClip, RecordingJob, WorkspaceEditChange,
+        WorkspaceEditOperation,
     };
 
     use crate::Storage;
@@ -1624,6 +1635,60 @@ mod tests {
         assert_eq!(notice.note.as_deref(), Some("起手那段留给建立镜头交代"));
         assert_eq!(session.refs.len(), 1);
         assert_eq!(session.refs[0].id, plan.id);
+    }
+
+    #[tokio::test]
+    async fn a_plan_summary_counts_and_totals_only_the_shots_that_are_still_in_it() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let session = storage
+            .create_agent_session("Kael 的 1v3".to_owned())
+            .await
+            .expect("session");
+        let plan = storage
+            .create_agent_plan(AgentPlanCreate {
+                title: "Kael Mirage 1v3".to_owned(),
+                status: AgentPlanStatus::AwaitingConfirmation,
+                shots: vec![
+                    shot("01 建立地点", 4.0, AgentPlanAuthor::Agent),
+                    shot("02 跟随突破", 8.5, AgentPlanAuthor::Agent),
+                    shot("03 残局", 12.5, AgentPlanAuthor::Agent),
+                ],
+                origin: None,
+            })
+            .await
+            .expect("plan");
+
+        let mut shots = plan.shots.clone();
+        // Soft-removed, which is how the user takes a shot out: it stays in the
+        // document so 「撤销」 has something to restore.
+        shots[1].removed_by = Some(AgentPlanAuthor::User);
+        storage
+            .apply_agent_plan_edit(AgentPlanEdit {
+                plan_id: plan.id,
+                expected_revision: 1,
+                status: AgentPlanStatus::AwaitingConfirmation,
+                shots,
+                origin: origin(session.id, "移除镜头 02"),
+                changes: Vec::new(),
+                note: None,
+            })
+            .await
+            .expect("edit");
+
+        let summaries = storage
+            .list_agent_plans(AgentPlanQuery::default())
+            .await
+            .expect("plans");
+        let summary = summaries
+            .iter()
+            .find(|summary| summary.id == plan.id)
+            .expect("the plan");
+
+        // Two shots and 16.5 seconds, not three and 25: the row a person reads
+        // has to agree with the page they open next, and the recording route
+        // already excludes removed shots.
+        assert_eq!(summary.shot_count, 2);
+        assert!((summary.total_duration_seconds - 16.5).abs() < 1e-9);
     }
 
     #[tokio::test]

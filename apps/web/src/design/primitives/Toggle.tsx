@@ -1,8 +1,16 @@
 /**
  * Design system, layer 1 of 3 — Toggle.
  *
- * Not a pill switch. The design reference draws a square one, 16 times across
- * the settings artboards, always as the same three declarations:
+ * shadcn's Switch — Radix `SwitchPrimitive` — wearing the shape the design
+ * reference draws. Radix owns the behaviour: the `switch` role, `aria-checked`,
+ * Space and Enter, the `data-state` attribute the classes below hang off, and
+ * the hidden form input that appears only inside a `<form>`. This file owns
+ * nothing but the geometry and the tokens.
+ *
+ * ── The shape ─────────────────────────────────────────────────────────────
+ *
+ * Not a pill switch. The reference draws a square one, 16 times across the
+ * settings artboards, always as the same three declarations:
  *
  *   track  `width:34px;height:18px;background:var(--color-accent)` when on,
  *          `var(--color-neutral-300)` when off
@@ -18,67 +26,63 @@
  * no token for them and inventing one would imply a family that does not
  * exist. Every colour is a token.
  *
- * The element is a `<button role="switch">`, which gets Space, Enter and the
- * checked state announced without a keydown handler. The reference draws a
- * `<span>`, but a span cannot be operated.
+ * ── locked is not disabled ────────────────────────────────────────────────
+ *
+ * A disabled switch is dimmed and drops out of the tab order, and this one
+ * must do neither: it states a rule the user is entitled to read, at full
+ * strength, with the keyboard. So `locked` sets `aria-disabled` and swallows
+ * the change rather than reaching for Radix's `disabled`, which would do both
+ * of the things this switch must not do.
  *
  * The switch carries no label of its own: the reference always puts the title
  * and its explanatory line in the row to the left, which is a layout concern.
  * `aria-label` or `aria-labelledby` is therefore required.
  */
 
-import type { ButtonHTMLAttributes, Ref } from 'react';
+import * as SwitchPrimitive from '@radix-ui/react-switch';
+import type { ComponentPropsWithoutRef } from 'react';
 
 import { cn } from '../cn';
 
 export interface ToggleProps
-  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children' | 'type' | 'onChange'> {
+  extends Omit<
+    ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>,
+    'className' | 'children' | 'checked' | 'onChange' | 'onCheckedChange' | 'asChild'
+  > {
   checked: boolean;
-  onChange?: (checked: boolean) => void;
+  onChange?: ((checked: boolean) => void) | undefined;
   /**
    * A setting the product does not let the user change. Renders the
-   * reference's locked treatment and blocks the click, rather than dimming a
+   * reference's locked treatment and blocks the change, rather than dimming a
    * control that is still operable.
    */
   locked?: boolean;
   className?: string;
-  ref?: Ref<HTMLButtonElement>;
 }
 
-const TRACK_CLASS = 'relative block h-[18px] w-[34px] flex-none transition-colors disabled:opacity-45';
+const TRACK_CLASS =
+  'relative block h-[18px] w-[34px] flex-none transition-colors ' +
+  'data-[state=checked]:bg-accent data-[state=unchecked]:bg-neutral-300 ' +
+  'disabled:opacity-45';
 
-const KNOB_CLASS = 'absolute top-[1px] size-[16px] bg-bg';
+const KNOB_CLASS =
+  'absolute top-[1px] size-[16px] bg-bg ' +
+  'data-[state=checked]:right-[1px] data-[state=unchecked]:left-[1px]';
 
-export function Toggle({
-  checked,
-  onChange,
-  locked = false,
-  disabled = false,
-  className,
-  onClick,
-  ref,
-  ...rest
-}: ToggleProps) {
-  const inert = disabled || locked;
-
+export function Toggle({ checked, onChange, locked = false, className, ...rest }: ToggleProps) {
   return (
-    <button
+    <SwitchPrimitive.Root
       {...rest}
-      ref={ref}
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
+      checked={checked}
       {...(locked ? { 'aria-disabled': true, 'data-locked': 'true' } : {})}
-      className={cn(TRACK_CLASS, checked ? 'bg-accent' : 'bg-neutral-300', className)}
-      onClick={(event) => {
-        onClick?.(event);
-        if (inert || event.defaultPrevented) return;
-        onChange?.(!checked);
+      className={cn(TRACK_CLASS, className)}
+      onCheckedChange={(next) => {
+        if (locked) return;
+        onChange?.(next);
       }}
     >
-      <span className={cn(KNOB_CLASS, checked ? 'right-[1px]' : 'left-[1px]')} />
-      {locked ? <span className="absolute inset-0 border border-accent-700" /> : null}
-    </button>
+      <SwitchPrimitive.Thumb className={KNOB_CLASS} />
+      {locked ? <span className="pointer-events-none absolute inset-0 border border-accent-700" /> : null}
+    </SwitchPrimitive.Root>
   );
 }

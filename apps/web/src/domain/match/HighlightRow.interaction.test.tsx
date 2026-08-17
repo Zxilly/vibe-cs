@@ -22,8 +22,8 @@ describe('HighlightRow multi-select', () => {
       <HighlightRow highlight={HIGHLIGHT} selected onSelectedChange={onSelectedChange} />,
     );
 
-    const box = getByRole('checkbox', { name: '选择这条高光' }) as HTMLInputElement;
-    expect(box.checked).toBe(true);
+    const box = getByRole('checkbox', { name: '选择这条高光' });
+    expect(box.getAttribute('aria-checked')).toBe('true');
 
     fireEvent.click(box);
     expect(onSelectedChange).toHaveBeenCalledWith(false, HIGHLIGHT);
@@ -35,10 +35,10 @@ describe('HighlightRow multi-select', () => {
     );
 
     fireEvent.click(getByRole('checkbox', { name: '选择这条高光' }));
-    expect((getByRole('checkbox', { name: '选择这条高光' }) as HTMLInputElement).checked).toBe(false);
+    expect(getByRole('checkbox', { name: '选择这条高光' }).getAttribute('aria-checked')).toBe('false');
 
     rerender(<HighlightRow highlight={HIGHLIGHT} selected onSelectedChange={() => {}} />);
-    expect((getByRole('checkbox', { name: '选择这条高光' }) as HTMLInputElement).checked).toBe(true);
+    expect(getByRole('checkbox', { name: '选择这条高光' }).getAttribute('aria-checked')).toBe('true');
   });
 
   it('reaches the checkbox with the keyboard', () => {

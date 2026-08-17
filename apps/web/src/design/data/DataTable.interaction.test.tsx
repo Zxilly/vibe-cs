@@ -207,18 +207,18 @@ describe('DataTable select-all', () => {
 
   it('goes none → all → none, and shows the indeterminate middle', () => {
     const { getByLabelText, getAllByRole } = renderInteractive(<Harness />);
-    const all = getByLabelText('全选本页') as HTMLInputElement;
+    const all = getByLabelText('全选本页');
 
     fireEvent.click(getAllByRole('checkbox')[1] as HTMLElement);
-    expect(all.indeterminate).toBe(true);
-    expect(all.checked).toBe(false);
+    // 「mixed」 is the aria spelling of a partial selection; Radix carries the
+    // same fact on `data-state` for CSS.
+    expect(all.getAttribute('aria-checked')).toBe('mixed');
 
     fireEvent.click(all);
-    expect(all.checked).toBe(true);
-    expect(all.indeterminate).toBe(false);
+    expect(all.getAttribute('aria-checked')).toBe('true');
 
     fireEvent.click(all);
-    expect(all.checked).toBe(false);
+    expect(all.getAttribute('aria-checked')).toBe('false');
   });
 });
 

@@ -105,7 +105,7 @@ export function AddWatchDirectoryDialog({
         </Field>
 
         <div className="flex flex-col gap-1">
-          <Checkbox checked disabled readOnly>
+          <Checkbox checked disabled>
             <Trans>包含子目录</Trans>
           </Checkbox>
           <p className="text-xs leading-normal text-neutral-600">

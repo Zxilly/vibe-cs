@@ -107,7 +107,7 @@ export function HighlightRow({
             size="sm"
             checked={selected}
             aria-label={i18n._(SELECT_LABEL)}
-            onChange={(event) => onSelectedChange?.(event.currentTarget.checked, highlight)}
+            onChange={(next) => onSelectedChange?.(next, highlight)}
           />
         </span>
       )}

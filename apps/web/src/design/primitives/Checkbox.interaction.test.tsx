@@ -8,7 +8,7 @@ import { Checkbox } from './Checkbox';
 function Controlled() {
   const [checked, setChecked] = useState(false);
   return (
-    <Checkbox checked={checked} onChange={(event) => setChecked(event.currentTarget.checked)}>
+    <Checkbox checked={checked} onChange={setChecked}>
       包含子目录
     </Checkbox>
   );
@@ -17,36 +17,48 @@ function Controlled() {
 describe('Checkbox interaction', () => {
   it('is named by its own label and toggles on click', () => {
     const { getByRole } = renderInteractive(<Controlled />);
-    const box = getByRole('checkbox', { name: '包含子目录' }) as HTMLInputElement;
+    const box = getByRole('checkbox', { name: '包含子目录' });
 
-    expect(box.checked).toBe(false);
+    expect(box.getAttribute('aria-checked')).toBe('false');
     fireEvent.click(box);
-    expect(box.checked).toBe(true);
+    expect(box.getAttribute('aria-checked')).toBe('true');
   });
 
-  it('toggles when the drawn box is clicked, not only the input', () => {
+  it('toggles from the label as well as from the drawn box', () => {
     const onChange = vi.fn();
-    const { getByText } = renderInteractive(<Checkbox onChange={onChange}>包含子目录</Checkbox>);
+    const { getByText, getByRole } = renderInteractive(<Checkbox onChange={onChange}>包含子目录</Checkbox>);
 
-    // The label wraps everything, so the 15px square is a valid target.
-    fireEvent.click(getByText('包含子目录'));
-    expect(onChange).toHaveBeenCalled();
+    // `htmlFor` points at the box, so the text is a valid target for it.
+    expect(getByText('包含子目录').getAttribute('for')).toBe(getByRole('checkbox').getAttribute('id'));
+
+    fireEvent.click(getByRole('checkbox'));
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it('reports the next state rather than an event', () => {
+    const onChange = vi.fn();
+    const { getByRole } = renderInteractive(
+      <Checkbox checked onChange={onChange} aria-label="选择该行" />,
+    );
+
+    fireEvent.click(getByRole('checkbox', { name: '选择该行' }));
+    expect(onChange).toHaveBeenCalledWith(false);
   });
 
   it('is keyboard reachable', () => {
     const { getByRole } = renderInteractive(<Controlled />);
-    const box = getByRole('checkbox', { name: '包含子目录' }) as HTMLInputElement;
+    const box = getByRole('checkbox', { name: '包含子目录' });
 
     box.focus();
     expect(document.activeElement).toBe(box);
   });
 
-  it('sets the DOM-only indeterminate property, which no attribute can carry', () => {
+  it('announces a partial selection as mixed', () => {
     const { getByRole } = renderInteractive(<Checkbox indeterminate aria-label="全选" />);
-    const box = getByRole('checkbox', { name: '全选' }) as HTMLInputElement;
+    const box = getByRole('checkbox', { name: '全选' });
 
-    expect(box.indeterminate).toBe(true);
     expect(box.getAttribute('aria-checked')).toBe('mixed');
+    expect(box.getAttribute('data-state')).toBe('indeterminate');
   });
 
   it('clears indeterminate when the selection resolves', () => {
@@ -63,21 +75,23 @@ describe('Checkbox interaction', () => {
     }
 
     const { getByRole } = renderInteractive(<Partial />);
-    const box = getByRole('checkbox', { name: '全选' }) as HTMLInputElement;
-    expect(box.indeterminate).toBe(true);
+    const box = getByRole('checkbox', { name: '全选' });
+    expect(box.getAttribute('aria-checked')).toBe('mixed');
 
     fireEvent.click(getByRole('button', { name: '解决' }));
-    expect(box.indeterminate).toBe(false);
+    expect(box.getAttribute('aria-checked')).toBe('false');
   });
 
   it('does not toggle while disabled', () => {
-    const { getByRole } = renderInteractive(<Checkbox disabled aria-label="选择该行" />);
-    const box = getByRole('checkbox', { name: '选择该行' }) as HTMLInputElement;
+    const onChange = vi.fn();
+    const { getByRole } = renderInteractive(
+      <Checkbox disabled onChange={onChange} aria-label="选择该行" />,
+    );
+    const box = getByRole('checkbox', { name: '选择该行' }) as HTMLButtonElement;
 
-    // Asserted on the platform state, not on a handler: a synthetic
-    // `fireEvent.click` bypasses the disabled gate a real click obeys, so a
-    // handler assertion here would be testing jsdom rather than the component.
     expect(box.disabled).toBe(true);
+    fireEvent.click(box);
+    expect(onChange).not.toHaveBeenCalled();
 
     box.focus();
     expect(document.activeElement).not.toBe(box);

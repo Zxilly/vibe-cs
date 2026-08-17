@@ -209,7 +209,7 @@ export function PreflightBlock({ plan, preflight, selection, start, service }: R
         <Checkbox
           className="mt-3"
           checked={acknowledged}
-          onChange={(event) => setAcknowledged(event.target.checked)}
+          onChange={setAcknowledged}
         >
           <Trans>我知道 CS2 会以离线（-insecure）模式启动</Trans>
         </Checkbox>

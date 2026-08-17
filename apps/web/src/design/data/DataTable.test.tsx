@@ -87,7 +87,7 @@ describe('DataTable active row', () => {
 describe('DataTable selection', () => {
   it('adds a labelled checkbox column', () => {
     const html = table({ selectable: true, rowLabel: (row) => row.name, onSelectedChange: () => {} });
-    expect(html).toContain('type="checkbox"');
+    expect(html).toContain(String.raw`role="checkbox"`);
     expect(html).toContain('aria-label="Aurora vs Meridian"');
   });
 
@@ -98,9 +98,11 @@ describe('DataTable selection', () => {
       selectionLimit: 2,
       onSelectedChange: () => {},
     });
-    // Spec §8: a blocked action stays visible and states why.
-    expect(html.match(/disabled=""/gu)).toHaveLength(1);
-    expect(html.match(/type="checkbox"/gu)).toHaveLength(3);
+    /* Spec §8: a blocked action stays visible and states why. Counted on
+       `data-disabled`, which Radix puts on the control alone — the plain
+       `disabled` attribute also lands on the hidden form input beside it. */
+    expect(html.match(/data-disabled=""/gu)).toHaveLength(1);
+    expect(html.match(/role="checkbox"/gu)).toHaveLength(3);
   });
 
   it('omits the select-all box whenever the selection is capped', () => {
@@ -112,7 +114,7 @@ describe('DataTable selection', () => {
   });
 
   it('renders no checkbox column at all when the table is not selectable', () => {
-    expect(table()).not.toContain('type="checkbox"');
+    expect(table()).not.toContain(String.raw`role="checkbox"`);
   });
 });
 

@@ -275,28 +275,28 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
               <Checkbox
                 size="sm"
                 checked={layers.players}
-                onChange={(event) => setLayers((current) => ({ ...current, players: event.currentTarget.checked }))}
+                onChange={(next) => setLayers((current) => ({ ...current, players: next }))}
               >
                 <Trans>选手位置</Trans>
               </Checkbox>
               <Checkbox
                 size="sm"
                 checked={layers.paths}
-                onChange={(event) => setLayers((current) => ({ ...current, paths: event.currentTarget.checked }))}
+                onChange={(next) => setLayers((current) => ({ ...current, paths: next }))}
               >
                 <Trans>移动路线</Trans>
               </Checkbox>
               <Checkbox
                 size="sm"
                 checked={layers.kills}
-                onChange={(event) => setLayers((current) => ({ ...current, kills: event.currentTarget.checked }))}
+                onChange={(next) => setLayers((current) => ({ ...current, kills: next }))}
               >
                 <Trans>击杀事件</Trans>
               </Checkbox>
               <Checkbox
                 size="sm"
                 checked={layers.heat}
-                onChange={(event) => setLayers((current) => ({ ...current, heat: event.currentTarget.checked }))}
+                onChange={(next) => setLayers((current) => ({ ...current, heat: next }))}
               >
                 <Trans>热力叠加</Trans>
               </Checkbox>

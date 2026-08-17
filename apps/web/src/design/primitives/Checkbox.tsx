@@ -1,10 +1,10 @@
 /**
  * Design system, layer 1 of 3 — Checkbox.
  *
- * Industry's `.radio` structure — a `<label>` wrapping a visually hidden
- * `<input>` and a drawn box — but square rather than round: `.radio .dot` is
- * the one place in the system that keeps a radius (§3.6), and the design
- * reference never draws a round checkbox.
+ * shadcn's Checkbox — Radix `CheckboxPrimitive` — in the square the design
+ * reference draws. Radix owns the `checkbox` role, `aria-checked` (including
+ * `mixed`), Space, and the hidden form input that appears only inside a
+ * `<form>`; this file owns the box and its tokens.
  *
  * What the reference draws, 44 times:
  *
@@ -17,23 +17,42 @@
  *       text
  *
  * There is no tick glyph in either: the reference marks a checked box with a
- * solid accent fill and nothing inside it.
+ * solid accent fill and nothing inside it. Square, too — `.radio .dot` is the
+ * one place in the system that keeps a radius (§3.6), and no artboard draws a
+ * round checkbox.
  *
- * Indeterminate is not in the reference, because no artboard draws a
- * partially selected table. It is here anyway — a select-all header cell over
- * a partial selection has no honest two-state representation — and is drawn as
- * the fill plus a bar in the ground colour.
+ * Indeterminate is not in the reference, because no artboard draws a partially
+ * selected table. It is here anyway — a select-all header cell over a partial
+ * selection has no honest two-state representation — and is drawn as the fill
+ * plus a bar in the ground colour. Radix models it as a third value of
+ * `checked`; this component keeps it a separate `indeterminate` prop, because
+ * every caller already has a boolean and a union would make them all widen it.
+ *
+ * ── Label ─────────────────────────────────────────────────────────────────
+ *
+ * shadcn's pairing: a sibling `<label htmlFor>`, not a wrapping one. Radix's
+ * control is a `<button>`, and a `<label>` wrapping its own control has to be
+ * reasoned about twice — once for the click that lands on the label and once
+ * for the one that lands on the control. The id is generated here rather than
+ * asked of the caller, so a labelled box cannot be built unlabelled by
+ * accident; `children` stays the whole of the API.
  */
 
-import type { InputHTMLAttributes, ReactNode, Ref } from 'react';
-import { useEffect, useRef } from 'react';
+import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
+import { useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 
 import { cn } from '../cn';
 
 export type CheckboxSize = 'sm' | 'md';
 
 export interface CheckboxProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'children' | 'type' | 'size'> {
+  extends Omit<
+    ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>,
+    'className' | 'children' | 'checked' | 'onChange' | 'onCheckedChange' | 'asChild' | 'id'
+  > {
+  checked?: boolean;
+  /** The next state, not a change event — as `Toggle`. */
+  onChange?: ((checked: boolean) => void) | undefined;
   /** `sm` = 13px (table rows), `md` = 15px (lists). */
   size?: CheckboxSize;
   /** Neither checked nor unchecked — a partial selection. */
@@ -41,7 +60,6 @@ export interface CheckboxProps
   /** Visible label. Omit for a bare box, which then needs `aria-label`. */
   children?: ReactNode;
   className?: string;
-  ref?: Ref<HTMLInputElement>;
 }
 
 const BOX_SIZE_CLASS: Readonly<Record<CheckboxSize, string>> = {
@@ -51,59 +69,48 @@ const BOX_SIZE_CLASS: Readonly<Record<CheckboxSize, string>> = {
 
 const BOX_CLASS =
   'grid flex-none place-items-center border border-neutral-400 ' +
-  'peer-checked:border-accent peer-checked:bg-accent ' +
-  'peer-indeterminate:border-accent peer-indeterminate:bg-accent ' +
-  'peer-disabled:opacity-45 ' +
-  'peer-focus-visible:outline-2 peer-focus-visible:outline-accent peer-focus-visible:outline-offset-2';
-
-/**
- * Industry hides the input with `position:absolute;opacity:0;width:0;height:0;
- * pointer-events:none` rather than `sr-only`, which would leave a 1px
- * clickable node in the middle of the box.
- */
-const INPUT_CLASS = 'peer pointer-events-none absolute size-0 opacity-0';
+  'data-[state=checked]:border-accent data-[state=checked]:bg-accent ' +
+  'data-[state=indeterminate]:border-accent data-[state=indeterminate]:bg-accent ' +
+  'disabled:cursor-not-allowed disabled:opacity-45';
 
 export function Checkbox({
+  checked = false,
+  onChange,
   size = 'md',
   indeterminate = false,
   disabled = false,
   className,
   children,
-  ref,
   ...rest
 }: CheckboxProps) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  /* `indeterminate` is a DOM property with no attribute, so React cannot set
-     it declaratively. */
-  useEffect(() => {
-    if (inputRef.current !== null) inputRef.current.indeterminate = indeterminate;
-  }, [indeterminate]);
+  const id = useId();
 
   return (
-    <label
+    <span
       className={cn(
         'inline-flex items-center gap-3 text-base leading-normal',
-        disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
+        disabled && 'cursor-not-allowed opacity-45',
         className,
       )}
     >
-      <input
+      <CheckboxPrimitive.Root
         {...rest}
-        ref={(node) => {
-          inputRef.current = node;
-          if (typeof ref === 'function') ref(node);
-          else if (ref !== null && ref !== undefined) ref.current = node;
-        }}
-        type="checkbox"
+        id={id}
+        checked={indeterminate ? 'indeterminate' : checked}
         disabled={disabled}
-        {...(indeterminate ? { 'aria-checked': 'mixed' as const } : {})}
-        className={INPUT_CLASS}
-      />
-      <span className={cn(BOX_CLASS, BOX_SIZE_CLASS[size])}>
+        className={cn(BOX_CLASS, BOX_SIZE_CLASS[size])}
+        onCheckedChange={(next) => onChange?.(next === true)}
+      >
+        {/* Not `CheckboxPrimitive.Indicator`: it renders for the checked state
+            too, and the checked state has nothing to draw — the fill is the
+            mark. The bar is the indeterminate state's own glyph. */}
         {indeterminate ? <span className="h-[1px] w-[7px] bg-bg" /> : null}
-      </span>
-      {children}
-    </label>
+      </CheckboxPrimitive.Root>
+      {children === undefined ? null : (
+        <label htmlFor={id} className={cn('min-w-0', disabled ? 'cursor-not-allowed' : 'cursor-pointer')}>
+          {children}
+        </label>
+      )}
+    </span>
   );
 }

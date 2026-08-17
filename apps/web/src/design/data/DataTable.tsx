@@ -40,10 +40,11 @@
 
 import { t } from '@lingui/core/macro';
 import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 
 import { cn } from '../cn';
+import { Checkbox } from '../primitives/Checkbox';
 import { TableCell, TableHeaderCell, type TableCellAlign, type TableCellEdge, type TableCellVariant } from './TableCell';
 import {
   ariaSortFor,
@@ -141,7 +142,6 @@ export function DataTable<Row>({
   className,
 }: DataTableProps<Row>) {
   const bodyRef = useRef<HTMLTableSectionElement>(null);
-  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const shown = visibleColumns(columns, hiddenColumns);
   const selection = selected ?? EMPTY_SELECTION;
@@ -151,13 +151,6 @@ export function DataTable<Row>({
   const interactiveRows = onRowActivate !== undefined;
   // Roving tabindex: the body is one tab stop, arrows walk it from there.
   const tabStopId = activeRowId !== null && rowIds.includes(activeRowId) ? activeRowId : rowIds[0];
-
-  // `indeterminate` is a DOM property with no attribute, so it cannot be
-  // rendered — server markup shows the box unchecked and this corrects it on
-  // mount. `data-state` carries the same fact for tests and for CSS.
-  useEffect(() => {
-    if (selectAllRef.current) selectAllRef.current.indeterminate = headerState === 'some';
-  }, [headerState]);
 
   const activateRow = useCallback(
     (id: string, row: Row) => {
@@ -223,12 +216,11 @@ export function DataTable<Row>({
               {selectable ? (
                 <TableHeaderCell edge="leading">
                   {showSelectAll ? (
-                    <input
-                      ref={selectAllRef}
-                      type="checkbox"
-                      className={CHECKBOX_CLASS}
+                    <Checkbox
+                      size="sm"
                       checked={headerState === 'all'}
-                      data-state={headerState}
+                      indeterminate={headerState === 'some'}
+                      data-select-all={headerState}
                       aria-label={t`全选本页`}
                       onChange={() => onSelectedChange?.(toggleAllSelection(rowIds, selection))}
                     />
@@ -285,9 +277,8 @@ export function DataTable<Row>({
                 >
                   {selectable ? (
                     <TableCell edge="leading">
-                      <input
-                        type="checkbox"
-                        className={CHECKBOX_CLASS}
+                      <Checkbox
+                        size="sm"
                         checked={selection.has(id)}
                         disabled={blocked || onSelectedChange === undefined}
                         aria-label={rowLabel?.(row) ?? id}
@@ -324,14 +315,6 @@ export function DataTable<Row>({
 /* ── pieces ──────────────────────────────────────────────────────────────── */
 
 const EMPTY_SELECTION: ReadonlySet<string> = new Set<string>();
-
-/**
- * The reference's checkbox: a 13px square, accent fill plus accent border when
- * checked, neutral-400 outline when not. `appearance-none` is required — the
- * native control is rounded on macOS and cannot be squared off otherwise.
- */
-const CHECKBOX_CLASS =
-  'block size-4 shrink-0 appearance-none border border-neutral-400 bg-transparent checked:border-accent checked:bg-accent disabled:cursor-not-allowed disabled:opacity-45';
 
 /** The checkbox column already occupies the leading gutter when it is present. */
 function edgeOf(index: number, length: number, selectable: boolean): TableCellEdge {

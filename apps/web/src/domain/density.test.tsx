@@ -242,8 +242,10 @@ describe('density · 312 players in the directory', () => {
     // 「比较上限 2 名」: past the cap the boxes are disabled, not hidden, and no
     // select-all appears to contradict the cap.
     // Scoped to the table: the pager's 上一页 is disabled on page 1 as well.
+    // Counted on `data-disabled`, which Radix puts on the control alone — the
+    // plain `disabled` attribute also lands on the hidden form input beside it.
     const table = html.slice(0, html.indexOf('<nav'));
-    expect(occurrences(table, 'disabled=""')).toBe(PAGE_SIZE - 2);
+    expect(occurrences(table, 'data-disabled=""')).toBe(PAGE_SIZE - 2);
     expect(html).not.toContain('全选本页');
   });
 });

@@ -70,14 +70,20 @@ function address(): string {
  * renders its head and its `<colgroup>` before any row exists — so this waits
  * for a row instead.
  */
-async function rowCheckboxes(): Promise<HTMLInputElement[]> {
+/* Radix renders a checkbox as a `<button role="checkbox">`, so the state is
+   read off `aria-checked` rather than off a native `.checked`. */
+async function rowCheckboxes(): Promise<HTMLButtonElement[]> {
   const table = await screen.findByRole('table');
   await waitFor(() => {
     expect(table.querySelectorAll('tbody tr').length).toBeGreaterThan(0);
   });
   return within(table)
     .getAllByRole('checkbox')
-    .filter((box): box is HTMLInputElement => box instanceof HTMLInputElement);
+    .filter((box): box is HTMLButtonElement => box instanceof HTMLButtonElement);
+}
+
+function isTicked(box: Element): boolean {
+  return box.getAttribute('aria-checked') === 'true';
 }
 
 describe('the §10.3 selection contract at 312 players', () => {
@@ -105,17 +111,13 @@ describe('the §10.3 selection contract at 312 players', () => {
     mount();
     const boxes = await rowCheckboxes();
 
-    fireEvent.click(boxes[0] as HTMLInputElement);
-    fireEvent.click(boxes[1] as HTMLInputElement);
+    fireEvent.click(boxes[0] as HTMLButtonElement);
+    fireEvent.click(boxes[1] as HTMLButtonElement);
 
-    await waitFor(() => {
-      const after = Array.from(
-        (screen.getByRole('table') as HTMLTableElement).querySelectorAll<HTMLInputElement>(
-          'tbody input[type="checkbox"]',
-        ),
-      );
+    await waitFor(async () => {
+      const after = await rowCheckboxes();
       expect(after).toHaveLength(PLAYER_PAGE_SIZE);
-      expect(after.filter((box) => box.checked)).toHaveLength(PLAYER_COMPARE_LIMIT);
+      expect(after.filter(isTicked)).toHaveLength(PLAYER_COMPARE_LIMIT);
       expect(after.filter((box) => box.disabled)).toHaveLength(
         PLAYER_PAGE_SIZE - PLAYER_COMPARE_LIMIT,
       );
@@ -125,21 +127,17 @@ describe('the §10.3 selection contract at 312 players', () => {
   it('lets a ticked box be untangled — a cap must never trap the user', async () => {
     mount();
     const boxes = await rowCheckboxes();
-    fireEvent.click(boxes[0] as HTMLInputElement);
-    fireEvent.click(boxes[1] as HTMLInputElement);
+    fireEvent.click(boxes[0] as HTMLButtonElement);
+    fireEvent.click(boxes[1] as HTMLButtonElement);
     await waitFor(() => {
       expect(address()).toContain('compare=');
     });
 
     const [first] = await rowCheckboxes();
-    fireEvent.click(first as HTMLInputElement);
-    await waitFor(() => {
-      const after = Array.from(
-        (screen.getByRole('table') as HTMLTableElement).querySelectorAll<HTMLInputElement>(
-          'tbody input[type="checkbox"]',
-        ),
-      );
-      expect(after.filter((box) => box.checked)).toHaveLength(1);
+    fireEvent.click(first as HTMLButtonElement);
+    await waitFor(async () => {
+      const after = await rowCheckboxes();
+      expect(after.filter(isTicked)).toHaveLength(1);
       expect(after.filter((box) => box.disabled)).toHaveLength(0);
     });
   });
@@ -149,8 +147,8 @@ describe('the selection is in the address bar (§4.4)', () => {
   it('writes the ticked players, in the order they were ticked', async () => {
     mount();
     const boxes = await rowCheckboxes();
-    fireEvent.click(boxes[1] as HTMLInputElement);
-    fireEvent.click(boxes[0] as HTMLInputElement);
+    fireEvent.click(boxes[1] as HTMLButtonElement);
+    fireEvent.click(boxes[0] as HTMLButtonElement);
 
     await waitFor(() => {
       expect(address()).toContain('compare=STEAM_1%2CSTEAM_0');
@@ -172,7 +170,7 @@ describe('the selection is in the address bar (§4.4)', () => {
     mount('/players?compare=STEAM_0,STEAM_1,STEAM_2');
     await screen.findByRole('table');
     const boxes = await rowCheckboxes();
-    expect(boxes.filter((box) => box.checked)).toHaveLength(PLAYER_COMPARE_LIMIT);
+    expect(boxes.filter(isTicked)).toHaveLength(PLAYER_COMPARE_LIMIT);
   });
 });
 

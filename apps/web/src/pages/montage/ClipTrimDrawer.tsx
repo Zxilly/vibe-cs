@@ -32,7 +32,7 @@ import { Trans } from '@lingui/react/macro';
 import { useEffect, useState } from 'react';
 
 import { Drawer, Alert } from '../../design/feedback';
-import { Button, Field, TextInput } from '../../design/primitives';
+import { Button, Field, Input } from '../../design/primitives';
 import { useRecordedClipWaveform } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { Waveform } from '../../domain/media';
@@ -164,7 +164,7 @@ export function ClipTrimDrawer({ open, onClose, clip, take, onSave, onRemove, sa
             {...(invalid ? { error: <Trans>超出素材范围</Trans> } : {})}
           >
             {(control) => (
-              <TextInput
+              <Input
                 {...control}
                 mono
                 inputMode="decimal"
@@ -180,7 +180,7 @@ export function ClipTrimDrawer({ open, onClose, clip, take, onSave, onRemove, sa
             hint={<Trans>留空表示用到素材末尾</Trans>}
           >
             {(control) => (
-              <TextInput
+              <Input
                 {...control}
                 mono
                 inputMode="decimal"

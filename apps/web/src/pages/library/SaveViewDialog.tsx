@@ -25,7 +25,7 @@ import { Trans } from '@lingui/react/macro';
 import { useEffect, useState } from 'react';
 
 import { Dialog } from '../../design/feedback';
-import { Field, TextInput } from '../../design/primitives';
+import { Field, Input } from '../../design/primitives';
 
 export interface SaveViewDialogProps {
   readonly open: boolean;
@@ -65,7 +65,7 @@ export function SaveViewDialog({ open, onClose, existingNames, onSave }: SaveVie
           {...(duplicate ? { error: <Trans>已经有一个同名的视图</Trans> } : {})}
         >
           {(control) => (
-            <TextInput
+            <Input
               {...control}
               value={name}
               placeholder={t`待剪素材`}

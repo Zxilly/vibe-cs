@@ -32,7 +32,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Field, TextInput, Toggle, cn } from '../../design/primitives';
+import { Field, Input, Toggle, cn } from '../../design/primitives';
 import type { MontageBrandingTheme } from '../../shared/desktop/dto';
 import { MONTAGE_THEME, type MontageBlockProps } from './montageContract';
 import {
@@ -192,7 +192,7 @@ export function PackagingBlock({ project: desk, service }: MontageBlockProps) {
             hint={<Trans>0.05 到 5 秒；转场比相邻片段还长时渲染会拒绝。</Trans>}
           >
             {(control) => (
-              <TextInput
+              <Input
                 {...control}
                 mono
                 inputMode="decimal"
@@ -267,7 +267,7 @@ function TitleCardRow({
         />
       </label>
       {on ? (
-        <TextInput
+        <Input
           mono={false}
           disabled={!writable}
           data-montage-field={`${id}-title`}

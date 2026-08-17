@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { DataTable, EmptyState, TableSkeleton, type DataTableColumn } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
 import { Page, Toolbar } from '../../design/layout';
-import { Button, Field, TextInput } from '../../design/primitives';
+import { Button, Field, Input } from '../../design/primitives';
 import { dataErrorMessage } from '../../data/errors';
 import {
   useCreateMontageProject,
@@ -205,7 +205,7 @@ export function MontageProjectList() {
       >
         <Field label={<Trans>工程名称</Trans>} hint={<Trans>之后可以在工程里改。</Trans>}>
           {(control) => (
-            <TextInput
+            <Input
               {...control}
               value={name}
               autoFocus

@@ -44,7 +44,7 @@ import { Trans } from '@lingui/react/macro';
 import { Fragment, useMemo, useState } from 'react';
 
 import { EmptyState } from '../../design/data';
-import { Button, Field, TextInput, cn } from '../../design/primitives';
+import { Button, Field, Input, cn } from '../../design/primitives';
 import { clipSourceOut, formatFrameTimecode } from '../../design/timeline';
 import { clipAllows, clipRestrictions } from './editorDocument';
 import { firstRestrictionMessage } from './editorMessages';
@@ -173,7 +173,7 @@ export function InspectorPanel({ desk, service }: EditorPanelProps) {
 
         <Field label={<Trans>速度</Trans>} hint={t`5% 到 1600%`}>
           {(control) => (
-            <TextInput
+            <Input
               {...control}
               value={speedDraft ?? formatPercent(clip.speed)}
               disabled={speedBlocked}

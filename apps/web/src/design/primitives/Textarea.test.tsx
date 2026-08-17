@@ -4,7 +4,7 @@ import { renderMarkup } from '../../test/render';
 import { Textarea } from './Textarea';
 
 describe('Textarea markup', () => {
-  it('shares TextInput’s box', () => {
+  it('shares Input’s box', () => {
     const html = renderMarkup(<Textarea aria-label="镜头意图" />);
 
     expect(html).toMatch(/^<textarea/u);

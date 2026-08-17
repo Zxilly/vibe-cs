@@ -50,7 +50,7 @@
  *
  * TWO MORE PRIMITIVES THAT DO NOT FIT
  * -----------------------------------
- * `primitives/TextInput` is a bordered box at one of the four §3.3 control
+ * `primitives/Input` is a bordered box at one of the four §3.3 control
  * heights — that border *is* the component. The palette's field is a bar: no
  * border of its own, the full width of a 52px header, separated by the header's
  * bottom rule. Using it would mean overriding its border, its height and its

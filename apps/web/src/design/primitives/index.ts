@@ -13,7 +13,18 @@ export { Link, type LinkProps, type LinkSize } from './Link';
 export { Seg, type SegOption, type SegProps } from './Seg';
 export { Slider, type SliderProps } from './Slider';
 export { Badge, badgeVariants, type BadgeProps, type BadgeSize, type BadgeVariant } from './Badge';
-export { TextInput, type TextInputProps, type TextInputType } from './TextInput';
+export { Input, INPUT_BASE_CLASS, type InputProps, type InputType } from './Input';
+export {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+  type InputGroupAddonAlign,
+  type InputGroupAddonProps,
+  type InputGroupInputProps,
+  type InputGroupProps,
+  type InputGroupTextProps,
+} from './InputGroup';
 export { Toggle, type ToggleProps } from './Toggle';
 
 export {

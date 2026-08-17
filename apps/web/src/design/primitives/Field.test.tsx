@@ -3,12 +3,12 @@ import { describe, expect, it } from 'vitest';
 
 import { renderMarkup } from '../../test/render';
 import { Field } from './Field';
-import { TextInput } from './TextInput';
+import { Input } from './Input';
 
 describe('Field markup', () => {
   it('binds the label to the control it wraps', () => {
     const html = renderMarkup(
-      <Field label={<Trans>镜头类型</Trans>}>{(control) => <TextInput {...control} />}</Field>,
+      <Field label={<Trans>镜头类型</Trans>}>{(control) => <Input {...control} />}</Field>,
     );
 
     const forAttribute = /<label[^>]*for="([^"]+)"/u.exec(html)?.[1];
@@ -49,7 +49,7 @@ describe('Field markup', () => {
   it('describes the control with its hint', () => {
     const html = renderMarkup(
       <Field label="时长" hint={<Trans>不超过 30 秒</Trans>}>
-        {(control) => <TextInput {...control} />}
+        {(control) => <Input {...control} />}
       </Field>,
     );
 
@@ -63,7 +63,7 @@ describe('Field markup', () => {
   it('replaces the hint with the error and marks the control invalid', () => {
     const html = renderMarkup(
       <Field label="时长" hint="不超过 30 秒" error={<Trans>必须是正数</Trans>}>
-        {(control) => <TextInput {...control} />}
+        {(control) => <Input {...control} />}
       </Field>,
     );
 
@@ -74,7 +74,7 @@ describe('Field markup', () => {
   });
 
   it('adds no describedby when there is nothing to describe', () => {
-    const html = renderMarkup(<Field label="时长">{(control) => <TextInput {...control} />}</Field>);
+    const html = renderMarkup(<Field label="时长">{(control) => <Input {...control} />}</Field>);
     expect(html).not.toContain('aria-describedby');
   });
 

@@ -75,7 +75,7 @@ import { useCreateRecordingShotPreset, useRecordingShotPresets } from '../../dat
 import { EmptyState } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
 import { Inspector } from '../../design/layout';
-import { Button, Field, Seg, Slider, TextInput, Toggle } from '../../design/primitives';
+import { Button, Field, Input, InputGroup, InputGroupAddon, InputGroupInput, Seg, Slider, Toggle } from '../../design/primitives';
 import type { RecordingRequest, RecordingShotPreset } from '../../shared/desktop/dto';
 import type { CameraDesk } from './cameraDesk';
 import {
@@ -258,36 +258,44 @@ function ShotForm({
       <div className="flex gap-2.5">
         <Field className="flex-1" label={<Trans>前留白</Trans>}>
           {(control) => (
-            <TextInput
-              {...control}
-              type="number"
-              mono
-              step={0.1}
-              min={0}
-              value={String(shot.pre_roll_seconds)}
-              onChange={(event) =>
-                onEdit({ pre_roll_seconds: readSeconds(event.target.value, shot.pre_roll_seconds) })
-              }
-              trailing={<Trans>秒</Trans>}
-            />
+            <InputGroup>
+              <InputGroupInput
+                {...control}
+                type="number"
+                className="font-mono"
+                step={0.1}
+                min={0}
+                value={String(shot.pre_roll_seconds)}
+                onChange={(event) =>
+                  onEdit({ pre_roll_seconds: readSeconds(event.target.value, shot.pre_roll_seconds) })
+                }
+              />
+              <InputGroupAddon align="inline-end">
+                <Trans>秒</Trans>
+              </InputGroupAddon>
+            </InputGroup>
           )}
         </Field>
         <Field className="flex-1" label={<Trans>后留白</Trans>}>
           {(control) => (
-            <TextInput
-              {...control}
-              type="number"
-              mono
-              step={0.1}
-              min={0}
-              value={String(shot.post_roll_seconds)}
-              onChange={(event) =>
-                onEdit({
-                  post_roll_seconds: readSeconds(event.target.value, shot.post_roll_seconds),
-                })
-              }
-              trailing={<Trans>秒</Trans>}
-            />
+            <InputGroup>
+              <InputGroupInput
+                {...control}
+                type="number"
+                className="font-mono"
+                step={0.1}
+                min={0}
+                value={String(shot.post_roll_seconds)}
+                onChange={(event) =>
+                  onEdit({
+                    post_roll_seconds: readSeconds(event.target.value, shot.post_roll_seconds),
+                  })
+                }
+              />
+              <InputGroupAddon align="inline-end">
+                <Trans>秒</Trans>
+              </InputGroupAddon>
+            </InputGroup>
           )}
         </Field>
       </div>
@@ -670,7 +678,7 @@ function ShotActions({
       >
         <Field label={<Trans>预设名称</Trans>}>
           {(control) => (
-            <TextInput
+            <Input
               {...control}
               value={presetName}
               placeholder={t`我的 POV 参数`}

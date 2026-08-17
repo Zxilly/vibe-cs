@@ -47,7 +47,7 @@ import {
 } from '../design/data';
 import { Alert } from '../design/feedback';
 import { Page, SelectionBar, Toolbar, useCollapsed } from '../design/layout';
-import { Button, TextInput } from '../design/primitives';
+import { Button, Input } from '../design/primitives';
 import type { PlayerDirectorySort } from '../data/keys';
 import type { PlayerDirectoryItem } from '../shared/desktop/dto';
 import { RouteLink } from './RouteLink';
@@ -238,7 +238,7 @@ export function PlayersPage() {
              never folds, which is exactly the guarantee this needs. */
           primary={
             <div className="w-64">
-              <TextInput
+              <Input
                 type="search"
                 ground="bg"
                 defaultValue={state.search}

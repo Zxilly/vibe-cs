@@ -32,7 +32,7 @@ import { useState } from 'react';
 
 import { Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
-import { Seg, TextInput } from '../../design/primitives';
+import { Seg, Input } from '../../design/primitives';
 import { useAppConfig, useUpdateAppConfig } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
 import { useServiceAction } from '../../data/serviceAction';
@@ -140,7 +140,7 @@ export function AppSection() {
             {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
           >
             <div className="flex min-w-72 flex-1 flex-col gap-1">
-              <TextInput
+              <Input
                 value={manifest}
                 disabled={blocked}
                 data-setting="update-manifest"

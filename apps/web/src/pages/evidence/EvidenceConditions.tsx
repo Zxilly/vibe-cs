@@ -30,7 +30,7 @@ import { Trans } from '@lingui/react/macro';
 import { Search, X } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 
-import { Button, Seg, Badge, TextInput, type SegOption } from '../../design/primitives';
+import { Badge, Button, Input, InputGroup, InputGroupAddon, InputGroupInput, Seg, type SegOption } from '../../design/primitives';
 import {
   EVIDENCE_FAMILIES,
   RECENT_WINDOW_DAYS,
@@ -181,15 +181,18 @@ export function EvidenceConditions({
           aria-label={t`证据种类`}
         />
         <div className="min-w-0 flex-1">
-          <TextInput
-            type="search"
-            ground="bg"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            aria-label={t`检索证据`}
-            placeholder={t`Kael 的穿墙击杀`}
-            leading={<Search strokeWidth={1.5} aria-hidden="true" />}
-          />
+          <InputGroup ground="bg">
+            <InputGroupAddon>
+              <Search strokeWidth={1.5} />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              aria-label={t`检索证据`}
+              placeholder={t`Kael 的穿墙击杀`}
+            />
+          </InputGroup>
         </div>
         <Button type="submit" variant="primary">
           <Trans>检索</Trans>
@@ -223,7 +226,7 @@ export function EvidenceConditions({
         {TEXT_FIELDS.filter((field) => state[field] === '').map((field) =>
           editing === field ? (
             <span key={field} className="inline-flex w-40 items-center">
-              <TextInput
+              <Input
                 autoFocus
                 ground="bg"
                 value={editingValue}

@@ -36,7 +36,7 @@ import { Trans } from '@lingui/react/macro';
 import { Search } from 'lucide-react';
 
 import { OverflowMenu, type OverflowMenuItem } from '../../design/layout';
-import { Button, Badge, TextInput } from '../../design/primitives';
+import { Badge, Button, InputGroup, InputGroupAddon, InputGroupInput } from '../../design/primitives';
 import type { DemoLifecycleStatus, DemoMatchSource, ReviewTag } from '../../shared/desktop/dto';
 import { unavailableAction } from './serviceAction';
 import type { LibraryAddress } from './libraryQuery';
@@ -153,18 +153,19 @@ export function LibraryFilters({
       data-library-filters
       className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-7"
     >
-      <TextInput
-        size="sm"
-        ground="bg"
-        className="min-w-0 max-w-[var(--w-panel)] flex-1"
-        aria-label={t`搜索比赛、选手或文件名`}
-        placeholder={t`搜索比赛、选手或文件名`}
-        value={address.search}
-        leading={<Search className="size-4" strokeWidth={1.5} aria-hidden="true" />}
-        onChange={(event) => {
-          onChange({ search: event.target.value });
-        }}
-      />
+      <InputGroup size="sm" ground="bg" className="min-w-0 max-w-[var(--w-panel)] flex-1">
+        <InputGroupAddon>
+          <Search strokeWidth={1.5} />
+        </InputGroupAddon>
+        <InputGroupInput
+          aria-label={t`搜索比赛、选手或文件名`}
+          placeholder={t`搜索比赛、选手或文件名`}
+          value={address.search}
+          onChange={(event) => {
+            onChange({ search: event.target.value });
+          }}
+        />
+      </InputGroup>
 
       <FilterMenu name={t`地图`} current={currentMap} items={mapItems} />
       <FilterMenu name={t`状态`} current={currentStatus} items={statusItems} />

@@ -51,7 +51,7 @@ import {
 } from '../../data/sessions';
 import { EmptyState, Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
-import { Button, Field, TextInput } from '../../design/primitives';
+import { Button, Field, Input } from '../../design/primitives';
 import { AgentReferenceRow } from '../../domain/agent';
 import type { AgentObjectKind } from '../../shared/desktop/dto';
 import type { AgentContextPatch } from './agentContract';
@@ -158,7 +158,7 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
         hint={<Trans>留空就叫「未命名」，随时可以改</Trans>}
       >
         {(control) => (
-          <TextInput
+          <Input
             {...control}
             value={title}
             placeholder={t`未命名`}

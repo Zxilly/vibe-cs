@@ -1,7 +1,7 @@
 /**
  * Design system, layer 1 of 3 — Textarea.
  *
- * shadcn's Textarea, sharing `TextInput`'s box: hairline `--color-divider`,
+ * shadcn's Textarea, sharing `Input`'s box: hairline `--color-divider`,
  * accent on focus, 3-unit inline padding, transparent over the panel it sits
  * on. The only differences a multi-line control needs are its own vertical
  * padding and a resize rule.

@@ -34,7 +34,18 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { KeyboardEvent } from 'react';
 
-import { Button, Field, NativeSelect, Seg, Textarea, TextInput, cn } from '../../design/primitives';
+import {
+  Button,
+  cn,
+  Field,
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  Input,
+  NativeSelect,
+  Seg,
+  Textarea,
+} from '../../design/primitives';
 import {
   AGENT_PLAN_AUTHOR,
   AGENT_SHOT_KIND,
@@ -131,7 +142,7 @@ export function ShotEditForm({
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="flex-none font-mono text-xs text-neutral-600">{number}</span>
-        <TextInput
+        <Input
           value={draft.title}
           onChange={(event) => {
             patch({ title: event.target.value });
@@ -178,20 +189,26 @@ export function ShotEditForm({
           {...(errors.duration === undefined ? {} : { error: i18n._(errors.duration) })}
         >
           {(control) => (
-            <TextInput
-              {...control}
-              mono
-              inputMode="decimal"
-              disabled={disabled}
-              value={draft.duration}
-              invalid={errors.duration !== undefined}
-              onChange={(event) => {
-                patch({ duration: event.target.value });
-              }}
-              {...(previousDuration === null
-                ? {}
-                : { trailing: <s className="font-mono text-2xs">{previousDuration}</s> })}
-            />
+            <InputGroup invalid={errors.duration !== undefined}>
+              <InputGroupInput
+                {...control}
+                className="font-mono"
+                inputMode="decimal"
+                disabled={disabled}
+                value={draft.duration}
+                onChange={(event) => {
+                  patch({ duration: event.target.value });
+                }}
+              />
+              {previousDuration === null ? null : (
+                /* The duration this replaces, struck through beside the box —
+                   an edit that changes a number should show the number it
+                   changed from. */
+                <InputGroupAddon align="inline-end">
+                  <s className="font-mono text-2xs">{previousDuration}</s>
+                </InputGroupAddon>
+              )}
+            </InputGroup>
           )}
         </Field>
 
@@ -201,7 +218,7 @@ export function ShotEditForm({
           {...(errors.startTick === undefined ? {} : { error: i18n._(errors.startTick) })}
         >
           {(control) => (
-            <TextInput
+            <Input
               {...control}
               mono
               inputMode="numeric"
@@ -221,7 +238,7 @@ export function ShotEditForm({
           {...(errors.endTick === undefined ? {} : { error: i18n._(errors.endTick) })}
         >
           {(control) => (
-            <TextInput
+            <Input
               {...control}
               mono
               inputMode="numeric"
@@ -272,7 +289,7 @@ export function ShotEditForm({
         hint={<Trans>会作为通知的备注一起发给 Agent</Trans>}
       >
         {(control) => (
-          <TextInput
+          <Input
             {...control}
             disabled={disabled}
             value={draft.note}

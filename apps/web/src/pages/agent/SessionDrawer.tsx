@@ -45,7 +45,7 @@ import {
 } from '../../data/sessions';
 import { EmptyState, Skeleton } from '../../design/data';
 import { Dialog, Drawer, Alert } from '../../design/feedback';
-import { Button, TextInput } from '../../design/primitives';
+import { Button, Input, InputGroup, InputGroupAddon, InputGroupInput } from '../../design/primitives';
 import { AgentSessionRow } from '../../domain/agent';
 import type { AgentObjectRef, AgentSessionSummary } from '../../shared/desktop/dto';
 import type { AgentContextPatch, AgentRouteContext } from './agentContract';
@@ -212,18 +212,20 @@ export function SessionDrawer({
           />
         ) : (
           <div className="flex flex-col gap-3">
-            <TextInput
-              type="search"
-              size="sm"
-              ground="bg"
-              value={term}
-              aria-label={t`搜索会话、Demo 或选手`}
-              placeholder={t`搜索会话、Demo 或选手`}
-              leading={<Search className="size-4" strokeWidth={1.5} aria-hidden="true" />}
-              onChange={(event) => {
-                setTerm(event.target.value);
-              }}
-            />
+            <InputGroup size="sm" ground="bg">
+              <InputGroupAddon>
+                <Search strokeWidth={1.5} />
+              </InputGroupAddon>
+              <InputGroupInput
+                type="search"
+                value={term}
+                aria-label={t`搜索会话、Demo 或选手`}
+                placeholder={t`搜索会话、Demo 或选手`}
+                onChange={(event) => {
+                  setTerm(event.target.value);
+                }}
+              />
+            </InputGroup>
             <p className="text-2xs text-neutral-600">
               <Trans>每条下方是它触及过的对象</Trans>
             </p>
@@ -308,7 +310,7 @@ export function SessionDrawer({
                     actions={
                       renamingId === session.id ? (
                         <>
-                          <TextInput
+                          <Input
                             size="sm"
                             className="min-w-0 flex-1"
                             value={renameTitle}

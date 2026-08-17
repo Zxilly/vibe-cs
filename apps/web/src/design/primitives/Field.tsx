@@ -14,7 +14,7 @@
  * hand `id` and `aria-describedby` to a child it did not create.
  *
  *     <Field label={<Trans>时长</Trans>} hint={…}>
- *       {(control) => <TextInput {...control} />}
+ *       {(control) => <Input {...control} />}
  *     </Field>
  *
  * Passing plain children stays legal for the reference's read-only cases,

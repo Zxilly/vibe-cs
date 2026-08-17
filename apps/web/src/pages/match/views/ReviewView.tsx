@@ -55,7 +55,7 @@ import {
 } from '../../../data/match';
 import { EmptyState, Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
-import { Button, Seg, Badge, TextInput } from '../../../design/primitives';
+import { Button, Seg, Badge, Input } from '../../../design/primitives';
 import { formatTickCount } from '../../../domain/match';
 import type { EvidenceAnnotation } from '../../../shared/desktop/dto';
 import { RouteLink } from '../../RouteLink';
@@ -638,7 +638,7 @@ function AnnotationsPanel({
     <div data-review-annotations="" className="flex min-h-0 flex-1 flex-col">
       <form onSubmit={submit} className="flex flex-none flex-col gap-2 border-b border-divider p-3.5">
         <div className="flex items-center gap-2.5">
-          <TextInput
+          <Input
             size="sm"
             ground="bg"
             value={draft}

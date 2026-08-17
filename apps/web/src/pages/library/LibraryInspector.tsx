@@ -31,7 +31,7 @@ import { useEffect, useState } from 'react';
 
 import { Inspector } from '../../design/layout';
 import { Alert, StatusDot } from '../../design/feedback';
-import { Button, Badge, TextInput } from '../../design/primitives';
+import { Button, Badge, Input } from '../../design/primitives';
 import type { DemoMetadata } from '../../shared/desktop/dto';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
 import {
@@ -248,7 +248,7 @@ export function LibraryInspector({
         <h4 className="mb-2 font-heading text-xs tracking-caps text-neutral-600">
           <Trans>备注</Trans>
         </h4>
-        <TextInput
+        <Input
           size="sm"
           aria-label={t`备注`}
           value={remark}

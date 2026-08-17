@@ -9,7 +9,7 @@
  *
  *   · the path is **typed**, not picked. `shared/desktop/client` has no
  *     directory-picker command, and the browser's file input cannot yield a
- *     directory path. The field is a `TextInput` with the artboard's mono
+ *     directory path. The field is a `Input` with the artboard's mono
  *     treatment and the same placeholder.
  *   · 「包含子目录」 is rendered **checked and disabled**, with the reason on it.
  *     `commands.scanDemos` hard-codes `recursive: true` and `AppConfig.
@@ -29,7 +29,7 @@ import { useEffect, useState } from 'react';
 
 import { rejectWatchPath, type WatchPathRejection } from '../../data/config';
 import { Dialog, Alert } from '../../design/feedback';
-import { Checkbox, Field, TextInput } from '../../design/primitives';
+import { Checkbox, Field, Input } from '../../design/primitives';
 import type { ServiceActionButtonProps } from './serviceAction';
 
 export interface AddWatchDirectoryDialogProps {
@@ -91,7 +91,7 @@ export function AddWatchDirectoryDialog({
           {...(rejection === null || path === '' ? {} : { error: rejectionMessage(rejection) })}
         >
           {(control) => (
-            <TextInput
+            <Input
               {...control}
               mono
               value={path}

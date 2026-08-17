@@ -22,67 +22,79 @@
  *
  * `border-radius` is absent on purpose: `--radius-*` is 0 across the system
  * (spec §3.6), so squaring the corner needs no declaration.
+ 
+ *
+ * ── `@layer components` ───────────────────────────────────────────────────
+ *
+ * These are class rules, and an unlayered class rule beats every utility in
+ * `@layer utilities` — a cascade layer outranks specificity outright. Left
+ * unlayered, a caller's `className` override on one of these elements would
+ * silently lose, which is the same bug `base.css` carried for every button in
+ * the product. `components` sits between `base` and `utilities`: these still
+ * win over the element reset, and a utility still wins over these.
  */
 
-.blueprint {
-  --blueprint-mark: 11px;
-  --blueprint-arm: 5px;
-  --blueprint-offset: -6px;
+@layer components {
+  .blueprint {
+    --blueprint-mark: 11px;
+    --blueprint-arm: 5px;
+    --blueprint-offset: -6px;
 
-  position: relative;
-  border: 1px solid var(--color-divider);
-}
+    position: relative;
+    border: 1px solid var(--color-divider);
+  }
 
-/* The image treatments clip their overlay; a blueprint draws its marks
-   outside the box, so when both land on one element the frame wins. */
-.blueprint.duotone {
-  overflow: visible;
-}
+  /* The image treatments clip their overlay; a blueprint draws its marks
+     outside the box, so when both land on one element the frame wins. */
+  .blueprint.duotone {
+    overflow: visible;
+  }
 
-.blueprint > .corner {
-  position: absolute;
-  width: var(--blueprint-mark);
-  height: var(--blueprint-mark);
-  color: color-mix(in srgb, var(--color-text) 55%, transparent);
-}
+  .blueprint > .corner {
+    position: absolute;
+    width: var(--blueprint-mark);
+    height: var(--blueprint-mark);
+    color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  }
 
-.blueprint > .corner::before,
-.blueprint > .corner::after {
-  content: '';
-  position: absolute;
-  background: currentcolor;
-}
+  .blueprint > .corner::before,
+  .blueprint > .corner::after {
+    content: '';
+    position: absolute;
+    background: currentcolor;
+  }
 
-.blueprint > .corner::before {
-  top: 0;
-  left: var(--blueprint-arm);
-  width: 1px;
-  height: 100%;
-}
+  .blueprint > .corner::before {
+    top: 0;
+    left: var(--blueprint-arm);
+    width: 1px;
+    height: 100%;
+  }
 
-.blueprint > .corner::after {
-  top: var(--blueprint-arm);
-  left: 0;
-  width: 100%;
-  height: 1px;
-}
+  .blueprint > .corner::after {
+    top: var(--blueprint-arm);
+    left: 0;
+    width: 100%;
+    height: 1px;
+  }
 
-.blueprint > .corner.tl {
-  top: var(--blueprint-offset);
-  left: var(--blueprint-offset);
-}
+  .blueprint > .corner.tl {
+    top: var(--blueprint-offset);
+    left: var(--blueprint-offset);
+  }
 
-.blueprint > .corner.tr {
-  top: var(--blueprint-offset);
-  right: var(--blueprint-offset);
-}
+  .blueprint > .corner.tr {
+    top: var(--blueprint-offset);
+    right: var(--blueprint-offset);
+  }
 
-.blueprint > .corner.bl {
-  bottom: var(--blueprint-offset);
-  left: var(--blueprint-offset);
-}
+  .blueprint > .corner.bl {
+    bottom: var(--blueprint-offset);
+    left: var(--blueprint-offset);
+  }
 
-.blueprint > .corner.br {
-  bottom: var(--blueprint-offset);
-  right: var(--blueprint-offset);
+  .blueprint > .corner.br {
+    bottom: var(--blueprint-offset);
+    right: var(--blueprint-offset);
+  }
 }

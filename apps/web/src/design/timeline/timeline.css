@@ -31,337 +31,349 @@
  * and is documented in `./geometry.ts`, which is also where the drag code reads
  * it from; the two must not drift, so the lane height arrives as an inline
  * `--tl-lane-h` from that module rather than being restated here.
+ 
+ *
+ * ── `@layer components` ───────────────────────────────────────────────────
+ *
+ * These are class rules, and an unlayered class rule beats every utility in
+ * `@layer utilities` — a cascade layer outranks specificity outright. Left
+ * unlayered, a caller's `className` override on one of these elements would
+ * silently lose, which is the same bug `base.css` carried for every button in
+ * the product. `components` sits between `base` and `utilities`: these still
+ * win over the element reset, and a utility still wins over these.
  */
 
-.tl {
-  --tl-pps: 12;
-  display: flex;
-  min-height: 0;
-  flex-direction: column;
-}
+@layer components {
+  .tl {
+    --tl-pps: 12;
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+  }
 
-/* ── the head column and the scrolling viewport ──────────────────────────── */
+  /* ── the head column and the scrolling viewport ──────────────────────────── */
 
-.tl-body {
-  display: flex;
-  min-height: 0;
-  flex: 1;
-}
+  .tl-body {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+  }
 
-.tl-heads {
-  /* Spec §3.5 `--w-track-head`. The one width here that is a real token. */
-  width: var(--w-track-head);
-  flex: none;
-  border-right: 1px solid var(--color-divider);
-}
+  .tl-heads {
+    /* Spec §3.5 `--w-track-head`. The one width here that is a real token. */
+    width: var(--w-track-head);
+    flex: none;
+    border-right: 1px solid var(--color-divider);
+  }
 
-.tl-viewport {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
+  .tl-viewport {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
 
-.tl-canvas {
-  position: relative;
-  width: calc(var(--tl-length, 0) * var(--tl-pps) * 1px);
-  min-width: 100%;
-  transform: translateX(calc(var(--tl-scroll, 0) * -1px));
-  will-change: transform;
-}
+  .tl-canvas {
+    position: relative;
+    width: calc(var(--tl-length, 0) * var(--tl-pps) * 1px);
+    min-width: 100%;
+    transform: translateX(calc(var(--tl-scroll, 0) * -1px));
+    will-change: transform;
+  }
 
-/* ── ruler ───────────────────────────────────────────────────────────────── */
+  /* ── ruler ───────────────────────────────────────────────────────────────── */
 
-.tl-ruler {
-  position: relative;
-  height: calc(var(--tl-ruler-h, 26) * 1px);
-  border-bottom: 1px solid var(--color-divider);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  color: var(--color-neutral-600);
-  user-select: none;
-}
+  .tl-ruler {
+    position: relative;
+    height: calc(var(--tl-ruler-h, 26) * 1px);
+    border-bottom: 1px solid var(--color-divider);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--color-neutral-600);
+    user-select: none;
+  }
 
-.tl-ruler:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: -2px;
-}
+  .tl-ruler:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
 
-.tl-tick {
-  position: absolute;
-  bottom: 0;
-  width: 1px;
-  transform: translateX(calc(var(--tl-t) * var(--tl-pps) * 1px));
-  background: color-mix(in srgb, var(--color-text) 22%, transparent);
-}
+  .tl-tick {
+    position: absolute;
+    bottom: 0;
+    width: 1px;
+    transform: translateX(calc(var(--tl-t) * var(--tl-pps) * 1px));
+    background: color-mix(in srgb, var(--color-text) 22%, transparent);
+  }
 
-.tl-tick[data-major='true'] {
-  top: 0;
-}
+  .tl-tick[data-major='true'] {
+    top: 0;
+  }
 
-.tl-tick[data-major='false'] {
-  top: 60%;
-}
+  .tl-tick[data-major='false'] {
+    top: 60%;
+  }
 
-.tl-tick-label {
-  position: absolute;
-  bottom: 0;
-  left: 4px;
-  white-space: nowrap;
-}
+  .tl-tick-label {
+    position: absolute;
+    bottom: 0;
+    left: 4px;
+    white-space: nowrap;
+  }
 
-/* ── lanes ───────────────────────────────────────────────────────────────── */
+  /* ── lanes ───────────────────────────────────────────────────────────────── */
 
-.tl-lane {
-  position: relative;
-  height: calc(var(--tl-lane-h) * 1px);
-  border-bottom: 1px solid var(--color-divider);
-}
+  .tl-lane {
+    position: relative;
+    height: calc(var(--tl-lane-h) * 1px);
+    border-bottom: 1px solid var(--color-divider);
+  }
 
-.tl-lane:last-of-type {
-  border-bottom: 0;
-}
+  .tl-lane:last-of-type {
+    border-bottom: 0;
+  }
 
-.tl-lane[data-current='true'] {
-  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
-}
+  .tl-lane[data-current='true'] {
+    background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+  }
 
-.tl-lane[data-locked='true'] {
-  background: repeating-linear-gradient(
-    135deg,
-    transparent,
-    transparent 6px,
-    color-mix(in srgb, var(--color-text) 5%, transparent) 6px,
-    color-mix(in srgb, var(--color-text) 5%, transparent) 7px
-  );
-}
+  .tl-lane[data-locked='true'] {
+    background: repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 6px,
+      color-mix(in srgb, var(--color-text) 5%, transparent) 6px,
+      color-mix(in srgb, var(--color-text) 5%, transparent) 7px
+    );
+  }
 
-/* ── clips ───────────────────────────────────────────────────────────────── */
+  /* ── clips ───────────────────────────────────────────────────────────────── */
 
-.tl-clip {
-  position: absolute;
-  top: calc(var(--tl-inset) * 1px);
-  bottom: calc(var(--tl-inset) * 1px);
-  left: 0;
-  width: calc(var(--tl-dur) * var(--tl-pps) * 1px);
-  transform: translateX(calc((var(--tl-t0) * var(--tl-pps) + var(--tl-dx, 0)) * 1px));
-  display: block;
-  overflow: hidden;
-  box-sizing: border-box;
-  padding: 5px 8px;
-  text-align: start;
-  font-size: var(--text-2xs);
-  line-height: var(--leading-tight);
-  color: var(--color-text);
-  cursor: grab;
-  touch-action: none;
-}
-
-.tl-clip[data-dragging='true'] {
-  cursor: grabbing;
-  z-index: 2;
-}
-
-.tl-clip:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 1px;
-}
-
-.tl-clip[data-kind='video'] {
-  border: 1px solid var(--color-accent-600);
-  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
-}
-
-/* An overlay lane is a video lane that sits above the programme, so it takes
-   the video treatment at a lighter weight rather than a colour of its own —
-   「时间轴颜色只表达轨道类型」 and these two kinds are one family. */
-.tl-clip[data-kind='overlay'] {
-  border: 1px solid var(--color-accent-600);
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-}
-
-.tl-clip[data-kind='audio'] {
-  border: 1px solid var(--color-neutral-500);
-  background: repeating-linear-gradient(
-    90deg,
-    var(--color-neutral-200),
-    var(--color-neutral-200) 11px,
-    var(--color-neutral-300) 11px,
-    var(--color-neutral-300) 12px
-  );
-}
-
-.tl-clip[data-kind='text'] {
-  border: 1px solid var(--color-neutral-500);
-  background: var(--color-bg);
-}
-
-.tl-clip[data-selected='true'] {
-  border-width: 2px;
-  border-color: var(--color-accent-900);
-}
-
-.tl-clip[data-kind='video'][data-selected='true'] {
-  background: color-mix(in srgb, var(--color-accent) 26%, transparent);
-}
-
-/* The partner of the selected clip: visible as linked without competing with
-   the selection itself. */
-.tl-clip[data-linked='true'] {
-  outline: 1px dashed var(--color-accent-600);
-  outline-offset: -3px;
-}
-
-/* Live refusal during a drag — 「不隐藏、不静默失败」. */
-.tl-clip[data-blocked='true'] {
-  border-color: var(--color-fail);
-  background: color-mix(in srgb, var(--color-fail) 14%, transparent);
-}
-
-.tl-clip-label {
-  display: block;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.tl-clip-meta {
-  display: block;
-  font-family: var(--font-mono);
-  color: var(--color-neutral-700);
-}
-
-/* Only drawn away from 100%: a badge on every clip would say nothing. */
-.tl-clip-speed {
-  position: absolute;
-  top: 3px;
-  right: 8px;
-  padding: 0 3px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--color-text) 12%, transparent);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  color: var(--color-neutral-700);
-}
-
-/* ── trim handles ────────────────────────────────────────────────────────── */
-
-/* 6px is the strip the pointer has to hit. It is deliberately narrower than
-   the 8px snap radius: a handle wider than the snap threshold would make the
-   edges of adjacent clips overlap in hit-testing, and the user would grab the
-   neighbour's in point while aiming at this one's out point. */
-.tl-clip-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  cursor: ew-resize;
-  touch-action: none;
-}
-
-.tl-clip-handle[data-edge='in'] {
-  left: 0;
-}
-
-.tl-clip-handle[data-edge='out'] {
-  right: 0;
-}
-
-/* Invisible until the clip is worth trimming — a hover or a selection. Handles
-   drawn on every clip would turn a dense track into a picket fence. */
-.tl-clip:hover .tl-clip-handle,
-.tl-clip[data-selected='true'] .tl-clip-handle {
-  background: color-mix(in srgb, var(--color-accent-900) 55%, transparent);
-}
-
-.tl-clip[data-trimming='in'] .tl-clip-handle[data-edge='in'],
-.tl-clip[data-trimming='out'] .tl-clip-handle[data-edge='out'] {
-  background: var(--color-accent-900);
-}
-
-/* A clip mid-trim leads its neighbours, so the edge being dragged is never
-   drawn underneath the one it is approaching. */
-.tl-clip[data-trimming='in'],
-.tl-clip[data-trimming='out'] {
-  z-index: 2;
-}
-
-/* ── markers and the playhead ────────────────────────────────────────────── */
-
-.tl-marker {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 1px;
-  transform: translateX(calc(var(--tl-t) * var(--tl-pps) * 1px));
-  background: var(--color-warn);
-  pointer-events: none;
-}
-
-.tl-marker-flag {
-  position: absolute;
-  top: 0;
-  left: 2px;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  color: var(--color-warn-text);
-}
-
-.tl-playhead {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 2px;
-  transform: translateX(calc(var(--tl-t) * var(--tl-pps) * 1px));
-  background: var(--color-text);
-  pointer-events: none;
-  z-index: 3;
-}
-
-.tl-playhead-flag {
-  position: absolute;
-  top: 0;
-  left: -6px;
-  width: 14px;
-  height: 12px;
-  background: var(--color-text);
-}
-
-/* ── track heads ─────────────────────────────────────────────────────────── */
-
-.tl-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  height: calc(var(--tl-lane-h) * 1px);
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-divider);
-  font-size: var(--text-xs);
-}
-
-.tl-head:last-of-type {
-  border-bottom: 0;
-}
-
-.tl-head[data-current='true'] {
-  background: var(--color-accent-100);
-}
-
-.tl-head-role {
-  color: var(--color-neutral-600);
-}
-
-/* The head column's own spacer for the ruler strip. */
-.tl-head-gutter {
-  border-bottom: 1px solid var(--color-divider);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tl-canvas,
   .tl-clip {
-    transition: none;
+    position: absolute;
+    top: calc(var(--tl-inset) * 1px);
+    bottom: calc(var(--tl-inset) * 1px);
+    left: 0;
+    width: calc(var(--tl-dur) * var(--tl-pps) * 1px);
+    transform: translateX(calc((var(--tl-t0) * var(--tl-pps) + var(--tl-dx, 0)) * 1px));
+    display: block;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 5px 8px;
+    text-align: start;
+    font-size: var(--text-2xs);
+    line-height: var(--leading-tight);
+    color: var(--color-text);
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .tl-clip[data-dragging='true'] {
+    cursor: grabbing;
+    z-index: 2;
+  }
+
+  .tl-clip:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+
+  .tl-clip[data-kind='video'] {
+    border: 1px solid var(--color-accent-600);
+    background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  }
+
+  /* An overlay lane is a video lane that sits above the programme, so it takes
+     the video treatment at a lighter weight rather than a colour of its own —
+     「时间轴颜色只表达轨道类型」 and these two kinds are one family. */
+  .tl-clip[data-kind='overlay'] {
+    border: 1px solid var(--color-accent-600);
+    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  }
+
+  .tl-clip[data-kind='audio'] {
+    border: 1px solid var(--color-neutral-500);
+    background: repeating-linear-gradient(
+      90deg,
+      var(--color-neutral-200),
+      var(--color-neutral-200) 11px,
+      var(--color-neutral-300) 11px,
+      var(--color-neutral-300) 12px
+    );
+  }
+
+  .tl-clip[data-kind='text'] {
+    border: 1px solid var(--color-neutral-500);
+    background: var(--color-bg);
+  }
+
+  .tl-clip[data-selected='true'] {
+    border-width: 2px;
+    border-color: var(--color-accent-900);
+  }
+
+  .tl-clip[data-kind='video'][data-selected='true'] {
+    background: color-mix(in srgb, var(--color-accent) 26%, transparent);
+  }
+
+  /* The partner of the selected clip: visible as linked without competing with
+     the selection itself. */
+  .tl-clip[data-linked='true'] {
+    outline: 1px dashed var(--color-accent-600);
+    outline-offset: -3px;
+  }
+
+  /* Live refusal during a drag — 「不隐藏、不静默失败」. */
+  .tl-clip[data-blocked='true'] {
+    border-color: var(--color-fail);
+    background: color-mix(in srgb, var(--color-fail) 14%, transparent);
+  }
+
+  .tl-clip-label {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .tl-clip-meta {
+    display: block;
+    font-family: var(--font-mono);
+    color: var(--color-neutral-700);
+  }
+
+  /* Only drawn away from 100%: a badge on every clip would say nothing. */
+  .tl-clip-speed {
+    position: absolute;
+    top: 3px;
+    right: 8px;
+    padding: 0 3px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--color-text) 12%, transparent);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--color-neutral-700);
+  }
+
+  /* ── trim handles ────────────────────────────────────────────────────────── */
+
+  /* 6px is the strip the pointer has to hit. It is deliberately narrower than
+     the 8px snap radius: a handle wider than the snap threshold would make the
+     edges of adjacent clips overlap in hit-testing, and the user would grab the
+     neighbour's in point while aiming at this one's out point. */
+  .tl-clip-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+    touch-action: none;
+  }
+
+  .tl-clip-handle[data-edge='in'] {
+    left: 0;
+  }
+
+  .tl-clip-handle[data-edge='out'] {
+    right: 0;
+  }
+
+  /* Invisible until the clip is worth trimming — a hover or a selection. Handles
+     drawn on every clip would turn a dense track into a picket fence. */
+  .tl-clip:hover .tl-clip-handle,
+  .tl-clip[data-selected='true'] .tl-clip-handle {
+    background: color-mix(in srgb, var(--color-accent-900) 55%, transparent);
+  }
+
+  .tl-clip[data-trimming='in'] .tl-clip-handle[data-edge='in'],
+  .tl-clip[data-trimming='out'] .tl-clip-handle[data-edge='out'] {
+    background: var(--color-accent-900);
+  }
+
+  /* A clip mid-trim leads its neighbours, so the edge being dragged is never
+     drawn underneath the one it is approaching. */
+  .tl-clip[data-trimming='in'],
+  .tl-clip[data-trimming='out'] {
+    z-index: 2;
+  }
+
+  /* ── markers and the playhead ────────────────────────────────────────────── */
+
+  .tl-marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 1px;
+    transform: translateX(calc(var(--tl-t) * var(--tl-pps) * 1px));
+    background: var(--color-warn);
+    pointer-events: none;
+  }
+
+  .tl-marker-flag {
+    position: absolute;
+    top: 0;
+    left: 2px;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    color: var(--color-warn-text);
+  }
+
+  .tl-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 2px;
+    transform: translateX(calc(var(--tl-t) * var(--tl-pps) * 1px));
+    background: var(--color-text);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .tl-playhead-flag {
+    position: absolute;
+    top: 0;
+    left: -6px;
+    width: 14px;
+    height: 12px;
+    background: var(--color-text);
+  }
+
+  /* ── track heads ─────────────────────────────────────────────────────────── */
+
+  .tl-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    height: calc(var(--tl-lane-h) * 1px);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--color-divider);
+    font-size: var(--text-xs);
+  }
+
+  .tl-head:last-of-type {
+    border-bottom: 0;
+  }
+
+  .tl-head[data-current='true'] {
+    background: var(--color-accent-100);
+  }
+
+  .tl-head-role {
+    color: var(--color-neutral-600);
+  }
+
+  /* The head column's own spacer for the ruler strip. */
+  .tl-head-gutter {
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tl-canvas,
+    .tl-clip {
+      transition: none;
+    }
   }
 }

@@ -34,7 +34,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { KeyboardEvent, ReactNode, RefObject } from 'react';
 
-import { Button, cn } from '../../design/primitives';
+import { Button, Textarea, cn } from '../../design/primitives';
 import { AGENT_MODE_COMPOSER } from './conversationModel';
 import type { AgentMode } from './agentContract';
 
@@ -114,18 +114,16 @@ export function AgentComposer({
         </div>
       )}
 
-      <textarea
+      <Textarea
         ref={inputRef}
         rows={2}
+        resize="none"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={onKeyDown}
         placeholder={i18n._(copy.placeholder)}
         aria-label={i18n._(copy.placeholder)}
-        className={
-          'min-h-16 w-full resize-none border border-divider px-3 py-2 text-sm leading-normal ' +
-          'caret-accent placeholder:text-neutral-600 focus:border-accent disabled:opacity-45'
-        }
+        className="min-h-16"
         {...(blocked ? { disabled: true, title: disabledReason } : {})}
       />
 

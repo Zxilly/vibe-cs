@@ -38,7 +38,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 
 import { Skeleton } from '../../design/data';
-import { Button, Field, Seg } from '../../design/primitives';
+import { Button, Field, NativeSelect, Seg } from '../../design/primitives';
 import { useAppConfig } from '../../data/config';
 import { useNativeShell, useNativeShellAction } from '../../data/nativeShell';
 import { splitMinutesSeconds } from './montageClock';
@@ -103,7 +103,8 @@ export function ExportBlock({ project: desk, service, projectId }: MontageBlockP
         <div className="flex gap-2.5">
           <Field label={<Trans>分辨率</Trans>} className="flex-1">
             {(control) => (
-              <select
+              <NativeSelect
+                size="md"
                 {...control}
                 data-montage-field="resolution"
                 disabled={!writable}
@@ -115,7 +116,6 @@ export function ExportBlock({ project: desk, service, projectId }: MontageBlockP
                   if (found === undefined) return;
                   desk.save(editMontageSettings({ width: found[0], height: found[1] }));
                 }}
-                className={SELECT_CLASS}
               >
                 {/* A project stored at a size this list does not carry keeps it,
                     as its own first option, rather than being snapped to 1080p
@@ -132,19 +132,19 @@ export function ExportBlock({ project: desk, service, projectId }: MontageBlockP
                     {formatResolution(width, height)}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             )}
           </Field>
 
           <Field label={<Trans>帧率</Trans>} className="flex-1">
             {(control) => (
-              <select
+              <NativeSelect
+                size="md"
                 {...control}
                 data-montage-field="fps"
                 disabled={!writable}
                 value={String(settings.fps)}
                 onChange={(event) => desk.save(editMontageSettings({ fps: Number(event.target.value) }))}
-                className={SELECT_CLASS}
               >
                 {MONTAGE_FRAME_RATES.includes(settings.fps) ? null : (
                   <option value={String(settings.fps)}>{settings.fps} fps</option>
@@ -154,7 +154,7 @@ export function ExportBlock({ project: desk, service, projectId }: MontageBlockP
                     {fps} fps
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             )}
           </Field>
         </div>
@@ -265,10 +265,6 @@ export function ExportBlock({ project: desk, service, projectId }: MontageBlockP
     </section>
   );
 }
-
-const SELECT_CLASS =
-  'w-full min-w-0 border border-divider bg-bg px-2 text-sm leading-normal text-text ' +
-  'h-[var(--h-ctl-md)] focus:border-accent disabled:opacity-45';
 
 function PanelHeading() {
   return (

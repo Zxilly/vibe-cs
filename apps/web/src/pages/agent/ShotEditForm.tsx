@@ -34,7 +34,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { KeyboardEvent } from 'react';
 
-import { Button, Field, Seg, TextInput, cn } from '../../design/primitives';
+import { Button, Field, NativeSelect, Seg, Textarea, TextInput, cn } from '../../design/primitives';
 import {
   AGENT_PLAN_AUTHOR,
   AGENT_SHOT_KIND,
@@ -66,19 +66,12 @@ export interface ShotEditFormProps {
   readonly className?: string | undefined;
 }
 
-/**
- * The select for 镜头类型. Seven members (`domain/agent/types.ts` explains why
- * seven and not §4.5.2's five) is past what a `Seg` can carry in a 440px
- * inspector, and the design system has no listbox, so this is a native
- * `<select>` wearing the same height and type step as every other control.
+/*
+ * 镜头类型 is a `NativeSelect`, not a `Seg`. Seven members (`domain/agent/types.ts`
+ * explains why seven and not §4.5.2's five) is past what a segmented control
+ * can carry in a 440px inspector; the design system's own native select is
+ * where the height and type step now come from.
  */
-const SELECT_CLASS =
-  'w-full min-w-0 border border-divider bg-bg px-2 text-sm leading-normal text-text ' +
-  'h-[var(--h-ctl-sm)] focus:border-accent disabled:opacity-45';
-
-const TEXTAREA_CLASS =
-  'w-full min-w-0 resize-y border border-divider px-3 py-2 text-sm leading-normal caret-accent ' +
-  'placeholder:text-neutral-600 focus:border-accent disabled:opacity-45';
 
 export function ShotEditForm({
   shot,
@@ -161,9 +154,8 @@ export function ShotEditForm({
       <div className="flex flex-wrap gap-3">
         <Field label={<Trans>镜头类型</Trans>} className="w-40">
           {(control) => (
-            <select
+            <NativeSelect
               {...control}
-              className={SELECT_CLASS}
               disabled={disabled}
               value={draft.kind}
               onChange={(event) => {
@@ -175,7 +167,7 @@ export function ShotEditForm({
                   {AGENT_SHOT_KIND[kind].code} · {i18n._(AGENT_SHOT_KIND[kind].label)}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           )}
         </Field>
 
@@ -263,10 +255,9 @@ export function ShotEditForm({
 
       <Field label={<Trans>镜头意图 · 会一起发给 Agent</Trans>}>
         {(control) => (
-          <textarea
+          <Textarea
             {...control}
             rows={3}
-            className={TEXTAREA_CLASS}
             disabled={disabled}
             value={draft.rationale}
             onChange={(event) => {

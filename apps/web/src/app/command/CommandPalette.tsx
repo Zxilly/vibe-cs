@@ -81,7 +81,7 @@ import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { useOverlayReturnFocus } from '../../design/feedback';
-import { cn } from '../../design/primitives';
+import { cn, Kbd } from '../../design/primitives';
 import {
   buildCommandList,
   COMMAND_GROUP_LABEL,
@@ -231,11 +231,8 @@ export function CommandPalette({
           />
           {/* A key name plus its verb; the artboard prints both, so both go
               through the macro rather than only the Chinese half. */}
-          <span
-            aria-hidden="true"
-            className="flex-none border border-divider px-1.5 text-2xs text-neutral-600"
-          >
-            <Trans>ESC 关闭</Trans>
+          <span className="flex-none text-2xs text-neutral-600">
+            <Kbd>ESC</Kbd> <Trans>关闭</Trans>
           </span>
         </div>
 
@@ -296,12 +293,7 @@ export function CommandPalette({
                           </span>
                         )}
                         {command.shortcut === null ? null : (
-                          <kbd
-                            aria-hidden="true"
-                            className="flex-none border border-divider px-1.5 text-2xs tracking-wide text-neutral-600"
-                          >
-                            {command.shortcut}
-                          </kbd>
+                          <Kbd className="tracking-wide">{command.shortcut}</Kbd>
                         )}
                         {isActive ? (
                           <span

@@ -82,8 +82,10 @@ describe('Button markup', () => {
       </Button>,
     );
 
-    // The shell's degradation rule: 禁用并写明原因，不隐藏、不静默失败.
-    expect(html).toContain('title="本地服务离线"');
+    /* The shell's degradation rule: 禁用并写明原因，不隐藏、不静默失败. A disabled
+       button raises no pointer events, so the reason hangs on a focusable
+       wrapper rather than on the button — see `feedback/Tooltip`. */
+    expect(html).toMatch(/<span tabindex="0"[^>]*class="inline-flex"/u);
     expect(html).toMatch(/aria-describedby="([^"]+)"/u);
     expect(html).toContain('sr-only');
     expect(html).toContain('此动作当前不可用：本地服务离线');

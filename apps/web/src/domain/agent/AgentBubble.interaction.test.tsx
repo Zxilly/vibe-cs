@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderInteractive } from '../../test/render';
 import { AgentBubble, type AgentAssistantEntry } from './AgentBubble';
 import { ASSISTANT_ENTRY } from './agentFixtures.testing';
+import { reasonOf } from '../../test/reason';
 
 const ASSISTANT = ASSISTANT_ENTRY as AgentAssistantEntry;
 
@@ -37,7 +38,7 @@ describe('AgentBubble inline actions', () => {
     const button = getByRole('button', { name: '加上' }) as HTMLButtonElement;
 
     expect(button.disabled).toBe(true);
-    expect(button.getAttribute('title')).toBe('编辑会记入会话，请先选择或新建一条会话');
+    expect(reasonOf(button)).toContain('编辑会记入会话，请先选择或新建一条会话');
 
     fireEvent.click(button);
     expect(onAction).not.toHaveBeenCalled();

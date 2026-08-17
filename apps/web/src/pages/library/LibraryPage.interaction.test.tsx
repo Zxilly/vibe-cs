@@ -33,6 +33,7 @@ import {
   recorder,
   renderLibrary,
 } from './test/renderLibrary';
+import { reasonOf } from '../../test/reason';
 
 const ONLINE = {
   demos: demoPage([DEMO_FIXTURE]),
@@ -192,7 +193,7 @@ describe('需要服务', () => {
 
     const button = screen.getByRole('button', { name: /导入 Demo/u }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
-    expect(button.title).toContain('本地服务');
+    expect(reasonOf(button)).toContain('本地服务');
 
     button.click();
 

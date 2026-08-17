@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderInteractive } from '../../test/render';
 import { TakeCard, type TakeShotPick } from './TakeCard';
 import { PLAN_SHOTS } from './agentFixtures.testing';
+import { reasonOf } from '../../test/reason';
 
 function picks(onToggle?: (shot: (typeof PLAN_SHOTS)[number]) => void): readonly TakeShotPick[] {
   return PLAN_SHOTS.map((shot, index) => ({
@@ -60,7 +61,7 @@ describe('TakeCard actions', () => {
     const button = getByRole('button', { name: '预览' }) as HTMLButtonElement;
 
     expect(button.disabled).toBe(true);
-    expect(button.getAttribute('title')).toBe('这一版还不能渲染镜头预览');
+    expect(reasonOf(button)).toContain('这一版还不能渲染镜头预览');
     fireEvent.click(button);
     expect(onPreview).not.toHaveBeenCalled();
   });

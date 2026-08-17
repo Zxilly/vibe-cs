@@ -35,6 +35,7 @@ import {
   renderMontage,
   testNativeShell,
 } from './test/renderMontage';
+import { reasonOf } from '../../test/reason';
 
 /* ── fixtures with music and beats ───────────────────────────────────────── */
 
@@ -276,7 +277,7 @@ describe('生成视频', () => {
     expect(buttons.length).toBeGreaterThan(0);
     for (const button of buttons) {
       expect(button.hasAttribute('disabled')).toBe(true);
-      expect(button.getAttribute('title') ?? button.getAttribute('aria-describedby')).toBeTruthy();
+      expect(reasonOf(button)).toBeTruthy();
     }
     expect(screen.getAllByText(/本地服务未连接|正在连接本地服务/u).length).toBeGreaterThan(0);
   });
@@ -386,7 +387,7 @@ describe('更换音乐', () => {
 
     const button = await screen.findByRole('button', { name: '更换音乐' });
     expect(button.hasAttribute('disabled')).toBe(true);
-    expect(button.getAttribute('title')).toContain('桌面应用');
+    expect(reasonOf(button)).toContain('桌面应用');
   });
 
   it('imports the picked file and stores its path', async () => {

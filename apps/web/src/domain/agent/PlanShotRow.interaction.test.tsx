@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderInteractive } from '../../test/render';
 import { PlanShotRow } from './PlanShotRow';
 import { SHOT_CRANE_REMOVED, SHOT_TRACKING } from './agentFixtures.testing';
+import { reasonOf } from '../../test/reason';
 
 describe('PlanShotRow selection', () => {
   it('reports the whole shot', () => {
@@ -60,7 +61,7 @@ describe('PlanShotRow 撤销删除', () => {
     const button = getByRole('button', { name: '撤销删除' });
 
     expect((button as HTMLButtonElement).disabled).toBe(true);
-    expect(button.getAttribute('title')).toBe('编辑会记入会话，请先选择或新建一条会话');
+    expect(reasonOf(button)).toContain('编辑会记入会话，请先选择或新建一条会话');
 
     fireEvent.click(button);
     expect(onRestore).not.toHaveBeenCalled();

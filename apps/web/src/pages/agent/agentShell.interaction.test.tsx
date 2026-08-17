@@ -225,9 +225,13 @@ describe('§4.5.3 rule ①, at the page level', () => {
     });
     await serviceOnline();
 
-    const confirm = await screen.findByRole('button', { name: /确认并生成视频/u });
+    /* Re-queried inside the wait rather than held: a button that gains or
+       loses its 「为什么不能点」 gains or loses the tooltip wrapper with it, so
+       the node captured before the transition is not the node after it. */
     await waitFor(() => {
-      expect(confirm.hasAttribute('disabled')).toBe(false);
+      expect(
+        screen.getByRole('button', { name: /确认并生成视频/u }).hasAttribute('disabled'),
+      ).toBe(false);
     });
     expect(reached.filter((name) => RECORDING_METHOD.test(name))).toEqual([]);
   });
@@ -243,13 +247,14 @@ describe('§4.5.3 rule ①, at the page level', () => {
     });
     await serviceOnline();
 
-    const confirm = await screen.findByRole('button', { name: /确认并生成视频/u });
     await waitFor(() => {
-      expect(confirm.hasAttribute('disabled')).toBe(false);
+      expect(
+        screen.getByRole('button', { name: /确认并生成视频/u }).hasAttribute('disabled'),
+      ).toBe(false);
     });
 
     await act(async () => {
-      fireEvent.click(confirm);
+      fireEvent.click(screen.getByRole('button', { name: /确认并生成视频/u }));
     });
 
     const landing = await screen.findByTestId('recording-landing');

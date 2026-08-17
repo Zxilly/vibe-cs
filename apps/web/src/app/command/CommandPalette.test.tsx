@@ -90,7 +90,9 @@ describe('CommandPalette markup', () => {
 
   it('draws the header chip and the keyboard hint row from the artboard', () => {
     const html = render();
-    expect(html).toContain('ESC 关闭');
+    // The key is a `Kbd` chip and the verb beside it is copy — see `Kbd`.
+    expect(html).toMatch(/<kbd[^>]*>ESC<\/kbd>/u);
+    expect(html).toContain('关闭');
     expect(html).toContain('↑↓ 选择');
     expect(html).toContain('↵ 打开');
     expect(html).toContain('TAB 切换分组');

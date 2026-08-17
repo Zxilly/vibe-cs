@@ -83,8 +83,16 @@ describe('ServiceGate — 离线降级', () => {
     expect(action.hasAttribute('disabled')).toBe(true);
     // 「不隐藏、不静默失败」: the button is still there, and it says why.
     expect(action.textContent).toContain('· 需要服务');
-    expect(action.getAttribute('title')).toBe('本地服务未连接，恢复后无需刷新页面即可继续');
-    expect(action.getAttribute('aria-describedby')).not.toBeNull();
+    /* The reason reaches assistive technology through `aria-describedby` and a
+       sighted user through a tooltip on the wrapper — a disabled button raises
+       no pointer events, so the native `title` this used to check showed
+       nothing at all. See `design/feedback/Tooltip`. */
+    const reasonId = action.getAttribute('aria-describedby');
+    expect(reasonId).not.toBeNull();
+    expect(document.getElementById(reasonId ?? '')?.textContent).toContain(
+      '本地服务未连接，恢复后无需刷新页面即可继续',
+    );
+    expect(action.closest('[data-state]')).not.toBeNull();
 
     // 「只读内容照常可用」
     expect(getByText('Aurora vs Meridian')).toBeTruthy();
@@ -101,7 +109,9 @@ describe('ServiceGate — 离线降级', () => {
 
     const action = getByRole('button', { name: /导入 Demo/u });
     expect(action.hasAttribute('disabled')).toBe(true);
-    expect(action.getAttribute('title')).toBe('正在连接本地服务，稍后即可使用');
+    expect(
+      document.getElementById(action.getAttribute('aria-describedby') ?? '')?.textContent,
+    ).toContain('正在连接本地服务，稍后即可使用');
     // 「checking」 shows no banner: a flash on every cold start trains the user
     // to ignore it.
     expect(document.querySelector('[role="alert"]')).toBeNull();
@@ -125,7 +135,8 @@ describe('ServiceGate — 离线降级', () => {
 
     const action = getByRole('button', { name: '导入 Demo' });
     expect(action.hasAttribute('disabled')).toBe(false);
-    expect(action.getAttribute('title')).toBeNull();
+    // No reason, so no description and no tooltip wrapper around it.
+    expect(action.getAttribute('aria-describedby')).toBeNull();
   });
 
   it('refetches everything else after recovery, and not the probe itself', async () => {

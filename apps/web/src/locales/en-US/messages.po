@@ -172,7 +172,7 @@ msgid "{0, plural, other {导入 # 个文件}}"
 msgstr "{0, plural, one {Import # file} other {Import # files}}"
 
 #. placeholder {0}: exportResult.count
-#: src/pages/settings/AiAgentSection.tsx:738
+#: src/pages/settings/AiAgentSection.tsx:735
 msgid "{0, plural, other {已导出 # 条会话}}"
 msgstr "{0, plural, one {Exported # session} other {Exported # sessions}}"
 
@@ -380,7 +380,7 @@ msgid "{0} 的道具打出 {1} 点伤害"
 msgstr "The utility of {0} dealt {1} damage"
 
 #. placeholder {0}: shown.toFixed(1)
-#: src/pages/settings/GameSection.tsx:372
+#: src/pages/settings/GameSection.tsx:373
 #: src/pages/settings/GameSection.tsx:378
 msgid "{0} 秒"
 msgstr "{0}s"
@@ -401,7 +401,7 @@ msgid "{0} 趋势，共 {1} 场，从 {2} 到 {3}，均值 {4}"
 msgstr "{0} trend, {1} matches, from {2} to {3}, average {4}"
 
 #. placeholder {0}: clip.label
-#: src/design/timeline/ClipView.tsx:131
+#: src/design/timeline/ClipView.tsx:132
 msgid "{0}，{from} 至 {to}"
 msgstr "{0}, {from} to {to}"
 
@@ -413,7 +413,7 @@ msgid "{0}，剩余 {1} 点生命，手持 {2}"
 msgstr "{0}, {1} health left, holding {2}"
 
 #. placeholder {0}: Math.round(clip.speed * 100)
-#: src/design/timeline/ClipView.tsx:167
+#: src/design/timeline/ClipView.tsx:168
 msgid "{0}%"
 msgstr "{0}%"
 
@@ -445,7 +445,7 @@ msgstr "{duelsSkipped} kills have no position sample in this stretch, so their e
 msgid "{heatSkipped} 个样本落在图幅或所选楼层之外，没有画。"
 msgstr "{heatSkipped} samples fall outside the frame or the selected floor and are not drawn."
 
-#: src/app/command/CommandPalette.tsx:318
+#: src/app/command/CommandPalette.tsx:313
 msgid "{hidden, plural, other {还有 # 条 · 继续输入以缩小范围}}"
 msgstr "{hidden, plural, one {# more · keep typing to narrow it down} other {# more · keep typing to narrow it down}}"
 
@@ -516,11 +516,11 @@ msgstr "{score} rounds"
 msgid "{seconds} 秒"
 msgstr "{seconds}s"
 
-#: src/pages/settings/AiAgentSection.tsx:661
+#: src/pages/settings/AiAgentSection.tsx:658
 msgid "{seconds} 秒左右"
 msgstr "about {seconds}s"
 
-#: src/pages/settings/AiAgentSection.tsx:756
+#: src/pages/settings/AiAgentSection.tsx:753
 msgid "{sessionCount, plural, other {# 条会话}}"
 msgstr "{sessionCount, plural, one {# session} other {# sessions}}"
 
@@ -616,11 +616,11 @@ msgstr "“{0}” is only a conversation. Deleting it touches none of the plans,
 msgid "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
 msgstr "“{0}” matched no player and no alias. The directory matches names and aliases by prefix and substring only — no pinyin, no fuzzy matching."
 
-#: src/app/command/CommandPalette.tsx:329
+#: src/app/command/CommandPalette.tsx:324
 msgid "↑↓ 选择"
 msgstr "↑↓ Select"
 
-#: src/app/command/CommandPalette.tsx:332
+#: src/app/command/CommandPalette.tsx:327
 msgid "↵ 打开"
 msgstr "↵ Open"
 
@@ -650,7 +650,7 @@ msgid "0.05 到 5 秒；转场比相邻片段还长时渲染会拒绝。"
 msgstr "0.05 to 5 seconds; the render refuses a transition longer than the clips it joins."
 
 #. placeholder {0}: scale.pixelsPerSecond
-#: src/design/timeline/TimelinePrototype.tsx:184
+#: src/design/timeline/TimelinePrototype.tsx:185
 #: src/pages/editor/EditorTimelinePanel.tsx:230
 msgid "1 秒 = {0} px"
 msgstr "1s = {0} px"
@@ -723,7 +723,7 @@ msgstr "Agent version"
 msgid "Agent 版本的镜头带"
 msgstr "Shot strip of the Agent version"
 
-#: src/pages/settings/AiAgentSection.tsx:667
+#: src/pages/settings/AiAgentSection.tsx:664
 msgid "Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。"
 msgstr "The length the Agent designs shots towards. It is a target, not a ceiling — a plan that needs longer is not truncated."
 
@@ -799,11 +799,7 @@ msgstr "Demo library · table view"
 msgid "Demo、选手与 tick 区间不会被改动。改完之后需要重新生成预览计划。"
 msgstr "The Demo, the player and the tick range are not touched. The preview plan has to be regenerated afterwards."
 
-#: src/app/command/CommandPalette.tsx:235
-msgid "ESC 关闭"
-msgstr "ESC Close"
-
-#: src/pages/agent/ShotEditForm.tsx:299
+#: src/pages/agent/ShotEditForm.tsx:290
 msgid "Esc 放弃 · ⌘↵ 保存"
 msgstr "Esc to discard · ⌘↵ to save"
 
@@ -912,7 +908,7 @@ msgstr "T spend"
 msgid "T 购买"
 msgstr "T purchases"
 
-#: src/app/command/CommandPalette.tsx:335
+#: src/app/command/CommandPalette.tsx:330
 msgid "TAB 切换分组"
 msgstr "TAB Switch group"
 
@@ -932,7 +928,7 @@ msgstr "tick {0}"
 msgid "tick 区间"
 msgstr "tick range"
 
-#: src/pages/agent/ShotEditForm.tsx:185
+#: src/pages/agent/ShotEditForm.tsx:177
 msgid "tick 区间不会跟着动"
 msgstr "The tick range does not follow"
 
@@ -968,7 +964,7 @@ msgstr "Previous cut"
 msgid "上一回合"
 msgstr "Previous round"
 
-#: src/domain/media/Transport.tsx:174
+#: src/domain/media/Transport.tsx:177
 msgid "上一帧"
 msgstr "Previous frame"
 
@@ -1002,7 +998,7 @@ msgstr "Next cut"
 msgid "下一回合"
 msgstr "Next round"
 
-#: src/domain/media/Transport.tsx:197
+#: src/domain/media/Transport.tsx:200
 msgid "下一帧"
 msgstr "Next frame"
 
@@ -1093,7 +1089,7 @@ msgstr "No earlier than {0}"
 msgid "不晚于 {0}"
 msgstr "No later than {0}"
 
-#: src/design/timeline/ClipView.tsx:177
+#: src/design/timeline/ClipView.tsx:178
 msgid "不能放在这里"
 msgstr "Cannot drop here"
 
@@ -1277,7 +1273,7 @@ msgstr "Task progress"
 msgid "任务阶段"
 msgstr "Task stages"
 
-#: src/pages/agent/ShotEditForm.tsx:281
+#: src/pages/agent/ShotEditForm.tsx:272
 msgid "会作为通知的备注一起发给 Agent"
 msgstr "Sent to the Agent as the note on the notice"
 
@@ -1433,7 +1429,7 @@ msgstr "Save note"
 msgid "保存当前的搜索、筛选、排序和列配置"
 msgstr "Saves the current search, filters, sort and column setup"
 
-#: src/pages/agent/ShotEditForm.tsx:311
+#: src/pages/agent/ShotEditForm.tsx:302
 msgid "保存改动"
 msgstr "Save changes"
 
@@ -1489,7 +1485,7 @@ msgstr "Offset"
 msgid "做一条集锦"
 msgstr "Make a highlight reel"
 
-#: src/pages/agent/AgentComposer.tsx:141
+#: src/pages/agent/AgentComposer.tsx:139
 msgid "停止"
 msgstr "Stop"
 
@@ -1547,7 +1543,7 @@ msgstr "Pick a round first"
 msgid "先选一个素材"
 msgstr "Select an asset first"
 
-#: src/design/timeline/TimelinePrototype.tsx:150
+#: src/design/timeline/TimelinePrototype.tsx:151
 #: src/pages/editor/EditorTimelinePanel.tsx:177
 msgid "先选中一个片段"
 msgstr "Select a clip first"
@@ -1597,7 +1593,7 @@ msgstr "Move the in point back one frame"
 msgid "入点后移一帧"
 msgstr "Move the in point forward one frame"
 
-#: src/design/data/DataTable.tsx:232
+#: src/design/data/DataTable.tsx:224
 msgid "全选本页"
 msgstr "Select all on this page"
 
@@ -1645,7 +1641,7 @@ msgstr "All montages"
 msgid "全部合辑 · {0} 份工程"
 msgstr "All montages · {0} projects"
 
-#: src/pages/settings/AiAgentSection.tsx:760
+#: src/pages/settings/AiAgentSection.tsx:757
 msgid "全部存在本机，不上传。"
 msgstr "All of it stays on this machine; nothing is uploaded."
 
@@ -1781,6 +1777,7 @@ msgstr "Keyword {0}"
 msgid "关键词：{0}"
 msgstr "Keyword: {0}"
 
+#: src/app/command/CommandPalette.tsx:235
 #: src/design/layout/Inspector.tsx:270
 msgid "关闭"
 msgstr "Close"
@@ -1789,16 +1786,16 @@ msgstr "Close"
 msgid "关闭后，接受变更会直接改工程，仍可撤销。"
 msgstr "With this off, accepting a change edits the project straight away. It is still undoable."
 
-#: src/design/feedback/Drawer.tsx:106
+#: src/design/feedback/Drawer.tsx:127
 msgid "关闭抽屉"
 msgstr "Close drawer"
 
-#: src/design/feedback/Notice.tsx:158
+#: src/design/feedback/Notice.tsx:159
 msgid "关闭提示"
 msgstr "Dismiss notice"
 
-#: src/app/shell/WindowTitleBar.tsx:310
-#: src/app/shell/WindowTitleBar.tsx:311
+#: src/app/shell/WindowTitleBar.tsx:306
+#: src/app/shell/WindowTitleBar.tsx:307
 msgid "关闭窗口"
 msgstr "Close window"
 
@@ -1821,7 +1818,7 @@ msgstr "Everything else keeps working. Go back to the dashboard, or export this 
 msgid "其余类型仍然有 {0} 条。"
 msgstr "The other kinds still hold {0}."
 
-#: src/design/timeline/TimelinePrototype.tsx:61
+#: src/design/timeline/TimelinePrototype.tsx:62
 #: src/pages/editor/editorMessages.ts:40
 msgid "再修剪就不足一帧了"
 msgstr "Trimming any further would leave less than one frame"
@@ -1838,13 +1835,13 @@ msgstr "A bit faster"
 msgid "再试一次"
 msgstr "Try again"
 
-#: src/app/shell/WindowTitleBar.tsx:300
-#: src/app/shell/WindowTitleBar.tsx:301
+#: src/app/shell/WindowTitleBar.tsx:296
+#: src/app/shell/WindowTitleBar.tsx:297
 msgid "最大化或还原窗口"
 msgstr "Maximize or restore window"
 
-#: src/app/shell/WindowTitleBar.tsx:290
-#: src/app/shell/WindowTitleBar.tsx:291
+#: src/app/shell/WindowTitleBar.tsx:286
+#: src/app/shell/WindowTitleBar.tsx:287
 msgid "最小化窗口"
 msgstr "Minimize window"
 
@@ -2125,7 +2122,7 @@ msgstr "Not so close"
 msgid "制作"
 msgstr "Create"
 
-#: src/design/timeline/TimelinePrototype.tsx:81
+#: src/design/timeline/TimelinePrototype.tsx:82
 #: src/pages/editor/EditorTimelinePanel.tsx:82
 msgid "剃刀"
 msgstr "Blade"
@@ -2307,7 +2304,7 @@ msgstr "Start an analysis in the library"
 msgid "反恐精英"
 msgstr "Counter-Terrorists"
 
-#: src/design/feedback/StageBar.tsx:123
+#: src/design/feedback/StageBar.tsx:124
 #: src/pages/delivery/taskModel.tsx:222
 msgid "发布"
 msgstr "Publish"
@@ -2328,7 +2325,7 @@ msgstr "Send"
 msgid "取样 {0} / {1} 个位置（上限 {2}）。 这张图画的是这批取样，不是全部。"
 msgstr "Sampled {0} of {1} positions (limit {2}). This map shows the sample, not all of them."
 
-#: src/design/feedback/Dialog.tsx:106
+#: src/design/feedback/Dialog.tsx:124
 #: src/domain/task/TaskCard.tsx:193
 #: src/domain/task/TaskDetail.tsx:138
 #: src/pages/agent/NewSessionPane.tsx:267
@@ -2507,7 +2504,7 @@ msgstr "Lead-out"
 msgid "后面没有剪切点了"
 msgstr "No cut after this one"
 
-#: src/design/feedback/StageBar.tsx:115
+#: src/design/feedback/StageBar.tsx:116
 #: src/pages/delivery/taskModel.tsx:217
 msgid "启动"
 msgstr "Launch"
@@ -2520,8 +2517,8 @@ msgstr "Launch"
 msgid "启动游戏"
 msgstr "Launch the game"
 
-#: src/design/timeline/TimelinePrototype.tsx:156
 #: src/design/timeline/TimelinePrototype.tsx:157
+#: src/design/timeline/TimelinePrototype.tsx:158
 #: src/pages/editor/EditorTimelinePanel.tsx:183
 #: src/pages/editor/EditorTimelinePanel.tsx:184
 msgid "吸附"
@@ -2544,7 +2541,7 @@ msgstr "How it hit"
 msgid "命令"
 msgstr "Commands"
 
-#: src/app/command/CommandPalette.tsx:199
+#: src/app/command/CommandPalette.tsx:203
 msgid "命令面板"
 msgstr "Command palette"
 
@@ -2720,7 +2717,7 @@ msgstr "Pick a clip on the left and its shot type, its view and its picture sett
 msgid "在左边选一个片段，这里会画出它的相机路径与朝向。"
 msgstr "Pick a clip on the left and its camera path and facings are drawn here."
 
-#: src/design/timeline/TimelinePrototype.tsx:144
+#: src/design/timeline/TimelinePrototype.tsx:145
 #: src/pages/editor/EditorTimelinePanel.tsx:171
 msgid "在播放头切开"
 msgstr "Cut at playhead"
@@ -2856,7 +2853,7 @@ msgstr "External file"
 msgid "多杀"
 msgstr "Multi-kill"
 
-#: src/design/timeline/TimelinePrototype.tsx:130
+#: src/design/timeline/TimelinePrototype.tsx:131
 msgid "多轨时间轴"
 msgstr "Multitrack timeline"
 
@@ -2876,7 +2873,7 @@ msgstr "Multitrack editor"
 msgid "多轨编辑器是给需要叠加、字幕与逐帧修剪的片子用的。"
 msgstr "The multi-track editor is for cuts that need overlays, captions and frame-accurate trimming."
 
-#: src/design/feedback/StageBar.tsx:72
+#: src/design/feedback/StageBar.tsx:73
 #: src/domain/task/taskVocabulary.tsx:48
 #: src/pages/delivery/TaskRecordView.tsx:54
 msgid "失败"
@@ -3056,9 +3053,9 @@ msgid "导入素材"
 msgstr "Import media"
 
 #: src/domain/task/taskVocabulary.tsx:30
-#: src/pages/montage/ExportBlock.tsx:279
+#: src/pages/montage/ExportBlock.tsx:275
 #: src/pages/settings/AdvancedSection.tsx:218
-#: src/pages/settings/AiAgentSection.tsx:778
+#: src/pages/settings/AiAgentSection.tsx:775
 msgid "导出"
 msgstr "Export"
 
@@ -3096,7 +3093,7 @@ msgstr "exporting a finished cut will fail"
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
 msgstr "Exporting a finished cut needs it. Recording and analysis are unaffected, but nothing can be written out."
 
-#: src/pages/settings/AiAgentSection.tsx:732
+#: src/pages/settings/AiAgentSection.tsx:729
 msgid "导出没有完成：{exportError}"
 msgstr "The export did not finish: {exportError}"
 
@@ -3193,7 +3190,7 @@ msgstr "Nothing is going on in the workspace"
 msgid "工作台"
 msgstr "Dashboard"
 
-#: src/design/timeline/TimelinePrototype.tsx:141
+#: src/design/timeline/TimelinePrototype.tsx:142
 #: src/pages/editor/EditorTimelinePanel.tsx:162
 msgid "工具"
 msgstr "Tools"
@@ -3237,7 +3234,7 @@ msgstr "Removed"
 msgid "已取消"
 msgstr "Cancelled"
 
-#: src/design/timeline/TimelinePrototype.tsx:205
+#: src/design/timeline/TimelinePrototype.tsx:206
 msgid "已吸附"
 msgstr "Snapped"
 
@@ -3251,7 +3248,7 @@ msgstr "Already in the montage"
 msgid "已处理"
 msgstr "Handled"
 
-#: src/design/feedback/StageBar.tsx:70
+#: src/design/feedback/StageBar.tsx:71
 #: src/domain/agent/workSteps.ts:39
 #: src/domain/task/taskVocabulary.tsx:47
 #: src/pages/delivery/TaskRecordView.tsx:55
@@ -3369,12 +3366,12 @@ msgstr "{0} selected, one more to go"
 msgid "已选 1 条证据"
 msgstr "1 evidence row selected"
 
-#: src/design/timeline/ClipView.tsx:172
+#: src/design/timeline/ClipView.tsx:173
 msgid "已选中"
 msgstr "Selected"
 
 #. placeholder {0}: selectedClip.label
-#: src/design/timeline/TimelinePrototype.tsx:197
+#: src/design/timeline/TimelinePrototype.tsx:198
 msgid "已选中 {0}"
 msgstr "{0} selected"
 
@@ -3507,7 +3504,7 @@ msgstr "Current R{round}"
 msgid "当前会话"
 msgstr "Current session"
 
-#: src/pages/settings/AiAgentSection.tsx:753
+#: src/pages/settings/AiAgentSection.tsx:750
 msgid "当前占用 {conversation}"
 msgstr "Currently using {conversation}"
 
@@ -3520,11 +3517,11 @@ msgstr "The current replay cache field is invalid"
 msgid "当前方案"
 msgstr "Current plan"
 
-#: src/domain/media/Transport.tsx:222
+#: src/domain/media/Transport.tsx:225
 msgid "当前时间"
 msgstr "Current time"
 
-#: src/pages/settings/AiAgentSection.tsx:673
+#: src/pages/settings/AiAgentSection.tsx:670
 msgid "当前是 {value} 秒，不在上面这几档里。"
 msgstr "Currently {value}s, which is not one of the choices above."
 
@@ -3730,7 +3727,7 @@ msgstr "Plans awaiting confirmation"
 msgid "待索引"
 msgstr "Awaiting indexing"
 
-#: src/design/primitives/Field.tsx:84
+#: src/design/primitives/Field.tsx:89
 msgid "必填"
 msgstr "Required"
 
@@ -3749,7 +3746,7 @@ msgstr "A quick montage and a multi-track project are two different kinds of pro
 msgid "快速掠过一段空间，适合两个地点之间的过渡"
 msgstr "Sweeps quickly through a space; good for moving between two places"
 
-#: src/domain/media/Transport.tsx:229
+#: src/domain/media/Transport.tsx:232
 #: src/pages/agent/ConversationModes.tsx:231
 msgid "总时长"
 msgstr "Total duration"
@@ -3773,7 +3770,7 @@ msgstr "Recovery center"
 msgid "恢复默认"
 msgstr "Reset to default"
 
-#: src/design/feedback/Notice.tsx:110
+#: src/design/feedback/Notice.tsx:111
 msgid "成功"
 msgstr "Success"
 
@@ -4112,7 +4109,7 @@ msgstr "Push in"
 msgid "推近"
 msgstr "Zoom"
 
-#: src/design/feedback/Notice.tsx:108
+#: src/design/feedback/Notice.tsx:109
 msgid "提示"
 msgstr "Info"
 
@@ -4130,8 +4127,8 @@ msgstr "The search matches session names and conversation text. Try another word
 msgid "搜索会话、Demo 或选手"
 msgstr "Search sessions, Demos or players"
 
-#: src/app/command/CommandPalette.tsx:225
-#: src/app/command/CommandPalette.tsx:339
+#: src/app/command/CommandPalette.tsx:228
+#: src/app/command/CommandPalette.tsx:334
 msgid "搜索比赛、选手、证据、页面和动作"
 msgstr "Search matches, players, evidence, pages and actions"
 
@@ -4145,7 +4142,7 @@ msgstr "Search matches, players or file names"
 msgid "搜索选手或别名"
 msgstr "Search players or aliases"
 
-#: src/design/timeline/TimelinePrototype.tsx:166
+#: src/design/timeline/TimelinePrototype.tsx:167
 #: src/pages/editor/EditorTimelinePanel.tsx:212
 msgid "撤销"
 msgstr "Undo"
@@ -4162,17 +4159,17 @@ msgstr "Undo reject"
 msgid "撤销这次修改"
 msgstr "Undo this change"
 
-#: src/domain/media/Transport.tsx:185
+#: src/domain/media/Transport.tsx:188
 #: src/pages/editor/ProgramMonitor.tsx:199
 msgid "播放"
 msgstr "Play"
 
-#: src/design/timeline/TimeRuler.tsx:88
+#: src/design/timeline/TimeRuler.tsx:89
 msgid "播放头"
 msgstr "Playhead"
 
 #. placeholder {0}: formatTimecode(timeline.playhead)
-#: src/design/timeline/TimelinePrototype.tsx:291
+#: src/design/timeline/TimelinePrototype.tsx:292
 #: src/pages/editor/EditorTimelinePanel.tsx:350
 msgid "播放头 {0}"
 msgstr "Playhead {0}"
@@ -4189,11 +4186,11 @@ msgstr "No picture under the playhead"
 msgid "播放头这个位置已经有片段了，把播放头挪到空处再试"
 msgstr "There is already a clip at the playhead — move it to an empty spot and try again"
 
-#: src/domain/media/Transport.tsx:153
+#: src/domain/media/Transport.tsx:156
 msgid "播放控制"
 msgstr "Transport controls"
 
-#: src/domain/media/Transport.tsx:239
+#: src/domain/media/Transport.tsx:242
 msgid "播放速率"
 msgstr "Playback rate"
 
@@ -4229,7 +4226,7 @@ msgstr "Use this folder"
 msgid "改了策略不会立刻清理。要现在生效，用右边这个按钮。"
 msgstr "Changing the policy sweeps nothing right away. To apply it now, use the button on the right."
 
-#: src/pages/agent/ShotEditForm.tsx:297
+#: src/pages/agent/ShotEditForm.tsx:288
 msgid "改动会记入方案版本，并通知 Agent"
 msgstr "The change is recorded as a new plan version, and the Agent is told"
 
@@ -4265,7 +4262,7 @@ msgstr "Switch to opening duels"
 msgid "攻守已交换"
 msgstr "Sides swapped"
 
-#: src/design/timeline/TimelinePrototype.tsx:186
+#: src/design/timeline/TimelinePrototype.tsx:187
 #: src/pages/editor/EditorTimelinePanel.tsx:232
 msgid "放大"
 msgstr "Zoom in"
@@ -4274,7 +4271,7 @@ msgstr "Zoom in"
 msgid "放宽时间范围通常最有效。"
 msgstr "Widening the time range usually helps most."
 
-#: src/pages/agent/ShotEditForm.tsx:302
+#: src/pages/agent/ShotEditForm.tsx:293
 msgid "放弃"
 msgstr "Discard"
 
@@ -4392,7 +4389,7 @@ msgctxt "agent-object"
 msgid "方案"
 msgstr "Plan"
 
-#: src/pages/settings/AiAgentSection.tsx:764
+#: src/pages/settings/AiAgentSection.tsx:761
 msgid "方案另占 {plans}，清空会话不会释放这部分。"
 msgstr "Plans take another {plans}, and clearing sessions does not free that."
 
@@ -4468,7 +4465,7 @@ msgstr "Logs and diagnostics"
 msgid "日期"
 msgstr "Date"
 
-#: src/pages/agent/ShotEditForm.tsx:183
+#: src/pages/agent/ShotEditForm.tsx:175
 #: src/pages/editor/EditorProjectList.tsx:108
 #: src/pages/editor/EditorProjectList.tsx:109
 #: src/pages/editor/InspectorPanel.tsx:126
@@ -4551,7 +4548,7 @@ msgstr "Saving the exported file to disk is not supported yet"
 msgid "暂不支持重新定位 Demo 文件"
 msgstr "Relocating a demo file is not supported yet"
 
-#: src/domain/media/Transport.tsx:185
+#: src/domain/media/Transport.tsx:188
 #: src/pages/editor/ProgramMonitor.tsx:199
 msgid "暂停"
 msgstr "Pause"
@@ -4564,7 +4561,7 @@ msgstr "Unfinished files in the staging directory will be deleted. If a recordin
 msgid "暂无可用的恢复动作"
 msgstr "No recovery action available"
 
-#: src/design/layout/OverflowMenu.tsx:169
+#: src/design/layout/OverflowMenu.tsx:95
 msgid "更多"
 msgstr "More"
 
@@ -4688,7 +4685,7 @@ msgstr "Not in the media library, so its beats cannot be analyzed"
 msgid "未完成的暂存输出"
 msgstr "Unfinished staged outputs"
 
-#: src/design/feedback/StageBar.tsx:66
+#: src/design/feedback/StageBar.tsx:67
 msgid "未开始"
 msgstr "Not started"
 
@@ -4747,7 +4744,7 @@ msgstr "No player or round selected"
 msgid "未选中比赛"
 msgstr "No match selected"
 
-#: src/design/timeline/TimelinePrototype.tsx:195
+#: src/design/timeline/TimelinePrototype.tsx:196
 #: src/pages/editor/EditorTimelinePanel.tsx:239
 #: src/pages/recording/ShotInspectorBlock.tsx:135
 #: src/pages/recording/ShotInspectorBlock.tsx:150
@@ -5038,8 +5035,8 @@ msgstr "The game is starting — wait a moment"
 msgid "正在处理"
 msgstr "Working"
 
-#: src/pages/settings/AiAgentSection.tsx:776
-#: src/pages/settings/AiAgentSection.tsx:785
+#: src/pages/settings/AiAgentSection.tsx:773
+#: src/pages/settings/AiAgentSection.tsx:782
 msgid "正在处理上一次操作"
 msgstr "The previous action is still running"
 
@@ -5190,7 +5187,7 @@ msgstr "Relocating"
 msgid "正在重连"
 msgstr "Reconnecting"
 
-#: src/design/primitives/Button.tsx:158
+#: src/design/primitives/Button.tsx:217
 msgid "此动作当前不可用：{disabledReason}"
 msgstr "This action is unavailable right now: {disabledReason}"
 
@@ -5270,7 +5267,7 @@ msgstr "The purchases of every round"
 msgid "每个回合的首杀对决"
 msgstr "The opening duel of every round"
 
-#: src/pages/settings/GameSection.tsx:360
+#: src/pages/settings/GameSection.tsx:361
 msgid "每个片段在正式内容之外多录的时长。"
 msgstr "How much each clip records beyond the content itself."
 
@@ -5419,7 +5416,7 @@ msgstr "No results"
 msgid "没有匹配的选手"
 msgstr "No matching player"
 
-#: src/design/timeline/TimelinePrototype.tsx:68
+#: src/design/timeline/TimelinePrototype.tsx:69
 #: src/pages/editor/editorMessages.ts:47
 msgid "没有变化"
 msgstr "No change"
@@ -5428,7 +5425,7 @@ msgstr "No change"
 msgid "没有可归属的首杀"
 msgstr "No attributable opening kill"
 
-#: src/design/timeline/TimelinePrototype.tsx:163
+#: src/design/timeline/TimelinePrototype.tsx:164
 #: src/pages/editor/EditorTimelinePanel.tsx:209
 msgid "没有可撤销的操作"
 msgstr "Nothing to undo"
@@ -5437,7 +5434,7 @@ msgstr "Nothing to undo"
 msgid "没有可用的对位数据"
 msgstr "No matchup data available"
 
-#: src/design/timeline/TimelinePrototype.tsx:172
+#: src/design/timeline/TimelinePrototype.tsx:173
 #: src/pages/editor/EditorTimelinePanel.tsx:218
 msgid "没有可重做的操作"
 msgstr "Nothing to redo"
@@ -5514,7 +5511,7 @@ msgstr "Slides along a straight line; good for an entrance and a close"
 msgid "沿真实移动轴跟随，适合交代路线"
 msgstr "Follows the real movement axis; good for showing a route"
 
-#: src/design/timeline/TimelinePrototype.tsx:153
+#: src/design/timeline/TimelinePrototype.tsx:154
 #: src/pages/editor/EditorTimelinePanel.tsx:180
 msgid "波纹删除"
 msgstr "Ripple delete"
@@ -5636,7 +5633,7 @@ msgid "清空"
 msgstr "Clear"
 
 #: src/pages/settings/AiAgentSection.tsx:376
-#: src/pages/settings/AiAgentSection.tsx:787
+#: src/pages/settings/AiAgentSection.tsx:784
 msgid "清空会话"
 msgstr "Clear sessions"
 
@@ -5693,7 +5690,7 @@ msgstr "The game is replaying another Demo — stop it before previewing this sh
 msgid "源文件不在原位"
 msgstr "Source file moved"
 
-#: src/design/timeline/TimelinePrototype.tsx:82
+#: src/design/timeline/TimelinePrototype.tsx:83
 #: src/pages/editor/EditorTimelinePanel.tsx:83
 msgid "滑移"
 msgstr "Slip"
@@ -5850,7 +5847,7 @@ msgctxt "task-progress"
 msgid "片段"
 msgstr "Clips"
 
-#: src/design/timeline/TimelinePrototype.tsx:66
+#: src/design/timeline/TimelinePrototype.tsx:67
 #: src/pages/editor/editorMessages.ts:45
 msgid "片段不在时间轴上"
 msgstr "The clip is not on the timeline"
@@ -6068,7 +6065,7 @@ msgid "界面语言"
 msgstr "Interface language"
 
 #: src/domain/agent/PlanStrip.tsx:58
-#: src/pages/settings/GameSection.tsx:371
+#: src/pages/settings/GameSection.tsx:372
 msgid "留白"
 msgstr "Lead-in"
 
@@ -6193,7 +6190,7 @@ msgstr "See the whole match"
 msgid "看道具与经济"
 msgstr "See utility & economy"
 
-#: src/design/timeline/TimelinePrototype.tsx:213
+#: src/design/timeline/TimelinePrototype.tsx:214
 #: src/pages/agent/NewSessionPane.tsx:179
 #: src/pages/agent/SessionDrawer.tsx:235
 #: src/pages/delivery/OutputsView.tsx:148
@@ -6230,7 +6227,7 @@ msgstr "Not enough disk space"
 msgid "视图"
 msgstr "View"
 
-#: src/pages/agent/ShotEditForm.tsx:249
+#: src/pages/agent/ShotEditForm.tsx:241
 #: src/pages/recording/ShotInspectorBlock.tsx:243
 #: src/pages/recording/ShotInspectorBlock.tsx:248
 msgid "视角"
@@ -6311,7 +6308,7 @@ msgstr "Remove the music"
 msgid "稍后处理"
 msgstr "Later"
 
-#: src/design/feedback/StageBar.tsx:121
+#: src/design/feedback/StageBar.tsx:122
 #: src/pages/delivery/taskModel.tsx:220
 msgid "稳定"
 msgstr "Settle"
@@ -6335,7 +6332,7 @@ msgstr "Wallbang"
 msgid "窗口宽度不足 1100px，侧栏保持为图标条"
 msgstr "The window is under 1100px wide, so the sidebar stays an icon rail"
 
-#: src/app/shell/WindowTitleBar.tsx:284
+#: src/app/shell/WindowTitleBar.tsx:280
 msgid "窗口操作失败"
 msgstr "Window action failed"
 
@@ -6451,7 +6448,7 @@ msgstr "Type"
 msgid "系统里注册了录制需要的视频与音频编码器"
 msgstr "The video and audio encoders recording needs are registered on this system"
 
-#: src/design/timeline/TimelinePrototype.tsx:59
+#: src/design/timeline/TimelinePrototype.tsx:60
 msgid "素材已经到头了，没有可以滑移的余量"
 msgstr "The source is at its end, with no slack left to slip"
 
@@ -6499,7 +6496,7 @@ msgstr "Economy"
 msgid "经济翻盘"
 msgstr "Eco comeback"
 
-#: src/pages/agent/ShotEditForm.tsx:227
+#: src/pages/agent/ShotEditForm.tsx:219
 msgid "结束 tick"
 msgstr "End tick"
 
@@ -6539,7 +6536,7 @@ msgstr "Give the plan an instruction, e.g. “make 02 shorter”, “leave 1 sec
 msgid "继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」"
 msgstr "Keep talking to the Agent, e.g. “leave 1 second before shot 3”"
 
-#: src/design/feedback/StageBar.tsx:122
+#: src/design/feedback/StageBar.tsx:123
 #: src/pages/delivery/taskModel.tsx:221
 msgid "编码"
 msgstr "Encode"
@@ -6564,7 +6561,7 @@ msgstr "Editor projects"
 msgid "编辑通知"
 msgstr "Edit notice"
 
-#: src/pages/agent/ShotEditForm.tsx:131
+#: src/pages/agent/ShotEditForm.tsx:124
 msgid "编辑镜头 {number}"
 msgstr "Edit shot {number}"
 
@@ -6572,7 +6569,7 @@ msgstr "Edit shot {number}"
 msgid "编辑镜头、接受变更和确认录制都在 Agent 创作页完成，这条竖栏不承载方案编辑。"
 msgstr "Editing shots, accepting changes and confirming a recording all happen on the Agent studio page; this rail does not carry plan editing."
 
-#: src/design/timeline/TimelinePrototype.tsx:180
+#: src/design/timeline/TimelinePrototype.tsx:181
 #: src/pages/editor/EditorTimelinePanel.tsx:226
 msgid "缩小"
 msgstr "Zoom out"
@@ -6888,7 +6885,7 @@ msgstr "The Agent session settings could not be read: {settingsError}"
 msgid "读不到会话列表：{listError}"
 msgstr "The session list could not be read: {listError}"
 
-#: src/pages/settings/AiAgentSection.tsx:726
+#: src/pages/settings/AiAgentSection.tsx:723
 msgid "读不到会话占用：{error}"
 msgstr "The session disk usage could not be read: {error}"
 
@@ -7014,7 +7011,7 @@ msgstr "Reading the stage log failed."
 msgid "调色"
 msgstr "Grade"
 
-#: src/design/feedback/Notice.tsx:112
+#: src/design/feedback/Notice.tsx:113
 msgid "警告"
 msgstr "Warning"
 
@@ -7051,7 +7048,7 @@ msgstr "No matches in the library yet. Import a Demo and they appear here."
 msgid "赛点"
 msgstr "Match point"
 
-#: src/pages/agent/ShotEditForm.tsx:207
+#: src/pages/agent/ShotEditForm.tsx:199
 msgid "起始 tick"
 msgstr "Start tick"
 
@@ -7067,7 +7064,7 @@ msgstr "Sessions beyond the current retention policy are deleted, and what goes 
 msgid "超出素材范围"
 msgstr "Outside the source"
 
-#: src/pages/settings/AiAgentSection.tsx:583
+#: src/pages/settings/AiAgentSection.tsx:580
 msgid "超过这个数量后，最早的 take 会被丢弃。"
 msgstr "Past this count, the oldest take is discarded."
 
@@ -7100,11 +7097,11 @@ msgstr "The path is only drawn once these scripts are loaded in HLAE, and the lo
 msgid "跳到 {stamp}"
 msgstr "Jump to {stamp}"
 
-#: src/domain/media/Transport.tsx:163
+#: src/domain/media/Transport.tsx:166
 msgid "跳到入点"
 msgstr "Jump to in point"
 
-#: src/domain/media/Transport.tsx:208
+#: src/domain/media/Transport.tsx:211
 msgid "跳到出点"
 msgstr "Jump to out point"
 
@@ -7113,14 +7110,14 @@ msgctxt "palette-hint"
 msgid "跳转"
 msgstr "Go to"
 
-#: src/design/feedback/StageBar.tsx:119
+#: src/design/feedback/StageBar.tsx:120
 #: src/pages/delivery/taskModel.tsx:218
 msgctxt "recording-stage"
 msgid "跳转"
 msgstr "Seek"
 
-#: src/app/command/CommandPalette.tsx:226
-#: src/app/shell/WindowTitleBar.tsx:259
+#: src/app/command/CommandPalette.tsx:229
+#: src/app/shell/WindowTitleBar.tsx:260
 msgid "跳转、搜索比赛或证据"
 msgstr "Jump to a page, search matches or evidence"
 
@@ -7129,7 +7126,7 @@ msgstr "Jump to a page, search matches or evidence"
 msgid "轨道"
 msgstr "Tracks"
 
-#: src/design/timeline/TimelinePrototype.tsx:55
+#: src/design/timeline/TimelinePrototype.tsx:56
 #: src/pages/editor/editorMessages.ts:66
 msgid "轨道已锁定"
 msgstr "The track is locked"
@@ -7142,7 +7139,7 @@ msgstr "The track is locked — unlock it before editing"
 msgid "轨道类型不同，放不进去"
 msgstr "Different track kind — it will not go there"
 
-#: src/design/timeline/TimelinePrototype.tsx:53
+#: src/design/timeline/TimelinePrototype.tsx:54
 msgid "轨道类型不同，视频不能放到音频轨上"
 msgstr "Track types differ — video cannot go on an audio track"
 
@@ -7255,7 +7252,7 @@ msgstr "{0} shot(s) are not bound to a demo and a player yet, so this plan canno
 msgid "还有 {0} 条购买事件没有带阵营，无法归属到任何一方。"
 msgstr "{0} more purchase events carry no side and cannot be attributed to either team."
 
-#: src/pages/agent/ShotEditForm.tsx:110
+#: src/pages/agent/ShotEditForm.tsx:103
 msgid "还有内容填得不对"
 msgstr "Something here is still wrong"
 
@@ -7499,7 +7496,7 @@ msgstr "This statistic is unavailable"
 msgid "这不是录制：不会采集任何画面，也不会产生输出。"
 msgstr "This is not a recording: nothing is captured and no output is produced."
 
-#: src/design/timeline/TimelinePrototype.tsx:57
+#: src/design/timeline/TimelinePrototype.tsx:58
 #: src/pages/editor/editorMessages.ts:36
 msgid "这个位置没有可以操作的片段"
 msgstr "No clip at this position"
@@ -7883,7 +7880,7 @@ msgstr "This change was not saved: {writeError}"
 msgid "这次改动没能写进方案：{failure}"
 msgstr "This change could not be written to the plan: {failure}"
 
-#: src/pages/agent/ShotEditForm.tsx:280
+#: src/pages/agent/ShotEditForm.tsx:271
 msgid "这次改动的说明（可选）"
 msgstr "A note about this change (optional)"
 
@@ -7916,7 +7913,7 @@ msgstr "This music has no usable beats"
 msgid "这组变更基于第 {0} 版，方案已经是第 {revision} 版。内容仍可查看。"
 msgstr "These changes are based on version {0}; the plan is at version {revision}. They can still be read."
 
-#: src/design/timeline/TimelinePrototype.tsx:51
+#: src/design/timeline/TimelinePrototype.tsx:52
 #: src/pages/editor/editorMessages.ts:30
 msgid "这里已经有片段了，没有移动"
 msgstr "There is already a clip here, so nothing moved"
@@ -7937,7 +7934,7 @@ msgstr "Progress"
 msgid "进程、tick、编码参数"
 msgstr "Process, ticks, encoder settings"
 
-#: src/design/feedback/StageBar.tsx:68
+#: src/design/feedback/StageBar.tsx:69
 #: src/domain/agent/workSteps.ts:40
 #: src/pages/delivery/TaskRecordView.tsx:53
 #: src/pages/home/HomeTasksPanel.tsx:63
@@ -8080,7 +8077,7 @@ msgstr "Player name cards"
 msgid "选手视角"
 msgstr "Player view"
 
-#: src/design/timeline/TimelinePrototype.tsx:80
+#: src/design/timeline/TimelinePrototype.tsx:81
 #: src/pages/editor/EditorTimelinePanel.tsx:81
 msgid "选择"
 msgstr "Select"
@@ -8166,7 +8163,7 @@ msgstr "Speed"
 msgid "速度优先"
 msgstr "Speed first"
 
-#: src/design/timeline/TimelinePrototype.tsx:63
+#: src/design/timeline/TimelinePrototype.tsx:64
 #: src/pages/editor/editorMessages.ts:42
 msgid "速度只能在 5% 到 1600% 之间"
 msgstr "Speed must be between 5% and 1600%"
@@ -8240,7 +8237,7 @@ msgstr "The configuration file cannot be read"
 msgid "配置还没读出来，稍后再试"
 msgstr "The configuration has not been read yet — try again shortly"
 
-#: src/design/feedback/StageBar.tsx:120
+#: src/design/feedback/StageBar.tsx:121
 #: src/pages/delivery/taskModel.tsx:219
 msgid "采集"
 msgstr "Capture"
@@ -8257,7 +8254,7 @@ msgstr "Capture component ready"
 msgid "采集组件还没准备好，无法在游戏里预览"
 msgstr "The capture component is not ready, so there is no in-game preview"
 
-#: src/design/timeline/TimelinePrototype.tsx:175
+#: src/design/timeline/TimelinePrototype.tsx:176
 #: src/pages/editor/EditorTimelinePanel.tsx:221
 msgid "重做"
 msgstr "Redo"
@@ -8422,15 +8419,15 @@ msgstr "Choose again"
 #: src/pages/settings/AdvancedSection.tsx:249
 #: src/pages/settings/AiAgentSection.tsx:188
 #: src/pages/settings/AiAgentSection.tsx:430
-#: src/pages/settings/AiAgentSection.tsx:725
-#: src/pages/settings/AiAgentSection.tsx:731
+#: src/pages/settings/AiAgentSection.tsx:722
+#: src/pages/settings/AiAgentSection.tsx:728
 #: src/pages/settings/AppSection.tsx:74
 #: src/pages/settings/FilesSection.tsx:77
 #: src/pages/settings/GameSection.tsx:102
 msgid "重试"
 msgstr "Retry"
 
-#: src/design/feedback/Notice.tsx:114
+#: src/design/feedback/Notice.tsx:115
 msgid "错误"
 msgstr "Error"
 
@@ -8442,7 +8439,7 @@ msgstr "Shots"
 msgid "镜头关键点"
 msgstr "Shot keyframes"
 
-#: src/pages/agent/ShotEditForm.tsx:264
+#: src/pages/agent/ShotEditForm.tsx:256
 msgid "镜头意图 · 会一起发给 Agent"
 msgstr "Shot intent · sent to the Agent with it"
 
@@ -8455,11 +8452,11 @@ msgstr "Shot count"
 msgid "镜头方案"
 msgstr "Shot plan"
 
-#: src/pages/agent/ShotEditForm.tsx:147
+#: src/pages/agent/ShotEditForm.tsx:140
 msgid "镜头标题"
 msgstr "Shot title"
 
-#: src/pages/agent/ShotEditForm.tsx:162
+#: src/pages/agent/ShotEditForm.tsx:155
 #: src/pages/recording/ShotInspectorBlock.tsx:217
 msgid "镜头类型"
 msgstr "Shot type"
@@ -8748,8 +8745,8 @@ msgstr "HE"
 msgid "高级与诊断"
 msgstr "Advanced and diagnostics"
 
-#: src/pages/settings/AiAgentSection.tsx:652
-#: src/pages/settings/AiAgentSection.tsx:658
+#: src/pages/settings/AiAgentSection.tsx:649
+#: src/pages/settings/AiAgentSection.tsx:655
 msgid "默认成片时长"
 msgstr "Default cut length"
 

@@ -19,6 +19,7 @@ import { stubMatchMedia, type MatchMediaStub } from '../../design/layout/collaps
 import type { DesktopClient } from '../../data/desktopClient';
 import { ANALYSIS, DEMO, DEMO_ID } from './test/fixtures';
 import { renderWorkspace } from './test/renderWorkspace';
+import { reasonOf } from '../../test/reason';
 
 let media: MatchMediaStub | null = null;
 
@@ -110,7 +111,7 @@ describe('§8 rule 2 — the Inspector folds into a strip plus a drawer', () => 
     // only — and it is still disabled with its reason attached.
     const add = strip?.querySelector('[data-match-add-to-video]');
     expect(add).not.toBeNull();
-    expect(add?.getAttribute('title')).toBe('录制队列尚未接通');
+    expect(reasonOf(add)).toContain('录制队列尚未接通');
   });
 
   it('opens the drawer from the strip', async () => {

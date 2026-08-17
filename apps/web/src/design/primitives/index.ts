@@ -25,3 +25,6 @@ export {
   type ControlSize,
 } from './controlSize';
 export { cn, type ClassValue } from '../cn';
+export { Kbd, KbdGroup, type KbdProps, type KbdGroupProps } from './Kbd';
+export { NativeSelect, type NativeSelectProps } from './NativeSelect';
+export { Textarea, type TextareaProps } from './Textarea';

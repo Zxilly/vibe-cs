@@ -20,6 +20,7 @@ import type { OutputItem, OutputPage } from '../../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../../shared/desktop/viewModels';
 import { DeliveryPage } from '../DeliveryPage';
 import { HEALTHY, renderPage } from './test/renderPage';
+import { reasonOf } from '../../test/reason';
 
 const RUNNING: ActivityItem = {
   id: 'recording:job-1',
@@ -280,7 +281,7 @@ describe('本地服务离线', () => {
 
     const cleanup = screen.getByRole('button', { name: /清理无效记录/u });
     expect(cleanup.hasAttribute('disabled')).toBe(true);
-    expect(cleanup.getAttribute('title')).toMatch(/服务/u);
+    expect(reasonOf(cleanup)).toMatch(/服务/u);
 
     // 定位文件 is a shell action, not a service call — it stays available.
     expect(screen.getByRole('button', { name: '定位文件' }).hasAttribute('disabled')).toBe(false);

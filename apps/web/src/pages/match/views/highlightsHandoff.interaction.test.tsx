@@ -31,6 +31,7 @@ import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
 import { HighlightsView } from './HighlightsView';
 import { ANALYSIS } from './test/fixtures';
 import { queryResult, viewProps } from './test/renderView';
+import { reasonOf } from '../../../test/reason';
 
 vi.mock('../../../data/match', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../data/match')>();
@@ -192,7 +193,7 @@ describe('用 Agent 制作视频', () => {
 
     const button = handoffButton();
     expect(button.hasAttribute('disabled')).toBe(true);
-    expect(button.getAttribute('title') ?? button.getAttribute('aria-describedby')).toBeTruthy();
+    expect(reasonOf(button)).toBeTruthy();
     expect(document.body.textContent).toContain('SteamID');
 
     fireEvent.click(button);

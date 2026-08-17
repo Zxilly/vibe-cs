@@ -18,6 +18,7 @@ import { stubMatchMedia, type MatchMediaStub } from '../../../design/layout/coll
 import { DEMO } from '../test/fixtures';
 import { renderWorkspace } from '../test/renderWorkspace';
 import { ANALYSIS, DEMO_ID } from './test/matchFixture';
+import { reasonOf } from '../../../test/reason';
 
 let media: MatchMediaStub | null = null;
 
@@ -98,7 +99,7 @@ describe('加入视频', () => {
     expect(buttons.length).toBeGreaterThan(0);
     for (const button of buttons) {
       expect(button.hasAttribute('disabled')).toBe(true);
-      expect(button.getAttribute('title')).toBe('录制队列尚未接通');
+      expect(reasonOf(button)).toContain('录制队列尚未接通');
     }
   });
 });

@@ -39,6 +39,7 @@ import {
 } from 'react';
 
 import { cn } from '../../design/layout';
+import { Kbd } from '../../design/primitives';
 import { isDesktopShell } from '../../shared/desktop/dialog';
 import { ServiceStatusMarker, type ServiceStatus } from '../boundary';
 import { useShellStore } from './shellStore';
@@ -259,12 +260,7 @@ export function WindowTitleBar({
             <Trans>跳转、搜索比赛或证据</Trans>
           </span>
           {/* A key name, not copy: it is the same three characters in every locale. */}
-          <kbd
-            aria-hidden="true"
-            className="flex-none border border-divider px-1.5 font-mono text-2xs tracking-wide"
-          >
-            CTRL K
-          </kbd>
+          <Kbd className="tracking-wide">CTRL K</Kbd>
         </button>
 
         <span className="flex-1" />

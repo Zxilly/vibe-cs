@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { renderInteractive } from '../../test/render';
 import { CompositionRow } from './CompositionRow';
+import { reasonOf } from '../../test/reason';
 
 describe('CompositionRow 换来源', () => {
   it('is a button, not a link — it opens a picker rather than navigating', () => {
@@ -30,7 +31,7 @@ describe('CompositionRow 换来源', () => {
     const button = getByRole('button', { name: '换来源' }) as HTMLButtonElement;
 
     expect(button.disabled).toBe(true);
-    expect(button.getAttribute('title')).toBe('只有一条 take，没有别的来源可换');
+    expect(reasonOf(button)).toContain('只有一条 take，没有别的来源可换');
     fireEvent.click(button);
     expect(onChangeSource).not.toHaveBeenCalled();
   });

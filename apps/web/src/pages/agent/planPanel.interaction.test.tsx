@@ -26,6 +26,7 @@ import {
   renderPanel,
   type RecordingNotifier,
 } from './test/renderPlanPanel';
+import { reasonOf } from '../../test/reason';
 
 vi.mock('../../data/plans', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../data/plans')>();
@@ -202,7 +203,7 @@ describe('saving an edit', () => {
     expect(editButton.hasAttribute('disabled')).toBe(true);
     // `Button` states the reason twice — as a `title` and as a described-by
     // line — so 「不隐藏、不静默失败」 holds for pointer and reader alike.
-    expect(editButton.getAttribute('title')).toBe('编辑会记入会话，请先选择或新建一条会话');
+    expect(reasonOf(editButton)).toContain('编辑会记入会话，请先选择或新建一条会话');
     expect(screen.getAllByText(/编辑会记入会话，请先选择或新建一条会话/u).length).toBeGreaterThan(0);
   });
 });

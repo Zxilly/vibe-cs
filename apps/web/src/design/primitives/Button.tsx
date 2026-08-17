@@ -35,8 +35,10 @@
  *
  * Disabled actions carry a reason. Spec §4.1 and the shell artboard's
  * degradation rule — 「需要服务的动作变为禁用并写明原因，不隐藏、不静默失败」 —
- * make that a contract, so `disabledReason` is a first-class prop that reaches
- * assistive technology through `aria-describedby`, not just a tooltip.
+ * make that a contract, so `disabledReason` is a first-class prop, and it takes
+ * two routes because neither reaches everyone: `aria-describedby` for a screen
+ * reader, and a `Tooltip` for a sighted mouse user. It used to be the native
+ * `title`, which on a disabled button shows nothing at all.
  */
 
 import { t } from '@lingui/core/macro';
@@ -52,6 +54,7 @@ import {
   CONTROL_TEXT_CLASS,
   type ControlSize,
 } from './controlSize';
+import { Tooltip } from '../feedback/Tooltip';
 import { cn } from '../cn';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -176,7 +179,7 @@ export function Button({
          something else entirely. Only a real button gets it. */
       {...(asChild ? {} : { type })}
       disabled={disabled}
-      {...(hasReason ? { title: disabledReason, 'aria-describedby': reasonId } : {})}
+      {...(hasReason ? { 'aria-describedby': reasonId } : {})}
       className={cn(buttonVariants({ variant, size, icon, block, grow }), className)}
     >
       {children}
@@ -185,13 +188,31 @@ export function Button({
 
   if (!hasReason) return button;
 
-  /* `sr-only` is out of flow (position: absolute), so the extra node never
+  /* Two paths to the same sentence, because neither reaches everyone.
+     `aria-describedby` is what a screen reader reads; the tooltip is what a
+     sighted mouse user sees — and it has to wrap rather than borrow the
+     button, since a disabled control raises no pointer events at all. That is
+     the bug the native `title` here used to hide; see `feedback/Tooltip`.
+
+     `sr-only` is out of flow (position: absolute), so the extra node never
      becomes a flex item of the surrounding row. It sits outside the button on
      purpose: text inside it would join the accessible *name*, and the reason
      is a description. */
   return (
     <>
-      {button}
+      {/* `wrap` is unconditional so the button keeps its identity when it
+          becomes available; only the tab stop is conditional, because an
+          enabled button is its own. */}
+      <Tooltip
+        content={disabledReason}
+        wrap
+        wrapFocusable={disabled}
+        /* The wrapper is the flex item now, so it inherits the modifiers that
+           only mean anything to a flex item. */
+        wrapClassName={cn(block && 'w-full', grow && 'flex-1', icon && 'flex-none')}
+      >
+        {button}
+      </Tooltip>
       <span id={reasonId} className="sr-only">
         {t`此动作当前不可用：${disabledReason}`}
       </span>

@@ -14,6 +14,7 @@ import type { MatchDownloadJob, MatchHistoryItem, Paginated } from '../../shared
 import { HistoryPage } from '../HistoryPage';
 import { HEALTHY, renderPage } from '../delivery/test/renderPage';
 import { matchHistoryItem } from './test/fixtures';
+import { reasonOf } from '../../test/reason';
 
 function page(items: MatchHistoryItem[]): Paginated<MatchHistoryItem> {
   return { items, total: items.length, page: 1, page_size: 50 };
@@ -189,7 +190,7 @@ describe('服务离线', () => {
 
     const sync = screen.getByRole('button', { name: /同步最近比赛/u });
     expect(sync.hasAttribute('disabled')).toBe(true);
-    expect(sync.getAttribute('title')).toContain('本地服务');
+    expect(reasonOf(sync)).toContain('本地服务');
     expect(screen.getByRole('button', { name: '下载' }).hasAttribute('disabled')).toBe(true);
   });
 });

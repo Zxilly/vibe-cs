@@ -17,6 +17,7 @@ import { renderInteractive } from '../../test/render';
 import { createSampleTimeline } from './sampleTimeline';
 import { TimelinePrototype } from './TimelinePrototype';
 import { createTimeline, type Timeline } from './timelineModel';
+import { reasonOf } from '../../test/reason';
 
 /**
  * A time in frames, as the editor holds it.
@@ -158,7 +159,7 @@ describe('波纹删除', () => {
     const action = button('波纹删除');
     expect(action.disabled).toBe(true);
     expect(action.getAttribute('aria-describedby')).not.toBeNull();
-    expect(action.title).toContain('先选中一个片段');
+    expect(reasonOf(action)).toContain('先选中一个片段');
   });
 
   it('removes the pair and pulls the rest of both lanes left', () => {

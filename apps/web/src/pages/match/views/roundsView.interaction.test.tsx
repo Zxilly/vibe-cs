@@ -16,6 +16,7 @@ import { REGULATION_ROUNDS } from '../../../domain/densityFixtures';
 import { DEMO } from '../test/fixtures';
 import { renderWorkspace } from '../test/renderWorkspace';
 import { ANALYSIS, DEMO_ID } from './test/matchFixture';
+import { reasonOf } from '../../../test/reason';
 
 let media: MatchMediaStub | null = null;
 
@@ -107,7 +108,7 @@ describe('walking the rounds', () => {
 
     const previous = document.querySelector('[data-match-round-previous]') as HTMLElement;
     expect(previous.hasAttribute('disabled')).toBe(true);
-    expect(previous.getAttribute('title')).toBe('已经是第一个回合');
+    expect(reasonOf(previous)).toContain('已经是第一个回合');
   });
 });
 
@@ -211,7 +212,7 @@ describe('the Inspector is the same round', () => {
     const add = document.querySelector('[data-match-add-to-video]') as HTMLElement;
     expect(add.textContent).toBe('把这个回合加入视频');
     expect(add.hasAttribute('disabled')).toBe(true);
-    expect(add.getAttribute('title')).toBe('录制队列尚未接通');
+    expect(reasonOf(add)).toContain('录制队列尚未接通');
   });
 
   it('hands the round to 2D 回放 with the playhead at its start', async () => {

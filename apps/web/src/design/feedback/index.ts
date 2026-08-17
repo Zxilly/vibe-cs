@@ -25,3 +25,4 @@ export {
 export { ProgressBar, type ProgressBarProps, type ProgressBarSize, type ProgressBarTone } from './ProgressBar';
 export { OVERLAY_ACTIONS_CLASS, overlayActionClass, type OverlayActionVariant } from './actionButton';
 export { useOverlayReturnFocus } from './overlayFocus';
+export { Tooltip, TooltipProvider, type TooltipProps } from './Tooltip';

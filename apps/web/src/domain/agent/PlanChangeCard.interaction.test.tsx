@@ -5,6 +5,7 @@ import { renderInteractive } from '../../test/render';
 import { PlanChangeCard } from './PlanChangeCard';
 import { PLAN_PROPOSAL } from './agentFixtures.testing';
 import { readPlanChangeSet, type PlanChange } from './types';
+import { reasonOf } from '../../test/reason';
 
 const CHANGES = readPlanChangeSet(PLAN_PROPOSAL)?.changes ?? [];
 const SHORTEN = CHANGES[0] as PlanChange;
@@ -44,7 +45,7 @@ describe('PlanChangeCard · a stale card cannot be accepted', () => {
     const accept = getByRole('button', { name: '接受' }) as HTMLButtonElement;
 
     expect(accept.disabled).toBe(true);
-    expect(accept.getAttribute('title')).toContain('基于方案的旧版本');
+    expect(reasonOf(accept)).toContain('基于方案的旧版本');
 
     fireEvent.click(accept);
     expect(onAccept).not.toHaveBeenCalled();
@@ -70,7 +71,7 @@ describe('PlanChangeCard · an accepted card', () => {
     const accept = getByRole('button', { name: '接受' }) as HTMLButtonElement;
 
     expect(accept.disabled).toBe(true);
-    expect(accept.getAttribute('title')).toContain('已经接受过了');
+    expect(reasonOf(accept)).toContain('已经接受过了');
     fireEvent.click(accept);
     expect(onAccept).not.toHaveBeenCalled();
   });
@@ -109,7 +110,7 @@ describe('PlanChangeCard · 预览这条', () => {
     const preview = getByRole('button', { name: '预览这条' }) as HTMLButtonElement;
 
     expect(preview.disabled).toBe(true);
-    expect(preview.getAttribute('title')).toBe('这一版还不能渲染单条变更的预览');
+    expect(reasonOf(preview)).toContain('这一版还不能渲染单条变更的预览');
     fireEvent.click(preview);
     expect(onPreview).not.toHaveBeenCalled();
   });
@@ -129,7 +130,7 @@ describe('PlanChangeCard · a caller-supplied reason', () => {
     const accept = getByRole('button', { name: '接受' }) as HTMLButtonElement;
 
     expect(accept.disabled).toBe(true);
-    expect(accept.getAttribute('title')).toBe('编辑会记入会话，请先选择或新建一条会话');
+    expect(reasonOf(accept)).toContain('编辑会记入会话，请先选择或新建一条会话');
   });
 
   it('lets the staleness reason win, because it is the one that explains the card', () => {
@@ -142,8 +143,6 @@ describe('PlanChangeCard · a caller-supplied reason', () => {
       />,
     );
 
-    expect((getByRole('button', { name: '接受' }) as HTMLButtonElement).getAttribute('title')).toContain(
-      '基于方案的旧版本',
-    );
+    expect(reasonOf(getByRole('button', { name: '接受' }))).toContain('基于方案的旧版本');
   });
 });

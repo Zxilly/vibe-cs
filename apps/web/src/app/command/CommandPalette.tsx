@@ -44,7 +44,7 @@
  * the other overlay and is an edge-anchored panel, which this is not.
  *
  * What is reused is the part the artboard actually shares between the three:
- * 「两者都有焦点陷阱、Esc 关闭和关闭后焦点归位」 — `useOverlayFocus`, the same hook
+ * 「两者都有焦点陷阱、Esc 关闭和关闭后焦点归位」 — Radix's Dialog, the same one
  * Dialog and Drawer use. Esc and focus restoration are therefore one
  * implementation across every overlay in the app, not three.
  *
@@ -76,9 +76,11 @@ import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
 import { Search } from 'lucide-react';
-import { useEffect, useId, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 
-import { useOverlayFocus } from '../../design/feedback';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+
+import { useOverlayReturnFocus } from '../../design/feedback';
 import { cn } from '../../design/primitives';
 import {
   buildCommandList,
@@ -120,7 +122,7 @@ export function CommandPalette({
 }: CommandPaletteProps) {
   const { i18n } = useLingui();
   const baseId = useId();
-  const panelRef = useOverlayFocus<HTMLDivElement>(open, onClose);
+  const returnFocus = useOverlayReturnFocus(open);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
 
@@ -144,8 +146,6 @@ export function CommandPalette({
   const activeIndex = flat.length === 0 ? -1 : Math.min(selected, flat.length - 1);
   const active = activeIndex === -1 ? undefined : flat[activeIndex];
 
-  if (!open) return null;
-
   const listId = `${baseId}-list`;
   const optionId = (index: number) => `${baseId}-option-${index}`;
 
@@ -168,10 +168,9 @@ export function CommandPalette({
     if (event.key === 'Tab') {
       const next = nextGroupSelectionIndex(groups, activeIndex);
       if (next === -1) return;
-      // The overlay's focus trap listens on `document` for Tab. Stopping
-      // propagation keeps the two from fighting over the same key; the trap
-      // would only re-focus this input anyway, since it is the sole focusable
-      // element in the panel.
+      // Radix's focus scope also answers Tab. Stopping propagation keeps the
+      // two from fighting over the same key; the scope would only re-focus
+      // this input anyway, since it is the sole focusable element in the panel.
       event.preventDefault();
       event.stopPropagation();
       setSelected(next);
@@ -181,32 +180,36 @@ export function CommandPalette({
       event.preventDefault();
       if (active !== undefined) run(active);
     }
-    // Escape is not handled here: `useOverlayFocus` owns it for every overlay.
+    // Escape is not handled here: Radix's dismissable layer owns it, and it
+    // owns it per overlay rather than on `document`.
   };
 
   return (
-    <div
-      data-overlay="command-palette-backdrop"
-      onClick={onClose}
-      // Starts below the title bar: the artboard draws the scrim as
-      // `inset:40px 0 0 0` over its own 40px bar, keeping the window chrome lit.
-      className="fixed inset-x-0 bottom-0 top-[var(--h-titlebar)] z-50 flex justify-center px-4 bg-neutral-900/34"
+    <DialogPrimitive.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={t`命令面板`}
-        tabIndex={-1}
-        data-overlay="command-palette"
-        onClick={(event: MouseEvent<HTMLDivElement>) => {
-          event.stopPropagation();
-        }}
-        className={
-          'mt-[var(--h-titlebar)] flex h-fit max-h-full w-[var(--w-overlay)] max-w-full flex-col ' +
-          'border border-neutral-500 bg-bg shadow-[var(--shadow-lg)]'
-        }
-      >
+      <DialogPrimitive.Portal>
+        {/* Starts below the title bar: the artboard draws the scrim as
+            `inset:40px 0 0 0` over its own 40px bar, keeping the window
+            chrome lit. */}
+        <DialogPrimitive.Overlay
+          data-overlay="command-palette-backdrop"
+          className="fixed inset-x-0 bottom-0 top-[var(--h-titlebar)] z-50 bg-neutral-900/34"
+        />
+        <DialogPrimitive.Content
+          aria-label={t`命令面板`}
+          aria-describedby={undefined}
+          onCloseAutoFocus={returnFocus}
+          data-overlay="command-palette"
+          className={
+            'fixed inset-x-0 top-[calc(var(--h-titlebar)*2)] z-50 mx-auto flex h-fit ' +
+            'max-h-[calc(100%-var(--h-titlebar)*2-1rem)] w-[var(--w-overlay)] max-w-[calc(100%-2rem)] ' +
+            'flex-col border border-neutral-500 bg-bg shadow-[var(--shadow-lg)]'
+          }
+        >
         <div className="flex h-[var(--h-topbar)] flex-none items-center gap-3 border-b border-divider px-4">
           <Search size={16} strokeWidth={1.5} aria-hidden="true" className="flex-none text-neutral-600" />
           <input
@@ -339,7 +342,8 @@ export function CommandPalette({
             <Trans>搜索比赛、选手、证据、页面和动作</Trans>
           </span>
         </div>
-      </div>
-    </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

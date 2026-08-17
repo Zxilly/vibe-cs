@@ -24,4 +24,4 @@ export {
 } from './StageBar';
 export { ProgressBar, type ProgressBarProps, type ProgressBarSize, type ProgressBarTone } from './ProgressBar';
 export { OVERLAY_ACTIONS_CLASS, overlayActionClass, type OverlayActionVariant } from './actionButton';
-export { OVERLAY_FOCUSABLE_SELECTOR, useOverlayFocus } from './overlayFocus';
+export { useOverlayReturnFocus } from './overlayFocus';

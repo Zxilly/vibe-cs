@@ -11,7 +11,7 @@
  * to go back to.
  */
 
-import { fireEvent } from '@testing-library/react';
+import { act, fireEvent, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { renderInteractive } from '../../test/render';
@@ -98,7 +98,7 @@ describe('CommandPalette keyboard entry', () => {
     expect(queryByRole('dialog')).toBeNull();
   });
 
-  it('returns focus to whatever opened it', () => {
+  it('returns focus to whatever opened it', async () => {
     const { getByRole } = renderInteractive(<Harness />);
     const trigger = getByRole('button', { name: '打开命令面板' });
     trigger.focus();
@@ -106,7 +106,11 @@ describe('CommandPalette keyboard entry', () => {
     expect(document.activeElement).not.toBe(trigger);
 
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(document.activeElement).toBe(trigger);
+    /* Radix restores focus after the unmount settles, so that a component
+       tearing down alongside the palette cannot steal it back. */
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 
   it('starts from a clean query every time it opens', () => {
@@ -246,16 +250,26 @@ describe('CommandPalette execution', () => {
     expect(queryByRole('dialog')).not.toBeNull();
   });
 
-  it('dismisses on a click on the scrim but not inside the panel', () => {
-    const { container, getByRole, queryByRole } = renderInteractive(<Harness />);
+  it('dismisses on a press on the scrim but not inside the panel', async () => {
+    const { getByRole, queryByRole } = renderInteractive(<Harness />);
     fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
 
-    fireEvent.click(getByRole('dialog'));
+    /* Radix arms the outside-press listener on a zero-delay timeout, so that
+       the very press which opened the overlay cannot also dismiss it. */
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    fireEvent.pointerDown(getByRole('dialog'));
     expect(queryByRole('dialog')).not.toBeNull();
 
-    const scrim = container.querySelector('[data-overlay="command-palette-backdrop"]');
+    // `document`, not the render container: the scrim is portalled to the body.
+    const scrim = document.querySelector('[data-overlay="command-palette-backdrop"]');
     expect(scrim).not.toBeNull();
-    if (scrim) fireEvent.click(scrim);
+    if (scrim) {
+      fireEvent.pointerDown(scrim);
+      fireEvent.click(scrim);
+    }
     expect(queryByRole('dialog')).toBeNull();
   });
 });

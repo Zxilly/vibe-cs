@@ -8,7 +8,11 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { renderMarkup } from '../../test/render';
+import { renderMarkupDom } from '../../test/render';
+
+/* `renderMarkupDom`, not `renderMarkup`: the palette is portalled, and
+   `react-dom/server` throws on `createPortal`. */
+const renderMarkup = renderMarkupDom;
 import { CommandPalette } from './CommandPalette';
 import type { CommandDefinition } from './commandRegistry';
 
@@ -33,13 +37,17 @@ function render(
 
 describe('CommandPalette markup', () => {
   it('renders nothing while closed', () => {
-    expect(renderMarkup(<CommandPalette open={false} onClose={noop} navigate={noop} />)).toBe('');
+    // The portal has nothing in it, so nothing reaches the document.
+    const html = renderMarkup(<CommandPalette open={false} onClose={noop} navigate={noop} />);
+    expect(html).not.toContain('data-overlay="command-palette"');
   });
 
   it('is a labelled modal dialog over a scrim that starts below the title bar', () => {
     const html = render();
     expect(html).toContain('role="dialog"');
-    expect(html).toContain('aria-modal="true"');
+    /* Radix states modality by hiding the rest of the document from assistive
+       technology rather than by claiming `aria-modal`. */
+    expect(html).toContain('data-aria-hidden="true"');
     expect(html).toContain('aria-label="命令面板"');
     expect(html).toContain('data-overlay="command-palette-backdrop"');
     expect(html).toContain('top-[var(--h-titlebar)]');
@@ -120,7 +128,7 @@ describe('CommandPalette markup', () => {
       'w-[var(--w-overlay)]',
       'h-[var(--h-topbar)]',
       'h-[var(--h-row-compact)]',
-      'mt-[var(--h-titlebar)]',
+      'top-[calc(var(--h-titlebar)*2)]',
       'shadow-[var(--shadow-lg)]',
     ]) {
       expect(html).toContain(token);

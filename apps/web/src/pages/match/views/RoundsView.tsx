@@ -51,7 +51,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { DataTable, EmptyState, Skeleton, type DataTableColumn } from '../../../design/data';
-import { Button, Tag } from '../../../design/primitives';
+import { Button, Badge } from '../../../design/primitives';
 import {
   EvidenceRow,
   ROUND_END_REASON,
@@ -269,14 +269,14 @@ export function RoundDetailPanels({
             {moment.weapon === null ? '' : ` · ${moment.weapon}`}
           </span>
           {moment.headshot ? (
-            <Tag tone="neutral">
+            <Badge variant="neutral">
               <Trans>爆头</Trans>
-            </Tag>
+            </Badge>
           ) : null}
           {moment.penetrated ? (
-            <Tag tone="neutral">
+            <Badge variant="neutral">
               <Trans>穿墙</Trans>
-            </Tag>
+            </Badge>
           ) : null}
         </span>
       ),
@@ -290,9 +290,9 @@ export function RoundDetailPanels({
         <span className="flex items-center justify-end gap-1.5">
           {`${moment.aliveA} v ${moment.aliveB}`}
           {moment.attributed ? null : (
-            <Tag tone="outline">
+            <Badge variant="outline">
               <Trans>未归属</Trans>
-            </Tag>
+            </Badge>
           )}
         </span>
       ),
@@ -580,11 +580,11 @@ export function RoundInspectorBody({
   return (
     <div className="flex min-h-0 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Tag tone="accent">
+        <Badge variant="accent">
           <Trans>{winnerName} 胜</Trans>
-        </Tag>
-        <Tag tone="neutral">{i18n._(reason.label)}</Tag>
-        <Tag tone="outline">{`${detail.teamAScore}:${detail.teamBScore}`}</Tag>
+        </Badge>
+        <Badge variant="neutral">{i18n._(reason.label)}</Badge>
+        <Badge variant="outline">{`${detail.teamAScore}:${detail.teamBScore}`}</Badge>
       </div>
 
       <section className="flex min-h-0 flex-col gap-2">
@@ -631,9 +631,9 @@ export function RoundInspectorBody({
             {tags.length === 0 ? null : (
               <div className="flex flex-wrap items-center gap-1.5">
                 {tags.map((tag) => (
-                  <Tag key={tag.id} tone="neutral">
+                  <Badge key={tag.id} variant="neutral">
                     {tag.name}
-                  </Tag>
+                  </Badge>
                 ))}
               </div>
             )}

@@ -50,7 +50,7 @@ import { dataErrorMessage } from '../../data/errors';
 import { useAgentPlanList } from '../../data/plans';
 import { EmptyState, Skeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Tag, cn } from '../../design/primitives';
+import { Button, Badge, cn } from '../../design/primitives';
 import {
   AGENT_PLAN_STATUS,
   PlanShotRow,
@@ -91,18 +91,18 @@ function ChangesHead({ plan, planPending, pendingChanges, staleChanges }: Conver
 
   return (
     <div data-agent-mode-head="changes" className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs">
-      <Tag tone={pendingChanges > 0 ? 'accent' : 'neutral'}>
+      <Badge variant={pendingChanges > 0 ? 'accent' : 'neutral'}>
         {pendingChanges > 0 ? (
           <Trans>{pendingChanges} 项变更待处理</Trans>
         ) : (
           <Trans>没有待处理的变更</Trans>
         )}
-      </Tag>
+      </Badge>
 
       {staleChanges === 0 ? null : (
-        <Tag data-changes-stale="" tone="outline">
+        <Badge data-changes-stale="" variant="outline">
           <Trans>{staleChanges} 项已过期</Trans>
-        </Tag>
+        </Badge>
       )}
 
       {plan === undefined ? (

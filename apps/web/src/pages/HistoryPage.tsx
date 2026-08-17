@@ -50,7 +50,7 @@ import {
 import { EmptyState, Pagination, TableSkeleton } from '../design/data';
 import { Notice } from '../design/feedback';
 import { Page, SelectionBar, Toolbar } from '../design/layout';
-import { Button, Tag } from '../design/primitives';
+import { Button, Badge } from '../design/primitives';
 import type { MatchHistoryItem } from '../shared/desktop/dto';
 import { RouteLink } from './RouteLink';
 import { useServiceAction } from '../data/serviceAction';
@@ -164,22 +164,22 @@ export function HistoryPage() {
       }
       bar={
         <div className="flex flex-wrap items-center gap-2.5 border-b border-divider bg-surface px-7 py-2.5">
-          <Tag tone="accent">
+          <Badge variant="accent">
             <Trans>全部 {total}</Trans>
-          </Tag>
-          <Tag tone="neutral">
+          </Badge>
+          <Badge variant="neutral">
             <Trans>本页未下载 {counts.available}</Trans>
-          </Tag>
-          <Tag tone="neutral">
+          </Badge>
+          <Badge variant="neutral">
             <Trans>本页已入库 {counts.downloaded}</Trans>
-          </Tag>
-          <Tag tone="neutral">
+          </Badge>
+          <Badge variant="neutral">
             <Trans>本页已过期 {counts.expired}</Trans>
-          </Tag>
+          </Badge>
           {activeCount === 0 ? null : (
-            <Tag tone="accent">
+            <Badge variant="accent">
               <Trans>下载中 {activeCount}</Trans>
-            </Tag>
+            </Badge>
           )}
           <div className="flex-1" aria-hidden="true" />
           <span className="text-2xs text-neutral-600">

@@ -60,7 +60,7 @@ import { useMapRadarOverview } from '../../data/match';
 import { useNativeShell } from '../../data/nativeShell';
 import { EmptyState } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Tag, cn } from '../../design/primitives';
+import { Button, Badge, cn } from '../../design/primitives';
 import { formatTickRange } from '../../domain/agent';
 import {
   CameraPathLayer,
@@ -169,10 +169,10 @@ export function DirectorPreviewBlock({ plan, selection, camera }: DirectorPrevie
       ) : (
         <>
           <header className="flex flex-none flex-wrap items-center gap-2 border-b border-divider px-5 py-2.5">
-            <Tag tone="accent">
+            <Badge variant="accent">
               {shot.title} · {i18n._(CAMERA_STYLE[shot.camera_style].label)}
-            </Tag>
-            <Tag tone="neutral">{i18n._(SHOT_VIEW[shotViewOf(shot)])}</Tag>
+            </Badge>
+            <Badge variant="neutral">{i18n._(SHOT_VIEW[shotViewOf(shot)])}</Badge>
             <div className="flex-1" aria-hidden="true" />
             <span className="font-mono text-xs text-neutral-700">
               {formatTickRange(shot.start_tick, shot.end_tick)}

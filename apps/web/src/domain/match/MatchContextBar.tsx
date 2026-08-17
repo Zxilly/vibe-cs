@@ -80,7 +80,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { Skeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
 import { CONTEXT_BAR_BREAKPOINT_PX, useCollapsed } from '../../design/layout';
-import { cn, Tag } from '../../design/primitives';
+import { cn, Badge } from '../../design/primitives';
 import { CS2_TICK_RATE } from './matchTime';
 import { Scoreboard } from './Scoreboard';
 import type { LoadFailure, MatchIdentity, MatchPeriod, TeamScore } from './types';
@@ -221,24 +221,28 @@ export function MatchContextBar({
         <span className="flex-none text-neutral-600">{i18n._(FOCUS_LABEL)}</span>
         {shown.map((player) =>
           player.onRemove === undefined ? (
-            <Tag key={player.id} tone={player.primary === true ? 'accent' : 'neutral'}>
+            <Badge key={player.id} variant={player.primary === true ? 'accent' : 'neutral'}>
               {player.name}
-            </Tag>
+            </Badge>
           ) : (
-            <Tag
+            <Badge
               key={player.id}
-              as="button"
-              tone={player.primary === true ? 'accent' : 'neutral'}
+              asChild
+              variant={player.primary === true ? 'accent' : 'neutral'}
               onClick={() => player.onRemove?.(player.id)}
             >
-              {player.name}
-            </Tag>
+              <button type="button">
+                {player.name}
+              </button>
+            </Badge>
           ),
         )}
         {onAddFocusedPlayer === undefined ? null : (
-          <Tag as="button" tone="outline" onClick={onAddFocusedPlayer}>
-            <Trans>＋ 添加选手</Trans>
-          </Tag>
+          <Badge asChild variant="outline" onClick={onAddFocusedPlayer}>
+            <button type="button">
+              <Trans>＋ 添加选手</Trans>
+            </button>
+          </Badge>
         )}
       </div>
     );

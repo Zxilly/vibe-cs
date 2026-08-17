@@ -52,7 +52,7 @@ import type { ReactNode } from 'react';
 
 import { DataTable, EmptyState, type DataTableColumn } from '../../../design/data';
 import { Notice } from '../../../design/feedback';
-import { Button, Tag } from '../../../design/primitives';
+import { Button, Badge } from '../../../design/primitives';
 import {
   ROUND_END_REASON,
   ROUND_END_REASONS,
@@ -171,7 +171,7 @@ export function TeamRosterPanel({
       hint={
         <span className="flex items-center gap-2">
           {side === undefined ? null : (
-            <Tag tone="neutral">{i18n._(TEAM_SIDE[side].label)}</Tag>
+            <Badge variant="neutral">{i18n._(TEAM_SIDE[side].label)}</Badge>
           )}
           {score === null ? null : (
             <span className="font-mono">
@@ -559,7 +559,7 @@ function TeamsInspector({ demoId, context, updateContext, addToVideo, collapsed 
       }
     >
       <div className="flex flex-col gap-4">
-        <Tag tone="accent">{teamName === '' ? i18n._(NO_TEAM) : teamName}</Tag>
+        <Badge variant="accent">{teamName === '' ? i18n._(NO_TEAM) : teamName}</Badge>
         <dl className="grid grid-cols-2 gap-x-5 gap-y-3">
           <StatPair label={<Trans>K / D / A</Trans>} value={`${player.kills} / ${player.deaths} / ${player.assists}`} />
           <StatPair label={<Trans>K/D</Trans>} value={ratio(player.kill_death_ratio)} />

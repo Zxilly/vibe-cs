@@ -35,7 +35,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Tag, cn } from '../../design/primitives';
+import { Badge, cn } from '../../design/primitives';
 import type { AgentSessionProposal } from '../../shared/desktop/dto';
 
 import { changeSetIsStale, pendingChangeCount } from './planRevision';
@@ -76,13 +76,13 @@ export function AgentProposalCard({
           {proposal.title}
         </h4>
         {/* Server's own word for the kind. Free text, printed, not mapped. */}
-        <Tag tone="neutral" className="flex-none">
+        <Badge variant="neutral" className="flex-none">
           {proposal.kind}
-        </Tag>
+        </Badge>
         {stale ? (
-          <Tag data-proposal-stale="" tone="outline" className="flex-none">
+          <Badge data-proposal-stale="" variant="outline" className="flex-none">
             {i18n._(PLAN_CHANGE_STATE.stale.label)}
-          </Tag>
+          </Badge>
         ) : null}
       </div>
 

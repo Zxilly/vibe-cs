@@ -56,7 +56,7 @@ import { isRevisionConflict, useAgentPlan, useRestoreAgentPlanBaseline } from '.
 import { useAgentSession } from '../../data/sessions';
 import { EmptyState, Skeleton } from '../../design/data';
 import { Dialog, Notice } from '../../design/feedback';
-import { Button, Tag, cn } from '../../design/primitives';
+import { Button, Badge, cn } from '../../design/primitives';
 import {
   AGENT_PLAN_STATUS,
   AGENT_SHOT_KIND,
@@ -329,10 +329,10 @@ function PlanPanelBody({
         <h2 className="min-w-0 flex-1 truncate font-heading text-base tracking-wide">
           <Trans>镜头方案</Trans>
         </h2>
-        <Tag tone="accent" data-plan-revision={plan.revision}>
+        <Badge variant="accent" data-plan-revision={plan.revision}>
           <Trans>第 {plan.revision} 版</Trans>
-        </Tag>
-        <Tag tone="neutral">{i18n._(status.label)}</Tag>
+        </Badge>
+        <Badge variant="neutral">{i18n._(status.label)}</Badge>
         <Button
           size="sm"
           data-plan-restore=""

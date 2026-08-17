@@ -24,7 +24,7 @@ import type { ReactNode } from 'react';
 
 import { EmptyState } from '../../design/data';
 import { Inspector } from '../../design/layout';
-import { Button, Tag } from '../../design/primitives';
+import { Button, Badge } from '../../design/primitives';
 import { StatusDot } from '../../design/feedback';
 import { formatTickCount } from '../../domain/match';
 import type { EvidenceSearchItem } from '../../shared/desktop/dto';
@@ -131,8 +131,8 @@ export function EvidenceDetail({
         </Field>
         <Field label={<Trans>命中方式</Trans>}>
           <span className="flex items-center justify-end gap-2">
-            {row.penetrated === true ? <Tag tone="accent"><Trans>穿墙</Trans></Tag> : null}
-            {row.headshot === true ? <Tag tone="accent"><Trans>爆头</Trans></Tag> : null}
+            {row.penetrated === true ? <Badge variant="accent"><Trans>穿墙</Trans></Badge> : null}
+            {row.headshot === true ? <Badge variant="accent"><Trans>爆头</Trans></Badge> : null}
             {row.penetrated !== true && row.headshot !== true ? (
               <span className="text-neutral-600">—</span>
             ) : null}

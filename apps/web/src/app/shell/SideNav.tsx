@@ -32,7 +32,7 @@ import { useId, useState, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useShellCollapsed } from '../../design/layout';
-import { Button, cn } from '../../design/primitives';
+import { Badge, Button, cn } from '../../design/primitives';
 import {
   activeNavItemId,
   SHELL_NAV_FOOTER_ITEM,
@@ -63,8 +63,6 @@ const CELL_IDLE_CLASS = 'text-neutral-800 hover:bg-neutral-200';
 const CELL_ACTIVE_CLASS = 'bg-accent text-bg';
 
 const GROUP_HEADING_CLASS = 'px-2 pt-3.5 pb-1.5 font-heading text-2xs tracking-caps text-neutral-600';
-
-const BADGE_CLASS = 'ml-auto border border-accent-300 px-1.5 text-2xs text-accent-700';
 
 export function SideNav({ collapsed, onToggleCollapsed, badges, className }: SideNavProps) {
   const { i18n } = useLingui();
@@ -102,7 +100,11 @@ export function SideNav({ collapsed, onToggleCollapsed, badges, className }: Sid
               className={cn('flex-none', active ? undefined : 'opacity-70')}
             />
             <span className="min-w-0 truncate">{label}</span>
-            {hasBadge ? <span className={BADGE_CLASS}>{badge}</span> : null}
+            {hasBadge ? (
+              <Badge variant="count" size="sm" className="ml-auto">
+                {badge}
+              </Badge>
+            ) : null}
           </Link>
         </li>
       );

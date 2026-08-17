@@ -51,6 +51,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 
 import { cn } from '../../design/layout';
 import { useShellStore } from './shellStore';
+import { Badge } from '../../design/primitives';
 
 export interface AgentRailProps {
   /** Pins the state. Omitted, it follows the persisted preference. */
@@ -168,9 +169,9 @@ export function AgentRail({
           <Trans>AI 工作台</Trans>
         </h2>
         {pendingCount > 0 ? (
-          <span data-agent-rail-pending={pendingCount} className="border border-accent-300 px-1.5 text-2xs text-accent-700">
+          <Badge variant="count" size="sm" data-agent-rail-pending={pendingCount}>
             <Plural value={pendingCount} other="# 待确认" />
-          </span>
+          </Badge>
         ) : null}
         <span className="flex-1" />
         <button

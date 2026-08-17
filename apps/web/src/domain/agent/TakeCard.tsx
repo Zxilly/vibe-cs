@@ -37,7 +37,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Button, Checkbox, Tag, cn } from '../../design/primitives';
+import { Button, Checkbox, Badge, cn } from '../../design/primitives';
 import type { AgentPlanShot } from '../../shared/desktop/dto';
 
 import { formatShotDuration } from './shotFormat';
@@ -118,9 +118,9 @@ export function TakeCard({
           )}
         </div>
         {badge === undefined ? null : (
-          <Tag tone={selected ? 'accent' : 'neutral'} className="flex-none">
+          <Badge variant={selected ? 'accent' : 'neutral'} className="flex-none">
             {badge}
-          </Tag>
+          </Badge>
         )}
       </header>
 

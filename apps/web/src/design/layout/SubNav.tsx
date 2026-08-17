@@ -31,6 +31,7 @@ import type { ReactNode } from 'react';
 import { useCollapsed } from './collapse';
 import { cn } from '../cn';
 import { OverflowMenu, type OverflowMenuItem } from './OverflowMenu';
+import { Badge } from '../primitives';
 
 export interface SubNavItem {
   id: string;
@@ -69,8 +70,6 @@ const TAB_ITEM_CLASS =
   'flex h-[var(--h-row-compact)] items-center gap-2 whitespace-nowrap px-3 text-sm text-text disabled:opacity-45';
 
 const TAB_ACTIVE_CLASS = 'text-accent-800 shadow-[inset_0_-2px_0_var(--color-accent)]';
-
-const BADGE_CLASS = 'border border-accent-300 px-1.5 text-2xs text-accent-700';
 
 /**
  * The visible tabs. The current view is never allowed to hide inside 「更多」 —
@@ -136,7 +135,9 @@ export function SubNav({
               >
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
                 {item.badge !== undefined && item.badge !== null ? (
-                  <span className={BADGE_CLASS}>{item.badge}</span>
+                  <Badge variant="count" size="sm">
+                    {item.badge}
+                  </Badge>
                 ) : null}
               </button>
             </li>
@@ -177,7 +178,9 @@ export function SubNav({
             >
               <span className="truncate">{item.label}</span>
               {item.badge !== undefined && item.badge !== null ? (
-                <span className={BADGE_CLASS}>{item.badge}</span>
+                <Badge variant="count" size="sm">
+                  {item.badge}
+                </Badge>
               ) : null}
             </button>
           </li>

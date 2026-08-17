@@ -31,7 +31,7 @@ import { useEffect, useState } from 'react';
 
 import { Inspector } from '../../design/layout';
 import { Notice, StatusDot } from '../../design/feedback';
-import { Button, Tag, TextInput } from '../../design/primitives';
+import { Button, Badge, TextInput } from '../../design/primitives';
 import type { DemoMetadata } from '../../shared/desktop/dto';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
 import {
@@ -205,7 +205,7 @@ export function LibraryInspector({
 
       <div className="flex items-center gap-2">
         {status.tone === 'accent' || status.tone === 'neutral' ? (
-          <Tag tone={status.tone}>{i18n._(status.label)}</Tag>
+          <Badge variant={status.tone}>{i18n._(status.label)}</Badge>
         ) : (
           <span className="inline-flex items-center gap-2 text-xs">
             <StatusDot status={status.tone === 'fail' ? 'fail' : 'running'} size="sm" />
@@ -236,9 +236,9 @@ export function LibraryInspector({
           </h4>
           <div className="flex flex-wrap gap-2">
             {metadata.tags.map((tag) => (
-              <Tag key={tag.id} tone="accent">
+              <Badge key={tag.id} variant="accent">
                 {tag.name}
-              </Tag>
+              </Badge>
             ))}
           </div>
         </section>

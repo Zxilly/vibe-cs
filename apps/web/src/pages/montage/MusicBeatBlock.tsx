@@ -38,7 +38,7 @@ import { useMemo, useState } from 'react';
 
 import { DataTable, EmptyState, type DataTableColumn } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Tag } from '../../design/primitives';
+import { Button, Badge } from '../../design/primitives';
 import { dataErrorMessage } from '../../data/errors';
 import { useAudioAnalysis, useAssetWaveform, useImportMediaAsset, useMediaAssets } from '../../data/mediaAssets';
 import { useBeatAlignmentPreview } from '../../data/montage';
@@ -265,9 +265,9 @@ function MusicSummary({
       <p className="flex min-w-0 items-center gap-2 text-xs text-neutral-700">
         <span className="truncate">{name}</span>
         {libraryPending ? null : (
-          <Tag tone="outline">
+          <Badge variant="outline">
             <Trans>未在素材库中，无法分析节拍</Trans>
-          </Tag>
+          </Badge>
         )}
       </p>
     );
@@ -294,9 +294,9 @@ function MusicSummary({
     <p className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-neutral-700">
       <span className="truncate">{name}</span>
       {analysis.bpm === null ? (
-        <Tag tone="outline">
+        <Badge variant="outline">
           <Trans>未测到稳定节拍</Trans>
-        </Tag>
+        </Badge>
       ) : (
         <>
           <span className="font-mono">
@@ -308,13 +308,13 @@ function MusicSummary({
         </>
       )}
       {analysis.tempo_confidence < LOW_CONFIDENCE ? (
-        <Tag tone="outline">
+        <Badge variant="outline">
           <Trans>置信度很低，建议只作参考</Trans>
-        </Tag>
+        </Badge>
       ) : analysis.tempo_confidence < FAIR_CONFIDENCE ? (
-        <Tag tone="outline">
+        <Badge variant="outline">
           <Trans>置信度一般</Trans>
-        </Tag>
+        </Badge>
       ) : null}
       {analysis.limitations.length === 0 ? null : (
         /* English facts from the analyser, printed verbatim under a Chinese
@@ -388,9 +388,9 @@ function BeatSuggestions({
           </Button>
         )}
         {previewing === null ? null : (
-          <Tag tone="accent" data-montage-preview-flag="">
+          <Badge variant="accent" data-montage-preview-flag="">
             <Trans>预览中 · 工程尚未改动</Trans>
-          </Tag>
+          </Badge>
         )}
       </div>
 
@@ -554,9 +554,9 @@ function BeatTable({
         <span className="flex items-center gap-2">
           <span className="truncate">{entry.title}</span>
           {entry.changed ? (
-            <Tag tone="accent">
+            <Badge variant="accent">
               <Trans>预览</Trans>
-            </Tag>
+            </Badge>
           ) : null}
         </span>
       ),

@@ -296,12 +296,7 @@ export function CommandPalette({
                           <Kbd className="tracking-wide">{command.shortcut}</Kbd>
                         )}
                         {isActive ? (
-                          <span
-                            aria-hidden="true"
-                            className="flex-none border border-accent-300 px-1.5 text-2xs text-accent-700"
-                          >
-                            ↵
-                          </span>
+                          <Kbd className="border-accent-300 text-accent-700">↵</Kbd>
                         ) : null}
                       </div>
                     );

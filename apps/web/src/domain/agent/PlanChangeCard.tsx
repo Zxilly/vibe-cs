@@ -45,7 +45,7 @@ import { Trans } from '@lingui/react/macro';
 import { ArrowRight, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-import { Button, Tag, cn } from '../../design/primitives';
+import { Button, Badge, cn } from '../../design/primitives';
 
 import { planChangeAffordance } from './planRevision';
 import { formatSignedSeconds } from './shotFormat';
@@ -113,14 +113,14 @@ export function PlanChangeCard({
         <span className="flex-none font-mono text-2xs text-neutral-600">
           <Trans>变更 {index}</Trans>
         </span>
-        <Tag tone={change.state === 'pending' ? 'accent' : 'neutral'} className="flex-none gap-1">
+        <Badge variant={change.state === 'pending' ? 'accent' : 'neutral'} className="flex-none gap-1">
           <OpIcon size={11} strokeWidth={1.5} aria-hidden="true" />
           {i18n._(op.label)}
-        </Tag>
+        </Badge>
         {affordance.statusLabel === null ? null : (
-          <Tag data-change-status="" tone="neutral" className="flex-none">
+          <Badge data-change-status="" variant="neutral" className="flex-none">
             {i18n._(affordance.statusLabel)}
-          </Tag>
+          </Badge>
         )}
         {change.deltaSeconds === null ? null : (
           <span className="ml-auto flex-none font-mono text-xs">

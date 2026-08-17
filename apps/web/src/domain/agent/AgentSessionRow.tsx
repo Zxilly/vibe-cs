@@ -32,7 +32,7 @@
 import { Plural, Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Tag, cn } from '../../design/primitives';
+import { Badge, cn } from '../../design/primitives';
 import type { AgentObjectRef, AgentSessionSummary } from '../../shared/desktop/dto';
 
 import { AgentObjectRefChip } from './AgentObjectRefChip';
@@ -77,9 +77,9 @@ export function AgentSessionRow({
     <>
       <span className="min-w-0 truncate text-base">{session.title}</span>
       {current ? (
-        <Tag data-session-current="" tone="accent" className="flex-none">
+        <Badge data-session-current="" variant="accent" className="flex-none">
           <Trans>当前</Trans>
-        </Tag>
+        </Badge>
       ) : null}
       <time
         dateTime={session.updated_at}

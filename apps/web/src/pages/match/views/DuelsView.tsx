@@ -39,7 +39,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 
 import { useMatchAnalysis } from '../../../data/match';
 import { DataTable, EmptyState, type DataTableColumn } from '../../../design/data';
-import { Button, Seg, Tag } from '../../../design/primitives';
+import { Button, Seg, Badge } from '../../../design/primitives';
 import { formatTickTimecode } from '../../../domain/match';
 import type { PlayerMatchupInsightRecord } from '../../../shared/desktop/dto';
 import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
@@ -348,14 +348,14 @@ function DuelMarks({
   return (
     <span className="flex flex-wrap items-center gap-1">
       {headshot ? (
-        <Tag tone="accent">
+        <Badge variant="accent">
           <Trans>爆头</Trans>
-        </Tag>
+        </Badge>
       ) : null}
       {penetrated ? (
-        <Tag tone="neutral">
+        <Badge variant="neutral">
           <Trans>穿墙</Trans>
-        </Tag>
+        </Badge>
       ) : null}
     </span>
   );

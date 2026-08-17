@@ -55,7 +55,7 @@ import {
 } from '../../../data/match';
 import { EmptyState, Skeleton } from '../../../design/data';
 import { Notice } from '../../../design/feedback';
-import { Button, Seg, Tag, TextInput } from '../../../design/primitives';
+import { Button, Seg, Badge, TextInput } from '../../../design/primitives';
 import { formatTickCount } from '../../../domain/match';
 import type { EvidenceAnnotation } from '../../../shared/desktop/dto';
 import { RouteLink } from '../../RouteLink';
@@ -200,9 +200,9 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
               <Heading>
                 <Trans>AI 点评</Trans>
               </Heading>
-              <Tag tone="neutral">
+              <Badge variant="neutral">
                 <Trans>语气：专业</Trans>
-              </Tag>
+              </Badge>
             </div>
 
             {review.error === null || review.error === undefined ? null : (
@@ -578,13 +578,13 @@ function AnnotationPreview({
 function StateTag({ state }: { readonly state: EvidenceAnnotation['review_state'] }) {
   /* The artboard's own two tones: 待处理 is `tag-outline`, 已处理 `tag-neutral`. */
   return state === 'open' ? (
-    <Tag tone="outline">
+    <Badge variant="outline">
       <Trans>待处理</Trans>
-    </Tag>
+    </Badge>
   ) : (
-    <Tag tone="neutral">
+    <Badge variant="neutral">
       <Trans>已处理</Trans>
-    </Tag>
+    </Badge>
   );
 }
 

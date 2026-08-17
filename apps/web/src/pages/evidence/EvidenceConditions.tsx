@@ -30,7 +30,7 @@ import { Trans } from '@lingui/react/macro';
 import { Search, X } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 
-import { Button, Seg, Tag, TextInput, type SegOption } from '../../design/primitives';
+import { Button, Seg, Badge, TextInput, type SegOption } from '../../design/primitives';
 import {
   EVIDENCE_FAMILIES,
   RECENT_WINDOW_DAYS,
@@ -204,18 +204,20 @@ export function EvidenceConditions({
         </span>
 
         {conditions.map((condition) => (
-          <Tag
+          <Badge
             key={condition.field}
-            as="button"
-            tone="accent"
+            asChild
+            variant="accent"
             data-condition={condition.field}
             aria-label={t`移除条件`}
             onClick={() => onChange(withoutCondition(state, condition.field))}
             className="gap-1.5"
           >
-            {conditionLabel(condition)}
-            <X size={11} strokeWidth={1.5} aria-hidden="true" />
-          </Tag>
+            <button type="button">
+              {conditionLabel(condition)}
+              <X size={11} strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          </Badge>
         ))}
 
         {TEXT_FIELDS.filter((field) => state[field] === '').map((field) =>
@@ -239,33 +241,37 @@ export function EvidenceConditions({
               />
             </span>
           ) : (
-            <Tag
+            <Badge
               key={field}
-              as="button"
-              tone="outline"
+              asChild
+              variant="outline"
               data-condition-add={field}
               onClick={() => openField(field)}
             >
-              <Trans>＋ {textFieldLabel(field)}</Trans>
-            </Tag>
+              <button type="button">
+                <Trans>＋ {textFieldLabel(field)}</Trans>
+              </button>
+            </Badge>
           ),
         )}
 
         {state.headshot ? null : (
-          <Tag
-            as="button"
-            tone="outline"
+          <Badge
+            asChild
+            variant="outline"
             data-condition-add="headshot"
             onClick={() => commit({ ...state, headshot: true })}
           >
-            <Trans>＋ 仅爆头</Trans>
-          </Tag>
+            <button type="button">
+              <Trans>＋ 仅爆头</Trans>
+            </button>
+          </Badge>
         )}
 
         {state.from === '' ? (
-          <Tag
-            as="button"
-            tone="outline"
+          <Badge
+            asChild
+            variant="outline"
             data-condition-add="from"
             {...(dateDisabledReason === undefined
               ? {}
@@ -276,8 +282,10 @@ export function EvidenceConditions({
                 })}
             onClick={() => commit({ ...state, from: recentFrom })}
           >
-            <Trans>＋ 近 {RECENT_WINDOW_DAYS} 天</Trans>
-          </Tag>
+            <button type="button">
+              <Trans>＋ 近 {RECENT_WINDOW_DAYS} 天</Trans>
+            </button>
+          </Badge>
         ) : null}
 
         <div className="flex-1" aria-hidden="true" />

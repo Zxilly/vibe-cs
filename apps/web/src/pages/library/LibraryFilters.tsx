@@ -36,7 +36,7 @@ import { Trans } from '@lingui/react/macro';
 import { Search } from 'lucide-react';
 
 import { OverflowMenu, type OverflowMenuItem } from '../../design/layout';
-import { Button, Tag, TextInput } from '../../design/primitives';
+import { Button, Badge, TextInput } from '../../design/primitives';
 import type { DemoLifecycleStatus, DemoMatchSource, ReviewTag } from '../../shared/desktop/dto';
 import { unavailableAction } from './serviceAction';
 import type { LibraryAddress } from './libraryQuery';
@@ -174,17 +174,19 @@ export function LibraryFilters({
       <span className="h-5 w-px flex-none bg-divider" aria-hidden="true" />
 
       {savedViews.map((view) => (
-        <Tag
+        <Badge
           key={view.name}
-          as="button"
-          tone="accent"
+          asChild
+          variant="accent"
           className="flex-none"
           onClick={() => {
             onApplySavedView(view);
           }}
         >
-          <Trans>保存的视图 · {view.name}</Trans>
-        </Tag>
+          <button type="button">
+            <Trans>保存的视图 · {view.name}</Trans>
+          </button>
+        </Badge>
       ))}
       <Button size="sm" variant="ghost" className="flex-none" onClick={onSaveView}>
         <Trans>保存为视图</Trans>

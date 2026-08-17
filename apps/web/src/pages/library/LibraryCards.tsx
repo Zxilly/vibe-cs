@@ -26,7 +26,7 @@ import { Trans } from '@lingui/react/macro';
 
 import { EmptyState, Pagination } from '../../design/data';
 import { Notice, StatusDot } from '../../design/feedback';
-import { Button, cn, Tag } from '../../design/primitives';
+import { Button, cn, Badge } from '../../design/primitives';
 import type { Paginated } from '../../shared/desktop/dto';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
 import {
@@ -189,7 +189,7 @@ function DemoCard({
 
       <span className="flex items-center gap-2">
         {status.tone === 'accent' || status.tone === 'neutral' ? (
-          <Tag tone={status.tone}>{i18n._(status.label)}</Tag>
+          <Badge variant={status.tone}>{i18n._(status.label)}</Badge>
         ) : (
           <span
             className={cn(

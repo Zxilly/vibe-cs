@@ -41,7 +41,7 @@ import { useServiceAction } from '../../data/serviceAction';
 import { useTaskFeed } from '../../data/tasks';
 import { EmptyState, Skeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Tag } from '../../design/primitives';
+import { Button, Badge } from '../../design/primitives';
 import { AGENT_PLAN_STATUS } from '../../domain/agent';
 import type { AgentPlanSummary } from '../../shared/desktop/dto';
 import { TaskFeedList } from '../delivery/TaskFeedList';
@@ -221,7 +221,7 @@ function PlanColumn({
             <RouteLink to={recordingHref(plan.id)} size="base">
               {plan.title}
             </RouteLink>
-            <Tag tone="neutral">{i18n._(AGENT_PLAN_STATUS[plan.status].label)}</Tag>
+            <Badge variant="neutral">{i18n._(AGENT_PLAN_STATUS[plan.status].label)}</Badge>
           </div>
           <p className="mt-1 text-xs text-neutral-600">
             <Trans>

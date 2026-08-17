@@ -24,7 +24,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import type { DataTableColumn } from '../../design/data';
-import { Button, cn, Tag } from '../../design/primitives';
+import { Button, cn, Badge } from '../../design/primitives';
 import { StatusDot } from '../../design/feedback';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { RouteLink } from '../RouteLink';
@@ -159,10 +159,10 @@ function DemoStatusCell({ demo }: { demo: DemoSummary }) {
   const label = i18n._(meta.label);
 
   if (meta.tone === 'accent') {
-    return <Tag tone="accent">{label}</Tag>;
+    return <Badge variant="accent">{label}</Badge>;
   }
   if (meta.tone === 'neutral') {
-    return <Tag tone="neutral">{label}</Tag>;
+    return <Badge variant="neutral">{label}</Badge>;
   }
   return (
     <span

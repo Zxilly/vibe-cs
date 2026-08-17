@@ -39,7 +39,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Checkbox, cn, Tag } from '../../design/primitives';
+import { Checkbox, cn, Badge } from '../../design/primitives';
 import { HIGHLIGHT_KIND } from './matchEnums';
 import { CS2_TICK_RATE, formatTickRange, formatTickRangeSeconds } from './matchTime';
 import type { HighlightCandidate } from './types';
@@ -116,10 +116,10 @@ export function HighlightRow({
         <Trans>R{highlight.round}</Trans>
       </span>
 
-      {/* The type is a Tag because that is what the artboard draws, and it
+      {/* The type is a Badge because that is what the artboard draws, and it
           carries the word itself — the tone is decoration on top of it. */}
       <span className="flex-none">
-        <Tag tone={current ? 'accent' : 'neutral'}>{highlight.label ?? i18n._(kind.label)}</Tag>
+        <Badge variant={current ? 'accent' : 'neutral'}>{highlight.label ?? i18n._(kind.label)}</Badge>
       </span>
 
       {highlight.subject === undefined ? null : (
@@ -137,9 +137,9 @@ export function HighlightRow({
       {highlight.tags === undefined || highlight.tags.length === 0 || density === 'compact' ? null : (
         <span data-highlight-tags="" className="flex flex-none items-center gap-1.5">
           {highlight.tags.map((tag, index) => (
-            <Tag key={index} tone="neutral">
+            <Badge key={index} variant="neutral">
               {tag}
-            </Tag>
+            </Badge>
           ))}
         </span>
       )}

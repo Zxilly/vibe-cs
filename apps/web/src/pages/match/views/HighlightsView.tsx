@@ -58,7 +58,7 @@ import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
 import { useServiceAction, type ServiceActionState } from '../../../data/serviceAction';
 import { EmptyState } from '../../../design/data';
 import { Notice } from '../../../design/feedback';
-import { Button, Seg, Tag } from '../../../design/primitives';
+import { Button, Seg, Badge } from '../../../design/primitives';
 import { SelectionBar } from '../../../design/layout';
 import {
   HIGHLIGHT_KIND,
@@ -369,7 +369,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
     >
       <dl className="flex flex-col gap-3 text-sm">
         <Row label={<Trans>类型</Trans>}>
-          <Tag tone="accent">{highlight.label ?? i18n._(HIGHLIGHT_KIND[highlight.kind].label)}</Tag>
+          <Badge variant="accent">{highlight.label ?? i18n._(HIGHLIGHT_KIND[highlight.kind].label)}</Badge>
         </Row>
         {highlight.subject === undefined ? null : (
           <Row label={<Trans>选手</Trans>}>{highlight.subject}</Row>

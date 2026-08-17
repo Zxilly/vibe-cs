@@ -42,7 +42,7 @@ import type { ReactNode } from 'react';
 
 import { EmptyState, TableSkeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Link, Tag, cn } from '../../design/primitives';
+import { Button, Link, Badge, cn } from '../../design/primitives';
 
 import { RetryNotice, type RetryNoticeProps } from './RetryNotice';
 import { StageTimeline, type TaskStageEntry } from './StageTimeline';
@@ -115,7 +115,7 @@ export function TaskDetail({
           {task.subject}
         </h2>
         <span className="font-mono text-xs text-neutral-600">{task.id}</span>
-        <Tag tone={TASK_STATUS_TAG_TONE[task.status]}>{taskStatusLabels()[task.status]}</Tag>
+        <Badge variant={TASK_STATUS_TAG_TONE[task.status]}>{taskStatusLabels()[task.status]}</Badge>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
           {links?.map((link) => (

@@ -34,7 +34,7 @@ import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Button, cn, Tag } from '../../design/primitives';
+import { Button, cn, Badge } from '../../design/primitives';
 import { EVIDENCE_KIND } from './matchEnums';
 import { CS2_TICK_RATE, formatTickClock, formatTickCount, formatTickTimecode } from './matchTime';
 import type { EvidenceItem } from './types';
@@ -182,9 +182,9 @@ export function EvidenceRow({
 
       {evidence.annotation === undefined || density === 'inline' ? null : (
         <span data-evidence-annotation="" className="flex-none">
-          <Tag tone={evidence.annotation.resolved === true ? 'neutral' : 'outline'}>
+          <Badge variant={evidence.annotation.resolved === true ? 'neutral' : 'outline'}>
             {evidence.annotation.label}
-          </Tag>
+          </Badge>
         </span>
       )}
 

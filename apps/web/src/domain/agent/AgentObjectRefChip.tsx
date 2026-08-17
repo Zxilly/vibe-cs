@@ -28,14 +28,14 @@
 import { useLingui } from '@lingui/react';
 import { Plural } from '@lingui/react/macro';
 
-import { Tag, type TagTone } from '../../design/primitives';
+import { Badge, type BadgeVariant } from '../../design/primitives';
 import type { AgentObjectRef } from '../../shared/desktop/dto';
 
 import { AGENT_OBJECT_KIND } from './types';
 
 export interface AgentObjectRefChipProps {
   readonly objectRef: AgentObjectRef;
-  readonly tone?: TagTone | undefined;
+  readonly tone?: BadgeVariant | undefined;
   /** Makes the chip a button — 「打开这个对象」. */
   readonly onSelect?: ((objectRef: AgentObjectRef) => void) | undefined;
   readonly className?: string | undefined;
@@ -63,20 +63,22 @@ export function AgentObjectRefChip({ objectRef, tone = 'neutral', onSelect, clas
   const shared = `max-w-full gap-1 ${className ?? ''}`.trimEnd();
 
   return onSelect === undefined ? (
-    <Tag data-agent-object-ref={objectRef.id} data-object-kind={objectRef.kind} tone={tone} className={shared}>
+    <Badge data-agent-object-ref={objectRef.id} data-object-kind={objectRef.kind} variant={tone} className={shared}>
       {body}
-    </Tag>
+    </Badge>
   ) : (
-    <Tag
-      as="button"
+    <Badge
+      asChild
       data-agent-object-ref={objectRef.id}
       data-object-kind={objectRef.kind}
-      tone={tone}
+      variant={tone}
       className={shared}
       title={objectRef.summary === '' ? undefined : objectRef.summary}
       onClick={() => onSelect(objectRef)}
     >
-      {body}
-    </Tag>
+      <button type="button">
+        {body}
+      </button>
+    </Badge>
   );
 }

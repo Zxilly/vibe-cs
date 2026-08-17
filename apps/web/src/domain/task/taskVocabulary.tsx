@@ -17,7 +17,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import type { StatusDotStatus } from '../../design/feedback';
-import type { TagTone } from '../../design/primitives';
+import type { BadgeVariant } from '../../design/primitives';
 
 import type { TaskFailureReason, TaskKind, TaskProgressUnit, TaskStatus } from './types';
 
@@ -103,7 +103,7 @@ export const TASK_STATUS_DOT: Readonly<Record<TaskStatus, StatusDotStatus>> = {
  * task's tag is neutral and the failure itself is carried by the Notice below
  * it — which is also the component that holds the required recovery action.
  */
-export const TASK_STATUS_TAG_TONE: Readonly<Record<TaskStatus, TagTone>> = {
+export const TASK_STATUS_TAG_TONE: Readonly<Record<TaskStatus, BadgeVariant>> = {
   'awaiting-confirmation': 'outline',
   queued: 'neutral',
   running: 'accent',

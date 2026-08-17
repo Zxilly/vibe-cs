@@ -19,7 +19,7 @@ import type { ReactNode } from 'react';
 
 import { Pagination } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Tag } from '../../design/primitives';
+import { Button, Badge } from '../../design/primitives';
 import { EvidenceRowSkeleton, formatTickCount } from '../../domain/match';
 import type { EvidenceAnnotation } from '../../shared/desktop/dto';
 import { EVIDENCE_PAGE_SIZE } from './evidenceSearchParams';
@@ -97,20 +97,20 @@ export function EvidenceAnnotations({
                 <Trans>第 {annotation.round} 回合</Trans>
               </span>
               <div className="flex-1" aria-hidden="true" />
-              <Tag tone={annotation.review_state === 'resolved' ? 'neutral' : 'outline'}>
+              <Badge variant={annotation.review_state === 'resolved' ? 'neutral' : 'outline'}>
                 {annotation.review_state === 'resolved' ? (
                   <Trans>已处理</Trans>
                 ) : (
                   <Trans>待处理</Trans>
                 )}
-              </Tag>
+              </Badge>
             </div>
             <p className="text-sm leading-normal">{annotation.body}</p>
             <div className="flex flex-wrap items-center gap-2">
               {annotation.tags.map((tag) => (
-                <Tag key={tag} tone="neutral">
+                <Badge key={tag} variant="neutral">
                   {tag}
-                </Tag>
+                </Badge>
               ))}
               <div className="flex-1" aria-hidden="true" />
               <Button

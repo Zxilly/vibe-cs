@@ -23,7 +23,7 @@ import type { ReactNode } from 'react';
 
 import { DataTable, type DataTableColumn } from '../../design/data';
 import { StatusDot } from '../../design/feedback';
-import { Tag } from '../../design/primitives';
+import { Badge } from '../../design/primitives';
 import type { MatchHistoryItem } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
 import {
@@ -74,7 +74,7 @@ function StateCell({ item, state }: { readonly item: MatchHistoryItem; readonly 
       </span>
     );
   }
-  return <Tag tone={state === 'downloaded' ? 'accent' : 'neutral'}>{stateLabel(state)}</Tag>;
+  return <Badge variant={state === 'downloaded' ? 'accent' : 'neutral'}>{stateLabel(state)}</Badge>;
 }
 
 export interface MatchHistoryTableProps {

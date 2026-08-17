@@ -46,7 +46,7 @@ import { TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Button, Tag, cn } from '../../design/primitives';
+import { Button, Badge, cn } from '../../design/primitives';
 import type { AgentPlanShot } from '../../shared/desktop/dto';
 
 import { formatShotDuration, formatTickRange } from './shotFormat';
@@ -105,11 +105,11 @@ export function PlanShotRow({
   const header = (
     <div className="flex min-w-0 items-center gap-2">
       <span className="flex-none font-mono text-xs text-neutral-600">{number}</span>
-      <Tag tone={selected ? 'accent' : 'neutral'} className="flex-none gap-1">
+      <Badge variant={selected ? 'accent' : 'neutral'} className="flex-none gap-1">
         <KindIcon size={11} strokeWidth={1.5} aria-hidden="true" />
         {kind.code}
         <span className="sr-only"> {i18n._(kind.label)}</span>
-      </Tag>
+      </Badge>
       <span
         className={cn(
           'min-w-0 truncate font-heading',
@@ -167,14 +167,14 @@ export function PlanShotRow({
       <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
         {/* 来源徽标. An outline chip for 「你改过」 so it reads as the user's mark
             even where the accent plate is already the selection. */}
-        <Tag data-shot-source={shot.source} tone={shot.source === 'user' ? 'outline' : 'neutral'}>
+        <Badge data-shot-source={shot.source} variant={shot.source === 'user' ? 'outline' : 'neutral'}>
           {i18n._(author.sourceBadge)}
-        </Tag>
-        <Tag tone="neutral">{i18n._(view.label)}</Tag>
+        </Badge>
+        <Badge variant="neutral">{i18n._(view.label)}</Badge>
         {removedBy === null ? null : (
-          <Tag data-shot-removed="" tone="outline">
+          <Badge data-shot-removed="" variant="outline">
             {i18n._(removedBy.removedBadge)}
-          </Tag>
+          </Badge>
         )}
         {onRestore === undefined || !removed ? null : (
           <Button

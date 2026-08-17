@@ -12,7 +12,7 @@ export { Field, type FieldControlProps, type FieldProps } from './Field';
 export { Link, type LinkProps, type LinkSize } from './Link';
 export { Seg, type SegOption, type SegProps } from './Seg';
 export { Slider, type SliderProps } from './Slider';
-export { Tag, type TagProps, type TagTone } from './Tag';
+export { Badge, badgeVariants, type BadgeProps, type BadgeSize, type BadgeVariant } from './Badge';
 export { TextInput, type TextInputProps, type TextInputType } from './TextInput';
 export { Toggle, type ToggleProps } from './Toggle';
 

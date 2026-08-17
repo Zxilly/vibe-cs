@@ -29,6 +29,20 @@ export interface MatchMediaStub {
 const MAX_WIDTH = /\(\s*max-width:\s*(\d+(?:\.\d+)?)px\s*\)/u;
 
 /**
+ * Queries this stub answers without a viewport width.
+ *
+ * `(pointer:coarse)` is asked by `react-resizable-panels`, which widens a
+ * separator's hit region for touch. This product is a desktop window with a
+ * mouse, so the answer is `false` — and it is listed rather than defaulted,
+ * because the throw below is what keeps a typo in a real media query from
+ * quietly passing as 「wide enough」.
+ */
+const KNOWN_ANSWERS: Readonly<Record<string, boolean>> = {
+  '(pointer:coarse)': false,
+  '(pointer: coarse)': false,
+};
+
+/**
  * `initial` is either a flat answer for every query (the original behaviour) or
  * a viewport width, in which case each query is evaluated against it.
  */
@@ -39,6 +53,8 @@ export function stubMatchMedia(initial: boolean | number): MatchMediaStub {
   let width = typeof initial === 'number' ? initial : null;
 
   const answers = (query: string): boolean => {
+    const known = KNOWN_ANSWERS[query.trim()];
+    if (known !== undefined) return known;
     if (width === null) return matches ?? false;
     const found = MAX_WIDTH.exec(query);
     // A query this stub cannot read must not silently report "wide enough" —

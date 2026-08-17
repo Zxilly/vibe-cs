@@ -345,6 +345,7 @@ export function AgentPage() {
       <SplitPane
         className="min-h-0 flex-1"
         asideWidth="inspector-wide"
+        storageId="agent-plan"
         asideLabel={t`方案面板`}
         aside={<PlanPanel {...blockProps} />}
       >

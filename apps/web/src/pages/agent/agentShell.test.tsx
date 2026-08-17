@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 
 import { AgentPage } from '../AgentPage';
 import { renderMarkup } from '../../test/render';
+import { PANEL_WIDTH_PX } from '../../design/tokens.data';
 
 function at(url: string): string {
   return renderMarkup(
@@ -65,6 +66,7 @@ describe('the three blocks', () => {
   });
 
   it('renders the plan panel as the page\'s companion column', () => {
-    expect(at('/agent')).toContain('--w-inspector-wide');
+    // The §3.5 token, in the real pixels `SplitPane` now opens at.
+    expect(at('/agent')).toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-inspector-wide'])}px`);
   });
 });

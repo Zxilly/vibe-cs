@@ -97,7 +97,12 @@ export function HomePage() {
           <div className="flex flex-col border-t border-divider">{outputs}</div>
         </div>
       ) : (
-        <SplitPane asideLabel={t`最近输出`} asideWidth="inspector-wide" aside={outputs}>
+        <SplitPane
+          asideLabel={t`最近输出`}
+          asideWidth="inspector-wide"
+          storageId="home-outputs"
+          aside={outputs}
+        >
           {tasks}
         </SplitPane>
       )}

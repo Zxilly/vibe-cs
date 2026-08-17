@@ -15,6 +15,7 @@ import { renderMarkup } from '../../test/render';
 import { DeliveryPage } from '../DeliveryPage';
 import { HomePage } from '../HomePage';
 import { TaskDetailPage } from '../TaskDetailPage';
+import { PANEL_WIDTH_PX } from '../../design/tokens.data';
 
 function at(pattern: string, url: string, element: React.ReactElement): string {
   return renderMarkup(
@@ -47,9 +48,9 @@ describe('/delivery', () => {
   });
 
   it('keeps 任务记录 beside 输出 at full width, in the one 520px column §3.5 has', () => {
-    expect(outputs).toContain('w-[var(--w-split)]');
+    expect(outputs).toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-split'])}px`);
     // …and gives the records the whole page when the address asks for them.
-    expect(tasks).not.toContain('w-[var(--w-split)]');
+    expect(tasks).not.toContain('data-split-aside');
   });
 
   it('invents no data while the service has not answered', () => {
@@ -104,7 +105,7 @@ describe('/', () => {
   });
 
   it('puts 最近输出 in the 440px column the artboard draws', () => {
-    expect(html).toContain('w-[var(--w-inspector-wide)]');
+    expect(html).toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-inspector-wide'])}px`);
   });
 
   it('invents no data', () => {

@@ -132,7 +132,12 @@ export function DeliveryPage() {
       ) : collapsed ? (
         <OutputsView service={service} />
       ) : (
-        <SplitPane asideLabel={t`任务记录`} asideWidth="split" aside={<TaskRecordRail service={service} />}>
+        <SplitPane
+          asideLabel={t`任务记录`}
+          asideWidth="split"
+          storageId="delivery-tasks"
+          aside={<TaskRecordRail service={service} />}
+        >
           <OutputsView service={service} />
         </SplitPane>
       )}

@@ -29,31 +29,32 @@
  * width depended on the panel size.
  */
 
-import { t } from '@lingui/core/macro';
-import { Trans } from '@lingui/react/macro';
-import { useMemo, type ReactNode } from 'react';
+import { t } from "@lingui/core/macro";
+import { Trans } from "@lingui/react/macro";
+import { useMemo, type ReactNode } from "react";
 
-import { Empty, Skeleton } from '../../design/data';
-import { Alert, type AlertAction } from '../../design/feedback';
-import { cn } from '../../design/primitives';
-import { formatTimecode } from '../../design/timeline';
+import { Empty, Skeleton } from "../../design/data";
+import { Alert, type AlertAction } from "../../design/feedback";
+import { cn } from "../../design/primitives";
+import { formatTimecode } from "../../design/timeline";
 
-import { progressPercent } from './transportModel';
-import type { PeakData } from './types';
+import { progressPercent } from "./transportModel";
+import type { PeakData } from "./types";
 import {
   DEFAULT_PEAK_COLUMNS,
   PEAK_VIEW_HEIGHT,
   PEAK_VIEW_WIDTH,
   downsamplePeaks,
   peakEnvelopePath,
-} from './waveformPeaks';
+} from "./waveformPeaks";
+import { Blueprint } from "../../design/layout";
 
 /**
  * 168px, the artboard's `min-height` for the waveform box. Kept as a component
  * constant rather than a global token for the reason `Empty` keeps its
  * 172px one: it is a content box, not a bar, and §3.4's inventory is bars.
  */
-export const WAVEFORM_MIN_HEIGHT_CLASS = 'min-h-[168px]';
+export const WAVEFORM_MIN_HEIGHT_CLASS = "min-h-[168px]";
 
 export interface WaveformFailure {
   readonly message: ReactNode;
@@ -102,7 +103,10 @@ export function Waveform({
   label,
   className,
 }: WaveformProps) {
-  const envelope = useMemo(() => peakEnvelopePath(downsamplePeaks(peaks, columns)), [peaks, columns]);
+  const envelope = useMemo(
+    () => peakEnvelopePath(downsamplePeaks(peaks, columns)),
+    [peaks, columns],
+  );
 
   if (failure !== undefined) {
     return (
@@ -122,7 +126,7 @@ export function Waveform({
       <div
         className={cn(
           WAVEFORM_MIN_HEIGHT_CLASS,
-          'flex flex-col justify-center gap-3 border border-divider px-4',
+          "flex flex-col justify-center gap-3 border border-divider px-4",
           className,
         )}
         aria-busy="true"
@@ -136,11 +140,13 @@ export function Waveform({
     );
   }
 
-  if (envelope === '') {
+  if (envelope === "") {
     return (
       <Empty
         title={<Trans>还没有波形</Trans>}
-        description={<Trans>这段素材还没有分析出峰值，或者它本来就没有声音。</Trans>}
+        description={
+          <Trans>这段素材还没有分析出峰值，或者它本来就没有声音。</Trans>
+        }
         actions={emptyAction ?? null}
         className={className}
       />
@@ -152,61 +158,74 @@ export function Waveform({
   const to = outPoint ?? durationSeconds;
 
   return (
-    <div
+    <Blueprint
       role="img"
-      aria-label={label ?? describe(durationSeconds, hasSelection ? { from, to } : undefined)}
-      data-selected={hasSelection ? 'true' : 'false'}
-      className={cn(WAVEFORM_MIN_HEIGHT_CLASS, 'relative overflow-hidden border border-divider', className)}
+      aria-label={
+        label ??
+        describe(durationSeconds, hasSelection ? { from, to } : undefined)
+      }
+      data-selected={hasSelection ? "true" : "false"}
+      className={cn(WAVEFORM_MIN_HEIGHT_CLASS, "relative", className)}
     >
-      <svg
-        viewBox={`0 0 ${PEAK_VIEW_WIDTH} ${PEAK_VIEW_HEIGHT}`}
-        preserveAspectRatio="none"
-        aria-hidden="true"
-        className="absolute inset-0 block size-full"
-      >
-        <path d={envelope} className="fill-[color-mix(in_srgb,var(--color-accent)_50%,transparent)]" />
-        {/* The artboard's `M0 50 H1000` zero line. */}
-        <path
-          d={`M0 ${PEAK_VIEW_HEIGHT / 2} H${PEAK_VIEW_WIDTH}`}
-          className="stroke-accent-700"
-          strokeWidth={0.6}
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
+      {/* The clip is an inner layer, not this box: the frame draws its marks
+          *outside* the border, and an `overflow-hidden` on the framed element
+          would cut all four off. Same shape as `MapCanvas`. */}
+      <div className="absolute inset-0 overflow-hidden">
+        <svg
+          viewBox={`0 0 ${PEAK_VIEW_WIDTH} ${PEAK_VIEW_HEIGHT}`}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+          className="absolute inset-0 block size-full"
+        >
+          <path
+            d={envelope}
+            className="fill-[color-mix(in_srgb,var(--color-accent)_50%,transparent)]"
+          />
+          {/* The artboard's `M0 50 H1000` zero line. */}
+          <path
+            d={`M0 ${PEAK_VIEW_HEIGHT / 2} H${PEAK_VIEW_WIDTH}`}
+            className="stroke-accent-700"
+            strokeWidth={0.6}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
 
-      {hasSelection ? (
-        <>
-          <div
-            data-region="before-in"
-            className="absolute inset-y-0 left-0 bg-[color-mix(in_srgb,var(--color-text)_12%,transparent)]"
-            style={{ width: progressPercent(from, durationSeconds) }}
-          />
-          <div
-            data-region="after-out"
-            className="absolute inset-y-0 right-0 bg-[color-mix(in_srgb,var(--color-text)_12%,transparent)]"
-            style={{ width: progressPercent(durationSeconds - to, durationSeconds) }}
-          />
-          <div
-            data-edge="in"
-            className="absolute inset-y-0 w-px bg-accent-700"
-            style={{ left: progressPercent(from, durationSeconds) }}
-          />
-          <div
-            data-edge="out"
-            className="absolute inset-y-0 w-px bg-accent-700"
-            style={{ left: progressPercent(to, durationSeconds) }}
-          />
-        </>
-      ) : null}
+        {hasSelection ? (
+          <>
+            <div
+              data-region="before-in"
+              className="absolute inset-y-0 left-0 bg-[color-mix(in_srgb,var(--color-text)_12%,transparent)]"
+              style={{ width: progressPercent(from, durationSeconds) }}
+            />
+            <div
+              data-region="after-out"
+              className="absolute inset-y-0 right-0 bg-[color-mix(in_srgb,var(--color-text)_12%,transparent)]"
+              style={{
+                width: progressPercent(durationSeconds - to, durationSeconds),
+              }}
+            />
+            <div
+              data-edge="in"
+              className="absolute inset-y-0 w-px bg-accent-700"
+              style={{ left: progressPercent(from, durationSeconds) }}
+            />
+            <div
+              data-edge="out"
+              className="absolute inset-y-0 w-px bg-accent-700"
+              style={{ left: progressPercent(to, durationSeconds) }}
+            />
+          </>
+        ) : null}
 
-      {currentTime === undefined ? null : (
-        <div
-          data-playhead="true"
-          className="absolute inset-y-0 w-0.5 bg-text"
-          style={{ left: progressPercent(currentTime, durationSeconds) }}
-        />
-      )}
-    </div>
+        {currentTime === undefined ? null : (
+          <div
+            data-playhead="true"
+            className="absolute inset-y-0 w-0.5 bg-text"
+            style={{ left: progressPercent(currentTime, durationSeconds) }}
+          />
+        )}
+      </div>
+    </Blueprint>
   );
 }
 
@@ -215,9 +234,12 @@ export function Waveform({
  * `design/data/Skeleton` uses for a table, because a waveform that is still
  * being computed has no percentage to show either.
  */
-const LOADING_BAR_WIDTHS = ['100%', '86%', '94%', '72%'] as const;
+const LOADING_BAR_WIDTHS = ["100%", "86%", "94%", "72%"] as const;
 
-function describe(durationSeconds: number, selection?: { from: number; to: number }): string {
+function describe(
+  durationSeconds: number,
+  selection?: { from: number; to: number },
+): string {
   const total = formatTimecode(durationSeconds);
   if (selection === undefined) return t`音频波形，全长 ${total}`;
   const from = formatTimecode(selection.from);

@@ -1,7 +1,7 @@
 import { Trans } from '@lingui/react/macro';
 import { describe, expect, it } from 'vitest';
 
-import { renderMarkup } from '../../test/render';
+import { renderMarkup } from '../test/render';
 import { Blueprint } from './Blueprint';
 
 describe('Blueprint', () => {
@@ -46,6 +46,6 @@ describe('Blueprint', () => {
       </Blueprint>,
     );
 
-    expect(html).toContain('<figure class="blueprint p-4" aria-label="雷达">');
+    expect(html).toMatch(/^<figure[^>]*aria-label="雷达"[^>]*class="blueprint p-4"/u);
   });
 });

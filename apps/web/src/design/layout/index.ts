@@ -6,7 +6,13 @@
  * or renamed without touching call sites.
  */
 
-export { Blueprint, type BlueprintElement, type BlueprintProps } from './Blueprint';
+export {
+  Blueprint,
+  BlueprintCorners,
+  BLUEPRINT_LIST_GAP_CLASS,
+  type BlueprintElement,
+  type BlueprintProps,
+} from '../Blueprint';
 export {
   COLLAPSE_BREAKPOINT_PX,
   COLLAPSE_MEDIA_QUERY,

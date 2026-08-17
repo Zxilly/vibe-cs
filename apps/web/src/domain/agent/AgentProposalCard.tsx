@@ -65,6 +65,10 @@ export function AgentProposalCard({
   const stale = set !== null && currentRevision !== undefined && changeSetIsStale(set, currentRevision);
   const pending = set === null ? 0 : pendingChangeCount(set);
 
+  /* Not framed, though the name says card: this is the *group* a batch of
+     `PlanChangeCard`s arrives in, and each of those is framed. Two nested sets
+     of registration marks read as noise rather than as structure — the frame
+     marks the object you act on, and here that is the change. */
   return (
     <section
       data-agent-proposal={proposal.kind}

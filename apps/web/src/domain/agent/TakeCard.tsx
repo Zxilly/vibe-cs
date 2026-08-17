@@ -42,6 +42,7 @@ import type { AgentPlanShot } from '../../shared/desktop/dto';
 
 import { formatShotDuration } from './shotFormat';
 import { AGENT_SHOT_KIND } from './types';
+import { Blueprint } from '../../design/layout';
 
 /** One line of the pick list: a shot of this take, in or out of the composition. */
 export interface TakeShotPick {
@@ -101,7 +102,8 @@ export function TakeCard({
   const { i18n } = useLingui();
 
   return (
-    <section
+    <Blueprint
+      as="section"
       data-take-card=""
       {...(selected ? { 'data-take-state': 'previewing' } : {})}
       className={cn(
@@ -212,6 +214,6 @@ export function TakeCard({
           </div>
         )}
       </div>
-    </section>
+    </Blueprint>
   );
 }

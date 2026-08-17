@@ -36,6 +36,7 @@ import type { OutputItem } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
 import { formatBytes, outputDeletionRemovesFile, outputFileIsUsable } from './outputModel';
 import type { ServiceActionState } from '../../data/serviceAction';
+import { Blueprint } from '../../design/layout';
 
 export interface OutputCardProps {
   readonly output: OutputItem;
@@ -68,7 +69,8 @@ export function OutputCard({
   const sourceTaskId = output.output_kind === 'export' ? `export:${output.id}` : null;
 
   return (
-    <article
+    <Blueprint
+      as="article"
       data-output={output.id}
       data-output-kind={output.output_kind}
       data-output-availability={output.availability}
@@ -147,7 +149,7 @@ export function OutputCard({
           </Button>
         </div>
       </div>
-    </article>
+    </Blueprint>
   );
 }
 

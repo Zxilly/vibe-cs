@@ -50,6 +50,7 @@ import { Button, Badge, cn } from '../../design/primitives';
 import { planChangeAffordance } from './planRevision';
 import { formatSignedSeconds } from './shotFormat';
 import { PLAN_CHANGE_OP, type PlanChange } from './types';
+import { Blueprint } from '../../design/layout';
 
 export interface PlanChangeCardProps {
   readonly change: PlanChange;
@@ -98,7 +99,8 @@ export function PlanChangeCard({
   const acceptDisabled = affordance.acceptDisabled || acceptReason !== undefined;
 
   return (
-    <article
+    <Blueprint
+      as="article"
       data-plan-change={change.id}
       data-change-state={change.state}
       data-change-op={change.op}
@@ -227,6 +229,6 @@ export function PlanChangeCard({
           )}
         </div>
       )}
-    </article>
+    </Blueprint>
   );
 }

@@ -125,9 +125,12 @@ describe('density · Waveform does not grow with the audio', () => {
     // command count is bounded by the column constant and not by the samples.
     const envelope = /d="([^"]*)"/u.exec(html)?.[1] ?? '';
     expect(occurrences(envelope, 'L')).toBeLessThanOrEqual(DEFAULT_PEAK_COLUMNS * 2 + 2);
-    // The box itself clips: the playhead and the in/out rules are absolutely
-    // positioned percentages inside it.
-    expect(classOf(html, 'data-selected=')).toContain('overflow-hidden');
+    /* An inner layer clips, not the framed box: the playhead and the in/out
+       rules are absolutely positioned percentages, and the registration marks
+       sit *outside* the border — `overflow-hidden` on the frame would cut all
+       four off. Same shape as `MapCanvas`. */
+    expect(classOf(html, 'data-selected=')).toContain('blueprint');
+    expect(html).toContain('absolute inset-0 overflow-hidden');
   });
 });
 

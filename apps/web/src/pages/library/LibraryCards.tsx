@@ -38,6 +38,7 @@ import {
 } from './libraryFormat';
 import { LIBRARY_PAGE_SIZE } from './libraryQuery';
 import type { ReactNode } from 'react';
+import { BLUEPRINT_LIST_GAP_CLASS, Blueprint } from '../../design/layout';
 
 export interface LibraryCardsProps {
   readonly page: Paginated<DemoSummary> | undefined;
@@ -112,7 +113,7 @@ export function LibraryCards({
             `DataTable`'s visually hidden `<caption>`. */}
         <ul
           aria-label={t`Demo 资料库 · 卡片视图`}
-          className="grid grid-cols-[repeat(auto-fill,minmax(var(--w-panel),1fr))] gap-3"
+          className={cn('grid grid-cols-[repeat(auto-fill,minmax(var(--w-panel),1fr))]', BLUEPRINT_LIST_GAP_CLASS)}
         >
           {rows.map((demo) => (
             <li key={demo.id}>
@@ -152,8 +153,8 @@ function DemoCard({
   const score = formatScore(demo);
 
   return (
-    <button
-      type="button"
+    <Blueprint
+      as="button"
       data-demo-card={demo.id}
       aria-current={active ? 'true' : undefined}
       aria-label={t`打开 ${demo.display_name} 的详情`}
@@ -202,6 +203,6 @@ function DemoCard({
           </span>
         )}
       </span>
-    </button>
+    </Blueprint>
   );
 }

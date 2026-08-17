@@ -32,7 +32,7 @@
 import { Plural } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 
 import type { TaskRecoveryAction } from './types';
 
@@ -67,8 +67,8 @@ export function RetryNotice({ retries, maxRetries, explanation, action, classNam
   const count = Math.max(0, Math.trunc(retries));
 
   return (
-    <Notice
-      tone={exhausted ? 'danger' : 'warning'}
+    <Alert
+      variant={exhausted ? 'danger' : 'warning'}
       action={{
         label: action.label,
         onAction: action.onAction,
@@ -82,6 +82,6 @@ export function RetryNotice({ retries, maxRetries, explanation, action, classNam
       ) : (
         <Plural value={count} other="第 # 次重试" />
       )}
-    </Notice>
+    </Alert>
   );
 }

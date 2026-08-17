@@ -18,7 +18,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Pagination } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button, Badge } from '../../design/primitives';
 import { EvidenceRowSkeleton, formatTickCount } from '../../domain/match';
 import type { EvidenceAnnotation } from '../../shared/desktop/dto';
@@ -51,13 +51,13 @@ export function EvidenceAnnotations({
   if (error !== undefined) {
     return (
       <div data-evidence-annotations="error" className="p-7">
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: error.onRetry }}
           detail={<Trans>注释没有被改动，重试是安全的。</Trans>}
         >
           <Trans>注释没能读出来：{error.message}</Trans>
-        </Notice>
+        </Alert>
       </div>
     );
   }

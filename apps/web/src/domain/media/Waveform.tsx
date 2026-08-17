@@ -34,7 +34,7 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, type ReactNode } from 'react';
 
 import { EmptyState, Skeleton } from '../../design/data';
-import { Notice, type NoticeAction } from '../../design/feedback';
+import { Alert, type AlertAction } from '../../design/feedback';
 import { cn } from '../../design/primitives';
 import { formatTimecode } from '../../design/timeline';
 
@@ -59,7 +59,7 @@ export interface WaveformFailure {
   readonly message: ReactNode;
   readonly detail?: ReactNode;
   /** Required by `Notice`: 「每条都带一个主要恢复动作」. */
-  readonly action: NoticeAction;
+  readonly action: AlertAction;
 }
 
 export interface WaveformProps {
@@ -106,14 +106,14 @@ export function Waveform({
 
   if (failure !== undefined) {
     return (
-      <Notice
-        tone="danger"
+      <Alert
+        variant="danger"
         action={failure.action}
         {...(failure.detail === undefined ? {} : { detail: failure.detail })}
         {...(className === undefined ? {} : { className })}
       >
         {failure.message}
-      </Notice>
+      </Alert>
     );
   }
 

@@ -14,7 +14,7 @@
 
 import { Plural, Trans } from '@lingui/react/macro';
 
-import { Dialog, Notice } from '../../design/feedback';
+import { Dialog, Alert } from '../../design/feedback';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { partitionForDelete } from './libraryFormat';
 import type { ServiceActionButtonProps } from './serviceAction';
@@ -90,12 +90,12 @@ export function DeleteDemosDialog({
         ) : null}
 
         {error === null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: confirm, disabled: deleting }}
           >
             {error}
-          </Notice>
+          </Alert>
         )}
       </div>
     </Dialog>

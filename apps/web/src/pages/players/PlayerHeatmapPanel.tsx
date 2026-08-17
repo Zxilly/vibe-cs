@@ -47,7 +47,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { heatmapTruncation } from '../../data/players';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Seg, type SegOption } from '../../design/primitives';
 import {
   DEFAULT_HEAT_GRID_SIZE,
@@ -139,9 +139,9 @@ export function PlayerHeatmapPanel({
       </div>
 
       {error === undefined ? null : (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: error.onRetry }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: error.onRetry }}>
           <Trans>热图没能读出来：{error.message}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       <MapCanvas

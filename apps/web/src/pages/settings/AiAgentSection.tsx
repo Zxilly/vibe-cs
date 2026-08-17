@@ -73,7 +73,7 @@ import {
 } from '../../data/sessions';
 import { AGENT_SHOT_VIEW, AGENT_SHOT_VIEWS } from '../../domain/agent';
 import { Skeleton } from '../../design/data';
-import { Dialog, Notice } from '../../design/feedback';
+import { Dialog, Alert } from '../../design/feedback';
 import { Button, Seg, Slider, Toggle } from '../../design/primitives';
 import type { AgentSessionRetention, AgentWorkspaceSettings } from '../../shared/desktop/dto';
 import { formatBytes } from '../delivery/outputModel';
@@ -145,8 +145,8 @@ export function AiAgentSection() {
   return (
     <div data-settings-section="ai" className="flex flex-col gap-3.5 p-5">
       {writeError === null ? null : (
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{
             label: <Trans>知道了</Trans>,
             onAction: () => {
@@ -155,12 +155,12 @@ export function AiAgentSection() {
           }}
         >
           {writeError}
-        </Notice>
+        </Alert>
       )}
 
       {removed === null ? null : (
-        <Notice
-          tone="success"
+        <Alert
+          variant="success"
           action={{
             label: <Trans>知道了</Trans>,
             onAction: () => {
@@ -169,7 +169,7 @@ export function AiAgentSection() {
           }}
         >
           <Plural value={removed} other="已删除 # 条会话，方案、任务和视频都还在" />
-        </Notice>
+        </Alert>
       )}
 
       <ModelBlock
@@ -183,12 +183,12 @@ export function AiAgentSection() {
 
       <Block title={<Trans>会话</Trans>}>
         {settingsError !== null ? (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void settings.refetch() }}
           >
             <Trans>读不到 Agent 的会话设置：{settingsError}</Trans>
-          </Notice>
+          </Alert>
         ) : current === undefined ? (
           <div aria-busy="true" className="flex flex-col gap-2.5">
             <Skeleton />
@@ -427,9 +427,9 @@ function ModelBlock({ provider, model, hasApiKey, loading, error, onRetry }: Mod
   return (
     <Block title={<Trans>模型</Trans>}>
       {error !== null ? (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
           <Trans>读不到模型配置：{error}</Trans>
-        </Notice>
+        </Alert>
       ) : loading ? (
         <div aria-busy="true" className="flex flex-col gap-2">
           <Skeleton width="72%" />
@@ -719,15 +719,15 @@ function StorageRow({
   return (
     <div className="flex flex-col gap-2.5 border-t border-divider pt-3">
       {error !== null ? (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
           <Trans>读不到会话占用：{error}</Trans>
-        </Notice>
+        </Alert>
       ) : null}
 
       {exportError === null ? null : (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: onExport }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onExport }}>
           <Trans>导出没有完成：{exportError}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       {exportResult === null ? null : (

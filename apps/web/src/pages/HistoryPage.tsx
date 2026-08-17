@@ -48,7 +48,7 @@ import {
   useSyncMatchHistory,
 } from '../data/history';
 import { EmptyState, Pagination, TableSkeleton } from '../design/data';
-import { Notice } from '../design/feedback';
+import { Alert } from '../design/feedback';
 import { Page, SelectionBar, Toolbar } from '../design/layout';
 import { Button, Badge } from '../design/primitives';
 import type { MatchHistoryItem } from '../shared/desktop/dto';
@@ -218,18 +218,18 @@ export function HistoryPage() {
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 p-7">
         {readError === null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void history.refetch() }}
             detail={<Trans>读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。</Trans>}
           >
             <Trans>比赛历史没能读出来：{readError}</Trans>
-          </Notice>
+          </Alert>
         )}
 
         {writeError === null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{
               label: <Trans>去设置检查 Steam 连接</Trans>,
               /* The router owns the address, including its hash prefix (§1.1);
@@ -240,7 +240,7 @@ export function HistoryPage() {
             detail={<Trans>同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。</Trans>}
           >
             <Trans>这次操作没有成功：{writeError}</Trans>
-          </Notice>
+          </Alert>
         )}
 
         <MatchHistoryTable

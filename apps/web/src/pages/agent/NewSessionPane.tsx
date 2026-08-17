@@ -50,7 +50,7 @@ import {
   useTouchAgentObjectRef,
 } from '../../data/sessions';
 import { EmptyState, Skeleton } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button, Field, TextInput } from '../../design/primitives';
 import { AgentReferenceRow } from '../../domain/agent';
 import type { AgentObjectKind } from '../../shared/desktop/dto';
@@ -170,8 +170,8 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
       </Field>
 
       {failure === null ? null : (
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={
             retryable
               ? { label: <Trans>重试</Trans>, onAction: () => void submit() }
@@ -184,7 +184,7 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
           }
         >
           {failure}
-        </Notice>
+        </Alert>
       )}
 
       <section className="flex flex-col gap-2.5">
@@ -207,12 +207,12 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
         </header>
 
         {referencesError === null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void references.refetch() }}
           >
             <Trans>读不到工作区里正在进行的对象：{referencesError}</Trans>
-          </Notice>
+          </Alert>
         )}
 
         {references.isPending ? (

@@ -51,7 +51,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { Skeleton } from '../design/data';
-import { Notice } from '../design/feedback';
+import { Alert } from '../design/feedback';
 import { Inspector, Page, Toolbar, useShellCollapsed } from '../design/layout';
 import { Button } from '../design/primitives';
 import { dataErrorMessage } from '../data/errors';
@@ -353,18 +353,18 @@ function WorkspaceNotices({
   return (
     <>
       {desk.error === null || desk.error === undefined ? null : (
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: onReload }}
           detail={<Trans>工程没有被改动，重试是安全的。</Trans>}
         >
           <Trans>这份合辑没能打开：{loadMessage ?? ''}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       {conflictOpen ? (
-        <Notice
-          tone="warning"
+        <Alert
+          variant="warning"
           action={{ label: <Trans>重新载入</Trans>, onAction: onReload }}
           detail={
             <Trans>
@@ -373,19 +373,19 @@ function WorkspaceNotices({
           }
         >
           <Trans>这份工程在别处被改过，刚才的改动没有保存。</Trans>
-        </Notice>
+        </Alert>
       ) : null}
 
       {saveMessage === null ? null : (
-        <Notice tone="danger" action={{ label: <Trans>重新载入</Trans>, onAction: onReload }}>
+        <Alert variant="danger" action={{ label: <Trans>重新载入</Trans>, onAction: onReload }}>
           <Trans>改动没有保存：{saveMessage}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       {exportMessage === null ? null : (
-        <Notice tone="danger" action={{ label: <Trans>重新载入</Trans>, onAction: onReload }}>
+        <Alert variant="danger" action={{ label: <Trans>重新载入</Trans>, onAction: onReload }}>
           <Trans>没能开始生成视频：{exportMessage}</Trans>
-        </Notice>
+        </Alert>
       )}
     </>
   );

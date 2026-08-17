@@ -35,7 +35,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Pagination } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button } from '../../design/primitives';
 import { EvidenceRow, EvidenceRowSkeleton, type EvidenceItem } from '../../domain/match';
 import type { EvidenceSearchItem } from '../../shared/desktop/dto';
@@ -120,13 +120,13 @@ export function EvidenceResults({
   if (error !== undefined) {
     return (
       <div data-evidence-results="error" className="p-7">
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: error.onRetry }}
           detail={<Trans>没有任何数据被改动，可以直接重试。</Trans>}
         >
           <Trans>检索没能完成：{error.message}</Trans>
-        </Notice>
+        </Alert>
       </div>
     );
   }

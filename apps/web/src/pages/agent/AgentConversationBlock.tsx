@@ -76,7 +76,7 @@ import { dataErrorMessage } from '../../data/errors';
 import { useAgentPlan } from '../../data/plans';
 import { useAgentSession, useCreateAgentSession } from '../../data/sessions';
 import { EmptyState, Skeleton } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button, Seg, cn } from '../../design/primitives';
 import {
   AgentProposalCard,
@@ -271,9 +271,9 @@ export const AgentConversationBlock: AgentBlock = ({
       </div>
 
       {chat.error === null ? null : (
-        <Notice
+        <Alert
           className="m-3.5 mb-0"
-          tone="danger"
+          variant="danger"
           action={{
             label: <Trans>重试</Trans>,
             onAction: () => {
@@ -283,7 +283,7 @@ export const AgentConversationBlock: AgentBlock = ({
           }}
         >
           <Trans>这次回答没有完成：{chat.error}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       <Transcript
@@ -402,14 +402,14 @@ function Transcript({
   if (failure !== null) {
     return (
       <Frame state="error">
-        <Notice
+        <Alert
           className="m-3.5"
-          tone="danger"
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: onRetry }}
           detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
         >
           <Trans>读不到这条会话：{failure}</Trans>
-        </Notice>
+        </Alert>
       </Frame>
     );
   }

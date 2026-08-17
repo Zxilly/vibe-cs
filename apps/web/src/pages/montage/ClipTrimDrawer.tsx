@@ -31,7 +31,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useEffect, useState } from 'react';
 
-import { Drawer, Notice } from '../../design/feedback';
+import { Drawer, Alert } from '../../design/feedback';
 import { Button, Field, TextInput } from '../../design/primitives';
 import { useRecordedClipWaveform } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
@@ -127,9 +127,9 @@ export function ClipTrimDrawer({ open, onClose, clip, take, onSave, onRemove, sa
     >
       <div className="flex flex-col gap-4">
         {take === null ? (
-          <Notice tone="warning" action={{ label: <Trans>移除这一段</Trans>, onAction: onRemove }}>
+          <Alert variant="warning" action={{ label: <Trans>移除这一段</Trans>, onAction: onRemove }}>
             <Trans>这一段对应的录制结果已经不在了，无法预览或裁切。</Trans>
-          </Notice>
+          </Alert>
         ) : null}
 
         {src === null ? (

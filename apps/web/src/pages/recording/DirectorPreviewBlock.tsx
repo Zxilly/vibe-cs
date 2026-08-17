@@ -59,7 +59,7 @@ import { dataErrorMessage } from '../../data/errors';
 import { useMapRadarOverview } from '../../data/match';
 import { useNativeShell } from '../../data/nativeShell';
 import { EmptyState } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button, Badge, cn } from '../../design/primitives';
 import { formatTickRange } from '../../domain/agent';
 import {
@@ -254,13 +254,13 @@ function CameraPathState({
 
   if (camera.status === 'failed') {
     return (
-      <Notice
-        tone="danger"
+      <Alert
+        variant="danger"
         action={{ label: <Trans>重试</Trans>, onAction: camera.reload }}
         detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
       >
         <Trans>算不出相机路径：{dataErrorMessage(camera.error) ?? ''}</Trans>
-      </Notice>
+      </Alert>
     );
   }
 

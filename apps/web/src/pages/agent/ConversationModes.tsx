@@ -49,7 +49,7 @@ import type { ComponentType, ReactNode } from 'react';
 import { dataErrorMessage } from '../../data/errors';
 import { useAgentPlanList } from '../../data/plans';
 import { EmptyState, Skeleton } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button, Badge, cn } from '../../design/primitives';
 import {
   AGENT_PLAN_STATUS,
@@ -345,12 +345,12 @@ function PlanPicker({ context, updateContext, title, description }: PlanPickerPr
 
   if (failure !== null) {
     return (
-      <Notice
-        tone="danger"
+      <Alert
+        variant="danger"
         action={{ label: <Trans>重试</Trans>, onAction: () => void plans.refetch() }}
       >
         <Trans>读不到方案列表：{failure}</Trans>
-      </Notice>
+      </Alert>
     );
   }
 

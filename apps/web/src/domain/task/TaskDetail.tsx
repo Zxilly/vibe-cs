@@ -41,7 +41,7 @@ import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { EmptyState, TableSkeleton } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button, Link, Badge, cn } from '../../design/primitives';
 
 import { RetryNotice, type RetryNoticeProps } from './RetryNotice';
@@ -158,8 +158,8 @@ export function TaskDetail({
           />
 
           {task.status === 'failed' ? (
-            <Notice
-              tone="danger"
+            <Alert
+              variant="danger"
               action={{
                 label: task.failure.recovery.label,
                 onAction: task.failure.recovery.onAction,
@@ -171,7 +171,7 @@ export function TaskDetail({
             >
               {taskFailureLabels()[task.failure.reason]}
               {task.failure.detail === undefined ? null : <>{' · '}{task.failure.detail}</>}
-            </Notice>
+            </Alert>
           ) : null}
 
           <StageLog log={log} {...(timeZone === undefined ? {} : { timeZone })} />
@@ -235,9 +235,9 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
 
   if (log.status === 'error') {
     return (
-      <Notice tone="danger" action={{ label: <Trans>重新加载</Trans>, onAction: log.onRetry }}>
+      <Alert variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: log.onRetry }}>
         {log.message}
-      </Notice>
+      </Alert>
     );
   }
 

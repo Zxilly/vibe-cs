@@ -27,7 +27,7 @@ import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
 import { useRef, useState, type DragEvent } from 'react';
 
-import { Dialog, Notice } from '../../design/feedback';
+import { Dialog, Alert } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';
 import type { ServiceActionButtonProps } from './serviceAction';
 
@@ -154,12 +154,12 @@ export function ImportDemoDialog({
         ) : null}
 
         {error === null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: confirm, disabled: importing }}
           >
             {error}
-          </Notice>
+          </Alert>
         )}
 
         <input

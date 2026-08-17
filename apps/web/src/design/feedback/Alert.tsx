@@ -1,5 +1,11 @@
 /*
- * Design system, layer 1 of 3 — Notice.
+ * Design system, layer 1 of 3 — Alert.
+ *
+ * shadcn's name for the artboard's 「Notice」. The spec text below still calls
+ * it that, and this is the same component: 持久, in-flow, one recovery action.
+ * What it is *not* is shadcn's Alert, which is a passive box with an optional
+ * title — the three rules below are enforced by this API and cannot be, in a
+ * compound `Alert / AlertTitle / AlertDescription`.
  *
  * 「浮层与状态规范」artboard, 「持久提示 Notice · 四态」, verbatim:
  *   "规则：Notice 常驻在页面里直到问题解决，不用 Toast 承载错误；
@@ -34,28 +40,28 @@ import { CircleAlert, CircleCheck, Info, TriangleAlert, X, type LucideIcon } fro
 import type { ReactNode } from 'react';
 import { cn } from '../cn';
 
-export type NoticeTone = 'info' | 'success' | 'warning' | 'danger';
+export type AlertVariant = 'info' | 'success' | 'warning' | 'danger';
 
-export interface NoticeAction {
+export interface AlertAction {
   label: ReactNode;
   onAction: () => void;
   disabled?: boolean;
 }
 
-export interface NoticeProps {
-  tone: NoticeTone;
+export interface AlertProps {
+  variant: AlertVariant;
   /** The one-line message. 「导出未完成：磁盘空间不足，已保留工程与素材」 */
   children: ReactNode;
   /** Optional second line: 影响范围, 释放多少空间后可继续, 等等. */
   detail?: ReactNode;
   /** Required — 每条都带一个主要恢复动作. */
-  action: NoticeAction;
+  action: AlertAction;
   /** Only for notices the user may legitimately acknowledge without acting. */
   onDismiss?: () => void;
   className?: string;
 }
 
-interface ToneStyle {
+interface VariantStyle {
   readonly Icon: LucideIcon;
   readonly box: string;
   readonly icon: string;
@@ -68,7 +74,7 @@ interface ToneStyle {
   readonly role: 'alert' | 'status';
 }
 
-const TONE: Record<NoticeTone, ToneStyle> = {
+const VARIANT: Record<AlertVariant, VariantStyle> = {
   info: {
     Icon: Info,
     box: 'border-accent-300 bg-accent-100',
@@ -100,11 +106,11 @@ const TONE: Record<NoticeTone, ToneStyle> = {
 };
 
 /**
- * The tone in words, for a reader who gets neither the hue nor the outline.
+ * The variant in words, for a reader who gets neither the hue nor the outline.
  * Rendered `sr-only` so the visual row stays exactly as drawn.
  */
-function ToneWord({ tone }: { tone: NoticeTone }) {
-  switch (tone) {
+function VariantWord({ variant }: { variant: AlertVariant }) {
+  switch (variant) {
     case 'info':
       return <Trans>提示</Trans>;
     case 'success':
@@ -116,14 +122,14 @@ function ToneWord({ tone }: { tone: NoticeTone }) {
   }
 }
 
-export function Notice({ tone, children, detail, action, onDismiss, className }: NoticeProps) {
-  const style = TONE[tone];
+export function Alert({ variant, children, detail, action, onDismiss, className }: AlertProps) {
+  const style = VARIANT[variant];
   const { Icon } = style;
 
   return (
     <div
       role={style.role}
-      data-tone={tone}
+      data-tone={variant}
       // px-3 / py-2.5 resolve to 10.2 / 8.5px against `--spacing: 3.4px`, the
       // artboard's `padding:9px 11px`.
       className={cn('flex items-start gap-2.5 border px-3 py-2.5 text-sm', style.box, style.body, className)}
@@ -132,7 +138,7 @@ export function Notice({ tone, children, detail, action, onDismiss, className }:
         <Icon size={15} strokeWidth={1.5} aria-hidden />
       </span>
       <span className="sr-only">
-        <ToneWord tone={tone} />
+        <VariantWord variant={variant} />
       </span>
 
       <div className="min-w-0 flex-1">

@@ -49,7 +49,7 @@ import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
 
 import { Skeleton } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button } from '../../design/primitives';
 import { nextLocalMidnight, useAgentPlanList, useSnoozeAgentPlan } from '../../data/plans';
 import { dataErrorMessage } from '../../data/errors';
@@ -91,9 +91,9 @@ export function PendingPlansPanel() {
       </div>
 
       {error !== null ? (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void plans.refetch() }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void plans.refetch() }}>
           <Trans>读不到待确认的方案：{error}</Trans>
-        </Notice>
+        </Alert>
       ) : plans.isPending ? (
         <div className="flex flex-col gap-2.5">
           <Skeleton />

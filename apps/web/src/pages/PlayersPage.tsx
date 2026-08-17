@@ -45,7 +45,7 @@ import {
   type DataTableColumn,
   type SortState,
 } from '../design/data';
-import { Notice } from '../design/feedback';
+import { Alert } from '../design/feedback';
 import { Page, SelectionBar, Toolbar, useCollapsed } from '../design/layout';
 import { Button, TextInput } from '../design/primitives';
 import type { PlayerDirectorySort } from '../data/keys';
@@ -290,13 +290,13 @@ export function PlayersPage() {
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {error === null ? null : (
             <div className="p-7">
-              <Notice
-                tone="danger"
+              <Alert
+                variant="danger"
                 action={{ label: <Trans>重试</Trans>, onAction: () => void directory.refetch() }}
                 detail={<Trans>目录是只读的，重试不会改动任何数据。</Trans>}
               >
                 <Trans>玩家目录没能读出来：{error}</Trans>
-              </Notice>
+              </Alert>
             </div>
           )}
           <DataTable

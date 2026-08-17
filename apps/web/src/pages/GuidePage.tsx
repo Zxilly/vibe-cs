@@ -32,7 +32,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
 import { Skeleton } from '../design/data';
-import { Notice, StatusDot, type StatusDotStatus } from '../design/feedback';
+import { Alert, StatusDot, type StatusDotStatus } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
 import { useQuickCheck } from '../data/config';
@@ -93,9 +93,9 @@ export function GuidePage() {
           </div>
 
           {error !== null ? (
-            <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void checks.refetch() }}>
+            <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void checks.refetch() }}>
               <Trans>读不到环境自检：{error}</Trans>
-            </Notice>
+            </Alert>
           ) : checks.isPending ? (
             <div className="flex flex-col gap-2.5">
               <Skeleton />

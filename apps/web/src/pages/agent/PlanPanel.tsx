@@ -55,7 +55,7 @@ import { dataErrorMessage } from '../../data/errors';
 import { isRevisionConflict, useAgentPlan, useRestoreAgentPlanBaseline } from '../../data/plans';
 import { useAgentSession } from '../../data/sessions';
 import { EmptyState, Skeleton } from '../../design/data';
-import { Dialog, Notice } from '../../design/feedback';
+import { Dialog, Alert } from '../../design/feedback';
 import { Button, Badge, cn } from '../../design/primitives';
 import {
   AGENT_PLAN_STATUS,
@@ -123,13 +123,13 @@ export const PlanPanel: AgentBlock = (props) => {
   if (plan.data === undefined) {
     return (
       <div className="p-5">
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: () => void plan.refetch() }}
           detail={<Trans>方案本身没有被改动，重试是安全的。</Trans>}
         >
           <Trans>这份方案没能打开：{dataErrorMessage(plan.error) ?? ''}</Trans>
-        </Notice>
+        </Alert>
       </div>
     );
   }
@@ -374,8 +374,8 @@ function PlanPanelBody({
         )}
 
         {restoreError === null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{
               label: <Trans>重新读取方案</Trans>,
               onAction: () => {
@@ -390,7 +390,7 @@ function PlanPanelBody({
             ) : (
               <Trans>还原没能完成：{dataErrorMessage(restoreError) ?? ''}</Trans>
             )}
-          </Notice>
+          </Alert>
         )}
 
         <ProposalSection
@@ -590,8 +590,8 @@ function ProposalSection({
                    the cards it would scroll to are the next thing on the page,
                    already open and already readable — 过期不等于错误. */
                 <div data-plan-stale-notice="">
-                  <Notice
-                    tone="warning"
+                  <Alert
+                    variant="warning"
                     action={{
                       label: <Trans>基于第 {revision} 版重算</Trans>,
                       onAction: onRecompute,
@@ -611,7 +611,7 @@ function ProposalSection({
                     <Trans>
                       这组变更基于第 {changeSet.basedOnRevision} 版，方案已经是第 {revision} 版。内容仍可查看。
                     </Trans>
-                  </Notice>
+                  </Alert>
                 </div>
               ) : null}
 

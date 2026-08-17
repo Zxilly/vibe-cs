@@ -51,7 +51,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { DataTable, EmptyState, type DataTableColumn } from '../../../design/data';
-import { Notice } from '../../../design/feedback';
+import { Alert } from '../../../design/feedback';
 import { Button, Badge } from '../../../design/primitives';
 import {
   ROUND_END_REASON,
@@ -295,8 +295,8 @@ export function EconomyPanel({
         </p>
       ) : !availability.available ? (
         <div className="p-3.5">
-          <Notice
-            tone="info"
+          <Alert
+            variant="info"
             action={{
               label: <Trans>看回合详情</Trans>,
               onAction: () => onUpdateContext({ view: 'rounds' }),
@@ -305,7 +305,7 @@ export function EconomyPanel({
             {/* The service's own sentence, not a rewrite of it: it knows why the
                 pass could not run and this page does not. */}
             <Trans>这批 Demo 没有可用的购买事件{formatReason(availability.reason)}</Trans>
-          </Notice>
+          </Alert>
         </div>
       ) : (
         <>

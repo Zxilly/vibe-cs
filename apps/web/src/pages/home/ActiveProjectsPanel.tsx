@@ -23,7 +23,7 @@ import { Plural, Trans } from '@lingui/react/macro';
 import { useMemo } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { useEditorProjects } from '../../data/editor';
 import { dataErrorMessage } from '../../data/errors';
 import { useMontageProjects } from '../../data/montage';
@@ -77,8 +77,8 @@ export function ActiveProjectsPanel() {
       </h2>
 
       {error === null ? null : (
-        <Notice
-          tone="warning"
+        <Alert
+          variant="warning"
           action={{
             label: <Trans>重试</Trans>,
             onAction: () => {
@@ -88,7 +88,7 @@ export function ActiveProjectsPanel() {
           }}
         >
           <Trans>有一份工程列表没能读出来：{error}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       {loading ? (

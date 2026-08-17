@@ -30,7 +30,7 @@ import { Trans } from '@lingui/react/macro';
 import { useEffect, useState } from 'react';
 
 import { Inspector } from '../../design/layout';
-import { Notice, StatusDot } from '../../design/feedback';
+import { Alert, StatusDot } from '../../design/feedback';
 import { Button, Badge, TextInput } from '../../design/primitives';
 import type { DemoMetadata } from '../../shared/desktop/dto';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
@@ -113,9 +113,9 @@ export function LibraryInspector({
           </p>
         )}
         {error === null ? null : (
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
             {error}
-          </Notice>
+          </Alert>
         )}
       </Inspector>
     );
@@ -181,9 +181,9 @@ export function LibraryInspector({
       }
     >
       {error === null ? null : (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
           {error}
-        </Notice>
+        </Alert>
       )}
 
       <div>

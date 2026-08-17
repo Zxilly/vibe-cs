@@ -18,7 +18,7 @@ import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Drawer, Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
+import { Drawer, Alert, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { Button } from '../../design/primitives';
 import type { DemoWatchStatus } from '../../shared/desktop/dto';
 import { alsoDisabled, type ServiceActionButtonProps } from './serviceAction';
@@ -89,9 +89,9 @@ export function WatchDirectoriesDrawer({
     >
       <div className="flex flex-col gap-3">
         {error === null ? null : (
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
             {error}
-          </Notice>
+          </Alert>
         )}
 
         {loading ? (

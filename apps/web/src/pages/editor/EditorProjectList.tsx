@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { DataTable, EmptyState, TableSkeleton, type DataTableColumn } from '../../design/data';
-import { Dialog, Notice } from '../../design/feedback';
+import { Dialog, Alert } from '../../design/feedback';
 import { Page, Toolbar } from '../../design/layout';
 import { Button, Field, TextInput } from '../../design/primitives';
 import { dataErrorMessage } from '../../data/errors';
@@ -170,14 +170,14 @@ export function EditorProjectList() {
     >
       <div className="flex flex-col gap-4 p-5">
         {loadError === null ? null : (
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void projects.refetch() }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void projects.refetch() }}>
             <Trans>工程列表没能打开：{loadError}</Trans>
-          </Notice>
+          </Alert>
         )}
         {writeError === null ? null : (
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void projects.refetch() }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void projects.refetch() }}>
             <Trans>这次操作没有完成：{writeError}</Trans>
-          </Notice>
+          </Alert>
         )}
 
         <DataTable

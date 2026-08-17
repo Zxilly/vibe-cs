@@ -54,7 +54,7 @@ import {
   useUpdateMatchAnnotation,
 } from '../../../data/match';
 import { EmptyState, Skeleton } from '../../../design/data';
-import { Notice } from '../../../design/feedback';
+import { Alert } from '../../../design/feedback';
 import { Button, Seg, Badge, TextInput } from '../../../design/primitives';
 import { formatTickCount } from '../../../domain/match';
 import type { EvidenceAnnotation } from '../../../shared/desktop/dto';
@@ -111,13 +111,13 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
     return (
       <Frame state="error">
         <div className="p-3.5">
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void analysis.refetch() }}
             detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
           >
             <Trans>读不到这场比赛的分析结果：{failure}</Trans>
-          </Notice>
+          </Alert>
         </div>
       </Frame>
     );
@@ -206,13 +206,13 @@ function ReviewBody({ demoId, context, updateContext }: MatchViewProps) {
             </div>
 
             {review.error === null || review.error === undefined ? null : (
-              <Notice
-                tone="danger"
+              <Alert
+                variant="danger"
                 action={{ label: <Trans>重试</Trans>, onAction: () => review.reset() }}
                 detail={<Trans>没有写入任何东西；自动洞察不受影响。</Trans>}
               >
                 <Trans>生成点评失败：{dataErrorMessage(review.error) ?? t`服务没有给出原因`}</Trans>
-              </Notice>
+              </Alert>
             )}
 
             {review.data === undefined ? (
@@ -674,8 +674,8 @@ function AnnotationsPanel({
 
       {writeError === null ? null : (
         <div className="flex-none p-3.5">
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{
               label: <Trans>知道了</Trans>,
               onAction: () => {
@@ -686,15 +686,15 @@ function AnnotationsPanel({
             }}
           >
             <Trans>注释没有写成功：{writeError}</Trans>
-          </Notice>
+          </Alert>
         </div>
       )}
 
       {error !== null ? (
         <div className="p-3.5">
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
             <Trans>读不到注释：{error}</Trans>
-          </Notice>
+          </Alert>
         </div>
       ) : loading ? (
         <div className="flex flex-col gap-2 p-3.5">

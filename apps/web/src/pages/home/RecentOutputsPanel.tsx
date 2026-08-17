@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { dataErrorMessage } from '../../data/errors';
 import { useDeleteOutput, useOutputList, useRevealOutput } from '../../data/outputs';
 import { EmptyState } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Toolbar } from '../../design/layout';
 import type { OutputItem } from '../../shared/desktop/dto';
 import { OutputCard, OutputCardSkeleton } from '../delivery/OutputCard';
@@ -70,18 +70,18 @@ export function RecentOutputsPanel({ service, now }: RecentOutputsPanelProps) {
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
         {notice === null ? null : (
-          <Notice tone="info" action={{ label: <Trans>知道了</Trans>, onAction: () => setNotice(null) }}>
+          <Alert variant="info" action={{ label: <Trans>知道了</Trans>, onAction: () => setNotice(null) }}>
             {notice}
-          </Notice>
+          </Alert>
         )}
 
         {outputs.isError ? (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重新加载</Trans>, onAction: () => void outputs.refetch() }}
           >
             {dataErrorMessage(outputs.error) ?? t`读取输出列表失败。`}
-          </Notice>
+          </Alert>
         ) : outputs.isPending ? (
           <OutputCardSkeleton />
         ) : items.length === 0 ? (

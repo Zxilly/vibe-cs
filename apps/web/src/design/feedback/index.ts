@@ -1,7 +1,7 @@
 /*
  * Design system, layer 1 of 3 — feedback components (spec §2 `design/feedback/`).
  *
- * Notice        persistent in-page message, four tones, one recovery action
+ * Alert         persistent in-page message, four variants, one recovery action
  * Dialog        irreversible actions and formal confirmations only
  * Drawer        detail and non-blocking editing
  * StatusDot     the 7/8/9px square status marker
@@ -9,7 +9,7 @@
  * ProgressBar   a bar only where there is a real denominator
  */
 
-export { Notice, type NoticeAction, type NoticeProps, type NoticeTone } from './Notice';
+export { Alert, type AlertAction, type AlertProps, type AlertVariant } from './Alert';
 export { Dialog, type DialogProps, type DialogTone } from './Dialog';
 export { Drawer, type DrawerProps, type DrawerWidth } from './Drawer';
 export { StatusDot, type StatusDotProps, type StatusDotSize, type StatusDotStatus } from './StatusDot';

@@ -43,7 +43,7 @@ import { Plural, Trans } from '@lingui/react/macro';
 import { useState, type ReactNode } from 'react';
 
 import { Skeleton } from '../design/data';
-import { Dialog, Notice, StatusDot } from '../design/feedback';
+import { Dialog, Alert, StatusDot } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
 import { useRecoverConfiguration, useRecoveryStatus } from '../data/config';
@@ -88,13 +88,13 @@ export function RecoveryPage() {
     >
       <div className="flex flex-col gap-4 p-5">
         {statusError === null ? null : (
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void status.refetch() }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void status.refetch() }}>
             <Trans>读不到恢复状态：{statusError}</Trans>
-          </Notice>
+          </Alert>
         )}
         {actionError === null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{
               label: <Trans>知道了</Trans>,
               onAction: () => {
@@ -105,7 +105,7 @@ export function RecoveryPage() {
             }}
           >
             <Trans>这次恢复没有完成：{actionError}</Trans>
-          </Notice>
+          </Alert>
         )}
 
         <RecoveryCard

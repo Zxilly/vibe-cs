@@ -45,7 +45,7 @@ import { Trans } from '@lingui/react/macro';
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 import { EmptyState, Skeleton } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { cn } from '../../design/primitives';
 import { KEY_ROUND, ROUND_END_REASON } from './matchEnums';
 import { planRoundStrip } from './roundTimelineLayout';
@@ -175,12 +175,12 @@ export function RoundTimeline({
 
       {failure !== undefined ? (
         <div className="p-3.5">
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: failure.retryLabel ?? <Trans>重试</Trans>, onAction: failure.onRetry }}
           >
             {failure.message}
-          </Notice>
+          </Alert>
         </div>
       ) : loading ? (
         <div

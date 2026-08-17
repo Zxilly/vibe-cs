@@ -54,7 +54,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMatchAnalysis, useMatchHeatPoints, useMatchReplay, useMapRadarOverview, analysisIsMissing } from '../../../data/match';
 import { dataErrorMessage } from '../../../data/errors';
 import { EmptyState, Skeleton } from '../../../design/data';
-import { Notice } from '../../../design/feedback';
+import { Alert } from '../../../design/feedback';
 import { Button, Checkbox, Seg, cn } from '../../../design/primitives';
 import {
   DEFAULT_HEAT_GRID_SIZE,
@@ -234,13 +234,13 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
     return (
       <ViewFrame state="error">
         <div className="p-3.5">
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void analysis.refetch() }}
             detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
           >
             <Trans>打不开这场比赛的分析结果：{analysisError}</Trans>
-          </Notice>
+          </Alert>
         </div>
       </ViewFrame>
     );

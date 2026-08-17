@@ -51,7 +51,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { dataErrorMessage } from '../data/errors';
 import { usePlayer, usePlayerHeatmap, usePlayerMaps, usePlayerMatches } from '../data/players';
 import { EmptyState } from '../design/data';
-import { Notice } from '../design/feedback';
+import { Alert } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
 import { RouteLink } from './RouteLink';
@@ -148,13 +148,13 @@ export function PlayerProfilePage() {
     >
       {profileError === null ? null : (
         <div className="p-7">
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void profile.refetch() }}
             detail={<Trans>档案是只读的，重试不会改动任何数据。</Trans>}
           >
             <Trans>这名选手的档案没能读出来：{profileError}</Trans>
-          </Notice>
+          </Alert>
         </div>
       )}
 
@@ -212,12 +212,12 @@ export function PlayerProfilePage() {
               <Trans>最近比赛</Trans>
             </div>
             {matchesError !== null ? (
-              <Notice
-                tone="danger"
+              <Alert
+                variant="danger"
                 action={{ label: <Trans>重试</Trans>, onAction: () => void matches.refetch() }}
               >
                 <Trans>最近比赛没能读出来：{matchesError}</Trans>
-              </Notice>
+              </Alert>
             ) : recentMatches.length === 0 ? (
               <EmptyState
                 title={<Trans>还没有比赛</Trans>}

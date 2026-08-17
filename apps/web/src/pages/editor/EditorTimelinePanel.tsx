@@ -30,7 +30,7 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 
 import { EmptyState } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { OverflowMenu, type OverflowMenuItem } from '../../design/layout';
 import { Button, Seg, Toggle } from '../../design/primitives';
 import {
@@ -248,13 +248,13 @@ export function EditorTimelinePanel({ desk, service }: EditorPanelProps) {
       </div>
 
       {editor.refusal === null ? null : (
-        <Notice
-          tone="warning"
+        <Alert
+          variant="warning"
           action={{ label: <Trans>知道了</Trans>, onAction: editor.dismissRefusal }}
           onDismiss={editor.dismissRefusal}
         >
           {refusalMessage(editor.refusal)}
-        </Notice>
+        </Alert>
       )}
 
       {timeline.tracks.length === 0 ? (

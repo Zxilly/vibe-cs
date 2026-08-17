@@ -29,7 +29,7 @@
 import { Trans } from '@lingui/react/macro';
 
 import { Skeleton } from '../../design/data';
-import { Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
+import { Alert, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { useDemoList } from '../../data/demos';
 import { dataErrorMessage } from '../../data/errors';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
@@ -54,9 +54,9 @@ export function RecentMatchesPanel() {
       </div>
 
       {error !== null ? (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void demos.refetch() }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void demos.refetch() }}>
           <Trans>读不到最近的比赛：{error}</Trans>
-        </Notice>
+        </Alert>
       ) : demos.isPending ? (
         <div className="flex flex-col gap-2.5">
           <Skeleton />

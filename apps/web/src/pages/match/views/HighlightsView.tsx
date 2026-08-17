@@ -57,7 +57,7 @@ import { dataErrorMessage } from '../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
 import { useServiceAction, type ServiceActionState } from '../../../data/serviceAction';
 import { EmptyState } from '../../../design/data';
-import { Notice } from '../../../design/feedback';
+import { Alert } from '../../../design/feedback';
 import { Button, Seg, Badge } from '../../../design/primitives';
 import { SelectionBar } from '../../../design/layout';
 import {
@@ -137,13 +137,13 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
     return (
       <Frame state="error">
         <div className="p-3.5">
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: () => void analysis.refetch() }}
             detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
           >
             <Trans>读不到这场比赛的高光：{failure}</Trans>
-          </Notice>
+          </Alert>
         </div>
       </Frame>
     );

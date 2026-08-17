@@ -73,7 +73,7 @@ import { dataErrorMessage } from '../../data/errors';
 import { useNativeShell, useNativeShellAction } from '../../data/nativeShell';
 import { useCreateRecordingShotPreset, useRecordingShotPresets } from '../../data/recording';
 import { EmptyState } from '../../design/data';
-import { Dialog, Notice } from '../../design/feedback';
+import { Dialog, Alert } from '../../design/feedback';
 import { Inspector } from '../../design/layout';
 import { Button, Field, Seg, Slider, TextInput, Toggle } from '../../design/primitives';
 import type { RecordingRequest, RecordingShotPreset } from '../../shared/desktop/dto';
@@ -174,12 +174,12 @@ function ConfigState({ config }: { readonly config: ReturnType<typeof useAppConf
   const failure = dataErrorMessage(config.error);
   if (failure !== null) {
     return (
-      <Notice
-        tone="danger"
+      <Alert
+        variant="danger"
         action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}
       >
         <Trans>读不到录制默认值，画面参数暂时无法显示：{failure}</Trans>
-      </Notice>
+      </Alert>
     );
   }
   return (
@@ -552,13 +552,13 @@ function InGamePreview({ camera }: { readonly camera: CameraDesk }) {
       )}
 
       {failure === null ? null : (
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: () => setConfirming(true) }}
           detail={<Trans>没有录制任何画面。</Trans>}
         >
           <Trans>没能在游戏里打开这个镜头：{failure}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       <Dialog
@@ -649,12 +649,12 @@ function ShotActions({
       ) : null}
 
       {createFailure === null ? null : (
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: () => setSavingPreset(true) }}
         >
           <Trans>没能保存预设：{createFailure}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       <Dialog
@@ -720,9 +720,9 @@ function PresetList({
   const failure = dataErrorMessage(presets.error);
   if (failure !== null) {
     return (
-      <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void presets.refetch() }}>
+      <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void presets.refetch() }}>
         <Trans>读不到预设：{failure}</Trans>
-      </Notice>
+      </Alert>
     );
   }
   if (presets.isPending) {

@@ -78,7 +78,7 @@ import { ChevronDown, ChevronLeft } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { CONTEXT_BAR_BREAKPOINT_PX, useCollapsed } from '../../design/layout';
 import { cn, Badge } from '../../design/primitives';
 import { CS2_TICK_RATE } from './matchTime';
@@ -354,12 +354,12 @@ export function MatchContextBar({
 
       {failure === undefined ? null : (
         <div className="px-4 py-2.5">
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: failure.retryLabel ?? <Trans>重试</Trans>, onAction: failure.onRetry }}
           >
             {failure.message}
-          </Notice>
+          </Alert>
         </div>
       )}
     </div>

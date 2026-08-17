@@ -34,7 +34,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useNavigate } from 'react-router-dom';
 
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { useQuickCheck } from '../../data/config';
 import type {
   DependencyCheck,
@@ -61,8 +61,8 @@ export function EnvironmentNotice() {
     /* The marker lives on a wrapper: `Notice`'s props are a closed set and it
        does not spread the rest, so a `data-` attribute on it is dropped. */
     <div data-home-block="environment">
-      <Notice
-        tone="warning"
+      <Alert
+        variant="warning"
         action={{
           label: <Trans>去设置</Trans>,
           /* Through the router, not `location.hash`: the app is in hash mode and
@@ -80,7 +80,7 @@ export function EnvironmentNotice() {
         }
       >
         <Trans>录制环境还没准备好，需要它的任务现在起不来。</Trans>
-      </Notice>
+      </Alert>
     </div>
   );
 }

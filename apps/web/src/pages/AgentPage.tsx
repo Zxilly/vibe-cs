@@ -67,7 +67,7 @@ import { dataErrorMessage } from '../data/errors';
 import { isRevisionConflict, useAgentPlan, useApplyAgentPlanEdit } from '../data/plans';
 import { useServiceAction, type ServiceActionState } from '../data/serviceAction';
 import { useAgentChatStream, useAgentSession, type AgentChatStream } from '../data/sessions';
-import { Notice } from '../design/feedback';
+import { Alert } from '../design/feedback';
 import { Page, SplitPane, Toolbar, useCollapsed } from '../design/layout';
 import { Button } from '../design/primitives';
 import { AGENT_PLAN_STATUS } from '../domain/agent';
@@ -308,13 +308,13 @@ export function AgentPage() {
       }
     >
       {planError === null ? null : (
-        <Notice
+        <Alert
           className="mx-7 mt-5"
-          tone="danger"
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: () => void plan.refetch() }}
         >
           <Trans>读不到这个方案：{planError}</Trans>
-        </Notice>
+        </Alert>
       )}
       {editFailure === null ? null : (
         <EditFailureNotice
@@ -419,9 +419,9 @@ function EditFailureNotice({
     /* `Notice` does not forward unknown props, so the probe the tests read the
        branch by is on the wrapper rather than sprayed onto the component. */
     <div data-agent-edit-failure={conflict ? 'conflict' : 'failed'}>
-      <Notice
+      <Alert
         className="mx-7 mt-5"
-        tone={conflict ? 'warning' : 'danger'}
+        variant={conflict ? 'warning' : 'danger'}
         detail={<Trans>屏幕上的改动还没有写进方案。</Trans>}
         onDismiss={onDismiss}
         action={
@@ -441,7 +441,7 @@ function EditFailureNotice({
         ) : (
           <Trans>这次改动没能写进方案：{failure}</Trans>
         )}
-      </Notice>
+      </Alert>
     </div>
   );
 }

@@ -41,7 +41,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Notice, ProgressBar, StageBar, StatusDot, type Stage } from '../../design/feedback';
+import { Alert, ProgressBar, StageBar, StatusDot, type Stage } from '../../design/feedback';
 import { Button, Link, cn } from '../../design/primitives';
 import { Skeleton } from '../../design/data';
 
@@ -151,8 +151,8 @@ export function TaskCard({
           : <TaskProgressRow progress={task.progress} />}
 
         {task.status === 'failed' ? (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{
               label: task.failure.recovery.label,
               onAction: task.failure.recovery.onAction,
@@ -163,7 +163,7 @@ export function TaskCard({
             {...(task.failure.impact === undefined ? {} : { detail: task.failure.impact })}
           >
             {task.failure.detail ?? taskFailureLabels()[task.failure.reason]}
-          </Notice>
+          </Alert>
         ) : null}
 
         {(task.artifacts !== undefined && task.artifacts.length > 0)

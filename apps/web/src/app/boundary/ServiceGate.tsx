@@ -43,7 +43,7 @@ import {
 } from 'react';
 
 import { probeServiceHealth } from '../../data/health';
-import { Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
+import { Alert, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { cn } from '../../design/primitives';
 import type { ApiHealth } from '../../shared/desktop/dto';
 import {
@@ -240,8 +240,8 @@ export function ServiceOfflineBanner({
   className,
 }: ServiceOfflineBannerProps) {
   return (
-    <Notice
-      tone="danger"
+    <Alert
+      variant="danger"
       className={cn('border-x-0 border-t-0', className)}
       detail={
         <>
@@ -256,7 +256,7 @@ export function ServiceOfflineBanner({
       }}
     >
       <Trans>本地服务未连接，分析、录制和导出暂时无法开始</Trans>
-    </Notice>
+    </Alert>
   );
 }
 

@@ -25,7 +25,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 
 import { EmptyState, Pagination } from '../../design/data';
-import { Notice, StatusDot } from '../../design/feedback';
+import { Alert, StatusDot } from '../../design/feedback';
 import { Button, cn, Badge } from '../../design/primitives';
 import type { Paginated } from '../../shared/desktop/dto';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
@@ -77,13 +77,13 @@ export function LibraryCards({
         </p>
 
         {error === null ? null : (
-          <Notice
+          <Alert
             className="mb-3"
-            tone="danger"
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: onRetry }}
           >
             {error}
-          </Notice>
+          </Alert>
         )}
 
         {loading ? (

@@ -40,7 +40,7 @@ import { useAgentPlanList } from '../../data/plans';
 import { useServiceAction } from '../../data/serviceAction';
 import { useTaskFeed } from '../../data/tasks';
 import { EmptyState, Skeleton } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button, Badge } from '../../design/primitives';
 import { AGENT_PLAN_STATUS } from '../../domain/agent';
 import type { AgentPlanSummary } from '../../shared/desktop/dto';
@@ -179,9 +179,9 @@ function PlanColumn({
   if (failure !== null) {
     return (
       <div className="p-5">
-        <Notice tone="danger" action={{ label: <Trans>重新加载</Trans>, onAction: onReload }}>
+        <Alert variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: onReload }}>
           <Trans>读不到方案列表：{failure}</Trans>
-        </Notice>
+        </Alert>
       </div>
     );
   }

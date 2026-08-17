@@ -75,7 +75,7 @@ import {
   useRecordingPreflight,
 } from '../data/recording';
 import { useServiceAction } from '../data/serviceAction';
-import { Notice } from '../design/feedback';
+import { Alert } from '../design/feedback';
 import { Page, Toolbar, useCollapsed } from '../design/layout';
 import type { RecordingRequest } from '../shared/desktop/dto';
 import { agentPlanHandoff } from './agent/agentHandoff';
@@ -322,19 +322,19 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
       }
     >
       {agentFailure === null ? null : (
-        <Notice
+        <Alert
           className="mx-7 mt-5"
-          tone="danger"
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: () => void agentPlan.refetch() }}
         >
           <Trans>读不到这个方案：{agentFailure}</Trans>
-        </Notice>
+        </Alert>
       )}
       {planFailure}
       {expiry.expired && plan !== null ? (
-        <Notice
+        <Alert
           className="mx-7 mt-5"
-          tone="warning"
+          variant="warning"
           detail={<Trans>预览计划只保留五分钟，重新生成后导播预览与录制前校验都会重算。</Trans>}
           action={{
             label: <Trans>重新生成预览计划</Trans>,
@@ -343,7 +343,7 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
           }}
         >
           <Trans>这份预览计划已经过期。</Trans>
-        </Notice>
+        </Alert>
       ) : null}
 
       <div className="flex min-h-0 min-w-0 flex-1">
@@ -379,9 +379,9 @@ function planFailureNotice(input: {
   const refusal = agentPlanRecordingRefusal(input.error);
   if (refusal !== null) {
     return (
-      <Notice
+      <Alert
         className="mx-7 mt-5"
-        tone="warning"
+        variant="warning"
         detail={
           refusal === 'shots_unbound' ? (
             <Trans>在方案里给这些镜头选好 Demo 与选手之后，这一页就能生成预览计划。</Trans>
@@ -396,16 +396,16 @@ function planFailureNotice(input: {
         ) : (
           <Trans>这个方案里没有可录制的镜头。</Trans>
         )}
-      </Notice>
+      </Alert>
     );
   }
 
   const loss = recordingPlanLoss(input.error);
   if (loss !== null || isRecordingPlanLost(input.error)) {
     return (
-      <Notice
+      <Alert
         className="mx-7 mt-5"
-        tone="warning"
+        variant="warning"
         action={{ label: <Trans>重新生成预览计划</Trans>, onAction: input.onReplan }}
       >
         {loss === 'expired' ? (
@@ -413,19 +413,19 @@ function planFailureNotice(input: {
         ) : (
           <Trans>这份预览计划已经不在了，本地服务可能重启过。</Trans>
         )}
-      </Notice>
+      </Alert>
     );
   }
 
   const message = dataErrorMessage(input.error);
   return (
-    <Notice
+    <Alert
       className="mx-7 mt-5"
-      tone="danger"
+      variant="danger"
       action={{ label: <Trans>重试</Trans>, onAction: input.onReplan }}
     >
       <Trans>生成预览计划失败：{message ?? ''}</Trans>
-    </Notice>
+    </Alert>
   );
 }
 

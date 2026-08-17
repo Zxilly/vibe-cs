@@ -29,7 +29,7 @@ import { useState } from 'react';
 import { dataErrorMessage } from '../../data/errors';
 import { useDeleteOutput, useOutputList, useRevealOutput } from '../../data/outputs';
 import { EmptyState, Pagination } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Toolbar } from '../../design/layout';
 import { Seg } from '../../design/primitives';
 import type { OutputItem, OutputQuery } from '../../shared/desktop/dto';
@@ -143,21 +143,21 @@ export function OutputsView({ service, now }: OutputsViewProps) {
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
         {notice === null ? null : (
-          <Notice
-            tone="info"
+          <Alert
+            variant="info"
             action={{ label: <Trans>知道了</Trans>, onAction: () => setNotice(null) }}
           >
             {notice}
-          </Notice>
+          </Alert>
         )}
 
         {errorMessage === undefined ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重新加载</Trans>, onAction: () => void outputs.refetch() }}
           >
             {errorMessage}
-          </Notice>
+          </Alert>
         )}
 
         {errorMessage !== undefined ? null : outputs.isPending ? (

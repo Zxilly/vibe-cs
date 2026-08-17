@@ -58,7 +58,7 @@ import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
-import { Dialog, Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
+import { Dialog, Alert, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { Button, Checkbox, cn } from '../../design/primitives';
 import type { RecordingPreflightCheck, RecordingPreflightState } from '../../shared/desktop/dto';
 import { PREFLIGHT_CHECK, type RecordingBlockProps } from './recordingContract';
@@ -93,13 +93,13 @@ export function PreflightBlock({ plan, preflight, selection, start, service }: R
 
         <div className="min-w-0 flex-1">
           {failure !== null ? (
-            <Notice
-              tone="danger"
+            <Alert
+              variant="danger"
               action={{ label: <Trans>重试</Trans>, onAction: preflight.run }}
               detail={<Trans>校验只做检查，没有任何数据被改动，重试是安全的。</Trans>}
             >
               <Trans>录制前校验没能完成：{failure}</Trans>
-            </Notice>
+            </Alert>
           ) : preflight.status === 'running' ? (
             <p role="status" aria-busy="true" className="text-sm text-neutral-700">
               <Trans>正在检查 CS2、采集组件、Demo 内容、编码器与输出目录…</Trans>
@@ -169,13 +169,13 @@ export function PreflightBlock({ plan, preflight, selection, start, service }: R
       </div>
 
       {startFailure === null ? null : (
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{ label: <Trans>重新生成预览计划</Trans>, onAction: plan.replan }}
           detail={<Trans>没有开始录制，游戏也没有被启动。</Trans>}
         >
           <Trans>没能开始录制：{startFailure}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       {/*

@@ -28,7 +28,7 @@ import { Trans } from '@lingui/react/macro';
 import { useEffect, useState } from 'react';
 
 import { rejectWatchPath, type WatchPathRejection } from '../../data/config';
-import { Dialog, Notice } from '../../design/feedback';
+import { Dialog, Alert } from '../../design/feedback';
 import { Checkbox, Field, TextInput } from '../../design/primitives';
 import type { ServiceActionButtonProps } from './serviceAction';
 
@@ -118,12 +118,12 @@ export function AddWatchDirectoryDialog({
         ) : null}
 
         {error === null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重试</Trans>, onAction: confirm, disabled: saving }}
           >
             {error}
-          </Notice>
+          </Alert>
         )}
       </div>
     </Dialog>

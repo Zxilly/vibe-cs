@@ -36,7 +36,7 @@ import { Plural, Trans } from '@lingui/react/macro';
 import { useState } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Dialog, Notice } from '../../design/feedback';
+import { Dialog, Alert } from '../../design/feedback';
 import { Button } from '../../design/primitives';
 import {
   rejectWatchPath,
@@ -74,13 +74,13 @@ export function FilesSection() {
   return (
     <div className="flex flex-col">
       {configError === null ? null : (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
           <Trans>读不到设置：{configError}</Trans>
-        </Notice>
+        </Alert>
       )}
       {writeError === null ? null : (
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{
             label: <Trans>知道了</Trans>,
             onAction: () => {
@@ -90,7 +90,7 @@ export function FilesSection() {
           }}
         >
           <Trans>这次改动没有保存：{writeError}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       <SettingsBlock

@@ -19,7 +19,7 @@ import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
 
 import { EmptyState, Skeleton } from '../../design/data';
-import { Dialog, Notice } from '../../design/feedback';
+import { Dialog, Alert } from '../../design/feedback';
 import { Checkbox } from '../../design/primitives';
 import { dataErrorMessage } from '../../data/errors';
 import { useRecordedClips } from '../../data/outputs';
@@ -73,12 +73,12 @@ export function AddClipsDialog({ open, onClose, held, onAdd, disabled, disabledR
       )}
 
       {error === null ? null : (
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: () => void takes.refetch() }}
         >
           <Trans>录制结果没能读取：{error}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       {takes.isPending ? (

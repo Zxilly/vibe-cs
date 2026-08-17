@@ -30,7 +30,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { EmptyState, Skeleton } from '../../../design/data';
-import { Notice } from '../../../design/feedback';
+import { Alert } from '../../../design/feedback';
 import { Button, cn } from '../../../design/primitives';
 import { useStartDemoAnalysis } from '../../../data/demos';
 import { dataErrorMessage } from '../../../data/errors';
@@ -258,13 +258,13 @@ export function useAnalysisGate(demoId: string): AnalysisGate {
     tickRate,
     fallback: (
       <div className="p-3.5">
-        <Notice
-          tone="danger"
+        <Alert
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: () => void query.refetch() }}
           detail={<Trans>分析结果没有被改动，重试是安全的。</Trans>}
         >
           <Trans>这场比赛的分析没能打开：{dataErrorMessage(query.error) ?? ''}</Trans>
-        </Notice>
+        </Alert>
       </div>
     ),
   };

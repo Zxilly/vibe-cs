@@ -24,7 +24,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { EmptyState } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';
 import { TaskCard, TaskCardSkeleton } from '../../domain/task';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
@@ -64,9 +64,9 @@ export function TaskFeedList({
   if (errorMessage !== undefined) {
     return (
       <div className={cn('p-5', className)}>
-        <Notice tone="danger" action={{ label: <Trans>重新加载</Trans>, onAction: onReload }}>
+        <Alert variant="danger" action={{ label: <Trans>重新加载</Trans>, onAction: onReload }}>
           {errorMessage}
-        </Notice>
+        </Alert>
       </div>
     );
   }

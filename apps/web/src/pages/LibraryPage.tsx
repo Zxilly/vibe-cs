@@ -64,7 +64,7 @@ import {
   useUpdateDemoMetadataBatch,
 } from '../data/demos';
 import { dataErrorMessage } from '../data/errors';
-import { Notice } from '../design/feedback';
+import { Alert } from '../design/feedback';
 import { OverflowMenu, Page, SelectionBar, Toolbar, useShellCollapsed } from '../design/layout';
 import { Button, Seg } from '../design/primitives';
 import type { DemoSummary } from '../shared/desktop/viewModels';
@@ -358,9 +358,9 @@ export function LibraryPage() {
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {actionError === null ? null : (
-            <Notice
+            <Alert
               className="m-4"
-              tone="danger"
+              variant="danger"
               action={{
                 label: <Trans>重试</Trans>,
                 onAction: () => {
@@ -370,7 +370,7 @@ export function LibraryPage() {
               }}
             >
               {actionError}
-            </Notice>
+            </Alert>
           )}
 
           {address.view === 'table' ? (

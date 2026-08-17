@@ -35,7 +35,7 @@ import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
+import { Alert, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { Button, Seg, Slider } from '../../design/primitives';
 import { useAppConfig, useQuickCheck, useStorageStatus, useUpdateAppConfig } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
@@ -99,14 +99,14 @@ export function GameSection() {
   return (
     <div className="flex flex-col">
       {configError === null ? null : (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void config.refetch() }}>
           <Trans>读不到设置：{configError}</Trans>
-        </Notice>
+        </Alert>
       )}
       {writeError === null ? null : (
-        <Notice tone="danger" action={{ label: <Trans>知道了</Trans>, onAction: () => update.reset() }}>
+        <Alert variant="danger" action={{ label: <Trans>知道了</Trans>, onAction: () => update.reset() }}>
           <Trans>这次改动没有保存：{writeError}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       <SettingsBlock

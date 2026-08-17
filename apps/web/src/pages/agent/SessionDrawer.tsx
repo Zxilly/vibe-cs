@@ -44,7 +44,7 @@ import {
   useRenameAgentSession,
 } from '../../data/sessions';
 import { EmptyState, Skeleton } from '../../design/data';
-import { Dialog, Drawer, Notice } from '../../design/feedback';
+import { Dialog, Drawer, Alert } from '../../design/feedback';
 import { Button, TextInput } from '../../design/primitives';
 import { AgentSessionRow } from '../../domain/agent';
 import type { AgentObjectRef, AgentSessionSummary } from '../../shared/desktop/dto';
@@ -229,8 +229,8 @@ export function SessionDrawer({
             </p>
 
             {writeError === null ? null : (
-              <Notice
-                tone="danger"
+              <Alert
+                variant="danger"
                 action={{
                   label: <Trans>知道了</Trans>,
                   onAction: () => {
@@ -239,16 +239,16 @@ export function SessionDrawer({
                 }}
               >
                 {writeError}
-              </Notice>
+              </Alert>
             )}
 
             {listError === null ? null : (
-              <Notice
-                tone="danger"
+              <Alert
+                variant="danger"
                 action={{ label: <Trans>重试</Trans>, onAction: () => void list.refetch() }}
               >
                 <Trans>读不到会话列表：{listError}</Trans>
-              </Notice>
+              </Alert>
             )}
 
             {list.isPending ? (

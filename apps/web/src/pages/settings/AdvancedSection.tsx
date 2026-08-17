@@ -33,7 +33,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
 import { Skeleton } from '../../design/data';
-import { Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
+import { Alert, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { Button } from '../../design/primitives';
 import { useExportDiagnostics, useHlaeStatus, useQuickCheck, useRuntimeState } from '../../data/config';
 import { useNativeShell } from '../../data/nativeShell';
@@ -60,9 +60,9 @@ export function AdvancedSection() {
         description={<Trans>本地服务当前的状态。</Trans>}
       >
         {runtimeError !== null ? (
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void runtime.refetch() }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void runtime.refetch() }}>
             <Trans>读不到运行时状态：{runtimeError}</Trans>
-          </Notice>
+          </Alert>
         ) : runtime.data === undefined ? (
           <Skeleton />
         ) : (
@@ -104,9 +104,9 @@ export function AdvancedSection() {
         description={<Trans>路径、进程与编码器的逐项检查。</Trans>}
       >
         {checksError !== null ? (
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void checks.refetch() }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void checks.refetch() }}>
             <Trans>读不到依赖检查：{checksError}</Trans>
-          </Notice>
+          </Alert>
         ) : checks.isPending ? (
           <Skeleton />
         ) : (
@@ -155,9 +155,9 @@ export function AdvancedSection() {
         description={<Trans>受管 HLAE 的安装状态与安全边界。</Trans>}
       >
         {hlaeError !== null ? (
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void hlae.refetch() }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void hlae.refetch() }}>
             <Trans>读不到采集组件状态：{hlaeError}</Trans>
-          </Notice>
+          </Alert>
         ) : hlae.data === undefined ? (
           <Skeleton />
         ) : (
@@ -243,15 +243,15 @@ export function AdvancedSection() {
           </p>
         )}
         {exportDiagnostics.error == null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{
               label: <Trans>重试</Trans>,
               onAction: () => exportDiagnostics.mutate(),
             }}
           >
             {dataErrorMessage(exportDiagnostics.error)}
-          </Notice>
+          </Alert>
         )}
       </SettingsBlock>
     </div>

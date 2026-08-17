@@ -23,7 +23,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 
-import { Notice } from '../feedback';
+import { Alert } from '../feedback';
 import { Button, Seg, Toggle } from '../primitives';
 import { ClipView } from './ClipView';
 import { TRACK_HEIGHT_PX } from './geometry';
@@ -209,13 +209,13 @@ export function TimelinePrototype({ initial, nudgeSeconds = 0.1, className }: Ti
       </div>
 
       {editor.refusal === null ? null : (
-        <Notice
-          tone="warning"
+        <Alert
+          variant="warning"
           action={{ label: <Trans>知道了</Trans>, onAction: editor.dismissRefusal }}
           onDismiss={editor.dismissRefusal}
         >
           {refusalMessage(editor.refusal)}
-        </Notice>
+        </Alert>
       )}
 
       {/* ── tracks ────────────────────────────────────────────────────── */}

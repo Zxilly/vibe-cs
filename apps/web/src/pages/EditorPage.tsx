@@ -60,7 +60,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { Skeleton } from '../design/data';
-import { Notice } from '../design/feedback';
+import { Alert } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
 import { useTimelineEditor, createTimeline, type Timeline } from '../design/timeline';
@@ -124,13 +124,13 @@ function EditorLoader({ projectId }: { readonly projectId: string }) {
     return (
       <Page scroll={false} toolbar={<Toolbar title={<Trans>多轨编辑器</Trans>} meta={projectId} />}>
         <div className="p-5">
-          <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void project.refetch() }}>
+          <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void project.refetch() }}>
             {service.blocked ? (
               <Trans>本地服务没有连接，这个工程读不出来。服务恢复后无需刷新页面。</Trans>
             ) : (
               <Trans>这个工程没能打开：{loadError}</Trans>
             )}
-          </Notice>
+          </Alert>
         </div>
       </Page>
     );
@@ -460,36 +460,36 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
     >
       <div className="flex min-h-0 flex-1 flex-col">
         {conflict ? (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>重新载入</Trans>, onAction: onReload }}
           >
             <Trans>
               这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。
             </Trans>
-          </Notice>
+          </Alert>
         ) : null}
         {writeError === null ? null : (
-          <Notice
-            tone="danger"
+          <Alert
+            variant="danger"
             action={{ label: <Trans>再试一次</Trans>, onAction: runSave }}
             onDismiss={() => save.reset()}
           >
             <Trans>这次操作没有完成：{writeError}</Trans>
-          </Notice>
+          </Alert>
         )}
         {notice === null ? null : (
-          <Notice
-            tone="warning"
+          <Alert
+            variant="warning"
             action={{ label: <Trans>知道了</Trans>, onAction: () => setNotice(null) }}
             onDismiss={() => setNotice(null)}
           >
             {notice}
-          </Notice>
+          </Alert>
         )}
         {keyframeLoss.keyframes === 0 ? null : (
-          <Notice
-            tone="warning"
+          <Alert
+            variant="warning"
             /* The recovery is 「撤销」 — while the edit is still local, undoing
                the trim brings the keyframes back. Once saved it cannot. */
             action={{ label: <Trans>撤销这次修改</Trans>, onAction: editor.undo }}
@@ -500,7 +500,7 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
               有 {keyframeLoss.clips} 个片段被改短了，保存时会丢掉落在片段之外的{' '}
               {keyframeLoss.keyframes} 个关键帧。
             </Trans>
-          </Notice>
+          </Alert>
         )}
 
         <div className="flex min-h-0 flex-1">

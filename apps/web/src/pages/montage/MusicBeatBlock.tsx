@@ -37,7 +37,7 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, useState } from 'react';
 
 import { DataTable, EmptyState, type DataTableColumn } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button, Badge } from '../../design/primitives';
 import { dataErrorMessage } from '../../data/errors';
 import { useAudioAnalysis, useAssetWaveform, useImportMediaAsset, useMediaAssets } from '../../data/mediaAssets';
@@ -155,9 +155,9 @@ export function MusicBeatBlock({ project: desk, selection, service }: MontageBlo
 
       <div className="flex flex-col gap-3 p-3.5">
         {dataErrorMessage(importAsset.error) === null ? null : (
-          <Notice tone="danger" action={{ label: <Trans>重新选择</Trans>, onAction: chooseMusic }}>
+          <Alert variant="danger" action={{ label: <Trans>重新选择</Trans>, onAction: chooseMusic }}>
             <Trans>这个音频没能导入素材库：{dataErrorMessage(importAsset.error) ?? ''}</Trans>
-          </Notice>
+          </Alert>
         )}
 
         {musicPath === null ? (
@@ -395,9 +395,9 @@ function BeatSuggestions({
       </div>
 
       {error === null ? null : (
-        <Notice tone="danger" action={{ label: <Trans>重试</Trans>, onAction: onCompute }}>
+        <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onCompute }}>
           <Trans>节拍建议没能算出来：{error}</Trans>
-        </Notice>
+        </Alert>
       )}
 
       {draft !== null && suggestions.length === 0 ? (

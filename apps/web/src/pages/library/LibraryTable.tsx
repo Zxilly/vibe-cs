@@ -36,7 +36,7 @@ import {
   type DataTableColumn,
   type SortState,
 } from '../../design/data';
-import { Notice } from '../../design/feedback';
+import { Alert } from '../../design/feedback';
 import { Button } from '../../design/primitives';
 import type { Paginated } from '../../shared/desktop/dto';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
@@ -96,14 +96,14 @@ export function LibraryTable({
   return (
     <div data-library-table className="flex min-h-0 min-w-0 flex-1 flex-col">
       {error === null ? null : (
-        <Notice
+        <Alert
           className="m-4"
-          tone="danger"
+          variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: onRetry }}
           detail={<Trans>已导入的比赛仍在本地，重试通常就能恢复列表。</Trans>}
         >
           {error}
-        </Notice>
+        </Alert>
       )}
 
       <DataTable<DemoSummary>

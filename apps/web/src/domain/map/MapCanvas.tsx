@@ -53,7 +53,7 @@ import { Trans } from '@lingui/react/macro';
 import { useId, type ReactNode } from 'react';
 
 import { EmptyState } from '../../design/data';
-import { Notice, type NoticeAction } from '../../design/feedback';
+import { Alert, type AlertAction } from '../../design/feedback';
 import { Blueprint, cn } from '../../design/layout';
 import {
   isUsableCalibration,
@@ -101,7 +101,7 @@ export interface MapLegendItem {
 export interface MapCanvasError {
   readonly message: ReactNode;
   /** Notice requires a way out; so does this. */
-  readonly action: NoticeAction;
+  readonly action: AlertAction;
 }
 
 export interface MapCanvasProps {
@@ -202,9 +202,9 @@ export function MapCanvas({
   let body: ReactNode;
   if (error) {
     body = (
-      <Notice tone="danger" action={error.action}>
+      <Alert variant="danger" action={error.action}>
         {error.message}
-      </Notice>
+      </Alert>
     );
   } else if (status === 'loading') {
     // No percentage and no fake grid: the states artboard forbids a made-up

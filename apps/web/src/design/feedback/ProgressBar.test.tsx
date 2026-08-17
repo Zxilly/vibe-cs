@@ -16,21 +16,24 @@ describe('ProgressBar', () => {
     expect(markup).toContain('aria-valuetext="2/6 片段"');
   });
 
+  /* The indicator is moved, not resized — a transform is composited, so a bar
+     ticking once a frame during an encode does not lay the page out again. A
+     full bar is therefore translated by 0%, an empty one by 100%. */
   it('fills the track to the ratio the artboard draws', () => {
     const markup = renderMarkup(<ProgressBar value={62} max={100} label="分析进度" />);
 
-    expect(markup).toContain('width:62%');
+    expect(markup).toContain('translateX(-38%)');
   });
 
   it('clamps a value outside the denominator instead of overflowing the track', () => {
-    expect(renderMarkup(<ProgressBar value={9} max={6} label="录制进度" />)).toContain('width:100%');
-    expect(renderMarkup(<ProgressBar value={-3} max={6} label="录制进度" />)).toContain('width:0%');
+    expect(renderMarkup(<ProgressBar value={9} max={6} label="录制进度" />)).toContain('translateX(-0%)');
+    expect(renderMarkup(<ProgressBar value={-3} max={6} label="录制进度" />)).toContain('translateX(-100%)');
   });
 
   it('survives a zero denominator without dividing by it', () => {
     const markup = renderMarkup(<ProgressBar value={0} max={0} label="录制进度" />);
 
-    expect(markup).toContain('width:0%');
+    expect(markup).toContain('translateX(-100%)');
     expect(markup).not.toContain('NaN');
   });
 
@@ -51,9 +54,12 @@ describe('ProgressBar', () => {
     expect(fail).toContain('bg-fail');
   });
 
-  it('hides the fill from assistive technology — the role already carries the value', () => {
+  /* The value is on the `progressbar` role; the indicator inside it is a
+     plain div with no role of its own, so there is nothing to announce twice. */
+  it('says the value once, on the role that carries it', () => {
     const markup = renderMarkup(<ProgressBar value={1} max={2} label="进度" />);
 
-    expect(markup).toContain('aria-hidden="true"');
+    expect(markup.match(/aria-valuenow/gu)).toHaveLength(1);
+    expect(markup.match(/role="progressbar"/gu)).toHaveLength(1);
   });
 });

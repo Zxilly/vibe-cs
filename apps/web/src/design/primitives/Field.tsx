@@ -21,6 +21,7 @@
  * where the control is a static box with nothing to describe.
  */
 
+import * as LabelPrimitive from '@radix-ui/react-label';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 import { useId } from 'react';
@@ -75,7 +76,11 @@ export function Field({ label, hint, error, required = false, className, childre
 
   return (
     <div className={cn('flex flex-col', className)}>
-      <label htmlFor={controlId} className={LABEL_CLASS}>
+      {/* shadcn's Label — Radix's — rather than a bare `<label>`: it stops the
+          double-click that selects a label's text from also selecting into the
+          control beside it, which on these forms means a stray drag over
+          「起始 tick」 highlighting the number the user was about to type. */}
+      <LabelPrimitive.Root htmlFor={controlId} className={LABEL_CLASS}>
         {label}
         {required ? (
           <>
@@ -85,7 +90,7 @@ export function Field({ label, hint, error, required = false, className, childre
             </span>
           </>
         ) : null}
-      </label>
+      </LabelPrimitive.Root>
 
       {typeof children === 'function' ? children(control) : children}
 

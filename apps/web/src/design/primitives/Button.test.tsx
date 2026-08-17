@@ -108,3 +108,30 @@ describe('Button markup', () => {
     expect(html).toMatch(/class="[^"]*ml-auto"/u);
   });
 });
+
+describe('Button asChild', () => {
+  it('renders the child element and keeps the button styling', () => {
+    const html = renderMarkup(
+      <Button asChild variant="primary" size="sm">
+        <a href="/library">资料库</a>
+      </Button>,
+    );
+
+    /* A link drawn as a button stays a link: middle-click, 「在新标签页打开」
+       and the status bar all need the `href`. */
+    expect(html).toMatch(/^<a /u);
+    expect(html).toContain('href="/library"');
+    expect(html).not.toContain('<button');
+    expect(html).toContain('bg-accent');
+    expect(html).toContain('h-[var(--h-ctl-sm)]');
+  });
+
+  it('does not put a button type on the element it borrows', () => {
+    const html = renderMarkup(
+      <Button asChild>
+        <a href="/library">资料库</a>
+      </Button>,
+    );
+    expect(html).not.toContain('type="button"');
+  });
+});

@@ -1,7 +1,8 @@
 /*
  * Design system, layer 1 of 3 — ProgressBar.
  *
- * The reference draws it the same way in all eight places it appears:
+ * shadcn's Progress — Radix `ProgressPrimitive` — drawn the way the reference
+ * draws it in all eight places it appears:
  *
  *   <div style="height:6px;background:var(--color-neutral-200)">
  *     <div style="width:62%;height:6px;background:var(--color-accent)"></div>
@@ -14,8 +15,19 @@
  *   "有真实分母时才用进度条，否则只给阶段名"
  * so `value` and `max` are both required and neither is optional-with-default:
  * there is no indeterminate mode to fall into, and code that has no denominator
- * cannot render this component at all. It renders a StageBar instead.
+ * cannot render this component at all. It renders a StageBar instead. Radix
+ * *does* have an indeterminate state — `value={null}` — and this component has
+ * no way to reach it, on purpose.
+ *
+ * The indicator is positioned by `transform: translateX(-N%)` rather than by
+ * `width`, which is shadcn's own choice and a better one: a transform is
+ * composited, so a bar ticking once a frame during an encode does not lay out
+ * the page again on every tick.
  */
+
+import * as ProgressPrimitive from '@radix-ui/react-progress';
+
+import { cn } from '../cn';
 
 export type ProgressBarTone = 'accent' | 'ok' | 'fail';
 
@@ -58,7 +70,7 @@ export function ProgressBar({
   valueText,
   size = 'md',
   tone = 'accent',
-  className = '',
+  className,
 }: ProgressBarProps) {
   // A denominator of zero is a caller bug, not a state to render: it would make
   // the ratio undefined. Treat it as "nothing done" rather than dividing by it.
@@ -67,21 +79,18 @@ export function ProgressBar({
   const percent = (clamped / safeMax) * 100;
 
   return (
-    <div
-      role="progressbar"
+    <ProgressPrimitive.Root
+      value={clamped}
+      max={safeMax}
       aria-label={label}
-      aria-valuenow={clamped}
-      aria-valuemin={0}
-      aria-valuemax={safeMax}
-      aria-valuetext={valueText}
+      {...(valueText === undefined ? {} : { getValueLabel: () => valueText })}
       data-tone={tone}
-      className={`w-full bg-neutral-200 ${SIZE_CLASS[size]} ${className}`.trimEnd()}
+      className={cn('w-full overflow-hidden bg-neutral-200', SIZE_CLASS[size], className)}
     >
-      <div
-        aria-hidden="true"
-        className={`h-full ${TONE_CLASS[tone]}`}
-        style={{ width: `${String(percent)}%` }}
+      <ProgressPrimitive.Indicator
+        className={cn('h-full w-full transition-transform', TONE_CLASS[tone])}
+        style={{ transform: `translateX(-${String(100 - percent)}%)` }}
       />
-    </div>
+    </ProgressPrimitive.Root>
   );
 }

@@ -80,7 +80,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { Skeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
 import { CONTEXT_BAR_BREAKPOINT_PX, useCollapsed } from '../../design/layout';
-import { cx, Tag } from '../../design/primitives';
+import { cn, Tag } from '../../design/primitives';
 import { CS2_TICK_RATE } from './matchTime';
 import { Scoreboard } from './Scoreboard';
 import type { LoadFailure, MatchIdentity, MatchPeriod, TeamScore } from './types';
@@ -173,7 +173,7 @@ export function MatchContextBar({
   const renderMetadata = (wrap: boolean) => (
     <p
       data-match-metadata=""
-      className={cx(
+      className={cn(
         'flex items-center gap-2 text-sm text-neutral-700',
         /* In the bar: one line, clipped if it must be, because the box is
            `--h-topbar` tall and a second line would leave it. In the panel:
@@ -216,7 +216,7 @@ export function MatchContextBar({
       <div
         data-match-focus=""
         data-focus-shown={shown.length}
-        className={cx('flex items-center gap-2 text-sm', wrap ? 'flex-wrap' : 'flex-none flex-nowrap')}
+        className={cn('flex items-center gap-2 text-sm', wrap ? 'flex-wrap' : 'flex-none flex-nowrap')}
       >
         <span className="flex-none text-neutral-600">{i18n._(FOCUS_LABEL)}</span>
         {shown.map((player) =>
@@ -244,7 +244,7 @@ export function MatchContextBar({
     );
 
   return (
-    <div data-match-context-bar={isCollapsed ? 'collapsed' : 'expanded'} className={cx('flex-none', className)}>
+    <div data-match-context-bar={isCollapsed ? 'collapsed' : 'expanded'} className={cn('flex-none', className)}>
       <header className={BAR_CLASS}>
         {backLink === undefined ? null : (
           <>

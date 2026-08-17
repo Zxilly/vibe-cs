@@ -35,7 +35,7 @@ import { useLingui } from '@lingui/react';
 import type { ReactNode } from 'react';
 
 import { StatusDot, type StatusDotStatus } from '../../design/feedback';
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 
 import { AGENT_WORK_STEP_STATE, type AgentWorkStepState } from './workSteps';
 
@@ -64,7 +64,7 @@ export function AgentWorkTrail({ steps, label, className }: AgentWorkTrailProps)
   const { i18n } = useLingui();
 
   return (
-    <ol data-agent-work-trail="" aria-label={label} className={cx('flex flex-col', className)}>
+    <ol data-agent-work-trail="" aria-label={label} className={cn('flex flex-col', className)}>
       {steps.map((step, position) => {
         const state = step.state ?? 'done';
         const last = position === steps.length - 1;
@@ -78,7 +78,7 @@ export function AgentWorkTrail({ steps, label, className }: AgentWorkTrailProps)
               {last ? null : <span aria-hidden="true" className="w-px flex-1 bg-divider" />}
             </span>
 
-            <div className={cx('flex min-w-0 flex-col gap-0.5', last ? null : 'pb-4')}>
+            <div className={cn('flex min-w-0 flex-col gap-0.5', last ? null : 'pb-4')}>
               <span className="min-w-0 text-sm">
                 {step.label}
                 {/* The state in words, so the square is never the only reading. */}

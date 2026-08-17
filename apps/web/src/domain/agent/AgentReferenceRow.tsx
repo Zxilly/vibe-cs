@@ -34,7 +34,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { Check, CircleAlert } from 'lucide-react';
 
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import { AGENT_OBJECT_KIND, type KnownWorkspaceReference } from './types';
 
 export interface AgentReferenceRowProps {
@@ -66,7 +66,7 @@ export function AgentReferenceRow({
       data-agent-reference={reference.id}
       data-object-kind={reference.kind}
       {...(referenced ? { 'data-referenced': 'true' } : {})}
-      className={cx(
+      className={cn(
         'flex items-start gap-3 border p-3 text-sm',
         emphasis ? 'border-accent bg-accent-100' : 'border-divider',
         className,

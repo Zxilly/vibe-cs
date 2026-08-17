@@ -54,7 +54,7 @@ import { useId, type ReactNode } from 'react';
 
 import { EmptyState } from '../../design/data';
 import { Notice, type NoticeAction } from '../../design/feedback';
-import { Blueprint, cx } from '../../design/layout';
+import { Blueprint, cn } from '../../design/layout';
 import {
   isUsableCalibration,
   resolveMapCalibration,
@@ -156,23 +156,23 @@ const LEGEND_TONE_BORDER: Record<MapTone, string> = {
 
 function LegendGlyph({ glyph, tone }: { glyph: MapLegendGlyph; tone: MapTone }) {
   if (glyph === 'swatch') {
-    return <span aria-hidden="true" className={cx('block size-[13px]', LEGEND_TONE_FILL[tone])} />;
+    return <span aria-hidden="true" className={cn('block size-[13px]', LEGEND_TONE_FILL[tone])} />;
   }
   if (glyph === 'outline') {
-    return <span aria-hidden="true" className={cx('block size-[13px] border', LEGEND_TONE_BORDER[tone])} />;
+    return <span aria-hidden="true" className={cn('block size-[13px] border', LEGEND_TONE_BORDER[tone])} />;
   }
   if (glyph === 'dashed') {
     // 「04」: `width:18px;height:0;border-top:1.5px dashed`.
-    return <span aria-hidden="true" className={cx('block w-[18px] border-t border-dashed', LEGEND_TONE_BORDER[tone])} />;
+    return <span aria-hidden="true" className={cn('block w-[18px] border-t border-dashed', LEGEND_TONE_BORDER[tone])} />;
   }
   // 「04」: `width:18px;height:2px;background`.
-  return <span aria-hidden="true" className={cx('block h-[2px] w-[18px]', LEGEND_TONE_FILL[tone])} />;
+  return <span aria-hidden="true" className={cn('block h-[2px] w-[18px]', LEGEND_TONE_FILL[tone])} />;
 }
 
 /** The square frame every state is drawn inside, so the layout never jumps. */
 function CanvasFrame({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <Blueprint className={cx('relative aspect-square w-full max-w-[720px] bg-bg', className)}>{children}</Blueprint>
+    <Blueprint className={cn('relative aspect-square w-full max-w-[720px] bg-bg', className)}>{children}</Blueprint>
   );
 }
 
@@ -292,7 +292,7 @@ export function MapCanvas({
   }
 
   return (
-    <figure className={cx('flex min-h-0 min-w-0 flex-col gap-3', className)} data-map-name={mapName}>
+    <figure className={cn('flex min-h-0 min-w-0 flex-col gap-3', className)} data-map-name={mapName}>
       <div className="flex min-h-0 flex-1 items-center justify-center p-5">{body}</div>
       <figcaption id={captionId} className="flex flex-col gap-1 text-xs leading-normal text-neutral-700">
         {/*

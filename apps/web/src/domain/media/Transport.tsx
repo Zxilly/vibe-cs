@@ -39,7 +39,7 @@ import { Pause, Play, SkipBack, SkipForward, StepBack, StepForward } from 'lucid
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { useId } from 'react';
 
-import { Button, Seg, cx } from '../../design/primitives';
+import { Button, Seg, cn } from '../../design/primitives';
 import { formatFrameTimecode, formatTimecode, nudgeStep } from '../../design/timeline';
 
 import {
@@ -153,7 +153,7 @@ export function Transport({
       aria-label={t`播放控制`}
       data-playing={playing ? 'true' : 'false'}
       onKeyDown={handleKeyDown}
-      className={cx('flex items-center gap-3', className)}
+      className={cn('flex items-center gap-3', className)}
     >
       <div className="flex items-center gap-2">
         <Button

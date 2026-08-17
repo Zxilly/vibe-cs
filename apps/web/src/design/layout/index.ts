@@ -16,7 +16,7 @@ export {
   useCollapsed,
   useShellCollapsed,
 } from './collapse';
-export { cx, type ClassValue } from './cx';
+export { cn, type ClassValue } from '../cn';
 export { Inspector, type InspectorProps, type InspectorWidth } from './Inspector';
 export { OverflowMenu, type OverflowMenuItem, type OverflowMenuProps } from './OverflowMenu';
 export { Page, type PageProps } from './Page';

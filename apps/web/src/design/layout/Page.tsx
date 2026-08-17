@@ -19,7 +19,7 @@
 
 import type { ReactNode } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export interface PageProps {
   /** The top bar — normally a `<Toolbar>`. */
@@ -38,7 +38,7 @@ export function Page({ toolbar, bar, footer, children, scroll = true, className 
   return (
     <div
       data-page
-      className={cx('flex h-full min-h-0 min-w-0 flex-col bg-bg text-text', className)}
+      className={cn('flex h-full min-h-0 min-w-0 flex-col bg-bg text-text', className)}
     >
       {toolbar !== undefined && toolbar !== null ? (
         <div data-page-toolbar className="flex-none">
@@ -52,7 +52,7 @@ export function Page({ toolbar, bar, footer, children, scroll = true, className 
       ) : null}
       <div
         data-page-body
-        className={cx(
+        className={cn(
           'flex min-h-0 min-w-0 flex-1 flex-col',
           scroll ? 'overflow-auto' : 'overflow-hidden',
         )}

@@ -39,7 +39,7 @@ import { Component, Suspense, type ReactNode } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
 
 import { EmptyState, EMPTY_STATE_MIN_HEIGHT_CLASS, TableSkeleton } from '../../design/data';
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 
 /**
  * The 172px state box now belongs to the design layer: `EmptyState` applies it
@@ -71,7 +71,7 @@ export function RouteLoading({ stage, rows = 4, className }: RouteLoadingProps) 
     <TableSkeleton
       rows={rows}
       stage={stage ?? <Trans>正在打开这个页面</Trans>}
-      className={cx(EMPTY_STATE_MIN_HEIGHT_CLASS, className)}
+      className={cn(EMPTY_STATE_MIN_HEIGHT_CLASS, className)}
     />
   );
 }

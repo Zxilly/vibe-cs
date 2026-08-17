@@ -28,7 +28,7 @@
 import type { InputHTMLAttributes, ReactNode, Ref } from 'react';
 import { useEffect, useRef } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export type CheckboxSize = 'sm' | 'md';
 
@@ -82,7 +82,7 @@ export function Checkbox({
 
   return (
     <label
-      className={cx(
+      className={cn(
         'inline-flex items-center gap-3 text-base leading-normal',
         disabled ? 'cursor-not-allowed opacity-45' : 'cursor-pointer',
         className,
@@ -100,7 +100,7 @@ export function Checkbox({
         {...(indeterminate ? { 'aria-checked': 'mixed' as const } : {})}
         className={INPUT_CLASS}
       />
-      <span className={cx(BOX_CLASS, BOX_SIZE_CLASS[size])}>
+      <span className={cn(BOX_CLASS, BOX_SIZE_CLASS[size])}>
         {indeterminate ? <span className="h-[1px] w-[7px] bg-bg" /> : null}
       </span>
       {children}

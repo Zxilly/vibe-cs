@@ -18,7 +18,7 @@
 
 import type { AnchorHTMLAttributes, ReactNode, Ref } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export type LinkSize = 'xs' | 'sm' | 'base';
 
@@ -54,7 +54,7 @@ export function Link({ size = 'sm', external = false, className, children, ref, 
       {...rest}
       ref={ref}
       {...(external ? { target: '_blank', rel: 'noreferrer noopener' } : {})}
-      className={cx(BASE_CLASS, SIZE_CLASS[size], className)}
+      className={cn(BASE_CLASS, SIZE_CLASS[size], className)}
     >
       {children}
     </a>

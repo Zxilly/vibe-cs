@@ -32,7 +32,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Field, TextInput, Toggle, cx } from '../../design/primitives';
+import { Field, TextInput, Toggle, cn } from '../../design/primitives';
 import type { MontageBrandingTheme } from '../../shared/desktop/dto';
 import { MONTAGE_THEME, type MontageBlockProps } from './montageContract';
 import {
@@ -92,7 +92,7 @@ export function PackagingBlock({ project: desk, service }: MontageBlockProps) {
                 data-montage-theme={theme}
                 disabled={!writable}
                 onClick={() => desk.save(editMontageSettings({ branding_theme: theme }))}
-                className={cx(
+                className={cn(
                   'flex h-12 flex-1 items-center justify-center border text-sm',
                   'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2',
                   'disabled:opacity-45',

@@ -18,7 +18,7 @@
 import type { ElementType, ReactNode } from 'react';
 
 import './blueprint.css';
-import { cx } from './cx';
+import { cn } from '../cn';
 
 /** The elements a frame is allowed to be. Everything here is a plain box. */
 export type BlueprintElement = 'div' | 'section' | 'aside' | 'figure' | 'article' | 'span';
@@ -47,7 +47,7 @@ export function Blueprint({
   const Element = as as ElementType;
   return (
     <Element
-      className={cx('blueprint', className)}
+      className={cn('blueprint', className)}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
       data-testid={testId}

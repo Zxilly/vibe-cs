@@ -34,7 +34,7 @@ import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Button, cx, Tag } from '../../design/primitives';
+import { Button, cn, Tag } from '../../design/primitives';
 import { EVIDENCE_KIND } from './matchEnums';
 import { CS2_TICK_RATE, formatTickClock, formatTickCount, formatTickTimecode } from './matchTime';
 import type { EvidenceItem } from './types';
@@ -154,7 +154,7 @@ export function EvidenceRow({
       data-kind={evidence.kind}
       data-tick={evidence.tick}
       aria-current={selected ? true : undefined}
-      className={cx(
+      className={cn(
         'flex items-center gap-3 text-sm',
         HEIGHT_CLASS[density],
         PADDING_CLASS[density],
@@ -221,7 +221,7 @@ export function EvidenceRowSkeleton({ density = 'default' }: { readonly density?
   return (
     <div
       data-evidence-row-skeleton=""
-      className={cx(
+      className={cn(
         'flex items-center gap-3 border-b border-divider',
         HEIGHT_CLASS[density],
         PADDING_CLASS[density],

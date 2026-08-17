@@ -56,7 +56,7 @@ import { isRevisionConflict, useAgentPlan, useRestoreAgentPlanBaseline } from '.
 import { useAgentSession } from '../../data/sessions';
 import { EmptyState, Skeleton } from '../../design/data';
 import { Dialog, Notice } from '../../design/feedback';
-import { Button, Tag, cx } from '../../design/primitives';
+import { Button, Tag, cn } from '../../design/primitives';
 import {
   AGENT_PLAN_STATUS,
   AGENT_SHOT_KIND,
@@ -667,7 +667,7 @@ function PanelSection({
   readonly className?: string | undefined;
 }) {
   return (
-    <section className={cx('flex min-w-0 flex-col gap-2.5', className)}>
+    <section className={cn('flex min-w-0 flex-col gap-2.5', className)}>
       <h3 className="font-heading text-2xs tracking-widest text-neutral-600 uppercase">{title}</h3>
       {children}
     </section>

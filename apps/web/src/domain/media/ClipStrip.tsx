@@ -41,7 +41,7 @@ import {
 } from 'react';
 
 import { EmptyState, Skeleton } from '../../design/data';
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 import { formatTimecode } from '../../design/timeline';
 
 import { dropIndex, moveItem, totalDurationSeconds, type TileSpan } from './clipOrder';
@@ -191,16 +191,16 @@ export function ClipStrip({
   if (loading) {
     return (
       <div
-        className={cx('flex gap-3 overflow-x-auto overscroll-x-contain', className)}
+        className={cn('flex gap-3 overflow-x-auto overscroll-x-contain', className)}
         aria-busy="true"
         aria-label={t`正在读取片段`}
       >
         {[0, 1, 2, 3].map((index) => (
           <div
             key={index}
-            className={cx(CLIP_TILE_WIDTH_CLASS, 'flex flex-none flex-col gap-2 border border-divider p-2')}
+            className={cn(CLIP_TILE_WIDTH_CLASS, 'flex flex-none flex-col gap-2 border border-divider p-2')}
           >
-            <div className={cx(CLIP_POSTER_CLASS, 'flex flex-col justify-end gap-2')}>
+            <div className={cn(CLIP_POSTER_CLASS, 'flex flex-col justify-end gap-2')}>
               <Skeleton width="100%" />
               <Skeleton width="64%" />
             </div>
@@ -264,7 +264,7 @@ export function ClipStrip({
                 if (node === null) tiles.current.delete(clip.id);
                 else tiles.current.set(clip.id, node);
               }}
-              className={cx(CLIP_TILE_WIDTH_CLASS, 'flex-none')}
+              className={cn(CLIP_TILE_WIDTH_CLASS, 'flex-none')}
             >
               <button
                 type="button"
@@ -281,7 +281,7 @@ export function ClipStrip({
                 onPointerDown={(event) => handlePointerDown(event, index, clip.id)}
                 onKeyDown={(event) => handleKeyDown(event, index, clip.id)}
                 onClick={() => onSelect?.(clip.id)}
-                className={cx(
+                className={cn(
                   'flex size-full touch-none flex-col border text-left',
                   'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2',
                   missing ? 'border-fail-border' : selected ? 'border-accent bg-accent-100' : 'border-divider',
@@ -289,9 +289,9 @@ export function ClipStrip({
                   target && 'outline-2 outline-dashed outline-accent -outline-offset-2',
                 )}
               >
-                <span className={cx(CLIP_POSTER_CLASS, 'relative block border-b border-divider')}>
+                <span className={cn(CLIP_POSTER_CLASS, 'relative block border-b border-divider')}>
                   {clip.posterSrc === undefined ? (
-                    <span className={cx('block size-full', HATCH_CLASS)} aria-hidden="true" />
+                    <span className={cn('block size-full', HATCH_CLASS)} aria-hidden="true" />
                   ) : (
                     <img src={clip.posterSrc} alt="" loading="lazy" className="block size-full object-cover" />
                   )}
@@ -320,11 +320,11 @@ export function ClipStrip({
         })}
 
         {onAdd === undefined ? null : (
-          <li className={cx(CLIP_TILE_WIDTH_CLASS, 'flex-none')}>
+          <li className={cn(CLIP_TILE_WIDTH_CLASS, 'flex-none')}>
             <button
               type="button"
               onClick={onAdd}
-              className={cx(
+              className={cn(
                 'flex size-full flex-col items-center justify-center gap-2 border border-dashed border-neutral-400',
                 'text-sm text-neutral-600 hover:border-accent hover:text-accent',
                 'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2',

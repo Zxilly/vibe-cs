@@ -34,7 +34,7 @@ import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import type { ReactNode } from 'react';
 
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import { Skeleton } from '../../design/data';
 import type { AgentSessionEntry } from '../../shared/desktop/dto';
 
@@ -99,7 +99,7 @@ export function AgentBubble({
       data-agent-bubble={entry.kind}
       data-entry={entry.id}
       {...(streaming ? { 'aria-busy': true, 'data-bubble-state': 'streaming' } : {})}
-      className={cx(
+      className={cn(
         'flex min-w-0 flex-col gap-2 border p-3 text-sm leading-normal',
         // One `max-w` per branch: two arbitrary values of the same utility would
         // race in the generated stylesheet rather than the class attribute.

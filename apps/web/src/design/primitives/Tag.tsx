@@ -20,7 +20,7 @@
 
 import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export type TagTone = 'accent' | 'accent-2' | 'neutral' | 'outline';
 
@@ -57,7 +57,7 @@ const TONE_CLASS: Readonly<Record<TagTone, string>> = {
 };
 
 export function Tag({ as = 'span', tone = 'neutral', className, children, ref, ...rest }: TagProps) {
-  const classes = cx(BASE_CLASS, TONE_CLASS[tone], className);
+  const classes = cn(BASE_CLASS, TONE_CLASS[tone], className);
 
   if (as === 'button') {
     return (
@@ -65,7 +65,7 @@ export function Tag({ as = 'span', tone = 'neutral', className, children, ref, .
         {...(rest as ButtonHTMLAttributes<HTMLButtonElement>)}
         ref={ref as Ref<HTMLButtonElement>}
         type="button"
-        className={cx(classes, 'cursor-pointer')}
+        className={cn(classes, 'cursor-pointer')}
       >
         {children}
       </button>

@@ -26,7 +26,7 @@
 import type { ReactNode } from 'react';
 
 import { StageBar, type Stage, type StageState, recordingStages } from '../../design/feedback';
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 
 import { TaskDuration } from './TaskDuration';
 import { taskDuration } from './duration';
@@ -74,11 +74,11 @@ export function StageTimeline({ label, stages, timeZone, className }: StageTimel
   const notes = stages.filter((stage) => stage.note !== undefined);
 
   return (
-    <div className={cx('flex flex-col gap-2', className)}>
+    <div className={cn('flex flex-col gap-2', className)}>
       <StageBar label={label} stages={bar} />
 
       {stages.some((stage) => stage.at !== undefined || stage.durationMs !== undefined) ? (
-        <ul className={cx('m-0 list-none p-0', STAGE_GRID_CLASS)}>
+        <ul className={cn('m-0 list-none p-0', STAGE_GRID_CLASS)}>
           {stages.map((stage) => (
             <li
               key={stage.id}
@@ -108,7 +108,7 @@ export function StageTimeline({ label, stages, timeZone, className }: StageTimel
         <p
           key={stage.id}
           data-stage-note={stage.id}
-          className={cx(
+          className={cn(
             'text-xs leading-normal',
             stage.state === 'failed' ? 'text-fail-text' : 'text-neutral-700',
           )}

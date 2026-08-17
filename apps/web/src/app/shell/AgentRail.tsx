@@ -49,7 +49,7 @@ import { Plural, Trans } from '@lingui/react/macro';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 
-import { cx } from '../../design/layout';
+import { cn } from '../../design/layout';
 import { useShellStore } from './shellStore';
 
 export interface AgentRailProps {
@@ -117,7 +117,7 @@ export function AgentRail({
     return (
       <aside
         data-agent-rail="collapsed"
-        className={cx(
+        className={cn(
           'flex w-[var(--w-agent-rail)] flex-none flex-col border-l border-divider bg-surface-chrome',
           className,
         )}
@@ -157,7 +157,7 @@ export function AgentRail({
       id={panelId}
       data-agent-rail="expanded"
       aria-labelledby={titleId}
-      className={cx(
+      className={cn(
         'flex w-[var(--w-inspector)] flex-none flex-col border-l border-divider bg-surface-chrome',
         className,
       )}

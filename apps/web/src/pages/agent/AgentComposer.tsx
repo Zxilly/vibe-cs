@@ -34,7 +34,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { KeyboardEvent, ReactNode, RefObject } from 'react';
 
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import { AGENT_MODE_COMPOSER } from './conversationModel';
 import type { AgentMode } from './agentContract';
 
@@ -93,7 +93,7 @@ export function AgentComposer({
   return (
     <div
       data-agent-composer={mode}
-      className={cx('flex flex-none flex-col gap-2 border-t border-divider p-3.5', className)}
+      className={cn('flex flex-none flex-col gap-2 border-t border-divider p-3.5', className)}
     >
       {copy.suggestions.length === 0 ? null : (
         <div data-composer-suggestions="" className="flex flex-wrap gap-2">

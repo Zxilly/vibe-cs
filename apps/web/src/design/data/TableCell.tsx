@@ -23,7 +23,7 @@
 
 import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export type TableCellVariant = 'text' | 'numeric' | 'meta' | 'numeric-meta';
 export type TableCellAlign = 'start' | 'end';
@@ -81,7 +81,7 @@ export function TableCell({
 }: TableCellProps) {
   return (
     <td
-      className={cx(
+      className={cn(
         TABLE_BODY_CELL_CLASS,
         VARIANT_CLASS[variant],
         ALIGN_CLASS[align],
@@ -112,7 +112,7 @@ export function TableHeaderCell({
   return (
     <th
       scope={scope}
-      className={cx(
+      className={cn(
         TABLE_HEADER_CELL_CLASS,
         // The header size is its own step; a variant only decides alignment and
         // family there, so `text-*` from the body scale must not leak in.

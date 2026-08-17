@@ -39,7 +39,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Checkbox, cx, Tag } from '../../design/primitives';
+import { Checkbox, cn, Tag } from '../../design/primitives';
 import { HIGHLIGHT_KIND } from './matchEnums';
 import { CS2_TICK_RATE, formatTickRange, formatTickRangeSeconds } from './matchTime';
 import type { HighlightCandidate } from './types';
@@ -94,7 +94,7 @@ export function HighlightRow({
       data-density={density}
       data-kind={highlight.kind}
       aria-current={current ? true : undefined}
-      className={cx(
+      className={cn(
         'flex items-center gap-3 border-b border-divider px-3.5 text-sm',
         HEIGHT_CLASS[density],
         current ? CURRENT_CLASS : null,
@@ -172,7 +172,7 @@ export function HighlightRowSkeleton({ density = 'default' }: { readonly density
   return (
     <div
       data-highlight-row-skeleton=""
-      className={cx('flex items-center gap-3 border-b border-divider px-3.5', HEIGHT_CLASS[density])}
+      className={cn('flex items-center gap-3 border-b border-divider px-3.5', HEIGHT_CLASS[density])}
     >
       <Skeleton width="24px" />
       <Skeleton width="48%" />

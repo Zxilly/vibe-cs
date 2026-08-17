@@ -45,7 +45,7 @@ import { Trans } from '@lingui/react/macro';
 import { ArrowRight, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-import { Button, Tag, cx } from '../../design/primitives';
+import { Button, Tag, cn } from '../../design/primitives';
 
 import { planChangeAffordance } from './planRevision';
 import { formatSignedSeconds } from './shotFormat';
@@ -102,7 +102,7 @@ export function PlanChangeCard({
       data-plan-change={change.id}
       data-change-state={change.state}
       data-change-op={change.op}
-      className={cx(
+      className={cn(
         'flex flex-col gap-2 border p-3 text-sm',
         change.state === 'pending' ? 'border-accent bg-accent-100' : 'border-divider',
         affordance.className,

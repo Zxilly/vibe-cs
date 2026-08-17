@@ -23,7 +23,7 @@ import { Film } from 'lucide-react';
 import { useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 
 import { EmptyState, Skeleton } from '../../design/data';
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 import { formatTimecode } from '../../design/timeline';
 
 import { frameIndexAtTime, placeholderFrames } from './filmFrames';
@@ -72,14 +72,14 @@ export function FilmStrip({
   if (loading) {
     return (
       <div
-        className={cx('flex gap-1 overflow-x-auto overscroll-x-contain', className)}
+        className={cn('flex gap-1 overflow-x-auto overscroll-x-contain', className)}
         aria-busy="true"
         aria-label={t`正在生成缩略图`}
       >
         {Array.from({ length: placeholderCount }, (_, index) => (
           <div
             key={index}
-            className={cx(FILM_CELL_WIDTH_CLASS, 'flex aspect-video flex-none flex-col justify-end gap-1 border border-divider p-1')}
+            className={cn(FILM_CELL_WIDTH_CLASS, 'flex aspect-video flex-none flex-col justify-end gap-1 border border-divider p-1')}
           >
             <Skeleton width="100%" />
             <Skeleton width="60%" />
@@ -124,7 +124,7 @@ export function FilmStrip({
        * of footage, so the 「09 快速合辑」 montage (「2 分 04 秒」) is 62 cells and
        * ~8200px. Seven fit at the §8 fold. The strip scrolls; the page does not.
        */
-      className={cx('flex items-start gap-1 overflow-x-auto overscroll-x-contain', className)}
+      className={cn('flex items-start gap-1 overflow-x-auto overscroll-x-contain', className)}
     >
       {strip.map((frame, index) => {
         const stamp = formatTimecode(frame.time);
@@ -132,7 +132,7 @@ export function FilmStrip({
         const content = (
           <>
             {frame.src === undefined ? (
-              <span className={cx('block size-full', HATCH_CLASS)} aria-hidden="true" />
+              <span className={cn('block size-full', HATCH_CLASS)} aria-hidden="true" />
             ) : (
               <img
                 src={frame.src}
@@ -147,7 +147,7 @@ export function FilmStrip({
           </>
         );
 
-        const cellClass = cx(
+        const cellClass = cn(
           FILM_CELL_WIDTH_CLASS,
           'relative block aspect-video overflow-hidden border',
           isCurrent ? 'border-accent outline-2 outline-accent -outline-offset-2' : 'border-divider',
@@ -167,7 +167,7 @@ export function FilmStrip({
                 data-current={isCurrent ? 'true' : 'false'}
                 onClick={() => onSeek?.(frame.time)}
                 onKeyDown={(event) => handleKeyDown(event, index)}
-                className={cx(
+                className={cn(
                   cellClass,
                   'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2',
                 )}

@@ -42,7 +42,7 @@ import type { ReactNode } from 'react';
 
 import { EmptyState, TableSkeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Link, Tag, cx } from '../../design/primitives';
+import { Button, Link, Tag, cn } from '../../design/primitives';
 
 import { RetryNotice, type RetryNoticeProps } from './RetryNotice';
 import { StageTimeline, type TaskStageEntry } from './StageTimeline';
@@ -103,7 +103,7 @@ export function TaskDetail({
       data-task-kind={task.kind}
       data-task-status={task.status}
       aria-label={t`任务详情`}
-      className={cx('flex min-h-0 flex-col border border-divider bg-bg', className)}
+      className={cn('flex min-h-0 flex-col border border-divider bg-bg', className)}
     >
       {/* 52px header. `--h-topbar` is 56 and `--h-panel-head` is 40; this row
           holds a 19px title and a 32px button, so it takes the panel-head token
@@ -128,7 +128,7 @@ export function TaskDetail({
               key={artifact.id}
               href={artifact.href}
               size="sm"
-              className={cx(artifact.missing === true && 'text-fail-text')}
+              className={cn(artifact.missing === true && 'text-fail-text')}
             >
               {artifact.label}
             </Link>
@@ -277,14 +277,14 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
             <li
               key={entry.id}
               data-emphasis={entry.emphasis === true ? 'true' : undefined}
-              className={cx(
+              className={cn(
                 'flex gap-3 px-3 py-1.5',
                 entry.emphasis === true && 'bg-accent-100 text-accent-900',
               )}
             >
               <time
                 dateTime={entry.at}
-                className={cx(
+                className={cn(
                   // 54.4px on the `--spacing` base; the artboard's stamp column
                   // is 56px, and the mono digits are the same width either way.
                   'w-16 flex-none font-mono text-xs',

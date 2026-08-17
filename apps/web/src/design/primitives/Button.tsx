@@ -40,7 +40,7 @@ import {
   CONTROL_TEXT_CLASS,
   type ControlSize,
 } from './controlSize';
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -128,7 +128,7 @@ export function Button({
       type={type}
       disabled={disabled}
       {...(hasReason ? { title: disabledReason, 'aria-describedby': reasonId } : {})}
-      className={cx(
+      className={cn(
         BASE_CLASS,
         VARIANT_CLASS[variant],
         CONTROL_HEIGHT_CLASS[size],

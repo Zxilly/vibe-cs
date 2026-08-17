@@ -30,7 +30,7 @@
 import type { InputHTMLAttributes, ReactNode, Ref } from 'react';
 
 import { CONTROL_HEIGHT_CLASS, CONTROL_TEXT_CLASS, type ControlSize } from './controlSize';
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export type TextInputType = 'text' | 'search' | 'email' | 'password' | 'url' | 'tel' | 'number';
 
@@ -88,7 +88,7 @@ export function TextInput({
       ref={ref}
       type={type}
       {...(invalid ? { 'aria-invalid': true } : {})}
-      className={cx(
+      className={cn(
         BASE_CLASS,
         CONTROL_HEIGHT_CLASS[size],
         CONTROL_TEXT_CLASS[size],
@@ -107,13 +107,13 @@ export function TextInput({
   return (
     <span className="relative flex w-full items-center">
       {leading === undefined ? null : (
-        <span className={cx(ADORNMENT_CLASS, 'left-3')} aria-hidden="true">
+        <span className={cn(ADORNMENT_CLASS, 'left-3')} aria-hidden="true">
           {leading}
         </span>
       )}
       {input}
       {trailing === undefined ? null : (
-        <span className={cx(ADORNMENT_CLASS, 'right-3')} aria-hidden="true">
+        <span className={cn(ADORNMENT_CLASS, 'right-3')} aria-hidden="true">
           {trailing}
         </span>
       )}

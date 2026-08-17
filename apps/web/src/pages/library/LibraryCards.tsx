@@ -26,7 +26,7 @@ import { Trans } from '@lingui/react/macro';
 
 import { EmptyState, Pagination } from '../../design/data';
 import { Notice, StatusDot } from '../../design/feedback';
-import { Button, cx, Tag } from '../../design/primitives';
+import { Button, cn, Tag } from '../../design/primitives';
 import type { Paginated } from '../../shared/desktop/dto';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
 import {
@@ -158,7 +158,7 @@ function DemoCard({
       aria-current={active ? 'true' : undefined}
       aria-label={t`打开 ${demo.display_name} 的详情`}
       onClick={onActivate}
-      className={cx(
+      className={cn(
         'flex w-full flex-col gap-2 border p-3 text-left',
         active ? 'border-accent bg-accent-100' : 'border-divider hover:bg-surface',
       )}
@@ -166,7 +166,7 @@ function DemoCard({
       <span className="flex items-baseline justify-between gap-3">
         <span className="min-w-0 truncate font-heading text-lg">{demo.display_name}</span>
         <span
-          className={cx(
+          className={cn(
             'flex-none font-mono text-sm tabular-nums',
             score === EMPTY_CELL ? 'text-neutral-600' : active ? 'text-accent-800' : null,
           )}
@@ -192,7 +192,7 @@ function DemoCard({
           <Tag tone={status.tone}>{i18n._(status.label)}</Tag>
         ) : (
           <span
-            className={cx(
+            className={cn(
               'inline-flex items-center gap-2 text-xs',
               status.tone === 'fail' && 'text-fail-text',
             )}

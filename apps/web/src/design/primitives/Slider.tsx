@@ -29,7 +29,7 @@
 
 import type { InputHTMLAttributes, Ref } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export interface SliderProps
   extends Omit<
@@ -73,7 +73,7 @@ export function Slider({
   const percent = sliderPercent(value, min, max);
 
   return (
-    <span className={cx('relative flex h-[14px] w-full items-center', disabled && 'opacity-45', className)}>
+    <span className={cn('relative flex h-[14px] w-full items-center', disabled && 'opacity-45', className)}>
       <span className={TRACK_CLASS} />
       <span className={FILL_CLASS} style={{ width: `${percent}%` }} />
       <span className={THUMB_CLASS} style={{ left: `${percent}%`, transform: `translateX(-${percent}%)` }} />

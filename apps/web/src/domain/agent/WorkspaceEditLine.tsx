@@ -40,7 +40,7 @@ import { useLingui } from '@lingui/react';
 import { ChevronDown, PencilLine } from 'lucide-react';
 import { useId, useState } from 'react';
 
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import type { WorkspaceEditNotice } from '../../shared/desktop/dto';
 
 import { formatAgentTime } from './agentClock';
@@ -83,10 +83,10 @@ export function WorkspaceEditLine({
     <div
       data-workspace-edit-line={notice.object.id}
       data-expanded={expanded}
-      className={cx('flex flex-col gap-2', className)}
+      className={cn('flex flex-col gap-2', className)}
     >
       <p className="flex min-w-0 flex-wrap items-center gap-2.5 py-1 text-xs text-neutral-600">
-        <span aria-hidden="true" className={cx('w-3.5 flex-none', RULE_CLASS)} />
+        <span aria-hidden="true" className={cn('w-3.5 flex-none', RULE_CLASS)} />
         <PencilLine size={13} strokeWidth={1.5} aria-hidden="true" className="flex-none" />
         <time dateTime={stamp} className="flex-none font-mono">
           {formatAgentTime(stamp, zone)}
@@ -115,7 +115,7 @@ export function WorkspaceEditLine({
           {expanded ? <Trans>收起</Trans> : <Trans>查看发给 Agent 的内容</Trans>}
         </Button>
 
-        <span aria-hidden="true" className={cx('min-w-3.5 flex-1', RULE_CLASS)} />
+        <span aria-hidden="true" className={cn('min-w-3.5 flex-1', RULE_CLASS)} />
       </p>
 
       {expanded ? (

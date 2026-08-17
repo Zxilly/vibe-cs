@@ -37,7 +37,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Button, Checkbox, Tag, cx } from '../../design/primitives';
+import { Button, Checkbox, Tag, cn } from '../../design/primitives';
 import type { AgentPlanShot } from '../../shared/desktop/dto';
 
 import { formatShotDuration } from './shotFormat';
@@ -104,7 +104,7 @@ export function TakeCard({
     <section
       data-take-card=""
       {...(selected ? { 'data-take-state': 'previewing' } : {})}
-      className={cx(
+      className={cn(
         'flex min-w-0 flex-col border',
         selected ? 'border-accent bg-accent-100' : 'border-divider',
         className,
@@ -147,7 +147,7 @@ export function TakeCard({
                     : {})}
                   className="min-w-0"
                 >
-                  <span className={cx('min-w-0 truncate text-sm', removed && 'text-neutral-600')}>
+                  <span className={cn('min-w-0 truncate text-sm', removed && 'text-neutral-600')}>
                     {text}
                     {removed ? (
                       <>
@@ -172,7 +172,7 @@ export function TakeCard({
             {metrics.map((metric) => (
               <div key={metric.id} className="flex min-w-0 items-baseline justify-between gap-3">
                 <dt className="min-w-0 truncate text-neutral-600">{metric.label}</dt>
-                <dd className={cx('flex-none font-mono', metric.tone === 'warn' && 'text-warn-text')}>
+                <dd className={cn('flex-none font-mono', metric.tone === 'warn' && 'text-warn-text')}>
                   {metric.value}
                 </dd>
               </div>

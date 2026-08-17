@@ -46,10 +46,32 @@ function TestProviders({ client, children }: { client: QueryClient; children: Re
   );
 }
 
-/** For the `markup` project (node env): structure and aria assertions. */
+/** For the `markup` project: structure and aria assertions. */
 export function renderMarkup(ui: ReactElement): string {
   activateSourceLocale();
   return renderToStaticMarkup(<TestProviders client={createTestQueryClient()}>{ui}</TestProviders>);
+}
+
+/**
+ * `renderMarkup` for a component that portals.
+ *
+ * `react-dom/server` has no portal: `createPortal` throws under
+ * `renderToStaticMarkup`, which is why the pre-Radix `Dialog` was a plain
+ * `position: fixed` div and said so in its header. Radix puts every overlay
+ * through one, so a structural test of an overlay has to mount for real and
+ * read the document back.
+ *
+ * Returns the whole of `body`, not the render container: the portal is a
+ * sibling of the container, so a caller that only looked at the container
+ * would see an empty string and read it as 「没渲染」.
+ */
+export function renderMarkupDom(ui: ReactElement): string {
+  activateSourceLocale();
+  const client = createTestQueryClient();
+  render(ui, {
+    wrapper: ({ children }: { children: ReactNode }) => <TestProviders client={client}>{children}</TestProviders>,
+  });
+  return document.body.innerHTML;
 }
 
 /** For the `interaction` project (jsdom env): focus, keyboard, overlays. */

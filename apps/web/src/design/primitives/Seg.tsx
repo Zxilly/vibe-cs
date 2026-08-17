@@ -26,7 +26,7 @@
 import type { ReactNode, Ref } from 'react';
 
 import { CONTROL_HEIGHT_CLASS, type ControlSize } from './controlSize';
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export interface SegOption<Value extends string> {
   value: Value;
@@ -89,12 +89,12 @@ export function Seg<Value extends string>({
       {...aria}
       ref={ref}
       role="radiogroup"
-      className={cx(GROUP_CLASS, CONTROL_HEIGHT_CLASS[size], fill && 'flex w-full', className)}
+      className={cn(GROUP_CLASS, CONTROL_HEIGHT_CLASS[size], fill && 'flex w-full', className)}
     >
       {options.map((option, index) => (
         <label
           key={option.value}
-          className={cx(
+          className={cn(
             OPTION_CLASS,
             /* Industry's `.seg-opt + .seg-opt` divider, resolved here because
                a sibling combinator cannot be written as a utility. */

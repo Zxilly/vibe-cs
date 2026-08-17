@@ -31,7 +31,7 @@ import type { ReactNode } from 'react';
 
 import { EmptyState, Skeleton } from '../../../design/data';
 import { Notice } from '../../../design/feedback';
-import { Button, cx } from '../../../design/primitives';
+import { Button, cn } from '../../../design/primitives';
 import { useStartDemoAnalysis } from '../../../data/demos';
 import { dataErrorMessage } from '../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
@@ -82,7 +82,7 @@ export interface ViewPanelProps {
 
 export function ViewPanel({ id, title, hint, actions, children, className }: ViewPanelProps) {
   return (
-    <section data-match-panel={id} className={cx('flex min-w-0 flex-col border border-divider', className)}>
+    <section data-match-panel={id} className={cn('flex min-w-0 flex-col border border-divider', className)}>
       <header className="flex min-h-[var(--h-panel-head)] flex-none flex-wrap items-center gap-3 border-b border-divider px-3.5 py-1">
         {/* `base.css` is unlayered, so its heading rule outranks a utility; the
             head's size is declared inline — still a token. */}

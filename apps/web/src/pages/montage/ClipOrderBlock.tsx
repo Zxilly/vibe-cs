@@ -29,7 +29,7 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, useState, type MouseEvent } from 'react';
 
 import { Dialog } from '../../design/feedback';
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import { useRecordedClips } from '../../data/outputs';
 import { ClipStrip, type MediaClip } from '../../domain/media';
 import type { MontageClipRecord } from '../../shared/desktop/dto';
@@ -151,7 +151,7 @@ export function ClipOrderBlock({ project: desk, selection, service }: MontageBlo
       </header>
 
       <div
-        className={cx('p-3.5', desk.saving && 'opacity-60')}
+        className={cn('p-3.5', desk.saving && 'opacity-60')}
         onDoubleClick={handleDoubleClick}
         data-montage-strip=""
       >

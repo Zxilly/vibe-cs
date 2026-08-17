@@ -21,7 +21,7 @@
 import { t } from '@lingui/core/macro';
 import type { ReactNode } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export interface SkeletonProps {
   /** Any CSS width; the artboard's rows are percentages of the pane. */
@@ -35,7 +35,7 @@ export function Skeleton({ width, className }: SkeletonProps) {
     <span
       aria-hidden="true"
       style={width === undefined ? undefined : { width }}
-      className={cx('block h-3 animate-pulse bg-neutral-200', className)}
+      className={cn('block h-3 animate-pulse bg-neutral-200', className)}
     />
   );
 }
@@ -62,7 +62,7 @@ export function TableSkeleton({ rows = 4, stage, className }: TableSkeletonProps
       role="status"
       aria-busy="true"
       aria-label={t`加载中`}
-      className={cx('flex flex-col gap-3 border border-divider p-4', className)}
+      className={cn('flex flex-col gap-3 border border-divider p-4', className)}
     >
       {/* The header bar of the artboard: shorter and one step taller than a row. */}
       <Skeleton width="40%" className="h-3.5" />

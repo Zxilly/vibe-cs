@@ -25,7 +25,7 @@ import type { ReactNode } from 'react';
 
 import { EmptyState } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import { TaskCard, TaskCardSkeleton } from '../../domain/task';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 import type { TaskCardBindings } from './useTaskActions';
@@ -63,7 +63,7 @@ export function TaskFeedList({
 }: TaskFeedListProps) {
   if (errorMessage !== undefined) {
     return (
-      <div className={cx('p-5', className)}>
+      <div className={cn('p-5', className)}>
         <Notice tone="danger" action={{ label: <Trans>重新加载</Trans>, onAction: onReload }}>
           {errorMessage}
         </Notice>
@@ -73,7 +73,7 @@ export function TaskFeedList({
 
   if (isLoading) {
     return (
-      <div className={cx('flex flex-col gap-5 p-5', className)}>
+      <div className={cn('flex flex-col gap-5 p-5', className)}>
         {Array.from({ length: skeletonRows }, (_unused, index) => (
           // Positional placeholders: they stand for rows that have no identity
           // yet, so the index is the only key there can be.
@@ -85,7 +85,7 @@ export function TaskFeedList({
 
   if (items.length === 0) {
     return (
-      <div className={cx('p-5', className)}>
+      <div className={cn('p-5', className)}>
         <EmptyState
           title={emptyTitle}
           description={emptyDescription}
@@ -97,7 +97,7 @@ export function TaskFeedList({
   }
 
   return (
-    <ul data-task-feed className={cx('m-0 flex list-none flex-col p-0', className)}>
+    <ul data-task-feed className={cn('m-0 flex list-none flex-col p-0', className)}>
       {items.map((item) => {
         const bound = bind(item);
         return (

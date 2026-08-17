@@ -79,7 +79,7 @@ import { Search } from 'lucide-react';
 import { useEffect, useId, useState, type KeyboardEvent, type MouseEvent } from 'react';
 
 import { useOverlayFocus } from '../../design/feedback';
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 import {
   buildCommandList,
   COMMAND_GROUP_LABEL,
@@ -273,7 +273,7 @@ export function CommandPalette({
                         onClick={() => {
                           run(command);
                         }}
-                        className={cx(
+                        className={cn(
                           'flex h-[var(--h-row-compact)] cursor-default items-center gap-3 px-4',
                           isActive
                             ? 'bg-accent-100 text-accent-900 shadow-[inset_2px_0_0_var(--color-accent)]'
@@ -284,7 +284,7 @@ export function CommandPalette({
                         <span className="flex-1" />
                         {command.hint === null ? null : (
                           <span
-                            className={cx(
+                            className={cn(
                               'flex-none text-xs',
                               isActive ? 'text-accent-800' : 'text-neutral-600',
                             )}

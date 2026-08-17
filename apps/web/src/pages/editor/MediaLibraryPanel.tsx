@@ -42,7 +42,7 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, useState } from 'react';
 
 import { EmptyState } from '../../design/data';
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import type { MediaAsset } from '../../shared/desktop/dto';
 import { formatBytes, formatClockDuration, type EditorPanelProps } from './editorContract';
 
@@ -92,7 +92,7 @@ export function MediaLibraryPanel({ desk, service }: EditorPanelProps) {
       <li key={asset.id}>
         <button
           type="button"
-          className={cx(
+          className={cn(
             'flex w-full flex-col gap-0.5 rounded px-3 py-2 text-start text-sm',
             'hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-accent',
             asset.id === selected && 'bg-neutral-100',

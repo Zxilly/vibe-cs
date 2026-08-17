@@ -28,7 +28,7 @@ import { Plural, Trans } from '@lingui/react/macro';
 import { useRef, useState, type DragEvent } from 'react';
 
 import { Dialog, Notice } from '../../design/feedback';
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import type { ServiceActionButtonProps } from './serviceAction';
 
 /** `.zip` is in the artboard's copy: the service unpacks archives of demos. */
@@ -117,7 +117,7 @@ export function ImportDemoDialog({
             setDragging(false);
           }}
           onDrop={onDrop}
-          className={cx(
+          className={cn(
             'grid min-h-[74px] place-items-center border border-dashed p-4 text-center text-sm',
             dragging ? 'border-accent bg-accent-100 text-accent-800' : 'border-neutral-400 text-neutral-600',
           )}

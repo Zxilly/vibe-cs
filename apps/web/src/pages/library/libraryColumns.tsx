@@ -24,7 +24,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import type { DataTableColumn } from '../../design/data';
-import { Button, cx, Tag } from '../../design/primitives';
+import { Button, cn, Tag } from '../../design/primitives';
 import { StatusDot } from '../../design/feedback';
 import type { DemoSummary } from '../../shared/desktop/viewModels';
 import { RouteLink } from '../RouteLink';
@@ -166,7 +166,7 @@ function DemoStatusCell({ demo }: { demo: DemoSummary }) {
   }
   return (
     <span
-      className={cx('inline-flex items-center gap-2 text-xs', meta.tone === 'fail' && 'text-fail-text')}
+      className={cn('inline-flex items-center gap-2 text-xs', meta.tone === 'fail' && 'text-fail-text')}
     >
       <StatusDot status={STATUS_DOT[meta.tone]} size="sm" />
       {label}

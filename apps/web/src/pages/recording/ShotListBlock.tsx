@@ -44,7 +44,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAgentPlan } from '../../data/plans';
 import { EmptyState, Skeleton } from '../../design/data';
 import { StatusDot } from '../../design/feedback';
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import { formatShotDuration, formatTickRange } from '../../domain/agent';
 import type { AgentPlan } from '../../shared/desktop/dto';
 import { agentPlanHandoff } from '../agent/agentHandoff';
@@ -150,7 +150,7 @@ export function ShotListBlock({ agentPlanId, plan, selection, service }: Recordi
                   onDragEnd={() => setDragFrom(null)}
                   onClick={() => selection.select(item.id)}
                   onKeyDown={(event) => onRowKeyDown(event, index, item.id)}
-                  className={cx(
+                  className={cn(
                     'flex cursor-default gap-2.5 border-b border-divider px-4 py-3',
                     'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
                     selected ? 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]' : null,
@@ -161,14 +161,14 @@ export function ShotListBlock({ agentPlanId, plan, selection, service }: Recordi
                       would be a tab stop that does nothing new. */}
                   <span
                     aria-hidden="true"
-                    className={cx('text-sm', selected ? 'text-accent' : 'text-neutral-500')}
+                    className={cn('text-sm', selected ? 'text-accent' : 'text-neutral-500')}
                   >
                     ⠿
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-2">
                       <span
-                        className={cx('truncate text-sm', selected ? 'text-accent-900' : null)}
+                        className={cn('truncate text-sm', selected ? 'text-accent-900' : null)}
                       >
                         {ordinal(index)} {item.title}
                       </span>
@@ -179,7 +179,7 @@ export function ShotListBlock({ agentPlanId, plan, selection, service }: Recordi
                       )}
                     </div>
                     <div
-                      className={cx(
+                      className={cn(
                         'mt-0.5 truncate text-xs',
                         selected ? 'text-accent-800' : 'text-neutral-600',
                       )}

@@ -34,7 +34,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { KeyboardEvent } from 'react';
 
-import { Button, Field, Seg, TextInput, cx } from '../../design/primitives';
+import { Button, Field, Seg, TextInput, cn } from '../../design/primitives';
 import {
   AGENT_PLAN_AUTHOR,
   AGENT_SHOT_KIND,
@@ -129,7 +129,7 @@ export function ShotEditForm({
     <form
       data-shot-edit={shot.id}
       aria-label={t`编辑镜头 ${number}`}
-      className={cx('flex flex-col gap-3 border-2 border-accent p-3.5', className)}
+      className={cn('flex flex-col gap-3 border-2 border-accent p-3.5', className)}
       onKeyDown={onKeyDown}
       onSubmit={(event) => {
         event.preventDefault();

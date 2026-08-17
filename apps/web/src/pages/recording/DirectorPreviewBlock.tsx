@@ -60,7 +60,7 @@ import { useMapRadarOverview } from '../../data/match';
 import { useNativeShell } from '../../data/nativeShell';
 import { EmptyState } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Tag, cx } from '../../design/primitives';
+import { Button, Tag, cn } from '../../design/primitives';
 import { formatTickRange } from '../../domain/agent';
 import {
   CameraPathLayer,
@@ -590,7 +590,7 @@ function DirectorExplanation({ shot }: { readonly shot: DirectorShot | null }) {
       ) : null}
       {shot.explanation === '' ? null : <p className="mt-1 text-text">{shot.explanation}</p>}
       {shot.evidence.length === 0 ? null : (
-        <ul className={cx('mt-1.5 flex list-none flex-wrap gap-2 font-mono text-2xs text-neutral-600')}>
+        <ul className={cn('mt-1.5 flex list-none flex-wrap gap-2 font-mono text-2xs text-neutral-600')}>
           {shot.evidence.map((entry) => (
             <li key={entry}>{entry}</li>
           ))}

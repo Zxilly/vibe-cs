@@ -20,7 +20,7 @@ import { Plural, Trans } from '@lingui/react/macro';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 import { paginationRange } from './paginationModel';
 import { clampPage, pageCount as pageCountOf, pageRange } from './tableModel';
 
@@ -55,7 +55,7 @@ export function Pagination({
   return (
     <nav
       aria-label={t`分页`}
-      className={cx(
+      className={cn(
         'flex h-[var(--h-bar)] flex-none items-center gap-3 border-t border-divider px-6',
         className,
       )}
@@ -93,7 +93,7 @@ export function Pagination({
               aria-label={t`第 ${slot} 页`}
               aria-current={slot === current ? 'page' : undefined}
               onClick={() => onPageChange(slot)}
-              className={cx(
+              className={cn(
                 'inline-flex h-[var(--h-ctl-sm)] min-w-[var(--h-ctl-sm)] items-center justify-center border px-2 text-sm tabular-nums',
                 slot === current
                   ? 'border-accent bg-accent-100 text-accent-800'

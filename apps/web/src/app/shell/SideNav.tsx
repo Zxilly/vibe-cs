@@ -32,7 +32,7 @@ import { useId, useState, type KeyboardEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { useShellCollapsed } from '../../design/layout';
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import {
   activeNavItemId,
   SHELL_NAV_FOOTER_ITEM,
@@ -93,13 +93,13 @@ export function SideNav({ collapsed, onToggleCollapsed, badges, className }: Sid
             to={item.to}
             data-nav-item={item.id}
             aria-current={active ? 'page' : undefined}
-            className={cx(ITEM_CLASS, active ? ITEM_ACTIVE_CLASS : ITEM_IDLE_CLASS)}
+            className={cn(ITEM_CLASS, active ? ITEM_ACTIVE_CLASS : ITEM_IDLE_CLASS)}
           >
             <Icon
               size={16}
               strokeWidth={1.5}
               aria-hidden="true"
-              className={cx('flex-none', active ? undefined : 'opacity-70')}
+              className={cn('flex-none', active ? undefined : 'opacity-70')}
             />
             <span className="min-w-0 truncate">{label}</span>
             {hasBadge ? <span className={BADGE_CLASS}>{badge}</span> : null}
@@ -121,7 +121,7 @@ export function SideNav({ collapsed, onToggleCollapsed, badges, className }: Sid
           to={item.to}
           data-nav-item={item.id}
           aria-current={active ? 'page' : undefined}
-          className={cx(CELL_CLASS, active ? CELL_ACTIVE_CLASS : CELL_IDLE_CLASS)}
+          className={cn(CELL_CLASS, active ? CELL_ACTIVE_CLASS : CELL_IDLE_CLASS)}
         >
           <Icon size={16} strokeWidth={1.5} aria-hidden="true" className={active ? undefined : 'opacity-70'} />
           <span className="sr-only">{label}</span>
@@ -132,7 +132,7 @@ export function SideNav({ collapsed, onToggleCollapsed, badges, className }: Sid
             <span
               aria-hidden="true"
               data-nav-badge={item.id}
-              className={cx('absolute top-0.5 right-0.5 size-1.5', active ? 'bg-bg' : 'bg-accent')}
+              className={cn('absolute top-0.5 right-0.5 size-1.5', active ? 'bg-bg' : 'bg-accent')}
             />
           ) : null}
         </Link>
@@ -165,7 +165,7 @@ export function SideNav({ collapsed, onToggleCollapsed, badges, className }: Sid
       aria-label={t`主导航`}
       data-shell-nav={isCollapsed ? 'collapsed' : 'expanded'}
       onKeyDown={onKeyDown}
-      className={cx(
+      className={cn(
         'flex flex-none flex-col border-r border-divider bg-surface-chrome',
         isCollapsed ? 'w-[var(--w-nav-collapsed)] items-center py-2.5' : 'w-[var(--w-nav)] py-3.5',
         className,
@@ -198,12 +198,12 @@ export function SideNav({ collapsed, onToggleCollapsed, badges, className }: Sid
       <span className="flex-1" />
 
       <div
-        className={cx(
+        className={cn(
           'flex w-full items-center border-t border-divider pt-1.5',
           isCollapsed ? 'flex-col gap-1.5' : 'gap-1.5 px-3',
         )}
       >
-        <ul className={cx('flex', isCollapsed ? 'flex-col items-center gap-1.5' : 'min-w-0 flex-1 flex-col')}>
+        <ul className={cn('flex', isCollapsed ? 'flex-col items-center gap-1.5' : 'min-w-0 flex-1 flex-col')}>
           {renderItem(SHELL_NAV_FOOTER_ITEM, null)}
         </ul>
         <Button

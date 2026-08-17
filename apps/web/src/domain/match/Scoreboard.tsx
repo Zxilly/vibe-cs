@@ -37,7 +37,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { ArrowLeftRight } from 'lucide-react';
 
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 import { TEAM_SIDE, type TeamSide } from './matchEnums';
 import type { MatchPeriod, TeamScore } from './types';
 
@@ -92,11 +92,11 @@ export function Scoreboard({
     <div
       data-scoreboard=""
       data-size={size}
-      className={cx('flex min-w-0 flex-col justify-center gap-0.5', className)}
+      className={cn('flex min-w-0 flex-col justify-center gap-0.5', className)}
     >
       <div className="flex min-w-0 items-center gap-3">
         <SideBadge side={teamA.side} />
-        <span data-scoreboard-team="a" className={cx('min-w-0 truncate', NAME_CLASS[size])}>
+        <span data-scoreboard-team="a" className={cn('min-w-0 truncate', NAME_CLASS[size])}>
           {teamA.name}
         </span>
         {/* One readable sentence for assistive technology; the three visual
@@ -106,10 +106,10 @@ export function Scoreboard({
             比分 {spoken(teamA)} 比 {spoken(teamB)}
           </Trans>
         </span>
-        <span data-scoreboard-score="" aria-hidden="true" className={cx('flex-none', SCORE_CLASS[size])}>
+        <span data-scoreboard-score="" aria-hidden="true" className={cn('flex-none', SCORE_CLASS[size])}>
           {scoreText(teamA.score)} : {scoreText(teamB.score)}
         </span>
-        <span data-scoreboard-team="b" className={cx('min-w-0 truncate', NAME_CLASS[size])}>
+        <span data-scoreboard-team="b" className={cn('min-w-0 truncate', NAME_CLASS[size])}>
           {teamB.name}
         </span>
         <SideBadge side={teamB.side} />

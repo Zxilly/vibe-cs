@@ -37,7 +37,7 @@ import {
 } from 'react';
 
 import { useCollapsed } from './collapse';
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export type InspectorWidth = 'standard' | 'wide';
 
@@ -195,7 +195,7 @@ export function Inspector({
       <aside
         aria-label={label}
         data-inspector="docked"
-        className={cx(
+        className={cn(
           'flex min-h-0 flex-none flex-col border-l border-divider',
           WIDTH_CLASS[width],
           className,
@@ -212,7 +212,7 @@ export function Inspector({
     <>
       <div
         data-inspector="summary"
-        className={cx(
+        className={cn(
           'flex h-[var(--h-bar)] flex-none items-center gap-3 border-t border-divider bg-surface-chrome px-7',
           className,
         )}
@@ -256,7 +256,7 @@ export function Inspector({
             aria-label={label}
             tabIndex={-1}
             onKeyDown={onPanelKeyDown}
-            className={cx(
+            className={cn(
               'relative flex h-full flex-col border-l border-divider bg-bg shadow-[var(--shadow-lg)]',
               WIDTH_CLASS[width],
             )}

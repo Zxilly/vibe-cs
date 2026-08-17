@@ -55,7 +55,7 @@ import { useMatchAnalysis, useMatchHeatPoints, useMatchReplay, useMapRadarOvervi
 import { dataErrorMessage } from '../../../data/errors';
 import { EmptyState, Skeleton } from '../../../design/data';
 import { Notice } from '../../../design/feedback';
-import { Button, Checkbox, Seg, cx } from '../../../design/primitives';
+import { Button, Checkbox, Seg, cn } from '../../../design/primitives';
 import {
   DEFAULT_HEAT_GRID_SIZE,
   DEFAULT_HEAT_STEPS,
@@ -371,7 +371,7 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
                         data-replay-player={player.id}
                         aria-pressed={focused}
                         onClick={() => updateContext({ player: focused ? null : player.id })}
-                        className={cx(
+                        className={cn(
                           'flex w-full items-center gap-2 px-1 py-1 text-left text-sm',
                           'hover:bg-surface',
                           'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent',
@@ -380,7 +380,7 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
                       >
                         <span
                           aria-hidden="true"
-                          className={cx(
+                          className={cn(
                             'grid size-4 flex-none place-items-center text-2xs',
                             focused ? 'bg-accent text-bg' : 'border border-neutral-400',
                           )}

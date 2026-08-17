@@ -20,7 +20,7 @@
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 
 export interface CompositionRowProps {
   /** One-based slot number — the 「02」 the panel and the strip share. */
@@ -49,7 +49,7 @@ export function CompositionRow({
     <article
       data-composition-slot={index}
       {...(emphasis ? { 'data-composition-emphasis': 'true' } : {})}
-      className={cx(
+      className={cn(
         'flex items-center gap-3 border p-3 text-sm',
         emphasis ? 'border-accent bg-accent-100' : 'border-divider',
         className,

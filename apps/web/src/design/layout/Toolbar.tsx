@@ -29,7 +29,7 @@ import { t } from '@lingui/core/macro';
 import type { ReactNode } from 'react';
 
 import { useCollapsed } from './collapse';
-import { cx } from './cx';
+import { cn } from '../cn';
 import { OverflowMenu, type OverflowMenuItem } from './OverflowMenu';
 
 export type ToolbarHeight = 'topbar' | 'bar' | 'panel';
@@ -138,7 +138,7 @@ export function Toolbar({
       data-toolbar
       data-toolbar-height={height}
       data-collapsed={String(isCollapsed)}
-      className={cx(
+      className={cn(
         'flex flex-none items-center border-b border-divider',
         HEIGHT_CLASS[height],
         tone === 'chrome' && 'bg-surface-chrome',

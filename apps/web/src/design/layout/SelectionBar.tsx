@@ -21,7 +21,7 @@
 
 import type { ReactNode } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export interface SelectionBarProps {
   /** 「已选 3 场 · 上限 12 场」 — announced whenever it changes. */
@@ -37,7 +37,7 @@ export function SelectionBar({ summary, children, primary, className }: Selectio
   return (
     <div
       data-selection-bar
-      className={cx(
+      className={cn(
         'flex h-[var(--h-bar)] flex-none items-center gap-3.5 border-t border-divider bg-accent-100 px-7',
         className,
       )}

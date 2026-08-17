@@ -35,7 +35,7 @@ import { useMemo, type ReactNode } from 'react';
 
 import { EmptyState, Skeleton } from '../../design/data';
 import { Notice, type NoticeAction } from '../../design/feedback';
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 import { formatTimecode } from '../../design/timeline';
 
 import { progressPercent } from './transportModel';
@@ -120,7 +120,7 @@ export function Waveform({
   if (loading) {
     return (
       <div
-        className={cx(
+        className={cn(
           WAVEFORM_MIN_HEIGHT_CLASS,
           'flex flex-col justify-center gap-3 border border-divider px-4',
           className,
@@ -156,7 +156,7 @@ export function Waveform({
       role="img"
       aria-label={label ?? describe(durationSeconds, hasSelection ? { from, to } : undefined)}
       data-selected={hasSelection ? 'true' : 'false'}
-      className={cx(WAVEFORM_MIN_HEIGHT_CLASS, 'relative overflow-hidden border border-divider', className)}
+      className={cn(WAVEFORM_MIN_HEIGHT_CLASS, 'relative overflow-hidden border border-divider', className)}
     >
       <svg
         viewBox={`0 0 ${PEAK_VIEW_WIDTH} ${PEAK_VIEW_HEIGHT}`}

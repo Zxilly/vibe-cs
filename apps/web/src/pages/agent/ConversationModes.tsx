@@ -50,7 +50,7 @@ import { dataErrorMessage } from '../../data/errors';
 import { useAgentPlanList } from '../../data/plans';
 import { EmptyState, Skeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Tag, cx } from '../../design/primitives';
+import { Button, Tag, cn } from '../../design/primitives';
 import {
   AGENT_PLAN_STATUS,
   PlanShotRow,
@@ -382,7 +382,7 @@ function PlanPicker({ context, updateContext, title, description }: PlanPickerPr
             key={item.id}
             size="sm"
             data-plan-option={item.id}
-            className={cx(item.id === context.plan && 'border-accent')}
+            className={cn(item.id === context.plan && 'border-accent')}
             onClick={() => updateContext({ plan: item.id })}
           >
             {item.title}

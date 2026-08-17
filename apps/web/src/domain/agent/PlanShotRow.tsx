@@ -46,7 +46,7 @@ import { TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Button, Tag, cx } from '../../design/primitives';
+import { Button, Tag, cn } from '../../design/primitives';
 import type { AgentPlanShot } from '../../shared/desktop/dto';
 
 import { formatShotDuration, formatTickRange } from './shotFormat';
@@ -111,7 +111,7 @@ export function PlanShotRow({
         <span className="sr-only"> {i18n._(kind.label)}</span>
       </Tag>
       <span
-        className={cx(
+        className={cn(
           'min-w-0 truncate font-heading',
           density === 'card' ? 'text-lg' : 'text-base',
           removed && 'text-neutral-600',
@@ -203,7 +203,7 @@ export function PlanShotRow({
     </>
   );
 
-  const frame = cx(
+  const frame = cn(
     'flex flex-col gap-2 border p-3.5 text-left',
     density === 'compact' && 'gap-1 p-3',
     removed
@@ -281,7 +281,7 @@ export function PlanShotRowSkeleton({
       role="status"
       aria-busy="true"
       aria-label={i18n._(LOADING_LABEL)}
-      className={cx('flex flex-col gap-2 border border-divider p-3.5', density === 'compact' && 'p-3', className)}
+      className={cn('flex flex-col gap-2 border border-divider p-3.5', density === 'compact' && 'p-3', className)}
     >
       <Skeleton width="52%" className="h-3.5" />
       {density === 'compact' ? null : <Skeleton width="86%" />}

@@ -31,7 +31,7 @@ import { Folder } from 'lucide-react';
 import { useId } from 'react';
 import type { ReactNode } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export type EmptyStateTone = 'empty' | 'error';
 
@@ -87,7 +87,7 @@ export function EmptyState({
     <section
       aria-labelledby={headingId}
       data-tone={resolvedTone}
-      className={cx(
+      className={cn(
         EMPTY_STATE_MIN_HEIGHT_CLASS,
         'flex flex-col items-center justify-center gap-2 border p-5 text-center',
         resolvedTone === 'error' ? 'border-fail-border' : 'border-divider',
@@ -97,13 +97,13 @@ export function EmptyState({
       {resolvedIcon ?? null}
       <Heading
         id={headingId}
-        className={cx('font-heading text-lg', resolvedTone === 'error' ? 'text-fail-text' : null)}
+        className={cn('font-heading text-lg', resolvedTone === 'error' ? 'text-fail-text' : null)}
       >
         {title ?? content?.title}
       </Heading>
       {resolvedDescription === undefined ? null : (
         <p
-          className={cx(
+          className={cn(
             'max-w-[46ch] text-xs leading-normal',
             resolvedTone === 'error' ? 'text-neutral-800' : 'text-neutral-700',
           )}

@@ -24,4 +24,4 @@ export {
   CONTROL_TEXT_CLASS,
   type ControlSize,
 } from './controlSize';
-export { cx, type ClassValue } from './cx';
+export { cn, type ClassValue } from '../cn';

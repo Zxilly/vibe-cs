@@ -30,7 +30,7 @@ import { Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
 import type { ReactNode } from 'react';
 
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 import type { AgentPlanShot } from '../../shared/desktop/dto';
 
 import { formatShotDuration, formatStripTimecode } from './shotFormat';
@@ -96,14 +96,14 @@ export function PlanStrip({
   const byId = new Map(shots.map((shot) => [shot.id, shot]));
 
   return (
-    <div data-plan-strip="" className={cx('flex flex-col gap-1.5', className)}>
+    <div data-plan-strip="" className={cn('flex flex-col gap-1.5', className)}>
       <div className="flex items-center gap-3">
         {caption === undefined ? null : (
           <span data-plan-strip-caption="" className="flex-none text-xs text-neutral-600">
             {caption}
           </span>
         )}
-        <ol aria-label={label} className={cx('flex min-w-0 flex-1 gap-[3px]', HEIGHT_CLASS[height])}>
+        <ol aria-label={label} className={cn('flex min-w-0 flex-1 gap-[3px]', HEIGHT_CLASS[height])}>
           {segments.map((segment) => (
             <StripBlock
               key={segment.id}
@@ -169,7 +169,7 @@ function StripBlock({ segment, selected, onSelect }: StripBlockProps) {
       ? `${segment.label} ${duration}`
       : `${number} ${segment.label} ${duration}`;
 
-  const shared = cx(
+  const shared = cn(
     'flex min-w-0 items-center justify-center gap-1.5 overflow-hidden px-1 text-2xs whitespace-nowrap',
     TONE_CLASS[segment.tone],
     selected && 'outline-2 -outline-offset-2 outline-accent-900',
@@ -184,7 +184,7 @@ function StripBlock({ segment, selected, onSelect }: StripBlockProps) {
       title={`${segment.label} · ${duration}`}
     >
       {onSelect === undefined ? (
-        <span className={cx(shared, 'flex-1')} aria-label={name}>
+        <span className={cn(shared, 'flex-1')} aria-label={name}>
           {body}
         </span>
       ) : (
@@ -193,7 +193,7 @@ function StripBlock({ segment, selected, onSelect }: StripBlockProps) {
           onClick={onSelect}
           aria-pressed={selected}
           aria-label={name}
-          className={cx(shared, 'flex-1')}
+          className={cn(shared, 'flex-1')}
         >
           {body}
         </button>

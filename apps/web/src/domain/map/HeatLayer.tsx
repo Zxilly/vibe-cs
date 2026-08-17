@@ -30,7 +30,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { cx } from '../../design/layout';
+import { cn } from '../../design/layout';
 import { DEFAULT_HEAT_STEPS, type HeatDistribution } from './heatBinning';
 import { LayerEmpty } from './LayerEmpty';
 import type { MapProjection } from './mapProjection';
@@ -116,7 +116,7 @@ export function HeatLayer({ projection, distribution, visible = true, subject, c
           y={projection.offsetY + bin.y * projection.extent}
           width={cellSize}
           height={cellSize}
-          className={cx(rungClass(bin.step, HEAT_STEP_FILL), 'opacity-70')}
+          className={cn(rungClass(bin.step, HEAT_STEP_FILL), 'opacity-70')}
           data-step={bin.step}
           data-weight={bin.weight}
         />
@@ -150,7 +150,7 @@ export function HeatLegend({ distribution, caption, className }: HeatLegendProps
 
   if (bins.length === 0) {
     return (
-      <div className={cx('flex flex-col gap-2 text-xs leading-normal text-neutral-700', className)}>
+      <div className={cn('flex flex-col gap-2 text-xs leading-normal text-neutral-700', className)}>
         <p>
           <Trans>当前条件下没有采样点，因此没有密度可比。</Trans>
         </p>
@@ -160,14 +160,14 @@ export function HeatLegend({ distribution, caption, className }: HeatLegendProps
   }
 
   return (
-    <div className={cx('flex flex-col gap-2', className)} data-testid="heat-legend">
+    <div className={cn('flex flex-col gap-2', className)} data-testid="heat-legend">
       <div
         className="flex h-[14px] border border-divider"
         role="img"
         aria-label={t`密度色阶，从 ${minWeight} 次到 ${maxWeight} 次`}
       >
         {Array.from({ length: rungs }, (_, index) => (
-          <span key={index} className={cx('flex-1', rungClass(index + 1, HEAT_STEP_BACKGROUND))} />
+          <span key={index} className={cn('flex-1', rungClass(index + 1, HEAT_STEP_BACKGROUND))} />
         ))}
       </div>
       <div className="flex justify-between text-2xs text-neutral-600">

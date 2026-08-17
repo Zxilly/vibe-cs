@@ -221,10 +221,13 @@ describe('pointer capture', () => {
   });
 
   it('drags perfectly well without it', () => {
-    // jsdom implements neither method, so every other test in this file is
-    // already the uncaptured path — this one states it.
+    // jsdom has no pointer capture of its own; `setup.dom.ts` installs a no-op
+    // so that Radix can mount, so the runtime-without-it path is stated here
+    // rather than left to the absence.
     const { handle, trim, num } = setup();
-    expect('setPointerCapture' in handle('left', 'out')).toBe(false);
+    const element = handle('left', 'out');
+    Object.assign(element, { setPointerCapture: undefined, releasePointerCapture: undefined });
+
     trim('left', 'out', 24);
     expect(num('left', 'duration')).toBe(12);
   });

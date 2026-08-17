@@ -44,7 +44,7 @@ import { Trans } from '@lingui/react/macro';
 import { Fragment, useMemo, useState } from 'react';
 
 import { EmptyState } from '../../design/data';
-import { Button, Field, TextInput, cx } from '../../design/primitives';
+import { Button, Field, TextInput, cn } from '../../design/primitives';
 import { clipSourceOut, formatFrameTimecode } from '../../design/timeline';
 import { clipAllows, clipRestrictions } from './editorDocument';
 import { firstRestrictionMessage } from './editorMessages';
@@ -279,7 +279,7 @@ function ReadOnlyGroup({
         {/* Every value here is real and comes from the document; what is
             missing is a control, not the data. Saying so beats a group of
             inputs that look editable and are not. */}
-        <span className={cx('ms-2', 'text-neutral-600')}>
+        <span className={cn('ms-2', 'text-neutral-600')}>
           <Trans>只读</Trans>
         </span>
       </h3>

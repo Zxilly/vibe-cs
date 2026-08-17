@@ -29,7 +29,7 @@ import { t } from '@lingui/core/macro';
 import type { ReactNode } from 'react';
 
 import { useCollapsed } from './collapse';
-import { cx } from './cx';
+import { cn } from '../cn';
 import { OverflowMenu, type OverflowMenuItem } from './OverflowMenu';
 
 export interface SubNavItem {
@@ -118,7 +118,7 @@ export function SubNav({
       <nav
         aria-label={label}
         data-subnav="rail"
-        className={cx(
+        className={cn(
           'flex w-[var(--w-subnav)] flex-none flex-col border-r border-divider py-3.5',
           className,
         )}
@@ -131,7 +131,7 @@ export function SubNav({
                 data-subnav-item={item.id}
                 disabled={item.disabled === true}
                 aria-current={item.id === activeId ? 'page' : undefined}
-                className={cx(RAIL_ITEM_CLASS, item.id === activeId && RAIL_ACTIVE_CLASS)}
+                className={cn(RAIL_ITEM_CLASS, item.id === activeId && RAIL_ACTIVE_CLASS)}
                 onClick={() => onSelect?.(item.id)}
               >
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -159,7 +159,7 @@ export function SubNav({
     <nav
       aria-label={label}
       data-subnav="tabs"
-      className={cx(
+      className={cn(
         'flex h-[var(--h-row-compact)] flex-none items-center overflow-hidden border-b border-divider px-2',
         className,
       )}
@@ -172,7 +172,7 @@ export function SubNav({
               data-subnav-item={item.id}
               disabled={item.disabled === true}
               aria-current={item.id === activeId ? 'page' : undefined}
-              className={cx(TAB_ITEM_CLASS, item.id === activeId && TAB_ACTIVE_CLASS)}
+              className={cn(TAB_ITEM_CLASS, item.id === activeId && TAB_ACTIVE_CLASS)}
               onClick={() => onSelect?.(item.id)}
             >
               <span className="truncate">{item.label}</span>

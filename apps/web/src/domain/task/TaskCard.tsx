@@ -42,7 +42,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Notice, ProgressBar, StageBar, StatusDot, type Stage } from '../../design/feedback';
-import { Button, Link, cx } from '../../design/primitives';
+import { Button, Link, cn } from '../../design/primitives';
 import { Skeleton } from '../../design/data';
 
 import { TaskDuration } from './TaskDuration';
@@ -126,7 +126,7 @@ export function TaskCard({
       data-task={task.id}
       data-task-kind={task.kind}
       data-task-status={task.status}
-      className={cx('flex gap-3', className)}
+      className={cn('flex gap-3', className)}
     >
       <StatusDot status={TASK_STATUS_DOT[task.status]} size="lg" className="mt-1.5" />
 
@@ -140,7 +140,7 @@ export function TaskCard({
           <span className="ml-auto flex-none font-mono text-xs text-neutral-600">{task.id}</span>
         </div>
 
-        <p className={cx('text-xs leading-normal', failed ? 'text-fail-text' : 'text-neutral-600')}>
+        <p className={cn('text-xs leading-normal', failed ? 'text-fail-text' : 'text-neutral-600')}>
           <Separated items={facts} />
         </p>
 
@@ -178,7 +178,7 @@ export function TaskCard({
                   key={artifact.id}
                   href={artifact.href}
                   size="sm"
-                  className={cx(artifact.missing === true && 'text-fail-text')}
+                  className={cn(artifact.missing === true && 'text-fail-text')}
                 >
                   {artifact.label}
                 </Link>
@@ -261,7 +261,7 @@ export function TaskCardSkeleton({ className }: { readonly className?: string | 
       role="status"
       aria-busy="true"
       aria-label={t`加载任务记录`}
-      className={cx('flex gap-3', className)}
+      className={cn('flex gap-3', className)}
     >
       <span aria-hidden="true" className="mt-1.5 block size-[9px] flex-none animate-pulse bg-neutral-200" />
       <div className="flex min-w-0 flex-1 flex-col gap-2">

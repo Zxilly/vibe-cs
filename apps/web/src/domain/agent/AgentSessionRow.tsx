@@ -32,7 +32,7 @@
 import { Plural, Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Tag, cx } from '../../design/primitives';
+import { Tag, cn } from '../../design/primitives';
 import type { AgentObjectRef, AgentSessionSummary } from '../../shared/desktop/dto';
 
 import { AgentObjectRefChip } from './AgentObjectRefChip';
@@ -84,7 +84,7 @@ export function AgentSessionRow({
       <time
         dateTime={session.updated_at}
         title={stamp.kind === 'yesterday' ? stamp.text : undefined}
-        className={cx('ml-auto flex-none text-2xs', stamp.kind === 'yesterday' ? null : 'font-mono', 'text-neutral-600')}
+        className={cn('ml-auto flex-none text-2xs', stamp.kind === 'yesterday' ? null : 'font-mono', 'text-neutral-600')}
       >
         {stamp.kind === 'yesterday' ? <Trans>昨天</Trans> : stamp.text}
       </time>
@@ -96,7 +96,7 @@ export function AgentSessionRow({
       data-agent-session={session.id}
       data-stamp={stamp.kind}
       aria-current={current ? true : undefined}
-      className={cx(
+      className={cn(
         'flex flex-col gap-1.5 border-b border-divider p-3',
         selected && SELECTED_CLASS,
         className,

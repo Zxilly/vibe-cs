@@ -35,7 +35,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { Tag, cx } from '../../design/primitives';
+import { Tag, cn } from '../../design/primitives';
 import type { AgentSessionProposal } from '../../shared/desktop/dto';
 
 import { changeSetIsStale, pendingChangeCount } from './planRevision';
@@ -69,7 +69,7 @@ export function AgentProposalCard({
     <section
       data-agent-proposal={proposal.kind}
       {...(stale ? { 'data-proposal-state': 'stale' } : {})}
-      className={cx('flex flex-col gap-2 border border-divider p-3', className)}
+      className={cn('flex flex-col gap-2 border border-divider p-3', className)}
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <h4 className="min-w-0 flex-1 truncate font-heading text-base leading-tight font-normal">

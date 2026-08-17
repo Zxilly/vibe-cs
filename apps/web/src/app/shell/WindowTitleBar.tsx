@@ -38,7 +38,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { cx } from '../../design/layout';
+import { cn } from '../../design/layout';
 import { isDesktopShell } from '../../shared/desktop/dialog';
 import { ServiceStatusMarker, type ServiceStatus } from '../boundary';
 import { useShellStore } from './shellStore';
@@ -209,14 +209,14 @@ export function WindowTitleBar({
       data-shell-titlebar={collapsed ? 'nav-collapsed' : 'nav-expanded'}
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
-      className={cx(
+      className={cn(
         'flex h-[var(--h-titlebar)] flex-none items-stretch border-b border-divider bg-surface-chrome',
         className,
       )}
     >
       <div
         data-titlebar-brand
-        className={cx(
+        className={cn(
           'flex flex-none items-center gap-2 border-r border-divider',
           collapsed ? 'w-[var(--w-nav-collapsed)] justify-center' : 'w-[var(--w-nav)] px-4',
         )}
@@ -310,7 +310,7 @@ export function WindowTitleBar({
           aria-label={t`关闭窗口`}
           title={t`关闭窗口`}
           onClick={() => void controller.close()}
-          className={cx(CONTROL_CLASS, 'hover:bg-fail hover:text-bg')}
+          className={cn(CONTROL_CLASS, 'hover:bg-fail hover:text-bg')}
         >
           <X size={14} strokeWidth={1.5} aria-hidden="true" />
         </button>

@@ -46,7 +46,7 @@ import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 import { EmptyState, Skeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 import { KEY_ROUND, ROUND_END_REASON } from './matchEnums';
 import { planRoundStrip } from './roundTimelineLayout';
 import type { LoadFailure, RoundSummary } from './types';
@@ -156,7 +156,7 @@ export function RoundTimeline({
   };
 
   return (
-    <section data-round-timeline="" className={cx('flex flex-col border border-divider', className)}>
+    <section data-round-timeline="" className={cn('flex flex-col border border-divider', className)}>
       <header className={HEADER_CLASS}>
         <h3 className="font-heading text-base tracking-wide">
           <Trans>回合时间线</Trans>
@@ -226,13 +226,13 @@ export function RoundTimeline({
                 tabIndex={index === focusIndex ? 0 : -1}
                 onClick={() => onSelectRound?.(round.number)}
                 onKeyDown={(event) => onKeyDown(event, index)}
-                className={cx(CELL_CLASS, WINNER_FILL[round.winner], selected ? SELECTED_CLASS : null)}
+                className={cn(CELL_CLASS, WINNER_FILL[round.winner], selected ? SELECTED_CLASS : null)}
               >
                 {/* Winner rule: top edge for A, bottom edge for B. `order` puts
                     it on the right edge without two branches of markup. */}
                 <span
                   aria-hidden="true"
-                  className={cx(
+                  className={cn(
                     'h-[3px] flex-none',
                     WINNER_RULE[round.winner],
                     round.winner === 'b' ? 'order-3' : 'order-1',
@@ -252,7 +252,7 @@ export function RoundTimeline({
                 {round.key === true ? (
                   <span
                     aria-hidden="true"
-                    className={cx('h-[3px] flex-none bg-text', round.winner === 'b' ? 'order-1' : 'order-3')}
+                    className={cn('h-[3px] flex-none bg-text', round.winner === 'b' ? 'order-1' : 'order-3')}
                   />
                 ) : null}
                 <span className="sr-only">
@@ -297,12 +297,12 @@ function LegendEntry({
       <span
         aria-hidden="true"
         data-legend-position={position}
-        className={cx(
+        className={cn(
           'flex h-3 w-3 flex-none flex-col border border-divider',
           position === 'bottom' ? 'justify-end' : 'justify-start',
         )}
       >
-        <span className={cx('h-[3px]', ruleClass)} />
+        <span className={cn('h-[3px]', ruleClass)} />
       </span>
       {children}
     </span>

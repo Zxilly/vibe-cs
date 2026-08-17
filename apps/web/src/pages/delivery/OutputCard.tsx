@@ -31,7 +31,7 @@ import { Film } from 'lucide-react';
 
 import { formatTaskClock } from '../../domain/task';
 import { EMPTY_STATE_MIN_HEIGHT_CLASS } from '../../design/data';
-import { Button, cx } from '../../design/primitives';
+import { Button, cn } from '../../design/primitives';
 import type { OutputItem } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
 import { formatBytes, outputDeletionRemovesFile, outputFileIsUsable } from './outputModel';
@@ -72,7 +72,7 @@ export function OutputCard({
       data-output={output.id}
       data-output-kind={output.output_kind}
       data-output-availability={output.availability}
-      className={cx(
+      className={cn(
         'flex gap-4 border p-4',
         usable ? 'border-divider' : 'border-fail-border',
         className,
@@ -87,7 +87,7 @@ export function OutputCard({
        */}
       <div
         aria-hidden="true"
-        className={cx(
+        className={cn(
           'grid aspect-video w-[var(--w-track-head)] flex-none place-items-center border',
           usable ? 'border-divider bg-neutral-100 text-neutral-600' : 'border-fail-border text-fail-text',
         )}
@@ -104,7 +104,7 @@ export function OutputCard({
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <h3 className="min-w-0 truncate text-md leading-tight font-normal">{output.file_name}</h3>
 
-        <p className={cx('text-xs leading-normal', usable ? 'text-neutral-700' : 'text-fail-text')}>
+        <p className={cn('text-xs leading-normal', usable ? 'text-neutral-700' : 'text-fail-text')}>
           {usable ? (
             <>
               {size === null ? null : <>{size}{' · '}</>}
@@ -161,7 +161,7 @@ export function OutputCardSkeleton() {
     <div
       role="status"
       aria-busy="true"
-      className={cx('flex gap-4 border border-divider p-4', EMPTY_STATE_MIN_HEIGHT_CLASS)}
+      className={cn('flex gap-4 border border-divider p-4', EMPTY_STATE_MIN_HEIGHT_CLASS)}
     >
       <span
         aria-hidden="true"

@@ -44,7 +44,7 @@ import {
 
 import { probeServiceHealth } from '../../data/health';
 import { Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 import type { ApiHealth } from '../../shared/desktop/dto';
 import {
   SERVICE_HEALTH_KEY,
@@ -199,7 +199,7 @@ export function ServiceStatusMarker({ status, className }: ServiceStatusMarkerPr
     <span
       role="status"
       data-service-status={status}
-      className={cx('inline-flex items-center gap-2 text-xs', marker.tone, className)}
+      className={cn('inline-flex items-center gap-2 text-xs', marker.tone, className)}
     >
       <StatusDot status={marker.dot} size="sm" />
       {status === 'online' ? <Trans>本地服务在线</Trans> : null}
@@ -242,7 +242,7 @@ export function ServiceOfflineBanner({
   return (
     <Notice
       tone="danger"
-      className={cx('border-x-0 border-t-0', className)}
+      className={cn('border-x-0 border-t-0', className)}
       detail={
         <>
           <Trans>已导入的比赛和已生成的视频仍可浏览。正在进行的任务会在服务恢复后自动接续状态。</Trans>
@@ -290,7 +290,7 @@ export function ServiceOfflineNotice({ className }: { className?: string | undef
  */
 export function ServiceRequiredHint({ className }: { className?: string | undefined }) {
   return (
-    <span className={cx('text-sm text-neutral-600', className)}>
+    <span className={cn('text-sm text-neutral-600', className)}>
       <Trans>需要服务</Trans>
     </span>
   );

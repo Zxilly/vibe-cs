@@ -21,7 +21,7 @@
 
 import type { ReactNode } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export type SplitPaneWidth = 'split' | 'panel' | 'inspector' | 'inspector-wide' | 'subnav';
 
@@ -58,7 +58,7 @@ export function SplitPane({
     <aside
       aria-label={asideLabel}
       data-split-aside={asideSide}
-      className={cx(
+      className={cn(
         'flex min-h-0 flex-none flex-col',
         WIDTH_CLASS[asideWidth],
         asideSide === 'end' ? 'border-l border-divider' : 'border-r border-divider',
@@ -69,7 +69,7 @@ export function SplitPane({
   );
 
   return (
-    <div data-split-pane className={cx('flex min-h-0 min-w-0 flex-1', className)}>
+    <div data-split-pane className={cn('flex min-h-0 min-w-0 flex-1', className)}>
       {asideSide === 'start' ? companion : null}
       <div data-split-content className="flex min-h-0 min-w-0 flex-1 flex-col">
         {children}

@@ -43,7 +43,7 @@ import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 import { TableCell, TableHeaderCell, type TableCellAlign, type TableCellEdge, type TableCellVariant } from './TableCell';
 import {
   ariaSortFor,
@@ -208,7 +208,7 @@ export function DataTable<Row>({
   const overlay = loading ? (skeleton ?? null) : rows.length === 0 ? (empty ?? null) : null;
 
   return (
-    <div className={cx('flex min-h-0 flex-col', className)}>
+    <div className={cn('flex min-h-0 flex-col', className)}>
       <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full border-collapse text-left">
           <caption className="sr-only">{caption}</caption>
@@ -277,7 +277,7 @@ export function DataTable<Row>({
                   tabIndex={interactiveRows ? (id === tabStopId ? 0 : -1) : undefined}
                   onKeyDown={interactiveRows ? (event) => handleRowKeyDown(event, id, row) : undefined}
                   onClick={interactiveRows ? (event) => handleRowClick(event, id, row) : undefined}
-                  className={cx(
+                  className={cn(
                     'h-[var(--h-row)]',
                     isActive ? 'bg-accent-100 shadow-[inset_2px_0_0_var(--color-accent)]' : 'hover:bg-surface',
                     interactiveRows && 'cursor-pointer',
@@ -356,7 +356,7 @@ function SortIndicator({ state }: { state: 'ascending' | 'descending' | 'none' }
   const className = 'size-3 shrink-0';
   if (state === 'ascending') return <ChevronUp className={className} strokeWidth={1.5} aria-hidden="true" />;
   if (state === 'descending') return <ChevronDown className={className} strokeWidth={1.5} aria-hidden="true" />;
-  return <ChevronsUpDown className={cx(className, 'text-neutral-500')} strokeWidth={1.5} aria-hidden="true" />;
+  return <ChevronsUpDown className={cn(className, 'text-neutral-500')} strokeWidth={1.5} aria-hidden="true" />;
 }
 
 function clampIndex(index: number, length: number): number {

@@ -59,7 +59,7 @@ import { useState } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
 import { Dialog, Notice, StatusDot, type StatusDotStatus } from '../../design/feedback';
-import { Button, Checkbox, cx } from '../../design/primitives';
+import { Button, Checkbox, cn } from '../../design/primitives';
 import type { RecordingPreflightCheck, RecordingPreflightState } from '../../shared/desktop/dto';
 import { PREFLIGHT_CHECK, type RecordingBlockProps } from './recordingContract';
 
@@ -250,7 +250,7 @@ function CheckGrid({
             </span>
             <div className="min-w-0">
               <p
-                className={cx(
+                className={cn(
                   'truncate',
                   check.state === 'blocked'
                     ? 'text-fail-text'

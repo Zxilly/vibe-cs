@@ -28,7 +28,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export interface OverflowMenuItem {
   id: string;
@@ -151,7 +151,7 @@ export function OverflowMenu({
   };
 
   return (
-    <div ref={rootRef} data-overflow-menu className={cx('relative flex-none', className)}>
+    <div ref={rootRef} data-overflow-menu className={cn('relative flex-none', className)}>
       <button
         ref={triggerRef}
         type="button"
@@ -160,7 +160,7 @@ export function OverflowMenu({
         aria-controls={open ? menuId : undefined}
         aria-label={label}
         data-overflow-trigger
-        className={cx(TRIGGER_CLASS, triggerClassName)}
+        className={cn(TRIGGER_CLASS, triggerClassName)}
         onClick={() => {
           setActiveIndex(firstEnabledIndex(items));
           setOpen((wasOpen) => !wasOpen);
@@ -175,7 +175,7 @@ export function OverflowMenu({
           role="menu"
           aria-label={label}
           data-overflow-list
-          className={cx(
+          className={cn(
             'absolute top-full z-30 mt-px flex min-w-[var(--w-subnav)] flex-col border border-divider bg-bg py-2 shadow-[var(--shadow-md)]',
             align === 'end' ? 'right-0' : 'left-0',
           )}
@@ -192,7 +192,7 @@ export function OverflowMenu({
               tabIndex={-1}
               disabled={item.disabled === true}
               aria-current={item.current === true ? 'page' : undefined}
-              className={cx(ITEM_CLASS, item.current === true && 'bg-accent-100 text-accent-800')}
+              className={cn(ITEM_CLASS, item.current === true && 'bg-accent-100 text-accent-800')}
               onClick={() => {
                 item.onSelect?.();
                 close(true);

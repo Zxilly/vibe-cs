@@ -26,7 +26,7 @@
 
 import type { ReactNode } from 'react';
 
-import { cx } from '../../design/primitives';
+import { cn } from '../../design/primitives';
 import type { AgentSessionEntry } from '../../shared/desktop/dto';
 
 import { AgentBubble, type AgentInlineAction } from './AgentBubble';
@@ -69,7 +69,7 @@ export function AgentTranscript({
 }: AgentTranscriptProps) {
   if (entries.length === 0 && streamingContent === undefined) {
     return (
-      <div data-agent-transcript="empty" className={cx('flex min-h-0 flex-1 flex-col', className)}>
+      <div data-agent-transcript="empty" className={cn('flex min-h-0 flex-1 flex-col', className)}>
         {empty}
       </div>
     );
@@ -80,7 +80,7 @@ export function AgentTranscript({
       data-agent-transcript=""
       aria-label={label}
       role="log"
-      className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto', className)}
+      className={cn('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto', className)}
     >
       {entries.map((entry) => {
         if (!AGENT_ENTRY_KIND[entry.kind].bubble) {

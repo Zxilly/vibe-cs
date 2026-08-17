@@ -77,7 +77,7 @@ import { useAgentPlan } from '../../data/plans';
 import { useAgentSession, useCreateAgentSession } from '../../data/sessions';
 import { EmptyState, Skeleton } from '../../design/data';
 import { Notice } from '../../design/feedback';
-import { Button, Seg, cx } from '../../design/primitives';
+import { Button, Seg, cn } from '../../design/primitives';
 import {
   AgentProposalCard,
   AgentTranscript,
@@ -424,7 +424,7 @@ function Transcript({
             <Skeleton
               key={width}
               width={width}
-              className={cx('h-10', index % 2 === 0 ? 'self-end' : null)}
+              className={cn('h-10', index % 2 === 0 ? 'self-end' : null)}
             />
           ))}
         </div>

@@ -29,7 +29,7 @@
 
 import type { ButtonHTMLAttributes, Ref } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 export interface ToggleProps
   extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children' | 'type' | 'onChange'> {
@@ -70,14 +70,14 @@ export function Toggle({
       aria-checked={checked}
       disabled={disabled}
       {...(locked ? { 'aria-disabled': true, 'data-locked': 'true' } : {})}
-      className={cx(TRACK_CLASS, checked ? 'bg-accent' : 'bg-neutral-300', className)}
+      className={cn(TRACK_CLASS, checked ? 'bg-accent' : 'bg-neutral-300', className)}
       onClick={(event) => {
         onClick?.(event);
         if (inert || event.defaultPrevented) return;
         onChange?.(!checked);
       }}
     >
-      <span className={cx(KNOB_CLASS, checked ? 'right-[1px]' : 'left-[1px]')} />
+      <span className={cn(KNOB_CLASS, checked ? 'right-[1px]' : 'left-[1px]')} />
       {locked ? <span className="absolute inset-0 border border-accent-700" /> : null}
     </button>
   );

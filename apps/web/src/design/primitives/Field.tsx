@@ -25,7 +25,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 
-import { cx } from './cx';
+import { cn } from '../cn';
 
 /** The attributes a Field expects its control to spread. */
 export interface FieldControlProps {
@@ -74,7 +74,7 @@ export function Field({ label, hint, error, required = false, className, childre
   };
 
   return (
-    <div className={cx('flex flex-col', className)}>
+    <div className={cn('flex flex-col', className)}>
       <label htmlFor={controlId} className={LABEL_CLASS}>
         {label}
         {required ? (

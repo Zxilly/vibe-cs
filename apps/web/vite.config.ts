@@ -20,6 +20,26 @@ import { defineConfig, type PluginOption } from 'vite';
 // untransformed. `@rolldown/plugin-babel` + `linguiTransformerBabelPreset()` is
 // the supported replacement and is what @lingui/vite-plugin 6 documents.
 // The macro plugin package is still required — the preset loads it.
+// ── The three settings `create-tauri-app` puts in every template ──────────
+//
+// This dev server is not browsed to by hand — `tauri.conf.json` names it as
+// `devUrl` and the WebView loads whatever answers there. That changes what the
+// defaults mean:
+//
+//   strictPort   Vite's default is to *step to the next free port* when 5173 is
+//                taken, print the new one, and carry on. `devUrl` is a fixed
+//                string, so the step is silent to Tauri: the window loads
+//                whatever else is on 5173, or nothing. Observed exactly that —
+//                a second dev server took 5174 while the config still said
+//                5173. Failing to start is the correct answer; the port is part
+//                of the contract, not a preference.
+//   clearScreen  Vite clears the terminal on boot, and `beforeDevCommand` means
+//                Vite boots *after* cargo has printed. Rust warnings and the
+//                panic that killed the last run are what gets erased.
+//   watch        `src-tauri/**` is Rust and Cargo already watches it. It is
+//                outside this package, so the glob is only reached when someone
+//                runs Vite from the workspace root; it costs nothing and it
+//                keeps the recipe whole.
 export default defineConfig({
   plugins: [
     react(),
@@ -27,9 +47,12 @@ export default defineConfig({
     babel({ presets: [linguiTransformerBabelPreset()] }) as PluginOption,
     tailwindcss(),
   ],
+  clearScreen: false,
   server: {
     host: '127.0.0.1',
     port: 5173,
+    strictPort: true,
+    watch: { ignored: ['**/src-tauri/**'] },
   },
   build: {
     target: 'es2022',

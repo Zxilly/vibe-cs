@@ -387,11 +387,12 @@ describe('视野 FOV / 持枪视野', () => {
     mount();
     await serviceOnline();
 
-    /* The default selection is 建立地点, a `static` shot. */
-    const cameraFov = screen.getByRole('slider', { name: '视野 FOV' }) as HTMLInputElement;
-    const viewmodelFov = screen.getByRole('slider', { name: '持枪视野' }) as HTMLInputElement;
-    expect(cameraFov.disabled).toBe(true);
-    expect(viewmodelFov.disabled).toBe(true);
+    /* The default selection is 建立地点, a `static` shot. Radix draws a slider
+       thumb as a span, so 「disabled」 is `data-disabled`, not a property. */
+    const cameraFov = screen.getByRole('slider', { name: '视野 FOV' });
+    const viewmodelFov = screen.getByRole('slider', { name: '持枪视野' });
+    expect(cameraFov.hasAttribute('data-disabled')).toBe(true);
+    expect(viewmodelFov.hasAttribute('data-disabled')).toBe(true);
     expect(document.body.textContent).toContain('观察者镜头的视野由相机路径逐帧决定');
   });
 
@@ -401,25 +402,22 @@ describe('视野 FOV / 持枪视野', () => {
     fireEvent.click(shotRow('item-3'));
 
     await waitFor(() => {
-      expect((screen.getByRole('slider', { name: '视野 FOV' }) as HTMLInputElement).disabled)
-        .toBe(false);
+      expect(screen.getByRole('slider', { name: '视野 FOV' }).hasAttribute('data-disabled')).toBe(false);
     });
-    expect((screen.getByRole('slider', { name: '持枪视野' }) as HTMLInputElement).disabled)
-      .toBe(false);
+    expect(screen.getByRole('slider', { name: '持枪视野' }).hasAttribute('data-disabled')).toBe(false);
   });
 
   it('keeps 闪光强度 editable for both kinds of shot', async () => {
     mount();
     await serviceOnline();
-    expect((screen.getByRole('slider', { name: '闪光强度' }) as HTMLInputElement).disabled)
-      .toBe(false);
+    expect(screen.getByRole('slider', { name: '闪光强度' }).hasAttribute('data-disabled')).toBe(false);
   });
 
   it('reads 闪光强度 as remaining flash — 255 is 100%, not 0%', async () => {
     mount();
     await serviceOnline();
-    const flash = screen.getByRole('slider', { name: '闪光强度' }) as HTMLInputElement;
-    expect(flash.value).toBe('100');
+    const flash = screen.getByRole('slider', { name: '闪光强度' });
+    expect(flash.getAttribute('aria-valuenow')).toBe('100');
   });
 });
 

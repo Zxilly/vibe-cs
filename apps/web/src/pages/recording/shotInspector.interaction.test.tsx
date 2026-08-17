@@ -222,10 +222,9 @@ describe('存为预设', () => {
     await waitFor(() => {
       /* The preset's style is POV, so the two fields of view become editable —
          which is the visible proof the whole patch landed, not just its name. */
-      expect((screen.getByRole('slider', { name: '视野 FOV' }) as HTMLInputElement).disabled)
-        .toBe(false);
+      expect(screen.getByRole('slider', { name: '视野 FOV' }).hasAttribute('data-disabled')).toBe(false);
     });
-    expect((screen.getByRole('slider', { name: '视野 FOV' }) as HTMLInputElement).value).toBe('120');
+    expect(screen.getByRole('slider', { name: '视野 FOV' }).getAttribute('aria-valuenow')).toBe('120');
     expect(screen.getByRole('switch', { name: 'HUD' }).getAttribute('aria-checked')).toBe('false');
   });
 

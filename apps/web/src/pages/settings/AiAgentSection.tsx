@@ -566,12 +566,9 @@ function TakeLimitRow({ value, disabled, onCommit }: TakeLimitRowProps) {
           onChange={(next) => {
             setDraft(next);
           }}
-          onPointerUp={() => {
-            if (draft !== null && draft !== value) onCommit(clampTakeLimit(draft));
-            setDraft(null);
-          }}
-          onBlur={() => {
-            if (draft !== null && draft !== value) onCommit(clampTakeLimit(draft));
+          onCommit={(next) => {
+            const settled = clampTakeLimit(next);
+            if (settled !== value) onCommit(settled);
             setDraft(null);
           }}
         />

@@ -1,36 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { renderMarkup } from '../../test/render';
-import { Slider, sliderPercent } from './Slider';
+import { renderMarkupDom } from '../../test/render';
+import { Slider } from './Slider';
 
-describe('sliderPercent', () => {
-  it('maps the range onto 0–100', () => {
-    expect(sliderPercent(0, 0, 10)).toBe(0);
-    expect(sliderPercent(5, 0, 10)).toBe(50);
-    expect(sliderPercent(10, 0, 10)).toBe(100);
-  });
-
-  it('clamps rather than letting the thumb leave the track', () => {
-    expect(sliderPercent(-3, 0, 10)).toBe(0);
-    expect(sliderPercent(99, 0, 10)).toBe(100);
-  });
-
-  it('degrades to 0 on a collapsed or unusable range', () => {
-    expect(sliderPercent(5, 10, 10)).toBe(0);
-    expect(sliderPercent(Number.NaN, 0, 10)).toBe(0);
-  });
-});
+/* `renderMarkupDom`, not `renderMarkup`: Radix hides the thumb and withholds
+   `aria-valuenow` until it has measured itself, and `react-dom/server` has no
+   layout to measure. Rendered for real, the thumb is there. */
+const renderMarkup = renderMarkupDom;
 
 describe('Slider markup', () => {
-  it('lays a real range input over the drawn track', () => {
+  it('puts the slider role on the thumb, with its bounds and value', () => {
     const html = renderMarkup(<Slider value={5} min={1} max={10} aria-label="take 上限" />);
 
-    expect(html).toContain('type="range"');
-    // The platform supplies the `slider` role; a hand-rolled div would have to
-    // reimplement step arithmetic and Home / End as well.
-    expect(html).not.toContain('role="slider"');
+    expect(html).toContain('role="slider"');
     expect(html).toContain('aria-label="take 上限"');
-    expect(html).toContain('opacity-0');
+    expect(html).toContain('aria-valuemin="1"');
+    expect(html).toContain('aria-valuemax="10"');
+    expect(html).toContain('aria-valuenow="5"');
   });
 
   it('is the reference 4px track with a 14px square thumb', () => {
@@ -40,27 +26,16 @@ describe('Slider markup', () => {
     expect(html).not.toContain('rounded');
   });
 
-  it('paints the fill and the thumb from the accent token', () => {
+  it('paints the range and the thumb from the accent token', () => {
     const html = renderMarkup(<Slider value={50} aria-label="x" />);
     expect(html).toContain('bg-accent');
     expect(html).toContain('bg-neutral-300');
     expect(html).not.toMatch(/#[0-9a-f]{3,8}/iu);
   });
 
-  it('positions the fill and thumb from the value', () => {
+  it('is single-handled: one thumb, whatever the value', () => {
     const html = renderMarkup(<Slider value={40} min={0} max={100} aria-label="x" />);
-    expect(html).toContain('width:40%');
-    expect(html).toContain('left:40%');
-    // Inset rather than overhanging: the thumb stays inside the track at 100%.
-    expect(html).toContain('translateX(-40%)');
-  });
-
-  it('passes min, max and step through to the platform', () => {
-    const html = renderMarkup(<Slider value={3} min={1} max={12} step={1} aria-label="x" />);
-    expect(html).toContain('min="1"');
-    expect(html).toContain('max="12"');
-    expect(html).toContain('step="1"');
-    expect(html).toContain('value="3"');
+    expect(html.match(/role="slider"/gu)).toHaveLength(1);
   });
 
   it('gives assistive technology the same reading the row shows', () => {
@@ -74,7 +49,7 @@ describe('Slider markup', () => {
 
   it('dims the whole control when disabled', () => {
     const html = renderMarkup(<Slider value={32} disabled aria-label="x" />);
-    expect(html).toContain('opacity-45');
-    expect(html).toContain('disabled=""');
+    expect(html).toContain('data-[disabled]:opacity-45');
+    expect(html).toContain('data-disabled');
   });
 });

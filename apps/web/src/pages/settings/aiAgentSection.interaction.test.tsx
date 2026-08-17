@@ -225,13 +225,14 @@ describe('take 上限', () => {
     await ready();
 
     const slider = screen.getByRole('slider', { name: '每条会话保留的 take 上限' });
-    expect((slider as HTMLInputElement).value).toBe('5');
+    expect(slider.getAttribute('aria-valuenow')).toBe('5');
 
-    fireEvent.change(slider, { target: { value: '8' } });
-    fireEvent.blur(slider);
+    /* An arrow key is a whole gesture, so `Slider` commits it — the drag is
+       the case where the change and the commit separate. */
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
 
     await waitFor(() => {
-      expect(written).toEqual([{ ...SETTINGS, take_limit: 8 }]);
+      expect(written).toEqual([{ ...SETTINGS, take_limit: 6 }]);
     });
   });
 });

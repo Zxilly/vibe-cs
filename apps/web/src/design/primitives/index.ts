@@ -11,7 +11,7 @@ export { Checkbox, type CheckboxProps, type CheckboxSize } from './Checkbox';
 export { Field, type FieldControlProps, type FieldProps } from './Field';
 export { Link, type LinkProps, type LinkSize } from './Link';
 export { Seg, type SegOption, type SegProps } from './Seg';
-export { Slider, sliderPercent, type SliderProps } from './Slider';
+export { Slider, type SliderProps } from './Slider';
 export { Tag, type TagProps, type TagTone } from './Tag';
 export { TextInput, type TextInputProps, type TextInputType } from './TextInput';
 export { Toggle, type ToggleProps } from './Toggle';

@@ -341,16 +341,17 @@ interface RollRowProps {
 /**
  * 前 / 后留白, in half-second steps.
  *
- * The draft is local until the pointer comes up, like the take-limit slider in
+ * The draft is local until the gesture ends, like the take-limit slider in
  * `AiAgentSection`: writing on every pixel of a drag would be one config PUT
- * per frame.
+ * per frame. `Slider` reports the end of the gesture itself, so the draft only
+ * has to feed the readout beside the track.
  */
 function RollRow({ label, value, disabled, disabledReason, onCommit }: RollRowProps) {
   const [draft, setDraft] = useState<number | null>(null);
   const shown = draft ?? value;
 
-  const commit = () => {
-    if (draft !== null && draft !== value) onCommit(draft);
+  const commit = (settled: number) => {
+    if (settled !== value) onCommit(settled);
     setDraft(null);
   };
 
@@ -371,8 +372,7 @@ function RollRow({ label, value, disabled, disabledReason, onCommit }: RollRowPr
           aria-label={typeof label === 'string' ? label : t`留白`}
           valueText={t`${shown.toFixed(1)} 秒`}
           onChange={(next) => setDraft(next)}
-          onPointerUp={commit}
-          onBlur={commit}
+          onCommit={(next) => commit(next)}
         />
         <span className="w-14 flex-none font-mono text-sm" data-roll={shown}>
           {t`${shown.toFixed(1)} 秒`}

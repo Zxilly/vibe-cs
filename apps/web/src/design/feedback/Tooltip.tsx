@@ -29,7 +29,7 @@
  * the user has to read to proceed. Anything with an action is a Notice.
  */
 
-import * as TooltipPrimitive from '@radix-ui/react-tooltip';
+import { Tooltip as TooltipPrimitive } from 'radix-ui';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 import { cn } from '../cn';

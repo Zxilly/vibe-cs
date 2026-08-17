@@ -21,7 +21,7 @@
  * where the control is a static box with nothing to describe.
  */
 
-import * as LabelPrimitive from '@radix-ui/react-label';
+import { Label as LabelPrimitive } from 'radix-ui';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 import { useId } from 'react';

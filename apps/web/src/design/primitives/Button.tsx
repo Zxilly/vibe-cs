@@ -42,7 +42,7 @@
  */
 
 import { t } from '@lingui/core/macro';
-import { Slot } from '@radix-ui/react-slot';
+import { Slot as SlotPrimitive } from 'radix-ui';
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 import { useId } from 'react';
@@ -169,7 +169,7 @@ export function Button({
   const reasonId = `${generatedId}-reason`;
   const hasReason = disabledReason !== undefined && disabledReason !== '';
 
-  const Root = asChild ? Slot : 'button';
+  const Root = asChild ? SlotPrimitive.Root : 'button';
 
   const button = (
     <Root

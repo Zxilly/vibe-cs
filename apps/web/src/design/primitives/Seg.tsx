@@ -32,7 +32,7 @@
  * taller seg is a taller target, not a louder label.
  */
 
-import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
+import { RadioGroup as RadioGroupPrimitive } from 'radix-ui';
 import type { ReactNode } from 'react';
 
 import { CONTROL_HEIGHT_CLASS, type ControlSize } from './controlSize';

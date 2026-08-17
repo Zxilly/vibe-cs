@@ -39,7 +39,7 @@
  * `aria-label` or `aria-labelledby` is therefore required.
  */
 
-import * as SwitchPrimitive from '@radix-ui/react-switch';
+import { Switch as SwitchPrimitive } from 'radix-ui';
 import type { ComponentPropsWithoutRef } from 'react';
 
 import { cn } from '../cn';

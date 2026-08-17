@@ -28,7 +28,7 @@
  * — which is what `Button` and `Badge` here already take.
  */
 
-import { Slot } from '@radix-ui/react-slot';
+import { Slot as SlotPrimitive } from 'radix-ui';
 import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 import { cn } from '../cn';
@@ -63,7 +63,7 @@ export interface BreadcrumbLinkProps extends ComponentPropsWithoutRef<'a'> {
 
 /** A segment you can go back to. */
 export function BreadcrumbLink({ asChild = false, className, ...rest }: BreadcrumbLinkProps) {
-  const Root = asChild ? Slot : 'a';
+  const Root = asChild ? SlotPrimitive.Root : 'a';
   return (
     <Root
       {...rest}

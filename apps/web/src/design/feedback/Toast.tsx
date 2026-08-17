@@ -50,7 +50,7 @@
  * miss; the rest wait for a pause in what the user is doing.
  */
 
-import * as ToastPrimitive from '@radix-ui/react-toast';
+import { Toast as ToastPrimitive } from 'radix-ui';
 import { t } from '@lingui/core/macro';
 import { CircleAlert, CircleCheck, Info, X } from 'lucide-react';
 import { useSyncExternalStore, type ReactNode } from 'react';

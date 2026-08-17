@@ -38,7 +38,7 @@
  * accident; `children` stays the whole of the API.
  */
 
-import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
+import { Checkbox as CheckboxPrimitive } from 'radix-ui';
 import { useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 
 import { cn } from '../cn';

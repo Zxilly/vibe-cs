@@ -30,7 +30,7 @@
  * end edge as the artboard draws it.
  */
 
-import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
+import { DropdownMenu as DropdownMenuPrimitive } from 'radix-ui';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 

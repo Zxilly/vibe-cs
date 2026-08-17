@@ -78,7 +78,7 @@ import { useLingui } from '@lingui/react';
 import { Search } from 'lucide-react';
 import { useEffect, useId, useState, type KeyboardEvent } from 'react';
 
-import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { Dialog as DialogPrimitive } from 'radix-ui';
 
 import { useOverlayReturnFocus } from '../../design/feedback';
 import { cn, Kbd } from '../../design/primitives';

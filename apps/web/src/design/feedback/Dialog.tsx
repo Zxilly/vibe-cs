@@ -42,7 +42,7 @@
  * `data-tone` and `data-dialog-action` hooks.
  */
 
-import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { Dialog as DialogPrimitive } from 'radix-ui';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 

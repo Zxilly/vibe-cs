@@ -41,7 +41,7 @@
  * string to assistive technology.
  */
 
-import * as SliderPrimitive from '@radix-ui/react-slider';
+import { Slider as SliderPrimitive } from 'radix-ui';
 import type { ComponentPropsWithoutRef } from 'react';
 
 import { cn } from '../cn';

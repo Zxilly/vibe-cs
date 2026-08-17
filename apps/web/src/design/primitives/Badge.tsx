@@ -34,7 +34,7 @@
  * is a link, which `as="span" | "button"` had closed.
  */
 
-import { Slot } from '@radix-ui/react-slot';
+import { Slot as SlotPrimitive } from 'radix-ui';
 import { cva, type VariantProps } from 'class-variance-authority';
 import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react';
 
@@ -100,7 +100,7 @@ export function Badge({
   ref,
   ...rest
 }: BadgeProps) {
-  const Root = asChild ? Slot : 'span';
+  const Root = asChild ? SlotPrimitive.Root : 'span';
 
   return (
     <Root {...rest} ref={ref} className={cn(badgeVariants({ variant, size }), className)}>

@@ -23,7 +23,7 @@ import type { ReactNode } from 'react';
 
 import { DataTable, type DataTableColumn } from '../../design/data';
 import { StatusDot } from '../../design/feedback';
-import { Badge } from '../../design/primitives';
+import { Badge, Button } from '../../design/primitives';
 import type { MatchHistoryItem } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
 import {
@@ -162,28 +162,28 @@ export function MatchHistoryTable({
         }
         if (state === 'downloading') {
           return (
-            <button
-              type="button"
-              className="text-sm text-accent-700 underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
+            <Button
+              variant="ghost"
+              size="sm"
               disabled={actionDisabledReason !== undefined}
-              title={actionDisabledReason}
+              {...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason })}
               onClick={() => onCancel(item)}
             >
               <Trans>取消</Trans>
-            </button>
+            </Button>
           );
         }
         if (state === 'expired') return null;
         return (
-          <button
-            type="button"
-            className="text-sm text-accent-700 underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-45"
+          <Button
+            variant="ghost"
+            size="sm"
             disabled={actionDisabledReason !== undefined}
-            title={actionDisabledReason}
+            {...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason })}
             onClick={() => onDownload(item)}
           >
             <Trans>下载</Trans>
-          </button>
+          </Button>
         );
       },
     },

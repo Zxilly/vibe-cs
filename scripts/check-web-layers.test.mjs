@@ -319,6 +319,61 @@ describe('rule 7 — copy goes through a macro', () => {
   });
 });
 
+describe('rule 8 — nothing rounds a corner', () => {
+  for (const layer of ['design', 'domain', 'pages', 'app']) {
+    it(`rejects a radius utility in ${layer}/**`, () => {
+      const result = run({ [`${layer}/Card.tsx`]: "const box = 'border p-3 rounded-lg';\n" });
+      assert.match(onlyFailure(result), /border radius utility `rounded-lg`/u);
+    });
+  }
+
+  it('catches every shorthand form, including an arbitrary radius', () => {
+    const result = run({
+      'pages/a/Box.tsx':
+        "const a = 'rounded';\n"
+        + "const b = 'rounded-t-md';\n"
+        + "const c = 'rounded-[3px]';\n"
+        + "const d = 'rounded-full';\n",
+    });
+    assert.equal(result.failures.length, 4);
+  });
+
+  /* The two shapes that made a whole-file regex unusable, both taken from the
+     real tree: `rounded` as prose and `rounded` as an identifier. */
+  it('does not flag the English word or a variable of that name', () => {
+    const result = run({
+      'pages/a/Beat.tsx':
+        '/* ~28 at this canvas, `rounded` to an even number so it centres. */\n'
+        + '// rounded up, not down\n'
+        + 'export function beat(seconds) {\n'
+        + '  const rounded = Math.round(seconds * 100) / 100;\n'
+        + '  return `+${rounded.toFixed(2)}s`;\n'
+        + '}\n',
+    });
+    assert.deepEqual(result.failures, []);
+  });
+
+  it('still reads a class list out of a template literal', () => {
+    const result = run({
+      'pages/a/Box.tsx': 'const box = `border ${tone} rounded-sm`;\n',
+    });
+    assert.match(onlyFailure(result), /border radius utility `rounded-sm`/u);
+  });
+
+  it('leaves data/** and shared/desktop/** alone — neither draws anything', () => {
+    const result = run({
+      'data/keys.ts': "export const box = 'rounded-lg';\n",
+      'shared/desktop/json.ts': "export const box = 'rounded-lg';\n",
+    });
+    assert.deepEqual(result.failures, []);
+  });
+
+  it('exempts test files, which have to be able to assert on the class', () => {
+    const result = run({ 'pages/a/Box.test.tsx': "expect(box).toHaveClass('rounded-lg');\n" });
+    assert.deepEqual(result.failures, []);
+  });
+});
+
 describe('the real apps/web/src tree', () => {
   const root = path.resolve(scriptDir, '../apps/web/src');
 

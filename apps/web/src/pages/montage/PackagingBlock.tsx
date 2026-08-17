@@ -32,7 +32,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
-import { Field, Input, Toggle, cn } from '../../design/primitives';
+import { Field, Input, NativeSelect, Seg, Toggle } from '../../design/primitives';
 import type { MontageBrandingTheme } from '../../shared/desktop/dto';
 import { MONTAGE_THEME, type MontageBlockProps } from './montageContract';
 import {
@@ -47,12 +47,6 @@ import {
 } from './montageSettings';
 
 const THEMES = Object.keys(MONTAGE_THEME) as readonly MontageBrandingTheme[];
-
-/** Same native `<select>` the Agent shot form uses, for the same reason: the
- *  design system has no listbox and ten transitions do not fit a `Seg`. */
-const SELECT_CLASS =
-  'w-full min-w-0 border border-divider bg-bg px-2 text-sm leading-normal text-text ' +
-  'h-[var(--h-ctl-md)] focus:border-accent disabled:opacity-45';
 
 export function PackagingBlock({ project: desk, service }: MontageBlockProps) {
   const { i18n } = useLingui();
@@ -81,29 +75,36 @@ export function PackagingBlock({ project: desk, service }: MontageBlockProps) {
     <section data-montage-block="packaging" className="flex flex-col">
       <PanelHeading />
       <div className="flex flex-col gap-4 p-4">
-        <Field label={<Trans>主题</Trans>}>
-          <div className="flex gap-2" role="radiogroup" aria-label={t`合辑主题`}>
-            {THEMES.map((theme) => (
-              <button
-                key={theme}
-                type="button"
-                role="radio"
-                aria-checked={settings.branding_theme === theme}
-                data-montage-theme={theme}
-                disabled={!writable}
-                onClick={() => desk.save(editMontageSettings({ branding_theme: theme }))}
-                className={cn(
-                  'flex h-12 flex-1 items-center justify-center border text-sm',
-                  'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2',
-                  'disabled:opacity-45',
-                  settings.branding_theme === theme ? 'border-accent bg-accent-100' : 'border-divider',
-                )}
-              >
-                {i18n._(MONTAGE_THEME[theme])}
-              </button>
-            ))}
-          </div>
-        </Field>
+        {/* Not wrapped in `Field` for the reason the shot inspector gives: a
+            `Field` label is a `<label for>` and a radio group has no single
+            control to point at. `Seg` names itself.
+
+            It was a hand-rolled `role="radiogroup"` of `role="radio"` buttons,
+            which is `Seg`'s whole job — and it had neither the roving tabindex
+            nor the arrow keys that make a radio group one tab stop, so four
+            themes cost four tabs. Its 48px box was not one of §3.3's four
+            heights either. */}
+        <div className="flex flex-col">
+          <span className="mb-[calc(var(--spacing)*1.5)] text-xs leading-normal text-neutral-700">
+            <Trans>主题</Trans>
+          </span>
+          <Seg
+            name="montage-branding-theme"
+            aria-label={t`合辑主题`}
+            /* The same size as 画质策略 two sections down. They are the same
+               kind of control in the same inspector, and the 48px box this
+               replaced was not one of §3.3's four heights at all. */
+            size="md"
+            fill
+            value={settings.branding_theme}
+            options={THEMES.map((theme) => ({
+              value: theme,
+              label: i18n._(MONTAGE_THEME[theme]),
+              disabled: !writable,
+            }))}
+            onChange={(theme) => desk.save(editMontageSettings({ branding_theme: theme }))}
+          />
+        </div>
 
         <TitleCardRow
           id="intro"
@@ -166,15 +167,15 @@ export function PackagingBlock({ project: desk, service }: MontageBlockProps) {
           }
         >
           {(control) => (
-            <select
+            <NativeSelect
               {...control}
+              size="md"
               data-montage-field="transition"
               disabled={!writable}
               value={transition ?? ''}
               onChange={(event) =>
                 desk.save(editAllTransitions(event.target.value as MontageTransition))
               }
-              className={SELECT_CLASS}
             >
               {transition === null ? <option value=""> </option> : null}
               {MONTAGE_TRANSITIONS.map((kind) => (
@@ -182,7 +183,7 @@ export function PackagingBlock({ project: desk, service }: MontageBlockProps) {
                   {i18n._(MONTAGE_TRANSITION_LABEL[kind])}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           )}
         </Field>
 

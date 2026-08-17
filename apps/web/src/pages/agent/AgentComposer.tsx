@@ -124,7 +124,7 @@ export function AgentComposer({
         placeholder={i18n._(copy.placeholder)}
         aria-label={i18n._(copy.placeholder)}
         className="min-h-16"
-        {...(blocked ? { disabled: true, title: disabledReason } : {})}
+        {...(blocked ? { disabled: true, disabledReason } : {})}
       />
 
       <div className="flex flex-wrap items-center gap-2">

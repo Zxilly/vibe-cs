@@ -72,7 +72,7 @@ msgstr "‹ 玩家目录"
 msgid "‹ 设置与诊断"
 msgstr "‹ 设置与诊断"
 
-#: src/pages/montage/PackagingBlock.tsx:258
+#: src/pages/montage/PackagingBlock.tsx:256
 msgid "（{seconds} 秒）"
 msgstr "（{seconds} 秒）"
 
@@ -302,7 +302,7 @@ msgid "{0} 分 {1} 秒"
 msgstr "{0} 分 {1} 秒"
 
 #. placeholder {0}: formatRounds(demo.total_rounds)
-#: src/pages/library/LibraryCards.tsx:185
+#: src/pages/library/LibraryCards.tsx:186
 #: src/pages/library/LibraryInspector.tsx:198
 msgid "{0} 回合"
 msgstr "{0} 回合"
@@ -429,7 +429,7 @@ msgstr "{count, plural, other {已重试 # 次 · 已达上限，不再自动重
 msgid "{count, plural, other {第 # 次重试}}"
 msgstr "{count, plural, other {第 # 次重试}}"
 
-#: src/pages/agent/PlanPanel.tsx:353
+#: src/pages/agent/PlanPanel.tsx:354
 msgid "{count} 个镜头"
 msgstr "{count} 个镜头"
 
@@ -486,7 +486,7 @@ msgstr "{maxWeight} 次"
 msgid "{minWeight} 次"
 msgstr "{minWeight} 次"
 
-#: src/domain/agent/AgentProposalCard.tsx:101
+#: src/domain/agent/AgentProposalCard.tsx:105
 msgid "{pending} 项变更待处理"
 msgstr "{pending} 项变更待处理"
 
@@ -645,7 +645,7 @@ msgstr "＋ 添加选手"
 msgid "＋ 近 {RECENT_WINDOW_DAYS} 天"
 msgstr "＋ 近 {RECENT_WINDOW_DAYS} 天"
 
-#: src/pages/montage/PackagingBlock.tsx:192
+#: src/pages/montage/PackagingBlock.tsx:190
 msgid "0.05 到 5 秒；转场比相邻片段还长时渲染会拒绝。"
 msgstr "0.05 到 5 秒；转场比相邻片段还长时渲染会拒绝。"
 
@@ -787,7 +787,7 @@ msgstr "Demo 内容一致"
 msgid "Demo 资料库"
 msgstr "Demo 资料库"
 
-#: src/pages/library/LibraryCards.tsx:114
+#: src/pages/library/LibraryCards.tsx:115
 msgid "Demo 资料库 · 卡片视图"
 msgstr "Demo 资料库 · 卡片视图"
 
@@ -1121,7 +1121,7 @@ msgstr "两支队伍分别以哪种方式赢下回合"
 msgid "主导航"
 msgstr "主导航"
 
-#: src/pages/montage/PackagingBlock.tsx:84
+#: src/pages/montage/PackagingBlock.tsx:89
 #: src/pages/settings/AppSection.tsx:109
 #: src/pages/settings/AppSection.tsx:117
 msgid "主题"
@@ -1340,7 +1340,7 @@ msgstr "伤害 出 / 入"
 msgid "位置"
 msgstr "位置"
 
-#: src/pages/delivery/taskModel.tsx:168
+#: src/pages/delivery/taskModel.tsx:173
 msgid "位置采样"
 msgstr "位置采样"
 
@@ -1367,7 +1367,7 @@ msgid "你在{kindLabel}上做了 {count, plural, other {# 处改动}}，Agent �
 msgstr "你在{kindLabel}上做了 {count, plural, other {# 处改动}}，Agent 已知悉"
 
 #. placeholder {0}: plan.agent_baseline.revision
-#: src/pages/agent/PlanPanel.tsx:527
+#: src/pages/agent/PlanPanel.tsx:528
 msgid "你在这份方案上的 {touched} 处改动会被 Agent 的第 {0} 版覆盖。这一步也会记入会话。"
 msgstr "你在这份方案上的 {touched} 处改动会被 Agent 的第 {0} 版覆盖。这一步也会记入会话。"
 
@@ -1375,7 +1375,7 @@ msgstr "你在这份方案上的 {touched} 处改动会被 Agent 的第 {0} 版�
 msgid "你改过"
 msgstr "你改过"
 
-#: src/pages/agent/PlanPanel.tsx:358
+#: src/pages/agent/PlanPanel.tsx:359
 msgid "你改过 {touched} 处"
 msgstr "你改过 {touched} 处"
 
@@ -1549,7 +1549,7 @@ msgstr "先选一个素材"
 msgid "先选中一个片段"
 msgstr "先选中一个片段"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:184
+#: src/pages/editor/MediaLibraryPanel.tsx:187
 msgid "先选中一个素材"
 msgstr "先选中一个素材"
 
@@ -1594,7 +1594,7 @@ msgstr "入点前移一帧"
 msgid "入点后移一帧"
 msgstr "入点后移一帧"
 
-#: src/design/data/DataTable.tsx:224
+#: src/design/data/DataTable.tsx:250
 msgid "全选本页"
 msgstr "全选本页"
 
@@ -1614,7 +1614,7 @@ msgstr "全部"
 msgid "全部 {total}"
 msgstr "全部 {total}"
 
-#: src/pages/agent/PlanPanel.tsx:607
+#: src/pages/agent/PlanPanel.tsx:608
 msgid "全部丢弃"
 msgstr "全部丢弃"
 
@@ -1964,7 +1964,7 @@ msgstr "击杀清场"
 msgid "分析"
 msgstr "分析"
 
-#: src/pages/library/libraryColumns.tsx:234
+#: src/pages/library/libraryColumns.tsx:244
 msgctxt "row-action"
 msgid "分析"
 msgstr "分析"
@@ -2070,9 +2070,9 @@ msgstr "列配置"
 msgid "创建"
 msgstr "创建"
 
-#: src/pages/agent/PlanPanel.tsx:477
+#: src/pages/agent/PlanPanel.tsx:478
 #: src/pages/agent/SessionDrawer.tsx:369
-#: src/pages/delivery/OutputCard.tsx:145
+#: src/pages/delivery/OutputCard.tsx:147
 #: src/pages/editor/EditorProjectList.tsx:146
 #: src/pages/editor/EditorProjectList.tsx:229
 #: src/pages/library/DeleteDemosDialog.tsx:61
@@ -2205,7 +2205,7 @@ msgstr "包含子目录"
 msgid "包含视野、HUD、雷达、语音与前后留白，应用时作为一次原子变更。"
 msgstr "包含视野、HUD、雷达、语音与前后留白，应用时作为一次原子变更。"
 
-#: src/pages/montage/PackagingBlock.tsx:223
+#: src/pages/montage/PackagingBlock.tsx:221
 msgid "包装"
 msgstr "包装"
 
@@ -2307,7 +2307,7 @@ msgid "反恐精英"
 msgstr "反恐精英"
 
 #: src/design/feedback/StageBar.tsx:124
-#: src/pages/delivery/taskModel.tsx:222
+#: src/pages/delivery/taskModel.tsx:227
 msgid "发布"
 msgstr "发布"
 
@@ -2352,7 +2352,7 @@ msgstr "受害者被闪"
 msgid "受管 HLAE 的安装状态与安全边界。"
 msgstr "受管 HLAE 的安装状态与安全边界。"
 
-#: src/pages/delivery/OutputCard.tsx:113
+#: src/pages/delivery/OutputCard.tsx:115
 msgid "受管文件"
 msgstr "受管文件"
 
@@ -2360,7 +2360,7 @@ msgstr "受管文件"
 msgid "受管的采集组件已下载并通过校验"
 msgstr "受管的采集组件已下载并通过校验"
 
-#: src/domain/agent/PlanChangeCard.tsx:114
+#: src/domain/agent/PlanChangeCard.tsx:116
 msgid "变更 {index}"
 msgstr "变更 {index}"
 
@@ -2450,7 +2450,7 @@ msgstr "可能是一次很快结束的回合，也可能是解析结果不完整
 msgid "可重新发起"
 msgstr "可重新发起"
 
-#: src/pages/montage/PackagingBlock.tsx:162
+#: src/pages/montage/PackagingBlock.tsx:160
 msgid "各片段的转场不一致，选择后会统一。"
 msgstr "各片段的转场不一致，选择后会统一。"
 
@@ -2463,7 +2463,7 @@ msgstr "合计"
 msgid "合辑"
 msgstr "合辑"
 
-#: src/pages/montage/PackagingBlock.tsx:85
+#: src/pages/montage/PackagingBlock.tsx:93
 msgid "合辑主题"
 msgstr "合辑主题"
 
@@ -2507,7 +2507,7 @@ msgid "后面没有剪切点了"
 msgstr "后面没有剪切点了"
 
 #: src/design/feedback/StageBar.tsx:116
-#: src/pages/delivery/taskModel.tsx:217
+#: src/pages/delivery/taskModel.tsx:222
 msgid "启动"
 msgstr "启动"
 
@@ -2570,8 +2570,8 @@ msgstr "回到证据视图"
 msgid "回到资料库"
 msgstr "回到资料库"
 
-#: src/pages/library/libraryColumns.tsx:111
-#: src/pages/library/libraryColumns.tsx:112
+#: src/pages/library/libraryColumns.tsx:115
+#: src/pages/library/libraryColumns.tsx:116
 #: src/pages/match/views/DuelsView.tsx:251
 #: src/pages/match/views/DuelsView.tsx:252
 #: src/pages/match/views/TeamsView.tsx:235
@@ -2691,7 +2691,7 @@ msgstr "在回合时间线里点一格，这一回合的证据与注释会出现
 msgid "在多轨编辑器中打开"
 msgstr "在多轨编辑器中打开"
 
-#: src/pages/agent/PlanPanel.tsx:414
+#: src/pages/agent/PlanPanel.tsx:415
 msgid "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 msgstr "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 
@@ -2815,12 +2815,12 @@ msgstr "坐标来自本地 overview 雷达标定；这一段有 {frameCount} 帧
 
 #. placeholder {0}: changeSet.basedOnRevision
 #. placeholder {0}: proposal.based_on_revision
-#: src/domain/agent/AgentProposalCard.tsx:92
-#: src/pages/agent/PlanPanel.tsx:584
+#: src/domain/agent/AgentProposalCard.tsx:96
+#: src/pages/agent/PlanPanel.tsx:585
 msgid "基于第 {0} 版"
 msgstr "基于第 {0} 版"
 
-#: src/pages/agent/PlanPanel.tsx:596
+#: src/pages/agent/PlanPanel.tsx:597
 #: src/pages/AgentPage.tsx:431
 msgid "基于第 {revision} 版重算"
 msgstr "基于第 {revision} 版重算"
@@ -2838,7 +2838,7 @@ msgstr "填写一个目录的完整路径"
 msgid "备注"
 msgstr "备注"
 
-#: src/pages/delivery/taskModel.tsx:167
+#: src/pages/delivery/taskModel.tsx:172
 msgid "复核解析结果"
 msgstr "复核解析结果"
 
@@ -2846,7 +2846,7 @@ msgstr "复核解析结果"
 msgid "外观与语言"
 msgstr "外观与语言"
 
-#: src/pages/delivery/OutputCard.tsx:113
+#: src/pages/delivery/OutputCard.tsx:115
 msgid "外部文件"
 msgstr "外部文件"
 
@@ -2940,7 +2940,7 @@ msgstr "定位"
 msgid "定位到第 {0} 回合的首杀"
 msgstr "定位到第 {0} 回合的首杀"
 
-#: src/pages/delivery/OutputCard.tsx:129
+#: src/pages/delivery/OutputCard.tsx:131
 #: src/pages/library/LibraryInspector.tsx:177
 #: src/pages/settings/AdvancedSection.tsx:226
 msgid "定位文件"
@@ -3023,7 +3023,7 @@ msgstr "对齐依据（服务返回）"
 msgid "对齐第 {0} 拍到第 {1} 拍，之后的片段会跟着前后移动。"
 msgstr "对齐第 {0} 拍到第 {1} 拍，之后的片段会跟着前后移动。"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:166
+#: src/pages/editor/MediaLibraryPanel.tsx:169
 msgid "导入"
 msgstr "导入"
 
@@ -3037,7 +3037,7 @@ msgstr "导入 Demo"
 msgid "导入一个 .dem，或添加一个监听目录自动发现"
 msgstr "导入一个 .dem，或添加一个监听目录自动发现"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:133
+#: src/pages/editor/MediaLibraryPanel.tsx:136
 msgid "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 msgstr "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 
@@ -3050,7 +3050,7 @@ msgid "导入没有完成"
 msgstr "导入没有完成"
 
 #: src/pages/editor/EditorTimelinePanel.tsx:266
-#: src/pages/editor/MediaLibraryPanel.tsx:136
+#: src/pages/editor/MediaLibraryPanel.tsx:139
 msgid "导入素材"
 msgstr "导入素材"
 
@@ -3175,7 +3175,7 @@ msgstr "属性"
 msgid "属性 · {0}"
 msgstr "属性 · {0}"
 
-#: src/pages/library/libraryColumns.tsx:218
+#: src/pages/library/libraryColumns.tsx:228
 msgid "工作区"
 msgstr "工作区"
 
@@ -3227,7 +3227,7 @@ msgid "已入库"
 msgstr "已入库"
 
 #: src/domain/agent/PlanStrip.tsx:155
-#: src/domain/agent/TakeCard.tsx:155
+#: src/domain/agent/TakeCard.tsx:157
 msgid "已删除"
 msgstr "已删除"
 
@@ -3515,7 +3515,7 @@ msgstr "当前占用 {conversation}"
 msgid "当前回放缓存字段无效"
 msgstr "当前回放缓存字段无效"
 
-#: src/pages/agent/PlanPanel.tsx:366
+#: src/pages/agent/PlanPanel.tsx:367
 msgid "当前方案"
 msgstr "当前方案"
 
@@ -3555,7 +3555,7 @@ msgstr "当前版本的镜头带"
 msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 msgstr "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 
-#: src/domain/agent/AgentProposalCard.tsx:96
+#: src/domain/agent/AgentProposalCard.tsx:100
 msgid "当前第 {currentRevision} 版"
 msgstr "当前第 {currentRevision} 版"
 
@@ -3838,7 +3838,7 @@ msgid "打开 {0} 的档案"
 msgstr "打开 {0} 的档案"
 
 #. placeholder {0}: demo.display_name
-#: src/pages/library/LibraryCards.tsx:159
+#: src/pages/library/LibraryCards.tsx:160
 msgid "打开 {0} 的详情"
 msgstr "打开 {0} 的详情"
 
@@ -4013,7 +4013,7 @@ msgstr "拆包"
 msgid "拆弹成功"
 msgstr "拆弹成功"
 
-#: src/domain/agent/PlanChangeCard.tsx:209
+#: src/domain/agent/PlanChangeCard.tsx:211
 msgid "拒绝"
 msgstr "拒绝"
 
@@ -4089,7 +4089,7 @@ msgstr "换来源"
 msgid "排队中"
 msgstr "排队中"
 
-#: src/pages/delivery/taskModel.tsx:165
+#: src/pages/delivery/taskModel.tsx:170
 msgid "排队等待解析"
 msgstr "排队等待解析"
 
@@ -4098,7 +4098,7 @@ msgstr "排队等待解析"
 msgid "掠过"
 msgstr "掠过"
 
-#: src/domain/agent/PlanChangeCard.tsx:223
+#: src/domain/agent/PlanChangeCard.tsx:225
 msgid "接受"
 msgstr "接受"
 
@@ -4158,7 +4158,7 @@ msgstr "撤销"
 msgid "撤销删除"
 msgstr "撤销删除"
 
-#: src/domain/agent/PlanChangeCard.tsx:196
+#: src/domain/agent/PlanChangeCard.tsx:198
 msgid "撤销拒绝"
 msgstr "撤销拒绝"
 
@@ -4237,7 +4237,7 @@ msgstr "改了策略不会立刻清理。要现在生效，用右边这个按钮
 msgid "改动会记入方案版本，并通知 Agent"
 msgstr "改动会记入方案版本，并通知 Agent"
 
-#: src/pages/agent/PlanPanel.tsx:491
+#: src/pages/agent/PlanPanel.tsx:492
 msgid "改动来源"
 msgstr "改动来源"
 
@@ -4302,7 +4302,7 @@ msgstr "数据目录"
 msgid "整场 · 事件"
 msgstr "整场 · 事件"
 
-#: src/domain/agent/TakeCard.tsx:209
+#: src/domain/agent/TakeCard.tsx:211
 msgid "整条选用"
 msgstr "整条选用"
 
@@ -4314,7 +4314,7 @@ msgstr "整段几乎贴平，高度变化不到 1 个单位"
 msgid "文件"
 msgstr "文件"
 
-#: src/pages/delivery/OutputCard.tsx:99
+#: src/pages/delivery/OutputCard.tsx:101
 msgid "文件不在原位"
 msgstr "文件不在原位"
 
@@ -4400,7 +4400,7 @@ msgstr "方案"
 msgid "方案另占 {plans}，清空会话不会释放这部分。"
 msgstr "方案另占 {plans}，清空会话不会释放这部分。"
 
-#: src/pages/agent/PlanPanel.tsx:389
+#: src/pages/agent/PlanPanel.tsx:390
 msgid "方案在这期间被改过了，还原没有执行。读一次最新的再来。"
 msgstr "方案在这期间被改过了，还原没有执行。读一次最新的再来。"
 
@@ -4410,16 +4410,16 @@ msgstr "方案在这期间被改过了，这次改动没有写进方案。"
 
 #. placeholder {0}: String(revision)
 #. placeholder {0}: plan.revision
-#: src/pages/agent/PlanPanel.tsx:258
+#: src/pages/agent/PlanPanel.tsx:259
 #: src/pages/AgentPage.tsx:328
 msgid "方案已经是第 {0} 版了，请基于最新的镜头重新给出变更。"
 msgstr "方案已经是第 {0} 版了，请基于最新的镜头重新给出变更。"
 
-#: src/pages/agent/PlanPanel.tsx:108
+#: src/pages/agent/PlanPanel.tsx:109
 msgid "方案是 Agent 交出来的镜头列表。在对话里让它出一份，或者从工作台打开一份已有的。"
 msgstr "方案是 Agent 交出来的镜头列表。在对话里让它出一份，或者从工作台打开一份已有的。"
 
-#: src/pages/agent/PlanPanel.tsx:129
+#: src/pages/agent/PlanPanel.tsx:130
 msgid "方案本身没有被改动，重试是安全的。"
 msgstr "方案本身没有被改动，重试是安全的。"
 
@@ -4467,8 +4467,8 @@ msgstr "无法连接到本地服务，请确认服务正在运行。"
 msgid "日志与诊断包"
 msgstr "日志与诊断包"
 
-#: src/pages/library/libraryColumns.tsx:94
-#: src/pages/library/libraryColumns.tsx:95
+#: src/pages/library/libraryColumns.tsx:98
+#: src/pages/library/libraryColumns.tsx:99
 msgid "日期"
 msgstr "日期"
 
@@ -4476,8 +4476,8 @@ msgstr "日期"
 #: src/pages/editor/EditorProjectList.tsx:108
 #: src/pages/editor/EditorProjectList.tsx:109
 #: src/pages/editor/InspectorPanel.tsx:126
-#: src/pages/library/libraryColumns.tsx:102
-#: src/pages/library/libraryColumns.tsx:103
+#: src/pages/library/libraryColumns.tsx:106
+#: src/pages/library/libraryColumns.tsx:107
 #: src/pages/match/views/HighlightsView.tsx:385
 #: src/pages/montage/MontageProjectList.tsx:106
 #: src/pages/montage/MontageProjectList.tsx:107
@@ -4551,7 +4551,7 @@ msgstr "暂不支持导出复盘网页"
 msgid "暂不支持把导出的文件保存到磁盘"
 msgstr "暂不支持把导出的文件保存到磁盘"
 
-#: src/pages/library/libraryColumns.tsx:198
+#: src/pages/library/libraryColumns.tsx:208
 msgid "暂不支持重新定位 Demo 文件"
 msgstr "暂不支持重新定位 Demo 文件"
 
@@ -4564,7 +4564,7 @@ msgstr "暂停"
 msgid "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
 msgstr "暂存目录里未完成的文件会被删除。如果某次录制或导出还想接着救，先把文件复制出去。"
 
-#: src/pages/delivery/taskModel.tsx:285
+#: src/pages/delivery/taskModel.tsx:322
 msgid "暂无可用的恢复动作"
 msgstr "暂无可用的恢复动作"
 
@@ -4635,7 +4635,7 @@ msgstr "有回合缺少价格，花费合计以「—」表示而不是少算"
 msgid "有片段的转场名称渲染器不认识"
 msgstr "有片段的转场名称渲染器不认识"
 
-#: src/pages/montage/PackagingBlock.tsx:164
+#: src/pages/montage/PackagingBlock.tsx:162
 msgid "有片段的转场渲染器不认识，选择后会统一。"
 msgstr "有片段的转场渲染器不认识，选择后会统一。"
 
@@ -4806,7 +4806,7 @@ msgstr "本地服务离线"
 msgid "本场结果"
 msgstr "本场结果"
 
-#: src/pages/agent/PlanPanel.tsx:568
+#: src/pages/agent/PlanPanel.tsx:569
 msgid "本次变更"
 msgstr "本次变更"
 
@@ -4834,14 +4834,14 @@ msgid "条件"
 msgstr "条件"
 
 #: src/pages/evidence/EvidenceDetail.tsx:141
-#: src/pages/library/libraryColumns.tsx:120
-#: src/pages/library/libraryColumns.tsx:121
+#: src/pages/library/libraryColumns.tsx:130
+#: src/pages/library/libraryColumns.tsx:131
 #: src/pages/library/LibraryFilters.tsx:172
 #: src/pages/library/LibraryInspector.tsx:227
 msgid "来源"
 msgstr "来源"
 
-#: src/pages/delivery/OutputCard.tsx:134
+#: src/pages/delivery/OutputCard.tsx:136
 msgid "来源任务"
 msgstr "来源任务"
 
@@ -4862,7 +4862,7 @@ msgstr "来自方案 #{agentPlanId}"
 msgid "极简"
 msgstr "极简"
 
-#: src/pages/library/libraryColumns.tsx:210
+#: src/pages/library/libraryColumns.tsx:220
 #: src/pages/match/views/OverviewView.tsx:224
 msgid "查看"
 msgstr "查看"
@@ -4916,11 +4916,11 @@ msgstr "标记 {0}"
 msgid "标记已处理"
 msgstr "标记已处理"
 
-#: src/pages/montage/PackagingBlock.tsx:274
+#: src/pages/montage/PackagingBlock.tsx:272
 msgid "标题"
 msgstr "标题"
 
-#: src/pages/montage/PackagingBlock.tsx:285
+#: src/pages/montage/PackagingBlock.tsx:283
 msgid "标题为空时渲染会拒绝这份工程。"
 msgstr "标题为空时渲染会拒绝这份工程。"
 
@@ -4932,7 +4932,7 @@ msgstr "校验只做检查，没有任何数据被改动，重试是安全的。
 msgid "校验文件头与大小；同一份内容不会重复入库"
 msgstr "校验文件头与大小；同一份内容不会重复入库"
 
-#: src/pages/delivery/taskModel.tsx:164
+#: src/pages/delivery/taskModel.tsx:169
 msgid "校验输入"
 msgstr "校验输入"
 
@@ -5017,7 +5017,7 @@ msgstr "正在分析"
 msgid "正在分析节拍"
 msgstr "正在分析节拍"
 
-#: src/pages/delivery/OutputCard.tsx:176
+#: src/pages/delivery/OutputCard.tsx:178
 msgid "正在加载输出"
 msgstr "正在加载输出"
 
@@ -5113,7 +5113,7 @@ msgstr "正在读取任务详情"
 msgid "正在读取全局录制默认值…"
 msgstr "正在读取全局录制默认值…"
 
-#: src/pages/montage/PackagingBlock.tsx:70
+#: src/pages/montage/PackagingBlock.tsx:64
 msgid "正在读取包装设置"
 msgstr "正在读取包装设置"
 
@@ -5129,7 +5129,7 @@ msgstr "正在读取导出设置"
 msgid "正在读取录制结果"
 msgstr "正在读取录制结果"
 
-#: src/pages/agent/PlanPanel.tsx:152
+#: src/pages/agent/PlanPanel.tsx:153
 msgid "正在读取方案"
 msgstr "正在读取方案"
 
@@ -5141,7 +5141,7 @@ msgstr "正在读取比赛分析"
 msgid "正在读取比赛历史"
 msgstr "正在读取比赛历史"
 
-#: src/domain/media/Waveform.tsx:129
+#: src/domain/media/Waveform.tsx:133
 msgid "正在读取波形"
 msgstr "正在读取波形"
 
@@ -5165,7 +5165,7 @@ msgstr "正在读取空间证据"
 msgid "正在读取编辑器工程"
 msgstr "正在读取编辑器工程"
 
-#: src/pages/library/LibraryCards.tsx:91
+#: src/pages/library/LibraryCards.tsx:92
 #: src/pages/library/LibraryTable.tsx:128
 msgid "正在读取资料库"
 msgstr "正在读取资料库"
@@ -5186,7 +5186,7 @@ msgstr "正在连接本地服务"
 msgid "正在连接本地服务，稍后即可使用"
 msgstr "正在连接本地服务，稍后即可使用"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:184
+#: src/pages/editor/MediaLibraryPanel.tsx:187
 msgid "正在重新定位"
 msgstr "正在重新定位"
 
@@ -5194,9 +5194,13 @@ msgstr "正在重新定位"
 msgid "正在重连"
 msgstr "正在重连"
 
-#: src/design/primitives/Button.tsx:217
+#: src/design/primitives/Button.tsx:241
 msgid "此动作当前不可用：{disabledReason}"
 msgstr "此动作当前不可用：{disabledReason}"
+
+#: src/design/primitives/Textarea.tsx:90
+msgid "此输入当前不可用：{disabledReason}"
+msgstr "此输入当前不可用：{disabledReason}"
 
 #: src/pages/evidence/EvidenceConditions.tsx:75
 #: src/pages/evidence/EvidenceConditions.tsx:86
@@ -5585,7 +5589,7 @@ msgstr "深色"
 msgid "添加 {0} 段"
 msgstr "添加 {0} 段"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:177
+#: src/pages/editor/MediaLibraryPanel.tsx:180
 msgid "添加到时间轴"
 msgstr "添加到时间轴"
 
@@ -5659,7 +5663,7 @@ msgid "清空搜索"
 msgstr "清空搜索"
 
 #: src/pages/evidence/EvidenceEmpty.tsx:124
-#: src/pages/library/LibraryCards.tsx:101
+#: src/pages/library/LibraryCards.tsx:102
 #: src/pages/library/LibraryTable.tsx:137
 msgid "清空条件"
 msgstr "清空条件"
@@ -5828,7 +5832,7 @@ msgstr "爆头击杀"
 msgid "爆头率"
 msgstr "爆头率"
 
-#: src/pages/montage/PackagingBlock.tsx:110
+#: src/pages/montage/PackagingBlock.tsx:108
 msgid "片头"
 msgstr "片头"
 
@@ -5836,7 +5840,7 @@ msgstr "片头"
 msgid "片头已开启但没有标题，渲染会拒绝"
 msgstr "片头已开启但没有标题，渲染会拒绝"
 
-#: src/pages/montage/PackagingBlock.tsx:141
+#: src/pages/montage/PackagingBlock.tsx:139
 msgid "片尾"
 msgstr "片尾"
 
@@ -5895,7 +5899,7 @@ msgstr "片段已修改，需要重新生成预览计划"
 msgid "片段改过之后需要重新生成预览计划，再运行一次校验。"
 msgstr "片段改过之后需要重新生成预览计划，再运行一次校验。"
 
-#: src/pages/montage/PackagingBlock.tsx:159
+#: src/pages/montage/PackagingBlock.tsx:157
 msgid "片段转场"
 msgstr "片段转场"
 
@@ -5927,8 +5931,8 @@ msgstr "版本历史"
 
 #: src/pages/history/MatchHistoryTable.tsx:145
 #: src/pages/history/MatchHistoryTable.tsx:146
-#: src/pages/library/libraryColumns.tsx:128
-#: src/pages/library/libraryColumns.tsx:129
+#: src/pages/library/libraryColumns.tsx:138
+#: src/pages/library/libraryColumns.tsx:139
 #: src/pages/library/LibraryFilters.tsx:171
 msgid "状态"
 msgstr "状态"
@@ -6299,7 +6303,7 @@ msgstr "移除"
 msgid "移除条件"
 msgstr "移除条件"
 
-#: src/pages/delivery/OutputCard.tsx:145
+#: src/pages/delivery/OutputCard.tsx:147
 msgid "移除记录"
 msgstr "移除记录"
 
@@ -6321,7 +6325,7 @@ msgid "稍后处理"
 msgstr "稍后处理"
 
 #: src/design/feedback/StageBar.tsx:122
-#: src/pages/delivery/taskModel.tsx:220
+#: src/pages/delivery/taskModel.tsx:225
 msgid "稳定"
 msgstr "稳定"
 
@@ -6408,7 +6412,7 @@ msgstr "第 {0} 拍"
 #. placeholder {0}: version.revision
 #: src/pages/agent/ConversationModes.tsx:121
 #: src/pages/agent/ConversationModes.tsx:288
-#: src/pages/agent/PlanPanel.tsx:333
+#: src/pages/agent/PlanPanel.tsx:334
 msgid "第 {0} 版"
 msgstr "第 {0} 版"
 
@@ -6468,8 +6472,8 @@ msgstr "素材已经到头了，没有可以滑移的余量"
 msgid "素材已经到头了，没有可用的余量"
 msgstr "素材已经到头了，没有可用的余量"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:124
-#: src/pages/editor/MediaLibraryPanel.tsx:126
+#: src/pages/editor/MediaLibraryPanel.tsx:127
+#: src/pages/editor/MediaLibraryPanel.tsx:129
 msgid "素材库"
 msgstr "素材库"
 
@@ -6549,7 +6553,7 @@ msgid "继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」"
 msgstr "继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」"
 
 #: src/design/feedback/StageBar.tsx:123
-#: src/pages/delivery/taskModel.tsx:221
+#: src/pages/delivery/taskModel.tsx:226
 msgid "编码"
 msgstr "编码"
 
@@ -6557,7 +6561,7 @@ msgstr "编码"
 msgid "编码器可用"
 msgstr "编码器可用"
 
-#: src/pages/agent/PlanPanel.tsx:464
+#: src/pages/agent/PlanPanel.tsx:465
 msgid "编辑"
 msgstr "编辑"
 
@@ -6600,7 +6604,7 @@ msgctxt "plan-change"
 msgid "缩短"
 msgstr "缩短"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:155
+#: src/pages/editor/MediaLibraryPanel.tsx:158
 msgid "缺失"
 msgstr "缺失"
 
@@ -6698,8 +6702,8 @@ msgstr "草案"
 msgid "行为边界"
 msgstr "行为边界"
 
-#: src/pages/library/libraryColumns.tsx:136
-#: src/pages/library/libraryColumns.tsx:137
+#: src/pages/library/libraryColumns.tsx:146
+#: src/pages/library/libraryColumns.tsx:147
 msgid "行操作"
 msgstr "行操作"
 
@@ -6761,7 +6765,7 @@ msgstr "解析出的比赛没有可归属的选手记录，记分板因此是空
 msgid "解析后复核输入"
 msgstr "解析后复核输入"
 
-#: src/pages/delivery/taskModel.tsx:166
+#: src/pages/delivery/taskModel.tsx:171
 msgid "解析比赛数据"
 msgstr "解析比赛数据"
 
@@ -6777,7 +6781,7 @@ msgstr "计算节拍建议"
 msgid "让 Agent 做一条视频"
 msgstr "让 Agent 做一条视频"
 
-#: src/pages/delivery/OutputCard.tsx:116
+#: src/pages/delivery/OutputCard.tsx:118
 msgid "记录仍在，文件已被移动或删除"
 msgstr "记录仍在，文件已被移动或删除"
 
@@ -6992,7 +6996,7 @@ msgstr "读不到采集组件状态：{hlaeError}"
 msgid "读不到预设：{failure}"
 msgstr "读不到预设：{failure}"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:111
+#: src/pages/editor/MediaLibraryPanel.tsx:114
 #: src/pages/montage/ExportBlock.tsx:234
 msgid "读取中"
 msgstr "读取中"
@@ -7123,7 +7127,7 @@ msgid "跳转"
 msgstr "跳转"
 
 #: src/design/feedback/StageBar.tsx:120
-#: src/pages/delivery/taskModel.tsx:218
+#: src/pages/delivery/taskModel.tsx:223
 msgctxt "recording-stage"
 msgid "跳转"
 msgstr "跳转"
@@ -7155,7 +7159,7 @@ msgstr "轨道类型不同，放不进去"
 msgid "轨道类型不同，视频不能放到音频轨上"
 msgstr "轨道类型不同，视频不能放到音频轨上"
 
-#: src/pages/montage/PackagingBlock.tsx:191
+#: src/pages/montage/PackagingBlock.tsx:189
 msgid "转场时长（秒）"
 msgstr "转场时长（秒）"
 
@@ -7218,7 +7222,7 @@ msgstr "运行时"
 
 #: src/app/boundary/RouteBoundary.tsx:112
 #: src/app/boundary/RouteBoundary.tsx:146
-#: src/pages/agent/PlanPanel.tsx:114
+#: src/pages/agent/PlanPanel.tsx:115
 msgid "返回工作台"
 msgstr "返回工作台"
 
@@ -7231,7 +7235,7 @@ msgstr "返回方案"
 msgid "还不知道这个片段属于哪张地图"
 msgstr "还不知道这个片段属于哪张地图"
 
-#: src/pages/agent/PlanPanel.tsx:521
+#: src/pages/agent/PlanPanel.tsx:522
 msgid "还原"
 msgstr "还原"
 
@@ -7240,17 +7244,17 @@ msgctxt "plan-change"
 msgid "还原"
 msgstr "还原"
 
-#: src/pages/agent/PlanPanel.tsx:300
-#: src/pages/agent/PlanPanel.tsx:345
+#: src/pages/agent/PlanPanel.tsx:301
+#: src/pages/agent/PlanPanel.tsx:346
 msgid "还原为 Agent 版本"
 msgstr "还原为 Agent 版本"
 
-#: src/pages/agent/PlanPanel.tsx:520
+#: src/pages/agent/PlanPanel.tsx:521
 msgid "还原为 Agent 版本？"
 msgstr "还原为 Agent 版本？"
 
 #. placeholder {0}: dataErrorMessage(restoreError) ?? ''
-#: src/pages/agent/PlanPanel.tsx:391
+#: src/pages/agent/PlanPanel.tsx:392
 msgid "还原没能完成：{0}"
 msgstr "还原没能完成：{0}"
 
@@ -7351,7 +7355,7 @@ msgstr "还没有更早的版本"
 msgid "还没有比赛"
 msgstr "还没有比赛"
 
-#: src/domain/media/Waveform.tsx:142
+#: src/domain/media/Waveform.tsx:146
 msgid "还没有波形"
 msgstr "还没有波形"
 
@@ -7384,7 +7388,7 @@ msgstr "还没有监听目录。加一个之后，新的 Demo 会自己进来。
 msgid "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 msgstr "还没有监听目录。添加一个之后，新的 .dem 会自动入库。"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:132
+#: src/pages/editor/MediaLibraryPanel.tsx:135
 msgid "还没有素材"
 msgstr "还没有素材"
 
@@ -7402,7 +7406,7 @@ msgstr "还没有设置"
 msgid "还没有输出"
 msgstr "还没有输出"
 
-#: src/pages/agent/PlanPanel.tsx:106
+#: src/pages/agent/PlanPanel.tsx:107
 msgid "还没有选中方案"
 msgstr "还没有选中方案"
 
@@ -7690,7 +7694,7 @@ msgid "这份工程在别处被改过，刚才的改动没有保存。"
 msgstr "这份工程在别处被改过，刚才的改动没有保存。"
 
 #. placeholder {0}: dataErrorMessage(plan.error) ?? ''
-#: src/pages/agent/PlanPanel.tsx:131
+#: src/pages/agent/PlanPanel.tsx:132
 msgid "这份方案没能打开：{0}"
 msgstr "这份方案没能打开：{0}"
 
@@ -7698,7 +7702,7 @@ msgstr "这份方案没能打开：{0}"
 msgid "这份方案还没有被任何会话改动过。"
 msgstr "这份方案还没有被任何会话改动过。"
 
-#: src/pages/agent/PlanPanel.tsx:413
+#: src/pages/agent/PlanPanel.tsx:414
 msgid "这份方案还没有镜头"
 msgstr "这份方案还没有镜头"
 
@@ -7912,7 +7916,7 @@ msgstr "这次直接用了同一批证据上次的结果。"
 msgid "这段点评没有回引证据。"
 msgstr "这段点评没有回引证据。"
 
-#: src/domain/media/Waveform.tsx:143
+#: src/domain/media/Waveform.tsx:148
 msgid "这段素材还没有分析出峰值，或者它本来就没有声音。"
 msgstr "这段素材还没有分析出峰值，或者它本来就没有声音。"
 
@@ -7921,7 +7925,7 @@ msgid "这段音乐没有可用的拍点"
 msgstr "这段音乐没有可用的拍点"
 
 #. placeholder {0}: changeSet.basedOnRevision
-#: src/pages/agent/PlanPanel.tsx:611
+#: src/pages/agent/PlanPanel.tsx:612
 msgid "这组变更基于第 {0} 版，方案已经是第 {revision} 版。内容仍可查看。"
 msgstr "这组变更基于第 {0} 版，方案已经是第 {revision} 版。内容仍可查看。"
 
@@ -7977,7 +7981,7 @@ msgstr "进行中的工程"
 msgid "退出预览"
 msgstr "退出预览"
 
-#: src/pages/library/LibraryCards.tsx:76
+#: src/pages/library/LibraryCards.tsx:77
 msgid "适合几十场以内的个人资料库；大库仍建议用表格"
 msgstr "适合几十场以内的个人资料库；大库仍建议用表格"
 
@@ -8081,7 +8085,7 @@ msgstr "选手：{0}"
 msgid "选手位置"
 msgstr "选手位置"
 
-#: src/pages/montage/PackagingBlock.tsx:129
+#: src/pages/montage/PackagingBlock.tsx:127
 msgid "选手名牌"
 msgstr "选手名牌"
 
@@ -8250,7 +8254,7 @@ msgid "配置还没读出来，稍后再试"
 msgstr "配置还没读出来，稍后再试"
 
 #: src/design/feedback/StageBar.tsx:121
-#: src/pages/delivery/taskModel.tsx:219
+#: src/pages/delivery/taskModel.tsx:224
 msgid "采集"
 msgstr "采集"
 
@@ -8293,8 +8297,8 @@ msgstr "重新加载"
 msgid "重新发起"
 msgstr "重新发起"
 
-#: src/pages/editor/MediaLibraryPanel.tsx:190
-#: src/pages/library/libraryColumns.tsx:200
+#: src/pages/editor/MediaLibraryPanel.tsx:193
+#: src/pages/library/libraryColumns.tsx:210
 msgid "重新定位"
 msgstr "重新定位"
 
@@ -8348,7 +8352,7 @@ msgstr "重新计算"
 msgid "重新读取回放"
 msgstr "重新读取回放"
 
-#: src/pages/agent/PlanPanel.tsx:380
+#: src/pages/agent/PlanPanel.tsx:381
 #: src/pages/AgentPage.tsx:437
 msgid "重新读取方案"
 msgstr "重新读取方案"
@@ -8378,7 +8382,7 @@ msgstr "重新选择"
 #: src/pages/agent/ConversationModes.tsx:350
 #: src/pages/agent/NewSessionPane.tsx:177
 #: src/pages/agent/NewSessionPane.tsx:212
-#: src/pages/agent/PlanPanel.tsx:128
+#: src/pages/agent/PlanPanel.tsx:129
 #: src/pages/agent/SessionDrawer.tsx:250
 #: src/pages/AgentPage.tsx:314
 #: src/pages/delivery/useTaskActions.tsx:204
@@ -8395,7 +8399,7 @@ msgstr "重新选择"
 #: src/pages/library/AddWatchDirectoryDialog.tsx:123
 #: src/pages/library/DeleteDemosDialog.tsx:95
 #: src/pages/library/ImportDemoDialog.tsx:159
-#: src/pages/library/LibraryCards.tsx:83
+#: src/pages/library/LibraryCards.tsx:84
 #: src/pages/library/LibraryInspector.tsx:116
 #: src/pages/library/LibraryInspector.tsx:184
 #: src/pages/library/LibraryTable.tsx:102
@@ -8443,7 +8447,7 @@ msgstr "重试"
 msgid "错误"
 msgstr "错误"
 
-#: src/pages/agent/PlanPanel.tsx:409
+#: src/pages/agent/PlanPanel.tsx:410
 msgid "镜头"
 msgstr "镜头"
 
@@ -8460,7 +8464,7 @@ msgstr "镜头意图 · 会一起发给 Agent"
 msgid "镜头数"
 msgstr "镜头数"
 
-#: src/pages/agent/PlanPanel.tsx:330
+#: src/pages/agent/PlanPanel.tsx:331
 msgid "镜头方案"
 msgstr "镜头方案"
 
@@ -8569,7 +8573,7 @@ msgid "需要服务"
 msgstr "需要服务"
 
 #: src/domain/media/ClipStrip.tsx:313
-#: src/pages/editor/MediaLibraryPanel.tsx:109
+#: src/pages/editor/MediaLibraryPanel.tsx:112
 msgid "需要重新定位"
 msgstr "需要重新定位"
 
@@ -8590,7 +8594,7 @@ msgid "音量"
 msgstr "音量"
 
 #: src/pages/editor/InspectorPanel.tsx:212
-#: src/pages/editor/MediaLibraryPanel.tsx:146
+#: src/pages/editor/MediaLibraryPanel.tsx:149
 msgid "音频"
 msgstr "音频"
 
@@ -8598,11 +8602,11 @@ msgstr "音频"
 msgid "音频文件"
 msgstr "音频文件"
 
-#: src/domain/media/Waveform.tsx:222
+#: src/domain/media/Waveform.tsx:244
 msgid "音频波形，全长 {total}"
 msgstr "音频波形，全长 {total}"
 
-#: src/domain/media/Waveform.tsx:225
+#: src/domain/media/Waveform.tsx:247
 msgid "音频波形，全长 {total}，已选 {from} 至 {to}"
 msgstr "音频波形，全长 {total}，已选 {from} 至 {to}"
 
@@ -8620,17 +8624,17 @@ msgid "页面根节点 #root 不存在，应用无法启动"
 msgstr "页面根节点 #root 不存在，应用无法启动"
 
 #. placeholder {0}: formatShotDuration(duration)
-#: src/pages/agent/PlanPanel.tsx:506
+#: src/pages/agent/PlanPanel.tsx:507
 msgid "顶栏的「确认并生成视频」会按这份方案录制 {count} 个镜头，共 {0}。"
 msgstr "顶栏的「确认并生成视频」会按这份方案录制 {count} 个镜头，共 {0}。"
 
-#: src/domain/agent/TakeCard.tsx:195
+#: src/domain/agent/TakeCard.tsx:197
 #: src/pages/montage/MusicBeatBlock.tsx:474
 #: src/pages/montage/MusicBeatBlock.tsx:558
 msgid "预览"
 msgstr "预览"
 
-#: src/domain/agent/TakeCard.tsx:195
+#: src/domain/agent/TakeCard.tsx:197
 msgid "预览中"
 msgstr "预览中"
 
@@ -8650,7 +8654,7 @@ msgstr "预览计划只保留五分钟，重新生成后导播预览与录制前
 msgid "预览计划已过期，需要重新生成"
 msgstr "预览计划已过期，需要重新生成"
 
-#: src/domain/agent/PlanChangeCard.tsx:178
+#: src/domain/agent/PlanChangeCard.tsx:180
 msgid "预览这条"
 msgstr "预览这条"
 

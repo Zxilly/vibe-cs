@@ -29,6 +29,33 @@ describe('Textarea markup', () => {
     expect(html).toContain('aria-invalid="true"');
   });
 
+  /*
+   * The same contract `Button` carries, and it matters here for the same
+   * reason it mattered there: the Agent composer wrote its reason to the
+   * native `title`, and a disabled control shows none — it receives no pointer
+   * events at all.
+   */
+  it('routes a disabled reason to both a screen reader and a pointer', () => {
+    const html = renderMarkup(
+      <Textarea aria-label="镜头意图" disabled disabledReason="本地服务离线" />,
+    );
+
+    expect(html).toContain('aria-describedby');
+    expect(html).toContain('此输入当前不可用：本地服务离线');
+    // The wrapper the tooltip hangs on, focusable so the keyboard reaches it.
+    expect(html).toContain('tabindex="0"');
+    // And never the attribute that showed nothing.
+    expect(html).not.toContain('title=');
+  });
+
+  it('adds nothing when there is no reason to give', () => {
+    const html = renderMarkup(<Textarea aria-label="镜头意图" />);
+
+    expect(html).toMatch(/^<textarea/u);
+    expect(html).not.toContain('aria-describedby');
+    expect(html).not.toContain('sr-only');
+  });
+
   it('carries no bare hex', () => {
     expect(renderMarkup(<Textarea aria-label="x" />)).not.toMatch(/#[0-9a-f]{3,8}/iu);
   });

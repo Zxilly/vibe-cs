@@ -147,9 +147,12 @@ describe('/montage/:projectId — the workspace', () => {
   });
 
   it('labels every branding theme the wire can hold, including the fourth', () => {
+    /* `value`, not a `data-montage-theme` of its own: the group is a `Seg` now,
+       and the value is what the radio actually submits. */
     for (const theme of Object.keys(MONTAGE_THEME)) {
-      expect(html).toContain(`data-montage-theme="${theme}"`);
+      expect(html).toContain(`value="${theme}"`);
     }
+    expect(html).toContain('role="radiogroup"');
     expect(html).toContain('线框');
     expect(html).toContain('极简');
     expect(html).toContain('转播');

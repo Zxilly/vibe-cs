@@ -229,8 +229,15 @@ describe('a manual edit while the Agent is answering', () => {
     const harness = bridge([USER_ENTRY]);
     mount(harness, '/agent?plan=P-118&session=S-1&mode=changes');
 
-    const box = await screen.findByRole('textbox');
+    await screen.findByRole('textbox');
     await serviceOnline();
+    /* Queried *after* the service comes online, not before. A blocked composer
+       carries its reason through a `Tooltip`, which wraps the control rather
+       than borrowing it — a disabled element raises no pointer events — so the
+       textarea is a different node on each side of that transition. Nothing is
+       lost by it (the value lives in the parent's state, and a disabled box
+       cannot have held focus); a node captured beforehand is simply detached. */
+    const box = screen.getByRole('textbox');
     fireEvent.change(box, { target: { value: '把它压到 30 秒以内' } });
 
     const sendButton = screen.getByRole('button', { name: '生成变更' });

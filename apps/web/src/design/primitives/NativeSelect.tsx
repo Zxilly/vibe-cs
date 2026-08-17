@@ -4,18 +4,20 @@
  * shadcn's Native Select: a real `<select>` wearing the system's control
  * geometry, rather than the Radix listbox its `Select` builds.
  *
- * Both are on offer upstream and the native one is right here. The two places
- * the product needs a list — 镜头类型 (seven members, more than a `Seg` can
- * carry in a 440px inspector) and 分辨率 / 帧率 in the export panel — are short,
- * static, keyboard-driven choices inside a desktop window. A native select
- * gets the platform's own popup, its typeahead, and its behaviour at 200% zoom
- * for free; a Radix listbox would re-implement all of it and then have to be
- * kept portal-safe inside a Drawer. The moment one of these lists needs
- * grouping, icons or search, it should become `Select` instead — and that is a
- * different component, not a prop on this one.
+ * Both are on offer upstream and the native one is right here. Every place the
+ * product needs a list — 镜头类型 (seven members, more than a `Seg` can carry in
+ * a 440px inspector), 分辨率 / 帧率 in the export panel, 片段转场 in 快速合辑 — is
+ * a short, static, keyboard-driven choice inside a desktop window. A native
+ * select gets the platform's own popup, its typeahead, and its behaviour at
+ * 200% zoom for free; a Radix listbox would re-implement all of it and then
+ * have to be kept portal-safe inside a Drawer. The moment one of these lists
+ * needs grouping, icons or search, it should become `Select` instead — and that
+ * is a different component, not a prop on this one.
  *
- * `ShotEditForm` and `ExportBlock` each had their own copy of these classes.
- * They are the same classes, so they live here.
+ * `ShotEditForm`, `ExportBlock`, `ShotInspectorBlock` and `PackagingBlock` each
+ * had their own copy of these classes, and the last two carried a comment
+ * saying 「the design system has no listbox」 — written before this file existed
+ * and never revisited. They are the same classes, so they live here.
  *
  * `color-scheme` on `:root` (base.css) is what makes the popup itself follow
  * the theme; nothing here has to paint it.

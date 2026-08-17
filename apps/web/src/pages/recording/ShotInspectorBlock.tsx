@@ -75,7 +75,7 @@ import { useCreateRecordingShotPreset, useRecordingShotPresets } from '../../dat
 import { Empty } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
 import { Inspector } from '../../design/layout';
-import { Button, Field, Input, InputGroup, InputGroupAddon, InputGroupInput, Seg, Slider, Toggle } from '../../design/primitives';
+import { Button, Field, Input, InputGroup, InputGroupAddon, InputGroupInput, NativeSelect, Seg, Slider, Toggle } from '../../design/primitives';
 import type { RecordingRequest, RecordingShotPreset } from '../../shared/desktop/dto';
 import type { CameraDesk } from './cameraDesk';
 import {
@@ -216,8 +216,9 @@ function ShotForm({
     <>
       <Field label={<Trans>镜头类型</Trans>} hint={i18n._(CAMERA_STYLE[shot.camera_style].hint)}>
         {(control) => (
-          <select
+          <NativeSelect
             {...control}
+            size="md"
             data-shot-style="true"
             value={shot.camera_style}
             onChange={(event) =>
@@ -225,14 +226,13 @@ function ShotForm({
                 patchCameraStyle(shot, event.target.value as RecordingRequest['camera_style'], defaults),
               )
             }
-            className="h-[var(--h-ctl-md)] w-full border border-divider bg-bg px-2.5 text-sm"
           >
             {CAMERA_STYLES.map((style) => (
               <option key={style} value={style}>
                 {i18n._(CAMERA_STYLE[style].label)}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         )}
       </Field>
 

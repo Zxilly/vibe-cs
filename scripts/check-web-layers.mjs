@@ -1,8 +1,9 @@
 /**
  * Layer and bare-value lint for `apps/web/src`.
  *
- * Enforces the six constraints of spec §2.1
- * (`docs/superpowers/specs/2026-08-15-frontend-redesign-design.md`):
+ * Enforces the §2.1 constraints of
+ * `docs/superpowers/specs/2026-08-15-frontend-redesign-design.md`, plus one
+ * (rule 8) that belongs to §3.6:
  *
  *   1. design/**  must not import domain/** pages/** app/** data/** shared/desktop/**
  *   2. domain/**  must not import pages/** app/**
@@ -14,6 +15,8 @@
  *   6. pages/** domain/** must not import `shared/desktop/client` directly
  *   7. design/** domain/** pages/** app/** must not put authored Han copy in a
  *      JSX attribute or a known UI prop; it belongs in a `t` / `Trans` macro
+ *   8. design/** domain/** pages/** app/** must not round a corner — §3.6 sets
+ *      every `--radius-*` to 0 and the reference draws none
  *
  * Follows the shape of `check-web-i18n.mjs`: walk, collect a `failures` array,
  * print every failure and exit non-zero. Directories that do not exist yet are
@@ -70,6 +73,21 @@ const NO_BARE_HEX = new Set(['pages', 'app', 'domain']);
 /** Rule 5: layers whose Tailwind arbitrary values are constrained. */
 const ARBITRARY_VALUE_CHECKED = new Set(['pages', 'app']);
 
+/**
+ * Rule 8: layers that may not round a corner.
+ *
+ * §3.6 sets every `--radius-*` to 0 and the reference draws no rounded corner
+ * anywhere, so a `rounded` utility is never right — it is either dead weight or
+ * the one element in the app with soft corners. There was exactly one left
+ * (`pages/editor/MediaLibraryPanel.tsx`), which is the case for a lint rather
+ * than for a note: the cost of the next one is that nobody sees it.
+ *
+ * `design/**` is in the set too. The token is zero there as well, and a
+ * primitive is the worst place to reintroduce a radius because every page
+ * inherits it.
+ */
+const NO_RADIUS = new Set(['design', 'domain', 'pages', 'app']);
+
 /** Rule 7: layers whose rendered copy must go through Lingui. */
 const MACRO_REQUIRED = new Set(['design', 'domain', 'pages', 'app']);
 
@@ -121,6 +139,9 @@ const HEX_LENGTHS = new Set([3, 4, 6, 8]);
  * `:` is excluded from the prefix character class.
  */
 const ARBITRARY_VALUE = /(?<![\w#$.])(-?[a-z][a-z0-9]*(?:-[a-z0-9]+)*)-\[([^\]\s"'`]*)\]/gu;
+
+/** `rounded`, `rounded-full`, `rounded-t-lg`, `rounded-[3px]` — as a class token. */
+const RADIUS_UTILITY = /(?<![\w-])rounded(?:-[a-z0-9]+)*(?:-\[[^\]]*\])?(?![\w-])/gu;
 
 /** Utilities whose arbitrary value paints something. */
 const COLOR_UTILITY = new Set([
@@ -400,6 +421,7 @@ export function checkWebLayers({ root, panelWidths } = {}) {
     if (!isTest) {
       checkBareHex({ file, layer, source, failures });
       checkArbitraryValues({ file, layer, source, widths, failures });
+      checkRadius({ file, layer, source, failures });
       checkUntranslatedCopy({ file, layer, source, failures });
     }
   }
@@ -488,6 +510,87 @@ function checkArbitraryValues({ file, layer, source, widths, failures }) {
           `${at}: ${printed} is not in the §3.5 panel width table (${[...widths.keys()].sort((a, b) => a - b).join(', ')})`,
         );
       }
+    }
+  }
+}
+
+/**
+ * Every quoted string in the source, as `{ index, text }`.
+ *
+ * Rule 8 needs it because `rounded` is also an English word and a plausible
+ * variable name — this repo has 「rounded to an even number」 in a comment and
+ * `const rounded = Math.round(…)` in a handler, and neither is a class. Both
+ * were flagged by a regex that scanned the whole file, so this walks the source
+ * once instead, skipping comments and the `${…}` holes inside a template. It is
+ * not a JavaScript lexer (a regex literal containing a quote would confuse it,
+ * and there is none in `src/**`); it is the smallest thing that tells a class
+ * list apart from the prose around it.
+ */
+export function stringLiterals(source) {
+  const found = [];
+  let index = 0;
+
+  while (index < source.length) {
+    const character = source[index];
+    const next = source[index + 1];
+
+    if (character === '/' && next === '/') {
+      const end = source.indexOf('\n', index);
+      index = end === -1 ? source.length : end + 1;
+      continue;
+    }
+    if (character === '/' && next === '*') {
+      const end = source.indexOf('*/', index + 2);
+      index = end === -1 ? source.length : end + 2;
+      continue;
+    }
+    if (character !== "'" && character !== '"' && character !== '`') {
+      index += 1;
+      continue;
+    }
+
+    const start = index;
+    const quote = character;
+    let text = '';
+    index += 1;
+    while (index < source.length && source[index] !== quote) {
+      if (source[index] === '\\') {
+        index += 2;
+        continue;
+      }
+      /* A template hole is arbitrary code, not class names — skip to its close
+         brace, counting nested braces so an object literal inside does not end
+         it early. */
+      if (quote === '`' && source[index] === '$' && source[index + 1] === '{') {
+        let depth = 1;
+        index += 2;
+        while (index < source.length && depth > 0) {
+          if (source[index] === '{') depth += 1;
+          else if (source[index] === '}') depth -= 1;
+          index += 1;
+        }
+        continue;
+      }
+      text += source[index];
+      index += 1;
+    }
+    index += 1;
+    found.push({ index: start, text });
+  }
+
+  return found;
+}
+
+/** Rule 8. */
+function checkRadius({ file, layer, source, failures }) {
+  if (!NO_RADIUS.has(layer)) return;
+
+  for (const literal of stringLiterals(source)) {
+    for (const match of literal.text.matchAll(RADIUS_UTILITY)) {
+      failures.push(
+        `${file}:${lineOf(source, literal.index)}: border radius utility \`${match[0]}\` in ${layer}/**; `
+          + '§3.6 sets every --radius-* to 0',
+      );
     }
   }
 }

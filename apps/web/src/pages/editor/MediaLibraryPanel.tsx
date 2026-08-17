@@ -92,8 +92,11 @@ export function MediaLibraryPanel({ desk, service }: EditorPanelProps) {
       <li key={asset.id}>
         <button
           type="button"
+          /* No `rounded`: §3.6 sets every `--radius-*` to 0 and the reference
+             draws no rounded corner anywhere. It was the only one left in the
+             app, and it made this list the one place with soft corners. */
           className={cn(
-            'flex w-full flex-col gap-0.5 rounded px-3 py-2 text-start text-sm',
+            'flex w-full flex-col gap-0.5 px-3 py-2 text-start text-sm',
             'hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-accent',
             asset.id === selected && 'bg-neutral-100',
           )}

@@ -1,11 +1,24 @@
-import type { ActivityAction, ActivityKind, ActivityStatus } from './dto';
+import type { ActivityAction, ActivityKind, ActivityStatus, JobFailureCode } from './dto';
 import type { ActivityFeed, ActivityItem } from './viewModels';
 
+/*
+ * `failure` was added to the Rust `ActivityItem` by the 「close the six backend
+ * gaps」 change and reached `generated/ActivityItem.ts`, but not this list —
+ * and `recordWithExactKeys` demands *exactly* these keys, so every real
+ * response has been rejected since. The feed is checked at one seam by design;
+ * the cost of that is that a field the seam has not been told about takes the
+ * whole page down rather than being ignored, which is what happened. The
+ * generated file is the source of truth for this list.
+ */
 const itemKeys = [
   'id', 'kind', 'subtype', 'job_id', 'context_id', 'subject', 'status', 'stage',
-  'progress_percent', 'completed_units', 'total_units', 'unit', 'error',
+  'progress_percent', 'completed_units', 'total_units', 'unit', 'error', 'failure',
   'created_at', 'updated_at', 'available_actions',
 ] as const;
+const failureCodes = new Set<JobFailureCode>([
+  'cancelled', 'interrupted', 'disk_full', 'input_missing', 'permission_denied',
+  'dependency_missing', 'dependency_failed', 'invalid_input', 'timeout', 'unknown',
+]);
 const feedKeys = ['items', 'total', 'page', 'page_size', 'summary'] as const;
 const summaryKeys = ['total', 'active', 'failed', 'completed', 'cancelled'] as const;
 const kinds = new Set<ActivityKind>(['recording', 'export', 'download', 'analysis']);
@@ -54,6 +67,24 @@ function nullableNonnegativeInteger(value: unknown): value is number | null {
   return value === null || (Number.isSafeInteger(value) && Number(value) >= 0);
 }
 
+/**
+ * `null` for a row that has not failed, or the classified pair.
+ *
+ * `retryable` is not cross-checked against the row's `available_actions`: the
+ * two answer different questions — whether re-running *could* work, and whether
+ * the row is in a state that can be re-run right now — and a job that is still
+ * running is allowed to carry neither.
+ */
+function nullableFailure(value: unknown): boolean {
+  if (value === null) return true;
+  if (typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return Object.keys(candidate).length === 2
+    && typeof candidate.code === 'string'
+    && failureCodes.has(candidate.code as JobFailureCode)
+    && typeof candidate.retryable === 'boolean';
+}
+
 function actionsExactly(actual: ActivityAction[], expected: readonly ActivityAction[]): boolean {
   return actual.length === expected.length && actual.every((action, index) => action === expected[index]);
 }
@@ -77,6 +108,7 @@ export function parseActivityItem(value: unknown): ActivityItem {
     || !nullableNonnegativeInteger(value.total_units)
     || !(value.unit === null || value.unit === 'bytes' || value.unit === 'stages')
     || !nullableString(value.error)
+    || !nullableFailure(value.failure)
     || typeof value.created_at !== 'string'
     || typeof value.updated_at !== 'string'
     || !Array.isArray(value.available_actions)

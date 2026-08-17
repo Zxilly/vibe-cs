@@ -18,6 +18,7 @@ const item = () => ({
   total_units: null,
   unit: null,
   error: null,
+  failure: null,
   created_at: '2026-08-13T01:00:00Z',
   updated_at: '2026-08-13T01:01:00Z',
   available_actions: ['cancel', 'open_outputs'],
@@ -146,6 +147,33 @@ describe('activity wire contract', () => {
     expect(parseActivityItem(running)).toEqual(running);
     expect(() => parseActivityItem({ ...running, available_actions: ['open_library'] }))
       .toThrow('current contract');
+  });
+
+  /* The field the service has been sending since 「close the six backend
+     gaps」 and this parser had never been told about — every real response was
+     rejected, because `recordWithExactKeys` treats an unknown key as drift. */
+  it('carries the classified failure the service sends beside the free-text error', () => {
+    const failed = {
+      ...item(),
+      status: 'failed',
+      progress_percent: null,
+      error: '写入 D:\\ 时磁盘已满。',
+      failure: { code: 'disk_full', retryable: false },
+      available_actions: ['open_outputs'],
+    };
+    expect(parseActivityItem(failed)).toEqual(failed);
+
+    for (const invalid of [
+      { ...failed, failure: { code: 'out_of_cheese', retryable: false } },
+      { ...failed, failure: { code: 'disk_full' } },
+      { ...failed, failure: { code: 'disk_full', retryable: 'no' } },
+      { ...failed, failure: { code: 'disk_full', retryable: false, hint: 'x' } },
+    ]) {
+      expect(() => parseActivityItem(invalid)).toThrow('current contract');
+    }
+
+    const { failure: _dropped, ...withoutFailure } = failed;
+    expect(() => parseActivityItem(withoutFailure)).toThrow('current contract');
   });
 
   it('accepts only a bounded exact activity feed envelope', () => {

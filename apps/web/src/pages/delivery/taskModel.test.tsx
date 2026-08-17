@@ -107,13 +107,39 @@ describe('toTaskSummary', () => {
     expect(toTaskSummary(ITEM).durationMs).toBeUndefined();
   });
 
-  it('carries the service s sentence and refuses to guess the reason', () => {
+  it('carries the service s sentence and refuses to guess the reason from it', () => {
     const failed = { ...ITEM, status: 'failed' as const, error: '磁盘空间不足' };
     const summary = toTaskSummary(failed);
 
     expect(summary.status).toBe('failed');
+    /* The sentence says 磁盘空间不足 and there is no code beside it, so the
+       reason stays `unknown` — reading it off the prose is the thing this
+       module will not do. */
     expect(summary.failure?.reason).toBe('unknown');
     expect(summary.failure?.detail).toBe('磁盘空间不足');
+  });
+
+  it('names the reason from the service s code, and only from a code it has a name for', () => {
+    const failed = { ...ITEM, status: 'failed' as const, error: '写入失败' };
+
+    expect(toTaskSummary({ ...failed, failure: { code: 'disk_full', retryable: false } })
+      .failure?.reason).toBe('disk-space');
+    expect(toTaskSummary({ ...failed, failure: { code: 'input_missing', retryable: false } })
+      .failure?.reason).toBe('source-missing');
+    expect(toTaskSummary({ ...failed, failure: { code: 'timeout', retryable: true } })
+      .failure?.reason).toBe('timeout');
+    /* Absent and broken are the same next step, so both are game-unavailable. */
+    expect(toTaskSummary({ ...failed, failure: { code: 'dependency_missing', retryable: false } })
+      .failure?.reason).toBe('game-unavailable');
+    expect(toTaskSummary({ ...failed, failure: { code: 'dependency_failed', retryable: true } })
+      .failure?.reason).toBe('game-unavailable');
+    /* No member of the five describes a denied write; naming the nearest one
+       would send the user to free disk space they already have. */
+    expect(toTaskSummary({ ...failed, failure: { code: 'permission_denied', retryable: false } })
+      .failure?.reason).toBe('unknown');
+    /* And the sentence survives whichever branch was taken. */
+    expect(toTaskSummary({ ...failed, failure: { code: 'disk_full', retryable: false } })
+      .failure?.detail).toBe('写入失败');
   });
 
   it('always hands a failure some recovery action, and marks a missing one useless', () => {

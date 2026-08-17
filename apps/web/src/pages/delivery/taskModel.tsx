@@ -32,16 +32,20 @@
  * `total_units` of 0 is dropped too: a bar over an empty total is a division
  * the reader would have to ignore.
  *
- * ── 3. Failure reason is `unknown`, and that is the honest answer ──────────
+ * ── 3. Failure reason comes from the service's code, never from its prose ──
  *
  * `TaskFailureReason` is a closed set of five; `ActivityItem.error` is free
- * text with no code beside it. Recovering the set from the sentence would mean
- * matching substrings the service has never promised to keep — 「磁盘空间不足」
- * today, a reworded message tomorrow, and a task silently reclassified as
- * 未知原因 with nobody noticing. So every failure maps to `unknown` and the
- * service's own sentence is carried through as `detail`, where the artboard
- * puts it. Naming the five needs an error *code* on `ActivityItem`; that is
- * reported as a gap rather than papered over here.
+ * text. Recovering the set from the sentence would mean matching substrings the
+ * service has never promised to keep — 「磁盘空间不足」 today, a reworded message
+ * tomorrow, and a task silently reclassified as 未知原因 with nobody noticing.
+ * This file used to answer `unknown` for every failure and record the missing
+ * error *code* as a gap.
+ *
+ * The gap is closed: `ActivityItem.failure` carries `JobFailureCode`, and
+ * `FAILURE_REASON` below is a closed-set-to-closed-set table. The service's own
+ * sentence still rides along as `detail`, where the artboard puts it, and a row
+ * with no `failure` — or one whose code no member of the five describes — is
+ * still `unknown`, which stays a real answer rather than a fallback.
  *
  * ── 4. Recovery actions come from the caller ───────────────────────────────
  *
@@ -57,6 +61,7 @@ import type { ReactNode } from 'react';
 import { ANALYSIS_STAGE_IDS } from '../../domain/task';
 import type {
   TaskArtifact,
+  TaskFailureReason,
   TaskKind,
   TaskLink,
   TaskProgress,
@@ -65,7 +70,7 @@ import type {
   TaskStatus,
   TaskSummary,
 } from '../../domain/task';
-import type { ActivityStatus } from '../../shared/desktop/dto';
+import type { ActivityStatus, JobFailureCode } from '../../shared/desktop/dto';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 
 /* ── status ──────────────────────────────────────────────────────────────── */
@@ -273,13 +278,45 @@ export function toTaskSummary(item: ActivityItem, options: TaskSummaryOptions = 
     ...base,
     status,
     failure: {
-      reason: 'unknown',
+      reason: item.failure === null ? 'unknown' : FAILURE_REASON[item.failure.code],
       ...(item.error === null ? {} : { detail: item.error }),
       ...(options.impact === undefined ? {} : { impact: options.impact }),
       recovery: options.recovery ?? MISSING_RECOVERY,
     },
   };
 }
+
+/**
+ * `JobFailureCode` → `TaskFailureReason`.
+ *
+ * Ten codes onto six reasons, so the table is not a bijection and the losses
+ * are deliberate:
+ *
+ *   · `cancelled` / `interrupted` describe *how* a run ended rather than what
+ *     went wrong, and neither is a member of the five the reference writes.
+ *   · `permission_denied` and `invalid_input` have no member either. Folding
+ *     them into a neighbour — 「磁盘空间不足」 for a denied write, 「文件不在原位」
+ *     for a malformed one — would tell the user to do the wrong thing.
+ *   · `dependency_missing` / `dependency_failed` are both 「CS2 与受管录制环境」
+ *     not being usable, which is exactly what `game-unavailable` names; the
+ *     difference between absent and broken changes nothing about the next step.
+ *
+ * Everything not named lands on `unknown`, where the service's own sentence is
+ * still printed as `detail`. `unknown` losing information is the point: a wrong
+ * label is worse than an honest absent one.
+ */
+const FAILURE_REASON: Readonly<Record<JobFailureCode, TaskFailureReason>> = {
+  cancelled: 'unknown',
+  interrupted: 'unknown',
+  disk_full: 'disk-space',
+  input_missing: 'source-missing',
+  permission_denied: 'unknown',
+  dependency_missing: 'game-unavailable',
+  dependency_failed: 'game-unavailable',
+  invalid_input: 'unknown',
+  timeout: 'timeout',
+  unknown: 'unknown',
+};
 
 const MISSING_RECOVERY: TaskRecoveryAction = {
   label: <Trans>暂无可用的恢复动作</Trans>,

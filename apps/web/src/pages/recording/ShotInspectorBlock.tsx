@@ -70,7 +70,7 @@ import { useState } from 'react';
 
 import { useAppConfig } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
-import { useNativeShell, useNativeShellAction } from '../../data/nativeShell';
+import { useNativeShellAction, useOpenDirectory } from '../../data/nativeShell';
 import { useCreateRecordingShotPreset, useRecordingShotPresets } from '../../data/recording';
 import { Empty } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
@@ -474,7 +474,7 @@ function SliderRow({
 
 function InGamePreview({ camera }: { readonly camera: CameraDesk }) {
   const [confirming, setConfirming] = useState(false);
-  const shell = useNativeShell();
+  const openDirectory = useOpenDirectory();
   const shellAction = useNativeShellAction();
   const failure = dataErrorMessage(camera.inGame.error);
   const bundle = camera.inGame.bundle;
@@ -552,7 +552,7 @@ function InGamePreview({ camera }: { readonly camera: CameraDesk }) {
             {...(shellAction.buttonProps.disabledReason === undefined
               ? {}
               : { disabledReason: shellAction.buttonProps.disabledReason })}
-            onClick={() => void shell.openDirectory(bundle.directory)}
+            onClick={() => openDirectory(bundle.directory)}
           >
             <Trans>打开脚本目录</Trans>
           </Button>

@@ -51,8 +51,9 @@
  */
 
 import { t } from '@lingui/core/macro';
-import { createContext, createElement, use, useMemo, type ReactNode } from 'react';
+import { createContext, createElement, use, useCallback, useMemo, type ReactNode } from 'react';
 
+import { toast } from '../design/feedback';
 import { desktopMediaUrl } from '../shared/desktop/client';
 import {
   chooseLocalDirectories,
@@ -275,5 +276,39 @@ export function useNativeShellAction(): NativeShellActionState {
         ? { available: true, buttonProps: { disabled: false } }
         : { available: false, buttonProps: { disabled: true, disabledReason: reason } },
     [available, reason],
+  );
+}
+
+/* ── 「不隐藏、不静默失败」 ───────────────────────────────────────────────── */
+
+/**
+ * 「打开目录」 / 「定位文件」, and the answer said out loud.
+ *
+ * `openDirectory` and `reveal` return `false` when the shell refused — no
+ * folder, a path outside the bridge's whitelist, a browser rather than the
+ * desktop app — and every one of the five call sites dropped that boolean.
+ * Clicking 「打开目录」 did nothing at all and the product said nothing about
+ * it, which is the exact case 「不隐藏、不静默失败」 is about.
+ *
+ * A toast rather than an `Alert`: there is nothing to decide. The folder opened
+ * or it did not, the retry is the same click, and a box that stays on the page
+ * until dismissed would outlive the question it answers. The split is stated in
+ * `design/feedback/Toast`.
+ */
+export function useOpenDirectory(): (path: string) => void {
+  const shell = useNativeShell();
+
+  return useCallback(
+    (path: string) => {
+      void shell
+        .openDirectory(path)
+        .then((opened) => {
+          if (!opened) toast.error(t`没能打开这个目录`, { description: path });
+        })
+        .catch(() => {
+          toast.error(t`没能打开这个目录`, { description: path });
+        });
+    },
+    [shell],
   );
 }

@@ -70,6 +70,7 @@ import {
   useShellStore,
   WindowTitleBar,
 } from './shell';
+import { Toaster } from '../design/feedback';
 
 export interface AppShellProps {
   /**
@@ -177,6 +178,10 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
       </div>
 
       <CommandPalette open={palette.open} onClose={palette.closePalette} navigate={goTo} />
+
+      {/* Mounted once, at the shell. What belongs in it and what belongs in an
+          `Alert` is settled in `design/feedback/Toast`. */}
+      <Toaster />
     </div>
   );
 }

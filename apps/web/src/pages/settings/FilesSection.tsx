@@ -46,7 +46,7 @@ import {
   useUpdateAppConfig,
 } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
-import { useNativeShell, useNativeShellAction } from '../../data/nativeShell';
+import { useNativeShell, useNativeShellAction, useOpenDirectory } from '../../data/nativeShell';
 import { useServiceAction } from '../../data/serviceAction';
 import { formatBytes, PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
 
@@ -57,6 +57,7 @@ export function FilesSection() {
   const setWatchPaths = useSetDemoWatchPaths();
   const service = useServiceAction();
   const shell = useNativeShell();
+  const openDirectory = useOpenDirectory();
   const shellAction = useNativeShellAction();
   const [picking, setPicking] = useState(false);
   const [movingTo, setMovingTo] = useState<string | null>(null);
@@ -115,7 +116,7 @@ export function FilesSection() {
                   variant="secondary"
                   size="sm"
                   {...shellAction.buttonProps}
-                  onClick={() => void shell.openDirectory(current.data_dir)}
+                  onClick={() => openDirectory(current.data_dir)}
                 >
                   <Trans>打开目录</Trans>
                 </Button>

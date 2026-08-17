@@ -40,7 +40,7 @@ import { Trans } from '@lingui/react/macro';
 import { Skeleton } from '../../design/data';
 import { Button, Field, NativeSelect, Seg } from '../../design/primitives';
 import { useAppConfig } from '../../data/config';
-import { useNativeShell, useNativeShellAction } from '../../data/nativeShell';
+import { useNativeShellAction, useOpenDirectory } from '../../data/nativeShell';
 import { splitMinutesSeconds } from './montageClock';
 import type { MontageBlockProps } from './montageContract';
 import {
@@ -68,7 +68,7 @@ function exportDirectory(dataDir: string): string {
 
 export function ExportBlock({ project: desk, service, projectId }: MontageBlockProps) {
   const { i18n } = useLingui();
-  const shell = useNativeShell();
+  const openDirectory = useOpenDirectory();
   const shellAction = useNativeShellAction();
   const config = useAppConfig();
 
@@ -256,7 +256,7 @@ export function ExportBlock({ project: desk, service, projectId }: MontageBlockP
           {...shellAction.buttonProps}
           disabled={!shellAction.available || directory === null}
           onClick={() => {
-            if (directory !== null) void shell.openDirectory(directory);
+            if (directory !== null) openDirectory(directory);
           }}
         >
           <Trans>打开输出目录</Trans>

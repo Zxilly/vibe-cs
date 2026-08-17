@@ -36,7 +36,7 @@ import { Skeleton } from '../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { Button } from '../../design/primitives';
 import { useExportDiagnostics, useHlaeStatus, useQuickCheck, useRuntimeState } from '../../data/config';
-import { useNativeShell } from '../../data/nativeShell';
+import { useOpenDirectory } from '../../data/nativeShell';
 import { dataErrorMessage } from '../../data/errors';
 import { useServiceAction } from '../../data/serviceAction';
 import { PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
@@ -47,7 +47,7 @@ export function AdvancedSection() {
   const hlae = useHlaeStatus();
   const service = useServiceAction();
   const exportDiagnostics = useExportDiagnostics();
-  const shell = useNativeShell();
+  const openDirectory = useOpenDirectory();
 
   const runtimeError = dataErrorMessage(runtime.error);
   const checksError = dataErrorMessage(checks.error);
@@ -221,7 +221,7 @@ export function AdvancedSection() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => void shell.openDirectory(exportDiagnostics.data.path)}
+                onClick={() => openDirectory(exportDiagnostics.data.path)}
               >
                 <Trans>定位文件</Trans>
               </Button>

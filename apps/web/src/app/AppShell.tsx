@@ -49,7 +49,6 @@
  * summary, the view nav becomes tabs. Nothing here is hidden without a route.
  */
 
-import { useLingui } from '@lingui/react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { useShellCollapsed } from '../design/layout';
@@ -61,14 +60,15 @@ import {
   type ServiceGateProps,
 } from './boundary';
 import { CommandPalette, useCommandPalette } from './command';
-import { CRUMB_SEPARATOR, routeCrumb } from './routeCrumb';
+import { routeCrumb } from './routeCrumb';
 import {
   AgentRail,
+  RouteBreadcrumb,
   SideNav,
-  useShellStore,
-  WindowTitleBar,
   type DesktopWindowAdapter,
   type ShellNavItemId,
+  useShellStore,
+  WindowTitleBar,
 } from './shell';
 
 export interface AppShellProps {
@@ -118,7 +118,6 @@ interface ShellFrameProps {
  * reads `useService()`, which only resolves *inside* the gate.
  */
 function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
-  const { i18n } = useLingui();
   const location = useLocation();
   const navigate = useNavigate();
   const service = useService();
@@ -132,9 +131,7 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
      so it is told the resolved state rather than re-deriving it. */
   const navCollapsed = storedNavCollapsed || folded;
 
-  const crumb = routeCrumb(location.pathname, location.search)
-    .map((segment) => i18n._(segment))
-    .join(CRUMB_SEPARATOR);
+  const crumb = routeCrumb(location.pathname, location.search);
 
   const goTo = (to: string) => {
     void navigate(to);
@@ -147,7 +144,7 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
       className="flex h-full min-h-0 flex-col overflow-hidden bg-bg text-text"
     >
       <WindowTitleBar
-        crumb={crumb}
+        crumb={<RouteBreadcrumb segments={crumb} />}
         serviceStatus={service.status}
         navCollapsed={navCollapsed}
         adapter={adapter}

@@ -99,32 +99,58 @@ describe('AppShell — the title bar crumb', () => {
     resetShellStore();
   });
 
+  /** The crumb's own markup, so an assertion is not matching the whole shell. */
+  function crumb(path: string): string {
+    return /<nav[^>]*data-titlebar-crumb=""[\s\S]*?<\/nav>/u.exec(renderShell(path))?.[0] ?? '';
+  }
+
+  /** The rungs, in order, as 「label」 or 「label→href」 for the ones that link. */
+  function rungs(path: string): string[] {
+    const html = crumb(path);
+    return [...html.matchAll(/<(?:span|a)\b([^>]*)>([^<]*)</gu)]
+      .filter(([, , text]) => (text ?? '').trim() !== '')
+      .map(([, attrs = '', text = '']) => {
+        const href = /href="([^"]*)"/u.exec(attrs)?.[1];
+        return href === undefined ? text : `${text}→${href}`;
+      });
+  }
+
+  it('is a real list, not a joined string', () => {
+    const html = crumb('/library');
+    expect(html).toContain('<ol');
+    expect(html.match(/<li/gu)).toHaveLength(3); // 资料库 · separator · Demo 资料库
+    // The separator is punctuation between two names, so it is not read out.
+    expect(html).toContain('role="presentation"');
+  });
+
   it('names the group and the entry for a rail destination', () => {
-    expect(renderShell('/library')).toContain('资料库 › Demo 资料库');
+    expect(rungs('/library')).toEqual(['资料库', 'Demo 资料库']);
   });
 
   it('drops the group for 工作台, which has none', () => {
-    const html = renderShell('/');
-    expect(html).toContain('>工作台<');
-    expect(html).not.toContain('› 工作台');
+    expect(rungs('/')).toEqual(['工作台']);
   });
 
   it('reads the query, so 输出 and 任务记录 are told apart on one path', () => {
-    expect(renderShell('/delivery?view=tasks')).toContain('交付 › 任务记录');
-    expect(renderShell('/delivery')).toContain('交付 › 输出');
+    expect(rungs('/delivery?view=tasks')).toEqual(['交付', '任务记录']);
+    expect(rungs('/delivery')).toEqual(['交付', '输出']);
   });
 
-  it('names the leaf for the detail routes the rail cannot list', () => {
-    expect(renderShell('/match/aurora-meridian')).toContain('资料库 › 比赛工作区');
-    expect(renderShell('/players/kael')).toContain('资料库 › 玩家档案');
-    expect(renderShell('/delivery/task/t-1')).toContain('交付 › 任务详情');
-    expect(renderShell('/recovery')).toContain('设置与诊断 › 恢复中心');
+  /* The rung that used to be dropped is the one you would climb. */
+  it('links the parent list on a detail route, and marks the leaf as the page', () => {
+    expect(rungs('/match/aurora-meridian')).toEqual([
+      '资料库',
+      'Demo 资料库→/library',
+      '比赛工作区',
+    ]);
+    expect(rungs('/players/kael')).toEqual(['资料库', '玩家目录→/players', '玩家档案']);
+    expect(rungs('/recovery')).toEqual(['设置与诊断→/settings', '恢复中心']);
+
+    expect(crumb('/match/aurora-meridian')).toContain('aria-current="page"');
   });
 
-  it('leaves the crumb empty for an address outside the table', () => {
-    const html = renderShell('/does-not-exist');
-    expect(html).toContain('data-titlebar-crumb');
-    expect(html).toMatch(/data-titlebar-crumb="true" class="[^"]*"><\/span>/u);
+  it('leaves the crumb out entirely for an address outside the table', () => {
+    expect(renderShell('/does-not-exist')).not.toContain('data-titlebar-crumb');
   });
 });
 

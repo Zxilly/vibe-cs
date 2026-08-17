@@ -239,9 +239,8 @@ export function WindowTitleBar({
       </div>
 
       <div className="flex min-w-0 flex-1 items-center gap-3.5 px-4">
-        <span data-titlebar-crumb className="min-w-0 truncate text-sm text-neutral-700">
-          {crumb}
-        </span>
+        {/* A `div`, not a `span`: the crumb is a `<nav>` with a list in it. */}
+        <div className="flex min-w-0 items-center">{crumb}</div>
         <span className="flex-1" />
 
         <button

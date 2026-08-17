@@ -9,7 +9,7 @@
 import { i18n } from '@lingui/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { CRUMB_SEPARATOR, routeCrumb } from './routeCrumb';
+import { routeCrumb } from './routeCrumb';
 
 beforeAll(() => {
   i18n.loadAndActivate({ locale: 'zh-CN', messages: {} });
@@ -17,8 +17,15 @@ beforeAll(() => {
 
 function crumb(pathname: string, search = ''): string {
   return routeCrumb(pathname, search)
-    .map((segment) => i18n._(segment))
-    .join(CRUMB_SEPARATOR);
+    .map((segment) => i18n._(segment.label))
+    .join(' › ');
+}
+
+/** Where each rung goes, `-` for a rung that is a heading rather than a route. */
+function targets(pathname: string, search = ''): string {
+  return routeCrumb(pathname, search)
+    .map((segment) => segment.to ?? '-')
+    .join(' ');
 }
 
 describe('routeCrumb', () => {
@@ -43,21 +50,33 @@ describe('routeCrumb', () => {
   });
 
   it('names the leaf for the four §7 routes the rail cannot list', () => {
-    expect(crumb('/match/aurora-vs-meridian')).toBe('资料库 › 比赛工作区');
-    expect(crumb('/players/kael')).toBe('资料库 › 玩家档案');
-    expect(crumb('/delivery/task/t-42')).toBe('交付 › 任务详情');
+    expect(crumb('/match/aurora-vs-meridian')).toBe('资料库 › Demo 资料库 › 比赛工作区');
+    expect(crumb('/players/kael')).toBe('资料库 › 玩家目录 › 玩家档案');
+    expect(crumb('/delivery/task/t-42')).toBe('交付 › 任务记录 › 任务详情');
+    // The footer entry has no group heading, so its own label opens the crumb —
+    // once, carrying the destination rather than being repeated as a heading.
     expect(crumb('/recovery')).toBe('设置与诊断 › 恢复中心');
   });
 
-  it('replaces the rail entry with the leaf rather than stacking three segments', () => {
-    // 「资料库 › 比赛工作区」, not 「资料库 › Demo 资料库 › 比赛工作区」: the middle
-    // segment of the reference's crumb is the match title, which is server data.
-    expect(routeCrumb('/match/x')).toHaveLength(2);
+  /* The trail is climbable, which is the whole reason it is a trail. The rung
+     that used to be dropped — the list this detail page came from — is the only
+     one anybody would ever click. */
+  it('keeps the parent list as a rung, and gives it its destination', () => {
+    expect(routeCrumb('/match/x')).toHaveLength(3);
+    expect(targets('/match/x')).toBe('- /library -');
+    expect(targets('/players/kael')).toBe('- /players -');
+    expect(targets('/recovery')).toBe('/settings -');
+  });
+
+  it('leaves the page you are on without a destination', () => {
+    // A link to where you already are is a link that does nothing.
+    expect(targets('/library')).toBe('- -');
+    expect(targets('/')).toBe('-');
   });
 
   it('keeps the list route and its detail route apart', () => {
     expect(crumb('/players')).toBe('资料库 › 玩家目录');
-    expect(crumb('/players/kael')).toBe('资料库 › 玩家档案');
+    expect(crumb('/players/kael')).toBe('资料库 › 玩家目录 › 玩家档案');
   });
 
   it('treats a trailing slash as the same destination', () => {
@@ -70,7 +89,6 @@ describe('routeCrumb', () => {
     expect(routeCrumb('/production')).toEqual([]);
   });
 
-  it('uses the separator the reference draws', () => {
-    expect(CRUMB_SEPARATOR).toBe(' › ');
-  });
+  /* The separator itself belongs to `design/layout/Breadcrumb` now — it is
+     punctuation the component draws, not data this resolver returns. */
 });

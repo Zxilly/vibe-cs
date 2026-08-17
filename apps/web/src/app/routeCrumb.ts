@@ -1,6 +1,22 @@
 /*
  * App shell — the title bar's breadcrumb.
  *
+ * ── The crumb is navigable ────────────────────────────────────────────────
+ *
+ * Every segment that names a destination carries it. That is the whole reason
+ * a crumb is a hierarchy and not a caption: from 「资料库 › Demo 资料库 › 比赛
+ * 工作区」 the middle segment is the list this match came from, and it is one
+ * click away.
+ *
+ * Which also settles a question the override table used to answer the other
+ * way. It dropped the rail entry's own label — 「资料库 › 比赛工作区」 — because
+ * the leaf replaced it. For a caption that reads fine; for a trail it deletes
+ * the only rung you would ever want to climb. The entry is back, and it is the
+ * link.
+ *
+ * A group heading has no `to`. 「资料库」 is a heading in the rail, not a route,
+ * so it stays text — a link that goes nowhere is worse than no link.
+ *
  * `Frame.dc.html` passes the crumb into the shell as a string
  * (`crumb="资料库 › Aurora vs Meridian › 概览"`) and every artboard draws it in
  * the 44px bar, never inside the page. So the crumb is shell state derived from
@@ -27,14 +43,20 @@ import {
   activeNavItemId,
   SHELL_NAV_GROUPS,
   SHELL_NAV_ITEMS,
+  type ShellNavItem,
   type ShellNavItemId,
 } from './shell/navigation';
 
+/** One rung. `to` is absent for a segment that is a heading rather than a route. */
+export interface CrumbSegment {
+  readonly label: MessageDescriptor;
+  readonly to?: string | undefined;
+}
+
 /**
- * A §7 destination the rail does not list. `base` names the rail entry whose
- * group (or, for the group-less footer entry, whose own label) opens the crumb;
- * `leaf` closes it. The rail entry's own label is dropped — the leaf replaces
- * it, the way 「比赛工作区」 replaces 「Demo 资料库」 in the reference.
+ * A §7 destination the rail does not list. `base` names the rail entry the
+ * destination belongs under — its group opens the crumb, the entry itself is
+ * the link in the middle — and `leaf` closes it.
  */
 interface CrumbOverride {
   readonly pattern: RegExp;
@@ -57,8 +79,8 @@ function normalizePath(pathname: string): string {
   return pathname === '' ? '/' : pathname;
 }
 
-function itemLabel(id: ShellNavItemId): MessageDescriptor | null {
-  return SHELL_NAV_ITEMS.find((item) => item.id === id)?.label ?? null;
+function navItem(id: ShellNavItemId): ShellNavItem | null {
+  return SHELL_NAV_ITEMS.find((item) => item.id === id) ?? null;
 }
 
 /** The heading of the group an entry sits in, or null for 工作台 and the footer. */
@@ -75,22 +97,28 @@ function groupLabel(id: ShellNavItemId): MessageDescriptor | null {
  * `search` is the raw `location.search`, leading `?` optional; `/delivery`
  * needs it to tell 输出 from 任务记录.
  */
-export function routeCrumb(pathname: string, search = ''): readonly MessageDescriptor[] {
+export function routeCrumb(pathname: string, search = ''): readonly CrumbSegment[] {
   const path = normalizePath(pathname);
 
   const override = CRUMB_OVERRIDES.find((entry) => entry.pattern.test(path));
   if (override !== undefined) {
-    const head = groupLabel(override.base) ?? itemLabel(override.base);
-    return head === null ? [override.leaf] : [head, override.leaf];
+    const parent = navItem(override.base);
+    if (parent === null) return [{ label: override.leaf }];
+    const group = groupLabel(override.base);
+    /* The group-less footer entry (设置与诊断) has no heading to open with, so
+       its own label does — and then it would be both the head and the link.
+       One rung, and it keeps the destination. */
+    const parentRung: CrumbSegment = { label: parent.label, to: parent.to };
+    return group === null
+      ? [parentRung, { label: override.leaf }]
+      : [{ label: group }, parentRung, { label: override.leaf }];
   }
 
   const id = activeNavItemId(path, search);
   if (id === null) return [];
-  const leaf = itemLabel(id);
-  if (leaf === null) return [];
-  const head = groupLabel(id);
-  return head === null ? [leaf] : [head, leaf];
+  const item = navItem(id);
+  if (item === null) return [];
+  const group = groupLabel(id);
+  // The leaf is where you are, so it carries no destination of its own.
+  return group === null ? [{ label: item.label }] : [{ label: group }, { label: item.label }];
 }
-
-/** The separator the reference draws between segments. */
-export const CRUMB_SEPARATOR = ' › ';

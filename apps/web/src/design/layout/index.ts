@@ -37,3 +37,19 @@ export {
   type ToolbarProps,
   type ToolbarTitleLevel,
 } from './Toolbar';
+export {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  BreadcrumbText,
+  type BreadcrumbItemProps,
+  type BreadcrumbLinkProps,
+  type BreadcrumbListProps,
+  type BreadcrumbPageProps,
+  type BreadcrumbProps,
+  type BreadcrumbSeparatorProps,
+  type BreadcrumbTextProps,
+} from './Breadcrumb';

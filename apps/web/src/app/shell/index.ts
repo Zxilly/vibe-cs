@@ -37,3 +37,4 @@ export {
   type WindowTitleBarController,
   type WindowTitleBarProps,
 } from './WindowTitleBar';
+export { RouteBreadcrumb, type RouteBreadcrumbProps } from './RouteBreadcrumb';

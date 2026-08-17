@@ -23,7 +23,7 @@
  * `<span>`, but a span cannot be operated.
  *
  * The switch carries no label of its own: the reference always puts the title
- * and its 「影响：…」 line in the row to the left, which is a layout concern.
+ * and its explanatory line in the row to the left, which is a layout concern.
  * `aria-label` or `aria-labelledby` is therefore required.
  */
 

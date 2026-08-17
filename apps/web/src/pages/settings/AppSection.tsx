@@ -88,7 +88,7 @@ export function AppSection() {
           <>
             <SettingsRow
               label={<Trans>语言</Trans>}
-              hint={<Trans>影响：界面文案。改动会保存，下次启动应用时生效。</Trans>}
+              hint={<Trans>界面文案使用的语言。改动会保存，下次启动应用时生效。</Trans>}
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
             >
               <Seg
@@ -107,7 +107,7 @@ export function AppSection() {
 
             <SettingsRow
               label={<Trans>主题</Trans>}
-              hint={<Trans>影响：界面配色。改动会保存，下次启动应用时生效。</Trans>}
+              hint={<Trans>界面使用的配色。改动会保存，下次启动应用时生效。</Trans>}
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
             >
               <Seg
@@ -134,7 +134,7 @@ export function AppSection() {
             label={<Trans>更新源</Trans>}
             hint={
               <Trans>
-                影响：手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。
+                手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。
               </Trans>
             }
             {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}

@@ -105,7 +105,7 @@ export function FilesSection() {
               label={<Trans>位置</Trans>}
               hint={
                 <Trans>
-                  影响：之后所有新文件的落点。已经写好的文件不会被搬走，仍留在原来的目录里。
+                  之后所有新文件都写到这里。已经写好的文件不会被搬走，仍留在原来的目录里。
                 </Trans>
               }
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
@@ -144,7 +144,7 @@ export function FilesSection() {
 
             <SettingsRow
               label={<Trans>占用</Trans>}
-              hint={<Trans>影响：磁盘剩余空间。清理入口在「输出与任务记录」。</Trans>}
+              hint={<Trans>这个目录占掉的磁盘空间。清理入口在「输出与任务记录」。</Trans>}
             >
               {storage.isPending ? (
                 <Skeleton width="10rem" />
@@ -246,8 +246,8 @@ export function FilesSection() {
             <p className="text-xs leading-normal text-neutral-600">
               <Plural
                 value={watchPaths.length}
-                _0="影响：目前不会自动发现任何 Demo。"
-                other="影响：这 # 个目录里的新 Demo 会自动进入资料库。"
+                _0="目前不会自动发现任何 Demo。"
+                other="这 # 个目录里的新 Demo 会自动进入资料库。"
               />
             </p>
           </>

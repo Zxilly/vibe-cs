@@ -22,7 +22,7 @@ export type AgentWorkspaceSettings = {
   take_limit: number;
   /**
    * Prefill a new session's context with whatever Demo and player are
-   * selected. 「影响：新建会话时上下文是否预填，随时可手动改」.
+   * selected. 「新建会话时预填当前的 Demo 与选手，之后随时可以手动改」.
    */
   auto_attach_context: boolean;
   /**

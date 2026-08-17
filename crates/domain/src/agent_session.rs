@@ -1047,7 +1047,7 @@ pub struct AgentWorkspaceSettings {
     /// never discarded by this ceiling.
     pub take_limit: u32,
     /// Prefill a new session's context with whatever Demo and player are
-    /// selected. 「影响：新建会话时上下文是否预填，随时可手动改」.
+    /// selected. 「新建会话时预填当前的 Demo 与选手，之后随时可以手动改」.
     pub auto_attach_context: bool,
     /// Show a preview before an accepted edit change is written to the project.
     /// 「关闭后，接受变更会直接改工程，仍可撤销」 — so this is about a

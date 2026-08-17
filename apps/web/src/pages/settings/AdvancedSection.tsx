@@ -67,21 +67,16 @@ export function AdvancedSection() {
           <Skeleton />
         ) : (
           <>
-            <SettingsRow label={<Trans>版本</Trans>} hint={<Trans>影响：报告问题时要附上的号码。</Trans>}>
+            <SettingsRow label={<Trans>版本</Trans>} hint={<Trans>报告问题时附上这个号码。</Trans>}>
               <span className="font-mono text-xs text-neutral-700" data-runtime-version="">
                 {runtime.data.version}
-              </span>
-            </SettingsRow>
-            <SettingsRow label={<Trans>启动于</Trans>} hint={<Trans>影响：用于判断应用是不是刚重启过。</Trans>}>
-              <span className="font-mono text-xs text-neutral-700">
-                {new Date(runtime.data.started_at).toLocaleString()}
               </span>
             </SettingsRow>
             <SettingsRow
               label={<Trans>当前会话</Trans>}
               hint={
                 <Trans>
-                  影响：录制与回放是互斥的，这里说明为什么某个动作现在不可用。
+                  录制与回放是互斥的，这个编号说明为什么某个动作现在不可用。
                 </Trans>
               }
             >
@@ -92,7 +87,7 @@ export function AdvancedSection() {
             {runtime.data.active_recording_job === null ? null : (
               <SettingsRow
                 label={<Trans>正在录制</Trans>}
-                hint={<Trans>影响：这项任务结束前，其它录制与回放都会被拒绝。</Trans>}
+                hint={<Trans>这项任务结束前，其它录制与回放都会被拒绝。</Trans>}
               >
                 <span className="font-mono text-xs text-neutral-700">
                   {runtime.data.active_recording_job}
@@ -169,7 +164,7 @@ export function AdvancedSection() {
           <>
             <SettingsRow
               label={<Trans>可用性</Trans>}
-              hint={<Trans>影响：能否开始录制。不可用时录制无法启动。</Trans>}
+              hint={<Trans>不可用时录制无法启动。</Trans>}
             >
               <span className="flex items-center gap-2 text-xs text-neutral-700">
                 <StatusDot status={hlae.data.available ? 'ok' : 'fail'} />
@@ -178,7 +173,7 @@ export function AdvancedSection() {
             </SettingsRow>
             <SettingsRow
               label={<Trans>启动方式</Trans>}
-              hint={<Trans>影响：录制时是否由本应用拉起游戏。</Trans>}
+              hint={<Trans>录制时是否由本应用拉起游戏。</Trans>}
             >
               <span className="text-xs text-neutral-700">
                 {hlae.data.automatic_launch_enabled ? <Trans>自动启动</Trans> : <Trans>手动启动</Trans>}
@@ -206,7 +201,7 @@ export function AdvancedSection() {
       >
         <SettingsRow
           label={<Trans>导出诊断包</Trans>}
-          hint={<Trans>影响：报告问题时可以附上的一份运行记录。</Trans>}
+          hint={<Trans>报告问题时可以附上的一份运行记录。</Trans>}
         >
           <div className="flex items-center gap-2">
             <Button

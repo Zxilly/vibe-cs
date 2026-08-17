@@ -119,7 +119,7 @@ export function GameSection() {
           <>
             <SettingsRow
               label={<Trans>CS2 位置</Trans>}
-              hint={<Trans>影响：能否启动回放与录制。</Trans>}
+              hint={<Trans>回放与录制都从这个目录启动游戏。</Trans>}
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
             >
               <div className="flex items-center gap-2.5">
@@ -152,7 +152,7 @@ export function GameSection() {
               /* Not a field of its own — see the module comment. */
               hint={
                 <Trans>
-                  影响：新录制文件的存放位置。它跟着数据目录走，在「文件与资料库」里改。
+                  新录制的文件写在这里。位置跟着数据目录走，要改请到「文件与资料库」。
                 </Trans>
               }
             >
@@ -199,7 +199,7 @@ export function GameSection() {
 
             <SettingsSwitch
               label={<Trans>HUD</Trans>}
-              hint={<Trans>影响：成片画面里是否出现界面元素。</Trans>}
+              hint={<Trans>成片画面里保留游戏的 HUD 界面元素。</Trans>}
               name="show-hud"
               ariaLabel={t`HUD`}
               checked={current.recording.show_hud}
@@ -209,7 +209,7 @@ export function GameSection() {
             />
             <SettingsSwitch
               label={<Trans>雷达</Trans>}
-              hint={<Trans>影响：成片画面里是否出现小地图。</Trans>}
+              hint={<Trans>成片画面里保留左上角的小地图。</Trans>}
               name="show-radar"
               ariaLabel={t`雷达`}
               checked={current.recording.show_radar}
@@ -220,7 +220,7 @@ export function GameSection() {
 
             <SettingsRow
               label={<Trans>语音</Trans>}
-              hint={<Trans>影响：录制音轨里是否包含人声。</Trans>}
+              hint={<Trans>决定录制音轨里保留谁的语音。</Trans>}
               {...(blockedReason === undefined ? {} : { disabledReason: blockedReason })}
             >
               <Seg
@@ -357,7 +357,7 @@ function RollRow({ label, value, disabled, disabledReason, onCommit }: RollRowPr
   return (
     <SettingsRow
       label={label}
-      hint={<Trans>影响：每个片段自动多录多少。</Trans>}
+      hint={<Trans>每个片段在正式内容之外多录的时长。</Trans>}
       {...(disabledReason === undefined ? {} : { disabledReason })}
     >
       <div className="flex min-w-64 flex-1 items-center gap-3.5">

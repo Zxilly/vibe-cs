@@ -284,7 +284,7 @@ describe('the five switches phase 3g-be gave a field to', () => {
 
     const evidence = screen.getByRole('switch', { name: '显示 Agent 读取了哪些证据' });
     const hint = document.getElementById(evidence.getAttribute('aria-describedby') ?? '');
-    expect(hint?.textContent).toContain('工作进度里是否展开');
+    expect(hint?.textContent).toContain('在工作进度里展开');
   });
 
   it('picks a video length target and says it is a target', async () => {

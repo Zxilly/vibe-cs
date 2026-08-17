@@ -213,7 +213,7 @@ export function AiAgentSection() {
 
             <SwitchRow
               label={<Trans>自动带入当前选中的 Demo 与选手</Trans>}
-              hint={<Trans>影响：新建会话时上下文是否预填，随时可手动改。</Trans>}
+              hint={<Trans>新建会话时预填当前的 Demo 与选手，之后随时可以手动改。</Trans>}
               name="auto-attach-context"
               ariaLabel={t`自动带入当前选中的 Demo 与选手`}
               checked={current.auto_attach_context}
@@ -285,7 +285,7 @@ export function AiAgentSection() {
 
             <SwitchRow
               label={<Trans>显示 Agent 读取了哪些证据</Trans>}
-              hint={<Trans>影响：工作进度里是否展开每次读取的回合与事件。</Trans>}
+              hint={<Trans>在工作进度里展开 Agent 每次读取的回合与事件。</Trans>}
               name="show-evidence-reads"
               ariaLabel={t`显示 Agent 读取了哪些证据`}
               checked={current.show_evidence_reads}
@@ -305,7 +305,7 @@ export function AiAgentSection() {
               </p>
               <p className="text-xs text-neutral-600">
                 <Trans>
-                  影响：Agent 把镜头交过来时的初始视角。每个镜头仍可在方案里单独改。
+                  Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。
                 </Trans>
               </p>
               <Seg
@@ -346,7 +346,7 @@ export function AiAgentSection() {
                 onChange={(tone) => void write({ ...current, commentary_tone: tone })}
               />
               <p className="text-xs leading-normal text-neutral-600">
-                <Trans>影响：Agent 写点评与镜头意图时的措辞。</Trans>
+                <Trans>Agent 写点评与镜头意图时的措辞。</Trans>
               </p>
             </div>
           </>
@@ -499,7 +499,7 @@ function RetentionRow({
         </p>
       )}
       <p className="text-xs leading-normal text-neutral-600">
-        <Trans>影响：会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。</Trans>
+        <Trans>决定会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。</Trans>
       </p>
       <div className="flex items-center gap-2.5">
         {/* The sweep has no scheduler on the wire — see this file's header for
@@ -580,7 +580,7 @@ function TakeLimitRow({ value, disabled, onCommit }: TakeLimitRowProps) {
         </span>
       </div>
       <p className="text-xs leading-normal text-neutral-600">
-        <Trans>影响：超过后最早的 take 会被丢弃。</Trans>
+        <Trans>超过这个数量后，最早的 take 会被丢弃。</Trans>
       </p>
     </div>
   );
@@ -598,7 +598,7 @@ interface SwitchRowProps {
 }
 
 /**
- * One labelled switch with its 「影响：…」 line.
+ * One labelled switch with its explanatory line.
  *
  * The hint is not decoration: every row of this artboard states what the
  * setting *changes*, because a switch called 「显示 Agent 读取了哪些证据」 is
@@ -665,7 +665,7 @@ function VideoLengthRow({ value, disabled, onCommit }: VideoLengthRowProps) {
       />
       <p className="text-xs leading-normal text-neutral-600">
         <Trans>
-          影响：Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。
+          Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。
         </Trans>
       </p>
       {known ? null : (

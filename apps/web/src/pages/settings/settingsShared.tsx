@@ -6,7 +6,7 @@
  * are those shapes, extracted once — not a component library, just the three
  * repetitions that were about to happen.
  *
- * ## Why every row states 「影响：…」
+ * ## Why every row carries a second line
  *
  * The artboard's own instruction for this page is 「每项写清『会影响什么』」, and
  * it is the whole reason the page is organised by user goal rather than by
@@ -15,6 +15,13 @@
  *
  * `hint` is therefore a required prop on every row here. A row that genuinely
  * has nothing to say about its effect is a row that should not be a setting.
+ *
+ * The instruction is about *content*, not about a sentence pattern. An earlier
+ * pass read it as a literal prefix and every hint opened with 「影响：」 — which
+ * turns a readable sentence into a form field, and on the diagnostics readouts
+ * produced outright nonsense (「影响：报告问题时要附上的号码」 — a version
+ * number affects nothing). Write the plain declarative sentence every shipping
+ * product writes here: what the setting decides, or what happens once it is on.
  */
 
 import type { ReactNode } from 'react';
@@ -44,7 +51,7 @@ export function SettingsBlock({ title, description, children }: SettingsBlockPro
 
 export interface SettingsRowProps {
   readonly label: ReactNode;
-  /** 「影响：…」. Required — see the module comment. */
+  /** What this row decides, in one sentence. Required — see the module comment. */
   readonly hint: ReactNode;
   /** The control, the readout, or both. */
   readonly children?: ReactNode | undefined;

@@ -1,8 +1,12 @@
 import { Trans } from '@lingui/react/macro';
 import { describe, expect, it } from 'vitest';
 
-import { renderMarkup } from '../../test/render';
+import { renderMarkupDom } from '../../test/render';
 import { Dialog } from './Dialog';
+
+/* `renderMarkupDom`, not `renderMarkup`: the dialog is portalled, and
+   `react-dom/server` throws on `createPortal`. */
+const renderMarkup = renderMarkupDom;
 
 const noop = () => {};
 
@@ -33,15 +37,19 @@ describe('Dialog', () => {
       <Dialog open={false} title="删除 3 条记录？" confirmLabel="删除" onConfirm={noop} onClose={noop} />,
     );
 
-    expect(markup).toBe('');
+    // The portal has nothing in it, so nothing reaches the document.
+    expect(markup).not.toContain('role="dialog"');
+    expect(markup).not.toContain('删除 3 条记录？');
   });
 
   it('is a modal dialog labelled by its own title', () => {
     const markup = renderMarkup(stopRecording());
 
     expect(markup).toContain('role="dialog"');
-    // Dialog blocks; Drawer does not. This is the difference.
-    expect(markup).toContain('aria-modal="true"');
+    /* Dialog blocks; Drawer does not. Radix states that by hiding the rest of
+       the document from assistive technology rather than by claiming
+       `aria-modal`, whose support across screen readers is patchy. */
+    expect(markup).toContain('data-aria-hidden="true"');
 
     const labelledBy = /aria-labelledby="(?<id>[^"]+)"/u.exec(markup)?.groups?.['id'];
     expect(labelledBy).toBeDefined();

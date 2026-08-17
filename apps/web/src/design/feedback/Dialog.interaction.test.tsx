@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro';
-import { fireEvent } from '@testing-library/react';
+import { act, fireEvent, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -52,38 +52,42 @@ describe('Dialog focus contract', () => {
     expect(queryByRole('dialog')).toBeNull();
   });
 
-  it('returns focus to the trigger after closing', () => {
+  it('returns focus to the trigger after closing', async () => {
     const { getByRole } = renderInteractive(<DeleteRecords />);
     const trigger = getByRole('button', { name: '删除' });
     trigger.focus();
     fireEvent.click(trigger);
 
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(document.activeElement).toBe(trigger);
+    /* Radix restores focus after the unmount settles, so that a component
+       tearing down alongside the dialog cannot steal it back. */
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 
-  it('traps Tab inside the dialog', () => {
-    const { getByRole } = renderInteractive(<DeleteRecords />);
-    fireEvent.click(getByRole('button', { name: '删除' }));
+  it('traps focus inside the dialog', () => {
+    const { getByRole, getAllByRole } = renderInteractive(<DeleteRecords />);
+    const trigger = getByRole('button', { name: '删除' });
+    fireEvent.click(trigger);
 
     const dialog = getByRole('dialog');
-    const focusable = Array.from(dialog.querySelectorAll('button'));
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    expect(first).toBeDefined();
-    expect(last).toBeDefined();
-    expect(first).not.toBe(last);
-
-    last?.focus();
-    fireEvent.keyDown(document, { key: 'Tab' });
-    expect(document.activeElement).toBe(first);
-
-    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
-    expect(document.activeElement).toBe(last);
-
-    // Whatever the cycle does, it never lands outside the panel — the trigger
-    // behind the dialog stays unreachable by keyboard.
     expect(dialog.contains(document.activeElement)).toBe(true);
+
+    /* Asserted by pulling focus out rather than by a synthetic Tab: Tab does
+       not move focus in jsdom, and Radix's scope watches where focus actually
+       lands rather than intercepting the key. Focusing the trigger behind the
+       dialog is what a Tab out of the panel would amount to. */
+    trigger.focus();
+    expect(document.activeElement).not.toBe(trigger);
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    // Both actions stay reachable inside it.
+    const confirm = getAllByRole('button', { name: '删除' }).find(
+      (button) => button.dataset['dialogAction'] === 'confirm',
+    );
+    confirm?.focus();
+    expect(document.activeElement).toBe(confirm);
   });
 
   it('runs the action only when the confirm button is pressed', () => {
@@ -102,16 +106,30 @@ describe('Dialog focus contract', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it('dismisses on a click outside the panel but not on one inside it', () => {
-    const { getByRole, queryByRole, container } = renderInteractive(<DeleteRecords />);
+  it('dismisses on a press outside the panel but not on one inside it', async () => {
+    const { getByRole, queryByRole } = renderInteractive(<DeleteRecords />);
     fireEvent.click(getByRole('button', { name: '删除' }));
 
-    fireEvent.click(getByRole('dialog'));
+    /* Radix arms the outside-press listener on a zero-delay timeout, so that
+       the very press which opened the overlay cannot also dismiss it. */
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    fireEvent.pointerDown(getByRole('dialog'));
     expect(queryByRole('dialog')).not.toBeNull();
 
-    const backdrop = container.querySelector('[data-overlay="dialog-backdrop"]');
+    /* `document`, not the render container: the overlay is portalled to the
+       body. And a whole press, not a bare click — Radix decides on the
+       `pointerdown`, which is what makes the case above work: a text selection
+       that starts inside the panel and is released outside does not take the
+       dialog with it. */
+    const backdrop = document.querySelector('[data-overlay="dialog-backdrop"]');
     expect(backdrop).not.toBeNull();
-    if (backdrop) fireEvent.click(backdrop);
+    if (backdrop) {
+      fireEvent.pointerDown(backdrop);
+      fireEvent.click(backdrop);
+    }
     expect(queryByRole('dialog')).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro';
-import { fireEvent } from '@testing-library/react';
+import { fireEvent, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
@@ -51,17 +51,21 @@ describe('Drawer focus contract', () => {
     expect(queryByRole('dialog')).toBeNull();
   });
 
-  it('returns focus to the trigger row after closing — 焦点回到触发行', () => {
+  it('returns focus to the trigger row after closing — 焦点回到触发行', async () => {
     const { getByRole } = renderInteractive(<EvidenceRow />);
     const trigger = getByRole('button', { name: '证据详情' });
     trigger.focus();
     fireEvent.click(trigger);
 
     fireEvent.keyDown(document, { key: 'Escape' });
-    expect(document.activeElement).toBe(trigger);
+    /* Radix restores focus after the unmount settles, so that a component
+       tearing down alongside the drawer cannot steal it back. */
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 
-  it('closes from its own close button as well', () => {
+  it('closes from its own close button as well', async () => {
     const { getByRole, queryByRole } = renderInteractive(<EvidenceRow />);
     const trigger = getByRole('button', { name: '证据详情' });
     trigger.focus();
@@ -69,37 +73,55 @@ describe('Drawer focus contract', () => {
 
     fireEvent.click(getByRole('button', { name: '关闭抽屉' }));
     expect(queryByRole('dialog')).toBeNull();
-    expect(document.activeElement).toBe(trigger);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 
-  it('cycles Tab through its own controls, editable body included', () => {
+  /* 不阻断 and a focus trap are in tension, and the drawer resolves it the
+     other way from Dialog — see the component's header. What it still owes the
+     user is that the keyboard *reaches* the panel and every control in it. */
+  it('does not trap the keyboard, but reaches every control it owns', () => {
     const { getByRole } = renderInteractive(<EvidenceRow />);
-    fireEvent.click(getByRole('button', { name: '证据详情' }));
+    const trigger = getByRole('button', { name: '证据详情' });
+    trigger.focus();
+    fireEvent.click(trigger);
 
     const close = getByRole('button', { name: '关闭抽屉' });
     const save = getByRole('button', { name: '保存' });
     const textarea = getByRole('textbox');
-
     expect(document.activeElement).toBe(close);
 
     save.focus();
-    fireEvent.keyDown(document, { key: 'Tab' });
-    expect(document.activeElement).toBe(close);
-
-    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(save);
 
     // 非阻断编辑: the body is a real form control, not a read-only detail pane.
     textarea.focus();
     expect(getByRole('dialog').contains(document.activeElement)).toBe(true);
+
+    // And the page behind is reachable — the whole promise of a Drawer.
+    trigger.focus();
+    expect(document.activeElement).toBe(trigger);
   });
 
   it('leaves the page behind interactive — no scrim intercepts the pointer', () => {
-    const { getByRole, container } = renderInteractive(<EvidenceRow />);
+    const { getByRole } = renderInteractive(<EvidenceRow />);
     fireEvent.click(getByRole('button', { name: '证据详情' }));
 
-    expect(container.querySelector('[data-overlay="dialog-backdrop"]')).toBeNull();
+    expect(document.querySelector('[data-overlay="dialog-backdrop"]')).toBeNull();
     const drawer = getByRole('dialog');
     expect(drawer.getAttribute('aria-modal')).toBeNull();
+    // A modal would have hidden the rest of the document from assistive tech.
+    expect(document.querySelector('[data-aria-hidden]')).toBeNull();
+  });
+
+  it('stays open when the page behind it is pressed', () => {
+    const { getByRole, queryByRole } = renderInteractive(<EvidenceRow />);
+    const trigger = getByRole('button', { name: '证据详情' });
+    fireEvent.click(trigger);
+
+    fireEvent.pointerDown(trigger);
+    fireEvent.click(trigger);
+    expect(queryByRole('dialog')).not.toBeNull();
   });
 });

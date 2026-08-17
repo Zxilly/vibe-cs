@@ -153,15 +153,25 @@ describe('列配置', () => {
     fireEvent.click(screen.getByRole('button', { name: '列配置' }));
     fireEvent.click(within(dialog()).getByRole('checkbox', { name: '地图' }));
 
+    /* Queried through the DOM, not through the accessibility tree: the dialog
+       is modal, so Radix hides the rest of the document from assistive
+       technology while it is open — which is the point of a modal, and means
+       `getByRole('table')` finds nothing until it closes. */
+    const table = (): HTMLElement => {
+      const node = document.querySelector('table');
+      if (node === null) throw new Error('no table');
+      return node;
+    };
+    const mapHeader = (): Element | null =>
+      Array.from(table().querySelectorAll('button')).find((button) => button.textContent === '地图') ?? null;
+
     // Still there: the edit is a draft until it is applied.
-    expect(within(screen.getByRole('table')).getByRole('button', { name: '地图' })).toBeTruthy();
+    expect(mapHeader()).not.toBeNull();
 
     fireEvent.click(within(dialog()).getByRole('button', { name: '应用' }));
 
     await waitFor(() => {
-      expect(
-        within(screen.getByRole('table')).queryByRole('button', { name: '地图' }),
-      ).toBeNull();
+      expect(mapHeader()).toBeNull();
     });
   });
 

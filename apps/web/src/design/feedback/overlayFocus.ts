@@ -11,7 +11,41 @@
  * may not import from `shared/**`, and the old hook is deleted in phase 4.
  */
 
-import { useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
+
+/**
+ * Returns focus to whatever had it before the overlay opened — the artboard's
+ * 「关闭后焦点归位」 — for the overlays that are Radix dialogs.
+ *
+ * Radix restores focus through its own `Dialog.Trigger`, and these overlays
+ * have none: `open` is a prop and the caller owns the button that set it. Its
+ * modal content also `preventDefault`s the unmount autofocus unconditionally,
+ * so with no trigger registered the focus simply lands on `<body>`. This hook
+ * puts it back.
+ *
+ * The element is captured during the render that opens the overlay rather than
+ * in an effect. A child's effects run before its parent's, and Radix moves
+ * focus into the panel in one of them, so a parent effect would only ever see
+ * the panel's own first button.
+ */
+export function useOverlayReturnFocus(open: boolean): (event: Event) => void {
+  const restoreTo = useRef<HTMLElement | null>(null);
+  const wasOpen = useRef(false);
+
+  if (open && !wasOpen.current) {
+    restoreTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
+  wasOpen.current = open;
+
+  return useCallback((event: Event) => {
+    const target = restoreTo.current;
+    // Still in the document: a row that closed the drawer by deleting itself
+    // has nowhere to give focus back to, and Radix's fallback is right there.
+    if (target === null || !document.contains(target)) return;
+    event.preventDefault();
+    target.focus();
+  }, []);
+}
 
 /**
  * Everything the platform can focus. `[tabindex]` is included without a value

@@ -6,19 +6,30 @@
  * 「Agent 会话历史」artboard draws the session drawer: a right-hand panel with a
  * 48px header, its own actions, and an ESC hint in the header.
  *
- * 不阻断 is the difference from Dialog, and it is a real one:
+ * Radix's Dialog with `modal={false}` — the same primitive as `Dialog`, with
+ * the modality turned off, which is exactly what 不阻断 means:
  *
- *   · no scrim. The page behind stays visible and clickable, so the user can
- *     keep browsing the table the drawer is describing.
- *   · `aria-modal` is left off. Claiming modality would tell assistive
- *     technology the rest of the page is inert, which is the opposite of what
- *     this overlay promises.
+ *   · no scrim, so the page behind stays visible and clickable;
+ *   · no `aria-modal`, because claiming modality would tell assistive
+ *     technology the rest of the page is inert — the opposite of the promise;
+ *   · no scroll lock and no outside-pointer blocking, so the table the drawer
+ *     is describing can still be scrolled and read.
  *
- * Everything else is shared with Dialog through `useOverlayFocus`: Esc closes,
- * Tab cycles inside the panel, and focus returns to the trigger on close. The
- * Tab cycle is a deliberate compromise with 不阻断 — the artboard asks for a
- * focus trap on both overlays by name, and pointer interaction with the page
- * behind is what carries the non-blocking promise.
+ * Outside presses are swallowed rather than dismissing: a drawer that closed
+ * when the user clicked the row behind it would make 「不阻断表格浏览」 unusable
+ * in one gesture. Esc and the close button are the two ways out, as the
+ * artboard draws them.
+ *
+ * ── The one place this now differs from the artboard ──────────────────────
+ *
+ * 「两者都有焦点陷阱」 asks for a focus trap on the Drawer as well as on the
+ * Dialog, and this no longer has one. The previous hand-rolled version did,
+ * and its own comment called it "a deliberate compromise with 不阻断" — which
+ * is the tell: an overlay cannot both promise that the page behind stays
+ * usable and refuse to let the keyboard reach it. Radix's non-modal scope
+ * keeps the three halves that are not in tension — focus enters the panel on
+ * open, Esc closes it, focus returns to the trigger — and lets Tab leave, the
+ * way every non-blocking side panel behaves.
  *
  * Width: the artboard labels its drawers 「抽屉 · 430px」 and draws the session
  * drawer at 470px. Both land on §3.5's `--w-inspector-wide` (440); the
@@ -26,12 +37,14 @@
  * Inspector that is already open.
  */
 
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { t } from '@lingui/core/macro';
 import { X } from 'lucide-react';
-import { useId, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import { OVERLAY_ACTIONS_CLASS } from './actionButton';
-import { useOverlayFocus } from './overlayFocus';
+import { useOverlayReturnFocus } from './overlayFocus';
+import { cn } from '../cn';
 
 export type DrawerWidth = 'standard' | 'wide';
 
@@ -56,6 +69,10 @@ const WIDTH_CLASS: Record<DrawerWidth, string> = {
   wide: 'w-[var(--w-inspector-wide)]',
 };
 
+const PANEL_CLASS =
+  'fixed inset-y-0 right-0 z-40 flex max-w-full flex-col border-l border-neutral-500 bg-bg ' +
+  'shadow-[var(--shadow-lg)]';
+
 export function Drawer({
   open,
   title,
@@ -64,58 +81,67 @@ export function Drawer({
   description,
   footer,
   width = 'wide',
-  className = '',
+  className,
 }: DrawerProps) {
-  const titleId = useId();
-  const panelRef = useOverlayFocus<HTMLElement>(open, onClose);
-
-  if (!open) return null;
+  const returnFocus = useOverlayReturnFocus(open);
 
   return (
-    <aside
-      ref={panelRef}
-      role="dialog"
-      aria-labelledby={titleId}
-      tabIndex={-1}
-      data-overlay="drawer"
-      data-width={width}
-      className={
-        'fixed inset-y-0 right-0 z-40 flex max-w-full flex-col border-l border-neutral-500 bg-bg ' +
-        'shadow-[var(--shadow-lg)] ' +
-        `${WIDTH_CLASS[width]} ` +
-        className
-      }
+    <DialogPrimitive.Root
+      open={open}
+      modal={false}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      {/* 48px on the artboard → `--h-bar` (46), the nearest §3.4 step. */}
-      <header className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 border-b border-divider px-3.5">
-        <h2 id={titleId} className="truncate font-heading text-lg text-text">
-          {title}
-        </h2>
-        {description === undefined ? null : (
-          <p className="truncate text-xs text-neutral-600">{description}</p>
-        )}
-        <span className="flex-1" />
-        {/* The artboard prints the key next to the close affordance. It is a
-            key name, not copy, and it duplicates the button's own label. */}
-        <span aria-hidden="true" className="font-mono text-xs text-neutral-600">
-          ESC
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t`关闭抽屉`}
-          data-drawer-action="close"
-          className="flex size-[var(--h-ctl-sm)] flex-none items-center justify-center text-neutral-700 hover:text-text"
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Content
+          asChild
+          data-overlay="drawer"
+          data-width={width}
+          onCloseAutoFocus={returnFocus}
+          /* 不阻断: a press on the page behind belongs to the page. */
+          onInteractOutside={(event) => {
+            event.preventDefault();
+          }}
+          {...(description === undefined ? { 'aria-describedby': undefined } : {})}
+          className={cn(PANEL_CLASS, WIDTH_CLASS[width], className)}
         >
-          <X size={16} strokeWidth={1.5} aria-hidden />
-        </button>
-      </header>
+          <aside>
+            {/* 48px on the artboard → `--h-bar` (46), the nearest §3.4 step. */}
+            <header className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 border-b border-divider px-3.5">
+              <DialogPrimitive.Title className="truncate font-heading text-lg text-text">
+                {title}
+              </DialogPrimitive.Title>
+              {description === undefined ? null : (
+                <DialogPrimitive.Description className="truncate text-xs text-neutral-600">
+                  {description}
+                </DialogPrimitive.Description>
+              )}
+              <span className="flex-1" />
+              {/* The artboard prints the key next to the close affordance. It is
+                  a key name, not copy, and it duplicates the button's own label. */}
+              <span aria-hidden="true" className="font-mono text-xs text-neutral-600">
+                ESC
+              </span>
+              <DialogPrimitive.Close
+                aria-label={t`关闭抽屉`}
+                data-drawer-action="close"
+                className="flex size-[var(--h-ctl-sm)] flex-none items-center justify-center text-neutral-700 hover:text-text"
+              >
+                <X size={16} strokeWidth={1.5} aria-hidden />
+              </DialogPrimitive.Close>
+            </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3.5">{children}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3.5">{children}</div>
 
-      {footer === undefined ? null : (
-        <footer className={`border-t border-divider px-3.5 py-2.5 ${OVERLAY_ACTIONS_CLASS}`}>{footer}</footer>
-      )}
-    </aside>
+            {footer === undefined ? null : (
+              <footer className={cn('border-t border-divider px-3.5 py-2.5', OVERLAY_ACTIONS_CLASS)}>
+                {footer}
+              </footer>
+            )}
+          </aside>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

@@ -11,7 +11,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import type { ServiceActionState } from '../../data/serviceAction';
-import { renderMarkup } from '../../test/render';
+import { renderMarkup, renderMarkupDom } from '../../test/render';
 import type { AgentRouteContext } from './agentContract';
 import { AgentSessionsBlock, agentSessionsToolbarAction } from './AgentSessionsBlock';
 import { SessionDrawer } from './SessionDrawer';
@@ -20,8 +20,10 @@ const READY: ServiceActionState = { blocked: false, buttonProps: { disabled: fal
 
 const CONTEXT: AgentRouteContext = { plan: null, session: null, mode: 'changes' };
 
+/* `renderMarkupDom`: the Drawer is portalled, and `react-dom/server` throws on
+   `createPortal`. */
 function drawer(open: boolean): string {
-  return renderMarkup(
+  return renderMarkupDom(
     <MemoryRouter initialEntries={['/agent']}>
       <SessionDrawer
         open={open}
@@ -42,7 +44,7 @@ describe('the overlay', () => {
   });
 
   it('is not in the DOM at all while closed', () => {
-    expect(drawer(false)).toBe('');
+    expect(drawer(false)).not.toContain('data-overlay="drawer"');
   });
 
   it('carries the artboard’s header: a name, the ESC hint and 新建会话', () => {

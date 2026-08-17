@@ -1,8 +1,12 @@
 import { Trans } from '@lingui/react/macro';
 import { describe, expect, it } from 'vitest';
 
-import { renderMarkup } from '../../test/render';
+import { renderMarkupDom } from '../../test/render';
 import { Drawer } from './Drawer';
+
+/* `renderMarkupDom`, not `renderMarkup`: the drawer is portalled, and
+   `react-dom/server` throws on `createPortal`. */
+const renderMarkup = renderMarkupDom;
 import { overlayActionClass } from './actionButton';
 
 const noop = () => {};
@@ -17,7 +21,10 @@ function evidenceAnnotation() {
 
 describe('Drawer', () => {
   it('renders nothing while closed', () => {
-    expect(renderMarkup(<Drawer open={false} title="会话" onClose={noop} children={null} />)).toBe('');
+    // The portal has nothing in it, so nothing reaches the document.
+    const markup = renderMarkup(<Drawer open={false} title="会话" onClose={noop} children={null} />);
+    expect(markup).not.toContain('role="dialog"');
+    expect(markup).not.toContain('会话');
   });
 
   it('is a dialog labelled by its title', () => {

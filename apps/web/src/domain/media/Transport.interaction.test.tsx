@@ -163,7 +163,7 @@ describe('Transport buttons', () => {
     fireEvent.click(view.radio('2×'));
     expect(view.onRateChange).toHaveBeenCalledWith(2);
     // Still controlled: the checked option is the one the prop names.
-    expect((view.radio('1×') as HTMLInputElement).checked).toBe(true);
+    expect(view.radio('1×').getAttribute('aria-checked')).toBe('true');
   });
 
   it('is disabled with a stated reason when there is nothing to play', () => {

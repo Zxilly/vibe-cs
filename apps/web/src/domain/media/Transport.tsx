@@ -123,8 +123,11 @@ export function Transport({
       return;
     }
 
-    // Inside the rate radio group the arrows belong to the group.
-    if (tag === 'INPUT') return;
+    /* Inside the rate radio group the arrows belong to the group — it moves
+       the selection with them. Matched on the role rather than on the tag:
+       Radix draws each option as a `<button role="radio">`, and every other
+       control in this bar is a button too. */
+    if ((event.target as Element | null)?.closest('[role="radiogroup"]') !== null) return;
 
     switch (event.key) {
       case 'ArrowLeft':

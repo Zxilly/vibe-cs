@@ -157,8 +157,8 @@ describe('保留多久', () => {
   it('shows the stored policy, not the first preset', async () => {
     renderSection();
     await ready();
-    const chosen = screen.getByRole('radio', { name: '最近 50 条' }) as HTMLInputElement;
-    expect(chosen.checked).toBe(true);
+    const chosen = screen.getByRole('radio', { name: '最近 50 条' });
+    expect(chosen.getAttribute('aria-checked')).toBe('true');
   });
 
   it('adds the stored policy as its own option when it is none of the four', async () => {
@@ -167,8 +167,8 @@ describe('保留多久', () => {
         Promise.resolve({ session_retention: { mode: 'recent_count', count: 20 }, take_limit: 5 }),
     });
     await ready();
-    const chosen = (await screen.findByRole('radio', { name: '最近 20 条' })) as HTMLInputElement;
-    expect(chosen.checked).toBe(true);
+    const chosen = await screen.findByRole('radio', { name: '最近 20 条' });
+    expect(chosen.getAttribute('aria-checked')).toBe('true');
     // …and the four presets are still offered beside it.
     expect(screen.getByRole('radio', { name: '最近 50 条' })).toBeTruthy();
   });

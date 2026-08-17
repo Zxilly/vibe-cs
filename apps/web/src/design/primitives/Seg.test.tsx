@@ -10,23 +10,25 @@ const VIEW_OPTIONS = [
 ] as const;
 
 describe('Seg markup', () => {
-  it('is a radio group of native radios, not a row of buttons', () => {
+  it('is a radio group of radios, not a row of pressed buttons', () => {
     const html = renderMarkup(
       <Seg name="library-view" value="table" options={VIEW_OPTIONS} aria-label="视图" />,
     );
 
     expect(html).toContain('role="radiogroup"');
     expect(html).toContain('aria-label="视图"');
-    expect(html.match(/<input/gu)?.length).toBe(2);
-    expect(html).toContain('type="radio"');
+    expect(html.match(/role="radio"/gu)?.length).toBe(2);
+    // Not a ToggleGroup: no option is 「按下」, one of them is 「选中」.
+    expect(html).not.toContain('aria-pressed');
+    // Radix keeps a hidden native radio per option, so the group still posts.
+    expect(html.match(/type="radio"/gu)?.length).toBe(2);
     expect(html).toContain('name="library-view"');
-    expect(html).not.toContain('<button');
   });
 
   it('checks exactly the selected option', () => {
     const html = renderMarkup(<Seg name="v" value="card" options={VIEW_OPTIONS} aria-label="视图" />);
-    expect(html.match(/checked=""/gu)?.length).toBe(1);
-    expect(html).toMatch(/checked=""[^>]*value="card"/u);
+    expect(html.match(/aria-checked="true"/gu)?.length).toBe(1);
+    expect(html).toMatch(/aria-checked="true"[^>]*value="card"/u);
   });
 
   it('renders every label', () => {
@@ -86,7 +88,9 @@ describe('Seg markup', () => {
         ]}
       />,
     );
-    expect(html.match(/disabled=""/gu)?.length).toBe(1);
+    /* Counted on `data-disabled`, which Radix puts on the control alone — the
+       plain `disabled` also lands on the hidden radio beside it. */
+    expect(html.match(/data-disabled=""/gu)?.length).toBe(1);
   });
 
   it('carries no bare hex and no literal type size', () => {

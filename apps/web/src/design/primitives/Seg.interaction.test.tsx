@@ -20,7 +20,7 @@ describe('Seg interaction', () => {
 
     const radios = getAllByRole('radio');
     expect(radios).toHaveLength(3);
-    expect(radios.filter((radio) => (radio as HTMLInputElement).checked)).toHaveLength(1);
+    expect(radios.filter((radio) => radio.getAttribute('aria-checked') === 'true')).toHaveLength(1);
   });
 
   it('reports the picked value once, typed', () => {
@@ -46,15 +46,22 @@ describe('Seg interaction', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it('is keyboard reachable: the checked radio is the group tab stop', () => {
-    const { getByRole } = renderInteractive(
+  it('is one tab stop for the whole group, not one per option', () => {
+    const { getByRole, getAllByRole } = renderInteractive(
       <Seg name="speed" value="2" options={SPEED_OPTIONS} aria-label="播放速度" />,
     );
 
-    const selected = getByRole('radio', { name: '2×' }) as HTMLInputElement;
+    /* Radix's roving focus puts the tab stop on the group and hands focus to
+       the selected option from there, which is what a native radio group does
+       from the other direction. Either way Tab enters and leaves the group
+       once, rather than walking all three options. */
+    expect(getByRole('radiogroup').getAttribute('tabindex')).toBe('0');
+    expect(getAllByRole('radio').every((radio) => radio.getAttribute('tabindex') === '-1')).toBe(true);
+
+    const selected = getByRole('radio', { name: '2×' });
     selected.focus();
     expect(document.activeElement).toBe(selected);
-    expect(selected.checked).toBe(true);
+    expect(selected.getAttribute('aria-checked')).toBe('true');
   });
 
   it('leaves a disabled option unreachable while the group still works', () => {
@@ -73,15 +80,16 @@ describe('Seg interaction', () => {
       />,
     );
 
-    const locked = getByRole('radio', { name: '最佳' }) as HTMLInputElement;
+    const locked = getByRole('radio', { name: '最佳' }) as HTMLButtonElement;
 
-    // Asserted on the platform state rather than on the handler: a synthetic
-    // `fireEvent.click` skips the disabled gate a real click obeys, so a
-    // handler assertion here would be testing jsdom.
+    /* Asserted on the platform state rather than on the handler: a synthetic
+       `fireEvent.click` skips the disabled gate a real click obeys, and jsdom
+       lets `focus()` land on a disabled button that no browser would focus —
+       both would be assertions about jsdom. `data-disabled` is the attribute
+       Radix's roving focus reads to skip the option with an arrow key. */
     expect(locked.disabled).toBe(true);
-    expect(locked.checked).toBe(false);
-    locked.focus();
-    expect(document.activeElement).not.toBe(locked);
+    expect(locked.getAttribute('aria-checked')).toBe('false');
+    expect(locked.hasAttribute('data-disabled')).toBe(true);
 
     // The rest of the group still works.
     fireEvent.click(getByRole('radio', { name: '均衡' }));

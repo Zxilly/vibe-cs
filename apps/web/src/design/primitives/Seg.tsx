@@ -5,10 +5,19 @@
  * carrying view switching, camera perspective, quality strategy, floor,
  * playback speed, tone, and the 2a / 2b / 2c Agent modes.
  *
- * Industry builds it out of a `.seg` box and `.seg-opt` labels wrapping hidden
- * radios, which is why arrow-key navigation, roving focus and form semantics
- * come for free — the group is a real radio group, not a row of buttons with
- * `aria-*` bolted on.
+ * Built on Radix `RadioGroupPrimitive`, which is the primitive a 「pick one」
+ * control actually wants: `radiogroup` / `radio` roles, roving tabindex so the
+ * group is one tab stop, arrow keys that move *and* select, and `data-state`
+ * for the checked option. shadcn's own segmented control is a ToggleGroup, and
+ * that is the wrong semantic here — a ToggleGroup is a row of pressed buttons,
+ * which announces 「按下」 rather than 「三选一」 and lets zero options be
+ * selected, a state none of the 23 groups can be in.
+ *
+ * The previous version got the same behaviour from real `<input type="radio">`
+ * elements hidden under labels, and expressed every state through
+ * `has-[:checked]` / `has-[:disabled]` / `has-[:focus-visible]` selectors on
+ * the label. Radix carries those states as attributes instead, so the classes
+ * below say what they mean.
  *
  * Two layouts, both drawn in the reference:
  *   natural  `<div class="seg" style="height:32px">`            — 15 groups
@@ -23,7 +32,8 @@
  * taller seg is a taller target, not a louder label.
  */
 
-import type { ReactNode, Ref } from 'react';
+import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
+import type { ReactNode } from 'react';
 
 import { CONTROL_HEIGHT_CLASS, type ControlSize } from './controlSize';
 import { cn } from '../cn';
@@ -39,7 +49,7 @@ export interface SegProps<Value extends string> {
   name: string;
   value: Value;
   options: readonly SegOption<Value>[];
-  onChange?: (value: Value) => void;
+  onChange?: ((value: Value) => void) | undefined;
   size?: ControlSize;
   /** Stretch to the container and split the width evenly between options. */
   fill?: boolean;
@@ -47,7 +57,6 @@ export interface SegProps<Value extends string> {
   'aria-label'?: string;
   'aria-labelledby'?: string;
   className?: string;
-  ref?: Ref<HTMLDivElement>;
 }
 
 /** Industry's `.seg`: hairline box, square corners, options clipped to it. */
@@ -56,22 +65,18 @@ const GROUP_CLASS = 'inline-flex overflow-hidden border border-divider';
 /**
  * Industry's `.seg-opt`: 13px, 12px inline padding (3.5× the 3.4px `--spacing`
  * base = 11.9px), 6px gap for an option that carries an icon.
+ *
+ * The focus ring is inset here rather than taking base.css's 2px offset: the
+ * group clips its options (`overflow-hidden`), so an outset ring on the first
+ * or last option would be cut in half by the box it sits in.
  */
 const OPTION_CLASS =
-  'inline-flex items-center gap-2 whitespace-nowrap px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
+  'inline-flex h-full items-center gap-2 whitespace-nowrap px-[calc(var(--spacing)*3.5)] text-sm leading-tight ' +
   'cursor-pointer select-none ' +
-  'has-[:checked]:bg-accent has-[:checked]:text-bg ' +
-  'not-has-[:checked]:hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] ' +
-  'has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-45 ' +
-  'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:-outline-offset-2';
-
-/**
- * Industry hides the radio rather than restyling it, so the checked and
- * focused states can be expressed on the label. `sr-only` is not used: it
- * leaves the input 1px and clickable, which would put a dead pixel in the
- * middle of the option.
- */
-const INPUT_CLASS = 'pointer-events-none absolute size-0 opacity-0';
+  'data-[state=checked]:bg-accent data-[state=checked]:text-bg ' +
+  'data-[state=unchecked]:hover:bg-[color-mix(in_srgb,var(--color-text)_7%,transparent)] ' +
+  'disabled:cursor-not-allowed disabled:opacity-45 ' +
+  'focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2';
 
 export function Seg<Value extends string>({
   name,
@@ -81,19 +86,28 @@ export function Seg<Value extends string>({
   size = 'sm',
   fill = false,
   className,
-  ref,
   ...aria
 }: SegProps<Value>) {
   return (
-    <div
+    <RadioGroupPrimitive.Root
       {...aria}
-      ref={ref}
-      role="radiogroup"
+      name={name}
+      value={value}
+      orientation="horizontal"
       className={cn(GROUP_CLASS, CONTROL_HEIGHT_CLASS[size], fill && 'flex w-full', className)}
+      onValueChange={(next) => {
+        /* Radix reports every activation, including one that lands on the
+           option already selected — a native radio group fires no change for
+           that, and 23 callers are written against the native contract. */
+        if (next === value) return;
+        onChange?.(next as Value);
+      }}
     >
       {options.map((option, index) => (
-        <label
+        <RadioGroupPrimitive.Item
           key={option.value}
+          value={option.value}
+          disabled={option.disabled ?? false}
           className={cn(
             OPTION_CLASS,
             /* Industry's `.seg-opt + .seg-opt` divider, resolved here because
@@ -102,18 +116,9 @@ export function Seg<Value extends string>({
             fill && 'flex-1 justify-center',
           )}
         >
-          <input
-            type="radio"
-            name={name}
-            value={option.value}
-            checked={option.value === value}
-            disabled={option.disabled ?? false}
-            className={INPUT_CLASS}
-            onChange={() => onChange?.(option.value)}
-          />
           {option.label}
-        </label>
+        </RadioGroupPrimitive.Item>
       ))}
-    </div>
+    </RadioGroupPrimitive.Root>
   );
 }

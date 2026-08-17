@@ -56,6 +56,7 @@ import { formatFrameTimecode, formatTimecode } from './timeScale';
 import type { TrimEdge } from './trim';
 
 import './timeline.css';
+import { cn } from '../cn';
 
 export interface ClipViewProps {
   clip: Clip;
@@ -103,7 +104,7 @@ export function ClipView({
   onKeyDown,
   onFocus,
   ref,
-  className = '',
+  className,
 }: ClipViewProps) {
   const start = previewStart ?? clip.start;
   const duration = previewDuration ?? clip.duration;
@@ -115,7 +116,7 @@ export function ClipView({
     <button
       ref={ref}
       type="button"
-      className={`tl-clip ${className}`.trimEnd()}
+      className={cn('tl-clip', className)}
       data-clip={clip.id}
       data-kind={kind}
       data-selected={String(selected)}

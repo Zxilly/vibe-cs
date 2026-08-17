@@ -32,6 +32,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { CircleAlert, CircleCheck, Info, TriangleAlert, X, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { cn } from '../cn';
 
 export type NoticeTone = 'info' | 'success' | 'warning' | 'danger';
 
@@ -115,7 +116,7 @@ function ToneWord({ tone }: { tone: NoticeTone }) {
   }
 }
 
-export function Notice({ tone, children, detail, action, onDismiss, className = '' }: NoticeProps) {
+export function Notice({ tone, children, detail, action, onDismiss, className }: NoticeProps) {
   const style = TONE[tone];
   const { Icon } = style;
 
@@ -125,7 +126,7 @@ export function Notice({ tone, children, detail, action, onDismiss, className = 
       data-tone={tone}
       // px-3 / py-2.5 resolve to 10.2 / 8.5px against `--spacing: 3.4px`, the
       // artboard's `padding:9px 11px`.
-      className={`flex items-start gap-2.5 border px-3 py-2.5 text-sm ${style.box} ${style.body} ${className}`.trimEnd()}
+      className={cn('flex items-start gap-2.5 border px-3 py-2.5 text-sm', style.box, style.body, className)}
     >
       <span className={`flex-none pt-px ${style.icon}`}>
         <Icon size={15} strokeWidth={1.5} aria-hidden />

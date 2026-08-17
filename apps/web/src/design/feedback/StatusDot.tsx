@@ -18,6 +18,8 @@
  * contains no border-radius declaration; only `.radio .dot` is round.
  */
 
+import { cn } from '../cn';
+
 export type StatusDotStatus = 'idle' | 'running' | 'ok' | 'warn' | 'fail';
 
 /** 7 / 8 / 9 px — the three sizes the reference actually draws. */
@@ -49,14 +51,14 @@ const STATUS_CLASS: Record<StatusDotStatus, string> = {
   fail: 'border border-fail',
 };
 
-export function StatusDot({ status, size = 'md', label, className = '' }: StatusDotProps) {
+export function StatusDot({ status, size = 'md', label, className }: StatusDotProps) {
   const shape = status === 'running' || status === 'ok' ? 'filled' : 'hollow';
 
   return (
     <span
       data-status={status}
       data-shape={shape}
-      className={`block flex-none ${SIZE_CLASS[size]} ${STATUS_CLASS[status]} ${className}`.trimEnd()}
+      className={cn('block flex-none', SIZE_CLASS[size], STATUS_CLASS[status], className)}
       role={label === undefined ? undefined : 'img'}
       aria-label={label}
       aria-hidden={label === undefined ? true : undefined}

@@ -35,6 +35,7 @@
 
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
+import { cn } from '../cn';
 
 export type StageState = 'pending' | 'active' | 'done' | 'failed';
 
@@ -73,13 +74,13 @@ function StateWord({ state }: { state: StageState }) {
   }
 }
 
-export function StageBar({ stages, label, className = '' }: StageBarProps) {
+export function StageBar({ stages, label, className }: StageBarProps) {
   return (
     <ol
       aria-label={label}
       // `grid-flow-col` + `auto-cols-fr`: the artboard's `flex:1` per segment.
       // gap-1 is 3.4px against `--spacing`, the drawn `gap:4px`.
-      className={`m-0 grid list-none grid-flow-col auto-cols-fr gap-1 p-0 ${className}`.trimEnd()}
+      className={cn('m-0 grid list-none grid-flow-col auto-cols-fr gap-1 p-0', className)}
     >
       {stages.map((stage) => (
         <li

@@ -36,6 +36,7 @@ import { formatTimecode } from './timeScale';
 import { nudgeStep, useTimelineEditor, type TimelineTool } from './useTimelineEditor';
 
 import './timeline.css';
+import { cn } from '../cn';
 
 export interface TimelinePrototypeProps {
   /** The document to edit. The prototype owns it from then on. */
@@ -69,7 +70,7 @@ function refusalMessage(reason: EditRefusal): string {
   }
 }
 
-export function TimelinePrototype({ initial, nudgeSeconds = 0.1, className = '' }: TimelinePrototypeProps) {
+export function TimelinePrototype({ initial, nudgeSeconds = 0.1, className }: TimelinePrototypeProps) {
   const editor = useTimelineEditor({ initial, nudgeSeconds });
   const { timeline, scale, drag, selectedClipId, linkedClipIds } = editor;
 
@@ -126,7 +127,7 @@ export function TimelinePrototype({ initial, nudgeSeconds = 0.1, className = '' 
 
   return (
     <section
-      className={`tl ${className}`.trimEnd()}
+      className={cn('tl', className)}
       aria-label={t`多轨时间轴`}
       style={timelineStyle({ '--tl-pps': scale.pixelsPerSecond })}
     >

@@ -19,6 +19,7 @@ import { timelineStyle } from './style';
 import type { Track } from './timelineModel';
 
 import './timeline.css';
+import { cn } from '../cn';
 
 export interface TrackHeadProps {
   track: Track;
@@ -27,10 +28,10 @@ export interface TrackHeadProps {
   className?: string;
 }
 
-export function TrackHead({ track, current = false, className = '' }: TrackHeadProps) {
+export function TrackHead({ track, current = false, className }: TrackHeadProps) {
   return (
     <div
-      className={`tl-head ${className}`.trimEnd()}
+      className={cn('tl-head', className)}
       data-track={track.id}
       data-kind={track.kind}
       data-current={String(current)}

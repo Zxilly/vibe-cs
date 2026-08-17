@@ -22,6 +22,7 @@ import { timelineStyle } from './style';
 import type { Marker } from './timelineModel';
 
 import './timeline.css';
+import { cn } from '../cn';
 
 export interface PlayheadProps {
   timeSeconds: number;
@@ -30,10 +31,10 @@ export interface PlayheadProps {
   className?: string;
 }
 
-export function Playhead({ timeSeconds, label, className = '' }: PlayheadProps) {
+export function Playhead({ timeSeconds, label, className }: PlayheadProps) {
   return (
     <div
-      className={`tl-playhead ${className}`.trimEnd()}
+      className={cn('tl-playhead', className)}
       data-testid="playhead"
       data-time={timeSeconds}
       style={timelineStyle({ '--tl-t': timeSeconds })}
@@ -51,13 +52,13 @@ export interface MarkerLayerProps {
 }
 
 /** The amber guides, one per marker, each carrying its own label. */
-export function MarkerLayer({ markers, className = '' }: MarkerLayerProps) {
+export function MarkerLayer({ markers, className }: MarkerLayerProps) {
   return (
     <>
       {markers.map((marker) => (
         <div
           key={marker.id}
-          className={`tl-marker ${className}`.trimEnd()}
+          className={cn('tl-marker', className)}
           data-marker={marker.id}
           data-time={marker.time}
           style={timelineStyle({ '--tl-t': marker.time })}

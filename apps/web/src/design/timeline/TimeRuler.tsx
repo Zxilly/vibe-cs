@@ -24,6 +24,7 @@ import { timelineStyle } from './style';
 import { formatTimecode, rulerTicks, type TimeScale } from './timeScale';
 
 import './timeline.css';
+import { cn } from '../cn';
 
 export interface TimeRulerProps {
   scale: TimeScale;
@@ -45,7 +46,7 @@ export function TimeRuler({
   onPlayheadChange,
   stepSeconds = 1,
   ref,
-  className = '',
+  className,
 }: TimeRulerProps) {
   const ticks = rulerTicks(scale, { toSeconds: lengthSeconds });
   const interactive = onPlayheadChange !== undefined;
@@ -81,7 +82,7 @@ export function TimeRuler({
   return (
     <div
       ref={ref}
-      className={`tl-ruler ${className}`.trimEnd()}
+      className={cn('tl-ruler', className)}
       style={timelineStyle({ '--tl-ruler-h': RULER_HEIGHT_PX })}
       role={interactive ? 'slider' : undefined}
       tabIndex={interactive ? 0 : undefined}

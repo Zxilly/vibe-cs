@@ -111,7 +111,11 @@ export function libraryColumns(
       header: <Trans>回合</Trans>,
       configLabel: t`回合`,
       variant: 'numeric',
-      width: '6ch',
+      /* 8ch, not the 6ch its *values* need. `ch` is the width of a Latin
+         digit, and the header is two CJK characters plus a sort glyph — at
+         6ch the label wrapped to 「回 / 合」. A column has to fit its own
+         name, and 时长 next door is the same shape at the same width. */
+      width: '8ch',
       sortable: true,
       cell: (demo) => formatRounds(demo.total_rounds),
     },

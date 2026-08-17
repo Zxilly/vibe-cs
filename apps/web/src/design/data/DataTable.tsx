@@ -241,7 +241,10 @@ export function DataTable<Row>({
                     {sortable ? (
                       <button
                         type="button"
-                        className="inline-flex h-[var(--h-ctl-sm)] items-center gap-1 hover:text-text"
+                        /* A header never breaks mid-label: `回合` wrapping to
+                           two lines is a column that is too narrow, and it
+                           should show as overflow rather than hide as a fold. */
+                        className="inline-flex h-[var(--h-ctl-sm)] items-center gap-1 whitespace-nowrap hover:text-text"
                         onClick={() => onSortChange(nextSortState(sort, column.id))}
                       >
                         <span>{column.header ?? column.headerLabel}</span>

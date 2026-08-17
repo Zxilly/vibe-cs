@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro';
-import { act, fireEvent, within } from '@testing-library/react';
+import { act, fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderInteractive } from '../../test/render';
@@ -43,6 +43,18 @@ const PRIMARY = (
   </button>
 );
 
+/* Radix opens a dropdown on the press, not on the click — so a press that
+   opens the menu cannot also select whatever ends up under the pointer. */
+function openMenu(trigger: HTMLElement): void {
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+}
+
+/* Menu keys are handled on the focused item, not on the menu box: Radix's
+   roving focus lives on the items. Firing at the box would test nothing. */
+function press(key: string): void {
+  fireEvent.keyDown(document.activeElement ?? document.body, { key });
+}
+
 describe('Toolbar at the §8 collapse breakpoint', () => {
   /*
    * The rule this whole file exists for, quoted from the 1100 × 700 artboard:
@@ -56,7 +68,7 @@ describe('Toolbar at the §8 collapse breakpoint', () => {
     );
 
     const trigger = getByRole('button', { name: '更多操作' });
-    fireEvent.click(trigger);
+    openMenu(trigger);
 
     const menu = getByRole('menu');
     const items = within(menu).getAllByRole('menuitem');
@@ -89,53 +101,92 @@ describe('Toolbar at the §8 collapse breakpoint', () => {
     );
   });
 
-  it('moves focus into the menu, runs the chosen action and closes', () => {
+  it('moves focus into the menu, runs the chosen action and closes', async () => {
     media = stubMatchMedia(true);
     const onExport = vi.fn();
     const { getByRole, queryByRole } = renderInteractive(
       <Toolbar actions={actions(onExport)} primary={PRIMARY} />,
     );
 
-    fireEvent.click(getByRole('button', { name: '更多操作' }));
-    const items = within(getByRole('menu')).getAllByRole('menuitem');
-    expect(document.activeElement).toBe(items[0]);
+    const trigger = getByRole('button', { name: '更多操作' });
+    openMenu(trigger);
+    const menu = getByRole('menu');
+    const items = within(menu).getAllByRole('menuitem');
+    /* Opened by pointer, focus lands on the menu itself and no item is
+       highlighted — a mouse user has not chosen anything yet. Opening from the
+       keyboard is the case that pre-selects, below. */
+    expect(menu.contains(document.activeElement)).toBe(true);
 
     fireEvent.click(items[1] as HTMLElement);
 
     expect(onExport).toHaveBeenCalledTimes(1);
     expect(queryByRole('menu')).toBeNull();
-    expect(document.activeElement).toBe(getByRole('button', { name: '更多操作' }));
+    await waitFor(() => {
+      expect(document.activeElement).toBe(getByRole('button', { name: '更多操作' }));
+    });
   });
 
-  it('walks the menu with the arrow keys and wraps', () => {
+  it('walks the menu with the arrow keys and wraps', async () => {
     media = stubMatchMedia(true);
     const { getByRole } = renderInteractive(<Toolbar actions={actions()} primary={PRIMARY} />);
 
-    fireEvent.click(getByRole('button', { name: '更多操作' }));
+    /* Opened from the keyboard, so the first item is highlighted straight
+       away — the whole reason ArrowDown opens a menu at all. */
+    fireEvent.keyDown(getByRole('button', { name: '更多操作' }), { key: 'ArrowDown' });
     const menu = getByRole('menu');
     const items = within(menu).getAllByRole('menuitem');
+    await waitFor(() => {
+      expect(document.activeElement).toBe(items[0]);
+    });
 
-    fireEvent.keyDown(menu, { key: 'ArrowDown' });
-    expect(document.activeElement).toBe(items[1]);
+    /* Radix moves roving focus on a timeout, so that a key held down cannot
+       outrun its own re-render. Every step here therefore settles first. */
+    press('ArrowDown');
+    await waitFor(() => {
+      expect(document.activeElement).toBe(items[1]);
+    });
 
-    fireEvent.keyDown(menu, { key: 'ArrowDown' });
-    expect(document.activeElement).toBe(items[0]);
+    press('ArrowDown');
+    await waitFor(() => {
+      expect(document.activeElement).toBe(items[0]);
+    });
 
-    fireEvent.keyDown(menu, { key: 'ArrowUp' });
-    expect(document.activeElement).toBe(items[1]);
+    press('ArrowUp');
+    await waitFor(() => {
+      expect(document.activeElement).toBe(items[1]);
+    });
   });
 
-  it('closes on Esc and returns focus to the trigger', () => {
+  /* Not in the hand-rolled menu, and the one menu affordance users reach for
+     without being told it is there. */
+  it('jumps to an item by typing its name', async () => {
+    media = stubMatchMedia(true);
+    const { getByRole } = renderInteractive(<Toolbar actions={actions()} primary={PRIMARY} />);
+
+    const trigger = getByRole('button', { name: '更多操作' });
+    openMenu(trigger);
+    getByRole('menu');
+
+    press('导');
+    await waitFor(() => {
+      expect((document.activeElement as HTMLElement | null)?.textContent).toBe('导出元数据');
+    });
+  });
+
+  it('closes on Esc and returns focus to the trigger', async () => {
     media = stubMatchMedia(true);
     const { getByRole, queryByRole } = renderInteractive(
       <Toolbar actions={actions()} primary={PRIMARY} />,
     );
 
     const trigger = getByRole('button', { name: '更多操作' });
-    fireEvent.click(trigger);
-    fireEvent.keyDown(getByRole('menu'), { key: 'Escape' });
+    openMenu(trigger);
+    getByRole('menu');
+    press('Escape');
 
     expect(queryByRole('menu')).toBeNull();
-    expect(document.activeElement).toBe(trigger);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 });

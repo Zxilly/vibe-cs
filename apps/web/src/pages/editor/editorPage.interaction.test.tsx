@@ -94,7 +94,8 @@ describe('saving', () => {
     }));
     await openWorkspace({ saveEditorProject });
 
-    fireEvent.click(screen.getByRole('button', { name: /新建轨道/u }));
+    // Radix opens a dropdown on the press, not on the click.
+    fireEvent.pointerDown(screen.getByRole('button', { name: /新建轨道/u }), { button: 0, ctrlKey: false });
     fireEvent.click(await screen.findByRole('menuitem', { name: /字幕轨/u }));
 
     await waitFor(() => expect(screen.getByTestId('editor-save-state').textContent).toContain('未保存'));

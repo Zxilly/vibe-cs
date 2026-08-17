@@ -248,9 +248,10 @@ describe('the filter strip', () => {
     const list = recorder(demoPage([]));
     renderLibrary({ at: '/library?page=4', seed: ONLINE, client: { listDemos: list.call } });
 
-    fireEvent.click(screen.getByRole('button', { name: '标签' }));
+    // Radix opens a dropdown on the press, not on the click.
+    fireEvent.pointerDown(screen.getByRole('button', { name: '标签' }), { button: 0, ctrlKey: false });
     fireEvent.click(
-      within(screen.getByRole('menu', { name: '标签' })).getByRole('menuitem', { name: '待剪素材' }),
+      within(await screen.findByRole('menu', { name: '标签' })).getByRole('menuitem', { name: '待剪素材' }),
     );
 
     await waitFor(() => {

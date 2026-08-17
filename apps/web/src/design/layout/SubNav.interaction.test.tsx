@@ -1,5 +1,5 @@
 import { Trans } from '@lingui/react/macro';
-import { act, fireEvent, within } from '@testing-library/react';
+import { act, fireEvent, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderInteractive } from '../../test/render';
@@ -44,6 +44,12 @@ describe('SubNav across the §8 breakpoint', () => {
     expect(container.querySelectorAll('[data-subnav-item]')).toHaveLength(5);
   });
 
+/* Radix opens a dropdown on the press, not on the click — so a press that
+   opens the menu cannot also select whatever ends up under the pointer. */
+function openMenu(trigger: HTMLElement): void {
+  fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+}
+
   it('reaches a folded view through 更多 and reports it as the current one', () => {
     media = stubMatchMedia(true);
     const onSelect = vi.fn();
@@ -51,7 +57,7 @@ describe('SubNav across the §8 breakpoint', () => {
       <SubNav items={VIEWS} activeId="overview" label="视图导航" onSelect={onSelect} />,
     );
 
-    fireEvent.click(getByRole('button', { name: '更多视图' }));
+    openMenu(getByRole('button', { name: '更多视图' }));
     const items = within(getByRole('menu')).getAllByRole('menuitem');
     expect(items.map((item) => item.textContent)).toEqual([
       '回放与热力图',
@@ -74,23 +80,26 @@ describe('SubNav across the §8 breakpoint', () => {
     expect(current).not.toBeNull();
     expect(current?.getAttribute('aria-current')).toBe('page');
 
-    fireEvent.click(getByRole('button', { name: '更多视图' }));
+    openMenu(getByRole('button', { name: '更多视图' }));
     const menu = getByRole('menu');
     expect(within(menu).queryByRole('menuitem', { name: '阵容' })).toBeNull();
   });
 
-  it('closes 更多 on Esc and returns focus to its trigger', () => {
+  it('closes 更多 on Esc and returns focus to its trigger', async () => {
     media = stubMatchMedia(true);
     const { getByRole, queryByRole } = renderInteractive(
       <SubNav items={VIEWS} activeId="overview" label="视图导航" />,
     );
 
     const trigger = getByRole('button', { name: '更多视图' });
-    fireEvent.click(trigger);
-    fireEvent.keyDown(getByRole('menu'), { key: 'Escape' });
+    openMenu(trigger);
+    getByRole('menu');
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
 
     expect(queryByRole('menu')).toBeNull();
-    expect(document.activeElement).toBe(trigger);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 
   it('selects a visible view by click', () => {

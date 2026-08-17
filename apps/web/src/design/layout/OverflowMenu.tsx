@@ -2,31 +2,37 @@
  * Design system, layer 1 of 3 — layout.
  *
  * The 「更多 ▾」 disclosure, drawn once and shared by `Toolbar` (secondary
- * actions past the fold) and `SubNav` (view tabs past the fold). The design
- * reference draws it in the 1100 × 700 artboard as a plain 38px-tall label in
- * `--color-neutral-600` at the end of the tab row.
+ * actions past the fold), `SubNav` (view tabs past the fold) and the library's
+ * 「地图：Mirage ▾」 filters. The design reference draws it in the 1100 × 700
+ * artboard as a plain 38px-tall label in `--color-neutral-600` at the end of
+ * the tab row.
  *
  * What it may never contain is the page's main action — see `Toolbar`, where
  * the `primary` slot is rendered outside this component by construction.
  *
- * Keyboard contract (spec §6.2 makes it testable, not decorative):
- *   ↓ / ↑     move between items, wrapping, skipping disabled ones
- *   Home/End  first / last item
- *   Esc       close and return focus to the trigger
- *   Tab       close, and let focus leave naturally
- * A pointer press outside closes without moving focus.
+ * ── shadcn's DropdownMenu, and the two bugs it retires ────────────────────
+ *
+ * The keyboard contract (↓/↑ wrapping and skipping disabled items, Home/End,
+ * Esc back to the trigger, Tab closing on the way out) was hand-written, and
+ * spec §6.2 tests it — so that part was already honest. Two things it could
+ * not answer for:
+ *
+ *   · **The menu was clipped.** It was `position: absolute` inside the
+ *     trigger's own box, and its two heaviest callers put it inside a bar that
+ *     scrolls its overflow (`Toolbar`, `SubNav`). A menu longer than the bar
+ *     was cut off at the bar's edge with no scroll of its own. Radix portals
+ *     it to the body and positions it against the viewport, so it also flips
+ *     and shifts near an edge instead of running off screen.
+ *   · **No typeahead.** Ten folded views and no way to jump to 「阵容」 by
+ *     typing it — the one menu affordance users reach for without being told.
+ *
+ * `align` maps onto Radix's own; the menu hangs from the trigger's start or
+ * end edge as the artboard draws it.
  */
 
+import * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
 import { Trans } from '@lingui/react/macro';
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type ReactNode,
-} from 'react';
+import type { ReactNode } from 'react';
 
 import { cn } from '../cn';
 
@@ -55,29 +61,18 @@ export interface OverflowMenuProps {
 const TRIGGER_CLASS =
   'flex h-[var(--h-row-compact)] items-center gap-2 px-3 text-sm text-neutral-600 hover:text-text';
 
+const LIST_CLASS =
+  'z-30 flex min-w-[var(--w-subnav)] flex-col border border-divider bg-bg py-2 shadow-[var(--shadow-md)]';
+
+/**
+ * `data-highlighted` is Radix's own attribute for the item the keyboard or the
+ * pointer is on. It replaces a `:hover` rule, which could not paint the item
+ * the arrow keys had moved to.
+ */
 const ITEM_CLASS =
-  'flex h-[var(--h-row-compact)] w-full items-center gap-3 whitespace-nowrap px-4 text-left text-sm text-text hover:bg-accent-100 disabled:opacity-45';
-
-function nextEnabledIndex(items: readonly OverflowMenuItem[], from: number, step: number): number {
-  const total = items.length;
-  for (let offset = 1; offset <= total; offset += 1) {
-    const index = (from + step * offset + total * total) % total;
-    if (items[index]?.disabled !== true) return index;
-  }
-  return from;
-}
-
-function firstEnabledIndex(items: readonly OverflowMenuItem[]): number {
-  const index = items.findIndex((item) => item.disabled !== true);
-  return index === -1 ? 0 : index;
-}
-
-function lastEnabledIndex(items: readonly OverflowMenuItem[]): number {
-  for (let index = items.length - 1; index >= 0; index -= 1) {
-    if (items[index]?.disabled !== true) return index;
-  }
-  return 0;
-}
+  'flex h-[var(--h-row-compact)] w-full cursor-pointer items-center gap-3 whitespace-nowrap px-4 ' +
+  'text-left text-sm text-text outline-none data-[highlighted]:bg-accent-100 ' +
+  'data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45';
 
 export function OverflowMenu({
   items,
@@ -87,122 +82,43 @@ export function OverflowMenu({
   className,
   triggerClassName,
 }: OverflowMenuProps) {
-  const menuId = useId();
-  const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
-  const close = useCallback((returnFocus: boolean) => {
-    setOpen(false);
-    if (returnFocus) triggerRef.current?.focus();
-  }, []);
-
-  // Focus follows the active index while the menu is open, so ↓/↑ move the
-  // real focus rather than only a visual highlight.
-  useEffect(() => {
-    if (!open) return;
-    itemRefs.current[activeIndex]?.focus();
-  }, [open, activeIndex]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event: Event) => {
-      const root = rootRef.current;
-      if (root && event.target instanceof Node && !root.contains(event.target)) setOpen(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-    };
-  }, [open]);
-
   if (items.length === 0) return null;
 
-  const onMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    switch (event.key) {
-      case 'Escape':
-        event.preventDefault();
-        close(true);
-        break;
-      case 'ArrowDown':
-        event.preventDefault();
-        setActiveIndex((index) => nextEnabledIndex(items, index, 1));
-        break;
-      case 'ArrowUp':
-        event.preventDefault();
-        setActiveIndex((index) => nextEnabledIndex(items, index, -1));
-        break;
-      case 'Home':
-        event.preventDefault();
-        setActiveIndex(firstEnabledIndex(items));
-        break;
-      case 'End':
-        event.preventDefault();
-        setActiveIndex(lastEnabledIndex(items));
-        break;
-      case 'Tab':
-        close(false);
-        break;
-      default:
-        break;
-    }
-  };
-
   return (
-    <div ref={rootRef} data-overflow-menu className={cn('relative flex-none', className)}>
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? menuId : undefined}
+    <DropdownMenuPrimitive.Root>
+      <DropdownMenuPrimitive.Trigger
         aria-label={label}
         data-overflow-trigger
-        className={cn(TRIGGER_CLASS, triggerClassName)}
-        onClick={() => {
-          setActiveIndex(firstEnabledIndex(items));
-          setOpen((wasOpen) => !wasOpen);
-        }}
+        data-overflow-menu
+        className={cn(TRIGGER_CLASS, 'flex-none', className, triggerClassName)}
       >
         {triggerLabel ?? <Trans>更多</Trans>}
         <span aria-hidden="true">▾</span>
-      </button>
-      {open ? (
-        <div
-          id={menuId}
-          role="menu"
+      </DropdownMenuPrimitive.Trigger>
+      <DropdownMenuPrimitive.Portal>
+        <DropdownMenuPrimitive.Content
+          align={align}
+          sideOffset={1}
+          /* The hand-rolled menu wrapped at both ends and spec §6.2 tests it.
+             Radix does not loop by default. */
+          loop
           aria-label={label}
           data-overflow-list
-          className={cn(
-            'absolute top-full z-30 mt-px flex min-w-[var(--w-subnav)] flex-col border border-divider bg-bg py-2 shadow-[var(--shadow-md)]',
-            align === 'end' ? 'right-0' : 'left-0',
-          )}
-          onKeyDown={onMenuKeyDown}
+          className={LIST_CLASS}
         >
-          {items.map((item, index) => (
-            <button
+          {items.map((item) => (
+            <DropdownMenuPrimitive.Item
               key={item.id}
-              ref={(node) => {
-                itemRefs.current[index] = node;
-              }}
-              type="button"
-              role="menuitem"
-              tabIndex={-1}
               disabled={item.disabled === true}
               aria-current={item.current === true ? 'page' : undefined}
               className={cn(ITEM_CLASS, item.current === true && 'bg-accent-100 text-accent-800')}
-              onClick={() => {
-                item.onSelect?.();
-                close(true);
-              }}
+              onSelect={() => item.onSelect?.()}
             >
               {item.label}
-            </button>
+            </DropdownMenuPrimitive.Item>
           ))}
-        </div>
-      ) : null}
-    </div>
+        </DropdownMenuPrimitive.Content>
+      </DropdownMenuPrimitive.Portal>
+    </DropdownMenuPrimitive.Root>
   );
 }

@@ -18,7 +18,7 @@ import { useState } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
 import { useDeleteOutput, useOutputList, useRevealOutput } from '../../data/outputs';
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Toolbar } from '../../design/layout';
 import type { OutputItem } from '../../shared/desktop/dto';
@@ -85,7 +85,7 @@ export function RecentOutputsPanel({ service, now }: RecentOutputsPanelProps) {
         ) : outputs.isPending ? (
           <OutputCardSkeleton />
         ) : items.length === 0 ? (
-          <EmptyState
+          <Empty
             preset="no-outputs"
             actions={
               <RouteLink to="/agent">

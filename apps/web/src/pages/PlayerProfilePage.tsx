@@ -50,7 +50,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 
 import { dataErrorMessage } from '../data/errors';
 import { usePlayer, usePlayerHeatmap, usePlayerMaps, usePlayerMatches } from '../data/players';
-import { EmptyState } from '../design/data';
+import { Empty } from '../design/data';
 import { Alert } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
@@ -219,7 +219,7 @@ export function PlayerProfilePage() {
                 <Trans>最近比赛没能读出来：{matchesError}</Trans>
               </Alert>
             ) : recentMatches.length === 0 ? (
-              <EmptyState
+              <Empty
                 title={<Trans>还没有比赛</Trans>}
                 description={<Trans>这名选手还没有出现在任何一场已分析的比赛里。</Trans>}
                 actions={

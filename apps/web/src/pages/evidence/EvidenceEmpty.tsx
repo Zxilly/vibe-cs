@@ -1,7 +1,7 @@
 /*
  * pages/evidence — 「没有命中的证据」, with a reason.
  *
- * `design/data/EmptyState` ships the `no-hits` preset and its own note says why
+ * `design/data/Empty` ships the `no-hits` preset and its own note says why
  * the copy is only half there: 「当前条件：…」 is a rendering of live filter
  * state, so the preset keeps the general advice and the page passes the
  * conditions in. This is the page half.
@@ -30,7 +30,7 @@ import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import type { EvidenceIndexState } from '../../data/evidence';
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Button } from '../../design/primitives';
 import { RouteLink } from '../RouteLink';
 import type { EvidenceCondition } from './evidenceSearchParams';
@@ -63,7 +63,7 @@ export function EvidenceEmpty({
 }: EvidenceEmptyProps) {
   if (indexState === 'empty') {
     return (
-      <EmptyState
+      <Empty
         className="m-7"
         title={<Trans>还没有可检索的证据</Trans>}
         description={
@@ -82,7 +82,7 @@ export function EvidenceEmpty({
 
   if (indexState === 'partial') {
     return (
-      <EmptyState
+      <Empty
         className="m-7"
         title={<Trans>证据还在整理中</Trans>}
         description={
@@ -100,7 +100,7 @@ export function EvidenceEmpty({
   }
 
   return (
-    <EmptyState
+    <Empty
       className="m-7"
       preset="no-hits"
       description={

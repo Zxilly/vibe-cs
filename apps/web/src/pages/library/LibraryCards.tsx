@@ -24,7 +24,7 @@ import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 
-import { EmptyState, Pagination } from '../../design/data';
+import { Empty, Pagination } from '../../design/data';
 import { Alert, StatusDot } from '../../design/feedback';
 import { Button, cn, Badge } from '../../design/primitives';
 import type { Paginated } from '../../shared/desktop/dto';
@@ -93,7 +93,7 @@ export function LibraryCards({
         ) : null}
 
         {!loading && error === null && rows.length === 0 ? (
-          <EmptyState
+          <Empty
             preset={filtered ? 'no-hits' : 'no-matches'}
             actions={
               filtered ? (

@@ -72,7 +72,7 @@ import { useAppConfig } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
 import { useNativeShell, useNativeShellAction } from '../../data/nativeShell';
 import { useCreateRecordingShotPreset, useRecordingShotPresets } from '../../data/recording';
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
 import { Inspector } from '../../design/layout';
 import { Button, Field, Input, InputGroup, InputGroupAddon, InputGroupInput, Seg, Slider, Toggle } from '../../design/primitives';
@@ -146,7 +146,7 @@ export function ShotInspectorBlock({
       }
     >
       {shot === null ? (
-        <EmptyState
+        <Empty
           title={<Trans>未选中片段</Trans>}
           description={<Trans>在左边选一个片段，这里会显示它的镜头类型、视角与画面参数。</Trans>}
           actions={null}

@@ -50,7 +50,7 @@ export interface AgentTranscriptProps {
    * keeps in-flight text out of the cache, so it comes in beside the entries.
    */
   readonly streamingContent?: string | undefined;
-  /** Drawn when there are no entries: the caller's `EmptyState`. */
+  /** Drawn when there are no entries: the caller's `Empty`. */
   readonly empty?: ReactNode | undefined;
   /** Accessible name of the log — 「会话 · Kael 的 1v3」. */
   readonly label: string;

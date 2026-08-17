@@ -123,7 +123,7 @@ import { resolveQueryTuning, type DataQueryTuning } from './queryTuning';
  * guard a test or a not-yet-resolved param hits, not a normal state).
  *
  * Fails when the demo has never been analysed: the service answers 404 and the
- * page turns that into 「这场还没分析 · 开始分析」 (`EmptyState` preset
+ * page turns that into 「这场还没分析 · 开始分析」 (`Empty` preset
  * `not-analysed`) rather than into a red error — see `analysisIsMissing`.
  *
  * Invalidated by: an analysis run completing → `invalidateMatch`.

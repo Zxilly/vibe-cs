@@ -48,7 +48,7 @@ import type { ComponentType, ReactNode } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
 import { useAgentPlanList } from '../../data/plans';
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, Badge, cn } from '../../design/primitives';
 import {
@@ -360,7 +360,7 @@ function PlanPicker({ context, updateContext, title, description }: PlanPickerPr
 
   if (items.length === 0) {
     return (
-      <EmptyState
+      <Empty
         title={title}
         description={<Trans>还没有任何方案。先在对话里说清楚你要的片子，Agent 会给出第一版。</Trans>}
         actions={

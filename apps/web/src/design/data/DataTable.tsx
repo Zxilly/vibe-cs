@@ -106,7 +106,7 @@ export interface DataTableProps<Row> {
   readonly activeRowId?: string | null | undefined;
   readonly onRowActivate?: ((rowId: string, row: Row) => void) | undefined;
 
-  /** Shown under the header when `rows` is empty — an `EmptyState`. */
+  /** Shown under the header when `rows` is empty — an `Empty`. */
   readonly empty?: ReactNode | undefined;
   /** Shown under the header while loading — a `TableSkeleton`. */
   readonly loading?: boolean | undefined;

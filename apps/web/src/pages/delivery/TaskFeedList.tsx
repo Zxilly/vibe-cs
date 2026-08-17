@@ -9,7 +9,7 @@
  * hand (「补齐 · 规范与状态 · 空 · 加载 · 错误」):
  *
  *   loading  `TaskCardSkeleton` — bars, no invented percentage
- *   empty    `EmptyState`, with the caller's own copy, because 「还没有任务记录」
+ *   empty    `Empty`, with the caller's own copy, because 「还没有任务记录」
  *            and 「没有进行中的任务」 are different sentences about different
  *            filters
  *   error    `Notice` in place, with one recovery action (重新加载). §4.1:
@@ -23,7 +23,7 @@
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';
 import { TaskCard, TaskCardSkeleton } from '../../domain/task';
@@ -86,7 +86,7 @@ export function TaskFeedList({
   if (items.length === 0) {
     return (
       <div className={cn('p-5', className)}>
-        <EmptyState
+        <Empty
           title={emptyTitle}
           description={emptyDescription}
           actions={emptyActions}

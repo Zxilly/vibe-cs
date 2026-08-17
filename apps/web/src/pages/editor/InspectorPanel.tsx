@@ -43,7 +43,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { Fragment, useMemo, useState } from 'react';
 
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Button, Field, Input, cn } from '../../design/primitives';
 import { clipSourceOut, formatFrameTimecode } from '../../design/timeline';
 import { clipAllows, clipRestrictions } from './editorDocument';
@@ -75,7 +75,7 @@ export function InspectorPanel({ desk, service }: EditorPanelProps) {
   if (clip === null || wire === null || document === null) {
     return (
       <section className="p-3" aria-label={t`属性`}>
-        <EmptyState
+        <Empty
           title={t`没有选中片段`}
           description={t`在时间轴上点一个片段，它的入出点、速度与画面参数会出现在这里。`}
           actions={null}

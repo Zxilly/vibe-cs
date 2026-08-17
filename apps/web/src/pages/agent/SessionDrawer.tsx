@@ -43,7 +43,7 @@ import {
   useDeleteAgentSession,
   useRenameAgentSession,
 } from '../../data/sessions';
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { Dialog, Drawer, Alert } from '../../design/feedback';
 import { Button, Input, InputGroup, InputGroupAddon, InputGroupInput } from '../../design/primitives';
 import { AgentSessionRow } from '../../domain/agent';
@@ -263,7 +263,7 @@ export function SessionDrawer({
             ) : null}
 
             {!list.isPending && listError === null && sessions.length === 0 ? (
-              <EmptyState
+              <Empty
                 title={searching ? <Trans>没有匹配的会话</Trans> : <Trans>还没有会话</Trans>}
                 description={
                   searching ? (

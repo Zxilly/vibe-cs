@@ -32,7 +32,7 @@
  *   loading  `design/data`'s `TableSkeleton` — bars and a stage name, and no
  *            percentage (「加载中 · 表格骨架（不显示虚构百分比）」)
  *   error    `design/feedback`'s `Notice`, per §4.1's 「错误就地渲染成 Notice」
- *   empty    `design/data`'s `EmptyState`
+ *   empty    `design/data`'s `Empty`
  */
 
 import { t } from '@lingui/core/macro';
@@ -40,7 +40,7 @@ import { Trans } from '@lingui/react/macro';
 import { ChevronRight } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-import { EmptyState, TableSkeleton } from '../../design/data';
+import { Empty, TableSkeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, Link, Badge, cn } from '../../design/primitives';
 
@@ -254,12 +254,12 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
       </div>
 
       {log.entries.length === 0 ? (
-        <EmptyState
+        <Empty
           title={<Trans>还没有阶段日志</Trans>}
           description={<Trans>任务每进入一个阶段，都会在这里留下一行。</Trans>}
           headingLevel={3}
           /* No recovery action: an empty log is not a fault to recover from —
-             the task simply has not reached its first stage. `EmptyState`
+             the task simply has not reached its first stage. `Empty`
              requires the slot, so it is filled with nothing rather than with a
              button that would do nothing. */
           actions={null}

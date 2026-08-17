@@ -40,7 +40,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { cn } from '../../design/primitives';
 import { formatTimecode } from '../../design/timeline';
 
@@ -214,7 +214,7 @@ export function ClipStrip({
 
   if (clips.length === 0) {
     return (
-      <EmptyState
+      <Empty
         title={<Trans>还没有片段</Trans>}
         description={<Trans>从录制结果里挑几段，它们会按这里的顺序拼成视频。</Trans>}
         actions={emptyAction ?? null}

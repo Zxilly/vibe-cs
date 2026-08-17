@@ -8,7 +8,7 @@
  *
  * ── What the `phase` column is for ─────────────────────────────────────────
  *
- * Phase 1 gave every route a stub whose body was one `EmptyState` saying 「本页
+ * Phase 1 gave every route a stub whose body was one `Empty` saying 「本页
  * 在阶段 X 实现」, and this file pinned that sentence for all fifteen. A phase
  * that lands *replaces* the sentence, so the column now carries `built` as well
  * as the phase, and the two halves are asserted in opposite directions:

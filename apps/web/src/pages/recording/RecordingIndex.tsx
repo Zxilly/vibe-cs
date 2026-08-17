@@ -39,7 +39,7 @@ import { dataErrorMessage } from '../../data/errors';
 import { useAgentPlanList } from '../../data/plans';
 import { useServiceAction } from '../../data/serviceAction';
 import { useTaskFeed } from '../../data/tasks';
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, Badge } from '../../design/primitives';
 import { AGENT_PLAN_STATUS } from '../../domain/agent';
@@ -78,7 +78,7 @@ export function RecordingIndex() {
     && taskRows.length === 0
   ) {
     return (
-      <EmptyState
+      <Empty
         className="m-7"
         title={<Trans>还没有可以录制的方案</Trans>}
         description={
@@ -200,7 +200,7 @@ function PlanColumn({
 
   if (rows.length === 0) {
     return (
-      <EmptyState
+      <Empty
         className="m-5"
         title={<Trans>还没有可以录制的方案</Trans>}
         description={<Trans>方案里至少要有一个镜头，才能生成录制计划。</Trans>}

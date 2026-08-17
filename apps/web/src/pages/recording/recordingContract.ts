@@ -214,7 +214,7 @@
  * ── house rules ───────────────────────────────────────────────────────────
  *
  * Three states always: Skeleton while loading (**never an invented
- * percentage**), EmptyState with a real recovery action, an in-place Notice
+ * percentage**), Empty with a real recovery action, an in-place Notice
  * with a retry on failure. A field the backend does not have is omitted, never
  * rendered as `0`. Service-backed actions use `props.service`. §8 folding uses
  * `props.collapsed`, and **the main action stays visible at every width** — it

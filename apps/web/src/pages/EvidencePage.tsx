@@ -47,7 +47,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { evidenceIndexState, unsupportedEvidenceFilters } from '../data/evidence';
 import { useEvidenceAnnotations, useEvidenceSearch } from '../data/evidence';
 import { dataErrorMessage } from '../data/errors';
-import { EmptyState } from '../design/data';
+import { Empty } from '../design/data';
 import { Page, SelectionBar, Toolbar, useCollapsed } from '../design/layout';
 import { Button, Seg } from '../design/primitives';
 import type { EvidenceAnnotation, EvidenceSearchItem } from '../shared/desktop/dto';
@@ -294,7 +294,7 @@ export function EvidencePage() {
                     },
                   })}
               empty={
-                <EmptyState
+                <Empty
                   className="m-7"
                   title={<Trans>还没有注释</Trans>}
                   description={

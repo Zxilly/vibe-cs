@@ -36,7 +36,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useMemo, useState } from 'react';
 
-import { DataTable, EmptyState, type DataTableColumn } from '../../design/data';
+import { DataTable, Empty, type DataTableColumn } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, Badge } from '../../design/primitives';
 import { dataErrorMessage } from '../../data/errors';
@@ -161,7 +161,7 @@ export function MusicBeatBlock({ project: desk, selection, service }: MontageBlo
         )}
 
         {musicPath === null ? (
-          <EmptyState
+          <Empty
             title={<Trans>还没有配乐</Trans>}
             description={<Trans>选一段音乐后，这里会给出可解释的卡点建议。</Trans>}
             headingLevel={4}
@@ -625,7 +625,7 @@ function BeatTable({
       activeRowId={selection.clipId}
       onRowActivate={(rowId) => selection.select(rowId)}
       empty={
-        <EmptyState
+        <Empty
           title={<Trans>还没有片段</Trans>}
           description={<Trans>先在上面添加片段，这里会给出它们与拍点的关系。</Trans>}
           headingLevel={4}

@@ -39,7 +39,7 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { useMatchAnalysis } from '../../../data/match';
-import { DataTable, EmptyState, type DataTableColumn } from '../../../design/data';
+import { DataTable, Empty, type DataTableColumn } from '../../../design/data';
 import { Button, Seg } from '../../../design/primitives';
 import type { CountedItemRecord } from '../../../shared/desktop/dto';
 import { MatchInspectorPanel } from '../MatchInspectorPanel';
@@ -442,7 +442,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
                 flashAvailable={flashAvailable}
               />
               {rows.length === 0 ? (
-                <EmptyState
+                <Empty
                   headingLevel={4}
                   title={<Trans>没有道具记录</Trans>}
                   description={
@@ -467,7 +467,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
               )}
             </div>
           ) : economy.length === 0 ? (
-            <EmptyState
+            <Empty
               className="m-3.5"
               headingLevel={4}
               title={<Trans>没有购买记录</Trans>}

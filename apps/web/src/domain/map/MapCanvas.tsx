@@ -52,7 +52,7 @@
 import { Trans } from '@lingui/react/macro';
 import { useId, type ReactNode } from 'react';
 
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Alert, type AlertAction } from '../../design/feedback';
 import { Blueprint, cn } from '../../design/layout';
 import {
@@ -65,7 +65,7 @@ import { createMapProjection, type MapProjection } from './mapProjection';
 
 /**
  * The artboard's canvas is 720×720. It is a content box, not a panel column, so
- * spec §3.5 has no token for it — the same disposition `design/data/EmptyState`
+ * spec §3.5 has no token for it — the same disposition `design/data/Empty`
  * records for its own 172px box. Everything inside is projected into this
  * space and the `viewBox` scales it, so the number is a ratio anchor, not a
  * pixel commitment: at any rendered width one unit stays 1/720th of the canvas.
@@ -218,7 +218,7 @@ export function MapCanvas({
     );
   } else if (!usable) {
     body = (
-      <EmptyState
+      <Empty
         title={<Trans>缺少这张地图的雷达标定</Trans>}
         description={
           <Trans>
@@ -230,7 +230,7 @@ export function MapCanvas({
     );
   } else if (status === 'empty') {
     body = (
-      <EmptyState
+      <Empty
         title={<Trans>这张地图还没有空间证据</Trans>}
         description={emptyDescription ?? <Trans>分析完成后才有位置样本、朝向与经击杀验证的交战轴。</Trans>}
         actions={emptyActions}

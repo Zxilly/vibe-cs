@@ -47,7 +47,7 @@ import {
   useMatchHistory,
   useSyncMatchHistory,
 } from '../data/history';
-import { EmptyState, Pagination, TableSkeleton } from '../design/data';
+import { Empty, Pagination, TableSkeleton } from '../design/data';
 import { Alert } from '../design/feedback';
 import { Page, SelectionBar, Toolbar } from '../design/layout';
 import { Button, Badge } from '../design/primitives';
@@ -257,7 +257,7 @@ export function HistoryPage() {
           loading={history.isPending}
           skeleton={<TableSkeleton rows={8} stage={t`正在读取比赛历史`} className="m-4" />}
           empty={
-            <EmptyState
+            <Empty
               className="m-4"
               title={<Trans>还没有可显示的对局</Trans>}
               description={

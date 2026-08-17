@@ -18,7 +18,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
 
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
 import { Checkbox } from '../../design/primitives';
 import { dataErrorMessage } from '../../data/errors';
@@ -91,7 +91,7 @@ export function AddClipsDialog({ open, onClose, held, onAdd, disabled, disabledR
           </p>
         </div>
       ) : rows.length === 0 ? (
-        <EmptyState
+        <Empty
           title={<Trans>还没有录制结果</Trans>}
           description={<Trans>完成一次录制后，片段会出现在这里。</Trans>}
           headingLevel={4}

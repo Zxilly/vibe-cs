@@ -8,8 +8,8 @@
 export { DataTable } from './DataTable';
 export type { DataTableColumn, DataTableProps } from './DataTable';
 
-export { EmptyState, EMPTY_STATE_MIN_HEIGHT_CLASS } from './EmptyState';
-export type { EmptyStatePreset, EmptyStateProps, EmptyStateTone } from './EmptyState';
+export { Empty, EMPTY_MIN_HEIGHT_CLASS } from './Empty';
+export type { EmptyPreset, EmptyProps, EmptyVariant } from './Empty';
 
 export { Pagination } from './Pagination';
 export type { PaginationProps } from './Pagination';

@@ -56,7 +56,7 @@
  * bottom rule. Using it would mean overriding its border, its height and its
  * padding, i.e. all of it.
  *
- * `data/EmptyState` is a bordered, centred block with a *required* recovery
+ * `data/Empty` is a bordered, centred block with a *required* recovery
  * action ("每条都带一个主要恢复动作"). The palette's empty state has no action to
  * offer — the recovery is to keep typing, which the still-focused field already
  * invites — and a framed box inside a floating panel would draw a second border

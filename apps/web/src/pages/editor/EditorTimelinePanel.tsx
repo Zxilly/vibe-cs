@@ -29,7 +29,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useMemo, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { OverflowMenu, type OverflowMenuItem } from '../../design/layout';
 import { Button, Seg, Toggle } from '../../design/primitives';
@@ -258,7 +258,7 @@ export function EditorTimelinePanel({ desk, service }: EditorPanelProps) {
       )}
 
       {timeline.tracks.length === 0 ? (
-        <EmptyState
+        <Empty
           title={t`这个工程还没有内容`}
           description={t`在左侧素材库里选一个素材，按「添加到时间轴」——第一条轨道会随它一起建好。`}
           actions={

@@ -13,7 +13,7 @@
  *             with 返回工作台 and 导出诊断
  *
  * Both are already components: `design/data/Skeleton` refuses to hold a
- * percentage by construction, and `design/data/EmptyState` ships the error
+ * percentage by construction, and `design/data/Empty` ships the error
  * card's copy as its `error` preset. This module composes them and adds the
  * only thing the design layer cannot know — where the error came from and how
  * to try again.
@@ -26,7 +26,7 @@
  *     and resets the boundary in place — no reload, no lost shell state.
  *   · 找不到这个页面. The reference has no 404 board (there is no reachable
  *     404 in the drawn IA). Rather than invent chrome for it, `NotFound`
- *     reuses `EmptyState` in its empty tone, so a bad hash link lands on the
+ *     reuses `Empty` in its empty tone, so a bad hash link lands on the
  *     same shape as an empty table instead of on a failure card — a route that
  *     does not exist is not a malfunction.
  *
@@ -38,16 +38,16 @@ import { Trans } from '@lingui/react/macro';
 import { Component, Suspense, type ReactNode } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
 
-import { EmptyState, EMPTY_STATE_MIN_HEIGHT_CLASS, TableSkeleton } from '../../design/data';
+import { Empty, EMPTY_MIN_HEIGHT_CLASS, TableSkeleton } from '../../design/data';
 import { Button, cn } from '../../design/primitives';
 
 /**
- * The 172px state box now belongs to the design layer: `EmptyState` applies it
+ * The 172px state box now belongs to the design layer: `Empty` applies it
  * to itself and exports the class, so the loading skeleton standing in the same
  * slot can hold the same box without repeating the number. Re-exported under
  * the old name because callers of this module named it.
  */
-export { EMPTY_STATE_MIN_HEIGHT_CLASS as ROUTE_STATE_MIN_HEIGHT_CLASS };
+export { EMPTY_MIN_HEIGHT_CLASS as ROUTE_STATE_MIN_HEIGHT_CLASS };
 
 /** Hash routing (§1.1) — assigning the hash navigates without a reload. */
 function goHome(): void {
@@ -71,7 +71,7 @@ export function RouteLoading({ stage, rows = 4, className }: RouteLoadingProps) 
     <TableSkeleton
       rows={rows}
       stage={stage ?? <Trans>正在打开这个页面</Trans>}
-      className={cn(EMPTY_STATE_MIN_HEIGHT_CLASS, className)}
+      className={cn(EMPTY_MIN_HEIGHT_CLASS, className)}
     />
   );
 }
@@ -98,7 +98,7 @@ export function RouteErrorState({
   className,
 }: RouteErrorStateProps) {
   return (
-    <EmptyState
+    <Empty
       preset="error"
       className={className}
       actions={
@@ -137,7 +137,7 @@ export function NotFound({
   className?: string | undefined;
 }) {
   return (
-    <EmptyState
+    <Empty
       title={<Trans>找不到这个页面</Trans>}
       description={<Trans>这个地址不存在。其余功能不受影响。</Trans>}
       className={className}

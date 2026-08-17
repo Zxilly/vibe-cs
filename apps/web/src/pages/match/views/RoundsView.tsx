@@ -50,7 +50,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { DataTable, EmptyState, Skeleton, type DataTableColumn } from '../../../design/data';
+import { DataTable, Empty, Skeleton, type DataTableColumn } from '../../../design/data';
 import { Button, Badge } from '../../../design/primitives';
 import {
   EvidenceRow,
@@ -397,7 +397,7 @@ export function RoundDetailPanels({
           onRowActivate={(_id, moment) => onUpdateContext({ tick: moment.tick })}
           className="max-h-96"
           empty={
-            <EmptyState
+            <Empty
               headingLevel={4}
               className="border-0"
               title={<Trans>这一回合没有击杀或目标事件</Trans>}
@@ -469,7 +469,7 @@ export function RoundsPanels({
 
       {detail === null ? (
         <ViewPanel id="round-detail" title={<Trans>逐回合详情</Trans>}>
-          <EmptyState
+          <Empty
             headingLevel={4}
             className="m-3.5"
             title={

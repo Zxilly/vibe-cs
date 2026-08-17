@@ -33,7 +33,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useMemo, type ReactNode } from 'react';
 
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { Alert, type AlertAction } from '../../design/feedback';
 import { cn } from '../../design/primitives';
 import { formatTimecode } from '../../design/timeline';
@@ -50,7 +50,7 @@ import {
 
 /**
  * 168px, the artboard's `min-height` for the waveform box. Kept as a component
- * constant rather than a global token for the reason `EmptyState` keeps its
+ * constant rather than a global token for the reason `Empty` keeps its
  * 172px one: it is a content box, not a bar, and §3.4's inventory is bars.
  */
 export const WAVEFORM_MIN_HEIGHT_CLASS = 'min-h-[168px]';
@@ -77,7 +77,7 @@ export interface WaveformProps {
   /** Rendered instead of the waveform, as a `Notice`. */
   readonly failure?: WaveformFailure;
   /**
-   * The recovery action for the empty state. `EmptyState` requires one and
+   * The recovery action for the empty state. `Empty` requires one and
    * this component cannot supply it — "重新分析音频" is a page capability, not
    * a waveform one — so the caller passes it in. Omitted, the empty state
    * renders without an action, which is the one place this directory bends
@@ -138,7 +138,7 @@ export function Waveform({
 
   if (envelope === '') {
     return (
-      <EmptyState
+      <Empty
         title={<Trans>还没有波形</Trans>}
         description={<Trans>这段素材还没有分析出峰值，或者它本来就没有声音。</Trans>}
         actions={emptyAction ?? null}

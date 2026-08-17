@@ -139,7 +139,7 @@
  *
  * ── house rules ───────────────────────────────────────────────────────────
  *
- * Three states always: Skeleton (**no invented percentage**), EmptyState with a
+ * Three states always: Skeleton (**no invented percentage**), Empty with a
  * real recovery action, in-place Notice with a retry. Omit a field the backend
  * does not have; never render it as `0`. Destructive actions (删除工程, 清空片
  * 段) confirm in a Dialog and reuse the `dialog-confirm` catalogue. §8 folding

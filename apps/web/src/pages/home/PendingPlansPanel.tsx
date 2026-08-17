@@ -100,7 +100,7 @@ export function PendingPlansPanel() {
           <Skeleton width="70%" />
         </div>
       ) : items.length === 0 ? (
-        /* One line, not an `EmptyState`: an empty queue is the *good* outcome
+        /* One line, not an `Empty`: an empty queue is the *good* outcome
            here, and a full-height box with a call to action would make a
            healthy workbench look like it needed attention. */
         <p className="text-xs leading-normal text-neutral-600">

@@ -5,9 +5,9 @@
  * the three states the brief requires of every page:
  *
  *   loading  `TableSkeleton` — bars, no invented percentage
- *   empty    `EmptyState`, preset `no-matches` or `no-hits` depending on
+ *   empty    `Empty`, preset `no-matches` or `no-hits` depending on
  *            whether a filter is what emptied it. Both carry a real recovery
- *            action, which is why `EmptyState.actions` is a required prop.
+ *            action, which is why `Empty.actions` is a required prop.
  *   error    a `Notice` in place, with 重试 — never a Toast (「补齐 · 规范与
  *            状态」: 「不用 Toast 承载错误」)
  *
@@ -30,7 +30,7 @@ import type { ReactNode } from 'react';
 
 import {
   DataTable,
-  EmptyState,
+  Empty,
   Pagination,
   TableSkeleton,
   type DataTableColumn,
@@ -128,7 +128,7 @@ export function LibraryTable({
         skeleton={<TableSkeleton rows={8} stage={<Trans>正在读取资料库</Trans>} />}
         empty={
           error !== null ? null : (
-            <EmptyState
+            <Empty
               className="m-7"
               preset={filtered ? 'no-hits' : 'no-matches'}
               actions={

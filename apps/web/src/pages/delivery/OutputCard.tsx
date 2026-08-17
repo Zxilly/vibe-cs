@@ -30,7 +30,7 @@ import { Trans } from '@lingui/react/macro';
 import { Film } from 'lucide-react';
 
 import { formatTaskClock } from '../../domain/task';
-import { EMPTY_STATE_MIN_HEIGHT_CLASS } from '../../design/data';
+import { EMPTY_MIN_HEIGHT_CLASS } from '../../design/data';
 import { Button, cn } from '../../design/primitives';
 import type { OutputItem } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
@@ -161,7 +161,7 @@ export function OutputCardSkeleton() {
     <div
       role="status"
       aria-busy="true"
-      className={cn('flex gap-4 border border-divider p-4', EMPTY_STATE_MIN_HEIGHT_CLASS)}
+      className={cn('flex gap-4 border border-divider p-4', EMPTY_MIN_HEIGHT_CLASS)}
     >
       <span
         aria-hidden="true"

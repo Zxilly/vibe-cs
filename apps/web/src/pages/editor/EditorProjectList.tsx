@@ -18,7 +18,7 @@ import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { DataTable, EmptyState, TableSkeleton, type DataTableColumn } from '../../design/data';
+import { DataTable, Empty, TableSkeleton, type DataTableColumn } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
 import { Page, Toolbar } from '../../design/layout';
 import { Button, Field, Input } from '../../design/primitives';
@@ -189,7 +189,7 @@ export function EditorProjectList() {
           loading={projects.isPending}
           skeleton={<TableSkeleton rows={4} stage={<Trans>正在读取编辑器工程</Trans>} />}
           empty={
-            <EmptyState
+            <Empty
               title={<Trans>还没有工程</Trans>}
               description={<Trans>多轨编辑器是给需要叠加、字幕与逐帧修剪的片子用的。</Trans>}
               actions={newProjectButton}

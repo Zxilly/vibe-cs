@@ -17,7 +17,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useMemo } from 'react';
 
-import { DataTable, EmptyState, type DataTableColumn } from '../../design/data';
+import { DataTable, Empty, type DataTableColumn } from '../../design/data';
 import type { PlayerMapItem } from '../../shared/desktop/dto';
 import { formatFixed, formatPercent, headshotRate, NO_VALUE } from './playerStats';
 
@@ -90,7 +90,7 @@ export function PlayerMapTable({ rows, loading = false }: PlayerMapTableProps) {
         rowId={(row) => row.map_name ?? 'unknown'}
         loading={loading}
         empty={
-          <EmptyState
+          <Empty
             className="m-4"
             title={<Trans>还没有按地图的数据</Trans>}
             description={<Trans>分析这名选手的比赛之后，每张地图的场次与命中会在这里累积。</Trans>}

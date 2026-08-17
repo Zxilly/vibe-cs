@@ -42,7 +42,7 @@ import { useState, type DragEvent, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useAgentPlan } from '../../data/plans';
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { StatusDot } from '../../design/feedback';
 import { Button, cn } from '../../design/primitives';
 import { formatShotDuration, formatTickRange } from '../../domain/agent';
@@ -319,7 +319,7 @@ function UnboundShots({
 
   if (unbound.length === 0) {
     return (
-      <EmptyState
+      <Empty
         className="m-4"
         title={<Trans>这份计划里还没有片段</Trans>}
         description={<Trans>方案里的镜头绑定好 Demo 与选手之后，这里会列出可录制的片段。</Trans>}

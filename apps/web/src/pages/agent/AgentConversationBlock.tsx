@@ -75,7 +75,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { dataErrorMessage } from '../../data/errors';
 import { useAgentPlan } from '../../data/plans';
 import { useAgentSession, useCreateAgentSession } from '../../data/sessions';
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, Seg, cn } from '../../design/primitives';
 import {
@@ -376,7 +376,7 @@ function Transcript({
   if (sessionId === null) {
     return (
       <Frame state="no-session">
-        <EmptyState
+        <Empty
           className="m-3.5"
           title={<Trans>还没有选择会话</Trans>}
           description={
@@ -440,7 +440,7 @@ function Transcript({
       renderExtras={renderExtras}
       {...(streaming ? { streamingContent: draft } : {})}
       empty={
-        <EmptyState
+        <Empty
           className="m-3.5"
           title={<Trans>这条会话还没有对话</Trans>}
           description={

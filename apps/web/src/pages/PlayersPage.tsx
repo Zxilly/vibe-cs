@@ -39,7 +39,7 @@ import { usePlayerDirectory } from '../data/players';
 import { dataErrorMessage } from '../data/errors';
 import {
   DataTable,
-  EmptyState,
+  Empty,
   Pagination,
   TableSkeleton,
   type DataTableColumn,
@@ -318,7 +318,7 @@ export function PlayersPage() {
             loading={directory.isPending}
             skeleton={<TableSkeleton rows={8} stage={t`正在读取玩家目录`} className="m-7" />}
             empty={
-              <EmptyState
+              <Empty
                 className="m-7"
                 title={
                   state.search === '' ? <Trans>还没有玩家</Trans> : <Trans>没有匹配的选手</Trans>

@@ -49,7 +49,7 @@ import {
   useCreateAgentSession,
   useTouchAgentObjectRef,
 } from '../../data/sessions';
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, Field, Input } from '../../design/primitives';
 import { AgentReferenceRow } from '../../domain/agent';
@@ -226,7 +226,7 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
         {!references.isPending && referencesError === null && total === 0 ? (
           /* Empty is a normal answer here, not a failure: a workspace with
              nothing running has nothing to take over. */
-          <EmptyState
+          <Empty
             title={<Trans>工作区里没有正在进行的对象</Trans>}
             description={
               <Trans>新建一条空会话就行——想做什么直接说，Agent 会先生成一个方案。</Trans>

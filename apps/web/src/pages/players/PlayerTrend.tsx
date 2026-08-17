@@ -36,7 +36,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Seg, type SegOption } from '../../design/primitives';
 import type { PlayerMatch } from '../../shared/desktop/dto';
 import {
@@ -120,7 +120,7 @@ export function PlayerTrend({ matches, metric, onMetricChange }: PlayerTrendProp
       </div>
 
       {points.length === 0 ? (
-        <EmptyState
+        <Empty
           title={<Trans>还没有可画的趋势</Trans>}
           description={
             <Trans>这名选手最近的比赛里没有 {metricName(metric)} 的取值，所以这里没有线可画。</Trans>

@@ -53,7 +53,7 @@ import {
   useMatchAnnotations,
   useUpdateMatchAnnotation,
 } from '../../../data/match';
-import { EmptyState, Skeleton } from '../../../design/data';
+import { Empty, Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Button, Seg, Badge, Input } from '../../../design/primitives';
 import { formatTickCount } from '../../../domain/match';
@@ -287,7 +287,7 @@ function InsightCards({
 
   if (opening === null && matchup === null && utility === null && gaps.length === 0) {
     return (
-      <EmptyState
+      <Empty
         title={<Trans>这场还推不出结论</Trans>}
         description={<Trans>这场比赛既没有解析出击杀，也没有道具与对位数据。</Trans>}
         actions={
@@ -703,7 +703,7 @@ function AnnotationsPanel({
           <Skeleton width="80%" />
         </div>
       ) : rows.length === 0 ? (
-        <EmptyState
+        <Empty
           className="m-3.5"
           title={<Trans>这场还没有注释</Trans>}
           description={<Trans>注释会同时出现在证据检索里，可以跨比赛检索。</Trans>}

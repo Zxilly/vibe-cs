@@ -53,7 +53,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useMatchAnalysis, useMatchHeatPoints, useMatchReplay, useMapRadarOverview, analysisIsMissing } from '../../../data/match';
 import { dataErrorMessage } from '../../../data/errors';
-import { EmptyState, Skeleton } from '../../../design/data';
+import { Empty, Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Button, Checkbox, Seg, cn } from '../../../design/primitives';
 import {
@@ -537,7 +537,7 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
             <Skeleton width="84%" />
           </div>
         ) : rows.length === 0 ? (
-          <EmptyState
+          <Empty
             title={<Trans>这一段没有可列出的事件</Trans>}
             description={<Trans>列表只收击杀与目标事件；伤害、购买与投掷物在证据检索里。</Trans>}
             actions={

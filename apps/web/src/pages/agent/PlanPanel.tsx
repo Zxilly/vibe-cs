@@ -54,7 +54,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { dataErrorMessage } from '../../data/errors';
 import { isRevisionConflict, useAgentPlan, useRestoreAgentPlanBaseline } from '../../data/plans';
 import { useAgentSession } from '../../data/sessions';
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
 import { Button, Badge, cn } from '../../design/primitives';
 import {
@@ -101,7 +101,7 @@ export const PlanPanel: AgentBlock = (props) => {
 
   if (props.context.plan === null) {
     return (
-      <EmptyState
+      <Empty
         className="m-5"
         title={<Trans>还没有选中方案</Trans>}
         description={
@@ -408,7 +408,7 @@ function PlanPanelBody({
 
         <PanelSection title={<Trans>镜头</Trans>}>
           {shots.length === 0 ? (
-            <EmptyState
+            <Empty
               headingLevel={4}
               title={<Trans>这份方案还没有镜头</Trans>}
               description={<Trans>在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。</Trans>}

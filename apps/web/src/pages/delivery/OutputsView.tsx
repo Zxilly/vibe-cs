@@ -28,7 +28,7 @@ import { useState } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
 import { useDeleteOutput, useOutputList, useRevealOutput } from '../../data/outputs';
-import { EmptyState, Pagination } from '../../design/data';
+import { Empty, Pagination } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Toolbar } from '../../design/layout';
 import { Seg } from '../../design/primitives';
@@ -167,7 +167,7 @@ export function OutputsView({ service, now }: OutputsViewProps) {
             ))}
           </div>
         ) : items.length === 0 ? (
-          <EmptyState
+          <Empty
             preset="no-outputs"
             actions={
               <RouteLink to="/agent">

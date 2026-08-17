@@ -56,7 +56,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { dataErrorMessage } from '../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
 import { useServiceAction, type ServiceActionState } from '../../../data/serviceAction';
-import { EmptyState } from '../../../design/data';
+import { Empty } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Button, Seg, Badge } from '../../../design/primitives';
 import { SelectionBar } from '../../../design/layout';
@@ -164,7 +164,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
   if (highlights.length === 0) {
     return (
       <Frame state="empty">
-        <EmptyState
+        <Empty
           className="m-3.5"
           title={<Trans>这场比赛没有检出高光</Trans>}
           description={<Trans>检测器在这场里没有找到残局、多杀或穿墙这类可以单独成片的片段。</Trans>}
@@ -208,7 +208,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
       </header>
 
       {visible.length === 0 ? (
-        <EmptyState
+        <Empty
           className="m-3.5"
           title={<Trans>这个类型下没有高光</Trans>}
           description={<Trans>其余类型仍然有 {highlights.length} 条。</Trans>}

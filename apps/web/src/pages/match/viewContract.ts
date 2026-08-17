@@ -69,7 +69,7 @@
  * ── Three states, always ──────────────────────────────────────────────────
  *
  * Loading → `design/data`'s `Skeleton` (never an invented percentage). Empty →
- * `EmptyState` with a real recovery action. Failed → an in-place
+ * `Empty` with a real recovery action. Failed → an in-place
  * `design/feedback` `Notice` carrying a retry (§4.1 sets `throwOnError: false`
  * precisely so the error lands next to the thing that failed).
  *

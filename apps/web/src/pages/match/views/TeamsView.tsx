@@ -50,7 +50,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { DataTable, EmptyState, type DataTableColumn } from '../../../design/data';
+import { DataTable, Empty, type DataTableColumn } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Button, Badge } from '../../../design/primitives';
 import {
@@ -190,7 +190,7 @@ export function TeamRosterPanel({
         activeRowId={selectedPlayer}
         onRowActivate={(id) => onUpdateContext({ player: id })}
         empty={
-          <EmptyState
+          <Empty
             headingLevel={4}
             className="border-0"
             title={<Trans>这一队没有选手记录</Trans>}

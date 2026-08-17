@@ -16,7 +16,7 @@
  *             (§10.4 gap 10).
  *   404       **not an error.** `analysisIsMissing` reads the status off the
  *             `DesktopError`, and a demo that was never analysed gets
- *             `EmptyState preset="not-analysed"` with 「开始分析」 — the one
+ *             `Empty preset="not-analysed"` with 「开始分析」 — the one
  *             action that fixes it — rather than a red box that hides it.
  *   failure   an in-place `Notice` with 重试. §4.1 sets `throwOnError: false`
  *             precisely so the error lands next to the thing that failed.
@@ -29,7 +29,7 @@
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { EmptyState, Skeleton } from '../../../design/data';
+import { Empty, Skeleton } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Button, cn } from '../../../design/primitives';
 import { useStartDemoAnalysis } from '../../../data/demos';
@@ -193,7 +193,7 @@ export function NotAnalysedState({ demoId }: { readonly demoId: string }) {
   const service = useServiceAction();
 
   return (
-    <EmptyState
+    <Empty
       preset="not-analysed"
       headingLevel={4}
       className="m-3.5"

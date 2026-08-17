@@ -41,7 +41,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useMemo, useState } from 'react';
 
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Button, cn } from '../../design/primitives';
 import type { MediaAsset } from '../../shared/desktop/dto';
 import { formatBytes, formatClockDuration, type EditorPanelProps } from './editorContract';
@@ -128,7 +128,7 @@ export function MediaLibraryPanel({ desk, service }: EditorPanelProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {desk.assets.length === 0 ? (
-          <EmptyState
+          <Empty
             title={t`还没有素材`}
             description={t`导入本地的视频或音频，它们会成为这个工程可用的素材。`}
             actions={

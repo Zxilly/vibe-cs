@@ -35,7 +35,7 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { useMatchAnalysis } from '../../../data/match';
-import { DataTable, EmptyState, type DataTableColumn, type SortState } from '../../../design/data';
+import { DataTable, Empty, type DataTableColumn, type SortState } from '../../../design/data';
 import { Button } from '../../../design/primitives';
 import { HighlightRow, type HighlightCandidate } from '../../../domain/match';
 import type { AnalysisWorkspace, Highlight } from '../../../shared/desktop/viewModels';
@@ -239,7 +239,7 @@ function PlayersBody({ demoId, context, updateContext }: MatchViewProps) {
       >
         {gate.fallback ??
           (empty ? (
-            <EmptyState
+            <Empty
               className="m-3.5"
               headingLevel={4}
               title={<Trans>这份分析里没有选手</Trans>}

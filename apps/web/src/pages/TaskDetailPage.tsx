@@ -24,7 +24,7 @@
  * ── The three states ──────────────────────────────────────────────────────
  *
  * 加载中 / 空 / 失败 are the artboard's, in the artboard's components: a
- * `Skeleton`-backed placeholder while the record is on its way, an `EmptyState`
+ * `Skeleton`-backed placeholder while the record is on its way, an `Empty`
  * for an address that resolves to nothing, and — for a failed read — the error
  * preset with 重新加载 rather than a toast (§4.1: 「错误就地渲染成 Notice」).
  */
@@ -35,7 +35,7 @@ import { useParams } from 'react-router-dom';
 
 import { dataErrorMessage } from '../data/errors';
 import { useTask } from '../data/tasks';
-import { EmptyState, Skeleton } from '../design/data';
+import { Empty, Skeleton } from '../design/data';
 import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
 import { parseTaskLocator } from './delivery/taskDetailModel';
@@ -70,8 +70,8 @@ export function TaskDetailPage() {
     >
       {locator === null ? (
         <div className="p-6">
-          <EmptyState
-            tone="error"
+          <Empty
+            variant="error"
             title={<Trans>找不到这条任务</Trans>}
             description={<Trans>这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。</Trans>}
             actions={
@@ -84,7 +84,7 @@ export function TaskDetailPage() {
         </div>
       ) : task.isError ? (
         <div className="p-6">
-          <EmptyState
+          <Empty
             preset="error"
             title={<Trans>这条任务没能打开</Trans>}
             description={dataErrorMessage(task.error) ?? t`服务没有返回这条任务记录。`}

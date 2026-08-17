@@ -189,7 +189,7 @@
  * ── house rules that apply to every block ─────────────────────────────────
  *
  * Three states, always: `Skeleton` while loading (**never an invented
- * percentage**), `EmptyState` with a real recovery action when empty, an
+ * percentage**), `Empty` with a real recovery action when empty, an
  * in-place `Notice` with a retry when failed. A field the backend does not have
  * is omitted, never rendered as `0` or an empty row. Service-backed actions use
  * `props.service` (disabled + reason + 「· 需要服务」). §8 folding uses

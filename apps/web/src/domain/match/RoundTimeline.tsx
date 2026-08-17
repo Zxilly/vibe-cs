@@ -44,7 +44,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { cn } from '../../design/primitives';
 import { KEY_ROUND, ROUND_END_REASON } from './matchEnums';
@@ -196,7 +196,7 @@ export function RoundTimeline({
         </div>
       ) : rounds.length === 0 ? (
         <div data-round-timeline-state="empty">
-          <EmptyState preset="not-analysed" actions={emptyActions ?? null} headingLevel={4} className="border-0" />
+          <Empty preset="not-analysed" actions={emptyActions ?? null} headingLevel={4} className="border-0" />
         </div>
       ) : (
         <div

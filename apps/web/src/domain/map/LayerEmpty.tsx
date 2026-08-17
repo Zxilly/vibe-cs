@@ -16,7 +16,7 @@
  *
  * A visible 「无数据」 caption is deliberately not drawn here: with four layers
  * stacked, four such captions would pile up in the same corner. Whole-canvas
- * emptiness is `MapCanvas`'s job and it uses `design/data/EmptyState` for it.
+ * emptiness is `MapCanvas`'s job and it uses `design/data/Empty` for it.
  */
 
 export interface LayerEmptyProps {

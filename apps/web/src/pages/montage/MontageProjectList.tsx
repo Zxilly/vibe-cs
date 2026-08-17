@@ -18,7 +18,7 @@ import { Trans } from '@lingui/react/macro';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { DataTable, EmptyState, TableSkeleton, type DataTableColumn } from '../../design/data';
+import { DataTable, Empty, TableSkeleton, type DataTableColumn } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
 import { Page, Toolbar } from '../../design/layout';
 import { Button, Field, Input } from '../../design/primitives';
@@ -184,7 +184,7 @@ export function MontageProjectList() {
           loading={projects.isPending}
           skeleton={<TableSkeleton rows={4} stage={<Trans>正在读取合辑工程</Trans>} />}
           empty={
-            <EmptyState
+            <Empty
               title={<Trans>还没有合辑</Trans>}
               description={
                 <Trans>把录制结果串成一条视频，不进多轨编辑器也能直接导出。</Trans>

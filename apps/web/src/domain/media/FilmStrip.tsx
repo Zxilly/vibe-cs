@@ -22,7 +22,7 @@ import { Trans } from '@lingui/react/macro';
 import { Film } from 'lucide-react';
 import { useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
 
-import { EmptyState, Skeleton } from '../../design/data';
+import { Empty, Skeleton } from '../../design/data';
 import { cn } from '../../design/primitives';
 import { formatTimecode } from '../../design/timeline';
 
@@ -94,7 +94,7 @@ export function FilmStrip({
 
   if (strip.length === 0) {
     return (
-      <EmptyState
+      <Empty
         icon={<Film className="size-8 text-neutral-500" strokeWidth={1.5} aria-hidden="true" />}
         title={<Trans>还没有缩略图</Trans>}
         description={<Trans>录制完成后会自动抽帧；也可以先在时间轴上按时间预览。</Trans>}

@@ -38,7 +38,7 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { useMatchAnalysis } from '../../../data/match';
-import { DataTable, EmptyState, type DataTableColumn } from '../../../design/data';
+import { DataTable, Empty, type DataTableColumn } from '../../../design/data';
 import { Button, Seg, Badge } from '../../../design/primitives';
 import { formatTickTimecode } from '../../../domain/match';
 import type { PlayerMatchupInsightRecord } from '../../../shared/desktop/dto';
@@ -543,7 +543,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
         {gate.fallback ??
           (mode === 'matrix' ? (
             noMatrix ? (
-              <EmptyState
+              <Empty
                 className="m-3.5"
                 headingLevel={4}
                 title={<Trans>没有可用的对位数据</Trans>}
@@ -570,7 +570,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
               />
             )
           ) : duels.length === 0 ? (
-            <EmptyState
+            <Empty
               className="m-3.5"
               headingLevel={4}
               title={<Trans>没有可归属的首杀</Trans>}

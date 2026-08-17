@@ -25,7 +25,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Inspector } from '../../design/layout';
 import { Button } from '../../design/primitives';
 import type { PlayerDirectoryItem } from '../../shared/desktop/dto';
@@ -124,7 +124,7 @@ export function PlayerComparePanel({ players, limit, onClear }: PlayerComparePan
   if (left === undefined) {
     return (
       <Inspector title={<Trans>比较</Trans>} label={t`比较`} width="wide">
-        <EmptyState
+        <Empty
           title={<Trans>还没有选中选手</Trans>}
           description={
             <Trans>勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆头率并排放在一起。</Trans>

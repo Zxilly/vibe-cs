@@ -1,5 +1,12 @@
 /**
- * Design system, layer 1 of 3 — the empty and error placeholders.
+ * Design system, layer 1 of 3 — Empty, the empty and error placeholders.
+ *
+ * shadcn's name, not shadcn's shape. Its `Empty` is a compound —
+ * `EmptyHeader / EmptyMedia / EmptyTitle / EmptyDescription / EmptyContent` —
+ * and two things this component is required to guarantee cannot be expressed
+ * that way: 「每条都带一个主要恢复动作」 has to be a *required prop*, and the
+ * artboard's five states have to be addressable by name so that 64 call sites
+ * cannot each re-type their copy. Both are below.
  *
  * 「补齐 · 规范与状态」draws six cells under "空 · 加载 · 错误": four empty
  * states, one loading skeleton (see `Skeleton.tsx`) and one error state. All
@@ -33,16 +40,16 @@ import type { ReactNode } from 'react';
 
 import { cn } from '../cn';
 
-export type EmptyStateTone = 'empty' | 'error';
+export type EmptyVariant = 'empty' | 'error';
 
 /** The five states of the artboard, addressed by name. */
-export type EmptyStatePreset = 'no-matches' | 'not-analysed' | 'no-hits' | 'no-outputs' | 'error';
+export type EmptyPreset = 'no-matches' | 'not-analysed' | 'no-hits' | 'no-outputs' | 'error';
 
-export interface EmptyStateProps {
+export interface EmptyProps {
   /** Fills in the artboard's title, description, glyph and tone. */
-  readonly preset?: EmptyStatePreset | undefined;
+  readonly preset?: EmptyPreset | undefined;
   /** Defaults to `error` for the `error` preset and `empty` for everything else. */
-  readonly tone?: EmptyStateTone | undefined;
+  readonly variant?: EmptyVariant | undefined;
   readonly icon?: ReactNode | undefined;
   readonly title?: ReactNode | undefined;
   readonly description?: ReactNode | undefined;
@@ -61,24 +68,24 @@ const HEADING_TAG = { 2: 'h2', 3: 'h3', 4: 'h4' } as const;
  * and records the disposition "应在 EmptyState 里固化为组件常量". This is that
  * constant. `min-h` rather than `h`, because the artboard's cells hold two
  * lines and a real error message can run longer. Exported so the states that
- * stand in for an EmptyState — a loading skeleton in the same slot — can hold
+ * stand in for an Empty — a loading skeleton in the same slot — can hold
  * the same box without copying the number.
  */
-export const EMPTY_STATE_MIN_HEIGHT_CLASS = 'min-h-[172px]';
+export const EMPTY_MIN_HEIGHT_CLASS = 'min-h-[172px]';
 
-export function EmptyState({
+export function Empty({
   preset,
-  tone,
+  variant,
   icon,
   title,
   description,
   actions,
   headingLevel = 3,
   className,
-}: EmptyStateProps) {
+}: EmptyProps) {
   const headingId = useId();
   const content = preset === undefined ? undefined : PRESET_CONTENT[preset];
-  const resolvedTone = tone ?? (preset === 'error' ? 'error' : 'empty');
+  const resolvedVariant = variant ?? (preset === 'error' ? 'error' : 'empty');
   const resolvedIcon = icon ?? content?.icon;
   const resolvedDescription = description ?? content?.description;
   const Heading = HEADING_TAG[headingLevel];
@@ -86,18 +93,18 @@ export function EmptyState({
   return (
     <section
       aria-labelledby={headingId}
-      data-tone={resolvedTone}
+      data-tone={resolvedVariant}
       className={cn(
-        EMPTY_STATE_MIN_HEIGHT_CLASS,
+        EMPTY_MIN_HEIGHT_CLASS,
         'flex flex-col items-center justify-center gap-2 border p-5 text-center',
-        resolvedTone === 'error' ? 'border-fail-border' : 'border-divider',
+        resolvedVariant === 'error' ? 'border-fail-border' : 'border-divider',
         className,
       )}
     >
       {resolvedIcon ?? null}
       <Heading
         id={headingId}
-        className={cn('font-heading text-lg', resolvedTone === 'error' ? 'text-fail-text' : null)}
+        className={cn('font-heading text-lg', resolvedVariant === 'error' ? 'text-fail-text' : null)}
       >
         {title ?? content?.title}
       </Heading>
@@ -105,7 +112,7 @@ export function EmptyState({
         <p
           className={cn(
             'max-w-[46ch] text-xs leading-normal',
-            resolvedTone === 'error' ? 'text-neutral-800' : 'text-neutral-700',
+            resolvedVariant === 'error' ? 'text-neutral-800' : 'text-neutral-700',
           )}
         >
           {resolvedDescription}
@@ -123,7 +130,7 @@ interface PresetContent {
 }
 
 /** The artboard's copy, verbatim, with the zh-CN source inside the macro (§5.1). */
-const PRESET_CONTENT: Record<EmptyStatePreset, PresetContent> = {
+const PRESET_CONTENT: Record<EmptyPreset, PresetContent> = {
   'no-matches': {
     icon: <Folder className="size-8 text-neutral-500" strokeWidth={1.5} aria-hidden="true" />,
     title: <Trans>还没有比赛</Trans>,

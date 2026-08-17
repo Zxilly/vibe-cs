@@ -22,7 +22,7 @@
  * ## Three states, everywhere
  *
  * Loading is a `TableSkeleton` with no invented percentage, empty is an
- * `EmptyState` with a real recovery action, and a failure is a `Notice` in
+ * `Empty` with a real recovery action, and a failure is a `Notice` in
  * place — 「补齐 · 规范与状态」: 「不用 Toast 承载错误」. Each of the five
  * overlays renders its own failure beside its own confirm button, because that
  * is where the retry belongs.

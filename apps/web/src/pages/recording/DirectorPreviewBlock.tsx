@@ -58,7 +58,7 @@ import { useDemo } from '../../data/demos';
 import { dataErrorMessage } from '../../data/errors';
 import { useMapRadarOverview } from '../../data/match';
 import { useNativeShell } from '../../data/nativeShell';
-import { EmptyState } from '../../design/data';
+import { Empty } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, Badge, cn } from '../../design/primitives';
 import { formatTickRange } from '../../domain/agent';
@@ -160,7 +160,7 @@ export function DirectorPreviewBlock({ plan, selection, camera }: DirectorPrevie
       className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto"
     >
       {shot === null ? (
-        <EmptyState
+        <Empty
           className="m-6"
           title={<Trans>还没有选中片段</Trans>}
           description={<Trans>在左边选一个片段，这里会画出它的相机路径与朝向。</Trans>}
@@ -242,7 +242,7 @@ function CameraPathState({
 }) {
   if (camera.status === 'unavailable') {
     return (
-      <EmptyState
+      <Empty
         title={<Trans>这个片段没有绑定高光</Trans>}
         description={
           <Trans>相机路径是从高光的回放证据里采样出来的，没有高光就没有可以画的路径。</Trans>
@@ -318,7 +318,7 @@ function CameraPathState({
 
   if (mapName === null) {
     return (
-      <EmptyState
+      <Empty
         title={<Trans>还不知道这个片段属于哪张地图</Trans>}
         description={<Trans>相机路径已经算好了，但缺少这张地图的底图，没法把它画出来。</Trans>}
         actions={null}

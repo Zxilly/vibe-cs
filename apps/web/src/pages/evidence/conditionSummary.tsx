@@ -1,7 +1,7 @@
 /*
  * pages/evidence — the active conditions, in one sentence.
  *
- * `design/data/EmptyState`'s `no-hits` preset keeps only the general advice and
+ * `design/data/Empty`'s `no-hits` preset keeps only the general advice and
  * leaves 「当前条件：选手 Kael ＋ 穿墙 ＋ 近 7 天」 to the page, because that half
  * is a rendering of live state. This is that half, and it is a separate module
  * from `EvidenceConditions` because the *chips* and the *sentence* have

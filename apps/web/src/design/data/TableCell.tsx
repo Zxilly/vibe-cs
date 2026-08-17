@@ -19,6 +19,25 @@
  * Padding is an edge role, not a number: the reference indents the first and
  * last cell to the page gutter (20px / 24px → `px-6`, 20.4px) and leaves the
  * middle ones on Industry's own `--space-2`.
+ *
+ * ── One line, always ──────────────────────────────────────────────────────
+ *
+ * `DataTable` pins the row to `--h-row`, so a cell that wraps does not get a
+ * taller row — it gets a second line drawn over the hairline below it. Every
+ * table in the reference is single-line, and 玩家目录's 档案 column was found
+ * stacking 「档」 over 「案」 in exactly that way. So the nowrap is here rather
+ * than at the call sites: it is a property of a cell in *this* table, not a
+ * choice a column makes.
+ *
+ * It also fixes the sizing. `table-layout: auto` distributes width from the
+ * cells' intrinsic widths, and a wrapping cell's min-content is one *word* —
+ * which is one character in Chinese. Pinned to one line, min-content becomes
+ * the whole label, so no column can be crushed below what it has to show, and
+ * `DataTable`'s `FLEXIBLE_WIDTH` can hand the slack to the identity column
+ * without starving the others.
+ *
+ * `truncate` already implies `white-space: nowrap`; it is the opt-in for the
+ * one column that may lose characters instead of taking the width.
  */
 
 import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from 'react';
@@ -53,10 +72,10 @@ const ALIGN_CLASS: Record<TableCellAlign, string> = {
  * tracking, upper case, muted ink, one hairline under the row.
  */
 export const TABLE_HEADER_CELL_CLASS =
-  'h-[var(--h-thead)] border-b border-divider text-2xs uppercase tracking-wide text-neutral-600';
+  'h-[var(--h-thead)] whitespace-nowrap border-b border-divider text-2xs uppercase tracking-wide text-neutral-600';
 
 /** The body treatment: Industry's `.table td` hairline, at the §3.4 row height. */
-export const TABLE_BODY_CELL_CLASS = 'border-b border-divider/60 align-middle';
+export const TABLE_BODY_CELL_CLASS = 'whitespace-nowrap border-b border-divider/60 align-middle';
 
 export interface TableCellOwnProps {
   readonly variant?: TableCellVariant | undefined;

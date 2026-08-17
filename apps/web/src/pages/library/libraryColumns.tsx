@@ -84,9 +84,13 @@ export function libraryColumns(
       id: 'map',
       header: <Trans>地图</Trans>,
       configLabel: t`地图`,
-      width: '9ch',
+      /* No width and no `truncate`. Both were here, and together they clipped
+         「de_mirage」 to 「de_mira…」: `9ch` is nine *Latin digits* of border box,
+         which the cell's own inline padding eats into, and `truncate` let the
+         column be squeezed to it instead of ignoring a width too small for the
+         content. Map names are a closed vocabulary of ten short strings — the
+         column sizes to the longest one and nothing is lost. */
       sortable: true,
-      truncate: true,
       cell: (demo) => demo.map_name,
     },
     {
@@ -111,10 +115,12 @@ export function libraryColumns(
       header: <Trans>回合</Trans>,
       configLabel: t`回合`,
       variant: 'numeric',
-      /* 8ch, not the 6ch its *values* need. `ch` is the width of a Latin
-         digit, and the header is two CJK characters plus a sort glyph — at
-         6ch the label wrapped to 「回 / 合」. A column has to fit its own
-         name, and 时长 next door is the same shape at the same width. */
+      /* 8ch, not the 6ch its *values* need: `ch` is the width of a Latin
+         digit and the header is two CJK characters plus a sort glyph, so the
+         column has to fit its own name. It no longer *has* to — `TableCell`
+         pins every cell to one line, so a short width can no longer wrap the
+         label — but 时长 next door is the same shape, and two neighbours that
+         count things should be the same width. */
       width: '8ch',
       sortable: true,
       cell: (demo) => formatRounds(demo.total_rounds),
@@ -123,8 +129,8 @@ export function libraryColumns(
       id: 'source',
       header: <Trans>来源</Trans>,
       configLabel: t`来源`,
-      width: '10ch',
-      truncate: true,
+      /* Three fixed words (本地文件 / 监听目录 / 已导入), so the same reasoning as
+         地图: sized by its content, never clipped. */
       cell: (demo) => <DemoSourceCell demo={demo} />,
     },
     {

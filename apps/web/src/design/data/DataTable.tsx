@@ -75,8 +75,32 @@ export interface DataTableColumn<Row> {
   readonly sortable?: boolean | undefined;
   /** `false` pins the column visible and keeps it out of 列配置. */
   readonly hideable?: boolean | undefined;
+  /**
+   * Clip this cell's content and give the column the table's slack. See
+   * `flexibleWidth` — these are the same decision and cannot be set apart.
+   */
   readonly truncate?: boolean | undefined;
 }
+
+/**
+ * What a `truncate` column's `<col>` gets when the caller named no width.
+ *
+ * The table is `table-layout: auto`, and in that algorithm a column's share is
+ * driven by its cells' *intrinsic* widths. `truncate` is
+ * `overflow:hidden;text-overflow:ellipsis;white-space:nowrap`, whose min-content
+ * width is zero — so the one column that is allowed to clip was also the one the
+ * browser starved, and it lost every argument to a numeric column sized by its
+ * own header. Measured on 玩家目录 before this: 选手 got 68px and clipped
+ * 「s1mple」 to 「s…」, while 最近出场 — five characters of date — got 106px.
+ *
+ * `width: 100%` on a `<col>` in an auto table does not mean 「be the whole
+ * table」; it means 「take everything the other columns do not need」, which is
+ * exactly what the identity column is for. Columns that name a width keep it.
+ *
+ * A table with two `truncate` columns splits the slack between them, which is
+ * also right: 资料库 clips both 比赛 and 文件名 and neither is subordinate.
+ */
+const FLEXIBLE_WIDTH = '100%';
 
 /* ── props ───────────────────────────────────────────────────────────────── */
 
@@ -207,9 +231,11 @@ export function DataTable<Row>({
           <caption className="sr-only">{caption}</caption>
           <colgroup>
             {selectable ? <col className="w-13" /> : null}
-            {shown.map((column) => (
-              <col key={column.id} style={column.width === undefined ? undefined : { width: column.width }} />
-            ))}
+            {shown.map((column) => {
+              const width = column.width
+                ?? (column.truncate === true ? FLEXIBLE_WIDTH : undefined);
+              return <col key={column.id} style={width === undefined ? undefined : { width }} />;
+            })}
           </colgroup>
           <thead className="sticky top-0 z-10 bg-bg">
             <tr>

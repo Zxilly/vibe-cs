@@ -60,7 +60,7 @@ msgstr "· 时长待定"
 msgid "· 需要服务"
 msgstr "· 需要服务"
 
-#: src/pages/ProjectWorkspacePage.tsx:55
+#: src/pages/ProjectWorkspacePage.tsx:56
 msgid "‹ 作品"
 msgstr "‹ 作品"
 
@@ -727,7 +727,7 @@ msgstr "Agent 删除的"
 msgid "Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。"
 msgstr "Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。"
 
-#: src/pages/ProjectWorkspacePage.tsx:110
+#: src/pages/ProjectWorkspacePage.tsx:111
 msgid "Agent 模式"
 msgstr "Agent 模式"
 
@@ -801,7 +801,7 @@ msgid "Demo 内容一致"
 msgstr "Demo 内容一致"
 
 #: src/app/command/commandRegistry.ts:168
-#: src/app/shell/navigation.tsx:87
+#: src/app/shell/navigation.tsx:85
 #: src/pages/home/RecentMatchesPanel.tsx:52
 #: src/pages/LibraryPage.tsx:291
 msgid "Demo 资料库"
@@ -1192,7 +1192,7 @@ msgstr "二进制回放超过 128 MiB 上限"
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "二进制回放超过 128 MiB 上限。"
 
-#: src/app/shell/navigation.tsx:105
+#: src/app/shell/navigation.tsx:101
 msgid "交付"
 msgstr "交付"
 
@@ -1344,12 +1344,12 @@ msgid "作品名称"
 msgstr "作品名称"
 
 #: src/app/routeCrumb.ts:70
-#: src/pages/ProjectWorkspacePage.tsx:33
-#: src/pages/ProjectWorkspacePage.tsx:44
+#: src/pages/ProjectWorkspacePage.tsx:34
+#: src/pages/ProjectWorkspacePage.tsx:45
 msgid "作品工作区"
 msgstr "作品工作区"
 
-#: src/pages/ProjectWorkspacePage.tsx:57
+#: src/pages/ProjectWorkspacePage.tsx:58
 msgid "作品步骤"
 msgstr "作品步骤"
 
@@ -1387,7 +1387,7 @@ msgstr "你改过的镜头"
 msgid "你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。"
 msgstr "你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。"
 
-#: src/app/command/commandRegistry.ts:233
+#: src/app/command/commandRegistry.ts:227
 #: src/pages/GuidePage.tsx:54
 msgid "使用引导"
 msgstr "使用引导"
@@ -1405,13 +1405,13 @@ msgid "依赖检查"
 msgstr "依赖检查"
 
 #: src/pages/agent/SessionDrawer.tsx:333
-#: src/pages/EditorPage.tsx:411
+#: src/pages/EditorPage.tsx:415
 #: src/pages/library/SaveViewDialog.tsx:54
 #: src/pages/recording/ShotInspectorBlock.tsx:671
 msgid "保存"
 msgstr "保存"
 
-#: src/pages/EditorPage.tsx:377
+#: src/pages/EditorPage.tsx:380
 msgid "保存中…"
 msgstr "保存中…"
 
@@ -1472,7 +1472,7 @@ msgstr "修改"
 msgid "修改任何片段都会让当前预览计划失效，需要重新生成预览。"
 msgstr "修改任何片段都会让当前预览计划失效，需要重新生成预览。"
 
-#: src/pages/ProjectWorkspacePage.tsx:130
+#: src/pages/ProjectWorkspacePage.tsx:136
 msgid "修改会自动保留在当前模式"
 msgstr "修改会自动保留在当前模式"
 
@@ -1515,15 +1515,15 @@ msgstr "停止预览"
 msgid "先保存当前改动，再应用预设"
 msgstr "先保存当前改动，再应用预设"
 
-#: src/pages/EditorPage.tsx:528
+#: src/pages/EditorPage.tsx:532
 msgid "先保存或放弃当前改动，恢复会覆盖它们"
 msgstr "先保存或放弃当前改动，恢复会覆盖它们"
 
-#: src/pages/EditorPage.tsx:426
+#: src/pages/EditorPage.tsx:430
 msgid "先保存改动，导出用的是已保存的版本"
 msgstr "先保存改动，导出用的是已保存的版本"
 
-#: src/pages/EditorPage.tsx:443
+#: src/pages/EditorPage.tsx:447
 msgid "先保存改动，导出用的是服务端存着的工程"
 msgstr "先保存改动，导出用的是服务端存着的工程"
 
@@ -1843,7 +1843,7 @@ msgstr "再勾一名选手才能比较。上限 {limit} 名——超过两列的
 msgid "再快一点"
 msgstr "再快一点"
 
-#: src/pages/EditorPage.tsx:475
+#: src/pages/EditorPage.tsx:479
 msgid "再试一次"
 msgstr "再试一次"
 
@@ -2135,7 +2135,7 @@ msgstr "删除这条对话？"
 msgid "别贴这么近"
 msgstr "别贴这么近"
 
-#: src/app/shell/navigation.tsx:95
+#: src/app/shell/navigation.tsx:93
 msgid "制作"
 msgstr "制作"
 
@@ -2158,7 +2158,7 @@ msgid "剪辑中"
 msgstr "剪辑中"
 
 #: src/pages/ProjectsPage.tsx:89
-#: src/pages/ProjectWorkspacePage.tsx:86
+#: src/pages/ProjectWorkspacePage.tsx:87
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "剪辑单"
@@ -2172,7 +2172,7 @@ msgctxt "agent-object"
 msgid "剪辑工程"
 msgstr "剪辑工程"
 
-#: src/pages/ProjectWorkspacePage.tsx:118
+#: src/pages/ProjectWorkspacePage.tsx:121
 msgid "剪辑模式"
 msgstr "剪辑模式"
 
@@ -2910,25 +2910,19 @@ msgstr "多杀"
 msgid "多轨时间轴"
 msgstr "多轨时间轴"
 
-#: src/app/shell/navigation.tsx:100
 #: src/pages/home/ActiveProjectsPanel.tsx:115
 msgid "多轨编辑"
 msgstr "多轨编辑"
 
-#: src/app/command/commandRegistry.ts:200
 #: src/pages/editor/EditorProjectList.tsx:159
-#: src/pages/EditorPage.tsx:125
-#: src/pages/EditorPage.tsx:141
+#: src/pages/EditorPage.tsx:126
+#: src/pages/EditorPage.tsx:142
 msgid "多轨编辑器"
 msgstr "多轨编辑器"
 
 #: src/pages/editor/EditorProjectList.tsx:194
 msgid "多轨编辑器是给需要叠加、字幕与逐帧修剪的片子用的。"
 msgstr "多轨编辑器是给需要叠加、字幕与逐帧修剪的片子用的。"
-
-#: src/pages/ProjectWorkspacePage.tsx:143
-msgid "多轨编辑能力将在这里呈现。"
-msgstr "多轨编辑能力将在这里呈现。"
 
 #: src/ActivityDrawer.tsx:30
 #: src/design/feedback/StageBar.tsx:73
@@ -2968,7 +2962,7 @@ msgstr "字节"
 msgid "存为预设"
 msgstr "存为预设"
 
-#: src/pages/ProjectWorkspacePage.tsx:46
+#: src/pages/ProjectWorkspacePage.tsx:47
 msgid "它可能来自尚未读取成功的旧工程。"
 msgstr "它可能来自尚未读取成功的旧工程。"
 
@@ -3119,11 +3113,11 @@ msgstr "导入一个 .dem，或添加一个监听目录自动发现"
 msgid "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 msgstr "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 
-#: src/pages/EditorPage.tsx:303
+#: src/pages/EditorPage.tsx:306
 msgid "导入本机文件需要桌面应用，浏览器里做不到"
 msgstr "导入本机文件需要桌面应用，浏览器里做不到"
 
-#: src/pages/EditorPage.tsx:329
+#: src/pages/EditorPage.tsx:332
 msgid "导入没有完成"
 msgstr "导入没有完成"
 
@@ -3135,7 +3129,7 @@ msgstr "导入素材"
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:275
 #: src/pages/ProjectsPage.tsx:91
-#: src/pages/ProjectWorkspacePage.tsx:88
+#: src/pages/ProjectWorkspacePage.tsx:89
 #: src/pages/settings/AdvancedSection.tsx:218
 #: src/pages/settings/AiAgentSection.tsx:775
 msgid "导出"
@@ -3154,8 +3148,8 @@ msgstr "导出会返回一份文件，桌面端还没有保存到磁盘的命令
 msgid "导出元数据"
 msgstr "导出元数据"
 
-#: src/pages/EditorPage.tsx:418
-#: src/pages/EditorPage.tsx:429
+#: src/pages/EditorPage.tsx:422
+#: src/pages/EditorPage.tsx:433
 msgid "导出工程包"
 msgstr "导出工程包"
 
@@ -3179,8 +3173,8 @@ msgstr "导出成片需要它。录制与分析不受影响，但导不出文件
 msgid "导出没有完成：{exportError}"
 msgstr "导出没有完成：{exportError}"
 
-#: src/pages/EditorPage.tsx:435
-#: src/pages/EditorPage.tsx:453
+#: src/pages/EditorPage.tsx:439
+#: src/pages/EditorPage.tsx:457
 msgid "导出视频"
 msgstr "导出视频"
 
@@ -3189,7 +3183,7 @@ msgstr "导出视频"
 msgid "导出结果"
 msgstr "导出结果"
 
-#: src/pages/ProjectWorkspacePage.tsx:98
+#: src/pages/ProjectWorkspacePage.tsx:99
 msgid "导出设置与这份作品的成品文件会显示在这里。"
 msgstr "导出设置与这份作品的成品文件会显示在这里。"
 
@@ -3276,7 +3270,7 @@ msgid "工作区里没有正在进行的对象"
 msgstr "工作区里没有正在进行的对象"
 
 #: src/app/command/commandRegistry.ts:165
-#: src/app/shell/navigation.tsx:81
+#: src/app/shell/navigation.tsx:79
 #: src/pages/HomePage.tsx:58
 msgid "工作台"
 msgstr "工作台"
@@ -3302,7 +3296,7 @@ msgstr "工程没有被改动，重试是安全的。"
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "已从备份恢复配置，重新读取后生效。"
 
-#: src/pages/EditorPage.tsx:381
+#: src/pages/EditorPage.tsx:384
 msgid "已保存"
 msgstr "已保存"
 
@@ -3597,7 +3591,7 @@ msgid "当前会话"
 msgstr "当前会话"
 
 #. placeholder {0}: project.editingMode
-#: src/pages/ProjectWorkspacePage.tsx:96
+#: src/pages/ProjectWorkspacePage.tsx:97
 msgid "当前剪辑模式：{0}。快速剪辑与多轨编辑能力将在这里呈现。"
 msgstr "当前剪辑模式：{0}。快速剪辑与多轨编辑能力将在这里呈现。"
 
@@ -3646,7 +3640,7 @@ msgstr "当前条件下没有采样点，因此没有密度可比。"
 msgid "当前步骤"
 msgstr "当前步骤"
 
-#: src/pages/ProjectWorkspacePage.tsx:114
+#: src/pages/ProjectWorkspacePage.tsx:117
 msgid "当前版本没有跨模式双向转换契约；所有修改会保留在当前模式"
 msgstr "当前版本没有跨模式双向转换契约；所有修改会保留在当前模式"
 
@@ -3682,7 +3676,7 @@ msgstr "当前锚点是一条证据，可以在「我的注释」里为它写注
 
 #: src/domain/task/taskVocabulary.tsx:28
 #: src/pages/ProjectsPage.tsx:90
-#: src/pages/ProjectWorkspacePage.tsx:87
+#: src/pages/ProjectWorkspacePage.tsx:88
 msgid "录制"
 msgstr "录制"
 
@@ -3767,7 +3761,7 @@ msgid "录制结果没能读取：{error}"
 msgstr "录制结果没能读取：{error}"
 
 #: src/app/command/commandRegistry.ts:194
-#: src/app/shell/navigation.tsx:98
+#: src/app/shell/navigation.tsx:96
 #: src/pages/RecordingPage.tsx:116
 #: src/pages/RecordingPage.tsx:293
 msgid "录制计划"
@@ -3851,7 +3845,7 @@ msgstr "快速合辑和多轨工程是两种工程，暂时不能互相转换"
 msgid "快速掠过一段空间，适合两个地点之间的过渡"
 msgstr "快速掠过一段空间，适合两个地点之间的过渡"
 
-#: src/pages/ProjectWorkspacePage.tsx:111
+#: src/pages/ProjectWorkspacePage.tsx:112
 msgid "快速模式"
 msgstr "快速模式"
 
@@ -3868,7 +3862,7 @@ msgstr "恐怖分子"
 msgid "恢复"
 msgstr "恢复"
 
-#: src/app/command/commandRegistry.ts:227
+#: src/app/command/commandRegistry.ts:221
 #: src/app/routeCrumb.ts:74
 #: src/pages/delivery/TaskRecordRail.tsx:84
 #: src/pages/RecoveryPage.tsx:84
@@ -4037,7 +4031,7 @@ msgstr "批量注释"
 msgid "找不到这个页面"
 msgstr "找不到这个页面"
 
-#: src/pages/ProjectWorkspacePage.tsx:46
+#: src/pages/ProjectWorkspacePage.tsx:47
 msgid "找不到这份作品"
 msgstr "找不到这份作品"
 
@@ -4286,7 +4280,7 @@ msgstr "撤销删除"
 msgid "撤销拒绝"
 msgstr "撤销拒绝"
 
-#: src/pages/EditorPage.tsx:495
+#: src/pages/EditorPage.tsx:499
 msgid "撤销这次修改"
 msgstr "撤销这次修改"
 
@@ -4313,7 +4307,7 @@ msgstr "播放头下没有可播放的素材"
 msgid "播放头下没有画面"
 msgstr "播放头下没有画面"
 
-#: src/pages/EditorPage.tsx:262
+#: src/pages/EditorPage.tsx:265
 msgid "播放头这个位置已经有片段了，把播放头挪到空处再试"
 msgstr "播放头这个位置已经有片段了，把播放头挪到空处再试"
 
@@ -4460,7 +4454,7 @@ msgstr "文件缺失"
 msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 msgstr "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 
-#: src/pages/ProjectWorkspacePage.tsx:55
+#: src/pages/ProjectWorkspacePage.tsx:56
 msgid "新作品"
 msgstr "新作品"
 
@@ -4759,7 +4753,7 @@ msgstr "替换"
 
 #. placeholder {0}: keyframeLoss.clips
 #. placeholder {1}: keyframeLoss.keyframes
-#: src/pages/EditorPage.tsx:499
+#: src/pages/EditorPage.tsx:503
 msgid "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 {1} 个关键帧。"
 msgstr "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 {1} 个关键帧。"
 
@@ -4819,7 +4813,7 @@ msgstr "朝向与视野"
 msgid "未下载"
 msgstr "未下载"
 
-#: src/pages/EditorPage.tsx:379
+#: src/pages/EditorPage.tsx:382
 msgid "未保存"
 msgstr "未保存"
 
@@ -4938,7 +4932,7 @@ msgstr "本地服务未连接，分析、录制和导出暂时无法开始"
 msgid "本地服务未连接，恢复后无需刷新页面即可继续"
 msgstr "本地服务未连接，恢复后无需刷新页面即可继续"
 
-#: src/pages/EditorPage.tsx:129
+#: src/pages/EditorPage.tsx:130
 msgid "本地服务没有连接，这个工程读不出来。服务恢复后无需刷新页面。"
 msgstr "本地服务没有连接，这个工程读不出来。服务恢复后无需刷新页面。"
 
@@ -5144,7 +5138,7 @@ msgstr "模糊"
 msgid "正在从方案生成预览计划"
 msgstr "正在从方案生成预览计划"
 
-#: src/pages/EditorPage.tsx:407
+#: src/pages/EditorPage.tsx:411
 #: src/pages/settings/FilesSection.tsx:198
 msgid "正在保存"
 msgstr "正在保存"
@@ -5495,7 +5489,7 @@ msgid "比赛信息"
 msgstr "比赛信息"
 
 #: src/app/command/commandRegistry.ts:174
-#: src/app/shell/navigation.tsx:88
+#: src/app/shell/navigation.tsx:86
 #: src/pages/HistoryPage.tsx:132
 msgid "比赛历史"
 msgstr "比赛历史"
@@ -5508,7 +5502,7 @@ msgstr "比赛历史没能读出来：{readError}"
 msgid "比赛工作区"
 msgstr "比赛工作区"
 
-#: src/pages/ProjectWorkspacePage.tsx:95
+#: src/pages/ProjectWorkspacePage.tsx:96
 msgid "比赛工作区与证据检索加入的片段会汇总到这里。"
 msgstr "比赛工作区与证据检索加入的片段会汇总到这里。"
 
@@ -5646,7 +5640,7 @@ msgstr "没有选中片段"
 msgid "没有道具记录"
 msgstr "没有道具记录"
 
-#: src/pages/EditorPage.tsx:407
+#: src/pages/EditorPage.tsx:411
 msgid "没有需要保存的改动"
 msgstr "没有需要保存的改动"
 
@@ -6074,7 +6068,7 @@ msgstr "版本"
 #. placeholder {0}: query.data.revision
 #. placeholder {0}: snapshot.revision
 #: src/pages/editor/VersionHistoryPanel.tsx:72
-#: src/pages/EditorPage.tsx:386
+#: src/pages/EditorPage.tsx:389
 msgid "版本 {0}"
 msgstr "版本 {0}"
 
@@ -6106,7 +6100,7 @@ msgid "玩家档案"
 msgstr "玩家档案"
 
 #: src/app/command/commandRegistry.ts:178
-#: src/app/shell/navigation.tsx:89
+#: src/app/shell/navigation.tsx:87
 #: src/pages/PlayersPage.tsx:223
 #: src/pages/PlayersPage.tsx:303
 msgid "玩家目录"
@@ -6282,7 +6276,7 @@ msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "目标事件"
 
-#: src/pages/EditorPage.tsx:261
+#: src/pages/EditorPage.tsx:264
 msgid "目标轨道已锁定"
 msgstr "目标轨道已锁定"
 
@@ -6357,7 +6351,7 @@ msgstr "看道具与经济"
 #: src/pages/agent/SessionDrawer.tsx:237
 #: src/pages/delivery/OutputsView.tsx:148
 #: src/pages/editor/EditorTimelinePanel.tsx:253
-#: src/pages/EditorPage.tsx:484
+#: src/pages/EditorPage.tsx:488
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
 #: src/pages/RecoveryPage.tsx:99
@@ -6399,8 +6393,8 @@ msgstr "视角"
 msgid "视野 FOV"
 msgstr "视野 FOV"
 
-#: src/pages/EditorPage.tsx:284
-#: src/pages/EditorPage.tsx:312
+#: src/pages/EditorPage.tsx:287
+#: src/pages/EditorPage.tsx:315
 msgid "视频与音频"
 msgstr "视频与音频"
 
@@ -6602,8 +6596,15 @@ msgstr "算不出相机路径：{0}"
 msgid "类型"
 msgstr "类型"
 
-#: src/pages/ProjectWorkspacePage.tsx:112
-#: src/pages/ProjectWorkspacePage.tsx:142
+#: src/pages/ProjectWorkspacePage.tsx:116
+msgid "精剪修改不会跨模式同步；切换前请保存，当前版本没有转换契约"
+msgstr "精剪修改不会跨模式同步；切换前请保存，当前版本没有转换契约"
+
+#: src/pages/ProjectWorkspacePage.tsx:135
+msgid "精剪修改保留在本地，切换步骤前请保存"
+msgstr "精剪修改保留在本地，切换步骤前请保存"
+
+#: src/pages/ProjectWorkspacePage.tsx:113
 msgid "精剪模式"
 msgstr "精剪模式"
 
@@ -6948,8 +6949,8 @@ msgstr "记录已移除，外部文件未被删除。"
 msgid "记录已移除，文件仍在原处。"
 msgstr "记录已移除，文件仍在原处。"
 
-#: src/app/command/commandRegistry.ts:221
-#: src/app/shell/navigation.tsx:115
+#: src/app/command/commandRegistry.ts:215
+#: src/app/shell/navigation.tsx:111
 #: src/pages/SettingsPage.tsx:82
 msgid "设置与诊断"
 msgstr "设置与诊断"
@@ -6976,7 +6977,7 @@ msgid "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有�
 msgstr "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有一场进入证据索引，所以任何条件都会是零命中。"
 
 #: src/app/command/commandRegistry.ts:181
-#: src/app/shell/navigation.tsx:90
+#: src/app/shell/navigation.tsx:88
 #: src/pages/EvidencePage.tsx:157
 msgid "证据检索"
 msgstr "证据检索"
@@ -7206,7 +7207,7 @@ msgstr "购买条数"
 msgid "购买金额统计不可用"
 msgstr "购买金额统计不可用"
 
-#: src/app/shell/navigation.tsx:85
+#: src/app/shell/navigation.tsx:83
 #: src/pages/MatchWorkspacePage.tsx:201
 msgid "资料库"
 msgstr "资料库"
@@ -7367,7 +7368,7 @@ msgstr "运行录制前校验"
 msgid "运行时"
 msgstr "运行时"
 
-#: src/pages/ProjectWorkspacePage.tsx:46
+#: src/pages/ProjectWorkspacePage.tsx:47
 msgid "返回作品列表"
 msgstr "返回作品列表"
 
@@ -7598,7 +7599,7 @@ msgid "还没读到这个素材的时长，不知道可以滑移多少"
 msgstr "还没读到这个素材的时长，不知道可以滑移多少"
 
 #: src/pages/editor/MediaLibraryPanel.tsx:83
-#: src/pages/EditorPage.tsx:259
+#: src/pages/EditorPage.tsx:262
 msgid "还没读到这个素材的时长，读完才能放到时间轴上"
 msgstr "还没读到这个素材的时长，读完才能放到时间轴上"
 
@@ -7679,11 +7680,11 @@ msgstr "这个地址不存在。其余功能不受影响。"
 msgid "这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。"
 msgstr "这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。"
 
-#: src/pages/EditorPage.tsx:467
+#: src/pages/EditorPage.tsx:471
 msgid "这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。"
 msgstr "这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。"
 
-#: src/pages/EditorPage.tsx:131
+#: src/pages/EditorPage.tsx:132
 msgid "这个工程没能打开：{loadError}"
 msgstr "这个工程没能打开：{loadError}"
 
@@ -7783,7 +7784,7 @@ msgstr "这些设置决定视频怎么被录出来。改动只影响之后新建
 msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "这些高光还读不到完整的解析结果，无法建立方案"
 
-#: src/pages/ProjectWorkspacePage.tsx:97
+#: src/pages/ProjectWorkspacePage.tsx:98
 msgid "这份作品的录制队列与片段进度会显示在这里。"
 msgstr "这份作品的录制队列与片段进度会显示在这里。"
 
@@ -8031,7 +8032,7 @@ msgid "这次恢复没有完成：{actionError}"
 msgstr "这次恢复没有完成：{actionError}"
 
 #: src/pages/editor/EditorProjectList.tsx:179
-#: src/pages/EditorPage.tsx:478
+#: src/pages/EditorPage.tsx:482
 #: src/pages/montage/MontageProjectList.tsx:174
 msgid "这次操作没有完成：{writeError}"
 msgstr "这次操作没有完成：{writeError}"
@@ -8269,7 +8270,7 @@ msgstr "选择文件"
 msgid "选择要导入的 Demo 文件"
 msgstr "选择要导入的 Demo 文件"
 
-#: src/pages/EditorPage.tsx:309
+#: src/pages/EditorPage.tsx:312
 msgid "选择要导入的素材"
 msgstr "选择要导入的素材"
 
@@ -8277,7 +8278,7 @@ msgstr "选择要导入的素材"
 msgid "选择要监听的目录"
 msgstr "选择要监听的目录"
 
-#: src/pages/EditorPage.tsx:281
+#: src/pages/EditorPage.tsx:284
 msgid "选择这个素材移动到的位置"
 msgstr "选择这个素材移动到的位置"
 
@@ -8294,7 +8295,7 @@ msgid "选择音乐"
 msgstr "选择音乐"
 
 #: src/pages/ProjectsPage.tsx:88
-#: src/pages/ProjectWorkspacePage.tsx:85
+#: src/pages/ProjectWorkspacePage.tsx:86
 msgid "选材"
 msgstr "选材"
 
@@ -8465,11 +8466,11 @@ msgstr "重新发起"
 msgid "重新定位"
 msgstr "重新定位"
 
-#: src/pages/EditorPage.tsx:298
+#: src/pages/EditorPage.tsx:301
 msgid "重新定位没有完成"
 msgstr "重新定位没有完成"
 
-#: src/pages/EditorPage.tsx:275
+#: src/pages/EditorPage.tsx:278
 msgid "重新定位需要桌面应用，浏览器里选不到本机文件"
 msgstr "重新定位需要桌面应用，浏览器里选不到本机文件"
 
@@ -8520,7 +8521,7 @@ msgstr "重新读取剪辑单"
 msgid "重新读取回放"
 msgstr "重新读取回放"
 
-#: src/pages/EditorPage.tsx:465
+#: src/pages/EditorPage.tsx:469
 #: src/pages/MontagePage.tsx:376
 #: src/pages/MontagePage.tsx:388
 #: src/pages/MontagePage.tsx:394
@@ -8551,7 +8552,7 @@ msgstr "重新选择"
 #: src/pages/delivery/useTaskActions.tsx:204
 #: src/pages/editor/EditorProjectList.tsx:173
 #: src/pages/editor/EditorProjectList.tsx:178
-#: src/pages/EditorPage.tsx:127
+#: src/pages/EditorPage.tsx:128
 #: src/pages/evidence/EvidenceAnnotations.tsx:56
 #: src/pages/evidence/EvidenceResults.tsx:125
 #: src/pages/GuidePage.tsx:96

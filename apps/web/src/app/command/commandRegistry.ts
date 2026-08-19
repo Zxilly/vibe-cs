@@ -195,12 +195,6 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
     to: '/recording',
     keywords: ['recording', '录制', '镜头', '计划'],
   }),
-  pageCommand({
-    id: 'editor',
-    title: msg`多轨编辑器`,
-    to: '/editor',
-    keywords: ['editor', '编辑', '时间轴', '剪辑'],
-  }),
   // §7 gives /delivery a `?view=outputs|tasks` query and Frame lists the two
   // views as separate rail entries, so they are two commands here as well —
   // 「跳到任务记录」is a distinct intent from 「跳到输出」.

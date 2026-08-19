@@ -57,6 +57,10 @@ export function editorClient(overrides: Record<string, unknown> = {}): Record<st
   const project = sampleEditorProject();
   return {
     listEditorProjects: async () => ({ items: [project] }),
+    listAgentPlans: async () => [],
+    listMontageProjects: async () => ({ items: [] }),
+    listActivities: async () => ({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
+    listOutputs: async () => ({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
     getEditorProject: async () => project,
     createEditorProject: async () => project,
     saveEditorProject: async (next: EditorProject) => ({ ...next, revision: next.revision + 1 }),
@@ -115,6 +119,7 @@ export function renderEditor(options: RenderEditorOptions): RenderResult {
             <Routes>
               <Route path="/editor" element={element} />
               <Route path="/editor/:projectId" element={element} />
+              <Route path="/projects/:projectId" element={element} />
               <Route path="*" element={<span data-elsewhere="">elsewhere</span>} />
             </Routes>
           </SeedHealth>

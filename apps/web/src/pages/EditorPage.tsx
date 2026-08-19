@@ -56,7 +56,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { Skeleton } from '../design/data';
@@ -104,14 +104,15 @@ import { mintUuid } from './editor/editorIds';
 
 export function EditorPage() {
   const { projectId } = useParams<{ projectId?: string }>();
-  return projectId === undefined ? <EditorProjectList /> : <EditorLoader projectId={projectId} />;
+  return projectId === undefined ? <EditorProjectList /> : <EditorWorkspaceLoader projectId={projectId} />;
 }
 
 /* ── loading ─────────────────────────────────────────────────────────────── */
 
-function EditorLoader({ projectId }: { readonly projectId: string }) {
+export function EditorWorkspaceLoader({ projectId, embedded = false }: { readonly projectId: string; readonly embedded?: boolean | undefined }) {
   const project = useEditorProject(projectId);
-  const assets = useMediaAssets(projectId);
+  const projectAssets = useMediaAssets(projectId);
+  const sharedAssets = useMediaAssets(null);
   /* Read here and not only in the workspace: a project that will not open is
      most often a service that is not up, and 「读取失败」 without that sentence
      sends the user looking for a corrupt file. */
@@ -122,7 +123,7 @@ function EditorLoader({ projectId }: { readonly projectId: string }) {
 
   if (loadError !== null) {
     return (
-      <Page scroll={false} toolbar={<Toolbar title={<Trans>多轨编辑器</Trans>} meta={projectId} />}>
+      <EditorFrame embedded={embedded} toolbar={<Toolbar height={embedded ? 'bar' : 'topbar'} title={<Trans>多轨编辑器</Trans>} meta={projectId} />}>
         <div className="p-5">
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void project.refetch() }}>
             {service.blocked ? (
@@ -132,18 +133,18 @@ function EditorLoader({ projectId }: { readonly projectId: string }) {
             )}
           </Alert>
         </div>
-      </Page>
+      </EditorFrame>
     );
   }
 
   if (project.data === undefined) {
     return (
-      <Page scroll={false} toolbar={<Toolbar title={<Trans>多轨编辑器</Trans>} meta={projectId} />}>
+      <EditorFrame embedded={embedded} toolbar={<Toolbar height={embedded ? 'bar' : 'topbar'} title={<Trans>多轨编辑器</Trans>} meta={projectId} />}>
         <div className="flex flex-col gap-4 p-5">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-64" />
         </div>
-      </Page>
+      </EditorFrame>
     );
   }
 
@@ -151,9 +152,10 @@ function EditorLoader({ projectId }: { readonly projectId: string }) {
     <EditorWorkspace
       key={`${projectId}:${String(reloadToken)}`}
       projectId={projectId}
-      assets={assets.data?.items ?? []}
-      assetsLoading={assets.isPending}
+      assets={mergeAssets(projectAssets.data?.items ?? [], sharedAssets.data?.items ?? [])}
+      assetsLoading={projectAssets.isPending || sharedAssets.isPending}
       onReload={() => setReloadToken((token) => token + 1)}
+      embedded={embedded}
     />
   );
 }
@@ -167,9 +169,10 @@ interface WorkspaceProps {
   readonly assets: readonly MediaAsset[];
   readonly assetsLoading: boolean;
   readonly onReload: () => void;
+  readonly embedded: boolean;
 }
 
-function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: WorkspaceProps) {
+function EditorWorkspace({ projectId, assets, assetsLoading, onReload, embedded }: WorkspaceProps) {
   const service = useServiceAction();
   const query = useEditorProject(projectId);
   const snapshots = useEditorSnapshots(projectId);
@@ -391,10 +394,11 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
     );
 
   return (
-    <Page
-      scroll={false}
+    <EditorFrame
+      embedded={embedded}
       toolbar={
         <Toolbar
+          height={embedded ? 'bar' : 'topbar'}
           title={query.data?.name ?? projectId}
           meta={savedMeta}
           primary={
@@ -534,7 +538,16 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload }: Workspa
           </div>
         </div>
       </div>
-    </Page>
+    </EditorFrame>
   );
 
+}
+
+function EditorFrame({ embedded, toolbar, children }: { readonly embedded: boolean; readonly toolbar: ReactNode; readonly children: ReactNode }) {
+  if (embedded) return <section data-editor-mode className="flex min-h-0 flex-1 flex-col">{toolbar}{children}</section>;
+  return <Page scroll={false} toolbar={toolbar}>{children}</Page>;
+}
+
+function mergeAssets(projectAssets: readonly MediaAsset[], sharedAssets: readonly MediaAsset[]): readonly MediaAsset[] {
+  return [...new Map([...projectAssets, ...sharedAssets].map((asset) => [asset.id, asset])).values()];
 }

@@ -11,6 +11,7 @@ import type { ProjectStep, ProjectViewModel } from '../domain/project/projectVie
 import { projectStepAvailability, resolveProjectStep } from '../domain/project/projectWorkflow';
 import { AgentWorkspace } from './AgentPage';
 import { MontageWorkspace } from './MontagePage';
+import { EditorWorkspaceLoader } from './EditorPage';
 import { RouteLink } from './RouteLink';
 
 export function ProjectWorkspacePage() {
@@ -111,7 +112,14 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
     { id: 'quick', label: <Trans>快速模式</Trans> },
     { id: 'multitrack', label: <Trans>精剪模式</Trans> },
   ] as const;
-  const reason = t`当前版本没有跨模式双向转换契约；所有修改会保留在当前模式`;
+  /* Mode contract: Agent and quick projects keep their existing write-through
+     behavior. Multitrack owns a local revisioned document and persists only
+     through its Save action. There is no bidirectional conversion between the
+     three document shapes, so another mode stays disabled instead of implying
+     that a switch would carry edits across. */
+  const reason = project.editingMode === 'multitrack'
+    ? t`精剪修改不会跨模式同步；切换前请保存，当前版本没有转换契约`
+    : t`当前版本没有跨模式双向转换契约；所有修改会保留在当前模式`;
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-editing-mode={project.editingMode}>
       <div className="flex flex-none items-center gap-2 border-b border-divider px-4 py-2">
@@ -127,7 +135,11 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
             {mode.label}
           </Button>
         ))}
-        <span className="ml-auto text-xs text-neutral-600"><Trans>修改会自动保留在当前模式</Trans></span>
+        <span className="ml-auto text-xs text-neutral-600">
+          {project.editingMode === 'multitrack'
+            ? <Trans>精剪修改保留在本地，切换步骤前请保存</Trans>
+            : <Trans>修改会自动保留在当前模式</Trans>}
+        </span>
       </div>
       {project.source.kind === 'plan' || project.id === 'new' ? (
         <AgentWorkspace
@@ -137,12 +149,7 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
         />
       ) : project.source.kind === 'montage' ? (
         <MontageWorkspace embedded projectId={project.source.id} />
-      ) : (
-        <section className="m-7 flex min-h-48 flex-col justify-center gap-2 border border-divider p-5">
-          <h2 className="text-xl"><Trans>精剪模式</Trans></h2>
-          <p className="text-sm text-neutral-700"><Trans>多轨编辑能力将在这里呈现。</Trans></p>
-        </section>
-      )}
+      ) : <EditorWorkspaceLoader embedded projectId={project.source.id} />}
     </div>
   );
 }

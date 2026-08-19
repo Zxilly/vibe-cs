@@ -56,7 +56,7 @@ export function ActiveProjectsPanel() {
       kind: 'editor',
       clipCount: project.tracks.reduce((total, track) => total + track.clips.length, 0),
       updatedAt: project.updated_at,
-      href: `/editor/${encodeURIComponent(project.id)}`,
+      href: `/projects/${encodeURIComponent(`editor:${project.id}`)}?step=shotlist`,
     }));
     const montageRows: ProjectRow[] = (montages.data?.items ?? []).map((project) => ({
       id: project.id,

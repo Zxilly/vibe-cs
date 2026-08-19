@@ -40,7 +40,6 @@ import {
   Home,
   Search,
   Settings,
-  SlidersVertical,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -55,7 +54,6 @@ export type ShellNavItemId =
   | 'evidence'
   | 'projects'
   | 'recording'
-  | 'editor'
   | 'outputs'
   | 'settings';
 
@@ -96,8 +94,6 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
     items: [
       { id: 'projects', label: UI_TERMINOLOGY.project.current, icon: Clapperboard, to: '/projects' },
       { id: 'recording', label: msg`录制计划`, icon: Film, to: '/recording' },
-      /* Frame's `D.cut` is lucide's `sliders-vertical` path, verbatim. */
-      { id: 'editor', label: msg`多轨编辑`, icon: SlidersVertical, to: '/editor' },
     ],
   },
   {
@@ -135,7 +131,6 @@ const PREFIX_RULES: readonly (readonly [string, ShellNavItemId])[] = [
   ['/evidence', 'evidence'],
   ['/projects', 'projects'],
   ['/recording', 'recording'],
-  ['/editor', 'editor'],
   ['/settings', 'settings'],
   ['/recovery', 'settings'],
   /* The guide has no rail entry of its own; it lights 设置 for the same

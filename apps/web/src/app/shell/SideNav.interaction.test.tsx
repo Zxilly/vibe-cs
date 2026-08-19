@@ -162,7 +162,6 @@ describe('tab order', () => {
       'evidence',
       'projects',
       'recording',
-      'editor',
       'outputs',
       'settings',
       'true',

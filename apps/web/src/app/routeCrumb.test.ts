@@ -10,6 +10,7 @@ import { i18n } from '@lingui/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import { routeCrumb } from './routeCrumb';
+import { LEGACY_UI_TERMS } from '../terminology';
 
 beforeAll(() => {
   i18n.loadAndActivate({ locale: 'zh-CN', messages: {} });
@@ -29,6 +30,20 @@ function targets(pathname: string, search = ''): string {
 }
 
 describe('routeCrumb', () => {
+  it('keeps legacy IA nouns out of breadcrumb chrome', () => {
+    const chrome = [
+      crumb('/'),
+      crumb('/library'),
+      crumb('/agent'),
+      crumb('/montage'),
+      crumb('/delivery'),
+      crumb('/delivery', '?view=tasks'),
+      crumb('/delivery/task/t-42'),
+    ].join('\n');
+
+    for (const legacy of LEGACY_UI_TERMS) expect(chrome).not.toContain(legacy);
+  });
+
   it('renders 工作台 without a group, because Frame gives it none', () => {
     expect(routeCrumb('/')).toHaveLength(1);
     expect(crumb('/')).toBe('工作台');
@@ -39,20 +54,21 @@ describe('routeCrumb', () => {
     expect(crumb('/history')).toBe('资料库 › 比赛历史');
     expect(crumb('/agent')).toBe('制作 › Agent 创作');
     expect(crumb('/editor')).toBe('制作 › 多轨编辑');
+    expect(crumb('/montage')).toBe('制作 › 快速剪辑');
   });
 
   it('reads the query, so one path can carry two rail entries', () => {
-    expect(crumb('/delivery')).toBe('交付 › 输出');
-    expect(crumb('/delivery', '?view=outputs')).toBe('交付 › 输出');
-    expect(crumb('/delivery', '?view=tasks')).toBe('交付 › 任务记录');
+    expect(crumb('/delivery')).toBe('交付 › 成品文件');
+    expect(crumb('/delivery', '?view=outputs')).toBe('交付 › 成品文件');
+    expect(crumb('/delivery', '?view=tasks')).toBe('交付 › 后台任务');
     // A leading `?` is optional — `location.search` carries one, a test may not.
-    expect(crumb('/delivery', 'view=tasks')).toBe('交付 › 任务记录');
+    expect(crumb('/delivery', 'view=tasks')).toBe('交付 › 后台任务');
   });
 
   it('names the leaf for the four §7 routes the rail cannot list', () => {
     expect(crumb('/match/aurora-vs-meridian')).toBe('资料库 › Demo 资料库 › 比赛工作区');
     expect(crumb('/players/kael')).toBe('资料库 › 玩家目录 › 玩家档案');
-    expect(crumb('/delivery/task/t-42')).toBe('交付 › 任务记录 › 任务详情');
+    expect(crumb('/delivery/task/t-42')).toBe('交付 › 后台任务 › 后台任务详情');
     // The footer entry has no group heading, so its own label opens the crumb —
     // once, carrying the destination rather than being repeated as a heading.
     expect(crumb('/recovery')).toBe('设置与诊断 › 恢复中心');

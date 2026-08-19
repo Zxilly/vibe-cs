@@ -209,7 +209,7 @@ function recoveryFor({ item, restartable, restartEvent, run, navigate, service }
 
   const project = projectPathOf(item);
   if (project !== null) {
-    return { label: <Trans>打开工程</Trans>, onAction: () => void navigate(project) };
+    return { label: <Trans>打开作品</Trans>, onAction: () => void navigate(project) };
   }
 
   return {
@@ -241,7 +241,7 @@ function linksFor(
 
   const project = projectPathOf(item);
   if (project !== null && failedWithRetry) {
-    links.push({ id: 'project', label: <Trans>打开工程</Trans>, href: routeHref(project) });
+    links.push({ id: 'project', label: <Trans>打开作品</Trans>, href: routeHref(project) });
   }
   return links;
 }

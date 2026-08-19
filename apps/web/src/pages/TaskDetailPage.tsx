@@ -60,10 +60,10 @@ export function TaskDetailPage() {
         <Toolbar
           leading={
             <RouteLink to="/delivery?view=tasks">
-              <Trans>‹ 任务记录</Trans>
+              <Trans>‹ 后台任务</Trans>
             </RouteLink>
           }
-          title={<Trans>任务详情</Trans>}
+          title={<Trans>后台任务详情</Trans>}
           meta={taskId}
         />
       }
@@ -73,10 +73,10 @@ export function TaskDetailPage() {
           <Empty
             variant="error"
             title={<Trans>找不到这条任务</Trans>}
-            description={<Trans>这个地址不是一条任务记录的编号。任务记录里的每一条都能从列表打开。</Trans>}
+            description={<Trans>这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。</Trans>}
             actions={
               <RouteLink to="/delivery?view=tasks">
-                <Trans>回到任务记录</Trans>
+                <Trans>回到后台任务</Trans>
               </RouteLink>
             }
             headingLevel={2}
@@ -87,7 +87,7 @@ export function TaskDetailPage() {
           <Empty
             preset="error"
             title={<Trans>这条任务没能打开</Trans>}
-            description={dataErrorMessage(task.error) ?? t`服务没有返回这条任务记录。`}
+            description={dataErrorMessage(task.error) ?? t`服务没有返回这条后台任务。`}
             actions={
               <Button variant="secondary" size="sm" onClick={() => void task.refetch()}>
                 <Trans>重新加载</Trans>

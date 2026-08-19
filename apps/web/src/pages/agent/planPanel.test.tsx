@@ -135,7 +135,7 @@ describe('the change cards', () => {
     stub();
     const html = markupPanel(<PlanPanel {...blockProps()} />);
 
-    expect(html).toContain('本次变更');
+    expect(html).toContain('本次修改');
     expect(html).toContain('基于第 6 版');
     expect(html).toContain('把它压到 30 秒以内');
   });
@@ -177,9 +177,9 @@ describe('the change cards', () => {
     expect(html).toContain('接受');
   });
 
-  it('draws no 本次变更 section at all when the session proposed nothing', () => {
+  it('draws no 本次修改 section at all when the conversation proposed nothing', () => {
     stub({ session: SESSION_WITHOUT_PROPOSALS });
-    expect(markupPanel(<PlanPanel {...blockProps()} />)).not.toContain('本次变更');
+    expect(markupPanel(<PlanPanel {...blockProps()} />)).not.toContain('本次修改');
   });
 });
 
@@ -242,7 +242,7 @@ describe('the three states', () => {
     stub();
     const html = markupPanel(<PlanPanel {...blockProps({ context: { plan: null } })} />);
 
-    expect(html).toContain('还没有选中方案');
+    expect(html).toContain('还没有选中剪辑单');
     expect(html).toContain('返回工作台');
   });
 
@@ -261,7 +261,7 @@ describe('the three states', () => {
     stub({ plan: { ...PLAN, shots: [] } });
     const html = markupPanel(<PlanPanel {...blockProps()} />);
 
-    expect(html).toContain('这份方案还没有镜头');
+    expect(html).toContain('这份剪辑单还没有片段');
     expect(html).not.toContain('data-plan-strip');
   });
 });

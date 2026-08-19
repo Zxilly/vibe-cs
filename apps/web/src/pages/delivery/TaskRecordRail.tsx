@@ -44,14 +44,14 @@ export function TaskRecordRail({ service, now }: TaskRecordRailProps) {
   const bind = useTaskActions({ service, ...(now === undefined ? {} : { now }) });
 
   const errorMessage = feed.isError
-    ? dataErrorMessage(feed.error) ?? t`读取任务记录失败。`
+    ? dataErrorMessage(feed.error) ?? t`读取后台任务失败。`
     : undefined;
 
   return (
     <>
       <Toolbar
         height="bar"
-        title={<Trans>任务记录</Trans>}
+        title={<Trans>后台任务</Trans>}
         meta={<Trans>分析 · 下载 · 录制 · 导出</Trans>}
       />
 
@@ -62,7 +62,7 @@ export function TaskRecordRail({ service, now }: TaskRecordRailProps) {
           isLoading={feed.isPending}
           {...(errorMessage === undefined ? {} : { errorMessage })}
           onReload={() => void feed.refetch()}
-          emptyTitle={<Trans>还没有任务记录</Trans>}
+          emptyTitle={<Trans>还没有后台任务</Trans>}
           emptyDescription={<Trans>分析、下载、录制与导出都会在这里留下一条记录。</Trans>}
           emptyActions={
             <RouteLink to="/library">
@@ -77,7 +77,7 @@ export function TaskRecordRail({ service, now }: TaskRecordRailProps) {
 
       <div className="flex flex-none items-center gap-3 border-t border-divider px-5 py-4">
         <RouteLink to="/delivery?view=tasks" size="sm">
-          <Trans>全部任务记录</Trans>
+          <Trans>全部后台任务</Trans>
         </RouteLink>
         <div className="flex-1" />
         <RouteLink to="/recovery" size="sm">

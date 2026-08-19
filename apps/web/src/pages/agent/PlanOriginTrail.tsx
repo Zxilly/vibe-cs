@@ -76,7 +76,7 @@ export function PlanOriginTrail({
                   onOpenSession(origin.session_id);
                 }}
               >
-                <Trans>打开这条会话</Trans>
+                <Trans>打开这条对话</Trans>
               </Button>
             )}
             <p className="w-full text-xs leading-normal text-neutral-700">{origin.summary}</p>

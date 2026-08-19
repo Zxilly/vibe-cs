@@ -73,7 +73,7 @@ describe('AgentRail, expanded', () => {
     expect(html).toContain('data-agent-rail-body');
     expect(html).toContain('<p>上下文</p>');
     // The artboard's own footnote.
-    expect(html).toContain('这条竖栏不承载方案编辑');
+    expect(html).toContain('这条竖栏不承载剪辑单编辑');
   });
 
   it('renders an empty body without complaint', () => {

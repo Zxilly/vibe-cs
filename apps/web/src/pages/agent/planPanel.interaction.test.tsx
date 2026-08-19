@@ -376,7 +376,7 @@ describe('还原为 Agent 版本', () => {
 describe('改动来源', () => {
   it('walks to the session that made a change without clearing the plan', () => {
     const { updateContext } = mount();
-    fireEvent.click(screen.getByRole('button', { name: '打开这条会话' }));
+    fireEvent.click(screen.getByRole('button', { name: '打开这条对话' }));
 
     expect(updateContext).toHaveBeenCalledWith({ session: 'session-mirage' });
   });

@@ -31,6 +31,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { renderMarkup } from '../test/render';
+import { LEGACY_UI_TERMS } from '../terminology';
 import { AgentPage } from './AgentPage';
 import { DeliveryPage } from './DeliveryPage';
 import { EditorPage } from './EditorPage';
@@ -130,7 +131,7 @@ const PAGES: readonly PageCase[] = [
     pattern: '/montage',
     at: '/montage',
     Component: MontagePage,
-    title: '快速合辑',
+    title: '快速剪辑',
   },
   {
     pattern: '/editor',
@@ -142,13 +143,13 @@ const PAGES: readonly PageCase[] = [
     pattern: '/delivery',
     at: '/delivery',
     Component: DeliveryPage,
-    title: '交付',
+    title: '成品',
   },
   {
     pattern: '/delivery/task/:taskId',
     at: '/delivery/task/t-42',
     Component: TaskDetailPage,
-    title: '任务详情',
+    title: '后台任务详情',
   },
   {
     pattern: '/settings',
@@ -199,6 +200,16 @@ describe.each(PAGES)('$at', ({ pattern, at, Component, title, chrome }) => {
       expect(html).toContain('aria-current="page"');
     }
     expect(html).toContain(title);
+  });
+
+  it('keeps legacy IA nouns out of rendered page chrome', () => {
+    const chrome = [
+      ...html.matchAll(/<h[1-6][^>]*(?:data-toolbar-title|data-match-context-title)[^>]*>[\s\S]*?<\/h[1-6]>/gu),
+    ]
+      .map((match) => match[0])
+      .join('\n');
+
+    for (const legacy of LEGACY_UI_TERMS) expect(chrome).not.toContain(legacy);
   });
 
   it('ships a real body, not a notice about which phase would build one', () => {

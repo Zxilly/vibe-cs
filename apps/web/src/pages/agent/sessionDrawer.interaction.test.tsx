@@ -344,7 +344,7 @@ describe('删除会话 (§4.5.1)', () => {
     const row = screen.getByText('Kael 的 1v3').closest('[data-agent-session]');
     fireEvent.click(row?.querySelector('[data-session-delete]') as HTMLElement);
 
-    expect(screen.getByText('删除这条会话？')).toBeTruthy();
+    expect(screen.getByText('删除这条对话？')).toBeTruthy();
     expect(screen.getByText(/不会动它改过的方案、录制任务和已生成的视频/u)).toBeTruthy();
   });
 
@@ -394,7 +394,7 @@ describe('删除会话 (§4.5.1)', () => {
 describe('新建会话与引用', () => {
   it('lists what the workspace is doing, grouped, with the pending plan first', async () => {
     renderDrawer();
-    fireEvent.click(await screen.findByText('新建会话'));
+    fireEvent.click(await screen.findByText('新建对话'));
 
     expect(await screen.findByText('方案 · Kael Mirage 1v3')).toBeTruthy();
     expect(screen.getByText('录制任务 · Rhea 双杀')).toBeTruthy();
@@ -421,7 +421,7 @@ describe('新建会话与引用', () => {
       return Promise.resolve(PLAN_REF);
     };
 
-    fireEvent.click(await screen.findByText('新建会话'));
+    fireEvent.click(await screen.findByText('新建对话'));
     await screen.findByText('方案 · Kael Mirage 1v3');
 
     const planRow = document.querySelector('[data-agent-reference="P-118"]');
@@ -429,7 +429,7 @@ describe('新建会话与引用', () => {
     // 「已引用 ✓」 is the state of a picked row, exactly as the artboard draws it.
     expect(planRow?.getAttribute('data-referenced')).toBe('true');
 
-    fireEvent.change(screen.getByLabelText('会话名称'), { target: { value: '接管 P-118' } });
+    fireEvent.change(screen.getByLabelText('对话名称'), { target: { value: '接管 P-118' } });
     fireEvent.click(document.querySelector('[data-new-session-submit]') as HTMLElement);
 
     await waitFor(() => {
@@ -446,7 +446,7 @@ describe('新建会话与引用', () => {
 
   it('with nothing picked, names only the session so the plan on screen survives', async () => {
     const harness = renderDrawer();
-    fireEvent.click(await screen.findByText('新建会话'));
+    fireEvent.click(await screen.findByText('新建对话'));
     await screen.findByText('方案 · Kael Mirage 1v3');
 
     fireEvent.click(document.querySelector('[data-new-session-submit]') as HTMLElement);
@@ -462,7 +462,7 @@ describe('§4.5.3 rule ①, inside the overlay', () => {
     const harness = renderDrawer();
 
     await screen.findByText('Kael 的 1v3');
-    fireEvent.click(screen.getByText('新建会话'));
+    fireEvent.click(screen.getByText('新建对话'));
     await screen.findByText('方案 · Kael Mirage 1v3');
     const planRow = document.querySelector('[data-agent-reference="P-118"]');
     fireEvent.click(planRow?.querySelector('[data-reference-action]') as HTMLElement);

@@ -47,11 +47,11 @@ describe('the overlay', () => {
     expect(drawer(false)).not.toContain('data-overlay="drawer"');
   });
 
-  it('carries the artboard’s header: a name, the ESC hint and 新建会话', () => {
+  it('carries the artboard’s header: a name, the ESC hint and 新建对话', () => {
     const html = drawer(true);
-    expect(html).toContain('会话');
+    expect(html).toContain('对话');
     expect(html).toContain('ESC');
-    expect(html).toContain('新建会话');
+    expect(html).toContain('新建对话');
   });
 
   it('searches over more than the titles it has, and says so', () => {

@@ -230,15 +230,15 @@ describe('工作台首页', () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
 
     expect(await screen.findByText('Kael_Mirage_1v3.mp4')).toBeTruthy();
-    expect(screen.getByRole('link', { name: '全部输出' }).getAttribute('href')).toBe('/delivery');
+    expect(screen.getByRole('link', { name: '全部成品文件' }).getAttribute('href')).toBe('/delivery');
   });
 
   it('draws all five blocks, in the order the board puts them', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
 
-    expect(await screen.findByText('待确认的方案')).toBeTruthy();
+    expect(await screen.findByText('待确认的剪辑单')).toBeTruthy();
     expect(screen.getByText('最近比赛')).toBeTruthy();
-    expect(screen.getByText('进行中的工程')).toBeTruthy();
+    expect(screen.getByText('进行中的作品')).toBeTruthy();
     expect(screen.queryByText(/这一块在阶段/u)).toBeNull();
 
     /* 「待确认方案在最上」 — the board's own instruction, and the reason this
@@ -256,7 +256,7 @@ describe('工作台首页', () => {
     // 「环境问题只在阻塞相应任务时出现在这里」 — a banner on a healthy
     // workbench is the thing that sentence rules out.
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
-    await screen.findByText('待确认的方案');
+    await screen.findByText('待确认的剪辑单');
     expect(document.querySelector('[data-home-block="environment"]')).toBeNull();
   });
 

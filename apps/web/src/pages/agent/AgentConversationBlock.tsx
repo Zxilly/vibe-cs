@@ -204,7 +204,7 @@ export const AgentConversationBlock: AgentBlock = ({
     service.blocked
       ? service.buttonProps.disabledReason
       : context.session === null
-        ? t`先选择或新建一条会话`
+        ? t`先选择或新建一条对话`
         : chat.streaming
           ? t`Agent 正在回答，先等它说完或点停止`
           : undefined;
@@ -300,7 +300,7 @@ export const AgentConversationBlock: AgentBlock = ({
         serviceDisabled={service.blocked ? service.buttonProps : undefined}
         serviceSuffix={service.suffix}
         onCreateSession={() => {
-          createSession.mutate(planData?.title ?? t`新的会话`, {
+          createSession.mutate(planData?.title ?? t`新的对话`, {
             onSuccess: (created) => updateContext({ session: created.id }),
           });
         }}
@@ -378,7 +378,7 @@ function Transcript({
       <Frame state="no-session">
         <Empty
           className="m-3.5"
-          title={<Trans>还没有选择会话</Trans>}
+          title={<Trans>还没有选择对话</Trans>}
           description={
             <Trans>
               这一页说的每一句话都记在一条会话里，方案的每一次改动也会写进去。选一条现有的，或者现在开一条新的。
@@ -390,7 +390,7 @@ function Transcript({
               onClick={onCreateSession}
               {...(creating ? { disabled: true } : (serviceDisabled ?? {}))}
             >
-              <Trans>新建会话</Trans>
+              <Trans>新建对话</Trans>
               {serviceSuffix}
             </Button>
           }
@@ -408,7 +408,7 @@ function Transcript({
           action={{ label: <Trans>重试</Trans>, onAction: onRetry }}
           detail={<Trans>没有任何数据被改动，重试是安全的。</Trans>}
         >
-          <Trans>读不到这条会话：{failure}</Trans>
+          <Trans>读不到这条对话：{failure}</Trans>
         </Alert>
       </Frame>
     );
@@ -435,14 +435,14 @@ function Transcript({
   return (
     <AgentTranscript
       className="p-3.5"
-      label={title === '' ? t`会话` : t`会话 · ${title}`}
+      label={title === '' ? t`对话` : t`对话 · ${title}`}
       entries={entries}
       renderExtras={renderExtras}
       {...(streaming ? { streamingContent: draft } : {})}
       empty={
         <Empty
           className="m-3.5"
-          title={<Trans>这条会话还没有对话</Trans>}
+          title={<Trans>这条对话还没有消息</Trans>}
           description={
             <Trans>说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。</Trans>
           }

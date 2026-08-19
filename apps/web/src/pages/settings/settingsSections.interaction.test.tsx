@@ -219,7 +219,7 @@ describe('游戏与录制', () => {
 
   it('lists the encoder checks and says when they were taken', async () => {
     render(<GameSection />);
-    await loaded('视频输出能力');
+    await loaded('成品生成能力');
     await waitFor(() => {
       expect(document.body.textContent).toContain('未探测到编码器');
     });
@@ -232,7 +232,7 @@ describe('游戏与录制', () => {
     render(<GameSection />, {
       quickCheck: () => Promise.resolve({ ...CHECKS, checks: [] }),
     });
-    await loaded('视频输出能力');
+    await loaded('成品生成能力');
     await waitFor(() => {
       expect(document.body.textContent).toContain('没有编码器项');
     });

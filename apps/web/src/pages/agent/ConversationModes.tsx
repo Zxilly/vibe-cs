@@ -152,7 +152,7 @@ function InlineHead({
       <PlanPicker
         context={context}
         updateContext={updateContext}
-        title={<Trans>就地编辑需要一个方案</Trans>}
+        title={<Trans>就地编辑需要一份剪辑单</Trans>}
         description={<Trans>这个形态把对话附着在某一个镜头上，先选一个方案，它的镜头才会出现在这里。</Trans>}
       />
     );
@@ -195,7 +195,7 @@ function TakesHead({ context, updateContext, plan, planPending }: ConversationMo
       <PlanPicker
         context={context}
         updateContext={updateContext}
-        title={<Trans>候选镜头需要一个方案</Trans>}
+        title={<Trans>候选片段需要一份剪辑单</Trans>}
         description={<Trans>这个形态并排比较同一个方案的几个版本，先选一个方案。</Trans>}
       />
     );
@@ -365,7 +365,7 @@ function PlanPicker({ context, updateContext, title, description }: PlanPickerPr
         description={<Trans>还没有任何方案。先在对话里说清楚你要的片子，Agent 会给出第一版。</Trans>}
         actions={
           <Button variant="secondary" onClick={() => updateContext({ mode: 'changes' })}>
-            <Trans>回到变更列表</Trans>
+            <Trans>回到修改列表</Trans>
           </Button>
         }
       />

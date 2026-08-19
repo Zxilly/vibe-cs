@@ -78,7 +78,7 @@ export function TaskRecordView({ service, now }: TaskRecordViewProps) {
   const labels = stateFilterLabels();
   const items = feed.data?.items ?? [];
   const errorMessage = feed.isError
-    ? dataErrorMessage(feed.error) ?? t`读取任务记录失败。`
+    ? dataErrorMessage(feed.error) ?? t`读取后台任务失败。`
     : undefined;
 
   return (
@@ -86,7 +86,7 @@ export function TaskRecordView({ service, now }: TaskRecordViewProps) {
       <Toolbar
         height="bar"
         tone="chrome"
-        title={<Trans>任务记录</Trans>}
+        title={<Trans>后台任务</Trans>}
         meta={
           feed.data === undefined ? undefined : (
             <Trans>
@@ -118,7 +118,7 @@ export function TaskRecordView({ service, now }: TaskRecordViewProps) {
           isLoading={feed.isPending}
           {...(errorMessage === undefined ? {} : { errorMessage })}
           onReload={() => void feed.refetch()}
-          emptyTitle={<Trans>还没有任务记录</Trans>}
+          emptyTitle={<Trans>还没有后台任务</Trans>}
           emptyDescription={
             <Trans>分析、下载、录制与导出都会在这里留下一条记录，包含阶段与失败原因。</Trans>
           }

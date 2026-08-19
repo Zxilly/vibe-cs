@@ -424,8 +424,8 @@ describe('/montage — 合辑列表', () => {
       route: '/montage',
     });
 
-    fireEvent.click((await screen.findAllByRole('button', { name: '新建合辑' }))[0] as HTMLElement);
-    fireEvent.change(await screen.findByLabelText('工程名称'), { target: { value: '  新集锦  ' } });
+    fireEvent.click((await screen.findAllByRole('button', { name: '新建作品' }))[0] as HTMLElement);
+    fireEvent.change(await screen.findByLabelText('作品名称'), { target: { value: '  新集锦  ' } });
     fireEvent.click(screen.getByRole('button', { name: '创建' }));
 
     await waitFor(() => expect(createMontageProject).toHaveBeenCalledTimes(1));
@@ -452,7 +452,7 @@ describe('/montage — 合辑列表', () => {
     fireEvent.click(await screen.findByRole('button', { name: '删除' }));
     expect(deleteMontageProject).not.toHaveBeenCalled();
 
-    const dialog = await screen.findByRole('dialog', { name: /删除这份合辑/u });
+    const dialog = await screen.findByRole('dialog', { name: /删除这份作品/u });
     expect(within(dialog).getByText(/磁盘上的文件不会被删除/u)).toBeTruthy();
 
     fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));

@@ -263,7 +263,7 @@ export function AgentPage() {
           meta={
             <>
               {planData === undefined ? (
-                <Trans>尚未选择方案</Trans>
+                <Trans>尚未选择剪辑单</Trans>
               ) : (
                 <Trans>
                   {planData.shots.length} 个镜头 · 修订 {planData.revision} ·{' '}
@@ -434,7 +434,7 @@ function EditFailureNotice({
               },
               disabled: recomputeDisabled,
             }
-            : { label: <Trans>重新读取方案</Trans>, onAction: onReread }
+            : { label: <Trans>重新读取剪辑单</Trans>, onAction: onReread }
         }
       >
         {conflict ? (
@@ -466,7 +466,7 @@ function confirmGuard(input: {
   service: ServiceActionState;
 }): AgentGuardedAction {
   if (input.service.blocked) return input.service.buttonProps;
-  if (input.plan === null) return { disabled: true, disabledReason: t`先选择一个方案` };
+  if (input.plan === null) return { disabled: true, disabledReason: t`先选择一份剪辑单` };
   if (!agentPlanHasRecordableShot(input.plan)) {
     return { disabled: true, disabledReason: t`方案里的镜头都被移除了，没有可以录制的内容` };
   }
@@ -486,10 +486,10 @@ function editGuard(input: {
   service: ServiceActionState;
 }): AgentGuardedAction {
   if (input.service.blocked) return input.service.buttonProps;
-  if (!input.hasPlan) return { disabled: true, disabledReason: t`先选择一个方案` };
+  if (!input.hasPlan) return { disabled: true, disabledReason: t`先选择一份剪辑单` };
   // `AgentPlanEdit.origin` is not nullable — an edit must name its session.
   if (!input.hasSession) {
-    return { disabled: true, disabledReason: t`编辑会记入会话，请先选择或新建一条会话` };
+    return { disabled: true, disabledReason: t`编辑会记入对话，请先选择或新建一条对话` };
   }
   return { disabled: false };
 }

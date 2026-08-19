@@ -107,7 +107,7 @@ export function ClipTrimDrawer({ open, onClose, clip, take, onSave, onRemove, sa
             disabled={saving}
             onClick={onRemove}
           >
-            <Trans>从合辑中移除</Trans>
+            <Trans>从作品中移除</Trans>
           </Button>
           <Button
             variant="primary"

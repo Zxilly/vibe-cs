@@ -204,26 +204,26 @@ describe('/montage/:projectId — before the document arrives', () => {
 });
 
 describe('/montage — the project list', () => {
-  it('is the list, with 新建合辑 as its primary action', () => {
+  it('is the list, with 新建作品 as its primary action', () => {
     const html = render('/montage', [
       [qk.service.health(), HEALTH],
       [qk.montage.list(), { items: [PROJECT] }],
       [qk.outputs.recordedClips(), { items: TAKES, total: 2, page: 1, page_size: 50 }],
     ]);
-    expect(html).toContain('快速合辑');
+    expect(html).toContain('快速剪辑');
     expect(html).toContain('data-montage-action="create"');
     expect(html).toContain('Kael 个人集锦 v2');
     expect(html).toContain('data-montage-action="delete"');
   });
 
-  it('offers 「新建合辑」 from the empty state too', () => {
+  it('offers 「新建作品」 from the empty state too', () => {
     const html = render('/montage', [
       [qk.service.health(), HEALTH],
       [qk.montage.list(), { items: [] }],
       [qk.outputs.recordedClips(), { items: [], total: 0, page: 1, page_size: 50 }],
     ]);
-    expect(html).toContain('还没有合辑');
-    expect(html).toContain('新建合辑');
+    expect(html).toContain('还没有作品');
+    expect(html).toContain('新建作品');
   });
 });
 

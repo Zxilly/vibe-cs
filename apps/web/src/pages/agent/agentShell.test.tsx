@@ -28,7 +28,7 @@ function at(url: string): string {
 describe('the toolbar', () => {
   it('says no plan is selected instead of pretending to load one', () => {
     const html = at('/agent');
-    expect(html).toContain('尚未选择方案');
+    expect(html).toContain('尚未选择剪辑单');
     expect(html).toContain('Agent 创作');
   });
 

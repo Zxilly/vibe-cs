@@ -73,7 +73,7 @@ export function ActiveProjectsPanel() {
   return (
     <section className="flex flex-col gap-3" data-home-block="projects">
       <h2 className="text-base font-medium">
-        <Trans>进行中的工程</Trans>
+        <Trans>进行中的作品</Trans>
       </h2>
 
       {error === null ? null : (
@@ -87,7 +87,7 @@ export function ActiveProjectsPanel() {
             },
           }}
         >
-          <Trans>有一份工程列表没能读出来：{error}</Trans>
+          <Trans>有一份作品列表没能读出来：{error}</Trans>
         </Alert>
       )}
 
@@ -98,7 +98,7 @@ export function ActiveProjectsPanel() {
         </div>
       ) : rows.length === 0 ? (
         <p className="text-xs leading-normal text-neutral-600">
-          <Trans>还没有工程。快速合辑串一条视频，多轨编辑器做需要叠加与字幕的片子。</Trans>
+          <Trans>还没有作品。快速剪辑串一条视频，多轨编辑器做需要叠加与字幕的片子。</Trans>
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -109,7 +109,7 @@ export function ActiveProjectsPanel() {
                   {row.name}
                 </RouteLink>
                 <span className="text-xs text-neutral-600">
-                  {row.kind === 'editor' ? <Trans>多轨编辑</Trans> : <Trans>快速合辑</Trans>}
+                  {row.kind === 'editor' ? <Trans>多轨编辑</Trans> : <Trans>快速剪辑</Trans>}
                   {' · '}
                   <Plural value={row.clipCount} other="# 段素材" />
                   {' · '}

@@ -119,12 +119,12 @@ describe('the §7 path parameters', () => {
   });
 
   it('/montage/:projectId? tells the list from the single project', () => {
-    expect(at('/montage/:projectId?', '/montage', <MontagePage />)).toContain('全部合辑');
+    expect(at('/montage/:projectId?', '/montage', <MontagePage />)).toContain('全部作品');
     expect(at('/montage/:projectId?', '/montage/p-3', <MontagePage />)).toContain('p-3');
   });
 
   it('/editor/:projectId? tells the list from the single project', () => {
-    expect(at('/editor/:projectId?', '/editor', <EditorPage />)).toContain('全部工程');
+    expect(at('/editor/:projectId?', '/editor', <EditorPage />)).toContain('全部作品');
     expect(at('/editor/:projectId?', '/editor/p-3', <EditorPage />)).toContain('p-3');
   });
 });

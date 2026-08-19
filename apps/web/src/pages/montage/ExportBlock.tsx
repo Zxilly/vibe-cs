@@ -259,7 +259,7 @@ export function ExportBlock({ project: desk, service, projectId }: MontageBlockP
             if (directory !== null) openDirectory(directory);
           }}
         >
-          <Trans>打开输出目录</Trans>
+          <Trans>打开成品目录</Trans>
         </Button>
       </div>
     </section>

@@ -71,7 +71,7 @@ export function EditorProjectList() {
       {...service.buttonProps}
       onClick={() => setCreating(true)}
     >
-      <Trans>新建工程</Trans>
+      <Trans>新建作品</Trans>
       {service.suffix}
     </Button>
   );
@@ -159,9 +159,9 @@ export function EditorProjectList() {
           title={<Trans>多轨编辑器</Trans>}
           meta={
             projects.data === undefined ? (
-              <Trans>全部工程</Trans>
+              <Trans>全部作品</Trans>
             ) : (
-              <Trans>全部工程 · {rows.length} 份</Trans>
+              <Trans>全部作品 · {rows.length} 份</Trans>
             )
           }
           primary={newProjectButton}
@@ -190,7 +190,7 @@ export function EditorProjectList() {
           skeleton={<TableSkeleton rows={4} stage={<Trans>正在读取编辑器工程</Trans>} />}
           empty={
             <Empty
-              title={<Trans>还没有工程</Trans>}
+              title={<Trans>还没有作品</Trans>}
               description={<Trans>多轨编辑器是给需要叠加、字幕与逐帧修剪的片子用的。</Trans>}
               actions={newProjectButton}
             />
@@ -200,14 +200,14 @@ export function EditorProjectList() {
 
       <Dialog
         open={creating}
-        title={<Trans>新建工程</Trans>}
+        title={<Trans>新建作品</Trans>}
         confirmLabel={<Trans>创建</Trans>}
         confirmDisabled={name.trim() === '' || create.isPending || service.blocked}
         onConfirm={submitCreate}
         onClose={() => setCreating(false)}
       >
         <Field
-          label={<Trans>工程名称</Trans>}
+          label={<Trans>作品名称</Trans>}
           hint={<Trans>画布固定为 1920×1080 · 60fps，与录制输出一致。</Trans>}
         >
           {(control) => (
@@ -225,7 +225,7 @@ export function EditorProjectList() {
       <Dialog
         open={deleting !== null}
         tone="destructive"
-        title={<Trans>删除这份工程？</Trans>}
+        title={<Trans>删除这份作品？</Trans>}
         confirmLabel={<Trans>删除</Trans>}
         confirmDisabled={remove.isPending}
         onConfirm={() => {

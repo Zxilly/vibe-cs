@@ -47,6 +47,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import { UI_TERMINOLOGY } from '../../terminology';
+
 export type ShellNavItemId =
   | 'home'
   | 'library'
@@ -98,7 +100,7 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
     items: [
       { id: 'agent', label: msg`Agent 创作`, icon: Sparkles, to: '/agent' },
       { id: 'recording', label: msg`录制计划`, icon: Film, to: '/recording' },
-      { id: 'montage', label: msg`快速合辑`, icon: Layers, to: '/montage' },
+      { id: 'montage', label: msg`快速剪辑`, icon: Layers, to: '/montage' },
       /* Frame's `D.cut` is lucide's `sliders-vertical` path, verbatim. */
       { id: 'editor', label: msg`多轨编辑`, icon: SlidersVertical, to: '/editor' },
     ],
@@ -107,8 +109,13 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
     id: 'delivery',
     label: msg`交付`,
     items: [
-      { id: 'outputs', label: msg`输出`, icon: Archive, to: '/delivery?view=outputs' },
-      { id: 'tasks', label: msg`任务记录`, icon: Activity, to: '/delivery?view=tasks' },
+      { id: 'outputs', label: UI_TERMINOLOGY.outputFile.current, icon: Archive, to: '/delivery?view=outputs' },
+      {
+        id: 'tasks',
+        label: UI_TERMINOLOGY.backgroundTask.current,
+        icon: Activity,
+        to: '/delivery?view=tasks',
+      },
     ],
   },
 ];

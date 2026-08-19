@@ -240,7 +240,7 @@ describe('the edit reaches the server, once, and only on an occasion', () => {
 
     await act(async () => {
       // 改动来源's 「打开这条会话」 is the panel's own way of doing this.
-      fireEvent.click(screen.getByRole('button', { name: '打开这条会话' }));
+      fireEvent.click(screen.getByRole('button', { name: '打开这条对话' }));
     });
 
     await waitFor(() => {
@@ -349,7 +349,7 @@ describe('a merged edit that does not reach the plan', () => {
     expect(screen.getByText(/写入被拒绝/u)).toBeTruthy();
     // The part the user cannot see for themselves.
     expect(screen.getByText('屏幕上的改动还没有写进方案。')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '重新读取方案' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '重新读取剪辑单' })).toBeTruthy();
   });
 
   it('offers 「基于第 N 版重算」 when the plan moved under the edit', async () => {

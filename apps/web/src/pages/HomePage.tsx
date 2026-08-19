@@ -98,7 +98,7 @@ export function HomePage() {
         </div>
       ) : (
         <SplitPane
-          asideLabel={t`最近输出`}
+          asideLabel={t`最近成品文件`}
           asideWidth="inspector-wide"
           storageId="home-outputs"
           aside={outputs}

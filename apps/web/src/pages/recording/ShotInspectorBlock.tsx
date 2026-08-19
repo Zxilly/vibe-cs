@@ -571,7 +571,7 @@ function InGamePreview({ camera }: { readonly camera: CameraDesk }) {
 
       <Dialog
         open={confirming}
-        title={<Trans>在游戏里预览这个镜头？</Trans>}
+        title={<Trans>在游戏里预览这个片段？</Trans>}
         confirmLabel={<Trans>启动游戏</Trans>}
         onClose={() => setConfirming(false)}
         onConfirm={() => {

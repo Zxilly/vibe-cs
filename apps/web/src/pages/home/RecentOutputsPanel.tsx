@@ -60,10 +60,10 @@ export function RecentOutputsPanel({ service, now }: RecentOutputsPanelProps) {
     <>
       <Toolbar
         height="panel"
-        title={<Trans>最近输出</Trans>}
+        title={<Trans>最近成品文件</Trans>}
         primary={
           <RouteLink to="/delivery" size="sm">
-            <Trans>全部输出</Trans>
+            <Trans>全部成品文件</Trans>
           </RouteLink>
         }
       />
@@ -80,7 +80,7 @@ export function RecentOutputsPanel({ service, now }: RecentOutputsPanelProps) {
             variant="danger"
             action={{ label: <Trans>重新加载</Trans>, onAction: () => void outputs.refetch() }}
           >
-            {dataErrorMessage(outputs.error) ?? t`读取输出列表失败。`}
+            {dataErrorMessage(outputs.error) ?? t`读取成品文件列表失败。`}
           </Alert>
         ) : outputs.isPending ? (
           <OutputCardSkeleton />

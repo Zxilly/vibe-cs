@@ -121,7 +121,7 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
       const session = await createSession.mutateAsync(typed === '' ? t`未命名` : typed);
       sessionId = session.id;
     } catch (cause) {
-      setFailure(dataErrorMessage(cause) ?? t`新建会话没有成功`);
+      setFailure(dataErrorMessage(cause) ?? t`新建对话没有成功`);
       setRetryable(true);
       return;
     }
@@ -138,11 +138,11 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
           // The summary the server stores for this reference. Authored here,
           // through a macro, because `AgentWorkspaceReference` carries none and
           // `AgentObjectRefTouch.summary` is not nullable.
-          touch: toObjectRefTouch(reference, t`在新建会话时引用`),
+          touch: toObjectRefTouch(reference, t`在新建对话时引用`),
         });
       } catch (cause) {
         const detail = dataErrorMessage(cause) ?? '';
-        setFailure(t`会话已经建好，但「${reference.label}」没有记进引用：${detail}`);
+        setFailure(t`对话已经建好，但「${reference.label}」没有记进引用：${detail}`);
         setRetryable(false);
         return;
       }
@@ -154,7 +154,7 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
   return (
     <div data-agent-new-session className="flex flex-col gap-3.5">
       <Field
-        label={<Trans>会话名称</Trans>}
+        label={<Trans>对话名称</Trans>}
         hint={<Trans>留空就叫「未命名」，随时可以改</Trans>}
       >
         {(control) => (
@@ -229,12 +229,12 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
           <Empty
             title={<Trans>工作区里没有正在进行的对象</Trans>}
             description={
-              <Trans>新建一条空会话就行——想做什么直接说，Agent 会先生成一个方案。</Trans>
+              <Trans>新建一条空对话就行——想做什么直接说，Agent 会先生成一份剪辑单。</Trans>
             }
             headingLevel={4}
             actions={
               <Button variant="primary" onClick={() => void submit()} {...createButtonProps(service, busy)}>
-                <Trans>新建空会话</Trans>
+                <Trans>新建空对话</Trans>
                 {service.suffix}
               </Button>
             }
@@ -261,7 +261,7 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
 
       <footer className="flex items-center gap-2 border-t border-divider pt-3">
         <p className="min-w-0 flex-1 text-2xs leading-normal text-neutral-600">
-          <Trans>引用不会复制对象，也不会锁住它：会话和方案是多对多的。</Trans>
+          <Trans>引用不会复制对象，也不会锁住它：对话和剪辑单是多对多的。</Trans>
         </p>
         <Button size="sm" onClick={onCancel}>
           <Trans>取消</Trans>
@@ -274,7 +274,7 @@ export function NewSessionPane({ updateContext, service, onCancel, onCreated }: 
           {...createButtonProps(service, busy)}
         >
           {picked.size === 0 ? (
-            <Trans>新建会话</Trans>
+            <Trans>新建对话</Trans>
           ) : (
             <Plural value={picked.size} other="新建并引用 # 个对象" />
           )}
@@ -295,5 +295,5 @@ function createButtonProps(
   busy: boolean,
 ): { disabled: boolean; disabledReason?: string } {
   if (service.blocked) return service.buttonProps;
-  return busy ? { disabled: true, disabledReason: t`正在新建这条会话` } : { disabled: false };
+  return busy ? { disabled: true, disabledReason: t`正在新建这条对话` } : { disabled: false };
 }

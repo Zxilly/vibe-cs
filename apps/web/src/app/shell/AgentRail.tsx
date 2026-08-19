@@ -194,7 +194,7 @@ export function AgentRail({
       {/* The artboard's own footnote. It states the boundary between this rail
           and the Agent page, so it is product copy, not a placeholder. */}
       <p className="flex-none border-t border-divider px-3 py-2.5 text-2xs leading-normal text-neutral-600">
-        <Trans>编辑镜头、接受变更和确认录制都在 Agent 创作页完成，这条竖栏不承载方案编辑。</Trans>
+        <Trans>编辑片段、接受修改和确认录制都在 Agent 创作页完成，这条竖栏不承载剪辑单编辑。</Trans>
       </p>
     </aside>
   );

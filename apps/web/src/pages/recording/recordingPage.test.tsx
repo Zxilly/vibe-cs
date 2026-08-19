@@ -120,13 +120,13 @@ describe('the address', () => {
   });
 
   it('offers the way back to the plan, not to a task', () => {
-    expect(at('/recording/P-118')).toContain('返回方案');
+    expect(at('/recording/P-118')).toContain('返回剪辑单');
   });
 
   it('sends the bare list’s task rows to the address a task already has', () => {
     /* §7: a running recording is `/delivery/task/:id`. This page links there
        rather than growing a second task detail of its own. */
-    expect(at('/recording')).toContain('全部任务记录');
+    expect(at('/recording')).toContain('全部后台任务');
     expect(at('/recording')).toContain('/delivery?view=tasks');
   });
 
@@ -188,7 +188,7 @@ describe('片段列表', () => {
 
   it('offers a way out when there are no shots at all', () => {
     const html = render(<ShotListBlock {...blockProps({ plan: planState({ items: [] }) })} />);
-    expect(html).toContain('打开方案');
+    expect(html).toContain('打开剪辑单');
   });
 });
 

@@ -29,10 +29,10 @@ function settingsAt(url: string): string {
 }
 
 describe('the three blocks the fifth round split the section into', () => {
-  it('draws 模型 / 会话 / 行为边界', () => {
+  it('draws 模型 / 对话 / 行为边界', () => {
     const html = section();
     expect(html).toContain('模型');
-    expect(html).toContain('会话');
+    expect(html).toContain('对话');
     expect(html).toContain('行为边界');
   });
 
@@ -41,7 +41,7 @@ describe('the three blocks the fifth round split the section into', () => {
      asserted in `aiAgentSection.interaction.test.tsx` where a stub can answer.
      What belongs here is that their *absence* is a skeleton rather than a
      control showing made-up defaults. */
-  it('offers 导出 and 清空会话 whatever the settings read says', () => {
+  it('offers 导出 and 清空对话 whatever the settings read says', () => {
     const html = section();
     expect(html).toContain('data-setting-action="clear"');
     expect(html).toContain('data-setting-action="export"');

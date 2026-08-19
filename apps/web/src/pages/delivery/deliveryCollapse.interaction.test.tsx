@@ -62,7 +62,7 @@ describe('1100 × 700', () => {
       expect(container.querySelector('[data-toolbar][data-collapsed="true"]')).not.toBeNull();
     });
 
-    expect(screen.getByRole('radio', { name: '输出' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: '成品文件' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /清理无效记录/u })).toBeTruthy();
     // Neither went into 「更多」, so the menu has nothing to open.
     expect(screen.queryByRole('button', { name: '更多操作' })).toBeNull();

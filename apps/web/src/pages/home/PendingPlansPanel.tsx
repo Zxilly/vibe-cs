@@ -81,7 +81,7 @@ export function PendingPlansPanel() {
     <section className="flex flex-col gap-3" data-home-block="plans">
       <div className="flex items-baseline gap-2">
         <h2 className="text-base font-medium">
-          <Trans>待确认的方案</Trans>
+          <Trans>待确认的剪辑单</Trans>
         </h2>
         {items.length === 0 ? null : (
           <span className="text-xs text-neutral-600">
@@ -92,7 +92,7 @@ export function PendingPlansPanel() {
 
       {error !== null ? (
         <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void plans.refetch() }}>
-          <Trans>读不到待确认的方案：{error}</Trans>
+          <Trans>读不到待确认的剪辑单：{error}</Trans>
         </Alert>
       ) : plans.isPending ? (
         <div className="flex flex-col gap-2.5">
@@ -104,7 +104,7 @@ export function PendingPlansPanel() {
            here, and a full-height box with a call to action would make a
            healthy workbench look like it needed attention. */
         <p className="text-xs leading-normal text-neutral-600">
-          <Trans>没有等待确认的方案。</Trans>
+          <Trans>没有等待确认的剪辑单。</Trans>
         </p>
       ) : (
         <>
@@ -171,7 +171,7 @@ function PlanRow({
         {/* A link, not a `Button` with `navigate` — it goes to an address, and a
             link is what a middle-click and a screen reader expect there. */}
         <RouteLink to={`/agent?plan=${encodeURIComponent(plan.id)}`}>
-          <Trans>审阅方案</Trans>
+          <Trans>审阅剪辑单</Trans>
         </RouteLink>
       </div>
     </li>

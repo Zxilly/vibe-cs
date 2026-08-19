@@ -125,12 +125,12 @@ export function OutputsView({ service, now }: OutputsViewProps) {
       <Toolbar
         height="bar"
         tone="chrome"
-        title={<Trans>输出</Trans>}
+        title={<Trans>成品文件</Trans>}
         meta={outputs.data?.scan_limited === true ? <Trans>目录很大，只扫描了一部分</Trans> : undefined}
       >
         <Seg
           name="delivery-output-filter"
-          aria-label={t`按类型筛选输出`}
+          aria-label={t`按类型筛选成品文件`}
           size="sm"
           value={filter}
           options={OUTPUT_FILTERS.map((value) => ({ value, label: labels[value] }))}

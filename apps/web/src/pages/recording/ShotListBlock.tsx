@@ -325,7 +325,7 @@ function UnboundShots({
         description={<Trans>方案里的镜头绑定好 Demo 与选手之后，这里会列出可录制的片段。</Trans>}
         actions={
           <Button variant="secondary" onClick={onOpenPlan}>
-            <Trans>打开方案</Trans>
+            <Trans>打开剪辑单</Trans>
           </Button>
         }
       />
@@ -350,7 +350,7 @@ function UnboundShots({
         ))}
       </ul>
       <Button className="mt-3" variant="secondary" block onClick={onOpenPlan}>
-        <Trans>打开方案</Trans>
+        <Trans>打开剪辑单</Trans>
       </Button>
     </div>
   );

@@ -181,7 +181,7 @@ export function AiAgentSection() {
         onRetry={() => void config.refetch()}
       />
 
-      <Block title={<Trans>会话</Trans>}>
+      <Block title={<Trans>对话</Trans>}>
         {settingsError !== null ? (
           <Alert
             variant="danger"
@@ -213,7 +213,7 @@ export function AiAgentSection() {
 
             <SwitchRow
               label={<Trans>自动带入当前选中的 Demo 与选手</Trans>}
-              hint={<Trans>新建会话时预填当前的 Demo 与选手，之后随时可以手动改。</Trans>}
+              hint={<Trans>新建对话时预填当前的 Demo 与选手，之后随时可以手动改。</Trans>}
               name="auto-attach-context"
               ariaLabel={t`自动带入当前选中的 Demo 与选手`}
               checked={current.auto_attach_context}
@@ -356,7 +356,7 @@ export function AiAgentSection() {
       <Dialog
         open={confirming === 'retention'}
         tone="destructive"
-        title={<Trans>现在按保留策略清理会话？</Trans>}
+        title={<Trans>现在按保留策略清理对话？</Trans>}
         confirmLabel={<Trans>立即应用</Trans>}
         confirmDisabled={applyRetention.isPending}
         onClose={() => {
@@ -372,8 +372,8 @@ export function AiAgentSection() {
       <Dialog
         open={confirming === 'clear'}
         tone="destructive"
-        title={<Trans>清空全部会话？</Trans>}
-        confirmLabel={<Trans>清空会话</Trans>}
+        title={<Trans>清空全部对话？</Trans>}
+        confirmLabel={<Trans>清空对话</Trans>}
         confirmDisabled={clearSessions.isPending}
         onClose={() => {
           setConfirming(null);
@@ -781,7 +781,7 @@ function StorageRow({
           onClick={onClear}
           {...(service.disabled ? service : busy ? { disabled: true, disabledReason: t`正在处理上一次操作` } : { disabled: false })}
         >
-          <Trans>清空会话</Trans>
+          <Trans>清空对话</Trans>
           {serviceSuffix}
         </Button>
       </div>

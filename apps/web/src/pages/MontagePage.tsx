@@ -216,7 +216,7 @@ function MontageWorkspace({ projectId }: { readonly projectId: string }) {
         <Toolbar
           leading={
             <RouteLink to={montageHref(null)} size="sm">
-              <Trans>全部合辑</Trans>
+              <Trans>全部作品</Trans>
             </RouteLink>
           }
           title={project?.name ?? <Skeleton width="180px" />}

@@ -242,7 +242,7 @@ export function GameSection() {
       </SettingsBlock>
 
       <SettingsBlock
-        title={<Trans>视频输出能力</Trans>}
+        title={<Trans>成品生成能力</Trans>}
         description={<Trans>这台机器能不能写出成片。检查的是本机的编码器，不是设置。</Trans>}
       >
         {checks.isPending ? (

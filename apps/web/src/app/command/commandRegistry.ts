@@ -58,6 +58,8 @@
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
 
+import { UI_TERMINOLOGY } from '../../terminology';
+
 /**
  * The 壳层规格 artboard groups results by object type — 比赛 / 选手 / 证据 /
  * 动作 — and the palette's own footer names the full set in display order:
@@ -192,7 +194,12 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
     to: '/recording',
     keywords: ['recording', '录制', '镜头', '计划'],
   }),
-  pageCommand({ id: 'montage', title: msg`快速合辑`, to: '/montage', keywords: ['montage', '合辑', '快速'] }),
+  pageCommand({
+    id: 'montage',
+    title: msg`快速剪辑`,
+    to: '/montage',
+    keywords: ['montage', '合辑', '快速', '作品'],
+  }),
   pageCommand({
     id: 'editor',
     title: msg`多轨编辑器`,
@@ -204,13 +211,13 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
   // 「跳到任务记录」is a distinct intent from 「跳到输出」.
   pageCommand({
     id: 'delivery-outputs',
-    title: msg`输出`,
+    title: UI_TERMINOLOGY.outputFile.current,
     to: '/delivery?view=outputs',
     keywords: ['delivery', 'outputs', '输出', '成片', '交付'],
   }),
   pageCommand({
     id: 'delivery-tasks',
-    title: msg`任务记录`,
+    title: UI_TERMINOLOGY.backgroundTask.current,
     to: '/delivery?view=tasks',
     keywords: ['delivery', 'tasks', '任务', '记录', '交付'],
   }),

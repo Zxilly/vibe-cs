@@ -85,7 +85,7 @@ describe('every action takes a confirmation', () => {
 
     fireEvent.click(document.querySelector('[data-recovery-action="staged"]') as HTMLElement);
     expect(cleanupStagedOutputs).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain('清理未完成的暂存输出？');
+    expect(document.body.textContent).toContain('清理未完成的暂存成品文件？');
 
     fireEvent.click(confirm());
     await waitFor(() => expect(cleanupStagedOutputs).toHaveBeenCalledTimes(1));

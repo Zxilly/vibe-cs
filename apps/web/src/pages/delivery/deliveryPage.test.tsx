@@ -36,7 +36,7 @@ describe('/delivery', () => {
     expect(outputs).toContain('data-page-toolbar');
     expect(outputs).toContain('data-page-body');
     expect(outputs).toContain('data-toolbar-title="true"');
-    expect(outputs).toContain('交付');
+    expect(outputs).toContain('成品');
   });
 
   it('switches views with a Seg, the control the artboard draws in the topbar', () => {
@@ -98,7 +98,7 @@ describe('/', () => {
     /* All five landed by phase 3g. With no service these render their own
        empty or loading state, which is why the headings are what is asserted
        rather than any row. */
-    for (const heading of ['待确认的方案', '最近比赛', '进行中的工程']) {
+    for (const heading of ['待确认的剪辑单', '最近比赛', '进行中的作品']) {
       expect(html).toContain(heading);
     }
     expect(html).not.toContain('这一块在阶段');

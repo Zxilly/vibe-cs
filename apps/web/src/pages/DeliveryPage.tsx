@@ -79,28 +79,28 @@ export function DeliveryPage() {
       scroll={false}
       toolbar={
         <Toolbar
-          title={<Trans>交付</Trans>}
+          title={<Trans>成品</Trans>}
           meta={
             total === undefined ? undefined : available === null ? (
-              <Trans>{total} 个输出</Trans>
+              <Trans>{total} 个成品文件</Trans>
             ) : (
-              <Trans>{total} 个输出 · {available} 可用</Trans>
+              <Trans>{total} 个成品文件 · {available} 可用</Trans>
             )
           }
           inlineActionsWhenCollapsed={2}
           actions={[
             {
               id: 'view',
-              label: view === 'tasks' ? <Trans>任务记录</Trans> : <Trans>输出</Trans>,
+              label: view === 'tasks' ? <Trans>后台任务</Trans> : <Trans>成品文件</Trans>,
               control: (
                 <Seg
                   name="delivery-view"
-                  aria-label={t`交付视图`}
+                  aria-label={t`成品视图`}
                   size="md"
                   value={view}
                   options={[
-                    { value: 'outputs', label: t`输出` },
-                    { value: 'tasks', label: t`任务记录` },
+                    { value: 'outputs', label: t`成品文件` },
+                    { value: 'tasks', label: t`后台任务` },
                   ]}
                   onChange={setView}
                 />
@@ -133,7 +133,7 @@ export function DeliveryPage() {
         <OutputsView service={service} />
       ) : (
         <SplitPane
-          asideLabel={t`任务记录`}
+          asideLabel={t`后台任务`}
           asideWidth="split"
           storageId="delivery-tasks"
           aside={<TaskRecordRail service={service} />}

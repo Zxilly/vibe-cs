@@ -80,13 +80,13 @@ export function RecordingIndex() {
     return (
       <Empty
         className="m-7"
-        title={<Trans>还没有可以录制的方案</Trans>}
+        title={<Trans>还没有可以录制的剪辑单</Trans>}
         description={
           <Trans>先在 Agent 里做一份镜头方案，绑定好 Demo 与选手之后，这里会列出可以录制的方案。</Trans>
         }
         actions={
           <Button variant="primary" onClick={() => void navigate('/agent')}>
-            <Trans>去做一份方案</Trans>
+            <Trans>去做一份剪辑单</Trans>
           </Button>
         }
       />
@@ -135,7 +135,7 @@ export function RecordingIndex() {
           )}
           <div className="flex-1" aria-hidden="true" />
           <RouteLink to="/delivery?view=tasks" size="xs">
-            <Trans>全部任务记录</Trans>
+            <Trans>全部后台任务</Trans>
           </RouteLink>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -149,7 +149,7 @@ export function RecordingIndex() {
             emptyDescription={<Trans>开始一次录制之后，过程与失败原因都会记在这里。</Trans>}
             emptyActions={
               <RouteLink to="/delivery?view=tasks">
-                <Trans>打开任务记录</Trans>
+                <Trans>打开后台任务</Trans>
               </RouteLink>
             }
           />
@@ -202,7 +202,7 @@ function PlanColumn({
     return (
       <Empty
         className="m-5"
-        title={<Trans>还没有可以录制的方案</Trans>}
+        title={<Trans>还没有可以录制的剪辑单</Trans>}
         description={<Trans>方案里至少要有一个镜头，才能生成录制计划。</Trans>}
         actions={
           <Button variant="secondary" onClick={onNewPlan}>

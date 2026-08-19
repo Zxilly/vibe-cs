@@ -204,7 +204,7 @@ export function ClipOrderBlock({ project: desk, selection, service }: MontageBlo
       <Dialog
         open={clearing}
         tone="destructive"
-        title={<Trans>清空这份合辑的片段？</Trans>}
+        title={<Trans>清空这份作品的片段？</Trans>}
         confirmLabel={<Trans>清空</Trans>}
         confirmDisabled={!writable}
         onConfirm={() => {

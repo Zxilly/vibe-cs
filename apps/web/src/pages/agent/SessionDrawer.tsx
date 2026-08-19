@@ -171,7 +171,7 @@ export function SessionDrawer({
       <Drawer
         open={open}
         onClose={onClose}
-        title={<Trans>会话</Trans>}
+        title={<Trans>对话</Trans>}
         description={
           pane === 'new' ? (
             <Trans>新建一条对话线程</Trans>
@@ -192,7 +192,7 @@ export function SessionDrawer({
               }}
               {...service.buttonProps}
             >
-              <Trans>新建会话</Trans>
+              <Trans>新建对话</Trans>
               {service.suffix}
             </Button>
           )
@@ -290,7 +290,7 @@ export function SessionDrawer({
                       }}
                       {...service.buttonProps}
                     >
-                      <Trans>新建会话</Trans>
+                      <Trans>新建对话</Trans>
                       {service.suffix}
                     </Button>
                   )
@@ -390,8 +390,8 @@ export function SessionDrawer({
       <Dialog
         open={deleting !== null}
         tone="destructive"
-        title={<Trans>删除这条会话？</Trans>}
-        confirmLabel={<Trans>删除会话</Trans>}
+        title={<Trans>删除这条对话？</Trans>}
+        confirmLabel={<Trans>删除对话</Trans>}
         confirmDisabled={remove.isPending}
         onClose={() => {
           setDeleting(null);

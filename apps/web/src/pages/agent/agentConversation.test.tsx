@@ -167,8 +167,8 @@ describe('the transcript', () => {
     const html = at({ context: { session: null } });
 
     expect(html).toContain('data-agent-transcript-state="no-session"');
-    expect(html).toContain('还没有选择会话');
-    expect(html).toContain('新建会话');
+    expect(html).toContain('还没有选择对话');
+    expect(html).toContain('新建对话');
   });
 
   it('shows bars, not a percentage, while the session is loading', () => {
@@ -183,14 +183,14 @@ describe('the transcript', () => {
     const html = at({}, { sessionError: new Error('连接被拒绝') });
 
     expect(html).toContain('data-agent-transcript-state="error"');
-    expect(html).toContain('读不到这条会话');
+    expect(html).toContain('读不到这条对话');
     expect(html).toContain('重试');
   });
 
   it('offers a way to start when the session is empty', () => {
     const html = at({}, { session: sessionFixture([]) });
 
-    expect(html).toContain('这条会话还没有对话');
+    expect(html).toContain('这条对话还没有消息');
     expect(html).toContain('写第一条指令');
   });
 
@@ -296,7 +296,7 @@ describe('就地编辑', () => {
   it('asks for a plan, with the plans the backend has, when none is selected', () => {
     const html = at({ context: { mode: 'inline', plan: null } }, { noPlan: true });
 
-    expect(html).toContain('就地编辑需要一个方案');
+    expect(html).toContain('就地编辑需要一份剪辑单');
   });
 
   it('scopes the composer to the whole plan until a shot is picked', () => {
@@ -350,7 +350,7 @@ describe('the instruction bar', () => {
   it('disables sending with a written reason when there is no session', () => {
     const html = at({ context: { session: null } });
 
-    expect(html).toContain('先选择或新建一条会话');
+    expect(html).toContain('先选择或新建一条对话');
   });
 
   it('disables sending with the service’s own reason when the service is down', () => {

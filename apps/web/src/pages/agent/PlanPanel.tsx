@@ -104,7 +104,7 @@ export const PlanPanel: AgentBlock = (props) => {
     return (
       <Empty
         className="m-5"
-        title={<Trans>还没有选中方案</Trans>}
+        title={<Trans>还没有选中剪辑单</Trans>}
         description={
           <Trans>
             方案是 Agent 交出来的镜头列表。在对话里让它出一份，或者从工作台打开一份已有的。
@@ -378,7 +378,7 @@ function PlanPanelBody({
           <Alert
             variant="danger"
             action={{
-              label: <Trans>重新读取方案</Trans>,
+              label: <Trans>重新读取剪辑单</Trans>,
               onAction: () => {
                 restore.reset();
                 changes.reset();
@@ -407,11 +407,11 @@ function PlanPanelBody({
           recomputeDisabled={context.session === null || chat.streaming || service.blocked}
         />
 
-        <PanelSection title={<Trans>镜头</Trans>}>
+        <PanelSection title={<Trans>片段</Trans>}>
           {shots.length === 0 ? (
             <Empty
               headingLevel={4}
-              title={<Trans>这份方案还没有镜头</Trans>}
+              title={<Trans>这份剪辑单还没有片段</Trans>}
               description={<Trans>在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。</Trans>}
               actions={null}
             />
@@ -566,7 +566,7 @@ function ProposalSection({
   if (proposals.length === 0) return null;
 
   return (
-    <PanelSection title={<Trans>本次变更</Trans>}>
+    <PanelSection title={<Trans>本次修改</Trans>}>
       <div className="flex flex-col gap-4">
         {proposals.map((proposal) => {
           /* `null` cannot happen for a `PlanProposal` — `readPlanProposals`

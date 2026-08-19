@@ -78,7 +78,7 @@ export function MontageProjectList() {
       {...service.buttonProps}
       onClick={() => setCreating(true)}
     >
-      <Trans>新建合辑</Trans>
+      <Trans>新建作品</Trans>
       {service.suffix}
     </Button>
   );
@@ -145,12 +145,12 @@ export function MontageProjectList() {
     <Page
       toolbar={
         <Toolbar
-          title={<Trans>快速合辑</Trans>}
+          title={<Trans>快速剪辑</Trans>}
           meta={
             projects.data === undefined ? (
-              <Trans>全部合辑</Trans>
+              <Trans>全部作品</Trans>
             ) : (
-              <Trans>全部合辑 · {rows.length} 份工程</Trans>
+              <Trans>全部作品 · {rows.length} 份</Trans>
             )
           }
           primary={newProjectButton}
@@ -185,7 +185,7 @@ export function MontageProjectList() {
           skeleton={<TableSkeleton rows={4} stage={<Trans>正在读取合辑工程</Trans>} />}
           empty={
             <Empty
-              title={<Trans>还没有合辑</Trans>}
+              title={<Trans>还没有作品</Trans>}
               description={
                 <Trans>把录制结果串成一条视频，不进多轨编辑器也能直接导出。</Trans>
               }
@@ -197,13 +197,13 @@ export function MontageProjectList() {
 
       <Dialog
         open={creating}
-        title={<Trans>新建合辑</Trans>}
+        title={<Trans>新建作品</Trans>}
         confirmLabel={<Trans>创建</Trans>}
         confirmDisabled={name.trim() === '' || create.isPending || service.blocked}
         onConfirm={submitCreate}
         onClose={() => setCreating(false)}
       >
-        <Field label={<Trans>工程名称</Trans>} hint={<Trans>之后可以在工程里改。</Trans>}>
+        <Field label={<Trans>作品名称</Trans>} hint={<Trans>之后可以在作品里改。</Trans>}>
           {(control) => (
             <Input
               {...control}
@@ -219,7 +219,7 @@ export function MontageProjectList() {
       <Dialog
         open={deleting !== null}
         tone="destructive"
-        title={<Trans>删除这份合辑？</Trans>}
+        title={<Trans>删除这份作品？</Trans>}
         confirmLabel={<Trans>删除</Trans>}
         confirmDisabled={remove.isPending || service.blocked}
         onConfirm={() => {

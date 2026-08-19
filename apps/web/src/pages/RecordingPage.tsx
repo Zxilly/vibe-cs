@@ -309,10 +309,10 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
           actions={[
             {
               id: 'back-to-plan',
-              label: <Trans>返回方案</Trans>,
+              label: <Trans>返回剪辑单</Trans>,
               control: (
                 <RouteLink to={agentPlanHandoff(agentPlanId)} size="sm">
-                  <Trans>返回方案</Trans>
+                  <Trans>返回剪辑单</Trans>
                 </RouteLink>
               ),
               onSelect: () => void navigate(agentPlanHandoff(agentPlanId)),
@@ -389,7 +389,7 @@ function planFailureNotice(input: {
             <Trans>方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。</Trans>
           )
         }
-        action={{ label: <Trans>打开方案</Trans>, onAction: input.onOpenPlan }}
+        action={{ label: <Trans>打开剪辑单</Trans>, onAction: input.onOpenPlan }}
       >
         {refusal === 'shots_unbound' ? (
           <Trans>方案里有镜头还没有绑定素材，暂时不能转成录制计划。</Trans>

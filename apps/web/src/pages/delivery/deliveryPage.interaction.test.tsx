@@ -117,12 +117,12 @@ function stubs(): Stubs {
   };
 }
 
-describe('交付 › 输出', () => {
+describe('成品 › 成品文件', () => {
   it('prints the count and the free space the header promises', async () => {
     const { client } = stubs();
     renderPage({ element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY });
 
-    expect(await screen.findByText(/34 个输出/u)).toBeTruthy();
+    expect(await screen.findByText(/34 个成品文件/u)).toBeTruthy();
     expect(screen.getByText(/218 GB/u)).toBeTruthy();
   });
 
@@ -135,13 +135,13 @@ describe('交付 › 输出', () => {
   });
 });
 
-describe('交付 › 任务记录', () => {
+describe('成品 › 后台任务', () => {
   it('switches views through the address, so the deep link and the back button work', async () => {
     const { client } = stubs();
     renderPage({ element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY });
 
     await screen.findByText('Kael_Mirage_1v3.mp4');
-    fireEvent.click(screen.getByRole('radio', { name: '任务记录' }));
+    fireEvent.click(screen.getByRole('radio', { name: '后台任务' }));
 
     // The record list is the whole column now, with its own state filter.
     expect(await screen.findByRole('radio', { name: '进行中' })).toBeTruthy();

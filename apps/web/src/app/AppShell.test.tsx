@@ -132,8 +132,8 @@ describe('AppShell — the title bar crumb', () => {
   });
 
   it('reads the query, so 输出 and 任务记录 are told apart on one path', () => {
-    expect(rungs('/delivery?view=tasks')).toEqual(['交付', '任务记录']);
-    expect(rungs('/delivery')).toEqual(['交付', '输出']);
+    expect(rungs('/delivery?view=tasks')).toEqual(['交付', '后台任务']);
+    expect(rungs('/delivery')).toEqual(['交付', '成品文件']);
   });
 
   /* The rung that used to be dropped is the one you would climb. */

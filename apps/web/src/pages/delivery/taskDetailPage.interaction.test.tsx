@@ -126,11 +126,11 @@ describe('the address', () => {
     expect(asked).toBe(0);
   });
 
-  it('keeps the way back to 任务记录, not to 输出', async () => {
+  it('keeps the way back to 后台任务, not to 成品文件', async () => {
     const { client } = stubs();
     render('analysis:run-1', client);
 
-    const back = await screen.findByRole('link', { name: '‹ 任务记录' });
+    const back = await screen.findByRole('link', { name: '‹ 后台任务' });
     expect(back.getAttribute('href')).toBe('/delivery?view=tasks');
   });
 });

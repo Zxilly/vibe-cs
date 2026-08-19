@@ -208,7 +208,7 @@ describe('保留多久', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /立即应用/u }));
     expect(swept).toEqual([]);
-    expect(screen.getByText('现在按保留策略清理会话？')).toBeTruthy();
+    expect(screen.getByText('现在按保留策略清理对话？')).toBeTruthy();
 
     fireEvent.click(document.querySelector('[data-dialog-action="confirm"]') as HTMLElement);
 
@@ -355,9 +355,9 @@ describe('占用 · 导出 · 清空', () => {
     const { cleared } = renderSection();
     await ready();
 
-    fireEvent.click(screen.getByRole('button', { name: /清空会话/u }));
+    fireEvent.click(screen.getByRole('button', { name: /清空对话/u }));
     expect(cleared).toEqual([]);
-    expect(screen.getByText('清空全部会话？')).toBeTruthy();
+    expect(screen.getByText('清空全部对话？')).toBeTruthy();
     expect(screen.getByText(/方案、录制任务和已生成的视频不受影响/u)).toBeTruthy();
 
     fireEvent.click(document.querySelector('[data-dialog-action="confirm"]') as HTMLElement);

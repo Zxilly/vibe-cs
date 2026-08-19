@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { i18n } from '@lingui/core';
+import { beforeAll, describe, expect, it } from 'vitest';
+
+import { LEGACY_UI_TERMS } from '../../terminology';
 
 import {
   activeNavItemId,
@@ -7,7 +10,22 @@ import {
   SHELL_NAV_ITEMS,
 } from './navigation';
 
+beforeAll(() => {
+  i18n.loadAndActivate({ locale: 'zh-CN', messages: {} });
+});
+
 describe('the nav table mirrors Frame.dc.html', () => {
+  it('contains none of the legacy IA nouns in shell chrome', () => {
+    const chrome = [
+      ...SHELL_NAV_GROUPS.flatMap((group) =>
+        group.label === null ? [] : [i18n._(group.label)],
+      ),
+      ...SHELL_NAV_ITEMS.map((item) => i18n._(item.label)),
+    ].join('\n');
+
+    for (const legacy of LEGACY_UI_TERMS) expect(chrome).not.toContain(legacy);
+  });
+
   it('keeps the four groups in the order the frame declares them', () => {
     expect(SHELL_NAV_GROUPS.map((group) => group.id)).toEqual([
       'workspace',

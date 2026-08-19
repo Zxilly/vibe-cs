@@ -171,7 +171,7 @@ export function RecoveryPage() {
         />
 
         <RecoveryCard
-          title={<Trans>未完成的暂存输出</Trans>}
+          title={<Trans>未完成的暂存成品文件</Trans>}
           state={
             <span className="text-sm text-neutral-800">
               {/* No route reports the count *before* the cleanup, so the card
@@ -278,7 +278,7 @@ export function RecoveryPage() {
       <Dialog
         open={confirming === 'staged'}
         tone="destructive"
-        title={<Trans>清理未完成的暂存输出？</Trans>}
+        title={<Trans>清理未完成的暂存成品文件？</Trans>}
         confirmLabel={<Trans>清理</Trans>}
         confirmDisabled={cleanupStaged.isPending}
         onConfirm={() => {

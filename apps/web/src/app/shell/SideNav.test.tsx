@@ -61,10 +61,10 @@ describe('SideNav, expanded', () => {
     expect(currentIds(nav({}, '/match/aurora-meridian'))).toEqual(['library']);
   });
 
-  it('separates 输出 from 任务记录 on the delivery query', () => {
+  it('keeps delivery queries on the one finished-files entry', () => {
     expect(currentIds(nav({}, '/delivery?view=outputs'))).toEqual(['outputs']);
-    expect(currentIds(nav({}, '/delivery?view=tasks'))).toEqual(['tasks']);
-    expect(currentIds(nav({}, '/delivery/task/A-2481'))).toEqual(['tasks']);
+    expect(currentIds(nav({}, '/delivery?view=tasks'))).toEqual(['outputs']);
+    expect(currentIds(nav({}, '/delivery/task/A-2481'))).toEqual(['outputs']);
   });
 
   it('marks nothing when the route is outside the rail', () => {
@@ -72,7 +72,7 @@ describe('SideNav, expanded', () => {
   });
 
   it('carries the two count badges the frame draws', () => {
-    const html = nav({ badges: { agent: 1, tasks: 3 } });
+    const html = nav({ badges: { agent: 1, outputs: 3 } });
 
     expect(html).toContain('>1</span>');
     expect(html).toContain('>3</span>');

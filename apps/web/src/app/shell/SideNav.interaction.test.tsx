@@ -143,7 +143,7 @@ describe('current destination', () => {
     expect(collapsed.container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
     expect(
       collapsed.container.querySelector('[aria-current="page"]')?.getAttribute('data-nav-item'),
-    ).toBe('tasks');
+    ).toBe('outputs');
   });
 });
 
@@ -165,7 +165,6 @@ describe('tab order', () => {
       'montage',
       'editor',
       'outputs',
-      'tasks',
       'settings',
       'true',
     ]);

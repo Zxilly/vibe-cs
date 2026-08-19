@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { OutputItem, OutputPage } from '../../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../../shared/desktop/viewModels';
+import { ActivityDrawer } from '../../ActivityDrawer';
 import { DeliveryPage } from '../DeliveryPage';
 import { HEALTHY, renderPage } from './test/renderPage';
 import { reasonOf } from '../../test/reason';
@@ -117,6 +118,14 @@ function stubs(): Stubs {
   };
 }
 
+function renderActivity(client: Record<string, unknown>, health = HEALTHY) {
+  return renderPage({
+    element: <ActivityDrawer open onClose={() => undefined} onUnreadChange={() => undefined} />,
+    client,
+    health,
+  });
+}
+
 describe('成品 › 成品文件', () => {
   it('prints the count and the free space the header promises', async () => {
     const { client } = stubs();
@@ -136,39 +145,65 @@ describe('成品 › 成品文件', () => {
 });
 
 describe('成品 › 后台任务', () => {
-  it('switches views through the address, so the deep link and the back button work', async () => {
+  it('groups records by state and opens the existing detail body', async () => {
     const { client } = stubs();
-    renderPage({ element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY });
-
-    await screen.findByText('Kael_Mirage_1v3.mp4');
-    fireEvent.click(screen.getByRole('radio', { name: '后台任务' }));
-
-    // The record list is the whole column now, with its own state filter.
-    expect(await screen.findByRole('radio', { name: '进行中' })).toBeTruthy();
-    // The record's own locator, printed in the mono face beside its title.
-    expect(await screen.findByText('recording:job-1')).toBeTruthy();
+    renderActivity(client);
+    expect(await screen.findByRole('heading', { name: '进行中 · 1' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '查看详情' }));
+    expect((await screen.findAllByText('recording:job-1')).length).toBeGreaterThan(0);
   });
 
-  it('opens straight onto the records when the address says so', async () => {
-    const { client } = stubs();
-    renderPage({
-      element: <DeliveryPage />,
-      client,
-      route: '/delivery?view=tasks',
-      health: HEALTHY,
-    });
+  it('exposes all four task kinds through the unified feed contract', async () => {
+    const items: ActivityItem[] = (['analysis', 'download', 'recording', 'export'] as const).map(
+      (kind, index) => ({
+        ...RUNNING,
+        id: `${kind}:job-${String(index)}`,
+        kind,
+        job_id: `job-${String(index)}`,
+        subject: `subject-${kind}`,
+      }),
+    );
+    const client = {
+      listActivities: () => Promise.resolve({ ...FEED, items, total: 4, summary: { ...FEED.summary, total: 4, active: 4 } }),
+    };
+    renderActivity(client);
+    for (const label of ['分析', '下载', '录制', '导出']) {
+      expect(await screen.findByText(new RegExp(`${label} · subject-`, 'u'))).toBeTruthy();
+    }
+  });
 
-    expect(await screen.findByRole('radio', { name: '已取消' })).toBeTruthy();
+  it('retries a failed task from inside the drawer', async () => {
+    const started: string[] = [];
+    const failed: ActivityItem = {
+      ...RUNNING,
+      id: 'analysis:run-1',
+      kind: 'analysis',
+      job_id: 'run-1',
+      context_id: 'demo-1',
+      status: 'failed',
+      error: 'parser failed',
+      available_actions: ['retry_analysis'],
+    };
+    const client = {
+      listActivities: () => Promise.resolve({
+        ...FEED,
+        items: [failed],
+        summary: { total: 1, active: 0, failed: 1, completed: 0, cancelled: 0 },
+      }),
+      startAnalysisRun: (demoId: string) => {
+        started.push(demoId);
+        return Promise.resolve(undefined);
+      },
+    };
+    renderActivity(client);
+
+    fireEvent.click(await screen.findByRole('button', { name: '重试' }));
+    await waitFor(() => expect(started).toEqual(['demo-1']));
   });
 
   it('cancels the job it was clicked in, and re-runs the list afterwards', async () => {
     const { client, cancelled, feedCalls } = stubs();
-    renderPage({
-      element: <DeliveryPage />,
-      client,
-      route: '/delivery?view=tasks',
-      health: HEALTHY,
-    });
+    renderActivity(client);
 
     const cancel = await screen.findByRole('button', { name: '取消' });
     const before = feedCalls();
@@ -184,12 +219,7 @@ describe('成品 › 后台任务', () => {
 
   it('draws a progress bar only where the service sent a denominator', async () => {
     const { client } = stubs();
-    renderPage({
-      element: <DeliveryPage />,
-      client,
-      route: '/delivery?view=tasks',
-      health: HEALTHY,
-    });
+    renderActivity(client);
 
     // This record has 3/5 stages; the bar is the service's number, not a
     // percentage derived from the stage index.
@@ -229,24 +259,14 @@ describe('密度 (§10.3)', () => {
   };
 
   it('prints the real total under a paged list instead of stopping silently', async () => {
-    renderPage({
-      element: <DeliveryPage />,
-      client,
-      route: '/delivery?view=tasks',
-      health: HEALTHY,
-    });
+    renderActivity(client);
 
     expect(await screen.findByText(/共 137 条/u)).toBeTruthy();
     expect(screen.getByText(/第 1–50 条/u)).toBeTruthy();
   });
 
   it('draws a bar for exactly the records that have a denominator', async () => {
-    renderPage({
-      element: <DeliveryPage />,
-      client,
-      route: '/delivery?view=tasks',
-      health: HEALTHY,
-    });
+    renderActivity(client);
 
     await screen.findByText('recording:job-0');
     // 10 of the 50 carry `completed_units` / `total_units`; the other 40 show a
@@ -255,17 +275,11 @@ describe('密度 (§10.3)', () => {
   });
 
   it('scrolls the records inside their own column, never on the document', async () => {
-    const { container } = renderPage({
-      element: <DeliveryPage />,
-      client,
-      route: '/delivery?view=tasks',
-      health: HEALTHY,
-    });
+    const { container } = renderActivity(client);
 
     await screen.findByText('recording:job-0');
-    const body = container.querySelector('[data-page-body]');
-    expect(body?.className).toContain('overflow-hidden');
-    expect(container.querySelector('.overflow-y-auto')).not.toBeNull();
+    expect(document.querySelector('[data-overlay="drawer"] .overflow-y-auto')).not.toBeNull();
+    expect(container.querySelector('[data-page-body]')).toBeNull();
   });
 });
 

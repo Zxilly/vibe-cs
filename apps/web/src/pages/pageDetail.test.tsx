@@ -51,7 +51,7 @@ describe('the §7 queries', () => {
     expect(at('/evidence', '/evidence', <EvidencePage />)).toContain('证据检索');
   });
 
-  it('/delivery?view=outputs|tasks swaps the face, because they are two rail entries', () => {
+  it('/delivery?view=tasks leaves the page on finished files for the shell redirect', () => {
     const outputs = at('/delivery', '/delivery', <DeliveryPage />);
     const tasks = at('/delivery', '/delivery?view=tasks', <DeliveryPage />);
 
@@ -61,12 +61,12 @@ describe('the §7 queries', () => {
        by task state, and neither control exists on the other face. */
     expect(outputs).toContain('name="delivery-output-filter"');
     expect(outputs).not.toContain('name="delivery-task-state"');
-    expect(tasks).toContain('name="delivery-task-state"');
-    expect(tasks).not.toContain('name="delivery-output-filter"');
+    expect(tasks).not.toContain('name="delivery-task-state"');
+    expect(tasks).toContain('name="delivery-output-filter"');
 
-    // …and the Seg reports which one the address asked for.
-    expect(outputs).toContain('name="delivery-view" checked="" value="outputs"');
-    expect(tasks).toContain('name="delivery-view" checked="" value="tasks"');
+    // The retired Seg is absent on both forms; AppShell owns the legacy redirect.
+    expect(outputs).not.toContain('name="delivery-view"');
+    expect(tasks).not.toContain('name="delivery-view"');
   });
 
   it('/agent?mode=changes|inline|takes', () => {

@@ -34,9 +34,10 @@ export interface TaskDetailBodyProps {
   readonly item: ActivityItem;
   readonly service: ServiceActionState;
   readonly now?: Date | undefined;
+  readonly compact?: boolean | undefined;
 }
 
-export function TaskDetailBody({ item, service, now }: TaskDetailBodyProps) {
+export function TaskDetailBody({ item, service, now, compact = false }: TaskDetailBodyProps) {
   const isAnalysis = item.kind === 'analysis';
   const analysis = useAnalysisRun(isAnalysis ? item.job_id : null, {
     pollWhileActiveMs: TASK_POLL_DETAIL_MS,
@@ -66,6 +67,7 @@ export function TaskDetailBody({ item, service, now }: TaskDetailBodyProps) {
       links={bound.links.filter((link: TaskLink) => link.id !== 'detail')}
       facts={detailFacts(item)}
       technicalDetails={technicalDetails(item)}
+      compact={compact}
       log={
         !isAnalysis
           ? { status: 'ready', entries: [] }

@@ -76,6 +76,7 @@ export interface TaskDetailProps {
   readonly onCancel?: (() => void) | undefined;
   readonly timeZone?: string | undefined;
   readonly className?: string | undefined;
+  readonly compact?: boolean | undefined;
 }
 
 const CANCELLABLE = new Set(['queued', 'running', 'awaiting-confirmation']);
@@ -94,6 +95,7 @@ export function TaskDetail({
   onCancel,
   timeZone,
   className,
+  compact = false,
 }: TaskDetailProps) {
   const kindLabel = taskKindLabels()[task.kind];
 
@@ -146,11 +148,11 @@ export function TaskDetail({
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div className={cn('flex min-h-0 flex-1 flex-col', !compact && 'lg:flex-row')}>
         {/* `min-h-0` so the stage log's own scroll can actually engage: without
             it a flex child refuses to shrink below its content and the overflow
             moves back out to the page. */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-4 lg:border-r lg:border-divider">
+        <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-4', !compact && 'lg:border-r lg:border-divider')}>
           <StageTimeline
             label={t`任务阶段`}
             stages={stages ?? []}
@@ -177,7 +179,7 @@ export function TaskDetail({
           <StageLog log={log} {...(timeZone === undefined ? {} : { timeZone })} />
         </div>
 
-        <div className="flex w-full flex-none flex-col gap-3 p-4 lg:w-[var(--w-panel)]">
+        <div className={cn('flex w-full flex-none flex-col gap-3 p-4', !compact && 'lg:w-[var(--w-panel)]')}>
           {facts === undefined || facts.length === 0 ? null : (
             <dl className="m-0 flex flex-col gap-2 text-sm">
               {facts.map((fact) => (

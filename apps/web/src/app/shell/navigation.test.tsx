@@ -49,7 +49,6 @@ describe('the nav table mirrors Frame.dc.html', () => {
       'montage',
       'editor',
       'outputs',
-      'tasks',
       'settings',
     ]);
     expect(SHELL_NAV_ITEMS.map((item) => item.to)).toEqual([
@@ -63,7 +62,6 @@ describe('the nav table mirrors Frame.dc.html', () => {
       '/montage',
       '/editor',
       '/delivery?view=outputs',
-      '/delivery?view=tasks',
       '/settings',
     ]);
   });
@@ -94,16 +92,16 @@ describe('activeNavItemId', () => {
     expect(activeNavItemId('/editor/P-118')).toBe('editor');
   });
 
-  it('splits /delivery between 输出 and 任务记录 on the view query', () => {
+  it('keeps every delivery address on the finished-files destination', () => {
     expect(activeNavItemId('/delivery')).toBe('outputs');
     expect(activeNavItemId('/delivery', '?view=outputs')).toBe('outputs');
-    expect(activeNavItemId('/delivery', 'view=tasks')).toBe('tasks');
-    expect(activeNavItemId('/delivery', '?view=tasks')).toBe('tasks');
+    expect(activeNavItemId('/delivery', 'view=tasks')).toBe('outputs');
+    expect(activeNavItemId('/delivery', '?view=tasks')).toBe('outputs');
   });
 
-  it('files the task detail under 任务记录 whatever the query says', () => {
-    expect(activeNavItemId('/delivery/task/A-2481')).toBe('tasks');
-    expect(activeNavItemId('/delivery/task/A-2481', '?view=outputs')).toBe('tasks');
+  it('files the legacy task detail under finished files', () => {
+    expect(activeNavItemId('/delivery/task/A-2481')).toBe('outputs');
+    expect(activeNavItemId('/delivery/task/A-2481', '?view=outputs')).toBe('outputs');
   });
 
   it('lights 设置与诊断 for the recovery centre, which the frame does not list', () => {

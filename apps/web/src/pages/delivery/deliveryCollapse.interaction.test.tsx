@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 describe('1100 × 700', () => {
-  it('keeps the view switcher and the page action on the bar', async () => {
+  it('keeps the page action on the bar without the retired view switcher', async () => {
     media = stubMatchMedia(COLLAPSE_BREAKPOINT_PX);
     const { container } = renderPage({
       element: <DeliveryPage />,
@@ -62,8 +62,8 @@ describe('1100 × 700', () => {
       expect(container.querySelector('[data-toolbar][data-collapsed="true"]')).not.toBeNull();
     });
 
-    expect(screen.getByRole('radio', { name: '成品文件' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /清理无效记录/u })).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: '后台任务' })).toBeNull();
     // Neither went into 「更多」, so the menu has nothing to open.
     expect(screen.queryByRole('button', { name: '更多操作' })).toBeNull();
   });
@@ -83,7 +83,7 @@ describe('1100 × 700', () => {
     expect(container.querySelector('[data-split-aside]')).toBeNull();
   });
 
-  it('brings the rail back above the fold', async () => {
+  it('keeps the retired rail absent above the fold too', async () => {
     media = stubMatchMedia(COLLAPSE_BREAKPOINT_PX + 1);
     const { container } = renderPage({
       element: <DeliveryPage />,
@@ -92,8 +92,7 @@ describe('1100 × 700', () => {
       health: HEALTHY,
     });
 
-    await waitFor(() => {
-      expect(container.querySelector('[data-split-aside]')).not.toBeNull();
-    });
+    await waitFor(() => expect(container.querySelector('[data-toolbar]')).not.toBeNull());
+    expect(container.querySelector('[data-split-aside]')).toBeNull();
   });
 });

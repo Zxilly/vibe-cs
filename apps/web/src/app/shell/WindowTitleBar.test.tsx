@@ -88,6 +88,16 @@ describe('WindowTitleBar', () => {
     // The control cluster is excluded from the drag region.
     expect(html).toContain('data-window-no-drag');
   });
+
+  it('names the activity bell and renders its unread count', () => {
+    const html = renderMarkup(
+      <WindowTitleBar adapter={null} onOpenActivity={() => undefined} activityUnreadCount={3} />,
+    );
+
+    expect(html).toContain('data-titlebar-activity');
+    expect(html).toContain('aria-label="后台任务，3 条未读"');
+    expect(html).toContain('data-activity-unread="3"');
+  });
 });
 
 /*

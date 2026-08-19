@@ -60,15 +60,15 @@ describe('routeCrumb', () => {
   it('reads the query, so one path can carry two rail entries', () => {
     expect(crumb('/delivery')).toBe('交付 › 成品文件');
     expect(crumb('/delivery', '?view=outputs')).toBe('交付 › 成品文件');
-    expect(crumb('/delivery', '?view=tasks')).toBe('交付 › 后台任务');
+    expect(crumb('/delivery', '?view=tasks')).toBe('交付 › 成品文件');
     // A leading `?` is optional — `location.search` carries one, a test may not.
-    expect(crumb('/delivery', 'view=tasks')).toBe('交付 › 后台任务');
+    expect(crumb('/delivery', 'view=tasks')).toBe('交付 › 成品文件');
   });
 
   it('names the leaf for the four §7 routes the rail cannot list', () => {
     expect(crumb('/match/aurora-vs-meridian')).toBe('资料库 › Demo 资料库 › 比赛工作区');
     expect(crumb('/players/kael')).toBe('资料库 › 玩家目录 › 玩家档案');
-    expect(crumb('/delivery/task/t-42')).toBe('交付 › 后台任务 › 后台任务详情');
+    expect(crumb('/delivery/task/t-42')).toBe('交付 › 成品文件 › 后台任务详情');
     // The footer entry has no group heading, so its own label opens the crumb —
     // once, carrying the destination rather than being repeated as a heading.
     expect(crumb('/recovery')).toBe('设置与诊断 › 恢复中心');

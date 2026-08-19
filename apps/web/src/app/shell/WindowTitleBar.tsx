@@ -29,7 +29,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { Maximize, Minus, Search, X } from 'lucide-react';
+import { Bell, Maximize, Minus, Search, X } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -119,6 +119,9 @@ export interface WindowTitleBarProps {
   serviceStatus?: ShellServiceStatus;
   /** Opens the command palette. The Ctrl K key binding belongs to the palette. */
   onOpenCommandPalette?: (() => void) | undefined;
+  /** Opens the shell-level background activity drawer. */
+  onOpenActivity?: (() => void) | undefined;
+  activityUnreadCount?: number | undefined;
   /** Overrides the persisted rail state; the brand block tracks the rail width. */
   navCollapsed?: boolean | undefined;
   /**
@@ -161,6 +164,8 @@ export function WindowTitleBar({
   crumb,
   serviceStatus = 'checking',
   onOpenCommandPalette,
+  onOpenActivity,
+  activityUnreadCount = 0,
   navCollapsed,
   adapter,
   className,
@@ -263,6 +268,32 @@ export function WindowTitleBar({
         </button>
 
         <span className="flex-1" />
+
+        {onOpenActivity === undefined ? null : (
+          <button
+            type="button"
+            data-window-no-drag
+            data-titlebar-activity
+            aria-label={
+              activityUnreadCount > 0
+                ? t`后台任务，${activityUnreadCount} 条未读`
+                : t`后台任务`
+            }
+            onClick={onOpenActivity}
+            className="relative grid size-[var(--h-ctl-sm)] flex-none place-items-center border border-divider text-neutral-700 hover:border-neutral-500 hover:text-text"
+          >
+            <Bell size={15} strokeWidth={1.5} aria-hidden="true" />
+            {activityUnreadCount > 0 ? (
+              <span
+                aria-hidden="true"
+                data-activity-unread={activityUnreadCount}
+                className="absolute -right-1 -top-1 min-w-4 border border-accent bg-accent px-0.5 font-mono text-2xs leading-tight text-bg"
+              >
+                {activityUnreadCount > 99 ? '99+' : activityUnreadCount}
+              </span>
+            ) : null}
+          </button>
+        )}
 
         <span data-titlebar-service={serviceStatus} className="flex flex-none items-center">
           <ServiceStatusMarker status={serviceStatus} className={SERVICE_TEXT_CLASS[serviceStatus]} />

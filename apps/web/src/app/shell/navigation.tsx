@@ -32,7 +32,6 @@
 import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
 import {
-  Activity,
   Archive,
   Film,
   Folder,
@@ -60,7 +59,6 @@ export type ShellNavItemId =
   | 'montage'
   | 'editor'
   | 'outputs'
-  | 'tasks'
   | 'settings';
 
 export interface ShellNavItem {
@@ -110,12 +108,6 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
     label: msg`交付`,
     items: [
       { id: 'outputs', label: UI_TERMINOLOGY.outputFile.current, icon: Archive, to: '/delivery?view=outputs' },
-      {
-        id: 'tasks',
-        label: UI_TERMINOLOGY.backgroundTask.current,
-        icon: Activity,
-        to: '/delivery?view=tasks',
-      },
     ],
   },
 ];
@@ -168,16 +160,14 @@ function normalizePath(pathname: string): string {
  *
  * `search` is the raw `location.search`, leading `?` optional.
  */
-export function activeNavItemId(pathname: string, search = ''): ShellNavItemId | null {
+export function activeNavItemId(pathname: string, _search = ''): ShellNavItemId | null {
   const path = normalizePath(pathname);
   if (path === '/') return 'home';
 
   if (path === '/delivery' || path.startsWith('/delivery/')) {
     /* §7: `/delivery/task/:taskId` is the task detail, which belongs to
        任务记录 rather than to 输出. */
-    if (path.startsWith('/delivery/task')) return 'tasks';
-    const view = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('view');
-    return view === 'tasks' ? 'tasks' : 'outputs';
+    return 'outputs';
   }
 
   for (const [prefix, id] of PREFIX_RULES) {

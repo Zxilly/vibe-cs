@@ -49,8 +49,10 @@
  * summary, the view nav becomes tabs. Nothing here is hidden without a route.
  */
 
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import { ActivityDrawer } from '../ActivityDrawer';
 import { useShellCollapsed } from '../design/layout';
 import {
   RouteBoundary,
@@ -125,6 +127,8 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
   const palette = useCommandPalette();
   const viewportFolded = useShellCollapsed();
   const storedNavCollapsed = useShellStore((state) => state.navCollapsed);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [activityUnread, setActivityUnread] = useState(0);
 
   const folded = collapsed ?? viewportFolded;
   /* §8 rule 1: below the breakpoint the rail is an icon rail whatever the
@@ -133,6 +137,13 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
   const navCollapsed = storedNavCollapsed || folded;
 
   const crumb = routeCrumb(location.pathname, location.search);
+
+  useEffect(() => {
+    if (location.pathname !== '/delivery') return;
+    if (new URLSearchParams(location.search).get('view') !== 'tasks') return;
+    setActivityOpen(true);
+    void navigate('/delivery', { replace: true });
+  }, [location.pathname, location.search, navigate]);
 
   const goTo = (to: string) => {
     void navigate(to);
@@ -150,6 +161,8 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
         navCollapsed={navCollapsed}
         adapter={adapter}
         onOpenCommandPalette={palette.openPalette}
+        onOpenActivity={() => setActivityOpen(true)}
+        activityUnreadCount={activityUnread}
       />
 
       {/* 「重连成功后横幅收起」 falls out of the state: the notice renders null
@@ -178,6 +191,12 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
       </div>
 
       <CommandPalette open={palette.open} onClose={palette.closePalette} navigate={goTo} />
+
+      <ActivityDrawer
+        open={activityOpen}
+        onClose={() => setActivityOpen(false)}
+        onUnreadChange={setActivityUnread}
+      />
 
       {/* Mounted once, at the shell. What belongs in it and what belongs in an
           `Alert` is settled in `design/feedback/Toast`. */}

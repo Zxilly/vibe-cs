@@ -72,6 +72,10 @@ msgstr "‹ 玩家目录"
 msgid "‹ 设置与诊断"
 msgstr "‹ 设置与诊断"
 
+#: src/ActivityDrawer.tsx:81
+msgid "‹ 返回后台任务"
+msgstr "‹ 返回后台任务"
+
 #: src/pages/montage/PackagingBlock.tsx:259
 msgid "（{seconds} 秒）"
 msgstr "（{seconds} 秒）"
@@ -569,11 +573,11 @@ msgstr "{tickRate} tick"
 msgid "{total, plural, other {共 # 条}}"
 msgstr "{total, plural, other {共 # 条}}"
 
-#: src/pages/DeliveryPage.tsx:85
+#: src/pages/DeliveryPage.tsx:68
 msgid "{total} 个成品文件"
 msgstr "{total} 个成品文件"
 
-#: src/pages/DeliveryPage.tsx:87
+#: src/pages/DeliveryPage.tsx:70
 msgid "{total} 个成品文件 · {available} 可用"
 msgstr "{total} 个成品文件 · {available} 可用"
 
@@ -698,7 +702,7 @@ msgid "Agent 写点评与镜头意图时的措辞。"
 msgstr "Agent 写点评与镜头意图时的措辞。"
 
 #: src/app/command/commandRegistry.ts:187
-#: src/app/shell/navigation.tsx:101
+#: src/app/shell/navigation.tsx:99
 #: src/pages/AgentPage.tsx:262
 msgid "Agent 创作"
 msgstr "Agent 创作"
@@ -781,7 +785,7 @@ msgid "Demo 内容一致"
 msgstr "Demo 内容一致"
 
 #: src/app/command/commandRegistry.ts:168
-#: src/app/shell/navigation.tsx:91
+#: src/app/shell/navigation.tsx:89
 #: src/pages/home/RecentMatchesPanel.tsx:52
 #: src/pages/LibraryPage.tsx:291
 msgid "Demo 资料库"
@@ -1176,7 +1180,7 @@ msgstr "二进制回放超过 128 MiB 上限"
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "二进制回放超过 128 MiB 上限。"
 
-#: src/app/shell/navigation.tsx:110
+#: src/app/shell/navigation.tsx:108
 msgid "交付"
 msgstr "交付"
 
@@ -1235,15 +1239,15 @@ msgstr "从录制结果里挑几段，它们会按这里的顺序拼成视频。
 msgid "从预设应用"
 msgstr "从预设应用"
 
-#: src/domain/task/TaskDetail.tsx:259
+#: src/domain/task/TaskDetail.tsx:261
 msgid "任务每进入一个阶段，都会在这里留下一行。"
 msgstr "任务每进入一个阶段，都会在这里留下一行。"
 
-#: src/pages/delivery/TaskDetailBody.tsx:124
+#: src/pages/delivery/TaskDetailBody.tsx:126
 msgid "任务编号"
 msgstr "任务编号"
 
-#: src/domain/task/TaskDetail.tsx:105
+#: src/domain/task/TaskDetail.tsx:107
 msgid "任务详情"
 msgstr "任务详情"
 
@@ -1252,7 +1256,7 @@ msgid "任务进度"
 msgstr "任务进度"
 
 #: src/domain/task/TaskCard.tsx:150
-#: src/domain/task/TaskDetail.tsx:155
+#: src/domain/task/TaskDetail.tsx:157
 msgid "任务阶段"
 msgstr "任务阶段"
 
@@ -1313,7 +1317,7 @@ msgstr "位置采样"
 msgid "低 {0}"
 msgstr "低 {0}"
 
-#: src/pages/delivery/TaskDetailBody.tsx:132
+#: src/pages/delivery/TaskDetailBody.tsx:134
 msgid "作业编号"
 msgstr "作业编号"
 
@@ -1707,6 +1711,11 @@ msgstr "共 {total} 名选手"
 msgid "共 {total} 场对局"
 msgstr "共 {total} 场对局"
 
+#. placeholder {0}: items.length
+#: src/ActivityDrawer.tsx:140
+msgid "共 {total} 条 · 第 1–{0} 条"
+msgstr "共 {total} 条 · 第 1–{0} 条"
+
 #: src/pages/evidence/EvidenceAnnotations.tsx:137
 msgid "共 {total} 条注释"
 msgstr "共 {total} 条注释"
@@ -1766,8 +1775,8 @@ msgstr "关闭抽屉"
 msgid "关闭提示"
 msgstr "关闭提示"
 
-#: src/app/shell/WindowTitleBar.tsx:305
-#: src/app/shell/WindowTitleBar.tsx:306
+#: src/app/shell/WindowTitleBar.tsx:336
+#: src/app/shell/WindowTitleBar.tsx:337
 msgid "关闭窗口"
 msgstr "关闭窗口"
 
@@ -1807,13 +1816,13 @@ msgstr "再快一点"
 msgid "再试一次"
 msgstr "再试一次"
 
-#: src/app/shell/WindowTitleBar.tsx:295
-#: src/app/shell/WindowTitleBar.tsx:296
+#: src/app/shell/WindowTitleBar.tsx:326
+#: src/app/shell/WindowTitleBar.tsx:327
 msgid "最大化或还原窗口"
 msgstr "最大化或还原窗口"
 
-#: src/app/shell/WindowTitleBar.tsx:285
-#: src/app/shell/WindowTitleBar.tsx:286
+#: src/app/shell/WindowTitleBar.tsx:316
+#: src/app/shell/WindowTitleBar.tsx:317
 msgid "最小化窗口"
 msgstr "最小化窗口"
 
@@ -1837,7 +1846,7 @@ msgstr "最近成品文件"
 msgid "最近拍点"
 msgstr "最近拍点"
 
-#: src/pages/delivery/TaskDetailBody.tsx:101
+#: src/pages/delivery/TaskDetailBody.tsx:103
 msgid "最近更新"
 msgstr "最近更新"
 
@@ -1939,6 +1948,7 @@ msgctxt "row-action"
 msgid "分析"
 msgstr "分析"
 
+#: src/ActivityDrawer.tsx:65
 #: src/pages/delivery/TaskRecordRail.tsx:55
 msgid "分析 · 下载 · 录制 · 导出"
 msgstr "分析 · 下载 · 录制 · 导出"
@@ -1950,6 +1960,10 @@ msgstr "分析、下载、录制与导出都会在这里留下一条记录，包
 #: src/pages/delivery/TaskRecordRail.tsx:66
 msgid "分析、下载、录制与导出都会在这里留下一条记录。"
 msgstr "分析、下载、录制与导出都会在这里留下一条记录。"
+
+#: src/ActivityDrawer.tsx:108
+msgid "分析、下载、录制或导出开始后会出现在这里。"
+msgstr "分析、下载、录制或导出开始后会出现在这里。"
 
 #: src/pages/home/HomeTasksPanel.tsx:79
 msgid "分析、录制与导出开始后会出现在这里，可以从这里直接停止。"
@@ -2087,7 +2101,7 @@ msgstr "删除这条对话？"
 msgid "别贴这么近"
 msgstr "别贴这么近"
 
-#: src/app/shell/navigation.tsx:99
+#: src/app/shell/navigation.tsx:97
 msgid "制作"
 msgstr "制作"
 
@@ -2300,7 +2314,7 @@ msgstr "取样 {0} / {1} 个位置（上限 {2}）。 这张图画的是这批�
 
 #: src/design/feedback/Dialog.tsx:124
 #: src/domain/task/TaskCard.tsx:193
-#: src/domain/task/TaskDetail.tsx:138
+#: src/domain/task/TaskDetail.tsx:140
 #: src/pages/agent/NewSessionPane.tsx:267
 #: src/pages/agent/SessionDrawer.tsx:343
 #: src/pages/history/MatchHistoryTable.tsx:172
@@ -2468,15 +2482,19 @@ msgstr "同步最近比赛"
 msgid "名称"
 msgstr "名称"
 
+#: src/ActivityDrawer.tsx:64
+#: src/app/shell/WindowTitleBar.tsx:280
 #: src/pages/delivery/TaskRecordRail.tsx:54
 #: src/pages/delivery/TaskRecordView.tsx:89
-#: src/pages/DeliveryPage.tsx:94
-#: src/pages/DeliveryPage.tsx:103
-#: src/pages/DeliveryPage.tsx:136
 #: src/terminology.ts:34
 msgid "后台任务"
 msgstr "后台任务"
 
+#: src/app/shell/WindowTitleBar.tsx:279
+msgid "后台任务，{activityUnreadCount} 条未读"
+msgstr "后台任务，{activityUnreadCount} 条未读"
+
+#: src/ActivityDrawer.tsx:64
 #: src/app/routeCrumb.ts:70
 #: src/pages/TaskDetailPage.tsx:66
 msgid "后台任务详情"
@@ -2844,7 +2862,7 @@ msgstr "多杀"
 msgid "多轨时间轴"
 msgstr "多轨时间轴"
 
-#: src/app/shell/navigation.tsx:105
+#: src/app/shell/navigation.tsx:103
 #: src/pages/home/ActiveProjectsPanel.tsx:112
 msgid "多轨编辑"
 msgstr "多轨编辑"
@@ -2860,6 +2878,7 @@ msgstr "多轨编辑器"
 msgid "多轨编辑器是给需要叠加、字幕与逐帧修剪的片子用的。"
 msgstr "多轨编辑器是给需要叠加、字幕与逐帧修剪的片子用的。"
 
+#: src/ActivityDrawer.tsx:30
 #: src/design/feedback/StageBar.tsx:73
 #: src/domain/task/taskVocabulary.tsx:48
 #: src/pages/delivery/TaskRecordView.tsx:54
@@ -3193,7 +3212,7 @@ msgid "工作区里没有正在进行的对象"
 msgstr "工作区里没有正在进行的对象"
 
 #: src/app/command/commandRegistry.ts:165
-#: src/app/shell/navigation.tsx:85
+#: src/app/shell/navigation.tsx:83
 msgid "工作台"
 msgstr "工作台"
 
@@ -3231,6 +3250,7 @@ msgstr "已入库"
 msgid "已删除"
 msgstr "已删除"
 
+#: src/ActivityDrawer.tsx:32
 #: src/domain/task/taskVocabulary.tsx:49
 #: src/pages/delivery/TaskRecordView.tsx:56
 msgid "已取消"
@@ -3250,6 +3270,7 @@ msgstr "已在合辑中"
 msgid "已处理"
 msgstr "已处理"
 
+#: src/ActivityDrawer.tsx:31
 #: src/design/feedback/StageBar.tsx:71
 #: src/domain/agent/workSteps.ts:39
 #: src/domain/task/taskVocabulary.tsx:47
@@ -3413,7 +3434,7 @@ msgstr "应用到全部"
 msgid "应用剪辑变更前先预览"
 msgstr "应用剪辑变更前先预览"
 
-#: src/pages/delivery/TaskDetailBody.tsx:100
+#: src/pages/delivery/TaskDetailBody.tsx:102
 msgid "开始"
 msgstr "开始"
 
@@ -3662,7 +3683,7 @@ msgid "录制结果没能读取：{error}"
 msgstr "录制结果没能读取：{error}"
 
 #: src/app/command/commandRegistry.ts:193
-#: src/app/shell/navigation.tsx:102
+#: src/app/shell/navigation.tsx:100
 #: src/pages/RecordingPage.tsx:116
 #: src/pages/RecordingPage.tsx:293
 msgid "录制计划"
@@ -3734,7 +3755,7 @@ msgid "必填"
 msgstr "必填"
 
 #: src/app/command/commandRegistry.ts:199
-#: src/app/shell/navigation.tsx:103
+#: src/app/shell/navigation.tsx:101
 #: src/pages/home/ActiveProjectsPanel.tsx:112
 #: src/pages/montage/MontageProjectList.tsx:148
 msgid "快速剪辑"
@@ -3776,13 +3797,11 @@ msgstr "恢复默认"
 msgid "成功"
 msgstr "成功"
 
-#: src/pages/DeliveryPage.tsx:82
+#: src/pages/DeliveryPage.tsx:65
 msgid "成品"
 msgstr "成品"
 
 #: src/pages/delivery/OutputsView.tsx:128
-#: src/pages/DeliveryPage.tsx:94
-#: src/pages/DeliveryPage.tsx:102
 #: src/terminology.ts:33
 msgid "成品文件"
 msgstr "成品文件"
@@ -3790,10 +3809,6 @@ msgstr "成品文件"
 #: src/pages/settings/GameSection.tsx:245
 msgid "成品生成能力"
 msgstr "成品生成能力"
-
-#: src/pages/DeliveryPage.tsx:98
-msgid "成品视图"
-msgstr "成品视图"
 
 #: src/pages/settings/GameSection.tsx:213
 msgid "成片画面里保留左上角的小地图。"
@@ -3944,7 +3959,7 @@ msgstr "找不到这条任务"
 msgid "找到了可用的游戏程序，录制会以离线模式启动它"
 msgstr "找到了可用的游戏程序，录制会以离线模式启动它"
 
-#: src/domain/task/TaskDetail.tsx:204
+#: src/domain/task/TaskDetail.tsx:206
 msgid "技术细节"
 msgstr "技术细节"
 
@@ -4861,7 +4876,7 @@ msgstr "来源"
 msgid "来源任务"
 msgstr "来源任务"
 
-#: src/pages/delivery/TaskDetailBody.tsx:135
+#: src/pages/delivery/TaskDetailBody.tsx:137
 msgid "来源对象"
 msgstr "来源对象"
 
@@ -4898,6 +4913,10 @@ msgstr "查看全部 {0} 条"
 #: src/domain/agent/WorkspaceEditLine.tsx:115
 msgid "查看发给 Agent 的内容"
 msgstr "查看发给 Agent 的内容"
+
+#: src/ActivityDrawer.tsx:129
+msgid "查看详情"
+msgstr "查看详情"
 
 #: src/pages/delivery/useTaskActions.tsx:239
 msgid "查看阶段"
@@ -5363,7 +5382,7 @@ msgid "比赛信息"
 msgstr "比赛信息"
 
 #: src/app/command/commandRegistry.ts:174
-#: src/app/shell/navigation.tsx:92
+#: src/app/shell/navigation.tsx:90
 #: src/pages/HistoryPage.tsx:132
 msgid "比赛历史"
 msgstr "比赛历史"
@@ -5647,8 +5666,8 @@ msgstr "清理失效记录"
 msgid "清理失效记录？"
 msgstr "清理失效记录？"
 
-#: src/pages/DeliveryPage.tsx:111
-#: src/pages/DeliveryPage.tsx:121
+#: src/pages/DeliveryPage.tsx:77
+#: src/pages/DeliveryPage.tsx:87
 msgid "清理无效记录"
 msgstr "清理无效记录"
 
@@ -5970,7 +5989,7 @@ msgid "玩家档案"
 msgstr "玩家档案"
 
 #: src/app/command/commandRegistry.ts:178
-#: src/app/shell/navigation.tsx:93
+#: src/app/shell/navigation.tsx:91
 #: src/pages/PlayersPage.tsx:223
 #: src/pages/PlayersPage.tsx:303
 msgid "玩家目录"
@@ -6046,7 +6065,7 @@ msgstr "用备份恢复"
 msgid "用备份覆盖当前配置？"
 msgstr "用备份覆盖当前配置？"
 
-#: src/domain/task/TaskDetail.tsx:252
+#: src/domain/task/TaskDetail.tsx:254
 msgid "用户语言；实现细节收在「技术细节」里"
 msgstr "用户语言；实现细节收在「技术细节」里"
 
@@ -6362,7 +6381,7 @@ msgstr "穿墙"
 msgid "窗口宽度不足 1100px，侧栏保持为图标条"
 msgstr "窗口宽度不足 1100px，侧栏保持为图标条"
 
-#: src/app/shell/WindowTitleBar.tsx:279
+#: src/app/shell/WindowTitleBar.tsx:310
 msgid "窗口操作失败"
 msgstr "窗口操作失败"
 
@@ -6469,7 +6488,7 @@ msgstr "等待超时"
 msgid "算不出相机路径：{0}"
 msgstr "算不出相机路径：{0}"
 
-#: src/pages/delivery/TaskDetailBody.tsx:127
+#: src/pages/delivery/TaskDetailBody.tsx:129
 #: src/pages/match/views/HighlightsView.tsx:371
 msgid "类型"
 msgstr "类型"
@@ -6808,7 +6827,7 @@ msgid "记录已移除，文件仍在原处。"
 msgstr "记录已移除，文件仍在原处。"
 
 #: src/app/command/commandRegistry.ts:226
-#: src/app/shell/navigation.tsx:126
+#: src/app/shell/navigation.tsx:118
 #: src/pages/SettingsPage.tsx:82
 msgid "设置与诊断"
 msgstr "设置与诊断"
@@ -6835,7 +6854,7 @@ msgid "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有�
 msgstr "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有一场进入证据索引，所以任何条件都会是零命中。"
 
 #: src/app/command/commandRegistry.ts:181
-#: src/app/shell/navigation.tsx:94
+#: src/app/shell/navigation.tsx:92
 #: src/pages/EvidencePage.tsx:157
 msgid "证据检索"
 msgstr "证据检索"
@@ -7015,6 +7034,7 @@ msgstr "读不到预设：{failure}"
 msgid "读取中"
 msgstr "读取中"
 
+#: src/ActivityDrawer.tsx:73
 #: src/pages/delivery/TaskRecordRail.tsx:47
 #: src/pages/delivery/TaskRecordView.tsx:81
 msgid "读取后台任务失败。"
@@ -7036,7 +7056,7 @@ msgstr "读取输出列表失败。"
 msgid "读取进行中的任务失败。"
 msgstr "读取进行中的任务失败。"
 
-#: src/pages/delivery/TaskDetailBody.tsx:75
+#: src/pages/delivery/TaskDetailBody.tsx:77
 msgid "读取阶段日志失败。"
 msgstr "读取阶段日志失败。"
 
@@ -7064,7 +7084,7 @@ msgstr "购买条数"
 msgid "购买金额统计不可用"
 msgstr "购买金额统计不可用"
 
-#: src/app/shell/navigation.tsx:89
+#: src/app/shell/navigation.tsx:87
 #: src/pages/MatchWorkspacePage.tsx:201
 msgid "资料库"
 msgstr "资料库"
@@ -7150,7 +7170,7 @@ msgid "跳转"
 msgstr "跳转"
 
 #: src/app/command/CommandPalette.tsx:229
-#: src/app/shell/WindowTitleBar.tsx:259
+#: src/app/shell/WindowTitleBar.tsx:264
 msgid "跳转、搜索比赛或证据"
 msgstr "跳转、搜索比赛或证据"
 
@@ -7323,6 +7343,7 @@ msgstr "还没有可检索的证据"
 msgid "还没有可画的趋势"
 msgstr "还没有可画的趋势"
 
+#: src/ActivityDrawer.tsx:108
 #: src/pages/delivery/TaskRecordRail.tsx:65
 #: src/pages/delivery/TaskRecordView.tsx:121
 msgid "还没有后台任务"
@@ -7440,7 +7461,7 @@ msgstr "还没有配乐"
 msgid "还没有配置密钥"
 msgstr "还没有配置密钥"
 
-#: src/domain/task/TaskDetail.tsx:258
+#: src/domain/task/TaskDetail.tsx:260
 msgid "还没有阶段日志"
 msgstr "还没有阶段日志"
 
@@ -7948,14 +7969,15 @@ msgstr "这里比较的是方案自己的两个版本：Agent 出的那一版，
 msgid "这项任务结束前，其它录制与回放都会被拒绝。"
 msgstr "这项任务结束前，其它录制与回放都会被拒绝。"
 
-#: src/pages/delivery/TaskDetailBody.tsx:107
+#: src/pages/delivery/TaskDetailBody.tsx:109
 msgid "进度"
 msgstr "进度"
 
-#: src/domain/task/TaskDetail.tsx:206
+#: src/domain/task/TaskDetail.tsx:208
 msgid "进程、tick、编码参数"
 msgstr "进程、tick、编码参数"
 
+#: src/ActivityDrawer.tsx:29
 #: src/design/feedback/StageBar.tsx:69
 #: src/domain/agent/workSteps.ts:40
 #: src/pages/delivery/TaskRecordView.tsx:53
@@ -8289,7 +8311,8 @@ msgstr "重命名"
 msgid "重命名没有成功"
 msgstr "重命名没有成功"
 
-#: src/domain/task/TaskDetail.tsx:238
+#: src/ActivityDrawer.tsx:102
+#: src/domain/task/TaskDetail.tsx:240
 #: src/pages/delivery/OutputsView.tsx:157
 #: src/pages/delivery/TaskFeedList.tsx:67
 #: src/pages/home/RecentOutputsPanel.tsx:81
@@ -8298,7 +8321,7 @@ msgstr "重命名没有成功"
 msgid "重新加载"
 msgstr "重新加载"
 
-#: src/domain/task/TaskDetail.tsx:143
+#: src/domain/task/TaskDetail.tsx:145
 #: src/pages/delivery/TaskFeedList.tsx:130
 msgid "重新发起"
 msgstr "重新发起"
@@ -8382,7 +8405,7 @@ msgstr "重新选择"
 #: src/app/boundary/RouteBoundary.tsx:108
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:180
-#: src/domain/task/TaskDetail.tsx:143
+#: src/domain/task/TaskDetail.tsx:145
 #: src/pages/agent/AgentConversationBlock.tsx:278
 #: src/pages/agent/AgentConversationBlock.tsx:408
 #: src/pages/agent/ConversationModes.tsx:350
@@ -8555,7 +8578,7 @@ msgstr "阶段"
 msgid "阶段 {index}/{count} {label}"
 msgstr "阶段 {index}/{count} {label}"
 
-#: src/domain/task/TaskDetail.tsx:247
+#: src/domain/task/TaskDetail.tsx:249
 msgid "阶段日志"
 msgstr "阶段日志"
 

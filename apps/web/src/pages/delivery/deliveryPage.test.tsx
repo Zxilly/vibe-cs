@@ -39,18 +39,17 @@ describe('/delivery', () => {
     expect(outputs).toContain('成品');
   });
 
-  it('switches views with a Seg, the control the artboard draws in the topbar', () => {
-    expect(outputs).toContain('role="radiogroup"');
-    expect(outputs).toContain('value="outputs"');
-    expect(outputs).toContain('value="tasks"');
-    // `--h-ctl-md` is the artboard's 34px topbar control.
-    expect(outputs).toContain('h-[var(--h-ctl-md)]');
+  it('removes the retired task-record switcher from the topbar', () => {
+    expect(outputs).not.toContain('name="delivery-view"');
+    expect(outputs).not.toContain('value="tasks"');
+    expect(outputs).toContain('清理无效记录');
   });
 
-  it('keeps 任务记录 beside 输出 at full width, in the one 520px column §3.5 has', () => {
-    expect(outputs).toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-split'])}px`);
-    // …and gives the records the whole page when the address asks for them.
+  it('gives finished files the whole page at both the current and legacy query', () => {
+    expect(outputs).not.toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-split'])}px`);
+    expect(outputs).not.toContain('data-split-aside');
     expect(tasks).not.toContain('data-split-aside');
+    expect(tasks).toContain('成品文件');
   });
 
   it('invents no data while the service has not answered', () => {

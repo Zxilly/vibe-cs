@@ -12,7 +12,7 @@
  * it the breakpoint is unreachable and 「窗口变窄时自动收起」 would be untested.
  */
 
-import { act, fireEvent } from '@testing-library/react';
+import { act, fireEvent, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -44,6 +44,7 @@ function shellRouter(
           { index: true, element: <span data-page="home">工作台内容</span> },
           { path: 'library', element: <span data-page="library">资料库内容</span> },
           { path: 'agent', element: <span data-page="agent">创作内容</span> },
+          { path: 'delivery', element: <span data-page="delivery">成品内容</span> },
         ],
       },
     ],
@@ -195,6 +196,30 @@ describe('AppShell — Ctrl K', () => {
 
     expect(router.state.location.pathname).toBe('/agent');
     expect(document.querySelector('[data-overlay="command-palette"]')).toBeNull();
+  });
+});
+
+describe('AppShell — background activity', () => {
+  it('opens from the title-bar bell and Esc closes the accessible drawer', async () => {
+    media = stubMatchMedia(false);
+    const { container } = renderInteractive(<RouterProvider router={shellRouter(pendingProbe)} />);
+
+    fireEvent.click(container.querySelector('[data-titlebar-activity]') as HTMLElement);
+    expect(document.querySelector('[data-overlay="drawer"]')).not.toBeNull();
+    expect(document.querySelector('[data-overlay="drawer"]')?.getAttribute('aria-labelledby')).not.toBeNull();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(document.querySelector('[data-overlay="drawer"]')).toBeNull());
+  });
+
+  it('redirects the legacy tasks query to finished files and opens the drawer', async () => {
+    media = stubMatchMedia(false);
+    const router = shellRouter(pendingProbe, '/delivery?view=tasks');
+    renderInteractive(<RouterProvider router={router} />);
+
+    await waitFor(() => expect(router.state.location.search).toBe(''));
+    expect(router.state.location.pathname).toBe('/delivery');
+    expect(document.querySelector('[data-overlay="drawer"]')).not.toBeNull();
   });
 });
 

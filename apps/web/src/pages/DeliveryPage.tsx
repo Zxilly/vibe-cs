@@ -31,28 +31,17 @@
  * which is the same affordance the artboard uses at full width.
  */
 
-import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useSearchParams } from 'react-router-dom';
 
 import { useCleanupMissingOutputs, useOutputList } from '../data/outputs';
 import { useStorageStatus } from '../data/config';
-import { Page, SplitPane, Toolbar, useShellCollapsed } from '../design/layout';
-import { Button, Seg } from '../design/primitives';
+import { Page, Toolbar } from '../design/layout';
+import { Button } from '../design/primitives';
 import { OutputsView } from './delivery/OutputsView';
 import { formatBytes } from './delivery/outputModel';
-import { TaskRecordRail } from './delivery/TaskRecordRail';
-import { TaskRecordView } from './delivery/TaskRecordView';
 import { useServiceAction } from '../data/serviceAction';
-import { pickQueryValue } from './routeQuery';
-
-const DELIVERY_VIEWS = ['outputs', 'tasks'] as const;
-type DeliveryView = (typeof DELIVERY_VIEWS)[number];
 
 export function DeliveryPage() {
-  const [params, setParams] = useSearchParams();
-  const view = pickQueryValue(params.get('view'), DELIVERY_VIEWS, 'outputs');
-  const collapsed = useShellCollapsed();
   const service = useServiceAction();
 
   /*
@@ -68,12 +57,6 @@ export function DeliveryPage() {
   const total = outputCount.data?.total;
   const available = formatBytes(storage.data?.filesystem_available_bytes ?? null);
 
-  const setView = (next: DeliveryView): void => {
-    // `replace` keeps the back button pointing at wherever the user came from
-    // rather than at the other tab of the page they are still on.
-    setParams(next === 'outputs' ? {} : { view: next }, { replace: true });
-  };
-
   return (
     <Page
       scroll={false}
@@ -87,25 +70,8 @@ export function DeliveryPage() {
               <Trans>{total} 个成品文件 · {available} 可用</Trans>
             )
           }
-          inlineActionsWhenCollapsed={2}
+          inlineActionsWhenCollapsed={1}
           actions={[
-            {
-              id: 'view',
-              label: view === 'tasks' ? <Trans>后台任务</Trans> : <Trans>成品文件</Trans>,
-              control: (
-                <Seg
-                  name="delivery-view"
-                  aria-label={t`成品视图`}
-                  size="md"
-                  value={view}
-                  options={[
-                    { value: 'outputs', label: t`成品文件` },
-                    { value: 'tasks', label: t`后台任务` },
-                  ]}
-                  onChange={setView}
-                />
-              ),
-            },
             {
               id: 'cleanup',
               label: <Trans>清理无效记录</Trans>,
@@ -127,20 +93,7 @@ export function DeliveryPage() {
         />
       }
     >
-      {view === 'tasks' ? (
-        <TaskRecordView service={service} />
-      ) : collapsed ? (
-        <OutputsView service={service} />
-      ) : (
-        <SplitPane
-          asideLabel={t`后台任务`}
-          asideWidth="split"
-          storageId="delivery-tasks"
-          aside={<TaskRecordRail service={service} />}
-        >
-          <OutputsView service={service} />
-        </SplitPane>
-      )}
+      <OutputsView service={service} />
     </Page>
   );
 }

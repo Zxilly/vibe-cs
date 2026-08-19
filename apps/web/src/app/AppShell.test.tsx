@@ -132,7 +132,7 @@ describe('AppShell — the title bar crumb', () => {
   });
 
   it('reads the query, so 输出 and 任务记录 are told apart on one path', () => {
-    expect(rungs('/delivery?view=tasks')).toEqual(['交付', '后台任务']);
+    expect(rungs('/delivery?view=tasks')).toEqual(['交付', '成品文件']);
     expect(rungs('/delivery')).toEqual(['交付', '成品文件']);
   });
 

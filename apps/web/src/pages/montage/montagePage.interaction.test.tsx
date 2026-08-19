@@ -211,6 +211,7 @@ describe('节拍建议', () => {
   });
 });
 
+// End of the project-workspace interaction coverage.
 /* ── 2. a save composes with what it did not render ──────────────────────── */
 
 describe('整份 PUT', () => {
@@ -264,7 +265,6 @@ describe('整份 PUT', () => {
     expect(screen.getByRole('button', { name: '重新载入' })).toBeTruthy();
   });
 });
-
 /* ── 3. 生成视频 ─────────────────────────────────────────────────────────── */
 
 describe('生成视频', () => {
@@ -406,56 +406,5 @@ describe('更换音乐', () => {
     await waitFor(() => expect(importMediaAsset).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(bench.puts).toHaveLength(1));
     expect((bench.puts[0] as MontageProjectRecord).settings.background_music).toBe('D:\\music\\next.mp3');
-  });
-});
-
-/* ── the bare list ───────────────────────────────────────────────────────── */
-
-describe('/montage — 合辑列表', () => {
-  it('creates a project and opens it', async () => {
-    const created = montageProject({ id: 'project-7', name: '新集锦' });
-    const createMontageProject = vi.fn(async () => created);
-    renderMontage({
-      client: montageClient({
-        listMontageProjects: async () => ({ items: [] }),
-        createMontageProject,
-        getMontageProject: async () => created,
-      }),
-      route: '/montage',
-    });
-
-    fireEvent.click((await screen.findAllByRole('button', { name: '新建作品' }))[0] as HTMLElement);
-    fireEvent.change(await screen.findByLabelText('作品名称'), { target: { value: '  新集锦  ' } });
-    fireEvent.click(screen.getByRole('button', { name: '创建' }));
-
-    await waitFor(() => expect(createMontageProject).toHaveBeenCalledTimes(1));
-    /* Trimmed, and with the domain defaults rather than invented settings. */
-    expect(createMontageProject).toHaveBeenCalledWith({
-      name: '新集锦',
-      clips: [],
-      settings: defaultMontageSettings(),
-    });
-    /* And it lands in the workspace it just made. */
-    await screen.findByText('新集锦');
-  });
-
-  it('confirms before deleting, and says what survives', async () => {
-    const deleteMontageProject = vi.fn(async () => undefined);
-    renderMontage({
-      client: montageClient({
-        listMontageProjects: async () => ({ items: [montageProject()] }),
-        deleteMontageProject,
-      }),
-      route: '/montage',
-    });
-
-    fireEvent.click(await screen.findByRole('button', { name: '删除' }));
-    expect(deleteMontageProject).not.toHaveBeenCalled();
-
-    const dialog = await screen.findByRole('dialog', { name: /删除这份作品/u });
-    expect(within(dialog).getByText(/磁盘上的文件不会被删除/u)).toBeTruthy();
-
-    fireEvent.click(within(dialog).getByRole('button', { name: '删除' }));
-    await waitFor(() => expect(deleteMontageProject).toHaveBeenCalledWith('project-1'));
   });
 });

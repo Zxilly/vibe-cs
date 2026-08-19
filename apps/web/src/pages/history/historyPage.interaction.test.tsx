@@ -11,7 +11,7 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { MatchDownloadJob, MatchHistoryItem, Paginated } from '../../shared/desktop/dto';
-import { HistoryPage } from '../HistoryPage';
+import { HistoryWorkspace } from '../HistoryPage';
 import { HEALTHY, renderPage } from '../delivery/test/renderPage';
 import { matchHistoryItem } from './test/fixtures';
 import { reasonOf } from '../../test/reason';
@@ -73,7 +73,7 @@ function client(overrides: Record<string, unknown> = {}) {
 
 function render(stub: Record<string, unknown>, online = true) {
   return renderPage({
-    element: <HistoryPage />,
+    element: <HistoryWorkspace />,
     client: stub,
     route: '/history',
     pattern: '/history',

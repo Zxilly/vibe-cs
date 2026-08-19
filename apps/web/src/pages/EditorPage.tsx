@@ -57,7 +57,6 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useParams } from 'react-router-dom';
 
 import { Skeleton } from '../design/data';
 import { Alert } from '../design/feedback';
@@ -81,7 +80,6 @@ import { useImportMediaAsset, useMediaAssets, useRelinkMediaAsset } from '../dat
 import { useNativeShell } from '../data/nativeShell';
 import { useServiceAction } from '../data/serviceAction';
 import type { MediaAsset } from '../shared/desktop/dto';
-import { EditorProjectList } from './editor/EditorProjectList';
 import { EditorTimelinePanel } from './editor/EditorTimelinePanel';
 import { InspectorPanel } from './editor/InspectorPanel';
 import { MediaLibraryPanel } from './editor/MediaLibraryPanel';
@@ -101,11 +99,6 @@ import {
   type EditorDocument,
 } from './editor/editorDocument';
 import { mintUuid } from './editor/editorIds';
-
-export function EditorPage() {
-  const { projectId } = useParams<{ projectId?: string }>();
-  return projectId === undefined ? <EditorProjectList /> : <EditorWorkspaceLoader projectId={projectId} />;
-}
 
 /* ── loading ─────────────────────────────────────────────────────────────── */
 

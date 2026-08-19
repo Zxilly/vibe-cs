@@ -33,7 +33,7 @@ import { DesktopClientProvider, type DesktopClient } from '../../data/desktopCli
 import { qk } from '../../data/keys';
 import type { AgentPlan, AgentPlanEdit } from '../../shared/desktop/dto';
 import { renderInteractive } from '../../test/render';
-import { AgentPage } from '../AgentPage';
+import { AgentWorkspace } from '../AgentPage';
 
 import { PLAN, sessionBasedOn } from './planFixtures.testing';
 
@@ -90,7 +90,7 @@ function mount(url = '/agent?plan=P-118&session=session-kael&mode=changes'): Har
       <MemoryRouter initialEntries={[url]}>
         <ClientProbe />
         <Routes>
-          <Route path="/agent" element={<AgentPage />} />
+          <Route path="/agent" element={<AgentWorkspace />} />
         </Routes>
       </MemoryRouter>
     </DesktopClientProvider>,

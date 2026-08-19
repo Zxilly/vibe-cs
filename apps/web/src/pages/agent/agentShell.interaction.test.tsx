@@ -11,7 +11,7 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { AgentPage } from '../AgentPage';
+import { AgentWorkspace } from '../AgentPage';
 import { DesktopClientProvider, type DesktopClient } from '../../data/desktopClient';
 import { qk } from '../../data/keys';
 import type {
@@ -136,7 +136,7 @@ function harness(url: string, plan?: Partial<AgentPlan>) {
       <MemoryRouter initialEntries={[url]}>
         <QueryProbe />
         <Routes>
-          <Route path="/agent" element={<AgentPage />} />
+          <Route path="/agent" element={<AgentWorkspace />} />
           <Route path="/projects/:projectId" element={<RecordingLanding />} />
         </Routes>
       </MemoryRouter>

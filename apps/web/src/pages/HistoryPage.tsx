@@ -66,10 +66,6 @@ const HISTORY_PAGE_SIZE = 50;
  *  actually finishes, which is what `invalidateAfterMatchDownload` is for. */
 const DOWNLOAD_POLL_MS = 2_000;
 
-export function HistoryPage() {
-  return <HistoryWorkspace />;
-}
-
 export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boolean | undefined }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();

@@ -99,10 +99,6 @@ export interface AgentWorkspaceProps {
   readonly recordingTarget?: string | undefined;
 }
 
-export function AgentPage() {
-  return <AgentWorkspace />;
-}
-
 export function AgentWorkspace({ embedded = false, planId, recordingTarget }: AgentWorkspaceProps) {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();

@@ -20,7 +20,6 @@ import { createAppRoutes, type RoutePages } from './app/router';
 
 const HomePage = lazy(async () => ({ default: (await import('./pages/HomePage')).HomePage }));
 const LibraryPage = lazy(async () => ({ default: (await import('./pages/LibraryPage')).LibraryPage }));
-const HistoryPage = lazy(async () => ({ default: (await import('./pages/HistoryPage')).HistoryPage }));
 const PlayersPage = lazy(async () => ({ default: (await import('./pages/PlayersPage')).PlayersPage }));
 const PlayerProfilePage = lazy(async () => ({
   default: (await import('./pages/PlayerProfilePage')).PlayerProfilePage,
@@ -45,7 +44,6 @@ const GuidePage = lazy(async () => ({ default: (await import('./pages/GuidePage'
 export const APP_PAGES: RoutePages = {
   home: <HomePage />,
   library: <LibraryPage />,
-  history: <HistoryPage />,
   players: <PlayersPage />,
   playerProfile: <PlayerProfilePage />,
   evidence: <EvidencePage />,

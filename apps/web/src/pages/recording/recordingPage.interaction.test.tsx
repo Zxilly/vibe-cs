@@ -36,7 +36,7 @@ import type {
   RecordingPreflight,
   RecordingShotPresetDraft,
 } from '../../shared/desktop/dto';
-import { RecordingPage } from '../RecordingPage';
+import { RecordingPlanWorkspace } from '../RecordingPage';
 import {
   AGENT_PLAN,
   AGENT_PLAN_ID,
@@ -168,7 +168,7 @@ function mount(options: MountOptions = {}): Harness {
       <MemoryRouter initialEntries={[`/recording/${AGENT_PLAN_ID}`]}>
         <Probe />
         <Routes>
-          <Route path="/recording/:taskId?" element={<RecordingPage />} />
+          <Route path="/recording/:taskId?" element={<RecordingPlanWorkspace agentPlanId={AGENT_PLAN_ID} />} />
           <Route path="/delivery/task/:taskId" element={<div>任务详情占位</div>} />
         </Routes>
       </MemoryRouter>

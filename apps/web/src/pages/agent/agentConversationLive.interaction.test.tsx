@@ -34,7 +34,7 @@ import type {
   AgentSessionEntry,
   AgentSessionEntryDraft,
 } from '../../shared/desktop/dto';
-import { AgentPage } from '../AgentPage';
+import { AgentWorkspace } from '../AgentPage';
 import { renderInteractive } from '../../test/render';
 
 /** Anything that could make the game run or a file appear. */
@@ -180,7 +180,7 @@ function mount(harness: Bridge, url: string) {
               <>
                 <CaptureClient />
                 <SwitchSession />
-                <AgentPage />
+                <AgentWorkspace />
               </>
             }
           />

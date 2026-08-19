@@ -31,7 +31,6 @@ import { SHELL_NAV_ITEMS } from './shell';
 const STUB_PAGES: RoutePages = {
   home: <span data-stub="home" />,
   library: <span data-stub="library" />,
-  history: <span data-stub="history" />,
   players: <span data-stub="players" />,
   playerProfile: <span data-stub="player-profile" />,
   evidence: <span data-stub="evidence" />,

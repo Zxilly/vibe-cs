@@ -37,7 +37,7 @@ import type {
 } from '../../../shared/desktop/dto';
 import type { RecordedClip } from '../../../shared/desktop/viewModels';
 import { renderInteractive } from '../../../test/render';
-import { MontagePage } from '../../MontagePage';
+import { MontageWorkspace } from '../../MontagePage';
 import { defaultMontageSettings } from '../montageSettings';
 
 export const HEALTHY: ApiHealth = {
@@ -123,7 +123,7 @@ export function renderMontage(options: RenderMontageOptions): RenderResult {
     client,
     route = '/montage/project-1',
     shell = testNativeShell(),
-    element = <MontagePage />,
+    element = <MontageWorkspace projectId="project-1" />,
   } = options;
   const health = Object.hasOwn(options, 'health') ? options.health : HEALTHY;
 

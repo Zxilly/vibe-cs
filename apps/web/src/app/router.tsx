@@ -69,7 +69,6 @@ import { NotFound, RouteErrorElement } from './boundary';
 export interface RoutePages {
   readonly home: ReactNode;
   readonly library: ReactNode;
-  readonly history: ReactNode;
   readonly players: ReactNode;
   readonly playerProfile: ReactNode;
   readonly evidence: ReactNode;

@@ -18,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { RecordingPreflightGate } from '../../data/recording';
 import { renderMarkup } from '../../test/render';
-import { RecordingPage } from '../RecordingPage';
+import { RecordingPlanWorkspace } from '../RecordingPage';
 import { PreflightBlock } from './PreflightBlock';
 import { ShotListBlock } from './ShotListBlock';
 import {
@@ -102,16 +102,11 @@ describe('the address', () => {
     return renderMarkup(
       <MemoryRouter initialEntries={[path]}>
         <Routes>
-          <Route path="/recording/:taskId?" element={<RecordingPage />} />
+          <Route path="/recording/:taskId?" element={<RecordingPlanWorkspace agentPlanId={AGENT_PLAN_ID} />} />
         </Routes>
       </MemoryRouter>,
     );
   }
-
-  it('is a plan list on the bare path and a plan on the parametrised one', () => {
-    expect(at('/recording')).toContain('可录制的方案');
-    expect(at('/recording')).toContain('最近的录制任务');
-  });
 
   it('names the Agent plan it came from, because that is what :taskId is', () => {
     const html = at('/recording/P-118');
@@ -123,18 +118,6 @@ describe('the address', () => {
     expect(at('/recording/P-118')).toContain('返回剪辑单');
   });
 
-  it('sends the bare list’s task rows to the address a task already has', () => {
-    /* §7: a running recording is `/delivery/task/:id`. This page links there
-       rather than growing a second task detail of its own. */
-    expect(at('/recording')).toContain('全部后台任务');
-    expect(at('/recording')).toContain('/delivery?view=tasks');
-  });
-
-  it('draws skeletons with no invented percentage while both columns load', () => {
-    const html = at('/recording');
-    expect(html).toContain('data-plan-list="loading"');
-    expect(html).not.toContain('role="progressbar"');
-  });
 });
 
 /* ── block A ─────────────────────────────────────────────────────────────── */

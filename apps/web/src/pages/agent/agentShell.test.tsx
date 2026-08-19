@@ -11,7 +11,7 @@
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { AgentPage } from '../AgentPage';
+import { AgentWorkspace } from '../AgentPage';
 import { renderMarkup } from '../../test/render';
 import { PANEL_WIDTH_PX } from '../../design/tokens.data';
 
@@ -19,7 +19,7 @@ function at(url: string): string {
   return renderMarkup(
     <MemoryRouter initialEntries={[url]}>
       <Routes>
-        <Route path="/agent" element={<AgentPage />} />
+        <Route path="/agent" element={<AgentWorkspace />} />
       </Routes>
     </MemoryRouter>,
   );

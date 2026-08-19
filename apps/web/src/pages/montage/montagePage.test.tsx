@@ -18,7 +18,7 @@ import { NativeShellProvider, unavailableNativeShell } from '../../data/nativeSh
 import type { ApiHealth, MediaAsset, MontageProjectRecord } from '../../shared/desktop/dto';
 import type { RecordedClip } from '../../shared/desktop/viewModels';
 import { renderMarkup } from '../../test/render';
-import { MontagePage } from '../MontagePage';
+import { MontageWorkspace } from '../MontagePage';
 import { defaultMontageSettings, MONTAGE_TRANSITIONS } from './montageSettings';
 import { MONTAGE_THEME } from './montageContract';
 
@@ -86,7 +86,7 @@ function Seeded({ seed, children }: { readonly seed: Seed; readonly children: Re
   return <>{children}</>;
 }
 
-function render(route: string, seed: Seed, element: ReactElement = <MontagePage />): string {
+function render(route: string, seed: Seed, element: ReactElement = <MontageWorkspace projectId="project-1" />): string {
   return renderMarkup(
     <DesktopClientProvider client={{} as unknown as DesktopClient}>
       <NativeShellProvider shell={unavailableNativeShell}>
@@ -200,30 +200,6 @@ describe('/montage/:projectId — before the document arrives', () => {
   it('keeps 「生成视频」 rendered and disabled rather than hiding it', () => {
     expect(html).toContain('data-montage-export="toolbar"');
     expect(html).toContain('disabled');
-  });
-});
-
-describe('/montage — the project list', () => {
-  it('is the list, with 新建作品 as its primary action', () => {
-    const html = render('/montage', [
-      [qk.service.health(), HEALTH],
-      [qk.montage.list(), { items: [PROJECT] }],
-      [qk.outputs.recordedClips(), { items: TAKES, total: 2, page: 1, page_size: 50 }],
-    ]);
-    expect(html).toContain('快速剪辑');
-    expect(html).toContain('data-montage-action="create"');
-    expect(html).toContain('Kael 个人集锦 v2');
-    expect(html).toContain('data-montage-action="delete"');
-  });
-
-  it('offers 「新建作品」 from the empty state too', () => {
-    const html = render('/montage', [
-      [qk.service.health(), HEALTH],
-      [qk.montage.list(), { items: [] }],
-      [qk.outputs.recordedClips(), { items: [], total: 0, page: 1, page_size: 50 }],
-    ]);
-    expect(html).toContain('还没有作品');
-    expect(html).toContain('新建作品');
   });
 });
 

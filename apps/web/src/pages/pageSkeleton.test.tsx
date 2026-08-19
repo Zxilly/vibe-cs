@@ -32,21 +32,16 @@ import { describe, expect, it } from 'vitest';
 
 import { renderMarkup } from '../test/render';
 import { LEGACY_UI_TERMS } from '../terminology';
-import { AgentPage } from './AgentPage';
 import { DeliveryPage } from './DeliveryPage';
-import { EditorPage } from './EditorPage';
 import { EvidencePage } from './EvidencePage';
 import { GuidePage } from './GuidePage';
-import { HistoryPage } from './HistoryPage';
 import { HomePage } from './HomePage';
 import { LibraryPage } from './LibraryPage';
 import { MatchWorkspacePage } from './MatchWorkspacePage';
-import { MontagePage } from './MontagePage';
 import { PlayerProfilePage } from './PlayerProfilePage';
 import { PlayersPage } from './PlayersPage';
 import { ProjectsPage } from './ProjectsPage';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
-import { RecordingPage } from './RecordingPage';
 import { RecoveryPage } from './RecoveryPage';
 import { SettingsPage } from './SettingsPage';
 import { TaskDetailPage } from './TaskDetailPage';
@@ -87,12 +82,6 @@ const PAGES: readonly PageCase[] = [
     title: 'Demo 资料库',
   },
   {
-    pattern: '/history',
-    at: '/history',
-    Component: HistoryPage,
-    title: '比赛历史',
-  },
-  {
     pattern: '/players',
     at: '/players',
     Component: PlayersPage,
@@ -128,30 +117,6 @@ const PAGES: readonly PageCase[] = [
     at: '/projects/plan%3Ap-1',
     Component: ProjectWorkspacePage,
     title: '作品工作区',
-  },
-  {
-    pattern: '/agent',
-    at: '/agent',
-    Component: AgentPage,
-    title: 'Agent 创作',
-  },
-  {
-    pattern: '/recording',
-    at: '/recording',
-    Component: RecordingPage,
-    title: '录制计划',
-  },
-  {
-    pattern: '/montage',
-    at: '/montage',
-    Component: MontagePage,
-    title: '快速剪辑',
-  },
-  {
-    pattern: '/editor',
-    at: '/editor',
-    Component: EditorPage,
-    title: '多轨编辑器',
   },
   {
     pattern: '/delivery',
@@ -254,7 +219,7 @@ describe('the page table', () => {
        cross-check lives in `src/routes.test.tsx`, which is the composition
        root and is allowed to see both sides; it is what catches a route added
        without a page. */
-    expect(PAGES).toHaveLength(18);
+    expect(PAGES).toHaveLength(13);
     expect(new Set(PAGES.map((entry) => entry.pattern)).size).toBe(PAGES.length);
     expect(new Set(PAGES.map((entry) => entry.Component)).size).toBe(PAGES.length);
   });

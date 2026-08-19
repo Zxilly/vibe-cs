@@ -28,7 +28,7 @@ import {
 } from '../../../data/nativeShell';
 import type { ApiHealth, EditorProject } from '../../../shared/desktop/dto';
 import { renderInteractive } from '../../../test/render';
-import { EditorPage } from '../../EditorPage';
+import { EditorWorkspaceLoader } from '../../EditorPage';
 import { sampleAssets, sampleEditorProject } from '../editorFixtures.testing';
 
 export const HEALTHY: ApiHealth = {
@@ -107,7 +107,7 @@ export function renderEditor(options: RenderEditorOptions): RenderResult {
     client,
     route = `/editor/${sampleEditorProject().id}`,
     shell = testNativeShell(),
-    element = <EditorPage />,
+    element = <EditorWorkspaceLoader projectId={sampleEditorProject().id} />,
   } = options;
   const health = Object.hasOwn(options, 'health') ? options.health : HEALTHY;
 

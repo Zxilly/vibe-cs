@@ -31,7 +31,7 @@ import { EDIT_MERGE_WINDOW_MS } from '../../data/editNotifier';
 import { qk } from '../../data/keys';
 import { renderInteractive } from '../../test/render';
 import type { AgentPlan, AgentPlanEdit } from '../../shared/desktop/dto';
-import { AgentPage } from '../AgentPage';
+import { AgentWorkspace } from '../AgentPage';
 
 import { PLAN, SESSION } from './planFixtures.testing';
 
@@ -114,7 +114,7 @@ function mount(options: MountOptions | string = {}): Harness {
       <MemoryRouter initialEntries={[url]}>
         <NavigationProbe />
         <Routes>
-          <Route path="/agent" element={<AgentPage />} />
+          <Route path="/agent" element={<AgentWorkspace />} />
         </Routes>
       </MemoryRouter>
     </DesktopClientProvider>,

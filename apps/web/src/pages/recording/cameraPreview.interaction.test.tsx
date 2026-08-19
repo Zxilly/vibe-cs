@@ -27,7 +27,7 @@ import { DesktopClientProvider, type DesktopClient } from '../../data/desktopCli
 import { qk } from '../../data/keys';
 import { renderInteractive } from '../../test/render';
 import type { AppConfig, DemoPlaybackOptions, HlaeProposalPreview, RuntimeState } from '../../shared/desktop/dto';
-import { RecordingPage } from '../RecordingPage';
+import { RecordingPlanWorkspace } from '../RecordingPage';
 import { inGameGate } from './cameraDesk';
 import {
   AGENT_PLAN,
@@ -114,7 +114,7 @@ function mount(options: MountOptions = {}): Harness {
       <MemoryRouter initialEntries={[`/recording/${AGENT_PLAN_ID}`]}>
         <Probe />
         <Routes>
-          <Route path="/recording/:taskId?" element={<RecordingPage />} />
+          <Route path="/recording/:taskId?" element={<RecordingPlanWorkspace agentPlanId={AGENT_PLAN_ID} />} />
         </Routes>
       </MemoryRouter>
     </DesktopClientProvider>,

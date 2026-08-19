@@ -89,14 +89,14 @@ function beat(index: number, timeSeconds: number): AudioBeat {
 
 describe('addresses', () => {
   it('is the list with no project and the project itself with one', () => {
-    expect(montageHref(null)).toBe('/montage');
-    expect(montageHref('m-1')).toBe('/montage/m-1');
+    expect(montageHref(null)).toBe('/projects');
+    expect(montageHref('m-1')).toBe('/projects/montage%3Am-1?step=shotlist');
     expect(editorHref('m-1')).toBe('/editor/m-1');
     expect(montageExportTaskHref('A-9')).toBe('/delivery/task/A-9');
   });
 
   it('escapes rather than pasting', () => {
-    expect(montageHref('a b')).toBe('/montage/a%20b');
+    expect(montageHref('a b')).toBe('/projects/montage%3Aa%20b?step=shotlist');
   });
 });
 

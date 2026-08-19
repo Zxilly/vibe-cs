@@ -169,7 +169,9 @@ import type {
 /* ── the address ─────────────────────────────────────────────────────────── */
 
 export function montageHref(projectId: string | null): string {
-  return projectId === null ? '/montage' : `/montage/${encodeURIComponent(projectId)}`;
+  return projectId === null
+    ? '/projects'
+    : `/projects/${encodeURIComponent(`montage:${projectId}`)}?step=shotlist`;
 }
 
 /** 「在多轨编辑器中打开」. The editor is the next round's page; the address is

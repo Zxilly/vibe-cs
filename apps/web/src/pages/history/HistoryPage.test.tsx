@@ -15,11 +15,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { renderMarkup } from '../../test/render';
-import { HistoryPage } from '../HistoryPage';
+import { HistoryWorkspace } from '../HistoryPage';
 
 const html = renderMarkup(
   <MemoryRouter initialEntries={['/history']}>
-    <HistoryPage />
+    <HistoryWorkspace />
   </MemoryRouter>,
 );
 

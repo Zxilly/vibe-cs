@@ -60,7 +60,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import { dataErrorMessage } from '../data/errors';
 import { useAgentPlan } from '../data/plans';
@@ -82,7 +82,6 @@ import { agentPlanHandoff } from './agent/agentHandoff';
 import { RouteLink } from './RouteLink';
 import { DirectorPreviewBlock } from './recording/DirectorPreviewBlock';
 import { PreflightBlock } from './recording/PreflightBlock';
-import { RecordingIndex } from './recording/RecordingIndex';
 import { ShotInspectorBlock } from './recording/ShotInspectorBlock';
 import { ShotListBlock } from './recording/ShotListBlock';
 import { useCameraDesk } from './recording/cameraDesk';
@@ -97,31 +96,6 @@ import {
   type RecordingShot,
   type RecordingStartDesk,
 } from './recording/recordingContract';
-
-export function RecordingPage() {
-  const { taskId } = useParams<{ taskId?: string }>();
-  const agentPlanId = taskId === undefined || taskId === '' ? null : taskId;
-
-  return agentPlanId === null ? <RecordingListPage /> : <RecordingPlanWorkspace agentPlanId={agentPlanId} />;
-}
-
-/* ── the bare address ────────────────────────────────────────────────────── */
-
-function RecordingListPage() {
-  return (
-    <Page
-      scroll={false}
-      toolbar={
-        <Toolbar
-          title={<Trans>录制计划</Trans>}
-          meta={<Trans>可录制的方案与全部录制任务</Trans>}
-        />
-      }
-    >
-      <RecordingIndex />
-    </Page>
-  );
-}
 
 /* ── the artboard ────────────────────────────────────────────────────────── */
 

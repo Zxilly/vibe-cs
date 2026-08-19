@@ -15,16 +15,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { renderMarkup } from '../test/render';
-import { AgentPage } from './AgentPage';
 import { DeliveryPage } from './DeliveryPage';
-import { EditorPage } from './EditorPage';
 import { EvidencePage } from './EvidencePage';
 import { LibraryPage } from './LibraryPage';
 import { MatchWorkspacePage } from './MatchWorkspacePage';
 import { MATCH_VIEW_IDS } from './match/viewContract';
-import { MontagePage } from './MontagePage';
 import { PlayerProfilePage } from './PlayerProfilePage';
-import { RecordingPage } from './RecordingPage';
 import { RecoveryPage } from './RecoveryPage';
 import { SettingsPage, SETTINGS_SECTIONS } from './SettingsPage';
 import { TaskDetailPage } from './TaskDetailPage';
@@ -69,12 +65,6 @@ describe('the §7 queries', () => {
     expect(tasks).not.toContain('name="delivery-view"');
   });
 
-  it('/agent?mode=changes|inline|takes', () => {
-    expect(at('/agent', '/agent', <AgentPage />)).toContain('变更列表');
-    expect(at('/agent', '/agent?mode=inline', <AgentPage />)).toContain('就地编辑');
-    expect(at('/agent', '/agent?mode=takes', <AgentPage />)).toContain('候选镜头');
-  });
-
   it.each(SETTINGS_SECTIONS)('/settings?section=%s', (section) => {
     const html = at('/settings', `/settings?section=${section}`, <SettingsPage />);
     expect(html).toContain('设置与诊断');
@@ -113,20 +103,6 @@ describe('the §7 path parameters', () => {
     expect(at('/delivery/task/:taskId', '/delivery/task/t-42', <TaskDetailPage />)).toContain('t-42');
   });
 
-  it('/recording/:taskId? tells the list from the single task', () => {
-    expect(at('/recording/:taskId?', '/recording', <RecordingPage />)).toContain('全部录制任务');
-    expect(at('/recording/:taskId?', '/recording/t-9', <RecordingPage />)).toContain('t-9');
-  });
-
-  it('/montage/:projectId? tells the list from the single project', () => {
-    expect(at('/montage/:projectId?', '/montage', <MontagePage />)).toContain('全部作品');
-    expect(at('/montage/:projectId?', '/montage/p-3', <MontagePage />)).toContain('p-3');
-  });
-
-  it('/editor/:projectId? tells the list from the single project', () => {
-    expect(at('/editor/:projectId?', '/editor', <EditorPage />)).toContain('全部作品');
-    expect(at('/editor/:projectId?', '/editor/p-3', <EditorPage />)).toContain('p-3');
-  });
 });
 
 describe('the back links on detail routes', () => {
@@ -151,22 +127,5 @@ describe('the back links on detail routes', () => {
 
   it('takes 恢复中心 back to the entry that lights for it', () => {
     expect(at('/recovery', '/recovery', <RecoveryPage />)).toContain('href="/settings"');
-  });
-});
-
-describe('the editor', () => {
-  it('takes the scroll boundary over — a timeline manages its own viewport', () => {
-    /* A *project* is asked for, not the bare `/editor`: the bare address is
-       the project table, which scrolls like every other table page. It is the
-       workspace that owns its viewport, because `tl-viewport` is what the
-       zoom anchor and the auto-scroll loop measure. */
-    const html = at('/editor/:projectId?', '/editor/p-1', <EditorPage />);
-    expect(html).toContain('data-page-body');
-    expect(html).not.toMatch(/data-page-body="true" class="[^"]*overflow-auto/u);
-  });
-
-  it('lets the bare project list scroll, because it is a table', () => {
-    const html = at('/editor/:projectId?', '/editor', <EditorPage />);
-    expect(html).toMatch(/data-page-body="true" class="[^"]*overflow-auto/u);
   });
 });

@@ -29,7 +29,7 @@ import type {
   RecordingShotPreset,
   RecordingShotPresetDraft,
 } from '../../shared/desktop/dto';
-import { RecordingPage } from '../RecordingPage';
+import { RecordingPlanWorkspace } from '../RecordingPage';
 import {
   AGENT_PLAN,
   AGENT_PLAN_ID,
@@ -118,7 +118,7 @@ function mount(options: { readonly presets?: readonly RecordingShotPreset[] } = 
       <MemoryRouter initialEntries={[`/recording/${AGENT_PLAN_ID}`]}>
         <Probe />
         <Routes>
-          <Route path="/recording/:taskId?" element={<RecordingPage />} />
+          <Route path="/recording/:taskId?" element={<RecordingPlanWorkspace agentPlanId={AGENT_PLAN_ID} />} />
         </Routes>
       </MemoryRouter>
     </DesktopClientProvider>,

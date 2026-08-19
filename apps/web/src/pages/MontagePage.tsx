@@ -48,7 +48,7 @@ import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import { Skeleton } from '../design/data';
 import { Alert } from '../design/feedback';
@@ -67,7 +67,6 @@ import { useServiceAction } from '../data/serviceAction';
 import type { MontageProjectRecord } from '../shared/desktop/dto';
 import { ClipOrderBlock } from './montage/ClipOrderBlock';
 import { ExportBlock } from './montage/ExportBlock';
-import { MontageProjectList } from './montage/MontageProjectList';
 import { MusicBeatBlock } from './montage/MusicBeatBlock';
 import { PackagingBlock } from './montage/PackagingBlock';
 import { readSaveStamp, splitMinutesSeconds } from './montage/montageClock';
@@ -82,17 +81,6 @@ import {
 } from './montage/montageContract';
 import { montageRenderPlan, MONTAGE_EXPORT_BLOCKER_REASON } from './montage/montageSettings';
 import { RouteLink } from './RouteLink';
-
-export function MontagePage() {
-  const { projectId } = useParams<{ projectId?: string }>();
-  /* A key, so switching projects rebuilds the workspace rather than carrying
-     the previous project's selection and preview into the next one. */
-  return projectId === undefined ? (
-    <MontageProjectList />
-  ) : (
-    <MontageWorkspace key={projectId} projectId={projectId} />
-  );
-}
 
 /* ── the workspace ───────────────────────────────────────────────────────── */
 
@@ -217,7 +205,7 @@ export function MontageWorkspace({ projectId, embedded = false }: { readonly pro
           height={embedded ? 'bar' : 'topbar'}
           leading={embedded ? undefined : (
             <RouteLink to={montageHref(null)} size="sm">
-              <Trans>全部作品</Trans>
+              <Trans>作品</Trans>
             </RouteLink>
           )}
           title={project?.name ?? <Skeleton width="180px" />}

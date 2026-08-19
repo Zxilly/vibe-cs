@@ -16,7 +16,6 @@ import { appRoutes, APP_PAGES } from './routes';
 const pageRouteIds = [
   'home',
   'library',
-  'history',
   'players',
   'player-profile',
   'evidence',

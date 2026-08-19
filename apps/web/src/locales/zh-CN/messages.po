@@ -105,7 +105,7 @@ msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, other {# 个作品}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
-#: src/pages/LibraryPage.tsx:296
+#: src/pages/LibraryPage.tsx:344
 msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, other {# 个监听目录}}"
 
@@ -130,7 +130,7 @@ msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, other {# 回合}}"
 
 #. placeholder {0}: list.data?.total ?? 0
-#: src/pages/LibraryPage.tsx:294
+#: src/pages/LibraryPage.tsx:342
 msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, other {# 场}}"
 
@@ -170,7 +170,7 @@ msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, other {最近 # 条}}"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:216
+#: src/pages/LibraryPage.tsx:264
 msgid "{0, plural, other {分析选中的 # 场}}"
 msgstr "{0, plural, other {分析选中的 # 场}}"
 
@@ -818,9 +818,11 @@ msgid "Demo 内容一致"
 msgstr "Demo 内容一致"
 
 #: src/app/command/commandRegistry.ts:168
-#: src/app/shell/navigation.tsx:83
+#: src/app/shell/navigation.tsx:81
 #: src/pages/home/RecentMatchesPanel.tsx:52
-#: src/pages/LibraryPage.tsx:291
+#: src/pages/LibraryPage.tsx:116
+#: src/pages/LibraryPage.tsx:339
+#: src/pages/LibraryPage.tsx:361
 msgid "Demo 资料库"
 msgstr "Demo 资料库"
 
@@ -914,20 +916,26 @@ msgid "Review 分区"
 msgstr "Review 分区"
 
 #. placeholder {0}: formatSyncedAt(syncedAt)
-#: src/pages/HistoryPage.tsx:137
+#: src/pages/HistoryPage.tsx:143
 msgid "Steam · 上次同步 {0}"
 msgstr "Steam · 上次同步 {0}"
 
-#: src/pages/HistoryPage.tsx:135
+#: src/pages/HistoryPage.tsx:141
 msgid "Steam 上的对局记录与回放下载"
 msgstr "Steam 上的对局记录与回放下载"
+
+#: src/app/routeCrumb.ts:110
+#: src/pages/LibraryPage.tsx:117
+#: src/pages/LibraryPage.tsx:362
+msgid "Steam 下载"
+msgstr "Steam 下载"
 
 #: src/pages/history/MatchHistoryTable.tsx:194
 msgid "Steam 比赛历史"
 msgstr "Steam 比赛历史"
 
-#: src/pages/HistoryPage.tsx:144
-#: src/pages/HistoryPage.tsx:147
+#: src/pages/HistoryPage.tsx:150
+#: src/pages/HistoryPage.tsx:153
 msgid "Steam 设置"
 msgstr "Steam 设置"
 
@@ -977,7 +985,7 @@ msgstr "tick 区间在 Demo 范围内"
 msgid "tick 未定位"
 msgstr "tick 未定位"
 
-#: src/pages/HistoryPage.tsx:186
+#: src/pages/HistoryPage.tsx:192
 msgid "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 msgstr "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 
@@ -1052,11 +1060,11 @@ msgstr "下载"
 msgid "下载中"
 msgstr "下载中"
 
-#: src/pages/HistoryPage.tsx:181
+#: src/pages/HistoryPage.tsx:187
 msgid "下载中 {activeCount}"
 msgstr "下载中 {activeCount}"
 
-#: src/pages/HistoryPage.tsx:213
+#: src/pages/HistoryPage.tsx:219
 msgid "下载后自动分析"
 msgstr "下载后自动分析"
 
@@ -1065,7 +1073,7 @@ msgid "下载失败"
 msgstr "下载失败"
 
 #. placeholder {0}: selected.size
-#: src/pages/HistoryPage.tsx:201
+#: src/pages/HistoryPage.tsx:207
 msgid "下载选中的 {0} 场"
 msgstr "下载选中的 {0} 场"
 
@@ -1209,7 +1217,7 @@ msgstr "二进制回放超过 128 MiB 上限"
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "二进制回放超过 128 MiB 上限。"
 
-#: src/app/shell/navigation.tsx:98
+#: src/app/shell/navigation.tsx:95
 msgid "交付"
 msgstr "交付"
 
@@ -1647,7 +1655,7 @@ msgstr "全选本页"
 msgid "全部"
 msgstr "全部"
 
-#: src/pages/HistoryPage.tsx:168
+#: src/pages/HistoryPage.tsx:174
 msgid "全部 {total}"
 msgstr "全部 {total}"
 
@@ -1763,7 +1771,7 @@ msgstr "共 {0} 项"
 msgid "共 {total} 名选手"
 msgstr "共 {total} 名选手"
 
-#: src/pages/HistoryPage.tsx:282
+#: src/pages/HistoryPage.tsx:288
 msgid "共 {total} 场对局"
 msgstr "共 {total} 场对局"
 
@@ -2014,7 +2022,7 @@ msgstr "击杀清场"
 msgid "分析"
 msgstr "分析"
 
-#: src/pages/library/libraryColumns.tsx:244
+#: src/pages/library/libraryColumns.tsx:253
 msgctxt "row-action"
 msgid "分析"
 msgstr "分析"
@@ -2103,7 +2111,7 @@ msgstr "分辨率"
 msgid "分页"
 msgstr "分页"
 
-#: src/pages/LibraryPage.tsx:306
+#: src/pages/LibraryPage.tsx:372
 msgid "切换视图"
 msgstr "切换视图"
 
@@ -2155,7 +2163,7 @@ msgstr "删除对话"
 msgid "删除没有成功"
 msgstr "删除没有成功"
 
-#: src/pages/LibraryPage.tsx:248
+#: src/pages/LibraryPage.tsx:296
 msgid "删除记录"
 msgstr "删除记录"
 
@@ -2172,7 +2180,7 @@ msgstr "删除这条对话？"
 msgid "别贴这么近"
 msgstr "别贴这么近"
 
-#: src/app/shell/navigation.tsx:91
+#: src/app/shell/navigation.tsx:88
 msgid "制作"
 msgstr "制作"
 
@@ -2318,7 +2326,7 @@ msgstr "单轨预览，不含叠加与调色"
 msgid "占用"
 msgstr "占用"
 
-#: src/pages/LibraryPage.tsx:314
+#: src/pages/LibraryPage.tsx:380
 msgid "卡片"
 msgstr "卡片"
 
@@ -2326,7 +2334,7 @@ msgstr "卡片"
 msgid "压到 30 秒"
 msgstr "压到 30 秒"
 
-#: src/pages/HistoryPage.tsx:271
+#: src/pages/HistoryPage.tsx:277
 msgid "去 Demo 资料库"
 msgstr "去 Demo 资料库"
 
@@ -2347,7 +2355,7 @@ msgstr "去掉运动镜头"
 msgid "去设置"
 msgstr "去设置"
 
-#: src/pages/HistoryPage.tsx:234
+#: src/pages/HistoryPage.tsx:240
 msgid "去设置检查 Steam 连接"
 msgstr "去设置检查 Steam 连接"
 
@@ -2548,15 +2556,15 @@ msgstr "合辑列表没能打开：{loadError}"
 msgid "合辑工程"
 msgstr "合辑工程"
 
-#: src/pages/HistoryPage.tsx:240
+#: src/pages/HistoryPage.tsx:246
 msgid "同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。"
 msgstr "同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。"
 
-#: src/pages/HistoryPage.tsx:264
+#: src/pages/HistoryPage.tsx:270
 msgid "同步之后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放， 过期的对局会留在列表里但不再可下载。"
 msgstr "同步之后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放， 过期的对局会留在列表里但不再可下载。"
 
-#: src/pages/HistoryPage.tsx:159
+#: src/pages/HistoryPage.tsx:165
 msgid "同步最近比赛"
 msgstr "同步最近比赛"
 
@@ -2661,8 +2669,8 @@ msgstr "回到证据视图"
 msgid "回到资料库"
 msgstr "回到资料库"
 
-#: src/pages/library/libraryColumns.tsx:115
-#: src/pages/library/libraryColumns.tsx:116
+#: src/pages/library/libraryColumns.tsx:117
+#: src/pages/library/libraryColumns.tsx:118
 #: src/pages/match/views/DuelsView.tsx:251
 #: src/pages/match/views/DuelsView.tsx:252
 #: src/pages/match/views/TeamsView.tsx:235
@@ -2857,8 +2865,8 @@ msgstr "在证据视图里选一条结果、写下为什么它值得剪，注释
 #: src/pages/evidence/EvidenceConditions.tsx:84
 #: src/pages/history/MatchHistoryTable.tsx:125
 #: src/pages/history/MatchHistoryTable.tsx:126
-#: src/pages/library/libraryColumns.tsx:85
-#: src/pages/library/libraryColumns.tsx:86
+#: src/pages/library/libraryColumns.tsx:87
+#: src/pages/library/libraryColumns.tsx:88
 #: src/pages/library/LibraryFilters.tsx:170
 #: src/pages/players/PlayerMapTable.tsx:34
 #: src/pages/players/PlayerMapTable.tsx:35
@@ -3146,9 +3154,13 @@ msgstr "导入"
 #: src/pages/home/FirstRunStrip.tsx:59
 #: src/pages/HomePage.tsx:88
 #: src/pages/library/ImportDemoDialog.tsx:93
-#: src/pages/LibraryPage.tsx:182
+#: src/pages/LibraryPage.tsx:230
 msgid "导入 Demo"
 msgstr "导入 Demo"
+
+#: src/pages/LibraryPage.tsx:110
+msgid "导入、监听目录与 Steam 下载"
+msgstr "导入、监听目录与 Steam 下载"
 
 #: src/design/data/Empty.tsx:137
 msgid "导入一个 .dem，或添加一个监听目录自动发现"
@@ -3184,12 +3196,12 @@ msgstr "导出"
 msgid "导出 HTML"
 msgstr "导出 HTML"
 
-#: src/pages/LibraryPage.tsx:243
+#: src/pages/LibraryPage.tsx:291
 msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 msgstr "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 
 #: src/pages/library/LibraryFilters.tsx:207
-#: src/pages/LibraryPage.tsx:245
+#: src/pages/LibraryPage.tsx:293
 msgid "导出元数据"
 msgstr "导出元数据"
 
@@ -3302,7 +3314,7 @@ msgstr "属性"
 msgid "属性 · {0}"
 msgstr "属性 · {0}"
 
-#: src/pages/library/libraryColumns.tsx:228
+#: src/pages/library/libraryColumns.tsx:238
 msgid "工作区"
 msgstr "工作区"
 
@@ -3315,7 +3327,7 @@ msgid "工作区里没有正在进行的对象"
 msgstr "工作区里没有正在进行的对象"
 
 #: src/app/command/commandRegistry.ts:165
-#: src/app/shell/navigation.tsx:77
+#: src/app/shell/navigation.tsx:75
 #: src/pages/HomePage.tsx:58
 msgid "工作台"
 msgstr "工作台"
@@ -3485,12 +3497,12 @@ msgid "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
 msgstr "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
 
 #. placeholder {0}: selected.size
-#: src/pages/HistoryPage.tsx:193
+#: src/pages/HistoryPage.tsx:199
 msgid "已选 {0} 场"
 msgstr "已选 {0} 场"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:203
+#: src/pages/LibraryPage.tsx:251
 msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 
@@ -4502,6 +4514,10 @@ msgstr "数据目录"
 msgid "整场 · 事件"
 msgstr "整场 · 事件"
 
+#: src/pages/LibraryPage.tsx:197
+msgid "整场比赛"
+msgstr "整场比赛"
+
 #: src/domain/agent/TakeCard.tsx:211
 msgid "整条选用"
 msgstr "整条选用"
@@ -4567,6 +4583,7 @@ msgstr "新建一条空对话就行——想做什么直接说，Agent 会先生
 #: src/pages/home/RecentOutputsPanel.tsx:92
 #: src/pages/HomePage.tsx:62
 #: src/pages/HomePage.tsx:86
+#: src/pages/library/libraryColumns.tsx:212
 #: src/pages/match/views/HighlightsView.tsx:292
 #: src/pages/MatchWorkspacePage.tsx:230
 #: src/pages/montage/MontageProjectList.tsx:81
@@ -4695,8 +4712,8 @@ msgstr "无法连接到本地服务，请确认服务正在运行。"
 msgid "日志与诊断包"
 msgstr "日志与诊断包"
 
-#: src/pages/library/libraryColumns.tsx:98
-#: src/pages/library/libraryColumns.tsx:99
+#: src/pages/library/libraryColumns.tsx:100
+#: src/pages/library/libraryColumns.tsx:101
 msgid "日期"
 msgstr "日期"
 
@@ -4704,8 +4721,8 @@ msgstr "日期"
 #: src/pages/editor/EditorProjectList.tsx:108
 #: src/pages/editor/EditorProjectList.tsx:109
 #: src/pages/editor/InspectorPanel.tsx:126
-#: src/pages/library/libraryColumns.tsx:106
-#: src/pages/library/libraryColumns.tsx:107
+#: src/pages/library/libraryColumns.tsx:108
+#: src/pages/library/libraryColumns.tsx:109
 #: src/pages/match/views/HighlightsView.tsx:383
 #: src/pages/montage/MontageProjectList.tsx:106
 #: src/pages/montage/MontageProjectList.tsx:107
@@ -4755,7 +4772,7 @@ msgstr "显示全部"
 msgid "普通使用不需要打开这一节。"
 msgstr "普通使用不需要打开这一节。"
 
-#: src/pages/HistoryPage.tsx:211
+#: src/pages/HistoryPage.tsx:217
 msgid "暂不支持下载后自动分析，下载完成可在资料库里开始分析"
 msgstr "暂不支持下载后自动分析，下载完成可在资料库里开始分析"
 
@@ -4779,7 +4796,7 @@ msgstr "暂不支持导出复盘网页"
 msgid "暂不支持把导出的文件保存到磁盘"
 msgstr "暂不支持把导出的文件保存到磁盘"
 
-#: src/pages/library/libraryColumns.tsx:208
+#: src/pages/library/libraryColumns.tsx:222
 msgid "暂不支持重新定位 Demo 文件"
 msgstr "暂不支持重新定位 Demo 文件"
 
@@ -5043,17 +5060,17 @@ msgid "本次修改"
 msgstr "本次修改"
 
 #. placeholder {0}: counts.downloaded
-#: src/pages/HistoryPage.tsx:174
+#: src/pages/HistoryPage.tsx:180
 msgid "本页已入库 {0}"
 msgstr "本页已入库 {0}"
 
 #. placeholder {0}: counts.expired
-#: src/pages/HistoryPage.tsx:177
+#: src/pages/HistoryPage.tsx:183
 msgid "本页已过期 {0}"
 msgstr "本页已过期 {0}"
 
 #. placeholder {0}: counts.available
-#: src/pages/HistoryPage.tsx:171
+#: src/pages/HistoryPage.tsx:177
 msgid "本页未下载 {0}"
 msgstr "本页未下载 {0}"
 
@@ -5066,8 +5083,8 @@ msgid "条件"
 msgstr "条件"
 
 #: src/pages/evidence/EvidenceDetail.tsx:141
-#: src/pages/library/libraryColumns.tsx:130
-#: src/pages/library/libraryColumns.tsx:131
+#: src/pages/library/libraryColumns.tsx:132
+#: src/pages/library/libraryColumns.tsx:133
 #: src/pages/library/LibraryFilters.tsx:172
 #: src/pages/library/LibraryInspector.tsx:227
 msgid "来源"
@@ -5094,7 +5111,7 @@ msgstr "来自方案 #{agentPlanId}"
 msgid "极简"
 msgstr "极简"
 
-#: src/pages/library/libraryColumns.tsx:220
+#: src/pages/library/libraryColumns.tsx:232
 #: src/pages/match/views/OverviewView.tsx:224
 msgid "查看"
 msgstr "查看"
@@ -5257,7 +5274,7 @@ msgstr "正在分析节拍"
 msgid "正在加载输出"
 msgstr "正在加载输出"
 
-#: src/pages/HistoryPage.tsx:159
+#: src/pages/HistoryPage.tsx:165
 msgid "正在同步…"
 msgstr "正在同步…"
 
@@ -5373,7 +5390,7 @@ msgstr "正在读取方案"
 msgid "正在读取比赛分析"
 msgstr "正在读取比赛分析"
 
-#: src/pages/HistoryPage.tsx:258
+#: src/pages/HistoryPage.tsx:264
 msgid "正在读取比赛历史"
 msgstr "正在读取比赛历史"
 
@@ -5566,8 +5583,8 @@ msgstr "比分 {0} 比 {1}"
 
 #: src/pages/history/MatchHistoryTable.tsx:117
 #: src/pages/history/MatchHistoryTable.tsx:118
-#: src/pages/library/libraryColumns.tsx:73
-#: src/pages/library/libraryColumns.tsx:74
+#: src/pages/library/libraryColumns.tsx:75
+#: src/pages/library/libraryColumns.tsx:76
 #: src/pages/PlayersPage.tsx:99
 #: src/pages/PlayersPage.tsx:100
 msgid "比赛"
@@ -5583,12 +5600,11 @@ msgid "比赛信息"
 msgstr "比赛信息"
 
 #: src/app/command/commandRegistry.ts:174
-#: src/app/shell/navigation.tsx:84
-#: src/pages/HistoryPage.tsx:132
+#: src/pages/HistoryPage.tsx:138
 msgid "比赛历史"
 msgstr "比赛历史"
 
-#: src/pages/HistoryPage.tsx:226
+#: src/pages/HistoryPage.tsx:232
 msgid "比赛历史没能读出来：{readError}"
 msgstr "比赛历史没能读出来：{readError}"
 
@@ -5833,8 +5849,8 @@ msgstr "添加 {0} 段"
 msgid "添加到时间轴"
 msgstr "添加到时间轴"
 
-#: src/pages/LibraryPage.tsx:222
-#: src/pages/LibraryPage.tsx:223
+#: src/pages/LibraryPage.tsx:270
+#: src/pages/LibraryPage.tsx:271
 msgid "添加标签"
 msgstr "添加标签"
 
@@ -5853,7 +5869,7 @@ msgid "添加监听目录"
 msgstr "添加监听目录"
 
 #: src/pages/library/WatchDirectoriesDrawer.tsx:84
-#: src/pages/LibraryPage.tsx:191
+#: src/pages/LibraryPage.tsx:239
 #: src/pages/settings/FilesSection.tsx:244
 msgid "添加目录"
 msgstr "添加目录"
@@ -6179,8 +6195,8 @@ msgstr "版本历史"
 
 #: src/pages/history/MatchHistoryTable.tsx:145
 #: src/pages/history/MatchHistoryTable.tsx:146
-#: src/pages/library/libraryColumns.tsx:138
-#: src/pages/library/libraryColumns.tsx:139
+#: src/pages/library/libraryColumns.tsx:140
+#: src/pages/library/libraryColumns.tsx:141
 #: src/pages/library/LibraryFilters.tsx:171
 msgid "状态"
 msgstr "状态"
@@ -6200,7 +6216,7 @@ msgid "玩家档案"
 msgstr "玩家档案"
 
 #: src/app/command/commandRegistry.ts:178
-#: src/app/shell/navigation.tsx:85
+#: src/app/shell/navigation.tsx:82
 #: src/pages/PlayersPage.tsx:223
 #: src/pages/PlayersPage.tsx:303
 msgid "玩家目录"
@@ -6340,8 +6356,8 @@ msgstr "百分比"
 
 #: src/pages/library/libraryFormat.ts:156
 #: src/pages/library/WatchDirectoriesDrawer.tsx:75
-#: src/pages/LibraryPage.tsx:324
-#: src/pages/LibraryPage.tsx:330
+#: src/pages/LibraryPage.tsx:390
+#: src/pages/LibraryPage.tsx:396
 #: src/pages/settings/FilesSection.tsx:178
 msgid "监听目录"
 msgstr "监听目录"
@@ -6483,7 +6499,7 @@ msgstr "碰撞几何未知"
 msgid "磁盘空间不足"
 msgstr "磁盘空间不足"
 
-#: src/pages/LibraryPage.tsx:310
+#: src/pages/LibraryPage.tsx:376
 msgid "视图"
 msgstr "视图"
 
@@ -6721,6 +6737,10 @@ msgstr "精剪模式"
 msgid "系统里注册了录制需要的视频与音频编码器"
 msgstr "系统里注册了录制需要的视频与音频编码器"
 
+#: src/pages/LibraryPage.tsx:110
+msgid "素材"
+msgstr "素材"
+
 #: src/pages/home/FirstRunStrip.tsx:55
 msgid "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
 msgstr "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
@@ -6737,6 +6757,12 @@ msgstr "素材已经到头了，没有可用的余量"
 #: src/pages/editor/MediaLibraryPanel.tsx:129
 msgid "素材库"
 msgstr "素材库"
+
+#: src/pages/LibraryPage.tsx:113
+#: src/pages/LibraryPage.tsx:354
+#: src/pages/LibraryPage.tsx:358
+msgid "素材视图"
+msgstr "素材视图"
 
 #: src/pages/montage/ClipTrimDrawer.tsx:199
 msgid "素材长度"
@@ -6967,8 +6993,8 @@ msgstr "草案"
 msgid "行为边界"
 msgstr "行为边界"
 
-#: src/pages/library/libraryColumns.tsx:146
-#: src/pages/library/libraryColumns.tsx:147
+#: src/pages/library/libraryColumns.tsx:148
+#: src/pages/library/libraryColumns.tsx:149
 msgid "行操作"
 msgstr "行操作"
 
@@ -6980,7 +7006,7 @@ msgstr "行方 ＼ 列方"
 msgid "行方与列方"
 msgstr "行方与列方"
 
-#: src/pages/LibraryPage.tsx:313
+#: src/pages/LibraryPage.tsx:379
 msgid "表格"
 msgstr "表格"
 
@@ -7059,7 +7085,7 @@ msgid "记录已移除，文件仍在原处。"
 msgstr "记录已移除，文件仍在原处。"
 
 #: src/app/command/commandRegistry.ts:209
-#: src/app/shell/navigation.tsx:108
+#: src/app/shell/navigation.tsx:105
 #: src/pages/SettingsPage.tsx:82
 msgid "设置与诊断"
 msgstr "设置与诊断"
@@ -7087,7 +7113,7 @@ msgid "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有�
 msgstr "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有一场进入证据索引，所以任何条件都会是零命中。"
 
 #: src/app/command/commandRegistry.ts:181
-#: src/app/shell/navigation.tsx:86
+#: src/app/shell/navigation.tsx:83
 #: src/pages/EvidencePage.tsx:163
 msgid "证据检索"
 msgstr "证据检索"
@@ -7285,7 +7311,7 @@ msgstr "读取后台任务失败。"
 msgid "读取成品文件列表失败。"
 msgstr "读取成品文件列表失败。"
 
-#: src/pages/HistoryPage.tsx:224
+#: src/pages/HistoryPage.tsx:230
 msgid "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
 msgstr "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
 
@@ -7325,7 +7351,7 @@ msgstr "购买条数"
 msgid "购买金额统计不可用"
 msgstr "购买金额统计不可用"
 
-#: src/app/shell/navigation.tsx:81
+#: src/app/shell/navigation.tsx:79
 #: src/pages/MatchWorkspacePage.tsx:203
 msgid "资料库"
 msgstr "资料库"
@@ -7573,7 +7599,7 @@ msgstr "还没有可以录制的剪辑单"
 msgid "还没有可播放的素材"
 msgstr "还没有可播放的素材"
 
-#: src/pages/HistoryPage.tsx:262
+#: src/pages/HistoryPage.tsx:268
 msgid "还没有可显示的对局"
 msgstr "还没有可显示的对局"
 
@@ -8160,7 +8186,7 @@ msgstr "这次恢复没有完成：{actionError}"
 msgid "这次操作没有完成：{writeError}"
 msgstr "这次操作没有完成：{writeError}"
 
-#: src/pages/HistoryPage.tsx:242
+#: src/pages/HistoryPage.tsx:248
 msgid "这次操作没有成功：{writeError}"
 msgstr "这次操作没有成功：{writeError}"
 
@@ -8551,7 +8577,7 @@ msgstr "配置文件没有损坏，不需要恢复"
 msgid "配置文件读不出来"
 msgstr "配置文件读不出来"
 
-#: src/pages/LibraryPage.tsx:162
+#: src/pages/LibraryPage.tsx:208
 msgid "配置还没读出来，稍后再试"
 msgstr "配置还没读出来，稍后再试"
 
@@ -8602,7 +8628,7 @@ msgid "重新发起"
 msgstr "重新发起"
 
 #: src/pages/editor/MediaLibraryPanel.tsx:193
-#: src/pages/library/libraryColumns.tsx:210
+#: src/pages/library/libraryColumns.tsx:224
 msgid "重新定位"
 msgstr "重新定位"
 
@@ -8696,7 +8722,7 @@ msgstr "重新选择"
 #: src/pages/evidence/EvidenceAnnotations.tsx:56
 #: src/pages/evidence/EvidenceResults.tsx:125
 #: src/pages/GuidePage.tsx:96
-#: src/pages/HistoryPage.tsx:223
+#: src/pages/HistoryPage.tsx:229
 #: src/pages/home/ActiveProjectsPanel.tsx:84
 #: src/pages/home/PendingPlansPanel.tsx:94
 #: src/pages/home/RecentMatchesPanel.tsx:57
@@ -8708,7 +8734,7 @@ msgstr "重新选择"
 #: src/pages/library/LibraryInspector.tsx:184
 #: src/pages/library/LibraryTable.tsx:102
 #: src/pages/library/WatchDirectoriesDrawer.tsx:92
-#: src/pages/LibraryPage.tsx:365
+#: src/pages/LibraryPage.tsx:431
 #: src/pages/match/views/HighlightsView.tsx:142
 #: src/pages/match/views/ReplayView.tsx:239
 #: src/pages/match/views/ReviewView.tsx:116

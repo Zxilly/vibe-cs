@@ -64,6 +64,8 @@ import {
   useUpdateDemoMetadataBatch,
 } from '../data/demos';
 import { dataErrorMessage } from '../data/errors';
+import { useCreateAgentPlan } from '../data/plans';
+import { useProjectCollections } from '../data/projectCollections';
 import { Alert } from '../design/feedback';
 import { OverflowMenu, Page, SelectionBar, Toolbar, useShellCollapsed } from '../design/layout';
 import { Button, Seg } from '../design/primitives';
@@ -93,15 +95,44 @@ import {
   type LibraryView,
 } from './library/libraryQuery';
 import { alsoDisabled, unavailableAction, useLibraryServiceAction } from './library/serviceAction';
+import { HistoryWorkspace } from './HistoryPage';
 
 /** One overlay at a time — five dialogs and one drawer. */
 type LibraryOverlay = 'import' | 'watch' | 'watch-add' | 'columns' | 'save-view' | 'delete' | null;
 
 export function LibraryPage() {
   const [params, setParams] = useSearchParams();
+  if (params.get('view') !== 'steam') return <DemoLibraryPage />;
+  return (
+    <Page
+      scroll={false}
+      toolbar={
+        <Toolbar title={<Trans>素材</Trans>} meta={<Trans>导入、监听目录与 Steam 下载</Trans>}>
+          <Seg
+            name="library-section"
+            aria-label={t`素材视图`}
+            value="steam"
+            options={[
+              { value: 'demos', label: t`Demo 资料库` },
+              { value: 'steam', label: t`Steam 下载` },
+            ]}
+            onChange={(value) => setParams(value === 'steam' ? { view: 'steam' } : { view: 'table' })}
+          />
+        </Toolbar>
+      }
+    >
+      <HistoryWorkspace embedded />
+    </Page>
+  );
+}
+
+function DemoLibraryPage() {
+  const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const collapsed = useShellCollapsed();
   const service = useLibraryServiceAction();
+  const createPlan = useCreateAgentPlan();
+  const collections = useProjectCollections();
 
   const address = readLibraryAddress(params);
   const query = useMemo(() => libraryDemoQuery(address), [
@@ -157,6 +188,21 @@ export function LibraryPage() {
     startAnalysis.mutate(demoIds);
   };
 
+  const createProject = (demo: DemoSummary) => {
+    void createPlan.mutateAsync({ title: demo.display_name, status: 'draft', shots: [], origin: null })
+      .then((plan) => {
+        const projectId = `plan:${plan.id}`;
+        collections.add(projectId, {
+          id: `${demo.id}:selection:match`, demoId: demo.id, matchLabel: demo.display_name,
+          kind: 'selection', label: t`整场比赛`, round: null, playerId: null,
+          highlightId: null, evidenceId: null, startTick: null, endTick: null,
+          addedAt: new Date().toISOString(),
+        });
+        void navigate(`/projects/${encodeURIComponent(projectId)}?step=select`);
+      })
+      .catch(() => undefined);
+  };
+
   const setWatchDirectories = async (paths: readonly string[]) => {
     const current = config.data;
     if (current === undefined) throw new Error(t`配置还没读出来，稍后再试`);
@@ -172,9 +218,11 @@ export function LibraryPage() {
           analyse([demo.id]);
         },
         analyseButtonProps: alsoDisabled(service.buttonProps, startAnalysis.isPending),
+        onCreateProject: createProject,
+        createButtonProps: alsoDisabled(service.buttonProps, createPlan.isPending),
         serviceSuffix: service.suffix,
       }),
-    [service.buttonProps, service.suffix, startAnalysis.isPending],
+    [createPlan.isPending, service.buttonProps, service.suffix, startAnalysis.isPending],
   );
 
   const importAction = (
@@ -301,6 +349,24 @@ export function LibraryPage() {
           // `primary` and never folds at all (§8).
           inlineActionsWhenCollapsed={2}
           actions={[
+            {
+              id: 'section',
+              label: <Trans>素材视图</Trans>,
+              control: (
+                <Seg
+                  name="library-section"
+                  aria-label={t`素材视图`}
+                  value="demos"
+                  options={[
+                    { value: 'demos', label: t`Demo 资料库` },
+                    { value: 'steam', label: t`Steam 下载` },
+                  ]}
+                  onChange={(value) => {
+                    if (value === 'steam') setParams({ view: 'steam' });
+                  }}
+                />
+              ),
+            },
             {
               id: 'view',
               label: <Trans>切换视图</Trans>,

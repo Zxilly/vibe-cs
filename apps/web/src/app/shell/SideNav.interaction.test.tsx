@@ -157,7 +157,6 @@ describe('tab order', () => {
     expect(stops).toEqual([
       'home',
       'library',
-      'history',
       'players',
       'evidence',
       'projects',

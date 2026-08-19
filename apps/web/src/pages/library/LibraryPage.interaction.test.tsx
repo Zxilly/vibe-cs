@@ -63,6 +63,45 @@ describe('the two §7 views', () => {
     });
     expect(document.querySelector('[data-library-table]')).toBeNull();
   });
+
+  it('opens Steam downloads inside the same library route', async () => {
+    renderLibrary({
+      at: '/library?view=steam',
+      seed: ONLINE,
+      client: {
+        listMatchHistory: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50 }),
+        listActiveMatchDownloadJobs: () => Promise.resolve([]),
+      },
+    });
+
+    expect(await screen.findByText('比赛历史')).toBeTruthy();
+    expect(document.querySelector('[data-steam-library]')).not.toBeNull();
+    expect(screen.getByRole('radio', { name: 'Steam 下载' }).getAttribute('data-state')).toBe('checked');
+  });
+});
+
+describe('new project from a material row', () => {
+  it('creates a plan directly from the match and opens its selection step', async () => {
+    const created: unknown[] = [];
+    renderLibrary({
+      seed: ONLINE,
+      client: {
+        createAgentPlan: (draft) => {
+          created.push(draft);
+          return Promise.resolve({
+            id: 'from-demo', title: draft.title, status: draft.status, revision: 1,
+            shots: draft.shots, origin: [],
+            agent_baseline: { revision: 1, captured_at: '2026-08-20T00:00:00Z', shots: draft.shots },
+            created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
+          });
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '新建作品' }));
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(created[0]).toMatchObject({ title: 'Aurora vs Meridian', shots: [] });
+  });
 });
 
 describe('the selection', () => {

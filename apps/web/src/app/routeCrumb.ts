@@ -101,6 +101,16 @@ function groupLabel(id: ShellNavItemId): MessageDescriptor | null {
 export function routeCrumb(pathname: string, search = ''): readonly CrumbSegment[] {
   const path = normalizePath(pathname);
 
+  if (path === '/library' && new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('view') === 'steam') {
+    const library = navItem('library');
+    const group = groupLabel('library');
+    return [
+      ...(group === null ? [] : [{ label: group }]),
+      ...(library === null ? [] : [{ label: library.label, to: library.to }]),
+      { label: msg`Steam 下载` },
+    ];
+  }
+
   const override = CRUMB_OVERRIDES.find((entry) => entry.pattern.test(path));
   if (override !== undefined) {
     const parent = navItem(override.base);

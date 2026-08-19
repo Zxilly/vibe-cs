@@ -48,8 +48,10 @@ import { unavailableAction, type ServiceActionButtonProps } from './serviceActio
 export interface LibraryColumnHandlers {
   /** 「分析」 on an unanalysed row. */
   readonly onAnalyse: (demo: DemoSummary) => void;
+  readonly onCreateProject: (demo: DemoSummary) => void;
   /** Disabled + reason while the local service is down (「· 需要服务」). */
   readonly analyseButtonProps: ServiceActionButtonProps;
+  readonly createButtonProps: ServiceActionButtonProps;
   /** The tail the artboard appends to a blocked action's label. */
   readonly serviceSuffix: ReactNode | undefined;
 }
@@ -146,7 +148,7 @@ export function libraryColumns(
       headerLabel: t`行操作`,
       configLabel: t`行操作`,
       hideable: false,
-      width: '90px',
+      width: '190px',
       cell: (demo) => <RowAction demo={demo} handlers={handlers} />,
     },
   ];
@@ -200,8 +202,20 @@ function RowAction({
   demo: DemoSummary;
   handlers: LibraryColumnHandlers;
 }) {
+  const create = (
+    <Button
+      size="sm"
+      variant="secondary"
+      {...handlers.createButtonProps}
+      onClick={() => handlers.onCreateProject(demo)}
+    >
+      <Trans>新建作品</Trans>
+    </Button>
+  );
+
+  let existing: ReactNode;
   if (isDemoFileMissing(demo)) {
-    return (
+    existing = (
       <Button
         size="sm"
         variant="ghost"
@@ -210,39 +224,37 @@ function RowAction({
         <Trans>重新定位</Trans>
       </Button>
     );
-  }
-
-  if (demo.lifecycle_status === 'analyzing') {
+  } else if (demo.lifecycle_status === 'analyzing') {
     // 「查看」 — the run itself lives on the delivery task list, which is where
     // §7 puts 「分析、录制与导出的执行记录」.
-    return (
+    existing = (
       <RouteLink to="/delivery?view=tasks">
         <Trans>查看</Trans>
       </RouteLink>
     );
-  }
-
-  if (isDemoAnalysable(demo)) {
-    return (
+  } else if (isDemoAnalysable(demo)) {
+    existing = (
       <RouteLink to={`/match/${encodeURIComponent(demo.id)}`}>
         <Trans>工作区</Trans>
       </RouteLink>
     );
+  } else {
+    existing = (
+      <Button
+        size="sm"
+        variant="ghost"
+        {...handlers.analyseButtonProps}
+        onClick={() => {
+          handlers.onAnalyse(demo);
+        }}
+      >
+        {/* A verb — Analyze. The bare 「分析」 msgid is the task-kind noun
+            (Analysis) in `domain/task/taskVocabulary`. */}
+        <Trans context="row-action">分析</Trans>
+        {handlers.serviceSuffix}
+      </Button>
+    );
   }
 
-  return (
-    <Button
-      size="sm"
-      variant="ghost"
-      {...handlers.analyseButtonProps}
-      onClick={() => {
-        handlers.onAnalyse(demo);
-      }}
-    >
-      {/* A verb — Analyze. The bare 「分析」 msgid is the task-kind noun
-          (Analysis) in `domain/task/taskVocabulary`. */}
-      <Trans context="row-action">分析</Trans>
-      {handlers.serviceSuffix}
-    </Button>
-  );
+  return <span className="flex items-center justify-end gap-2">{existing}{create}</span>;
 }

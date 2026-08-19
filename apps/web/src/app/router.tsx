@@ -29,7 +29,7 @@
  *   /outputs          → /delivery?view=outputs
  *   /activity         → /delivery?view=tasks    the two merge into one route
  *   /evidence-search  → /evidence
- *   /match-history    → /history
+ *   /match-history    → /library?view=steam
  *   /queue            → /projects           recording now belongs to a project
  *   /studio/editor    → /editor
  *
@@ -117,7 +117,7 @@ export const LEGACY_REDIRECTS: Readonly<Record<string, string>> = {
   '/outputs': '/delivery?view=outputs',
   '/activity': '/delivery?view=tasks',
   '/evidence-search': '/evidence',
-  '/match-history': '/history',
+  '/match-history': '/library?view=steam',
   '/queue': '/projects',
   '/studio/editor': '/editor',
 };
@@ -199,7 +199,7 @@ export function createAppRoutes(pages: RoutePages): RouteObject[] {
       children: [
         { id: 'home', index: true, element: pages.home },
         { id: 'library', path: 'library', element: pages.library },
-        { id: 'history', path: 'history', element: pages.history },
+        { id: 'history', path: 'history', element: <Navigate to="/library?view=steam" replace /> },
         { id: 'players', path: 'players', element: pages.players },
         { id: 'player-profile', path: 'players/:playerId', element: pages.playerProfile },
         { id: 'evidence', path: 'evidence', element: pages.evidence },

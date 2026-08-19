@@ -35,7 +35,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { dataErrorMessage } from '../data/errors';
@@ -67,6 +67,10 @@ const HISTORY_PAGE_SIZE = 50;
 const DOWNLOAD_POLL_MS = 2_000;
 
 export function HistoryPage() {
+  return <HistoryWorkspace />;
+}
+
+export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boolean | undefined }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const service = useServiceAction();
@@ -125,10 +129,12 @@ export function HistoryPage() {
     dataErrorMessage(sync.error) ?? dataErrorMessage(download.error) ?? dataErrorMessage(cancel.error);
 
   return (
-    <Page
+    <HistoryFrame
+      embedded={embedded}
       scroll={false}
       toolbar={
         <Toolbar
+          height={embedded ? 'bar' : 'topbar'}
           title={<Trans>比赛历史</Trans>}
           meta={
             syncedAt === null ? (
@@ -284,8 +290,35 @@ export function HistoryPage() {
           }
         />
       </div>
-    </Page>
+    </HistoryFrame>
   );
+}
+
+function HistoryFrame({
+  embedded,
+  toolbar,
+  bar,
+  footer,
+  children,
+}: {
+  readonly embedded: boolean;
+  readonly scroll: false;
+  readonly toolbar: ReactNode;
+  readonly bar: ReactNode;
+  readonly footer: ReactNode;
+  readonly children: ReactNode;
+}) {
+  if (embedded) {
+    return (
+      <section data-steam-library className="flex min-h-0 flex-1 flex-col">
+        {toolbar}
+        {bar}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+        {footer}
+      </section>
+    );
+  }
+  return <Page scroll={false} toolbar={toolbar} bar={bar} footer={footer}>{children}</Page>;
 }
 
 /**

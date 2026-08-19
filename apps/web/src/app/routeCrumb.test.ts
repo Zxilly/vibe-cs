@@ -51,7 +51,8 @@ describe('routeCrumb', () => {
 
   it('opens with the rail group and closes with the entry', () => {
     expect(crumb('/library')).toBe('资料库 › Demo 资料库');
-    expect(crumb('/history')).toBe('资料库 › 比赛历史');
+    expect(crumb('/library', '?view=steam')).toBe('资料库 › Demo 资料库 › Steam 下载');
+    expect(crumb('/history')).toBe('资料库 › Demo 资料库');
     expect(crumb('/agent')).toBe('');
     expect(crumb('/recording')).toBe('');
     expect(crumb('/editor')).toBe('');

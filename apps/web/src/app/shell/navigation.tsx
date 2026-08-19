@@ -35,7 +35,6 @@ import {
   Archive,
   Clapperboard,
   Folder,
-  History,
   Home,
   Search,
   Settings,
@@ -48,7 +47,6 @@ import { UI_TERMINOLOGY } from '../../terminology';
 export type ShellNavItemId =
   | 'home'
   | 'library'
-  | 'history'
   | 'players'
   | 'evidence'
   | 'projects'
@@ -81,7 +79,6 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
     label: msg`资料库`,
     items: [
       { id: 'library', label: msg`Demo 资料库`, icon: Folder, to: '/library' },
-      { id: 'history', label: msg`比赛历史`, icon: History, to: '/history' },
       { id: 'players', label: msg`玩家目录`, icon: UsersRound, to: '/players' },
       { id: 'evidence', label: msg`证据检索`, icon: Search, to: '/evidence' },
     ],
@@ -123,7 +120,7 @@ export const SHELL_NAV_ITEMS: readonly ShellNavItem[] = [
 const PREFIX_RULES: readonly (readonly [string, ShellNavItemId])[] = [
   ['/library', 'library'],
   ['/match', 'library'],
-  ['/history', 'history'],
+  ['/history', 'library'],
   ['/players', 'players'],
   ['/evidence', 'evidence'],
   ['/projects', 'projects'],

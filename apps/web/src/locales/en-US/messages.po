@@ -105,7 +105,7 @@ msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, one {# project} other {# projects}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
-#: src/pages/LibraryPage.tsx:296
+#: src/pages/LibraryPage.tsx:344
 msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, one {# watched folder} other {# watched folders}}"
 
@@ -130,7 +130,7 @@ msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, one {# round} other {# rounds}}"
 
 #. placeholder {0}: list.data?.total ?? 0
-#: src/pages/LibraryPage.tsx:294
+#: src/pages/LibraryPage.tsx:342
 msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, one {# match} other {# matches}}"
 
@@ -170,7 +170,7 @@ msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, one {Last # session} other {Last # sessions}}"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:216
+#: src/pages/LibraryPage.tsx:264
 msgid "{0, plural, other {分析选中的 # 场}}"
 msgstr "{0, plural, one {Analyze # selected match} other {Analyze # selected matches}}"
 
@@ -818,9 +818,11 @@ msgid "Demo 内容一致"
 msgstr "Demo content matches"
 
 #: src/app/command/commandRegistry.ts:168
-#: src/app/shell/navigation.tsx:83
+#: src/app/shell/navigation.tsx:81
 #: src/pages/home/RecentMatchesPanel.tsx:52
-#: src/pages/LibraryPage.tsx:291
+#: src/pages/LibraryPage.tsx:116
+#: src/pages/LibraryPage.tsx:339
+#: src/pages/LibraryPage.tsx:361
 msgid "Demo 资料库"
 msgstr "Demo library"
 
@@ -914,20 +916,26 @@ msgid "Review 分区"
 msgstr "Review sections"
 
 #. placeholder {0}: formatSyncedAt(syncedAt)
-#: src/pages/HistoryPage.tsx:137
+#: src/pages/HistoryPage.tsx:143
 msgid "Steam · 上次同步 {0}"
 msgstr "Steam · last synced {0}"
 
-#: src/pages/HistoryPage.tsx:135
+#: src/pages/HistoryPage.tsx:141
 msgid "Steam 上的对局记录与回放下载"
 msgstr "Match records on Steam and demo downloads"
+
+#: src/app/routeCrumb.ts:110
+#: src/pages/LibraryPage.tsx:117
+#: src/pages/LibraryPage.tsx:362
+msgid "Steam 下载"
+msgstr "Steam downloads"
 
 #: src/pages/history/MatchHistoryTable.tsx:194
 msgid "Steam 比赛历史"
 msgstr "Steam match history"
 
-#: src/pages/HistoryPage.tsx:144
-#: src/pages/HistoryPage.tsx:147
+#: src/pages/HistoryPage.tsx:150
+#: src/pages/HistoryPage.tsx:153
 msgid "Steam 设置"
 msgstr "Steam settings"
 
@@ -977,7 +985,7 @@ msgstr "Tick range within the Demo"
 msgid "tick 未定位"
 msgstr "tick not located"
 
-#: src/pages/HistoryPage.tsx:186
+#: src/pages/HistoryPage.tsx:192
 msgid "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 msgstr "The official Valve link. Connectors for platforms such as FACEIT are not available yet"
 
@@ -1052,11 +1060,11 @@ msgstr "Download"
 msgid "下载中"
 msgstr "Downloading"
 
-#: src/pages/HistoryPage.tsx:181
+#: src/pages/HistoryPage.tsx:187
 msgid "下载中 {activeCount}"
 msgstr "{activeCount} downloading"
 
-#: src/pages/HistoryPage.tsx:213
+#: src/pages/HistoryPage.tsx:219
 msgid "下载后自动分析"
 msgstr "Analyze after download"
 
@@ -1065,7 +1073,7 @@ msgid "下载失败"
 msgstr "Download failed"
 
 #. placeholder {0}: selected.size
-#: src/pages/HistoryPage.tsx:201
+#: src/pages/HistoryPage.tsx:207
 msgid "下载选中的 {0} 场"
 msgstr "Download the {0} selected matches"
 
@@ -1209,7 +1217,7 @@ msgstr "The binary replay exceeds the 128 MiB limit"
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "The binary replay exceeds the 128 MiB limit."
 
-#: src/app/shell/navigation.tsx:98
+#: src/app/shell/navigation.tsx:95
 msgid "交付"
 msgstr "Delivery"
 
@@ -1647,7 +1655,7 @@ msgstr "Select all on this page"
 msgid "全部"
 msgstr "All"
 
-#: src/pages/HistoryPage.tsx:168
+#: src/pages/HistoryPage.tsx:174
 msgid "全部 {total}"
 msgstr "All {total}"
 
@@ -1763,7 +1771,7 @@ msgstr "{0} items"
 msgid "共 {total} 名选手"
 msgstr "{total} players in total"
 
-#: src/pages/HistoryPage.tsx:282
+#: src/pages/HistoryPage.tsx:288
 msgid "共 {total} 场对局"
 msgstr "{total} matches in total"
 
@@ -2014,7 +2022,7 @@ msgstr "Elimination"
 msgid "分析"
 msgstr "Analysis"
 
-#: src/pages/library/libraryColumns.tsx:244
+#: src/pages/library/libraryColumns.tsx:253
 msgctxt "row-action"
 msgid "分析"
 msgstr "Analyze"
@@ -2103,7 +2111,7 @@ msgstr "Resolution"
 msgid "分页"
 msgstr "Pagination"
 
-#: src/pages/LibraryPage.tsx:306
+#: src/pages/LibraryPage.tsx:372
 msgid "切换视图"
 msgstr "Switch view"
 
@@ -2155,7 +2163,7 @@ msgstr "Delete conversation"
 msgid "删除没有成功"
 msgstr "The delete did not succeed"
 
-#: src/pages/LibraryPage.tsx:248
+#: src/pages/LibraryPage.tsx:296
 msgid "删除记录"
 msgstr "Delete records"
 
@@ -2172,7 +2180,7 @@ msgstr "Delete this conversation?"
 msgid "别贴这么近"
 msgstr "Not so close"
 
-#: src/app/shell/navigation.tsx:91
+#: src/app/shell/navigation.tsx:88
 msgid "制作"
 msgstr "Create"
 
@@ -2318,7 +2326,7 @@ msgstr "Single-lane preview — no overlays, no grade"
 msgid "占用"
 msgstr "Usage"
 
-#: src/pages/LibraryPage.tsx:314
+#: src/pages/LibraryPage.tsx:380
 msgid "卡片"
 msgstr "Cards"
 
@@ -2326,7 +2334,7 @@ msgstr "Cards"
 msgid "压到 30 秒"
 msgstr "Cut it to 30 seconds"
 
-#: src/pages/HistoryPage.tsx:271
+#: src/pages/HistoryPage.tsx:277
 msgid "去 Demo 资料库"
 msgstr "Go to the demo library"
 
@@ -2347,7 +2355,7 @@ msgstr "Drop the moving shots"
 msgid "去设置"
 msgstr "Open settings"
 
-#: src/pages/HistoryPage.tsx:234
+#: src/pages/HistoryPage.tsx:240
 msgid "去设置检查 Steam 连接"
 msgstr "Check the Steam connection in Settings"
 
@@ -2548,15 +2556,15 @@ msgstr "The montage list could not be opened: {loadError}"
 msgid "合辑工程"
 msgstr "Montage projects"
 
-#: src/pages/HistoryPage.tsx:240
+#: src/pages/HistoryPage.tsx:246
 msgid "同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。"
 msgstr "Both the sync and the download go through the Steam credentials, so when those expire the two fail together."
 
-#: src/pages/HistoryPage.tsx:264
+#: src/pages/HistoryPage.tsx:270
 msgid "同步之后，这里会列出账号最近的竞技对局。Valve 只保留大约 {DEMO_RETENTION_DAYS} 天内的回放， 过期的对局会留在列表里但不再可下载。"
 msgstr "After a sync, this lists the account’s recent competitive matches. Valve keeps only about {DEMO_RETENTION_DAYS} days of Demo files, so an expired match stays in the list but can no longer be downloaded."
 
-#: src/pages/HistoryPage.tsx:159
+#: src/pages/HistoryPage.tsx:165
 msgid "同步最近比赛"
 msgstr "Sync recent matches"
 
@@ -2661,8 +2669,8 @@ msgstr "Back to the evidence view"
 msgid "回到资料库"
 msgstr "Back to the library"
 
-#: src/pages/library/libraryColumns.tsx:115
-#: src/pages/library/libraryColumns.tsx:116
+#: src/pages/library/libraryColumns.tsx:117
+#: src/pages/library/libraryColumns.tsx:118
 #: src/pages/match/views/DuelsView.tsx:251
 #: src/pages/match/views/DuelsView.tsx:252
 #: src/pages/match/views/TeamsView.tsx:235
@@ -2857,8 +2865,8 @@ msgstr "Pick a result in the evidence view and write down why it is worth cuttin
 #: src/pages/evidence/EvidenceConditions.tsx:84
 #: src/pages/history/MatchHistoryTable.tsx:125
 #: src/pages/history/MatchHistoryTable.tsx:126
-#: src/pages/library/libraryColumns.tsx:85
-#: src/pages/library/libraryColumns.tsx:86
+#: src/pages/library/libraryColumns.tsx:87
+#: src/pages/library/libraryColumns.tsx:88
 #: src/pages/library/LibraryFilters.tsx:170
 #: src/pages/players/PlayerMapTable.tsx:34
 #: src/pages/players/PlayerMapTable.tsx:35
@@ -3146,9 +3154,13 @@ msgstr "Import"
 #: src/pages/home/FirstRunStrip.tsx:59
 #: src/pages/HomePage.tsx:88
 #: src/pages/library/ImportDemoDialog.tsx:93
-#: src/pages/LibraryPage.tsx:182
+#: src/pages/LibraryPage.tsx:230
 msgid "导入 Demo"
 msgstr "Import Demo"
+
+#: src/pages/LibraryPage.tsx:110
+msgid "导入、监听目录与 Steam 下载"
+msgstr "Import, watched folders, and Steam downloads"
 
 #: src/design/data/Empty.tsx:137
 msgid "导入一个 .dem，或添加一个监听目录自动发现"
@@ -3184,12 +3196,12 @@ msgstr "Export"
 msgid "导出 HTML"
 msgstr "Export HTML"
 
-#: src/pages/LibraryPage.tsx:243
+#: src/pages/LibraryPage.tsx:291
 msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 msgstr "Export returns a file, and the desktop build has no command to save it to disk yet"
 
 #: src/pages/library/LibraryFilters.tsx:207
-#: src/pages/LibraryPage.tsx:245
+#: src/pages/LibraryPage.tsx:293
 msgid "导出元数据"
 msgstr "Export metadata"
 
@@ -3302,7 +3314,7 @@ msgstr "Properties"
 msgid "属性 · {0}"
 msgstr "Properties · {0}"
 
-#: src/pages/library/libraryColumns.tsx:228
+#: src/pages/library/libraryColumns.tsx:238
 msgid "工作区"
 msgstr "Workspace"
 
@@ -3315,7 +3327,7 @@ msgid "工作区里没有正在进行的对象"
 msgstr "Nothing is going on in the workspace"
 
 #: src/app/command/commandRegistry.ts:165
-#: src/app/shell/navigation.tsx:77
+#: src/app/shell/navigation.tsx:75
 #: src/pages/HomePage.tsx:58
 msgid "工作台"
 msgstr "Dashboard"
@@ -3485,12 +3497,12 @@ msgid "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
 msgstr "{0} selected · up to {PLAYER_COMPARE_LIMIT} can be compared"
 
 #. placeholder {0}: selected.size
-#: src/pages/HistoryPage.tsx:193
+#: src/pages/HistoryPage.tsx:199
 msgid "已选 {0} 场"
 msgstr "{0} matches selected"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:203
+#: src/pages/LibraryPage.tsx:251
 msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "{0} matches selected · up to {DEMO_SELECTION_LIMIT}"
 
@@ -4502,6 +4514,10 @@ msgstr "Data directory"
 msgid "整场 · 事件"
 msgstr "Whole match · events"
 
+#: src/pages/LibraryPage.tsx:197
+msgid "整场比赛"
+msgstr "Full match"
+
 #: src/domain/agent/TakeCard.tsx:211
 msgid "整条选用"
 msgstr "Use the whole take"
@@ -4567,6 +4583,7 @@ msgstr "Start an empty conversation, say what you want, and the Agent will creat
 #: src/pages/home/RecentOutputsPanel.tsx:92
 #: src/pages/HomePage.tsx:62
 #: src/pages/HomePage.tsx:86
+#: src/pages/library/libraryColumns.tsx:212
 #: src/pages/match/views/HighlightsView.tsx:292
 #: src/pages/MatchWorkspacePage.tsx:230
 #: src/pages/montage/MontageProjectList.tsx:81
@@ -4695,8 +4712,8 @@ msgstr "Cannot reach the local service. Check that it is running."
 msgid "日志与诊断包"
 msgstr "Logs and diagnostics"
 
-#: src/pages/library/libraryColumns.tsx:98
-#: src/pages/library/libraryColumns.tsx:99
+#: src/pages/library/libraryColumns.tsx:100
+#: src/pages/library/libraryColumns.tsx:101
 msgid "日期"
 msgstr "Date"
 
@@ -4704,8 +4721,8 @@ msgstr "Date"
 #: src/pages/editor/EditorProjectList.tsx:108
 #: src/pages/editor/EditorProjectList.tsx:109
 #: src/pages/editor/InspectorPanel.tsx:126
-#: src/pages/library/libraryColumns.tsx:106
-#: src/pages/library/libraryColumns.tsx:107
+#: src/pages/library/libraryColumns.tsx:108
+#: src/pages/library/libraryColumns.tsx:109
 #: src/pages/match/views/HighlightsView.tsx:383
 #: src/pages/montage/MontageProjectList.tsx:106
 #: src/pages/montage/MontageProjectList.tsx:107
@@ -4755,7 +4772,7 @@ msgstr "Show all"
 msgid "普通使用不需要打开这一节。"
 msgstr "Ordinary use never needs this section."
 
-#: src/pages/HistoryPage.tsx:211
+#: src/pages/HistoryPage.tsx:217
 msgid "暂不支持下载后自动分析，下载完成可在资料库里开始分析"
 msgstr "Analysing automatically after a download is not supported yet; start the analysis from the library once it finishes"
 
@@ -4779,7 +4796,7 @@ msgstr "Exporting the review as a web page is not supported yet"
 msgid "暂不支持把导出的文件保存到磁盘"
 msgstr "Saving the exported file to disk is not supported yet"
 
-#: src/pages/library/libraryColumns.tsx:208
+#: src/pages/library/libraryColumns.tsx:222
 msgid "暂不支持重新定位 Demo 文件"
 msgstr "Relocating a demo file is not supported yet"
 
@@ -5043,17 +5060,17 @@ msgid "本次修改"
 msgstr "This modification"
 
 #. placeholder {0}: counts.downloaded
-#: src/pages/HistoryPage.tsx:174
+#: src/pages/HistoryPage.tsx:180
 msgid "本页已入库 {0}"
 msgstr "{0} in library on this page"
 
 #. placeholder {0}: counts.expired
-#: src/pages/HistoryPage.tsx:177
+#: src/pages/HistoryPage.tsx:183
 msgid "本页已过期 {0}"
 msgstr "{0} expired on this page"
 
 #. placeholder {0}: counts.available
-#: src/pages/HistoryPage.tsx:171
+#: src/pages/HistoryPage.tsx:177
 msgid "本页未下载 {0}"
 msgstr "{0} not downloaded on this page"
 
@@ -5066,8 +5083,8 @@ msgid "条件"
 msgstr "Conditions"
 
 #: src/pages/evidence/EvidenceDetail.tsx:141
-#: src/pages/library/libraryColumns.tsx:130
-#: src/pages/library/libraryColumns.tsx:131
+#: src/pages/library/libraryColumns.tsx:132
+#: src/pages/library/libraryColumns.tsx:133
 #: src/pages/library/LibraryFilters.tsx:172
 #: src/pages/library/LibraryInspector.tsx:227
 msgid "来源"
@@ -5094,7 +5111,7 @@ msgstr "From plan #{agentPlanId}"
 msgid "极简"
 msgstr "Minimal"
 
-#: src/pages/library/libraryColumns.tsx:220
+#: src/pages/library/libraryColumns.tsx:232
 #: src/pages/match/views/OverviewView.tsx:224
 msgid "查看"
 msgstr "View"
@@ -5257,7 +5274,7 @@ msgstr "Analyzing the beats"
 msgid "正在加载输出"
 msgstr "Loading outputs"
 
-#: src/pages/HistoryPage.tsx:159
+#: src/pages/HistoryPage.tsx:165
 msgid "正在同步…"
 msgstr "Syncing…"
 
@@ -5373,7 +5390,7 @@ msgstr "Reading the plan"
 msgid "正在读取比赛分析"
 msgstr "Reading the match analysis"
 
-#: src/pages/HistoryPage.tsx:258
+#: src/pages/HistoryPage.tsx:264
 msgid "正在读取比赛历史"
 msgstr "Reading the match history"
 
@@ -5566,8 +5583,8 @@ msgstr "Score {0} to {1}"
 
 #: src/pages/history/MatchHistoryTable.tsx:117
 #: src/pages/history/MatchHistoryTable.tsx:118
-#: src/pages/library/libraryColumns.tsx:73
-#: src/pages/library/libraryColumns.tsx:74
+#: src/pages/library/libraryColumns.tsx:75
+#: src/pages/library/libraryColumns.tsx:76
 #: src/pages/PlayersPage.tsx:99
 #: src/pages/PlayersPage.tsx:100
 msgid "比赛"
@@ -5583,12 +5600,11 @@ msgid "比赛信息"
 msgstr "Match info"
 
 #: src/app/command/commandRegistry.ts:174
-#: src/app/shell/navigation.tsx:84
-#: src/pages/HistoryPage.tsx:132
+#: src/pages/HistoryPage.tsx:138
 msgid "比赛历史"
 msgstr "Match history"
 
-#: src/pages/HistoryPage.tsx:226
+#: src/pages/HistoryPage.tsx:232
 msgid "比赛历史没能读出来：{readError}"
 msgstr "The match history could not be read: {readError}"
 
@@ -5833,8 +5849,8 @@ msgstr "Add {0} clips"
 msgid "添加到时间轴"
 msgstr "Add to timeline"
 
-#: src/pages/LibraryPage.tsx:222
-#: src/pages/LibraryPage.tsx:223
+#: src/pages/LibraryPage.tsx:270
+#: src/pages/LibraryPage.tsx:271
 msgid "添加标签"
 msgstr "Add tag"
 
@@ -5853,7 +5869,7 @@ msgid "添加监听目录"
 msgstr "Add a watched folder"
 
 #: src/pages/library/WatchDirectoriesDrawer.tsx:84
-#: src/pages/LibraryPage.tsx:191
+#: src/pages/LibraryPage.tsx:239
 #: src/pages/settings/FilesSection.tsx:244
 msgid "添加目录"
 msgstr "Add folder"
@@ -6179,8 +6195,8 @@ msgstr "Version history"
 
 #: src/pages/history/MatchHistoryTable.tsx:145
 #: src/pages/history/MatchHistoryTable.tsx:146
-#: src/pages/library/libraryColumns.tsx:138
-#: src/pages/library/libraryColumns.tsx:139
+#: src/pages/library/libraryColumns.tsx:140
+#: src/pages/library/libraryColumns.tsx:141
 #: src/pages/library/LibraryFilters.tsx:171
 msgid "状态"
 msgstr "Status"
@@ -6200,7 +6216,7 @@ msgid "玩家档案"
 msgstr "Player profile"
 
 #: src/app/command/commandRegistry.ts:178
-#: src/app/shell/navigation.tsx:85
+#: src/app/shell/navigation.tsx:82
 #: src/pages/PlayersPage.tsx:223
 #: src/pages/PlayersPage.tsx:303
 msgid "玩家目录"
@@ -6340,8 +6356,8 @@ msgstr "Percent"
 
 #: src/pages/library/libraryFormat.ts:156
 #: src/pages/library/WatchDirectoriesDrawer.tsx:75
-#: src/pages/LibraryPage.tsx:324
-#: src/pages/LibraryPage.tsx:330
+#: src/pages/LibraryPage.tsx:390
+#: src/pages/LibraryPage.tsx:396
 #: src/pages/settings/FilesSection.tsx:178
 msgid "监听目录"
 msgstr "Watched folders"
@@ -6483,7 +6499,7 @@ msgstr "Collision geometry unknown"
 msgid "磁盘空间不足"
 msgstr "Not enough disk space"
 
-#: src/pages/LibraryPage.tsx:310
+#: src/pages/LibraryPage.tsx:376
 msgid "视图"
 msgstr "View"
 
@@ -6721,6 +6737,10 @@ msgstr "Multitrack mode"
 msgid "系统里注册了录制需要的视频与音频编码器"
 msgstr "The video and audio encoders recording needs are registered on this system"
 
+#: src/pages/LibraryPage.tsx:110
+msgid "素材"
+msgstr "Media"
+
 #: src/pages/home/FirstRunStrip.tsx:55
 msgid "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
 msgstr "There is no media yet. Import a Demo to start your first project from it."
@@ -6737,6 +6757,12 @@ msgstr "The source has run out — there is no headroom left"
 #: src/pages/editor/MediaLibraryPanel.tsx:129
 msgid "素材库"
 msgstr "Media"
+
+#: src/pages/LibraryPage.tsx:113
+#: src/pages/LibraryPage.tsx:354
+#: src/pages/LibraryPage.tsx:358
+msgid "素材视图"
+msgstr "Media view"
 
 #: src/pages/montage/ClipTrimDrawer.tsx:199
 msgid "素材长度"
@@ -6967,8 +6993,8 @@ msgstr "Draft"
 msgid "行为边界"
 msgstr "Behavior limits"
 
-#: src/pages/library/libraryColumns.tsx:146
-#: src/pages/library/libraryColumns.tsx:147
+#: src/pages/library/libraryColumns.tsx:148
+#: src/pages/library/libraryColumns.tsx:149
 msgid "行操作"
 msgstr "Row actions"
 
@@ -6980,7 +7006,7 @@ msgstr "Row ＼ Column"
 msgid "行方与列方"
 msgstr "Row side and column side"
 
-#: src/pages/LibraryPage.tsx:313
+#: src/pages/LibraryPage.tsx:379
 msgid "表格"
 msgstr "Table"
 
@@ -7059,7 +7085,7 @@ msgid "记录已移除，文件仍在原处。"
 msgstr "The record was removed; the file is still in place."
 
 #: src/app/command/commandRegistry.ts:209
-#: src/app/shell/navigation.tsx:108
+#: src/app/shell/navigation.tsx:105
 #: src/pages/SettingsPage.tsx:82
 msgid "设置与诊断"
 msgstr "Settings & diagnostics"
@@ -7087,7 +7113,7 @@ msgid "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有�
 msgstr "Evidence comes out of analysis. {totalAnalyses} matches are analyzed, but none of them has entered the evidence index yet, so every condition returns zero hits."
 
 #: src/app/command/commandRegistry.ts:181
-#: src/app/shell/navigation.tsx:86
+#: src/app/shell/navigation.tsx:83
 #: src/pages/EvidencePage.tsx:163
 msgid "证据检索"
 msgstr "Evidence search"
@@ -7285,7 +7311,7 @@ msgstr "Could not read background tasks."
 msgid "读取成品文件列表失败。"
 msgstr "Could not read the finished-file list."
 
-#: src/pages/HistoryPage.tsx:224
+#: src/pages/HistoryPage.tsx:230
 msgid "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
 msgstr "The read is read-only, so a retry changes no record and re-downloads no Demo."
 
@@ -7325,7 +7351,7 @@ msgstr "Purchases"
 msgid "购买金额统计不可用"
 msgstr "Purchase spend statistics unavailable"
 
-#: src/app/shell/navigation.tsx:81
+#: src/app/shell/navigation.tsx:79
 #: src/pages/MatchWorkspacePage.tsx:203
 msgid "资料库"
 msgstr "Library"
@@ -7573,7 +7599,7 @@ msgstr "No recordable shot list yet"
 msgid "还没有可播放的素材"
 msgstr "No footage to play yet"
 
-#: src/pages/HistoryPage.tsx:262
+#: src/pages/HistoryPage.tsx:268
 msgid "还没有可显示的对局"
 msgstr "No match to show yet"
 
@@ -8160,7 +8186,7 @@ msgstr "This recovery did not finish: {actionError}"
 msgid "这次操作没有完成：{writeError}"
 msgstr "That action did not finish: {writeError}"
 
-#: src/pages/HistoryPage.tsx:242
+#: src/pages/HistoryPage.tsx:248
 msgid "这次操作没有成功：{writeError}"
 msgstr "That action did not succeed: {writeError}"
 
@@ -8551,7 +8577,7 @@ msgstr "The configuration file is not damaged, so there is nothing to restore"
 msgid "配置文件读不出来"
 msgstr "The configuration file cannot be read"
 
-#: src/pages/LibraryPage.tsx:162
+#: src/pages/LibraryPage.tsx:208
 msgid "配置还没读出来，稍后再试"
 msgstr "The configuration has not been read yet — try again shortly"
 
@@ -8602,7 +8628,7 @@ msgid "重新发起"
 msgstr "Start again"
 
 #: src/pages/editor/MediaLibraryPanel.tsx:193
-#: src/pages/library/libraryColumns.tsx:210
+#: src/pages/library/libraryColumns.tsx:224
 msgid "重新定位"
 msgstr "Relink"
 
@@ -8696,7 +8722,7 @@ msgstr "Choose again"
 #: src/pages/evidence/EvidenceAnnotations.tsx:56
 #: src/pages/evidence/EvidenceResults.tsx:125
 #: src/pages/GuidePage.tsx:96
-#: src/pages/HistoryPage.tsx:223
+#: src/pages/HistoryPage.tsx:229
 #: src/pages/home/ActiveProjectsPanel.tsx:84
 #: src/pages/home/PendingPlansPanel.tsx:94
 #: src/pages/home/RecentMatchesPanel.tsx:57
@@ -8708,7 +8734,7 @@ msgstr "Choose again"
 #: src/pages/library/LibraryInspector.tsx:184
 #: src/pages/library/LibraryTable.tsx:102
 #: src/pages/library/WatchDirectoriesDrawer.tsx:92
-#: src/pages/LibraryPage.tsx:365
+#: src/pages/LibraryPage.tsx:431
 #: src/pages/match/views/HighlightsView.tsx:142
 #: src/pages/match/views/ReplayView.tsx:239
 #: src/pages/match/views/ReviewView.tsx:116

@@ -41,7 +41,6 @@ describe('the nav table mirrors Frame.dc.html', () => {
     expect(SHELL_NAV_ITEMS.map((item) => item.id)).toEqual([
       'home',
       'library',
-      'history',
       'players',
       'evidence',
       'projects',
@@ -51,7 +50,6 @@ describe('the nav table mirrors Frame.dc.html', () => {
     expect(SHELL_NAV_ITEMS.map((item) => item.to)).toEqual([
       '/',
       '/library',
-      '/history',
       '/players',
       '/evidence',
       '/projects',

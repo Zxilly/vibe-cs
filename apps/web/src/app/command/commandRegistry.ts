@@ -172,7 +172,7 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
   pageCommand({
     id: 'history',
     title: msg`比赛历史`,
-    to: '/history',
+    to: '/library?view=steam',
     keywords: ['history', 'steam', '下载', '历史'],
   }),
   pageCommand({ id: 'players', title: msg`玩家目录`, to: '/players', keywords: ['players', '玩家', '选手'] }),

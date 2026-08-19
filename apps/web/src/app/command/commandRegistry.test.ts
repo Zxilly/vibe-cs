@@ -53,7 +53,7 @@ describe('PAGE_COMMANDS', () => {
     expect(PAGE_COMMANDS.map(destinationOf)).toEqual([
       '/',
       '/library',
-      '/history',
+      '/library?view=steam',
       '/players',
       '/evidence',
       '/projects',

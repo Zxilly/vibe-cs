@@ -160,6 +160,7 @@ describe('tab order', () => {
       'history',
       'players',
       'evidence',
+      'projects',
       'agent',
       'recording',
       'montage',

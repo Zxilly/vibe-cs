@@ -56,6 +56,7 @@ describe('PAGE_COMMANDS', () => {
       '/history',
       '/players',
       '/evidence',
+      '/projects',
       '/agent',
       '/recording',
       '/montage',

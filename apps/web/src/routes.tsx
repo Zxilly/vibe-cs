@@ -29,6 +29,10 @@ const EvidencePage = lazy(async () => ({ default: (await import('./pages/Evidenc
 const MatchWorkspacePage = lazy(async () => ({
   default: (await import('./pages/MatchWorkspacePage')).MatchWorkspacePage,
 }));
+const ProjectsPage = lazy(async () => ({ default: (await import('./pages/ProjectsPage')).ProjectsPage }));
+const ProjectWorkspacePage = lazy(async () => ({
+  default: (await import('./pages/ProjectWorkspacePage')).ProjectWorkspacePage,
+}));
 const AgentPage = lazy(async () => ({ default: (await import('./pages/AgentPage')).AgentPage }));
 const RecordingPage = lazy(async () => ({ default: (await import('./pages/RecordingPage')).RecordingPage }));
 const MontagePage = lazy(async () => ({ default: (await import('./pages/MontagePage')).MontagePage }));
@@ -50,6 +54,8 @@ export const APP_PAGES: RoutePages = {
   playerProfile: <PlayerProfilePage />,
   evidence: <EvidencePage />,
   match: <MatchWorkspacePage />,
+  projects: <ProjectsPage />,
+  projectWorkspace: <ProjectWorkspacePage />,
   agent: <AgentPage />,
   recording: <RecordingPage />,
   montage: <MontagePage />,

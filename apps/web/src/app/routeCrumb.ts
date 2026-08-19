@@ -67,6 +67,7 @@ interface CrumbOverride {
 const CRUMB_OVERRIDES: readonly CrumbOverride[] = [
   { pattern: /^\/match\/[^/]+$/u, base: 'library', leaf: msg`比赛工作区` },
   { pattern: /^\/players\/[^/]+$/u, base: 'players', leaf: msg`玩家档案` },
+  { pattern: /^\/projects\/[^/]+$/u, base: 'projects', leaf: msg`作品工作区` },
   { pattern: /^\/delivery\/task\/[^/]+$/u, base: 'outputs', leaf: msg`后台任务详情` },
   /* Frame draws no rail entry for it; `activeNavItemId` lights 设置与诊断,
      which is the group-less footer item, so that label is the head. */

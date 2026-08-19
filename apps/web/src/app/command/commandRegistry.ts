@@ -182,6 +182,7 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
     to: '/evidence',
     keywords: ['evidence', '证据', '检索', '标注'],
   }),
+  pageCommand({ id: 'projects', title: UI_TERMINOLOGY.project.current, to: '/projects', keywords: ['projects', '作品', '视频'] }),
   pageCommand({
     id: 'agent',
     title: msg`Agent 创作`,

@@ -55,6 +55,7 @@ describe('routeCrumb', () => {
     expect(crumb('/agent')).toBe('制作 › Agent 创作');
     expect(crumb('/editor')).toBe('制作 › 多轨编辑');
     expect(crumb('/montage')).toBe('制作 › 快速剪辑');
+    expect(crumb('/projects')).toBe('制作 › 作品');
   });
 
   it('reads the query, so one path can carry two rail entries', () => {
@@ -69,6 +70,7 @@ describe('routeCrumb', () => {
     expect(crumb('/match/aurora-vs-meridian')).toBe('资料库 › Demo 资料库 › 比赛工作区');
     expect(crumb('/players/kael')).toBe('资料库 › 玩家目录 › 玩家档案');
     expect(crumb('/delivery/task/t-42')).toBe('交付 › 成品文件 › 后台任务详情');
+    expect(crumb('/projects/plan%3Ap-1')).toBe('制作 › 作品 › 作品工作区');
     // The footer entry has no group heading, so its own label opens the crumb —
     // once, carrying the destination rather than being repeated as a heading.
     expect(crumb('/recovery')).toBe('设置与诊断 › 恢复中心');

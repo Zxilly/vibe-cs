@@ -95,6 +95,11 @@ msgstr "{0, plural, =0 {Nothing staged to clean.} other {Cleaned # staged files.
 msgid "{0, plural, =0 {目前不会自动发现任何 Demo。} other {这 # 个目录里的新 Demo 会自动进入资料库。}}"
 msgstr "{0, plural, =0 {Nothing is discovered automatically right now.} other {New Demos in these # folders join the library automatically.}}"
 
+#. placeholder {0}: rows.length
+#: src/pages/ProjectsPage.tsx:27
+msgid "{0, plural, other {# 个作品}}"
+msgstr "{0, plural, one {# project} other {# projects}}"
+
 #. placeholder {0}: watch.data?.roots.length ?? 0
 #: src/pages/LibraryPage.tsx:296
 msgid "{0, plural, other {# 个监听目录}}"
@@ -174,6 +179,11 @@ msgstr "{0, plural, one {Delete # record?} other {Delete # records?}}"
 #: src/pages/library/ImportDemoDialog.tsx:100
 msgid "{0, plural, other {导入 # 个文件}}"
 msgstr "{0, plural, one {Import # file} other {Import # files}}"
+
+#. placeholder {0}: project.demoIds.length
+#: src/pages/ProjectsPage.tsx:76
+msgid "{0, plural, other {已关联 # 场比赛}}"
+msgstr "{0, plural, one {Linked to # match} other {Linked to # matches}}"
 
 #. placeholder {0}: exportResult.count
 #: src/pages/settings/AiAgentSection.tsx:735
@@ -701,8 +711,8 @@ msgstr "Agent"
 msgid "Agent 写点评与镜头意图时的措辞。"
 msgstr "How the Agent words its commentary and shot intents."
 
-#: src/app/command/commandRegistry.ts:187
-#: src/app/shell/navigation.tsx:99
+#: src/app/command/commandRegistry.ts:188
+#: src/app/shell/navigation.tsx:102
 #: src/pages/AgentPage.tsx:262
 msgid "Agent 创作"
 msgstr "Agent studio"
@@ -785,7 +795,7 @@ msgid "Demo 内容一致"
 msgstr "Demo content matches"
 
 #: src/app/command/commandRegistry.ts:168
-#: src/app/shell/navigation.tsx:89
+#: src/app/shell/navigation.tsx:91
 #: src/pages/home/RecentMatchesPanel.tsx:52
 #: src/pages/LibraryPage.tsx:291
 msgid "Demo 资料库"
@@ -1176,7 +1186,7 @@ msgstr "The binary replay exceeds the 128 MiB limit"
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "The binary replay exceeds the 128 MiB limit."
 
-#: src/app/shell/navigation.tsx:108
+#: src/app/shell/navigation.tsx:111
 msgid "交付"
 msgstr "Delivery"
 
@@ -1317,6 +1327,7 @@ msgstr "Low {0}"
 msgid "作业编号"
 msgstr "Job ID"
 
+#: src/pages/ProjectsPage.tsx:26
 #: src/terminology.ts:32
 msgid "作品"
 msgstr "Project"
@@ -1325,6 +1336,12 @@ msgstr "Project"
 #: src/pages/montage/MontageProjectList.tsx:206
 msgid "作品名称"
 msgstr "Project name"
+
+#: src/app/routeCrumb.ts:70
+#: src/pages/ProjectWorkspacePage.tsx:12
+#: src/pages/ProjectWorkspacePage.tsx:15
+msgid "作品工作区"
+msgstr "Project workspace"
 
 #: src/domain/agent/types.ts:225
 #: src/domain/agent/types.ts:339
@@ -1360,7 +1377,7 @@ msgstr "Shots you changed"
 msgid "你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。"
 msgstr "Your accepts and rejects are held on this page only for now; a refresh puts them back to pending."
 
-#: src/app/command/commandRegistry.ts:238
+#: src/app/command/commandRegistry.ts:239
 #: src/pages/GuidePage.tsx:54
 msgid "使用引导"
 msgstr "Getting started"
@@ -1727,6 +1744,10 @@ msgstr "{0} pieces of utility thrown, flashing {1} players."
 msgid "共投出 {0} 个道具。"
 msgstr "{0} pieces of utility thrown."
 
+#: src/pages/ProjectsPage.tsx:72
+msgid "关联比赛"
+msgstr "Linked matches"
+
 #: src/domain/match/matchEnums.ts:110
 msgid "关键回合"
 msgstr "Key round"
@@ -1853,6 +1874,10 @@ msgstr "Recent matches"
 #: src/pages/PlayerProfilePage.tsx:219
 msgid "最近比赛没能读出来：{matchesError}"
 msgstr "Recent matches could not be read: {matchesError}"
+
+#: src/pages/ProjectsPage.tsx:78
+msgid "最近活动"
+msgstr "Recent activity"
 
 #: src/pages/recording/RecordingIndex.tsx:124
 #: src/pages/recording/RecordingIndex.tsx:129
@@ -2096,7 +2121,7 @@ msgstr "Delete this conversation?"
 msgid "别贴这么近"
 msgstr "Not so close"
 
-#: src/app/shell/navigation.tsx:97
+#: src/app/shell/navigation.tsx:99
 msgid "制作"
 msgstr "Create"
 
@@ -2118,6 +2143,7 @@ msgstr "No cut before this one"
 msgid "剪辑中"
 msgstr "Editing"
 
+#: src/pages/ProjectsPage.tsx:89
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "Shot list"
@@ -2494,7 +2520,7 @@ msgid "后台任务，{activityUnreadCount} 条未读"
 msgstr "Background tasks, {activityUnreadCount} unread"
 
 #: src/ActivityDrawer.tsx:64
-#: src/app/routeCrumb.ts:70
+#: src/app/routeCrumb.ts:71
 #: src/pages/TaskDetailPage.tsx:66
 msgid "后台任务详情"
 msgstr "Background task details"
@@ -2865,12 +2891,12 @@ msgstr "Multi-kill"
 msgid "多轨时间轴"
 msgstr "Multitrack timeline"
 
-#: src/app/shell/navigation.tsx:103
+#: src/app/shell/navigation.tsx:106
 #: src/pages/home/ActiveProjectsPanel.tsx:115
 msgid "多轨编辑"
 msgstr "Multitrack"
 
-#: src/app/command/commandRegistry.ts:205
+#: src/app/command/commandRegistry.ts:206
 #: src/pages/editor/EditorProjectList.tsx:159
 #: src/pages/EditorPage.tsx:125
 #: src/pages/EditorPage.tsx:141
@@ -3081,6 +3107,7 @@ msgstr "Import media"
 
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:275
+#: src/pages/ProjectsPage.tsx:91
 #: src/pages/settings/AdvancedSection.tsx:218
 #: src/pages/settings/AiAgentSection.tsx:775
 msgid "导出"
@@ -3164,6 +3191,10 @@ msgstr "It will hang on the evidence at round {0}, tick {1}."
 msgid "将生成"
 msgstr "Will produce"
 
+#: src/pages/ProjectsPage.tsx:75
+msgid "尚未关联比赛"
+msgstr "No linked matches"
+
 #: src/pages/AgentPage.tsx:266
 msgid "尚未选择剪辑单"
 msgstr "No shot list selected"
@@ -3213,7 +3244,7 @@ msgid "工作区里没有正在进行的对象"
 msgstr "Nothing is going on in the workspace"
 
 #: src/app/command/commandRegistry.ts:165
-#: src/app/shell/navigation.tsx:83
+#: src/app/shell/navigation.tsx:85
 #: src/pages/HomePage.tsx:58
 msgid "工作台"
 msgstr "Dashboard"
@@ -3318,6 +3349,10 @@ msgstr "Accepted"
 #: src/pages/evidence/EvidenceEmpty.tsx:108
 msgid "已有 {indexedItems} 条证据，但这次检索一条也没匹配上。"
 msgstr "There are {indexedItems} pieces of evidence, but nothing matched this search."
+
+#: src/pages/ProjectsPage.tsx:99
+msgid "已有成品"
+msgstr "Finished file available"
 
 #. placeholder {0}: formatBytes(storage.data.directory_bytes)
 #. placeholder {1}: formatBytes(storage.data.filesystem_available_bytes)
@@ -3570,6 +3605,10 @@ msgstr "Current conditions: "
 msgid "当前条件下没有采样点，因此没有密度可比。"
 msgstr "No samples under the current filters, so there is no density to compare."
 
+#: src/pages/ProjectsPage.tsx:70
+msgid "当前步骤"
+msgstr "Current step"
+
 #: src/pages/agent/ConversationModes.tsx:297
 msgid "当前版本的镜头带"
 msgstr "Shot strip of the current version"
@@ -3601,6 +3640,7 @@ msgid "当前锚点是一条证据，可以在「我的注释」里为它写注�
 msgstr "The current anchor is an evidence row, so a note for it can be written under My notes."
 
 #: src/domain/task/taskVocabulary.tsx:28
+#: src/pages/ProjectsPage.tsx:90
 msgid "录制"
 msgstr "Recording"
 
@@ -3684,8 +3724,8 @@ msgstr "Recordings, finished cuts and the app's own data all live here."
 msgid "录制结果没能读取：{error}"
 msgstr "The recordings could not be read: {error}"
 
-#: src/app/command/commandRegistry.ts:193
-#: src/app/shell/navigation.tsx:100
+#: src/app/command/commandRegistry.ts:194
+#: src/app/shell/navigation.tsx:103
 #: src/pages/RecordingPage.tsx:116
 #: src/pages/RecordingPage.tsx:293
 msgid "录制计划"
@@ -3756,8 +3796,8 @@ msgstr "Awaiting indexing"
 msgid "必填"
 msgstr "Required"
 
-#: src/app/command/commandRegistry.ts:199
-#: src/app/shell/navigation.tsx:101
+#: src/app/command/commandRegistry.ts:200
+#: src/app/shell/navigation.tsx:104
 #: src/pages/home/ActiveProjectsPanel.tsx:115
 #: src/pages/montage/MontageProjectList.tsx:148
 msgid "快速剪辑"
@@ -3784,8 +3824,8 @@ msgstr "Terrorists"
 msgid "恢复"
 msgstr "Restore"
 
-#: src/app/command/commandRegistry.ts:232
-#: src/app/routeCrumb.ts:73
+#: src/app/command/commandRegistry.ts:233
+#: src/app/routeCrumb.ts:74
 #: src/pages/delivery/TaskRecordRail.tsx:84
 #: src/pages/RecoveryPage.tsx:84
 msgid "恢复中心"
@@ -4399,8 +4439,13 @@ msgstr "Start an empty conversation, say what you want, and the Agent will creat
 #: src/pages/MatchWorkspacePage.tsx:228
 #: src/pages/montage/MontageProjectList.tsx:81
 #: src/pages/montage/MontageProjectList.tsx:200
+#: src/pages/ProjectsPage.tsx:18
 msgid "新建作品"
 msgstr "New project"
+
+#: src/pages/ProjectsPage.tsx:46
+msgid "新建作品后，选材、剪辑单、录制和成品文件会集中在同一个工作区。"
+msgstr "Create a project to keep selection, the shot list, recording, and finished files in one workspace."
 
 #: src/pages/agent/AgentConversationBlock.tsx:393
 #: src/pages/agent/NewSessionPane.tsx:277
@@ -5394,7 +5439,7 @@ msgid "比赛信息"
 msgstr "Match info"
 
 #: src/app/command/commandRegistry.ts:174
-#: src/app/shell/navigation.tsx:90
+#: src/app/shell/navigation.tsx:92
 #: src/pages/HistoryPage.tsx:132
 msgid "比赛历史"
 msgstr "Match history"
@@ -6001,7 +6046,7 @@ msgid "玩家档案"
 msgstr "Player profile"
 
 #: src/app/command/commandRegistry.ts:178
-#: src/app/shell/navigation.tsx:91
+#: src/app/shell/navigation.tsx:93
 #: src/pages/PlayersPage.tsx:223
 #: src/pages/PlayersPage.tsx:303
 msgid "玩家目录"
@@ -6838,8 +6883,8 @@ msgstr "The record was removed; the external file was not deleted."
 msgid "记录已移除，文件仍在原处。"
 msgstr "The record was removed; the file is still in place."
 
-#: src/app/command/commandRegistry.ts:226
-#: src/app/shell/navigation.tsx:118
+#: src/app/command/commandRegistry.ts:227
+#: src/app/shell/navigation.tsx:121
 #: src/pages/SettingsPage.tsx:82
 msgid "设置与诊断"
 msgstr "Settings & diagnostics"
@@ -6866,7 +6911,7 @@ msgid "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有�
 msgstr "Evidence comes out of analysis. {totalAnalyses} matches are analyzed, but none of them has entered the evidence index yet, so every condition returns zero hits."
 
 #: src/app/command/commandRegistry.ts:181
-#: src/app/shell/navigation.tsx:92
+#: src/app/shell/navigation.tsx:94
 #: src/pages/EvidencePage.tsx:157
 msgid "证据检索"
 msgstr "Evidence search"
@@ -7096,7 +7141,7 @@ msgstr "Purchases"
 msgid "购买金额统计不可用"
 msgstr "Purchase spend statistics unavailable"
 
-#: src/app/shell/navigation.tsx:87
+#: src/app/shell/navigation.tsx:89
 #: src/pages/MatchWorkspacePage.tsx:201
 msgid "资料库"
 msgstr "Library"
@@ -7257,6 +7302,10 @@ msgstr "Run the preflight"
 msgid "运行时"
 msgstr "Runtime"
 
+#: src/pages/ProjectWorkspacePage.tsx:17
+msgid "返回作品列表"
+msgstr "Back to projects"
+
 #: src/pages/RecordingPage.tsx:312
 #: src/pages/RecordingPage.tsx:315
 msgid "返回剪辑单"
@@ -7319,6 +7368,7 @@ msgstr "No sessions yet"
 
 #: src/pages/editor/EditorProjectList.tsx:193
 #: src/pages/montage/MontageProjectList.tsx:188
+#: src/pages/ProjectsPage.tsx:45
 msgid "还没有作品"
 msgstr "No projects yet"
 
@@ -7990,6 +8040,7 @@ msgstr "Process, ticks, encoder settings"
 #: src/domain/agent/workSteps.ts:40
 #: src/pages/delivery/TaskRecordView.tsx:53
 #: src/pages/home/HomeTasksPanel.tsx:63
+#: src/pages/ProjectsPage.tsx:97
 msgid "进行中"
 msgstr "Running"
 
@@ -8173,6 +8224,14 @@ msgstr "Choose a music file"
 msgid "选择音乐"
 msgstr "Choose music"
 
+#: src/pages/ProjectsPage.tsx:88
+msgid "选材"
+msgstr "Select"
+
+#: src/pages/ProjectWorkspacePage.tsx:16
+msgid "选材、剪辑单、录制与导出会在这里汇合。"
+msgstr "Selection, shot lists, recording, and export come together here."
+
 #: src/pages/home/ActiveProjectsPanel.tsx:45
 msgid "选材中"
 msgstr "Selecting clips"
@@ -8253,6 +8312,10 @@ msgstr "Utility damage attribution unavailable"
 msgid "道具投掷统计不可用"
 msgstr "Utility throw statistics unavailable"
 
+#: src/pages/ProjectsPage.tsx:35
+msgid "部分来源暂时读不到，下面仍显示已经取到的作品。"
+msgstr "Some sources are unavailable; projects already loaded are still shown below."
+
 #: src/pages/match/views/OverviewView.tsx:167
 msgid "都由这次分析的回合与事件推出"
 msgstr "All derived from the rounds and the events of this analysis"
@@ -8320,6 +8383,7 @@ msgstr "The rename did not succeed"
 #: src/pages/delivery/OutputsView.tsx:157
 #: src/pages/delivery/TaskFeedList.tsx:67
 #: src/pages/home/RecentOutputsPanel.tsx:81
+#: src/pages/ProjectsPage.tsx:34
 #: src/pages/recording/RecordingIndex.tsx:182
 #: src/pages/TaskDetailPage.tsx:93
 msgid "重新加载"
@@ -8596,6 +8660,10 @@ msgstr "A highlight reel is started from the match workspace or from the Agent"
 #: src/pages/settings/GameSection.tsx:215
 msgid "雷达"
 msgstr "Radar"
+
+#: src/pages/ProjectsPage.tsx:98
+msgid "需要处理"
+msgstr "Needs attention"
 
 #: src/pages/HomePage.tsx:70
 msgid "需要我处理"

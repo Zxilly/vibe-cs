@@ -22,6 +22,8 @@ const pageRouteIds = [
   'player-profile',
   'evidence',
   'match',
+  'projects',
+  'project-workspace',
   'agent',
   'recording',
   'montage',

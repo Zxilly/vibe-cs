@@ -44,6 +44,8 @@ import { MatchWorkspacePage } from './MatchWorkspacePage';
 import { MontagePage } from './MontagePage';
 import { PlayerProfilePage } from './PlayerProfilePage';
 import { PlayersPage } from './PlayersPage';
+import { ProjectsPage } from './ProjectsPage';
+import { ProjectWorkspacePage } from './ProjectWorkspacePage';
 import { RecordingPage } from './RecordingPage';
 import { RecoveryPage } from './RecoveryPage';
 import { SettingsPage } from './SettingsPage';
@@ -114,6 +116,18 @@ const PAGES: readonly PageCase[] = [
     Component: MatchWorkspacePage,
     title: '概览',
     chrome: 'context-bar',
+  },
+  {
+    pattern: '/projects',
+    at: '/projects',
+    Component: ProjectsPage,
+    title: '作品',
+  },
+  {
+    pattern: '/projects/:projectId',
+    at: '/projects/plan%3Ap-1',
+    Component: ProjectWorkspacePage,
+    title: '作品工作区',
   },
   {
     pattern: '/agent',
@@ -240,7 +254,7 @@ describe('the page table', () => {
        cross-check lives in `src/routes.test.tsx`, which is the composition
        root and is allowed to see both sides; it is what catches a route added
        without a page. */
-    expect(PAGES).toHaveLength(16);
+    expect(PAGES).toHaveLength(18);
     expect(new Set(PAGES.map((entry) => entry.pattern)).size).toBe(PAGES.length);
     expect(new Set(PAGES.map((entry) => entry.Component)).size).toBe(PAGES.length);
   });

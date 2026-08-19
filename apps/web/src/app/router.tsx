@@ -74,6 +74,8 @@ export interface RoutePages {
   readonly playerProfile: ReactNode;
   readonly evidence: ReactNode;
   readonly match: ReactNode;
+  readonly projects: ReactNode;
+  readonly projectWorkspace: ReactNode;
   readonly agent: ReactNode;
   readonly recording: ReactNode;
   readonly montage: ReactNode;
@@ -98,6 +100,8 @@ export const ROUTE_PATHS = [
   '/players/:playerId',
   '/evidence',
   '/match/:demoId',
+  '/projects',
+  '/projects/:projectId',
   '/agent',
   '/recording/:taskId?',
   '/montage/:projectId?',
@@ -175,6 +179,8 @@ export function createAppRoutes(pages: RoutePages): RouteObject[] {
         { id: 'player-profile', path: 'players/:playerId', element: pages.playerProfile },
         { id: 'evidence', path: 'evidence', element: pages.evidence },
         { id: 'match', path: 'match/:demoId', element: pages.match },
+        { id: 'projects', path: 'projects', element: pages.projects },
+        { id: 'project-workspace', path: 'projects/:projectId', element: pages.projectWorkspace },
         { id: 'agent', path: 'agent', element: pages.agent },
         { id: 'recording', path: 'recording/:taskId?', element: pages.recording },
         { id: 'montage', path: 'montage/:projectId?', element: pages.montage },

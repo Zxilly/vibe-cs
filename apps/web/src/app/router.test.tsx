@@ -36,6 +36,8 @@ const STUB_PAGES: RoutePages = {
   playerProfile: <span data-stub="player-profile" />,
   evidence: <span data-stub="evidence" />,
   match: <span data-stub="match" />,
+  projects: <span data-stub="projects" />,
+  projectWorkspace: <span data-stub="project-workspace" />,
   agent: <span data-stub="agent" />,
   recording: <span data-stub="recording" />,
   montage: <span data-stub="montage" />,
@@ -72,7 +74,7 @@ describe('application routes', () => {
     /* Sixteen since phase 3g added `/guide` (§10 note: the board wanted the
        old guide page retired, and §10 kept it for the environment self-check
        the three-step strip cannot carry). */
-    expect(ROUTE_PATHS).toHaveLength(16);
+    expect(ROUTE_PATHS).toHaveLength(18);
 
     const shell = appRoutes.find((route) => route.id === 'app-shell');
     expect(shell?.children?.some((child) => child.id === 'not-found')).toBe(true);

@@ -33,6 +33,7 @@ import { msg } from '@lingui/core/macro';
 import type { MessageDescriptor } from '@lingui/core';
 import {
   Archive,
+  Clapperboard,
   Film,
   Folder,
   History,
@@ -54,6 +55,7 @@ export type ShellNavItemId =
   | 'history'
   | 'players'
   | 'evidence'
+  | 'projects'
   | 'agent'
   | 'recording'
   | 'montage'
@@ -96,6 +98,7 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
     id: 'production',
     label: msg`制作`,
     items: [
+      { id: 'projects', label: UI_TERMINOLOGY.project.current, icon: Clapperboard, to: '/projects' },
       { id: 'agent', label: msg`Agent 创作`, icon: Sparkles, to: '/agent' },
       { id: 'recording', label: msg`录制计划`, icon: Film, to: '/recording' },
       { id: 'montage', label: msg`快速剪辑`, icon: Layers, to: '/montage' },
@@ -136,6 +139,7 @@ const PREFIX_RULES: readonly (readonly [string, ShellNavItemId])[] = [
   ['/history', 'history'],
   ['/players', 'players'],
   ['/evidence', 'evidence'],
+  ['/projects', 'projects'],
   ['/agent', 'agent'],
   ['/recording', 'recording'],
   ['/montage', 'montage'],

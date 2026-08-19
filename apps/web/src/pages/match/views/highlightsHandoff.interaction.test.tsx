@@ -165,9 +165,10 @@ describe('新建作品', () => {
     fireEvent.click(handoffButton());
 
     await waitFor(() => {
-      expect(locationRef).toContain('/agent');
+      expect(locationRef).toContain('/projects/plan%3A');
     });
-    expect(locationRef).toContain('plan=P-901');
+    expect(locationRef).toContain('plan%3AP-901');
+    expect(locationRef).toContain('step=shotlist');
   });
 
   it('creates the plan as a draft with no session — a handoff precedes any conversation', async () => {
@@ -202,7 +203,7 @@ describe('新建作品', () => {
     });
     /* 「建不出来就禁用并写明原因，不要跳一个空方案过去」. */
     expect(harness.created).toHaveLength(0);
-    expect(locationRef).not.toContain('/agent');
+    expect(locationRef).not.toContain('/projects/plan%3A');
   });
 
   it('stays disabled while the local service is unreachable', () => {

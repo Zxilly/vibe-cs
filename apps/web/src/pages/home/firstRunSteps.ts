@@ -45,7 +45,7 @@ export const FIRST_RUN_STEPS: readonly FirstRunStep[] = [
   },
   {
     id: 'create',
-    to: '/agent',
+    to: '/projects/new?step=shotlist',
     title: () => t`让 Agent 做一条视频`,
     description: () => t`说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。`,
   },

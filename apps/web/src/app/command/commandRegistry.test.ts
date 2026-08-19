@@ -57,7 +57,7 @@ describe('PAGE_COMMANDS', () => {
       '/players',
       '/evidence',
       '/projects',
-      '/agent',
+      '/projects/new?step=shotlist',
       '/recording',
       '/montage',
       '/editor',

@@ -59,7 +59,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useEditNotifier, type PendingPlanEdit } from '../data/editNotifier';
@@ -92,14 +92,26 @@ import {
   recordingHref,
 } from './recording/recordingContract';
 
+export interface AgentWorkspaceProps {
+  readonly embedded?: boolean | undefined;
+  /** `undefined` follows the query (new project); a string pins an existing project plan. */
+  readonly planId?: string | null | undefined;
+  readonly recordingTarget?: string | undefined;
+}
+
 export function AgentPage() {
+  return <AgentWorkspace />;
+}
+
+export function AgentWorkspace({ embedded = false, planId, recordingTarget }: AgentWorkspaceProps) {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const { i18n } = useLingui();
   const collapsed = useCollapsed(undefined);
   const service = useServiceAction();
 
-  const context = readAgentContext(params);
+  const routeContext = readAgentContext(params);
+  const context = planId === undefined ? routeContext : { ...routeContext, plan: planId };
 
   const plan = useAgentPlan(context.plan);
   const session = useAgentSession(context.session);
@@ -107,11 +119,19 @@ export function AgentPage() {
 
   const updateContext = useCallback(
     (patch: AgentContextPatch, options?: AgentContextUpdateOptions) => {
-      setParams(writeAgentContext(patchAgentContext(readAgentContext(params), patch)), {
+      const patched = patchAgentContext(context, patch);
+      const fixed = planId === undefined ? patched : { ...patched, plan: planId };
+      const next = writeAgentContext(fixed);
+      const step = params.get('step');
+      if (step !== null) next.set('step', step);
+      /* An embedded fixed-plan workspace gets its plan identity from the path,
+         so repeating it in the query creates two sources of truth. */
+      if (planId !== undefined) next.delete('plan');
+      setParams(next, {
         replace: options?.replace === true,
       });
     },
-    [params, setParams],
+    [context, params, planId, setParams],
   );
 
   const planData = plan.data;
@@ -255,10 +275,11 @@ export function AgentPage() {
   const [sessionsOpen, setSessionsOpen] = useState(false);
 
   return (
-    <Page
-      scroll={false}
+    <AgentFrame
+      embedded={embedded}
       toolbar={
         <Toolbar
+          height={embedded ? 'bar' : 'topbar'}
           title={planData === undefined ? <Trans>Agent 创作</Trans> : planData.title}
           meta={
             <>
@@ -297,7 +318,7 @@ export function AgentPage() {
                 if (planData === undefined) return;
                 void (async () => {
                   await editNotifier.flush('confirm-video');
-                  await navigate(recordingHref(planData.id));
+                  await navigate(recordingTarget ?? recordingHref(planData.id));
                 })();
               }}
             >
@@ -360,8 +381,15 @@ export function AgentPage() {
           setSessionsOpen(false);
         }}
       />
-    </Page>
+    </AgentFrame>
   );
+}
+
+function AgentFrame({ embedded, toolbar, children }: { readonly embedded: boolean; readonly toolbar: ReactNode; readonly children: ReactNode }) {
+  if (embedded) {
+    return <section data-agent-workspace className="flex min-h-0 flex-1 flex-col">{toolbar}{children}</section>;
+  }
+  return <Page scroll={false} toolbar={toolbar}>{children}</Page>;
 }
 
 /*

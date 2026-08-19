@@ -44,6 +44,7 @@ function shellRouter(
           { index: true, element: <span data-page="home">工作台内容</span> },
           { path: 'library', element: <span data-page="library">资料库内容</span> },
           { path: 'agent', element: <span data-page="agent">创作内容</span> },
+          { path: 'projects/:projectId', element: <span data-page="project">作品内容</span> },
           { path: 'delivery', element: <span data-page="delivery">成品内容</span> },
         ],
       },
@@ -139,20 +140,15 @@ describe('AppShell — the retired Agent column', () => {
     expect(container.querySelector('[data-agent-rail-toggle]')).toBeNull();
   });
 
-  it('drops the column once folded and hands the Agent back to the icon rail', async () => {
+  it('keeps the retired Agent destination out of the folded icon rail', async () => {
     media = stubMatchMedia(true);
-    const router = shellRouter(pendingProbe);
-    const { container } = renderInteractive(<RouterProvider router={router} />);
+    const { container } = renderInteractive(<RouterProvider router={shellRouter(pendingProbe)} />);
 
     // The 1100 × 700 board has no right column at all.
     expect(container.querySelector('[data-agent-rail]')).toBeNull();
 
-    // …and the entry point is still one click away, from the icon rail.
-    const entry = container.querySelector<HTMLElement>('[data-nav-item="agent"]');
-    expect(entry).not.toBeNull();
-    if (entry !== null) fireEvent.click(entry);
-
-    expect(router.state.location.pathname).toBe('/agent');
+    expect(container.querySelector('[data-nav-item="agent"]')).toBeNull();
+    expect(container.querySelector('[data-nav-item="projects"]')).not.toBeNull();
   });
 });
 
@@ -190,7 +186,8 @@ describe('AppShell — Ctrl K', () => {
     // 「回车执行首条」 — the artboard's own contract for the palette.
     fireEvent.keyDown(search, { key: 'Enter' });
 
-    expect(router.state.location.pathname).toBe('/agent');
+    expect(router.state.location.pathname).toBe('/projects/new');
+    expect(router.state.location.search).toBe('?step=shotlist');
     expect(document.querySelector('[data-overlay="command-palette"]')).toBeNull();
   });
 });

@@ -68,7 +68,7 @@ describe('writing the address', () => {
   });
 
   it('builds a shareable href', () => {
-    expect(agentHref(OPEN)).toBe('/agent?plan=P-118&session=S-1&mode=changes');
+    expect(agentHref(OPEN)).toBe('/projects/plan%3AP-118?session=S-1&mode=changes&step=shotlist');
   });
 });
 

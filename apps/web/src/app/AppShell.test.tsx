@@ -180,12 +180,13 @@ describe('AppShell — the §8 fold at 1100 × 700', () => {
     expect(html).not.toContain('data-agent-rail');
   });
 
-  it('still reaches the Agent from the icon rail, so nothing is hidden without a route', () => {
+  it('keeps projects reachable and retires the separate Agent rail entry', () => {
     const html = renderShell('/library', { collapsed: true });
 
     // The sparkle item survives the fold: it is the artboard's own entry point
     // and the reason the right column can go.
-    expect(html).toContain('data-nav-item="agent"');
+    expect(html).toContain('data-nav-item="projects"');
+    expect(html).not.toContain('data-nav-item="agent"');
   });
 
   it('renders the expanded rail at full width when nothing is folded', () => {

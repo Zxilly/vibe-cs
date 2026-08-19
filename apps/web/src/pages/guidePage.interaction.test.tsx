@@ -60,7 +60,7 @@ describe('the guide pipeline and the first-run entry', () => {
 
   it('are the pipeline, not a tour of the navigation', () => {
     expect(FIRST_RUN_STEPS.map((step) => step.id)).toEqual(['import', 'analyse', 'create']);
-    expect(FIRST_RUN_STEPS.map((step) => step.to)).toEqual(['/library', '/library', '/agent']);
+    expect(FIRST_RUN_STEPS.map((step) => step.to)).toEqual(['/library', '/library', '/projects/new?step=shotlist']);
   });
 });
 

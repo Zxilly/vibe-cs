@@ -159,7 +159,7 @@ export function projectWorkspacePath(
 export function LegacyAgentRedirect() {
   const [params] = useSearchParams();
   const planId = params.get('plan');
-  return <Navigate to={planId === null ? '/projects' : projectWorkspacePath('plan', planId, 'shotlist')} replace />;
+  return <Navigate to={planId === null ? '/projects/new?step=shotlist' : projectWorkspacePath('plan', planId, 'shotlist')} replace />;
 }
 
 export function LegacyRecordingRedirect() {

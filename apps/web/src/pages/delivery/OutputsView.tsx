@@ -170,7 +170,7 @@ export function OutputsView({ service, now }: OutputsViewProps) {
           <Empty
             preset="no-outputs"
             actions={
-              <RouteLink to="/agent">
+              <RouteLink to="/projects/new?step=shotlist">
                 <Trans>新建作品</Trans>
               </RouteLink>
             }

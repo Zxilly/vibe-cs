@@ -85,7 +85,7 @@ export function RecordingIndex() {
           <Trans>先在 Agent 里做一份镜头方案，绑定好 Demo 与选手之后，这里会列出可以录制的方案。</Trans>
         }
         actions={
-          <Button variant="primary" onClick={() => void navigate('/agent')}>
+          <Button variant="primary" onClick={() => void navigate('/projects/new?step=shotlist')}>
             <Trans>去做一份剪辑单</Trans>
           </Button>
         }
@@ -115,7 +115,7 @@ export function RecordingIndex() {
             isPending={plans.isPending}
             failure={planFailure}
             onReload={() => void plans.refetch()}
-            onNewPlan={() => void navigate('/agent')}
+            onNewPlan={() => void navigate('/projects/new?step=shotlist')}
           />
         </div>
       </section>

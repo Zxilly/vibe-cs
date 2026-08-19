@@ -15,7 +15,7 @@ export function ProjectsPage() {
 
   const newProject = (
     <Button asChild variant="primary" size="md">
-      <RouteLink to="/agent"><Trans>新建作品</Trans></RouteLink>
+      <RouteLink to="/projects/new?step=shotlist"><Trans>新建作品</Trans></RouteLink>
     </Button>
   );
 

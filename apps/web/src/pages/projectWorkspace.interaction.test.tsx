@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type { AgentPlanSummary } from '../shared/desktop/dto';
@@ -49,11 +49,15 @@ describe('project workspace steps', () => {
 
   it.each([
     ['select', '比赛工作区与证据检索加入的片段会汇总到这里。'],
-    ['shotlist', 'Agent、快速剪辑与多轨编辑能力将在这里呈现。'],
+    ['shotlist', 'agent-workspace'],
     ['record', '这份作品的录制队列与片段进度会显示在这里。'],
     ['export', '导出设置与这份作品的成品文件会显示在这里。'],
   ])('renders the %s placeholder', async (step, copy) => {
     render(`/projects/plan%3Ap-1?step=${step}`, plan('confirmed', 2));
+    if (step === 'shotlist') {
+      await waitFor(() => expect(document.querySelector('[data-agent-workspace]')).not.toBeNull());
+      return;
+    }
     expect(await screen.findByText(new RegExp(copy, 'u'))).toBeTruthy();
   });
 });

@@ -65,7 +65,7 @@ export function ShotListBlock({ agentPlanId, plan, selection, service }: Recordi
      `/recording` shares the type; no block is rendered there, so this branch is
      unreachable in practice and falls back to the Agent's own address rather
      than to a broken link. */
-  const planHref = agentPlanId === null ? '/agent' : agentPlanHandoff(agentPlanId);
+  const planHref = agentPlanId === null ? '/projects/new?step=shotlist' : agentPlanHandoff(agentPlanId);
 
   const items = plan.items;
   const tickRateOf = tickRateIndex(agentPlan.data, items);

@@ -7,15 +7,17 @@ import { useProjects } from '../data/projects';
 import { Empty, Skeleton } from '../design/data';
 import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
-import type { ProjectStep } from '../domain/project/projectViewModel';
+import type { ProjectStep, ProjectViewModel } from '../domain/project/projectViewModel';
 import { projectStepAvailability, resolveProjectStep } from '../domain/project/projectWorkflow';
+import { AgentWorkspace } from './AgentPage';
 import { RouteLink } from './RouteLink';
 
 export function ProjectWorkspacePage() {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const [params, setParams] = useSearchParams();
   const projects = useProjects();
-  const project = projects.data.projects.find((entry) => entry.id === projectId) ?? null;
+  const project = projects.data.projects.find((entry) => entry.id === projectId)
+    ?? (projectId === 'new' ? NEW_PROJECT : null);
 
   const requested = params.get('step');
   const step = project === null ? 'select' : resolveProjectStep(project, requested);
@@ -49,7 +51,7 @@ export function ProjectWorkspacePage() {
   const availability = projectStepAvailability(project);
 
   return (
-    <Page toolbar={<Toolbar leading={<RouteLink to="/projects"><Trans>‹ 作品</Trans></RouteLink>} title={project.name} meta={<StepLabel step={step} />} />}>
+    <Page toolbar={<Toolbar leading={<RouteLink to="/projects"><Trans>‹ 作品</Trans></RouteLink>} title={project.id === 'new' ? <Trans>新作品</Trans> : project.name} meta={<StepLabel step={step} />} />}>
       <div className="flex min-h-0 flex-1 flex-col">
         <nav aria-label={t`作品步骤`} className="flex-none border-b border-divider p-3">
           <ol className="m-0 grid list-none grid-cols-4 gap-2 p-0">
@@ -69,8 +71,8 @@ export function ProjectWorkspacePage() {
             ))}
           </ol>
         </nav>
-        <div className="min-h-0 flex-1 overflow-y-auto p-7">
-          <StepPlaceholder step={step} mode={project.editingMode} />
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-7">
+          <StepContent step={step} project={project} />
         </div>
       </div>
     </Page>
@@ -86,10 +88,19 @@ function StepLabel({ step }: { readonly step: ProjectStep }) {
   }
 }
 
-function StepPlaceholder({ step, mode }: { readonly step: ProjectStep; readonly mode: string }) {
+function StepContent({ step, project }: { readonly step: ProjectStep; readonly project: ProjectViewModel }) {
+  if (step === 'shotlist' && (project.source.kind === 'plan' || project.id === 'new')) {
+    return (
+      <AgentWorkspace
+        embedded
+        {...(project.id === 'new' ? {} : { planId: project.source.id })}
+        recordingTarget={`/projects/${encodeURIComponent(project.id)}?step=record`}
+      />
+    );
+  }
   const descriptions: Record<ProjectStep, React.ReactNode> = {
     select: <Trans>比赛工作区与证据检索加入的片段会汇总到这里。</Trans>,
-    shotlist: <Trans>当前剪辑模式：{mode}。Agent、快速剪辑与多轨编辑能力将在这里呈现。</Trans>,
+    shotlist: <Trans>当前剪辑模式：{project.editingMode}。快速剪辑与多轨编辑能力将在这里呈现。</Trans>,
     record: <Trans>这份作品的录制队列与片段进度会显示在这里。</Trans>,
     export: <Trans>导出设置与这份作品的成品文件会显示在这里。</Trans>,
   };
@@ -100,3 +111,18 @@ function StepPlaceholder({ step, mode }: { readonly step: ProjectStep; readonly 
     </section>
   );
 }
+
+const NEW_PROJECT: ProjectViewModel = {
+  id: 'new',
+  source: { kind: 'plan', id: 'new' },
+  name: '',
+  editingMode: 'agent',
+  shotList: null,
+  clipCount: 0,
+  recordingTasks: [],
+  outputFiles: [],
+  demoIds: [],
+  currentStep: 'shotlist',
+  status: 'active',
+  updatedAt: '1970-01-01T00:00:00.000Z',
+};

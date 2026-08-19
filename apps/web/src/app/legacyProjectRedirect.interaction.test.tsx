@@ -38,7 +38,7 @@ describe('legacy creation routes', () => {
   });
 
   it('sends unscoped legacy indexes to the project directory', async () => {
-    expect(await redirected('/agent')).toBe('/projects');
+    expect(await redirected('/agent')).toBe('/projects/new?step=shotlist');
     expect(await redirected('/montage')).toBe('/projects');
     expect(await redirected('/editor')).toBe('/projects');
     expect(await redirected('/recording')).toBe('/projects?step=record');

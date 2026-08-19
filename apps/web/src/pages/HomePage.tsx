@@ -58,7 +58,7 @@ export function HomePage() {
           title={<Trans>工作台</Trans>}
           meta={<Trans>处理待办，继续作品，或者开始新的作品</Trans>}
           primary={
-            <Button variant="primary" size="md" onClick={() => void navigate('/agent')}>
+            <Button variant="primary" size="md" onClick={() => void navigate('/projects/new?step=shotlist')}>
               <Trans>新建作品</Trans>
             </Button>
           }
@@ -82,7 +82,7 @@ export function HomePage() {
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-lg font-medium"><Trans>新建</Trans></h2>
             <span className="flex-1" />
-            <Button variant="primary" size="md" onClick={() => void navigate('/agent')}>
+            <Button variant="primary" size="md" onClick={() => void navigate('/projects/new?step=shotlist')}>
               <Trans>新建作品</Trans>
             </Button>
             <RouteLink to="/library" size="sm"><Trans>导入 Demo</Trans></RouteLink>

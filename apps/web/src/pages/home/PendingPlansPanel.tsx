@@ -121,7 +121,7 @@ export function PendingPlansPanel() {
             ))}
           </ul>
           {items.length > SHOWN ? (
-            <RouteLink to="/agent">
+            <RouteLink to="/projects">
               <Plural value={items.length - SHOWN} other="还有 # 个，去 Agent 面板看" />
             </RouteLink>
           ) : null}
@@ -170,7 +170,7 @@ function PlanRow({
         </Button>
         {/* A link, not a `Button` with `navigate` — it goes to an address, and a
             link is what a middle-click and a screen reader expect there. */}
-        <RouteLink to={`/agent?plan=${encodeURIComponent(plan.id)}`}>
+        <RouteLink to={`/projects/${encodeURIComponent(`plan:${plan.id}`)}?step=shotlist`}>
           <Trans>审阅剪辑单</Trans>
         </RouteLink>
       </div>

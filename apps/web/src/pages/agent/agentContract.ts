@@ -339,7 +339,11 @@ export function patchAgentContext(
 
 /** A shareable address — what a plan card, a session row and 「打开」 all need. */
 export function agentHref(context: AgentRouteContext): string {
-  return `/agent?${writeAgentContext(context).toString()}`;
+  const params = writeAgentContext(context);
+  params.delete(AGENT_PARAM.plan);
+  params.set('step', 'shotlist');
+  const projectId = context.plan === null ? 'new' : encodeURIComponent(`plan:${context.plan}`);
+  return `/projects/${projectId}?${params.toString()}`;
 }
 
 function readIdentifier(raw: string | null): string | null {

@@ -224,7 +224,7 @@ export function MatchWorkspacePage() {
               {/* §8's non-negotiable line: the primary action is visible at
                   every width and never enters an overflow menu. `MatchContextBar`
                   keeps its `actions` slot out of the fold for that reason. */}
-              <Button variant="primary" size="sm" onClick={() => void navigate('/agent')}>
+              <Button variant="primary" size="sm" onClick={() => void navigate('/projects/new?step=shotlist')}>
                 <Trans>新建作品</Trans>
               </Button>
             </>

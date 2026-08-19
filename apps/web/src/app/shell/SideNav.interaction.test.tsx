@@ -97,12 +97,12 @@ describe('the collapsed rail flyout', () => {
 
   it('opens the same flyout on keyboard focus — the headings are not hover-only', () => {
     const { container } = mount({ collapsed: true });
-    const agent = container.querySelector('[data-nav-item="agent"]') as HTMLElement;
+    const agent = container.querySelector('[data-nav-item="projects"]') as HTMLElement;
 
     act(() => {
       agent.focus();
     });
-    expect(container.querySelector('[data-nav-flyout="agent"]')?.textContent).toBe('制作Agent 创作');
+    expect(container.querySelector('[data-nav-flyout="projects"]')?.textContent).toBe('制作作品');
 
     act(() => {
       agent.blur();
@@ -132,11 +132,11 @@ describe('the collapsed rail flyout', () => {
 
 describe('current destination', () => {
   it('marks exactly one entry, in both states', () => {
-    const expanded = mount({}, '/agent');
+    const expanded = mount({}, '/projects/new');
     expect(expanded.container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
     expect(
       expanded.container.querySelector('[aria-current="page"]')?.getAttribute('data-nav-item'),
-    ).toBe('agent');
+    ).toBe('projects');
     expanded.unmount();
 
     const collapsed = mount({ collapsed: true }, '/delivery?view=tasks');
@@ -161,7 +161,6 @@ describe('tab order', () => {
       'players',
       'evidence',
       'projects',
-      'agent',
       'recording',
       'montage',
       'editor',

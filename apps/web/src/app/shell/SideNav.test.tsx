@@ -72,7 +72,7 @@ describe('SideNav, expanded', () => {
   });
 
   it('carries the two count badges the frame draws', () => {
-    const html = nav({ badges: { agent: 1, outputs: 3 } });
+    const html = nav({ badges: { projects: 1, outputs: 3 } });
 
     expect(html).toContain('>1</span>');
     expect(html).toContain('>3</span>');
@@ -80,7 +80,7 @@ describe('SideNav, expanded', () => {
   });
 
   it('omits a badge whose count is zero', () => {
-    expect(nav({ badges: { agent: 0 } })).not.toContain('border-accent-300');
+    expect(nav({ badges: { projects: 0 } })).not.toContain('border-accent-300');
   });
 });
 
@@ -110,9 +110,9 @@ describe('SideNav, collapsed', () => {
   });
 
   it('reduces a badge to the corner square the artboard draws', () => {
-    const html = nav({ collapsed: true, badges: { agent: 1 } });
+    const html = nav({ collapsed: true, badges: { projects: 1 } });
 
-    expect(html).toContain('data-nav-badge="agent"');
+    expect(html).toContain('data-nav-badge="projects"');
     expect(html).not.toContain('>1</span>');
   });
 });

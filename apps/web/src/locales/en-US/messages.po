@@ -60,6 +60,10 @@ msgstr "· duration pending"
 msgid "· 需要服务"
 msgstr "· Service required"
 
+#: src/pages/ProjectWorkspacePage.tsx:52
+msgid "‹ 作品"
+msgstr "‹ Projects"
+
 #: src/pages/TaskDetailPage.tsx:63
 msgid "‹ 后台任务"
 msgstr "‹ Background tasks"
@@ -1338,10 +1342,14 @@ msgid "作品名称"
 msgstr "Project name"
 
 #: src/app/routeCrumb.ts:70
-#: src/pages/ProjectWorkspacePage.tsx:12
-#: src/pages/ProjectWorkspacePage.tsx:15
+#: src/pages/ProjectWorkspacePage.tsx:30
+#: src/pages/ProjectWorkspacePage.tsx:41
 msgid "作品工作区"
 msgstr "Project workspace"
+
+#: src/pages/ProjectWorkspacePage.tsx:54
+msgid "作品步骤"
+msgstr "Project steps"
 
 #: src/domain/agent/types.ts:225
 #: src/domain/agent/types.ts:339
@@ -2144,6 +2152,7 @@ msgid "剪辑中"
 msgstr "Editing"
 
 #: src/pages/ProjectsPage.tsx:89
+#: src/pages/ProjectWorkspacePage.tsx:83
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "Shot list"
@@ -2945,6 +2954,10 @@ msgstr "Bytes"
 msgid "存为预设"
 msgstr "Save as preset"
 
+#: src/pages/ProjectWorkspacePage.tsx:43
+msgid "它可能来自尚未读取成功的旧工程。"
+msgstr "It may belong to a legacy project source that has not loaded yet."
+
 #: src/pages/montage/AddClipsDialog.tsx:96
 msgid "完成一次录制后，片段会出现在这里。"
 msgstr "Once a recording finishes, its clips show up here."
@@ -3108,6 +3121,7 @@ msgstr "Import media"
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:275
 #: src/pages/ProjectsPage.tsx:91
+#: src/pages/ProjectWorkspacePage.tsx:85
 #: src/pages/settings/AdvancedSection.tsx:218
 #: src/pages/settings/AiAgentSection.tsx:775
 msgid "导出"
@@ -3160,6 +3174,10 @@ msgstr "Export video"
 #: src/pages/EvidencePage.tsx:186
 msgid "导出结果"
 msgstr "Export results"
+
+#: src/pages/ProjectWorkspacePage.tsx:94
+msgid "导出设置与这份作品的成品文件会显示在这里。"
+msgstr "Export settings and this project's finished files will appear here."
 
 #: src/app/boundary/RouteBoundary.tsx:121
 msgid "导出诊断"
@@ -3564,6 +3582,10 @@ msgstr "Current R{round}"
 msgid "当前会话"
 msgstr "Current session"
 
+#: src/pages/ProjectWorkspacePage.tsx:92
+msgid "当前剪辑模式：{mode}。Agent、快速剪辑与多轨编辑能力将在这里呈现。"
+msgstr "Current editing mode: {mode}. Agent, quick-edit, and multitrack tools will appear here."
+
 #: src/pages/settings/AiAgentSection.tsx:750
 msgid "当前占用 {conversation}"
 msgstr "Currently using {conversation}"
@@ -3641,6 +3663,7 @@ msgstr "The current anchor is an evidence row, so a note for it can be written u
 
 #: src/domain/task/taskVocabulary.tsx:28
 #: src/pages/ProjectsPage.tsx:90
+#: src/pages/ProjectWorkspacePage.tsx:84
 msgid "录制"
 msgstr "Recording"
 
@@ -3992,6 +4015,10 @@ msgstr "Annotate in bulk"
 #: src/app/boundary/RouteBoundary.tsx:141
 msgid "找不到这个页面"
 msgstr "Page not found"
+
+#: src/pages/ProjectWorkspacePage.tsx:43
+msgid "找不到这份作品"
+msgstr "Project not found"
 
 #: src/pages/TaskDetailPage.tsx:75
 msgid "找不到这条任务"
@@ -5451,6 +5478,10 @@ msgstr "The match history could not be read: {readError}"
 #: src/app/routeCrumb.ts:68
 msgid "比赛工作区"
 msgstr "Match workspace"
+
+#: src/pages/ProjectWorkspacePage.tsx:91
+msgid "比赛工作区与证据检索加入的片段会汇总到这里。"
+msgstr "Clips added from match workspaces and evidence search will collect here."
 
 #: src/pages/MatchWorkspacePage.tsx:241
 #: src/pages/MatchWorkspacePage.tsx:256
@@ -7302,7 +7333,7 @@ msgstr "Run the preflight"
 msgid "运行时"
 msgstr "Runtime"
 
-#: src/pages/ProjectWorkspacePage.tsx:17
+#: src/pages/ProjectWorkspacePage.tsx:43
 msgid "返回作品列表"
 msgstr "Back to projects"
 
@@ -7717,6 +7748,10 @@ msgstr "These settings decide how video is recorded. Changes apply only to recor
 #: src/pages/match/views/HighlightsView.tsx:469
 msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "The full parse result of these highlights cannot be read yet, so no plan can be created"
+
+#: src/pages/ProjectWorkspacePage.tsx:93
+msgid "这份作品的录制队列与片段进度会显示在这里。"
+msgstr "This project's recording queue and per-clip progress will appear here."
 
 #: src/pages/match/views/DuelsView.tsx:551
 msgid "这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。原因见下方。"
@@ -8225,12 +8260,9 @@ msgid "选择音乐"
 msgstr "Choose music"
 
 #: src/pages/ProjectsPage.tsx:88
+#: src/pages/ProjectWorkspacePage.tsx:82
 msgid "选材"
 msgstr "Select"
-
-#: src/pages/ProjectWorkspacePage.tsx:16
-msgid "选材、剪辑单、录制与导出会在这里汇合。"
-msgstr "Selection, shot lists, recording, and export come together here."
 
 #: src/pages/home/ActiveProjectsPanel.tsx:45
 msgid "选材中"

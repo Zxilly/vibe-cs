@@ -33,10 +33,6 @@ const ProjectsPage = lazy(async () => ({ default: (await import('./pages/Project
 const ProjectWorkspacePage = lazy(async () => ({
   default: (await import('./pages/ProjectWorkspacePage')).ProjectWorkspacePage,
 }));
-const AgentPage = lazy(async () => ({ default: (await import('./pages/AgentPage')).AgentPage }));
-const RecordingPage = lazy(async () => ({ default: (await import('./pages/RecordingPage')).RecordingPage }));
-const MontagePage = lazy(async () => ({ default: (await import('./pages/MontagePage')).MontagePage }));
-const EditorPage = lazy(async () => ({ default: (await import('./pages/EditorPage')).EditorPage }));
 const DeliveryPage = lazy(async () => ({ default: (await import('./pages/DeliveryPage')).DeliveryPage }));
 const TaskDetailPage = lazy(async () => ({
   default: (await import('./pages/TaskDetailPage')).TaskDetailPage,
@@ -56,10 +52,6 @@ export const APP_PAGES: RoutePages = {
   match: <MatchWorkspacePage />,
   projects: <ProjectsPage />,
   projectWorkspace: <ProjectWorkspacePage />,
-  agent: <AgentPage />,
-  recording: <RecordingPage />,
-  montage: <MontagePage />,
-  editor: <EditorPage />,
   delivery: <DeliveryPage />,
   deliveryTask: <TaskDetailPage />,
   settings: <SettingsPage />,

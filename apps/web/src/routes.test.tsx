@@ -11,7 +11,6 @@ import { isValidElement } from 'react';
 import { matchRoutes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
-import { ROUTE_PATHS } from './app/router';
 import { appRoutes, APP_PAGES } from './routes';
 
 const pageRouteIds = [
@@ -24,10 +23,6 @@ const pageRouteIds = [
   'match',
   'projects',
   'project-workspace',
-  'agent',
-  'recording',
-  'montage',
-  'editor',
   'delivery',
   'delivery-task',
   'settings',
@@ -38,7 +33,7 @@ const pageRouteIds = [
 describe('the page bindings', () => {
   it('binds one element per §7 destination', () => {
     const entries = Object.values(APP_PAGES);
-    expect(entries).toHaveLength(ROUTE_PATHS.length);
+    expect(entries).toHaveLength(pageRouteIds.length);
     expect(entries.every((element) => isValidElement(element))).toBe(true);
   });
 

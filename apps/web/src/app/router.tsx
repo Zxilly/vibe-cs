@@ -57,7 +57,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Navigate, useSearchParams, type RouteObject } from 'react-router-dom';
+import { Navigate, useParams, useSearchParams, type RouteObject } from 'react-router-dom';
 
 import { AppShell } from './AppShell';
 import { NotFound, RouteErrorElement } from './boundary';
@@ -76,10 +76,6 @@ export interface RoutePages {
   readonly match: ReactNode;
   readonly projects: ReactNode;
   readonly projectWorkspace: ReactNode;
-  readonly agent: ReactNode;
-  readonly recording: ReactNode;
-  readonly montage: ReactNode;
-  readonly editor: ReactNode;
   readonly delivery: ReactNode;
   readonly deliveryTask: ReactNode;
   readonly settings: ReactNode;
@@ -152,6 +148,35 @@ export function LegacyAnalysisRedirect() {
   return <Navigate to={to} replace />;
 }
 
+export function projectWorkspacePath(
+  kind: 'plan' | 'montage' | 'editor',
+  id: string,
+  step: 'shotlist' | 'record',
+): string {
+  return `/projects/${encodeURIComponent(`${kind}:${id}`)}?step=${step}`;
+}
+
+export function LegacyAgentRedirect() {
+  const [params] = useSearchParams();
+  const planId = params.get('plan');
+  return <Navigate to={planId === null ? '/projects' : projectWorkspacePath('plan', planId, 'shotlist')} replace />;
+}
+
+export function LegacyRecordingRedirect() {
+  const { taskId } = useParams<{ taskId?: string }>();
+  return <Navigate to={taskId === undefined ? '/projects?step=record' : projectWorkspacePath('plan', taskId, 'record')} replace />;
+}
+
+export function LegacyMontageRedirect() {
+  const { projectId } = useParams<{ projectId?: string }>();
+  return <Navigate to={projectId === undefined ? '/projects' : projectWorkspacePath('montage', projectId, 'shotlist')} replace />;
+}
+
+export function LegacyEditorRedirect() {
+  const { projectId } = useParams<{ projectId?: string }>();
+  return <Navigate to={projectId === undefined ? '/projects' : projectWorkspacePath('editor', projectId, 'shotlist')} replace />;
+}
+
 /* `replace` on every redirect: the old address should not sit in the back
    stack, or Back from the new page bounces straight through it again. */
 const legacyRoutes: RouteObject[] = [
@@ -181,10 +206,10 @@ export function createAppRoutes(pages: RoutePages): RouteObject[] {
         { id: 'match', path: 'match/:demoId', element: pages.match },
         { id: 'projects', path: 'projects', element: pages.projects },
         { id: 'project-workspace', path: 'projects/:projectId', element: pages.projectWorkspace },
-        { id: 'agent', path: 'agent', element: pages.agent },
-        { id: 'recording', path: 'recording/:taskId?', element: pages.recording },
-        { id: 'montage', path: 'montage/:projectId?', element: pages.montage },
-        { id: 'editor', path: 'editor/:projectId?', element: pages.editor },
+        { id: 'agent', path: 'agent', element: <LegacyAgentRedirect /> },
+        { id: 'recording', path: 'recording/:taskId?', element: <LegacyRecordingRedirect /> },
+        { id: 'montage', path: 'montage/:projectId?', element: <LegacyMontageRedirect /> },
+        { id: 'editor', path: 'editor/:projectId?', element: <LegacyEditorRedirect /> },
         /* Declared next to each other on purpose, but the order is not what
            keeps them apart: react-router ranks a static segment above a dynamic
            one, so `/delivery/task/x` can never be swallowed by `/delivery`. */

@@ -253,17 +253,17 @@ export const MATCH_VIEW: Readonly<Record<MatchViewId, MatchViewMeta>> = {
 /* ── what a view is handed ───────────────────────────────────────────────── */
 
 /**
- * The workspace-wide 「加入视频」 action.
+ * The workspace-wide 「加入作品」 action.
  *
- * `disabled` with a reason is the product rule (「不隐藏、不静默失败」), and this
- * round it is always disabled — see `data/match.ts` gap 2. `onAdd` is optional
- * so the shape does not have to change when the queue lands.
+ * `disabled` with a reason remains the product rule for unavailable states;
+ * `onAdd` hands a concrete selection to the workspace-owned project picker.
  */
 export interface MatchVideoAction {
   readonly disabled: boolean;
   /** Plain text, so it can go on `Button`'s `disabledReason`. */
   readonly disabledReason?: string | undefined;
   readonly onAdd?: ((selection: MatchVideoSelection) => void) | undefined;
+  readonly onAddMany?: ((selections: readonly MatchVideoSelection[]) => void) | undefined;
 }
 
 /**
@@ -275,6 +275,8 @@ export interface MatchVideoSelection {
   readonly round?: number | undefined;
   readonly playerId?: string | undefined;
   readonly highlightId?: string | undefined;
+  readonly evidenceId?: string | undefined;
+  readonly label?: string | undefined;
   readonly startTick?: number | undefined;
   readonly endTick?: number | undefined;
 }
@@ -291,7 +293,7 @@ export interface MatchViewProps {
   readonly context: MatchWorkspaceContext;
   /** The only way to change it; it writes the URL. */
   readonly updateContext: (patch: MatchContextPatch, options?: MatchContextUpdateOptions) => void;
-  /** 「加入视频」, in the state the shell decided. */
+  /** 「加入作品」, in the state the shell decided. */
   readonly addToVideo: MatchVideoAction;
   /** The §8 fold, observed once by the shell. */
   readonly collapsed: boolean;

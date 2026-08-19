@@ -6,11 +6,12 @@
  * after an interaction rather than reading component state.
  */
 
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { DesktopClientProvider, type DesktopClient } from '../../data/desktopClient';
+import { resetProjectCollectionsForTesting } from '../../data/projectCollections';
 import { renderInteractive } from '../../test/render';
 import { EvidencePage } from '../EvidencePage';
 import { evidenceResponse } from './test/fixtures';
@@ -28,9 +29,20 @@ function stubClient(): { client: Partial<DesktopClient>; queries: unknown[] } {
       },
       listEvidenceAnnotations: () =>
         Promise.resolve({ items: [], total: 0, page: 1, page_size: 20 }),
+      listAgentPlans: () => Promise.resolve([{
+        id: 'plan-1', title: '证据集锦', status: 'draft', revision: 1, shot_count: 1,
+        total_duration_seconds: 8, origin_count: 0,
+        created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
+      }]),
+      listMontageProjects: () => Promise.resolve({ items: [] }),
+      listEditorProjects: () => Promise.resolve({ items: [] }),
+      listActivities: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
+      listOutputs: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
     },
   };
 }
+
+afterEach(() => resetProjectCollectionsForTesting());
 
 function AddressProbe() {
   const location = useLocation();
@@ -155,6 +167,17 @@ describe('selecting a row', () => {
     fireEvent.click(container.querySelectorAll('[data-evidence-select]')[0] as HTMLElement);
     expect(await screen.findByText('已选 1 条证据')).toBeTruthy();
     expect(screen.getByText('批量注释')).toBeTruthy();
+  });
+
+  it('adds a result to an existing project and points back to it', async () => {
+    const { container } = mount();
+    await screen.findByText('命中 47 条 · 排序：时间倒序');
+    const row = container.querySelectorAll('[data-evidence-row]')[0] as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: '加入作品' }));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '加入' }));
+    expect(await screen.findByText('已加入「证据集锦」')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开作品' })).toBeTruthy();
   });
 });
 

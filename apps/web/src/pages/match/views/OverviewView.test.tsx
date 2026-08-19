@@ -108,8 +108,8 @@ describe('the three blocks are three doors', () => {
     expect(html).toMatch(/<ul[^>]*data-match-key-moments[^>]*overscroll-y-contain/u);
   });
 
-  it('offers 加入视频 disabled with the reason attached, never hidden', () => {
-    expect(html).toContain('加入视频');
+  it('offers 加入作品 disabled with the supplied reason, never hidden', () => {
+    expect(html).toContain('加入作品');
     expect(html).toContain('录制队列尚未接通');
   });
 

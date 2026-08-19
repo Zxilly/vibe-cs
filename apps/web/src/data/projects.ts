@@ -7,6 +7,7 @@ import { useMontageProjects } from './montage';
 import { useOutputList } from './outputs';
 import { useTaskFeed } from './tasks';
 import { dataErrorMessage } from './errors';
+import { useProjectCollections } from './projectCollections';
 
 /** Purely client-side project aggregation over existing query contracts. */
 export function useProjects() {
@@ -15,6 +16,7 @@ export function useProjects() {
   const editors = useEditorProjects();
   const tasks = useTaskFeed({ page: 1, page_size: 50 });
   const outputs = useOutputList({ page: 1, page_size: 100 });
+  const collections = useProjectCollections();
 
   const data = useMemo(() => {
     const warnings: ProjectAggregationWarning[] = [];
@@ -23,7 +25,7 @@ export function useProjects() {
     addWarning(warnings, 'editors', editors.error);
     addWarning(warnings, 'tasks', tasks.error);
     addWarning(warnings, 'outputs', outputs.error);
-    return aggregateProjects({
+    const aggregated = aggregateProjects({
       plans: plans.data ?? [],
       montages: montages.data?.items ?? [],
       editors: editors.data ?? [],
@@ -31,7 +33,19 @@ export function useProjects() {
       outputs: outputs.data?.items ?? [],
       warnings,
     });
-  }, [editors.data, editors.error, montages.data, montages.error, outputs.data, outputs.error, plans.data, plans.error, tasks.data, tasks.error]);
+    return {
+      ...aggregated,
+      projects: aggregated.projects.map((project) => {
+        const collected = collections.state[project.id] ?? [];
+        if (collected.length === 0) return project;
+        return {
+          ...project,
+          demoIds: [...new Set([...project.demoIds, ...collected.map((clip) => clip.demoId)])],
+          updatedAt: [project.updatedAt, ...collected.map((clip) => clip.addedAt)].sort((a, b) => b.localeCompare(a))[0] ?? project.updatedAt,
+        };
+      }),
+    };
+  }, [collections.state, editors.data, editors.error, montages.data, montages.error, outputs.data, outputs.error, plans.data, plans.error, tasks.data, tasks.error]);
 
   return {
     data,

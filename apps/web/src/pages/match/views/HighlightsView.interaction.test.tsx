@@ -7,7 +7,7 @@
  * this view.
  */
 
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useMatchAnalysis } from '../../../data/match';
@@ -80,11 +80,12 @@ describe('the batch selection', () => {
     expect(screen.getByText('已选 1 条')).toBeTruthy();
   });
 
-  it('keeps 加入录制队列 visible and disabled with its reason', () => {
+  it('keeps 加入作品 visible and carries the supplied disabled reason', () => {
     renderView(<HighlightsView.Body {...viewProps()} />);
     fireEvent.click(screen.getAllByRole('checkbox', { name: '选择这条高光' })[0] as HTMLElement);
 
-    const queue = screen.getByRole('button', { name: '加入录制队列' });
+    const queue = within(document.querySelector('[data-selection-bar]') as HTMLElement)
+      .getByRole('button', { name: '加入作品' });
     expect(queue).toHaveProperty('disabled', true);
     expect(document.body.textContent).toContain('录制队列尚未接通');
   });

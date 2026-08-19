@@ -47,7 +47,7 @@ describe('quick mode inside a project shot list', () => {
     await waitFor(() => expect(bench.puts).toHaveLength(1));
 
     fireEvent.click(screen.getByRole('button', { name: '选材' }));
-    await screen.findByText('比赛工作区与证据检索加入的片段会汇总到这里。');
+    await screen.findByText('这份作品还没有收集片段');
     fireEvent.click(screen.getByRole('button', { name: '剪辑单' }));
     await screen.findByRole('radiogroup', { name: '合辑主题' });
     expect(screen.getByRole('radio', { name: '霓虹' }).getAttribute('aria-checked')).toBe('true');

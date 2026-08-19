@@ -731,7 +731,7 @@ function DuelsInspector({ demoId, context, updateContext, addToVideo, collapsed 
       title={<Trans>选中：{player.name}</Trans>}
       summary={player.name}
       addToVideo={addToVideo}
-      addLabel={<Trans>把这名选手加入视频</Trans>}
+      addLabel={<Trans>把这名选手加入作品</Trans>}
       selection={{ playerId: player.id }}
       collapsed={collapsed}
       secondaryActions={

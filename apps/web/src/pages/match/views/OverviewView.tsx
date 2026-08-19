@@ -239,7 +239,7 @@ export function OverviewPanels({
                           })
                         }
                       >
-                        <Trans>加入视频</Trans>
+                        <Trans>加入作品</Trans>
                       </Button>
                     </span>
                   }

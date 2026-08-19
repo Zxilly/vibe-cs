@@ -206,13 +206,12 @@ describe('the Inspector is the same round', () => {
     ).toBeTruthy();
   });
 
-  it('keeps 加入视频 visible and disabled, with the workspace’s one reason', async () => {
+  it('keeps 加入作品 visible and enabled for the selected round', async () => {
     await openRounds('&round=4');
 
     const add = document.querySelector('[data-match-add-to-video]') as HTMLElement;
-    expect(add.textContent).toBe('把这个回合加入视频');
-    expect(add.hasAttribute('disabled')).toBe(true);
-    expect(reasonOf(add)).toContain('录制队列尚未接通');
+    expect(add.textContent).toBe('把这个回合加入作品');
+    expect(add.hasAttribute('disabled')).toBe(false);
   });
 
   it('hands the round to 2D 回放 with the playhead at its start', async () => {

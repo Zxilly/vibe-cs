@@ -369,7 +369,7 @@ export function PlayerMatchDetail({ analysis, row, addDisabledReason }: PlayerMa
                         ? {}
                         : { disabled: true, disabledReason: addDisabledReason })}
                     >
-                      <Trans>加入视频</Trans>
+                      <Trans>加入作品</Trans>
                     </Button>
                   }
                 />
@@ -485,7 +485,7 @@ function PlayersInspector({
       title={<Trans>选中：{row.name}</Trans>}
       summary={`${row.name} · ${formatFixed(row.kills, 0)} / ${formatFixed(row.deaths, 0)} / ${formatFixed(row.assists, 0)}`}
       addToVideo={addToVideo}
-      addLabel={<Trans>把这名选手加入视频</Trans>}
+      addLabel={<Trans>把这名选手加入作品</Trans>}
       selection={{ playerId: row.id }}
       collapsed={collapsed}
       /* The artboard's two seconds. Both are navigations inside the workspace,

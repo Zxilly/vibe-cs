@@ -95,6 +95,6 @@ describe('actions whose write path does not exist', () => {
     const html = at('/evidence');
     expect(html).toContain('保存为视图');
     expect(html).toContain('导出结果');
-    expect(html).toContain('注释与录制队列的写入尚未接通');
+    expect(html).toContain('注释写入尚未接通');
   });
 });

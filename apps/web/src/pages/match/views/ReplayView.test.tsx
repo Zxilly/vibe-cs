@@ -174,10 +174,10 @@ describe('the Inspector', () => {
     expect(html).toContain('只列击杀与目标事件，共 3 条');
   });
 
-  it('carries the workspace’s 加入视频 state and its one reason', () => {
+  it('carries the workspace’s 加入作品 state and its reason', () => {
     loaded();
     const html = markupView(<Inspector {...viewProps({ context: { round: 21 } })} />);
-    expect(html).toContain('把这个回合加入视频');
+    expect(html).toContain('把这个回合加入作品');
     expect(html).toContain('录制队列尚未接通');
   });
 

@@ -254,7 +254,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
                         })
                       }
                     >
-                      <Trans>加入视频</Trans>
+                      <Trans>加入作品</Trans>
                     </Button>
                   </span>
                 }
@@ -307,17 +307,15 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
                 ? {}
                 : { disabledReason: addToVideo.disabledReason })}
               onClick={() => {
-                for (const highlight of batch) {
-                  addToVideo.onAdd?.({
+                addToVideo.onAddMany?.(batch.map((highlight) => ({
                     round: highlight.round,
                     highlightId: highlight.id,
                     startTick: highlight.startTick,
                     endTick: highlight.endTick,
-                  });
-                }
+                  })));
               }}
             >
-              <Trans>加入录制队列</Trans>
+              <Trans>加入作品</Trans>
             </Button>
           </SelectionBar>
         )}
@@ -358,7 +356,7 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
       title={<Trans>选中：第 {highlight.round} 回合的高光</Trans>}
       summary={highlight.label ?? i18n._(HIGHLIGHT_KIND[highlight.kind].label)}
       addToVideo={addToVideo}
-      addLabel={<Trans>把这条高光加入视频</Trans>}
+      addLabel={<Trans>把这条高光加入作品</Trans>}
       selection={{
         round: highlight.round,
         highlightId: highlight.id,

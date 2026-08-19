@@ -55,19 +55,22 @@ export function MatchInspectorPanel({
   collapsed,
 }: MatchInspectorPanelProps) {
   const label = t`选中项详情`;
+  const hasSelection = selection !== undefined && Object.keys(selection).length > 0;
+  const addDisabled = addToVideo.disabled || !hasSelection;
+  const addDisabledReason = addToVideo.disabledReason ?? (hasSelection ? undefined : t`先选择一个回合、选手或片段`);
   const add = (
     <Button
       variant="primary"
       size={collapsed ? 'sm' : 'lg'}
       block={!collapsed}
       data-match-add-to-video=""
-      disabled={addToVideo.disabled}
-      {...(addToVideo.disabledReason === undefined
+      disabled={addDisabled}
+      {...(addDisabledReason === undefined
         ? {}
-        : { disabledReason: addToVideo.disabledReason })}
+        : { disabledReason: addDisabledReason })}
       onClick={() => addToVideo.onAdd?.(selection ?? {})}
     >
-      {addLabel ?? <Trans>加入视频</Trans>}
+      {addLabel ?? <Trans>加入作品</Trans>}
     </Button>
   );
 

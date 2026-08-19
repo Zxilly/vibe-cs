@@ -101,7 +101,7 @@ export function EvidenceDetail({
               <Trans>2D 回放定位</Trans>
             </Button>
             <Button variant="secondary" size="sm" grow onClick={() => onAddToVideo(row)}>
-              <Trans>加入视频</Trans>
+              <Trans>加入作品</Trans>
             </Button>
           </div>
         </>

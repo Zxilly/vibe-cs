@@ -133,9 +133,9 @@ describe('the constant chrome', () => {
     expect(html).toContain('在左侧选择一个回合');
   });
 
-  it('disables 加入视频 and says why, instead of hiding it', () => {
+  it('disables 加入作品 without a selection and says why', () => {
     expect(html).toContain('data-match-add-to-video=');
-    expect(html).toContain('录制队列尚未接通');
+    expect(html).toContain('先选择一个回合、选手或片段');
   });
 
   it('draws no highlight badge while the analysis is still loading', () => {

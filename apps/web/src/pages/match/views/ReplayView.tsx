@@ -521,7 +521,7 @@ function ReplayInspector({ demoId, context, updateContext, addToVideo, collapsed
       title={title}
       summary={<Trans>事件 {rows.length} 条</Trans>}
       addToVideo={addToVideo}
-      addLabel={context.round === null ? <Trans>加入视频</Trans> : <Trans>把这个回合加入视频</Trans>}
+      addLabel={context.round === null ? <Trans>加入作品</Trans> : <Trans>把这个回合加入作品</Trans>}
       selection={{
         ...(context.round === null ? {} : { round: context.round }),
         ...(context.player === null ? {} : { playerId: context.player }),

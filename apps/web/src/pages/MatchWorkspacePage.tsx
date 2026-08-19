@@ -61,24 +61,24 @@
  * demo record cannot be fetched the bar says so in place and keeps 「‹ 资料库」
  * reachable, which is what a user whose workspace failed to open needs.
  *
- * ── 「加入视频」 is disabled, and says why ──────────────────────────────────
+ * ── 「加入作品」 is one workspace action ────────────────────────────────────
  *
- * The action appears on scoreboard rows, highlight rows and the Inspector
- * footer. It has no command behind it: `planRecording` builds an ephemeral plan
- * and the persistent queue is `features/queue`'s client-side store, which §4.2's
- * replacement has not been written (see `data/match.ts`, gap 2). So it is
- * disabled with the reason attached — 「不隐藏、不静默失败」 — and the state is
- * passed to every view so the nine of them say one sentence rather than nine.
+ * Scoreboard rows, highlights, rounds and Inspector footers all call the same
+ * action. It opens one project picker and writes the selection to the client-
+ * side project collection; no view keeps its own queue or its own feedback.
  */
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
+import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useDemo } from '../data/demos';
 import { dataErrorMessage } from '../data/errors';
 import { useMatchAnalysis } from '../data/match';
+import type { ProjectCollectedClip } from '../data/projectCollections';
+import { Alert } from '../design/feedback';
 import { Page, SubNav, useCollapsed, type SubNavItem } from '../design/layout';
 import { Button } from '../design/primitives';
 import { MatchContextBar } from '../domain/match';
@@ -94,6 +94,7 @@ import {
   type MatchViewProps,
 } from './match/viewContract';
 import { RouteLink } from './RouteLink';
+import { AddToProjectDialog, type AddedProjectTarget } from './project/AddToProjectDialog';
 import {
   patchWorkspaceContext,
   readWorkspaceContext,
@@ -107,6 +108,8 @@ export function MatchWorkspacePage() {
   const navigate = useNavigate();
   const { i18n } = useLingui();
   const collapsed = useCollapsed(undefined);
+  const [pendingClips, setPendingClips] = useState<readonly ProjectCollectedClip[]>([]);
+  const [addedProject, setAddedProject] = useState<AddedProjectTarget | null>(null);
 
   const context = readWorkspaceContext(params);
   const view = MATCH_VIEWS[context.view];
@@ -121,12 +124,11 @@ export function MatchWorkspacePage() {
     });
   };
 
-  /* The one sentence the whole workspace uses for the action that has no
-     command behind it. Declared inside the component so the macro resolves
-     against the active locale rather than at import time. */
+  const matchLabel = demo.data?.display_name ?? demoId;
   const addToVideo: MatchVideoAction = {
-    disabled: true,
-    disabledReason: t`录制队列尚未接通`,
+    disabled: false,
+    onAdd: (selection) => setPendingClips([collectedClip(demoId, matchLabel, selection)]),
+    onAddMany: (selections) => setPendingClips(selections.map((selection) => collectedClip(demoId, matchLabel, selection))),
   };
 
   const viewProps: MatchViewProps = {
@@ -247,6 +249,19 @@ export function MatchWorkspacePage() {
          plus a drawer it pulls out. */
       footer={collapsed ? inspector : null}
     >
+      <>
+      {addedProject === null ? null : (
+        <Alert
+          className="mx-4 mt-4"
+          variant="success"
+          action={{
+            label: <Trans>打开作品</Trans>,
+            onAction: () => void navigate(`/projects/${encodeURIComponent(addedProject.id)}?step=select`),
+          }}
+        >
+          <Trans>已加入「{addedProject.name}」</Trans>
+        </Alert>
+      )}
       <div className="flex min-h-0 min-w-0 flex-1">
         {collapsed ? null : (
           <SubNav
@@ -269,6 +284,51 @@ export function MatchWorkspacePage() {
         </main>
         {collapsed ? null : inspector}
       </div>
+      <AddToProjectDialog
+        open={pendingClips.length > 0}
+        clips={pendingClips}
+        onClose={() => setPendingClips([])}
+        onAdded={setAddedProject}
+      />
+      </>
     </Page>
   );
+}
+
+function collectedClip(
+  demoId: string,
+  matchLabel: string,
+  selection: Parameters<NonNullable<MatchVideoAction['onAdd']>>[0],
+): ProjectCollectedClip {
+  const kind = selection.highlightId !== undefined
+    ? 'highlight'
+    : selection.evidenceId !== undefined
+      ? 'evidence'
+      : selection.round !== undefined
+        ? 'round'
+        : selection.playerId !== undefined ? 'player' : 'selection';
+  const identity = selection.highlightId
+    ?? selection.evidenceId
+    ?? (selection.round === undefined ? undefined : `round-${String(selection.round)}`)
+    ?? selection.playerId
+    ?? `${String(selection.startTick ?? 'start')}-${String(selection.endTick ?? 'end')}`;
+  const label = selection.label
+    ?? (kind === 'highlight' ? `高光 ${identity}`
+      : kind === 'evidence' ? `证据 ${identity}`
+        : kind === 'round' ? `第 ${String(selection.round)} 回合`
+          : kind === 'player' ? `选手 ${String(selection.playerId)}` : '比赛片段');
+  return {
+    id: `${demoId}:${kind}:${identity}`,
+    demoId,
+    matchLabel,
+    kind,
+    label,
+    round: selection.round ?? null,
+    playerId: selection.playerId ?? null,
+    highlightId: selection.highlightId ?? null,
+    evidenceId: selection.evidenceId ?? null,
+    startTick: selection.startTick ?? null,
+    endTick: selection.endTick ?? null,
+    addedAt: new Date().toISOString(),
+  };
 }

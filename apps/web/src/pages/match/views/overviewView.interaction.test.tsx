@@ -18,7 +18,6 @@ import { stubMatchMedia, type MatchMediaStub } from '../../../design/layout/coll
 import { DEMO } from '../test/fixtures';
 import { renderWorkspace } from '../test/renderWorkspace';
 import { ANALYSIS, DEMO_ID } from './test/matchFixture';
-import { reasonOf } from '../../../test/reason';
 
 let media: MatchMediaStub | null = null;
 
@@ -91,15 +90,15 @@ describe('关键时刻 is the door to 高光', () => {
   });
 });
 
-describe('加入视频', () => {
-  it('is disabled on every row and says why, rather than being hidden', async () => {
+describe('加入作品', () => {
+  it('is enabled on every populated row', async () => {
     await openOverview();
 
-    const buttons = screen.getAllByRole('button', { name: '加入视频' });
+    const buttons = screen.getAllByRole('button', { name: '加入作品' })
+      .filter((button) => !button.hasAttribute('data-match-add-to-video'));
     expect(buttons.length).toBeGreaterThan(0);
     for (const button of buttons) {
-      expect(button.hasAttribute('disabled')).toBe(true);
-      expect(reasonOf(button)).toContain('录制队列尚未接通');
+      expect(button.hasAttribute('disabled')).toBe(false);
     }
   });
 });

@@ -139,8 +139,8 @@ describe('one player’s detail', () => {
     expect(html).toContain('三杀');
   });
 
-  it('disables 加入视频 with the shell’s reason instead of hiding it', () => {
-    expect(html).toContain('加入视频');
+  it('disables 加入作品 with the supplied reason instead of hiding it', () => {
+    expect(html).toContain('加入作品');
     expect(html).toContain('录制队列尚未接通');
   });
 

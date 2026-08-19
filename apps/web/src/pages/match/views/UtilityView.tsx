@@ -649,7 +649,7 @@ function UtilityInspector({ demoId, context, updateContext, addToVideo, collapse
         title={<Trans>选中：{player?.name ?? utilityRow.name}</Trans>}
         summary={<Trans>{utilityRow.name} · 投出 {utilityRow.throws}</Trans>}
         addToVideo={addToVideo}
-        addLabel={<Trans>把这名选手加入视频</Trans>}
+        addLabel={<Trans>把这名选手加入作品</Trans>}
         selection={{ playerId: utilityRow.playerId }}
         collapsed={collapsed}
         secondaryActions={
@@ -673,7 +673,7 @@ function UtilityInspector({ demoId, context, updateContext, addToVideo, collapse
         title={<Trans>选中：第 {economyRow.round} 回合</Trans>}
         summary={<Trans>第 {economyRow.round} 回合的购买</Trans>}
         addToVideo={addToVideo}
-        addLabel={<Trans>把这个回合加入视频</Trans>}
+        addLabel={<Trans>把这个回合加入作品</Trans>}
         selection={{ round: economyRow.round }}
         collapsed={collapsed}
         secondaryActions={

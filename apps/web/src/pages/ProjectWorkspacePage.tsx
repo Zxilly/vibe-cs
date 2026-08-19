@@ -13,6 +13,7 @@ import { AgentWorkspace } from './AgentPage';
 import { MontageWorkspace } from './MontagePage';
 import { EditorWorkspaceLoader } from './EditorPage';
 import { ProjectRecordingStep } from './project/ProjectRecordingStep';
+import { ProjectSelectStep } from './project/ProjectSelectStep';
 import { RouteLink } from './RouteLink';
 
 export function ProjectWorkspacePage() {
@@ -110,6 +111,7 @@ function StepContent({
   readonly tasksError: string | null;
   readonly onReloadTasks: () => void;
 }) {
+  if (step === 'select') return <ProjectSelectStep project={project} />;
   if (step === 'shotlist') return <ShotListMode project={project} />;
   if (step === 'record') {
     return (

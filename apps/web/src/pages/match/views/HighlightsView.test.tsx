@@ -75,10 +75,10 @@ describe('the list', () => {
     expect(html).toContain('共 4 条高光，当前筛出 4 条');
   });
 
-  it('disables 加入视频 with the workspace’s one reason instead of hiding it', () => {
+  it('disables 加入作品 with the supplied reason instead of hiding it', () => {
     analysis();
     const html = markupView(<HighlightsView.Body {...viewProps()} />);
-    expect(html).toContain('加入视频');
+    expect(html).toContain('加入作品');
     expect(html).toContain('录制队列尚未接通');
   });
 
@@ -129,7 +129,7 @@ describe('the Inspector', () => {
     expect(html).toContain('选中：第 21 回合的高光');
     expect(html).toContain('穿墙');
     expect(html).toContain('A 大道 18.7m');
-    expect(html).toContain('把这条高光加入视频');
+    expect(html).toContain('把这条高光加入作品');
   });
 
   it('says what to do when nothing is selected', () => {

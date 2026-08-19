@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { stubMatchMedia, type MatchMediaStub } from '../../design/layout/collapse.testing';
 import type { DesktopClient } from '../../data/desktopClient';
+import { resetProjectCollectionsForTesting } from '../../data/projectCollections';
 import { ANALYSIS, DEMO, DEMO_ID } from './test/fixtures';
 import { renderWorkspace } from './test/renderWorkspace';
 import { reasonOf } from '../../test/reason';
@@ -26,6 +27,7 @@ let media: MatchMediaStub | null = null;
 afterEach(() => {
   media?.restore();
   media = null;
+  resetProjectCollectionsForTesting();
 });
 
 /** A bridge that answers with the artboard's match. */
@@ -107,11 +109,11 @@ describe('§8 rule 2 — the Inspector folds into a strip plus a drawer', () => 
     const strip = document.querySelector('[data-inspector="summary"]');
     expect(strip).not.toBeNull();
     expect(document.querySelector('[data-inspector="docked"]')).toBeNull();
-    // §8's non-negotiable line: 加入视频 stays on the strip, never in the drawer
-    // only — and it is still disabled with its reason attached.
+    // §8's non-negotiable line: 加入作品 stays on the strip, never in the drawer
+    // only — with no selection it is disabled and explains what is missing.
     const add = strip?.querySelector('[data-match-add-to-video]');
     expect(add).not.toBeNull();
-    expect(reasonOf(add)).toContain('录制队列尚未接通');
+    expect(reasonOf(add)).toContain('先选择');
   });
 
   it('opens the drawer from the strip', async () => {
@@ -220,5 +222,63 @@ describe('what the shell reads', () => {
     expect(await screen.findByText('索引里没有这场比赛')).toBeTruthy();
     expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
     expect(screen.getByRole('link', { name: '资料库' })).toBeTruthy();
+  });
+});
+
+describe('加入作品', () => {
+  it('chooses an existing project and returns a feedback link to it', async () => {
+    media = stubMatchMedia(1400);
+    renderWorkspace({
+      url: `/match/${DEMO_ID}?view=rounds&round=2`,
+      client: {
+        ...loaded(),
+        listAgentPlans: () => Promise.resolve([{
+          id: 'plan-1', title: '现有作品', status: 'draft', revision: 1, shot_count: 1,
+          total_duration_seconds: 8, origin_count: 0,
+          created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
+        }]),
+        listMontageProjects: () => Promise.resolve({ items: [] }),
+        listEditorProjects: () => Promise.resolve({ items: [] }),
+        listActivities: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
+        listOutputs: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
+      },
+    });
+
+    const add = await screen.findByRole('button', { name: '把这个回合加入作品' });
+    fireEvent.click(add);
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '加入' }));
+    expect(await screen.findByText('已加入「现有作品」')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开作品' })).toBeTruthy();
+  });
+
+  it('can create a new project from the selected round', async () => {
+    media = stubMatchMedia(1400);
+    const created: unknown[] = [];
+    renderWorkspace({
+      url: `/match/${DEMO_ID}?view=rounds&round=2`,
+      client: {
+        ...loaded(),
+        listAgentPlans: () => Promise.resolve([]),
+        listMontageProjects: () => Promise.resolve({ items: [] }),
+        listEditorProjects: () => Promise.resolve({ items: [] }),
+        listActivities: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
+        listOutputs: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
+        createAgentPlan: (draft) => {
+          created.push(draft);
+          return Promise.resolve({
+            id: 'new-plan', title: draft.title, status: draft.status, revision: 1,
+            shots: draft.shots, origin: [],
+            agent_baseline: { revision: 1, captured_at: '2026-08-20T00:00:00Z', shots: draft.shots },
+            created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
+          });
+        },
+      },
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: '把这个回合加入作品' }));
+    fireEvent.click(await screen.findByRole('button', { name: '新建并加入' }));
+    await waitFor(() => expect(created).toHaveLength(1));
+    expect(await screen.findByText(/已加入「.*新作品」/u)).toBeTruthy();
   });
 });

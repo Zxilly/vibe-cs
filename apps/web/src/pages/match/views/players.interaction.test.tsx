@@ -15,7 +15,6 @@ import { stubMatchMedia, type MatchMediaStub } from '../../../design/layout/coll
 import { DEMO } from '../test/fixtures';
 import { renderWorkspace } from '../test/renderWorkspace';
 import { ANALYSIS, BARE_ANALYSIS, DEMO_ID } from './test/rosterFixtures';
-import { reasonOf } from '../../../test/reason';
 
 let media: MatchMediaStub | null = null;
 
@@ -114,16 +113,15 @@ describe('sorting', () => {
 });
 
 describe('the Inspector’s actions', () => {
-  it('disables 加入视频 and carries the shell’s reason', async () => {
+  it('enables 加入作品 for the focused player', async () => {
     open('&player=kael');
     // The panel exists before the analysis lands; wait for the *loaded* one.
     await screen.findByText('选中：Kael');
     const add = document.querySelector(
       '[data-inspector="docked"] [data-match-add-to-video]',
     ) as HTMLButtonElement;
-    expect(add.hasAttribute('disabled')).toBe(true);
-    expect(reasonOf(add)).toContain('录制队列尚未接通');
-    expect(add.textContent).toContain('把这名选手加入视频');
+    expect(add.hasAttribute('disabled')).toBe(false);
+    expect(add.textContent).toContain('把这名选手加入作品');
   });
 
   it('carries the focused player onto another view', async () => {

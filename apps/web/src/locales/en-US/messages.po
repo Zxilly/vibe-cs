@@ -60,7 +60,7 @@ msgstr "· duration pending"
 msgid "· 需要服务"
 msgstr "· Service required"
 
-#: src/pages/ProjectWorkspacePage.tsx:57
+#: src/pages/ProjectWorkspacePage.tsx:58
 msgid "‹ 作品"
 msgstr "‹ Projects"
 
@@ -264,6 +264,8 @@ msgid "{0} 个回合有首杀 · {1} 条未归属"
 msgstr "{0} rounds with an opening kill · {1} unattributed"
 
 #. placeholder {0}: items.length
+#. placeholder {0}: match.clips.length
+#: src/pages/project/ProjectSelectStep.tsx:36
 #: src/pages/RecordingPage.tsx:313
 msgid "{0} 个片段"
 msgstr "{0} clips"
@@ -335,9 +337,15 @@ msgstr "{0} rounds"
 msgid "{0} 场"
 msgstr "{0} matches"
 
+#. placeholder {0}: matches.length
+#. placeholder {1}: clips.length
+#: src/pages/project/ProjectSelectStep.tsx:29
+msgid "{0} 场比赛 · {1} 个片段"
+msgstr "{0} matches · {1} clips"
+
 #. placeholder {0}: availability.indexed_demos
 #. placeholder {1}: availability.indexed_items
-#: src/pages/EvidencePage.tsx:160
+#: src/pages/EvidencePage.tsx:166
 msgid "{0} 场比赛 · {1} 条规范化证据"
 msgstr "{0} matches · {1} normalized evidence rows"
 
@@ -456,7 +464,7 @@ msgstr "{count, plural, one {Retry #} other {Retry #}}"
 msgid "{count} 个镜头"
 msgstr "{count} shots"
 
-#: src/pages/match/views/HighlightsView.tsx:489
+#: src/pages/match/views/HighlightsView.tsx:487
 msgid "{count} 条高光"
 msgstr "{count} highlights"
 
@@ -493,7 +501,7 @@ msgstr "Matchups of {killerName}"
 msgid "{kills} 杀"
 msgstr "{kills} kills"
 
-#: src/pages/match/views/HighlightsView.tsx:489
+#: src/pages/match/views/HighlightsView.tsx:487
 msgid "{map} · {count} 条高光"
 msgstr "{map} · {count} highlights"
 
@@ -535,7 +543,7 @@ msgid "{score} 回合"
 msgstr "{score} rounds"
 
 #: src/domain/match/HighlightRow.tsx:156
-#: src/pages/match/views/HighlightsView.tsx:386
+#: src/pages/match/views/HighlightsView.tsx:384
 msgid "{seconds} 秒"
 msgstr "{seconds}s"
 
@@ -660,6 +668,10 @@ msgstr "＋ Headshots only"
 msgid "＋ 从高光添加片段"
 msgstr "＋ Add clips from highlights"
 
+#: src/pages/project/AddToProjectDialog.tsx:87
+msgid "＋ 新建作品"
+msgstr "+ New project"
+
 #: src/domain/match/MatchContextBar.tsx:243
 msgid "＋ 添加选手"
 msgstr "＋ Add player"
@@ -732,7 +744,7 @@ msgstr "Removed by the Agent"
 msgid "Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。"
 msgstr "The view a shot starts with when the Agent hands it over. Each shot can still be changed in the plan."
 
-#: src/pages/ProjectWorkspacePage.tsx:140
+#: src/pages/ProjectWorkspacePage.tsx:142
 msgid "Agent 模式"
 msgstr "Agent mode"
 
@@ -767,7 +779,7 @@ msgstr "AI workbench"
 
 #: src/pages/match/views/ReviewView.tsx:196
 #: src/pages/match/views/ReviewView.tsx:201
-#: src/pages/MatchWorkspacePage.tsx:222
+#: src/pages/MatchWorkspacePage.tsx:224
 msgid "AI 点评"
 msgstr "AI commentary"
 
@@ -949,7 +961,7 @@ msgstr "tick"
 msgid "tick {0}"
 msgstr "tick {0}"
 
-#: src/pages/match/views/HighlightsView.tsx:380
+#: src/pages/match/views/HighlightsView.tsx:378
 msgid "tick 区间"
 msgstr "tick range"
 
@@ -1256,6 +1268,10 @@ msgstr "Add from recordings"
 msgid "从录制结果里挑几段，它们会按这里的顺序拼成视频。"
 msgstr "Pick a few takes from the recordings; they are stitched into the video in the order shown here."
 
+#: src/pages/project/ProjectSelectStep.tsx:19
+msgid "从比赛工作区的高光、回合或证据点击「加入作品」，片段会按比赛汇总到这里。"
+msgstr "Use “Add to project” on a highlight, round, or evidence item. Clips are grouped here by match."
+
 #: src/pages/recording/ShotInspectorBlock.tsx:649
 msgid "从预设应用"
 msgstr "Apply a preset"
@@ -1353,12 +1369,12 @@ msgid "作品名称"
 msgstr "Project name"
 
 #: src/app/routeCrumb.ts:70
-#: src/pages/ProjectWorkspacePage.tsx:35
-#: src/pages/ProjectWorkspacePage.tsx:46
+#: src/pages/ProjectWorkspacePage.tsx:36
+#: src/pages/ProjectWorkspacePage.tsx:47
 msgid "作品工作区"
 msgstr "Project workspace"
 
-#: src/pages/ProjectWorkspacePage.tsx:59
+#: src/pages/ProjectWorkspacePage.tsx:60
 msgid "作品步骤"
 msgstr "Project steps"
 
@@ -1424,8 +1440,8 @@ msgstr "Save"
 msgid "保存中…"
 msgstr "Saving…"
 
-#: src/pages/EvidencePage.tsx:173
-#: src/pages/EvidencePage.tsx:176
+#: src/pages/EvidencePage.tsx:179
+#: src/pages/EvidencePage.tsx:182
 #: src/pages/library/LibraryFilters.tsx:193
 #: src/pages/library/SaveViewDialog.tsx:52
 msgid "保存为视图"
@@ -1481,7 +1497,7 @@ msgstr "Edit"
 msgid "修改任何片段都会让当前预览计划失效，需要重新生成预览。"
 msgstr "Changing any clip voids the current preview plan, and the preview has to be regenerated."
 
-#: src/pages/ProjectWorkspacePage.tsx:170
+#: src/pages/ProjectWorkspacePage.tsx:172
 msgid "修改会自动保留在当前模式"
 msgstr "Changes are preserved automatically in the current mode"
 
@@ -1573,6 +1589,10 @@ msgstr "Select a media item first"
 #: src/pages/montage/ClipOrderBlock.tsx:126
 msgid "先选中一段再裁切"
 msgstr "Select a clip before trimming"
+
+#: src/pages/match/MatchInspectorPanel.tsx:60
+msgid "先选择一个回合、选手或片段"
+msgstr "Select a round, player, or clip first"
 
 #: src/pages/AgentPage.tsx:497
 #: src/pages/AgentPage.tsx:517
@@ -1724,7 +1744,7 @@ msgid "共 {0} 条"
 msgstr "{0} rows in total"
 
 #. placeholder {0}: highlights.length
-#: src/pages/match/views/HighlightsView.tsx:343
+#: src/pages/match/views/HighlightsView.tsx:341
 msgid "共 {0} 条高光"
 msgstr "{0} highlights in total"
 
@@ -2179,7 +2199,7 @@ msgid "剪辑中"
 msgstr "Editing"
 
 #: src/pages/ProjectsPage.tsx:89
-#: src/pages/ProjectWorkspacePage.tsx:94
+#: src/pages/ProjectWorkspacePage.tsx:95
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "Shot list"
@@ -2193,7 +2213,7 @@ msgctxt "agent-object"
 msgid "剪辑工程"
 msgstr "Edit project"
 
-#: src/pages/ProjectWorkspacePage.tsx:155
+#: src/pages/ProjectWorkspacePage.tsx:157
 msgid "剪辑模式"
 msgstr "Editing mode"
 
@@ -2206,20 +2226,22 @@ msgstr "{0} free"
 msgid "加 0.5 秒尾巴"
 msgstr "Add a 0.5s tail"
 
-#: src/pages/EvidencePage.tsx:233
-#: src/pages/match/views/HighlightsView.tsx:320
-msgid "加入录制队列"
-msgstr "Add to the recording queue"
+#: src/pages/project/AddToProjectDialog.tsx:71
+msgid "加入"
+msgstr "Add"
 
 #: src/pages/evidence/EvidenceDetail.tsx:104
 #: src/pages/evidence/EvidenceResults.tsx:184
-#: src/pages/match/MatchInspectorPanel.tsx:70
+#: src/pages/EvidencePage.tsx:239
+#: src/pages/match/MatchInspectorPanel.tsx:73
 #: src/pages/match/views/HighlightsView.tsx:257
+#: src/pages/match/views/HighlightsView.tsx:318
 #: src/pages/match/views/OverviewView.tsx:242
 #: src/pages/match/views/PlayersView.tsx:372
 #: src/pages/match/views/ReplayView.tsx:524
-msgid "加入视频"
-msgstr "Add to video"
+#: src/pages/project/AddToProjectDialog.tsx:70
+msgid "加入作品"
+msgstr "Add to project"
 
 #: src/design/data/Skeleton.tsx:64
 msgid "加载中"
@@ -2596,7 +2618,7 @@ msgid "吸附"
 msgstr "Snap"
 
 #. placeholder {0}: search.data.total
-#: src/pages/EvidencePage.tsx:219
+#: src/pages/EvidencePage.tsx:225
 msgid "命中 {0} 条 · 排序：时间倒序"
 msgstr "{0} hits · sorted newest first"
 
@@ -2631,7 +2653,7 @@ msgstr "Back to background tasks"
 msgid "回到概览"
 msgstr "Back to the overview"
 
-#: src/pages/EvidencePage.tsx:307
+#: src/pages/EvidencePage.tsx:322
 msgid "回到证据视图"
 msgstr "Back to the evidence view"
 
@@ -2646,6 +2668,7 @@ msgstr "Back to the library"
 #: src/pages/match/views/TeamsView.tsx:235
 #: src/pages/match/views/UtilityView.tsx:313
 #: src/pages/match/views/UtilityView.tsx:314
+#: src/pages/project/ProjectSelectStep.tsx:74
 msgid "回合"
 msgstr "Rounds"
 
@@ -2776,7 +2799,7 @@ msgstr "Pick an asset in the library on the left and press Add to timeline — t
 msgid "在左侧选一场比赛，这里会显示它的文件、状态与下一步。"
 msgstr "Pick a match on the left and its file, its status and its next step show up here."
 
-#: src/pages/MatchWorkspacePage.tsx:177
+#: src/pages/MatchWorkspacePage.tsx:179
 msgid "在左侧选择一个回合、一名选手或一条证据，详情会出现在这里， 并且随地址一起可分享、可后退。"
 msgstr "Pick a round, a player or an evidence row on the left and its detail shows up here, shareable and back-navigable along with the address."
 
@@ -2826,7 +2849,7 @@ msgstr "Preview in game"
 msgid "在游戏里预览这个片段？"
 msgstr "Preview this clip in game?"
 
-#: src/pages/EvidencePage.tsx:301
+#: src/pages/EvidencePage.tsx:316
 msgid "在证据视图里选一条结果、写下为什么它值得剪，注释就会出现在这里，并且跨比赛可检索。"
 msgstr "Pick a result in the evidence view and write down why it is worth cutting; the note shows up here and stays searchable across matches."
 
@@ -2984,7 +3007,7 @@ msgstr "Bytes"
 msgid "存为预设"
 msgstr "Save as preset"
 
-#: src/pages/ProjectWorkspacePage.tsx:48
+#: src/pages/ProjectWorkspacePage.tsx:49
 msgid "它可能来自尚未读取成功的旧工程。"
 msgstr "It may belong to a legacy project source that has not loaded yet."
 
@@ -3151,7 +3174,7 @@ msgstr "Import media"
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:275
 #: src/pages/ProjectsPage.tsx:91
-#: src/pages/ProjectWorkspacePage.tsx:96
+#: src/pages/ProjectWorkspacePage.tsx:97
 #: src/pages/settings/AdvancedSection.tsx:218
 #: src/pages/settings/AiAgentSection.tsx:775
 msgid "导出"
@@ -3200,12 +3223,12 @@ msgstr "The export did not finish: {exportError}"
 msgid "导出视频"
 msgstr "Export video"
 
-#: src/pages/EvidencePage.tsx:183
-#: src/pages/EvidencePage.tsx:186
+#: src/pages/EvidencePage.tsx:189
+#: src/pages/EvidencePage.tsx:192
 msgid "导出结果"
 msgstr "Export results"
 
-#: src/pages/ProjectWorkspacePage.tsx:128
+#: src/pages/ProjectWorkspacePage.tsx:130
 msgid "导出设置与这份作品的成品文件会显示在这里。"
 msgstr "Export settings and this project's finished files will appear here."
 
@@ -3331,6 +3354,12 @@ msgstr "In library"
 msgid "已删除"
 msgstr "Removed"
 
+#. placeholder {0}: addedProject.name
+#: src/pages/EvidencePage.tsx:257
+#: src/pages/MatchWorkspacePage.tsx:262
+msgid "已加入「{0}」"
+msgstr "Added to “{0}”"
+
 #: src/ActivityDrawer.tsx:32
 #: src/domain/task/taskVocabulary.tsx:49
 #: src/pages/delivery/TaskRecordView.tsx:56
@@ -3394,6 +3423,10 @@ msgstr "Rejected"
 msgctxt "plan-change"
 msgid "已接受"
 msgstr "Accepted"
+
+#: src/pages/project/ProjectSelectStep.tsx:28
+msgid "已收集片段"
+msgstr "Collected clips"
 
 #: src/pages/evidence/EvidenceEmpty.tsx:108
 msgid "已有 {indexedItems} 条证据，但这次检索一条也没匹配上。"
@@ -3471,7 +3504,7 @@ msgstr "{0} selected"
 msgid "已选 {0}，还差一名"
 msgstr "{0} selected, one more to go"
 
-#: src/pages/EvidencePage.tsx:230
+#: src/pages/EvidencePage.tsx:236
 msgid "已选 1 条证据"
 msgstr "1 evidence row selected"
 
@@ -3487,6 +3520,11 @@ msgstr "{0} selected"
 #: src/pages/editor/EditorTimelinePanel.tsx:239
 msgid "已选中 1 个片段"
 msgstr "1 clip selected"
+
+#. placeholder {0}: clips.length
+#: src/pages/project/AddToProjectDialog.tsx:79
+msgid "已选择 {0} 个片段"
+msgstr "{0} clips selected"
 
 #: src/pages/editor/InspectorPanel.tsx:217
 msgid "已链接"
@@ -3589,7 +3627,7 @@ msgstr "Current"
 msgid "当前 {0}"
 msgstr "Current {0}"
 
-#: src/pages/MatchWorkspacePage.tsx:204
+#: src/pages/MatchWorkspacePage.tsx:206
 msgid "当前 {round}"
 msgstr "Current {round}"
 
@@ -3614,7 +3652,7 @@ msgid "当前会话"
 msgstr "Current session"
 
 #. placeholder {0}: project.editingMode
-#: src/pages/ProjectWorkspacePage.tsx:126
+#: src/pages/ProjectWorkspacePage.tsx:128
 msgid "当前剪辑模式：{0}。快速剪辑与多轨编辑能力将在这里呈现。"
 msgstr "Current editing mode: {0}. Quick-edit and multitrack tools will appear here."
 
@@ -3663,7 +3701,7 @@ msgstr "No samples under the current filters, so there is no density to compare.
 msgid "当前步骤"
 msgstr "Current step"
 
-#: src/pages/ProjectWorkspacePage.tsx:151
+#: src/pages/ProjectWorkspacePage.tsx:153
 msgid "当前版本没有跨模式双向转换契约；所有修改会保留在当前模式"
 msgstr "This version has no bidirectional mode-conversion contract; all changes remain in the current mode"
 
@@ -3699,7 +3737,7 @@ msgstr "The current anchor is an evidence row, so a note for it can be written u
 
 #: src/domain/task/taskVocabulary.tsx:28
 #: src/pages/ProjectsPage.tsx:90
-#: src/pages/ProjectWorkspacePage.tsx:95
+#: src/pages/ProjectWorkspacePage.tsx:96
 msgid "录制"
 msgstr "Recording"
 
@@ -3817,10 +3855,6 @@ msgstr "Recording output directory"
 msgid "录制队列"
 msgstr "Recording queue"
 
-#: src/pages/MatchWorkspacePage.tsx:129
-msgid "录制队列尚未接通"
-msgstr "The recording queue is not wired up yet"
-
 #: src/pages/GuidePage.tsx:168
 msgid "录制需要它。导入、分析和剪辑都不受影响。"
 msgstr "Recording needs it. Importing, analysis and editing are unaffected."
@@ -3883,7 +3917,7 @@ msgstr "A quick montage and a multi-track project are two different kinds of pro
 msgid "快速掠过一段空间，适合两个地点之间的过渡"
 msgstr "Sweeps quickly through a space; good for moving between two places"
 
-#: src/pages/ProjectWorkspacePage.tsx:141
+#: src/pages/ProjectWorkspacePage.tsx:143
 msgid "快速模式"
 msgstr "Quick mode"
 
@@ -4008,6 +4042,8 @@ msgstr "Opening a session means going back to that conversation; the plans and t
 
 #: src/pages/delivery/useTaskActions.tsx:213
 #: src/pages/delivery/useTaskActions.tsx:245
+#: src/pages/EvidencePage.tsx:255
+#: src/pages/MatchWorkspacePage.tsx:258
 msgid "打开作品"
 msgstr "Open project"
 
@@ -4038,6 +4074,10 @@ msgstr "Open finished-files folder"
 msgid "打开档案"
 msgstr "Open profile"
 
+#: src/pages/project/ProjectSelectStep.tsx:38
+msgid "打开比赛"
+msgstr "Open match"
+
 #: src/pages/library/LibraryInspector.tsx:140
 #: src/pages/library/LibraryInspector.tsx:153
 msgid "打开比赛工作区"
@@ -4065,7 +4105,7 @@ msgstr "Open this conversation"
 msgid "执行这个操作"
 msgstr "Run this action"
 
-#: src/pages/EvidencePage.tsx:238
+#: src/pages/EvidencePage.tsx:244
 msgid "批量注释"
 msgstr "Annotate in bulk"
 
@@ -4073,7 +4113,7 @@ msgstr "Annotate in bulk"
 msgid "找不到这个页面"
 msgstr "Page not found"
 
-#: src/pages/ProjectWorkspacePage.tsx:48
+#: src/pages/ProjectWorkspacePage.tsx:49
 msgid "找不到这份作品"
 msgstr "Project not found"
 
@@ -4113,8 +4153,8 @@ msgstr "Change clip {position} to {0}s ({offset})"
 #: src/pages/match/views/ReplayView.tsx:524
 #: src/pages/match/views/RoundsView.tsx:677
 #: src/pages/match/views/UtilityView.tsx:676
-msgid "把这个回合加入视频"
-msgstr "Add this round to the video"
+msgid "把这个回合加入作品"
+msgstr "Add this round to a project"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:700
 msgid "把这个片段的参数应用到全部？"
@@ -4124,12 +4164,12 @@ msgstr "Apply the settings of this clip to all of them?"
 #: src/pages/match/views/PlayersView.tsx:488
 #: src/pages/match/views/TeamsView.tsx:547
 #: src/pages/match/views/UtilityView.tsx:652
-msgid "把这名选手加入视频"
-msgstr "Add this player to the video"
+msgid "把这名选手加入作品"
+msgstr "Add this player to a project"
 
-#: src/pages/match/views/HighlightsView.tsx:361
-msgid "把这条高光加入视频"
-msgstr "Add this highlight to the video"
+#: src/pages/match/views/HighlightsView.tsx:359
+msgid "把这条高光加入作品"
+msgstr "Add this highlight to a project"
 
 #: src/pages/match/views/UtilityView.tsx:177
 #: src/pages/match/views/UtilityView.tsx:178
@@ -4496,9 +4536,13 @@ msgstr "File missing"
 msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 msgstr "When a file is moved or deleted by hand, the library's record points at a location that no longer exists."
 
-#: src/pages/ProjectWorkspacePage.tsx:57
+#: src/pages/ProjectWorkspacePage.tsx:58
 msgid "新作品"
 msgstr "New project"
+
+#: src/pages/project/AddToProjectDialog.tsx:92
+msgid "新作品没能创建：{failure}"
+msgstr "The new project could not be created: {failure}"
 
 #: src/domain/agent/types.ts:361
 msgctxt "plan-change"
@@ -4524,7 +4568,7 @@ msgstr "Start an empty conversation, say what you want, and the Agent will creat
 #: src/pages/HomePage.tsx:62
 #: src/pages/HomePage.tsx:86
 #: src/pages/match/views/HighlightsView.tsx:292
-#: src/pages/MatchWorkspacePage.tsx:228
+#: src/pages/MatchWorkspacePage.tsx:230
 #: src/pages/montage/MontageProjectList.tsx:81
 #: src/pages/montage/MontageProjectList.tsx:200
 #: src/pages/ProjectsPage.tsx:18
@@ -4553,6 +4597,10 @@ msgstr "Prefill a new conversation with the current Demo and player; you can cha
 #: src/pages/agent/NewSessionPane.tsx:124
 msgid "新建对话没有成功"
 msgstr "The conversation was not created"
+
+#: src/pages/project/AddToProjectDialog.tsx:71
+msgid "新建并加入"
+msgstr "Create and add"
 
 #: src/pages/agent/NewSessionPane.tsx:237
 msgid "新建空对话"
@@ -4658,7 +4706,7 @@ msgstr "Date"
 #: src/pages/editor/InspectorPanel.tsx:126
 #: src/pages/library/libraryColumns.tsx:106
 #: src/pages/library/libraryColumns.tsx:107
-#: src/pages/match/views/HighlightsView.tsx:385
+#: src/pages/match/views/HighlightsView.tsx:383
 #: src/pages/montage/MontageProjectList.tsx:106
 #: src/pages/montage/MontageProjectList.tsx:107
 #: src/pages/montage/MusicBeatBlock.tsx:575
@@ -4910,7 +4958,7 @@ msgstr "Unknown map"
 msgid "未知玩家"
 msgstr "Unknown player"
 
-#: src/pages/MatchWorkspacePage.tsx:172
+#: src/pages/MatchWorkspacePage.tsx:174
 msgid "未选中任何内容"
 msgstr "Nothing selected"
 
@@ -4942,7 +4990,7 @@ msgstr "No match selected"
 msgid "未选中片段"
 msgstr "No clip selected"
 
-#: src/pages/match/views/HighlightsView.tsx:342
+#: src/pages/match/views/HighlightsView.tsx:340
 msgid "未选中高光"
 msgstr "No highlight selected"
 
@@ -5235,7 +5283,7 @@ msgstr "Working"
 msgid "正在处理上一次操作"
 msgstr "The previous action is still running"
 
-#: src/pages/match/views/HighlightsView.tsx:467
+#: src/pages/match/views/HighlightsView.tsx:465
 msgid "正在建立方案"
 msgstr "Creating the plan"
 
@@ -5548,12 +5596,12 @@ msgstr "The match history could not be read: {readError}"
 msgid "比赛工作区"
 msgstr "Match workspace"
 
-#: src/pages/ProjectWorkspacePage.tsx:125
+#: src/pages/ProjectWorkspacePage.tsx:127
 msgid "比赛工作区与证据检索加入的片段会汇总到这里。"
 msgstr "Clips added from match workspaces and evidence search will collect here."
 
-#: src/pages/MatchWorkspacePage.tsx:241
-#: src/pages/MatchWorkspacePage.tsx:256
+#: src/pages/MatchWorkspacePage.tsx:243
+#: src/pages/MatchWorkspacePage.tsx:271
 msgid "比赛工作区视图"
 msgstr "Match workspace views"
 
@@ -5725,7 +5773,7 @@ msgid "波纹删除"
 msgstr "Ripple delete"
 
 #: src/pages/evidence/EvidenceDetail.tsx:157
-#: src/pages/EvidencePage.tsx:198
+#: src/pages/EvidencePage.tsx:204
 #: src/pages/match/views/RoundsView.tsx:620
 msgid "注释"
 msgstr "Notes"
@@ -5735,10 +5783,6 @@ msgstr "Notes"
 msgid "注释 {0} 条"
 msgstr "{0} notes"
 
-#: src/pages/EvidencePage.tsx:88
-msgid "注释与录制队列的写入尚未接通"
-msgstr "Writing notes and queueing recordings is not wired up yet"
-
 #: src/pages/match/views/ReviewView.tsx:709
 msgid "注释会同时出现在证据检索里，可以跨比赛检索。"
 msgstr "A note also shows up in the evidence search and stays searchable across matches."
@@ -5746,6 +5790,10 @@ msgstr "A note also shows up in the evidence search and stays searchable across 
 #: src/pages/match/views/ReviewView.tsx:645
 msgid "注释内容"
 msgstr "Note body"
+
+#: src/pages/EvidencePage.tsx:94
+msgid "注释写入尚未接通"
+msgstr "Annotation writes are not connected yet"
 
 #: src/pages/match/views/ReviewView.tsx:664
 msgid "注释挂在一条证据的 tick 上，所以要先选中一条证据。"
@@ -5917,7 +5965,7 @@ msgstr "Bomb exploded"
 msgid "点一个单元格看这一对的每一次交手，点行首看这名选手的全部对位。"
 msgstr "Click a cell for every engagement of that pair, or a row head for all matchups of that player."
 
-#: src/pages/match/views/HighlightsView.tsx:348
+#: src/pages/match/views/HighlightsView.tsx:346
 msgid "点一行的「定位」，这里会显示那条高光的回合、选手与 tick 区间，并且随地址一起可分享。"
 msgstr "Click Locate on a row and the round, the player and the tick range of that highlight show up here, shareable along with the address."
 
@@ -6047,6 +6095,7 @@ msgstr "The outro is on but has no title, and the render will refuse it"
 #: src/pages/montage/MontageProjectList.tsx:98
 #: src/pages/montage/MusicBeatBlock.tsx:540
 #: src/pages/montage/MusicBeatBlock.tsx:541
+#: src/pages/project/ProjectSelectStep.tsx:77
 #: src/pages/recording/ShotListBlock.tsx:129
 #: src/terminology.ts:31
 msgid "片段"
@@ -6327,6 +6376,10 @@ msgctxt "evidence-kind"
 msgid "目标事件"
 msgstr "Objective"
 
+#: src/pages/project/AddToProjectDialog.tsx:82
+msgid "目标作品"
+msgstr "Target project"
+
 #: src/pages/EditorPage.tsx:264
 msgid "目标轨道已锁定"
 msgstr "The target track is locked"
@@ -6482,6 +6535,7 @@ msgstr "Movement paths: no position samples in this stretch"
 msgid "移动路线每 {stride} 帧取一个采样点。"
 msgstr "The movement paths take one sample every {stride} frames."
 
+#: src/pages/project/ProjectSelectStep.tsx:49
 #: src/pages/settings/FilesSection.tsx:209
 msgid "移除"
 msgstr "Remove"
@@ -6647,19 +6701,19 @@ msgid "算不出相机路径：{0}"
 msgstr "The camera path could not be computed: {0}"
 
 #: src/pages/delivery/TaskDetailBody.tsx:129
-#: src/pages/match/views/HighlightsView.tsx:371
+#: src/pages/match/views/HighlightsView.tsx:369
 msgid "类型"
 msgstr "Type"
 
-#: src/pages/ProjectWorkspacePage.tsx:150
+#: src/pages/ProjectWorkspacePage.tsx:152
 msgid "精剪修改不会跨模式同步；切换前请保存，当前版本没有转换契约"
 msgstr "Multitrack changes do not sync across modes. Save before switching; this version has no conversion contract."
 
-#: src/pages/ProjectWorkspacePage.tsx:169
+#: src/pages/ProjectWorkspacePage.tsx:171
 msgid "精剪修改保留在本地，切换步骤前请保存"
 msgstr "Multitrack changes stay local. Save before switching steps."
 
-#: src/pages/ProjectWorkspacePage.tsx:142
+#: src/pages/ProjectWorkspacePage.tsx:144
 msgid "精剪模式"
 msgstr "Multitrack mode"
 
@@ -7018,7 +7072,8 @@ msgstr "Settings sections"
 msgid "设置没有保存成功"
 msgstr "The setting was not saved"
 
-#: src/pages/EvidencePage.tsx:198
+#: src/pages/EvidencePage.tsx:204
+#: src/pages/project/ProjectSelectStep.tsx:75
 msgid "证据"
 msgstr "Evidence"
 
@@ -7033,11 +7088,11 @@ msgstr "Evidence comes out of analysis. {totalAnalyses} matches are analyzed, bu
 
 #: src/app/command/commandRegistry.ts:181
 #: src/app/shell/navigation.tsx:86
-#: src/pages/EvidencePage.tsx:157
+#: src/pages/EvidencePage.tsx:163
 msgid "证据检索"
 msgstr "Evidence search"
 
-#: src/pages/EvidencePage.tsx:201
+#: src/pages/EvidencePage.tsx:207
 msgid "证据检索视图"
 msgstr "Evidence search view"
 
@@ -7057,7 +7112,7 @@ msgid "证据还在整理中"
 msgstr "Evidence is still being collected"
 
 #: src/design/layout/Inspector.tsx:233
-#: src/pages/match/MatchInspectorPanel.tsx:79
+#: src/pages/match/MatchInspectorPanel.tsx:82
 msgid "详情"
 msgstr "Details"
 
@@ -7078,7 +7133,7 @@ msgctxt "utility-item"
 msgid "诱饵"
 msgstr "Decoy"
 
-#: src/pages/match/views/HighlightsView.tsx:378
+#: src/pages/match/views/HighlightsView.tsx:376
 msgid "说明"
 msgstr "Description"
 
@@ -7271,7 +7326,7 @@ msgid "购买金额统计不可用"
 msgstr "Purchase spend statistics unavailable"
 
 #: src/app/shell/navigation.tsx:81
-#: src/pages/MatchWorkspacePage.tsx:201
+#: src/pages/MatchWorkspacePage.tsx:203
 msgid "资料库"
 msgstr "Library"
 
@@ -7431,7 +7486,7 @@ msgstr "Run the preflight"
 msgid "运行时"
 msgstr "Runtime"
 
-#: src/pages/ProjectWorkspacePage.tsx:48
+#: src/pages/ProjectWorkspacePage.tsx:49
 msgid "返回作品列表"
 msgstr "Back to projects"
 
@@ -7574,7 +7629,7 @@ msgstr "No matches yet"
 msgid "还没有波形"
 msgstr "No waveform yet"
 
-#: src/pages/EvidencePage.tsx:299
+#: src/pages/EvidencePage.tsx:314
 msgid "还没有注释"
 msgstr "No notes yet"
 
@@ -7844,13 +7899,17 @@ msgstr "New Demos appearing in these folders are added to the library automatica
 msgid "这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。"
 msgstr "These settings decide how video is recorded. Changes apply only to recording tasks created afterwards."
 
-#: src/pages/match/views/HighlightsView.tsx:469
+#: src/pages/match/views/HighlightsView.tsx:467
 msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "The full parse result of these highlights cannot be read yet, so no plan can be created"
 
-#: src/pages/ProjectWorkspacePage.tsx:127
+#: src/pages/ProjectWorkspacePage.tsx:129
 msgid "这份作品的录制队列与片段进度会显示在这里。"
 msgstr "This project's recording queue and per-clip progress will appear here."
+
+#: src/pages/project/ProjectSelectStep.tsx:18
+msgid "这份作品还没有收集片段"
+msgstr "This project has no collected clips yet"
 
 #: src/pages/match/views/DuelsView.tsx:551
 msgid "这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。原因见下方。"
@@ -8026,7 +8085,7 @@ msgstr "No spatial evidence on this map yet"
 msgid "这批 Demo 没有可用的购买事件{0}"
 msgstr "These Demo files carry no usable purchase event{0}"
 
-#: src/pages/EvidencePage.tsx:215
+#: src/pages/EvidencePage.tsx:221
 msgid "这批证据没有比赛日期，无法按时间筛选"
 msgstr "This evidence carries no match dates, so it cannot be filtered by time"
 
@@ -8070,15 +8129,15 @@ msgstr "This evidence has no note yet. Notes are reused across matches, so one w
 msgid "这条通知的原文（不是聊天消息，模型看到的就是这段）"
 msgstr "The raw text of this notice — not a chat message; this is exactly what the model sees"
 
-#: src/pages/match/views/HighlightsView.tsx:474
+#: src/pages/match/views/HighlightsView.tsx:472
 msgid "这条高光没有关联的 Demo，无法建立方案"
 msgstr "This highlight has no Demo attached, so no plan can be created"
 
-#: src/pages/match/views/HighlightsView.tsx:480
+#: src/pages/match/views/HighlightsView.tsx:478
 msgid "这条高光的 tick 区间是空的，无法建立方案"
 msgstr "The tick range of this highlight is empty, so no plan can be created"
 
-#: src/pages/match/views/HighlightsView.tsx:477
+#: src/pages/match/views/HighlightsView.tsx:475
 msgid "这条高光的选手没有可用的 SteamID，无法建立方案"
 msgstr "The player of this highlight has no usable SteamID, so no plan can be created"
 
@@ -8248,7 +8307,7 @@ msgid "选中：第 {0} 回合"
 msgstr "Selected: round {0}"
 
 #. placeholder {0}: highlight.round
-#: src/pages/match/views/HighlightsView.tsx:358
+#: src/pages/match/views/HighlightsView.tsx:356
 msgid "选中：第 {0} 回合的高光"
 msgstr "Selected: a highlight of round {0}"
 
@@ -8257,7 +8316,7 @@ msgstr "Selected: a highlight of round {0}"
 #: src/pages/match/views/RoundsView.tsx:660
 #: src/pages/match/views/TeamsView.tsx:525
 #: src/pages/match/views/UtilityView.tsx:692
-#: src/pages/MatchWorkspacePage.tsx:171
+#: src/pages/MatchWorkspacePage.tsx:173
 msgid "选中项"
 msgstr "Selection"
 
@@ -8267,7 +8326,7 @@ msgstr "Selection detail"
 
 #: src/pages/evidence/EvidenceConditions.tsx:71
 #: src/pages/evidence/EvidenceConditions.tsx:82
-#: src/pages/match/views/HighlightsView.tsx:375
+#: src/pages/match/views/HighlightsView.tsx:373
 #: src/pages/match/views/PlayersView.tsx:127
 #: src/pages/match/views/PlayersView.tsx:128
 #: src/pages/match/views/ReplayView.tsx:355
@@ -8276,6 +8335,7 @@ msgstr "Selection detail"
 #: src/pages/match/views/UtilityView.tsx:170
 #: src/pages/PlayersPage.tsx:83
 #: src/pages/PlayersPage.tsx:84
+#: src/pages/project/ProjectSelectStep.tsx:76
 msgid "选手"
 msgstr "Player"
 
@@ -8330,6 +8390,14 @@ msgstr "Select {0}"
 msgid "选择 CS2 安装目录"
 msgstr "Choose the CS2 install folder"
 
+#: src/pages/project/ProjectSelectStep.tsx:20
+msgid "选择一场比赛"
+msgstr "Choose a match"
+
+#: src/pages/project/AddToProjectDialog.tsx:78
+msgid "选择一条片段后再加入作品。"
+msgstr "Select a clip before adding it to a project."
+
 #: src/pages/settings/FilesSection.tsx:132
 msgid "选择数据目录"
 msgstr "Choose the data directory"
@@ -8367,7 +8435,7 @@ msgid "选择音乐"
 msgstr "Choose music"
 
 #: src/pages/ProjectsPage.tsx:88
-#: src/pages/ProjectWorkspacePage.tsx:93
+#: src/pages/ProjectWorkspacePage.tsx:94
 msgid "选材"
 msgstr "Select"
 
@@ -8656,6 +8724,7 @@ msgstr "Choose again"
 #: src/pages/PlayerProfilePage.tsx:217
 #: src/pages/players/PlayerHeatmapPanel.tsx:142
 #: src/pages/PlayersPage.tsx:295
+#: src/pages/project/AddToProjectDialog.tsx:91
 #: src/pages/project/ProjectRecordingStep.tsx:122
 #: src/pages/project/ProjectRecordingStep.tsx:161
 #: src/pages/recording/DirectorPreviewBlock.tsx:259
@@ -8960,6 +9029,7 @@ msgstr "High {0}"
 #: src/pages/match/views/PlayersView.tsx:210
 #: src/pages/match/views/PlayersView.tsx:211
 #: src/pages/match/views/TeamsView.tsx:160
+#: src/pages/project/ProjectSelectStep.tsx:73
 msgid "高光"
 msgstr "Highlights"
 

@@ -16,7 +16,6 @@ import { stubMatchMedia, type MatchMediaStub } from '../../../design/layout/coll
 import { DEMO } from '../test/fixtures';
 import { renderWorkspace } from '../test/renderWorkspace';
 import { ANALYSIS, DEMO_ID } from './test/matchFixture';
-import { reasonOf } from '../../../test/reason';
 
 let media: MatchMediaStub | null = null;
 
@@ -90,13 +89,12 @@ describe('阵营', () => {
     expect(address()).not.toContain('player=');
   });
 
-  it('keeps 加入视频 visible and disabled once a player is focused', async () => {
+  it('keeps 加入作品 visible and enabled once a player is focused', async () => {
     await openTeams('&player=kael');
 
     const add = document.querySelector('[data-match-add-to-video]') as HTMLElement;
-    expect(add.textContent).toBe('把这名选手加入视频');
-    expect(add.hasAttribute('disabled')).toBe(true);
-    expect(reasonOf(add)).toContain('录制队列尚未接通');
+    expect(add.textContent).toBe('把这名选手加入作品');
+    expect(add.hasAttribute('disabled')).toBe(false);
   });
 });
 

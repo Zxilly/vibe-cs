@@ -674,7 +674,7 @@ function RoundsInspector({ demoId, context, updateContext, addToVideo, collapsed
       title={<Trans>选中：第 {detail.number} 回合</Trans>}
       summary={<Trans>第 {detail.number} 回合 · {detail.moments.length} 条证据</Trans>}
       addToVideo={addToVideo}
-      addLabel={<Trans>把这个回合加入视频</Trans>}
+      addLabel={<Trans>把这个回合加入作品</Trans>}
       selection={{ round: detail.number, startTick: detail.startTick, endTick: detail.endTick }}
       collapsed={collapsed}
       secondaryActions={

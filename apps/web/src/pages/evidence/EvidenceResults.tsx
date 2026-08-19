@@ -91,9 +91,9 @@ export interface EvidenceResultsProps {
   readonly onSelect: (row: EvidenceSearchItem) => void;
   /** 「定位」 — opens the match workspace at this tick. */
   readonly onLocate: (row: EvidenceSearchItem) => void;
-  /** 「加入视频」. */
+  /** 「加入作品」. */
   readonly onAddToVideo: (row: EvidenceSearchItem) => void;
-  /** Why 「加入视频」 cannot run. Disables it and says so, per §8. */
+  /** Why 「加入作品」 cannot run. Disables it and says so, per §8. */
   readonly addDisabledReason?: string | undefined;
   readonly loading?: boolean | undefined;
   /** A failed read, rendered in place — §4.1 sets `throwOnError: false`. */
@@ -181,7 +181,7 @@ export function EvidenceResults({
                       : { disabled: true, disabledReason: addDisabledReason })}
                     onClick={() => onAddToVideo(row)}
                   >
-                    <Trans>加入视频</Trans>
+                    <Trans>加入作品</Trans>
                   </Button>
                 }
               />

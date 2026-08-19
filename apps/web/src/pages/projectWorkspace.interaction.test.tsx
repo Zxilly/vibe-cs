@@ -51,16 +51,16 @@ describe('project workspace steps', () => {
     render('/projects/plan%3Ap-1?step=export', plan('confirmed', 2));
     await screen.findByText('导出设置与这份作品的成品文件会显示在这里。');
     fireEvent.click(screen.getByRole('button', { name: '选材' }));
-    expect(await screen.findByText('比赛工作区与证据检索加入的片段会汇总到这里。')).toBeTruthy();
+    expect(await screen.findByText('这份作品还没有收集片段')).toBeTruthy();
   });
 
   it('falls an illegal query back to the first reachable step', async () => {
     render('/projects/plan%3Ap-1?step=unknown');
-    expect(await screen.findByText('比赛工作区与证据检索加入的片段会汇总到这里。')).toBeTruthy();
+    expect(await screen.findByText('这份作品还没有收集片段')).toBeTruthy();
   });
 
   it.each([
-    ['select', '比赛工作区与证据检索加入的片段会汇总到这里。'],
+    ['select', '这份作品还没有收集片段'],
     ['shotlist', 'agent-workspace'],
     ['record', '录制队列'],
     ['export', '导出设置与这份作品的成品文件会显示在这里。'],

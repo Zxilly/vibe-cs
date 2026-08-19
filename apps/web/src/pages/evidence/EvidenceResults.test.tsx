@@ -45,9 +45,9 @@ describe('the ready state', () => {
     expect(html).toContain('命中 47 条');
   });
 
-  it('offers 定位 and 加入视频 on every row, as the artboard s action column does', () => {
+  it('offers 定位 and 加入作品 on every row, as the action column does', () => {
     expect(html).toContain('data-evidence-locate');
-    expect(html).toContain('加入视频');
+    expect(html).toContain('加入作品');
   });
 });
 
@@ -130,7 +130,7 @@ describe('the three states', () => {
 });
 
 describe('an unavailable write', () => {
-  it('disables 加入视频 and says why, rather than hiding it', () => {
+  it('disables 加入作品 and says why, rather than hiding it', () => {
     const html = render(
       <EvidenceResults
         {...base}
@@ -139,7 +139,7 @@ describe('an unavailable write', () => {
         addDisabledReason="录制队列尚未接通"
       />,
     );
-    expect(html).toContain('加入视频');
+    expect(html).toContain('加入作品');
     expect(html).toContain('disabled=""');
     expect(html).toContain('录制队列尚未接通');
   });

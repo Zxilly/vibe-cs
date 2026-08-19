@@ -42,12 +42,15 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { evidenceIndexState, unsupportedEvidenceFilters } from '../data/evidence';
 import { useEvidenceAnnotations, useEvidenceSearch } from '../data/evidence';
 import { dataErrorMessage } from '../data/errors';
+import type { ProjectCollectedClip } from '../data/projectCollections';
 import { Empty } from '../design/data';
+import { Alert } from '../design/feedback';
 import { Page, SelectionBar, Toolbar, useCollapsed } from '../design/layout';
 import { Button, Seg } from '../design/primitives';
 import type { EvidenceAnnotation, EvidenceSearchItem } from '../shared/desktop/dto';
@@ -57,6 +60,7 @@ import { EvidenceDetail } from './evidence/EvidenceDetail';
 import { EvidenceEmpty } from './evidence/EvidenceEmpty';
 import { EvidenceResults } from './evidence/EvidenceResults';
 import { conditionSummaryText } from './evidence/conditionSummary';
+import { AddToProjectDialog, type AddedProjectTarget } from './project/AddToProjectDialog';
 import {
   EVIDENCE_PAGE_SIZE,
   EVIDENCE_VIEWS,
@@ -75,6 +79,8 @@ export function EvidencePage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const collapsed = useCollapsed(undefined);
+  const [pendingClip, setPendingClip] = useState<ProjectCollectedClip | null>(null);
+  const [addedProject, setAddedProject] = useState<AddedProjectTarget | null>(null);
 
   /*
    * The one reason string this page repeats. `DesktopClient`
@@ -85,7 +91,7 @@ export function EvidencePage() {
    * finished when it is not. Declared inside the component so the macro is
    * evaluated against the active locale rather than at import time.
    */
-  const writeSeamReason = t`注释与录制队列的写入尚未接通`;
+  const writeSeamReason = t`注释写入尚未接通`;
 
   const state = readEvidenceSearch(params);
   /* No `useMemo`: TanStack hashes a query key by value, so a fresh object per
@@ -144,7 +150,7 @@ export function EvidencePage() {
       row={activeRow}
       onOpenWorkspace={(row) => openWorkspace(row, 'overview')}
       onLocate={(row) => openWorkspace(row, 'replay')}
-      onAddToVideo={() => undefined}
+      onAddToVideo={(row) => setPendingClip(evidenceCollectedClip(row))}
       annotateDisabledReason={writeSeamReason}
     />
   );
@@ -229,8 +235,8 @@ export function EvidencePage() {
           <SelectionBar
             summary={<Trans>已选 1 条证据</Trans>}
             primary={
-              <Button variant="primary" size="sm" disabled disabledReason={writeSeamReason}>
-                <Trans>加入录制队列</Trans>
+              <Button variant="primary" size="sm" onClick={() => activeRow === null ? undefined : setPendingClip(evidenceCollectedClip(activeRow))}>
+                <Trans>加入作品</Trans>
               </Button>
             }
           >
@@ -241,6 +247,16 @@ export function EvidencePage() {
         )
       }
     >
+      <>
+      {addedProject === null ? null : (
+        <Alert
+          className="mx-4 mt-4"
+          variant="success"
+          action={{ label: <Trans>打开作品</Trans>, onAction: () => void navigate(`/projects/${encodeURIComponent(addedProject.id)}?step=select`) }}
+        >
+          <Trans>已加入「{addedProject.name}」</Trans>
+        </Alert>
+      )}
       <div className="flex min-h-0 min-w-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {state.view === 'evidence' ? (
@@ -253,8 +269,7 @@ export function EvidencePage() {
               activeId={state.evidenceId}
               onSelect={(row) => commit({ ...state, evidenceId: row.evidence_id })}
               onLocate={(row) => openWorkspace(row, 'replay')}
-              onAddToVideo={() => undefined}
-              addDisabledReason={writeSeamReason}
+              onAddToVideo={(row) => setPendingClip(evidenceCollectedClip(row))}
               loading={search.isPending}
               {...(searchError === null
                 ? {}
@@ -314,6 +329,30 @@ export function EvidencePage() {
         </div>
         {collapsed ? null : detail}
       </div>
+      <AddToProjectDialog
+        open={pendingClip !== null}
+        clips={pendingClip === null ? [] : [pendingClip]}
+        onClose={() => setPendingClip(null)}
+        onAdded={setAddedProject}
+      />
+      </>
     </Page>
   );
+}
+
+function evidenceCollectedClip(row: EvidenceSearchItem): ProjectCollectedClip {
+  return {
+    id: `${row.demo_id}:evidence:${row.evidence_id}`,
+    demoId: row.demo_id,
+    matchLabel: row.demo_display_name,
+    kind: 'evidence',
+    label: `${row.actor_name ?? row.actor_id ?? row.event_type} · ${row.event_type}`,
+    round: row.round,
+    playerId: row.actor_id,
+    highlightId: row.source_kind === 'highlight' ? row.source_id : null,
+    evidenceId: row.evidence_id,
+    startTick: row.tick,
+    endTick: row.end_tick,
+    addedAt: new Date().toISOString(),
+  };
 }

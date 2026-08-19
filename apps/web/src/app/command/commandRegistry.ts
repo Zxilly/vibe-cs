@@ -196,12 +196,6 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
     keywords: ['recording', '录制', '镜头', '计划'],
   }),
   pageCommand({
-    id: 'montage',
-    title: msg`快速剪辑`,
-    to: '/montage',
-    keywords: ['montage', '合辑', '快速', '作品'],
-  }),
-  pageCommand({
     id: 'editor',
     title: msg`多轨编辑器`,
     to: '/editor',

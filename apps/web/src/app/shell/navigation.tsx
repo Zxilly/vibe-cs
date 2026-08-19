@@ -38,7 +38,6 @@ import {
   Folder,
   History,
   Home,
-  Layers,
   Search,
   Settings,
   SlidersVertical,
@@ -56,7 +55,6 @@ export type ShellNavItemId =
   | 'evidence'
   | 'projects'
   | 'recording'
-  | 'montage'
   | 'editor'
   | 'outputs'
   | 'settings';
@@ -98,7 +96,6 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
     items: [
       { id: 'projects', label: UI_TERMINOLOGY.project.current, icon: Clapperboard, to: '/projects' },
       { id: 'recording', label: msg`录制计划`, icon: Film, to: '/recording' },
-      { id: 'montage', label: msg`快速剪辑`, icon: Layers, to: '/montage' },
       /* Frame's `D.cut` is lucide's `sliders-vertical` path, verbatim. */
       { id: 'editor', label: msg`多轨编辑`, icon: SlidersVertical, to: '/editor' },
     ],
@@ -138,7 +135,6 @@ const PREFIX_RULES: readonly (readonly [string, ShellNavItemId])[] = [
   ['/evidence', 'evidence'],
   ['/projects', 'projects'],
   ['/recording', 'recording'],
-  ['/montage', 'montage'],
   ['/editor', 'editor'],
   ['/settings', 'settings'],
   ['/recovery', 'settings'],

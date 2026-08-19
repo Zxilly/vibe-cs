@@ -54,7 +54,7 @@ describe('routeCrumb', () => {
     expect(crumb('/history')).toBe('资料库 › 比赛历史');
     expect(crumb('/agent')).toBe('');
     expect(crumb('/editor')).toBe('制作 › 多轨编辑');
-    expect(crumb('/montage')).toBe('制作 › 快速剪辑');
+    expect(crumb('/montage')).toBe('');
     expect(crumb('/projects')).toBe('制作 › 作品');
   });
 

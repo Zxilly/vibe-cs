@@ -135,6 +135,7 @@ export function renderMontage(options: RenderMontageOptions): RenderResult {
             <Routes>
               <Route path="/montage" element={element} />
               <Route path="/montage/:projectId" element={element} />
+              <Route path="/projects/:projectId" element={element} />
               <Route path="*" element={<span data-elsewhere="">elsewhere</span>} />
             </Routes>
           </SeedHealth>
@@ -153,6 +154,10 @@ export function renderMontage(options: RenderMontageOptions): RenderResult {
 export function montageClient(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     listMontageProjects: async () => ({ items: [] }),
+    listAgentPlans: async () => [],
+    listEditorProjects: async () => ({ items: [] }),
+    listActivities: async () => ({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
+    listOutputs: async () => ({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
     getMontageProject: async () => montageProject(),
     putMontageProject: async (_id: string, project: MontageProjectRecord) => project,
     createMontageProject: async () => montageProject(),

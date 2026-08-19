@@ -59,7 +59,6 @@ describe('PAGE_COMMANDS', () => {
       '/projects',
       '/projects/new?step=shotlist',
       '/recording',
-      '/montage',
       '/editor',
       '/delivery?view=outputs',
       '/delivery?view=tasks',

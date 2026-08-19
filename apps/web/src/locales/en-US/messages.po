@@ -29,30 +29,30 @@ msgstr ". Widening the time range usually helps most."
 
 #. placeholder {0}: spans.minutes
 #. placeholder {1}: spans.seconds
-#: src/pages/MontagePage.tsx:235
+#: src/pages/MontagePage.tsx:236
 msgid "· {0} 分 {1} 秒"
 msgstr "· {0}m {1}s"
 
 #. placeholder {0}: stamp.text
-#: src/pages/MontagePage.tsx:246
+#: src/pages/MontagePage.tsx:247
 msgid "· 上次保存 {0}"
 msgstr "· last saved {0}"
 
 #. placeholder {0}: stamp.value
-#: src/pages/MontagePage.tsx:242
+#: src/pages/MontagePage.tsx:243
 msgid "· 上次保存 {0} 分钟前"
 msgstr "· last saved {0} minutes ago"
 
 #. placeholder {0}: stamp.value
-#: src/pages/MontagePage.tsx:244
+#: src/pages/MontagePage.tsx:245
 msgid "· 上次保存 {0} 小时前"
 msgstr "· last saved {0} hours ago"
 
-#: src/pages/MontagePage.tsx:240
+#: src/pages/MontagePage.tsx:241
 msgid "· 刚刚保存"
 msgstr "· saved just now"
 
-#: src/pages/MontagePage.tsx:233
+#: src/pages/MontagePage.tsx:234
 msgid "· 时长待定"
 msgstr "· duration pending"
 
@@ -60,7 +60,7 @@ msgstr "· duration pending"
 msgid "· 需要服务"
 msgstr "· Service required"
 
-#: src/pages/ProjectWorkspacePage.tsx:54
+#: src/pages/ProjectWorkspacePage.tsx:55
 msgid "‹ 作品"
 msgstr "‹ Projects"
 
@@ -369,7 +369,7 @@ msgid "{0} 次购买没能归属到阵营"
 msgstr "{0} purchases could not be attributed to a side"
 
 #. placeholder {0}: project.clips.length
-#: src/pages/MontagePage.tsx:231
+#: src/pages/MontagePage.tsx:232
 msgid "{0} 段素材"
 msgstr "{0} clips"
 
@@ -727,6 +727,10 @@ msgstr "Removed by the Agent"
 msgid "Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。"
 msgstr "The view a shot starts with when the Agent hands it over. Each shot can still be changed in the plan."
 
+#: src/pages/ProjectWorkspacePage.tsx:110
+msgid "Agent 模式"
+msgstr "Agent mode"
+
 #: src/pages/agent/AgentConversationBlock.tsx:209
 msgid "Agent 正在回答，先等它说完或点停止"
 msgstr "The Agent is answering — wait for it to finish, or press Stop"
@@ -797,7 +801,7 @@ msgid "Demo 内容一致"
 msgstr "Demo content matches"
 
 #: src/app/command/commandRegistry.ts:168
-#: src/app/shell/navigation.tsx:89
+#: src/app/shell/navigation.tsx:87
 #: src/pages/home/RecentMatchesPanel.tsx:52
 #: src/pages/LibraryPage.tsx:291
 msgid "Demo 资料库"
@@ -1188,7 +1192,7 @@ msgstr "The binary replay exceeds the 128 MiB limit"
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "The binary replay exceeds the 128 MiB limit."
 
-#: src/app/shell/navigation.tsx:108
+#: src/app/shell/navigation.tsx:105
 msgid "交付"
 msgstr "Delivery"
 
@@ -1340,12 +1344,12 @@ msgid "作品名称"
 msgstr "Project name"
 
 #: src/app/routeCrumb.ts:70
-#: src/pages/ProjectWorkspacePage.tsx:32
-#: src/pages/ProjectWorkspacePage.tsx:43
+#: src/pages/ProjectWorkspacePage.tsx:33
+#: src/pages/ProjectWorkspacePage.tsx:44
 msgid "作品工作区"
 msgstr "Project workspace"
 
-#: src/pages/ProjectWorkspacePage.tsx:56
+#: src/pages/ProjectWorkspacePage.tsx:57
 msgid "作品步骤"
 msgstr "Project steps"
 
@@ -1383,7 +1387,7 @@ msgstr "Shots you changed"
 msgid "你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。"
 msgstr "Your accepts and rejects are held on this page only for now; a refresh puts them back to pending."
 
-#: src/app/command/commandRegistry.ts:239
+#: src/app/command/commandRegistry.ts:233
 #: src/pages/GuidePage.tsx:54
 msgid "使用引导"
 msgstr "Getting started"
@@ -1467,6 +1471,10 @@ msgstr "Edit"
 #: src/pages/recording/ShotListBlock.tsx:240
 msgid "修改任何片段都会让当前预览计划失效，需要重新生成预览。"
 msgstr "Changing any clip voids the current preview plan, and the preview has to be regenerated."
+
+#: src/pages/ProjectWorkspacePage.tsx:130
+msgid "修改会自动保留在当前模式"
+msgstr "Changes are preserved automatically in the current mode"
 
 #: src/pages/agent/ConversationModes.tsx:198
 msgid "候选片段需要一份剪辑单"
@@ -1624,7 +1632,7 @@ msgstr "All tasks"
 
 #: src/pages/editor/EditorProjectList.tsx:162
 #: src/pages/montage/MontageProjectList.tsx:151
-#: src/pages/MontagePage.tsx:219
+#: src/pages/MontagePage.tsx:220
 msgid "全部作品"
 msgstr "All projects"
 
@@ -2127,7 +2135,7 @@ msgstr "Delete this conversation?"
 msgid "别贴这么近"
 msgstr "Not so close"
 
-#: src/app/shell/navigation.tsx:97
+#: src/app/shell/navigation.tsx:95
 msgid "制作"
 msgstr "Create"
 
@@ -2150,7 +2158,7 @@ msgid "剪辑中"
 msgstr "Editing"
 
 #: src/pages/ProjectsPage.tsx:89
-#: src/pages/ProjectWorkspacePage.tsx:85
+#: src/pages/ProjectWorkspacePage.tsx:86
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "Shot list"
@@ -2163,6 +2171,10 @@ msgstr "Edit projects"
 msgctxt "agent-object"
 msgid "剪辑工程"
 msgstr "Edit project"
+
+#: src/pages/ProjectWorkspacePage.tsx:118
+msgid "剪辑模式"
+msgstr "Editing mode"
 
 #. placeholder {0}: formatBytes(storage.data.filesystem_available_bytes)
 #: src/pages/settings/GameSection.tsx:163
@@ -2226,8 +2238,8 @@ msgstr "Covers the fields of view, the HUD, the radar, the voice and the lead-in
 msgid "包装"
 msgstr "Packaging"
 
-#: src/pages/MontagePage.tsx:298
-#: src/pages/MontagePage.tsx:298
+#: src/pages/MontagePage.tsx:299
+#: src/pages/MontagePage.tsx:299
 msgid "包装与导出"
 msgstr "Packaging & export"
 
@@ -2721,8 +2733,8 @@ msgstr "Click a cell in the round timeline above and the alive curve, the object
 msgid "在回合时间线里点一格，这一回合的证据与注释会出现在这里。"
 msgstr "Click a cell in the round timeline and the evidence and the notes of that round show up here."
 
-#: src/pages/MontagePage.tsx:254
-#: src/pages/MontagePage.tsx:274
+#: src/pages/MontagePage.tsx:255
+#: src/pages/MontagePage.tsx:275
 msgid "在多轨编辑器中打开"
 msgstr "Open in the multitrack editor"
 
@@ -2898,12 +2910,12 @@ msgstr "Multi-kill"
 msgid "多轨时间轴"
 msgstr "Multitrack timeline"
 
-#: src/app/shell/navigation.tsx:103
+#: src/app/shell/navigation.tsx:100
 #: src/pages/home/ActiveProjectsPanel.tsx:115
 msgid "多轨编辑"
 msgstr "Multitrack"
 
-#: src/app/command/commandRegistry.ts:206
+#: src/app/command/commandRegistry.ts:200
 #: src/pages/editor/EditorProjectList.tsx:159
 #: src/pages/EditorPage.tsx:125
 #: src/pages/EditorPage.tsx:141
@@ -2913,6 +2925,10 @@ msgstr "Multitrack editor"
 #: src/pages/editor/EditorProjectList.tsx:194
 msgid "多轨编辑器是给需要叠加、字幕与逐帧修剪的片子用的。"
 msgstr "The multi-track editor is for cuts that need overlays, captions and frame-accurate trimming."
+
+#: src/pages/ProjectWorkspacePage.tsx:143
+msgid "多轨编辑能力将在这里呈现。"
+msgstr "Multitrack editing tools will appear here."
 
 #: src/ActivityDrawer.tsx:30
 #: src/design/feedback/StageBar.tsx:73
@@ -2952,7 +2968,7 @@ msgstr "Bytes"
 msgid "存为预设"
 msgstr "Save as preset"
 
-#: src/pages/ProjectWorkspacePage.tsx:45
+#: src/pages/ProjectWorkspacePage.tsx:46
 msgid "它可能来自尚未读取成功的旧工程。"
 msgstr "It may belong to a legacy project source that has not loaded yet."
 
@@ -3119,7 +3135,7 @@ msgstr "Import media"
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:275
 #: src/pages/ProjectsPage.tsx:91
-#: src/pages/ProjectWorkspacePage.tsx:87
+#: src/pages/ProjectWorkspacePage.tsx:88
 #: src/pages/settings/AdvancedSection.tsx:218
 #: src/pages/settings/AiAgentSection.tsx:775
 msgid "导出"
@@ -3173,7 +3189,7 @@ msgstr "Export video"
 msgid "导出结果"
 msgstr "Export results"
 
-#: src/pages/ProjectWorkspacePage.tsx:105
+#: src/pages/ProjectWorkspacePage.tsx:98
 msgid "导出设置与这份作品的成品文件会显示在这里。"
 msgstr "Export settings and this project's finished files will appear here."
 
@@ -3260,7 +3276,7 @@ msgid "工作区里没有正在进行的对象"
 msgstr "Nothing is going on in the workspace"
 
 #: src/app/command/commandRegistry.ts:165
-#: src/app/shell/navigation.tsx:83
+#: src/app/shell/navigation.tsx:81
 #: src/pages/HomePage.tsx:58
 msgid "工作台"
 msgstr "Dashboard"
@@ -3278,7 +3294,7 @@ msgstr "The project and its clip order are deleted. The recordings themselves st
 msgid "工程列表没能打开：{loadError}"
 msgstr "The project list would not open: {loadError}"
 
-#: src/pages/MontagePage.tsx:359
+#: src/pages/MontagePage.tsx:367
 msgid "工程没有被改动，重试是安全的。"
 msgstr "The project was not changed, so a retry is safe."
 
@@ -3581,7 +3597,7 @@ msgid "当前会话"
 msgstr "Current session"
 
 #. placeholder {0}: project.editingMode
-#: src/pages/ProjectWorkspacePage.tsx:103
+#: src/pages/ProjectWorkspacePage.tsx:96
 msgid "当前剪辑模式：{0}。快速剪辑与多轨编辑能力将在这里呈现。"
 msgstr "Current editing mode: {0}. Quick-edit and multitrack tools will appear here."
 
@@ -3630,6 +3646,10 @@ msgstr "No samples under the current filters, so there is no density to compare.
 msgid "当前步骤"
 msgstr "Current step"
 
+#: src/pages/ProjectWorkspacePage.tsx:114
+msgid "当前版本没有跨模式双向转换契约；所有修改会保留在当前模式"
+msgstr "This version has no bidirectional mode-conversion contract; all changes remain in the current mode"
+
 #: src/pages/agent/ConversationModes.tsx:297
 msgid "当前版本的镜头带"
 msgstr "Shot strip of the current version"
@@ -3662,7 +3682,7 @@ msgstr "The current anchor is an evidence row, so a note for it can be written u
 
 #: src/domain/task/taskVocabulary.tsx:28
 #: src/pages/ProjectsPage.tsx:90
-#: src/pages/ProjectWorkspacePage.tsx:86
+#: src/pages/ProjectWorkspacePage.tsx:87
 msgid "录制"
 msgstr "Recording"
 
@@ -3747,7 +3767,7 @@ msgid "录制结果没能读取：{error}"
 msgstr "The recordings could not be read: {error}"
 
 #: src/app/command/commandRegistry.ts:194
-#: src/app/shell/navigation.tsx:100
+#: src/app/shell/navigation.tsx:98
 #: src/pages/RecordingPage.tsx:116
 #: src/pages/RecordingPage.tsx:293
 msgid "录制计划"
@@ -3818,20 +3838,22 @@ msgstr "Awaiting indexing"
 msgid "必填"
 msgstr "Required"
 
-#: src/app/command/commandRegistry.ts:200
-#: src/app/shell/navigation.tsx:101
 #: src/pages/home/ActiveProjectsPanel.tsx:115
 #: src/pages/montage/MontageProjectList.tsx:148
 msgid "快速剪辑"
 msgstr "Quick edit"
 
-#: src/pages/MontagePage.tsx:272
+#: src/pages/MontagePage.tsx:273
 msgid "快速合辑和多轨工程是两种工程，暂时不能互相转换"
 msgstr "A quick montage and a multi-track project are two different kinds of project; converting between them is not supported yet"
 
 #: src/pages/recording/shotModel.ts:100
 msgid "快速掠过一段空间，适合两个地点之间的过渡"
 msgstr "Sweeps quickly through a space; good for moving between two places"
+
+#: src/pages/ProjectWorkspacePage.tsx:111
+msgid "快速模式"
+msgstr "Quick mode"
 
 #: src/domain/media/Transport.tsx:232
 #: src/pages/agent/ConversationModes.tsx:231
@@ -3846,7 +3868,7 @@ msgstr "Terrorists"
 msgid "恢复"
 msgstr "Restore"
 
-#: src/app/command/commandRegistry.ts:233
+#: src/app/command/commandRegistry.ts:227
 #: src/app/routeCrumb.ts:74
 #: src/pages/delivery/TaskRecordRail.tsx:84
 #: src/pages/RecoveryPage.tsx:84
@@ -4015,7 +4037,7 @@ msgstr "Annotate in bulk"
 msgid "找不到这个页面"
 msgstr "Page not found"
 
-#: src/pages/ProjectWorkspacePage.tsx:45
+#: src/pages/ProjectWorkspacePage.tsx:46
 msgid "找不到这份作品"
 msgstr "Project not found"
 
@@ -4343,7 +4365,7 @@ msgstr "The change is recorded as a new plan version, and the Agent is told"
 msgid "改动来源"
 msgstr "Change origin"
 
-#: src/pages/MontagePage.tsx:381
+#: src/pages/MontagePage.tsx:389
 msgid "改动没有保存：{saveMessage}"
 msgstr "The change was not saved: {saveMessage}"
 
@@ -4438,7 +4460,7 @@ msgstr "File missing"
 msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 msgstr "When a file is moved or deleted by hand, the library's record points at a location that no longer exists."
 
-#: src/pages/ProjectWorkspacePage.tsx:54
+#: src/pages/ProjectWorkspacePage.tsx:55
 msgid "新作品"
 msgstr "New project"
 
@@ -5473,7 +5495,7 @@ msgid "比赛信息"
 msgstr "Match info"
 
 #: src/app/command/commandRegistry.ts:174
-#: src/app/shell/navigation.tsx:90
+#: src/app/shell/navigation.tsx:88
 #: src/pages/HistoryPage.tsx:132
 msgid "比赛历史"
 msgstr "Match history"
@@ -5486,7 +5508,7 @@ msgstr "The match history could not be read: {readError}"
 msgid "比赛工作区"
 msgstr "Match workspace"
 
-#: src/pages/ProjectWorkspacePage.tsx:102
+#: src/pages/ProjectWorkspacePage.tsx:95
 msgid "比赛工作区与证据检索加入的片段会汇总到这里。"
 msgstr "Clips added from match workspaces and evidence search will collect here."
 
@@ -5640,7 +5662,7 @@ msgstr "This shot could not be opened in game: {failure}"
 msgid "没能开始录制：{startFailure}"
 msgstr "The recording could not be started: {startFailure}"
 
-#: src/pages/MontagePage.tsx:387
+#: src/pages/MontagePage.tsx:395
 msgid "没能开始生成视频：{exportMessage}"
 msgstr "Making the video could not be started: {exportMessage}"
 
@@ -6084,7 +6106,7 @@ msgid "玩家档案"
 msgstr "Player profile"
 
 #: src/app/command/commandRegistry.ts:178
-#: src/app/shell/navigation.tsx:91
+#: src/app/shell/navigation.tsx:89
 #: src/pages/PlayersPage.tsx:223
 #: src/pages/PlayersPage.tsx:303
 msgid "玩家目录"
@@ -6129,7 +6151,7 @@ msgid "生成点评失败：{0}"
 msgstr "Generating the commentary failed: {0}"
 
 #: src/pages/MontagePage.tsx:207
-#: src/pages/MontagePage.tsx:326
+#: src/pages/MontagePage.tsx:334
 msgid "生成视频"
 msgstr "Make the video"
 
@@ -6580,6 +6602,11 @@ msgstr "The camera path could not be computed: {0}"
 msgid "类型"
 msgstr "Type"
 
+#: src/pages/ProjectWorkspacePage.tsx:112
+#: src/pages/ProjectWorkspacePage.tsx:142
+msgid "精剪模式"
+msgstr "Multitrack mode"
+
 #: src/pages/recording/recordingContract.ts:580
 msgid "系统里注册了录制需要的视频与音频编码器"
 msgstr "The video and audio encoders recording needs are registered on this system"
@@ -6921,8 +6948,8 @@ msgstr "The record was removed; the external file was not deleted."
 msgid "记录已移除，文件仍在原处。"
 msgstr "The record was removed; the file is still in place."
 
-#: src/app/command/commandRegistry.ts:227
-#: src/app/shell/navigation.tsx:118
+#: src/app/command/commandRegistry.ts:221
+#: src/app/shell/navigation.tsx:115
 #: src/pages/SettingsPage.tsx:82
 msgid "设置与诊断"
 msgstr "Settings & diagnostics"
@@ -6949,7 +6976,7 @@ msgid "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有�
 msgstr "Evidence comes out of analysis. {totalAnalyses} matches are analyzed, but none of them has entered the evidence index yet, so every condition returns zero hits."
 
 #: src/app/command/commandRegistry.ts:181
-#: src/app/shell/navigation.tsx:92
+#: src/app/shell/navigation.tsx:90
 #: src/pages/EvidencePage.tsx:157
 msgid "证据检索"
 msgstr "Evidence search"
@@ -7179,7 +7206,7 @@ msgstr "Purchases"
 msgid "购买金额统计不可用"
 msgstr "Purchase spend statistics unavailable"
 
-#: src/app/shell/navigation.tsx:87
+#: src/app/shell/navigation.tsx:85
 #: src/pages/MatchWorkspacePage.tsx:201
 msgid "资料库"
 msgstr "Library"
@@ -7340,7 +7367,7 @@ msgstr "Run the preflight"
 msgid "运行时"
 msgstr "Runtime"
 
-#: src/pages/ProjectWorkspacePage.tsx:45
+#: src/pages/ProjectWorkspacePage.tsx:46
 msgid "返回作品列表"
 msgstr "Back to projects"
 
@@ -7756,7 +7783,7 @@ msgstr "These settings decide how video is recorded. Changes apply only to recor
 msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "The full parse result of these highlights cannot be read yet, so no plan can be created"
 
-#: src/pages/ProjectWorkspacePage.tsx:104
+#: src/pages/ProjectWorkspacePage.tsx:97
 msgid "这份作品的录制队列与片段进度会显示在这里。"
 msgstr "This project's recording queue and per-clip progress will appear here."
 
@@ -7800,12 +7827,12 @@ msgstr "No player in this analysis"
 msgid "这份剪辑单还没有片段"
 msgstr "This shot list has no clips yet"
 
-#: src/pages/MontagePage.tsx:370
+#: src/pages/MontagePage.tsx:378
 msgid "这份合辑在别处被改过了。为避免覆盖那次改动，这次没有保存——请刷新后重做。"
 msgstr "This montage was changed somewhere else. Nothing was saved, so that change is not overwritten — refresh and redo yours."
 
 #. placeholder {0}: loadMessage ?? ''
-#: src/pages/MontagePage.tsx:361
+#: src/pages/MontagePage.tsx:369
 msgid "这份合辑没能打开：{0}"
 msgstr "This montage could not be opened: {0}"
 
@@ -7820,7 +7847,7 @@ msgstr "This montage has no clips yet"
 msgid "这份合辑里的 {0} 段都会被移出，包装与导出设置保持不变。录制结果本身留在输出里。"
 msgstr "All {0} clips in this montage are removed; the packaging and export settings stay as they are. The recordings themselves stay in Outputs."
 
-#: src/pages/MontagePage.tsx:375
+#: src/pages/MontagePage.tsx:383
 msgid "这份工程在别处被改过，刚才的改动没有保存。"
 msgstr "This project was changed elsewhere, so the change you just made was not saved."
 
@@ -8267,7 +8294,7 @@ msgid "选择音乐"
 msgstr "Choose music"
 
 #: src/pages/ProjectsPage.tsx:88
-#: src/pages/ProjectWorkspacePage.tsx:84
+#: src/pages/ProjectWorkspacePage.tsx:85
 msgid "选材"
 msgstr "Select"
 
@@ -8494,9 +8521,9 @@ msgid "重新读取回放"
 msgstr "Read the replay again"
 
 #: src/pages/EditorPage.tsx:465
-#: src/pages/MontagePage.tsx:368
-#: src/pages/MontagePage.tsx:380
-#: src/pages/MontagePage.tsx:386
+#: src/pages/MontagePage.tsx:376
+#: src/pages/MontagePage.tsx:388
+#: src/pages/MontagePage.tsx:394
 msgid "重新载入"
 msgstr "Reload"
 
@@ -8551,7 +8578,7 @@ msgstr "Choose again"
 #: src/pages/montage/MontageProjectList.tsx:164
 #: src/pages/montage/MontageProjectList.tsx:172
 #: src/pages/montage/MusicBeatBlock.tsx:398
-#: src/pages/MontagePage.tsx:358
+#: src/pages/MontagePage.tsx:366
 #: src/pages/PlayerProfilePage.tsx:153
 #: src/pages/PlayerProfilePage.tsx:217
 #: src/pages/players/PlayerHeatmapPanel.tsx:142

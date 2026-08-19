@@ -10,6 +10,7 @@ import { Button } from '../design/primitives';
 import type { ProjectStep, ProjectViewModel } from '../domain/project/projectViewModel';
 import { projectStepAvailability, resolveProjectStep } from '../domain/project/projectWorkflow';
 import { AgentWorkspace } from './AgentPage';
+import { MontageWorkspace } from './MontagePage';
 import { RouteLink } from './RouteLink';
 
 export function ProjectWorkspacePage() {
@@ -71,7 +72,7 @@ export function ProjectWorkspacePage() {
             ))}
           </ol>
         </nav>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-7">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <StepContent step={step} project={project} />
         </div>
       </div>
@@ -89,15 +90,7 @@ function StepLabel({ step }: { readonly step: ProjectStep }) {
 }
 
 function StepContent({ step, project }: { readonly step: ProjectStep; readonly project: ProjectViewModel }) {
-  if (step === 'shotlist' && (project.source.kind === 'plan' || project.id === 'new')) {
-    return (
-      <AgentWorkspace
-        embedded
-        {...(project.id === 'new' ? {} : { planId: project.source.id })}
-        recordingTarget={`/projects/${encodeURIComponent(project.id)}?step=record`}
-      />
-    );
-  }
+  if (step === 'shotlist') return <ShotListMode project={project} />;
   const descriptions: Record<ProjectStep, React.ReactNode> = {
     select: <Trans>比赛工作区与证据检索加入的片段会汇总到这里。</Trans>,
     shotlist: <Trans>当前剪辑模式：{project.editingMode}。快速剪辑与多轨编辑能力将在这里呈现。</Trans>,
@@ -105,10 +98,52 @@ function StepContent({ step, project }: { readonly step: ProjectStep; readonly p
     export: <Trans>导出设置与这份作品的成品文件会显示在这里。</Trans>,
   };
   return (
-    <section data-project-step={step} className="flex min-h-48 flex-col justify-center gap-2 border border-divider p-5">
+    <section data-project-step={step} className="m-7 flex min-h-48 flex-col justify-center gap-2 border border-divider p-5">
       <h2 className="text-xl"><StepLabel step={step} /></h2>
       <p className="text-sm text-neutral-700">{descriptions[step]}</p>
     </section>
+  );
+}
+
+function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
+  const modes = [
+    { id: 'agent', label: <Trans>Agent 模式</Trans> },
+    { id: 'quick', label: <Trans>快速模式</Trans> },
+    { id: 'multitrack', label: <Trans>精剪模式</Trans> },
+  ] as const;
+  const reason = t`当前版本没有跨模式双向转换契约；所有修改会保留在当前模式`;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col" data-editing-mode={project.editingMode}>
+      <div className="flex flex-none items-center gap-2 border-b border-divider px-4 py-2">
+        <span className="text-xs text-neutral-600"><Trans>剪辑模式</Trans></span>
+        {modes.map((mode) => (
+          <Button
+            key={mode.id}
+            size="sm"
+            variant={mode.id === project.editingMode ? 'primary' : 'secondary'}
+            disabled={mode.id !== project.editingMode}
+            {...(mode.id === project.editingMode ? {} : { disabledReason: reason })}
+          >
+            {mode.label}
+          </Button>
+        ))}
+        <span className="ml-auto text-xs text-neutral-600"><Trans>修改会自动保留在当前模式</Trans></span>
+      </div>
+      {project.source.kind === 'plan' || project.id === 'new' ? (
+        <AgentWorkspace
+          embedded
+          {...(project.id === 'new' ? {} : { planId: project.source.id })}
+          recordingTarget={`/projects/${encodeURIComponent(project.id)}?step=record`}
+        />
+      ) : project.source.kind === 'montage' ? (
+        <MontageWorkspace embedded projectId={project.source.id} />
+      ) : (
+        <section className="m-7 flex min-h-48 flex-col justify-center gap-2 border border-divider p-5">
+          <h2 className="text-xl"><Trans>精剪模式</Trans></h2>
+          <p className="text-sm text-neutral-700"><Trans>多轨编辑能力将在这里呈现。</Trans></p>
+        </section>
+      )}
+    </div>
   );
 }
 

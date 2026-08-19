@@ -84,8 +84,8 @@ describe('CommandPalette markup', () => {
     expect(html).toContain('data-command-id="page.home"');
     expect(html).toContain('data-command-id="page.players"');
     expect(html).not.toContain('data-command-id="page.settings"');
-    // 15 page commands, four shown.
-    expect(html).toContain('还有 11 条');
+    // 14 page commands, four shown.
+    expect(html).toContain('还有 10 条');
   });
 
   it('draws the header chip and the keyboard hint row from the artboard', () => {

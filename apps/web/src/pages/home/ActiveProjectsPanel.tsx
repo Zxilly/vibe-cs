@@ -64,7 +64,7 @@ export function ActiveProjectsPanel() {
       kind: 'montage',
       clipCount: project.clips.length,
       updatedAt: project.updated_at,
-      href: `/montage/${encodeURIComponent(project.id)}`,
+      href: `/projects/${encodeURIComponent(`montage:${project.id}`)}?step=shotlist`,
     }));
     return [...editorRows, ...montageRows].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }, [editors.data, montages.data]);

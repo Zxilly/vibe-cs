@@ -47,7 +47,7 @@
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { Skeleton } from '../design/data';
@@ -96,7 +96,7 @@ export function MontagePage() {
 
 /* ── the workspace ───────────────────────────────────────────────────────── */
 
-function MontageWorkspace({ projectId }: { readonly projectId: string }) {
+export function MontageWorkspace({ projectId, embedded = false }: { readonly projectId: string; readonly embedded?: boolean | undefined }) {
   const navigate = useNavigate();
   const { i18n } = useLingui();
   const service = useServiceAction();
@@ -210,15 +210,16 @@ function MontageWorkspace({ projectId }: { readonly projectId: string }) {
   );
 
   return (
-    <Page
-      scroll={false}
+    <MontageFrame
+      embedded={embedded}
       toolbar={
         <Toolbar
-          leading={
+          height={embedded ? 'bar' : 'topbar'}
+          leading={embedded ? undefined : (
             <RouteLink to={montageHref(null)} size="sm">
               <Trans>全部作品</Trans>
             </RouteLink>
-          }
+          )}
           title={project?.name ?? <Skeleton width="180px" />}
           meta={
             /* Until the document lands the id is all the page knows, and it is
@@ -302,8 +303,15 @@ function MontageWorkspace({ projectId }: { readonly projectId: string }) {
           </div>
         </Inspector>
       </div>
-    </Page>
+    </MontageFrame>
   );
+}
+
+function MontageFrame({ embedded, toolbar, children }: { readonly embedded: boolean; readonly toolbar: ReactNode; readonly children: ReactNode }) {
+  if (embedded) {
+    return <section data-montage-mode className="flex min-h-0 flex-1 flex-col">{toolbar}{children}</section>;
+  }
+  return <Page scroll={false} toolbar={toolbar}>{children}</Page>;
 }
 
 /**

@@ -89,7 +89,7 @@ describe('/', () => {
 
   it('is a Page whose main action stays out of the overflow menu', () => {
     expect(html).toContain('data-page=');
-    expect(html).toContain('今日工作');
+    expect(html).toContain('工作台');
     expect(html).toContain('data-toolbar-primary');
   });
 
@@ -97,14 +97,15 @@ describe('/', () => {
     /* All five landed by phase 3g. With no service these render their own
        empty or loading state, which is why the headings are what is asserted
        rather than any row. */
-    for (const heading of ['待确认的剪辑单', '最近比赛', '进行中的作品']) {
+    for (const heading of ['需要我处理', '继续', '新建']) {
       expect(html).toContain(heading);
     }
     expect(html).not.toContain('这一块在阶段');
   });
 
-  it('puts 最近输出 in the 440px column the artboard draws', () => {
-    expect(html).toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-inspector-wide'])}px`);
+  it('removes the recent-output rail in favour of the three-section flow', () => {
+    expect(html).not.toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-inspector-wide'])}px`);
+    expect(html).toContain('data-home-layout="three-sections"');
   });
 
   it('invents no data', () => {

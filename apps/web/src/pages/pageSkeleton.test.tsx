@@ -77,7 +77,7 @@ interface PageCase {
 }
 
 const PAGES: readonly PageCase[] = [
-  { pattern: '/', at: '/', Component: HomePage, title: '今日工作' },
+  { pattern: '/', at: '/', Component: HomePage, title: '工作台' },
   {
     pattern: '/library',
     at: '/library',

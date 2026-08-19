@@ -46,18 +46,16 @@ function render(element: React.ReactElement, overrides: Record<string, unknown> 
   });
 }
 
-describe('the three steps', () => {
-  it('are one definition, drawn by both surfaces', async () => {
-    // The failure mode of a split feature: two lists that slowly diverge.
+describe('the guide pipeline and the first-run entry', () => {
+  it('keeps the full three-step definition in the guide and one import action on home', async () => {
     expect(FIRST_RUN_STEPS).toHaveLength(3);
 
     render(<FirstRunStrip />);
     await waitFor(() => {
       expect(document.querySelector('[data-home-block="first-run"]')).not.toBeNull();
     });
-    for (const step of FIRST_RUN_STEPS) {
-      expect(document.querySelector(`[data-first-run-step="${step.id}"]`)).not.toBeNull();
-    }
+    expect(document.querySelector('[data-first-run-step]')).toBeNull();
+    expect(screen.getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
   });
 
   it('are the pipeline, not a tour of the navigation', () => {
@@ -72,8 +70,8 @@ describe('the first-run strip', () => {
     await waitFor(() => {
       expect(document.querySelector('[data-home-block="first-run"]')).not.toBeNull();
     });
-    // …and says it will go away on its own, so nobody looks for a dismiss.
-    expect(document.body.textContent).toContain('会自动消失');
+    expect(document.body.textContent).toContain('素材为空');
+    expect(screen.getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
   });
 
   it('disappears as soon as there is one Demo', async () => {

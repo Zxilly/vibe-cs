@@ -40,7 +40,10 @@ export function HomeFailureNotice({ service, now }: HomeFailureNoticeProps) {
   const feed = useTaskFeed({ state: 'failed', page: 1, page_size: 1 });
   const bind = useTaskActions({ service, ...(now === undefined ? {} : { now }) });
 
-  const item = feed.data?.items[0];
+  /* The service contract filters this feed, but keeping the status guard here
+     prevents a permissive mock or a stale cache page from putting a running
+     task (and its progress bar) back onto the workbench. */
+  const item = feed.data?.items.find((candidate) => candidate.status === 'failed');
   if (item === undefined) return null;
 
   const bound = bind(item);
@@ -48,7 +51,7 @@ export function HomeFailureNotice({ service, now }: HomeFailureNoticeProps) {
 
   return (
     <section aria-label={t`失败可恢复`} className="flex flex-col gap-3 border border-fail-border p-4">
-      <TaskCard task={bound.summary} links={bound.links} headingLevel={3} {...(now === undefined ? {} : { now })} />
+      <TaskCard task={bound.summary} links={bound.links} headingLevel={3} showId={false} {...(now === undefined ? {} : { now })} />
       {failed > 1 ? (
         <p className="text-xs text-neutral-700">
           <RouteLink to="/delivery?view=tasks" size="sm">

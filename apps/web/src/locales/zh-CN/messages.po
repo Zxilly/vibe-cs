@@ -136,7 +136,7 @@ msgid "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的�
 msgstr "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的文件不会被删除。}}"
 
 #. placeholder {0}: row.clipCount
-#: src/pages/home/ActiveProjectsPanel.tsx:114
+#: src/pages/home/ActiveProjectsPanel.tsx:117
 msgid "{0, plural, other {# 段素材}}"
 msgstr "{0, plural, other {# 段素材}}"
 
@@ -952,10 +952,6 @@ msgstr "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 msgid "三步"
 msgstr "三步"
 
-#: src/pages/home/FirstRunStrip.tsx:53
-msgid "三步做出第一条视频"
-msgstr "三步做出第一条视频"
-
 #: src/pages/GuidePage.tsx:55
 msgid "三步做出第一条视频，以及这台机器现在能做什么"
 msgstr "三步做出第一条视频，以及这台机器现在能做什么"
@@ -977,7 +973,7 @@ msgid "上一页"
 msgstr "上一页"
 
 #. placeholder {0}: formatTaskClock(row.updatedAt, { now: new Date() })
-#: src/pages/home/ActiveProjectsPanel.tsx:116
+#: src/pages/home/ActiveProjectsPanel.tsx:119
 msgid "上次保存 {0}"
 msgstr "上次保存 {0}"
 
@@ -1209,10 +1205,6 @@ msgstr "人数"
 msgid "仅爆头"
 msgstr "仅爆头"
 
-#: src/pages/HomePage.tsx:84
-msgid "今日工作"
-msgstr "今日工作"
-
 #: src/pages/agent/conversationModel.ts:315
 msgid "从他起跳开始"
 msgstr "从他起跳开始"
@@ -1224,6 +1216,10 @@ msgstr "从低处升起或从高处落下，适合高潮之后"
 #: src/pages/montage/ClipTrimDrawer.tsx:110
 msgid "从作品中移除"
 msgstr "从作品中移除"
+
+#: src/pages/home/FirstRunStrip.tsx:52
+msgid "从导入 Demo 开始"
+msgstr "从导入 Demo 开始"
 
 #: src/pages/montage/AddClipsDialog.tsx:62
 #: src/pages/montage/ClipOrderBlock.tsx:147
@@ -1251,11 +1247,11 @@ msgstr "任务编号"
 msgid "任务详情"
 msgstr "任务详情"
 
-#: src/domain/task/TaskCard.tsx:224
+#: src/domain/task/TaskCard.tsx:227
 msgid "任务进度"
 msgstr "任务进度"
 
-#: src/domain/task/TaskCard.tsx:150
+#: src/domain/task/TaskCard.tsx:153
 #: src/domain/task/TaskDetail.tsx:157
 msgid "任务阶段"
 msgstr "任务阶段"
@@ -1837,7 +1833,6 @@ msgid "最近出场"
 msgstr "最近出场"
 
 #: src/pages/home/RecentOutputsPanel.tsx:63
-#: src/pages/HomePage.tsx:101
 msgid "最近成品文件"
 msgstr "最近成品文件"
 
@@ -2119,6 +2114,10 @@ msgstr "前留白"
 msgid "前面没有剪切点了"
 msgstr "前面没有剪切点了"
 
+#: src/pages/home/ActiveProjectsPanel.tsx:45
+msgid "剪辑中"
+msgstr "剪辑中"
+
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "剪辑单"
@@ -2160,7 +2159,7 @@ msgstr "加入视频"
 msgid "加载中"
 msgstr "加载中"
 
-#: src/domain/task/TaskCard.tsx:263
+#: src/domain/task/TaskCard.tsx:266
 msgid "加载任务记录"
 msgstr "加载任务记录"
 
@@ -2313,7 +2312,7 @@ msgid "取样 {0} / {1} 个位置（上限 {2}）。 这张图画的是这批取
 msgstr "取样 {0} / {1} 个位置（上限 {2}）。 这张图画的是这批取样，不是全部。"
 
 #: src/design/feedback/Dialog.tsx:124
-#: src/domain/task/TaskCard.tsx:193
+#: src/domain/task/TaskCard.tsx:196
 #: src/domain/task/TaskDetail.tsx:140
 #: src/pages/agent/NewSessionPane.tsx:267
 #: src/pages/agent/SessionDrawer.tsx:343
@@ -2363,7 +2362,7 @@ msgid "叠加轨"
 msgstr "叠加轨"
 
 #. placeholder {0}: failed - 1
-#: src/pages/home/HomeFailureNotice.tsx:55
+#: src/pages/home/HomeFailureNotice.tsx:58
 msgid "另有 {0} 条失败记录"
 msgstr "另有 {0} 条失败记录"
 
@@ -2836,6 +2835,10 @@ msgstr "基准"
 msgid "填写一个目录的完整路径"
 msgstr "填写一个目录的完整路径"
 
+#: src/pages/HomePage.tsx:59
+msgid "处理待办，继续作品，或者开始新的作品"
+msgstr "处理待办，继续作品，或者开始新的作品"
+
 #: src/pages/library/LibraryInspector.tsx:249
 #: src/pages/library/LibraryInspector.tsx:253
 msgid "备注"
@@ -2863,7 +2866,7 @@ msgid "多轨时间轴"
 msgstr "多轨时间轴"
 
 #: src/app/shell/navigation.tsx:103
-#: src/pages/home/ActiveProjectsPanel.tsx:112
+#: src/pages/home/ActiveProjectsPanel.tsx:115
 msgid "多轨编辑"
 msgstr "多轨编辑"
 
@@ -2885,7 +2888,7 @@ msgstr "多轨编辑器是给需要叠加、字幕与逐帧修剪的片子用的
 msgid "失败"
 msgstr "失败"
 
-#: src/pages/home/HomeFailureNotice.tsx:50
+#: src/pages/home/HomeFailureNotice.tsx:53
 msgid "失败可恢复"
 msgstr "失败可恢复"
 
@@ -2923,10 +2926,6 @@ msgstr "完成一次录制后，片段会出现在这里。"
 #: src/design/data/Empty.tsx:149
 msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 msgstr "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
-
-#: src/pages/home/FirstRunStrip.tsx:75
-msgid "完整的使用引导与环境自检"
-msgstr "完整的使用引导与环境自检"
 
 #: src/domain/match/EvidenceRow.tsx:80
 #: src/pages/evidence/EvidenceAnnotations.tsx:126
@@ -3052,6 +3051,8 @@ msgid "导入"
 msgstr "导入"
 
 #: src/pages/home/firstRunSteps.ts:37
+#: src/pages/home/FirstRunStrip.tsx:59
+#: src/pages/HomePage.tsx:88
 #: src/pages/library/ImportDemoDialog.tsx:93
 #: src/pages/LibraryPage.tsx:182
 msgid "导入 Demo"
@@ -3213,6 +3214,7 @@ msgstr "工作区里没有正在进行的对象"
 
 #: src/app/command/commandRegistry.ts:165
 #: src/app/shell/navigation.tsx:83
+#: src/pages/HomePage.tsx:58
 msgid "工作台"
 msgstr "工作台"
 
@@ -3756,7 +3758,7 @@ msgstr "必填"
 
 #: src/app/command/commandRegistry.ts:199
 #: src/app/shell/navigation.tsx:101
-#: src/pages/home/ActiveProjectsPanel.tsx:112
+#: src/pages/home/ActiveProjectsPanel.tsx:115
 #: src/pages/montage/MontageProjectList.tsx:148
 msgid "快速剪辑"
 msgstr "快速剪辑"
@@ -4375,6 +4377,10 @@ msgctxt "plan-change"
 msgid "新增"
 msgstr "新增"
 
+#: src/pages/HomePage.tsx:83
+msgid "新建"
+msgstr "新建"
+
 #: src/pages/agent/SessionDrawer.tsx:177
 msgid "新建一条对话线程"
 msgstr "新建一条对话线程"
@@ -4385,6 +4391,8 @@ msgstr "新建一条空对话就行——想做什么直接说，Agent 会先生
 
 #: src/pages/editor/EditorProjectList.tsx:74
 #: src/pages/editor/EditorProjectList.tsx:203
+#: src/pages/HomePage.tsx:62
+#: src/pages/HomePage.tsx:86
 #: src/pages/montage/MontageProjectList.tsx:81
 #: src/pages/montage/MontageProjectList.tsx:200
 msgid "新建作品"
@@ -4654,7 +4662,7 @@ msgstr "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 
 msgid "有 {unplaced} 段在允许的时长范围内找不到合适的拍点，保持原样。"
 msgstr "有 {unplaced} 段在允许的时长范围内找不到合适的拍点，保持原样。"
 
-#: src/pages/home/ActiveProjectsPanel.tsx:90
+#: src/pages/home/ActiveProjectsPanel.tsx:91
 msgid "有一份作品列表没能读出来：{error}"
 msgstr "有一份作品列表没能读出来：{error}"
 
@@ -6051,7 +6059,6 @@ msgstr "生效"
 
 #: src/pages/delivery/OutputsView.tsx:174
 #: src/pages/home/RecentOutputsPanel.tsx:92
-#: src/pages/HomePage.tsx:88
 #: src/pages/match/views/HighlightsView.tsx:292
 #: src/pages/MatchWorkspacePage.tsx:228
 msgid "用 Agent 制作视频"
@@ -6497,6 +6504,10 @@ msgstr "类型"
 msgid "系统里注册了录制需要的视频与音频编码器"
 msgstr "系统里注册了录制需要的视频与音频编码器"
 
+#: src/pages/home/FirstRunStrip.tsx:55
+msgid "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
+msgstr "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
+
 #: src/design/timeline/TimelinePrototype.tsx:60
 msgid "素材已经到头了，没有可以滑移的余量"
 msgstr "素材已经到头了，没有可以滑移的余量"
@@ -6580,6 +6591,10 @@ msgstr "绕着目标转，适合停在一次交火上"
 #: src/pages/agent/conversationModel.ts:309
 msgid "给方案下一条指令，例如「02 再短一点」「把结尾留 1 秒」"
 msgstr "给方案下一条指令，例如「02 再短一点」「把结尾留 1 秒」"
+
+#: src/pages/HomePage.tsx:77
+msgid "继续"
+msgstr "继续"
 
 #: src/pages/agent/conversationModel.ts:322
 msgid "继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」"
@@ -7089,10 +7104,6 @@ msgstr "购买金额统计不可用"
 msgid "资料库"
 msgstr "资料库"
 
-#: src/pages/home/FirstRunStrip.tsx:56
-msgid "资料库里还没有东西，从第一步开始。这一条在导入之后会自动消失。"
-msgstr "资料库里还没有东西，从第一步开始。这一条在导入之后会自动消失。"
-
 #: src/pages/home/RecentMatchesPanel.tsx:67
 msgid "资料库里还没有比赛。导入 Demo 之后它们会出现在这里。"
 msgstr "资料库里还没有比赛。导入 Demo 之后它们会出现在这里。"
@@ -7314,7 +7325,7 @@ msgstr "还没有会话"
 msgid "还没有作品"
 msgstr "还没有作品"
 
-#: src/pages/home/ActiveProjectsPanel.tsx:101
+#: src/pages/home/ActiveProjectsPanel.tsx:102
 msgid "还没有作品。快速剪辑串一条视频，多轨编辑器做需要叠加与字幕的片子。"
 msgstr "还没有作品。快速剪辑串一条视频，多轨编辑器做需要叠加与字幕的片子。"
 
@@ -7996,14 +8007,6 @@ msgstr "进行中 {0} · 失败 {1} · 已完成 {2}"
 msgid "进行中的任务"
 msgstr "进行中的任务"
 
-#: src/pages/HomePage.tsx:85
-msgid "进行中的任务、失败可恢复的任务和最近的成片"
-msgstr "进行中的任务、失败可恢复的任务和最近的成片"
-
-#: src/pages/home/ActiveProjectsPanel.tsx:76
-msgid "进行中的作品"
-msgstr "进行中的作品"
-
 #: src/pages/montage/MusicBeatBlock.tsx:387
 #: src/pages/montage/MusicBeatBlock.tsx:474
 msgid "退出预览"
@@ -8172,6 +8175,10 @@ msgstr "选择配乐"
 #: src/pages/montage/MusicBeatBlock.tsx:177
 msgid "选择音乐"
 msgstr "选择音乐"
+
+#: src/pages/home/ActiveProjectsPanel.tsx:45
+msgid "选材中"
+msgstr "选材中"
 
 #: src/pages/match/views/DuelsView.tsx:669
 msgid "逐个对手"
@@ -8422,7 +8429,7 @@ msgstr "重新选择"
 #: src/pages/evidence/EvidenceResults.tsx:125
 #: src/pages/GuidePage.tsx:96
 #: src/pages/HistoryPage.tsx:223
-#: src/pages/home/ActiveProjectsPanel.tsx:83
+#: src/pages/home/ActiveProjectsPanel.tsx:84
 #: src/pages/home/PendingPlansPanel.tsx:94
 #: src/pages/home/RecentMatchesPanel.tsx:57
 #: src/pages/library/AddWatchDirectoryDialog.tsx:123
@@ -8574,7 +8581,7 @@ msgctxt "task-progress"
 msgid "阶段"
 msgstr "阶段"
 
-#: src/domain/task/TaskCard.tsx:211
+#: src/domain/task/TaskCard.tsx:214
 msgid "阶段 {index}/{count} {label}"
 msgstr "阶段 {index}/{count} {label}"
 
@@ -8592,6 +8599,10 @@ msgstr "集锦制作要从比赛工作区或 Agent 发起"
 #: src/pages/settings/GameSection.tsx:215
 msgid "雷达"
 msgstr "雷达"
+
+#: src/pages/HomePage.tsx:70
+msgid "需要我处理"
+msgstr "需要我处理"
 
 #: src/app/boundary/ServiceGate.tsx:294
 msgid "需要服务"

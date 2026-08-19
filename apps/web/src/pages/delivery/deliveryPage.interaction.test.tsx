@@ -268,7 +268,7 @@ describe('密度 (§10.3)', () => {
   it('draws a bar for exactly the records that have a denominator', async () => {
     renderActivity(client);
 
-    await screen.findByText('recording:job-0');
+    await screen.findByRole('heading', { name: '进行中 · 50' });
     // 10 of the 50 carry `completed_units` / `total_units`; the other 40 show a
     // stage name and no graphic. This is §10.3's own count, one page larger.
     expect(screen.getAllByRole('progressbar')).toHaveLength(10);
@@ -277,7 +277,7 @@ describe('密度 (§10.3)', () => {
   it('scrolls the records inside their own column, never on the document', async () => {
     const { container } = renderActivity(client);
 
-    await screen.findByText('recording:job-0');
+    await screen.findByRole('heading', { name: '进行中 · 50' });
     expect(document.querySelector('[data-overlay="drawer"] .overflow-y-auto')).not.toBeNull();
     expect(container.querySelector('[data-page-body]')).toBeNull();
   });

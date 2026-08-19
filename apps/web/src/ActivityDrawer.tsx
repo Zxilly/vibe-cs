@@ -123,7 +123,7 @@ function ActivityList({ items, total, isLoading, error, onReload, bind, onSelect
                 const bound = bind(item);
                 return (
                   <li key={item.id} className="border-b border-divider p-3 last:border-b-0">
-                    <TaskCard task={bound.summary} links={bound.links.filter((link) => link.id !== 'detail')} {...(bound.onCancel === undefined ? {} : { onCancel: bound.onCancel })} />
+                    <TaskCard task={bound.summary} showId={false} links={bound.links.filter((link) => link.id !== 'detail')} {...(bound.onCancel === undefined ? {} : { onCancel: bound.onCancel })} />
                     <div className="mt-2 flex justify-end">
                       <Button variant="ghost" size="sm" onClick={() => onSelect(item.id)}>
                         <Trans>查看详情</Trans>

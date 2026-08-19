@@ -136,7 +136,7 @@ msgid "{0, plural, other {# 条是外部文件，只移除记录，磁盘上的�
 msgstr "{0, plural, one {# of them is an external file: only the record is removed, and the file on disk is kept.} other {# of them are external files: only the records are removed, and the files on disk are kept.}}"
 
 #. placeholder {0}: row.clipCount
-#: src/pages/home/ActiveProjectsPanel.tsx:114
+#: src/pages/home/ActiveProjectsPanel.tsx:117
 msgid "{0, plural, other {# 段素材}}"
 msgstr "{0, plural, other {# clips}}"
 
@@ -952,10 +952,6 @@ msgstr "The official Valve link. Connectors for platforms such as FACEIT are not
 msgid "三步"
 msgstr "Three steps"
 
-#: src/pages/home/FirstRunStrip.tsx:53
-msgid "三步做出第一条视频"
-msgstr "Three steps to your first video"
-
 #: src/pages/GuidePage.tsx:55
 msgid "三步做出第一条视频，以及这台机器现在能做什么"
 msgstr "Three steps to your first video, and what this machine can do right now"
@@ -977,7 +973,7 @@ msgid "上一页"
 msgstr "Previous page"
 
 #. placeholder {0}: formatTaskClock(row.updatedAt, { now: new Date() })
-#: src/pages/home/ActiveProjectsPanel.tsx:116
+#: src/pages/home/ActiveProjectsPanel.tsx:119
 msgid "上次保存 {0}"
 msgstr "Saved {0}"
 
@@ -1209,10 +1205,6 @@ msgstr "Alive"
 msgid "仅爆头"
 msgstr "Headshots only"
 
-#: src/pages/HomePage.tsx:84
-msgid "今日工作"
-msgstr "Today’s work"
-
 #: src/pages/agent/conversationModel.ts:315
 msgid "从他起跳开始"
 msgstr "Start when he jumps"
@@ -1224,6 +1216,10 @@ msgstr "Rises from below or drops from above; good after a climax"
 #: src/pages/montage/ClipTrimDrawer.tsx:110
 msgid "从作品中移除"
 msgstr "Remove from project"
+
+#: src/pages/home/FirstRunStrip.tsx:52
+msgid "从导入 Demo 开始"
+msgstr "Start by importing a Demo"
 
 #: src/pages/montage/AddClipsDialog.tsx:62
 #: src/pages/montage/ClipOrderBlock.tsx:147
@@ -1251,11 +1247,11 @@ msgstr "Task ID"
 msgid "任务详情"
 msgstr "Task detail"
 
-#: src/domain/task/TaskCard.tsx:224
+#: src/domain/task/TaskCard.tsx:227
 msgid "任务进度"
 msgstr "Task progress"
 
-#: src/domain/task/TaskCard.tsx:150
+#: src/domain/task/TaskCard.tsx:153
 #: src/domain/task/TaskDetail.tsx:157
 msgid "任务阶段"
 msgstr "Task stages"
@@ -1837,7 +1833,6 @@ msgid "最近出场"
 msgstr "Last seen"
 
 #: src/pages/home/RecentOutputsPanel.tsx:63
-#: src/pages/HomePage.tsx:101
 msgid "最近成品文件"
 msgstr "Recent finished files"
 
@@ -2119,6 +2114,10 @@ msgstr "Lead-in"
 msgid "前面没有剪切点了"
 msgstr "No cut before this one"
 
+#: src/pages/home/ActiveProjectsPanel.tsx:45
+msgid "剪辑中"
+msgstr "Editing"
+
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "Shot list"
@@ -2160,7 +2159,7 @@ msgstr "Add to video"
 msgid "加载中"
 msgstr "Loading"
 
-#: src/domain/task/TaskCard.tsx:263
+#: src/domain/task/TaskCard.tsx:266
 msgid "加载任务记录"
 msgstr "Loading tasks"
 
@@ -2313,7 +2312,7 @@ msgid "取样 {0} / {1} 个位置（上限 {2}）。 这张图画的是这批取
 msgstr "Sampled {0} of {1} positions (limit {2}). This map shows the sample, not all of them."
 
 #: src/design/feedback/Dialog.tsx:124
-#: src/domain/task/TaskCard.tsx:193
+#: src/domain/task/TaskCard.tsx:196
 #: src/domain/task/TaskDetail.tsx:140
 #: src/pages/agent/NewSessionPane.tsx:267
 #: src/pages/agent/SessionDrawer.tsx:343
@@ -2363,7 +2362,7 @@ msgid "叠加轨"
 msgstr "Overlay track"
 
 #. placeholder {0}: failed - 1
-#: src/pages/home/HomeFailureNotice.tsx:55
+#: src/pages/home/HomeFailureNotice.tsx:58
 msgid "另有 {0} 条失败记录"
 msgstr "{0} more failed records"
 
@@ -2836,6 +2835,10 @@ msgstr "Baseline"
 msgid "填写一个目录的完整路径"
 msgstr "Enter the full path of a folder"
 
+#: src/pages/HomePage.tsx:59
+msgid "处理待办，继续作品，或者开始新的作品"
+msgstr "Handle what needs attention, continue a project, or start a new one"
+
 #: src/pages/library/LibraryInspector.tsx:249
 #: src/pages/library/LibraryInspector.tsx:253
 msgid "备注"
@@ -2863,7 +2866,7 @@ msgid "多轨时间轴"
 msgstr "Multitrack timeline"
 
 #: src/app/shell/navigation.tsx:103
-#: src/pages/home/ActiveProjectsPanel.tsx:112
+#: src/pages/home/ActiveProjectsPanel.tsx:115
 msgid "多轨编辑"
 msgstr "Multitrack"
 
@@ -2885,7 +2888,7 @@ msgstr "The multi-track editor is for cuts that need overlays, captions and fram
 msgid "失败"
 msgstr "Failed"
 
-#: src/pages/home/HomeFailureNotice.tsx:50
+#: src/pages/home/HomeFailureNotice.tsx:53
 msgid "失败可恢复"
 msgstr "Failed, recoverable"
 
@@ -2923,10 +2926,6 @@ msgstr "Once a recording finishes, its clips show up here."
 #: src/design/data/Empty.tsx:149
 msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 msgstr "Once a recording or export finishes, the video shows up here, linked back to the task that made it."
-
-#: src/pages/home/FirstRunStrip.tsx:75
-msgid "完整的使用引导与环境自检"
-msgstr "The full guide and environment self-check"
 
 #: src/domain/match/EvidenceRow.tsx:80
 #: src/pages/evidence/EvidenceAnnotations.tsx:126
@@ -3052,6 +3051,8 @@ msgid "导入"
 msgstr "Import"
 
 #: src/pages/home/firstRunSteps.ts:37
+#: src/pages/home/FirstRunStrip.tsx:59
+#: src/pages/HomePage.tsx:88
 #: src/pages/library/ImportDemoDialog.tsx:93
 #: src/pages/LibraryPage.tsx:182
 msgid "导入 Demo"
@@ -3213,6 +3214,7 @@ msgstr "Nothing is going on in the workspace"
 
 #: src/app/command/commandRegistry.ts:165
 #: src/app/shell/navigation.tsx:83
+#: src/pages/HomePage.tsx:58
 msgid "工作台"
 msgstr "Dashboard"
 
@@ -3756,7 +3758,7 @@ msgstr "Required"
 
 #: src/app/command/commandRegistry.ts:199
 #: src/app/shell/navigation.tsx:101
-#: src/pages/home/ActiveProjectsPanel.tsx:112
+#: src/pages/home/ActiveProjectsPanel.tsx:115
 #: src/pages/montage/MontageProjectList.tsx:148
 msgid "快速剪辑"
 msgstr "Quick edit"
@@ -4375,6 +4377,10 @@ msgctxt "plan-change"
 msgid "新增"
 msgstr "Add"
 
+#: src/pages/HomePage.tsx:83
+msgid "新建"
+msgstr "New"
+
 #: src/pages/agent/SessionDrawer.tsx:177
 msgid "新建一条对话线程"
 msgstr "Start a new conversation thread"
@@ -4385,6 +4391,8 @@ msgstr "Start an empty conversation, say what you want, and the Agent will creat
 
 #: src/pages/editor/EditorProjectList.tsx:74
 #: src/pages/editor/EditorProjectList.tsx:203
+#: src/pages/HomePage.tsx:62
+#: src/pages/HomePage.tsx:86
 #: src/pages/montage/MontageProjectList.tsx:81
 #: src/pages/montage/MontageProjectList.tsx:200
 msgid "新建作品"
@@ -4654,7 +4662,7 @@ msgstr "{0} clips were shortened; saving drops the {1} keyframes that now fall o
 msgid "有 {unplaced} 段在允许的时长范围内找不到合适的拍点，保持原样。"
 msgstr "{unplaced} clips found no suitable beat inside the allowed duration range and are left as they are."
 
-#: src/pages/home/ActiveProjectsPanel.tsx:90
+#: src/pages/home/ActiveProjectsPanel.tsx:91
 msgid "有一份作品列表没能读出来：{error}"
 msgstr "One of the project lists could not be read: {error}"
 
@@ -6051,7 +6059,6 @@ msgstr "Detonated"
 
 #: src/pages/delivery/OutputsView.tsx:174
 #: src/pages/home/RecentOutputsPanel.tsx:92
-#: src/pages/HomePage.tsx:88
 #: src/pages/match/views/HighlightsView.tsx:292
 #: src/pages/MatchWorkspacePage.tsx:228
 msgid "用 Agent 制作视频"
@@ -6497,6 +6504,10 @@ msgstr "Type"
 msgid "系统里注册了录制需要的视频与音频编码器"
 msgstr "The video and audio encoders recording needs are registered on this system"
 
+#: src/pages/home/FirstRunStrip.tsx:55
+msgid "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
+msgstr "There is no media yet. Import a Demo to start your first project from it."
+
 #: src/design/timeline/TimelinePrototype.tsx:60
 msgid "素材已经到头了，没有可以滑移的余量"
 msgstr "The source is at its end, with no slack left to slip"
@@ -6580,6 +6591,10 @@ msgstr "Circles the subject; good for dwelling on one engagement"
 #: src/pages/agent/conversationModel.ts:309
 msgid "给方案下一条指令，例如「02 再短一点」「把结尾留 1 秒」"
 msgstr "Give the plan an instruction, e.g. “make 02 shorter”, “leave 1 second at the end”"
+
+#: src/pages/HomePage.tsx:77
+msgid "继续"
+msgstr "Continue"
 
 #: src/pages/agent/conversationModel.ts:322
 msgid "继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」"
@@ -7089,10 +7104,6 @@ msgstr "Purchase spend statistics unavailable"
 msgid "资料库"
 msgstr "Library"
 
-#: src/pages/home/FirstRunStrip.tsx:56
-msgid "资料库里还没有东西，从第一步开始。这一条在导入之后会自动消失。"
-msgstr "The library is empty, so start at step one. This strip disappears once something is imported."
-
 #: src/pages/home/RecentMatchesPanel.tsx:67
 msgid "资料库里还没有比赛。导入 Demo 之后它们会出现在这里。"
 msgstr "No matches in the library yet. Import a Demo and they appear here."
@@ -7314,7 +7325,7 @@ msgstr "No sessions yet"
 msgid "还没有作品"
 msgstr "No projects yet"
 
-#: src/pages/home/ActiveProjectsPanel.tsx:101
+#: src/pages/home/ActiveProjectsPanel.tsx:102
 msgid "还没有作品。快速剪辑串一条视频，多轨编辑器做需要叠加与字幕的片子。"
 msgstr "No projects yet. Quick edit strings clips together; the multitrack editor handles overlays and captions."
 
@@ -7996,14 +8007,6 @@ msgstr "{0} running · {1} failed · {2} done"
 msgid "进行中的任务"
 msgstr "Running tasks"
 
-#: src/pages/HomePage.tsx:85
-msgid "进行中的任务、失败可恢复的任务和最近的成片"
-msgstr "Running tasks, recoverable failures, and the most recent videos"
-
-#: src/pages/home/ActiveProjectsPanel.tsx:76
-msgid "进行中的作品"
-msgstr "Projects in progress"
-
 #: src/pages/montage/MusicBeatBlock.tsx:387
 #: src/pages/montage/MusicBeatBlock.tsx:474
 msgid "退出预览"
@@ -8172,6 +8175,10 @@ msgstr "Choose a music file"
 #: src/pages/montage/MusicBeatBlock.tsx:177
 msgid "选择音乐"
 msgstr "Choose music"
+
+#: src/pages/home/ActiveProjectsPanel.tsx:45
+msgid "选材中"
+msgstr "Selecting clips"
 
 #: src/pages/match/views/DuelsView.tsx:669
 msgid "逐个对手"
@@ -8422,7 +8429,7 @@ msgstr "Choose again"
 #: src/pages/evidence/EvidenceResults.tsx:125
 #: src/pages/GuidePage.tsx:96
 #: src/pages/HistoryPage.tsx:223
-#: src/pages/home/ActiveProjectsPanel.tsx:83
+#: src/pages/home/ActiveProjectsPanel.tsx:84
 #: src/pages/home/PendingPlansPanel.tsx:94
 #: src/pages/home/RecentMatchesPanel.tsx:57
 #: src/pages/library/AddWatchDirectoryDialog.tsx:123
@@ -8574,7 +8581,7 @@ msgctxt "task-progress"
 msgid "阶段"
 msgstr "Stages"
 
-#: src/domain/task/TaskCard.tsx:211
+#: src/domain/task/TaskCard.tsx:214
 msgid "阶段 {index}/{count} {label}"
 msgstr "Stage {index}/{count} {label}"
 
@@ -8592,6 +8599,10 @@ msgstr "A highlight reel is started from the match workspace or from the Agent"
 #: src/pages/settings/GameSection.tsx:215
 msgid "雷达"
 msgstr "Radar"
+
+#: src/pages/HomePage.tsx:70
+msgid "需要我处理"
+msgstr "Needs my attention"
 
 #: src/app/boundary/ServiceGate.tsx:294
 msgid "需要服务"

@@ -31,7 +31,6 @@
 import { Trans } from '@lingui/react/macro';
 
 import { useDemoList } from '../../data/demos';
-import { FIRST_RUN_STEPS } from './firstRunSteps';
 import { RouteLink } from '../RouteLink';
 
 export function FirstRunStrip() {
@@ -47,33 +46,17 @@ export function FirstRunStrip() {
   if ((demos.data?.items.length ?? 0) > 0) return null;
 
   return (
-    <section className="flex flex-col gap-3 border border-divider p-4" data-home-block="first-run">
+    <div className="flex flex-col gap-3 border border-divider p-4" data-home-block="first-run">
       <div className="flex flex-col gap-1">
         <h2 className="text-base font-medium">
-          <Trans>三步做出第一条视频</Trans>
+          <Trans>从导入 Demo 开始</Trans>
         </h2>
         <p className="text-xs leading-normal text-neutral-600">
-          <Trans>资料库里还没有东西，从第一步开始。这一条在导入之后会自动消失。</Trans>
+          <Trans>素材为空。导入一场 Demo 后，就可以用它新建第一份作品。</Trans>
         </p>
       </div>
 
-      <ol className="flex flex-col gap-2 sm:flex-row sm:gap-4">
-        {FIRST_RUN_STEPS.map((step, index) => (
-          <li key={step.id} className="flex min-w-0 flex-1 items-start gap-2.5" data-first-run-step={step.id}>
-            <span className="flex-none font-mono text-sm text-neutral-600">
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <div className="flex min-w-0 flex-col gap-1">
-              <RouteLink to={step.to}>{step.title()}</RouteLink>
-              <p className="text-xs leading-normal text-neutral-600">{step.description()}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      <RouteLink to="/guide">
-        <Trans>完整的使用引导与环境自检</Trans>
-      </RouteLink>
-    </section>
+      <RouteLink to="/library"><Trans>导入 Demo</Trans></RouteLink>
+    </div>
   );
 }

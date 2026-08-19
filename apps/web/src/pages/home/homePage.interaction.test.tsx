@@ -93,15 +93,12 @@ const CLIENT = {
 };
 
 describe('工作台首页', () => {
-  it('shows what is running, with the service s own denominator', async () => {
+  it('removes the task progress wall and raw task ids from the first screen', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
 
-    // The record's own locator, printed in the mono face beside its title —
-    // the title itself is 「分析 · Aurora vs Meridian」, two nodes in one line.
-    expect(await screen.findByText('analysis:run-1')).toBeTruthy();
-    const bar = screen.getAllByRole('progressbar')[0];
-    // 62 % came from `progress_percent`; nothing here derives it from a stage.
-    expect(bar?.getAttribute('aria-valuenow')).toBe('62');
+    expect(await screen.findByText('需要我处理')).toBeTruthy();
+    expect(screen.queryByText('analysis:run-1')).toBeNull();
+    expect(screen.queryByRole('progressbar')).toBeNull();
   });
 
   it('prints a plan s length beside its shot count', async () => {
@@ -226,37 +223,31 @@ describe('工作台首页', () => {
     expect(within(block).getByText(/合辑/u)).toBeTruthy();
   });
 
-  it('shows the most recent outputs beside them', async () => {
+  it('leaves finished files out of the workbench now that they have their own destination', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
 
-    expect(await screen.findByText('Kael_Mirage_1v3.mp4')).toBeTruthy();
-    expect(screen.getByRole('link', { name: '全部成品文件' }).getAttribute('href')).toBe('/delivery');
+    await screen.findByText('需要我处理');
+    expect(screen.queryByText('Kael_Mirage_1v3.mp4')).toBeNull();
+    expect(screen.queryByRole('link', { name: '全部成品文件' })).toBeNull();
   });
 
-  it('draws all five blocks, in the order the board puts them', async () => {
+  it('draws exactly the three IA blocks in their required order', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
 
-    expect(await screen.findByText('待确认的剪辑单')).toBeTruthy();
-    expect(screen.getByText('最近比赛')).toBeTruthy();
-    expect(screen.getByText('进行中的作品')).toBeTruthy();
-    expect(screen.queryByText(/这一块在阶段/u)).toBeNull();
-
-    /* 「待确认方案在最上」 — the board's own instruction, and the reason this
-       page is ordered by what is waiting on the user rather than by
-       subsystem. */
-    const plans = document.querySelector('[data-home-block="plans"]');
-    const matches = document.querySelector('[data-home-block="matches"]');
-    expect(plans).not.toBeNull();
-    expect(matches).not.toBeNull();
-    if (plans === null || matches === null) throw new Error('both blocks must render');
-    expect(plans.compareDocumentPosition(matches) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await screen.findByText('需要我处理');
+    const blocks = [...document.querySelectorAll('[data-home-layout="three-sections"] > [data-home-block]')];
+    expect(blocks.map((block) => block.getAttribute('data-home-block'))).toEqual([
+      'needs-attention',
+      'continue',
+      'new',
+    ]);
   });
 
   it('says nothing about the environment while nothing is blocked', async () => {
     // 「环境问题只在阻塞相应任务时出现在这里」 — a banner on a healthy
     // workbench is the thing that sentence rules out.
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
-    await screen.findByText('待确认的剪辑单');
+    await screen.findByText('需要我处理');
     expect(document.querySelector('[data-home-block="environment"]')).toBeNull();
   });
 
@@ -291,9 +282,22 @@ describe('工作台首页', () => {
   it('keeps the main action on the bar at any width', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
 
-    const primary = await screen.findByRole('button', { name: '用 Agent 制作视频' });
+    const primary = (await screen.findAllByRole('button', { name: '新建作品' }))[0];
     // §8: the main action never enters an overflow menu — `Toolbar` keeps it in
     // its own slot, which is what `data-toolbar-primary` marks.
-    expect(primary.closest('[data-toolbar-primary]')).not.toBeNull();
+    expect(primary?.closest('[data-toolbar-primary]')).not.toBeNull();
+  });
+
+  it('shows one import-Demo first-run action when the library is empty', async () => {
+    renderPage({
+      element: <HomePage />,
+      client: { ...CLIENT, listDemos: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 1 }) },
+      route: '/',
+      health: HEALTHY,
+    });
+
+    expect(await screen.findByText('从导入 Demo 开始')).toBeTruthy();
+    const firstRun = document.querySelector('[data-home-block="first-run"]') as HTMLElement;
+    expect(within(firstRun).getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
   });
 });

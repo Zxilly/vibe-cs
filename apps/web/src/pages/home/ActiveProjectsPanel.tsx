@@ -41,6 +41,10 @@ interface ProjectRow {
   readonly href: string;
 }
 
+function projectStep(row: ProjectRow) {
+  return row.clipCount === 0 ? <Trans>选材中</Trans> : <Trans>剪辑中</Trans>;
+}
+
 export function ActiveProjectsPanel() {
   const editors = useEditorProjects();
   const montages = useMontageProjects();
@@ -71,10 +75,7 @@ export function ActiveProjectsPanel() {
   const loading = editors.isPending || montages.isPending;
 
   return (
-    <section className="flex flex-col gap-3" data-home-block="projects">
-      <h2 className="text-base font-medium">
-        <Trans>进行中的作品</Trans>
-      </h2>
+    <div className="flex flex-col gap-3" data-home-block="projects">
 
       {error === null ? null : (
         <Alert
@@ -103,12 +104,14 @@ export function ActiveProjectsPanel() {
       ) : (
         <ul className="flex flex-col gap-2">
           {rows.slice(0, SHOWN).map((row) => (
-            <li key={`${row.kind}:${row.id}`} className="flex items-center justify-between gap-3 text-sm">
+            <li key={`${row.kind}:${row.id}`} className="flex items-center justify-between gap-3 border border-divider p-3 text-sm">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <RouteLink to={row.href} className="truncate">
                   {row.name}
                 </RouteLink>
                 <span className="text-xs text-neutral-600">
+                  {projectStep(row)}
+                  {' · '}
                   {row.kind === 'editor' ? <Trans>多轨编辑</Trans> : <Trans>快速剪辑</Trans>}
                   {' · '}
                   <Plural value={row.clipCount} other="# 段素材" />
@@ -120,6 +123,6 @@ export function ActiveProjectsPanel() {
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

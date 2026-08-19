@@ -33,11 +33,10 @@
  * has no room for a second column at the fold, and 476px would not be a card.
  */
 
-import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useNavigate } from 'react-router-dom';
 
-import { Page, SplitPane, Toolbar, useShellCollapsed } from '../design/layout';
+import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
 import { useServiceAction } from '../data/serviceAction';
 import { ActiveProjectsPanel } from './home/ActiveProjectsPanel';
@@ -45,67 +44,52 @@ import { EnvironmentNotice } from './home/EnvironmentNotice';
 import { FirstRunStrip } from './home/FirstRunStrip';
 import { HomeFailureNotice } from './home/HomeFailureNotice';
 import { PendingPlansPanel } from './home/PendingPlansPanel';
-import { RecentMatchesPanel } from './home/RecentMatchesPanel';
-import { HomeTasksPanel } from './home/HomeTasksPanel';
-import { RecentOutputsPanel } from './home/RecentOutputsPanel';
+import { RouteLink } from './RouteLink';
 
 export function HomePage() {
-  const collapsed = useShellCollapsed();
   const service = useServiceAction();
   const navigate = useNavigate();
-
-  const tasks = (
-    <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-6">
-      {/* Only when something is actually blocked, and above everything else
-          when it is: a broken capture environment makes the blocks below it
-          unactionable. */}
-      <EnvironmentNotice />
-
-      {/* Only while the library is empty — see `home/FirstRunStrip`. */}
-      <FirstRunStrip />
-
-      <PendingPlansPanel />
-
-      <HomeTasksPanel service={service} />
-      <HomeFailureNotice service={service} />
-
-      <RecentMatchesPanel />
-      <ActiveProjectsPanel />
-    </div>
-  );
-
-  const outputs = <RecentOutputsPanel service={service} />;
 
   return (
     <Page
       scroll={false}
       toolbar={
         <Toolbar
-          title={<Trans>今日工作</Trans>}
-          meta={<Trans>进行中的任务、失败可恢复的任务和最近的成片</Trans>}
+          title={<Trans>工作台</Trans>}
+          meta={<Trans>处理待办，继续作品，或者开始新的作品</Trans>}
           primary={
             <Button variant="primary" size="md" onClick={() => void navigate('/agent')}>
-              <Trans>用 Agent 制作视频</Trans>
+              <Trans>新建作品</Trans>
             </Button>
           }
         />
       }
     >
-      {collapsed ? (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {tasks}
-          <div className="flex flex-col border-t border-divider">{outputs}</div>
-        </div>
-      ) : (
-        <SplitPane
-          asideLabel={t`最近成品文件`}
-          asideWidth="inspector-wide"
-          storageId="home-outputs"
-          aside={outputs}
-        >
-          {tasks}
-        </SplitPane>
-      )}
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-7" data-home-layout="three-sections">
+        <section className="flex flex-col gap-4" data-home-block="needs-attention">
+          <h2 className="text-lg font-medium"><Trans>需要我处理</Trans></h2>
+          <EnvironmentNotice />
+          <PendingPlansPanel />
+          <HomeFailureNotice service={service} />
+        </section>
+
+        <section className="flex flex-col gap-4 border-t border-divider pt-5" data-home-block="continue">
+          <h2 className="text-lg font-medium"><Trans>继续</Trans></h2>
+          <ActiveProjectsPanel />
+        </section>
+
+        <section className="flex flex-col gap-4 border-t border-divider pt-5" data-home-block="new">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-lg font-medium"><Trans>新建</Trans></h2>
+            <span className="flex-1" />
+            <Button variant="primary" size="md" onClick={() => void navigate('/agent')}>
+              <Trans>新建作品</Trans>
+            </Button>
+            <RouteLink to="/library" size="sm"><Trans>导入 Demo</Trans></RouteLink>
+          </div>
+          <FirstRunStrip />
+        </section>
+      </div>
     </Page>
   );
 }

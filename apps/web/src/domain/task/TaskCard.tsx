@@ -86,6 +86,8 @@ export interface TaskCardProps {
   readonly now?: Date | undefined;
   readonly timeZone?: string | undefined;
   readonly headingLevel?: 3 | 4 | undefined;
+  /** Dense summaries can omit the technical locator; detail views still carry it. */
+  readonly showId?: boolean | undefined;
   readonly className?: string | undefined;
 }
 
@@ -99,6 +101,7 @@ export function TaskCard({
   now,
   timeZone,
   headingLevel = 3,
+  showId = true,
   className,
 }: TaskCardProps) {
   const Heading = HEADING_TAG[headingLevel];
@@ -137,7 +140,7 @@ export function TaskCard({
             {' · '}
             {task.subject}
           </Heading>
-          <span className="ml-auto flex-none font-mono text-xs text-neutral-600">{task.id}</span>
+          {showId ? <span className="ml-auto flex-none font-mono text-xs text-neutral-600">{task.id}</span> : null}
         </div>
 
         <p className={cn('text-xs leading-normal', failed ? 'text-fail-text' : 'text-neutral-600')}>

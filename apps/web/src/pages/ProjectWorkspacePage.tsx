@@ -12,6 +12,7 @@ import { projectStepAvailability, resolveProjectStep } from '../domain/project/p
 import { AgentWorkspace } from './AgentPage';
 import { MontageWorkspace } from './MontagePage';
 import { EditorWorkspaceLoader } from './EditorPage';
+import { ProjectRecordingStep } from './project/ProjectRecordingStep';
 import { RouteLink } from './RouteLink';
 
 export function ProjectWorkspacePage() {
@@ -74,7 +75,13 @@ export function ProjectWorkspacePage() {
           </ol>
         </nav>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <StepContent step={step} project={project} />
+          <StepContent
+            step={step}
+            project={project}
+            tasksPending={projects.tasksPending}
+            tasksError={projects.tasksError}
+            onReloadTasks={() => void projects.refetchTasks()}
+          />
         </div>
       </div>
     </Page>
@@ -90,8 +97,30 @@ function StepLabel({ step }: { readonly step: ProjectStep }) {
   }
 }
 
-function StepContent({ step, project }: { readonly step: ProjectStep; readonly project: ProjectViewModel }) {
+function StepContent({
+  step,
+  project,
+  tasksPending,
+  tasksError,
+  onReloadTasks,
+}: {
+  readonly step: ProjectStep;
+  readonly project: ProjectViewModel;
+  readonly tasksPending: boolean;
+  readonly tasksError: string | null;
+  readonly onReloadTasks: () => void;
+}) {
   if (step === 'shotlist') return <ShotListMode project={project} />;
+  if (step === 'record') {
+    return (
+      <ProjectRecordingStep
+        project={project}
+        tasksPending={tasksPending}
+        tasksError={tasksError}
+        onReload={onReloadTasks}
+      />
+    );
+  }
   const descriptions: Record<ProjectStep, React.ReactNode> = {
     select: <Trans>比赛工作区与证据检索加入的片段会汇总到这里。</Trans>,
     shotlist: <Trans>当前剪辑模式：{project.editingMode}。快速剪辑与多轨编辑能力将在这里呈现。</Trans>,
@@ -145,7 +174,7 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
         <AgentWorkspace
           embedded
           {...(project.id === 'new' ? {} : { planId: project.source.id })}
-          recordingTarget={`/projects/${encodeURIComponent(project.id)}?step=record`}
+          recordingTarget={`/projects/${encodeURIComponent(project.id)}?step=record&prepare=1`}
         />
       ) : project.source.kind === 'montage' ? (
         <MontageWorkspace embedded projectId={project.source.id} />

@@ -8,7 +8,7 @@
 
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useParams, useSearchParams } from 'react-router-dom';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { AgentPage } from '../AgentPage';
@@ -75,11 +75,12 @@ function shot(id: string, recording: AgentShotRecording | null): AgentPlanShot {
 /** Anything that could make the game run or a file appear. */
 const RECORDING_METHOD = /record|execute|capture|render|export/iu;
 
-/** Stands in for `/recording/:taskId` so the handover is observable without
+/** Stands in for the project recording step so the handover is observable without
  *  mounting the recording page and its own bridge calls. */
 function RecordingLanding() {
-  const { taskId } = useParams<{ taskId?: string }>();
-  return <p data-testid="recording-landing">{taskId ?? ''}</p>;
+  const { projectId } = useParams<{ projectId?: string }>();
+  const [params] = useSearchParams();
+  return <p data-testid="recording-landing">{projectId ?? ''}|{params.get('step')}|{params.get('prepare')}</p>;
 }
 
 let queryClientRef: QueryClient | null = null;
@@ -136,7 +137,7 @@ function harness(url: string, plan?: Partial<AgentPlan>) {
         <QueryProbe />
         <Routes>
           <Route path="/agent" element={<AgentPage />} />
-          <Route path="/recording/:taskId" element={<RecordingLanding />} />
+          <Route path="/projects/:projectId" element={<RecordingLanding />} />
         </Routes>
       </MemoryRouter>
     </DesktopClientProvider>,
@@ -241,7 +242,7 @@ describe('§4.5.3 rule ①, at the page level', () => {
    * keeps 开始录制 on 「08」, under the check list — so what this pins is that the
    * address changes and that nothing on the way there queued a job.
    */
-  it('hands a bound plan to `/recording/<planId>` without recording anything', async () => {
+  it('hands a bound plan to its project recording step without recording anything', async () => {
     const { reached } = harness('/agent?plan=P-118&session=S-1', {
       shots: [shot('shot-01', BOUND)],
     });
@@ -258,7 +259,7 @@ describe('§4.5.3 rule ①, at the page level', () => {
     });
 
     const landing = await screen.findByTestId('recording-landing');
-    expect(landing.textContent).toBe('P-118');
+    expect(landing.textContent).toBe('plan:P-118|record|1');
     expect(reached.filter((name) => RECORDING_METHOD.test(name))).toEqual([]);
   });
 });

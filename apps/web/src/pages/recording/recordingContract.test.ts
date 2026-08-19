@@ -122,12 +122,12 @@ function planOf(shots: AgentPlanShot[]): AgentPlan {
 
 describe('recordingHref', () => {
   it('is the bare list with no plan and the plan itself with one', () => {
-    expect(recordingHref(null)).toBe('/recording');
-    expect(recordingHref('P-118')).toBe('/recording/P-118');
+    expect(recordingHref(null)).toBe('/projects');
+    expect(recordingHref('P-118')).toBe('/projects/plan%3AP-118?step=record&prepare=1');
   });
 
   it('escapes an id rather than pasting it into the path', () => {
-    expect(recordingHref('a/b')).toBe('/recording/a%2Fb');
+    expect(recordingHref('a/b')).toBe('/projects/plan%3Aa%2Fb?step=record&prepare=1');
   });
 
   it('sends a started recording to the task address, not back here', () => {

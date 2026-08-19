@@ -249,11 +249,14 @@ import type {
 /**
  * `/recording` or `/recording/<agentPlanId>`.
  *
- * A path segment rather than a query parameter because §7's table says so, and
- * because a plan is the page's subject rather than a filter on it.
+ * Recording preparation now belongs to the plan-backed project workspace.
+ * The `prepare` flag distinguishes the explicit 「送去录制」 action from simply
+ * returning to an existing queue.
  */
 export function recordingHref(agentPlanId: string | null): string {
-  return agentPlanId === null ? '/recording' : `/recording/${encodeURIComponent(agentPlanId)}`;
+  return agentPlanId === null
+    ? '/projects'
+    : `/projects/${encodeURIComponent(`plan:${agentPlanId}`)}?step=record&prepare=1`;
 }
 
 /** Where 「开始录制」 lands. A running recording is a task, and a task has its

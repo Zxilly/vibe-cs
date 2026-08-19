@@ -45,7 +45,6 @@ describe('the nav table mirrors Frame.dc.html', () => {
       'players',
       'evidence',
       'projects',
-      'recording',
       'outputs',
       'settings',
     ]);
@@ -56,7 +55,6 @@ describe('the nav table mirrors Frame.dc.html', () => {
       '/players',
       '/evidence',
       '/projects',
-      '/recording',
       '/delivery?view=outputs',
       '/settings',
     ]);
@@ -84,7 +82,7 @@ describe('activeNavItemId', () => {
 
   it('follows a nested route to its section', () => {
     expect(activeNavItemId('/players/kael')).toBe('players');
-    expect(activeNavItemId('/recording/A-2481')).toBe('recording');
+    expect(activeNavItemId('/recording/A-2481')).toBeNull();
     expect(activeNavItemId('/editor/P-118')).toBeNull();
   });
 

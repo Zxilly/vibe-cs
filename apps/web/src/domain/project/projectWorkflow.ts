@@ -17,13 +17,16 @@ export interface ProjectStepTransition {
 export function projectStepAvailability(project: ProjectViewModel): readonly ProjectStepAvailability[] {
   const hasClips = project.clipCount > 0;
   const confirmed = project.shotList === null || project.shotList.status === 'confirmed';
+  const recordsThroughGame = project.source.kind === 'plan';
   return [
     { step: 'select', enabled: true, disabledReason: null },
     { step: 'shotlist', enabled: true, disabledReason: null },
     {
       step: 'record',
-      enabled: hasClips,
-      disabledReason: hasClips ? null : '还没有片段，不能开始录制',
+      enabled: hasClips && recordsThroughGame,
+      disabledReason: !hasClips
+        ? '还没有片段，不能开始录制'
+        : recordsThroughGame ? null : '快速模式和精剪模式直接导出，不需要录制',
     },
     {
       step: 'export',

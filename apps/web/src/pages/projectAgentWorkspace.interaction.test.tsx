@@ -44,6 +44,7 @@ describe('Agent mode inside the project shot-list step', () => {
     expect(screen.getByRole('radio', { name: '就地编辑' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: '候选镜头' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /会话历史/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /送去录制/u })).toBeTruthy();
     expect((await screen.findAllByText(PLAN.shots[0]?.title ?? '')).length).toBeGreaterThan(0);
     expect(document.body.textContent).toContain(`修订 ${String(PLAN.revision)}`);
   });

@@ -45,6 +45,8 @@ export interface TaskFeedListProps {
   readonly headingLevel?: 3 | 4 | undefined;
   readonly now?: Date | undefined;
   readonly className?: string | undefined;
+  /** Optional project-specific detail below the shared task card. */
+  readonly renderAfter?: ((item: ActivityItem) => ReactNode) | undefined;
 }
 
 export function TaskFeedList({
@@ -60,6 +62,7 @@ export function TaskFeedList({
   headingLevel = 3,
   now,
   className,
+  renderAfter,
 }: TaskFeedListProps) {
   if (errorMessage !== undefined) {
     return (
@@ -112,6 +115,7 @@ export function TaskFeedList({
               {...(bound.onCancel === undefined ? {} : { onCancel: bound.onCancel })}
               {...(now === undefined ? {} : { now })}
             />
+            {renderAfter?.(item)}
             {/* 「重新发起」 is a restart of a cancelled task; a failed task's
                 retry already lives inside the card's failure Notice, which is
                 where 「每条都带一个主要恢复动作」 puts it. Drawing a second

@@ -189,12 +189,6 @@ export const PAGE_COMMANDS: readonly CommandDefinition[] = [
     to: '/projects/new?step=shotlist',
     keywords: ['agent', 'ai', '创作', '方案', '会话'],
   }),
-  pageCommand({
-    id: 'recording',
-    title: msg`录制计划`,
-    to: '/recording',
-    keywords: ['recording', '录制', '镜头', '计划'],
-  }),
   // §7 gives /delivery a `?view=outputs|tasks` query and Frame lists the two
   // views as separate rail entries, so they are two commands here as well —
   // 「跳到任务记录」is a distinct intent from 「跳到输出」.

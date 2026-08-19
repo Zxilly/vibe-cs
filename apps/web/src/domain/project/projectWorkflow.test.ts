@@ -29,9 +29,23 @@ describe('project workflow gates', () => {
     expect(gates[3]).toMatchObject({ enabled: false, disabledReason: '剪辑单还没有确认，不能导出' });
   });
 
-  it('allows every step for confirmed or non-Agent cuts with clips', () => {
+  it('allows every step for a confirmed Agent cut', () => {
     expect(projectStepAvailability(project({ clipCount: 2, shotList: { planId: 'p-1', status: 'confirmed', shotCount: 2 } })).every((entry) => entry.enabled)).toBe(true);
-    expect(projectStepAvailability(project({ clipCount: 2, shotList: null })).every((entry) => entry.enabled)).toBe(true);
+  });
+
+  it('sends quick and multitrack cuts straight to export instead of the game recorder', () => {
+    for (const kind of ['montage', 'editor'] as const) {
+      const gates = projectStepAvailability(project({
+        source: { kind, id: 'cut-1' },
+        clipCount: 2,
+        shotList: null,
+      }));
+      expect(gates.find((entry) => entry.step === 'record')).toMatchObject({
+        enabled: false,
+        disabledReason: '快速模式和精剪模式直接导出，不需要录制',
+      });
+      expect(gates.find((entry) => entry.step === 'export')?.enabled).toBe(true);
+    }
   });
 
   it('falls illegal or gated queries back to the first reachable step, while omission resumes current work', () => {

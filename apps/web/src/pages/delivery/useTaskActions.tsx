@@ -46,6 +46,7 @@ import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { taskKindOfActivity, taskStagePositionOf, taskStatusOfActivity, toTaskSummary } from './taskModel';
 import { canCancelTask, taskRestartEvent } from './taskTransitions';
 import type { ServiceActionState } from '../../data/serviceAction';
+import { recordingHref } from '../recording/recordingContract';
 
 /** The address of one task record: `kind:jobId`, the service's own locator. */
 export function taskDetailPath(item: ActivityItem): string {
@@ -141,7 +142,7 @@ export function useTaskActions({ service, now }: TaskActionsOptions) {
           {
             // §4.5.3 ①: the plan is reviewed and confirmed on the recording
             // page. Navigating *is* the action here; nothing is started.
-            onSuccess: (plan) => void navigate(`/recording/${encodeURIComponent(plan.plan_id)}`),
+            onSuccess: (plan) => void navigate(recordingHref(plan.plan_id)),
           },
         );
         return;

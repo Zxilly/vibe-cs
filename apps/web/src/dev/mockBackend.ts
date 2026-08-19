@@ -66,6 +66,7 @@ import type {
   PlayerProfile,
   QuickCheckResponse,
   RecordedClipRecord,
+  RecordingJob,
   RecordingShotPreset,
   RecoveryStatus,
   ReplayCacheStatus,
@@ -238,8 +239,8 @@ const ACTIVITIES: ActivityFeed = {
       kind: 'recording',
       subtype: null,
       job_id: RECORDING_JOB,
-      context_id: '3f2c9a10-11d4-4a6e-9d21-6b0f1a2c3d41',
-      subject: 'NAVI vs FaZe · 第 19 回合 1v3',
+      context_id: 'plan-1',
+      subject: 'Mirage 残局集锦 · 6 镜头',
       status: 'running',
       /* One of the five `recording.stage.*` keys, and `completed_units` is that
          stage's index — the parser checks the pairing, not just the range. */
@@ -319,6 +320,52 @@ const ACTIVITIES: ActivityFeed = {
   page_size: 20,
   summary: { total: 4, active: 2, failed: 1, completed: 1, cancelled: 0 },
 };
+
+const RECORDING_JOB_DETAIL: RecordingJob = {
+  id: RECORDING_JOB,
+  retry_of: null,
+  status: 'running',
+  current_index: 1,
+  progress: 1 / 3,
+  message: 'recording.stage.capturing',
+  error_code: null,
+  items: [
+    recordingRequest('mock-shot-1', '建立地点', 148_700, 148_812),
+    recordingRequest('mock-shot-2', '跟随突破', 148_812, 149_356),
+    recordingRequest('mock-shot-3', '选手 POV · 三杀', 148_920, 150_440),
+  ],
+  outputs: [{
+    id: 'mock-recorded-clip-1',
+    path: `${DATA_DIR}\\recordings\\mock-recorded-clip-1.mp4`,
+    title: '建立地点',
+    duration_seconds: 8,
+    demo_id: 'demo-aurora-mirage',
+    player_name: 'Kael',
+    category: 'recording',
+    tags: [],
+    metadata: {},
+    created_at: '2026-08-15T09:34:00Z',
+  }],
+  created_at: '2026-08-15T09:30:00Z',
+  updated_at: '2026-08-15T09:40:00Z',
+};
+
+function recordingRequest(id: string, title: string, startTick: number, endTick: number): RecordingJob['items'][number] {
+  return {
+    id,
+    demo_id: 'demo-aurora-mirage',
+    highlight_id: `highlight-${id}`,
+    player_id: '76561198000000001',
+    title,
+    start_tick: startTick,
+    end_tick: endTick,
+    pre_roll_seconds: 1.5,
+    post_roll_seconds: 1,
+    victim_pov: false,
+    camera_style: 'static',
+    presentation: null,
+  };
+}
 
 const OUTPUTS: OutputPage = {
   items: [
@@ -1221,6 +1268,8 @@ const ROUTES: Array<[string, string, Handler]> = [
     warnings: [],
   } as unknown as DemoPlaybackStatus)],
   ['GET', '/hlae/status', () => HLAE],
+  ['GET', '/recording/jobs/:id', () => RECORDING_JOB_DETAIL],
+  ['POST', '/recording/jobs/:id/cancel', () => ({ ...RECORDING_JOB_DETAIL, status: 'cancelling' as const })],
 
   /* editing and delivery */
   ['GET', '/editor/projects', () => ({ items: EDITOR_PROJECTS })],

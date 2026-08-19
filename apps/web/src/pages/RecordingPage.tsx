@@ -59,7 +59,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { dataErrorMessage } from '../data/errors';
@@ -102,7 +102,7 @@ export function RecordingPage() {
   const { taskId } = useParams<{ taskId?: string }>();
   const agentPlanId = taskId === undefined || taskId === '' ? null : taskId;
 
-  return agentPlanId === null ? <RecordingListPage /> : <RecordingPlanPage agentPlanId={agentPlanId} />;
+  return agentPlanId === null ? <RecordingListPage /> : <RecordingPlanWorkspace agentPlanId={agentPlanId} />;
 }
 
 /* ── the bare address ────────────────────────────────────────────────────── */
@@ -125,7 +125,19 @@ function RecordingListPage() {
 
 /* ── the artboard ────────────────────────────────────────────────────────── */
 
-function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
+export interface RecordingPlanWorkspaceProps {
+  readonly agentPlanId: string;
+  readonly embedded?: boolean | undefined;
+  readonly successTarget?: string | undefined;
+  readonly backTarget?: string | undefined;
+}
+
+export function RecordingPlanWorkspace({
+  agentPlanId,
+  embedded = false,
+  successTarget,
+  backTarget,
+}: RecordingPlanWorkspaceProps) {
   const navigate = useNavigate();
   const collapsed = useCollapsed(undefined);
   const service = useServiceAction();
@@ -260,7 +272,7 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
         confirmRecordingStart({ planId: plan.plan_id, offlineInsecureAcknowledged }),
         {
           onSuccess: (result) => {
-            void navigate(recordingTaskHref(result.job_id));
+            void navigate(successTarget ?? recordingTaskHref(result.job_id));
           },
         },
       );
@@ -284,12 +296,14 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
   });
   const agentFailure = dataErrorMessage(agentPlan.error);
   const estimated = plan?.estimated_seconds ?? null;
+  const returnTarget = backTarget ?? agentPlanHandoff(agentPlanId);
 
   return (
-    <Page
-      scroll={false}
+    <RecordingFrame
+      embedded={embedded}
       toolbar={
         <Toolbar
+          height={embedded ? 'bar' : 'topbar'}
           title={agentPlan.data?.title ?? <Trans>录制计划</Trans>}
           meta={
             <>
@@ -311,11 +325,11 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
               id: 'back-to-plan',
               label: <Trans>返回剪辑单</Trans>,
               control: (
-                <RouteLink to={agentPlanHandoff(agentPlanId)} size="sm">
+                <RouteLink to={returnTarget} size="sm">
                   <Trans>返回剪辑单</Trans>
                 </RouteLink>
               ),
-              onSelect: () => void navigate(agentPlanHandoff(agentPlanId)),
+              onSelect: () => void navigate(returnTarget),
             },
           ]}
         />
@@ -354,8 +368,28 @@ function RecordingPlanPage({ agentPlanId }: { readonly agentPlanId: string }) {
         </div>
         <ShotInspectorBlock {...blockProps} camera={camera} />
       </div>
-    </Page>
+    </RecordingFrame>
   );
+}
+
+function RecordingFrame({
+  embedded,
+  toolbar,
+  children,
+}: {
+  readonly embedded: boolean;
+  readonly toolbar: ReactNode;
+  readonly children: ReactNode;
+}) {
+  if (embedded) {
+    return (
+      <section data-recording-plan className="flex min-h-0 flex-1 flex-col">
+        {toolbar}
+        {children}
+      </section>
+    );
+  }
+  return <Page scroll={false} toolbar={toolbar}>{children}</Page>;
 }
 
 /* ── the two failures a plan mint can end in ─────────────────────────────── */

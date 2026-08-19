@@ -322,7 +322,7 @@ export function AgentWorkspace({ embedded = false, planId, recordingTarget }: Ag
                 })();
               }}
             >
-              <Trans>确认并生成视频</Trans>
+              {embedded ? <Trans>送去录制</Trans> : <Trans>确认并生成视频</Trans>}
             </Button>
           }
         />

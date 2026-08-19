@@ -53,6 +53,7 @@ describe('routeCrumb', () => {
     expect(crumb('/library')).toBe('资料库 › Demo 资料库');
     expect(crumb('/history')).toBe('资料库 › 比赛历史');
     expect(crumb('/agent')).toBe('');
+    expect(crumb('/recording')).toBe('');
     expect(crumb('/editor')).toBe('');
     expect(crumb('/montage')).toBe('');
     expect(crumb('/projects')).toBe('制作 › 作品');

@@ -30,7 +30,7 @@
  *   /activity         → /delivery?view=tasks    the two merge into one route
  *   /evidence-search  → /evidence
  *   /match-history    → /history
- *   /queue            → /recording          the old label was already 录制计划
+ *   /queue            → /projects           recording now belongs to a project
  *   /studio/editor    → /editor
  *
  * Retired, deliberately without one — §7 says 「下线」, and a redirect would
@@ -118,7 +118,7 @@ export const LEGACY_REDIRECTS: Readonly<Record<string, string>> = {
   '/activity': '/delivery?view=tasks',
   '/evidence-search': '/evidence',
   '/match-history': '/history',
-  '/queue': '/recording',
+  '/queue': '/projects',
   '/studio/editor': '/editor',
 };
 
@@ -164,7 +164,7 @@ export function LegacyAgentRedirect() {
 
 export function LegacyRecordingRedirect() {
   const { taskId } = useParams<{ taskId?: string }>();
-  return <Navigate to={taskId === undefined ? '/projects?step=record' : projectWorkspacePath('plan', taskId, 'record')} replace />;
+  return <Navigate to={taskId === undefined ? '/projects' : projectWorkspacePath('plan', taskId, 'record')} replace />;
 }
 
 export function LegacyMontageRedirect() {

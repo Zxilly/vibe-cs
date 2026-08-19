@@ -36,6 +36,9 @@ export function useProjects() {
   return {
     data,
     isPending: plans.isPending || montages.isPending || editors.isPending,
+    tasksPending: tasks.isPending,
+    tasksError: dataErrorMessage(tasks.error),
+    refetchTasks: tasks.refetch,
     refetch: async () => Promise.all([plans.refetch(), montages.refetch(), editors.refetch(), tasks.refetch(), outputs.refetch()]),
   };
 }

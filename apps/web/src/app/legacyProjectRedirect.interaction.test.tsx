@@ -41,6 +41,6 @@ describe('legacy creation routes', () => {
     expect(await redirected('/agent')).toBe('/projects/new?step=shotlist');
     expect(await redirected('/montage')).toBe('/projects');
     expect(await redirected('/editor')).toBe('/projects');
-    expect(await redirected('/recording')).toBe('/projects?step=record');
+    expect(await redirected('/recording')).toBe('/projects');
   });
 });

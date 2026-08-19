@@ -34,7 +34,6 @@ import type { MessageDescriptor } from '@lingui/core';
 import {
   Archive,
   Clapperboard,
-  Film,
   Folder,
   History,
   Home,
@@ -53,7 +52,6 @@ export type ShellNavItemId =
   | 'players'
   | 'evidence'
   | 'projects'
-  | 'recording'
   | 'outputs'
   | 'settings';
 
@@ -93,7 +91,6 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
     label: msg`制作`,
     items: [
       { id: 'projects', label: UI_TERMINOLOGY.project.current, icon: Clapperboard, to: '/projects' },
-      { id: 'recording', label: msg`录制计划`, icon: Film, to: '/recording' },
     ],
   },
   {
@@ -130,7 +127,6 @@ const PREFIX_RULES: readonly (readonly [string, ShellNavItemId])[] = [
   ['/players', 'players'],
   ['/evidence', 'evidence'],
   ['/projects', 'projects'],
-  ['/recording', 'recording'],
   ['/settings', 'settings'],
   ['/recovery', 'settings'],
   /* The guide has no rail entry of its own; it lights 设置 for the same

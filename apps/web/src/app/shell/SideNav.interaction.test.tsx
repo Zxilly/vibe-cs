@@ -161,7 +161,6 @@ describe('tab order', () => {
       'players',
       'evidence',
       'projects',
-      'recording',
       'outputs',
       'settings',
       'true',

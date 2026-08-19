@@ -289,7 +289,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
                   });
                 }}
               >
-                <Trans>用 Agent 制作视频</Trans>
+                <Trans>新建作品</Trans>
               </Button>
             }
           >

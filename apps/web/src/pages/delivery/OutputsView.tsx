@@ -171,7 +171,7 @@ export function OutputsView({ service, now }: OutputsViewProps) {
             preset="no-outputs"
             actions={
               <RouteLink to="/agent">
-                <Trans>用 Agent 制作视频</Trans>
+                <Trans>新建作品</Trans>
               </RouteLink>
             }
           />

@@ -212,6 +212,10 @@ describe.each(PAGES)('$at', ({ pattern, at, Component, title, chrome }) => {
     for (const legacy of LEGACY_UI_TERMS) expect(chrome).not.toContain(legacy);
   });
 
+  it('uses the single new-project action name instead of the retired Agent CTA', () => {
+    expect(html).not.toContain('用 Agent 制作视频');
+  });
+
   it('ships a real body, not a notice about which phase would build one', () => {
     // The scaffolding this once guarded is gone: there is no placeholder
     // component left to render, and no page that would want it.

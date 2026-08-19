@@ -51,18 +51,18 @@ describe('AppShell — the assembled frame', () => {
     resetShellStore();
   });
 
-  it('mounts the title bar, the rail, the outlet and the Agent column in one column-then-row frame', () => {
+  it('mounts the title bar, navigation and outlet without a right-edge Agent column', () => {
     const html = renderShell('/library');
 
     expect(html).toContain('data-app-shell');
     expect(html).toContain('data-shell-titlebar');
     expect(html).toContain('data-shell-nav="expanded"');
     expect(html).toContain('data-shell-main');
-    expect(html).toContain('data-agent-rail="collapsed"');
+    expect(html).not.toContain('data-agent-rail');
     expect(html).toContain('data-test-page');
   });
 
-  it('puts the rail before the outlet and the Agent column after it', () => {
+  it('puts the navigation rail before the outlet and mounts no trailing rail', () => {
     const html = renderShell('/library');
     const nav = html.indexOf('data-shell-nav');
     const main = html.indexOf('data-shell-main');
@@ -70,7 +70,7 @@ describe('AppShell — the assembled frame', () => {
 
     expect(nav).toBeGreaterThan(-1);
     expect(nav).toBeLessThan(main);
-    expect(main).toBeLessThan(rail);
+    expect(rail).toBe(-1);
   });
 
   it('keeps the scroll boundary in the page, never in the shell', () => {

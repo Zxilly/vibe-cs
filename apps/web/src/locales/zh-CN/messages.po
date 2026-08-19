@@ -4389,10 +4389,14 @@ msgstr "新建一条对话线程"
 msgid "新建一条空对话就行——想做什么直接说，Agent 会先生成一份剪辑单。"
 msgstr "新建一条空对话就行——想做什么直接说，Agent 会先生成一份剪辑单。"
 
+#: src/pages/delivery/OutputsView.tsx:174
 #: src/pages/editor/EditorProjectList.tsx:74
 #: src/pages/editor/EditorProjectList.tsx:203
+#: src/pages/home/RecentOutputsPanel.tsx:92
 #: src/pages/HomePage.tsx:62
 #: src/pages/HomePage.tsx:86
+#: src/pages/match/views/HighlightsView.tsx:292
+#: src/pages/MatchWorkspacePage.tsx:228
 #: src/pages/montage/MontageProjectList.tsx:81
 #: src/pages/montage/MontageProjectList.tsx:200
 msgid "新建作品"
@@ -6056,13 +6060,6 @@ msgstr "生成预览计划失败：{0}"
 #: src/pages/match/views/UtilityView.tsx:537
 msgid "生效"
 msgstr "生效"
-
-#: src/pages/delivery/OutputsView.tsx:174
-#: src/pages/home/RecentOutputsPanel.tsx:92
-#: src/pages/match/views/HighlightsView.tsx:292
-#: src/pages/MatchWorkspacePage.tsx:228
-msgid "用 Agent 制作视频"
-msgstr "用 Agent 制作视频"
 
 #: src/pages/RecoveryPage.tsx:163
 msgid "用备份恢复"

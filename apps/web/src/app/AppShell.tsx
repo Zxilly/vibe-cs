@@ -8,9 +8,9 @@
  *   ├──────────────────────────────────────────────────────────┤
  *   │ ServiceOfflineNotice        only while status === offline │  flex-none
  *   ├──────────┬──────────────────────────────────┬────────────┤
- *   │ SideNav  │ <main> RouteBoundary → Outlet    │ AgentRail  │  flex-1
- *   │ 216 / 56 │ flex-1, min-w-0                  │ 46 / 380   │  min-h-0
- *   └──────────┴──────────────────────────────────┴────────────┘
+ *   │ SideNav  │ <main> RouteBoundary → Outlet                 │  flex-1
+ *   │ 216 / 56 │ flex-1, min-w-0                               │  min-h-0
+ *   └──────────┴───────────────────────────────────────────────┘
  *   CommandPalette — fixed, above everything, mounted last
  *
  * Every piece already exists: this file owns the arrangement, the three
@@ -36,17 +36,8 @@
  * so the window controls stay usable while it is open. Nothing else in this
  * file positions anything, so the whole shell is one flow layer under those.
  *
- * ── Decision 3: the Agent rail at ≤1100px ────────────────────────────────
- *
- * `AgentRail.tsx` states this is the container's call. The 1100 × 700 board
- * draws no right column at all, and that is followed literally: below the fold
- * the rail is not rendered. It is not a lost entry point — `SideNav`'s own
- * sparkle item (`agent`, → `/agent`) is in the icon rail with the same badge
- * dot, which is exactly what the artboard draws — so keeping a 46px column
- * whose only remaining gesture is "go to /agent" would put the same control on
- * screen twice and spend the 46px the fold exists to reclaim. The fold's
- * companion rules do the same thing elsewhere: the Inspector becomes a 44px
- * summary, the view nav becomes tabs. Nothing here is hidden without a route.
+ * The former right-edge Agent rail is intentionally absent. Agent remains
+ * reachable from SideNav and Ctrl K until its capability moves into projects.
  */
 
 import { useEffect, useState } from 'react';
@@ -64,7 +55,6 @@ import {
 import { CommandPalette, useCommandPalette } from './command';
 import { routeCrumb } from './routeCrumb';
 import {
-  AgentRail,
   RouteBreadcrumb,
   SideNav,
   type DesktopWindowAdapter,
@@ -185,9 +175,6 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
           </RouteBoundary>
         </main>
 
-        {/* Decision 3: no right column below the fold. `SideNav` keeps the
-            Agent entry and its badge. */}
-        {folded ? null : <AgentRail />}
       </div>
 
       <CommandPalette open={palette.open} onClose={palette.closePalette} navigate={goTo} />

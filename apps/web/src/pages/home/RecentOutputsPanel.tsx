@@ -89,7 +89,7 @@ export function RecentOutputsPanel({ service, now }: RecentOutputsPanelProps) {
             preset="no-outputs"
             actions={
               <RouteLink to="/agent">
-                <Trans>用 Agent 制作视频</Trans>
+                <Trans>新建作品</Trans>
               </RouteLink>
             }
           />

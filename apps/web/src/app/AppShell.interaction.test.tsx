@@ -130,17 +130,13 @@ describe('AppShell — the §8 fold', () => {
   });
 });
 
-describe('AppShell — the Agent column at each width', () => {
-  it('opens the 380px panel in place while the window is wide enough', async () => {
+describe('AppShell — the retired Agent column', () => {
+  it('does not mount the right-edge rail even while the window is wide', async () => {
     media = stubMatchMedia(false);
     const { container } = renderInteractive(<RouterProvider router={shellRouter(pendingProbe)} />);
 
-    const expand = container.querySelector<HTMLButtonElement>('[data-agent-rail-toggle="expand"]');
-    expect(expand).not.toBeNull();
-
-    if (expand !== null) fireEvent.click(expand);
-
-    expect(container.querySelector('[data-agent-rail]')?.getAttribute('data-agent-rail')).toBe('expanded');
+    expect(container.querySelector('[data-agent-rail]')).toBeNull();
+    expect(container.querySelector('[data-agent-rail-toggle]')).toBeNull();
   });
 
   it('drops the column once folded and hands the Agent back to the icon rail', async () => {

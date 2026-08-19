@@ -64,7 +64,7 @@ describe('the batch selection', () => {
     fireEvent.click(boxes[1] as HTMLElement);
 
     expect(screen.getByText('已选 2 条')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '用 Agent 制作视频' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '新建作品' })).toBeTruthy();
   });
 
   it('counts only what the current filter is showing', () => {

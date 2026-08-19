@@ -116,7 +116,7 @@ describe('the constant chrome', () => {
   });
 
   it('keeps §8’s non-negotiable primary action on the bar', () => {
-    expect(html).toContain('用 Agent 制作视频');
+    expect(html).toContain('新建作品');
     expect(html).toContain('data-match-actions=');
   });
 

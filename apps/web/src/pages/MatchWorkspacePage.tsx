@@ -225,7 +225,7 @@ export function MatchWorkspacePage() {
                   every width and never enters an overflow menu. `MatchContextBar`
                   keeps its `actions` slot out of the fold for that reason. */}
               <Button variant="primary" size="sm" onClick={() => void navigate('/agent')}>
-                <Trans>用 Agent 制作视频</Trans>
+                <Trans>新建作品</Trans>
               </Button>
             </>
           }

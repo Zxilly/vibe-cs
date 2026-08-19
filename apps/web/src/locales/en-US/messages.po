@@ -4389,10 +4389,14 @@ msgstr "Start a new conversation thread"
 msgid "新建一条空对话就行——想做什么直接说，Agent 会先生成一份剪辑单。"
 msgstr "Start an empty conversation, say what you want, and the Agent will create a shot list first."
 
+#: src/pages/delivery/OutputsView.tsx:174
 #: src/pages/editor/EditorProjectList.tsx:74
 #: src/pages/editor/EditorProjectList.tsx:203
+#: src/pages/home/RecentOutputsPanel.tsx:92
 #: src/pages/HomePage.tsx:62
 #: src/pages/HomePage.tsx:86
+#: src/pages/match/views/HighlightsView.tsx:292
+#: src/pages/MatchWorkspacePage.tsx:228
 #: src/pages/montage/MontageProjectList.tsx:81
 #: src/pages/montage/MontageProjectList.tsx:200
 msgid "新建作品"
@@ -6056,13 +6060,6 @@ msgstr "Generating the preview plan failed: {0}"
 #: src/pages/match/views/UtilityView.tsx:537
 msgid "生效"
 msgstr "Detonated"
-
-#: src/pages/delivery/OutputsView.tsx:174
-#: src/pages/home/RecentOutputsPanel.tsx:92
-#: src/pages/match/views/HighlightsView.tsx:292
-#: src/pages/MatchWorkspacePage.tsx:228
-msgid "用 Agent 制作视频"
-msgstr "Make a video with the Agent"
 
 #: src/pages/RecoveryPage.tsx:163
 msgid "用备份恢复"

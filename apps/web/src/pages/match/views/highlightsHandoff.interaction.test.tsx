@@ -121,7 +121,7 @@ function selectFirst(count: number): void {
 }
 
 function handoffButton(): HTMLButtonElement {
-  return screen.getByRole('button', { name: '用 Agent 制作视频' }) as HTMLButtonElement;
+  return screen.getByRole('button', { name: '新建作品' }) as HTMLButtonElement;
 }
 
 beforeEach(() => {
@@ -130,7 +130,7 @@ beforeEach(() => {
   vi.mocked(useMatchAnalysis).mockReset();
 });
 
-describe('用 Agent 制作视频', () => {
+describe('新建作品', () => {
   it('creates a plan whose every shot carries demo_id, player_id and highlight_id', async () => {
     const harness = mount(BOUND_ANALYSIS);
     await serviceOnline();

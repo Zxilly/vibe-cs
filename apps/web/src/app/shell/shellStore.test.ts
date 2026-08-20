@@ -8,7 +8,12 @@ beforeEach(() => {
 
 describe('shellStore', () => {
   it('starts in editing mode with the rail open and the Agent rail collapsed', () => {
-    expect(SHELL_INITIAL_STATE).toEqual({ mode: 'edit', navCollapsed: false, agentRailExpanded: false });
+    expect(SHELL_INITIAL_STATE).toEqual({
+      mode: 'edit',
+      onboardingComplete: false,
+      navCollapsed: false,
+      agentRailExpanded: false,
+    });
     const state = useShellStore.getState();
     expect(state.mode).toBe('edit');
     expect(state.navCollapsed).toBe(false);
@@ -19,6 +24,12 @@ describe('shellStore', () => {
     useShellStore.getState().setMode('analysis');
     expect(useShellStore.getState().mode).toBe('analysis');
     expect(useShellStore.getState().navCollapsed).toBe(false);
+  });
+
+  it('records the one-time guide independently of the chosen mode', () => {
+    useShellStore.getState().completeOnboarding();
+    expect(useShellStore.getState().onboardingComplete).toBe(true);
+    expect(useShellStore.getState().mode).toBe('edit');
   });
 
   it('toggles the nav rail', () => {
@@ -49,7 +60,7 @@ describe('shellStore', () => {
       .filter(([, value]) => typeof value !== 'function')
       .map(([key]) => key)
       .sort();
-    expect(values).toEqual(['agentRailExpanded', 'mode', 'navCollapsed']);
+    expect(values).toEqual(['agentRailExpanded', 'mode', 'navCollapsed', 'onboardingComplete']);
   });
 
   it('resets back to the initial state', () => {
@@ -57,6 +68,7 @@ describe('shellStore', () => {
     useShellStore.getState().setAgentRailExpanded(true);
     resetShellStore();
     expect(useShellStore.getState().mode).toBe('edit');
+    expect(useShellStore.getState().onboardingComplete).toBe(false);
     expect(useShellStore.getState().navCollapsed).toBe(false);
     expect(useShellStore.getState().agentRailExpanded).toBe(false);
   });

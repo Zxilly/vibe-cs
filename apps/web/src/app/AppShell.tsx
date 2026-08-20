@@ -57,6 +57,7 @@ import { CommandPalette, useCommandPalette } from './command';
 import { routeCrumb } from './routeCrumb';
 import {
   MODE_LANDING_PATH,
+  FirstRunGuide,
   RouteBreadcrumb,
   SideNav,
   type DesktopWindowAdapter,
@@ -122,6 +123,8 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
   const storedNavCollapsed = useShellStore((state) => state.navCollapsed);
   const storedMode = useShellStore((state) => state.mode);
   const setMode = useShellStore((state) => state.setMode);
+  const onboardingComplete = useShellStore((state) => state.onboardingComplete);
+  const completeOnboarding = useShellStore((state) => state.completeOnboarding);
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityUnread, setActivityUnread] = useState(0);
 
@@ -153,6 +156,12 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
 
   const switchMode = (nextMode: typeof mode) => {
     if (nextMode === mode) return;
+    setMode(nextMode);
+    void navigate(MODE_LANDING_PATH[nextMode]);
+  };
+
+  const finishOnboarding = (nextMode: typeof mode) => {
+    completeOnboarding();
     setMode(nextMode);
     void navigate(MODE_LANDING_PATH[nextMode]);
   };
@@ -210,6 +219,13 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
         open={activityOpen}
         onClose={() => setActivityOpen(false)}
         onUnreadChange={setActivityUnread}
+      />
+
+      <FirstRunGuide
+        open={!onboardingComplete}
+        initialMode={mode}
+        onChoose={finishOnboarding}
+        onDismiss={completeOnboarding}
       />
 
       {/* Mounted once, at the shell. What belongs in it and what belongs in an

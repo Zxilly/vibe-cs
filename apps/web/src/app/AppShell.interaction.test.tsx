@@ -21,7 +21,7 @@ import { stubMatchMedia, type MatchMediaStub } from '../design/layout/collapse.t
 import type { ApiHealth } from '../shared/desktop/dto';
 import { renderInteractive } from '../test/render';
 import { AppShell } from './AppShell';
-import { resetShellStore } from './shell';
+import { resetShellStore, useShellStore } from './shell';
 
 function pendingProbe(): Promise<ApiHealth> {
   return new Promise<ApiHealth>(() => {});
@@ -59,6 +59,7 @@ let media: MatchMediaStub | null = null;
 
 beforeEach(() => {
   resetShellStore();
+  useShellStore.getState().completeOnboarding();
 });
 
 afterEach(() => {
@@ -216,6 +217,20 @@ describe('AppShell — route viewport', () => {
 });
 
 describe('AppShell — work modes', () => {
+  it('uses the first-run choice as the initial mode and destination', async () => {
+    media = stubMatchMedia(false);
+    useShellStore.setState({ onboardingComplete: false });
+    const router = shellRouter(pendingProbe, '/');
+    const { getByRole } = renderInteractive(<RouterProvider router={router} />);
+
+    fireEvent.click(getByRole('button', { name: /分析模式/u }));
+    fireEvent.click(getByRole('button', { name: '进入分析模式' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/library'));
+    expect(useShellStore.getState().mode).toBe('analysis');
+    expect(useShellStore.getState().onboardingComplete).toBe(true);
+  });
+
   it('switches from editing navigation to the retained analysis navigation', async () => {
     media = stubMatchMedia(false);
     const router = shellRouter(pendingProbe, '/');

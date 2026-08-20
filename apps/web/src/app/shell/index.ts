@@ -13,6 +13,7 @@
  */
 
 export { AgentRail, type AgentRailProps } from './AgentRail';
+export { FirstRunGuide, type FirstRunGuideProps } from './FirstRunGuide';
 export {
   activeNavItemId,
   MODE_LANDING_PATH,

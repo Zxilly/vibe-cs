@@ -1149,6 +1149,10 @@ msgstr "Professional"
 msgid "两支队伍分别以哪种方式赢下回合"
 msgstr "How each team won its rounds"
 
+#: src/app/shell/FirstRunGuide.tsx:38
+msgid "两种模式使用同一份 Demo、比赛、选手和证据；这里只决定先把哪些工具放在手边。"
+msgstr "Both modes use the same demos, matches, players, and evidence; this only decides which tools are close at hand."
+
 #: src/app/shell/SideNav.tsx:172
 msgid "主导航"
 msgstr "Main navigation"
@@ -1158,6 +1162,10 @@ msgstr "Main navigation"
 #: src/pages/settings/AppSection.tsx:117
 msgid "主题"
 msgstr "Theme"
+
+#: src/app/shell/FirstRunGuide.tsx:78
+msgid "之后可随时用窗口左上角的模式按钮切换，不会复制或移动任何数据。"
+msgstr "You can switch anytime with the mode button in the top-left. No data will be copied or moved."
 
 #: src/pages/settings/FilesSection.tsx:109
 msgid "之后所有新文件都写到这里。已经写好的文件不会被搬走，仍留在原来的目录里。"
@@ -1270,6 +1278,10 @@ msgstr "Pick a few takes from the recordings; they are stitched into the video i
 #: src/pages/project/ProjectSelectStep.tsx:19
 msgid "从比赛工作区的高光、回合或证据点击「加入作品」，片段会按比赛汇总到这里。"
 msgstr "Use “Add to project” on a highlight, round, or evidence item. Clips are grouped here by match."
+
+#: src/app/shell/FirstRunGuide.tsx:55
+msgid "从素材建立作品，整理剪辑单，录制并交付成品。"
+msgstr "Build projects from media, organize shot lists, record, and deliver finished files."
 
 #: src/pages/recording/ShotInspectorBlock.tsx:649
 msgid "从预设应用"
@@ -1551,6 +1563,10 @@ msgstr "Save first: an export renders the project the service has stored"
 msgid "先在上面添加片段，这里会给出它们与拍点的关系。"
 msgstr "Add clips above and their relation to the beats shows up here."
 
+#: src/app/shell/FirstRunGuide.tsx:31
+msgid "先用当前模式"
+msgstr "Use current mode"
+
 #. placeholder {0}: left.name
 #: src/pages/players/PlayerComparePanel.tsx:146
 msgid "先看 {0} 的档案"
@@ -1589,6 +1605,10 @@ msgstr "Select a round, player, or clip first"
 #: src/pages/AgentPage.tsx:513
 msgid "先选择一份剪辑单"
 msgstr "Select a shot list first"
+
+#: src/app/shell/FirstRunGuide.tsx:27
+msgid "先选择一种工作模式"
+msgstr "Choose a work mode"
 
 #: src/pages/agent/AgentConversationBlock.tsx:207
 msgid "先选择或新建一条对话"
@@ -2041,6 +2061,7 @@ msgstr "Position samples, facing and kill-verified engagement axes only exist on
 msgid "分析已取消"
 msgstr "Analysis cancelled"
 
+#: src/app/shell/FirstRunGuide.tsx:70
 #: src/app/shell/WindowTitleBar.tsx:185
 #: src/app/shell/WindowTitleBar.tsx:251
 msgid "分析模式"
@@ -2175,6 +2196,7 @@ msgctxt "agent-object"
 msgid "剪辑工程"
 msgstr "Edit project"
 
+#: src/app/shell/FirstRunGuide.tsx:53
 #: src/app/shell/WindowTitleBar.tsx:185
 #: src/app/shell/WindowTitleBar.tsx:245
 #: src/pages/ProjectWorkspacePage.tsx:157
@@ -3253,6 +3275,10 @@ msgstr "Nothing is going on in the workspace"
 #: src/pages/HomePage.tsx:58
 msgid "工作台"
 msgstr "Dashboard"
+
+#: src/app/shell/FirstRunGuide.tsx:41
+msgid "工作模式"
+msgstr "Work mode"
 
 #: src/design/timeline/TimelinePrototype.tsx:142
 #: src/pages/editor/EditorTimelinePanel.tsx:162
@@ -5001,6 +5027,10 @@ msgstr "View all {0}"
 #: src/domain/agent/WorkspaceEditLine.tsx:115
 msgid "查看发给 Agent 的内容"
 msgstr "See what was sent to the Agent"
+
+#: src/app/shell/FirstRunGuide.tsx:72
+msgid "查看比赛、回合、玩家、证据、热力图与 2D 回放。"
+msgstr "Review matches, rounds, players, evidence, heatmaps, and 2D replays."
 
 #: src/ActivityDrawer.tsx:129
 msgid "查看详情"
@@ -8071,6 +8101,14 @@ msgstr "This compares the plan's own two versions: the one the Agent produced, a
 #: src/pages/settings/AdvancedSection.tsx:91
 msgid "这项任务结束前，其它录制与回放都会被拒绝。"
 msgstr "Until this task finishes, other recordings and playbacks are refused."
+
+#: src/app/shell/FirstRunGuide.tsx:29
+msgid "进入分析模式"
+msgstr "Enter analysis mode"
+
+#: src/app/shell/FirstRunGuide.tsx:29
+msgid "进入剪辑模式"
+msgstr "Enter editing mode"
 
 #: src/pages/delivery/TaskDetailBody.tsx:109
 msgid "进度"

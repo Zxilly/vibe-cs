@@ -208,6 +208,7 @@ pub(super) async fn current_hlae_status(state: &AppState) -> ApiResult<HlaeStatu
     let profile_root = state.data_dir().join("hlae-plans");
     let managed_root = managed_hlae_root(state);
     let status = tokio::task::spawn_blocking(move || {
+        let config = config_with_discovered_game_paths(config);
         build_hlae_status(&config, &profile_root, &managed_root)
     })
     .await
@@ -226,15 +227,36 @@ pub(super) async fn current_hlae_launch_inputs(
 ) -> ApiResult<Option<HlaeBundleLaunchInputs>> {
     let config = state.storage.get_config().await?.unwrap_or_default();
     let managed_root = managed_hlae_root(state);
-    tokio::task::spawn_blocking(move || resolve_hlae_launch_inputs(&config, &managed_root))
-        .await
-        .map_err(|error| {
-            ApiError::new(
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                "hlae_status_failed",
-                format!("HLAE launch input task failed: {error}"),
-            )
-        })
+    tokio::task::spawn_blocking(move || {
+        let config = config_with_discovered_game_paths(config);
+        resolve_hlae_launch_inputs(&config, &managed_root)
+    })
+    .await
+    .map_err(|error| {
+        ApiError::new(
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            "hlae_status_failed",
+            format!("HLAE launch input task failed: {error}"),
+        )
+    })
+}
+
+fn config_with_discovered_game_paths(config: AppConfig) -> AppConfig {
+    let paths = discover_paths(&config);
+    apply_discovered_game_paths(config, paths)
+}
+
+fn apply_discovered_game_paths(
+    mut config: AppConfig,
+    paths: vibe_cs_integrations::DiscoveredPaths,
+) -> AppConfig {
+    if let Some(path) = paths.cs2 {
+        config.cs2_path = path.to_string_lossy().into_owned();
+    }
+    if let Some(path) = paths.steam {
+        config.steam_path = path.to_string_lossy().into_owned();
+    }
+    config
 }
 
 fn resolve_hlae_launch_inputs(
@@ -1114,6 +1136,23 @@ mod tests {
             .expect("the encoder check");
         assert_eq!(encoder.state, DependencyState::Ready);
         assert_eq!(encoder.detail, "libx264, h264_nvenc");
+    }
+
+    #[test]
+    fn hlae_runtime_reuses_the_same_automatically_discovered_game_paths() {
+        let cs2 = PathBuf::from("C:/SteamLibrary/cs2.exe");
+        let steam = PathBuf::from("C:/Steam/steam.exe");
+        let resolved = apply_discovered_game_paths(
+            AppConfig::default(),
+            vibe_cs_integrations::DiscoveredPaths {
+                cs2: Some(cs2.clone()),
+                steam: Some(steam.clone()),
+                steam_libraries: Vec::new(),
+            },
+        );
+
+        assert_eq!(PathBuf::from(resolved.cs2_path), cs2);
+        assert_eq!(PathBuf::from(resolved.steam_path), steam);
     }
 
     #[cfg(windows)]

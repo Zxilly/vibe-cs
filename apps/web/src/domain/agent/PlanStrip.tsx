@@ -103,7 +103,7 @@ export function PlanStrip({
             {caption}
           </span>
         )}
-        <ol aria-label={label} className={cn('flex min-w-0 flex-1 gap-[3px]', HEIGHT_CLASS[height])}>
+        <ol aria-label={label} className={cn('flex min-w-0 flex-1 gap-1', HEIGHT_CLASS[height])}>
           {segments.map((segment) => (
             <StripBlock
               key={segment.id}

@@ -117,7 +117,7 @@ export function EditorWorkspaceLoader({ projectId, embedded = false }: { readonl
   if (loadError !== null) {
     return (
       <EditorFrame embedded={embedded} toolbar={<Toolbar height={embedded ? 'bar' : 'topbar'} title={<Trans>多轨编辑器</Trans>} meta={projectId} />}>
-        <div className="p-5">
+        <div className="p-7">
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void project.refetch() }}>
             {service.blocked ? (
               <Trans>本地服务没有连接，这个工程读不出来。服务恢复后无需刷新页面。</Trans>
@@ -133,7 +133,7 @@ export function EditorWorkspaceLoader({ projectId, embedded = false }: { readonl
   if (project.data === undefined) {
     return (
       <EditorFrame embedded={embedded} toolbar={<Toolbar height={embedded ? 'bar' : 'topbar'} title={<Trans>多轨编辑器</Trans>} meta={projectId} />}>
-        <div className="flex flex-col gap-4 p-5">
+        <div className="flex flex-col gap-5 p-7">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-64" />
         </div>

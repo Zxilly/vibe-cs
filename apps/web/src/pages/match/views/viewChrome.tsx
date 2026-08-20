@@ -62,7 +62,7 @@ export function ViewFrame({ view, state = 'ready', children }: ViewFrameProps) {
     <section
       data-match-view={view}
       data-match-view-state={state}
-      className="flex min-h-0 min-w-0 flex-col gap-5 p-6"
+      className="flex min-h-0 min-w-0 flex-col gap-5 p-7"
     >
       {children}
     </section>

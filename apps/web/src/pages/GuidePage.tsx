@@ -57,7 +57,7 @@ export function GuidePage() {
         />
       }
     >
-      <div className="flex flex-col gap-6 p-5">
+      <div className="flex flex-col gap-5 p-7">
         <section className="flex flex-col gap-3">
           <h2 className="text-base font-medium">
             <Trans>三步</Trans>

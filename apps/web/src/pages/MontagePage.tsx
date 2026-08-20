@@ -270,7 +270,7 @@ export function MontageWorkspace({ projectId, embedded = false }: { readonly pro
       }
     >
       <div data-montage-workspace="" className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-5">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-y-auto p-7">
           <WorkspaceNotices
             desk={desk}
             onReload={() => {

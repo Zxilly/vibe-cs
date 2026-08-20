@@ -86,7 +86,7 @@ export function RecoveryPage() {
         />
       }
     >
-      <div className="flex flex-col gap-4 p-5">
+      <div className="flex flex-col gap-5 p-7">
         {statusError === null ? null : (
           <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: () => void status.refetch() }}>
             <Trans>读不到恢复状态：{statusError}</Trans>

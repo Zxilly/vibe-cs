@@ -181,6 +181,9 @@ describe('录制前校验', () => {
   it('renders all eight rows of the closed set', () => {
     const html = render(<PreflightBlock {...blockProps()} />);
     expect(html).toContain('data-preflight-checks="8"');
+    expect(html).toContain('grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]');
+    expect(html).toContain('max-h-[55%]');
+    expect(html).not.toContain('break-all');
     for (const code of [
       'game_ready',
       'capture_component_ready',

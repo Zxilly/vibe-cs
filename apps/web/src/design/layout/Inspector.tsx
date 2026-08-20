@@ -174,7 +174,7 @@ export function Inspector({
   const body = (
     <div
       data-inspector-body
-      className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-5"
+      className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-5"
     >
       {children}
     </div>
@@ -184,7 +184,7 @@ export function Inspector({
     footer !== undefined && footer !== null ? (
       <div
         data-inspector-footer
-        className="flex flex-none flex-col gap-2.5 border-t border-divider p-5"
+        className="flex min-w-0 flex-none flex-col gap-2.5 border-t border-divider p-5"
       >
         {footer}
       </div>
@@ -196,7 +196,7 @@ export function Inspector({
         aria-label={label}
         data-inspector="docked"
         className={cn(
-          'flex min-h-0 flex-none flex-col border-l border-divider',
+          'flex min-h-0 min-w-0 flex-none flex-col border-l border-divider',
           WIDTH_CLASS[width],
           className,
         )}

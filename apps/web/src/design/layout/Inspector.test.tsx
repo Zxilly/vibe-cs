@@ -28,6 +28,7 @@ describe('Inspector docked', () => {
     expect(html).toContain('<aside aria-label="选中：第 21 回合"');
     expect(html).toContain('w-[var(--w-inspector)]');
     expect(html).toContain('data-inspector-body');
+    expect(html).toContain('overflow-x-hidden');
     expect(html).toContain('data-inspector-footer');
     expect(html).toContain('把这个回合加入视频');
   });

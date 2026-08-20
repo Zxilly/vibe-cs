@@ -154,7 +154,7 @@ export function ShotInspectorBlock({
       ) : config.data === undefined ? (
         <ConfigState config={config} />
       ) : (
-        <div className="flex flex-col gap-3.5">
+        <div className="flex min-w-0 flex-col gap-3.5">
           <ShotForm
             shot={shot}
             defaults={config.data.recording}
@@ -255,8 +255,8 @@ function ShotForm({
         />
       </div>
 
-      <div className="flex gap-2.5">
-        <Field className="flex-1" label={<Trans>前留白</Trans>}>
+      <div className="flex min-w-0 gap-2.5">
+        <Field className="min-w-0 flex-1" label={<Trans>前留白</Trans>}>
           {(control) => (
             <InputGroup>
               <InputGroupInput
@@ -276,7 +276,7 @@ function ShotForm({
             </InputGroup>
           )}
         </Field>
-        <Field className="flex-1" label={<Trans>后留白</Trans>}>
+        <Field className="min-w-0 flex-1" label={<Trans>后留白</Trans>}>
           {(control) => (
             <InputGroup>
               <InputGroupInput

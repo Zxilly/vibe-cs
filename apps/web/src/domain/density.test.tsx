@@ -126,7 +126,8 @@ describe('density · the Inspector beside that table, at both widths', () => {
     const html = renderMarkup(inspector(false));
     expect(html).toContain('data-inspector="docked"');
     expect(html).toContain('w-[var(--w-inspector)]');
-    expect(html).toContain('overflow-auto');
+    expect(html).toContain('overflow-x-hidden');
+    expect(html).toContain('overflow-y-auto');
   });
 
   it('folds to the 46px summary strip and keeps the main action on it', () => {

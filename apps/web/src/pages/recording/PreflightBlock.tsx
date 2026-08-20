@@ -84,14 +84,53 @@ export function PreflightBlock({ plan, preflight, selection, start, service }: R
       data-recording-block="preflight"
       data-preflight-status={preflight.status}
       aria-label={t`录制前校验`}
-      className="flex flex-none flex-col gap-3 border-t border-divider px-5 py-3.5"
+      className="flex max-h-[55%] min-h-0 flex-none flex-col gap-3 overflow-x-hidden overflow-y-auto border-t border-divider px-5 py-3.5"
     >
-      <div className="flex min-w-0 items-start gap-6">
-        <h2 className="flex-none whitespace-nowrap font-heading text-sm tracking-caps">
-          <Trans>录制前校验</Trans>
-        </h2>
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="flex min-w-0 flex-wrap items-start gap-3">
+          <h2 className="flex-none whitespace-nowrap font-heading text-sm tracking-caps">
+            <Trans>录制前校验</Trans>
+          </h2>
+          <div className="min-w-3 flex-1" aria-hidden="true" />
+          <div className="flex min-w-0 flex-wrap items-start justify-end gap-2">
+            <Button
+              variant="secondary"
+              disabled={service.blocked || plan.plan === null || preflight.status === 'running'}
+              {...preflightRunReason({ service, hasPlan: plan.plan !== null, preflight })}
+              onClick={preflight.run}
+            >
+              {result === null ? <Trans>运行录制前校验</Trans> : <Trans>重新校验</Trans>}
+              {service.suffix}
+            </Button>
+            {/* The artboard's 42px button — `hero` in §3.3's control scale. */}
+            <Button
+              variant="primary"
+              size="hero"
+              data-recording-start="true"
+              disabled={start.action.disabled}
+              {...(start.action.disabledReason === undefined
+                ? {}
+                : { disabledReason: start.action.disabledReason })}
+              onClick={() => {
+                setAcknowledged(false);
+                setConfirming(true);
+              }}
+            >
+              {start.shotCount === null ? (
+                <Trans>开始录制</Trans>
+              ) : (
+                <Trans>开始录制 {start.shotCount} 个片段</Trans>
+              )}
+            </Button>
+            {start.action.disabled && start.action.disabledReason !== undefined ? (
+              <p className="w-full max-w-[var(--w-panel)] text-right text-2xs text-neutral-600">
+                {start.action.disabledReason}
+              </p>
+            ) : null}
+          </div>
+        </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           {failure !== null ? (
             <Alert
               variant="danger"
@@ -128,43 +167,6 @@ export function PreflightBlock({ plan, preflight, selection, start, service }: R
               </ul>
             </div>
           )}
-        </div>
-
-        <div className="flex flex-none flex-col items-end gap-2">
-          <Button
-            variant="secondary"
-            disabled={service.blocked || plan.plan === null || preflight.status === 'running'}
-            {...preflightRunReason({ service, hasPlan: plan.plan !== null, preflight })}
-            onClick={preflight.run}
-          >
-            {result === null ? <Trans>运行录制前校验</Trans> : <Trans>重新校验</Trans>}
-            {service.suffix}
-          </Button>
-          {/* The artboard's 42px button — `hero` in §3.3's control scale. */}
-          <Button
-            variant="primary"
-            size="hero"
-            data-recording-start="true"
-            disabled={start.action.disabled}
-            {...(start.action.disabledReason === undefined
-              ? {}
-              : { disabledReason: start.action.disabledReason })}
-            onClick={() => {
-              setAcknowledged(false);
-              setConfirming(true);
-            }}
-          >
-            {start.shotCount === null ? (
-              <Trans>开始录制</Trans>
-            ) : (
-              <Trans>开始录制 {start.shotCount} 个片段</Trans>
-            )}
-          </Button>
-          {start.action.disabled && start.action.disabledReason !== undefined ? (
-            <p className="max-w-[var(--w-panel)] text-right text-2xs text-neutral-600">
-              {start.action.disabledReason}
-            </p>
-          ) : null}
         </div>
       </div>
 
@@ -231,7 +233,7 @@ function CheckGrid({
 
   return (
     <ul
-      className="grid list-none grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4"
+      className="grid list-none grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-x-6 gap-y-2 text-sm"
       data-preflight-checks={checks.length}
     >
       {checks.map((check) => {
@@ -263,7 +265,10 @@ function CheckGrid({
                 {i18n._(meta.label)}
               </p>
               {check.detail === '' ? null : (
-                <p className="mt-0.5 min-w-0 text-2xs text-neutral-600">
+                <p
+                  className="mt-0.5 min-w-0 line-clamp-3 break-words text-2xs text-neutral-600"
+                  title={check.detail}
+                >
                   {/*
                     The label is Chinese, the fact is not. `detail` is the
                     service's own English string — a byte count, a version, a
@@ -271,7 +276,7 @@ function CheckGrid({
                     screen say the same thing.
                   */}
                   <Trans>服务返回</Trans>{' '}
-                  <span className="break-all font-mono">{check.detail}</span>
+                  <span className="font-mono">{check.detail}</span>
                 </p>
               )}
               {first === null ? null : (

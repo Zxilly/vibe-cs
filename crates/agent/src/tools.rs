@@ -1264,6 +1264,16 @@ fn draft_video_plan(
             .enumerate()
             .map(|(index, item)| {
                 let item_camera_style = &resolved_camera_styles[index];
+                let action_handle = if safety_fallbacks[index].is_some() {
+                    0.5
+                } else {
+                    lead
+                };
+                let action_tail = if safety_fallbacks[index].is_some() {
+                    0.5
+                } else {
+                    tail
+                };
                 json!({
                     "id": Uuid::new_v4(),
                     "demo_id": valid_demo_id,
@@ -1272,8 +1282,8 @@ fn draft_video_plan(
                     "title": text(item.get("title")).unwrap_or("Highlight video"),
                     "start_tick": round_to_tick(number_value(item.get("startTick")).unwrap_or_default()),
                     "end_tick": round_to_tick(number_value(item.get("endTick")).unwrap_or_default()),
-                    "pre_roll_seconds": lead,
-                    "post_roll_seconds": tail,
+                    "pre_roll_seconds": action_handle,
+                    "post_roll_seconds": action_tail,
                     "victim_pov": false,
                     "camera_style": item_camera_style
                 })
@@ -2006,8 +2016,8 @@ mod tests {
         assert_eq!(plan.payload["items"][0]["player_id"], "player-1");
         assert_eq!(plan.payload["items"][0]["start_tick"], 640);
         assert_eq!(plan.payload["items"][0]["end_tick"], 1280);
-        assert_eq!(plan.payload["items"][0]["pre_roll_seconds"], 2.0);
-        assert_eq!(plan.payload["items"][0]["post_roll_seconds"], 2.5);
+        assert_eq!(plan.payload["items"][0]["pre_roll_seconds"], 0.5);
+        assert_eq!(plan.payload["items"][0]["post_roll_seconds"], 0.5);
         assert_eq!(plan.payload["items"][0]["victim_pov"], false);
         assert_eq!(plan.payload["items"][0]["camera_style"], "pov");
         assert_eq!(plan.payload["items"][1]["highlight_id"], "clutch-2");

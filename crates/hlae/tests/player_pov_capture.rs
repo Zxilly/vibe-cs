@@ -50,7 +50,7 @@ fn compiles_a_bounded_player_pov_program_without_fake_camera_artifacts() {
     assert_eq!(compiled.player_id(), "76561197960690195");
     assert_eq!(compiled.spectator_slot(), 7);
     assert_eq!(compiled.seek_tick(), 160_858);
-    assert_eq!(compiled.setup_tick(), 160_985);
+    assert_eq!(compiled.setup_tick(), 160_859);
     assert_eq!(compiled.first_tick(), 160_986);
     assert_eq!(compiled.last_tick(), 161_310);
     assert_eq!(compiled.capture(), &plan.capture);
@@ -62,7 +62,7 @@ fn compiles_a_bounded_player_pov_program_without_fake_camera_artifacts() {
     assert!(compiled.resource_estimate().maximum_frame_count >= 303);
 
     let xml = &compiled.command_system().contents;
-    assert!(xml.contains("<c tick=\"160985\"><body>"));
+    assert!(xml.contains("<c tick=\"160859\"><body>"));
     assert!(xml.contains("spec_mode 2; spec_player 7"));
     assert_eq!(xml.matches("spec_mode 2").count(), 1);
     assert_eq!(xml.matches("spec_player 7").count(), 1);

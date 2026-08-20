@@ -134,8 +134,10 @@ impl CompiledHlaePlayerPovCapture {
     }
 
     /// Returns the tick used to establish first-person spectator state before
-    /// capture. It is deliberately distinct from both the seek and record
-    /// ticks because CS2 can ignore `spec_player` when it shares a seek tick.
+    /// capture. It is deliberately the first tick after seek, distinct from
+    /// both the seek and record ticks: CS2 can ignore `spec_player` when it
+    /// shares a seek tick, and one tick immediately before recording does not
+    /// leave enough deterministic time for observer identity to settle.
     #[must_use]
     pub const fn setup_tick(&self) -> u32 {
         self.setup_tick
@@ -200,7 +202,7 @@ pub fn compile_hlae_player_pov_capture(
     let pre_roll_ticks = u32::try_from(plan.pre_roll_ticks)
         .map_err(|_| invalid_error("capture pre-roll is unsupported"))?;
     let seek_tick = first_tick.saturating_sub(pre_roll_ticks);
-    let setup_tick = first_tick - 1;
+    let setup_tick = seek_tick + 1;
     let resource_estimate =
         estimate_hlae_capture_span_resources(first_tick, last_tick, plan.tick_rate, &plan.capture)?;
     if resource_estimate.total_bytes > HLAE_TAKE_MAX_ESTIMATED_BYTES {

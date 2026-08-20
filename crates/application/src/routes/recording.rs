@@ -83,6 +83,12 @@ struct RecordingQueueItem {
     presentation: Option<RecordingPresentation>,
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+pub(crate) struct AgentRecordingSource {
+    pub(crate) plan_id: Uuid,
+    pub(crate) composition_id: Uuid,
+}
+
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: Deserializer<'de>,
@@ -117,7 +123,7 @@ async fn plan(
             .map_err(|error| ApiError::invalid(format!("item {}: {error}", index + 1)))?;
         active_items.push(item);
     }
-    create_recording_plan(&state, active_items, None).await
+    create_recording_plan(&state, active_items, None, None).await
 }
 
 async fn retry_plan(
@@ -127,7 +133,16 @@ async fn retry_plan(
     let parent_id = parse_id(&id)?;
     let parent = retryable_recording_parent(&state, parent_id).await?;
     let items = parent.retryable_suffix()?.to_vec();
-    create_recording_plan(&state, items, Some(parent_id)).await
+    let agent_source =
+        state
+            .storage
+            .get_agent_recording_run(parent_id)
+            .await?
+            .map(|(plan_id, composition_id)| AgentRecordingSource {
+                plan_id,
+                composition_id,
+            });
+    create_recording_plan(&state, items, Some(parent_id), agent_source).await
 }
 
 /// Turns an assembled queue into a leased, preflighted recording plan.
@@ -141,6 +156,7 @@ pub(super) async fn create_recording_plan(
     state: &AppState,
     active_items: Vec<RecordingRequest>,
     retry_of: Option<Uuid>,
+    agent_source: Option<AgentRecordingSource>,
 ) -> ApiResult<Json<RecordingPlanResponse>> {
     let mut warnings = Vec::new();
     if active_items.is_empty() {
@@ -156,10 +172,15 @@ pub(super) async fn create_recording_plan(
             "the director plan cannot satisfy every requested victim reaction from persisted analysis evidence",
         ));
     }
-    let executable_items = retry_of.map_or_else(
-        || executable_director_requests(&active_items, &director),
-        |_| active_items.clone(),
-    );
+    // Agent plans already contain the user-visible shot order and identities.
+    // Re-directing them here would replace each shot id with a transient queue
+    // id, so the resulting Take could no longer bind back to its composition
+    // slot. The director remains authoritative for the generic recording queue.
+    let executable_items = if retry_of.is_some() || agent_source.is_some() {
+        active_items.clone()
+    } else {
+        executable_director_requests(&active_items, &director)
+    };
     if executable_items.is_empty() {
         return Err(ApiError::invalid(
             "the director plan did not produce an executable recording shot",
@@ -173,9 +194,10 @@ pub(super) async fn create_recording_plan(
         );
     }
     let binding_before_preflight =
-        recording_plan_binding(state, &executable_items, retry_of).await?;
+        recording_plan_binding(state, &executable_items, retry_of, agent_source).await?;
     state.recording.preflight(&executable_items).await?;
-    let binding_sha256 = recording_plan_binding(state, &executable_items, retry_of).await?;
+    let binding_sha256 =
+        recording_plan_binding(state, &executable_items, retry_of, agent_source).await?;
     if binding_sha256 != binding_before_preflight {
         return Err(ApiError::new(
             StatusCode::CONFLICT,
@@ -220,6 +242,7 @@ pub(super) async fn create_recording_plan(
             RecordingPlanLease {
                 items: executable_items,
                 retry_of,
+                agent_source,
                 response: Arc::clone(&response),
                 binding_sha256,
                 expires_at,
@@ -286,6 +309,7 @@ struct RecordingPlanBinding<'a> {
     steam_path: &'a str,
     demos: Vec<RecordingPlanDemoBinding>,
     retry: Option<RecordingRetryPlanBinding>,
+    agent_source: Option<AgentRecordingSource>,
 }
 
 #[derive(Serialize)]
@@ -313,6 +337,7 @@ async fn recording_plan_binding(
     state: &AppState,
     items: &[RecordingRequest],
     retry_of: Option<Uuid>,
+    agent_source: Option<AgentRecordingSource>,
 ) -> ApiResult<String> {
     let config = state.storage.get_config().await?.unwrap_or_default();
     let mut demo_ids = items.iter().map(|item| item.demo_id).collect::<Vec<_>>();
@@ -366,6 +391,7 @@ async fn recording_plan_binding(
         steam_path: &config.steam_path,
         demos,
         retry,
+        agent_source,
     })
     .map_err(|error| {
         ApiError::new(
@@ -474,7 +500,9 @@ async fn execute_plan(
         };
         let mut plan_start = RecordingPlanStartReservation::new(state.clone(), plan_id, job_id);
         let current_binding =
-            match recording_plan_binding(&state, &lease.items, lease.retry_of).await {
+            match recording_plan_binding(&state, &lease.items, lease.retry_of, lease.agent_source)
+                .await
+            {
                 Ok(binding) => binding,
                 Err(error) => {
                     restore_recording_plan(&state, plan_id, job_id).await;
@@ -500,7 +528,14 @@ async fn execute_plan(
                 "Recording plan expired; create a new plan before recording",
             ));
         }
-        let execution = start_recording_job(&state, job_id, lease.items, lease.retry_of).await;
+        let execution = start_recording_job(
+            &state,
+            job_id,
+            lease.items,
+            lease.retry_of,
+            lease.agent_source,
+        )
+        .await;
         let response = match execution {
             Ok(response) => {
                 mark_recording_plan_started(&state, plan_id, job_id).await;
@@ -521,6 +556,7 @@ async fn start_recording_job(
     job_id: Uuid,
     items: Vec<RecordingRequest>,
     retry_of: Option<Uuid>,
+    agent_source: Option<AgentRecordingSource>,
 ) -> ApiResult<Json<RecordingExecutionResponse>> {
     let now = Utc::now();
     let job = RecordingJob {
@@ -538,16 +574,27 @@ async fn start_recording_job(
     };
     let mut reservation = reserve_active_job(state, job.id).await?;
 
+    if let Some(source) = agent_source {
+        state
+            .storage
+            .bind_agent_recording_run(job.id, source.plan_id, source.composition_id)
+            .await?;
+    }
+
     let job_id = job.id;
     let job = match state.recording.execute(job).await {
         Ok(job) => job,
         Err(error) => {
+            if agent_source.is_some() {
+                state.storage.delete_agent_recording_run(job_id).await?;
+            }
             clear_active_job(state, job_id).await;
             reservation.disarm();
             return Err(error.into());
         }
     };
     let status = execution_status(job.status);
+    reconcile_agent_job(state, job.id).await?;
     if job.status.is_terminal() {
         clear_active_job(state, job.id).await;
     } else {
@@ -727,12 +774,13 @@ async fn get_job(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<RecordingJob>> {
-    state
+    let job = state
         .storage
         .get_recording_job(parse_id(&id)?)
         .await?
-        .map(Json)
-        .ok_or_else(|| ApiError::not_found("recording job"))
+        .ok_or_else(|| ApiError::not_found("recording job"))?;
+    reconcile_agent_job(&state, job.id).await?;
+    Ok(Json(job))
 }
 
 async fn cancel_job(
@@ -776,6 +824,7 @@ async fn cancel_job(
         reservation.disarm();
     }
     state.storage.put_recording_job(job.clone()).await?;
+    reconcile_agent_job(&state, job.id).await?;
     state.events.publish("recording_job", "changed", Some(id));
     Ok(Json(job))
 }
@@ -810,6 +859,7 @@ async fn abort_active(State(state): State<AppState>) -> ApiResult<StatusCode> {
         spawn_active_job_monitor(state.clone(), id);
     }
     state.storage.put_recording_job(job.clone()).await?;
+    reconcile_agent_job(&state, job.id).await?;
     state.events.publish("recording_job", "cancelled", Some(id));
     Ok(StatusCode::NO_CONTENT)
 }
@@ -848,6 +898,9 @@ async fn monitor_active_job(
         }
         match state.storage.get_recording_job(id).await {
             Ok(Some(job)) if job.status.is_terminal() => {
+                if let Err(error) = reconcile_agent_job(&state, job.id).await {
+                    tracing::error!(%error, job_id = %job.id, "unable to register Agent recording takes");
+                }
                 clear_active_job(&state, id).await;
                 state.events.publish("recording_job", "finished", Some(id));
                 break;
@@ -867,6 +920,32 @@ async fn monitor_active_job(
         }
     }
     state.recording_monitors.lock().await.remove(&id);
+}
+
+pub(super) async fn reconcile_agent_job(state: &AppState, job_id: Uuid) -> ApiResult<()> {
+    let Some((plan_id, _)) = state.storage.get_agent_recording_run(job_id).await? else {
+        return Ok(());
+    };
+    let settings = state.storage.get_agent_workspace_settings().await?;
+    state
+        .storage
+        .reconcile_agent_recording_takes(job_id, settings.take_limit)
+        .await?;
+    if let Some(composition) = state.storage.get_agent_composition(plan_id).await?
+        && composition.status == vibe_cs_domain::CompositionStatus::Confirmed
+        && composition.export_job_id.is_none()
+        && !state.exports.encoders().await.is_empty()
+        && let Err(error) = super::agent_sessions::export_confirmed_composition(
+            state,
+            composition.plan_id,
+            serde_json::json!({}),
+        )
+        .await
+    {
+        tracing::error!(%error, composition_id = %composition.id, "unable to auto-export Agent composition");
+    }
+    state.events.publish("agent_composition", "changed", None);
+    Ok(())
 }
 
 async fn reserve_active_job(state: &AppState, id: Uuid) -> ApiResult<ActiveJobReservation> {

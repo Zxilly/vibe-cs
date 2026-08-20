@@ -17,6 +17,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use uuid::Uuid;
 use vibe_cs_domain::{
     AGENT_SESSION_MAX_TITLE_CHARS, AgentObjectKind, AgentObjectRef, AgentObjectRefTouch,
@@ -24,8 +25,9 @@ use vibe_cs_domain::{
     AgentPlanRestore, AgentPlanStatus, AgentPlanSummary, AgentPlanUpdate,
     AgentProposalDecisionUpdate, AgentSession, AgentSessionEntry, AgentSessionEntryDraft,
     AgentSessionExport, AgentSessionPage, AgentSessionPurge, AgentSessionQuery,
-    AgentSessionStorageStats, AgentTurnUpdate, AgentWorkspaceSettings, EditorProject, JobStatus,
-    RecordingJob,
+    AgentSessionStorageStats, AgentTurnUpdate, AgentWorkspaceSettings, Composition,
+    CompositionItem, CompositionStatus, EditorProject, JobStatus, MontageClip, MontageProject,
+    MontageSettings, RecordingJob, Take,
 };
 use vibe_cs_storage::ExportJobRecord;
 
@@ -71,6 +73,19 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/agent/plans/{id}/restore", post(restore_plan))
         .route("/api/agent/plans/{id}/snooze", post(snooze_plan))
         .route("/api/agent/plans/{id}/recording-plan", post(plan_recording))
+        .route("/api/agent/plans/{id}/takes", get(list_plan_takes))
+        .route(
+            "/api/agent/plans/{id}/composition",
+            get(get_plan_composition).put(put_plan_composition),
+        )
+        .route(
+            "/api/agent/plans/{id}/composition/export",
+            post(export_plan_composition),
+        )
+        .route(
+            "/api/agent/recording-jobs/{id}/workflow",
+            get(get_agent_video_workflow),
+        )
         .route("/api/agent/workspace/referencable", get(list_referencable))
         .route(
             "/api/agent/workspace/settings",
@@ -393,6 +408,536 @@ struct UnrecordablePlan {
     shots: Vec<UnboundPlanShot>,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct AgentTakeQuery {
+    shot_id: Option<Uuid>,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+struct AgentTakeDto {
+    id: Uuid,
+    plan_id: Uuid,
+    shot_id: Uuid,
+    recorded_clip_id: Uuid,
+    recording_job_id: Uuid,
+    ordinal: u32,
+    label: String,
+    duration_seconds: f64,
+    created_at: DateTime<Utc>,
+    stream_url: String,
+}
+
+impl From<Take> for AgentTakeDto {
+    fn from(take: Take) -> Self {
+        Self {
+            id: take.id,
+            plan_id: take.plan_id,
+            shot_id: take.shot_id,
+            recorded_clip_id: take.recorded_clip_id,
+            recording_job_id: take.recording_job_id,
+            ordinal: take.ordinal,
+            label: take.label,
+            duration_seconds: take.duration_seconds,
+            created_at: take.created_at,
+            stream_url: format!("/api/recorded-clips/{}/stream", take.recorded_clip_id),
+        }
+    }
+}
+
+async fn list_plan_takes(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    ApiQuery(query): ApiQuery<AgentTakeQuery>,
+) -> ApiResult<Json<Vec<AgentTakeDto>>> {
+    if state.storage.get_agent_plan(id).await?.is_none() {
+        return Err(ApiError::not_found("agent plan"));
+    }
+    Ok(Json(
+        state
+            .storage
+            .list_agent_takes(id, query.shot_id)
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect(),
+    ))
+}
+
+async fn get_plan_composition(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<Option<Composition>>> {
+    if state.storage.get_agent_plan(id).await?.is_none() {
+        return Err(ApiError::not_found("agent plan"));
+    }
+    let composition = state.storage.get_agent_composition(id).await?;
+    Ok(Json(refresh_composition_export(&state, composition).await?))
+}
+
+async fn refresh_composition_export(
+    state: &AppState,
+    composition: Option<Composition>,
+) -> ApiResult<Option<Composition>> {
+    let Some(mut composition) = composition else {
+        return Ok(None);
+    };
+    let Some(job_id) = composition.export_job_id else {
+        return Ok(Some(composition));
+    };
+    let Some(record) = state.storage.get_export_job(job_id).await? else {
+        return Ok(Some(composition));
+    };
+    let status = match record.job.status {
+        JobStatus::Completed => CompositionStatus::Exported,
+        JobStatus::Failed | JobStatus::Cancelled => CompositionStatus::Failed,
+        JobStatus::Queued | JobStatus::Preparing | JobStatus::Running | JobStatus::Cancelling => {
+            CompositionStatus::Exporting
+        }
+    };
+    if composition.export_status != Some(record.job.status)
+        || composition.status != status
+        || composition.output_path.as_deref() != Some(record.job.output_path.as_str())
+    {
+        composition.status = status;
+        composition.export_status = Some(record.job.status);
+        composition.output_path = Some(record.job.output_path);
+        composition.error = record.job.error;
+        composition.updated_at = Utc::now();
+        composition = state.storage.put_agent_composition(composition).await?;
+    }
+    Ok(Some(composition))
+}
+
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+pub(super) struct CompositionExportResponse {
+    composition: Composition,
+    job_id: Uuid,
+    status: JobStatus,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum AgentVideoWorkflowStage {
+    Recording,
+    RegisteringTakes,
+    ReadyToExport,
+    Exporting,
+    Completed,
+    Failed,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+struct AgentVideoWorkflow {
+    plan_id: Uuid,
+    composition: Composition,
+    stage: AgentVideoWorkflowStage,
+    recording_status: JobStatus,
+    recorded_takes: usize,
+    total_shots: usize,
+}
+
+async fn get_agent_video_workflow(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<AgentVideoWorkflow>> {
+    let (plan_id, _) = state
+        .storage
+        .get_agent_recording_run(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("Agent video workflow"))?;
+    super::recording::reconcile_agent_job(&state, id).await?;
+    let recording = state
+        .storage
+        .get_recording_job(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("recording job"))?;
+    let plan = state
+        .storage
+        .get_agent_plan(plan_id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("agent plan"))?;
+    let composition =
+        refresh_composition_export(&state, state.storage.get_agent_composition(plan_id).await?)
+            .await?
+            .ok_or_else(|| ApiError::not_found("agent composition"))?;
+    let total_shots = plan
+        .shots
+        .iter()
+        .filter(|shot| shot.removed_by.is_none())
+        .count();
+    let recorded_takes = state.storage.list_agent_takes(plan_id, None).await?.len();
+    let stage = match composition.status {
+        CompositionStatus::Exported => AgentVideoWorkflowStage::Completed,
+        CompositionStatus::Exporting => AgentVideoWorkflowStage::Exporting,
+        CompositionStatus::Failed => AgentVideoWorkflowStage::Failed,
+        CompositionStatus::Confirmed => AgentVideoWorkflowStage::ReadyToExport,
+        CompositionStatus::Draft if !recording.status.is_terminal() => {
+            AgentVideoWorkflowStage::Recording
+        }
+        CompositionStatus::Draft
+            if matches!(recording.status, JobStatus::Failed | JobStatus::Cancelled) =>
+        {
+            AgentVideoWorkflowStage::Failed
+        }
+        CompositionStatus::Draft => AgentVideoWorkflowStage::RegisteringTakes,
+    };
+    Ok(Json(AgentVideoWorkflow {
+        plan_id,
+        composition,
+        stage,
+        recording_status: recording.status,
+        recorded_takes,
+        total_shots,
+    }))
+}
+
+async fn export_plan_composition(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    ApiJson(request): ApiJson<Value>,
+) -> ApiResult<Json<CompositionExportResponse>> {
+    export_confirmed_composition(&state, id, request).await
+}
+
+pub(super) async fn export_confirmed_composition(
+    state: &AppState,
+    id: Uuid,
+    request: Value,
+) -> ApiResult<Json<CompositionExportResponse>> {
+    super::media::validate_export_output_options(&request)?;
+    let plan = state
+        .storage
+        .get_agent_plan(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("agent plan"))?;
+    let mut composition = state
+        .storage
+        .get_agent_composition(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("agent composition"))?;
+    if !matches!(
+        composition.status,
+        CompositionStatus::Confirmed | CompositionStatus::Failed
+    ) {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "composition_not_confirmed",
+            "Only a confirmed Composition can be exported",
+        ));
+    }
+    if composition.plan_revision != plan.revision {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "composition_plan_revision_conflict",
+            "Composition no longer matches the current plan revision",
+        ));
+    }
+    validate_composition_selection(&plan, CompositionStatus::Confirmed, &composition.items)?;
+    let takes = state
+        .storage
+        .list_agent_takes(id, None)
+        .await?
+        .into_iter()
+        .map(|take| (take.id, take))
+        .collect::<std::collections::HashMap<_, _>>();
+    let shots = plan
+        .shots
+        .iter()
+        .map(|shot| (shot.id, shot))
+        .collect::<std::collections::HashMap<_, _>>();
+    let mut clips = Vec::with_capacity(composition.items.len());
+    for item in &composition.items {
+        let take = takes.get(&item.take_id).ok_or_else(|| {
+            ApiError::new(
+                StatusCode::CONFLICT,
+                "composition_take_missing",
+                "A selected Take no longer exists",
+            )
+        })?;
+        if take.shot_id != item.shot_id {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "composition_take_mismatch",
+                "A selected Take no longer belongs to its composition slot",
+            ));
+        }
+        let recorded = state
+            .storage
+            .get_recorded_clip(take.recorded_clip_id)
+            .await?
+            .ok_or_else(|| ApiError::not_found("composition recorded clip"))?;
+        let shot = shots.get(&item.shot_id).ok_or_else(|| {
+            ApiError::new(
+                StatusCode::CONFLICT,
+                "composition_shot_missing",
+                "A composition shot no longer exists",
+            )
+        })?;
+        clips.push(MontageClip {
+            clip_id: recorded.id,
+            order: item.order,
+            trim_start: 0.0,
+            trim_end: None,
+            transition: "cut".to_owned(),
+            title: Some(shot.title.clone()),
+            avatar_asset_id: None,
+        });
+    }
+    let now = Utc::now();
+    let montage = MontageProject {
+        id: composition.id,
+        name: composition.title.clone(),
+        clips,
+        settings: MontageSettings::default(),
+        created_at: composition.created_at,
+        updated_at: now,
+    };
+    super::media::validate_montage_project(&state, &montage).await?;
+    let claimed = state
+        .storage
+        .claim_agent_composition_export(id)
+        .await?
+        .ok_or_else(|| {
+            ApiError::new(
+                StatusCode::CONFLICT,
+                "composition_export_already_claimed",
+                "Composition is no longer available to start an export",
+            )
+        })?;
+    if claimed.id != composition.id || claimed.items != composition.items {
+        let mut claimed = claimed;
+        claimed.status = CompositionStatus::Failed;
+        claimed.error = Some("Composition changed before export could start".to_owned());
+        claimed.updated_at = Utc::now();
+        state.storage.put_agent_composition(claimed).await?;
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "composition_changed_before_export",
+            "Composition changed before export could start",
+        ));
+    }
+    composition = claimed;
+    state.storage.put_montage_project(montage).await?;
+    let job = match state
+        .exports
+        .start("montage", composition.id, request)
+        .await
+    {
+        Ok(job) => job,
+        Err(error) => {
+            composition.status = CompositionStatus::Failed;
+            composition.error = Some(error.to_string());
+            composition.updated_at = Utc::now();
+            state.storage.put_agent_composition(composition).await?;
+            return Err(error.into());
+        }
+    };
+    composition.status = if job.status == JobStatus::Completed {
+        CompositionStatus::Exported
+    } else if matches!(job.status, JobStatus::Failed | JobStatus::Cancelled) {
+        CompositionStatus::Failed
+    } else {
+        CompositionStatus::Exporting
+    };
+    composition.export_job_id = Some(job.id);
+    composition.export_status = Some(job.status);
+    composition.output_path = Some(job.output_path.clone());
+    composition.error = job.error.clone();
+    composition.updated_at = now;
+    composition = state.storage.put_agent_composition(composition).await?;
+    state
+        .events
+        .publish("agent_composition", "export_changed", Some(composition.id));
+    Ok(Json(CompositionExportResponse {
+        composition,
+        job_id: job.id,
+        status: job.status,
+    }))
+}
+
+#[derive(Debug, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+struct PutAgentCompositionRequest {
+    expected_plan_revision: i64,
+    status: CompositionStatus,
+    items: Vec<CompositionItem>,
+    replace_confirmed: bool,
+}
+
+async fn put_plan_composition(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    ApiJson(request): ApiJson<PutAgentCompositionRequest>,
+) -> ApiResult<Json<Composition>> {
+    if !matches!(
+        request.status,
+        CompositionStatus::Draft | CompositionStatus::Confirmed
+    ) {
+        return Err(ApiError::invalid(
+            "only draft or confirmed compositions can be selected directly",
+        ));
+    }
+    let plan = state
+        .storage
+        .get_agent_plan(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("agent plan"))?;
+    if request.expected_plan_revision != plan.revision {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "plan_revision_conflict",
+            format!(
+                "the plan has already moved on to revision {}",
+                plan.revision
+            ),
+        ));
+    }
+    validate_composition_selection(&plan, request.status, &request.items)?;
+    let existing = state.storage.get_agent_composition(id).await?;
+    if existing.as_ref().is_some_and(|composition| {
+        matches!(
+            composition.status,
+            CompositionStatus::Confirmed
+                | CompositionStatus::Exporting
+                | CompositionStatus::Exported
+        ) && composition.items != request.items
+    }) && !request.replace_confirmed
+    {
+        return Err(ApiError::new(
+            StatusCode::PRECONDITION_REQUIRED,
+            "composition_replace_confirmation_required",
+            "Replacing a confirmed composition requires explicit confirmation",
+        ));
+    }
+    let now = Utc::now();
+    let composition = Composition {
+        id: existing
+            .as_ref()
+            .map_or_else(Uuid::new_v4, |value| value.id),
+        plan_id: plan.id,
+        plan_revision: plan.revision,
+        title: plan.title,
+        status: request.status,
+        items: request.items,
+        export_job_id: None,
+        export_status: None,
+        output_path: None,
+        error: None,
+        created_at: existing.as_ref().map_or(now, |value| value.created_at),
+        updated_at: now,
+    };
+    let composition = state.storage.put_agent_composition(composition).await?;
+    state
+        .events
+        .publish("agent_composition", "changed", Some(composition.id));
+    Ok(Json(composition))
+}
+
+fn validate_composition_selection(
+    plan: &AgentPlan,
+    status: CompositionStatus,
+    items: &[CompositionItem],
+) -> ApiResult<()> {
+    let active = plan
+        .shots
+        .iter()
+        .filter(|shot| shot.removed_by.is_none())
+        .map(|shot| shot.id)
+        .collect::<Vec<_>>();
+    for (index, item) in items.iter().enumerate() {
+        let Some(plan_index) = active.iter().position(|id| *id == item.shot_id) else {
+            return Err(ApiError::invalid(
+                "composition contains a shot outside the plan",
+            ));
+        };
+        if index > 0 {
+            let previous = &items[index - 1];
+            let previous_index = active
+                .iter()
+                .position(|id| *id == previous.shot_id)
+                .unwrap_or(usize::MAX);
+            if plan_index <= previous_index {
+                return Err(ApiError::invalid(
+                    "composition items must follow the plan shot order",
+                ));
+            }
+        }
+    }
+    if status == CompositionStatus::Confirmed
+        && items.iter().map(|item| item.shot_id).collect::<Vec<_>>() != active
+    {
+        return Err(ApiError::invalid(
+            "a confirmed composition must select one take for every active plan shot",
+        ));
+    }
+    Ok(())
+}
+
+async fn ensure_composition_for_plan(state: &AppState, plan: &AgentPlan) -> ApiResult<Composition> {
+    let existing = state.storage.get_agent_composition(plan.id).await?;
+    if let Some(composition) = &existing
+        && composition.plan_revision == plan.revision
+    {
+        return Ok(composition.clone());
+    }
+    let takes = state.storage.list_agent_takes(plan.id, None).await?;
+    let takes = takes
+        .into_iter()
+        .map(|take| (take.id, take))
+        .collect::<std::collections::HashMap<_, _>>();
+    let previous = existing
+        .as_ref()
+        .map(|composition| {
+            composition
+                .items
+                .iter()
+                .map(|item| (item.shot_id, item.take_id))
+                .collect::<std::collections::HashMap<_, _>>()
+        })
+        .unwrap_or_default();
+    let items = plan
+        .shots
+        .iter()
+        .filter(|shot| shot.removed_by.is_none())
+        .filter_map(|shot| {
+            let take_id = *previous.get(&shot.id)?;
+            takes
+                .get(&take_id)
+                .filter(|take| take.shot_id == shot.id)
+                .map(|_| (shot.id, take_id))
+        })
+        .enumerate()
+        .map(|(order, (shot_id, take_id))| CompositionItem {
+            shot_id,
+            take_id,
+            order: u32::try_from(order).unwrap_or(u32::MAX),
+        })
+        .collect();
+    let now = Utc::now();
+    let composition = Composition {
+        id: existing
+            .as_ref()
+            .map_or_else(Uuid::new_v4, |value| value.id),
+        plan_id: plan.id,
+        plan_revision: plan.revision,
+        title: plan.title.clone(),
+        status: CompositionStatus::Draft,
+        items,
+        export_job_id: None,
+        export_status: None,
+        output_path: None,
+        error: None,
+        created_at: existing.as_ref().map_or(now, |value| value.created_at),
+        updated_at: now,
+    };
+    Ok(state.storage.put_agent_composition(composition).await?)
+}
+
 impl UnrecordablePlan {
     fn response(self) -> Response {
         (StatusCode::UNPROCESSABLE_ENTITY, Json(self)).into_response()
@@ -472,9 +1017,18 @@ async fn plan_recording(
         // traceable to the card the user is looking at.
         items.push(shot.recording_request(shot.id)?);
     }
-    Ok(super::recording::create_recording_plan(&state, items, None)
-        .await?
-        .into_response())
+    let composition = ensure_composition_for_plan(&state, &plan).await?;
+    Ok(super::recording::create_recording_plan(
+        &state,
+        items,
+        None,
+        Some(super::recording::AgentRecordingSource {
+            plan_id: plan.id,
+            composition_id: composition.id,
+        }),
+    )
+    .await?
+    .into_response())
 }
 
 fn plan_update(update: AgentPlanUpdate) -> ApiResult<Json<AgentPlan>> {
@@ -754,11 +1308,139 @@ mod tests {
         }
     }
 
+    #[derive(Debug, Clone)]
+    struct CompletingRecordingPort {
+        storage: Storage,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::RecordingPort for CompletingRecordingPort {
+        async fn preflight(&self, _items: &[RecordingRequest]) -> Result<(), DomainError> {
+            Ok(())
+        }
+
+        async fn execute(&self, mut job: RecordingJob) -> Result<RecordingJob, DomainError> {
+            job.outputs = job
+                .items
+                .iter()
+                .map(|item| vibe_cs_domain::RecordedClip {
+                    id: Uuid::new_v4(),
+                    path: format!("C:/recordings/{}.mp4", item.id.expect("request id")),
+                    title: item.title.clone(),
+                    duration_seconds: 5.0,
+                    demo_id: Some(item.demo_id),
+                    player_name: None,
+                    category: "agent".to_owned(),
+                    tags: Vec::new(),
+                    metadata: json!({ "request_id": item.id.expect("request id") }),
+                    created_at: Utc::now(),
+                })
+                .collect();
+            job.current_index = job.items.len();
+            job.progress = 1.0;
+            job.status = JobStatus::Completed;
+            job.message = "Completed".to_owned();
+            job.updated_at = Utc::now();
+            for clip in &job.outputs {
+                self.storage
+                    .put_recorded_clip(clip.clone())
+                    .await
+                    .map_err(|error| DomainError::Internal(error.to_string()))?;
+            }
+            self.storage
+                .put_recording_job(job.clone())
+                .await
+                .map_err(|error| DomainError::Internal(error.to_string()))?;
+            Ok(job)
+        }
+
+        async fn cancel(&self, job: RecordingJob) -> Result<RecordingJob, DomainError> {
+            Ok(job)
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct CompletingExportPort {
+        storage: Storage,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::ExportPort for CompletingExportPort {
+        async fn start(
+            &self,
+            kind: &str,
+            project_id: Uuid,
+            _request: Value,
+        ) -> Result<ExportJob, DomainError> {
+            if kind != "montage"
+                || self
+                    .storage
+                    .get_montage_project(project_id)
+                    .await
+                    .map_err(|error| DomainError::Internal(error.to_string()))?
+                    .is_none()
+            {
+                return Err(DomainError::InvalidInput(
+                    "auto export did not receive a persisted composition montage".to_owned(),
+                ));
+            }
+            let now = Utc::now();
+            let job = ExportJob {
+                id: Uuid::new_v4(),
+                project_id,
+                status: JobStatus::Completed,
+                progress: 1.0,
+                output_path: format!("C:/outputs/{project_id}.mp4"),
+                error: None,
+                error_code: None,
+                created_at: now,
+                updated_at: now,
+            };
+            self.storage
+                .put_export_job(ExportJobRecord {
+                    kind: kind.to_owned(),
+                    job: job.clone(),
+                })
+                .await
+                .map_err(|error| DomainError::Internal(error.to_string()))?;
+            Ok(job)
+        }
+
+        async fn cancel(&self, job_id: Uuid) -> Result<ExportJob, DomainError> {
+            self.storage
+                .get_export_job(job_id)
+                .await
+                .map_err(|error| DomainError::Internal(error.to_string()))?
+                .map(|record| record.job)
+                .ok_or_else(|| DomainError::InvalidInput("export job does not exist".to_owned()))
+        }
+
+        async fn encoders(&self) -> Vec<String> {
+            vec!["libx264".to_owned()]
+        }
+    }
+
     fn recording_dispatcher(storage: Storage) -> (Router, tempfile::TempDir) {
         let directory = tempfile::tempdir().expect("temporary directory");
         let recording: std::sync::Arc<dyn crate::RecordingPort> =
             std::sync::Arc::new(AcceptingRecordingPort);
         let state = AppState::new(storage, directory.path().join("data")).with_recording(recording);
+        (crate::build_dispatcher(state), directory)
+    }
+
+    fn completing_recording_dispatcher(storage: Storage) -> (Router, tempfile::TempDir) {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let recording: std::sync::Arc<dyn crate::RecordingPort> =
+            std::sync::Arc::new(CompletingRecordingPort {
+                storage: storage.clone(),
+            });
+        let exports: std::sync::Arc<dyn crate::ExportPort> =
+            std::sync::Arc::new(CompletingExportPort {
+                storage: storage.clone(),
+            });
+        let state = AppState::new(storage, directory.path().join("data"))
+            .with_recording(recording)
+            .with_exports(exports);
         (crate::build_dispatcher(state), directory)
     }
 
@@ -1746,6 +2428,111 @@ mod tests {
         // page after this call is the same page.
         assert!(planned["plan_id"].is_string());
         assert!(planned["director"]["shots"].is_array());
+    }
+
+    #[tokio::test]
+    async fn agent_recording_registers_a_take_and_exports_the_exact_composition() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let demo_id = Uuid::new_v4();
+        persist_demo(&storage, demo_id).await;
+        let (router, _directory) = completing_recording_dispatcher(storage);
+        let plan_id = plan_with_shots(&router, vec![bound_shot("02 跟随突破", demo_id)]).await;
+        let (_, plan) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/plans/{plan_id}"),
+            None,
+        )
+        .await;
+        let shot_id = plan["shots"][0]["id"].clone();
+
+        let (status, recording_plan) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/plans/{plan_id}/recording-plan"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200, "unexpected body: {recording_plan}");
+        assert_eq!(recording_plan["items"][0]["id"], shot_id);
+        let recording_plan_id = recording_plan["plan_id"]
+            .as_str()
+            .expect("recording plan id");
+
+        let (status, draft) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/plans/{plan_id}/composition"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(draft["status"], "draft");
+        assert!(draft["items"].as_array().expect("draft items").is_empty());
+
+        let (status, execution) = call(
+            &router,
+            Method::POST,
+            &format!("/api/recording/plans/{recording_plan_id}/execute"),
+            Some(json!({ "offline_insecure_acknowledged": true })),
+        )
+        .await;
+        assert_eq!(status, 200, "unexpected body: {execution}");
+        assert_eq!(execution["status"], "completed");
+        let job_id = execution["job_id"].as_str().expect("recording job id");
+
+        let (status, takes) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/plans/{plan_id}/takes"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        let takes = takes.as_array().expect("takes");
+        assert_eq!(takes.len(), 1);
+        assert_eq!(takes[0]["shot_id"], shot_id);
+        assert!(
+            takes[0]["stream_url"]
+                .as_str()
+                .expect("stream URL")
+                .contains("recorded-clips")
+        );
+
+        let (status, composition) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/plans/{plan_id}/composition"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(composition["status"], "exported");
+        assert_eq!(composition["items"][0]["shot_id"], shot_id);
+        assert_eq!(composition["items"][0]["take_id"], takes[0]["id"]);
+        assert!(composition["export_job_id"].is_string());
+        assert!(
+            composition["output_path"]
+                .as_str()
+                .expect("output path")
+                .ends_with(".mp4")
+        );
+
+        let (status, workflow) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/recording-jobs/{job_id}/workflow"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(workflow["stage"], "completed");
+        assert_eq!(workflow["recorded_takes"], 1);
+        assert_eq!(workflow["total_shots"], 1);
+        assert_eq!(
+            workflow["composition"]["output_path"],
+            composition["output_path"]
+        );
     }
 
     /// An empty queue must never be explained with the recording queue's own

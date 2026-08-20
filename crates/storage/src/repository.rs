@@ -47,15 +47,15 @@ use ts_rs::TS;
 use uuid::Uuid;
 use vibe_cs_domain::{
     AppConfig, BeatAlignmentAudioBinding, BeatAlignmentAudioPlacement, BeatAlignmentDraft,
-    CosmeticPlan, DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoMatchSource, DemoMetadata,
-    DemoMetadataBatchUpdate, DemoMetadataUpdate, DemoPatch, DemoQuery, DemoRecord, DemoSort,
-    DemoStatus, DemoTag, DemoTagCreate, EditorAudioSeparation, EditorPresetDocument, EditorProject,
-    EditorProjectSnapshot, EventKind, EvidenceAnnotation, EvidenceAnnotationQuery,
+    Composition, CompositionItem, CosmeticPlan, DEMO_MAX_PAGE, DEMO_MAX_PAGE_SIZE, DemoMatchSource,
+    DemoMetadata, DemoMetadataBatchUpdate, DemoMetadataUpdate, DemoPatch, DemoQuery, DemoRecord,
+    DemoSort, DemoStatus, DemoTag, DemoTagCreate, EditorAudioSeparation, EditorPresetDocument,
+    EditorProject, EditorProjectSnapshot, EventKind, EvidenceAnnotation, EvidenceAnnotationQuery,
     EvidenceAnnotationReviewState, EvidenceEventFamily, EvidenceSearchAvailability,
     EvidenceSearchCapability, EvidenceSearchItem, EvidenceSearchPage, EvidenceSearchQuery,
     EvidenceSourceKind, ExportJob, HighlightEditPlan, HighlightKind, MatchAnalysis,
     MatchDownloadJob, MatchDownloadStatus, MatchHistoryQuery, MediaAsset, MediaProxyStatus,
-    MontageProject, Page, RecordedClip, RecordingJob, SteamMatchRecord, TimelineEvent,
+    MontageProject, Page, RecordedClip, RecordingJob, SteamMatchRecord, Take, TimelineEvent,
 };
 
 use crate::{Result, StorageError, schema};
@@ -2184,6 +2184,364 @@ impl Storage {
 
     pub async fn delete_recorded_clip(&self, id: Uuid) -> Result<bool> {
         self.delete_document("recorded_clips", id).await
+    }
+
+    pub async fn list_agent_takes(
+        &self,
+        plan_id: Uuid,
+        shot_id: Option<Uuid>,
+    ) -> Result<Vec<Take>> {
+        self.run(move |connection| {
+            let mut statement = connection.prepare(
+                "SELECT document_json FROM agent_takes \
+                 WHERE plan_id = ?1 AND (?2 IS NULL OR shot_id = ?2) \
+                 ORDER BY shot_id, ordinal DESC",
+            )?;
+            let mut rows = statement.query(params![
+                plan_id.to_string(),
+                shot_id.map(|id| id.to_string())
+            ])?;
+            collect_documents(&mut rows)
+        })
+        .await
+    }
+
+    pub async fn get_agent_composition(&self, plan_id: Uuid) -> Result<Option<Composition>> {
+        self.run(move |connection| {
+            let document = connection
+                .query_row(
+                    "SELECT document_json FROM agent_compositions WHERE plan_id = ?1",
+                    [plan_id.to_string()],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            document.map(|value| decode(&value)).transpose()
+        })
+        .await
+    }
+
+    pub async fn put_agent_composition(&self, composition: Composition) -> Result<Composition> {
+        composition.validate()?;
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            put_agent_composition_row(&transaction, &composition)?;
+            transaction.commit()?;
+            Ok(composition)
+        })
+        .await
+    }
+
+    pub async fn claim_agent_composition_export(
+        &self,
+        plan_id: Uuid,
+    ) -> Result<Option<Composition>> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let document = transaction
+                .query_row(
+                    "SELECT document_json FROM agent_compositions WHERE plan_id = ?1",
+                    [plan_id.to_string()],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            let Some(document) = document else {
+                transaction.commit()?;
+                return Ok(None);
+            };
+            let mut composition: Composition = decode(&document)?;
+            if !matches!(
+                composition.status,
+                vibe_cs_domain::CompositionStatus::Confirmed
+                    | vibe_cs_domain::CompositionStatus::Failed
+            ) {
+                transaction.commit()?;
+                return Ok(None);
+            }
+            composition.status = vibe_cs_domain::CompositionStatus::Exporting;
+            composition.export_job_id = None;
+            composition.export_status = None;
+            composition.output_path = None;
+            composition.error = None;
+            composition.updated_at = Utc::now();
+            put_agent_composition_row(&transaction, &composition)?;
+            transaction.commit()?;
+            Ok(Some(composition))
+        })
+        .await
+    }
+
+    pub async fn bind_agent_recording_run(
+        &self,
+        recording_job_id: Uuid,
+        plan_id: Uuid,
+        composition_id: Uuid,
+    ) -> Result<()> {
+        self.run(move |connection| {
+            let inserted = connection.execute(
+                "INSERT INTO agent_recording_runs(recording_job_id, plan_id, composition_id, created_at) \
+                 VALUES (?1, ?2, ?3, ?4) ON CONFLICT(recording_job_id) DO NOTHING",
+                params![
+                    recording_job_id.to_string(),
+                    plan_id.to_string(),
+                    composition_id.to_string(),
+                    Utc::now().to_rfc3339(),
+                ],
+            )?;
+            if inserted == 0 {
+                let binding = connection.query_row(
+                    "SELECT plan_id, composition_id FROM agent_recording_runs WHERE recording_job_id = ?1",
+                    [recording_job_id.to_string()],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )?;
+                if binding != (plan_id.to_string(), composition_id.to_string()) {
+                    return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                        "recording job is already bound to another Agent composition".to_owned(),
+                    )));
+                }
+            }
+            Ok(())
+        })
+        .await
+    }
+
+    pub async fn delete_agent_recording_run(&self, recording_job_id: Uuid) -> Result<()> {
+        self.run(move |connection| {
+            connection.execute(
+                "DELETE FROM agent_recording_runs WHERE recording_job_id = ?1",
+                [recording_job_id.to_string()],
+            )?;
+            Ok(())
+        })
+        .await
+    }
+
+    pub async fn get_agent_recording_run(
+        &self,
+        recording_job_id: Uuid,
+    ) -> Result<Option<(Uuid, Uuid)>> {
+        self.run(move |connection| {
+            connection
+                .query_row(
+                    "SELECT plan_id, composition_id FROM agent_recording_runs WHERE recording_job_id = ?1",
+                    [recording_job_id.to_string()],
+                    |row| {
+                        let plan = row.get::<_, String>(0)?;
+                        let composition = row.get::<_, String>(1)?;
+                        Ok((plan, composition))
+                    },
+                )
+                .optional()?
+                .map(|(plan, composition)| {
+                    Ok((
+                        Uuid::parse_str(&plan).map_err(|error| {
+                            StorageError::Domain(vibe_cs_domain::DomainError::Internal(
+                                format!("stored Agent recording plan id is invalid: {error}"),
+                            ))
+                        })?,
+                        Uuid::parse_str(&composition).map_err(|error| {
+                            StorageError::Domain(vibe_cs_domain::DomainError::Internal(
+                                format!("stored Agent composition id is invalid: {error}"),
+                            ))
+                        })?,
+                    ))
+                })
+                .transpose()
+        })
+        .await
+    }
+
+    /// Registers every newly persisted output of an Agent recording job as a
+    /// Take, selects the first available take for each composition slot, and
+    /// prunes only unreferenced older Take records.
+    pub async fn reconcile_agent_recording_takes(
+        &self,
+        recording_job_id: Uuid,
+        take_limit: u32,
+    ) -> Result<Vec<Take>> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some((plan_id, composition_id)) = transaction
+                .query_row(
+                    "SELECT plan_id, composition_id FROM agent_recording_runs WHERE recording_job_id = ?1",
+                    [recording_job_id.to_string()],
+                    |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+                )
+                .optional()?
+            else {
+                transaction.commit()?;
+                return Ok(Vec::new());
+            };
+            let job_document = transaction
+                .query_row(
+                    "SELECT document_json FROM recording_jobs WHERE id = ?1",
+                    [recording_job_id.to_string()],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            let Some(job_document) = job_document else {
+                transaction.commit()?;
+                return Ok(Vec::new());
+            };
+            let job: RecordingJob = decode(&job_document)?;
+            let mut composition: Composition = transaction
+                .query_row(
+                    "SELECT document_json FROM agent_compositions WHERE id = ?1 AND plan_id = ?2",
+                    params![composition_id, plan_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?
+                .map(|value| decode(&value))
+                .transpose()?
+                .ok_or_else(|| {
+                    StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                        "Agent recording run has no matching composition".to_owned(),
+                    ))
+                })?;
+            let mut changed = false;
+            for clip in &job.outputs {
+                let shot_id = clip
+                    .metadata
+                    .get("request_id")
+                    .and_then(serde_json::Value::as_str)
+                    .and_then(|value| Uuid::parse_str(value).ok())
+                    .ok_or_else(|| {
+                        StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                            "Agent recording output has no valid shot request identity".to_owned(),
+                        ))
+                    })?;
+                if !job.items.iter().any(|item| item.id == Some(shot_id)) {
+                    return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                        "Agent recording output does not belong to its recording job".to_owned(),
+                    )));
+                }
+                let existing = transaction
+                    .query_row(
+                        "SELECT document_json FROM agent_takes WHERE recorded_clip_id = ?1",
+                        [clip.id.to_string()],
+                        |row| row.get::<_, String>(0),
+                    )
+                    .optional()?;
+                let take = if let Some(document) = existing {
+                    decode::<Take>(&document)?
+                } else {
+                    let ordinal = transaction.query_row(
+                        "SELECT COALESCE(MAX(ordinal), 0) + 1 FROM agent_takes WHERE plan_id = ?1 AND shot_id = ?2",
+                        params![plan_id, shot_id.to_string()],
+                        |row| row.get::<_, u32>(0),
+                    )?;
+                    let take = Take {
+                        id: Uuid::new_v4(),
+                        plan_id: Uuid::parse_str(&plan_id).map_err(|error| {
+                            StorageError::Domain(vibe_cs_domain::DomainError::Internal(
+                                format!("stored Agent plan id is invalid: {error}"),
+                            ))
+                        })?,
+                        shot_id,
+                        recorded_clip_id: clip.id,
+                        recording_job_id,
+                        ordinal,
+                        label: format!("Take {ordinal}"),
+                        duration_seconds: clip.duration_seconds,
+                        created_at: clip.created_at,
+                    };
+                    take.validate()?;
+                    transaction.execute(
+                        "INSERT INTO agent_takes(id, plan_id, shot_id, recorded_clip_id, recording_job_id, ordinal, created_at, document_json) \
+                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                        params![
+                            take.id.to_string(),
+                            take.plan_id.to_string(),
+                            take.shot_id.to_string(),
+                            take.recorded_clip_id.to_string(),
+                            take.recording_job_id.to_string(),
+                            take.ordinal,
+                            take.created_at.to_rfc3339(),
+                            encode(&take)?,
+                        ],
+                    )?;
+                    changed = true;
+                    take
+                };
+                if !composition.items.iter().any(|item| item.shot_id == shot_id) {
+                    composition.items.push(CompositionItem {
+                        shot_id,
+                        take_id: take.id,
+                        order: u32::try_from(composition.items.len())
+                            .map_err(|_| StorageError::IntegerOutOfRange(u64::MAX))?,
+                    });
+                    changed = true;
+                }
+            }
+            let shots_document = transaction.query_row(
+                "SELECT shots_json FROM agent_plans WHERE id = ?1",
+                [&plan_id],
+                |row| row.get::<_, String>(0),
+            )?;
+            let active_shots = decode::<Vec<vibe_cs_domain::AgentPlanShot>>(&shots_document)?
+                .into_iter()
+                .filter(|shot| shot.removed_by.is_none())
+                .map(|shot| shot.id)
+                .collect::<Vec<_>>();
+            let selected = composition
+                .items
+                .iter()
+                .map(|item| (item.shot_id, item.take_id))
+                .collect::<std::collections::HashMap<_, _>>();
+            let ordered = active_shots
+                .iter()
+                .filter_map(|shot_id| selected.get(shot_id).map(|take_id| (*shot_id, *take_id)))
+                .enumerate()
+                .map(|(order, (shot_id, take_id))| CompositionItem {
+                    shot_id,
+                    take_id,
+                    order: u32::try_from(order).unwrap_or(u32::MAX),
+                })
+                .collect::<Vec<_>>();
+            let status = if !active_shots.is_empty() && ordered.len() == active_shots.len() {
+                vibe_cs_domain::CompositionStatus::Confirmed
+            } else {
+                vibe_cs_domain::CompositionStatus::Draft
+            };
+            if composition.items != ordered || composition.status != status {
+                composition.items = ordered;
+                composition.status = status;
+                changed = true;
+            }
+            if changed {
+                composition.updated_at = Utc::now();
+                put_agent_composition_row(&transaction, &composition)?;
+            }
+            let take_limit = take_limit.max(1);
+            let shot_ids = job
+                .items
+                .iter()
+                .filter_map(|item| item.id)
+                .collect::<std::collections::HashSet<_>>();
+            for shot_id in shot_ids {
+                transaction.execute(
+                    "DELETE FROM agent_takes WHERE id IN (\
+                         SELECT candidate.id FROM agent_takes AS candidate \
+                         WHERE candidate.plan_id = ?1 AND candidate.shot_id = ?2 \
+                         AND NOT EXISTS (SELECT 1 FROM agent_composition_items AS selected WHERE selected.take_id = candidate.id) \
+                         ORDER BY candidate.ordinal DESC LIMIT -1 OFFSET ?3\
+                     )",
+                    params![plan_id, shot_id.to_string(), take_limit],
+                )?;
+            }
+            let mut statement = transaction.prepare(
+                "SELECT document_json FROM agent_takes WHERE plan_id = ?1 ORDER BY shot_id, ordinal DESC",
+            )?;
+            let mut rows = statement.query([plan_id])?;
+            let takes = collect_documents(&mut rows)?;
+            drop(rows);
+            drop(statement);
+            transaction.commit()?;
+            Ok(takes)
+        })
+        .await
     }
 
     pub async fn list_montage_projects(&self) -> Result<Vec<MontageProject>> {
@@ -5311,6 +5669,114 @@ fn collect_editor_project_documents(
         documents.push(decode_editor_project_document(&row.get::<_, String>(0)?)?);
     }
     Ok(documents)
+}
+
+fn put_agent_composition_row(
+    transaction: &rusqlite::Transaction<'_>,
+    composition: &Composition,
+) -> Result<()> {
+    composition.validate()?;
+    let current_revision = transaction
+        .query_row(
+            "SELECT revision FROM agent_plans WHERE id = ?1",
+            [composition.plan_id.to_string()],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()?
+        .ok_or_else(|| {
+            StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(
+                "composition plan does not exist".to_owned(),
+            ))
+        })?;
+    if composition.plan_revision != current_revision {
+        return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+            format!(
+                "composition targets plan revision {}, but the plan is at revision {current_revision}",
+                composition.plan_revision
+            ),
+        )));
+    }
+    let shots_document = transaction.query_row(
+        "SELECT shots_json FROM agent_plans WHERE id = ?1",
+        [composition.plan_id.to_string()],
+        |row| row.get::<_, String>(0),
+    )?;
+    let active_shots = decode::<Vec<vibe_cs_domain::AgentPlanShot>>(&shots_document)?
+        .into_iter()
+        .filter(|shot| shot.removed_by.is_none())
+        .map(|shot| shot.id)
+        .collect::<Vec<_>>();
+    if matches!(
+        composition.status,
+        vibe_cs_domain::CompositionStatus::Confirmed
+            | vibe_cs_domain::CompositionStatus::Exporting
+            | vibe_cs_domain::CompositionStatus::Exported
+    ) && composition
+        .items
+        .iter()
+        .map(|item| item.shot_id)
+        .collect::<Vec<_>>()
+        != active_shots
+    {
+        return Err(StorageError::Domain(
+            vibe_cs_domain::DomainError::InvalidInput(
+                "a confirmed composition must select one take for every active plan shot"
+                    .to_owned(),
+            ),
+        ));
+    }
+    for item in &composition.items {
+        let document = transaction
+            .query_row(
+                "SELECT document_json FROM agent_takes WHERE id = ?1",
+                [item.take_id.to_string()],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .ok_or_else(|| {
+                StorageError::Domain(vibe_cs_domain::DomainError::InvalidInput(format!(
+                    "composition take {} does not exist",
+                    item.take_id
+                )))
+            })?;
+        let take: Take = decode(&document)?;
+        if take.plan_id != composition.plan_id || take.shot_id != item.shot_id {
+            return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                "composition take does not belong to its plan shot".to_owned(),
+            )));
+        }
+    }
+    transaction.execute(
+        "INSERT INTO agent_compositions(id, plan_id, plan_revision, status, updated_at, document_json) \
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
+         ON CONFLICT(id) DO UPDATE SET plan_revision = excluded.plan_revision, \
+         status = excluded.status, updated_at = excluded.updated_at, document_json = excluded.document_json",
+        params![
+            composition.id.to_string(),
+            composition.plan_id.to_string(),
+            composition.plan_revision,
+            composition.status.as_str(),
+            composition.updated_at.to_rfc3339(),
+            encode(composition)?,
+        ],
+    )?;
+    transaction.execute(
+        "DELETE FROM agent_composition_items WHERE composition_id = ?1",
+        [composition.id.to_string()],
+    )?;
+    for item in &composition.items {
+        transaction.execute(
+            "INSERT INTO agent_composition_items(composition_id, shot_id, take_id, position) \
+             VALUES (?1, ?2, ?3, ?4)",
+            params![
+                composition.id.to_string(),
+                item.shot_id.to_string(),
+                item.take_id.to_string(),
+                item.order,
+            ],
+        )?;
+    }
+    Ok(())
 }
 
 fn encode<T: Serialize>(value: &T) -> Result<String> {
@@ -10837,5 +11303,157 @@ mod tests {
                 .expect("current publisher"),
             MediaAssetUpdate::Updated(_)
         ));
+    }
+
+    #[tokio::test]
+    async fn agent_takes_reconcile_into_a_composition_and_protect_selected_history() {
+        use vibe_cs_domain::{
+            AgentPlanAuthor, AgentPlanCreate, AgentPlanStatus, AgentShotRecording, AgentShotView,
+            CompositionStatus, HlaeCameraStyle, JobStatus, RecordingRequest,
+        };
+
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let demo = demo("C:/demos/agent-takes.dem");
+        storage.put_demo(demo.clone()).await.expect("put demo");
+        let shot_id = Uuid::new_v4();
+        let shot = vibe_cs_domain::AgentPlanShot {
+            id: shot_id,
+            title: "Clutch".to_owned(),
+            kind: HlaeCameraStyle::Pov,
+            view: AgentShotView::PlayerPov,
+            start_tick: 100,
+            end_tick: 200,
+            duration_seconds: 2.0,
+            rationale: String::new(),
+            evidence_refs: Vec::new(),
+            risks: Vec::new(),
+            source: AgentPlanAuthor::Agent,
+            removed_by: None,
+            params: serde_json::json!({}),
+            recording: Some(AgentShotRecording {
+                demo_id: demo.id,
+                player_id: "76561197960287930".to_owned(),
+                highlight_id: None,
+                victim_pov: false,
+                pre_roll_seconds: 0.0,
+                post_roll_seconds: 0.0,
+                presentation: None,
+            }),
+        };
+        let plan = storage
+            .create_agent_plan(AgentPlanCreate {
+                title: "Agent final".to_owned(),
+                status: AgentPlanStatus::Confirmed,
+                shots: vec![shot],
+                origin: None,
+            })
+            .await
+            .expect("create plan");
+        let now = Utc::now();
+        let composition = Composition {
+            id: Uuid::new_v4(),
+            plan_id: plan.id,
+            plan_revision: plan.revision,
+            title: plan.title.clone(),
+            status: CompositionStatus::Draft,
+            items: Vec::new(),
+            export_job_id: None,
+            export_status: None,
+            output_path: None,
+            error: None,
+            created_at: now,
+            updated_at: now,
+        };
+        storage
+            .put_agent_composition(composition.clone())
+            .await
+            .expect("put composition");
+
+        let record_take = |ordinal: u32| {
+            let storage = storage.clone();
+            let composition = composition.clone();
+            let demo_id = demo.id;
+            async move {
+                let clip = RecordedClip {
+                    id: Uuid::new_v4(),
+                    path: format!("C:/recordings/take-{ordinal}.mp4"),
+                    title: format!("Take {ordinal}"),
+                    duration_seconds: 2.0,
+                    demo_id: Some(demo_id),
+                    player_name: None,
+                    category: "agent".to_owned(),
+                    tags: Vec::new(),
+                    metadata: serde_json::json!({ "request_id": shot_id }),
+                    created_at: Utc::now() + chrono::Duration::seconds(i64::from(ordinal)),
+                };
+                storage
+                    .put_recorded_clip(clip.clone())
+                    .await
+                    .expect("put clip");
+                let job_id = Uuid::new_v4();
+                storage
+                    .put_recording_job(RecordingJob {
+                        id: job_id,
+                        retry_of: None,
+                        status: JobStatus::Completed,
+                        items: vec![RecordingRequest {
+                            id: Some(shot_id),
+                            demo_id,
+                            highlight_id: None,
+                            player_id: "76561197960287930".to_owned(),
+                            title: "Clutch".to_owned(),
+                            start_tick: 100,
+                            end_tick: 200,
+                            pre_roll_seconds: 0.0,
+                            post_roll_seconds: 0.0,
+                            victim_pov: false,
+                            camera_style: HlaeCameraStyle::Pov,
+                            presentation: None,
+                        }],
+                        current_index: 1,
+                        progress: 1.0,
+                        message: "Completed".to_owned(),
+                        outputs: vec![clip],
+                        error_code: None,
+                        created_at: Utc::now(),
+                        updated_at: Utc::now(),
+                    })
+                    .await
+                    .expect("put job");
+                storage
+                    .bind_agent_recording_run(job_id, composition.plan_id, composition.id)
+                    .await
+                    .expect("bind run");
+                storage
+                    .reconcile_agent_recording_takes(job_id, 1)
+                    .await
+                    .expect("reconcile")
+            }
+        };
+
+        let first = record_take(1).await;
+        assert_eq!(first.len(), 1);
+        let selected = storage
+            .get_agent_composition(plan.id)
+            .await
+            .expect("get composition")
+            .expect("composition");
+        assert_eq!(selected.items[0].take_id, first[0].id);
+        assert_eq!(selected.status, CompositionStatus::Confirmed);
+
+        let second = record_take(2).await;
+        assert_eq!(
+            second.len(),
+            2,
+            "selected Take survives the one-unreferenced limit"
+        );
+        let third = record_take(3).await;
+        assert_eq!(
+            third.len(),
+            2,
+            "only the oldest unreferenced Take is pruned"
+        );
+        assert!(third.iter().any(|take| take.id == first[0].id));
+        assert!(third.iter().any(|take| take.ordinal == 3));
     }
 }

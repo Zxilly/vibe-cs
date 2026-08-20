@@ -31,6 +31,7 @@ pub(crate) type OutputMediaCache =
 pub(crate) struct RecordingPlanLease {
     pub(crate) items: Vec<vibe_cs_domain::RecordingRequest>,
     pub(crate) retry_of: Option<Uuid>,
+    pub(crate) agent_source: Option<crate::routes::recording::AgentRecordingSource>,
     /// The document this plan was answered with, kept verbatim so
     /// `GET /api/recording/plans/{id}` can hand back *the same* plan.
     ///

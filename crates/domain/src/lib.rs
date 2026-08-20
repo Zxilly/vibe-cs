@@ -2,6 +2,7 @@
 
 mod agent_proposal;
 mod agent_session;
+mod agent_video;
 mod analysis;
 mod analysis_run;
 mod audio_intelligence;
@@ -22,6 +23,7 @@ mod round_replay;
 
 pub use agent_proposal::*;
 pub use agent_session::*;
+pub use agent_video::*;
 pub use analysis::*;
 pub use analysis_run::*;
 pub use audio_intelligence::*;

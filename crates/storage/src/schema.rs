@@ -5,6 +5,65 @@ use sha2::{Digest, Sha256};
 
 use crate::{Result, StorageError};
 
+const PRE_AGENT_VIDEO_SCHEMA_FINGERPRINT: &str =
+    "05f735f18021eb954cf20fee8398d5d69e39b1df507d74de19e7128a3d177c17";
+
+const AGENT_VIDEO_MIGRATION: &str = r"
+    CREATE TABLE agent_takes (
+        id TEXT PRIMARY KEY NOT NULL,
+        plan_id TEXT NOT NULL,
+        shot_id TEXT NOT NULL,
+        recorded_clip_id TEXT NOT NULL UNIQUE,
+        recording_job_id TEXT NOT NULL,
+        ordinal INTEGER NOT NULL CHECK(ordinal >= 1),
+        created_at TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        UNIQUE(plan_id, shot_id, ordinal),
+        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE,
+        FOREIGN KEY (recorded_clip_id) REFERENCES recorded_clips(id) ON DELETE RESTRICT
+    );
+
+    CREATE TABLE agent_compositions (
+        id TEXT PRIMARY KEY NOT NULL,
+        plan_id TEXT NOT NULL UNIQUE,
+        plan_revision INTEGER NOT NULL CHECK(plan_revision >= 1),
+        status TEXT NOT NULL CHECK(status IN (
+            'draft', 'confirmed', 'exporting', 'exported', 'failed'
+        )),
+        updated_at TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE agent_composition_items (
+        composition_id TEXT NOT NULL,
+        shot_id TEXT NOT NULL,
+        take_id TEXT NOT NULL,
+        position INTEGER NOT NULL CHECK(position >= 0),
+        PRIMARY KEY(composition_id, shot_id),
+        UNIQUE(composition_id, take_id),
+        UNIQUE(composition_id, position),
+        FOREIGN KEY (composition_id) REFERENCES agent_compositions(id) ON DELETE CASCADE,
+        FOREIGN KEY (take_id) REFERENCES agent_takes(id) ON DELETE RESTRICT
+    );
+
+    CREATE TABLE agent_recording_runs (
+        recording_job_id TEXT PRIMARY KEY NOT NULL,
+        plan_id TEXT NOT NULL,
+        composition_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE,
+        FOREIGN KEY (composition_id) REFERENCES agent_compositions(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX agent_takes_plan_shot_idx
+        ON agent_takes(plan_id, shot_id, created_at DESC, ordinal DESC);
+    CREATE INDEX agent_compositions_updated_idx
+        ON agent_compositions(updated_at DESC, id);
+    CREATE INDEX agent_recording_runs_plan_idx
+        ON agent_recording_runs(plan_id, created_at DESC);
+";
+
 const CURRENT_SCHEMA: &str = r"
     CREATE TABLE storage_contract (
         singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton = 1),
@@ -499,6 +558,53 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE agent_takes (
+        id TEXT PRIMARY KEY NOT NULL,
+        plan_id TEXT NOT NULL,
+        shot_id TEXT NOT NULL,
+        recorded_clip_id TEXT NOT NULL UNIQUE,
+        recording_job_id TEXT NOT NULL,
+        ordinal INTEGER NOT NULL CHECK(ordinal >= 1),
+        created_at TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        UNIQUE(plan_id, shot_id, ordinal),
+        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE,
+        FOREIGN KEY (recorded_clip_id) REFERENCES recorded_clips(id) ON DELETE RESTRICT
+    );
+
+    CREATE TABLE agent_compositions (
+        id TEXT PRIMARY KEY NOT NULL,
+        plan_id TEXT NOT NULL UNIQUE,
+        plan_revision INTEGER NOT NULL CHECK(plan_revision >= 1),
+        status TEXT NOT NULL CHECK(status IN (
+            'draft', 'confirmed', 'exporting', 'exported', 'failed'
+        )),
+        updated_at TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE agent_composition_items (
+        composition_id TEXT NOT NULL,
+        shot_id TEXT NOT NULL,
+        take_id TEXT NOT NULL,
+        position INTEGER NOT NULL CHECK(position >= 0),
+        PRIMARY KEY(composition_id, shot_id),
+        UNIQUE(composition_id, take_id),
+        UNIQUE(composition_id, position),
+        FOREIGN KEY (composition_id) REFERENCES agent_compositions(id) ON DELETE CASCADE,
+        FOREIGN KEY (take_id) REFERENCES agent_takes(id) ON DELETE RESTRICT
+    );
+
+    CREATE TABLE agent_recording_runs (
+        recording_job_id TEXT PRIMARY KEY NOT NULL,
+        plan_id TEXT NOT NULL,
+        composition_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE,
+        FOREIGN KEY (composition_id) REFERENCES agent_compositions(id) ON DELETE CASCADE
+    );
+
     CREATE INDEX demos_status_idx ON demos(status);
     CREATE INDEX demos_activity_status_idx ON demos(status, updated_at DESC, id);
     CREATE INDEX demos_map_idx ON demos(map_name);
@@ -572,6 +678,12 @@ const CURRENT_SCHEMA: &str = r"
     CREATE INDEX agent_plans_updated_idx ON agent_plans(updated_at DESC, id);
     CREATE INDEX agent_plan_origins_plan_idx ON agent_plan_origins(plan_id, at DESC, sequence DESC);
     CREATE INDEX agent_plan_origins_session_idx ON agent_plan_origins(session_id, at DESC);
+    CREATE INDEX agent_takes_plan_shot_idx
+        ON agent_takes(plan_id, shot_id, created_at DESC, ordinal DESC);
+    CREATE INDEX agent_compositions_updated_idx
+        ON agent_compositions(updated_at DESC, id);
+    CREATE INDEX agent_recording_runs_plan_idx
+        ON agent_recording_runs(plan_id, created_at DESC);
 ";
 
 pub(crate) fn configure(connection: &Connection) -> Result<()> {
@@ -617,6 +729,16 @@ pub(crate) fn run(connection: &mut Connection) -> Result<()> {
             }
             other => StorageError::Database(other),
         })?;
+    if stored.as_deref() == Some(PRE_AGENT_VIDEO_SCHEMA_FINGERPRINT) {
+        let transaction = connection.transaction()?;
+        transaction.execute_batch(AGENT_VIDEO_MIGRATION)?;
+        transaction.execute(
+            "UPDATE storage_contract SET fingerprint = ?1 WHERE singleton = 1",
+            params![fingerprint],
+        )?;
+        transaction.commit()?;
+        return Ok(());
+    }
     if stored.as_deref() != Some(fingerprint.as_str()) {
         return Err(StorageError::CurrentSchemaRequired);
     }
@@ -680,5 +802,41 @@ mod tests {
             run(&mut connection),
             Err(StorageError::CurrentSchemaRequired)
         ));
+    }
+
+    #[test]
+    fn previous_contract_adds_agent_video_tables_without_losing_rows() {
+        let mut connection = Connection::open_in_memory().expect("open sqlite");
+        configure(&connection).expect("configure");
+        connection
+            .execute_batch(&format!(
+                "CREATE TABLE storage_contract(singleton INTEGER PRIMARY KEY NOT NULL, fingerprint TEXT NOT NULL);\
+                 CREATE TABLE agent_plans(id TEXT PRIMARY KEY NOT NULL);\
+                 CREATE TABLE recorded_clips(id TEXT PRIMARY KEY NOT NULL);\
+                 INSERT INTO storage_contract(singleton, fingerprint) VALUES (1, '{PRE_AGENT_VIDEO_SCHEMA_FINGERPRINT}');\
+                 INSERT INTO agent_plans(id) VALUES ('plan-before-migration');"
+            ))
+            .expect("previous contract fixture");
+
+        run(&mut connection).expect("migrate previous contract");
+
+        assert_eq!(
+            connection
+                .query_row("SELECT COUNT(*) FROM agent_plans", [], |row| row
+                    .get::<_, i64>(0))
+                .expect("preserved plan"),
+            1
+        );
+        assert_eq!(
+            connection
+                .query_row(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'agent_compositions'",
+                    [],
+                    |row| row.get::<_, i64>(0),
+                )
+                .expect("composition table"),
+            1
+        );
+        run(&mut connection).expect("reopen migrated contract");
     }
 }

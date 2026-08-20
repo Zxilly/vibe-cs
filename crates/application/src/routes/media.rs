@@ -590,7 +590,10 @@ async fn put_montage(
     Ok(Json(project))
 }
 
-async fn validate_montage_project(state: &AppState, project: &MontageProject) -> ApiResult<()> {
+pub(super) async fn validate_montage_project(
+    state: &AppState,
+    project: &MontageProject,
+) -> ApiResult<()> {
     if project.name.trim().is_empty() || project.name.chars().count() > 200 {
         return Err(ApiError::invalid(
             "montage name must contain between 1 and 200 characters",
@@ -2100,7 +2103,7 @@ async fn export_editor_project(
     start_export(&state, "editor", id, request).await
 }
 
-fn validate_export_output_options(request: &Value) -> ApiResult<()> {
+pub(super) fn validate_export_output_options(request: &Value) -> ApiResult<()> {
     let Some(value) = request.get("encoder") else {
         return Ok(());
     };

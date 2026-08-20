@@ -4,6 +4,7 @@ import { findMapCalibration, type MapCalibration } from './mapCalibration';
 import {
   coversNormalized,
   createMapProjection,
+  fitWorldBounds,
   fitOverview,
   normalizedToWorld,
   worldSpan,
@@ -98,6 +99,31 @@ describe('fitOverview', () => {
   });
 });
 
+describe('fitWorldBounds', () => {
+  it('turns one local world region into a bounded square overview window', () => {
+    const focus = fitWorldBounds(
+      UNIT_MAP,
+      { minimum: { x: 400, y: 400 }, maximum: { x: 600, y: 600 } },
+      { paddingFraction: 0, minimumFraction: 0 },
+    );
+    expect(focus.x).toBeCloseTo(400 / 1024, 10);
+    expect(focus.y).toBeCloseTo((1024 - 600) / 1024, 10);
+    expect(focus.size).toBeCloseTo(200 / 1024, 10);
+  });
+
+  it('keeps a near-static shot readable without zooming past the safe minimum', () => {
+    const focus = fitWorldBounds(
+      UNIT_MAP,
+      { minimum: { x: 500, y: 500 }, maximum: { x: 501, y: 501 } },
+    );
+    expect(focus.size).toBeCloseTo(0.14, 10);
+    expect(focus.x).toBeGreaterThanOrEqual(0);
+    expect(focus.y).toBeGreaterThanOrEqual(0);
+    expect(focus.x + focus.size).toBeLessThanOrEqual(1);
+    expect(focus.y + focus.size).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('createMapProjection', () => {
   const projection = createMapProjection(MIRAGE, { width: 720, height: 720 });
 
@@ -136,6 +162,21 @@ describe('createMapProjection', () => {
     const a = wide.toCanvas({ x: 0, y: 1024 });
     const b = wide.toCanvas({ x: 512, y: 512 });
     expect(b.x - a.x).toBeCloseTo(b.y - a.y, 10);
+  });
+
+  it('expands a focused overview window to the full canvas and remains invertible', () => {
+    const focused = createMapProjection(
+      UNIT_MAP,
+      { width: 720, height: 720 },
+      { x: 0.25, y: 0.25, size: 0.5 },
+    );
+    const topLeft = normalizedToWorld(UNIT_MAP, { x: 0.25, y: 0.25 });
+    const middle = normalizedToWorld(UNIT_MAP, { x: 0.5, y: 0.5 });
+    expect(focused.toCanvas(topLeft)).toEqual({ x: 0, y: 0 });
+    expect(focused.toCanvas(middle)).toEqual({ x: 360, y: 360 });
+    const roundTrip = focused.toCanvas(focused.toWorld({ x: 633, y: 117 }));
+    expect(roundTrip.x).toBeCloseTo(633, 10);
+    expect(roundTrip.y).toBeCloseTo(117, 10);
   });
 
   it('answers `covers` for points on and off the artwork', () => {

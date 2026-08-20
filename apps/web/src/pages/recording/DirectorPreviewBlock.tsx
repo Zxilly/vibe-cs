@@ -78,7 +78,7 @@ import {
   cameraHeightProfile,
   cameraHeightRange,
   cameraPlanDurationSeconds,
-  cameraPlanKeyframes,
+  cameraPlanFocusBounds,
   cameraPlanTickRange,
   cameraSampleAtSeconds,
   normaliseBearing,
@@ -330,6 +330,7 @@ function CameraPathState({
     <MapCanvas
       mapName={mapName}
       overviewTransform={overviewTransform}
+      focusBounds={cameraPlanFocusBounds(drawable, HEADING_LENGTH)}
       label={t`${mapName} 的相机路径`}
       basemap={
         basemapSrc === null ? undefined : (
@@ -343,13 +344,13 @@ function CameraPathState({
       ]}
       selectionSummary={<CameraSummary sample={sample} />}
       footnote={
-        <Trans>关键点由回放证据采样得到，坐标与朝向来自将要执行的相机计划本身。</Trans>
+        <Trans>画面只显示当前镜头涉及的局部区域；关键点、坐标与朝向来自将要执行的相机计划本身。</Trans>
       }
     >
       {(projection: MapProjection) => (
         <>
-          <CameraPathLayer projection={projection} paths={cameraPaths(drawable)} showEndLabels />
-          <HeadingLayer projection={projection} plan={drawable} />
+          <CameraPathLayer projection={projection} paths={cameraPaths(drawable)} />
+          <HeadingLayer projection={projection} sample={sample} />
           {sample === null ? null : <CameraHeadLayer projection={projection} sample={sample} />}
         </>
       )}
@@ -381,60 +382,51 @@ export function cameraPaths(plan: CameraPlan): CameraPath[] {
 }
 
 /**
- * The heading arrow and the field-of-view wedge at every keyframe.
+ * The heading arrow and field-of-view wedge at the current playhead sample.
  *
  * Decorative in the accessibility sense: every fact drawn here is also in the
- * keyframe's own `aria-label` inside `CameraPathLayer`, so a second set of tab
- * stops over the same objects would make the drawing worse to navigate rather
- * than better.
+ * The current facts are also rendered as text below the canvas, so a second
+ * tab stop over the same playhead would make the drawing harder to navigate.
  */
 function HeadingLayer({
   projection,
-  plan,
+  sample,
 }: {
   readonly projection: MapProjection;
-  readonly plan: CameraPlan;
+  readonly sample: CameraPlanKeyframe | null;
 }) {
-  const keyframes = cameraPlanKeyframes(plan);
-  if (keyframes.length === 0) return null;
+  if (sample === null) return null;
+
+  const origin = { x: sample.position.x, y: sample.position.y };
+  const centre = projection.toCanvas(origin);
+  const bearing = normaliseBearing(sample.rotation.yaw);
+  const tip = projection.toCanvas(worldPointAlong(origin, bearing, HEADING_LENGTH));
+  const half = Math.min(80, Math.max(5, sample.fov / 2));
+  const left = projection.toCanvas(worldPointAlong(origin, bearing + half, FOV_RADIUS));
+  const right = projection.toCanvas(worldPointAlong(origin, bearing - half, FOV_RADIUS));
 
   return (
     <g data-layer="camera-heading" aria-hidden="true">
-      {keyframes.map((keyframe, index) => {
-        const origin = { x: keyframe.position.x, y: keyframe.position.y };
-        const centre = projection.toCanvas(origin);
-        const bearing = normaliseBearing(keyframe.rotation.yaw);
-        const tip = projection.toCanvas(worldPointAlong(origin, bearing, HEADING_LENGTH));
-        const half = Math.min(80, Math.max(5, keyframe.fov / 2));
-        const left = projection.toCanvas(worldPointAlong(origin, bearing + half, FOV_RADIUS));
-        const right = projection.toCanvas(worldPointAlong(origin, bearing - half, FOV_RADIUS));
-
-        return (
-          <g key={`${keyframe.tick}:${index}`} data-heading={keyframe.tick}>
-            {/* The wedge: the horizontal field of view this keyframe carries.
-                Filled faintly rather than stroked, so several of them overlap
-                without turning into a hatch. */}
-            <path
-              d={`M ${centre.x} ${centre.y} L ${left.x} ${left.y} L ${right.x} ${right.y} Z`}
-              className="fill-accent-300/40 stroke-accent-500"
-              strokeWidth={0.75}
-              data-role="fov-wedge"
-            />
-            <path
-              d={polylineCommand([centre, tip])}
-              fill="none"
-              className="stroke-accent-800"
-              strokeWidth={1.25}
-              data-role="heading"
-            />
-            <path
-              d={arrowHeadCommand(centre, tip, 10)}
-              className="fill-accent-800"
-              data-role="heading-head"
-            />
-          </g>
-        );
-      })}
+      <g data-heading={sample.tick}>
+        <path
+          d={`M ${centre.x} ${centre.y} L ${left.x} ${left.y} L ${right.x} ${right.y} Z`}
+          className="fill-accent-300/40 stroke-accent-500"
+          strokeWidth={0.75}
+          data-role="fov-wedge"
+        />
+        <path
+          d={polylineCommand([centre, tip])}
+          fill="none"
+          className="stroke-accent-800"
+          strokeWidth={1.25}
+          data-role="heading"
+        />
+        <path
+          d={arrowHeadCommand(centre, tip, 10)}
+          className="fill-accent-800"
+          data-role="heading-head"
+        />
+      </g>
     </g>
   );
 }

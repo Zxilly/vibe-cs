@@ -146,7 +146,7 @@ beforeEach(() => {
 /* ── the schematic ───────────────────────────────────────────────────────── */
 
 describe('导播预览', () => {
-  it('draws the compiled keyframes, their headings and their field of view', async () => {
+  it('focuses the selected shot and draws only the current heading and field of view', async () => {
     mount();
     await serviceOnline();
 
@@ -154,8 +154,11 @@ describe('导播预览', () => {
       expect(document.querySelector('[data-layer="camera"]')).not.toBeNull();
     });
     expect(document.querySelectorAll('[data-keyframe]')).toHaveLength(4);
-    expect(document.querySelectorAll('[data-role="fov-wedge"]')).toHaveLength(4);
-    expect(document.querySelectorAll('[data-role="heading"]')).toHaveLength(4);
+    expect(document.querySelector('[data-map-focus="bounded"]')).not.toBeNull();
+    expect(document.querySelectorAll('[data-role="fov-wedge"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-role="heading"]')).toHaveLength(1);
+    expect(document.querySelector('[data-role="camera-start-label"]')).toBeNull();
+    expect(document.querySelector('[data-role="camera-end-label"]')).toBeNull();
   });
 
   it('keeps the third dimension — the radar cannot carry it', async () => {

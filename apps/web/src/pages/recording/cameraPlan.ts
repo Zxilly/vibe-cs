@@ -47,7 +47,7 @@
  */
 
 import type { HlaeProposalPreview } from '../../shared/desktop/dto';
-import type { WorldPoint } from '../../domain/map';
+import type { MapWorldBounds, WorldPoint } from '../../domain/map';
 
 /* ── the shape ───────────────────────────────────────────────────────────── */
 
@@ -232,6 +232,31 @@ export function cameraShotIsDrawable(shot: CameraPlanShot): boolean {
 /** Every keyframe of every shot, in plan order. */
 export function cameraPlanKeyframes(plan: CameraPlan): readonly CameraPlanKeyframe[] {
   return plan.shots.flatMap((shot) => shot.keyframes);
+}
+
+/** The local x/y region one selected camera plan actually touches. */
+export function cameraPlanFocusBounds(
+  plan: CameraPlan,
+  contextMargin = 0,
+): MapWorldBounds | null {
+  const keyframes = cameraPlanKeyframes(plan);
+  const first = keyframes[0];
+  if (first === undefined) return null;
+  const margin = Number.isFinite(contextMargin) ? Math.max(0, contextMargin) : 0;
+  let minimumX = first.position.x;
+  let maximumX = first.position.x;
+  let minimumY = first.position.y;
+  let maximumY = first.position.y;
+  for (const keyframe of keyframes.slice(1)) {
+    minimumX = Math.min(minimumX, keyframe.position.x);
+    maximumX = Math.max(maximumX, keyframe.position.x);
+    minimumY = Math.min(minimumY, keyframe.position.y);
+    maximumY = Math.max(maximumY, keyframe.position.y);
+  }
+  return {
+    minimum: { x: minimumX - margin, y: minimumY - margin },
+    maximum: { x: maximumX + margin, y: maximumY + margin },
+  };
 }
 
 /** First and last tick the plan covers, or `null` when it covers nothing. */

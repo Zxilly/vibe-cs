@@ -66,11 +66,15 @@ export {
   coversNormalized,
   createMapProjection,
   fitOverview,
+  fitWorldBounds,
   normalizedToWorld,
   worldSpan,
   worldToNormalized,
   type MapProjection,
+  type MapFocusOptions,
+  type MapFocusWindow,
   type MapViewport,
+  type MapWorldBounds,
   type OverviewFit,
 } from './mapProjection';
 

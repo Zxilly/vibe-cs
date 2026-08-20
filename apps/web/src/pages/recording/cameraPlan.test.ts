@@ -19,6 +19,7 @@ import {
   cameraHeightProfile,
   cameraHeightRange,
   cameraPlanDurationSeconds,
+  cameraPlanFocusBounds,
   cameraPlanKeyframes,
   cameraPlanTickRange,
   cameraSampleAtSeconds,
@@ -199,6 +200,14 @@ describe('cameraPlanTickRange / duration', () => {
   it('calls a one-keyframe shot undrawable — a path needs two points', () => {
     expect(cameraShotIsDrawable({ ...plan().shots[0]!, keyframes: [] })).toBe(false);
     expect(cameraShotIsDrawable(plan().shots[0]!)).toBe(true);
+  });
+
+  it('bounds only the selected camera route with enough local context for its view', () => {
+    expect(cameraPlanFocusBounds(plan(), 220)).toEqual({
+      minimum: { x: -220, y: -220 },
+      maximum: { x: 520, y: 420 },
+    });
+    expect(cameraPlanFocusBounds({ mode: 'preview', tickRate: 64, shots: [] }, 220)).toBeNull();
   });
 });
 

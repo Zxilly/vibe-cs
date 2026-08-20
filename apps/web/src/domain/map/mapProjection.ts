@@ -39,6 +39,24 @@ export interface MapViewport {
   readonly height: number;
 }
 
+/** A local axis-aligned region in CS2 world space. */
+export interface MapWorldBounds {
+  readonly minimum: WorldPoint;
+  readonly maximum: WorldPoint;
+}
+
+/** Square window inside the overview's normalized [0,1] coordinate space. */
+export interface MapFocusWindow {
+  readonly x: number;
+  readonly y: number;
+  readonly size: number;
+}
+
+export interface MapFocusOptions {
+  readonly paddingFraction?: number | undefined;
+  readonly minimumFraction?: number | undefined;
+}
+
 /** How the overview square sits inside a viewport. */
 export interface OverviewFit {
   /** Side of the inscribed square, in canvas units. */
@@ -52,6 +70,7 @@ export interface OverviewFit {
 export interface MapProjection extends OverviewFit {
   readonly calibration: MapCalibration;
   readonly viewport: MapViewport;
+  readonly focus: MapFocusWindow;
   /** World → canvas. */
   toCanvas(point: WorldPoint): CanvasPoint;
   /** Canvas → world. The exact inverse of `toCanvas`. */
@@ -112,6 +131,56 @@ export function fitOverview(viewport: MapViewport): OverviewFit {
 }
 
 /**
+ * Fit a local world-space region into one bounded square overview window.
+ *
+ * The minimum prevents a nearly static camera from zooming into a handful of
+ * pixels; padding keeps heading/FOV glyphs away from the frame edge. The
+ * resulting square is clamped as a whole, so it never asks the basemap to draw
+ * beyond the real radar artwork.
+ */
+export function fitWorldBounds(
+  calibration: MapCalibration,
+  bounds: MapWorldBounds,
+  options: MapFocusOptions = {},
+): MapFocusWindow {
+  if (!isUsableCalibration(calibration)) {
+    const named = calibration as MapCalibration | null | undefined;
+    throw new TypeError(`unusable map calibration for ${named?.mapName ?? 'unknown map'}`);
+  }
+  const values = [bounds.minimum.x, bounds.minimum.y, bounds.maximum.x, bounds.maximum.y];
+  if (
+    values.some((value) => !Number.isFinite(value)) ||
+    bounds.maximum.x < bounds.minimum.x ||
+    bounds.maximum.y < bounds.minimum.y
+  ) {
+    return { x: 0, y: 0, size: 1 };
+  }
+  const first = worldToNormalized(calibration, bounds.minimum);
+  const second = worldToNormalized(calibration, bounds.maximum);
+  const minimumX = Math.min(first.x, second.x);
+  const maximumX = Math.max(first.x, second.x);
+  const minimumY = Math.min(first.y, second.y);
+  const maximumY = Math.max(first.y, second.y);
+  const requestedPadding = options.paddingFraction;
+  const requestedMinimum = options.minimumFraction;
+  const padding = typeof requestedPadding === 'number' && Number.isFinite(requestedPadding)
+    ? Math.max(0, requestedPadding)
+    : 0.2;
+  const minimum = typeof requestedMinimum === 'number' && Number.isFinite(requestedMinimum)
+    ? Math.min(1, Math.max(0, requestedMinimum))
+    : 0.14;
+  const contentSize = Math.max(maximumX - minimumX, maximumY - minimumY);
+  const size = Math.min(1, Math.max(minimum, contentSize * (1 + 2 * padding)));
+  const centreX = (minimumX + maximumX) / 2;
+  const centreY = (minimumY + maximumY) / 2;
+  return {
+    x: Math.min(1 - size, Math.max(0, centreX - size / 2)),
+    y: Math.min(1 - size, Math.max(0, centreY - size / 2)),
+    size,
+  };
+}
+
+/**
  * Build the projection.
  *
  * Throws on an unusable calibration instead of producing NaN geometry, because
@@ -119,7 +188,11 @@ export function fitOverview(viewport: MapViewport): OverviewFit {
  * the reader sees an empty, confident-looking map. Callers check
  * `isUsableCalibration` first and render a state; `MapCanvas` does exactly that.
  */
-export function createMapProjection(calibration: MapCalibration, viewport: MapViewport): MapProjection {
+export function createMapProjection(
+  calibration: MapCalibration,
+  viewport: MapViewport,
+  requestedFocus?: MapFocusWindow | undefined,
+): MapProjection {
   if (!isUsableCalibration(calibration)) {
     // The guard narrows the argument to `never` here, so the name is read back
     // through the parameter's declared type rather than the narrowed one.
@@ -130,38 +203,55 @@ export function createMapProjection(calibration: MapCalibration, viewport: MapVi
   const fit = fitOverview(viewport);
   const span = worldSpan(calibration);
   const { extent, offsetX, offsetY } = fit;
+  const focus = requestedFocus !== undefined
+    && Number.isFinite(requestedFocus.x)
+    && Number.isFinite(requestedFocus.y)
+    && Number.isFinite(requestedFocus.size)
+    && requestedFocus.size > 0
+    && requestedFocus.x >= 0
+    && requestedFocus.y >= 0
+    && requestedFocus.x + requestedFocus.size <= 1
+    && requestedFocus.y + requestedFocus.size <= 1
+    ? requestedFocus
+    : { x: 0, y: 0, size: 1 };
 
   return {
     calibration,
     viewport,
+    focus,
     extent,
     offsetX,
     offsetY,
     toCanvas(point) {
       const normalized = worldToNormalized(calibration, point);
       return {
-        x: offsetX + normalized.x * extent,
-        y: offsetY + normalized.y * extent,
+        x: offsetX + ((normalized.x - focus.x) / focus.size) * extent,
+        y: offsetY + ((normalized.y - focus.y) / focus.size) * extent,
       };
     },
     toWorld(point) {
       if (extent === 0) {
         // No inverse exists; report the overview's top-left rather than NaN.
-        return { x: calibration.originX, y: calibration.originY };
+        return normalizedToWorld(calibration, { x: focus.x, y: focus.y });
       }
       return normalizedToWorld(calibration, {
-        x: (point.x - offsetX) / extent,
-        y: (point.y - offsetY) / extent,
+        x: focus.x + ((point.x - offsetX) / extent) * focus.size,
+        y: focus.y + ((point.y - offsetY) / extent) * focus.size,
       });
     },
     toCanvasLength(units) {
-      return (units / span) * extent;
+      return (units / span / focus.size) * extent;
     },
     toWorldLength(length) {
-      return extent === 0 ? 0 : (length / extent) * span;
+      return extent === 0 ? 0 : (length / extent) * span * focus.size;
     },
     covers(point) {
-      return coversNormalized(worldToNormalized(calibration, point));
+      const normalized = worldToNormalized(calibration, point);
+      return coversNormalized(normalized)
+        && normalized.x >= focus.x
+        && normalized.x <= focus.x + focus.size
+        && normalized.y >= focus.y
+        && normalized.y <= focus.y + focus.size;
     },
   };
 }

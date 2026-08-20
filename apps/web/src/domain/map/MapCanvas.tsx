@@ -61,7 +61,12 @@ import {
   type MapCalibration,
   type OverviewTransform,
 } from './mapCalibration';
-import { createMapProjection, type MapProjection } from './mapProjection';
+import {
+  createMapProjection,
+  fitWorldBounds,
+  type MapProjection,
+  type MapWorldBounds,
+} from './mapProjection';
 
 /**
  * The artboard's canvas is 720×720. It is a content box, not a panel column, so
@@ -115,6 +120,8 @@ export interface MapCanvasProps {
   readonly label: string;
   /** The page's basemap element. Nothing is loaded from this directory. */
   readonly basemap?: ReactNode | undefined;
+  /** Optional local world region to fill the canvas instead of the whole map. */
+  readonly focusBounds?: MapWorldBounds | null | undefined;
   readonly status?: MapCanvasStatus | undefined;
   /** Set to render the failure path; carries its own recovery action. */
   readonly error?: MapCanvasError | null | undefined;
@@ -182,6 +189,7 @@ export function MapCanvas({
   calibration,
   label,
   basemap,
+  focusBounds,
   status = 'ready',
   error,
   emptyDescription,
@@ -237,13 +245,37 @@ export function MapCanvas({
       />
     );
   } else {
-    const projection = createMapProjection(resolved, {
-      width: MAP_CANVAS_EXTENT,
-      height: MAP_CANVAS_EXTENT,
-    });
+    const focus =
+      focusBounds === null || focusBounds === undefined
+        ? { x: 0, y: 0, size: 1 }
+        : fitWorldBounds(resolved, focusBounds);
+    const projection = createMapProjection(
+      resolved,
+      {
+        width: MAP_CANVAS_EXTENT,
+        height: MAP_CANVAS_EXTENT,
+      },
+      focus,
+    );
+    const bounded = focus.size < 1;
+    const basemapStyle = {
+      width: `${100 / focus.size}%`,
+      height: `${100 / focus.size}%`,
+      left: `${(-focus.x / focus.size) * 100}%`,
+      top: `${(-focus.y / focus.size) * 100}%`,
+    };
     body = (
       <CanvasFrame>
-        {basemap === undefined ? null : <div className="absolute inset-0 overflow-hidden">{basemap}</div>}
+        {basemap === undefined ? null : (
+          <div
+            className="absolute inset-0 overflow-hidden"
+            data-map-basemap-viewport={bounded ? 'bounded' : 'full'}
+          >
+            <div className="absolute" style={basemapStyle}>
+              {basemap}
+            </div>
+          </div>
+        )}
         <svg
           viewBox={`0 0 ${MAP_CANVAS_EXTENT} ${MAP_CANVAS_EXTENT}`}
           className="absolute inset-0 block size-full"
@@ -251,6 +283,8 @@ export function MapCanvas({
           aria-label={label}
           aria-describedby={captionId}
           data-map={resolved.mapName}
+          data-map-focus={bounded ? 'bounded' : 'full'}
+          data-map-focus-size={focus.size}
         >
           <title>{label}</title>
           {basemap === undefined ? (

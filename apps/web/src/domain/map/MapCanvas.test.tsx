@@ -28,6 +28,19 @@ describe('MapCanvas', () => {
     expect(html).not.toContain('http');
   });
 
+  it('crops the basemap and projection to an explicitly focused world region', () => {
+    const html = renderMarkup(
+      <MapCanvas
+        mapName="de_mirage"
+        label="Mirage local shot"
+        basemap={<div data-testid="page-basemap" />}
+        focusBounds={{ minimum: { x: -1800, y: 600 }, maximum: { x: -1400, y: 1000 } }}
+      />,
+    );
+    expect(html).toContain('data-map-focus="bounded"');
+    expect(html).toContain('data-map-basemap-viewport="bounded"');
+  });
+
   it('hands the projection to a render-callback child', () => {
     let seen: MapProjection | null = null;
     renderMarkup(

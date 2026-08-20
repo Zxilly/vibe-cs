@@ -14,6 +14,7 @@ import type { DependencyCheck } from '../../shared/desktop/dto';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { RecordingPlanWorkspace } from '../RecordingPage';
 import { RouteLink } from '../RouteLink';
+import { settingsPath } from '../settings/settingsRoutes';
 import { TaskFeedList } from '../delivery/TaskFeedList';
 import { TASK_POLL_DETAIL_MS } from '../delivery/taskPolling';
 import { useTaskActions } from '../delivery/useTaskActions';
@@ -68,7 +69,7 @@ export function ProjectRecordingStep({
         checks={checks.data?.checks ?? []}
         error={dataErrorMessage(checks.error)}
         onReload={() => void checks.refetch()}
-        onSettings={() => void navigate('/settings?section=game')}
+        onSettings={() => void navigate(settingsPath('game'))}
       />
 
       {showPlanner ? (
@@ -85,7 +86,7 @@ export function ProjectRecordingStep({
             <span className="text-xs text-neutral-600"><Trans>{project.recordingTasks.length} 个任务</Trans></span>
             <div className="flex-1" aria-hidden="true" />
             <RouteLink to={`${recordPath}&prepare=1`} size="sm"><Trans>准备新的录制</Trans></RouteLink>
-            <RouteLink to="/settings?section=game" size="sm"><Trans>录制设置</Trans></RouteLink>
+            <RouteLink to={settingsPath('recording-defaults')} size="sm"><Trans>录制设置</Trans></RouteLink>
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto">
             <TaskFeedList

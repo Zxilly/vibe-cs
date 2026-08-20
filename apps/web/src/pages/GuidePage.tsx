@@ -41,6 +41,7 @@ import { useServiceAction } from '../data/serviceAction';
 import type { DependencyCheck, DependencyState } from '../shared/desktop/dto';
 import { FIRST_RUN_STEPS } from './home/firstRunSteps';
 import { RouteLink } from './RouteLink';
+import { settingsPath } from './settings/settingsRoutes';
 
 export function GuidePage() {
   const checks = useQuickCheck();
@@ -126,7 +127,7 @@ export function GuidePage() {
           <p className="text-xs leading-normal text-neutral-600">
             <Trans>
               逐项的原始状态与路径校验在
-              <RouteLink to="/settings?section=advanced">设置 · 高级与诊断</RouteLink>。
+              <RouteLink to={settingsPath('dependencies')}>设置 · 高级与诊断</RouteLink>。
             </Trans>
           </p>
         </section>

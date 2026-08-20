@@ -111,6 +111,7 @@ export function GameSection() {
       )}
 
       <SettingsBlock
+        id="game"
         title={<Trans>游戏</Trans>}
         description={<Trans>这些设置决定视频怎么被录出来。改动只影响之后新建的录制任务。</Trans>}
       >
@@ -178,7 +179,7 @@ export function GameSection() {
         )}
       </SettingsBlock>
 
-      <SettingsBlock title={<Trans>录制默认值</Trans>}>
+      <SettingsBlock id="recording-defaults" title={<Trans>录制默认值</Trans>}>
         {current === undefined ? (
           <Skeleton />
         ) : (
@@ -242,6 +243,7 @@ export function GameSection() {
       </SettingsBlock>
 
       <SettingsBlock
+        id="video-output"
         title={<Trans>成品生成能力</Trans>}
         description={<Trans>这台机器能不能写出成片。检查的是本机的编码器，不是设置。</Trans>}
       >

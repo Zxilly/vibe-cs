@@ -29,15 +29,21 @@ import type { ReactNode } from 'react';
 import { Toggle } from '../../design/primitives';
 
 export interface SettingsBlockProps {
+  /** Stable deep-link target used by `/settings?section=…&item=…`. */
+  readonly id?: string | undefined;
   readonly title: ReactNode;
   /** The paragraph under the heading — what this whole block decides. */
   readonly description?: ReactNode | undefined;
   readonly children: ReactNode;
 }
 
-export function SettingsBlock({ title, description, children }: SettingsBlockProps) {
+export function SettingsBlock({ id, title, description, children }: SettingsBlockProps) {
   return (
-    <section className="flex flex-col gap-4 border-b border-divider px-5 py-5 last:border-b-0">
+    <section
+      {...(id === undefined ? {} : { id: `setting-${id}`, 'data-setting-item': id })}
+      {...(id === undefined ? {} : { tabIndex: -1 })}
+      className="flex flex-col gap-4 border-b border-divider px-5 py-5 last:border-b-0"
+    >
       <div className="flex flex-col gap-1">
         <h2 className="text-base font-medium">{title}</h2>
         {description === undefined ? null : (

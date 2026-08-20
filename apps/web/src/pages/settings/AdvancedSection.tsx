@@ -56,6 +56,7 @@ export function AdvancedSection() {
   return (
     <div className="flex flex-col">
       <SettingsBlock
+        id="runtime"
         title={<Trans>运行时</Trans>}
         description={<Trans>本地服务当前的状态。</Trans>}
       >
@@ -100,6 +101,7 @@ export function AdvancedSection() {
       </SettingsBlock>
 
       <SettingsBlock
+        id="dependencies"
         title={<Trans>依赖检查</Trans>}
         description={<Trans>路径、进程与编码器的逐项检查。</Trans>}
       >
@@ -151,6 +153,7 @@ export function AdvancedSection() {
       </SettingsBlock>
 
       <SettingsBlock
+        id="capture"
         title={<Trans>采集组件</Trans>}
         description={<Trans>受管 HLAE 的安装状态与安全边界。</Trans>}
       >
@@ -196,6 +199,7 @@ export function AdvancedSection() {
       </SettingsBlock>
 
       <SettingsBlock
+        id="diagnostics"
         title={<Trans>日志与诊断包</Trans>}
         description={<Trans>普通使用不需要打开这一节。</Trans>}
       >

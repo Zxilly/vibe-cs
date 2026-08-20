@@ -81,7 +81,7 @@ export function AppSection() {
         </Alert>
       )}
 
-      <SettingsBlock title={<Trans>外观与语言</Trans>}>
+      <SettingsBlock id="appearance" title={<Trans>外观与语言</Trans>}>
         {current === undefined ? (
           <Skeleton />
         ) : (
@@ -126,7 +126,7 @@ export function AppSection() {
         )}
       </SettingsBlock>
 
-      <SettingsBlock title={<Trans>更新</Trans>}>
+      <SettingsBlock id="updates" title={<Trans>更新</Trans>}>
         {current === undefined ? (
           <Skeleton />
         ) : (

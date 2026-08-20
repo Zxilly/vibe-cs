@@ -181,7 +181,7 @@ export function AiAgentSection() {
         onRetry={() => void config.refetch()}
       />
 
-      <Block title={<Trans>对话</Trans>}>
+      <Block id="conversations" title={<Trans>对话</Trans>}>
         {settingsError !== null ? (
           <Alert
             variant="danger"
@@ -252,7 +252,7 @@ export function AiAgentSection() {
         />
       </Block>
 
-      <Block title={<Trans>行为边界</Trans>}>
+      <Block id="behavior" title={<Trans>行为边界</Trans>}>
         <div className="flex items-center gap-3.5">
           <div className="min-w-0 flex-1">
             <p className="text-base">
@@ -391,9 +391,9 @@ export function AiAgentSection() {
 /* ── the three blocks ────────────────────────────────────────────────────── */
 
 /** The artboard's bordered block: a 34px head with a tracked label, then body. */
-function Block({ title, children }: { title: ReactNode; children: ReactNode }) {
+function Block({ id, title, children }: { id: string; title: ReactNode; children: ReactNode }) {
   return (
-    <section className="border border-divider">
+    <section id={`setting-${id}`} data-setting-item={id} tabIndex={-1} className="border border-divider">
       <h3 className="flex h-[var(--h-panel-head)] items-center border-b border-divider px-3 font-heading text-sm tracking-wider">
         {title}
       </h3>
@@ -425,7 +425,7 @@ interface ModelBlockProps {
  */
 function ModelBlock({ provider, model, hasApiKey, loading, error, onRetry }: ModelBlockProps) {
   return (
-    <Block title={<Trans>模型</Trans>}>
+    <Block id="model" title={<Trans>模型</Trans>}>
       {error !== null ? (
         <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
           <Trans>读不到模型配置：{error}</Trans>

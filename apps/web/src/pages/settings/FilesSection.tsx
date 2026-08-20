@@ -95,6 +95,7 @@ export function FilesSection() {
       )}
 
       <SettingsBlock
+        id="storage"
         title={<Trans>数据目录</Trans>}
         description={<Trans>录制结果、导出成片和应用自己的数据都放在这里。</Trans>}
       >
@@ -175,6 +176,7 @@ export function FilesSection() {
       </SettingsBlock>
 
       <SettingsBlock
+        id="watch-folders"
         title={<Trans>监听目录</Trans>}
         description={<Trans>这些文件夹里出现新的 Demo 会被自动收进资料库。</Trans>}
       >

@@ -122,7 +122,7 @@ describe('使用引导', () => {
   it('points at the diagnostics section for the raw states', async () => {
     render(<GuidePage />);
     await screen.findByText('这台机器现在能做什么');
-    expect(document.querySelector('a[href="/settings?section=advanced"]')).not.toBeNull();
+    expect(document.querySelector('a[href="/settings?section=advanced&item=dependencies"]')).not.toBeNull();
   });
 
   it('offers a re-check, disabled with a reason while the service is down', async () => {

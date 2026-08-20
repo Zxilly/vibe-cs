@@ -41,6 +41,7 @@ import type {
   DependencyKind,
   DependencyState,
 } from '../../shared/desktop/dto';
+import { settingsPath } from '../settings/settingsRoutes';
 
 /** The state that stops work. See the module comment. */
 const BLOCKING_STATE: DependencyState = 'missing';
@@ -67,7 +68,7 @@ export function EnvironmentNotice() {
           label: <Trans>去设置</Trans>,
           /* Through the router, not `location.hash`: the app is in hash mode and
              writing the hash directly skips every guard the router runs. */
-          onAction: () => void navigate('/settings?section=game'),
+          onAction: () => void navigate(settingsPath('game')),
         }}
         detail={
           <ul className="flex flex-col gap-1">

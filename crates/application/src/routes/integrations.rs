@@ -182,7 +182,6 @@ async fn llm_test(
 }
 
 async fn gsi_status(State(state): State<AppState>) -> ApiResult<Json<Value>> {
-    ensure_game_configured(&state).await?;
     Ok(Json(
         state
             .integrations
@@ -228,7 +227,6 @@ async fn gsi_install(
     State(state): State<AppState>,
     ApiJson(mut request): ApiJson<Value>,
 ) -> ApiResult<Json<Value>> {
-    ensure_game_configured(&state).await?;
     let object = request
         .as_object_mut()
         .ok_or_else(|| ApiError::invalid("GSI installation request must be a JSON object"))?;
@@ -245,14 +243,12 @@ async fn gsi_remove(
     State(state): State<AppState>,
     ApiJson(request): ApiJson<Value>,
 ) -> ApiResult<Json<Value>> {
-    ensure_game_configured(&state).await?;
     Ok(Json(
         state.integrations.request("gsi_remove", request).await?,
     ))
 }
 
 async fn recovery_status(State(state): State<AppState>) -> ApiResult<Json<Value>> {
-    ensure_game_configured(&state).await?;
     Ok(Json(
         state
             .integrations
@@ -265,7 +261,6 @@ async fn recovery_restore(
     State(state): State<AppState>,
     ApiJson(request): ApiJson<Value>,
 ) -> ApiResult<Json<Value>> {
-    ensure_game_configured(&state).await?;
     Ok(Json(
         state
             .integrations
@@ -281,14 +276,6 @@ async fn ensure_llm_configured(state: &AppState) -> ApiResult<()> {
         || config.llm.api_key.trim().is_empty()
     {
         return Err(ApiError::dependency("LLM provider"));
-    }
-    Ok(())
-}
-
-async fn ensure_game_configured(state: &AppState) -> ApiResult<()> {
-    let config = state.storage.get_config().await?.unwrap_or_default();
-    if config.cs2_path.trim().is_empty() {
-        return Err(ApiError::dependency("game installation"));
     }
     Ok(())
 }
@@ -403,6 +390,23 @@ mod tests {
         assert_eq!(
             requests.as_slice(),
             &[("demo_playback_status".to_owned(), Value::Null)]
+        );
+    }
+
+    #[tokio::test]
+    async fn recovery_status_does_not_require_a_persisted_game_path() {
+        let integrations = Arc::new(CapturingIntegrations::default());
+        let (_directory, state) = test_state(Arc::clone(&integrations)).await;
+
+        let response = recovery_status(State(state))
+            .await
+            .expect("recovery status");
+
+        assert_eq!(response.0["accepted"], true);
+        let requests = integrations.requests.lock().await;
+        assert_eq!(
+            requests.as_slice(),
+            &[("config_backup_status".to_owned(), Value::Null)]
         );
     }
 

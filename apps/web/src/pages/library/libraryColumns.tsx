@@ -209,7 +209,7 @@ function RowAction({
       {...handlers.createButtonProps}
       onClick={() => handlers.onCreateProject(demo)}
     >
-      <Trans>新建作品</Trans>
+      <Trans>用 Agent 制作</Trans>
     </Button>
   );
 

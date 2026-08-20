@@ -189,6 +189,7 @@ function tree(queryClient: QueryClient, at: string, client: DesktopClient): Reac
             <Routes>
               <Route path="/library" element={<LibraryPage />} />
               <Route path="/match/:demoId" element={<span data-workspace />} />
+              <Route path="/projects/:projectId" element={<span data-project-workspace />} />
             </Routes>
           </MemoryRouter>
         </DesktopClientProvider>

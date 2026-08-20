@@ -91,7 +91,7 @@ describe('library acquisition and layout views', () => {
 });
 
 describe('new project from a material row', () => {
-  it('creates a plan directly from the match and opens its selection step', async () => {
+  it('creates a plan directly from the match and opens the Agent composer', async () => {
     const created: unknown[] = [];
     renderLibrary({
       seed: ONLINE,
@@ -108,9 +108,10 @@ describe('new project from a material row', () => {
       },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '新建作品' }));
+    fireEvent.click(screen.getByRole('button', { name: '用 Agent 制作' }));
     await waitFor(() => expect(created).toHaveLength(1));
     expect(created[0]).toMatchObject({ title: 'Aurora vs Meridian', shots: [] });
+    await waitFor(() => expect(document.querySelector('[data-project-workspace]')).not.toBeNull());
   });
 });
 

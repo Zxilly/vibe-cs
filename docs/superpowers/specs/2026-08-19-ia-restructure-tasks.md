@@ -339,14 +339,14 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 
 ### IA-19 Demo + 首句启动
 
-- [~] **状态**
+- [x] **状态**
 - 建什么：Demo 行动作直达关联作品的 Agent 剪辑单；作品把主 Demo、作品 id、剪辑单 id/修订注入 Agent；无对话时输入第一句自动创建、命名并立即发送，不再要求先点「新建对话」。
 - 验收标准：
-  - [ ] Demo 行主创作动作直接落到 `step=shotlist`
-  - [ ] 首句发送只需一次用户动作，并创建一条可在历史中继续的对话
-  - [ ] `AgentChatInput` 带正确 `demoId`、`workspaceContext.projectId`、plan id/revision
-  - [ ] 创建成功但模型失败时，问题与重试入口仍保留
-  - [ ] 新作品不再同时显示「没有对话」与「没有剪辑单」两个竞争空态
+  - [x] Demo 行主创作动作直接落到 `step=shotlist`
+  - [x] 首句发送只需一次用户动作，并创建一条可在历史中继续的对话
+  - [x] `AgentChatInput` 带正确 `demoId`、`workspaceContext.projectId`、plan id/revision
+  - [x] 创建成功但模型失败时，问题与重试入口仍保留
+  - [x] 新作品不再同时显示「没有对话」与「没有剪辑单」两个竞争空态
 
 ### IA-20 统一准备检查与创作层级
 
@@ -416,3 +416,7 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
   - [ ] 三种制作方式的可转换方向、复制语义和不可逆边界有测试
   - [ ] Tauri WebView2 CDP + agent-browser 真实闭环截图与日志留证
   - [ ] `pnpm lint && pnpm typecheck && pnpm test`、Rust 测试、i18n 目录全部通过
+
+### 阶段 7 执行日志
+
+- 2026-08-20, IA-19:Demo 行直达 Agent 剪辑单，首句自动创建并命名对话；请求显式携带 Demo、作品、剪辑单 id/修订，Desktop 在模型调用前读取并校验真实剪辑单；初始双空态合并为单一启动画布。lint、typecheck、357 个测试文件/4270 项前端测试与 Desktop 44 项测试通过；真实 Tauri CDP 验证模型未配置时用户原句和重试入口保留，证据见 `docs/superpowers/evidence/2026-08-20-ia-19/`；无偏离。

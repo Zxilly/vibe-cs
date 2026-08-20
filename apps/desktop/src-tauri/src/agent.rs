@@ -570,7 +570,11 @@ pub(crate) struct AgentWorkspaceContext {
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub(crate) demo_id: Option<Uuid>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
-    pub(crate) project_id: Option<Uuid>,
+    pub(crate) project_id: Option<String>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) plan_id: Option<Uuid>,
+    #[serde(deserialize_with = "deserialize_required_nullable")]
+    pub(crate) plan_revision: Option<i64>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub(crate) player_id: Option<String>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
@@ -797,9 +801,15 @@ fn validate_workspace_context(input: &AgentChatInput) -> Result<(), AgentCommand
         .is_some_and(|value| value.len() != 17 || !value.bytes().all(|byte| byte.is_ascii_digit()))
         || context.round_number == Some(0)
         || context.demo_id.is_some_and(|id| Some(id) != input.demo_id)
-        || context
-            .project_id
-            .is_some_and(|id| Some(id) != input.editor_project_id)
+        || context.project_id.as_deref().is_some_and(|id| {
+            id.is_empty()
+                || id.len() > 200
+                || input
+                    .editor_project_id
+                    .is_some_and(|editor_id| id != editor_id.to_string())
+        })
+        || context.plan_id.is_some() != context.plan_revision.is_some()
+        || context.plan_revision.is_some_and(|revision| revision < 1)
     {
         return Err(AgentCommandError::invalid(
             "agent workspace context is outside the supported bounds",
@@ -936,6 +946,28 @@ async fn run_agent_chat(
         .map_err(|error| AgentCommandError::internal(error.to_string()))?,
         None => Value::Null,
     };
+    let agent_plan = match input.workspace_context.plan_id {
+        Some(id) => {
+            let plan = state
+                .storage
+                .get_agent_plan(id)
+                .await
+                .map_err(|error| {
+                    AgentCommandError::internal(format!(
+                        "unable to read selected agent plan: {error}"
+                    ))
+                })?
+                .ok_or_else(|| AgentCommandError::invalid("selected agent plan does not exist"))?;
+            if Some(plan.revision) != input.workspace_context.plan_revision {
+                return Err(AgentCommandError::invalid(
+                    "selected agent plan changed before the request started",
+                ));
+            }
+            serde_json::to_value(plan)
+                .map_err(|error| AgentCommandError::internal(error.to_string()))?
+        }
+        None => Value::Null,
+    };
     let selected_audio = match input.audio_asset_id {
         Some(id) => {
             let asset = state.storage.get_asset(id).await.map_err(|error| {
@@ -1010,6 +1042,11 @@ async fn run_agent_chat(
             &analysis,
         )) as Arc<dyn AgentToolHost>
     });
+    let mut workspace = serde_json::to_value(&input.workspace_context)
+        .map_err(|error| AgentCommandError::internal(error.to_string()))?;
+    if let Some(object) = workspace.as_object_mut() {
+        object.insert("plan".to_owned(), agent_plan);
+    }
     let request = EmbeddedAgentRequest {
         request_id: input.request_id.to_string(),
         mode: input.mode,
@@ -1023,8 +1060,7 @@ async fn run_agent_chat(
             custom_instructions: config.llm.prompt,
         },
         context: EmbeddedAgentContext {
-            workspace: serde_json::to_value(&input.workspace_context)
-                .map_err(|error| AgentCommandError::internal(error.to_string()))?,
+            workspace,
             demo: summarize_demo(&demo),
             analysis: summarized_analysis,
             map_context,
@@ -1860,6 +1896,8 @@ mod tests {
                 "destination": "review",
                 "demoId": null,
                 "projectId": null,
+                "planId": null,
+                "planRevision": null,
                 "playerId": null,
                 "roundNumber": null,
                 "tick": null
@@ -1888,7 +1926,15 @@ mod tests {
             );
         }
 
-        for field in ["demoId", "projectId", "playerId", "roundNumber", "tick"] {
+        for field in [
+            "demoId",
+            "projectId",
+            "planId",
+            "planRevision",
+            "playerId",
+            "roundNumber",
+            "tick",
+        ] {
             let mut missing = current.clone();
             missing["workspaceContext"]
                 .as_object_mut()
@@ -1916,6 +1962,8 @@ mod tests {
                 destination: AgentWorkspaceDestination::Replay,
                 demo_id: Some(other_demo_id),
                 project_id: None,
+                plan_id: None,
+                plan_revision: None,
                 player_id: Some("76561198000000001".to_owned()),
                 round_number: Some(7),
                 tick: Some(640),

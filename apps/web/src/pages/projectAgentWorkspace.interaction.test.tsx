@@ -40,7 +40,7 @@ describe('Agent mode inside the project shot-list step', () => {
 
     await waitFor(() => expect(container.querySelector('[data-agent-workspace]')).not.toBeNull());
     expect(container.querySelector('[data-agent-block="conversation"]')).not.toBeNull();
-    expect(screen.getByRole('radio', { name: '变更列表' })).toBeTruthy();
+    expect(await screen.findByRole('radio', { name: '变更列表' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: '就地编辑' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: '候选镜头' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /会话历史/u })).toBeTruthy();
@@ -49,7 +49,7 @@ describe('Agent mode inside the project shot-list step', () => {
     expect(document.body.textContent).toContain(`修订 ${String(PLAN.revision)}`);
   });
 
-  it('opens a new project directly in an empty Agent conversation workspace', async () => {
+  it('opens a new project on one start canvas without competing empty panels', async () => {
     const { container } = renderPage({
       element: <ProjectWorkspacePage />,
       client: { ...client(), listAgentPlans: () => Promise.resolve([]) },
@@ -58,7 +58,10 @@ describe('Agent mode inside the project shot-list step', () => {
     });
 
     await waitFor(() => expect(container.querySelector('[data-agent-workspace]')).not.toBeNull());
-    expect(screen.getByText('还没有选择对话')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /新建对话/u })).toBeTruthy();
+    expect(screen.getByText('告诉 Agent 你想要什么视频')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /写一句需求/u })).toBeTruthy();
+    expect(container.querySelector('[data-agent-start-canvas]')).not.toBeNull();
+    expect(screen.queryByText('还没有选中剪辑单')).toBeNull();
+    expect(screen.queryByRole('radio', { name: '变更列表' })).toBeNull();
   });
 });

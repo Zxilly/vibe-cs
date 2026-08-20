@@ -274,7 +274,7 @@ describe('the instruction bar', () => {
     fireEvent.change(box, { target: { value: '  把它压到 30 秒以内  ' } });
     fireEvent.click(screen.getByRole('button', { name: '生成变更' }));
 
-    expect(chat.send).toHaveBeenCalledWith({ message: '把它压到 30 秒以内' });
+    expect(chat.send).toHaveBeenCalledWith({ message: '把它压到 30 秒以内', sessionId: 'S-1' });
     expect((box as HTMLTextAreaElement).value).toBe('');
   });
 

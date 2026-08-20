@@ -65,8 +65,9 @@ describe('the three blocks', () => {
     expect(html).toContain('data-agent-mode="takes"');
   });
 
-  it('renders the plan panel as the page\'s companion column', () => {
-    // The §3.5 token, in the real pixels `SplitPane` now opens at.
-    expect(at('/agent')).toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-inspector-wide'])}px`);
+  it('uses one start canvas until a plan or proposal exists', () => {
+    const html = at('/agent');
+    expect(html).toContain('data-agent-start-canvas');
+    expect(html).not.toContain(`flex-basis:${String(PANEL_WIDTH_PX['--w-inspector-wide'])}px`);
   });
 });

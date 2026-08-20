@@ -192,7 +192,7 @@ function DemoLibraryPage() {
           highlightId: null, evidenceId: null, startTick: null, endTick: null,
           addedAt: new Date().toISOString(),
         });
-        void navigate(`/projects/${encodeURIComponent(projectId)}?step=select`);
+        void navigate(`/projects/${encodeURIComponent(projectId)}?step=shotlist`);
       })
       .catch(() => undefined);
   };

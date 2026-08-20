@@ -96,10 +96,19 @@ export interface AgentWorkspaceProps {
   readonly embedded?: boolean | undefined;
   /** `undefined` follows the query (new project); a string pins an existing project plan. */
   readonly planId?: string | null | undefined;
+  /** The work wrapper and primary Demo are injected by the project workspace. */
+  readonly projectId?: string | null | undefined;
+  readonly demoId?: string | null | undefined;
   readonly recordingTarget?: string | undefined;
 }
 
-export function AgentWorkspace({ embedded = false, planId, recordingTarget }: AgentWorkspaceProps) {
+export function AgentWorkspace({
+  embedded = false,
+  planId,
+  projectId = null,
+  demoId = null,
+  recordingTarget,
+}: AgentWorkspaceProps) {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const { i18n } = useLingui();
@@ -236,7 +245,19 @@ export function AgentWorkspace({ embedded = false, planId, recordingTarget }: Ag
     ...chatStream,
     send: async (input) => {
       await editNotifier.flush('send-message');
-      await chatStream.send(input);
+      await chatStream.send({
+        ...input,
+        demoId: input.demoId ?? demoId,
+        workspaceContext: {
+          ...input.workspaceContext,
+          workflow: 'edit',
+          destination: 'edit',
+          demoId: input.workspaceContext?.demoId ?? input.demoId ?? demoId,
+          projectId: input.workspaceContext?.projectId ?? projectId,
+          planId: planData?.id ?? null,
+          planRevision: planData?.revision ?? null,
+        },
+      });
     },
   };
 
@@ -269,6 +290,10 @@ export function AgentWorkspace({ embedded = false, planId, recordingTarget }: Ag
      is not rendered once §8 folds it into 「更多」, and a drawer parked inside
      that control would unmount as the window narrowed. */
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const hasPlanProposal = sessionData?.entries.some(
+    (entry) => entry.kind === 'assistant' && entry.proposals.length > 0,
+  ) ?? false;
+  const showPlanPane = (planData?.shots.length ?? 0) > 0 || hasPlanProposal;
 
   return (
     <AgentFrame
@@ -359,15 +384,21 @@ export function AgentWorkspace({ embedded = false, planId, recordingTarget }: Ag
           }}
         />
       )}
-      <SplitPane
-        className="min-h-0 flex-1"
-        asideWidth="inspector-wide"
-        storageId="agent-plan"
-        asideLabel={t`方案面板`}
-        aside={<PlanPanel {...blockProps} />}
-      >
-        <AgentConversationBlock {...blockProps} />
-      </SplitPane>
+      {showPlanPane ? (
+        <SplitPane
+          className="min-h-0 flex-1"
+          asideWidth="inspector-wide"
+          storageId="agent-plan"
+          asideLabel={t`剪辑单面板`}
+          aside={<PlanPanel {...blockProps} />}
+        >
+          <AgentConversationBlock {...blockProps} />
+        </SplitPane>
+      ) : (
+        <div data-agent-start-canvas="" className="flex min-h-0 flex-1">
+          <AgentConversationBlock {...blockProps} />
+        </div>
+      )}
       {/* Block C: the session drawer and 新建会话与引用. Mounted only while
           open, so `/agent` does not fetch a session list nobody asked for. */}
       <AgentSessionsBlock

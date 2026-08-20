@@ -64,6 +64,7 @@ interface Bridge {
   /** Resolves the open `streamAgentChat` call. */
   finish: () => void;
   readonly cancelled: string[];
+  readonly inputs: unknown[];
 }
 
 function bridge(entries: readonly AgentSessionEntry[]): Bridge {
@@ -71,6 +72,7 @@ function bridge(entries: readonly AgentSessionEntry[]): Bridge {
   const sessions = new Map<string, AgentSession>();
   const reached: string[] = [];
   const cancelled: string[] = [];
+  const inputs: unknown[] = [];
   let onEvent: ((event: AgentEvent) => void) | null = null;
   let resolveStream: (() => void) | null = null;
   let nextEntry = 100;
@@ -94,6 +96,7 @@ function bridge(entries: readonly AgentSessionEntry[]): Bridge {
     health: () => Promise.resolve({ status: 'ok' }),
     getAgentPlan: () => Promise.resolve(plan),
     listAgentPlans: () => Promise.resolve([]),
+    createAgentSession: (title: string) => Promise.resolve(session('S-auto')).then((created) => ({ ...created, title })),
     getAgentSession: (sessionId: string) => Promise.resolve(session(sessionId)),
     appendAgentSessionEntry: (sessionId: string, draft: AgentSessionEntryDraft) => {
       nextEntry += 1;
@@ -112,7 +115,8 @@ function bridge(entries: readonly AgentSessionEntry[]): Bridge {
       sessions.set(sessionId, { ...current, entries: [...current.entries, entry] });
       return Promise.resolve(entry);
     },
-    streamAgentChat: (_input: unknown, handler: (event: AgentEvent) => void) => {
+    streamAgentChat: (input: unknown, handler: (event: AgentEvent) => void) => {
+      inputs.push(input);
       onEvent = handler;
       return new Promise((resolve) => {
         resolveStream = () => resolve({ requestId: 'r', text: '' });
@@ -135,6 +139,7 @@ function bridge(entries: readonly AgentSessionEntry[]): Bridge {
     client,
     reached,
     cancelled,
+    inputs,
     setPlanRevision: (revision) => {
       plan = planFixture(revision);
     },
@@ -169,7 +174,11 @@ function SwitchSession() {
   );
 }
 
-function mount(harness: Bridge, url: string) {
+function mount(
+  harness: Bridge,
+  url: string,
+  context: { readonly projectId?: string; readonly demoId?: string } = {},
+) {
   return renderInteractive(
     <DesktopClientProvider client={harness.client}>
       <MemoryRouter initialEntries={[url]}>
@@ -180,7 +189,7 @@ function mount(harness: Bridge, url: string) {
               <>
                 <CaptureClient />
                 <SwitchSession />
-                <AgentWorkspace />
+                <AgentWorkspace {...context} />
               </>
             }
           />
@@ -192,6 +201,35 @@ function mount(harness: Bridge, url: string) {
 
 beforeEach(() => {
   queryClient = null;
+});
+
+describe('the first sentence starts the work', () => {
+  it('creates a session and sends with Demo, work and plan context in one action', async () => {
+    const harness = bridge([]);
+    mount(harness, '/agent?plan=P-118&mode=changes', {
+      projectId: 'plan:P-118',
+      demoId: 'demo-1',
+    });
+
+    await screen.findByRole('textbox');
+    await serviceOnline();
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: '剪一条 40 秒、突出残局的视频' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '生成变更' }));
+
+    await waitFor(() => expect(harness.reached).toContain('streamAgentChat'));
+    expect(harness.reached).toContain('createAgentSession');
+    expect(harness.inputs[0]).toMatchObject({
+      demoId: 'demo-1',
+      workspaceContext: {
+        demoId: 'demo-1',
+        projectId: 'plan:P-118',
+        planId: 'P-118',
+        planRevision: 6,
+      },
+    });
+  });
 });
 
 /**

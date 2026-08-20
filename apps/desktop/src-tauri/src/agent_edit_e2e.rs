@@ -356,6 +356,8 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
             destination: AgentWorkspaceDestination::Edit,
             demo_id: Some(demo_id),
             project_id: None,
+            plan_id: None,
+            plan_revision: None,
             player_id: None,
             round_number: None,
             tick: None,

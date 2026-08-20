@@ -176,6 +176,8 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
         <AgentWorkspace
           embedded
           {...(project.id === 'new' ? {} : { planId: project.source.id })}
+          projectId={project.id}
+          demoId={project.demoIds[0] ?? null}
           recordingTarget={`/projects/${encodeURIComponent(project.id)}?step=record&prepare=1`}
         />
       ) : project.source.kind === 'montage' ? (

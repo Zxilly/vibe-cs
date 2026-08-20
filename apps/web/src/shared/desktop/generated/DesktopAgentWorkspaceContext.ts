@@ -7,6 +7,8 @@ export type DesktopAgentWorkspaceContext = {
   destination: DesktopAgentWorkspaceDestination;
   demoId: string | null;
   projectId: string | null;
+  planId: string | null;
+  planRevision: number | null;
   playerId: string | null;
   roundNumber: number | null;
   tick: number | null;

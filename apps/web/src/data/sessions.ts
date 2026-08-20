@@ -337,6 +337,8 @@ export function useApplyAgentSessionRetention() {
 /** What the composer hands `send`. Everything but the text is context. */
 export interface AgentChatSend {
   readonly message: string;
+  /** Overrides the selected session for the first atomic create-and-send action. */
+  readonly sessionId?: string | undefined;
   readonly mode?: AgentChatInput['mode'];
   readonly demoId?: string | null;
   readonly editorProjectId?: string | null;
@@ -408,7 +410,8 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
 
   const send = useCallback(
     async (input: AgentChatSend) => {
-      if (sessionId === null || streaming) return;
+      const targetSessionId = input.sessionId ?? sessionId;
+      if (targetSessionId === null || streaming) return;
 
       const requestId = createRequestId();
       requestIdRef.current = requestId;
@@ -418,7 +421,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
 
       // The user entry is written first, so a failed stream still leaves the
       // question in the transcript rather than losing what the user typed.
-      await client.appendAgentSessionEntry(sessionId, {
+      await client.appendAgentSessionEntry(targetSessionId, {
         kind: 'user',
         content: input.message,
       });
@@ -478,7 +481,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         return;
       }
 
-      await client.appendAgentSessionEntry(sessionId, {
+      await client.appendAgentSessionEntry(targetSessionId, {
         kind: 'assistant',
         content: text,
         tool_calls: toolCalls.map((call) => ({
@@ -526,6 +529,8 @@ function buildChatInput(requestId: string, input: AgentChatSend): AgentChatInput
       destination: context.destination ?? 'neutral',
       demoId: context.demoId ?? input.demoId ?? null,
       projectId: context.projectId ?? input.editorProjectId ?? null,
+      planId: context.planId ?? null,
+      planRevision: context.planRevision ?? null,
       playerId: context.playerId ?? null,
       roundNumber: context.roundNumber ?? null,
       tick: context.tick ?? null,

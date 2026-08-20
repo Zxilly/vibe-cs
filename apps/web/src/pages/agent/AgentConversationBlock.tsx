@@ -190,21 +190,27 @@ export const AgentConversationBlock: AgentBlock = ({
   }, []);
 
   const send = useCallback(
-    (message: string) => {
+    async (message: string) => {
       lastMessageRef.current = message;
+      let sessionId = context.session;
+      if (sessionId === null) {
+        const created = await createSession.mutateAsync(sessionTitle(message, planData?.title));
+        sessionId = created.id;
+        updateContext({ session: sessionId });
+      }
       setDraft('');
       /* `chat.send` is the shell's wrapper: it flushes the edit notifier first,
          so the model reads the manual edit before the question about it. */
-      void chat.send({ message });
+      await chat.send({ message, sessionId });
     },
-    [chat],
+    [chat, context.session, createSession, planData?.title, updateContext],
   );
 
   const sendDisabledReason =
     service.blocked
       ? service.buttonProps.disabledReason
-      : context.session === null
-        ? t`先选择或新建一条对话`
+      : createSession.isPending
+        ? t`正在准备对话`
         : chat.streaming
           ? t`Agent 正在回答，先等它说完或点停止`
           : undefined;
@@ -237,8 +243,9 @@ export const AgentConversationBlock: AgentBlock = ({
       data-agent-mode={context.mode}
       className="flex min-h-0 min-w-0 flex-1 flex-col"
     >
-      <div className="flex flex-none flex-col gap-2 border-b border-divider p-3.5">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {hasChangeSets || shots.length > 0 ? (
+        <div className="flex flex-none flex-col gap-2 border-b border-divider p-3.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Seg
             name="agent-conversation-mode"
             value={context.mode}
@@ -255,20 +262,21 @@ export const AgentConversationBlock: AgentBlock = ({
               {i18n._(AGENT_MODE[context.mode].hint)}
             </p>
           )}
-        </div>
+          </div>
 
-        <Head
-          context={context}
-          updateContext={updateContext}
-          plan={headPlan}
-          planPending={context.plan !== null && plan.isPending}
-          pendingChanges={pendingChanges}
-          staleChanges={staleChanges}
-          selectedShotId={selectedShot === null ? null : selectedShot.id}
-          onSelectShot={onSelectShot}
-          collapsed={collapsed}
-        />
-      </div>
+          <Head
+            context={context}
+            updateContext={updateContext}
+            plan={headPlan}
+            planPending={context.plan !== null && plan.isPending}
+            pendingChanges={pendingChanges}
+            staleChanges={staleChanges}
+            selectedShotId={selectedShot === null ? null : selectedShot.id}
+            onSelectShot={onSelectShot}
+            collapsed={collapsed}
+          />
+        </div>
+      ) : null}
 
       {chat.error === null ? null : (
         <Alert
@@ -296,14 +304,6 @@ export const AgentConversationBlock: AgentBlock = ({
         renderExtras={renderExtras}
         streaming={chat.streaming}
         draft={chat.draft}
-        creating={createSession.isPending}
-        serviceDisabled={service.blocked ? service.buttonProps : undefined}
-        serviceSuffix={service.suffix}
-        onCreateSession={() => {
-          createSession.mutate(planData?.title ?? t`新的对话`, {
-            onSuccess: (created) => updateContext({ session: created.id }),
-          });
-        }}
         onFocusComposer={() => composerRef.current?.focus()}
       />
 
@@ -350,10 +350,6 @@ interface TranscriptProps {
   readonly renderExtras: (entry: AgentSessionEntry) => AgentEntryExtras | undefined;
   readonly streaming: boolean;
   readonly draft: string;
-  readonly creating: boolean;
-  readonly serviceDisabled: { readonly disabled: boolean; readonly disabledReason?: string } | undefined;
-  readonly serviceSuffix: ReactNode;
-  readonly onCreateSession: () => void;
   readonly onFocusComposer: () => void;
 }
 
@@ -367,10 +363,6 @@ function Transcript({
   renderExtras,
   streaming,
   draft,
-  creating,
-  serviceDisabled,
-  serviceSuffix,
-  onCreateSession,
   onFocusComposer,
 }: TranscriptProps) {
   if (sessionId === null) {
@@ -378,20 +370,15 @@ function Transcript({
       <Frame state="no-session">
         <Empty
           className="m-3.5"
-          title={<Trans>还没有选择对话</Trans>}
+          title={<Trans>告诉 Agent 你想要什么视频</Trans>}
           description={
             <Trans>
-              这一页说的每一句话都记在一条会话里，方案的每一次改动也会写进去。选一条现有的，或者现在开一条新的。
+              一句话说清时长、重点和用途就够了。发送后会自动建立对话，并结合当前 Demo 生成第一版剪辑单。
             </Trans>
           }
           actions={
-            <Button
-              variant="primary"
-              onClick={onCreateSession}
-              {...(creating ? { disabled: true } : (serviceDisabled ?? {}))}
-            >
-              <Trans>新建对话</Trans>
-              {serviceSuffix}
+            <Button variant="secondary" onClick={onFocusComposer}>
+              <Trans>写一句需求</Trans>
             </Button>
           }
         />
@@ -455,6 +442,12 @@ function Transcript({
       }
     />
   );
+}
+
+function sessionTitle(message: string, planTitle: string | undefined): string {
+  const source = planTitle?.trim() || message.trim();
+  const characters = [...source];
+  return characters.length <= 40 ? source : `${characters.slice(0, 40).join('')}…`;
 }
 
 function Frame({ state, children }: { readonly state: string; readonly children: ReactNode }) {

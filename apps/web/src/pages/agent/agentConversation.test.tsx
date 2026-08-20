@@ -163,12 +163,12 @@ describe('the transcript', () => {
     expect(html).toContain('data-workspace-edit-line="P-118"');
   });
 
-  it('says there is no session rather than showing an empty log', () => {
+  it('offers the one-sentence start instead of requiring a session first', () => {
     const html = at({ context: { session: null } });
 
     expect(html).toContain('data-agent-transcript-state="no-session"');
-    expect(html).toContain('还没有选择对话');
-    expect(html).toContain('新建对话');
+    expect(html).toContain('告诉 Agent 你想要什么视频');
+    expect(html).toContain('写一句需求');
   });
 
   it('shows bars, not a percentage, while the session is loading', () => {
@@ -347,10 +347,10 @@ describe('the instruction bar', () => {
     expect(at({ context: { mode: 'takes' } })).not.toContain('data-composer-suggestions=');
   });
 
-  it('disables sending with a written reason when there is no session', () => {
+  it('does not block the composer merely because there is no session yet', () => {
     const html = at({ context: { session: null } });
 
-    expect(html).toContain('先选择或新建一条对话');
+    expect(html).not.toContain('先选择或新建一条对话');
   });
 
   it('disables sending with the service’s own reason when the service is down', () => {

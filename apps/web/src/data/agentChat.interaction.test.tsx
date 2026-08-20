@@ -243,6 +243,20 @@ describe('useAgentChatStream', () => {
     expect(inputs).toEqual([]);
   });
 
+  it('uses a newly-created session override for the atomic first send', async () => {
+    const { client, drafts, inputs } = stubClient([
+      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
+    ]);
+    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: null }), { client });
+
+    await act(async () => {
+      await result.current.send({ message: '做一条 40 秒残局集锦', sessionId: 'S-new' });
+    });
+
+    expect(drafts.map((draft) => draft.kind)).toEqual(['user', 'assistant']);
+    expect(inputs).toHaveLength(1);
+  });
+
   it('sends the workspace context the caller gave it, and no thread of its own', async () => {
     const { client, inputs } = stubClient([
       { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
@@ -254,7 +268,13 @@ describe('useAgentChatStream', () => {
       await result.current.send({
         message: '第 3 个镜头前面留 1 秒',
         demoId: 'demo-1',
-        workspaceContext: { playerId: 'STEAM_1', roundNumber: 21 },
+        workspaceContext: {
+          projectId: 'plan:P-118',
+          planId: 'P-118',
+          planRevision: 6,
+          playerId: 'STEAM_1',
+          roundNumber: 21,
+        },
       });
     });
 
@@ -262,6 +282,9 @@ describe('useAgentChatStream', () => {
     expect(inputs[0]?.demoId).toBe('demo-1');
     expect(inputs[0]?.workspaceContext).toMatchObject({
       demoId: 'demo-1',
+      projectId: 'plan:P-118',
+      planId: 'P-118',
+      planRevision: 6,
       playerId: 'STEAM_1',
       roundNumber: 21,
     });

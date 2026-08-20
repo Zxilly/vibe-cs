@@ -5,6 +5,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { useConvertMontageToEditor, useMontageProject } from '../data/montage';
 import { useAgentComposition } from '../data/plans';
+import { useNativeShell } from '../data/nativeShell';
 import { useProjects } from '../data/projects';
 import { Empty, Skeleton } from '../design/data';
 import { Alert, Dialog } from '../design/feedback';
@@ -134,6 +135,7 @@ function StepContent({
       />
     );
   }
+  if (step === 'export') return <ProjectExportStep project={project} />;
   const descriptions: Record<ProjectStep, React.ReactNode> = {
     select: <Trans>比赛工作区与证据检索加入的片段会汇总到这里。</Trans>,
     shotlist: <Trans>当前剪辑模式：{project.editingMode}。快速剪辑与多轨编辑能力将在这里呈现。</Trans>,
@@ -144,6 +146,42 @@ function StepContent({
     <section data-project-step={step} className="m-7 flex min-h-48 flex-col justify-center gap-2 border border-divider p-5">
       <h2 className="text-xl"><StepLabel step={step} /></h2>
       <p className="text-sm text-neutral-700">{descriptions[step]}</p>
+    </section>
+  );
+}
+
+function ProjectExportStep({ project }: { readonly project: ProjectViewModel }) {
+  const shell = useNativeShell();
+  const output = project.outputFiles.find((item) => item.status === 'completed') ?? null;
+
+  if (output === null) {
+    return (
+      <section data-project-step="export" className="m-7 flex min-h-48 flex-col justify-center gap-2 border border-divider p-5">
+        <h2 className="text-xl"><Trans>导出</Trans></h2>
+        <p className="text-sm text-neutral-700"><Trans>导出设置与这份作品的成品文件会显示在这里。</Trans></p>
+      </section>
+    );
+  }
+  const outputPath = output.path;
+  return (
+    <section data-project-step="export" aria-live="polite" className="m-7 flex min-h-48 flex-col gap-4 border border-divider p-5">
+      <div>
+        <h2 className="text-xl"><Trans>成品可用</Trans></h2>
+        <p className="mt-1 text-sm text-neutral-700">
+          <Trans>最终视频已经生成，可以从成品文件页播放、定位或管理。</Trans>
+        </p>
+      </div>
+      <p className="break-all font-mono text-xs text-neutral-600">{outputPath}</p>
+      <div className="flex flex-wrap gap-2">
+        <RouteLink to="/delivery?view=outputs"><Trans>查看成品</Trans></RouteLink>
+        <Button
+          variant="secondary"
+          disabled={!shell.available}
+          onClick={() => void shell.reveal(outputPath)}
+        >
+          <Trans>定位文件</Trans>
+        </Button>
+      </div>
     </section>
   );
 }

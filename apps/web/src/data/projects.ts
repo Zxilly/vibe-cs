@@ -49,7 +49,10 @@ export function useProjects() {
 
   return {
     data,
-    isPending: plans.isPending || montages.isPending || editors.isPending,
+    // A completed output changes both the project status and the reachable
+    // step. Rendering before this query settles can rewrite a valid
+    // `?step=export` deep link to `select` and lose the user's destination.
+    isPending: plans.isPending || montages.isPending || editors.isPending || outputs.isPending,
     tasksPending: tasks.isPending,
     tasksError: dataErrorMessage(tasks.error),
     refetchTasks: tasks.refetch,

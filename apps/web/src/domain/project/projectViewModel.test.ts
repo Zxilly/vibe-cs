@@ -28,6 +28,7 @@ const output = (projectId: string | null): OutputItem => ({
   id: `out-${projectId ?? 'orphan'}`, output_kind: 'export', media_kind: 'video', title: 'Final', status: 'completed',
   progress: 1, path: 'D:\\final.mp4', file_name: 'final.mp4', availability: 'present', managed: true, mutable: true,
   size_bytes: 1, media: null, project_id: projectId, demo_id: 'demo-1', error: null,
+  agent_plan_id: null,
   created_at: '2026-08-19T00:00:00Z', updated_at: '2026-08-19T05:00:00Z',
 });
 
@@ -76,5 +77,16 @@ describe('project view model', () => {
     const result = aggregateProjects({ montages: [montage('same')], editors: [editor('same')], outputs: [ambiguous] });
     expect(result.projects.every((project) => project.outputFiles.length === 0)).toBe(true);
     expect(result.orphanOutputs).toEqual([ambiguous]);
+  });
+
+  it('links a Composition export back to its owning Agent plan', () => {
+    const exported = { ...output('composition-1'), agent_plan_id: 'plan-1' };
+    const result = aggregateProjects({ plans: [plan('plan-1', 'awaiting_confirmation', 1)], outputs: [exported] });
+    const project = result.projects[0];
+
+    expect(project?.outputFiles).toEqual([exported]);
+    expect(project?.currentStep).toBe('export');
+    expect(project?.status).toBe('complete');
+    expect(result.orphanOutputs).toEqual([]);
   });
 });

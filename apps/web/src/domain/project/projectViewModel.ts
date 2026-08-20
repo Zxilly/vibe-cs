@@ -145,10 +145,10 @@ function projectStatus(
   tasks: readonly ActivityItem[],
   outputs: readonly OutputItem[],
 ): ProjectStatus {
+  if (outputs.some((output) => output.status === 'completed')) return 'complete';
   if (anchor.plan?.status === 'awaiting_confirmation' || tasks.some((task) => task.status === 'failed')) {
     return 'needs-attention';
   }
-  if (outputs.some((output) => output.status === 'completed')) return 'complete';
   return 'active';
 }
 
@@ -166,6 +166,11 @@ function taskAnchor(task: ActivityItem, anchors: readonly Anchor[]): Anchor | nu
 }
 
 function outputAnchor(output: OutputItem, anchors: readonly Anchor[]): Anchor | null {
+  if (output.agent_plan_id !== null) {
+    return unique(anchors.filter(
+      (anchor) => anchor.kind === 'plan' && anchor.id === output.agent_plan_id,
+    ));
+  }
   if (output.project_id === null) return null;
   return unique(anchors.filter((anchor) => anchor.id === output.project_id));
 }

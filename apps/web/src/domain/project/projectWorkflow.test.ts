@@ -33,6 +33,16 @@ describe('project workflow gates', () => {
     expect(projectStepAvailability(project({ clipCount: 2, shotList: { planId: 'p-1', status: 'confirmed', shotCount: 2 } })).every((entry) => entry.enabled)).toBe(true);
   });
 
+  it('keeps an exported Agent result reachable even when the plan status is stale', () => {
+    const gates = projectStepAvailability(project({
+      clipCount: 1,
+      shotList: { planId: 'p-1', status: 'awaiting_confirmation', shotCount: 1 },
+      outputFiles: [{ status: 'completed' } as ProjectViewModel['outputFiles'][number]],
+    }));
+
+    expect(gates[3]).toMatchObject({ enabled: true, disabledReason: null });
+  });
+
   it('sends quick and multitrack cuts straight to export instead of the game recorder', () => {
     for (const kind of ['montage', 'editor'] as const) {
       const gates = projectStepAvailability(project({

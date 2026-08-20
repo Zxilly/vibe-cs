@@ -2220,6 +2220,22 @@ impl Storage {
         .await
     }
 
+    /// Resolves the composition identity carried by generic export jobs back
+    /// to the Agent plan that owns the user-facing project.
+    pub async fn get_agent_composition_by_id(&self, id: Uuid) -> Result<Option<Composition>> {
+        self.run(move |connection| {
+            let document = connection
+                .query_row(
+                    "SELECT document_json FROM agent_compositions WHERE id = ?1",
+                    [id.to_string()],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()?;
+            document.map(|value| decode(&value)).transpose()
+        })
+        .await
+    }
+
     pub async fn put_agent_composition(&self, composition: Composition) -> Result<Composition> {
         composition.validate()?;
         self.run(move |connection| {

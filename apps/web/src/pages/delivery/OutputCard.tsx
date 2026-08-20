@@ -126,7 +126,7 @@ export function OutputCard({
           {output.path}
         </p>
 
-        <div className="mt-1 flex flex-wrap items-center gap-3">
+        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-3 pr-2">
           <Button variant="ghost" size="sm" onClick={() => onReveal(output)}>
             <Trans>定位文件</Trans>
           </Button>

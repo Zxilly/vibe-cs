@@ -17,6 +17,7 @@ export interface ProjectStepTransition {
 export function projectStepAvailability(project: ProjectViewModel): readonly ProjectStepAvailability[] {
   const hasClips = project.clipCount > 0;
   const confirmed = project.shotList === null || project.shotList.status === 'confirmed';
+  const hasCompletedOutput = project.outputFiles.some((output) => output.status === 'completed');
   const recordsThroughGame = project.source.kind === 'plan';
   return [
     { step: 'select', enabled: true, disabledReason: null },
@@ -30,10 +31,10 @@ export function projectStepAvailability(project: ProjectViewModel): readonly Pro
     },
     {
       step: 'export',
-      enabled: hasClips && confirmed,
+      enabled: hasClips && (confirmed || hasCompletedOutput),
       disabledReason: !hasClips
         ? '还没有片段，不能导出'
-        : confirmed ? null : '剪辑单还没有确认，不能导出',
+        : confirmed || hasCompletedOutput ? null : '剪辑单还没有确认，不能导出',
     },
   ];
 }

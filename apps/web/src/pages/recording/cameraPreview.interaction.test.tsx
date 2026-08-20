@@ -174,6 +174,22 @@ describe('导播预览', () => {
       .toBe('280');
   });
 
+  it('keeps the preview stage and its controls in one non-overlapping flow layout', async () => {
+    mount();
+    await serviceOnline();
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-preview-layout="stage-and-telemetry"]')).not.toBeNull();
+    });
+    const layout = document.querySelector('[data-preview-layout="stage-and-telemetry"]');
+    expect(layout?.className).toContain('flex-none');
+    expect(layout?.className).toContain('2xl:grid-cols-');
+    expect(layout?.querySelector('[data-preview-stage]')).not.toBeNull();
+    expect(layout?.querySelector('[data-preview-telemetry]')).not.toBeNull();
+    expect(layout?.querySelector('[data-camera-height]')).not.toBeNull();
+    expect(layout?.querySelector('[data-director-shot="true"]')).not.toBeNull();
+  });
+
   it('prints the caption the artboard prints, and says what the marker is not', async () => {
     mount();
     await serviceOnline();

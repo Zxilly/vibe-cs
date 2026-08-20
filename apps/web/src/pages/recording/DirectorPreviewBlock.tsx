@@ -60,7 +60,7 @@ import { useMapRadarOverview } from '../../data/match';
 import { useNativeShell } from '../../data/nativeShell';
 import { Empty } from '../../design/data';
 import { Alert } from '../../design/feedback';
-import { Button, Badge, cn } from '../../design/primitives';
+import { Button, Badge } from '../../design/primitives';
 import { formatTickRange } from '../../domain/agent';
 import {
   CameraPathLayer,
@@ -179,43 +179,67 @@ export function DirectorPreviewBlock({ plan, selection, camera }: DirectorPrevie
             </span>
           </header>
 
-          <div className="min-h-0 flex-1 p-5">
-            <CameraPathState
-              camera={camera}
-              mapName={mapName}
-              basemapSrc={mapName === null ? null : shell.mediaSrc(`/api/maps/${mapName}/radar`)}
-              overviewTransform={radar.data?.transform ?? null}
-              sample={sample}
-            />
+          <div
+            data-preview-layout="stage-and-telemetry"
+            className="grid flex-none gap-4 p-5 2xl:grid-cols-[minmax(0,1fr)_22rem]"
+          >
+            <div data-preview-stage className="min-w-0 border border-divider bg-bg">
+              <CameraPathState
+                camera={camera}
+                mapName={mapName}
+                basemapSrc={mapName === null ? null : shell.mediaSrc(`/api/maps/${mapName}/radar`)}
+                overviewTransform={radar.data?.transform ?? null}
+                sample={sample}
+              />
+            </div>
+
+            <aside
+              data-preview-telemetry
+              aria-label={t`镜头预览控制与依据`}
+              className="min-w-0 self-start border border-divider bg-bg"
+            >
+              {cameraPlan === null ? null : (
+                <section aria-labelledby="camera-timeline-heading">
+                  <header className="flex items-baseline justify-between gap-3 border-b border-divider px-4 py-3">
+                    <h3 id="camera-timeline-heading" className="font-heading text-sm tracking-caps">
+                      <Trans>镜头时间线</Trans>
+                    </h3>
+                    <span className="font-mono text-xs text-neutral-600">
+                      {Math.floor(durationSeconds)}s
+                    </span>
+                  </header>
+                  <HeightProfile plan={cameraPlan} at={sample} />
+                  <div className="px-4 pb-4">
+                    <Transport
+                      currentTime={playhead}
+                      durationSeconds={durationSeconds}
+                      playing={playing}
+                      timecode="clock"
+                      onTogglePlay={() => setPlaying((current) => !current)}
+                      onSeek={setPlayhead}
+                    />
+                  </div>
+                </section>
+              )}
+
+              <section className="border-t border-divider px-4 py-3 text-xs leading-relaxed text-neutral-700">
+                <h3 className="font-heading text-2xs tracking-caps text-neutral-600">
+                  <Trans>预览说明</Trans>
+                </h3>
+                <p className="mt-1">
+                  <Trans>导播预览为相机路径示意，不是最终画质。</Trans>
+                  {cameraPlan === null ? null : (
+                    <>
+                      {' '}
+                      <Trans>关键点之间按直线读取，实际会按三次曲线插值飞行。</Trans>
+                    </>
+                  )}
+                </p>
+              </section>
+
+              <DirectorExplanation shot={directorShot} />
+            </aside>
           </div>
-
-          {cameraPlan === null ? null : (
-            <>
-              <HeightProfile plan={cameraPlan} at={sample} />
-              <div className="flex-none px-5 pb-3">
-                <Transport
-                  currentTime={playhead}
-                  durationSeconds={durationSeconds}
-                  playing={playing}
-                  timecode="clock"
-                  onTogglePlay={() => setPlaying((current) => !current)}
-                  onSeek={setPlayhead}
-                />
-              </div>
-            </>
-          )}
-
-          <p className="flex-none px-5 pb-2 text-xs text-neutral-700">
-            <Trans>导播预览为相机路径示意，不是最终画质。</Trans>
-            {cameraPlan === null ? null : (
-              <>
-                {' '}
-                <Trans>关键点之间按直线读取，实际会按三次曲线插值飞行。</Trans>
-              </>
-            )}
-          </p>
-
-          <DirectorExplanation shot={directorShot} />
         </>
       )}
     </section>
@@ -384,9 +408,9 @@ export function cameraPaths(plan: CameraPlan): CameraPath[] {
 /**
  * The heading arrow and field-of-view wedge at the current playhead sample.
  *
- * Decorative in the accessibility sense: every fact drawn here is also in the
- * The current facts are also rendered as text below the canvas, so a second
- * tab stop over the same playhead would make the drawing harder to navigate.
+ * Decorative in the accessibility sense: the current facts are also rendered
+ * as text below the canvas, so a second tab stop over the same playhead would
+ * make the drawing harder to navigate.
  */
 function HeadingLayer({
   projection,
@@ -503,7 +527,7 @@ function HeightProfile({
     at === null || range === null ? null : (at.tick - range.start) / plan.tickRate;
 
   return (
-    <figure className="flex-none px-5 pb-3" data-camera-height={Math.round(span)}>
+    <figure className="px-4 py-4" data-camera-height={Math.round(span)}>
       <figcaption className="mb-1 flex items-baseline gap-2 text-2xs text-neutral-600">
         <span className="font-heading tracking-caps">
           <Trans>高度</Trans>
@@ -570,7 +594,7 @@ function DirectorExplanation({ shot }: { readonly shot: DirectorShot | null }) {
   return (
     <section
       data-director-shot="true"
-      className="flex-none border-t border-divider px-5 py-3 text-xs leading-relaxed"
+      className="border-t border-divider px-4 py-3 text-xs leading-relaxed"
     >
       <h3 className="font-heading text-2xs tracking-caps text-neutral-600">
         <Trans>导播编排依据</Trans>
@@ -582,7 +606,7 @@ function DirectorExplanation({ shot }: { readonly shot: DirectorShot | null }) {
       ) : null}
       {shot.explanation === '' ? null : <p className="mt-1 text-text">{shot.explanation}</p>}
       {shot.evidence.length === 0 ? null : (
-        <ul className={cn('mt-1.5 flex list-none flex-wrap gap-2 font-mono text-2xs text-neutral-600')}>
+        <ul className="mt-1.5 flex list-none flex-wrap gap-2 break-all font-mono text-2xs text-neutral-600">
           {shot.evidence.map((entry) => (
             <li key={entry}>{entry}</li>
           ))}

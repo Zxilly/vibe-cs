@@ -787,8 +787,19 @@ fn read_cinematic_context(
                 .collect::<Vec<_>>();
             let (bounds, movement_distance, movement_axis, spread) = spatial_scene_metrics(&points);
             let victims = array(highlight.get("victims")).count();
+            let collision_geometry_available = replay_scene
+                .and_then(|scene| scene.get("mapSpace"))
+                .and_then(|space| space.get("collisionGeometryAvailable"))
+                .and_then(Value::as_bool)
+                .unwrap_or(false);
             let mut intents = Vec::new();
-            if points.is_empty() {
+            if !collision_geometry_available {
+                intents.push(json!({
+                    "intent":"player_pov",
+                    "cameraStyle":"pov",
+                    "reason":"Collision geometry is unavailable; use the verified player perspective so walls cannot hide the action."
+                }));
+            } else if points.is_empty() {
                 intents.push(json!({
                     "intent":"player_pov",
                     "cameraStyle":"pov",
@@ -843,7 +854,7 @@ fn read_cinematic_context(
                     "spreadUnits": spread,
                     "movementUnits": movement_distance,
                     "movementAxis": movement_axis,
-                    "collisionGeometryAvailable": false,
+                    "collisionGeometryAvailable": collision_geometry_available,
                     "radarTransformAvailable": radar_transform.is_some(),
                     "replayFidelity": replay_scene.and_then(|scene| scene.get("fidelity")),
                     "verifiedEngagements": verified_engagements,
@@ -858,7 +869,7 @@ fn read_cinematic_context(
         "coordinateSystem": "CS2 world coordinates",
         "radar": context.map_context,
         "scenes": scenes,
-        "designRule": "Choose a shot for a stated map-space purpose. If positioned action is unavailable, use player_pov. Camera paths remain subject to user review because collision geometry is not reconstructed.",
+        "designRule": "Use player_pov unless collision geometry is reconstructed and verified. Positioned action alone can aim a camera but cannot prove that walls will not hide the action.",
     }))
 }
 
@@ -1185,19 +1196,19 @@ fn draft_video_plan(
     if camera_intents.len() != ids.len() || camera_rationales.len() != ids.len() {
         return Err("cameraIntents and cameraRationales must match highlightIds length".into());
     }
-    let resolved_camera_styles = ids
+    let requested_camera_styles = ids
         .iter()
         .enumerate()
         .map(|(index, _)| {
             camera_styles.get(index).map_or_else(
-                || camera_style_for_intent(&camera_intents[index]),
-                String::as_str,
+                || camera_style_for_intent(&camera_intents[index]).to_owned(),
+                Clone::clone,
             )
         })
         .collect::<Vec<_>>();
     for ((intent, style), rationale) in camera_intents
         .iter()
-        .zip(&resolved_camera_styles)
+        .zip(&requested_camera_styles)
         .zip(&camera_rationales)
     {
         if !camera_style_supports_intent(intent, style) {
@@ -1219,13 +1230,40 @@ fn draft_video_plan(
         .map(|item| text(item.get("id")).unwrap_or("unknown").to_owned())
         .collect::<Vec<_>>();
     let accepted = binding.ready() && valid_demo_id.is_some() && missing_players.is_empty();
+    let cinematic_context =
+        read_cinematic_context(context, &json!({"highlightIds":&ids}), external_cinematic)?;
+    let scenes = cinematic_context
+        .get("scenes")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut resolved_camera_intents = camera_intents.clone();
+    let mut resolved_camera_styles = requested_camera_styles;
+    let mut resolved_camera_rationales = camera_rationales.clone();
+    let mut safety_fallbacks = vec![None; ids.len()];
+    for (index, highlight_id) in ids.iter().enumerate() {
+        let collision_geometry_available = scenes
+            .iter()
+            .find(|scene| text(scene.get("highlightId")) == Some(highlight_id))
+            .and_then(|scene| scene.get("mapSpace"))
+            .and_then(|space| space.get("collisionGeometryAvailable"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
+        if resolved_camera_styles[index] != "pov" && !collision_geometry_available {
+            "player_pov".clone_into(&mut resolved_camera_intents[index]);
+            "pov".clone_into(&mut resolved_camera_styles[index]);
+            "Use the verified player perspective because collision geometry is unavailable; an external camera could be hidden behind map walls."
+                .clone_into(&mut resolved_camera_rationales[index]);
+            safety_fallbacks[index] = Some("collision_geometry_unavailable");
+        }
+    }
     let items = if accepted {
         binding
             .selected
             .iter()
             .enumerate()
             .map(|(index, item)| {
-                let item_camera_style = resolved_camera_styles[index];
+                let item_camera_style = &resolved_camera_styles[index];
                 json!({
                     "id": Uuid::new_v4(),
                     "demo_id": valid_demo_id,
@@ -1244,14 +1282,7 @@ fn draft_video_plan(
     } else {
         Vec::new()
     };
-    let cinematic_context =
-        read_cinematic_context(context, &json!({"highlightIds":&ids}), external_cinematic)?;
-    let scenes = cinematic_context
-        .get("scenes")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    for (index, intent) in camera_intents.iter().enumerate() {
+    for (index, intent) in resolved_camera_intents.iter().enumerate() {
         let has_spatial_evidence = scenes
             .get(index)
             .and_then(|scene| scene.get("mapSpace"))
@@ -1274,11 +1305,12 @@ fn draft_video_plan(
                 json!({
                     "highlight_id": id,
                     "map_name": context.analysis.get("map_name"),
-                    "camera_intent": camera_intents[index],
+                    "camera_intent": resolved_camera_intents[index],
                     "camera_style": resolved_camera_styles[index],
-                    "rationale": camera_rationales[index],
+                    "rationale": resolved_camera_rationales[index],
                     "spatial_evidence": scenes.get(index),
                     "requires_user_review": true,
+                    "safety_fallback": safety_fallbacks[index],
                 })
             })
             .collect::<Vec<_>>()
@@ -1862,12 +1894,13 @@ mod tests {
                 .unwrap()
                 > 250.0
         );
-        assert!(
-            output["scenes"][0]["recommendedDesigns"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|design| design["intent"] == "follow_entry")
+        assert_eq!(
+            output["scenes"][0]["recommendedDesigns"],
+            json!([{
+                "intent": "player_pov",
+                "cameraStyle": "pov",
+                "reason": "Collision geometry is unavailable; use the verified player perspective so walls cannot hide the action."
+            }])
         );
     }
 
@@ -1976,13 +2009,61 @@ mod tests {
         assert_eq!(plan.payload["items"][0]["pre_roll_seconds"], 2.0);
         assert_eq!(plan.payload["items"][0]["post_roll_seconds"], 2.5);
         assert_eq!(plan.payload["items"][0]["victim_pov"], false);
-        assert_eq!(plan.payload["items"][0]["camera_style"], "crane");
+        assert_eq!(plan.payload["items"][0]["camera_style"], "pov");
         assert_eq!(plan.payload["items"][1]["highlight_id"], "clutch-2");
-        assert_eq!(plan.payload["items"][1]["camera_style"], "flyby");
+        assert_eq!(plan.payload["items"][1]["camera_style"], "pov");
+        assert_eq!(
+            plan.payload["shot_designs"][0]["camera_intent"],
+            "player_pov"
+        );
+        assert_eq!(
+            plan.payload["shot_designs"][0]["safety_fallback"],
+            "collision_geometry_unavailable"
+        );
+    }
+
+    #[test]
+    fn video_plan_keeps_cinematic_camera_when_collision_geometry_is_verified() {
+        let mut context = context();
+        context.demo = json!({"id":"00000000-0000-4000-8000-0000000000d1"});
+        context.analysis["highlights"][0]["player_id"] = json!("player-1");
+        let cinematic = json!({
+            "scenes": [{
+                "highlightId": "ace-1",
+                "positionedAction": [{
+                    "tick": 700,
+                    "kind": "player_sample",
+                    "actor": "player-1",
+                    "position": [-1000.0, 500.0, 32.0],
+                    "yaw": 20.0,
+                    "nearestOpponentPosition": [-900.0, 450.0, 32.0]
+                }],
+                "mapSpace": {
+                    "collisionGeometryAvailable": true
+                }
+            }]
+        });
+
+        let (_, plan) = execute_tool_with_cinematic(
+            "draft_video_plan",
+            &context,
+            &json!({
+                "highlightIds":["ace-1"],
+                "cameraStyles":["crane"],
+                "cameraIntents":["establish_location"],
+                "cameraRationales":["Establish the verified space before the eliminations."]
+            }),
+            Some(&cinematic),
+        )
+        .expect("collision-verified cinematic plan");
+
+        let plan = plan.expect("accepted cinematic proposal");
+        assert_eq!(plan.payload["items"][0]["camera_style"], "crane");
         assert_eq!(
             plan.payload["shot_designs"][0]["camera_intent"],
             "establish_location"
         );
+        assert!(plan.payload["shot_designs"][0]["safety_fallback"].is_null());
     }
 
     #[test]

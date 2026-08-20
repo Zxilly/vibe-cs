@@ -108,6 +108,11 @@ pub fn compile_hlae_managed_session_bootstrap(
          mirv_cmd load \"{command_system}\"\n\
          mirv_cmd enabled 1\n\
          mirv_script_load \"{bridge}\"\n\
+         demo_ui_mode 0\n\
+         gameui_hide\n\
+         cl_showdemooverlay 0\n\
+         spec_autodirector 0\n\
+         spec_show_xray 0\n\
          playdemo \"{demo}\"\n"
     );
     if contents.len() > HLAE_MANAGED_SESSION_CONFIG_MAX_BYTES {
@@ -119,7 +124,9 @@ pub fn compile_hlae_managed_session_bootstrap(
         contents,
         command_line_suffix: format!(
             "+mirv_cmd clear +mirv_cmd load \"{command_system}\" \
-             +mirv_cmd enabled 1 +mirv_script_load \"{bridge}\" +playdemo \"{demo}\""
+             +mirv_cmd enabled 1 +mirv_script_load \"{bridge}\" \
+             +demo_ui_mode 0 +gameui_hide +cl_showdemooverlay 0 \
+             +spec_autodirector 0 +spec_show_xray 0 +playdemo \"{demo}\""
         ),
     })
 }

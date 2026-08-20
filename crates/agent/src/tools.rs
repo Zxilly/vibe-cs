@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use ts_rs::TS;
 use uuid::Uuid;
 
-use crate::{AgentContext, AgentToolHost};
+use crate::{AgentContext, AgentMode, AgentToolHost};
 
 /// One tool invocation the model made during a turn, with its arguments and
 /// result verbatim.
@@ -150,9 +150,10 @@ impl ToolState {
     }
 }
 
-pub(crate) fn create_tools(state: &ToolState) -> Vec<DynamicTool> {
+pub(crate) fn create_tools(state: &ToolState, mode: AgentMode) -> Vec<DynamicTool> {
     tool_definitions()
         .into_iter()
+        .filter(|(name, _, _)| tool_allowed_in_mode(mode, name))
         .map(|(name, description, parameters)| {
             let state = state.clone();
             DynamicTool::new(name, description, parameters, move |_context, input| {
@@ -161,6 +162,31 @@ pub(crate) fn create_tools(state: &ToolState) -> Vec<DynamicTool> {
             })
         })
         .collect()
+}
+
+fn tool_allowed_in_mode(mode: AgentMode, name: &str) -> bool {
+    match name {
+        // Evidence and navigation are safe in every mode.
+        "read_workspace_context"
+        | "read_demo_evidence"
+        | "search_rounds"
+        | "read_round_context"
+        | "read_round_events"
+        | "read_player_matchups"
+        | "read_highlights"
+        | "navigate_workspace" => true,
+        // Editing tools can only propose changes to an editing workflow.
+        "read_editor_timeline"
+        | "draft_edit_plan"
+        | "draft_agent_plan_changes"
+        | "read_audio_analysis"
+        | "draft_beat_alignment" => matches!(mode, AgentMode::Edit),
+        // Initial video creation exposes exactly one proposal kind. This keeps
+        // an empty Agent plan from receiving an inapplicable highlight-edit
+        // proposal that leaves its shot list empty.
+        "read_cinematic_context" | "draft_video_plan" => matches!(mode, AgentMode::Hlae),
+        _ => false,
+    }
 }
 
 fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
@@ -1726,6 +1752,32 @@ mod tests {
             }),
             ..AgentContext::default()
         }
+    }
+
+    #[test]
+    fn creation_mode_exposes_only_the_materializable_video_proposal() {
+        let names = |mode| {
+            tool_definitions()
+                .into_iter()
+                .filter(|(name, _, _)| tool_allowed_in_mode(mode, name))
+                .map(|(name, _, _)| name)
+                .collect::<Vec<_>>()
+        };
+
+        let creation = names(AgentMode::Hlae);
+        assert!(creation.contains(&"read_cinematic_context"));
+        assert!(creation.contains(&"draft_video_plan"));
+        assert!(!creation.contains(&"draft_edit_plan"));
+        assert!(!creation.contains(&"draft_agent_plan_changes"));
+        assert!(!creation.contains(&"draft_beat_alignment"));
+
+        let editing = names(AgentMode::Edit);
+        assert!(editing.contains(&"draft_edit_plan"));
+        assert!(editing.contains(&"draft_agent_plan_changes"));
+        assert!(!editing.contains(&"draft_video_plan"));
+
+        let guide = names(AgentMode::Guide);
+        assert!(!guide.iter().any(|name| name.starts_with("draft_")));
     }
 
     #[test]

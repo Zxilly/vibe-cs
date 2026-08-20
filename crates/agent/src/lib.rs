@@ -24,6 +24,7 @@ pub use tools::{CapturedPlan, CapturedPlanKind, CapturedToolCall};
 
 const MAXIMUM_CONTEXT_BYTES: usize = 2 * 1024 * 1024;
 const MAXIMUM_RESPONSE_CHARS: usize = 64_000;
+const MAXIMUM_AGENT_TURNS: usize = 12;
 
 #[derive(Debug, Clone, Default)]
 pub struct Cancellation {
@@ -169,7 +170,7 @@ where
 {
     validate_request(&request)?;
     let state = tools::ToolState::new(request.context, request.tool_host);
-    let dynamic_tools = tools::create_tools(&state);
+    let dynamic_tools = tools::create_tools(&state, request.mode);
     let provider_secret = request.config.api_key.clone();
     let client = openai::Client::builder()
         .api_key(provider_secret.clone())
@@ -197,7 +198,7 @@ where
     let mut stream = agent
         .stream_prompt(request.message)
         .history(history)
-        .max_turns(8)
+        .max_turns(MAXIMUM_AGENT_TURNS)
         .await;
     let mut content = String::new();
     let mut usage = None;
@@ -207,9 +208,27 @@ where
             item = stream.next() => item,
         };
         let Some(item) = item else { break };
-        match item.map_err(|error| {
-            AgentError::Provider(safe_error(&error.to_string(), &provider_secret))
-        })? {
+        let item = match item {
+            Ok(item) => item,
+            Err(error) => {
+                // A bounded multi-turn run can fail after several successful
+                // evidence reads. Emit those completed calls before returning
+                // the terminal error so the durable turn retains what really
+                // happened and a retry is reviewable rather than opaque.
+                let (tool_calls, plans) = state.snapshot().await;
+                for tool_call in tool_calls {
+                    emit(AgentStreamEvent::ToolCall(tool_call));
+                }
+                for plan in plans {
+                    emit(AgentStreamEvent::Proposal(plan));
+                }
+                return Err(AgentError::Provider(safe_error(
+                    &error.to_string(),
+                    &provider_secret,
+                )));
+            }
+        };
+        match item {
             MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(Text {
                 text,
                 ..
@@ -343,7 +362,7 @@ fn system_prompt(mode: AgentMode, custom: &str) -> String {
             "Collaborate on an edit. First read workspace context. When workspace.plan is present, use draft_agent_plan_changes with its exact shot ids for reviewable shorten/delete changes and do not use draft_edit_plan. Otherwise inspect the selected editor timeline and demo evidence, then use draft_edit_plan for a concrete sequence. Proposals never apply themselves. Report every rejection reason and never claim a rejected partial plan was created."
         }
         AgentMode::Hlae => {
-            "Create complete highlight videos. In the current turn, read highlight evidence and call read_cinematic_context for the exact selected highlight IDs before drafting or describing any cinematic shot. Design each shot around the returned map name, Valve radar-relative route, positioned action, movement axis, spatial spread, and engagement purpose; never choose a movement merely for variety. Treat verifiedEngagements as kill-event-backed axes and nearestOpponent fields only as proximity context. Never invent evidence categories, labels, or measurements absent from tool output. Supply one cameraIntent and a concrete cameraRationale per highlight. Use player_pov whenever spatial evidence is unavailable. Choose cameraStyle from pov, orbit, dolly, static, tracking, crane, or flyby only when it expresses that intent, and preserve lead/tail context. Ask the user to review the stated purpose and movement for every shot; the app requests explicit confirmation before recording. Report every rejection reason. Never mention capture engines, encoders, configuration artifacts, runtimes, or other implementation details unless the user explicitly asks. Do not claim completion until the host reports a completed recording job and an MP4 output."
+            "Create complete highlight videos. In the current turn, read highlight evidence and call read_cinematic_context for the exact selected highlight IDs before drafting or describing any cinematic shot. Finish a supported creation request by calling draft_video_plan; it is the only proposal tool in this mode, and an ordinary edit draft cannot create the first shot list. Design each shot around the returned map name, Valve radar-relative route, positioned action, movement axis, spatial spread, and engagement purpose; never choose a movement merely for variety. Treat verifiedEngagements as kill-event-backed axes and nearestOpponent fields only as proximity context. Never invent evidence categories, labels, or measurements absent from tool output. Supply one cameraIntent and a concrete cameraRationale per highlight. Use player_pov whenever spatial evidence is unavailable. Choose cameraStyle from pov, orbit, dolly, static, tracking, crane, or flyby only when it expresses that intent, and preserve lead/tail context. Ask the user to review the stated purpose and movement for every shot; the app requests explicit confirmation before recording. Report every rejection reason. Never mention capture engines, encoders, configuration artifacts, runtimes, or other implementation details unless the user explicitly asks. Do not claim completion until the host reports a completed recording job and an MP4 output."
         }
     };
     [

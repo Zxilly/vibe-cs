@@ -84,6 +84,7 @@ export function AgentBubble({
 
   const meta = AGENT_ENTRY_KIND[entry.kind];
   const mine = entry.kind === 'user';
+  const turnStatus = entry.kind === 'assistant' ? (entry.status ?? 'completed') : 'completed';
   const trail =
     steps ??
     (entry.kind === 'assistant'
@@ -98,7 +99,12 @@ export function AgentBubble({
     <article
       data-agent-bubble={entry.kind}
       data-entry={entry.id}
-      {...(streaming ? { 'aria-busy': true, 'data-bubble-state': 'streaming' } : {})}
+      {...(streaming || turnStatus === 'pending' || turnStatus === 'streaming'
+        ? { 'aria-busy': true }
+        : {})}
+      {...(streaming
+        ? { 'data-bubble-state': 'streaming' }
+        : turnStatus === 'completed' ? {} : { 'data-bubble-state': turnStatus })}
       className={cn(
         'flex min-w-0 flex-col gap-2 border p-3 text-sm leading-normal',
         // One `max-w` per branch: two arbitrary values of the same utility would
@@ -116,8 +122,16 @@ export function AgentBubble({
         )}
       </p>
 
-      {entry.content === '' && streaming ? (
+      {entry.content === '' && (streaming || turnStatus === 'pending' || turnStatus === 'streaming') ? (
         <Skeleton width="62%" />
+      ) : entry.kind === 'assistant' && turnStatus === 'failed' ? (
+        <p data-bubble-content="" className="min-w-0 text-fail-text">
+          {entry.error ?? i18n._(TURN_FAILED)}
+        </p>
+      ) : entry.kind === 'assistant' && turnStatus === 'cancelled' ? (
+        <p data-bubble-content="" className="min-w-0 text-neutral-600">
+          {i18n._(TURN_CANCELLED)}
+        </p>
       ) : (
         <p data-bubble-content="" className="min-w-0 whitespace-pre-wrap">
           {entry.content}
@@ -160,3 +174,5 @@ export function AgentBubble({
 }
 
 const TOOL_CALL_LABEL = msg`Agent 读取的内容`;
+const TURN_FAILED = msg`这次回答失败了`;
+const TURN_CANCELLED = msg`这次回答已停止`;

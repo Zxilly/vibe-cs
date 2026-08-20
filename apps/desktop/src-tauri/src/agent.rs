@@ -543,6 +543,14 @@ pub(crate) struct AgentProposal {
     payload: Value,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, rename = "DesktopAgentChatHistoryMessage")]
+pub(crate) struct AgentChatHistoryMessage {
+    role: AgentRole,
+    content: String,
+}
+
 #[derive(Debug, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, rename = "DesktopAgentChatInput")]
@@ -557,6 +565,7 @@ pub(crate) struct AgentChatInput {
     #[serde(deserialize_with = "deserialize_required_nullable")]
     audio_asset_id: Option<Uuid>,
     workspace_context: AgentWorkspaceContext,
+    history: Vec<AgentChatHistoryMessage>,
     mode: EmbeddedAgentMode,
     message: String,
 }
@@ -815,6 +824,16 @@ fn validate_workspace_context(input: &AgentChatInput) -> Result<(), AgentCommand
             "agent workspace context is outside the supported bounds",
         ));
     }
+    if input.history.len() > 40
+        || input
+            .history
+            .iter()
+            .any(|entry| entry.content.trim().is_empty() || entry.content.chars().count() > 16_000)
+    {
+        return Err(AgentCommandError::invalid(
+            "agent history is outside the supported bounds",
+        ));
+    }
     let review_destination = matches!(
         context.destination,
         AgentWorkspaceDestination::Review
@@ -1020,14 +1039,9 @@ async fn run_agent_chat(
     } else {
         Value::Null
     };
-    let history = thread
-        .messages
+    let history = input
+        .history
         .iter()
-        .rev()
-        .take(40)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
         .map(|entry| HistoryMessage {
             role: entry.role.as_str().to_owned(),
             content: entry.content.clone(),
@@ -1902,6 +1916,7 @@ mod tests {
                 "roundNumber": null,
                 "tick": null
             },
+            "history": [],
             "mode": "guide",
             "message": "Review this match"
         });
@@ -1914,6 +1929,7 @@ mod tests {
             "editorProjectId",
             "audioAssetId",
             "workspaceContext",
+            "history",
         ] {
             let mut missing = current.clone();
             missing
@@ -1968,6 +1984,7 @@ mod tests {
                 round_number: Some(7),
                 tick: Some(640),
             },
+            history: Vec::new(),
             mode: EmbeddedAgentMode::Guide,
             message: "Explain this frame".to_owned(),
         };

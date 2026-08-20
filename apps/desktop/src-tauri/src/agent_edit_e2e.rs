@@ -362,6 +362,7 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
             round_number: None,
             tick: None,
         },
+        history: Vec::new(),
         mode: vibe_cs_agent::AgentMode::Edit,
         message: "Create an impact edit from ace-1 with two seconds of context.".to_owned(),
     };

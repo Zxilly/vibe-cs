@@ -534,6 +534,7 @@ export type { DesktopAgentMessage as AgentMessage } from './generated/DesktopAge
 export type { DesktopAgentThread as AgentThread } from './generated/DesktopAgentThread';
 export type { DesktopAgentToolCall as AgentToolCall } from './generated/DesktopAgentToolCall';
 export type { DesktopAgentChatInput as AgentChatInput } from './generated/DesktopAgentChatInput';
+export type { DesktopAgentChatHistoryMessage as AgentChatHistoryMessage } from './generated/DesktopAgentChatHistoryMessage';
 export type { DesktopAgentWorkspaceContext as AgentWorkspaceContext } from './generated/DesktopAgentWorkspaceContext';
 export type { DesktopAgentWorkspaceWorkflow as AgentWorkspaceWorkflow } from './generated/DesktopAgentWorkspaceWorkflow';
 export type { DesktopAgentWorkspaceDestination as AgentWorkspaceDestination } from './generated/DesktopAgentWorkspaceDestination';
@@ -620,6 +621,8 @@ export type { AgentProposal as AgentSessionProposal } from './generated/AgentPro
 export type { AgentProposalDecision } from './generated/AgentProposalDecision';
 export type { AgentProposalDecisionKind } from './generated/AgentProposalDecisionKind';
 export type { AgentProposalDecisionUpdate } from './generated/AgentProposalDecisionUpdate';
+export type { AgentTurnStatus } from './generated/AgentTurnStatus';
+export type { AgentTurnUpdate } from './generated/AgentTurnUpdate';
 
 export type { WorkspaceEditOperation } from './generated/WorkspaceEditOperation';
 export type { WorkspaceEditAuthor } from './generated/WorkspaceEditAuthor';

@@ -30,7 +30,7 @@ import { DesktopClientProvider, type DesktopClient } from '../../data/desktopCli
 import { EDIT_MERGE_WINDOW_MS } from '../../data/editNotifier';
 import { qk } from '../../data/keys';
 import { renderInteractive } from '../../test/render';
-import type { AgentPlan, AgentPlanEdit } from '../../shared/desktop/dto';
+import type { AgentPlan, AgentPlanEdit, AgentSessionEntryDraft, AgentTurnUpdate } from '../../shared/desktop/dto';
 import { AgentWorkspace } from '../AgentPage';
 
 import { PLAN, SESSION } from './planFixtures.testing';
@@ -96,7 +96,15 @@ function mount(options: MountOptions | string = {}): Harness {
       revision += 1;
       return Promise.resolve<AgentPlan>({ ...PLAN, revision, shots: [...edit.shots] });
     },
-    appendAgentSessionEntry: () => Promise.resolve(SESSION),
+    appendAgentSessionEntry: (_sessionId: string, draft: AgentSessionEntryDraft) =>
+      Promise.resolve(draft.kind === 'user'
+        ? { kind: 'user' as const, id: 'user-new', at: SESSION.updated_at, content: draft.content }
+        : { id: 'turn-new', at: SESSION.updated_at, ...draft, kind: 'assistant' as const }),
+    updateAgentTurn: (_sessionId: string, entryId: string, update: AgentTurnUpdate) =>
+      Promise.resolve({
+        kind: 'assistant' as const, id: entryId, at: SESSION.updated_at,
+        request_id: null, retry_of: null, ...update,
+      }),
     streamAgentChat: () => Promise.resolve(),
     createAgentSession: () => Promise.resolve(SESSION),
     health: () => Promise.resolve({ status: 'ok' }),

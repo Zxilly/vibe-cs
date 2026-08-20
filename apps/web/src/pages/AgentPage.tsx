@@ -170,6 +170,7 @@ export function AgentWorkspace({
 
   const chatStream = useAgentChatStream({
     sessionId: context.session,
+    history: sessionData?.entries ?? [],
     // The revision the model is answering about — the only place §4.5.3 ③'s
     // `based_on_revision` can come from (contract gap 6).
     plan: planData === undefined ? null : { id: planData.id, revision: planData.revision },

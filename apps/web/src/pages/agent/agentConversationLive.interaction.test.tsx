@@ -33,6 +33,7 @@ import type {
   AgentSession,
   AgentSessionEntry,
   AgentSessionEntryDraft,
+  AgentTurnUpdate,
 } from '../../shared/desktop/dto';
 import { AgentWorkspace } from '../AgentPage';
 import { renderInteractive } from '../../test/render';
@@ -110,11 +111,34 @@ function bridge(entries: readonly AgentSessionEntry[]): Bridge {
               content: draft.content,
               tool_calls: draft.tool_calls,
               proposals: draft.proposals,
+              status: draft.status ?? null,
+              request_id: draft.request_id ?? null,
+              retry_of: draft.retry_of ?? null,
+              error: draft.error ?? null,
             };
       const current = session(sessionId);
       sessions.set(sessionId, { ...current, entries: [...current.entries, entry] });
       return Promise.resolve(entry);
     },
+    updateAgentTurn: (sessionId: string, entryId: string, update: AgentTurnUpdate) => {
+      const current = session(sessionId);
+      const entry = current.entries.find((item) => item.id === entryId);
+      if (entry?.kind !== 'assistant') return Promise.reject(new Error('missing turn'));
+      const next: AgentSessionEntry = {
+        ...entry,
+        content: update.content,
+        tool_calls: update.tool_calls,
+        proposals: update.proposals,
+        status: update.status,
+        error: update.error,
+      };
+      sessions.set(sessionId, {
+        ...current,
+        entries: current.entries.map((item) => item.id === entryId ? next : item),
+      });
+      return Promise.resolve(next);
+    },
+    setAgentProposalDecision: (sessionId: string) => Promise.resolve(session(sessionId)),
     streamAgentChat: (input: unknown, handler: (event: AgentEvent) => void) => {
       inputs.push(input);
       onEvent = handler;

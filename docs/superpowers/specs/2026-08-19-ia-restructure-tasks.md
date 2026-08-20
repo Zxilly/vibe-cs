@@ -360,13 +360,13 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 
 ### IA-21 持久修改决策与回答生命周期
 
-- [ ] **状态**
+- [x] **状态**
 - 建什么：domain/application/storage 增加提议修改决策和回答 turn；状态穷举 `pending/streaming/completed/cancelled/failed`，记录重试来源；接受/拒绝通过服务端写入并可恢复。
 - 验收标准：
-  - [ ] 刷新和重启后接受/拒绝不丢
-  - [ ] 取消与失败留下可读、可重试的 turn，不冒充完成回答
-  - [ ] 同一 turn 的并发完成/取消写入有条件更新保护
-  - [ ] 旧会话文档兼容解码并有迁移测试
+  - [x] 刷新和重启后接受/拒绝不丢
+  - [x] 取消与失败留下可读、可重试的 turn，不冒充完成回答
+  - [x] 同一 turn 的并发完成/取消写入有条件更新保护
+  - [x] 旧会话文档兼容解码并有迁移测试
 
 ### IA-22 服务端提议绑定与成本元数据
 
@@ -421,3 +421,4 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 
 - 2026-08-20, IA-19:Demo 行直达 Agent 剪辑单，首句自动创建并命名对话；请求显式携带 Demo、作品、剪辑单 id/修订，Desktop 在模型调用前读取并校验真实剪辑单；初始双空态合并为单一启动画布。lint、typecheck、357 个测试文件/4270 项前端测试与 Desktop 44 项测试通过；真实 Tauri CDP 验证模型未配置时用户原句和重试入口保留，证据见 `docs/superpowers/evidence/2026-08-20-ia-19/`；无偏离。
 - 2026-08-20, IA-20:新增 Demo/分析/模型/录制四项统一准备检查与直接修复深链；模型设置由只读状态升级为可编辑、保存和真实连接测试；制作方式与结果视图分层，初始态隐藏修改视图与建议芯片，主动作收敛为生成剪辑单/确认剪辑单并录制。lint、typecheck、358 个测试文件/4275 项测试通过；Tauri CDP + agent-browser 在 2160px 与 1100×700 复核，证据见 `docs/superpowers/evidence/2026-08-20-ia-20/`；无偏离。
+- 2026-08-20, IA-21:接受/拒绝写回会话 proposal 文档并从服务端恢复；assistant turn 在流式前持久建立，以条件状态更新覆盖 streaming/completed/cancelled/failed 和 retry_of；模型历史改由已完成的持久会话条目提供，Desktop thread 不再是第二份对话真值。未改 SQLite schema 指纹，旧 proposal/assistant 文档通过 defaulted optional fields 兼容解码；lint、358 个测试文件/4279 项前端测试及 domain/storage/application/desktop 四 crate 全量测试通过；无偏离。

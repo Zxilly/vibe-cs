@@ -24,7 +24,8 @@ use vibe_cs_domain::{
     AgentPlanRestore, AgentPlanStatus, AgentPlanSummary, AgentPlanUpdate,
     AgentProposalDecisionUpdate, AgentSession, AgentSessionEntry, AgentSessionEntryDraft,
     AgentSessionExport, AgentSessionPage, AgentSessionPurge, AgentSessionQuery,
-    AgentSessionStorageStats, AgentWorkspaceSettings, EditorProject, JobStatus, RecordingJob,
+    AgentSessionStorageStats, AgentTurnUpdate, AgentWorkspaceSettings, EditorProject, JobStatus,
+    RecordingJob,
 };
 use vibe_cs_storage::ExportJobRecord;
 
@@ -48,6 +49,10 @@ pub(crate) fn router() -> Router<AppState> {
                 .delete(delete_session),
         )
         .route("/api/agent/sessions/{id}/entries", post(append_entry))
+        .route(
+            "/api/agent/sessions/{id}/turns/{entry_id}",
+            put(update_turn),
+        )
         .route(
             "/api/agent/sessions/{id}/proposal-decisions",
             put(set_proposal_decision),
@@ -165,6 +170,19 @@ async fn append_entry(
         .await?
         .ok_or_else(|| ApiError::not_found("agent session"))?;
     Ok((StatusCode::CREATED, Json(entry)))
+}
+
+async fn update_turn(
+    State(state): State<AppState>,
+    Path((id, entry_id)): Path<(Uuid, Uuid)>,
+    ApiJson(update): ApiJson<AgentTurnUpdate>,
+) -> ApiResult<Json<AgentSessionEntry>> {
+    state
+        .storage
+        .update_agent_turn(id, entry_id, update)
+        .await?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("agent session"))
 }
 
 async fn set_proposal_decision(
@@ -1848,5 +1866,87 @@ mod tests {
                 .expect("decisions")
                 .is_empty()
         );
+    }
+
+    #[tokio::test]
+    async fn agent_turn_lifecycle_is_conditional_and_survives_reload() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage);
+        let (_, session) = call(
+            &router,
+            Method::POST,
+            "/api/agent/sessions",
+            Some(json!({ "title": "Lifecycle" })),
+        )
+        .await;
+        let session_id: Uuid = serde_json::from_value(session["id"].clone()).expect("session id");
+        let request_id = Uuid::new_v4();
+        let (status, turn) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/sessions/{session_id}/entries"),
+            Some(json!({
+                "kind": "assistant",
+                "content": "",
+                "tool_calls": [],
+                "proposals": [],
+                "status": "pending",
+                "request_id": request_id,
+                "retry_of": null,
+                "error": null
+            })),
+        )
+        .await;
+        assert_eq!(status, 201);
+        let turn_id: Uuid = serde_json::from_value(turn["id"].clone()).expect("turn id");
+        let update_path = format!("/api/agent/sessions/{session_id}/turns/{turn_id}");
+        let (status, streaming) = call(
+            &router,
+            Method::PUT,
+            &update_path,
+            Some(json!({
+                "expected_status": "pending", "status": "streaming", "content": "",
+                "tool_calls": [], "proposals": [], "error": null
+            })),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(streaming["status"], "streaming");
+
+        let (status, conflict) = call(
+            &router,
+            Method::PUT,
+            &update_path,
+            Some(json!({
+                "expected_status": "pending", "status": "completed",
+                "content": "late writer", "tool_calls": [], "proposals": [], "error": null
+            })),
+        )
+        .await;
+        assert_eq!(status, 409, "unexpected conflict: {conflict}");
+
+        let (status, completed) = call(
+            &router,
+            Method::PUT,
+            &update_path,
+            Some(json!({
+                "expected_status": "streaming", "status": "completed",
+                "content": "finished answer", "tool_calls": [], "proposals": [], "error": null
+            })),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(completed["status"], "completed");
+
+        let (_, reopened) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/sessions/{session_id}"),
+            None,
+        )
+        .await;
+        assert_eq!(reopened["entries"][0]["id"], json!(turn_id));
+        assert_eq!(reopened["entries"][0]["request_id"], json!(request_id));
+        assert_eq!(reopened["entries"][0]["content"], "finished answer");
     }
 }

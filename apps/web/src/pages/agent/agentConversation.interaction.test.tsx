@@ -335,6 +335,6 @@ describe('the instruction bar', () => {
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
 
     expect(chat.send).toHaveBeenCalledTimes(2);
-    expect(chat.send).toHaveBeenLastCalledWith({ message: '压到 30 秒' });
+    expect(chat.send).toHaveBeenLastCalledWith({ message: '压到 30 秒', retryOf: null });
   });
 });

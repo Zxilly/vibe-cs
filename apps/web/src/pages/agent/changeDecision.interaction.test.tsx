@@ -31,7 +31,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { DesktopClientProvider, type DesktopClient } from '../../data/desktopClient';
 import { qk } from '../../data/keys';
-import type { AgentPlan, AgentPlanEdit } from '../../shared/desktop/dto';
+import type { AgentPlan, AgentPlanEdit, AgentSessionEntryDraft, AgentTurnUpdate } from '../../shared/desktop/dto';
 import { renderInteractive } from '../../test/render';
 import { AgentWorkspace } from '../AgentPage';
 
@@ -72,7 +72,15 @@ function mount(url = '/agent?plan=P-118&session=session-kael&mode=changes'): Har
       revision += 1;
       return Promise.resolve<AgentPlan>({ ...PLAN, revision, shots: [...edit.shots] });
     },
-    appendAgentSessionEntry: () => Promise.resolve(session),
+    appendAgentSessionEntry: (_sessionId: string, draft: AgentSessionEntryDraft) =>
+      Promise.resolve(draft.kind === 'user'
+        ? { kind: 'user' as const, id: 'user-new', at: session.updated_at, content: draft.content }
+        : { id: 'turn-new', at: session.updated_at, ...draft, kind: 'assistant' as const }),
+    updateAgentTurn: (_sessionId: string, entryId: string, update: AgentTurnUpdate) =>
+      Promise.resolve({
+        kind: 'assistant' as const, id: entryId, at: session.updated_at,
+        request_id: null, retry_of: null, ...update,
+      }),
     streamAgentChat: () => Promise.resolve(),
     createAgentSession: () => Promise.resolve(session),
     setAgentProposalDecision: () => Promise.resolve(session),

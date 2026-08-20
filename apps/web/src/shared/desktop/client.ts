@@ -46,6 +46,7 @@ import type {
   AgentSessionStorageStats,
   AgentStatus,
   AgentThread,
+  AgentTurnUpdate,
   AgentWorkspaceReferences,
   AgentWorkspaceSettings,
   AnalysisRun,
@@ -519,6 +520,11 @@ export const commands = {
     request<AgentSession>(`/agent/sessions/${encodeURIComponent(sessionId)}/proposal-decisions`, {
       method: 'PUT', body: update,
     }),
+  updateAgentTurn: (sessionId: string, entryId: string, update: AgentTurnUpdate) =>
+    request<AgentSessionEntry>(
+      `/agent/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(entryId)}`,
+      { method: 'PUT', body: update },
+    ),
   touchAgentObjectRef: (sessionId: string, touch: AgentObjectRefTouch) =>
     request<AgentObjectRef>(`/agent/sessions/${encodeURIComponent(sessionId)}/refs`, {
       method: 'POST', body: touch,

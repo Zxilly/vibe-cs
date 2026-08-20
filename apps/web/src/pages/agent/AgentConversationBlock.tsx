@@ -210,6 +210,9 @@ export const AgentConversationBlock: AgentBlock = ({
     [chat, context.session, createSession, planData?.title, updateContext],
   );
   const hasResultView = hasChangeSets || shots.length > 0;
+  const latestFailedTurn = [...(sessionData?.entries ?? EMPTY_ENTRIES)]
+    .reverse()
+    .find((entry) => entry.kind === 'assistant' && entry.status === 'failed');
 
   const sendDisabledReason =
     service.blocked
@@ -226,9 +229,14 @@ export const AgentConversationBlock: AgentBlock = ({
 
   const renderExtras = (entry: AgentSessionEntry): AgentEntryExtras | undefined => {
     const entrySlots = byEntry.get(entry.id);
-    if (entrySlots === undefined || entrySlots.length === 0) return undefined;
+    const failedPrompt = entry.kind === 'assistant' && entry.status === 'failed'
+      ? promptBeforeEntry(sessionData?.entries ?? EMPTY_ENTRIES, entry.id)
+      : null;
+    if ((entrySlots === undefined || entrySlots.length === 0) && failedPrompt === null) {
+      return undefined;
+    }
     return {
-      children: entrySlots.map((slot) => (
+      children: (entrySlots ?? []).map((slot) => (
         <ProposalBlock
           key={slot.key}
           slot={slot}
@@ -241,6 +249,16 @@ export const AgentConversationBlock: AgentBlock = ({
           onReject={onReject}
         />
       )),
+      ...(failedPrompt === null
+        ? {}
+        : {
+            actions: [{
+              id: `retry-${entry.id}`,
+              label: <Trans>重试</Trans>,
+              primary: true,
+              onAction: () => void chat.send({ message: failedPrompt, retryOf: entry.id }),
+            }],
+          }),
     };
   };
 
@@ -299,7 +317,12 @@ export const AgentConversationBlock: AgentBlock = ({
                   label: <Trans>重试</Trans>,
                   onAction: () => {
                     const message = lastMessageRef.current;
-                    if (message !== null) void chat.send({ message });
+                    if (message !== null) {
+                      void chat.send({
+                        message,
+                        retryOf: latestFailedTurn?.kind === 'assistant' ? latestFailedTurn.id : null,
+                      });
+                    }
                   },
                 }
           }
@@ -472,6 +495,15 @@ function sessionTitle(message: string, planTitle: string | undefined): string {
 
 function isModelConfigurationError(message: string): boolean {
   return message.toLowerCase().includes('configure an ai provider');
+}
+
+function promptBeforeEntry(entries: readonly AgentSessionEntry[], entryId: string): string | null {
+  const index = entries.findIndex((entry) => entry.id === entryId);
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const entry = entries[cursor];
+    if (entry?.kind === 'user' && entry.content.trim() !== '') return entry.content;
+  }
+  return null;
 }
 
 function Frame({ state, children }: { readonly state: string; readonly children: ReactNode }) {

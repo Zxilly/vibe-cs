@@ -109,4 +109,18 @@ describe('AgentBubble', () => {
     expect(html).toContain('animate-pulse');
     expect(html).not.toContain('data-bubble-content');
   });
+
+  it('keeps failed and cancelled turns readable after a reload', () => {
+    const failed = renderMarkup(
+      <AgentBubble entry={{ ...ASSISTANT, content: '', status: 'failed', error: '模型连接失败' }} {...UTC} />,
+    );
+    const cancelled = renderMarkup(
+      <AgentBubble entry={{ ...ASSISTANT, content: '', status: 'cancelled' }} {...UTC} />,
+    );
+
+    expect(failed).toContain('data-bubble-state="failed"');
+    expect(failed).toContain('模型连接失败');
+    expect(cancelled).toContain('data-bubble-state="cancelled"');
+    expect(cancelled).toContain('这次回答已停止');
+  });
 });

@@ -45,16 +45,17 @@
  *   in the component that shows it, and the cache learns nothing until the
  *   stream completes.
  *
- *   **The session is the record; the stream is not.** `agent_chat` writes to its
- *   own `AgentThread` store and knows nothing about `AgentSession` (they are
- *   separate stores — see the gap list in `agentContract.ts`). So this hook
- *   appends the two entries itself: the user entry before the request, the
- *   assistant entry on `complete`. That is also the only place that can stamp
+ *   **The session is the record; the stream is not.** This hook writes the user
+ *   entry and a stable assistant turn before opening the channel, then advances
+ *   that turn conditionally through streaming/completed/cancelled/failed. It
+ *   also sends completed session entries as the model history, so the desktop
+ *   thread file is only a request trace rather than a second conversation.
+ *   This hook is also the only place that can stamp
  *   `plan_id` + `based_on_revision` on a proposal, because the revision the
  *   model saw is the one this client read when the user pressed send.
  *
- *   **Completion invalidates, cancellation does not.** A cancelled request left
- *   no entry, so there is nothing to refetch.
+ *   **Every terminal state invalidates.** Cancellation and failure are durable
+ *   states with retry identity, not missing assistant messages.
  */
 
 import {
@@ -68,6 +69,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type {
   AgentChatInput,
+  AgentChatHistoryMessage,
   AgentEvent,
   AgentObjectKind,
   AgentObjectRefTouch,
@@ -355,6 +357,8 @@ export interface AgentChatSend {
   readonly message: string;
   /** Overrides the selected session for the first atomic create-and-send action. */
   readonly sessionId?: string | undefined;
+  /** Failed/cancelled assistant entry this new turn retries. */
+  readonly retryOf?: string | null | undefined;
   readonly mode?: AgentChatInput['mode'];
   readonly demoId?: string | null;
   readonly editorProjectId?: string | null;
@@ -383,6 +387,8 @@ export interface AgentChatStreamOptions {
    * streaming `AgentProposal` carries no revision of its own.
    */
   readonly plan?: { readonly id: string; readonly revision: number } | null;
+  /** Durable session transcript used as model history; failed/cancelled turns are excluded. */
+  readonly history?: readonly import('../shared/desktop/dto').AgentSessionEntry[] | undefined;
 }
 
 /**
@@ -398,6 +404,11 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef<string | null>(null);
+  const turnRef = useRef<{
+    readonly sessionId: string;
+    readonly entryId: string;
+    readonly status: 'pending' | 'streaming';
+  } | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -409,8 +420,20 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       mountedRef.current = false;
       // Leaving the page must not leave a request running in the backend.
       if (requestIdRef.current !== null) void client.cancelAgentChat(requestIdRef.current);
+      const turn = turnRef.current;
+      turnRef.current = null;
+      if (turn !== null) {
+        void client.updateAgentTurn(turn.sessionId, turn.entryId, {
+          expected_status: turn.status,
+          status: 'cancelled',
+          content: '',
+          tool_calls: [],
+          proposals: [],
+          error: null,
+        }).then(() => invalidateSessions(queryClient));
+      }
     };
-  }, [client]);
+  }, [client, queryClient]);
 
   const cancel = useCallback(() => {
     const requestId = requestIdRef.current;
@@ -418,11 +441,24 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
     requestIdRef.current = null;
     setStreaming(false);
     void client.cancelAgentChat(requestId);
-  }, [client]);
+    const turn = turnRef.current;
+    turnRef.current = null;
+    if (turn !== null) {
+      void client.updateAgentTurn(turn.sessionId, turn.entryId, {
+        expected_status: turn.status,
+        status: 'cancelled',
+        content: '',
+        tool_calls: [],
+        proposals: [],
+        error: null,
+      }).then(() => invalidateSessions(queryClient));
+    }
+  }, [client, queryClient]);
 
   const sessionId = options.sessionId;
   const planId = options.plan?.id ?? null;
   const planRevision = options.plan?.revision ?? null;
+  const history = options.history ?? [];
 
   const send = useCallback(
     async (input: AgentChatSend) => {
@@ -441,6 +477,20 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         kind: 'user',
         content: input.message,
       });
+      const activeTurn = await client.appendAgentSessionEntry(targetSessionId, {
+        kind: 'assistant',
+        content: '',
+        tool_calls: [],
+        proposals: [],
+        status: 'streaming',
+        request_id: requestId,
+        retry_of: input.retryOf ?? null,
+        error: null,
+      });
+      if (activeTurn.kind !== 'assistant') {
+        throw new Error('agent turn creation did not return an assistant entry');
+      }
+      turnRef.current = { sessionId: targetSessionId, entryId: activeTurn.id, status: 'streaming' };
       await invalidateSessions(queryClient);
 
       let text = '';
@@ -469,7 +519,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       };
 
       try {
-        await client.streamAgentChat(buildChatInput(requestId, input), onEvent);
+        await client.streamAgentChat(buildChatInput(requestId, input, history), onEvent);
       } catch (cause) {
         failure = messageOf(cause);
       }
@@ -490,6 +540,21 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       }
 
       if (failure !== null) {
+        const turn = turnRef.current;
+        turnRef.current = null;
+        if (turn !== null) {
+          await client.updateAgentTurn(turn.sessionId, turn.entryId, {
+            expected_status: turn.status,
+            status: 'failed',
+            content: text,
+            tool_calls: toolCalls.map((call) => ({
+              name: call.name, input: call.input, output: call.output,
+            })),
+            proposals: [],
+            error: failure,
+          });
+          await invalidateSessions(queryClient);
+        }
         if (mountedRef.current) {
           setError(failure);
           setStreaming(false);
@@ -497,8 +562,12 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         return;
       }
 
-      await client.appendAgentSessionEntry(targetSessionId, {
-        kind: 'assistant',
+      const turn = turnRef.current;
+      turnRef.current = null;
+      if (turn === null) return;
+      await client.updateAgentTurn(turn.sessionId, turn.entryId, {
+        expected_status: turn.status,
+        status: 'completed',
         content: text,
         tool_calls: toolCalls.map((call) => ({
           name: call.name,
@@ -512,6 +581,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           based_on_revision: planRevision,
           payload: item.payload,
         })),
+        error: null,
       });
       await invalidateSessions(queryClient);
 
@@ -520,7 +590,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         setDraft('');
       }
     },
-    [client, planId, planRevision, queryClient, sessionId, streaming],
+    [client, history, planId, planRevision, queryClient, sessionId, streaming],
   );
 
   return { streaming, draft, error, send, cancel };
@@ -531,7 +601,11 @@ type AgentChatEventPayload = {
   proposals: Array<Extract<AgentEvent, { type: 'proposal' }>['proposal']>;
 };
 
-function buildChatInput(requestId: string, input: AgentChatSend): AgentChatInput {
+function buildChatInput(
+  requestId: string,
+  input: AgentChatSend,
+  entries: readonly import('../shared/desktop/dto').AgentSessionEntry[],
+): AgentChatInput {
   const context = input.workspaceContext ?? {};
   return {
     requestId,
@@ -551,15 +625,36 @@ function buildChatInput(requestId: string, input: AgentChatSend): AgentChatInput
       roundNumber: context.roundNumber ?? null,
       tick: context.tick ?? null,
     },
+    history: sessionHistory(entries),
     mode: input.mode ?? 'edit',
     message: input.message,
   };
 }
 
+function sessionHistory(
+  entries: readonly import('../shared/desktop/dto').AgentSessionEntry[],
+): AgentChatHistoryMessage[] {
+  const history: AgentChatHistoryMessage[] = [];
+  for (const entry of entries) {
+    if (entry.kind === 'user' && entry.content.trim() !== '') {
+      history.push({ role: 'user', content: entry.content });
+    } else if (
+      entry.kind === 'assistant'
+      && (entry.status === undefined || entry.status === null || entry.status === 'completed')
+      && entry.content.trim() !== ''
+    ) {
+      history.push({ role: 'assistant', content: entry.content });
+    }
+  }
+  return history.slice(-40);
+}
+
 function createRequestId(): string {
   const uuid = globalThis.crypto?.randomUUID;
   if (typeof uuid === 'function') return globalThis.crypto.randomUUID();
-  return `agent-${String(Date.now())}-${Math.random().toString(16).slice(2)}`;
+  const hex = (length: number): string =>
+    Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  return `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`;
 }
 
 function messageOf(cause: unknown): string {

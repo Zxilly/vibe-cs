@@ -22,8 +22,9 @@ use vibe_cs_domain::{
     AgentPlanStatus, AgentPlanSummary, AgentPlanUpdate, AgentProposalDecision,
     AgentProposalDecisionUpdate, AgentSession, AgentSessionEntry, AgentSessionEntryDraft,
     AgentSessionExport, AgentSessionPage, AgentSessionQuery, AgentSessionRetention,
-    AgentSessionStorageStats, AgentSessionSummary, AgentWorkspaceSettings, DomainError,
-    WorkspaceEditAuthor, WorkspaceEditNotice, normalize_session_title,
+    AgentSessionStorageStats, AgentSessionSummary, AgentTurnStatus, AgentTurnUpdate,
+    AgentWorkspaceSettings, DomainError, WorkspaceEditAuthor, WorkspaceEditNotice,
+    normalize_session_title,
 };
 
 use super::{
@@ -201,18 +202,113 @@ impl Storage {
                     content,
                     tool_calls,
                     proposals,
+                    status,
+                    request_id,
+                    retry_of,
+                    error,
                 } => AgentSessionEntry::Assistant {
                     id: Uuid::new_v4(),
                     at: now,
                     content,
                     tool_calls,
                     proposals,
+                    status,
+                    request_id,
+                    retry_of,
+                    error,
                 },
             };
             append_entry(&transaction, session_id, &entry)?;
             touch_session(&transaction, session_id, now)?;
             transaction.commit()?;
             Ok(Some(entry))
+        })
+        .await
+    }
+
+    /// Conditionally advances one persisted assistant turn without changing
+    /// its sequence or identity.
+    pub async fn update_agent_turn(
+        &self,
+        session_id: Uuid,
+        entry_id: Uuid,
+        update: AgentTurnUpdate,
+    ) -> Result<Option<AgentSessionEntry>> {
+        let update = update.normalize()?;
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            if !session_exists(&transaction, session_id)? {
+                return Ok(None);
+            }
+            let mut statement = transaction.prepare(
+                "SELECT sequence, document_json FROM agent_session_entries \
+                 WHERE session_id = ?1 AND kind = 'assistant' ORDER BY sequence",
+            )?;
+            let rows = statement
+                .query_map(params![session_id.to_string()], |row| {
+                    Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            drop(statement);
+            let mut located = None;
+            for (sequence, document) in rows {
+                let entry: AgentSessionEntry = decode(&document)?;
+                if entry.id() == entry_id {
+                    located = Some((sequence, entry));
+                    break;
+                }
+            }
+            let Some((sequence, entry)) = located else {
+                return Err(StorageError::Domain(DomainError::InvalidInput(
+                    "agent turn does not exist in this session".to_owned(),
+                )));
+            };
+            let AgentSessionEntry::Assistant {
+                id,
+                at,
+                status,
+                request_id,
+                retry_of,
+                ..
+            } = entry
+            else {
+                return Err(StorageError::Domain(DomainError::InvalidInput(
+                    "agent turn requires an assistant entry".to_owned(),
+                )));
+            };
+            let current = status.unwrap_or(AgentTurnStatus::Completed);
+            if current != update.expected_status {
+                return Err(StorageError::Domain(DomainError::Conflict(format!(
+                    "agent turn is {current:?}, not {:?}",
+                    update.expected_status
+                ))));
+            }
+            let next = AgentSessionEntry::Assistant {
+                id,
+                at,
+                content: update.content,
+                tool_calls: update.tool_calls,
+                proposals: update.proposals,
+                status: Some(update.status),
+                request_id,
+                retry_of,
+                error: update.error,
+            };
+            let now = Utc::now();
+            transaction.execute(
+                "UPDATE agent_session_entries SET search_text = ?3, document_json = ?4 \
+                 WHERE session_id = ?1 AND sequence = ?2",
+                params![
+                    session_id.to_string(),
+                    sequence,
+                    next.search_text(),
+                    encode(&next)?,
+                ],
+            )?;
+            touch_session(&transaction, session_id, now)?;
+            transaction.commit()?;
+            Ok(Some(next))
         })
         .await
     }

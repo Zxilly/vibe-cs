@@ -364,6 +364,18 @@ pub enum AgentSessionEntry {
         content: String,
         tool_calls: Vec<AgentToolCall>,
         proposals: Vec<AgentProposal>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional = nullable)]
+        status: Option<AgentTurnStatus>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional = nullable)]
+        request_id: Option<Uuid>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional = nullable)]
+        retry_of: Option<Uuid>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional = nullable)]
+        error: Option<String>,
     },
     WorkspaceEdit {
         id: Uuid,
@@ -426,6 +438,18 @@ pub enum AgentSessionEntryDraft {
         content: String,
         tool_calls: Vec<AgentToolCall>,
         proposals: Vec<AgentProposal>,
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        status: Option<AgentTurnStatus>,
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        request_id: Option<Uuid>,
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        retry_of: Option<Uuid>,
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        error: Option<String>,
     },
 }
 
@@ -445,6 +469,10 @@ impl AgentSessionEntryDraft {
                 content,
                 tool_calls,
                 proposals,
+                status,
+                request_id,
+                retry_of,
+                error,
             } => {
                 if tool_calls.len() > AGENT_SESSION_MAX_TOOL_CALLS {
                     return Err(DomainError::InvalidInput(format!(
@@ -463,9 +491,93 @@ impl AgentSessionEntryDraft {
                     content: optional_text(&content, AGENT_SESSION_MAX_CONTENT_CHARS, "content")?,
                     tool_calls,
                     proposals,
+                    status,
+                    request_id,
+                    retry_of,
+                    error: error
+                        .map(|value| {
+                            optional_text(&value, AGENT_SESSION_MAX_CONTENT_CHARS, "turn error")
+                        })
+                        .transpose()?,
                 })
             }
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum AgentTurnStatus {
+    Pending,
+    Streaming,
+    Completed,
+    Cancelled,
+    Failed,
+}
+
+impl AgentTurnStatus {
+    #[must_use]
+    pub const fn can_transition_to(self, next: Self) -> bool {
+        matches!(
+            (self, next),
+            (
+                Self::Pending,
+                Self::Streaming | Self::Completed | Self::Cancelled | Self::Failed
+            ) | (
+                Self::Streaming,
+                Self::Completed | Self::Cancelled | Self::Failed
+            )
+        )
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct AgentTurnUpdate {
+    pub expected_status: AgentTurnStatus,
+    pub status: AgentTurnStatus,
+    pub content: String,
+    pub tool_calls: Vec<AgentToolCall>,
+    pub proposals: Vec<AgentProposal>,
+    pub error: Option<String>,
+}
+
+impl AgentTurnUpdate {
+    pub fn normalize(mut self) -> Result<Self, DomainError> {
+        if !self.expected_status.can_transition_to(self.status) {
+            return Err(DomainError::InvalidInput(
+                "agent turn status transition is not allowed".to_owned(),
+            ));
+        }
+        self.content = optional_text(&self.content, AGENT_SESSION_MAX_CONTENT_CHARS, "content")?;
+        if self.tool_calls.len() > AGENT_SESSION_MAX_TOOL_CALLS
+            || self.proposals.len() > AGENT_SESSION_MAX_PROPOSALS
+        {
+            return Err(DomainError::InvalidInput(
+                "agent turn result exceeds the entry limits".to_owned(),
+            ));
+        }
+        for proposal in &self.proposals {
+            proposal.validate()?;
+        }
+        self.error = self
+            .error
+            .map(|value| optional_text(&value, AGENT_SESSION_MAX_CONTENT_CHARS, "turn error"))
+            .transpose()?;
+        if self.status == AgentTurnStatus::Completed && self.content.is_empty() {
+            return Err(DomainError::InvalidInput(
+                "a completed agent turn requires content".to_owned(),
+            ));
+        }
+        if self.status == AgentTurnStatus::Failed && self.error.as_deref().unwrap_or("").is_empty()
+        {
+            return Err(DomainError::InvalidInput(
+                "a failed agent turn requires an error".to_owned(),
+            ));
+        }
+        Ok(self)
     }
 }
 
@@ -1450,6 +1562,31 @@ mod tests {
                 "notice": {}
             }))
             .is_err()
+        );
+
+        let legacy_assistant = serde_json::json!({
+            "kind": "assistant",
+            "id": Uuid::new_v4(),
+            "at": Utc::now(),
+            "content": "legacy answer",
+            "tool_calls": [],
+            "proposals": []
+        });
+        let decoded = serde_json::from_value::<AgentSessionEntry>(legacy_assistant)
+            .expect("assistant entry written before turn lifecycle fields");
+        let AgentSessionEntry::Assistant {
+            status,
+            request_id,
+            retry_of,
+            error,
+            ..
+        } = decoded
+        else {
+            panic!("expected assistant entry");
+        };
+        assert_eq!(
+            (status, request_id, retry_of, error),
+            (None, None, None, None)
         );
     }
 

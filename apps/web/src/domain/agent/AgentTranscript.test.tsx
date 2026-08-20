@@ -71,6 +71,21 @@ describe('AgentTranscript', () => {
     expect(html).toContain('我把第 2 个镜头');
   });
 
+  it('does not duplicate the persisted streaming turn beside its live bubble', () => {
+    const pending = {
+      ...ASSISTANT_ENTRY,
+      id: 'pending-turn',
+      content: '',
+      status: 'streaming' as const,
+    };
+    const html = renderMarkup(
+      <AgentTranscript entries={[USER_ENTRY, pending]} streamingContent="正在生成" label="会话" {...UTC} />,
+    );
+
+    expect(occurrences(html, 'data-agent-bubble="assistant"')).toBe(1);
+    expect(html).toContain('正在生成');
+  });
+
   it('is not empty while a reply is streaming into an empty session', () => {
     const html = renderMarkup(
       <AgentTranscript entries={[]} streamingContent="正在想" label="会话" empty={<span>还没有对话</span>} />,

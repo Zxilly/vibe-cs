@@ -83,6 +83,13 @@ export function AgentTranscript({
       className={cn('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto', className)}
     >
       {entries.map((entry) => {
+        if (
+          streamingContent !== undefined
+          && entry.kind === 'assistant'
+          && (entry.status === 'pending' || entry.status === 'streaming')
+        ) {
+          return null;
+        }
         if (!AGENT_ENTRY_KIND[entry.kind].bubble) {
           /* Narrowed by the record, then by the discriminant so TypeScript can
              see it too — the record is the rule, the check is the proof. */

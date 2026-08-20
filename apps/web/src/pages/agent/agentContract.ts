@@ -149,21 +149,19 @@
  *  2. **No change-set type on the wire.** `AgentSessionProposal.payload` is
  *     `unknown`; `domain/agent/types.ts` parses it and returns `null` when it
  *     does not match, so an unrecognised proposal shows its title and no cards.
- *  3. **No accept / reject state anywhere.** Which changes were handled lives in
- *     the panel and is lost on reload. Accepting is expressed as an ordinary
- *     `applyAgentPlanEdit`, which means the wire cannot tell 「我接受了 Agent 的
- *     建议」 from 「我自己改的」 either — `WorkspaceEditNotice.by` is `'user'` and
- *     nothing else.
+ *  3. **Closed in IA-21: accept / reject is stored on the proposal.** Old
+ *     proposal documents decode without the optional decisions field; new
+ *     decisions are written back into the same entry document, so the exact
+ *     SQLite schema fingerprint and existing workspaces stay valid.
  *  4. **`AgentWorkspaceSettings` has only `session_retention` and
  *     `take_limit`.** The 行为边界 block's other four controls (应用剪辑变更前先
  *     预览 / 显示 Agent 读取了哪些证据 / 默认成片时长 / 点评语气) have nowhere to
  *     be stored, and 录制前始终由你确认 is a constant rather than a field.
- *  5. **The streaming Agent and the session store are two stores.**
- *     `agent_chat` writes `AgentThread`; `/api/agent/sessions` is separate, and
- *     `AgentChatInput` has `threadId`, not `sessionId`. `useAgentChatStream`
- *     bridges them by appending both entries itself. A consequence: a stream
- *     that is interrupted between the user entry and the assistant entry leaves
- *     a question with no answer in the transcript.
+ *  5. **Closed in IA-21: session entries own the turn lifecycle and history.**
+ *     A stable assistant entry is created before streaming and conditionally
+ *     advances through pending/streaming/completed/cancelled/failed. Completed
+ *     session entries are sent as `AgentChatInput.history`, so interruption can
+ *     no longer leave a question with no addressable result.
  *  6. **The streaming `AgentProposal` carries no `plan_id` / `based_on_revision`.**
  *     Its `kind` is `CapturedPlanKind` — a real enum since the gap-closing
  *     round, and still with no plan-change member. So the revision a proposal

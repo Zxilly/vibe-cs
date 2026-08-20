@@ -18,6 +18,7 @@ import type {
   AgentSession,
   AgentSessionEntry,
   AgentSessionEntryDraft,
+  AgentTurnUpdate,
 } from '../shared/desktop/dto';
 import type { DesktopClientStub } from './desktopClient';
 import { useAgentChatStream, useAgentSession } from './sessions';
@@ -39,9 +40,35 @@ const ENTRY: AgentSessionEntry = {
   content: '把它压到 30 秒以内',
 };
 
+const TURN_ENTRY: AgentSessionEntry = {
+  kind: 'assistant',
+  id: 'turn-1',
+  at: '2026-08-15T09:47:01.000Z',
+  content: '',
+  tool_calls: [],
+  proposals: [],
+  status: 'pending',
+  request_id: '00000000-0000-4000-a000-000000000001',
+  retry_of: null,
+  error: null,
+};
+
+const HISTORY: AgentSessionEntry[] = [
+  { kind: 'user', id: 'old-user', at: SESSION.updated_at, content: '上一条问题' },
+  {
+    kind: 'assistant', id: 'old-answer', at: SESSION.updated_at, content: '上一条回答',
+    tool_calls: [], proposals: [], status: 'completed',
+  },
+  {
+    kind: 'assistant', id: 'failed-answer', at: SESSION.updated_at, content: '',
+    tool_calls: [], proposals: [], status: 'failed', error: '连接失败',
+  },
+];
+
 function stubClient(events: AgentEvent[]) {
   const drafts: AgentSessionEntryDraft[] = [];
   const inputs: AgentChatInput[] = [];
+  const updates: AgentTurnUpdate[] = [];
   let sessionReads = 0;
 
   const client: DesktopClientStub = {
@@ -51,7 +78,11 @@ function stubClient(events: AgentEvent[]) {
     },
     appendAgentSessionEntry: (_sessionId: string, draft: AgentSessionEntryDraft) => {
       drafts.push(draft);
-      return Promise.resolve(ENTRY);
+      return Promise.resolve(draft.kind === 'user' ? ENTRY : TURN_ENTRY);
+    },
+    updateAgentTurn: (_sessionId: string, _entryId: string, update: AgentTurnUpdate) => {
+      updates.push(update);
+      return Promise.resolve({ ...TURN_ENTRY, ...update, kind: 'assistant' });
     },
     streamAgentChat: (input: AgentChatInput, onEvent: (event: AgentEvent) => void) => {
       inputs.push(input);
@@ -60,12 +91,12 @@ function stubClient(events: AgentEvent[]) {
     },
   };
 
-  return { client, drafts, inputs, sessionReads: () => sessionReads };
+  return { client, drafts, inputs, updates, sessionReads: () => sessionReads };
 }
 
 describe('useAgentChatStream', () => {
   it('writes the question first, streams, then writes the answer', async () => {
-    const { client, drafts } = stubClient([
+    const { client, drafts, updates } = stubClient([
       { type: 'started', threadId: 'T-1' },
       { type: 'textDelta', delta: '我把第 2 个镜头' },
       { type: 'textDelta', delta: '从 Dolly 改成了 Tracking。' },
@@ -83,8 +114,9 @@ describe('useAgentChatStream', () => {
 
     expect(drafts).toHaveLength(2);
     expect(drafts[0]).toEqual({ kind: 'user', content: '把它压到 30 秒以内' });
-    expect(drafts[1]).toMatchObject({
-      kind: 'assistant',
+    expect(drafts[1]).toMatchObject({ kind: 'assistant', status: 'streaming' });
+    expect(updates.at(-1)).toMatchObject({
+      status: 'completed',
       content: '我把第 2 个镜头从 Dolly 改成了 Tracking。',
     });
     // The in-flight text never became cache state, and is cleared once the
@@ -94,7 +126,7 @@ describe('useAgentChatStream', () => {
   });
 
   it('stamps every proposal with the plan revision the model saw', async () => {
-    const { client, drafts } = stubClient([
+    const { client, updates } = stubClient([
       {
         type: 'proposal',
         proposal: { kind: 'highlight_edit', title: '压到 30 秒', payload: { changes: [] } },
@@ -111,10 +143,7 @@ describe('useAgentChatStream', () => {
       await result.current.send({ message: '压一压' });
     });
 
-    const assistant = drafts[1];
-    expect(assistant?.kind).toBe('assistant');
-    if (assistant?.kind !== 'assistant') throw new Error('expected an assistant draft');
-    expect(assistant.proposals).toEqual([
+    expect(updates.at(-1)?.proposals).toEqual([
       {
         kind: 'highlight_edit',
         title: '压到 30 秒',
@@ -126,7 +155,7 @@ describe('useAgentChatStream', () => {
   });
 
   it('leaves the stamp null when no plan is open, rather than guessing one', async () => {
-    const { client, drafts } = stubClient([
+    const { client, updates } = stubClient([
       {
         type: 'proposal',
         proposal: { kind: 'video_render', title: '生成视频', payload: null },
@@ -134,15 +163,16 @@ describe('useAgentChatStream', () => {
       { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
     ]);
 
-    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: 'S-1' }), { client });
+    const { result } = renderDataHook(
+      () => useAgentChatStream({ sessionId: 'S-1', history: HISTORY }),
+      { client },
+    );
 
     await act(async () => {
       await result.current.send({ message: '随便聊聊' });
     });
 
-    const assistant = drafts[1];
-    if (assistant?.kind !== 'assistant') throw new Error('expected an assistant draft');
-    expect(assistant.proposals[0]).toMatchObject({ plan_id: null, based_on_revision: null });
+    expect(updates.at(-1)?.proposals[0]).toMatchObject({ plan_id: null, based_on_revision: null });
   });
 
   it('refreshes the transcript once the answer is stored', async () => {
@@ -174,17 +204,21 @@ describe('useAgentChatStream', () => {
   });
 
   it('keeps the question in the transcript when the stream fails', async () => {
-    const { client, drafts } = stubClient([{ type: 'error', message: '模型未配置' }]);
+    const { client, drafts, updates } = stubClient([{ type: 'error', message: '模型未配置' }]);
 
-    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: 'S-1' }), { client });
+    const { result } = renderDataHook(
+      () => useAgentChatStream({ sessionId: 'S-1', history: HISTORY }),
+      { client },
+    );
 
     await act(async () => {
       await result.current.send({ message: '压一压' });
     });
 
-    // The user entry was written; no assistant entry was invented for it.
-    expect(drafts).toHaveLength(1);
+    // The question and its failed turn are both durable.
+    expect(drafts).toHaveLength(2);
     expect(drafts[0]?.kind).toBe('user');
+    expect(updates.at(-1)).toMatchObject({ status: 'failed', error: '模型未配置' });
     expect(result.current.error).toBe('模型未配置');
     expect(result.current.streaming).toBe(false);
   });
@@ -194,13 +228,18 @@ describe('useAgentChatStream', () => {
        delta is the same race the real channel has: the request is already in
        flight when the user presses stop. */
     const drafts: AgentSessionEntryDraft[] = [];
+    const updates: AgentTurnUpdate[] = [];
     let cancelledRequest: string | null = null;
     let stop: (() => void) | null = null;
 
     const client: DesktopClientStub = {
       appendAgentSessionEntry: (_sessionId: string, draft: AgentSessionEntryDraft) => {
         drafts.push(draft);
-        return Promise.resolve(ENTRY);
+        return Promise.resolve(draft.kind === 'user' ? ENTRY : TURN_ENTRY);
+      },
+      updateAgentTurn: (_sessionId: string, _entryId: string, update: AgentTurnUpdate) => {
+        updates.push(update);
+        return Promise.resolve({ ...TURN_ENTRY, ...update, kind: 'assistant' });
       },
       cancelAgentChat: (requestId: string) => {
         cancelledRequest = requestId;
@@ -224,9 +263,10 @@ describe('useAgentChatStream', () => {
     });
 
     expect(cancelledRequest).not.toBeNull();
-    // The question stays; no assistant entry was written for a stopped reply.
-    expect(drafts).toHaveLength(1);
+    // The question and a cancelled turn both stay addressable.
+    expect(drafts).toHaveLength(2);
     expect(drafts[0]?.kind).toBe('user');
+    await waitFor(() => expect(updates.some((update) => update.status === 'cancelled')).toBe(true));
     expect(result.current.streaming).toBe(false);
     expect(result.current.draft).toBe('');
   });
@@ -262,7 +302,10 @@ describe('useAgentChatStream', () => {
       { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
     ]);
 
-    const { result } = renderDataHook(() => useAgentChatStream({ sessionId: 'S-1' }), { client });
+    const { result } = renderDataHook(
+      () => useAgentChatStream({ sessionId: 'S-1', history: HISTORY }),
+      { client },
+    );
 
     await act(async () => {
       await result.current.send({
@@ -279,6 +322,10 @@ describe('useAgentChatStream', () => {
     });
 
     expect(inputs[0]?.threadId).toBeNull();
+    expect(inputs[0]?.history).toEqual([
+      { role: 'user', content: '上一条问题' },
+      { role: 'assistant', content: '上一条回答' },
+    ]);
     expect(inputs[0]?.demoId).toBe('demo-1');
     expect(inputs[0]?.workspaceContext).toMatchObject({
       demoId: 'demo-1',

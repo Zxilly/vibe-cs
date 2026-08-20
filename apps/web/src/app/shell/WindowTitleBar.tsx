@@ -29,7 +29,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { Bell, ChartNoAxesCombined, Clapperboard, Maximize, Minus, Search, X } from 'lucide-react';
+import { Bell, Maximize, Minus, Search, X } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -38,12 +38,13 @@ import {
   type ReactNode,
 } from 'react';
 
-import { cn, OverflowMenu } from '../../design/layout';
+import { cn } from '../../design/layout';
 import { Kbd } from '../../design/primitives';
 import { isDesktopShell } from '../../shared/desktop/dialog';
 import { ServiceStatusMarker, type ServiceStatus } from '../boundary';
 import { useShellStore } from './shellStore';
 import type { WorkspaceMode } from './navigation';
+import { WorkspaceModeMenu } from './WorkspaceModeMenu';
 
 /**
  * The local service state the top bar reports. This is an alias, not a second
@@ -181,8 +182,6 @@ export function WindowTitleBar({
   const storedNavCollapsed = useShellStore((state) => state.navCollapsed);
   const currentMode = mode ?? storedMode;
   const collapsed = navCollapsed ?? storedNavCollapsed;
-  const ModeIcon = currentMode === 'edit' ? Clapperboard : ChartNoAxesCombined;
-  const currentModeLabel = currentMode === 'edit' ? t`剪辑模式` : t`分析模式`;
 
   const [desktopWindow, setDesktopWindow] = useState<DesktopWindowAdapter | null>(adapter ?? null);
   const [actionFailed, setActionFailed] = useState(false);
@@ -238,33 +237,10 @@ export function WindowTitleBar({
           collapsed ? 'w-[var(--w-nav-collapsed)]' : 'w-[var(--w-nav)]',
         )}
       >
-        <OverflowMenu
-          items={([
-            {
-              id: 'edit',
-              label: <Trans>剪辑模式</Trans>,
-              current: currentMode === 'edit',
-              onSelect: () => onModeChange?.('edit'),
-            },
-            {
-              id: 'analysis',
-              label: <Trans>分析模式</Trans>,
-              current: currentMode === 'analysis',
-              onSelect: () => onModeChange?.('analysis'),
-            },
-          ] as const)}
-          label={t`切换工作模式，当前：${currentModeLabel}`}
-          align="start"
-          triggerClassName={cn(
-            'h-full w-full text-text hover:bg-neutral-200',
-            collapsed ? 'justify-center px-1.5' : 'px-4',
-          )}
-          triggerLabel={
-            <>
-              <ModeIcon size={16} strokeWidth={1.5} aria-hidden="true" className="flex-none text-accent-700" />
-              {collapsed ? null : <span className="min-w-0 flex-1 truncate text-left font-heading text-md">{currentModeLabel}</span>}
-            </>
-          }
+        <WorkspaceModeMenu
+          mode={currentMode}
+          collapsed={collapsed}
+          onModeChange={onModeChange}
         />
       </div>
 

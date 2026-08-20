@@ -231,7 +231,7 @@ describe('AppShell — work modes', () => {
     expect(useShellStore.getState().onboardingComplete).toBe(true);
   });
 
-  it('switches from editing navigation to the retained analysis navigation', async () => {
+  it('switches from editing to analysis and back without the route effect overriding the choice', async () => {
     media = stubMatchMedia(false);
     const router = shellRouter(pendingProbe, '/');
     const { getByRole, queryByText } = renderInteractive(<RouterProvider router={router} />);
@@ -243,12 +243,23 @@ describe('AppShell — work modes', () => {
       button: 0,
       ctrlKey: false,
     });
-    fireEvent.click(getByRole('menuitem', { name: '分析模式' }));
+    fireEvent.click(getByRole('menuitemradio', { name: /^分析模式/u }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/library'));
     expect(queryByText('玩家目录')).not.toBeNull();
     expect(queryByText('证据检索')).not.toBeNull();
     expect(queryByText('作品')).toBeNull();
+
+    fireEvent.pointerDown(getByRole('button', { name: /切换工作模式/u }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(getByRole('menuitemradio', { name: /^剪辑模式/u }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'));
+    expect(useShellStore.getState().mode).toBe('edit');
+    expect(queryByText('作品')).not.toBeNull();
+    expect(queryByText('玩家目录')).toBeNull();
   });
 
   it('opens analysis deep links in analysis mode without a wrong-nav frame', () => {

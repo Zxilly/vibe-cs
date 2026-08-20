@@ -1375,6 +1375,10 @@ msgstr "Job ID"
 msgid "作品"
 msgstr "Project"
 
+#: src/app/shell/WorkspaceModeMenu.tsx:75
+msgid "作品、剪辑单、录制与成品"
+msgstr "Projects, shot lists, recording, and finished files"
+
 #: src/app/routeCrumb.ts:70
 #: src/pages/ProjectWorkspacePage.tsx:36
 #: src/pages/ProjectWorkspacePage.tsx:47
@@ -1826,8 +1830,8 @@ msgstr "Close drawer"
 msgid "关闭提示"
 msgstr "Dismiss notice"
 
-#: src/app/shell/WindowTitleBar.tsx:361
-#: src/app/shell/WindowTitleBar.tsx:362
+#: src/app/shell/WindowTitleBar.tsx:337
+#: src/app/shell/WindowTitleBar.tsx:338
 msgid "关闭窗口"
 msgstr "Close window"
 
@@ -1867,13 +1871,13 @@ msgstr "A bit faster"
 msgid "再试一次"
 msgstr "Try again"
 
-#: src/app/shell/WindowTitleBar.tsx:351
-#: src/app/shell/WindowTitleBar.tsx:352
+#: src/app/shell/WindowTitleBar.tsx:327
+#: src/app/shell/WindowTitleBar.tsx:328
 msgid "最大化或还原窗口"
 msgstr "Maximize or restore window"
 
-#: src/app/shell/WindowTitleBar.tsx:341
-#: src/app/shell/WindowTitleBar.tsx:342
+#: src/app/shell/WindowTitleBar.tsx:317
+#: src/app/shell/WindowTitleBar.tsx:318
 msgid "最小化窗口"
 msgstr "Minimize window"
 
@@ -2062,8 +2066,8 @@ msgid "分析已取消"
 msgstr "Analysis cancelled"
 
 #: src/app/shell/FirstRunGuide.tsx:70
-#: src/app/shell/WindowTitleBar.tsx:185
-#: src/app/shell/WindowTitleBar.tsx:251
+#: src/app/shell/WorkspaceModeMenu.tsx:31
+#: src/app/shell/WorkspaceModeMenu.tsx:80
 msgid "分析模式"
 msgstr "Analysis mode"
 
@@ -2096,7 +2100,7 @@ msgstr "Resolution"
 msgid "分页"
 msgstr "Pagination"
 
-#: src/app/shell/WindowTitleBar.tsx:256
+#: src/app/shell/WorkspaceModeMenu.tsx:37
 msgid "切换工作模式，当前：{currentModeLabel}"
 msgstr "Switch work mode, current: {currentModeLabel}"
 
@@ -2197,8 +2201,8 @@ msgid "剪辑工程"
 msgstr "Edit project"
 
 #: src/app/shell/FirstRunGuide.tsx:53
-#: src/app/shell/WindowTitleBar.tsx:185
-#: src/app/shell/WindowTitleBar.tsx:245
+#: src/app/shell/WorkspaceModeMenu.tsx:31
+#: src/app/shell/WorkspaceModeMenu.tsx:74
 #: src/pages/ProjectWorkspacePage.tsx:157
 msgid "剪辑模式"
 msgstr "Editing mode"
@@ -2532,14 +2536,14 @@ msgid "名称"
 msgstr "Name"
 
 #: src/ActivityDrawer.tsx:64
-#: src/app/shell/WindowTitleBar.tsx:305
+#: src/app/shell/WindowTitleBar.tsx:281
 #: src/pages/delivery/TaskRecordRail.tsx:54
 #: src/pages/delivery/TaskRecordView.tsx:89
 #: src/terminology.ts:34
 msgid "后台任务"
 msgstr "Background tasks"
 
-#: src/app/shell/WindowTitleBar.tsx:304
+#: src/app/shell/WindowTitleBar.tsx:280
 msgid "后台任务，{activityUnreadCount} 条未读"
 msgstr "Background tasks, {activityUnreadCount} unread"
 
@@ -3277,6 +3281,8 @@ msgid "工作台"
 msgstr "Dashboard"
 
 #: src/app/shell/FirstRunGuide.tsx:41
+#: src/app/shell/WorkspaceModeMenu.tsx:58
+#: src/app/shell/WorkspaceModeMenu.tsx:63
 msgid "工作模式"
 msgstr "Work mode"
 
@@ -5487,6 +5493,10 @@ msgctxt "palette-group"
 msgid "比赛"
 msgstr "Matches"
 
+#: src/app/shell/WorkspaceModeMenu.tsx:81
+msgid "比赛、玩家、证据与回放"
+msgstr "Matches, players, evidence, and replays"
+
 #: src/domain/match/MatchContextBar.tsx:126
 msgid "比赛信息"
 msgstr "Match info"
@@ -6487,7 +6497,7 @@ msgstr "Wallbang"
 msgid "窗口宽度不足 1100px，侧栏保持为图标条"
 msgstr "The window is under 1100px wide, so the sidebar stays an icon rail"
 
-#: src/app/shell/WindowTitleBar.tsx:335
+#: src/app/shell/WindowTitleBar.tsx:311
 msgid "窗口操作失败"
 msgstr "Window action failed"
 
@@ -7300,7 +7310,7 @@ msgid "跳转"
 msgstr "Seek"
 
 #: src/app/command/CommandPalette.tsx:229
-#: src/app/shell/WindowTitleBar.tsx:289
+#: src/app/shell/WindowTitleBar.tsx:265
 msgid "跳转、搜索比赛或证据"
 msgstr "Jump to a page, search matches or evidence"
 

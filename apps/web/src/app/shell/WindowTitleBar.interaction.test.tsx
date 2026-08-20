@@ -146,7 +146,10 @@ describe('the work-mode switch', () => {
       button: 0,
       ctrlKey: false,
     });
-    const analysis = getByRole('menuitem', { name: '分析模式' });
+    const edit = getByRole('menuitemradio', { name: /^剪辑模式/u });
+    const analysis = getByRole('menuitemradio', { name: /^分析模式/u });
+    expect(edit.getAttribute('data-state')).toBe('checked');
+    expect(analysis.getAttribute('data-state')).toBe('unchecked');
     fireEvent.click(analysis);
 
     expect(onModeChange).toHaveBeenCalledWith('analysis');

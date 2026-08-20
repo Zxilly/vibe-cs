@@ -43,4 +43,5 @@ export {
   type WindowTitleBarController,
   type WindowTitleBarProps,
 } from './WindowTitleBar';
+export { WorkspaceModeMenu, type WorkspaceModeMenuProps } from './WorkspaceModeMenu';
 export { RouteBreadcrumb, type RouteBreadcrumbProps } from './RouteBreadcrumb';

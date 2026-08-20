@@ -25,10 +25,9 @@
  * object kind cannot render as a blank. The id is in the expanded JSON, where a
  * reader who wants 「plan#P-118」 will look for it.
  *
- * **「你」 is not an assumption.** `WorkspaceEditNotice.by` is the literal type
- * `'user'` on the wire — the notice exists precisely because a *person* edited
- * something. §4.5.3 ② is why: the Agent never rolls a user's edit back, so
- * there is no other author this line could have.
+ * `WorkspaceEditNotice.by` distinguishes a user edit from the Agent's one-time
+ * initial generation. The latter establishes the immutable Agent baseline;
+ * later user edits keep the original 「你在…上做了…」 wording.
  *
  * **The JSON scrolls sideways inside its own box.** A tick value or a long
  * 「note」 must not widen the transcript column.
@@ -37,7 +36,7 @@
 import { msg } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
-import { ChevronDown, PencilLine } from 'lucide-react';
+import { ChevronDown, PencilLine, Sparkles } from 'lucide-react';
 import { useId, useState } from 'react';
 
 import { Button, cn } from '../../design/primitives';
@@ -62,6 +61,7 @@ export interface WorkspaceEditLineProps {
 
 const RULE_CLASS = 'h-px bg-divider';
 const ORIGINAL_LABEL = msg`这条通知的原文（不是聊天消息，模型看到的就是这段）`;
+const GENERATED_LABEL = msg`这条通知的原文（Agent 写入剪辑单的首版内容）`;
 
 export function WorkspaceEditLine({
   notice,
@@ -78,6 +78,8 @@ export function WorkspaceEditLine({
   const count = workspaceEditChangeCount(notice);
   const kindLabel = i18n._(AGENT_OBJECT_KIND[notice.object.kind].label);
   const zone = timeZone === undefined ? {} : { timeZone };
+  const generated = notice.by === 'agent';
+  const AuthorIcon = generated ? Sparkles : PencilLine;
 
   return (
     <div
@@ -87,14 +89,18 @@ export function WorkspaceEditLine({
     >
       <p className="flex min-w-0 flex-wrap items-center gap-2.5 py-1 text-xs text-neutral-600">
         <span aria-hidden="true" className={cn('w-3.5 flex-none', RULE_CLASS)} />
-        <PencilLine size={13} strokeWidth={1.5} aria-hidden="true" className="flex-none" />
+        <AuthorIcon size={13} strokeWidth={1.5} aria-hidden="true" className="flex-none" />
         <time dateTime={stamp} className="flex-none font-mono">
           {formatAgentTime(stamp, zone)}
         </time>
         <span className="min-w-0">
-          <Trans>
-            你在{kindLabel}上做了 <Plural value={count} other="# 处改动" />，Agent 已知悉
-          </Trans>
+          {generated ? (
+            <Trans>Agent 为{kindLabel}生成了 <Plural value={count} other="# 个镜头" /></Trans>
+          ) : (
+            <Trans>
+              你在{kindLabel}上做了 <Plural value={count} other="# 处改动" />，Agent 已知悉
+            </Trans>
+          )}
         </span>
 
         <Button
@@ -112,7 +118,13 @@ export function WorkspaceEditLine({
             aria-hidden="true"
             className={expanded ? 'rotate-180' : undefined}
           />
-          {expanded ? <Trans>收起</Trans> : <Trans>查看发给 Agent 的内容</Trans>}
+            {expanded ? (
+              <Trans>收起</Trans>
+            ) : generated ? (
+              <Trans>查看生成记录</Trans>
+            ) : (
+              <Trans>查看发给 Agent 的内容</Trans>
+            )}
         </Button>
 
         <span aria-hidden="true" className={cn('min-w-3.5 flex-1', RULE_CLASS)} />
@@ -125,7 +137,7 @@ export function WorkspaceEditLine({
           className="border border-dashed border-neutral-500 bg-neutral-100"
         >
           <p className="border-b border-dashed border-neutral-400 px-3 py-2 text-xs text-neutral-700">
-            {i18n._(ORIGINAL_LABEL)}
+            {i18n._(generated ? GENERATED_LABEL : ORIGINAL_LABEL)}
           </p>
           {/* The typed notice, serialised. Scrolls inside its own box so a long
               note cannot widen the transcript column. */}

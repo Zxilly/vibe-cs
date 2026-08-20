@@ -60,6 +60,7 @@ interface Bridge {
   readonly reached: string[];
   /** Mutated by the test to stand in for a manual edit landing on the server. */
   setPlanRevision: (revision: number) => void;
+  setPlanShots: (shots: AgentPlan['shots']) => void;
   /** Feeds the open stream one event. */
   emit: (event: AgentEvent) => void;
   /** Resolves the open `streamAgentChat` call. */
@@ -95,6 +96,12 @@ function bridge(entries: readonly AgentSessionEntry[]): Bridge {
 
   const stub = {
     health: () => Promise.resolve({ status: 'ok' }),
+    getDemo: () => Promise.resolve({ id: 'demo-1', lifecycle_status: 'ready' }),
+    getConfig: () => Promise.resolve({
+      llm: { provider: 'test', model: 'test', base_url: 'http://provider.test', api_key: '', prompt: '' },
+      llm_has_api_key: true,
+    }),
+    quickCheck: () => Promise.resolve({ checks: [] }),
     getAgentPlan: () => Promise.resolve(plan),
     listAgentPlans: () => Promise.resolve([]),
     createAgentSession: (title: string) => Promise.resolve(session('S-auto')).then((created) => ({ ...created, title })),
@@ -167,6 +174,9 @@ function bridge(entries: readonly AgentSessionEntry[]): Bridge {
     setPlanRevision: (revision) => {
       plan = planFixture(revision);
     },
+    setPlanShots: (shots) => {
+      plan = { ...plan, shots: [...shots] };
+    },
     emit: (event) => onEvent?.(event),
     finish: () => resolveStream?.(),
   };
@@ -230,6 +240,7 @@ beforeEach(() => {
 describe('the first sentence starts the work', () => {
   it('creates a session and sends with Demo, work and plan context in one action', async () => {
     const harness = bridge([]);
+    harness.setPlanShots([]);
     mount(harness, '/agent?plan=P-118&mode=changes', {
       projectId: 'plan:P-118',
       demoId: 'demo-1',
@@ -240,11 +251,15 @@ describe('the first sentence starts the work', () => {
     fireEvent.change(screen.getByRole('textbox'), {
       target: { value: '剪一条 40 秒、突出残局的视频' },
     });
-    fireEvent.click(screen.getByRole('button', { name: '生成变更' }));
+    fireEvent.click(screen.getByRole('button', { name: '生成剪辑单' }));
 
     await waitFor(() => expect(harness.reached).toContain('streamAgentChat'));
+    expect(harness.reached.indexOf('getDemo')).toBeLessThan(
+      harness.reached.indexOf('streamAgentChat'),
+    );
     expect(harness.reached).toContain('createAgentSession');
     expect(harness.inputs[0]).toMatchObject({
+      mode: 'hlae',
       demoId: 'demo-1',
       workspaceContext: {
         demoId: 'demo-1',

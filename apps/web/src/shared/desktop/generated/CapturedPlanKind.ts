@@ -4,12 +4,13 @@
  * What kind of proposal the model emitted, which selects how a client renders
  * the payload beside it.
  *
- * A closed set: every value is minted by one of the four tool handlers in this
- * file, and a fifth would be a new handler. It was a `String`, so the binding
- * said `string` and the web app carried the four-member union in a comment
+ * A closed set: every value is minted by one of the proposal tool handlers in
+ * this file, and another kind requires another handler. It was a `String`, so
+ * the binding said `string` and the web app carried the union in a comment
  * with a note that Rust did not enforce it.
  */
 export type CapturedPlanKind =
+  | "agent_plan_change"
   | "highlight_edit"
   | "beat_alignment"
   | "hlae"

@@ -181,7 +181,7 @@ describe('the three shapes', () => {
 
     expect(html).toContain('修改列表');
     expect(html).toContain('就地编辑');
-    expect(html).toContain('版本比较');
+    expect(html).toContain('Take 比较');
     expect(html).toContain('data-agent-mode="inline"');
   });
 

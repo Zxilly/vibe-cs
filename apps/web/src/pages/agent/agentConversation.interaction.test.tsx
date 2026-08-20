@@ -311,7 +311,7 @@ describe('switching shape', () => {
     renderBlock(<Controlled initial={CHANGES} />);
 
     fireEvent.click(within(card('change-1')).getByRole('button', { name: '接受' }));
-    fireEvent.click(screen.getByRole('radio', { name: '版本比较' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Take 比较' }));
     fireEvent.click(screen.getByRole('radio', { name: '修改列表' }));
 
     // A decision that vanished because the user looked at another shape would

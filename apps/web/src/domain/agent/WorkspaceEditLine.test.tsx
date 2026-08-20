@@ -69,4 +69,23 @@ describe('WorkspaceEditLine', () => {
 
     expect(html).toContain('1 处改动');
   });
+
+  it('labels the one-time Agent generation without calling it a user edit', () => {
+    const generated = {
+      ...EDIT_NOTICE,
+      by: 'agent' as const,
+      changes: [{
+        shot: 1,
+        op: 'inserted' as const,
+        field: null,
+        from: null,
+        to: 'Ace',
+      }],
+    };
+    const html = renderMarkup(<WorkspaceEditLine notice={generated} {...UTC} />);
+
+    expect(html).toContain('Agent 为方案生成了 1 个镜头');
+    expect(html).toContain('查看生成记录');
+    expect(html).not.toContain('你在方案上做了');
+  });
 });

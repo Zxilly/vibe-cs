@@ -516,7 +516,10 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       };
 
       try {
-        await client.streamAgentChat(buildChatInput(requestId, input, history), onEvent);
+        await client.streamAgentChat(
+          buildChatInput(requestId, targetSessionId, input, history),
+          onEvent,
+        );
       } catch (cause) {
         failure = messageOf(cause);
       }
@@ -590,7 +593,13 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           estimated_cost_usd: completionMetadata.current.estimatedCostUsd,
         },
       });
-      await invalidateSessions(queryClient);
+      await Promise.all([
+        invalidateSessions(queryClient),
+        input.workspaceContext?.planId === undefined
+          || input.workspaceContext.planId === null
+          ? Promise.resolve()
+          : queryClient.invalidateQueries({ queryKey: qk.plans.all }),
+      ]);
 
       if (mountedRef.current) {
         setStreaming(false);
@@ -610,14 +619,16 @@ type AgentChatEventPayload = {
 
 function buildChatInput(
   requestId: string,
+  sessionId: string,
   input: AgentChatSend,
   entries: readonly import('../shared/desktop/dto').AgentSessionEntry[],
 ): AgentChatInput {
   const context = input.workspaceContext ?? {};
   return {
     requestId,
-    // The thread store is `agent_chat`'s own; the session store is the record.
-    threadId: null,
+    // The embedded thread uses the durable session identity, but the explicit
+    // session history below remains the model-history authority.
+    threadId: sessionId,
     demoId: input.demoId ?? null,
     editorProjectId: input.editorProjectId ?? null,
     audioAssetId: input.audioAssetId ?? null,

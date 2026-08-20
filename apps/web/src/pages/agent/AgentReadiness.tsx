@@ -62,7 +62,7 @@ export function buildAgentReadiness(input: ReadinessInput): AgentReadinessState 
             state: 'ok', blocking: false, action: null,
           };
 
-  const analysis = analysisReadiness(input, selectPath);
+  const analysis = analysisReadiness(input);
   const model: AgentReadinessItem = input.modelError !== null
     ? {
         key: 'model', label: t`AI 模型`, detail: input.modelError,
@@ -114,7 +114,7 @@ export function buildAgentReadiness(input: ReadinessInput): AgentReadinessState 
   };
 }
 
-function analysisReadiness(input: ReadinessInput, selectPath: string): AgentReadinessItem {
+function analysisReadiness(input: ReadinessInput): AgentReadinessItem {
   if (input.demoId === null) {
     return {
       key: 'analysis', label: t`Demo 分析`, detail: t`选择 Demo 后检查分析结果`,
@@ -133,14 +133,23 @@ function analysisReadiness(input: ReadinessInput, selectPath: string): AgentRead
       state: 'ok', blocking: false, action: null,
     };
   }
-  const failed = input.demoStatus === 'failed' || input.demoStatus === 'missing';
+  if (input.demoStatus === 'missing') {
+    return {
+      key: 'analysis', label: t`Demo 分析`, detail: t`Demo 文件缺失，无法开始分析`,
+      state: 'fail', blocking: true,
+      action: { label: t`查看 Demo`, to: `/match/${encodeURIComponent(input.demoId)}` },
+    };
+  }
+  const retrying = input.demoStatus === 'failed';
   return {
     key: 'analysis', label: t`Demo 分析`,
-    detail: failed ? t`分析不可用，需要先回到素材处理` : t`分析尚未完成，完成后即可生成剪辑单`,
-    state: failed ? 'fail' : 'running', blocking: true,
+    detail: retrying
+      ? t`发送后会先自动重试分析，再生成剪辑单`
+      : t`发送后会先自动完成分析，再生成剪辑单`,
+    state: retrying ? 'warn' : 'running', blocking: false,
     action: {
       label: t`查看 Demo`,
-      to: input.demoId === null ? selectPath : `/match/${encodeURIComponent(input.demoId)}`,
+      to: `/match/${encodeURIComponent(input.demoId)}`,
     },
   };
 }

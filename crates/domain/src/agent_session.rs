@@ -273,13 +273,14 @@ impl AgentProposalDecisionUpdate {
     }
 }
 
-/// Who authored a workspace edit. A manual edit never needs Agent approval, so
-/// the notice records the user as its author.
+/// Who authored a workspace update: a user edit, or the Agent's one-time
+/// initial shot-list generation.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
 pub enum WorkspaceEditAuthor {
     User,
+    Agent,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
@@ -1103,6 +1104,37 @@ pub struct AgentPlanEdit {
     /// The differences reported to the Agent as one workspace edit notice.
     pub changes: Vec<WorkspaceEditChange>,
     pub note: Option<String>,
+}
+
+/// The first Agent-generated shot list written into an empty placeholder plan.
+/// Unlike a manual edit, this also establishes the immutable Agent baseline.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct AgentPlanGeneration {
+    pub plan_id: Uuid,
+    pub expected_revision: i64,
+    pub shots: Vec<AgentPlanShot>,
+    pub origin: AgentPlanOriginDraft,
+}
+
+impl AgentPlanGeneration {
+    /// Validates a non-empty, conditionally applied initial generation.
+    pub fn normalize(mut self) -> Result<Self, DomainError> {
+        if self.expected_revision < 1 {
+            return Err(DomainError::InvalidInput(
+                "expected_revision must be greater than zero".to_owned(),
+            ));
+        }
+        self.shots = normalize_shots(self.shots)?;
+        if self.shots.is_empty() {
+            return Err(DomainError::InvalidInput(
+                "an Agent plan generation must contain at least one shot".to_owned(),
+            ));
+        }
+        self.origin = self.origin.normalize()?;
+        Ok(self)
+    }
 }
 
 impl AgentPlanEdit {

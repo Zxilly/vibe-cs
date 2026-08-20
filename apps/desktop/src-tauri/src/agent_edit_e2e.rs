@@ -17,9 +17,11 @@ use tauri::ipc::{Channel, InvokeResponseBody};
 use tokio::sync::{OnceCell, oneshot};
 use uuid::Uuid;
 use vibe_cs_domain::{
-    AppConfig, DemoRecord, DemoStatus, Highlight, HighlightKind, LlmConfig, MatchAnalysis,
-    RecordedClip,
+    AgentPlanCreate, AgentPlanStatus, AppConfig, DemoRecord, DemoStatus, ExportJob, Highlight,
+    HighlightKind, JobStatus, LlmConfig, MatchAnalysis, RecordedClip, RecordingJob,
+    RecordingRequest,
 };
+use vibe_cs_storage::ExportJobRecord;
 
 use super::*;
 
@@ -165,6 +167,126 @@ async fn provider_server() -> (
     (format!("http://{address}/v1"), fixture, shutdown_tx, task)
 }
 
+async fn openai_video_loop(
+    State(state): State<ProviderFixture>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response<Body> {
+    if headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        != Some(&format!("Bearer {TEST_SECRET}"))
+    {
+        return Response::builder()
+            .status(StatusCode::UNAUTHORIZED)
+            .body(Body::empty())
+            .expect("unauthorized response");
+    }
+    let request = serde_json::from_slice::<Value>(&body).expect("video provider request");
+    let request_number = {
+        let mut requests = state.requests.lock().expect("provider requests");
+        requests.push(request);
+        requests.len()
+    };
+    let chunks = if request_number == 1 {
+        let arguments = json!({
+            "highlightIds": ["ace-1"],
+            "leadSeconds": 2.0,
+            "tailSeconds": 2.5,
+            "cameraIntents": ["player_pov"],
+            "cameraRationales": ["Use the verified player view because collision geometry is unavailable."]
+        })
+        .to_string();
+        vec![
+            json!({
+                "id": "chatcmpl-video-e2e",
+                "object": "chat.completion.chunk",
+                "created": 0,
+                "model": "desktop-e2e",
+                "choices": [{
+                    "index": 0,
+                    "delta": {
+                        "role": "assistant",
+                        "tool_calls": [{
+                            "index": 0,
+                            "id": "call-video-plan",
+                            "type": "function",
+                            "function": { "name": "draft_video_plan", "arguments": arguments }
+                        }]
+                    },
+                    "finish_reason": null
+                }]
+            }),
+            json!({
+                "id": "chatcmpl-video-e2e",
+                "object": "chat.completion.chunk",
+                "created": 0,
+                "model": "desktop-e2e",
+                "choices": [{ "index": 0, "delta": {}, "finish_reason": "tool_calls" }]
+            }),
+        ]
+    } else {
+        vec![
+            json!({
+                "id": "chatcmpl-video-e2e",
+                "object": "chat.completion.chunk",
+                "created": 0,
+                "model": "desktop-e2e",
+                "choices": [{
+                    "index": 0,
+                    "delta": { "role": "assistant", "content": "已生成首版剪辑单，确认后会自动完成视频。" },
+                    "finish_reason": null
+                }]
+            }),
+            json!({
+                "id": "chatcmpl-video-e2e",
+                "object": "chat.completion.chunk",
+                "created": 0,
+                "model": "desktop-e2e",
+                "choices": [{ "index": 0, "delta": {}, "finish_reason": "stop" }]
+            }),
+        ]
+    };
+    let mut stream = String::new();
+    for chunk in chunks {
+        stream.push_str("data: ");
+        stream.push_str(&chunk.to_string());
+        stream.push_str("\n\n");
+    }
+    stream.push_str("data: [DONE]\n\n");
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/event-stream; charset=utf-8")
+        .body(Body::from(stream))
+        .expect("video provider response")
+}
+
+async fn video_provider_server() -> (
+    String,
+    ProviderFixture,
+    oneshot::Sender<()>,
+    tokio::task::JoinHandle<()>,
+) {
+    let fixture = ProviderFixture::new();
+    let router = Router::new()
+        .route("/v1/chat/completions", post(openai_video_loop))
+        .with_state(fixture.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("video provider listener");
+    let address = listener.local_addr().expect("video provider address");
+    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    let task = tokio::spawn(async move {
+        axum::serve(listener, router)
+            .with_graceful_shutdown(async {
+                let _ = shutdown_rx.await;
+            })
+            .await
+            .expect("video provider fixture");
+    });
+    (format!("http://{address}/v1"), fixture, shutdown_tx, task)
+}
+
 fn demo(demo_id: Uuid, path: &std::path::Path) -> DemoRecord {
     DemoRecord {
         id: demo_id,
@@ -202,7 +324,7 @@ fn analysis(demo_id: Uuid) -> MatchAnalysis {
         rounds: Vec::new(),
         highlights: vec![Highlight {
             id: "ace-1".to_owned(),
-            player_id: "player-1".to_owned(),
+            player_id: "76561197960287930".to_owned(),
             round: 1,
             start_tick: 1_000,
             end_tick: 1_500,
@@ -241,6 +363,148 @@ async fn persist_completed_analysis(
         .complete_analysis_run(run_id, analysis, fingerprint)
         .await
         .map(|_| ())
+}
+
+#[derive(Debug, Clone)]
+struct CompletingRecordingPort {
+    storage: vibe_cs_storage::Storage,
+    data_dir: std::path::PathBuf,
+}
+
+#[async_trait::async_trait]
+impl vibe_cs_application::RecordingPort for CompletingRecordingPort {
+    async fn preflight(
+        &self,
+        _items: &[RecordingRequest],
+    ) -> Result<(), vibe_cs_domain::DomainError> {
+        Ok(())
+    }
+
+    async fn execute(
+        &self,
+        mut job: RecordingJob,
+    ) -> Result<RecordingJob, vibe_cs_domain::DomainError> {
+        let output_dir = self.data_dir.join("recordings");
+        tokio::fs::create_dir_all(&output_dir)
+            .await
+            .map_err(|error| vibe_cs_domain::DomainError::Internal(error.to_string()))?;
+        let mut outputs = Vec::with_capacity(job.items.len());
+        for request in &job.items {
+            let request_id = request.id.ok_or_else(|| {
+                vibe_cs_domain::DomainError::InvalidInput(
+                    "Agent recording request has no identity".to_owned(),
+                )
+            })?;
+            let path = output_dir.join(format!("{request_id}.mp4"));
+            tokio::fs::write(&path, b"desktop vertical recording")
+                .await
+                .map_err(|error| vibe_cs_domain::DomainError::Internal(error.to_string()))?;
+            let clip = RecordedClip {
+                id: Uuid::new_v4(),
+                path: path.to_string_lossy().into_owned(),
+                title: request.title.clone(),
+                duration_seconds: 8.0,
+                demo_id: Some(request.demo_id),
+                player_name: Some(request.player_id.clone()),
+                category: "agent".to_owned(),
+                tags: Vec::new(),
+                metadata: json!({ "request_id": request_id }),
+                created_at: Utc::now(),
+            };
+            self.storage
+                .put_recorded_clip(clip.clone())
+                .await
+                .map_err(|error| vibe_cs_domain::DomainError::Internal(error.to_string()))?;
+            outputs.push(clip);
+        }
+        job.outputs = outputs;
+        job.current_index = job.items.len();
+        job.progress = 1.0;
+        job.status = JobStatus::Completed;
+        job.message = "Completed".to_owned();
+        job.updated_at = Utc::now();
+        self.storage
+            .put_recording_job(job.clone())
+            .await
+            .map_err(|error| vibe_cs_domain::DomainError::Internal(error.to_string()))?;
+        Ok(job)
+    }
+
+    async fn cancel(&self, job: RecordingJob) -> Result<RecordingJob, vibe_cs_domain::DomainError> {
+        Ok(job)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct CompletingExportPort {
+    storage: vibe_cs_storage::Storage,
+    data_dir: std::path::PathBuf,
+}
+
+#[async_trait::async_trait]
+impl vibe_cs_application::ExportPort for CompletingExportPort {
+    async fn start(
+        &self,
+        kind: &str,
+        project_id: Uuid,
+        _request: Value,
+    ) -> Result<ExportJob, vibe_cs_domain::DomainError> {
+        if kind != "montage"
+            || self
+                .storage
+                .get_montage_project(project_id)
+                .await
+                .map_err(|error| vibe_cs_domain::DomainError::Internal(error.to_string()))?
+                .is_none()
+        {
+            return Err(vibe_cs_domain::DomainError::InvalidInput(
+                "Composition was not materialized as a montage".to_owned(),
+            ));
+        }
+        let output_dir = self.data_dir.join("exports");
+        tokio::fs::create_dir_all(&output_dir)
+            .await
+            .map_err(|error| vibe_cs_domain::DomainError::Internal(error.to_string()))?;
+        let output_path = output_dir.join(format!("{project_id}.mp4"));
+        tokio::fs::write(&output_path, b"desktop vertical final video")
+            .await
+            .map_err(|error| vibe_cs_domain::DomainError::Internal(error.to_string()))?;
+        let now = Utc::now();
+        let job = ExportJob {
+            id: Uuid::new_v4(),
+            project_id,
+            status: JobStatus::Completed,
+            progress: 1.0,
+            output_path: output_path.to_string_lossy().into_owned(),
+            error: None,
+            error_code: None,
+            created_at: now,
+            updated_at: now,
+        };
+        self.storage
+            .put_export_job(ExportJobRecord {
+                kind: kind.to_owned(),
+                job: job.clone(),
+            })
+            .await
+            .map_err(|error| vibe_cs_domain::DomainError::Internal(error.to_string()))?;
+        Ok(job)
+    }
+
+    async fn cancel(&self, job_id: Uuid) -> Result<ExportJob, vibe_cs_domain::DomainError> {
+        self.storage
+            .get_export_job(job_id)
+            .await
+            .map_err(|error| vibe_cs_domain::DomainError::Internal(error.to_string()))?
+            .map(|record| record.job)
+            .ok_or_else(|| {
+                vibe_cs_domain::DomainError::InvalidInput("export job does not exist".to_owned())
+            })
+    }
+
+    async fn encoders(&self) -> Vec<String> {
+        vec!["libx264".to_owned()]
+    }
 }
 
 #[cfg(windows)]
@@ -490,5 +754,218 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
             .and_then(|message| message.proposals.first())
             .map(|proposal| proposal.kind),
         Some(vibe_cs_agent::CapturedPlanKind::HighlightEdit)
+    );
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn one_sentence_materializes_a_plan_and_reaches_a_persisted_final_video() {
+    let directory = tempfile::tempdir().expect("data directory");
+    let data_dir = directory.path().to_path_buf();
+    let database = data_dir.join("vibe-cs.db");
+    let storage = vibe_cs_storage::Storage::open(&database)
+        .await
+        .expect("storage");
+    let session = storage
+        .create_agent_session("One sentence final video".to_owned())
+        .await
+        .expect("session");
+    let plan = storage
+        .create_agent_plan(AgentPlanCreate {
+            title: "Verified Demo final video".to_owned(),
+            status: AgentPlanStatus::Draft,
+            shots: Vec::new(),
+            origin: None,
+        })
+        .await
+        .expect("placeholder plan");
+    let demo_id = Uuid::parse_str("00000000-0000-4000-8000-0000000000d2").expect("demo id");
+    let demo_path = data_dir.join("vertical.dem");
+    tokio::fs::write(&demo_path, b"demo-e2e")
+        .await
+        .expect("demo fixture");
+    storage
+        .put_demo(demo(demo_id, &demo_path))
+        .await
+        .expect("demo");
+    persist_completed_analysis(&storage, analysis(demo_id))
+        .await
+        .expect("analysis");
+
+    let router_cell = Arc::new(OnceCell::new());
+    let dispatcher = crate::bridge::DesktopBridge::new(Arc::clone(&router_cell));
+    let app_state = vibe_cs_application::AppState::new(storage.clone(), data_dir.clone())
+        .with_recording(Arc::new(CompletingRecordingPort {
+            storage: storage.clone(),
+            data_dir: data_dir.clone(),
+        }))
+        .with_exports(Arc::new(CompletingExportPort {
+            storage: storage.clone(),
+            data_dir: data_dir.clone(),
+        }));
+    router_cell
+        .set(vibe_cs_application::build_dispatcher(app_state))
+        .expect("desktop router");
+    let agent = AgentBridge::new(storage.clone(), data_dir.clone(), dispatcher.clone());
+
+    let (base_url, provider, shutdown, provider_task) = video_provider_server().await;
+    let config = AppConfig {
+        data_dir: data_dir.to_string_lossy().into_owned(),
+        llm: LlmConfig {
+            provider: "desktop-video-e2e".to_owned(),
+            model: "desktop-video-e2e".to_owned(),
+            base_url,
+            api_key: TEST_SECRET.to_owned(),
+            prompt: String::new(),
+        },
+        ..AppConfig::default()
+    };
+    let mut config_payload = serde_json::to_value(config).expect("config JSON");
+    config_payload["steam_has_web_api_key"] = json!(false);
+    config_payload["steam_has_authentication_code"] = json!(false);
+    config_payload["steam_has_share_code"] = json!(false);
+    config_payload["llm_has_api_key"] = json!(true);
+    config_payload["clear_llm_api_key"] = json!(false);
+    dispatcher
+        .dispatch(crate::bridge::DesktopCall {
+            method: crate::bridge::DesktopMethod::Put,
+            path: "/config".to_owned(),
+            body: Some(config_payload),
+        })
+        .await
+        .expect("save config");
+
+    let events = Arc::new(StdMutex::new(Vec::<Value>::new()));
+    let captured = Arc::clone(&events);
+    let channel = Channel::new(move |body| {
+        let InvokeResponseBody::Json(encoded) = body else {
+            panic!("agent channel must remain JSON");
+        };
+        captured
+            .lock()
+            .expect("event capture")
+            .push(serde_json::from_str(&encoded)?);
+        Ok(())
+    });
+    let result = tokio::time::timeout(
+        Duration::from_secs(20),
+        chat(
+            &agent,
+            AgentChatInput {
+                request_id: Uuid::new_v4(),
+                thread_id: Some(session.id),
+                demo_id: Some(demo_id),
+                editor_project_id: None,
+                audio_asset_id: None,
+                workspace_context: AgentWorkspaceContext {
+                    workflow: AgentWorkspaceWorkflow::Edit,
+                    destination: AgentWorkspaceDestination::Edit,
+                    demo_id: Some(demo_id),
+                    project_id: Some(format!("plan:{}", plan.id)),
+                    plan_id: Some(plan.id),
+                    plan_revision: Some(plan.revision),
+                    player_id: None,
+                    round_number: None,
+                    tick: None,
+                },
+                history: Vec::new(),
+                mode: vibe_cs_agent::AgentMode::Hlae,
+                message: "把 ace-1 做成节奏紧凑、可以直接发布的视频。".to_owned(),
+            },
+            channel,
+        ),
+    )
+    .await
+    .expect("Agent chat timeout")
+    .expect("one sentence Agent chat");
+    assert_eq!(result.thread_id, session.id);
+    assert_eq!(provider.requests.lock().expect("requests").len(), 2);
+
+    let generated = storage
+        .get_agent_plan(plan.id)
+        .await
+        .expect("generated plan read")
+        .expect("generated plan");
+    assert_eq!(generated.status, AgentPlanStatus::AwaitingConfirmation);
+    assert_eq!(generated.shots.len(), 1);
+    assert_eq!(generated.agent_baseline.shots, generated.shots);
+    assert_eq!(
+        generated.shots[0]
+            .recording
+            .as_ref()
+            .map(|binding| binding.demo_id),
+        Some(demo_id)
+    );
+
+    let recording_plan = dispatcher
+        .dispatch(crate::bridge::DesktopCall {
+            method: crate::bridge::DesktopMethod::Post,
+            path: format!("/agent/plans/{}/recording-plan", plan.id),
+            body: Some(json!({})),
+        })
+        .await
+        .expect("recording plan");
+    let recording_plan_id = recording_plan["plan_id"]
+        .as_str()
+        .expect("recording plan id");
+    let execution = dispatcher
+        .dispatch(crate::bridge::DesktopCall {
+            method: crate::bridge::DesktopMethod::Post,
+            path: format!("/recording/plans/{recording_plan_id}/execute"),
+            body: Some(json!({ "offline_insecure_acknowledged": true })),
+        })
+        .await
+        .expect("recording execution");
+    let recording_job_id = execution["job_id"].as_str().expect("recording job id");
+    let workflow = dispatcher
+        .dispatch(crate::bridge::DesktopCall {
+            method: crate::bridge::DesktopMethod::Get,
+            path: format!("/agent/recording-jobs/{recording_job_id}/workflow"),
+            body: None,
+        })
+        .await
+        .expect("video workflow");
+    assert_eq!(workflow["stage"], "completed");
+    let output_path = workflow["composition"]["output_path"]
+        .as_str()
+        .expect("final output path");
+    assert_eq!(
+        tokio::fs::read(output_path).await.expect("final output"),
+        b"desktop vertical final video"
+    );
+
+    let _ = shutdown.send(());
+    provider_task.await.expect("provider task");
+    drop(agent);
+    drop(dispatcher);
+    drop(router_cell);
+    drop(storage);
+
+    let reopened = vibe_cs_storage::Storage::open(&database)
+        .await
+        .expect("reopened storage");
+    let reopened_plan = reopened
+        .get_agent_plan(plan.id)
+        .await
+        .expect("reopened plan")
+        .expect("persisted plan");
+    assert_eq!(reopened_plan.agent_baseline.shots, reopened_plan.shots);
+    let composition = reopened
+        .get_agent_composition(plan.id)
+        .await
+        .expect("reopened composition")
+        .expect("persisted composition");
+    assert_eq!(
+        composition.status,
+        vibe_cs_domain::CompositionStatus::Exported
+    );
+    assert_eq!(composition.items.len(), 1);
+    assert_eq!(
+        reopened
+            .list_agent_takes(plan.id, None)
+            .await
+            .expect("takes")
+            .len(),
+        1
     );
 }

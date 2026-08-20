@@ -18,7 +18,11 @@ use vibe_cs_agent::{
     AgentStreamEvent as EmbeddedAgentStreamEvent, AgentToolHost, Cancellation, CapturedPlanKind,
     HistoryMessage,
 };
-use vibe_cs_domain::{AnalysisRunStatus, RoundReplayArtifact};
+use vibe_cs_domain::{
+    AgentPlanAuthor, AgentPlanGeneration, AgentPlanOriginDraft, AgentPlanShot, AgentPlanUpdate,
+    AgentShotRecording, AgentShotView, AnalysisRunStatus, HlaeCameraStyle, RecordingRequest,
+    RoundReplayArtifact,
+};
 
 use crate::bridge::{DesktopBridge, DesktopCall, DesktopMethod};
 
@@ -166,8 +170,17 @@ impl AgentToolHost for CinematicReplayHost {
             let Some(highlight) = self.highlights.get(id) else {
                 continue;
             };
-            let artifact = self.round_replay(highlight.round).await?;
-            scenes.push(cinematic_scene_from_replay(highlight, &artifact));
+            match self.round_replay(highlight.round).await {
+                Ok(artifact) => scenes.push(cinematic_scene_from_replay(highlight, &artifact)),
+                Err(error) => {
+                    tracing::warn!(
+                        %error,
+                        highlight_id = %highlight.id,
+                        round = highlight.round,
+                        "selected-round replay unavailable; Agent will fall back to persisted event evidence or player POV"
+                    );
+                }
+            }
         }
         Ok(json!({ "scenes": scenes }))
     }
@@ -1179,16 +1192,6 @@ async fn run_agent_chat(
     for proposal in &proposals {
         validate_proposal(proposal)?;
     }
-    for tool_call in &tool_calls {
-        let _ = on_event.send(AgentEvent::ToolCall {
-            tool_call: tool_call.clone(),
-        });
-    }
-    for proposal in &proposals {
-        let _ = on_event.send(AgentEvent::Proposal {
-            proposal: proposal.clone(),
-        });
-    }
     let now = Utc::now().to_rfc3339();
     thread.messages.push(AgentMessage {
         id: Uuid::new_v4(),
@@ -1203,8 +1206,8 @@ async fn run_agent_chat(
         role: AgentRole::Assistant,
         content: response.content,
         created_at: now.clone(),
-        tool_calls,
-        proposals,
+        tool_calls: tool_calls.clone(),
+        proposals: proposals.clone(),
     });
     if thread.messages.len() > MAXIMUM_THREAD_MESSAGES {
         thread
@@ -1213,6 +1216,17 @@ async fn run_agent_chat(
     }
     thread.updated_at = now;
     state.save_thread(&mut thread).await?;
+    materialize_initial_video_plan(state, input, thread_id, &analysis, &proposals).await?;
+    for tool_call in &tool_calls {
+        let _ = on_event.send(AgentEvent::ToolCall {
+            tool_call: tool_call.clone(),
+        });
+    }
+    for proposal in &proposals {
+        let _ = on_event.send(AgentEvent::Proposal {
+            proposal: proposal.clone(),
+        });
+    }
     let _ = on_event.send(AgentEvent::Complete {
         thread: thread.clone(),
         metadata: AgentTurnMetadata {
@@ -1229,6 +1243,177 @@ async fn run_agent_chat(
         },
     });
     Ok(AgentChatResult { thread_id })
+}
+
+async fn materialize_initial_video_plan(
+    state: &AgentBridge,
+    input: &AgentChatInput,
+    session_id: Uuid,
+    analysis: &Value,
+    proposals: &[AgentProposal],
+) -> Result<(), AgentCommandError> {
+    let Some(plan_id) = input.workspace_context.plan_id else {
+        return Ok(());
+    };
+    let expected_revision = input
+        .workspace_context
+        .plan_revision
+        .ok_or_else(|| AgentCommandError::invalid("selected Agent plan has no revision"))?;
+    let plan = state
+        .storage
+        .get_agent_plan(plan_id)
+        .await
+        .map_err(|error| {
+            AgentCommandError::internal(format!(
+                "unable to read Agent plan before generation: {error}"
+            ))
+        })?
+        .ok_or_else(|| AgentCommandError::invalid("selected Agent plan does not exist"))?;
+    if !plan.shots.is_empty() {
+        return Ok(());
+    }
+    let video_proposals = proposals
+        .iter()
+        .filter(|proposal| proposal.kind == CapturedPlanKind::VideoRender)
+        .collect::<Vec<_>>();
+    if video_proposals.is_empty() {
+        return Ok(());
+    }
+    if video_proposals.len() != 1 {
+        return Err(AgentCommandError::internal(
+            "initial Agent answer returned more than one video plan",
+        ));
+    }
+    if plan.revision != expected_revision {
+        return Err(AgentCommandError::invalid(
+            "selected Agent plan changed before generation completed",
+        ));
+    }
+    let session = state
+        .storage
+        .get_agent_session(session_id)
+        .await
+        .map_err(|error| {
+            AgentCommandError::internal(format!(
+                "unable to read Agent session before plan generation: {error}"
+            ))
+        })?
+        .ok_or_else(|| AgentCommandError::invalid("Agent session no longer exists"))?;
+    let tick_rate = analysis
+        .get("tick_rate")
+        .and_then(Value::as_f64)
+        .filter(|value| value.is_finite() && *value > 0.0)
+        .ok_or_else(|| AgentCommandError::invalid("Demo analysis has no valid tick rate"))?;
+    let shots = shots_from_video_proposal(video_proposals[0], tick_rate)?;
+    let generation = AgentPlanGeneration {
+        plan_id,
+        expected_revision,
+        shots,
+        origin: AgentPlanOriginDraft {
+            session_id,
+            session_title: session.title,
+            summary: "Agent generated the initial shot list".to_owned(),
+        },
+    };
+    match state
+        .storage
+        .generate_initial_agent_plan(generation)
+        .await
+        .map_err(|error| {
+            AgentCommandError::internal(format!("unable to persist generated shot list: {error}"))
+        })? {
+        AgentPlanUpdate::Updated { .. } => Ok(()),
+        AgentPlanUpdate::Conflict { current_revision } => Err(AgentCommandError::invalid(format!(
+            "Agent plan changed to revision {current_revision} before generation completed"
+        ))),
+        AgentPlanUpdate::NotFound => Err(AgentCommandError::invalid(
+            "selected Agent plan disappeared before generation completed",
+        )),
+    }
+}
+
+fn shots_from_video_proposal(
+    proposal: &AgentProposal,
+    tick_rate: f64,
+) -> Result<Vec<AgentPlanShot>, AgentCommandError> {
+    let items = proposal
+        .payload
+        .get("items")
+        .and_then(Value::as_array)
+        .ok_or_else(|| AgentCommandError::internal("video plan has no recording items"))?;
+    let designs = proposal
+        .payload
+        .get("shot_designs")
+        .and_then(Value::as_array)
+        .ok_or_else(|| AgentCommandError::internal("video plan has no shot designs"))?;
+    items
+        .iter()
+        .zip(designs)
+        .map(|(item, design)| {
+            let request =
+                serde_json::from_value::<RecordingRequest>(item.clone()).map_err(|error| {
+                    AgentCommandError::internal(format!(
+                        "video plan recording item cannot become a shot: {error}"
+                    ))
+                })?;
+            let id = request.id.ok_or_else(|| {
+                AgentCommandError::internal("video plan recording item has no shot identity")
+            })?;
+            let tick_span = request
+                .end_tick
+                .checked_sub(request.start_tick)
+                .ok_or_else(|| {
+                    AgentCommandError::internal("video plan shot has an inverted tick window")
+                })?;
+            let tick_span = u32::try_from(tick_span).map_err(|_| {
+                AgentCommandError::internal("video plan shot exceeds the supported tick window")
+            })?;
+            let duration_seconds = f64::from(tick_span) / tick_rate;
+            let rationale = design
+                .get("rationale")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_owned();
+            let camera_intent = design.get("camera_intent").cloned().unwrap_or(Value::Null);
+            let spatial_evidence = design
+                .get("spatial_evidence")
+                .cloned()
+                .unwrap_or(Value::Null);
+            let evidence_refs = request.highlight_id.clone().into_iter().collect();
+            let view = if request.camera_style == HlaeCameraStyle::Pov {
+                AgentShotView::PlayerPov
+            } else {
+                AgentShotView::Observer
+            };
+            Ok(AgentPlanShot {
+                id,
+                title: request.title,
+                kind: request.camera_style,
+                view,
+                start_tick: request.start_tick,
+                end_tick: request.end_tick,
+                duration_seconds,
+                rationale,
+                evidence_refs,
+                risks: Vec::new(),
+                source: AgentPlanAuthor::Agent,
+                removed_by: None,
+                params: json!({
+                    "camera_intent": camera_intent,
+                    "spatial_evidence": spatial_evidence,
+                }),
+                recording: Some(AgentShotRecording {
+                    demo_id: request.demo_id,
+                    player_id: request.player_id,
+                    highlight_id: request.highlight_id,
+                    victim_pov: request.victim_pov,
+                    pre_roll_seconds: request.pre_roll_seconds,
+                    post_roll_seconds: request.post_roll_seconds,
+                    presentation: request.presentation,
+                }),
+            })
+        })
+        .collect()
 }
 
 fn summarize_demo(demo: &Value) -> Value {
@@ -1491,6 +1676,39 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
     // 「unknown proposal kind」 is gone: a fifth kind is a compile error here,
     // which is where the decision about how to validate it belongs.
     match proposal.kind {
+        CapturedPlanKind::AgentPlanChange => {
+            if proposal.plan_id.is_none() || proposal.based_on_revision.is_none() {
+                return Err(AgentCommandError::internal(
+                    "Agent plan changes must be bound to a plan revision",
+                ));
+            }
+            let changes = proposal
+                .payload
+                .get("changes")
+                .and_then(Value::as_array)
+                .filter(|changes| !changes.is_empty() && changes.len() <= 16)
+                .ok_or_else(|| {
+                    AgentCommandError::internal(
+                        "Agent plan change proposal violates its change bounds",
+                    )
+                })?;
+            for change in changes {
+                let op = change.get("op").and_then(Value::as_str);
+                let target = change.get("target").and_then(Value::as_str);
+                let delta = change.get("delta_seconds").and_then(Value::as_f64);
+                if !matches!(op, Some("shorten" | "delete"))
+                    || target
+                        .and_then(|value| Uuid::parse_str(value).ok())
+                        .is_none()
+                    || !delta.is_some_and(f64::is_finite)
+                    || (op == Some("shorten") && !delta.is_some_and(|value| value < 0.0))
+                {
+                    return Err(AgentCommandError::internal(
+                        "Agent plan change proposal contains an invalid change",
+                    ));
+                }
+            }
+        }
         CapturedPlanKind::VideoRender => {
             let payload = proposal.payload.as_object().ok_or_else(|| {
                 AgentCommandError::internal("agent returned an invalid video task")
@@ -1854,6 +2072,35 @@ mod tests {
         invalid.payload["output"]["container"] = json!("mp4");
         invalid.payload["requires_user_confirmation"] = json!(false);
         assert!(validate_proposal(&invalid).is_err());
+    }
+
+    #[test]
+    fn agent_plan_change_proposal_requires_a_bound_revision_and_applicable_payload() {
+        let mut proposal = AgentProposal {
+            kind: CapturedPlanKind::AgentPlanChange,
+            title: "Shorten opening".to_owned(),
+            payload: json!({
+                "changes": [{
+                    "id": "00000000-0000-4000-8000-0000000000c1",
+                    "op": "shorten",
+                    "target": "00000000-0000-4000-8000-0000000000a1",
+                    "before": "8.0s",
+                    "after": "5.5s",
+                    "delta_seconds": -2.5,
+                    "rationale": "Move into the action sooner.",
+                    "warning": null
+                }]
+            }),
+            plan_id: Some(Uuid::new_v4()),
+            based_on_revision: Some(3),
+        };
+        validate_proposal(&proposal).expect("valid plan changes");
+
+        proposal.plan_id = None;
+        assert!(validate_proposal(&proposal).is_err());
+        proposal.plan_id = Some(Uuid::new_v4());
+        proposal.payload["changes"][0]["delta_seconds"] = json!(2.5);
+        assert!(validate_proposal(&proposal).is_err());
     }
 
     #[test]

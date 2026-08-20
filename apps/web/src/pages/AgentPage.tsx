@@ -63,6 +63,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useEditNotifier, type PendingPlanEdit } from '../data/editNotifier';
+import { useEnsureDemoAnalysis } from '../data/demos';
 import { dataErrorMessage } from '../data/errors';
 import { isRevisionConflict, useAgentPlan, useApplyAgentPlanEdit } from '../data/plans';
 import { useServiceAction, type ServiceActionState } from '../data/serviceAction';
@@ -171,6 +172,8 @@ export function AgentWorkspace({
     sessionId: context.session,
     history: sessionData?.entries ?? [],
   });
+  const ensureAnalysis = useEnsureDemoAnalysis();
+  const sendGateRef = useRef<Promise<void> | null>(null);
 
   /*
    * The last plan and the last session that were actually loaded.
@@ -269,21 +272,40 @@ export function AgentWorkspace({
    */
   const chat: AgentChatStream = {
     ...chatStream,
+    error: dataErrorMessage(ensureAnalysis.error) ?? chatStream.error,
     send: async (input) => {
-      await editNotifier.flush('send-message');
-      await chatStream.send({
-        ...input,
-        demoId: input.demoId ?? demoId,
-        workspaceContext: {
-          ...input.workspaceContext,
-          workflow: 'edit',
-          destination: 'edit',
-          demoId: input.workspaceContext?.demoId ?? input.demoId ?? demoId,
-          projectId: input.workspaceContext?.projectId ?? projectId,
-          planId: planData?.id ?? null,
-          planRevision: planData?.revision ?? null,
-        },
-      });
+      if (sendGateRef.current !== null) return sendGateRef.current;
+      const operation = (async () => {
+        await editNotifier.flush('send-message');
+        const selectedDemoId = input.demoId ?? demoId;
+        if (selectedDemoId !== null) {
+          try {
+            await ensureAnalysis.mutateAsync(selectedDemoId);
+          } catch {
+            return;
+          }
+        }
+        await chatStream.send({
+          ...input,
+          mode: input.mode ?? ((planData?.shots.length ?? 0) === 0 ? 'hlae' : 'edit'),
+          demoId: selectedDemoId,
+          workspaceContext: {
+            ...input.workspaceContext,
+            workflow: 'edit',
+            destination: 'edit',
+            demoId: input.workspaceContext?.demoId ?? selectedDemoId,
+            projectId: input.workspaceContext?.projectId ?? projectId,
+            planId: planData?.id ?? null,
+            planRevision: planData?.revision ?? null,
+          },
+        });
+      })();
+      sendGateRef.current = operation;
+      try {
+        await operation;
+      } finally {
+        if (sendGateRef.current === operation) sendGateRef.current = null;
+      }
     },
   };
 

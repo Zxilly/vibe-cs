@@ -27,14 +27,16 @@ pub struct CapturedToolCall {
 /// What kind of proposal the model emitted, which selects how a client renders
 /// the payload beside it.
 ///
-/// A closed set: every value is minted by one of the four tool handlers in this
-/// file, and a fifth would be a new handler. It was a `String`, so the binding
-/// said `string` and the web app carried the four-member union in a comment
+/// A closed set: every value is minted by one of the proposal tool handlers in
+/// this file, and another kind requires another handler. It was a `String`, so
+/// the binding said `string` and the web app carried the union in a comment
 /// with a note that Rust did not enforce it.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
 pub enum CapturedPlanKind {
+    /// Reviewable changes to an existing Agent shot list.
+    AgentPlanChange,
     /// A change to an existing highlight edit.
     HighlightEdit,
     /// Music beats aligned against the cut.
@@ -267,6 +269,30 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
             ),
         ),
         (
+            "draft_agent_plan_changes",
+            "Draft reviewable changes to the currently selected Agent shot list. Use only target shot ids returned in workspace.plan. This never changes the plan by itself.",
+            object_schema(
+                json!({
+                    "title": {"type":"string","minLength":1,"maxLength":200},
+                    "changes": {
+                        "type":"array","minItems":1,"maxItems":16,
+                        "items": {
+                            "type":"object","additionalProperties":false,
+                            "properties": {
+                                "op": {"type":"string","enum":["shorten","delete"]},
+                                "target": {"type":"string","minLength":1,"maxLength":128},
+                                "deltaSeconds": {"type":"number","maximum":-0.01},
+                                "rationale": {"type":"string","minLength":1,"maxLength":400},
+                                "warning": {"type":["string","null"],"maxLength":400}
+                            },
+                            "required":["op","target","rationale"]
+                        }
+                    }
+                }),
+                &["title", "changes"],
+            ),
+        ),
+        (
             "draft_video_plan",
             "Draft a complete video task from selected Demo highlights. The user reviews the shots and confirms before recording starts.",
             object_schema(
@@ -362,6 +388,7 @@ fn execute_tool_with_cinematic(
         )),
         "read_editor_timeline" => Ok((read_editor_timeline(context, input), None)),
         "draft_edit_plan" => draft_edit_plan(context, input),
+        "draft_agent_plan_changes" => draft_agent_plan_changes(context, input),
         "draft_video_plan" => draft_video_plan(context, input, external_cinematic),
         // Kept for persisted pre-video conversations, but no longer exposed to the model.
         "draft_hlae_plan" => draft_hlae_plan(context, input),
@@ -933,6 +960,110 @@ fn draft_edit_plan(
         }),
     });
     Ok((json!({"accepted":accepted,"plan":payload}), plan))
+}
+
+fn draft_agent_plan_changes(
+    context: &AgentContext,
+    input: &Value,
+) -> Result<(Value, Option<CapturedPlan>), String> {
+    let title = required_str(input, "title")?.trim();
+    if title.is_empty() || title.chars().count() > 200 {
+        return Err("title must contain 1 to 200 characters".into());
+    }
+    let plan = context
+        .workspace
+        .get("plan")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "no Agent plan is selected".to_owned())?;
+    let shots = plan
+        .get("shots")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "selected Agent plan has no shots".to_owned())?;
+    let requested = input
+        .get("changes")
+        .and_then(Value::as_array)
+        .filter(|changes| !changes.is_empty() && changes.len() <= 16)
+        .ok_or_else(|| "changes must contain 1 to 16 entries".to_owned())?;
+    let mut targets = HashSet::new();
+    let mut changes = Vec::with_capacity(requested.len());
+    for raw in requested {
+        let object = raw
+            .as_object()
+            .ok_or_else(|| "each change must be an object".to_owned())?;
+        let op = required_str(raw, "op")?;
+        if !matches!(op, "shorten" | "delete") {
+            return Err("change op must be shorten or delete".into());
+        }
+        let target = required_str(raw, "target")?;
+        if !targets.insert(target) {
+            return Err(format!(
+                "shot {target} may be changed only once per proposal"
+            ));
+        }
+        let shot = shots
+            .iter()
+            .find(|shot| shot.get("id").and_then(Value::as_str) == Some(target))
+            .ok_or_else(|| format!("target shot {target} is not in the selected plan"))?;
+        if !shot.get("removed_by").is_none_or(Value::is_null) {
+            return Err(format!("target shot {target} is already removed"));
+        }
+        let current = shot
+            .get("duration_seconds")
+            .and_then(Value::as_f64)
+            .filter(|duration| duration.is_finite() && *duration >= 0.0)
+            .ok_or_else(|| format!("target shot {target} has no valid duration"))?;
+        let rationale = required_str(raw, "rationale")?.trim();
+        if rationale.is_empty() || rationale.chars().count() > 400 {
+            return Err("change rationale must contain 1 to 400 characters".into());
+        }
+        let warning = object
+            .get("warning")
+            .filter(|value| !value.is_null())
+            .map(|value| {
+                value
+                    .as_str()
+                    .filter(|warning| warning.chars().count() <= 400)
+                    .ok_or_else(|| {
+                        "change warning must be null or at most 400 characters".to_owned()
+                    })
+            })
+            .transpose()?;
+        let delta = if op == "delete" {
+            -current
+        } else {
+            let delta = object
+                .get("deltaSeconds")
+                .and_then(Value::as_f64)
+                .filter(|delta| delta.is_finite() && *delta < 0.0)
+                .ok_or_else(|| "shorten requires a finite negative deltaSeconds".to_owned())?;
+            if current + delta < 0.01 {
+                return Err(format!(
+                    "shortening shot {target} would remove its whole duration"
+                ));
+            }
+            delta
+        };
+        let after = (op == "shorten").then(|| format!("{:.1}s", current + delta));
+        changes.push(json!({
+            "id": Uuid::new_v4(),
+            "op": op,
+            "target": target,
+            "before": format!("{current:.1}s"),
+            "after": after,
+            "delta_seconds": delta,
+            "rationale": rationale,
+            "warning": warning,
+        }));
+    }
+    let payload = json!({ "changes": changes });
+    Ok((
+        json!({ "accepted": true, "plan": payload }),
+        Some(CapturedPlan {
+            kind: CapturedPlanKind::AgentPlanChange,
+            title: title.to_owned(),
+            payload,
+        }),
+    ))
 }
 
 fn draft_hlae_plan(
@@ -1816,6 +1947,62 @@ mod tests {
             assert!(object.contains_key(field), "missing current field {field}");
             assert!(object[field].is_null(), "new-project field must be null");
         }
+    }
+
+    #[test]
+    fn agent_plan_changes_are_bound_to_real_shots_and_server_computed_durations() {
+        let mut context = context();
+        let shot_id = "00000000-0000-4000-8000-0000000000a1";
+        context.workspace = json!({
+            "plan": {
+                "id": "00000000-0000-4000-8000-0000000000b1",
+                "revision": 3,
+                "shots": [{
+                    "id": shot_id,
+                    "title": "Ace",
+                    "duration_seconds": 8.0,
+                    "removed_by": null
+                }]
+            }
+        });
+
+        let (_, proposal) = execute_tool(
+            "draft_agent_plan_changes",
+            &context,
+            &json!({
+                "title": "压短开场",
+                "changes": [{
+                    "op": "shorten",
+                    "target": shot_id,
+                    "deltaSeconds": -2.5,
+                    "rationale": "更快进入第一处击杀。",
+                    "warning": null
+                }]
+            }),
+        )
+        .expect("Agent plan changes");
+        let proposal = proposal.expect("captured proposal");
+        assert_eq!(proposal.kind, CapturedPlanKind::AgentPlanChange);
+        assert_eq!(proposal.payload["changes"][0]["target"], shot_id);
+        assert_eq!(proposal.payload["changes"][0]["before"], "8.0s");
+        assert_eq!(proposal.payload["changes"][0]["after"], "5.5s");
+        assert_eq!(proposal.payload["changes"][0]["delta_seconds"], -2.5);
+
+        assert!(
+            execute_tool(
+                "draft_agent_plan_changes",
+                &context,
+                &json!({
+                    "title": "Unknown",
+                    "changes": [{
+                        "op": "delete",
+                        "target": "00000000-0000-4000-8000-0000000000ff",
+                        "rationale": "not in plan"
+                    }]
+                }),
+            )
+            .is_err()
+        );
     }
 
     #[test]

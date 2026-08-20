@@ -44,7 +44,7 @@ describe('Agent mode inside the project shot-list step', () => {
     expect(container.querySelector('[data-agent-block="conversation"]')).not.toBeNull();
     expect(await screen.findByRole('radio', { name: '修改列表' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: '就地编辑' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: '版本比较' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Take 比较' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /会话历史/u })).toBeTruthy();
     expect(screen.getByRole('button', { name: /确认剪辑单并录制/u })).toBeTruthy();
     expect((await screen.findAllByText(PLAN.shots[0]?.title ?? '')).length).toBeGreaterThan(0);

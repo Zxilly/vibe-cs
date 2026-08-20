@@ -18,13 +18,13 @@ use uuid::Uuid;
 use vibe_cs_domain::{
     AgentObjectKind, AgentObjectLocator, AgentObjectRef, AgentObjectRefTouch,
     AgentObjectSessionRef, AgentPlan, AgentPlanBaseline, AgentPlanCreate, AgentPlanEdit,
-    AgentPlanOrigin, AgentPlanOriginDraft, AgentPlanQuery, AgentPlanRestore, AgentPlanShot,
-    AgentPlanStatus, AgentPlanSummary, AgentPlanUpdate, AgentProposalDecision,
+    AgentPlanGeneration, AgentPlanOrigin, AgentPlanOriginDraft, AgentPlanQuery, AgentPlanRestore,
+    AgentPlanShot, AgentPlanStatus, AgentPlanSummary, AgentPlanUpdate, AgentProposalDecision,
     AgentProposalDecisionUpdate, AgentSession, AgentSessionEntry, AgentSessionEntryDraft,
     AgentSessionExport, AgentSessionPage, AgentSessionQuery, AgentSessionRetention,
     AgentSessionStorageStats, AgentSessionSummary, AgentTurnStatus, AgentTurnUpdate,
-    AgentWorkspaceSettings, DomainError, WorkspaceEditAuthor, WorkspaceEditNotice,
-    normalize_session_title,
+    AgentWorkspaceSettings, DomainError, WorkspaceEditAuthor, WorkspaceEditChange,
+    WorkspaceEditNotice, WorkspaceEditOperation, normalize_session_title,
 };
 
 use super::{
@@ -682,6 +682,99 @@ impl Storage {
             let plan = read_plan(&transaction, edit.plan_id)?.ok_or_else(|| {
                 StorageError::Domain(DomainError::Internal(
                     "the edited plan disappeared inside its transaction".to_owned(),
+                ))
+            })?;
+            transaction.commit()?;
+            Ok(AgentPlanUpdate::Updated {
+                plan: Box::new(plan),
+            })
+        })
+        .await
+    }
+
+    /// Materializes the first Agent answer into an empty placeholder plan and
+    /// establishes that answer as the immutable Agent baseline.
+    pub async fn generate_initial_agent_plan(
+        &self,
+        generation: AgentPlanGeneration,
+    ) -> Result<AgentPlanUpdate> {
+        let generation = generation.normalize()?;
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(current) = read_plan(&transaction, generation.plan_id)? else {
+                return Ok(AgentPlanUpdate::NotFound);
+            };
+            if current.revision != generation.expected_revision
+                || !current.shots.is_empty()
+                || !current.agent_baseline.shots.is_empty()
+            {
+                return Ok(AgentPlanUpdate::Conflict {
+                    current_revision: current.revision,
+                });
+            }
+            let revision = next_revision(generation.plan_id, current.revision)?;
+            let now = Utc::now();
+            let baseline = AgentPlanBaseline {
+                revision,
+                captured_at: now,
+                shots: generation.shots.clone(),
+            };
+            let changed = transaction.execute(
+                "UPDATE agent_plans SET status = ?2, revision = ?3, baseline_revision = ?3, \
+                 updated_at = ?4, shots_json = ?5, agent_baseline_json = ?6 \
+                 WHERE id = ?1 AND revision = ?7",
+                params![
+                    generation.plan_id.to_string(),
+                    AgentPlanStatus::AwaitingConfirmation.as_str(),
+                    revision,
+                    now.to_rfc3339(),
+                    encode(&generation.shots)?,
+                    encode(&baseline)?,
+                    generation.expected_revision,
+                ],
+            )?;
+            if changed != 1 {
+                return conflict_from_current(
+                    &transaction,
+                    generation.plan_id,
+                    generation.expected_revision,
+                );
+            }
+            append_plan_origin(&transaction, generation.plan_id, &generation.origin, now)?;
+            let changes = generation
+                .shots
+                .iter()
+                .enumerate()
+                .map(|(index, shot)| WorkspaceEditChange {
+                    shot: u32::try_from(index + 1).unwrap_or(u32::MAX),
+                    op: WorkspaceEditOperation::Inserted,
+                    field: None,
+                    from: None,
+                    to: Some(shot.title.clone()),
+                })
+                .collect();
+            notify_workspace_edit(
+                &transaction,
+                &generation.origin,
+                &WorkspaceEditNotice {
+                    object: AgentObjectLocator {
+                        kind: AgentObjectKind::Plan,
+                        id: generation.plan_id,
+                    },
+                    revision,
+                    by: WorkspaceEditAuthor::Agent,
+                    at: now,
+                    changes,
+                    note: Some("Agent generated the initial shot list".to_owned()),
+                },
+                &current.title,
+                AgentPlanStatus::AwaitingConfirmation,
+                now,
+            )?;
+            let plan = read_plan(&transaction, generation.plan_id)?.ok_or_else(|| {
+                StorageError::Domain(DomainError::Internal(
+                    "the generated plan disappeared inside its transaction".to_owned(),
                 ))
             })?;
             transaction.commit()?;
@@ -1379,11 +1472,11 @@ mod tests {
     use uuid::Uuid;
     use vibe_cs_domain::{
         AgentObjectKind, AgentObjectRefTouch, AgentPlanAuthor, AgentPlanCreate, AgentPlanEdit,
-        AgentPlanOriginDraft, AgentPlanQuery, AgentPlanRestore, AgentPlanShot, AgentPlanStatus,
-        AgentPlanUpdate, AgentSessionEntry, AgentSessionEntryDraft, AgentSessionQuery,
-        AgentSessionRetention, AgentShotView, AgentWorkspaceSettings, EditorProject,
-        HlaeCameraStyle, JobStatus, RecordedClip, RecordingJob, WorkspaceEditChange,
-        WorkspaceEditOperation,
+        AgentPlanGeneration, AgentPlanOriginDraft, AgentPlanQuery, AgentPlanRestore, AgentPlanShot,
+        AgentPlanStatus, AgentPlanUpdate, AgentSessionEntry, AgentSessionEntryDraft,
+        AgentSessionQuery, AgentSessionRetention, AgentShotView, AgentWorkspaceSettings,
+        EditorProject, HlaeCameraStyle, JobStatus, RecordedClip, RecordingJob, WorkspaceEditAuthor,
+        WorkspaceEditChange, WorkspaceEditOperation,
     };
 
     use crate::Storage;
@@ -1463,6 +1556,72 @@ mod tests {
             created_at: now,
             updated_at: now,
         }
+    }
+
+    #[tokio::test]
+    async fn initial_agent_generation_populates_the_plan_and_its_baseline_once() {
+        let storage = Storage::open_in_memory().await.expect("open storage");
+        let session = storage
+            .create_agent_session("One sentence video".to_owned())
+            .await
+            .expect("session");
+        let plan = storage
+            .create_agent_plan(AgentPlanCreate {
+                title: "Demo video".to_owned(),
+                status: AgentPlanStatus::Draft,
+                shots: Vec::new(),
+                origin: None,
+            })
+            .await
+            .expect("placeholder plan");
+        let generated_shot = shot("Ace", 8.0, AgentPlanAuthor::Agent);
+
+        let result = storage
+            .generate_initial_agent_plan(AgentPlanGeneration {
+                plan_id: plan.id,
+                expected_revision: plan.revision,
+                shots: vec![generated_shot.clone()],
+                origin: origin(session.id, "Agent generated the first shot list"),
+            })
+            .await
+            .expect("generate");
+        let AgentPlanUpdate::Updated { plan: generated } = result else {
+            panic!("initial generation should update the placeholder")
+        };
+        assert_eq!(generated.status, AgentPlanStatus::AwaitingConfirmation);
+        assert_eq!(generated.revision, 2);
+        assert_eq!(generated.shots, vec![generated_shot.clone()]);
+        assert_eq!(generated.agent_baseline.revision, generated.revision);
+        assert_eq!(generated.agent_baseline.shots, vec![generated_shot]);
+        let session = storage
+            .get_agent_session(session.id)
+            .await
+            .expect("read session")
+            .expect("session exists");
+        let notice = session
+            .entries
+            .iter()
+            .find_map(|entry| match entry {
+                AgentSessionEntry::WorkspaceEdit { notice, .. } => Some(notice),
+                _ => None,
+            })
+            .expect("generation notice");
+        assert_eq!(notice.by, WorkspaceEditAuthor::Agent);
+
+        assert!(matches!(
+            storage
+                .generate_initial_agent_plan(AgentPlanGeneration {
+                    plan_id: plan.id,
+                    expected_revision: 2,
+                    shots: vec![shot("Replacement", 4.0, AgentPlanAuthor::Agent)],
+                    origin: origin(session.id, "replace"),
+                })
+                .await
+                .expect("second generation"),
+            AgentPlanUpdate::Conflict {
+                current_revision: 2
+            }
+        ));
     }
 
     #[tokio::test]

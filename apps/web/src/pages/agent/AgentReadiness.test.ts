@@ -17,10 +17,21 @@ const READY = {
 };
 
 describe('Agent readiness', () => {
-  it('opens the first sentence only when Demo, analysis and model are ready', () => {
+  it('opens the first sentence when Demo and model are ready', () => {
     const state = buildAgentReadiness(READY);
     expect(state.gate).toEqual({ disabled: false });
     expect(state.items.map((item) => item.state)).toEqual(['ok', 'ok', 'ok', 'ok']);
+  });
+
+  it('treats analysis as an automatic stage rather than another prerequisite form', () => {
+    for (const demoStatus of ['discovered', 'indexing', 'analyzing', 'failed'] as const) {
+      const state = buildAgentReadiness({ ...READY, demoStatus });
+      expect(state.gate).toEqual({ disabled: false });
+      expect(state.items.find((item) => item.key === 'analysis')).toMatchObject({
+        blocking: false,
+      });
+    }
+    expect(buildAgentReadiness({ ...READY, demoStatus: 'missing' }).gate.disabled).toBe(true);
   });
 
   it('names the first blocking fact and routes directly to its repair', () => {

@@ -2,11 +2,9 @@
  * `interaction` project — `useAgentChatStream`, the bridge between the
  * streaming `agent_chat` command and the session store.
  *
- * The two stores are separate on the backend (`AgentChatInput` has `threadId`,
- * not `sessionId`), so this hook is what puts the conversation into the session
- * — and it is the only place that can stamp a proposal with the revision the
- * model was answering about. Both facts are asserted here, because §4.5.3 rule
- * ③ has nothing to compare against if the stamp is missing.
+ * The embedded thread shares the durable session identity, while the explicit
+ * session entries below remain the model-history authority. This hook is also
+ * the only place that carries the plan revision the model is answering about.
  */
 
 import { act, waitFor } from '@testing-library/react';
@@ -319,7 +317,7 @@ describe('useAgentChatStream', () => {
     expect(inputs).toHaveLength(1);
   });
 
-  it('sends the workspace context the caller gave it, and no thread of its own', async () => {
+  it('sends the workspace context and binds the embedded thread to the durable session', async () => {
     const { client, inputs } = stubClient([
       { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' }, metadata: METADATA },
     ]);
@@ -343,7 +341,7 @@ describe('useAgentChatStream', () => {
       });
     });
 
-    expect(inputs[0]?.threadId).toBeNull();
+    expect(inputs[0]?.threadId).toBe('S-1');
     expect(inputs[0]?.history).toEqual([
       { role: 'user', content: '上一条问题' },
       { role: 'assistant', content: '上一条回答' },

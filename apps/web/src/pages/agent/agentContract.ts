@@ -249,8 +249,8 @@ export const AGENT_MODE: Readonly<Record<AgentMode, AgentModeMeta>> = {
     hint: msg({ message: '对话附着在选中的镜头上，意图同时给出参数', context: 'agent-mode' }),
   },
   takes: {
-    label: msg({ message: '版本比较', context: 'agent-mode' }),
-    hint: msg({ message: '每次改动生成一条 take，并排比较后再合成', context: 'agent-mode' }),
+    label: msg({ message: 'Take 比较', context: 'agent-mode' }),
+    hint: msg({ message: '并排比较同一镜头的真实录制结果，并选择成片版本', context: 'agent-mode' }),
   },
 };
 

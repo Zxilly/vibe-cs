@@ -13,7 +13,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { act, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { DesktopError } from '../shared/desktop/client';
 import type { Paginated, ScanResult } from '../shared/desktop/dto';
@@ -24,6 +24,7 @@ import {
   useDeleteDemos,
   useDemo,
   useDemoList,
+  useEnsureDemoAnalysis,
   useImportDemoFiles,
   useLaunchDemoPlayback,
   useReviewTags,
@@ -401,6 +402,27 @@ describe('useStartDemoAnalysis', () => {
       // … and the run appears in the activity feed
       expect(feed.calls()).toBe(2);
     });
+  });
+});
+
+describe('useEnsureDemoAnalysis', () => {
+  it('starts an unanalysed Demo once and waits for the authoritative ready state', async () => {
+    let reads = 0;
+    const getDemo = vi.fn(async () => {
+      reads += 1;
+      return { ...DEMO, lifecycle_status: reads === 1 ? 'discovered' as const : 'ready' as const };
+    });
+    const startAnalysisRun = vi.fn(async () => ({ id: 'run-1' }));
+    const { result } = renderDataHook(() => useEnsureDemoAnalysis(), {
+      client: { getDemo, startAnalysisRun } as never,
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync(DEMO.id);
+    });
+
+    expect(startAnalysisRun).toHaveBeenCalledTimes(1);
+    expect(getDemo).toHaveBeenCalledTimes(2);
   });
 });
 

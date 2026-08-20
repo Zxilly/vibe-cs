@@ -352,6 +352,48 @@ export function useStartDemoAnalysis() {
   });
 }
 
+const AGENT_ANALYSIS_POLL_MS = 500;
+const AGENT_ANALYSIS_MAX_POLLS = 1_200;
+
+/**
+ * Makes analysis an internal stage of the one-sentence Agent workflow.
+ * Already-complete analysis is returned immediately; a discovered or failed
+ * Demo starts one run, and an in-flight run is joined rather than duplicated.
+ */
+export function useEnsureDemoAnalysis() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (demoId: string) => {
+      let started = false;
+      for (let poll = 0; poll < AGENT_ANALYSIS_MAX_POLLS; poll += 1) {
+        const demo = await client.getDemo(demoId);
+        queryClient.setQueryData(qk.demos.detail(demoId), demo);
+        if (demo.lifecycle_status === 'ready') return demo;
+        if (demo.lifecycle_status === 'missing') {
+          throw new Error('Demo file is missing; analysis cannot start.');
+        }
+        if (!started && (demo.lifecycle_status === 'discovered' || demo.lifecycle_status === 'failed')) {
+          await client.startAnalysisRun(demoId);
+          started = true;
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, AGENT_ANALYSIS_POLL_MS));
+      }
+      throw new Error('Demo analysis did not finish within ten minutes.');
+    },
+    onSettled: async (_data, _error, demoId) => {
+      await Promise.all([
+        invalidateDemos(queryClient),
+        queryClient.invalidateQueries({ queryKey: qk.tasks.all }),
+        queryClient.invalidateQueries({ queryKey: qk.match.workspace(demoId) }),
+        queryClient.invalidateQueries({ queryKey: qk.evidence.all }),
+        queryClient.invalidateQueries({ queryKey: qk.players.all }),
+      ]);
+    },
+  });
+}
+
 /**
  * 「游戏内回放」 — launches CS2 on this demo.
  *

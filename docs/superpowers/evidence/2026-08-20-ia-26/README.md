@@ -22,3 +22,13 @@ Completion-audit addition:
 - It proves the whole software-owned chain in one test: one sentence → `video_render` tool → non-empty Agent plan → immutable Agent baseline → recording plan → recorded Take → confirmed Composition → MP4 export → database reopen with the same plan, Take, Composition, and output association.
 - This test caught and closed the previous gap where `video_render` was stored in the conversation but never materialized into the empty shot list.
 - Analysis is now an automatic pre-chat stage for discovered/in-flight/failed Demos; only a physically missing Demo remains a blocking input error.
+
+Final external-state audit through the running Tauri bridge:
+
+- Counter-Strike 2: `ready` (`E:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive\game/bin/win64/cs2.exe`)
+- HLAE: `ready` (managed `v2.191.1` runtime)
+- Video encoders: `ready` (hardware and software choices reported)
+- Demo library total: `0`
+- Agent runtime: available, but model configuration is empty (`configured: false`, provider/model blank)
+
+Therefore the real hardware acceptance is blocked specifically by the two user inputs the product requires: one Demo and one model credential. Game, capture runtime and encoding are already ready.

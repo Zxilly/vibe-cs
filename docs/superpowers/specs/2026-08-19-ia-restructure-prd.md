@@ -171,6 +171,7 @@
   - 阶段 2：作品对象 + 作品列表 + 工作区骨架（步骤条 + 门控）+ 旧路由 redirect
   - 阶段 3：Agent 面板 / 快速剪辑 / 多轨精剪迁入工作区，录制队列迁入，旧页面退役
   - 阶段 4：素材中心合并（history 入 library）、收尾与旧代码删除
+- **D8 双模式是壳层视角，不是两份产品**：左上角品牌位改为「剪辑模式 / 分析模式」切换器。两种模式共享同一份 Demo、比赛、玩家、证据、设置与后台任务；只切换一级导航和默认落点。剪辑模式突出工作台 / 作品 / 成品，分析模式突出 Demo 资料库 / 玩家目录 / 证据检索。`/players`、`/evidence`、`/match/:demoId` 深链自动进入分析模式，`/projects`、`/delivery` 深链自动进入剪辑模式；`/library` 与设置保持共享。
 
 ## Testing Decisions
 
@@ -214,6 +215,21 @@
 - 录制：预检、HLAE 托管、launch token 互斥、阶段可视化、取消
 - 输出管理：受管/外部文件、可回滚删除、清理无效记录
 - 恢复中心、设置五节、使用引导
+
+#### 与 `E:\Temp\cs-demo-manager` 的分析能力对照
+
+| CS Demo Manager 能力面 | Vibe CS 保留位置 | 双模式处理 |
+|---|---|---|
+| Demos / Matches 表格、筛选、分析状态 | `/library` 与 `/match/:demoId` | 分析模式默认落到 Demo 资料库；剪辑模式仍可把 Demo 作为素材使用 |
+| Players、玩家比赛/地图/趋势/热力图 | `/players`、`/players/:playerId` | 分析模式一级入口 |
+| 跨比赛搜索 | `/evidence` | 分析模式一级入口，保留证据与注释双视图 |
+| 回合、击杀、对位、武器/经济、投掷物 | 比赛工作区 `rounds / duels / utility` 等视图 | 九视图注册表保持穷举，不因模式切换裁剪 |
+| 2D Viewer、Heatmap | 比赛工作区 `replay` 与玩家热力图 | 分析模式路径保留 |
+| Teams | 比赛工作区 `teams` | 保留单场队伍/阵容分析；全局队伍目录不是当前 Vibe CS 基线能力，不伪造入口 |
+| Downloads | `/library?view=steam` | 从分析模式 Demo 资料库进入 |
+| Analyses / pending jobs | 标题栏活动抽屉与任务详情 | 两种模式共享，分析任务不会因切到剪辑模式而消失 |
+| Videos | `/delivery` 与作品工作区 | 归剪辑模式，但分析证据仍可「加入作品」 |
+| Ban tracking、语音导出 | 当前 Vibe CS 无对应前端契约 | 仅作为后续能力参考，不在“保留现有能力”名义下创建空入口 |
 
 ### 迁移与兼容
 

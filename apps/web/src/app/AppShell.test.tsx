@@ -153,7 +153,7 @@ describe('AppShell — the title bar crumb', () => {
       'Demo 资料库→/library',
       '比赛工作区',
     ]);
-    expect(rungs('/players/kael')).toEqual(['资料库', '玩家目录→/players', '玩家档案']);
+    expect(rungs('/players/kael')).toEqual(['分析', '玩家目录→/players', '玩家档案']);
     expect(rungs('/recovery')).toEqual(['设置与诊断→/settings', '恢复中心']);
 
     expect(crumb('/match/aurora-meridian')).toContain('aria-current="page"');

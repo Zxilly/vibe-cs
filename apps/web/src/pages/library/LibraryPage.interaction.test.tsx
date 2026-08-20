@@ -50,7 +50,7 @@ afterEach(() => {
   media = null;
 });
 
-describe('the two §7 views', () => {
+describe('library acquisition and layout views', () => {
   it('switches to the card grid, and the table goes away', async () => {
     renderLibrary({ seed: ONLINE });
 
@@ -62,6 +62,14 @@ describe('the two §7 views', () => {
       expect(document.querySelector('[data-library-cards]')).not.toBeNull();
     });
     expect(document.querySelector('[data-library-table]')).toBeNull();
+  });
+
+  it('treats Steam as an acquisition entry, not a peer view tab', () => {
+    renderLibrary({ seed: ONLINE });
+
+    expect(screen.queryByRole('radiogroup', { name: '素材视图' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Steam 下载' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: '视图' })).toBeTruthy();
   });
 
   it('opens Steam downloads inside the same library route', async () => {
@@ -76,7 +84,9 @@ describe('the two §7 views', () => {
 
     expect(await screen.findByText('比赛历史')).toBeTruthy();
     expect(document.querySelector('[data-steam-library]')).not.toBeNull();
-    expect(screen.getByRole('radio', { name: 'Steam 下载' }).getAttribute('data-state')).toBe('checked');
+    expect(screen.queryByRole('radiogroup', { name: '素材视图' })).toBeNull();
+    expect(screen.getByRole('link', { name: /Demo 资料库/u })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Steam 下载' })).toBeTruthy();
   });
 });
 

@@ -60,6 +60,10 @@ msgstr "· 时长待定"
 msgid "· 需要服务"
 msgstr "· 需要服务"
 
+#: src/pages/LibraryPage.tsx:112
+msgid "‹ Demo 资料库"
+msgstr "‹ Demo 资料库"
+
 #: src/pages/ProjectWorkspacePage.tsx:58
 msgid "‹ 作品"
 msgstr "‹ 作品"
@@ -105,7 +109,7 @@ msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, other {# 个作品}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
-#: src/pages/LibraryPage.tsx:344
+#: src/pages/LibraryPage.tsx:338
 msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, other {# 个监听目录}}"
 
@@ -130,7 +134,7 @@ msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, other {# 回合}}"
 
 #. placeholder {0}: list.data?.total ?? 0
-#: src/pages/LibraryPage.tsx:342
+#: src/pages/LibraryPage.tsx:336
 msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, other {# 场}}"
 
@@ -170,7 +174,7 @@ msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, other {最近 # 条}}"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:264
+#: src/pages/LibraryPage.tsx:258
 msgid "{0, plural, other {分析选中的 # 场}}"
 msgstr "{0, plural, other {分析选中的 # 场}}"
 
@@ -807,9 +811,7 @@ msgstr "Demo 内容一致"
 #: src/app/command/commandRegistry.ts:168
 #: src/app/shell/navigation.tsx:81
 #: src/pages/home/RecentMatchesPanel.tsx:52
-#: src/pages/LibraryPage.tsx:116
-#: src/pages/LibraryPage.tsx:339
-#: src/pages/LibraryPage.tsx:361
+#: src/pages/LibraryPage.tsx:333
 msgid "Demo 资料库"
 msgstr "Demo 资料库"
 
@@ -912,8 +914,9 @@ msgid "Steam 上的对局记录与回放下载"
 msgstr "Steam 上的对局记录与回放下载"
 
 #: src/app/routeCrumb.ts:110
-#: src/pages/LibraryPage.tsx:117
-#: src/pages/LibraryPage.tsx:362
+#: src/pages/LibraryPage.tsx:113
+#: src/pages/LibraryPage.tsx:348
+#: src/pages/LibraryPage.tsx:351
 msgid "Steam 下载"
 msgstr "Steam 下载"
 
@@ -1228,6 +1231,10 @@ msgstr "人数"
 #: src/pages/evidence/EvidenceConditions.tsx:103
 msgid "仅爆头"
 msgstr "仅爆头"
+
+#: src/pages/LibraryPage.tsx:114
+msgid "从 Steam 同步最近比赛并下载回放"
+msgstr "从 Steam 同步最近比赛并下载回放"
 
 #: src/pages/agent/conversationModel.ts:315
 msgid "从他起跳开始"
@@ -2061,7 +2068,7 @@ msgstr "分辨率"
 msgid "分页"
 msgstr "分页"
 
-#: src/pages/LibraryPage.tsx:372
+#: src/pages/LibraryPage.tsx:358
 msgid "切换视图"
 msgstr "切换视图"
 
@@ -2104,7 +2111,7 @@ msgstr "删除对话"
 msgid "删除没有成功"
 msgstr "删除没有成功"
 
-#: src/pages/LibraryPage.tsx:296
+#: src/pages/LibraryPage.tsx:290
 msgid "删除记录"
 msgstr "删除记录"
 
@@ -2262,7 +2269,7 @@ msgstr "单轨预览，不含叠加与调色"
 msgid "占用"
 msgstr "占用"
 
-#: src/pages/LibraryPage.tsx:380
+#: src/pages/LibraryPage.tsx:366
 msgid "卡片"
 msgstr "卡片"
 
@@ -3060,13 +3067,9 @@ msgstr "导入"
 #: src/pages/home/FirstRunStrip.tsx:59
 #: src/pages/HomePage.tsx:88
 #: src/pages/library/ImportDemoDialog.tsx:93
-#: src/pages/LibraryPage.tsx:230
+#: src/pages/LibraryPage.tsx:224
 msgid "导入 Demo"
 msgstr "导入 Demo"
-
-#: src/pages/LibraryPage.tsx:110
-msgid "导入、监听目录与 Steam 下载"
-msgstr "导入、监听目录与 Steam 下载"
 
 #: src/design/data/Empty.tsx:137
 msgid "导入一个 .dem，或添加一个监听目录自动发现"
@@ -3102,12 +3105,12 @@ msgstr "导出"
 msgid "导出 HTML"
 msgstr "导出 HTML"
 
-#: src/pages/LibraryPage.tsx:291
+#: src/pages/LibraryPage.tsx:285
 msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 msgstr "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 
 #: src/pages/library/LibraryFilters.tsx:207
-#: src/pages/LibraryPage.tsx:293
+#: src/pages/LibraryPage.tsx:287
 msgid "导出元数据"
 msgstr "导出元数据"
 
@@ -3400,7 +3403,7 @@ msgid "已选 {0} 场"
 msgstr "已选 {0} 场"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:251
+#: src/pages/LibraryPage.tsx:245
 msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 
@@ -4388,7 +4391,7 @@ msgstr "数据目录"
 msgid "整场 · 事件"
 msgstr "整场 · 事件"
 
-#: src/pages/LibraryPage.tsx:197
+#: src/pages/LibraryPage.tsx:191
 msgid "整场比赛"
 msgstr "整场比赛"
 
@@ -5696,8 +5699,8 @@ msgstr "添加 {0} 段"
 msgid "添加到时间轴"
 msgstr "添加到时间轴"
 
-#: src/pages/LibraryPage.tsx:270
-#: src/pages/LibraryPage.tsx:271
+#: src/pages/LibraryPage.tsx:264
+#: src/pages/LibraryPage.tsx:265
 msgid "添加标签"
 msgstr "添加标签"
 
@@ -5716,7 +5719,7 @@ msgid "添加监听目录"
 msgstr "添加监听目录"
 
 #: src/pages/library/WatchDirectoriesDrawer.tsx:84
-#: src/pages/LibraryPage.tsx:239
+#: src/pages/LibraryPage.tsx:233
 #: src/pages/settings/FilesSection.tsx:246
 msgid "添加目录"
 msgstr "添加目录"
@@ -6193,8 +6196,8 @@ msgstr "百分比"
 
 #: src/pages/library/libraryFormat.ts:156
 #: src/pages/library/WatchDirectoriesDrawer.tsx:75
-#: src/pages/LibraryPage.tsx:390
-#: src/pages/LibraryPage.tsx:396
+#: src/pages/LibraryPage.tsx:376
+#: src/pages/LibraryPage.tsx:382
 #: src/pages/settings/FilesSection.tsx:180
 msgid "监听目录"
 msgstr "监听目录"
@@ -6336,7 +6339,7 @@ msgstr "碰撞几何未知"
 msgid "磁盘空间不足"
 msgstr "磁盘空间不足"
 
-#: src/pages/LibraryPage.tsx:376
+#: src/pages/LibraryPage.tsx:362
 msgid "视图"
 msgstr "视图"
 
@@ -6574,10 +6577,6 @@ msgstr "精剪模式"
 msgid "系统里注册了录制需要的视频与音频编码器"
 msgstr "系统里注册了录制需要的视频与音频编码器"
 
-#: src/pages/LibraryPage.tsx:110
-msgid "素材"
-msgstr "素材"
-
 #: src/pages/home/FirstRunStrip.tsx:55
 msgid "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
 msgstr "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
@@ -6594,12 +6593,6 @@ msgstr "素材已经到头了，没有可用的余量"
 #: src/pages/editor/MediaLibraryPanel.tsx:129
 msgid "素材库"
 msgstr "素材库"
-
-#: src/pages/LibraryPage.tsx:113
-#: src/pages/LibraryPage.tsx:354
-#: src/pages/LibraryPage.tsx:358
-msgid "素材视图"
-msgstr "素材视图"
 
 #: src/pages/montage/ClipTrimDrawer.tsx:199
 msgid "素材长度"
@@ -6839,7 +6832,7 @@ msgstr "行方 ＼ 列方"
 msgid "行方与列方"
 msgstr "行方与列方"
 
-#: src/pages/LibraryPage.tsx:379
+#: src/pages/LibraryPage.tsx:365
 msgid "表格"
 msgstr "表格"
 
@@ -8394,7 +8387,7 @@ msgstr "配置文件没有损坏，不需要恢复"
 msgid "配置文件读不出来"
 msgstr "配置文件读不出来"
 
-#: src/pages/LibraryPage.tsx:208
+#: src/pages/LibraryPage.tsx:202
 msgid "配置还没读出来，稍后再试"
 msgstr "配置还没读出来，稍后再试"
 
@@ -8548,7 +8541,7 @@ msgstr "重新选择"
 #: src/pages/library/LibraryInspector.tsx:184
 #: src/pages/library/LibraryTable.tsx:102
 #: src/pages/library/WatchDirectoriesDrawer.tsx:92
-#: src/pages/LibraryPage.tsx:431
+#: src/pages/LibraryPage.tsx:417
 #: src/pages/match/views/HighlightsView.tsx:142
 #: src/pages/match/views/ReplayView.tsx:239
 #: src/pages/match/views/ReviewView.tsx:116

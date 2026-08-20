@@ -96,29 +96,23 @@ import {
 } from './library/libraryQuery';
 import { alsoDisabled, unavailableAction, useLibraryServiceAction } from './library/serviceAction';
 import { HistoryWorkspace } from './HistoryPage';
+import { RouteLink } from './RouteLink';
 
 /** One overlay at a time — five dialogs and one drawer. */
 type LibraryOverlay = 'import' | 'watch' | 'watch-add' | 'columns' | 'save-view' | 'delete' | null;
 
 export function LibraryPage() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   if (params.get('view') !== 'steam') return <DemoLibraryPage />;
   return (
     <Page
       scroll={false}
       toolbar={
-        <Toolbar title={<Trans>素材</Trans>} meta={<Trans>导入、监听目录与 Steam 下载</Trans>}>
-          <Seg
-            name="library-section"
-            aria-label={t`素材视图`}
-            value="steam"
-            options={[
-              { value: 'demos', label: t`Demo 资料库` },
-              { value: 'steam', label: t`Steam 下载` },
-            ]}
-            onChange={(value) => setParams(value === 'steam' ? { view: 'steam' } : { view: 'table' })}
-          />
-        </Toolbar>
+        <Toolbar
+          leading={<RouteLink to="/library"><Trans>‹ Demo 资料库</Trans></RouteLink>}
+          title={<Trans>Steam 下载</Trans>}
+          meta={<Trans>从 Steam 同步最近比赛并下载回放</Trans>}
+        />
       }
     >
       <HistoryWorkspace embedded />
@@ -350,22 +344,14 @@ function DemoLibraryPage() {
           inlineActionsWhenCollapsed={2}
           actions={[
             {
-              id: 'section',
-              label: <Trans>素材视图</Trans>,
+              id: 'steam',
+              label: <Trans>Steam 下载</Trans>,
               control: (
-                <Seg
-                  name="library-section"
-                  aria-label={t`素材视图`}
-                  value="demos"
-                  options={[
-                    { value: 'demos', label: t`Demo 资料库` },
-                    { value: 'steam', label: t`Steam 下载` },
-                  ]}
-                  onChange={(value) => {
-                    if (value === 'steam') setParams({ view: 'steam' });
-                  }}
-                />
+                <Button variant="secondary" onClick={() => setParams({ view: 'steam' })}>
+                  <Trans>Steam 下载</Trans>
+                </Button>
               ),
+              onSelect: () => setParams({ view: 'steam' }),
             },
             {
               id: 'view',

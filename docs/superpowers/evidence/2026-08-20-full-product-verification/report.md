@@ -40,6 +40,7 @@ Accepted compact and medium matrices are visible in [contact-sheet-1100x700.png]
 - Deep links restored settings items and match subviews directly.
 - The work-mode menu, compact sidebar, pagination, filters, dialogs, and primary route transitions were exercised from the accessibility tree.
 - No current page exception or failed resource request remained after the final reload. Historic Vite HMR reconnect warnings in the long-lived console were caused by Rust-triggered Desktop restarts and were not counted as page failures.
+- After the fixes, Steam history, files/Steam settings, advanced diagnostics, recovery, highlights, and Review were captured again at all three sizes as `final-*.png`; all 18 states reported zero horizontal overflow, zero out-of-bounds interactive controls, zero busy regions, and no unexpected alert.
 
 ## Fixed findings
 

@@ -22,9 +22,10 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use uuid::Uuid;
 use vibe_cs_domain::{
     AudioAnalysis, AudioAnalysisOptions, BeatAlignmentDraft, BeatAlignmentRequest,
-    EditorAudioSeparation, EditorPackageAsset, EditorPackageManifest, EditorPresetDocument,
-    EditorProject, EditorProjectSnapshot, JobStatus, MediaAsset, MediaMetadataStatus,
-    MediaProxyStatus, MontageClip, MontageProject, MontageSettings, Page, RecordedClip, TrackKind,
+    EditorAudioSeparation, EditorClip, EditorPackageAsset, EditorPackageManifest,
+    EditorPresetDocument, EditorProject, EditorProjectSnapshot, EditorTrack, JobStatus, MediaAsset,
+    MediaMetadataStatus, MediaProxyStatus, MontageClip, MontageProject, MontageSettings, Page,
+    RecordedClip, TrackKind, Transform,
 };
 use vibe_cs_storage::{
     EditorAudioSeparationUpdate, EditorProjectDeletion, EditorProjectRevision, EditorProjectUpdate,
@@ -72,6 +73,10 @@ pub(crate) fn router() -> Router<AppState> {
         .route(
             "/api/montage/projects/{id}",
             get(get_montage).put(put_montage).delete(delete_montage),
+        )
+        .route(
+            "/api/montage/projects/{id}/convert/editor",
+            post(convert_montage_to_editor),
         )
         .route("/api/montage/projects/{id}/export", post(export_montage))
         .route(
@@ -588,6 +593,148 @@ async fn put_montage(
     let project = state.storage.put_montage_project(project).await?;
     state.events.publish("montage_project", "updated", Some(id));
     Ok(Json(project))
+}
+
+async fn convert_montage_to_editor(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> ApiResult<(StatusCode, Json<EditorProject>)> {
+    let montage = state
+        .storage
+        .get_montage_project(parse_id(&id)?)
+        .await?
+        .ok_or_else(|| ApiError::not_found("montage project"))?;
+    if montage.clips.is_empty() {
+        return Err(ApiError::invalid(
+            "an empty montage cannot be copied to the multitrack editor",
+        ));
+    }
+    let project_id = Uuid::new_v4();
+    let mut source = montage.clips.clone();
+    source.sort_by_key(|clip| clip.order);
+    let mut assets = Vec::with_capacity(source.len());
+    let mut clips = Vec::with_capacity(source.len());
+    let mut cursor = 0.0_f64;
+    for montage_clip in source {
+        let recorded = state
+            .storage
+            .get_recorded_clip(montage_clip.clip_id)
+            .await?
+            .ok_or_else(|| ApiError::not_found("montage recorded clip"))?;
+        let metadata = tokio::fs::metadata(&recorded.path).await.map_err(|error| {
+            ApiError::new(
+                StatusCode::CONFLICT,
+                "montage_source_missing",
+                format!("Montage source is unavailable: {error}"),
+            )
+        })?;
+        if !metadata.is_file() {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "montage_source_missing",
+                "Montage source is not a regular file",
+            ));
+        }
+        let probed = state.media.probe(PathBuf::from(&recorded.path)).await?;
+        let source_end = montage_clip
+            .trim_end
+            .unwrap_or(recorded.duration_seconds)
+            .min(recorded.duration_seconds);
+        if !montage_clip.trim_start.is_finite()
+            || !source_end.is_finite()
+            || montage_clip.trim_start < 0.0
+            || source_end <= montage_clip.trim_start
+        {
+            return Err(ApiError::invalid(
+                "montage clip trim cannot be represented in the multitrack editor",
+            ));
+        }
+        let duration = source_end - montage_clip.trim_start;
+        let asset_id = Uuid::new_v4();
+        assets.push(MediaAsset {
+            id: asset_id,
+            project_id: Some(project_id),
+            path: recorded.path.clone(),
+            name: recorded.title.clone(),
+            kind: "video".to_owned(),
+            duration_seconds: Some(recorded.duration_seconds),
+            width: probed.width,
+            height: probed.height,
+            file_size: metadata.len(),
+            has_audio: probed.has_audio,
+            proxy_path: None,
+            proxy_status: MediaProxyStatus::NotRequested,
+            waveform: None,
+            metadata_status: MediaMetadataStatus::Ready,
+            created_at: Utc::now(),
+        });
+        clips.push(EditorClip {
+            id: Uuid::new_v4(),
+            asset_id: Some(asset_id),
+            name: montage_clip.title.unwrap_or(recorded.title),
+            start: cursor,
+            duration,
+            source_in: montage_clip.trim_start,
+            source_out: source_end,
+            speed: 1.0,
+            volume: 1.0,
+            transform: Transform::default(),
+            effects: Vec::new(),
+            transition_in: None,
+            transition_out: None,
+            text: None,
+            metadata: serde_json::json!({
+                "converted_from": {
+                    "kind": "montage_clip",
+                    "project_id": montage.id,
+                    "clip_id": montage_clip.clip_id,
+                }
+            }),
+            group_id: None,
+            link_group_id: None,
+            keyframes: Vec::new(),
+            speed_segments: Vec::new(),
+        });
+        cursor += duration;
+    }
+    let now = Utc::now();
+    let project = EditorProject {
+        id: project_id,
+        name: format!("{} · 多轨精剪", montage.name),
+        width: montage.settings.width,
+        height: montage.settings.height,
+        fps: montage.settings.fps,
+        duration_seconds: cursor,
+        tracks: vec![EditorTrack {
+            id: Uuid::new_v4(),
+            name: "Video".to_owned(),
+            kind: TrackKind::Video,
+            order: 0,
+            muted: false,
+            locked: false,
+            hidden: false,
+            clips,
+        }],
+        markers: Vec::new(),
+        settings: serde_json::json!({
+            "converted_from": { "kind": "montage", "id": montage.id },
+            "conversion": "copy",
+            "reverse_sync": false,
+            "omitted": ["packaging", "background_music", "transitions"],
+        }),
+        revision: 1,
+        created_at: now,
+        updated_at: now,
+    };
+    project.validate()?;
+    let project = state
+        .storage
+        .create_editor_project_with_assets(project, assets)
+        .await?;
+    state
+        .events
+        .publish("editor_project", "created", Some(project.id));
+    Ok((StatusCode::CREATED, Json(project)))
 }
 
 pub(super) async fn validate_montage_project(
@@ -3997,6 +4144,85 @@ mod tests {
                 constraints: vec!["advisory".to_owned()],
             })
         }
+    }
+
+    #[tokio::test]
+    async fn quick_montage_conversion_copies_clips_into_a_new_multitrack_project() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let source = directory.path().join("take.mp4");
+        tokio::fs::write(&source, b"video")
+            .await
+            .expect("source file");
+        let storage = vibe_cs_storage::Storage::open_in_memory()
+            .await
+            .expect("storage");
+        let clip = RecordedClip {
+            id: Uuid::new_v4(),
+            path: source.to_string_lossy().into_owned(),
+            title: "Clutch".to_owned(),
+            duration_seconds: 2.0,
+            demo_id: None,
+            player_name: None,
+            category: "agent".to_owned(),
+            tags: Vec::new(),
+            metadata: serde_json::json!({}),
+            created_at: Utc::now(),
+        };
+        storage
+            .put_recorded_clip(clip.clone())
+            .await
+            .expect("recorded clip");
+        let montage = MontageProject {
+            id: Uuid::new_v4(),
+            name: "Final".to_owned(),
+            clips: vec![MontageClip {
+                clip_id: clip.id,
+                order: 0,
+                trim_start: 0.25,
+                trim_end: Some(1.75),
+                transition: "fade".to_owned(),
+                title: Some("Opening".to_owned()),
+                avatar_asset_id: None,
+            }],
+            settings: MontageSettings::default(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        storage
+            .put_montage_project(montage.clone())
+            .await
+            .expect("montage");
+        let state = AppState::new(storage.clone(), directory.path().to_path_buf())
+            .with_media(Arc::new(ExtractAudioMedia::default()));
+
+        let (status, Json(editor)) =
+            convert_montage_to_editor(State(state), Path(montage.id.to_string()))
+                .await
+                .expect("convert");
+
+        assert_eq!(status, StatusCode::CREATED);
+        assert_ne!(editor.id, montage.id, "conversion creates a copy");
+        assert_eq!(editor.tracks[0].clips.len(), 1);
+        assert_eq!(editor.tracks[0].clips[0].source_in, 0.25);
+        assert_eq!(editor.tracks[0].clips[0].source_out, 1.75);
+        assert_eq!(editor.settings["conversion"], "copy");
+        assert_eq!(editor.settings["reverse_sync"], false);
+        assert_eq!(
+            storage
+                .get_montage_project(montage.id)
+                .await
+                .expect("source read"),
+            Some(montage),
+            "the source stays untouched"
+        );
+        assert_eq!(
+            storage
+                .list_assets(Some(editor.id))
+                .await
+                .expect("converted assets")
+                .len(),
+            1
+        );
     }
 
     fn editor_project_with_source(source_id: Uuid) -> EditorProject {

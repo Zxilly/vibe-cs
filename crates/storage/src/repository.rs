@@ -2616,6 +2616,43 @@ impl Storage {
         .await
     }
 
+    /// Creates a converted editor project and every source asset in one
+    /// transaction. The source montage and recorded clips are never mutated.
+    pub async fn create_editor_project_with_assets(
+        &self,
+        project: EditorProject,
+        assets: Vec<MediaAsset>,
+    ) -> Result<EditorProject> {
+        project.validate()?;
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            if get_editor_project_document(&transaction, project.id)?.is_some() {
+                return Err(StorageError::EditorProjectAlreadyExists(project.id));
+            }
+            for asset in &assets {
+                if asset.project_id != Some(project.id) {
+                    return Err(StorageError::Domain(
+                        vibe_cs_domain::DomainError::InvalidInput(
+                            "converted media asset belongs to another editor project".to_owned(),
+                        ),
+                    ));
+                }
+                put_asset_row(&transaction, asset)?;
+            }
+            put_editor_project_row(
+                &transaction,
+                &EditorProjectDocument {
+                    project: project.clone(),
+                    snapshots: Vec::new(),
+                },
+            )?;
+            transaction.commit()?;
+            Ok(project)
+        })
+        .await
+    }
+
     /// Atomically saves an editor document when its persisted revision still
     /// matches the caller's base revision.
     pub async fn update_editor_project(

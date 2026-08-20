@@ -60,6 +60,26 @@ export interface CapabilityGap {
   readonly reason: string | null;
 }
 
+/**
+ * Capability reasons are persisted by the Rust analysis layer and older
+ * records therefore contain its English diagnostic vocabulary. Keep the wire
+ * value useful for unknown/new reasons, but translate the closed set emitted
+ * by the current analyzer before it reaches the product UI.
+ */
+const CAPABILITY_REASON_ZH: Readonly<Record<string, string>> = {
+  'no identified attacker-target combat pairs': '这场 Demo 没有解析出可归属的交手对。',
+  'no grenade lifecycle events were decoded': '这场 Demo 没有解析出投掷物生命周期事件。',
+  'no utility-attributed player_hurt events': '这场 Demo 没有解析出可归属的道具伤害。',
+  'no player_blind events were decoded': '这场 Demo 没有解析出致盲事件。',
+  'no item_purchase events were decoded': '这场 Demo 没有解析出购买事件。',
+  'no explicit price field': '这场 Demo 没有可用的物品价格字段。',
+};
+
+export function localiseCapabilityReason(reason: string): string {
+  const trimmed = reason.trim();
+  return CAPABILITY_REASON_ZH[trimmed] ?? trimmed;
+}
+
 function capability(
   analysis: AnalysisWorkspace | undefined,
   id: InsightCapabilityId,
@@ -86,7 +106,7 @@ export function capabilityGaps(analysis: AnalysisWorkspace | undefined): readonl
     const record = analysis.insights.availability[id];
     if (record.available) continue;
     const reason = record.reason?.trim() ?? '';
-    gaps.push({ id, reason: reason === '' ? null : reason });
+    gaps.push({ id, reason: reason === '' ? null : localiseCapabilityReason(reason) });
   }
   return gaps;
 }

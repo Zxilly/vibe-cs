@@ -191,6 +191,25 @@ describe('文件与资料库', () => {
     await loaded('位置');
     expect(document.body.textContent).toContain('不会被搬走');
   });
+
+  it('saves the complete Steam history connection without resetting other settings', async () => {
+    const { written } = render(<FilesSection />);
+    const steamId = await screen.findByLabelText(/^Steam ID/u);
+
+    fireEvent.change(steamId, { target: { value: '76561198000000000' } });
+    fireEvent.change(screen.getByLabelText(/^Steam Web API 密钥/u), { target: { value: 'a'.repeat(32) } });
+    fireEvent.change(screen.getByLabelText(/^Steam 验证码/u), { target: { value: 'ABCD-EFGHI-JKLM' } });
+    fireEvent.change(screen.getByLabelText(/^最近分享代码/u), {
+      target: { value: 'CSGO-ABCDE-ABCDE-ABCDE-ABCDE-ABCDE' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '保存 Steam 设置' }));
+
+    await waitFor(() => expect(written).toHaveLength(1));
+    expect(written[0]?.steam.steam_id).toBe('76561198000000000');
+    expect(written[0]?.steam.web_api_key).toBe('a'.repeat(32));
+    expect(written[0]?.data_dir).toBe(CONFIG.data_dir);
+    expect(written[0]?.llm).toEqual(CONFIG.llm);
+  });
 });
 
 describe('游戏与录制', () => {
@@ -291,6 +310,32 @@ describe('高级与诊断', () => {
         automatic_launch_enabled: false,
       }),
   };
+
+  it('prepares a missing managed capture component and refreshes its status', async () => {
+    let prepared = false;
+    const prepareManagedHlae = vi.fn(() => {
+      prepared = true;
+      return Promise.resolve({ available: true, messages: [] });
+    });
+    render(<AdvancedSection />, {
+      ...DIAGNOSTIC_STUBS,
+      getHlaeStatus: () => Promise.resolve({
+        available: prepared,
+        executable: prepared ? String.raw`D:\hlae\HLAE.exe` : null,
+        messages: prepared ? [] : ['managed HLAE is missing'],
+        automatic_launch_enabled: prepared,
+      }),
+      prepareManagedHlae,
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: '准备采集组件' }));
+
+    await waitFor(() => expect(prepareManagedHlae).toHaveBeenCalledTimes(1));
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('自动启动');
+      expect(screen.queryByRole('button', { name: '准备采集组件' })).toBeNull();
+    });
+  });
 
   it('writes a report and offers to locate it', async () => {
     const exportDiagnostics = vi.fn(() =>

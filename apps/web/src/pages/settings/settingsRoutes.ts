@@ -7,6 +7,7 @@ export const SETTINGS_ITEM_SECTION = {
   updates: 'app',
   storage: 'files',
   'watch-folders': 'files',
+  steam: 'files',
   game: 'game',
   'recording-defaults': 'game',
   'video-output': 'game',

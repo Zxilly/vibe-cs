@@ -35,7 +35,13 @@ import { Trans } from '@lingui/react/macro';
 import { Skeleton } from '../../design/data';
 import { Alert, StatusDot, type StatusDotStatus } from '../../design/feedback';
 import { Button } from '../../design/primitives';
-import { useExportDiagnostics, useHlaeStatus, useQuickCheck, useRuntimeState } from '../../data/config';
+import {
+  useExportDiagnostics,
+  useHlaeStatus,
+  usePrepareManagedHlae,
+  useQuickCheck,
+  useRuntimeState,
+} from '../../data/config';
 import { useOpenDirectory } from '../../data/nativeShell';
 import { dataErrorMessage } from '../../data/errors';
 import { useServiceAction } from '../../data/serviceAction';
@@ -45,6 +51,7 @@ export function AdvancedSection() {
   const runtime = useRuntimeState();
   const checks = useQuickCheck();
   const hlae = useHlaeStatus();
+  const prepareHlae = usePrepareManagedHlae();
   const service = useServiceAction();
   const exportDiagnostics = useExportDiagnostics();
   const openDirectory = useOpenDirectory();
@@ -193,6 +200,34 @@ export function AdvancedSection() {
                   </li>
                 ))}
               </ul>
+            )}
+            {hlae.data.available ? null : (
+              <div className="flex flex-col items-start gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={service.blocked || prepareHlae.isPending}
+                  {...(prepareHlae.isPending
+                    ? { disabledReason: t`正在下载并校验采集组件` }
+                    : service.buttonProps.disabledReason === undefined
+                      ? {}
+                      : { disabledReason: service.buttonProps.disabledReason })}
+                  onClick={() => prepareHlae.mutate()}
+                >
+                  {prepareHlae.isPending ? <Trans>正在准备</Trans> : <Trans>准备采集组件</Trans>}
+                </Button>
+                <p className="text-xs leading-normal text-neutral-600">
+                  <Trans>下载经过固定版本与 SHA-256 校验的官方 HLAE，并安装到应用数据目录。</Trans>
+                </p>
+              </div>
+            )}
+            {prepareHlae.error == null ? null : (
+              <Alert
+                variant="danger"
+                action={{ label: <Trans>重试</Trans>, onAction: () => prepareHlae.mutate() }}
+              >
+                <Trans>采集组件没有准备完成：{dataErrorMessage(prepareHlae.error)}</Trans>
+              </Alert>
             )}
           </>
         )}

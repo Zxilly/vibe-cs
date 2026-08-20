@@ -51,12 +51,12 @@
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { dataErrorMessage } from '../../../data/errors';
 import { analysisIsMissing, useMatchAnalysis } from '../../../data/match';
 import { useServiceAction, type ServiceActionState } from '../../../data/serviceAction';
-import { Empty } from '../../../design/data';
+import { Empty, Pagination } from '../../../design/data';
 import { Alert } from '../../../design/feedback';
 import { Button, Seg, Badge } from '../../../design/primitives';
 import { SelectionBar } from '../../../design/layout';
@@ -80,6 +80,8 @@ import type { MatchViewModule, MatchViewProps } from '../viewContract';
 import {
   currentHighlightId,
   filterHighlights,
+  HIGHLIGHT_PAGE_SIZE,
+  highlightPage,
   highlightKindCounts,
   matchHighlights,
   toggleSelected,
@@ -97,6 +99,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
   const { i18n } = useLingui();
 
   const [filter, setFilter] = useState<FilterValue>('all');
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
 
   const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
@@ -105,8 +108,23 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
     () => filterHighlights(highlights, filter === 'all' ? null : filter),
     [highlights, filter],
   );
-  const batch = useMemo(() => visibleSelection(selected, visible), [selected, visible]);
   const current = currentHighlightId(highlights, context.round, context.tick);
+  const pageCount = Math.max(1, Math.ceil(visible.length / HIGHLIGHT_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageHighlights = useMemo(
+    () => highlightPage(visible, currentPage),
+    [visible, currentPage],
+  );
+  const batch = useMemo(
+    () => visibleSelection(selected, pageHighlights),
+    [selected, pageHighlights],
+  );
+
+  useEffect(() => {
+    if (current === null) return;
+    const index = visible.findIndex((highlight) => highlight.id === current);
+    if (index >= 0) setPage(Math.floor(index / HIGHLIGHT_PAGE_SIZE) + 1);
+  }, [current, visible]);
 
   /*
    * The handoff's payload, built from the *wire* highlights rather than from
@@ -188,7 +206,10 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
           size="sm"
           aria-label={t`高光类型`}
           value={filter}
-          onChange={(value) => setFilter(value as FilterValue)}
+          onChange={(value) => {
+            setFilter(value as FilterValue);
+            setPage(1);
+          }}
           options={[
             { value: 'all', label: <><Trans>全部</Trans> {highlights.length}</> },
             ...counts.map((entry) => ({
@@ -219,8 +240,12 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
           }
         />
       ) : (
-        <ul data-highlights="list" className="min-h-0 flex-1 list-none overflow-y-auto overscroll-y-contain">
-          {visible.map((highlight) => (
+        <ul
+          data-highlights="list"
+          data-highlights-page={currentPage}
+          className="min-h-0 flex-1 list-none overflow-y-auto overscroll-y-contain"
+        >
+          {pageHighlights.map((highlight) => (
             <li key={highlight.id}>
               <HighlightRow
                 highlight={highlight}
@@ -265,11 +290,16 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
       )}
 
       <footer className="flex-none">
-        <p className="border-t border-divider px-3.5 py-2 text-xs text-neutral-600">
-          <Trans>
-            共 {highlights.length} 条高光，当前筛出 {visible.length} 条。
-          </Trans>
-        </p>
+        <Pagination
+          page={currentPage}
+          pageSize={HIGHLIGHT_PAGE_SIZE}
+          total={visible.length}
+          summary={<Trans>共 {highlights.length} 条高光，当前筛出 {visible.length} 条</Trans>}
+          onPageChange={(next) => {
+            setPage(next);
+            setSelected(new Set());
+          }}
+        />
         {batch.length === 0 ? null : (
           <SelectionBar
             summary={<Trans>已选 {batch.length} 条</Trans>}

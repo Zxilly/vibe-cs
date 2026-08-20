@@ -66,6 +66,7 @@ export type DesktopClient = Pick<
   | 'quickCheck'
   | 'storageStatus'
   | 'getHlaeStatus'
+  | 'prepareManagedHlae'
   | 'recoveryStatus'
   | 'runtimeState'
   /* ── writes ──

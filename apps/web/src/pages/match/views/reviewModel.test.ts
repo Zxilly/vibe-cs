@@ -17,6 +17,7 @@ import {
   annotationTally,
   capabilityGaps,
   displayName,
+  localiseCapabilityReason,
   matchupInsight,
   openingKillInsight,
   resolveCitations,
@@ -48,6 +49,13 @@ describe('capabilityGaps', () => {
       'utility_events',
     ]);
     expect(capabilityGaps(ANALYSIS_WITHOUT_INSIGHTS)).toHaveLength(INSIGHT_CAPABILITY_IDS.length);
+  });
+
+  it('localises the analyzer reason vocabulary before it reaches the review UI', () => {
+    expect(localiseCapabilityReason('no player_blind events were decoded')).toBe(
+      '这场 Demo 没有解析出致盲事件。',
+    );
+    expect(localiseCapabilityReason('  服务端提供的新原因  ')).toBe('服务端提供的新原因');
   });
 });
 

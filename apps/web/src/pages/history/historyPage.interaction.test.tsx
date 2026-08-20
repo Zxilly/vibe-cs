@@ -98,6 +98,19 @@ describe('the read', () => {
     await screen.findByText('de_ancient');
     expect(screen.getByText(/上次同步/u)).toBeTruthy();
   });
+
+  it('turns a missing Steam connection into a local recovery message', async () => {
+    const error = Object.assign(
+      new Error('external dependency is unavailable: Steam match history is not configured; open Settings to connect an account'),
+      { code: 'dependency_unavailable', status: 503 },
+    );
+    render(client({ listMatchHistory: vi.fn(() => Promise.reject(error)) }));
+
+    const notice = await screen.findByRole('alert');
+    expect(notice.textContent).toContain('还没有配置 Steam 比赛历史');
+    expect(notice.textContent).not.toContain('external dependency');
+    expect(within(notice).getByRole('button', { name: '打开 Steam 设置' })).toBeTruthy();
+  });
 });
 
 describe('下载', () => {

@@ -37,7 +37,7 @@ import { useState } from 'react';
 
 import { Skeleton } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
-import { Button } from '../../design/primitives';
+import { Button, Field, Input } from '../../design/primitives';
 import {
   rejectWatchPath,
   useAppConfig,
@@ -48,6 +48,7 @@ import {
 import { dataErrorMessage } from '../../data/errors';
 import { useNativeShell, useNativeShellAction, useOpenDirectory } from '../../data/nativeShell';
 import { useServiceAction } from '../../data/serviceAction';
+import type { SteamConfig } from '../../shared/desktop/dto';
 import { formatBytes, PathReadout, SettingsBlock, SettingsRow } from './settingsShared';
 
 export function FilesSection() {
@@ -61,6 +62,7 @@ export function FilesSection() {
   const shellAction = useNativeShellAction();
   const [picking, setPicking] = useState(false);
   const [movingTo, setMovingTo] = useState<string | null>(null);
+  const [steamDraft, setSteamDraft] = useState<SteamConfig | null>(null);
 
   const current = config.data;
   const busy = update.isPending || setWatchPaths.isPending || picking;
@@ -71,6 +73,16 @@ export function FilesSection() {
   const writeError = dataErrorMessage(update.error) ?? dataErrorMessage(setWatchPaths.error);
 
   const watchPaths = current?.demo_watch_paths ?? [];
+  const steam = steamDraft ?? current?.steam ?? null;
+  const steamInvalid = steam === null
+    || !/^\d{17}$/u.test(steam.steam_id.trim())
+    || (!(current?.steam_has_web_api_key ?? false) && !/^[0-9a-f]{32}$/iu.test(steam.web_api_key.trim()))
+    || (!(current?.steam_has_authentication_code ?? false)
+      && !/^[A-Za-z0-9]{4}-[A-Za-z0-9]{5}-[A-Za-z0-9]{4}$/u.test(steam.authentication_code.trim()))
+    || (!(current?.steam_has_share_code ?? false)
+      && !/^CSGO-(?:[A-Za-z0-9]{5}-){4}[A-Za-z0-9]{5}$/u.test(steam.known_share_code.trim()))
+    || steam.maximum_results < 1
+    || steam.maximum_results > 100;
 
   return (
     <div className="flex flex-col">
@@ -254,6 +266,120 @@ export function FilesSection() {
               />
             </p>
           </>
+        )}
+      </SettingsBlock>
+
+      <SettingsBlock
+        id="steam"
+        title={<Trans>Steam 下载</Trans>}
+        description={<Trans>连接 Valve 比赛历史，用于同步最近对局并下载仍在保留期内的回放。</Trans>}
+      >
+        {current === undefined || steam === null ? (
+          <Skeleton />
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={<Trans>Steam ID</Trans>} required>
+                {(control) => (
+                  <Input
+                    {...control}
+                    value={steam.steam_id}
+                    disabled={blocked}
+                    inputMode="numeric"
+                    placeholder="76561198…"
+                    onChange={(event) => setSteamDraft({ ...steam, steam_id: event.target.value })}
+                  />
+                )}
+              </Field>
+              <Field
+                label={<Trans>Steam Web API 密钥</Trans>}
+                required
+                hint={current.steam_has_web_api_key ? <Trans>留空会保留已经安全保存的密钥。</Trans> : undefined}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="password"
+                    value={steam.web_api_key}
+                    disabled={blocked}
+                    placeholder={current.steam_has_web_api_key ? '••••••••' : '32 位十六进制密钥'}
+                    onChange={(event) => setSteamDraft({ ...steam, web_api_key: event.target.value })}
+                  />
+                )}
+              </Field>
+              <Field
+                label={<Trans>Steam 验证码</Trans>}
+                required
+                hint={<Trans>Steam 的比赛历史验证码，格式为 XXXX-XXXXX-XXXX。</Trans>}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="password"
+                    value={steam.authentication_code}
+                    disabled={blocked}
+                    placeholder={current.steam_has_authentication_code ? '••••-•••••-••••' : 'XXXX-XXXXX-XXXX'}
+                    onChange={(event) => setSteamDraft({ ...steam, authentication_code: event.target.value })}
+                  />
+                )}
+              </Field>
+              <Field
+                label={<Trans>最近分享代码</Trans>}
+                required
+                hint={<Trans>从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。</Trans>}
+              >
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="password"
+                    value={steam.known_share_code}
+                    disabled={blocked}
+                    placeholder={current.steam_has_share_code ? 'CSGO-•••••-•••••-•••••-•••••-•••••' : 'CSGO-…'}
+                    onChange={(event) => setSteamDraft({ ...steam, known_share_code: event.target.value })}
+                  />
+                )}
+              </Field>
+              <Field label={<Trans>每次最多同步</Trans>} hint={<Trans>可填写 1 到 100 场。</Trans>}>
+                {(control) => (
+                  <Input
+                    {...control}
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={steam.maximum_results}
+                    disabled={blocked}
+                    onChange={(event) => setSteamDraft({
+                      ...steam,
+                      maximum_results: Number.parseInt(event.target.value, 10) || 0,
+                    })}
+                  />
+                )}
+              </Field>
+            </div>
+            <p className="text-xs leading-normal text-neutral-600">
+              <Trans>密钥只保存在本机配置中，页面和诊断包都不会回显它们。</Trans>
+            </p>
+            <div>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={blocked || steamInvalid}
+                {...(steamInvalid
+                  ? { disabledReason: t`请填写有效的 Steam ID、API 密钥、验证码和最近分享代码` }
+                  : blockedReason === undefined
+                    ? {}
+                    : { disabledReason: blockedReason })}
+                onClick={() => {
+                  void update
+                    .mutateAsync({ ...current, steam })
+                    .then(() => setSteamDraft(null))
+                    .catch(() => undefined);
+                }}
+              >
+                <Trans>保存 Steam 设置</Trans>
+              </Button>
+            </div>
+          </div>
         )}
       </SettingsBlock>
 

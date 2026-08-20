@@ -18,6 +18,7 @@ import {
   highlightKindCounts,
   matchHighlights,
   playerNameIndex,
+  highlightPage,
   toHighlightCandidate,
   toggleSelected,
   visibleSelection,
@@ -73,24 +74,40 @@ describe('toHighlightCandidate', () => {
     expect(row.tickRate).toBe(TICK_RATE);
   });
 
-  it('keeps the raw id when the analysis does not know the player', () => {
+  it('does not expose a raw id when the analysis does not know the player', () => {
     const row = toHighlightCandidate(
       { ...(HIGHLIGHTS[0] as Highlight), player_id: 'ghost' },
       names,
       TICK_RATE,
     );
-    expect(row.subject).toBe('ghost');
+    expect(row.subject).toBe('未知选手');
   });
 
-  it('omits an empty label or description instead of rendering a blank', () => {
+  it('fills an empty analyzer label from the typed kind and omits an empty description', () => {
     const row = toHighlightCandidate(
       { ...(HIGHLIGHTS[0] as Highlight), label: '  ', description: '' },
       names,
       undefined,
     );
-    expect(row.label).toBeUndefined();
+    expect(row.label).toBe('残局');
     expect(row.description).toBeUndefined();
     expect(row.tickRate).toBeUndefined();
+  });
+
+  it('turns analyzer boilerplate and victim ids into product language', () => {
+    const row = toHighlightCandidate(
+      {
+        ...(HIGHLIGHTS[0] as Highlight),
+        kind: 'one_tap',
+        label: 'One-tap',
+        description: 'One-tap against victim-id',
+        victims: ['victim-id'],
+      },
+      new Map([['kael', 'Kael'], ['victim-id', 'Sable']]),
+      TICK_RATE,
+    );
+    expect(row.label).toBe('一发击杀');
+    expect(row.description).toBe('Kael 一发击杀 Sable');
   });
 });
 
@@ -139,6 +156,21 @@ describe('filterHighlights', () => {
 
   it('narrows to one kind', () => {
     expect(filterHighlights(rows, 'clutch').map((row) => row.id)).toEqual(['h-21-clutch']);
+  });
+});
+
+describe('highlightPage', () => {
+  const rows = Array.from({ length: 121 }, (_, index) => ({
+    id: `h-${index}`,
+  }));
+
+  it('keeps one bounded stable window in the DOM', () => {
+    expect(highlightPage(rows, 1).map((row) => row.id)).toEqual(
+      Array.from({ length: 50 }, (_, index) => `h-${index}`),
+    );
+    expect(highlightPage(rows, 3).map((row) => row.id)).toEqual(
+      Array.from({ length: 21 }, (_, index) => `h-${index + 100}`),
+    );
   });
 });
 

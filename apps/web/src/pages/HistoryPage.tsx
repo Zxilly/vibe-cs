@@ -38,7 +38,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { dataErrorMessage } from '../data/errors';
+import { dataErrorMessage, toDataError } from '../data/errors';
 import {
   invalidateAfterMatchDownload,
   useActiveMatchDownloads,
@@ -120,7 +120,8 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
   const jobIdFor = (item: MatchHistoryItem): string | undefined =>
     active.find((job) => job.match_record_id === item.id)?.id;
 
-  const readError = dataErrorMessage(history.error);
+  const readFailure = toDataError(history.error, t`比赛历史读取失败`);
+  const steamConfigurationMissing = readFailure?.code === 'dependency_unavailable';
   const writeError =
     dataErrorMessage(sync.error) ?? dataErrorMessage(download.error) ?? dataErrorMessage(cancel.error);
 
@@ -145,7 +146,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
               id: 'steam-settings',
               label: <Trans>Steam 设置</Trans>,
               control: (
-                <RouteLink to="/settings?section=app">
+                <RouteLink to="/settings?section=files&item=steam">
                   <Trans>Steam 设置</Trans>
                 </RouteLink>
               ),
@@ -219,13 +220,26 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
       }
     >
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 p-7">
-        {readError === null ? null : (
+        {readFailure === null ? null : (
           <Alert
             variant="danger"
-            action={{ label: <Trans>重试</Trans>, onAction: () => void history.refetch() }}
-            detail={<Trans>读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。</Trans>}
+            action={
+              steamConfigurationMissing
+                ? {
+                    label: <Trans>打开 Steam 设置</Trans>,
+                    onAction: () => void navigate('/settings?section=files&item=steam'),
+                  }
+                : { label: <Trans>重试</Trans>, onAction: () => void history.refetch() }
+            }
+            detail={
+              steamConfigurationMissing
+                ? <Trans>填写 Steam ID、API 密钥、验证码和最近分享代码后再同步。</Trans>
+                : <Trans>读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。</Trans>
+            }
           >
-            <Trans>比赛历史没能读出来：{readError}</Trans>
+            {steamConfigurationMissing
+              ? <Trans>还没有配置 Steam 比赛历史。</Trans>
+              : <Trans>比赛历史没能读出来：{readFailure.message}</Trans>}
           </Alert>
         )}
 
@@ -237,7 +251,7 @@ export function HistoryWorkspace({ embedded = false }: { readonly embedded?: boo
               /* The router owns the address, including its hash prefix (§1.1);
                  a page that wrote `location.hash` itself would break the day the
                  router mode changes. */
-              onAction: () => void navigate('/settings?section=app'),
+              onAction: () => void navigate('/settings?section=files&item=steam'),
             }}
             detail={<Trans>同步与下载都要走 Steam 凭据，凭据过期时这两件事会一起失败。</Trans>}
           >

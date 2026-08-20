@@ -50,6 +50,49 @@ export const HIGHLIGHT_WIRE_KIND: Readonly<Record<Highlight['kind'], HighlightKi
   timeline: 'other',
 };
 
+export const HIGHLIGHT_PAGE_SIZE = 50;
+
+const HAS_HAN = /\p{Script=Han}/u;
+
+function localizedHighlightLabel(highlight: Highlight): string {
+  const source = highlight.label.trim();
+  if (HAS_HAN.test(source)) return source;
+  switch (highlight.kind) {
+    case 'multi_kill': return highlight.victims.length >= 2 ? `${highlight.victims.length}杀连段` : '多杀连段';
+    case 'clutch': return '残局';
+    case 'one_tap': return '一发击杀';
+    case 'wallbang': return '穿墙击杀';
+    case 'no_scope': return '盲狙击杀';
+    case 'knife': return '刀杀';
+    case 'taser': return '电击枪击杀';
+    case 'defuse': return '拆弹';
+    case 'fail': return '未完成机会';
+    case 'timeline': return '比赛时间线片段';
+  }
+}
+
+function localizedHighlightDescription(
+  highlight: Highlight,
+  subject: string,
+  playerNames: ReadonlyMap<string, string>,
+): string {
+  const source = highlight.description.trim();
+  if (source === '' || HAS_HAN.test(source)) return source;
+  const victim = playerNames.get(highlight.victims[0] ?? '') ?? '对手';
+  switch (highlight.kind) {
+    case 'multi_kill': return `${subject} 在短时间内连续击杀 ${Math.max(2, highlight.victims.length)} 人`;
+    case 'clutch': return `${subject} 的残局机会`;
+    case 'one_tap': return `${subject} 一发击杀 ${victim}`;
+    case 'wallbang': return `${subject} 穿墙击杀 ${victim}`;
+    case 'no_scope': return `${subject} 盲狙击杀 ${victim}`;
+    case 'knife': return `${subject} 使用刀击杀 ${victim}`;
+    case 'taser': return `${subject} 使用电击枪击杀 ${victim}`;
+    case 'defuse': return `${subject} 完成拆弹`;
+    case 'fail': return `${subject} 的机会没有转化为回合胜利`;
+    case 'timeline': return `${subject} 的单次比赛事件`;
+  }
+}
+
 /**
  * Wire highlight → row.
  *
@@ -64,9 +107,9 @@ export function toHighlightCandidate(
   playerNames: ReadonlyMap<string, string>,
   tickRate: number | undefined,
 ): HighlightCandidate {
-  const label = highlight.label.trim();
-  const description = highlight.description.trim();
-  const subject = playerNames.get(highlight.player_id) ?? highlight.player_id;
+  const subject = playerNames.get(highlight.player_id) ?? '未知选手';
+  const label = localizedHighlightLabel(highlight);
+  const description = localizedHighlightDescription(highlight, subject, playerNames);
 
   return {
     id: highlight.id,
@@ -145,6 +188,18 @@ export function filterHighlights(
 ): readonly HighlightCandidate[] {
   if (kind === null) return highlights;
   return highlights.filter((highlight) => highlight.kind === kind);
+}
+
+/** One bounded DOM window of the filtered result. */
+export function highlightPage<T>(
+  highlights: readonly T[],
+  page: number,
+  pageSize = HIGHLIGHT_PAGE_SIZE,
+): readonly T[] {
+  const safeSize = Math.max(1, Math.floor(pageSize));
+  const safePage = Math.max(1, Math.floor(page));
+  const start = (safePage - 1) * safeSize;
+  return highlights.slice(start, start + safeSize);
 }
 
 /* ── selection ───────────────────────────────────────────────────────────── */

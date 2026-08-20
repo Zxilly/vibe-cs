@@ -96,6 +96,17 @@ export function useHlaeStatus(tuning: DataQueryTuning = {}) {
   });
 }
 
+/** Downloads, verifies and atomically publishes the one reviewed HLAE build. */
+export function usePrepareManagedHlae() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => client.prepareManagedHlae(),
+    onSuccess: () => invalidateConfig(queryClient),
+  });
+}
+
 /**
  * Whether the configuration needs recovering, for `/recovery`.
  *

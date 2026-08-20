@@ -40,7 +40,7 @@ describe('the page frame', () => {
 
   it('offers 同步最近比赛 and the Steam settings link', () => {
     expect(html).toContain('同步最近比赛');
-    expect(html).toContain('href="/settings?section=app"');
+    expect(html).toContain('href="/settings?section=files&amp;item=steam"');
   });
 });
 

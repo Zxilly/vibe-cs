@@ -8,8 +8,7 @@
 
 export {
   Blueprint,
-  BlueprintCorners,
-  BLUEPRINT_LIST_GAP_CLASS,
+  CARD_LIST_GAP_CLASS,
   type BlueprintElement,
   type BlueprintProps,
 } from '../Blueprint';

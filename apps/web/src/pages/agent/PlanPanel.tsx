@@ -93,7 +93,7 @@ import {
 } from './planEditModel';
 import { readPlanProposals, type PlanProposal } from './planProposals';
 import { ShotEditForm } from './ShotEditForm';
-import { BLUEPRINT_LIST_GAP_CLASS } from '../../design/layout';
+import { CARD_LIST_GAP_CLASS } from '../../design/layout';
 
 /* ── the block ───────────────────────────────────────────────────────────── */
 
@@ -616,7 +616,7 @@ function ProposalSection({
                 </div>
               ) : null}
 
-              <ol className={cn('flex flex-col', BLUEPRINT_LIST_GAP_CLASS)}>
+              <ol className={cn('flex flex-col', CARD_LIST_GAP_CLASS)}>
                 {changeSet.changes.map((change, index) => {
                   const applicability = changeApplicability(change, shots);
                   const target = shots.find((shot) => shot.id === change.targetShotId);

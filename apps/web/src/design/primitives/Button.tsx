@@ -24,20 +24,6 @@
  *
  * Sizes come from `./controlSize` — the four steps of §3.3, no 28 and no 30.
  *
- * ── The registration marks ────────────────────────────────────────────────
- *
- * The Industry kit's readme states it twice: 「Frame cards, figures and primary
- * buttons as blueprint objects」 and 「Do not drop the registration marks from a
- * framed element」. `primary` is the page's one main action and `danger` is the
- * same slot in a destructive confirmation, so both are framed; `secondary` and
- * `ghost` are not — a bar of six framed secondaries is a page of crosses, and
- * the mark is what says *this* is the action.
- *
- * The marks sit on the button rather than on a wrapper. A wrapper would put a
- * box between the button and the flex row it belongs to, and `grow` / `block`
- * would then be sizing the wrong element — the same seam `Tooltip` has to hand
- * its `wrapClassName` around.
- *
  * ── asChild ───────────────────────────────────────────────────────────────
  *
  * A link that is drawn as a button is a link: it has to keep `href`, so that
@@ -68,7 +54,6 @@ import {
   CONTROL_TEXT_CLASS,
   type ControlSize,
 } from './controlSize';
-import { BlueprintCorners } from '../Blueprint';
 import { Tooltip } from '../feedback/Tooltip';
 import { cn } from '../cn';
 
@@ -185,10 +170,6 @@ export function Button({
   const hasReason = disabledReason !== undefined && disabledReason !== '';
 
   const Root = asChild ? SlotPrimitive.Root : 'button';
-  /* `.blueprint` also declares a divider border; the variant's own
-     `border-accent` / `border-fail` outranks it, because the class sits in
-     `@layer components` and a utility does not. */
-  const framed = variant === 'primary' || variant === 'danger';
 
   const button = (
     <Root
@@ -199,14 +180,10 @@ export function Button({
       {...(asChild ? {} : { type })}
       disabled={disabled}
       {...(hasReason ? { 'aria-describedby': reasonId } : {})}
-      className={cn(buttonVariants({ variant, size, icon, block, grow }), framed && 'blueprint', className)}
+      className={cn(buttonVariants({ variant, size, icon, block, grow }), className)}
     >
-      {/* `Slottable` marks which child becomes the borrowed element, so the
-          marks end up *inside* it rather than beside it. Without it a framed
-          `asChild` button would hand Slot two children and throw — and framing
-          it without the marks is the one thing the kit forbids outright. */}
+      {/* `Slottable` marks which child becomes the borrowed element. */}
       {asChild ? <SlotPrimitive.Slottable>{children}</SlotPrimitive.Slottable> : children}
-      {framed ? <BlueprintCorners /> : null}
     </Root>
   );
 

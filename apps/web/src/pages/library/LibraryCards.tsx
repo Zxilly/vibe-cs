@@ -38,7 +38,7 @@ import {
 } from './libraryFormat';
 import { LIBRARY_PAGE_SIZE } from './libraryQuery';
 import type { ReactNode } from 'react';
-import { BLUEPRINT_LIST_GAP_CLASS, Blueprint } from '../../design/layout';
+import { CARD_LIST_GAP_CLASS, Blueprint } from '../../design/layout';
 
 export interface LibraryCardsProps {
   readonly page: Paginated<DemoSummary> | undefined;
@@ -72,7 +72,7 @@ export function LibraryCards({
 
   return (
     <div data-library-cards className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto p-7">
         <p className="mb-3 text-xs text-neutral-600">
           <Trans>适合几十场以内的个人资料库；大库仍建议用表格</Trans>
         </p>
@@ -113,7 +113,7 @@ export function LibraryCards({
             `DataTable`'s visually hidden `<caption>`. */}
         <ul
           aria-label={t`Demo 资料库 · 卡片视图`}
-          className={cn('grid grid-cols-[repeat(auto-fill,minmax(var(--w-panel),1fr))]', BLUEPRINT_LIST_GAP_CLASS)}
+          className={cn('grid grid-cols-[repeat(auto-fill,minmax(var(--w-panel),1fr))]', CARD_LIST_GAP_CLASS)}
         >
           {rows.map((demo) => (
             <li key={demo.id}>

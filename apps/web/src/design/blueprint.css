@@ -1,28 +1,10 @@
 /*
  * Design system, layer 1 of 3 — layout.
  *
- * The registration frame, ported from the Industry kit
- * (`_ds/industry-b4e06d61-0931-4793-87cc-159aa55ad936/styles.css`), whose
- * readme states the rule twice:
- *
- *   「Frame cards, figures and primary buttons as blueprint objects: the
- *     `.blueprint` class plus four `<i class="corner …">` marks.」
- *   「Do not drop the registration marks from a framed element.」
- *
- * Ported rather than imported: the kit's stylesheet opens with an
- * `@import url('https://fonts.googleapis.com/…')` that the Tauri CSP
- * (`default-src 'self'`) blocks outright, and every one of its tokens already
- * lives in `../theme.css`.
- *
- * The geometry is the kit's, unchanged — an 11px mark whose arms cross 5px in,
- * pulled 6px outside the box so the cross straddles the corner. The three
- * lengths are named here so the relationship (arm = (mark − 1) / 2, offset =
- * arm + 1) is visible instead of being three unexplained numbers; they are
- * lengths, not type, so no `--text-*` step applies.
- *
- * `border-radius` is absent on purpose: `--radius-*` is 0 across the system
- * (spec §3.6), so squaring the corner needs no declaration.
- 
+ * The system's one frame: a hairline box with square corners (`--radius-*` is
+ * 0 across the system, spec §3.6), drawn on cards, figures and other framed
+ * objects. It is deliberately quiet — the frame separates planes, it does not
+ * decorate them, so there are no marks, ticks or rules outside the border.
  *
  * ── `@layer components` ───────────────────────────────────────────────────
  *
@@ -36,65 +18,7 @@
 
 @layer components {
   .blueprint {
-    --blueprint-mark: 11px;
-    --blueprint-arm: 5px;
-    --blueprint-offset: -6px;
-
     position: relative;
     border: 1px solid var(--color-divider);
-  }
-
-  /* The image treatments clip their overlay; a blueprint draws its marks
-     outside the box, so when both land on one element the frame wins. */
-  .blueprint.duotone {
-    overflow: visible;
-  }
-
-  .blueprint > .corner {
-    position: absolute;
-    width: var(--blueprint-mark);
-    height: var(--blueprint-mark);
-    color: color-mix(in srgb, var(--color-text) 55%, transparent);
-  }
-
-  .blueprint > .corner::before,
-  .blueprint > .corner::after {
-    content: '';
-    position: absolute;
-    background: currentcolor;
-  }
-
-  .blueprint > .corner::before {
-    top: 0;
-    left: var(--blueprint-arm);
-    width: 1px;
-    height: 100%;
-  }
-
-  .blueprint > .corner::after {
-    top: var(--blueprint-arm);
-    left: 0;
-    width: 100%;
-    height: 1px;
-  }
-
-  .blueprint > .corner.tl {
-    top: var(--blueprint-offset);
-    left: var(--blueprint-offset);
-  }
-
-  .blueprint > .corner.tr {
-    top: var(--blueprint-offset);
-    right: var(--blueprint-offset);
-  }
-
-  .blueprint > .corner.bl {
-    bottom: var(--blueprint-offset);
-    left: var(--blueprint-offset);
-  }
-
-  .blueprint > .corner.br {
-    bottom: var(--blueprint-offset);
-    right: var(--blueprint-offset);
   }
 }

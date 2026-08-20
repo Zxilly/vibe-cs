@@ -1,18 +1,14 @@
 /*
  * Design system, layer 1 of 3 — layout.
  *
- * Industry's registration frame: a hairline box with a `+` mark straddling
- * each of its four corners. The kit's readme names the markup contract
- * exactly — 「the `.blueprint` class + four `<i class="corner tl/tr/bl/br">`
- * children」 — and forbids dropping any of the marks, so the four `<i>`s are
- * produced by this component instead of being left to each call site.
+ * The system's one frame: a hairline box with square corners, drawn on cards
+ * and figures. The frame is a plain bordered box and nothing more — an
+ * earlier revision straddled each corner with a `+` registration mark, and on
+ * a data-dense screen those marks read as stray rules hanging off the cards
+ * and buttons, so the frame is now deliberately quiet.
  *
- * The marks are decoration in the strictest sense: they carry no information a
- * reader could act on, so they are `aria-hidden`. Everything else about the
- * element is the caller's — the frame wraps content, it does not style it.
- *
- * See `./blueprint.css` for the geometry and why it is ported rather than
- * imported.
+ * Everything about the framed element is the caller's — the frame wraps
+ * content, it does not style it. See `./blueprint.css` for the one rule.
  */
 
 import type { ElementType, HTMLAttributes, ReactNode } from 'react';
@@ -49,41 +45,14 @@ export interface BlueprintProps extends HTMLAttributes<HTMLElement> {
   disabled?: boolean | undefined;
 }
 
-const CORNERS = ['tl', 'tr', 'bl', 'br'] as const;
-
 /**
- * The gap a *list* of framed objects needs between them.
- *
- * The marks straddle the border — `--blueprint-offset` pulls them 6px outside
- * the box on every side — so two framed neighbours need at least 12px of
- * clearance before their marks touch, and a little more before they stop
- * reading as one smudged rule. The lists that hold framed cards were on
- * `gap-2` / `gap-3` / `gap-4` (6.8 / 10.2 / 13.6px against the 3.4px spacing
- * base), all of which collide.
- *
- * `gap-5` is 17px: 12px of marks and 5px of air. Exported rather than typed
- * into each list, because it is a consequence of the frame's geometry and
- * should move with it.
+ * The gap a *list* of framed cards needs between them — the same major rhythm
+ * as a page body's section stack (`gap-5`), so a card grid and the blocks
+ * around it share one spacing beat. Exported rather than typed into each
+ * list, because it is one of the system's shared rhythms and should move
+ * with the others.
  */
-export const BLUEPRINT_LIST_GAP_CLASS = 'gap-5';
-
-/**
- * The four marks on their own, for an element that already *is* the frame.
- *
- * `Blueprint` wraps; a primary button cannot be wrapped without putting a box
- * between it and the flex row it sits in, so it carries `.blueprint` on itself
- * and renders these inside. Same markup contract either way — the kit forbids
- * dropping any of the four, so neither path lets a caller choose three.
- */
-export function BlueprintCorners() {
-  return (
-    <>
-      {CORNERS.map((corner) => (
-        <i key={corner} aria-hidden="true" className={`corner ${corner}`} />
-      ))}
-    </>
-  );
-}
+export const CARD_LIST_GAP_CLASS = 'gap-5';
 
 export function Blueprint({ children, as = 'div', className, ...rest }: BlueprintProps) {
   const Element = as as ElementType;
@@ -94,7 +63,6 @@ export function Blueprint({ children, as = 'div', className, ...rest }: Blueprin
       className={cn('blueprint', className)}
     >
       {children}
-      <BlueprintCorners />
     </Element>
   );
 }

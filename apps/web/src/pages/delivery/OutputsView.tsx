@@ -30,7 +30,7 @@ import { dataErrorMessage } from '../../data/errors';
 import { useDeleteOutput, useOutputList, useRevealOutput } from '../../data/outputs';
 import { Empty, Pagination } from '../../design/data';
 import { Alert } from '../../design/feedback';
-import { BLUEPRINT_LIST_GAP_CLASS, Toolbar, cn } from '../../design/layout';
+import { CARD_LIST_GAP_CLASS, Toolbar, cn } from '../../design/layout';
 import { Seg } from '../../design/primitives';
 import type { OutputItem, OutputQuery } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
@@ -140,7 +140,7 @@ export function OutputsView({ service, now }: OutputsViewProps) {
         />
       </Toolbar>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-7">
         {notice === null ? null : (
           <Alert
             variant="info"
@@ -160,7 +160,7 @@ export function OutputsView({ service, now }: OutputsViewProps) {
         )}
 
         {errorMessage !== undefined ? null : outputs.isPending ? (
-          <div className={cn('grid lg:grid-cols-2', BLUEPRINT_LIST_GAP_CLASS)}>
+          <div className={cn('grid xl:grid-cols-2', CARD_LIST_GAP_CLASS)}>
             {Array.from({ length: 4 }, (_unused, index) => (
               <OutputCardSkeleton key={index} />
             ))}
@@ -175,7 +175,7 @@ export function OutputsView({ service, now }: OutputsViewProps) {
             }
           />
         ) : (
-          <div className={cn('grid lg:grid-cols-2', BLUEPRINT_LIST_GAP_CLASS)}>
+          <div className={cn('grid xl:grid-cols-2', CARD_LIST_GAP_CLASS)}>
             {items.map((output) => (
               <OutputCard
                 key={`${output.output_kind}:${output.id}`}

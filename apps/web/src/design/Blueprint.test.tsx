@@ -5,9 +5,10 @@ import { renderMarkup } from '../test/render';
 import { Blueprint } from './Blueprint';
 
 describe('Blueprint', () => {
-  it('wears all four registration marks', () => {
-    // Industry's readme: 「Do not drop the registration marks from a framed
-    // element.」 The four <i>s come from the component so a call site cannot.
+  it('draws the frame and nothing else', () => {
+    // The frame is a quiet hairline box: no registration marks, ticks or
+    // rules outside the border — decoration that reads as stray lines on a
+    // data-dense screen.
     const html = renderMarkup(
       <Blueprint>
         <p>
@@ -17,26 +18,18 @@ describe('Blueprint', () => {
     );
 
     expect(html).toContain('class="blueprint"');
-    for (const corner of ['tl', 'tr', 'bl', 'br']) {
-      expect(html).toContain(`class="corner ${corner}"`);
-    }
-    expect(html.split('aria-hidden="true"')).toHaveLength(5);
+    expect(html).not.toContain('corner');
+    expect(html).not.toContain('<i');
   });
 
-  it('keeps the marks out of the accessibility tree', () => {
-    const html = renderMarkup(<Blueprint>x</Blueprint>);
-
-    expect(html).toContain('<i aria-hidden="true" class="corner tl"></i>');
-  });
-
-  it('renders the content before the marks', () => {
+  it('renders only the content inside the frame', () => {
     const html = renderMarkup(
       <Blueprint>
         <span>记分板</span>
       </Blueprint>,
     );
 
-    expect(html.indexOf('记分板')).toBeLessThan(html.indexOf('class="corner tl"'));
+    expect(html).toBe('<div class="blueprint"><span>记分板</span></div>');
   });
 
   it('takes the element and the extra classes the call site needs', () => {

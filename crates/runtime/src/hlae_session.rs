@@ -20,6 +20,8 @@ use vibe_cs_hlae::{
     compile_hlae_managed_session_bootstrap, compile_hlae_plan, compile_hlae_player_pov_capture,
     compile_mirv_script_bridge, estimate_hlae_capture_span_resources, hlae_frame_count_bounds,
 };
+#[cfg(windows)]
+use vibe_cs_platform_windows::{DesktopBackend, SystemDesktopBackend};
 use vibe_cs_platform_windows::{
     HlaeDiskSpaceEvidence, HlaeDiskSpacePreflightError, NativeMp4VideoInspection,
     NativeMp4VideoSummary, PlatformError, ProcessCancellation, atomic_write_new,
@@ -41,6 +43,10 @@ const MAXIMUM_BRIDGE_TIMEOUT: Duration = Duration::from_secs(60);
 const MAXIMUM_CANCELLATION_GRACE: Duration = Duration::from_secs(60);
 const HLAE_ENCODED_OUTPUT_FILE: &str = "encoded-output.mp4";
 const HLAE_PARTIAL_OUTPUT_FILE: &str = ".encoded-output.partial.mp4";
+const STEAM_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
+const STEAM_CLIENT_POLL_INTERVAL: Duration = Duration::from_millis(100);
+const FAILED_JOB_CLEANUP_ATTEMPTS: usize = 20;
+const FAILED_JOB_CLEANUP_RETRY_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Bounded deadlines for one managed HLAE session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,6 +142,8 @@ pub enum RuntimeHlaeSessionError {
     ProtocolTimedOut,
     #[error("managed HLAE session entered terminal state {0:?} before finalization")]
     UnexpectedTerminal(vibe_cs_hlae::HlaeSessionState),
+    #[error("managed HLAE bridge reported failure: {0}")]
+    BridgeReported(String),
     #[error("managed HLAE custom loader exited unsuccessfully with code {exit_code}")]
     LoaderExited { exit_code: i32 },
     #[error("managed HLAE encoder task failed: {0}")]
@@ -245,6 +253,15 @@ trait HlaeSessionProcess: fmt::Debug + Send + Sync {
     fn close(self: Box<Self>) -> Result<(), PlatformError>;
 }
 
+#[async_trait]
+trait HlaeSteamClientReadiness: fmt::Debug + Send + Sync {
+    async fn ensure_ready(
+        &self,
+        steam_executable: &Path,
+        cancellation: &ProcessCancellation,
+    ) -> Result<(), PlatformError>;
+}
+
 trait HlaeSessionEncoder: fmt::Debug + Send + Sync {
     fn encode(
         &self,
@@ -263,6 +280,36 @@ trait HlaeSessionDiskPreflight: fmt::Debug + Send + Sync {
 
 #[derive(Debug, Default)]
 struct SystemHlaeSessionProcessLauncher;
+
+#[derive(Debug, Default)]
+struct SystemHlaeSteamClientReadiness;
+
+#[async_trait]
+impl HlaeSteamClientReadiness for SystemHlaeSteamClientReadiness {
+    async fn ensure_ready(
+        &self,
+        steam_executable: &Path,
+        cancellation: &ProcessCancellation,
+    ) -> Result<(), PlatformError> {
+        ensure_system_steam_client_ready(steam_executable, cancellation).await
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Default)]
+struct TestHlaeSteamClientReadiness;
+
+#[cfg(test)]
+#[async_trait]
+impl HlaeSteamClientReadiness for TestHlaeSteamClientReadiness {
+    async fn ensure_ready(
+        &self,
+        _steam_executable: &Path,
+        _cancellation: &ProcessCancellation,
+    ) -> Result<(), PlatformError> {
+        Ok(())
+    }
+}
 
 #[async_trait]
 impl HlaeSessionProcessLauncher for SystemHlaeSessionProcessLauncher {
@@ -342,6 +389,7 @@ pub struct RuntimeHlaeSessionOrchestrator {
     process_launcher: Arc<dyn HlaeSessionProcessLauncher>,
     encoder: Arc<dyn HlaeSessionEncoder>,
     disk_preflight: Arc<dyn HlaeSessionDiskPreflight>,
+    steam_client: Arc<dyn HlaeSteamClientReadiness>,
 }
 
 impl fmt::Debug for RuntimeHlaeSessionOrchestrator {
@@ -358,6 +406,7 @@ impl Default for RuntimeHlaeSessionOrchestrator {
             process_launcher: Arc::new(SystemHlaeSessionProcessLauncher),
             encoder: Arc::new(SystemHlaeSessionEncoder),
             disk_preflight: Arc::new(SystemHlaeSessionDiskPreflight),
+            steam_client: Arc::new(SystemHlaeSteamClientReadiness),
         }
     }
 }
@@ -406,7 +455,7 @@ impl RuntimeHlaeSessionOrchestrator {
         }
         .await;
         if let Err(primary) = result {
-            return match cleanup_failed_session(&request) {
+            return match cleanup_failed_session(&request).await {
                 Ok(()) => Err(primary),
                 Err(cleanup) => Err(RuntimeHlaeSessionError::Cleanup {
                     primary: primary.to_string(),
@@ -432,6 +481,12 @@ impl RuntimeHlaeSessionOrchestrator {
             .apply_host_event(HlaeHostEvent::LaunchRequested)?;
 
         progress.report(RecordingStage::Launching);
+        self.steam_client
+            .ensure_ready(
+                &request.launch_inputs.steam_executable,
+                &request.cancellation,
+            )
+            .await?;
         let process = self
             .process_launcher
             .launch(
@@ -658,9 +713,7 @@ impl RuntimeHlaeSessionOrchestrator {
                 HlaeSessionState::Completed
                 | HlaeSessionState::Failed
                 | HlaeSessionState::Cancelled => {
-                    return Err(RuntimeHlaeSessionError::UnexpectedTerminal(
-                        prepared.machine.state(),
-                    ));
+                    return Err(terminal_session_error(&prepared.machine));
                 }
                 _ => {}
             }
@@ -827,9 +880,7 @@ impl RuntimeHlaeSessionOrchestrator {
         }
         if prepared.machine.state() != HlaeSessionState::Completed {
             remove_owned_output(&encode_evidence.summary.output_path)?;
-            return Err(RuntimeHlaeSessionError::UnexpectedTerminal(
-                prepared.machine.state(),
-            ));
+            return Err(terminal_session_error(&prepared.machine));
         }
         Ok(CompletedHlaeSession {
             evidence: RuntimeHlaeSessionEvidence {
@@ -858,7 +909,98 @@ impl RuntimeHlaeSessionOrchestrator {
             process_launcher,
             encoder,
             disk_preflight,
+            steam_client: Arc::new(TestHlaeSteamClientReadiness),
         }
+    }
+
+    #[cfg(test)]
+    fn with_all_backends(
+        process_launcher: Arc<dyn HlaeSessionProcessLauncher>,
+        encoder: Arc<dyn HlaeSessionEncoder>,
+        disk_preflight: Arc<dyn HlaeSessionDiskPreflight>,
+        steam_client: Arc<dyn HlaeSteamClientReadiness>,
+    ) -> Self {
+        Self {
+            process_launcher,
+            encoder,
+            disk_preflight,
+            steam_client,
+        }
+    }
+}
+
+async fn ensure_system_steam_client_ready(
+    steam_executable: &Path,
+    cancellation: &ProcessCancellation,
+) -> Result<(), PlatformError> {
+    if !steam_executable.is_absolute()
+        || !steam_executable.is_file()
+        || !steam_executable
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.eq_ignore_ascii_case("steam.exe"))
+    {
+        return Err(PlatformError::InvalidInput(
+            "managed HLAE launch expects an existing absolute steam.exe".to_owned(),
+        ));
+    }
+    if cancellation.is_cancelled() {
+        return Err(PlatformError::Cancelled { process_id: None });
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = steam_executable;
+        return Err(PlatformError::Unsupported);
+    }
+
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt as _;
+
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let backend = SystemDesktopBackend;
+        let steam_running = !backend.discover_processes("steam.exe")?.is_empty();
+        let helper_running = !backend.discover_processes("steamwebhelper.exe")?.is_empty();
+        if steam_running && helper_running {
+            return Ok(());
+        }
+        if !steam_running {
+            let mut command = std::process::Command::new(steam_executable);
+            command.arg("-silent").creation_flags(CREATE_NO_WINDOW);
+            command.spawn().map_err(|source| PlatformError::Io {
+                operation: "starting Steam client at",
+                path: steam_executable.to_path_buf(),
+                source,
+            })?;
+        }
+
+        let deadline = tokio::time::Instant::now() + STEAM_CLIENT_STARTUP_TIMEOUT;
+        loop {
+            if cancellation.is_cancelled() {
+                return Err(PlatformError::Cancelled { process_id: None });
+            }
+            let steam_running = !backend.discover_processes("steam.exe")?.is_empty();
+            let helper_running = !backend.discover_processes("steamwebhelper.exe")?.is_empty();
+            if steam_running && helper_running {
+                return Ok(());
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(PlatformError::ProcessNotFound(
+                    "Steam client did not become ready within 30 seconds".to_owned(),
+                ));
+            }
+            tokio::time::sleep(STEAM_CLIENT_POLL_INTERVAL).await;
+        }
+    }
+}
+
+fn terminal_session_error(machine: &HlaeSessionMachine) -> RuntimeHlaeSessionError {
+    match (machine.state(), machine.failure_reason()) {
+        (HlaeSessionState::Failed, Some(reason)) => {
+            RuntimeHlaeSessionError::BridgeReported(reason.to_owned())
+        }
+        (state, _) => RuntimeHlaeSessionError::UnexpectedTerminal(state),
     }
 }
 
@@ -1218,7 +1360,7 @@ fn checked_artifact_path(
     Ok(job_root.join(relative))
 }
 
-fn cleanup_failed_session(
+async fn cleanup_failed_session(
     request: &RuntimeHlaeSessionRequest,
 ) -> Result<(), RuntimeHlaeSessionError> {
     if request.managed_job_root.exists() {
@@ -1261,11 +1403,26 @@ fn cleanup_failed_session(
             )
             .into());
         }
-        fs::remove_dir_all(&canonical_job).map_err(|source| RuntimeHlaeSessionError::Io {
-            operation: "removing failed managed job at",
-            path: canonical_job,
-            source,
-        })?;
+        for attempt in 0..=FAILED_JOB_CLEANUP_ATTEMPTS {
+            match fs::remove_dir_all(&canonical_job) {
+                Ok(()) => return Ok(()),
+                Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+                Err(source) if attempt < FAILED_JOB_CLEANUP_ATTEMPTS => {
+                    tokio::time::sleep(FAILED_JOB_CLEANUP_RETRY_INTERVAL).await;
+                    if !canonical_job.exists() {
+                        return Ok(());
+                    }
+                    drop(source);
+                }
+                Err(source) => {
+                    return Err(RuntimeHlaeSessionError::Io {
+                        operation: "removing failed managed job at",
+                        path: canonical_job,
+                        source,
+                    });
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -1681,6 +1838,98 @@ mod tests {
         loader_exit_code: Option<u32>,
     }
 
+    #[derive(Debug)]
+    struct BridgeFailureProcessLauncher {
+        closed: Arc<AtomicBool>,
+        reason: &'static str,
+    }
+
+    #[derive(Debug)]
+    struct FakeSteamClientReadiness {
+        ready: Arc<AtomicBool>,
+    }
+
+    #[async_trait]
+    impl HlaeSteamClientReadiness for FakeSteamClientReadiness {
+        async fn ensure_ready(
+            &self,
+            _steam_executable: &Path,
+            _cancellation: &ProcessCancellation,
+        ) -> Result<(), PlatformError> {
+            self.ready.store(true, Ordering::Release);
+            Ok(())
+        }
+    }
+
+    #[derive(Debug)]
+    struct SteamOrderedProcessLauncher {
+        ready: Arc<AtomicBool>,
+        closed: Arc<AtomicBool>,
+    }
+
+    #[async_trait]
+    impl HlaeSessionProcessLauncher for SteamOrderedProcessLauncher {
+        async fn launch(
+            &self,
+            invocation: &HlaeCustomLoaderInvocation,
+            expected_cs2_executable: &Path,
+            game_discovery_timeout: Duration,
+            cancellation: &ProcessCancellation,
+            context: &HlaeBridgeLaunchContext,
+        ) -> Result<Box<dyn HlaeSessionProcess>, PlatformError> {
+            assert!(
+                self.ready.load(Ordering::Acquire),
+                "Steam readiness must complete before HLAE launch"
+            );
+            FakeProcessLauncher {
+                closed: Arc::clone(&self.closed),
+                loader_exit_code: None,
+            }
+            .launch(
+                invocation,
+                expected_cs2_executable,
+                game_discovery_timeout,
+                cancellation,
+                context,
+            )
+            .await
+        }
+    }
+
+    #[async_trait]
+    impl HlaeSessionProcessLauncher for BridgeFailureProcessLauncher {
+        async fn launch(
+            &self,
+            _invocation: &HlaeCustomLoaderInvocation,
+            _expected_cs2_executable: &Path,
+            _game_discovery_timeout: Duration,
+            _cancellation: &ProcessCancellation,
+            context: &HlaeBridgeLaunchContext,
+        ) -> Result<Box<dyn HlaeSessionProcess>, PlatformError> {
+            let context = context.clone();
+            let reason = self.reason.to_owned();
+            tokio::spawn(async move {
+                let (mut socket, _) = connect_async(&context.endpoint).await.unwrap();
+                let bytes = HlaeBridgeMessage::new(
+                    &context.token,
+                    1,
+                    HlaeBridgeEvent::FailureReported { reason },
+                )
+                .encode()
+                .unwrap();
+                socket
+                    .send(Message::Text(String::from_utf8(bytes).unwrap().into()))
+                    .await
+                    .unwrap();
+                socket.close(None).await.unwrap();
+            });
+            Ok(Box::new(FakeProcess {
+                closed: Arc::clone(&self.closed),
+                loader_exit_code: None,
+            }))
+        }
+    }
+
     #[async_trait]
     impl HlaeSessionProcessLauncher for FakeProcessLauncher {
         async fn launch(
@@ -1954,6 +2203,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn steam_client_is_ready_before_hlae_launch() {
+        let directory = tempfile::tempdir().unwrap();
+        let request = request(&directory, HlaePlanMode::Capture);
+        let steam_ready = Arc::new(AtomicBool::new(false));
+        let closed = Arc::new(AtomicBool::new(false));
+        let orchestrator = RuntimeHlaeSessionOrchestrator::with_all_backends(
+            Arc::new(SteamOrderedProcessLauncher {
+                ready: Arc::clone(&steam_ready),
+                closed: Arc::clone(&closed),
+            }),
+            Arc::new(FakeEncoder::default()),
+            Arc::new(FakeDiskPreflight),
+            Arc::new(FakeSteamClientReadiness {
+                ready: Arc::clone(&steam_ready),
+            }),
+        );
+
+        orchestrator.run(request).await.expect("managed capture");
+
+        assert!(steam_ready.load(Ordering::Acquire));
+        assert!(closed.load(Ordering::Acquire));
+    }
+
+    #[tokio::test]
     async fn managed_capture_reports_verified_pipeline_stages_in_order() {
         let directory = tempfile::tempdir().unwrap();
         let request = request(&directory, HlaePlanMode::Capture);
@@ -2103,6 +2376,33 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn authenticated_bridge_failure_keeps_its_actionable_reason() {
+        let directory = tempfile::tempdir().unwrap();
+        let request = request(&directory, HlaePlanMode::Capture);
+        let closed = Arc::new(AtomicBool::new(false));
+        let orchestrator = RuntimeHlaeSessionOrchestrator::with_backends(
+            Arc::new(BridgeFailureProcessLauncher {
+                closed: Arc::clone(&closed),
+                reason: "demo playback crossed a transient round boundary",
+            }),
+            Arc::new(FakeEncoder::default()),
+            Arc::new(FakeDiskPreflight),
+        );
+
+        let error = orchestrator
+            .run(request)
+            .await
+            .expect_err("authenticated bridge failure must stop capture");
+
+        assert!(closed.load(Ordering::Acquire));
+        assert!(
+            error
+                .to_string()
+                .contains("demo playback crossed a transient round boundary")
+        );
+    }
+
+    #[tokio::test]
     async fn public_player_pov_request_is_compiled_only_after_the_job_is_claimed() {
         let directory = tempfile::tempdir().unwrap();
         let request = player_pov_request(&directory);
@@ -2158,5 +2458,37 @@ mod tests {
 
         assert_eq!(fs::read(output).unwrap(), b"owned by another task");
         assert!(!job.exists());
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn failed_session_cleanup_waits_for_a_late_audio_handle_release() {
+        use std::os::windows::fs::OpenOptionsExt as _;
+
+        let directory = tempfile::tempdir().unwrap();
+        let request = request(&directory, HlaePlanMode::Capture);
+        let audio = request
+            .managed_job_root
+            .join("capture")
+            .join("take0000")
+            .join("audio.wav");
+        fs::create_dir_all(audio.parent().unwrap()).unwrap();
+        fs::write(&audio, b"wav").unwrap();
+        let locked = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&audio)
+            .unwrap();
+        let release = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            drop(locked);
+        });
+
+        cleanup_failed_session(&request)
+            .await
+            .expect("bounded cleanup retry");
+        release.await.unwrap();
+
+        assert!(!request.managed_job_root.exists());
     }
 }

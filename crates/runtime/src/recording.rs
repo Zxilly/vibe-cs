@@ -1265,18 +1265,13 @@ fn build_segment_plan(
     }
     let pre_roll_ticks = seconds_to_ticks(request.pre_roll_seconds, tick_rate)?;
     let post_roll_ticks = seconds_to_ticks(request.post_roll_seconds, tick_rate)?;
-    let start_tick = request.start_tick.saturating_sub(pre_roll_ticks);
-    let end_tick = request
+    let requested_window_start = request.start_tick.saturating_sub(pre_roll_ticks);
+    let requested_window_end = request
         .end_tick
         .checked_add(post_roll_ticks)
         .ok_or_else(|| {
             DomainError::InvalidInput("recording post-roll exceeds the tick range".to_owned())
         })?;
-    if end_tick <= start_tick || end_tick - start_tick > u64::from(u32::MAX) {
-        return Err(DomainError::InvalidInput(
-            "recording segment tick span exceeds the supported range".to_owned(),
-        ));
-    }
     let highlight = request.highlight_id.as_deref().and_then(|highlight_id| {
         analysis.and_then(|analysis| {
             analysis
@@ -1285,6 +1280,29 @@ fn build_segment_plan(
                 .find(|highlight| highlight.id == highlight_id)
         })
     });
+    let highlight_round = highlight.and_then(|highlight| {
+        analysis.and_then(|analysis| {
+            analysis
+                .rounds
+                .iter()
+                .find(|round| round.number == highlight.round)
+        })
+    });
+    // CS2 can temporarily leave Demo playback while applying the full packet
+    // at a round boundary. A highlight belongs to one authoritative round, so
+    // its optional handles are clipped to that round instead of asking HLAE to
+    // record across a state reset that is not part of the highlight itself.
+    let start_tick = highlight_round.map_or(requested_window_start, |round| {
+        requested_window_start.max(round.start_tick)
+    });
+    let end_tick = highlight_round.map_or(requested_window_end, |round| {
+        requested_window_end.min(round.end_tick)
+    });
+    if end_tick <= start_tick || end_tick - start_tick > u64::from(u32::MAX) {
+        return Err(DomainError::InvalidInput(
+            "recording segment tick span exceeds the supported range".to_owned(),
+        ));
+    }
     let camera_player_id = resolve_camera_player(request, analysis, highlight)?;
     let player_name = analysis
         .and_then(|analysis| {
@@ -1326,6 +1344,9 @@ fn build_segment_plan(
             "requested_end_tick": request.end_tick,
             "effective_start_tick": start_tick,
             "effective_end_tick": end_tick,
+            "round_boundary_tick": highlight_round.map(|round| round.end_tick),
+            "pre_roll_clamped": start_tick != requested_window_start,
+            "post_roll_clamped": end_tick != requested_window_end,
             "pre_roll_seconds": request.pre_roll_seconds,
             "post_roll_seconds": request.post_roll_seconds,
             "pre_roll_ticks": pre_roll_ticks,
@@ -3651,5 +3672,81 @@ mod tests {
             Some(first.output_file_name.as_str())
         );
         assert!(!first.output_file_name.contains(['/', '\\', ':']));
+    }
+
+    #[tokio::test]
+    async fn highlight_roll_is_clamped_to_its_authoritative_round() {
+        let (_root, storage, _port, job) = fixture(false).await;
+        let demo = storage
+            .get_demo(job.items[0].demo_id)
+            .await
+            .expect("read demo")
+            .expect("demo");
+        let mut request = job.items[0].clone();
+        request.highlight_id = Some("round-one-highlight".to_owned());
+        request.start_tick = 1_000;
+        request.end_tick = 1_200;
+        request.pre_roll_seconds = 1.0;
+        request.post_roll_seconds = 2.0;
+        let analysis = MatchAnalysis {
+            demo_id: demo.id,
+            map_name: "de_test".to_owned(),
+            tick_rate: 64.0,
+            duration_seconds: 30.0,
+            verified_total_ticks: Some(1_920),
+            teams: Vec::new(),
+            players: vec![vibe_cs_domain::PlayerStats {
+                steam_id: "player".to_owned(),
+                spectator_slot: Some(7),
+                name: "Player".to_owned(),
+                team: "T".to_owned(),
+                kills: 0,
+                deaths: 0,
+                assists: 0,
+                headshots: 0,
+                damage: 0,
+                adr: 0.0,
+                kill_death_ratio: 0.0,
+                score: 0,
+            }],
+            rounds: vec![vibe_cs_domain::RoundSummary {
+                number: 1,
+                start_tick: 900,
+                end_tick: 1_250,
+                winner: "A".to_owned(),
+                reason: "elimination".to_owned(),
+                team_a_score: 1,
+                team_b_score: 0,
+                events: Vec::new(),
+            }],
+            highlights: vec![vibe_cs_domain::Highlight {
+                id: "round-one-highlight".to_owned(),
+                player_id: "player".to_owned(),
+                round: 1,
+                start_tick: 1_000,
+                end_tick: 1_200,
+                kind: vibe_cs_domain::HighlightKind::MultiKill,
+                title: "4K".to_owned(),
+                description: String::new(),
+                score: 1.0,
+                tags: Vec::new(),
+                victims: Vec::new(),
+            }],
+        };
+
+        let segment = build_segment_plan(
+            &request,
+            &demo,
+            Some(&analysis),
+            std::path::absolute(&demo.path).expect("absolute demo path"),
+            64.0,
+            Uuid::from_u128(5),
+        )
+        .expect("round-bound highlight segment");
+
+        assert_eq!(segment.start_tick, 936);
+        assert_eq!(segment.end_tick, 1_250);
+        assert_eq!(segment.metadata["round_boundary_tick"], 1_250);
+        assert_eq!(segment.metadata["post_roll_clamped"], true);
     }
 }

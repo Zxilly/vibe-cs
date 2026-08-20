@@ -31,6 +31,7 @@
     const DEMO_EVIDENCE_TIMEOUT_MS = 30000;
     const SEEK_TIMEOUT_MS = 30000;
     const CAPTURE_OBSERVATION_TIMEOUT_MS = 5000;
+    const DEMO_PLAYBACK_LOSS_GRACE_MS = 5000;
     const HEARTBEAT_INTERVAL_MS = 1000;
 
     let nextSequence = 1;
@@ -41,6 +42,7 @@
     let connectAttemptDeadlineMs = 0;
     let nextConnectAtMs = 0;
     let demoEvidenceDeadlineMs = 0;
+    let demoPlaybackMissingSinceMs = 0;
     let seekDeadlineMs = 0;
     let lastHeartbeatAtMs = 0;
     let connecting = false;
@@ -185,6 +187,7 @@
         seekCompleted = false;
         observerVerified = false;
         awaitingControl = false;
+        demoPlaybackMissingSinceMs = 0;
         executeFixedSeek(nowMs);
         return !terminal && !closingAfterQueue;
     }
@@ -638,6 +641,24 @@
         if (!connecting && nowMs >= nextConnectAtMs) startConnectionAttempt(nowMs);
     }
 
+    function serviceDemoPlaybackContinuity(nowMs) {
+        if (!demoReported || terminal || closingAfterQueue || awaitingControl) {
+            demoPlaybackMissingSinceMs = 0;
+            return;
+        }
+        if (mirv.isPlayingDemo()) {
+            demoPlaybackMissingSinceMs = 0;
+            return;
+        }
+        if (demoPlaybackMissingSinceMs === 0) {
+            demoPlaybackMissingSinceMs = nowMs;
+            return;
+        }
+        if (nowMs - demoPlaybackMissingSinceMs >= DEMO_PLAYBACK_LOSS_GRACE_MS) {
+            failClosed("demo playback ended before bridge finalization");
+        }
+    }
+
     function onClientFrameStageNotify(event) {
         if (terminal) return;
         if (event.curStage === FRAME_START && event.isBefore) {
@@ -649,12 +670,13 @@
                 serviceObserverEvidence();
                 serviceActiveObserverLock();
                 serviceCaptureObservations(nowMs);
-                if (demoReported && !mirv.isPlayingDemo()) {
-                    failClosed("demo playback ended before bridge finalization");
-                } else if (capturing && pendingRecordEndDeadlineMs === 0 && mirv.isDemoPaused()) {
-                    failClosed("demo paused while HLAE was recording");
-                } else if (nowMs - lastHeartbeatAtMs >= HEARTBEAT_INTERVAL_MS) {
-                    if (queueEvent({ kind: "heartbeat" })) lastHeartbeatAtMs = nowMs;
+                serviceDemoPlaybackContinuity(nowMs);
+                if (!closingAfterQueue) {
+                    if (capturing && pendingRecordEndDeadlineMs === 0 && mirv.isDemoPaused()) {
+                        failClosed("demo paused while HLAE was recording");
+                    } else if (nowMs - lastHeartbeatAtMs >= HEARTBEAT_INTERVAL_MS) {
+                        if (queueEvent({ kind: "heartbeat" })) lastHeartbeatAtMs = nowMs;
+                    }
                 }
             }
             mirv.run_jobs();

@@ -603,6 +603,7 @@ pub struct HlaeSessionMachine {
     observed_capture_span: Option<ObservedCaptureSpan>,
     capture_take_directory: Option<PathBuf>,
     completed_take_directories: Vec<PathBuf>,
+    failure_reason: Option<String>,
     bridge_arrival_times_ms: VecDeque<u64>,
 }
 
@@ -649,6 +650,7 @@ impl HlaeSessionMachine {
             observed_capture_span: None,
             capture_take_directory: None,
             completed_take_directories: Vec::new(),
+            failure_reason: None,
             bridge_arrival_times_ms: VecDeque::with_capacity(HLAE_SESSION_MAX_MESSAGES_PER_SECOND),
         }
     }
@@ -678,6 +680,13 @@ impl HlaeSessionMachine {
         self.completed_take_directories.len()
     }
 
+    /// Returns the validated reason supplied by the host or authenticated
+    /// bridge when the session entered [`HlaeSessionState::Failed`].
+    #[must_use]
+    pub fn failure_reason(&self) -> Option<&str> {
+        self.failure_reason.as_deref()
+    }
+
     /// Applies one trusted host fact without serialization, rate limiting, or
     /// bridge sequence consumption.
     ///
@@ -705,6 +714,7 @@ impl HlaeSessionMachine {
         match (self.state, event) {
             (_, HlaeHostEvent::FailureReported { reason }) => {
                 validate_failure_reason(&reason)?;
+                self.failure_reason = Some(reason);
                 self.state = HlaeSessionState::Failed;
             }
             (_, HlaeHostEvent::CancelRequested) => {
@@ -843,6 +853,7 @@ impl HlaeSessionMachine {
                 HlaeBridgeEvent::FailureReported { reason },
             ) => {
                 validate_failure_reason(&reason)?;
+                self.failure_reason = Some(reason);
                 self.state = HlaeSessionState::Failed;
             }
             (

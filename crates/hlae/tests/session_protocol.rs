@@ -898,6 +898,10 @@ fn host_cancel_and_host_or_bridge_failure_have_distinct_authority() {
         })
         .expect("host failure");
     assert_eq!(host_failed.state(), HlaeSessionState::Failed);
+    assert_eq!(
+        host_failed.failure_reason(),
+        Some("job object launch failed")
+    );
 
     let (_fixture, token, mut bridge_failed) = test_session(0x72);
     apply_host_handshake(&mut bridge_failed);
@@ -913,6 +917,10 @@ fn host_cancel_and_host_or_bridge_failure_have_distinct_authority() {
         )
         .expect("authenticated bridge failure"),
         HlaeSessionState::Failed
+    );
+    assert_eq!(
+        bridge_failed.failure_reason(),
+        Some("demo evidence timed out")
     );
 }
 

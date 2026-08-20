@@ -171,6 +171,20 @@ fn null_demo_path_and_unavailable_or_negative_tick_retry_until_wall_clock_deadli
 }
 
 #[test]
+fn transient_round_boundary_does_not_end_demo_playback_on_one_frame() {
+    let source = compile_mirv_script_bridge(ENDPOINT, &token(), contract())
+        .expect("bridge")
+        .source()
+        .to_owned();
+
+    assert!(source.contains("const DEMO_PLAYBACK_LOSS_GRACE_MS = 5000;"));
+    assert!(source.contains("function serviceDemoPlaybackContinuity(nowMs)"));
+    assert!(source.contains("demoPlaybackMissingSinceMs = nowMs;"));
+    assert!(source.contains("nowMs - demoPlaybackMissingSinceMs >= DEMO_PLAYBACK_LOSS_GRACE_MS"));
+    assert!(!source.contains("if (demoReported && !mirv.isPlayingDemo())"));
+}
+
+#[test]
 fn record_callbacks_report_observed_ticks_instead_of_claiming_planned_ticks() {
     let source = compile_mirv_script_bridge(ENDPOINT, &token(), contract())
         .expect("bridge")

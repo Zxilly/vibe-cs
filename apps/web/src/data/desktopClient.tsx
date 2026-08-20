@@ -58,6 +58,7 @@ export type DesktopClient = Pick<
   // outputs
   | 'listOutputs'
   | 'listRecordedClips'
+  | 'listRecordedClipRecords'
   | 'listExportJobs'
   // config
   | 'getConfig'

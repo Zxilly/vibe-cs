@@ -549,6 +549,16 @@ export function useDemoPlaybackStatus(tuning: DataQueryTuning = {}) {
   });
 }
 
+/** Raw recorded results, including request metadata used to bind takes to plan shots. */
+export function useRecordedClipRecords(tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: [...qk.recording.all, 'recorded-clip-records'] as const,
+    queryFn: ({ signal }) => client.listRecordedClipRecords(signal),
+    ...resolveQueryTuning(tuning),
+  });
+}
+
 /**
  * Compiles a camera path and reports what is missing, without writing anything.
  *

@@ -53,7 +53,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
 import { isRevisionConflict, useAgentPlan, useRestoreAgentPlanBaseline } from '../../data/plans';
-import { useAgentSession } from '../../data/sessions';
+import { useAgentSession, useAgentWorkspaceSettings } from '../../data/sessions';
 import { Empty, Skeleton } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
 import { Button, Badge, cn } from '../../design/primitives';
@@ -94,6 +94,7 @@ import {
 import { readPlanProposals, type PlanProposal } from './planProposals';
 import { ShotEditForm } from './ShotEditForm';
 import { CARD_LIST_GAP_CLASS } from '../../design/layout';
+import { ChangePreviewDialog } from './ChangePreviewDialog';
 
 /* ── the block ───────────────────────────────────────────────────────────── */
 
@@ -180,11 +181,18 @@ function PlanPanelBody({
   const { i18n } = useLingui();
   const session = useAgentSession(context.session);
   const restore = useRestoreAgentPlanBaseline();
+  const workspaceSettings = useAgentWorkspaceSettings();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<ShotDraft | null>(null);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [preview, setPreview] = useState<{
+    readonly proposal: PlanProposal;
+    readonly change: PlanChange;
+    readonly shot: AgentPlanShot;
+    readonly acceptAfterPreview: boolean;
+  } | null>(null);
 
   const decisions = changes.decisions;
   const shots = changes.shots ?? plan.shots;
@@ -244,11 +252,21 @@ function PlanPanelBody({
      three, in the shell, so pressing it here and pressing it in the transcript
      are one press. 拒绝 files a decision and touches no shot. */
   const onAccept = (proposal: PlanProposal, change: PlanChange) => {
+    const shot = shots.find((item) => item.id === change.targetShotId);
+    if (workspaceSettings.data?.preview_before_apply === true && shot !== undefined) {
+      setPreview({ proposal, change, shot, acceptAfterPreview: true });
+      return;
+    }
     changes.accept(
       changeDecisionKey(proposal.key, change.id),
       change,
       proposal.changeSet.basedOnRevision,
     );
+  };
+
+  const onPreview = (proposal: PlanProposal, change: PlanChange) => {
+    const shot = shots.find((item) => item.id === change.targetShotId);
+    if (shot !== undefined) setPreview({ proposal, change, shot, acceptAfterPreview: false });
   };
 
   const onReject = (proposal: PlanProposal, change: PlanChange) => {
@@ -406,6 +424,7 @@ function PlanPanelBody({
           edit={edit}
           onAccept={onAccept}
           onReject={onReject}
+          onPreview={onPreview}
           onRecompute={onRecompute}
           onDiscardStale={onDiscardStale}
           recomputeDisabled={context.session === null || chat.streaming || service.blocked}
@@ -533,6 +552,23 @@ function PlanPanelBody({
           你在这份方案上的 {touched} 处改动会被 Agent 的第 {plan.agent_baseline.revision} 版覆盖。这一步也会记入会话。
         </Trans>
       </Dialog>
+      <ChangePreviewDialog
+        open={preview !== null}
+        change={preview?.change ?? null}
+        shot={preview?.shot ?? null}
+        onClose={() => setPreview(null)}
+        {...(preview?.acceptAfterPreview === true
+          ? {
+              onAccept: () => {
+                changes.accept(
+                  changeDecisionKey(preview.proposal.key, preview.change.id),
+                  preview.change,
+                  preview.proposal.changeSet.basedOnRevision,
+                );
+              },
+            }
+          : {})}
+      />
     </section>
   );
 }
@@ -548,6 +584,7 @@ interface ProposalSectionProps {
   readonly edit: AgentBlockProps['edit'];
   readonly onAccept: (proposal: PlanProposal, change: PlanChange) => void;
   readonly onReject: (proposal: PlanProposal, change: PlanChange) => void;
+  readonly onPreview: (proposal: PlanProposal, change: PlanChange) => void;
   readonly onRecompute: () => void;
   readonly onDiscardStale: (proposal: PlanProposal) => void;
   readonly recomputeDisabled: boolean;
@@ -561,6 +598,7 @@ function ProposalSection({
   edit,
   onAccept,
   onReject,
+  onPreview,
   onRecompute,
   onDiscardStale,
   recomputeDisabled,
@@ -647,6 +685,9 @@ function ProposalSection({
                         onReject={() => {
                           onReject(proposal, change);
                         }}
+                        {...(target === undefined
+                          ? {}
+                          : { onPreview: () => onPreview(proposal, change) })}
                       />
                     </li>
                   );

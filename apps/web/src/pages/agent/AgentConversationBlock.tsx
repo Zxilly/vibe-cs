@@ -75,7 +75,11 @@ import { useNavigate } from 'react-router-dom';
 
 import { dataErrorMessage } from '../../data/errors';
 import { useAgentPlan } from '../../data/plans';
-import { useAgentSession, useCreateAgentSession } from '../../data/sessions';
+import {
+  useAgentSession,
+  useAgentWorkspaceSettings,
+  useCreateAgentSession,
+} from '../../data/sessions';
 import { Empty, Skeleton } from '../../design/data';
 import { Alert } from '../../design/feedback';
 import { Button, Seg, cn } from '../../design/primitives';
@@ -99,6 +103,7 @@ import { AgentComposer } from './AgentComposer';
 import { AGENT_MODE_HEAD } from './ConversationModes';
 import { changeApplicability } from './planChangeApply';
 import { settingsPath } from '../settings/settingsRoutes';
+import { ChangePreviewDialog } from './ChangePreviewDialog';
 import {
   changeDecisionKey,
   changesForShot,
@@ -127,11 +132,19 @@ export const AgentConversationBlock: AgentBlock = ({
   const plan = useAgentPlan(context.plan);
   const session = useAgentSession(context.session);
   const createSession = useCreateAgentSession();
+  const workspaceSettings = useAgentWorkspaceSettings();
 
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const lastMessageRef = useRef<string | null>(null);
+  const [preview, setPreview] = useState<{
+    readonly slotKey: string;
+    readonly change: PlanChange;
+    readonly shot: AgentPlanShot;
+    readonly basedOnRevision: number | null;
+    readonly acceptAfterPreview: boolean;
+  } | null>(null);
 
   const decisions = changes.decisions;
   const planData = plan.data;
@@ -175,9 +188,24 @@ export const AgentConversationBlock: AgentBlock = ({
      decision and nothing else. Neither is re-implemented here (invariant 6). */
   const onAccept = useCallback(
     (slotKey: string, change: PlanChange, basedOnRevision: number | null) => {
+      const shot = shots.find((item) => item.id === change.targetShotId);
+      if (workspaceSettings.data?.preview_before_apply === true && shot !== undefined) {
+        setPreview({ slotKey, change, shot, basedOnRevision, acceptAfterPreview: true });
+        return;
+      }
       changes.accept(changeDecisionKey(slotKey, change.id), change, basedOnRevision);
     },
-    [changes],
+    [changes, shots, workspaceSettings.data?.preview_before_apply],
+  );
+
+  const onPreview = useCallback(
+    (slotKey: string, change: PlanChange, basedOnRevision: number | null) => {
+      const shot = shots.find((item) => item.id === change.targetShotId);
+      if (shot !== undefined) {
+        setPreview({ slotKey, change, shot, basedOnRevision, acceptAfterPreview: false });
+      }
+    },
+    [shots],
   );
 
   const onReject = useCallback(
@@ -246,6 +274,7 @@ export const AgentConversationBlock: AgentBlock = ({
           filterShotId={filterShotId}
           edit={edit}
           onAccept={onAccept}
+          onPreview={onPreview}
           onReject={onReject}
         />
       )),
@@ -376,6 +405,23 @@ export const AgentConversationBlock: AgentBlock = ({
             <Trans>手动编辑不会打断 Agent，也不需要它批准</Trans>
           )
         }
+      />
+      <ChangePreviewDialog
+        open={preview !== null}
+        change={preview?.change ?? null}
+        shot={preview?.shot ?? null}
+        onClose={() => setPreview(null)}
+        {...(preview?.acceptAfterPreview === true
+          ? {
+              onAccept: () => {
+                changes.accept(
+                  changeDecisionKey(preview.slotKey, preview.change.id),
+                  preview.change,
+                  preview.basedOnRevision,
+                );
+              },
+            }
+          : {})}
       />
     </section>
   );
@@ -529,6 +575,11 @@ interface ProposalBlockProps {
     change: PlanChange,
     basedOnRevision: number | null,
   ) => void;
+  readonly onPreview: (
+    slotKey: string,
+    change: PlanChange,
+    basedOnRevision: number | null,
+  ) => void;
   readonly onReject: (slotKey: string, changeId: string) => void;
 }
 
@@ -540,6 +591,7 @@ function ProposalBlock({
   filterShotId,
   edit,
   onAccept,
+  onPreview,
   onReject,
 }: ProposalBlockProps) {
   const { i18n } = useLingui();
@@ -589,6 +641,13 @@ function ProposalBlock({
             onAccept={() => {
               onAccept(slot.key, change, slot.proposal.based_on_revision);
             }}
+            {...(shots.some((item) => item.id === change.targetShotId)
+              ? {
+                  onPreview: () => {
+                    onPreview(slot.key, change, slot.proposal.based_on_revision);
+                  },
+                }
+              : {})}
             onReject={() => {
               onReject(slot.key, change.id);
             }}

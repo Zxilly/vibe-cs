@@ -1120,6 +1120,8 @@ export const commands = {
     const page = await request<Paginated<RecordedClipRecord>>('/recorded-clips', { signal });
     return { ...page, items: page.items.map(normalizeRecordedClip) };
   },
+  listRecordedClipRecords: (signal?: AbortSignal) =>
+    request<Paginated<RecordedClipRecord>>('/recorded-clips?page=1&page_size=200', { signal }),
   /**
    * Returns the unreduced wire record rather than the `RecordedClip` shape
    * `listRecordedClips` normalizes to: an inspector that just edited the title

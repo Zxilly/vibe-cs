@@ -288,7 +288,7 @@ msgstr "{0} 个片段 · {1} 秒"
 #. placeholder {0}: planData.shots.length
 #. placeholder {1}: planData.revision
 #. placeholder {2}: i18n._(AGENT_PLAN_STATUS[planData.status].label)
-#: src/pages/AgentPage.tsx:333
+#: src/pages/AgentPage.tsx:332
 msgid "{0} 个片段 · 修订 {1} · {2}"
 msgstr "{0} 个片段 · 修订 {1} · {2}"
 
@@ -467,7 +467,7 @@ msgstr "{count, plural, other {已重试 # 次 · 已达上限，不再自动重
 msgid "{count, plural, other {第 # 次重试}}"
 msgstr "{count, plural, other {第 # 次重试}}"
 
-#: src/pages/agent/PlanPanel.tsx:358
+#: src/pages/agent/PlanPanel.tsx:376
 msgid "{count} 个镜头"
 msgstr "{count} 个镜头"
 
@@ -734,7 +734,7 @@ msgid "Agent 写点评与镜头意图时的措辞。"
 msgstr "Agent 写点评与镜头意图时的措辞。"
 
 #: src/app/shell/navigation.tsx:93
-#: src/pages/AgentPage.tsx:327
+#: src/pages/AgentPage.tsx:326
 msgid "Agent 创作"
 msgstr "Agent 创作"
 
@@ -746,7 +746,7 @@ msgstr "Agent 删除的"
 msgid "Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。"
 msgstr "Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:225
+#: src/pages/agent/AgentConversationBlock.tsx:253
 msgid "Agent 正在回答，先等它说完或点停止"
 msgstr "Agent 正在回答，先等它说完或点停止"
 
@@ -1028,7 +1028,7 @@ msgstr "Token 用量未知"
 msgid "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 msgstr "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 
-#: src/pages/agent/AgentConversationBlock.tsx:418
+#: src/pages/agent/AgentConversationBlock.tsx:464
 msgid "一句话说清时长、重点和用途就够了。发送后会自动建立对话，并结合当前 Demo 生成第一版剪辑单。"
 msgstr "一句话说清时长、重点和用途就够了。发送后会自动建立对话，并结合当前 Demo 生成第一版剪辑单。"
 
@@ -1459,7 +1459,7 @@ msgid "你在{kindLabel}上做了 {count, plural, other {# 处改动}}，Agent �
 msgstr "你在{kindLabel}上做了 {count, plural, other {# 处改动}}，Agent 已知悉"
 
 #. placeholder {0}: plan.agent_baseline.revision
-#: src/pages/agent/PlanPanel.tsx:532
+#: src/pages/agent/PlanPanel.tsx:551
 msgid "你在这份方案上的 {touched} 处改动会被 Agent 的第 {0} 版覆盖。这一步也会记入会话。"
 msgstr "你在这份方案上的 {touched} 处改动会被 Agent 的第 {0} 版覆盖。这一步也会记入会话。"
 
@@ -1467,7 +1467,7 @@ msgstr "你在这份方案上的 {touched} 处改动会被 Agent 的第 {0} 版�
 msgid "你改过"
 msgstr "你改过"
 
-#: src/pages/agent/PlanPanel.tsx:363
+#: src/pages/agent/PlanPanel.tsx:381
 msgid "你改过 {touched} 处"
 msgstr "你改过 {touched} 处"
 
@@ -1669,8 +1669,8 @@ msgstr "先选择一个回合、选手或片段"
 msgid "先选择一份 Demo 作为视频素材"
 msgstr "先选择一份 Demo 作为视频素材"
 
-#: src/pages/AgentPage.tsx:547
-#: src/pages/AgentPage.tsx:567
+#: src/pages/AgentPage.tsx:561
+#: src/pages/AgentPage.tsx:581
 msgid "先选择一份剪辑单"
 msgstr "先选择一份剪辑单"
 
@@ -1726,7 +1726,7 @@ msgstr "全部"
 msgid "全部 {total}"
 msgstr "全部 {total}"
 
-#: src/pages/agent/PlanPanel.tsx:612
+#: src/pages/agent/PlanPanel.tsx:650
 msgid "全部丢弃"
 msgstr "全部丢弃"
 
@@ -1977,7 +1977,7 @@ msgstr "最近比赛没能读出来：{matchesError}"
 msgid "最近活动"
 msgstr "最近活动"
 
-#: src/pages/agent/AgentConversationBlock.tsx:424
+#: src/pages/agent/AgentConversationBlock.tsx:470
 msgid "写一句需求"
 msgstr "写一句需求"
 
@@ -1989,7 +1989,7 @@ msgstr "写下这场值得回头看的地方"
 msgid "写注释"
 msgstr "写注释"
 
-#: src/pages/agent/AgentConversationBlock.tsx:481
+#: src/pages/agent/AgentConversationBlock.tsx:527
 msgid "写第一条指令"
 msgstr "写第一条指令"
 
@@ -2001,7 +2001,7 @@ msgstr "决定会话抽屉里能翻到多久以前。已生成的视频和任务
 msgid "决定录制音轨里保留谁的语音。"
 msgstr "决定录制音轨里保留谁的语音。"
 
-#: src/pages/AgentPage.tsx:331
+#: src/pages/AgentPage.tsx:330
 msgid "准备创作"
 msgstr "准备创作"
 
@@ -2209,7 +2209,7 @@ msgstr "创作准备"
 msgid "创作准备检查"
 msgstr "创作准备检查"
 
-#: src/pages/agent/PlanPanel.tsx:482
+#: src/pages/agent/PlanPanel.tsx:501
 #: src/pages/agent/SessionDrawer.tsx:369
 #: src/pages/delivery/OutputCard.tsx:147
 #: src/pages/library/DeleteDemosDialog.tsx:61
@@ -2283,7 +2283,7 @@ msgstr "剪辑中"
 msgid "剪辑单"
 msgstr "剪辑单"
 
-#: src/pages/AgentPage.tsx:414
+#: src/pages/AgentPage.tsx:413
 msgid "剪辑单面板"
 msgstr "剪辑单面板"
 
@@ -2465,7 +2465,7 @@ msgstr "反恐精英"
 msgid "发布"
 msgstr "发布"
 
-#: src/shared/desktop/client.ts:1441
+#: src/shared/desktop/client.ts:1443
 msgid "发生未知错误，请重试。"
 msgstr "发生未知错误，请重试。"
 
@@ -2474,7 +2474,7 @@ msgstr "发生未知错误，请重试。"
 msgid "发送"
 msgstr "发送"
 
-#: src/pages/agent/AgentConversationBlock.tsx:372
+#: src/pages/agent/AgentConversationBlock.tsx:401
 msgid "发送后会自动建立对话并生成第一版剪辑单"
 msgstr "发送后会自动建立对话并生成第一版剪辑单"
 
@@ -2535,6 +2535,10 @@ msgstr "叠加轨"
 msgid "另有 {0} 条失败记录"
 msgstr "另有 {0} 条失败记录"
 
+#: src/pages/agent/ChangePreviewDialog.tsx:113
+msgid "只会启动回放并跳到片段起点，不会采集画面或产生文件。"
+msgstr "只会启动回放并跳到片段起点，不会采集画面或产生文件。"
+
 #: src/pages/agent/conversationModel.ts:348
 msgid "只保留击杀"
 msgstr "只保留击杀"
@@ -2549,7 +2553,7 @@ msgid "只列击杀与目标事件，共 {0} 条。"
 msgstr "只列击杀与目标事件，共 {0} 条。"
 
 #. placeholder {0}: selectedShot.title
-#: src/pages/agent/AgentConversationBlock.tsx:374
+#: src/pages/agent/AgentConversationBlock.tsx:403
 msgid "只影响这一个镜头：{0}"
 msgstr "只影响这一个镜头：{0}"
 
@@ -2661,10 +2665,15 @@ msgstr "后面没有剪切点了"
 msgid "启动"
 msgstr "启动"
 
+#: src/pages/agent/ChangePreviewDialog.tsx:105
+msgid "启动 CS2 预览这个片段？"
+msgstr "启动 CS2 预览这个片段？"
+
 #: src/pages/settings/AdvancedSection.tsx:178
 msgid "启动方式"
 msgstr "启动方式"
 
+#: src/pages/agent/ChangePreviewDialog.tsx:106
 #: src/pages/recording/ShotInspectorBlock.tsx:575
 msgid "启动游戏"
 msgstr "启动游戏"
@@ -2676,7 +2685,7 @@ msgstr "启动游戏"
 msgid "吸附"
 msgstr "吸附"
 
-#: src/pages/agent/AgentConversationBlock.tsx:416
+#: src/pages/agent/AgentConversationBlock.tsx:462
 msgid "告诉 Agent 你想要什么视频"
 msgstr "告诉 Agent 你想要什么视频"
 
@@ -2821,7 +2830,7 @@ msgid "图形"
 msgstr "图形"
 
 #. placeholder {0}: pending.changes.length
-#: src/pages/AgentPage.tsx:584
+#: src/pages/AgentPage.tsx:598
 msgid "在 {shots} 个镜头上做了 {0} 处改动"
 msgstr "在 {shots} 个镜头上做了 {0} 处改动"
 
@@ -2846,7 +2855,7 @@ msgstr "在回合时间线里点一格，这一回合的证据与注释会出现
 msgid "在多轨编辑器中打开"
 msgstr "在多轨编辑器中打开"
 
-#: src/pages/agent/PlanPanel.tsx:419
+#: src/pages/agent/PlanPanel.tsx:438
 msgid "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 msgstr "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 
@@ -2904,6 +2913,7 @@ msgstr "在比赛工作区打开"
 msgid "在游戏里看这个镜头"
 msgstr "在游戏里看这个镜头"
 
+#: src/pages/agent/ChangePreviewDialog.tsx:90
 #: src/pages/recording/ShotInspectorBlock.tsx:514
 msgid "在游戏里预览"
 msgstr "在游戏里预览"
@@ -2971,12 +2981,12 @@ msgstr "坐标来自本地 overview 雷达标定；这一段有 {frameCount} 帧
 #. placeholder {0}: changeSet.basedOnRevision
 #. placeholder {0}: proposal.based_on_revision
 #: src/domain/agent/AgentProposalCard.tsx:96
-#: src/pages/agent/PlanPanel.tsx:589
+#: src/pages/agent/PlanPanel.tsx:627
 msgid "基于第 {0} 版"
 msgstr "基于第 {0} 版"
 
-#: src/pages/agent/PlanPanel.tsx:601
-#: src/pages/AgentPage.tsx:509
+#: src/pages/agent/PlanPanel.tsx:639
+#: src/pages/AgentPage.tsx:523
 msgid "基于第 {revision} 版重算"
 msgstr "基于第 {revision} 版重算"
 
@@ -3089,6 +3099,10 @@ msgstr "完成一次录制后，片段会出现在这里。"
 msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 msgstr "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 
+#: src/pages/agent/ChangePreviewDialog.tsx:47
+msgid "完成预览"
+msgstr "完成预览"
+
 #: src/domain/match/EvidenceRow.tsx:80
 #: src/pages/evidence/EvidenceAnnotations.tsx:126
 #: src/pages/match/views/DuelsView.tsx:309
@@ -3157,14 +3171,14 @@ msgstr "对位视图"
 msgid "对位统计不可用"
 msgstr "对位统计不可用"
 
-#: src/pages/agent/AgentConversationBlock.tsx:468
+#: src/pages/agent/AgentConversationBlock.tsx:514
 #: src/pages/agent/SessionDrawer.tsx:174
 #: src/pages/settings/AiAgentSection.tsx:215
 #: src/terminology.ts:30
 msgid "对话"
 msgstr "对话"
 
-#: src/pages/agent/AgentConversationBlock.tsx:468
+#: src/pages/agent/AgentConversationBlock.tsx:514
 msgid "对话 · {title}"
 msgstr "对话 · {title}"
 
@@ -3177,7 +3191,7 @@ msgstr "对话名称"
 msgid "对话已经建好，但「{0}」没有记进引用：{detail}"
 msgstr "对话已经建好，但「{0}」没有记进引用：{detail}"
 
-#: src/pages/agent/AgentConversationBlock.tsx:278
+#: src/pages/agent/AgentConversationBlock.tsx:307
 msgid "对话形态"
 msgstr "对话形态"
 
@@ -3345,7 +3359,7 @@ msgstr "就地编辑需要一份剪辑单"
 msgid "就绪"
 msgstr "就绪"
 
-#: src/pages/AgentPage.tsx:504
+#: src/pages/AgentPage.tsx:518
 msgid "屏幕上的改动还没有写进方案。"
 msgstr "屏幕上的改动还没有写进方案。"
 
@@ -3495,6 +3509,14 @@ msgstr "已收集片段"
 #: src/pages/evidence/EvidenceEmpty.tsx:108
 msgid "已有 {indexedItems} 条证据，但这次检索一条也没匹配上。"
 msgstr "已有 {indexedItems} 条证据，但这次检索一条也没匹配上。"
+
+#: src/pages/agent/ChangePreviewDialog.tsx:71
+msgid "已有录制结果 · 直接播放"
+msgstr "已有录制结果 · 直接播放"
+
+#: src/pages/agent/ChangePreviewDialog.tsx:97
+msgid "已有录制结果，但只有 Desktop 能播放本机文件。"
+msgstr "已有录制结果，但只有 Desktop 能播放本机文件。"
 
 #: src/pages/ProjectsPage.tsx:99
 msgid "已有成品"
@@ -3725,7 +3747,7 @@ msgstr "当前占用 {conversation}"
 msgid "当前回放缓存字段无效"
 msgstr "当前回放缓存字段无效"
 
-#: src/pages/agent/PlanPanel.tsx:371
+#: src/pages/agent/PlanPanel.tsx:389
 msgid "当前方案"
 msgstr "当前方案"
 
@@ -4075,7 +4097,7 @@ msgstr "手动启动"
 msgid "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 msgstr "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:376
+#: src/pages/agent/AgentConversationBlock.tsx:405
 msgid "手动编辑不会打断 Agent，也不需要它批准"
 msgstr "手动编辑不会打断 Agent，也不需要它批准"
 
@@ -4351,11 +4373,15 @@ msgstr "掠过"
 msgid "接受"
 msgstr "接受"
 
-#: src/pages/agent/AgentConversationBlock.tsx:355
+#: src/pages/agent/AgentConversationBlock.tsx:384
 msgid "接受与拒绝会保存到这条对话，刷新或重启后仍会保留。"
 msgstr "接受与拒绝会保存到这条对话，刷新或重启后仍会保留。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:354
+#: src/pages/agent/ChangePreviewDialog.tsx:47
+msgid "接受修改"
+msgstr "接受修改"
+
+#: src/pages/agent/AgentConversationBlock.tsx:383
 msgid "接受变更不会启动录制：录制只在顶部确认一次之后才开始。"
 msgstr "接受变更不会启动录制：录制只在顶部确认一次之后才开始。"
 
@@ -4492,7 +4518,7 @@ msgstr "改了策略不会立刻清理。要现在生效，用右边这个按钮
 msgid "改动会记入方案版本，并通知 Agent"
 msgstr "改动会记入方案版本，并通知 Agent"
 
-#: src/pages/agent/PlanPanel.tsx:496
+#: src/pages/agent/PlanPanel.tsx:515
 msgid "改动来源"
 msgstr "改动来源"
 
@@ -4678,26 +4704,26 @@ msgstr "方案"
 msgid "方案另占 {plans}，清空会话不会释放这部分。"
 msgstr "方案另占 {plans}，清空会话不会释放这部分。"
 
-#: src/pages/agent/PlanPanel.tsx:394
+#: src/pages/agent/PlanPanel.tsx:412
 msgid "方案在这期间被改过了，还原没有执行。读一次最新的再来。"
 msgstr "方案在这期间被改过了，还原没有执行。读一次最新的再来。"
 
-#: src/pages/AgentPage.tsx:519
+#: src/pages/AgentPage.tsx:533
 msgid "方案在这期间被改过了，这次改动没有写进方案。"
 msgstr "方案在这期间被改过了，这次改动没有写进方案。"
 
 #. placeholder {0}: String(revision)
 #. placeholder {0}: plan.revision
-#: src/pages/agent/PlanPanel.tsx:263
-#: src/pages/AgentPage.tsx:392
+#: src/pages/agent/PlanPanel.tsx:281
+#: src/pages/AgentPage.tsx:391
 msgid "方案已经是第 {0} 版了，请基于最新的镜头重新给出变更。"
 msgstr "方案已经是第 {0} 版了，请基于最新的镜头重新给出变更。"
 
-#: src/pages/agent/PlanPanel.tsx:109
+#: src/pages/agent/PlanPanel.tsx:110
 msgid "方案是 Agent 交出来的镜头列表。在对话里让它出一份，或者从工作台打开一份已有的。"
 msgstr "方案是 Agent 交出来的镜头列表。在对话里让它出一份，或者从工作台打开一份已有的。"
 
-#: src/pages/agent/PlanPanel.tsx:130
+#: src/pages/agent/PlanPanel.tsx:131
 msgid "方案本身没有被改动，重试是安全的。"
 msgstr "方案本身没有被改动，重试是安全的。"
 
@@ -4713,7 +4739,7 @@ msgstr "方案里的镜头绑定好 Demo 与选手之后，这里会列出可录
 msgid "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 msgstr "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 
-#: src/pages/AgentPage.tsx:549
+#: src/pages/AgentPage.tsx:563
 msgid "方案里的镜头都被移除了，没有可以录制的内容"
 msgstr "方案里的镜头都被移除了，没有可以录制的内容"
 
@@ -5073,7 +5099,7 @@ msgstr "本场结果"
 msgid "本机录制依赖已就绪"
 msgstr "本机录制依赖已就绪"
 
-#: src/pages/agent/PlanPanel.tsx:573
+#: src/pages/agent/PlanPanel.tsx:611
 msgid "本次修改"
 msgstr "本次修改"
 
@@ -5117,7 +5143,7 @@ msgid "来源对象"
 msgstr "来源对象"
 
 #. placeholder {0}: slot.prompt
-#: src/pages/agent/AgentConversationBlock.tsx:559
+#: src/pages/agent/AgentConversationBlock.tsx:611
 msgid "来自「{0}」"
 msgstr "来自「{0}」"
 
@@ -5303,7 +5329,7 @@ msgstr "正在写入报告"
 msgid "正在写出 HLAE 脚本…"
 msgstr "正在写出 HLAE 脚本…"
 
-#: src/pages/agent/AgentConversationBlock.tsx:223
+#: src/pages/agent/AgentConversationBlock.tsx:251
 msgid "正在准备对话"
 msgstr "正在准备对话"
 
@@ -5403,6 +5429,10 @@ msgstr "正在生成缩略图"
 msgid "正在编译相机路径"
 msgstr "正在编译相机路径"
 
+#: src/pages/agent/ChangePreviewDialog.tsx:90
+msgid "正在编译预览"
+msgstr "正在编译预览"
+
 #: src/pages/agent/ConversationModes.tsx:291
 msgid "正在编辑"
 msgstr "正在编辑"
@@ -5435,7 +5465,7 @@ msgstr "正在读取导出设置"
 msgid "正在读取录制结果"
 msgstr "正在读取录制结果"
 
-#: src/pages/agent/PlanPanel.tsx:153
+#: src/pages/agent/PlanPanel.tsx:154
 msgid "正在读取方案"
 msgstr "正在读取方案"
 
@@ -5720,7 +5750,7 @@ msgstr "比较 {0} 与 {1}"
 msgid "没有任何数据被改动，可以直接重试。"
 msgstr "没有任何数据被改动，可以直接重试。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:439
+#: src/pages/agent/AgentConversationBlock.tsx:485
 #: src/pages/match/views/HighlightsView.tsx:143
 #: src/pages/match/views/ReplayView.tsx:240
 #: src/pages/match/views/ReviewView.tsx:117
@@ -6170,7 +6200,7 @@ msgstr "片尾"
 msgid "片尾已开启但没有标题，渲染会拒绝"
 msgstr "片尾已开启但没有标题，渲染会拒绝"
 
-#: src/pages/agent/PlanPanel.tsx:414
+#: src/pages/agent/PlanPanel.tsx:433
 #: src/pages/montage/MusicBeatBlock.tsx:540
 #: src/pages/montage/MusicBeatBlock.tsx:541
 #: src/pages/project/ProjectSelectStep.tsx:77
@@ -6316,7 +6346,7 @@ msgstr "生命周期不完整"
 msgid "生成 AI 点评"
 msgstr "生成 AI 点评"
 
-#: src/pages/agent/AgentConversationBlock.tsx:368
+#: src/pages/agent/AgentConversationBlock.tsx:397
 msgid "生成剪辑单"
 msgstr "生成剪辑单"
 
@@ -6561,7 +6591,7 @@ msgstr "知道了"
 msgid "硬切"
 msgstr "硬切"
 
-#: src/pages/AgentPage.tsx:368
+#: src/pages/AgentPage.tsx:367
 msgid "确认剪辑单并录制"
 msgstr "确认剪辑单并录制"
 
@@ -6743,7 +6773,7 @@ msgstr "第 {0} 拍"
 #. placeholder {0}: version.revision
 #: src/pages/agent/ConversationModes.tsx:121
 #: src/pages/agent/ConversationModes.tsx:288
-#: src/pages/agent/PlanPanel.tsx:338
+#: src/pages/agent/PlanPanel.tsx:356
 msgid "第 {0} 版"
 msgstr "第 {0} 版"
 
@@ -6909,11 +6939,11 @@ msgstr "编码"
 msgid "编码器可用"
 msgstr "编码器可用"
 
-#: src/pages/agent/PlanPanel.tsx:469
+#: src/pages/agent/PlanPanel.tsx:488
 msgid "编辑"
 msgstr "编辑"
 
-#: src/pages/AgentPage.tsx:570
+#: src/pages/AgentPage.tsx:584
 msgid "编辑会记入对话，请先选择或新建一条对话"
 msgstr "编辑会记入对话，请先选择或新建一条对话"
 
@@ -7232,7 +7262,7 @@ msgstr "说明：{unavailableReason}"
 msgid "说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。"
 msgstr "说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:477
+#: src/pages/agent/AgentConversationBlock.tsx:523
 msgid "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 msgstr "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 
@@ -7273,6 +7303,10 @@ msgstr "读不到占用统计"
 #: src/pages/agent/NewSessionPane.tsx:214
 msgid "读不到工作区里正在进行的对象：{referencesError}"
 msgstr "读不到工作区里正在进行的对象：{referencesError}"
+
+#: src/pages/agent/ChangePreviewDialog.tsx:65
+msgid "读不到已有录制结果：{takeError}"
+msgstr "读不到已有录制结果：{takeError}"
 
 #: src/pages/project/ProjectRecordingStep.tsx:124
 msgid "读不到录制环境状态：{error}"
@@ -7324,7 +7358,7 @@ msgstr "读不到运行时状态：{runtimeError}"
 msgid "读不到这个方案：{agentFailure}"
 msgstr "读不到这个方案：{agentFailure}"
 
-#: src/pages/AgentPage.tsx:380
+#: src/pages/AgentPage.tsx:379
 msgid "读不到这份剪辑单：{planError}"
 msgstr "读不到这份剪辑单：{planError}"
 
@@ -7340,7 +7374,7 @@ msgstr "读不到这场比赛的回放：{replayError}"
 msgid "读不到这场比赛的高光：{failure}"
 msgstr "读不到这场比赛的高光：{failure}"
 
-#: src/pages/agent/AgentConversationBlock.tsx:441
+#: src/pages/agent/AgentConversationBlock.tsx:487
 msgid "读不到这条对话：{failure}"
 msgstr "读不到这条对话：{failure}"
 
@@ -7578,7 +7612,7 @@ msgstr "返回剪辑单"
 
 #: src/app/boundary/RouteBoundary.tsx:121
 #: src/app/boundary/RouteBoundary.tsx:155
-#: src/pages/agent/PlanPanel.tsx:115
+#: src/pages/agent/PlanPanel.tsx:116
 msgid "返回工作台"
 msgstr "返回工作台"
 
@@ -7590,7 +7624,7 @@ msgstr "返回选材"
 msgid "还不知道这个片段属于哪张地图"
 msgstr "还不知道这个片段属于哪张地图"
 
-#: src/pages/agent/PlanPanel.tsx:526
+#: src/pages/agent/PlanPanel.tsx:545
 msgid "还原"
 msgstr "还原"
 
@@ -7599,22 +7633,22 @@ msgctxt "plan-change"
 msgid "还原"
 msgstr "还原"
 
-#: src/pages/agent/PlanPanel.tsx:305
-#: src/pages/agent/PlanPanel.tsx:350
+#: src/pages/agent/PlanPanel.tsx:323
+#: src/pages/agent/PlanPanel.tsx:368
 msgid "还原为 Agent 版本"
 msgstr "还原为 Agent 版本"
 
-#: src/pages/agent/PlanPanel.tsx:525
+#: src/pages/agent/PlanPanel.tsx:544
 msgid "还原为 Agent 版本？"
 msgstr "还原为 Agent 版本？"
 
 #. placeholder {0}: dataErrorMessage(restoreError) ?? ''
-#: src/pages/agent/PlanPanel.tsx:396
+#: src/pages/agent/PlanPanel.tsx:414
 msgid "还原没能完成：{0}"
 msgstr "还原没能完成：{0}"
 
 #. placeholder {0}: unbound.length
-#: src/pages/AgentPage.tsx:555
+#: src/pages/AgentPage.tsx:569
 msgid "还有 {0} 个镜头没有绑定 Demo 与选手，不能转成录制任务"
 msgstr "还有 {0} 个镜头没有绑定 Demo 与选手，不能转成录制任务"
 
@@ -7757,7 +7791,7 @@ msgstr "还没有设置"
 msgid "还没有输出"
 msgstr "还没有输出"
 
-#: src/pages/agent/PlanPanel.tsx:107
+#: src/pages/agent/PlanPanel.tsx:108
 msgid "还没有选中剪辑单"
 msgstr "还没有选中剪辑单"
 
@@ -7777,7 +7811,7 @@ msgstr "还没有选中选手"
 msgid "还没有配乐"
 msgstr "还没有配乐"
 
-#: src/pages/agent/AgentConversationBlock.tsx:331
+#: src/pages/agent/AgentConversationBlock.tsx:360
 msgid "还没有配置可用的 AI 模型。保存模型设置并测试连接后，再回来重试这句话。"
 msgstr "还没有配置可用的 AI 模型。保存模型设置并测试连接后，再回来重试这句话。"
 
@@ -8020,7 +8054,7 @@ msgstr "这份分析里没有这名选手。地址上的选择保留着，换一
 msgid "这份分析里没有选手"
 msgstr "这份分析里没有选手"
 
-#: src/pages/agent/PlanPanel.tsx:418
+#: src/pages/agent/PlanPanel.tsx:437
 msgid "这份剪辑单还没有片段"
 msgstr "这份剪辑单还没有片段"
 
@@ -8049,7 +8083,7 @@ msgid "这份工程在别处被改过，刚才的改动没有保存。"
 msgstr "这份工程在别处被改过，刚才的改动没有保存。"
 
 #. placeholder {0}: dataErrorMessage(plan.error) ?? ''
-#: src/pages/agent/PlanPanel.tsx:132
+#: src/pages/agent/PlanPanel.tsx:133
 msgid "这份方案没能打开：{0}"
 msgstr "这份方案没能打开：{0}"
 
@@ -8186,13 +8220,17 @@ msgstr "这条变更指向的镜头已经不在方案里了"
 msgid "这条变更没有给出秒数，无法直接应用"
 msgstr "这条变更没有给出秒数，无法直接应用"
 
-#: src/pages/agent/AgentConversationBlock.tsx:475
+#: src/pages/agent/AgentConversationBlock.tsx:521
 msgid "这条对话还没有消息"
 msgstr "这条对话还没有消息"
 
-#: src/pages/agent/AgentConversationBlock.tsx:565
+#: src/pages/agent/AgentConversationBlock.tsx:617
 msgid "这条提议没有涉及选中的镜头。"
 msgstr "这条提议没有涉及选中的镜头。"
+
+#: src/pages/agent/ChangePreviewDialog.tsx:79
+msgid "这条片段还没有录制结果；可以编译相机路径后在 CS2 里只读预览，不会录制。"
+msgstr "这条片段还没有录制结果；可以编译相机路径后在 CS2 里只读预览，不会录制。"
 
 #: src/pages/evidence/EvidenceDetail.tsx:159
 msgid "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
@@ -8227,7 +8265,7 @@ msgid "这次回答已停止"
 msgstr "这次回答已停止"
 
 #. placeholder {0}: chat.error
-#: src/pages/agent/AgentConversationBlock.tsx:332
+#: src/pages/agent/AgentConversationBlock.tsx:361
 msgid "这次回答没有完成：{0}"
 msgstr "这次回答没有完成：{0}"
 
@@ -8249,7 +8287,7 @@ msgstr "这次操作没有成功：{writeError}"
 msgid "这次改动没有保存：{writeError}"
 msgstr "这次改动没有保存：{writeError}"
 
-#: src/pages/AgentPage.tsx:521
+#: src/pages/AgentPage.tsx:535
 msgid "这次改动没能写进方案：{failure}"
 msgstr "这次改动没能写进方案：{failure}"
 
@@ -8286,7 +8324,7 @@ msgid "这类作品不需要录制步骤"
 msgstr "这类作品不需要录制步骤"
 
 #. placeholder {0}: changeSet.basedOnRevision
-#: src/pages/agent/PlanPanel.tsx:616
+#: src/pages/agent/PlanPanel.tsx:654
 msgid "这组变更基于第 {0} 版，方案已经是第 {revision} 版。内容仍可查看。"
 msgstr "这组变更基于第 {0} 版，方案已经是第 {revision} 版。内容仍可查看。"
 
@@ -8650,7 +8688,7 @@ msgstr "配置文件没有损坏，不需要恢复"
 msgid "配置文件读不出来"
 msgstr "配置文件读不出来"
 
-#: src/pages/agent/AgentConversationBlock.tsx:313
+#: src/pages/agent/AgentConversationBlock.tsx:342
 #: src/pages/agent/AgentReadiness.tsx:69
 #: src/pages/agent/AgentReadiness.tsx:83
 msgid "配置模型"
@@ -8756,8 +8794,8 @@ msgstr "重新编译"
 msgid "重新计算"
 msgstr "重新计算"
 
-#: src/pages/agent/PlanPanel.tsx:385
-#: src/pages/AgentPage.tsx:515
+#: src/pages/agent/PlanPanel.tsx:403
+#: src/pages/AgentPage.tsx:529
 msgid "重新读取剪辑单"
 msgstr "重新读取剪辑单"
 
@@ -8785,15 +8823,16 @@ msgstr "重新选择"
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:180
 #: src/domain/task/TaskDetail.tsx:145
-#: src/pages/agent/AgentConversationBlock.tsx:257
-#: src/pages/agent/AgentConversationBlock.tsx:317
-#: src/pages/agent/AgentConversationBlock.tsx:438
+#: src/pages/agent/AgentConversationBlock.tsx:286
+#: src/pages/agent/AgentConversationBlock.tsx:346
+#: src/pages/agent/AgentConversationBlock.tsx:484
+#: src/pages/agent/ChangePreviewDialog.tsx:64
 #: src/pages/agent/ConversationModes.tsx:350
 #: src/pages/agent/NewSessionPane.tsx:177
 #: src/pages/agent/NewSessionPane.tsx:212
-#: src/pages/agent/PlanPanel.tsx:129
+#: src/pages/agent/PlanPanel.tsx:130
 #: src/pages/agent/SessionDrawer.tsx:250
-#: src/pages/AgentPage.tsx:378
+#: src/pages/AgentPage.tsx:377
 #: src/pages/delivery/useTaskActions.tsx:205
 #: src/pages/EditorPage.tsx:121
 #: src/pages/evidence/EvidenceAnnotations.tsx:56
@@ -8869,7 +8908,7 @@ msgstr "镜头意图 · 会一起发给 Agent"
 msgid "镜头数"
 msgstr "镜头数"
 
-#: src/pages/agent/PlanPanel.tsx:335
+#: src/pages/agent/PlanPanel.tsx:353
 msgid "镜头方案"
 msgstr "镜头方案"
 
@@ -9037,7 +9076,7 @@ msgid "页面根节点 #root 不存在，应用无法启动"
 msgstr "页面根节点 #root 不存在，应用无法启动"
 
 #. placeholder {0}: formatShotDuration(duration)
-#: src/pages/agent/PlanPanel.tsx:511
+#: src/pages/agent/PlanPanel.tsx:530
 msgid "顶栏的「确认并生成视频」会按这份方案录制 {count} 个镜头，共 {0}。"
 msgstr "顶栏的「确认并生成视频」会按这份方案录制 {count} 个镜头，共 {0}。"
 
@@ -9070,6 +9109,10 @@ msgstr "预览计划已过期，需要重新生成"
 #: src/domain/agent/PlanChangeCard.tsx:180
 msgid "预览这条"
 msgstr "预览这条"
+
+#: src/pages/agent/ChangePreviewDialog.tsx:46
+msgid "预览这条修改"
+msgstr "预览这条修改"
 
 #: src/pages/montage/ClipTrimDrawer.tsx:137
 msgid "预览需要桌面应用，浏览器里无法读取本机录制文件。"

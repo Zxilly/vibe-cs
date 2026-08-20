@@ -379,12 +379,12 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 
 ### IA-23 修改预览
 
-- [ ] **状态**
+- [x] **状态**
 - 建什么：为可应用修改解析受影响片段与时间窗；优先播放已有 Take/录制文件，否则调用只读游戏预览；设置项控制接受前是否先预览。
 - 验收标准：
-  - [ ] 每条可应用修改都有预览动作和明确来源
-  - [ ] 预览失败不改变剪辑单或修改决策
-  - [ ] `preview_before_apply` 开启时接受先进入预览确认，关闭时直接应用且仍可撤销
+  - [x] 每条可应用修改都有预览动作和明确来源
+  - [x] 预览失败不改变剪辑单或修改决策
+  - [x] `preview_before_apply` 开启时接受先进入预览确认，关闭时直接应用且仍可撤销
 
 ### IA-24 Take / Composition
 
@@ -423,3 +423,4 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 - 2026-08-20, IA-20:新增 Demo/分析/模型/录制四项统一准备检查与直接修复深链；模型设置由只读状态升级为可编辑、保存和真实连接测试；制作方式与结果视图分层，初始态隐藏修改视图与建议芯片，主动作收敛为生成剪辑单/确认剪辑单并录制。lint、typecheck、358 个测试文件/4275 项测试通过；Tauri CDP + agent-browser 在 2160px 与 1100×700 复核，证据见 `docs/superpowers/evidence/2026-08-20-ia-20/`；无偏离。
 - 2026-08-20, IA-21:接受/拒绝写回会话 proposal 文档并从服务端恢复；assistant turn 在流式前持久建立，以条件状态更新覆盖 streaming/completed/cancelled/failed 和 retry_of；模型历史改由已完成的持久会话条目提供，Desktop thread 不再是第二份对话真值。未改 SQLite schema 指纹，旧 proposal/assistant 文档通过 defaulted optional fields 兼容解码；lint、358 个测试文件/4279 项前端测试及 domain/storage/application/desktop 四 crate 全量测试通过；无偏离。
 - 2026-08-20, IA-22:Desktop 在已校验的请求上下文中为每条 proposal 写入 plan id/基准修订，客户端补章逻辑退役；计划写入口同时校验 proposal base，不能用新的 expected revision 重放旧 proposal；Rig 聚合的真实 usage 与 provider/model 按 turn 持久化，缺 usage 或权威定价时明确显示未知而非 0。lint、358 个测试文件/4280 项前端测试及 agent/domain/storage/application/desktop 五 crate 全量测试通过；locale 覆盖单页预算由 5 秒调到 10 秒以适应完整并发套件，断言未削弱；无偏离。
+- 2026-08-20, IA-23:每条可应用修改在对话与剪辑单两处都提供预览；优先按录制元数据中的真实 `request_id` 播放对应 Take，没有 Take 时才编译镜头并二次确认启动 CS2 只读预览；`preview_before_apply` 开启时接受只打开预览，二次确认后才走原有条件写入。lint、类型检查及 4 个相关测试文件/65 项测试通过；完整前端套件首次运行因 Vitest 进程未退出手动中止，留待 IA-26 统一全量回归；无产品逻辑偏离。

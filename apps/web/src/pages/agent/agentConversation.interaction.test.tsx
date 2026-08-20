@@ -17,7 +17,11 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { useAgentPlan, useAgentPlanList } from '../../data/plans';
-import { useAgentSession, useCreateAgentSession } from '../../data/sessions';
+import {
+  useAgentSession,
+  useAgentWorkspaceSettings,
+  useCreateAgentSession,
+} from '../../data/sessions';
 import { PLAN_PROPOSAL, PLAN_SHOTS, USER_ENTRY } from '../../domain/agent/agentFixtures.testing';
 import type { AgentPlan, AgentSession, AgentSessionEntry } from '../../shared/desktop/dto';
 import { AgentConversationBlock } from './AgentConversationBlock';
@@ -43,8 +47,33 @@ vi.mock('../../data/plans', async (importOriginal) => {
 
 vi.mock('../../data/sessions', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../data/sessions')>();
-  return { ...actual, useAgentSession: vi.fn(), useCreateAgentSession: vi.fn() };
+  return {
+    ...actual,
+    useAgentSession: vi.fn(),
+    useAgentWorkspaceSettings: vi.fn(),
+    useCreateAgentSession: vi.fn(),
+  };
 });
+
+vi.mock('./ChangePreviewDialog', () => ({
+  ChangePreviewDialog: ({
+    open,
+    onClose,
+    onAccept,
+  }: {
+    readonly open: boolean;
+    readonly onClose: () => void;
+    readonly onAccept?: (() => void) | undefined;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="预览这条修改">
+        <button type="button" onClick={onClose}>关闭预览</button>
+        {onAccept === undefined ? null : (
+          <button type="button" onClick={onAccept}>接受修改</button>
+        )}
+      </div>
+    ) : null,
+}));
 
 const ANSWER: AgentSessionEntry = {
   kind: 'assistant',
@@ -76,10 +105,13 @@ const SESSION: AgentSession = {
   refs: [],
 };
 
-function stage() {
+function stage(previewBeforeApply = false) {
   vi.mocked(useAgentPlan).mockReturnValue(queryResult(PLAN) as never);
   vi.mocked(useAgentPlanList).mockReturnValue(queryResult([]) as never);
   vi.mocked(useAgentSession).mockReturnValue(queryResult(SESSION) as never);
+  vi.mocked(useAgentWorkspaceSettings).mockReturnValue(
+    queryResult({ preview_before_apply: previewBeforeApply }) as never,
+  );
   vi.mocked(useCreateAgentSession).mockReturnValue(mutationResult() as never);
 }
 
@@ -163,6 +195,20 @@ describe('accepting and rejecting a change', () => {
     expect(head().getByText('3 项变更待处理')).toBeTruthy();
     fireEvent.click(within(card('change-1')).getByRole('button', { name: '接受' }));
     expect(head().getByText('2 项变更待处理')).toBeTruthy();
+  });
+
+  it('requires the configured preview before applying the change', () => {
+    stage(true);
+    renderBlock(<Controlled initial={CHANGES} />);
+
+    fireEvent.click(within(card('change-1')).getByRole('button', { name: '接受' }));
+
+    expect(screen.getByRole('dialog', { name: '预览这条修改' })).toBeTruthy();
+    expect(card('change-1').getAttribute('data-change-state')).toBe('pending');
+
+    fireEvent.click(screen.getByRole('button', { name: '接受修改' }));
+
+    expect(card('change-1').getAttribute('data-change-state')).toBe('accepted');
   });
 });
 

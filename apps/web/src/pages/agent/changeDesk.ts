@@ -32,7 +32,7 @@
  * 条」 that the server does not share would disagree with the next window.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import type { EditNotifierHandle } from '../../data/editNotifier';
 import type { PlanChange } from '../../domain/agent';
@@ -41,7 +41,6 @@ import type { AgentPlanShot } from '../../shared/desktop/dto';
 import type { AgentChangeDesk } from './agentContract';
 import {
   NO_CHANGE_DECISIONS,
-  withChangeDecision,
   type ChangeDecision,
   type ChangeDecisions,
 } from './conversationModel';
@@ -55,6 +54,8 @@ export interface AgentChangeDeskInput {
   readonly shots: readonly AgentPlanShot[];
   /** The page's one notifier — the desk records through it, never around it. */
   readonly editNotifier: EditNotifierHandle;
+  readonly storedDecisions?: ChangeDecisions | undefined;
+  readonly persistDecision?: ((key: string, decision: ChangeDecision | null) => Promise<void>) | undefined;
 }
 
 /** The buffer carries the plan it belongs to; see `bufferedShots` below. */
@@ -66,8 +67,18 @@ interface PlanShotBuffer {
 export function useAgentChangeDesk(input: AgentChangeDeskInput): AgentChangeDesk {
   const { planId, shots, editNotifier } = input;
 
-  const [decisions, setDecisions] = useState<ChangeDecisions>(NO_CHANGE_DECISIONS);
+  const [localDecisions, setLocalDecisions] = useState<ReadonlyMap<string, ChangeDecision | null>>(
+    NO_CHANGE_DECISIONS,
+  );
   const [buffer, setBuffer] = useState<PlanShotBuffer | null>(null);
+  const decisions = useMemo(() => {
+    const merged = new Map(input.storedDecisions ?? NO_CHANGE_DECISIONS);
+    for (const [key, decision] of localDecisions) {
+      if (decision === null) merged.delete(key);
+      else merged.set(key, decision);
+    }
+    return merged;
+  }, [input.storedDecisions, localDecisions]);
 
   /*
    * The buffer is read back only when it names the plan on screen, rather than
@@ -84,7 +95,12 @@ export function useAgentChangeDesk(input: AgentChangeDeskInput): AgentChangeDesk
   const currentShots = bufferedShots ?? shots;
 
   const decide = (key: string, decision: ChangeDecision | null) => {
-    setDecisions((current) => withChangeDecision(current, key, decision));
+    setLocalDecisions((current) => {
+      const next = new Map(current);
+      next.set(key, decision);
+      return next;
+    });
+    void input.persistDecision?.(key, decision);
   };
 
   const record = (result: ShotEditResult, note?: string) => {

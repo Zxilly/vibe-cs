@@ -617,6 +617,9 @@ export type { AgentObjectSessionRef } from './generated/AgentObjectSessionRef';
 export type { AgentObjectRefTouch } from './generated/AgentObjectRefTouch';
 export type { AgentToolCall as AgentSessionToolCall } from './generated/AgentToolCall';
 export type { AgentProposal as AgentSessionProposal } from './generated/AgentProposal';
+export type { AgentProposalDecision } from './generated/AgentProposalDecision';
+export type { AgentProposalDecisionKind } from './generated/AgentProposalDecisionKind';
+export type { AgentProposalDecisionUpdate } from './generated/AgentProposalDecisionUpdate';
 
 export type { WorkspaceEditOperation } from './generated/WorkspaceEditOperation';
 export type { WorkspaceEditAuthor } from './generated/WorkspaceEditAuthor';

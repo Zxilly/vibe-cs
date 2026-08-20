@@ -230,7 +230,7 @@ describe('proposals', () => {
     const html = at();
 
     expect(html).toContain('接受变更不会启动录制');
-    expect(html).toContain('你的接受与拒绝暂时只保存在本页');
+    expect(html).toContain('接受与拒绝会保存到这条对话');
   });
 
   it('prints the instruction the proposal answered when the title does not', () => {

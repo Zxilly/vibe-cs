@@ -181,6 +181,11 @@ pub struct AgentProposal {
     /// The plan revision this proposal was generated from.
     pub based_on_revision: Option<i64>,
     pub payload: serde_json::Value,
+    /// Per-change review decisions. Optional on the wire so session documents
+    /// written before durable review state continue to decode unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub decisions: Option<Vec<AgentProposalDecision>>,
 }
 
 impl AgentProposal {
@@ -217,6 +222,54 @@ impl AgentProposal {
             ));
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum AgentProposalDecisionKind {
+    Accepted,
+    Rejected,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct AgentProposalDecision {
+    pub change_id: String,
+    pub decision: AgentProposalDecisionKind,
+    pub decided_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct AgentProposalDecisionUpdate {
+    pub entry_id: Uuid,
+    pub proposal_index: u32,
+    pub change_id: String,
+    /// `None` restores the change to its undecided state.
+    pub decision: Option<AgentProposalDecisionKind>,
+}
+
+impl AgentProposalDecisionUpdate {
+    /// Normalizes the client-authored change locator.
+    pub fn normalize(mut self) -> Result<Self, DomainError> {
+        self.change_id = required_text(
+            &self.change_id,
+            AGENT_SESSION_MAX_LABEL_CHARS,
+            "proposal change id",
+        )?;
+        if usize::try_from(self.proposal_index)
+            .ok()
+            .is_none_or(|index| index >= AGENT_SESSION_MAX_PROPOSALS)
+        {
+            return Err(DomainError::InvalidInput(format!(
+                "proposal_index must be below {AGENT_SESSION_MAX_PROPOSALS}"
+            )));
+        }
+        Ok(self)
     }
 }
 
@@ -1409,6 +1462,7 @@ mod tests {
             plan_id: Some(plan_id),
             based_on_revision: Some(6),
             payload: serde_json::json!({}),
+            decisions: None,
         };
 
         proposal.validate().expect("valid proposal");

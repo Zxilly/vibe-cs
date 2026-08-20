@@ -329,7 +329,7 @@ export const AgentConversationBlock: AgentBlock = ({
           className="flex-none border-t border-divider px-3.5 pt-2.5 text-xs leading-normal text-neutral-700"
         >
           <Trans>接受变更不会启动录制：录制只在顶部确认一次之后才开始。</Trans>{' '}
-          <Trans>你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。</Trans>
+          <Trans>接受与拒绝会保存到这条对话，刷新或重启后仍会保留。</Trans>
         </p>
       ) : null}
 

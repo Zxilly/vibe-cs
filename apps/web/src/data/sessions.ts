@@ -71,6 +71,7 @@ import type {
   AgentEvent,
   AgentObjectKind,
   AgentObjectRefTouch,
+  AgentProposalDecisionUpdate,
   AgentSessionEntryDraft,
   AgentSessionQuery,
   AgentSessionRetention,
@@ -248,6 +249,21 @@ export function useAppendAgentSessionEntry() {
     mutationFn: (input: { sessionId: string; draft: AgentSessionEntryDraft }) =>
       client.appendAgentSessionEntry(input.sessionId, input.draft),
     onSuccess: () => invalidateSessions(queryClient),
+  });
+}
+
+/** Persists one proposal-change review decision in its owning session entry. */
+export function useSetAgentProposalDecision() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: { sessionId: string; update: AgentProposalDecisionUpdate }) =>
+      client.setAgentProposalDecision(input.sessionId, input.update),
+    onSuccess: (session) => {
+      queryClient.setQueryData(qk.sessions.detail(session.id), session);
+      return invalidateSessions(queryClient);
+    },
   });
 }
 

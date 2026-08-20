@@ -75,6 +75,7 @@ function mount(url = '/agent?plan=P-118&session=session-kael&mode=changes'): Har
     appendAgentSessionEntry: () => Promise.resolve(session),
     streamAgentChat: () => Promise.resolve(),
     createAgentSession: () => Promise.resolve(session),
+    setAgentProposalDecision: () => Promise.resolve(session),
     health: () => Promise.resolve({ status: 'ok' }),
   };
 

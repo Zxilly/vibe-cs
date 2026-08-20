@@ -24,11 +24,13 @@ import {
   changeDecisionKey,
   changesForShot,
   collectProposals,
+  decisionUpdateFromKey,
   pendingTotal,
   proposalsByEntry,
   resolveChangeSet,
   shotLabelOf,
   staleTotal,
+  storedChangeDecisions,
   withChangeDecision,
 } from './conversationModel';
 
@@ -105,6 +107,26 @@ describe('collectProposals', () => {
 
     expect([...grouped.keys()]).toEqual(['a', 'b']);
     expect(grouped.get('a')).toHaveLength(1);
+  });
+});
+
+describe('durable proposal decisions', () => {
+  it('rehydrates the exact page key and reverses it into the server locator', () => {
+    const entries = [assistantWith('entry-2', [{
+      ...PLAN_PROPOSAL,
+      decisions: [{
+        change_id: 'change-1',
+        decision: 'rejected',
+        decided_at: '2026-08-20T10:00:00Z',
+      }],
+    }])];
+    const decisions = storedChangeDecisions(entries);
+    const key = 'entry-2#0#change-1';
+
+    expect(decisions.get(key)).toBe('rejected');
+    expect(decisionUpdateFromKey(key, 'accepted')).toEqual({
+      entry_id: 'entry-2', proposal_index: 0, change_id: 'change-1', decision: 'accepted',
+    });
   });
 });
 

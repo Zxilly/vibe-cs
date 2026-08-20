@@ -283,7 +283,7 @@ msgstr "{0} 个片段 · {1} 秒"
 #. placeholder {0}: planData.shots.length
 #. placeholder {1}: planData.revision
 #. placeholder {2}: i18n._(AGENT_PLAN_STATUS[planData.status].label)
-#: src/pages/AgentPage.tsx:312
+#: src/pages/AgentPage.tsx:334
 msgid "{0} 个片段 · 修订 {1} · {2}"
 msgstr "{0} 个片段 · 修订 {1} · {2}"
 
@@ -729,7 +729,7 @@ msgid "Agent 写点评与镜头意图时的措辞。"
 msgstr "Agent 写点评与镜头意图时的措辞。"
 
 #: src/app/shell/navigation.tsx:93
-#: src/pages/AgentPage.tsx:306
+#: src/pages/AgentPage.tsx:328
 msgid "Agent 创作"
 msgstr "Agent 创作"
 
@@ -1251,7 +1251,7 @@ msgstr "二进制回放炸弹标记无效"
 msgid "二进制回放超过 128 MiB 上限"
 msgstr "二进制回放超过 128 MiB 上限"
 
-#: src/shared/desktop/client.ts:259
+#: src/shared/desktop/client.ts:260
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "二进制回放超过 128 MiB 上限。"
 
@@ -1288,7 +1288,7 @@ msgstr "仅爆头"
 msgid "从 Steam 同步最近比赛并下载回放"
 msgstr "从 Steam 同步最近比赛并下载回放"
 
-#: src/pages/agent/conversationModel.ts:315
+#: src/pages/agent/conversationModel.ts:353
 msgid "从他起跳开始"
 msgstr "从他起跳开始"
 
@@ -1465,10 +1465,6 @@ msgstr "你改过 {touched} 处"
 #: src/pages/agent/ConversationModes.tsx:246
 msgid "你改过的镜头"
 msgstr "你改过的镜头"
-
-#: src/pages/agent/AgentConversationBlock.tsx:332
-msgid "你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。"
-msgstr "你的接受与拒绝暂时只保存在本页，刷新后会回到未处理。"
 
 #: src/app/command/commandRegistry.ts:221
 #: src/pages/GuidePage.tsx:55
@@ -1664,8 +1660,8 @@ msgstr "先选择一个回合、选手或片段"
 msgid "先选择一份 Demo 作为视频素材"
 msgstr "先选择一份 Demo 作为视频素材"
 
-#: src/pages/AgentPage.tsx:526
-#: src/pages/AgentPage.tsx:546
+#: src/pages/AgentPage.tsx:548
+#: src/pages/AgentPage.tsx:568
 msgid "先选择一份剪辑单"
 msgstr "先选择一份剪辑单"
 
@@ -1918,7 +1914,7 @@ msgstr "再修剪就不足一帧了"
 msgid "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
 msgstr "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
 
-#: src/pages/agent/conversationModel.ts:315
+#: src/pages/agent/conversationModel.ts:353
 msgid "再快一点"
 msgstr "再快一点"
 
@@ -1996,7 +1992,7 @@ msgstr "决定会话抽屉里能翻到多久以前。已生成的视频和任务
 msgid "决定录制音轨里保留谁的语音。"
 msgstr "决定录制音轨里保留谁的语音。"
 
-#: src/pages/AgentPage.tsx:310
+#: src/pages/AgentPage.tsx:332
 msgid "准备创作"
 msgstr "准备创作"
 
@@ -2112,7 +2108,7 @@ msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约
 msgstr "分析后才有回合、证据和高光。一场 40 分钟的比赛大约需要 3 分钟。"
 
 #. placeholder {0}: String(value)
-#: src/shared/desktop/client.ts:362
+#: src/shared/desktop/client.ts:363
 msgid "分析响应包含未知阵营：{0}"
 msgstr "分析响应包含未知阵营：{0}"
 
@@ -2238,7 +2234,7 @@ msgstr "删除记录"
 msgid "删除这条对话？"
 msgstr "删除这条对话？"
 
-#: src/pages/agent/conversationModel.ts:315
+#: src/pages/agent/conversationModel.ts:353
 msgid "别贴这么近"
 msgstr "别贴这么近"
 
@@ -2278,7 +2274,7 @@ msgstr "剪辑中"
 msgid "剪辑单"
 msgstr "剪辑单"
 
-#: src/pages/AgentPage.tsx:393
+#: src/pages/AgentPage.tsx:415
 msgid "剪辑单面板"
 msgstr "剪辑单面板"
 
@@ -2302,7 +2298,7 @@ msgstr "剪辑模式"
 msgid "剩余 {0}"
 msgstr "剩余 {0}"
 
-#: src/pages/agent/conversationModel.ts:310
+#: src/pages/agent/conversationModel.ts:348
 msgid "加 0.5 秒尾巴"
 msgstr "加 0.5 秒尾巴"
 
@@ -2402,7 +2398,7 @@ msgstr "占用"
 msgid "卡片"
 msgstr "卡片"
 
-#: src/pages/agent/conversationModel.ts:310
+#: src/pages/agent/conversationModel.ts:348
 msgid "压到 30 秒"
 msgstr "压到 30 秒"
 
@@ -2414,7 +2410,7 @@ msgstr "去 Demo 资料库"
 msgid "去录制"
 msgstr "去录制"
 
-#: src/pages/agent/conversationModel.ts:310
+#: src/pages/agent/conversationModel.ts:348
 msgid "去掉运动镜头"
 msgstr "去掉运动镜头"
 
@@ -2460,12 +2456,12 @@ msgstr "反恐精英"
 msgid "发布"
 msgstr "发布"
 
-#: src/shared/desktop/client.ts:1430
+#: src/shared/desktop/client.ts:1435
 msgid "发生未知错误，请重试。"
 msgstr "发生未知错误，请重试。"
 
-#: src/pages/agent/conversationModel.ts:316
-#: src/pages/agent/conversationModel.ts:324
+#: src/pages/agent/conversationModel.ts:354
+#: src/pages/agent/conversationModel.ts:362
 msgid "发送"
 msgstr "发送"
 
@@ -2530,7 +2526,7 @@ msgstr "叠加轨"
 msgid "另有 {0} 条失败记录"
 msgstr "另有 {0} 条失败记录"
 
-#: src/pages/agent/conversationModel.ts:310
+#: src/pages/agent/conversationModel.ts:348
 msgid "只保留击杀"
 msgstr "只保留击杀"
 
@@ -2816,7 +2812,7 @@ msgid "图形"
 msgstr "图形"
 
 #. placeholder {0}: pending.changes.length
-#: src/pages/AgentPage.tsx:563
+#: src/pages/AgentPage.tsx:585
 msgid "在 {shots} 个镜头上做了 {0} 处改动"
 msgstr "在 {shots} 个镜头上做了 {0} 处改动"
 
@@ -2971,7 +2967,7 @@ msgid "基于第 {0} 版"
 msgstr "基于第 {0} 版"
 
 #: src/pages/agent/PlanPanel.tsx:597
-#: src/pages/AgentPage.tsx:488
+#: src/pages/AgentPage.tsx:510
 msgid "基于第 {revision} 版重算"
 msgstr "基于第 {revision} 版重算"
 
@@ -3049,7 +3045,7 @@ msgstr "失败可恢复"
 msgid "失败的导出"
 msgstr "失败的导出"
 
-#: src/shared/desktop/client.ts:196
+#: src/shared/desktop/client.ts:197
 msgid "媒体地址不是本地服务路径。"
 msgstr "媒体地址不是本地服务路径。"
 
@@ -3181,7 +3177,7 @@ msgctxt "agent-mode"
 msgid "对话附着在选中的镜头上，意图同时给出参数"
 msgstr "对话附着在选中的镜头上，意图同时给出参数"
 
-#: src/pages/agent/conversationModel.ts:314
+#: src/pages/agent/conversationModel.ts:352
 msgid "对选中的片段说，例如「跟到他开第一枪就停」"
 msgstr "对选中的片段说，例如「跟到他开第一枪就停」"
 
@@ -3340,7 +3336,7 @@ msgstr "就地编辑需要一份剪辑单"
 msgid "就绪"
 msgstr "就绪"
 
-#: src/pages/AgentPage.tsx:483
+#: src/pages/AgentPage.tsx:505
 msgid "屏幕上的改动还没有写进方案。"
 msgstr "屏幕上的改动还没有写进方案。"
 
@@ -4342,6 +4338,10 @@ msgstr "掠过"
 msgid "接受"
 msgstr "接受"
 
+#: src/pages/agent/AgentConversationBlock.tsx:332
+msgid "接受与拒绝会保存到这条对话，刷新或重启后仍会保留。"
+msgstr "接受与拒绝会保存到这条对话，刷新或重启后仍会保留。"
+
 #: src/pages/agent/AgentConversationBlock.tsx:331
 msgid "接受变更不会启动录制：录制只在顶部确认一次之后才开始。"
 msgstr "接受变更不会启动录制：录制只在顶部确认一次之后才开始。"
@@ -4669,14 +4669,14 @@ msgstr "方案另占 {plans}，清空会话不会释放这部分。"
 msgid "方案在这期间被改过了，还原没有执行。读一次最新的再来。"
 msgstr "方案在这期间被改过了，还原没有执行。读一次最新的再来。"
 
-#: src/pages/AgentPage.tsx:498
+#: src/pages/AgentPage.tsx:520
 msgid "方案在这期间被改过了，这次改动没有写进方案。"
 msgstr "方案在这期间被改过了，这次改动没有写进方案。"
 
 #. placeholder {0}: String(revision)
 #. placeholder {0}: plan.revision
 #: src/pages/agent/PlanPanel.tsx:259
-#: src/pages/AgentPage.tsx:371
+#: src/pages/AgentPage.tsx:393
 msgid "方案已经是第 {0} 版了，请基于最新的镜头重新给出变更。"
 msgstr "方案已经是第 {0} 版了，请基于最新的镜头重新给出变更。"
 
@@ -4700,7 +4700,7 @@ msgstr "方案里的镜头绑定好 Demo 与选手之后，这里会列出可录
 msgid "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 msgstr "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 
-#: src/pages/AgentPage.tsx:528
+#: src/pages/AgentPage.tsx:550
 msgid "方案里的镜头都被移除了，没有可以录制的内容"
 msgstr "方案里的镜头都被移除了，没有可以录制的内容"
 
@@ -4713,10 +4713,10 @@ msgstr "旋转"
 msgid "无法定位这个文件。"
 msgstr "无法定位这个文件。"
 
-#: src/shared/desktop/client.ts:210
-#: src/shared/desktop/client.ts:239
-#: src/shared/desktop/client.ts:300
-#: src/shared/desktop/client.ts:492
+#: src/shared/desktop/client.ts:211
+#: src/shared/desktop/client.ts:240
+#: src/shared/desktop/client.ts:301
+#: src/shared/desktop/client.ts:493
 msgid "无法连接到本地服务，请确认服务正在运行。"
 msgstr "无法连接到本地服务，请确认服务正在运行。"
 
@@ -4972,7 +4972,7 @@ msgstr "未知原因"
 msgid "未知地图"
 msgstr "未知地图"
 
-#: src/shared/desktop/client.ts:433
+#: src/shared/desktop/client.ts:434
 msgid "未知玩家"
 msgstr "未知玩家"
 
@@ -6307,7 +6307,7 @@ msgstr "生成 AI 点评"
 msgid "生成剪辑单"
 msgstr "生成剪辑单"
 
-#: src/pages/agent/conversationModel.ts:311
+#: src/pages/agent/conversationModel.ts:349
 msgid "生成变更"
 msgstr "生成变更"
 
@@ -6548,7 +6548,7 @@ msgstr "知道了"
 msgid "硬切"
 msgstr "硬切"
 
-#: src/pages/AgentPage.tsx:347
+#: src/pages/AgentPage.tsx:369
 msgid "确认剪辑单并录制"
 msgstr "确认剪辑单并录制"
 
@@ -6870,7 +6870,7 @@ msgstr "结论与注释"
 msgid "绕着目标转，适合停在一次交火上"
 msgstr "绕着目标转，适合停在一次交火上"
 
-#: src/pages/agent/conversationModel.ts:309
+#: src/pages/agent/conversationModel.ts:347
 msgid "给剪辑单下一条指令，例如「02 再短一点」「把结尾留 1 秒」"
 msgstr "给剪辑单下一条指令，例如「02 再短一点」「把结尾留 1 秒」"
 
@@ -6878,7 +6878,7 @@ msgstr "给剪辑单下一条指令，例如「02 再短一点」「把结尾留
 msgid "继续"
 msgstr "继续"
 
-#: src/pages/agent/conversationModel.ts:322
+#: src/pages/agent/conversationModel.ts:360
 msgid "继续和 Agent 说，例如「第 3 个片段前面留 1 秒」"
 msgstr "继续和 Agent 说，例如「第 3 个片段前面留 1 秒」"
 
@@ -6895,7 +6895,7 @@ msgstr "编码器可用"
 msgid "编辑"
 msgstr "编辑"
 
-#: src/pages/AgentPage.tsx:549
+#: src/pages/AgentPage.tsx:571
 msgid "编辑会记入对话，请先选择或新建一条对话"
 msgstr "编辑会记入对话，请先选择或新建一条对话"
 
@@ -7218,9 +7218,9 @@ msgstr "说清你想要什么，它给出方案与镜头；录制前还会等你
 msgid "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 msgstr "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 
-#: src/shared/desktop/client.ts:207
-#: src/shared/desktop/client.ts:230
-#: src/shared/desktop/client.ts:255
+#: src/shared/desktop/client.ts:208
+#: src/shared/desktop/client.ts:231
+#: src/shared/desktop/client.ts:256
 msgid "请求超时或已取消，请稍后重试。"
 msgstr "请求超时或已取消，请稍后重试。"
 
@@ -7306,7 +7306,7 @@ msgstr "读不到运行时状态：{runtimeError}"
 msgid "读不到这个方案：{agentFailure}"
 msgstr "读不到这个方案：{agentFailure}"
 
-#: src/pages/AgentPage.tsx:359
+#: src/pages/AgentPage.tsx:381
 msgid "读不到这份剪辑单：{planError}"
 msgstr "读不到这份剪辑单：{planError}"
 
@@ -7596,7 +7596,7 @@ msgid "还原没能完成：{0}"
 msgstr "还原没能完成：{0}"
 
 #. placeholder {0}: unbound.length
-#: src/pages/AgentPage.tsx:534
+#: src/pages/AgentPage.tsx:556
 msgid "还有 {0} 个镜头没有绑定 Demo 与选手，不能转成录制任务"
 msgstr "还有 {0} 个镜头没有绑定 Demo 与选手，不能转成录制任务"
 
@@ -8223,7 +8223,7 @@ msgstr "这次操作没有成功：{writeError}"
 msgid "这次改动没有保存：{writeError}"
 msgstr "这次改动没有保存：{writeError}"
 
-#: src/pages/AgentPage.tsx:500
+#: src/pages/AgentPage.tsx:522
 msgid "这次改动没能写进方案：{failure}"
 msgstr "这次改动没能写进方案：{failure}"
 
@@ -8731,7 +8731,7 @@ msgid "重新计算"
 msgstr "重新计算"
 
 #: src/pages/agent/PlanPanel.tsx:381
-#: src/pages/AgentPage.tsx:494
+#: src/pages/AgentPage.tsx:516
 msgid "重新读取剪辑单"
 msgstr "重新读取剪辑单"
 
@@ -8766,7 +8766,7 @@ msgstr "重新选择"
 #: src/pages/agent/NewSessionPane.tsx:212
 #: src/pages/agent/PlanPanel.tsx:129
 #: src/pages/agent/SessionDrawer.tsx:250
-#: src/pages/AgentPage.tsx:357
+#: src/pages/AgentPage.tsx:379
 #: src/pages/delivery/useTaskActions.tsx:205
 #: src/pages/EditorPage.tsx:121
 #: src/pages/evidence/EvidenceAnnotations.tsx:56

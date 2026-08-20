@@ -170,6 +170,7 @@ export type DesktopClient = Pick<
   | 'renameAgentSession'
   | 'deleteAgentSession'
   | 'appendAgentSessionEntry'
+  | 'setAgentProposalDecision'
   | 'touchAgentObjectRef'
   | 'listAgentObjectSessions'
   | 'listAgentWorkspaceReferences'

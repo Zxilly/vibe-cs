@@ -60,6 +60,7 @@ import {
 } from '../../domain/agent';
 import type {
   AgentPlanShot,
+  AgentProposalDecisionUpdate,
   AgentSessionEntry,
   AgentSessionProposal,
 } from '../../shared/desktop/dto';
@@ -159,6 +160,43 @@ export const NO_CHANGE_DECISIONS: ChangeDecisions = new Map<string, ChangeDecisi
 /** See the header on why the key has three parts. */
 export function changeDecisionKey(slotKey: string, changeId: string): string {
   return `${slotKey}#${changeId}`;
+}
+
+/** Rehydrates the page decision map from the session proposal documents. */
+export function storedChangeDecisions(
+  entries: readonly AgentSessionEntry[],
+): ChangeDecisions {
+  const decisions = new Map<string, ChangeDecision>();
+  for (const entry of entries) {
+    if (entry.kind !== 'assistant') continue;
+    entry.proposals.forEach((proposal, proposalIndex) => {
+      for (const item of proposal.decisions ?? []) {
+        decisions.set(
+          changeDecisionKey(`${entry.id}#${String(proposalIndex)}`, item.change_id),
+          item.decision,
+        );
+      }
+    });
+  }
+  return decisions;
+}
+
+/** Turns the page key back into the server's typed locator. */
+export function decisionUpdateFromKey(
+  key: string,
+  decision: ChangeDecision | null,
+): AgentProposalDecisionUpdate | null {
+  const first = key.indexOf('#');
+  const second = key.indexOf('#', first + 1);
+  if (first <= 0 || second <= first + 1 || second === key.length - 1) return null;
+  const proposalIndex = Number(key.slice(first + 1, second));
+  if (!Number.isSafeInteger(proposalIndex) || proposalIndex < 0) return null;
+  return {
+    entry_id: key.slice(0, first),
+    proposal_index: proposalIndex,
+    change_id: key.slice(second + 1),
+    decision,
+  };
 }
 
 /**

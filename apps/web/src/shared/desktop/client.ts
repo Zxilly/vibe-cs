@@ -35,6 +35,7 @@ import type {
   AgentPlanQuery,
   AgentPlanRestore,
   AgentPlanSummary,
+  AgentProposalDecisionUpdate,
   AgentSession,
   AgentSessionEntry,
   AgentSessionEntryDraft,
@@ -513,6 +514,10 @@ export const commands = {
   appendAgentSessionEntry: (sessionId: string, draft: AgentSessionEntryDraft) =>
     request<AgentSessionEntry>(`/agent/sessions/${encodeURIComponent(sessionId)}/entries`, {
       method: 'POST', body: draft,
+    }),
+  setAgentProposalDecision: (sessionId: string, update: AgentProposalDecisionUpdate) =>
+    request<AgentSession>(`/agent/sessions/${encodeURIComponent(sessionId)}/proposal-decisions`, {
+      method: 'PUT', body: update,
     }),
   touchAgentObjectRef: (sessionId: string, touch: AgentObjectRefTouch) =>
     request<AgentObjectRef>(`/agent/sessions/${encodeURIComponent(sessionId)}/refs`, {

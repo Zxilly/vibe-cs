@@ -19,10 +19,11 @@ use vibe_cs_domain::{
     AgentObjectKind, AgentObjectLocator, AgentObjectRef, AgentObjectRefTouch,
     AgentObjectSessionRef, AgentPlan, AgentPlanBaseline, AgentPlanCreate, AgentPlanEdit,
     AgentPlanOrigin, AgentPlanOriginDraft, AgentPlanQuery, AgentPlanRestore, AgentPlanShot,
-    AgentPlanStatus, AgentPlanSummary, AgentPlanUpdate, AgentSession, AgentSessionEntry,
-    AgentSessionEntryDraft, AgentSessionExport, AgentSessionPage, AgentSessionQuery,
-    AgentSessionRetention, AgentSessionStorageStats, AgentSessionSummary, AgentWorkspaceSettings,
-    DomainError, WorkspaceEditAuthor, WorkspaceEditNotice, normalize_session_title,
+    AgentPlanStatus, AgentPlanSummary, AgentPlanUpdate, AgentProposalDecision,
+    AgentProposalDecisionUpdate, AgentSession, AgentSessionEntry, AgentSessionEntryDraft,
+    AgentSessionExport, AgentSessionPage, AgentSessionQuery, AgentSessionRetention,
+    AgentSessionStorageStats, AgentSessionSummary, AgentWorkspaceSettings, DomainError,
+    WorkspaceEditAuthor, WorkspaceEditNotice, normalize_session_title,
 };
 
 use super::{
@@ -212,6 +213,81 @@ impl Storage {
             touch_session(&transaction, session_id, now)?;
             transaction.commit()?;
             Ok(Some(entry))
+        })
+        .await
+    }
+
+    /// Stores one accept/reject decision inside the proposal document that
+    /// owns it. This deliberately reuses `document_json`: adding a side table
+    /// would invalidate the exact-schema fingerprint and strand existing local
+    /// workspaces, while a defaulted proposal field keeps old rows readable.
+    pub async fn set_agent_proposal_decision(
+        &self,
+        session_id: Uuid,
+        update: AgentProposalDecisionUpdate,
+    ) -> Result<Option<AgentSession>> {
+        let update = update.normalize()?;
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            if !session_exists(&transaction, session_id)? {
+                return Ok(None);
+            }
+            let mut statement = transaction.prepare(
+                "SELECT sequence, document_json FROM agent_session_entries \
+                 WHERE session_id = ?1 AND kind = 'assistant' ORDER BY sequence",
+            )?;
+            let rows = statement
+                .query_map(params![session_id.to_string()], |row| {
+                    Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            drop(statement);
+
+            let mut located = None;
+            for (sequence, document) in rows {
+                let entry: AgentSessionEntry = decode(&document)?;
+                if entry.id() == update.entry_id {
+                    located = Some((sequence, entry));
+                    break;
+                }
+            }
+            let Some((sequence, mut entry)) = located else {
+                return Err(StorageError::Domain(DomainError::InvalidInput(
+                    "proposal decision entry does not exist in this session".to_owned(),
+                )));
+            };
+            let AgentSessionEntry::Assistant { proposals, .. } = &mut entry else {
+                return Err(StorageError::Domain(DomainError::InvalidInput(
+                    "proposal decisions require an assistant entry".to_owned(),
+                )));
+            };
+            let proposal = proposals
+                .get_mut(usize::try_from(update.proposal_index).unwrap_or(usize::MAX))
+                .ok_or_else(|| {
+                    StorageError::Domain(DomainError::InvalidInput(
+                        "proposal decision index does not exist".to_owned(),
+                    ))
+                })?;
+            let decisions = proposal.decisions.get_or_insert_with(Vec::new);
+            decisions.retain(|item| item.change_id != update.change_id);
+            if let Some(decision) = update.decision {
+                decisions.push(AgentProposalDecision {
+                    change_id: update.change_id,
+                    decision,
+                    decided_at: Utc::now(),
+                });
+            }
+            let now = Utc::now();
+            transaction.execute(
+                "UPDATE agent_session_entries SET document_json = ?3 \
+                 WHERE session_id = ?1 AND sequence = ?2",
+                params![session_id.to_string(), sequence, encode(&entry)?],
+            )?;
+            touch_session(&transaction, session_id, now)?;
+            let session = read_session(&transaction, session_id)?;
+            transaction.commit()?;
+            Ok(session)
         })
         .await
     }

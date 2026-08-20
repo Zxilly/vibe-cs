@@ -26,6 +26,7 @@ import {
   useAppendAgentSessionEntry,
   useDeleteAgentSession,
   useRenameAgentSession,
+  useSetAgentProposalDecision,
   useTouchAgentObjectRef,
 } from './sessions';
 import { countingStub, renderDataHook } from './test/renderDataHook';
@@ -240,6 +241,46 @@ describe('the rest of the session writes', () => {
 
     await waitFor(() => {
       expect(detail.calls()).toBeGreaterThan(before);
+    });
+  });
+
+  it('writes a proposal decision and replaces the cached session document', async () => {
+    const decided: AgentSession = {
+      ...SESSION,
+      entries: [{
+        kind: 'assistant', id: 'e-2', at: SESSION.updated_at, content: 'done', tool_calls: [],
+        proposals: [{
+          kind: 'highlight_edit', title: 'shorten', plan_id: null,
+          based_on_revision: null, payload: {},
+          decisions: [{ change_id: 'change-1', decision: 'rejected', decided_at: SESSION.updated_at }],
+        }],
+      }],
+    };
+    const decide = countingStub(decided);
+    const client: DesktopClientStub = {
+      getAgentSession: () => Promise.resolve(decide.calls() === 0 ? SESSION : decided),
+      setAgentProposalDecision: decide.call,
+    };
+    const { result } = renderDataHook(
+      () => ({ session: useAgentSession('S-1'), decide: useSetAgentProposalDecision() }),
+      { client },
+    );
+    await waitFor(() => expect(result.current.session.isSuccess).toBe(true));
+
+    await act(async () => {
+      await result.current.decide.mutateAsync({
+        sessionId: 'S-1',
+        update: {
+          entry_id: 'e-2', proposal_index: 0, change_id: 'change-1', decision: 'rejected',
+        },
+      });
+    });
+
+    expect(decide.lastArgs()[0]).toBe('S-1');
+    await waitFor(() => {
+      const entry = result.current.session.data?.entries[0];
+      expect(entry?.kind).toBe('assistant');
+      if (entry?.kind === 'assistant') expect(entry.proposals[0]?.decisions?.[0]?.decision).toBe('rejected');
     });
   });
 

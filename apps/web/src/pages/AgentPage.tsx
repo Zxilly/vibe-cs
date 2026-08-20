@@ -59,14 +59,19 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useEditNotifier, type PendingPlanEdit } from '../data/editNotifier';
 import { dataErrorMessage } from '../data/errors';
 import { isRevisionConflict, useAgentPlan, useApplyAgentPlanEdit } from '../data/plans';
 import { useServiceAction, type ServiceActionState } from '../data/serviceAction';
-import { useAgentChatStream, useAgentSession, type AgentChatStream } from '../data/sessions';
+import {
+  useAgentChatStream,
+  useAgentSession,
+  useSetAgentProposalDecision,
+  type AgentChatStream,
+} from '../data/sessions';
 import { Alert } from '../design/feedback';
 import { Page, SplitPane, Toolbar, useCollapsed } from '../design/layout';
 import { Button } from '../design/primitives';
@@ -86,6 +91,7 @@ import { AgentConversationBlock } from './agent/AgentConversationBlock';
 import { AgentReadiness, useAgentReadiness } from './agent/AgentReadiness';
 import { AgentSessionsBlock, agentSessionsToolbarAction } from './agent/AgentSessionsBlock';
 import { useAgentChangeDesk } from './agent/changeDesk';
+import { decisionUpdateFromKey, storedChangeDecisions } from './agent/conversationModel';
 import { PlanPanel } from './agent/PlanPanel';
 import {
   agentPlanHasRecordableShot,
@@ -123,6 +129,7 @@ export function AgentWorkspace({
   const plan = useAgentPlan(context.plan);
   const session = useAgentSession(context.session);
   const applyEdit = useApplyAgentPlanEdit();
+  const setProposalDecision = useSetAgentProposalDecision();
 
   const updateContext = useCallback(
     (patch: AgentContextPatch, options?: AgentContextUpdateOptions) => {
@@ -147,6 +154,19 @@ export function AgentWorkspace({
     (entry) => entry.kind === 'assistant' && entry.proposals.length > 0,
   ) ?? false;
   const showPlanPane = (planData?.shots.length ?? 0) > 0 || hasPlanProposal;
+  const storedDecisions = useMemo(
+    () => storedChangeDecisions(sessionData?.entries ?? []),
+    [sessionData?.entries],
+  );
+  const persistDecision = useCallback(
+    async (key: string, decision: 'accepted' | 'rejected' | null) => {
+      if (context.session === null) return;
+      const update = decisionUpdateFromKey(key, decision);
+      if (update === null) throw new Error('invalid proposal decision key');
+      await setProposalDecision.mutateAsync({ sessionId: context.session, update });
+    },
+    [context.session, setProposalDecision],
+  );
 
   const chatStream = useAgentChatStream({
     sessionId: context.session,
@@ -239,6 +259,8 @@ export function AgentWorkspace({
     planId: planData?.id ?? null,
     shots: planData?.shots ?? EMPTY_SHOTS,
     editNotifier,
+    storedDecisions,
+    persistDecision,
   });
 
   /*

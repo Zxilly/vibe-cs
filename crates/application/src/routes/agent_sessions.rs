@@ -13,7 +13,7 @@ use axum::{
     extract::{Path, State},
     http::StatusCode,
     response::{IntoResponse as _, Response},
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -21,10 +21,10 @@ use uuid::Uuid;
 use vibe_cs_domain::{
     AGENT_SESSION_MAX_TITLE_CHARS, AgentObjectKind, AgentObjectRef, AgentObjectRefTouch,
     AgentObjectSessionRef, AgentPlan, AgentPlanCreate, AgentPlanEdit, AgentPlanQuery,
-    AgentPlanRestore, AgentPlanStatus, AgentPlanSummary, AgentPlanUpdate, AgentSession,
-    AgentSessionEntry, AgentSessionEntryDraft, AgentSessionExport, AgentSessionPage,
-    AgentSessionPurge, AgentSessionQuery, AgentSessionStorageStats, AgentWorkspaceSettings,
-    EditorProject, JobStatus, RecordingJob,
+    AgentPlanRestore, AgentPlanStatus, AgentPlanSummary, AgentPlanUpdate,
+    AgentProposalDecisionUpdate, AgentSession, AgentSessionEntry, AgentSessionEntryDraft,
+    AgentSessionExport, AgentSessionPage, AgentSessionPurge, AgentSessionQuery,
+    AgentSessionStorageStats, AgentWorkspaceSettings, EditorProject, JobStatus, RecordingJob,
 };
 use vibe_cs_storage::ExportJobRecord;
 
@@ -48,6 +48,10 @@ pub(crate) fn router() -> Router<AppState> {
                 .delete(delete_session),
         )
         .route("/api/agent/sessions/{id}/entries", post(append_entry))
+        .route(
+            "/api/agent/sessions/{id}/proposal-decisions",
+            put(set_proposal_decision),
+        )
         .route("/api/agent/sessions/{id}/refs", post(touch_object_ref))
         .route(
             "/api/agent/sessions/{id}/refs/{kind}/{object_id}",
@@ -161,6 +165,19 @@ async fn append_entry(
         .await?
         .ok_or_else(|| ApiError::not_found("agent session"))?;
     Ok((StatusCode::CREATED, Json(entry)))
+}
+
+async fn set_proposal_decision(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    ApiJson(update): ApiJson<AgentProposalDecisionUpdate>,
+) -> ApiResult<Json<AgentSession>> {
+    state
+        .storage
+        .set_agent_proposal_decision(id, update)
+        .await?
+        .map(Json)
+        .ok_or_else(|| ApiError::not_found("agent session"))
 }
 
 /// Contract gap 4, forward direction: record that this session touched an
@@ -1745,5 +1762,91 @@ mod tests {
         let message = problem["message"].as_str().expect("message");
         assert!(message.contains("no shot to record"), "{message}");
         assert!(!message.contains("executable item"), "{message}");
+    }
+
+    #[tokio::test]
+    async fn proposal_decisions_persist_inside_existing_session_documents() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage);
+        let (status, session) = call(
+            &router,
+            Method::POST,
+            "/api/agent/sessions",
+            Some(json!({ "title": "Durable review" })),
+        )
+        .await;
+        assert_eq!(status, 201);
+        let session_id: Uuid = serde_json::from_value(session["id"].clone()).expect("session id");
+        let (status, entry) = call(
+            &router,
+            Method::POST,
+            &format!("/api/agent/sessions/{session_id}/entries"),
+            Some(json!({
+                "kind": "assistant",
+                "content": "Review this change",
+                "tool_calls": [],
+                "proposals": [{
+                    "kind": "highlight_edit",
+                    "title": "Shorten clip 02",
+                    "plan_id": null,
+                    "based_on_revision": null,
+                    "payload": { "changes": [{ "id": "change-1" }] }
+                }]
+            })),
+        )
+        .await;
+        assert_eq!(status, 201, "unexpected entry: {entry}");
+        let entry_id = entry["id"].clone();
+
+        let (status, decided) = call(
+            &router,
+            Method::PUT,
+            &format!("/api/agent/sessions/{session_id}/proposal-decisions"),
+            Some(json!({
+                "entry_id": entry_id,
+                "proposal_index": 0,
+                "change_id": "change-1",
+                "decision": "rejected"
+            })),
+        )
+        .await;
+        assert_eq!(status, 200, "unexpected decision: {decided}");
+        assert_eq!(
+            decided["entries"][0]["proposals"][0]["decisions"][0]["decision"],
+            "rejected"
+        );
+
+        let (status, reopened) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/sessions/{session_id}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(
+            reopened["entries"][0]["proposals"][0]["decisions"][0]["change_id"],
+            "change-1"
+        );
+
+        let (status, cleared) = call(
+            &router,
+            Method::PUT,
+            &format!("/api/agent/sessions/{session_id}/proposal-decisions"),
+            Some(json!({
+                "entry_id": entry_id,
+                "proposal_index": 0,
+                "change_id": "change-1",
+                "decision": null
+            })),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert!(
+            cleared["entries"][0]["proposals"][0]["decisions"]
+                .as_array()
+                .expect("decisions")
+                .is_empty()
+        );
     }
 }

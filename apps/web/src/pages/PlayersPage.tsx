@@ -228,36 +228,30 @@ export function PlayersPage() {
               </Trans>
             )
           }
-          /* Short title (four glyphs) plus one 32px control: §10.3 gap 2 asks
-             such a page to keep its secondaries on the bar at the fold. */
-          inlineActionsWhenCollapsed={1}
-          /* The search box goes in `primary`, not in `actions`: the artboard
-             draws it flush right and it must never fold, and `actions` is the
-             slot that MAY be handed to `OverflowMenu` — a search field inside a
-             menu is not a search field. `primary` is defined as the node that
-             never folds, which is exactly the guarantee this needs. */
-          primary={
-            <div className="w-64">
-              <Input
-                type="search"
-                ground="bg"
-                defaultValue={state.search}
-                aria-label={t`搜索选手或别名`}
-                placeholder={t`搜索选手或别名`}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter') return;
-                  event.preventDefault();
-                  commit({
-                    ...state,
-                    search: event.currentTarget.value.trim(),
-                    page: 1,
-                    activeId: '',
-                  });
-                }}
-              />
-            </div>
-          }
         />
+      }
+      bar={
+        <Toolbar height="bar" tone="chrome">
+          <div className="w-[var(--w-panel)] max-w-full">
+            <Input
+              type="search"
+              ground="bg"
+              defaultValue={state.search}
+              aria-label={t`搜索选手或别名`}
+              placeholder={t`搜索选手或别名`}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                commit({
+                  ...state,
+                  search: event.currentTarget.value.trim(),
+                  page: 1,
+                  activeId: '',
+                });
+              }}
+            />
+          </div>
+        </Toolbar>
       }
       footer={
         collapsed ? (

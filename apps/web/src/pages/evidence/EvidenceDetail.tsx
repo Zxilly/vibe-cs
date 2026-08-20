@@ -1,8 +1,8 @@
 /*
  * pages/evidence — the 「证据详情」 panel of 「05 证据检索」.
  *
- * `design/layout/Inspector` at `width="wide"` (440px absorbs the artboard's
- * 420) and it brings the §8 collapse for free: below 1100px it folds itself
+ * `design/layout/Inspector` uses the shared 380px context width and brings the
+ * §8 collapse for free: below 1100px it folds itself
  * into a 46px summary strip plus a drawer, and 「在比赛工作区打开」 — a main
  * action — rides on the strip rather than into the drawer. Nothing here has to
  * know about the breakpoint.
@@ -60,7 +60,7 @@ export function EvidenceDetail({
 }: EvidenceDetailProps) {
   if (row === null) {
     return (
-      <Inspector title={<Trans>证据详情</Trans>} label={t`证据详情`} width="wide">
+      <Inspector title={<Trans>证据详情</Trans>} label={t`证据详情`}>
         <Empty
           title={<Trans>还没有选中证据</Trans>}
           description={<Trans>点一行结果，这里会给出它的比赛、回合、tick 和可以做的事。</Trans>}
@@ -80,7 +80,6 @@ export function EvidenceDetail({
     <Inspector
       title={<Trans>证据详情</Trans>}
       label={t`证据详情`}
-      width="wide"
       summary={
         <Trans>
           选中 {subject} · 第 {row.round} 回合 · tick {formatTickCount(row.tick)}

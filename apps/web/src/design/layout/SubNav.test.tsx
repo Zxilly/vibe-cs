@@ -63,6 +63,7 @@ describe('SubNav tabs', () => {
     const html = renderMarkup(<SubNav items={VIEWS} activeId="overview" label="视图导航" collapsed />);
 
     expect(html).toContain('data-subnav="tabs"');
+    expect(html).toContain('h-[var(--h-bar)]');
     // The artboard draws five tabs, then 更多 ▾.
     expect(html.split('data-subnav-item=').length - 1).toBe(5);
     expect(html).toContain('aria-haspopup="menu"');

@@ -38,9 +38,9 @@ describe('the page frame', () => {
     expect(html).toContain('玩家目录');
   });
 
-  it('keeps the search box out of the overflow slot', () => {
-    // `actions` MAY fold into 「更多」; a search field inside a menu is not one.
-    expect(html).toContain('data-toolbar-primary');
+  it('puts directory search in the shared secondary control band', () => {
+    expect(html).toContain('data-page-bar');
+    expect(html).toContain('data-toolbar-height="bar"');
     expect(html).toContain('搜索选手或别名');
   });
 

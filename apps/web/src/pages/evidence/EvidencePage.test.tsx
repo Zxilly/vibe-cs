@@ -51,6 +51,9 @@ describe('the page frame', () => {
 
   it('shows the condition strip and the Inspector column', () => {
     expect(html).toContain('data-evidence-conditions');
+    expect(html).toContain('data-evidence-search-bar');
+    expect(html).toContain('data-evidence-condition-bar');
+    expect(html.match(/h-\[var\(--h-bar\)\]/gu)).toHaveLength(2);
     expect(html).toContain('data-inspector="docked"');
   });
 

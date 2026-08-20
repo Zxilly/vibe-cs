@@ -170,9 +170,13 @@ export function EvidenceConditions({
   return (
     <div
       data-evidence-conditions=""
-      className="flex flex-col gap-3 border-b border-divider bg-surface px-7 py-4"
+      className="flex flex-col"
     >
-      <form className="flex items-center gap-2.5" onSubmit={submitSearch}>
+      <form
+        data-evidence-search-bar=""
+        className="flex h-[var(--h-bar)] flex-none items-center gap-2.5 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-7"
+        onSubmit={submitSearch}
+      >
         <Seg
           name="evidence-family"
           value={state.family}
@@ -199,9 +203,10 @@ export function EvidenceConditions({
         </Button>
       </form>
 
-      {/* `flex-wrap` is safe here — unlike the fixed-height context bar of §10.3,
-          this strip has no height token and grows a row instead of clipping. */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div
+        data-evidence-condition-bar=""
+        className="flex h-[var(--h-bar)] flex-none items-center gap-2 overflow-x-auto overscroll-x-contain border-b border-divider bg-surface-chrome px-7"
+      >
         <span className="text-2xs text-neutral-600">
           <Trans>条件</Trans>
         </span>
@@ -225,7 +230,7 @@ export function EvidenceConditions({
 
         {TEXT_FIELDS.filter((field) => state[field] === '').map((field) =>
           editing === field ? (
-            <span key={field} className="inline-flex w-40 items-center">
+            <span key={field} className="inline-flex w-40 flex-none items-center">
               <Input
                 autoFocus
                 ground="bg"
@@ -294,7 +299,7 @@ export function EvidenceConditions({
         <div className="flex-1" aria-hidden="true" />
 
         {summary === undefined ? null : (
-          <span data-evidence-summary="" className="text-sm text-neutral-700">
+          <span data-evidence-summary="" className="flex-none whitespace-nowrap text-sm text-neutral-700">
             {summary}
           </span>
         )}

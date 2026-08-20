@@ -123,7 +123,7 @@ export function PlayerComparePanel({ players, limit, onClear }: PlayerComparePan
 
   if (left === undefined) {
     return (
-      <Inspector title={<Trans>比较</Trans>} label={t`比较`} width="wide">
+      <Inspector title={<Trans>比较</Trans>} label={t`比较`}>
         <Empty
           title={<Trans>还没有选中选手</Trans>}
           description={
@@ -140,7 +140,6 @@ export function PlayerComparePanel({ players, limit, onClear }: PlayerComparePan
       <Inspector
         title={<Trans>比较</Trans>}
         label={t`比较`}
-        width="wide"
         summary={<Trans>已选 {left.name}，还差一名</Trans>}
         footer={
           <RouteLink to={`/players/${encodeURIComponent(left.steam_id)}`}>
@@ -164,7 +163,6 @@ export function PlayerComparePanel({ players, limit, onClear }: PlayerComparePan
     <Inspector
       title={<Trans>比较</Trans>}
       label={t`比较`}
-      width="wide"
       summary={
         <Trans>
           比较 {left.name} 与 {right.name}

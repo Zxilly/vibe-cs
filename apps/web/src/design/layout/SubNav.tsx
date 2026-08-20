@@ -10,8 +10,8 @@
  *         plate with a 2px accent rule down its left edge and accent-800 text;
  *         「高光」 carries a count badge outlined in accent-300.
  *
- *   tabs  (補齊 · 壳层规格, the 1100 × 700 artboard)  the same eight views as a
- *         38px-tall row of tabs, the current one underlined by a 2px accent
+ *   tabs  (補齊 · 壳层规格, the 1100 × 700 artboard)  the same eight views in
+ *         the shared 46px secondary band, the current one underlined by a 2px accent
  *         rule, and 「更多 ▾」 at the end holding the ones that did not fit.
  *
  * Spec §8, collapse rule 3: 「比赛工作区左侧视图导航 → 顶部标签，放不下的进
@@ -67,7 +67,7 @@ const RAIL_ITEM_CLASS =
 const RAIL_ACTIVE_CLASS = 'bg-accent-100 text-accent-800 shadow-[inset_2px_0_0_var(--color-accent)]';
 
 const TAB_ITEM_CLASS =
-  'flex h-[var(--h-row-compact)] items-center gap-2 whitespace-nowrap px-3 text-sm text-text disabled:opacity-45';
+  'flex h-[var(--h-bar)] items-center gap-2 whitespace-nowrap px-3 text-sm text-text disabled:opacity-45';
 
 const TAB_ACTIVE_CLASS = 'text-accent-800 shadow-[inset_0_-2px_0_var(--color-accent)]';
 
@@ -161,7 +161,7 @@ export function SubNav({
       aria-label={label}
       data-subnav="tabs"
       className={cn(
-        'flex h-[var(--h-row-compact)] flex-none items-center overflow-hidden border-b border-divider px-2',
+        'flex h-[var(--h-bar)] flex-none items-center overflow-hidden border-b border-divider px-2',
         className,
       )}
     >

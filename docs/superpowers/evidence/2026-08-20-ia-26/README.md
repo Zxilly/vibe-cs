@@ -23,12 +23,19 @@ Completion-audit addition:
 - This test caught and closed the previous gap where `video_render` was stored in the conversation but never materialized into the empty shot list.
 - Analysis is now an automatic pre-chat stage for discovered/in-flight/failed Demos; only a physically missing Demo remains a blocking input error.
 
-Final external-state audit through the running Tauri bridge:
+Real-data continuation through the running Tauri bridge:
 
 - Counter-Strike 2: `ready` (`E:\SteamLibrary\steamapps\common\Counter-Strike Global Offensive\game/bin/win64/cs2.exe`)
-- HLAE: `ready` (managed `v2.191.1` runtime)
+- Restored Demo: official M1 Mirage, archive and Demo SHA-256 matched the local acceptance tracker
+- Product analysis: `de_mirage`, 21 rounds, 10 players, 457 highlights
+- Agent runtime: OpenCode `kimi-for-coding/k3` credential supplied only to the Desktop process; `configured: true`
+- Real Kimi turn: 101,653 input / 3,593 output / 105,246 total tokens; exact FalleN R20 four-kill evidence; `read_cinematic_context` + `draft_video_plan`
+- Materialized plan: one bound shot, 3.5s pre-roll + 3.0s post-roll, estimated recording duration 14.5625s
+- HLAE: managed `v2.191.1`; automatic CS2 discovery now completes the typed launch profile
 - Video encoders: `ready` (hardware and software choices reported)
-- Demo library total: `0`
-- Agent runtime: available, but model configuration is empty (`configured: false`, provider/model blank)
+- Recording layout: the 504px centre panel now uses a 455px container-adaptive two-column check grid (217px cells), capped at 55% height; document horizontal overflow remains zero
+- Real recording: blocked at `[HLAE_BRIDGE_TIMEOUT]`; `AfxHookSource2.dll` loads but no PID-bound loopback connection is opened on current CS2 build `24701871`
 
-Therefore the real hardware acceptance is blocked specifically by the two user inputs the product requires: one Demo and one model credential. Game, capture runtime and encoding are already ready.
+The former “missing Demo/model” blocker is resolved. The remaining acceptance gap is the real HLAE-to-current-CS2 bridge compatibility; no MP4, Take or Composition is claimed until that handshake succeeds.
+
+Additional local evidence (ignored by Git): `target/real-data/agent-k3-real/recording-layout-fixed.png` and `REAL_DATA_TEST_TRACKER.local.md`.

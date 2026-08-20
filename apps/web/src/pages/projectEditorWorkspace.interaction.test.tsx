@@ -2,7 +2,6 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import { HealthyServiceGate } from '../test/ServiceGate.testing';
-import { reasonOf } from '../test/reason';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
 import { AURORA_VIDEO, PROJECT_ID, sampleAssets } from './editor/editorFixtures.testing';
 import { editorClient, renderEditor } from './editor/test/renderEditor';
@@ -32,7 +31,10 @@ describe('multitrack mode inside a project shot list', () => {
     expect(new Set(requestedScopes)).toEqual(new Set([PROJECT_ID, undefined]));
 
     expect(screen.getByRole('button', { name: '多轨精剪' }).hasAttribute('disabled')).toBe(false);
-    expect(reasonOf(screen.getByRole('button', { name: '快速剪辑' }))).toContain('切换前请保存');
+    fireEvent.click(screen.getByRole('button', { name: '快速剪辑' }));
+    expect(screen.getByText(/降级会丢失信息/u)).toBeTruthy();
+    expect(screen.getByText(/从原来源另建副本/u)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '知道了' }));
 
     const clip = document.querySelector(`[data-clip="${AURORA_VIDEO}"]`) as HTMLElement;
     fireEvent.focus(clip);

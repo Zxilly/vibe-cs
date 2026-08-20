@@ -316,6 +316,19 @@ export function useExportMontageProject() {
   });
 }
 
+export function useConvertMontageToEditor() {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (projectId: string) => client.convertMontageToEditor(projectId),
+    onSuccess: (editor) => {
+      queryClient.setQueryData(qk.editor.detail(editor.id), editor);
+      return queryClient.invalidateQueries({ queryKey: qk.editor.all });
+    },
+  });
+}
+
 /* ── beat suggestions ────────────────────────────────────────────────────── */
 
 /**

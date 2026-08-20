@@ -1,5 +1,5 @@
-import { screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { AgentPlanSummary } from '../shared/desktop/dto';
 import { PLAN } from './agent/planFixtures.testing';
@@ -18,7 +18,7 @@ const SUMMARY: AgentPlanSummary = {
   updated_at: PLAN.updated_at,
 };
 
-function client() {
+function client(overrides: Record<string, unknown> = {}) {
   return {
     listAgentPlans: () => Promise.resolve([SUMMARY]),
     getAgentPlan: () => Promise.resolve(PLAN),
@@ -26,6 +26,8 @@ function client() {
     listEditorProjects: () => Promise.resolve({ items: [] }),
     listActivities: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
     listOutputs: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
+    getAgentComposition: () => Promise.resolve(null),
+    ...overrides,
   };
 }
 
@@ -63,5 +65,51 @@ describe('Agent mode inside the project shot-list step', () => {
     expect(container.querySelector('[data-agent-start-canvas]')).not.toBeNull();
     expect(screen.queryByText('还没有选中剪辑单')).toBeNull();
     expect(screen.queryByRole('radio', { name: '修改列表' })).toBeNull();
+  });
+
+  it('opens the persisted Quick copy without pretending it is a live mode switch', async () => {
+    const montage = {
+      id: 'composition-1', name: 'Quick copy', clips: [],
+      settings: {
+        width: 1920, height: 1080, fps: 60, encoder: 'auto', quality: 80,
+        background_music: null, music_volume: 0.25, transition_seconds: 0.35,
+        intro_title: null, intro_duration_seconds: 0, include_name_cards: false,
+        name_card_duration_seconds: 2.5, outro_title: null, outro_duration_seconds: 0,
+        branding_theme: 'vibe',
+      },
+      created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
+    };
+    const getMontageProject = vi.fn(() => Promise.resolve(montage));
+    renderPage({
+      element: <ProjectWorkspacePage />,
+      client: client({
+        listMontageProjects: () => Promise.resolve({ items: [montage] }),
+        getMontageProject,
+        getAgentComposition: () => Promise.resolve({
+          id: montage.id,
+          plan_id: PLAN.id,
+          plan_revision: PLAN.revision,
+          title: PLAN.title,
+          status: 'exported',
+          items: [],
+          export_job_id: 'export-1',
+          export_status: 'completed',
+          output_path: 'C:/outputs/final.mp4',
+          error: null,
+          created_at: '2026-08-20T00:00:00Z',
+          updated_at: '2026-08-20T00:00:00Z',
+        }),
+      }),
+      route: `/projects/${encodeURIComponent(`plan:${PLAN.id}`)}?step=shotlist`,
+      pattern: '/projects/:projectId',
+    });
+
+    await screen.findByRole('button', { name: '快速剪辑' });
+    await waitFor(() => expect(getMontageProject).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: '快速剪辑' }));
+
+    expect(screen.getByText(/已确认 Composition 生成的快速剪辑工程/u)).toBeTruthy();
+    expect(screen.getByText(/两边后续修改不会同步/u)).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开副本' })).toBeTruthy();
   });
 });

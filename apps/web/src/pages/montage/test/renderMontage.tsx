@@ -163,6 +163,7 @@ export function montageClient(overrides: Record<string, unknown> = {}): Record<s
     createMontageProject: async () => montageProject(),
     deleteMontageProject: async () => undefined,
     exportMontageProject: async () => ({ job_id: 'job-9', status: 'queued' as const }),
+    convertMontageToEditor: async () => ({ id: 'editor-copy-1' }),
     listExportJobs: async () => ({ items: [] }),
     listRecordedClips: async () => ({ items: [recordedClip()], total: 1, page: 1, page_size: 50 }),
     listMediaAssets: async () => ({ items: [] }),

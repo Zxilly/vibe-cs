@@ -1195,6 +1195,10 @@ export const commands = {
       `/media/assets${queryString({ project_id: projectId })}`,
       { signal },
     ),
+  convertMontageToEditor: (id: string) =>
+    request<EditorProject>(`/montage/projects/${encodeURIComponent(id)}/convert/editor`, {
+      method: 'POST', body: {}, timeoutMs: null,
+    }),
   uploadMediaAssets: async (files: File[], projectId?: string) => {
     const results = await Promise.all(
       files.map((file) => uploadNativeFile<{ items: MediaAsset[] }>('/media/assets', file, projectId)),

@@ -119,6 +119,7 @@ export type DesktopClient = Pick<
   | 'putMontageProject'
   | 'deleteMontageProject'
   | 'exportMontageProject'
+  | 'convertMontageToEditor'
   /* ── the multi-track editor (phase 3f-2, 「10」) ──
      `data/editor.ts`. `saveEditorProject` is the whole-document PATCH whose
      body carries the `expected_revision`; the rest are the reads and the four

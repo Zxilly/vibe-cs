@@ -12,7 +12,7 @@
  * `agentConversationLive.interaction.test.tsx`, against a real bridge stub.
  */
 
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -277,6 +277,18 @@ describe('accepting and rejecting a change', () => {
     fireEvent.click(screen.getByRole('button', { name: '接受修改' }));
 
     expect(card('change-1').getAttribute('data-change-state')).toBe('accepted');
+  });
+
+  it('announces the decision and moves focus to the next pending change', async () => {
+    stage();
+    renderBlock(<Controlled initial={CHANGES} />);
+    const accept = within(card('change-1')).getByRole('button', { name: '接受' });
+    accept.focus();
+
+    fireEvent.click(accept);
+
+    expect(screen.getByRole('status').textContent).toContain('变更 1 已接受');
+    await waitFor(() => expect(document.activeElement).toBe(card('change-2')));
   });
 });
 

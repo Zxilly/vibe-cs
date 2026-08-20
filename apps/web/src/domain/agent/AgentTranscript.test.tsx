@@ -39,6 +39,8 @@ describe('AgentTranscript', () => {
 
     expect(html).toContain('role="log"');
     expect(html).toContain('aria-label="会话 · Kael 的 1v3"');
+    expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('aria-relevant="additions text"');
   });
 
   it('asks the page what to hang under each bubble', () => {

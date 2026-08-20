@@ -97,10 +97,10 @@ export function PlanChangeCard({
       ? acceptDisabledReason
       : i18n._(affordance.acceptDisabledReason);
   const acceptDisabled = affordance.acceptDisabled || acceptReason !== undefined;
-
   return (
     <Blueprint
       as="article"
+      tabIndex={-1}
       data-plan-change={change.id}
       data-change-state={change.state}
       data-change-op={change.op}
@@ -111,6 +111,15 @@ export function PlanChangeCard({
         className,
       )}
     >
+      {change.state === 'accepted' || change.state === 'rejected' ? (
+        <span className="sr-only" role="status" aria-live="polite">
+          {change.state === 'accepted' ? (
+            <Trans>变更 {index} 已接受</Trans>
+          ) : (
+            <Trans>变更 {index} 已拒绝</Trans>
+          )}
+        </span>
+      ) : null}
       <div className="flex min-w-0 items-center gap-2">
         <span className="flex-none font-mono text-2xs text-neutral-600">
           <Trans>变更 {index}</Trans>
@@ -190,7 +199,10 @@ export function PlanChangeCard({
                 size="sm"
                 data-change-accept=""
                 className="ml-auto"
-                onClick={() => onAccept(change)}
+                onClick={() => {
+                  onAccept(change);
+                  queueMicrotask(() => focusAfterDecision(change.id));
+                }}
                 {...(acceptDisabled
                   ? { disabled: true, ...(acceptReason === undefined ? {} : { disabledReason: acceptReason }) }
                   : {})}
@@ -205,7 +217,10 @@ export function PlanChangeCard({
                   size="sm"
                   data-change-reject=""
                   className="ml-auto"
-                  onClick={() => onReject(change)}
+                  onClick={() => {
+                    onReject(change);
+                    queueMicrotask(() => focusAfterDecision(change.id));
+                  }}
                   {...(affordance.rejectDisabled ? { disabled: true } : {})}
                 >
                   <Trans>拒绝</Trans>
@@ -217,7 +232,10 @@ export function PlanChangeCard({
                   size="sm"
                   data-change-accept=""
                   {...(onReject === undefined ? { className: 'ml-auto' } : {})}
-                  onClick={() => onAccept(change)}
+                  onClick={() => {
+                    onAccept(change);
+                    queueMicrotask(() => focusAfterDecision(change.id));
+                  }}
                   {...(acceptDisabled
                     ? { disabled: true, ...(acceptReason === undefined ? {} : { disabledReason: acceptReason }) }
                     : {})}
@@ -231,4 +249,17 @@ export function PlanChangeCard({
       )}
     </Blueprint>
   );
+}
+
+function focusAfterDecision(changeId: string): void {
+  const cards = [...document.querySelectorAll<HTMLElement>('[data-plan-change]')];
+  const currentIndex = cards.findIndex((candidate) => candidate.dataset.planChange === changeId);
+  const pending = cards.filter(
+    (candidate) => candidate.dataset.planChange !== changeId
+      && candidate.dataset.changeState === 'pending',
+  );
+  const next = pending.find((candidate) => cards.indexOf(candidate) > currentIndex)
+    ?? pending[0]
+    ?? document.querySelector<HTMLElement>('[data-agent-composer] textarea');
+  next?.focus();
 }

@@ -370,12 +370,12 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 
 ### IA-22 服务端提议绑定与成本元数据
 
-- [ ] **状态**
+- [x] **状态**
 - 建什么：stream 请求携带 plan 基线，服务端捕获 proposal 时写 `plan_id/based_on_revision`；每个 assistant turn 写 provider/model/input/output token 与估算成本。
 - 验收标准：
-  - [ ] 客户端不再为 proposal 补 plan/revision
-  - [ ] 过期 proposal 在服务端应用入口被拒绝
-  - [ ] 对话详情能按轮查看模型、token 与成本；缺失 usage 时明确显示未知
+  - [x] 客户端不再为 proposal 补 plan/revision
+  - [x] 过期 proposal 在服务端应用入口被拒绝
+  - [x] 对话详情能按轮查看模型、token 与成本；缺失 usage 时明确显示未知
 
 ### IA-23 修改预览
 
@@ -422,3 +422,4 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 - 2026-08-20, IA-19:Demo 行直达 Agent 剪辑单，首句自动创建并命名对话；请求显式携带 Demo、作品、剪辑单 id/修订，Desktop 在模型调用前读取并校验真实剪辑单；初始双空态合并为单一启动画布。lint、typecheck、357 个测试文件/4270 项前端测试与 Desktop 44 项测试通过；真实 Tauri CDP 验证模型未配置时用户原句和重试入口保留，证据见 `docs/superpowers/evidence/2026-08-20-ia-19/`；无偏离。
 - 2026-08-20, IA-20:新增 Demo/分析/模型/录制四项统一准备检查与直接修复深链；模型设置由只读状态升级为可编辑、保存和真实连接测试；制作方式与结果视图分层，初始态隐藏修改视图与建议芯片，主动作收敛为生成剪辑单/确认剪辑单并录制。lint、typecheck、358 个测试文件/4275 项测试通过；Tauri CDP + agent-browser 在 2160px 与 1100×700 复核，证据见 `docs/superpowers/evidence/2026-08-20-ia-20/`；无偏离。
 - 2026-08-20, IA-21:接受/拒绝写回会话 proposal 文档并从服务端恢复；assistant turn 在流式前持久建立，以条件状态更新覆盖 streaming/completed/cancelled/failed 和 retry_of；模型历史改由已完成的持久会话条目提供，Desktop thread 不再是第二份对话真值。未改 SQLite schema 指纹，旧 proposal/assistant 文档通过 defaulted optional fields 兼容解码；lint、358 个测试文件/4279 项前端测试及 domain/storage/application/desktop 四 crate 全量测试通过；无偏离。
+- 2026-08-20, IA-22:Desktop 在已校验的请求上下文中为每条 proposal 写入 plan id/基准修订，客户端补章逻辑退役；计划写入口同时校验 proposal base，不能用新的 expected revision 重放旧 proposal；Rig 聚合的真实 usage 与 provider/model 按 turn 持久化，缺 usage 或权威定价时明确显示未知而非 0。lint、358 个测试文件/4280 项前端测试及 agent/domain/storage/application/desktop 五 crate 全量测试通过；locale 覆盖单页预算由 5 秒调到 10 秒以适应完整并发套件，断言未削弱；无偏离。

@@ -121,7 +121,6 @@ export function AgentWorkspace({
   const { i18n } = useLingui();
   const collapsed = useCollapsed(undefined);
   const service = useServiceAction();
-  const readiness = useAgentReadiness({ projectId, demoId });
 
   const routeContext = readAgentContext(params);
   const context = planId === undefined ? routeContext : { ...routeContext, plan: planId };
@@ -171,9 +170,6 @@ export function AgentWorkspace({
   const chatStream = useAgentChatStream({
     sessionId: context.session,
     history: sessionData?.entries ?? [],
-    // The revision the model is answering about — the only place §4.5.3 ③'s
-    // `based_on_revision` can come from (contract gap 6).
-    plan: planData === undefined ? null : { id: planData.id, revision: planData.revision },
   });
 
   /*
@@ -216,6 +212,7 @@ export function AgentWorkspace({
       await applyEdit.mutateAsync({
         plan_id: pending.planId,
         expected_revision: plan.revision,
+        proposal_base_revision: pending.proposalBaseRevision,
         status: plan.status,
         shots: [...pending.shots],
         origin: {
@@ -306,7 +303,7 @@ export function AgentWorkspace({
     chat,
     service,
     edit,
-    readiness: showPlanPane ? { disabled: false } : readiness.gate,
+    readiness: { disabled: false },
     confirm,
     collapsed,
   };
@@ -419,10 +416,7 @@ export function AgentWorkspace({
           <AgentConversationBlock {...blockProps} />
         </SplitPane>
       ) : (
-        <div data-agent-start-canvas="" className="flex min-h-0 flex-1 flex-col">
-          <AgentReadiness state={readiness} />
-          <AgentConversationBlock {...blockProps} />
-        </div>
+        <AgentStartWorkspace projectId={projectId} demoId={demoId} blockProps={blockProps} />
       )}
       {/* Block C: the session drawer and 新建会话与引用. Mounted only while
           open, so `/agent` does not fetch a session list nobody asked for. */}
@@ -434,6 +428,24 @@ export function AgentWorkspace({
         }}
       />
     </AgentFrame>
+  );
+}
+
+function AgentStartWorkspace({
+  projectId,
+  demoId,
+  blockProps,
+}: {
+  readonly projectId: string | null;
+  readonly demoId: string | null;
+  readonly blockProps: AgentBlockProps;
+}) {
+  const readiness = useAgentReadiness({ projectId, demoId });
+  return (
+    <div data-agent-start-canvas="" className="flex min-h-0 flex-1 flex-col">
+      <AgentReadiness state={readiness} />
+      <AgentConversationBlock {...blockProps} readiness={readiness.gate} />
+    </div>
   );
 }
 

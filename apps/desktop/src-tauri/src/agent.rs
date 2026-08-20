@@ -541,6 +541,24 @@ pub(crate) struct AgentProposal {
     kind: CapturedPlanKind,
     title: String,
     payload: Value,
+    #[serde(default)]
+    plan_id: Option<Uuid>,
+    #[serde(default)]
+    based_on_revision: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, rename = "DesktopAgentTurnMetadata")]
+pub(crate) struct AgentTurnMetadata {
+    provider: String,
+    model: String,
+    input_tokens: Option<u64>,
+    output_tokens: Option<u64>,
+    total_tokens: Option<u64>,
+    cached_input_tokens: Option<u64>,
+    reasoning_tokens: Option<u64>,
+    estimated_cost_usd: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
@@ -633,12 +651,25 @@ where
 )]
 #[ts(export, rename = "DesktopAgentEvent")]
 pub(crate) enum AgentEvent {
-    Started { thread_id: Uuid },
-    TextDelta { delta: String },
-    ToolCall { tool_call: AgentToolCall },
-    Proposal { proposal: AgentProposal },
-    Complete { thread: AgentThread },
-    Error { message: String },
+    Started {
+        thread_id: Uuid,
+    },
+    TextDelta {
+        delta: String,
+    },
+    ToolCall {
+        tool_call: AgentToolCall,
+    },
+    Proposal {
+        proposal: AgentProposal,
+    },
+    Complete {
+        thread: AgentThread,
+        metadata: AgentTurnMetadata,
+    },
+    Error {
+        message: String,
+    },
 }
 
 impl From<vibe_cs_agent::CapturedToolCall> for AgentToolCall {
@@ -651,12 +682,18 @@ impl From<vibe_cs_agent::CapturedToolCall> for AgentToolCall {
     }
 }
 
-impl From<vibe_cs_agent::CapturedPlan> for AgentProposal {
-    fn from(value: vibe_cs_agent::CapturedPlan) -> Self {
+impl AgentProposal {
+    fn from_captured(
+        value: vibe_cs_agent::CapturedPlan,
+        plan_id: Option<Uuid>,
+        based_on_revision: Option<i64>,
+    ) -> Self {
         Self {
             kind: value.kind,
             title: value.title,
             payload: value.payload,
+            plan_id,
+            based_on_revision,
         }
     }
 }
@@ -1061,6 +1098,8 @@ async fn run_agent_chat(
     if let Some(object) = workspace.as_object_mut() {
         object.insert("plan".to_owned(), agent_plan);
     }
+    let provider = config.llm.provider.clone();
+    let model = config.llm.model.clone();
     let request = EmbeddedAgentRequest {
         request_id: input.request_id.to_string(),
         mode: input.mode,
@@ -1128,8 +1167,15 @@ async fn run_agent_chat(
     let proposals = response
         .plans
         .into_iter()
-        .map(AgentProposal::from)
+        .map(|proposal| {
+            AgentProposal::from_captured(
+                proposal,
+                input.workspace_context.plan_id,
+                input.workspace_context.plan_revision,
+            )
+        })
         .collect::<Vec<_>>();
+    let usage = response.usage;
     for proposal in &proposals {
         validate_proposal(proposal)?;
     }
@@ -1169,6 +1215,18 @@ async fn run_agent_chat(
     state.save_thread(&mut thread).await?;
     let _ = on_event.send(AgentEvent::Complete {
         thread: thread.clone(),
+        metadata: AgentTurnMetadata {
+            provider,
+            model,
+            input_tokens: usage.map(|item| item.input_tokens),
+            output_tokens: usage.map(|item| item.output_tokens),
+            total_tokens: usage.map(|item| item.total_tokens),
+            cached_input_tokens: usage.map(|item| item.cached_input_tokens),
+            reasoning_tokens: usage.map(|item| item.reasoning_tokens),
+            // No provider pricing table is configured. Unknown is honest; zero
+            // would claim the call was free.
+            estimated_cost_usd: None,
+        },
     });
     Ok(AgentChatResult { thread_id })
 }
@@ -1736,6 +1794,20 @@ mod tests {
         .expect("tool event JSON");
         assert_eq!(tool_call["toolCall"]["name"], "draft_hlae_plan");
         assert!(tool_call.get("tool_call").is_none());
+
+        let plan_id = Uuid::new_v4();
+        let proposal = serde_json::to_value(AgentEvent::Proposal {
+            proposal: AgentProposal {
+                kind: CapturedPlanKind::HighlightEdit,
+                title: "Shorten clip".to_owned(),
+                payload: json!({}),
+                plan_id: Some(plan_id),
+                based_on_revision: Some(7),
+            },
+        })
+        .expect("proposal event JSON");
+        assert_eq!(proposal["proposal"]["planId"], plan_id.to_string());
+        assert_eq!(proposal["proposal"]["basedOnRevision"], 7);
     }
 
     #[test]
@@ -1770,6 +1842,8 @@ mod tests {
                 "source_highlight_ids": ["round-21-niko"],
                 "requires_user_confirmation": true
             }),
+            plan_id: None,
+            based_on_revision: None,
         };
         validate_proposal(&proposal).expect("valid video task");
 

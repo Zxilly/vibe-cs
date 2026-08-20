@@ -2,11 +2,16 @@
 import type { DesktopAgentProposal } from "./DesktopAgentProposal";
 import type { DesktopAgentThread } from "./DesktopAgentThread";
 import type { DesktopAgentToolCall } from "./DesktopAgentToolCall";
+import type { DesktopAgentTurnMetadata } from "./DesktopAgentTurnMetadata";
 
 export type DesktopAgentEvent =
   | { "type": "started"; threadId: string }
   | { "type": "textDelta"; delta: string }
   | { "type": "toolCall"; toolCall: DesktopAgentToolCall }
   | { "type": "proposal"; proposal: DesktopAgentProposal }
-  | { "type": "complete"; thread: DesktopAgentThread }
+  | {
+    "type": "complete";
+    thread: DesktopAgentThread;
+    metadata: DesktopAgentTurnMetadata;
+  }
   | { "type": "error"; message: string };

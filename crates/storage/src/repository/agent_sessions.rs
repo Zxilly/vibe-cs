@@ -206,6 +206,7 @@ impl Storage {
                     request_id,
                     retry_of,
                     error,
+                    metadata,
                 } => AgentSessionEntry::Assistant {
                     id: Uuid::new_v4(),
                     at: now,
@@ -216,6 +217,7 @@ impl Storage {
                     request_id,
                     retry_of,
                     error,
+                    metadata,
                 },
             };
             append_entry(&transaction, session_id, &entry)?;
@@ -270,6 +272,7 @@ impl Storage {
                 status,
                 request_id,
                 retry_of,
+                metadata: _,
                 ..
             } = entry
             else {
@@ -294,6 +297,7 @@ impl Storage {
                 request_id,
                 retry_of,
                 error: update.error,
+                metadata: update.metadata,
             };
             let now = Utc::now();
             transaction.execute(
@@ -627,6 +631,14 @@ impl Storage {
                 return Ok(AgentPlanUpdate::NotFound);
             };
             if current.revision != edit.expected_revision {
+                return Ok(AgentPlanUpdate::Conflict {
+                    current_revision: current.revision,
+                });
+            }
+            if edit
+                .proposal_base_revision
+                .is_some_and(|revision| revision != current.revision)
+            {
                 return Ok(AgentPlanUpdate::Conflict {
                     current_revision: current.revision,
                 });
@@ -1656,6 +1668,7 @@ mod tests {
         let edit = |session_id: Uuid, seconds: f64, summary: &str| AgentPlanEdit {
             plan_id: plan.id,
             expected_revision: 1,
+            proposal_base_revision: None,
             status: AgentPlanStatus::AwaitingConfirmation,
             shots: vec![shot("02 跟随突破", seconds, AgentPlanAuthor::User)],
             origin: origin(session_id, summary),
@@ -1753,6 +1766,7 @@ mod tests {
         let edit = |session_id: Uuid, seconds: f64| AgentPlanEdit {
             plan_id: plan.id,
             expected_revision: 1,
+            proposal_base_revision: None,
             status: AgentPlanStatus::AwaitingConfirmation,
             shots: vec![shot("02 跟随突破", seconds, AgentPlanAuthor::User)],
             origin: origin(session_id, "并发编辑"),
@@ -1834,6 +1848,7 @@ mod tests {
             .apply_agent_plan_edit(AgentPlanEdit {
                 plan_id: plan.id,
                 expected_revision: 1,
+                proposal_base_revision: None,
                 status: AgentPlanStatus::AwaitingConfirmation,
                 shots: vec![shot("02 跟随突破", 5.0, AgentPlanAuthor::User)],
                 origin: origin(session.id, "镜头 02 由 8.5 秒改为 5.0 秒"),
@@ -1896,6 +1911,7 @@ mod tests {
             .apply_agent_plan_edit(AgentPlanEdit {
                 plan_id: plan.id,
                 expected_revision: 1,
+                proposal_base_revision: None,
                 status: AgentPlanStatus::AwaitingConfirmation,
                 shots,
                 origin: origin(session.id, "移除镜头 02"),
@@ -1942,6 +1958,7 @@ mod tests {
             .apply_agent_plan_edit(AgentPlanEdit {
                 plan_id: plan.id,
                 expected_revision: 1,
+                proposal_base_revision: None,
                 status: AgentPlanStatus::AwaitingConfirmation,
                 shots: vec![shot("02 跟随突破", 5.0, AgentPlanAuthor::User)],
                 origin: origin(session.id, "镜头 02 由 8.5 秒改为 5.0 秒"),

@@ -174,8 +174,8 @@ export const AgentConversationBlock: AgentBlock = ({
   /* 接受 is the shell's one path — apply, record, decide — and 拒绝 is a
      decision and nothing else. Neither is re-implemented here (invariant 6). */
   const onAccept = useCallback(
-    (slotKey: string, change: PlanChange) => {
-      changes.accept(changeDecisionKey(slotKey, change.id), change);
+    (slotKey: string, change: PlanChange, basedOnRevision: number | null) => {
+      changes.accept(changeDecisionKey(slotKey, change.id), change, basedOnRevision);
     },
     [changes],
   );
@@ -524,7 +524,11 @@ interface ProposalBlockProps {
   /** 2b's 「只影响这一个镜头」. `null` in the other two shapes. */
   readonly filterShotId: string | null;
   readonly edit: AgentGuardedAction;
-  readonly onAccept: (slotKey: string, change: PlanChange) => void;
+  readonly onAccept: (
+    slotKey: string,
+    change: PlanChange,
+    basedOnRevision: number | null,
+  ) => void;
   readonly onReject: (slotKey: string, changeId: string) => void;
 }
 
@@ -583,7 +587,7 @@ function ProposalBlock({
             {...(label === null ? {} : { targetLabel: `${label.number} ${label.title}` })}
             {...(blockedReason === undefined ? {} : { acceptDisabledReason: blockedReason })}
             onAccept={() => {
-              onAccept(slot.key, change);
+              onAccept(slot.key, change, slot.proposal.based_on_revision);
             }}
             onReject={() => {
               onReject(slot.key, change.id);

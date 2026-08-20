@@ -244,7 +244,11 @@ function PlanPanelBody({
      three, in the shell, so pressing it here and pressing it in the transcript
      are one press. 拒绝 files a decision and touches no shot. */
   const onAccept = (proposal: PlanProposal, change: PlanChange) => {
-    changes.accept(changeDecisionKey(proposal.key, change.id), change);
+    changes.accept(
+      changeDecisionKey(proposal.key, change.id),
+      change,
+      proposal.changeSet.basedOnRevision,
+    );
   };
 
   const onReject = (proposal: PlanProposal, change: PlanChange) => {

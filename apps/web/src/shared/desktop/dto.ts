@@ -622,6 +622,7 @@ export type { AgentProposalDecision } from './generated/AgentProposalDecision';
 export type { AgentProposalDecisionKind } from './generated/AgentProposalDecisionKind';
 export type { AgentProposalDecisionUpdate } from './generated/AgentProposalDecisionUpdate';
 export type { AgentTurnStatus } from './generated/AgentTurnStatus';
+export type { AgentTurnMetadata } from './generated/AgentTurnMetadata';
 export type { AgentTurnUpdate } from './generated/AgentTurnUpdate';
 
 export type { WorkspaceEditOperation } from './generated/WorkspaceEditOperation';

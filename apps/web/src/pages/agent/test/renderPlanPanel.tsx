@@ -59,6 +59,7 @@ export function recordingNotifier(): RecordingNotifier {
         changes: [...(buffer?.changes ?? []), edit.change],
         shots: edit.shots,
         note: edit.note ?? null,
+        proposalBaseRevision: edit.proposalBaseRevision ?? null,
         openedAt: 0,
       };
     },

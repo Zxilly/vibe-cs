@@ -1123,7 +1123,22 @@ mod tests {
             &router,
             Method::PATCH,
             &format!("/api/agent/plans/{plan_id}"),
-            Some(edit),
+            Some(edit.clone()),
+        )
+        .await;
+        assert_eq!(status, 409);
+        assert_eq!(conflict["code"], "plan_revision_conflict");
+
+        // Even with the current write revision, an accepted proposal whose
+        // server-stamped base is old cannot be replayed onto the new plan.
+        let mut stale_proposal_edit = edit;
+        stale_proposal_edit["expected_revision"] = json!(2);
+        stale_proposal_edit["proposal_base_revision"] = json!(1);
+        let (status, conflict) = call(
+            &router,
+            Method::PATCH,
+            &format!("/api/agent/plans/{plan_id}"),
+            Some(stale_proposal_edit),
         )
         .await;
         assert_eq!(status, 409);
@@ -1931,7 +1946,13 @@ mod tests {
             &update_path,
             Some(json!({
                 "expected_status": "streaming", "status": "completed",
-                "content": "finished answer", "tool_calls": [], "proposals": [], "error": null
+                "content": "finished answer", "tool_calls": [], "proposals": [], "error": null,
+                "metadata": {
+                    "provider": "openai-compatible", "model": "test-model",
+                    "input_tokens": 120, "output_tokens": 30, "total_tokens": 150,
+                    "cached_input_tokens": 20, "reasoning_tokens": 0,
+                    "estimated_cost_usd": null
+                }
             })),
         )
         .await;
@@ -1948,5 +1969,7 @@ mod tests {
         assert_eq!(reopened["entries"][0]["id"], json!(turn_id));
         assert_eq!(reopened["entries"][0]["request_id"], json!(request_id));
         assert_eq!(reopened["entries"][0]["content"], "finished answer");
+        assert_eq!(reopened["entries"][0]["metadata"]["total_tokens"], 150);
+        assert!(reopened["entries"][0]["metadata"]["estimated_cost_usd"].is_null());
     }
 }

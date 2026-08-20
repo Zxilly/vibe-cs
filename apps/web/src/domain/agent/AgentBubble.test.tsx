@@ -123,4 +123,20 @@ describe('AgentBubble', () => {
     expect(cancelled).toContain('data-bubble-state="cancelled"');
     expect(cancelled).toContain('这次回答已停止');
   });
+
+  it('shows reported model usage and says when pricing is unknown', () => {
+    const html = renderMarkup(<AgentBubble entry={{
+      ...ASSISTANT,
+      metadata: {
+        provider: 'openai-compatible', model: 'test-model', input_tokens: 120,
+        output_tokens: 30, total_tokens: 150, cached_input_tokens: 20,
+        reasoning_tokens: 0, estimated_cost_usd: null,
+      },
+    }} {...UTC} />);
+
+    expect(html).toContain('data-turn-metadata');
+    expect(html).toContain('test-model');
+    expect(html).toContain('150 tokens');
+    expect(html).toContain('成本未知');
+  });
 });

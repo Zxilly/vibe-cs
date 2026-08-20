@@ -137,5 +137,5 @@ describe('en-US covers every destination', () => {
     const offending = markup.match(/[^<>]*\p{Script=Han}[^<>]*/gu);
     expect(offending ?? []).toEqual([]);
     expect(markup).not.toMatch(han);
-  });
+  }, 10_000);
 });

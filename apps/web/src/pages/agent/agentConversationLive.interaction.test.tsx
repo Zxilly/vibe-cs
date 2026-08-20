@@ -342,6 +342,8 @@ describe('a manual edit while the Agent is answering', () => {
           title: '把它压到 30 秒以内',
           summary: null,
           payload: PLAN_PROPOSAL.payload,
+          planId: 'P-118',
+          basedOnRevision: 6,
         } as never,
       });
       harness.finish();

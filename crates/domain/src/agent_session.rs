@@ -376,6 +376,9 @@ pub enum AgentSessionEntry {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[ts(optional = nullable)]
         error: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional = nullable)]
+        metadata: Option<AgentTurnMetadata>,
     },
     WorkspaceEdit {
         id: Uuid,
@@ -450,6 +453,9 @@ pub enum AgentSessionEntryDraft {
         #[serde(default)]
         #[ts(optional = nullable)]
         error: Option<String>,
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        metadata: Option<AgentTurnMetadata>,
     },
 }
 
@@ -473,6 +479,7 @@ impl AgentSessionEntryDraft {
                 request_id,
                 retry_of,
                 error,
+                metadata,
             } => {
                 if tool_calls.len() > AGENT_SESSION_MAX_TOOL_CALLS {
                     return Err(DomainError::InvalidInput(format!(
@@ -499,6 +506,7 @@ impl AgentSessionEntryDraft {
                             optional_text(&value, AGENT_SESSION_MAX_CONTENT_CHARS, "turn error")
                         })
                         .transpose()?,
+                    metadata,
                 })
             }
         }
@@ -542,6 +550,23 @@ pub struct AgentTurnUpdate {
     pub tool_calls: Vec<AgentToolCall>,
     pub proposals: Vec<AgentProposal>,
     pub error: Option<String>,
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub metadata: Option<AgentTurnMetadata>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct AgentTurnMetadata {
+    pub provider: String,
+    pub model: String,
+    pub input_tokens: Option<u64>,
+    pub output_tokens: Option<u64>,
+    pub total_tokens: Option<u64>,
+    pub cached_input_tokens: Option<u64>,
+    pub reasoning_tokens: Option<u64>,
+    pub estimated_cost_usd: Option<f64>,
 }
 
 impl AgentTurnUpdate {
@@ -566,6 +591,18 @@ impl AgentTurnUpdate {
             .error
             .map(|value| optional_text(&value, AGENT_SESSION_MAX_CONTENT_CHARS, "turn error"))
             .transpose()?;
+        if let Some(metadata) = &mut self.metadata {
+            metadata.provider = required_text(&metadata.provider, 128, "turn provider")?;
+            metadata.model = required_text(&metadata.model, 256, "turn model")?;
+            if metadata
+                .estimated_cost_usd
+                .is_some_and(|cost| !cost.is_finite() || cost < 0.0)
+            {
+                return Err(DomainError::InvalidInput(
+                    "estimated turn cost must be finite and non-negative".to_owned(),
+                ));
+            }
+        }
         if self.status == AgentTurnStatus::Completed && self.content.is_empty() {
             return Err(DomainError::InvalidInput(
                 "a completed agent turn requires content".to_owned(),
@@ -1056,6 +1093,10 @@ impl AgentPlanOriginDraft {
 pub struct AgentPlanEdit {
     pub plan_id: Uuid,
     pub expected_revision: i64,
+    /// Revision the accepted Agent proposal was based on. Manual edits omit it.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub proposal_base_revision: Option<i64>,
     pub status: AgentPlanStatus,
     pub shots: Vec<AgentPlanShot>,
     pub origin: AgentPlanOriginDraft,
@@ -1075,6 +1116,14 @@ impl AgentPlanEdit {
         if self.expected_revision < 1 {
             return Err(DomainError::InvalidInput(
                 "expected_revision must be greater than zero".to_owned(),
+            ));
+        }
+        if self
+            .proposal_base_revision
+            .is_some_and(|revision| revision < 1)
+        {
+            return Err(DomainError::InvalidInput(
+                "proposal_base_revision must be greater than zero".to_owned(),
             ));
         }
         self.shots = normalize_shots(self.shots)?;
@@ -1657,6 +1706,7 @@ mod tests {
         let edit = AgentPlanEdit {
             plan_id: Uuid::new_v4(),
             expected_revision: 6,
+            proposal_base_revision: None,
             status: AgentPlanStatus::AwaitingConfirmation,
             shots: vec![duplicate.clone(), duplicate],
             origin: AgentPlanOriginDraft {

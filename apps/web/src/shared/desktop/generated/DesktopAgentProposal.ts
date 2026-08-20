@@ -6,4 +6,6 @@ export type DesktopAgentProposal = {
   kind: CapturedPlanKind;
   title: string;
   payload: JsonValue;
+  planId: string | null;
+  basedOnRevision: number | null;
 };

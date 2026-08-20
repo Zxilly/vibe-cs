@@ -32,6 +32,7 @@
 
 import { msg } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
+import { Trans } from '@lingui/react/macro';
 import type { ReactNode } from 'react';
 
 import { Button, cn } from '../../design/primitives';
@@ -140,6 +141,23 @@ export function AgentBubble({
               &nbsp;
             </span>
           ) : null}
+        </p>
+      )}
+
+      {entry.kind !== 'assistant' || entry.metadata === undefined || entry.metadata === null ? null : (
+        <p data-turn-metadata="" className="flex flex-wrap gap-x-2 text-2xs text-neutral-600">
+          <span>{entry.metadata.provider}</span>
+          <span className="font-mono">{entry.metadata.model}</span>
+          <span>
+            {entry.metadata.total_tokens === null
+              ? <Trans>Token 用量未知</Trans>
+              : <Trans>{entry.metadata.total_tokens} tokens</Trans>}
+          </span>
+          <span>
+            {entry.metadata.estimated_cost_usd === null
+              ? <Trans>成本未知</Trans>
+              : <Trans>约 ${entry.metadata.estimated_cost_usd.toFixed(6)}</Trans>}
+          </span>
         </p>
       )}
 

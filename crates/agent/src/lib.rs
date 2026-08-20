@@ -9,7 +9,10 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use rig_agent::{AgentBuilder, prelude::MultiTurnStreamItem, streaming::StreamingPrompt};
 use rig_core::{
-    client::CompletionClient, completion::Message, message::Text, providers::openai,
+    client::CompletionClient,
+    completion::{Message, Usage},
+    message::Text,
+    providers::openai,
     streaming::StreamedAssistantContent,
 };
 use serde::{Deserialize, Serialize};
@@ -117,6 +120,28 @@ pub struct AgentResponse {
     pub content: String,
     pub tool_calls: Vec<CapturedToolCall>,
     pub plans: Vec<CapturedPlan>,
+    pub usage: Option<AgentUsage>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AgentUsage {
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub total_tokens: u64,
+    pub cached_input_tokens: u64,
+    pub reasoning_tokens: u64,
+}
+
+impl AgentUsage {
+    fn from_reported(usage: Usage) -> Option<Self> {
+        (usage.total_tokens > 0).then_some(Self {
+            input_tokens: usage.input_tokens,
+            output_tokens: usage.output_tokens,
+            total_tokens: usage.total_tokens,
+            cached_input_tokens: usage.cached_input_tokens,
+            reasoning_tokens: usage.reasoning_tokens,
+        })
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -175,6 +200,7 @@ where
         .max_turns(8)
         .await;
     let mut content = String::new();
+    let mut usage = None;
     loop {
         let item = tokio::select! {
             () = cancellation.cancelled() => return Err(AgentError::Cancelled),
@@ -199,6 +225,7 @@ where
                 emit(AgentStreamEvent::TextDelta(text));
             }
             MultiTurnStreamItem::FinalResponse(response) => {
+                usage = AgentUsage::from_reported(response.usage());
                 if content.trim().is_empty() {
                     response.output().trim().clone_into(&mut content);
                 }
@@ -224,6 +251,7 @@ where
         content,
         tool_calls,
         plans,
+        usage,
     })
 }
 

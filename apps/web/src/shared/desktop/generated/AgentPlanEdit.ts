@@ -11,6 +11,10 @@ import type { WorkspaceEditChange } from "./WorkspaceEditChange";
 export type AgentPlanEdit = {
   plan_id: string;
   expected_revision: number;
+  /**
+   * Revision the accepted Agent proposal was based on. Manual edits omit it.
+   */
+  proposal_base_revision?: number | null;
   status: AgentPlanStatus;
   shots: Array<AgentPlanShot>;
   origin: AgentPlanOriginDraft;

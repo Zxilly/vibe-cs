@@ -216,6 +216,7 @@ describe('the edit reaches the server, once, and only on an occasion', () => {
     });
     expect(edits[0]?.plan_id).toBe('P-118');
     expect(edits[0]?.expected_revision).toBe(7);
+    expect(edits[0]?.proposal_base_revision).toBeNull();
     expect(edits[0]?.changes).toEqual([
       { shot: 2, op: 'updated', field: 'duration_seconds', from: '8.5s', to: '5.0s' },
     ]);

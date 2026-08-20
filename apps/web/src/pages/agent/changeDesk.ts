@@ -103,21 +103,31 @@ export function useAgentChangeDesk(input: AgentChangeDeskInput): AgentChangeDesk
     void input.persistDecision?.(key, decision);
   };
 
-  const record = (result: ShotEditResult, note?: string) => {
+  const record = (
+    result: ShotEditResult,
+    note?: string,
+    proposalBaseRevision?: number | null,
+  ) => {
     // An edit needs the plan it was made on: `PlanEditRecord.planId` is what
     // keeps a buffer from crossing objects, and there is nothing to name here.
     if (planId === null) return;
     setBuffer({ planId, shots: result.shots });
     const trimmed = note === undefined || note.trim() === '' ? null : note.trim();
     for (const change of result.changes) {
-      editNotifier.record({ planId, change, shots: result.shots, note: trimmed });
+      editNotifier.record({
+        planId,
+        change,
+        shots: result.shots,
+        note: trimmed,
+        proposalBaseRevision: proposalBaseRevision ?? null,
+      });
     }
   };
 
   return {
     decisions,
     decide,
-    accept: (key: string, change: PlanChange) => {
+    accept: (key: string, change: PlanChange, basedOnRevision?: number | null) => {
       /* Both halves or neither. `applyPlanChange` returns `null` for a change
          the payload cannot carry out (`replace` / `insert` carry prose and no
          shot) and for one whose target is gone; marking such a card 已接受 over
@@ -127,7 +137,7 @@ export function useAgentChangeDesk(input: AgentChangeDeskInput): AgentChangeDesk
          user's experience of it. */
       const result = applyPlanChange(currentShots, change);
       if (result === null) return;
-      record(result);
+      record(result, undefined, basedOnRevision);
       decide(key, 'accepted');
     },
     shots: bufferedShots,

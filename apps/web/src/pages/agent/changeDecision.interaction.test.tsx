@@ -191,6 +191,7 @@ describe('接受 in the transcript is the same press as 接受 in the panel', ()
       { shot: 2, op: 'updated', field: 'duration_seconds', from: '8.5s', to: '3.0s' },
     ]);
     expect(edits[0]?.plan_id).toBe('P-118');
+    expect(edits[0]?.proposal_base_revision).toBe(7);
     expect(edits[0]?.origin.session_id).toBe('session-kael');
   });
 

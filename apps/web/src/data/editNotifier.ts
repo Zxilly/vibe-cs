@@ -103,6 +103,7 @@ export interface PlanEditRecord {
   readonly shots: readonly AgentPlanShot[];
   /** 「起手那段留给建立镜头交代」 — the user's own note, if the field was used. */
   readonly note?: string | null;
+  readonly proposalBaseRevision?: number | null | undefined;
 }
 
 /** What a flush hands to `commit`. */
@@ -111,6 +112,7 @@ export interface PendingPlanEdit {
   readonly changes: readonly WorkspaceEditChange[];
   readonly shots: readonly AgentPlanShot[];
   readonly note: string | null;
+  readonly proposalBaseRevision: number | null;
   /** When the window opened, for a panel that wants to show 「5 秒后通知」. */
   readonly openedAt: number;
 }
@@ -264,6 +266,8 @@ export function createEditNotifier(options: EditNotifierOptions): EditNotifier {
       changes: mergeEditChanges(previous?.changes ?? [], edit.change),
       shots: edit.shots,
       note: edit.note ?? previous?.note ?? null,
+      proposalBaseRevision:
+        edit.proposalBaseRevision ?? previous?.proposalBaseRevision ?? null,
       openedAt: previous?.openedAt ?? scheduler.now(),
     };
 

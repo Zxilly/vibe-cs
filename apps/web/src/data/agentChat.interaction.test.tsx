@@ -65,6 +65,17 @@ const HISTORY: AgentSessionEntry[] = [
   },
 ];
 
+const METADATA = {
+  provider: 'openai-compatible',
+  model: 'test-model',
+  inputTokens: 120,
+  outputTokens: 30,
+  totalTokens: 150,
+  cachedInputTokens: 20,
+  reasoningTokens: 0,
+  estimatedCostUsd: null,
+};
+
 function stubClient(events: AgentEvent[]) {
   const drafts: AgentSessionEntryDraft[] = [];
   const inputs: AgentChatInput[] = [];
@@ -100,11 +111,11 @@ describe('useAgentChatStream', () => {
       { type: 'started', threadId: 'T-1' },
       { type: 'textDelta', delta: '我把第 2 个镜头' },
       { type: 'textDelta', delta: '从 Dolly 改成了 Tracking。' },
-      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
+      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' }, metadata: METADATA },
     ]);
 
     const { result } = renderDataHook(
-      () => useAgentChatStream({ sessionId: 'S-1', plan: { id: 'P-118', revision: 7 } }),
+      () => useAgentChatStream({ sessionId: 'S-1' }),
       { client },
     );
 
@@ -118,6 +129,11 @@ describe('useAgentChatStream', () => {
     expect(updates.at(-1)).toMatchObject({
       status: 'completed',
       content: '我把第 2 个镜头从 Dolly 改成了 Tracking。',
+      metadata: {
+        provider: 'openai-compatible', model: 'test-model',
+        input_tokens: 120, output_tokens: 30, total_tokens: 150,
+        estimated_cost_usd: null,
+      },
     });
     // The in-flight text never became cache state, and is cleared once the
     // transcript is the record.
@@ -125,17 +141,20 @@ describe('useAgentChatStream', () => {
     expect(result.current.streaming).toBe(false);
   });
 
-  it('stamps every proposal with the plan revision the model saw', async () => {
+  it('keeps the plan revision stamped by the Desktop service', async () => {
     const { client, updates } = stubClient([
       {
         type: 'proposal',
-        proposal: { kind: 'highlight_edit', title: '压到 30 秒', payload: { changes: [] } },
+        proposal: {
+          kind: 'highlight_edit', title: '压到 30 秒', payload: { changes: [] },
+          planId: 'P-118', basedOnRevision: 6,
+        },
       },
-      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
+      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' }, metadata: METADATA },
     ]);
 
     const { result } = renderDataHook(
-      () => useAgentChatStream({ sessionId: 'S-1', plan: { id: 'P-118', revision: 6 } }),
+      () => useAgentChatStream({ sessionId: 'S-1' }),
       { client },
     );
 
@@ -158,9 +177,12 @@ describe('useAgentChatStream', () => {
     const { client, updates } = stubClient([
       {
         type: 'proposal',
-        proposal: { kind: 'video_render', title: '生成视频', payload: null },
+        proposal: {
+          kind: 'video_render', title: '生成视频', payload: null,
+          planId: null, basedOnRevision: null,
+        },
       },
-      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
+      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' }, metadata: METADATA },
     ]);
 
     const { result } = renderDataHook(
@@ -178,7 +200,7 @@ describe('useAgentChatStream', () => {
   it('refreshes the transcript once the answer is stored', async () => {
     const { client, sessionReads } = stubClient([
       { type: 'textDelta', delta: '好' },
-      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
+      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' }, metadata: METADATA },
     ]);
 
     const { result } = renderDataHook(
@@ -248,7 +270,7 @@ describe('useAgentChatStream', () => {
       streamAgentChat: (_input: AgentChatInput, onEvent: (event: AgentEvent) => void) => {
         onEvent({ type: 'textDelta', delta: '我把第 2 个镜头' });
         stop?.();
-        onEvent({ type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } });
+        onEvent({ type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' }, metadata: METADATA });
         return Promise.resolve({ thread_id: 'T-1' });
       },
     };
@@ -285,7 +307,7 @@ describe('useAgentChatStream', () => {
 
   it('uses a newly-created session override for the atomic first send', async () => {
     const { client, drafts, inputs } = stubClient([
-      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
+      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' }, metadata: METADATA },
     ]);
     const { result } = renderDataHook(() => useAgentChatStream({ sessionId: null }), { client });
 
@@ -299,7 +321,7 @@ describe('useAgentChatStream', () => {
 
   it('sends the workspace context the caller gave it, and no thread of its own', async () => {
     const { client, inputs } = stubClient([
-      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' } },
+      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' }, metadata: METADATA },
     ]);
 
     const { result } = renderDataHook(

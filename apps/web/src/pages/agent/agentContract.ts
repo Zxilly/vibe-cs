@@ -162,16 +162,14 @@
  *     advances through pending/streaming/completed/cancelled/failed. Completed
  *     session entries are sent as `AgentChatInput.history`, so interruption can
  *     no longer leave a question with no addressable result.
- *  6. **The streaming `AgentProposal` carries no `plan_id` / `based_on_revision`.**
- *     Its `kind` is `CapturedPlanKind` — a real enum since the gap-closing
- *     round, and still with no plan-change member. So the revision a proposal
- *     is based on is stamped by the client from what it read when the user
- *     pressed send. That is the only place the number exists, and it is why
- *     §4.5.3 ③ works at all here.
- *  7. **`AgentSessionEntry` has no per-entry token / cost / model.** The
- *     工作进度 block of artboard 07 (读取比赛结构 · 筛选候选片段 · 读取空间证据 ·
- *     设计镜头) can only be rebuilt from `tool_calls`, whose `input` / `output`
- *     are `unknown`.
+ *  6. **Closed in IA-22: Desktop proposals carry their server base.** The
+ *     Desktop service copies `plan_id` and `based_on_revision` from the request
+ *     context while capturing the proposal; the client stores those fields as
+ *     received and no longer stamps them after the fact.
+ *  7. **Closed in IA-22: assistant turns carry model usage metadata.** Provider,
+ *     model and provider-reported token usage are persisted per turn. Cost is
+ *     nullable because this app has no authoritative provider pricing table;
+ *     the UI says unknown instead of treating a missing price as free.
  *  8. **No take model.** §4.5.2's `Take` / `Composition` (the 2c board's three
  *     takes and the composed result) have no wire type and no route, and
  *     `AgentWorkspaceSettings.take_limit` counts something the API cannot list.
@@ -386,7 +384,7 @@ export interface AgentChangeDesk {
    * accepted over a plan nothing happened to; blocks disable 接受 with that
    * reason rather than relying on this.
    */
-  readonly accept: (key: string, change: PlanChange) => void;
+  readonly accept: (key: string, change: PlanChange, basedOnRevision?: number | null) => void;
   /**
    * The plan as edited but **not yet written** — §4.5.4's merge window means the
    * screen is ahead of the server for up to five seconds. `null` while nothing
@@ -400,7 +398,11 @@ export interface AgentChangeDesk {
    * `props.editNotifier`. Never `useApplyAgentPlanEdit` (invariant 5), never
    * anything that could record (§4.5.3 ①).
    */
-  readonly record: (result: ShotEditResult, note?: string) => void;
+  readonly record: (
+    result: ShotEditResult,
+    note?: string,
+    proposalBaseRevision?: number | null,
+  ) => void;
   /** Drops the buffer — for a restore, which replaces the whole array. */
   readonly reset: () => void;
 }

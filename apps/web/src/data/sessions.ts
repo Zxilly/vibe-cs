@@ -50,9 +50,9 @@
  *   that turn conditionally through streaming/completed/cancelled/failed. It
  *   also sends completed session entries as the model history, so the desktop
  *   thread file is only a request trace rather than a second conversation.
- *   This hook is also the only place that can stamp
- *   `plan_id` + `based_on_revision` on a proposal, because the revision the
- *   model saw is the one this client read when the user pressed send.
+ *   Desktop stamps `plan_id` + `based_on_revision` while capturing each
+ *   proposal from the validated request context; this hook stores that base
+ *   unchanged and never reconstructs it from whatever plan is open later.
  *
  *   **Every terminal state invalidates.** Cancellation and failure are durable
  *   states with retry identity, not missing assistant messages.
@@ -380,13 +380,6 @@ export interface AgentChatStream {
 export interface AgentChatStreamOptions {
   /** The session the two entries are appended to. `null` disables `send`. */
   readonly sessionId: string | null;
-  /**
-   * The plan on screen when the user pressed send, and its revision — the
-   * revision the model is answering about. It is stamped onto every proposal as
-   * `based_on_revision`, which is the only reason §4.5.3 rule ③ can work: the
-   * streaming `AgentProposal` carries no revision of its own.
-   */
-  readonly plan?: { readonly id: string; readonly revision: number } | null;
   /** Durable session transcript used as model history; failed/cancelled turns are excluded. */
   readonly history?: readonly import('../shared/desktop/dto').AgentSessionEntry[] | undefined;
 }
@@ -456,8 +449,6 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
   }, [client, queryClient]);
 
   const sessionId = options.sessionId;
-  const planId = options.plan?.id ?? null;
-  const planRevision = options.plan?.revision ?? null;
   const history = options.history ?? [];
 
   const send = useCallback(
@@ -496,6 +487,9 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       let text = '';
       const toolCalls: AgentChatEventPayload['toolCalls'] = [];
       const proposals: AgentChatEventPayload['proposals'] = [];
+      const completionMetadata = {
+        current: null as Extract<AgentEvent, { type: 'complete' }>['metadata'] | null,
+      };
       let failure: string | null = null;
 
       const onEvent = (event: AgentEvent) => {
@@ -512,6 +506,9 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
             break;
           case 'error':
             failure = event.message;
+            break;
+          case 'complete':
+            completionMetadata.current = event.metadata;
             break;
           default:
             break;
@@ -577,11 +574,21 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         proposals: proposals.map((item) => ({
           kind: item.kind,
           title: item.title,
-          plan_id: planId,
-          based_on_revision: planRevision,
+          plan_id: item.planId,
+          based_on_revision: item.basedOnRevision,
           payload: item.payload,
         })),
         error: null,
+        metadata: completionMetadata.current === null ? null : {
+          provider: completionMetadata.current.provider,
+          model: completionMetadata.current.model,
+          input_tokens: completionMetadata.current.inputTokens,
+          output_tokens: completionMetadata.current.outputTokens,
+          total_tokens: completionMetadata.current.totalTokens,
+          cached_input_tokens: completionMetadata.current.cachedInputTokens,
+          reasoning_tokens: completionMetadata.current.reasoningTokens,
+          estimated_cost_usd: completionMetadata.current.estimatedCostUsd,
+        },
       });
       await invalidateSessions(queryClient);
 
@@ -590,7 +597,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         setDraft('');
       }
     },
-    [client, history, planId, planRevision, queryClient, sessionId, streaming],
+    [client, history, queryClient, sessionId, streaming],
   );
 
   return { streaming, draft, error, send, cancel };

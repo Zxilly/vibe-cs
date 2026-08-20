@@ -233,7 +233,7 @@ function CheckGrid({
 
   return (
     <ul
-      className="grid list-none grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-x-6 gap-y-2 text-sm"
+      className="mx-auto grid w-full max-w-[64rem] list-none grid-cols-[repeat(auto-fit,minmax(min(100%,13rem),1fr))] gap-x-6 gap-y-2 text-sm"
       data-preflight-checks={checks.length}
     >
       {checks.map((check) => {

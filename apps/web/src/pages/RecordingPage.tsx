@@ -236,7 +236,10 @@ export function RecordingPlanWorkspace({
   const planState: RecordingPlanState = {
     plan,
     items,
-    loading: planning.isPending,
+    // Once a lease has been accepted, a stale mutation observer must not turn
+    // the already-rendered shot list back into skeletons. The local lease is
+    // the authoritative presence signal; pending matters only before it lands.
+    loading: plan === null && planning.isPending,
     error: planning.error,
     dirty,
     expired: expiry.expired,

@@ -194,7 +194,7 @@ describe('§4.5.3 rule ①, at the page level', () => {
     const { reached } = harness('/agent?plan=P-118&session=S-1');
     await serviceOnline();
 
-    const confirm = await screen.findByRole('button', { name: /确认并生成视频/u });
+    const confirm = await screen.findByRole('button', { name: /确认剪辑单并录制/u });
     expect(confirm.hasAttribute('disabled')).toBe(true);
     // Twice on purpose: `Button` puts the reason in `title` and again in the
     // `aria-describedby` span, which is the 「不隐藏、不静默失败」 arrangement.
@@ -211,7 +211,7 @@ describe('§4.5.3 rule ①, at the page level', () => {
     });
     await serviceOnline();
 
-    const confirm = await screen.findByRole('button', { name: /确认并生成视频/u });
+    const confirm = await screen.findByRole('button', { name: /确认剪辑单并录制/u });
     expect(confirm.hasAttribute('disabled')).toBe(true);
     expect(await screen.findAllByText(/还有 1 个镜头没有绑定/u)).not.toHaveLength(0);
 
@@ -231,7 +231,7 @@ describe('§4.5.3 rule ①, at the page level', () => {
        the node captured before the transition is not the node after it. */
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /确认并生成视频/u }).hasAttribute('disabled'),
+        screen.getByRole('button', { name: /确认剪辑单并录制/u }).hasAttribute('disabled'),
       ).toBe(false);
     });
     expect(reached.filter((name) => RECORDING_METHOD.test(name))).toEqual([]);
@@ -250,12 +250,12 @@ describe('§4.5.3 rule ①, at the page level', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /确认并生成视频/u }).hasAttribute('disabled'),
+        screen.getByRole('button', { name: /确认剪辑单并录制/u }).hasAttribute('disabled'),
       ).toBe(false);
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /确认并生成视频/u }));
+      fireEvent.click(screen.getByRole('button', { name: /确认剪辑单并录制/u }));
     });
 
     const landing = await screen.findByTestId('recording-landing');

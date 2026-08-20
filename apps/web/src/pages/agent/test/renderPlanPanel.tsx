@@ -79,6 +79,7 @@ export interface BlockPropsOverrides {
   readonly chat?: Partial<AgentChatStream> | undefined;
   readonly service?: Partial<ServiceActionState> | undefined;
   readonly edit?: AgentGuardedAction | undefined;
+  readonly readiness?: AgentGuardedAction | undefined;
   readonly confirm?: AgentGuardedAction | undefined;
   readonly collapsed?: boolean | undefined;
 }
@@ -114,6 +115,7 @@ export function blockProps(overrides: BlockPropsOverrides = {}): AgentBlockProps
       ...overrides.service,
     },
     edit: overrides.edit ?? { disabled: false },
+    readiness: overrides.readiness ?? { disabled: false },
     confirm: overrides.confirm ?? { disabled: true, disabledReason: CONFIRM_REASON },
     collapsed: overrides.collapsed ?? false,
   };

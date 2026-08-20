@@ -124,9 +124,9 @@ describe('the three shapes', () => {
   it('offers all three and marks the one the address asked for', () => {
     const html = at({ context: { mode: 'inline' } });
 
-    expect(html).toContain('变更列表');
+    expect(html).toContain('修改列表');
     expect(html).toContain('就地编辑');
-    expect(html).toContain('候选镜头');
+    expect(html).toContain('版本比较');
     expect(html).toContain('data-agent-mode="inline"');
   });
 
@@ -340,9 +340,9 @@ describe('候选镜头', () => {
 
 describe('the instruction bar', () => {
   it('uses each shape’s own placeholder and chips', () => {
-    expect(at()).toContain('给方案下一条指令');
+    expect(at()).toContain('给剪辑单下一条指令');
     expect(at()).toContain('压到 30 秒');
-    expect(at({ context: { mode: 'inline' } })).toContain('对选中的镜头说');
+    expect(at({ context: { mode: 'inline' } })).toContain('对选中的片段说');
     // 2c's own bar is 「再生成一条 take」, which needs a model nobody has.
     expect(at({ context: { mode: 'takes' } })).not.toContain('data-composer-suggestions=');
   });
@@ -369,5 +369,15 @@ describe('the instruction bar', () => {
 
     expect(html).toContain('这次回答没有完成');
     expect(html).toContain('模型没有响应');
+  });
+
+  it('turns the provider-not-configured failure into a direct model-settings recovery', () => {
+    const html = at({
+      chat: chatStub({ error: 'configure an AI provider in Vibe CS settings first' }),
+    });
+
+    expect(html).toContain('还没有配置可用的 AI 模型');
+    expect(html).toContain('配置模型');
+    expect(html).not.toContain('configure an AI provider');
   });
 });

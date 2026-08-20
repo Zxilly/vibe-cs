@@ -391,10 +391,43 @@ describe('占用 · 导出 · 清空', () => {
 });
 
 describe('模型', () => {
-  it('prints the configured provider and model, and never the key itself', async () => {
+  it('edits the configured provider and model without ever reading back the key', async () => {
     renderSection();
-    expect(await screen.findByText('OpenAI 兼容')).toBeTruthy();
-    expect(screen.getByText('gpt-4.1-mini')).toBeTruthy();
-    expect(screen.getByText('密钥已配置')).toBeTruthy();
+    expect(await screen.findByLabelText(/^提供方/u)).toHaveProperty('value', 'OpenAI 兼容');
+    expect(screen.getByLabelText(/^模型/u)).toHaveProperty('value', 'gpt-4.1-mini');
+    expect(screen.getByLabelText('API 密钥')).toHaveProperty('value', '');
+    expect(document.body.textContent).not.toContain('secret-key');
+  });
+
+  it('saves and tests the form shown on screen', async () => {
+    const saved: AppConfig[] = [];
+    const tested: unknown[] = [];
+    renderSection({
+      updateConfig: (config: AppConfig) => {
+        saved.push(config);
+        return Promise.resolve(config);
+      },
+      testLlm: (llm: unknown) => {
+        tested.push(llm);
+        return Promise.resolve({
+          ok: true,
+          provider: 'OpenAI 兼容',
+          model: 'gpt-4.1-mini',
+          capabilities: { chat: true, stream: true, tools: true },
+        });
+      },
+    });
+
+    const baseUrl = await screen.findByLabelText(/^API 地址/u);
+    fireEvent.change(baseUrl, { target: { value: 'https://example.test/v1' } });
+    fireEvent.click(screen.getByRole('button', { name: '测试连接' }));
+
+    await waitFor(() => expect(tested).toHaveLength(1));
+    expect(tested[0]).toMatchObject({ base_url: 'https://example.test/v1', api_key: '' });
+    expect(await screen.findByText(/连接正常/u)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: '保存模型设置' }));
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]?.llm).toMatchObject({ base_url: 'https://example.test/v1' });
   });
 });

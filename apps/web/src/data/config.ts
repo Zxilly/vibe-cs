@@ -26,7 +26,7 @@
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
-import type { AppConfig } from '../shared/desktop/dto';
+import type { AppConfig, LlmConfig } from '../shared/desktop/dto';
 import { useDesktopClient } from './desktopClient';
 import { qk } from './keys';
 import { resolveQueryTuning, type DataQueryTuning } from './queryTuning';
@@ -166,6 +166,12 @@ export function useUpdateAppConfig() {
       ]);
     },
   });
+}
+
+/** Tests the model form exactly as shown, including unsaved provider/model fields. */
+export function useTestLlm() {
+  const client = useDesktopClient();
+  return useMutation({ mutationFn: (llm: LlmConfig) => client.testLlm(llm) });
 }
 
 /* ── the watched folders ─────────────────────────────────────────────────── */

@@ -83,6 +83,7 @@ import {
   type AgentGuardedAction,
 } from './agent/agentContract';
 import { AgentConversationBlock } from './agent/AgentConversationBlock';
+import { AgentReadiness, useAgentReadiness } from './agent/AgentReadiness';
 import { AgentSessionsBlock, agentSessionsToolbarAction } from './agent/AgentSessionsBlock';
 import { useAgentChangeDesk } from './agent/changeDesk';
 import { PlanPanel } from './agent/PlanPanel';
@@ -114,6 +115,7 @@ export function AgentWorkspace({
   const { i18n } = useLingui();
   const collapsed = useCollapsed(undefined);
   const service = useServiceAction();
+  const readiness = useAgentReadiness({ projectId, demoId });
 
   const routeContext = readAgentContext(params);
   const context = planId === undefined ? routeContext : { ...routeContext, plan: planId };
@@ -141,6 +143,10 @@ export function AgentWorkspace({
 
   const planData = plan.data;
   const sessionData = session.data;
+  const hasPlanProposal = sessionData?.entries.some(
+    (entry) => entry.kind === 'assistant' && entry.proposals.length > 0,
+  ) ?? false;
+  const showPlanPane = (planData?.shots.length ?? 0) > 0 || hasPlanProposal;
 
   const chatStream = useAgentChatStream({
     sessionId: context.session,
@@ -277,6 +283,7 @@ export function AgentWorkspace({
     chat,
     service,
     edit,
+    readiness: showPlanPane ? { disabled: false } : readiness.gate,
     confirm,
     collapsed,
   };
@@ -290,11 +297,6 @@ export function AgentWorkspace({
      is not rendered once §8 folds it into 「更多」, and a drawer parked inside
      that control would unmount as the window narrowed. */
   const [sessionsOpen, setSessionsOpen] = useState(false);
-  const hasPlanProposal = sessionData?.entries.some(
-    (entry) => entry.kind === 'assistant' && entry.proposals.length > 0,
-  ) ?? false;
-  const showPlanPane = (planData?.shots.length ?? 0) > 0 || hasPlanProposal;
-
   return (
     <AgentFrame
       embedded={embedded}
@@ -305,15 +307,14 @@ export function AgentWorkspace({
           meta={
             <>
               {planData === undefined ? (
-                <Trans>尚未选择剪辑单</Trans>
+                <Trans>准备创作</Trans>
               ) : (
                 <Trans>
-                  {planData.shots.length} 个镜头 · 修订 {planData.revision} ·{' '}
+                  {planData.shots.length} 个片段 · 修订 {planData.revision} ·{' '}
                   {i18n._(AGENT_PLAN_STATUS[planData.status].label)}
                 </Trans>
               )}
-              {' · '}
-              {modeLabel}
+              {showPlanPane ? <> · {modeLabel}</> : null}
             </>
           }
           actions={[
@@ -343,7 +344,7 @@ export function AgentWorkspace({
                 })();
               }}
             >
-              {embedded ? <Trans>送去录制</Trans> : <Trans>确认并生成视频</Trans>}
+              <Trans>确认剪辑单并录制</Trans>
             </Button>
           }
         />
@@ -355,7 +356,7 @@ export function AgentWorkspace({
           variant="danger"
           action={{ label: <Trans>重试</Trans>, onAction: () => void plan.refetch() }}
         >
-          <Trans>读不到这个方案：{planError}</Trans>
+          <Trans>读不到这份剪辑单：{planError}</Trans>
         </Alert>
       )}
       {editFailure === null ? null : (
@@ -395,7 +396,8 @@ export function AgentWorkspace({
           <AgentConversationBlock {...blockProps} />
         </SplitPane>
       ) : (
-        <div data-agent-start-canvas="" className="flex min-h-0 flex-1">
+        <div data-agent-start-canvas="" className="flex min-h-0 flex-1 flex-col">
+          <AgentReadiness state={readiness} />
           <AgentConversationBlock {...blockProps} />
         </div>
       )}

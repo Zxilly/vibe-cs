@@ -306,12 +306,12 @@ export interface ComposerCopy {
  */
 export const AGENT_MODE_COMPOSER: Readonly<Record<AgentMode, ComposerCopy>> = {
   changes: {
-    placeholder: msg`给方案下一条指令，例如「02 再短一点」「把结尾留 1 秒」`,
+    placeholder: msg`给剪辑单下一条指令，例如「02 再短一点」「把结尾留 1 秒」`,
     suggestions: [msg`压到 30 秒`, msg`去掉运动镜头`, msg`只保留击杀`, msg`加 0.5 秒尾巴`],
     sendLabel: msg`生成变更`,
   },
   inline: {
-    placeholder: msg`对选中的镜头说，例如「跟到他开第一枪就停」`,
+    placeholder: msg`对选中的片段说，例如「跟到他开第一枪就停」`,
     suggestions: [msg`再快一点`, msg`别贴这么近`, msg`从他起跳开始`],
     sendLabel: msg`发送`,
   },
@@ -319,7 +319,7 @@ export const AGENT_MODE_COMPOSER: Readonly<Record<AgentMode, ComposerCopy>> = {
     /* 2c's own bar is 「再生成一条 take」, which needs a Take model the wire does
        not have (gap 8). So this shape gets the ordinary composer and no chips
        that promise a branch nobody can store. */
-    placeholder: msg`继续和 Agent 说，例如「第 3 个镜头前面留 1 秒」`,
+    placeholder: msg`继续和 Agent 说，例如「第 3 个片段前面留 1 秒」`,
     suggestions: [],
     sendLabel: msg`发送`,
   },

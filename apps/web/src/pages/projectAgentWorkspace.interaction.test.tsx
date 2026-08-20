@@ -40,11 +40,11 @@ describe('Agent mode inside the project shot-list step', () => {
 
     await waitFor(() => expect(container.querySelector('[data-agent-workspace]')).not.toBeNull());
     expect(container.querySelector('[data-agent-block="conversation"]')).not.toBeNull();
-    expect(await screen.findByRole('radio', { name: '变更列表' })).toBeTruthy();
+    expect(await screen.findByRole('radio', { name: '修改列表' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: '就地编辑' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: '候选镜头' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: '版本比较' })).toBeTruthy();
     expect(screen.getByRole('button', { name: /会话历史/u })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /送去录制/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /确认剪辑单并录制/u })).toBeTruthy();
     expect((await screen.findAllByText(PLAN.shots[0]?.title ?? '')).length).toBeGreaterThan(0);
     expect(document.body.textContent).toContain(`修订 ${String(PLAN.revision)}`);
   });
@@ -62,6 +62,6 @@ describe('Agent mode inside the project shot-list step', () => {
     expect(screen.getByRole('button', { name: /写一句需求/u })).toBeTruthy();
     expect(container.querySelector('[data-agent-start-canvas]')).not.toBeNull();
     expect(screen.queryByText('还没有选中剪辑单')).toBeNull();
-    expect(screen.queryByRole('radio', { name: '变更列表' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: '修改列表' })).toBeNull();
   });
 });

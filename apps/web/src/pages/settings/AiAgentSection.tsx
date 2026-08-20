@@ -59,7 +59,7 @@ import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
 import { useState, type ReactNode } from 'react';
 
-import { useAppConfig } from '../../data/config';
+import { useAppConfig, useTestLlm, useUpdateAppConfig } from '../../data/config';
 import { dataErrorMessage } from '../../data/errors';
 import { useServiceAction } from '../../data/serviceAction';
 import {
@@ -74,8 +74,12 @@ import {
 import { AGENT_SHOT_VIEW, AGENT_SHOT_VIEWS } from '../../domain/agent';
 import { Skeleton } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
-import { Button, Seg, Slider, Toggle } from '../../design/primitives';
-import type { AgentSessionRetention, AgentWorkspaceSettings } from '../../shared/desktop/dto';
+import { Button, Field, Input, Seg, Slider, Textarea, Toggle } from '../../design/primitives';
+import type {
+  AgentSessionRetention,
+  AgentWorkspaceSettings,
+  LlmConfig,
+} from '../../shared/desktop/dto';
 import { formatBytes } from '../delivery/outputModel';
 import {
   RECORDING_CONFIRMATION_LOCKED_ON,
@@ -96,6 +100,8 @@ export function AiAgentSection() {
   const service = useServiceAction();
 
   const config = useAppConfig();
+  const updateConfig = useUpdateAppConfig();
+  const testLlm = useTestLlm();
   const settings = useAgentWorkspaceSettings();
   const storage = useAgentSessionStorage();
 
@@ -107,6 +113,7 @@ export function AiAgentSection() {
   const [confirming, setConfirming] = useState<PendingConfirmation>(null);
   const [writeError, setWriteError] = useState<string | null>(null);
   const [removed, setRemoved] = useState<number | null>(null);
+  const [llmDraft, setLlmDraft] = useState<LlmConfig | null>(null);
 
   const current = settings.data;
   const settingsError = dataErrorMessage(settings.error);
@@ -173,11 +180,35 @@ export function AiAgentSection() {
       )}
 
       <ModelBlock
-        provider={config.data?.llm.provider ?? null}
-        model={config.data?.llm.model ?? null}
+        draft={llmDraft ?? config.data?.llm ?? null}
         hasApiKey={config.data?.llm_has_api_key ?? null}
         loading={config.isPending}
         error={dataErrorMessage(config.error)}
+        disabled={service.blocked || updateConfig.isPending || testLlm.isPending}
+        disabledReason={service.blocked ? service.buttonProps.disabledReason : undefined}
+        saving={updateConfig.isPending}
+        testing={testLlm.isPending}
+        testResult={testLlm.data === undefined ? null : `${testLlm.data.provider} · ${testLlm.data.model}`}
+        testError={dataErrorMessage(testLlm.error)}
+        onChange={setLlmDraft}
+        onSave={() => {
+          const current = config.data;
+          const draft = llmDraft ?? current?.llm;
+          if (current === undefined || draft === undefined) return;
+          void updateConfig.mutateAsync({ ...current, llm: draft, clear_llm_api_key: false })
+            .then(() => {
+              setLlmDraft(null);
+              testLlm.reset();
+            })
+            .catch((cause) => {
+              setWriteError(dataErrorMessage(cause) ?? t`模型设置没有保存成功`);
+            });
+        }}
+        onTest={() => {
+          const draft = llmDraft ?? config.data?.llm;
+          if (draft !== undefined) testLlm.mutate(draft);
+        }}
+        onResetTest={() => testLlm.reset()}
         onRetry={() => void config.refetch()}
       />
 
@@ -403,11 +434,20 @@ function Block({ id, title, children }: { id: string; title: ReactNode; children
 }
 
 interface ModelBlockProps {
-  readonly provider: string | null;
-  readonly model: string | null;
+  readonly draft: LlmConfig | null;
   readonly hasApiKey: boolean | null;
   readonly loading: boolean;
   readonly error: string | null;
+  readonly disabled: boolean;
+  readonly disabledReason: string | undefined;
+  readonly saving: boolean;
+  readonly testing: boolean;
+  readonly testResult: string | null;
+  readonly testError: string | null;
+  readonly onChange: (draft: LlmConfig) => void;
+  readonly onSave: () => void;
+  readonly onTest: () => void;
+  readonly onResetTest: () => void;
   readonly onRetry: () => void;
 }
 
@@ -416,14 +456,39 @@ interface ModelBlockProps {
  * model, and whether a key is stored (`llm_has_api_key` — the key itself is
  * never printed).
  *
- * The artboard's second line 「连接正常 · 支持工具调用」 and its 「测试连接」
- * button are **not** here. `LlmTestResult` exists on the bridge and
- * `DesktopClient` already lists `testLlm`, but `data/**` publishes no hook for
- * it, and a page that reaches for the client itself would be the first one in
- * the codebase to do so. Reported as a blocker; it is one hook in
- * `data/config.ts`, and this block gains a row when it lands.
+ * The form writes through the same whole-document config mutation as the other
+ * settings. Testing is separate and may use an unsaved draft; an empty key asks
+ * the backend to reuse the stored secret rather than reflecting it to the UI.
  */
-function ModelBlock({ provider, model, hasApiKey, loading, error, onRetry }: ModelBlockProps) {
+function ModelBlock({
+  draft,
+  hasApiKey,
+  loading,
+  error,
+  disabled,
+  disabledReason,
+  saving,
+  testing,
+  testResult,
+  testError,
+  onChange,
+  onSave,
+  onTest,
+  onResetTest,
+  onRetry,
+}: ModelBlockProps) {
+  const invalid = draft === null
+    || draft.provider.trim() === ''
+    || draft.model.trim() === ''
+    || !/^https?:\/\//u.test(draft.base_url.trim())
+    || (hasApiKey === false && draft.api_key.trim() === '');
+  const actionDisabled = disabled || invalid;
+  const actionDisabledReason = invalid
+    ? t`请补齐提供方、模型、API 地址和密钥`
+    : disabledReason;
+  const actionProps = actionDisabled
+    ? { disabled: true, ...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason }) }
+    : {};
   return (
     <Block id="model" title={<Trans>模型</Trans>}>
       {error !== null ? (
@@ -434,18 +499,65 @@ function ModelBlock({ provider, model, hasApiKey, loading, error, onRetry }: Mod
         <div aria-busy="true" className="flex flex-col gap-2">
           <Skeleton width="72%" />
         </div>
-      ) : (
-        <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-neutral-800">
-          {/* Each fact is omitted when the config does not carry it, rather than
-              printed as an empty segment. */}
-          {provider === null || provider === '' ? null : <span>{provider}</span>}
-          {model === null || model === '' ? null : <span className="font-mono text-xs">{model}</span>}
-          {hasApiKey === null ? null : (
-            <span className="text-xs text-neutral-600">
-              {hasApiKey ? <Trans>密钥已配置</Trans> : <Trans>还没有配置密钥</Trans>}
-            </span>
+      ) : draft === null ? null : (
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={<Trans>提供方</Trans>} required>
+              {(control) => (
+                <Input {...control} value={draft.provider} disabled={disabled}
+                  placeholder="openai-compatible"
+                  onChange={(event) => onChange({ ...draft, provider: event.target.value })} />
+              )}
+            </Field>
+            <Field label={<Trans>模型</Trans>} required>
+              {(control) => (
+                <Input {...control} value={draft.model} disabled={disabled}
+                  placeholder="gpt-4.1-mini"
+                  onChange={(event) => onChange({ ...draft, model: event.target.value })} />
+              )}
+            </Field>
+            <Field label={<Trans>API 地址</Trans>} required hint={<Trans>OpenAI 兼容接口，填写到 /v1。</Trans>}>
+              {(control) => (
+                <Input {...control} type="url" value={draft.base_url} disabled={disabled}
+                  placeholder="https://api.openai.com/v1"
+                  onChange={(event) => onChange({ ...draft, base_url: event.target.value })} />
+              )}
+            </Field>
+            <Field label={<Trans>API 密钥</Trans>}
+              hint={hasApiKey ? <Trans>留空会保留已经安全保存的密钥。</Trans> : <Trans>首次配置需要填写密钥。</Trans>}>
+              {(control) => (
+                <Input {...control} type="password" value={draft.api_key} disabled={disabled}
+                  placeholder={hasApiKey ? '••••••••' : 'sk-…'}
+                  onChange={(event) => onChange({ ...draft, api_key: event.target.value })} />
+              )}
+            </Field>
+          </div>
+          <Field label={<Trans>自定义指令</Trans>} hint={<Trans>会追加到 Agent 的系统指令；留空使用默认行为。</Trans>}>
+            {(control) => (
+              <Textarea {...control} rows={2} value={draft.prompt} disabled={disabled}
+                onChange={(event) => onChange({ ...draft, prompt: event.target.value })} />
+            )}
+          </Field>
+          {testError === null ? null : (
+            <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onTest }}>
+              <Trans>模型连接失败：{testError}</Trans>
+            </Alert>
           )}
-        </p>
+          {testResult === null ? null : (
+            <Alert variant="success" action={{ label: <Trans>知道了</Trans>, onAction: onResetTest }}>
+              <Trans>连接正常：{testResult}，支持 Agent 工具调用。</Trans>
+            </Alert>
+          )}
+          {disabledReason === undefined ? null : <p className="text-xs text-warn">{disabledReason}</p>}
+          <div className="flex items-center gap-2">
+            <Button variant="primary" onClick={onSave} {...actionProps}>
+              {saving ? <Trans>正在保存</Trans> : <Trans>保存模型设置</Trans>}
+            </Button>
+            <Button onClick={onTest} {...actionProps}>
+              {testing ? <Trans>正在测试</Trans> : <Trans>测试连接</Trans>}
+            </Button>
+          </div>
+        </div>
       )}
     </Block>
   );

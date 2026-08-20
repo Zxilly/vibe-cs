@@ -41,8 +41,8 @@ describe('quick mode inside a project shot list', () => {
     }
 
     await screen.findByRole('radiogroup', { name: '合辑主题' });
-    expect(screen.getByRole('button', { name: '快速模式' }).hasAttribute('disabled')).toBe(false);
-    expect(reasonOf(screen.getByRole('button', { name: 'Agent 模式' }))).toContain('修改会保留在当前模式');
+    expect(screen.getByRole('button', { name: '快速剪辑' }).hasAttribute('disabled')).toBe(false);
+    expect(reasonOf(screen.getByRole('button', { name: 'Agent 辅助' }))).toContain('修改会保留在当前制作方式');
     fireEvent.click(screen.getByRole('radio', { name: '霓虹' }));
     await waitFor(() => expect(bench.puts).toHaveLength(1));
 

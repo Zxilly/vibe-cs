@@ -55,6 +55,8 @@ export interface AgentComposerProps {
   readonly hint?: ReactNode | undefined;
   readonly inputRef?: RefObject<HTMLTextAreaElement | null> | undefined;
   readonly className?: string | undefined;
+  readonly showSuggestions?: boolean | undefined;
+  readonly sendLabel?: ReactNode | undefined;
 }
 
 export function AgentComposer({
@@ -68,6 +70,8 @@ export function AgentComposer({
   hint,
   inputRef,
   className,
+  showSuggestions = true,
+  sendLabel,
 }: AgentComposerProps) {
   const { i18n } = useLingui();
   const copy = AGENT_MODE_COMPOSER[mode];
@@ -95,7 +99,7 @@ export function AgentComposer({
       data-agent-composer={mode}
       className={cn('flex flex-none flex-col gap-2 border-t border-divider p-3.5', className)}
     >
-      {copy.suggestions.length === 0 ? null : (
+      {!showSuggestions || copy.suggestions.length === 0 ? null : (
         <div data-composer-suggestions="" className="flex flex-wrap gap-2">
           {copy.suggestions.map((suggestion) => {
             const text = i18n._(suggestion);
@@ -148,7 +152,7 @@ export function AgentComposer({
               ? {}
               : { disabled: true, ...(disabledReason === undefined ? {} : { disabledReason }) })}
           >
-            {i18n._(copy.sendLabel)}
+            {sendLabel ?? i18n._(copy.sendLabel)}
           </Button>
         </span>
       </div>

@@ -71,6 +71,7 @@ import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { dataErrorMessage } from '../../data/errors';
 import { useAgentPlan } from '../../data/plans';
@@ -97,6 +98,7 @@ import {
 import { AgentComposer } from './AgentComposer';
 import { AGENT_MODE_HEAD } from './ConversationModes';
 import { changeApplicability } from './planChangeApply';
+import { settingsPath } from '../settings/settingsRoutes';
 import {
   changeDecisionKey,
   changesForShot,
@@ -116,9 +118,11 @@ export const AgentConversationBlock: AgentBlock = ({
   chat,
   service,
   edit,
+  readiness,
   collapsed,
 }: AgentBlockProps) => {
   const { i18n } = useLingui();
+  const navigate = useNavigate();
 
   const plan = useAgentPlan(context.plan);
   const session = useAgentSession(context.session);
@@ -205,10 +209,13 @@ export const AgentConversationBlock: AgentBlock = ({
     },
     [chat, context.session, createSession, planData?.title, updateContext],
   );
+  const hasResultView = hasChangeSets || shots.length > 0;
 
   const sendDisabledReason =
     service.blocked
       ? service.buttonProps.disabledReason
+      : readiness.disabled
+        ? readiness.disabledReason
       : createSession.isPending
         ? t`正在准备对话`
         : chat.streaming
@@ -243,7 +250,7 @@ export const AgentConversationBlock: AgentBlock = ({
       data-agent-mode={context.mode}
       className="flex min-h-0 min-w-0 flex-1 flex-col"
     >
-      {hasChangeSets || shots.length > 0 ? (
+      {hasResultView ? (
         <div className="flex flex-none flex-col gap-2 border-b border-divider p-3.5">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Seg
@@ -282,15 +289,24 @@ export const AgentConversationBlock: AgentBlock = ({
         <Alert
           className="m-3.5 mb-0"
           variant="danger"
-          action={{
-            label: <Trans>重试</Trans>,
-            onAction: () => {
-              const message = lastMessageRef.current;
-              if (message !== null) void chat.send({ message });
-            },
-          }}
+          action={
+            isModelConfigurationError(chat.error)
+              ? {
+                  label: <Trans>配置模型</Trans>,
+                  onAction: () => void navigate(settingsPath('model')),
+                }
+              : {
+                  label: <Trans>重试</Trans>,
+                  onAction: () => {
+                    const message = lastMessageRef.current;
+                    if (message !== null) void chat.send({ message });
+                  },
+                }
+          }
         >
-          <Trans>这次回答没有完成：{chat.error}</Trans>
+          {isModelConfigurationError(chat.error)
+            ? <Trans>还没有配置可用的 AI 模型。保存模型设置并测试连接后，再回来重试这句话。</Trans>
+            : <Trans>这次回答没有完成：{chat.error}</Trans>}
         </Alert>
       )}
 
@@ -325,9 +341,13 @@ export const AgentConversationBlock: AgentBlock = ({
         streaming={chat.streaming}
         onCancel={chat.cancel}
         inputRef={composerRef}
+        showSuggestions={hasResultView}
+        {...(hasResultView ? {} : { sendLabel: <Trans>生成剪辑单</Trans> })}
         {...(sendDisabledReason === undefined ? {} : { disabledReason: sendDisabledReason })}
         hint={
-          context.mode === 'inline' && selectedShot !== null ? (
+          !hasResultView ? (
+            <Trans>发送后会自动建立对话并生成第一版剪辑单</Trans>
+          ) : context.mode === 'inline' && selectedShot !== null ? (
             <Trans>只影响这一个镜头：{selectedShot.title}</Trans>
           ) : (
             <Trans>手动编辑不会打断 Agent，也不需要它批准</Trans>
@@ -448,6 +468,10 @@ function sessionTitle(message: string, planTitle: string | undefined): string {
   const source = planTitle?.trim() || message.trim();
   const characters = [...source];
   return characters.length <= 40 ? source : `${characters.slice(0, 40).join('')}…`;
+}
+
+function isModelConfigurationError(message: string): boolean {
+  return message.toLowerCase().includes('configure an ai provider');
 }
 
 function Frame({ state, children }: { readonly state: string; readonly children: ReactNode }) {

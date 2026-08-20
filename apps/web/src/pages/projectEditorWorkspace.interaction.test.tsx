@@ -31,13 +31,13 @@ describe('multitrack mode inside a project shot list', () => {
     expect(await screen.findByText('关联比赛片段.mp4')).toBeTruthy();
     expect(new Set(requestedScopes)).toEqual(new Set([PROJECT_ID, undefined]));
 
-    expect(screen.getByRole('button', { name: '精剪模式' }).hasAttribute('disabled')).toBe(false);
-    expect(reasonOf(screen.getByRole('button', { name: '快速模式' }))).toContain('切换前请保存');
+    expect(screen.getByRole('button', { name: '多轨精剪' }).hasAttribute('disabled')).toBe(false);
+    expect(reasonOf(screen.getByRole('button', { name: '快速剪辑' }))).toContain('切换前请保存');
 
     const clip = document.querySelector(`[data-clip="${AURORA_VIDEO}"]`) as HTMLElement;
     fireEvent.focus(clip);
     fireEvent.keyDown(clip, { key: 'ArrowRight' });
     await waitFor(() => expect(screen.getByTestId('editor-save-state').textContent).toContain('未保存'));
-    expect(document.body.textContent).toContain('精剪修改保留在本地，切换步骤前请保存');
+    expect(document.body.textContent).toContain('多轨修改保留在本地，切换步骤前请保存');
   });
 });

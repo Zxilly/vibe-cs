@@ -26,25 +26,25 @@ function at(url: string): string {
 }
 
 describe('the toolbar', () => {
-  it('says no plan is selected instead of pretending to load one', () => {
+  it('labels the empty workspace as ready to prepare a first draft', () => {
     const html = at('/agent');
-    expect(html).toContain('尚未选择剪辑单');
+    expect(html).toContain('准备创作');
     expect(html).toContain('Agent 创作');
   });
 
-  it('prints the mode the address asked for', () => {
-    expect(at('/agent')).toContain('变更列表');
-    expect(at('/agent?mode=inline')).toContain('就地编辑');
-    expect(at('/agent?mode=takes')).toContain('候选镜头');
+  it('keeps the address mode as state without showing result controls before a result exists', () => {
+    expect(at('/agent')).toContain('data-agent-mode="changes"');
+    expect(at('/agent?mode=inline')).toContain('data-agent-mode="inline"');
+    expect(at('/agent?mode=takes')).toContain('data-agent-mode="takes"');
   });
 
-  it('falls back to 变更列表 for a mode nobody defined', () => {
-    expect(at('/agent?mode=diff')).toContain('变更列表');
+  it('falls back to the changes state for a mode nobody defined', () => {
+    expect(at('/agent?mode=diff')).toContain('data-agent-mode="changes"');
   });
 
-  it('keeps 「确认并生成视频」 on the bar, disabled, with the reason attached', () => {
+  it('keeps the recording confirmation on the bar, disabled, with the reason attached', () => {
     const html = at('/agent?plan=P-118');
-    expect(html).toContain('确认并生成视频');
+    expect(html).toContain('确认剪辑单并录制');
     expect(html).toContain('disabled');
     /* 「不隐藏、不静默失败」 — the reason is on the element, not in a tooltip
        nobody can read. This markup renders before the bridge answers, so the

@@ -419,7 +419,7 @@ describe('§4.5.3 rule ①, through the panel', () => {
     const { edits, reached } = mount();
     await editShot();
 
-    const confirm = screen.getByRole('button', { name: /确认并生成视频/u });
+    const confirm = screen.getByRole('button', { name: /确认剪辑单并录制/u });
     expect(confirm.hasAttribute('disabled')).toBe(true);
 
     await act(async () => {

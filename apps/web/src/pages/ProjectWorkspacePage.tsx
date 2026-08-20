@@ -139,9 +139,9 @@ function StepContent({
 
 function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
   const modes = [
-    { id: 'agent', label: <Trans>Agent 模式</Trans> },
-    { id: 'quick', label: <Trans>快速模式</Trans> },
-    { id: 'multitrack', label: <Trans>精剪模式</Trans> },
+    { id: 'agent', label: <Trans>Agent 辅助</Trans> },
+    { id: 'quick', label: <Trans>快速剪辑</Trans> },
+    { id: 'multitrack', label: <Trans>多轨精剪</Trans> },
   ] as const;
   /* Mode contract: Agent and quick projects keep their existing write-through
      behavior. Multitrack owns a local revisioned document and persists only
@@ -149,12 +149,12 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
      three document shapes, so another mode stays disabled instead of implying
      that a switch would carry edits across. */
   const reason = project.editingMode === 'multitrack'
-    ? t`精剪修改不会跨模式同步；切换前请保存，当前版本没有转换契约`
-    : t`当前版本没有跨模式双向转换契约；所有修改会保留在当前模式`;
+    ? t`多轨修改不会跨制作方式同步；切换前请保存，当前版本没有转换契约`
+    : t`当前版本没有跨制作方式双向转换契约；所有修改会保留在当前制作方式`;
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-editing-mode={project.editingMode}>
       <div className="flex flex-none items-center gap-2 border-b border-divider px-4 py-2">
-        <span className="text-xs text-neutral-600"><Trans>剪辑模式</Trans></span>
+        <span className="text-xs text-neutral-600"><Trans>制作方式</Trans></span>
         {modes.map((mode) => (
           <Button
             key={mode.id}
@@ -168,8 +168,8 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
         ))}
         <span className="ml-auto text-xs text-neutral-600">
           {project.editingMode === 'multitrack'
-            ? <Trans>精剪修改保留在本地，切换步骤前请保存</Trans>
-            : <Trans>修改会自动保留在当前模式</Trans>}
+            ? <Trans>多轨修改保留在本地，切换步骤前请保存</Trans>
+            : <Trans>修改会自动保留在当前制作方式</Trans>}
         </span>
       </div>
       {project.source.kind === 'plan' || project.id === 'new' ? (

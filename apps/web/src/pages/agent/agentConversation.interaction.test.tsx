@@ -185,8 +185,8 @@ describe('switching shape', () => {
     renderBlock(<Controlled initial={CHANGES} />);
 
     fireEvent.click(within(card('change-1')).getByRole('button', { name: '接受' }));
-    fireEvent.click(screen.getByRole('radio', { name: '候选镜头' }));
-    fireEvent.click(screen.getByRole('radio', { name: '变更列表' }));
+    fireEvent.click(screen.getByRole('radio', { name: '版本比较' }));
+    fireEvent.click(screen.getByRole('radio', { name: '修改列表' }));
 
     // A decision that vanished because the user looked at another shape would
     // be data loss the user caused by navigating.
@@ -200,7 +200,7 @@ describe('switching shape', () => {
     fireEvent.click(within(shot('shot-02')).getByRole('button', { name: /跟随突破/u }));
     expect(screen.getByText(/只影响这一个镜头/u)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('radio', { name: '变更列表' }));
+    fireEvent.click(screen.getByRole('radio', { name: '修改列表' }));
     fireEvent.click(screen.getByRole('radio', { name: '就地编辑' }));
 
     expect(screen.getByText(/只影响这一个镜头/u)).toBeTruthy();
@@ -256,7 +256,7 @@ describe('就地编辑 attaches the conversation to one shot', () => {
     renderBlock(<Controlled initial={{ ...CHANGES, mode: 'inline' }} />);
 
     fireEvent.click(within(shot('shot-02')).getByRole('button', { name: /跟随突破/u }));
-    fireEvent.click(screen.getByRole('radio', { name: '变更列表' }));
+    fireEvent.click(screen.getByRole('radio', { name: '修改列表' }));
 
     expect(document.querySelectorAll('[data-plan-change]')).toHaveLength(3);
   });

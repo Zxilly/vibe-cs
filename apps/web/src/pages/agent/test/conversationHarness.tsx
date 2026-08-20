@@ -79,6 +79,7 @@ export interface BlockPropsOverrides {
   readonly chat?: AgentChatStream | undefined;
   readonly service?: ServiceActionState | undefined;
   readonly edit?: AgentGuardedAction | undefined;
+  readonly readiness?: AgentGuardedAction | undefined;
   readonly collapsed?: boolean | undefined;
 }
 
@@ -94,6 +95,7 @@ export function blockProps(overrides: BlockPropsOverrides = {}): AgentBlockProps
     chat: overrides.chat ?? chatStub(),
     service: overrides.service ?? serviceStub(),
     edit: overrides.edit ?? { disabled: false },
+    readiness: overrides.readiness ?? { disabled: false },
     /* The shell's own state this round: gap 1, no Demo on a plan. */
     confirm: { disabled: true, disabledReason: '方案的镜头没有带上 Demo 与选手' },
     collapsed: overrides.collapsed ?? false,

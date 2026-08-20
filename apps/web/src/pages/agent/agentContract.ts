@@ -245,7 +245,7 @@ export interface AgentModeMeta {
  */
 export const AGENT_MODE: Readonly<Record<AgentMode, AgentModeMeta>> = {
   changes: {
-    label: msg({ message: '变更列表', context: 'agent-mode' }),
+    label: msg({ message: '修改列表', context: 'agent-mode' }),
     hint: msg({ message: '每次回应都是一次可逐条接受或拒绝的变更', context: 'agent-mode' }),
   },
   inline: {
@@ -253,7 +253,7 @@ export const AGENT_MODE: Readonly<Record<AgentMode, AgentModeMeta>> = {
     hint: msg({ message: '对话附着在选中的镜头上，意图同时给出参数', context: 'agent-mode' }),
   },
   takes: {
-    label: msg({ message: '候选镜头', context: 'agent-mode' }),
+    label: msg({ message: '版本比较', context: 'agent-mode' }),
     hint: msg({ message: '每次改动生成一条 take，并排比较后再合成', context: 'agent-mode' }),
   },
 };
@@ -439,6 +439,8 @@ export interface AgentBlockProps {
   readonly service: ServiceActionState;
   /** Whether manual plan editing is possible right now, and why not. */
   readonly edit: AgentGuardedAction;
+  /** Whether the first sentence has enough Demo, analysis and model context. */
+  readonly readiness: AgentGuardedAction;
   /** 「确认并生成视频」's state, so the blocks and the toolbar say one sentence. */
   readonly confirm: AgentGuardedAction;
   /** The §8 observation, made once by the shell. */

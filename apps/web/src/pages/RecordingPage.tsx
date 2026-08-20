@@ -77,7 +77,7 @@ import {
 import { useServiceAction } from '../data/serviceAction';
 import { Alert } from '../design/feedback';
 import { Page, Toolbar, useCollapsed } from '../design/layout';
-import type { RecordingRequest } from '../shared/desktop/dto';
+import type { RecordingPlanResponse, RecordingRequest } from '../shared/desktop/dto';
 import { agentPlanHandoff } from './agent/agentHandoff';
 import { RouteLink } from './RouteLink';
 import { DirectorPreviewBlock } from './recording/DirectorPreviewBlock';
@@ -122,52 +122,74 @@ export function RecordingPlanWorkspace({
 
   /* The lease, and the shots as edited. Two pieces of state rather than one
      because they diverge on purpose: `dirty` *is* the divergence. */
+  const [mintedPlan, setMintedPlan] = useState<{
+    readonly sourcePlanId: string;
+    readonly value: RecordingPlanResponse;
+  } | null>(null);
   const [items, setItems] = useState<readonly RecordingShot[]>(EMPTY_ITEMS);
   const [dirty, setDirty] = useState(false);
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
 
-  const plan = planning.data ?? null;
+  const plan = mintedPlan?.sourcePlanId === agentPlanId ? mintedPlan.value : null;
   const expiry = useRecordingPlanExpiry(plan);
+
+  const acceptMintedPlan = useCallback((minted: RecordingPlanResponse) => {
+    const shots = identifiedShots(minted.items);
+    setMintedPlan({ sourcePlanId: agentPlanId, value: minted });
+    setItems(shots);
+    setDirty(false);
+    setSelectedShotId((current) =>
+      current !== null && shots.some((item) => item.id === current)
+        ? current
+        : (shots[0]?.id ?? null),
+    );
+  }, [agentPlanId]);
 
   /*
    * Mint the lease once for this address.
    *
-   * The ref is keyed on the Agent plan id, so navigating between two plans
-   * mints a new one and a re-render does not. `planning.mutate` on every render
-   * would be a POST loop; a `useQuery` would refetch on remount and swap the
-   * director's answer under the preview — see the module note.
+   * The in-flight Promise is retained across React StrictMode's development
+   * effect replay. The first effect is cleaned up before its per-call mutation
+   * callback may run; retaining the Promise lets the replay attach a live
+   * consumer without minting a second lease or leaving this screen forever in
+   * 「正在生成」. A query would still be wrong because refetching silently swaps
+   * the director result under a preview the user is reviewing.
    */
-  const mintedFor = useRef<string | null>(null);
+  const pendingMint = useRef<{
+    readonly planId: string;
+    readonly promise: Promise<RecordingPlanResponse>;
+  } | null>(null);
+  const mintPlan = planning.mutateAsync;
   useEffect(() => {
-    if (service.blocked || mintedFor.current === agentPlanId) return;
-    mintedFor.current = agentPlanId;
-    planning.mutate(agentPlanId, {
-      onSuccess: (minted) => {
-        const shots = identifiedShots(minted.items);
-        setItems(shots);
-        setDirty(false);
-        setSelectedShotId((current) =>
-          current !== null && shots.some((item) => item.id === current)
-            ? current
-            : (shots[0]?.id ?? null),
-        );
-      },
-    });
-    /* The dependency list is the address and the service, deliberately: the
-       mutation object's identity moves on every settle, and depending on it
-       would re-enter this effect after each successful mint. The ref, not the
-       list, is what makes this run once. */
-  }, [agentPlanId, service.blocked, planning]);
+    if (service.blocked || plan !== null) return undefined;
+    const existing = pendingMint.current;
+    const promise = existing?.planId === agentPlanId
+      ? existing.promise
+      : mintPlan(agentPlanId);
+    pendingMint.current = { planId: agentPlanId, promise };
+    let active = true;
+    void promise
+      .then((minted) => {
+        if (active) acceptMintedPlan(minted);
+      })
+      // `useMutation` already exposes the rejection as `planning.error`.
+      // Consume this Promise branch so the same failure is not also reported
+      // as an unhandled rejection by the WebView.
+      .catch(() => undefined)
+      .finally(() => {
+        if (pendingMint.current?.promise === promise) pendingMint.current = null;
+      });
+    return () => {
+      active = false;
+    };
+  }, [acceptMintedPlan, agentPlanId, mintPlan, plan, service.blocked]);
 
   const replan = useCallback(() => {
-    mintedFor.current = agentPlanId;
+    pendingMint.current = null;
     planning.mutate(agentPlanId, {
-      onSuccess: (minted) => {
-        setItems(identifiedShots(minted.items));
-        setDirty(false);
-      },
+      onSuccess: acceptMintedPlan,
     });
-  }, [agentPlanId, planning]);
+  }, [acceptMintedPlan, agentPlanId, planning]);
 
   const editShot = useCallback((shotId: string, patch: Partial<RecordingRequest>) => {
     if (Object.keys(patch).length === 0) return;

@@ -26,6 +26,7 @@
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { StrictMode, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { DesktopClientProvider, type DesktopClient } from '../../data/desktopClient';
@@ -93,6 +94,14 @@ function Probe() {
 
 interface MountOptions {
   readonly preflightResult?: RecordingPreflight | undefined;
+  readonly strictMode?: boolean | undefined;
+  readonly serviceOnlineInitially?: boolean | undefined;
+}
+
+function OnlineSeed({ children }: { readonly children: ReactNode }) {
+  const queryClient = useQueryClient();
+  queryClient.setQueryData(qk.service.health(), { status: 'ok' } as never);
+  return children;
 }
 
 function mount(options: MountOptions = {}): Harness {
@@ -163,7 +172,7 @@ function mount(options: MountOptions = {}): Harness {
     listAgentPlans: () => record('listAgentPlans', [] as never),
   } satisfies Partial<DesktopClient>;
 
-  renderInteractive(
+  const workspace = (
     <DesktopClientProvider client={stub as unknown as DesktopClient}>
       <MemoryRouter initialEntries={[`/recording/${AGENT_PLAN_ID}`]}>
         <Probe />
@@ -172,8 +181,14 @@ function mount(options: MountOptions = {}): Harness {
           <Route path="/delivery/task/:taskId" element={<div>任务详情占位</div>} />
         </Routes>
       </MemoryRouter>
-    </DesktopClientProvider>,
+    </DesktopClientProvider>
   );
+  const onlineWorkspace = options.serviceOnlineInitially
+    ? <OnlineSeed>{workspace}</OnlineSeed>
+    : workspace;
+  renderInteractive(options.strictMode
+    ? <StrictMode>{onlineWorkspace}</StrictMode>
+    : onlineWorkspace);
 
   return { reached, executed, planned, presets };
 }
@@ -424,6 +439,15 @@ describe('视野 FOV / 持枪视野', () => {
 /* ── 5. the lease ────────────────────────────────────────────────────────── */
 
 describe('the plan lease', () => {
+  it('survives StrictMode effect replay without orphaning or duplicating the lease', async () => {
+    const harness = mount({ strictMode: true, serviceOnlineInitially: true });
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-shot-list="ready"]')).not.toBeNull();
+    });
+    expect(harness.planned).toEqual([AGENT_PLAN_ID]);
+  });
+
   it('is minted once for the address and never re-minted on its own', async () => {
     const harness = mount();
     await serviceOnline();

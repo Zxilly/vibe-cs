@@ -39,6 +39,7 @@ import { Component, Suspense, type ReactNode } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
 
 import { Empty, EMPTY_MIN_HEIGHT_CLASS, TableSkeleton } from '../../design/data';
+import { Page, Toolbar } from '../../design/layout';
 import { Button, cn } from '../../design/primitives';
 
 /**
@@ -68,11 +69,19 @@ export interface RouteLoadingProps {
 
 export function RouteLoading({ stage, rows = 4, className }: RouteLoadingProps) {
   return (
-    <TableSkeleton
-      rows={rows}
-      stage={stage ?? <Trans>正在打开这个页面</Trans>}
-      className={cn(EMPTY_MIN_HEIGHT_CLASS, className)}
-    />
+    <Page
+      toolbar={
+        <Toolbar
+          leading={<span aria-hidden="true" className="block h-3.5 w-28 animate-pulse bg-neutral-200" />}
+        />
+      }
+    >
+      <TableSkeleton
+        rows={rows}
+        stage={stage ?? <Trans>正在打开这个页面</Trans>}
+        className={cn(EMPTY_MIN_HEIGHT_CLASS, 'm-7', className)}
+      />
+    </Page>
   );
 }
 

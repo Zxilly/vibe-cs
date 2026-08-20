@@ -44,6 +44,7 @@ import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { ActivityDrawer } from '../ActivityDrawer';
+import { Toaster } from '../design/feedback';
 import { useShellCollapsed } from '../design/layout';
 import {
   RouteBoundary,
@@ -62,7 +63,7 @@ import {
   useShellStore,
   WindowTitleBar,
 } from './shell';
-import { Toaster } from '../design/feedback';
+import './routeViewport.css';
 
 export interface AppShellProps {
   /**
@@ -171,7 +172,14 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
               route is itself the recovery — without it the caught error would
               survive onto the next page. */}
           <RouteBoundary resetKey={location.key} onGoHome={() => goTo('/')}>
-            <Outlet />
+            <div
+              key={location.pathname}
+              data-route-viewport
+              data-route-path={location.pathname}
+              className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+            >
+              <Outlet />
+            </div>
           </RouteBoundary>
         </main>
 

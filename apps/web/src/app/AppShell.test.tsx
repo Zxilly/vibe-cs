@@ -58,8 +58,18 @@ describe('AppShell — the assembled frame', () => {
     expect(html).toContain('data-shell-titlebar');
     expect(html).toContain('data-shell-nav="expanded"');
     expect(html).toContain('data-shell-main');
+    expect(html).toContain('data-route-viewport');
     expect(html).not.toContain('data-agent-rail');
     expect(html).toContain('data-test-page');
+  });
+
+  it('gives every route one full-size clipped viewport', () => {
+    const html = renderShell('/library');
+
+    expect(html).toContain('data-route-path="/library"');
+    expect(html).toMatch(
+      /data-route-viewport="true"[^>]*class="[^"]*h-full[^"]*min-h-0[^"]*min-w-0[^"]*overflow-hidden/u,
+    );
   });
 
   it('puts the navigation rail before the outlet and mounts no trailing rail', () => {

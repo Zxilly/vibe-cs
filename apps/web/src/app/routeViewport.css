@@ -1,0 +1,25 @@
+/*
+ * Route changes happen inside one fixed plane. The shell, rail and viewport
+ * geometry do not participate in the motion; only the newly mounted page
+ * content settles by a few pixels. Query-only changes (tabs, filters and
+ * settings sections) keep the same keyed viewport and therefore do not replay
+ * the animation.
+ */
+
+@layer components {
+  @keyframes route-viewport-enter {
+    from {
+      opacity: 0.86;
+      transform: translateY(4px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  [data-route-viewport] {
+    animation: route-viewport-enter 140ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+}

@@ -192,6 +192,27 @@ describe('AppShell — Ctrl K', () => {
   });
 });
 
+describe('AppShell — route viewport', () => {
+  it('replaces the page plane for a different destination but keeps it for query-only changes', async () => {
+    media = stubMatchMedia(false);
+    const router = shellRouter(pendingProbe);
+    const { container } = renderInteractive(<RouterProvider router={router} />);
+    const first = container.querySelector('[data-route-viewport]');
+
+    await act(async () => {
+      await router.navigate('/delivery');
+    });
+    const destination = container.querySelector('[data-route-viewport]');
+    expect(destination).not.toBe(first);
+    expect(destination?.getAttribute('data-route-path')).toBe('/delivery');
+
+    await act(async () => {
+      await router.navigate('/delivery?view=outputs');
+    });
+    expect(container.querySelector('[data-route-viewport]')).toBe(destination);
+  });
+});
+
 describe('AppShell — background activity', () => {
   it('opens from the title-bar bell and Esc closes the accessible drawer', async () => {
     media = stubMatchMedia(false);

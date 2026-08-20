@@ -408,13 +408,13 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 
 ### IA-26 可访问性、跨模式与真实闭环收口
 
-- [ ] **状态**
+- [x] **状态**
 - 建什么：补齐 live region、焦点推进、键盘路径和跨模式转换说明/动作；用真实 Tauri Desktop 跑完一句话到视频并全量回归。
 - 验收标准：
   - [x] 流式完成、修改应用、录制/导出状态有礼貌播报
   - [x] 完成动作后焦点落到下一项待处理内容
   - [x] 三种制作方式的可转换方向、复制语义和不可逆边界有测试
-  - [ ] Tauri WebView2 CDP + agent-browser 真实闭环截图与日志留证
+  - [x] Tauri WebView2 CDP + agent-browser 真实闭环截图与日志留证
   - [x] `pnpm lint && pnpm typecheck && pnpm test`、Rust 测试、i18n 目录全部通过
 
 ### 阶段 7 执行日志
@@ -433,3 +433,4 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 - 2026-08-20, IA-26 录制预览几何收口:导播地图按单个镜头的相机关键点、朝向长度与安全边距计算局部裁剪，不再为一个镜头展示整张地图；基图与 SVG 共用同一聚焦投影。每帧只绘制当前播放位置的一组朝向/FOV，去掉起终点文字叠加；已有方案时忽略残留 pending 状态，镜头列表不再回退成骨架。最大化 Tauri WebView2 `2560×1392` 验证聚焦区域占地图约 17.9%、4 个路径关键点、1 组朝向/FOV、0 个起终点标签、无文档横向溢出，预检收束为 1024px/4 列；证据见 `target/real-data/agent-k3-real/camera-preview-focused-after.png`。
 - 2026-08-20, IA-26 录制预览结构重做:进一步用 CDP 量化发现旧地图内容高 825px、承载父区仅 550px，收缩父区仍按错误高度排布后续控件，形成真实覆盖。导播区现改为正常流内的「地图舞台 + 镜头遥测」结构：最大化时左右分栏，时间线、播放、说明和导播依据统一进入 352px 侧栏；紧凑宽度自动上下排列，长证据允许断行。真实 Tauri 在 `2560×1392` 测得地图/遥测、地图/高度、地图/依据相交面积均为 0，地图完整包含于舞台，页面无横向溢出；`1440×900` 自动变为单列且无溢出。证据见 `target/real-data/agent-k3-real/camera-preview-redesigned.png`、`camera-preview-redesigned-bottom.png` 与 `camera-preview-redesigned-1440x900.png`。
 - 2026-08-20, IA-26 全产品验证与恢复链路收口:使用真实 Tauri WebView2 CDP + agent-browser 完成 29 个页面/一级子视图在 `1100×700`、`1440×900`、`2560×1392` 的 87 份接受截图，修复 Steam 配置恢复深链、分析英文/裸 SteamID、457 行高光全量挂载、恢复中心 CS2 路径漂移和缺失 HLAE 无准备动作。Web 361 文件/4308 项、lint/i18n/typecheck/build、application 329、HLAE 69（1 环境项忽略）、runtime 247（5 环境项忽略）全部通过。稳定 2.191.1 与官方 2.192.1 prerelease 在当前 CS2 build 24701871 上均未执行生成的 bridge，真实 Take/Composition/MP4 仍受 `HLAE_BRIDGE_TIMEOUT` 外部兼容性阻塞，故 IA-26 与硬件闭环保持未勾选；证据见 `docs/superpowers/evidence/2026-08-20-full-product-verification/`。
+- 2026-08-21, IA-26 真实成片闭环 PASS:用最小 HLAE 探针证明原 `HLAE_BRIDGE_TIMEOUT` 是 Steam 客户端未运行导致 CS2 在执行 `mirv_*` 前 fatal，而非 HLAE/当前 CS2 版本不兼容；Runtime 现可自动静默启动并等待 Steam 就绪。R20 镜头的留白跨过 R21 full-packet 边界，现按权威回合区间裁切，bridge 对瞬时播放缺失使用 5 秒有界 grace，并保留认证失败原因。真实录制作业 `2e3dee81-2bb0-4589-aafa-d4ed1e5ff88e` 完成，登记 Take `2e9bc7c7-f640-4cee-8ba4-be00137ac021`、确认 Composition `a86bf42c-f363-4aef-aedd-2c8f35b43a83`并完成导出 `2b8732b3-f3c1-49ee-acfe-02764e0e8d4e`；最终 MP4 为 1920×1080/60fps/H.264/AAC/8.55s/9,280,863 bytes，任务详情与作品导出步均可直达成品。Web 361 文件/4310 项、lint/i18n/typecheck/build、application 329、storage 163（1 真实数据项忽略）、HLAE 69（1 官方压缩包项忽略）、runtime 251（5 环境项忽略）通过；证据见 `docs/superpowers/evidence/2026-08-20-full-product-verification/`。

@@ -23,13 +23,16 @@ function stubAdapter(overrides: Partial<DesktopWindowAdapter> = {}): DesktopWind
 }
 
 describe('WindowTitleBar', () => {
-  it('is one 44px bar, brand block exactly as wide as the rail below it', () => {
+  it('is one 44px bar, with the mode switch exactly as wide as the rail below it', () => {
     const html = renderMarkup(<WindowTitleBar adapter={null} />);
 
     expect(html).toContain('h-[var(--h-titlebar)]');
     expect(html).toContain('data-shell-titlebar="nav-expanded"');
     expect(html).toContain('w-[var(--w-nav)]');
     expect(html).toContain('bg-surface-chrome');
+    expect(html).toContain('data-titlebar-mode="edit"');
+    expect(html).toContain('剪辑模式');
+    expect(html).not.toContain('VIBE CS');
   });
 
   it('follows the rail to 56px when the rail is collapsed', () => {
@@ -37,8 +40,14 @@ describe('WindowTitleBar', () => {
 
     expect(html).toContain('data-shell-titlebar="nav-collapsed"');
     expect(html).toContain('w-[var(--w-nav-collapsed)]');
-    // The wordmark is dropped; only the 22px V mark stays.
+    // The wordmark is retired; the compact switch keeps only its mode icon.
     expect(html).not.toContain('VIBE CS');
+  });
+
+  it('can render analysis as the current work lens', () => {
+    const html = renderMarkup(<WindowTitleBar adapter={null} mode="analysis" />);
+    expect(html).toContain('data-titlebar-mode="analysis"');
+    expect(html).toContain('分析模式');
   });
 
   it('carries the crumb and the Ctrl K entry of the frame', () => {

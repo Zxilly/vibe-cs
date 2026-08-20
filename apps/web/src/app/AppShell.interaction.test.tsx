@@ -43,6 +43,8 @@ function shellRouter(
         children: [
           { index: true, element: <span data-page="home">工作台内容</span> },
           { path: 'library', element: <span data-page="library">资料库内容</span> },
+          { path: 'players', element: <span data-page="players">玩家内容</span> },
+          { path: 'evidence', element: <span data-page="evidence">证据内容</span> },
           { path: 'agent', element: <span data-page="agent">创作内容</span> },
           { path: 'projects/:projectId', element: <span data-page="project">作品内容</span> },
           { path: 'delivery', element: <span data-page="delivery">成品内容</span> },
@@ -210,6 +212,38 @@ describe('AppShell — route viewport', () => {
       await router.navigate('/delivery?view=outputs');
     });
     expect(container.querySelector('[data-route-viewport]')).toBe(destination);
+  });
+});
+
+describe('AppShell — work modes', () => {
+  it('switches from editing navigation to the retained analysis navigation', async () => {
+    media = stubMatchMedia(false);
+    const router = shellRouter(pendingProbe, '/');
+    const { getByRole, queryByText } = renderInteractive(<RouterProvider router={router} />);
+
+    expect(queryByText('作品')).not.toBeNull();
+    expect(queryByText('玩家目录')).toBeNull();
+
+    fireEvent.pointerDown(getByRole('button', { name: /切换工作模式/u }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(getByRole('menuitem', { name: '分析模式' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/library'));
+    expect(queryByText('玩家目录')).not.toBeNull();
+    expect(queryByText('证据检索')).not.toBeNull();
+    expect(queryByText('作品')).toBeNull();
+  });
+
+  it('opens analysis deep links in analysis mode without a wrong-nav frame', () => {
+    media = stubMatchMedia(false);
+    const { queryAllByText, queryByText } = renderInteractive(
+      <RouterProvider router={shellRouter(pendingProbe, '/players')} />,
+    );
+
+    expect(queryAllByText('玩家目录').length).toBeGreaterThan(0);
+    expect(queryByText('作品')).toBeNull();
   });
 });
 

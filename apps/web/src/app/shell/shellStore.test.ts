@@ -7,11 +7,18 @@ beforeEach(() => {
 });
 
 describe('shellStore', () => {
-  it('starts with the rail open and the Agent rail collapsed, as Frame draws them', () => {
-    expect(SHELL_INITIAL_STATE).toEqual({ navCollapsed: false, agentRailExpanded: false });
+  it('starts in editing mode with the rail open and the Agent rail collapsed', () => {
+    expect(SHELL_INITIAL_STATE).toEqual({ mode: 'edit', navCollapsed: false, agentRailExpanded: false });
     const state = useShellStore.getState();
+    expect(state.mode).toBe('edit');
     expect(state.navCollapsed).toBe(false);
     expect(state.agentRailExpanded).toBe(false);
+  });
+
+  it('switches work modes independently of the rail state', () => {
+    useShellStore.getState().setMode('analysis');
+    expect(useShellStore.getState().mode).toBe('analysis');
+    expect(useShellStore.getState().navCollapsed).toBe(false);
   });
 
   it('toggles the nav rail', () => {
@@ -37,18 +44,19 @@ describe('shellStore', () => {
     expect(useShellStore.getState().agentRailExpanded).toBe(false);
   });
 
-  it('holds nothing but the two shell preferences (§4.2: no server data)', () => {
+  it('holds only shell preferences and no server data', () => {
     const values = Object.entries(useShellStore.getState())
       .filter(([, value]) => typeof value !== 'function')
       .map(([key]) => key)
       .sort();
-    expect(values).toEqual(['agentRailExpanded', 'navCollapsed']);
+    expect(values).toEqual(['agentRailExpanded', 'mode', 'navCollapsed']);
   });
 
   it('resets back to the initial state', () => {
     useShellStore.getState().setNavCollapsed(true);
     useShellStore.getState().setAgentRailExpanded(true);
     resetShellStore();
+    expect(useShellStore.getState().mode).toBe('edit');
     expect(useShellStore.getState().navCollapsed).toBe(false);
     expect(useShellStore.getState().agentRailExpanded).toBe(false);
   });

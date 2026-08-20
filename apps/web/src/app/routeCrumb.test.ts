@@ -70,7 +70,7 @@ describe('routeCrumb', () => {
 
   it('names the leaf for the four §7 routes the rail cannot list', () => {
     expect(crumb('/match/aurora-vs-meridian')).toBe('资料库 › Demo 资料库 › 比赛工作区');
-    expect(crumb('/players/kael')).toBe('资料库 › 玩家目录 › 玩家档案');
+    expect(crumb('/players/kael')).toBe('分析 › 玩家目录 › 玩家档案');
     expect(crumb('/delivery/task/t-42')).toBe('交付 › 成品文件 › 后台任务详情');
     expect(crumb('/projects/plan%3Ap-1')).toBe('制作 › 作品 › 作品工作区');
     // The footer entry has no group heading, so its own label opens the crumb —
@@ -95,8 +95,8 @@ describe('routeCrumb', () => {
   });
 
   it('keeps the list route and its detail route apart', () => {
-    expect(crumb('/players')).toBe('资料库 › 玩家目录');
-    expect(crumb('/players/kael')).toBe('资料库 › 玩家目录 › 玩家档案');
+    expect(crumb('/players')).toBe('分析 › 玩家目录');
+    expect(crumb('/players/kael')).toBe('分析 › 玩家目录 › 玩家档案');
   });
 
   it('treats a trailing slash as the same destination', () => {

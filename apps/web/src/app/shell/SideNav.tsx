@@ -36,13 +36,16 @@ import { Badge, Button, cn } from '../../design/primitives';
 import {
   activeNavItemId,
   SHELL_NAV_FOOTER_ITEM,
-  SHELL_NAV_GROUPS,
+  shellNavGroups,
   type ShellNavItem,
   type ShellNavItemId,
+  type WorkspaceMode,
 } from './navigation';
 import { useShellStore } from './shellStore';
 
 export interface SideNavProps {
+  /** The work lens whose primary destinations the rail exposes. */
+  mode?: WorkspaceMode | undefined;
   /** Pins the state. Omitted, it follows the preference and the §8 breakpoint. */
   collapsed?: boolean | undefined;
   /** Replaces the store's toggle. */
@@ -64,9 +67,10 @@ const CELL_ACTIVE_CLASS = 'bg-accent text-bg';
 
 const GROUP_HEADING_CLASS = 'px-2 pt-3.5 pb-1.5 font-heading text-2xs tracking-caps text-neutral-600';
 
-export function SideNav({ collapsed, onToggleCollapsed, badges, className }: SideNavProps) {
+export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className }: SideNavProps) {
   const { i18n } = useLingui();
   const location = useLocation();
+  const storedMode = useShellStore((state) => state.mode);
   const storedCollapsed = useShellStore((state) => state.navCollapsed);
   const toggleNav = useShellStore((state) => state.toggleNav);
   const viewportFolded = useShellCollapsed();
@@ -74,6 +78,7 @@ export function SideNav({ collapsed, onToggleCollapsed, badges, className }: Sid
   const [flyoutId, setFlyoutId] = useState<ShellNavItemId | null>(null);
 
   const isCollapsed = collapsed ?? (storedCollapsed || viewportFolded);
+  const groups = shellNavGroups(mode ?? storedMode);
   const activeId = activeNavItemId(location.pathname, location.search);
   const toggle = onToggleCollapsed ?? toggleNav;
 
@@ -175,12 +180,12 @@ export function SideNav({ collapsed, onToggleCollapsed, badges, className }: Sid
     >
       {isCollapsed ? (
         <ul className="flex flex-col items-center gap-1.5">
-          {SHELL_NAV_GROUPS.flatMap((group) =>
+          {groups.flatMap((group) =>
             group.items.map((item) => renderItem(item, group.label === null ? null : i18n._(group.label))),
           )}
         </ul>
       ) : (
-        SHELL_NAV_GROUPS.map((group) => {
+        groups.map((group) => {
           const headingId = `${headingPrefix}-${group.id}`;
           return (
             <div key={group.id} className="px-3">

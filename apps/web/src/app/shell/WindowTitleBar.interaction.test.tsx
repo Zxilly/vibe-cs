@@ -124,9 +124,31 @@ describe('the command palette entry', () => {
   it('is reachable by keyboard before the window controls', () => {
     const { container } = renderInteractive(<WindowTitleBar adapter={null} />);
     const order = [...container.querySelectorAll('button')].map((button) =>
-      button.hasAttribute('data-titlebar-command') ? 'command' : button.getAttribute('data-window-control'),
+      button.closest('[data-titlebar-mode]') !== null
+        ? 'mode'
+        : button.hasAttribute('data-titlebar-command')
+          ? 'command'
+          : button.getAttribute('data-window-control'),
     );
 
-    expect(order).toEqual(['command', 'minimize', 'maximize', 'close']);
+    expect(order).toEqual(['mode', 'command', 'minimize', 'maximize', 'close']);
+  });
+});
+
+describe('the work-mode switch', () => {
+  it('offers both lenses and reports the selected one', () => {
+    const onModeChange = vi.fn();
+    const { getByRole } = renderInteractive(
+      <WindowTitleBar adapter={null} mode="edit" onModeChange={onModeChange} />,
+    );
+
+    fireEvent.pointerDown(getByRole('button', { name: /切换工作模式/u }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    const analysis = getByRole('menuitem', { name: '分析模式' });
+    fireEvent.click(analysis);
+
+    expect(onModeChange).toHaveBeenCalledWith('analysis');
   });
 });

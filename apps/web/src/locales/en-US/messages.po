@@ -222,7 +222,7 @@ msgstr "{0, plural, other {# more — open the Agent panel}}"
 #. placeholder {1}: row.map_name
 #. placeholder {2}: row.round
 #. placeholder {3}: formatTickCount(row.tick)
-#: src/pages/evidence/EvidenceDetail.tsx:121
+#: src/pages/evidence/EvidenceDetail.tsx:120
 msgid "{0} · {1} · 第 {2} 回合 · tick {3}"
 msgstr "{0} · {1} · Round {2} · tick {3}"
 
@@ -568,7 +568,7 @@ msgstr "{staleChanges} stale"
 msgid "{stamp} 的画面"
 msgstr "Frame at {stamp}"
 
-#: src/pages/evidence/EvidenceDetail.tsx:115
+#: src/pages/evidence/EvidenceDetail.tsx:114
 msgid "{subject} → {target}"
 msgstr "{subject} → {target}"
 
@@ -634,7 +634,7 @@ msgid "「{0}」只是一条对话。删除它不会动它改过的方案、录�
 msgstr "“{0}” is only a conversation. Deleting it touches none of the plans, recording tasks or finished videos it changed — the plan’s “Change origin” even keeps the name this session had at the time; you simply cannot go back to that conversation."
 
 #. placeholder {0}: state.search
-#: src/pages/PlayersPage.tsx:330
+#: src/pages/PlayersPage.tsx:324
 msgid "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
 msgstr "“{0}” matched no player and no alias. The directory matches names and aliases by prefix and substring only — no pinyin, no fuzzy matching."
 
@@ -647,11 +647,11 @@ msgid "↵ 打开"
 msgstr "↵ Open"
 
 #. placeholder {0}: textFieldLabel(field)
-#: src/pages/evidence/EvidenceConditions.tsx:255
+#: src/pages/evidence/EvidenceConditions.tsx:260
 msgid "＋ {0}"
 msgstr "＋ {0}"
 
-#: src/pages/evidence/EvidenceConditions.tsx:269
+#: src/pages/evidence/EvidenceConditions.tsx:274
 msgid "＋ 仅爆头"
 msgstr "＋ Headshots only"
 
@@ -667,7 +667,7 @@ msgstr "+ New project"
 msgid "＋ 添加选手"
 msgstr "＋ Add player"
 
-#: src/pages/evidence/EvidenceConditions.tsx:289
+#: src/pages/evidence/EvidenceConditions.tsx:294
 msgid "＋ 近 {RECENT_WINDOW_DAYS} 天"
 msgstr "＋ Last {RECENT_WINDOW_DAYS} days"
 
@@ -687,7 +687,7 @@ msgstr "1s = {0} px"
 msgid "2D 回放"
 msgstr "2D replay"
 
-#: src/pages/evidence/EvidenceDetail.tsx:101
+#: src/pages/evidence/EvidenceDetail.tsx:100
 msgid "2D 回放定位"
 msgstr "Locate in the 2D replay"
 
@@ -809,7 +809,8 @@ msgid "Demo 内容一致"
 msgstr "Demo content matches"
 
 #: src/app/command/commandRegistry.ts:168
-#: src/app/shell/navigation.tsx:81
+#: src/app/shell/navigation.tsx:84
+#: src/app/shell/navigation.tsx:107
 #: src/pages/home/RecentMatchesPanel.tsx:52
 #: src/pages/LibraryPage.tsx:333
 msgid "Demo 资料库"
@@ -860,7 +861,7 @@ msgstr "K / D / A"
 msgid "K/D"
 msgstr "K/D"
 
-#: src/pages/evidence/EvidenceConditions.tsx:193
+#: src/pages/evidence/EvidenceConditions.tsx:197
 msgid "Kael 的穿墙击杀"
 msgstr "Kael wallbang kills"
 
@@ -913,7 +914,7 @@ msgstr "Steam · last synced {0}"
 msgid "Steam 上的对局记录与回放下载"
 msgstr "Match records on Steam and demo downloads"
 
-#: src/app/routeCrumb.ts:110
+#: src/app/routeCrumb.ts:112
 #: src/pages/LibraryPage.tsx:113
 #: src/pages/LibraryPage.tsx:348
 #: src/pages/LibraryPage.tsx:351
@@ -1091,7 +1092,7 @@ msgstr "Keep none"
 msgid "不可关闭：录制会启动游戏并写出文件，必须有一次人工确认。"
 msgstr "Cannot be turned off: recording launches the game and writes files, so it takes one human confirmation."
 
-#: src/pages/evidence/EvidenceDetail.tsx:150
+#: src/pages/evidence/EvidenceDetail.tsx:149
 #: src/pages/settings/AdvancedSection.tsx:174
 msgid "不可用"
 msgstr "Unavailable"
@@ -1148,7 +1149,7 @@ msgstr "Professional"
 msgid "两支队伍分别以哪种方式赢下回合"
 msgstr "How each team won its rounds"
 
-#: src/app/shell/SideNav.tsx:167
+#: src/app/shell/SideNav.tsx:172
 msgid "主导航"
 msgstr "Main navigation"
 
@@ -1203,7 +1204,7 @@ msgstr "The binary replay exceeds the 128 MiB limit"
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "The binary replay exceeds the 128 MiB limit."
 
-#: src/app/shell/navigation.tsx:95
+#: src/app/shell/navigation.tsx:96
 msgid "交付"
 msgstr "Delivery"
 
@@ -1551,7 +1552,7 @@ msgid "先在上面添加片段，这里会给出它们与拍点的关系。"
 msgstr "Add clips above and their relation to the beats shows up here."
 
 #. placeholder {0}: left.name
-#: src/pages/players/PlayerComparePanel.tsx:147
+#: src/pages/players/PlayerComparePanel.tsx:146
 msgid "先看 {0} 的档案"
 msgstr "Open the profile of {0} first"
 
@@ -1729,7 +1730,7 @@ msgstr "{0} highlights in total, {1} of them under the current filter."
 msgid "共 {0} 项"
 msgstr "{0} items"
 
-#: src/pages/PlayersPage.tsx:357
+#: src/pages/PlayersPage.tsx:351
 msgid "共 {total} 名选手"
 msgstr "{total} players in total"
 
@@ -1805,8 +1806,8 @@ msgstr "Close drawer"
 msgid "关闭提示"
 msgstr "Dismiss notice"
 
-#: src/app/shell/WindowTitleBar.tsx:336
-#: src/app/shell/WindowTitleBar.tsx:337
+#: src/app/shell/WindowTitleBar.tsx:361
+#: src/app/shell/WindowTitleBar.tsx:362
 msgid "关闭窗口"
 msgstr "Close window"
 
@@ -1834,7 +1835,7 @@ msgstr "The other kinds still hold {0}."
 msgid "再修剪就不足一帧了"
 msgstr "Trimming any further would leave less than one frame"
 
-#: src/pages/players/PlayerComparePanel.tsx:155
+#: src/pages/players/PlayerComparePanel.tsx:154
 msgid "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
 msgstr "Tick one more player to compare. Up to {limit} — more than two columns side by side makes every column unreadable."
 
@@ -1846,13 +1847,13 @@ msgstr "A bit faster"
 msgid "再试一次"
 msgstr "Try again"
 
-#: src/app/shell/WindowTitleBar.tsx:326
-#: src/app/shell/WindowTitleBar.tsx:327
+#: src/app/shell/WindowTitleBar.tsx:351
+#: src/app/shell/WindowTitleBar.tsx:352
 msgid "最大化或还原窗口"
 msgstr "Maximize or restore window"
 
-#: src/app/shell/WindowTitleBar.tsx:316
-#: src/app/shell/WindowTitleBar.tsx:317
+#: src/app/shell/WindowTitleBar.tsx:341
+#: src/app/shell/WindowTitleBar.tsx:342
 msgid "最小化窗口"
 msgstr "Minimize window"
 
@@ -1896,7 +1897,7 @@ msgstr "Recent activity"
 msgid "写下这场值得回头看的地方"
 msgstr "Write down what is worth revisiting in this match"
 
-#: src/pages/evidence/EvidenceDetail.tsx:171
+#: src/pages/evidence/EvidenceDetail.tsx:170
 msgid "写注释"
 msgstr "Write a note"
 
@@ -1975,6 +1976,7 @@ msgstr "Kill positions"
 msgid "击杀清场"
 msgstr "Elimination"
 
+#: src/app/shell/navigation.tsx:111
 #: src/domain/task/taskVocabulary.tsx:27
 msgid "分析"
 msgstr "Analysis"
@@ -2039,6 +2041,11 @@ msgstr "Position samples, facing and kill-verified engagement axes only exist on
 msgid "分析已取消"
 msgstr "Analysis cancelled"
 
+#: src/app/shell/WindowTitleBar.tsx:185
+#: src/app/shell/WindowTitleBar.tsx:251
+msgid "分析模式"
+msgstr "Analysis mode"
+
 #: src/pages/match/views/viewChrome.tsx:264
 msgid "分析结果没有被改动，重试是安全的。"
 msgstr "The analysis result was not changed, so a retry is safe."
@@ -2067,6 +2074,10 @@ msgstr "Resolution"
 #: src/design/data/Pagination.tsx:57
 msgid "分页"
 msgstr "Pagination"
+
+#: src/app/shell/WindowTitleBar.tsx:256
+msgid "切换工作模式，当前：{currentModeLabel}"
+msgstr "Switch work mode, current: {currentModeLabel}"
 
 #: src/pages/LibraryPage.tsx:358
 msgid "切换视图"
@@ -2099,7 +2110,7 @@ msgctxt "plan-change"
 msgid "删除"
 msgstr "Delete"
 
-#: src/pages/delivery/OutputsView.tsx:202
+#: src/pages/delivery/OutputsView.tsx:201
 msgid "删除受管文件会先进入可回滚暂存，24 小时后清除。移除记录不会删除外部文件。"
 msgstr "Deleting a managed file moves it to a rollback staging area first, cleared after 24 hours. Removing a record never deletes an external file."
 
@@ -2123,7 +2134,7 @@ msgstr "Delete this conversation?"
 msgid "别贴这么近"
 msgstr "Not so close"
 
-#: src/app/shell/navigation.tsx:88
+#: src/app/shell/navigation.tsx:89
 msgid "制作"
 msgstr "Create"
 
@@ -2164,6 +2175,8 @@ msgctxt "agent-object"
 msgid "剪辑工程"
 msgstr "Edit project"
 
+#: src/app/shell/WindowTitleBar.tsx:185
+#: src/app/shell/WindowTitleBar.tsx:245
 #: src/pages/ProjectWorkspacePage.tsx:157
 msgid "剪辑模式"
 msgstr "Editing mode"
@@ -2181,7 +2194,7 @@ msgstr "Add a 0.5s tail"
 msgid "加入"
 msgstr "Add"
 
-#: src/pages/evidence/EvidenceDetail.tsx:104
+#: src/pages/evidence/EvidenceDetail.tsx:103
 #: src/pages/evidence/EvidenceResults.tsx:184
 #: src/pages/EvidencePage.tsx:239
 #: src/pages/match/MatchInspectorPanel.tsx:73
@@ -2312,7 +2325,7 @@ msgstr "Analyse in the library"
 
 #: src/pages/evidence/EvidenceEmpty.tsx:76
 #: src/pages/PlayerProfilePage.tsx:227
-#: src/pages/PlayersPage.tsx:338
+#: src/pages/PlayersPage.tsx:332
 msgid "去资料库分析一场"
 msgstr "Analyze a match in the library"
 
@@ -2445,7 +2458,7 @@ msgstr "Read-only"
 msgid "可以画进 2D 回放的事件"
 msgstr "Events that can be drawn in the 2D replay"
 
-#: src/pages/evidence/EvidenceDetail.tsx:150
+#: src/pages/evidence/EvidenceDetail.tsx:149
 msgid "可用"
 msgstr "Available"
 
@@ -2497,14 +2510,14 @@ msgid "名称"
 msgstr "Name"
 
 #: src/ActivityDrawer.tsx:64
-#: src/app/shell/WindowTitleBar.tsx:280
+#: src/app/shell/WindowTitleBar.tsx:305
 #: src/pages/delivery/TaskRecordRail.tsx:54
 #: src/pages/delivery/TaskRecordView.tsx:89
 #: src/terminology.ts:34
 msgid "后台任务"
 msgstr "Background tasks"
 
-#: src/app/shell/WindowTitleBar.tsx:279
+#: src/app/shell/WindowTitleBar.tsx:304
 msgid "后台任务，{activityUnreadCount} 条未读"
 msgstr "Background tasks, {activityUnreadCount} unread"
 
@@ -2552,7 +2565,7 @@ msgstr "{0} hits · sorted newest first"
 msgid "命中 {total} 条"
 msgstr "{total} hits"
 
-#: src/pages/evidence/EvidenceDetail.tsx:132
+#: src/pages/evidence/EvidenceDetail.tsx:131
 msgid "命中方式"
 msgstr "How it hit"
 
@@ -2758,8 +2771,8 @@ msgstr "Once these shots have a Demo and a player picked in the plan, this page 
 msgid "在时间轴上点一个片段，它的入出点、速度与画面参数会出现在这里。"
 msgstr "Select a clip on the timeline and its in/out points, speed and picture settings appear here."
 
-#: src/pages/evidence/EvidenceDetail.tsx:91
-#: src/pages/evidence/EvidenceDetail.tsx:97
+#: src/pages/evidence/EvidenceDetail.tsx:90
+#: src/pages/evidence/EvidenceDetail.tsx:96
 msgid "在比赛工作区打开"
 msgstr "Open in the match workspace"
 
@@ -3153,7 +3166,7 @@ msgstr "Export results"
 msgid "导出设置与这份作品的成品文件会显示在这里。"
 msgstr "Export settings and this project's finished files will appear here."
 
-#: src/app/boundary/RouteBoundary.tsx:121
+#: src/app/boundary/RouteBoundary.tsx:130
 msgid "导出诊断"
 msgstr "Export diagnostics"
 
@@ -3208,8 +3221,8 @@ msgstr "Ready"
 msgid "屏幕上的改动还没有写进方案。"
 msgstr "The changes on screen have not been written to the plan."
 
-#: src/app/shell/SideNav.tsx:217
-#: src/app/shell/SideNav.tsx:220
+#: src/app/shell/SideNav.tsx:222
+#: src/app/shell/SideNav.tsx:225
 msgid "展开侧栏"
 msgstr "Expand sidebar"
 
@@ -3236,7 +3249,7 @@ msgid "工作区里没有正在进行的对象"
 msgstr "Nothing is going on in the workspace"
 
 #: src/app/command/commandRegistry.ts:165
-#: src/app/shell/navigation.tsx:75
+#: src/app/shell/navigation.tsx:78
 #: src/pages/HomePage.tsx:58
 msgid "工作台"
 msgstr "Dashboard"
@@ -3393,7 +3406,7 @@ msgid "已过期 · Valve 不再保留"
 msgstr "Expired · Valve no longer keeps it"
 
 #. placeholder {0}: state.compare.length
-#: src/pages/PlayersPage.tsx:268
+#: src/pages/PlayersPage.tsx:262
 msgid "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
 msgstr "{0} selected · up to {PLAYER_COMPARE_LIMIT} can be compared"
 
@@ -3413,7 +3426,7 @@ msgid "已选 {0} 条"
 msgstr "{0} selected"
 
 #. placeholder {0}: left.name
-#: src/pages/players/PlayerComparePanel.tsx:144
+#: src/pages/players/PlayerComparePanel.tsx:143
 msgid "已选 {0}，还差一名"
 msgstr "{0} selected, one more to go"
 
@@ -3860,7 +3873,6 @@ msgstr "Success"
 msgid "成品"
 msgstr "Finished"
 
-#: src/pages/delivery/OutputsView.tsx:128
 #: src/terminology.ts:33
 msgid "成品文件"
 msgstr "Finished files"
@@ -3926,7 +3938,7 @@ msgid "打不开这场比赛的分析结果：{analysisError}"
 msgstr "The analysis result of this match could not be opened: {analysisError}"
 
 #. placeholder {0}: comparePlayers[0]?.name
-#: src/pages/PlayersPage.tsx:277
+#: src/pages/PlayersPage.tsx:271
 msgid "打开 {0} 的档案"
 msgstr "Open the profile of {0}"
 
@@ -3965,7 +3977,7 @@ msgstr "Open workspace"
 msgid "打开成品目录"
 msgstr "Open finished-files folder"
 
-#: src/pages/players/PlayerComparePanel.tsx:175
+#: src/pages/players/PlayerComparePanel.tsx:173
 msgid "打开档案"
 msgstr "Open profile"
 
@@ -4004,7 +4016,7 @@ msgstr "Run this action"
 msgid "批量注释"
 msgstr "Annotate in bulk"
 
-#: src/app/boundary/RouteBoundary.tsx:141
+#: src/app/boundary/RouteBoundary.tsx:150
 msgid "找不到这个页面"
 msgstr "Page not found"
 
@@ -4152,7 +4164,7 @@ msgstr "Sorted by detection confidence"
 msgid "按状态筛选任务"
 msgstr "Filter tasks by status"
 
-#: src/pages/delivery/OutputsView.tsx:133
+#: src/pages/delivery/OutputsView.tsx:132
 msgid "按类型筛选成品文件"
 msgstr "Filter finished files by type"
 
@@ -4235,8 +4247,8 @@ msgstr "Search matches, players, evidence, pages and actions"
 msgid "搜索比赛、选手或文件名"
 msgstr "Search matches, players or file names"
 
-#: src/pages/PlayersPage.tsx:245
-#: src/pages/PlayersPage.tsx:246
+#: src/pages/PlayersPage.tsx:240
+#: src/pages/PlayersPage.tsx:241
 msgid "搜索选手或别名"
 msgstr "Search players or aliases"
 
@@ -4305,8 +4317,8 @@ msgstr "Collapse"
 msgid "收起 AI 工作台"
 msgstr "Collapse AI workbench"
 
-#: src/app/shell/SideNav.tsx:217
-#: src/app/shell/SideNav.tsx:220
+#: src/app/shell/SideNav.tsx:222
+#: src/app/shell/SideNav.tsx:225
 msgid "收起侧栏"
 msgstr "Collapse sidebar"
 
@@ -4375,7 +4387,7 @@ msgstr "Discard"
 msgid "故障"
 msgstr "Glitch"
 
-#: src/pages/players/PlayerComparePanel.tsx:229
+#: src/pages/players/PlayerComparePanel.tsx:227
 msgid "数据不可用"
 msgstr "No data"
 
@@ -4454,7 +4466,7 @@ msgstr "Start a new conversation thread"
 msgid "新建一条空对话就行——想做什么直接说，Agent 会先生成一份剪辑单。"
 msgstr "Start an empty conversation, say what you want, and the Agent will create a shot list first."
 
-#: src/pages/delivery/OutputsView.tsx:174
+#: src/pages/delivery/OutputsView.tsx:173
 #: src/pages/home/RecentOutputsPanel.tsx:92
 #: src/pages/HomePage.tsx:62
 #: src/pages/HomePage.tsx:86
@@ -4936,11 +4948,11 @@ msgstr "{0} not downloaded on this page"
 msgid "机位不动，适合交代地点与站位"
 msgstr "The camera stays put; good for showing a place and the positions on it"
 
-#: src/pages/evidence/EvidenceConditions.tsx:206
+#: src/pages/evidence/EvidenceConditions.tsx:211
 msgid "条件"
 msgstr "Conditions"
 
-#: src/pages/evidence/EvidenceDetail.tsx:141
+#: src/pages/evidence/EvidenceDetail.tsx:140
 #: src/pages/library/libraryColumns.tsx:132
 #: src/pages/library/libraryColumns.tsx:133
 #: src/pages/library/LibraryFilters.tsx:172
@@ -4975,7 +4987,7 @@ msgid "查看"
 msgstr "View"
 
 #. placeholder {0}: left.name
-#: src/pages/players/PlayerComparePanel.tsx:187
+#: src/pages/players/PlayerComparePanel.tsx:185
 msgid "查看 {0} 的档案"
 msgstr "View the profile of {0}"
 
@@ -5064,7 +5076,7 @@ msgstr "The detector found no clutch, multi-kill or wallbang in this match — n
 msgid "检测器没有在这一场里给他标出高光。"
 msgstr "The detector marked no highlight for this player in this match."
 
-#: src/pages/evidence/EvidenceConditions.tsx:198
+#: src/pages/evidence/EvidenceConditions.tsx:202
 msgid "检索"
 msgstr "Search"
 
@@ -5073,7 +5085,7 @@ msgstr "Search"
 msgid "检索没能完成：{0}"
 msgstr "The search did not finish: {0}"
 
-#: src/pages/evidence/EvidenceConditions.tsx:192
+#: src/pages/evidence/EvidenceConditions.tsx:196
 msgid "检索证据"
 msgstr "Search evidence"
 
@@ -5170,7 +5182,7 @@ msgstr "Recording"
 msgid "正在录制，录制期间不能再启动一次回放"
 msgstr "A recording is running, and no replay can be started while it is"
 
-#: src/app/boundary/RouteBoundary.tsx:73
+#: src/app/boundary/RouteBoundary.tsx:81
 msgid "正在打开这个页面"
 msgstr "Opening this page"
 
@@ -5256,7 +5268,7 @@ msgstr "Reading the waveform"
 msgid "正在读取片段"
 msgstr "Reading clips"
 
-#: src/pages/PlayersPage.tsx:319
+#: src/pages/PlayersPage.tsx:313
 msgid "正在读取玩家目录"
 msgstr "Reading the player directory"
 
@@ -5307,7 +5319,7 @@ msgstr "This input is unavailable right now: {disabledReason}"
 
 #: src/pages/evidence/EvidenceConditions.tsx:75
 #: src/pages/evidence/EvidenceConditions.tsx:86
-#: src/pages/evidence/EvidenceDetail.tsx:129
+#: src/pages/evidence/EvidenceDetail.tsx:128
 #: src/pages/match/views/DuelsView.tsx:287
 #: src/pages/match/views/DuelsView.tsx:288
 #: src/pages/match/views/PlayersView.tsx:317
@@ -5349,7 +5361,7 @@ msgstr "Clutch"
 msgid "残局候选"
 msgstr "Clutch candidates"
 
-#: src/pages/players/PlayerComparePanel.tsx:226
+#: src/pages/players/PlayerComparePanel.tsx:224
 msgid "段位分布"
 msgstr "Rank distribution"
 
@@ -5475,7 +5487,7 @@ msgstr "Match workspace views"
 msgid "比赛数"
 msgstr "Matches"
 
-#: src/pages/evidence/EvidenceDetail.tsx:144
+#: src/pages/evidence/EvidenceDetail.tsx:143
 msgid "比赛日期"
 msgstr "Match date"
 
@@ -5494,14 +5506,14 @@ msgstr "Match detail"
 #: src/pages/players/PlayerComparePanel.tsx:126
 #: src/pages/players/PlayerComparePanel.tsx:141
 #: src/pages/players/PlayerComparePanel.tsx:142
+#: src/pages/players/PlayerComparePanel.tsx:164
 #: src/pages/players/PlayerComparePanel.tsx:165
-#: src/pages/players/PlayerComparePanel.tsx:166
 msgid "比较"
 msgstr "Compare"
 
 #. placeholder {0}: left.name
 #. placeholder {1}: right.name
-#: src/pages/players/PlayerComparePanel.tsx:169
+#: src/pages/players/PlayerComparePanel.tsx:167
 msgid "比较 {0} 与 {1}"
 msgstr "Compare {0} with {1}"
 
@@ -5529,7 +5541,7 @@ msgstr "No matching session"
 msgid "没有匹配的结果"
 msgstr "No results"
 
-#: src/pages/PlayersPage.tsx:324
+#: src/pages/PlayersPage.tsx:318
 msgid "没有匹配的选手"
 msgstr "No matching player"
 
@@ -5638,7 +5650,7 @@ msgstr "Follows the real movement axis; good for showing a route"
 msgid "波纹删除"
 msgstr "Ripple delete"
 
-#: src/pages/evidence/EvidenceDetail.tsx:157
+#: src/pages/evidence/EvidenceDetail.tsx:156
 #: src/pages/EvidencePage.tsx:204
 #: src/pages/match/views/RoundsView.tsx:620
 msgid "注释"
@@ -5764,7 +5776,7 @@ msgid "清空对话"
 msgstr "Clear conversations"
 
 #: src/pages/agent/SessionDrawer.tsx:283
-#: src/pages/PlayersPage.tsx:345
+#: src/pages/PlayersPage.tsx:339
 msgid "清空搜索"
 msgstr "Clear the search"
 
@@ -5787,8 +5799,8 @@ msgid "清空这份作品的片段？"
 msgstr "Clear this project's clips?"
 
 #: src/pages/match/views/HighlightsView.tsx:300
-#: src/pages/players/PlayerComparePanel.tsx:181
-#: src/pages/PlayersPage.tsx:283
+#: src/pages/players/PlayerComparePanel.tsx:179
+#: src/pages/PlayersPage.tsx:277
 msgid "清空选择"
 msgstr "Clear the selection"
 
@@ -5910,7 +5922,7 @@ msgstr "Fire"
 
 #: src/domain/map/EngagementLayer.tsx:104
 #: src/domain/match/matchEnums.ts:212
-#: src/pages/evidence/EvidenceDetail.tsx:135
+#: src/pages/evidence/EvidenceDetail.tsx:134
 #: src/pages/evidence/EvidenceResults.tsx:71
 #: src/pages/match/views/DuelsView.tsx:352
 #: src/pages/match/views/ReplayView.tsx:595
@@ -6060,13 +6072,13 @@ msgid "玩家档案"
 msgstr "Player profile"
 
 #: src/app/command/commandRegistry.ts:178
-#: src/app/shell/navigation.tsx:82
+#: src/app/shell/navigation.tsx:113
 #: src/pages/PlayersPage.tsx:223
-#: src/pages/PlayersPage.tsx:303
+#: src/pages/PlayersPage.tsx:297
 msgid "玩家目录"
 msgstr "Players"
 
-#: src/pages/PlayersPage.tsx:298
+#: src/pages/PlayersPage.tsx:292
 msgid "玩家目录没能读出来：{error}"
 msgstr "The player directory could not be read: {error}"
 
@@ -6210,15 +6222,15 @@ msgstr "Folder"
 msgid "目录太大，这次只统计了一部分，实际占用比上面多。"
 msgstr "The directory was too large to walk fully, so this counted part of it — actual usage is higher."
 
-#: src/pages/delivery/OutputsView.tsx:129
+#: src/pages/delivery/OutputsView.tsx:128
 msgid "目录很大，只扫描了一部分"
 msgstr "The folder is large, so only part of it was scanned"
 
-#: src/pages/PlayersPage.tsx:328
+#: src/pages/PlayersPage.tsx:322
 msgid "目录是从已分析的比赛里累积出来的。分析一场之后，出场的选手就会出现在这里。"
 msgstr "The directory builds up from analyzed matches. Analyze one and the players in it show up here."
 
-#: src/pages/PlayersPage.tsx:296
+#: src/pages/PlayersPage.tsx:290
 msgid "目录是只读的，重试不会改动任何数据。"
 msgstr "The directory is read-only, so a retry changes no data."
 
@@ -6309,7 +6321,7 @@ msgstr "See utility & economy"
 #: src/design/timeline/TimelinePrototype.tsx:214
 #: src/pages/agent/NewSessionPane.tsx:179
 #: src/pages/agent/SessionDrawer.tsx:237
-#: src/pages/delivery/OutputsView.tsx:148
+#: src/pages/delivery/OutputsView.tsx:147
 #: src/pages/editor/EditorTimelinePanel.tsx:253
 #: src/pages/EditorPage.tsx:481
 #: src/pages/home/RecentOutputsPanel.tsx:73
@@ -6396,7 +6408,7 @@ msgstr "The movement paths take one sample every {stride} frames."
 msgid "移除"
 msgstr "Remove"
 
-#: src/pages/evidence/EvidenceConditions.tsx:215
+#: src/pages/evidence/EvidenceConditions.tsx:220
 msgid "移除条件"
 msgstr "Remove condition"
 
@@ -6426,13 +6438,13 @@ msgstr "Later"
 msgid "稳定"
 msgstr "Settle"
 
-#: src/pages/evidence/EvidenceDetail.tsx:147
+#: src/pages/evidence/EvidenceDetail.tsx:146
 msgid "空间证据"
 msgstr "Spatial evidence"
 
 #: src/domain/map/EngagementLayer.tsx:103
 #: src/domain/match/matchEnums.ts:211
-#: src/pages/evidence/EvidenceDetail.tsx:134
+#: src/pages/evidence/EvidenceDetail.tsx:133
 #: src/pages/evidence/EvidenceResults.tsx:71
 #: src/pages/match/views/DuelsView.tsx:357
 #: src/pages/match/views/ReplayView.tsx:594
@@ -6441,11 +6453,11 @@ msgstr "Spatial evidence"
 msgid "穿墙"
 msgstr "Wallbang"
 
-#: src/app/shell/SideNav.tsx:219
+#: src/app/shell/SideNav.tsx:224
 msgid "窗口宽度不足 1100px，侧栏保持为图标条"
 msgstr "The window is under 1100px wide, so the sidebar stays an icon rail"
 
-#: src/app/shell/WindowTitleBar.tsx:310
+#: src/app/shell/WindowTitleBar.tsx:335
 msgid "窗口操作失败"
 msgstr "Window action failed"
 
@@ -6911,7 +6923,7 @@ msgid "记录已移除，文件仍在原处。"
 msgstr "The record was removed; the file is still in place."
 
 #: src/app/command/commandRegistry.ts:209
-#: src/app/shell/navigation.tsx:105
+#: src/app/shell/navigation.tsx:134
 #: src/pages/SettingsPage.tsx:128
 msgid "设置与诊断"
 msgstr "Settings & diagnostics"
@@ -6939,7 +6951,7 @@ msgid "证据是分析产出的。已分析 {totalAnalyses} 场，但还没有�
 msgstr "Evidence comes out of analysis. {totalAnalyses} matches are analyzed, but none of them has entered the evidence index yet, so every condition returns zero hits."
 
 #: src/app/command/commandRegistry.ts:181
-#: src/app/shell/navigation.tsx:83
+#: src/app/shell/navigation.tsx:114
 #: src/pages/EvidencePage.tsx:163
 msgid "证据检索"
 msgstr "Evidence search"
@@ -6948,7 +6960,7 @@ msgstr "Evidence search"
 msgid "证据检索视图"
 msgstr "Evidence search view"
 
-#: src/pages/evidence/EvidenceConditions.tsx:181
+#: src/pages/evidence/EvidenceConditions.tsx:185
 msgid "证据种类"
 msgstr "Evidence kind"
 
@@ -7176,7 +7188,7 @@ msgstr "Purchases"
 msgid "购买金额统计不可用"
 msgstr "Purchase spend statistics unavailable"
 
-#: src/app/shell/navigation.tsx:79
+#: src/app/shell/navigation.tsx:82
 #: src/pages/MatchWorkspacePage.tsx:203
 msgid "资料库"
 msgstr "Library"
@@ -7258,7 +7270,7 @@ msgid "跳转"
 msgstr "Seek"
 
 #: src/app/command/CommandPalette.tsx:229
-#: src/app/shell/WindowTitleBar.tsx:264
+#: src/app/shell/WindowTitleBar.tsx:289
 msgid "跳转、搜索比赛或证据"
 msgstr "Jump to a page, search matches or evidence"
 
@@ -7341,8 +7353,8 @@ msgstr "Back to projects"
 msgid "返回剪辑单"
 msgstr "Back to shot list"
 
-#: src/app/boundary/RouteBoundary.tsx:112
-#: src/app/boundary/RouteBoundary.tsx:146
+#: src/app/boundary/RouteBoundary.tsx:121
+#: src/app/boundary/RouteBoundary.tsx:155
 #: src/pages/agent/PlanPanel.tsx:115
 msgid "返回工作台"
 msgstr "Back to dashboard"
@@ -7480,7 +7492,7 @@ msgstr "No notes yet. A note hangs on a specific tick, so select an evidence row
 msgid "还没有片段"
 msgstr "No clips yet"
 
-#: src/pages/PlayersPage.tsx:324
+#: src/pages/PlayersPage.tsx:318
 msgid "还没有玩家"
 msgstr "No players yet"
 
@@ -7629,7 +7641,7 @@ msgstr "No clip at this position"
 msgid "这个动作需要桌面应用，浏览器里无法访问本机文件"
 msgstr "This action needs the desktop app; a browser cannot reach local files"
 
-#: src/app/boundary/RouteBoundary.tsx:142
+#: src/app/boundary/RouteBoundary.tsx:151
 msgid "这个地址不存在。其余功能不受影响。"
 msgstr "This address does not exist. Everything else still works."
 
@@ -7959,7 +7971,7 @@ msgstr "This conversation has no messages yet"
 msgid "这条提议没有涉及选中的镜头。"
 msgstr "This proposal does not touch the selected shot."
 
-#: src/pages/evidence/EvidenceDetail.tsx:160
+#: src/pages/evidence/EvidenceDetail.tsx:159
 msgid "这条证据还没有注释。注释是跨比赛复用的，写在这里的话会出现在「注释」视图里。"
 msgstr "This evidence has no note yet. Notes are reused across matches, so one written here shows up in the Notes view."
 
@@ -8117,7 +8129,7 @@ msgstr "Selected {0} · {1}"
 
 #. placeholder {0}: row.round
 #. placeholder {1}: formatTickCount(row.tick)
-#: src/pages/evidence/EvidenceDetail.tsx:85
+#: src/pages/evidence/EvidenceDetail.tsx:84
 msgid "选中 {subject} · 第 {0} 回合 · tick {1}"
 msgstr "Selected {subject} · Round {0} · tick {1}"
 
@@ -8283,7 +8295,7 @@ msgstr "Selecting clips"
 msgid "逐个对手"
 msgstr "Per opponent"
 
-#: src/pages/evidence/EvidenceDetail.tsx:142
+#: src/pages/evidence/EvidenceDetail.tsx:141
 msgid "逐事件时间轴"
 msgstr "Per-event timeline"
 
@@ -8423,7 +8435,7 @@ msgstr "The rename did not succeed"
 
 #: src/ActivityDrawer.tsx:102
 #: src/domain/task/TaskDetail.tsx:240
-#: src/pages/delivery/OutputsView.tsx:157
+#: src/pages/delivery/OutputsView.tsx:156
 #: src/pages/delivery/TaskFeedList.tsx:70
 #: src/pages/home/RecentOutputsPanel.tsx:81
 #: src/pages/ProjectsPage.tsx:34
@@ -8512,7 +8524,7 @@ msgstr "Reconnect"
 msgid "重新选择"
 msgstr "Choose again"
 
-#: src/app/boundary/RouteBoundary.tsx:108
+#: src/app/boundary/RouteBoundary.tsx:117
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:180
 #: src/domain/task/TaskDetail.tsx:145
@@ -8554,7 +8566,7 @@ msgstr "Choose again"
 #: src/pages/PlayerProfilePage.tsx:153
 #: src/pages/PlayerProfilePage.tsx:217
 #: src/pages/players/PlayerHeatmapPanel.tsx:142
-#: src/pages/PlayersPage.tsx:295
+#: src/pages/PlayersPage.tsx:289
 #: src/pages/project/AddToProjectDialog.tsx:91
 #: src/pages/project/ProjectRecordingStep.tsx:123
 #: src/pages/project/ProjectRecordingStep.tsx:162
@@ -8832,7 +8844,7 @@ msgstr "Opening killer"
 msgid "首杀 / 首死"
 msgstr "Opening kills / deaths"
 
-#: src/pages/players/PlayerComparePanel.tsx:237
+#: src/pages/players/PlayerComparePanel.tsx:235
 msgid "首杀、残局胜率与常用地图这三列这批分析还没有产出，所以既不在表里也不在这里。"
 msgstr "Opening kills, clutch win rate and favorite maps are not produced by this batch of analyses, so they are neither in the table nor here."
 
@@ -8874,7 +8886,7 @@ msgstr "Highlights"
 msgid "高光候选"
 msgstr "Highlight candidates"
 
-#: src/pages/evidence/EvidenceDetail.tsx:142
+#: src/pages/evidence/EvidenceDetail.tsx:141
 msgid "高光检测"
 msgstr "Highlight detection"
 

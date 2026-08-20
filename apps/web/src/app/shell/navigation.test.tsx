@@ -8,6 +8,8 @@ import {
   SHELL_NAV_FOOTER_ITEM,
   SHELL_NAV_GROUPS,
   SHELL_NAV_ITEMS,
+  shellNavGroups,
+  workspaceModeForPath,
 } from './navigation';
 
 beforeAll(() => {
@@ -61,6 +63,31 @@ describe('the nav table mirrors Frame.dc.html', () => {
   it('pins 设置与诊断 outside the groups, as the frame does', () => {
     expect(SHELL_NAV_FOOTER_ITEM.id).toBe('settings');
     expect(SHELL_NAV_GROUPS.flatMap((group) => group.items).map((item) => item.id)).not.toContain('settings');
+  });
+
+  it('separates editing destinations from analysis destinations without duplicating data', () => {
+    expect(shellNavGroups('edit').flatMap((group) => group.items).map((item) => item.id)).toEqual([
+      'home', 'library', 'projects', 'outputs',
+    ]);
+    expect(shellNavGroups('analysis').flatMap((group) => group.items).map((item) => item.id)).toEqual([
+      'library', 'players', 'evidence',
+    ]);
+  });
+});
+
+describe('workspaceModeForPath', () => {
+  it('assigns creation and analysis deep links to their owning lens', () => {
+    expect(workspaceModeForPath('/')).toBe('edit');
+    expect(workspaceModeForPath('/projects/p-1')).toBe('edit');
+    expect(workspaceModeForPath('/delivery')).toBe('edit');
+    expect(workspaceModeForPath('/players/kael')).toBe('analysis');
+    expect(workspaceModeForPath('/evidence')).toBe('analysis');
+    expect(workspaceModeForPath('/match/demo-1')).toBe('analysis');
+  });
+
+  it('leaves shared library and settings routes in the chosen mode', () => {
+    expect(workspaceModeForPath('/library')).toBeNull();
+    expect(workspaceModeForPath('/settings')).toBeNull();
   });
 });
 

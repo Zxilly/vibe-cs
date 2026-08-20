@@ -15,12 +15,17 @@
 export { AgentRail, type AgentRailProps } from './AgentRail';
 export {
   activeNavItemId,
+  MODE_LANDING_PATH,
   SHELL_NAV_FOOTER_ITEM,
   SHELL_NAV_GROUPS,
+  SHELL_NAV_GROUPS_BY_MODE,
   SHELL_NAV_ITEMS,
+  shellNavGroups,
+  workspaceModeForPath,
   type ShellNavGroup,
   type ShellNavItem,
   type ShellNavItemId,
+  type WorkspaceMode,
 } from './navigation';
 export { SideNav, type SideNavProps } from './SideNav';
 export {

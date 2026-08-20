@@ -56,12 +56,14 @@ import {
 import { CommandPalette, useCommandPalette } from './command';
 import { routeCrumb } from './routeCrumb';
 import {
+  MODE_LANDING_PATH,
   RouteBreadcrumb,
   SideNav,
   type DesktopWindowAdapter,
   type ShellNavItemId,
   useShellStore,
   WindowTitleBar,
+  workspaceModeForPath,
 } from './shell';
 import './routeViewport.css';
 
@@ -118,6 +120,8 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
   const palette = useCommandPalette();
   const viewportFolded = useShellCollapsed();
   const storedNavCollapsed = useShellStore((state) => state.navCollapsed);
+  const storedMode = useShellStore((state) => state.mode);
+  const setMode = useShellStore((state) => state.setMode);
   const [activityOpen, setActivityOpen] = useState(false);
   const [activityUnread, setActivityUnread] = useState(0);
 
@@ -126,8 +130,15 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
      preference says. The title bar's brand block is the same width as the rail,
      so it is told the resolved state rather than re-deriving it. */
   const navCollapsed = storedNavCollapsed || folded;
+  const routeMode = workspaceModeForPath(location.pathname);
+  const mode = routeMode ?? storedMode;
 
   const crumb = routeCrumb(location.pathname, location.search);
+
+  useEffect(() => {
+    if (routeMode === null) return;
+    setMode(routeMode);
+  }, [routeMode, setMode]);
 
   useEffect(() => {
     if (location.pathname !== '/delivery') return;
@@ -140,6 +151,12 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
     void navigate(to);
   };
 
+  const switchMode = (nextMode: typeof mode) => {
+    if (nextMode === mode) return;
+    setMode(nextMode);
+    void navigate(MODE_LANDING_PATH[nextMode]);
+  };
+
   return (
     <div
       data-app-shell
@@ -147,6 +164,8 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
       className="flex h-full min-h-0 flex-col overflow-hidden bg-bg text-text"
     >
       <WindowTitleBar
+        mode={mode}
+        onModeChange={switchMode}
         crumb={<RouteBreadcrumb segments={crumb} />}
         serviceStatus={service.status}
         navCollapsed={navCollapsed}
@@ -161,7 +180,7 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
       <ServiceOfflineNotice />
 
       <div data-shell-row className="flex min-h-0 flex-1">
-        <SideNav collapsed={navCollapsed} badges={badges} />
+        <SideNav mode={mode} collapsed={navCollapsed} badges={badges} />
 
         <main
           id="main-content"

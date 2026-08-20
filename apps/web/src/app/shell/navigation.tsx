@@ -53,6 +53,9 @@ export type ShellNavItemId =
   | 'outputs'
   | 'settings';
 
+/** The two work lenses share data and routes but expose different primary jobs. */
+export type WorkspaceMode = 'edit' | 'analysis';
+
 export interface ShellNavItem {
   readonly id: ShellNavItemId;
   readonly label: MessageDescriptor;
@@ -68,7 +71,7 @@ export interface ShellNavGroup {
   readonly items: readonly ShellNavItem[];
 }
 
-export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
+const EDIT_NAV_GROUPS: readonly ShellNavGroup[] = [
   {
     id: 'workspace',
     label: null,
@@ -79,8 +82,6 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
     label: msg`资料库`,
     items: [
       { id: 'library', label: msg`Demo 资料库`, icon: Folder, to: '/library' },
-      { id: 'players', label: msg`玩家目录`, icon: UsersRound, to: '/players' },
-      { id: 'evidence', label: msg`证据检索`, icon: Search, to: '/evidence' },
     ],
   },
   {
@@ -99,6 +100,34 @@ export const SHELL_NAV_GROUPS: readonly ShellNavGroup[] = [
   },
 ];
 
+const ANALYSIS_NAV_GROUPS: readonly ShellNavGroup[] = [
+  {
+    id: 'analysis-library',
+    label: null,
+    items: [{ id: 'library', label: msg`Demo 资料库`, icon: Folder, to: '/library' }],
+  },
+  {
+    id: 'analysis-insights',
+    label: msg`分析`,
+    items: [
+      { id: 'players', label: msg`玩家目录`, icon: UsersRound, to: '/players' },
+      { id: 'evidence', label: msg`证据检索`, icon: Search, to: '/evidence' },
+    ],
+  },
+];
+
+export const SHELL_NAV_GROUPS_BY_MODE: Readonly<Record<WorkspaceMode, readonly ShellNavGroup[]>> = {
+  edit: EDIT_NAV_GROUPS,
+  analysis: ANALYSIS_NAV_GROUPS,
+};
+
+/** Kept as the editing-mode table for callers that render the default shell. */
+export const SHELL_NAV_GROUPS = SHELL_NAV_GROUPS_BY_MODE.edit;
+
+export function shellNavGroups(mode: WorkspaceMode): readonly ShellNavGroup[] {
+  return SHELL_NAV_GROUPS_BY_MODE[mode];
+}
+
 /** Frame pins this one to the bottom of the rail, below a `flex:1` spacer. */
 export const SHELL_NAV_FOOTER_ITEM: ShellNavItem = {
   id: 'settings',
@@ -108,10 +137,35 @@ export const SHELL_NAV_FOOTER_ITEM: ShellNavItem = {
 };
 
 /** Every entry in rail order, footer last. */
+const NAV_ITEM_BY_ID = new Map(
+  Object.values(SHELL_NAV_GROUPS_BY_MODE)
+    .flatMap((groups) => groups.flatMap((group) => group.items))
+    .map((item) => [item.id, item]),
+);
+
 export const SHELL_NAV_ITEMS: readonly ShellNavItem[] = [
-  ...SHELL_NAV_GROUPS.flatMap((group) => group.items),
+  ...(['home', 'library', 'players', 'evidence', 'projects', 'outputs'] as const)
+    .map((id) => NAV_ITEM_BY_ID.get(id))
+    .filter((item): item is ShellNavItem => item !== undefined),
   SHELL_NAV_FOOTER_ITEM,
 ];
+
+export const MODE_LANDING_PATH: Readonly<Record<WorkspaceMode, string>> = {
+  edit: '/',
+  analysis: '/library',
+};
+
+/** Routes with one unambiguous owner switch the shell lens on deep-link entry. */
+export function workspaceModeForPath(pathname: string): WorkspaceMode | null {
+  const path = normalizePath(pathname);
+  if (path === '/' || path === '/projects' || path.startsWith('/projects/') || path === '/delivery' || path.startsWith('/delivery/')) {
+    return 'edit';
+  }
+  if (path === '/players' || path.startsWith('/players/') || path === '/evidence' || path.startsWith('/evidence/') || path === '/match' || path.startsWith('/match/')) {
+    return 'analysis';
+  }
+  return null;
+}
 
 /**
  * Path prefixes that light an entry. Ordered, first match wins; `/delivery` is

@@ -79,7 +79,7 @@ describe('collapsing and expanding the rail', () => {
 
 describe('the collapsed rail flyout', () => {
   it('floats the group heading and the label out on hover', () => {
-    const { container, queryByText } = mount({ collapsed: true });
+    const { container, queryByText } = mount({ collapsed: true, mode: 'analysis' });
     const evidence = container.querySelector('[data-nav-item="evidence"]') as HTMLElement;
     const item = evidence.closest('li') as HTMLElement;
 
@@ -88,11 +88,11 @@ describe('the collapsed rail flyout', () => {
     fireEvent.pointerEnter(item);
     const flyout = container.querySelector('[data-nav-flyout="evidence"]') as HTMLElement;
     expect(flyout).not.toBeNull();
-    expect(flyout.textContent).toBe('资料库证据检索');
+    expect(flyout.textContent).toBe('分析证据检索');
 
     fireEvent.pointerLeave(item);
     expect(container.querySelector('[data-nav-flyout]')).toBeNull();
-    expect(queryByText('资料库')).toBeNull();
+    expect(queryByText('分析')).toBeNull();
   });
 
   it('opens the same flyout on keyboard focus — the headings are not hover-only', () => {
@@ -123,7 +123,7 @@ describe('the collapsed rail flyout', () => {
   });
 
   it('keeps every entry named for assistive technology while collapsed', () => {
-    const { getByRole } = mount({ collapsed: true });
+    const { getByRole } = mount({ collapsed: true, mode: 'analysis' });
 
     expect(getByRole('link', { name: '证据检索' })).not.toBeNull();
     expect(getByRole('link', { name: '设置与诊断' })).not.toBeNull();
@@ -157,8 +157,6 @@ describe('tab order', () => {
     expect(stops).toEqual([
       'home',
       'library',
-      'players',
-      'evidence',
       'projects',
       'outputs',
       'settings',

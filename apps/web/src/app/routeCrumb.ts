@@ -41,7 +41,7 @@ import type { MessageDescriptor } from '@lingui/core';
 
 import {
   activeNavItemId,
-  SHELL_NAV_GROUPS,
+  SHELL_NAV_GROUPS_BY_MODE,
   SHELL_NAV_ITEMS,
   type ShellNavItem,
   type ShellNavItemId,
@@ -86,7 +86,9 @@ function navItem(id: ShellNavItemId): ShellNavItem | null {
 
 /** The heading of the group an entry sits in, or null for 工作台 and the footer. */
 function groupLabel(id: ShellNavItemId): MessageDescriptor | null {
-  const group = SHELL_NAV_GROUPS.find((entry) => entry.items.some((item) => item.id === id));
+  const group = Object.values(SHELL_NAV_GROUPS_BY_MODE)
+    .flatMap((groups) => groups)
+    .find((entry) => entry.items.some((item) => item.id === id));
   return group?.label ?? null;
 }
 

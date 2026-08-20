@@ -2,7 +2,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { renderMarkup } from '../../test/render';
-import { SHELL_NAV_ITEMS } from './navigation';
+import { SHELL_NAV_FOOTER_ITEM, shellNavGroups, type WorkspaceMode } from './navigation';
 import { resetShellStore } from './shellStore';
 import { SideNav, type SideNavProps } from './SideNav';
 
@@ -16,6 +16,10 @@ function nav(props: SideNavProps = {}, at = '/'): string {
       <SideNav {...props} />
     </MemoryRouter>,
   );
+}
+
+function modeItems(mode: WorkspaceMode) {
+  return [...shellNavGroups(mode).flatMap((group) => group.items), SHELL_NAV_FOOTER_ITEM];
 }
 
 /** The ids of the entries the markup marks as current. */
@@ -36,7 +40,7 @@ describe('SideNav, expanded', () => {
   it('draws every destination once, at the 40px row height of §3.4', () => {
     const html = nav();
 
-    for (const item of SHELL_NAV_ITEMS) {
+    for (const item of modeItems('edit')) {
       expect(html.split(`data-nav-item="${item.id}"`)).toHaveLength(2);
     }
     expect(html).toContain('h-[var(--h-panel-head)]');
@@ -96,7 +100,7 @@ describe('SideNav, collapsed', () => {
   it('keeps every destination reachable and named, with the label off-screen', () => {
     const html = nav({ collapsed: true });
 
-    for (const item of SHELL_NAV_ITEMS) {
+    for (const item of modeItems('edit')) {
       expect(html.split(`data-nav-item="${item.id}"`)).toHaveLength(2);
     }
     expect(html).toContain('<span class="sr-only">工作台</span>');
@@ -114,5 +118,26 @@ describe('SideNav, collapsed', () => {
 
     expect(html).toContain('data-nav-badge="projects"');
     expect(html).not.toContain('>1</span>');
+  });
+});
+
+describe('SideNav modes', () => {
+  it('shows creation destinations in editing mode', () => {
+    const html = nav({ mode: 'edit' });
+    expect(html).toContain('data-nav-item="home"');
+    expect(html).toContain('data-nav-item="projects"');
+    expect(html).toContain('data-nav-item="outputs"');
+    expect(html).not.toContain('data-nav-item="players"');
+    expect(html).not.toContain('data-nav-item="evidence"');
+  });
+
+  it('shows the retained analysis destinations in analysis mode', () => {
+    const html = nav({ mode: 'analysis' }, '/players');
+    expect(html).toContain('data-nav-item="library"');
+    expect(html).toContain('data-nav-item="players"');
+    expect(html).toContain('data-nav-item="evidence"');
+    expect(html).not.toContain('data-nav-item="home"');
+    expect(html).not.toContain('data-nav-item="projects"');
+    expect(currentIds(html)).toEqual(['players']);
   });
 });

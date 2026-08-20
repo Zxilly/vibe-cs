@@ -20,6 +20,8 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
+import type { WorkspaceMode } from './navigation';
+
 const memoryValues = new Map<string, string>();
 
 const memoryStorage: Storage = {
@@ -38,10 +40,13 @@ const memoryStorage: Storage = {
 };
 
 export interface ShellState {
+  /** The current work lens; both modes keep using the same underlying data. */
+  mode: WorkspaceMode;
   /** Spec §8 rule 1: 216px text rail → 56px icon rail. */
   navCollapsed: boolean;
   /** The 46px Agent rail opened to `--w-inspector`. Default closed, per Frame. */
   agentRailExpanded: boolean;
+  setMode: (mode: WorkspaceMode) => void;
   setNavCollapsed: (collapsed: boolean) => void;
   toggleNav: () => void;
   setAgentRailExpanded: (expanded: boolean) => void;
@@ -54,6 +59,7 @@ export interface ShellState {
  * across test files otherwise.
  */
 export const SHELL_INITIAL_STATE = {
+  mode: 'edit' as const,
   navCollapsed: false,
   /* Frame.dc.html draws the rail collapsed on every artboard, and the 壳层规格
      board labels the 46px form 「默认收起」. */
@@ -64,6 +70,7 @@ export const useShellStore = create<ShellState>()(
   persist(
     (set) => ({
       ...SHELL_INITIAL_STATE,
+      setMode: (mode) => set({ mode }),
       setNavCollapsed: (navCollapsed) => set({ navCollapsed }),
       toggleNav: () => set((state) => ({ navCollapsed: !state.navCollapsed })),
       setAgentRailExpanded: (agentRailExpanded) => set({ agentRailExpanded }),
@@ -72,7 +79,7 @@ export const useShellStore = create<ShellState>()(
     {
       name: 'vibe-cs:shell',
       storage: createJSONStorage(() => (typeof localStorage === 'undefined' ? memoryStorage : localStorage)),
-      partialize: ({ navCollapsed, agentRailExpanded }) => ({ navCollapsed, agentRailExpanded }),
+      partialize: ({ mode, navCollapsed, agentRailExpanded }) => ({ mode, navCollapsed, agentRailExpanded }),
     },
   ),
 );

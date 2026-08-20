@@ -29,7 +29,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { Bell, Maximize, Minus, Search, X } from 'lucide-react';
+import { Bell, ChartNoAxesCombined, Clapperboard, Maximize, Minus, Search, X } from 'lucide-react';
 import {
   useEffect,
   useMemo,
@@ -38,11 +38,12 @@ import {
   type ReactNode,
 } from 'react';
 
-import { cn } from '../../design/layout';
+import { cn, OverflowMenu } from '../../design/layout';
 import { Kbd } from '../../design/primitives';
 import { isDesktopShell } from '../../shared/desktop/dialog';
 import { ServiceStatusMarker, type ServiceStatus } from '../boundary';
 import { useShellStore } from './shellStore';
+import type { WorkspaceMode } from './navigation';
 
 /**
  * The local service state the top bar reports. This is an alias, not a second
@@ -114,6 +115,10 @@ async function resolveDesktopWindow(): Promise<DesktopWindowAdapter | null> {
 }
 
 export interface WindowTitleBarProps {
+  /** Current work lens shown in the former brand block. */
+  mode?: WorkspaceMode | undefined;
+  /** Switches the shell navigation and lands on that lens's remembered entry. */
+  onModeChange?: ((mode: WorkspaceMode) => void) | undefined;
   /** 「资料库 › Aurora vs Meridian › 概览」. Owned by the route. */
   crumb?: ReactNode;
   serviceStatus?: ShellServiceStatus;
@@ -161,6 +166,8 @@ function startsOnDragRegion(target: EventTarget | null): boolean {
 }
 
 export function WindowTitleBar({
+  mode,
+  onModeChange,
   crumb,
   serviceStatus = 'checking',
   onOpenCommandPalette,
@@ -170,8 +177,12 @@ export function WindowTitleBar({
   adapter,
   className,
 }: WindowTitleBarProps) {
+  const storedMode = useShellStore((state) => state.mode);
   const storedNavCollapsed = useShellStore((state) => state.navCollapsed);
+  const currentMode = mode ?? storedMode;
   const collapsed = navCollapsed ?? storedNavCollapsed;
+  const ModeIcon = currentMode === 'edit' ? Clapperboard : ChartNoAxesCombined;
+  const currentModeLabel = currentMode === 'edit' ? t`剪辑模式` : t`分析模式`;
 
   const [desktopWindow, setDesktopWindow] = useState<DesktopWindowAdapter | null>(adapter ?? null);
   const [actionFailed, setActionFailed] = useState(false);
@@ -221,26 +232,40 @@ export function WindowTitleBar({
       )}
     >
       <div
-        data-titlebar-brand
+        data-titlebar-mode={currentMode}
         className={cn(
-          'flex flex-none items-center gap-2 border-r border-divider',
-          collapsed ? 'w-[var(--w-nav-collapsed)] justify-center' : 'w-[var(--w-nav)] px-4',
+          'flex flex-none items-stretch border-r border-divider',
+          collapsed ? 'w-[var(--w-nav-collapsed)]' : 'w-[var(--w-nav)]',
         )}
       >
-        <span
-          aria-hidden="true"
-          className="grid size-6.5 flex-none place-items-center border border-accent font-heading text-xs text-accent"
-        >
-          V
-        </span>
-        {collapsed ? null : (
-          <>
-            {/* 16px in Frame; §3.2 folds 16 into `--text-md`. */}
-            <span className="font-heading text-md leading-tight tracking-caps">VIBE CS</span>
-            {/* 9px in Frame; §3.2 folds 9/10 into `--text-2xs`. */}
-            <span className="text-2xs tracking-caps text-neutral-600">STUDIO</span>
-          </>
-        )}
+        <OverflowMenu
+          items={([
+            {
+              id: 'edit',
+              label: <Trans>剪辑模式</Trans>,
+              current: currentMode === 'edit',
+              onSelect: () => onModeChange?.('edit'),
+            },
+            {
+              id: 'analysis',
+              label: <Trans>分析模式</Trans>,
+              current: currentMode === 'analysis',
+              onSelect: () => onModeChange?.('analysis'),
+            },
+          ] as const)}
+          label={t`切换工作模式，当前：${currentModeLabel}`}
+          align="start"
+          triggerClassName={cn(
+            'h-full w-full text-text hover:bg-neutral-200',
+            collapsed ? 'justify-center px-1.5' : 'px-4',
+          )}
+          triggerLabel={
+            <>
+              <ModeIcon size={16} strokeWidth={1.5} aria-hidden="true" className="flex-none text-accent-700" />
+              {collapsed ? null : <span className="min-w-0 flex-1 truncate text-left font-heading text-md">{currentModeLabel}</span>}
+            </>
+          }
+        />
       </div>
 
       <div className="flex min-w-0 flex-1 items-center gap-3.5 px-4">

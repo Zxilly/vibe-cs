@@ -15,3 +15,10 @@ Evidence:
 - `mode-conversion-boundary.png`
 
 The current machine has no imported Demo and no configured model credential, so launching CS2 and producing a user-owned real video was not attempted. The full recording → Take → Composition → export path is covered by the application integration test `agent_recording_registers_a_take_and_exports_the_exact_composition`; a real user Demo remains the final hardware/data-dependent acceptance input.
+
+Completion-audit addition:
+
+- Desktop integration test `one_sentence_materializes_a_plan_and_reaches_a_persisted_final_video` uses an isolated persisted database, an analyzed Demo, a loopback streaming model, and deterministic recording/export adapters.
+- It proves the whole software-owned chain in one test: one sentence → `video_render` tool → non-empty Agent plan → immutable Agent baseline → recording plan → recorded Take → confirmed Composition → MP4 export → database reopen with the same plan, Take, Composition, and output association.
+- This test caught and closed the previous gap where `video_render` was stored in the conversation but never materialized into the empty shot list.
+- Analysis is now an automatic pre-chat stage for discovered/in-flight/failed Demos; only a physically missing Demo remains a blocking input error.

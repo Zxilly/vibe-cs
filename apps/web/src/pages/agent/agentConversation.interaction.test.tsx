@@ -120,7 +120,10 @@ const SESSION: AgentSession = {
 
 const putComposition = vi.fn();
 
-function stage(previewBeforeApply = false) {
+function stage(
+  previewBeforeApply = false,
+  compositionStatus: 'confirmed' | 'exporting' | 'exported' = 'confirmed',
+) {
   putComposition.mockReset();
   vi.mocked(useAgentPlan).mockReturnValue(queryResult(PLAN) as never);
   vi.mocked(useAgentPlanList).mockReturnValue(queryResult([]) as never);
@@ -159,7 +162,7 @@ function stage(previewBeforeApply = false) {
       plan_id: PLAN.id,
       plan_revision: PLAN.revision,
       title: PLAN.title,
-      status: 'confirmed',
+      status: compositionStatus,
       items: PLAN_SHOTS.map((shot, index) => ({
         shot_id: shot.id,
         take_id: `take-${index + 1}-a`,
@@ -358,6 +361,25 @@ describe('choosing a recorded Take', () => {
       })),
       replace_confirmed: true,
     });
+  });
+
+  it('requires the same confirmation after the composition has been exported', () => {
+    stage(false, 'exported');
+    renderBlock(<Controlled initial={{ ...CHANGES, mode: 'takes' }} />);
+
+    fireEvent.click(within(document.querySelector('[data-agent-take="take-1-b"]')!).getByRole(
+      'button',
+      { name: '用于成片' },
+    ));
+
+    expect(screen.getByRole('dialog', { name: '更换已确认的成片片段？' })).toBeTruthy();
+    expect(putComposition).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '确认更换' }));
+    expect(putComposition).toHaveBeenCalledWith(expect.objectContaining({
+      replace_confirmed: true,
+      status: 'confirmed',
+    }));
   });
 });
 

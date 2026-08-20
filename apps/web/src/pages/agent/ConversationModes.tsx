@@ -229,6 +229,9 @@ function TakesHead({ context, updateContext, plan, planPending }: ConversationMo
   const selectedByShot = new Map(
     (composition.data?.items ?? []).map((item) => [item.shot_id, item.take_id]),
   );
+  const compositionSelectionConfirmed = ['confirmed', 'exporting', 'exported'].includes(
+    composition.data?.status ?? '',
+  );
 
   const selectTake = (take: AgentTake, replaceConfirmed: boolean) => {
     const selected = new Map(selectedByShot);
@@ -249,7 +252,7 @@ function TakesHead({ context, updateContext, plan, planPending }: ConversationMo
   };
 
   const requestSelection = (take: AgentTake) => {
-    const changingConfirmed = composition.data?.status === 'confirmed'
+    const changingConfirmed = compositionSelectionConfirmed
       && selectedByShot.get(take.shot_id) !== take.id;
     if (changingConfirmed) setReplace(take);
     else selectTake(take, false);
@@ -258,8 +261,10 @@ function TakesHead({ context, updateContext, plan, planPending }: ConversationMo
   return (
     <div data-agent-mode-head="takes" className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-700">
-        <Badge variant={composition.data?.status === 'confirmed' ? 'accent' : 'neutral'}>
-          {composition.data?.status === 'confirmed' ? <Trans>成片选择已确认</Trans> : <Trans>成片选择未完成</Trans>}
+        <Badge variant={compositionSelectionConfirmed ? 'accent' : 'neutral'}>
+          {compositionSelectionConfirmed
+            ? <Trans>成片选择已确认</Trans>
+            : <Trans>成片选择未完成</Trans>}
         </Badge>
         <span><Trans>已选择 {composition.data?.items.length ?? 0} / {activeShots.length} 个镜头</Trans></span>
       </div>

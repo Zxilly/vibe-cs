@@ -45,6 +45,7 @@ describe('the nav table mirrors Frame.dc.html', () => {
       'library',
       'players',
       'evidence',
+      'agent',
       'projects',
       'outputs',
       'settings',
@@ -54,6 +55,7 @@ describe('the nav table mirrors Frame.dc.html', () => {
       '/library',
       '/players',
       '/evidence',
+      '/projects/new?step=shotlist',
       '/projects',
       '/delivery?view=outputs',
       '/settings',
@@ -67,7 +69,7 @@ describe('the nav table mirrors Frame.dc.html', () => {
 
   it('separates editing destinations from analysis destinations without duplicating data', () => {
     expect(shellNavGroups('edit').flatMap((group) => group.items).map((item) => item.id)).toEqual([
-      'home', 'library', 'projects', 'outputs',
+      'home', 'library', 'agent', 'projects', 'outputs',
     ]);
     expect(shellNavGroups('analysis').flatMap((group) => group.items).map((item) => item.id)).toEqual([
       'library', 'players', 'evidence',
@@ -99,6 +101,12 @@ describe('activeNavItemId', () => {
 
   it('tolerates a trailing slash', () => {
     expect(activeNavItemId('/players/')).toBe('players');
+  });
+
+  it('marks the project Agent entry only at its explicit new-project address', () => {
+    expect(activeNavItemId('/projects/new', '?step=shotlist')).toBe('agent');
+    expect(activeNavItemId('/projects/new', '?step=select')).toBe('projects');
+    expect(activeNavItemId('/projects/plan-1', '?step=shotlist')).toBe('projects');
   });
 
   it('lights 资料库 for the match workspace, per the 1100×700 artboard', () => {

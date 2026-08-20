@@ -125,10 +125,22 @@ describe('SideNav modes', () => {
   it('shows creation destinations in editing mode', () => {
     const html = nav({ mode: 'edit' });
     expect(html).toContain('data-nav-item="home"');
+    expect(html).toContain('data-nav-item="agent"');
     expect(html).toContain('data-nav-item="projects"');
     expect(html).toContain('data-nav-item="outputs"');
     expect(html).not.toContain('data-nav-item="players"');
     expect(html).not.toContain('data-nav-item="evidence"');
+  });
+
+  it('lets the active settings row fill the expanded footer behind the overlay toggle', () => {
+    const html = nav({ mode: 'edit' }, '/settings');
+    const footer = html.slice(html.indexOf('data-shell-nav-footer'));
+    const settings = footer.slice(footer.indexOf('data-nav-item="settings"'));
+
+    expect(footer).toContain('relative');
+    expect(footer).toContain('absolute');
+    expect(settings.slice(0, 400)).toContain('w-full');
+    expect(settings.slice(0, 400)).toContain('pr-12');
   });
 
   it('shows the retained analysis destinations in analysis mode', () => {

@@ -38,6 +38,7 @@ import {
   Home,
   Search,
   Settings,
+  Sparkles,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -49,6 +50,7 @@ export type ShellNavItemId =
   | 'library'
   | 'players'
   | 'evidence'
+  | 'agent'
   | 'projects'
   | 'outputs'
   | 'settings';
@@ -88,6 +90,7 @@ const EDIT_NAV_GROUPS: readonly ShellNavGroup[] = [
     id: 'production',
     label: msg`制作`,
     items: [
+      { id: 'agent', label: msg`Agent 创作`, icon: Sparkles, to: '/projects/new?step=shotlist' },
       { id: 'projects', label: UI_TERMINOLOGY.project.current, icon: Clapperboard, to: '/projects' },
     ],
   },
@@ -144,7 +147,7 @@ const NAV_ITEM_BY_ID = new Map(
 );
 
 export const SHELL_NAV_ITEMS: readonly ShellNavItem[] = [
-  ...(['home', 'library', 'players', 'evidence', 'projects', 'outputs'] as const)
+  ...(['home', 'library', 'players', 'evidence', 'agent', 'projects', 'outputs'] as const)
     .map((id) => NAV_ITEM_BY_ID.get(id))
     .filter((item): item is ShellNavItem => item !== undefined),
   SHELL_NAV_FOOTER_ITEM,
@@ -198,9 +201,14 @@ function normalizePath(pathname: string): string {
  *
  * `search` is the raw `location.search`, leading `?` optional.
  */
-export function activeNavItemId(pathname: string, _search = ''): ShellNavItemId | null {
+export function activeNavItemId(pathname: string, search = ''): ShellNavItemId | null {
   const path = normalizePath(pathname);
   if (path === '/') return 'home';
+
+  if (path === '/projects/new') {
+    const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+    if (params.get('step') === 'shotlist') return 'agent';
+  }
 
   if (path === '/delivery' || path.startsWith('/delivery/')) {
     /* §7: `/delivery/task/:taskId` is the task detail, which belongs to

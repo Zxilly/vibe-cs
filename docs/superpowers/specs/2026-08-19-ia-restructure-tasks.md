@@ -276,6 +276,8 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
   - [x] 模式按钮与侧栏共用 216/56px 几何，宽屏与折叠态均可操作
   - [x] 模式菜单使用受控 `DropdownMenuRadioGroup`，当前态与双向切换由 radio value 表达；截图见 `docs/superpowers/evidence/2026-08-20-ia-16/mode-menu-shadcn.png`
   - [x] 分析模式与剪辑模式各自只显示相关一级入口，设置始终在页脚
+  - [x] 剪辑模式「Agent 创作」直达作品工作区 Agent 剪辑单，独立 `/agent` 页面与右缘栏继续保持退役
+  - [x] 展开侧栏的设置激活面占满 footer 内容宽度，折叠按钮叠加而不分走一列
   - [x] 分析/剪辑专属深链自动选择正确模式，共享路由保留用户当前选择
   - [x] 模式选择写入 shell 持久状态，刷新后保留
 
@@ -327,3 +329,4 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 - 2026-08-20, IA-17:新增首次打开模式选择引导,明确共享数据、模式职责与后续切换入口,选择/保持当前模式后完成一次性引导;定向 47 项测试、lint、typecheck 通过并已 push;无偏离。
 - 2026-08-20, IA-18:参考 CS Demo Manager 路由与能力面补齐逐项映射,新增分析导航/路由/Ctrl K/九视图跨层保留契约;lint、typecheck、357 个测试文件/4265 项测试与双模式截图回归通过;明确 Ban tracking、全局队伍目录、语音导出为当前契约外能力,未创建空入口。
 - 2026-08-20, IA-16 follow-up:用 shadcn/Radix `DropdownMenuRadioGroup` 替换通用溢出菜单,补齐剪辑→分析→剪辑往返回归;通过 WebView2 CDP + agent-browser 在真实 Tauri Desktop 验证 URL、模式状态和导航同步;Lingui 1967/1967、lint、typecheck、357 个测试文件/4265 项测试通过。
+- 2026-08-20, IA-16 follow-up 2:修复侧栏 footer 横向分栏导致设置激活面缺角的问题,将折叠按钮改为叠加控件;恢复剪辑模式「Agent 创作」快捷入口并直达作品工作区唯一 Agent 面板;通过 WebView2 CDP + agent-browser 复现与验证。

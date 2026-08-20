@@ -143,14 +143,14 @@ describe('AppShell — the retired Agent column', () => {
     expect(container.querySelector('[data-agent-rail-toggle]')).toBeNull();
   });
 
-  it('keeps the retired Agent destination out of the folded icon rail', async () => {
+  it('keeps the project Agent entry in the folded rail without restoring the right column', async () => {
     media = stubMatchMedia(true);
     const { container } = renderInteractive(<RouterProvider router={shellRouter(pendingProbe)} />);
 
     // The 1100 × 700 board has no right column at all.
     expect(container.querySelector('[data-agent-rail]')).toBeNull();
 
-    expect(container.querySelector('[data-nav-item="agent"]')).toBeNull();
+    expect(container.querySelector('[data-nav-item="agent"]')).not.toBeNull();
     expect(container.querySelector('[data-nav-item="projects"]')).not.toBeNull();
   });
 });

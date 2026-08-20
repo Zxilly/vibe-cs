@@ -82,7 +82,7 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
   const activeId = activeNavItemId(location.pathname, location.search);
   const toggle = onToggleCollapsed ?? toggleNav;
 
-  const renderItem = (item: ShellNavItem, groupLabel: string | null) => {
+  const renderItem = (item: ShellNavItem, groupLabel: string | null, footer = false) => {
     const Icon = item.icon;
     const active = item.id === activeId;
     const badge = badges?.[item.id];
@@ -91,12 +91,16 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
 
     if (!isCollapsed) {
       return (
-        <li key={item.id}>
+        <li key={item.id} className={footer ? 'w-full' : undefined}>
           <Link
             to={item.to}
             data-nav-item={item.id}
             aria-current={active ? 'page' : undefined}
-            className={cn(ITEM_CLASS, active ? ITEM_ACTIVE_CLASS : ITEM_IDLE_CLASS)}
+            className={cn(
+              ITEM_CLASS,
+              footer && 'w-full pr-12',
+              active ? ITEM_ACTIVE_CLASS : ITEM_IDLE_CLASS,
+            )}
           >
             <Icon
               size={16}
@@ -205,19 +209,21 @@ export function SideNav({ mode, collapsed, onToggleCollapsed, badges, className 
       <span className="flex-1" />
 
       <div
+        data-shell-nav-footer
         className={cn(
-          'flex w-full items-center border-t border-divider pt-1.5',
-          isCollapsed ? 'flex-col gap-1.5' : 'gap-1.5 px-3',
+          'relative flex w-full items-center border-t border-divider pt-1.5',
+          isCollapsed ? 'flex-col gap-1.5' : 'px-3',
         )}
       >
-        <ul className={cn('flex', isCollapsed ? 'flex-col items-center gap-1.5' : 'min-w-0 flex-1 flex-col')}>
-          {renderItem(SHELL_NAV_FOOTER_ITEM, null)}
+        <ul className={cn('flex', isCollapsed ? 'flex-col items-center gap-1.5' : 'w-full flex-col')}>
+          {renderItem(SHELL_NAV_FOOTER_ITEM, null, true)}
         </ul>
         <Button
           icon
           size="sm"
           variant="ghost"
           data-nav-toggle
+          {...(isCollapsed ? {} : { className: 'absolute right-3 top-2.5 z-10' })}
           disabled={viewportFolded}
           aria-label={isCollapsed ? t`展开侧栏` : t`收起侧栏`}
           {...(viewportFolded

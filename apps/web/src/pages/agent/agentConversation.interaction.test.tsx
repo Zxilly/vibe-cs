@@ -16,7 +16,13 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { useAgentPlan, useAgentPlanList } from '../../data/plans';
+import {
+  useAgentComposition,
+  useAgentPlan,
+  useAgentPlanList,
+  useAgentTakes,
+  usePutAgentComposition,
+} from '../../data/plans';
 import {
   useAgentSession,
   useAgentWorkspaceSettings,
@@ -42,7 +48,14 @@ import {
 
 vi.mock('../../data/plans', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../data/plans')>();
-  return { ...actual, useAgentPlan: vi.fn(), useAgentPlanList: vi.fn() };
+  return {
+    ...actual,
+    useAgentPlan: vi.fn(),
+    useAgentPlanList: vi.fn(),
+    useAgentTakes: vi.fn(),
+    useAgentComposition: vi.fn(),
+    usePutAgentComposition: vi.fn(),
+  };
 });
 
 vi.mock('../../data/sessions', async (importOriginal) => {
@@ -105,9 +118,64 @@ const SESSION: AgentSession = {
   refs: [],
 };
 
+const putComposition = vi.fn();
+
 function stage(previewBeforeApply = false) {
+  putComposition.mockReset();
   vi.mocked(useAgentPlan).mockReturnValue(queryResult(PLAN) as never);
   vi.mocked(useAgentPlanList).mockReturnValue(queryResult([]) as never);
+  const takes = PLAN_SHOTS.flatMap((shot, index) => [
+    {
+      id: `take-${index + 1}-a`,
+      plan_id: PLAN.id,
+      shot_id: shot.id,
+      recorded_clip_id: `clip-${index + 1}-a`,
+      recording_job_id: 'job-1',
+      ordinal: 1,
+      label: 'Take 1',
+      duration_seconds: shot.duration_seconds,
+      created_at: '2026-08-15T09:48:00.000Z',
+      stream_url: `/api/recorded-clips/clip-${index + 1}-a/stream`,
+    },
+    ...(index === 0
+      ? [{
+          id: 'take-1-b',
+          plan_id: PLAN.id,
+          shot_id: shot.id,
+          recorded_clip_id: 'clip-1-b',
+          recording_job_id: 'job-2',
+          ordinal: 2,
+          label: 'Take 2',
+          duration_seconds: shot.duration_seconds,
+          created_at: '2026-08-15T09:49:00.000Z',
+          stream_url: '/api/recorded-clips/clip-1-b/stream',
+        }]
+      : []),
+  ]);
+  vi.mocked(useAgentTakes).mockReturnValue(queryResult(takes) as never);
+  vi.mocked(useAgentComposition).mockReturnValue(
+    queryResult({
+      id: 'composition-1',
+      plan_id: PLAN.id,
+      plan_revision: PLAN.revision,
+      title: PLAN.title,
+      status: 'confirmed',
+      items: PLAN_SHOTS.map((shot, index) => ({
+        shot_id: shot.id,
+        take_id: `take-${index + 1}-a`,
+        order: index,
+      })),
+      export_job_id: null,
+      export_status: null,
+      output_path: null,
+      error: null,
+      created_at: '2026-08-15T09:48:00.000Z',
+      updated_at: '2026-08-15T09:48:00.000Z',
+    }) as never,
+  );
+  vi.mocked(usePutAgentComposition).mockReturnValue(
+    mutationResult({ mutate: putComposition }) as never,
+  );
   vi.mocked(useAgentSession).mockReturnValue(queryResult(SESSION) as never);
   vi.mocked(useAgentWorkspaceSettings).mockReturnValue(
     queryResult({ preview_before_apply: previewBeforeApply }) as never,
@@ -250,6 +318,34 @@ describe('switching shape', () => {
     fireEvent.click(screen.getByRole('radio', { name: '就地编辑' }));
 
     expect(screen.getByText(/只影响这一个镜头/u)).toBeTruthy();
+  });
+});
+
+describe('choosing a recorded Take', () => {
+  it('requires confirmation before replacing the persisted composition', () => {
+    stage();
+    renderBlock(<Controlled initial={{ ...CHANGES, mode: 'takes' }} />);
+
+    fireEvent.click(within(document.querySelector('[data-agent-take="take-1-b"]')!).getByRole(
+      'button',
+      { name: '用于成片' },
+    ));
+
+    expect(screen.getByRole('dialog', { name: '更换已确认的成片片段？' })).toBeTruthy();
+    expect(putComposition).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '确认更换' }));
+
+    expect(putComposition).toHaveBeenCalledWith({
+      expected_plan_revision: PLAN.revision,
+      status: 'confirmed',
+      items: PLAN_SHOTS.map((shot, order) => ({
+        shot_id: shot.id,
+        take_id: order === 0 ? 'take-1-b' : `take-${order + 1}-a`,
+        order,
+      })),
+      replace_confirmed: true,
+    });
   });
 });
 

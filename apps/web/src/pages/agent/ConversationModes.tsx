@@ -22,8 +22,8 @@
  *            change cards, which is where 「逐条接受或拒绝」 happens.
  *   inline   2b — the shot picker. Selecting a shot narrows every change card
  *            to that shot (「只影响这一个镜头」) and scopes the composer to it.
- *   takes    2c — the plan's versions, side by side. See `takesModel.ts`: there
- *            are exactly two on the wire and they are not called takes.
+ *   takes    2c — real recorded Takes for one shot, side by side, with the
+ *            persisted Composition selection called out explicitly.
  *
  * ── The selection is not in the address ──────────────────────────────────
  *
@@ -41,32 +41,30 @@
  * — `updateContext({ plan })` — and clears nothing else (invariant 4).
  */
 
-import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import type { ComponentType, ReactNode } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
-import { useAgentPlanList } from '../../data/plans';
+import { useNativeShell } from '../../data/nativeShell';
+import {
+  useAgentComposition,
+  useAgentPlanList,
+  useAgentTakes,
+  usePutAgentComposition,
+} from '../../data/plans';
 import { Empty, Skeleton } from '../../design/data';
-import { Alert } from '../../design/feedback';
+import { Alert, Dialog } from '../../design/feedback';
 import { Button, Badge, cn } from '../../design/primitives';
 import {
   AGENT_PLAN_STATUS,
   PlanShotRow,
   PlanShotRowSkeleton,
-  PlanStrip,
-  TakeCard,
   formatShotDuration,
-  formatSignedSeconds,
   planDuration,
-  planShotCount,
-  type TakeMetric,
-  type TakeShotPick,
 } from '../../domain/agent';
-import type { AgentPlan, AgentPlanShot } from '../../shared/desktop/dto';
+import type { AgentPlan, AgentPlanShot, AgentTake, CompositionItem } from '../../shared/desktop/dto';
 import type { AgentContextPatch, AgentMode, AgentRouteContext } from './agentContract';
-import { formatSignedCount, planVersionFacts, planVersions } from './takesModel';
 
 export interface ConversationModeProps {
   readonly context: AgentRouteContext;
@@ -188,6 +186,13 @@ function InlineHead({
 /* ── takes (2c) ──────────────────────────────────────────────────────────── */
 
 function TakesHead({ context, updateContext, plan, planPending }: ConversationModeProps) {
+  const shell = useNativeShell();
+  const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
+  const [replace, setReplace] = useState<AgentTake | null>(null);
+  const takes = useAgentTakes(plan?.id ?? null);
+  const composition = useAgentComposition(plan?.id ?? null);
+  const putComposition = usePutAgentComposition(plan?.id ?? '');
+
   if (planPending) return <HeadSkeleton lines={3} />;
 
   if (plan === undefined) {
@@ -196,113 +201,155 @@ function TakesHead({ context, updateContext, plan, planPending }: ConversationMo
         context={context}
         updateContext={updateContext}
         title={<Trans>候选片段需要一份剪辑单</Trans>}
-        description={<Trans>这个形态并排比较同一个方案的几个版本，先选一个方案。</Trans>}
+        description={<Trans>这个形态比较同一镜头的真实录制结果，并决定最终成片使用哪一条。</Trans>}
       />
     );
   }
 
-  const versions = planVersions(plan);
-  const baseline = versions.length > 1 ? (versions[0] ?? null) : null;
-  const pickReason = t`暂不支持从不同版本里挑镜头合成`;
+  const failure = dataErrorMessage(takes.error) ?? dataErrorMessage(composition.error);
+  if (failure !== null) {
+    return (
+      <Alert
+        variant="danger"
+        action={{
+          label: <Trans>重试</Trans>,
+          onAction: () => void Promise.all([takes.refetch(), composition.refetch()]),
+        }}
+      >
+        <Trans>读不到候选片段：{failure}</Trans>
+      </Alert>
+    );
+  }
+  if (takes.isPending || composition.isPending) return <HeadSkeleton lines={3} />;
+
+  const activeShots = plan.shots.filter((shot) => shot.removed_by === null);
+  const selectedShot =
+    activeShots.find((shot) => shot.id === selectedShotId) ?? activeShots[0] ?? null;
+  const visibleTakes = (takes.data ?? []).filter((take) => take.shot_id === selectedShot?.id);
+  const selectedByShot = new Map(
+    (composition.data?.items ?? []).map((item) => [item.shot_id, item.take_id]),
+  );
+
+  const selectTake = (take: AgentTake, replaceConfirmed: boolean) => {
+    const selected = new Map(selectedByShot);
+    selected.set(take.shot_id, take.id);
+    const items = activeShots.flatMap((shot): CompositionItem[] => {
+      const takeId = selected.get(shot.id);
+      return takeId === undefined
+        ? []
+        : [{ shot_id: shot.id, take_id: takeId, order: 0 }];
+    }).map((item, order) => ({ ...item, order }));
+    const complete = activeShots.length > 0 && items.length === activeShots.length;
+    putComposition.mutate({
+      expected_plan_revision: plan.revision,
+      status: complete ? 'confirmed' : 'draft',
+      items,
+      replace_confirmed: replaceConfirmed,
+    });
+  };
+
+  const requestSelection = (take: AgentTake) => {
+    const changingConfirmed = composition.data?.status === 'confirmed'
+      && selectedByShot.get(take.shot_id) !== take.id;
+    if (changingConfirmed) setReplace(take);
+    else selectTake(take, false);
+  };
 
   return (
     <div data-agent-mode-head="takes" className="flex flex-col gap-2">
-      {/* Not a `Notice`: nothing failed and there is nothing to recover from —
-          this is a standing fact about the contract (gap 8). */}
-      <p data-takes-gap="" className="text-xs leading-normal text-neutral-700">
-        <Trans>
-          这里比较的是方案自己的两个版本：Agent 出的那一版，和你现在编辑的这一版。
-        </Trans>
-      </p>
-
-      {versions.length === 1 ? (
-        <p data-takes-single="" className="text-xs text-neutral-700">
-          <Trans>这个方案还没有偏离 Agent 版本，只有一个版本可比。</Trans>
-        </p>
-      ) : null}
-
-      <div className="flex gap-3 overflow-x-auto pb-1">
-        {versions.map((version) => {
-          const facts = planVersionFacts(version, baseline);
-          const label = version.current ? t`当前` : t`Agent 版本`;
-          const metrics: TakeMetric[] = [
-            {
-              id: 'duration',
-              label: <Trans>总时长</Trans>,
-              value: formatShotDuration(facts.durationSeconds),
-            },
-            { id: 'shots', label: <Trans>镜头数</Trans>, value: String(facts.shotCount) },
-            {
-              id: 'risky',
-              label: <Trans>标注风险的镜头</Trans>,
-              value: String(facts.riskyShotCount),
-              ...(facts.riskyShotCount > 0 ? { tone: 'warn' as const } : {}),
-            },
-            ...(facts.userShotCount === 0
-              ? []
-              : [
-                  {
-                    id: 'edited',
-                    label: <Trans>你改过的镜头</Trans>,
-                    value: String(facts.userShotCount),
-                  },
-                ]),
-            ...(facts.durationDeltaSeconds === null
-              ? []
-              : [
-                  {
-                    id: 'duration-delta',
-                    label: <Trans>与 Agent 版本：时长</Trans>,
-                    value: formatSignedSeconds(facts.durationDeltaSeconds),
-                  },
-                ]),
-            ...(facts.shotCountDelta === null
-              ? []
-              : [
-                  {
-                    id: 'shots-delta',
-                    label: <Trans>镜头数</Trans>,
-                    value: formatSignedCount(facts.shotCountDelta),
-                  },
-                ]),
-          ];
-
-          const picks: TakeShotPick[] = version.shots.map((shot, index) => ({
-            shot,
-            index: index + 1,
-            picked: shot.removed_by === null,
-            disabledReason: pickReason,
-          }));
-
-          return (
-            <TakeCard
-              key={version.id}
-              className="w-80 flex-none"
-              label={label}
-              summary={
-                <>
-                  {formatShotDuration(facts.durationSeconds)}
-                  {' · '}
-                  <Trans>{planShotCount(version.shots)} 个镜头</Trans>
-                  {' · '}
-                  <Trans>第 {version.revision} 版</Trans>
-                </>
-              }
-              badge={version.current ? <Trans>正在编辑</Trans> : <Trans>基准</Trans>}
-              selected={version.current}
-              strip={
-                <PlanStrip
-                  shots={version.shots}
-                  height="sm"
-                  label={version.current ? t`当前版本的镜头带` : t`Agent 版本的镜头带`}
-                />
-              }
-              shots={picks}
-              metrics={metrics}
-            />
-          );
-        })}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-700">
+        <Badge variant={composition.data?.status === 'confirmed' ? 'accent' : 'neutral'}>
+          {composition.data?.status === 'confirmed' ? <Trans>成片选择已确认</Trans> : <Trans>成片选择未完成</Trans>}
+        </Badge>
+        <span><Trans>已选择 {composition.data?.items.length ?? 0} / {activeShots.length} 个镜头</Trans></span>
       </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {activeShots.map((shot, index) => (
+          <PlanShotRow
+            key={shot.id}
+            shot={shot}
+            index={index + 1}
+            density="compact"
+            selected={shot.id === selectedShot?.id}
+            onSelect={() => setSelectedShotId(shot.id)}
+            className="w-56 flex-none"
+          />
+        ))}
+      </div>
+
+      {selectedShot === null ? (
+        <p className="text-xs text-neutral-700"><Trans>这份剪辑单没有需要成片的镜头。</Trans></p>
+      ) : visibleTakes.length === 0 ? (
+        <p className="border border-divider p-3 text-xs text-neutral-700">
+          <Trans>「{selectedShot.title}」还没有录制结果。确认剪辑单并完成录制后，Take 会自动出现在这里。</Trans>
+        </p>
+      ) : (
+        <div className="flex gap-3 overflow-x-auto pb-1">
+          {visibleTakes.map((take) => {
+            const selected = selectedByShot.get(take.shot_id) === take.id;
+            const source = shell.mediaSrc(take.stream_url);
+            return (
+              <article
+                key={take.id}
+                data-agent-take={take.id}
+                className={cn('w-80 flex-none border p-2', selected ? 'border-accent' : 'border-divider')}
+              >
+                {source === null ? (
+                  <div className="flex aspect-video items-center justify-center bg-neutral-100 p-3 text-center text-xs text-neutral-600">
+                    <Trans>只有 Desktop 能播放本机 Take。</Trans>
+                  </div>
+                ) : (
+                  <video
+                    src={source}
+                    aria-label={`${take.label} · ${selectedShot.title}`}
+                    controls
+                    preload="metadata"
+                    className="aspect-video w-full bg-black"
+                  />
+                )}
+                <div className="mt-2 flex items-center gap-2">
+                  <strong className="min-w-0 flex-1 truncate text-sm">{take.label}</strong>
+                  <span className="font-mono text-xs text-neutral-600">
+                    {formatShotDuration(take.duration_seconds)}
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant={selected ? 'secondary' : 'primary'}
+                  disabled={selected || putComposition.isPending}
+                  onClick={() => requestSelection(take)}
+                  className="mt-2 w-full"
+                >
+                  {selected ? <Trans>成片正在使用</Trans> : <Trans>用于成片</Trans>}
+                </Button>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {dataErrorMessage(putComposition.error) === null ? null : (
+        <Alert
+          variant="danger"
+          action={{ label: <Trans>关闭</Trans>, onAction: () => putComposition.reset() }}
+        >
+          <Trans>保存成片选择失败：{dataErrorMessage(putComposition.error)}</Trans>
+        </Alert>
+      )}
+
+      <Dialog
+        open={replace !== null}
+        title={<Trans>更换已确认的成片片段？</Trans>}
+        confirmLabel={<Trans>确认更换</Trans>}
+        onClose={() => setReplace(null)}
+        onConfirm={() => {
+          if (replace !== null) selectTake(replace, true);
+          setReplace(null);
+        }}
+      >
+        <Trans>这会更新最终 Composition 的 Take 选择；原录制结果仍会保留，可随时换回。</Trans>
+      </Dialog>
     </div>
   );
 }

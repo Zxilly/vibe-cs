@@ -29,6 +29,7 @@ import { taskStatusOfActivity } from './taskModel';
 import { TASK_POLL_DETAIL_MS } from './taskPolling';
 import { useTaskActions } from './useTaskActions';
 import type { ServiceActionState } from '../../data/serviceAction';
+import { AgentVideoWorkflowPanel } from './AgentVideoWorkflowPanel';
 
 export interface TaskDetailBodyProps {
   readonly item: ActivityItem;
@@ -59,7 +60,11 @@ export function TaskDetailBody({ item, service, now, compact = false }: TaskDeta
         : [];
 
   return (
-    <TaskDetail
+    <>
+      {item.kind === 'recording' && item.job_id !== null ? (
+        <AgentVideoWorkflowPanel recordingJobId={item.job_id} />
+      ) : null}
+      <TaskDetail
       className="m-6 min-h-0 flex-1"
       task={bound.summary}
       stages={stages}
@@ -92,7 +97,8 @@ export function TaskDetailBody({ item, service, now, compact = false }: TaskDeta
       {...(bound.restart?.label === 'restart' && !bound.restart.disabled
         ? { onRetry: bound.restart.run }
         : {})}
-    />
+      />
+    </>
   );
 }
 

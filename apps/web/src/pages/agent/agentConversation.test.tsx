@@ -10,7 +10,13 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { useAgentPlan, useAgentPlanList } from '../../data/plans';
+import {
+  useAgentComposition,
+  useAgentPlan,
+  useAgentPlanList,
+  useAgentTakes,
+  usePutAgentComposition,
+} from '../../data/plans';
 import { useAgentSession, useCreateAgentSession } from '../../data/sessions';
 import {
   EDIT_ENTRY,
@@ -18,7 +24,13 @@ import {
   PLAN_SHOTS,
   USER_ENTRY,
 } from '../../domain/agent/agentFixtures.testing';
-import type { AgentPlan, AgentSession, AgentSessionEntry } from '../../shared/desktop/dto';
+import type {
+  AgentPlan,
+  AgentSession,
+  AgentSessionEntry,
+  AgentTake,
+  Composition,
+} from '../../shared/desktop/dto';
 import { AgentConversationBlock } from './AgentConversationBlock';
 import {
   blockProps,
@@ -32,7 +44,14 @@ import {
 
 vi.mock('../../data/plans', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../data/plans')>();
-  return { ...actual, useAgentPlan: vi.fn(), useAgentPlanList: vi.fn() };
+  return {
+    ...actual,
+    useAgentPlan: vi.fn(),
+    useAgentPlanList: vi.fn(),
+    useAgentTakes: vi.fn(),
+    useAgentComposition: vi.fn(),
+    usePutAgentComposition: vi.fn(),
+  };
 });
 
 vi.mock('../../data/sessions', async (importOriginal) => {
@@ -87,6 +106,8 @@ interface Scene {
   readonly session?: AgentSession | undefined;
   readonly sessionPending?: boolean | undefined;
   readonly sessionError?: unknown;
+  readonly takes?: readonly AgentTake[] | undefined;
+  readonly composition?: Composition | null | undefined;
 }
 
 function stage(scene: Scene = {}) {
@@ -99,6 +120,40 @@ function stage(scene: Scene = {}) {
     ) as never,
   );
   vi.mocked(useAgentPlanList).mockReturnValue(queryResult([]) as never);
+  const take: AgentTake = {
+    id: 'take-1',
+    plan_id: 'P-118',
+    shot_id: 'shot-01',
+    recorded_clip_id: 'clip-1',
+    recording_job_id: 'job-1',
+    ordinal: 1,
+    label: 'Take 1',
+    duration_seconds: 3,
+    created_at: '2026-08-15T09:48:00.000Z',
+    stream_url: '/api/recorded-clips/clip-1/stream',
+  };
+  vi.mocked(useAgentTakes).mockReturnValue(queryResult(scene.takes ?? [take]) as never);
+  vi.mocked(useAgentComposition).mockReturnValue(
+    queryResult(
+      scene.composition === undefined
+        ? {
+            id: 'composition-1',
+            plan_id: 'P-118',
+            plan_revision: 6,
+            title: 'Kael · Mirage 1v3 残局',
+            status: 'draft',
+            items: [{ shot_id: 'shot-01', take_id: 'take-1', order: 0 }],
+            export_job_id: null,
+            export_status: null,
+            output_path: null,
+            error: null,
+            created_at: '2026-08-15T09:48:00.000Z',
+            updated_at: '2026-08-15T09:48:00.000Z',
+          }
+        : scene.composition,
+    ) as never,
+  );
+  vi.mocked(usePutAgentComposition).mockReturnValue(mutationResult() as never);
   vi.mocked(useAgentSession).mockReturnValue(
     queryResult(
       scene.sessionPending === true || scene.sessionError !== undefined
@@ -309,30 +364,27 @@ describe('就地编辑', () => {
 /* ── takes (2c) ──────────────────────────────────────────────────────────── */
 
 describe('候选镜头', () => {
-  it('compares the two versions the wire actually has', () => {
+  it('shows the real recorded Take and the persisted composition selection', () => {
     const html = at({ context: { mode: 'takes' } });
 
-    expect(html).toContain('data-take-card=');
-    expect(html).toContain('Agent 版本');
-    expect(html).toContain('当前');
-    expect(html).toContain('第 1 版');
-    expect(html).toContain('第 6 版');
+    expect(html).toContain('data-agent-take="take-1"');
+    expect(html).toContain('Take 1');
+    expect(html).toContain('成片正在使用');
+    expect(html).toContain('已选择 1 / 4 个镜头');
   });
 
-  it('says the branch model is missing instead of inventing takes', () => {
+  it('does not fall back to comparing plan revisions', () => {
     const html = at({ context: { mode: 'takes' } });
 
-    expect(html).toContain('这里比较的是方案自己的两个版本');
-    expect(html).not.toContain('Take A');
-    // No composition panel: `Composition` has no wire type either.
-    expect(html).not.toContain('data-composition-slot=');
-    expect(html).not.toContain('data-take-use=');
+    expect(html).not.toContain('这里比较的是方案自己的两个版本');
+    expect(html).not.toContain('Agent 版本');
   });
 
-  it('shows one version when the plan has not moved off the Agent’s', () => {
-    const html = at({ context: { mode: 'takes' } }, { plan: planFixture({ revision: 1 }) });
+  it('states that recording is required when the selected shot has no Take', () => {
+    const html = at({ context: { mode: 'takes' } }, { takes: [] });
 
-    expect(html).toContain('这个方案还没有偏离 Agent 版本');
+    expect(html).toContain('还没有录制结果');
+    expect(html).toContain('Take 会自动出现在这里');
   });
 });
 

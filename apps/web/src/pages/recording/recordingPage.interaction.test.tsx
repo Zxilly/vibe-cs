@@ -333,7 +333,7 @@ describe('开始录制', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '开始录制' }));
 
     await waitFor(() => {
-      expect(locationRef).toBe('/delivery/task/job-7');
+      expect(locationRef).toBe('/delivery/task/recording%3Ajob-7');
     });
   });
 });

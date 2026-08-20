@@ -297,11 +297,6 @@ msgstr "{0} clips · revision {1} · {2}"
 msgid "{0} 个片段的镜头类型、视角、前后留白与画面参数都会变成这个片段的设置。"
 msgstr "The shot type, the view, the lead-in and lead-out and the picture settings of all {0} clips become the settings of this clip."
 
-#. placeholder {0}: planShotCount(version.shots)
-#: src/pages/agent/ConversationModes.tsx:286
-msgid "{0} 个镜头"
-msgstr "{0} shots"
-
 #. placeholder {0}: mapDisplayName(mapName) ?? demoId
 #: src/pages/match/views/ReplayView.tsx:258
 msgid "{0} 全场回放"
@@ -377,6 +372,12 @@ msgstr "{0} took {2} opening kills across {1} rounds"
 #: src/pages/match/views/DuelsView.tsx:686
 msgid "{0} 杀 / {1} 死"
 msgstr "{0} K / {1} D"
+
+#. placeholder {0}: data.recorded_takes
+#. placeholder {1}: data.total_shots
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:70
+msgid "{0} 条 Take · {1} 个镜头"
+msgstr "{0} Takes · {1} shots"
 
 #. placeholder {0}: detail.unattributedKills
 #: src/pages/match/views/RoundsView.tsx:214
@@ -528,7 +529,7 @@ msgstr "{minWeight} hits"
 msgid "{pending} 项变更待处理"
 msgstr "{pending} changes pending"
 
-#: src/pages/agent/ConversationModes.tsx:96
+#: src/pages/agent/ConversationModes.tsx:94
 msgid "{pendingChanges} 项变更待处理"
 msgstr "{pendingChanges} changes pending"
 
@@ -570,7 +571,7 @@ msgstr "{side} spend"
 msgid "{side} 购买"
 msgstr "{side} purchases"
 
-#: src/pages/agent/ConversationModes.tsx:104
+#: src/pages/agent/ConversationModes.tsx:102
 msgid "{staleChanges} 项已过期"
 msgstr "{staleChanges} stale"
 
@@ -647,6 +648,11 @@ msgstr "“{0}” is only a conversation. Deleting it touches none of the plans,
 #: src/pages/PlayersPage.tsx:324
 msgid "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
 msgstr "“{0}” matched no player and no alias. The directory matches names and aliases by prefix and substring only — no pinyin, no fuzzy matching."
+
+#. placeholder {0}: selectedShot.title
+#: src/pages/agent/ConversationModes.tsx:285
+msgid "「{0}」还没有录制结果。确认剪辑单并完成录制后，Take 会自动出现在这里。"
+msgstr "“{0}” has no recording yet. Takes appear here automatically after you confirm the shot list and finish recording."
 
 #: src/app/command/CommandPalette.tsx:319
 msgid "↑↓ 选择"
@@ -742,6 +748,10 @@ msgstr "Agent studio"
 msgid "Agent 删除的"
 msgstr "Removed by the Agent"
 
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:65
+msgid "Agent 成片流程"
+msgstr "Agent video workflow"
+
 #: src/pages/settings/AiAgentSection.tsx:338
 msgid "Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。"
 msgstr "The view a shot starts with when the Agent hands it over. Each shot can still be changed in the plan."
@@ -749,14 +759,6 @@ msgstr "The view a shot starts with when the Agent hands it over. Each shot can 
 #: src/pages/agent/AgentConversationBlock.tsx:253
 msgid "Agent 正在回答，先等它说完或点停止"
 msgstr "The Agent is answering — wait for it to finish, or press Stop"
-
-#: src/pages/agent/ConversationModes.tsx:227
-msgid "Agent 版本"
-msgstr "Agent version"
-
-#: src/pages/agent/ConversationModes.tsx:297
-msgid "Agent 版本的镜头带"
-msgstr "Shot strip of the Agent version"
 
 #: src/pages/settings/AiAgentSection.tsx:776
 msgid "Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。"
@@ -992,6 +994,10 @@ msgstr "T purchases"
 msgid "TAB 切换分组"
 msgstr "TAB Switch group"
 
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:144
+msgid "Take 与 Composition 已确认；当前环境没有自动启动导出，可从这里继续。"
+msgstr "The Takes and Composition are confirmed. Automatic export did not start in this environment, so you can continue here."
+
 #: src/domain/agent/PlanShotRow.tsx:74
 #: src/domain/match/EvidenceRow.tsx:79
 msgid "tick"
@@ -1185,10 +1191,6 @@ msgstr "Under 1s"
 msgid "不透明度"
 msgstr "Opacity"
 
-#: src/pages/agent/ConversationModes.tsx:255
-msgid "与 Agent 版本：时长"
-msgstr "vs. the Agent version: duration"
-
 #: src/pages/editor/InspectorPanel.tsx:216
 msgid "与视频链接"
 msgstr "Linked to video"
@@ -1260,7 +1262,7 @@ msgstr "The binary replay has an invalid bomb marker"
 msgid "二进制回放超过 128 MiB 上限"
 msgstr "The binary replay exceeds the 128 MiB limit"
 
-#: src/shared/desktop/client.ts:261
+#: src/shared/desktop/client.ts:266
 msgid "二进制回放超过 128 MiB 上限。"
 msgstr "The binary replay exceeds the 128 MiB limit."
 
@@ -1343,7 +1345,7 @@ msgstr "Apply a preset"
 msgid "任务每进入一个阶段，都会在这里留下一行。"
 msgstr "Every stage the task enters leaves a line here."
 
-#: src/pages/delivery/TaskDetailBody.tsx:126
+#: src/pages/delivery/TaskDetailBody.tsx:132
 msgid "任务编号"
 msgstr "Task ID"
 
@@ -1421,7 +1423,7 @@ msgstr "Position sampling"
 msgid "低 {0}"
 msgstr "Low {0}"
 
-#: src/pages/delivery/TaskDetailBody.tsx:134
+#: src/pages/delivery/TaskDetailBody.tsx:140
 msgid "作业编号"
 msgstr "Job ID"
 
@@ -1471,10 +1473,6 @@ msgstr "Edited by you"
 msgid "你改过 {touched} 处"
 msgstr "{touched} changed by you"
 
-#: src/pages/agent/ConversationModes.tsx:246
-msgid "你改过的镜头"
-msgstr "Shots you changed"
-
 #: src/app/command/commandRegistry.ts:221
 #: src/pages/GuidePage.tsx:55
 msgid "使用引导"
@@ -1517,6 +1515,11 @@ msgstr "Save note"
 #: src/pages/library/SaveViewDialog.tsx:80
 msgid "保存当前的搜索、筛选、排序和列配置"
 msgstr "Saves the current search, filters, sort and column setup"
+
+#. placeholder {0}: dataErrorMessage(putComposition.error)
+#: src/pages/agent/ConversationModes.tsx:337
+msgid "保存成片选择失败：{0}"
+msgstr "Could not save the final video selection: {0}"
 
 #: src/pages/agent/ShotEditForm.tsx:319
 msgid "保存改动"
@@ -1573,7 +1576,7 @@ msgctxt "agent-mode"
 msgid "修改列表"
 msgstr "Modification list"
 
-#: src/pages/agent/ConversationModes.tsx:198
+#: src/pages/agent/ConversationModes.tsx:203
 msgid "候选片段需要一份剪辑单"
 msgstr "Candidate clips need a shot list"
 
@@ -1874,6 +1877,7 @@ msgstr "Keyword: {0}"
 
 #: src/app/command/CommandPalette.tsx:235
 #: src/design/layout/Inspector.tsx:270
+#: src/pages/agent/ConversationModes.tsx:335
 msgid "关闭"
 msgstr "Close"
 
@@ -1941,6 +1945,10 @@ msgstr "Maximize or restore window"
 msgid "最小化窗口"
 msgstr "Minimize window"
 
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:148
+msgid "最终视频已经生成，可以查看或在文件管理器中定位。"
+msgstr "The final video is ready. You can view it or reveal it in the file manager."
+
 #. placeholder {0}: points.length
 #: src/pages/players/PlayerTrend.tsx:116
 msgid "最近 {TREND_WINDOW} 场里有 {0} 场有这个指标 · 灰线为个人均值"
@@ -1960,7 +1968,7 @@ msgstr "Recent finished files"
 msgid "最近拍点"
 msgstr "Nearest beat"
 
-#: src/pages/delivery/TaskDetailBody.tsx:103
+#: src/pages/delivery/TaskDetailBody.tsx:109
 msgid "最近更新"
 msgstr "Last update"
 
@@ -2117,7 +2125,7 @@ msgid "分析后才有回合、证据和高光。一场 40 分钟的比赛大约
 msgstr "Rounds, evidence, and highlights only exist after analysis. A 40-minute match takes about 3 minutes."
 
 #. placeholder {0}: String(value)
-#: src/shared/desktop/client.ts:364
+#: src/shared/desktop/client.ts:369
 msgid "分析响应包含未知阵营：{0}"
 msgstr "The analysis response contains an unknown team: {0}"
 
@@ -2465,7 +2473,7 @@ msgstr "Counter-Terrorists"
 msgid "发布"
 msgstr "Publish"
 
-#: src/shared/desktop/client.ts:1443
+#: src/shared/desktop/client.ts:1471
 msgid "发生未知错误，请重试。"
 msgstr "Something went wrong. Please try again."
 
@@ -2560,6 +2568,10 @@ msgstr "Affects only this one shot: {0}"
 #: src/pages/settings/AppSection.tsx:168
 msgid "只接受 https:// 开头的地址。"
 msgstr "Only https:// addresses are accepted."
+
+#: src/pages/agent/ConversationModes.tsx:300
+msgid "只有 Desktop 能播放本机 Take。"
+msgstr "Local Takes can only be played in Desktop."
 
 #: src/pages/editor/InspectorPanel.tsx:225
 msgid "只有引用了视频素材的片段可以分离音频"
@@ -2710,7 +2722,7 @@ msgstr "Commands"
 msgid "命令面板"
 msgstr "Command palette"
 
-#: src/pages/agent/ConversationModes.tsx:368
+#: src/pages/agent/ConversationModes.tsx:415
 msgid "回到修改列表"
 msgstr "Back to modifications"
 
@@ -2990,10 +3002,6 @@ msgstr "Based on version {0}"
 msgid "基于第 {revision} 版重算"
 msgstr "Recompute against version {revision}"
 
-#: src/pages/agent/ConversationModes.tsx:291
-msgid "基准"
-msgstr "Baseline"
-
 #: src/pages/library/AddWatchDirectoryDialog.tsx:135
 msgid "填写一个目录的完整路径"
 msgstr "Enter the full path of a folder"
@@ -3064,7 +3072,7 @@ msgstr "Failed, recoverable"
 msgid "失败的导出"
 msgstr "Failed exports"
 
-#: src/shared/desktop/client.ts:198
+#: src/shared/desktop/client.ts:203
 msgid "媒体地址不是本地服务路径。"
 msgstr "The media address is not a local service path."
 
@@ -3118,6 +3126,10 @@ msgstr "Locate"
 #: src/pages/match/views/ReviewView.tsx:321
 msgid "定位到第 {0} 回合的首杀"
 msgstr "Locate the opening kill of round {0}"
+
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:111
+msgid "定位成品"
+msgstr "Reveal final video"
 
 #: src/pages/delivery/OutputCard.tsx:131
 #: src/pages/library/LibraryInspector.tsx:177
@@ -3351,7 +3363,7 @@ msgctxt "agent-mode"
 msgid "就地编辑"
 msgstr "Inline edit"
 
-#: src/pages/agent/ConversationModes.tsx:155
+#: src/pages/agent/ConversationModes.tsx:153
 msgid "就地编辑需要一份剪辑单"
 msgstr "Inline editing needs a shot list"
 
@@ -3607,6 +3619,12 @@ msgstr "{0} selected"
 msgid "已选中 1 个片段"
 msgstr "1 clip selected"
 
+#. placeholder {0}: composition.data?.items.length ?? 0
+#. placeholder {1}: activeShots.length
+#: src/pages/agent/ConversationModes.tsx:264
+msgid "已选择 {0} / {1} 个镜头"
+msgstr "Selected {0} / {1} shots"
+
 #. placeholder {0}: clips.length
 #: src/pages/project/AddToProjectDialog.tsx:79
 msgid "已选择 {0} 个片段"
@@ -3644,7 +3662,7 @@ msgstr "Apply to all"
 msgid "应用剪辑变更前先预览"
 msgstr "Preview an edit change before applying it"
 
-#: src/pages/delivery/TaskDetailBody.tsx:102
+#: src/pages/delivery/TaskDetailBody.tsx:108
 msgid "开始"
 msgstr "Started"
 
@@ -3698,14 +3716,13 @@ msgid "引用了 {0} 条证据，全部属于发送给模型的集合："
 msgstr "It cites {0} evidence rows, all of them from the set sent to the model:"
 
 #: src/domain/agent/AgentSessionRow.tsx:81
-#: src/pages/agent/ConversationModes.tsx:227
 #: src/pages/agent/PlanOriginTrail.tsx:68
 #: src/pages/editor/VersionHistoryPanel.tsx:80
 msgid "当前"
 msgstr "Current"
 
 #. placeholder {0}: formatShotDuration(planDuration(plan.shots))
-#: src/pages/agent/ConversationModes.tsx:118
+#: src/pages/agent/ConversationModes.tsx:116
 msgid "当前 {0}"
 msgstr "Current {0}"
 
@@ -3787,10 +3804,6 @@ msgstr "Current step"
 msgid "当前版本没有跨制作方式双向转换契约；所有修改会保留在当前制作方式"
 msgstr "Two-way conversion between production methods is not supported yet; all changes stay in the current method"
 
-#: src/pages/agent/ConversationModes.tsx:297
-msgid "当前版本的镜头带"
-msgstr "Shot strip of the current version"
-
 #: src/pages/RecoveryPage.tsx:273
 msgid "当前的配置文件会被上一次自动备份覆盖，改动无法撤销。备份之后做过的设置改动会丢失。"
 msgstr "The current configuration file will be overwritten by the last automatic backup. This cannot be undone, and any setting changed since that backup is lost."
@@ -3871,6 +3884,10 @@ msgstr "The preflight did not finish: {failure}"
 msgid "录制完成后会自动抽帧；也可以先在时间轴上按时间预览。"
 msgstr "Frames are pulled automatically once recording finishes; until then you can preview by time on the timeline."
 
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:142
+msgid "录制已结束，正在把结果绑定到镜头并建立 Composition。"
+msgstr "Recording has finished. The results are being bound to shots and assembled into a Composition."
+
 #: src/pages/RecoveryPage.tsx:180
 msgid "录制或导出中断时会留下暂存文件，它们不会自己消失。"
 msgstr "An interrupted recording or export leaves staged files behind, and they do not clear themselves."
@@ -3882,6 +3899,10 @@ msgstr "Whether this app starts the game for a recording."
 #: src/pages/recording/PreflightBlock.tsx:207
 msgid "录制期间这台机器会被游戏占用，中途停止会保留已完成的片段。"
 msgstr "The game takes over this machine while it records; stopping partway keeps the clips already finished."
+
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:128
+msgid "录制片段"
+msgstr "Record clips"
 
 #: src/pages/agent/AgentReadiness.tsx:88
 #: src/pages/agent/AgentReadiness.tsx:93
@@ -4006,7 +4027,6 @@ msgid "快速模式和精剪模式直接从现有素材导出，不会启动 CS2
 msgstr "Quick and multitrack projects export existing media directly without starting the CS2 recording pipeline."
 
 #: src/domain/media/Transport.tsx:232
-#: src/pages/agent/ConversationModes.tsx:231
 msgid "总时长"
 msgstr "Total duration"
 
@@ -4037,6 +4057,10 @@ msgstr "Success"
 msgid "成品"
 msgstr "Finished"
 
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:132
+msgid "成品可用"
+msgstr "Final video ready"
+
 #: src/terminology.ts:33
 msgid "成品文件"
 msgstr "Finished files"
@@ -4049,6 +4073,10 @@ msgstr "Finished-file generation"
 msgid "成本未知"
 msgstr "Cost unknown"
 
+#: src/pages/agent/ConversationModes.tsx:324
+msgid "成片正在使用"
+msgstr "Used in final video"
+
 #: src/pages/settings/GameSection.tsx:214
 msgid "成片画面里保留左上角的小地图。"
 msgstr "Keeps the radar in the finished picture."
@@ -4056,6 +4084,14 @@ msgstr "Keeps the radar in the finished picture."
 #: src/pages/settings/GameSection.tsx:204
 msgid "成片画面里保留游戏的 HUD 界面元素。"
 msgstr "Keeps the game's HUD in the finished picture."
+
+#: src/pages/agent/ConversationModes.tsx:262
+msgid "成片选择已确认"
+msgstr "Final selection confirmed"
+
+#: src/pages/agent/ConversationModes.tsx:262
+msgid "成片选择未完成"
+msgstr "Final selection incomplete"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:684
 msgid "我的 POV 参数"
@@ -4752,10 +4788,10 @@ msgstr "Spin"
 msgid "无法定位这个文件。"
 msgstr "Could not locate this file."
 
-#: src/shared/desktop/client.ts:212
-#: src/shared/desktop/client.ts:241
-#: src/shared/desktop/client.ts:302
-#: src/shared/desktop/client.ts:494
+#: src/shared/desktop/client.ts:217
+#: src/shared/desktop/client.ts:246
+#: src/shared/desktop/client.ts:307
+#: src/shared/desktop/client.ts:499
 msgid "无法连接到本地服务，请确认服务正在运行。"
 msgstr "Cannot reach the local service. Check that it is running."
 
@@ -4823,10 +4859,6 @@ msgstr "Ordinary use never needs this section."
 msgid "暂不支持下载后自动分析，下载完成可在资料库里开始分析"
 msgstr "Analysing automatically after a download is not supported yet; start the analysis from the library once it finishes"
 
-#: src/pages/agent/ConversationModes.tsx:206
-msgid "暂不支持从不同版本里挑镜头合成"
-msgstr "Composing shots picked from different versions is not supported yet"
-
 #: src/pages/library/LibraryInspector.tsx:175
 msgid "暂不支持在文件管理器中显示"
 msgstr "Showing the file in the file manager is not supported yet"
@@ -4871,6 +4903,10 @@ msgstr "More actions"
 #: src/design/layout/SubNav.tsx:189
 msgid "更多视图"
 msgstr "More views"
+
+#: src/pages/agent/ConversationModes.tsx:343
+msgid "更换已确认的成片片段？"
+msgstr "Replace a confirmed final-video clip?"
 
 #: src/pages/montage/MusicBeatBlock.tsx:151
 msgid "更换音乐"
@@ -5011,7 +5047,7 @@ msgstr "Unknown reason"
 msgid "未知地图"
 msgstr "Unknown map"
 
-#: src/shared/desktop/client.ts:435
+#: src/shared/desktop/client.ts:440
 msgid "未知玩家"
 msgstr "Unknown player"
 
@@ -5138,7 +5174,7 @@ msgstr "Source"
 msgid "来源任务"
 msgstr "Source task"
 
-#: src/pages/delivery/TaskDetailBody.tsx:137
+#: src/pages/delivery/TaskDetailBody.tsx:143
 msgid "来源对象"
 msgstr "Source object"
 
@@ -5180,6 +5216,10 @@ msgstr "View all {0}"
 msgid "查看发给 Agent 的内容"
 msgstr "See what was sent to the Agent"
 
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:115
+msgid "查看成品"
+msgstr "View final video"
+
 #: src/app/shell/FirstRunGuide.tsx:72
 msgid "查看比赛、回合、玩家、证据、热力图与 2D 回放。"
 msgstr "Review matches, rounds, players, evidence, heatmaps, and 2D replays."
@@ -5195,10 +5235,6 @@ msgstr "View stages"
 #: src/pages/delivery/useTaskActions.tsx:217
 msgid "查看阶段日志"
 msgstr "View the stage log"
-
-#: src/pages/agent/ConversationModes.tsx:237
-msgid "标注风险的镜头"
-msgstr "Shots flagged as risky"
 
 #: src/pages/library/LibraryFilters.tsx:173
 #: src/pages/library/LibraryInspector.tsx:235
@@ -5353,6 +5389,10 @@ msgstr "Syncing…"
 msgid "正在启动 CS2…"
 msgstr "Starting CS2…"
 
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:101
+msgid "正在启动导出"
+msgstr "Starting export"
+
 #: src/pages/RecordingPage.tsx:464
 msgid "正在启动录制"
 msgstr "Starting the recording"
@@ -5386,6 +5426,10 @@ msgstr "A recording is running, and no replay can be started while it is"
 #: src/app/boundary/RouteBoundary.tsx:81
 msgid "正在打开这个页面"
 msgstr "Opening this page"
+
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:146
+msgid "正在按已确认的 Composition 组合片段并生成最终视频。"
+msgstr "Combining clips from the confirmed Composition and generating the final video."
 
 #: src/pages/agent/NewSessionPane.tsx:298
 msgid "正在新建这条对话"
@@ -5432,10 +5476,6 @@ msgstr "Compiling the camera path"
 #: src/pages/agent/ChangePreviewDialog.tsx:90
 msgid "正在编译预览"
 msgstr "Compiling preview"
-
-#: src/pages/agent/ConversationModes.tsx:291
-msgid "正在编辑"
-msgstr "Editing"
 
 #: src/pages/library/LibraryInspector.tsx:108
 msgid "正在读取"
@@ -5525,6 +5565,10 @@ msgstr "Connecting to the local service"
 #: src/data/serviceAction.tsx:75
 msgid "正在连接本地服务，稍后即可使用"
 msgstr "Connecting to the local service — ready in a moment"
+
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:140
+msgid "正在逐个录制镜头；已完成片段会保留，失败后只重试未完成部分。"
+msgstr "Recording each shot in turn. Completed clips are kept, and retries only cover unfinished shots."
 
 #: src/pages/editor/MediaLibraryPanel.tsx:187
 msgid "正在重新定位"
@@ -5809,7 +5853,7 @@ msgstr "No recording was started, and the game was not launched."
 msgid "没有录制任何画面。"
 msgstr "Nothing was recorded."
 
-#: src/pages/agent/ConversationModes.tsx:98
+#: src/pages/agent/ConversationModes.tsx:96
 msgid "没有待处理的变更"
 msgstr "No pending changes"
 
@@ -5829,7 +5873,7 @@ msgstr "No shot lists are awaiting confirmation."
 msgid "没有购买记录"
 msgstr "No purchase record"
 
-#: src/pages/agent/ConversationModes.tsx:113
+#: src/pages/agent/ConversationModes.tsx:111
 msgid "没有选中方案，无法判断这些变更是否仍然成立"
 msgstr "With no plan selected, whether these changes still hold cannot be decided"
 
@@ -5922,6 +5966,14 @@ msgstr "The notes could not be read: {0}"
 #: src/pages/match/views/ReviewView.tsx:656
 msgid "注释要挂在具体的 tick 上：先在回放或回合里选中一条证据"
 msgstr "A note hangs on a specific tick: select an evidence row in the replay or in a round first"
+
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:151
+msgid "流程没有跑完；使用任务里的恢复动作继续，不会重复已完成的录制。"
+msgstr "The workflow did not finish. Use the task recovery action to continue without repeating completed recordings."
+
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:152
+msgid "流程没有跑完：{error}"
+msgstr "The workflow did not finish: {error}"
 
 #: src/pages/settings/AppSection.tsx:119
 msgid "浅色"
@@ -6379,6 +6431,10 @@ msgstr "Detonated"
 msgid "用 Agent 制作"
 msgstr "Create with Agent"
 
+#: src/pages/agent/ConversationModes.tsx:324
+msgid "用于成片"
+msgstr "Use in final video"
+
 #: src/pages/RecoveryPage.tsx:163
 msgid "用备份恢复"
 msgstr "Restore from backup"
@@ -6451,6 +6507,10 @@ msgstr "Leave it empty and it is called “Untitled”; it can be renamed any ti
 #: src/pages/montage/ClipTrimDrawer.tsx:180
 msgid "留空表示用到素材末尾"
 msgstr "Leave it empty to run to the end of the source"
+
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:129
+msgid "登记 Take"
+msgstr "Register Takes"
 
 #: src/domain/task/taskVocabulary.tsx:72
 msgctxt "task-progress"
@@ -6594,6 +6654,10 @@ msgstr "Cut"
 #: src/pages/AgentPage.tsx:367
 msgid "确认剪辑单并录制"
 msgstr "Confirm shot list and record"
+
+#: src/pages/agent/ConversationModes.tsx:344
+msgid "确认更换"
+msgstr "Confirm replacement"
 
 #: src/pages/recording/recordingContract.ts:590
 msgid "碰撞几何未知"
@@ -6770,9 +6834,7 @@ msgid "第 {0} 拍"
 msgstr "Beat {0}"
 
 #. placeholder {0}: plan.revision
-#. placeholder {0}: version.revision
-#: src/pages/agent/ConversationModes.tsx:121
-#: src/pages/agent/ConversationModes.tsx:288
+#: src/pages/agent/ConversationModes.tsx:119
 #: src/pages/agent/PlanPanel.tsx:356
 msgid "第 {0} 版"
 msgstr "Version {0}"
@@ -6802,6 +6864,10 @@ msgstr "Waiting"
 msgid "等待你确认"
 msgstr "Waiting for your confirmation"
 
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:130
+msgid "等待导出"
+msgstr "Ready to export"
+
 #: src/domain/agent/types.ts:248
 #: src/domain/task/taskVocabulary.tsx:43
 msgid "等待确认"
@@ -6820,7 +6886,7 @@ msgstr "Timed out"
 msgid "算不出相机路径：{0}"
 msgstr "The camera path could not be computed: {0}"
 
-#: src/pages/delivery/TaskDetailBody.tsx:129
+#: src/pages/delivery/TaskDetailBody.tsx:135
 #: src/pages/match/views/HighlightsView.tsx:369
 msgid "类型"
 msgstr "Type"
@@ -6872,6 +6938,10 @@ msgstr "Indexing failed"
 #: src/pages/montage/montageContract.ts:433
 msgid "线框"
 msgstr "Wireframe"
+
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:131
+msgid "组合与导出"
+msgstr "Compose and export"
 
 #: src/pages/match/views/ReplayCanvas.tsx:184
 msgid "经击杀验证的交战轴"
@@ -6929,6 +6999,10 @@ msgstr "Continue"
 #: src/pages/agent/conversationModel.ts:360
 msgid "继续和 Agent 说，例如「第 3 个片段前面留 1 秒」"
 msgstr "Continue with Agent, for example, “Keep one second before clip 3”"
+
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:101
+msgid "继续导出"
+msgstr "Continue export"
 
 #: src/design/feedback/StageBar.tsx:123
 #: src/pages/delivery/taskModel.tsx:226
@@ -7266,9 +7340,9 @@ msgstr "Say what you want and it proposes a plan and shots; it still waits for o
 msgid "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 msgstr "Spell out the video you want — how long, what it centers on, who it is for — and the Agent gives a first shot plan for you to work through one by one."
 
-#: src/shared/desktop/client.ts:209
-#: src/shared/desktop/client.ts:232
-#: src/shared/desktop/client.ts:257
+#: src/shared/desktop/client.ts:214
+#: src/shared/desktop/client.ts:237
+#: src/shared/desktop/client.ts:262
 msgid "请求超时或已取消，请稍后重试。"
 msgstr "The request timed out or was cancelled. Please try again shortly."
 
@@ -7291,6 +7365,10 @@ msgstr "The session disk usage could not be read: {error}"
 #: src/pages/settings/AdvancedSection.tsx:110
 msgid "读不到依赖检查：{checksError}"
 msgstr "Could not read the dependency checks: {checksError}"
+
+#: src/pages/agent/ConversationModes.tsx:219
+msgid "读不到候选片段：{failure}"
+msgstr "Could not read candidate clips: {failure}"
 
 #: src/pages/home/RecentMatchesPanel.tsx:58
 msgid "读不到最近的比赛：{error}"
@@ -7324,7 +7402,7 @@ msgstr "Could not read shot lists awaiting confirmation: {error}"
 msgid "读不到恢复状态：{statusError}"
 msgstr "Could not read the recovery state: {statusError}"
 
-#: src/pages/agent/ConversationModes.tsx:352
+#: src/pages/agent/ConversationModes.tsx:399
 msgid "读不到方案列表：{failure}"
 msgstr "The plan list could not be read: {failure}"
 
@@ -7417,7 +7495,7 @@ msgstr "Reading the output list failed."
 msgid "读取进行中的任务失败。"
 msgstr "Reading the running tasks failed."
 
-#: src/pages/delivery/TaskDetailBody.tsx:77
+#: src/pages/delivery/TaskDetailBody.tsx:82
 msgid "读取阶段日志失败。"
 msgstr "Reading the stage log failed."
 
@@ -7661,7 +7739,7 @@ msgstr "{0} more purchase events carry no side and cannot be attributed to eithe
 msgid "还有内容填得不对"
 msgstr "Something here is still wrong"
 
-#: src/pages/agent/ConversationModes.tsx:365
+#: src/pages/agent/ConversationModes.tsx:412
 msgid "还没有任何方案。先在对话里说清楚你要的片子，Agent 会给出第一版。"
 msgstr "No plan yet. Say what video you want in the conversation and the Agent will give you a first one."
 
@@ -7918,19 +7996,15 @@ msgstr "This project would not open: {loadError}"
 msgid "这个工程还没有内容"
 msgstr "This project has nothing in it yet"
 
-#: src/pages/agent/ConversationModes.tsx:199
-msgid "这个形态并排比较同一个方案的几个版本，先选一个方案。"
-msgstr "This shape compares several versions of one plan side by side, so pick a plan first."
-
-#: src/pages/agent/ConversationModes.tsx:156
+#: src/pages/agent/ConversationModes.tsx:154
 msgid "这个形态把对话附着在某一个镜头上，先选一个方案，它的镜头才会出现在这里。"
 msgstr "This shape attaches the conversation to one shot, so pick a plan before its shots can show up here."
 
-#: src/pages/agent/ConversationModes.tsx:220
-msgid "这个方案还没有偏离 Agent 版本，只有一个版本可比。"
-msgstr "This plan has not diverged from the Agent version yet, so there is only one version to compare."
+#: src/pages/agent/ConversationModes.tsx:204
+msgid "这个形态比较同一镜头的真实录制结果，并决定最终成片使用哪一条。"
+msgstr "This view compares real recordings of the same shot and selects which one the final video uses."
 
-#: src/pages/agent/ConversationModes.tsx:164
+#: src/pages/agent/ConversationModes.tsx:162
 msgid "这个方案还没有镜头，先让 Agent 出一版，或在右侧手动添加。"
 msgstr "This plan has no shots yet — ask the Agent for a first pass, or add them by hand on the right."
 
@@ -8054,6 +8128,10 @@ msgstr "This analysis does not hold this player. The selection stays in the addr
 msgid "这份分析里没有选手"
 msgstr "No player in this analysis"
 
+#: src/pages/agent/ConversationModes.tsx:282
+msgid "这份剪辑单没有需要成片的镜头。"
+msgstr "This shot list has no shots to include in the final video."
+
 #: src/pages/agent/PlanPanel.tsx:437
 msgid "这份剪辑单还没有片段"
 msgstr "This shot list has no clips yet"
@@ -8107,6 +8185,10 @@ msgstr "This preview plan is gone; the local service may have restarted."
 #: src/pages/RecordingPage.tsx:420
 msgid "这份预览计划已经过期。"
 msgstr "This preview plan has expired."
+
+#: src/pages/agent/ConversationModes.tsx:351
+msgid "这会更新最终 Composition 的 Take 选择；原录制结果仍会保留，可随时换回。"
+msgstr "This updates the Take selected by the final Composition. The original recording is kept and can be restored at any time."
 
 #: src/pages/GuidePage.tsx:83
 msgid "这台机器现在能做什么"
@@ -8333,10 +8415,6 @@ msgstr "These changes are based on version {0}; the plan is at version {revision
 msgid "这里已经有片段了，没有移动"
 msgstr "There is already a clip here, so nothing moved"
 
-#: src/pages/agent/ConversationModes.tsx:213
-msgid "这里比较的是方案自己的两个版本：Agent 出的那一版，和你现在编辑的这一版。"
-msgstr "This compares the plan's own two versions: the one the Agent produced, and the one you are editing."
-
 #: src/pages/settings/AdvancedSection.tsx:91
 msgid "这项任务结束前，其它录制与回放都会被拒绝。"
 msgstr "Until this task finishes, other recordings and playbacks are refused."
@@ -8349,7 +8427,7 @@ msgstr "Enter analysis mode"
 msgid "进入剪辑模式"
 msgstr "Enter editing mode"
 
-#: src/pages/delivery/TaskDetailBody.tsx:109
+#: src/pages/delivery/TaskDetailBody.tsx:115
 msgid "进度"
 msgstr "Progress"
 
@@ -8827,12 +8905,14 @@ msgstr "Choose again"
 #: src/pages/agent/AgentConversationBlock.tsx:346
 #: src/pages/agent/AgentConversationBlock.tsx:484
 #: src/pages/agent/ChangePreviewDialog.tsx:64
-#: src/pages/agent/ConversationModes.tsx:350
+#: src/pages/agent/ConversationModes.tsx:215
+#: src/pages/agent/ConversationModes.tsx:397
 #: src/pages/agent/NewSessionPane.tsx:177
 #: src/pages/agent/NewSessionPane.tsx:212
 #: src/pages/agent/PlanPanel.tsx:130
 #: src/pages/agent/SessionDrawer.tsx:250
 #: src/pages/AgentPage.tsx:377
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:42
 #: src/pages/delivery/useTaskActions.tsx:205
 #: src/pages/EditorPage.tsx:121
 #: src/pages/evidence/EvidenceAnnotations.tsx:56
@@ -8902,11 +8982,6 @@ msgstr "Shot keyframes"
 #: src/pages/agent/ShotEditForm.tsx:273
 msgid "镜头意图 · 会一起发给 Agent"
 msgstr "Shot intent · sent to the Agent with it"
-
-#: src/pages/agent/ConversationModes.tsx:234
-#: src/pages/agent/ConversationModes.tsx:264
-msgid "镜头数"
-msgstr "Shot count"
 
 #: src/pages/agent/PlanPanel.tsx:353
 msgid "镜头方案"
@@ -9012,6 +9087,7 @@ msgstr "A highlight reel is started from the match workspace or from the Agent"
 msgid "雷达"
 msgstr "Radar"
 
+#: src/pages/delivery/AgentVideoWorkflowPanel.tsx:133
 #: src/pages/ProjectsPage.tsx:98
 msgid "需要处理"
 msgstr "Needs attention"

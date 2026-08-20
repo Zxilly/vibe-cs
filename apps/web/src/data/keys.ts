@@ -281,6 +281,8 @@ export const qk = {
      *  the task refreshes both. */
     recordingJob: (jobId: string) =>
       [QUERY_NAMESPACE.tasks, DETAIL, 'recording', jobId, 'job'] as const,
+    agentVideoWorkflow: (jobId: string) =>
+      [QUERY_NAMESPACE.tasks, DETAIL, 'recording', jobId, 'agent-video'] as const,
     exportJob: (jobId: string) =>
       [QUERY_NAMESPACE.tasks, DETAIL, 'export', jobId, 'job'] as const,
     analysisRun: (runId: string) =>
@@ -336,6 +338,10 @@ export const qk = {
     all: [QUERY_NAMESPACE.plans] as const,
     list: (query: AgentPlanQuery) => [QUERY_NAMESPACE.plans, LIST, query] as const,
     detail: (planId: string) => [QUERY_NAMESPACE.plans, DETAIL, planId] as const,
+    takes: (planId: string, shotId?: string) =>
+      [QUERY_NAMESPACE.plans, DETAIL, planId, 'takes', shotId ?? 'all'] as const,
+    composition: (planId: string) =>
+      [QUERY_NAMESPACE.plans, DETAIL, planId, 'composition'] as const,
   },
 
   /**

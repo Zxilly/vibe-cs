@@ -388,23 +388,23 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 
 ### IA-24 Take / Composition
 
-- [ ] **状态**
+- [x] **状态**
 - 建什么：新增 Take 与 Composition domain/storage/routes；录制完成登记 Take；作品可为每个片段选择 Take，Composition 保持引用完整；按设置清理未引用旧 Take。
 - 验收标准：
-  - [ ] 同一片段可列出、播放、比较多条 Take
-  - [ ] Composition 精确绑定每个片段的所选 Take 和顺序
-  - [ ] 被 Composition 引用的 Take 永不因 `take_limit` 自动删除
-  - [ ] 导出只读取已确认 Composition，不从目录猜文件
+  - [x] 同一片段可列出、播放、比较多条 Take
+  - [x] Composition 精确绑定每个片段的所选 Take 和顺序
+  - [x] 被 Composition 引用的 Take 永不因 `take_limit` 自动删除
+  - [x] 导出只读取已确认 Composition，不从目录猜文件
 
 ### IA-25 确认后自动录制、组合与导出
 
-- [ ] **状态**
+- [x] **状态**
 - 建什么：把剪辑单确认后的录制、Take 登记、Composition 更新和最终导出编排成可恢复流程；作品步骤显示当前阶段、失败恢复和最终文件。
 - 验收标准：
-  - [ ] 用户只确认一次，之后默认自动推进到可播放文件
-  - [ ] 任一片段失败可单独重试并继续同一 Composition
-  - [ ] 关闭应用后可从持久任务状态继续，不重复已完成录制
-  - [ ] 成品文件可播放、可定位，并反向关联作品与 Composition
+  - [x] 用户只确认一次，之后默认自动推进到可播放文件
+  - [x] 任一片段失败可单独重试并继续同一 Composition
+  - [x] 关闭应用后可从持久任务状态继续，不重复已完成录制
+  - [x] 成品文件可播放、可定位，并反向关联作品与 Composition
 
 ### IA-26 可访问性、跨模式与真实闭环收口
 
@@ -424,3 +424,5 @@ IA-01 ──┬── IA-02 ──► IA-03 ──┐
 - 2026-08-20, IA-21:接受/拒绝写回会话 proposal 文档并从服务端恢复；assistant turn 在流式前持久建立，以条件状态更新覆盖 streaming/completed/cancelled/failed 和 retry_of；模型历史改由已完成的持久会话条目提供，Desktop thread 不再是第二份对话真值。未改 SQLite schema 指纹，旧 proposal/assistant 文档通过 defaulted optional fields 兼容解码；lint、358 个测试文件/4279 项前端测试及 domain/storage/application/desktop 四 crate 全量测试通过；无偏离。
 - 2026-08-20, IA-22:Desktop 在已校验的请求上下文中为每条 proposal 写入 plan id/基准修订，客户端补章逻辑退役；计划写入口同时校验 proposal base，不能用新的 expected revision 重放旧 proposal；Rig 聚合的真实 usage 与 provider/model 按 turn 持久化，缺 usage 或权威定价时明确显示未知而非 0。lint、358 个测试文件/4280 项前端测试及 agent/domain/storage/application/desktop 五 crate 全量测试通过；locale 覆盖单页预算由 5 秒调到 10 秒以适应完整并发套件，断言未削弱；无偏离。
 - 2026-08-20, IA-23:每条可应用修改在对话与剪辑单两处都提供预览；优先按录制元数据中的真实 `request_id` 播放对应 Take，没有 Take 时才编译镜头并二次确认启动 CS2 只读预览；`preview_before_apply` 开启时接受只打开预览，二次确认后才走原有条件写入。lint、类型检查及 4 个相关测试文件/65 项测试通过；完整前端套件首次运行因 Vitest 进程未退出手动中止，留待 IA-26 统一全量回归；无产品逻辑偏离。
+- 2026-08-20, IA-24:新增 Take、Composition 与录制运行绑定的 domain/storage/API 契约，旧数据库按已知指纹原位迁移；录制文件以镜头请求 id 登记为多条 Take，Composition 用关系表精确固定镜头、Take 与顺序；清理只删除超限且未被引用的 Take；候选片段视图改为真实视频比较与持久选择，覆盖已确认 Composition 需二次确认；导出只能从完整、已确认 Composition 构建 montage。domain 282、storage 162（1 项环境测试忽略）、application 326 项测试全部通过；无偏离。
+- 2026-08-20, IA-25:Agent 录制计划持久绑定作品与 Composition，录制完成自动登记 Take、补齐并确认 Composition，在检测到编码器后自动导出；失败/取消的重试计划继承同一绑定且只执行已证明的未完成后缀，重启后工作流查询会从持久任务重新协调，不重复完成片段；任务详情新增录制→Take→组合导出→成品的礼貌播报与失败恢复，成品反向保存 export job/path 并可定位。lint、类型检查、360 个前端测试文件/4286 项测试及三 crate 全量测试通过；无偏离。

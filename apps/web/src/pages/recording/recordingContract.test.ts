@@ -131,7 +131,7 @@ describe('recordingHref', () => {
   });
 
   it('sends a started recording to the task address, not back here', () => {
-    expect(recordingTaskHref('A-2481')).toBe('/delivery/task/A-2481');
+    expect(recordingTaskHref('A-2481')).toBe('/delivery/task/recording%3AA-2481');
   });
 });
 

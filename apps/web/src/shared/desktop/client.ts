@@ -35,6 +35,8 @@ import type {
   AgentPlanQuery,
   AgentPlanRestore,
   AgentPlanSummary,
+  AgentTake,
+  AgentVideoWorkflow,
   AgentProposalDecisionUpdate,
   AgentSession,
   AgentSessionEntry,
@@ -65,6 +67,8 @@ import type {
   BeatAlignmentRequest,
   CleanupMissingOutputsResult,
   CleanupStagedOutputsResult,
+  Composition,
+  CompositionExportResponse,
   CosmeticCatalog,
   CosmeticInspectionReport,
   CosmeticPlan,
@@ -138,6 +142,7 @@ import type {
   PlayerProfile,
   PlayerReviewMetadata,
   ProposalConfirmation,
+  PutAgentCompositionRequest,
   QuickCheckResponse,
   RadarOverviewRecord,
   RecordedClipRecord,
@@ -570,6 +575,29 @@ export const commands = {
     request<AgentPlan>(`/agent/plans/${encodeURIComponent(restore.plan_id)}/restore`, {
       method: 'POST', body: restore,
     }),
+  listAgentTakes: (planId: string, shotId?: string, signal?: AbortSignal) =>
+    request<AgentTake[]>(
+      `/agent/plans/${encodeURIComponent(planId)}/takes${queryString({ shot_id: shotId })}`,
+      { signal },
+    ),
+  getAgentComposition: (planId: string, signal?: AbortSignal) =>
+    request<Composition | null>(`/agent/plans/${encodeURIComponent(planId)}/composition`, {
+      signal,
+    }),
+  getAgentVideoWorkflow: (recordingJobId: string, signal?: AbortSignal) =>
+    request<AgentVideoWorkflow>(
+      `/agent/recording-jobs/${encodeURIComponent(recordingJobId)}/workflow`,
+      { signal },
+    ),
+  putAgentComposition: (planId: string, update: PutAgentCompositionRequest) =>
+    request<Composition>(`/agent/plans/${encodeURIComponent(planId)}/composition`, {
+      method: 'PUT', body: update,
+    }),
+  exportAgentComposition: (planId: string) =>
+    request<CompositionExportResponse>(
+      `/agent/plans/${encodeURIComponent(planId)}/composition/export`,
+      { method: 'POST', body: {}, timeoutMs: null },
+    ),
   /**
    * Turns a plan into a recording plan in one step, answering with the very
    * same `RecordingPlanResponse` as `planRecording`: the recording plan screen

@@ -262,7 +262,7 @@ export function recordingHref(agentPlanId: string | null): string {
 /** Where 「开始录制」 lands. A running recording is a task, and a task has its
  *  own address (§7) — this page does not grow a second one. */
 export function recordingTaskHref(jobId: string): string {
-  return `/delivery/task/${encodeURIComponent(jobId)}`;
+  return `/delivery/task/${encodeURIComponent(`recording:${jobId}`)}`;
 }
 
 /* ── flash: the one conversion that is easy to get backwards ─────────────── */

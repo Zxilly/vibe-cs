@@ -68,6 +68,7 @@ import type {
   AgentPlanEdit,
   AgentPlanQuery,
   AgentPlanRestore,
+  PutAgentCompositionRequest,
 } from '../shared/desktop/dto';
 import { useDesktopClient } from './desktopClient';
 import { toDataError } from './errors';
@@ -110,6 +111,34 @@ export function useAgentPlan(planId: string | null, tuning: DataQueryTuning = {}
       planId === null
         ? skipToken
         : ({ signal }: { signal: AbortSignal }) => client.getAgentPlan(planId, signal),
+    ...resolveQueryTuning(tuning, { enabled: planId !== null }),
+  });
+}
+
+export function useAgentTakes(
+  planId: string | null,
+  shotId?: string,
+  tuning: DataQueryTuning = {},
+) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.plans.takes(planId ?? '', shotId),
+    queryFn:
+      planId === null
+        ? skipToken
+        : ({ signal }: { signal: AbortSignal }) => client.listAgentTakes(planId, shotId, signal),
+    ...resolveQueryTuning(tuning, { enabled: planId !== null }),
+  });
+}
+
+export function useAgentComposition(planId: string | null, tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.plans.composition(planId ?? ''),
+    queryFn:
+      planId === null
+        ? skipToken
+        : ({ signal }: { signal: AbortSignal }) => client.getAgentComposition(planId, signal),
     ...resolveQueryTuning(tuning, { enabled: planId !== null }),
   });
 }
@@ -211,6 +240,36 @@ export function useSnoozeAgentPlan() {
     onSuccess: (plan) => {
       queryClient.setQueryData(qk.plans.detail(plan.id), plan);
       return invalidateAfterPlanWrite(queryClient, plan.id);
+    },
+  });
+}
+
+export function usePutAgentComposition(planId: string) {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (update: PutAgentCompositionRequest) =>
+      client.putAgentComposition(planId, update),
+    onSuccess: (composition) => {
+      queryClient.setQueryData(qk.plans.composition(planId), composition);
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.plans.detail(planId) }),
+        queryClient.invalidateQueries({ queryKey: qk.outputs.all }),
+      ]).then(() => undefined);
+    },
+  });
+}
+
+export function useExportAgentComposition(planId: string) {
+  const client = useDesktopClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => client.exportAgentComposition(planId),
+    onSuccess: (response) => {
+      queryClient.setQueryData(qk.plans.composition(planId), response.composition);
+      return queryClient.invalidateQueries({ queryKey: qk.outputs.all });
     },
   });
 }

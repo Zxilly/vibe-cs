@@ -651,6 +651,14 @@ export type { AgentPlanEdit } from './generated/AgentPlanEdit';
 export type { AgentPlanRestore } from './generated/AgentPlanRestore';
 export type { AgentPlanSummary } from './generated/AgentPlanSummary';
 export type { AgentPlanQuery } from './generated/AgentPlanQuery';
+export type { AgentTakeDto as AgentTake } from './generated/AgentTakeDto';
+export type { AgentVideoWorkflow } from './generated/AgentVideoWorkflow';
+export type { AgentVideoWorkflowStage } from './generated/AgentVideoWorkflowStage';
+export type { Composition } from './generated/Composition';
+export type { CompositionExportResponse } from './generated/CompositionExportResponse';
+export type { CompositionItem } from './generated/CompositionItem';
+export type { CompositionStatus } from './generated/CompositionStatus';
+export type { PutAgentCompositionRequest } from './generated/PutAgentCompositionRequest';
 
 export type { AgentSessionRetention } from './generated/AgentSessionRetention';
 export type { AgentWorkspaceSettings } from './generated/AgentWorkspaceSettings';

@@ -1,7 +1,7 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 
-import { useAppConfig, useQuickCheck } from '../../data/config';
+import { useAgentStatus, useQuickCheck } from '../../data/config';
 import { useDemo } from '../../data/demos';
 import { dataErrorMessage } from '../../data/errors';
 import { StatusDot, type StatusDotStatus } from '../../design/feedback';
@@ -75,8 +75,8 @@ export function buildAgentReadiness(input: ReadinessInput): AgentReadinessState 
         }
       : input.modelConfigured === true
         ? {
-            key: 'model', label: t`AI 模型`, detail: t`配置已保存，可在设置中测试连接`,
-            state: 'ok', blocking: false, action: { label: t`测试连接`, to: settingsPath('model') },
+            key: 'model', label: t`AI 模型`, detail: t`模型运行时已就绪`,
+            state: 'ok', blocking: false, action: null,
           }
         : {
             key: 'model', label: t`AI 模型`, detail: t`还没有可用的模型配置`,
@@ -159,25 +159,17 @@ export function useAgentReadiness(input: {
   readonly demoId: string | null;
 }): AgentReadinessState {
   const demo = useDemo(input.demoId);
-  const config = useAppConfig();
+  const agent = useAgentStatus();
   const checks = useQuickCheck();
-  const llm = config.data?.llm;
-  const modelConfigured = config.data === undefined
-    ? null
-    : Boolean(
-        llm?.provider.trim()
-        && llm.model.trim()
-        && llm.base_url.trim()
-        && config.data.llm_has_api_key,
-      );
+  const modelConfigured = agent.data === undefined ? null : agent.data.configured;
   return buildAgentReadiness({
     ...input,
     demoStatus: demo.data?.lifecycle_status ?? null,
     demoPending: input.demoId !== null && demo.isPending,
     demoError: dataErrorMessage(demo.error),
     modelConfigured,
-    modelPending: config.isPending,
-    modelError: dataErrorMessage(config.error),
+    modelPending: agent.isPending,
+    modelError: dataErrorMessage(agent.error),
     recordingMissing: (checks.data?.checks ?? [])
       .filter((check) => check.state === 'missing')
       .map((check) => check.label),

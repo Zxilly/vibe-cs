@@ -42,6 +42,24 @@ export function useAppConfig(tuning: DataQueryTuning = {}) {
   });
 }
 
+/**
+ * The effective Agent runtime, not merely the editable settings document.
+ *
+ * In production both resolve from the same persisted config. A development
+ * build may receive a short-lived credential through its process environment;
+ * `agent_status` is the only authoritative answer in that case. Creation
+ * readiness must follow the runtime that will execute the request, otherwise
+ * the backend can be ready while the composer is incorrectly disabled.
+ */
+export function useAgentStatus(tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.config.agent(),
+    queryFn: () => client.agentStatus(),
+    ...resolveQueryTuning(tuning),
+  });
+}
+
 /** Dependency checks (「游戏就绪 / 缺失」) for the settings header and the
  *  workbench's readiness strip. */
 export function useQuickCheck(tuning: DataQueryTuning = {}) {

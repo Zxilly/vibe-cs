@@ -101,6 +101,13 @@ function bridge(entries: readonly AgentSessionEntry[]): Bridge {
       llm: { provider: 'test', model: 'test', base_url: 'http://provider.test', api_key: '', prompt: '' },
       llm_has_api_key: true,
     }),
+    agentStatus: () => Promise.resolve({
+      runtimeAvailable: true,
+      configured: true,
+      provider: 'test',
+      model: 'test',
+      streaming: true,
+    }),
     quickCheck: () => Promise.resolve({ checks: [] }),
     getAgentPlan: () => Promise.resolve(plan),
     listAgentPlans: () => Promise.resolve([]),

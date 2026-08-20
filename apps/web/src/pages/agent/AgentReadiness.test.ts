@@ -21,6 +21,9 @@ describe('Agent readiness', () => {
     const state = buildAgentReadiness(READY);
     expect(state.gate).toEqual({ disabled: false });
     expect(state.items.map((item) => item.state)).toEqual(['ok', 'ok', 'ok', 'ok']);
+    expect(state.items.find((item) => item.key === 'model')).toMatchObject({
+      detail: '模型运行时已就绪', action: null,
+    });
   });
 
   it('treats analysis as an automatic stage rather than another prerequisite form', () => {

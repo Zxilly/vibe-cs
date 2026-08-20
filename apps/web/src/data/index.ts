@@ -93,6 +93,7 @@ export { invalidateOutputs, useOutputList, useRecordedClips } from './outputs';
 
 export {
   invalidateConfig,
+  useAgentStatus,
   useAppConfig,
   useExportDiagnostics,
   useHlaeStatus,

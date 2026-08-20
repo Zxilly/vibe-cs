@@ -313,6 +313,10 @@ export const qk = {
   config: {
     all: [QUERY_NAMESPACE.config] as const,
     app: () => [QUERY_NAMESPACE.config, 'app'] as const,
+    /** Effective Agent runtime configuration. Unlike the editable document,
+     *  this also reflects a development credential supplied to the running
+     *  Desktop process. */
+    agent: () => [QUERY_NAMESPACE.config, 'agent'] as const,
     quickCheck: () => [QUERY_NAMESPACE.config, 'quick-check'] as const,
     storage: () => [QUERY_NAMESPACE.config, 'storage'] as const,
     hlae: () => [QUERY_NAMESPACE.config, 'hlae'] as const,

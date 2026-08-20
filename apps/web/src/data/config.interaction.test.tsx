@@ -11,6 +11,7 @@ import { act, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import type {
+  AgentStatus,
   AppConfig,
   DemoWatchStatus,
   QuickCheckResponse,
@@ -19,6 +20,7 @@ import type {
 import {
   invalidateConfig,
   rejectWatchPath,
+  useAgentStatus,
   useAppConfig,
   useQuickCheck,
   useSetDemoWatchPaths,
@@ -80,6 +82,14 @@ const STORAGE: StorageStatus = {
   checked_at: '2026-08-15T09:00:00Z',
 };
 
+const AGENT_STATUS: AgentStatus = {
+  runtimeAvailable: true,
+  configured: true,
+  provider: 'kimi-code',
+  model: 'k3',
+  streaming: true,
+};
+
 const WATCH: DemoWatchStatus = {
   running: true,
   roots: [{ path: 'C:/demos', state: 'watching', message: null }],
@@ -112,6 +122,20 @@ describe('useAppConfig', () => {
       expect(result.current.isError).toBe(true);
     });
     expect(dataErrorMessage(result.current.error)).toBe('配置文件损坏');
+  });
+});
+
+describe('useAgentStatus', () => {
+  it('reads the effective runtime instead of inferring it from the settings document', async () => {
+    const status = countingStub(AGENT_STATUS);
+    const { result } = renderDataHook(() => useAgentStatus(), {
+      client: { agentStatus: status.call },
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+    expect(result.current.data).toMatchObject({ configured: true, model: 'k3' });
   });
 });
 

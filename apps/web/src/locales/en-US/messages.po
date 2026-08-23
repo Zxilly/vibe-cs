@@ -64,7 +64,7 @@ msgstr "· Service required"
 msgid "‹ Demo 资料库"
 msgstr "‹ Demo library"
 
-#: src/pages/ProjectWorkspacePage.tsx:71
+#: src/pages/ProjectWorkspacePage.tsx:116
 msgid "‹ 作品"
 msgstr "‹ Projects"
 
@@ -288,7 +288,7 @@ msgstr "{0} clips · {1}s"
 #. placeholder {0}: planData.shots.length
 #. placeholder {1}: planData.revision
 #. placeholder {2}: i18n._(AGENT_PLAN_STATUS[planData.status].label)
-#: src/pages/AgentPage.tsx:361
+#: src/pages/AgentPage.tsx:364
 msgid "{0} 个片段 · 修订 {1} · {2}"
 msgstr "{0} clips · revision {1} · {2}"
 
@@ -459,6 +459,10 @@ msgstr "{0}%"
 #: src/domain/map/EngagementLayer.tsx:102
 msgid "{attacker} → {victim} · {weapon}"
 msgstr "{attacker} → {victim} · {weapon}"
+
+#: src/pages/agent/AgentReadiness.tsx:197
+msgid "{blocking} 项待处理"
+msgstr "{blocking} items need attention"
 
 #: src/domain/task/RetryNotice.tsx:81
 msgid "{count, plural, other {已重试 # 次 · 已达上限，不再自动重试}}"
@@ -748,7 +752,7 @@ msgid "Agent 写点评与镜头意图时的措辞。"
 msgstr "How the Agent words its commentary and shot intents."
 
 #: src/app/shell/navigation.tsx:93
-#: src/pages/AgentPage.tsx:355
+#: src/pages/AgentPage.tsx:358
 msgid "Agent 创作"
 msgstr "Agent studio"
 
@@ -777,11 +781,11 @@ msgstr "The length the Agent designs shots towards. It is a target, not a ceilin
 msgid "Agent 读取的内容"
 msgstr "What the Agent read"
 
-#: src/pages/ProjectWorkspacePage.tsx:202
+#: src/pages/ProjectWorkspacePage.tsx:251
 msgid "Agent 辅助"
 msgstr "Agent-assisted"
 
-#: src/pages/ProjectWorkspacePage.tsx:303
+#: src/pages/ProjectWorkspacePage.tsx:358
 msgid "Agent 镜头必须先落成真实 Take 和快速剪辑副本，再从快速剪辑复制到多轨精剪；不能跳过素材落地。"
 msgstr "Agent shots must first become real Takes and a Quick Edit copy before they can be copied into Multitrack. Materialization cannot be skipped."
 
@@ -823,7 +827,7 @@ msgstr "API endpoint"
 msgid "API 密钥"
 msgstr "API key"
 
-#: src/pages/agent/AgentComposer.tsx:147
+#: src/pages/agent/AgentComposer.tsx:154
 msgid "Auto"
 msgstr "Auto"
 
@@ -880,6 +884,10 @@ msgstr "Demo content matches"
 msgid "Demo 分析"
 msgstr "Demo analysis"
 
+#: src/pages/AgentPage.tsx:522
+msgid "Demo 已关联"
+msgstr "Demo linked"
+
 #: src/pages/agent/AgentReadiness.tsx:138
 msgid "Demo 文件缺失，无法开始分析"
 msgstr "The Demo file is missing, so analysis cannot start"
@@ -912,11 +920,11 @@ msgstr "Esc to discard · ⌘↵ to save"
 msgid "Frequency penalty"
 msgstr "Frequency penalty"
 
-#: src/pages/agent/AgentComposer.tsx:150
+#: src/pages/agent/AgentComposer.tsx:157
 msgid "HITL 等待你的确认"
 msgstr "HITL is awaiting your confirmation"
 
-#: src/pages/agent/AgentComposer.tsx:150
+#: src/pages/agent/AgentComposer.tsx:157
 msgid "HITL 自动批准，不暂停执行"
 msgstr "HITL auto-approves without pausing execution"
 
@@ -1180,7 +1188,7 @@ msgstr "The official Valve link. Connectors for platforms such as FACEIT are not
 msgid "Vibe CS 不再自动设置 reasoning、采样或输出上限。留空就使用 provider 默认值。"
 msgstr "Vibe CS no longer sets reasoning, sampling, or output limits automatically. Leave fields empty to use provider defaults."
 
-#: src/pages/agent/AgentConversationBlock.tsx:512
+#: src/pages/agent/AgentConversationBlock.tsx:527
 msgid "一句话说清时长、重点和用途就够了。发送后会自动建立对话，并结合当前 Demo 生成第一版剪辑单。"
 msgstr "Describe the length, focus, and audience in one sentence. Sending it creates the conversation and uses the current Demo to draft the first shot list."
 
@@ -1536,7 +1544,7 @@ msgstr "What it does: overwrites the configuration file with the last automatic 
 msgid "会把相机路径写成 HLAE 脚本落到磁盘，并启动 CS2 跳到这个镜头的起点。只是预览，不会录制任何画面。"
 msgstr "It writes the camera path to disk as HLAE scripts and starts CS2 at the beginning of this shot. A preview only — nothing is recorded."
 
-#: src/pages/ProjectWorkspacePage.tsx:305
+#: src/pages/ProjectWorkspacePage.tsx:360
 msgid "会新建一个多轨工程，复制当前片段顺序和裁切。包装、背景音乐与转场不会复制，源快速剪辑不会被修改，也不会反向同步。"
 msgstr "This creates a new Multitrack project with the current clip order and trims. Packaging, background music, and transitions are not copied. The source Quick Edit is unchanged and does not sync back."
 
@@ -1596,12 +1604,12 @@ msgid "作品、剪辑单、录制与成品"
 msgstr "Projects, shot lists, recording, and finished files"
 
 #: src/app/routeCrumb.ts:70
-#: src/pages/ProjectWorkspacePage.tsx:49
-#: src/pages/ProjectWorkspacePage.tsx:60
+#: src/pages/ProjectWorkspacePage.tsx:55
+#: src/pages/ProjectWorkspacePage.tsx:66
 msgid "作品工作区"
 msgstr "Project workspace"
 
-#: src/pages/ProjectWorkspacePage.tsx:73
+#: src/pages/ProjectWorkspacePage.tsx:121
 msgid "作品步骤"
 msgstr "Project steps"
 
@@ -1747,7 +1755,7 @@ msgstr "Offset"
 msgid "做一条集锦"
 msgstr "Make a highlight reel"
 
-#: src/pages/agent/AgentComposer.tsx:161
+#: src/pages/agent/AgentComposer.tsx:168
 msgid "停止"
 msgstr "Stop"
 
@@ -1784,11 +1792,12 @@ msgstr "Save first: an export renders the project the service has stored"
 msgid "先在上面添加片段，这里会给出它们与拍点的关系。"
 msgstr "Add clips above and their relation to the beats shows up here."
 
-#: src/pages/ProjectWorkspacePage.tsx:301
+#: src/pages/ProjectWorkspacePage.tsx:356
 msgid "先完成录制并建立 Composition，系统才有真实片段可复制到快速剪辑。现在不会创建空工程。"
 msgstr "Finish recording and build a Composition first, so there are real clips to copy into Quick Edit. An empty project will not be created."
 
-#: src/pages/agent/AgentReadiness.tsx:187
+#: src/pages/agent/AgentReadiness.tsx:219
+#: src/pages/agent/AgentReadiness.tsx:229
 msgid "先生成剪辑单，录制环境可以稍后补齐"
 msgstr "Draft the shot list first; recording can be prepared later"
 
@@ -1826,6 +1835,10 @@ msgstr "Select a media item first"
 msgid "先选中一段再裁切"
 msgstr "Select a clip before trimming"
 
+#: src/pages/AgentPage.tsx:525
+msgid "先选择 Demo 作为视频素材"
+msgstr "Choose a Demo to use as video source material"
+
 #: src/pages/match/MatchInspectorPanel.tsx:60
 msgid "先选择一个回合、选手或片段"
 msgstr "Select a round, player, or clip first"
@@ -1834,8 +1847,8 @@ msgstr "Select a round, player, or clip first"
 msgid "先选择一份 Demo 作为视频素材"
 msgstr "Choose a Demo to use as the video source"
 
-#: src/pages/AgentPage.tsx:590
-#: src/pages/AgentPage.tsx:610
+#: src/pages/AgentPage.tsx:644
+#: src/pages/AgentPage.tsx:664
 msgid "先选择一份剪辑单"
 msgstr "Select a shot list first"
 
@@ -2036,7 +2049,7 @@ msgstr "Keyword: {0}"
 #: src/app/command/CommandPalette.tsx:235
 #: src/design/layout/Inspector.tsx:270
 #: src/pages/agent/ConversationModes.tsx:340
-#: src/pages/ProjectWorkspacePage.tsx:250
+#: src/pages/ProjectWorkspacePage.tsx:304
 msgid "关闭"
 msgstr "Close"
 
@@ -2104,7 +2117,7 @@ msgstr "Maximize or restore window"
 msgid "最小化窗口"
 msgstr "Minimize window"
 
-#: src/pages/ProjectWorkspacePage.tsx:172
+#: src/pages/ProjectWorkspacePage.tsx:221
 msgid "最终视频已经生成，可以从成品文件页播放、定位或管理。"
 msgstr "The final video is ready. Play, reveal, or manage it from Finished files."
 
@@ -2152,10 +2165,6 @@ msgstr "Recent matches could not be read: {matchesError}"
 msgid "最近活动"
 msgstr "Recent activity"
 
-#: src/pages/agent/AgentConversationBlock.tsx:518
-msgid "写一句需求"
-msgstr "Write one request"
-
 #: src/pages/library/LibraryInspector.tsx:255
 msgid "写下这场值得回头看的地方"
 msgstr "Write down what is worth revisiting in this match"
@@ -2164,7 +2173,7 @@ msgstr "Write down what is worth revisiting in this match"
 msgid "写注释"
 msgstr "Write a note"
 
-#: src/pages/agent/AgentConversationBlock.tsx:575
+#: src/pages/agent/AgentConversationBlock.tsx:585
 msgid "写第一条指令"
 msgstr "Write the first instruction"
 
@@ -2176,7 +2185,7 @@ msgstr "How far back the session drawer reaches. Finished videos and the task re
 msgid "决定录制音轨里保留谁的语音。"
 msgstr "Whose voice is kept in the recorded audio."
 
-#: src/pages/AgentPage.tsx:359
+#: src/pages/AgentPage.tsx:362
 msgid "准备创作"
 msgstr "Ready to create"
 
@@ -2339,7 +2348,7 @@ msgstr "Once the matches of this player are analyzed, the matches and hits per m
 msgid "分析限制 {0} 条"
 msgstr "{0} analysis limitations"
 
-#: src/pages/agent/AgentConversationBlock.tsx:734
+#: src/pages/agent/AgentConversationBlock.tsx:750
 msgid "分析音频节奏"
 msgstr "Analyze audio rhythm"
 
@@ -2376,15 +2385,17 @@ msgstr "The list holds kill and objective events only; damage, purchases and gre
 msgid "列配置"
 msgstr "Columns"
 
-#: src/pages/agent/AgentReadiness.tsx:186
+#: src/pages/agent/AgentReadiness.tsx:194
+#: src/pages/agent/AgentReadiness.tsx:228
 msgid "创作准备"
 msgstr "Creation readiness"
 
-#: src/pages/agent/AgentReadiness.tsx:183
+#: src/pages/agent/AgentReadiness.tsx:191
+#: src/pages/agent/AgentReadiness.tsx:225
 msgid "创作准备检查"
 msgstr "Creation readiness check"
 
-#: src/pages/ProjectWorkspacePage.tsx:275
+#: src/pages/ProjectWorkspacePage.tsx:330
 msgid "创建并打开副本"
 msgstr "Create and open copy"
 
@@ -2430,7 +2441,8 @@ msgstr "Not so close"
 msgid "制作"
 msgstr "Create"
 
-#: src/pages/ProjectWorkspacePage.tsx:229
+#: src/pages/ProjectWorkspacePage.tsx:280
+#: src/pages/ProjectWorkspacePage.tsx:291
 msgid "制作方式"
 msgstr "Production method"
 
@@ -2457,10 +2469,14 @@ msgid "剪辑中"
 msgstr "Editing"
 
 #: src/pages/ProjectsPage.tsx:89
-#: src/pages/ProjectWorkspacePage.tsx:108
+#: src/pages/ProjectWorkspacePage.tsx:157
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "Shot list"
+
+#: src/pages/agent/AgentConversationBlock.tsx:454
+msgid "剪辑单草稿"
+msgstr "Shot-list draft"
 
 #: src/pages/AgentPage.tsx:442
 msgid "剪辑单面板"
@@ -2661,9 +2677,13 @@ msgstr "After sending, analysis will finish automatically before the shot list i
 msgid "发送后会先自动重试分析，再生成剪辑单"
 msgstr "After sending, analysis will retry automatically before the shot list is generated"
 
-#: src/pages/agent/AgentConversationBlock.tsx:449
+#: src/pages/agent/AgentConversationBlock.tsx:465
 msgid "发送后会自动建立对话并生成第一版剪辑单"
 msgstr "Sending creates the conversation and drafts the first shot list"
+
+#: src/pages/agent/AgentConversationBlock.tsx:456
+msgid "发送指令后，Agent 会把镜头结构、顺序和依据整理在这里。"
+msgstr "After you send an instruction, the Agent will organize shot structure, order, and evidence here."
 
 #. placeholder {0}: truncation.shown
 #. placeholder {1}: truncation.total
@@ -2748,7 +2768,7 @@ msgid "只列击杀与目标事件，共 {0} 条。"
 msgstr "Kill and objective events only, {0} in total."
 
 #. placeholder {0}: selectedShot.title
-#: src/pages/agent/AgentConversationBlock.tsx:451
+#: src/pages/agent/AgentConversationBlock.tsx:467
 msgid "只影响这一个镜头：{0}"
 msgstr "Affects only this one shot: {0}"
 
@@ -2888,7 +2908,7 @@ msgstr "Launch the game"
 msgid "吸附"
 msgstr "Snap"
 
-#: src/pages/agent/AgentConversationBlock.tsx:510
+#: src/pages/agent/AgentConversationBlock.tsx:525
 msgid "告诉 Agent 你想要什么视频"
 msgstr "Tell Agent what video you want"
 
@@ -3033,7 +3053,7 @@ msgid "图形"
 msgstr "Graphics"
 
 #. placeholder {0}: pending.changes.length
-#: src/pages/AgentPage.tsx:627
+#: src/pages/AgentPage.tsx:681
 msgid "在 {shots} 个镜头上做了 {0} 处改动"
 msgstr "Made {0} changes across {shots} shots"
 
@@ -3189,7 +3209,7 @@ msgid "基于第 {0} 版"
 msgstr "Based on version {0}"
 
 #: src/pages/agent/PlanPanel.tsx:639
-#: src/pages/AgentPage.tsx:552
+#: src/pages/AgentPage.tsx:606
 msgid "基于第 {revision} 版重算"
 msgstr "Recompute against version {revision}"
 
@@ -3210,7 +3230,7 @@ msgstr "Handle what needs attention, continue a project, or start a new one"
 msgid "备注"
 msgstr "Note"
 
-#: src/pages/ProjectWorkspacePage.tsx:291
+#: src/pages/ProjectWorkspacePage.tsx:346
 msgid "复制为多轨精剪？"
 msgstr "Copy to Multitrack?"
 
@@ -3231,11 +3251,11 @@ msgstr "External file"
 msgid "多杀"
 msgstr "Multi-kill"
 
-#: src/pages/ProjectWorkspacePage.tsx:243
+#: src/pages/ProjectWorkspacePage.tsx:294
 msgid "多轨修改保留在本地，切换步骤前请保存"
 msgstr "Multitrack changes are kept locally; save before changing steps"
 
-#: src/pages/ProjectWorkspacePage.tsx:309
+#: src/pages/ProjectWorkspacePage.tsx:364
 msgid "多轨工程可能包含图层、关键帧、效果与独立音频，降级会丢失信息。请保留当前工程并从原来源另建副本。"
 msgstr "A Multitrack project can contain layers, keyframes, effects, and separate audio. Downgrading would lose information. Keep this project and create another copy from the original source."
 
@@ -3243,7 +3263,7 @@ msgstr "A Multitrack project can contain layers, keyframes, effects, and separat
 msgid "多轨时间轴"
 msgstr "Multitrack timeline"
 
-#: src/pages/ProjectWorkspacePage.tsx:204
+#: src/pages/ProjectWorkspacePage.tsx:253
 msgid "多轨精剪"
 msgstr "Multitrack edit"
 
@@ -3294,7 +3314,7 @@ msgstr "Bytes"
 msgid "存为预设"
 msgstr "Save as preset"
 
-#: src/pages/ProjectWorkspacePage.tsx:62
+#: src/pages/ProjectWorkspacePage.tsx:68
 msgid "它可能来自尚未读取成功的旧工程。"
 msgstr "It may belong to a legacy project source that has not loaded yet."
 
@@ -3306,7 +3326,7 @@ msgstr "Once a recording finishes, its clips show up here."
 msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 msgstr "Once a recording or export finishes, the video shows up here, linked back to the task that made it."
 
-#: src/pages/agent/AgentConversationBlock.tsx:742
+#: src/pages/agent/AgentConversationBlock.tsx:758
 msgid "完成流程确认"
 msgstr "Confirm workflow completion"
 
@@ -3340,7 +3360,7 @@ msgstr "Reveal final video"
 
 #: src/pages/delivery/OutputCard.tsx:152
 #: src/pages/library/LibraryInspector.tsx:177
-#: src/pages/ProjectWorkspacePage.tsx:183
+#: src/pages/ProjectWorkspacePage.tsx:232
 #: src/pages/settings/AdvancedSection.tsx:265
 msgid "定位文件"
 msgstr "Locate file"
@@ -3395,14 +3415,14 @@ msgstr "Matchups view"
 msgid "对位统计不可用"
 msgstr "Matchup statistics unavailable"
 
-#: src/pages/agent/AgentConversationBlock.tsx:562
+#: src/pages/agent/AgentConversationBlock.tsx:572
 #: src/pages/agent/SessionDrawer.tsx:174
 #: src/pages/settings/AiAgentSection.tsx:217
 #: src/terminology.ts:30
 msgid "对话"
 msgstr "Conversation"
 
-#: src/pages/agent/AgentConversationBlock.tsx:562
+#: src/pages/agent/AgentConversationBlock.tsx:572
 msgid "对话 · {title}"
 msgstr "Conversation · {title}"
 
@@ -3478,8 +3498,8 @@ msgstr "Import media"
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:275
 #: src/pages/ProjectsPage.tsx:91
-#: src/pages/ProjectWorkspacePage.tsx:110
-#: src/pages/ProjectWorkspacePage.tsx:161
+#: src/pages/ProjectWorkspacePage.tsx:159
+#: src/pages/ProjectWorkspacePage.tsx:210
 #: src/pages/settings/AdvancedSection.tsx:257
 #: src/pages/settings/AiAgentSection.tsx:1248
 msgid "导出"
@@ -3533,8 +3553,8 @@ msgstr "Export video"
 msgid "导出结果"
 msgstr "Export results"
 
-#: src/pages/ProjectWorkspacePage.tsx:144
-#: src/pages/ProjectWorkspacePage.tsx:162
+#: src/pages/ProjectWorkspacePage.tsx:193
+#: src/pages/ProjectWorkspacePage.tsx:211
 msgid "导出设置与这份作品的成品文件会显示在这里。"
 msgstr "Export settings and this project's finished files will appear here."
 
@@ -3558,11 +3578,11 @@ msgstr "Director preview"
 msgid "导播预览为相机路径示意，不是最终画质。"
 msgstr "The director preview is a schematic of the camera path, not the final picture."
 
-#: src/pages/agent/AgentConversationBlock.tsx:739
+#: src/pages/agent/AgentConversationBlock.tsx:755
 msgid "导航工作区"
 msgstr "Navigate workspace"
 
-#: src/pages/ProjectWorkspacePage.tsx:299
+#: src/pages/ProjectWorkspacePage.tsx:354
 msgid "将打开由已确认 Composition 生成的快速剪辑工程。Agent 剪辑单保持不变，两边后续修改不会同步。"
 msgstr "This opens the Quick Edit project generated from the confirmed Composition. The Agent shot list remains unchanged, and later edits do not sync between them."
 
@@ -3580,6 +3600,10 @@ msgstr "Will produce"
 msgid "尚未关联比赛"
 msgstr "No linked matches"
 
+#: src/pages/AgentPage.tsx:522
+msgid "尚未选择 Demo"
+msgstr "No Demo selected"
+
 #: src/pages/agent/agentContract.ts:248
 msgctxt "agent-mode"
 msgid "就地编辑"
@@ -3593,7 +3617,7 @@ msgstr "Inline editing needs a shot list"
 msgid "就绪"
 msgstr "Ready"
 
-#: src/pages/AgentPage.tsx:547
+#: src/pages/AgentPage.tsx:601
 msgid "屏幕上的改动还没有写进方案。"
 msgstr "The changes on screen have not been written to the plan."
 
@@ -3717,6 +3741,7 @@ msgstr "Imported matches are still on disk; a retry usually brings the list back
 msgid "已导入的比赛和已生成的视频仍可浏览。正在进行的任务会在服务恢复后自动接续状态。"
 msgstr "Imported matches and finished videos stay browsable. Running tasks pick their state back up once the service returns."
 
+#: src/pages/agent/AgentReadiness.tsx:197
 #: src/pages/library/LibraryFilters.tsx:48
 #: src/pages/library/libraryFormat.ts:125
 msgid "已就绪"
@@ -3985,7 +4010,7 @@ msgstr "Current quality {0} (CRF {1}), nearest to this tier"
 msgid "当前 R{round}"
 msgstr "Current R{round}"
 
-#: src/pages/ProjectWorkspacePage.tsx:288
+#: src/pages/ProjectWorkspacePage.tsx:343
 msgid "当前不能转换到这个制作方式"
 msgstr "This production method is not available as a conversion"
 
@@ -3994,7 +4019,7 @@ msgid "当前会话"
 msgstr "Current session"
 
 #. placeholder {0}: project.editingMode
-#: src/pages/ProjectWorkspacePage.tsx:142
+#: src/pages/ProjectWorkspacePage.tsx:191
 msgid "当前剪辑模式：{0}。快速剪辑与多轨编辑能力将在这里呈现。"
 msgstr "Current editing mode: {0}. Quick-edit and multitrack tools will appear here."
 
@@ -4071,7 +4096,7 @@ msgstr "The current anchor is an evidence row, so a note for it can be written u
 
 #: src/domain/task/taskVocabulary.tsx:28
 #: src/pages/ProjectsPage.tsx:90
-#: src/pages/ProjectWorkspacePage.tsx:109
+#: src/pages/ProjectWorkspacePage.tsx:158
 msgid "录制"
 msgstr "Recording"
 
@@ -4257,11 +4282,11 @@ msgid "必须是有效的 JSON object"
 msgstr "Must be a valid JSON object"
 
 #: src/pages/home/ActiveProjectsPanel.tsx:115
-#: src/pages/ProjectWorkspacePage.tsx:203
+#: src/pages/ProjectWorkspacePage.tsx:252
 msgid "快速剪辑"
 msgstr "Quick edit"
 
-#: src/pages/ProjectWorkspacePage.tsx:307
+#: src/pages/ProjectWorkspacePage.tsx:362
 msgid "快速剪辑只有成片素材与秒级裁切，无法无损还原 Demo tick、选手和证据，因此不能反向生成 Agent 剪辑单。"
 msgstr "Quick Edit has rendered media and second-based trims only. It cannot losslessly restore Demo ticks, players, or evidence, so it cannot rebuild an Agent shot list."
 
@@ -4309,7 +4334,7 @@ msgid "成品"
 msgstr "Finished"
 
 #: src/pages/delivery/AgentVideoWorkflowPanel.tsx:133
-#: src/pages/ProjectWorkspacePage.tsx:170
+#: src/pages/ProjectWorkspacePage.tsx:219
 msgid "成品可用"
 msgstr "Final video ready"
 
@@ -4385,7 +4410,7 @@ msgstr "Manual"
 msgid "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 msgstr "The manifest a manual update check reads. Empty means no update check, which is the default."
 
-#: src/pages/agent/AgentConversationBlock.tsx:453
+#: src/pages/agent/AgentConversationBlock.tsx:469
 msgid "手动编辑不会打断 Agent，也不需要它批准"
 msgstr "A manual edit neither interrupts the Agent nor needs its approval"
 
@@ -4424,7 +4449,7 @@ msgstr "Open project"
 msgid "打开剪辑单"
 msgstr "Open shot list"
 
-#: src/pages/ProjectWorkspacePage.tsx:274
+#: src/pages/ProjectWorkspacePage.tsx:329
 msgid "打开副本"
 msgstr "Open copy"
 
@@ -4437,7 +4462,7 @@ msgstr "Open the rounds view"
 msgid "打开工作区"
 msgstr "Open workspace"
 
-#: src/pages/ProjectWorkspacePage.tsx:290
+#: src/pages/ProjectWorkspacePage.tsx:345
 msgid "打开快速剪辑副本？"
 msgstr "Open the Quick Edit copy?"
 
@@ -4488,7 +4513,7 @@ msgstr "Annotate in bulk"
 msgid "找不到这个页面"
 msgstr "Page not found"
 
-#: src/pages/ProjectWorkspacePage.tsx:62
+#: src/pages/ProjectWorkspacePage.tsx:68
 msgid "找不到这份作品"
 msgstr "Project not found"
 
@@ -4926,7 +4951,7 @@ msgstr "File missing"
 msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 msgstr "When a file is moved or deleted by hand, the library's record points at a location that no longer exists."
 
-#: src/pages/ProjectWorkspacePage.tsx:71
+#: src/pages/ProjectWorkspacePage.tsx:117
 msgid "新作品"
 msgstr "New project"
 
@@ -5013,11 +5038,11 @@ msgstr "Plans take another {plans}, and clearing sessions does not free that."
 msgid "方案在这期间被改过了，还原没有执行。读一次最新的再来。"
 msgstr "The plan changed in the meantime, so nothing was restored. Read the latest one and try again."
 
-#: src/pages/AgentPage.tsx:562
+#: src/pages/AgentPage.tsx:616
 msgid "方案在这期间被改过了，这次改动没有写进方案。"
 msgstr "The plan changed in the meantime, so this change was not written to it."
 
-#: src/pages/agent/AgentConversationBlock.tsx:743
+#: src/pages/agent/AgentConversationBlock.tsx:759
 msgid "方案已就绪"
 msgstr "Plan ready"
 
@@ -5048,7 +5073,7 @@ msgstr "Once the shots in the plan are bound to a Demo and a player, the recorda
 msgid "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 msgstr "Every shot in the plan has been removed; restore one or add one in the plan first."
 
-#: src/pages/AgentPage.tsx:592
+#: src/pages/AgentPage.tsx:646
 msgid "方案里的镜头都被移除了，没有可以录制的内容"
 msgstr "Every shot in this plan has been removed, so there is nothing to record"
 
@@ -5452,7 +5477,7 @@ msgid "来源对象"
 msgstr "Source object"
 
 #. placeholder {0}: slot.prompt
-#: src/pages/agent/AgentConversationBlock.tsx:659
+#: src/pages/agent/AgentConversationBlock.tsx:675
 msgid "来自「{0}」"
 msgstr "From “{0}”"
 
@@ -5491,7 +5516,7 @@ msgid "查看发给 Agent 的内容"
 msgstr "See what was sent to the Agent"
 
 #: src/pages/delivery/AgentVideoWorkflowPanel.tsx:116
-#: src/pages/ProjectWorkspacePage.tsx:177
+#: src/pages/ProjectWorkspacePage.tsx:226
 msgid "查看成品"
 msgstr "View final video"
 
@@ -6054,7 +6079,7 @@ msgstr "Could not read match history"
 msgid "比赛工作区"
 msgstr "Match workspace"
 
-#: src/pages/ProjectWorkspacePage.tsx:141
+#: src/pages/ProjectWorkspacePage.tsx:190
 msgid "比赛工作区与证据检索加入的片段会汇总到这里。"
 msgstr "Clips added from match workspaces and evidence search will collect here."
 
@@ -6101,7 +6126,7 @@ msgstr "Compare {0} with {1}"
 msgid "没有任何数据被改动，可以直接重试。"
 msgstr "Nothing was changed, so a retry is safe."
 
-#: src/pages/agent/AgentConversationBlock.tsx:533
+#: src/pages/agent/AgentConversationBlock.tsx:543
 #: src/pages/match/views/HighlightsView.tsx:161
 #: src/pages/match/views/ReplayView.tsx:240
 #: src/pages/match/views/ReviewView.tsx:117
@@ -6113,7 +6138,7 @@ msgstr "No data was changed, so a retry is safe."
 msgid "没有写入任何东西；自动洞察不受影响。"
 msgstr "Nothing was written; the automatic insights are unaffected."
 
-#: src/pages/ProjectWorkspacePage.tsx:252
+#: src/pages/ProjectWorkspacePage.tsx:306
 msgid "没有创建多轨副本。请确认素材文件仍然可用后重试。"
 msgstr "The Multitrack copy was not created. Confirm that the source media is still available, then retry."
 
@@ -6699,7 +6724,7 @@ msgstr "Apply the retention policy to conversations now?"
 msgid "现在没有任务在跑"
 msgstr "No task is running right now"
 
-#: src/pages/agent/AgentConversationBlock.tsx:731
+#: src/pages/agent/AgentConversationBlock.tsx:747
 msgid "理解镜头与空间"
 msgstr "Understand shots and space"
 
@@ -6711,15 +6736,15 @@ msgstr "Incomplete lifecycle"
 msgid "生成 AI 点评"
 msgstr "Generate AI commentary"
 
-#: src/pages/agent/AgentConversationBlock.tsx:445
+#: src/pages/agent/AgentConversationBlock.tsx:461
 msgid "生成剪辑单"
 msgstr "Draft shot list"
 
-#: src/pages/agent/AgentConversationBlock.tsx:736
+#: src/pages/agent/AgentConversationBlock.tsx:752
 msgid "生成剪辑方案"
 msgstr "Draft edit plan"
 
-#: src/pages/agent/AgentConversationBlock.tsx:738
+#: src/pages/agent/AgentConversationBlock.tsx:754
 msgid "生成卡点方案"
 msgstr "Draft beat-alignment plan"
 
@@ -6727,7 +6752,7 @@ msgstr "Draft beat-alignment plan"
 msgid "生成变更"
 msgstr "Generate changes"
 
-#: src/pages/agent/AgentConversationBlock.tsx:737
+#: src/pages/agent/AgentConversationBlock.tsx:753
 msgid "生成方案变更"
 msgstr "Draft plan changes"
 
@@ -6741,7 +6766,7 @@ msgstr "Generating the commentary failed: {0}"
 msgid "生成视频"
 msgstr "Make the video"
 
-#: src/pages/agent/AgentConversationBlock.tsx:735
+#: src/pages/agent/AgentConversationBlock.tsx:751
 msgid "生成视频方案"
 msgstr "Draft video plan"
 
@@ -6979,7 +7004,7 @@ msgstr "See utility & economy"
 #: src/pages/EditorPage.tsx:481
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
-#: src/pages/ProjectWorkspacePage.tsx:272
+#: src/pages/ProjectWorkspacePage.tsx:327
 #: src/pages/RecoveryPage.tsx:99
 #: src/pages/settings/AiAgentSection.tsx:160
 #: src/pages/settings/AiAgentSection.tsx:174
@@ -6994,7 +7019,7 @@ msgstr "Got it"
 msgid "硬切"
 msgstr "Cut"
 
-#: src/pages/AgentPage.tsx:396
+#: src/pages/AgentPage.tsx:392
 msgid "确认剪辑单并录制"
 msgstr "Confirm shot list and record"
 
@@ -7225,11 +7250,11 @@ msgstr "Plans awaiting confirmation"
 msgid "等待超时"
 msgstr "Timed out"
 
-#: src/pages/agent/AgentConversationBlock.tsx:726
+#: src/pages/agent/AgentConversationBlock.tsx:742
 msgid "筛选回合"
 msgstr "Filter rounds"
 
-#: src/pages/agent/AgentConversationBlock.tsx:730
+#: src/pages/agent/AgentConversationBlock.tsx:746
 msgid "筛选高光"
 msgstr "Filter highlights"
 
@@ -7251,6 +7276,11 @@ msgstr "The video and audio encoders recording needs are registered on this syst
 #: src/domain/agent/AgentBubble.tsx:159
 msgid "约 ${0}"
 msgstr "About ${0}"
+
+#: src/pages/AgentPage.tsx:515
+#: src/pages/AgentPage.tsx:517
+msgid "素材"
+msgstr "Source material"
 
 #: src/pages/home/FirstRunStrip.tsx:55
 msgid "素材为空。导入一场 Demo 后，就可以用它新建第一份作品。"
@@ -7369,7 +7399,7 @@ msgstr "Encoders available"
 msgid "编辑"
 msgstr "Edit"
 
-#: src/pages/AgentPage.tsx:613
+#: src/pages/AgentPage.tsx:667
 msgid "编辑会记入对话，请先选择或新建一条对话"
 msgstr "Edits are recorded in a conversation, so select or create one first"
 
@@ -7688,7 +7718,7 @@ msgstr "Detail: {unavailableReason}"
 msgid "说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。"
 msgstr "Say what you want and it proposes a plan and shots; it still waits for one confirmation before recording."
 
-#: src/pages/agent/AgentConversationBlock.tsx:571
+#: src/pages/agent/AgentConversationBlock.tsx:581
 msgid "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 msgstr "Spell out the video you want — how long, what it centers on, who it is for — and the Agent gives a first shot plan for you to work through one by one."
 
@@ -7812,7 +7842,7 @@ msgstr "The replay of this match could not be read: {replayError}"
 msgid "读不到这场比赛的高光：{failure}"
 msgstr "The highlights of this match could not be read: {failure}"
 
-#: src/pages/agent/AgentConversationBlock.tsx:535
+#: src/pages/agent/AgentConversationBlock.tsx:545
 msgid "读不到这条对话：{failure}"
 msgstr "Could not read this conversation: {failure}"
 
@@ -7828,11 +7858,11 @@ msgstr "Could not read the capture component state: {hlaeError}"
 msgid "读不到预设：{failure}"
 msgstr "The presets could not be read: {failure}"
 
-#: src/pages/agent/AgentConversationBlock.tsx:733
+#: src/pages/agent/AgentConversationBlock.tsx:749
 msgid "读取 Agent 剪辑单"
 msgstr "Read Agent shot list"
 
-#: src/pages/agent/AgentConversationBlock.tsx:724
+#: src/pages/agent/AgentConversationBlock.tsx:740
 msgid "读取 Demo 摘要"
 msgstr "Read Demo summary"
 
@@ -7847,19 +7877,19 @@ msgstr "Reading"
 msgid "读取后台任务失败。"
 msgstr "Could not read background tasks."
 
-#: src/pages/agent/AgentConversationBlock.tsx:727
+#: src/pages/agent/AgentConversationBlock.tsx:743
 msgid "读取回合上下文"
 msgstr "Read round context"
 
-#: src/pages/agent/AgentConversationBlock.tsx:728
+#: src/pages/agent/AgentConversationBlock.tsx:744
 msgid "读取回合事件"
 msgstr "Read round events"
 
-#: src/pages/agent/AgentConversationBlock.tsx:729
+#: src/pages/agent/AgentConversationBlock.tsx:745
 msgid "读取对位证据"
 msgstr "Read matchup evidence"
 
-#: src/pages/agent/AgentConversationBlock.tsx:723
+#: src/pages/agent/AgentConversationBlock.tsx:739
 msgid "读取工作区"
 msgstr "Read workspace"
 
@@ -7871,7 +7901,7 @@ msgstr "Could not read the finished-file list."
 msgid "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
 msgstr "The read is read-only, so a retry changes no record and re-downloads no Demo."
 
-#: src/pages/agent/AgentConversationBlock.tsx:732
+#: src/pages/agent/AgentConversationBlock.tsx:748
 msgid "读取编辑时间线"
 msgstr "Read editor timeline"
 
@@ -7883,7 +7913,7 @@ msgstr "Reading the output list failed."
 msgid "读取进行中的任务失败。"
 msgstr "Reading the running tasks failed."
 
-#: src/pages/agent/AgentConversationBlock.tsx:725
+#: src/pages/agent/AgentConversationBlock.tsx:741
 msgid "读取选手目录"
 msgstr "Read player directory"
 
@@ -8026,7 +8056,7 @@ msgstr "Transition length (seconds)"
 msgid "转场时长超过了相邻片段，渲染会拒绝"
 msgstr "The transition is longer than the clips it joins, and the render will refuse it"
 
-#: src/pages/ProjectWorkspacePage.tsx:244
+#: src/pages/ProjectWorkspacePage.tsx:295
 msgid "转换会创建副本，源作品与后续修改不会互相同步"
 msgstr "Conversions create copies; the source and later edits do not sync"
 
@@ -8075,7 +8105,7 @@ msgstr "Run the preflight"
 msgid "运行时"
 msgstr "Runtime"
 
-#: src/pages/ProjectWorkspacePage.tsx:62
+#: src/pages/ProjectWorkspacePage.tsx:68
 msgid "返回作品列表"
 msgstr "Back to projects"
 
@@ -8122,7 +8152,7 @@ msgid "还原没能完成：{0}"
 msgstr "The restore did not finish: {0}"
 
 #. placeholder {0}: unbound.length
-#: src/pages/AgentPage.tsx:598
+#: src/pages/AgentPage.tsx:652
 msgid "还有 {0} 个镜头没有绑定 Demo 与选手，不能转成录制任务"
 msgstr "{0} shot(s) are not bound to a demo and a player yet, so this plan cannot become a recording task"
 
@@ -8484,7 +8514,7 @@ msgstr "These settings decide how video is recorded. Changes apply only to recor
 msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "The full parse result of these highlights cannot be read yet, so no plan can be created"
 
-#: src/pages/ProjectWorkspacePage.tsx:143
+#: src/pages/ProjectWorkspacePage.tsx:192
 msgid "这份作品的录制队列与片段进度会显示在这里。"
 msgstr "This project's recording queue and per-clip progress will appear here."
 
@@ -8702,11 +8732,11 @@ msgstr "The shot this change points at is no longer in the plan"
 msgid "这条变更没有给出秒数，无法直接应用"
 msgstr "This change gives no number of seconds, so it cannot be applied directly"
 
-#: src/pages/agent/AgentConversationBlock.tsx:569
+#: src/pages/agent/AgentConversationBlock.tsx:579
 msgid "这条对话还没有消息"
 msgstr "This conversation has no messages yet"
 
-#: src/pages/agent/AgentConversationBlock.tsx:665
+#: src/pages/agent/AgentConversationBlock.tsx:681
 msgid "这条提议没有涉及选中的镜头。"
 msgstr "This proposal does not touch the selected shot."
 
@@ -8773,7 +8803,7 @@ msgstr "That action did not succeed: {writeError}"
 msgid "这次改动没有保存：{writeError}"
 msgstr "This change was not saved: {writeError}"
 
-#: src/pages/AgentPage.tsx:564
+#: src/pages/AgentPage.tsx:618
 msgid "这次改动没能写进方案：{failure}"
 msgstr "This change could not be written to the plan: {failure}"
 
@@ -9054,7 +9084,7 @@ msgid "选择音乐"
 msgstr "Choose music"
 
 #: src/pages/ProjectsPage.tsx:88
-#: src/pages/ProjectWorkspacePage.tsx:107
+#: src/pages/ProjectWorkspacePage.tsx:156
 msgid "选材"
 msgstr "Select"
 
@@ -9282,7 +9312,7 @@ msgid "重新计算"
 msgstr "Compute again"
 
 #: src/pages/agent/PlanPanel.tsx:403
-#: src/pages/AgentPage.tsx:558
+#: src/pages/AgentPage.tsx:612
 msgid "重新读取剪辑单"
 msgstr "Reload shot list"
 
@@ -9312,7 +9342,7 @@ msgstr "Choose again"
 #: src/domain/task/TaskDetail.tsx:145
 #: src/pages/agent/AgentConversationBlock.tsx:323
 #: src/pages/agent/AgentConversationBlock.tsx:383
-#: src/pages/agent/AgentConversationBlock.tsx:532
+#: src/pages/agent/AgentConversationBlock.tsx:542
 #: src/pages/agent/ChangePreviewDialog.tsx:64
 #: src/pages/agent/ConversationModes.tsx:215
 #: src/pages/agent/ConversationModes.tsx:402

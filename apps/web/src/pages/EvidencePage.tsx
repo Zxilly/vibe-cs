@@ -114,7 +114,12 @@ export function EvidencePage() {
 
   const availability = search.data?.availability;
   const rows = search.data?.items ?? [];
-  const activeRow = rows.find((row) => row.evidence_id === state.evidenceId) ?? null;
+  const requestedRow = rows.find((row) => row.evidence_id === state.evidenceId) ?? null;
+  // A persistent inspector should describe the result set immediately. The
+  // first visible row is a focus fallback only: it does not write the URL or
+  // turn on the explicit-selection action bar.
+  const activeRow = requestedRow ?? rows[0] ?? null;
+  const hasExplicitSelection = state.evidenceId !== '' && requestedRow !== null;
   const conditions = activeConditions(state);
   const dateGap = availability
     ? unsupportedEvidenceFilters(availability).find((gap) => gap.field === 'match_date')
@@ -231,7 +236,7 @@ export function EvidencePage() {
       footer={
         collapsed ? (
           detail
-        ) : activeRow === null ? null : (
+        ) : !hasExplicitSelection || activeRow === null ? null : (
           <SelectionBar
             summary={<Trans>已选 1 条证据</Trans>}
             primary={
@@ -266,7 +271,7 @@ export function EvidencePage() {
               total={search.data?.total ?? 0}
               page={state.page}
               onPageChange={(page) => commit({ ...state, page })}
-              activeId={state.evidenceId}
+              activeId={activeRow?.evidence_id ?? ''}
               onSelect={(row) => commit({ ...state, evidenceId: row.evidence_id })}
               onLocate={(row) => openWorkspace(row, 'replay')}
               onAddToVideo={(row) => setPendingClip(evidenceCollectedClip(row))}

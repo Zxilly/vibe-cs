@@ -150,6 +150,18 @@ describe('what the page sends', () => {
 });
 
 describe('selecting a row', () => {
+  it('focuses the first visible result without writing an explicit selection', async () => {
+    const { container } = mount();
+    await screen.findByText('命中 47 条 · 排序：时间倒序');
+
+    await waitFor(() => {
+      expect(screen.queryByText('还没有选中证据')).toBeNull();
+    });
+    expect(container.querySelector('[data-evidence-row][aria-current="true"]')).not.toBeNull();
+    expect(address()).not.toContain('evidence=');
+    expect(screen.queryByText('已选 1 条证据')).toBeNull();
+  });
+
   it('puts the evidence id in the URL, so the selection is shareable', async () => {
     const { container } = mount();
     await screen.findByText('命中 47 条 · 排序：时间倒序');

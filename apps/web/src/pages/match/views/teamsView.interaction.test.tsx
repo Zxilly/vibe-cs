@@ -78,14 +78,11 @@ describe('阵营', () => {
     expect(address()).toContain('player=kael');
   });
 
-  it('says nothing is selected rather than focusing somebody by default', async () => {
+  it('focuses Team A’s first player without writing the address', async () => {
     await openTeams();
 
-    /* 「未选中任何选手」 is the panel's `summary`, which only appears on the folded
-       strip; docked, the body carries the sentence. */
-    expect(
-      await screen.findByText('在上面的名单里点一名选手，他这一场的数据会出现在这里。'),
-    ).toBeTruthy();
+    expect(await screen.findByText('选中：Kael')).toBeTruthy();
+    expect(document.querySelector('[data-row-id="kael"]')?.getAttribute('data-active')).toBe('true');
     expect(address()).not.toContain('player=');
   });
 

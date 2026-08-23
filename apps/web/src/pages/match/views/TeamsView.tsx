@@ -488,6 +488,11 @@ function normaliseSide(side: string | undefined): TeamSide | undefined {
 
 function TeamsBody({ demoId, context, updateContext }: MatchViewProps) {
   const gate = useAnalysisGate(demoId);
+  const roster = gate.analysis === undefined ? null : rosters(gate.analysis.players);
+  const effectivePlayer = context.player
+    ?? roster?.a[0]?.id
+    ?? roster?.b[0]?.id
+    ?? null;
 
   return (
     <ViewFrame view="teams" state={gate.state}>
@@ -499,7 +504,7 @@ function TeamsBody({ demoId, context, updateContext }: MatchViewProps) {
       ) : (
         <TeamsPanels
           analysis={gate.analysis}
-          selectedPlayer={context.player}
+          selectedPlayer={effectivePlayer}
           selectedRound={context.round}
           onUpdateContext={updateContext}
         />
@@ -517,7 +522,12 @@ function TeamsInspector({ demoId, context, updateContext, addToVideo, collapsed 
   const gate = useAnalysisGate(demoId);
   const directory =
     gate.analysis === undefined ? null : playerDirectory(gate.analysis.players);
-  const player = context.player === null ? undefined : directory?.get(context.player);
+  const roster = gate.analysis === undefined ? null : rosters(gate.analysis.players);
+  const effectivePlayer = context.player
+    ?? roster?.a[0]?.id
+    ?? roster?.b[0]?.id
+    ?? null;
+  const player = effectivePlayer === null ? undefined : directory?.get(effectivePlayer);
 
   if (player === undefined) {
     return (

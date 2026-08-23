@@ -26,6 +26,9 @@ describe('multitrack mode inside a project shot list', () => {
 
     await waitFor(() => expect(container.querySelector('[data-editor-mode]')).not.toBeNull());
     await screen.findByRole('button', { name: /保存/u });
+    await waitFor(() => {
+      expect(document.querySelector('[data-clip][data-selected="true"]')).not.toBeNull();
+    });
     expect(document.querySelector(`[data-clip="${AURORA_VIDEO}"]`)).not.toBeNull();
     expect(await screen.findByText('关联比赛片段.mp4')).toBeTruthy();
     expect(new Set(requestedScopes)).toEqual(new Set([PROJECT_ID, undefined]));

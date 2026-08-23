@@ -56,7 +56,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { Skeleton } from '../design/data';
 import { Alert } from '../design/feedback';
@@ -204,6 +204,19 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload, embedded 
   }, [assets.length, assetsById, assetsJoined, baseline]);
 
   const editor = useTimelineEditor({ initial: document?.timeline ?? EMPTY_TIMELINE });
+  const defaultSelectionApplied = useRef(false);
+  useEffect(() => {
+    if (defaultSelectionApplied.current) return;
+    const first = editor.timeline.clips[0];
+    if (first === undefined) return;
+    defaultSelectionApplied.current = true;
+    editor.select(first.id);
+    // Six short clips at the design-system default 12 px/s collapse their
+    // labels into a picket fence in the embedded workspace. A local 2× view
+    // zoom keeps the document untouched and still fits this 33-second cut.
+    editor.setZoom(2);
+    editor.setScrollPx(0);
+  }, [editor]);
 
   const [conflict, setConflict] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -392,7 +405,11 @@ function EditorWorkspace({ projectId, assets, assetsLoading, onReload, embedded 
       toolbar={
         <Toolbar
           height={embedded ? 'bar' : 'topbar'}
-          title={query.data?.name ?? projectId}
+          title={
+            embedded
+              ? <Trans>多轨精剪</Trans>
+              : (query.data?.name ?? projectId)
+          }
           meta={savedMeta}
           primary={
             <Button

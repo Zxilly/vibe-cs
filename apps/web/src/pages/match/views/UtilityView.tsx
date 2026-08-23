@@ -396,6 +396,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
   const totals = useMemo(() => utilityTotals(insights), [insights]);
   const rows = useMemo(() => utilityRows(insights, index), [insights, index]);
   const economy = useMemo(() => economyRows(insights, rounds), [insights, rounds]);
+  const activePlayerId = context.player ?? rows[0]?.playerId ?? null;
 
   const damageAvailable = insights?.availability.utility_damage.available ?? false;
   const flashAvailable = insights?.availability.flash_effects.available ?? false;
@@ -459,7 +460,7 @@ function UtilityBody({ demoId, context, updateContext }: MatchViewProps) {
               ) : (
                 <UtilityTable
                   rows={rows}
-                  activePlayerId={context.player}
+                  activePlayerId={activePlayerId}
                   onSelect={(playerId) => updateContext({ player: playerId })}
                   damageAvailable={damageAvailable}
                   flashAvailable={flashAvailable}
@@ -639,8 +640,14 @@ function UtilityInspector({ demoId, context, updateContext, addToVideo, collapse
   const flashAvailable = insights?.availability.flash_effects.available ?? false;
   const spendAvailable = insights?.availability.purchase_spend.available ?? false;
 
-  const player: RosterEntry | undefined = context.player === null ? undefined : index.get(context.player);
-  const utilityRow = context.player === null ? undefined : rows.find((row) => row.playerId === context.player);
+  const effectivePlayerId = context.player
+    ?? (context.round === null ? rows[0]?.playerId ?? null : null);
+  const player: RosterEntry | undefined = effectivePlayerId === null
+    ? undefined
+    : index.get(effectivePlayerId);
+  const utilityRow = effectivePlayerId === null
+    ? undefined
+    : rows.find((row) => row.playerId === effectivePlayerId);
   const economyRow = context.round === null ? undefined : economy.find((row) => row.round === context.round);
 
   if (utilityRow !== undefined) {

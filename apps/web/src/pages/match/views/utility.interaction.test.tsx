@@ -49,6 +49,16 @@ async function row(id: string): Promise<HTMLElement> {
 }
 
 describe('the 道具 half', () => {
+  it('focuses the first utility row without writing the address', async () => {
+    open();
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-utility-detail]')).not.toBeNull();
+      expect(document.querySelector('[data-row-id]')?.getAttribute('data-active')).toBe('true');
+    });
+    expect(address()).not.toContain('player=');
+  });
+
   it('writes ?player= when a row is picked', async () => {
     open();
     fireEvent.click(await row('kael'));

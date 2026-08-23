@@ -38,7 +38,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Plural, Trans } from '@lingui/react/macro';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 /*
@@ -158,6 +158,16 @@ function DemoLibraryPage() {
   const activeRow = rows.find((demo) => demo.id === activeDemoId);
   const activeDemo = activeDetail.data ?? activeRow;
   const selectedDemos = rows.filter((demo) => selected.has(demo.id));
+
+  // The inspector is part of the library's scanning workflow, not an empty
+  // decoration. Keep it on the first visible match until the user activates a
+  // different row, and recover naturally when filtering removes that row.
+  useEffect(() => {
+    const next = rows[0]?.id ?? null;
+    if (activeDemoId === null || !rows.some((demo) => demo.id === activeDemoId)) {
+      setActiveDemoId(next);
+    }
+  }, [activeDemoId, rows]);
 
   /* ── writes ────────────────────────────────────────────────────────────── */
 

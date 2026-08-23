@@ -216,24 +216,21 @@ describe('the Inspector', () => {
   it('follows the active row', async () => {
     renderLibrary({ seed: { ...ONLINE, detail: DEMO_FIXTURE } });
 
-    expect(document.querySelector('[data-inspector="docked"]')?.textContent).toContain(
-      '在左侧选一场比赛',
-    );
-
-    fireEvent.click(screen.getByText('Aurora vs Meridian'));
-
     await waitFor(() => {
       expect(document.querySelector('[data-inspector="docked"]')?.textContent).toContain(
         'aurora-meridian-mirage.dem',
       );
     });
+    expect(document.querySelector('[data-inspector="docked"]')?.textContent).not.toContain(
+      '在左侧选一场比赛',
+    );
   });
 
   it('folds into the summary strip below the §8 breakpoint, keeping its main action', async () => {
     media = stubMatchMedia(COLLAPSE_BREAKPOINT_PX + 200);
     renderLibrary({ seed: { ...ONLINE, detail: DEMO_FIXTURE } });
 
-    fireEvent.click(screen.getByText('Aurora vs Meridian'));
+    fireEvent.click(screen.getAllByText('Aurora vs Meridian')[0]!);
     expect(document.querySelector('[data-inspector="docked"]')).not.toBeNull();
 
     // 1100 × 700 — §8 rule 2: 「右侧 Inspector 不再常驻，收成底部选中摘要 + 抽屉」.
@@ -284,7 +281,7 @@ describe('需要服务', () => {
   it('keeps the read-only page fully usable while blocked', () => {
     renderLibrary({ seed: { ...ONLINE, serviceOnline: false } });
 
-    expect(screen.getByText('Aurora vs Meridian')).toBeTruthy();
+    expect(screen.getAllByText('Aurora vs Meridian')).not.toHaveLength(0);
     expect(screen.getByRole('navigation', { name: '分页' })).toBeTruthy();
   });
 });

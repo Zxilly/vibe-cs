@@ -19,6 +19,7 @@
 
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import type { ReactNode } from 'react';
 
 import { useTaskFeed } from '../../data/tasks';
 import { TaskCard } from '../../domain/task';
@@ -47,11 +48,25 @@ export function HomeFailureNotice({ service, now }: HomeFailureNoticeProps) {
   if (item === undefined) return null;
 
   const bound = bind(item);
+  if (bound.summary.status !== 'failed') return null;
+  const internalCaptureFailure = isInternalCaptureFailure(bound.summary.failure.detail);
+  const summary = {
+    ...bound.summary,
+    failure: {
+      ...bound.summary.failure,
+      // The workbench is a digest. The classified reason stays here; the raw
+      // service sentence and impact belong on 查看阶段 / 后台任务详情.
+      detail: internalCaptureFailure
+        ? <Trans>受管 HLAE 采集未能开始，打开任务详情查看原因。</Trans>
+        : bound.summary.failure.detail,
+      impact: internalCaptureFailure ? undefined : bound.summary.failure.impact,
+    },
+  };
   const failed = feed.data?.summary.failed ?? 0;
 
   return (
     <section aria-label={t`失败可恢复`} className="flex flex-col gap-3 border border-fail-border p-5">
-      <TaskCard task={bound.summary} links={bound.links} headingLevel={3} showId={false} {...(now === undefined ? {} : { now })} />
+      <TaskCard task={summary} links={bound.links} headingLevel={3} showId={false} {...(now === undefined ? {} : { now })} />
       {failed > 1 ? (
         <p className="text-xs text-neutral-700">
           <RouteLink to="/delivery?view=tasks" size="sm">
@@ -61,4 +76,9 @@ export function HomeFailureNotice({ service, now }: HomeFailureNoticeProps) {
       ) : null}
     </section>
   );
+}
+
+function isInternalCaptureFailure(detail: ReactNode | undefined): boolean {
+  return typeof detail === 'string'
+    && /(?:internal operation failed|managed HLAE|HLAE_[A-Z_]+)/iu.test(detail);
 }

@@ -2730,6 +2730,10 @@ msgstr "受害者被闪"
 msgid "受管 HLAE 的安装状态与安全边界。"
 msgstr "受管 HLAE 的安装状态与安全边界。"
 
+#: src/pages/home/HomeFailureNotice.tsx:60
+msgid "受管 HLAE 采集未能开始，打开任务详情查看原因。"
+msgstr "受管 HLAE 采集未能开始，打开任务详情查看原因。"
+
 #: src/pages/delivery/OutputCard.tsx:148
 #: src/pages/delivery/OutputCard.tsx:215
 msgid "受管文件"
@@ -2760,7 +2764,7 @@ msgid "叠加轨"
 msgstr "叠加轨"
 
 #. placeholder {0}: failed - 1
-#: src/pages/home/HomeFailureNotice.tsx:58
+#: src/pages/home/HomeFailureNotice.tsx:73
 msgid "另有 {0} 条失败记录"
 msgstr "另有 {0} 条失败记录"
 
@@ -3304,7 +3308,7 @@ msgstr "多轨编辑器"
 msgid "失败"
 msgstr "失败"
 
-#: src/pages/home/HomeFailureNotice.tsx:53
+#: src/pages/home/HomeFailureNotice.tsx:68
 msgid "失败可恢复"
 msgstr "失败可恢复"
 

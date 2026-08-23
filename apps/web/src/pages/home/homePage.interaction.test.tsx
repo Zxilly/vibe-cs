@@ -224,6 +224,28 @@ describe('工作台首页', () => {
     expect(within(block).getByText(/合辑/u)).toBeTruthy();
   });
 
+  it('keeps internal HLAE diagnostics on the task detail surface', async () => {
+    const internal = {
+      ...FAILED,
+      error: 'internal operation failed: managed HLAE bridge reported failure: record start arrived before observer identity was verified',
+    };
+    renderPage({
+      element: <HomePage />,
+      client: {
+        ...CLIENT,
+        listActivities: (query: ActivityQuery) => Promise.resolve(
+          query.state === 'failed' ? feed([internal], 1, 1) : feed([RUNNING], 1, 1),
+        ),
+      },
+      route: '/',
+      health: HEALTHY,
+    });
+
+    const block = await screen.findByRole('region', { name: '失败可恢复' });
+    expect(within(block).getByText(/受管 HLAE 采集未能开始/u)).toBeTruthy();
+    expect(block.textContent).not.toContain('observer identity');
+  });
+
   it('leaves finished files out of the workbench now that they have their own destination', async () => {
     renderPage({ element: <HomePage />, client: CLIENT, route: '/', health: HEALTHY });
 

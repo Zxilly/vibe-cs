@@ -2730,6 +2730,10 @@ msgstr "Victim flashed"
 msgid "受管 HLAE 的安装状态与安全边界。"
 msgstr "The managed HLAE installation and its safety boundary."
 
+#: src/pages/home/HomeFailureNotice.tsx:60
+msgid "受管 HLAE 采集未能开始，打开任务详情查看原因。"
+msgstr "Managed HLAE capture could not start. Open the task details for the cause."
+
 #: src/pages/delivery/OutputCard.tsx:148
 #: src/pages/delivery/OutputCard.tsx:215
 msgid "受管文件"
@@ -2760,7 +2764,7 @@ msgid "叠加轨"
 msgstr "Overlay track"
 
 #. placeholder {0}: failed - 1
-#: src/pages/home/HomeFailureNotice.tsx:58
+#: src/pages/home/HomeFailureNotice.tsx:73
 msgid "另有 {0} 条失败记录"
 msgstr "{0} more failed records"
 
@@ -3304,7 +3308,7 @@ msgstr "Multitrack editor"
 msgid "失败"
 msgstr "Failed"
 
-#: src/pages/home/HomeFailureNotice.tsx:53
+#: src/pages/home/HomeFailureNotice.tsx:68
 msgid "失败可恢复"
 msgstr "Failed, recoverable"
 

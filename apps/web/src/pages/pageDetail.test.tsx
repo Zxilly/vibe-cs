@@ -105,24 +105,19 @@ describe('the §7 path parameters', () => {
 
 });
 
-describe('the back links on detail routes', () => {
-  it('takes the match workspace back to the library', () => {
+describe('detail-route navigation', () => {
+  it('leaves the match return path to the shell breadcrumb', () => {
     const html = at('/match/:demoId', '/match/aurora', <MatchWorkspacePage />);
-    /* 「‹ 资料库」 is now the context bar's own back slot: the chevron is a Lucide
-       glyph the bar draws (`data-match-back`), the word is a real anchor, so
-       middle-click and the status bar keep working. */
-    expect(html).toContain('data-match-back=');
-    expect(html).toContain('资料库');
-    expect(html).toContain('href="/library"');
+    expect(html).not.toContain('data-match-back=');
   });
 
-  it('takes the player profile back to the directory', () => {
-    expect(at('/players/:playerId', '/players/kael', <PlayerProfilePage />)).toContain('href="/players"');
+  it('leaves player-directory navigation to the shell breadcrumb', () => {
+    expect(at('/players/:playerId', '/players/kael', <PlayerProfilePage />)).not.toContain('‹ 玩家');
   });
 
-  it('keeps the query on the way back to 任务记录, or it would land on 输出', () => {
+  it('leaves task-detail return navigation to the shell breadcrumb', () => {
     const html = at('/delivery/task/:taskId', '/delivery/task/t-1', <TaskDetailPage />);
-    expect(html).toContain('href="/delivery?view=tasks"');
+    expect(html).not.toContain('‹ 后台任务');
   });
 
   it('takes 恢复中心 back to the entry that lights for it', () => {

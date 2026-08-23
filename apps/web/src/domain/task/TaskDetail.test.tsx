@@ -74,6 +74,13 @@ describe('TaskDetail · header', () => {
     expect(markup).toContain('来源方案 #P-118');
     expect(markup).toContain('href="#/delivery/outputs/1"');
   });
+
+  it('accepts a concise title when the service subject is a path', () => {
+    const markup = renderMarkup(<TaskDetail task={FAILED} title="合辑导出" {...UTC} />);
+
+    expect(markup).toContain('合辑导出');
+    expect(markup).not.toContain('合辑 · Aurora 赛点集锦');
+  });
 });
 
 describe('TaskDetail · stages', () => {
@@ -191,6 +198,20 @@ describe('TaskDetail · technical details', () => {
     expect(markup).not.toContain('<details open');
     expect(markup).toContain('技术细节');
     expect(markup).toContain('进程、tick、编码参数');
+  });
+
+  it('can expose export metadata on first paint', () => {
+    const markup = renderMarkup(
+      <TaskDetail
+        task={FAILED}
+        technicalDetails={[{ id: 'path', label: '输出路径', value: 'D:\\exports\\result.mp4' }]}
+        technicalDetailsExpanded
+        {...UTC}
+      />,
+    );
+
+    expect(markup).toContain('<details open');
+    expect(markup).toContain('输出路径');
   });
 
   it('has nowhere to put a raw stack — the prop does not exist', () => {

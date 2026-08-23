@@ -126,12 +126,12 @@ describe('the address', () => {
     expect(asked).toBe(0);
   });
 
-  it('keeps the way back to 后台任务, not to 成品文件', async () => {
+  it('does not repeat the shell breadcrumb as an inline back link', async () => {
     const { client } = stubs();
     render('analysis:run-1', client);
 
-    const back = await screen.findByRole('link', { name: '‹ 后台任务' });
-    expect(back.getAttribute('href')).toBe('/delivery?view=tasks');
+    await screen.findByText('分析 · Kestrel vs Halcyon');
+    expect(screen.queryByRole('link', { name: '‹ 后台任务' })).toBeNull();
   });
 });
 

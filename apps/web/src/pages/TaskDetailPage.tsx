@@ -1,9 +1,9 @@
 /*
  * pages/ — 任务详情与阶段日志 (spec §7 `/delivery/task/:taskId`, phase 3a).
  *
- * The back link goes to `/delivery?view=tasks` rather than `/delivery`: the
- * task list is where this page was opened from, and dropping the query would
- * land the user on 输出 instead.
+ * Navigation back to the finished file already lives in the shell breadcrumb.
+ * The retired `?view=tasks` query normalizes to `/delivery`, so repeating a
+ * second inline back link here would be both redundant and misleading.
  *
  * ── `:taskId` is `kind:jobId` ─────────────────────────────────────────────
  *
@@ -58,11 +58,6 @@ export function TaskDetailPage() {
       scroll={false}
       toolbar={
         <Toolbar
-          leading={
-            <RouteLink to="/delivery?view=tasks">
-              <Trans>‹ 后台任务</Trans>
-            </RouteLink>
-          }
           title={<Trans>后台任务详情</Trans>}
           meta={taskId}
         />
@@ -75,8 +70,8 @@ export function TaskDetailPage() {
             title={<Trans>找不到这条任务</Trans>}
             description={<Trans>这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。</Trans>}
             actions={
-              <RouteLink to="/delivery?view=tasks">
-                <Trans>回到后台任务</Trans>
+              <RouteLink to="/delivery">
+                <Trans>回到成品文件</Trans>
               </RouteLink>
             }
             headingLevel={2}

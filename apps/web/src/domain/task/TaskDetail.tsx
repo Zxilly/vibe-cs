@@ -60,6 +60,10 @@ export type TaskLogState =
 
 export interface TaskDetailProps {
   readonly task: TaskSummary;
+  /** Concise display title when the service subject is a path or locator. */
+  readonly title?: ReactNode | undefined;
+  /** The route toolbar already carries the locator; compact drawer detail does not. */
+  readonly showId?: boolean | undefined;
   /** The stage sequence with its per-stage facts. Empty for kinds with none. */
   readonly stages?: readonly TaskStageEntry[] | undefined;
   readonly log?: TaskLogState | undefined;
@@ -71,6 +75,8 @@ export interface TaskDetailProps {
   readonly links?: readonly TaskLink[] | undefined;
   /** 进程、tick、编码参数. Facts, never a stack — see the module note. */
   readonly technicalDetails?: readonly TaskFact[] | undefined;
+  /** Export details expose their output path immediately; other kinds stay compact. */
+  readonly technicalDetailsExpanded?: boolean | undefined;
   readonly retry?: Omit<RetryNoticeProps, 'className'> | undefined;
   readonly onRetry?: (() => void) | undefined;
   readonly onCancel?: (() => void) | undefined;
@@ -84,12 +90,15 @@ const RETRYABLE = new Set(['failed', 'cancelled']);
 
 export function TaskDetail({
   task,
+  title,
+  showId = true,
   stages,
   log = { status: 'ready', entries: [] },
   facts,
   artifacts,
   links,
   technicalDetails,
+  technicalDetailsExpanded = false,
   retry,
   onRetry,
   onCancel,
@@ -112,11 +121,15 @@ export function TaskDetail({
           and lets the padding carry the difference. */}
       <header className="flex flex-none flex-wrap items-center gap-3 border-b border-divider px-4 py-2">
         <h2 className="min-w-0 truncate text-xl leading-tight">
-          {kindLabel}
-          {' · '}
-          {task.subject}
+          {title ?? (
+            <>
+              {kindLabel}
+              {' · '}
+              {task.subject}
+            </>
+          )}
         </h2>
-        <span className="font-mono text-xs text-neutral-600">{task.id}</span>
+        {showId ? <span className="font-mono text-xs text-neutral-600">{task.id}</span> : null}
         <Badge variant={TASK_STATUS_TAG_TONE[task.status]}>{taskStatusLabels()[task.status]}</Badge>
 
         <div className="ml-auto flex flex-wrap items-center gap-3">
@@ -179,19 +192,27 @@ export function TaskDetail({
           <StageLog log={log} {...(timeZone === undefined ? {} : { timeZone })} />
         </div>
 
-        <div className={cn('flex w-full flex-none flex-col gap-3 p-4', !compact && 'lg:w-[var(--w-panel)]')}>
+        <div className={cn('flex w-full flex-none flex-col gap-3 p-4', !compact && 'lg:w-[var(--w-inspector-wide)]')}>
           {facts === undefined || facts.length === 0 ? null : (
-            <dl className="m-0 flex flex-col gap-2 text-sm">
-              {facts.map((fact) => (
-                <div key={fact.id} className="flex items-baseline justify-between gap-3">
-                  <dt className="text-neutral-600">{fact.label}</dt>
-                  <dd className="m-0 min-w-0 truncate text-end font-mono">{fact.value}</dd>
-                </div>
-              ))}
-            </dl>
+            <section className="flex flex-col gap-3 border border-divider p-3">
+              <h3 className="font-heading text-sm"><Trans>任务概览</Trans></h3>
+              <dl className="m-0 flex flex-col gap-2 text-sm">
+                {facts.map((fact) => (
+                  <div key={fact.id} className="flex items-baseline justify-between gap-3">
+                    <dt className="text-neutral-600">{fact.label}</dt>
+                    <dd className="m-0 min-w-0 truncate text-end font-mono">{fact.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              {task.durationMs === undefined ? null : (
+                <p className="text-sm">
+                  <TaskDuration value={taskDurationFor(task.durationMs, task.status)} />
+                </p>
+              )}
+            </section>
           )}
 
-          {task.durationMs === undefined ? null : (
+          {facts !== undefined && facts.length > 0 ? null : task.durationMs === undefined ? null : (
             <p className="text-sm">
               <TaskDuration value={taskDurationFor(task.durationMs, task.status)} />
             </p>
@@ -200,7 +221,10 @@ export function TaskDetail({
           {retry === undefined ? null : <RetryNotice {...retry} />}
 
           {technicalDetails === undefined || technicalDetails.length === 0 ? null : (
-            <details className="mt-auto border border-divider bg-neutral-100">
+            <details
+              open={technicalDetailsExpanded || undefined}
+              className="mt-auto border border-divider bg-neutral-100"
+            >
               <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm">
                 <ChevronRight size={14} strokeWidth={1.5} aria-hidden className="flex-none" />
                 <Trans>技术细节</Trans>
@@ -208,11 +232,11 @@ export function TaskDetail({
                   <Trans>进程、tick、编码参数</Trans>
                 </span>
               </summary>
-              <dl className="m-0 flex flex-col gap-2 border-t border-divider px-3 py-2 text-xs">
+              <dl className="m-0 flex flex-col gap-2.5 border-t border-divider px-3 py-2.5 text-xs">
                 {technicalDetails.map((fact) => (
-                  <div key={fact.id} className="flex items-baseline justify-between gap-3">
+                  <div key={fact.id} className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-3">
                     <dt className="text-neutral-600">{fact.label}</dt>
-                    <dd className="m-0 min-w-0 truncate text-end font-mono">{fact.value}</dd>
+                    <dd className="m-0 min-w-0 break-all font-mono leading-normal">{fact.value}</dd>
                   </div>
                 ))}
               </dl>
@@ -244,7 +268,10 @@ function StageLog({ log, timeZone }: { readonly log: TaskLogState; readonly time
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col border border-divider">
+    <div className={cn(
+      'flex min-h-0 flex-col border border-divider',
+      log.entries.length === 0 ? 'flex-none' : 'flex-1',
+    )}>
       <div className="flex h-[var(--h-thead)] flex-none items-center gap-2.5 border-b border-divider px-2.5 font-heading text-xs tracking-caps">
         <Trans>阶段日志</Trans>
         {/* The heading carries `--tracking-caps`; the hint beside it is prose

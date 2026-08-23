@@ -74,8 +74,8 @@ describe('/delivery/task/:taskId', () => {
     expect(html).toContain('recording:job-1');
   });
 
-  it('keeps the query on the way back, or it would land on 输出', () => {
-    expect(html).toContain('href="/delivery?view=tasks"');
+  it('does not duplicate shell breadcrumb navigation in the toolbar', () => {
+    expect(html).not.toContain('‹ 后台任务');
   });
 
   it('answers an address that is not a locator without asking the service', () => {

@@ -47,11 +47,11 @@ describe('picking a round', () => {
     expect(panels(4)).toContain('data-round-timeline');
   });
 
-  it('asks for a round instead of picking one behind the address’s back', () => {
+  it('focuses the first round without requiring an address mutation', () => {
     const html = panels(null);
-    expect(html).toContain('先选一个回合');
-    expect(html).toContain('打开第 1 回合');
-    expect(html).not.toContain('data-match-survivor-axis');
+    expect(html).toContain('第 1 回合');
+    expect(html).toContain('data-match-survivor-axis');
+    expect(html).toMatch(/data-round-cell="1"[^>]*aria-current="true"/u);
   });
 
   it('says so plainly when the address names a round this match does not have', () => {

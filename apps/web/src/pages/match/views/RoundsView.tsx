@@ -448,9 +448,10 @@ export function RoundsPanels({
   const teamAName = names.a === '' ? <Trans>队伍 A</Trans> : names.a;
   const teamBName = names.b === '' ? <Trans>队伍 B</Trans> : names.b;
 
-  const detail = selectedRound === null ? null : buildRoundDetail(analysis, selectedRound);
-  const neighbours = roundNeighbours(analysis.rounds, selectedRound);
   const firstRound = [...analysis.rounds].sort((left, right) => left.number - right.number)[0];
+  const effectiveRound = selectedRound ?? firstRound?.number ?? null;
+  const detail = effectiveRound === null ? null : buildRoundDetail(analysis, effectiveRound);
+  const neighbours = roundNeighbours(analysis.rounds, effectiveRound);
 
   return (
     <>
@@ -458,7 +459,7 @@ export function RoundsPanels({
         rounds={roundSummaries(analysis)}
         teamAName={teamAName}
         teamBName={teamBName}
-        selectedRound={selectedRound}
+        selectedRound={effectiveRound}
         onSelectRound={(round) => onUpdateContext({ round })}
         emptyActions={
           <Button variant="secondary" onClick={() => onUpdateContext({ view: 'overview' })}>
@@ -646,10 +647,14 @@ export function RoundInspectorBody({
 
 function RoundsInspector({ demoId, context, updateContext, addToVideo, collapsed }: MatchViewProps) {
   const gate = useAnalysisGate(demoId);
+  const firstRound = gate.analysis === undefined
+    ? undefined
+    : [...gate.analysis.rounds].sort((left, right) => left.number - right.number)[0];
+  const effectiveRound = context.round ?? firstRound?.number ?? null;
   const detail =
-    gate.analysis === undefined || context.round === null
+    gate.analysis === undefined || effectiveRound === null
       ? null
-      : buildRoundDetail(gate.analysis, context.round);
+      : buildRoundDetail(gate.analysis, effectiveRound);
   const names = gate.analysis === undefined ? { a: '', b: '' } : teamNames(gate.analysis);
   const teamAName = names.a === '' ? <Trans>队伍 A</Trans> : names.a;
   const teamBName = names.b === '' ? <Trans>队伍 B</Trans> : names.b;

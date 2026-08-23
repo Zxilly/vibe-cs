@@ -63,19 +63,19 @@ async function openRounds(query = '') {
 }
 
 describe('nothing selected', () => {
-  it('asks rather than picking a round behind the address’s back', async () => {
+  it('focuses the first round without writing it behind the address’s back', async () => {
     await openRounds();
 
-    expect(await screen.findByText('先选一个回合')).toBeTruthy();
+    expect(await screen.findByText('选中：第 1 回合')).toBeTruthy();
     expect(address()).not.toContain('round=');
   });
 
-  it('opens the first round when the recovery action is taken', async () => {
+  it('writes the round only after the user explicitly clicks it', async () => {
     await openRounds();
 
-    fireEvent.click(await screen.findByRole('button', { name: '打开第 1 回合' }));
+    fireEvent.click(document.querySelector('[data-round-cell="2"]') as HTMLElement);
     await waitFor(() => {
-      expect(address()).toContain('round=1');
+      expect(address()).toContain('round=2');
     });
     // A refinement, not a jump: the view does not change.
     expect(address()).toContain('view=rounds');
@@ -196,14 +196,11 @@ describe('the Inspector is the same round', () => {
     expect(screen.getByText('教学素材')).toBeTruthy();
   });
 
-  it('says nothing is selected rather than inventing a round', async () => {
+  it('uses the first round as the default Inspector focus', async () => {
     await openRounds();
 
-    /* 「未选中任何回合」 is the panel's `summary`, which `design/layout/Inspector`
-       only draws on the folded strip; docked, the body carries the sentence. */
-    expect(
-      await screen.findByText('在回合时间线里点一格，这一回合的证据与注释会出现在这里。'),
-    ).toBeTruthy();
+    expect(await screen.findByText('选中：第 1 回合')).toBeTruthy();
+    expect(document.querySelector('[data-match-round-evidence]')).not.toBeNull();
   });
 
   it('keeps 加入作品 visible and enabled for the selected round', async () => {

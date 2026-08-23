@@ -24,7 +24,6 @@ use uuid::Uuid;
 pub use tools::{CapturedPlan, CapturedPlanKind, CapturedToolCall};
 
 const MAXIMUM_CONTEXT_BYTES: usize = 2 * 1024 * 1024;
-const MAXIMUM_RESPONSE_CHARS: usize = 64_000;
 const MAXIMUM_AGENT_TURNS: usize = 12;
 
 #[derive(Debug, Clone, Default)]
@@ -296,13 +295,6 @@ where
                 MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
                     Text { text, .. },
                 )) => {
-                    if content.chars().count().saturating_add(text.chars().count())
-                        > MAXIMUM_RESPONSE_CHARS
-                    {
-                        return Err(AgentError::Provider(
-                            "model response exceeded 64000 characters".into(),
-                        ));
-                    }
                     content.push_str(&text);
                     emit(AgentStreamEvent::TextDelta(text));
                 }

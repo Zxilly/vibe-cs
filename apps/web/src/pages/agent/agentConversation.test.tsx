@@ -176,6 +176,13 @@ function at(overrides: BlockPropsOverrides = {}, scene: Scene = {}): string {
 /* ── the shape switch ────────────────────────────────────────────────────── */
 
 describe('the three shapes', () => {
+  it('shows Auto off by default and explains that HITL waits for the user', () => {
+    const html = at();
+    expect(html).toContain('role="switch"');
+    expect(html).toContain('aria-checked="false"');
+    expect(html).toContain('HITL 等待你的确认');
+  });
+
   it('offers all three and marks the one the address asked for', () => {
     const html = at({ context: { mode: 'inline' } });
 

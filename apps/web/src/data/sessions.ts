@@ -360,6 +360,7 @@ export interface AgentChatSend {
   /** Failed/cancelled assistant entry this new turn retries. */
   readonly retryOf?: string | null | undefined;
   readonly mode?: AgentChatInput['mode'];
+  readonly autoMode?: boolean | undefined;
   readonly demoId?: string | null;
   readonly editorProjectId?: string | null;
   readonly audioAssetId?: string | null;
@@ -645,6 +646,7 @@ function buildChatInput(
     },
     history: sessionHistory(entries),
     mode: input.mode ?? 'edit',
+    autoMode: input.autoMode ?? false,
     message: input.message,
   };
 }
@@ -662,6 +664,11 @@ function sessionHistory(
       && entry.content.trim() !== ''
     ) {
       history.push({ role: 'assistant', content: entry.content });
+    } else if (entry.kind === 'workspace_edit') {
+      history.push({
+        role: 'user',
+        content: JSON.stringify({ type: 'workspace_edit_result', notice: entry.notice }),
+      });
     }
   }
   return history.slice(-40);

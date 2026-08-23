@@ -450,8 +450,33 @@ describe('the instruction bar', () => {
     fireEvent.change(box, { target: { value: '  把它压到 30 秒以内  ' } });
     fireEvent.click(screen.getByRole('button', { name: '生成变更' }));
 
-    expect(chat.send).toHaveBeenCalledWith({ message: '把它压到 30 秒以内', sessionId: 'S-1' });
+    expect(chat.send).toHaveBeenCalledWith({
+      message: '把它压到 30 秒以内',
+      sessionId: 'S-1',
+      autoMode: false,
+    });
     expect((box as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('turns Auto on explicitly and sends the mode with the next turn', () => {
+    stage();
+    const chat = chatStub();
+    renderBlock(<Controlled initial={CHANGES} chat={chat} />);
+
+    const toggle = screen.getByRole('switch', { name: 'Agent Auto' });
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByText('HITL 自动批准，不暂停执行')).toBeTruthy();
+
+    const box = screen.getByRole('textbox');
+    fireEvent.change(box, { target: { value: '继续自动生成' } });
+    fireEvent.click(screen.getByRole('button', { name: '生成变更' }));
+    expect(chat.send).toHaveBeenCalledWith({
+      message: '继续自动生成',
+      sessionId: 'S-1',
+      autoMode: true,
+    });
   });
 
   it('sends on ⌘↵ but not on a plain ↵, so a second line stays typable', () => {

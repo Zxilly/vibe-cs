@@ -34,7 +34,7 @@ import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
 import type { KeyboardEvent, ReactNode, RefObject } from 'react';
 
-import { Button, Textarea, cn } from '../../design/primitives';
+import { Button, Textarea, Toggle, cn } from '../../design/primitives';
 import { AGENT_MODE_COMPOSER } from './conversationModel';
 import type { AgentMode } from './agentContract';
 
@@ -46,6 +46,8 @@ export interface AgentComposerProps {
   readonly onSend: (message: string) => void;
   readonly streaming: boolean;
   readonly onCancel: () => void;
+  readonly autoMode: boolean;
+  readonly onAutoModeChange: (enabled: boolean) => void;
   /** Why the message cannot be sent — no session, no service, already busy. */
   readonly disabledReason?: string | undefined;
   /**
@@ -66,6 +68,8 @@ export function AgentComposer({
   onSend,
   streaming,
   onCancel,
+  autoMode,
+  onAutoModeChange,
   disabledReason,
   hint,
   inputRef,
@@ -132,6 +136,20 @@ export function AgentComposer({
       />
 
       <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-xs text-neutral-700">
+          <Toggle
+            checked={autoMode}
+            onChange={onAutoModeChange}
+            aria-label="Agent Auto"
+            disabled={streaming}
+          />
+          <span>
+            <Trans>Auto</Trans>
+          </span>
+          <span className="text-neutral-500">
+            {autoMode ? <Trans>HITL 自动批准，不暂停执行</Trans> : <Trans>HITL 等待你的确认</Trans>}
+          </span>
+        </label>
         {hint === undefined ? null : (
           <span data-composer-hint="" className="min-w-0 flex-1 text-xs text-neutral-600">
             {hint}

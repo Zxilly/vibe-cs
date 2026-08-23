@@ -100,10 +100,12 @@ import {
   type AgentGuardedAction,
 } from './agentContract';
 import { AgentComposer } from './AgentComposer';
+import { AgentConfirmationCard, confirmationProposalIndex } from './AgentConfirmationCard';
 import { AGENT_MODE_HEAD } from './ConversationModes';
 import { changeApplicability } from './planChangeApply';
 import { settingsPath } from '../settings/settingsRoutes';
 import { ChangePreviewDialog } from './ChangePreviewDialog';
+import { recordingHref } from '../recording/recordingContract';
 import {
   changeDecisionKey,
   changesForShot,
@@ -136,6 +138,7 @@ export const AgentConversationBlock: AgentBlock = ({
 
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [autoMode, setAutoMode] = useState(false);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const lastMessageRef = useRef<string | null>(null);
   const [preview, setPreview] = useState<{
@@ -233,9 +236,9 @@ export const AgentConversationBlock: AgentBlock = ({
       setDraft('');
       /* `chat.send` is the shell's wrapper: it flushes the edit notifier first,
          so the model reads the manual edit before the question about it. */
-      await chat.send({ message, sessionId });
+      await chat.send({ message, sessionId, autoMode });
     },
-    [chat, context.session, createSession, planData?.title, updateContext],
+    [autoMode, chat, context.session, createSession, planData?.title, updateContext],
   );
   const hasResultView = hasChangeSets || shots.length > 0;
   const latestFailedTurn = [...(sessionData?.entries ?? EMPTY_ENTRIES)]
@@ -257,27 +260,51 @@ export const AgentConversationBlock: AgentBlock = ({
 
   const renderExtras = (entry: AgentSessionEntry): AgentEntryExtras | undefined => {
     const entrySlots = byEntry.get(entry.id);
+    const confirmations = entry.kind === 'assistant'
+      ? entry.tool_calls
+        .map((call, index) => ({ call, index, proposalIndex: confirmationProposalIndex(call) }))
+        .filter((item) => item.proposalIndex !== null)
+      : [];
+    const entryProposals = entry.kind === 'assistant' ? entry.proposals : [];
     const failedPrompt = entry.kind === 'assistant' && entry.status === 'failed'
       ? promptBeforeEntry(sessionData?.entries ?? EMPTY_ENTRIES, entry.id)
       : null;
-    if ((entrySlots === undefined || entrySlots.length === 0) && failedPrompt === null) {
+    if (
+      (entrySlots === undefined || entrySlots.length === 0)
+      && confirmations.length === 0
+      && failedPrompt === null
+    ) {
       return undefined;
     }
     return {
-      children: (entrySlots ?? []).map((slot) => (
-        <ProposalBlock
-          key={slot.key}
-          slot={slot}
-          changeSet={setByKey.get(slot.key) ?? null}
-          shots={shots}
-          currentRevision={revision}
-          filterShotId={filterShotId}
-          edit={edit}
-          onAccept={onAccept}
-          onPreview={onPreview}
-          onReject={onReject}
-        />
-      )),
+      children: [
+        ...(entrySlots ?? []).map((slot) => (
+          <ProposalBlock
+            key={slot.key}
+            slot={slot}
+            changeSet={setByKey.get(slot.key) ?? null}
+            shots={shots}
+            currentRevision={revision}
+            filterShotId={filterShotId}
+            edit={edit}
+            onAccept={onAccept}
+            onPreview={onPreview}
+            onReject={onReject}
+          />
+        )),
+        ...confirmations.map(({ call, index, proposalIndex }) => (
+          <AgentConfirmationCard
+            key={`${entry.id}-confirmation-${String(index)}`}
+            call={call}
+            proposal={proposalIndex === null ? undefined : entryProposals[proposalIndex]}
+            sessionId={context.session ?? sessionData?.id ?? ''}
+            chat={chat}
+            onContinueVideo={() => {
+              if (planData !== undefined) void navigate(recordingHref(planData.id));
+            }}
+          />
+        )),
+      ],
       ...(failedPrompt === null
         ? {}
         : {
@@ -392,6 +419,8 @@ export const AgentConversationBlock: AgentBlock = ({
         onSend={send}
         streaming={chat.streaming}
         onCancel={chat.cancel}
+        autoMode={autoMode}
+        onAutoModeChange={setAutoMode}
         inputRef={composerRef}
         showSuggestions={hasResultView}
         {...(hasResultView ? {} : { sendLabel: <Trans>生成剪辑单</Trans> })}

@@ -58,6 +58,19 @@ const HISTORY: AgentSessionEntry[] = [
     tool_calls: [], proposals: [], status: 'completed',
   },
   {
+    kind: 'workspace_edit',
+    id: 'edit-result',
+    at: SESSION.updated_at,
+    notice: {
+      object: { kind: 'edit_project', id: 'project-1' },
+      revision: 7,
+      by: 'user',
+      at: SESSION.updated_at,
+      changes: [{ shot: 2, op: 'updated', field: 'duration', from: '4s', to: '3s' }],
+      note: '用户执行了编辑确认',
+    },
+  },
+  {
     kind: 'assistant', id: 'failed-answer', at: SESSION.updated_at, content: '',
     tool_calls: [], proposals: [], status: 'failed', error: '连接失败',
   },
@@ -330,6 +343,7 @@ describe('useAgentChatStream', () => {
     await act(async () => {
       await result.current.send({
         message: '第 3 个镜头前面留 1 秒',
+        autoMode: true,
         demoId: 'demo-1',
         workspaceContext: {
           projectId: 'plan:P-118',
@@ -345,6 +359,10 @@ describe('useAgentChatStream', () => {
     expect(inputs[0]?.history).toEqual([
       { role: 'user', content: '上一条问题' },
       { role: 'assistant', content: '上一条回答' },
+      {
+        role: 'user',
+        content: expect.stringContaining('"type":"workspace_edit_result"'),
+      },
     ]);
     expect(inputs[0]?.demoId).toBe('demo-1');
     expect(inputs[0]?.workspaceContext).toMatchObject({
@@ -356,5 +374,6 @@ describe('useAgentChatStream', () => {
       roundNumber: 21,
     });
     expect(inputs[0]?.requestId).not.toBe('');
+    expect(inputs[0]?.autoMode).toBe(true);
   });
 });

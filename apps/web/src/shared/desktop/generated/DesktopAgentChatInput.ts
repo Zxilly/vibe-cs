@@ -12,5 +12,6 @@ export type DesktopAgentChatInput = {
   workspaceContext: DesktopAgentWorkspaceContext;
   history: Array<DesktopAgentChatHistoryMessage>;
   mode: AgentMode;
+  autoMode: boolean;
   message: string;
 };

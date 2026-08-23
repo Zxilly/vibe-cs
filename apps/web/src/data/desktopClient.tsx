@@ -252,6 +252,10 @@ export type DesktopClient = Pick<
      and stops the Demo they were written for. Nothing here records. */
   | 'previewHlaeProposal'
   | 'exportHlaeProposal'
+  | 'previewHighlightEditProposal'
+  | 'applyHighlightEditProposal'
+  | 'previewBeatAlignmentProposal'
+  | 'applyBeatAlignmentProposal'
   | 'preflightDemo'
   | 'stopPlayback'
   | 'playbackStatus'
@@ -259,9 +263,9 @@ export type DesktopClient = Pick<
      `alignClipsToBeats` is 「节拍建议」. It is a pure computation over beats and
      clip durations — it takes no project id and writes nothing — which is what
      makes 「节拍建议不会直接修改工程，应用前可逐条预览」 true by construction
-     rather than by discipline. See `data/montage.ts` for why the *proposal*
-     routes (`previewBeatAlignmentProposal` / `applyBeatAlignmentProposal`) are
-     deliberately absent from this list.
+     rather than by discipline. The proposal preview/apply routes are also
+     exposed for the Agent confirmation card; they preserve the same signed
+     preview boundary before a write.
 
      The two waveform reads back 「low-orbit.mp3 · 128 BPM」's picture and the
      per-clip strips; `analyzeAudioAsset` above supplies the beats themselves. */

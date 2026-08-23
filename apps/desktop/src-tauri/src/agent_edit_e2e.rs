@@ -105,6 +105,40 @@ async fn openai_tool_loop(
                 "choices": [{ "index": 0, "delta": {}, "finish_reason": "tool_calls" }]
             }),
         ]
+    } else if request_number == 2 {
+        let arguments = json!({
+            "title": "Apply the selected edit plan",
+            "summary": "Create an impact edit from ace-1"
+        })
+        .to_string();
+        vec![
+            json!({
+                "id": "chatcmpl-desktop-e2e",
+                "object": "chat.completion.chunk",
+                "created": 0,
+                "model": "desktop-e2e",
+                "choices": [{
+                    "index": 0,
+                    "delta": {
+                        "role": "assistant",
+                        "tool_calls": [{
+                            "index": 0,
+                            "id": "call-hitl",
+                            "type": "function",
+                            "function": { "name": "confirm_edit_plan", "arguments": arguments }
+                        }]
+                    },
+                    "finish_reason": null
+                }]
+            }),
+            json!({
+                "id": "chatcmpl-desktop-e2e",
+                "object": "chat.completion.chunk",
+                "created": 0,
+                "model": "desktop-e2e",
+                "choices": [{ "index": 0, "delta": {}, "finish_reason": "tool_calls" }]
+            }),
+        ]
     } else {
         vec![
             json!({
@@ -212,6 +246,40 @@ async fn openai_video_loop(
                             "id": "call-video-plan",
                             "type": "function",
                             "function": { "name": "draft_video_plan", "arguments": arguments }
+                        }]
+                    },
+                    "finish_reason": null
+                }]
+            }),
+            json!({
+                "id": "chatcmpl-video-e2e",
+                "object": "chat.completion.chunk",
+                "created": 0,
+                "model": "desktop-e2e",
+                "choices": [{ "index": 0, "delta": {}, "finish_reason": "tool_calls" }]
+            }),
+        ]
+    } else if request_number == 2 {
+        let arguments = json!({
+            "title": "Generate the selected video",
+            "summary": "Record ace-1 and export a bounded MP4"
+        })
+        .to_string();
+        vec![
+            json!({
+                "id": "chatcmpl-video-e2e",
+                "object": "chat.completion.chunk",
+                "created": 0,
+                "model": "desktop-e2e",
+                "choices": [{
+                    "index": 0,
+                    "delta": {
+                        "role": "assistant",
+                        "tool_calls": [{
+                            "index": 0,
+                            "id": "call-hitl",
+                            "type": "function",
+                            "function": { "name": "confirm_video_plan", "arguments": arguments }
                         }]
                     },
                     "finish_reason": null
@@ -628,6 +696,7 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
         },
         history: Vec::new(),
         mode: vibe_cs_agent::AgentMode::Edit,
+        auto_mode: false,
         message: "Create an impact edit from ace-1 with two seconds of context.".to_owned(),
     };
     let result = tokio::time::timeout(Duration::from_secs(20), chat(&agent, input, channel))
@@ -690,13 +759,13 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
 
     {
         let requests = provider.requests.lock().expect("provider requests");
-        assert_eq!(requests.len(), 2);
+        assert_eq!(requests.len(), 3);
         assert!(
             requests[0].to_string().contains("draft_edit_plan"),
             "provider request must expose the real local edit tool"
         );
         assert!(
-            requests[1]["messages"].as_array().is_some_and(|messages| {
+            requests[2]["messages"].as_array().is_some_and(|messages| {
                 messages.iter().any(|message| message["role"] == "tool")
             })
         );
@@ -870,6 +939,7 @@ async fn one_sentence_materializes_a_plan_and_reaches_a_persisted_final_video() 
                 },
                 history: Vec::new(),
                 mode: vibe_cs_agent::AgentMode::Hlae,
+                auto_mode: false,
                 message: "把 ace-1 做成节奏紧凑、可以直接发布的视频。".to_owned(),
             },
             channel,
@@ -879,7 +949,7 @@ async fn one_sentence_materializes_a_plan_and_reaches_a_persisted_final_video() 
     .expect("Agent chat timeout")
     .expect("one sentence Agent chat");
     assert_eq!(result.thread_id, session.id);
-    assert_eq!(provider.requests.lock().expect("requests").len(), 2);
+    assert_eq!(provider.requests.lock().expect("requests").len(), 3);
 
     let generated = storage
         .get_agent_plan(plan.id)

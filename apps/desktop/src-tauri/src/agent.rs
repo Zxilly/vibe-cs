@@ -15,8 +15,8 @@ use uuid::Uuid;
 use vibe_cs_agent::{
     AgentConfig as EmbeddedAgentConfig, AgentContext as EmbeddedAgentContext,
     AgentMode as EmbeddedAgentMode, AgentRequest as EmbeddedAgentRequest,
-    AgentStreamEvent as EmbeddedAgentStreamEvent, AgentToolHost, Cancellation, CapturedPlanKind,
-    HistoryMessage,
+    AgentStreamEvent as EmbeddedAgentStreamEvent, AgentToolHost, Cancellation, CapturedPlan,
+    CapturedPlanKind, HistoryMessage,
 };
 use vibe_cs_domain::{
     AgentPlanAuthor, AgentPlanGeneration, AgentPlanOriginDraft, AgentPlanShot, AgentPlanUpdate,
@@ -184,6 +184,142 @@ impl AgentToolHost for CinematicReplayHost {
         }
         Ok(json!({ "scenes": scenes }))
     }
+}
+
+#[derive(Debug)]
+struct DesktopAgentToolHost {
+    cinematic: Option<CinematicReplayHost>,
+    dispatcher: DesktopBridge,
+}
+
+#[async_trait]
+impl AgentToolHost for DesktopAgentToolHost {
+    async fn read_cinematic_context(&self, highlight_ids: &[String]) -> Result<Value, String> {
+        match &self.cinematic {
+            Some(cinematic) => cinematic.read_cinematic_context(highlight_ids).await,
+            None => Ok(json!({"scenes":[]})),
+        }
+    }
+
+    async fn execute_confirmation(
+        &self,
+        confirmation: &str,
+        proposal: &CapturedPlan,
+    ) -> Result<Value, String> {
+        match (confirmation, proposal.kind) {
+            ("edit_plan", CapturedPlanKind::HighlightEdit) => {
+                self.preview_and_apply_highlight_edit(&proposal.payload)
+                    .await
+            }
+            ("beat_alignment", CapturedPlanKind::BeatAlignment) => {
+                self.preview_and_apply_beat_alignment(&proposal.payload)
+                    .await
+            }
+            ("edit_plan", CapturedPlanKind::AgentPlanChange) => {
+                Ok(json!({"status":"approved_for_plan_change_ui"}))
+            }
+            ("video_plan", CapturedPlanKind::VideoRender) => {
+                Ok(json!({"status":"approved_for_recording_ui"}))
+            }
+            _ => Err("confirmation does not match its structured proposal".to_owned()),
+        }
+    }
+}
+
+impl DesktopAgentToolHost {
+    async fn preview_and_apply_highlight_edit(&self, request: &Value) -> Result<Value, String> {
+        let preview = self
+            .dispatcher
+            .dispatch(DesktopCall {
+                method: DesktopMethod::Post,
+                path: "/agent/proposals/highlight-edit/preview".to_owned(),
+                body: Some(request.clone()),
+            })
+            .await
+            .map_err(|error| format!("unable to preview Agent edit: {error:?}"))?;
+        let confirmation = proposal_confirmation(&preview)?;
+        let result = self
+            .dispatcher
+            .dispatch(DesktopCall {
+                method: DesktopMethod::Post,
+                path: "/agent/proposals/highlight-edit/apply".to_owned(),
+                body: Some(json!({
+                    "request": request,
+                    "plan": preview["plan"],
+                    "base_fingerprint": confirmation["base_fingerprint"],
+                    "proposal_fingerprint": confirmation["proposal_fingerprint"],
+                    "confirmation_token": confirmation["confirmation_token"],
+                    "expected_revision": confirmation["expected_revision"],
+                    "confirm": true
+                })),
+            })
+            .await
+            .map_err(|error| format!("unable to apply Agent edit: {error:?}"))?;
+        Ok(json!({"status":"applied","kind":"highlight_edit","result":result}))
+    }
+
+    async fn preview_and_apply_beat_alignment(&self, request: &Value) -> Result<Value, String> {
+        let preview = self
+            .dispatcher
+            .dispatch(DesktopCall {
+                method: DesktopMethod::Post,
+                path: "/agent/proposals/beat-alignment/preview".to_owned(),
+                body: Some(request.clone()),
+            })
+            .await
+            .map_err(|error| format!("unable to preview beat alignment: {error:?}"))?;
+        let confirmation = proposal_confirmation(&preview)?;
+        let mut body = request
+            .as_object()
+            .cloned()
+            .ok_or_else(|| "beat-alignment proposal is not an object".to_owned())?;
+        for key in [
+            "base_fingerprint",
+            "proposal_fingerprint",
+            "confirmation_token",
+            "expected_revision",
+        ] {
+            body.insert(key.to_owned(), confirmation[key].clone());
+        }
+        body.insert("confirm".to_owned(), Value::Bool(true));
+        let result = self
+            .dispatcher
+            .dispatch(DesktopCall {
+                method: DesktopMethod::Post,
+                path: "/agent/proposals/beat-alignment/apply".to_owned(),
+                body: Some(Value::Object(body)),
+            })
+            .await
+            .map_err(|error| format!("unable to apply beat alignment: {error:?}"))?;
+        Ok(json!({"status":"applied","kind":"beat_alignment","result":result}))
+    }
+}
+
+fn proposal_confirmation(preview: &Value) -> Result<Value, String> {
+    if preview.get("ready").and_then(Value::as_bool) != Some(true) {
+        return Err(format!(
+            "proposal prerequisites are not satisfied: {}",
+            preview.get("prerequisites").cloned().unwrap_or(Value::Null)
+        ));
+    }
+    let expected_revision = preview
+        .get("expected_revision")
+        .and_then(Value::as_u64)
+        .ok_or_else(|| "proposal preview has no revision".to_owned())?;
+    let required = |key: &str| {
+        preview
+            .get(key)
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .map(str::to_owned)
+            .ok_or_else(|| format!("proposal preview has no {key}"))
+    };
+    Ok(json!({
+        "base_fingerprint":required("base_fingerprint")?,
+        "proposal_fingerprint":required("proposal_fingerprint")?,
+        "confirmation_token":required("confirmation_token")?,
+        "expected_revision":expected_revision
+    }))
 }
 
 fn decode_round_replay_envelope(bytes: &[u8]) -> Result<RoundReplayArtifact, String> {
@@ -598,6 +734,8 @@ pub(crate) struct AgentChatInput {
     workspace_context: AgentWorkspaceContext,
     history: Vec<AgentChatHistoryMessage>,
     mode: EmbeddedAgentMode,
+    #[serde(default)]
+    auto_mode: bool,
     message: String,
 }
 
@@ -1098,14 +1236,18 @@ async fn run_agent_chat(
         })
         .collect::<Vec<_>>();
     let summarized_analysis = summarize_analysis(&analysis);
-    let tool_host = input.demo_id.map(|demo_id| {
-        Arc::new(CinematicReplayHost::new(
+    let cinematic = input.demo_id.map(|demo_id| {
+        CinematicReplayHost::new(
             state.storage.clone(),
             state.dispatcher.clone(),
             demo_id,
             &analysis,
-        )) as Arc<dyn AgentToolHost>
+        )
     });
+    let tool_host = Some(Arc::new(DesktopAgentToolHost {
+        cinematic,
+        dispatcher: state.dispatcher.clone(),
+    }) as Arc<dyn AgentToolHost>);
     let mut workspace = serde_json::to_value(&input.workspace_context)
         .map_err(|error| AgentCommandError::internal(error.to_string()))?;
     if let Some(object) = workspace.as_object_mut() {
@@ -1136,6 +1278,7 @@ async fn run_agent_chat(
             beat_alignment_draft,
         },
         tool_host,
+        auto_mode: input.auto_mode,
     };
     let mut pending_text = String::new();
     let mut text_event_count = 0_usize;
@@ -2307,6 +2450,7 @@ mod tests {
             },
             history: Vec::new(),
             mode: EmbeddedAgentMode::Guide,
+            auto_mode: false,
             message: "Explain this frame".to_owned(),
         };
         assert!(validate_workspace_context(&request).is_err());

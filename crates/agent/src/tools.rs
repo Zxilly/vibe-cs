@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use ts_rs::TS;
 use uuid::Uuid;
 
-use crate::{AgentContext, AgentMode, AgentToolHost};
+use crate::{AgentContext, AgentMode, AgentToolHost, HitlRequest};
 
 /// One tool invocation the model made during a turn, with its arguments and
 /// result verbatim.
@@ -68,15 +68,21 @@ struct Captures {
 pub(crate) struct ToolState {
     context: Arc<AgentContext>,
     tool_host: Option<Arc<dyn AgentToolHost>>,
+    auto_mode: bool,
     cinematic_cache: Arc<Mutex<HashMap<String, Value>>>,
     captures: Arc<Mutex<Captures>>,
 }
 
 impl ToolState {
-    pub(crate) fn new(context: AgentContext, tool_host: Option<Arc<dyn AgentToolHost>>) -> Self {
+    pub(crate) fn new(
+        context: AgentContext,
+        tool_host: Option<Arc<dyn AgentToolHost>>,
+        auto_mode: bool,
+    ) -> Self {
         Self {
             context: Arc::new(context),
             tool_host,
+            auto_mode,
             cinematic_cache: Arc::new(Mutex::new(HashMap::new())),
             captures: Arc::new(Mutex::new(Captures::default())),
         }
@@ -88,6 +94,9 @@ impl ToolState {
     }
 
     async fn execute(&self, name: &str, input: Value) -> Result<Value, ToolExecutionError> {
+        if confirmation_kind(name).is_some() {
+            return self.execute_confirmation(name, input).await;
+        }
         let external_cinematic = if matches!(name, "read_cinematic_context" | "draft_video_plan") {
             self.external_cinematic_context(&input)
                 .await
@@ -113,6 +122,67 @@ impl ToolState {
         if let Some(plan) = plan {
             captures.plans.push(plan);
         }
+        Ok(output)
+    }
+
+    async fn execute_confirmation(
+        &self,
+        name: &str,
+        input: Value,
+    ) -> Result<Value, ToolExecutionError> {
+        let request = serde_json::from_value::<HitlRequest>(input.clone())
+            .map_err(|error| ToolExecutionError::invalid_args(error.to_string()))?;
+        validate_hitl_request(&request).map_err(ToolExecutionError::invalid_args)?;
+        let kind = confirmation_kind(name)
+            .ok_or_else(|| ToolExecutionError::invalid_args("unknown confirmation tool"))?;
+        let (proposal_index, proposal) = {
+            let captures = self.captures.lock().await;
+            captures
+                .plans
+                .iter()
+                .enumerate()
+                .rev()
+                .find(|(_, proposal)| confirmation_matches(kind, proposal.kind))
+                .map(|(index, proposal)| (index, proposal.clone()))
+                .ok_or_else(|| {
+                    ToolExecutionError::other(format!(
+                        "{name} requires its structured proposal earlier in the same turn"
+                    ))
+                })?
+        };
+        let automatic = self.auto_mode;
+        let execution_result = if automatic {
+            match &self.tool_host {
+                Some(host) => host
+                    .execute_confirmation(confirmation_name(kind), &proposal)
+                    .await
+                    .map_err(ToolExecutionError::other)?,
+                None => json!({"status":"approved_without_execution_host"}),
+            }
+        } else {
+            Value::Null
+        };
+        let output = json!({
+            "confirmation": confirmation_name(kind),
+            "status": if automatic {"approved"} else {"pending"},
+            "approved": automatic,
+            "automatic": automatic,
+            "proposalIndex": proposal_index,
+            "proposalKind": proposal.kind,
+            "title": request.title,
+            "summary": request.summary,
+            "risks": request.risks,
+            "executionResult": execution_result
+        });
+        let mut captures = self.captures.lock().await;
+        if captures.tool_calls.len() >= 32 {
+            return Err(ToolExecutionError::other("tool call limit exceeded"));
+        }
+        captures.tool_calls.push(CapturedToolCall {
+            name: name.to_owned(),
+            input,
+            output: output.clone(),
+        });
         Ok(output)
     }
 
@@ -180,11 +250,15 @@ fn tool_allowed_in_mode(mode: AgentMode, name: &str) -> bool {
         | "draft_edit_plan"
         | "draft_agent_plan_changes"
         | "read_audio_analysis"
-        | "draft_beat_alignment" => matches!(mode, AgentMode::Edit),
+        | "draft_beat_alignment"
+        | "confirm_edit_plan"
+        | "confirm_beat_alignment" => matches!(mode, AgentMode::Edit),
         // Initial video creation exposes exactly one proposal kind. This keeps
         // an empty Agent plan from receiving an inapplicable highlight-edit
         // proposal that leaves its shot list empty.
-        "read_cinematic_context" | "draft_video_plan" => matches!(mode, AgentMode::Hlae),
+        "read_cinematic_context" | "draft_video_plan" | "confirm_video_plan" => {
+            matches!(mode, AgentMode::Hlae)
+        }
         _ => false,
     }
 }
@@ -364,7 +438,95 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
                 &["destination"],
             ),
         ),
+        (
+            "confirm_video_plan",
+            "Publish the recording-stage confirmation for the video proposal created earlier in this turn. The UI presents shots and risks; Auto marks it approved without pausing.",
+            object_schema(
+                json!({
+                    "title":{"type":"string","minLength":1,"maxLength":200},
+                    "summary":{"type":"string","minLength":1,"maxLength":2000},
+                    "risks":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1,"maxLength":400},"default":[]}
+                }),
+                &["title", "summary"],
+            ),
+        ),
+        (
+            "confirm_edit_plan",
+            "Publish the edit-stage confirmation for the highlight edit or shot-list change proposal created earlier in this turn. The UI can preview and execute the edit, then returns the structured result to the Agent; Auto marks the request approved.",
+            object_schema(
+                json!({
+                    "title":{"type":"string","minLength":1,"maxLength":200},
+                    "summary":{"type":"string","minLength":1,"maxLength":2000},
+                    "risks":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1,"maxLength":400},"default":[]}
+                }),
+                &["title", "summary"],
+            ),
+        ),
+        (
+            "confirm_beat_alignment",
+            "Publish the audio-alignment-stage confirmation for the beat-alignment proposal created earlier in this turn. The UI presents clip and audio changes before applying; Auto marks the request approved.",
+            object_schema(
+                json!({
+                    "title":{"type":"string","minLength":1,"maxLength":200},
+                    "summary":{"type":"string","minLength":1,"maxLength":2000},
+                    "risks":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1,"maxLength":400},"default":[]}
+                }),
+                &["title", "summary"],
+            ),
+        ),
     ]
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ConfirmationKind {
+    Video,
+    Edit,
+    BeatAlignment,
+}
+
+fn confirmation_kind(name: &str) -> Option<ConfirmationKind> {
+    match name {
+        "confirm_video_plan" => Some(ConfirmationKind::Video),
+        "confirm_edit_plan" => Some(ConfirmationKind::Edit),
+        "confirm_beat_alignment" => Some(ConfirmationKind::BeatAlignment),
+        _ => None,
+    }
+}
+
+const fn confirmation_name(kind: ConfirmationKind) -> &'static str {
+    match kind {
+        ConfirmationKind::Video => "video_plan",
+        ConfirmationKind::Edit => "edit_plan",
+        ConfirmationKind::BeatAlignment => "beat_alignment",
+    }
+}
+
+const fn confirmation_matches(kind: ConfirmationKind, proposal: CapturedPlanKind) -> bool {
+    match kind {
+        ConfirmationKind::Video => matches!(proposal, CapturedPlanKind::VideoRender),
+        ConfirmationKind::Edit => matches!(
+            proposal,
+            CapturedPlanKind::HighlightEdit | CapturedPlanKind::AgentPlanChange
+        ),
+        ConfirmationKind::BeatAlignment => matches!(proposal, CapturedPlanKind::BeatAlignment),
+    }
+}
+
+fn validate_hitl_request(request: &HitlRequest) -> Result<(), String> {
+    if request.title.trim().is_empty()
+        || request.title.chars().count() > 200
+        || request.summary.trim().is_empty()
+        || request.summary.chars().count() > 2_000
+        || request.risks.len() > 8
+        || request
+            .risks
+            .iter()
+            .any(|risk| risk.trim().is_empty() || risk.chars().count() > 400)
+    {
+        Err("HITL request is outside the supported text or risk bounds".to_owned())
+    } else {
+        Ok(())
+    }
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -1809,6 +1971,8 @@ mod tests {
         let creation = names(AgentMode::Hlae);
         assert!(creation.contains(&"read_cinematic_context"));
         assert!(creation.contains(&"draft_video_plan"));
+        assert!(creation.contains(&"confirm_video_plan"));
+        assert!(!creation.contains(&"confirm_edit_plan"));
         assert!(!creation.contains(&"draft_edit_plan"));
         assert!(!creation.contains(&"draft_agent_plan_changes"));
         assert!(!creation.contains(&"draft_beat_alignment"));
@@ -1816,10 +1980,101 @@ mod tests {
         let editing = names(AgentMode::Edit);
         assert!(editing.contains(&"draft_edit_plan"));
         assert!(editing.contains(&"draft_agent_plan_changes"));
+        assert!(editing.contains(&"confirm_edit_plan"));
+        assert!(editing.contains(&"confirm_beat_alignment"));
+        assert!(!editing.contains(&"confirm_video_plan"));
         assert!(!editing.contains(&"draft_video_plan"));
 
         let guide = names(AgentMode::Guide);
         assert!(!guide.iter().any(|name| name.starts_with("draft_")));
+        assert!(!guide.iter().any(|name| name.starts_with("confirm_")));
+    }
+
+    #[tokio::test]
+    async fn auto_edit_confirmation_links_to_the_prior_proposal_without_pausing() {
+        let state = ToolState::new(context(), None, true);
+        state
+            .execute(
+                "draft_edit_plan",
+                json!({
+                    "highlightIds":["ace-1"],
+                    "pacing":"impact",
+                    "includeContextSeconds":2,
+                    "transitionStyle":"cut"
+                }),
+            )
+            .await
+            .expect("edit proposal");
+        let output = state
+            .execute(
+                "confirm_edit_plan",
+                json!({
+                    "title":"Apply the selected edit",
+                    "summary":"Create one bounded edit from ace-1"
+                }),
+            )
+            .await
+            .expect("automatic confirmation");
+        assert_eq!(output["approved"], true);
+        assert_eq!(output["automatic"], true);
+        assert_eq!(output["status"], "approved");
+        assert_eq!(output["proposalIndex"], 0);
+        assert_eq!(output["proposalKind"], "highlight_edit");
+    }
+
+    #[tokio::test]
+    async fn manual_edit_confirmation_becomes_a_pending_ui_request() {
+        let state = ToolState::new(context(), None, false);
+        state
+            .execute(
+                "draft_edit_plan",
+                json!({"highlightIds":["ace-1"],"pacing":"impact"}),
+            )
+            .await
+            .expect("edit proposal");
+        let output = state
+            .execute(
+                "confirm_edit_plan",
+                json!({
+                    "title":"Apply edit",
+                    "summary":"Shorten the selected shot"
+                }),
+            )
+            .await
+            .expect("manual confirmation");
+        assert_eq!(output["approved"], false);
+        assert_eq!(output["automatic"], false);
+        assert_eq!(output["status"], "pending");
+    }
+
+    #[tokio::test]
+    async fn each_confirmation_requires_the_matching_prior_proposal() {
+        let state = ToolState::new(context(), None, true);
+        assert!(
+            state
+                .execute(
+                    "confirm_edit_plan",
+                    json!({"title":"Edit","summary":"Apply edit"})
+                )
+                .await
+                .is_err()
+        );
+        state
+            .execute(
+                "draft_edit_plan",
+                json!({"highlightIds":["ace-1"],"pacing":"impact"}),
+            )
+            .await
+            .expect("edit proposal");
+        assert!(
+            state
+                .execute(
+                    "confirm_beat_alignment",
+                    json!({"title":"Beat","summary":"Apply beats"})
+                )
+                .await
+                .is_err()
+        );
     }
 
     #[test]

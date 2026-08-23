@@ -47,6 +47,7 @@ async fn rig_video_proposal_emits_an_executable_recording_request() {
             ..EmbeddedAgentContext::default()
         },
         tool_host: None,
+        auto_mode: true,
     };
     let cancellation = Cancellation::new();
 
@@ -63,11 +64,11 @@ async fn rig_video_proposal_emits_an_executable_recording_request() {
         .expect("provider task");
     assert_eq!(
         provider_requests.len(),
-        2,
+        3,
         "Rig must complete the tool loop"
     );
     assert!(
-        provider_requests[1]["messages"]
+        provider_requests[2]["messages"]
             .as_array()
             .is_some_and(|messages| messages.iter().any(|message| message["role"] == "tool"))
     );
@@ -77,6 +78,7 @@ async fn rig_video_proposal_emits_an_executable_recording_request() {
         vibe_cs_agent::CapturedPlanKind::VideoRender
     );
     assert_eq!(response.tool_calls[0].name, "draft_video_plan");
+    assert_eq!(response.tool_calls[1].name, "confirm_video_plan");
     let payload = &response.plans[0].payload;
     assert_eq!(payload["output"]["container"], "mp4");
     assert_eq!(payload["items"].as_array().map(Vec::len), Some(1));
@@ -95,7 +97,7 @@ async fn rig_video_proposal_emits_an_executable_recording_request() {
 
 async fn serve_provider(listener: TcpListener) -> Vec<Value> {
     let mut requests = Vec::new();
-    for index in 0..2 {
+    for index in 0..3 {
         let (mut stream, _) = listener.accept().await.expect("provider request");
         let body = read_http_json(&mut stream).await;
         assert_eq!(body["model"], "vibe-cs-desktop-e2e-model");
@@ -116,6 +118,26 @@ async fn serve_provider(listener: TcpListener) -> Vec<Value> {
                         "tool_calls": [{
                             "index": 0, "id": "call-video-plan", "type": "function",
                             "function": { "name": "draft_video_plan", "arguments": arguments }
+                        }]
+                    }),
+                    None,
+                ),
+                stream_chunk(&json!({}), Some("tool_calls")),
+            ]
+        } else if index == 1 {
+            let arguments = serde_json::to_string(&json!({
+                "title": "Generate the selected highlight video",
+                "summary": "Record ace-1 and export a bounded MP4",
+                "risks": ["Starts the managed offline capture workflow"]
+            }))
+            .unwrap();
+            vec![
+                stream_chunk(
+                    &json!({
+                        "role": "assistant",
+                        "tool_calls": [{
+                            "index": 0, "id": "call-hitl", "type": "function",
+                            "function": { "name": "confirm_video_plan", "arguments": arguments }
                         }]
                     }),
                     None,

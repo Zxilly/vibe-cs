@@ -113,7 +113,6 @@ function ProjectWorkspaceToolbar({
   const currentIndex = PROJECT_STEPS.indexOf(step);
   return (
     <Toolbar
-      leading={<RouteLink to="/projects"><Trans>‹ 作品</Trans></RouteLink>}
       title={project.id === 'new' ? <Trans>新作品</Trans> : project.name}
       height="topbar"
       className="gap-3"

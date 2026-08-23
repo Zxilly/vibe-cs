@@ -64,10 +64,6 @@ msgstr "· 需要服务"
 msgid "‹ Demo 资料库"
 msgstr "‹ Demo 资料库"
 
-#: src/pages/ProjectWorkspacePage.tsx:116
-msgid "‹ 作品"
-msgstr "‹ 作品"
-
 #: src/pages/TaskDetailPage.tsx:63
 msgid "‹ 后台任务"
 msgstr "‹ 后台任务"
@@ -781,11 +777,11 @@ msgstr "Agent 设计镜头时瞄准的长度。它是目标不是上限，需要
 msgid "Agent 读取的内容"
 msgstr "Agent 读取的内容"
 
-#: src/pages/ProjectWorkspacePage.tsx:251
+#: src/pages/ProjectWorkspacePage.tsx:250
 msgid "Agent 辅助"
 msgstr "Agent 辅助"
 
-#: src/pages/ProjectWorkspacePage.tsx:358
+#: src/pages/ProjectWorkspacePage.tsx:357
 msgid "Agent 镜头必须先落成真实 Take 和快速剪辑副本，再从快速剪辑复制到多轨精剪；不能跳过素材落地。"
 msgstr "Agent 镜头必须先落成真实 Take 和快速剪辑副本，再从快速剪辑复制到多轨精剪；不能跳过素材落地。"
 
@@ -1544,7 +1540,7 @@ msgstr "会做什么：用上一次自动备份覆盖当前配置文件，然后
 msgid "会把相机路径写成 HLAE 脚本落到磁盘，并启动 CS2 跳到这个镜头的起点。只是预览，不会录制任何画面。"
 msgstr "会把相机路径写成 HLAE 脚本落到磁盘，并启动 CS2 跳到这个镜头的起点。只是预览，不会录制任何画面。"
 
-#: src/pages/ProjectWorkspacePage.tsx:360
+#: src/pages/ProjectWorkspacePage.tsx:359
 msgid "会新建一个多轨工程，复制当前片段顺序和裁切。包装、背景音乐与转场不会复制，源快速剪辑不会被修改，也不会反向同步。"
 msgstr "会新建一个多轨工程，复制当前片段顺序和裁切。包装、背景音乐与转场不会复制，源快速剪辑不会被修改，也不会反向同步。"
 
@@ -1609,7 +1605,7 @@ msgstr "作品、剪辑单、录制与成品"
 msgid "作品工作区"
 msgstr "作品工作区"
 
-#: src/pages/ProjectWorkspacePage.tsx:121
+#: src/pages/ProjectWorkspacePage.tsx:120
 msgid "作品步骤"
 msgstr "作品步骤"
 
@@ -1792,7 +1788,7 @@ msgstr "先保存改动，导出用的是服务端存着的工程"
 msgid "先在上面添加片段，这里会给出它们与拍点的关系。"
 msgstr "先在上面添加片段，这里会给出它们与拍点的关系。"
 
-#: src/pages/ProjectWorkspacePage.tsx:356
+#: src/pages/ProjectWorkspacePage.tsx:355
 msgid "先完成录制并建立 Composition，系统才有真实片段可复制到快速剪辑。现在不会创建空工程。"
 msgstr "先完成录制并建立 Composition，系统才有真实片段可复制到快速剪辑。现在不会创建空工程。"
 
@@ -2049,7 +2045,7 @@ msgstr "关键词：{0}"
 #: src/app/command/CommandPalette.tsx:235
 #: src/design/layout/Inspector.tsx:270
 #: src/pages/agent/ConversationModes.tsx:340
-#: src/pages/ProjectWorkspacePage.tsx:304
+#: src/pages/ProjectWorkspacePage.tsx:303
 msgid "关闭"
 msgstr "关闭"
 
@@ -2117,7 +2113,7 @@ msgstr "最大化或还原窗口"
 msgid "最小化窗口"
 msgstr "最小化窗口"
 
-#: src/pages/ProjectWorkspacePage.tsx:221
+#: src/pages/ProjectWorkspacePage.tsx:220
 msgid "最终视频已经生成，可以从成品文件页播放、定位或管理。"
 msgstr "最终视频已经生成，可以从成品文件页播放、定位或管理。"
 
@@ -2395,7 +2391,7 @@ msgstr "创作准备"
 msgid "创作准备检查"
 msgstr "创作准备检查"
 
-#: src/pages/ProjectWorkspacePage.tsx:330
+#: src/pages/ProjectWorkspacePage.tsx:329
 msgid "创建并打开副本"
 msgstr "创建并打开副本"
 
@@ -2441,8 +2437,8 @@ msgstr "别贴这么近"
 msgid "制作"
 msgstr "制作"
 
-#: src/pages/ProjectWorkspacePage.tsx:280
-#: src/pages/ProjectWorkspacePage.tsx:291
+#: src/pages/ProjectWorkspacePage.tsx:279
+#: src/pages/ProjectWorkspacePage.tsx:290
 msgid "制作方式"
 msgstr "制作方式"
 
@@ -2469,7 +2465,7 @@ msgid "剪辑中"
 msgstr "剪辑中"
 
 #: src/pages/ProjectsPage.tsx:89
-#: src/pages/ProjectWorkspacePage.tsx:157
+#: src/pages/ProjectWorkspacePage.tsx:156
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "剪辑单"
@@ -3230,7 +3226,7 @@ msgstr "处理待办，继续作品，或者开始新的作品"
 msgid "备注"
 msgstr "备注"
 
-#: src/pages/ProjectWorkspacePage.tsx:346
+#: src/pages/ProjectWorkspacePage.tsx:345
 msgid "复制为多轨精剪？"
 msgstr "复制为多轨精剪？"
 
@@ -3251,11 +3247,11 @@ msgstr "外部文件"
 msgid "多杀"
 msgstr "多杀"
 
-#: src/pages/ProjectWorkspacePage.tsx:294
+#: src/pages/ProjectWorkspacePage.tsx:293
 msgid "多轨修改保留在本地，切换步骤前请保存"
 msgstr "多轨修改保留在本地，切换步骤前请保存"
 
-#: src/pages/ProjectWorkspacePage.tsx:364
+#: src/pages/ProjectWorkspacePage.tsx:363
 msgid "多轨工程可能包含图层、关键帧、效果与独立音频，降级会丢失信息。请保留当前工程并从原来源另建副本。"
 msgstr "多轨工程可能包含图层、关键帧、效果与独立音频，降级会丢失信息。请保留当前工程并从原来源另建副本。"
 
@@ -3263,7 +3259,7 @@ msgstr "多轨工程可能包含图层、关键帧、效果与独立音频，降
 msgid "多轨时间轴"
 msgstr "多轨时间轴"
 
-#: src/pages/ProjectWorkspacePage.tsx:253
+#: src/pages/ProjectWorkspacePage.tsx:252
 msgid "多轨精剪"
 msgstr "多轨精剪"
 
@@ -3360,7 +3356,7 @@ msgstr "定位成品"
 
 #: src/pages/delivery/OutputCard.tsx:152
 #: src/pages/library/LibraryInspector.tsx:177
-#: src/pages/ProjectWorkspacePage.tsx:232
+#: src/pages/ProjectWorkspacePage.tsx:231
 #: src/pages/settings/AdvancedSection.tsx:265
 msgid "定位文件"
 msgstr "定位文件"
@@ -3498,8 +3494,8 @@ msgstr "导入素材"
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:275
 #: src/pages/ProjectsPage.tsx:91
-#: src/pages/ProjectWorkspacePage.tsx:159
-#: src/pages/ProjectWorkspacePage.tsx:210
+#: src/pages/ProjectWorkspacePage.tsx:158
+#: src/pages/ProjectWorkspacePage.tsx:209
 #: src/pages/settings/AdvancedSection.tsx:257
 #: src/pages/settings/AiAgentSection.tsx:1248
 msgid "导出"
@@ -3553,8 +3549,8 @@ msgstr "导出视频"
 msgid "导出结果"
 msgstr "导出结果"
 
-#: src/pages/ProjectWorkspacePage.tsx:193
-#: src/pages/ProjectWorkspacePage.tsx:211
+#: src/pages/ProjectWorkspacePage.tsx:192
+#: src/pages/ProjectWorkspacePage.tsx:210
 msgid "导出设置与这份作品的成品文件会显示在这里。"
 msgstr "导出设置与这份作品的成品文件会显示在这里。"
 
@@ -3582,7 +3578,7 @@ msgstr "导播预览为相机路径示意，不是最终画质。"
 msgid "导航工作区"
 msgstr "导航工作区"
 
-#: src/pages/ProjectWorkspacePage.tsx:354
+#: src/pages/ProjectWorkspacePage.tsx:353
 msgid "将打开由已确认 Composition 生成的快速剪辑工程。Agent 剪辑单保持不变，两边后续修改不会同步。"
 msgstr "将打开由已确认 Composition 生成的快速剪辑工程。Agent 剪辑单保持不变，两边后续修改不会同步。"
 
@@ -4010,7 +4006,7 @@ msgstr "当前 quality {0}（CRF {1}），最接近这一档"
 msgid "当前 R{round}"
 msgstr "当前 R{round}"
 
-#: src/pages/ProjectWorkspacePage.tsx:343
+#: src/pages/ProjectWorkspacePage.tsx:342
 msgid "当前不能转换到这个制作方式"
 msgstr "当前不能转换到这个制作方式"
 
@@ -4019,7 +4015,7 @@ msgid "当前会话"
 msgstr "当前会话"
 
 #. placeholder {0}: project.editingMode
-#: src/pages/ProjectWorkspacePage.tsx:191
+#: src/pages/ProjectWorkspacePage.tsx:190
 msgid "当前剪辑模式：{0}。快速剪辑与多轨编辑能力将在这里呈现。"
 msgstr "当前剪辑模式：{0}。快速剪辑与多轨编辑能力将在这里呈现。"
 
@@ -4096,7 +4092,7 @@ msgstr "当前锚点是一条证据，可以在「我的注释」里为它写注
 
 #: src/domain/task/taskVocabulary.tsx:28
 #: src/pages/ProjectsPage.tsx:90
-#: src/pages/ProjectWorkspacePage.tsx:158
+#: src/pages/ProjectWorkspacePage.tsx:157
 msgid "录制"
 msgstr "录制"
 
@@ -4282,11 +4278,11 @@ msgid "必须是有效的 JSON object"
 msgstr "必须是有效的 JSON object"
 
 #: src/pages/home/ActiveProjectsPanel.tsx:115
-#: src/pages/ProjectWorkspacePage.tsx:252
+#: src/pages/ProjectWorkspacePage.tsx:251
 msgid "快速剪辑"
 msgstr "快速剪辑"
 
-#: src/pages/ProjectWorkspacePage.tsx:362
+#: src/pages/ProjectWorkspacePage.tsx:361
 msgid "快速剪辑只有成片素材与秒级裁切，无法无损还原 Demo tick、选手和证据，因此不能反向生成 Agent 剪辑单。"
 msgstr "快速剪辑只有成片素材与秒级裁切，无法无损还原 Demo tick、选手和证据，因此不能反向生成 Agent 剪辑单。"
 
@@ -4334,7 +4330,7 @@ msgid "成品"
 msgstr "成品"
 
 #: src/pages/delivery/AgentVideoWorkflowPanel.tsx:133
-#: src/pages/ProjectWorkspacePage.tsx:219
+#: src/pages/ProjectWorkspacePage.tsx:218
 msgid "成品可用"
 msgstr "成品可用"
 
@@ -4449,7 +4445,7 @@ msgstr "打开作品"
 msgid "打开剪辑单"
 msgstr "打开剪辑单"
 
-#: src/pages/ProjectWorkspacePage.tsx:329
+#: src/pages/ProjectWorkspacePage.tsx:328
 msgid "打开副本"
 msgstr "打开副本"
 
@@ -4462,7 +4458,7 @@ msgstr "打开回合视图"
 msgid "打开工作区"
 msgstr "打开工作区"
 
-#: src/pages/ProjectWorkspacePage.tsx:345
+#: src/pages/ProjectWorkspacePage.tsx:344
 msgid "打开快速剪辑副本？"
 msgstr "打开快速剪辑副本？"
 
@@ -4951,7 +4947,7 @@ msgstr "文件缺失"
 msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 msgstr "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 
-#: src/pages/ProjectWorkspacePage.tsx:117
+#: src/pages/ProjectWorkspacePage.tsx:116
 msgid "新作品"
 msgstr "新作品"
 
@@ -5516,7 +5512,7 @@ msgid "查看发给 Agent 的内容"
 msgstr "查看发给 Agent 的内容"
 
 #: src/pages/delivery/AgentVideoWorkflowPanel.tsx:116
-#: src/pages/ProjectWorkspacePage.tsx:226
+#: src/pages/ProjectWorkspacePage.tsx:225
 msgid "查看成品"
 msgstr "查看成品"
 
@@ -6079,7 +6075,7 @@ msgstr "比赛历史读取失败"
 msgid "比赛工作区"
 msgstr "比赛工作区"
 
-#: src/pages/ProjectWorkspacePage.tsx:190
+#: src/pages/ProjectWorkspacePage.tsx:189
 msgid "比赛工作区与证据检索加入的片段会汇总到这里。"
 msgstr "比赛工作区与证据检索加入的片段会汇总到这里。"
 
@@ -6138,7 +6134,7 @@ msgstr "没有任何数据被改动，重试是安全的。"
 msgid "没有写入任何东西；自动洞察不受影响。"
 msgstr "没有写入任何东西；自动洞察不受影响。"
 
-#: src/pages/ProjectWorkspacePage.tsx:306
+#: src/pages/ProjectWorkspacePage.tsx:305
 msgid "没有创建多轨副本。请确认素材文件仍然可用后重试。"
 msgstr "没有创建多轨副本。请确认素材文件仍然可用后重试。"
 
@@ -7004,7 +7000,7 @@ msgstr "看道具与经济"
 #: src/pages/EditorPage.tsx:481
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
-#: src/pages/ProjectWorkspacePage.tsx:327
+#: src/pages/ProjectWorkspacePage.tsx:326
 #: src/pages/RecoveryPage.tsx:99
 #: src/pages/settings/AiAgentSection.tsx:160
 #: src/pages/settings/AiAgentSection.tsx:174
@@ -8056,7 +8052,7 @@ msgstr "转场时长（秒）"
 msgid "转场时长超过了相邻片段，渲染会拒绝"
 msgstr "转场时长超过了相邻片段，渲染会拒绝"
 
-#: src/pages/ProjectWorkspacePage.tsx:295
+#: src/pages/ProjectWorkspacePage.tsx:294
 msgid "转换会创建副本，源作品与后续修改不会互相同步"
 msgstr "转换会创建副本，源作品与后续修改不会互相同步"
 
@@ -8514,7 +8510,7 @@ msgstr "这些设置决定视频怎么被录出来。改动只影响之后新建
 msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "这些高光还读不到完整的解析结果，无法建立方案"
 
-#: src/pages/ProjectWorkspacePage.tsx:192
+#: src/pages/ProjectWorkspacePage.tsx:191
 msgid "这份作品的录制队列与片段进度会显示在这里。"
 msgstr "这份作品的录制队列与片段进度会显示在这里。"
 
@@ -9084,7 +9080,7 @@ msgid "选择音乐"
 msgstr "选择音乐"
 
 #: src/pages/ProjectsPage.tsx:88
-#: src/pages/ProjectWorkspacePage.tsx:156
+#: src/pages/ProjectWorkspacePage.tsx:155
 msgid "选材"
 msgstr "选材"
 

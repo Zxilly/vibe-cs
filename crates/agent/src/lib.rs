@@ -26,6 +26,7 @@ pub use tools::{CapturedPlan, CapturedPlanKind, CapturedToolCall};
 const MAXIMUM_CONTEXT_BYTES: usize = 2 * 1024 * 1024;
 const MAXIMUM_RESPONSE_CHARS: usize = 64_000;
 const MAXIMUM_AGENT_TURNS: usize = 12;
+const MAXIMUM_COMPLETION_TOKENS: u64 = 8_000;
 
 #[derive(Debug, Clone, Default)]
 pub struct Cancellation {
@@ -223,13 +224,21 @@ where
         request.auto_mode,
         &request.config.custom_instructions,
     );
-    let agent = AgentBuilder::new(model)
+    let mut agent = AgentBuilder::new(model)
         .name("Vibe CS Copilot")
         .description("Evidence-grounded CS2 demo coach and end-to-end video collaborator")
         .preamble(&preamble)
-        .max_tokens(3_000)
-        .dynamic_tools(dynamic_tools)
-        .build();
+        .max_tokens(MAXIMUM_COMPLETION_TOKENS)
+        .dynamic_tools(dynamic_tools);
+    if request.config.provider.eq_ignore_ascii_case("openrouter") {
+        // OpenRouter reasoning models can default to spending nearly the whole
+        // completion budget on hidden thought. Keep enough room for a Tool call
+        // or final answer while preserving the reasoning blocks between turns.
+        agent = agent.additional_params(serde_json::json!({
+            "reasoning": {"effort": "low"}
+        }));
+    }
+    let agent = agent.build();
     let history = request
         .history
         .into_iter()
@@ -589,7 +598,7 @@ mod tests {
             message: "请把 ace-1 做成完整的 MP4 高光视频。".into(),
             history: Vec::new(),
             config: AgentConfig {
-                provider: "rig-e2e".into(),
+                provider: "openrouter".into(),
                 model: "rig-e2e-model".into(),
                 base_url: format!("http://{address}/v1"),
                 api_key: "rig-e2e-secret".into(),
@@ -621,6 +630,8 @@ mod tests {
         .expect("agent response");
         let requests = provider.await.expect("provider task");
         assert_eq!(requests.len(), 4);
+        assert_eq!(requests[0]["max_tokens"], MAXIMUM_COMPLETION_TOKENS);
+        assert_eq!(requests[0]["reasoning"]["effort"], "low");
         assert!(
             requests[3]["messages"]
                 .as_array()

@@ -168,6 +168,18 @@ describe('成品 › 成品文件', () => {
     expect(screen.getByText('8.75 s · 1920×1080 · 60 fps · H264 / AAC')).toBeTruthy();
     expect(screen.getByRole('button', { name: '定位文件' })).toBeTruthy();
   });
+
+  it('uses one comparable file row and anchors the newest output', async () => {
+    const { client } = stubs();
+    const { container } = renderPage({
+      element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY,
+    });
+
+    await screen.findByRole('heading', { name: 'Kael 1v3' });
+    expect(screen.getByText('文件大小')).toBeTruthy();
+    expect(screen.getByText('时长 · 分辨率 · 帧率 · 编码')).toBeTruthy();
+    expect(container.querySelector('[data-output-emphasized="true"]')?.getAttribute('data-output')).toBe('out-1');
+  });
 });
 
 describe('成品 › 后台任务', () => {

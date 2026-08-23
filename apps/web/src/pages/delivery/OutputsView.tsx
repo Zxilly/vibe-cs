@@ -30,7 +30,7 @@ import { dataErrorMessage } from '../../data/errors';
 import { useDeleteOutput, useOutputList, useRevealOutput } from '../../data/outputs';
 import { Empty, Pagination } from '../../design/data';
 import { Alert } from '../../design/feedback';
-import { CARD_LIST_GAP_CLASS, Toolbar, cn } from '../../design/layout';
+import { Toolbar } from '../../design/layout';
 import { Seg } from '../../design/primitives';
 import type { OutputItem, OutputQuery } from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
@@ -160,7 +160,7 @@ export function OutputsView({ service, now }: OutputsViewProps) {
         )}
 
         {errorMessage !== undefined ? null : outputs.isPending ? (
-          <div className={cn('grid xl:grid-cols-2', CARD_LIST_GAP_CLASS)}>
+          <div className="grid gap-3">
             {Array.from({ length: 4 }, (_unused, index) => (
               <OutputCardSkeleton key={index} />
             ))}
@@ -175,11 +175,24 @@ export function OutputsView({ service, now }: OutputsViewProps) {
             }
           />
         ) : (
-          <div className={cn('grid xl:grid-cols-2', CARD_LIST_GAP_CLASS)}>
-            {items.map((output) => (
+          <div className="min-w-[68rem] border-t border-divider">
+            <div
+              className="grid h-10 grid-cols-[var(--w-track-head)_minmax(15rem,1.35fr)_9rem_15rem_minmax(15rem,1fr)_6rem] border-x border-b border-divider bg-neutral-50 text-2xs font-medium tracking-wide text-neutral-700"
+              aria-hidden="true"
+            >
+              <span className="flex items-center px-4"><Trans>预览</Trans></span>
+              <span className="flex items-center border-l border-divider px-4"><Trans>文件名</Trans></span>
+              <span className="flex items-center border-l border-divider px-4"><Trans>文件大小</Trans></span>
+              <span className="flex items-center border-l border-divider px-4"><Trans>时长 · 分辨率 · 帧率 · 编码</Trans></span>
+              <span className="flex items-center border-l border-divider px-4"><Trans>文件路径</Trans></span>
+              <span className="flex items-center justify-center border-l border-divider px-2"><Trans>操作</Trans></span>
+            </div>
+            {items.map((output, index) => (
               <OutputCard
                 key={`${output.output_kind}:${output.id}`}
                 output={output}
+                layout="row"
+                emphasized={page === 1 && filter === 'all' && index === 0}
                 onReveal={onReveal}
                 onDelete={onDelete}
                 service={service}

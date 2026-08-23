@@ -48,6 +48,10 @@ export interface OutputCardProps {
   readonly now?: Date | undefined;
   readonly timeZone?: string | undefined;
   readonly className?: string | undefined;
+  /** Full-width delivery table row. The compact card remains the home variant. */
+  readonly layout?: 'card' | 'row' | undefined;
+  /** Gives the newest output a stable visual anchor without inventing selection. */
+  readonly emphasized?: boolean | undefined;
 }
 
 export function OutputCard({
@@ -58,6 +62,8 @@ export function OutputCard({
   now,
   timeZone,
   className,
+  layout = 'card',
+  emphasized = false,
 }: OutputCardProps) {
   const shell = useNativeShell();
   const usable = outputFileIsUsable(output.availability);
@@ -71,6 +77,104 @@ export function OutputCard({
   const streamUrl = usable
     ? shell.mediaSrc(`/api/outputs/${output.output_kind}/${output.id}/stream`)
     : null;
+
+  const preview = (
+    <div
+      className={cn(
+        'grid aspect-video w-[var(--w-track-head)] flex-none place-items-center border',
+        usable ? 'border-divider bg-neutral-100 text-neutral-600' : 'border-fail-border text-fail-text',
+      )}
+    >
+      {streamUrl !== null && output.media?.width != null ? (
+        <video
+          className="h-full w-full object-contain"
+          src={streamUrl}
+          controls
+          preload="metadata"
+          aria-label={`${output.title} preview`}
+        />
+      ) : usable ? (
+        <Film size={18} strokeWidth={1.5} aria-hidden="true" />
+      ) : (
+        <span className="text-2xs">
+          <Trans>文件不在原位</Trans>
+        </span>
+      )}
+    </div>
+  );
+
+  if (layout === 'row') {
+    return (
+      <Blueprint
+        as="article"
+        data-output={output.id}
+        data-output-kind={output.output_kind}
+        data-output-availability={output.availability}
+        data-output-emphasized={emphasized ? 'true' : undefined}
+        className={cn(
+          'grid min-h-[7rem] grid-cols-[var(--w-track-head)_minmax(15rem,1.35fr)_9rem_15rem_minmax(15rem,1fr)_6rem] border-x border-b',
+          usable ? 'border-divider' : 'border-fail-border',
+          emphasized && usable ? 'bg-accent-100 shadow-[inset_3px_0_0_var(--color-accent-600)]' : 'bg-neutral-0',
+          className,
+        )}
+      >
+        <div className="flex items-center justify-center p-3">{preview}</div>
+
+        <div className="flex min-w-0 flex-col justify-center border-l border-divider px-4 py-3">
+          <h3 className="min-w-0 truncate text-md leading-tight font-normal">{output.title}</h3>
+          {output.title === output.file_name ? null : (
+            <p className="mt-1 min-w-0 truncate font-mono text-2xs text-neutral-600" title={output.file_name}>
+              {output.file_name}
+            </p>
+          )}
+          <div className="mt-2 flex min-w-0 flex-wrap items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => onReveal(output)}>
+              <Trans>定位文件</Trans>
+            </Button>
+            {sourceTaskId === null ? null : (
+              <RouteLink to={`/delivery/task/${encodeURIComponent(sourceTaskId)}`} size="sm">
+                <Trans>来源任务</Trans>
+              </RouteLink>
+            )}
+          </div>
+        </div>
+
+        <div className="flex min-w-0 flex-col justify-center border-l border-divider px-4 py-3 text-xs text-neutral-700">
+          <span>{size ?? '—'}</span>
+          <span className={cn('mt-1', usable ? 'text-neutral-600' : 'text-fail-text')}>
+            {usable ? stamp : <Trans>文件缺失</Trans>}
+          </span>
+          <span className="mt-1 text-neutral-600">
+            {output.managed ? <Trans>受管文件</Trans> : <Trans>外部文件</Trans>}
+          </span>
+        </div>
+
+        <div className="flex min-w-0 items-center border-l border-divider px-4 py-3 text-xs text-neutral-700">
+          {usable ? (mediaFacts.length === 0 ? '—' : mediaFacts.join(' · ')) : (
+            <Trans>记录仍在，文件已被移动或删除</Trans>
+          )}
+        </div>
+
+        <div className="flex min-w-0 items-center border-l border-divider px-4 py-3">
+          <p className="line-clamp-3 min-w-0 break-all font-mono text-2xs leading-normal text-neutral-600" title={output.path}>
+            {output.path}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-center border-l border-divider px-2 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(output)}
+            {...service.buttonProps}
+          >
+            {outputDeletionRemovesFile(output) ? <Trans>删除</Trans> : <Trans>移除记录</Trans>}
+            {service.suffix}
+          </Button>
+        </div>
+      </Blueprint>
+    );
+  }
 
   return (
     <Blueprint
@@ -91,28 +195,7 @@ export function OutputCard({
        * `media/FilmStrip` — §10.3 deviation 4). Adopting the home artboard's
        * size costs 36px of thumbnail and avoids an eighteenth panel width.
        */}
-      <div
-        className={cn(
-          'grid aspect-video w-[var(--w-track-head)] flex-none place-items-center border',
-          usable ? 'border-divider bg-neutral-100 text-neutral-600' : 'border-fail-border text-fail-text',
-        )}
-      >
-        {streamUrl !== null && output.media?.width != null ? (
-          <video
-            className="h-full w-full object-contain"
-            src={streamUrl}
-            controls
-            preload="metadata"
-            aria-label={`${output.title} preview`}
-          />
-        ) : usable ? (
-          <Film size={18} strokeWidth={1.5} aria-hidden="true" />
-        ) : (
-          <span className="text-2xs">
-            <Trans>文件不在原位</Trans>
-          </span>
-        )}
-      </div>
+      {preview}
 
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
         <h3 className="min-w-0 truncate text-md leading-tight font-normal">{output.title}</h3>

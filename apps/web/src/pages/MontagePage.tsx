@@ -241,7 +241,7 @@ export function MontageWorkspace({ projectId, embedded = false }: { readonly pro
               </span>
             )
           }
-          actions={[
+          actions={embedded ? [] : [
             {
               id: 'editor',
               label: <Trans>在多轨编辑器中打开</Trans>,

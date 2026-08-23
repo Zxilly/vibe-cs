@@ -54,7 +54,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMatchAnalysis, useMatchHeatPoints, useMatchReplay, useMapRadarOverview, analysisIsMissing } from '../../../data/match';
 import { dataErrorMessage } from '../../../data/errors';
 import { Empty, Skeleton } from '../../../design/data';
-import { Alert } from '../../../design/feedback';
+import { Alert, StatusDot } from '../../../design/feedback';
 import { Button, Checkbox, Seg, cn } from '../../../design/primitives';
 import {
   DEFAULT_HEAT_GRID_SIZE,
@@ -159,6 +159,23 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
   const duels = useMemo(
     () => buildEngagements(events, slice?.frames ?? []),
     [events, slice],
+  );
+  // Prefer a player who actually has a route at the current playhead. The
+  // roster's first entry may have no position sample yet, which would turn the
+  // default focus into a blank canvas.
+  const effectivePlayerId = context.player
+    ?? tracks.paths[0]?.playerId
+    ?? analysis.data?.players[0]?.id
+    ?? null;
+  const focusedEngagements = useMemo(
+    () => effectivePlayerId === null
+      ? duels.engagements
+      : duels.engagements.filter(
+          (engagement) =>
+            engagement.attacker.playerId === effectivePlayerId
+            || engagement.victim.playerId === effectivePlayerId,
+        ),
+    [duels.engagements, effectivePlayerId],
   );
 
   const calibration = useMemo(
@@ -363,14 +380,17 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
             ) : (
               <ul className="flex list-none flex-col gap-1">
                 {(analysis.data?.players ?? []).map((player) => {
-                  const focused = player.id === context.player;
+                  const focused = player.id === effectivePlayerId;
+                  const explicitlyFocused = player.id === context.player;
                   return (
                     <li key={player.id}>
                       <button
                         type="button"
                         data-replay-player={player.id}
                         aria-pressed={focused}
-                        onClick={() => updateContext({ player: focused ? null : player.id })}
+                        onClick={() =>
+                          updateContext({ player: explicitlyFocused ? null : player.id })
+                        }
                         className={cn(
                           'flex w-full items-center gap-2 px-1 py-1 text-left text-sm',
                           'hover:bg-surface',
@@ -399,6 +419,17 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
 
         {/* ── canvas + transport ─────────────────────────────────────────── */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {!radar.isPending && radar.data?.transform === undefined ? (
+            <div
+              role="status"
+              className="m-3.5 mb-0 flex items-start gap-2.5 border border-warn-border bg-warn-surface px-3 py-2.5 text-sm text-warn-text"
+            >
+              <StatusDot status="warn" className="mt-1" />
+              <Trans>
+                未读取到本地雷达底图；当前使用相对坐标绘制。路线与交战关系仍可比较，但不能对应地图点位。
+              </Trans>
+            </div>
+          ) : null}
           <div className="flex min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
             <ReplayCanvas
               className="flex-1"
@@ -409,9 +440,9 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
               layers={layers}
               markers={markers}
               paths={tracks.paths}
-              engagements={duels.engagements}
+              engagements={focusedEngagements}
               distribution={distribution}
-              selectedPlayerId={context.player}
+              selectedPlayerId={effectivePlayerId}
               onSelectPlayer={(playerId) =>
                 updateContext({ player: playerId === context.player ? null : playerId })
               }

@@ -98,6 +98,13 @@ describe('the body', () => {
     expect(html).toContain('data-player-marker="kael"');
   });
 
+  it('focuses the first roster player by default without needing a URL player', () => {
+    loaded();
+    const html = markupView(<ReplayView.Body {...viewProps()} />);
+
+    expect(html).toMatch(/data-replay-player="kael"[^>]*aria-pressed="true"/u);
+  });
+
   it('prints the playhead in ticks beside the transport', () => {
     loaded();
     const html = markupView(<ReplayView.Body {...viewProps({ context: { tick: 149_128 } })} />);

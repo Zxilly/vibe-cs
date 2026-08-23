@@ -100,6 +100,14 @@ describe('the first-run strip', () => {
 });
 
 describe('使用引导', () => {
+  it('presents the pipeline beside readiness and focuses the first real action', async () => {
+    render(<GuidePage />);
+    await screen.findByText('这台机器现在能做什么');
+
+    expect(document.querySelector('[data-guide-current="true"]')?.getAttribute('data-guide-step')).toBe('import');
+    expect(document.querySelectorAll('[data-guide-step]')).toHaveLength(3);
+  });
+
   it('says what each dependency is for', async () => {
     render(<GuidePage />);
     await waitFor(() => {

@@ -57,15 +57,25 @@ export function GuidePage() {
         />
       }
     >
-      <div className="flex flex-col gap-5 p-7">
-        <section className="flex flex-col gap-3">
+      <div className="grid min-h-0 grid-cols-1 gap-4 p-7 xl:grid-cols-[minmax(0,1.5fr)_minmax(24rem,1fr)]">
+        <section className="flex min-h-[40rem] flex-col gap-4 border border-divider p-5">
           <h2 className="text-base font-medium">
             <Trans>三步</Trans>
           </h2>
-          <ol className="flex flex-col gap-2.5">
+          <ol className="flex flex-col gap-3">
             {FIRST_RUN_STEPS.map((step, index) => (
-              <li key={step.id} className="flex items-start gap-3 border border-divider p-3">
-                <span className="flex-none font-mono text-sm text-neutral-600">
+              <li
+                key={step.id}
+                data-guide-step={step.id}
+                data-guide-current={index === 0 ? 'true' : undefined}
+                className={index === 0
+                  ? 'flex min-h-28 items-center gap-6 border border-accent bg-accent-100 p-5 shadow-[inset_3px_0_0_var(--color-accent)]'
+                  : 'flex min-h-28 items-center gap-6 border border-divider p-5'}
+              >
+                <span className={index === 0
+                  ? 'w-16 flex-none font-heading text-3xl text-accent-800'
+                  : 'w-16 flex-none font-heading text-3xl text-neutral-500'}
+                >
                   {String(index + 1).padStart(2, '0')}
                 </span>
                 <div className="flex min-w-0 flex-col gap-1">
@@ -77,7 +87,7 @@ export function GuidePage() {
           </ol>
         </section>
 
-        <section className="flex flex-col gap-3">
+        <section className="flex min-h-[40rem] min-w-0 flex-col gap-4 border border-divider p-5">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-base font-medium">
               <Trans>这台机器现在能做什么</Trans>
@@ -103,9 +113,13 @@ export function GuidePage() {
               <Skeleton width="82%" />
             </div>
           ) : (
-            <ul className="flex flex-col gap-2.5">
+            <ul className="flex flex-col">
               {(checks.data?.checks ?? []).map((check) => (
-                <li key={`${check.kind}:${check.label}`} className="flex flex-col gap-1" data-guide-check={check.kind}>
+                <li
+                  key={`${check.kind}:${check.label}`}
+                  className="flex flex-col gap-1 border-b border-divider py-4 first:pt-2 last:border-b-0"
+                  data-guide-check={check.kind}
+                >
                   <div className="flex items-center gap-2.5 text-sm">
                     <StatusDot status={dotStatus(check.state)} />
                     <span>{check.label}</span>
@@ -124,7 +138,7 @@ export function GuidePage() {
             </ul>
           )}
 
-          <p className="text-xs leading-normal text-neutral-600">
+          <p className="mt-auto text-xs leading-normal text-neutral-600">
             <Trans>
               逐项的原始状态与路径校验在
               <RouteLink to={settingsPath('dependencies')}>设置 · 高级与诊断</RouteLink>。

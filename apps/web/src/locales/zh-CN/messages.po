@@ -64,7 +64,7 @@ msgstr "· 需要服务"
 msgid "‹ Demo 资料库"
 msgstr "‹ Demo 资料库"
 
-#: src/pages/ProjectWorkspacePage.tsx:70
+#: src/pages/ProjectWorkspacePage.tsx:71
 msgid "‹ 作品"
 msgstr "‹ 作品"
 
@@ -109,7 +109,7 @@ msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, other {# 个作品}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
-#: src/pages/LibraryPage.tsx:338
+#: src/pages/LibraryPage.tsx:368
 msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, other {# 个监听目录}}"
 
@@ -134,12 +134,12 @@ msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, other {# 回合}}"
 
 #. placeholder {0}: list.data?.total ?? 0
-#: src/pages/LibraryPage.tsx:336
+#: src/pages/LibraryPage.tsx:366
 msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, other {# 场}}"
 
 #. placeholder {0}: retention.days
-#: src/pages/settings/AiAgentSection.tsx:639
+#: src/pages/settings/AiAgentSection.tsx:1000
 msgid "{0, plural, other {# 天}}"
 msgstr "{0, plural, other {# 天}}"
 
@@ -169,12 +169,12 @@ msgid "{0, plural, other {其中 # 条是受管文件，会进入可回滚暂存
 msgstr "{0, plural, other {其中 # 条是受管文件，会进入可回滚暂存，24 小时后清除。}}"
 
 #. placeholder {0}: retention.count
-#: src/pages/settings/AiAgentSection.tsx:637
+#: src/pages/settings/AiAgentSection.tsx:998
 msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, other {最近 # 条}}"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:258
+#: src/pages/LibraryPage.tsx:280
 msgid "{0, plural, other {分析选中的 # 场}}"
 msgstr "{0, plural, other {分析选中的 # 场}}"
 
@@ -194,7 +194,7 @@ msgid "{0, plural, other {已关联 # 场比赛}}"
 msgstr "{0, plural, other {已关联 # 场比赛}}"
 
 #. placeholder {0}: exportResult.count
-#: src/pages/settings/AiAgentSection.tsx:847
+#: src/pages/settings/AiAgentSection.tsx:1208
 msgid "{0, plural, other {已导出 # 条会话}}"
 msgstr "{0, plural, other {已导出 # 条会话}}"
 
@@ -288,7 +288,7 @@ msgstr "{0} 个片段 · {1} 秒"
 #. placeholder {0}: planData.shots.length
 #. placeholder {1}: planData.revision
 #. placeholder {2}: i18n._(AGENT_PLAN_STATUS[planData.status].label)
-#: src/pages/AgentPage.tsx:354
+#: src/pages/AgentPage.tsx:361
 msgid "{0} 个片段 · 修订 {1} · {2}"
 msgstr "{0} 个片段 · 修订 {1} · {2}"
 
@@ -542,9 +542,13 @@ msgstr "{pendingCount, plural, other {# 待确认}}"
 msgid "{playerName} 在 {mapName} 的位置热图"
 msgstr "{playerName} 在 {mapName} 的位置热图"
 
-#: src/pages/settings/AiAgentSection.tsx:178
+#: src/pages/settings/AiAgentSection.tsx:180
 msgid "{removed, plural, other {已删除 # 条会话，方案、任务和视频都还在}}"
 msgstr "{removed, plural, other {已删除 # 条会话，方案、任务和视频都还在}}"
+
+#: src/pages/settings/AiAgentSection.tsx:634
+msgid "{reserved} 由 Agent 运行时管理，不能在这里覆盖"
+msgstr "{reserved} 由 Agent 运行时管理，不能在这里覆盖"
 
 #: src/pages/match/views/TeamsView.tsx:178
 msgid "{score} 回合"
@@ -555,11 +559,11 @@ msgstr "{score} 回合"
 msgid "{seconds} 秒"
 msgstr "{seconds} 秒"
 
-#: src/pages/settings/AiAgentSection.tsx:770
+#: src/pages/settings/AiAgentSection.tsx:1131
 msgid "{seconds} 秒左右"
 msgstr "{seconds} 秒左右"
 
-#: src/pages/settings/AiAgentSection.tsx:865
+#: src/pages/settings/AiAgentSection.tsx:1226
 msgid "{sessionCount, plural, other {# 条会话}}"
 msgstr "{sessionCount, plural, other {# 条会话}}"
 
@@ -650,7 +654,7 @@ msgid "「{0}」没有匹配到选手或别名。目录只按名字和别名做�
 msgstr "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
 
 #. placeholder {0}: selectedShot.title
-#: src/pages/agent/ConversationModes.tsx:285
+#: src/pages/agent/ConversationModes.tsx:290
 msgid "「{0}」还没有录制结果。确认剪辑单并完成录制后，Take 会自动出现在这里。"
 msgstr "「{0}」还没有录制结果。确认剪辑单并完成录制后，Take 会自动出现在这里。"
 
@@ -739,12 +743,12 @@ msgstr "Agent"
 msgid "Agent 为{kindLabel}生成了 {count, plural, other {# 个镜头}}"
 msgstr "Agent 为{kindLabel}生成了 {count, plural, other {# 个镜头}}"
 
-#: src/pages/settings/AiAgentSection.tsx:380
+#: src/pages/settings/AiAgentSection.tsx:382
 msgid "Agent 写点评与镜头意图时的措辞。"
 msgstr "Agent 写点评与镜头意图时的措辞。"
 
 #: src/app/shell/navigation.tsx:93
-#: src/pages/AgentPage.tsx:348
+#: src/pages/AgentPage.tsx:355
 msgid "Agent 创作"
 msgstr "Agent 创作"
 
@@ -757,15 +761,15 @@ msgstr "Agent 删除的"
 msgid "Agent 成片流程"
 msgstr "Agent 成片流程"
 
-#: src/pages/settings/AiAgentSection.tsx:338
+#: src/pages/settings/AiAgentSection.tsx:340
 msgid "Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。"
 msgstr "Agent 把镜头交过来时用的初始视角。每个镜头仍可在方案里单独改。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:253
+#: src/pages/agent/AgentConversationBlock.tsx:264
 msgid "Agent 正在回答，先等它说完或点停止"
 msgstr "Agent 正在回答，先等它说完或点停止"
 
-#: src/pages/settings/AiAgentSection.tsx:776
+#: src/pages/settings/AiAgentSection.tsx:1137
 msgid "Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。"
 msgstr "Agent 设计镜头时瞄准的长度。它是目标不是上限，需要更长的方案不会被截断。"
 
@@ -773,11 +777,11 @@ msgstr "Agent 设计镜头时瞄准的长度。它是目标不是上限，需要
 msgid "Agent 读取的内容"
 msgstr "Agent 读取的内容"
 
-#: src/pages/ProjectWorkspacePage.tsx:201
+#: src/pages/ProjectWorkspacePage.tsx:202
 msgid "Agent 辅助"
 msgstr "Agent 辅助"
 
-#: src/pages/ProjectWorkspacePage.tsx:301
+#: src/pages/ProjectWorkspacePage.tsx:303
 msgid "Agent 镜头必须先落成真实 Take 和快速剪辑副本，再从快速剪辑复制到多轨精剪；不能跳过素材落地。"
 msgstr "Agent 镜头必须先落成真实 Take 和快速剪辑副本，再从快速剪辑复制到多轨精剪；不能跳过素材落地。"
 
@@ -803,13 +807,29 @@ msgstr "AI 模型"
 msgid "AI 点评"
 msgstr "AI 点评"
 
-#: src/pages/settings/AiAgentSection.tsx:519
+#: src/pages/settings/AiAgentSection.tsx:850
+msgid "Anthropic output effort"
+msgstr "Anthropic output effort"
+
+#: src/pages/settings/AiAgentSection.tsx:817
+msgid "Anthropic thinking"
+msgstr "Anthropic thinking"
+
+#: src/pages/settings/AiAgentSection.tsx:527
 msgid "API 地址"
 msgstr "API 地址"
 
-#: src/pages/settings/AiAgentSection.tsx:526
+#: src/pages/settings/AiAgentSection.tsx:534
 msgid "API 密钥"
 msgstr "API 密钥"
+
+#: src/pages/agent/AgentComposer.tsx:147
+msgid "Auto"
+msgstr "Auto"
+
+#: src/pages/agent/AgentConfirmationCard.tsx:138
+msgid "Auto 已批准"
+msgstr "Auto 已批准"
 
 #: src/pages/settings/GameSection.tsx:123
 msgid "CS2 位置"
@@ -868,7 +888,7 @@ msgstr "Demo 文件缺失，无法开始分析"
 #: src/app/shell/navigation.tsx:86
 #: src/app/shell/navigation.tsx:110
 #: src/pages/home/RecentMatchesPanel.tsx:52
-#: src/pages/LibraryPage.tsx:333
+#: src/pages/LibraryPage.tsx:363
 msgid "Demo 资料库"
 msgstr "Demo 资料库"
 
@@ -887,6 +907,18 @@ msgstr "Demo、选手与 tick 区间不会被改动。改完之后需要重新�
 #: src/pages/agent/ShotEditForm.tsx:307
 msgid "Esc 放弃 · ⌘↵ 保存"
 msgstr "Esc 放弃 · ⌘↵ 保存"
+
+#: src/pages/settings/AiAgentSection.tsx:781
+msgid "Frequency penalty"
+msgstr "Frequency penalty"
+
+#: src/pages/agent/AgentComposer.tsx:150
+msgid "HITL 等待你的确认"
+msgstr "HITL 等待你的确认"
+
+#: src/pages/agent/AgentComposer.tsx:150
+msgid "HITL 自动批准，不暂停执行"
+msgstr "HITL 自动批准，不暂停执行"
 
 #: src/pages/recording/ShotInspectorBlock.tsx:355
 #: src/pages/recording/ShotInspectorBlock.tsx:359
@@ -921,9 +953,51 @@ msgstr "K/D"
 msgid "Kael 的穿墙击杀"
 msgstr "Kael 的穿墙击杀"
 
-#: src/pages/settings/AiAgentSection.tsx:519
+#: src/pages/settings/AiAgentSection.tsx:744
+msgid "Max completion tokens"
+msgstr "Max completion tokens"
+
+#: src/pages/settings/AiAgentSection.tsx:744
+msgid "Max tokens"
+msgstr "Max tokens"
+
+#: src/pages/settings/AiAgentSection.tsx:886
+msgid "model、messages、tools、tool_choice、stream 和认证字段由 Agent 管理，JSON 中不能覆盖。"
+msgstr "model、messages、tools、tool_choice、stream 和认证字段由 Agent 管理，JSON 中不能覆盖。"
+
+#: src/pages/settings/AiAgentSection.tsx:800
+msgid "OpenAI reasoning effort"
+msgstr "OpenAI reasoning effort"
+
+#: src/pages/settings/AiAgentSection.tsx:527
 msgid "OpenAI 兼容接口，填写到 /v1。"
 msgstr "OpenAI 兼容接口，填写到 /v1。"
+
+#: src/pages/settings/AiAgentSection.tsx:845
+msgid "Output effort"
+msgstr "Output effort"
+
+#: src/pages/settings/AiAgentSection.tsx:772
+msgid "Presence penalty"
+msgstr "Presence penalty"
+
+#: src/pages/settings/AiAgentSection.tsx:701
+msgid "Provider 参数"
+msgstr "Provider 参数"
+
+#: src/pages/settings/AiAgentSection.tsx:495
+msgid "Provider 参数必须是 JSON object"
+msgstr "Provider 参数必须是 JSON object"
+
+#: src/pages/settings/AiAgentSection.tsx:716
+msgid "Provider 参数风格"
+msgstr "Provider 参数风格"
+
+#: src/pages/settings/AiAgentSection.tsx:803
+#: src/pages/settings/AiAgentSection.tsx:820
+#: src/pages/settings/AiAgentSection.tsx:853
+msgid "Provider 默认"
+msgstr "Provider 默认"
 
 #. placeholder {0}: highlight.round
 #. placeholder {0}: kill.round
@@ -956,6 +1030,10 @@ msgstr "R{0} · {1} → {2}"
 msgid "R{0} · tick {1}"
 msgstr "R{0} · tick {1}"
 
+#: src/pages/settings/AiAgentSection.tsx:795
+msgid "Reasoning effort"
+msgstr "Reasoning effort"
+
 #: src/pages/match/viewContract.ts:243
 msgctxt "match-view"
 msgid "Review 与注释"
@@ -964,6 +1042,10 @@ msgstr "Review 与注释"
 #: src/pages/match/views/ReviewView.tsx:132
 msgid "Review 分区"
 msgstr "Review 分区"
+
+#: src/pages/settings/AiAgentSection.tsx:753
+msgid "Seed"
+msgstr "Seed"
 
 #. placeholder {0}: formatSyncedAt(syncedAt)
 #: src/pages/HistoryPage.tsx:140
@@ -984,8 +1066,8 @@ msgstr "Steam 上的对局记录与回放下载"
 
 #: src/app/routeCrumb.ts:112
 #: src/pages/LibraryPage.tsx:113
-#: src/pages/LibraryPage.tsx:348
-#: src/pages/LibraryPage.tsx:351
+#: src/pages/LibraryPage.tsx:378
+#: src/pages/LibraryPage.tsx:381
 #: src/pages/settings/FilesSection.tsx:274
 msgid "Steam 下载"
 msgstr "Steam 下载"
@@ -1006,6 +1088,10 @@ msgstr "Steam 设置"
 #: src/pages/settings/FilesSection.tsx:311
 msgid "Steam 验证码"
 msgstr "Steam 验证码"
+
+#: src/pages/settings/AiAgentSection.tsx:865
+msgid "Stop sequences"
+msgstr "Stop sequences"
 
 #. placeholder {0}: totals.t.purchases
 #. placeholder {1}: money(totals.t.spend)
@@ -1033,6 +1119,18 @@ msgstr "Take 与 Composition 已确认；当前环境没有自动启动导出，
 msgctxt "agent-mode"
 msgid "Take 比较"
 msgstr "Take 比较"
+
+#: src/pages/settings/AiAgentSection.tsx:726
+msgid "Temperature"
+msgstr "Temperature"
+
+#: src/pages/settings/AiAgentSection.tsx:812
+msgid "Thinking"
+msgstr "Thinking"
+
+#: src/pages/settings/AiAgentSection.tsx:832
+msgid "Thinking budget tokens"
+msgstr "Thinking budget tokens"
 
 #: src/domain/agent/PlanShotRow.tsx:74
 #: src/domain/match/EvidenceRow.tsx:79
@@ -1066,11 +1164,23 @@ msgstr "tick 未定位"
 msgid "Token 用量未知"
 msgstr "Token 用量未知"
 
+#: src/pages/settings/AiAgentSection.tsx:761
+msgid "Top K"
+msgstr "Top K"
+
+#: src/pages/settings/AiAgentSection.tsx:735
+msgid "Top P"
+msgstr "Top P"
+
 #: src/pages/HistoryPage.tsx:189
 msgid "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 msgstr "Valve 官方链路。FACEIT 等平台连接器尚未提供"
 
-#: src/pages/agent/AgentConversationBlock.tsx:464
+#: src/pages/settings/AiAgentSection.tsx:703
+msgid "Vibe CS 不再自动设置 reasoning、采样或输出上限。留空就使用 provider 默认值。"
+msgstr "Vibe CS 不再自动设置 reasoning、采样或输出上限。留空就使用 provider 默认值。"
+
+#: src/pages/agent/AgentConversationBlock.tsx:512
 msgid "一句话说清时长、重点和用途就够了。发送后会自动建立对话，并结合当前 Demo 生成第一版剪辑单。"
 msgstr "一句话说清时长、重点和用途就够了。发送后会自动建立对话，并结合当前 Demo 生成第一版剪辑单。"
 
@@ -1182,11 +1292,11 @@ msgstr "不会动：任何还在磁盘上的文件。只有已经找不到的记
 msgid "不会动：已经完成的录制结果与成片，以及它们在资料库里的记录。"
 msgstr "不会动：已经完成的录制结果与成片，以及它们在资料库里的记录。"
 
-#: src/pages/settings/AiAgentSection.tsx:641
+#: src/pages/settings/AiAgentSection.tsx:1002
 msgid "不保留"
 msgstr "不保留"
 
-#: src/pages/settings/AiAgentSection.tsx:293
+#: src/pages/settings/AiAgentSection.tsx:295
 msgid "不可关闭：录制会启动游戏并写出文件，必须有一次人工确认。"
 msgstr "不可关闭：录制会启动游戏并写出文件，必须有一次人工确认。"
 
@@ -1235,7 +1345,7 @@ msgstr "不透明度"
 msgid "与视频链接"
 msgstr "与视频链接"
 
-#: src/pages/settings/AiAgentSection.tsx:368
+#: src/pages/settings/AiAgentSection.tsx:370
 msgid "专业"
 msgstr "专业"
 
@@ -1343,7 +1453,7 @@ msgstr "从 CS2 最近比赛复制一条分享代码，服务会从它继续同�
 msgid "从 Steam 同步最近比赛并下载回放"
 msgstr "从 Steam 同步最近比赛并下载回放"
 
-#: src/pages/agent/conversationModel.ts:353
+#: src/pages/agent/conversationModel.ts:352
 msgid "从他起跳开始"
 msgstr "从他起跳开始"
 
@@ -1426,11 +1536,11 @@ msgstr "会做什么：用上一次自动备份覆盖当前配置文件，然后
 msgid "会把相机路径写成 HLAE 脚本落到磁盘，并启动 CS2 跳到这个镜头的起点。只是预览，不会录制任何画面。"
 msgstr "会把相机路径写成 HLAE 脚本落到磁盘，并启动 CS2 跳到这个镜头的起点。只是预览，不会录制任何画面。"
 
-#: src/pages/ProjectWorkspacePage.tsx:303
+#: src/pages/ProjectWorkspacePage.tsx:305
 msgid "会新建一个多轨工程，复制当前片段顺序和裁切。包装、背景音乐与转场不会复制，源快速剪辑不会被修改，也不会反向同步。"
 msgstr "会新建一个多轨工程，复制当前片段顺序和裁切。包装、背景音乐与转场不会复制，源快速剪辑不会被修改，也不会反向同步。"
 
-#: src/pages/settings/AiAgentSection.tsx:594
+#: src/pages/settings/AiAgentSection.tsx:955
 msgid "会话保留多久"
 msgstr "会话保留多久"
 
@@ -1447,7 +1557,7 @@ msgstr "会话是一条独立的对话线程，可以直接接管工作区里已
 msgid "会话的新名称"
 msgstr "会话的新名称"
 
-#: src/pages/settings/AiAgentSection.tsx:535
+#: src/pages/settings/AiAgentSection.tsx:576
 msgid "会追加到 Agent 的系统指令；留空使用默认行为。"
 msgstr "会追加到 Agent 的系统指令；留空使用默认行为。"
 
@@ -1486,12 +1596,12 @@ msgid "作品、剪辑单、录制与成品"
 msgstr "作品、剪辑单、录制与成品"
 
 #: src/app/routeCrumb.ts:70
-#: src/pages/ProjectWorkspacePage.tsx:48
-#: src/pages/ProjectWorkspacePage.tsx:59
+#: src/pages/ProjectWorkspacePage.tsx:49
+#: src/pages/ProjectWorkspacePage.tsx:60
 msgid "作品工作区"
 msgstr "作品工作区"
 
-#: src/pages/ProjectWorkspacePage.tsx:72
+#: src/pages/ProjectWorkspacePage.tsx:73
 msgid "作品步骤"
 msgstr "作品步骤"
 
@@ -1569,7 +1679,7 @@ msgid "保存当前的搜索、筛选、排序和列配置"
 msgstr "保存当前的搜索、筛选、排序和列配置"
 
 #. placeholder {0}: dataErrorMessage(putComposition.error)
-#: src/pages/agent/ConversationModes.tsx:337
+#: src/pages/agent/ConversationModes.tsx:342
 msgid "保存成片选择失败：{0}"
 msgstr "保存成片选择失败：{0}"
 
@@ -1577,7 +1687,7 @@ msgstr "保存成片选择失败：{0}"
 msgid "保存改动"
 msgstr "保存改动"
 
-#: src/pages/settings/AiAgentSection.tsx:554
+#: src/pages/settings/AiAgentSection.tsx:595
 msgid "保存模型设置"
 msgstr "保存模型设置"
 
@@ -1594,7 +1704,7 @@ msgstr "保存的视图只保留到关闭应用为止"
 msgid "保存裁切"
 msgstr "保存裁切"
 
-#: src/pages/settings/AiAgentSection.tsx:590
+#: src/pages/settings/AiAgentSection.tsx:951
 msgid "保留多久"
 msgstr "保留多久"
 
@@ -1602,7 +1712,7 @@ msgstr "保留多久"
 msgid "保留时长"
 msgstr "保留时长"
 
-#: src/pages/settings/AiAgentSection.tsx:137
+#: src/pages/settings/AiAgentSection.tsx:139
 msgid "保留策略没有应用成功"
 msgstr "保留策略没有应用成功"
 
@@ -1637,7 +1747,7 @@ msgstr "偏移"
 msgid "做一条集锦"
 msgstr "做一条集锦"
 
-#: src/pages/agent/AgentComposer.tsx:143
+#: src/pages/agent/AgentComposer.tsx:161
 msgid "停止"
 msgstr "停止"
 
@@ -1674,7 +1784,7 @@ msgstr "先保存改动，导出用的是服务端存着的工程"
 msgid "先在上面添加片段，这里会给出它们与拍点的关系。"
 msgstr "先在上面添加片段，这里会给出它们与拍点的关系。"
 
-#: src/pages/ProjectWorkspacePage.tsx:299
+#: src/pages/ProjectWorkspacePage.tsx:301
 msgid "先完成录制并建立 Composition，系统才有真实片段可复制到快速剪辑。现在不会创建空工程。"
 msgstr "先完成录制并建立 Composition，系统才有真实片段可复制到快速剪辑。现在不会创建空工程。"
 
@@ -1724,8 +1834,8 @@ msgstr "先选择一个回合、选手或片段"
 msgid "先选择一份 Demo 作为视频素材"
 msgstr "先选择一份 Demo 作为视频素材"
 
-#: src/pages/AgentPage.tsx:583
-#: src/pages/AgentPage.tsx:603
+#: src/pages/AgentPage.tsx:590
+#: src/pages/AgentPage.tsx:610
 msgid "先选择一份剪辑单"
 msgstr "先选择一份剪辑单"
 
@@ -1789,7 +1899,7 @@ msgstr "全部丢弃"
 msgid "全部任务"
 msgstr "全部任务"
 
-#: src/pages/settings/AiAgentSection.tsx:635
+#: src/pages/settings/AiAgentSection.tsx:996
 #: src/pages/settings/GameSection.tsx:295
 msgid "全部保留"
 msgstr "全部保留"
@@ -1798,7 +1908,7 @@ msgstr "全部保留"
 msgid "全部后台任务"
 msgstr "全部后台任务"
 
-#: src/pages/settings/AiAgentSection.tsx:869
+#: src/pages/settings/AiAgentSection.tsx:1230
 msgid "全部存在本机，不上传。"
 msgstr "全部存在本机，不上传。"
 
@@ -1925,12 +2035,12 @@ msgstr "关键词：{0}"
 
 #: src/app/command/CommandPalette.tsx:235
 #: src/design/layout/Inspector.tsx:270
-#: src/pages/agent/ConversationModes.tsx:335
-#: src/pages/ProjectWorkspacePage.tsx:249
+#: src/pages/agent/ConversationModes.tsx:340
+#: src/pages/ProjectWorkspacePage.tsx:250
 msgid "关闭"
 msgstr "关闭"
 
-#: src/pages/settings/AiAgentSection.tsx:309
+#: src/pages/settings/AiAgentSection.tsx:311
 msgid "关闭后，接受变更会直接改工程，仍可撤销。"
 msgstr "关闭后，接受变更会直接改工程，仍可撤销。"
 
@@ -1976,7 +2086,7 @@ msgstr "再修剪就不足一帧了"
 msgid "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
 msgstr "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
 
-#: src/pages/agent/conversationModel.ts:353
+#: src/pages/agent/conversationModel.ts:352
 msgid "再快一点"
 msgstr "再快一点"
 
@@ -1994,7 +2104,7 @@ msgstr "最大化或还原窗口"
 msgid "最小化窗口"
 msgstr "最小化窗口"
 
-#: src/pages/ProjectWorkspacePage.tsx:171
+#: src/pages/ProjectWorkspacePage.tsx:172
 msgid "最终视频已经生成，可以从成品文件页播放、定位或管理。"
 msgstr "最终视频已经生成，可以从成品文件页播放、定位或管理。"
 
@@ -2042,7 +2152,7 @@ msgstr "最近比赛没能读出来：{matchesError}"
 msgid "最近活动"
 msgstr "最近活动"
 
-#: src/pages/agent/AgentConversationBlock.tsx:470
+#: src/pages/agent/AgentConversationBlock.tsx:518
 msgid "写一句需求"
 msgstr "写一句需求"
 
@@ -2054,11 +2164,11 @@ msgstr "写下这场值得回头看的地方"
 msgid "写注释"
 msgstr "写注释"
 
-#: src/pages/agent/AgentConversationBlock.tsx:527
+#: src/pages/agent/AgentConversationBlock.tsx:575
 msgid "写第一条指令"
 msgstr "写第一条指令"
 
-#: src/pages/settings/AiAgentSection.tsx:614
+#: src/pages/settings/AiAgentSection.tsx:975
 msgid "决定会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。"
 msgstr "决定会话抽屉里能翻到多久以前。已生成的视频和任务记录不受影响。"
 
@@ -2066,7 +2176,7 @@ msgstr "决定会话抽屉里能翻到多久以前。已生成的视频和任务
 msgid "决定录制音轨里保留谁的语音。"
 msgstr "决定录制音轨里保留谁的语音。"
 
-#: src/pages/AgentPage.tsx:352
+#: src/pages/AgentPage.tsx:359
 msgid "准备创作"
 msgstr "准备创作"
 
@@ -2229,6 +2339,10 @@ msgstr "分析这名选手的比赛之后，每张地图的场次与命中会在
 msgid "分析限制 {0} 条"
 msgstr "分析限制 {0} 条"
 
+#: src/pages/agent/AgentConversationBlock.tsx:734
+msgid "分析音频节奏"
+msgstr "分析音频节奏"
+
 #: src/pages/editor/InspectorPanel.tsx:228
 msgid "分离音频"
 msgstr "分离音频"
@@ -2245,7 +2359,7 @@ msgstr "分页"
 msgid "切换工作模式，当前：{currentModeLabel}"
 msgstr "切换工作模式，当前：{currentModeLabel}"
 
-#: src/pages/LibraryPage.tsx:358
+#: src/pages/LibraryPage.tsx:388
 msgid "切换视图"
 msgstr "切换视图"
 
@@ -2270,13 +2384,13 @@ msgstr "创作准备"
 msgid "创作准备检查"
 msgstr "创作准备检查"
 
-#: src/pages/ProjectWorkspacePage.tsx:273
+#: src/pages/ProjectWorkspacePage.tsx:275
 msgid "创建并打开副本"
 msgstr "创建并打开副本"
 
 #: src/pages/agent/PlanPanel.tsx:501
 #: src/pages/agent/SessionDrawer.tsx:369
-#: src/pages/delivery/OutputCard.tsx:147
+#: src/pages/delivery/OutputCard.tsx:168
 #: src/pages/library/DeleteDemosDialog.tsx:61
 #: src/pages/match/views/ReviewView.tsx:755
 msgid "删除"
@@ -2300,7 +2414,7 @@ msgstr "删除对话"
 msgid "删除没有成功"
 msgstr "删除没有成功"
 
-#: src/pages/LibraryPage.tsx:290
+#: src/pages/LibraryPage.tsx:320
 msgid "删除记录"
 msgstr "删除记录"
 
@@ -2308,7 +2422,7 @@ msgstr "删除记录"
 msgid "删除这条对话？"
 msgstr "删除这条对话？"
 
-#: src/pages/agent/conversationModel.ts:353
+#: src/pages/agent/conversationModel.ts:352
 msgid "别贴这么近"
 msgstr "别贴这么近"
 
@@ -2316,7 +2430,7 @@ msgstr "别贴这么近"
 msgid "制作"
 msgstr "制作"
 
-#: src/pages/ProjectWorkspacePage.tsx:228
+#: src/pages/ProjectWorkspacePage.tsx:229
 msgid "制作方式"
 msgstr "制作方式"
 
@@ -2343,12 +2457,12 @@ msgid "剪辑中"
 msgstr "剪辑中"
 
 #: src/pages/ProjectsPage.tsx:89
-#: src/pages/ProjectWorkspacePage.tsx:107
+#: src/pages/ProjectWorkspacePage.tsx:108
 #: src/terminology.ts:28
 msgid "剪辑单"
 msgstr "剪辑单"
 
-#: src/pages/AgentPage.tsx:435
+#: src/pages/AgentPage.tsx:442
 msgid "剪辑单面板"
 msgstr "剪辑单面板"
 
@@ -2372,7 +2486,7 @@ msgstr "剪辑模式"
 msgid "剩余 {0}"
 msgstr "剩余 {0}"
 
-#: src/pages/agent/conversationModel.ts:348
+#: src/pages/agent/conversationModel.ts:347
 msgid "加 0.5 秒尾巴"
 msgstr "加 0.5 秒尾巴"
 
@@ -2468,11 +2582,11 @@ msgstr "单轨预览，不含叠加与调色"
 msgid "占用"
 msgstr "占用"
 
-#: src/pages/LibraryPage.tsx:366
+#: src/pages/LibraryPage.tsx:396
 msgid "卡片"
 msgstr "卡片"
 
-#: src/pages/agent/conversationModel.ts:348
+#: src/pages/agent/conversationModel.ts:347
 msgid "压到 30 秒"
 msgstr "压到 30 秒"
 
@@ -2484,7 +2598,7 @@ msgstr "去 Demo 资料库"
 msgid "去录制"
 msgstr "去录制"
 
-#: src/pages/agent/conversationModel.ts:348
+#: src/pages/agent/conversationModel.ts:347
 msgid "去掉运动镜头"
 msgstr "去掉运动镜头"
 
@@ -2534,8 +2648,8 @@ msgstr "发布"
 msgid "发生未知错误，请重试。"
 msgstr "发生未知错误，请重试。"
 
-#: src/pages/agent/conversationModel.ts:354
-#: src/pages/agent/conversationModel.ts:362
+#: src/pages/agent/conversationModel.ts:353
+#: src/pages/agent/conversationModel.ts:361
 msgid "发送"
 msgstr "发送"
 
@@ -2547,7 +2661,7 @@ msgstr "发送后会先自动完成分析，再生成剪辑单"
 msgid "发送后会先自动重试分析，再生成剪辑单"
 msgstr "发送后会先自动重试分析，再生成剪辑单"
 
-#: src/pages/agent/AgentConversationBlock.tsx:401
+#: src/pages/agent/AgentConversationBlock.tsx:449
 msgid "发送后会自动建立对话并生成第一版剪辑单"
 msgstr "发送后会自动建立对话并生成第一版剪辑单"
 
@@ -2583,7 +2697,7 @@ msgstr "受害者被闪"
 msgid "受管 HLAE 的安装状态与安全边界。"
 msgstr "受管 HLAE 的安装状态与安全边界。"
 
-#: src/pages/delivery/OutputCard.tsx:115
+#: src/pages/delivery/OutputCard.tsx:132
 msgid "受管文件"
 msgstr "受管文件"
 
@@ -2620,7 +2734,7 @@ msgstr "另有 {0} 条失败记录"
 msgid "只会启动回放并跳到片段起点，不会采集画面或产生文件。"
 msgstr "只会启动回放并跳到片段起点，不会采集画面或产生文件。"
 
-#: src/pages/agent/conversationModel.ts:348
+#: src/pages/agent/conversationModel.ts:347
 msgid "只保留击杀"
 msgstr "只保留击杀"
 
@@ -2634,7 +2748,7 @@ msgid "只列击杀与目标事件，共 {0} 条。"
 msgstr "只列击杀与目标事件，共 {0} 条。"
 
 #. placeholder {0}: selectedShot.title
-#: src/pages/agent/AgentConversationBlock.tsx:403
+#: src/pages/agent/AgentConversationBlock.tsx:451
 msgid "只影响这一个镜头：{0}"
 msgstr "只影响这一个镜头：{0}"
 
@@ -2642,7 +2756,7 @@ msgstr "只影响这一个镜头：{0}"
 msgid "只接受 https:// 开头的地址。"
 msgstr "只接受 https:// 开头的地址。"
 
-#: src/pages/agent/ConversationModes.tsx:300
+#: src/pages/agent/ConversationModes.tsx:305
 msgid "只有 Desktop 能播放本机 Take。"
 msgstr "只有 Desktop 能播放本机 Take。"
 
@@ -2774,7 +2888,7 @@ msgstr "启动游戏"
 msgid "吸附"
 msgstr "吸附"
 
-#: src/pages/agent/AgentConversationBlock.tsx:462
+#: src/pages/agent/AgentConversationBlock.tsx:510
 msgid "告诉 Agent 你想要什么视频"
 msgstr "告诉 Agent 你想要什么视频"
 
@@ -2799,7 +2913,7 @@ msgstr "命令"
 msgid "命令面板"
 msgstr "命令面板"
 
-#: src/pages/agent/ConversationModes.tsx:415
+#: src/pages/agent/ConversationModes.tsx:420
 msgid "回到修改列表"
 msgstr "回到修改列表"
 
@@ -2919,7 +3033,7 @@ msgid "图形"
 msgstr "图形"
 
 #. placeholder {0}: pending.changes.length
-#: src/pages/AgentPage.tsx:620
+#: src/pages/AgentPage.tsx:627
 msgid "在 {shots} 个镜头上做了 {0} 处改动"
 msgstr "在 {shots} 个镜头上做了 {0} 处改动"
 
@@ -2948,7 +3062,7 @@ msgstr "在多轨编辑器中打开"
 msgid "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 msgstr "在对话里说清楚你想要的节奏，Agent 会给出第一版镜头。"
 
-#: src/pages/settings/AiAgentSection.tsx:319
+#: src/pages/settings/AiAgentSection.tsx:321
 msgid "在工作进度里展开 Agent 每次读取的回合与事件。"
 msgstr "在工作进度里展开 Agent 每次读取的回合与事件。"
 
@@ -3075,7 +3189,7 @@ msgid "基于第 {0} 版"
 msgstr "基于第 {0} 版"
 
 #: src/pages/agent/PlanPanel.tsx:639
-#: src/pages/AgentPage.tsx:545
+#: src/pages/AgentPage.tsx:552
 msgid "基于第 {revision} 版重算"
 msgstr "基于第 {revision} 版重算"
 
@@ -3096,7 +3210,7 @@ msgstr "处理待办，继续作品，或者开始新的作品"
 msgid "备注"
 msgstr "备注"
 
-#: src/pages/ProjectWorkspacePage.tsx:289
+#: src/pages/ProjectWorkspacePage.tsx:291
 msgid "复制为多轨精剪？"
 msgstr "复制为多轨精剪？"
 
@@ -3108,7 +3222,7 @@ msgstr "复核解析结果"
 msgid "外观与语言"
 msgstr "外观与语言"
 
-#: src/pages/delivery/OutputCard.tsx:115
+#: src/pages/delivery/OutputCard.tsx:132
 msgid "外部文件"
 msgstr "外部文件"
 
@@ -3117,11 +3231,11 @@ msgstr "外部文件"
 msgid "多杀"
 msgstr "多杀"
 
-#: src/pages/ProjectWorkspacePage.tsx:242
+#: src/pages/ProjectWorkspacePage.tsx:243
 msgid "多轨修改保留在本地，切换步骤前请保存"
 msgstr "多轨修改保留在本地，切换步骤前请保存"
 
-#: src/pages/ProjectWorkspacePage.tsx:307
+#: src/pages/ProjectWorkspacePage.tsx:309
 msgid "多轨工程可能包含图层、关键帧、效果与独立音频，降级会丢失信息。请保留当前工程并从原来源另建副本。"
 msgstr "多轨工程可能包含图层、关键帧、效果与独立音频，降级会丢失信息。请保留当前工程并从原来源另建副本。"
 
@@ -3129,7 +3243,7 @@ msgstr "多轨工程可能包含图层、关键帧、效果与独立音频，降
 msgid "多轨时间轴"
 msgstr "多轨时间轴"
 
-#: src/pages/ProjectWorkspacePage.tsx:203
+#: src/pages/ProjectWorkspacePage.tsx:204
 msgid "多轨精剪"
 msgstr "多轨精剪"
 
@@ -3180,7 +3294,7 @@ msgstr "字节"
 msgid "存为预设"
 msgstr "存为预设"
 
-#: src/pages/ProjectWorkspacePage.tsx:61
+#: src/pages/ProjectWorkspacePage.tsx:62
 msgid "它可能来自尚未读取成功的旧工程。"
 msgstr "它可能来自尚未读取成功的旧工程。"
 
@@ -3192,9 +3306,17 @@ msgstr "完成一次录制后，片段会出现在这里。"
 msgid "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 msgstr "完成一次录制或导出后，成片会出现在这里，并链接回它的来源任务。"
 
+#: src/pages/agent/AgentConversationBlock.tsx:742
+msgid "完成流程确认"
+msgstr "完成流程确认"
+
 #: src/pages/agent/ChangePreviewDialog.tsx:47
 msgid "完成预览"
 msgstr "完成预览"
+
+#: src/pages/settings/AiAgentSection.tsx:875
+msgid "完整参数 JSON"
+msgstr "完整参数 JSON"
 
 #: src/domain/match/EvidenceRow.tsx:80
 #: src/pages/evidence/EvidenceAnnotations.tsx:126
@@ -3216,9 +3338,9 @@ msgstr "定位到第 {0} 回合的首杀"
 msgid "定位成品"
 msgstr "定位成品"
 
-#: src/pages/delivery/OutputCard.tsx:131
+#: src/pages/delivery/OutputCard.tsx:152
 #: src/pages/library/LibraryInspector.tsx:177
-#: src/pages/ProjectWorkspacePage.tsx:182
+#: src/pages/ProjectWorkspacePage.tsx:183
 #: src/pages/settings/AdvancedSection.tsx:265
 msgid "定位文件"
 msgstr "定位文件"
@@ -3273,14 +3395,14 @@ msgstr "对位视图"
 msgid "对位统计不可用"
 msgstr "对位统计不可用"
 
-#: src/pages/agent/AgentConversationBlock.tsx:514
+#: src/pages/agent/AgentConversationBlock.tsx:562
 #: src/pages/agent/SessionDrawer.tsx:174
-#: src/pages/settings/AiAgentSection.tsx:215
+#: src/pages/settings/AiAgentSection.tsx:217
 #: src/terminology.ts:30
 msgid "对话"
 msgstr "对话"
 
-#: src/pages/agent/AgentConversationBlock.tsx:514
+#: src/pages/agent/AgentConversationBlock.tsx:562
 msgid "对话 · {title}"
 msgstr "对话 · {title}"
 
@@ -3293,7 +3415,7 @@ msgstr "对话名称"
 msgid "对话已经建好，但「{0}」没有记进引用：{detail}"
 msgstr "对话已经建好，但「{0}」没有记进引用：{detail}"
 
-#: src/pages/agent/AgentConversationBlock.tsx:307
+#: src/pages/agent/AgentConversationBlock.tsx:344
 msgid "对话形态"
 msgstr "对话形态"
 
@@ -3302,7 +3424,7 @@ msgctxt "agent-mode"
 msgid "对话附着在选中的镜头上，意图同时给出参数"
 msgstr "对话附着在选中的镜头上，意图同时给出参数"
 
-#: src/pages/agent/conversationModel.ts:352
+#: src/pages/agent/conversationModel.ts:351
 msgid "对选中的片段说，例如「跟到他开第一枪就停」"
 msgstr "对选中的片段说，例如「跟到他开第一枪就停」"
 
@@ -3328,7 +3450,7 @@ msgstr "导入"
 #: src/pages/home/FirstRunStrip.tsx:59
 #: src/pages/HomePage.tsx:88
 #: src/pages/library/ImportDemoDialog.tsx:93
-#: src/pages/LibraryPage.tsx:224
+#: src/pages/LibraryPage.tsx:246
 msgid "导入 Demo"
 msgstr "导入 Demo"
 
@@ -3356,10 +3478,10 @@ msgstr "导入素材"
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:275
 #: src/pages/ProjectsPage.tsx:91
-#: src/pages/ProjectWorkspacePage.tsx:109
-#: src/pages/ProjectWorkspacePage.tsx:160
+#: src/pages/ProjectWorkspacePage.tsx:110
+#: src/pages/ProjectWorkspacePage.tsx:161
 #: src/pages/settings/AdvancedSection.tsx:257
-#: src/pages/settings/AiAgentSection.tsx:887
+#: src/pages/settings/AiAgentSection.tsx:1248
 msgid "导出"
 msgstr "导出"
 
@@ -3367,12 +3489,12 @@ msgstr "导出"
 msgid "导出 HTML"
 msgstr "导出 HTML"
 
-#: src/pages/LibraryPage.tsx:285
+#: src/pages/LibraryPage.tsx:315
 msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 msgstr "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 
 #: src/pages/library/LibraryFilters.tsx:207
-#: src/pages/LibraryPage.tsx:287
+#: src/pages/LibraryPage.tsx:317
 msgid "导出元数据"
 msgstr "导出元数据"
 
@@ -3397,7 +3519,7 @@ msgstr "导出成片会失败"
 msgid "导出成片需要它。录制与分析不受影响，但导不出文件。"
 msgstr "导出成片需要它。录制与分析不受影响，但导不出文件。"
 
-#: src/pages/settings/AiAgentSection.tsx:841
+#: src/pages/settings/AiAgentSection.tsx:1202
 msgid "导出没有完成：{exportError}"
 msgstr "导出没有完成：{exportError}"
 
@@ -3411,8 +3533,8 @@ msgstr "导出视频"
 msgid "导出结果"
 msgstr "导出结果"
 
-#: src/pages/ProjectWorkspacePage.tsx:143
-#: src/pages/ProjectWorkspacePage.tsx:161
+#: src/pages/ProjectWorkspacePage.tsx:144
+#: src/pages/ProjectWorkspacePage.tsx:162
 msgid "导出设置与这份作品的成品文件会显示在这里。"
 msgstr "导出设置与这份作品的成品文件会显示在这里。"
 
@@ -3436,7 +3558,11 @@ msgstr "导播预览"
 msgid "导播预览为相机路径示意，不是最终画质。"
 msgstr "导播预览为相机路径示意，不是最终画质。"
 
-#: src/pages/ProjectWorkspacePage.tsx:297
+#: src/pages/agent/AgentConversationBlock.tsx:739
+msgid "导航工作区"
+msgstr "导航工作区"
+
+#: src/pages/ProjectWorkspacePage.tsx:299
 msgid "将打开由已确认 Composition 生成的快速剪辑工程。Agent 剪辑单保持不变，两边后续修改不会同步。"
 msgstr "将打开由已确认 Composition 生成的快速剪辑工程。Agent 剪辑单保持不变，两边后续修改不会同步。"
 
@@ -3467,7 +3593,7 @@ msgstr "就地编辑需要一份剪辑单"
 msgid "就绪"
 msgstr "就绪"
 
-#: src/pages/AgentPage.tsx:540
+#: src/pages/AgentPage.tsx:547
 msgid "屏幕上的改动还没有写进方案。"
 msgstr "屏幕上的改动还没有写进方案。"
 
@@ -3509,6 +3635,10 @@ msgstr "工作台"
 #: src/app/shell/WorkspaceModeMenu.tsx:63
 msgid "工作模式"
 msgstr "工作模式"
+
+#: src/pages/agent/AgentConversationBlock.tsx:418
+msgid "工作进度"
+msgstr "工作进度"
 
 #: src/design/timeline/TimelinePrototype.tsx:142
 #: src/pages/editor/EditorTimelinePanel.tsx:162
@@ -3600,6 +3730,10 @@ msgstr "已引用"
 msgid "已归档"
 msgstr "已归档"
 
+#: src/pages/agent/AgentConfirmationCard.tsx:156
+msgid "已执行并回传"
+msgstr "已执行并回传"
+
 #: src/domain/agent/types.ts:401
 msgctxt "plan-change"
 msgid "已拒绝"
@@ -3684,7 +3818,7 @@ msgid "已选 {0} 场"
 msgstr "已选 {0} 场"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:245
+#: src/pages/LibraryPage.tsx:267
 msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 
@@ -3717,7 +3851,7 @@ msgstr "已选中 1 个片段"
 
 #. placeholder {0}: composition.data?.items.length ?? 0
 #. placeholder {1}: activeShots.length
-#: src/pages/agent/ConversationModes.tsx:264
+#: src/pages/agent/ConversationModes.tsx:269
 msgid "已选择 {0} / {1} 个镜头"
 msgstr "已选择 {0} / {1} 个镜头"
 
@@ -3737,6 +3871,10 @@ msgstr "带坐标证据"
 #: src/pages/montage/ExportBlock.tsx:139
 msgid "帧率"
 msgstr "帧率"
+
+#: src/pages/settings/AiAgentSection.tsx:876
+msgid "常用字段与这里编辑的是同一个 object。不要放 API key 或私密 header。"
+msgstr "常用字段与这里编辑的是同一个 object。不要放 API key 或私密 header。"
 
 #: src/pages/agent/agentContract.ts:253
 msgctxt "agent-mode"
@@ -3758,8 +3896,8 @@ msgstr "应用"
 msgid "应用到全部"
 msgstr "应用到全部"
 
-#: src/pages/settings/AiAgentSection.tsx:308
-#: src/pages/settings/AiAgentSection.tsx:311
+#: src/pages/settings/AiAgentSection.tsx:310
+#: src/pages/settings/AiAgentSection.tsx:313
 msgid "应用剪辑变更前先预览"
 msgstr "应用剪辑变更前先预览"
 
@@ -3847,7 +3985,7 @@ msgstr "当前 quality {0}（CRF {1}），最接近这一档"
 msgid "当前 R{round}"
 msgstr "当前 R{round}"
 
-#: src/pages/ProjectWorkspacePage.tsx:286
+#: src/pages/ProjectWorkspacePage.tsx:288
 msgid "当前不能转换到这个制作方式"
 msgstr "当前不能转换到这个制作方式"
 
@@ -3856,11 +3994,11 @@ msgid "当前会话"
 msgstr "当前会话"
 
 #. placeholder {0}: project.editingMode
-#: src/pages/ProjectWorkspacePage.tsx:141
+#: src/pages/ProjectWorkspacePage.tsx:142
 msgid "当前剪辑模式：{0}。快速剪辑与多轨编辑能力将在这里呈现。"
 msgstr "当前剪辑模式：{0}。快速剪辑与多轨编辑能力将在这里呈现。"
 
-#: src/pages/settings/AiAgentSection.tsx:862
+#: src/pages/settings/AiAgentSection.tsx:1223
 msgid "当前占用 {conversation}"
 msgstr "当前占用 {conversation}"
 
@@ -3877,7 +4015,7 @@ msgstr "当前方案"
 msgid "当前时间"
 msgstr "当前时间"
 
-#: src/pages/settings/AiAgentSection.tsx:782
+#: src/pages/settings/AiAgentSection.tsx:1143
 msgid "当前是 {value} 秒，不在上面这几档里。"
 msgstr "当前是 {value} 秒，不在上面这几档里。"
 
@@ -3933,7 +4071,7 @@ msgstr "当前锚点是一条证据，可以在「我的注释」里为它写注
 
 #: src/domain/task/taskVocabulary.tsx:28
 #: src/pages/ProjectsPage.tsx:90
-#: src/pages/ProjectWorkspacePage.tsx:108
+#: src/pages/ProjectWorkspacePage.tsx:109
 msgid "录制"
 msgstr "录制"
 
@@ -3959,8 +4097,8 @@ msgstr "录制会启动 CS2，逐个采集 {0} 个片段，完成后把成片发
 msgid "录制会启动 CS2，逐个采集片段，完成后把成片发布到输出里。"
 msgstr "录制会启动 CS2，逐个采集片段，完成后把成片发布到输出里。"
 
-#: src/pages/settings/AiAgentSection.tsx:290
-#: src/pages/settings/AiAgentSection.tsx:300
+#: src/pages/settings/AiAgentSection.tsx:292
+#: src/pages/settings/AiAgentSection.tsx:302
 msgid "录制前始终由你确认"
 msgstr "录制前始终由你确认"
 
@@ -4110,12 +4248,20 @@ msgstr "待索引"
 msgid "必填"
 msgstr "必填"
 
+#: src/pages/settings/AiAgentSection.tsx:631
+msgid "必须是 JSON object，不能是数组或单个值"
+msgstr "必须是 JSON object，不能是数组或单个值"
+
+#: src/pages/settings/AiAgentSection.tsx:572
+msgid "必须是有效的 JSON object"
+msgstr "必须是有效的 JSON object"
+
 #: src/pages/home/ActiveProjectsPanel.tsx:115
-#: src/pages/ProjectWorkspacePage.tsx:202
+#: src/pages/ProjectWorkspacePage.tsx:203
 msgid "快速剪辑"
 msgstr "快速剪辑"
 
-#: src/pages/ProjectWorkspacePage.tsx:305
+#: src/pages/ProjectWorkspacePage.tsx:307
 msgid "快速剪辑只有成片素材与秒级裁切，无法无损还原 Demo tick、选手和证据，因此不能反向生成 Agent 剪辑单。"
 msgstr "快速剪辑只有成片素材与秒级裁切，无法无损还原 Demo tick、选手和证据，因此不能反向生成 Agent 剪辑单。"
 
@@ -4163,7 +4309,7 @@ msgid "成品"
 msgstr "成品"
 
 #: src/pages/delivery/AgentVideoWorkflowPanel.tsx:133
-#: src/pages/ProjectWorkspacePage.tsx:169
+#: src/pages/ProjectWorkspacePage.tsx:170
 msgid "成品可用"
 msgstr "成品可用"
 
@@ -4179,7 +4325,7 @@ msgstr "成品生成能力"
 msgid "成本未知"
 msgstr "成本未知"
 
-#: src/pages/agent/ConversationModes.tsx:324
+#: src/pages/agent/ConversationModes.tsx:329
 msgid "成片正在使用"
 msgstr "成片正在使用"
 
@@ -4191,11 +4337,11 @@ msgstr "成片画面里保留左上角的小地图。"
 msgid "成片画面里保留游戏的 HUD 界面元素。"
 msgstr "成片画面里保留游戏的 HUD 界面元素。"
 
-#: src/pages/agent/ConversationModes.tsx:262
+#: src/pages/agent/ConversationModes.tsx:266
 msgid "成片选择已确认"
 msgstr "成片选择已确认"
 
-#: src/pages/agent/ConversationModes.tsx:262
+#: src/pages/agent/ConversationModes.tsx:267
 msgid "成片选择未完成"
 msgstr "成片选择未完成"
 
@@ -4227,7 +4373,7 @@ msgstr "战术回放缓存元数据无效"
 msgid "战术回放缓存元数据超过上限"
 msgstr "战术回放缓存元数据超过上限"
 
-#: src/pages/settings/AiAgentSection.tsx:414
+#: src/pages/settings/AiAgentSection.tsx:416
 msgid "所有对话记录都会被删除，且不能恢复。方案、录制任务和已生成的视频不受影响，它们占用的空间也不会因此释放。"
 msgstr "所有对话记录都会被删除，且不能恢复。方案、录制任务和已生成的视频不受影响，它们占用的空间也不会因此释放。"
 
@@ -4239,7 +4385,7 @@ msgstr "手动启动"
 msgid "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 msgstr "手动检查更新时读取的清单地址。留空表示不检查更新，这也是默认。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:405
+#: src/pages/agent/AgentConversationBlock.tsx:453
 msgid "手动编辑不会打断 Agent，也不需要它批准"
 msgstr "手动编辑不会打断 Agent，也不需要它批准"
 
@@ -4278,7 +4424,7 @@ msgstr "打开作品"
 msgid "打开剪辑单"
 msgstr "打开剪辑单"
 
-#: src/pages/ProjectWorkspacePage.tsx:272
+#: src/pages/ProjectWorkspacePage.tsx:274
 msgid "打开副本"
 msgstr "打开副本"
 
@@ -4291,7 +4437,7 @@ msgstr "打开回合视图"
 msgid "打开工作区"
 msgstr "打开工作区"
 
-#: src/pages/ProjectWorkspacePage.tsx:288
+#: src/pages/ProjectWorkspacePage.tsx:290
 msgid "打开快速剪辑副本？"
 msgstr "打开快速剪辑副本？"
 
@@ -4342,7 +4488,7 @@ msgstr "批量注释"
 msgid "找不到这个页面"
 msgstr "找不到这个页面"
 
-#: src/pages/ProjectWorkspacePage.tsx:61
+#: src/pages/ProjectWorkspacePage.tsx:62
 msgid "找不到这份作品"
 msgstr "找不到这份作品"
 
@@ -4442,6 +4588,10 @@ msgstr "拆弹成功"
 msgid "拒绝"
 msgstr "拒绝"
 
+#: src/pages/agent/AgentConfirmationCard.tsx:175
+msgid "拒绝并告诉 Agent"
+msgstr "拒绝并告诉 Agent"
+
 #: src/pages/recording/ShotListBlock.tsx:110
 msgid "拖动可排序，Alt+↑↓ 也可以"
 msgstr "拖动可排序，Alt+↑↓ 也可以"
@@ -4527,7 +4677,7 @@ msgstr "掠过"
 msgid "接受"
 msgstr "接受"
 
-#: src/pages/agent/AgentConversationBlock.tsx:384
+#: src/pages/agent/AgentConversationBlock.tsx:430
 msgid "接受与拒绝会保存到这条对话，刷新或重启后仍会保留。"
 msgstr "接受与拒绝会保存到这条对话，刷新或重启后仍会保留。"
 
@@ -4535,7 +4685,7 @@ msgstr "接受与拒绝会保存到这条对话，刷新或重启后仍会保留
 msgid "接受修改"
 msgstr "接受修改"
 
-#: src/pages/agent/AgentConversationBlock.tsx:383
+#: src/pages/agent/AgentConversationBlock.tsx:429
 msgid "接受变更不会启动录制：录制只在顶部确认一次之后才开始。"
 msgstr "接受变更不会启动录制：录制只在顶部确认一次之后才开始。"
 
@@ -4548,7 +4698,7 @@ msgstr "推轨"
 msgid "推近"
 msgstr "推近"
 
-#: src/pages/settings/AiAgentSection.tsx:505
+#: src/pages/settings/AiAgentSection.tsx:513
 msgid "提供方"
 msgstr "提供方"
 
@@ -4664,7 +4814,7 @@ msgstr "收起预设"
 msgid "改为这个目录"
 msgstr "改为这个目录"
 
-#: src/pages/settings/AiAgentSection.tsx:621
+#: src/pages/settings/AiAgentSection.tsx:982
 msgid "改了策略不会立刻清理。要现在生效，用右边这个按钮。"
 msgstr "改了策略不会立刻清理。要现在生效，用右边这个按钮。"
 
@@ -4738,6 +4888,7 @@ msgid "整场 · 事件"
 msgstr "整场 · 事件"
 
 #: src/pages/LibraryPage.tsx:191
+#: src/pages/LibraryPage.tsx:212
 msgid "整场比赛"
 msgstr "整场比赛"
 
@@ -4753,7 +4904,7 @@ msgstr "整段几乎贴平，高度变化不到 1 个单位"
 msgid "文件"
 msgstr "文件"
 
-#: src/pages/delivery/OutputCard.tsx:101
+#: src/pages/delivery/OutputCard.tsx:112
 msgid "文件不在原位"
 msgstr "文件不在原位"
 
@@ -4775,7 +4926,7 @@ msgstr "文件缺失"
 msgid "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 msgstr "文件被手动移动或删除后，资料库里的记录会指向一个不存在的位置。"
 
-#: src/pages/ProjectWorkspacePage.tsx:70
+#: src/pages/ProjectWorkspacePage.tsx:71
 msgid "新作品"
 msgstr "新作品"
 
@@ -4824,7 +4975,7 @@ msgstr "新建作品后，选材、剪辑单、录制和成品文件会集中在
 msgid "新建对话"
 msgstr "新建对话"
 
-#: src/pages/settings/AiAgentSection.tsx:247
+#: src/pages/settings/AiAgentSection.tsx:249
 msgid "新建对话时预填当前的 Demo 与选手，之后随时可以手动改。"
 msgstr "新建对话时预填当前的 Demo 与选手，之后随时可以手动改。"
 
@@ -4854,7 +5005,7 @@ msgctxt "agent-object"
 msgid "方案"
 msgstr "方案"
 
-#: src/pages/settings/AiAgentSection.tsx:873
+#: src/pages/settings/AiAgentSection.tsx:1234
 msgid "方案另占 {plans}，清空会话不会释放这部分。"
 msgstr "方案另占 {plans}，清空会话不会释放这部分。"
 
@@ -4862,14 +5013,18 @@ msgstr "方案另占 {plans}，清空会话不会释放这部分。"
 msgid "方案在这期间被改过了，还原没有执行。读一次最新的再来。"
 msgstr "方案在这期间被改过了，还原没有执行。读一次最新的再来。"
 
-#: src/pages/AgentPage.tsx:555
+#: src/pages/AgentPage.tsx:562
 msgid "方案在这期间被改过了，这次改动没有写进方案。"
 msgstr "方案在这期间被改过了，这次改动没有写进方案。"
+
+#: src/pages/agent/AgentConversationBlock.tsx:743
+msgid "方案已就绪"
+msgstr "方案已就绪"
 
 #. placeholder {0}: String(revision)
 #. placeholder {0}: plan.revision
 #: src/pages/agent/PlanPanel.tsx:281
-#: src/pages/AgentPage.tsx:413
+#: src/pages/AgentPage.tsx:420
 msgid "方案已经是第 {0} 版了，请基于最新的镜头重新给出变更。"
 msgstr "方案已经是第 {0} 版了，请基于最新的镜头重新给出变更。"
 
@@ -4893,7 +5048,7 @@ msgstr "方案里的镜头绑定好 Demo 与选手之后，这里会列出可录
 msgid "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 msgstr "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 
-#: src/pages/AgentPage.tsx:585
+#: src/pages/AgentPage.tsx:592
 msgid "方案里的镜头都被移除了，没有可以录制的内容"
 msgstr "方案里的镜头都被移除了，没有可以录制的内容"
 
@@ -4960,8 +5115,8 @@ msgstr "时间轴"
 msgid "昨天"
 msgstr "昨天"
 
-#: src/pages/settings/AiAgentSection.tsx:318
-#: src/pages/settings/AiAgentSection.tsx:321
+#: src/pages/settings/AiAgentSection.tsx:320
+#: src/pages/settings/AiAgentSection.tsx:323
 msgid "显示 Agent 读取了哪些证据"
 msgstr "显示 Agent 读取了哪些证据"
 
@@ -5022,7 +5177,7 @@ msgstr "更多操作"
 msgid "更多视图"
 msgstr "更多视图"
 
-#: src/pages/agent/ConversationModes.tsx:343
+#: src/pages/agent/ConversationModes.tsx:348
 msgid "更换已确认的成片片段？"
 msgstr "更换已确认的成片片段？"
 
@@ -5288,7 +5443,7 @@ msgstr "条件"
 msgid "来源"
 msgstr "来源"
 
-#: src/pages/delivery/OutputCard.tsx:136
+#: src/pages/delivery/OutputCard.tsx:157
 msgid "来源任务"
 msgstr "来源任务"
 
@@ -5297,7 +5452,7 @@ msgid "来源对象"
 msgstr "来源对象"
 
 #. placeholder {0}: slot.prompt
-#: src/pages/agent/AgentConversationBlock.tsx:611
+#: src/pages/agent/AgentConversationBlock.tsx:659
 msgid "来自「{0}」"
 msgstr "来自「{0}」"
 
@@ -5336,7 +5491,7 @@ msgid "查看发给 Agent 的内容"
 msgstr "查看发给 Agent 的内容"
 
 #: src/pages/delivery/AgentVideoWorkflowPanel.tsx:116
-#: src/pages/ProjectWorkspacePage.tsx:176
+#: src/pages/ProjectWorkspacePage.tsx:177
 msgid "查看成品"
 msgstr "查看成品"
 
@@ -5415,6 +5570,10 @@ msgstr "档案是只读的，重试不会改动任何数据。"
 msgid "检查录制设置"
 msgstr "检查录制设置"
 
+#: src/pages/agent/AgentConfirmationCard.tsx:157
+msgid "检查镜头并继续录制"
+msgstr "检查镜头并继续录制"
+
 #: src/pages/match/views/HighlightsView.tsx:188
 msgid "检测器在这场里没有找到残局、多杀或穿墙这类可以单独成片的片段。"
 msgstr "检测器在这场里没有找到残局、多杀或穿墙这类可以单独成片的片段。"
@@ -5454,12 +5613,12 @@ msgctxt "match-view"
 msgid "概览"
 msgstr "概览"
 
-#: src/pages/settings/AiAgentSection.tsx:493
-#: src/pages/settings/AiAgentSection.tsx:512
+#: src/pages/settings/AiAgentSection.tsx:501
+#: src/pages/settings/AiAgentSection.tsx:520
 msgid "模型"
 msgstr "模型"
 
-#: src/pages/settings/AiAgentSection.tsx:204
+#: src/pages/settings/AiAgentSection.tsx:206
 msgid "模型设置没有保存成功"
 msgstr "模型设置没有保存成功"
 
@@ -5467,7 +5626,7 @@ msgstr "模型设置没有保存成功"
 msgid "模型运行时已就绪"
 msgstr "模型运行时已就绪"
 
-#: src/pages/settings/AiAgentSection.tsx:543
+#: src/pages/settings/AiAgentSection.tsx:584
 msgid "模型连接失败：{testError}"
 msgstr "模型连接失败：{testError}"
 
@@ -5484,7 +5643,7 @@ msgid "正在从方案生成预览计划"
 msgstr "正在从方案生成预览计划"
 
 #: src/pages/EditorPage.tsx:404
-#: src/pages/settings/AiAgentSection.tsx:554
+#: src/pages/settings/AiAgentSection.tsx:595
 #: src/pages/settings/FilesSection.tsx:212
 msgid "正在保存"
 msgstr "正在保存"
@@ -5501,7 +5660,7 @@ msgstr "正在写出 HLAE 脚本…"
 msgid "正在准备"
 msgstr "正在准备"
 
-#: src/pages/agent/AgentConversationBlock.tsx:251
+#: src/pages/agent/AgentConversationBlock.tsx:262
 msgid "正在准备对话"
 msgstr "正在准备对话"
 
@@ -5513,7 +5672,7 @@ msgstr "正在分析"
 msgid "正在分析节拍"
 msgstr "正在分析节拍"
 
-#: src/pages/delivery/OutputCard.tsx:178
+#: src/pages/delivery/OutputCard.tsx:199
 msgid "正在加载输出"
 msgstr "正在加载输出"
 
@@ -5542,8 +5701,8 @@ msgstr "正在启动游戏，请稍候"
 msgid "正在处理"
 msgstr "正在处理"
 
-#: src/pages/settings/AiAgentSection.tsx:885
-#: src/pages/settings/AiAgentSection.tsx:894
+#: src/pages/settings/AiAgentSection.tsx:1246
+#: src/pages/settings/AiAgentSection.tsx:1255
 msgid "正在处理上一次操作"
 msgstr "正在处理上一次操作"
 
@@ -5562,6 +5721,10 @@ msgstr "正在录制，录制期间不能再启动一次回放"
 #: src/app/boundary/RouteBoundary.tsx:81
 msgid "正在打开这个页面"
 msgstr "正在打开这个页面"
+
+#: src/pages/agent/AgentConfirmationCard.tsx:155
+msgid "正在执行"
+msgstr "正在执行"
 
 #: src/pages/delivery/AgentVideoWorkflowPanel.tsx:147
 msgid "正在按已确认的 Composition 组合片段并生成最终视频。"
@@ -5593,7 +5756,7 @@ msgstr "正在检查本机环境"
 msgid "正在检索证据"
 msgstr "正在检索证据"
 
-#: src/pages/settings/AiAgentSection.tsx:557
+#: src/pages/settings/AiAgentSection.tsx:598
 msgid "正在测试"
 msgstr "正在测试"
 
@@ -5822,8 +5985,8 @@ msgstr "每回合按阵营统计的购买事件"
 msgid "每条下方是它触及过的对象"
 msgstr "每条下方是它触及过的对象"
 
-#: src/pages/settings/AiAgentSection.tsx:666
-#: src/pages/settings/AiAgentSection.tsx:676
+#: src/pages/settings/AiAgentSection.tsx:1027
+#: src/pages/settings/AiAgentSection.tsx:1037
 msgid "每条会话保留的 take 上限"
 msgstr "每条会话保留的 take 上限"
 
@@ -5835,6 +5998,10 @@ msgstr "每次最多同步"
 msgctxt "agent-mode"
 msgid "每次回应都是一次可逐条接受或拒绝的变更"
 msgstr "每次回应都是一次可逐条接受或拒绝的变更"
+
+#: src/pages/settings/AiAgentSection.tsx:865
+msgid "每行一个；留空不发送。"
+msgstr "每行一个；留空不发送。"
 
 #: src/pages/history/MatchHistoryTable.tsx:138
 #: src/pages/history/MatchHistoryTable.tsx:139
@@ -5887,7 +6054,7 @@ msgstr "比赛历史读取失败"
 msgid "比赛工作区"
 msgstr "比赛工作区"
 
-#: src/pages/ProjectWorkspacePage.tsx:140
+#: src/pages/ProjectWorkspacePage.tsx:141
 msgid "比赛工作区与证据检索加入的片段会汇总到这里。"
 msgstr "比赛工作区与证据检索加入的片段会汇总到这里。"
 
@@ -5934,7 +6101,7 @@ msgstr "比较 {0} 与 {1}"
 msgid "没有任何数据被改动，可以直接重试。"
 msgstr "没有任何数据被改动，可以直接重试。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:485
+#: src/pages/agent/AgentConversationBlock.tsx:533
 #: src/pages/match/views/HighlightsView.tsx:161
 #: src/pages/match/views/ReplayView.tsx:240
 #: src/pages/match/views/ReviewView.tsx:117
@@ -5946,7 +6113,7 @@ msgstr "没有任何数据被改动，重试是安全的。"
 msgid "没有写入任何东西；自动洞察不受影响。"
 msgstr "没有写入任何东西；自动洞察不受影响。"
 
-#: src/pages/ProjectWorkspacePage.tsx:251
+#: src/pages/ProjectWorkspacePage.tsx:252
 msgid "没有创建多轨副本。请确认素材文件仍然可用后重试。"
 msgstr "没有创建多轨副本。请确认素材文件仍然可用后重试。"
 
@@ -6123,7 +6290,7 @@ msgstr "流程没有跑完：{error}"
 msgid "浅色"
 msgstr "浅色"
 
-#: src/pages/settings/AiAgentSection.tsx:557
+#: src/pages/settings/AiAgentSection.tsx:598
 msgid "测试连接"
 msgstr "测试连接"
 
@@ -6140,8 +6307,8 @@ msgstr "添加 {0} 段"
 msgid "添加到时间轴"
 msgstr "添加到时间轴"
 
-#: src/pages/LibraryPage.tsx:264
-#: src/pages/LibraryPage.tsx:265
+#: src/pages/LibraryPage.tsx:294
+#: src/pages/LibraryPage.tsx:295
 msgid "添加标签"
 msgstr "添加标签"
 
@@ -6160,7 +6327,7 @@ msgid "添加监听目录"
 msgstr "添加监听目录"
 
 #: src/pages/library/WatchDirectoriesDrawer.tsx:84
-#: src/pages/LibraryPage.tsx:233
+#: src/pages/LibraryPage.tsx:255
 #: src/pages/settings/FilesSection.tsx:258
 msgid "添加目录"
 msgstr "添加目录"
@@ -6195,12 +6362,16 @@ msgstr "清理未完成的暂存成品文件？"
 msgid "清空"
 msgstr "清空"
 
-#: src/pages/settings/AiAgentSection.tsx:406
+#: src/pages/settings/AiAgentSection.tsx:408
 msgid "清空全部对话？"
 msgstr "清空全部对话？"
 
-#: src/pages/settings/AiAgentSection.tsx:407
-#: src/pages/settings/AiAgentSection.tsx:896
+#: src/pages/settings/AiAgentSection.tsx:708
+msgid "清空参数"
+msgstr "清空参数"
+
+#: src/pages/settings/AiAgentSection.tsx:409
+#: src/pages/settings/AiAgentSection.tsx:1257
 msgid "清空对话"
 msgstr "清空对话"
 
@@ -6215,7 +6386,7 @@ msgstr "清空搜索"
 msgid "清空条件"
 msgstr "清空条件"
 
-#: src/pages/settings/AiAgentSection.tsx:148
+#: src/pages/settings/AiAgentSection.tsx:150
 msgid "清空没有成功"
 msgstr "清空没有成功"
 
@@ -6292,8 +6463,8 @@ msgstr "点左侧记分板的一行，这里会显示他这一场的 K/D/A、武
 msgid "点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。"
 msgstr "点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。"
 
-#: src/pages/settings/AiAgentSection.tsx:358
-#: src/pages/settings/AiAgentSection.tsx:364
+#: src/pages/settings/AiAgentSection.tsx:360
+#: src/pages/settings/AiAgentSection.tsx:366
 msgid "点评语气"
 msgstr "点评语气"
 
@@ -6520,13 +6691,17 @@ msgstr "玩家视图"
 msgid "环绕"
 msgstr "环绕"
 
-#: src/pages/settings/AiAgentSection.tsx:390
+#: src/pages/settings/AiAgentSection.tsx:392
 msgid "现在按保留策略清理对话？"
 msgstr "现在按保留策略清理对话？"
 
 #: src/pages/home/HomeTasksPanel.tsx:78
 msgid "现在没有任务在跑"
 msgstr "现在没有任务在跑"
+
+#: src/pages/agent/AgentConversationBlock.tsx:731
+msgid "理解镜头与空间"
+msgstr "理解镜头与空间"
 
 #: src/pages/match/views/UtilityView.tsx:112
 msgid "生命周期不完整"
@@ -6536,13 +6711,25 @@ msgstr "生命周期不完整"
 msgid "生成 AI 点评"
 msgstr "生成 AI 点评"
 
-#: src/pages/agent/AgentConversationBlock.tsx:397
+#: src/pages/agent/AgentConversationBlock.tsx:445
 msgid "生成剪辑单"
 msgstr "生成剪辑单"
 
-#: src/pages/agent/conversationModel.ts:349
+#: src/pages/agent/AgentConversationBlock.tsx:736
+msgid "生成剪辑方案"
+msgstr "生成剪辑方案"
+
+#: src/pages/agent/AgentConversationBlock.tsx:738
+msgid "生成卡点方案"
+msgstr "生成卡点方案"
+
+#: src/pages/agent/conversationModel.ts:348
 msgid "生成变更"
 msgstr "生成变更"
+
+#: src/pages/agent/AgentConversationBlock.tsx:737
+msgid "生成方案变更"
+msgstr "生成方案变更"
 
 #. placeholder {0}: dataErrorMessage(review.error) ?? t`服务没有给出原因`
 #: src/pages/match/views/ReviewView.tsx:214
@@ -6553,6 +6740,10 @@ msgstr "生成点评失败：{0}"
 #: src/pages/MontagePage.tsx:322
 msgid "生成视频"
 msgstr "生成视频"
+
+#: src/pages/agent/AgentConversationBlock.tsx:735
+msgid "生成视频方案"
+msgstr "生成视频方案"
 
 #. placeholder {0}: message ?? ''
 #: src/pages/RecordingPage.tsx:460
@@ -6565,11 +6756,15 @@ msgstr "生成预览计划失败：{0}"
 msgid "生效"
 msgstr "生效"
 
+#: src/pages/LibraryPage.tsx:290
+msgid "用 Agent 创作"
+msgstr "用 Agent 创作"
+
 #: src/pages/library/libraryColumns.tsx:212
 msgid "用 Agent 制作"
 msgstr "用 Agent 制作"
 
-#: src/pages/agent/ConversationModes.tsx:324
+#: src/pages/agent/ConversationModes.tsx:329
 msgid "用于成片"
 msgstr "用于成片"
 
@@ -6638,10 +6833,14 @@ msgstr "界面语言"
 msgid "留白"
 msgstr "留白"
 
-#: src/pages/settings/AiAgentSection.tsx:527
+#: src/pages/settings/AiAgentSection.tsx:535
 #: src/pages/settings/FilesSection.tsx:297
 msgid "留空会保留已经安全保存的密钥。"
 msgstr "留空会保留已经安全保存的密钥。"
+
+#: src/pages/settings/AiAgentSection.tsx:910
+msgid "留空使用 provider 默认值。"
+msgstr "留空使用 provider 默认值。"
 
 #: src/pages/agent/NewSessionPane.tsx:158
 msgid "留空就叫「未命名」，随时可以改"
@@ -6662,8 +6861,8 @@ msgstr "百分比"
 
 #: src/pages/library/libraryFormat.ts:156
 #: src/pages/library/WatchDirectoriesDrawer.tsx:75
-#: src/pages/LibraryPage.tsx:376
-#: src/pages/LibraryPage.tsx:382
+#: src/pages/LibraryPage.tsx:406
+#: src/pages/LibraryPage.tsx:412
 #: src/pages/settings/FilesSection.tsx:192
 msgid "监听目录"
 msgstr "监听目录"
@@ -6780,11 +6979,11 @@ msgstr "看道具与经济"
 #: src/pages/EditorPage.tsx:481
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:680
-#: src/pages/ProjectWorkspacePage.tsx:270
+#: src/pages/ProjectWorkspacePage.tsx:272
 #: src/pages/RecoveryPage.tsx:99
-#: src/pages/settings/AiAgentSection.tsx:158
-#: src/pages/settings/AiAgentSection.tsx:172
-#: src/pages/settings/AiAgentSection.tsx:547
+#: src/pages/settings/AiAgentSection.tsx:160
+#: src/pages/settings/AiAgentSection.tsx:174
+#: src/pages/settings/AiAgentSection.tsx:588
 #: src/pages/settings/AppSection.tsx:79
 #: src/pages/settings/FilesSection.tsx:98
 #: src/pages/settings/GameSection.tsx:108
@@ -6795,11 +6994,11 @@ msgstr "知道了"
 msgid "硬切"
 msgstr "硬切"
 
-#: src/pages/AgentPage.tsx:389
+#: src/pages/AgentPage.tsx:396
 msgid "确认剪辑单并录制"
 msgstr "确认剪辑单并录制"
 
-#: src/pages/agent/ConversationModes.tsx:344
+#: src/pages/agent/ConversationModes.tsx:349
 msgid "确认更换"
 msgstr "确认更换"
 
@@ -6811,7 +7010,7 @@ msgstr "碰撞几何未知"
 msgid "磁盘空间不足"
 msgstr "磁盘空间不足"
 
-#: src/pages/LibraryPage.tsx:362
+#: src/pages/LibraryPage.tsx:392
 msgid "视图"
 msgstr "视图"
 
@@ -6872,7 +7071,7 @@ msgstr "移除"
 msgid "移除条件"
 msgstr "移除条件"
 
-#: src/pages/delivery/OutputCard.tsx:147
+#: src/pages/delivery/OutputCard.tsx:168
 msgid "移除记录"
 msgstr "移除记录"
 
@@ -6921,8 +7120,8 @@ msgstr "窗口宽度不足 1100px，侧栏保持为图标条"
 msgid "窗口操作失败"
 msgstr "窗口操作失败"
 
-#: src/pages/settings/AiAgentSection.tsx:391
-#: src/pages/settings/AiAgentSection.tsx:624
+#: src/pages/settings/AiAgentSection.tsx:393
+#: src/pages/settings/AiAgentSection.tsx:985
 msgid "立即应用"
 msgstr "立即应用"
 
@@ -7014,6 +7213,7 @@ msgstr "等待导出"
 
 #: src/domain/agent/types.ts:248
 #: src/domain/task/taskVocabulary.tsx:43
+#: src/pages/agent/AgentConfirmationCard.tsx:138
 msgid "等待确认"
 msgstr "等待确认"
 
@@ -7024,6 +7224,14 @@ msgstr "等待确认的方案"
 #: src/domain/task/taskVocabulary.tsx:64
 msgid "等待超时"
 msgstr "等待超时"
+
+#: src/pages/agent/AgentConversationBlock.tsx:726
+msgid "筛选回合"
+msgstr "筛选回合"
+
+#: src/pages/agent/AgentConversationBlock.tsx:730
+msgid "筛选高光"
+msgstr "筛选高光"
 
 #. placeholder {0}: dataErrorMessage(camera.error) ?? ''
 #: src/pages/recording/DirectorPreviewBlock.tsx:286
@@ -7132,7 +7340,7 @@ msgstr "结论与注释"
 msgid "绕着目标转，适合停在一次交火上"
 msgstr "绕着目标转，适合停在一次交火上"
 
-#: src/pages/agent/conversationModel.ts:347
+#: src/pages/agent/conversationModel.ts:346
 msgid "给剪辑单下一条指令，例如「02 再短一点」「把结尾留 1 秒」"
 msgstr "给剪辑单下一条指令，例如「02 再短一点」「把结尾留 1 秒」"
 
@@ -7140,7 +7348,7 @@ msgstr "给剪辑单下一条指令，例如「02 再短一点」「把结尾留
 msgid "继续"
 msgstr "继续"
 
-#: src/pages/agent/conversationModel.ts:360
+#: src/pages/agent/conversationModel.ts:359
 msgid "继续和 Agent 说，例如「第 3 个片段前面留 1 秒」"
 msgstr "继续和 Agent 说，例如「第 3 个片段前面留 1 秒」"
 
@@ -7161,7 +7369,7 @@ msgstr "编码器可用"
 msgid "编辑"
 msgstr "编辑"
 
-#: src/pages/AgentPage.tsx:606
+#: src/pages/AgentPage.tsx:613
 msgid "编辑会记入对话，请先选择或新建一条对话"
 msgstr "编辑会记入对话，请先选择或新建一条对话"
 
@@ -7235,8 +7443,8 @@ msgstr "脚本已经写好，共 {0} 个文件。目录里的 README 说明怎�
 msgid "自动启动"
 msgstr "自动启动"
 
-#: src/pages/settings/AiAgentSection.tsx:246
-#: src/pages/settings/AiAgentSection.tsx:249
+#: src/pages/settings/AiAgentSection.tsx:248
+#: src/pages/settings/AiAgentSection.tsx:251
 msgid "自动带入当前选中的 Demo 与选手"
 msgstr "自动带入当前选中的 Demo 与选手"
 
@@ -7248,7 +7456,7 @@ msgstr "自动洞察"
 msgid "自动洞察 · 由规则从证据推出"
 msgstr "自动洞察 · 由规则从证据推出"
 
-#: src/pages/settings/AiAgentSection.tsx:535
+#: src/pages/settings/AiAgentSection.tsx:576
 msgid "自定义指令"
 msgstr "自定义指令"
 
@@ -7277,7 +7485,7 @@ msgstr "节拍建议不会直接修改工程，应用前可逐条预览。"
 msgid "节拍建议没能算出来：{error}"
 msgstr "节拍建议没能算出来：{error}"
 
-#: src/pages/settings/AiAgentSection.tsx:373
+#: src/pages/settings/AiAgentSection.tsx:375
 msgid "节目化"
 msgstr "节目化"
 
@@ -7294,7 +7502,7 @@ msgstr "花费"
 msgid "草案"
 msgstr "草案"
 
-#: src/pages/settings/AiAgentSection.tsx:286
+#: src/pages/settings/AiAgentSection.tsx:288
 msgid "行为边界"
 msgstr "行为边界"
 
@@ -7311,7 +7519,7 @@ msgstr "行方 ＼ 列方"
 msgid "行方与列方"
 msgstr "行方与列方"
 
-#: src/pages/LibraryPage.tsx:365
+#: src/pages/LibraryPage.tsx:395
 msgid "表格"
 msgstr "表格"
 
@@ -7377,7 +7585,7 @@ msgstr "计算节拍建议"
 msgid "让 Agent 做一条视频"
 msgstr "让 Agent 做一条视频"
 
-#: src/pages/delivery/OutputCard.tsx:118
+#: src/pages/delivery/OutputCard.tsx:135
 msgid "记录仍在，文件已被移动或删除"
 msgstr "记录仍在，文件已被移动或删除"
 
@@ -7399,7 +7607,7 @@ msgstr "设置与诊断"
 msgid "设置分节"
 msgstr "设置分节"
 
-#: src/pages/settings/AiAgentSection.tsx:126
+#: src/pages/settings/AiAgentSection.tsx:128
 msgid "设置没有保存成功"
 msgstr "设置没有保存成功"
 
@@ -7480,9 +7688,13 @@ msgstr "说明：{unavailableReason}"
 msgid "说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。"
 msgstr "说清你想要什么，它给出方案与镜头；录制前还会等你确认一次。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:523
+#: src/pages/agent/AgentConversationBlock.tsx:571
 msgid "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
 msgstr "说清楚你要的片子——多长、重点在哪、给谁看——Agent 会先给出一版镜头方案，再由你逐条处理。"
+
+#: src/pages/agent/AgentConfirmationCard.tsx:154
+msgid "请在上方逐条接受或拒绝"
+msgstr "请在上方逐条接受或拒绝"
 
 #: src/pages/settings/FilesSection.tsx:368
 msgid "请填写有效的 Steam ID、API 密钥、验证码和最近分享代码"
@@ -7494,11 +7706,11 @@ msgstr "请填写有效的 Steam ID、API 密钥、验证码和最近分享代�
 msgid "请求超时或已取消，请稍后重试。"
 msgstr "请求超时或已取消，请稍后重试。"
 
-#: src/pages/settings/AiAgentSection.tsx:487
+#: src/pages/settings/AiAgentSection.tsx:496
 msgid "请补齐提供方、模型、API 地址和密钥"
 msgstr "请补齐提供方、模型、API 地址和密钥"
 
-#: src/pages/settings/AiAgentSection.tsx:221
+#: src/pages/settings/AiAgentSection.tsx:223
 msgid "读不到 Agent 的会话设置：{settingsError}"
 msgstr "读不到 Agent 的会话设置：{settingsError}"
 
@@ -7506,7 +7718,7 @@ msgstr "读不到 Agent 的会话设置：{settingsError}"
 msgid "读不到会话列表：{listError}"
 msgstr "读不到会话列表：{listError}"
 
-#: src/pages/settings/AiAgentSection.tsx:835
+#: src/pages/settings/AiAgentSection.tsx:1196
 msgid "读不到会话占用：{error}"
 msgstr "读不到会话占用：{error}"
 
@@ -7550,11 +7762,11 @@ msgstr "读不到待确认的剪辑单：{error}"
 msgid "读不到恢复状态：{statusError}"
 msgstr "读不到恢复状态：{statusError}"
 
-#: src/pages/agent/ConversationModes.tsx:399
+#: src/pages/agent/ConversationModes.tsx:404
 msgid "读不到方案列表：{failure}"
 msgstr "读不到方案列表：{failure}"
 
-#: src/pages/settings/AiAgentSection.tsx:496
+#: src/pages/settings/AiAgentSection.tsx:504
 msgid "读不到模型配置：{error}"
 msgstr "读不到模型配置：{error}"
 
@@ -7584,7 +7796,7 @@ msgstr "读不到运行时状态：{runtimeError}"
 msgid "读不到这个方案：{agentFailure}"
 msgstr "读不到这个方案：{agentFailure}"
 
-#: src/pages/AgentPage.tsx:401
+#: src/pages/AgentPage.tsx:408
 msgid "读不到这份剪辑单：{planError}"
 msgstr "读不到这份剪辑单：{planError}"
 
@@ -7600,7 +7812,7 @@ msgstr "读不到这场比赛的回放：{replayError}"
 msgid "读不到这场比赛的高光：{failure}"
 msgstr "读不到这场比赛的高光：{failure}"
 
-#: src/pages/agent/AgentConversationBlock.tsx:487
+#: src/pages/agent/AgentConversationBlock.tsx:535
 msgid "读不到这条对话：{failure}"
 msgstr "读不到这条对话：{failure}"
 
@@ -7616,6 +7828,14 @@ msgstr "读不到采集组件状态：{hlaeError}"
 msgid "读不到预设：{failure}"
 msgstr "读不到预设：{failure}"
 
+#: src/pages/agent/AgentConversationBlock.tsx:733
+msgid "读取 Agent 剪辑单"
+msgstr "读取 Agent 剪辑单"
+
+#: src/pages/agent/AgentConversationBlock.tsx:724
+msgid "读取 Demo 摘要"
+msgstr "读取 Demo 摘要"
+
 #: src/pages/editor/MediaLibraryPanel.tsx:114
 #: src/pages/montage/ExportBlock.tsx:234
 msgid "读取中"
@@ -7627,6 +7847,22 @@ msgstr "读取中"
 msgid "读取后台任务失败。"
 msgstr "读取后台任务失败。"
 
+#: src/pages/agent/AgentConversationBlock.tsx:727
+msgid "读取回合上下文"
+msgstr "读取回合上下文"
+
+#: src/pages/agent/AgentConversationBlock.tsx:728
+msgid "读取回合事件"
+msgstr "读取回合事件"
+
+#: src/pages/agent/AgentConversationBlock.tsx:729
+msgid "读取对位证据"
+msgstr "读取对位证据"
+
+#: src/pages/agent/AgentConversationBlock.tsx:723
+msgid "读取工作区"
+msgstr "读取工作区"
+
 #: src/pages/home/RecentOutputsPanel.tsx:83
 msgid "读取成品文件列表失败。"
 msgstr "读取成品文件列表失败。"
@@ -7635,6 +7871,10 @@ msgstr "读取成品文件列表失败。"
 msgid "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
 msgstr "读取是只读的，重试不会改动任何记录，也不会重新下载任何回放。"
 
+#: src/pages/agent/AgentConversationBlock.tsx:732
+msgid "读取编辑时间线"
+msgstr "读取编辑时间线"
+
 #: src/pages/delivery/OutputsView.tsx:86
 msgid "读取输出列表失败。"
 msgstr "读取输出列表失败。"
@@ -7642,6 +7882,10 @@ msgstr "读取输出列表失败。"
 #: src/pages/home/HomeTasksPanel.tsx:56
 msgid "读取进行中的任务失败。"
 msgstr "读取进行中的任务失败。"
+
+#: src/pages/agent/AgentConversationBlock.tsx:725
+msgid "读取选手目录"
+msgstr "读取选手目录"
 
 #: src/pages/delivery/TaskDetailBody.tsx:82
 msgid "读取阶段日志失败。"
@@ -7692,7 +7936,7 @@ msgstr "起始 tick"
 msgid "起始 tick 要写成一个不小于 0 的整数"
 msgstr "起始 tick 要写成一个不小于 0 的整数"
 
-#: src/pages/settings/AiAgentSection.tsx:398
+#: src/pages/settings/AiAgentSection.tsx:400
 msgid "超出当前保留策略的会话会被删除，删掉的是对话本身。它们改过的方案、录制任务和已生成的视频都留下。"
 msgstr "超出当前保留策略的会话会被删除，删掉的是对话本身。它们改过的方案、录制任务和已生成的视频都留下。"
 
@@ -7700,7 +7944,7 @@ msgstr "超出当前保留策略的会话会被删除，删掉的是对话本身
 msgid "超出素材范围"
 msgstr "超出素材范围"
 
-#: src/pages/settings/AiAgentSection.tsx:692
+#: src/pages/settings/AiAgentSection.tsx:1053
 msgid "超过这个数量后，最早的 take 会被丢弃。"
 msgstr "超过这个数量后，最早的 take 会被丢弃。"
 
@@ -7782,7 +8026,7 @@ msgstr "转场时长（秒）"
 msgid "转场时长超过了相邻片段，渲染会拒绝"
 msgstr "转场时长超过了相邻片段，渲染会拒绝"
 
-#: src/pages/ProjectWorkspacePage.tsx:243
+#: src/pages/ProjectWorkspacePage.tsx:244
 msgid "转换会创建副本，源作品与后续修改不会互相同步"
 msgstr "转换会创建副本，源作品与后续修改不会互相同步"
 
@@ -7831,7 +8075,7 @@ msgstr "运行录制前校验"
 msgid "运行时"
 msgstr "运行时"
 
-#: src/pages/ProjectWorkspacePage.tsx:61
+#: src/pages/ProjectWorkspacePage.tsx:62
 msgid "返回作品列表"
 msgstr "返回作品列表"
 
@@ -7878,7 +8122,7 @@ msgid "还原没能完成：{0}"
 msgstr "还原没能完成：{0}"
 
 #. placeholder {0}: unbound.length
-#: src/pages/AgentPage.tsx:591
+#: src/pages/AgentPage.tsx:598
 msgid "还有 {0} 个镜头没有绑定 Demo 与选手，不能转成录制任务"
 msgstr "还有 {0} 个镜头没有绑定 Demo 与选手，不能转成录制任务"
 
@@ -7891,7 +8135,7 @@ msgstr "还有 {0} 条购买事件没有带阵营，无法归属到任何一方�
 msgid "还有内容填得不对"
 msgstr "还有内容填得不对"
 
-#: src/pages/agent/ConversationModes.tsx:412
+#: src/pages/agent/ConversationModes.tsx:417
 msgid "还没有任何方案。先在对话里说清楚你要的片子，Agent 会给出第一版。"
 msgstr "还没有任何方案。先在对话里说清楚你要的片子，Agent 会给出第一版。"
 
@@ -8045,7 +8289,7 @@ msgstr "还没有配乐"
 msgid "还没有配置 Steam 比赛历史。"
 msgstr "还没有配置 Steam 比赛历史。"
 
-#: src/pages/agent/AgentConversationBlock.tsx:360
+#: src/pages/agent/AgentConversationBlock.tsx:398
 msgid "还没有配置可用的 AI 模型。保存模型设置并测试连接后，再回来重试这句话。"
 msgstr "还没有配置可用的 AI 模型。保存模型设置并测试连接后，再回来重试这句话。"
 
@@ -8240,7 +8484,7 @@ msgstr "这些设置决定视频怎么被录出来。改动只影响之后新建
 msgid "这些高光还读不到完整的解析结果，无法建立方案"
 msgstr "这些高光还读不到完整的解析结果，无法建立方案"
 
-#: src/pages/ProjectWorkspacePage.tsx:142
+#: src/pages/ProjectWorkspacePage.tsx:143
 msgid "这份作品的录制队列与片段进度会显示在这里。"
 msgstr "这份作品的录制队列与片段进度会显示在这里。"
 
@@ -8284,7 +8528,7 @@ msgstr "这份分析里没有这名选手。地址上的选择保留着，换一
 msgid "这份分析里没有选手"
 msgstr "这份分析里没有选手"
 
-#: src/pages/agent/ConversationModes.tsx:282
+#: src/pages/agent/ConversationModes.tsx:287
 msgid "这份剪辑单没有需要成片的镜头。"
 msgstr "这份剪辑单没有需要成片的镜头。"
 
@@ -8342,7 +8586,7 @@ msgstr "这份预览计划已经不在了，本地服务可能重启过。"
 msgid "这份预览计划已经过期。"
 msgstr "这份预览计划已经过期。"
 
-#: src/pages/agent/ConversationModes.tsx:351
+#: src/pages/agent/ConversationModes.tsx:356
 msgid "这会更新最终 Composition 的 Take 选择；原录制结果仍会保留，可随时换回。"
 msgstr "这会更新最终 Composition 的 Take 选择；原录制结果仍会保留，可随时换回。"
 
@@ -8458,11 +8702,11 @@ msgstr "这条变更指向的镜头已经不在方案里了"
 msgid "这条变更没有给出秒数，无法直接应用"
 msgstr "这条变更没有给出秒数，无法直接应用"
 
-#: src/pages/agent/AgentConversationBlock.tsx:521
+#: src/pages/agent/AgentConversationBlock.tsx:569
 msgid "这条对话还没有消息"
 msgstr "这条对话还没有消息"
 
-#: src/pages/agent/AgentConversationBlock.tsx:617
+#: src/pages/agent/AgentConversationBlock.tsx:665
 msgid "这条提议没有涉及选中的镜头。"
 msgstr "这条提议没有涉及选中的镜头。"
 
@@ -8507,7 +8751,7 @@ msgid "这次回答已停止"
 msgstr "这次回答已停止"
 
 #. placeholder {0}: chat.error
-#: src/pages/agent/AgentConversationBlock.tsx:361
+#: src/pages/agent/AgentConversationBlock.tsx:399
 msgid "这次回答没有完成：{0}"
 msgstr "这次回答没有完成：{0}"
 
@@ -8529,7 +8773,7 @@ msgstr "这次操作没有成功：{writeError}"
 msgid "这次改动没有保存：{writeError}"
 msgstr "这次改动没有保存：{writeError}"
 
-#: src/pages/AgentPage.tsx:557
+#: src/pages/AgentPage.tsx:564
 msgid "这次改动没能写进方案：{failure}"
 msgstr "这次改动没能写进方案：{failure}"
 
@@ -8619,7 +8863,7 @@ msgstr "进行中的任务"
 msgid "连接 Valve 比赛历史，用于同步最近对局并下载仍在保留期内的回放。"
 msgstr "连接 Valve 比赛历史，用于同步最近对局并下载仍在保留期内的回放。"
 
-#: src/pages/settings/AiAgentSection.tsx:548
+#: src/pages/settings/AiAgentSection.tsx:589
 msgid "连接正常：{testResult}，支持 Agent 工具调用。"
 msgstr "连接正常：{testResult}，支持 Agent 工具调用。"
 
@@ -8810,7 +9054,7 @@ msgid "选择音乐"
 msgstr "选择音乐"
 
 #: src/pages/ProjectsPage.tsx:88
-#: src/pages/ProjectWorkspacePage.tsx:106
+#: src/pages/ProjectWorkspacePage.tsx:107
 msgid "选材"
 msgstr "选材"
 
@@ -8926,13 +9170,13 @@ msgstr "配置文件没有损坏，不需要恢复"
 msgid "配置文件读不出来"
 msgstr "配置文件读不出来"
 
-#: src/pages/agent/AgentConversationBlock.tsx:342
+#: src/pages/agent/AgentConversationBlock.tsx:379
 #: src/pages/agent/AgentReadiness.tsx:69
 #: src/pages/agent/AgentReadiness.tsx:83
 msgid "配置模型"
 msgstr "配置模型"
 
-#: src/pages/LibraryPage.tsx:202
+#: src/pages/LibraryPage.tsx:224
 msgid "配置还没读出来，稍后再试"
 msgstr "配置还没读出来，稍后再试"
 
@@ -9038,7 +9282,7 @@ msgid "重新计算"
 msgstr "重新计算"
 
 #: src/pages/agent/PlanPanel.tsx:403
-#: src/pages/AgentPage.tsx:551
+#: src/pages/AgentPage.tsx:558
 msgid "重新读取剪辑单"
 msgstr "重新读取剪辑单"
 
@@ -9066,17 +9310,17 @@ msgstr "重新选择"
 #: src/domain/match/MatchContextBar.tsx:359
 #: src/domain/match/RoundTimeline.tsx:180
 #: src/domain/task/TaskDetail.tsx:145
-#: src/pages/agent/AgentConversationBlock.tsx:286
-#: src/pages/agent/AgentConversationBlock.tsx:346
-#: src/pages/agent/AgentConversationBlock.tsx:484
+#: src/pages/agent/AgentConversationBlock.tsx:323
+#: src/pages/agent/AgentConversationBlock.tsx:383
+#: src/pages/agent/AgentConversationBlock.tsx:532
 #: src/pages/agent/ChangePreviewDialog.tsx:64
 #: src/pages/agent/ConversationModes.tsx:215
-#: src/pages/agent/ConversationModes.tsx:397
+#: src/pages/agent/ConversationModes.tsx:402
 #: src/pages/agent/NewSessionPane.tsx:177
 #: src/pages/agent/NewSessionPane.tsx:212
 #: src/pages/agent/PlanPanel.tsx:130
 #: src/pages/agent/SessionDrawer.tsx:250
-#: src/pages/AgentPage.tsx:399
+#: src/pages/AgentPage.tsx:406
 #: src/pages/delivery/AgentVideoWorkflowPanel.tsx:43
 #: src/pages/delivery/useTaskActions.tsx:205
 #: src/pages/EditorPage.tsx:121
@@ -9095,7 +9339,7 @@ msgstr "重新选择"
 #: src/pages/library/LibraryInspector.tsx:184
 #: src/pages/library/LibraryTable.tsx:102
 #: src/pages/library/WatchDirectoriesDrawer.tsx:92
-#: src/pages/LibraryPage.tsx:417
+#: src/pages/LibraryPage.tsx:447
 #: src/pages/match/views/HighlightsView.tsx:160
 #: src/pages/match/views/ReplayView.tsx:239
 #: src/pages/match/views/ReviewView.tsx:116
@@ -9126,11 +9370,11 @@ msgstr "重新选择"
 #: src/pages/settings/AdvancedSection.tsx:168
 #: src/pages/settings/AdvancedSection.tsx:227
 #: src/pages/settings/AdvancedSection.tsx:288
-#: src/pages/settings/AiAgentSection.tsx:219
-#: src/pages/settings/AiAgentSection.tsx:495
-#: src/pages/settings/AiAgentSection.tsx:542
-#: src/pages/settings/AiAgentSection.tsx:834
-#: src/pages/settings/AiAgentSection.tsx:840
+#: src/pages/settings/AiAgentSection.tsx:221
+#: src/pages/settings/AiAgentSection.tsx:503
+#: src/pages/settings/AiAgentSection.tsx:583
+#: src/pages/settings/AiAgentSection.tsx:1195
+#: src/pages/settings/AiAgentSection.tsx:1201
 #: src/pages/settings/AppSection.tsx:74
 #: src/pages/settings/FilesSection.tsx:90
 #: src/pages/settings/GameSection.tsx:103
@@ -9344,6 +9588,10 @@ msgstr "预览中"
 msgid "预览中 · 工程尚未改动"
 msgstr "预览中 · 工程尚未改动"
 
+#: src/pages/agent/AgentConfirmationCard.tsx:158
+msgid "预览并执行编辑"
+msgstr "预览并执行编辑"
+
 #: src/pages/editor/ProgramMonitor.tsx:240
 msgid "预览比例"
 msgstr "预览比例"
@@ -9420,7 +9668,7 @@ msgstr "首杀对决"
 msgid "首杀差"
 msgstr "首杀差"
 
-#: src/pages/settings/AiAgentSection.tsx:527
+#: src/pages/settings/AiAgentSection.tsx:535
 msgid "首次配置需要填写密钥。"
 msgstr "首次配置需要填写密钥。"
 
@@ -9476,12 +9724,12 @@ msgstr "高爆"
 msgid "高级与诊断"
 msgstr "高级与诊断"
 
-#: src/pages/settings/AiAgentSection.tsx:761
-#: src/pages/settings/AiAgentSection.tsx:767
+#: src/pages/settings/AiAgentSection.tsx:1122
+#: src/pages/settings/AiAgentSection.tsx:1128
 msgid "默认成片时长"
 msgstr "默认成片时长"
 
-#: src/pages/settings/AiAgentSection.tsx:335
-#: src/pages/settings/AiAgentSection.tsx:346
+#: src/pages/settings/AiAgentSection.tsx:337
+#: src/pages/settings/AiAgentSection.tsx:348
 msgid "默认视角"
 msgstr "默认视角"

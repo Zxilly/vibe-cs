@@ -58,6 +58,7 @@ import { Trans } from '@lingui/react/macro';
 import { Button } from '../../../design/primitives';
 import { HighlightRow, RoundTimeline } from '../../../domain/match';
 import type { AnalysisWorkspace } from '../../../shared/desktop/viewModels';
+import { MatchInspectorPanel } from '../MatchInspectorPanel';
 import { roundSummaries } from '../matchModel';
 import type { MatchContextPatch } from '../workspaceContext';
 import type { MatchVideoAction, MatchViewModule, MatchViewProps } from '../viewContract';
@@ -210,6 +211,7 @@ export function OverviewPanels({
               <li key={highlight.id}>
                 <HighlightRow
                   highlight={toHighlightCandidate(highlight, directory)}
+                  current={highlight.id === preview[0]?.id}
                   tickRate={tickRate}
                   action={
                     <span className="flex items-center gap-2">
@@ -276,7 +278,97 @@ function OverviewBody({ demoId, context, updateContext, addToVideo }: MatchViewP
   );
 }
 
+function OverviewInspector({
+  demoId,
+  updateContext,
+  addToVideo,
+  collapsed,
+}: MatchViewProps) {
+  const gate = useAnalysisGate(demoId);
+  const highlight = gate.analysis === undefined
+    ? undefined
+    : rankedHighlights(gate.analysis.highlights, 1)[0];
+
+  if (highlight === undefined || gate.analysis === undefined) {
+    return (
+      <MatchInspectorPanel
+        title={<Trans>选中项</Trans>}
+        summary={<Trans>没有关键时刻可预览</Trans>}
+        addToVideo={addToVideo}
+        collapsed={collapsed}
+      >
+        <p className="text-sm text-neutral-700">
+          <Trans>选择一个回合、选手或高光后，这里会显示可定位、可加入作品的真实上下文。</Trans>
+        </p>
+      </MatchInspectorPanel>
+    );
+  }
+
+  const candidate = toHighlightCandidate(
+    highlight,
+    playerDirectory(gate.analysis.players),
+  );
+  const label = candidate.label ?? candidate.kind;
+
+  return (
+    <MatchInspectorPanel
+      title={<Trans>关键时刻 · 第 {candidate.round} 回合</Trans>}
+      summary={label}
+      addToVideo={addToVideo}
+      addLabel={<Trans>把这条高光加入作品</Trans>}
+      selection={{
+        round: candidate.round,
+        highlightId: candidate.id,
+        startTick: candidate.startTick,
+        endTick: candidate.endTick,
+      }}
+      secondaryActions={
+        <Button
+          variant="secondary"
+          size="sm"
+          grow
+          onClick={() =>
+            updateContext({
+              view: 'highlights',
+              round: candidate.round,
+              tick: candidate.startTick,
+            })
+          }
+        >
+          <Trans>查看高光</Trans>
+        </Button>
+      }
+      collapsed={collapsed}
+    >
+      <div className="border-l-2 border-accent pl-3">
+        <h3 className="font-heading text-xl">{label}</h3>
+        <p className="text-xs text-neutral-700">
+          {candidate.subject ?? <Trans>未归属选手</Trans>}
+        </p>
+      </div>
+      <dl className="flex flex-col gap-2 text-sm">
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-neutral-600"><Trans>回合</Trans></dt>
+          <dd className="font-mono text-xs">R{candidate.round}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-3">
+          <dt className="text-neutral-600"><Trans>tick 区间</Trans></dt>
+          <dd className="font-mono text-xs">
+            {candidate.startTick}–{candidate.endTick}
+          </dd>
+        </div>
+        {candidate.description === undefined ? null : (
+          <div className="border-t border-divider pt-3 text-xs leading-normal text-neutral-700">
+            {candidate.description}
+          </div>
+        )}
+      </dl>
+    </MatchInspectorPanel>
+  );
+}
+
 export const OverviewView: MatchViewModule = {
   id: 'overview',
   Body: OverviewBody,
+  Inspector: OverviewInspector,
 };

@@ -101,6 +101,7 @@ describe('the three blocks are three doors', () => {
     const rows = html.match(/data-highlight-row=/gu) ?? [];
     expect(rows).toHaveLength(HIGHLIGHT_PREVIEW);
     expect(html).toContain('查看全部 18 条');
+    expect(html).toMatch(/data-highlight-row="[^"]+"[^>]*aria-current="true"/u);
   });
 
   it('keeps the preview’s scroll inside its own container', () => {

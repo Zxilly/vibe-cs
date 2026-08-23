@@ -221,7 +221,7 @@ describe('what the shell reads', () => {
 
     expect(await screen.findByText('索引里没有这场比赛')).toBeTruthy();
     expect(screen.getByRole('button', { name: '重试' })).toBeTruthy();
-    expect(screen.getByRole('link', { name: '资料库' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: '资料库' })).toBeNull();
   });
 });
 

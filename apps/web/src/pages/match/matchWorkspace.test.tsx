@@ -112,7 +112,7 @@ describe('the constant chrome', () => {
   it('pins the match context bar above every view', () => {
     expect(html).toContain('data-page-toolbar');
     expect(html).toContain('data-match-context-bar=');
-    expect(html).toContain('data-match-back=');
+    expect(html).not.toContain('data-match-back=');
   });
 
   it('keeps §8’s non-negotiable primary action on the bar', () => {
@@ -127,10 +127,10 @@ describe('the constant chrome', () => {
     expect(html).toContain('w-[var(--w-inspector)]');
   });
 
-  it('shows the empty Inspector rather than an invented selection', () => {
+  it('shows an honest Inspector while the analysis is still pending', () => {
     expect(html).toContain('data-inspector-title');
     expect(html).toContain('选中项');
-    expect(html).toContain('在左侧选择一个回合');
+    expect(html).toContain('选择一个回合');
   });
 
   it('disables 加入作品 without a selection and says why', () => {

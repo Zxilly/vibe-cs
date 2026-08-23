@@ -93,7 +93,6 @@ import {
   type MatchViewId,
   type MatchViewProps,
 } from './match/viewContract';
-import { RouteLink } from './RouteLink';
 import { AddToProjectDialog, type AddedProjectTarget } from './project/AddToProjectDialog';
 import {
   patchWorkspaceContext,
@@ -194,15 +193,6 @@ export function MatchWorkspacePage() {
           match={identity}
           teamA={teamA}
           teamB={teamB}
-          backLink={
-            /* A real anchor (`RouteLink` resolves the hash-mode href), because
-               the artboard draws 「‹ 资料库」 as a link and middle-click, the
-               status bar and the back button all have to keep working. The bar
-               draws the chevron itself. */
-            <RouteLink to="/library">
-              <Trans>资料库</Trans>
-            </RouteLink>
-          }
           {...(round === null ? {} : { roundRange: <Trans>当前 {round}</Trans> })}
           focusedPlayers={focus}
           loading={demo.isPending}

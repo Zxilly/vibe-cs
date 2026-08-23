@@ -37,9 +37,8 @@ import type { DecidableProposal } from './conversationModel';
 /**
  * One proposal of one session entry, already parsed into change cards.
  *
- * `key` is `${entryId}#${index}` — the **same string** block A's `ProposalSlot`
- * carries for the same proposal, because `collectProposals` and
- * `readPlanProposals` both index into `entry.proposals` untouched. That equality
+ * `key` is `${entryId}#${proposalId}` — the **same string** block A's `ProposalSlot`
+ * carries for the same proposal. That equality
  * is the whole mechanism behind one decision map; `planProposals.test.ts` pins
  * it against `collectProposals` rather than trusting the two templates to stay
  * in step.
@@ -71,11 +70,11 @@ export function readPlanProposals(
   const proposals: PlanProposal[] = [];
   for (const entry of session.entries) {
     if (!isAssistant(entry)) continue;
-    for (const [index, raw] of entry.proposals.entries()) {
+    for (const raw of entry.proposals) {
       const changeSet = readPlanChangeSet(raw);
       if (changeSet === null || changeSet.planId !== planId) continue;
       proposals.push({
-        key: `${entry.id}#${String(index)}`,
+        key: `${entry.id}#${raw.proposal_id}`,
         entryId: entry.id,
         at: entry.at,
         changeSet,
@@ -90,4 +89,3 @@ function isAssistant(
 ): entry is Extract<AgentSessionEntry, { kind: 'assistant' }> {
   return entry.kind === 'assistant';
 }
-

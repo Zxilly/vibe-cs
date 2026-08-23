@@ -2711,6 +2711,7 @@ mod tests {
                 "content": "Review this change",
                 "tool_calls": [],
                 "proposals": [{
+                    "proposal_id": "00000000-0000-4000-8000-0000000000a1",
                     "kind": "highlight_edit",
                     "title": "Shorten clip 02",
                     "plan_id": null,
@@ -2729,7 +2730,7 @@ mod tests {
             &format!("/api/agent/sessions/{session_id}/proposal-decisions"),
             Some(json!({
                 "entry_id": entry_id,
-                "proposal_index": 0,
+                "proposal_id": "00000000-0000-4000-8000-0000000000a1",
                 "change_id": "change-1",
                 "decision": "rejected"
             })),
@@ -2760,7 +2761,7 @@ mod tests {
             &format!("/api/agent/sessions/{session_id}/proposal-decisions"),
             Some(json!({
                 "entry_id": entry_id,
-                "proposal_index": 0,
+                "proposal_id": "00000000-0000-4000-8000-0000000000a1",
                 "change_id": "change-1",
                 "decision": null
             })),

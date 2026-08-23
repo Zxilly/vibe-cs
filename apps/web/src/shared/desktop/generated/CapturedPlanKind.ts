@@ -13,5 +13,4 @@ export type CapturedPlanKind =
   | "agent_plan_change"
   | "highlight_edit"
   | "beat_alignment"
-  | "hlae"
   | "video_render";

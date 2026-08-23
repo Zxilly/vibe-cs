@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::Notify;
 use ts_rs::TS;
+use uuid::Uuid;
 
 pub use tools::{CapturedPlan, CapturedPlanKind, CapturedToolCall};
 
@@ -55,7 +56,7 @@ impl Cancellation {
 }
 
 /// Which set of tools and instructions one conversation runs with.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
 pub enum AgentMode {
@@ -87,14 +88,12 @@ pub struct AgentContext {
     pub analysis: Value,
     pub map_context: Value,
     pub editor_project: Value,
-    pub selected_audio: Value,
-    pub audio_analysis: Value,
-    pub beat_alignment_draft: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct HitlRequest {
+    pub proposal_id: Uuid,
     pub title: String,
     pub summary: String,
     #[serde(default)]
@@ -105,6 +104,23 @@ pub struct HitlRequest {
 pub trait AgentToolHost: std::fmt::Debug + Send + Sync {
     /// Return bounded replay-derived scenes for the requested highlight identifiers.
     async fn read_cinematic_context(&self, highlight_ids: &[String]) -> Result<Value, String>;
+
+    /// Analyze one explicitly referenced managed audio asset on demand.
+    async fn read_audio_analysis(&self, _audio_asset_id: Uuid) -> Result<Value, String> {
+        Err("audio analysis host is unavailable".to_owned())
+    }
+
+    /// Compute one advisory Beat Alignment Proposal from explicit object
+    /// references. This does not apply the Proposal.
+    async fn draft_beat_alignment(
+        &self,
+        _editor_project_id: Uuid,
+        _expected_revision: u64,
+        _audio_asset_id: Uuid,
+        _audio_placement: Value,
+    ) -> Result<Value, String> {
+        Err("beat-alignment host is unavailable".to_owned())
+    }
 
     /// Execute an Auto-approved structured confirmation through the product's
     /// authoritative preview/apply boundary. Unsupported proposal kinds return
@@ -406,9 +422,6 @@ fn validate_request(request: &AgentRequest) -> Result<(), AgentError> {
         "analysis": request.context.analysis,
         "mapContext": request.context.map_context,
         "editorProject": request.context.editor_project,
-        "selectedAudio": request.context.selected_audio,
-        "audioAnalysis": request.context.audio_analysis,
-        "beatAlignmentDraft": request.context.beat_alignment_draft,
     }))
     .map_err(|error| AgentError::Invalid(error.to_string()))?;
     if context_bytes.len() > MAXIMUM_CONTEXT_BYTES {
@@ -449,10 +462,10 @@ fn system_prompt(mode: AgentMode, auto_mode: bool, custom: &str) -> String {
             "Coach the user using verified demo evidence. Explain what happened, cite rounds/ticks/highlight IDs, and say when evidence is unavailable."
         }
         AgentMode::Edit => {
-            "Collaborate on an edit using only structured Vibe CS objects. First read workspace context. When a BGM is selected, call read_audio_analysis before making claims about pacing; call read_audio_rhythm_map before choosing exact musical boundaries or diagnosing rhythm. Use the native BPM, confidence, sections, silence ranges, spectral flux, frequency-band changes, and ranked cut points as evidence. A phrase_boundary is only an assumed four-beat position, not a detected downbeat; spectral values are acoustic evidence, not permission to invent genre, mood, instruments, or semantic section names. Align visual action peaks to strong musical boundaries while preserving shot readability and narrative escalation; do not cut every detected beat or hide weak footage behind fast cuts. When workspace.plan is present, use draft_agent_plan_changes with its exact shot ids for reviewable shorten/delete changes and do not use draft_edit_plan. Otherwise inspect the selected editor timeline and demo evidence, then use draft_edit_plan for a concrete sequence. After an edit proposal exists, call confirm_edit_plan; after a beat-alignment proposal exists, call confirm_beat_alignment. These tools create the workflow-positioned UI request. In Auto mode they mark it approved without pausing; otherwise the UI lets the user preview, execute, or reject it. Never claim execution until a later structured execution result is present in context. Report every rejection reason and never claim a rejected partial plan was created."
+            "Collaborate on an edit using only structured Vibe CS objects. First read workspace context and copy exact object references into every later Tool input. When an audioAssetId is available, call read_audio_evidence with view summary before making pacing claims and view rhythm_map before choosing musical boundaries. Use native BPM, confidence, sections, silence ranges, spectral flux, frequency-band changes, and ranked cut points as evidence. A phrase_boundary is only an assumed four-beat position, not a detected downbeat; spectral values do not prove genre, mood, instruments, or semantic section names. Align visual action peaks to strong musical boundaries while preserving shot readability and narrative escalation; do not cut every beat or hide weak footage behind fast cuts. When workspace.plan is present, pass its planId and revision explicitly to draft_agent_plan_changes. Otherwise inspect an explicit editorProjectId and Demo reference, then use draft_edit_plan. Every draft returns proposalId; pass that exact ID to its kind-specific confirmation Tool. Auto mode approves without pausing but does not change Tool semantics. Never claim execution until a structured Execution Result is present."
         }
         AgentMode::Hlae => {
-            "Create publishable highlight videos using only structured Vibe CS objects. In the current turn, read highlight evidence and call read_cinematic_context for the exact selected highlight IDs before drafting or describing any cinematic shot. workspace.series may contain multiple project Demos; when it does, read_highlights returns namespaced evidence IDs and draft_video_plan binds every selected highlight back to its own Demo, so a BO3/BO5 must be treated as one cross-Demo sequence rather than silently reduced to the primary Demo. Evidence correctness is necessary but not sufficient: rank candidates by action density, escalation, visual readability, and narrative role; prefer multi-kills, clutches, decisive entries, and match-point actions over padding isolated single kills to a requested duration. Give the video a human-facing title, assign each shot a hook/build/climax role, choose pacing and a supported transition style, and never stretch low-action footage merely to hit a duration target. Finish a supported creation request by calling draft_video_plan; it is the only proposal tool in this mode, and an ordinary edit draft cannot create the first shot list. After the video proposal exists, call confirm_video_plan with its exact shot count, effective duration, summary, and risks so the UI can present the recording-stage decision. In Auto mode this confirmation is marked approved without pausing; otherwise the user acts in the video confirmation UI. Design each shot around the returned map name, Valve radar-relative route, positioned action, movement axis, spatial spread, and engagement purpose; never choose a movement merely for variety. Treat verifiedEngagements as kill-event-backed axes and nearestOpponent fields only as proximity context. Never invent evidence categories, labels, or measurements absent from tool output. Supply one cameraIntent and a concrete cameraRationale per highlight. Use player_pov whenever spatial evidence is unavailable. Choose cameraStyle from pov, orbit, dolly, static, tracking, crane, or flyby only when it expresses that intent. Requested lead/tail handles may be shortened by replay boundaries or the action-density guard; report the effective timing and clipping risk rather than promising unavailable or dull frames. Report every rejection reason. Never mention capture engines, encoders, configuration artifacts, runtimes, or other implementation details unless the user explicitly asks. Do not claim completion until the host reports a completed recording job and an MP4 output."
+            "Create publishable highlight videos using only structured Vibe CS objects. First read workspace context, then pass its exact demoIds to read_highlights and read_cinematic_context. The cinematic reader returns cinematicEvidenceId; draft_video_plan must consume that exact reference and may not silently fetch missing Evidence. Multi-Demo projects use namespaced Highlight IDs and remain one cross-Demo sequence. Rank candidates by action density, escalation, visual readability, and narrative role; prefer multi-kills, clutches, decisive entries, and match-point actions over padding. Give the video a title, assign hook/build/climax roles, choose pacing and a supported transition, and never stretch low-action footage. Design shots from verified map, route, action, movement, spread, and engagement purpose. Use player_pov when spatial or collision Evidence is unavailable. Never invent measurements. The draft returns proposalId; pass it exactly to confirm_video_plan. Auto mode approves without pausing but does not change semantics. Do not claim completion until a structured recording Execution Result and MP4 output exist."
         }
     };
     let automation_instruction = if auto_mode {
@@ -583,6 +596,7 @@ mod tests {
                 custom_instructions: String::new(),
             },
             context: AgentContext {
+                workspace: json!({"demoIds":["00000000-0000-4000-8000-0000000000d1"]}),
                 demo: json!({"id":"00000000-0000-4000-8000-0000000000d1"}),
                 analysis: json!({"tick_rate":64,"highlights":[{
                     "id":"ace-1","kind":"multi_kill","title":"Ace","player_id":"player-1",
@@ -606,15 +620,16 @@ mod tests {
         .expect("agent timeout")
         .expect("agent response");
         let requests = provider.await.expect("provider task");
-        assert_eq!(requests.len(), 3);
+        assert_eq!(requests.len(), 4);
         assert!(
-            requests[2]["messages"]
+            requests[3]["messages"]
                 .as_array()
                 .is_some_and(|messages| messages.iter().any(|message| message["role"] == "tool"))
         );
         assert!(deltas.contains("ace-1"));
-        assert_eq!(response.tool_calls[0].name, "draft_video_plan");
-        assert_eq!(response.tool_calls[1].name, "confirm_video_plan");
+        assert_eq!(response.tool_calls[0].name, "read_cinematic_context");
+        assert_eq!(response.tool_calls[1].name, "draft_video_plan");
+        assert_eq!(response.tool_calls[2].name, "confirm_video_plan");
         assert_eq!(response.plans[0].kind, CapturedPlanKind::VideoRender);
         assert_eq!(
             response.plans[0].payload["source_highlight_ids"],
@@ -701,11 +716,32 @@ mod tests {
 
     async fn serve_provider(listener: TcpListener) -> Vec<Value> {
         let mut requests = Vec::new();
-        for index in 0..3 {
+        for index in 0..4 {
             let (mut stream, _) = listener.accept().await.expect("provider request");
             requests.push(read_http_json(&mut stream).await);
             let chunks = if index == 0 {
                 let arguments = serde_json::to_string(&json!({
+                    "demoIds":["00000000-0000-4000-8000-0000000000d1"],
+                    "highlightIds":["ace-1"]
+                }))
+                .expect("arguments");
+                vec![
+                    stream_chunk(
+                        &json!({"role":"assistant","tool_calls":[{
+                            "index":0,"id":"call-cinematic","type":"function",
+                            "function":{"name":"read_cinematic_context","arguments":arguments}
+                        }]}),
+                        None,
+                    ),
+                    stream_chunk(&json!({}), Some("tool_calls")),
+                ]
+            } else if index == 1 {
+                let evidence_id =
+                    last_tool_output(requests.last().expect("request"))["cinematicEvidenceId"]
+                        .clone();
+                let arguments = serde_json::to_string(&json!({
+                    "demoIds":["00000000-0000-4000-8000-0000000000d1"],
+                    "cinematicEvidenceId":evidence_id,
                     "title":"ACE impact cut",
                     "highlightIds":["ace-1"],"leadSeconds":2.0,"tailSeconds":2.5,
                     "pacing":"impact","storyRoles":["climax"],"transitionStyle":"flash",
@@ -723,8 +759,11 @@ mod tests {
                     ),
                     stream_chunk(&json!({}), Some("tool_calls")),
                 ]
-            } else if index == 1 {
+            } else if index == 2 {
+                let proposal_id =
+                    last_tool_output(requests.last().expect("request"))["proposalId"].clone();
                 let arguments = serde_json::to_string(&json!({
+                    "proposalId":proposal_id,
                     "title":"Generate the selected highlight video",
                     "summary":"Record ace-1 and export a bounded MP4",
                     "risks":["Starts the managed offline capture workflow"]
@@ -752,6 +791,28 @@ mod tests {
             write_sse(&mut stream, &chunks).await;
         }
         requests
+    }
+
+    fn last_tool_output(request: &Value) -> Value {
+        let content = &request["messages"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .rev()
+            .find(|message| message["role"] == "tool")
+            .expect("tool output message")["content"];
+        if let Some(content) = content.as_str() {
+            return serde_json::from_str(content).expect("tool output JSON");
+        }
+        if let Some(text) = content
+            .as_array()
+            .and_then(|parts| parts.last())
+            .and_then(|part| part.get("text"))
+            .and_then(Value::as_str)
+        {
+            return serde_json::from_str(text).expect("tool output JSON text");
+        }
+        content.clone()
     }
 
     fn stream_chunk(delta: &Value, finish_reason: Option<&str>) -> Value {

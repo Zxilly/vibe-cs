@@ -209,6 +209,7 @@ impl AgentToolHost for CinematicReplayHost {
 struct DesktopAgentToolHost {
     cinematic: Vec<CinematicReplayHost>,
     dispatcher: DesktopBridge,
+    bridge: AgentBridge,
 }
 
 #[async_trait]
@@ -227,6 +228,67 @@ impl AgentToolHost for DesktopAgentToolHost {
             );
         }
         Ok(json!({"scenes":scenes}))
+    }
+
+    async fn read_audio_analysis(&self, audio_asset_id: Uuid) -> Result<Value, String> {
+        self.bridge
+            .analyze_audio(audio_asset_id)
+            .await
+            .map_err(|error| error.message)
+    }
+
+    async fn draft_beat_alignment(
+        &self,
+        editor_project_id: Uuid,
+        expected_revision: u64,
+        audio_asset_id: Uuid,
+        audio_placement: Value,
+    ) -> Result<Value, String> {
+        let project = self
+            .bridge
+            .storage
+            .get_editor_project(editor_project_id)
+            .await
+            .map_err(|error| format!("unable to read Editor Project: {error}"))?
+            .ok_or_else(|| "Editor Project does not exist".to_owned())?;
+        if project.revision != expected_revision {
+            return Err(format!(
+                "Editor Project revision changed: expected {expected_revision}, current {}",
+                project.revision
+            ));
+        }
+        let project = serde_json::to_value(project)
+            .map_err(|error| format!("unable to serialize Editor Project: {error}"))?;
+        let analysis = self
+            .bridge
+            .analyze_audio(audio_asset_id)
+            .await
+            .map_err(|error| error.message)?;
+        let beats = analysis
+            .get("beats")
+            .and_then(Value::as_array)
+            .filter(|beats| !beats.is_empty())
+            .ok_or_else(|| "selected audio has no reliable beat grid".to_owned())?;
+        let clips = beat_alignment_clips(&project, &Value::Null);
+        if clips.is_empty() {
+            return Err("Editor Project has no alignable video clips".to_owned());
+        }
+        let draft = self
+            .dispatcher
+            .dispatch(DesktopCall {
+                method: DesktopMethod::Post,
+                path: "/media/audio/align-clips".to_owned(),
+                body: Some(json!({"beats":beats,"clips":clips})),
+            })
+            .await
+            .map_err(|error| format!("unable to compute Beat Alignment Proposal: {error:?}"))?;
+        Ok(json!({
+            "project_id": editor_project_id,
+            "expected_revision": expected_revision,
+            "audio_asset_id": audio_asset_id,
+            "audio_placement": audio_placement,
+            "draft": draft
+        }))
     }
 
     async fn execute_confirmation(
@@ -715,6 +777,7 @@ pub(crate) struct AgentToolCall {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, rename = "DesktopAgentProposal")]
 pub(crate) struct AgentProposal {
+    proposal_id: Uuid,
     kind: CapturedPlanKind,
     title: String,
     payload: Value,
@@ -872,6 +935,7 @@ impl AgentProposal {
         based_on_revision: Option<i64>,
     ) -> Self {
         Self {
+            proposal_id: value.id,
             kind: value.kind,
             title: value.title,
             payload: value.payload,
@@ -1236,58 +1300,6 @@ async fn run_agent_chat(
         }
         None => Value::Null,
     };
-    let selected_audio = match input.audio_asset_id {
-        Some(id) => {
-            let asset = state.storage.get_asset(id).await.map_err(|error| {
-                AgentCommandError::internal(format!("unable to read selected BGM: {error}"))
-            })?;
-            asset.map_or(Value::Null, |asset| {
-                json!({
-                    "assetId": asset.id,
-                    "name": asset.name,
-                    "kind": asset.kind,
-                    "durationSeconds": asset.duration_seconds,
-                    "fileSize": asset.file_size,
-                    "placement": {
-                        "timeline_start_seconds": 0.0,
-                        "source_in_seconds": 0.0,
-                        "volume": 1.0,
-                    },
-                })
-            })
-        }
-        None => Value::Null,
-    };
-    let audio_analysis = match input.audio_asset_id {
-        Some(id) => tokio::select! {
-            analysis = state.analyze_audio(id) => analysis?,
-            () = cancellation.cancelled() => return Err(AgentCommandError::unavailable("agent request was cancelled")),
-        },
-        None => Value::Null,
-    };
-    let alignment_clips = beat_alignment_clips(&editor_project, &analysis);
-    let beat_alignment_draft = if audio_analysis
-        .get("beats")
-        .and_then(Value::as_array)
-        .is_some_and(|beats| !beats.is_empty())
-        && !alignment_clips.is_empty()
-    {
-        state
-            .dispatcher
-            .dispatch(DesktopCall {
-                method: DesktopMethod::Post,
-                path: "/media/audio/align-clips".to_owned(),
-                body: Some(json!({ "beats": audio_analysis["beats"], "clips": alignment_clips })),
-            })
-            .await
-            .map_err(|error| {
-                AgentCommandError::invalid(format!(
-                    "unable to create native beat-alignment draft: {error:?}"
-                ))
-            })?
-    } else {
-        Value::Null
-    };
     let history = input
         .history
         .iter()
@@ -1312,10 +1324,21 @@ async fn run_agent_chat(
     let tool_host = Some(Arc::new(DesktopAgentToolHost {
         cinematic,
         dispatcher: state.dispatcher.clone(),
+        bridge: state.clone(),
     }) as Arc<dyn AgentToolHost>);
     let mut workspace = serde_json::to_value(&input.workspace_context)
         .map_err(|error| AgentCommandError::internal(error.to_string()))?;
     if let Some(object) = workspace.as_object_mut() {
+        object.insert(
+            "resources".to_owned(),
+            json!({
+                "demoIds": input.demo_ids,
+                "editorProjectId": input.editor_project_id,
+                "audioAssetId": input.audio_asset_id,
+                "planId": input.workspace_context.plan_id,
+                "planRevision": input.workspace_context.plan_revision,
+            }),
+        );
         object.insert("plan".to_owned(), agent_plan);
         object.insert(
             "series".to_owned(),
@@ -1353,9 +1376,6 @@ async fn run_agent_chat(
             analysis: summarized_analysis,
             map_context,
             editor_project: summarize_editor_project(&editor_project),
-            selected_audio,
-            audio_analysis,
-            beat_alignment_draft,
         },
         tool_host,
         auto_mode: input.auto_mode,
@@ -2139,21 +2159,6 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
                 }
             }
         }
-        CapturedPlanKind::Hlae => {
-            let intent = serde_json::from_value::<vibe_cs_domain::HlaeProposalIntent>(
-                proposal.payload.clone(),
-            )
-            .map_err(|error| {
-                AgentCommandError::internal(format!(
-                    "agent returned an invalid HLAE intent: {error}"
-                ))
-            })?;
-            if intent.highlight_ids.is_empty() || intent.highlight_ids.len() > 16 {
-                return Err(AgentCommandError::internal(
-                    "agent HLAE intent violates its highlight bounds",
-                ));
-            }
-        }
         CapturedPlanKind::BeatAlignment => {
             let request = serde_json::from_value::<vibe_cs_domain::BeatAlignmentProposalRequest>(
                 proposal.payload.clone(),
@@ -2352,18 +2357,19 @@ mod tests {
 
         let tool_call = serde_json::to_value(AgentEvent::ToolCall {
             tool_call: AgentToolCall {
-                name: "draft_hlae_plan".to_owned(),
+                name: "read_workspace_context".to_owned(),
                 input: json!({}),
                 output: json!({}),
             },
         })
         .expect("tool event JSON");
-        assert_eq!(tool_call["toolCall"]["name"], "draft_hlae_plan");
+        assert_eq!(tool_call["toolCall"]["name"], "read_workspace_context");
         assert!(tool_call.get("tool_call").is_none());
 
         let plan_id = Uuid::new_v4();
         let proposal = serde_json::to_value(AgentEvent::Proposal {
             proposal: AgentProposal {
+                proposal_id: Uuid::new_v4(),
                 kind: CapturedPlanKind::HighlightEdit,
                 title: "Shorten clip".to_owned(),
                 payload: json!({}),
@@ -2379,6 +2385,7 @@ mod tests {
     #[test]
     fn video_render_proposal_requires_executable_mp4_items() {
         let proposal = AgentProposal {
+            proposal_id: Uuid::new_v4(),
             kind: CapturedPlanKind::VideoRender,
             title: "NiKo highlight".to_owned(),
             payload: json!({
@@ -2434,6 +2441,7 @@ mod tests {
     #[test]
     fn agent_plan_change_proposal_requires_a_bound_revision_and_applicable_payload() {
         let mut proposal = AgentProposal {
+            proposal_id: Uuid::new_v4(),
             kind: CapturedPlanKind::AgentPlanChange,
             title: "Shorten opening".to_owned(),
             payload: json!({

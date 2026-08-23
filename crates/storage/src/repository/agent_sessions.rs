@@ -363,10 +363,11 @@ impl Storage {
                 )));
             };
             let proposal = proposals
-                .get_mut(usize::try_from(update.proposal_index).unwrap_or(usize::MAX))
+                .iter_mut()
+                .find(|proposal| proposal.proposal_id == update.proposal_id)
                 .ok_or_else(|| {
                     StorageError::Domain(DomainError::InvalidInput(
-                        "proposal decision index does not exist".to_owned(),
+                        "proposal decision identity does not exist".to_owned(),
                     ))
                 })?;
             let decisions = proposal.decisions.get_or_insert_with(Vec::new);

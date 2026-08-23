@@ -79,11 +79,17 @@ describe('readPlanProposals', () => {
       at: '2026-08-15T09:45:00.000Z',
       content: '',
       tool_calls: [],
-      proposals: [PLAN_PROPOSAL, PLAN_PROPOSAL],
+      proposals: [
+        PLAN_PROPOSAL,
+        { ...PLAN_PROPOSAL, proposal_id: '00000000-0000-4000-8000-0000000000a4' },
+      ],
     };
     const proposals = readPlanProposals({ ...SESSION, entries: [USER_ENTRY, twice] }, 'P-118');
 
-    expect(proposals.map((proposal) => proposal.key)).toEqual(['entry-2#0', 'entry-2#1']);
+    expect(proposals.map((proposal) => proposal.key)).toEqual([
+      'entry-2#00000000-0000-4000-8000-0000000000a2',
+      'entry-2#00000000-0000-4000-8000-0000000000a4',
+    ]);
   });
 });
 
@@ -115,7 +121,10 @@ describe('the key the panel files a decision under', () => {
       at: '2026-08-15T09:45:00.000Z',
       content: '',
       tool_calls: [],
-      proposals: [PLAN_PROPOSAL, PLAN_PROPOSAL],
+      proposals: [
+        PLAN_PROPOSAL,
+        { ...PLAN_PROPOSAL, proposal_id: '00000000-0000-4000-8000-0000000000a5' },
+      ],
     };
     const [first, second] = readPlanProposals({ ...SESSION, entries: [twice] }, 'P-118');
     const change = first?.changeSet.changes[0];

@@ -3,7 +3,7 @@ import type { AgentProposalDecisionKind } from "./AgentProposalDecisionKind";
 
 export type AgentProposalDecisionUpdate = {
   entry_id: string;
-  proposal_index: number;
+  proposal_id: string;
   change_id: string;
   /**
    * `None` restores the change to its undecided state.

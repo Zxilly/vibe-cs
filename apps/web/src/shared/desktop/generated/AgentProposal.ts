@@ -8,6 +8,11 @@ import type { JsonValue } from "./serde_json/JsonValue";
  * stale and can no longer be applied.
  */
 export type AgentProposal = {
+  /**
+   * Stable identity minted by the draft Tool and consumed by exactly one
+   * kind-specific Confirmation Tool.
+   */
+  proposal_id: string;
   kind: string;
   title: string;
   /**

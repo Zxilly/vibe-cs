@@ -157,6 +157,7 @@ describe('useAgentChatStream', () => {
       {
         type: 'proposal',
         proposal: {
+          proposalId: '00000000-0000-4000-8000-0000000000a1',
           kind: 'highlight_edit', title: '压到 30 秒', payload: { changes: [] },
           planId: 'P-118', basedOnRevision: 6,
         },
@@ -176,6 +177,7 @@ describe('useAgentChatStream', () => {
     expect(updates.at(-1)?.proposals).toEqual([
       {
         kind: 'highlight_edit',
+        proposal_id: '00000000-0000-4000-8000-0000000000a1',
         title: '压到 30 秒',
         plan_id: 'P-118',
         based_on_revision: 6,
@@ -189,6 +191,7 @@ describe('useAgentChatStream', () => {
       {
         type: 'proposal',
         proposal: {
+          proposalId: '00000000-0000-4000-8000-0000000000a2',
           kind: 'video_render', title: '生成视频', payload: null,
           planId: null, basedOnRevision: null,
         },
@@ -262,6 +265,7 @@ describe('useAgentChatStream', () => {
       {
         type: 'proposal',
         proposal: {
+          proposalId: '00000000-0000-4000-8000-0000000000a3',
           kind: 'video_render', title: 'Niko series', payload: { items: [] },
           planId: 'P-118', basedOnRevision: 2,
         },

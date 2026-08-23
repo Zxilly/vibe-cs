@@ -250,6 +250,7 @@ describe('the rest of the session writes', () => {
       entries: [{
         kind: 'assistant', id: 'e-2', at: SESSION.updated_at, content: 'done', tool_calls: [],
         proposals: [{
+          proposal_id: '00000000-0000-4000-8000-0000000000a1',
           kind: 'highlight_edit', title: 'shorten', plan_id: null,
           based_on_revision: null, payload: {},
           decisions: [{ change_id: 'change-1', decision: 'rejected', decided_at: SESSION.updated_at }],
@@ -271,7 +272,7 @@ describe('the rest of the session writes', () => {
       await result.current.decide.mutateAsync({
         sessionId: 'S-1',
         update: {
-          entry_id: 'e-2', proposal_index: 0, change_id: 'change-1', decision: 'rejected',
+          entry_id: 'e-2', proposal_id: '00000000-0000-4000-8000-0000000000a1', change_id: 'change-1', decision: 'rejected',
         },
       });
     });

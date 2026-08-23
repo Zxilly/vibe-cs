@@ -180,6 +180,7 @@ export const EDIT_ENTRY: AgentSessionEntry = {
  * changes, the third of which the user rejected in the artboard.
  */
 export const PLAN_PROPOSAL: AgentSessionProposal = {
+  proposal_id: '00000000-0000-4000-8000-0000000000a2',
   kind: 'plan_change',
   title: '把它压到 30 秒以内',
   plan_id: 'P-118',

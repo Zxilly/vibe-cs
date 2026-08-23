@@ -7,6 +7,7 @@ import type { JsonValue } from "./serde_json/JsonValue";
  * renders `payload`; the payload itself is not interpreted here.
  */
 export type CapturedPlan = {
+  id: string;
   kind: CapturedPlanKind;
   title: string;
   payload: JsonValue;

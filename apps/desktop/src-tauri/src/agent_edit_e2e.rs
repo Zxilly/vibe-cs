@@ -66,11 +66,12 @@ async fn openai_tool_loop(
     };
     let request_number = {
         let mut requests = state.requests.lock().expect("provider requests");
-        requests.push(request);
+        requests.push(request.clone());
         requests.len()
     };
     let chunks = if request_number == 1 {
         let arguments = json!({
+            "demoId": "00000000-0000-4000-8000-0000000000d1",
             "highlightIds": ["ace-1"],
             "pacing": "impact",
             "includeContextSeconds": 2,
@@ -106,7 +107,9 @@ async fn openai_tool_loop(
             }),
         ]
     } else if request_number == 2 {
+        let proposal_id = last_tool_output(&request)["proposalId"].clone();
         let arguments = json!({
+            "proposalId": proposal_id,
             "title": "Apply the selected edit plan",
             "summary": "Create an impact edit from ace-1"
         })
@@ -219,11 +222,33 @@ async fn openai_video_loop(
     let request = serde_json::from_slice::<Value>(&body).expect("video provider request");
     let request_number = {
         let mut requests = state.requests.lock().expect("provider requests");
-        requests.push(request);
+        requests.push(request.clone());
         requests.len()
     };
     let chunks = if request_number == 1 {
         let arguments = json!({
+            "demoIds": ["00000000-0000-4000-8000-0000000000d2"],
+            "highlightIds": ["ace-1"]
+        })
+        .to_string();
+        vec![
+            json!({
+                "id":"chatcmpl-video-e2e","object":"chat.completion.chunk","created":0,"model":"desktop-e2e",
+                "choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{
+                    "index":0,"id":"call-cinematic","type":"function",
+                    "function":{"name":"read_cinematic_context","arguments":arguments}
+                }]},"finish_reason":null}]
+            }),
+            json!({
+                "id":"chatcmpl-video-e2e","object":"chat.completion.chunk","created":0,"model":"desktop-e2e",
+                "choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]
+            }),
+        ]
+    } else if request_number == 2 {
+        let evidence_id = last_tool_output(&request)["cinematicEvidenceId"].clone();
+        let arguments = json!({
+            "demoIds": ["00000000-0000-4000-8000-0000000000d2"],
+            "cinematicEvidenceId": evidence_id,
             "title": "ACE impact cut",
             "highlightIds": ["ace-1"],
             "leadSeconds": 2.0,
@@ -263,8 +288,10 @@ async fn openai_video_loop(
                 "choices": [{ "index": 0, "delta": {}, "finish_reason": "tool_calls" }]
             }),
         ]
-    } else if request_number == 2 {
+    } else if request_number == 3 {
+        let proposal_id = last_tool_output(&request)["proposalId"].clone();
         let arguments = json!({
+            "proposalId": proposal_id,
             "title": "Generate the selected video",
             "summary": "Record ace-1 and export a bounded MP4"
         })
@@ -331,6 +358,28 @@ async fn openai_video_loop(
         .header(header::CONTENT_TYPE, "text/event-stream; charset=utf-8")
         .body(Body::from(stream))
         .expect("video provider response")
+}
+
+fn last_tool_output(request: &Value) -> Value {
+    let content = &request["messages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .rev()
+        .find(|message| message["role"] == "tool")
+        .expect("tool output message")["content"];
+    if let Some(content) = content.as_str() {
+        return serde_json::from_str(content).expect("tool output JSON");
+    }
+    if let Some(text) = content
+        .as_array()
+        .and_then(|parts| parts.last())
+        .and_then(|part| part.get("text"))
+        .and_then(Value::as_str)
+    {
+        return serde_json::from_str(text).expect("tool output JSON text");
+    }
+    content.clone()
 }
 
 async fn video_provider_server() -> (
@@ -957,7 +1006,7 @@ async fn one_sentence_materializes_a_plan_and_reaches_a_persisted_final_video() 
     .expect("Agent chat timeout")
     .expect("one sentence Agent chat");
     assert_eq!(result.thread_id, session.id);
-    assert_eq!(provider.requests.lock().expect("requests").len(), 3);
+    assert_eq!(provider.requests.lock().expect("requests").len(), 4);
 
     let generated = storage
         .get_agent_plan(plan.id)

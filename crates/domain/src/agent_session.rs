@@ -174,6 +174,9 @@ pub struct AgentToolCall {
 #[serde(deny_unknown_fields)]
 #[ts(export)]
 pub struct AgentProposal {
+    /// Stable identity minted by the draft Tool and consumed by exactly one
+    /// kind-specific Confirmation Tool.
+    pub proposal_id: Uuid,
     pub kind: String,
     pub title: String,
     /// The plan this proposal changes, when it targets one.
@@ -209,6 +212,11 @@ impl AgentProposal {
     /// Returns [`DomainError::InvalidInput`] when the kind or title is outside
     /// its bound, or when only one half of the plan revision base is present.
     pub fn validate(&self) -> Result<(), DomainError> {
+        if self.proposal_id.is_nil() {
+            return Err(DomainError::InvalidInput(
+                "proposal_id must not be nil".to_owned(),
+            ));
+        }
         required_text(&self.kind, AGENT_SESSION_MAX_LABEL_CHARS, "proposal kind")?;
         required_text(&self.title, AGENT_SESSION_MAX_LABEL_CHARS, "proposal title")?;
         if self.plan_id.is_some() != self.based_on_revision.is_some() {
@@ -223,6 +231,19 @@ impl AgentProposal {
         }
         Ok(())
     }
+}
+
+fn validate_agent_proposals(proposals: &[AgentProposal]) -> Result<(), DomainError> {
+    let mut identities = HashSet::with_capacity(proposals.len());
+    for proposal in proposals {
+        proposal.validate()?;
+        if !identities.insert(proposal.proposal_id) {
+            return Err(DomainError::InvalidInput(
+                "an Agent entry cannot contain duplicate proposal_id values".to_owned(),
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
@@ -247,7 +268,7 @@ pub struct AgentProposalDecision {
 #[ts(export)]
 pub struct AgentProposalDecisionUpdate {
     pub entry_id: Uuid,
-    pub proposal_index: u32,
+    pub proposal_id: Uuid,
     pub change_id: String,
     /// `None` restores the change to its undecided state.
     pub decision: Option<AgentProposalDecisionKind>,
@@ -261,13 +282,10 @@ impl AgentProposalDecisionUpdate {
             AGENT_SESSION_MAX_LABEL_CHARS,
             "proposal change id",
         )?;
-        if usize::try_from(self.proposal_index)
-            .ok()
-            .is_none_or(|index| index >= AGENT_SESSION_MAX_PROPOSALS)
-        {
-            return Err(DomainError::InvalidInput(format!(
-                "proposal_index must be below {AGENT_SESSION_MAX_PROPOSALS}"
-            )));
+        if self.proposal_id.is_nil() {
+            return Err(DomainError::InvalidInput(
+                "proposal_id must not be nil".to_owned(),
+            ));
         }
         Ok(self)
     }
@@ -492,9 +510,7 @@ impl AgentSessionEntryDraft {
                         "an entry may carry at most {AGENT_SESSION_MAX_PROPOSALS} proposals"
                     )));
                 }
-                for proposal in &proposals {
-                    proposal.validate()?;
-                }
+                validate_agent_proposals(&proposals)?;
                 Ok(Self::Assistant {
                     content: optional_text(&content, AGENT_SESSION_MAX_CONTENT_CHARS, "content")?,
                     tool_calls,
@@ -585,9 +601,7 @@ impl AgentTurnUpdate {
                 "agent turn result exceeds the entry limits".to_owned(),
             ));
         }
-        for proposal in &self.proposals {
-            proposal.validate()?;
-        }
+        validate_agent_proposals(&self.proposals)?;
         self.error = self
             .error
             .map(|value| optional_text(&value, AGENT_SESSION_MAX_CONTENT_CHARS, "turn error"))
@@ -1684,6 +1698,7 @@ mod tests {
     fn proposal_is_stale_only_against_a_newer_revision_of_its_own_plan() {
         let plan_id = Uuid::new_v4();
         let proposal = AgentProposal {
+            proposal_id: Uuid::new_v4(),
             kind: "video_render".to_owned(),
             title: "压到 30 秒".to_owned(),
             plan_id: Some(plan_id),
@@ -1702,6 +1717,35 @@ mod tests {
             ..proposal
         };
         assert!(half_bound.validate().is_err());
+    }
+
+    #[test]
+    fn proposal_identity_is_required_and_unique_within_one_entry() {
+        assert!(
+            serde_json::from_value::<AgentProposal>(serde_json::json!({
+                "kind":"highlight_edit","title":"old","plan_id":null,
+                "based_on_revision":null,"payload":{}
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<AgentProposalDecisionUpdate>(serde_json::json!({
+                "entry_id":Uuid::new_v4(),"proposal_index":0,
+                "change_id":"change-1","decision":"accepted"
+            }))
+            .is_err()
+        );
+        let proposal = AgentProposal {
+            proposal_id: Uuid::new_v4(),
+            kind: "highlight_edit".to_owned(),
+            title: "Edit".to_owned(),
+            plan_id: None,
+            based_on_revision: None,
+            payload: serde_json::json!({}),
+            decisions: None,
+        };
+        assert!(validate_agent_proposals(std::slice::from_ref(&proposal)).is_ok());
+        assert!(validate_agent_proposals(&[proposal.clone(), proposal]).is_err());
     }
 
     #[test]

@@ -32,6 +32,7 @@ beforeAll(() => {
 
 function proposal(overrides: Partial<AgentSessionProposal> = {}): AgentSessionProposal {
   return {
+    proposal_id: '00000000-0000-4000-8000-0000000000a3',
     kind: 'plan_change_set',
     title: '把它压到 30 秒以内',
     plan_id: 'P-118',

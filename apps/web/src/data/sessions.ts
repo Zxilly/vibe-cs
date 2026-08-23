@@ -561,6 +561,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
               name: call.name, input: call.input, output: call.output,
             })),
             proposals: proposals.map((item) => ({
+              proposal_id: item.proposalId,
               kind: item.kind,
               title: item.title,
               plan_id: item.planId,
@@ -591,6 +592,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           output: call.output,
         })),
         proposals: proposals.map((item) => ({
+          proposal_id: item.proposalId,
           kind: item.kind,
           title: item.title,
           plan_id: item.planId,

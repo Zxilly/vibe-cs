@@ -81,7 +81,10 @@ describe('collectProposals', () => {
   });
 
   it('gives two proposals of one entry distinct keys', () => {
-    const slots = collectProposals([assistantWith('a', [PLAN_PROPOSAL, PLAN_PROPOSAL])]);
+    const slots = collectProposals([assistantWith('a', [
+      PLAN_PROPOSAL,
+      { ...PLAN_PROPOSAL, proposal_id: '00000000-0000-4000-8000-0000000000a4' },
+    ])]);
 
     expect(new Set(slots.map((slot) => slot.key)).size).toBe(2);
   });
@@ -121,11 +124,11 @@ describe('durable proposal decisions', () => {
       }],
     }])];
     const decisions = storedChangeDecisions(entries);
-    const key = 'entry-2#0#change-1';
+    const key = 'entry-2#00000000-0000-4000-8000-0000000000a2#change-1';
 
     expect(decisions.get(key)).toBe('rejected');
     expect(decisionUpdateFromKey(key, 'accepted')).toEqual({
-      entry_id: 'entry-2', proposal_index: 0, change_id: 'change-1', decision: 'accepted',
+      entry_id: 'entry-2', proposal_id: '00000000-0000-4000-8000-0000000000a2', change_id: 'change-1', decision: 'accepted',
     });
   });
 });

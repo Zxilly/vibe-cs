@@ -100,7 +100,7 @@ import {
   type AgentGuardedAction,
 } from './agentContract';
 import { AgentComposer } from './AgentComposer';
-import { AgentConfirmationCard, confirmationProposalIndex } from './AgentConfirmationCard';
+import { AgentConfirmationCard, confirmationProposalId } from './AgentConfirmationCard';
 import { AGENT_MODE_HEAD } from './ConversationModes';
 import { changeApplicability } from './planChangeApply';
 import { settingsPath } from '../settings/settingsRoutes';
@@ -270,8 +270,8 @@ export const AgentConversationBlock: AgentBlock = ({
     const entrySlots = byEntry.get(entry.id);
     const confirmations = entry.kind === 'assistant'
       ? entry.tool_calls
-        .map((call, index) => ({ call, index, proposalIndex: confirmationProposalIndex(call) }))
-        .filter((item) => item.proposalIndex !== null)
+        .map((call, index) => ({ call, index, proposalId: confirmationProposalId(call) }))
+        .filter((item) => item.proposalId !== null)
       : [];
     const entryProposals = entry.kind === 'assistant' ? entry.proposals : [];
     const failedPrompt = entry.kind === 'assistant' && entry.status === 'failed'
@@ -300,11 +300,13 @@ export const AgentConversationBlock: AgentBlock = ({
             onReject={onReject}
           />
         )),
-        ...confirmations.map(({ call, index, proposalIndex }) => (
+        ...confirmations.map(({ call, index, proposalId }) => (
           <AgentConfirmationCard
             key={`${entry.id}-confirmation-${String(index)}`}
             call={call}
-            proposal={proposalIndex === null ? undefined : entryProposals[proposalIndex]}
+            proposal={proposalId === null
+              ? undefined
+              : entryProposals.find((proposal) => proposal.proposal_id === proposalId)}
             sessionId={context.session ?? sessionData?.id ?? ''}
             chat={chat}
             onContinueVideo={() => {
@@ -719,11 +721,21 @@ function readAutoMode(): boolean {
 function agentActivityLabel(name: string): string {
   switch (name) {
     case 'read_workspace_context': return t`读取工作区`;
-    case 'read_demo_evidence': return t`读取 Demo 证据`;
+    case 'read_demo_summary': return t`读取 Demo 摘要`;
+    case 'read_players': return t`读取选手目录`;
+    case 'search_rounds': return t`筛选回合`;
+    case 'read_round_context': return t`读取回合上下文`;
+    case 'read_round_events': return t`读取回合事件`;
+    case 'read_player_matchups': return t`读取对位证据`;
     case 'read_highlights': return t`筛选高光`;
     case 'read_cinematic_context': return t`理解镜头与空间`;
+    case 'read_editor_timeline': return t`读取编辑时间线`;
+    case 'read_audio_evidence': return t`分析音频节奏`;
     case 'draft_video_plan': return t`生成视频方案`;
     case 'draft_edit_plan': return t`生成剪辑方案`;
+    case 'draft_agent_plan_changes': return t`生成方案变更`;
+    case 'draft_beat_alignment': return t`生成卡点方案`;
+    case 'navigate_workspace': return t`导航工作区`;
     case 'confirm_video_plan':
     case 'confirm_edit_plan':
     case 'confirm_beat_alignment': return t`完成流程确认`;

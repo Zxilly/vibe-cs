@@ -31,7 +31,7 @@
  * therefore live in the page shell for the life of the page and are lost on
  * reload, and block A says so on screen rather than implying they were saved.
  *
- * The key is `entryId # proposalIndex # changeId` and not `changeId` alone:
+ * The key is `entryId # proposalId # changeId` and not `changeId` alone:
  * `readPlanChangeSet` falls back to `op-target-index` when a payload carries no
  * id, so two proposals in one session can legitimately produce the same change
  * id, and a single-part key would let a decision on one leak onto the other.
@@ -78,7 +78,7 @@ import { AGENT_MODES, type AgentMode } from './agentContract';
  * column gets its own copy of §4.5.3 ③.
  */
 export interface DecidableProposal {
-  /** `entryId#index` — stable for the life of the entry, and unique in it. */
+  /** `entryId#proposalId` — stable even when proposals are reordered. */
   readonly key: string;
   /** `null` when the payload is not a change set we recognise. */
   readonly changeSet: PlanChangeSet | null;
@@ -120,9 +120,9 @@ export function collectProposals(entries: readonly AgentSessionEntry[]): readonl
     }
     if (entry.kind !== 'assistant') continue;
 
-    entry.proposals.forEach((proposal, index) => {
+    entry.proposals.forEach((proposal) => {
       slots.push({
-        key: `${entry.id}#${String(index)}`,
+        key: `${entry.id}#${proposal.proposal_id}`,
         entryId: entry.id,
         proposal,
         changeSet: readPlanChangeSet(proposal),
@@ -169,10 +169,10 @@ export function storedChangeDecisions(
   const decisions = new Map<string, ChangeDecision>();
   for (const entry of entries) {
     if (entry.kind !== 'assistant') continue;
-    entry.proposals.forEach((proposal, proposalIndex) => {
+    entry.proposals.forEach((proposal) => {
       for (const item of proposal.decisions ?? []) {
         decisions.set(
-          changeDecisionKey(`${entry.id}#${String(proposalIndex)}`, item.change_id),
+          changeDecisionKey(`${entry.id}#${proposal.proposal_id}`, item.change_id),
           item.decision,
         );
       }
@@ -189,11 +189,10 @@ export function decisionUpdateFromKey(
   const first = key.indexOf('#');
   const second = key.indexOf('#', first + 1);
   if (first <= 0 || second <= first + 1 || second === key.length - 1) return null;
-  const proposalIndex = Number(key.slice(first + 1, second));
-  if (!Number.isSafeInteger(proposalIndex) || proposalIndex < 0) return null;
+  const proposalId = key.slice(first + 1, second);
   return {
     entry_id: key.slice(0, first),
-    proposal_index: proposalIndex,
+    proposal_id: proposalId,
     change_id: key.slice(second + 1),
     decision,
   };

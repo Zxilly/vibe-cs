@@ -17,7 +17,7 @@ interface ConfirmationOutput {
   readonly status: 'pending' | 'approved';
   readonly approved: boolean;
   readonly automatic: boolean;
-  readonly proposalIndex: number;
+  readonly proposalId: string;
   readonly proposalKind: string;
   readonly title: string;
   readonly summary: string;
@@ -180,8 +180,8 @@ export function AgentConfirmationCard({
   );
 }
 
-export function confirmationProposalIndex(call: AgentSessionToolCall): number | null {
-  return readConfirmationOutput(call.output)?.proposalIndex ?? null;
+export function confirmationProposalId(call: AgentSessionToolCall): string | null {
+  return readConfirmationOutput(call.output)?.proposalId ?? null;
 }
 
 function readConfirmationOutput(value: unknown): ConfirmationOutput | null {
@@ -189,7 +189,7 @@ function readConfirmationOutput(value: unknown): ConfirmationOutput | null {
   const item = value as Record<string, unknown>;
   if (
     !['video_plan', 'edit_plan', 'beat_alignment'].includes(String(item.confirmation))
-    || !Number.isInteger(item.proposalIndex)
+    || typeof item.proposalId !== 'string'
     || typeof item.title !== 'string'
     || typeof item.summary !== 'string'
     || !Array.isArray(item.risks)

@@ -8,13 +8,13 @@ import { AgentConfirmationCard } from './AgentConfirmationCard';
 
 const CALL: AgentSessionToolCall = {
   name: 'confirm_edit_plan',
-  input: { title: '执行高光剪辑', summary: '把 ace-1 写入编辑工程' },
+  input: { proposalId: '00000000-0000-4000-8000-0000000000a1', title: '执行高光剪辑', summary: '把 ace-1 写入编辑工程' },
   output: {
     confirmation: 'edit_plan',
     status: 'pending',
     approved: false,
     automatic: false,
-    proposalIndex: 0,
+    proposalId: '00000000-0000-4000-8000-0000000000a1',
     proposalKind: 'highlight_edit',
     title: '执行高光剪辑',
     summary: '把 ace-1 写入编辑工程',
@@ -24,6 +24,7 @@ const CALL: AgentSessionToolCall = {
 };
 
 const PROPOSAL: AgentSessionProposal = {
+  proposal_id: '00000000-0000-4000-8000-0000000000a1',
   kind: 'highlight_edit',
   title: '高光剪辑',
   plan_id: null,

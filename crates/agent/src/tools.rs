@@ -41,8 +41,6 @@ pub enum CapturedPlanKind {
     HighlightEdit,
     /// Music beats aligned against the cut.
     BeatAlignment,
-    /// An HLAE bundle to review before it is written.
-    Hlae,
     /// A recording queue, which is the one that needs an explicit confirmation.
     VideoRender,
 }
@@ -53,6 +51,7 @@ pub enum CapturedPlanKind {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CapturedPlan {
+    pub id: Uuid,
     pub kind: CapturedPlanKind,
     pub title: String,
     pub payload: Value,
@@ -69,7 +68,8 @@ pub(crate) struct ToolState {
     context: Arc<AgentContext>,
     tool_host: Option<Arc<dyn AgentToolHost>>,
     auto_mode: bool,
-    cinematic_cache: Arc<Mutex<HashMap<String, Value>>>,
+    cinematic_scene_cache: Arc<Mutex<HashMap<String, Value>>>,
+    evidence_cache: Arc<Mutex<HashMap<Uuid, Value>>>,
     captures: Arc<Mutex<Captures>>,
 }
 
@@ -83,7 +83,8 @@ impl ToolState {
             context: Arc::new(context),
             tool_host,
             auto_mode,
-            cinematic_cache: Arc::new(Mutex::new(HashMap::new())),
+            cinematic_scene_cache: Arc::new(Mutex::new(HashMap::new())),
+            evidence_cache: Arc::new(Mutex::new(HashMap::new())),
             captures: Arc::new(Mutex::new(Captures::default())),
         }
     }
@@ -93,20 +94,69 @@ impl ToolState {
         (captures.tool_calls.clone(), captures.plans.clone())
     }
 
-    async fn execute(&self, name: &str, input: Value) -> Result<Value, ToolExecutionError> {
-        if confirmation_kind(name).is_some() {
-            return self.execute_confirmation(name, input).await;
+    #[cfg(test)]
+    async fn execute_named(&self, name: &str, input: Value) -> Result<Value, ToolExecutionError> {
+        let tool = tool_catalog()
+            .into_iter()
+            .find(|tool| tool.name == name)
+            .ok_or_else(|| ToolExecutionError::invalid_args(format!("unknown tool: {name}")))?;
+        self.execute(tool.kind, tool.name, input).await
+    }
+
+    async fn execute(
+        &self,
+        kind: ToolKind,
+        name: &str,
+        input: Value,
+    ) -> Result<Value, ToolExecutionError> {
+        if confirmation_kind(kind).is_some() {
+            return self.execute_confirmation(kind, name, input).await;
         }
-        let external_cinematic = if matches!(name, "read_cinematic_context" | "draft_video_plan") {
-            self.external_cinematic_context(&input)
+        let external_cinematic = match kind {
+            ToolKind::ReadCinematicContext => self
+                .external_cinematic_context(&input)
                 .await
-                .map_err(ToolExecutionError::other)?
-        } else {
-            None
+                .map_err(ToolExecutionError::other)?,
+            ToolKind::DraftVideoPlan => self
+                .explicit_cinematic_evidence(&input)
+                .await
+                .map_err(ToolExecutionError::invalid_args)?,
+            _ => None,
         };
-        let (output, plan) =
-            execute_tool_with_cinematic(name, &self.context, &input, external_cinematic.as_ref())
-                .map_err(ToolExecutionError::invalid_args)?;
+        let (mut output, plan) = match kind {
+            ToolKind::ReadAudioEvidence => self
+                .read_audio_evidence(&input)
+                .await
+                .map_err(ToolExecutionError::other)?,
+            ToolKind::DraftBeatAlignment => self
+                .draft_beat_alignment(&input)
+                .await
+                .map_err(ToolExecutionError::other)?,
+            _ => execute_tool_with_cinematic(
+                kind,
+                &self.context,
+                &input,
+                external_cinematic.as_ref(),
+            )
+            .map_err(ToolExecutionError::invalid_args)?,
+        };
+        if let Some(proposal) = &plan {
+            let object = output.as_object_mut().ok_or_else(|| {
+                ToolExecutionError::other("proposal tool output must be an object")
+            })?;
+            object.insert("proposalId".to_owned(), json!(proposal.id));
+        }
+        if kind == ToolKind::ReadCinematicContext && output["available"] == Value::Bool(true) {
+            let evidence_id = Uuid::new_v4();
+            self.evidence_cache
+                .lock()
+                .await
+                .insert(evidence_id, output.clone());
+            output
+                .as_object_mut()
+                .expect("cinematic evidence output is an object")
+                .insert("cinematicEvidenceId".to_owned(), json!(evidence_id));
+        }
         let mut captures = self.captures.lock().await;
         if captures.tool_calls.len() >= 32 {
             return Err(ToolExecutionError::other("tool call limit exceeded"));
@@ -127,29 +177,35 @@ impl ToolState {
 
     async fn execute_confirmation(
         &self,
+        tool_kind: ToolKind,
         name: &str,
         input: Value,
     ) -> Result<Value, ToolExecutionError> {
         let request = serde_json::from_value::<HitlRequest>(input.clone())
             .map_err(|error| ToolExecutionError::invalid_args(error.to_string()))?;
         validate_hitl_request(&request).map_err(ToolExecutionError::invalid_args)?;
-        let kind = confirmation_kind(name)
+        let kind = confirmation_kind(tool_kind)
             .ok_or_else(|| ToolExecutionError::invalid_args("unknown confirmation tool"))?;
-        let (proposal_index, proposal) = {
+        let proposal = {
             let captures = self.captures.lock().await;
             captures
                 .plans
                 .iter()
-                .enumerate()
-                .rev()
-                .find(|(_, proposal)| confirmation_matches(kind, proposal.kind))
-                .map(|(index, proposal)| (index, proposal.clone()))
+                .find(|proposal| proposal.id == request.proposal_id)
+                .cloned()
                 .ok_or_else(|| {
                     ToolExecutionError::other(format!(
-                        "{name} requires its structured proposal earlier in the same turn"
+                        "proposal {} is not available in this turn",
+                        request.proposal_id
                     ))
                 })?
         };
+        if !confirmation_matches(kind, proposal.kind) {
+            return Err(ToolExecutionError::invalid_args(format!(
+                "{name} does not accept proposal kind {:?}",
+                proposal.kind
+            )));
+        }
         let automatic = self.auto_mode;
         let execution_result = if automatic {
             match &self.tool_host {
@@ -167,7 +223,7 @@ impl ToolState {
             "status": if automatic {"approved"} else {"pending"},
             "approved": automatic,
             "automatic": automatic,
-            "proposalIndex": proposal_index,
+            "proposalId": proposal.id,
             "proposalKind": proposal.kind,
             "title": request.title,
             "summary": request.summary,
@@ -189,7 +245,7 @@ impl ToolState {
     async fn external_cinematic_context(&self, input: &Value) -> Result<Option<Value>, String> {
         let ids = string_vec_required(input, "highlightIds", 16)?;
         let missing = {
-            let cache = self.cinematic_cache.lock().await;
+            let cache = self.cinematic_scene_cache.lock().await;
             ids.iter()
                 .filter(|id| !cache.contains_key(*id))
                 .cloned()
@@ -199,7 +255,7 @@ impl ToolState {
             && let Some(host) = &self.tool_host
         {
             let supplied = host.read_cinematic_context(&missing).await?;
-            let mut cache = self.cinematic_cache.lock().await;
+            let mut cache = self.cinematic_scene_cache.lock().await;
             for scene in supplied
                 .get("scenes")
                 .and_then(Value::as_array)
@@ -211,206 +267,322 @@ impl ToolState {
                 }
             }
         }
-        let cache = self.cinematic_cache.lock().await;
+        let cache = self.cinematic_scene_cache.lock().await;
         let scenes = ids
             .iter()
             .filter_map(|id| cache.get(id).cloned())
             .collect::<Vec<_>>();
         Ok((!scenes.is_empty()).then(|| json!({ "scenes": scenes })))
     }
+
+    async fn explicit_cinematic_evidence(&self, input: &Value) -> Result<Option<Value>, String> {
+        let evidence_id = required_str(input, "cinematicEvidenceId")?;
+        let evidence_id = Uuid::parse_str(evidence_id)
+            .map_err(|_| "cinematicEvidenceId must be a UUID returned by read_cinematic_context")?;
+        let evidence = self
+            .evidence_cache
+            .lock()
+            .await
+            .get(&evidence_id)
+            .cloned()
+            .ok_or_else(|| "cinematicEvidenceId is not available in this turn".to_owned())?;
+        let requested = string_set_required(input, "highlightIds", 16)?;
+        let evidenced = evidence
+            .get("scenes")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|scene| text(scene.get("highlightId")))
+            .collect::<HashSet<_>>();
+        if requested.iter().any(|id| !evidenced.contains(id.as_str())) {
+            return Err("cinematic Evidence does not cover every requested Highlight".to_owned());
+        }
+        Ok(Some(evidence))
+    }
+
+    async fn read_audio_evidence(
+        &self,
+        input: &Value,
+    ) -> Result<(Value, Option<CapturedPlan>), String> {
+        require_workspace_resource(&self.context, input, "audioAssetId")?;
+        let asset_id = parse_uuid_field(input, "audioAssetId")?;
+        let view = enum_value(input, "view", &["summary", "rhythm_map"])?;
+        let host = self
+            .tool_host
+            .as_ref()
+            .ok_or_else(|| "audio analysis host is unavailable".to_owned())?;
+        let analysis = host.read_audio_analysis(asset_id).await?;
+        Ok((project_audio_evidence(&analysis, view)?, None))
+    }
+
+    async fn draft_beat_alignment(
+        &self,
+        input: &Value,
+    ) -> Result<(Value, Option<CapturedPlan>), String> {
+        require_workspace_resource(&self.context, input, "editorProjectId")?;
+        require_workspace_resource(&self.context, input, "audioAssetId")?;
+        let editor_project_id = parse_uuid_field(input, "editorProjectId")?;
+        let audio_asset_id = parse_uuid_field(input, "audioAssetId")?;
+        let expected_revision = input
+            .get("expectedRevision")
+            .and_then(Value::as_u64)
+            .filter(|revision| *revision > 0)
+            .ok_or_else(|| "expectedRevision must be a positive integer".to_owned())?;
+        let audio_placement = input
+            .get("audioPlacement")
+            .filter(|value| value.is_object())
+            .cloned()
+            .ok_or_else(|| "audioPlacement must be an object".to_owned())?;
+        let host = self
+            .tool_host
+            .as_ref()
+            .ok_or_else(|| "beat-alignment host is unavailable".to_owned())?;
+        let payload = host
+            .draft_beat_alignment(
+                editor_project_id,
+                expected_revision,
+                audio_asset_id,
+                audio_placement,
+            )
+            .await?;
+        let draft = payload
+            .get("draft")
+            .filter(|value| value.is_object())
+            .cloned()
+            .ok_or_else(|| "beat-alignment host returned no advisory draft".to_owned())?;
+        if draft.get("advisory_only").and_then(Value::as_bool) != Some(true) {
+            return Err("beat-alignment host returned a non-advisory draft".to_owned());
+        }
+        let plan = CapturedPlan {
+            id: Uuid::new_v4(),
+            kind: CapturedPlanKind::BeatAlignment,
+            title: "BGM beat alignment".to_owned(),
+            payload,
+        };
+        Ok((json!({"available":true,"draft":draft}), Some(plan)))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ToolKind {
+    ReadWorkspace,
+    ReadDemoSummary,
+    ReadPlayers,
+    SearchRounds,
+    ReadRoundContext,
+    ReadRoundEvents,
+    ReadPlayerMatchups,
+    ReadHighlights,
+    ReadCinematicContext,
+    ReadEditorTimeline,
+    DraftEditPlan,
+    DraftAgentPlanChanges,
+    DraftVideoPlan,
+    ReadAudioEvidence,
+    DraftBeatAlignment,
+    NavigateWorkspace,
+    ConfirmVideoPlan,
+    ConfirmEditPlan,
+    ConfirmBeatAlignment,
+}
+
+#[derive(Debug)]
+struct ToolDefinition {
+    kind: ToolKind,
+    name: &'static str,
+    modes: &'static [AgentMode],
+    description: &'static str,
+    parameters: Value,
+}
+
+impl ToolDefinition {
+    fn supports(&self, mode: AgentMode) -> bool {
+        self.modes.contains(&mode)
+    }
+}
+
+const ALL_MODES: &[AgentMode] = &[AgentMode::Guide, AgentMode::Edit, AgentMode::Hlae];
+const EDIT_MODE: &[AgentMode] = &[AgentMode::Edit];
+const HLAE_MODE: &[AgentMode] = &[AgentMode::Hlae];
+
+fn definition(
+    kind: ToolKind,
+    name: &'static str,
+    modes: &'static [AgentMode],
+    description: &'static str,
+    parameters: Value,
+) -> ToolDefinition {
+    ToolDefinition {
+        kind,
+        name,
+        modes,
+        description,
+        parameters,
+    }
 }
 
 pub(crate) fn create_tools(state: &ToolState, mode: AgentMode) -> Vec<DynamicTool> {
-    tool_definitions()
+    tool_catalog()
         .into_iter()
-        .filter(|(name, _, _)| tool_allowed_in_mode(mode, name))
-        .map(|(name, description, parameters)| {
+        .filter(|tool| tool.supports(mode))
+        .map(|tool| {
             let state = state.clone();
-            DynamicTool::new(name, description, parameters, move |_context, input| {
-                let state = state.clone();
-                Box::pin(async move { state.execute(name, input).await.map(ToolOutput::json) })
-            })
+            DynamicTool::new(
+                tool.name,
+                tool.description,
+                tool.parameters,
+                move |_context, input| {
+                    let state = state.clone();
+                    Box::pin(async move {
+                        state
+                            .execute(tool.kind, tool.name, input)
+                            .await
+                            .map(ToolOutput::json)
+                    })
+                },
+            )
         })
         .collect()
 }
 
-fn tool_allowed_in_mode(mode: AgentMode, name: &str) -> bool {
-    match name {
-        // Evidence and navigation are safe in every mode.
-        "read_workspace_context"
-        | "read_demo_evidence"
-        | "search_rounds"
-        | "read_round_context"
-        | "read_round_events"
-        | "read_player_matchups"
-        | "read_highlights"
-        | "navigate_workspace" => true,
-        // Editing tools can only propose changes to an editing workflow.
-        "read_editor_timeline"
-        | "draft_edit_plan"
-        | "draft_agent_plan_changes"
-        | "read_audio_analysis"
-        | "read_audio_rhythm_map"
-        | "draft_beat_alignment"
-        | "confirm_edit_plan"
-        | "confirm_beat_alignment" => matches!(mode, AgentMode::Edit),
-        // Initial video creation exposes exactly one proposal kind. This keeps
-        // an empty Agent plan from receiving an inapplicable highlight-edit
-        // proposal that leaves its shot list empty.
-        "read_cinematic_context" | "draft_video_plan" | "confirm_video_plan" => {
-            matches!(mode, AgentMode::Hlae)
-        }
-        _ => false,
-    }
-}
-
-fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
+fn tool_catalog() -> Vec<ToolDefinition> {
+    let demo_ids = || json!({"type":"array","items":object_id_schema(),"minItems":1,"maxItems":12});
+    let confirmation = || {
+        object_schema(
+            json!({
+                "proposalId":{"type":"string","format":"uuid"},
+                "title":{"type":"string","minLength":1,"maxLength":200},
+                "summary":{"type":"string","minLength":1,"maxLength":2000},
+                "risks":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1,"maxLength":400},"default":[]}
+            }),
+            &["proposalId", "title", "summary"],
+        )
+    };
     vec![
-        (
+        definition(
+            ToolKind::ReadWorkspace,
             "read_workspace_context",
-            "Read the exact visible Vibe CS workflow, destination, and selected round, tick, player, Demo, and editor project identifiers. Values may be null and must not be inferred.",
+            ALL_MODES,
+            "Read exact visible workflow and structured object references. Values may be null and must not be inferred.",
             object_schema(json!({}), &[]),
         ),
-        (
-            "read_demo_evidence",
-            "Read verified local demo metadata, highlights, rounds, or players. Use this before giving match-specific guidance.",
+        definition(
+            ToolKind::ReadDemoSummary,
+            "read_demo_summary",
+            ALL_MODES,
+            "Read bounded metadata for one explicit analyzed Demo; no rounds, events, players, or Highlights.",
+            object_schema(json!({"demoId":object_id_schema()}), &["demoId"]),
+        ),
+        definition(
+            ToolKind::ReadPlayers,
+            "read_players",
+            ALL_MODES,
+            "Read the bounded player directory for one explicit analyzed Demo.",
             object_schema(
-                json!({
-                    "section": {"type":"string","enum":["summary","highlights","rounds","players"]},
-                    "roundNumbers": integer_array_schema(12)
-                }),
-                &["section"],
+                json!({"demoId":object_id_schema(),"playerIds":string_array_schema(10),"maximumResults":{"type":"integer","minimum":1,"maximum":64,"default":32}}),
+                &["demoId"],
             ),
         ),
-        (
+        definition(
+            ToolKind::SearchRounds,
             "search_rounds",
-            "Run a strict deterministic query over selected local Demo rounds. Returns bounded round/tick evidence only.",
+            ALL_MODES,
+            "Run a deterministic query over one explicit Demo and return bounded Round Evidence references.",
             object_schema(
-                json!({
-                    "winningSide": {"type":"string","enum":["T","CT"]}, "playerIds": string_array_schema(10),
-                    "purchasedItems": string_array_schema(12), "roundNumbers": integer_array_schema(24),
-                    "eventKinds": event_array_schema(), "maximumResults": {"type":"integer","minimum":1,"maximum":24,"default":24}
-                }),
-                &[],
+                json!({"demoId":object_id_schema(),"winningSide":{"type":"string","enum":["T","CT"]},"playerIds":string_array_schema(10),"purchasedItems":string_array_schema(12),"roundNumbers":integer_array_schema(24),"eventKinds":event_array_schema(),"maximumResults":{"type":"integer","minimum":1,"maximum":24,"default":24}}),
+                &["demoId"],
             ),
         ),
-        (
+        definition(
+            ToolKind::ReadRoundContext,
             "read_round_context",
-            "Read context for up to 12 explicit rounds from the selected local Demo.",
+            ALL_MODES,
+            "Read bounded facts for explicit Rounds without embedding Event rows.",
             object_schema(
-                json!({
-                    "roundNumbers": integer_array_schema(12)
-                }),
-                &["roundNumbers"],
+                json!({"demoId":object_id_schema(),"roundNumbers":integer_array_schema(12)}),
+                &["demoId", "roundNumbers"],
             ),
         ),
-        (
+        definition(
+            ToolKind::ReadRoundEvents,
             "read_round_events",
-            "Read bounded local events for explicit rounds, event kinds, and player identifiers.",
+            ALL_MODES,
+            "Read bounded Events for explicit Rounds and filters.",
             object_schema(
-                json!({
-                    "roundNumbers": integer_array_schema(24), "eventKinds": event_array_schema(),
-                    "playerIds": string_array_schema(10), "maximumResults": {"type":"integer","minimum":1,"maximum":256,"default":128}
-                }),
-                &["roundNumbers"],
+                json!({"demoId":object_id_schema(),"roundNumbers":integer_array_schema(24),"eventKinds":event_array_schema(),"playerIds":string_array_schema(10),"maximumResults":{"type":"integer","minimum":1,"maximum":256,"default":128}}),
+                &["demoId", "roundNumbers"],
             ),
         ),
-        (
+        definition(
+            ToolKind::ReadPlayerMatchups,
             "read_player_matchups",
-            "Read deterministic player-versus-player aggregates derived by the local Demo analyzer.",
+            ALL_MODES,
+            "Read verified player-versus-player aggregates for one explicit Demo.",
             object_schema(
-                json!({
-                    "playerIds": string_array_schema(10)
-                }),
-                &["playerIds"],
+                json!({"demoId":object_id_schema(),"playerIds":string_array_schema(10)}),
+                &["demoId", "playerIds"],
             ),
         ),
-        (
+        definition(
+            ToolKind::ReadHighlights,
             "read_highlights",
-            "Read filtered local highlight evidence with explicit identifiers, owning Demo IDs, map names, and tick ranges. Multi-Demo projects return namespaced evidence IDs.",
+            ALL_MODES,
+            "Search bounded Highlight Evidence in explicit authorized Demos.",
             object_schema(
-                json!({
-                    "playerIds": string_array_schema(10), "kinds": string_array_schema(12), "roundNumbers": integer_array_schema(24),
-                    "minimumScore": {"type":"number","minimum":0,"maximum":1,"default":0},
-                    "maximumResults": {"type":"integer","minimum":1,"maximum":64,"default":32}
-                }),
-                &[],
+                json!({"demoIds":demo_ids(),"playerIds":string_array_schema(10),"kinds":string_array_schema(12),"roundNumbers":integer_array_schema(24),"minimumScore":{"type":"number","minimum":0,"maximum":1,"default":0},"maximumResults":{"type":"integer","minimum":1,"maximum":64,"default":32}}),
+                &["demoIds"],
             ),
         ),
-        (
+        definition(
+            ToolKind::ReadCinematicContext,
             "read_cinematic_context",
-            "Read the selected highlights as map-space scenes: exact map, round, positioned action, spatial spread, movement axis, and camera-intent recommendations. Call this before drafting any cinematic video shot.",
+            HLAE_MODE,
+            "Create bounded cinematic Evidence for explicit Highlights and return cinematicEvidenceId.",
             object_schema(
-                json!({
-                    "highlightIds": string_array_schema(16)
-                }),
-                &["highlightIds"],
+                json!({"demoIds":demo_ids(),"highlightIds":string_array_schema(16)}),
+                &["demoIds", "highlightIds"],
             ),
         ),
-        (
+        definition(
+            ToolKind::ReadEditorTimeline,
             "read_editor_timeline",
-            "Read selected editor project and its real tracks, clips, markers, dimensions, frame rate, and revision.",
+            EDIT_MODE,
+            "Read one explicit Editor Project timeline.",
             object_schema(
-                json!({
-                    "includeClips": {"type":"boolean","default":true}
-                }),
-                &[],
+                json!({"editorProjectId":object_id_schema(),"includeClips":{"type":"boolean","default":true}}),
+                &["editorProjectId"],
             ),
         ),
-        (
+        definition(
+            ToolKind::DraftEditPlan,
             "draft_edit_plan",
-            "Draft a non-destructive edit plan from verified highlight identifiers. This never changes the timeline by itself.",
+            EDIT_MODE,
+            "Draft one non-destructive Highlight Edit Proposal from explicit Demo Evidence.",
             object_schema(
-                json!({
-                    "highlightIds": string_array_schema(16), "pacing": {"type":"string","enum":["measured","energetic","impact"]},
-                    "includeContextSeconds": {"type":"number","minimum":0,"maximum":8,"default":2},
-                    "transitionStyle": {"type":"string","enum":["auto","cut","fade","flash","slide"],"default":"auto"}
-                }),
-                &["highlightIds", "pacing"],
+                json!({"demoId":object_id_schema(),"highlightIds":string_array_schema(16),"pacing":{"type":"string","enum":["measured","energetic","impact"]},"includeContextSeconds":{"type":"number","minimum":0,"maximum":8,"default":2},"transitionStyle":{"type":"string","enum":["auto","cut","fade","flash","slide"],"default":"auto"}}),
+                &["demoId", "highlightIds", "pacing"],
             ),
         ),
-        (
+        definition(
+            ToolKind::DraftAgentPlanChanges,
             "draft_agent_plan_changes",
-            "Draft reviewable changes to the currently selected Agent shot list. Use only target shot ids returned in workspace.plan. This never changes the plan by itself.",
+            EDIT_MODE,
+            "Draft one reviewable Agent Plan change Proposal against an explicit revision.",
             object_schema(
-                json!({
-                    "title": {"type":"string","minLength":1,"maxLength":200},
-                    "changes": {
-                        "type":"array","minItems":1,"maxItems":16,
-                        "items": {
-                            "type":"object","additionalProperties":false,
-                            "properties": {
-                                "op": {"type":"string","enum":["shorten","delete"]},
-                                "target": {"type":"string","minLength":1,"maxLength":128},
-                                "deltaSeconds": {"type":"number","maximum":-0.01},
-                                "rationale": {"type":"string","minLength":1,"maxLength":400},
-                                "warning": {"type":["string","null"],"maxLength":400}
-                            },
-                            "required":["op","target","rationale"]
-                        }
-                    }
-                }),
-                &["title", "changes"],
+                json!({"planId":object_id_schema(),"expectedRevision":{"type":"integer","minimum":1},"title":{"type":"string","minLength":1,"maxLength":200},"changes":{"type":"array","minItems":1,"maxItems":16,"items":{"type":"object","additionalProperties":false,"properties":{"op":{"type":"string","enum":["shorten","delete"]},"target":{"type":"string","minLength":1,"maxLength":128},"deltaSeconds":{"type":"number","maximum":-0.01},"rationale":{"type":"string","minLength":1,"maxLength":400},"warning":{"type":["string","null"],"maxLength":400}},"required":["op","target","rationale"]}}}),
+                &["planId", "expectedRevision", "title", "changes"],
             ),
         ),
-        (
+        definition(
+            ToolKind::DraftVideoPlan,
             "draft_video_plan",
-            "Draft a complete video task from selected project highlights. Each highlight stays bound to its owning Demo; requested handles are clamped to verified replay boundaries. The user reviews the effective shots and confirms before recording starts.",
+            HLAE_MODE,
+            "Draft one Video Proposal from explicit Highlight and cinematic Evidence references.",
             object_schema(
-                json!({
-                    "title": {"type":"string","minLength":1,"maxLength":200},
-                    "highlightIds": string_array_schema(16),
-                    "pacing": {"type":"string","enum":["energetic","impact","cinematic"]},
-                    "storyRoles": {"type":"array","items":{"type":"string","enum":["hook","build","climax"]},"minItems":1,"maxItems":16},
-                    "transitionStyle": {"type":"string","enum":["cut","flash","fade","slide"]},
-                    "leadSeconds": {"type":"number","minimum":0.5,"maximum":8,"default":2.5},
-                    "tailSeconds": {"type":"number","minimum":0.5,"maximum":8,"default":2},
-                    "cameraStyle": {"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"],"default":"pov"},
-                    "cameraStyles": {"type":"array","items":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"]},"maxItems":16,"default":[]},
-                    "cameraIntents": {"type":"array","items":{"type":"string","enum":["player_pov","establish_location","follow_entry","reveal_duel","hold_crossfire","rise_after_climax","transition_through_space"]},"minItems":1,"maxItems":16},
-                    "cameraRationales": {"type":"array","items":{"type":"string","minLength":1,"maxLength":128},"minItems":1,"maxItems":16}
-                }),
+                json!({"demoIds":demo_ids(),"cinematicEvidenceId":{"type":"string","format":"uuid"},"title":{"type":"string","minLength":1,"maxLength":200},"highlightIds":string_array_schema(16),"pacing":{"type":"string","enum":["energetic","impact","cinematic"]},"storyRoles":{"type":"array","items":{"type":"string","enum":["hook","build","climax"]},"minItems":1,"maxItems":16},"transitionStyle":{"type":"string","enum":["cut","flash","fade","slide"]},"leadSeconds":{"type":"number","minimum":0.5,"maximum":8,"default":2.5},"tailSeconds":{"type":"number","minimum":0.5,"maximum":8,"default":2},"cameraStyle":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"],"default":"pov"},"cameraStyles":{"type":"array","items":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"]},"maxItems":16,"default":[]},"cameraIntents":{"type":"array","items":{"type":"string","enum":["player_pov","establish_location","follow_entry","reveal_duel","hold_crossfire","rise_after_climax","transition_through_space"]},"minItems":1,"maxItems":16},"cameraRationales":{"type":"array","items":{"type":"string","minLength":1,"maxLength":128},"minItems":1,"maxItems":16}}),
                 &[
+                    "demoIds",
+                    "cinematicEvidenceId",
                     "title",
                     "highlightIds",
                     "pacing",
@@ -421,71 +593,61 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
                 ],
             ),
         ),
-        (
-            "read_audio_analysis",
-            "Read a compact summary of real locally decoded BGM tempo, sections, rhythm diagnostics, and evidence counts. Use read_audio_rhythm_map when exact pacing or cut-point evidence is needed. Never infer analysis when unavailable.",
-            object_schema(json!({}), &[]),
-        ),
-        (
-            "read_audio_rhythm_map",
-            "Read the bounded editing-oriented rhythm map for the selected BGM: at most 128 energy points, six log-power frequency bands across at most 64 time slices, silence ranges, section changes, and ranked cut points. Treat it as timing evidence, not a semantic music label.",
-            object_schema(json!({}), &[]),
-        ),
-        (
-            "draft_beat_alignment",
-            "Return the advisory beat-alignment draft computed by the native Rust audio engine for selected BGM and real clips.",
+        definition(
+            ToolKind::ReadAudioEvidence,
+            "read_audio_evidence",
+            EDIT_MODE,
+            "Analyze one explicit managed audio asset on demand with summary or rhythm_map view.",
             object_schema(
-                json!({
-                    "acknowledgeAdvisoryOnly": {"type":"boolean","const":true}
-                }),
-                &["acknowledgeAdvisoryOnly"],
+                json!({"audioAssetId":object_id_schema(),"view":{"type":"string","enum":["summary","rhythm_map"]}}),
+                &["audioAssetId", "view"],
             ),
         ),
-        (
-            "navigate_workspace",
-            "Navigate the visible Vibe CS workspace through a typed destination. Use this when the user asks to open Review, Players, Evidence, Replay, Heatmap, Edit, Queue, Studio, or Outputs.",
+        definition(
+            ToolKind::DraftBeatAlignment,
+            "draft_beat_alignment",
+            EDIT_MODE,
+            "Compute one advisory Beat Alignment Proposal on demand from explicit object references.",
             object_schema(
-                json!({
-                    "destination": {"type":"string","enum":["review","players","evidence","replay","heatmap","edit","queue","studio","outputs"]}
-                }),
+                json!({"editorProjectId":object_id_schema(),"expectedRevision":{"type":"integer","minimum":1},"audioAssetId":object_id_schema(),"audioPlacement":{"type":"object","additionalProperties":false,"properties":{"timeline_start_seconds":{"type":"number","minimum":0},"source_in_seconds":{"type":"number","minimum":0},"volume":{"type":"number","minimum":0,"maximum":4}},"required":["timeline_start_seconds","source_in_seconds","volume"]}}),
+                &[
+                    "editorProjectId",
+                    "expectedRevision",
+                    "audioAssetId",
+                    "audioPlacement",
+                ],
+            ),
+        ),
+        definition(
+            ToolKind::NavigateWorkspace,
+            "navigate_workspace",
+            ALL_MODES,
+            "Request one typed visible destination; returns explicit prerequisites when unavailable.",
+            object_schema(
+                json!({"destination":{"type":"string","enum":["review","players","evidence","replay","heatmap","edit","queue","studio","outputs"]},"demoId":object_id_schema()}),
                 &["destination"],
             ),
         ),
-        (
+        definition(
+            ToolKind::ConfirmVideoPlan,
             "confirm_video_plan",
-            "Publish the recording-stage confirmation for the video proposal created earlier in this turn. The UI presents shots and risks; Auto marks it approved without pausing.",
-            object_schema(
-                json!({
-                    "title":{"type":"string","minLength":1,"maxLength":200},
-                    "summary":{"type":"string","minLength":1,"maxLength":2000},
-                    "risks":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1,"maxLength":400},"default":[]}
-                }),
-                &["title", "summary"],
-            ),
+            HLAE_MODE,
+            "Confirm exactly one referenced Video Proposal.",
+            confirmation(),
         ),
-        (
+        definition(
+            ToolKind::ConfirmEditPlan,
             "confirm_edit_plan",
-            "Publish the edit-stage confirmation for the highlight edit or shot-list change proposal created earlier in this turn. The UI can preview and execute the edit, then returns the structured result to the Agent; Auto marks the request approved.",
-            object_schema(
-                json!({
-                    "title":{"type":"string","minLength":1,"maxLength":200},
-                    "summary":{"type":"string","minLength":1,"maxLength":2000},
-                    "risks":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1,"maxLength":400},"default":[]}
-                }),
-                &["title", "summary"],
-            ),
+            EDIT_MODE,
+            "Confirm exactly one referenced Edit Proposal.",
+            confirmation(),
         ),
-        (
+        definition(
+            ToolKind::ConfirmBeatAlignment,
             "confirm_beat_alignment",
-            "Publish the audio-alignment-stage confirmation for the beat-alignment proposal created earlier in this turn. The UI presents clip and audio changes before applying; Auto marks the request approved.",
-            object_schema(
-                json!({
-                    "title":{"type":"string","minLength":1,"maxLength":200},
-                    "summary":{"type":"string","minLength":1,"maxLength":2000},
-                    "risks":{"type":"array","maxItems":8,"items":{"type":"string","minLength":1,"maxLength":400},"default":[]}
-                }),
-                &["title", "summary"],
-            ),
+            EDIT_MODE,
+            "Confirm exactly one referenced Beat Alignment Proposal.",
+            confirmation(),
         ),
     ]
 }
@@ -497,11 +659,11 @@ enum ConfirmationKind {
     BeatAlignment,
 }
 
-fn confirmation_kind(name: &str) -> Option<ConfirmationKind> {
-    match name {
-        "confirm_video_plan" => Some(ConfirmationKind::Video),
-        "confirm_edit_plan" => Some(ConfirmationKind::Edit),
-        "confirm_beat_alignment" => Some(ConfirmationKind::BeatAlignment),
+fn confirmation_kind(kind: ToolKind) -> Option<ConfirmationKind> {
+    match kind {
+        ToolKind::ConfirmVideoPlan => Some(ConfirmationKind::Video),
+        ToolKind::ConfirmEditPlan => Some(ConfirmationKind::Edit),
+        ToolKind::ConfirmBeatAlignment => Some(ConfirmationKind::BeatAlignment),
         _ => None,
     }
 }
@@ -526,7 +688,8 @@ const fn confirmation_matches(kind: ConfirmationKind, proposal: CapturedPlanKind
 }
 
 fn validate_hitl_request(request: &HitlRequest) -> Result<(), String> {
-    if request.title.trim().is_empty()
+    if request.proposal_id.is_nil()
+        || request.title.trim().is_empty()
         || request.title.chars().count() > 200
         || request.summary.trim().is_empty()
         || request.summary.chars().count() > 2_000
@@ -555,6 +718,10 @@ fn string_array_schema(maximum: usize) -> Value {
     json!({"type":"array","items":{"type":"string","minLength":1,"maxLength":128},"maxItems":maximum,"default":[]})
 }
 
+fn object_id_schema() -> Value {
+    json!({"type":"string","minLength":1,"maxLength":200})
+}
+
 fn event_array_schema() -> Value {
     json!({"type":"array","items":{"type":"string","enum":["round_start","round_end","kill","damage","bomb_plant","bomb_defuse","bomb_explode","grenade","purchase"]},"maxItems":9,"default":[]})
 }
@@ -565,39 +732,46 @@ fn execute_tool(
     context: &AgentContext,
     input: &Value,
 ) -> Result<(Value, Option<CapturedPlan>), String> {
-    execute_tool_with_cinematic(name, context, input, None)
+    let kind = tool_catalog()
+        .into_iter()
+        .find(|tool| tool.name == name)
+        .map(|tool| tool.kind)
+        .ok_or_else(|| format!("unknown tool: {name}"))?;
+    execute_tool_with_cinematic(kind, context, input, None)
 }
 
 fn execute_tool_with_cinematic(
-    name: &str,
+    kind: ToolKind,
     context: &AgentContext,
     input: &Value,
     external_cinematic: Option<&Value>,
 ) -> Result<(Value, Option<CapturedPlan>), String> {
     ensure_object(input)?;
-    match name {
-        "read_workspace_context" => Ok((read_workspace_context(context, input)?, None)),
-        "read_demo_evidence" => Ok((read_demo_evidence(context, input)?, None)),
-        "search_rounds" => Ok((search_rounds(context, input)?, None)),
-        "read_round_context" => Ok((read_round_context(context, input)?, None)),
-        "read_round_events" => Ok((read_round_events(context, input)?, None)),
-        "read_player_matchups" => Ok((read_player_matchups(context, input)?, None)),
-        "read_highlights" => Ok((read_highlights(context, input)?, None)),
-        "read_cinematic_context" => Ok((
+    match kind {
+        ToolKind::ReadWorkspace => Ok((read_workspace_context(context, input)?, None)),
+        ToolKind::ReadDemoSummary => Ok((read_demo_summary(context, input)?, None)),
+        ToolKind::ReadPlayers => Ok((read_players(context, input)?, None)),
+        ToolKind::SearchRounds => Ok((search_rounds(context, input)?, None)),
+        ToolKind::ReadRoundContext => Ok((read_round_context(context, input)?, None)),
+        ToolKind::ReadRoundEvents => Ok((read_round_events(context, input)?, None)),
+        ToolKind::ReadPlayerMatchups => Ok((read_player_matchups(context, input)?, None)),
+        ToolKind::ReadHighlights => Ok((read_highlights(context, input)?, None)),
+        ToolKind::ReadCinematicContext => Ok((
             read_cinematic_context(context, input, external_cinematic)?,
             None,
         )),
-        "read_editor_timeline" => Ok((read_editor_timeline(context, input), None)),
-        "draft_edit_plan" => draft_edit_plan(context, input),
-        "draft_agent_plan_changes" => draft_agent_plan_changes(context, input),
-        "draft_video_plan" => draft_video_plan(context, input, external_cinematic),
-        // Kept for persisted pre-video conversations, but no longer exposed to the model.
-        "draft_hlae_plan" => draft_hlae_plan(context, input),
-        "read_audio_analysis" => Ok((read_audio_analysis(context, input)?, None)),
-        "read_audio_rhythm_map" => Ok((read_audio_rhythm_map(context, input)?, None)),
-        "draft_beat_alignment" => draft_beat_alignment(context, input),
-        "navigate_workspace" => Ok((navigate_workspace(context, input)?, None)),
-        _ => Err(format!("unknown tool: {name}")),
+        ToolKind::ReadEditorTimeline => Ok((read_editor_timeline(context, input)?, None)),
+        ToolKind::DraftEditPlan => draft_edit_plan(context, input),
+        ToolKind::DraftAgentPlanChanges => draft_agent_plan_changes(context, input),
+        ToolKind::DraftVideoPlan => draft_video_plan(context, input, external_cinematic),
+        ToolKind::NavigateWorkspace => Ok((navigate_workspace(context, input)?, None)),
+        ToolKind::ReadAudioEvidence
+        | ToolKind::DraftBeatAlignment
+        | ToolKind::ConfirmVideoPlan
+        | ToolKind::ConfirmEditPlan
+        | ToolKind::ConfirmBeatAlignment => {
+            Err("tool requires the asynchronous ToolState executor".to_owned())
+        }
     }
 }
 
@@ -610,8 +784,11 @@ fn read_workspace_context(context: &AgentContext, input: &Value) -> Result<Value
 
 fn navigate_workspace(context: &AgentContext, input: &Value) -> Result<Value, String> {
     let object = ensure_object(input)?;
-    if object.len() != 1 {
-        return Err("navigate_workspace accepts only destination".into());
+    if object
+        .keys()
+        .any(|key| !matches!(key.as_str(), "destination" | "demoId"))
+    {
+        return Err("navigate_workspace accepts only destination and demoId".into());
     }
     let destination = enum_value(
         input,
@@ -622,13 +799,7 @@ fn navigate_workspace(context: &AgentContext, input: &Value) -> Result<Value, St
         ],
     )?;
     let requires_demo = matches!(destination, "replay" | "heatmap");
-    let has_demo = context
-        .demo
-        .get("id")
-        .and_then(Value::as_str)
-        .is_some_and(|id| !id.is_empty())
-        && context.analysis.is_object();
-    if requires_demo && !has_demo {
+    if requires_demo && require_selected_demo(context, input).is_err() {
         return Ok(json!({
             "accepted": false,
             "destination": destination,
@@ -644,41 +815,141 @@ fn ensure_object(input: &Value) -> Result<&Map<String, Value>, String> {
         .ok_or_else(|| "tool input must be a JSON object".into())
 }
 
-fn read_demo_evidence(context: &AgentContext, input: &Value) -> Result<Value, String> {
-    let section = required_str(input, "section")?;
+fn require_selected_demo<'a>(context: &'a AgentContext, input: &Value) -> Result<&'a str, String> {
+    let requested = required_str(input, "demoId")?;
+    let actual = context
+        .demo
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| "No Demo is selected.".to_owned())?;
+    if requested != actual {
+        return Err("demoId does not match the selected Demo".to_owned());
+    }
+    Ok(actual)
+}
+
+fn require_selected_editor_project(context: &AgentContext, input: &Value) -> Result<(), String> {
+    require_matching_id(
+        input,
+        "editorProjectId",
+        context.editor_project.get("id"),
+        "Editor Project",
+    )
+}
+
+fn require_selected_agent_plan(context: &AgentContext, input: &Value) -> Result<(), String> {
+    let plan = context
+        .workspace
+        .get("plan")
+        .ok_or_else(|| "No Agent Plan is selected.".to_owned())?;
+    require_matching_id(input, "planId", plan.get("id"), "Agent Plan")?;
+    let expected = integer(input.get("expectedRevision"))
+        .filter(|revision| *revision > 0)
+        .ok_or_else(|| "expectedRevision must be a positive integer".to_owned())?;
+    let current = integer(plan.get("revision"))
+        .ok_or_else(|| "selected Agent Plan has no revision".to_owned())?;
+    if expected != current {
+        return Err(format!(
+            "Agent Plan revision changed: expected {expected}, current {current}"
+        ));
+    }
+    Ok(())
+}
+
+fn require_matching_id(
+    input: &Value,
+    key: &str,
+    actual: Option<&Value>,
+    label: &str,
+) -> Result<(), String> {
+    let requested = required_str(input, key)?;
+    let actual = actual
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| format!("No {label} is selected."))?;
+    if requested != actual {
+        return Err(format!("{key} does not match the selected {label}"));
+    }
+    Ok(())
+}
+
+fn require_workspace_resource(
+    context: &AgentContext,
+    input: &Value,
+    key: &str,
+) -> Result<(), String> {
+    require_matching_id(
+        input,
+        key,
+        context
+            .workspace
+            .get("resources")
+            .and_then(|value| value.get(key)),
+        "workspace resource",
+    )
+}
+
+fn parse_uuid_field(input: &Value, key: &str) -> Result<Uuid, String> {
+    Uuid::parse_str(required_str(input, key)?).map_err(|_| format!("{key} must be a UUID"))
+}
+
+fn require_authorized_demo_ids(context: &AgentContext, input: &Value) -> Result<(), String> {
+    let requested = string_vec_required(input, "demoIds", 12).map_err(|error| {
+        let keys = input
+            .as_object()
+            .map(|object| object.keys().cloned().collect::<Vec<_>>())
+            .unwrap_or_default();
+        format!("{error}; received fields: {keys:?}")
+    })?;
+    let authorized = context
+        .workspace
+        .get("demoIds")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .chain(context.demo.get("id").and_then(Value::as_str))
+        .collect::<HashSet<_>>();
+    if authorized.is_empty() || requested.iter().any(|id| !authorized.contains(id.as_str())) {
+        return Err("demoIds contains a Demo outside the selected workspace".to_owned());
+    }
+    Ok(())
+}
+
+fn read_demo_summary(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    require_selected_demo(context, input)?;
     let Some(analysis) = context.analysis.as_object() else {
-        return Ok(
-            json!({"section":section,"evidence":{"available":false,"reason":"No analyzed demo is selected."}}),
-        );
+        return Ok(json!({"available":false,"reason":"No analyzed Demo is selected."}));
     };
-    let evidence = match section {
-        "summary" => {
-            json!({"available":true,"demo":context.demo,"mapName":analysis.get("map_name"),"tickRate":analysis.get("tick_rate"),"durationSeconds":analysis.get("duration_seconds"),"teams":analysis.get("teams")})
-        }
-        "highlights" => Value::Array(highlight_evidence(&context.analysis)),
-        "players" => analysis
-            .get("players")
-            .cloned()
-            .unwrap_or_else(|| json!([])),
-        "rounds" => {
-            let wanted = integer_set(input, "roundNumbers", 12)?;
-            Value::Array(
-                rounds(&context.analysis)
-                    .filter(|round| {
-                        wanted.is_empty()
-                            || round_number(round).is_some_and(|value| wanted.contains(&value))
-                    })
-                    .take(24)
-                    .map(|round| Value::Object(round.clone()))
-                    .collect(),
-            )
-        }
-        _ => return Err("section must be summary, highlights, rounds, or players".into()),
-    };
-    Ok(json!({"section":section,"evidence":evidence}))
+    Ok(json!({
+        "available":true,
+        "demo":context.demo,
+        "mapName":analysis.get("map_name"),
+        "tickRate":analysis.get("tick_rate"),
+        "durationSeconds":analysis.get("duration_seconds"),
+        "teams":analysis.get("teams")
+    }))
+}
+
+fn read_players(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    require_selected_demo(context, input)?;
+    let wanted = string_set(input, "playerIds", 10)?;
+    let maximum = bounded_usize(input, "maximumResults", 32, 1, 64)?;
+    let players = array(context.analysis.get("players"))
+        .filter(|player| {
+            wanted.is_empty()
+                || text(player.get("steam_id")).is_some_and(|id| wanted.contains(id))
+                || text(player.get("id")).is_some_and(|id| wanted.contains(id))
+        })
+        .take(maximum)
+        .cloned()
+        .collect::<Vec<_>>();
+    Ok(json!({"available":!players.is_empty(),"players":players}))
 }
 
 fn search_rounds(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    let demo_id = require_selected_demo(context, input)?;
     if !context.analysis.is_object() {
         return Ok(
             json!({"available":false,"rounds":[],"aggregate":{"reason":"No analyzed Demo is selected."}}),
@@ -726,9 +997,9 @@ fn search_rounds(context: &AgentContext, input: &Value) -> Result<Value, String>
         }
         let matched_events = events.into_iter().take(32).map(|event| {
             let id = text(event.get("id")).map_or_else(|| format!("{number}:{}", number_value(event.get("tick")).unwrap_or(0.0)), str::to_owned);
-            json!({"evidenceId":format!("event:{id}"),"tick":event.get("tick"),"kind":event.get("kind"),"actor":event.get("actor"),"target":event.get("target")})
+            json!({"evidenceId":format!("event:{demo_id}:{id}"),"tick":event.get("tick"),"kind":event.get("kind"),"actor":event.get("actor"),"target":event.get("target")})
         }).collect::<Vec<_>>();
-        matches.push(json!({"evidenceId":format!("round:{number}"),"round":number,"startTick":round.get("start_tick"),"endTick":round.get("end_tick"),"winner":round.get("winner"),"score":[round.get("team_a_score"),round.get("team_b_score")],"economy":economy,"matchedEvents":matched_events}));
+        matches.push(json!({"evidenceId":format!("round:{demo_id}:{number}"),"round":number,"startTick":round.get("start_tick"),"endTick":round.get("end_tick"),"winner":round.get("winner"),"score":[round.get("team_a_score"),round.get("team_b_score")],"economy":economy,"matchedEvents":matched_events}));
         if matches.len() == maximum {
             break;
         }
@@ -740,15 +1011,17 @@ fn search_rounds(context: &AgentContext, input: &Value) -> Result<Value, String>
 }
 
 fn read_round_context(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    let demo_id = require_selected_demo(context, input)?;
     let wanted = integer_set_required(input, "roundNumbers", 12)?;
     let selected = rounds(&context.analysis).filter_map(|round| {
         let value = round_number(round)?;
-        wanted.contains(&value).then(|| json!({"evidenceId":format!("round:{value}"),"round":value,"startTick":round.get("start_tick"),"endTick":round.get("end_tick"),"winner":round.get("winner"),"reason":round.get("reason"),"score":[round.get("team_a_score"),round.get("team_b_score")],"economy":round_economy(&context.analysis,value),"events":round_events(round).take(64).collect::<Vec<_>>() }))
+        wanted.contains(&value).then(|| json!({"evidenceId":format!("round:{demo_id}:{value}"),"round":value,"startTick":round.get("start_tick"),"endTick":round.get("end_tick"),"winner":round.get("winner"),"reason":round.get("reason"),"score":[round.get("team_a_score"),round.get("team_b_score")],"economy":round_economy(&context.analysis,value) }))
     }).collect::<Vec<_>>();
     Ok(json!({"available":!selected.is_empty(),"rounds":selected}))
 }
 
 fn read_round_events(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    let demo_id = require_selected_demo(context, input)?;
     let wanted_rounds = integer_set_required(input, "roundNumbers", 24)?;
     let wanted_events = event_set(input, "eventKinds")?;
     let wanted_players = string_set(input, "playerIds", 10)?;
@@ -768,7 +1041,7 @@ fn read_round_events(context: &AgentContext, input: &Value) -> Result<Value, Str
                 || format!("{value}:{}", number_value(event.get("tick")).unwrap_or(0.0)),
                 str::to_owned,
             );
-            all.push(json!({"evidenceId":format!("event:{id}"),"round":value,"tick":event.get("tick"),"seconds":event.get("seconds"),"kind":event.get("kind"),"actor":event.get("actor"),"target":event.get("target"),"weapon":event.get("weapon"),"headshot":event.get("headshot").and_then(Value::as_bool).unwrap_or(false)}));
+            all.push(json!({"evidenceId":format!("event:{demo_id}:{id}"),"round":value,"tick":event.get("tick"),"seconds":event.get("seconds"),"kind":event.get("kind"),"actor":event.get("actor"),"target":event.get("target"),"weapon":event.get("weapon"),"headshot":event.get("headshot").and_then(Value::as_bool).unwrap_or(false)}));
         }
     }
     let truncated = all.len() > maximum;
@@ -777,6 +1050,7 @@ fn read_round_events(context: &AgentContext, input: &Value) -> Result<Value, Str
 }
 
 fn read_player_matchups(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    let demo_id = require_selected_demo(context, input)?;
     let wanted = string_set_required(input, "playerIds", 10)?;
     let mut matchups = Vec::new();
     for value in array(insights(&context.analysis).get("matchups")) {
@@ -791,7 +1065,7 @@ fn read_player_matchups(context: &AgentContext, input: &Value) -> Result<Value, 
         let mut result = matchup.clone();
         result.insert(
             "evidenceId".into(),
-            Value::String(format!("matchup:{player}:{opponent}")),
+            Value::String(format!("matchup:{demo_id}:{player}:{opponent}")),
         );
         matchups.push(Value::Object(result));
         if matchups.len() == 100 {
@@ -808,6 +1082,7 @@ fn read_player_matchups(context: &AgentContext, input: &Value) -> Result<Value, 
 }
 
 fn read_highlights(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    require_authorized_demo_ids(context, input)?;
     let players = string_set(input, "playerIds", 10)?;
     let kinds = string_set(input, "kinds", 12)?;
     let wanted_rounds = integer_set(input, "roundNumbers", 24)?;
@@ -833,9 +1108,13 @@ fn read_highlights(context: &AgentContext, input: &Value) -> Result<Value, Strin
                 .expect("highlight evidence is an object")
                 .clone();
             let id = text(object.get("id")).unwrap_or_default();
+            let owner = text(object.get("demoId"))
+                .or_else(|| text(context.demo.get("id")))
+                .unwrap_or("unknown");
+            let source = text(object.get("sourceHighlightId")).unwrap_or(id);
             object.insert(
                 "evidenceId".into(),
-                Value::String(format!("highlight:{id}")),
+                Value::String(format!("highlight:{owner}:{source}")),
             );
             Value::Object(object)
         })
@@ -848,6 +1127,7 @@ fn read_cinematic_context(
     input: &Value,
     external_cinematic: Option<&Value>,
 ) -> Result<Value, String> {
+    require_authorized_demo_ids(context, input)?;
     let ids = string_vec_required(input, "highlightIds", 16)?;
     let binding = bind_highlights(&context.analysis, &ids);
     if !binding.ready() {
@@ -1103,22 +1383,24 @@ fn spatial_scene_metrics(points: &[[f64; 3]]) -> (Value, f64, Value, f64) {
     )
 }
 
-fn read_editor_timeline(context: &AgentContext, input: &Value) -> Value {
+fn read_editor_timeline(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    require_selected_editor_project(context, input)?;
     let Some(project) = context.editor_project.as_object() else {
-        return json!({"available":false,"project":null});
+        return Ok(json!({"available":false,"project":null}));
     };
     if bool_value(input.get("includeClips"), true) {
-        return json!({"available":true,"project":project});
+        return Ok(json!({"available":true,"project":project}));
     }
     let mut summary = project.clone();
     summary.remove("tracks");
-    json!({"available":true,"project":summary})
+    Ok(json!({"available":true,"project":summary}))
 }
 
 fn draft_edit_plan(
     context: &AgentContext,
     input: &Value,
 ) -> Result<(Value, Option<CapturedPlan>), String> {
+    require_selected_demo(context, input)?;
     let ids = string_vec_required(input, "highlightIds", 16)?;
     let pacing = enum_value(input, "pacing", &["measured", "energetic", "impact"])?;
     let include = bounded_f64(input, "includeContextSeconds", 2.0, 0.0, 8.0)?;
@@ -1157,6 +1439,7 @@ fn draft_edit_plan(
     };
     let payload = json!({"pacing":pacing,"tickRate":tick_rate,"clips":clips,"missingHighlightIds":binding.missing,"duplicateHighlightIds":binding.duplicates,"ambiguousHighlightIds":binding.ambiguous,"rejectionReasons":rejection_reasons});
     let plan = accepted.then(|| CapturedPlan {
+        id: Uuid::new_v4(),
         kind: CapturedPlanKind::HighlightEdit,
         title: "Recorded highlight edit draft".into(),
         payload: json!({
@@ -1179,6 +1462,7 @@ fn draft_agent_plan_changes(
     context: &AgentContext,
     input: &Value,
 ) -> Result<(Value, Option<CapturedPlan>), String> {
+    require_selected_agent_plan(context, input)?;
     let title = required_str(input, "title")?.trim();
     if title.is_empty() || title.chars().count() > 200 {
         return Err("title must contain 1 to 200 characters".into());
@@ -1272,73 +1556,11 @@ fn draft_agent_plan_changes(
     Ok((
         json!({ "accepted": true, "plan": payload }),
         Some(CapturedPlan {
+            id: Uuid::new_v4(),
             kind: CapturedPlanKind::AgentPlanChange,
             title: title.to_owned(),
             payload,
         }),
-    ))
-}
-
-fn draft_hlae_plan(
-    context: &AgentContext,
-    input: &Value,
-) -> Result<(Value, Option<CapturedPlan>), String> {
-    let ids = string_vec_required(input, "highlightIds", 16)?;
-    let camera = enum_value(
-        input,
-        "cameraStyle",
-        &[
-            "pov", "orbit", "dolly", "static", "tracking", "crane", "flyby",
-        ],
-    )?;
-    let mode = enum_value_default(input, "mode", "preview", &["preview", "capture"])?;
-    let lead = bounded_f64(input, "leadSeconds", 2.5, 0.5, 8.0)?;
-    let tail = bounded_f64(input, "tailSeconds", 2.0, 0.5, 8.0)?;
-    let binding = bind_highlights(&context.analysis, &ids);
-    let demo_id = text(context.demo.get("id"));
-    let mut rejection_reasons = binding.rejection_reasons();
-    if demo_id.is_none() {
-        rejection_reasons.push("No analyzed Demo is selected.".into());
-    }
-    let accepted = binding.ready() && demo_id.is_some();
-    let selected_ids = if accepted { ids.clone() } else { Vec::new() };
-    let payload = json!({"demo_id":demo_id,"highlight_ids":selected_ids,"camera_style":camera,"mode":mode,"lead_seconds":lead,"tail_seconds":tail});
-    let plan = accepted.then(|| CapturedPlan {
-        kind: CapturedPlanKind::Hlae,
-        title: "HLAE camera proposal".into(),
-        payload: payload.clone(),
-    });
-    let missing = binding
-        .missing
-        .iter()
-        .map(|id| format!("missing_highlight:{id}"))
-        .chain(
-            binding
-                .duplicates
-                .iter()
-                .map(|id| format!("duplicate_highlight:{id}")),
-        )
-        .chain(
-            binding
-                .ambiguous
-                .iter()
-                .map(|id| format!("ambiguous_highlight:{id}")),
-        )
-        .chain(demo_id.is_none().then_some("demo_id".into()))
-        .collect::<Vec<_>>();
-    let tick_rate = number_value(context.analysis.get("tick_rate")).unwrap_or(64.0);
-    let mut review = payload.as_object().expect("payload object").clone();
-    review.extend(Map::from_iter([
-        ("tickRate".into(), json!(tick_rate)),
-        ("requiresUserReview".into(), json!(true)),
-        ("missingHighlightIds".into(), json!(binding.missing)),
-        ("duplicateHighlightIds".into(), json!(binding.duplicates)),
-        ("ambiguousHighlightIds".into(), json!(binding.ambiguous)),
-        ("rejectionReasons".into(), json!(rejection_reasons)),
-    ]));
-    Ok((
-        json!({"accepted":accepted,"plan":review,"missingEvidence":missing}),
-        plan,
     ))
 }
 
@@ -1347,6 +1569,7 @@ fn draft_video_plan(
     input: &Value,
     external_cinematic: Option<&Value>,
 ) -> Result<(Value, Option<CapturedPlan>), String> {
+    require_authorized_demo_ids(context, input)?;
     let title = required_str(input, "title")?.trim();
     if title.is_empty() || title.chars().count() > 200 {
         return Err("video title must contain 1 to 200 characters".into());
@@ -1428,8 +1651,8 @@ fn draft_video_plan(
     let accepted = binding.ready()
         && resolved_demo_ids.iter().all(Option::is_some)
         && missing_players.is_empty();
-    let cinematic_context =
-        read_cinematic_context(context, &json!({"highlightIds":&ids}), external_cinematic)?;
+    let cinematic_context = external_cinematic
+        .ok_or_else(|| "draft_video_plan requires explicit cinematic Evidence".to_owned())?;
     let scenes = cinematic_context
         .get("scenes")
         .and_then(Value::as_array)
@@ -1659,6 +1882,7 @@ fn draft_video_plan(
         "requires_user_confirmation": true
     });
     let plan = accepted.then(|| CapturedPlan {
+        id: Uuid::new_v4(),
         kind: CapturedPlanKind::VideoRender,
         title: title.to_owned(),
         payload: payload.clone(),
@@ -1701,51 +1925,35 @@ fn camera_style_supports_intent(intent: &str, style: &str) -> bool {
     }
 }
 
-fn read_audio_analysis(context: &AgentContext, input: &Value) -> Result<Value, String> {
-    if !ensure_object(input)?.is_empty() {
-        return Err("read_audio_analysis accepts no fields".into());
+fn project_audio_evidence(analysis: &Value, view: &str) -> Result<Value, String> {
+    let analysis = analysis
+        .as_object()
+        .ok_or_else(|| "audio analysis host returned an invalid object".to_owned())?;
+    let summary = json!({
+        "duration_seconds": analysis.get("duration_seconds"),
+        "analysis_sample_rate": analysis.get("analysis_sample_rate"),
+        "bpm": analysis.get("bpm"),
+        "tempo_confidence": analysis.get("tempo_confidence"),
+        "beat_count": analysis.get("beats").and_then(Value::as_array).map_or(0, Vec::len),
+        "onset_count": analysis.get("onsets").and_then(Value::as_array).map_or(0, Vec::len),
+        "sections": analysis.get("sections"),
+        "rhythm_diagnostics": analysis.get("rhythm_diagnostics"),
+        "limitations": analysis.get("limitations"),
+    });
+    if view == "summary" {
+        return Ok(json!({"available":true,"view":"summary","evidence":summary}));
     }
-    let Some(analysis) = context.audio_analysis.as_object() else {
-        return Ok(json!({"available":false,"analysis":null}));
-    };
-    Ok(json!({
-        "available": true,
-        "analysis": {
-            "duration_seconds": analysis.get("duration_seconds"),
-            "analysis_sample_rate": analysis.get("analysis_sample_rate"),
-            "bpm": analysis.get("bpm"),
-            "tempo_confidence": analysis.get("tempo_confidence"),
-            "beat_count": analysis.get("beats").and_then(Value::as_array).map_or(0, Vec::len),
-            "onset_count": analysis.get("onsets").and_then(Value::as_array).map_or(0, Vec::len),
-            "sections": analysis.get("sections"),
-            "rhythm_diagnostics": analysis.get("rhythm_diagnostics"),
-            "limitations": analysis.get("limitations"),
-        }
-    }))
-}
-
-fn read_audio_rhythm_map(context: &AgentContext, input: &Value) -> Result<Value, String> {
-    if !ensure_object(input)?.is_empty() {
-        return Err("read_audio_rhythm_map accepts no fields".into());
-    }
-    let Some(analysis) = context.audio_analysis.as_object() else {
-        return Ok(json!({"available":false,"rhythm_map":null}));
-    };
     let energy = analysis
         .get("energy")
         .and_then(Value::as_array)
         .map_or_else(Vec::new, |points| bounded_even_samples(points, 128));
     Ok(json!({
         "available": true,
-        "rhythm_map": {
-            "duration_seconds": analysis.get("duration_seconds"),
-            "bpm": analysis.get("bpm"),
-            "tempo_confidence": analysis.get("tempo_confidence"),
+        "view": "rhythm_map",
+        "evidence": {
+            "summary": summary,
             "energy": energy,
-            "sections": analysis.get("sections"),
             "spectral_map": analysis.get("spectral_map"),
-            "rhythm_diagnostics": analysis.get("rhythm_diagnostics"),
-            "limitations": analysis.get("limitations"),
         }
     }))
 }
@@ -1757,34 +1965,6 @@ fn bounded_even_samples(values: &[Value], maximum: usize) -> Vec<Value> {
     (0..maximum)
         .map(|index| values[index * values.len() / maximum].clone())
         .collect()
-}
-
-fn draft_beat_alignment(
-    context: &AgentContext,
-    input: &Value,
-) -> Result<(Value, Option<CapturedPlan>), String> {
-    if input
-        .get("acknowledgeAdvisoryOnly")
-        .and_then(Value::as_bool)
-        != Some(true)
-    {
-        return Err("acknowledgeAdvisoryOnly must be true".into());
-    }
-    let Some(draft) = context.beat_alignment_draft.as_object() else {
-        return Ok((json!({"available":false,"draft":null}), None));
-    };
-    let project_id = text(context.editor_project.get("id"));
-    let revision = integer(context.editor_project.get("revision"));
-    let audio_id = text(context.selected_audio.get("assetId"));
-    let placement = context
-        .selected_audio
-        .get("placement")
-        .filter(|value| value.is_object());
-    let plan = project_id.zip(revision).zip(audio_id).zip(placement).map(|(((project_id, revision), audio_id), placement)| CapturedPlan {
-        kind: CapturedPlanKind::BeatAlignment, title:"BGM beat alignment".into(),
-        payload:json!({"project_id":project_id,"expected_revision":revision,"audio_asset_id":audio_id,"audio_placement":placement,"draft":draft}),
-    });
-    Ok((json!({"available":true,"draft":draft}), plan))
 }
 
 #[derive(Debug)]
@@ -2135,9 +2315,51 @@ fn event_set(input: &Value, key: &str) -> Result<HashSet<String>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[derive(Debug, Default)]
+    struct FixedToolHost {
+        audio_reads: AtomicUsize,
+        alignment_drafts: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl AgentToolHost for FixedToolHost {
+        async fn read_cinematic_context(&self, _highlight_ids: &[String]) -> Result<Value, String> {
+            Ok(json!({"scenes":[]}))
+        }
+
+        async fn read_audio_analysis(&self, _audio_asset_id: Uuid) -> Result<Value, String> {
+            self.audio_reads.fetch_add(1, Ordering::SeqCst);
+            Ok(json!({
+                "duration_seconds":10.0,"analysis_sample_rate":11025,"bpm":120.0,
+                "tempo_confidence":0.9,"beats":[{"index":0}],"onsets":[],"energy":[],
+                "sections":[],"spectral_map":{"floor_db":-80.0,"bands":[],"points":[]},
+                "rhythm_diagnostics":{"onset_rate_per_second":0.0,"strong_onset_rate_per_second":0.0,"dynamic_range_db":0.0,"silence_ratio":0.0,"silence_regions":[],"recommended_cut_points":[]},
+                "limitations":[]
+            }))
+        }
+
+        async fn draft_beat_alignment(
+            &self,
+            editor_project_id: Uuid,
+            expected_revision: u64,
+            audio_asset_id: Uuid,
+            audio_placement: Value,
+        ) -> Result<Value, String> {
+            self.alignment_drafts.fetch_add(1, Ordering::SeqCst);
+            Ok(json!({
+                "project_id":editor_project_id,"expected_revision":expected_revision,
+                "audio_asset_id":audio_asset_id,"audio_placement":audio_placement,
+                "draft":{"advisory_only":true,"clips":[],"unplaced_clip_ids":[],"constraints":[]}
+            }))
+        }
+    }
 
     fn context() -> AgentContext {
         AgentContext {
+            workspace: json!({"demoIds":["demo-1"],"resources":{}}),
             demo: json!({"id":"demo-1"}),
             map_context: json!({
                 "map_name":"de_mirage",
@@ -2156,47 +2378,41 @@ mod tests {
         }
     }
 
+    fn authorize_demos(context: &mut AgentContext, ids: &[&str]) {
+        context.workspace["demoIds"] = json!(ids);
+    }
+
     #[test]
     fn audio_tools_separate_compact_summary_from_bounded_rhythm_map() {
-        let context = AgentContext {
-            audio_analysis: json!({
-                "duration_seconds": 120.0,
-                "analysis_sample_rate": 11_025,
-                "bpm": 128.0,
-                "tempo_confidence": 0.91,
-                "beats": (0..300).map(|index| json!({"index":index})).collect::<Vec<_>>(),
-                "onsets": (0..400).map(|index| json!({"time_seconds":f64::from(index) * 0.2})).collect::<Vec<_>>(),
-                "energy": (0..256).map(|index| json!({"time_seconds":index,"rms":0.5,"peak":0.8})).collect::<Vec<_>>(),
-                "sections": [{"start_seconds":0.0,"end_seconds":120.0,"character":"steady","mean_energy":0.5,"confidence":0.5}],
-                "spectral_map": {"floor_db":-80.0,"bands":[],"points":[]},
-                "rhythm_diagnostics": {"onset_rate_per_second":3.3,"strong_onset_rate_per_second":1.2,"dynamic_range_db":8.0,"silence_ratio":0.0,"silence_regions":[],"recommended_cut_points":[]},
-                "limitations": ["test limitation"]
-            }),
-            ..AgentContext::default()
-        };
-
-        let summary = read_audio_analysis(&context, &json!({})).unwrap();
-        assert_eq!(summary["analysis"]["beat_count"], 300);
-        assert_eq!(summary["analysis"]["onset_count"], 400);
-        assert!(summary["analysis"].get("beats").is_none());
-        assert!(summary["analysis"].get("spectral_map").is_none());
-
-        let rhythm_map = read_audio_rhythm_map(&context, &json!({})).unwrap();
+        let analysis = json!({
+            "duration_seconds": 120.0, "analysis_sample_rate": 11_025,
+            "bpm": 128.0, "tempo_confidence": 0.91,
+            "beats": (0..300).map(|index| json!({"index":index})).collect::<Vec<_>>(),
+            "onsets": (0..400).map(|index| json!({"time_seconds":f64::from(index) * 0.2})).collect::<Vec<_>>(),
+            "energy": (0..256).map(|index| json!({"time_seconds":index,"rms":0.5,"peak":0.8})).collect::<Vec<_>>(),
+            "sections": [], "spectral_map": {"floor_db":-80.0,"bands":[],"points":[]},
+            "rhythm_diagnostics": {"onset_rate_per_second":3.3,"strong_onset_rate_per_second":1.2,"dynamic_range_db":8.0,"silence_ratio":0.0,"silence_regions":[],"recommended_cut_points":[]},
+            "limitations": ["test limitation"]
+        });
+        let summary = project_audio_evidence(&analysis, "summary").unwrap();
+        assert_eq!(summary["evidence"]["beat_count"], 300);
+        assert_eq!(summary["evidence"]["onset_count"], 400);
+        assert!(summary["evidence"].get("beats").is_none());
+        let rhythm_map = project_audio_evidence(&analysis, "rhythm_map").unwrap();
         assert_eq!(
-            rhythm_map["rhythm_map"]["energy"].as_array().unwrap().len(),
+            rhythm_map["evidence"]["energy"].as_array().unwrap().len(),
             128
         );
-        assert!(rhythm_map["rhythm_map"].get("spectral_map").is_some());
-        assert!(rhythm_map["rhythm_map"].get("beats").is_none());
+        assert!(rhythm_map["evidence"].get("spectral_map").is_some());
     }
 
     #[test]
     fn creation_mode_exposes_only_the_materializable_video_proposal() {
         let names = |mode| {
-            tool_definitions()
+            tool_catalog()
                 .into_iter()
-                .filter(|(name, _, _)| tool_allowed_in_mode(mode, name))
-                .map(|(name, _, _)| name)
+                .filter(|tool| tool.supports(mode))
+                .map(|tool| tool.name)
                 .collect::<Vec<_>>()
         };
 
@@ -2222,13 +2438,60 @@ mod tests {
         assert!(!guide.iter().any(|name| name.starts_with("confirm_")));
     }
 
+    #[test]
+    fn tool_catalog_is_unique_complete_and_has_no_legacy_hlae_path() {
+        let catalog = tool_catalog();
+        let names = catalog.iter().map(|tool| tool.name).collect::<HashSet<_>>();
+        let kinds = catalog.iter().map(|tool| tool.kind).collect::<HashSet<_>>();
+        assert_eq!(names.len(), catalog.len());
+        assert_eq!(kinds.len(), catalog.len());
+        assert_eq!(catalog.len(), 19);
+        assert!(catalog.iter().all(|tool| !tool.modes.is_empty()));
+    }
+
+    #[tokio::test]
+    async fn audio_and_alignment_tools_compute_only_when_explicitly_called() {
+        let audio_id = Uuid::new_v4();
+        let project_id = Uuid::new_v4();
+        let host = Arc::new(FixedToolHost::default());
+        let context = AgentContext {
+            workspace: json!({"resources":{"audioAssetId":audio_id,"editorProjectId":project_id}}),
+            ..AgentContext::default()
+        };
+        let state = ToolState::new(context, Some(host.clone()), false);
+        assert_eq!(host.audio_reads.load(Ordering::SeqCst), 0);
+        let audio = state
+            .execute_named(
+                "read_audio_evidence",
+                json!({"audioAssetId":audio_id,"view":"summary"}),
+            )
+            .await
+            .expect("audio Evidence");
+        assert_eq!(audio["evidence"]["bpm"], 120.0);
+        assert_eq!(host.audio_reads.load(Ordering::SeqCst), 1);
+        let alignment = state
+            .execute_named(
+                "draft_beat_alignment",
+                json!({
+                    "editorProjectId":project_id,"expectedRevision":4,
+                    "audioAssetId":audio_id,
+                    "audioPlacement":{"timeline_start_seconds":0.0,"source_in_seconds":0.0,"volume":1.0}
+                }),
+            )
+            .await
+            .expect("Beat Alignment Proposal");
+        assert!(alignment["proposalId"].is_string());
+        assert_eq!(host.alignment_drafts.load(Ordering::SeqCst), 1);
+    }
+
     #[tokio::test]
     async fn auto_edit_confirmation_links_to_the_prior_proposal_without_pausing() {
         let state = ToolState::new(context(), None, true);
-        state
-            .execute(
+        let draft = state
+            .execute_named(
                 "draft_edit_plan",
                 json!({
+                    "demoId":"demo-1",
                     "highlightIds":["ace-1"],
                     "pacing":"impact",
                     "includeContextSeconds":2,
@@ -2237,10 +2500,20 @@ mod tests {
             )
             .await
             .expect("edit proposal");
+        let proposal_id = draft["proposalId"].clone();
+        let later = state
+            .execute_named(
+                "draft_edit_plan",
+                json!({"demoId":"demo-1","highlightIds":["ace-1"],"pacing":"measured"}),
+            )
+            .await
+            .expect("later edit proposal");
+        assert_ne!(later["proposalId"], proposal_id);
         let output = state
-            .execute(
+            .execute_named(
                 "confirm_edit_plan",
                 json!({
+                    "proposalId":proposal_id,
                     "title":"Apply the selected edit",
                     "summary":"Create one bounded edit from ace-1"
                 }),
@@ -2250,24 +2523,26 @@ mod tests {
         assert_eq!(output["approved"], true);
         assert_eq!(output["automatic"], true);
         assert_eq!(output["status"], "approved");
-        assert_eq!(output["proposalIndex"], 0);
+        assert_eq!(output["proposalId"], proposal_id);
         assert_eq!(output["proposalKind"], "highlight_edit");
     }
 
     #[tokio::test]
     async fn manual_edit_confirmation_becomes_a_pending_ui_request() {
         let state = ToolState::new(context(), None, false);
-        state
-            .execute(
+        let draft = state
+            .execute_named(
                 "draft_edit_plan",
-                json!({"highlightIds":["ace-1"],"pacing":"impact"}),
+                json!({"demoId":"demo-1","highlightIds":["ace-1"],"pacing":"impact"}),
             )
             .await
             .expect("edit proposal");
+        let proposal_id = draft["proposalId"].clone();
         let output = state
-            .execute(
+            .execute_named(
                 "confirm_edit_plan",
                 json!({
+                    "proposalId":proposal_id,
                     "title":"Apply edit",
                     "summary":"Shorten the selected shot"
                 }),
@@ -2284,25 +2559,26 @@ mod tests {
         let state = ToolState::new(context(), None, true);
         assert!(
             state
-                .execute(
+                .execute_named(
                     "confirm_edit_plan",
-                    json!({"title":"Edit","summary":"Apply edit"})
+                    json!({"proposalId":Uuid::new_v4(),"title":"Edit","summary":"Apply edit"})
                 )
                 .await
                 .is_err()
         );
-        state
-            .execute(
+        let draft = state
+            .execute_named(
                 "draft_edit_plan",
-                json!({"highlightIds":["ace-1"],"pacing":"impact"}),
+                json!({"demoId":"demo-1","highlightIds":["ace-1"],"pacing":"impact"}),
             )
             .await
             .expect("edit proposal");
+        let proposal_id = draft["proposalId"].clone();
         assert!(
             state
-                .execute(
+                .execute_named(
                     "confirm_beat_alignment",
-                    json!({"title":"Beat","summary":"Apply beats"})
+                    json!({"proposalId":proposal_id,"title":"Beat","summary":"Apply beats"})
                 )
                 .await
                 .is_err()
@@ -2314,7 +2590,7 @@ mod tests {
         let (output, plan) = execute_tool(
             "navigate_workspace",
             &context(),
-            &json!({"destination":"replay"}),
+            &json!({"destination":"replay","demoId":"demo-1"}),
         )
         .expect("typed navigation");
         assert_eq!(
@@ -2355,22 +2631,11 @@ mod tests {
     }
 
     #[test]
-    fn hlae_plan_binds_exact_highlight_evidence() {
-        let (output, plan) = draft_hlae_plan(
-            &context(),
-            &json!({"highlightIds":["ace-1"],"cameraStyle":"orbit","mode":"preview"}),
-        )
-        .unwrap();
-        assert_eq!(output["accepted"], true);
-        assert_eq!(plan.unwrap().payload["highlight_ids"], json!(["ace-1"]));
-    }
-
-    #[test]
     fn cinematic_context_exposes_map_space_and_recommends_purposeful_motion() {
         let (output, plan) = execute_tool(
             "read_cinematic_context",
             &context(),
-            &json!({"highlightIds":["ace-1"]}),
+            &json!({"demoIds":["demo-1"],"highlightIds":["ace-1"]}),
         )
         .expect("cinematic context");
 
@@ -2440,9 +2705,9 @@ mod tests {
             }]
         });
         let (output, _) = execute_tool_with_cinematic(
-            "read_cinematic_context",
+            ToolKind::ReadCinematicContext,
             &context(),
-            &json!({"highlightIds":["ace-1"]}),
+            &json!({"demoIds":["demo-1"],"highlightIds":["ace-1"]}),
             Some(&replay),
         )
         .expect("replay-backed cinematic context");
@@ -2460,6 +2725,7 @@ mod tests {
     fn video_plan_binds_verified_highlights_to_executable_recording_items() {
         let mut context = context();
         context.demo = json!({"id":"00000000-0000-4000-8000-0000000000d1"});
+        authorize_demos(&mut context, &["00000000-0000-4000-8000-0000000000d1"]);
         context.analysis["highlights"][0]["player_id"] = json!("player-1");
         context.analysis["highlights"]
             .as_array_mut()
@@ -2477,11 +2743,18 @@ mod tests {
                 "position":[-300.0,900.0,48.0]
             }));
 
-        let (output, plan) = execute_tool(
-            "draft_video_plan",
+        let cinematic = read_cinematic_context(
+            &context,
+            &json!({"demoIds":["00000000-0000-4000-8000-0000000000d1"],"highlightIds":["ace-1","clutch-2"]}),
+            None,
+        )
+        .expect("cinematic Evidence");
+        let (output, plan) = execute_tool_with_cinematic(
+            ToolKind::DraftVideoPlan,
             &context,
             &json!({
                 "title":"Ace to Clutch",
+                "demoIds":["00000000-0000-4000-8000-0000000000d1"],
                 "highlightIds":["ace-1","clutch-2"],
                 "pacing":"impact",
                 "storyRoles":["hook","climax"],
@@ -2495,6 +2768,7 @@ mod tests {
                     "Travel through the proven action axis into the clutch."
                 ]
             }),
+            Some(&cinematic),
         )
         .expect("video plan");
 
@@ -2529,6 +2803,7 @@ mod tests {
         let second = "00000000-0000-4000-8000-0000000000d2";
         let mut context = context();
         context.demo = json!({"id":first});
+        authorize_demos(&mut context, &[first, second]);
         context.analysis["highlights"] = json!([{
             "id": format!("{first}:shared"),
             "source_highlight_id": "shared",
@@ -2548,11 +2823,18 @@ mod tests {
         }]);
 
         let ids = [format!("{first}:shared"), format!("{second}:shared")];
-        let (_, plan) = execute_tool(
-            "draft_video_plan",
+        let cinematic = read_cinematic_context(
+            &context,
+            &json!({"demoIds":[first,second],"highlightIds":ids}),
+            None,
+        )
+        .expect("series cinematic Evidence");
+        let (_, plan) = execute_tool_with_cinematic(
+            ToolKind::DraftVideoPlan,
             &context,
             &json!({
                 "title":"Two-map sequence",
+                "demoIds":[first,second],
                 "highlightIds": ids,
                 "pacing":"energetic",
                 "storyRoles":["hook","climax"],
@@ -2563,6 +2845,7 @@ mod tests {
                     "Keep the verified player view on the second map."
                 ]
             }),
+            Some(&cinematic),
         )
         .expect("series video plan");
 
@@ -2580,6 +2863,7 @@ mod tests {
     fn video_plan_keeps_cinematic_camera_when_collision_geometry_is_verified() {
         let mut context = context();
         context.demo = json!({"id":"00000000-0000-4000-8000-0000000000d1"});
+        authorize_demos(&mut context, &["00000000-0000-4000-8000-0000000000d1"]);
         context.analysis["highlights"][0]["player_id"] = json!("player-1");
         let cinematic = json!({
             "scenes": [{
@@ -2597,12 +2881,19 @@ mod tests {
                 }
             }]
         });
+        let cinematic = read_cinematic_context(
+            &context,
+            &json!({"demoIds":["00000000-0000-4000-8000-0000000000d1"],"highlightIds":["ace-1"]}),
+            Some(&cinematic),
+        )
+        .expect("processed cinematic Evidence");
 
         let (_, plan) = execute_tool_with_cinematic(
-            "draft_video_plan",
+            ToolKind::DraftVideoPlan,
             &context,
             &json!({
                 "title":"Verified cinematic ace",
+                "demoIds":["00000000-0000-4000-8000-0000000000d1"],
                 "highlightIds":["ace-1"],
                 "pacing":"cinematic",
                 "storyRoles":["climax"],
@@ -2630,6 +2921,7 @@ mod tests {
     fn video_plan_reports_effective_timing_at_replay_boundaries() {
         let mut context = context();
         context.demo = json!({"id":"00000000-0000-4000-8000-0000000000d1"});
+        authorize_demos(&mut context, &["00000000-0000-4000-8000-0000000000d1"]);
         context.analysis["highlights"][0]["player_id"] = json!("player-1");
         let cinematic = json!({"scenes":[{
             "highlightId":"ace-1",
@@ -2640,12 +2932,19 @@ mod tests {
                 "clampedToArtifactEnd":true
             }
         }]});
+        let cinematic = read_cinematic_context(
+            &context,
+            &json!({"demoIds":["00000000-0000-4000-8000-0000000000d1"],"highlightIds":["ace-1"]}),
+            Some(&cinematic),
+        )
+        .expect("processed boundary Evidence");
 
         let (_, plan) = execute_tool_with_cinematic(
-            "draft_video_plan",
+            ToolKind::DraftVideoPlan,
             &context,
             &json!({
                 "title":"Boundary-safe ace",
+                "demoIds":["00000000-0000-4000-8000-0000000000d1"],
                 "highlightIds":["ace-1"],
                 "pacing":"impact",
                 "storyRoles":["climax"],
@@ -2675,6 +2974,7 @@ mod tests {
     fn single_kill_plan_is_bounded_by_publishable_action_density() {
         let mut context = context();
         context.demo = json!({"id":"00000000-0000-4000-8000-0000000000d1"});
+        authorize_demos(&mut context, &["00000000-0000-4000-8000-0000000000d1"]);
         context.analysis["highlights"][0]["player_id"] = json!("player-1");
         let cinematic = json!({"scenes":[{
             "highlightId":"ace-1",
@@ -2682,12 +2982,19 @@ mod tests {
             "verifiedEngagements":[{"tick":960}],
             "fidelity":{"artifactStartTick":0,"artifactEndTick":2000}
         }]});
+        let cinematic = read_cinematic_context(
+            &context,
+            &json!({"demoIds":["00000000-0000-4000-8000-0000000000d1"],"highlightIds":["ace-1"]}),
+            Some(&cinematic),
+        )
+        .expect("processed action Evidence");
 
         let (_, plan) = execute_tool_with_cinematic(
-            "draft_video_plan",
+            ToolKind::DraftVideoPlan,
             &context,
             &json!({
                 "title":"NiKo opening one-tap",
+                "demoIds":["00000000-0000-4000-8000-0000000000d1"],
                 "highlightIds":["ace-1"],
                 "pacing":"energetic",
                 "storyRoles":["hook"],
@@ -2715,7 +3022,7 @@ mod tests {
     fn edit_plan_emits_the_current_explicit_nullable_target_shape() {
         let (_, plan) = draft_edit_plan(
             &context(),
-            &json!({"highlightIds":["ace-1"],"pacing":"energetic"}),
+            &json!({"demoId":"demo-1","highlightIds":["ace-1"],"pacing":"energetic"}),
         )
         .expect("draft edit plan");
         let payload = plan.expect("accepted edit plan").payload;
@@ -2748,6 +3055,8 @@ mod tests {
             "draft_agent_plan_changes",
             &context,
             &json!({
+                "planId":"00000000-0000-4000-8000-0000000000b1",
+                "expectedRevision":3,
                 "title": "压短开场",
                 "changes": [{
                     "op": "shorten",
@@ -2771,6 +3080,8 @@ mod tests {
                 "draft_agent_plan_changes",
                 &context,
                 &json!({
+                    "planId":"00000000-0000-4000-8000-0000000000b1",
+                    "expectedRevision":3,
                     "title": "Unknown",
                     "changes": [{
                         "op": "delete",
@@ -2787,7 +3098,7 @@ mod tests {
     fn edit_plan_rejects_missing_and_duplicate_ids() {
         let (output, plan) = draft_edit_plan(
             &context(),
-            &json!({"highlightIds":["missing","missing"],"pacing":"impact"}),
+            &json!({"demoId":"demo-1","highlightIds":["missing","missing"],"pacing":"impact"}),
         )
         .unwrap();
         assert_eq!(output["accepted"], false);
@@ -2807,8 +3118,12 @@ mod tests {
             "end_tick": 1_700,
             "events": []
         }]);
-        let result = search_rounds(&context, &json!({"winningSide":"T"})).unwrap();
+        let result =
+            search_rounds(&context, &json!({"demoId":"demo-1","winningSide":"T"})).unwrap();
         assert_eq!(result["rounds"][0]["round"], 7);
-        assert!(search_rounds(&context, &json!({"winningSide":"A"})).is_err());
+        assert!(search_rounds(&context, &json!({"demoId":"demo-1","winningSide":"A"})).is_err());
+        let context_only =
+            read_round_context(&context, &json!({"demoId":"demo-1","roundNumbers":[7]})).unwrap();
+        assert!(context_only["rounds"][0].get("events").is_none());
     }
 }

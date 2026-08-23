@@ -3,6 +3,7 @@ import type { CapturedPlanKind } from "./CapturedPlanKind";
 import type { JsonValue } from "./serde_json/JsonValue";
 
 export type DesktopAgentProposal = {
+  proposalId: string;
   kind: CapturedPlanKind;
   title: string;
   payload: JsonValue;

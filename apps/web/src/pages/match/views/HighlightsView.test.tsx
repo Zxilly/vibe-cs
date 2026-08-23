@@ -132,17 +132,16 @@ describe('the Inspector', () => {
     expect(html).toContain('把这条高光加入作品');
   });
 
-  it('says what to do when nothing is selected', () => {
+  it('focuses the first highlight when the address has no explicit location', () => {
     analysis();
     const html = markupView(<Inspector {...viewProps()} />);
-    expect(html).toContain('未选中高光');
-    expect(html).toContain('这里会显示那条高光的回合、选手与 tick 区间');
+    expect(html).toContain('选中：第');
+    expect(html).toContain('把这条高光加入作品');
   });
 
-  it('folds to a summary strip that still counts the highlights (§8 rule 2)', () => {
+  it('folds to a summary strip that keeps the focused highlight action (§8 rule 2)', () => {
     analysis();
     const html = markupView(<Inspector {...viewProps({ collapsed: true })} />);
-    expect(html).toContain('共 4 条高光');
     // The main action rides the strip; §8 forbids it entering an overflow.
     expect(html).toContain('data-match-add-to-video');
   });

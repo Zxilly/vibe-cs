@@ -115,6 +115,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
     () => highlightPage(visible, currentPage),
     [visible, currentPage],
   );
+  const focusedCurrent = current ?? pageHighlights[0]?.id ?? null;
   const batch = useMemo(
     () => visibleSelection(selected, pageHighlights),
     [selected, pageHighlights],
@@ -253,7 +254,7 @@ function HighlightsBody({ demoId, context, updateContext, addToVideo }: MatchVie
                 onSelectedChange={(next) =>
                   setSelected((current_) => toggleSelected(current_, highlight.id, next))
                 }
-                current={highlight.id === current}
+                current={highlight.id === focusedCurrent}
                 action={
                   <span className="flex items-center gap-2">
                     <Button
@@ -361,7 +362,9 @@ function HighlightsInspector({ demoId, context, addToVideo, collapsed }: MatchVi
   const id = demoId === '' ? null : demoId;
   const analysis = useMatchAnalysis(id);
   const highlights = useMemo(() => matchHighlights(analysis.data), [analysis.data]);
-  const currentId = currentHighlightId(highlights, context.round, context.tick);
+  const currentId = currentHighlightId(highlights, context.round, context.tick)
+    ?? highlights[0]?.id
+    ?? null;
   const highlight = highlights.find((entry) => entry.id === currentId) ?? null;
 
   if (highlight === null) {

@@ -29,6 +29,14 @@ function clip(id: string, demoId: string, matchLabel: string, round: number): Pr
 afterEach(() => resetProjectCollectionsForTesting());
 
 describe('project selection step', () => {
+  it('uses a focused empty workspace with one way into match selection', () => {
+    renderInteractive(<MemoryRouter><ProjectSelectStep project={PROJECT} /></MemoryRouter>);
+
+    expect(screen.getByRole('region', { name: '这份作品还没有收集片段' })).toBeTruthy();
+    expect(screen.getAllByRole('link', { name: '选择一场比赛' })).toHaveLength(1);
+    expect(document.querySelector('[data-empty]')).toBeNull();
+  });
+
   it('groups collected clips by match and removes one without touching the others', () => {
     addProjectCollectedClip(PROJECT.id, clip('a', 'demo-a', 'Aurora vs Meridian', 21));
     addProjectCollectedClip(PROJECT.id, clip('b', 'demo-a', 'Aurora vs Meridian', 22));

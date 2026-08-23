@@ -1,7 +1,6 @@
 import { Trans } from '@lingui/react/macro';
 
 import { useProjectCollections, type ProjectCollectedClip } from '../../data/projectCollections';
-import { Empty } from '../../design/data';
 import { Badge, Button } from '../../design/primitives';
 import type { ProjectViewModel } from '../../domain/project/projectViewModel';
 import { RouteLink } from '../RouteLink';
@@ -13,12 +12,22 @@ export function ProjectSelectStep({ project }: { readonly project: ProjectViewMo
 
   if (clips.length === 0) {
     return (
-      <Empty
-        className="m-7"
-        title={<Trans>这份作品还没有收集片段</Trans>}
-        description={<Trans>从比赛工作区的高光、回合或证据点击「加入作品」，片段会按比赛汇总到这里。</Trans>}
-        actions={<RouteLink to="/library"><Trans>选择一场比赛</Trans></RouteLink>}
-      />
+      <section
+        aria-labelledby="project-empty-selection-title"
+        className="flex min-h-0 flex-1 items-center justify-center px-7 py-12 text-center"
+      >
+        <div className="flex max-w-[54ch] flex-col items-center gap-4">
+          <h3 id="project-empty-selection-title" className="font-heading text-3xl">
+            <Trans>这份作品还没有收集片段</Trans>
+          </h3>
+          <p className="text-md leading-normal text-neutral-700">
+            <Trans>从比赛工作区的高光、回合或证据点击「加入作品」，片段会按比赛汇总到这里。</Trans>
+          </p>
+          <RouteLink to="/library" className="mt-2 text-lg">
+            <Trans>选择一场比赛</Trans>
+          </RouteLink>
+        </div>
+      </section>
     );
   }
 

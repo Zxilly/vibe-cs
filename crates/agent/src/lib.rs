@@ -78,6 +78,7 @@ pub struct AgentConfig {
     pub base_url: String,
     pub api_key: String,
     pub custom_instructions: String,
+    pub provider_parameters: Value,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -227,13 +228,13 @@ where
         .description("Evidence-grounded CS2 demo coach and end-to-end video collaborator")
         .preamble(&preamble)
         .dynamic_tools(dynamic_tools);
-    if request.config.provider.eq_ignore_ascii_case("openrouter") {
-        // OpenRouter reasoning models can default to spending nearly the whole
-        // completion budget on hidden thought. Keep enough room for a Tool call
-        // or final answer while preserving the reasoning blocks between turns.
-        agent = agent.additional_params(serde_json::json!({
-            "reasoning": {"effort": "low"}
-        }));
+    if request
+        .config
+        .provider_parameters
+        .as_object()
+        .is_some_and(|parameters| !parameters.is_empty())
+    {
+        agent = agent.additional_params(request.config.provider_parameters.clone());
     }
     let agent = agent.build();
     let history = request
@@ -415,6 +416,7 @@ fn validate_request(request: &AgentRequest) -> Result<(), AgentError> {
         ));
     }
     validate_base_url(&request.config.base_url)?;
+    validate_provider_parameters(&request.config.provider_parameters)?;
     let context_bytes = serde_json::to_vec(&serde_json::json!({
         "workspace": request.context.workspace,
         "demo": request.context.demo,
@@ -427,6 +429,39 @@ fn validate_request(request: &AgentRequest) -> Result<(), AgentError> {
         return Err(AgentError::Invalid(
             "selected agent context exceeds 2 MiB".into(),
         ));
+    }
+    Ok(())
+}
+
+fn validate_provider_parameters(parameters: &Value) -> Result<(), AgentError> {
+    const RESERVED: &[&str] = &[
+        "api_key",
+        "base_url",
+        "function_call",
+        "functions",
+        "messages",
+        "model",
+        "stream",
+        "stream_options",
+        "system",
+        "tool_choice",
+        "tools",
+    ];
+    let object = parameters
+        .as_object()
+        .ok_or_else(|| AgentError::Invalid("provider parameters must be a JSON object".into()))?;
+    if serde_json::to_vec(parameters).map_or(true, |bytes| bytes.len() > 64 * 1024) {
+        return Err(AgentError::Invalid(
+            "provider parameters must not exceed 64 KiB".into(),
+        ));
+    }
+    if let Some(key) = object
+        .keys()
+        .find(|key| RESERVED.contains(&key.to_ascii_lowercase().as_str()))
+    {
+        return Err(AgentError::Invalid(format!(
+            "provider parameter '{key}' is owned by the Agent runtime"
+        )));
     }
     Ok(())
 }
@@ -531,6 +566,7 @@ mod tests {
                     base_url,
                     api_key,
                     custom_instructions: String::new(),
+                    provider_parameters: json!({}),
                 },
                 context: AgentContext::default(),
                 tool_host: None,
@@ -563,6 +599,14 @@ mod tests {
             ))
             .is_err()
         );
+        let mut structural_override = request(
+            "provider".into(),
+            "model".into(),
+            "key".into(),
+            "https://example.com/v1".into(),
+        );
+        structural_override.config.provider_parameters = json!({"tools": []});
+        assert!(validate_request(&structural_override).is_err());
     }
 
     #[test]
@@ -593,6 +637,10 @@ mod tests {
                 base_url: format!("http://{address}/v1"),
                 api_key: "rig-e2e-secret".into(),
                 custom_instructions: String::new(),
+                provider_parameters: json!({
+                    "reasoning": {"effort": "low"},
+                    "temperature": 0.2
+                }),
             },
             context: AgentContext {
                 workspace: json!({"demoIds":["00000000-0000-4000-8000-0000000000d1"]}),
@@ -622,6 +670,7 @@ mod tests {
         assert_eq!(requests.len(), 4);
         assert!(requests[0].get("max_tokens").is_none());
         assert_eq!(requests[0]["reasoning"]["effort"], "low");
+        assert_eq!(requests[0]["temperature"], 0.2);
         assert!(
             requests[3]["messages"]
                 .as_array()
@@ -689,6 +738,7 @@ mod tests {
                     base_url: format!("http://{address}/v1"),
                     api_key: "rig-e2e-secret".into(),
                     custom_instructions: String::new(),
+                    provider_parameters: json!({}),
                 },
                 context: AgentContext {
                     workspace: json!({"demoIds":["demo-1","demo-2"]}),

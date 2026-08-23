@@ -1386,6 +1386,7 @@ impl RuntimeIntegrationPort {
             model: config.llm.model.clone(),
             api_key: SecretString::new(config.llm.api_key.clone()),
             maximum_commentary_chars: 4_000,
+            provider_parameters: config.llm.parameters.clone(),
         })
         .map_err(integration_error)
     }

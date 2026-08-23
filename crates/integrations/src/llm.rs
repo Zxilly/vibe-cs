@@ -45,6 +45,7 @@ pub struct OpenAiConfig {
     pub model: String,
     pub api_key: SecretString,
     pub maximum_commentary_chars: usize,
+    pub provider_parameters: serde_json::Value,
 }
 
 impl fmt::Debug for OpenAiConfig {
@@ -56,6 +57,13 @@ impl fmt::Debug for OpenAiConfig {
             .field("model", &self.model)
             .field("api_key", &self.api_key)
             .field("maximum_commentary_chars", &self.maximum_commentary_chars)
+            .field(
+                "provider_parameter_keys",
+                &self
+                    .provider_parameters
+                    .as_object()
+                    .map(|parameters| parameters.keys().collect::<Vec<_>>()),
+            )
             .finish()
     }
 }
@@ -110,6 +118,8 @@ impl OpenAiConfig {
                 "commentary character limit must be between 1 and 16000".to_owned(),
             ));
         }
+        vibe_cs_domain::validate_llm_provider_parameters(&self.provider_parameters)
+            .map_err(IntegrationError::InvalidConfiguration)?;
         Ok(())
     }
 
@@ -224,6 +234,7 @@ impl OpenAiClient {
             }],
             tool_choice: "required",
         };
+        let request = self.with_provider_parameters(request)?;
         let response = self
             .http
             .post(self.config.endpoint())
@@ -287,6 +298,7 @@ impl OpenAiClient {
                 kind: "json_object",
             }),
         };
+        let request = self.with_provider_parameters(request)?;
         let response = self
             .http
             .post(self.config.endpoint())
@@ -315,6 +327,22 @@ impl OpenAiClient {
                 "LLM did not return the requested JSON commentary: {error}"
             ))
         })
+    }
+
+    fn with_provider_parameters<T: Serialize>(
+        &self,
+        request: T,
+    ) -> IntegrationResult<serde_json::Value> {
+        let mut request = serde_json::to_value(request)?;
+        let request = request.as_object_mut().ok_or_else(|| {
+            IntegrationError::Protocol("LLM request did not serialize to an object".to_owned())
+        })?;
+        if let Some(parameters) = self.config.provider_parameters.as_object() {
+            for (key, value) in parameters {
+                request.insert(key.clone(), value.clone());
+            }
+        }
+        Ok(serde_json::Value::Object(std::mem::take(request)))
     }
 }
 
@@ -652,6 +680,7 @@ mod tests {
             model: "model".to_owned(),
             api_key: SecretString::new("secret"),
             maximum_commentary_chars: 400,
+            provider_parameters: serde_json::json!({}),
         };
         assert_eq!(
             config.endpoint().as_str(),
@@ -667,6 +696,7 @@ mod tests {
             model: "model".to_owned(),
             api_key: SecretString::new("secret"),
             maximum_commentary_chars: 400,
+            provider_parameters: serde_json::json!({}),
         };
         assert!(config("http://example.test/v1").validate().is_err());
         assert!(
@@ -722,6 +752,7 @@ mod tests {
             model: "k3".to_owned(),
             api_key: SecretString::new("unit-test-secret"),
             maximum_commentary_chars: 400,
+            provider_parameters: serde_json::json!({"reasoning_effort": "low"}),
         })
         .expect("client");
         let capabilities = client.agent_capabilities().await.expect("probe");
@@ -750,6 +781,7 @@ mod tests {
                 .is_some_and(|tools| tools.len() == 1)
         );
         assert_eq!(payload["tool_choice"], "required");
+        assert_eq!(payload["reasoning_effort"], "low");
         assert!(payload.get("temperature").is_none());
         assert!(payload.get("response_format").is_none());
     }
@@ -782,6 +814,7 @@ mod tests {
             model: "k3".to_owned(),
             api_key: SecretString::new("unit-test-secret"),
             maximum_commentary_chars: 400,
+            provider_parameters: serde_json::json!({}),
         })
         .expect("client");
         let error = client.agent_capabilities().await.expect_err("rejected");

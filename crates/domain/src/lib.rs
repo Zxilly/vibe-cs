@@ -105,16 +105,64 @@ mod tests {
     fn config_debug_redacts_secrets() {
         let mut config = AppConfig::default();
         config.llm.api_key = "llm-secret".to_owned();
+        config.llm.parameters = serde_json::json!({
+            "temperature": 0.2,
+            "provider_token": "parameter-secret"
+        });
         config.steam.web_api_key = "steam-api-secret".to_owned();
         config.steam.authentication_code = "steam-auth-secret".to_owned();
         config.steam.known_share_code = "steam-share-secret".to_owned();
 
         let rendered = format!("{config:?}");
         assert!(!rendered.contains("llm-secret"));
+        assert!(!rendered.contains("parameter-secret"));
         assert!(!rendered.contains("steam-api-secret"));
         assert!(!rendered.contains("steam-auth-secret"));
         assert!(!rendered.contains("steam-share-secret"));
         assert!(rendered.contains("[REDACTED]"));
+    }
+
+    #[test]
+    fn llm_provider_parameters_are_open_but_cannot_replace_agent_structure() {
+        assert!(
+            validate_llm_provider_parameters(&serde_json::json!({
+                "temperature": 0.2,
+                "reasoning": {"effort": "high"},
+                "thinking": {"type": "adaptive"},
+                "output_config": {"effort": "high"}
+            }))
+            .is_ok()
+        );
+        assert!(validate_llm_provider_parameters(&serde_json::json!([])).is_err());
+        for reserved in [
+            "model",
+            "messages",
+            "tools",
+            "tool_choice",
+            "stream",
+            "api_key",
+        ] {
+            let mut parameters = serde_json::Map::new();
+            parameters.insert(reserved.to_owned(), serde_json::Value::Bool(true));
+            assert!(
+                validate_llm_provider_parameters(&serde_json::Value::Object(parameters)).is_err(),
+                "{reserved} must stay runtime-owned"
+            );
+        }
+    }
+
+    #[test]
+    fn omitted_llm_parameters_mean_provider_defaults() {
+        let config = serde_json::from_value::<LlmConfig>(serde_json::json!({
+            "provider": "openrouter",
+            "model": "stealth/ox-alpha",
+            "base_url": "https://openrouter.ai/api/v1",
+            "api_key": "secret",
+            "prompt": ""
+        }))
+        .expect("LLM config without optional provider parameters");
+        assert_eq!(config.parameter_style, LlmParameterStyle::OpenAi);
+        assert_eq!(config.parameters, serde_json::json!({}));
     }
 
     #[test]

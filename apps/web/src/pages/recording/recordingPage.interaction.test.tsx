@@ -69,7 +69,10 @@ const CONFIG = {
   steam_has_web_api_key: false,
   steam_has_authentication_code: false,
   steam_has_share_code: false,
-  llm: { provider: '', model: '', base_url: '', api_key: '', prompt: '' },
+  llm: {
+    provider: '', model: '', base_url: '', api_key: '', prompt: '',
+    parameter_style: 'openai', parameters: {},
+  },
   llm_has_api_key: false,
   clear_llm_api_key: false,
   recording: RECORDING_DEFAULTS,

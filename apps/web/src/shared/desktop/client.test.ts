@@ -101,7 +101,10 @@ describe('desktop command client', () => {
       cs2_path: 'C:/CS2/cs2.exe', steam_path: 'C:/Steam/steam.exe',
       steam: { steam_id: '', web_api_key: '', authentication_code: '', known_share_code: '', maximum_results: 20 },
       steam_has_web_api_key: false, steam_has_authentication_code: false, steam_has_share_code: false,
-      llm: { provider: '', model: '', base_url: '', api_key: '', prompt: '' },
+      llm: {
+        provider: '', model: '', base_url: '', api_key: '', prompt: '',
+        parameter_style: 'openai', parameters: {},
+      },
       llm_has_api_key: false, clear_llm_api_key: false,
       recording: {
         pre_roll_seconds: 3, post_roll_seconds: 2.5,

@@ -150,6 +150,7 @@ fn review_client(config: &AppConfig) -> Result<OpenAiClient, DomainError> {
         model: config.llm.model.trim().to_owned(),
         api_key: SecretString::new(config.llm.api_key.clone()),
         maximum_commentary_chars: MAXIMUM_COMMENTARY_CHARS,
+        provider_parameters: config.llm.parameters.clone(),
     })
     .map_err(integration_error)
 }

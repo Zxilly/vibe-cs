@@ -34,7 +34,10 @@ const CONFIG: AppConfig = {
     known_share_code: '',
     maximum_results: 20,
   },
-  llm: { provider: 'openai', model: 'gpt-4.1-mini', base_url: '', api_key: '', prompt: '' },
+  llm: {
+    provider: 'openai', model: 'gpt-4.1-mini', base_url: '', api_key: '', prompt: '',
+    parameter_style: 'openai', parameters: {},
+  },
   /* The service answers whether a secret is set, never the secret — so these
      four booleans are part of the document a write has to send back. */
   steam_has_web_api_key: false,

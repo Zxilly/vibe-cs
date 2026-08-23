@@ -1063,6 +1063,8 @@ const CONFIG: AppConfig = {
     base_url: '',
     api_key: '',
     prompt: '',
+    parameter_style: 'openai',
+    parameters: {},
   },
   llm_has_api_key: true,
   clear_llm_api_key: false,

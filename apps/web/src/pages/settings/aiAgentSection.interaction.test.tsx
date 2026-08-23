@@ -49,7 +49,10 @@ const STORAGE: AgentSessionStorageStats = {
 };
 
 const CONFIG = {
-  llm: { provider: 'OpenAI 兼容', model: 'gpt-4.1-mini', base_url: '', api_key: '', prompt: '' },
+  llm: {
+    provider: 'OpenAI 兼容', model: 'gpt-4.1-mini', base_url: '', api_key: '', prompt: '',
+    parameter_style: 'openai', parameters: {},
+  },
   llm_has_api_key: true,
 } as unknown as AppConfig;
 
@@ -429,5 +432,90 @@ describe('模型', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存模型设置' }));
     await waitFor(() => expect(saved).toHaveLength(1));
     expect(saved[0]?.llm).toMatchObject({ base_url: 'https://example.test/v1' });
+  });
+
+  it('edits OpenAI parameters without injecting defaults', async () => {
+    const tested: unknown[] = [];
+    renderSection({
+      testLlm: (llm: unknown) => {
+        tested.push(llm);
+        return Promise.resolve({
+          ok: true,
+          provider: 'OpenAI 兼容',
+          model: 'gpt-4.1-mini',
+          capabilities: { chat: true, stream: true, tools: true },
+        });
+      },
+    });
+    fireEvent.change(await screen.findByLabelText(/^API 地址/u), {
+      target: { value: 'https://example.test/v1' },
+    });
+    expect(screen.getByLabelText('完整参数 JSON')).toHaveProperty('value', '{}');
+
+    fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '0.3' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'high' }));
+    fireEvent.click(screen.getByRole('button', { name: '测试连接' }));
+
+    await waitFor(() => expect(tested).toHaveLength(1));
+    expect(tested[0]).toMatchObject({
+      parameter_style: 'openai',
+      parameters: { temperature: 0.3, reasoning_effort: 'high' },
+    });
+    expect((tested[0] as { parameters: unknown }).parameters).toEqual({
+      temperature: 0.3,
+      reasoning_effort: 'high',
+    });
+  });
+
+  it('supports Anthropic thinking and advanced JSON parameters', async () => {
+    const saved: AppConfig[] = [];
+    renderSection({
+      updateConfig: (config: AppConfig) => {
+        saved.push(config);
+        return Promise.resolve(config);
+      },
+    });
+    fireEvent.change(await screen.findByLabelText(/^API 地址/u), {
+      target: { value: 'https://example.test/v1' },
+    });
+    fireEvent.click(screen.getByRole('radio', { name: 'Anthropic' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'adaptive' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'high' }));
+    fireEvent.change(screen.getByLabelText('完整参数 JSON'), {
+      target: {
+        value: JSON.stringify({
+          thinking: { type: 'adaptive' },
+          output_config: { effort: 'high' },
+          metadata: { user_id: 'vibe-cs' },
+        }),
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '保存模型设置' }));
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]?.llm).toMatchObject({
+      parameter_style: 'anthropic',
+      parameters: {
+        thinking: { type: 'adaptive' },
+        output_config: { effort: 'high' },
+        metadata: { user_id: 'vibe-cs' },
+      },
+    });
+  });
+
+  it('rejects invalid JSON and runtime-owned request fields before save', async () => {
+    renderSection();
+    fireEvent.change(await screen.findByLabelText(/^API 地址/u), {
+      target: { value: 'https://example.test/v1' },
+    });
+    const json = screen.getByLabelText('完整参数 JSON');
+    fireEvent.change(json, { target: { value: '{' } });
+    expect(document.body.textContent).toContain('必须是有效的 JSON object');
+    expect(screen.getByRole('button', { name: '保存模型设置' }).hasAttribute('disabled')).toBe(true);
+    expect(document.body.textContent).not.toContain('请补齐提供方、模型、API 地址和密钥');
+
+    fireEvent.change(json, { target: { value: '{"tools":[]}' } });
+    expect(document.body.textContent).toContain('tools 由 Agent 运行时管理');
+    expect(screen.getByRole('button', { name: '测试连接' }).hasAttribute('disabled')).toBe(true);
   });
 });

@@ -440,6 +440,7 @@ export type { ProxyCleanupResponse as MediaProxyCleanup } from './generated/Prox
 
 export type { SteamConfig } from './generated/SteamConfig';
 export type { LlmConfig } from './generated/LlmConfig';
+export type { LlmParameterStyle } from './generated/LlmParameterStyle';
 export type { RecordingDefaults } from './generated/RecordingDefaults';
 export type { ConfigDto as AppConfig } from './generated/ConfigDto';
 

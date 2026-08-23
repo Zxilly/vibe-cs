@@ -32,6 +32,7 @@ async fn rig_video_proposal_emits_an_executable_recording_request() {
             base_url: format!("http://{provider_address}/v1"),
             api_key: TEST_SECRET.to_owned(),
             custom_instructions: String::new(),
+            provider_parameters: serde_json::json!({}),
         },
         context: EmbeddedAgentContext {
             workspace: json!({"demoIds":[demo_id]}),

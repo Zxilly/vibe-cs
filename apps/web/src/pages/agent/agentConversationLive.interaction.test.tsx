@@ -98,7 +98,10 @@ function bridge(entries: readonly AgentSessionEntry[]): Bridge {
     health: () => Promise.resolve({ status: 'ok' }),
     getDemo: () => Promise.resolve({ id: 'demo-1', lifecycle_status: 'ready' }),
     getConfig: () => Promise.resolve({
-      llm: { provider: 'test', model: 'test', base_url: 'http://provider.test', api_key: '', prompt: '' },
+      llm: {
+        provider: 'test', model: 'test', base_url: 'http://provider.test', api_key: '', prompt: '',
+        parameter_style: 'openai', parameters: {},
+      },
       llm_has_api_key: true,
     }),
     agentStatus: () => Promise.resolve({

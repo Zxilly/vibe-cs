@@ -696,6 +696,7 @@ async fn saved_credentials_drive_embedded_rig_edit_and_survive_restart() {
             base_url,
             api_key: TEST_SECRET.to_owned(),
             prompt: String::new(),
+            ..LlmConfig::default()
         },
         ..AppConfig::default()
     };
@@ -941,6 +942,7 @@ async fn one_sentence_materializes_a_plan_and_reaches_a_persisted_final_video() 
             base_url,
             api_key: TEST_SECRET.to_owned(),
             prompt: String::new(),
+            ..LlmConfig::default()
         },
         ..AppConfig::default()
     };

@@ -1,6 +1,7 @@
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use ts_rs::TS;
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
@@ -104,7 +105,18 @@ fn secret_debug_value(value: &str) -> &'static str {
     }
 }
 
-#[derive(Clone, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum LlmParameterStyle {
+    #[default]
+    #[serde(rename = "openai")]
+    #[ts(rename = "openai")]
+    OpenAi,
+    Anthropic,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(deny_unknown_fields)]
 #[ts(export)]
 pub struct LlmConfig {
@@ -113,6 +125,24 @@ pub struct LlmConfig {
     pub base_url: String,
     pub api_key: String,
     pub prompt: String,
+    #[serde(default)]
+    pub parameter_style: LlmParameterStyle,
+    #[serde(default = "empty_provider_parameters")]
+    pub parameters: Value,
+}
+
+impl Default for LlmConfig {
+    fn default() -> Self {
+        Self {
+            provider: String::new(),
+            model: String::new(),
+            base_url: String::new(),
+            api_key: String::new(),
+            prompt: String::new(),
+            parameter_style: LlmParameterStyle::OpenAi,
+            parameters: empty_provider_parameters(),
+        }
+    }
 }
 
 impl fmt::Debug for LlmConfig {
@@ -131,8 +161,62 @@ impl fmt::Debug for LlmConfig {
                 },
             )
             .field("prompt", &self.prompt)
+            .field("parameter_style", &self.parameter_style)
+            .field(
+                "parameter_keys",
+                &self
+                    .parameters
+                    .as_object()
+                    .map(|parameters| parameters.keys().collect::<Vec<_>>()),
+            )
             .finish()
     }
+}
+
+fn empty_provider_parameters() -> Value {
+    Value::Object(Map::new())
+}
+
+/// Validate the provider-owned portion of an LLM request without interpreting
+/// model-specific fields. Vibe CS owns the conversation and tool protocol, so
+/// those structural fields cannot be replaced by configuration.
+pub fn validate_llm_provider_parameters(parameters: &Value) -> Result<(), String> {
+    const MAXIMUM_PARAMETER_BYTES: usize = 64 * 1024;
+    const RESERVED: &[&str] = &[
+        "api_key",
+        "base_url",
+        "function_call",
+        "functions",
+        "messages",
+        "model",
+        "stream",
+        "stream_options",
+        "system",
+        "tool_choice",
+        "tools",
+    ];
+    let object = parameters
+        .as_object()
+        .ok_or_else(|| "LLM provider parameters must be a JSON object".to_owned())?;
+    let serialized = serde_json::to_vec(parameters)
+        .map_err(|error| format!("LLM provider parameters are invalid: {error}"))?;
+    if serialized.len() > MAXIMUM_PARAMETER_BYTES {
+        return Err("LLM provider parameters must not exceed 64 KiB".to_owned());
+    }
+    for key in object.keys() {
+        let normalized = key.to_ascii_lowercase();
+        if key.is_empty() || key.len() > 128 || key.chars().any(char::is_control) {
+            return Err(
+                "LLM provider parameter names must contain 1 to 128 printable bytes".to_owned(),
+            );
+        }
+        if RESERVED.contains(&normalized.as_str()) {
+            return Err(format!(
+                "LLM provider parameter '{key}' is owned by the Agent runtime"
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]

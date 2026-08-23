@@ -78,7 +78,9 @@ import { Button, Field, Input, Seg, Slider, Textarea, Toggle } from '../../desig
 import type {
   AgentSessionRetention,
   AgentWorkspaceSettings,
+  JsonValue,
   LlmConfig,
+  LlmParameterStyle,
 } from '../../shared/desktop/dto';
 import { formatBytes } from '../delivery/outputModel';
 import {
@@ -453,8 +455,8 @@ interface ModelBlockProps {
 
 /**
  * 模型. `AppConfig.llm` is the whole of what this section knows: provider,
- * model, and whether a key is stored (`llm_has_api_key` — the key itself is
- * never printed).
+ * model, provider-owned generation parameters, and whether a key is stored
+ * (`llm_has_api_key` — the key itself is never printed).
  *
  * The form writes through the same whole-document config mutation as the other
  * settings. Testing is separate and may use an unsaved draft; an empty key asks
@@ -477,15 +479,21 @@ function ModelBlock({
   onResetTest,
   onRetry,
 }: ModelBlockProps) {
+  const [parameterJsonDraft, setParameterJsonDraft] = useState<string | null>(null);
+  const [parameterJsonError, setParameterJsonError] = useState<string | null>(null);
+  const parameters = providerParameterObject(draft?.parameters);
+  const parametersAreObject = draft === null || parameters !== null;
   const invalid = draft === null
     || draft.provider.trim() === ''
     || draft.model.trim() === ''
     || !/^https?:\/\//u.test(draft.base_url.trim())
-    || (hasApiKey === false && draft.api_key.trim() === '');
+    || (hasApiKey === false && draft.api_key.trim() === '')
+    || !parametersAreObject
+    || parameterJsonError !== null;
   const actionDisabled = disabled || invalid;
-  const actionDisabledReason = invalid
-    ? t`请补齐提供方、模型、API 地址和密钥`
-    : disabledReason;
+  const actionDisabledReason = parameterJsonError
+    ?? (!parametersAreObject ? t`Provider 参数必须是 JSON object` : null)
+    ?? (invalid ? t`请补齐提供方、模型、API 地址和密钥` : disabledReason);
   const actionProps = actionDisabled
     ? { disabled: true, ...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason }) }
     : {};
@@ -532,6 +540,39 @@ function ModelBlock({
               )}
             </Field>
           </div>
+          <ProviderParametersEditor
+            style={draft.parameter_style}
+            parameters={parameters ?? {}}
+            rawDraft={parameterJsonDraft}
+            rawError={parameterJsonError}
+            disabled={disabled}
+            onStyleChange={(parameterStyle) => {
+              setParameterJsonDraft(null);
+              setParameterJsonError(null);
+              onChange({ ...draft, parameter_style: parameterStyle });
+            }}
+            onParametersChange={(next) => {
+              setParameterJsonDraft(null);
+              setParameterJsonError(null);
+              onChange({ ...draft, parameters: next });
+            }}
+            onRawChange={(raw) => {
+              setParameterJsonDraft(raw);
+              try {
+                const parsed = JSON.parse(raw) as JsonValue;
+                const object = providerParameterObject(parsed);
+                const validation = validateProviderParameterObject(object);
+                if (validation !== null) {
+                  setParameterJsonError(validation);
+                  return;
+                }
+                setParameterJsonError(null);
+                onChange({ ...draft, parameters: object ?? {} });
+              } catch {
+                setParameterJsonError(t`必须是有效的 JSON object`);
+              }
+            }}
+          />
           <Field label={<Trans>自定义指令</Trans>} hint={<Trans>会追加到 Agent 的系统指令；留空使用默认行为。</Trans>}>
             {(control) => (
               <Textarea {...control} rows={2} value={draft.prompt} disabled={disabled}
@@ -560,6 +601,326 @@ function ModelBlock({
         </div>
       )}
     </Block>
+  );
+}
+
+type ProviderParameterObject = { [key: string]: JsonValue };
+
+const RUNTIME_PROVIDER_PARAMETER_KEYS = new Set([
+  'api_key',
+  'base_url',
+  'function_call',
+  'functions',
+  'messages',
+  'model',
+  'stream',
+  'stream_options',
+  'system',
+  'tool_choice',
+  'tools',
+]);
+
+function providerParameterObject(value: JsonValue | undefined): ProviderParameterObject | null {
+  if (value === undefined || value === null || Array.isArray(value) || typeof value !== 'object') {
+    return value === undefined ? {} : null;
+  }
+  return value;
+}
+
+function validateProviderParameterObject(parameters: ProviderParameterObject | null): string | null {
+  if (parameters === null) return t`必须是 JSON object，不能是数组或单个值`;
+  const reserved = Object.keys(parameters).find((key) =>
+    RUNTIME_PROVIDER_PARAMETER_KEYS.has(key.toLowerCase()));
+  if (reserved !== undefined) return t`${reserved} 由 Agent 运行时管理，不能在这里覆盖`;
+  return null;
+}
+
+function setProviderParameter(
+  parameters: ProviderParameterObject,
+  key: string,
+  value: JsonValue | undefined,
+): ProviderParameterObject {
+  const next = { ...parameters };
+  if (value === undefined) delete next[key];
+  else next[key] = value;
+  return next;
+}
+
+function parameterRecord(value: JsonValue | undefined): ProviderParameterObject | null {
+  return providerParameterObject(value);
+}
+
+function parameterNumber(parameters: ProviderParameterObject, key: string): number | undefined {
+  const value = parameters[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+interface ProviderParametersEditorProps {
+  readonly style: LlmParameterStyle;
+  readonly parameters: ProviderParameterObject;
+  readonly rawDraft: string | null;
+  readonly rawError: string | null;
+  readonly disabled: boolean;
+  readonly onStyleChange: (style: LlmParameterStyle) => void;
+  readonly onParametersChange: (parameters: ProviderParameterObject) => void;
+  readonly onRawChange: (raw: string) => void;
+}
+
+function ProviderParametersEditor({
+  style,
+  parameters,
+  rawDraft,
+  rawError,
+  disabled,
+  onStyleChange,
+  onParametersChange,
+  onRawChange,
+}: ProviderParametersEditorProps) {
+  const stopKey = style === 'openai' ? 'stop' : 'stop_sequences';
+  const stopValue = Array.isArray(parameters[stopKey])
+    ? parameters[stopKey].filter((value): value is string => typeof value === 'string').join('\n')
+    : '';
+  const thinking = parameterRecord(parameters.thinking);
+  const thinkingMode = typeof thinking?.type === 'string' ? thinking.type : 'provider_default';
+  const outputConfig = parameterRecord(parameters.output_config);
+  const anthropicEffort = typeof outputConfig?.effort === 'string'
+    ? outputConfig.effort
+    : 'provider_default';
+  const openAiEffort = typeof parameters.reasoning_effort === 'string'
+    ? parameters.reasoning_effort
+    : 'provider_default';
+
+  const update = (key: string, value: JsonValue | undefined) => {
+    onParametersChange(setProviderParameter(parameters, key, value));
+  };
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-divider pt-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-base"><Trans>Provider 参数</Trans></p>
+          <p className="mt-1 text-xs leading-normal text-neutral-600">
+            <Trans>Vibe CS 不再自动设置 reasoning、采样或输出上限。留空就使用 provider 默认值。</Trans>
+          </p>
+        </div>
+        <Button size="sm" disabled={disabled || Object.keys(parameters).length === 0}
+          onClick={() => onParametersChange({})}>
+          <Trans>清空参数</Trans>
+        </Button>
+      </div>
+
+      <Seg
+        name="llm-parameter-style"
+        size="sm"
+        value={style}
+        aria-label={t`Provider 参数风格`}
+        options={[
+          { value: 'openai' as const, label: 'OpenAI', disabled },
+          { value: 'anthropic' as const, label: 'Anthropic', disabled },
+        ]}
+        onChange={onStyleChange}
+      />
+
+      <div className="grid grid-cols-2 gap-3">
+        <OptionalNumberParameter
+          label={<Trans>Temperature</Trans>}
+          value={parameterNumber(parameters, 'temperature')}
+          min={0}
+          max={style === 'openai' ? 2 : 1}
+          step={0.1}
+          disabled={disabled}
+          onChange={(value) => update('temperature', value)}
+        />
+        <OptionalNumberParameter
+          label={<Trans>Top P</Trans>}
+          value={parameterNumber(parameters, 'top_p')}
+          min={0}
+          max={1}
+          step={0.05}
+          disabled={disabled}
+          onChange={(value) => update('top_p', value)}
+        />
+        <OptionalNumberParameter
+          label={style === 'openai' ? <Trans>Max completion tokens</Trans> : <Trans>Max tokens</Trans>}
+          value={parameterNumber(parameters, style === 'openai' ? 'max_completion_tokens' : 'max_tokens')}
+          min={1}
+          step={1}
+          disabled={disabled}
+          onChange={(value) => update(style === 'openai' ? 'max_completion_tokens' : 'max_tokens', value)}
+        />
+        {style === 'openai' ? (
+          <OptionalNumberParameter
+            label={<Trans>Seed</Trans>}
+            value={parameterNumber(parameters, 'seed')}
+            step={1}
+            disabled={disabled}
+            onChange={(value) => update('seed', value)}
+          />
+        ) : (
+          <OptionalNumberParameter
+            label={<Trans>Top K</Trans>}
+            value={parameterNumber(parameters, 'top_k')}
+            min={0}
+            step={1}
+            disabled={disabled}
+            onChange={(value) => update('top_k', value)}
+          />
+        )}
+        {style === 'openai' ? (
+          <>
+            <OptionalNumberParameter
+              label={<Trans>Presence penalty</Trans>}
+              value={parameterNumber(parameters, 'presence_penalty')}
+              min={-2}
+              max={2}
+              step={0.1}
+              disabled={disabled}
+              onChange={(value) => update('presence_penalty', value)}
+            />
+            <OptionalNumberParameter
+              label={<Trans>Frequency penalty</Trans>}
+              value={parameterNumber(parameters, 'frequency_penalty')}
+              min={-2}
+              max={2}
+              step={0.1}
+              disabled={disabled}
+              onChange={(value) => update('frequency_penalty', value)}
+            />
+          </>
+        ) : null}
+      </div>
+
+      {style === 'openai' ? (
+        <div className="flex flex-col gap-2">
+          <p className="text-sm"><Trans>Reasoning effort</Trans></p>
+          <Seg
+            name="openai-reasoning-effort"
+            size="sm"
+            value={openAiEffort}
+            aria-label={t`OpenAI reasoning effort`}
+            options={['provider_default', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh'].map((value) => ({
+              value,
+              label: value === 'provider_default' ? t`Provider 默认` : value,
+              disabled,
+            }))}
+            onChange={(value) => update('reasoning_effort', value === 'provider_default' ? undefined : value)}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm"><Trans>Thinking</Trans></p>
+            <Seg
+              name="anthropic-thinking"
+              size="sm"
+              value={thinkingMode}
+              aria-label={t`Anthropic thinking`}
+              options={['provider_default', 'adaptive', 'enabled', 'disabled'].map((value) => ({
+                value,
+                label: value === 'provider_default' ? t`Provider 默认` : value,
+                disabled,
+              }))}
+              onChange={(value) => {
+                if (value === 'provider_default') update('thinking', undefined);
+                else if (value === 'enabled') update('thinking', { type: 'enabled', budget_tokens: 1024 });
+                else update('thinking', { type: value });
+              }}
+            />
+          </div>
+          {thinkingMode === 'enabled' ? (
+            <OptionalNumberParameter
+              label={<Trans>Thinking budget tokens</Trans>}
+              value={typeof thinking?.budget_tokens === 'number' ? thinking.budget_tokens : undefined}
+              min={1024}
+              step={1}
+              disabled={disabled}
+              onChange={(value) => update('thinking', {
+                ...(thinking ?? {}),
+                type: 'enabled',
+                ...(value === undefined ? {} : { budget_tokens: value }),
+              })}
+            />
+          ) : null}
+          <div className="flex flex-col gap-2">
+            <p className="text-sm"><Trans>Output effort</Trans></p>
+            <Seg
+              name="anthropic-output-effort"
+              size="sm"
+              value={anthropicEffort}
+              aria-label={t`Anthropic output effort`}
+              options={['provider_default', 'low', 'medium', 'high', 'max'].map((value) => ({
+                value,
+                label: value === 'provider_default' ? t`Provider 默认` : value,
+                disabled,
+              }))}
+              onChange={(value) => update(
+                'output_config',
+                value === 'provider_default' ? undefined : { ...(outputConfig ?? {}), effort: value },
+              )}
+            />
+          </div>
+        </>
+      )}
+
+      <Field label={<Trans>Stop sequences</Trans>} hint={<Trans>每行一个；留空不发送。</Trans>}>
+        {(control) => (
+          <Textarea {...control} rows={2} value={stopValue} disabled={disabled}
+            onChange={(event) => {
+              const values = event.target.value.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean);
+              update(stopKey, values.length === 0 ? undefined : values);
+            }} />
+        )}
+      </Field>
+
+      <Field label={<Trans>完整参数 JSON</Trans>}
+        hint={<Trans>常用字段与这里编辑的是同一个 object。不要放 API key 或私密 header。</Trans>}>
+        {(control) => (
+          <Textarea {...control} rows={7} className="font-mono text-xs"
+            value={rawDraft ?? JSON.stringify(parameters, null, 2)} disabled={disabled}
+            aria-invalid={rawError === null ? undefined : true}
+            onChange={(event) => onRawChange(event.target.value)} />
+        )}
+      </Field>
+      {rawError === null ? null : <p className="text-xs text-danger">{rawError}</p>}
+      <p className="text-xs leading-normal text-neutral-600">
+        <Trans>model、messages、tools、tool_choice、stream 和认证字段由 Agent 管理，JSON 中不能覆盖。</Trans>
+      </p>
+    </div>
+  );
+}
+
+function OptionalNumberParameter({
+  label,
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  onChange,
+}: {
+  readonly label: ReactNode;
+  readonly value: number | undefined;
+  readonly min?: number;
+  readonly max?: number;
+  readonly step: number;
+  readonly disabled: boolean;
+  readonly onChange: (value: number | undefined) => void;
+}) {
+  return (
+    <Field label={label} hint={<Trans>留空使用 provider 默认值。</Trans>}>
+      {(control) => (
+        <Input {...control} type="number" value={value ?? ''} min={min} max={max} step={step}
+          disabled={disabled} placeholder="Provider default"
+          onChange={(event) => {
+            const raw = event.target.value;
+            if (raw === '') onChange(undefined);
+            else {
+              const parsed = Number(raw);
+              if (Number.isFinite(parsed)) onChange(parsed);
+            }
+          }} />
+      )}
+    </Field>
   );
 }
 

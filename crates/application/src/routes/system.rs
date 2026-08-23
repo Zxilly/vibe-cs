@@ -626,6 +626,8 @@ fn validate_config(config: &AppConfig) -> ApiResult<()> {
             "at most 64 demo watch directories may be configured",
         ));
     }
+    vibe_cs_domain::validate_llm_provider_parameters(&config.llm.parameters)
+        .map_err(crate::ApiError::invalid)?;
     validate_game_path(config)?;
     if config
         .demo_watch_paths
@@ -1323,6 +1325,22 @@ mod tests {
 
         assert!(merge_llm_api_key(&current, &mut updated, false).is_err());
         assert!(updated.llm.api_key.is_empty());
+    }
+
+    #[test]
+    fn llm_provider_parameters_are_validated_before_persistence() {
+        let mut config = AppConfig::default();
+        config.llm.parameters = serde_json::json!({
+            "temperature": 0.2,
+            "reasoning_effort": "high",
+            "thinking": {"type": "adaptive"}
+        });
+        assert!(validate_config(&config).is_ok());
+
+        config.llm.parameters = serde_json::json!({"tools": []});
+        assert!(validate_config(&config).is_err());
+        config.llm.parameters = serde_json::json!(["not", "an", "object"]);
+        assert!(validate_config(&config).is_err());
     }
 
     #[test]

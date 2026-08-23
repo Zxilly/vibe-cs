@@ -1369,6 +1369,7 @@ async fn run_agent_chat(
             base_url: config.llm.base_url,
             api_key,
             custom_instructions: config.llm.prompt,
+            provider_parameters: config.llm.parameters,
         },
         context: EmbeddedAgentContext {
             workspace,

@@ -18,6 +18,9 @@ chat room:
    channel into the React assistant thread.
 4. Planning tools return typed proposals. `draft_video_plan` binds selected evidence to validated
    recording requests and an MP4 output contract; it does not launch a process by itself.
+   The Agent then calls the workflow-positioned `confirm_video_plan`, `confirm_edit_plan`, or
+   `confirm_beat_alignment` tool. Each confirmation links to the matching proposal created earlier
+   in that turn; a confirmation cannot be moved to another stage or proposal kind.
 5. A video proposal opens the real recording workspace and selects the proposed shots. The user
    can add/remove shots and edit perspective or lead/tail context in that workspace.
 6. The deterministic preview renders tick bounds, estimated duration, output format, safety policy,
@@ -72,6 +75,23 @@ and size-limited.
 - `draft_video_plan`: creates an evidence-bound `video_render` proposal whose items deserialize as
   concrete recording requests and whose output container is fixed to MP4.
 - `navigate_workspace`: returns only one allow-listed destination intent; the host owns navigation.
+
+### Human-in-the-loop and Auto mode
+
+- Video, edit, and beat alignment use distinct confirmation tools because their decisions occur at
+  different workflow stages and lead to different preview/apply operations. Every tool links to the
+  matching proposal index and kind from the same turn.
+- With Auto off, confirmation becomes a persistent in-conversation card. Video continues to the
+  recording review; edit and beat cards call the authoritative signed preview/apply routes; rejection
+  is sent back to the Agent as a structured result.
+- Auto is an explicit composer switch and defaults off. With Auto on, the confirmation tool does not
+  pause: highlight edits and beat alignment run through the same preview/apply transaction inside the
+  host and return the execution result directly as tool output. Video remains bound to its recording
+  review and offline-launch safety policy.
+- Manual edit execution sends `STRUCTURED_AGENT_RESULT` into the same session. Existing
+  `workspace_edit` notices are also serialized into model history, so the next Agent turn receives the
+  server-authoritative revision and field-level result rather than relying on UI state.
+
 ### Confirmed mutations
 
 - `apply_editor_proposal`: compares the project revision and proposal fingerprint, then commits one

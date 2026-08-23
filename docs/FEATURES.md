@@ -70,6 +70,14 @@ missing.
 
 ## Agent video generation
 
+- Keep the Agent on structured Vibe CS objects only. Video, edit, and beat alignment each publish a
+  distinct workflow-positioned confirmation linked to the matching proposal from that turn.
+- Render confirmations as conversation cards. Users can inspect risks, preview and execute edits, or
+  reject and return that decision to the Agent. Successful edit results are sent back with project,
+  revision and inserted-clip identities.
+- Offer an explicit Auto switch in the Agent composer. Auto is off by default. When Auto is on,
+  highlight-edit and beat-alignment confirmations run the same signed preview/apply transaction
+  without pausing and return the structured execution result directly to the tool loop.
 - Ask the in-process Rust Agent for a complete highlight video from an analyzed Demo. The Agent
   selects only persisted evidence and returns a typed `video_render` proposal containing concrete
   recording requests and an MP4 output contract.

@@ -2,7 +2,7 @@ import { Plural, Trans } from '@lingui/react/macro';
 
 import { useProjects } from '../data/projects';
 import { Empty, Skeleton } from '../design/data';
-import { Alert } from '../design/feedback';
+import { Alert, StatusDot } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button } from '../design/primitives';
 import type { ProjectStatus, ProjectStep, ProjectViewModel } from '../domain/project/projectViewModel';
@@ -37,8 +37,8 @@ export function ProjectsPage() {
         )}
 
         {projects.isPending ? (
-          <div role="status" aria-busy="true" className="grid gap-5 lg:grid-cols-2">
-            {[0, 1, 2].map((index) => <Skeleton key={index} className="h-36" />)}
+          <div role="status" aria-busy="true" className="flex flex-col gap-px border border-divider bg-divider">
+            {[0, 1, 2].map((index) => <Skeleton key={index} className="h-[var(--h-row-task)] bg-bg" />)}
           </div>
         ) : rows.length === 0 ? (
           <Empty
@@ -47,39 +47,72 @@ export function ProjectsPage() {
             actions={newProject}
           />
         ) : (
-          <ul className="m-0 grid list-none gap-5 p-0 lg:grid-cols-2">
-            {rows.map((project) => <ProjectCard key={project.id} project={project} />)}
-          </ul>
+          <ProjectTable rows={rows} />
         )}
       </div>
     </Page>
   );
 }
 
-function ProjectCard({ project }: { readonly project: ProjectViewModel }) {
+function ProjectTable({ rows }: { readonly rows: readonly ProjectViewModel[] }) {
   return (
-    <li>
-      <article className="flex h-full flex-col gap-3 border border-divider p-4" data-project={project.id}>
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="min-w-0 truncate text-lg">
-            <RouteLink to={`/projects/${encodeURIComponent(project.id)}`}>{project.name}</RouteLink>
-          </h2>
-          <span className="flex-none text-xs text-neutral-600"><ProjectStatusLabel status={project.status} /></span>
-        </div>
-        <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-          <dt className="text-neutral-600"><Trans>当前步骤</Trans></dt>
-          <dd className="m-0"><ProjectStepLabel step={project.currentStep} /></dd>
-          <dt className="text-neutral-600"><Trans>关联比赛</Trans></dt>
-          <dd className="m-0">
-            {project.demoIds.length === 0
-              ? <Trans>尚未关联比赛</Trans>
-              : <Plural value={project.demoIds.length} other="已关联 # 场比赛" />}
-          </dd>
-          <dt className="text-neutral-600"><Trans>最近活动</Trans></dt>
-          <dd className="m-0 font-mono text-xs">{formatTaskClock(project.updatedAt, { now: new Date() })}</dd>
-        </dl>
-      </article>
-    </li>
+    <div className="min-w-0 overflow-x-auto border border-divider">
+      <table className="w-full min-w-[var(--w-overlay)] border-collapse text-left">
+        <thead className="bg-surface-chrome">
+          <tr className="h-[var(--h-thead)] border-b border-divider text-2xs tracking-wide text-neutral-600">
+            <th scope="col" className="px-4 font-normal"><Trans>作品</Trans></th>
+            <th scope="col" className="px-4 font-normal"><Trans>当前步骤</Trans></th>
+            <th scope="col" className="px-4 font-normal"><Trans>关联比赛</Trans></th>
+            <th scope="col" className="px-4 font-normal"><Trans>最近活动</Trans></th>
+            <th scope="col" className="px-4 font-normal"><Trans>状态</Trans></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((project) => (
+            <tr
+              key={project.id}
+              data-project={project.id}
+              className="h-[var(--h-row-task)] border-b border-divider last:border-b-0 hover:bg-surface"
+            >
+              <td className="max-w-[var(--w-split)] px-4">
+                <RouteLink
+                  to={`/projects/${encodeURIComponent(project.id)}`}
+                  className="block truncate text-base"
+                >
+                  {project.name}
+                </RouteLink>
+              </td>
+              <td className="whitespace-nowrap px-4 text-sm">
+                <ProjectStepLabel step={project.currentStep} />
+              </td>
+              <td className="whitespace-nowrap px-4 text-sm">
+                {project.demoIds.length === 0
+                  ? <Trans>尚未关联比赛</Trans>
+                  : <Plural value={project.demoIds.length} other="已关联 # 场比赛" />}
+              </td>
+              <td className="whitespace-nowrap px-4 font-mono text-xs">
+                {formatTaskClock(project.updatedAt, { now: new Date() })}
+              </td>
+              <td className="whitespace-nowrap px-4 text-xs">
+                <span className="inline-flex items-center gap-2">
+                  <StatusDot
+                    size="sm"
+                    status={
+                      project.status === 'complete'
+                        ? 'ok'
+                        : project.status === 'needs-attention'
+                          ? 'warn'
+                          : 'running'
+                    }
+                  />
+                  <ProjectStatusLabel status={project.status} />
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

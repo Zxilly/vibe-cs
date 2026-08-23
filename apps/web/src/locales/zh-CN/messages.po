@@ -357,7 +357,7 @@ msgstr "{0} 拿下了 {1} 个回合里的 {2} 次首杀"
 #. placeholder {0}: matchup.kills
 #. placeholder {1}: matchup.deaths
 #: src/pages/match/views/DuelsView.tsx:459
-#: src/pages/match/views/DuelsView.tsx:686
+#: src/pages/match/views/DuelsView.tsx:707
 msgid "{0} 杀 / {1} 死"
 msgstr "{0} 杀 / {1} 死"
 
@@ -493,11 +493,11 @@ msgstr "{killerName} → {victimName} 的 {0} 次交手"
 msgid "{killerName} 击杀 {victimName} {kills} 次"
 msgstr "{killerName} 击杀 {victimName} {kills} 次"
 
-#: src/pages/match/views/DuelsView.tsx:619
+#: src/pages/match/views/DuelsView.tsx:640
 msgid "{killerName} 的对位"
 msgstr "{killerName} 的对位"
 
-#: src/pages/match/views/PlayersView.tsx:436
+#: src/pages/match/views/PlayersView.tsx:437
 msgid "{kills} 杀"
 msgstr "{kills} 杀"
 
@@ -631,7 +631,7 @@ msgstr "{value} 秒"
 
 #: src/domain/match/RoundTimeline.tsx:261
 #: src/pages/match/views/RoundsView.tsx:330
-#: src/pages/match/views/RoundsView.tsx:584
+#: src/pages/match/views/RoundsView.tsx:585
 msgid "{winnerName} 胜"
 msgstr "{winnerName} 胜"
 
@@ -693,9 +693,9 @@ msgstr "0.05 到 5 秒；转场比相邻片段还长时渲染会拒绝。"
 msgid "1 秒 = {0} px"
 msgstr "1 秒 = {0} px"
 
-#: src/pages/match/views/DuelsView.tsx:740
-#: src/pages/match/views/PlayersView.tsx:497
-#: src/pages/match/views/RoundsView.tsx:687
+#: src/pages/match/views/DuelsView.tsx:776
+#: src/pages/match/views/PlayersView.tsx:501
+#: src/pages/match/views/RoundsView.tsx:692
 msgid "2D 回放"
 msgstr "2D 回放"
 
@@ -713,7 +713,7 @@ msgstr "A"
 
 #: src/pages/match/views/PlayersView.tsx:177
 #: src/pages/match/views/PlayersView.tsx:178
-#: src/pages/match/views/PlayersView.tsx:303
+#: src/pages/match/views/PlayersView.tsx:304
 #: src/pages/match/views/TeamsView.tsx:144
 #: src/pages/match/views/TeamsView.tsx:566
 #: src/pages/players/PlayerComparePanel.tsx:57
@@ -928,7 +928,7 @@ msgstr "HUD"
 msgid "K"
 msgstr "K"
 
-#: src/pages/match/views/PlayersView.tsx:300
+#: src/pages/match/views/PlayersView.tsx:301
 #: src/pages/match/views/TeamsView.tsx:564
 msgid "K / D / A"
 msgstr "K / D / A"
@@ -1560,7 +1560,7 @@ msgstr "会话的新名称"
 msgid "会追加到 Agent 的系统指令；留空使用默认行为。"
 msgstr "会追加到 Agent 的系统指令；留空使用默认行为。"
 
-#: src/pages/match/views/DuelsView.tsx:665
+#: src/pages/match/views/DuelsView.tsx:686
 msgid "伤害 出 / 入"
 msgstr "伤害 出 / 入"
 
@@ -1805,7 +1805,7 @@ msgstr "先看 {0} 的档案"
 msgid "先运行录制前校验"
 msgstr "先运行录制前校验"
 
-#: src/pages/match/views/RoundsView.tsx:477
+#: src/pages/match/views/RoundsView.tsx:478
 msgid "先选一个回合"
 msgstr "先选一个回合"
 
@@ -1939,12 +1939,12 @@ msgid "共 {0} 个回合 · 解析出 {purchaseTotal} 条购买记录"
 msgstr "共 {0} 个回合 · 解析出 {purchaseTotal} 条购买记录"
 
 #. placeholder {0}: duels.length
-#: src/pages/match/views/DuelsView.tsx:527
+#: src/pages/match/views/DuelsView.tsx:548
 msgid "共 {0} 个回合有可归属的首杀"
 msgstr "共 {0} 个回合有可归属的首杀"
 
 #. placeholder {0}: rows.length
-#: src/pages/match/views/PlayersView.tsx:238
+#: src/pages/match/views/PlayersView.tsx:239
 msgid "共 {0} 名选手 · 点一行看他这一场"
 msgstr "共 {0} 名选手 · 点一行看他这一场"
 
@@ -2068,7 +2068,7 @@ msgid "关闭窗口"
 msgstr "关闭窗口"
 
 #: src/domain/match/matchEnums.ts:217
-#: src/pages/match/views/PlayersView.tsx:342
+#: src/pages/match/views/PlayersView.tsx:343
 msgid "其他"
 msgstr "其他"
 
@@ -2514,7 +2514,7 @@ msgstr "加入"
 #: src/pages/match/views/HighlightsView.tsx:282
 #: src/pages/match/views/HighlightsView.tsx:348
 #: src/pages/match/views/OverviewView.tsx:244
-#: src/pages/match/views/PlayersView.tsx:372
+#: src/pages/match/views/PlayersView.tsx:373
 #: src/pages/match/views/ReplayView.tsx:524
 #: src/pages/project/AddToProjectDialog.tsx:70
 msgid "加入作品"
@@ -2573,11 +2573,11 @@ msgstr "包装与导出"
 msgid "升降"
 msgstr "升降"
 
-#: src/pages/match/views/DuelsView.tsx:525
+#: src/pages/match/views/DuelsView.tsx:546
 msgid "单元格＝行方对列方的击杀数，点开进入这一对的交手"
 msgstr "单元格＝行方对列方的击杀数，点开进入这一对的交手"
 
-#: src/pages/match/views/DuelsView.tsx:743
+#: src/pages/match/views/DuelsView.tsx:779
 #: src/pages/match/views/UtilityView.tsx:657
 msgid "单场记分板"
 msgstr "单场记分板"
@@ -2943,9 +2943,9 @@ msgstr "回到修改列表"
 msgid "回到后台任务"
 msgstr "回到后台任务"
 
-#: src/pages/match/views/PlayersView.tsx:253
-#: src/pages/match/views/RoundsView.tsx:465
-#: src/pages/match/views/RoundsView.tsx:490
+#: src/pages/match/views/PlayersView.tsx:254
+#: src/pages/match/views/RoundsView.tsx:466
+#: src/pages/match/views/RoundsView.tsx:491
 #: src/pages/match/views/TeamsView.tsx:200
 msgid "回到概览"
 msgstr "回到概览"
@@ -2984,7 +2984,7 @@ msgstr "回合"
 msgid "回合内事件"
 msgstr "回合内事件"
 
-#: src/pages/match/views/RoundsView.tsx:592
+#: src/pages/match/views/RoundsView.tsx:593
 msgid "回合内证据"
 msgstr "回合内证据"
 
@@ -3068,11 +3068,11 @@ msgstr "在 2D 回放里查看"
 msgid "在上面的名单里点一名选手，他这一场的数据会出现在这里。"
 msgstr "在上面的名单里点一名选手，他这一场的数据会出现在这里。"
 
-#: src/pages/match/views/RoundsView.tsx:483
+#: src/pages/match/views/RoundsView.tsx:484
 msgid "在上面的回合时间线里点一格，这里会显示那一回合的人数曲线、目标事件与逐条证据。"
 msgstr "在上面的回合时间线里点一格，这里会显示那一回合的人数曲线、目标事件与逐条证据。"
 
-#: src/pages/match/views/RoundsView.tsx:666
+#: src/pages/match/views/RoundsView.tsx:671
 msgid "在回合时间线里点一格，这一回合的证据与注释会出现在这里。"
 msgstr "在回合时间线里点一格，这一回合的证据与注释会出现在这里。"
 
@@ -3384,7 +3384,7 @@ msgstr "密度色阶，从 {minWeight} 次到 {maxWeight} 次"
 msgid "密钥只保存在本机配置中，页面和诊断包都不会回显它们。"
 msgstr "密钥只保存在本机配置中，页面和诊断包都不会回显它们。"
 
-#: src/pages/match/views/DuelsView.tsx:522
+#: src/pages/match/views/DuelsView.tsx:543
 #: src/pages/match/views/TeamsView.tsx:556
 msgid "对位"
 msgstr "对位"
@@ -3394,15 +3394,15 @@ msgctxt "match-view"
 msgid "对位"
 msgstr "对位"
 
-#: src/pages/match/views/DuelsView.tsx:662
+#: src/pages/match/views/DuelsView.tsx:683
 msgid "对位击杀"
 msgstr "对位击杀"
 
-#: src/pages/match/views/DuelsView.tsx:663
+#: src/pages/match/views/DuelsView.tsx:684
 msgid "对位死亡"
 msgstr "对位死亡"
 
-#: src/pages/match/views/DuelsView.tsx:537
+#: src/pages/match/views/DuelsView.tsx:558
 msgid "对位矩阵"
 msgstr "对位矩阵"
 
@@ -3410,7 +3410,7 @@ msgstr "对位矩阵"
 msgid "对位矩阵：行方对列方的击杀数"
 msgstr "对位矩阵：行方对列方的击杀数"
 
-#: src/pages/match/views/DuelsView.tsx:535
+#: src/pages/match/views/DuelsView.tsx:556
 msgid "对位视图"
 msgstr "对位视图"
 
@@ -4503,7 +4503,7 @@ msgid "打开目录"
 msgstr "打开目录"
 
 #. placeholder {0}: firstRound.number
-#: src/pages/match/views/RoundsView.tsx:497
+#: src/pages/match/views/RoundsView.tsx:498
 msgid "打开第 {0} 回合"
 msgstr "打开第 {0} 回合"
 
@@ -4561,7 +4561,7 @@ msgid "把片段 {position} 的时长改为 {0}s（{offset}）"
 msgstr "把片段 {position} 的时长改为 {0}s（{offset}）"
 
 #: src/pages/match/views/ReplayView.tsx:524
-#: src/pages/match/views/RoundsView.tsx:677
+#: src/pages/match/views/RoundsView.tsx:682
 #: src/pages/match/views/UtilityView.tsx:676
 msgid "把这个回合加入作品"
 msgstr "把这个回合加入作品"
@@ -4570,8 +4570,8 @@ msgstr "把这个回合加入作品"
 msgid "把这个片段的参数应用到全部？"
 msgstr "把这个片段的参数应用到全部？"
 
-#: src/pages/match/views/DuelsView.tsx:734
-#: src/pages/match/views/PlayersView.tsx:488
+#: src/pages/match/views/DuelsView.tsx:770
+#: src/pages/match/views/PlayersView.tsx:492
 #: src/pages/match/views/TeamsView.tsx:547
 #: src/pages/match/views/UtilityView.tsx:652
 msgid "把这名选手加入作品"
@@ -4874,7 +4874,7 @@ msgstr "改动没有保存：{saveMessage}"
 msgid "改回全局默认"
 msgstr "改回全局默认"
 
-#: src/pages/match/views/DuelsView.tsx:586
+#: src/pages/match/views/DuelsView.tsx:607
 msgid "改看对位矩阵"
 msgstr "改看对位矩阵"
 
@@ -4886,7 +4886,7 @@ msgstr "改看经济"
 msgid "改看道具"
 msgstr "改看道具"
 
-#: src/pages/match/views/DuelsView.tsx:557
+#: src/pages/match/views/DuelsView.tsx:578
 msgid "改看首杀对决"
 msgstr "改看首杀对决"
 
@@ -5372,15 +5372,15 @@ msgstr "未知玩家"
 msgid "未选中任何内容"
 msgstr "未选中任何内容"
 
-#: src/pages/match/views/RoundsView.tsx:661
+#: src/pages/match/views/RoundsView.tsx:666
 msgid "未选中任何回合"
 msgstr "未选中任何回合"
 
-#: src/pages/match/views/DuelsView.tsx:718
+#: src/pages/match/views/DuelsView.tsx:746
 msgid "未选中任何对位"
 msgstr "未选中任何对位"
 
-#: src/pages/match/views/PlayersView.tsx:468
+#: src/pages/match/views/PlayersView.tsx:472
 #: src/pages/match/views/TeamsView.tsx:526
 msgid "未选中任何选手"
 msgstr "未选中任何选手"
@@ -5626,7 +5626,7 @@ msgstr "检查镜头并继续录制"
 msgid "检测器在这场里没有找到残局、多杀或穿墙这类可以单独成片的片段。"
 msgstr "检测器在这场里没有找到残局、多杀或穿墙这类可以单独成片的片段。"
 
-#: src/pages/match/views/PlayersView.tsx:354
+#: src/pages/match/views/PlayersView.tsx:355
 msgid "检测器没有在这一场里给他标出高光。"
 msgstr "检测器没有在这一场里给他标出高光。"
 
@@ -5938,7 +5938,7 @@ msgstr "此输入当前不可用：{disabledReason}"
 #: src/pages/evidence/EvidenceDetail.tsx:128
 #: src/pages/match/views/DuelsView.tsx:287
 #: src/pages/match/views/DuelsView.tsx:288
-#: src/pages/match/views/PlayersView.tsx:317
+#: src/pages/match/views/PlayersView.tsx:318
 msgid "武器"
 msgstr "武器"
 
@@ -5998,7 +5998,7 @@ msgstr "每一段都已经落在拍点上（误差小于 {BEAT_SUGGESTION_TOLERA
 msgid "每一行是一种结束原因，数字是用这种方式赢下的回合数"
 msgstr "每一行是一种结束原因，数字是用这种方式赢下的回合数"
 
-#: src/pages/match/views/DuelsView.tsx:579
+#: src/pages/match/views/DuelsView.tsx:600
 msgid "每个回合的第一次击杀都缺少击杀者或被击杀者，因此无法成对。"
 msgstr "每个回合的第一次击杀都缺少击杀者或被击杀者，因此无法成对。"
 
@@ -6190,7 +6190,7 @@ msgstr "没有匹配的选手"
 msgid "没有变化"
 msgstr "没有变化"
 
-#: src/pages/match/views/DuelsView.tsx:576
+#: src/pages/match/views/DuelsView.tsx:597
 msgid "没有可归属的首杀"
 msgstr "没有可归属的首杀"
 
@@ -6199,7 +6199,7 @@ msgstr "没有可归属的首杀"
 msgid "没有可撤销的操作"
 msgstr "没有可撤销的操作"
 
-#: src/pages/match/views/DuelsView.tsx:549
+#: src/pages/match/views/DuelsView.tsx:570
 msgid "没有可用的对位数据"
 msgstr "没有可用的对位数据"
 
@@ -6292,7 +6292,7 @@ msgstr "波纹删除"
 
 #: src/pages/evidence/EvidenceDetail.tsx:156
 #: src/pages/EvidencePage.tsx:209
-#: src/pages/match/views/RoundsView.tsx:620
+#: src/pages/match/views/RoundsView.tsx:621
 msgid "注释"
 msgstr "注释"
 
@@ -6368,9 +6368,9 @@ msgstr "添加到时间轴"
 msgid "添加标签"
 msgstr "添加标签"
 
-#: src/pages/match/views/PlayersView.tsx:500
+#: src/pages/match/views/PlayersView.tsx:504
 #: src/pages/match/views/ReviewView.tsx:659
-#: src/pages/match/views/RoundsView.tsx:690
+#: src/pages/match/views/RoundsView.tsx:695
 msgid "添加注释"
 msgstr "添加注释"
 
@@ -6495,7 +6495,7 @@ msgstr "滑移"
 msgid "炸弹引爆"
 msgstr "炸弹引爆"
 
-#: src/pages/match/views/DuelsView.tsx:616
+#: src/pages/match/views/DuelsView.tsx:637
 msgid "点一个单元格看这一对的每一次交手，点行首看这名选手的全部对位。"
 msgstr "点一个单元格看这一对的每一次交手，点行首看这名选手的全部对位。"
 
@@ -6511,11 +6511,11 @@ msgstr "点一行结果，这里会给出它的比赛、回合、tick 和可以�
 msgid "点击回合进入逐回合复盘"
 msgstr "点击回合进入逐回合复盘"
 
-#: src/pages/match/views/PlayersView.tsx:474
+#: src/pages/match/views/PlayersView.tsx:478
 msgid "点左侧记分板的一行，这里会显示他这一场的 K/D/A、武器分布和高光。"
 msgstr "点左侧记分板的一行，这里会显示他这一场的 K/D/A、武器分布和高光。"
 
-#: src/pages/match/views/DuelsView.tsx:723
+#: src/pages/match/views/DuelsView.tsx:751
 msgid "点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。"
 msgstr "点矩阵里的一个单元格或一行，这里会显示这名选手的对位总账。"
 
@@ -6587,13 +6587,13 @@ msgstr "燃烧"
 msgid "爆头"
 msgstr "爆头"
 
-#: src/pages/match/views/DuelsView.tsx:664
+#: src/pages/match/views/DuelsView.tsx:685
 msgid "爆头击杀"
 msgstr "爆头击杀"
 
 #: src/pages/match/views/PlayersView.tsx:185
 #: src/pages/match/views/PlayersView.tsx:186
-#: src/pages/match/views/PlayersView.tsx:304
+#: src/pages/match/views/PlayersView.tsx:305
 #: src/pages/match/views/TeamsView.tsx:147
 #: src/pages/match/views/TeamsView.tsx:567
 #: src/pages/players/PlayerComparePanel.tsx:64
@@ -6714,7 +6714,7 @@ msgstr "版本历史"
 msgid "状态"
 msgstr "状态"
 
-#: src/pages/match/views/PlayersView.tsx:235
+#: src/pages/match/views/PlayersView.tsx:236
 msgid "玩家"
 msgstr "玩家"
 
@@ -6945,7 +6945,7 @@ msgid "目录是只读的，重试不会改动任何数据。"
 msgstr "目录是只读的，重试不会改动任何数据。"
 
 #: src/pages/evidence/EvidenceConditions.tsx:55
-#: src/pages/match/views/RoundsView.tsx:576
+#: src/pages/match/views/RoundsView.tsx:577
 msgid "目标事件"
 msgstr "目标事件"
 
@@ -7199,7 +7199,7 @@ msgstr "第 {0} 回合"
 
 #. placeholder {0}: detail.number
 #. placeholder {1}: detail.moments.length
-#: src/pages/match/views/RoundsView.tsx:675
+#: src/pages/match/views/RoundsView.tsx:680
 msgid "第 {0} 回合 · {1} 条证据"
 msgstr "第 {0} 回合 · {1} 条证据"
 
@@ -7623,7 +7623,7 @@ msgstr "观察者镜头的视野由相机路径逐帧决定，也不会绘制持
 msgid "解析出回合、击杀与移动轨迹，之后的所有选材都基于它。"
 msgstr "解析出回合、击杀与移动轨迹，之后的所有选材都基于它。"
 
-#: src/pages/match/views/PlayersView.tsx:247
+#: src/pages/match/views/PlayersView.tsx:248
 msgid "解析出的比赛没有可归属的选手记录，记分板因此是空的。重新分析这场比赛通常能补上。"
 msgstr "解析出的比赛没有可归属的选手记录，记分板因此是空的。重新分析这场比赛通常能补上。"
 
@@ -7742,7 +7742,7 @@ msgstr "说明"
 msgid "说明：{degraded}"
 msgstr "说明：{degraded}"
 
-#: src/pages/match/views/DuelsView.tsx:607
+#: src/pages/match/views/DuelsView.tsx:628
 msgid "说明：{unavailableReason}"
 msgstr "说明：{unavailableReason}"
 
@@ -8380,11 +8380,11 @@ msgstr "还画不出这个镜头的相机路径"
 msgid "这一回合没有击杀或目标事件"
 msgstr "这一回合没有击杀或目标事件"
 
-#: src/pages/match/views/RoundsView.tsx:597
+#: src/pages/match/views/RoundsView.tsx:598
 msgid "这一回合没有击杀或目标事件。"
 msgstr "这一回合没有击杀或目标事件。"
 
-#: src/pages/match/views/RoundsView.tsx:626
+#: src/pages/match/views/RoundsView.tsx:627
 msgid "这一回合还没有注释。"
 msgstr "这一回合还没有注释。"
 
@@ -8392,7 +8392,7 @@ msgstr "这一回合还没有注释。"
 msgid "这一场没有记到他投出的道具。"
 msgstr "这一场没有记到他投出的道具。"
 
-#: src/pages/match/views/PlayersView.tsx:329
+#: src/pages/match/views/PlayersView.tsx:330
 msgid "这一场没有记到他的击杀。"
 msgstr "这一场没有记到他的击杀。"
 
@@ -8400,7 +8400,7 @@ msgstr "这一场没有记到他的击杀。"
 msgid "这一场的记分板"
 msgstr "这一场的记分板"
 
-#: src/pages/match/views/PlayersView.tsx:350
+#: src/pages/match/views/PlayersView.tsx:351
 msgid "这一场的高光"
 msgstr "这一场的高光"
 
@@ -8553,7 +8553,7 @@ msgstr "这份作品的录制队列与片段进度会显示在这里。"
 msgid "这份作品还没有收集片段"
 msgstr "这份作品还没有收集片段"
 
-#: src/pages/match/views/DuelsView.tsx:551
+#: src/pages/match/views/DuelsView.tsx:572
 msgid "这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。原因见下方。"
 msgstr "这份分析没有解出成对的击杀与伤害事件，所以矩阵是空的。原因见下方。"
 
@@ -8561,7 +8561,7 @@ msgstr "这份分析没有解出成对的击杀与伤害事件，所以矩阵是
 msgid "这份分析没有解出投掷物的生命周期事件，所以逐选手的道具账目是空的。"
 msgstr "这份分析没有解出投掷物的生命周期事件，所以逐选手的道具账目是空的。"
 
-#: src/pages/match/views/DuelsView.tsx:673
+#: src/pages/match/views/DuelsView.tsx:694
 msgid "这份分析没有这名选手的对位记录。"
 msgstr "这份分析没有这名选手的对位记录。"
 
@@ -8569,11 +8569,11 @@ msgstr "这份分析没有这名选手的对位记录。"
 msgid "这份分析没有逐条击杀事件，所以列不出这一对的交手。"
 msgstr "这份分析没有逐条击杀事件，所以列不出这一对的交手。"
 
-#: src/pages/match/views/PlayersView.tsx:325
+#: src/pages/match/views/PlayersView.tsx:326
 msgid "这份分析没有逐条击杀事件，武器分布无法统计。"
 msgstr "这份分析没有逐条击杀事件，武器分布无法统计。"
 
-#: src/pages/match/views/DuelsView.tsx:581
+#: src/pages/match/views/DuelsView.tsx:602
 msgid "这份分析没有逐条击杀事件，首杀要靠事件流才能推出来。"
 msgstr "这份分析没有逐条击杀事件，首杀要靠事件流才能推出来。"
 
@@ -8581,11 +8581,11 @@ msgstr "这份分析没有逐条击杀事件，首杀要靠事件流才能推出
 msgid "这份分析结果里没有洞察数据，经济统计无法显示。"
 msgstr "这份分析结果里没有洞察数据，经济统计无法显示。"
 
-#: src/pages/match/views/PlayersView.tsx:476
+#: src/pages/match/views/PlayersView.tsx:480
 msgid "这份分析里没有这名选手。地址上的选择保留着，换一场比赛可能就能对上。"
 msgstr "这份分析里没有这名选手。地址上的选择保留着，换一场比赛可能就能对上。"
 
-#: src/pages/match/views/PlayersView.tsx:245
+#: src/pages/match/views/PlayersView.tsx:246
 msgid "这份分析里没有选手"
 msgstr "这份分析里没有选手"
 
@@ -8689,7 +8689,7 @@ msgstr "这场比赛既没有解析出击杀，也没有道具与对位数据。
 msgid "这场比赛没有检出高光"
 msgstr "这场比赛没有检出高光"
 
-#: src/pages/match/views/RoundsView.tsx:479
+#: src/pages/match/views/RoundsView.tsx:480
 msgid "这场比赛没有第 {selectedRound} 回合"
 msgstr "这场比赛没有第 {selectedRound} 回合"
 
@@ -8960,20 +8960,26 @@ msgstr "选中 {subject} · 第 {0} 回合 · tick {1}"
 #. placeholder {0}: player.name
 #. placeholder {0}: player?.name ?? utilityRow.name
 #. placeholder {0}: row.name
-#: src/pages/match/views/DuelsView.tsx:731
-#: src/pages/match/views/PlayersView.tsx:485
+#: src/pages/match/views/DuelsView.tsx:761
+#: src/pages/match/views/PlayersView.tsx:489
 #: src/pages/match/views/TeamsView.tsx:544
 #: src/pages/match/views/UtilityView.tsx:649
 msgid "选中：{0}"
 msgstr "选中：{0}"
 
-#: src/pages/match/views/PlayersView.tsx:467
+#. placeholder {0}: player.name
+#. placeholder {1}: defaultOpponent.name
+#: src/pages/match/views/DuelsView.tsx:762
+msgid "选中：{0} → {1}"
+msgstr "选中：{0} → {1}"
+
+#: src/pages/match/views/PlayersView.tsx:471
 msgid "选中：{fallbackName}"
 msgstr "选中：{fallbackName}"
 
 #. placeholder {0}: detail.number
 #. placeholder {0}: economyRow.round
-#: src/pages/match/views/RoundsView.tsx:674
+#: src/pages/match/views/RoundsView.tsx:679
 #: src/pages/match/views/UtilityView.tsx:673
 msgid "选中：第 {0} 回合"
 msgstr "选中：第 {0} 回合"
@@ -8983,10 +8989,10 @@ msgstr "选中：第 {0} 回合"
 msgid "选中：第 {0} 回合的高光"
 msgstr "选中：第 {0} 回合的高光"
 
-#: src/pages/match/views/DuelsView.tsx:717
+#: src/pages/match/views/DuelsView.tsx:745
 #: src/pages/match/views/OverviewView.tsx:295
-#: src/pages/match/views/PlayersView.tsx:467
-#: src/pages/match/views/RoundsView.tsx:660
+#: src/pages/match/views/PlayersView.tsx:471
+#: src/pages/match/views/RoundsView.tsx:665
 #: src/pages/match/views/TeamsView.tsx:525
 #: src/pages/match/views/UtilityView.tsx:692
 #: src/pages/MatchWorkspacePage.tsx:172
@@ -9128,7 +9134,7 @@ msgstr "选材"
 msgid "选材中"
 msgstr "选材中"
 
-#: src/pages/match/views/DuelsView.tsx:669
+#: src/pages/match/views/DuelsView.tsx:690
 msgid "逐个对手"
 msgstr "逐个对手"
 
@@ -9145,8 +9151,8 @@ msgstr "逐回合复盘"
 msgid "逐回合看"
 msgstr "逐回合看"
 
-#: src/pages/match/views/RoundsView.tsx:471
-#: src/pages/match/views/RoundsView.tsx:526
+#: src/pages/match/views/RoundsView.tsx:472
+#: src/pages/match/views/RoundsView.tsx:527
 msgid "逐回合详情"
 msgstr "逐回合详情"
 
@@ -9526,14 +9532,14 @@ msgstr "队伍"
 
 #: src/pages/match/views/OverviewView.tsx:114
 #: src/pages/match/views/RoundsView.tsx:448
-#: src/pages/match/views/RoundsView.tsx:654
+#: src/pages/match/views/RoundsView.tsx:659
 #: src/pages/match/views/TeamsView.tsx:430
 msgid "队伍 A"
 msgstr "队伍 A"
 
 #: src/pages/match/views/OverviewView.tsx:115
 #: src/pages/match/views/RoundsView.tsx:449
-#: src/pages/match/views/RoundsView.tsx:655
+#: src/pages/match/views/RoundsView.tsx:660
 #: src/pages/match/views/TeamsView.tsx:431
 msgid "队伍 B"
 msgstr "队伍 B"
@@ -9710,7 +9716,7 @@ msgid "首杀"
 msgstr "首杀"
 
 #: src/pages/match/views/PlayersView.tsx:200
-#: src/pages/match/views/PlayersView.tsx:309
+#: src/pages/match/views/PlayersView.tsx:310
 msgid "首杀 / 首死"
 msgstr "首杀 / 首死"
 
@@ -9726,7 +9732,7 @@ msgstr "首杀与首死"
 msgid "首杀取每个回合最早的一次击杀事件。"
 msgstr "首杀取每个回合最早的一次击杀事件。"
 
-#: src/pages/match/views/DuelsView.tsx:538
+#: src/pages/match/views/DuelsView.tsx:559
 msgid "首杀对决"
 msgstr "首杀对决"
 

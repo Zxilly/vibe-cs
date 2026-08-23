@@ -472,6 +472,24 @@ export function MatchupList({
 
 type DuelMode = 'matrix' | 'opening';
 
+function strongestMatrixPair(matrix: DuelMatrix): {
+  readonly playerId: string;
+  readonly opponentId: string;
+} | null {
+  let strongest: { playerId: string; opponentId: string; kills: number } | null = null;
+  for (const row of matrix.rows) {
+    for (const cell of row.cells) {
+      if (cell.kills <= 0 || (strongest !== null && cell.kills <= strongest.kills)) continue;
+      strongest = {
+        playerId: row.player.id,
+        opponentId: cell.opponent.id,
+        kills: cell.kills,
+      };
+    }
+  }
+  return strongest;
+}
+
 function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
   const gate = useAnalysisGate(demoId);
   const [mode, setMode] = useState<DuelMode>('matrix');
@@ -486,6 +504,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
      记分板 and walking over here shows their half of the grid. */
   const rowTeam = context.player === null ? 'A' : (index.get(context.player)?.team ?? 'A');
   const matrix = useMemo(() => duelMatrix(gate.analysis, rowTeam), [gate.analysis, rowTeam]);
+  const defaultPair = useMemo(() => strongestMatrixPair(matrix), [matrix]);
   const rounds = gate.analysis?.rounds ?? [];
   const duels = useMemo(() => openingDuels(rounds), [rounds]);
 
@@ -507,9 +526,11 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
     if (playerId !== context.player) updateContext({ player: playerId });
   };
 
-  const activeOpponent = context.player === null ? null : opponentId;
+  const effectivePlayerId = context.player ?? defaultPair?.playerId ?? null;
+  const activeOpponent = opponentId
+    ?? (context.player === null ? defaultPair?.opponentId ?? null : null);
   const killerName =
-    context.player === null ? '' : (index.get(context.player)?.name ?? context.player);
+    effectivePlayerId === null ? '' : (index.get(effectivePlayerId)?.name ?? effectivePlayerId);
   const victimName =
     activeOpponent === null ? '' : (index.get(activeOpponent)?.name ?? activeOpponent);
 
@@ -563,7 +584,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
                 matrix={matrix}
                 rowTeamName={rowTeam === 'A' ? names.A : names.B}
                 columnTeamName={rowTeam === 'A' ? names.B : names.A}
-                activePlayerId={context.player}
+                activePlayerId={effectivePlayerId}
                 activeOpponentId={activeOpponent}
                 onSelectPlayer={selectPlayer}
                 onSelectPair={selectPair}
@@ -611,14 +632,14 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
 
       {/* The pair panel is its own block, as the artboard draws it: the matrix
           answers 「谁压制谁」 and this answers 「那七次发生在哪些回合」. */}
-      {gate.fallback !== null || mode !== 'matrix' || noMatrix ? null : context.player === null ? (
+      {gate.fallback !== null || mode !== 'matrix' || noMatrix ? null : effectivePlayerId === null ? (
         <p className="text-xs text-neutral-600">
           <Trans>点一个单元格看这一对的每一次交手，点行首看这名选手的全部对位。</Trans>
         </p>
       ) : activeOpponent === null ? (
         <ViewPanel id="duel-matchups" title={<Trans>{killerName} 的对位</Trans>}>
           <MatchupList
-            matchups={matchupsAgainst(gate.analysis?.insights, context.player, index)}
+            matchups={matchupsAgainst(gate.analysis?.insights, effectivePlayerId, index)}
             index={index}
             activeOpponentId={activeOpponent}
             onSelectOpponent={(next) => setOpponentId(next)}
@@ -628,7 +649,7 @@ function DuelsBody({ demoId, context, updateContext }: MatchViewProps) {
         <PairKillList
           killerName={killerName}
           victimName={victimName}
-          kills={pairKills(rounds, context.player, activeOpponent)}
+          kills={pairKills(rounds, effectivePlayerId, activeOpponent)}
           tickRate={gate.tickRate}
           onLocate={(kill) => updateContext({ view: 'replay', round: kill.round, tick: kill.tick })}
         />
@@ -708,8 +729,15 @@ function SummaryCell({ label, value }: { readonly label: ReactNode; readonly val
 function DuelsInspector({ demoId, context, updateContext, addToVideo, collapsed }: MatchViewProps) {
   const analysis = useMatchAnalysis(demoId === '' ? null : demoId);
   const index = useMemo(() => rosterIndex(analysis.data), [analysis.data]);
-
-  const player = context.player === null ? undefined : index.get(context.player);
+  const defaultPair = useMemo(
+    () => strongestMatrixPair(duelMatrix(analysis.data, 'A')),
+    [analysis.data],
+  );
+  const effectivePlayerId = context.player ?? defaultPair?.playerId ?? null;
+  const player = effectivePlayerId === null ? undefined : index.get(effectivePlayerId);
+  const defaultOpponent = context.player === null && defaultPair !== null
+    ? index.get(defaultPair.opponentId)
+    : undefined;
 
   if (player === undefined || analysis.data === undefined) {
     return (
@@ -728,8 +756,16 @@ function DuelsInspector({ demoId, context, updateContext, addToVideo, collapsed 
 
   return (
     <MatchInspectorPanel
-      title={<Trans>选中：{player.name}</Trans>}
-      summary={player.name}
+      title={
+        defaultOpponent === undefined
+          ? <Trans>选中：{player.name}</Trans>
+          : <Trans>选中：{player.name} → {defaultOpponent.name}</Trans>
+      }
+      summary={
+        defaultOpponent === undefined
+          ? player.name
+          : `${player.name} → ${defaultOpponent.name}`
+      }
       addToVideo={addToVideo}
       addLabel={<Trans>把这名选手加入作品</Trans>}
       selection={{ playerId: player.id }}
@@ -745,7 +781,19 @@ function DuelsInspector({ demoId, context, updateContext, addToVideo, collapsed 
         </>
       }
     >
-      <DuelSummary analysis={analysis.data} playerId={player.id} index={index} />
+      {defaultOpponent === undefined ? (
+        <DuelSummary analysis={analysis.data} playerId={player.id} index={index} />
+      ) : (
+        <PairKillList
+          killerName={player.name}
+          victimName={defaultOpponent.name}
+          kills={pairKills(analysis.data.rounds, player.id, defaultOpponent.id)}
+          tickRate={analysis.data.tick_rate}
+          onLocate={(kill) =>
+            updateContext({ view: 'replay', round: kill.round, tick: kill.tick })
+          }
+        />
+      )}
     </MatchInspectorPanel>
   );
 }

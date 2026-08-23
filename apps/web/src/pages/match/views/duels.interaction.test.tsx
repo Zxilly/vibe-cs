@@ -122,12 +122,13 @@ describe('the Inspector follows the same address', () => {
     expect(summary?.textContent).toContain('对位击杀');
   });
 
-  it('says nothing is selected before a cell is picked', async () => {
+  it('focuses the strongest matrix pair without writing the address', async () => {
     open();
     await waitFor(() => {
-      expect(document.querySelector('[data-row-id="kael"]')).not.toBeNull();
+      expect(document.querySelector('[data-duel-cell][aria-pressed="true"]')).not.toBeNull();
+      expect(document.querySelector('[data-duel-pair]')).not.toBeNull();
     });
-    expect(screen.getByText(/点矩阵里的一个单元格或一行/u)).toBeTruthy();
+    expect(address()).not.toContain('player=');
   });
 });
 

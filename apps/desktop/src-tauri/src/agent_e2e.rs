@@ -104,9 +104,13 @@ async fn serve_provider(listener: TcpListener) -> Vec<Value> {
         requests.push(body);
         let chunks = if index == 0 {
             let arguments = serde_json::to_string(&json!({
+                "title": "ACE impact cut",
                 "highlightIds": ["ace-1"],
                 "leadSeconds": 2.0,
                 "tailSeconds": 2.5,
+                "pacing": "impact",
+                "storyRoles": ["climax"],
+                "transitionStyle": "flash",
                 "cameraIntents": ["player_pov"],
                 "cameraRationales": ["Replay spatial evidence is unavailable, so preserve the verified player view."]
             }))

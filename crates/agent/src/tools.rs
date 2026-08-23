@@ -397,7 +397,11 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
             "Draft a complete video task from selected project highlights. Each highlight stays bound to its owning Demo; requested handles are clamped to verified replay boundaries. The user reviews the effective shots and confirms before recording starts.",
             object_schema(
                 json!({
+                    "title": {"type":"string","minLength":1,"maxLength":200},
                     "highlightIds": string_array_schema(16),
+                    "pacing": {"type":"string","enum":["energetic","impact","cinematic"]},
+                    "storyRoles": {"type":"array","items":{"type":"string","enum":["hook","build","climax"]},"minItems":1,"maxItems":16},
+                    "transitionStyle": {"type":"string","enum":["cut","flash","fade","slide"]},
                     "leadSeconds": {"type":"number","minimum":0.5,"maximum":8,"default":2.5},
                     "tailSeconds": {"type":"number","minimum":0.5,"maximum":8,"default":2},
                     "cameraStyle": {"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"],"default":"pov"},
@@ -405,7 +409,15 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
                     "cameraIntents": {"type":"array","items":{"type":"string","enum":["player_pov","establish_location","follow_entry","reveal_duel","hold_crossfire","rise_after_climax","transition_through_space"]},"minItems":1,"maxItems":16},
                     "cameraRationales": {"type":"array","items":{"type":"string","minLength":1,"maxLength":128},"minItems":1,"maxItems":16}
                 }),
-                &["highlightIds", "cameraIntents", "cameraRationales"],
+                &[
+                    "title",
+                    "highlightIds",
+                    "pacing",
+                    "storyRoles",
+                    "transitionStyle",
+                    "cameraIntents",
+                    "cameraRationales",
+                ],
             ),
         ),
         (
@@ -1333,7 +1345,18 @@ fn draft_video_plan(
     input: &Value,
     external_cinematic: Option<&Value>,
 ) -> Result<(Value, Option<CapturedPlan>), String> {
+    let title = required_str(input, "title")?.trim();
+    if title.is_empty() || title.chars().count() > 200 {
+        return Err("video title must contain 1 to 200 characters".into());
+    }
     let ids = string_vec_required(input, "highlightIds", 16)?;
+    let pacing = enum_value(input, "pacing", &["energetic", "impact", "cinematic"])?;
+    let story_roles = optional_enum_vec(input, "storyRoles", 16, &["hook", "build", "climax"])?;
+    if story_roles.len() != ids.len() {
+        return Err("storyRoles must match highlightIds length".into());
+    }
+    let transition_style =
+        enum_value(input, "transitionStyle", &["cut", "flash", "fade", "slide"])?;
     let lead = bounded_f64(input, "leadSeconds", 2.5, 0.5, 8.0)?;
     let tail = bounded_f64(input, "tailSeconds", 2.0, 0.5, 8.0)?;
     let allowed_camera_styles = [
@@ -1437,22 +1460,76 @@ fn draft_video_plan(
             .enumerate()
             .map(|(index, item)| {
                 let item_camera_style = &resolved_camera_styles[index];
-                let action_handle = if safety_fallbacks[index].is_some() {
+                let mut action_handle = if safety_fallbacks[index].is_some() {
                     0.5
                 } else {
                     lead
                 };
-                let action_tail = if safety_fallbacks[index].is_some() {
+                let mut action_tail = if safety_fallbacks[index].is_some() {
                     0.5
                 } else {
                     tail
                 };
                 let tick_rate = number_value(item.get("tickRate")).unwrap_or(64.0);
-                let requested_start_tick = number_value(item.get("startTick")).unwrap_or_default();
-                let requested_end_tick = number_value(item.get("endTick")).unwrap_or_default();
-                let fidelity = scenes
+                let source_start_tick = number_value(item.get("startTick")).unwrap_or_default();
+                let source_end_tick = number_value(item.get("endTick")).unwrap_or_default();
+                let scene = scenes
                     .iter()
-                    .find(|scene| text(scene.get("highlightId")) == Some(ids[index].as_str()))
+                    .find(|scene| text(scene.get("highlightId")) == Some(ids[index].as_str()));
+                let engagement_ticks = scene
+                    .and_then(|scene| scene.get("mapSpace"))
+                    .and_then(|space| space.get("verifiedEngagements"))
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|engagement| number_value(engagement.get("tick")))
+                    .collect::<Vec<_>>();
+                let positioned_kill_ticks = scene
+                    .and_then(|scene| scene.get("positionedAction"))
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter(|event| text(event.get("kind")) == Some("kill"))
+                    .filter_map(|event| number_value(event.get("tick")))
+                    .collect::<Vec<_>>();
+                let action_ticks = if engagement_ticks.is_empty() {
+                    &positioned_kill_ticks
+                } else {
+                    &engagement_ticks
+                };
+                let requested_start_tick = action_ticks
+                    .iter()
+                    .copied()
+                    .reduce(f64::min)
+                    .map_or(source_start_tick, |tick| {
+                        (tick - tick_rate * 0.25).max(source_start_tick)
+                    });
+                let requested_end_tick = action_ticks
+                    .iter()
+                    .copied()
+                    .reduce(f64::max)
+                    .map_or(source_end_tick, |tick| {
+                        (tick + tick_rate * 0.25).min(source_end_tick)
+                    });
+                let action_count = array(item.get("victims"))
+                    .count()
+                    .max(action_ticks.len())
+                    .max(1);
+                let base_duration =
+                    ((requested_end_tick - requested_start_tick) / tick_rate).max(0.0);
+                let maximum_shot_seconds = match action_count {
+                    3.. => 8.0,
+                    2 => 7.0,
+                    _ => 4.5,
+                };
+                let handle_budget = (maximum_shot_seconds - base_duration).max(0.0);
+                let requested_handles = action_handle + action_tail;
+                if requested_handles > handle_budget && requested_handles > 0.0 {
+                    let scale = handle_budget / requested_handles;
+                    action_handle *= scale;
+                    action_tail *= scale;
+                }
+                let fidelity = scene
                     .and_then(|scene| scene.get("mapSpace"))
                     .and_then(|space| space.get("replayFidelity"));
                 let artifact_start = fidelity
@@ -1508,6 +1585,14 @@ fn draft_video_plan(
         ids.iter()
             .enumerate()
             .map(|(index, id)| {
+                let item = &items[index];
+                let item_start = number_value(item.get("start_tick")).unwrap_or_default();
+                let item_end = number_value(item.get("end_tick")).unwrap_or(item_start);
+                let item_rate = number_value(binding.selected[index].get("tickRate"))
+                    .unwrap_or(64.0);
+                let final_duration_seconds = (item_end - item_start).max(0.0) / item_rate
+                    + number_value(item.get("pre_roll_seconds")).unwrap_or_default()
+                    + number_value(item.get("post_roll_seconds")).unwrap_or_default();
                 json!({
                     "highlight_id": text(binding.selected[index].get("sourceHighlightId")).unwrap_or(id),
                     "evidence_id": id,
@@ -1516,6 +1601,7 @@ fn draft_video_plan(
                     "tick_rate": binding.selected[index].get("tickRate").or_else(||context.analysis.get("tick_rate")),
                     "camera_intent": resolved_camera_intents[index],
                     "camera_style": resolved_camera_styles[index],
+                    "story_role": story_roles[index],
                     "rationale": resolved_camera_rationales[index],
                     "spatial_evidence": scenes.iter().find(|scene| text(scene.get("highlightId")) == Some(id.as_str())),
                     "requires_user_review": true,
@@ -1529,6 +1615,16 @@ fn draft_video_plan(
                     },
                     "timing_clipped": items[index].get("pre_roll_seconds").and_then(Value::as_f64) != Some(lead)
                         || items[index].get("post_roll_seconds").and_then(Value::as_f64) != Some(tail),
+                    "action_count": array(binding.selected[index].get("victims")).count().max(1),
+                    "final_duration_seconds": final_duration_seconds,
+                    "video_presentation": {
+                        "pacing": pacing,
+                        "transition_style": transition_style,
+                        "intro_seconds": match pacing { "energetic" => 0.65, "impact" => 0.8, _ => 1.0 },
+                        "include_name_cards": true,
+                        "name_card_seconds": 1.1,
+                        "branding_theme": if pacing == "energetic" { "neon" } else { "broadcast" }
+                    }
                 })
             })
             .collect::<Vec<_>>()
@@ -1548,13 +1644,21 @@ fn draft_video_plan(
     let payload = json!({
         "items": items,
         "shot_designs": shot_designs,
-        "output": {"container":"mp4"},
+        "output": {"container":"mp4","title":title},
+        "presentation": {
+            "pacing": pacing,
+            "transition_style": transition_style,
+            "intro_seconds": match pacing { "energetic" => 0.65, "impact" => 0.8, _ => 1.0 },
+            "include_name_cards": true,
+            "name_card_seconds": 1.1,
+            "branding_theme": if pacing == "energetic" { "neon" } else { "broadcast" }
+        },
         "source_highlight_ids": if accepted { ids.clone() } else { Vec::new() },
         "requires_user_confirmation": true
     });
     let plan = accepted.then(|| CapturedPlan {
         kind: CapturedPlanKind::VideoRender,
-        title: "Highlight video generation".into(),
+        title: title.to_owned(),
         payload: payload.clone(),
     });
     Ok((
@@ -2295,7 +2399,11 @@ mod tests {
             "draft_video_plan",
             &context,
             &json!({
+                "title":"Ace to Clutch",
                 "highlightIds":["ace-1","clutch-2"],
+                "pacing":"impact",
+                "storyRoles":["hook","climax"],
+                "transitionStyle":"flash",
                 "leadSeconds":2.0,
                 "tailSeconds":2.5,
                 "cameraStyles":["crane","flyby"],
@@ -2315,10 +2423,10 @@ mod tests {
         assert_eq!(plan.payload["items"][0]["demo_id"], context.demo["id"]);
         assert_eq!(plan.payload["items"][0]["highlight_id"], "ace-1");
         assert_eq!(plan.payload["items"][0]["player_id"], "player-1");
-        assert_eq!(plan.payload["items"][0]["start_tick"], 640);
-        assert_eq!(plan.payload["items"][0]["end_tick"], 1280);
-        assert_eq!(plan.payload["items"][0]["pre_roll_seconds"], 0.5);
-        assert_eq!(plan.payload["items"][0]["post_roll_seconds"], 0.5);
+        assert_eq!(plan.payload["items"][0]["start_tick"], 684);
+        assert_eq!(plan.payload["items"][0]["end_tick"], 1116);
+        assert_eq!(plan.payload["items"][0]["pre_roll_seconds"], 0.125);
+        assert_eq!(plan.payload["items"][0]["post_roll_seconds"], 0.125);
         assert_eq!(plan.payload["items"][0]["victim_pov"], false);
         assert_eq!(plan.payload["items"][0]["camera_style"], "pov");
         assert_eq!(plan.payload["items"][1]["highlight_id"], "clutch-2");
@@ -2362,7 +2470,11 @@ mod tests {
             "draft_video_plan",
             &context,
             &json!({
+                "title":"Two-map sequence",
                 "highlightIds": ids,
+                "pacing":"energetic",
+                "storyRoles":["hook","climax"],
+                "transitionStyle":"flash",
                 "cameraIntents":["player_pov","player_pov"],
                 "cameraRationales":[
                     "Keep the verified player view on the first map.",
@@ -2408,7 +2520,11 @@ mod tests {
             "draft_video_plan",
             &context,
             &json!({
+                "title":"Verified cinematic ace",
                 "highlightIds":["ace-1"],
+                "pacing":"cinematic",
+                "storyRoles":["climax"],
+                "transitionStyle":"fade",
                 "cameraStyles":["crane"],
                 "cameraIntents":["establish_location"],
                 "cameraRationales":["Establish the verified space before the eliminations."]
@@ -2418,12 +2534,14 @@ mod tests {
         .expect("collision-verified cinematic plan");
 
         let plan = plan.expect("accepted cinematic proposal");
+        assert_eq!(plan.title, "Verified cinematic ace");
         assert_eq!(plan.payload["items"][0]["camera_style"], "crane");
         assert_eq!(
             plan.payload["shot_designs"][0]["camera_intent"],
             "establish_location"
         );
         assert!(plan.payload["shot_designs"][0]["safety_fallback"].is_null());
+        assert_eq!(plan.payload["presentation"]["transition_style"], "fade");
     }
 
     #[test]
@@ -2436,7 +2554,7 @@ mod tests {
             "positionedAction":[],
             "fidelity":{
                 "artifactStartTick":600,
-                "artifactEndTick":1248,
+                "artifactEndTick":1100,
                 "clampedToArtifactEnd":true
             }
         }]});
@@ -2445,7 +2563,11 @@ mod tests {
             "draft_video_plan",
             &context,
             &json!({
+                "title":"Boundary-safe ace",
                 "highlightIds":["ace-1"],
+                "pacing":"impact",
+                "storyRoles":["climax"],
+                "transitionStyle":"flash",
                 "leadSeconds":2.0,
                 "tailSeconds":2.0,
                 "cameraIntents":["player_pov"],
@@ -2456,15 +2578,55 @@ mod tests {
         .expect("boundary-clamped plan");
 
         let payload = plan.expect("accepted boundary plan").payload;
-        assert_eq!(payload["items"][0]["start_tick"], 640);
-        assert_eq!(payload["items"][0]["end_tick"], 1248);
-        assert_eq!(payload["items"][0]["pre_roll_seconds"], 0.625);
+        assert_eq!(payload["items"][0]["start_tick"], 684);
+        assert_eq!(payload["items"][0]["end_tick"], 1100);
+        assert_eq!(payload["items"][0]["pre_roll_seconds"], 0.125);
         assert_eq!(payload["items"][0]["post_roll_seconds"], 0.0);
         assert_eq!(payload["shot_designs"][0]["timing_clipped"], true);
         assert_eq!(
             payload["shot_designs"][0]["effective_timing"]["tail_seconds"],
             0.0
         );
+    }
+
+    #[test]
+    fn single_kill_plan_is_bounded_by_publishable_action_density() {
+        let mut context = context();
+        context.demo = json!({"id":"00000000-0000-4000-8000-0000000000d1"});
+        context.analysis["highlights"][0]["player_id"] = json!("player-1");
+        let cinematic = json!({"scenes":[{
+            "highlightId":"ace-1",
+            "positionedAction":[],
+            "verifiedEngagements":[{"tick":960}],
+            "fidelity":{"artifactStartTick":0,"artifactEndTick":2000}
+        }]});
+
+        let (_, plan) = execute_tool_with_cinematic(
+            "draft_video_plan",
+            &context,
+            &json!({
+                "title":"NiKo opening one-tap",
+                "highlightIds":["ace-1"],
+                "pacing":"energetic",
+                "storyRoles":["hook"],
+                "transitionStyle":"flash",
+                "leadSeconds":4.0,
+                "tailSeconds":4.0,
+                "cameraIntents":["player_pov"],
+                "cameraRationales":["Start on the verified player sightline and cut immediately after impact."]
+            }),
+            Some(&cinematic),
+        )
+        .expect("action-dense plan");
+
+        let payload = plan.expect("accepted action-dense plan").payload;
+        assert_eq!(payload["items"][0]["start_tick"], 944);
+        assert_eq!(payload["items"][0]["end_tick"], 976);
+        assert_eq!(payload["items"][0]["pre_roll_seconds"], 2.0);
+        assert_eq!(payload["items"][0]["post_roll_seconds"], 2.0);
+        assert_eq!(payload["shot_designs"][0]["final_duration_seconds"], 4.5);
+        assert_eq!(payload["shot_designs"][0]["story_role"], "hook");
+        assert_eq!(payload["presentation"]["branding_theme"], "neon");
     }
 
     #[test]

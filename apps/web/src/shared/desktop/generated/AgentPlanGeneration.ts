@@ -9,6 +9,11 @@ import type { AgentPlanShot } from "./AgentPlanShot";
 export type AgentPlanGeneration = {
   plan_id: string;
   expected_revision: number;
+  /**
+   * A publishable title chosen with the initial structured video proposal.
+   * Older/internal callers may preserve the placeholder by leaving it null.
+   */
+  title?: string | null;
   shots: Array<AgentPlanShot>;
   origin: AgentPlanOriginDraft;
 };

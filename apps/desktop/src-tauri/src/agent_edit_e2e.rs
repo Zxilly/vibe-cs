@@ -224,9 +224,13 @@ async fn openai_video_loop(
     };
     let chunks = if request_number == 1 {
         let arguments = json!({
+            "title": "ACE impact cut",
             "highlightIds": ["ace-1"],
             "leadSeconds": 2.0,
             "tailSeconds": 2.5,
+            "pacing": "impact",
+            "storyRoles": ["climax"],
+            "transitionStyle": "flash",
             "cameraIntents": ["player_pov"],
             "cameraRationales": ["Use the verified player view because collision geometry is unavailable."]
         })

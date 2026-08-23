@@ -1114,6 +1114,11 @@ pub struct AgentPlanEdit {
 pub struct AgentPlanGeneration {
     pub plan_id: Uuid,
     pub expected_revision: i64,
+    /// A publishable title chosen with the initial structured video proposal.
+    /// Older/internal callers may preserve the placeholder by leaving it null.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub title: Option<String>,
     pub shots: Vec<AgentPlanShot>,
     pub origin: AgentPlanOriginDraft,
 }
@@ -1126,6 +1131,10 @@ impl AgentPlanGeneration {
                 "expected_revision must be greater than zero".to_owned(),
             ));
         }
+        self.title = self
+            .title
+            .map(|title| required_text(&title, AGENT_SESSION_MAX_TITLE_CHARS, "plan title"))
+            .transpose()?;
         self.shots = normalize_shots(self.shots)?;
         if self.shots.is_empty() {
             return Err(DomainError::InvalidInput(

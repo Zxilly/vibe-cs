@@ -615,6 +615,37 @@ impl Storage {
         self.run(move |connection| read_plan(connection, id)).await
     }
 
+    /// Records the user's recording-stage confirmation without changing the
+    /// shot-list revision. The revision describes editable content; this status
+    /// transition describes the decision to execute that exact revision.
+    pub async fn confirm_agent_plan_for_recording(&self, id: Uuid) -> Result<Option<AgentPlan>> {
+        self.run(move |connection| {
+            let transaction =
+                connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            let Some(current) = read_plan(&transaction, id)? else {
+                return Ok(None);
+            };
+            if current.status == AgentPlanStatus::AwaitingConfirmation {
+                transaction.execute(
+                    "UPDATE agent_plans SET status = ?2, updated_at = ?3 WHERE id = ?1",
+                    params![
+                        id.to_string(),
+                        AgentPlanStatus::Confirmed.as_str(),
+                        Utc::now().to_rfc3339(),
+                    ],
+                )?;
+            } else if current.status != AgentPlanStatus::Confirmed {
+                return Err(StorageError::Domain(DomainError::Conflict(
+                    "only an awaiting-confirmation Agent plan can start recording".to_owned(),
+                )));
+            }
+            let plan = read_plan(&transaction, id)?;
+            transaction.commit()?;
+            Ok(plan)
+        })
+        .await
+    }
+
     /// Applies one manual plan edit.
     ///
     /// The write is conditional on `expected_revision` inside one immediate
@@ -715,17 +746,19 @@ impl Storage {
             }
             let revision = next_revision(generation.plan_id, current.revision)?;
             let now = Utc::now();
+            let title = generation.title.unwrap_or_else(|| current.title.clone());
             let baseline = AgentPlanBaseline {
                 revision,
                 captured_at: now,
                 shots: generation.shots.clone(),
             };
             let changed = transaction.execute(
-                "UPDATE agent_plans SET status = ?2, revision = ?3, baseline_revision = ?3, \
-                 updated_at = ?4, shots_json = ?5, agent_baseline_json = ?6 \
-                 WHERE id = ?1 AND revision = ?7",
+                "UPDATE agent_plans SET title = ?2, status = ?3, revision = ?4, baseline_revision = ?4, \
+                 updated_at = ?5, shots_json = ?6, agent_baseline_json = ?7 \
+                 WHERE id = ?1 AND revision = ?8",
                 params![
                     generation.plan_id.to_string(),
+                    title,
                     AgentPlanStatus::AwaitingConfirmation.as_str(),
                     revision,
                     now.to_rfc3339(),
@@ -768,7 +801,7 @@ impl Storage {
                     changes,
                     note: Some("Agent generated the initial shot list".to_owned()),
                 },
-                &current.title,
+                &title,
                 AgentPlanStatus::AwaitingConfirmation,
                 now,
             )?;
@@ -1580,6 +1613,7 @@ mod tests {
             .generate_initial_agent_plan(AgentPlanGeneration {
                 plan_id: plan.id,
                 expected_revision: plan.revision,
+                title: Some("NiKo Major impact cut".to_owned()),
                 shots: vec![generated_shot.clone()],
                 origin: origin(session.id, "Agent generated the first shot list"),
             })
@@ -1589,6 +1623,7 @@ mod tests {
             panic!("initial generation should update the placeholder")
         };
         assert_eq!(generated.status, AgentPlanStatus::AwaitingConfirmation);
+        assert_eq!(generated.title, "NiKo Major impact cut");
         assert_eq!(generated.revision, 2);
         assert_eq!(generated.shots, vec![generated_shot.clone()]);
         assert_eq!(generated.agent_baseline.revision, generated.revision);
@@ -1613,6 +1648,7 @@ mod tests {
                 .generate_initial_agent_plan(AgentPlanGeneration {
                     plan_id: plan.id,
                     expected_revision: 2,
+                    title: None,
                     shots: vec![shot("Replacement", 4.0, AgentPlanAuthor::Agent)],
                     origin: origin(session.id, "replace"),
                 })

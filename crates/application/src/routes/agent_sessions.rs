@@ -26,8 +26,8 @@ use vibe_cs_domain::{
     AgentProposalDecisionUpdate, AgentSession, AgentSessionEntry, AgentSessionEntryDraft,
     AgentSessionExport, AgentSessionPage, AgentSessionPurge, AgentSessionQuery,
     AgentSessionStorageStats, AgentTurnUpdate, AgentWorkspaceSettings, Composition,
-    CompositionItem, CompositionStatus, EditorProject, JobStatus, MontageClip, MontageProject,
-    MontageSettings, RecordingJob, Take,
+    CompositionItem, CompositionStatus, EditorProject, JobStatus, MontageBrandingTheme,
+    MontageClip, MontageProject, MontageSettings, RecordingJob, Take,
 };
 use vibe_cs_storage::ExportJobRecord;
 
@@ -603,6 +603,60 @@ async fn export_plan_composition(
     export_confirmed_composition(&state, id, request).await
 }
 
+fn agent_video_presentation(plan: &AgentPlan) -> Option<&serde_json::Map<String, Value>> {
+    plan.shots
+        .iter()
+        .find(|shot| shot.removed_by.is_none())?
+        .params
+        .get("video_presentation")?
+        .as_object()
+}
+
+fn agent_video_transition(plan: &AgentPlan) -> &str {
+    agent_video_presentation(plan)
+        .and_then(|value| value.get("transition_style"))
+        .and_then(Value::as_str)
+        .filter(|value| matches!(*value, "cut" | "flash" | "fade" | "slide"))
+        .unwrap_or("cut")
+}
+
+fn agent_montage_settings(plan: &AgentPlan) -> MontageSettings {
+    let Some(presentation) = agent_video_presentation(plan) else {
+        return MontageSettings::default();
+    };
+    let mut settings = MontageSettings::default();
+    settings.intro_title = Some(plan.title.clone());
+    settings.intro_duration_seconds = presentation
+        .get("intro_seconds")
+        .and_then(Value::as_f64)
+        .filter(|value| value.is_finite())
+        .unwrap_or(0.8)
+        .clamp(0.4, 2.0);
+    settings.include_name_cards = presentation
+        .get("include_name_cards")
+        .and_then(Value::as_bool)
+        .unwrap_or(true);
+    settings.name_card_duration_seconds = presentation
+        .get("name_card_seconds")
+        .and_then(Value::as_f64)
+        .filter(|value| value.is_finite())
+        .unwrap_or(1.1)
+        .clamp(0.5, 2.5);
+    settings.branding_theme = match presentation.get("branding_theme").and_then(Value::as_str) {
+        Some("neon") => MontageBrandingTheme::Neon,
+        Some("minimal") => MontageBrandingTheme::Minimal,
+        Some("vibe") => MontageBrandingTheme::Vibe,
+        _ => MontageBrandingTheme::Broadcast,
+    };
+    settings.transition_seconds = match agent_video_transition(plan) {
+        "flash" => 0.12,
+        "fade" => 0.20,
+        "slide" => 0.18,
+        _ => settings.transition_seconds,
+    };
+    settings
+}
+
 pub(super) async fn export_confirmed_composition(
     state: &AppState,
     id: Uuid,
@@ -677,13 +731,27 @@ pub(super) async fn export_confirmed_composition(
                 "A composition shot no longer exists",
             )
         })?;
+        let map_name = shot
+            .params
+            .get("map_name")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty());
+        let clip_title = map_name.map_or_else(
+            || shot.title.clone(),
+            |map| format!("{map} · {}", shot.title),
+        );
+        let transition = if item.order == 0 {
+            "cut"
+        } else {
+            agent_video_transition(&plan)
+        };
         clips.push(MontageClip {
             clip_id: recorded.id,
             order: item.order,
             trim_start: 0.0,
             trim_end: None,
-            transition: "cut".to_owned(),
-            title: Some(shot.title.clone()),
+            transition: transition.to_owned(),
+            title: Some(clip_title),
             avatar_asset_id: None,
         });
     }
@@ -692,7 +760,7 @@ pub(super) async fn export_confirmed_composition(
         id: composition.id,
         name: composition.title.clone(),
         clips,
-        settings: MontageSettings::default(),
+        settings: agent_montage_settings(&plan),
         created_at: composition.created_at,
         updated_at: now,
     };
@@ -2435,8 +2503,19 @@ mod tests {
         let storage = Storage::open_in_memory().await.expect("storage");
         let demo_id = Uuid::new_v4();
         persist_demo(&storage, demo_id).await;
-        let (router, _directory) = completing_recording_dispatcher(storage);
-        let plan_id = plan_with_shots(&router, vec![bound_shot("02 跟随突破", demo_id)]).await;
+        let (router, _directory) = completing_recording_dispatcher(storage.clone());
+        let mut packaged = bound_shot("02 跟随突破", demo_id);
+        packaged["params"] = json!({
+            "map_name": "de_mirage",
+            "video_presentation": {
+                "transition_style": "flash",
+                "intro_seconds": 0.8,
+                "include_name_cards": true,
+                "name_card_seconds": 1.1,
+                "branding_theme": "broadcast"
+            }
+        });
+        let plan_id = plan_with_shots(&router, vec![packaged]).await;
         let (_, plan) = call(
             &router,
             Method::GET,
@@ -2480,6 +2559,12 @@ mod tests {
         assert_eq!(status, 200, "unexpected body: {execution}");
         assert_eq!(execution["status"], "completed");
         let job_id = execution["job_id"].as_str().expect("recording job id");
+        let confirmed_plan = storage
+            .get_agent_plan(plan_id)
+            .await
+            .expect("confirmed plan read")
+            .expect("confirmed plan");
+        assert_eq!(confirmed_plan.status, AgentPlanStatus::Confirmed);
 
         let (status, takes) = call(
             &router,
@@ -2498,7 +2583,6 @@ mod tests {
                 .expect("stream URL")
                 .contains("recorded-clips")
         );
-
         let (status, composition) = call(
             &router,
             Method::GET,
@@ -2511,6 +2595,27 @@ mod tests {
         assert_eq!(composition["items"][0]["shot_id"], shot_id);
         assert_eq!(composition["items"][0]["take_id"], takes[0]["id"]);
         assert!(composition["export_job_id"].is_string());
+        let composition_id: Uuid =
+            serde_json::from_value(composition["id"].clone()).expect("composition id");
+        let montage = storage
+            .get_montage_project(composition_id)
+            .await
+            .expect("composition montage read")
+            .expect("composition montage");
+        assert_eq!(
+            montage.clips[0].title.as_deref(),
+            Some("de_mirage · 02 跟随突破")
+        );
+        assert_eq!(
+            montage.settings.intro_title.as_deref(),
+            Some("Kael Mirage 1v3")
+        );
+        assert_eq!(montage.settings.intro_duration_seconds, 0.8);
+        assert!(montage.settings.include_name_cards);
+        assert_eq!(
+            montage.settings.branding_theme,
+            MontageBrandingTheme::Broadcast
+        );
         assert!(
             composition["output_path"]
                 .as_str()

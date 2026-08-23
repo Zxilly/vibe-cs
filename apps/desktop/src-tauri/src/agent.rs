@@ -1554,6 +1554,7 @@ async fn materialize_initial_video_plan(
     let generation = AgentPlanGeneration {
         plan_id,
         expected_revision,
+        title: Some(video_proposals[0].title.clone()),
         shots,
         origin: AgentPlanOriginDraft {
             session_id,
@@ -1653,7 +1654,7 @@ fn shots_from_video_proposal(
                     .and_then(Value::as_bool)
                     .is_some_and(|value| value)
                     .then(|| {
-                        "Requested lead/tail was clipped to the verified replay boundary; the shown duration is the effective capture duration."
+                        "Requested lead/tail was shortened to the verified replay boundary or the publishable action-density limit; the shown duration is the effective final duration."
                             .to_owned()
                     })
                     .into_iter()
@@ -1662,10 +1663,15 @@ fn shots_from_video_proposal(
                 removed_by: None,
                 params: json!({
                     "camera_intent": camera_intent,
+                    "map_name": design.get("map_name"),
                     "spatial_evidence": spatial_evidence,
                     "requested_timing": design.get("requested_timing"),
                     "effective_timing": design.get("effective_timing"),
                     "timing_clipped": design.get("timing_clipped"),
+                    "story_role": design.get("story_role"),
+                    "action_count": design.get("action_count"),
+                    "final_duration_seconds": design.get("final_duration_seconds"),
+                    "video_presentation": design.get("video_presentation"),
                 }),
                 recording: Some(AgentShotRecording {
                     demo_id: request.demo_id,
@@ -2038,6 +2044,26 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
                     "agent video task must require explicit user confirmation",
                 ));
             }
+            let presentation = payload
+                .get("presentation")
+                .and_then(Value::as_object)
+                .ok_or_else(|| {
+                    AgentCommandError::internal(
+                        "agent video task must include a structured presentation plan",
+                    )
+                })?;
+            if !matches!(
+                presentation.get("transition_style").and_then(Value::as_str),
+                Some("cut" | "flash" | "fade" | "slide")
+            ) || presentation
+                .get("intro_seconds")
+                .and_then(Value::as_f64)
+                .is_none_or(|value| !value.is_finite() || !(0.4..=2.0).contains(&value))
+            {
+                return Err(AgentCommandError::internal(
+                    "agent video presentation is outside the publishable bounds",
+                ));
+            }
             if payload
                 .get("output")
                 .and_then(Value::as_object)
@@ -2100,6 +2126,11 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
                             .and_then(Value::as_str)
                             .or(Some("pov"))
                     || rationale.is_none_or(|value| value.trim().chars().count() < 8)
+                    || !matches!(
+                        design.get("story_role").and_then(Value::as_str),
+                        Some("hook" | "build" | "climax")
+                    )
+                    || design.get("video_presentation") != payload.get("presentation")
                     || design.get("requires_user_review").and_then(Value::as_bool) != Some(true)
                 {
                     return Err(AgentCommandError::internal(
@@ -2369,11 +2400,20 @@ mod tests {
                     "map_name": "de_mirage",
                     "camera_intent": "follow_entry",
                     "camera_style": "tracking",
+                    "story_role": "climax",
                     "rationale": "Follow the proven route and keep the engagement lane readable.",
                     "spatial_evidence": null,
-                    "requires_user_review": true
+                    "requires_user_review": true,
+                    "video_presentation": {
+                        "pacing":"impact","transition_style":"flash","intro_seconds":0.8,
+                        "include_name_cards":true,"name_card_seconds":1.1,"branding_theme":"broadcast"
+                    }
                 }],
-                "output": {"container": "mp4"},
+                "output": {"container": "mp4", "title":"NiKo highlight"},
+                "presentation": {
+                    "pacing":"impact","transition_style":"flash","intro_seconds":0.8,
+                    "include_name_cards":true,"name_card_seconds":1.1,"branding_theme":"broadcast"
+                },
                 "source_highlight_ids": ["round-21-niko"],
                 "requires_user_confirmation": true
             }),

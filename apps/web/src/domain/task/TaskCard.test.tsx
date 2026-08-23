@@ -167,6 +167,17 @@ describe('TaskCard · failure', () => {
   it('says 失败 in words as well as in colour', () => {
     expect(renderMarkup(<TaskCard task={FAILED} {...UTC} />)).toContain('失败');
   });
+
+  it('caps diagnostic prose only in the compact drawer summary', () => {
+    const compact = renderMarkup(<TaskCard task={FAILED} compact {...UTC} />);
+    const detail = renderMarkup(<TaskCard task={FAILED} {...UTC} />);
+
+    expect(compact).toContain('data-task-density="compact"');
+    expect(compact).toContain('line-clamp-2');
+    expect(compact).not.toContain('影响范围：仅这一次导出');
+    expect(detail).toContain('data-task-density="default"');
+    expect(detail).not.toContain('line-clamp-2');
+  });
 });
 
 describe('TaskCard · results', () => {

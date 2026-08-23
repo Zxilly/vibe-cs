@@ -235,6 +235,8 @@ describe('成品 › 后台任务', () => {
     };
     renderActivity(client);
 
+    expect((await screen.findByText('parser failed')).closest('[data-task-density]')?.getAttribute('data-task-density')).toBe('compact');
+    expect(document.querySelector('[data-activity-focused="true"]')).not.toBeNull();
     fireEvent.click(await screen.findByRole('button', { name: '重试' }));
     await waitFor(() => expect(started).toEqual(['demo-1']));
   });

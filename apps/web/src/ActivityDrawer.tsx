@@ -109,7 +109,7 @@ function ActivityList({ items, total, isLoading, error, onReload, bind, onSelect
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-4 overflow-x-hidden">
       {GROUPS.map((group) => {
         const grouped = items.filter(group.includes);
         if (grouped.length === 0) return null;
@@ -119,11 +119,24 @@ function ActivityList({ items, total, isLoading, error, onReload, bind, onSelect
               {group.label} · {grouped.length}
             </h3>
             <ul className="m-0 list-none p-0">
-              {grouped.map((item) => {
+              {grouped.map((item, index) => {
                 const bound = bind(item);
+                const focused = group.id === 'failed' && index === 0;
                 return (
-                  <li key={item.id} className="border-b border-divider p-3 last:border-b-0">
-                    <TaskCard task={bound.summary} showId={false} links={bound.links.filter((link) => link.id !== 'detail')} {...(bound.onCancel === undefined ? {} : { onCancel: bound.onCancel })} />
+                  <li
+                    key={item.id}
+                    data-activity-focused={focused ? 'true' : undefined}
+                    className={focused
+                      ? 'border-b border-divider bg-accent-100 p-3 shadow-[inset_2px_0_0_var(--color-fail)] last:border-b-0'
+                      : 'border-b border-divider p-3 last:border-b-0'}
+                  >
+                    <TaskCard
+                      task={bound.summary}
+                      compact
+                      showId={false}
+                      links={bound.links.filter((link) => link.id !== 'detail')}
+                      {...(bound.onCancel === undefined ? {} : { onCancel: bound.onCancel })}
+                    />
                     <div className="mt-2 flex justify-end">
                       <Button variant="ghost" size="sm" onClick={() => onSelect(item.id)}>
                         <Trans>查看详情</Trans>

@@ -88,6 +88,8 @@ export interface TaskCardProps {
   readonly headingLevel?: 3 | 4 | undefined;
   /** Dense summaries can omit the technical locator; detail views still carry it. */
   readonly showId?: boolean | undefined;
+  /** Drawer summaries cap diagnostic prose; the detail surface keeps it complete. */
+  readonly compact?: boolean | undefined;
   readonly className?: string | undefined;
 }
 
@@ -102,6 +104,7 @@ export function TaskCard({
   timeZone,
   headingLevel = 3,
   showId = true,
+  compact = false,
   className,
 }: TaskCardProps) {
   const Heading = HEADING_TAG[headingLevel];
@@ -129,6 +132,7 @@ export function TaskCard({
       data-task={task.id}
       data-task-kind={task.kind}
       data-task-status={task.status}
+      data-task-density={compact ? 'compact' : 'default'}
       className={cn('flex gap-3', className)}
     >
       <StatusDot status={TASK_STATUS_DOT[task.status]} size="lg" className="mt-1.5" />
@@ -163,9 +167,16 @@ export function TaskCard({
                 ? {}
                 : { disabled: task.failure.recovery.disabled }),
             }}
-            {...(task.failure.impact === undefined ? {} : { detail: task.failure.impact })}
+            {...(compact || task.failure.impact === undefined ? {} : { detail: task.failure.impact })}
+            className={cn(compact && 'min-w-0')}
           >
-            {task.failure.detail ?? taskFailureLabels()[task.failure.reason]}
+            {compact ? (
+              <span className="line-clamp-2 min-w-0 break-words [overflow-wrap:anywhere]">
+                {task.failure.detail ?? taskFailureLabels()[task.failure.reason]}
+              </span>
+            ) : (
+              task.failure.detail ?? taskFailureLabels()[task.failure.reason]
+            )}
           </Alert>
         ) : null}
 

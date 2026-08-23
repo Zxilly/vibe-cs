@@ -87,7 +87,7 @@ describe('library acquisition and layout views', () => {
     expect(await screen.findByText('比赛历史')).toBeTruthy();
     expect(document.querySelector('[data-steam-library]')).not.toBeNull();
     expect(screen.queryByRole('radiogroup', { name: '素材视图' })).toBeNull();
-    expect(screen.getByRole('link', { name: /Demo 资料库/u })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: /‹ Demo 资料库/u })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Steam 下载' })).toBeTruthy();
   });
 });

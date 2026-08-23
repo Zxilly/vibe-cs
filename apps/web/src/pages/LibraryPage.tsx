@@ -96,7 +96,6 @@ import {
 } from './library/libraryQuery';
 import { alsoDisabled, unavailableAction, useLibraryServiceAction } from './library/serviceAction';
 import { HistoryWorkspace } from './HistoryPage';
-import { RouteLink } from './RouteLink';
 
 /** One overlay at a time — five dialogs and one drawer. */
 type LibraryOverlay = 'import' | 'watch' | 'watch-add' | 'columns' | 'save-view' | 'delete' | null;
@@ -109,7 +108,6 @@ export function LibraryPage() {
       scroll={false}
       toolbar={
         <Toolbar
-          leading={<RouteLink to="/library"><Trans>‹ Demo 资料库</Trans></RouteLink>}
           title={<Trans>Steam 下载</Trans>}
           meta={<Trans>从 Steam 同步最近比赛并下载回放</Trans>}
         />

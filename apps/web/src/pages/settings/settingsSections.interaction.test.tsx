@@ -322,6 +322,30 @@ describe('高级与诊断', () => {
       }),
   };
 
+  it('localizes the known managed-capture safety boundary', async () => {
+    render(<AdvancedSection />, {
+      ...DIAGNOSTIC_STUBS,
+      getHlaeStatus: () => Promise.resolve({
+        available: true,
+        executable: 'D:\\hlae\\HLAE.exe',
+        automatic_launch_enabled: true,
+        messages: [
+          'Recording jobs launch a fresh managed HLAE and CS2 process for offline Demo playback with -insecure; proposal exports remain process-free',
+        ],
+      }),
+    });
+
+    expect(await screen.findByText(/录制作业会启动新的受管 HLAE/u)).toBeTruthy();
+    expect(document.body.textContent).not.toContain('proposal exports remain process-free');
+  });
+
+  it('uses title rails for diagnostic readouts', async () => {
+    render(<AdvancedSection />, DIAGNOSTIC_STUBS);
+    await loaded('运行时');
+
+    expect(document.querySelectorAll('[data-settings-layout="split"]')).toHaveLength(4);
+  });
+
   it('prepares a missing managed capture component and refreshes its status', async () => {
     let prepared = false;
     const prepareManagedHlae = vi.fn(() => {

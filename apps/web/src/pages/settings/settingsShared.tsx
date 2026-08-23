@@ -34,15 +34,41 @@ export interface SettingsBlockProps {
   readonly title: ReactNode;
   /** The paragraph under the heading — what this whole block decides. */
   readonly description?: ReactNode | undefined;
+  /** Diagnostic readouts use a stable title rail; editable forms stay stacked. */
+  readonly layout?: 'stacked' | 'split' | undefined;
   readonly children: ReactNode;
 }
 
-export function SettingsBlock({ id, title, description, children }: SettingsBlockProps) {
+export function SettingsBlock({ id, title, description, layout = 'stacked', children }: SettingsBlockProps) {
+  const identity = {
+    ...(id === undefined ? {} : { id: `setting-${id}`, 'data-setting-item': id }),
+    ...(id === undefined ? {} : { tabIndex: -1 }),
+  };
+
+  if (layout === 'split') {
+    return (
+      <section
+        data-settings-block=""
+        data-settings-layout="split"
+        {...identity}
+        className="mb-4 grid grid-cols-1 border border-divider bg-bg last:mb-0 lg:grid-cols-[15rem_minmax(0,1fr)]"
+      >
+        <div className="flex flex-col gap-1 border-b border-divider px-5 py-4 lg:border-r lg:border-b-0">
+          <h2 className="text-base font-medium">{title}</h2>
+          {description === undefined ? null : (
+            <p className="text-xs leading-normal text-neutral-600">{description}</p>
+          )}
+        </div>
+        <div className="flex min-w-0 flex-col gap-4 px-5 py-4">{children}</div>
+      </section>
+    );
+  }
+
   return (
     <section
       data-settings-block=""
-      {...(id === undefined ? {} : { id: `setting-${id}`, 'data-setting-item': id })}
-      {...(id === undefined ? {} : { tabIndex: -1 })}
+      data-settings-layout="stacked"
+      {...identity}
       className="mb-4 flex flex-col gap-4 border border-divider bg-bg px-5 py-4 last:mb-0"
     >
       <div className="flex flex-col gap-1">

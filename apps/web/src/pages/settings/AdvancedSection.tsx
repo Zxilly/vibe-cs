@@ -64,6 +64,7 @@ export function AdvancedSection() {
     <div className="flex flex-col">
       <SettingsBlock
         id="runtime"
+        layout="split"
         title={<Trans>运行时</Trans>}
         description={<Trans>本地服务当前的状态。</Trans>}
       >
@@ -109,6 +110,7 @@ export function AdvancedSection() {
 
       <SettingsBlock
         id="dependencies"
+        layout="split"
         title={<Trans>依赖检查</Trans>}
         description={<Trans>路径、进程与编码器的逐项检查。</Trans>}
       >
@@ -161,6 +163,7 @@ export function AdvancedSection() {
 
       <SettingsBlock
         id="capture"
+        layout="split"
         title={<Trans>采集组件</Trans>}
         description={<Trans>受管 HLAE 的安装状态与安全边界。</Trans>}
       >
@@ -196,7 +199,7 @@ export function AdvancedSection() {
               <ul className="flex flex-col gap-1">
                 {hlae.data.messages.map((message) => (
                   <li key={message} className="text-xs leading-normal text-neutral-600">
-                    {message}
+                    <HlaeMessage message={message} />
                   </li>
                 ))}
               </ul>
@@ -235,6 +238,7 @@ export function AdvancedSection() {
 
       <SettingsBlock
         id="diagnostics"
+        layout="split"
         title={<Trans>日志与诊断包</Trans>}
         description={<Trans>普通使用不需要打开这一节。</Trans>}
       >
@@ -294,6 +298,19 @@ export function AdvancedSection() {
         )}
       </SettingsBlock>
     </div>
+  );
+}
+
+const MANAGED_HLAE_BOUNDARY_MESSAGE =
+  'Recording jobs launch a fresh managed HLAE and CS2 process for offline Demo playback with -insecure; proposal exports remain process-free';
+
+/** Known service guidance is product copy; unknown diagnostics stay verbatim. */
+function HlaeMessage({ message }: { readonly message: string }) {
+  if (message !== MANAGED_HLAE_BOUNDARY_MESSAGE) return <>{message}</>;
+  return (
+    <Trans>
+      录制作业会启动新的受管 HLAE 与 CS2 进程，以 -insecure 模式离线回放 Demo；方案导出不会启动游戏进程。
+    </Trans>
   );
 }
 

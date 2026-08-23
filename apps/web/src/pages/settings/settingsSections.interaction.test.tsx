@@ -131,6 +131,14 @@ describe('应用', () => {
     expect(document.body.textContent).toContain('下次启动应用时生效');
   });
 
+  it('groups the current controls into two bounded settings panels', async () => {
+    render(<AppSection />);
+    await loaded('语言');
+
+    expect(document.querySelectorAll('[data-settings-block]')).toHaveLength(2);
+    expect(document.querySelectorAll('[data-settings-row]')).toHaveLength(3);
+  });
+
   it('refuses a non-HTTPS update source at the field, not at the service', async () => {
     const { written } = render(<AppSection />);
     await loaded('更新源');

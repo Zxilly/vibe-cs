@@ -130,8 +130,10 @@ export function SettingsPage() {
     >
       <div className="flex min-h-0 min-w-0 flex-1">
         {collapsed ? null : sectionNav}
-        <div ref={contentRef} data-settings-content className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-          <Body />
+        <div ref={contentRef} data-settings-content className="min-h-0 min-w-0 flex-1 overflow-y-auto p-5">
+          <div className="w-full max-w-[72rem]">
+            <Body />
+          </div>
         </div>
       </div>
     </Page>

@@ -40,9 +40,10 @@ export interface SettingsBlockProps {
 export function SettingsBlock({ id, title, description, children }: SettingsBlockProps) {
   return (
     <section
+      data-settings-block=""
       {...(id === undefined ? {} : { id: `setting-${id}`, 'data-setting-item': id })}
       {...(id === undefined ? {} : { tabIndex: -1 })}
-      className="flex flex-col gap-4 border-b border-divider px-5 py-5 last:border-b-0"
+      className="mb-4 flex flex-col gap-4 border border-divider bg-bg px-5 py-4 last:mb-0"
     >
       <div className="flex flex-col gap-1">
         <h2 className="text-base font-medium">{title}</h2>
@@ -71,16 +72,18 @@ export interface SettingsRowProps {
 
 export function SettingsRow({ label, hint, children, disabledReason }: SettingsRowProps) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div data-settings-row="" className="flex flex-wrap items-start gap-x-8 gap-y-3">
+      <div className="min-w-56 flex-1">
         <p className="text-base">{label}</p>
-        {children}
+        <p className="mt-1 text-xs leading-normal text-neutral-600">{hint}</p>
+        {disabledReason === undefined ? null : (
+          <p className="mt-1 text-xs leading-normal text-warn" data-disabled-reason="">
+            {disabledReason}
+          </p>
+        )}
       </div>
-      <p className="text-xs leading-normal text-neutral-600">{hint}</p>
-      {disabledReason === undefined ? null : (
-        <p className="text-xs leading-normal text-warn" data-disabled-reason="">
-          {disabledReason}
-        </p>
+      {children === undefined ? null : (
+        <div className="flex min-w-72 flex-[2] justify-end">{children}</div>
       )}
     </div>
   );

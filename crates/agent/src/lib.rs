@@ -26,7 +26,6 @@ pub use tools::{CapturedPlan, CapturedPlanKind, CapturedToolCall};
 const MAXIMUM_CONTEXT_BYTES: usize = 2 * 1024 * 1024;
 const MAXIMUM_RESPONSE_CHARS: usize = 64_000;
 const MAXIMUM_AGENT_TURNS: usize = 12;
-const MAXIMUM_COMPLETION_TOKENS: u64 = 8_000;
 
 #[derive(Debug, Clone, Default)]
 pub struct Cancellation {
@@ -228,7 +227,6 @@ where
         .name("Vibe CS Copilot")
         .description("Evidence-grounded CS2 demo coach and end-to-end video collaborator")
         .preamble(&preamble)
-        .max_tokens(MAXIMUM_COMPLETION_TOKENS)
         .dynamic_tools(dynamic_tools);
     if request.config.provider.eq_ignore_ascii_case("openrouter") {
         // OpenRouter reasoning models can default to spending nearly the whole
@@ -630,7 +628,7 @@ mod tests {
         .expect("agent response");
         let requests = provider.await.expect("provider task");
         assert_eq!(requests.len(), 4);
-        assert_eq!(requests[0]["max_tokens"], MAXIMUM_COMPLETION_TOKENS);
+        assert!(requests[0].get("max_tokens").is_none());
         assert_eq!(requests[0]["reasoning"]["effort"], "low");
         assert!(
             requests[3]["messages"]

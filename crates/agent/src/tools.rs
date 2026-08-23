@@ -13,6 +13,8 @@ use uuid::Uuid;
 
 use crate::{AgentContext, AgentMode, AgentToolHost, HitlRequest};
 
+const MAXIMUM_CAPTURED_TOOL_OUTPUT_BYTES: usize = 32 * 1024;
+
 /// One tool invocation the model made during a turn, with its arguments and
 /// result verbatim.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
@@ -167,7 +169,7 @@ impl ToolState {
         captures.tool_calls.push(CapturedToolCall {
             name: name.to_owned(),
             input,
-            output: output.clone(),
+            output: bounded_captured_output(&output),
         });
         if let Some(plan) = plan {
             captures.plans.push(plan);
@@ -237,7 +239,7 @@ impl ToolState {
         captures.tool_calls.push(CapturedToolCall {
             name: name.to_owned(),
             input,
-            output: output.clone(),
+            output: bounded_captured_output(&output),
         });
         Ok(output)
     }
@@ -375,6 +377,7 @@ enum ToolKind {
     ReadHighlights,
     ReadCinematicContext,
     ReadEditorTimeline,
+    ReadAgentPlan,
     DraftEditPlan,
     DraftAgentPlanChanges,
     DraftVideoPlan,
@@ -554,6 +557,16 @@ fn tool_catalog() -> Vec<ToolDefinition> {
             ),
         ),
         definition(
+            ToolKind::ReadAgentPlan,
+            "read_agent_plan",
+            EDIT_MODE,
+            "Read one explicit Agent Plan revision and its bounded Shot list.",
+            object_schema(
+                json!({"planId":object_id_schema(),"expectedRevision":{"type":"integer","minimum":1}}),
+                &["planId", "expectedRevision"],
+            ),
+        ),
+        definition(
             ToolKind::DraftEditPlan,
             "draft_edit_plan",
             EDIT_MODE,
@@ -722,6 +735,37 @@ fn object_id_schema() -> Value {
     json!({"type":"string","minLength":1,"maxLength":200})
 }
 
+fn bounded_captured_output(output: &Value) -> Value {
+    let serialized_bytes = serde_json::to_vec(output).map_or(usize::MAX, |bytes| bytes.len());
+    if serialized_bytes <= MAXIMUM_CAPTURED_TOOL_OUTPUT_BYTES {
+        return output.clone();
+    }
+    let mut summary = Map::new();
+    if let Some(object) = output.as_object() {
+        for key in [
+            "available",
+            "accepted",
+            "status",
+            "approved",
+            "automatic",
+            "confirmation",
+            "proposalId",
+            "proposalKind",
+            "cinematicEvidenceId",
+            "title",
+            "summary",
+            "risks",
+        ] {
+            if let Some(value) = object.get(key) {
+                summary.insert(key.to_owned(), value.clone());
+            }
+        }
+    }
+    summary.insert("captureTruncated".to_owned(), Value::Bool(true));
+    summary.insert("originalBytes".to_owned(), json!(serialized_bytes));
+    Value::Object(summary)
+}
+
 fn event_array_schema() -> Value {
     json!({"type":"array","items":{"type":"string","enum":["round_start","round_end","kill","damage","bomb_plant","bomb_defuse","bomb_explode","grenade","purchase"]},"maxItems":9,"default":[]})
 }
@@ -761,6 +805,7 @@ fn execute_tool_with_cinematic(
             None,
         )),
         ToolKind::ReadEditorTimeline => Ok((read_editor_timeline(context, input)?, None)),
+        ToolKind::ReadAgentPlan => Ok((read_agent_plan(context, input)?, None)),
         ToolKind::DraftEditPlan => draft_edit_plan(context, input),
         ToolKind::DraftAgentPlanChanges => draft_agent_plan_changes(context, input),
         ToolKind::DraftVideoPlan => draft_video_plan(context, input, external_cinematic),
@@ -779,7 +824,21 @@ fn read_workspace_context(context: &AgentContext, input: &Value) -> Result<Value
     if !ensure_object(input)?.is_empty() {
         return Err("read_workspace_context accepts no fields".into());
     }
-    Ok(context.workspace.clone())
+    let mut workspace = context
+        .workspace
+        .as_object()
+        .cloned()
+        .ok_or_else(|| "workspace context is unavailable".to_owned())?;
+    let plan_available = workspace.get("plan").is_some_and(Value::is_object);
+    let series_demo_count = workspace
+        .get("series")
+        .and_then(Value::as_array)
+        .map_or(0, Vec::len);
+    workspace.remove("plan");
+    workspace.remove("series");
+    workspace.insert("planAvailable".to_owned(), json!(plan_available));
+    workspace.insert("seriesDemoCount".to_owned(), json!(series_demo_count));
+    Ok(Value::Object(workspace))
 }
 
 fn navigate_workspace(context: &AgentContext, input: &Value) -> Result<Value, String> {
@@ -1394,6 +1453,14 @@ fn read_editor_timeline(context: &AgentContext, input: &Value) -> Result<Value, 
     let mut summary = project.clone();
     summary.remove("tracks");
     Ok(json!({"available":true,"project":summary}))
+}
+
+fn read_agent_plan(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    require_selected_agent_plan(context, input)?;
+    Ok(json!({
+        "available":true,
+        "plan":context.workspace.get("plan")
+    }))
 }
 
 fn draft_edit_plan(
@@ -2428,6 +2495,7 @@ mod tests {
         let editing = names(AgentMode::Edit);
         assert!(editing.contains(&"draft_edit_plan"));
         assert!(editing.contains(&"draft_agent_plan_changes"));
+        assert!(editing.contains(&"read_agent_plan"));
         assert!(editing.contains(&"confirm_edit_plan"));
         assert!(editing.contains(&"confirm_beat_alignment"));
         assert!(!editing.contains(&"confirm_video_plan"));
@@ -2445,7 +2513,7 @@ mod tests {
         let kinds = catalog.iter().map(|tool| tool.kind).collect::<HashSet<_>>();
         assert_eq!(names.len(), catalog.len());
         assert_eq!(kinds.len(), catalog.len());
-        assert_eq!(catalog.len(), 19);
+        assert_eq!(catalog.len(), 20);
         assert!(catalog.iter().all(|tool| !tool.modes.is_empty()));
     }
 
@@ -2613,12 +2681,18 @@ mod tests {
         let mut value = context();
         value.workspace = json!({
             "workflow":"review","destination":"replay","demoId":"demo-1",
-            "projectId":null,"playerId":"76561198000000001","roundNumber":7,"tick":640
+            "projectId":null,"playerId":"76561198000000001","roundNumber":7,"tick":640,
+            "plan":{"id":"plan-1","shots":[{"id":"shot-1"}]},
+            "series":[{"demoId":"demo-1","analysis":{"large":"x".repeat(100_000)}}]
         });
         let (output, plan) =
             execute_tool("read_workspace_context", &value, &json!({})).expect("workspace context");
         assert_eq!(output["destination"], "replay");
         assert_eq!(output["tick"], 640);
+        assert!(output.get("plan").is_none());
+        assert!(output.get("series").is_none());
+        assert_eq!(output["planAvailable"], true);
+        assert_eq!(output["seriesDemoCount"], 1);
         assert!(plan.is_none());
         assert!(
             execute_tool(
@@ -2628,6 +2702,17 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn captured_tool_output_keeps_references_but_not_megabyte_evidence() {
+        let proposal_id = Uuid::new_v4();
+        let captured = bounded_captured_output(&json!({
+            "available":true,"proposalId":proposal_id,"evidence":"x".repeat(100_000)
+        }));
+        assert_eq!(captured["proposalId"], proposal_id.to_string());
+        assert_eq!(captured["captureTruncated"], true);
+        assert!(serde_json::to_vec(&captured).unwrap().len() < MAXIMUM_CAPTURED_TOOL_OUTPUT_BYTES);
     }
 
     #[test]

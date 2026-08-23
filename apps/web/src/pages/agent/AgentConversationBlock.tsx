@@ -730,6 +730,7 @@ function agentActivityLabel(name: string): string {
     case 'read_highlights': return t`筛选高光`;
     case 'read_cinematic_context': return t`理解镜头与空间`;
     case 'read_editor_timeline': return t`读取编辑时间线`;
+    case 'read_agent_plan': return t`读取 Agent 剪辑单`;
     case 'read_audio_evidence': return t`分析音频节奏`;
     case 'draft_video_plan': return t`生成视频方案`;
     case 'draft_edit_plan': return t`生成剪辑方案`;

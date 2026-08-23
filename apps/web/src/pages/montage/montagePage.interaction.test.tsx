@@ -71,6 +71,15 @@ const ANALYSIS: AudioAnalysis = {
   onsets: [],
   energy: [],
   sections: [],
+  spectral_map: { floor_db: -80, bands: [], points: [] },
+  rhythm_diagnostics: {
+    onset_rate_per_second: 0,
+    strong_onset_rate_per_second: 0,
+    dynamic_range_db: 0,
+    silence_ratio: 0,
+    silence_regions: [],
+    recommended_cut_points: [],
+  },
   limitations: [],
 };
 

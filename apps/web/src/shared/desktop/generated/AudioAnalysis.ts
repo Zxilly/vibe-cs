@@ -2,7 +2,9 @@
 import type { AudioBeat } from "./AudioBeat";
 import type { AudioEnergyPoint } from "./AudioEnergyPoint";
 import type { AudioOnset } from "./AudioOnset";
+import type { AudioRhythmDiagnostics } from "./AudioRhythmDiagnostics";
 import type { AudioSection } from "./AudioSection";
+import type { AudioSpectralMap } from "./AudioSpectralMap";
 
 export type AudioAnalysis = {
   duration_seconds: number;
@@ -13,6 +15,8 @@ export type AudioAnalysis = {
   onsets: Array<AudioOnset>;
   energy: Array<AudioEnergyPoint>;
   sections: Array<AudioSection>;
+  spectral_map: AudioSpectralMap;
+  rhythm_diagnostics: AudioRhythmDiagnostics;
   /**
    * Human-readable caveats intended to be exposed to an AI tool and users.
    */

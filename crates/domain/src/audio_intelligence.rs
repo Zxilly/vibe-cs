@@ -66,6 +66,68 @@ pub struct AudioSection {
     pub confidence: f32,
 }
 
+/// One fixed frequency interval used by the bounded, log-power spectral map.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct AudioSpectralBand {
+    pub label: String,
+    pub lower_hz: f32,
+    pub upper_hz: f32,
+}
+
+/// A compact time slice of spectral evidence. `band_levels_db` follows the
+/// order of [`AudioSpectralMap::bands`] and is relative to the loudest band in
+/// the analyzed track.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct AudioSpectralPoint {
+    pub time_seconds: f64,
+    pub band_levels_db: Vec<f32>,
+    pub spectral_centroid_hz: f32,
+    pub spectral_rolloff_hz: f32,
+    pub spectral_flux: f32,
+}
+
+/// A token-bounded numerical spectrogram for tools and product visualizations.
+/// This is evidence, not a semantic music classification.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct AudioSpectralMap {
+    pub floor_db: f32,
+    pub bands: Vec<AudioSpectralBand>,
+    pub points: Vec<AudioSpectralPoint>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct AudioTimeRange {
+    pub start_seconds: f64,
+    pub end_seconds: f64,
+}
+
+/// A ranked musical boundary that is safe for the Agent to consider. The
+/// editor still decides whether a visual cut belongs there.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct AudioCutPoint {
+    pub time_seconds: f64,
+    /// `section_boundary`, `strong_onset`, or `phrase_boundary`.
+    pub kind: String,
+    pub strength: f32,
+}
+
+/// Bounded, editing-oriented diagnostics derived from real decoded samples.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
+#[ts(export)]
+pub struct AudioRhythmDiagnostics {
+    pub onset_rate_per_second: f32,
+    pub strong_onset_rate_per_second: f32,
+    pub dynamic_range_db: f32,
+    pub silence_ratio: f32,
+    pub silence_regions: Vec<AudioTimeRange>,
+    pub recommended_cut_points: Vec<AudioCutPoint>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[ts(export)]
 pub struct AudioAnalysis {
@@ -77,6 +139,8 @@ pub struct AudioAnalysis {
     pub onsets: Vec<AudioOnset>,
     pub energy: Vec<AudioEnergyPoint>,
     pub sections: Vec<AudioSection>,
+    pub spectral_map: AudioSpectralMap,
+    pub rhythm_diagnostics: AudioRhythmDiagnostics,
     /// Human-readable caveats intended to be exposed to an AI tool and users.
     pub limitations: Vec<String>,
 }

@@ -4129,6 +4129,19 @@ mod tests {
                 onsets: Vec::new(),
                 energy: Vec::new(),
                 sections: Vec::new(),
+                spectral_map: vibe_cs_domain::AudioSpectralMap {
+                    floor_db: -80.0,
+                    bands: Vec::new(),
+                    points: Vec::new(),
+                },
+                rhythm_diagnostics: vibe_cs_domain::AudioRhythmDiagnostics {
+                    onset_rate_per_second: 0.0,
+                    strong_onset_rate_per_second: 0.0,
+                    dynamic_range_db: 0.0,
+                    silence_ratio: 0.0,
+                    silence_regions: Vec::new(),
+                    recommended_cut_points: Vec::new(),
+                },
                 limitations: vec!["test limitation".to_owned()],
             })
         }

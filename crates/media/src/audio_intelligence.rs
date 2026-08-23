@@ -9,8 +9,9 @@ use std::{cmp::Ordering, collections::HashSet, f32::consts::PI, path::Path};
 use ffmpeg_next as ffmpeg;
 use rustfft::{FftPlanner, num_complex::Complex32};
 use vibe_cs_domain::{
-    AudioAnalysis, AudioAnalysisOptions, AudioBeat, AudioEnergyPoint, AudioOnset, AudioSection,
-    BeatAlignedClip, BeatAlignmentDraft, BeatAlignmentRequest,
+    AudioAnalysis, AudioAnalysisOptions, AudioBeat, AudioCutPoint, AudioEnergyPoint, AudioOnset,
+    AudioRhythmDiagnostics, AudioSection, AudioSpectralBand, AudioSpectralMap, AudioSpectralPoint,
+    AudioTimeRange, BeatAlignedClip, BeatAlignmentDraft, BeatAlignmentRequest,
 };
 
 use crate::{MediaError, MediaResult, ProcessCancellation};
@@ -23,6 +24,11 @@ const MAXIMUM_ANALYSIS_SAMPLES: usize = 24_000_000;
 const MAXIMUM_ALIGNMENT_BEATS: usize = 8_192;
 const MAXIMUM_ALIGNMENT_CLIPS: usize = 1_024;
 const MAXIMUM_TIMELINE_SECONDS: f64 = 24.0 * 60.0 * 60.0;
+const SPECTRAL_MAP_POINTS: usize = 64;
+const SPECTRAL_BAND_CAPACITY: usize = 6;
+const SPECTRAL_FLOOR_DB: f32 = -80.0;
+const MAXIMUM_CUT_POINTS: usize = 64;
+const MAXIMUM_SILENCE_REGIONS: usize = 32;
 
 /// Decodes an audio stream through linked libav libraries and performs bounded,
 /// deterministic rhythm and energy analysis locally.
@@ -459,10 +465,15 @@ fn analyze_samples(
     let mut flux = Vec::with_capacity(frame_count);
     let mut frame_rms = Vec::with_capacity(frame_count);
     let mut frame_peaks = Vec::with_capacity(frame_count);
+    let spectral_bands = spectral_bands(sample_rate);
+    let mut frame_band_powers = Vec::with_capacity(frame_count);
+    let mut frame_centroids = Vec::with_capacity(frame_count);
+    let mut frame_rolloffs = Vec::with_capacity(frame_count);
     let hann = (0..FRAME_SIZE)
         .map(|index| 0.5 - 0.5 * (2.0 * PI * index as f32 / (FRAME_SIZE - 1) as f32).cos())
         .collect::<Vec<_>>();
     let mut spectrum = vec![Complex32::new(0.0, 0.0); FRAME_SIZE];
+    let mut powers = vec![0.0_f32; FRAME_SIZE / 2 + 1];
 
     for start in (0..=samples.len() - FRAME_SIZE).step_by(HOP_SIZE) {
         if flux.len().is_multiple_of(128) && cancellation.is_cancelled() {
@@ -482,10 +493,16 @@ fn analyze_samples(
             let magnitude = value.norm().ln_1p();
             frame_flux += (magnitude - previous[bin]).max(0.0);
             previous[bin] = magnitude;
+            powers[bin] = value.norm_sqr();
         }
+        let (band_powers, centroid, rolloff) =
+            spectral_frame_features(&powers, sample_rate, &spectral_bands);
         flux.push(frame_flux);
         frame_rms.push((square_sum / FRAME_SIZE as f64).sqrt() as f32);
         frame_peaks.push(peak.clamp(0.0, 1.0));
+        frame_band_powers.push(band_powers);
+        frame_centroids.push(centroid);
+        frame_rolloffs.push(rolloff);
     }
 
     normalize(&mut flux);
@@ -524,6 +541,16 @@ fn analyze_samples(
     }
     let energy = build_energy_curve(&frame_rms, &frame_peaks, sample_rate, options.energy_points);
     let sections = build_sections(&energy, duration_seconds, options.maximum_sections);
+    let spectral_map = build_spectral_map(
+        spectral_bands,
+        &frame_band_powers,
+        &frame_centroids,
+        &frame_rolloffs,
+        &flux,
+        sample_rate,
+    );
+    let rhythm_diagnostics =
+        build_rhythm_diagnostics(&onsets, &beats, &sections, &energy, duration_seconds);
     Ok(AudioAnalysis {
         duration_seconds,
         analysis_sample_rate: sample_rate,
@@ -533,8 +560,131 @@ fn analyze_samples(
         onsets,
         energy,
         sections,
+        spectral_map,
+        rhythm_diagnostics,
         limitations,
     })
+}
+
+fn spectral_bands(sample_rate: u32) -> Vec<AudioSpectralBand> {
+    let nyquist = sample_rate as f32 * 0.5;
+    [
+        ("sub_bass", 20.0_f32, 60.0_f32),
+        ("bass", 60.0, 250.0),
+        ("low_mid", 250.0, 500.0),
+        ("mid", 500.0, 2_000.0),
+        ("presence", 2_000.0, 4_000.0),
+        ("brilliance", 4_000.0, 8_000.0),
+    ]
+    .into_iter()
+    .filter_map(|(label, lower_hz, upper_hz)| {
+        let upper_hz = upper_hz.min(nyquist);
+        (lower_hz < upper_hz).then(|| AudioSpectralBand {
+            label: label.to_owned(),
+            lower_hz,
+            upper_hz,
+        })
+    })
+    .collect()
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn spectral_frame_features(
+    powers: &[f32],
+    sample_rate: u32,
+    bands: &[AudioSpectralBand],
+) -> ([f32; SPECTRAL_BAND_CAPACITY], f32, f32) {
+    let bin_hz = sample_rate as f32 / FRAME_SIZE as f32;
+    let total = powers.iter().copied().sum::<f32>();
+    if total <= f32::EPSILON {
+        return ([0.0; SPECTRAL_BAND_CAPACITY], 0.0, 0.0);
+    }
+    let centroid = powers
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(bin, power)| bin as f32 * bin_hz * power)
+        .sum::<f32>()
+        / total;
+    let rolloff_target = total * 0.85;
+    let mut cumulative = 0.0_f32;
+    let mut rolloff = 0.0_f32;
+    for (bin, power) in powers.iter().copied().enumerate() {
+        cumulative += power;
+        if cumulative >= rolloff_target {
+            rolloff = bin as f32 * bin_hz;
+            break;
+        }
+    }
+    let mut band_powers = [0.0_f32; SPECTRAL_BAND_CAPACITY];
+    for (bin, power) in powers.iter().copied().enumerate() {
+        let frequency = bin as f32 * bin_hz;
+        if let Some((index, _)) = bands.iter().enumerate().find(|(index, band)| {
+            frequency >= band.lower_hz
+                && (frequency < band.upper_hz
+                    || (*index + 1 == bands.len() && frequency <= band.upper_hz))
+        }) {
+            band_powers[index] += power;
+        }
+    }
+    (band_powers, centroid, rolloff)
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn build_spectral_map(
+    bands: Vec<AudioSpectralBand>,
+    frame_band_powers: &[[f32; SPECTRAL_BAND_CAPACITY]],
+    frame_centroids: &[f32],
+    frame_rolloffs: &[f32],
+    flux: &[f32],
+    sample_rate: u32,
+) -> AudioSpectralMap {
+    let count = frame_band_powers.len().min(SPECTRAL_MAP_POINTS);
+    if count == 0 || bands.is_empty() {
+        return AudioSpectralMap {
+            floor_db: SPECTRAL_FLOOR_DB,
+            bands,
+            points: Vec::new(),
+        };
+    }
+    let maximum_power = frame_band_powers
+        .iter()
+        .flat_map(|powers| powers.iter().copied())
+        .fold(0.0_f32, f32::max);
+    let points = (0..count)
+        .map(|bucket| {
+            let start = bucket * frame_band_powers.len() / count;
+            let end = ((bucket + 1) * frame_band_powers.len() / count).max(start + 1);
+            let frames = (end - start) as f32;
+            let band_levels_db = (0..bands.len())
+                .map(|band| {
+                    let mean = frame_band_powers[start..end]
+                        .iter()
+                        .map(|powers| powers[band])
+                        .sum::<f32>()
+                        / frames;
+                    if maximum_power <= f32::EPSILON || mean <= f32::EPSILON {
+                        SPECTRAL_FLOOR_DB
+                    } else {
+                        (10.0 * (mean / maximum_power).log10()).clamp(SPECTRAL_FLOOR_DB, 0.0)
+                    }
+                })
+                .collect();
+            let mean = |values: &[f32]| values[start..end].iter().sum::<f32>() / frames;
+            AudioSpectralPoint {
+                time_seconds: (start + end) as f64 * 0.5 * HOP_SIZE as f64 / f64::from(sample_rate),
+                band_levels_db,
+                spectral_centroid_hz: mean(frame_centroids),
+                spectral_rolloff_hz: mean(frame_rolloffs),
+                spectral_flux: mean(flux).clamp(0.0, 1.0),
+            }
+        })
+        .collect();
+    AudioSpectralMap {
+        floor_db: SPECTRAL_FLOOR_DB,
+        bands,
+        points,
+    }
 }
 
 fn normalize(values: &mut [f32]) {
@@ -881,6 +1031,140 @@ fn build_sections(
         .collect()
 }
 
+#[allow(clippy::cast_precision_loss)]
+fn build_rhythm_diagnostics(
+    onsets: &[AudioOnset],
+    beats: &[AudioBeat],
+    sections: &[AudioSection],
+    energy: &[AudioEnergyPoint],
+    duration_seconds: f64,
+) -> AudioRhythmDiagnostics {
+    let duration = duration_seconds.max(f64::EPSILON) as f32;
+    let strong_onsets = onsets.iter().filter(|onset| onset.strength >= 0.65).count();
+    let silence_points = energy.iter().filter(|point| point.rms <= 0.01).count();
+    let silence_ratio = if energy.is_empty() {
+        0.0
+    } else {
+        silence_points as f32 / energy.len() as f32
+    };
+    let mut audible_rms = energy
+        .iter()
+        .map(|point| point.rms)
+        .filter(|value| value.is_finite() && *value > 0.000_1)
+        .collect::<Vec<_>>();
+    audible_rms.sort_by(f32::total_cmp);
+    let dynamic_range_db = if audible_rms.len() < 2 {
+        0.0
+    } else {
+        let low = audible_rms[(audible_rms.len() - 1) / 10];
+        let high = audible_rms[(audible_rms.len() - 1) * 9 / 10];
+        (20.0 * (high / low.max(0.000_1)).log10()).clamp(0.0, 96.0)
+    };
+
+    let silence_regions = build_silence_regions(energy, duration_seconds);
+    let mut cut_points = sections
+        .iter()
+        .skip(1)
+        .map(|section| AudioCutPoint {
+            time_seconds: section.start_seconds,
+            kind: "section_boundary".to_owned(),
+            strength: (0.5 + section.confidence * 0.5).clamp(0.0, 1.0),
+        })
+        .chain(
+            onsets
+                .iter()
+                .filter(|onset| onset.strength >= 0.65)
+                .map(|onset| AudioCutPoint {
+                    time_seconds: onset.time_seconds,
+                    kind: "strong_onset".to_owned(),
+                    strength: onset.strength,
+                }),
+        )
+        .chain(
+            beats
+                .iter()
+                .filter(|beat| beat.phrase_position == 1 && beat.strength >= 0.35)
+                .map(|beat| AudioCutPoint {
+                    time_seconds: beat.time_seconds,
+                    kind: "phrase_boundary".to_owned(),
+                    strength: (beat.strength * 0.75).clamp(0.0, 1.0),
+                }),
+        )
+        .collect::<Vec<_>>();
+    cut_points.sort_by(|left, right| {
+        right
+            .strength
+            .total_cmp(&left.strength)
+            .then_with(|| left.time_seconds.total_cmp(&right.time_seconds))
+    });
+    let mut recommended_cut_points = Vec::with_capacity(MAXIMUM_CUT_POINTS);
+    for candidate in cut_points {
+        if recommended_cut_points.iter().all(|point: &AudioCutPoint| {
+            (point.time_seconds - candidate.time_seconds).abs() >= 0.08
+        }) {
+            recommended_cut_points.push(candidate);
+            if recommended_cut_points.len() == MAXIMUM_CUT_POINTS {
+                break;
+            }
+        }
+    }
+    recommended_cut_points.sort_by(|left, right| left.time_seconds.total_cmp(&right.time_seconds));
+
+    AudioRhythmDiagnostics {
+        onset_rate_per_second: onsets.len() as f32 / duration,
+        strong_onset_rate_per_second: strong_onsets as f32 / duration,
+        dynamic_range_db,
+        silence_ratio,
+        silence_regions,
+        recommended_cut_points,
+    }
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn build_silence_regions(
+    energy: &[AudioEnergyPoint],
+    duration_seconds: f64,
+) -> Vec<AudioTimeRange> {
+    if energy.is_empty() || duration_seconds <= 0.0 {
+        return Vec::new();
+    }
+    let step = duration_seconds / energy.len() as f64;
+    let mut ranges = Vec::new();
+    let mut open = None;
+    for (index, point) in energy.iter().enumerate() {
+        if point.rms <= 0.01 {
+            open.get_or_insert(index);
+        } else if let Some(start) = open.take() {
+            push_silence_region(&mut ranges, start, index, step, duration_seconds);
+        }
+        if ranges.len() == MAXIMUM_SILENCE_REGIONS {
+            return ranges;
+        }
+    }
+    if let Some(start) = open {
+        push_silence_region(&mut ranges, start, energy.len(), step, duration_seconds);
+    }
+    ranges.truncate(MAXIMUM_SILENCE_REGIONS);
+    ranges
+}
+
+fn push_silence_region(
+    ranges: &mut Vec<AudioTimeRange>,
+    start_index: usize,
+    end_index: usize,
+    step: f64,
+    duration_seconds: f64,
+) {
+    let start_seconds = start_index as f64 * step;
+    let end_seconds = (end_index as f64 * step).min(duration_seconds);
+    if end_seconds - start_seconds >= 0.25 {
+        ranges.push(AudioTimeRange {
+            start_seconds,
+            end_seconds,
+        });
+    }
+}
+
 fn native_error(error: ffmpeg::Error) -> MediaError {
     MediaError::NativeFfmpeg(error.to_string())
 }
@@ -1040,6 +1324,51 @@ mod tests {
     }
 
     #[test]
+    fn spectral_map_preserves_bounded_frequency_change_evidence() {
+        const RATE: u32 = 11_025;
+        let samples = (0..RATE * 4)
+            .map(|index| {
+                let frequency = if index < RATE * 2 { 110.0 } else { 3_000.0 };
+                (2.0 * PI * frequency * index as f32 / RATE as f32).sin() * 0.5
+            })
+            .collect::<Vec<_>>();
+        let analysis = analyze_samples(
+            &samples,
+            RATE,
+            AudioAnalysisOptions {
+                maximum_duration_seconds: 10.0,
+                maximum_beats: 128,
+                maximum_onsets: 128,
+                energy_points: 32,
+                maximum_sections: 8,
+                ..AudioAnalysisOptions::default()
+            },
+            &ProcessCancellation::default(),
+        )
+        .unwrap();
+
+        assert_eq!(analysis.spectral_map.points.len(), SPECTRAL_MAP_POINTS);
+        assert!(analysis.spectral_map.bands.len() <= 6);
+        let bass = analysis
+            .spectral_map
+            .bands
+            .iter()
+            .position(|band| band.label == "bass")
+            .unwrap();
+        let presence = analysis
+            .spectral_map
+            .bands
+            .iter()
+            .position(|band| band.label == "presence")
+            .unwrap();
+        let first = analysis.spectral_map.points.first().unwrap();
+        let last = analysis.spectral_map.points.last().unwrap();
+        assert!(first.band_levels_db[bass] > first.band_levels_db[presence] + 20.0);
+        assert!(last.band_levels_db[presence] > last.band_levels_db[bass] + 20.0);
+        assert!(analysis.rhythm_diagnostics.recommended_cut_points.len() <= MAXIMUM_CUT_POINTS);
+    }
+
+    #[test]
     fn native_decoder_analyzes_a_real_pcm_click_track() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("click-track.wav");
@@ -1064,6 +1393,9 @@ mod tests {
         assert!(analysis.onsets.len() >= 20);
         assert_eq!(analysis.energy.len(), 64);
         assert!(!analysis.sections.is_empty());
+        assert!(!analysis.spectral_map.points.is_empty());
+        assert!(analysis.spectral_map.points.len() <= SPECTRAL_MAP_POINTS);
+        assert!(analysis.rhythm_diagnostics.onset_rate_per_second > 1.0);
         assert_eq!(analysis.analysis_sample_rate, 11_025);
     }
 }

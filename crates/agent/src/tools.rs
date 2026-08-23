@@ -250,6 +250,7 @@ fn tool_allowed_in_mode(mode: AgentMode, name: &str) -> bool {
         | "draft_edit_plan"
         | "draft_agent_plan_changes"
         | "read_audio_analysis"
+        | "read_audio_rhythm_map"
         | "draft_beat_alignment"
         | "confirm_edit_plan"
         | "confirm_beat_alignment" => matches!(mode, AgentMode::Edit),
@@ -422,13 +423,13 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
         ),
         (
             "read_audio_analysis",
-            "Read real locally decoded BGM tempo, beat, onset, energy, and section evidence. Never infer analysis when unavailable.",
-            object_schema(
-                json!({
-                    "includeEnergyCurve": {"type":"boolean","default":false}
-                }),
-                &[],
-            ),
+            "Read a compact summary of real locally decoded BGM tempo, sections, rhythm diagnostics, and evidence counts. Use read_audio_rhythm_map when exact pacing or cut-point evidence is needed. Never infer analysis when unavailable.",
+            object_schema(json!({}), &[]),
+        ),
+        (
+            "read_audio_rhythm_map",
+            "Read the bounded editing-oriented rhythm map for the selected BGM: at most 128 energy points, six log-power frequency bands across at most 64 time slices, silence ranges, section changes, and ranked cut points. Treat it as timing evidence, not a semantic music label.",
+            object_schema(json!({}), &[]),
         ),
         (
             "draft_beat_alignment",
@@ -592,7 +593,8 @@ fn execute_tool_with_cinematic(
         "draft_video_plan" => draft_video_plan(context, input, external_cinematic),
         // Kept for persisted pre-video conversations, but no longer exposed to the model.
         "draft_hlae_plan" => draft_hlae_plan(context, input),
-        "read_audio_analysis" => Ok((read_audio_analysis(context, input), None)),
+        "read_audio_analysis" => Ok((read_audio_analysis(context, input)?, None)),
+        "read_audio_rhythm_map" => Ok((read_audio_rhythm_map(context, input)?, None)),
         "draft_beat_alignment" => draft_beat_alignment(context, input),
         "navigate_workspace" => Ok((navigate_workspace(context, input)?, None)),
         _ => Err(format!("unknown tool: {name}")),
@@ -1699,16 +1701,62 @@ fn camera_style_supports_intent(intent: &str, style: &str) -> bool {
     }
 }
 
-fn read_audio_analysis(context: &AgentContext, input: &Value) -> Value {
-    let Some(analysis) = context.audio_analysis.as_object() else {
-        return json!({"available":false,"analysis":null});
-    };
-    if bool_value(input.get("includeEnergyCurve"), false) {
-        return json!({"available":true,"analysis":analysis});
+fn read_audio_analysis(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    if !ensure_object(input)?.is_empty() {
+        return Err("read_audio_analysis accepts no fields".into());
     }
-    let mut summary = analysis.clone();
-    summary.remove("energy");
-    json!({"available":true,"analysis":summary})
+    let Some(analysis) = context.audio_analysis.as_object() else {
+        return Ok(json!({"available":false,"analysis":null}));
+    };
+    Ok(json!({
+        "available": true,
+        "analysis": {
+            "duration_seconds": analysis.get("duration_seconds"),
+            "analysis_sample_rate": analysis.get("analysis_sample_rate"),
+            "bpm": analysis.get("bpm"),
+            "tempo_confidence": analysis.get("tempo_confidence"),
+            "beat_count": analysis.get("beats").and_then(Value::as_array).map_or(0, Vec::len),
+            "onset_count": analysis.get("onsets").and_then(Value::as_array).map_or(0, Vec::len),
+            "sections": analysis.get("sections"),
+            "rhythm_diagnostics": analysis.get("rhythm_diagnostics"),
+            "limitations": analysis.get("limitations"),
+        }
+    }))
+}
+
+fn read_audio_rhythm_map(context: &AgentContext, input: &Value) -> Result<Value, String> {
+    if !ensure_object(input)?.is_empty() {
+        return Err("read_audio_rhythm_map accepts no fields".into());
+    }
+    let Some(analysis) = context.audio_analysis.as_object() else {
+        return Ok(json!({"available":false,"rhythm_map":null}));
+    };
+    let energy = analysis
+        .get("energy")
+        .and_then(Value::as_array)
+        .map_or_else(Vec::new, |points| bounded_even_samples(points, 128));
+    Ok(json!({
+        "available": true,
+        "rhythm_map": {
+            "duration_seconds": analysis.get("duration_seconds"),
+            "bpm": analysis.get("bpm"),
+            "tempo_confidence": analysis.get("tempo_confidence"),
+            "energy": energy,
+            "sections": analysis.get("sections"),
+            "spectral_map": analysis.get("spectral_map"),
+            "rhythm_diagnostics": analysis.get("rhythm_diagnostics"),
+            "limitations": analysis.get("limitations"),
+        }
+    }))
+}
+
+fn bounded_even_samples(values: &[Value], maximum: usize) -> Vec<Value> {
+    if values.len() <= maximum {
+        return values.to_vec();
+    }
+    (0..maximum)
+        .map(|index| values[index * values.len() / maximum].clone())
+        .collect()
 }
 
 fn draft_beat_alignment(
@@ -2106,6 +2154,40 @@ mod tests {
             }),
             ..AgentContext::default()
         }
+    }
+
+    #[test]
+    fn audio_tools_separate_compact_summary_from_bounded_rhythm_map() {
+        let context = AgentContext {
+            audio_analysis: json!({
+                "duration_seconds": 120.0,
+                "analysis_sample_rate": 11_025,
+                "bpm": 128.0,
+                "tempo_confidence": 0.91,
+                "beats": (0..300).map(|index| json!({"index":index})).collect::<Vec<_>>(),
+                "onsets": (0..400).map(|index| json!({"time_seconds":f64::from(index) * 0.2})).collect::<Vec<_>>(),
+                "energy": (0..256).map(|index| json!({"time_seconds":index,"rms":0.5,"peak":0.8})).collect::<Vec<_>>(),
+                "sections": [{"start_seconds":0.0,"end_seconds":120.0,"character":"steady","mean_energy":0.5,"confidence":0.5}],
+                "spectral_map": {"floor_db":-80.0,"bands":[],"points":[]},
+                "rhythm_diagnostics": {"onset_rate_per_second":3.3,"strong_onset_rate_per_second":1.2,"dynamic_range_db":8.0,"silence_ratio":0.0,"silence_regions":[],"recommended_cut_points":[]},
+                "limitations": ["test limitation"]
+            }),
+            ..AgentContext::default()
+        };
+
+        let summary = read_audio_analysis(&context, &json!({})).unwrap();
+        assert_eq!(summary["analysis"]["beat_count"], 300);
+        assert_eq!(summary["analysis"]["onset_count"], 400);
+        assert!(summary["analysis"].get("beats").is_none());
+        assert!(summary["analysis"].get("spectral_map").is_none());
+
+        let rhythm_map = read_audio_rhythm_map(&context, &json!({})).unwrap();
+        assert_eq!(
+            rhythm_map["rhythm_map"]["energy"].as_array().unwrap().len(),
+            128
+        );
+        assert!(rhythm_map["rhythm_map"].get("spectral_map").is_some());
+        assert!(rhythm_map["rhythm_map"].get("beats").is_none());
     }
 
     #[test]

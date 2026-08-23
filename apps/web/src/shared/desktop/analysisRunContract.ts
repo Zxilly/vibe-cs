@@ -5,11 +5,12 @@ import type {
   AnalysisRunEventCode,
   AnalysisRunStage,
   AnalysisRunStatus,
+  JobFailureCode,
 } from './dto';
 
 const runKeys = [
   'id', 'demo_id', 'input_sha256', 'input_size', 'status', 'stage', 'error',
-  'created_at', 'updated_at',
+  'error_code', 'created_at', 'updated_at',
 ] as const;
 const eventKeys = ['run_id', 'sequence', 'stage', 'message_code', 'detail', 'created_at'] as const;
 const detailKeys = ['run', 'events', 'result_available'] as const;
@@ -23,6 +24,10 @@ const stages = new Set<AnalysisRunStage>([
 const eventCodes = new Set<AnalysisRunEventCode>([
   'input_validation_started', 'input_verified', 'parser_started',
   'input_revalidation_started', 'projection_started', 'completed', 'failed', 'interrupted', 'cancelled',
+]);
+const failureCodes = new Set<JobFailureCode>([
+  'cancelled', 'interrupted', 'disk_full', 'input_missing', 'permission_denied',
+  'dependency_missing', 'dependency_failed', 'invalid_input', 'timeout', 'unknown',
 ]);
 const maximumEvents = 32;
 const maximumDetailCharacters = 2_000;
@@ -91,6 +96,8 @@ export function parseAnalysisRun(value: unknown): AnalysisRun {
     || !stages.has(stage as AnalysisRunStage)
     || statusForStage(stage as AnalysisRunStage) !== status
     || !nullableString(value.error)
+    || !(value.error_code === null
+      || (typeof value.error_code === 'string' && failureCodes.has(value.error_code as JobFailureCode)))
     || typeof value.created_at !== 'string'
     || typeof value.updated_at !== 'string'
   ) return invalid();
@@ -105,6 +112,7 @@ export function parseAnalysisRun(value: unknown): AnalysisRun {
     || (expectsError
       ? !(typeof value.error === 'string' && value.error.length > 0)
       : value.error !== null)
+    || (expectsError ? value.error_code === null : value.error_code !== null)
   ) return invalid();
   return value as AnalysisRun;
 }

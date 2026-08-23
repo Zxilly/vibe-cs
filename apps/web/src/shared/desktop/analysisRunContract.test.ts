@@ -10,6 +10,7 @@ const run = () => ({
   status: 'queued',
   stage: 'validating_input',
   error: null,
+  error_code: null,
   created_at: '2026-08-13T01:00:00Z',
   updated_at: '2026-08-13T01:00:00Z',
 });
@@ -21,6 +22,8 @@ describe('analysis run wire contract', () => {
     expect(() => parseAnalysisRun(incomplete)).toThrow('current contract');
     expect(() => parseAnalysisRun({ ...run(), progress_percent: 12 })).toThrow('current contract');
     expect(() => parseAnalysisRun({ ...run(), input_sha256: 'abc', input_size: 42 }))
+      .toThrow('current contract');
+    expect(() => parseAnalysisRun({ ...run(), error_code: 'retired_code' }))
       .toThrow('current contract');
   });
 
@@ -84,6 +87,7 @@ describe('analysis run wire contract', () => {
       status: 'cancelled',
       stage: 'cancelled',
       error: null,
+      error_code: null,
       updated_at: '2026-08-13T01:01:00Z',
     };
     const events = [{

@@ -28,6 +28,7 @@ const FULL_RECONCILIATION: Duration = Duration::from_secs(30 * 60);
 enum WatchCommand {
     Reconfigure {
         paths: Vec<String>,
+        wait_for_scan: bool,
         response: oneshot::Sender<DemoWatchStatus>,
     },
     Rescan {
@@ -57,7 +58,14 @@ impl RuntimeDemoWatchPort {
             Arc::clone(&status),
         ));
         let manager = Self { commands, status };
-        if let Err(error) = manager.reconfigure(initial_paths).await {
+        if let Err(error) = manager
+            .request(|response| WatchCommand::Reconfigure {
+                paths: initial_paths,
+                wait_for_scan: true,
+                response,
+            })
+            .await
+        {
             tracing::error!(%error, "unable to start demo directory watcher");
         }
         manager
@@ -90,8 +98,12 @@ impl DemoWatchPort for RuntimeDemoWatchPort {
                 "watch configuration requires no more than {MAXIMUM_WATCH_ROOTS} absolute directories"
             )));
         }
-        self.request(|response| WatchCommand::Reconfigure { paths, response })
-            .await
+        self.request(|response| WatchCommand::Reconfigure {
+            paths,
+            wait_for_scan: false,
+            response,
+        })
+        .await
     }
 
     async fn rescan(&self) -> Result<DemoWatchStatus, DomainError> {
@@ -141,7 +153,8 @@ async fn run_watch_loop(
             command = commands.recv() => {
                 let Some(command) = command else { break; };
                 match command {
-                    WatchCommand::Reconfigure { paths, response } => {
+                    WatchCommand::Reconfigure { paths, wait_for_scan, response } => {
+                        let mut response = Some(response);
                         requested_paths = paths;
                         active_roots = configure_roots(
                             watcher.as_mut(),
@@ -149,6 +162,16 @@ async fn run_watch_loop(
                             &requested_paths,
                             &status,
                         ).await;
+                        // Configuration is the command's acknowledgement boundary. A full
+                        // import can legitimately take minutes for a tournament directory;
+                        // keeping the HTTP config write attached to that scan made the client
+                        // time out after the config had already been persisted. The watcher
+                        // owns the scan below and publishes completion through status/events.
+                        if !wait_for_scan {
+                            if let Some(response) = response.take() {
+                                let _ = response.send(status.read().await.clone());
+                            }
+                        }
                         scan_and_update(
                             &storage,
                             &events,
@@ -157,7 +180,11 @@ async fn run_watch_loop(
                             &status,
                         ).await;
                         events.publish("demo_watch", "configured", None);
-                        let _ = response.send(status.read().await.clone());
+                        if wait_for_scan {
+                            if let Some(response) = response.take() {
+                                let _ = response.send(status.read().await.clone());
+                            }
+                        }
                         last_reconciliation = tokio::time::Instant::now();
                         last_full_reconciliation = last_reconciliation;
                         dirty = false;

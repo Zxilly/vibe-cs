@@ -748,6 +748,7 @@ describe('desktop command client', () => {
       status: 'queued',
       stage: 'validating_input',
       error: null,
+      error_code: null,
       created_at: '2026-08-13T01:00:00Z',
       updated_at: '2026-08-13T01:00:00Z',
     });
@@ -768,7 +769,7 @@ describe('desktop command client', () => {
     const detail = {
       run: {
         id: 'run-1', demo_id: 'demo-1', input_sha256: 'a'.repeat(64), input_size: 42,
-        status: 'running', stage: 'parser_running', error: null,
+        status: 'running', stage: 'parser_running', error: null, error_code: null,
         created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:01:00Z',
       },
       events: [{
@@ -803,7 +804,7 @@ describe('desktop command client', () => {
     invokeMock.mockResolvedValue({
       run: {
         id: 'other-run', demo_id: 'demo-1', input_sha256: null, input_size: null,
-        status: 'queued', stage: 'validating_input', error: null,
+        status: 'queued', stage: 'validating_input', error: null, error_code: null,
         created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:00:00Z',
       },
       events: [{
@@ -821,7 +822,7 @@ describe('desktop command client', () => {
     const detail = {
       run: {
         id: 'run/cancel', demo_id: 'demo-1', input_sha256: 'a'.repeat(64), input_size: 42,
-        status: 'cancelled', stage: 'cancelled', error: null,
+        status: 'cancelled', stage: 'cancelled', error: null, error_code: null,
         created_at: '2026-08-13T01:00:00Z', updated_at: '2026-08-13T01:01:00Z',
       },
       events: [{

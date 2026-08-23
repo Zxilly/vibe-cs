@@ -30,8 +30,8 @@ describe('multitrack mode inside a project shot list', () => {
     expect(await screen.findByText('关联比赛片段.mp4')).toBeTruthy();
     expect(new Set(requestedScopes)).toEqual(new Set([PROJECT_ID, undefined]));
 
-    expect(screen.getByRole('button', { name: '多轨精剪' }).hasAttribute('disabled')).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: '快速剪辑' }));
+    expect(screen.getByRole('radio', { name: '多轨精剪' }).hasAttribute('disabled')).toBe(false);
+    fireEvent.click(screen.getByRole('radio', { name: '快速剪辑' }));
     expect(screen.getByText(/降级会丢失信息/u)).toBeTruthy();
     expect(screen.getByText(/从原来源另建副本/u)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '知道了' }));

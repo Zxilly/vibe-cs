@@ -42,8 +42,8 @@ describe('quick mode inside a project shot list', () => {
     }
 
     await screen.findByRole('radiogroup', { name: '合辑主题' });
-    expect(screen.getByRole('button', { name: '快速剪辑' }).hasAttribute('disabled')).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Agent 辅助' }));
+    expect(screen.getByRole('radio', { name: '快速剪辑' }).hasAttribute('disabled')).toBe(false);
+    fireEvent.click(screen.getByRole('radio', { name: 'Agent 辅助' }));
     expect(screen.getByText(/无法无损还原 Demo tick/u)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '知道了' }));
     fireEvent.click(screen.getByRole('radio', { name: '霓虹' }));
@@ -65,8 +65,8 @@ describe('quick mode inside a project shot list', () => {
       health: HEALTHY,
     });
 
-    await screen.findByRole('button', { name: '多轨精剪' });
-    fireEvent.click(screen.getByRole('button', { name: '多轨精剪' }));
+    await screen.findByRole('radio', { name: '多轨精剪' });
+    fireEvent.click(screen.getByRole('radio', { name: '多轨精剪' }));
 
     expect(screen.getByText(/复制当前片段顺序和裁切/u)).toBeTruthy();
     expect(screen.getByText(/包装、背景音乐与转场不会复制/u)).toBeTruthy();

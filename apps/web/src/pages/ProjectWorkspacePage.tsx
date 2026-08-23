@@ -1,5 +1,6 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
+import { ChevronRight } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -8,9 +9,9 @@ import { useAgentComposition } from '../data/plans';
 import { useNativeShell } from '../data/nativeShell';
 import { useProjects } from '../data/projects';
 import { Empty, Skeleton } from '../design/data';
-import { Alert, Dialog } from '../design/feedback';
+import { Alert, Dialog, StatusDot } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
-import { Button } from '../design/primitives';
+import { Button, Seg, cn } from '../design/primitives';
 import {
   projectModeTransition,
   type ProjectModeTransition,
@@ -20,7 +21,12 @@ import type {
   ProjectStep,
   ProjectViewModel,
 } from '../domain/project/projectViewModel';
-import { projectStepAvailability, resolveProjectStep } from '../domain/project/projectWorkflow';
+import {
+  PROJECT_STEPS,
+  projectStepAvailability,
+  resolveProjectStep,
+  type ProjectStepAvailability,
+} from '../domain/project/projectWorkflow';
 import { AgentWorkspace } from './AgentPage';
 import { MontageWorkspace } from './MontagePage';
 import { EditorWorkspaceLoader } from './EditorPage';
@@ -68,26 +74,17 @@ export function ProjectWorkspacePage() {
   const availability = projectStepAvailability(project);
 
   return (
-    <Page toolbar={<Toolbar leading={<RouteLink to="/projects"><Trans>‹ 作品</Trans></RouteLink>} title={project.id === 'new' ? <Trans>新作品</Trans> : project.name} meta={<StepLabel step={step} />} />}>
+    <Page
+      toolbar={
+        <ProjectWorkspaceToolbar
+          project={project}
+          step={step}
+          availability={availability}
+          onStep={(next) => setParams({ step: next })}
+        />
+      }
+    >
       <div className="flex min-h-0 flex-1 flex-col">
-        <nav aria-label={t`作品步骤`} className="flex-none border-b border-divider p-3">
-          <ol className="m-0 grid list-none grid-cols-4 gap-2 p-0">
-            {availability.map((entry) => (
-              <li key={entry.step}>
-                <Button
-                  variant={entry.step === step ? 'primary' : 'secondary'}
-                  size="md"
-                  block
-                  disabled={!entry.enabled}
-                  {...(entry.disabledReason === null ? {} : { disabledReason: entry.disabledReason })}
-                  onClick={() => setParams({ step: entry.step })}
-                >
-                  <StepLabel step={entry.step} />
-                </Button>
-              </li>
-            ))}
-          </ol>
-        </nav>
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <StepContent
             step={step}
@@ -99,6 +96,58 @@ export function ProjectWorkspacePage() {
         </div>
       </div>
     </Page>
+  );
+}
+
+function ProjectWorkspaceToolbar({
+  project,
+  step,
+  availability,
+  onStep,
+}: {
+  readonly project: ProjectViewModel;
+  readonly step: ProjectStep;
+  readonly availability: readonly ProjectStepAvailability[];
+  readonly onStep: (step: ProjectStep) => void;
+}) {
+  const currentIndex = PROJECT_STEPS.indexOf(step);
+  return (
+    <Toolbar
+      leading={<RouteLink to="/projects"><Trans>‹ 作品</Trans></RouteLink>}
+      title={project.id === 'new' ? <Trans>新作品</Trans> : project.name}
+      height="topbar"
+      className="gap-3"
+    >
+      <nav aria-label={t`作品步骤`} className="min-w-0 overflow-x-auto">
+        <ol className="m-0 flex min-w-max list-none items-center p-0">
+          {availability.map((entry, index) => (
+            <li key={entry.step} className="flex items-center">
+              {index === 0 ? null : (
+                <ChevronRight className="mx-1 size-3.5 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!entry.enabled}
+                aria-current={entry.step === step ? 'step' : undefined}
+                className={cn(
+                  'gap-2 px-2',
+                  entry.step === step ? 'font-semibold text-text' : 'text-neutral-600',
+                )}
+                {...(entry.disabledReason === null ? {} : { disabledReason: entry.disabledReason })}
+                onClick={() => onStep(entry.step)}
+              >
+                <StatusDot
+                  size="sm"
+                  status={index < currentIndex ? 'ok' : entry.step === step ? 'running' : 'idle'}
+                />
+                <StepLabel step={entry.step} />
+              </Button>
+            </li>
+          ))}
+        </ol>
+      </nav>
+    </Toolbar>
   );
 }
 
@@ -223,27 +272,32 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
     setTransition(null);
   };
 
+  const modeSwitcher = (
+    <Seg
+      name="project-editing-mode"
+      size="sm"
+      value={project.editingMode}
+      aria-label={t`制作方式`}
+      options={modes.map((mode) => ({ value: mode.id, label: mode.label }))}
+      onChange={chooseMode}
+    />
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-editing-mode={project.editingMode}>
-      <div className="flex flex-none items-center gap-2 border-b border-divider px-4 py-2">
-        <span className="text-xs text-neutral-600"><Trans>制作方式</Trans></span>
-        {modes.map((mode) => (
-          <Button
-            key={mode.id}
-            size="sm"
-            variant={mode.id === project.editingMode ? 'primary' : 'secondary'}
-            aria-pressed={mode.id === project.editingMode}
-            onClick={() => chooseMode(mode.id)}
-          >
-            {mode.label}
-          </Button>
-        ))}
-        <span className="ml-auto text-xs text-neutral-600">
-          {project.editingMode === 'multitrack'
-            ? <Trans>多轨修改保留在本地，切换步骤前请保存</Trans>
-            : <Trans>转换会创建副本，源作品与后续修改不会互相同步</Trans>}
-        </span>
-      </div>
+      {project.editingMode === 'agent' ? null : (
+        <Toolbar
+          height="panel"
+          title={<Trans>制作方式</Trans>}
+          meta={
+            project.editingMode === 'multitrack'
+              ? <Trans>多轨修改保留在本地，切换步骤前请保存</Trans>
+              : <Trans>转换会创建副本，源作品与后续修改不会互相同步</Trans>
+          }
+        >
+          {modeSwitcher}
+        </Toolbar>
+      )}
       {convertToEditor.error === null ? null : (
         <Alert
           variant="danger"
@@ -255,6 +309,7 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
       {project.source.kind === 'plan' || project.id === 'new' ? (
         <AgentWorkspace
           embedded
+          toolbarContent={modeSwitcher}
           {...(project.id === 'new' ? {} : { planId: project.source.id })}
           projectId={project.id}
           demoId={project.demoIds[0] ?? null}

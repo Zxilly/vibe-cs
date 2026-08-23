@@ -178,7 +178,49 @@ export function useAgentReadiness(input: {
   });
 }
 
-export function AgentReadiness({ state }: { readonly state: AgentReadinessState }) {
+export function AgentReadiness({
+  state,
+  variant = 'bar',
+}: {
+  readonly state: AgentReadinessState;
+  readonly variant?: 'bar' | 'panel';
+}) {
+  if (variant === 'panel') {
+    const blocking = state.items.filter((item) => item.blocking).length;
+    return (
+      <aside data-agent-readiness-panel="" aria-label={t`创作准备检查`} className="flex min-h-0 flex-col">
+        <header className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-divider px-4">
+          <div className="min-w-0">
+            <h3 className="font-heading text-sm tracking-wide"><Trans>创作准备</Trans></h3>
+          </div>
+          <span className="ml-auto font-mono text-xs text-neutral-600">
+            {blocking === 0 ? <Trans>已就绪</Trans> : <Trans>{blocking} 项待处理</Trans>}
+          </span>
+        </header>
+        <ul className="m-0 min-h-0 flex-1 list-none overflow-y-auto p-0">
+          {state.items.map((item) => (
+            <li
+              key={item.key}
+              className="flex min-h-[var(--h-row-task)] items-start gap-2 border-b border-divider px-4 py-3"
+              data-agent-readiness={item.key}
+            >
+              <StatusDot status={item.state} className="mt-1" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-medium">{item.label}</span>
+                <span className="mt-0.5 block text-xs leading-normal text-neutral-600">{item.detail}</span>
+                {item.action === null ? null : (
+                  <RouteLink to={item.action.to} size="sm">{item.action.label}</RouteLink>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="flex-none border-t border-divider px-4 py-3 text-xs leading-normal text-neutral-600">
+          <Trans>先生成剪辑单，录制环境可以稍后补齐</Trans>
+        </p>
+      </aside>
+    );
+  }
   return (
     <section className="flex-none border-b border-divider px-4 py-3" aria-label={t`创作准备检查`}>
       <div className="flex flex-wrap items-start gap-x-6 gap-y-2">

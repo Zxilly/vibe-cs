@@ -59,6 +59,8 @@ export interface AgentComposerProps {
   readonly className?: string | undefined;
   readonly showSuggestions?: boolean | undefined;
   readonly sendLabel?: ReactNode | undefined;
+  /** Optional start-state workspace placed between the prompt and footer. */
+  readonly workspace?: ReactNode | undefined;
 }
 
 export function AgentComposer({
@@ -76,6 +78,7 @@ export function AgentComposer({
   className,
   showSuggestions = true,
   sendLabel,
+  workspace,
 }: AgentComposerProps) {
   const { i18n } = useLingui();
   const copy = AGENT_MODE_COMPOSER[mode];
@@ -134,6 +137,10 @@ export function AgentComposer({
         className="min-h-16"
         {...(blocked ? { disabled: true, disabledReason } : {})}
       />
+
+      {workspace === undefined ? null : (
+        <div className="min-h-0 flex-1">{workspace}</div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-2 text-xs text-neutral-700">

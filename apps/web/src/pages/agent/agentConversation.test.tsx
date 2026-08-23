@@ -230,7 +230,7 @@ describe('the transcript', () => {
 
     expect(html).toContain('data-agent-transcript-state="no-session"');
     expect(html).toContain('告诉 Agent 你想要什么视频');
-    expect(html).toContain('写一句需求');
+    expect(html).not.toContain('写一句需求');
   });
 
   it('shows bars, not a percentage, while the session is loading', () => {

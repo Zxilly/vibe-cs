@@ -61,7 +61,8 @@ describe('Agent mode inside the project shot-list step', () => {
 
     await waitFor(() => expect(container.querySelector('[data-agent-workspace]')).not.toBeNull());
     expect(screen.getByText('告诉 Agent 你想要什么视频')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /写一句需求/u })).toBeTruthy();
+    expect(container.querySelector('[data-agent-draft-canvas]')).not.toBeNull();
+    expect(screen.getByRole('textbox', { name: /给剪辑单下一条指令/u })).toBeTruthy();
     expect(container.querySelector('[data-agent-start-canvas]')).not.toBeNull();
     expect(screen.queryByText('还没有选中剪辑单')).toBeNull();
     expect(screen.queryByRole('radio', { name: '修改列表' })).toBeNull();
@@ -104,9 +105,9 @@ describe('Agent mode inside the project shot-list step', () => {
       pattern: '/projects/:projectId',
     });
 
-    await screen.findByRole('button', { name: '快速剪辑' });
+    await screen.findByRole('radio', { name: '快速剪辑' });
     await waitFor(() => expect(getMontageProject).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole('button', { name: '快速剪辑' }));
+    fireEvent.click(screen.getByRole('radio', { name: '快速剪辑' }));
 
     expect(screen.getByText(/已确认 Composition 生成的快速剪辑工程/u)).toBeTruthy();
     expect(screen.getByText(/两边后续修改不会同步/u)).toBeTruthy();

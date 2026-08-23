@@ -442,6 +442,22 @@ export const AgentConversationBlock: AgentBlock = ({
         onAutoModeChange={setAutoMode}
         inputRef={composerRef}
         showSuggestions={hasResultView}
+        className={hasResultView ? undefined : 'min-h-0 flex-1'}
+        workspace={
+          hasResultView ? undefined : (
+            <button
+              type="button"
+              data-agent-draft-canvas=""
+              className="flex size-full min-h-40 flex-col items-center justify-center px-6 text-center text-neutral-600 hover:bg-neutral-100"
+              onClick={() => composerRef.current?.focus()}
+            >
+              <span className="font-heading text-base text-neutral-700"><Trans>剪辑单草稿</Trans></span>
+              <span className="mt-1 max-w-[42ch] text-xs leading-normal">
+                <Trans>发送指令后，Agent 会把镜头结构、顺序和依据整理在这里。</Trans>
+              </span>
+            </button>
+          )
+        }
         {...(hasResultView ? {} : { sendLabel: <Trans>生成剪辑单</Trans> })}
         {...(sendDisabledReason === undefined ? {} : { disabledReason: sendDisabledReason })}
         hint={
@@ -505,20 +521,14 @@ function Transcript({
   if (sessionId === null) {
     return (
       <Frame state="no-session">
-        <Empty
-          className="m-3.5"
-          title={<Trans>告诉 Agent 你想要什么视频</Trans>}
-          description={
+        <div className="flex flex-none flex-col items-center gap-2 px-6 pb-5 pt-8 text-center">
+          <h3 className="font-heading text-xl"><Trans>告诉 Agent 你想要什么视频</Trans></h3>
+          <p className="max-w-[52ch] text-sm leading-normal text-neutral-600">
             <Trans>
               一句话说清时长、重点和用途就够了。发送后会自动建立对话，并结合当前 Demo 生成第一版剪辑单。
             </Trans>
-          }
-          actions={
-            <Button variant="secondary" onClick={onFocusComposer}>
-              <Trans>写一句需求</Trans>
-            </Button>
-          }
-        />
+          </p>
+        </div>
       </Frame>
     );
   }
@@ -602,7 +612,13 @@ function promptBeforeEntry(entries: readonly AgentSessionEntry[], entryId: strin
 
 function Frame({ state, children }: { readonly state: string; readonly children: ReactNode }) {
   return (
-    <div data-agent-transcript-state={state} className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div
+      data-agent-transcript-state={state}
+      className={cn(
+        'flex min-h-0 flex-col overflow-y-auto',
+        state === 'no-session' ? 'flex-none' : 'flex-1',
+      )}
+    >
       {children}
     </div>
   );

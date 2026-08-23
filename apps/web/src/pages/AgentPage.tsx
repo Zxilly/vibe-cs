@@ -43,8 +43,10 @@
  *
  * ── 「确认并生成视频」 goes to `/recording/<planId>`, and does not record ────
  *
- * §8 forbids the main action from ever folding into an overflow menu, so it is
- * on the toolbar at every width. Until phase 3f-be it was also permanently
+ * §8 forbids the recording handoff from ever folding into an overflow menu, so
+ * once a plan/proposal exists it stays on the toolbar at every width. The blank
+ * start canvas omits that future-stage action so it does not compete with the
+ * composer's 「生成剪辑单」. Until phase 3f-be it was also permanently
  * disabled: an `AgentPlanShot` carried no Demo or player, so there was nothing
  * to build a recording queue from. `AgentPlanShot.recording` closed that (§10.6
  * gap 1 → §10.7), so the button now navigates, and `confirmGuard` refuses only
@@ -73,7 +75,7 @@ import {
   useSetAgentProposalDecision,
   type AgentChatStream,
 } from '../data/sessions';
-import { Alert } from '../design/feedback';
+import { Alert, StatusDot } from '../design/feedback';
 import { Page, SplitPane, Toolbar, useCollapsed } from '../design/layout';
 import { Button } from '../design/primitives';
 import { AGENT_PLAN_STATUS } from '../domain/agent';
@@ -94,6 +96,7 @@ import { AgentSessionsBlock, agentSessionsToolbarAction } from './agent/AgentSes
 import { useAgentChangeDesk } from './agent/changeDesk';
 import { decisionUpdateFromKey, storedChangeDecisions } from './agent/conversationModel';
 import { PlanPanel } from './agent/PlanPanel';
+import { RouteLink } from './RouteLink';
 import {
   agentPlanHasRecordableShot,
   agentPlanShotsNeedingBinding,
@@ -110,6 +113,8 @@ export interface AgentWorkspaceProps {
   /** Every Demo collected into this project; `demoId` remains the primary one. */
   readonly demoIds?: readonly string[] | undefined;
   readonly recordingTarget?: string | undefined;
+  /** Project-owned controls that share the embedded Agent toolbar. */
+  readonly toolbarContent?: ReactNode | undefined;
 }
 
 export function AgentWorkspace({
@@ -119,6 +124,7 @@ export function AgentWorkspace({
   demoId = null,
   demoIds = demoId === null ? [] : [demoId],
   recordingTarget,
+  toolbarContent,
 }: AgentWorkspaceProps) {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
@@ -346,58 +352,52 @@ export function AgentWorkspace({
      is not rendered once §8 folds it into 「更多」, and a drawer parked inside
      that control would unmount as the window narrowed. */
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const agentToolbar = (
+    <Toolbar
+      height={embedded ? 'panel' : 'topbar'}
+      title={planData === undefined ? <Trans>Agent 创作</Trans> : planData.title}
+      meta={
+        <>
+          {planData === undefined ? (
+            <Trans>准备创作</Trans>
+          ) : (
+            <Trans>
+              {planData.shots.length} 个片段 · 修订 {planData.revision} ·{' '}
+              {i18n._(AGENT_PLAN_STATUS[planData.status].label)}
+            </Trans>
+          )}
+          {showPlanPane ? <> · {modeLabel}</> : null}
+        </>
+      }
+      actions={[
+        agentSessionsToolbarAction(() => {
+          setSessionsOpen(true);
+        }),
+      ]}
+      {...(toolbarContent === undefined ? {} : { children: toolbarContent })}
+      /* Recording remains a distinct, always-visible handoff once the plan
+         surface exists; the start state has only the composer's primary action. */
+      primary={planData !== undefined ? (
+        <Button
+          variant="primary"
+          {...confirm}
+          onClick={() => {
+            if (planData === undefined) return;
+            void (async () => {
+              await editNotifier.flush('confirm-video');
+              await navigate(recordingTarget ?? recordingHref(planData.id));
+            })();
+          }}
+        >
+          <Trans>确认剪辑单并录制</Trans>
+        </Button>
+      ) : undefined}
+    />
+  );
   return (
     <AgentFrame
       embedded={embedded}
-      toolbar={
-        <Toolbar
-          height={embedded ? 'bar' : 'topbar'}
-          title={planData === undefined ? <Trans>Agent 创作</Trans> : planData.title}
-          meta={
-            <>
-              {planData === undefined ? (
-                <Trans>准备创作</Trans>
-              ) : (
-                <Trans>
-                  {planData.shots.length} 个片段 · 修订 {planData.revision} ·{' '}
-                  {i18n._(AGENT_PLAN_STATUS[planData.status].label)}
-                </Trans>
-              )}
-              {showPlanPane ? <> · {modeLabel}</> : null}
-            </>
-          }
-          actions={[
-            agentSessionsToolbarAction(() => {
-              setSessionsOpen(true);
-            }),
-          ]}
-          primary={
-            /* The eighth flush occasion, and the last one left to a caller:
-               「确认并生成视频」 must plan the recording from what the user last
-               saw, so the merge window is written out **before** the address
-               changes. `/recording/<planId>` mints its lease from the stored
-               plan, so a buffered edit that had not been committed yet would be
-               recorded as though it never happened. Awaited, therefore, not
-               fired alongside.
-
-               It is wired here rather than in a block because this is the one
-               button §8 keeps on the toolbar at every width. */
-            <Button
-              variant="primary"
-              {...confirm}
-              onClick={() => {
-                if (planData === undefined) return;
-                void (async () => {
-                  await editNotifier.flush('confirm-video');
-                  await navigate(recordingTarget ?? recordingHref(planData.id));
-                })();
-              }}
-            >
-              <Trans>确认剪辑单并录制</Trans>
-            </Button>
-          }
-        />
-      }
+      toolbar={embedded && !showPlanPane ? undefined : agentToolbar}
     >
       {planError === null ? null : (
         <Alert
@@ -445,7 +445,12 @@ export function AgentWorkspace({
           <AgentConversationBlock {...blockProps} />
         </SplitPane>
       ) : (
-        <AgentStartWorkspace projectId={projectId} demoId={demoId} blockProps={blockProps} />
+        <AgentStartWorkspace
+          projectId={projectId}
+          demoId={demoId}
+          blockProps={blockProps}
+          {...(embedded ? { toolbar: agentToolbar } : {})}
+        />
       )}
       {/* Block C: the session drawer and 新建会话与引用. Mounted only while
           open, so `/agent` does not fetch a session list nobody asked for. */}
@@ -464,21 +469,70 @@ function AgentStartWorkspace({
   projectId,
   demoId,
   blockProps,
+  toolbar,
 }: {
   readonly projectId: string | null;
   readonly demoId: string | null;
   readonly blockProps: AgentBlockProps;
+  readonly toolbar?: ReactNode;
 }) {
   const readiness = useAgentReadiness({ projectId, demoId });
+  if (blockProps.collapsed) {
+    return (
+      <div data-agent-start-canvas="" className="flex min-h-0 flex-1 flex-col">
+        {toolbar}
+        <AgentReadiness state={readiness} />
+        <AgentConversationBlock {...blockProps} readiness={readiness.gate} />
+      </div>
+    );
+  }
   return (
-    <div data-agent-start-canvas="" className="flex min-h-0 flex-1 flex-col">
-      <AgentReadiness state={readiness} />
-      <AgentConversationBlock {...blockProps} readiness={readiness.gate} />
+    <div
+      data-agent-start-canvas=""
+      className="grid min-h-0 flex-1 grid-cols-[minmax(12rem,15rem)_minmax(0,1fr)_minmax(15rem,18rem)]"
+    >
+      <AgentSourcePanel state={readiness} demoId={demoId} />
+      <div className="flex min-h-0 min-w-0 border-x border-divider">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {toolbar}
+          <AgentConversationBlock {...blockProps} readiness={readiness.gate} />
+        </div>
+      </div>
+      <AgentReadiness state={readiness} variant="panel" />
     </div>
   );
 }
 
-function AgentFrame({ embedded, toolbar, children }: { readonly embedded: boolean; readonly toolbar: ReactNode; readonly children: ReactNode }) {
+function AgentSourcePanel({
+  state,
+  demoId,
+}: {
+  readonly state: ReturnType<typeof useAgentReadiness>;
+  readonly demoId: string | null;
+}) {
+  const demo = state.items.find((item) => item.key === 'demo');
+  return (
+    <aside data-agent-source-panel="" aria-label={t`素材`} className="flex min-h-0 flex-col">
+      <header className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-divider px-4">
+        <h3 className="font-heading text-sm tracking-wide"><Trans>素材</Trans></h3>
+      </header>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 text-center">
+        <div className="flex items-center gap-2">
+          <StatusDot status={demo?.state ?? 'idle'} />
+          <strong className="text-sm">{demoId === null ? <Trans>尚未选择 Demo</Trans> : <Trans>Demo 已关联</Trans>}</strong>
+        </div>
+        <p className="max-w-[22ch] text-xs leading-normal text-neutral-600">
+          {demo?.detail ?? <Trans>先选择 Demo 作为视频素材</Trans>}
+        </p>
+        {demo?.action === null || demo?.action === undefined ? null : (
+          <RouteLink to={demo.action.to} size="sm">{demo.action.label}</RouteLink>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function AgentFrame({ embedded, toolbar, children }: { readonly embedded: boolean; readonly toolbar?: ReactNode; readonly children: ReactNode }) {
   if (embedded) {
     return <section data-agent-workspace className="flex min-h-0 flex-1 flex-col">{toolbar}{children}</section>;
   }

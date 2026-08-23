@@ -424,12 +424,23 @@ export function AiAgentSection() {
 /* ── the three blocks ────────────────────────────────────────────────────── */
 
 /** The artboard's bordered block: a 34px head with a tracked label, then body. */
-function Block({ id, title, children }: { id: string; title: ReactNode; children: ReactNode }) {
+function Block({
+  id,
+  title,
+  actions,
+  children,
+}: {
+  id: string;
+  title: ReactNode;
+  actions?: ReactNode | undefined;
+  children: ReactNode;
+}) {
   return (
     <section id={`setting-${id}`} data-setting-item={id} tabIndex={-1} className="border border-divider">
-      <h3 className="flex h-[var(--h-panel-head)] items-center border-b border-divider px-3 font-heading text-sm tracking-wider">
-        {title}
-      </h3>
+      <header className="flex min-h-[var(--h-panel-head)] items-center gap-3 border-b border-divider px-3 py-1">
+        <h3 className="font-heading text-sm tracking-wider">{title}</h3>
+        {actions === undefined ? null : <div className="ml-auto flex items-center gap-2">{actions}</div>}
+      </header>
       <div className="flex flex-col gap-3.5 p-3">{children}</div>
     </section>
   );
@@ -498,7 +509,20 @@ function ModelBlock({
     ? { disabled: true, ...(actionDisabledReason === undefined ? {} : { disabledReason: actionDisabledReason }) }
     : {};
   return (
-    <Block id="model" title={<Trans>模型</Trans>}>
+    <Block
+      id="model"
+      title={<Trans>模型</Trans>}
+      actions={draft === null ? undefined : (
+        <>
+          <Button variant="primary" size="sm" onClick={onSave} {...actionProps}>
+            {saving ? <Trans>正在保存</Trans> : <Trans>保存模型设置</Trans>}
+          </Button>
+          <Button size="sm" onClick={onTest} {...actionProps}>
+            {testing ? <Trans>正在测试</Trans> : <Trans>测试连接</Trans>}
+          </Button>
+        </>
+      )}
+    >
       {error !== null ? (
         <Alert variant="danger" action={{ label: <Trans>重试</Trans>, onAction: onRetry }}>
           <Trans>读不到模型配置：{error}</Trans>
@@ -509,6 +533,9 @@ function ModelBlock({
         </div>
       ) : draft === null ? null : (
         <div className="flex flex-col gap-3">
+          <p className="border-b border-divider pb-2 font-heading text-sm">
+            <Trans>1. 连接与身份</Trans>
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <Field label={<Trans>提供方</Trans>} required>
               {(control) => (
@@ -573,7 +600,10 @@ function ModelBlock({
               }
             }}
           />
-          <Field label={<Trans>自定义指令</Trans>} hint={<Trans>会追加到 Agent 的系统指令；留空使用默认行为。</Trans>}>
+          <Field
+            label={<span className="before:content-['5._']"><Trans>自定义指令</Trans></span>}
+            hint={<Trans>会追加到 Agent 的系统指令；留空使用默认行为。</Trans>}
+          >
             {(control) => (
               <Textarea {...control} rows={2} value={draft.prompt} disabled={disabled}
                 onChange={(event) => onChange({ ...draft, prompt: event.target.value })} />
@@ -590,14 +620,6 @@ function ModelBlock({
             </Alert>
           )}
           {disabledReason === undefined ? null : <p className="text-xs text-warn">{disabledReason}</p>}
-          <div className="flex items-center gap-2">
-            <Button variant="primary" onClick={onSave} {...actionProps}>
-              {saving ? <Trans>正在保存</Trans> : <Trans>保存模型设置</Trans>}
-            </Button>
-            <Button onClick={onTest} {...actionProps}>
-              {testing ? <Trans>正在测试</Trans> : <Trans>测试连接</Trans>}
-            </Button>
-          </div>
         </div>
       )}
     </Block>
@@ -698,7 +720,7 @@ function ProviderParametersEditor({
     <div className="flex flex-col gap-3 border-t border-divider pt-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-base"><Trans>Provider 参数</Trans></p>
+          <p className="font-heading text-sm"><Trans>2. Provider 参数</Trans></p>
           <p className="mt-1 text-xs leading-normal text-neutral-600">
             <Trans>Vibe CS 不再自动设置 reasoning、采样或输出上限。留空就使用 provider 默认值。</Trans>
           </p>
@@ -862,7 +884,10 @@ function ProviderParametersEditor({
         </>
       )}
 
-      <Field label={<Trans>Stop sequences</Trans>} hint={<Trans>每行一个；留空不发送。</Trans>}>
+      <Field
+        label={<span className="before:content-['3._']"><Trans>Stop sequences</Trans></span>}
+        hint={<Trans>每行一个；留空不发送。</Trans>}
+      >
         {(control) => (
           <Textarea {...control} rows={2} value={stopValue} disabled={disabled}
             onChange={(event) => {
@@ -872,7 +897,7 @@ function ProviderParametersEditor({
         )}
       </Field>
 
-      <Field label={<Trans>完整参数 JSON</Trans>}
+      <Field label={<span className="before:content-['4._']"><Trans>完整参数 JSON</Trans></span>}
         hint={<Trans>常用字段与这里编辑的是同一个 object。不要放 API key 或私密 header。</Trans>}>
         {(control) => (
           <Textarea {...control} rows={7} className="font-mono text-xs"
@@ -907,7 +932,7 @@ function OptionalNumberParameter({
   readonly onChange: (value: number | undefined) => void;
 }) {
   return (
-    <Field label={label} hint={<Trans>留空使用 provider 默认值。</Trans>}>
+    <Field label={label}>
       {(control) => (
         <Input {...control} type="number" value={value ?? ''} min={min} max={max} step={step}
           disabled={disabled} placeholder="Provider default"

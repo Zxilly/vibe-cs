@@ -402,6 +402,16 @@ describe('模型', () => {
     expect(document.body.textContent).not.toContain('secret-key');
   });
 
+  it('keeps model actions in the panel header above the long parameter form', async () => {
+    renderSection();
+    await screen.findByLabelText(/^提供方/u);
+
+    expect(screen.getByRole('button', { name: '保存模型设置' }).closest('header')).not.toBeNull();
+    expect(screen.getByRole('button', { name: '测试连接' }).closest('header')).not.toBeNull();
+    expect(screen.getByText('1. 连接与身份')).toBeTruthy();
+    expect(screen.getByText('2. Provider 参数')).toBeTruthy();
+  });
+
   it('saves and tests the form shown on screen', async () => {
     const saved: AppConfig[] = [];
     const tested: unknown[] = [];

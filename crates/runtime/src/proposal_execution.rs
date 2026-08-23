@@ -980,6 +980,7 @@ mod tests {
             },
             game_executable,
             steam_executable,
+            user_config_directory: None,
             resolution: vibe_cs_hlae::LaunchResolution {
                 width: 1920,
                 height: 1080,

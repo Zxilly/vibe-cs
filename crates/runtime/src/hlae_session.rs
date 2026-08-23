@@ -47,6 +47,9 @@ const STEAM_CLIENT_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 const STEAM_CLIENT_POLL_INTERVAL: Duration = Duration::from_millis(100);
 const FAILED_JOB_CLEANUP_ATTEMPTS: usize = 20;
 const FAILED_JOB_CLEANUP_RETRY_INTERVAL: Duration = Duration::from_millis(100);
+const MAXIMUM_USER_CONFIG_FILES: usize = 32;
+const MAXIMUM_USER_CONFIG_FILE_BYTES: u64 = 2 * 1_024 * 1_024;
+const MAXIMUM_USER_CONFIG_TOTAL_BYTES: u64 = 8 * 1_024 * 1_024;
 
 /// Bounded deadlines for one managed HLAE session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -185,12 +188,14 @@ struct PreparedHlaeSession {
     disk_space: HlaeDiskSpaceEvidence,
     capture: CaptureSettings,
     tick_rate: f64,
+    managed_config_contents: Vec<u8>,
 }
 
 #[derive(Debug)]
 struct CompletedHlaeSession {
     evidence: RuntimeHlaeSessionEvidence,
     take_directory: PathBuf,
+    managed_config_contents: Vec<u8>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -525,6 +530,10 @@ impl RuntimeHlaeSessionOrchestrator {
                     }
                     .into());
                 }
+                remove_user_config_snapshot(
+                    &request.managed_job_root,
+                    &completed.managed_config_contents,
+                )?;
                 publish_staged_output(
                     &request.managed_job_root,
                     &completed.evidence.mp4_summary.output_path,
@@ -615,6 +624,16 @@ impl RuntimeHlaeSessionOrchestrator {
             path: cfg_directory.clone(),
             source,
         })?;
+        let user_config_directory = request
+            .launch_inputs
+            .user_config_directory
+            .as_deref()
+            .ok_or_else(|| {
+                HlaeError::InvalidPlan(
+                    "managed HLAE launch has no active Steam user configuration".to_owned(),
+                )
+            })?;
+        snapshot_cs2_user_config(user_config_directory, &cfg_directory)?;
         let command_path = request.managed_job_root.join("vibe_cs_commands.xml");
         let bridge_path = request.managed_job_root.join(bridge.file_name());
         let bootstrap = compile_hlae_managed_session_bootstrap(
@@ -670,6 +689,7 @@ impl RuntimeHlaeSessionOrchestrator {
             disk_space,
             capture: program.capture.clone(),
             tick_rate: program.tick_rate,
+            managed_config_contents: bootstrap.contents().as_bytes().to_vec(),
         })
     }
 
@@ -896,6 +916,7 @@ impl RuntimeHlaeSessionOrchestrator {
                 mp4_inspection: encode_evidence.inspection,
             },
             take_directory,
+            managed_config_contents: prepared.managed_config_contents,
         })
     }
 
@@ -1039,6 +1060,32 @@ fn validate_request_basics(request: &RuntimeHlaeSessionRequest) -> Result<(), Hl
     {
         return Err(HlaeError::InvalidPlan(
             "managed job root must be an absent absolute direct child of an existing directory"
+                .to_owned(),
+        ));
+    }
+    let user_config_directory = request
+        .launch_inputs
+        .user_config_directory
+        .as_deref()
+        .ok_or_else(|| {
+            HlaeError::InvalidPlan(
+                "managed HLAE launch requires an active Steam user configuration".to_owned(),
+            )
+        })?;
+    let user_config_metadata =
+        fs::symlink_metadata(user_config_directory).map_err(|error| HlaeError::ArtifactIo {
+            operation: "inspect active Steam user configuration",
+            message: error.to_string(),
+        })?;
+    if !user_config_directory.is_absolute()
+        || user_config_metadata.file_type().is_symlink()
+        || metadata_is_reparse_point(&user_config_metadata)
+        || !user_config_metadata.is_dir()
+        || user_config_directory.starts_with(&request.managed_job_root)
+        || request.managed_job_root.starts_with(user_config_directory)
+    {
+        return Err(HlaeError::InvalidPlan(
+            "active Steam user configuration must be an existing absolute plain directory outside the managed job"
                 .to_owned(),
         ));
     }
@@ -1358,6 +1405,259 @@ fn checked_artifact_path(
         .into());
     }
     Ok(job_root.join(relative))
+}
+
+fn snapshot_cs2_user_config(
+    source: &Path,
+    destination: &Path,
+) -> Result<(), RuntimeHlaeSessionError> {
+    let source_metadata =
+        fs::symlink_metadata(source).map_err(|source_error| RuntimeHlaeSessionError::Io {
+            operation: "inspecting Steam user config snapshot source at",
+            path: source.to_path_buf(),
+            source: source_error,
+        })?;
+    let destination_metadata =
+        fs::symlink_metadata(destination).map_err(|source_error| RuntimeHlaeSessionError::Io {
+            operation: "inspecting managed user config snapshot destination at",
+            path: destination.to_path_buf(),
+            source: source_error,
+        })?;
+    if source_metadata.file_type().is_symlink()
+        || metadata_is_reparse_point(&source_metadata)
+        || !source_metadata.is_dir()
+        || destination_metadata.file_type().is_symlink()
+        || metadata_is_reparse_point(&destination_metadata)
+        || !destination_metadata.is_dir()
+    {
+        return Err(HlaeError::InvalidPlan(
+            "CS2 user config snapshot endpoints must be plain directories".to_owned(),
+        )
+        .into());
+    }
+    let canonical_source =
+        fs::canonicalize(source).map_err(|source_error| RuntimeHlaeSessionError::Io {
+            operation: "canonicalizing Steam user config snapshot source at",
+            path: source.to_path_buf(),
+            source: source_error,
+        })?;
+    let canonical_destination =
+        fs::canonicalize(destination).map_err(|source_error| RuntimeHlaeSessionError::Io {
+            operation: "canonicalizing managed user config snapshot destination at",
+            path: destination.to_path_buf(),
+            source: source_error,
+        })?;
+    if canonical_source == canonical_destination
+        || canonical_source.starts_with(&canonical_destination)
+        || canonical_destination.starts_with(&canonical_source)
+    {
+        return Err(HlaeError::InvalidPlan(
+            "CS2 user config source and managed snapshot must be separate trees".to_owned(),
+        )
+        .into());
+    }
+    let mut entries = fs::read_dir(&canonical_source)
+        .map_err(|source_error| RuntimeHlaeSessionError::Io {
+            operation: "reading Steam user config snapshot directory at",
+            path: canonical_source.clone(),
+            source: source_error,
+        })?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source_error| RuntimeHlaeSessionError::Io {
+            operation: "enumerating Steam user config snapshot directory at",
+            path: canonical_source.clone(),
+            source: source_error,
+        })?;
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+
+    let mut copied_files = 0_usize;
+    let mut copied_bytes = 0_u64;
+    let mut found_user_convars = false;
+    for entry in entries {
+        let name = entry.file_name();
+        let Some(kind) = inherited_cs2_config_kind(&name) else {
+            continue;
+        };
+        let source_path = entry.path();
+        let destination_path = canonical_destination.join(&name);
+        let metadata = fs::symlink_metadata(&source_path).map_err(|source_error| {
+            RuntimeHlaeSessionError::Io {
+                operation: "inspecting Steam user config snapshot entry at",
+                path: source_path.clone(),
+                source: source_error,
+            }
+        })?;
+        if metadata.file_type().is_symlink() || metadata_is_reparse_point(&metadata) {
+            return Err(HlaeError::InvalidPlan(
+                "inherited CS2 setting is a linked or reparse-point entry".to_owned(),
+            )
+            .into());
+        }
+        if !metadata.is_file() {
+            return Err(HlaeError::InvalidPlan(
+                "inherited CS2 setting is not a regular file".to_owned(),
+            )
+            .into());
+        }
+        copied_files = copied_files.checked_add(1).ok_or_else(|| {
+            HlaeError::InvalidPlan("CS2 user config file count overflowed".to_owned())
+        })?;
+        if copied_files > MAXIMUM_USER_CONFIG_FILES {
+            return Err(HlaeError::InvalidPlan(format!(
+                "CS2 user settings exceed {MAXIMUM_USER_CONFIG_FILES} files"
+            ))
+            .into());
+        }
+        if metadata.len() > MAXIMUM_USER_CONFIG_FILE_BYTES {
+            return Err(HlaeError::InvalidPlan(format!(
+                "CS2 user configuration contains a file larger than {MAXIMUM_USER_CONFIG_FILE_BYTES} bytes"
+            ))
+            .into());
+        }
+        copied_bytes = copied_bytes.checked_add(metadata.len()).ok_or_else(|| {
+            HlaeError::InvalidPlan("CS2 user config byte count overflowed".to_owned())
+        })?;
+        if copied_bytes > MAXIMUM_USER_CONFIG_TOTAL_BYTES {
+            return Err(HlaeError::InvalidPlan(format!(
+                "CS2 user settings exceed {MAXIMUM_USER_CONFIG_TOTAL_BYTES} bytes"
+            ))
+            .into());
+        }
+        let bytes = fs::read(&source_path).map_err(|source_error| RuntimeHlaeSessionError::Io {
+            operation: "reading Steam user config snapshot file at",
+            path: source_path.clone(),
+            source: source_error,
+        })?;
+        let after = fs::symlink_metadata(&source_path).map_err(|source_error| {
+            RuntimeHlaeSessionError::Io {
+                operation: "revalidating Steam user config snapshot file at",
+                path: source_path.clone(),
+                source: source_error,
+            }
+        })?;
+        if after.file_type().is_symlink()
+            || metadata_is_reparse_point(&after)
+            || !after.is_file()
+            || after.len() != metadata.len()
+            || u64::try_from(bytes.len()).ok() != Some(metadata.len())
+            || after.modified().ok() != metadata.modified().ok()
+        {
+            return Err(HlaeError::InvalidPlan(
+                "CS2 user configuration changed while its isolated snapshot was being read"
+                    .to_owned(),
+            )
+            .into());
+        }
+        atomic_write_new(&destination_path, &bytes)?;
+        found_user_convars |= kind == InheritedCs2ConfigKind::UserConvars;
+    }
+    if !found_user_convars {
+        return Err(HlaeError::InvalidPlan(
+            "active Steam user configuration has no current CS2 user convar file".to_owned(),
+        )
+        .into());
+    }
+    if fs::canonicalize(source).ok().as_deref() != Some(canonical_source.as_path())
+        || fs::canonicalize(destination).ok().as_deref() != Some(canonical_destination.as_path())
+    {
+        return Err(HlaeError::InvalidPlan(
+            "CS2 user config snapshot endpoint changed during publication".to_owned(),
+        )
+        .into());
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InheritedCs2ConfigKind {
+    UserConvars,
+    UserKeys,
+    MachineConvars,
+    Video,
+}
+
+fn inherited_cs2_config_kind(name: &std::ffi::OsStr) -> Option<InheritedCs2ConfigKind> {
+    let name = name.to_str()?.to_ascii_lowercase();
+    let is_vcfg = Path::new(&name)
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("vcfg"));
+    if is_vcfg && !name.contains("_origin") {
+        if name.starts_with("cs2_user_convars_") && name.contains("_slot") {
+            return Some(InheritedCs2ConfigKind::UserConvars);
+        }
+        if name.starts_with("cs2_user_keys_") && name.contains("_slot") {
+            return Some(InheritedCs2ConfigKind::UserKeys);
+        }
+        if name.starts_with("cs2_machine_convars") {
+            return Some(InheritedCs2ConfigKind::MachineConvars);
+        }
+    }
+    (name == "cs2_video.txt").then_some(InheritedCs2ConfigKind::Video)
+}
+
+fn remove_user_config_snapshot(
+    job_root: &Path,
+    managed_config_contents: &[u8],
+) -> Result<(), RuntimeHlaeSessionError> {
+    let job_metadata =
+        fs::symlink_metadata(job_root).map_err(|source| RuntimeHlaeSessionError::Io {
+            operation: "revalidating managed job before user config cleanup at",
+            path: job_root.to_path_buf(),
+            source,
+        })?;
+    let config_directory = job_root.join("cfg");
+    let config_metadata =
+        fs::symlink_metadata(&config_directory).map_err(|source| RuntimeHlaeSessionError::Io {
+            operation: "revalidating isolated user config before cleanup at",
+            path: config_directory.clone(),
+            source,
+        })?;
+    if job_metadata.file_type().is_symlink()
+        || metadata_is_reparse_point(&job_metadata)
+        || !job_metadata.is_dir()
+        || config_metadata.file_type().is_symlink()
+        || metadata_is_reparse_point(&config_metadata)
+        || !config_metadata.is_dir()
+    {
+        return Err(HlaeError::InvalidPlan(
+            "managed job or isolated user config changed to a linked path before cleanup"
+                .to_owned(),
+        )
+        .into());
+    }
+    let canonical_job =
+        fs::canonicalize(job_root).map_err(|source| RuntimeHlaeSessionError::Io {
+            operation: "canonicalizing managed job before user config cleanup at",
+            path: job_root.to_path_buf(),
+            source,
+        })?;
+    let canonical_config =
+        fs::canonicalize(&config_directory).map_err(|source| RuntimeHlaeSessionError::Io {
+            operation: "canonicalizing isolated user config before cleanup at",
+            path: config_directory.clone(),
+            source,
+        })?;
+    if canonical_config.parent() != Some(canonical_job.as_path()) {
+        return Err(HlaeError::InvalidPlan(
+            "isolated user config escaped the managed job before cleanup".to_owned(),
+        )
+        .into());
+    }
+    fs::remove_dir_all(&canonical_config).map_err(|source| RuntimeHlaeSessionError::Io {
+        operation: "removing isolated user config snapshot at",
+        path: canonical_config.clone(),
+        source,
+    })?;
+    fs::create_dir(&canonical_config).map_err(|source| RuntimeHlaeSessionError::Io {
+        operation: "recreating sanitized managed cfg directory at",
+        path: canonical_config.clone(),
+        source,
+    })?;
+    atomic_write_new(
+        &canonical_job.join(vibe_cs_hlae::HLAE_MANAGED_SESSION_CONFIG_RELATIVE_PATH),
+        managed_config_contents,
+    )?;
+    Ok(())
 }
 
 async fn cleanup_failed_session(
@@ -1757,6 +2057,33 @@ mod tests {
         let hook = installation_root.join("x64/AfxHookSource2.dll");
         let game = directory.path().join("cs2.exe");
         let steam = directory.path().join("steam.exe");
+        let user_config_directory = directory.path().join("steam-user/730/local/cfg");
+        fs::create_dir_all(&user_config_directory).unwrap();
+        fs::write(
+            user_config_directory.join("cs2_user_convars_0_slot0.vcfg"),
+            b"sensitivity=0.845927\ncl_crosshairsize=3.149234\n",
+        )
+        .unwrap();
+        fs::write(
+            user_config_directory.join("autoexec.cfg"),
+            b"// user's personal autoexec\n",
+        )
+        .unwrap();
+        fs::write(
+            user_config_directory.join("cs2_user_keys_0_slot0.vcfg"),
+            b"bind=MOUSE1:+attack\n",
+        )
+        .unwrap();
+        fs::write(
+            user_config_directory.join("cs2_user_convars_0_slot0_origin.vcfg"),
+            b"stale migration backup",
+        )
+        .unwrap();
+        fs::write(
+            user_config_directory.join("gamestate_integration_private.cfg"),
+            b"token=must-not-be-copied",
+        )
+        .unwrap();
         for path in [&hlae, &hook, &game, &steam] {
             fs::write(path, b"fixture").unwrap();
         }
@@ -1776,6 +2103,7 @@ mod tests {
                 },
                 game_executable: game,
                 steam_executable: steam,
+                user_config_directory: Some(user_config_directory),
                 resolution: LaunchResolution {
                     width: 320,
                     height: 240,
@@ -1830,6 +2158,42 @@ mod tests {
 
         assert!(error.to_string().contains("require capture mode"));
         assert!(!job.exists());
+    }
+
+    #[tokio::test]
+    async fn rejects_a_managed_launch_without_user_config_before_creating_the_job() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut request = request(&directory, HlaePlanMode::Capture);
+        request.launch_inputs.user_config_directory = None;
+        let job = request.managed_job_root.clone();
+
+        let error = RuntimeHlaeSessionOrchestrator::default()
+            .run(request)
+            .await
+            .expect_err("managed launch must not fall back to default CS2 settings");
+
+        assert!(error.to_string().contains("user configuration"));
+        assert!(!job.exists());
+    }
+
+    #[test]
+    fn inherits_only_engine_owned_cs2_setting_files() {
+        for inherited in [
+            "cs2_user_convars_0_slot0.vcfg",
+            "cs2_user_keys_0_slot3.vcfg",
+            "cs2_machine_convars.vcfg",
+            "cs2_video.txt",
+        ] {
+            assert!(inherited_cs2_config_kind(std::ffi::OsStr::new(inherited)).is_some());
+        }
+        for private_or_stale in [
+            "autoexec.cfg",
+            "gamestate_integration_private.cfg",
+            "cs2_user_convars_0_slot0_origin.vcfg",
+            "cs2_user_convars_0_slot0.vcfg_lastclouded",
+        ] {
+            assert!(inherited_cs2_config_kind(std::ffi::OsStr::new(private_or_stale)).is_none());
+        }
     }
 
     #[derive(Debug)]
@@ -1934,12 +2298,54 @@ mod tests {
     impl HlaeSessionProcessLauncher for FakeProcessLauncher {
         async fn launch(
             &self,
-            _invocation: &HlaeCustomLoaderInvocation,
+            invocation: &HlaeCustomLoaderInvocation,
             _expected_cs2_executable: &Path,
             _game_discovery_timeout: Duration,
             _cancellation: &ProcessCancellation,
             context: &HlaeBridgeLaunchContext,
         ) -> Result<Box<dyn HlaeSessionProcess>, PlatformError> {
+            let config_root = invocation
+                .arguments()
+                .windows(2)
+                .find_map(|pair| {
+                    (pair[0] == "-addEnv")
+                        .then(|| pair[1].to_str())
+                        .flatten()
+                        .and_then(|value| value.strip_prefix("USRLOCALCSGO="))
+                })
+                .map(PathBuf::from)
+                .expect("managed invocation config root");
+            assert_eq!(
+                fs::read(config_root.join("cfg/cs2_user_convars_0_slot0.vcfg")).unwrap(),
+                b"sensitivity=0.845927\ncl_crosshairsize=3.149234\n"
+            );
+            assert_eq!(
+                fs::read(config_root.join("cfg/cs2_user_keys_0_slot0.vcfg")).unwrap(),
+                b"bind=MOUSE1:+attack\n"
+            );
+            assert!(
+                !config_root
+                    .join("cfg/cs2_user_convars_0_slot0_origin.vcfg")
+                    .exists()
+            );
+            assert!(
+                !config_root
+                    .join("cfg/gamestate_integration_private.cfg")
+                    .exists()
+            );
+            let managed_autoexec =
+                fs::read_to_string(config_root.join("cfg/autoexec.cfg")).unwrap();
+            assert!(
+                managed_autoexec.starts_with(
+                    "// Generated by Vibe CS for one managed, offline HLAE session.\n"
+                )
+            );
+            assert!(!managed_autoexec.contains("user's personal autoexec"));
+            fs::write(
+                config_root.join("cfg/cs2_user_convars_0_slot0.vcfg"),
+                b"session-only rewrite",
+            )
+            .unwrap();
             if self.loader_exit_code.is_none() {
                 let context = context.clone();
                 tokio::spawn(async move {
@@ -2163,6 +2569,14 @@ mod tests {
         let request = request(&directory, HlaePlanMode::Capture);
         let output = request.output_mp4.clone();
         let job = request.managed_job_root.clone();
+        let user_config_directory = request
+            .launch_inputs
+            .user_config_directory
+            .clone()
+            .expect("fixture user config");
+        let source_convars =
+            fs::read(user_config_directory.join("cs2_user_convars_0_slot0.vcfg")).unwrap();
+        let source_autoexec = fs::read(user_config_directory.join("autoexec.cfg")).unwrap();
         let closed = Arc::new(AtomicBool::new(false));
         let encoder = Arc::new(FakeEncoder::default());
         let orchestrator = RuntimeHlaeSessionOrchestrator::with_backends(
@@ -2192,7 +2606,19 @@ mod tests {
         assert!(job.join(RUNTIME_HLAE_SESSION_MANIFEST_FILE).is_file());
         assert!(job.join("vibe_cs_commands.xml").is_file());
         assert!(job.join("vibe_cs_bridge.js").is_file());
+        assert!(!job.join("cfg/cs2_user_convars_0_slot0.vcfg").exists());
+        assert!(!job.join("cfg/cs2_user_keys_0_slot0.vcfg").exists());
         assert!(job.join("cfg/autoexec.cfg").is_file());
+        assert_eq!(
+            fs::read(user_config_directory.join("cs2_user_convars_0_slot0.vcfg")).unwrap(),
+            source_convars,
+            "managed CS2 must never write through to the user's Steam configuration"
+        );
+        assert_eq!(
+            fs::read(user_config_directory.join("autoexec.cfg")).unwrap(),
+            source_autoexec,
+            "managed startup must not replace the user's autoexec"
+        );
         assert!(
             !job.join("capture").exists(),
             "verified source frames must not be retained by default"

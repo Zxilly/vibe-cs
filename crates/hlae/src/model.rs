@@ -287,6 +287,11 @@ pub struct HlaeBundleLaunchInputs {
     /// Existing Steam client executable used to reproduce HLAE's official
     /// Source 2 launch environment without relying on inherited variables.
     pub steam_executable: PathBuf,
+    /// Existing active Steam user's CS2 configuration directory. Managed
+    /// launches snapshot this directory into their disposable HLAE root and
+    /// never write through to the source.
+    #[serde(default)]
+    pub user_config_directory: Option<PathBuf>,
     pub resolution: LaunchResolution,
 }
 
@@ -345,6 +350,7 @@ mod tests {
             installation,
             game_executable: PathBuf::from("C:/Steam/cs2.exe"),
             steam_executable: PathBuf::from("C:/Steam/steam.exe"),
+            user_config_directory: None,
             resolution: LaunchResolution {
                 width: 1_920,
                 height: 1_080,
@@ -361,6 +367,17 @@ mod tests {
                 "unknown field at {pointer} must be rejected"
             );
         }
+        let mut prior_launch_inputs = current;
+        prior_launch_inputs
+            .as_object_mut()
+            .expect("launch inputs object")
+            .remove("userConfigDirectory");
+        assert!(
+            serde_json::from_value::<HlaeBundleLaunchInputs>(prior_launch_inputs)
+                .expect("launch inputs written before user config inheritance remain readable")
+                .user_config_directory
+                .is_none()
+        );
 
         let discovery = HlaeDiscovery {
             installation: None,

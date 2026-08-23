@@ -2285,10 +2285,14 @@ fn spawn_managed_playback(command: &LaunchCommand) -> Result<tokio::process::Chi
     let mut process = tokio::process::Command::new(&command.program);
     process
         .args(&command.args)
+        .envs(&command.environment)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true);
+    if let Some(directory) = command.program.parent() {
+        process.current_dir(directory);
+    }
     process.spawn().map_err(|error| {
         DomainError::DependencyUnavailable(format!(
             "unable to launch managed playback with {}: {error}",
@@ -2301,8 +2305,12 @@ fn build_playback_command(
     config: &AppConfig,
     request: &Value,
 ) -> Result<LaunchCommand, DomainError> {
-    let executable = discover_paths(config).cs2.ok_or_else(|| {
+    let paths = discover_paths(config);
+    let executable = paths.cs2.ok_or_else(|| {
         DomainError::DependencyUnavailable("CS2 executable was not found".to_owned())
+    })?;
+    let steam_executable = paths.steam.ok_or_else(|| {
+        DomainError::DependencyUnavailable("Steam executable was not found".to_owned())
     })?;
     let requested_path = request
         .get("path")
@@ -2323,6 +2331,7 @@ fn build_playback_command(
     })?;
     let mut command = build_cs2_launch_command(
         &executable,
+        &steam_executable,
         &canonical_path,
         GameLaunchOptions {
             skip_intro: true,
@@ -3453,6 +3462,12 @@ mod tests {
         }
     }
 
+    fn steam_executable(directory: &Path) -> PathBuf {
+        let executable = directory.join(if cfg!(windows) { "steam.exe" } else { "steam" });
+        std::fs::write(&executable, b"steam stub").expect("Steam stub");
+        executable
+    }
+
     fn cataloged_demo(path: &str, match_date: Option<DateTime<Utc>>) -> DemoRecord {
         let now = Utc::now();
         DemoRecord {
@@ -3486,10 +3501,12 @@ mod tests {
             .path()
             .join(if cfg!(windows) { "cs2.exe" } else { "cs2" });
         let demo = directory.path().join("match with spaces.dem");
+        let steam = steam_executable(directory.path());
         std::fs::write(&executable, b"stub").expect("CS2 stub");
         std::fs::write(&demo, b"PBDEMS2\0").expect("demo stub");
         let config = AppConfig {
             cs2_path: executable.to_string_lossy().into_owned(),
+            steam_path: steam.to_string_lossy().into_owned(),
             ..AppConfig::default()
         };
 
@@ -3509,6 +3526,11 @@ mod tests {
             .map(|argument| argument.to_string_lossy().into_owned())
             .collect::<Vec<_>>();
 
+        assert_eq!(args.first().map(String::as_str), Some("-steam"));
+        assert_eq!(
+            command.environment.get(&OsString::from("SteamAppId")),
+            Some(&OsString::from("730"))
+        );
         assert!(
             args.windows(2)
                 .any(|pair| pair == ["+demo_gototick", "42000"])
@@ -3538,10 +3560,12 @@ mod tests {
             .path()
             .join(if cfg!(windows) { "cs2.exe" } else { "cs2" });
         let demo = directory.path().join("match.dem");
+        let steam = steam_executable(directory.path());
         std::fs::write(&executable, b"stub").expect("CS2 stub");
         std::fs::write(&demo, b"PBDEMS2\0fixture!").expect("demo fixture");
         let config = AppConfig {
             cs2_path: executable.to_string_lossy().into_owned(),
+            steam_path: steam.to_string_lossy().into_owned(),
             ..AppConfig::default()
         };
 
@@ -3562,6 +3586,7 @@ mod tests {
             .join(if cfg!(windows) { "cs2.exe" } else { "cs2" });
         let gsi_config = game.join("csgo/cfg").join(GSI_FILE_NAME);
         let demo = directory.path().join("verified.dem");
+        let steam = steam_executable(directory.path());
         std::fs::create_dir_all(executable.parent().expect("executable parent"))
             .expect("create executable directory");
         std::fs::create_dir_all(gsi_config.parent().expect("GSI parent"))
@@ -3574,6 +3599,7 @@ mod tests {
         storage
             .put_config(AppConfig {
                 cs2_path: executable.to_string_lossy().into_owned(),
+                steam_path: steam.to_string_lossy().into_owned(),
                 ..AppConfig::default()
             })
             .await
@@ -3606,6 +3632,7 @@ mod tests {
         assert_eq!(response["demo_size"], 16);
         assert_eq!(response["status"]["gsi_ready"], true);
         assert_eq!(response["status"]["map_name"], "de_mirage");
+        assert_eq!(response["arguments"][0], "-steam");
         let sha256 = response["demo_sha256"]
             .as_str()
             .expect("validated hash")

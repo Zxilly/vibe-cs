@@ -26,7 +26,7 @@ use vibe_cs_hlae::{
     HlaeScenePresentation, HlaeVoicePolicy, LaunchResolution, PositionInterpolation,
     RotationInterpolation, discover_managed_hlae, validate_hlae_plan,
 };
-use vibe_cs_integrations::discover_paths;
+use vibe_cs_integrations::{discover_active_cs2_user_config, discover_paths};
 use vibe_cs_platform_windows::{
     HlaeSequenceEncoderCapabilityReport, ProcessCancellation, atomic_write,
     probe_hlae_sequence_encoder_capabilities,
@@ -1527,10 +1527,17 @@ impl HlaeLaunchEnvironment for SystemHlaeLaunchEnvironment {
         let steam_executable = paths.steam.ok_or_else(|| {
             DomainError::DependencyUnavailable("Steam executable was not found".to_owned())
         })?;
+        let user_config_directory =
+            discover_active_cs2_user_config(&steam_executable).map_err(|error| {
+                DomainError::DependencyUnavailable(format!(
+                    "active Steam CS2 configuration is unavailable: {error}"
+                ))
+            })?;
         Ok(HlaeBundleLaunchInputs {
             installation,
             game_executable,
             steam_executable,
+            user_config_directory: Some(user_config_directory),
             resolution,
         })
     }
@@ -2862,6 +2869,7 @@ mod tests {
                 },
                 game_executable: self.root.join("cs2.exe"),
                 steam_executable: self.root.join("steam.exe"),
+                user_config_directory: None,
                 resolution,
             })
         }
@@ -2889,6 +2897,7 @@ mod tests {
                 },
                 game_executable: self.root.join("cs2.exe"),
                 steam_executable: self.root.join("steam.exe"),
+                user_config_directory: None,
                 resolution,
             })
         }

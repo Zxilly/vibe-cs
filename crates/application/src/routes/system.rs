@@ -278,6 +278,7 @@ fn resolve_hlae_launch_inputs(
         installation,
         game_executable,
         steam_executable,
+        user_config_directory: None,
         resolution: LaunchResolution {
             width: 1920,
             height: 1080,

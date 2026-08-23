@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use crate::{HLAE_MIRV_BRIDGE_FILE_NAME, HlaeError, validate::validate_safe_path};
 
 /// Startup location Source 2 executes after HLAE has mounted the isolated
-/// `USRLOCALCSGO` root into the game's search paths.
+/// `USRLOCALCSGO` root into the game's search paths. This deliberately shadows
+/// unreviewed user autoexec commands; engine-owned VCFG settings are inherited
+/// separately by the runtime.
 pub const HLAE_MANAGED_SESSION_CONFIG_RELATIVE_PATH: &str = "cfg/autoexec.cfg";
 const HLAE_MANAGED_COMMAND_SYSTEM_FILE_NAME: &str = "vibe_cs_commands.xml";
 const HLAE_MANAGED_SESSION_CONFIG_MAX_BYTES: usize = 16 * 1_024;

@@ -1,6 +1,6 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, CircleCheck } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -213,23 +213,35 @@ function ProjectExportStep({ project }: { readonly project: ProjectViewModel }) 
   }
   const outputPath = output.path;
   return (
-    <section data-project-step="export" aria-live="polite" className="m-7 flex min-h-48 flex-col gap-4 border border-divider p-5">
-      <div>
-        <h2 className="text-xl"><Trans>成品可用</Trans></h2>
-        <p className="mt-1 text-sm text-neutral-700">
+    <section
+      data-project-step="export"
+      aria-live="polite"
+      className="flex min-h-0 flex-1 items-center justify-center px-7 py-12 text-center"
+    >
+      <div className="flex w-full max-w-[var(--w-overlay)] flex-col items-center gap-5">
+        <CircleCheck className="size-20 text-ok" strokeWidth={1.5} aria-hidden="true" />
+        <div>
+          <h2 className="font-heading text-4xl"><Trans>成品可用</Trans></h2>
+          <p className="mt-2 text-md text-neutral-700">
           <Trans>最终视频已经生成，可以从成品文件页播放、定位或管理。</Trans>
+          </p>
+        </div>
+        <p className="w-full break-all border-y border-divider px-3 py-4 text-left font-mono text-xs text-neutral-600">
+          {outputPath}
         </p>
-      </div>
-      <p className="break-all font-mono text-xs text-neutral-600">{outputPath}</p>
-      <div className="flex flex-wrap gap-2">
-        <RouteLink to="/delivery?view=outputs"><Trans>查看成品</Trans></RouteLink>
+        <div className="flex flex-wrap justify-center gap-3">
+          <Button asChild variant="secondary" size="lg">
+            <RouteLink to="/delivery?view=outputs"><Trans>查看成品</Trans></RouteLink>
+          </Button>
         <Button
-          variant="secondary"
+          variant="primary"
+          size="lg"
           disabled={!shell.available}
           onClick={() => void shell.reveal(outputPath)}
         >
           <Trans>定位文件</Trans>
         </Button>
+        </div>
       </div>
     </section>
   );

@@ -112,16 +112,70 @@ function PlayerCard({
 export interface PlayerComparePanelProps {
   /** In the order the boxes were ticked; 0, 1 or 2 entries. */
   readonly players: readonly PlayerDirectoryItem[];
+  /** The active table row. It gives the persistent panel useful context
+   * without silently adding that player to the compare selection. */
+  readonly focusedPlayer?: PlayerDirectoryItem | undefined;
   /** How many may be compared, for the 「还差一名」 copy. */
   readonly limit: number;
   /** Clears the selection — the way out of the "only one picked" state. */
   readonly onClear: () => void;
 }
 
-export function PlayerComparePanel({ players, limit, onClear }: PlayerComparePanelProps) {
+export function PlayerComparePanel({
+  players,
+  focusedPlayer,
+  limit,
+  onClear,
+}: PlayerComparePanelProps) {
   const [left, right] = players;
 
   if (left === undefined) {
+    if (focusedPlayer !== undefined) {
+      const metrics = [
+        { id: 'matches', label: <Trans>比赛</Trans>, value: formatFixed(focusedPlayer.stats.matches, 0) },
+        { id: 'kd', label: <Trans>K/D</Trans>, value: formatFixed(focusedPlayer.stats.average_kill_death_ratio, 2) },
+        { id: 'adr', label: <Trans>ADR</Trans>, value: formatFixed(focusedPlayer.stats.average_adr, 1) },
+        { id: 'headshots', label: <Trans>爆头率</Trans>, value: formatPercent(headshotRate(focusedPlayer.stats)) },
+        { id: 'kills', label: <Trans>击杀</Trans>, value: formatFixed(focusedPlayer.stats.kills, 0) },
+        { id: 'deaths', label: <Trans>死亡</Trans>, value: formatFixed(focusedPlayer.stats.deaths, 0) },
+      ];
+      return (
+        <Inspector
+          title={<Trans>比较</Trans>}
+          label={t`比较`}
+          summary={<Trans>当前查看 {focusedPlayer.name} · 尚未加入比较</Trans>}
+          footer={
+            <RouteLink to={`/players/${encodeURIComponent(focusedPlayer.steam_id)}`}>
+              <Trans>打开 {focusedPlayer.name} 的档案</Trans>
+            </RouteLink>
+          }
+        >
+          <section className="border border-divider" data-focused-player={focusedPlayer.steam_id}>
+            <header className="border-l-2 border-accent px-3 py-2">
+              <h3 className="font-heading text-xl">{focusedPlayer.name}</h3>
+              <p className="text-2xs text-neutral-600">
+                {focusedPlayer.last_team ?? NO_VALUE}
+                {' · '}
+                <Trans>尚未加入比较</Trans>
+              </p>
+            </header>
+            <dl className="border-t border-divider px-3 py-2 text-sm">
+              {metrics.map((metric) => (
+                <div key={metric.id} className="flex min-h-7 items-center justify-between gap-3">
+                  <dt className="text-neutral-600">{metric.label}</dt>
+                  <dd className="font-mono text-xs">{metric.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+          <p className="border border-dashed border-divider p-3 text-xs leading-normal text-neutral-700">
+            <Trans>
+              勾选 {focusedPlayer.name}，再勾选另一名选手，即可并排比较。最多 {limit} 名。
+            </Trans>
+          </p>
+        </Inspector>
+      );
+    }
     return (
       <Inspector title={<Trans>比较</Trans>} label={t`比较`}>
         <Empty

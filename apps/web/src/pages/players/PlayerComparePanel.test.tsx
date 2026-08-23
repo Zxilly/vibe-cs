@@ -43,6 +43,22 @@ describe('with nothing selected', () => {
   });
 });
 
+describe('with a focused row but nothing selected', () => {
+  it('shows real context without pretending the player is selected', () => {
+    const html = render(
+      <PlayerComparePanel
+        players={[]}
+        focusedPlayer={kael}
+        limit={2}
+        onClear={() => undefined}
+      />,
+    );
+    expect(html).toContain('data-focused-player="STEAM_KAEL"');
+    expect(html).toContain('尚未加入比较');
+    expect(html).toContain('1.42');
+  });
+});
+
 describe('with one selected', () => {
   const html = render(<PlayerComparePanel players={[kael]} limit={2} onClear={() => undefined} />);
 

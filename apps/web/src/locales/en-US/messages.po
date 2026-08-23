@@ -101,7 +101,7 @@ msgid "{0, plural, other {# 个作品}}"
 msgstr "{0, plural, one {# project} other {# projects}}"
 
 #. placeholder {0}: watch.data?.roots.length ?? 0
-#: src/pages/LibraryPage.tsx:377
+#: src/pages/LibraryPage.tsx:376
 msgid "{0, plural, other {# 个监听目录}}"
 msgstr "{0, plural, one {# watched folder} other {# watched folders}}"
 
@@ -126,7 +126,7 @@ msgid "{0, plural, other {# 回合}}"
 msgstr "{0, plural, one {# round} other {# rounds}}"
 
 #. placeholder {0}: list.data?.total ?? 0
-#: src/pages/LibraryPage.tsx:375
+#: src/pages/LibraryPage.tsx:374
 msgid "{0, plural, other {# 场}}"
 msgstr "{0, plural, one {# match} other {# matches}}"
 
@@ -166,7 +166,7 @@ msgid "{0, plural, other {最近 # 条}}"
 msgstr "{0, plural, one {Last # session} other {Last # sessions}}"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:289
+#: src/pages/LibraryPage.tsx:288
 msgid "{0, plural, other {分析选中的 # 场}}"
 msgstr "{0, plural, one {Analyze # selected match} other {Analyze # selected matches}}"
 
@@ -617,7 +617,7 @@ msgid "{total} 个成品文件 · {available} 可用"
 msgstr "{total} finished files · {available} available"
 
 #. placeholder {0}: directory.data.coverage.projected_demos
-#: src/pages/PlayersPage.tsx:226
+#: src/pages/PlayersPage.tsx:230
 msgid "{total} 名选手 · 来自 {0} 场已分析比赛"
 msgstr "{total} players · from {0} analyzed matches"
 
@@ -645,7 +645,7 @@ msgid "「{0}」只是一条对话。删除它不会动它改过的方案、录�
 msgstr "“{0}” is only a conversation. Deleting it touches none of the plans, recording tasks or finished videos it changed — the plan’s “Change origin” even keeps the name this session had at the time; you simply cannot go back to that conversation."
 
 #. placeholder {0}: state.search
-#: src/pages/PlayersPage.tsx:324
+#: src/pages/PlayersPage.tsx:328
 msgid "「{0}」没有匹配到选手或别名。目录只按名字和别名做前缀与子串匹配，不做拼音和模糊匹配。"
 msgstr "“{0}” matched no player and no alias. The directory matches names and aliases by prefix and substring only — no pinyin, no fuzzy matching."
 
@@ -721,6 +721,7 @@ msgstr "A"
 #: src/pages/match/views/TeamsView.tsx:144
 #: src/pages/match/views/TeamsView.tsx:566
 #: src/pages/players/PlayerComparePanel.tsx:57
+#: src/pages/players/PlayerComparePanel.tsx:137
 #: src/pages/players/PlayerMapTable.tsx:55
 #: src/pages/players/PlayerMapTable.tsx:56
 #: src/pages/players/PlayerTrend.tsx:64
@@ -888,7 +889,7 @@ msgstr "The Demo file is missing, so analysis cannot start"
 #: src/app/shell/navigation.tsx:86
 #: src/app/shell/navigation.tsx:110
 #: src/pages/home/RecentMatchesPanel.tsx:52
-#: src/pages/LibraryPage.tsx:372
+#: src/pages/LibraryPage.tsx:371
 msgid "Demo 资料库"
 msgstr "Demo library"
 
@@ -941,6 +942,7 @@ msgstr "K / D / A"
 #: src/pages/match/views/TeamsView.tsx:139
 #: src/pages/match/views/TeamsView.tsx:565
 #: src/pages/players/PlayerComparePanel.tsx:50
+#: src/pages/players/PlayerComparePanel.tsx:136
 #: src/pages/players/PlayerMapTable.tsx:48
 #: src/pages/players/PlayerMapTable.tsx:49
 #: src/pages/players/PlayerTrend.tsx:62
@@ -1065,9 +1067,9 @@ msgid "Steam 上的对局记录与回放下载"
 msgstr "Match records on Steam and demo downloads"
 
 #: src/app/routeCrumb.ts:112
-#: src/pages/LibraryPage.tsx:112
-#: src/pages/LibraryPage.tsx:387
-#: src/pages/LibraryPage.tsx:390
+#: src/pages/LibraryPage.tsx:111
+#: src/pages/LibraryPage.tsx:386
+#: src/pages/LibraryPage.tsx:389
 #: src/pages/settings/FilesSection.tsx:274
 msgid "Steam 下载"
 msgstr "Steam downloads"
@@ -1449,7 +1451,7 @@ msgstr "Headshots only"
 msgid "从 CS2 最近比赛复制一条分享代码，服务会从它继续同步。"
 msgstr "Copy a share code from a recent CS2 match; syncing will continue from it."
 
-#: src/pages/LibraryPage.tsx:113
+#: src/pages/LibraryPage.tsx:112
 msgid "从 Steam 同步最近比赛并下载回放"
 msgstr "Sync recent matches from Steam and download replays"
 
@@ -1798,7 +1800,7 @@ msgid "先用当前模式"
 msgstr "Use current mode"
 
 #. placeholder {0}: left.name
-#: src/pages/players/PlayerComparePanel.tsx:146
+#: src/pages/players/PlayerComparePanel.tsx:200
 msgid "先看 {0} 的档案"
 msgstr "Open the profile of {0} first"
 
@@ -1984,7 +1986,7 @@ msgstr "{0} highlights in total, {1} under the current filter"
 msgid "共 {0} 项"
 msgstr "{0} items"
 
-#: src/pages/PlayersPage.tsx:351
+#: src/pages/PlayersPage.tsx:355
 msgid "共 {total} 名选手"
 msgstr "{total} players in total"
 
@@ -2087,7 +2089,7 @@ msgstr "The other kinds still hold {0}."
 msgid "再修剪就不足一帧了"
 msgstr "Trimming any further would leave less than one frame"
 
-#: src/pages/players/PlayerComparePanel.tsx:154
+#: src/pages/players/PlayerComparePanel.tsx:208
 msgid "再勾一名选手才能比较。上限 {limit} 名——超过两列的并排会让每一列都读不清。"
 msgstr "Tick one more player to compare. Up to {limit} — more than two columns side by side makes every column unreadable."
 
@@ -2215,6 +2217,7 @@ msgstr "Move the out point forward one frame"
 #: src/pages/match/views/PlayersView.tsx:145
 #: src/pages/match/views/PlayersView.tsx:146
 #: src/pages/match/views/RoundsView.tsx:85
+#: src/pages/players/PlayerComparePanel.tsx:139
 #: src/pages/players/PlayerHeatmapPanel.tsx:71
 #: src/pages/PlayersPage.tsx:131
 #: src/pages/PlayersPage.tsx:132
@@ -2360,7 +2363,7 @@ msgstr "Pagination"
 msgid "切换工作模式，当前：{currentModeLabel}"
 msgstr "Switch work mode, current: {currentModeLabel}"
 
-#: src/pages/LibraryPage.tsx:397
+#: src/pages/LibraryPage.tsx:396
 msgid "切换视图"
 msgstr "Switch view"
 
@@ -2417,7 +2420,7 @@ msgstr "Delete conversation"
 msgid "删除没有成功"
 msgstr "The delete did not succeed"
 
-#: src/pages/LibraryPage.tsx:329
+#: src/pages/LibraryPage.tsx:328
 msgid "删除记录"
 msgstr "Delete records"
 
@@ -2537,7 +2540,12 @@ msgstr "Actions"
 msgid "助攻"
 msgstr "Assists"
 
-#: src/pages/players/PlayerComparePanel.tsx:130
+#. placeholder {0}: focusedPlayer.name
+#: src/pages/players/PlayerComparePanel.tsx:172
+msgid "勾选 {0}，再勾选另一名选手，即可并排比较。最多 {limit} 名。"
+msgstr "Check {0}, then check one more player to compare them side by side. Up to {limit} players."
+
+#: src/pages/players/PlayerComparePanel.tsx:184
 msgid "勾选最多 {limit} 名选手，这里会把他们的 K/D、ADR 和爆头率并排放在一起。"
 msgstr "Tick up to {limit} players and their K/D, ADR and headshot rate are placed side by side here."
 
@@ -2590,7 +2598,7 @@ msgstr "Single-lane preview — no overlays, no grade"
 msgid "占用"
 msgstr "Usage"
 
-#: src/pages/LibraryPage.tsx:405
+#: src/pages/LibraryPage.tsx:404
 msgid "卡片"
 msgstr "Cards"
 
@@ -2633,7 +2641,7 @@ msgstr "Analyse in the library"
 
 #: src/pages/evidence/EvidenceEmpty.tsx:76
 #: src/pages/PlayerProfilePage.tsx:227
-#: src/pages/PlayersPage.tsx:332
+#: src/pages/PlayersPage.tsx:336
 msgid "去资料库分析一场"
 msgstr "Analyze a match in the library"
 
@@ -3462,7 +3470,7 @@ msgstr "Import"
 #: src/pages/home/FirstRunStrip.tsx:59
 #: src/pages/HomePage.tsx:88
 #: src/pages/library/ImportDemoDialog.tsx:93
-#: src/pages/LibraryPage.tsx:255
+#: src/pages/LibraryPage.tsx:254
 msgid "导入 Demo"
 msgstr "Import Demo"
 
@@ -3501,12 +3509,12 @@ msgstr "Export"
 msgid "导出 HTML"
 msgstr "Export HTML"
 
-#: src/pages/LibraryPage.tsx:324
+#: src/pages/LibraryPage.tsx:323
 msgid "导出会返回一份文件，桌面端还没有保存到磁盘的命令"
 msgstr "Export returns a file, and the desktop build has no command to save it to disk yet"
 
 #: src/pages/library/LibraryFilters.tsx:207
-#: src/pages/LibraryPage.tsx:326
+#: src/pages/LibraryPage.tsx:325
 msgid "导出元数据"
 msgstr "Export metadata"
 
@@ -3591,6 +3599,10 @@ msgstr "Will produce"
 #: src/pages/ProjectsPage.tsx:75
 msgid "尚未关联比赛"
 msgstr "No linked matches"
+
+#: src/pages/players/PlayerComparePanel.tsx:159
+msgid "尚未加入比较"
+msgstr "Not added to comparison"
 
 #: src/pages/AgentPage.tsx:522
 msgid "尚未选择 Demo"
@@ -3825,7 +3837,7 @@ msgid "已过期 · Valve 不再保留"
 msgstr "Expired · Valve no longer keeps it"
 
 #. placeholder {0}: state.compare.length
-#: src/pages/PlayersPage.tsx:262
+#: src/pages/PlayersPage.tsx:266
 msgid "已选 {0} 名 · 比较上限 {PLAYER_COMPARE_LIMIT} 名"
 msgstr "{0} selected · up to {PLAYER_COMPARE_LIMIT} can be compared"
 
@@ -3835,7 +3847,7 @@ msgid "已选 {0} 场"
 msgstr "{0} matches selected"
 
 #. placeholder {0}: selected.size
-#: src/pages/LibraryPage.tsx:276
+#: src/pages/LibraryPage.tsx:275
 msgid "已选 {0} 场 · 上限 {DEMO_SELECTION_LIMIT} 场"
 msgstr "{0} matches selected · up to {DEMO_SELECTION_LIMIT}"
 
@@ -3845,7 +3857,7 @@ msgid "已选 {0} 条"
 msgstr "{0} selected"
 
 #. placeholder {0}: left.name
-#: src/pages/players/PlayerComparePanel.tsx:143
+#: src/pages/players/PlayerComparePanel.tsx:197
 msgid "已选 {0}，还差一名"
 msgstr "{0} selected, one more to go"
 
@@ -4055,6 +4067,11 @@ msgstr "Current conditions: "
 #: src/domain/map/HeatLayer.tsx:155
 msgid "当前条件下没有采样点，因此没有密度可比。"
 msgstr "No samples under the current filters, so there is no density to compare."
+
+#. placeholder {0}: focusedPlayer.name
+#: src/pages/players/PlayerComparePanel.tsx:146
+msgid "当前查看 {0} · 尚未加入比较"
+msgstr "Viewing {0} · not added to comparison"
 
 #: src/pages/ProjectsPage.tsx:70
 msgid "当前步骤"
@@ -4411,7 +4428,9 @@ msgid "打不开这场比赛的分析结果：{analysisError}"
 msgstr "The analysis result of this match could not be opened: {analysisError}"
 
 #. placeholder {0}: comparePlayers[0]?.name
-#: src/pages/PlayersPage.tsx:271
+#. placeholder {0}: focusedPlayer.name
+#: src/pages/players/PlayerComparePanel.tsx:149
+#: src/pages/PlayersPage.tsx:275
 msgid "打开 {0} 的档案"
 msgstr "Open the profile of {0}"
 
@@ -4462,7 +4481,7 @@ msgstr "Open the Quick Edit copy?"
 msgid "打开成品目录"
 msgstr "Open finished-files folder"
 
-#: src/pages/players/PlayerComparePanel.tsx:173
+#: src/pages/players/PlayerComparePanel.tsx:227
 msgid "打开档案"
 msgstr "Open profile"
 
@@ -4748,8 +4767,8 @@ msgstr "Search matches, players, evidence, pages and actions"
 msgid "搜索比赛、选手或文件名"
 msgstr "Search matches, players or file names"
 
-#: src/pages/PlayersPage.tsx:240
-#: src/pages/PlayersPage.tsx:241
+#: src/pages/PlayersPage.tsx:244
+#: src/pages/PlayersPage.tsx:245
 msgid "搜索选手或别名"
 msgstr "Search players or aliases"
 
@@ -4888,7 +4907,7 @@ msgstr "Discard"
 msgid "故障"
 msgstr "Glitch"
 
-#: src/pages/players/PlayerComparePanel.tsx:227
+#: src/pages/players/PlayerComparePanel.tsx:281
 msgid "数据不可用"
 msgstr "No data"
 
@@ -4904,8 +4923,8 @@ msgstr "Data directory"
 msgid "整场 · 事件"
 msgstr "Whole match · events"
 
-#: src/pages/LibraryPage.tsx:200
-#: src/pages/LibraryPage.tsx:221
+#: src/pages/LibraryPage.tsx:199
+#: src/pages/LibraryPage.tsx:220
 msgid "整场比赛"
 msgstr "Full match"
 
@@ -5487,7 +5506,7 @@ msgid "查看"
 msgstr "View"
 
 #. placeholder {0}: left.name
-#: src/pages/players/PlayerComparePanel.tsx:185
+#: src/pages/players/PlayerComparePanel.tsx:239
 msgid "查看 {0} 的档案"
 msgstr "View the profile of {0}"
 
@@ -5845,7 +5864,7 @@ msgstr "Reading the waveform"
 msgid "正在读取片段"
 msgstr "Reading clips"
 
-#: src/pages/PlayersPage.tsx:313
+#: src/pages/PlayersPage.tsx:317
 msgid "正在读取玩家目录"
 msgstr "Reading the player directory"
 
@@ -5923,6 +5942,7 @@ msgstr "Weapon: {0}"
 
 #: src/pages/match/views/PlayersView.tsx:153
 #: src/pages/match/views/PlayersView.tsx:154
+#: src/pages/players/PlayerComparePanel.tsx:140
 #: src/pages/players/PlayerHeatmapPanel.tsx:73
 #: src/pages/PlayersPage.tsx:139
 #: src/pages/PlayersPage.tsx:140
@@ -5946,7 +5966,7 @@ msgstr "Clutch"
 msgid "残局候选"
 msgstr "Clutch candidates"
 
-#: src/pages/players/PlayerComparePanel.tsx:224
+#: src/pages/players/PlayerComparePanel.tsx:278
 msgid "段位分布"
 msgstr "Rank distribution"
 
@@ -6035,6 +6055,7 @@ msgstr "Score {0} to {1}"
 #: src/pages/history/MatchHistoryTable.tsx:118
 #: src/pages/library/libraryColumns.tsx:75
 #: src/pages/library/libraryColumns.tsx:76
+#: src/pages/players/PlayerComparePanel.tsx:135
 #: src/pages/PlayersPage.tsx:99
 #: src/pages/PlayersPage.tsx:100
 msgid "比赛"
@@ -6099,18 +6120,20 @@ msgstr "Match time"
 msgid "比赛详情"
 msgstr "Match detail"
 
-#: src/pages/players/PlayerComparePanel.tsx:126
-#: src/pages/players/PlayerComparePanel.tsx:126
-#: src/pages/players/PlayerComparePanel.tsx:141
-#: src/pages/players/PlayerComparePanel.tsx:142
-#: src/pages/players/PlayerComparePanel.tsx:164
-#: src/pages/players/PlayerComparePanel.tsx:165
+#: src/pages/players/PlayerComparePanel.tsx:144
+#: src/pages/players/PlayerComparePanel.tsx:145
+#: src/pages/players/PlayerComparePanel.tsx:180
+#: src/pages/players/PlayerComparePanel.tsx:180
+#: src/pages/players/PlayerComparePanel.tsx:195
+#: src/pages/players/PlayerComparePanel.tsx:196
+#: src/pages/players/PlayerComparePanel.tsx:218
+#: src/pages/players/PlayerComparePanel.tsx:219
 msgid "比较"
 msgstr "Compare"
 
 #. placeholder {0}: left.name
 #. placeholder {1}: right.name
-#: src/pages/players/PlayerComparePanel.tsx:167
+#: src/pages/players/PlayerComparePanel.tsx:221
 msgid "比较 {0} 与 {1}"
 msgstr "Compare {0} with {1}"
 
@@ -6142,7 +6165,7 @@ msgstr "No matching session"
 msgid "没有匹配的结果"
 msgstr "No results"
 
-#: src/pages/PlayersPage.tsx:318
+#: src/pages/PlayersPage.tsx:322
 msgid "没有匹配的选手"
 msgstr "No matching player"
 
@@ -6324,8 +6347,8 @@ msgstr "Add {0} clips"
 msgid "添加到时间轴"
 msgstr "Add to timeline"
 
+#: src/pages/LibraryPage.tsx:302
 #: src/pages/LibraryPage.tsx:303
-#: src/pages/LibraryPage.tsx:304
 msgid "添加标签"
 msgstr "Add tag"
 
@@ -6344,7 +6367,7 @@ msgid "添加监听目录"
 msgstr "Add a watched folder"
 
 #: src/pages/library/WatchDirectoriesDrawer.tsx:84
-#: src/pages/LibraryPage.tsx:264
+#: src/pages/LibraryPage.tsx:263
 #: src/pages/settings/FilesSection.tsx:258
 msgid "添加目录"
 msgstr "Add folder"
@@ -6393,7 +6416,7 @@ msgid "清空对话"
 msgstr "Clear conversations"
 
 #: src/pages/agent/SessionDrawer.tsx:283
-#: src/pages/PlayersPage.tsx:339
+#: src/pages/PlayersPage.tsx:343
 msgid "清空搜索"
 msgstr "Clear the search"
 
@@ -6416,8 +6439,8 @@ msgid "清空这份作品的片段？"
 msgstr "Clear this project's clips?"
 
 #: src/pages/match/views/HighlightsView.tsx:330
-#: src/pages/players/PlayerComparePanel.tsx:179
-#: src/pages/PlayersPage.tsx:277
+#: src/pages/players/PlayerComparePanel.tsx:233
+#: src/pages/PlayersPage.tsx:281
 msgid "清空选择"
 msgstr "Clear the selection"
 
@@ -6558,6 +6581,7 @@ msgstr "Headshot kills"
 #: src/pages/match/views/TeamsView.tsx:147
 #: src/pages/match/views/TeamsView.tsx:567
 #: src/pages/players/PlayerComparePanel.tsx:64
+#: src/pages/players/PlayerComparePanel.tsx:138
 #: src/pages/players/PlayerMapTable.tsx:62
 #: src/pages/players/PlayerMapTable.tsx:63
 #: src/pages/players/PlayerTrend.tsx:66
@@ -6690,12 +6714,12 @@ msgstr "Player profile"
 
 #: src/app/command/commandRegistry.ts:178
 #: src/app/shell/navigation.tsx:116
-#: src/pages/PlayersPage.tsx:223
-#: src/pages/PlayersPage.tsx:297
+#: src/pages/PlayersPage.tsx:227
+#: src/pages/PlayersPage.tsx:301
 msgid "玩家目录"
 msgstr "Players"
 
-#: src/pages/PlayersPage.tsx:292
+#: src/pages/PlayersPage.tsx:296
 msgid "玩家目录没能读出来：{error}"
 msgstr "The player directory could not be read: {error}"
 
@@ -6773,7 +6797,7 @@ msgstr "Generating the preview plan failed: {0}"
 msgid "生效"
 msgstr "Detonated"
 
-#: src/pages/LibraryPage.tsx:299
+#: src/pages/LibraryPage.tsx:298
 msgid "用 Agent 创作"
 msgstr "Create with Agent"
 
@@ -6878,8 +6902,8 @@ msgstr "Percent"
 
 #: src/pages/library/libraryFormat.ts:156
 #: src/pages/library/WatchDirectoriesDrawer.tsx:75
-#: src/pages/LibraryPage.tsx:415
-#: src/pages/LibraryPage.tsx:421
+#: src/pages/LibraryPage.tsx:414
+#: src/pages/LibraryPage.tsx:420
 #: src/pages/settings/FilesSection.tsx:192
 msgid "监听目录"
 msgstr "Watched folders"
@@ -6896,11 +6920,11 @@ msgstr "The directory was too large to walk fully, so this counted part of it �
 msgid "目录很大，只扫描了一部分"
 msgstr "The folder is large, so only part of it was scanned"
 
-#: src/pages/PlayersPage.tsx:322
+#: src/pages/PlayersPage.tsx:326
 msgid "目录是从已分析的比赛里累积出来的。分析一场之后，出场的选手就会出现在这里。"
 msgstr "The directory builds up from analyzed matches. Analyze one and the players in it show up here."
 
-#: src/pages/PlayersPage.tsx:290
+#: src/pages/PlayersPage.tsx:294
 msgid "目录是只读的，重试不会改动任何数据。"
 msgstr "The directory is read-only, so a retry changes no data."
 
@@ -7027,7 +7051,7 @@ msgstr "Collision geometry unknown"
 msgid "磁盘空间不足"
 msgstr "Not enough disk space"
 
-#: src/pages/LibraryPage.tsx:401
+#: src/pages/LibraryPage.tsx:400
 msgid "视图"
 msgstr "View"
 
@@ -7541,7 +7565,7 @@ msgstr "Row ＼ Column"
 msgid "行方与列方"
 msgstr "Row side and column side"
 
-#: src/pages/LibraryPage.tsx:404
+#: src/pages/LibraryPage.tsx:403
 msgid "表格"
 msgstr "Table"
 
@@ -8253,7 +8277,7 @@ msgstr "No notes yet. A note hangs on a specific tick, so select an evidence row
 msgid "还没有片段"
 msgstr "No clips yet"
 
-#: src/pages/PlayersPage.tsx:318
+#: src/pages/PlayersPage.tsx:322
 msgid "还没有玩家"
 msgstr "No players yet"
 
@@ -8299,7 +8323,7 @@ msgstr "No clip selected yet"
 msgid "还没有选中证据"
 msgstr "No evidence selected yet"
 
-#: src/pages/players/PlayerComparePanel.tsx:128
+#: src/pages/players/PlayerComparePanel.tsx:182
 msgid "还没有选中选手"
 msgstr "No player selected yet"
 
@@ -9198,7 +9222,7 @@ msgstr "The configuration file cannot be read"
 msgid "配置模型"
 msgstr "Configure model"
 
-#: src/pages/LibraryPage.tsx:233
+#: src/pages/LibraryPage.tsx:232
 msgid "配置还没读出来，稍后再试"
 msgstr "The configuration has not been read yet — try again shortly"
 
@@ -9361,7 +9385,7 @@ msgstr "Choose again"
 #: src/pages/library/LibraryInspector.tsx:184
 #: src/pages/library/LibraryTable.tsx:102
 #: src/pages/library/WatchDirectoriesDrawer.tsx:92
-#: src/pages/LibraryPage.tsx:456
+#: src/pages/LibraryPage.tsx:455
 #: src/pages/match/views/HighlightsView.tsx:160
 #: src/pages/match/views/ReplayView.tsx:239
 #: src/pages/match/views/ReviewView.tsx:116
@@ -9374,7 +9398,7 @@ msgstr "Choose again"
 #: src/pages/PlayerProfilePage.tsx:153
 #: src/pages/PlayerProfilePage.tsx:217
 #: src/pages/players/PlayerHeatmapPanel.tsx:142
-#: src/pages/PlayersPage.tsx:289
+#: src/pages/PlayersPage.tsx:293
 #: src/pages/project/AddToProjectDialog.tsx:91
 #: src/pages/project/ProjectRecordingStep.tsx:123
 #: src/pages/project/ProjectRecordingStep.tsx:162
@@ -9670,7 +9694,7 @@ msgstr "Opening killer"
 msgid "首杀 / 首死"
 msgstr "Opening kills / deaths"
 
-#: src/pages/players/PlayerComparePanel.tsx:235
+#: src/pages/players/PlayerComparePanel.tsx:289
 msgid "首杀、残局胜率与常用地图这三列这批分析还没有产出，所以既不在表里也不在这里。"
 msgstr "Opening kills, clutch win rate and favorite maps are not produced by this batch of analyses, so they are neither in the table nor here."
 

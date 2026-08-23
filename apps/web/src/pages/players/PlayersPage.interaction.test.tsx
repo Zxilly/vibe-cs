@@ -184,7 +184,7 @@ describe('paging', () => {
       expect(address()).toContain('page=2');
     });
     // Row 21 of 312 — proof the second page came from the service.
-    expect(await screen.findByText('Kael-20')).toBeTruthy();
+    expect(await screen.findAllByText('Kael-20')).not.toHaveLength(0);
   });
 });
 

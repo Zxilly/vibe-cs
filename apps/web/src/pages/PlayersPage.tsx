@@ -183,6 +183,9 @@ export function PlayersPage() {
   const rows = directory.data?.items ?? [];
   const total = directory.data?.total ?? 0;
   const selected = new Set(state.compare);
+  const activePlayer = rows.find(
+    (row) => row.steam_id === (state.activeId || rows[0]?.steam_id),
+  );
   const comparePlayers = state.compare
     .map((id) => rows.find((row) => row.steam_id === id))
     .filter((row): row is PlayerDirectoryItem => row !== undefined);
@@ -210,6 +213,7 @@ export function PlayersPage() {
   const panel = (
     <PlayerComparePanel
       players={comparePlayers}
+      focusedPlayer={activePlayer}
       limit={PLAYER_COMPARE_LIMIT}
       onClear={() => commit({ ...state, compare: [] })}
     />
@@ -305,7 +309,7 @@ export function PlayersPage() {
             onSelectedChange={(next) =>
               commit({ ...state, compare: reconcileCompare(state.compare, next) })
             }
-            activeRowId={state.activeId === '' ? null : state.activeId}
+            activeRowId={activePlayer?.steam_id ?? null}
             onRowActivate={(rowId) => commit({ ...state, activeId: rowId })}
             sort={sort}
             onSortChange={onSortChange}

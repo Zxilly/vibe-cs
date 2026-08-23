@@ -123,7 +123,7 @@ describe('density · TaskDetail with a full stage log', () => {
     expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-4');
   });
 
-  it('truncates the fact rail rather than letting a value push the panel wide', () => {
+  it('keeps the wider fact rail bounded while technical values wrap', () => {
     expect(task).toBeDefined();
     if (task === undefined) return;
 
@@ -135,9 +135,11 @@ describe('density · TaskDetail with a full stage log', () => {
       />,
     );
 
-    // The rail is `--w-panel`; both `dd`s clip inside it.
-    expect(occurrences(html, 'truncate')).toBeGreaterThanOrEqual(3);
-    expect(html).toContain('lg:w-[var(--w-panel)]');
+    // User-facing facts still truncate. Diagnostic paths use the wider rail
+    // and wrap, so a bug report keeps the exact value rather than an ellipsis.
+    expect(occurrences(html, 'truncate')).toBeGreaterThanOrEqual(2);
+    expect(html).toContain('lg:w-[var(--w-inspector-wide)]');
+    expect(html).toContain('break-all font-mono');
   });
 });
 

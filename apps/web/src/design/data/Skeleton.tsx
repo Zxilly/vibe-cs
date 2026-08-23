@@ -51,11 +51,38 @@ export interface TableSkeletonProps {
    * see the module note on why there is no percentage.
    */
   readonly stage?: ReactNode | undefined;
+  /** Route fallback variant with a distinct header, body and stage footer. */
+  readonly panel?: boolean | undefined;
   readonly className?: string | undefined;
 }
 
-export function TableSkeleton({ rows = 4, stage, className }: TableSkeletonProps) {
+export function TableSkeleton({ rows = 4, stage, panel = false, className }: TableSkeletonProps) {
   const count = Math.max(0, Math.trunc(rows));
+
+  if (panel) {
+    return (
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label={t`加载中`}
+        data-skeleton-layout="panel"
+        className={cn('flex flex-col border border-divider', className)}
+      >
+        <div className="flex h-[var(--h-panel-head)] items-center border-b border-divider px-4">
+          <Skeleton width="8rem" className="h-3.5" />
+        </div>
+        <div className="flex flex-col gap-3 p-4">
+          <Skeleton width="40%" className="h-3.5" />
+          {Array.from({ length: count }, (_, index) => (
+            <Skeleton key={index} width={ROW_WIDTHS[index % ROW_WIDTHS.length]} />
+          ))}
+        </div>
+        {stage === undefined ? null : (
+          <p className="mt-auto border-t border-divider px-4 py-3 text-xs text-neutral-600">{stage}</p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div

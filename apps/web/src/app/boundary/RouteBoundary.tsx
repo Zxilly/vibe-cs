@@ -38,7 +38,7 @@ import { Trans } from '@lingui/react/macro';
 import { Component, Suspense, type ReactNode } from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
 
-import { Empty, EMPTY_MIN_HEIGHT_CLASS, TableSkeleton } from '../../design/data';
+import { EMPTY_MIN_HEIGHT_CLASS, TableSkeleton } from '../../design/data';
 import { Page, Toolbar } from '../../design/layout';
 import { Button, cn } from '../../design/primitives';
 
@@ -77,6 +77,7 @@ export function RouteLoading({ stage, rows = 4, className }: RouteLoadingProps) 
       }
     >
       <TableSkeleton
+        panel
         rows={rows}
         stage={stage ?? <Trans>正在打开这个页面</Trans>}
         className={cn(EMPTY_MIN_HEIGHT_CLASS, 'm-7', className)}
@@ -107,21 +108,34 @@ export function RouteErrorState({
   className,
 }: RouteErrorStateProps) {
   return (
-    <Empty
-      preset="error"
-      className={className}
-      actions={
-        <>
+    <section
+      aria-labelledby="route-failed-title"
+      data-route-failed=""
+      data-tone="error"
+      className={cn('mx-auto mt-20 w-[calc(100%-3.5rem)] max-w-[39rem] border border-fail-border bg-bg', className)}
+    >
+      <div className="border-b border-fail-border px-4 py-3 font-mono text-2xs tracking-wide text-fail-text">
+        ROUTE <span className="text-fail">/</span> FAILED
+      </div>
+      <div className={cn(EMPTY_MIN_HEIGHT_CLASS, 'flex flex-col items-center justify-center gap-3 p-7 text-center')}>
+        <h3 id="route-failed-title" className="font-heading text-xl text-fail-text">
+          <Trans>这个页面没能打开</Trans>
+        </h3>
+        <p className="max-w-[46ch] text-sm leading-normal text-neutral-800">
+          <Trans>其余功能不受影响。你可以返回工作台，或把这次错误导出给开发者。</Trans>
+        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-2.5 border-t border-divider pt-3">
           {onRetry === undefined ? null : (
-            <Button size="sm" onClick={onRetry}>
+            <Button variant="secondary" size="sm" onClick={onRetry}>
               <Trans>重试</Trans>
             </Button>
           )}
-          <Button size="sm" onClick={onGoHome ?? goHome}>
+          <Button variant="primary" size="sm" onClick={onGoHome ?? goHome}>
             <Trans>返回工作台</Trans>
           </Button>
           {onExportDiagnostics === undefined ? null : (
             <Button
+              variant="ghost"
               size="sm"
               onClick={() => {
                 onExportDiagnostics(error);
@@ -130,9 +144,9 @@ export function RouteErrorState({
               <Trans>导出诊断</Trans>
             </Button>
           )}
-        </>
-      }
-    />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -146,16 +160,27 @@ export function NotFound({
   className?: string | undefined;
 }) {
   return (
-    <Empty
-      title={<Trans>找不到这个页面</Trans>}
-      description={<Trans>这个地址不存在。其余功能不受影响。</Trans>}
-      className={className}
-      actions={
+    <section
+      aria-labelledby="route-not-found-title"
+      data-route-not-found=""
+      data-tone="empty"
+      className={cn('mx-auto mt-20 w-[calc(100%-3.5rem)] max-w-[35rem] border border-divider bg-bg', className)}
+    >
+      <div className="border-b border-divider px-4 py-3 font-mono text-2xs tracking-wide text-neutral-600">
+        ROUTE <span className="text-accent-700">/</span> NOT FOUND
+      </div>
+      <div className="flex min-h-[11rem] flex-col items-center justify-center gap-3 p-7 text-center">
+        <h3 id="route-not-found-title" className="font-heading text-xl">
+          <Trans>找不到这个页面</Trans>
+        </h3>
+        <p className="text-sm text-neutral-700">
+          <Trans>这个地址不存在。其余功能不受影响。</Trans>
+        </p>
         <Button variant="primary" size="sm" onClick={onGoHome ?? goHome}>
           <Trans>返回工作台</Trans>
         </Button>
-      }
-    />
+      </div>
+    </section>
   );
 }
 

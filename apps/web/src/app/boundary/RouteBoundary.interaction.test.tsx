@@ -204,6 +204,11 @@ describe('RouteErrorElement — the router’s errorElement slot', () => {
 });
 
 describe('NotFound', () => {
+  it('uses one compact classified boundary panel', () => {
+    const { container } = renderInteractive(<NotFound />);
+    expect(container.querySelector('[data-route-not-found]')?.textContent).toContain('ROUTE / NOT FOUND');
+  });
+
   it('navigates home through the hash router by default', async () => {
     const { getByRole } = renderInteractive(<NotFound />);
     fireEvent.click(getByRole('button', { name: '返回工作台' }));

@@ -29,6 +29,7 @@ describe('RouteLoading — 加载中 · 表格骨架', () => {
 
   it('holds the artboard height', () => {
     expect(html).toContain(ROUTE_STATE_MIN_HEIGHT_CLASS);
+    expect(html).toContain('data-skeleton-layout="panel"');
   });
 
   it('keeps the page and top-bar geometry while a lazy route loads', () => {
@@ -50,6 +51,7 @@ describe('RouteErrorState — 这个页面没能打开', () => {
   it('is toned as a failure — fail border and fail heading', () => {
     const html = renderMarkup(<RouteErrorState />);
     expect(html).toContain('data-tone="error"');
+    expect(html).toContain('data-route-failed');
     expect(html).toContain('border-fail-border');
     expect(html).toContain('text-fail-text');
   });

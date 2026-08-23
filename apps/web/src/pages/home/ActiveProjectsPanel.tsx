@@ -20,6 +20,7 @@
  */
 
 import { Plural, Trans } from '@lingui/react/macro';
+import { FileVideo2 } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { Skeleton } from '../../design/data';
@@ -102,20 +103,16 @@ export function ActiveProjectsPanel() {
           <Trans>还没有作品。快速剪辑串一条视频，多轨编辑器做需要叠加与字幕的片子。</Trans>
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col border border-divider">
           {rows.slice(0, SHOWN).map((row) => (
-            <li key={`${row.kind}:${row.id}`} className="flex items-center justify-between gap-3 border border-divider p-3 text-sm">
+            <li key={`${row.kind}:${row.id}`} className="flex min-h-row-task items-center gap-3 border-b border-divider px-3 py-2 text-sm last:border-b-0">
+              <FileVideo2 className="size-5 flex-none text-accent-700" strokeWidth={1.5} aria-hidden="true" />
               <div className="flex min-w-0 flex-col gap-0.5">
-                <RouteLink to={row.href} className="truncate">
-                  {row.name}
-                </RouteLink>
+                <RouteLink to={row.href} className="truncate">{row.name}</RouteLink>
                 <span className="text-xs text-neutral-600">
-                  {projectStep(row)}
-                  {' · '}
-                  {row.kind === 'editor' ? <Trans>多轨编辑</Trans> : <Trans>快速剪辑</Trans>}
-                  {' · '}
-                  <Plural value={row.clipCount} other="# 段素材" />
-                  {' · '}
+                  {projectStep(row)}{' · '}
+                  {row.kind === 'editor' ? <Trans>多轨编辑</Trans> : <Trans>快速剪辑</Trans>}{' · '}
+                  <Plural value={row.clipCount} other="# 段素材" />{' · '}
                   <Trans>上次保存 {formatTaskClock(row.updatedAt, { now: new Date() })}</Trans>
                 </span>
               </div>

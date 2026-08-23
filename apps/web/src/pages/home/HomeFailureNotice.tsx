@@ -50,7 +50,7 @@ export function HomeFailureNotice({ service, now }: HomeFailureNoticeProps) {
   const failed = feed.data?.summary.failed ?? 0;
 
   return (
-    <section aria-label={t`失败可恢复`} className="flex flex-col gap-3 border border-fail-border p-4">
+    <section aria-label={t`失败可恢复`} className="flex flex-col gap-3 border border-fail-border p-5">
       <TaskCard task={bound.summary} links={bound.links} headingLevel={3} showId={false} {...(now === undefined ? {} : { now })} />
       {failed > 1 ? (
         <p className="text-xs text-neutral-700">

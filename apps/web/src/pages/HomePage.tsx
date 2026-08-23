@@ -66,21 +66,21 @@ export function HomePage() {
       }
     >
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-7" data-home-layout="three-sections">
-        <section className="flex flex-col gap-4" data-home-block="needs-attention">
-          <h2 className="text-lg font-medium"><Trans>需要我处理</Trans></h2>
+        <section className="flex flex-col gap-3" data-home-block="needs-attention">
+          <h2 className="border-l-2 border-accent pl-2 text-lg font-medium"><Trans>需要我处理</Trans></h2>
           <EnvironmentNotice />
           <PendingPlansPanel />
           <HomeFailureNotice service={service} />
         </section>
 
-        <section className="flex flex-col gap-4 border-t border-divider pt-5" data-home-block="continue">
-          <h2 className="text-lg font-medium"><Trans>继续</Trans></h2>
+        <section className="flex flex-col gap-3 border-t border-divider pt-5" data-home-block="continue">
+          <h2 className="border-l-2 border-accent pl-2 text-lg font-medium"><Trans>继续</Trans></h2>
           <ActiveProjectsPanel />
         </section>
 
-        <section className="flex flex-col gap-4 border-t border-divider pt-5" data-home-block="new">
+        <section className="flex flex-col gap-3 border-t border-divider pt-5" data-home-block="new">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 className="text-lg font-medium"><Trans>新建</Trans></h2>
+            <h2 className="border-l-2 border-accent pl-2 text-lg font-medium"><Trans>新建</Trans></h2>
             <span className="flex-1" />
             <Button variant="primary" size="md" onClick={() => void navigate('/projects/new?step=shotlist')}>
               <Trans>新建作品</Trans>

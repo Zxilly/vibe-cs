@@ -108,7 +108,7 @@ export function PendingPlansPanel() {
         </p>
       ) : (
         <>
-          <ul className="flex flex-col gap-2.5">
+          <ul className="flex flex-col border border-divider">
             {items.slice(0, SHOWN).map((plan) => (
               <PlanRow
                 key={plan.id}
@@ -141,7 +141,7 @@ function PlanRow({
   readonly snoozing: boolean;
 }) {
   return (
-    <li className="flex items-center justify-between gap-3 border border-divider p-3" data-plan={plan.id}>
+    <li className="flex min-h-row-task items-center justify-between gap-3 border-b border-divider px-3 py-2 last:border-b-0" data-plan={plan.id}>
       <div className="flex min-w-0 flex-col gap-1">
         <p className="truncate text-sm">{plan.title}</p>
         <p className="text-xs text-neutral-600">

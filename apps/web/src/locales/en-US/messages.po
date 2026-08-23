@@ -29,30 +29,30 @@ msgstr ". Widening the time range usually helps most."
 
 #. placeholder {0}: spans.minutes
 #. placeholder {1}: spans.seconds
-#: src/pages/MontagePage.tsx:224
+#: src/pages/MontagePage.tsx:228
 msgid "· {0} 分 {1} 秒"
 msgstr "· {0}m {1}s"
 
 #. placeholder {0}: stamp.text
-#: src/pages/MontagePage.tsx:235
+#: src/pages/MontagePage.tsx:239
 msgid "· 上次保存 {0}"
 msgstr "· last saved {0}"
 
 #. placeholder {0}: stamp.value
-#: src/pages/MontagePage.tsx:231
+#: src/pages/MontagePage.tsx:235
 msgid "· 上次保存 {0} 分钟前"
 msgstr "· last saved {0} minutes ago"
 
 #. placeholder {0}: stamp.value
-#: src/pages/MontagePage.tsx:233
+#: src/pages/MontagePage.tsx:237
 msgid "· 上次保存 {0} 小时前"
 msgstr "· last saved {0} hours ago"
 
-#: src/pages/MontagePage.tsx:229
+#: src/pages/MontagePage.tsx:233
 msgid "· 刚刚保存"
 msgstr "· saved just now"
 
-#: src/pages/MontagePage.tsx:222
+#: src/pages/MontagePage.tsx:226
 msgid "· 时长待定"
 msgstr "· duration pending"
 
@@ -177,7 +177,7 @@ msgid "{0, plural, other {导入 # 个文件}}"
 msgstr "{0, plural, one {Import # file} other {Import # files}}"
 
 #. placeholder {0}: project.demoIds.length
-#: src/pages/ProjectsPage.tsx:76
+#: src/pages/ProjectsPage.tsx:91
 msgid "{0, plural, other {已关联 # 场比赛}}"
 msgstr "{0, plural, one {Linked to # match} other {Linked to # matches}}"
 
@@ -224,7 +224,7 @@ msgstr "{0} · {1} matches · {2} aliases · last seen {3}"
 
 #. placeholder {0}: player.name
 #. placeholder {1}: player.kills
-#: src/pages/match/views/TeamsView.tsx:545
+#: src/pages/match/views/TeamsView.tsx:555
 msgid "{0} · {1} 杀"
 msgstr "{0} · {1} kills"
 
@@ -268,14 +268,14 @@ msgstr "{0} rounds with an opening kill · {1} unattributed"
 
 #. placeholder {0}: items.length
 #. placeholder {0}: match.clips.length
-#: src/pages/project/ProjectSelectStep.tsx:36
-#: src/pages/RecordingPage.tsx:312
+#: src/pages/project/ProjectSelectStep.tsx:45
+#: src/pages/RecordingPage.tsx:316
 msgid "{0} 个片段"
 msgstr "{0} clips"
 
 #. placeholder {0}: items.length
 #. placeholder {1}: Math.round(estimated)
-#: src/pages/RecordingPage.tsx:314
+#: src/pages/RecordingPage.tsx:318
 msgid "{0} 个片段 · {1} 秒"
 msgstr "{0} clips · {1}s"
 
@@ -330,7 +330,7 @@ msgstr "{0} matches"
 
 #. placeholder {0}: matches.length
 #. placeholder {1}: clips.length
-#: src/pages/project/ProjectSelectStep.tsx:29
+#: src/pages/project/ProjectSelectStep.tsx:38
 msgid "{0} 场比赛 · {1} 个片段"
 msgstr "{0} matches · {1} clips"
 
@@ -385,7 +385,7 @@ msgid "{0} 次购买没能归属到阵营"
 msgstr "{0} purchases could not be attributed to a side"
 
 #. placeholder {0}: project.clips.length
-#: src/pages/MontagePage.tsx:220
+#: src/pages/MontagePage.tsx:224
 msgid "{0} 段素材"
 msgstr "{0} clips"
 
@@ -722,7 +722,7 @@ msgstr "A"
 #: src/pages/match/views/PlayersView.tsx:178
 #: src/pages/match/views/PlayersView.tsx:304
 #: src/pages/match/views/TeamsView.tsx:144
-#: src/pages/match/views/TeamsView.tsx:566
+#: src/pages/match/views/TeamsView.tsx:576
 #: src/pages/players/PlayerComparePanel.tsx:57
 #: src/pages/players/PlayerComparePanel.tsx:137
 #: src/pages/players/PlayerMapTable.tsx:55
@@ -936,14 +936,14 @@ msgid "K"
 msgstr "K"
 
 #: src/pages/match/views/PlayersView.tsx:301
-#: src/pages/match/views/TeamsView.tsx:564
+#: src/pages/match/views/TeamsView.tsx:574
 msgid "K / D / A"
 msgstr "K / D / A"
 
 #: src/pages/match/views/PlayersView.tsx:169
 #: src/pages/match/views/PlayersView.tsx:170
 #: src/pages/match/views/TeamsView.tsx:139
-#: src/pages/match/views/TeamsView.tsx:565
+#: src/pages/match/views/TeamsView.tsx:575
 #: src/pages/players/PlayerComparePanel.tsx:50
 #: src/pages/players/PlayerComparePanel.tsx:136
 #: src/pages/players/PlayerMapTable.tsx:48
@@ -1489,7 +1489,7 @@ msgstr "Add from recordings"
 msgid "从录制结果里挑几段，它们会按这里的顺序拼成视频。"
 msgstr "Pick a few takes from the recordings; they are stitched into the video in the order shown here."
 
-#: src/pages/project/ProjectSelectStep.tsx:19
+#: src/pages/project/ProjectSelectStep.tsx:24
 msgid "从比赛工作区的高光、回合或证据点击「加入作品」，片段会按比赛汇总到这里。"
 msgstr "Use “Add to project” on a highlight, round, or evidence item. Clips are grouped here by match."
 
@@ -1593,6 +1593,7 @@ msgstr "Job ID"
 
 #: src/pages/MontagePage.tsx:208
 #: src/pages/ProjectsPage.tsx:26
+#: src/pages/ProjectsPage.tsx:63
 #: src/terminology.ts:32
 msgid "作品"
 msgstr "Project"
@@ -1655,7 +1656,7 @@ msgid "依赖检查"
 msgstr "Dependency checks"
 
 #: src/pages/agent/SessionDrawer.tsx:333
-#: src/pages/EditorPage.tsx:408
+#: src/pages/EditorPage.tsx:425
 #: src/pages/library/SaveViewDialog.tsx:54
 #: src/pages/recording/ShotInspectorBlock.tsx:671
 msgid "保存"
@@ -1665,7 +1666,7 @@ msgstr "Save"
 msgid "保存 Steam 设置"
 msgstr "Save Steam settings"
 
-#: src/pages/EditorPage.tsx:373
+#: src/pages/EditorPage.tsx:386
 msgid "保存中…"
 msgstr "Saving…"
 
@@ -1774,15 +1775,15 @@ msgstr "Stop preview"
 msgid "先保存当前改动，再应用预设"
 msgstr "Save your changes first, then apply the preset"
 
-#: src/pages/EditorPage.tsx:525
+#: src/pages/EditorPage.tsx:542
 msgid "先保存或放弃当前改动，恢复会覆盖它们"
 msgstr "Save or discard the current changes first — restoring overwrites them"
 
-#: src/pages/EditorPage.tsx:423
+#: src/pages/EditorPage.tsx:440
 msgid "先保存改动，导出用的是已保存的版本"
 msgstr "Save your changes first — the export uses the saved version"
 
-#: src/pages/EditorPage.tsx:440
+#: src/pages/EditorPage.tsx:457
 msgid "先保存改动，导出用的是服务端存着的工程"
 msgstr "Save first: an export renders the project the service has stored"
 
@@ -1808,7 +1809,7 @@ msgstr "Use current mode"
 msgid "先看 {0} 的档案"
 msgstr "Open the profile of {0} first"
 
-#: src/pages/RecordingPage.tsx:499
+#: src/pages/RecordingPage.tsx:503
 msgid "先运行录制前校验"
 msgstr "Run the preflight first"
 
@@ -2018,7 +2019,7 @@ msgstr "{0} pieces of utility thrown, flashing {1} players."
 msgid "共投出 {0} 个道具。"
 msgstr "{0} pieces of utility thrown."
 
-#: src/pages/ProjectsPage.tsx:72
+#: src/pages/ProjectsPage.tsx:65
 msgid "关联比赛"
 msgstr "Linked matches"
 
@@ -2106,7 +2107,7 @@ msgstr "Tick one more player to compare. Up to {limit} — more than two columns
 msgid "再快一点"
 msgstr "A bit faster"
 
-#: src/pages/EditorPage.tsx:472
+#: src/pages/EditorPage.tsx:489
 msgid "再试一次"
 msgstr "Try again"
 
@@ -2164,7 +2165,7 @@ msgstr "Recent matches"
 msgid "最近比赛没能读出来：{matchesError}"
 msgstr "Recent matches could not be read: {matchesError}"
 
-#: src/pages/ProjectsPage.tsx:78
+#: src/pages/ProjectsPage.tsx:66
 msgid "最近活动"
 msgstr "Recent activity"
 
@@ -2472,7 +2473,7 @@ msgstr "No cut before this one"
 msgid "剪辑中"
 msgstr "Editing"
 
-#: src/pages/ProjectsPage.tsx:89
+#: src/pages/ProjectsPage.tsx:122
 #: src/pages/ProjectWorkspacePage.tsx:156
 #: src/terminology.ts:28
 msgid "剪辑单"
@@ -2570,8 +2571,8 @@ msgstr "Covers the fields of view, the HUD, the radar, the voice and the lead-in
 msgid "包装"
 msgstr "Packaging"
 
-#: src/pages/MontagePage.tsx:287
-#: src/pages/MontagePage.tsx:287
+#: src/pages/MontagePage.tsx:291
+#: src/pages/MontagePage.tsx:291
 msgid "包装与导出"
 msgstr "Packaging & export"
 
@@ -2973,7 +2974,7 @@ msgstr "Back to the library"
 #: src/pages/match/views/TeamsView.tsx:235
 #: src/pages/match/views/UtilityView.tsx:313
 #: src/pages/match/views/UtilityView.tsx:314
-#: src/pages/project/ProjectSelectStep.tsx:74
+#: src/pages/project/ProjectSelectStep.tsx:83
 msgid "回合"
 msgstr "Rounds"
 
@@ -3071,7 +3072,7 @@ msgstr "Made {0} changes across {shots} shots"
 msgid "在 2D 回放里查看"
 msgstr "View in the 2D replay"
 
-#: src/pages/match/views/TeamsView.tsx:531
+#: src/pages/match/views/TeamsView.tsx:541
 msgid "在上面的名单里点一名选手，他这一场的数据会出现在这里。"
 msgstr "Click a player in the roster above and their numbers for this match show up here."
 
@@ -3083,8 +3084,8 @@ msgstr "Click a cell in the round timeline above and the alive curve, the object
 msgid "在回合时间线里点一格，这一回合的证据与注释会出现在这里。"
 msgstr "Click a cell in the round timeline and the evidence and the notes of that round show up here."
 
-#: src/pages/MontagePage.tsx:243
-#: src/pages/MontagePage.tsx:263
+#: src/pages/MontagePage.tsx:247
+#: src/pages/MontagePage.tsx:267
 msgid "在多轨编辑器中打开"
 msgstr "Open in the multitrack editor"
 
@@ -3129,7 +3130,7 @@ msgstr "Referenced when the conversation was created"
 msgid "在方案里挑高光加成镜头，回到这里重新生成预览计划。"
 msgstr "Pick highlights in the plan to add shots, then come back here and regenerate the preview plan."
 
-#: src/pages/RecordingPage.tsx:420
+#: src/pages/RecordingPage.tsx:424
 msgid "在方案里给这些镜头选好 Demo 与选手之后，这一页就能生成预览计划。"
 msgstr "Once these shots have a Demo and a player picked in the plan, this page can generate the preview plan."
 
@@ -3273,6 +3274,7 @@ msgstr "A Multitrack project can contain layers, keyframes, effects, and separat
 msgid "多轨时间轴"
 msgstr "Multitrack timeline"
 
+#: src/pages/EditorPage.tsx:410
 #: src/pages/ProjectWorkspacePage.tsx:252
 msgid "多轨精剪"
 msgstr "Multitrack edit"
@@ -3393,7 +3395,7 @@ msgid "密钥只保存在本机配置中，页面和诊断包都不会回显它�
 msgstr "Secrets are stored only in local configuration and are never echoed in the UI or diagnostic bundles."
 
 #: src/pages/match/views/DuelsView.tsx:543
-#: src/pages/match/views/TeamsView.tsx:556
+#: src/pages/match/views/TeamsView.tsx:566
 msgid "对位"
 msgstr "Matchups"
 
@@ -3493,11 +3495,11 @@ msgstr "Import a .dem, or add a watched folder to pick them up automatically"
 msgid "导入本地的视频或音频，它们会成为这个工程可用的素材。"
 msgstr "Import local video or audio and it becomes media this project can use."
 
-#: src/pages/EditorPage.tsx:299
+#: src/pages/EditorPage.tsx:312
 msgid "导入本机文件需要桌面应用，浏览器里做不到"
 msgstr "Importing local files needs the desktop app; a browser cannot do it"
 
-#: src/pages/EditorPage.tsx:325
+#: src/pages/EditorPage.tsx:338
 msgid "导入没有完成"
 msgstr "The import did not finish"
 
@@ -3508,7 +3510,7 @@ msgstr "Import media"
 
 #: src/domain/task/taskVocabulary.tsx:30
 #: src/pages/montage/ExportBlock.tsx:275
-#: src/pages/ProjectsPage.tsx:91
+#: src/pages/ProjectsPage.tsx:124
 #: src/pages/ProjectWorkspacePage.tsx:158
 #: src/pages/ProjectWorkspacePage.tsx:209
 #: src/pages/settings/AdvancedSection.tsx:257
@@ -3529,8 +3531,8 @@ msgstr "Export returns a file, and the desktop build has no command to save it t
 msgid "导出元数据"
 msgstr "Export metadata"
 
-#: src/pages/EditorPage.tsx:415
-#: src/pages/EditorPage.tsx:426
+#: src/pages/EditorPage.tsx:432
+#: src/pages/EditorPage.tsx:443
 msgid "导出工程包"
 msgstr "Export package"
 
@@ -3554,8 +3556,8 @@ msgstr "Exporting a finished cut needs it. Recording and analysis are unaffected
 msgid "导出没有完成：{exportError}"
 msgstr "The export did not finish: {exportError}"
 
-#: src/pages/EditorPage.tsx:432
-#: src/pages/EditorPage.tsx:450
+#: src/pages/EditorPage.tsx:449
+#: src/pages/EditorPage.tsx:467
 msgid "导出视频"
 msgstr "Export video"
 
@@ -3607,7 +3609,7 @@ msgstr "It will hang on the evidence at round {0}, tick {1}."
 msgid "将生成"
 msgstr "Will produce"
 
-#: src/pages/ProjectsPage.tsx:75
+#: src/pages/ProjectsPage.tsx:90
 msgid "尚未关联比赛"
 msgstr "No linked matches"
 
@@ -3684,7 +3686,7 @@ msgstr "Progress"
 msgid "工具"
 msgstr "Tools"
 
-#: src/pages/MontagePage.tsx:355
+#: src/pages/MontagePage.tsx:359
 msgid "工程没有被改动，重试是安全的。"
 msgstr "The project was not changed, so a retry is safe."
 
@@ -3692,7 +3694,7 @@ msgstr "The project was not changed, so a retry is safe."
 msgid "已从备份恢复配置，重新读取后生效。"
 msgstr "Configuration restored from the backup; it takes effect once re-read."
 
-#: src/pages/EditorPage.tsx:377
+#: src/pages/EditorPage.tsx:390
 msgid "已保存"
 msgstr "Saved"
 
@@ -3784,7 +3786,7 @@ msgctxt "plan-change"
 msgid "已接受"
 msgstr "Accepted"
 
-#: src/pages/project/ProjectSelectStep.tsx:28
+#: src/pages/project/ProjectSelectStep.tsx:37
 msgid "已收集片段"
 msgstr "Collected clips"
 
@@ -3800,7 +3802,7 @@ msgstr "Recorded take available · Play directly"
 msgid "已有录制结果，但只有 Desktop 能播放本机文件。"
 msgstr "A recorded take is available, but local files can only be played in Desktop."
 
-#: src/pages/ProjectsPage.tsx:99
+#: src/pages/ProjectsPage.tsx:132
 msgid "已有成品"
 msgstr "Finished file available"
 
@@ -4084,7 +4086,7 @@ msgstr "No samples under the current filters, so there is no density to compare.
 msgid "当前查看 {0} · 尚未加入比较"
 msgstr "Viewing {0} · not added to comparison"
 
-#: src/pages/ProjectsPage.tsx:70
+#: src/pages/ProjectsPage.tsx:64
 msgid "当前步骤"
 msgstr "Current step"
 
@@ -4115,7 +4117,7 @@ msgid "当前锚点是一条证据，可以在「我的注释」里为它写注�
 msgstr "The current anchor is an evidence row, so a note for it can be written under My notes."
 
 #: src/domain/task/taskVocabulary.tsx:28
-#: src/pages/ProjectsPage.tsx:90
+#: src/pages/ProjectsPage.tsx:123
 #: src/pages/ProjectWorkspacePage.tsx:157
 msgid "录制"
 msgstr "Recording"
@@ -4142,6 +4144,10 @@ msgstr "Recording starts CS2, captures the {0} clips one by one, and publishes t
 msgid "录制会启动 CS2，逐个采集片段，完成后把成片发布到输出里。"
 msgstr "Recording starts CS2, captures the clips one by one, and publishes the finished video to Outputs."
 
+#: src/pages/RecordingPage.tsx:308
+msgid "录制准备"
+msgstr "Recording preparation"
+
 #: src/pages/settings/AiAgentSection.tsx:292
 #: src/pages/settings/AiAgentSection.tsx:302
 msgid "录制前始终由你确认"
@@ -4152,7 +4158,7 @@ msgstr "Recording always waits for your confirmation"
 msgid "录制前校验"
 msgstr "Recording preflight"
 
-#: src/pages/RecordingPage.tsx:502
+#: src/pages/RecordingPage.tsx:506
 msgid "录制前校验有阻塞项，先解决它们"
 msgstr "The preflight has blocking items — clear them first"
 
@@ -4223,7 +4229,7 @@ msgstr "Recordings, finished cuts and the app's own data all live here."
 msgid "录制结果没能读取：{error}"
 msgstr "The recordings could not be read: {error}"
 
-#: src/pages/RecordingPage.tsx:306
+#: src/pages/RecordingPage.tsx:309
 msgid "录制计划"
 msgstr "Recording plan"
 
@@ -4302,6 +4308,7 @@ msgid "必须是有效的 JSON object"
 msgstr "Must be a valid JSON object"
 
 #: src/pages/home/ActiveProjectsPanel.tsx:114
+#: src/pages/MontagePage.tsx:213
 #: src/pages/ProjectWorkspacePage.tsx:251
 msgid "快速剪辑"
 msgstr "Quick edit"
@@ -4310,7 +4317,7 @@ msgstr "Quick edit"
 msgid "快速剪辑只有成片素材与秒级裁切，无法无损还原 Demo tick、选手和证据，因此不能反向生成 Agent 剪辑单。"
 msgstr "Quick Edit has rendered media and second-based trims only. It cannot losslessly restore Demo ticks, players, or evidence, so it cannot rebuild an Agent shot list."
 
-#: src/pages/MontagePage.tsx:261
+#: src/pages/MontagePage.tsx:265
 msgid "快速合辑和多轨工程是两种工程，暂时不能互相转换"
 msgstr "A quick montage and a multi-track project are two different kinds of project; converting between them is not supported yet"
 
@@ -4467,7 +4474,7 @@ msgstr "Open project"
 
 #: src/pages/recording/ShotListBlock.tsx:328
 #: src/pages/recording/ShotListBlock.tsx:353
-#: src/pages/RecordingPage.tsx:425
+#: src/pages/RecordingPage.tsx:429
 msgid "打开剪辑单"
 msgstr "Open shot list"
 
@@ -4496,7 +4503,7 @@ msgstr "Open finished-files folder"
 msgid "打开档案"
 msgstr "Open profile"
 
-#: src/pages/project/ProjectSelectStep.tsx:38
+#: src/pages/project/ProjectSelectStep.tsx:47
 msgid "打开比赛"
 msgstr "Open match"
 
@@ -4580,7 +4587,7 @@ msgstr "Apply the settings of this clip to all of them?"
 
 #: src/pages/match/views/DuelsView.tsx:770
 #: src/pages/match/views/PlayersView.tsx:492
-#: src/pages/match/views/TeamsView.tsx:547
+#: src/pages/match/views/TeamsView.tsx:557
 #: src/pages/match/views/UtilityView.tsx:659
 msgid "把这名选手加入作品"
 msgstr "Add this player to a project"
@@ -4797,7 +4804,7 @@ msgstr "Undo delete"
 msgid "撤销拒绝"
 msgstr "Undo reject"
 
-#: src/pages/EditorPage.tsx:492
+#: src/pages/EditorPage.tsx:509
 msgid "撤销这次修改"
 msgstr "Undo this change"
 
@@ -4824,7 +4831,7 @@ msgstr "Nothing playable under the playhead"
 msgid "播放头下没有画面"
 msgstr "No picture under the playhead"
 
-#: src/pages/EditorPage.tsx:258
+#: src/pages/EditorPage.tsx:271
 msgid "播放头这个位置已经有片段了，把播放头挪到空处再试"
 msgstr "There is already a clip at the playhead — move it to an empty spot and try again"
 
@@ -4874,7 +4881,7 @@ msgstr "The change is recorded as a new plan version, and the Agent is told"
 msgid "改动来源"
 msgstr "Change origin"
 
-#: src/pages/MontagePage.tsx:377
+#: src/pages/MontagePage.tsx:381
 msgid "改动没有保存：{saveMessage}"
 msgstr "The change was not saved: {saveMessage}"
 
@@ -5084,7 +5091,7 @@ msgstr "A plan is the list of shots the Agent hands over. Ask for one in the con
 msgid "方案本身没有被改动，重试是安全的。"
 msgstr "The plan itself was not changed, so a retry is safe."
 
-#: src/pages/RecordingPage.tsx:428
+#: src/pages/RecordingPage.tsx:432
 msgid "方案里有镜头还没有绑定素材，暂时不能转成录制计划。"
 msgstr "Some shots in the plan are not bound to any footage, so it cannot become a recording plan yet."
 
@@ -5092,7 +5099,7 @@ msgstr "Some shots in the plan are not bound to any footage, so it cannot become
 msgid "方案里的镜头绑定好 Demo 与选手之后，这里会列出可录制的片段。"
 msgstr "Once the shots in the plan are bound to a Demo and a player, the recordable clips are listed here."
 
-#: src/pages/RecordingPage.tsx:422
+#: src/pages/RecordingPage.tsx:426
 msgid "方案里的镜头都被移除了，先在方案里恢复或新增一个镜头。"
 msgstr "Every shot in the plan has been removed; restore one or add one in the plan first."
 
@@ -5257,7 +5264,7 @@ msgstr "Replace"
 
 #. placeholder {0}: keyframeLoss.clips
 #. placeholder {1}: keyframeLoss.keyframes
-#: src/pages/EditorPage.tsx:496
+#: src/pages/EditorPage.tsx:513
 msgid "有 {0} 个片段被改短了，保存时会丢掉落在片段之外的 {1} 个关键帧。"
 msgstr "{0} clips were shortened; saving drops the {1} keyframes that now fall outside them."
 
@@ -5317,7 +5324,7 @@ msgstr "Facing and field of view"
 msgid "未下载"
 msgstr "Not downloaded"
 
-#: src/pages/EditorPage.tsx:375
+#: src/pages/EditorPage.tsx:388
 msgid "未保存"
 msgstr "Unsaved"
 
@@ -5352,7 +5359,7 @@ msgstr "Unattributed"
 msgid "未归属选手"
 msgstr "Unattributed player"
 
-#: src/pages/match/views/TeamsView.tsx:513
+#: src/pages/match/views/TeamsView.tsx:518
 msgid "未归队"
 msgstr "No team"
 
@@ -5393,7 +5400,7 @@ msgid "未选中任何对位"
 msgstr "No matchup selected"
 
 #: src/pages/match/views/PlayersView.tsx:472
-#: src/pages/match/views/TeamsView.tsx:526
+#: src/pages/match/views/TeamsView.tsx:536
 msgid "未选中任何选手"
 msgstr "No player selected"
 
@@ -5512,7 +5519,7 @@ msgstr "Source object"
 msgid "来自「{0}」"
 msgstr "From “{0}”"
 
-#: src/pages/RecordingPage.tsx:319
+#: src/pages/RecordingPage.tsx:323
 msgid "来自方案 #{agentPlanId}"
 msgstr "From plan #{agentPlanId}"
 
@@ -5698,11 +5705,11 @@ msgstr "Blur"
 msgid "正在下载并校验采集组件"
 msgstr "Downloading and verifying the capture component"
 
-#: src/pages/RecordingPage.tsx:310
+#: src/pages/RecordingPage.tsx:314
 msgid "正在从方案生成预览计划"
 msgstr "Generating the preview plan from the plan"
 
-#: src/pages/EditorPage.tsx:404
+#: src/pages/EditorPage.tsx:421
 #: src/pages/settings/AiAgentSection.tsx:595
 #: src/pages/settings/FilesSection.tsx:212
 msgid "正在保存"
@@ -5748,7 +5755,7 @@ msgstr "Starting CS2…"
 msgid "正在启动导出"
 msgstr "Starting export"
 
-#: src/pages/RecordingPage.tsx:489
+#: src/pages/RecordingPage.tsx:493
 msgid "正在启动录制"
 msgstr "Starting the recording"
 
@@ -6264,7 +6271,7 @@ msgstr "No clip selected"
 msgid "没有道具记录"
 msgstr "No utility record"
 
-#: src/pages/EditorPage.tsx:404
+#: src/pages/EditorPage.tsx:421
 msgid "没有需要保存的改动"
 msgstr "Nothing to save"
 
@@ -6280,7 +6287,7 @@ msgstr "This shot could not be opened in game: {failure}"
 msgid "没能开始录制：{startFailure}"
 msgstr "The recording could not be started: {startFailure}"
 
-#: src/pages/MontagePage.tsx:383
+#: src/pages/MontagePage.tsx:387
 msgid "没能开始生成视频：{exportMessage}"
 msgstr "Making the video could not be started: {exportMessage}"
 
@@ -6607,7 +6614,7 @@ msgstr "Headshot kills"
 #: src/pages/match/views/PlayersView.tsx:186
 #: src/pages/match/views/PlayersView.tsx:305
 #: src/pages/match/views/TeamsView.tsx:147
-#: src/pages/match/views/TeamsView.tsx:567
+#: src/pages/match/views/TeamsView.tsx:577
 #: src/pages/players/PlayerComparePanel.tsx:64
 #: src/pages/players/PlayerComparePanel.tsx:138
 #: src/pages/players/PlayerMapTable.tsx:62
@@ -6638,7 +6645,7 @@ msgstr "The outro is on but has no title, and the render will refuse it"
 #: src/pages/agent/PlanPanel.tsx:433
 #: src/pages/montage/MusicBeatBlock.tsx:540
 #: src/pages/montage/MusicBeatBlock.tsx:541
-#: src/pages/project/ProjectSelectStep.tsx:77
+#: src/pages/project/ProjectSelectStep.tsx:86
 #: src/pages/recording/ShotListBlock.tsx:129
 #: src/terminology.ts:31
 msgid "片段"
@@ -6677,7 +6684,7 @@ msgstr "Clip properties · {0}"
 msgid "片段已修改，当前预览计划已失效，需要重新生成预览。"
 msgstr "The clips changed, so the current preview plan is void and the preview has to be regenerated."
 
-#: src/pages/RecordingPage.tsx:493
+#: src/pages/RecordingPage.tsx:497
 msgid "片段已修改，需要重新生成预览计划"
 msgstr "The clips changed — the preview plan has to be regenerated"
 
@@ -6709,7 +6716,7 @@ msgstr "Revision"
 #. placeholder {0}: query.data.revision
 #. placeholder {0}: snapshot.revision
 #: src/pages/editor/VersionHistoryPanel.tsx:72
-#: src/pages/EditorPage.tsx:382
+#: src/pages/EditorPage.tsx:395
 msgid "版本 {0}"
 msgstr "Revision {0}"
 
@@ -6723,6 +6730,7 @@ msgstr "Version history"
 #: src/pages/library/libraryColumns.tsx:140
 #: src/pages/library/libraryColumns.tsx:141
 #: src/pages/library/LibraryFilters.tsx:171
+#: src/pages/ProjectsPage.tsx:67
 msgid "状态"
 msgstr "Status"
 
@@ -6751,7 +6759,7 @@ msgstr "Players"
 msgid "玩家目录没能读出来：{error}"
 msgstr "The player directory could not be read: {error}"
 
-#: src/pages/match/views/TeamsView.tsx:553
+#: src/pages/match/views/TeamsView.tsx:563
 msgid "玩家视图"
 msgstr "Players view"
 
@@ -6806,7 +6814,7 @@ msgid "生成点评失败：{0}"
 msgstr "Generating the commentary failed: {0}"
 
 #: src/pages/MontagePage.tsx:195
-#: src/pages/MontagePage.tsx:322
+#: src/pages/MontagePage.tsx:326
 msgid "生成视频"
 msgstr "Make the video"
 
@@ -6815,7 +6823,7 @@ msgid "生成视频方案"
 msgstr "Draft video plan"
 
 #. placeholder {0}: message ?? ''
-#: src/pages/RecordingPage.tsx:460
+#: src/pages/RecordingPage.tsx:464
 msgid "生成预览计划失败：{0}"
 msgstr "Generating the preview plan failed: {0}"
 
@@ -6970,7 +6978,7 @@ msgstr "Objective"
 msgid "目标作品"
 msgstr "Target project"
 
-#: src/pages/EditorPage.tsx:257
+#: src/pages/EditorPage.tsx:270
 msgid "目标轨道已锁定"
 msgstr "The target track is locked"
 
@@ -7045,7 +7053,7 @@ msgstr "See utility & economy"
 #: src/pages/agent/SessionDrawer.tsx:237
 #: src/pages/delivery/OutputsView.tsx:147
 #: src/pages/editor/EditorTimelinePanel.tsx:253
-#: src/pages/EditorPage.tsx:481
+#: src/pages/EditorPage.tsx:498
 #: src/pages/home/RecentOutputsPanel.tsx:73
 #: src/pages/match/views/ReviewView.tsx:691
 #: src/pages/ProjectWorkspacePage.tsx:326
@@ -7093,8 +7101,8 @@ msgstr "View"
 msgid "视野 FOV"
 msgstr "Camera FOV"
 
-#: src/pages/EditorPage.tsx:280
-#: src/pages/EditorPage.tsx:308
+#: src/pages/EditorPage.tsx:293
+#: src/pages/EditorPage.tsx:321
 msgid "视频与音频"
 msgstr "Video and audio"
 
@@ -7131,7 +7139,7 @@ msgstr "Movement paths: no position samples in this stretch"
 msgid "移动路线每 {stride} 帧取一个采样点。"
 msgstr "The movement paths take one sample every {stride} frames."
 
-#: src/pages/project/ProjectSelectStep.tsx:49
+#: src/pages/project/ProjectSelectStep.tsx:58
 #: src/pages/settings/FilesSection.tsx:223
 msgid "移除"
 msgstr "Remove"
@@ -7687,7 +7695,7 @@ msgid "设置没有保存成功"
 msgstr "The setting was not saved"
 
 #: src/pages/EvidencePage.tsx:209
-#: src/pages/project/ProjectSelectStep.tsx:75
+#: src/pages/project/ProjectSelectStep.tsx:84
 msgid "证据"
 msgstr "Evidence"
 
@@ -7867,7 +7875,7 @@ msgstr "Could not read the settings: {configError}"
 msgid "读不到运行时状态：{runtimeError}"
 msgstr "Could not read the runtime state: {runtimeError}"
 
-#: src/pages/RecordingPage.tsx:343
+#: src/pages/RecordingPage.tsx:347
 msgid "读不到这个方案：{agentFailure}"
 msgstr "This plan could not be read: {agentFailure}"
 
@@ -8153,8 +8161,8 @@ msgstr "Runtime"
 msgid "返回作品列表"
 msgstr "Back to projects"
 
-#: src/pages/RecordingPage.tsx:325
-#: src/pages/RecordingPage.tsx:328
+#: src/pages/RecordingPage.tsx:329
+#: src/pages/RecordingPage.tsx:332
 msgid "返回剪辑单"
 msgstr "Back to shot list"
 
@@ -8372,7 +8380,7 @@ msgid "还没有阶段日志"
 msgstr "No stage log yet"
 
 #: src/pages/recording/PreflightBlock.tsx:312
-#: src/pages/RecordingPage.tsx:490
+#: src/pages/RecordingPage.tsx:494
 msgid "还没有预览计划，先生成一份"
 msgstr "No preview plan yet — generate one first"
 
@@ -8381,7 +8389,7 @@ msgid "还没读到这个素材的时长，不知道可以滑移多少"
 msgstr "This asset's length has not been read, so there is no way to know how far it can slip"
 
 #: src/pages/editor/MediaLibraryPanel.tsx:83
-#: src/pages/EditorPage.tsx:255
+#: src/pages/EditorPage.tsx:268
 msgid "还没读到这个素材的时长，读完才能放到时间轴上"
 msgstr "This asset's length has not been read yet; it can go on the timeline once it has"
 
@@ -8458,7 +8466,7 @@ msgstr "This address does not exist. Everything else still works."
 msgid "这个地址不是一条后台任务的编号。后台任务里的每一条都能从列表打开。"
 msgstr "This address is not a background task id. Open a background task from the list."
 
-#: src/pages/EditorPage.tsx:464
+#: src/pages/EditorPage.tsx:481
 msgid "这个工程在别处被改过，刚才那次保存没有生效。重新载入会丢掉这里未保存的改动。"
 msgstr "This project was changed elsewhere, so that save did not take effect. Reloading discards the unsaved changes here."
 
@@ -8482,7 +8490,7 @@ msgstr "This view compares real recordings of the same shot and selects which on
 msgid "这个方案还没有镜头，先让 Agent 出一版，或在右侧手动添加。"
 msgstr "This plan has no shots yet — ask the Agent for a first pass, or add them by hand on the right."
 
-#: src/pages/RecordingPage.tsx:430
+#: src/pages/RecordingPage.tsx:434
 msgid "这个方案里没有可录制的镜头。"
 msgstr "This plan has no recordable shot."
 
@@ -8562,7 +8570,7 @@ msgstr "The full parse result of these highlights cannot be read yet, so no plan
 msgid "这份作品的录制队列与片段进度会显示在这里。"
 msgstr "This project's recording queue and per-clip progress will appear here."
 
-#: src/pages/project/ProjectSelectStep.tsx:18
+#: src/pages/project/ProjectSelectStep.tsx:21
 msgid "这份作品还没有收集片段"
 msgstr "This project has no collected clips yet"
 
@@ -8610,12 +8618,12 @@ msgstr "This shot list has no shots to include in the final video."
 msgid "这份剪辑单还没有片段"
 msgstr "This shot list has no clips yet"
 
-#: src/pages/MontagePage.tsx:366
+#: src/pages/MontagePage.tsx:370
 msgid "这份合辑在别处被改过了。为避免覆盖那次改动，这次没有保存——请刷新后重做。"
 msgstr "This montage was changed somewhere else. Nothing was saved, so that change is not overwritten — refresh and redo yours."
 
 #. placeholder {0}: loadMessage ?? ''
-#: src/pages/MontagePage.tsx:357
+#: src/pages/MontagePage.tsx:361
 msgid "这份合辑没能打开：{0}"
 msgstr "This montage could not be opened: {0}"
 
@@ -8630,7 +8638,7 @@ msgstr "This montage has no clips yet"
 msgid "这份合辑里的 {0} 段都会被移出，包装与导出设置保持不变。录制结果本身留在输出里。"
 msgstr "All {0} clips in this montage are removed; the packaging and export settings stay as they are. The recordings themselves stay in Outputs."
 
-#: src/pages/MontagePage.tsx:371
+#: src/pages/MontagePage.tsx:375
 msgid "这份工程在别处被改过，刚才的改动没有保存。"
 msgstr "This project was changed elsewhere, so the change you just made was not saved."
 
@@ -8643,7 +8651,7 @@ msgstr "This plan could not be opened: {0}"
 msgid "这份方案还没有被任何会话改动过。"
 msgstr "No session has changed this plan yet."
 
-#: src/pages/RecordingPage.tsx:491
+#: src/pages/RecordingPage.tsx:495
 msgid "这份计划里没有片段"
 msgstr "This plan has no clips"
 
@@ -8651,12 +8659,12 @@ msgstr "This plan has no clips"
 msgid "这份计划里还没有片段"
 msgstr "This plan has no clips yet"
 
-#: src/pages/RecordingPage.tsx:447
+#: src/pages/RecordingPage.tsx:451
 msgid "这份预览计划已经不在了，本地服务可能重启过。"
 msgstr "This preview plan is gone; the local service may have restarted."
 
-#: src/pages/RecordingPage.tsx:358
-#: src/pages/RecordingPage.tsx:445
+#: src/pages/RecordingPage.tsx:362
+#: src/pages/RecordingPage.tsx:449
 msgid "这份预览计划已经过期。"
 msgstr "This preview plan has expired."
 
@@ -8833,7 +8841,7 @@ msgstr "This answer did not finish: {0}"
 msgid "这次恢复没有完成：{actionError}"
 msgstr "This recovery did not finish: {actionError}"
 
-#: src/pages/EditorPage.tsx:475
+#: src/pages/EditorPage.tsx:492
 msgid "这次操作没有完成：{writeError}"
 msgstr "That action did not finish: {writeError}"
 
@@ -8918,7 +8926,7 @@ msgstr "Process, ticks, encoder settings"
 #: src/domain/agent/workSteps.ts:40
 #: src/pages/delivery/TaskRecordView.tsx:53
 #: src/pages/home/HomeTasksPanel.tsx:63
-#: src/pages/ProjectsPage.tsx:97
+#: src/pages/ProjectsPage.tsx:130
 msgid "进行中"
 msgstr "Running"
 
@@ -8975,7 +8983,7 @@ msgstr "Selected {subject} · Round {0} · tick {1}"
 #. placeholder {0}: row.name
 #: src/pages/match/views/DuelsView.tsx:761
 #: src/pages/match/views/PlayersView.tsx:489
-#: src/pages/match/views/TeamsView.tsx:544
+#: src/pages/match/views/TeamsView.tsx:554
 #: src/pages/match/views/UtilityView.tsx:656
 msgid "选中：{0}"
 msgstr "Selected: {0}"
@@ -9006,7 +9014,7 @@ msgstr "Selected: a highlight of round {0}"
 #: src/pages/match/views/OverviewView.tsx:295
 #: src/pages/match/views/PlayersView.tsx:471
 #: src/pages/match/views/RoundsView.tsx:665
-#: src/pages/match/views/TeamsView.tsx:525
+#: src/pages/match/views/TeamsView.tsx:535
 #: src/pages/match/views/UtilityView.tsx:699
 #: src/pages/MatchWorkspacePage.tsx:172
 msgid "选中项"
@@ -9027,7 +9035,7 @@ msgstr "Selection detail"
 #: src/pages/match/views/UtilityView.tsx:170
 #: src/pages/PlayersPage.tsx:83
 #: src/pages/PlayersPage.tsx:84
-#: src/pages/project/ProjectSelectStep.tsx:76
+#: src/pages/project/ProjectSelectStep.tsx:85
 msgid "选手"
 msgstr "Player"
 
@@ -9094,7 +9102,7 @@ msgstr "Choose a Demo to check its analysis"
 msgid "选择一个回合、选手或高光后，这里会显示可定位、可加入作品的真实上下文。"
 msgstr "Select a round, player, or highlight to see real context that can be located or added to a project."
 
-#: src/pages/project/ProjectSelectStep.tsx:20
+#: src/pages/project/ProjectSelectStep.tsx:27
 msgid "选择一场比赛"
 msgstr "Choose a match"
 
@@ -9114,7 +9122,7 @@ msgstr "Choose files"
 msgid "选择要导入的 Demo 文件"
 msgstr "Choose the Demo files to import"
 
-#: src/pages/EditorPage.tsx:305
+#: src/pages/EditorPage.tsx:318
 msgid "选择要导入的素材"
 msgstr "Choose media to import"
 
@@ -9122,7 +9130,7 @@ msgstr "Choose media to import"
 msgid "选择要监听的目录"
 msgstr "Choose folders to watch"
 
-#: src/pages/EditorPage.tsx:277
+#: src/pages/EditorPage.tsx:290
 msgid "选择这个素材移动到的位置"
 msgstr "Choose where this media moved to"
 
@@ -9138,7 +9146,7 @@ msgstr "Choose a music file"
 msgid "选择音乐"
 msgstr "Choose music"
 
-#: src/pages/ProjectsPage.tsx:88
+#: src/pages/ProjectsPage.tsx:121
 #: src/pages/ProjectWorkspacePage.tsx:155
 msgid "选材"
 msgstr "Select"
@@ -9320,11 +9328,11 @@ msgstr "Start again"
 msgid "重新定位"
 msgstr "Relink"
 
-#: src/pages/EditorPage.tsx:294
+#: src/pages/EditorPage.tsx:307
 msgid "重新定位没有完成"
 msgstr "The relocation did not finish"
 
-#: src/pages/EditorPage.tsx:271
+#: src/pages/EditorPage.tsx:284
 msgid "重新定位需要桌面应用，浏览器里选不到本机文件"
 msgstr "Relocating needs the desktop app; a browser cannot reach local files"
 
@@ -9353,8 +9361,8 @@ msgstr "Search again"
 
 #: src/pages/recording/PreflightBlock.tsx:176
 #: src/pages/recording/ShotListBlock.tsx:235
-#: src/pages/RecordingPage.tsx:353
-#: src/pages/RecordingPage.tsx:442
+#: src/pages/RecordingPage.tsx:357
+#: src/pages/RecordingPage.tsx:446
 msgid "重新生成预览计划"
 msgstr "Regenerate the preview plan"
 
@@ -9375,10 +9383,10 @@ msgstr "Reload shot list"
 msgid "重新读取回放"
 msgstr "Read the replay again"
 
-#: src/pages/EditorPage.tsx:462
-#: src/pages/MontagePage.tsx:364
-#: src/pages/MontagePage.tsx:376
-#: src/pages/MontagePage.tsx:382
+#: src/pages/EditorPage.tsx:479
+#: src/pages/MontagePage.tsx:368
+#: src/pages/MontagePage.tsx:380
+#: src/pages/MontagePage.tsx:386
 msgid "重新载入"
 msgstr "Reload"
 
@@ -9433,7 +9441,7 @@ msgstr "Choose again"
 #: src/pages/match/views/viewChrome.tsx:263
 #: src/pages/montage/AddClipsDialog.tsx:78
 #: src/pages/montage/MusicBeatBlock.tsx:398
-#: src/pages/MontagePage.tsx:354
+#: src/pages/MontagePage.tsx:358
 #: src/pages/PlayerProfilePage.tsx:148
 #: src/pages/PlayerProfilePage.tsx:212
 #: src/pages/players/PlayerHeatmapPanel.tsx:142
@@ -9447,8 +9455,8 @@ msgstr "Choose again"
 #: src/pages/recording/ShotInspectorBlock.tsx:565
 #: src/pages/recording/ShotInspectorBlock.tsx:662
 #: src/pages/recording/ShotInspectorBlock.tsx:731
-#: src/pages/RecordingPage.tsx:341
-#: src/pages/RecordingPage.tsx:458
+#: src/pages/RecordingPage.tsx:345
+#: src/pages/RecordingPage.tsx:462
 #: src/pages/RecoveryPage.tsx:91
 #: src/pages/settings/AdvancedSection.tsx:71
 #: src/pages/settings/AdvancedSection.tsx:116
@@ -9534,7 +9542,7 @@ msgstr "Attacker flashed"
 
 #: src/pages/match/views/PlayersView.tsx:136
 #: src/pages/match/views/PlayersView.tsx:137
-#: src/pages/match/views/TeamsView.tsx:496
+#: src/pages/match/views/TeamsView.tsx:501
 msgid "队伍"
 msgstr "Team"
 
@@ -9591,7 +9599,7 @@ msgid "雷达"
 msgstr "Radar"
 
 #: src/pages/delivery/AgentVideoWorkflowPanel.tsx:134
-#: src/pages/ProjectsPage.tsx:98
+#: src/pages/ProjectsPage.tsx:131
 msgid "需要处理"
 msgstr "Needs attention"
 
@@ -9681,11 +9689,11 @@ msgstr "Preview and execute edit"
 msgid "预览比例"
 msgstr "Preview scale"
 
-#: src/pages/RecordingPage.tsx:351
+#: src/pages/RecordingPage.tsx:355
 msgid "预览计划只保留五分钟，重新生成后导播预览与录制前校验都会重算。"
 msgstr "A preview plan is kept for five minutes; regenerating it recomputes the director preview and the preflight."
 
-#: src/pages/RecordingPage.tsx:496
+#: src/pages/RecordingPage.tsx:500
 msgid "预览计划已过期，需要重新生成"
 msgstr "The preview plan expired and has to be regenerated"
 
@@ -9769,7 +9777,7 @@ msgstr "High {0}"
 #: src/pages/match/views/PlayersView.tsx:210
 #: src/pages/match/views/PlayersView.tsx:211
 #: src/pages/match/views/TeamsView.tsx:160
-#: src/pages/project/ProjectSelectStep.tsx:73
+#: src/pages/project/ProjectSelectStep.tsx:82
 msgid "高光"
 msgstr "Highlights"
 
@@ -9779,7 +9787,7 @@ msgid "高光"
 msgstr "Highlights"
 
 #: src/pages/match/views/OverviewView.tsx:150
-#: src/pages/match/views/TeamsView.tsx:569
+#: src/pages/match/views/TeamsView.tsx:579
 msgid "高光候选"
 msgstr "Highlight candidates"
 

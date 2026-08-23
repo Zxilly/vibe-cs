@@ -303,7 +303,11 @@ export function RecordingPlanWorkspace({
       toolbar={
         <Toolbar
           height={embedded ? 'bar' : 'topbar'}
-          title={agentPlan.data?.title ?? <Trans>录制计划</Trans>}
+          title={
+            embedded
+              ? <Trans>录制准备</Trans>
+              : (agentPlan.data?.title ?? <Trans>录制计划</Trans>)
+          }
           meta={
             <>
               {plan === null ? (
@@ -319,7 +323,7 @@ export function RecordingPlanWorkspace({
               <Trans>来自方案 #{agentPlanId}</Trans>
             </>
           }
-          actions={[
+          actions={embedded ? [] : [
             {
               id: 'back-to-plan',
               label: <Trans>返回剪辑单</Trans>,

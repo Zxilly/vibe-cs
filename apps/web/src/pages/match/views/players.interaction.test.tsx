@@ -46,6 +46,16 @@ function open(query = '', analysis = ANALYSIS) {
 }
 
 describe('picking a player', () => {
+  it('focuses the first visible player without writing the address', async () => {
+    open();
+
+    await waitFor(() => {
+      expect(document.querySelector('[data-row-id="kael"]')?.getAttribute('data-active')).toBe('true');
+      expect(document.querySelector('[data-player-detail="kael"]')).not.toBeNull();
+    });
+    expect(address()).not.toContain('player=');
+  });
+
   it('writes ?player= rather than keeping the selection in the view', async () => {
     open();
     const row = await waitFor(() => {

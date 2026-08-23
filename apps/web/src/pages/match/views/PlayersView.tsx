@@ -225,6 +225,7 @@ function PlayersBody({ demoId, context, updateContext }: MatchViewProps) {
 
   const natural = useMemo(() => scoreboardRows(gate.analysis), [gate.analysis]);
   const rows = useMemo(() => sortScoreboardRows(natural, sort), [natural, sort]);
+  const activePlayerId = context.player ?? rows[0]?.id ?? null;
   const showOpeningDuels = natural.some((row) => row.openingKills !== null);
   const empty = gate.analysis !== undefined && rows.length === 0;
 
@@ -257,7 +258,7 @@ function PlayersBody({ demoId, context, updateContext }: MatchViewProps) {
           ) : (
             <MatchScoreboard
               rows={rows}
-              activePlayerId={context.player}
+              activePlayerId={activePlayerId}
               onSelect={(playerId) => updateContext({ player: playerId })}
               sort={sort}
               onSortChange={setSort}
@@ -454,7 +455,10 @@ function PlayersInspector({
 
   const rows = useMemo(() => scoreboardRows(analysis.data), [analysis.data]);
   const index = useMemo(() => rosterIndex(analysis.data), [analysis.data]);
-  const row = context.player === null ? undefined : rows.find((entry) => entry.id === context.player);
+  const effectivePlayerId = context.player ?? rows[0]?.id ?? null;
+  const row = effectivePlayerId === null
+    ? undefined
+    : rows.find((entry) => entry.id === effectivePlayerId);
 
   if (row === undefined || analysis.data === undefined) {
     /* A selected id the analysis does not know still gets a name — the raw id.

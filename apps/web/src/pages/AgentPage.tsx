@@ -107,6 +107,8 @@ export interface AgentWorkspaceProps {
   /** The work wrapper and primary Demo are injected by the project workspace. */
   readonly projectId?: string | null | undefined;
   readonly demoId?: string | null | undefined;
+  /** Every Demo collected into this project; `demoId` remains the primary one. */
+  readonly demoIds?: readonly string[] | undefined;
   readonly recordingTarget?: string | undefined;
 }
 
@@ -115,6 +117,7 @@ export function AgentWorkspace({
   planId,
   projectId = null,
   demoId = null,
+  demoIds = demoId === null ? [] : [demoId],
   recordingTarget,
 }: AgentWorkspaceProps) {
   const [params, setParams] = useSearchParams();
@@ -278,9 +281,11 @@ export function AgentWorkspace({
       const operation = (async () => {
         await editNotifier.flush('send-message');
         const selectedDemoId = input.demoId ?? demoId;
-        if (selectedDemoId !== null) {
+        const selectedDemoIds = input.demoIds
+          ?? (demoIds.length > 0 ? demoIds : selectedDemoId === null ? [] : [selectedDemoId]);
+        for (const id of selectedDemoIds) {
           try {
-            await ensureAnalysis.mutateAsync(selectedDemoId);
+            await ensureAnalysis.mutateAsync(id);
           } catch {
             return;
           }
@@ -289,11 +294,13 @@ export function AgentWorkspace({
           ...input,
           mode: input.mode ?? ((planData?.shots.length ?? 0) === 0 ? 'hlae' : 'edit'),
           demoId: selectedDemoId,
+          demoIds: selectedDemoIds,
           workspaceContext: {
             ...input.workspaceContext,
             workflow: 'edit',
             destination: 'edit',
             demoId: input.workspaceContext?.demoId ?? selectedDemoId,
+            demoIds: [...(input.workspaceContext?.demoIds ?? selectedDemoIds)],
             projectId: input.workspaceContext?.projectId ?? projectId,
             planId: planData?.id ?? null,
             planRevision: planData?.revision ?? null,

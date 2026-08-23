@@ -257,6 +257,7 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
           {...(project.id === 'new' ? {} : { planId: project.source.id })}
           projectId={project.id}
           demoId={project.demoIds[0] ?? null}
+          demoIds={project.demoIds}
           recordingTarget={`/projects/${encodeURIComponent(project.id)}?step=record&prepare=1`}
         />
       ) : project.source.kind === 'montage' ? (

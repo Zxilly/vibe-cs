@@ -34,6 +34,7 @@ import {
   renderLibrary,
 } from './test/renderLibrary';
 import { reasonOf } from '../../test/reason';
+import { resetProjectCollectionsForTesting } from '../../data/projectCollections';
 
 const ONLINE = {
   demos: demoPage([DEMO_FIXTURE]),
@@ -48,6 +49,7 @@ let media: MatchMediaStub | null = null;
 afterEach(() => {
   media?.restore();
   media = null;
+  resetProjectCollectionsForTesting();
 });
 
 describe('library acquisition and layout views', () => {
@@ -180,6 +182,33 @@ describe('the selection', () => {
       expect(start.calls()).toBe(1);
     });
     expect(start.lastArgs()[0]).toBe('demo-0');
+  });
+
+  it('creates one Agent project containing every selected Demo', async () => {
+    const created: unknown[] = [];
+    renderLibrary({
+      seed: { ...ONLINE, demos: demoPage([makeDemo(0), makeDemo(1)]) },
+      client: {
+        createAgentPlan: (draft) => {
+          created.push(draft);
+          return Promise.resolve({
+            id: 'series-plan', title: draft.title, status: draft.status, revision: 1,
+            shots: draft.shots, origin: [],
+            agent_baseline: { revision: 1, captured_at: '2026-08-23T00:00:00Z', shots: [] },
+            created_at: '2026-08-23T00:00:00Z', updated_at: '2026-08-23T00:00:00Z',
+          });
+        },
+      },
+    });
+
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 Aurora vs Meridian · 第 1 场' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: '选择 Aurora vs Meridian · 第 2 场' }));
+    fireEvent.click(screen.getByRole('button', { name: '用 Agent 创作' }));
+
+    await waitFor(() => expect(created).toHaveLength(1));
+    const stored = JSON.parse(globalThis.localStorage.getItem('vibe-cs.project-collections.v1') ?? '{}') as Record<string, Array<{ demoId: string }>>;
+    expect(stored['plan:series-plan']?.map((entry) => entry.demoId)).toEqual(['demo-0', 'demo-1']);
+    await waitFor(() => expect(document.querySelector('[data-project-workspace]')).not.toBeNull());
   });
 });
 

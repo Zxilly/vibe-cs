@@ -6,6 +6,7 @@ export type DesktopAgentWorkspaceContext = {
   workflow: DesktopAgentWorkspaceWorkflow;
   destination: DesktopAgentWorkspaceDestination;
   demoId: string | null;
+  demoIds: Array<string>;
   projectId: string | null;
   planId: string | null;
   planRevision: number | null;

@@ -197,6 +197,28 @@ function DemoLibraryPage() {
       .catch(() => undefined);
   };
 
+  const createSeriesProject = (demos: readonly DemoSummary[]) => {
+    if (demos.length === 0) return;
+    const title = demos.length === 1
+      ? demos[0]!.display_name
+      : `${demos[0]!.display_name} +${String(demos.length - 1)}`;
+    void createPlan.mutateAsync({ title, status: 'draft', shots: [], origin: null })
+      .then((plan) => {
+        const projectId = `plan:${plan.id}`;
+        const addedAt = new Date().toISOString();
+        for (const demo of demos) {
+          collections.add(projectId, {
+            id: `${demo.id}:selection:match`, demoId: demo.id, matchLabel: demo.display_name,
+            kind: 'selection', label: t`整场比赛`, round: null, playerId: null,
+            highlightId: null, evidenceId: null, startTick: null, endTick: null,
+            addedAt,
+          });
+        }
+        void navigate(`/projects/${encodeURIComponent(projectId)}?step=shotlist`);
+      })
+      .catch(() => undefined);
+  };
+
   const setWatchDirectories = async (paths: readonly string[]) => {
     const current = config.data;
     if (current === undefined) throw new Error(t`配置还没读出来，稍后再试`);
@@ -260,6 +282,14 @@ function DemoLibraryPage() {
         </Button>
       }
     >
+      <Button
+        size="sm"
+        {...alsoDisabled(service.buttonProps, createPlan.isPending)}
+        onClick={() => createSeriesProject(selectedDemos)}
+      >
+        <Trans>用 Agent 创作</Trans>
+        {service.suffix}
+      </Button>
       <OverflowMenu
         label={t`添加标签`}
         triggerLabel={<Trans>添加标签</Trans>}

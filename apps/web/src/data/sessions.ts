@@ -362,6 +362,7 @@ export interface AgentChatSend {
   readonly mode?: AgentChatInput['mode'];
   readonly autoMode?: boolean | undefined;
   readonly demoId?: string | null;
+  readonly demoIds?: readonly string[] | undefined;
   readonly editorProjectId?: string | null;
   readonly audioAssetId?: string | null;
   readonly workspaceContext?: Partial<AgentChatInput['workspaceContext']>;
@@ -374,6 +375,8 @@ export interface AgentChatStream {
   readonly draft: string;
   /** The service's message when the stream failed, for an in-place Notice. */
   readonly error: string | null;
+  /** Completed structured steps from the in-flight turn, in execution order. */
+  readonly activity?: readonly string[] | undefined;
   send: (input: AgentChatSend) => Promise<void>;
   cancel: () => void;
 }
@@ -397,6 +400,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
   const [streaming, setStreaming] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [activity, setActivity] = useState<readonly string[]>([]);
   const requestIdRef = useRef<string | null>(null);
   const turnRef = useRef<{
     readonly sessionId: string;
@@ -462,6 +466,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       setStreaming(true);
       setDraft('');
       setError(null);
+      setActivity([]);
 
       // The user entry is written first, so a failed stream still leaves the
       // question in the transcript rather than losing what the user typed.
@@ -501,9 +506,13 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
             break;
           case 'toolCall':
             toolCalls.push(event.toolCall);
+            if (mountedRef.current) {
+              setActivity((current) => [...current, event.toolCall.name]);
+            }
             break;
           case 'proposal':
             proposals.push(event.proposal);
+            if (mountedRef.current) setActivity((current) => [...current, 'proposal_ready']);
             break;
           case 'error':
             failure = event.message;
@@ -551,7 +560,13 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
             tool_calls: toolCalls.map((call) => ({
               name: call.name, input: call.input, output: call.output,
             })),
-            proposals: [],
+            proposals: proposals.map((item) => ({
+              kind: item.kind,
+              title: item.title,
+              plan_id: item.planId,
+              based_on_revision: item.basedOnRevision,
+              payload: item.payload,
+            })),
             error: failure,
           });
           await invalidateSessions(queryClient);
@@ -605,12 +620,13 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       if (mountedRef.current) {
         setStreaming(false);
         setDraft('');
+        setActivity([]);
       }
     },
     [client, history, queryClient, sessionId, streaming],
   );
 
-  return { streaming, draft, error, send, cancel };
+  return { streaming, draft, error, activity, send, cancel };
 }
 
 type AgentChatEventPayload = {
@@ -631,12 +647,14 @@ function buildChatInput(
     // session history below remains the model-history authority.
     threadId: sessionId,
     demoId: input.demoId ?? null,
+    demoIds: [...(input.demoIds ?? (input.demoId === undefined || input.demoId === null ? [] : [input.demoId]))],
     editorProjectId: input.editorProjectId ?? null,
     audioAssetId: input.audioAssetId ?? null,
     workspaceContext: {
       workflow: context.workflow ?? 'edit',
       destination: context.destination ?? 'neutral',
       demoId: context.demoId ?? input.demoId ?? null,
+      demoIds: [...(context.demoIds ?? input.demoIds ?? (input.demoId === undefined || input.demoId === null ? [] : [input.demoId]))],
       projectId: context.projectId ?? input.editorProjectId ?? null,
       planId: context.planId ?? null,
       planRevision: context.planRevision ?? null,
@@ -664,6 +682,21 @@ function sessionHistory(
       && entry.content.trim() !== ''
     ) {
       history.push({ role: 'assistant', content: entry.content });
+    } else if (
+      entry.kind === 'assistant'
+      && entry.status === 'failed'
+      && (entry.tool_calls.length > 0 || entry.proposals.length > 0)
+    ) {
+      history.push({
+        role: 'user',
+        content: boundedCheckpointHistory({
+          type: 'prior_turn_checkpoint',
+          instruction: 'Reuse these completed structured results; continue from the first unfinished step.',
+          tool_calls: entry.tool_calls,
+          proposals: entry.proposals,
+          error: entry.error,
+        }),
+      });
     } else if (entry.kind === 'workspace_edit') {
       history.push({
         role: 'user',
@@ -680,6 +713,17 @@ function createRequestId(): string {
   const hex = (length: number): string =>
     Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join('');
   return `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`;
+}
+
+function boundedCheckpointHistory(checkpoint: unknown): string {
+  const serialized = JSON.stringify(checkpoint);
+  if (Array.from(serialized).length <= 15_000) return serialized;
+  const excerpt = Array.from(serialized).slice(0, 14_000).join('');
+  return JSON.stringify({
+    type: 'prior_turn_checkpoint_excerpt',
+    instruction: 'The checkpoint was bounded for model history. Reuse it, then re-read only evidence needed for unfinished steps.',
+    excerpt,
+  });
 }
 
 function messageOf(cause: unknown): string {

@@ -256,6 +256,59 @@ describe('useAgentChatStream', () => {
     expect(result.current.streaming).toBe(false);
   });
 
+  it('persists completed tool and proposal checkpoints when a later step fails', async () => {
+    const { client, updates } = stubClient([
+      { type: 'toolCall', toolCall: { name: 'read_highlights', input: {}, output: { available: true } } },
+      {
+        type: 'proposal',
+        proposal: {
+          kind: 'video_render', title: 'Niko series', payload: { items: [] },
+          planId: 'P-118', basedOnRevision: 2,
+        },
+      },
+      { type: 'error', message: 'provider stream stopped' },
+    ]);
+    const { result } = renderDataHook(
+      () => useAgentChatStream({ sessionId: 'S-1' }),
+      { client },
+    );
+
+    await act(async () => {
+      await result.current.send({ message: '继续完成集锦' });
+    });
+
+    expect(updates.at(-1)).toMatchObject({
+      status: 'failed',
+      tool_calls: [{ name: 'read_highlights', output: { available: true } }],
+      proposals: [{ kind: 'video_render', title: 'Niko series', plan_id: 'P-118' }],
+    });
+  });
+
+  it('feeds a failed turn checkpoint back into a retry instead of restarting blind', async () => {
+    const checkpoint: AgentSessionEntry = {
+      ...TURN_ENTRY,
+      status: 'failed',
+      error: 'provider timeout',
+      tool_calls: [{ name: 'read_highlights', input: {}, output: { highlights: ['h-1'], detail: 'x'.repeat(30_000) } }],
+      proposals: [],
+    };
+    const { client, inputs } = stubClient([
+      { type: 'complete', thread: { id: 'T-1', messages: [], updatedAt: '' }, metadata: METADATA },
+    ]);
+    const { result } = renderDataHook(
+      () => useAgentChatStream({ sessionId: 'S-1', history: [checkpoint] }),
+      { client },
+    );
+
+    await act(async () => {
+      await result.current.send({ message: '继续' });
+    });
+
+    expect(inputs[0]?.history[0]?.content).toContain('prior_turn_checkpoint');
+    expect(inputs[0]?.history[0]?.content).toContain('read_highlights');
+    expect(Array.from(inputs[0]?.history[0]?.content ?? '').length).toBeLessThanOrEqual(16_000);
+  });
+
   it('stores nothing for a reply the user stopped', async () => {
     /* The stub calls back synchronously, so cancelling from inside the first
        delta is the same race the real channel has: the request is already in

@@ -55,6 +55,7 @@ struct CinematicReplayHost {
     storage: vibe_cs_storage::Storage,
     dispatcher: DesktopBridge,
     demo_id: Uuid,
+    map_name: String,
     highlights: HashMap<String, CinematicHighlight>,
     replay_cache: Mutex<HashMap<u32, Arc<RoundReplayArtifact>>>,
 }
@@ -65,6 +66,7 @@ impl CinematicReplayHost {
         dispatcher: DesktopBridge,
         demo_id: Uuid,
         analysis: &Value,
+        namespace_ids: bool,
     ) -> Self {
         let highlights = analysis
             .get("highlights")
@@ -72,7 +74,12 @@ impl CinematicReplayHost {
             .into_iter()
             .flatten()
             .filter_map(|highlight| {
-                let id = highlight.get("id")?.as_str()?.to_owned();
+                let source_id = highlight.get("id")?.as_str()?.to_owned();
+                let id = if namespace_ids {
+                    format!("{demo_id}:{source_id}")
+                } else {
+                    source_id
+                };
                 let round = u32::try_from(highlight.get("round")?.as_u64()?).ok()?;
                 let start_tick = highlight.get("start_tick")?.as_u64()?;
                 let end_tick = highlight.get("end_tick")?.as_u64()?;
@@ -119,6 +126,11 @@ impl CinematicReplayHost {
             storage,
             dispatcher,
             demo_id,
+            map_name: analysis
+                .get("map_name")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_owned(),
             highlights,
             replay_cache: Mutex::new(HashMap::new()),
         }
@@ -171,7 +183,14 @@ impl AgentToolHost for CinematicReplayHost {
                 continue;
             };
             match self.round_replay(highlight.round).await {
-                Ok(artifact) => scenes.push(cinematic_scene_from_replay(highlight, &artifact)),
+                Ok(artifact) => {
+                    let mut scene = cinematic_scene_from_replay(highlight, &artifact);
+                    if let Some(object) = scene.as_object_mut() {
+                        object.insert("demoId".to_owned(), json!(self.demo_id));
+                        object.insert("mapName".to_owned(), json!(self.map_name));
+                    }
+                    scenes.push(scene);
+                }
                 Err(error) => {
                     tracing::warn!(
                         %error,
@@ -188,17 +207,26 @@ impl AgentToolHost for CinematicReplayHost {
 
 #[derive(Debug)]
 struct DesktopAgentToolHost {
-    cinematic: Option<CinematicReplayHost>,
+    cinematic: Vec<CinematicReplayHost>,
     dispatcher: DesktopBridge,
 }
 
 #[async_trait]
 impl AgentToolHost for DesktopAgentToolHost {
     async fn read_cinematic_context(&self, highlight_ids: &[String]) -> Result<Value, String> {
-        match &self.cinematic {
-            Some(cinematic) => cinematic.read_cinematic_context(highlight_ids).await,
-            None => Ok(json!({"scenes":[]})),
+        let mut scenes = Vec::new();
+        for cinematic in &self.cinematic {
+            let supplied = cinematic.read_cinematic_context(highlight_ids).await?;
+            scenes.extend(
+                supplied
+                    .get("scenes")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .cloned(),
+            );
         }
+        Ok(json!({"scenes":scenes}))
     }
 
     async fn execute_confirmation(
@@ -727,6 +755,8 @@ pub(crate) struct AgentChatInput {
     thread_id: Option<Uuid>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     demo_id: Option<Uuid>,
+    #[serde(default)]
+    demo_ids: Vec<Uuid>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     editor_project_id: Option<Uuid>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
@@ -747,6 +777,8 @@ pub(crate) struct AgentWorkspaceContext {
     pub(crate) destination: AgentWorkspaceDestination,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub(crate) demo_id: Option<Uuid>,
+    #[serde(default)]
+    pub(crate) demo_ids: Vec<Uuid>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
     pub(crate) project_id: Option<String>,
     #[serde(deserialize_with = "deserialize_required_nullable")]
@@ -992,12 +1024,23 @@ async fn chat(
 
 fn validate_workspace_context(input: &AgentChatInput) -> Result<(), AgentCommandError> {
     let context = &input.workspace_context;
+    let unique_demo_ids = input
+        .demo_ids
+        .iter()
+        .copied()
+        .collect::<std::collections::HashSet<_>>();
     if context
         .player_id
         .as_deref()
         .is_some_and(|value| value.len() != 17 || !value.bytes().all(|byte| byte.is_ascii_digit()))
         || context.round_number == Some(0)
         || context.demo_id.is_some_and(|id| Some(id) != input.demo_id)
+        || input.demo_ids.len() > 12
+        || unique_demo_ids.len() != input.demo_ids.len()
+        || input
+            .demo_id
+            .is_some_and(|id| !input.demo_ids.is_empty() && !unique_demo_ids.contains(&id))
+        || context.demo_ids != input.demo_ids
         || context.project_id.as_deref().is_some_and(|id| {
             id.is_empty()
                 || id.len() > 200
@@ -1103,21 +1146,39 @@ async fn run_agent_chat(
             "configure an AI provider in Vibe CS settings first",
         ));
     }
-    let demo = match input.demo_id {
-        Some(id) => serde_json::to_value(state.storage.get_demo(id).await.map_err(|error| {
+    let mut requested_demo_ids = input.demo_ids.clone();
+    if requested_demo_ids.is_empty()
+        && let Some(id) = input.demo_id
+    {
+        requested_demo_ids.push(id);
+    }
+    let mut series = Vec::with_capacity(requested_demo_ids.len());
+    for id in requested_demo_ids.iter().copied() {
+        let demo = serde_json::to_value(state.storage.get_demo(id).await.map_err(|error| {
             AgentCommandError::internal(format!("unable to read demo evidence: {error}"))
         })?)
-        .map_err(|error| AgentCommandError::internal(error.to_string()))?,
-        None => Value::Null,
-    };
-    let analysis = match input.demo_id {
-        Some(id) => {
+        .map_err(|error| AgentCommandError::internal(error.to_string()))?;
+        let analysis =
             serde_json::to_value(state.storage.get_analysis(id).await.map_err(|error| {
                 AgentCommandError::internal(format!("unable to read demo analysis: {error}"))
             })?)
-            .map_err(|error| AgentCommandError::internal(error.to_string()))?
-        }
-        None => Value::Null,
+            .map_err(|error| AgentCommandError::internal(error.to_string()))?;
+        series.push((id, demo, analysis));
+    }
+    let demo = input
+        .demo_id
+        .and_then(|id| series.iter().find(|entry| entry.0 == id))
+        .or_else(|| series.first())
+        .map_or(Value::Null, |entry| entry.1.clone());
+    let raw_analysis = input
+        .demo_id
+        .and_then(|id| series.iter().find(|entry| entry.0 == id))
+        .or_else(|| series.first())
+        .map_or(Value::Null, |entry| entry.2.clone());
+    let analysis = if series.len() > 1 {
+        summarize_series_analysis(&series)
+    } else {
+        raw_analysis.clone()
     };
     let map_context = match analysis
         .get("map_name")
@@ -1236,14 +1297,18 @@ async fn run_agent_chat(
         })
         .collect::<Vec<_>>();
     let summarized_analysis = summarize_analysis(&analysis);
-    let cinematic = input.demo_id.map(|demo_id| {
-        CinematicReplayHost::new(
-            state.storage.clone(),
-            state.dispatcher.clone(),
-            demo_id,
-            &analysis,
-        )
-    });
+    let cinematic = series
+        .iter()
+        .map(|(demo_id, _, analysis)| {
+            CinematicReplayHost::new(
+                state.storage.clone(),
+                state.dispatcher.clone(),
+                *demo_id,
+                analysis,
+                series.len() > 1,
+            )
+        })
+        .collect();
     let tool_host = Some(Arc::new(DesktopAgentToolHost {
         cinematic,
         dispatcher: state.dispatcher.clone(),
@@ -1252,6 +1317,21 @@ async fn run_agent_chat(
         .map_err(|error| AgentCommandError::internal(error.to_string()))?;
     if let Some(object) = workspace.as_object_mut() {
         object.insert("plan".to_owned(), agent_plan);
+        object.insert(
+            "series".to_owned(),
+            Value::Array(
+                series
+                    .iter()
+                    .map(|(id, demo, analysis)| {
+                        json!({
+                            "demoId": id,
+                            "demo": summarize_demo(demo),
+                            "analysis": summarize_analysis(analysis),
+                        })
+                    })
+                    .collect(),
+            ),
+        );
     }
     let provider = config.llm.provider.clone();
     let model = config.llm.model.clone();
@@ -1282,10 +1362,15 @@ async fn run_agent_chat(
     };
     let mut pending_text = String::new();
     let mut text_event_count = 0_usize;
+    let turn_timeout = if input.auto_mode {
+        Duration::from_secs(15 * 60)
+    } else {
+        Duration::from_secs(10 * 60)
+    };
     let response = tokio::time::timeout(
-        Duration::from_secs(180),
-        vibe_cs_agent::run_agent(request, cancellation, |event| {
-            if let EmbeddedAgentStreamEvent::TextDelta(delta) = event {
+        turn_timeout,
+        vibe_cs_agent::run_agent(request, cancellation, |event| match event {
+            EmbeddedAgentStreamEvent::TextDelta(delta) => {
                 pending_text.push_str(&delta);
                 if pending_text.len() >= TEXT_DELTA_BATCH_BYTES
                     && text_event_count < MAXIMUM_STREAM_TEXT_EVENTS_BEFORE_FINAL
@@ -1296,16 +1381,44 @@ async fn run_agent_chat(
                     text_event_count += 1;
                 }
             }
+            EmbeddedAgentStreamEvent::ToolCall(tool_call) => {
+                let _ = on_event.send(AgentEvent::ToolCall {
+                    tool_call: AgentToolCall::from(tool_call),
+                });
+            }
+            EmbeddedAgentStreamEvent::Proposal(proposal) => {
+                let _ = on_event.send(AgentEvent::Proposal {
+                    proposal: AgentProposal::from_captured(
+                        proposal,
+                        input.workspace_context.plan_id,
+                        input.workspace_context.plan_revision,
+                    ),
+                });
+            }
         }),
     )
     .await
-    .map_err(|_| AgentCommandError::unavailable("agent request timed out"))?
-    .map_err(|error| match error {
-        vibe_cs_agent::AgentError::Invalid(message) => AgentCommandError::invalid(message),
-        vibe_cs_agent::AgentError::Cancelled => AgentCommandError::unavailable(error.to_string()),
-        vibe_cs_agent::AgentError::Provider(message) => AgentCommandError::unavailable(message),
+    .map_err(|_| {
+        AgentCommandError::unavailable(format!(
+            "agent request timed out after {} minutes; completed tool checkpoints were preserved",
+            turn_timeout.as_secs() / 60
+        ))
     })
-    .inspect_err(|error| {
+    .and_then(|response| {
+        response.map_err(|error| match error {
+            vibe_cs_agent::AgentError::Invalid(message) => AgentCommandError::invalid(message),
+            vibe_cs_agent::AgentError::Cancelled => {
+                AgentCommandError::unavailable(error.to_string())
+            }
+            vibe_cs_agent::AgentError::Provider(message) => AgentCommandError::unavailable(message),
+        })
+    });
+    let response = response.inspect_err(|error| {
+        if !pending_text.is_empty() {
+            let _ = on_event.send(AgentEvent::TextDelta {
+                delta: std::mem::take(&mut pending_text),
+            });
+        }
         let _ = on_event.send(AgentEvent::Error {
             message: error.message.clone(),
         });
@@ -1360,16 +1473,6 @@ async fn run_agent_chat(
     thread.updated_at = now;
     state.save_thread(&mut thread).await?;
     materialize_initial_video_plan(state, input, thread_id, &analysis, &proposals).await?;
-    for tool_call in &tool_calls {
-        let _ = on_event.send(AgentEvent::ToolCall {
-            tool_call: tool_call.clone(),
-        });
-    }
-    for proposal in &proposals {
-        let _ = on_event.send(AgentEvent::Proposal {
-            proposal: proposal.clone(),
-        });
-    }
     let _ = on_event.send(AgentEvent::Complete {
         thread: thread.clone(),
         metadata: AgentTurnMetadata {
@@ -1511,7 +1614,14 @@ fn shots_from_video_proposal(
             let tick_span = u32::try_from(tick_span).map_err(|_| {
                 AgentCommandError::internal("video plan shot exceeds the supported tick window")
             })?;
-            let duration_seconds = f64::from(tick_span) / tick_rate;
+            let shot_tick_rate = design
+                .get("tick_rate")
+                .and_then(Value::as_f64)
+                .filter(|value| value.is_finite() && *value > 0.0)
+                .unwrap_or(tick_rate);
+            let duration_seconds = f64::from(tick_span) / shot_tick_rate
+                + request.pre_roll_seconds
+                + request.post_roll_seconds;
             let rationale = design
                 .get("rationale")
                 .and_then(Value::as_str)
@@ -1538,12 +1648,24 @@ fn shots_from_video_proposal(
                 duration_seconds,
                 rationale,
                 evidence_refs,
-                risks: Vec::new(),
+                risks: design
+                    .get("timing_clipped")
+                    .and_then(Value::as_bool)
+                    .is_some_and(|value| value)
+                    .then(|| {
+                        "Requested lead/tail was clipped to the verified replay boundary; the shown duration is the effective capture duration."
+                            .to_owned()
+                    })
+                    .into_iter()
+                    .collect(),
                 source: AgentPlanAuthor::Agent,
                 removed_by: None,
                 params: json!({
                     "camera_intent": camera_intent,
                     "spatial_evidence": spatial_evidence,
+                    "requested_timing": design.get("requested_timing"),
+                    "effective_timing": design.get("effective_timing"),
+                    "timing_clipped": design.get("timing_clipped"),
                 }),
                 recording: Some(AgentShotRecording {
                     demo_id: request.demo_id,
@@ -1731,6 +1853,57 @@ fn summarize_analysis(analysis: &Value) -> Value {
         "teams": capped_array(source.get("teams"), 2), "players": capped_array(source.get("players"), 32),
         "rounds": summarize_rounds(source.get("rounds"), 64), "highlights": summarize_highlights(source.get("highlights"), 128),
         "insights": insights,
+    })
+}
+
+fn summarize_series_analysis(series: &[(Uuid, Value, Value)]) -> Value {
+    let mut highlights = Vec::new();
+    let mut players = BTreeMap::<String, Value>::new();
+    for (demo_id, _demo, analysis) in series {
+        let summary = summarize_analysis(analysis);
+        let map_name = summary.get("map_name").cloned().unwrap_or(Value::Null);
+        let tick_rate = summary.get("tick_rate").cloned().unwrap_or(Value::Null);
+        for player in summary
+            .get("players")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            if let Some(id) = player.get("steam_id").and_then(Value::as_str) {
+                players
+                    .entry(id.to_owned())
+                    .or_insert_with(|| player.clone());
+            }
+        }
+        for highlight in summary
+            .get("highlights")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let Some(source_id) = highlight.get("id").and_then(Value::as_str) else {
+                continue;
+            };
+            let mut item = highlight.as_object().cloned().unwrap_or_default();
+            item.insert("id".to_owned(), json!(format!("{demo_id}:{source_id}")));
+            item.insert("source_highlight_id".to_owned(), json!(source_id));
+            item.insert("demo_id".to_owned(), json!(demo_id));
+            item.insert("map_name".to_owned(), map_name.clone());
+            item.insert("tick_rate".to_owned(), tick_rate.clone());
+            highlights.push(Value::Object(item));
+        }
+    }
+    json!({
+        "demo_id": null,
+        "map_name": null,
+        "tick_rate": 64.0,
+        "duration_seconds": null,
+        "teams": [],
+        "players": players.into_values().collect::<Vec<_>>(),
+        "rounds": [],
+        "highlights": highlights,
+        "insights": {"round_economy":[],"matchups":[],"availability":null},
+        "series_demo_count": series.len(),
     })
 }
 
@@ -2016,6 +2189,7 @@ mod tests {
             DesktopBridge::new(Arc::new(tokio::sync::OnceCell::new())),
             demo_id,
             &analysis,
+            false,
         );
 
         let highlight = host
@@ -2435,12 +2609,14 @@ mod tests {
             request_id: Uuid::new_v4(),
             thread_id: None,
             demo_id: Some(demo_id),
+            demo_ids: vec![demo_id],
             editor_project_id: None,
             audio_asset_id: None,
             workspace_context: AgentWorkspaceContext {
                 workflow: AgentWorkspaceWorkflow::Review,
                 destination: AgentWorkspaceDestination::Replay,
                 demo_id: Some(other_demo_id),
+                demo_ids: vec![demo_id],
                 project_id: None,
                 plan_id: None,
                 plan_revision: None,

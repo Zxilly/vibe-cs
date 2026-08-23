@@ -326,7 +326,7 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
         ),
         (
             "read_highlights",
-            "Read filtered local highlight evidence with explicit identifiers and tick ranges.",
+            "Read filtered local highlight evidence with explicit identifiers, owning Demo IDs, map names, and tick ranges. Multi-Demo projects return namespaced evidence IDs.",
             object_schema(
                 json!({
                     "playerIds": string_array_schema(10), "kinds": string_array_schema(12), "roundNumbers": integer_array_schema(24),
@@ -394,7 +394,7 @@ fn tool_definitions() -> Vec<(&'static str, &'static str, Value)> {
         ),
         (
             "draft_video_plan",
-            "Draft a complete video task from selected Demo highlights. The user reviews the shots and confirms before recording starts.",
+            "Draft a complete video task from selected project highlights. Each highlight stays bound to its owning Demo; requested handles are clamped to verified replay boundaries. The user reviews the effective shots and confirms before recording starts.",
             object_schema(
                 json!({
                     "highlightIds": string_array_schema(16),
@@ -1384,14 +1384,25 @@ fn draft_video_plan(
     }
     let binding = bind_highlights(&context.analysis, &ids);
     let demo_id = text(context.demo.get("id"));
-    let valid_demo_id = demo_id.and_then(|value| Uuid::parse_str(value).ok());
+    let primary_demo_id = demo_id.and_then(|value| Uuid::parse_str(value).ok());
+    let resolved_demo_ids = binding
+        .selected
+        .iter()
+        .map(|item| {
+            text(item.get("demoId"))
+                .and_then(|value| Uuid::parse_str(value).ok())
+                .or(primary_demo_id)
+        })
+        .collect::<Vec<_>>();
     let missing_players = binding
         .selected
         .iter()
         .filter(|item| text(item.get("playerId")).is_none_or(str::is_empty))
         .map(|item| text(item.get("id")).unwrap_or("unknown").to_owned())
         .collect::<Vec<_>>();
-    let accepted = binding.ready() && valid_demo_id.is_some() && missing_players.is_empty();
+    let accepted = binding.ready()
+        && resolved_demo_ids.iter().all(Option::is_some)
+        && missing_players.is_empty();
     let cinematic_context =
         read_cinematic_context(context, &json!({"highlightIds":&ids}), external_cinematic)?;
     let scenes = cinematic_context
@@ -1436,16 +1447,38 @@ fn draft_video_plan(
                 } else {
                     tail
                 };
+                let tick_rate = number_value(item.get("tickRate")).unwrap_or(64.0);
+                let requested_start_tick = number_value(item.get("startTick")).unwrap_or_default();
+                let requested_end_tick = number_value(item.get("endTick")).unwrap_or_default();
+                let fidelity = scenes
+                    .iter()
+                    .find(|scene| text(scene.get("highlightId")) == Some(ids[index].as_str()))
+                    .and_then(|scene| scene.get("mapSpace"))
+                    .and_then(|space| space.get("replayFidelity"));
+                let artifact_start = fidelity
+                    .and_then(|value| number_value(value.get("artifactStartTick")));
+                let artifact_end = fidelity
+                    .and_then(|value| number_value(value.get("artifactEndTick")));
+                let start_tick = artifact_start
+                    .map_or(requested_start_tick, |boundary| requested_start_tick.max(boundary));
+                let end_tick = artifact_end
+                    .map_or(requested_end_tick, |boundary| requested_end_tick.min(boundary));
+                let effective_pre_roll = artifact_start.map_or(action_handle, |boundary| {
+                    action_handle.min(((start_tick - boundary) / tick_rate).max(0.0))
+                });
+                let effective_post_roll = artifact_end.map_or(action_tail, |boundary| {
+                    action_tail.min(((boundary - end_tick) / tick_rate).max(0.0))
+                });
                 json!({
                     "id": Uuid::new_v4(),
-                    "demo_id": valid_demo_id,
-                    "highlight_id": text(item.get("id")),
+                    "demo_id": resolved_demo_ids[index],
+                    "highlight_id": text(item.get("sourceHighlightId")).or_else(||text(item.get("id"))),
                     "player_id": text(item.get("playerId")),
                     "title": text(item.get("title")).unwrap_or("Highlight video"),
-                    "start_tick": round_to_tick(number_value(item.get("startTick")).unwrap_or_default()),
-                    "end_tick": round_to_tick(number_value(item.get("endTick")).unwrap_or_default()),
-                    "pre_roll_seconds": action_handle,
-                    "post_roll_seconds": action_tail,
+                    "start_tick": round_to_tick(start_tick),
+                    "end_tick": round_to_tick(end_tick.max(start_tick)),
+                    "pre_roll_seconds": effective_pre_roll,
+                    "post_roll_seconds": effective_post_roll,
                     "victim_pov": false,
                     "camera_style": item_camera_style
                 })
@@ -1456,7 +1489,8 @@ fn draft_video_plan(
     };
     for (index, intent) in resolved_camera_intents.iter().enumerate() {
         let has_spatial_evidence = scenes
-            .get(index)
+            .iter()
+            .find(|scene| text(scene.get("highlightId")) == Some(ids[index].as_str()))
             .and_then(|scene| scene.get("mapSpace"))
             .and_then(|space| space.get("evidence"))
             .and_then(Value::as_str)
@@ -1475,14 +1509,26 @@ fn draft_video_plan(
             .enumerate()
             .map(|(index, id)| {
                 json!({
-                    "highlight_id": id,
-                    "map_name": context.analysis.get("map_name"),
+                    "highlight_id": text(binding.selected[index].get("sourceHighlightId")).unwrap_or(id),
+                    "evidence_id": id,
+                    "demo_id": resolved_demo_ids[index],
+                    "map_name": binding.selected[index].get("mapName").or_else(||context.analysis.get("map_name")),
+                    "tick_rate": binding.selected[index].get("tickRate").or_else(||context.analysis.get("tick_rate")),
                     "camera_intent": resolved_camera_intents[index],
                     "camera_style": resolved_camera_styles[index],
                     "rationale": resolved_camera_rationales[index],
-                    "spatial_evidence": scenes.get(index),
+                    "spatial_evidence": scenes.iter().find(|scene| text(scene.get("highlightId")) == Some(id.as_str())),
                     "requires_user_review": true,
                     "safety_fallback": safety_fallbacks[index],
+                    "requested_timing": {"lead_seconds": lead, "tail_seconds": tail},
+                    "effective_timing": {
+                        "start_tick": items[index].get("start_tick"),
+                        "end_tick": items[index].get("end_tick"),
+                        "lead_seconds": items[index].get("pre_roll_seconds"),
+                        "tail_seconds": items[index].get("post_roll_seconds"),
+                    },
+                    "timing_clipped": items[index].get("pre_roll_seconds").and_then(Value::as_f64) != Some(lead)
+                        || items[index].get("post_roll_seconds").and_then(Value::as_f64) != Some(tail),
                 })
             })
             .collect::<Vec<_>>()
@@ -1490,7 +1536,7 @@ fn draft_video_plan(
         Vec::new()
     };
     let mut rejection_reasons = binding.rejection_reasons();
-    if valid_demo_id.is_none() {
+    if resolved_demo_ids.iter().any(Option::is_none) {
         rejection_reasons
             .push("The selected Demo does not have a valid persistent identifier.".into());
     }
@@ -1675,7 +1721,7 @@ fn highlight_evidence(analysis: &Value) -> Vec<Value> {
         let id = text(item.get("id"))?;
         let start = number_value(item.get("start_tick"))?;
         let end = number_value(item.get("end_tick"))?;
-        Some(json!({"id":id,"kind":text(item.get("kind")).unwrap_or_default(),"title":text(item.get("title")).or_else(||text(item.get("label"))).unwrap_or("Highlight"),"playerId":text(item.get("player_id")).unwrap_or_default(),"round":number_value(item.get("round")),"startTick":start,"endTick":end,"score":number_value(item.get("score")).or_else(||number_value(item.get("confidence"))),"description":text(item.get("description")).unwrap_or_default(),"victims":array(item.get("victims")).filter_map(Value::as_str).collect::<Vec<_>>(),"tags":array(item.get("tags")).filter_map(Value::as_str).collect::<Vec<_>>() }))
+        Some(json!({"id":id,"sourceHighlightId":text(item.get("source_highlight_id")).unwrap_or(id),"demoId":item.get("demo_id"),"mapName":item.get("map_name").or_else(||analysis.get("map_name")),"tickRate":item.get("tick_rate").or_else(||analysis.get("tick_rate")),"kind":text(item.get("kind")).unwrap_or_default(),"title":text(item.get("title")).or_else(||text(item.get("label"))).unwrap_or("Highlight"),"playerId":text(item.get("player_id")).unwrap_or_default(),"round":number_value(item.get("round")),"startTick":start,"endTick":end,"score":number_value(item.get("score")).or_else(||number_value(item.get("confidence"))),"description":text(item.get("description")).unwrap_or_default(),"victims":array(item.get("victims")).filter_map(Value::as_str).collect::<Vec<_>>(),"tags":array(item.get("tags")).filter_map(Value::as_str).collect::<Vec<_>>() }))
     }).collect()
 }
 
@@ -2288,6 +2334,55 @@ mod tests {
     }
 
     #[test]
+    fn video_plan_keeps_each_series_highlight_on_its_own_demo() {
+        let first = "00000000-0000-4000-8000-0000000000d1";
+        let second = "00000000-0000-4000-8000-0000000000d2";
+        let mut context = context();
+        context.demo = json!({"id":first});
+        context.analysis["highlights"] = json!([{
+            "id": format!("{first}:shared"),
+            "source_highlight_id": "shared",
+            "demo_id": first,
+            "map_name": "de_mirage",
+            "tick_rate": 64.0,
+            "kind":"multi_kill","title":"Map one","round":1,
+            "start_tick":640,"end_tick":960,"player_id":"player-1"
+        }, {
+            "id": format!("{second}:shared"),
+            "source_highlight_id": "shared",
+            "demo_id": second,
+            "map_name": "de_nuke",
+            "tick_rate": 128.0,
+            "kind":"clutch","title":"Map two","round":2,
+            "start_tick":1280,"end_tick":1792,"player_id":"player-1"
+        }]);
+
+        let ids = [format!("{first}:shared"), format!("{second}:shared")];
+        let (_, plan) = execute_tool(
+            "draft_video_plan",
+            &context,
+            &json!({
+                "highlightIds": ids,
+                "cameraIntents":["player_pov","player_pov"],
+                "cameraRationales":[
+                    "Keep the verified player view on the first map.",
+                    "Keep the verified player view on the second map."
+                ]
+            }),
+        )
+        .expect("series video plan");
+
+        let payload = plan.expect("accepted series proposal").payload;
+        assert_eq!(payload["items"][0]["demo_id"], first);
+        assert_eq!(payload["items"][1]["demo_id"], second);
+        assert_eq!(payload["items"][0]["highlight_id"], "shared");
+        assert_eq!(payload["items"][1]["highlight_id"], "shared");
+        assert_eq!(payload["shot_designs"][0]["map_name"], "de_mirage");
+        assert_eq!(payload["shot_designs"][1]["map_name"], "de_nuke");
+        assert_eq!(payload["shot_designs"][1]["tick_rate"], 128.0);
+    }
+
+    #[test]
     fn video_plan_keeps_cinematic_camera_when_collision_geometry_is_verified() {
         let mut context = context();
         context.demo = json!({"id":"00000000-0000-4000-8000-0000000000d1"});
@@ -2329,6 +2424,47 @@ mod tests {
             "establish_location"
         );
         assert!(plan.payload["shot_designs"][0]["safety_fallback"].is_null());
+    }
+
+    #[test]
+    fn video_plan_reports_effective_timing_at_replay_boundaries() {
+        let mut context = context();
+        context.demo = json!({"id":"00000000-0000-4000-8000-0000000000d1"});
+        context.analysis["highlights"][0]["player_id"] = json!("player-1");
+        let cinematic = json!({"scenes":[{
+            "highlightId":"ace-1",
+            "positionedAction":[],
+            "fidelity":{
+                "artifactStartTick":600,
+                "artifactEndTick":1248,
+                "clampedToArtifactEnd":true
+            }
+        }]});
+
+        let (_, plan) = execute_tool_with_cinematic(
+            "draft_video_plan",
+            &context,
+            &json!({
+                "highlightIds":["ace-1"],
+                "leadSeconds":2.0,
+                "tailSeconds":2.0,
+                "cameraIntents":["player_pov"],
+                "cameraRationales":["Keep the verified player view through the available replay."]
+            }),
+            Some(&cinematic),
+        )
+        .expect("boundary-clamped plan");
+
+        let payload = plan.expect("accepted boundary plan").payload;
+        assert_eq!(payload["items"][0]["start_tick"], 640);
+        assert_eq!(payload["items"][0]["end_tick"], 1248);
+        assert_eq!(payload["items"][0]["pre_roll_seconds"], 0.625);
+        assert_eq!(payload["items"][0]["post_roll_seconds"], 0.0);
+        assert_eq!(payload["shot_designs"][0]["timing_clipped"], true);
+        assert_eq!(
+            payload["shot_designs"][0]["effective_timing"]["tail_seconds"],
+            0.0
+        );
     }
 
     #[test]

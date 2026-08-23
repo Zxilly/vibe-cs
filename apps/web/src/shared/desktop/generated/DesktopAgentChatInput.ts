@@ -7,6 +7,7 @@ export type DesktopAgentChatInput = {
   requestId: string;
   threadId: string | null;
   demoId: string | null;
+  demoIds: Array<string>;
   editorProjectId: string | null;
   audioAssetId: string | null;
   workspaceContext: DesktopAgentWorkspaceContext;

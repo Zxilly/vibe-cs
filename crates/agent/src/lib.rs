@@ -222,69 +222,112 @@ where
             _ => Message::user(entry.content),
         })
         .collect::<Vec<_>>();
-    let mut stream = agent
-        .stream_prompt(request.message)
-        .history(history)
-        .max_turns(MAXIMUM_AGENT_TURNS)
-        .await;
+    let original_message = request.message;
+    let mut prompt = original_message.clone();
     let mut content = String::new();
     let mut usage = None;
-    loop {
-        let item = tokio::select! {
-            () = cancellation.cancelled() => return Err(AgentError::Cancelled),
-            item = stream.next() => item,
-        };
-        let Some(item) = item else { break };
-        let item = match item {
-            Ok(item) => item,
-            Err(error) => {
-                // A bounded multi-turn run can fail after several successful
-                // evidence reads. Emit those completed calls before returning
-                // the terminal error so the durable turn retains what really
-                // happened and a retry is reviewable rather than opaque.
-                let (tool_calls, plans) = state.snapshot().await;
-                for tool_call in tool_calls {
-                    emit(AgentStreamEvent::ToolCall(tool_call));
+    let mut emitted_tool_calls = 0_usize;
+    let mut emitted_plans = 0_usize;
+    for attempt in 0..2 {
+        let mut stream = agent
+            .stream_prompt(prompt)
+            .history(history.clone())
+            .max_turns(MAXIMUM_AGENT_TURNS)
+            .await;
+        loop {
+            let item = tokio::select! {
+                () = cancellation.cancelled() => {
+                    let (tool_calls, plans) = state.snapshot().await;
+                    for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
+                        emit(AgentStreamEvent::ToolCall(tool_call.clone()));
+                    }
+                    for plan in plans.iter().skip(emitted_plans) {
+                        emit(AgentStreamEvent::Proposal(plan.clone()));
+                    }
+                    return Err(AgentError::Cancelled);
+                },
+                item = stream.next() => item,
+            };
+            let Some(item) = item else { break };
+            let item = match item {
+                Ok(item) => item,
+                Err(error) => {
+                    // A bounded multi-turn run can fail after several successful
+                    // evidence reads. Emit those completed calls before returning
+                    // the terminal error so the durable turn retains what really
+                    // happened and a retry is reviewable rather than opaque.
+                    let (tool_calls, plans) = state.snapshot().await;
+                    for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
+                        emit(AgentStreamEvent::ToolCall(tool_call.clone()));
+                    }
+                    for plan in plans.iter().skip(emitted_plans) {
+                        emit(AgentStreamEvent::Proposal(plan.clone()));
+                    }
+                    return Err(AgentError::Provider(safe_error(
+                        &error.to_string(),
+                        &provider_secret,
+                    )));
                 }
-                for plan in plans {
-                    emit(AgentStreamEvent::Proposal(plan));
+            };
+            match item {
+                MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(
+                    Text { text, .. },
+                )) => {
+                    if content.chars().count().saturating_add(text.chars().count())
+                        > MAXIMUM_RESPONSE_CHARS
+                    {
+                        return Err(AgentError::Provider(
+                            "model response exceeded 64000 characters".into(),
+                        ));
+                    }
+                    content.push_str(&text);
+                    emit(AgentStreamEvent::TextDelta(text));
                 }
-                return Err(AgentError::Provider(safe_error(
-                    &error.to_string(),
-                    &provider_secret,
-                )));
+                MultiTurnStreamItem::FinalResponse(response) => {
+                    usage = AgentUsage::from_reported(response.usage());
+                    if content.trim().is_empty() {
+                        response.output().trim().clone_into(&mut content);
+                    }
+                    break;
+                }
+                _ => {}
             }
-        };
-        match item {
-            MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(Text {
-                text,
-                ..
-            })) => {
-                if content.chars().count().saturating_add(text.chars().count())
-                    > MAXIMUM_RESPONSE_CHARS
-                {
-                    return Err(AgentError::Provider(
-                        "model response exceeded 64000 characters".into(),
-                    ));
-                }
-                content.push_str(&text);
-                emit(AgentStreamEvent::TextDelta(text));
+            // Rig can spend a long time reasoning between tool turns. Checkpoint
+            // every completed structured call as soon as the stream yields again,
+            // so a later provider failure or host deadline does not erase it.
+            let (tool_calls, plans) = state.snapshot().await;
+            for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
+                emit(AgentStreamEvent::ToolCall(tool_call.clone()));
             }
-            MultiTurnStreamItem::FinalResponse(response) => {
-                usage = AgentUsage::from_reported(response.usage());
-                if content.trim().is_empty() {
-                    response.output().trim().clone_into(&mut content);
-                }
-                break;
+            for plan in plans.iter().skip(emitted_plans) {
+                emit(AgentStreamEvent::Proposal(plan.clone()));
             }
-            _ => {}
+            emitted_tool_calls = tool_calls.len();
+            emitted_plans = plans.len();
         }
+        let (tool_calls, plans) = state.snapshot().await;
+        for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
+            emit(AgentStreamEvent::ToolCall(tool_call.clone()));
+        }
+        for plan in plans.iter().skip(emitted_plans) {
+            emit(AgentStreamEvent::Proposal(plan.clone()));
+        }
+        emitted_tool_calls = tool_calls.len();
+        emitted_plans = plans.len();
+
+        if content.trim().is_empty() && attempt == 0 && !tool_calls.is_empty() {
+            prompt = continuation_prompt(&original_message, &tool_calls, &plans);
+            content.clear();
+            usage = None;
+            continue;
+        }
+        break;
     }
     let (tool_calls, plans) = state.snapshot().await;
-    for tool_call in &tool_calls {
+    for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
         emit(AgentStreamEvent::ToolCall(tool_call.clone()));
     }
-    for plan in &plans {
+    for plan in plans.iter().skip(emitted_plans) {
         emit(AgentStreamEvent::Proposal(plan.clone()));
     }
     let content = content.trim().to_owned();
@@ -299,6 +342,26 @@ where
         plans,
         usage,
     })
+}
+
+fn continuation_prompt(
+    original_message: &str,
+    tool_calls: &[CapturedToolCall],
+    plans: &[CapturedPlan],
+) -> String {
+    const MAXIMUM_CHECKPOINT_CHARS: usize = 48_000;
+    let checkpoint = serde_json::to_string(&serde_json::json!({
+        "toolCalls": tool_calls,
+        "proposals": plans,
+    }))
+    .unwrap_or_else(|_| "{\"toolCalls\":[],\"proposals\":[]}".to_owned());
+    let checkpoint = checkpoint
+        .chars()
+        .take(MAXIMUM_CHECKPOINT_CHARS)
+        .collect::<String>();
+    format!(
+        "Continue the same user request from the completed structured checkpoints below. The provider ended the previous sub-turn without final text; do not restart blindly and do not ask the user to retry. Reuse valid results, perform the first unfinished required tool step, and finish with the required proposal/confirmation and a concise answer.\nOriginal user request:\n{original_message}\nCompleted checkpoints:\n{checkpoint}"
+    )
 }
 
 fn validate_request(request: &AgentRequest) -> Result<(), AgentError> {
@@ -389,7 +452,7 @@ fn system_prompt(mode: AgentMode, auto_mode: bool, custom: &str) -> String {
             "Collaborate on an edit using only structured Vibe CS objects. First read workspace context. When workspace.plan is present, use draft_agent_plan_changes with its exact shot ids for reviewable shorten/delete changes and do not use draft_edit_plan. Otherwise inspect the selected editor timeline and demo evidence, then use draft_edit_plan for a concrete sequence. After an edit proposal exists, call confirm_edit_plan; after a beat-alignment proposal exists, call confirm_beat_alignment. These tools create the workflow-positioned UI request. In Auto mode they mark it approved without pausing; otherwise the UI lets the user preview, execute, or reject it. Never claim execution until a later structured execution result is present in context. Report every rejection reason and never claim a rejected partial plan was created."
         }
         AgentMode::Hlae => {
-            "Create complete highlight videos using only structured Vibe CS objects. In the current turn, read highlight evidence and call read_cinematic_context for the exact selected highlight IDs before drafting or describing any cinematic shot. Finish a supported creation request by calling draft_video_plan; it is the only proposal tool in this mode, and an ordinary edit draft cannot create the first shot list. After the video proposal exists, call confirm_video_plan with its exact shot count, duration, summary, and risks so the UI can present the recording-stage decision. In Auto mode this confirmation is marked approved without pausing; otherwise the user acts in the video confirmation UI. Design each shot around the returned map name, Valve radar-relative route, positioned action, movement axis, spatial spread, and engagement purpose; never choose a movement merely for variety. Treat verifiedEngagements as kill-event-backed axes and nearestOpponent fields only as proximity context. Never invent evidence categories, labels, or measurements absent from tool output. Supply one cameraIntent and a concrete cameraRationale per highlight. Use player_pov whenever spatial evidence is unavailable. Choose cameraStyle from pov, orbit, dolly, static, tracking, crane, or flyby only when it expresses that intent, and preserve lead/tail context. Report every rejection reason. Never mention capture engines, encoders, configuration artifacts, runtimes, or other implementation details unless the user explicitly asks. Do not claim completion until the host reports a completed recording job and an MP4 output."
+            "Create complete highlight videos using only structured Vibe CS objects. In the current turn, read highlight evidence and call read_cinematic_context for the exact selected highlight IDs before drafting or describing any cinematic shot. workspace.series may contain multiple project Demos; when it does, read_highlights returns namespaced evidence IDs and draft_video_plan binds every selected highlight back to its own Demo, so a BO3/BO5 must be treated as one cross-Demo sequence rather than silently reduced to the primary Demo. Finish a supported creation request by calling draft_video_plan; it is the only proposal tool in this mode, and an ordinary edit draft cannot create the first shot list. After the video proposal exists, call confirm_video_plan with its exact shot count, effective duration, summary, and risks so the UI can present the recording-stage decision. In Auto mode this confirmation is marked approved without pausing; otherwise the user acts in the video confirmation UI. Design each shot around the returned map name, Valve radar-relative route, positioned action, movement axis, spatial spread, and engagement purpose; never choose a movement merely for variety. Treat verifiedEngagements as kill-event-backed axes and nearestOpponent fields only as proximity context. Never invent evidence categories, labels, or measurements absent from tool output. Supply one cameraIntent and a concrete cameraRationale per highlight. Use player_pov whenever spatial evidence is unavailable. Choose cameraStyle from pov, orbit, dolly, static, tracking, crane, or flyby only when it expresses that intent. Requested lead/tail handles may be clipped to verified replay boundaries; report the effective timing and clipping risk rather than promising unavailable frames. Report every rejection reason. Never mention capture engines, encoders, configuration artifacts, runtimes, or other implementation details unless the user explicitly asks. Do not claim completion until the host reports a completed recording job and an MP4 output."
         }
     };
     let automation_instruction = if auto_mode {
@@ -558,6 +621,82 @@ mod tests {
             json!(["ace-1"])
         );
         assert_eq!(response.plans[0].payload["output"]["container"], "mp4");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn empty_provider_subturn_continues_once_from_tool_checkpoints() {
+        let listener = TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind provider");
+        let address = listener.local_addr().expect("provider address");
+        let provider = tokio::spawn(async move {
+            let mut requests = Vec::new();
+            for index in 0..3 {
+                let (mut stream, _) = listener.accept().await.expect("provider request");
+                requests.push(read_http_json(&mut stream).await);
+                let chunks = match index {
+                    0 => vec![
+                        stream_chunk(
+                            &json!({"role":"assistant","tool_calls":[{
+                                "index":0,"id":"call-context","type":"function",
+                                "function":{"name":"read_workspace_context","arguments":"{}"}
+                            }]}),
+                            None,
+                        ),
+                        stream_chunk(&json!({}), Some("tool_calls")),
+                    ],
+                    1 => vec![stream_chunk(
+                        &json!({"role":"assistant","content":""}),
+                        Some("stop"),
+                    )],
+                    _ => vec![
+                        stream_chunk(
+                            &json!({"role":"assistant","content":"已从结构化检查点继续完成。"}),
+                            None,
+                        ),
+                        stream_chunk(&json!({}), Some("stop")),
+                    ],
+                };
+                write_sse(&mut stream, &chunks).await;
+            }
+            requests
+        });
+        let response = run_agent(
+            AgentRequest {
+                request_id: "resume-empty-turn".into(),
+                mode: AgentMode::Hlae,
+                message: "完成视频方案".into(),
+                history: Vec::new(),
+                config: AgentConfig {
+                    provider: "rig-e2e".into(),
+                    model: "rig-e2e-model".into(),
+                    base_url: format!("http://{address}/v1"),
+                    api_key: "rig-e2e-secret".into(),
+                    custom_instructions: String::new(),
+                },
+                context: AgentContext {
+                    workspace: json!({"demoIds":["demo-1","demo-2"]}),
+                    ..AgentContext::default()
+                },
+                tool_host: None,
+                auto_mode: true,
+            },
+            &Cancellation::new(),
+            |_| {},
+        )
+        .await
+        .expect("continued response");
+        let requests = provider.await.expect("provider task");
+
+        assert_eq!(response.content, "已从结构化检查点继续完成。");
+        assert_eq!(response.tool_calls.len(), 1);
+        assert!(requests[2]["messages"].as_array().is_some_and(|messages| {
+            messages.iter().any(|message| {
+                message["content"]
+                    .as_str()
+                    .is_some_and(|content| content.contains("Completed checkpoints"))
+            })
+        }));
     }
 
     async fn serve_provider(listener: TcpListener) -> Vec<Value> {

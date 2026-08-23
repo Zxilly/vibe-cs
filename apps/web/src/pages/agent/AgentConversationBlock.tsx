@@ -70,7 +70,7 @@
 import { t } from '@lingui/core/macro';
 import { useLingui } from '@lingui/react';
 import { Trans } from '@lingui/react/macro';
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { dataErrorMessage } from '../../data/errors';
@@ -138,7 +138,7 @@ export const AgentConversationBlock: AgentBlock = ({
 
   const [selectedShotId, setSelectedShotId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
-  const [autoMode, setAutoMode] = useState(false);
+  const [autoMode, setAutoMode] = useState(readAutoMode);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const lastMessageRef = useRef<string | null>(null);
   const [preview, setPreview] = useState<{
@@ -148,6 +148,14 @@ export const AgentConversationBlock: AgentBlock = ({
     readonly basedOnRevision: number | null;
     readonly acceptAfterPreview: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    try {
+      globalThis.localStorage?.setItem(AUTO_MODE_STORAGE_KEY, autoMode ? '1' : '0');
+    } catch {
+      // A storage-denied webview still keeps Auto stable for this mount.
+    }
+  }, [autoMode]);
 
   const decisions = changes.decisions;
   const planData = plan.data;
@@ -312,7 +320,7 @@ export const AgentConversationBlock: AgentBlock = ({
               id: `retry-${entry.id}`,
               label: <Trans>重试</Trans>,
               primary: true,
-              onAction: () => void chat.send({ message: failedPrompt, retryOf: entry.id }),
+              onAction: () => void chat.send({ message: failedPrompt, retryOf: entry.id, autoMode }),
             }],
           }),
     };
@@ -377,6 +385,7 @@ export const AgentConversationBlock: AgentBlock = ({
                       void chat.send({
                         message,
                         retryOf: latestFailedTurn?.kind === 'assistant' ? latestFailedTurn.id : null,
+                        autoMode,
                       });
                     }
                   },
@@ -401,6 +410,14 @@ export const AgentConversationBlock: AgentBlock = ({
         draft={chat.draft}
         onFocusComposer={() => composerRef.current?.focus()}
       />
+
+      {chat.streaming && (chat.activity?.length ?? 0) > 0 ? (
+        <div className="flex-none border-t border-divider px-3.5 py-2 text-xs text-neutral-700" aria-live="polite">
+          <Trans>工作进度</Trans>
+          {' · '}
+          {chat.activity?.map(agentActivityLabel).join(' → ')}
+        </div>
+      ) : null}
 
       {hasChangeSets ? (
         <p
@@ -689,3 +706,28 @@ function ProposalBlock({
 
 const EMPTY_SHOTS: readonly AgentPlanShot[] = [];
 const EMPTY_ENTRIES: readonly AgentSessionEntry[] = [];
+const AUTO_MODE_STORAGE_KEY = 'vibe-cs.agent.auto-mode.v1';
+
+function readAutoMode(): boolean {
+  try {
+    return globalThis.localStorage?.getItem(AUTO_MODE_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function agentActivityLabel(name: string): string {
+  switch (name) {
+    case 'read_workspace_context': return t`读取工作区`;
+    case 'read_demo_evidence': return t`读取 Demo 证据`;
+    case 'read_highlights': return t`筛选高光`;
+    case 'read_cinematic_context': return t`理解镜头与空间`;
+    case 'draft_video_plan': return t`生成视频方案`;
+    case 'draft_edit_plan': return t`生成剪辑方案`;
+    case 'confirm_video_plan':
+    case 'confirm_edit_plan':
+    case 'confirm_beat_alignment': return t`完成流程确认`;
+    case 'proposal_ready': return t`方案已就绪`;
+    default: return name;
+  }
+}

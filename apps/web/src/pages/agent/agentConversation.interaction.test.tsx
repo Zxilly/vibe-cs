@@ -14,7 +14,7 @@
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   useAgentComposition,
@@ -87,6 +87,10 @@ vi.mock('./ChangePreviewDialog', () => ({
       </div>
     ) : null,
 }));
+
+afterEach(() => {
+  globalThis.localStorage.removeItem('vibe-cs.agent.auto-mode.v1');
+});
 
 const ANSWER: AgentSessionEntry = {
   kind: 'assistant',
@@ -479,6 +483,18 @@ describe('the instruction bar', () => {
     });
   });
 
+  it('keeps Auto enabled when the conversation block remounts after a plan appears', () => {
+    stage();
+    const first = renderBlock(<Controlled initial={CHANGES} chat={chatStub()} />);
+    fireEvent.click(screen.getByRole('switch', { name: 'Agent Auto' }));
+    expect(screen.getByRole('switch', { name: 'Agent Auto' }).getAttribute('aria-checked')).toBe('true');
+
+    first.unmount();
+    stage();
+    renderBlock(<Controlled initial={CHANGES} chat={chatStub()} />);
+    expect(screen.getByRole('switch', { name: 'Agent Auto' }).getAttribute('aria-checked')).toBe('true');
+  });
+
   it('sends on ⌘↵ but not on a plain ↵, so a second line stays typable', () => {
     stage();
     const chat = chatStub();
@@ -532,10 +548,11 @@ describe('the instruction bar', () => {
     renderBlock(<Controlled initial={CHANGES} chat={chat} />);
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '压到 30 秒' } });
+    fireEvent.click(screen.getByRole('switch', { name: 'Agent Auto' }));
     fireEvent.click(screen.getByRole('button', { name: '生成变更' }));
     fireEvent.click(screen.getByRole('button', { name: '重试' }));
 
     expect(chat.send).toHaveBeenCalledTimes(2);
-    expect(chat.send).toHaveBeenLastCalledWith({ message: '压到 30 秒', retryOf: null });
+    expect(chat.send).toHaveBeenLastCalledWith({ message: '压到 30 秒', retryOf: null, autoMode: true });
   });
 });

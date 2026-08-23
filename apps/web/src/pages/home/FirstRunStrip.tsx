@@ -46,8 +46,11 @@ export function FirstRunStrip() {
   if ((demos.data?.items.length ?? 0) > 0) return null;
 
   return (
-    <div className="flex flex-col gap-3 border border-divider p-4" data-home-block="first-run">
-      <div className="flex flex-col gap-1">
+    <div
+      className="flex flex-wrap items-center gap-4 border border-accent p-4 shadow-[inset_2px_0_0_var(--color-accent)]"
+      data-home-block="first-run"
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <h2 className="text-base font-medium">
           <Trans>从导入 Demo 开始</Trans>
         </h2>
@@ -56,7 +59,13 @@ export function FirstRunStrip() {
         </p>
       </div>
 
-      <RouteLink to="/library"><Trans>导入 Demo</Trans></RouteLink>
+      <RouteLink
+        to="/library"
+        size="sm"
+        className="inline-flex h-[var(--h-ctl-sm)] flex-none items-center border border-accent px-4 no-underline"
+      >
+        <Trans>导入 Demo</Trans>
+      </RouteLink>
     </div>
   );
 }

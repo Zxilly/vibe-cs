@@ -300,5 +300,6 @@ describe('工作台首页', () => {
     expect(await screen.findByText('从导入 Demo 开始')).toBeTruthy();
     const firstRun = document.querySelector('[data-home-block="first-run"]') as HTMLElement;
     expect(within(firstRun).getAllByRole('link', { name: '导入 Demo' })).toHaveLength(1);
+    expect(firstRun.className).toContain('border-accent');
   });
 });

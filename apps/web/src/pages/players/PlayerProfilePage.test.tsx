@@ -47,9 +47,9 @@ describe('the page frame', () => {
 
   // The title bar's crumb says where you *are*; this is the way back, and the
   // two are not the same affordance.
-  it('offers the way back to the directory', () => {
-    expect(html).toContain('‹ 玩家目录');
-    expect(html).toContain('href="/players"');
+  it('leaves parent navigation to the shell breadcrumb', () => {
+    expect(html).not.toContain('‹ 玩家目录');
+    expect(html).not.toContain('href="/players"');
   });
 
   it('lays out the trend column and the map column', () => {

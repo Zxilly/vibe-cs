@@ -21,8 +21,8 @@
  *   1. The identity header becomes the `Toolbar` rather than a second bar under
  *      it. A route already has a top bar, and stacking a 64px header on a 56px
  *      toolbar would spend 120px of a 700px window on saying the same name
- *      twice. The back link 「‹ 玩家目录」 goes in `leading`, as 03 does with
- *      「‹ 资料库」.
+ *      twice. Parent navigation stays in the shell breadcrumb, while the
+ *      player's initial plate occupies `leading`.
  *   2. The right column is `--w-panel` (340) rather than the panel's 320 — §3.5
  *      has no 320 token and 340 is the nearest, a 20px fold well inside the
  *      80px bound `PANEL_WIDTH_MAX_FOLD_PX` records.
@@ -113,19 +113,14 @@ export function PlayerProfilePage() {
       toolbar={
         <Toolbar
           leading={
-            <>
-              <RouteLink to="/players">
-                <Trans>‹ 玩家目录</Trans>
-              </RouteLink>
-              {player === undefined ? null : (
-                <span
-                  aria-hidden="true"
-                  className="grid size-9 flex-none place-items-center border border-accent font-heading text-base text-accent-800"
-                >
-                  {nameInitial(player.name)}
-                </span>
-              )}
-            </>
+            player === undefined ? null : (
+              <span
+                aria-hidden="true"
+                className="grid size-9 flex-none place-items-center border border-accent font-heading text-base text-accent-800"
+              >
+                {nameInitial(player.name)}
+              </span>
+            )
           }
           title={player === undefined ? <Trans>玩家档案</Trans> : player.name}
           meta={

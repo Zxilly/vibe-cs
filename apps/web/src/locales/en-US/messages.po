@@ -64,10 +64,6 @@ msgstr "· Service required"
 msgid "‹ 后台任务"
 msgstr "‹ Background tasks"
 
-#: src/pages/PlayerProfilePage.tsx:118
-msgid "‹ 玩家目录"
-msgstr "‹ Players"
-
 #: src/pages/RecoveryPage.tsx:81
 msgid "‹ 设置与诊断"
 msgstr "‹ Settings"
@@ -222,7 +218,7 @@ msgstr "{0} · {1} · Round {2} · tick {3}"
 #. placeholder {1}: player.stats.matches
 #. placeholder {2}: player.aliases_total
 #. placeholder {3}: formatMonthDay(player.last_match_date)
-#: src/pages/PlayerProfilePage.tsx:135
+#: src/pages/PlayerProfilePage.tsx:130
 msgid "{0} · {1} 场 · 别名 {2} 个 · 最近出场 {3}"
 msgstr "{0} · {1} matches · {2} aliases · last seen {3}"
 
@@ -1745,7 +1741,7 @@ msgstr "Candidate clips need a shot list"
 msgid "偏移"
 msgstr "Offset"
 
-#: src/pages/PlayerProfilePage.tsx:143
+#: src/pages/PlayerProfilePage.tsx:138
 msgid "做一条集锦"
 msgstr "Make a highlight reel"
 
@@ -2147,11 +2143,11 @@ msgid "最近更新"
 msgstr "Last update"
 
 #: src/pages/home/RecentMatchesPanel.tsx:49
-#: src/pages/PlayerProfilePage.tsx:212
+#: src/pages/PlayerProfilePage.tsx:207
 msgid "最近比赛"
 msgstr "Recent matches"
 
-#: src/pages/PlayerProfilePage.tsx:219
+#: src/pages/PlayerProfilePage.tsx:214
 msgid "最近比赛没能读出来：{matchesError}"
 msgstr "Recent matches could not be read: {matchesError}"
 
@@ -2640,7 +2636,7 @@ msgid "去资料库分析"
 msgstr "Analyse in the library"
 
 #: src/pages/evidence/EvidenceEmpty.tsx:76
-#: src/pages/PlayerProfilePage.tsx:227
+#: src/pages/PlayerProfilePage.tsx:222
 #: src/pages/PlayersPage.tsx:336
 msgid "去资料库分析一场"
 msgstr "Analyze a match in the library"
@@ -3171,7 +3167,7 @@ msgstr "Map {0}"
 msgid "地图：{0}"
 msgstr "Map: {0}"
 
-#: src/pages/PlayerProfilePage.tsx:172
+#: src/pages/PlayerProfilePage.tsx:167
 msgid "地图与最近比赛"
 msgstr "Maps and recent matches"
 
@@ -4688,7 +4684,7 @@ msgstr "Counted by highlight kind; the outcome is not recorded"
 msgid "换一个更短的关键词，或用页面名、路径、英文名。不做拼音和模糊匹配。"
 msgstr "Try a shorter keyword, or a page name, a path, or an English name. No pinyin, no fuzzy matching."
 
-#: src/pages/PlayerProfilePage.tsx:193
+#: src/pages/PlayerProfilePage.tsx:188
 msgid "换一张图"
 msgstr "Switch map"
 
@@ -5597,7 +5593,7 @@ msgstr "Validating input"
 msgid "档案"
 msgstr "Profile"
 
-#: src/pages/PlayerProfilePage.tsx:154
+#: src/pages/PlayerProfilePage.tsx:149
 msgid "档案是只读的，重试不会改动任何数据。"
 msgstr "The profile is read-only, so a retry changes no data."
 
@@ -5970,7 +5966,7 @@ msgstr "Clutch candidates"
 msgid "段位分布"
 msgstr "Rank distribution"
 
-#: src/pages/PlayerProfilePage.tsx:250
+#: src/pages/PlayerProfilePage.tsx:245
 msgid "段位历史不可用：这批 Demo 里没有段位信息。"
 msgstr "No rank history: these demos carry no rank information."
 
@@ -6708,7 +6704,7 @@ msgid "玩家"
 msgstr "Players"
 
 #: src/app/routeCrumb.ts:69
-#: src/pages/PlayerProfilePage.tsx:130
+#: src/pages/PlayerProfilePage.tsx:125
 msgid "玩家档案"
 msgstr "Player profile"
 
@@ -8256,7 +8252,7 @@ msgid "还没有更早的版本"
 msgstr "No earlier versions yet"
 
 #: src/design/data/Empty.tsx:136
-#: src/pages/PlayerProfilePage.tsx:223
+#: src/pages/PlayerProfilePage.tsx:218
 msgid "还没有比赛"
 msgstr "No matches yet"
 
@@ -8649,11 +8645,11 @@ msgstr "Whether this machine can write a finished file. These check the local en
 msgid "这名选手最近的比赛里没有 {0} 的取值，所以这里没有线可画。"
 msgstr "The recent matches of this player carry no {0} value, so there is no line to draw."
 
-#: src/pages/PlayerProfilePage.tsx:156
+#: src/pages/PlayerProfilePage.tsx:151
 msgid "这名选手的档案没能读出来：{profileError}"
 msgstr "This player profile could not be read: {profileError}"
 
-#: src/pages/PlayerProfilePage.tsx:224
+#: src/pages/PlayerProfilePage.tsx:219
 msgid "这名选手还没有出现在任何一场已分析的比赛里。"
 msgstr "This player has not appeared in any analyzed match yet."
 
@@ -9395,8 +9391,8 @@ msgstr "Choose again"
 #: src/pages/montage/AddClipsDialog.tsx:78
 #: src/pages/montage/MusicBeatBlock.tsx:398
 #: src/pages/MontagePage.tsx:354
-#: src/pages/PlayerProfilePage.tsx:153
-#: src/pages/PlayerProfilePage.tsx:217
+#: src/pages/PlayerProfilePage.tsx:148
+#: src/pages/PlayerProfilePage.tsx:212
 #: src/pages/players/PlayerHeatmapPanel.tsx:142
 #: src/pages/PlayersPage.tsx:293
 #: src/pages/project/AddToProjectDialog.tsx:91
@@ -9540,7 +9536,7 @@ msgstr "Stage {index}/{count} {label}"
 msgid "阶段日志"
 msgstr "Stage log"
 
-#: src/pages/PlayerProfilePage.tsx:142
+#: src/pages/PlayerProfilePage.tsx:137
 msgid "集锦制作要从比赛工作区或 Agent 发起"
 msgstr "A highlight reel is started from the match workspace or from the Agent"
 

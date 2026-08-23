@@ -304,6 +304,7 @@ function InsightCards({
       {opening === null ? null : (
         <InsightCard
           id="opening-kills"
+          current
           title={
             <Trans>
               {opening.leaderName} 拿下了 {opening.roundsWithOpening} 个回合里的 {opening.leaderCount} 次首杀
@@ -386,14 +387,24 @@ function InsightCard({
   title,
   detail,
   action,
+  current = false,
 }: {
   readonly id: string;
   readonly title: ReactNode;
   readonly detail: ReactNode;
   readonly action: ReactNode;
+  readonly current?: boolean | undefined;
 }) {
   return (
-    <article data-insight={id} className="border border-divider px-3.5 py-3">
+    <article
+      data-insight={id}
+      aria-current={current ? true : undefined}
+      className={
+        current
+          ? 'border border-accent-300 bg-accent-100 px-3.5 py-3 shadow-[inset_2px_0_0_var(--color-accent)]'
+          : 'border border-divider px-3.5 py-3'
+      }
+    >
       <h4 className="mb-1 text-sm leading-normal">{title}</h4>
       <p className="text-xs leading-relaxed text-neutral-700">{detail}</p>
       <div className="mt-1.5">{action}</div>
@@ -765,15 +776,33 @@ function AnnotationsPanel({
 
 /* ── the Inspector ───────────────────────────────────────────────────────── */
 
-function ReviewInspector({ demoId, context, addToVideo, collapsed }: MatchViewProps) {
+function ReviewInspector({
+  demoId,
+  context,
+  updateContext,
+  addToVideo,
+  collapsed,
+}: MatchViewProps) {
   const id = demoId === '' ? null : demoId;
+  const analysis = useMatchAnalysis(id);
   const annotations = useMatchAnnotations(id);
   const tally = annotationTally(annotations.data?.items);
+  const opening = useMemo(() => openingKillInsight(analysis.data), [analysis.data]);
+  const showDefaultInsight =
+    opening !== null
+    && context.evidence === null
+    && context.round === null
+    && context.player === null
+    && context.tick === null;
 
   return (
     <MatchInspectorPanel
-      title={<Trans>结论与注释</Trans>}
-      summary={<Trans>注释 {tally.total} 条</Trans>}
+      title={showDefaultInsight ? <Trans>自动洞察</Trans> : <Trans>结论与注释</Trans>}
+      summary={
+        showDefaultInsight
+          ? <Trans>{opening.leaderName} · {opening.leaderCount} 次首杀</Trans>
+          : <Trans>注释 {tally.total} 条</Trans>
+      }
       addToVideo={addToVideo}
       selection={{
         ...(context.round === null ? {} : { round: context.round }),
@@ -783,13 +812,40 @@ function ReviewInspector({ demoId, context, addToVideo, collapsed }: MatchViewPr
       collapsed={collapsed}
     >
       <div className="flex flex-col gap-3 text-sm">
-        <p className="text-neutral-700">
-          {context.evidence === null ? (
-            <Trans>地址里还没有选中的证据，所以现在不能新建注释。</Trans>
-          ) : (
-            <Trans>当前锚点是一条证据，可以在「我的注释」里为它写注释。</Trans>
-          )}
-        </p>
+        {showDefaultInsight ? (
+          <section data-review-default-insight="" className="border-l-2 border-accent pl-3">
+            <h3 className="font-heading text-lg">
+              <Trans>
+                {opening.leaderName} 拿下了 {opening.roundsWithOpening} 个回合里的 {opening.leaderCount} 次首杀
+              </Trans>
+            </h3>
+            <p className="mt-1 text-xs leading-normal text-neutral-700">
+              <Trans>首杀取每个回合最早的一次击杀事件；这是规则洞察，不是 AI 生成内容。</Trans>
+            </p>
+            <Button
+              className="mt-2"
+              variant="secondary"
+              size="sm"
+              onClick={() =>
+                updateContext({
+                  player: opening.leaderId,
+                  round: opening.round,
+                  tick: opening.tick,
+                })
+              }
+            >
+              <Trans>定位到第 {opening.round} 回合的首杀</Trans>
+            </Button>
+          </section>
+        ) : (
+          <p className="text-neutral-700">
+            {context.evidence === null ? (
+              <Trans>地址里还没有选中的证据，所以现在不能新建注释。</Trans>
+            ) : (
+              <Trans>当前锚点是一条证据，可以在「我的注释」里为它写注释。</Trans>
+            )}
+          </p>
+        )}
         <dl className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
             <dt className="text-neutral-700">

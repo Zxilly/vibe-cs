@@ -163,11 +163,12 @@ describe('我的注释', () => {
 });
 
 describe('the Inspector', () => {
-  it('splits the tally and states why a new note may not be possible', () => {
+  it('uses the first rule-derived conclusion as default context', () => {
     scene();
     const html = markupView(<Inspector {...viewProps()} />);
-    expect(html).toContain('结论与注释');
-    expect(html).toContain('地址里还没有选中的证据');
+    expect(html).toContain('data-review-default-insight');
+    expect(html).toContain('自动洞察');
+    expect(html).toContain('这是规则洞察，不是 AI 生成内容');
   });
 
   it('changes its sentence once the address carries an anchor', () => {

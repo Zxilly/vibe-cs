@@ -6,20 +6,17 @@
  * missing-file variant swaps the border and the copy (「记录仍在，文件已被移动或
  * 删除」) and offers 重新定位 · 移除记录 instead.
  *
- * ── What this card does not draw, and why ─────────────────────────────────
+ * The service now supplies probed media facts and a range-serving output route.
+ * The card turns that route into the desktop's allow-listed media protocol and
+ * renders native controls; a browser build or unprobeable file keeps the honest
+ * placeholder instead.
  *
- * 播放      There is no way to play a local file from the webview: the Tauri CSP
- *           is `default-src 'self'` (§10.3 gap 8 makes the same point about
- *           radar basemaps), and no command returns a playable URL. 定位文件 is
- *           what the shell can actually do today, so it is the primary action
- *           and 播放 is reported as a gap rather than wired to a link that
- *           silently does nothing.
+ * ── What this card still does not draw, and why ───────────────────────────
+ *
  * 重新定位   `commands` has `relinkMediaAsset` for an editor asset and nothing
  *           for an output record. The missing-file card therefore recovers by
  *           removing the record — which the artboard itself annotates as safe
  *           (「外部文件，移除记录不会删除文件」).
- * 时长/帧率/编码
- *           Not on the wire. See `outputModel.ts`.
  * 来源任务   Only an export carries it: the service builds an export output with
  *           `id: record.job.id` (`crates/application/src/routes/outputs.rs`), so
  *           the record *is* addressable as a task, while a recording output is
@@ -37,6 +34,8 @@ import { RouteLink } from '../RouteLink';
 import { formatBytes, outputDeletionRemovesFile, outputFileIsUsable } from './outputModel';
 import type { ServiceActionState } from '../../data/serviceAction';
 import { Blueprint } from '../../design/layout';
+import { formatOutputMedia } from './outputModel';
+import { useNativeShell } from '../../data/nativeShell';
 
 export interface OutputCardProps {
   readonly output: OutputItem;
@@ -60,6 +59,7 @@ export function OutputCard({
   timeZone,
   className,
 }: OutputCardProps) {
+  const shell = useNativeShell();
   const usable = outputFileIsUsable(output.availability);
   const size = formatBytes(output.size_bytes);
   const stamp = formatTaskClock(output.created_at, {
@@ -67,6 +67,10 @@ export function OutputCard({
     ...(timeZone === undefined ? {} : { timeZone }),
   });
   const sourceTaskId = output.output_kind === 'export' ? `export:${output.id}` : null;
+  const mediaFacts = formatOutputMedia(output.media);
+  const streamUrl = usable
+    ? shell.mediaSrc(`/api/outputs/${output.output_kind}/${output.id}/stream`)
+    : null;
 
   return (
     <Blueprint
@@ -88,14 +92,21 @@ export function OutputCard({
        * size costs 36px of thumbnail and avoids an eighteenth panel width.
        */}
       <div
-        aria-hidden="true"
         className={cn(
           'grid aspect-video w-[var(--w-track-head)] flex-none place-items-center border',
           usable ? 'border-divider bg-neutral-100 text-neutral-600' : 'border-fail-border text-fail-text',
         )}
       >
-        {usable ? (
-          <Film size={18} strokeWidth={1.5} />
+        {streamUrl !== null && output.media?.width != null ? (
+          <video
+            className="h-full w-full object-contain"
+            src={streamUrl}
+            controls
+            preload="metadata"
+            aria-label={`${output.title} preview`}
+          />
+        ) : usable ? (
+          <Film size={18} strokeWidth={1.5} aria-hidden="true" />
         ) : (
           <span className="text-2xs">
             <Trans>文件不在原位</Trans>
@@ -104,7 +115,13 @@ export function OutputCard({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <h3 className="min-w-0 truncate text-md leading-tight font-normal">{output.file_name}</h3>
+        <h3 className="min-w-0 truncate text-md leading-tight font-normal">{output.title}</h3>
+
+        {output.title === output.file_name ? null : (
+          <p className="min-w-0 truncate font-mono text-2xs text-neutral-600" title={output.file_name}>
+            {output.file_name}
+          </p>
+        )}
 
         <p className={cn('text-xs leading-normal', usable ? 'text-neutral-700' : 'text-fail-text')}>
           {usable ? (
@@ -118,6 +135,10 @@ export function OutputCard({
             <Trans>记录仍在，文件已被移动或删除</Trans>
           )}
         </p>
+
+        {mediaFacts.length === 0 ? null : (
+          <p className="text-xs text-neutral-700">{mediaFacts.join(' · ')}</p>
+        )}
 
         {/* The full path is the only handle on a file the app cannot show, so
             it is printed rather than hidden behind a tooltip. `break-all` keeps

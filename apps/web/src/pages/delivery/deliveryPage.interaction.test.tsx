@@ -22,6 +22,7 @@ import { ActivityDrawer } from '../../ActivityDrawer';
 import { DeliveryPage } from '../DeliveryPage';
 import { HEALTHY, renderPage } from './test/renderPage';
 import { reasonOf } from '../../test/reason';
+import { unavailableNativeShell } from '../../data/nativeShell';
 
 const RUNNING: ActivityItem = {
   id: 'recording:job-1',
@@ -56,7 +57,14 @@ const OUTPUT: OutputItem = {
   managed: true,
   mutable: true,
   size_bytes: 186_000_000,
-  media: null,
+  media: {
+    width: 1920,
+    height: 1080,
+    duration_seconds: 8.75,
+    frame_rate: '60',
+    video_codec: 'h264',
+    audio_codec: 'aac',
+  },
   project_id: null,
   agent_plan_id: null,
   demo_id: 'demo-1',
@@ -130,7 +138,14 @@ function renderActivity(client: Record<string, unknown>, health = HEALTHY) {
 describe('成品 › 成品文件', () => {
   it('prints the count and the free space the header promises', async () => {
     const { client } = stubs();
-    renderPage({ element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY });
+    renderPage({
+      element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
 
     expect(await screen.findByText(/34 个成品文件/u)).toBeTruthy();
     expect(screen.getByText(/218 GB/u)).toBeTruthy();
@@ -138,9 +153,19 @@ describe('成品 › 成品文件', () => {
 
   it('lists the produced files with their path and a way to find them', async () => {
     const { client } = stubs();
-    renderPage({ element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY });
+    renderPage({
+      element: <DeliveryPage />, client, route: '/delivery', health: HEALTHY,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
 
     expect(await screen.findByText('Kael_Mirage_1v3.mp4')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Kael 1v3' })).toBeTruthy();
+    expect(screen.getByLabelText('Kael 1v3 preview')).toBeTruthy();
+    expect(screen.getByText('8.75 s · 1920×1080 · 60 fps · H264 / AAC')).toBeTruthy();
     expect(screen.getByRole('button', { name: '定位文件' })).toBeTruthy();
   });
 });

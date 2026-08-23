@@ -26,6 +26,7 @@ import type { RenderResult } from '@testing-library/react';
 
 import { DesktopClientProvider, type DesktopClient } from '../../../data/desktopClient';
 import { qk } from '../../../data/keys';
+import { NativeShellProvider, type NativeShell } from '../../../data/nativeShell';
 import type { ApiHealth } from '../../../shared/desktop/dto';
 import { renderInteractive } from '../../../test/render';
 
@@ -45,6 +46,7 @@ export interface RenderPageOptions {
   readonly pattern?: string | undefined;
   /** Omit to leave the service 「未连接」. */
   readonly health?: ApiHealth | undefined;
+  readonly shell?: NativeShell | undefined;
 }
 
 export function renderPage({
@@ -53,8 +55,9 @@ export function renderPage({
   route = '/',
   pattern = '*',
   health,
+  shell,
 }: RenderPageOptions): RenderResult {
-  return renderInteractive(
+  const body = (
     <DesktopClientProvider client={client as unknown as DesktopClient}>
       <MemoryRouter initialEntries={[route]}>
         <SeedHealth health={health}>
@@ -63,7 +66,10 @@ export function renderPage({
           </Routes>
         </SeedHealth>
       </MemoryRouter>
-    </DesktopClientProvider>,
+    </DesktopClientProvider>
+  );
+  return renderInteractive(
+    shell === undefined ? body : <NativeShellProvider shell={shell}>{body}</NativeShellProvider>,
   );
 }
 

@@ -449,11 +449,15 @@ async fn list_all_outputs(
             .get_agent_composition_by_id(export.job.project_id)
             .await?
             .map(|composition| composition.plan_id);
-        items.push(
-            StoredOutput::Export(export)
-                .into_dto(roots, agent_plan_id)
-                .await,
-        );
+        let mut item = StoredOutput::Export(export)
+            .into_dto(roots, agent_plan_id)
+            .await;
+        if let Some(plan_id) = agent_plan_id
+            && let Some(plan) = state.storage.get_agent_plan(plan_id).await?
+        {
+            item.title = plan.title;
+        }
+        items.push(item);
     }
     items.sort_by_key(|item| std::cmp::Reverse(item.updated_at));
     Ok((items, scan_limited))

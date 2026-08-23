@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import type { OutputItem } from '../../shared/desktop/dto';
 import {
   formatBytes,
+  formatOutputMedia,
   outputDeletionRemovesFile,
   outputFamilyOf,
   outputFileIsUsable,
@@ -79,5 +80,18 @@ describe('outputFamilyOf', () => {
     expect(outputFamilyOf(OUTPUT)).toBe('recording');
     expect(outputFamilyOf({ ...OUTPUT, output_kind: 'export', media_kind: 'editor' })).toBe('export');
     expect(outputFamilyOf({ ...OUTPUT, output_kind: 'export', media_kind: 'montage' })).toBe('montage');
+  });
+});
+
+describe('formatOutputMedia', () => {
+  it('prints actual duration, resolution, rational frame rate and codecs', () => {
+    expect(formatOutputMedia({
+      width: 1920,
+      height: 1080,
+      duration_seconds: 8.75,
+      frame_rate: '60000/1001',
+      video_codec: 'h264',
+      audio_codec: 'aac',
+    })).toEqual(['8.75 s', '1920×1080', '59.94 fps', 'H264 / AAC']);
   });
 });

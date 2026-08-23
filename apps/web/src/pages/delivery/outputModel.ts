@@ -3,22 +3,11 @@
  *
  * Pure and free of React and i18n, so the `unit` project can exhaust it.
  *
- * ── What the artboard asks for and the wire does not carry ────────────────
- *
- * 「11 输出与任务记录」 prints 「42 秒 · 60 fps · 186 MB · H.264 / AAC」 under a
- * 168×95 thumbnail. Of those five facts `OutputItem` carries exactly one:
- * `size_bytes`. There is no duration, no frame rate, no codec pair, no
- * thumbnail path and no resolution on the record (`shared/desktop/dto.ts`), and
- * no command returns them.
- *
- * So the card prints what exists — file name, size, stamp, and whether the file
- * is managed by the app or lives outside it — and the missing facts are
- * reported as a contract gap rather than filled with plausible numbers. The one
- * thing that must not happen here is 「60 fps」 appearing because it appears on
- * an artboard.
+ * Media facts are probe results from the current file, never values inferred
+ * from a design or requested capture settings. Missing probe fields stay absent.
  */
 
-import type { OutputAvailability, OutputItem } from '../../shared/desktop/dto';
+import type { OutputAvailability, OutputItem, OutputMediaInfo } from '../../shared/desktop/dto';
 
 /**
  * Bytes as the artboard writes them: 「186 MB」, 「4.2 GB」, 「218 GB 可用」.
@@ -77,4 +66,29 @@ export type OutputFamily = 'recording' | 'export' | 'montage';
 export function outputFamilyOf(item: OutputItem): OutputFamily {
   if (item.output_kind === 'recording') return 'recording';
   return item.media_kind === 'montage' ? 'montage' : 'export';
+}
+
+export function formatOutputMedia(media: OutputMediaInfo | null): string[] {
+  if (media === null) return [];
+  const facts: string[] = [];
+  if (media.duration_seconds !== null) facts.push(`${formatSeconds(media.duration_seconds)} s`);
+  if (media.width !== null && media.height !== null) facts.push(`${String(media.width)}×${String(media.height)}`);
+  if (media.frame_rate !== null) facts.push(`${formatFrameRate(media.frame_rate)} fps`);
+  const codecs = [media.video_codec, media.audio_codec]
+    .filter((codec): codec is string => codec !== null && codec.trim() !== '')
+    .map((codec) => codec.toUpperCase());
+  if (codecs.length > 0) facts.push(codecs.join(' / '));
+  return facts;
+}
+
+function formatSeconds(seconds: number): string {
+  return (Math.round(seconds * 100) / 100).toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
+function formatFrameRate(rate: string): string {
+  const [numerator, denominator] = rate.split('/').map(Number);
+  if (numerator !== undefined && denominator !== undefined && Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0) {
+    return (numerator / denominator).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  }
+  return rate;
 }

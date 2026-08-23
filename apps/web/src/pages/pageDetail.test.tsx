@@ -120,7 +120,7 @@ describe('detail-route navigation', () => {
     expect(html).not.toContain('‹ 后台任务');
   });
 
-  it('takes 恢复中心 back to the entry that lights for it', () => {
-    expect(at('/recovery', '/recovery', <RecoveryPage />)).toContain('href="/settings"');
+  it('leaves recovery navigation to the shell breadcrumb', () => {
+    expect(at('/recovery', '/recovery', <RecoveryPage />)).not.toContain('‹ 设置与诊断');
   });
 });

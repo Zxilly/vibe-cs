@@ -71,6 +71,14 @@ describe('what the page says before anything is pressed', () => {
     expect(document.body.textContent).toContain('不会动：任何还在磁盘上的文件');
     expect(document.body.textContent).toContain('不会动：Demo、录制结果');
   });
+
+  it('groups all three narrowly scoped operations into comparable rows', async () => {
+    render();
+    await waitFor(() => expect(document.querySelector('[data-recovery-list]')).not.toBeNull());
+
+    expect(document.querySelector('[data-recovery-list]')?.querySelectorAll(':scope > section')).toHaveLength(3);
+    expect(screen.queryByRole('link', { name: '‹ 设置与诊断' })).toBeNull();
+  });
 });
 
 describe('every action takes a confirmation', () => {

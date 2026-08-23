@@ -50,7 +50,6 @@ import { useRecoverConfiguration, useRecoveryStatus } from '../data/config';
 import { dataErrorMessage } from '../data/errors';
 import { useCleanupMissingOutputs, useCleanupStagedOutputs } from '../data/outputs';
 import { useServiceAction } from '../data/serviceAction';
-import { RouteLink } from './RouteLink';
 
 type Pending = 'config' | 'staged' | 'missing';
 
@@ -76,11 +75,6 @@ export function RecoveryPage() {
     <Page
       toolbar={
         <Toolbar
-          leading={
-            <RouteLink to="/settings">
-              <Trans>‹ 设置与诊断</Trans>
-            </RouteLink>
-          }
           title={<Trans>恢复中心</Trans>}
           meta={<Trans>数据库、缓存与中断任务的修复</Trans>}
         />
@@ -108,7 +102,8 @@ export function RecoveryPage() {
           </Alert>
         )}
 
-        <RecoveryCard
+        <div data-recovery-list className="border border-divider">
+          <RecoveryCard
           title={<Trans>配置恢复</Trans>}
           state={
             status.isPending ? (
@@ -168,9 +163,9 @@ export function RecoveryPage() {
               <Trans>已从备份恢复配置，重新读取后生效。</Trans>
             )
           }
-        />
+          />
 
-        <RecoveryCard
+          <RecoveryCard
           title={<Trans>未完成的暂存成品文件</Trans>}
           state={
             <span className="text-sm text-neutral-800">
@@ -213,9 +208,9 @@ export function RecoveryPage() {
               </>
             )
           }
-        />
+          />
 
-        <RecoveryCard
+          <RecoveryCard
           title={<Trans>指向不存在文件的记录</Trans>}
           state={
             <span className="text-sm text-neutral-800">
@@ -255,7 +250,8 @@ export function RecoveryPage() {
               </>
             )
           }
-        />
+          />
+        </div>
       </div>
 
       <Dialog
@@ -330,13 +326,17 @@ interface RecoveryCardProps {
 
 function RecoveryCard({ title, state, effect, untouched, detail, action, result }: RecoveryCardProps) {
   return (
-    <section className="flex flex-col gap-3 border border-divider p-4">
-      <h2 className="text-base font-medium">{title}</h2>
-      {state}
-      {detail}
-      <p className="text-xs leading-normal text-neutral-600">{effect}</p>
-      <p className="text-xs leading-normal text-neutral-600">{untouched}</p>
-      <div className="flex items-center gap-3">
+    <section className="grid min-h-36 grid-cols-1 border-b border-divider last:border-b-0 xl:grid-cols-[minmax(18rem,1fr)_minmax(24rem,1.6fr)_13rem]">
+      <div className="flex min-w-0 flex-col gap-2 border-b border-divider p-5 xl:border-r xl:border-b-0">
+        <h2 className="text-lg font-medium">{title}</h2>
+        {state}
+      </div>
+      <div className="flex min-w-0 flex-col justify-center gap-3 border-b border-divider p-5 xl:border-r xl:border-b-0">
+        {detail}
+        <p className="text-sm leading-normal text-neutral-700">{effect}</p>
+        <p className="text-sm leading-normal text-neutral-700">{untouched}</p>
+      </div>
+      <div className="flex min-w-0 flex-col items-stretch justify-center gap-3 p-5">
         {action}
         {result === null || result === undefined ? null : (
           <span className="text-xs text-neutral-700" data-recovery-result="">

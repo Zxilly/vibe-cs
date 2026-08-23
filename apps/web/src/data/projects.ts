@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { aggregateProjects, type ProjectAggregationWarning } from '../domain/project/projectViewModel';
 import { useAgentPlanList } from './plans';
@@ -8,15 +9,44 @@ import { useOutputList } from './outputs';
 import { useTaskFeed } from './tasks';
 import { dataErrorMessage } from './errors';
 import { useProjectCollections } from './projectCollections';
+import { qk } from './keys';
 
 /** Purely client-side project aggregation over existing query contracts. */
-export function useProjects() {
+export function useProjects(options: { readonly taskPollWhileActiveMs?: number | undefined } = {}) {
+  const queryClient = useQueryClient();
   const plans = useAgentPlanList({ limit: 100 });
   const montages = useMontageProjects();
   const editors = useEditorProjects();
-  const tasks = useTaskFeed({ page: 1, page_size: 50 });
+  const tasks = useTaskFeed(
+    { page: 1, page_size: 50 },
+    options.taskPollWhileActiveMs === undefined
+      ? {}
+      : { pollWhileActiveMs: options.taskPollWhileActiveMs },
+  );
   const outputs = useOutputList({ page: 1, page_size: 100 });
   const collections = useProjectCollections();
+  const previousTaskStatus = useRef<ReadonlyMap<string, string>>(new Map());
+
+  useEffect(() => {
+    const items = tasks.data?.items;
+    if (items === undefined) return;
+    const next = new Map(items.map((item) => [item.id, item.status]));
+    const finishedMediaTask = items.some((item) => {
+      const previous = previousTaskStatus.current.get(item.id);
+      return (item.kind === 'recording' || item.kind === 'export')
+        && previous !== undefined
+        && !['completed', 'failed', 'cancelled'].includes(previous)
+        && ['completed', 'failed', 'cancelled'].includes(item.status);
+    });
+    previousTaskStatus.current = next;
+    if (finishedMediaTask) {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.outputs.all }),
+        queryClient.invalidateQueries({ queryKey: qk.plans.all }),
+        queryClient.invalidateQueries({ queryKey: qk.montage.all }),
+      ]);
+    }
+  }, [queryClient, tasks.data?.items]);
 
   const data = useMemo(() => {
     const warnings: ProjectAggregationWarning[] = [];

@@ -27,11 +27,12 @@ import { EditorWorkspaceLoader } from './EditorPage';
 import { ProjectRecordingStep } from './project/ProjectRecordingStep';
 import { ProjectSelectStep } from './project/ProjectSelectStep';
 import { RouteLink } from './RouteLink';
+import { TASK_POLL_DETAIL_MS } from './delivery/taskPolling';
 
 export function ProjectWorkspacePage() {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const [params, setParams] = useSearchParams();
-  const projects = useProjects();
+  const projects = useProjects({ taskPollWhileActiveMs: TASK_POLL_DETAIL_MS });
   const project = projects.data.projects.find((entry) => entry.id === projectId)
     ?? (projectId === 'new' ? NEW_PROJECT : null);
 

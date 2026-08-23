@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
-import type { AgentPlanSummary, RecordingJob } from '../shared/desktop/dto';
+import type { AgentPlanSummary, OutputItem, RecordingJob } from '../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../shared/desktop/viewModels';
 import { HealthyServiceGate } from '../test/ServiceGate.testing';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
@@ -105,5 +105,66 @@ describe('project recording step', () => {
     fireEvent.click(await screen.findByRole('button', { name: '取消' }));
     await waitFor(() => expect(cancelled).toEqual(['job-1']));
     expect(activityQueries).toContainEqual({ page: 1, page_size: 50 });
+  });
+
+  it('unlocks export when a polled recording finishes without requiring a page reload', async () => {
+    const awaitingPlan: AgentPlanSummary = { ...PLAN, status: 'awaiting_confirmation' };
+    let feedCalls = 0;
+    let outputCalls = 0;
+    const completedTask: ActivityItem = {
+      ...TASK,
+      status: 'completed',
+      stage: 'recording.stage.completed',
+      completed_units: 5,
+      updated_at: '2026-08-20T01:02:00Z',
+      available_actions: ['open_outputs'],
+    };
+    const output: OutputItem = {
+      id: 'output-1', output_kind: 'export', media_kind: 'montage', title: PLAN.title,
+      status: 'completed', progress: 1, path: 'D:/outputs/final.mp4', file_name: 'final.mp4',
+      availability: 'present', managed: true, mutable: true, size_bytes: 1024, media: null,
+      project_id: 'composition-1', agent_plan_id: PLAN.id, demo_id: null, error: null,
+      created_at: '2026-08-20T01:02:00Z', updated_at: '2026-08-20T01:02:00Z',
+    };
+    const client = {
+      listAgentPlans: async () => [awaitingPlan],
+      listMontageProjects: async () => ({ items: [] }),
+      listEditorProjects: async () => ({ items: [] }),
+      listActivities: async () => {
+        feedCalls += 1;
+        return feedCalls === 1
+          ? FEED
+          : {
+              ...FEED,
+              items: [completedTask],
+              summary: { total: 1, active: 0, failed: 0, completed: 1, cancelled: 0 },
+            };
+      },
+      listOutputs: async () => {
+        outputCalls += 1;
+        return {
+          items: feedCalls > 1 ? [output] : [], total: feedCalls > 1 ? 1 : 0,
+          page: 1, page_size: 100, scan_limited: false,
+        };
+      },
+      quickCheck: async () => ({ checked_at: '2026-08-20T01:00:00Z', checks: [] }),
+      getRecordingJob: async () => ({ ...JOB, status: feedCalls > 1 ? 'completed' : 'running' }),
+    };
+
+    renderPage({
+      element: <HealthyServiceGate><ProjectWorkspacePage /></HealthyServiceGate>,
+      client,
+      health: HEALTHY,
+      route: '/projects/plan%3Ap-1?step=record',
+      pattern: '/projects/:projectId',
+    });
+
+    const exportButton = await screen.findByRole('button', { name: '导出' });
+    expect((exportButton as HTMLButtonElement).disabled).toBe(true);
+    await waitFor(() => {
+      expect(feedCalls).toBeGreaterThan(1);
+      expect(outputCalls).toBeGreaterThan(1);
+      expect((screen.getByRole('button', { name: '导出' }) as HTMLButtonElement).disabled).toBe(false);
+    }, { timeout: 4_000 });
   });
 });

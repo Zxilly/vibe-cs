@@ -2004,7 +2004,13 @@ mod tests {
         connection_holder.await.unwrap().unwrap();
         let detail = wait_for_terminal(&storage, accepted.id).await;
         assert_eq!(detail.run.status, AnalysisRunStatus::Failed);
-        assert!(!state.analysis_tasks.has_owner(accepted.id));
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while state.analysis_tasks.has_owner(accepted.id) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("terminal analysis owner released");
     }
 
     #[tokio::test]

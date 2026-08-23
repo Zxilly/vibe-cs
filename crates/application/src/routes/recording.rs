@@ -528,6 +528,29 @@ async fn execute_plan(
                 "Recording plan expired; create a new plan before recording",
             ));
         }
+        if let Some(source) = lease.agent_source {
+            match state
+                .storage
+                .confirm_agent_plan_for_recording(source.plan_id)
+                .await
+            {
+                Ok(Some(_)) => {
+                    state
+                        .events
+                        .publish("agent_plan", "confirmed", Some(source.plan_id))
+                }
+                Ok(None) => {
+                    restore_recording_plan(&state, plan_id, job_id).await;
+                    plan_start.disarm();
+                    return Err(ApiError::not_found("agent plan"));
+                }
+                Err(error) => {
+                    restore_recording_plan(&state, plan_id, job_id).await;
+                    plan_start.disarm();
+                    return Err(error.into());
+                }
+            }
+        }
         let execution = start_recording_job(
             &state,
             job_id,

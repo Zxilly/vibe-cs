@@ -129,6 +129,12 @@ async function ready(): Promise<void> {
   await screen.findByRole('radiogroup', { name: '会话保留多久' });
 }
 
+function openProviderParameters(): void {
+  const summary = screen.getByText('请求参数').closest('summary');
+  expect(summary).not.toBeNull();
+  fireEvent.click(summary as HTMLElement);
+}
+
 describe('§4.5.3 rule ①', () => {
   it('draws 录制前始终由你确认 on, refuses the click, and says why', async () => {
     renderSection();
@@ -145,8 +151,8 @@ describe('§4.5.3 rule ①', () => {
     expect(toggle.getAttribute('aria-checked')).toBe('true');
 
     const reason = document.getElementById(toggle.getAttribute('aria-describedby') ?? '');
-    expect(reason?.textContent).toContain('不可关闭');
-    expect(reason?.textContent).toContain('必须有一次人工确认');
+    expect(reason?.textContent).toContain('此确认始终开启');
+    expect(reason?.textContent).toContain('每次都由你确认');
   });
 
   it('has no field behind it: nothing is written when the panel loads', async () => {
@@ -196,7 +202,7 @@ describe('保留多久', () => {
     const { swept, reached } = renderSection();
     await ready();
 
-    fireEvent.click(screen.getByRole('radio', { name: '不保留' }));
+    fireEvent.click(screen.getByRole('radio', { name: '保留 0 条' }));
 
     await waitFor(() => {
       expect(reached).toContain('updateAgentWorkspaceSettings');
@@ -361,7 +367,7 @@ describe('占用 · 导出 · 清空', () => {
     fireEvent.click(screen.getByRole('button', { name: /清空对话/u }));
     expect(cleared).toEqual([]);
     expect(screen.getByText('清空全部对话？')).toBeTruthy();
-    expect(screen.getByText(/方案、录制任务和已生成的视频不受影响/u)).toBeTruthy();
+    expect(screen.getByText(/方案、录制任务与视频继续保留/u)).toBeTruthy();
 
     fireEvent.click(document.querySelector('[data-dialog-action="confirm"]') as HTMLElement);
 
@@ -402,14 +408,19 @@ describe('模型', () => {
     expect(document.body.textContent).not.toContain('secret-key');
   });
 
-  it('keeps model actions in the panel header above the long parameter form', async () => {
+  it('keeps connection actions visible and provider parameters collapsed', async () => {
     renderSection();
     await screen.findByLabelText(/^提供方/u);
 
     expect(screen.getByRole('button', { name: '保存模型设置' }).closest('header')).not.toBeNull();
     expect(screen.getByRole('button', { name: '测试连接' }).closest('header')).not.toBeNull();
-    expect(screen.getByText('1. 连接与身份')).toBeTruthy();
-    expect(screen.getByText('2. Provider 参数')).toBeTruthy();
+    expect(screen.getByText('连接信息')).toBeTruthy();
+    expect(screen.getByText('请求参数').closest('details')?.hasAttribute('open')).toBe(false);
+    expect(screen.getByText('使用 Provider 默认值')).toBeTruthy();
+    expect(screen.getByText('0 项自定义')).toBeTruthy();
+    for (const removed of ['Max completion tokens', 'Seed', 'Presence penalty', 'Frequency penalty', 'Reasoning effort']) {
+      expect(screen.queryByLabelText(removed)).toBeNull();
+    }
   });
 
   it('saves and tests the form shown on screen', async () => {
@@ -460,24 +471,23 @@ describe('模型', () => {
     fireEvent.change(await screen.findByLabelText(/^API 地址/u), {
       target: { value: 'https://example.test/v1' },
     });
+    openProviderParameters();
     expect(screen.getByLabelText('完整参数 JSON')).toHaveProperty('value', '{}');
 
     fireEvent.change(screen.getByLabelText('Temperature'), { target: { value: '0.3' } });
-    fireEvent.click(screen.getByRole('radio', { name: 'high' }));
     fireEvent.click(screen.getByRole('button', { name: '测试连接' }));
 
     await waitFor(() => expect(tested).toHaveLength(1));
     expect(tested[0]).toMatchObject({
       parameter_style: 'openai',
-      parameters: { temperature: 0.3, reasoning_effort: 'high' },
+      parameters: { temperature: 0.3 },
     });
     expect((tested[0] as { parameters: unknown }).parameters).toEqual({
       temperature: 0.3,
-      reasoning_effort: 'high',
     });
   });
 
-  it('supports Anthropic thinking and advanced JSON parameters', async () => {
+  it('supports Anthropic provider JSON without dedicated effort controls', async () => {
     const saved: AppConfig[] = [];
     renderSection({
       updateConfig: (config: AppConfig) => {
@@ -488,9 +498,10 @@ describe('模型', () => {
     fireEvent.change(await screen.findByLabelText(/^API 地址/u), {
       target: { value: 'https://example.test/v1' },
     });
+    openProviderParameters();
     fireEvent.click(screen.getByRole('radio', { name: 'Anthropic' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'adaptive' }));
-    fireEvent.click(screen.getByRole('radio', { name: 'high' }));
+    expect(screen.queryByRole('radiogroup', { name: 'Anthropic thinking' })).toBeNull();
+    expect(screen.queryByRole('radiogroup', { name: 'Anthropic output effort' })).toBeNull();
     fireEvent.change(screen.getByLabelText('完整参数 JSON'), {
       target: {
         value: JSON.stringify({
@@ -518,6 +529,7 @@ describe('模型', () => {
     fireEvent.change(await screen.findByLabelText(/^API 地址/u), {
       target: { value: 'https://example.test/v1' },
     });
+    openProviderParameters();
     const json = screen.getByLabelText('完整参数 JSON');
     fireEvent.change(json, { target: { value: '{' } });
     expect(document.body.textContent).toContain('必须是有效的 JSON object');
@@ -525,7 +537,7 @@ describe('模型', () => {
     expect(document.body.textContent).not.toContain('请补齐提供方、模型、API 地址和密钥');
 
     fireEvent.change(json, { target: { value: '{"tools":[]}' } });
-    expect(document.body.textContent).toContain('tools 由 Agent 运行时管理');
+    expect(document.body.textContent).toContain('tools 由 Agent 运行时统一生成');
     expect(screen.getByRole('button', { name: '测试连接' }).hasAttribute('disabled')).toBe(true);
   });
 });

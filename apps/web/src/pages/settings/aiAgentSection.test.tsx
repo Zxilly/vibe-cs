@@ -64,8 +64,8 @@ describe('§4.5.3 rule ① on the panel', () => {
        than being greyed out as if a setting had failed to load. */
     expect(html).toContain('data-locked="true"');
     expect(html).toContain('aria-disabled="true"');
-    expect(html).toContain('不可关闭');
-    expect(html).toContain('必须有一次人工确认');
+    expect(html).toContain('此确认始终开启');
+    expect(html).toContain('每次都由你确认');
   });
 });
 

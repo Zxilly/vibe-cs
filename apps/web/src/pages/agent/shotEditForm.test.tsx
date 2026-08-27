@@ -102,7 +102,7 @@ describe('when editing is blocked', () => {
   it('refuses to save a draft the plan cannot hold, and names the field', () => {
     const html = form({ draft: { ...readShotDraft(SHOT_TRACKING), endTick: '1' } });
 
-    expect(html).toContain('结束 tick 不能早于起始 tick');
+    expect(html).toContain('结束 tick 应晚于或等于起始 tick');
     expect(html).toContain('还有内容填得不对');
   });
 });

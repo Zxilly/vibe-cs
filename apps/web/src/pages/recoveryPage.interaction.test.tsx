@@ -46,7 +46,7 @@ describe('what the page says before anything is pressed', () => {
   it('says the configuration is fine when it is, rather than staying silent', async () => {
     render();
     await waitFor(() => {
-      expect(document.body.textContent).toContain('配置文件正常，不需要恢复');
+      expect(document.body.textContent).toContain('配置文件状态正常');
     });
     // …and the restore is refused, with that as its reason.
     const button = document.querySelector('[data-recovery-action="config"]');
@@ -65,11 +65,11 @@ describe('what the page says before anything is pressed', () => {
   it('states what each action will not touch', async () => {
     render();
     await waitFor(() => {
-      expect(document.body.textContent).toContain('不会动');
+      expect(document.body.textContent).toContain('保留范围');
     });
     // The one that matters most: cleaning stale records cannot delete a file.
-    expect(document.body.textContent).toContain('不会动：任何还在磁盘上的文件');
-    expect(document.body.textContent).toContain('不会动：Demo、录制结果');
+    expect(document.body.textContent).toContain('保留范围：磁盘上的现有文件');
+    expect(document.body.textContent).toContain('保留范围：Demo、录制结果');
   });
 
   it('groups all three narrowly scoped operations into comparable rows', async () => {

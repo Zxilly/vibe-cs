@@ -289,7 +289,7 @@ describe('the Agent’s change cards', () => {
     const accept = within(changeCard('change-1')).getByRole('button', { name: '接受' });
 
     expect(accept.hasAttribute('disabled')).toBe(true);
-    expect(screen.getAllByText(/基于方案的旧版本/u).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/基于方案旧版本/u).length).toBeGreaterThan(0);
     expect(within(changeCard('change-1')).getByText(/只保留从中路进入 A 大道的一段/u)).toBeTruthy();
 
     fireEvent.click(accept);

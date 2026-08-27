@@ -165,7 +165,7 @@ export function EditorTimelinePanel({ desk, service }: EditorPanelProps) {
           variant="secondary"
           size="sm"
           disabled={!canRazor || service.blocked}
-          disabledReason={razorReason ?? service.buttonProps.disabledReason ?? t`这个片段不能切开`}
+          disabledReason={razorReason ?? service.buttonProps.disabledReason ?? t`请先选择播放头下可切分的片段`}
           onClick={editor.razorAtPlayhead}
         >
           <Trans>在播放头切开</Trans>

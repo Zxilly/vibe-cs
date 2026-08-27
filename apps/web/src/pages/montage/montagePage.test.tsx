@@ -143,7 +143,7 @@ describe('/montage/:projectId — the workspace', () => {
 
   it('disables 「在多轨编辑器中打开」 with the reason written on it', () => {
     expect(html).toContain('data-montage-action="editor"');
-    expect(html).toMatch(/暂时不能互相转换/u);
+    expect(html).toMatch(/转换功能尚在建设中/u);
   });
 
   it('labels every branding theme the wire can hold, including the fourth', () => {

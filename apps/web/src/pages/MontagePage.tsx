@@ -262,7 +262,7 @@ export function MontageWorkspace({ projectId, embedded = false }: { readonly pro
                    * different table. Disabled with the reason written on it,
                    * and recorded as a backend gap.
                    */
-                  disabledReason={t`快速合辑和多轨工程是两种工程，暂时不能互相转换`}
+                  disabledReason={t`快速合辑与多轨工程分别独立保存，转换功能尚在建设中`}
                 >
                   <Trans>在多轨编辑器中打开</Trans>
                 </Button>

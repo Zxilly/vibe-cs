@@ -44,7 +44,7 @@ describe('quick mode inside a project shot list', () => {
     await screen.findByRole('radiogroup', { name: '合辑主题' });
     expect(screen.getByRole('radio', { name: '快速剪辑' }).hasAttribute('disabled')).toBe(false);
     fireEvent.click(screen.getByRole('radio', { name: 'Agent 辅助' }));
-    expect(screen.getByText(/无法无损还原 Demo tick/u)).toBeTruthy();
+    expect(screen.getByText(/Agent 剪辑单需从 Demo、选手与证据重新建立/u)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '知道了' }));
     fireEvent.click(screen.getByRole('radio', { name: '霓虹' }));
     await waitFor(() => expect(bench.puts).toHaveLength(1));

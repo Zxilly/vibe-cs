@@ -19,14 +19,14 @@ describe('project workflow gates', () => {
 
   it('explains why recording and export are blocked without clips', () => {
     const gates = projectStepAvailability(project());
-    expect(gates[2]).toMatchObject({ enabled: false, disabledReason: '还没有片段，不能开始录制' });
-    expect(gates[3]).toMatchObject({ enabled: false, disabledReason: '还没有片段，不能导出' });
+    expect(gates[2]).toMatchObject({ enabled: false, disabledReason: '添加片段后即可开始录制' });
+    expect(gates[3]).toMatchObject({ enabled: false, disabledReason: '添加片段后即可导出' });
   });
 
   it('allows recording with clips but gates export until an Agent shot list is confirmed', () => {
     const gates = projectStepAvailability(project({ clipCount: 3, shotList: { planId: 'p-1', status: 'awaiting_confirmation', shotCount: 3 } }));
     expect(gates[2]?.enabled).toBe(true);
-    expect(gates[3]).toMatchObject({ enabled: false, disabledReason: '剪辑单还没有确认，不能导出' });
+    expect(gates[3]).toMatchObject({ enabled: false, disabledReason: '确认剪辑单后即可导出' });
   });
 
   it('allows every step for a confirmed Agent cut', () => {
@@ -52,7 +52,7 @@ describe('project workflow gates', () => {
       }));
       expect(gates.find((entry) => entry.step === 'record')).toMatchObject({
         enabled: false,
-        disabledReason: '快速模式和精剪模式直接导出，不需要录制',
+        disabledReason: '快速模式和精剪模式可直接导出',
       });
       expect(gates.find((entry) => entry.step === 'export')?.enabled).toBe(true);
     }
@@ -81,10 +81,10 @@ describe('project workflow gates', () => {
 
   it('keeps the current step and returns the gate reason for illegal transitions', () => {
     expect(transitionProjectStep(project(), 'shotlist', 'record')).toEqual({
-      step: 'shotlist', changed: false, blockedReason: '还没有片段，不能开始录制',
+      step: 'shotlist', changed: false, blockedReason: '添加片段后即可开始录制',
     });
     expect(transitionProjectStep(project(), 'shotlist', 'export')).toEqual({
-      step: 'shotlist', changed: false, blockedReason: '还没有片段，不能导出',
+      step: 'shotlist', changed: false, blockedReason: '添加片段后即可导出',
     });
   });
 });

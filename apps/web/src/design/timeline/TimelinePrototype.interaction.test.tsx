@@ -282,7 +282,7 @@ describe('keyboard editing with the select tool', () => {
     fireEvent.keyDown(clip('x')!, { key: 'ArrowUp' }); // now on V2, the top lane
     fireEvent.keyDown(clip('x')!, { key: 'ArrowUp' }); // nothing above it
     expect(laneOf('x')).toBe('v2');
-    expect(notice()?.textContent).toContain('轨道类型不同');
+    expect(notice()?.textContent).toContain('请将视频放到视频轨');
   });
 
   it('refuses when the only lane below is an audio one', () => {
@@ -290,7 +290,7 @@ describe('keyboard editing with the select tool', () => {
     select('v1-aurora');
     fireEvent.keyDown(clip('v1-aurora')!, { key: 'ArrowDown' });
     expect(laneOf('v1-aurora')).toBe('v1');
-    expect(notice()?.textContent).toContain('轨道类型不同');
+    expect(notice()?.textContent).toContain('请将视频放到视频轨');
   });
 
   it('leaves keys it does not use to the browser', () => {

@@ -124,7 +124,7 @@ describe('what an expired card looks like', () => {
     expect(stale.statusLabel).not.toBeNull();
     expect(i18n._(stale.statusLabel!)).toBe('已过期');
     expect(stale.acceptDisabledReason).not.toBeNull();
-    expect(i18n._(stale.acceptDisabledReason!)).toContain('仍可查看');
+    expect(i18n._(stale.acceptDisabledReason!)).toContain('读取最新方案后可重新应用');
   });
 
   it('leaves a pending card undimmed, unlabelled and fully actionable', () => {

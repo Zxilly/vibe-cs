@@ -175,7 +175,7 @@ export function ClipView({
       ) : null}
       {blocked ? (
         <span className="sr-only">
-          <Trans>不能放在这里</Trans>
+          <Trans>放到匹配类型的轨道</Trans>
         </span>
       ) : null}
       {onTrimPointerDown === undefined ? null : (

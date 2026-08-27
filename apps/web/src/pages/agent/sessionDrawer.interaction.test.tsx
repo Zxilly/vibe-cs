@@ -345,7 +345,7 @@ describe('删除会话 (§4.5.1)', () => {
     fireEvent.click(row?.querySelector('[data-session-delete]') as HTMLElement);
 
     expect(screen.getByText('删除这条对话？')).toBeTruthy();
-    expect(screen.getByText(/不会动它改过的方案、录制任务和已生成的视频/u)).toBeTruthy();
+    expect(screen.getByText(/它改过的方案、录制任务和已生成的视频继续保留/u)).toBeTruthy();
   });
 
   it('refreshes the session list and leaves the plan cache alone', async () => {

@@ -133,7 +133,7 @@ export function InspectorPanel({ desk, service }: EditorPanelProps) {
             variant="secondary"
             size="sm"
             disabled={!trimAllowed}
-            disabledReason={restrictionReason ?? t`这个片段不能修剪`}
+            disabledReason={restrictionReason ?? t`当前片段已到可用裁切边界`}
             onClick={() => editor.trimSelection('in', -1 / editor.timeline.fps)}
             aria-label={t`入点前移一帧`}
           >
@@ -143,7 +143,7 @@ export function InspectorPanel({ desk, service }: EditorPanelProps) {
             variant="secondary"
             size="sm"
             disabled={!trimAllowed}
-            disabledReason={restrictionReason ?? t`这个片段不能修剪`}
+            disabledReason={restrictionReason ?? t`当前片段已到可用裁切边界`}
             onClick={() => editor.trimSelection('in', 1 / editor.timeline.fps)}
             aria-label={t`入点后移一帧`}
           >
@@ -153,7 +153,7 @@ export function InspectorPanel({ desk, service }: EditorPanelProps) {
             variant="secondary"
             size="sm"
             disabled={!trimAllowed}
-            disabledReason={restrictionReason ?? t`这个片段不能修剪`}
+            disabledReason={restrictionReason ?? t`当前片段已到可用裁切边界`}
             onClick={() => editor.trimSelection('out', -1 / editor.timeline.fps)}
             aria-label={t`出点前移一帧`}
           >
@@ -163,7 +163,7 @@ export function InspectorPanel({ desk, service }: EditorPanelProps) {
             variant="secondary"
             size="sm"
             disabled={!trimAllowed}
-            disabledReason={restrictionReason ?? t`这个片段不能修剪`}
+            disabledReason={restrictionReason ?? t`当前片段已到可用裁切边界`}
             onClick={() => editor.trimSelection('out', 1 / editor.timeline.fps)}
             aria-label={t`出点后移一帧`}
           >
@@ -189,7 +189,7 @@ export function InspectorPanel({ desk, service }: EditorPanelProps) {
         </Field>
         {speedAllowed ? null : (
           <p className="text-2xs text-warn" data-testid="inspector-speed-reason">
-            {restrictionReason ?? t`这个片段的速度不能在这里改`}
+            {restrictionReason ?? t`请在支持变速的片段上调整速度`}
           </p>
         )}
       </div>

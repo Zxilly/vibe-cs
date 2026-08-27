@@ -43,8 +43,8 @@ describe('project workspace steps', () => {
     await screen.findByRole('navigation', { name: '作品步骤' });
     expect(screen.getByRole('button', { name: '选材' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '剪辑单' })).toBeTruthy();
-    expect(reasonOf(screen.getByRole('button', { name: '录制' }))).toContain('还没有片段');
-    expect(reasonOf(screen.getByRole('button', { name: '导出' }))).toContain('还没有片段');
+    expect(reasonOf(screen.getByRole('button', { name: '录制' }))).toContain('添加片段后即可开始录制');
+    expect(reasonOf(screen.getByRole('button', { name: '导出' }))).toContain('添加片段后即可导出');
   });
 
   it('allows arbitrary backward navigation instead of behaving like a locked wizard', async () => {

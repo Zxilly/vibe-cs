@@ -213,7 +213,7 @@ describe('§4.5.3 rule ①, at the page level', () => {
 
     const confirm = await screen.findByRole('button', { name: /确认剪辑单并录制/u });
     expect(confirm.hasAttribute('disabled')).toBe(true);
-    expect(await screen.findAllByText(/还有 1 个镜头没有绑定/u)).not.toHaveLength(0);
+    expect(await screen.findAllByText(/先为 1 个镜头选择 Demo 与选手/u)).not.toHaveLength(0);
 
     fireEvent.click(confirm);
 

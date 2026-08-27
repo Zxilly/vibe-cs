@@ -366,7 +366,7 @@ export function useRetryTask() {
         await client.downloadMatchDemo(contextId);
         return;
       }
-      throw new Error('这一类任务不能从任务记录直接重试。');
+      throw new Error('此任务类型请从对应工作区重新发起。');
     },
     onSuccess: async () => {
       await invalidateTasks(queryClient);

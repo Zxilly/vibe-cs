@@ -123,14 +123,14 @@ export function RecoveryPage() {
                 {/* The normal answer, said plainly. A recovery page that is
                     silent when nothing is wrong makes the user wonder whether
                     it checked. */}
-                <Trans>配置文件正常，不需要恢复</Trans>
+                <Trans>配置文件状态正常</Trans>
               </span>
             )
           }
           effect={
             <Trans>会做什么：用上一次自动备份覆盖当前配置文件，然后重新读取。</Trans>
           }
-          untouched={<Trans>不会动：Demo、录制结果、成片、编辑工程和会话记录。</Trans>}
+          untouched={<Trans>保留范围：Demo、录制结果、成片、编辑工程和会话记录。</Trans>}
           detail={
             status.data === undefined || status.data.affected_files.length === 0 ? null : (
               <ul className="flex flex-col gap-1">
@@ -150,7 +150,7 @@ export function RecoveryPage() {
               disabled={blocked || status.data?.recovery_required !== true}
               disabledReason={
                 status.data?.recovery_required === false
-                  ? t`配置文件没有损坏，不需要恢复`
+                  ? t`当前配置完整，备份恢复保持关闭`
                   : (blockedReason ?? '')
               }
               onClick={() => setConfirming('config')}
@@ -176,7 +176,7 @@ export function RecoveryPage() {
             </span>
           }
           effect={<Trans>会做什么：删除暂存目录里未完成的输出文件。</Trans>}
-          untouched={<Trans>不会动：已经完成的录制结果与成片，以及它们在资料库里的记录。</Trans>}
+          untouched={<Trans>保留范围：已完成的录制结果、成片及其资料库记录。</Trans>}
           action={
             <Button
               variant="secondary"
@@ -222,7 +222,7 @@ export function RecoveryPage() {
             /* The distinction that matters: this removes *records*, and the
                files it removes records for are already gone. It cannot delete
                a file, which is what makes it safe to offer here. */
-            <Trans>不会动：任何还在磁盘上的文件。只有已经找不到的记录会被移除。</Trans>
+            <Trans>保留范围：磁盘上的现有文件。清理仅移除已经失效的记录。</Trans>
           }
           action={
             <Button

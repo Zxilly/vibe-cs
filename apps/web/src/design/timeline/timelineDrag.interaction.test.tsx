@@ -215,7 +215,7 @@ describe('dragging across lanes', () => {
 
     release(0, 100);
     expect(laneOf('x')).toBe('v1');
-    expect(queryByRole('alert')?.textContent).toContain('轨道类型不同');
+    expect(queryByRole('alert')?.textContent).toContain('请将视频放到视频轨');
   });
 
   it('refuses a landing that would overlap, and says which rule stopped it', () => {

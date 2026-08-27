@@ -466,7 +466,7 @@ export const AgentConversationBlock: AgentBlock = ({
           ) : context.mode === 'inline' && selectedShot !== null ? (
             <Trans>只影响这一个镜头：{selectedShot.title}</Trans>
           ) : (
-            <Trans>手动编辑不会打断 Agent，也不需要它批准</Trans>
+            <Trans>手动编辑可直接保存，Agent 会在下一轮读取最新内容</Trans>
           )
         }
       />

@@ -426,7 +426,7 @@ function ReplayBody({ demoId, context, updateContext }: MatchViewProps) {
             >
               <StatusDot status="warn" className="mt-1" />
               <Trans>
-                未读取到本地雷达底图；当前使用相对坐标绘制。路线与交战关系仍可比较，但不能对应地图点位。
+                当前使用相对坐标绘制，路线与交战关系可比较；接入本地雷达底图后会对应具体地图点位。
               </Trans>
             </div>
           ) : null}

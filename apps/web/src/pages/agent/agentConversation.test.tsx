@@ -364,7 +364,7 @@ describe('就地编辑', () => {
   it('scopes the composer to the whole plan until a shot is picked', () => {
     const html = at({ context: { mode: 'inline' } });
 
-    expect(html).toContain('手动编辑不会打断 Agent，也不需要它批准');
+    expect(html).toContain('手动编辑可直接保存，Agent 会在下一轮读取最新内容');
   });
 });
 

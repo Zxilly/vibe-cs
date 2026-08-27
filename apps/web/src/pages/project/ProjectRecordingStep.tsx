@@ -56,7 +56,7 @@ export function ProjectRecordingStep({
     return (
       <Empty
         className="m-7"
-        title={<Trans>这类作品不需要录制步骤</Trans>}
+        title={<Trans>这类作品可直接进入导出步骤</Trans>}
         description={<Trans>快速模式和精剪模式直接从现有素材导出，不会启动 CS2 录制管线。</Trans>}
         actions={<RouteLink to={`/projects/${encodeURIComponent(project.id)}?step=export`}><Trans>前往导出</Trans></RouteLink>}
       />

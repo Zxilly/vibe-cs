@@ -109,7 +109,7 @@ export function AddWatchDirectoryDialog({
             <Trans>包含子目录</Trans>
           </Checkbox>
           <p className="text-xs leading-normal text-neutral-600">
-            <Trans>服务按目录递归监听，暂不能只监听顶层</Trans>
+            <Trans>服务当前按目录递归监听，子目录会一同纳入</Trans>
           </p>
         </div>
 

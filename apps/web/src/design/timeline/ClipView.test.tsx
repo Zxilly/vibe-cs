@@ -50,7 +50,7 @@ describe('ClipView markup', () => {
   it('states a refused drop in words as well as in colour', () => {
     const markup = renderMarkup(<ClipView clip={aurora} kind="video" blocked />);
     expect(markup).toContain('data-blocked="true"');
-    expect(markup).toContain('不能放在这里');
+    expect(markup).toContain('放到匹配类型的轨道');
   });
 
   it('marks the partner of the selected clip as linked', () => {

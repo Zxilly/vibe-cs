@@ -310,7 +310,7 @@ describe('在游戏里预览', () => {
     await serviceOnline();
 
     await waitFor(() => {
-      expect(document.body.textContent).toContain('正在录制，录制期间不能再启动一次回放');
+      expect(document.body.textContent).toContain('当前录制结束后即可启动回放');
     });
   });
 });

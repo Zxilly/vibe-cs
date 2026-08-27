@@ -162,7 +162,7 @@ export function validateShotDraft(draft: ShotDraft): ShotDraftErrors {
   if (endTick === null || endTick < 0) {
     errors['endTick'] = msg`结束 tick 要写成一个不小于 0 的整数`;
   } else if (startTick !== null && endTick < startTick) {
-    errors['endTick'] = msg`结束 tick 不能早于起始 tick`;
+    errors['endTick'] = msg`结束 tick 应晚于或等于起始 tick`;
   }
 
   return errors;

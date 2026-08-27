@@ -26,15 +26,15 @@ export function projectStepAvailability(project: ProjectViewModel): readonly Pro
       step: 'record',
       enabled: hasClips && recordsThroughGame,
       disabledReason: !hasClips
-        ? '还没有片段，不能开始录制'
-        : recordsThroughGame ? null : '快速模式和精剪模式直接导出，不需要录制',
+        ? '添加片段后即可开始录制'
+        : recordsThroughGame ? null : '快速模式和精剪模式可直接导出',
     },
     {
       step: 'export',
       enabled: hasClips && (confirmed || hasCompletedOutput),
       disabledReason: !hasClips
-        ? '还没有片段，不能导出'
-        : confirmed || hasCompletedOutput ? null : '剪辑单还没有确认，不能导出',
+        ? '添加片段后即可导出'
+        : confirmed || hasCompletedOutput ? null : '确认剪辑单后即可导出',
     },
   ];
 }

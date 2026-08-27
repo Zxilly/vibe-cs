@@ -351,7 +351,7 @@ function ShotListMode({ project }: { readonly project: ProjectViewModel }) {
 }
 
 function transitionTitle(transition: ProjectModeTransition): ReactNode {
-  if (transition.action === 'none') return <Trans>当前不能转换到这个制作方式</Trans>;
+  if (transition.action === 'none') return <Trans>请选择当前制作方式支持的目标</Trans>;
   return transition.to === 'quick'
     ? <Trans>打开快速剪辑副本？</Trans>
     : <Trans>复制为多轨精剪？</Trans>;
@@ -366,11 +366,11 @@ function transitionExplanation(transition: ProjectModeTransition): ReactNode {
     case 'agent_needs_composition':
       return <Trans>先完成录制并建立 Composition，系统才有真实片段可复制到快速剪辑。现在不会创建空工程。</Trans>;
     case 'agent_to_multitrack_via_quick':
-      return <Trans>Agent 镜头必须先落成真实 Take 和快速剪辑副本，再从快速剪辑复制到多轨精剪；不能跳过素材落地。</Trans>;
+      return <Trans>Agent 镜头的转换路径：真实 Take → 快速剪辑副本 → 多轨精剪。</Trans>;
     case 'quick_to_multitrack_copy':
       return <Trans>会新建一个多轨工程，复制当前片段顺序和裁切。包装、背景音乐与转场不会复制，源快速剪辑不会被修改，也不会反向同步。</Trans>;
     case 'quick_cannot_rebuild_agent_evidence':
-      return <Trans>快速剪辑只有成片素材与秒级裁切，无法无损还原 Demo tick、选手和证据，因此不能反向生成 Agent 剪辑单。</Trans>;
+      return <Trans>快速剪辑仅保留成片素材与秒级裁切；Agent 剪辑单需从 Demo、选手与证据重新建立。</Trans>;
     case 'multitrack_has_no_lossless_reverse':
       return <Trans>多轨工程可能包含图层、关键帧、效果与独立音频，降级会丢失信息。请保留当前工程并从原来源另建副本。</Trans>;
   }

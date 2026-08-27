@@ -429,7 +429,7 @@ function planFailureNotice(input: {
         action={{ label: <Trans>打开剪辑单</Trans>, onAction: input.onOpenPlan }}
       >
         {refusal === 'shots_unbound' ? (
-          <Trans>方案里有镜头还没有绑定素材，暂时不能转成录制计划。</Trans>
+          <Trans>先为方案中的每个镜头选择素材，再生成录制计划。</Trans>
         ) : (
           <Trans>这个方案里没有可录制的镜头。</Trans>
         )}

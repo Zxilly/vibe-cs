@@ -96,7 +96,7 @@ describe('PlanChangeCard · §4.5.3 rule ③, a stale card', () => {
   });
 
   it('disables 接受 with a written reason, and leaves 拒绝 alive', () => {
-    expect(stale).toContain('这条变更基于方案的旧版本');
+    expect(stale).toContain('这条变更基于方案旧版本');
     expect(stale).toContain('拒绝');
   });
 

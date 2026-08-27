@@ -240,7 +240,7 @@ export function AdvancedSection() {
         id="diagnostics"
         layout="split"
         title={<Trans>日志与诊断包</Trans>}
-        description={<Trans>普通使用不需要打开这一节。</Trans>}
+        description={<Trans>这里用于排查运行问题。</Trans>}
       >
         <SettingsRow
           label={<Trans>导出诊断包</Trans>}

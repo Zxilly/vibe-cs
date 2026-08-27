@@ -245,7 +245,7 @@ export function GameSection() {
       <SettingsBlock
         id="video-output"
         title={<Trans>成品生成能力</Trans>}
-        description={<Trans>这台机器能不能写出成片。检查的是本机的编码器，不是设置。</Trans>}
+        description={<Trans>这里显示本机的成片生成能力，结果来自编码器检查。</Trans>}
       >
         {checks.isPending ? (
           <Skeleton />

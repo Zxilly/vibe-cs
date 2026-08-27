@@ -140,7 +140,7 @@ describe('添加监听目录', () => {
     const box = within(dialog()).getByRole('checkbox', { name: '包含子目录' }) as HTMLButtonElement;
     expect(box.getAttribute('aria-checked')).toBe('true');
     expect(box.disabled).toBe(true);
-    expect(within(dialog()).getByText('服务按目录递归监听，暂不能只监听顶层')).toBeTruthy();
+    expect(within(dialog()).getByText('服务当前按目录递归监听，子目录会一同纳入')).toBeTruthy();
   });
 });
 

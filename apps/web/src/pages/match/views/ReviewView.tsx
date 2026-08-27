@@ -840,7 +840,7 @@ function ReviewInspector({
         ) : (
           <p className="text-neutral-700">
             {context.evidence === null ? (
-              <Trans>地址里还没有选中的证据，所以现在不能新建注释。</Trans>
+              <Trans>先从地址中选择一条证据，再新建注释。</Trans>
             ) : (
               <Trans>当前锚点是一条证据，可以在「我的注释」里为它写注释。</Trans>
             )}

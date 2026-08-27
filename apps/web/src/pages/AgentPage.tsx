@@ -649,7 +649,7 @@ function confirmGuard(input: {
   if (unbound.length > 0) {
     return {
       disabled: true,
-      disabledReason: t`还有 ${unbound.length} 个镜头没有绑定 Demo 与选手，不能转成录制任务`,
+      disabledReason: t`先为 ${unbound.length} 个镜头选择 Demo 与选手，再生成录制任务`,
     };
   }
   return { disabled: false };

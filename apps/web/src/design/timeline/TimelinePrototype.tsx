@@ -51,7 +51,7 @@ function refusalMessage(reason: EditRefusal): string {
     case 'overlap':
       return t`这里已经有片段了，没有移动`;
     case 'track-kind-mismatch':
-      return t`轨道类型不同，视频不能放到音频轨上`;
+      return t`请将视频放到视频轨`;
     case 'track-locked':
       return t`轨道已锁定`;
     case 'out-of-bounds':

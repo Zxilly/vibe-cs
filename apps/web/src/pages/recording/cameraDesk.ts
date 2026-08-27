@@ -349,7 +349,7 @@ export function inGameGate(input: {
     return { disabled: true, disabledReason: t`这个片段没有绑定高光，没有可以在游戏里画的相机路径` };
   }
   if (input.recording) {
-    return { disabled: true, disabledReason: t`正在录制，录制期间不能再启动一次回放` };
+    return { disabled: true, disabledReason: t`当前录制结束后即可启动回放` };
   }
   if (input.running) {
     return { disabled: true, disabledReason: t`游戏正在回放另一段 Demo，先停止它再预览这个镜头` };

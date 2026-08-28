@@ -24,7 +24,6 @@ use uuid::Uuid;
 pub use tools::{CapturedPlan, CapturedPlanKind, CapturedToolCall};
 
 const MAXIMUM_CONTEXT_BYTES: usize = 2 * 1024 * 1024;
-const MAXIMUM_AGENT_TURNS: usize = 12;
 
 #[derive(Debug, Clone, Default)]
 pub struct Cancellation {
@@ -255,7 +254,10 @@ where
         let mut stream = agent
             .stream_prompt(prompt)
             .history(history.clone())
-            .max_turns(MAXIMUM_AGENT_TURNS)
+            // The host deadline and explicit cancellation own liveness. A
+            // model that needs another evidence/tool turn must not fail only
+            // because the product guessed a total turn count in advance.
+            .max_turns(usize::MAX)
             .await;
         loop {
             let item = tokio::select! {
@@ -499,7 +501,7 @@ fn system_prompt(mode: AgentMode, auto_mode: bool, custom: &str) -> String {
             "Collaborate on an edit using only structured Vibe CS objects. First read workspace context and copy exact object references into every later Tool input. If planAvailable is true, call read_agent_plan with planId and planRevision before drafting changes; workspace context intentionally does not embed Shot data. When an audioAssetId is available, call read_audio_evidence with view summary before making pacing claims and view rhythm_map before choosing musical boundaries. Use native BPM, confidence, sections, silence ranges, spectral flux, frequency-band changes, and ranked cut points as evidence. A phrase_boundary is only an assumed four-beat position, not a detected downbeat; spectral values do not prove genre, mood, instruments, or semantic section names. Align visual action peaks to strong musical boundaries while preserving shot readability and narrative escalation; do not cut every beat or hide weak footage behind fast cuts. Otherwise inspect an explicit editorProjectId and Demo reference, then use draft_edit_plan. Every draft returns proposalId; pass that exact ID to its kind-specific confirmation Tool. Auto mode approves without pausing but does not change Tool semantics. Never claim execution until a structured Execution Result is present."
         }
         AgentMode::Hlae => {
-            "Create publishable highlight videos using only structured Vibe CS objects. First read workspace context, then pass its exact demoIds to read_highlights and read_cinematic_context. The cinematic reader returns cinematicEvidenceId; draft_video_plan must consume that exact reference and may not silently fetch missing Evidence. Multi-Demo projects use namespaced Highlight IDs and remain one cross-Demo sequence. Rank candidates by action density, escalation, visual readability, and narrative role; prefer multi-kills, clutches, decisive entries, and match-point actions over padding. Give the video a title, assign hook/build/climax roles, choose pacing and a supported transition, and never stretch low-action footage. Design shots from verified map, route, action, movement, spread, and engagement purpose. Use player_pov when spatial or collision Evidence is unavailable. Never invent measurements. The draft returns proposalId; pass it exactly to confirm_video_plan. Auto mode approves without pausing but does not change semantics. Do not claim completion until a structured recording Execution Result and MP4 output exist."
+            "Create publishable highlight videos using only structured Vibe CS objects. First read workspace context, resolve the requested player once, then pass the exact demoIds and playerId to one bounded read_highlights call whenever possible. Pass the selected non-overlapping Highlight IDs to read_cinematic_context. The cinematic reader returns cinematicEvidenceId; draft_video_plan must consume that exact reference and may not silently fetch missing Evidence. Multi-Demo projects use namespaced Highlight IDs and remain one cross-Demo sequence. Pass the user's requested duration as targetDurationSeconds; when the draft reports that the target is not met, select additional non-overlapping evidence or explain that the available action cannot honestly fill the target. Rank candidates by action density, escalation, visual readability, and narrative role; prefer multi-kills, clutches, decisive entries, and match-point actions over padding. Give the video a title, assign one global hook/build/climax sequence, choose pacing and a supported transition, and never stretch low-action footage. Design shots from verified map, route, action, movement, spread, and engagement purpose. Use player_pov when spatial or collision Evidence is unavailable. Never invent measurements. The draft returns proposalId only when its deterministic checks pass; pass it exactly to confirm_video_plan. Auto mode approves without pausing but does not change semantics. Do not claim completion until a structured recording Execution Result and MP4 output exist."
         }
     };
     let automation_instruction = if auto_mode {
@@ -686,6 +688,82 @@ mod tests {
             json!(["ace-1"])
         );
         assert_eq!(response.plans[0].payload["output"]["container"], "mp4");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn tool_loop_has_no_fixed_total_turn_ceiling() {
+        const TOOL_TURNS: usize = 40;
+        let listener = TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind provider");
+        let address = listener.local_addr().expect("provider address");
+        let provider = tokio::spawn(async move {
+            let mut requests = Vec::new();
+            for index in 0..=TOOL_TURNS {
+                let (mut stream, _) = listener.accept().await.expect("provider request");
+                requests.push(read_http_json(&mut stream).await);
+                let chunks = if index < TOOL_TURNS {
+                    vec![
+                        stream_chunk(
+                            &json!({"role":"assistant","tool_calls":[{
+                                "index":0,
+                                "id":format!("call-context-{index}"),
+                                "type":"function",
+                                "function":{"name":"read_workspace_context","arguments":"{}"}
+                            }]}),
+                            None,
+                        ),
+                        stream_chunk(&json!({}), Some("tool_calls")),
+                    ]
+                } else {
+                    vec![
+                        stream_chunk(
+                            &json!({"role":"assistant","content":"已完成全部结构化检查。"}),
+                            None,
+                        ),
+                        stream_chunk(&json!({}), Some("stop")),
+                    ]
+                };
+                write_sse(&mut stream, &chunks).await;
+            }
+            requests
+        });
+
+        let response = tokio::time::timeout(
+            std::time::Duration::from_secs(20),
+            run_agent(
+                AgentRequest {
+                    request_id: "unbounded-tool-loop".into(),
+                    mode: AgentMode::Guide,
+                    message: "完成所有结构化检查。".into(),
+                    history: Vec::new(),
+                    config: AgentConfig {
+                        provider: "rig-e2e".into(),
+                        model: "rig-e2e-model".into(),
+                        base_url: format!("http://{address}/v1"),
+                        api_key: "rig-e2e-secret".into(),
+                        custom_instructions: String::new(),
+                        provider_parameters: json!({}),
+                    },
+                    context: AgentContext {
+                        workspace: json!({"demoIds":["demo-1"]}),
+                        ..AgentContext::default()
+                    },
+                    tool_host: None,
+                    auto_mode: true,
+                },
+                &Cancellation::new(),
+                |_| {},
+            ),
+        )
+        .await
+        .expect("agent timeout")
+        .expect("agent response");
+        let requests = provider.await.expect("provider task");
+
+        assert_eq!(requests.len(), TOOL_TURNS + 1);
+        assert_eq!(response.tool_calls.len(), TOOL_TURNS);
+        assert_eq!(response.content, "已完成全部结构化检查。");
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

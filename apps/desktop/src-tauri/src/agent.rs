@@ -19,9 +19,9 @@ use vibe_cs_agent::{
     CapturedPlanKind, HistoryMessage,
 };
 use vibe_cs_domain::{
-    AgentPlanAuthor, AgentPlanGeneration, AgentPlanOriginDraft, AgentPlanShot, AgentPlanUpdate,
-    AgentShotRecording, AgentShotView, AnalysisRunStatus, HlaeCameraStyle, RecordingRequest,
-    RoundReplayArtifact,
+    AGENT_PLAN_MAX_SHOTS, AgentPlanAuthor, AgentPlanGeneration, AgentPlanOriginDraft,
+    AgentPlanShot, AgentPlanUpdate, AgentShotRecording, AgentShotView, AnalysisRunStatus,
+    HlaeCameraStyle, RecordingRequest, RoundReplayArtifact,
 };
 
 use crate::bridge::{DesktopBridge, DesktopCall, DesktopMethod};
@@ -1024,7 +1024,7 @@ async fn resolved_agent_config(
         .filter(|value| !value.trim().is_empty());
     #[cfg(debug_assertions)]
     if development_key.is_some() {
-        "kimi-code".clone_into(&mut config.llm.provider);
+        "kimi-for-coding".clone_into(&mut config.llm.provider);
         "k3".clone_into(&mut config.llm.model);
         "https://api.kimi.com/coding/v1".clone_into(&mut config.llm.base_url);
     }
@@ -1383,6 +1383,7 @@ async fn run_agent_chat(
     };
     let mut pending_text = String::new();
     let mut text_event_count = 0_usize;
+    let mut streamed_proposals = Vec::new();
     let turn_timeout = if input.auto_mode {
         Duration::from_secs(15 * 60)
     } else {
@@ -1408,13 +1409,13 @@ async fn run_agent_chat(
                 });
             }
             EmbeddedAgentStreamEvent::Proposal(proposal) => {
-                let _ = on_event.send(AgentEvent::Proposal {
-                    proposal: AgentProposal::from_captured(
-                        proposal,
-                        input.workspace_context.plan_id,
-                        input.workspace_context.plan_revision,
-                    ),
-                });
+                let proposal = AgentProposal::from_captured(
+                    proposal,
+                    input.workspace_context.plan_id,
+                    input.workspace_context.plan_revision,
+                );
+                streamed_proposals.push(proposal.clone());
+                let _ = on_event.send(AgentEvent::Proposal { proposal });
             }
         }),
     )
@@ -1434,16 +1435,28 @@ async fn run_agent_chat(
             vibe_cs_agent::AgentError::Provider(message) => AgentCommandError::unavailable(message),
         })
     });
-    let response = response.inspect_err(|error| {
-        if !pending_text.is_empty() {
-            let _ = on_event.send(AgentEvent::TextDelta {
-                delta: std::mem::take(&mut pending_text),
+    let response = match response {
+        Ok(response) => response,
+        Err(error) => {
+            if !pending_text.is_empty() {
+                let _ = on_event.send(AgentEvent::TextDelta {
+                    delta: std::mem::take(&mut pending_text),
+                });
+            }
+            for proposal in &streamed_proposals {
+                validate_proposal(proposal)?;
+            }
+            // A validated proposal is a durable structured checkpoint. Its
+            // initial shot list must not disappear only because the provider
+            // failed while producing the trailing natural-language summary.
+            materialize_initial_video_plan(state, input, thread_id, &analysis, &streamed_proposals)
+                .await?;
+            let _ = on_event.send(AgentEvent::Error {
+                message: error.message.clone(),
             });
+            return Err(error);
         }
-        let _ = on_event.send(AgentEvent::Error {
-            message: error.message.clone(),
-        });
-    })?;
+    };
     if !pending_text.is_empty() {
         let _ = on_event.send(AgentEvent::TextDelta {
             delta: std::mem::take(&mut pending_text),
@@ -2099,7 +2112,7 @@ fn validate_proposal(proposal: &AgentProposal) -> Result<(), AgentCommandError> 
             let items = payload
                 .get("items")
                 .and_then(Value::as_array)
-                .filter(|items| !items.is_empty() && items.len() <= 16)
+                .filter(|items| !items.is_empty() && items.len() <= AGENT_PLAN_MAX_SHOTS)
                 .ok_or_else(|| {
                     AgentCommandError::internal(
                         "agent video task violates its recording-item bounds",

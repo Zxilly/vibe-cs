@@ -13,6 +13,10 @@ use uuid::Uuid;
 
 use crate::{AgentContext, AgentMode, AgentToolHost, HitlRequest};
 
+const MAXIMUM_VIDEO_PLAN_SHOTS: usize = 64;
+const DEFAULT_VIDEO_TARGET_SECONDS: f64 = 40.0;
+const MINIMUM_VIDEO_TARGET_COVERAGE: f64 = 0.85;
+
 const MAXIMUM_CAPTURED_TOOL_OUTPUT_BYTES: usize = 32 * 1024;
 
 /// One tool invocation the model made during a turn, with its arguments and
@@ -160,12 +164,6 @@ impl ToolState {
                 .insert("cinematicEvidenceId".to_owned(), json!(evidence_id));
         }
         let mut captures = self.captures.lock().await;
-        if captures.tool_calls.len() >= 32 {
-            return Err(ToolExecutionError::other("tool call limit exceeded"));
-        }
-        if plan.is_some() && captures.plans.len() >= 8 {
-            return Err(ToolExecutionError::other("proposal limit exceeded"));
-        }
         captures.tool_calls.push(CapturedToolCall {
             name: name.to_owned(),
             input,
@@ -233,9 +231,6 @@ impl ToolState {
             "executionResult": execution_result
         });
         let mut captures = self.captures.lock().await;
-        if captures.tool_calls.len() >= 32 {
-            return Err(ToolExecutionError::other("tool call limit exceeded"));
-        }
         captures.tool_calls.push(CapturedToolCall {
             name: name.to_owned(),
             input,
@@ -245,7 +240,7 @@ impl ToolState {
     }
 
     async fn external_cinematic_context(&self, input: &Value) -> Result<Option<Value>, String> {
-        let ids = string_vec_required(input, "highlightIds", 16)?;
+        let ids = string_vec_required(input, "highlightIds", MAXIMUM_VIDEO_PLAN_SHOTS)?;
         let missing = {
             let cache = self.cinematic_scene_cache.lock().await;
             ids.iter()
@@ -542,7 +537,7 @@ fn tool_catalog() -> Vec<ToolDefinition> {
             HLAE_MODE,
             "Create bounded cinematic Evidence for explicit Highlights and return cinematicEvidenceId.",
             object_schema(
-                json!({"demoIds":demo_ids(),"highlightIds":string_array_schema(16)}),
+                json!({"demoIds":demo_ids(),"highlightIds":string_array_schema(MAXIMUM_VIDEO_PLAN_SHOTS)}),
                 &["demoIds", "highlightIds"],
             ),
         ),
@@ -590,9 +585,9 @@ fn tool_catalog() -> Vec<ToolDefinition> {
             ToolKind::DraftVideoPlan,
             "draft_video_plan",
             HLAE_MODE,
-            "Draft one Video Proposal from explicit Highlight and cinematic Evidence references.",
+            "Draft one duration-aware Video Proposal from explicit non-overlapping Highlight and cinematic Evidence references. The result reports deterministic duration coverage and returns a proposalId only when the requested target is feasible.",
             object_schema(
-                json!({"demoIds":demo_ids(),"cinematicEvidenceId":{"type":"string","format":"uuid"},"title":{"type":"string","minLength":1,"maxLength":200},"highlightIds":string_array_schema(16),"pacing":{"type":"string","enum":["energetic","impact","cinematic"]},"storyRoles":{"type":"array","items":{"type":"string","enum":["hook","build","climax"]},"minItems":1,"maxItems":16},"transitionStyle":{"type":"string","enum":["cut","flash","fade","slide"]},"leadSeconds":{"type":"number","minimum":0.5,"maximum":8,"default":2.5},"tailSeconds":{"type":"number","minimum":0.5,"maximum":8,"default":2},"cameraStyle":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"],"default":"pov"},"cameraStyles":{"type":"array","items":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"]},"maxItems":16,"default":[]},"cameraIntents":{"type":"array","items":{"type":"string","enum":["player_pov","establish_location","follow_entry","reveal_duel","hold_crossfire","rise_after_climax","transition_through_space"]},"minItems":1,"maxItems":16},"cameraRationales":{"type":"array","items":{"type":"string","minLength":1,"maxLength":128},"minItems":1,"maxItems":16}}),
+                json!({"demoIds":demo_ids(),"cinematicEvidenceId":{"type":"string","format":"uuid"},"title":{"type":"string","minLength":1,"maxLength":200},"highlightIds":string_array_schema(MAXIMUM_VIDEO_PLAN_SHOTS),"targetDurationSeconds":{"type":"number","minimum":5,"maximum":3600,"default":40},"pacing":{"type":"string","enum":["energetic","impact","cinematic"]},"storyRoles":{"type":"array","items":{"type":"string","enum":["hook","build","climax"]},"minItems":1,"maxItems":MAXIMUM_VIDEO_PLAN_SHOTS},"transitionStyle":{"type":"string","enum":["cut","flash","fade","slide"]},"leadSeconds":{"type":"number","minimum":0.5,"maximum":8,"default":2.5},"tailSeconds":{"type":"number","minimum":0.5,"maximum":8,"default":2},"cameraStyle":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"],"default":"pov"},"cameraStyles":{"type":"array","items":{"type":"string","enum":["pov","orbit","dolly","static","tracking","crane","flyby"]},"maxItems":MAXIMUM_VIDEO_PLAN_SHOTS,"default":[]},"cameraIntents":{"type":"array","items":{"type":"string","enum":["player_pov","establish_location","follow_entry","reveal_duel","hold_crossfire","rise_after_climax","transition_through_space"]},"minItems":1,"maxItems":MAXIMUM_VIDEO_PLAN_SHOTS},"cameraRationales":{"type":"array","items":{"type":"string","minLength":1,"maxLength":128},"minItems":1,"maxItems":MAXIMUM_VIDEO_PLAN_SHOTS}}),
                 &[
                     "demoIds",
                     "cinematicEvidenceId",
@@ -1187,7 +1182,7 @@ fn read_cinematic_context(
     external_cinematic: Option<&Value>,
 ) -> Result<Value, String> {
     require_authorized_demo_ids(context, input)?;
-    let ids = string_vec_required(input, "highlightIds", 16)?;
+    let ids = string_vec_required(input, "highlightIds", MAXIMUM_VIDEO_PLAN_SHOTS)?;
     let binding = bind_highlights(&context.analysis, &ids);
     if !binding.ready() {
         return Ok(json!({
@@ -1631,6 +1626,39 @@ fn draft_agent_plan_changes(
     ))
 }
 
+fn overlapping_highlight_pairs(highlights: &[Value]) -> Vec<(String, String)> {
+    let mut pairs = Vec::new();
+    for (index, first) in highlights.iter().enumerate() {
+        for second in highlights.iter().skip(index + 1) {
+            if text(first.get("demoId")) != text(second.get("demoId"))
+                || text(first.get("playerId")) != text(second.get("playerId"))
+                || number_value(first.get("round")) != number_value(second.get("round"))
+            {
+                continue;
+            }
+            let first_start = number_value(first.get("startTick")).unwrap_or_default();
+            let first_end = number_value(first.get("endTick")).unwrap_or(first_start);
+            let second_start = number_value(second.get("startTick")).unwrap_or_default();
+            let second_end = number_value(second.get("endTick")).unwrap_or(second_start);
+            let shorter = (first_end - first_start)
+                .max(0.0)
+                .min((second_end - second_start).max(0.0));
+            if shorter <= 0.0 {
+                continue;
+            }
+            let overlap = first_end.min(second_end) - first_start.max(second_start);
+            if overlap.max(0.0) / shorter < 0.8 {
+                continue;
+            }
+            pairs.push((
+                text(first.get("id")).unwrap_or("unknown").to_owned(),
+                text(second.get("id")).unwrap_or("unknown").to_owned(),
+            ));
+        }
+    }
+    pairs
+}
+
 fn draft_video_plan(
     context: &AgentContext,
     input: &Value,
@@ -1641,9 +1669,22 @@ fn draft_video_plan(
     if title.is_empty() || title.chars().count() > 200 {
         return Err("video title must contain 1 to 200 characters".into());
     }
-    let ids = string_vec_required(input, "highlightIds", 16)?;
+    let ids = string_vec_required(input, "highlightIds", MAXIMUM_VIDEO_PLAN_SHOTS)?;
+    let duration_target_is_explicit = input.get("targetDurationSeconds").is_some();
+    let target_duration_seconds = bounded_f64(
+        input,
+        "targetDurationSeconds",
+        DEFAULT_VIDEO_TARGET_SECONDS,
+        5.0,
+        3_600.0,
+    )?;
     let pacing = enum_value(input, "pacing", &["energetic", "impact", "cinematic"])?;
-    let story_roles = optional_enum_vec(input, "storyRoles", 16, &["hook", "build", "climax"])?;
+    let story_roles = optional_enum_vec(
+        input,
+        "storyRoles",
+        MAXIMUM_VIDEO_PLAN_SHOTS,
+        &["hook", "build", "climax"],
+    )?;
     if story_roles.len() != ids.len() {
         return Err("storyRoles must match highlightIds length".into());
     }
@@ -1655,7 +1696,12 @@ fn draft_video_plan(
         "pov", "orbit", "dolly", "static", "tracking", "crane", "flyby",
     ];
     let _ = enum_value_default(input, "cameraStyle", "pov", &allowed_camera_styles)?;
-    let camera_styles = optional_enum_vec(input, "cameraStyles", 16, &allowed_camera_styles)?;
+    let camera_styles = optional_enum_vec(
+        input,
+        "cameraStyles",
+        MAXIMUM_VIDEO_PLAN_SHOTS,
+        &allowed_camera_styles,
+    )?;
     if !camera_styles.is_empty() && camera_styles.len() != ids.len() {
         return Err("cameraStyles must be empty or match highlightIds length".into());
     }
@@ -1668,8 +1714,14 @@ fn draft_video_plan(
         "rise_after_climax",
         "transition_through_space",
     ];
-    let camera_intents = optional_enum_vec(input, "cameraIntents", 16, &allowed_camera_intents)?;
-    let camera_rationales = string_vec_required(input, "cameraRationales", 16)?;
+    let camera_intents = optional_enum_vec(
+        input,
+        "cameraIntents",
+        MAXIMUM_VIDEO_PLAN_SHOTS,
+        &allowed_camera_intents,
+    )?;
+    let camera_rationales =
+        string_vec_required(input, "cameraRationales", MAXIMUM_VIDEO_PLAN_SHOTS)?;
     if camera_intents.len() != ids.len() || camera_rationales.len() != ids.len() {
         return Err("cameraIntents and cameraRationales must match highlightIds length".into());
     }
@@ -1715,9 +1767,11 @@ fn draft_video_plan(
         .filter(|item| text(item.get("playerId")).is_none_or(str::is_empty))
         .map(|item| text(item.get("id")).unwrap_or("unknown").to_owned())
         .collect::<Vec<_>>();
-    let accepted = binding.ready()
+    let overlapping_highlights = overlapping_highlight_pairs(&binding.selected);
+    let mut accepted = binding.ready()
         && resolved_demo_ids.iter().all(Option::is_some)
-        && missing_players.is_empty();
+        && missing_players.is_empty()
+        && overlapping_highlights.is_empty();
     let cinematic_context = external_cinematic
         .ok_or_else(|| "draft_video_plan requires explicit cinematic Evidence".to_owned())?;
     let scenes = cinematic_context
@@ -1856,6 +1910,26 @@ fn draft_video_plan(
     } else {
         Vec::new()
     };
+    let selected_duration_seconds = items
+        .iter()
+        .zip(&binding.selected)
+        .map(|(item, highlight)| {
+            let start = number_value(item.get("start_tick")).unwrap_or_default();
+            let end = number_value(item.get("end_tick")).unwrap_or(start);
+            let tick_rate = number_value(highlight.get("tickRate"))
+                .filter(|value| *value > 0.0)
+                .unwrap_or(64.0);
+            (end - start).max(0.0) / tick_rate
+                + number_value(item.get("pre_roll_seconds")).unwrap_or_default()
+                + number_value(item.get("post_roll_seconds")).unwrap_or_default()
+        })
+        .sum::<f64>();
+    let minimum_target_seconds = target_duration_seconds * MINIMUM_VIDEO_TARGET_COVERAGE;
+    let duration_target_met = !duration_target_is_explicit
+        || selected_duration_seconds + f64::EPSILON >= minimum_target_seconds;
+    if !duration_target_met {
+        accepted = false;
+    }
     for (index, intent) in resolved_camera_intents.iter().enumerate() {
         let has_spatial_evidence = scenes
             .iter()
@@ -1912,6 +1986,9 @@ fn draft_video_plan(
                     "video_presentation": {
                         "pacing": pacing,
                         "transition_style": transition_style,
+                        "target_duration_seconds": target_duration_seconds,
+                        "selected_duration_seconds": selected_duration_seconds,
+                        "duration_target_met": duration_target_met,
                         "intro_seconds": match pacing { "energetic" => 0.65, "impact" => 0.8, _ => 1.0 },
                         "include_name_cards": true,
                         "name_card_seconds": 1.1,
@@ -1924,6 +2001,16 @@ fn draft_video_plan(
         Vec::new()
     };
     let mut rejection_reasons = binding.rejection_reasons();
+    for (first, second) in &overlapping_highlights {
+        rejection_reasons.push(format!(
+            "Highlights {first} and {second} substantially overlap; merge them or keep only one."
+        ));
+    }
+    if !duration_target_met {
+        rejection_reasons.push(format!(
+            "The selected non-overlapping footage covers {selected_duration_seconds:.1} seconds, below the required {minimum_target_seconds:.1} seconds for a {target_duration_seconds:.1}-second target."
+        ));
+    }
     if resolved_demo_ids.iter().any(Option::is_none) {
         rejection_reasons
             .push("The selected Demo does not have a valid persistent identifier.".into());
@@ -1940,6 +2027,9 @@ fn draft_video_plan(
         "presentation": {
             "pacing": pacing,
             "transition_style": transition_style,
+            "target_duration_seconds": target_duration_seconds,
+            "selected_duration_seconds": selected_duration_seconds,
+            "duration_target_met": duration_target_met,
             "intro_seconds": match pacing { "energetic" => 0.65, "impact" => 0.8, _ => 1.0 },
             "include_name_cards": true,
             "name_card_seconds": 1.1,
@@ -1959,6 +2049,9 @@ fn draft_video_plan(
             "accepted": accepted,
             "plan": payload,
             "rejectionReasons": rejection_reasons,
+            "targetDurationSeconds": target_duration_seconds,
+            "selectedDurationSeconds": selected_duration_seconds,
+            "durationTargetMet": duration_target_met,
             "delivery": "mp4",
             "captureEngine": "managed_hlae"
         }),
@@ -2880,6 +2973,63 @@ mod tests {
             plan.payload["shot_designs"][0]["safety_fallback"],
             "collision_geometry_unavailable"
         );
+    }
+
+    #[test]
+    fn video_plan_rejects_a_requested_duration_the_selected_action_cannot_cover() {
+        let demo_id = "00000000-0000-4000-8000-0000000000d1";
+        let mut context = context();
+        context.demo = json!({"id":demo_id});
+        authorize_demos(&mut context, &[demo_id]);
+        context.analysis["highlights"][0]["player_id"] = json!("player-1");
+        let cinematic = read_cinematic_context(
+            &context,
+            &json!({"demoIds":[demo_id],"highlightIds":["ace-1"]}),
+            None,
+        )
+        .expect("cinematic evidence");
+
+        let (output, plan) = execute_tool_with_cinematic(
+            ToolKind::DraftVideoPlan,
+            &context,
+            &json!({
+                "title":"Three minute ace reel",
+                "demoIds":[demo_id],
+                "highlightIds":["ace-1"],
+                "targetDurationSeconds":180.0,
+                "pacing":"impact",
+                "storyRoles":["climax"],
+                "transitionStyle":"cut",
+                "cameraIntents":["player_pov"],
+                "cameraRationales":["Keep the verified player view through the ace."]
+            }),
+            Some(&cinematic),
+        )
+        .expect("duration-aware plan result");
+
+        assert_eq!(output["accepted"], false);
+        assert_eq!(output["durationTargetMet"], false);
+        assert_eq!(output["targetDurationSeconds"], 180.0);
+        assert!(
+            output["selectedDurationSeconds"]
+                .as_f64()
+                .is_some_and(|seconds| seconds < 135.0)
+        );
+        assert!(plan.is_none());
+    }
+
+    #[test]
+    fn video_plan_overlap_detection_rejects_nested_highlights() {
+        let highlights = json!([{
+            "id":"short","demoId":"demo-1","playerId":"player-1","round":11,
+            "startTick":85_125,"endTick":85_222
+        }, {
+            "id":"long","demoId":"demo-1","playerId":"player-1","round":11,
+            "startTick":85_125,"endTick":85_836
+        }]);
+        let pairs = overlapping_highlight_pairs(highlights.as_array().expect("highlights"));
+
+        assert_eq!(pairs, vec![("short".to_owned(), "long".to_owned())]);
     }
 
     #[test]

@@ -25,7 +25,7 @@ pub const AGENT_SESSION_MAX_STATUS_CHARS: usize = 120;
 pub const AGENT_SESSION_MAX_QUERY_CHARS: usize = 256;
 pub const AGENT_SESSION_DEFAULT_LIMIT: u32 = 50;
 pub const AGENT_SESSION_MAX_LIMIT: u32 = 200;
-pub const AGENT_SESSION_MAX_TOOL_CALLS: usize = 64;
+pub const AGENT_SESSION_MAX_TOOL_CALL_BYTES: usize = 4 * 1024 * 1024;
 pub const AGENT_SESSION_MAX_PROPOSALS: usize = 32;
 pub const AGENT_SESSION_MAX_REFS: usize = 64;
 pub const AGENT_PLAN_MAX_SHOTS: usize = 64;
@@ -246,6 +246,18 @@ fn validate_agent_proposals(proposals: &[AgentProposal]) -> Result<(), DomainErr
     Ok(())
 }
 
+fn validate_agent_tool_calls(tool_calls: &[AgentToolCall]) -> Result<(), DomainError> {
+    let bytes = serde_json::to_vec(tool_calls).map_err(|error| {
+        DomainError::InvalidInput(format!("agent tool calls cannot be serialized: {error}"))
+    })?;
+    if bytes.len() > AGENT_SESSION_MAX_TOOL_CALL_BYTES {
+        return Err(DomainError::InvalidInput(format!(
+            "agent tool call evidence must not exceed {AGENT_SESSION_MAX_TOOL_CALL_BYTES} bytes"
+        )));
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 #[ts(export)]
@@ -276,6 +288,11 @@ pub struct AgentProposalDecisionUpdate {
 
 impl AgentProposalDecisionUpdate {
     /// Normalizes the client-authored change locator.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when the proposal identity is nil
+    /// or the change locator is empty or outside its text bound.
     pub fn normalize(mut self) -> Result<Self, DomainError> {
         self.change_id = required_text(
             &self.change_id,
@@ -452,6 +469,10 @@ impl AgentSessionEntry {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[ts(export)]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "the stable internally-tagged serde/TS entry document must keep assistant fields at the top level"
+)]
 pub enum AgentSessionEntryDraft {
     User {
         content: String,
@@ -500,11 +521,7 @@ impl AgentSessionEntryDraft {
                 error,
                 metadata,
             } => {
-                if tool_calls.len() > AGENT_SESSION_MAX_TOOL_CALLS {
-                    return Err(DomainError::InvalidInput(format!(
-                        "an entry may carry at most {AGENT_SESSION_MAX_TOOL_CALLS} tool calls"
-                    )));
-                }
+                validate_agent_tool_calls(&tool_calls)?;
                 if proposals.len() > AGENT_SESSION_MAX_PROPOSALS {
                     return Err(DomainError::InvalidInput(format!(
                         "an entry may carry at most {AGENT_SESSION_MAX_PROPOSALS} proposals"
@@ -587,6 +604,13 @@ pub struct AgentTurnMetadata {
 }
 
 impl AgentTurnUpdate {
+    /// Normalizes one conditional lifecycle transition and its bounded result.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when the status transition is
+    /// illegal or any content, tool evidence, proposal, error or metadata field
+    /// violates the persisted turn contract.
     pub fn normalize(mut self) -> Result<Self, DomainError> {
         if !self.expected_status.can_transition_to(self.status) {
             return Err(DomainError::InvalidInput(
@@ -594,9 +618,8 @@ impl AgentTurnUpdate {
             ));
         }
         self.content = optional_text(&self.content, AGENT_SESSION_MAX_CONTENT_CHARS, "content")?;
-        if self.tool_calls.len() > AGENT_SESSION_MAX_TOOL_CALLS
-            || self.proposals.len() > AGENT_SESSION_MAX_PROPOSALS
-        {
+        validate_agent_tool_calls(&self.tool_calls)?;
+        if self.proposals.len() > AGENT_SESSION_MAX_PROPOSALS {
             return Err(DomainError::InvalidInput(
                 "agent turn result exceeds the entry limits".to_owned(),
             ));
@@ -966,6 +989,17 @@ impl AgentPlanShot {
         self.to_recording_request(request_id, recording)
     }
 
+    /// Fingerprints the current footage-producing specification so Takes can
+    /// prove whether they still match this revision after a human or Agent edit.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] for an unbound shot and propagates
+    /// serialization failures from [`RecordingRequest::spec_fingerprint`].
+    pub fn recording_spec_fingerprint(&self) -> Result<String, DomainError> {
+        self.recording_request(Uuid::nil())?.spec_fingerprint()
+    }
+
     fn to_recording_request(
         &self,
         request_id: Uuid,
@@ -1139,6 +1173,11 @@ pub struct AgentPlanGeneration {
 
 impl AgentPlanGeneration {
     /// Validates a non-empty, conditionally applied initial generation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when the expected revision, title,
+    /// generated shots or origin cannot form the first durable plan revision.
     pub fn normalize(mut self) -> Result<Self, DomainError> {
         if self.expected_revision < 1 {
             return Err(DomainError::InvalidInput(
@@ -1692,6 +1731,25 @@ mod tests {
             (status, request_id, retry_of, error),
             (None, None, None, None)
         );
+    }
+
+    #[test]
+    fn tool_history_is_bounded_by_bytes_not_a_total_call_count() {
+        let calls = (0..100)
+            .map(|index| AgentToolCall {
+                name: format!("read-{index}"),
+                input: serde_json::json!({}),
+                output: serde_json::json!({"ok":true}),
+            })
+            .collect::<Vec<_>>();
+        validate_agent_tool_calls(&calls).expect("one hundred compact calls remain valid");
+
+        let oversized = vec![AgentToolCall {
+            name: "read-large".to_owned(),
+            input: serde_json::json!({}),
+            output: serde_json::json!({"evidence":"x".repeat(AGENT_SESSION_MAX_TOOL_CALL_BYTES)}),
+        }];
+        assert!(validate_agent_tool_calls(&oversized).is_err());
     }
 
     #[test]

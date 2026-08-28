@@ -180,6 +180,12 @@ fn empty_provider_parameters() -> Value {
 /// Validate the provider-owned portion of an LLM request without interpreting
 /// model-specific fields. Vibe CS owns the conversation and tool protocol, so
 /// those structural fields cannot be replaced by configuration.
+///
+/// # Errors
+///
+/// Returns an error when parameters are not a bounded JSON object, a key is
+/// malformed, or a provider attempts to replace an Agent-owned structural
+/// request field.
 pub fn validate_llm_provider_parameters(parameters: &Value) -> Result<(), String> {
     const MAXIMUM_PARAMETER_BYTES: usize = 64 * 1024;
     const RESERVED: &[&str] = &[

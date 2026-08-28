@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use ts_rs::TS;
 use uuid::Uuid;
 
@@ -334,6 +335,35 @@ impl RecordingRequest {
             presentation.validate_for(self.camera_style)?;
         }
         Ok(())
+    }
+
+    /// Fingerprints the footage-producing specification of this request.
+    /// Request identity and display title are intentionally excluded: changing
+    /// either does not make already captured frames incompatible with a shot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an internal error only when the closed specification document
+    /// cannot be serialized.
+    pub fn spec_fingerprint(&self) -> Result<String, crate::DomainError> {
+        let document = serde_json::json!({
+            "demo_id": self.demo_id,
+            "highlight_id": self.highlight_id,
+            "player_id": self.player_id,
+            "start_tick": self.start_tick,
+            "end_tick": self.end_tick,
+            "pre_roll_seconds": self.pre_roll_seconds,
+            "post_roll_seconds": self.post_roll_seconds,
+            "victim_pov": self.victim_pov,
+            "camera_style": self.camera_style,
+            "presentation": self.presentation,
+        });
+        let bytes = serde_json::to_vec(&document).map_err(|error| {
+            crate::DomainError::Internal(format!(
+                "recording specification could not be serialized: {error}"
+            ))
+        })?;
+        Ok(hex::encode(Sha256::digest(bytes)))
     }
 }
 

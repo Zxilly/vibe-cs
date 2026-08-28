@@ -11,13 +11,12 @@
  * height or a panel width (spec §2.1 rules 4 and 5). Pages read tokens; they
  * never re-derive them.
  *
- * This file is the entry point of the design layer: it pulls in `fonts.css`
- * (self-hosted @font-face) and `base.css` (element reset) so a consumer only
- * has to import `design/theme.css`.
+ * This file is the entry point of the design layer and pulls in `base.css` so
+ * a consumer only has to import `design/theme.css`. Typography uses the native
+ * system stack selected by the Project review design.
  */
 
 @import 'tailwindcss';
-@import './fonts.css';
 @import './base.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -127,13 +126,9 @@
   --color-warn-text: color-mix(in oklab, var(--color-warn) 65%, var(--color-text));
   --color-fail-text: color-mix(in oklab, var(--color-fail) 65%, var(--color-text));
 
-  /* — Type families —
-     Self-hosted, see ./fonts.css. The CJK faces are OS-resident: Barlow has
-     no CJK coverage and the UI copy is Simplified Chinese, so the fallback
-     is named rather than left to the engine. No webfont host is referenced:
-     the Tauri CSP is `default-src 'self'; font-src 'self' … data:`. */
-  --font-body: 'Barlow', system-ui, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
-  --font-heading: 'Barlow Condensed', system-ui, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+  /* — Type families — native system stack, with explicit CJK fallbacks. */
+  --font-body: system-ui, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+  --font-heading: system-ui, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
   --font-heading-weight: 600;
   --font-mono: ui-monospace, Menlo, Consolas, monospace;
 
@@ -173,9 +168,10 @@
   /* Industry squares off .card / .btn / .input / .tag / .seg / .dialog, and
      the design reference contains zero border-radius declarations. Only
      `.radio .dot` is round, and it hard-codes 50% rather than taking a step. */
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-full: 999px;
 
   /* — §3.3 control heights, floor 32px, no exceptions — */
   --h-ctl-sm: 32px;
@@ -226,7 +222,7 @@
      the track head (`flex:none;border-right`); the other two are the 132×74
      clip thumbnails of the same board. Same width, one token — otherwise the
      thumbnail has to reach for a bare value the layer lint would reject. */
-  --w-track-head: 132px;
+  --w-track-head: 190px;
 
   /* The centred overlay. The command-palette artboard draws it as
      `left:172px;top:84px;width:600px` — an absolutely positioned card, not a

@@ -15,8 +15,8 @@
  *   6. pages/** domain/** must not import `shared/desktop/client` directly
  *   7. design/** domain/** pages/** app/** must not put authored Han copy in a
  *      JSX attribute or a known UI prop; it belongs in a `t` / `Trans` macro
- *   8. design/** domain/** pages/** app/** must not round a corner — §3.6 sets
- *      every `--radius-*` to 0 and the reference draws none
+ *   8. design/** domain/** pages/** app/** may use the closed radius scale but
+ *      must not invent arbitrary radius values
  *
  * Follows the shape of `check-web-i18n.mjs`: walk, collect a `failures` array,
  * print every failure and exit non-zero. Directories that do not exist yet are
@@ -74,19 +74,11 @@ const NO_BARE_HEX = new Set(['pages', 'app', 'domain']);
 const ARBITRARY_VALUE_CHECKED = new Set(['pages', 'app']);
 
 /**
- * Rule 8: layers that may not round a corner.
- *
- * §3.6 sets every `--radius-*` to 0 and the reference draws no rounded corner
- * anywhere, so a `rounded` utility is never right — it is either dead weight or
- * the one element in the app with soft corners. There was exactly one left
- * (`pages/editor/MediaLibraryPanel.tsx`), which is the case for a lint rather
- * than for a note: the cost of the next one is that nobody sees it.
- *
- * `design/**` is in the set too. The token is zero there as well, and a
- * primitive is the worst place to reintroduce a radius because every page
- * inherits it.
+ * Rule 8: layers may use the closed radius scale, never one-off arbitrary radii.
+ * The selected review language added `sm`/`md`/`lg`/`full` tokens; callers use
+ * those names so corner treatment stays inside the design Interface.
  */
-const NO_RADIUS = new Set(['design', 'domain', 'pages', 'app']);
+const NO_ARBITRARY_RADIUS = new Set(['design', 'domain', 'pages', 'app']);
 
 /** Rule 7: layers whose rendered copy must go through Lingui. */
 const MACRO_REQUIRED = new Set(['design', 'domain', 'pages', 'app']);
@@ -140,8 +132,8 @@ const HEX_LENGTHS = new Set([3, 4, 6, 8]);
  */
 const ARBITRARY_VALUE = /(?<![\w#$.])(-?[a-z][a-z0-9]*(?:-[a-z0-9]+)*)-\[([^\]\s"'`]*)\]/gu;
 
-/** `rounded`, `rounded-full`, `rounded-t-lg`, `rounded-[3px]` — as a class token. */
-const RADIUS_UTILITY = /(?<![\w-])rounded(?:-[a-z0-9]+)*(?:-\[[^\]]*\])?(?![\w-])/gu;
+/** `rounded-[3px]`, `rounded-t-[5px]` — arbitrary radius class tokens. */
+const ARBITRARY_RADIUS_UTILITY = /(?<![\w-])rounded(?:-[a-z0-9]+)*-\[[^\]]*\](?![\w-])/gu;
 
 /** Utilities whose arbitrary value paints something. */
 const COLOR_UTILITY = new Set([
@@ -583,13 +575,13 @@ export function stringLiterals(source) {
 
 /** Rule 8. */
 function checkRadius({ file, layer, source, failures }) {
-  if (!NO_RADIUS.has(layer)) return;
+  if (!NO_ARBITRARY_RADIUS.has(layer)) return;
 
   for (const literal of stringLiterals(source)) {
-    for (const match of literal.text.matchAll(RADIUS_UTILITY)) {
+    for (const match of literal.text.matchAll(ARBITRARY_RADIUS_UTILITY)) {
       failures.push(
-        `${file}:${lineOf(source, literal.index)}: border radius utility \`${match[0]}\` in ${layer}/**; `
-          + '§3.6 sets every --radius-* to 0',
+        `${file}:${lineOf(source, literal.index)}: arbitrary border radius utility \`${match[0]}\` in ${layer}/**; `
+          + 'use the closed --radius-* scale',
       );
     }
   }

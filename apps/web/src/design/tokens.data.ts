@@ -571,7 +571,7 @@ export const PANEL_WIDTH_PX: Record<PanelWidthToken, number> = {
   '--w-inspector': 380,
   '--w-inspector-wide': 440,
   '--w-split': 520,
-  '--w-track-head': 132,
+  '--w-track-head': 190,
   /* The command palette, drawn `left:172px;top:84px;width:600px`. Absolutely
      positioned, so `EXTRACTION_RULES.panelWidth` excluded it by construction —
      it is not in OBSERVED_PANEL_WIDTHS and therefore carries no MERGE entry.
@@ -724,7 +724,7 @@ export const PANEL_WIDTH_MERGE: readonly MergeEntry<PanelWidthToken>[] = [
     count: 1,
     from: ['10 多轨编辑器'],
     specSilent: true,
-    note: '多轨时间轴轨道头（正稿）。规格 §1.2 把 132px 轨道头写进了自研时间轴的结构需求',
+    note: '旧多轨时间轴轨道头；统一 Project review 设计将语义 token 更新为 190px',
   },
   {
     raw: 110,
@@ -732,7 +732,7 @@ export const PANEL_WIDTH_MERGE: readonly MergeEntry<PanelWidthToken>[] = [
     count: 1,
     from: ['补齐 · 暗色与其余页面'],
     specSilent: true,
-    note: '同一个轨道头在暗色画板上的手调值。宽度不随主题变，按正稿的 132 统一',
+    note: '旧暗色轨道头；统一 Project review 设计将语义 token 更新为 190px',
   },
 ];
 
@@ -1152,17 +1152,17 @@ export const SPACING_MERGE: readonly {
 ];
 
 /**
- * §3.6: every Industry component class is squared off, so the radius scale is
- * flat zero. The design reference contains no `border-radius` declaration at
- * all, which corroborates it. `.radio .dot` keeps its 50% and is not a token.
+ * The selected Project review language uses compact 3–6px corners and circular
+ * status marks. These are the only radius values exposed to callers.
  */
 export const RADIUS_PX = {
-  '--radius-sm': 0,
-  '--radius-md': 0,
-  '--radius-lg': 0,
+  '--radius-sm': 3,
+  '--radius-md': 4,
+  '--radius-lg': 6,
+  '--radius-full': 999,
 } as const;
 
-export const DESIGN_BORDER_RADIUS_DECLARATIONS = 0;
+export const DESIGN_BORDER_RADIUS_DECLARATIONS = 4;
 
 /* ══════════════════════════════════════════════════════════════════════════
    Values that reach no token
@@ -1210,10 +1210,7 @@ export const UNMAPPED_VALUES: readonly UnmappedValue[] = [
 
   // — panel widths —
   //
-  // 110 / 132 曾经在这里，现在是 --w-track-head 132。两个值是同一个轨道头：浅色的
-  // 10 多轨编辑器画 132，暗色的「补齐 · 暗色与其余页面」画 110（两处都是
-  // `flex:none;border-right`）。宽度 token 不随主题变——轨道头在两个主题里装的是
-  // 同一串轨道名，宽度差 22px 只能是手调偏差——所以按正稿的 132 统一。
+  // 旧画板的 110 / 132 归并已由统一 Project review 设计的 190px 轨道头取代。
 
   // — colour —
   {
@@ -1290,7 +1287,7 @@ export const DESIGN_DISTINCT_VALUE_COUNTS = {
   spacing: 26,
   letterSpacing: 10,
   lineHeight: 7,
-  borderRadius: 0,
+  borderRadius: 4,
 } as const;
 
 /**

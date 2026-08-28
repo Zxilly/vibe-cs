@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -41,12 +41,9 @@ import {
  */
 
 const THEME_PATH = fileURLToPath(new URL('./theme.css', import.meta.url));
-const FONTS_PATH = fileURLToPath(new URL('./fonts.css', import.meta.url));
 const BASE_PATH = fileURLToPath(new URL('./base.css', import.meta.url));
-const PUBLIC_FONTS_DIR = fileURLToPath(new URL('../../public/fonts/', import.meta.url));
 
 const themeSource = readFileSync(THEME_PATH, 'utf8');
-const fontsSource = readFileSync(FONTS_PATH, 'utf8');
 const baseSource = readFileSync(BASE_PATH, 'utf8');
 
 /* ── parsing ─────────────────────────────────────────────────────────── */
@@ -127,7 +124,7 @@ const DECLARED: ReadonlyMap<string, string> = new Map<string, string>([
   ...Object.entries(CONTROL_HEIGHT_PX).map(([token, value]) => [token, px(value)] as const),
   ...Object.entries(BAR_HEIGHT_PX).map(([token, value]) => [token, px(value)] as const),
   ...Object.entries(PANEL_WIDTH_PX).map(([token, value]) => [token, px(value)] as const),
-  ...Object.entries(RADIUS_PX).map(([token, value]) => [token, String(value)] as const),
+  ...Object.entries(RADIUS_PX).map(([token, value]) => [token, px(value)] as const),
   ['--spacing', px(SPACING_BASE_PX)],
 ]);
 
@@ -236,8 +233,8 @@ describe('theme.css against tokens.data.ts', () => {
     expect(notPx).toEqual([]);
   });
 
-  it('flattens the radius scale — Industry is a square-cornered system', () => {
-    expect(Object.keys(RADIUS_PX).map((token) => themeTokens.get(token))).toEqual(['0', '0', '0']);
+  it('projects the closed review radius scale', () => {
+    expect(Object.keys(RADIUS_PX).map((token) => themeTokens.get(token))).toEqual(['3px', '4px', '6px', '999px']);
   });
 
   it('sets the Tailwind spacing base to Industry 0.85 density, so p-2 is --space-2', () => {
@@ -361,43 +358,14 @@ describe('dark theme guards', () => {
   });
 });
 
-describe('self-hosted fonts', () => {
-  const FACES = [
-    { family: 'Barlow', weight: 400, file: 'Barlow-Regular.woff2' },
-    { family: 'Barlow', weight: 500, file: 'Barlow-Medium.woff2' },
-    { family: 'Barlow', weight: 700, file: 'Barlow-Bold.woff2' },
-    { family: 'Barlow Condensed', weight: 400, file: 'BarlowCondensed-Regular.woff2' },
-    { family: 'Barlow Condensed', weight: 600, file: 'BarlowCondensed-SemiBold.woff2' },
-  ] as const;
-
-  it.each(FACES)('ships $family $weight from a same-origin woff2', ({ family, weight, file }) => {
-    const block = new RegExp(
-      `@font-face\\s*\\{[^}]*font-family:\\s*'${family}';[^}]*font-weight:\\s*${weight};[^}]*url\\('/fonts/${file}'\\)\\s*format\\('woff2'\\)`,
-    );
-    expect(fontsSource).toMatch(block);
-    expect(existsSync(`${PUBLIC_FONTS_DIR}${file}`)).toBe(true);
-  });
-
-  it('starts every woff2 with the wOF2 signature', () => {
-    for (const { file } of FACES) {
-      expect(readFileSync(`${PUBLIC_FONTS_DIR}${file}`).subarray(0, 4).toString('latin1')).toBe('wOF2');
-    }
-  });
-
-  it('ships the OFL text beside the fonts', () => {
-    expect(existsSync(`${PUBLIC_FONTS_DIR}OFL.txt`)).toBe(true);
-  });
-
+describe('design stylesheet ownership', () => {
   /**
    * The Tauri CSP is `default-src 'self' …; font-src 'self' vibe-cs-media: …
    * data:`. Anything off-origin is not a slow font, it is a blocked request
    * and a silent fallback to the system stack.
    */
   it('references no external origin from any design-layer stylesheet', () => {
-    // Comments are stripped first: fonts.css explains in prose why the kit's
-    // own `@import url('https://fonts.googleapis.com/…')` had to go, and that
-    // explanation is the reason the rule exists, not a violation of it.
-    for (const source of [themeSource, fontsSource, baseSource]) {
+    for (const source of [themeSource, baseSource]) {
       expect(stripComments(source)).not.toMatch(/https?:\/\//);
       expect(stripComments(source)).not.toMatch(/fonts\.(googleapis|gstatic)\.com/);
     }
@@ -405,7 +373,6 @@ describe('self-hosted fonts', () => {
 
   it('imports the whole design layer from theme.css, so one import is enough', () => {
     expect(stripComments(themeSource)).toMatch(/@import 'tailwindcss';/);
-    expect(stripComments(themeSource)).toMatch(/@import '\.\/fonts\.css';/);
     expect(stripComments(themeSource)).toMatch(/@import '\.\/base\.css';/);
   });
 });

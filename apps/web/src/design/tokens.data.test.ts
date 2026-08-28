@@ -228,11 +228,12 @@ describe('design token data — shape', () => {
     }
   });
 
-  it('keeps every scale free of duplicate pixel values', () => {
-    for (const scale of [FONT_SIZE_PX, CONTROL_HEIGHT_PX, BAR_HEIGHT_PX, PANEL_WIDTH_PX]) {
+  it('keeps ordered scales unique and records the intentional 190px semantic alias', () => {
+    for (const scale of [FONT_SIZE_PX, CONTROL_HEIGHT_PX, BAR_HEIGHT_PX]) {
       const values = Object.values(scale);
       expect(new Set(values).size).toBe(values.length);
     }
+    expect(PANEL_WIDTH_PX['--w-track-head']).toBe(PANEL_WIDTH_PX['--w-subnav']);
     expect(Object.values(FONT_SIZE_PX)).toEqual([...Object.values(FONT_SIZE_PX)].sort((a, b) => a - b));
     expect(Object.values(CONTROL_HEIGHT_PX)).toEqual([...Object.values(CONTROL_HEIGHT_PX)].sort((a, b) => a - b));
   });
@@ -424,7 +425,7 @@ describe('§3.5 panel widths', () => {
       '--w-inspector': 380,
       '--w-inspector-wide': 440,
       '--w-split': 520,
-      '--w-track-head': 132,
+      '--w-track-head': 190,
       '--w-overlay': 600,
     });
     expect(DESIGN_DISTINCT_VALUE_COUNTS.panelWidth).toBe(numericKeys(OBSERVED_PANEL_WIDTHS).length);
@@ -580,10 +581,10 @@ describe('§3.6 spacing and radius', () => {
     }
   });
 
-  it('keeps the radius scale flat, as the design reference itself does', () => {
-    expect(Object.values(RADIUS_PX).every((px) => px === 0)).toBe(true);
-    expect(DESIGN_BORDER_RADIUS_DECLARATIONS).toBe(0);
-    expect(DESIGN_DISTINCT_VALUE_COUNTS.borderRadius).toBe(0);
+  it('keeps the radius scale closed to the selected review values', () => {
+    expect(Object.values(RADIUS_PX)).toEqual([3, 4, 6, 999]);
+    expect(DESIGN_BORDER_RADIUS_DECLARATIONS).toBe(4);
+    expect(DESIGN_DISTINCT_VALUE_COUNTS.borderRadius).toBe(4);
   });
 });
 

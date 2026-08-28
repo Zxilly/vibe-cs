@@ -319,23 +319,23 @@ describe('rule 7 — copy goes through a macro', () => {
   });
 });
 
-describe('rule 8 — nothing rounds a corner', () => {
+describe('rule 8 — radius values come from the closed scale', () => {
   for (const layer of ['design', 'domain', 'pages', 'app']) {
-    it(`rejects a radius utility in ${layer}/**`, () => {
-      const result = run({ [`${layer}/Card.tsx`]: "const box = 'border p-3 rounded-lg';\n" });
-      assert.match(onlyFailure(result), /border radius utility `rounded-lg`/u);
+    it(`rejects an arbitrary radius utility in ${layer}/**`, () => {
+      const result = run({ [`${layer}/Card.tsx`]: "const box = 'border p-3 rounded-[5px]';\n" });
+      assert.match(onlyFailure(result), /arbitrary border radius utility `rounded-\[5px\]`/u);
     });
   }
 
-  it('catches every shorthand form, including an arbitrary radius', () => {
+  it('allows the tokenized radius scale and catches arbitrary variants', () => {
     const result = run({
       'pages/a/Box.tsx':
-        "const a = 'rounded';\n"
+        "const a = 'rounded-sm rounded-md rounded-lg rounded-full';\n"
         + "const b = 'rounded-t-md';\n"
         + "const c = 'rounded-[3px]';\n"
-        + "const d = 'rounded-full';\n",
+        + "const d = 'rounded-t-[5px]';\n",
     });
-    assert.equal(result.failures.length, 4);
+    assert.equal(result.failures.length, 2);
   });
 
   /* The two shapes that made a whole-file regex unusable, both taken from the
@@ -355,9 +355,9 @@ describe('rule 8 — nothing rounds a corner', () => {
 
   it('still reads a class list out of a template literal', () => {
     const result = run({
-      'pages/a/Box.tsx': 'const box = `border ${tone} rounded-sm`;\n',
+      'pages/a/Box.tsx': 'const box = `border ${tone} rounded-[5px]`;\n',
     });
-    assert.match(onlyFailure(result), /border radius utility `rounded-sm`/u);
+    assert.match(onlyFailure(result), /arbitrary border radius utility `rounded-\[5px\]`/u);
   });
 
   it('leaves data/** and shared/desktop/** alone — neither draws anything', () => {

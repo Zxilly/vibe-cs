@@ -146,9 +146,14 @@ fn create_main_window(app: &mut tauri::App) -> tauri::Result<()> {
         .ok_or_else(|| tauri::Error::WindowNotFound)?;
     let builder = tauri::WebviewWindowBuilder::from_config(app, &config)?;
     #[cfg(all(target_os = "windows", debug_assertions))]
-    let builder = match cdp_browser_args(true, std::env::var_os("VIBE_CS_CDP_PORT").as_deref()) {
-        Some(args) => builder.additional_browser_args(&args),
-        None => builder,
+    let builder = if let Some(args) =
+        cdp_browser_args(true, std::env::var_os("VIBE_CS_CDP_PORT").as_deref())
+    {
+        tracing::info!("Tauri WebView2 CDP is enabled on the configured loopback port");
+        builder.additional_browser_args(&args)
+    } else {
+        tracing::debug!("Tauri WebView2 CDP is disabled");
+        builder
     };
     builder.build()?;
     Ok(())

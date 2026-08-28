@@ -84,6 +84,22 @@ apps/web ── Tauri invoke/raw IPC/private media protocol ──> apps/desktop
   the user edits the real queue, previews its current fingerprint, and explicitly confirms before
   the desktop/application boundary—not the model—executes the durable recording job. HLAE remains
   an internal runtime capture tool. The model has no filesystem, shell, or process execution tool.
+  The loop has no product-defined total turn or tool-call ceiling; explicit cancellation and the
+  desktop request deadline own liveness, while individual context, tool-result and persisted-entry
+  byte limits continue to bound memory and storage. A validated initial video proposal is a
+  structured checkpoint and materializes its shot list even when the provider fails while writing
+  the trailing natural-language answer. Duration-aware video proposals carry an explicit target,
+  reject substantially overlapping Highlight windows and report deterministic selected-footage
+  coverage before they can be confirmed.
+- The Agent plan workspace is the product's PR-like collaboration Module, not a second editor or a
+  chat transcript with hidden side effects. The plan revision is the authoritative branch head;
+  Agent proposals are reviewable changes based on one revision; humans accept, reject or edit; the
+  origin trail records the resulting write. `/api/agent/plans/{id}/workbench` is the read seam for
+  the current plan, compatible Composition and per-shot materialization. Recording remains a
+  separate explicit action. Each Take fingerprints the footage-producing RecordingRequest fields;
+  the workbench therefore projects `unbound`, `unrecorded`, `recorded`, `stale` or `removed` instead
+  of storing a drifting `recorded` boolean on the shot. An edited shot cannot silently reuse an
+  incompatible Take or Composition selection.
 - `runtime` composes concrete analysis, review, player, cosmetics, export, recording, integration,
   media, cache and source-asset ports.
 - `desktop` owns application-data resolution, Tauri managed state, IPC, the media protocol and

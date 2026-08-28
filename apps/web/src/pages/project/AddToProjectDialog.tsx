@@ -2,11 +2,10 @@ import { Trans } from '@lingui/react/macro';
 import { useEffect, useState } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
-import { useCreateAgentPlan } from '../../data/plans';
-import { useProjectCollections, type ProjectCollectedClip } from '../../data/projectCollections';
-import { useProjects } from '../../data/projects';
+import { useApplyProjectPatch, useCreateProject, useProjects } from '../../data/projects';
 import { Alert, Dialog } from '../../design/feedback';
 import { NativeSelect } from '../../design/primitives';
+import { collectedClipsPatch, type ProjectCollectedClip } from '../../domain/project/collectedClip';
 
 const NEW_PROJECT = '__new__';
 
@@ -27,49 +26,44 @@ export function AddToProjectDialog({
   readonly onAdded: (project: AddedProjectTarget) => void;
 }) {
   const projects = useProjects();
-  const collections = useProjectCollections();
-  const createPlan = useCreateAgentPlan();
+  const create = useCreateProject();
+  const apply = useApplyProjectPatch();
   const [selected, setSelected] = useState(NEW_PROJECT);
   const clip = clips[0] ?? null;
+  const rows = projects.data ?? [];
 
   useEffect(() => {
     if (!open) return;
-    setSelected(projects.data.projects[0]?.id ?? NEW_PROJECT);
-    createPlan.reset();
-  }, [open, projects.data.projects]);
+    setSelected(rows[0]?.id ?? NEW_PROJECT);
+    create.reset();
+    apply.reset();
+  }, [open, rows]);
 
   const confirm = () => {
     if (clip === null) return;
     void (async () => {
-      if (selected === NEW_PROJECT) {
-        const plan = await createPlan.mutateAsync({
-          title: `${clip.matchLabel} · 新作品`,
-          status: 'draft',
-          shots: [],
-          origin: null,
-        });
-        const target = { id: `plan:${plan.id}`, name: plan.title };
-        for (const collected of clips) collections.add(target.id, collected);
-        onAdded(target);
-        onClose();
-        return;
-      }
-
-      const project = projects.data.projects.find((entry) => entry.id === selected);
+      const project = selected === NEW_PROJECT
+        ? await create.mutateAsync({
+          name: `${clip.matchLabel} · 新作品`,
+          width: 1920,
+          height: 1080,
+          fps: 60,
+        })
+        : rows.find((entry) => entry.id === selected);
       if (project === undefined) return;
-      for (const collected of clips) collections.add(project.id, collected);
-      onAdded({ id: project.id, name: project.name });
+      const result = await apply.mutateAsync(collectedClipsPatch(project, clips));
+      onAdded({ id: result.project.id, name: result.project.name });
       onClose();
     })().catch(() => undefined);
   };
 
-  const failure = dataErrorMessage(createPlan.error);
+  const failure = dataErrorMessage(create.error) ?? dataErrorMessage(apply.error);
   return (
     <Dialog
       open={open}
       title={<Trans>加入作品</Trans>}
       confirmLabel={selected === NEW_PROJECT ? <Trans>新建并加入</Trans> : <Trans>加入</Trans>}
-      confirmDisabled={clips.length === 0 || projects.isPending || createPlan.isPending}
+      confirmDisabled={clips.length === 0 || projects.isPending || create.isPending || apply.isPending}
       onConfirm={confirm}
       onClose={onClose}
     >
@@ -81,7 +75,7 @@ export function AddToProjectDialog({
       <label className="flex flex-col gap-1">
         <span className="text-xs text-neutral-600"><Trans>目标作品</Trans></span>
         <NativeSelect value={selected} onChange={(event) => setSelected(event.currentTarget.value)}>
-          {projects.data.projects.map((project) => (
+          {rows.map((project) => (
             <option key={project.id} value={project.id}>{project.name}</option>
           ))}
           <option value={NEW_PROJECT}><Trans>＋ 新建作品</Trans></option>
@@ -89,7 +83,7 @@ export function AddToProjectDialog({
       </label>
       {failure === null ? null : (
         <Alert className="mt-3" variant="danger" action={{ label: <Trans>重试</Trans>, onAction: confirm }}>
-          <Trans>新作品没能创建：{failure}</Trans>
+          <Trans>没有把素材加入作品：{failure}</Trans>
         </Alert>
       )}
     </Dialog>

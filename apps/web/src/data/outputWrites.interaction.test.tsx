@@ -32,7 +32,6 @@ const OUTPUT: OutputItem = {
   size_bytes: 186_000_000,
   media: null,
   project_id: null,
-  agent_plan_id: null,
   demo_id: 'demo-1',
   error: null,
   created_at: '2026-08-15T09:12:00.000Z',

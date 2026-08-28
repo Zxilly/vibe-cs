@@ -64,11 +64,11 @@ import {
   useUpdateDemoMetadataBatch,
 } from '../data/demos';
 import { dataErrorMessage } from '../data/errors';
-import { useCreateAgentPlan } from '../data/plans';
-import { useProjectCollections } from '../data/projectCollections';
+import { useApplyProjectPatch, useCreateProject } from '../data/projects';
 import { Alert } from '../design/feedback';
 import { OverflowMenu, Page, SelectionBar, Toolbar, useShellCollapsed } from '../design/layout';
 import { Button, Seg } from '../design/primitives';
+import { collectedClipsPatch, type ProjectCollectedClip } from '../domain/project/collectedClip';
 import type { DemoSummary } from '../shared/desktop/viewModels';
 import { AddWatchDirectoryDialog } from './library/AddWatchDirectoryDialog';
 import { ColumnConfigDialog } from './library/ColumnConfigDialog';
@@ -123,8 +123,8 @@ function DemoLibraryPage() {
   const navigate = useNavigate();
   const collapsed = useShellCollapsed();
   const service = useLibraryServiceAction();
-  const createPlan = useCreateAgentPlan();
-  const collections = useProjectCollections();
+  const create = useCreateProject();
+  const applyProject = useApplyProjectPatch();
 
   const address = readLibraryAddress(params);
   const query = useMemo(() => libraryDemoQuery(address), [
@@ -191,16 +191,10 @@ function DemoLibraryPage() {
   };
 
   const createProject = (demo: DemoSummary) => {
-    void createPlan.mutateAsync({ title: demo.display_name, status: 'draft', shots: [], origin: null })
-      .then((plan) => {
-        const projectId = `plan:${plan.id}`;
-        collections.add(projectId, {
-          id: `${demo.id}:selection:match`, demoId: demo.id, matchLabel: demo.display_name,
-          kind: 'selection', label: t`整场比赛`, round: null, playerId: null,
-          highlightId: null, evidenceId: null, startTick: null, endTick: null,
-          addedAt: new Date().toISOString(),
-        });
-        void navigate(`/projects/${encodeURIComponent(projectId)}?step=shotlist`);
+    void create.mutateAsync({ name: demo.display_name, width: 1920, height: 1080, fps: 60 })
+      .then(async (project) => {
+        await applyProject.mutateAsync(collectedClipsPatch(project, [wholeMatchClip(demo)]));
+        void navigate(`/projects/${encodeURIComponent(project.id)}`);
       })
       .catch(() => undefined);
   };
@@ -210,19 +204,10 @@ function DemoLibraryPage() {
     const title = demos.length === 1
       ? demos[0]!.display_name
       : `${demos[0]!.display_name} +${String(demos.length - 1)}`;
-    void createPlan.mutateAsync({ title, status: 'draft', shots: [], origin: null })
-      .then((plan) => {
-        const projectId = `plan:${plan.id}`;
-        const addedAt = new Date().toISOString();
-        for (const demo of demos) {
-          collections.add(projectId, {
-            id: `${demo.id}:selection:match`, demoId: demo.id, matchLabel: demo.display_name,
-            kind: 'selection', label: t`整场比赛`, round: null, playerId: null,
-            highlightId: null, evidenceId: null, startTick: null, endTick: null,
-            addedAt,
-          });
-        }
-        void navigate(`/projects/${encodeURIComponent(projectId)}?step=shotlist`);
+    void create.mutateAsync({ name: title, width: 1920, height: 1080, fps: 60 })
+      .then(async (project) => {
+        await applyProject.mutateAsync(collectedClipsPatch(project, demos.map(wholeMatchClip)));
+        void navigate(`/projects/${encodeURIComponent(project.id)}`);
       })
       .catch(() => undefined);
   };
@@ -243,10 +228,10 @@ function DemoLibraryPage() {
         },
         analyseButtonProps: alsoDisabled(service.buttonProps, startAnalysis.isPending),
         onCreateProject: createProject,
-        createButtonProps: alsoDisabled(service.buttonProps, createPlan.isPending),
+        createButtonProps: alsoDisabled(service.buttonProps, create.isPending || applyProject.isPending),
         serviceSuffix: service.suffix,
       }),
-    [createPlan.isPending, service.buttonProps, service.suffix, startAnalysis.isPending],
+    [applyProject.isPending, create.isPending, service.buttonProps, service.suffix, startAnalysis.isPending],
   );
 
   const importAction = (
@@ -292,7 +277,7 @@ function DemoLibraryPage() {
     >
       <Button
         size="sm"
-        {...alsoDisabled(service.buttonProps, createPlan.isPending)}
+        {...alsoDisabled(service.buttonProps, create.isPending || applyProject.isPending)}
         onClick={() => createSeriesProject(selectedDemos)}
       >
         <Trans>用 Agent 创作</Trans>
@@ -610,4 +595,21 @@ function DemoLibraryPage() {
       />
     </Page>
   );
+}
+
+function wholeMatchClip(demo: DemoSummary): ProjectCollectedClip {
+  return {
+    id: `${demo.id}:selection:match`,
+    demoId: demo.id,
+    matchLabel: demo.display_name,
+    kind: 'selection',
+    label: t`整场比赛`,
+    round: null,
+    playerId: null,
+    highlightId: null,
+    evidenceId: null,
+    startTick: null,
+    endTick: null,
+    addedAt: new Date().toISOString(),
+  };
 }

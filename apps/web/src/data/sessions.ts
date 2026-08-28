@@ -71,9 +71,6 @@ import type {
   AgentChatInput,
   AgentChatHistoryMessage,
   AgentEvent,
-  AgentObjectKind,
-  AgentObjectRefTouch,
-  AgentProposalDecisionUpdate,
   AgentSessionEntryDraft,
   AgentSessionQuery,
   AgentSessionRetention,
@@ -129,23 +126,6 @@ export function useAgentSession(sessionId: string | null, tuning: DataQueryTunin
  * session leaves its reference behind. The row is still rendered; the title is
  * the part that is gone, which is exactly 「删除只删对话」 made visible.
  */
-export function useAgentObjectSessions(
-  kind: AgentObjectKind,
-  objectId: string | null,
-  tuning: DataQueryTuning = {},
-) {
-  const client = useDesktopClient();
-  return useQuery({
-    queryKey: qk.sessions.ofObject(kind, objectId ?? ''),
-    queryFn:
-      objectId === null
-        ? skipToken
-        : ({ signal }: { signal: AbortSignal }) =>
-          client.listAgentObjectSessions(kind, objectId, signal),
-    ...resolveQueryTuning(tuning, { enabled: objectId !== null }),
-  });
-}
-
 /**
  * 「工作区里正在进行的」 — the cross-source picker a new session opens with
  * (§4.6 gap 8): pending plans, running recording tasks, edit projects, failed
@@ -156,15 +136,6 @@ export function useAgentObjectSessions(
  * `invalidateSessions`, and the new-session sheet refetches on open (its data is
  * a snapshot of other domains and 30s of staleness is visible there).
  */
-export function useAgentWorkspaceReferences(tuning: DataQueryTuning = {}) {
-  const client = useDesktopClient();
-  return useQuery({
-    queryKey: qk.sessions.workspaceReferences(),
-    queryFn: ({ signal }) => client.listAgentWorkspaceReferences(signal),
-    ...resolveQueryTuning(tuning),
-  });
-}
-
 /** 设置 › AI 与 Agent › 会话: retention policy and the per-session take limit. */
 export function useAgentWorkspaceSettings(tuning: DataQueryTuning = {}) {
   const client = useDesktopClient();
@@ -255,20 +226,6 @@ export function useAppendAgentSessionEntry() {
 }
 
 /** Persists one proposal-change review decision in its owning session entry. */
-export function useSetAgentProposalDecision() {
-  const client = useDesktopClient();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: { sessionId: string; update: AgentProposalDecisionUpdate }) =>
-      client.setAgentProposalDecision(input.sessionId, input.update),
-    onSuccess: (session) => {
-      queryClient.setQueryData(qk.sessions.detail(session.id), session);
-      return invalidateSessions(queryClient);
-    },
-  });
-}
-
 /**
  * Records that this session touched this object — 「引用」 in the new-session
  * sheet, and the implicit touch when a plan is edited from a session.
@@ -277,21 +234,6 @@ export function useSetAgentProposalDecision() {
  * `refs` and the object's session list. The object itself is untouched — a
  * reference is a record *about* an edit, not an edit.
  */
-export function useTouchAgentObjectRef() {
-  const client = useDesktopClient();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (input: { sessionId: string; touch: AgentObjectRefTouch }) =>
-      client.touchAgentObjectRef(input.sessionId, input.touch),
-    onSuccess: (_ref, input) =>
-      Promise.all([
-        invalidateSessions(queryClient),
-        invalidateObjectSessions(queryClient, input.touch.kind, input.touch.id),
-      ]).then(() => undefined),
-  });
-}
-
 /**
  * 设置 › 会话 › 保留多久 and the take limit. Invalidates the settings key and
  * the storage stats: changing retention does not itself delete anything (that
@@ -361,10 +303,7 @@ export interface AgentChatSend {
   readonly retryOf?: string | null | undefined;
   readonly mode?: AgentChatInput['mode'];
   readonly autoMode?: boolean | undefined;
-  readonly demoId?: string | null;
-  readonly demoIds?: readonly string[] | undefined;
-  readonly editorProjectId?: string | null;
-  readonly audioAssetId?: string | null;
+  readonly projectId: string;
   readonly workspaceContext?: Partial<AgentChatInput['workspaceContext']>;
 }
 
@@ -375,8 +314,8 @@ export interface AgentChatStream {
   readonly draft: string;
   /** The service's message when the stream failed, for an in-place Notice. */
   readonly error: string | null;
-  /** Completed structured steps from the in-flight turn, in execution order. */
-  readonly activity?: readonly string[] | undefined;
+  /** Completed structured tool calls from the in-flight turn, in execution order. */
+  readonly activity?: readonly Extract<AgentEvent, { type: 'toolCall' }>['toolCall'][] | undefined;
   send: (input: AgentChatSend) => Promise<void>;
   cancel: () => void;
 }
@@ -400,7 +339,7 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
   const [streaming, setStreaming] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [activity, setActivity] = useState<readonly string[]>([]);
+  const [activity, setActivity] = useState<readonly Extract<AgentEvent, { type: 'toolCall' }>['toolCall'][]>([]);
   const requestIdRef = useRef<string | null>(null);
   const turnRef = useRef<{
     readonly sessionId: string;
@@ -426,8 +365,8 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           status: 'cancelled',
           content: '',
           tool_calls: [],
-          proposals: [],
           error: null,
+          metadata: null,
         }).then(() => invalidateSessions(queryClient));
       }
     };
@@ -447,8 +386,8 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         status: 'cancelled',
         content: '',
         tool_calls: [],
-        proposals: [],
         error: null,
+        metadata: null,
       }).then(() => invalidateSessions(queryClient));
     }
   }, [client, queryClient]);
@@ -478,11 +417,11 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
         kind: 'assistant',
         content: '',
         tool_calls: [],
-        proposals: [],
         status: 'streaming',
         request_id: requestId,
         retry_of: input.retryOf ?? null,
         error: null,
+        metadata: null,
       });
       if (activeTurn.kind !== 'assistant') {
         throw new Error('agent turn creation did not return an assistant entry');
@@ -492,7 +431,6 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
 
       let text = '';
       const toolCalls: AgentChatEventPayload['toolCalls'] = [];
-      const proposals: AgentChatEventPayload['proposals'] = [];
       const completionMetadata = {
         current: null as Extract<AgentEvent, { type: 'complete' }>['metadata'] | null,
       };
@@ -507,12 +445,8 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           case 'toolCall':
             toolCalls.push(event.toolCall);
             if (mountedRef.current) {
-              setActivity((current) => [...current, event.toolCall.name]);
+              setActivity((current) => [...current, event.toolCall]);
             }
-            break;
-          case 'proposal':
-            proposals.push(event.proposal);
-            if (mountedRef.current) setActivity((current) => [...current, 'proposal_ready']);
             break;
           case 'error':
             failure = event.message;
@@ -560,15 +494,8 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
             tool_calls: toolCalls.map((call) => ({
               name: call.name, input: call.input, output: call.output,
             })),
-            proposals: proposals.map((item) => ({
-              proposal_id: item.proposalId,
-              kind: item.kind,
-              title: item.title,
-              plan_id: item.planId,
-              based_on_revision: item.basedOnRevision,
-              payload: item.payload,
-            })),
             error: failure,
+            metadata: null,
           });
           await invalidateSessions(queryClient);
         }
@@ -591,14 +518,6 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
           input: call.input,
           output: call.output,
         })),
-        proposals: proposals.map((item) => ({
-          proposal_id: item.proposalId,
-          kind: item.kind,
-          title: item.title,
-          plan_id: item.planId,
-          based_on_revision: item.basedOnRevision,
-          payload: item.payload,
-        })),
         error: null,
         metadata: completionMetadata.current === null ? null : {
           provider: completionMetadata.current.provider,
@@ -613,10 +532,9 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
       });
       await Promise.all([
         invalidateSessions(queryClient),
-        input.workspaceContext?.planId === undefined
-          || input.workspaceContext.planId === null
-          ? Promise.resolve()
-          : queryClient.invalidateQueries({ queryKey: qk.plans.all }),
+        queryClient.invalidateQueries({ queryKey: qk.projects.detail(input.projectId) }),
+        queryClient.invalidateQueries({ queryKey: qk.projects.changeGroups(input.projectId) }),
+        queryClient.invalidateQueries({ queryKey: qk.projects.editLease(input.projectId) }),
       ]);
 
       if (mountedRef.current) {
@@ -633,7 +551,6 @@ export function useAgentChatStream(options: AgentChatStreamOptions): AgentChatSt
 
 type AgentChatEventPayload = {
   toolCalls: Array<Extract<AgentEvent, { type: 'toolCall' }>['toolCall']>;
-  proposals: Array<Extract<AgentEvent, { type: 'proposal' }>['proposal']>;
 };
 
 function buildChatInput(
@@ -648,21 +565,11 @@ function buildChatInput(
     // The embedded thread uses the durable session identity, but the explicit
     // session history below remains the model-history authority.
     threadId: sessionId,
-    demoId: input.demoId ?? null,
-    demoIds: [...(input.demoIds ?? (input.demoId === undefined || input.demoId === null ? [] : [input.demoId]))],
-    editorProjectId: input.editorProjectId ?? null,
-    audioAssetId: input.audioAssetId ?? null,
+    projectId: input.projectId,
     workspaceContext: {
-      workflow: context.workflow ?? 'edit',
-      destination: context.destination ?? 'neutral',
-      demoId: context.demoId ?? input.demoId ?? null,
-      demoIds: [...(context.demoIds ?? input.demoIds ?? (input.demoId === undefined || input.demoId === null ? [] : [input.demoId]))],
-      projectId: context.projectId ?? input.editorProjectId ?? null,
-      planId: context.planId ?? null,
-      planRevision: context.planRevision ?? null,
-      playerId: context.playerId ?? null,
-      roundNumber: context.roundNumber ?? null,
-      tick: context.tick ?? null,
+      projectId: context.projectId ?? input.projectId,
+      lens: context.lens ?? 'quick',
+      selectedClipId: context.selectedClipId ?? null,
     },
     history: sessionHistory(entries),
     mode: input.mode ?? 'edit',
@@ -687,7 +594,7 @@ function sessionHistory(
     } else if (
       entry.kind === 'assistant'
       && entry.status === 'failed'
-      && (entry.tool_calls.length > 0 || entry.proposals.length > 0)
+      && entry.tool_calls.length > 0
     ) {
       history.push({
         role: 'user',
@@ -695,14 +602,8 @@ function sessionHistory(
           type: 'prior_turn_checkpoint',
           instruction: 'Reuse these completed structured results; continue from the first unfinished step.',
           tool_calls: entry.tool_calls,
-          proposals: entry.proposals,
           error: entry.error,
         }),
-      });
-    } else if (entry.kind === 'workspace_edit') {
-      history.push({
-        role: 'user',
-        content: JSON.stringify({ type: 'workspace_edit_result', notice: entry.notice }),
       });
     }
   }
@@ -751,14 +652,6 @@ export function invalidateSession(client: QueryClient, sessionId: string): Promi
 }
 
 /** One object's 「改动来源」 list — the reverse half of §4.5.1. */
-export function invalidateObjectSessions(
-  client: QueryClient,
-  kind: AgentObjectKind,
-  objectId: string,
-): Promise<void> {
-  return client.invalidateQueries({ queryKey: qk.sessions.ofObject(kind, objectId) });
-}
-
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
 /**

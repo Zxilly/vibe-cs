@@ -77,7 +77,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useDemo } from '../data/demos';
 import { dataErrorMessage } from '../data/errors';
 import { useMatchAnalysis } from '../data/match';
-import type { ProjectCollectedClip } from '../data/projectCollections';
+import type { ProjectCollectedClip } from '../domain/project/collectedClip';
 import { Alert } from '../design/feedback';
 import { Page, SubNav, useCollapsed, type SubNavItem } from '../design/layout';
 import { Button } from '../design/primitives';

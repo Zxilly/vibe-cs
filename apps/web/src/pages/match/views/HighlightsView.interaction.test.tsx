@@ -64,7 +64,7 @@ describe('the batch selection', () => {
     fireEvent.click(boxes[1] as HTMLElement);
 
     expect(screen.getByText('已选 2 条')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '新建作品' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: '加入作品' }).length).toBeGreaterThan(0);
   });
 
   it('counts only what the current filter is showing', () => {

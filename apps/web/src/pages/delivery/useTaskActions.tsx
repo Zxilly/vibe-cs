@@ -40,13 +40,12 @@
 import { Trans } from '@lingui/react/macro';
 import { useHref, useNavigate } from 'react-router-dom';
 
-import { useCancelTask, useRetryRecordingPlan, useRetryTask } from '../../data/tasks';
+import { useCancelTask, useRetryTask } from '../../data/tasks';
 import type { TaskLink, TaskSummary } from '../../domain/task';
 import type { ActivityItem } from '../../shared/desktop/viewModels';
 import { taskKindOfActivity, taskStagePositionOf, taskStatusOfActivity, toTaskSummary } from './taskModel';
 import { canCancelTask, taskRestartEvent } from './taskTransitions';
 import type { ServiceActionState } from '../../data/serviceAction';
-import { recordingHref } from '../recording/recordingContract';
 
 /** The address of one task record: `kind:jobId`, the service's own locator. */
 export function taskDetailPath(item: ActivityItem): string {
@@ -93,7 +92,6 @@ export function useTaskActions({ service, now }: TaskActionsOptions) {
   const navigate = useNavigate();
   const cancel = useCancelTask();
   const retry = useRetryTask();
-  const retryRecording = useRetryRecordingPlan();
 
   /*
    * `domain/task`'s `TaskLink.href` reaches `design/primitives/Link`, which
@@ -137,14 +135,9 @@ export function useTaskActions({ service, now }: TaskActionsOptions) {
       if (!serviceReady) return;
       if (jobId === null || retryAction === null) return;
       if (retryAction === 'retry_recording') {
-        retryRecording.mutate(
-          { kind: item.kind, jobId },
-          {
-            // §4.5.3 ①: the plan is reviewed and confirmed on the recording
-            // page. Navigating *is* the action here; nothing is started.
-            onSuccess: (plan) => void navigate(recordingHref(plan.plan_id)),
-          },
-        );
+        if (item.context_id !== null) {
+          void navigate(`/projects/${encodeURIComponent(item.context_id)}`);
+        }
         return;
       }
       retry.mutate({
@@ -227,7 +220,7 @@ function recoveryFor({ item, restartable, restartEvent, run, navigate, service }
 function projectPathOf(item: ActivityItem): string | null {
   if (item.kind !== 'export' || item.context_id === null) return null;
   const id = encodeURIComponent(item.context_id);
-  return item.subtype === 'montage' ? `/montage/${id}` : `/editor/${id}`;
+  return `/projects/${id}`;
 }
 
 /** 「查看阶段」 and, for an export, 「打开工程」 beside it. */

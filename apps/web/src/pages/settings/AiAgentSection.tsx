@@ -72,10 +72,9 @@ import {
   useExportAgentSessions,
   useUpdateAgentWorkspaceSettings,
 } from '../../data/sessions';
-import { AGENT_SHOT_VIEW, AGENT_SHOT_VIEWS } from '../../domain/agent';
 import { Skeleton } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
-import { Button, Field, Input, Seg, Slider, Textarea, Toggle } from '../../design/primitives';
+import { Button, Field, Input, Seg, Textarea, Toggle } from '../../design/primitives';
 import type {
   AgentSessionRetention,
   AgentWorkspaceSettings,
@@ -86,15 +85,22 @@ import type {
 import { formatBytes } from '../delivery/outputModel';
 import {
   RECORDING_CONFIRMATION_LOCKED_ON,
-  TAKE_LIMIT_MAX,
-  TAKE_LIMIT_MIN,
-  clampTakeLimit,
   retentionChoices,
   retentionFromOptionId,
 } from './aiAgentModel';
 
 /** Which irreversible action is waiting for its second confirmation. */
 type PendingConfirmation = 'retention' | 'clear' | null;
+
+const SHOT_VIEW_OPTIONS = [
+  { value: 'pov' as const, label: t`第一人称` },
+  { value: 'tracking' as const, label: t`跟随` },
+  { value: 'orbit' as const, label: t`环绕` },
+  { value: 'dolly' as const, label: t`推轨` },
+  { value: 'static' as const, label: t`固定` },
+  { value: 'crane' as const, label: t`升降` },
+  { value: 'flyby' as const, label: t`飞越` },
+] as const;
 
 export function AiAgentSection() {
   // The vocabulary tables hold `MessageDescriptor`s so the words are looked up
@@ -245,27 +251,11 @@ export function AiAgentSection() {
               applySuffix={service.suffix}
             />
 
-            <SwitchRow
-              label={<Trans>自动带入当前选中的 Demo 与选手</Trans>}
-              hint={<Trans>新建对话时预填当前的 Demo 与选手，之后随时可以手动改。</Trans>}
-              name="auto-attach-context"
-              ariaLabel={t`自动带入当前选中的 Demo 与选手`}
-              checked={current.auto_attach_context}
-              disabled={service.blocked || updateSettings.isPending}
-              onChange={(next) => void write({ ...current, auto_attach_context: next })}
-            />
-
-            <TakeLimitRow
-              value={current.take_limit}
-              disabled={service.blocked || updateSettings.isPending}
-              onCommit={(take) => void write({ ...current, take_limit: take })}
-            />
           </>
         )}
 
         <StorageRow
           bytes={storage.data?.conversation_bytes ?? null}
-          planBytes={storage.data?.plan_bytes ?? null}
           sessionCount={storage.data?.session_count ?? null}
           loading={storage.isPending}
           error={dataErrorMessage(storage.error)}
@@ -308,16 +298,6 @@ export function AiAgentSection() {
         {current === undefined ? null : (
           <>
             <SwitchRow
-              label={<Trans>应用剪辑变更前先预览</Trans>}
-              hint={<Trans>关闭后，接受变更会直接改工程，仍可撤销。</Trans>}
-              name="preview-before-apply"
-              ariaLabel={t`应用剪辑变更前先预览`}
-              checked={current.preview_before_apply}
-              disabled={service.blocked || updateSettings.isPending}
-              onChange={(next) => void write({ ...current, preview_before_apply: next })}
-            />
-
-            <SwitchRow
               label={<Trans>显示 Agent 读取了哪些证据</Trans>}
               hint={<Trans>在工作进度里展开 Agent 每次读取的回合与事件。</Trans>}
               name="show-evidence-reads"
@@ -345,14 +325,14 @@ export function AiAgentSection() {
               <Seg
                 name="default-shot-view"
                 size="sm"
-                value={current.default_shot_view}
+                value={current.default_camera_style}
                 aria-label={t`默认视角`}
-                options={AGENT_SHOT_VIEWS.map((view) => ({
-                  value: view,
-                  label: i18n._(AGENT_SHOT_VIEW[view].label),
+                options={SHOT_VIEW_OPTIONS.map((view) => ({
+                  value: view.value,
+                  label: i18n._(view.label),
                   disabled: service.blocked || updateSettings.isPending,
                 }))}
-                onChange={(next) => void write({ ...current, default_shot_view: next })}
+                onChange={(next) => void write({ ...current, default_camera_style: next })}
               />
             </div>
 
@@ -914,59 +894,6 @@ function RetentionLabel({ retention }: { retention: AgentSessionRetention }) {
   }
 }
 
-interface TakeLimitRowProps {
-  readonly value: number;
-  readonly disabled: boolean;
-  readonly onCommit: (value: number) => void;
-}
-
-/**
- * 每条会话保留的 take 上限.
- *
- * The artboard's second impact line — 「被选用过的 take 永不丢弃」 — is not
- * printed: §4.5.2's `Take` has no wire type at all (contract gap 8), so nothing
- * here can promise how the backend picks which one to drop. The limit is a real
- * stored field, so the control is real; the promise is not this page's to make.
- */
-function TakeLimitRow({ value, disabled, onCommit }: TakeLimitRowProps) {
-  const [draft, setDraft] = useState<number | null>(null);
-  const shown = clampTakeLimit(draft ?? value);
-
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-base">
-        <Trans>每条会话保留的 take 上限</Trans>
-      </p>
-      <div className="flex items-center gap-3.5">
-        <Slider
-          className="min-w-0 flex-1"
-          value={shown}
-          min={TAKE_LIMIT_MIN}
-          max={TAKE_LIMIT_MAX}
-          step={1}
-          disabled={disabled}
-          aria-label={t`每条会话保留的 take 上限`}
-          valueText={String(shown)}
-          onChange={(next) => {
-            setDraft(next);
-          }}
-          onCommit={(next) => {
-            const settled = clampTakeLimit(next);
-            if (settled !== value) onCommit(settled);
-            setDraft(null);
-          }}
-        />
-        <span data-take-limit={shown} className="w-7 flex-none font-mono text-sm">
-          {shown}
-        </span>
-      </div>
-      <p className="text-xs leading-normal text-neutral-600">
-        <Trans>超过这个数量后，最早的 take 会被丢弃。</Trans>
-      </p>
-    </div>
-  );
-}
-
 interface SwitchRowProps {
   readonly label: ReactNode;
   readonly hint: ReactNode;
@@ -1060,7 +987,6 @@ function VideoLengthRow({ value, disabled, onCommit }: VideoLengthRowProps) {
 
 interface StorageRowProps {
   readonly bytes: number | null;
-  readonly planBytes: number | null;
   readonly sessionCount: number | null;
   readonly loading: boolean;
   readonly error: string | null;
@@ -1084,7 +1010,6 @@ interface StorageRowProps {
  */
 function StorageRow({
   bytes,
-  planBytes,
   sessionCount,
   loading,
   error,
@@ -1098,7 +1023,6 @@ function StorageRow({
   serviceSuffix,
 }: StorageRowProps) {
   const conversation = formatBytes(bytes);
-  const plans = formatBytes(planBytes);
 
   return (
     <div className="flex flex-col gap-2.5 border-t border-divider pt-3">
@@ -1139,12 +1063,6 @@ function StorageRow({
               </p>
               <p className="mt-1 text-xs text-neutral-600">
                 <Trans>全部存在本机，不上传。</Trans>
-                {plans === null ? null : (
-                  <>
-                    {' '}
-                    <Trans>方案另占 {plans}，清空会话不会释放这部分。</Trans>
-                  </>
-                )}
               </p>
             </>
           )}

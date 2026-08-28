@@ -57,7 +57,7 @@
  */
 
 import type { ReactNode } from 'react';
-import { Navigate, useParams, useSearchParams, type RouteObject } from 'react-router-dom';
+import { Navigate, useSearchParams, type RouteObject } from 'react-router-dom';
 
 import { AppShell } from './AppShell';
 import { NotFound, RouteErrorElement } from './boundary';
@@ -97,10 +97,6 @@ export const ROUTE_PATHS = [
   '/match/:demoId',
   '/projects',
   '/projects/:projectId',
-  '/agent',
-  '/recording/:taskId?',
-  '/montage/:projectId?',
-  '/editor/:projectId?',
   '/delivery',
   '/delivery/task/:taskId',
   '/settings',
@@ -118,7 +114,6 @@ export const LEGACY_REDIRECTS: Readonly<Record<string, string>> = {
   '/evidence-search': '/evidence',
   '/match-history': '/library?view=steam',
   '/queue': '/projects',
-  '/studio/editor': '/editor',
 };
 
 /** §7: 「下线」 — no redirect, on purpose. */
@@ -145,35 +140,6 @@ export function LegacyAnalysisRedirect() {
   const demoId = params.get('demo') ?? '';
   const to = demoId === '' ? '/library' : `/match/${encodeURIComponent(demoId)}`;
   return <Navigate to={to} replace />;
-}
-
-export function projectWorkspacePath(
-  kind: 'plan' | 'montage' | 'editor',
-  id: string,
-  step: 'shotlist' | 'record',
-): string {
-  return `/projects/${encodeURIComponent(`${kind}:${id}`)}?step=${step}`;
-}
-
-export function LegacyAgentRedirect() {
-  const [params] = useSearchParams();
-  const planId = params.get('plan');
-  return <Navigate to={planId === null ? '/projects/new?step=shotlist' : projectWorkspacePath('plan', planId, 'shotlist')} replace />;
-}
-
-export function LegacyRecordingRedirect() {
-  const { taskId } = useParams<{ taskId?: string }>();
-  return <Navigate to={taskId === undefined ? '/projects' : projectWorkspacePath('plan', taskId, 'record')} replace />;
-}
-
-export function LegacyMontageRedirect() {
-  const { projectId } = useParams<{ projectId?: string }>();
-  return <Navigate to={projectId === undefined ? '/projects' : projectWorkspacePath('montage', projectId, 'shotlist')} replace />;
-}
-
-export function LegacyEditorRedirect() {
-  const { projectId } = useParams<{ projectId?: string }>();
-  return <Navigate to={projectId === undefined ? '/projects' : projectWorkspacePath('editor', projectId, 'shotlist')} replace />;
 }
 
 /* `replace` on every redirect: the old address should not sit in the back
@@ -205,10 +171,6 @@ export function createAppRoutes(pages: RoutePages): RouteObject[] {
         { id: 'match', path: 'match/:demoId', element: pages.match },
         { id: 'projects', path: 'projects', element: pages.projects },
         { id: 'project-workspace', path: 'projects/:projectId', element: pages.projectWorkspace },
-        { id: 'agent', path: 'agent', element: <LegacyAgentRedirect /> },
-        { id: 'recording', path: 'recording/:taskId?', element: <LegacyRecordingRedirect /> },
-        { id: 'montage', path: 'montage/:projectId?', element: <LegacyMontageRedirect /> },
-        { id: 'editor', path: 'editor/:projectId?', element: <LegacyEditorRedirect /> },
         /* Declared next to each other on purpose, but the order is not what
            keeps them apart: react-router ranks a static segment above a dynamic
            one, so `/delivery/task/x` can never be swallowed by `/delivery`. */

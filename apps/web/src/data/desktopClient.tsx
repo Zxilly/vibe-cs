@@ -106,40 +106,6 @@ export type DesktopClient = Pick<
   | 'exportDiagnostics'
   | 'patchRecordedClip'
   | 'deleteRecordedClip'
-  /* ── montage and media (phase 3f, 「09 快速合辑」 and 「10 多轨编辑器」) ──
-     Every name here is a route this bridge already reaches; they were simply
-     never called from `data/**`. Verified against
-     `crates/application/src/routes/media.rs` before being listed. Note the
-     three that already exist under a different name and are therefore *not*
-     repeated: `generateMediaProxy` (`/media/assets/{id}/proxy`),
-     `cleanupMediaProxies` (`/media/proxies/cleanup`) and `analyzeAudioAsset`
-     (`/media/assets/{id}/audio-analysis`). */
-  | 'listMontageProjects'
-  | 'getMontageProject'
-  | 'createMontageProject'
-  | 'putMontageProject'
-  | 'deleteMontageProject'
-  | 'exportMontageProject'
-  | 'convertMontageToEditor'
-  /* ── the multi-track editor (phase 3f-2, 「10」) ──
-     `data/editor.ts`. `saveEditorProject` is the whole-document PATCH whose
-     body carries the `expected_revision`; the rest are the reads and the four
-     writes 「10」 has controls for. `duplicateEditorProject`,
-     `deleteEditorProjects` and the package pair are here because the project
-     list and 「导出工程包」 are part of the same page. */
-  | 'listEditorProjects'
-  | 'getEditorProject'
-  | 'createEditorProject'
-  | 'saveEditorProject'
-  | 'duplicateEditorProject'
-  | 'deleteEditorProjects'
-  | 'listEditorSnapshots'
-  | 'restoreEditorSnapshot'
-  | 'listEditorPresets'
-  | 'applyEditorPreset'
-  | 'separateEditorAudio'
-  | 'exportEditorProject'
-  | 'exportEditorPackage'
   | 'listMediaAssets'
   | 'getMediaAsset'
   | 'importMediaAsset'
@@ -173,11 +139,7 @@ export type DesktopClient = Pick<
   | 'renameAgentSession'
   | 'deleteAgentSession'
   | 'appendAgentSessionEntry'
-  | 'setAgentProposalDecision'
   | 'updateAgentTurn'
-  | 'touchAgentObjectRef'
-  | 'listAgentObjectSessions'
-  | 'listAgentWorkspaceReferences'
   | 'getAgentWorkspaceSettings'
   | 'updateAgentWorkspaceSettings'
   | 'getAgentSessionStorage'
@@ -193,39 +155,29 @@ export type DesktopClient = Pick<
   | 'agentStatus'
   | 'streamAgentChat'
   | 'cancelAgentChat'
-  /* ── Agent plans (data/plans.ts) ──
-     `applyAgentPlanEdit` is the conditional write that carries the manual edit,
-     bumps the revision and injects the `workspace_edit` notice in one
-     transaction (§10 deviation 5). There is no separate notify route. */
-  | 'listAgentPlans'
-  | 'getAgentPlan'
-  | 'createAgentPlan'
-  | 'applyAgentPlanEdit'
-  | 'restoreAgentPlanBaseline'
-  | 'snoozeAgentPlan'
-  | 'listAgentTakes'
-  | 'getAgentPlanWorkbench'
-  | 'getAgentComposition'
-  | 'getAgentVideoWorkflow'
-  | 'putAgentComposition'
-  | 'exportAgentComposition'
-  /* 「08 录制计划与镜头预览」's 「来自方案 #P-118」 door, and the 「确认并生成视频」
-     button §10.6 gap 1 left disabled. Same `RecordingPlanResponse` as
-     `planRecording`. */
-  | 'planRecordingFromAgentPlan'
+  /* Canonical Project editing. Human controls and Agent Operations share
+     this route family; no Plan/Montage/Editor write is exposed here once its
+     caller moves. */
+  | 'listProjects'
+  | 'getProject'
+  | 'createProject'
+  | 'createProjectRecordingPlan'
+  | 'exportProject'
+  | 'applyProjectPatch'
+  | 'listProjectChangeGroups'
+  | 'revertProjectChangeGroup'
+  | 'getProjectEditLease'
+  | 'acquireProjectEditLease'
+  | 'heartbeatProjectEditLease'
+  | 'releaseProjectEditLease'
   /* ── recording shot presets (phase 3f, 「08 录制计划与镜头预览」) ──
      `/api/recording/shot-presets`, behind the shot inspector's 「存为预设」.
      There is no `expected_revision` anywhere in this group: nothing on the
      server dereferences a preset id, so a preset has no revision to pin. */
-  | 'listRecordingShotPresets'
-  | 'createRecordingShotPreset'
-  | 'putRecordingShotPreset'
-  | 'deleteRecordingShotPreset'
   /* ── pre-recording checks (phase 3f, 「08 录制计划与镜头预览」) ──
      `POST /api/recording/plans/{id}/preflight`, the closed check list behind
      the eight status rows at the bottom of the board. A write in the HTTP sense
      only: it measures, never mutates the plan lease. */
-  | 'preflightRecordingPlan'
   /* ── the recording plan lifecycle (phase 3f, 「08 录制计划与镜头预览」) ──
      `planRecording` mints the 5-minute lease from a hand-built queue; the two
      other doors onto the same document (`planRecordingFromAgentPlan`,
@@ -241,7 +193,6 @@ export type DesktopClient = Pick<
      `abortRecording` is 「停止这次录制？」's second half — a process-level stop
      that exists beside `cancelRecordingJob` because a wedged CS2 outlives the
      job record. */
-  | 'planRecording'
   | 'executeRecordingPlan'
   | 'abortRecording'
   /* ── 「在游戏里预览」 (phase 3f, 「08」) ──
@@ -251,12 +202,6 @@ export type DesktopClient = Pick<
      that. `previewHlaeProposal` compiles the path and reports prerequisites,
      `exportHlaeProposal` writes the script files, and the playback trio starts
      and stops the Demo they were written for. Nothing here records. */
-  | 'previewHlaeProposal'
-  | 'exportHlaeProposal'
-  | 'previewHighlightEditProposal'
-  | 'applyHighlightEditProposal'
-  | 'previewBeatAlignmentProposal'
-  | 'applyBeatAlignmentProposal'
   | 'preflightDemo'
   | 'stopPlayback'
   | 'playbackStatus'

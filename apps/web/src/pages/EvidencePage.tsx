@@ -48,7 +48,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { evidenceIndexState, unsupportedEvidenceFilters } from '../data/evidence';
 import { useEvidenceAnnotations, useEvidenceSearch } from '../data/evidence';
 import { dataErrorMessage } from '../data/errors';
-import type { ProjectCollectedClip } from '../data/projectCollections';
+import type { ProjectCollectedClip } from '../domain/project/collectedClip';
 import { Empty } from '../design/data';
 import { Alert } from '../design/feedback';
 import { Page, SelectionBar, Toolbar, useCollapsed } from '../design/layout';

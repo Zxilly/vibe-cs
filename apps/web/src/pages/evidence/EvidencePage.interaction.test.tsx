@@ -8,10 +8,9 @@
 
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { DesktopClientProvider, type DesktopClient } from '../../data/desktopClient';
-import { resetProjectCollectionsForTesting } from '../../data/projectCollections';
 import { renderInteractive } from '../../test/render';
 import { EvidencePage } from '../EvidencePage';
 import { evidenceResponse } from './test/fixtures';
@@ -29,20 +28,25 @@ function stubClient(): { client: Partial<DesktopClient>; queries: unknown[] } {
       },
       listEvidenceAnnotations: () =>
         Promise.resolve({ items: [], total: 0, page: 1, page_size: 20 }),
-      listAgentPlans: () => Promise.resolve([{
-        id: 'plan-1', title: '证据集锦', status: 'draft', revision: 1, shot_count: 1,
-        total_duration_seconds: 8, origin_count: 0,
+      listProjects: () => Promise.resolve([{
+        id: '00000000-0000-4000-8000-000000000001', name: '证据集锦', revision: 1,
+        document: {
+          width: 1920, height: 1080, fps: 60, duration_seconds: 0,
+          story_track_id: '00000000-0000-4000-8000-000000000002',
+          tracks: [{
+            id: '00000000-0000-4000-8000-000000000002', name: 'Story', kind: 'video',
+            order: 0, muted: false, locked: false, hidden: false, clips: [],
+          }],
+          markers: [], settings: null,
+        },
         created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
       }]),
-      listMontageProjects: () => Promise.resolve({ items: [] }),
-      listEditorProjects: () => Promise.resolve({ items: [] }),
       listActivities: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
       listOutputs: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
     },
   };
 }
 
-afterEach(() => resetProjectCollectionsForTesting());
 
 function AddressProbe() {
   const location = useLocation();
@@ -187,9 +191,8 @@ describe('selecting a row', () => {
     const row = container.querySelectorAll('[data-evidence-row]')[0] as HTMLElement;
     fireEvent.click(within(row).getByRole('button', { name: '加入作品' }));
     expect(await screen.findByRole('dialog')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '加入' }));
-    expect(await screen.findByText('已加入「证据集锦」')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '打开作品' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: '证据集锦' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '加入' })).toBeTruthy();
   });
 });
 

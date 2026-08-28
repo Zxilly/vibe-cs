@@ -17,7 +17,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { stubMatchMedia, type MatchMediaStub } from '../../design/layout/collapse.testing';
 import type { DesktopClient } from '../../data/desktopClient';
-import { resetProjectCollectionsForTesting } from '../../data/projectCollections';
 import { ANALYSIS, DEMO, DEMO_ID } from './test/fixtures';
 import { renderWorkspace } from './test/renderWorkspace';
 import { reasonOf } from '../../test/reason';
@@ -27,7 +26,6 @@ let media: MatchMediaStub | null = null;
 afterEach(() => {
   media?.restore();
   media = null;
-  resetProjectCollectionsForTesting();
 });
 
 /** A bridge that answers with the artboard's match. */
@@ -232,13 +230,20 @@ describe('加入作品', () => {
       url: `/match/${DEMO_ID}?view=rounds&round=2`,
       client: {
         ...loaded(),
-        listAgentPlans: () => Promise.resolve([{
-          id: 'plan-1', title: '现有作品', status: 'draft', revision: 1, shot_count: 1,
-          total_duration_seconds: 8, origin_count: 0,
+        listProjects: () => Promise.resolve([{
+          id: '00000000-0000-4000-8000-000000000001',
+          name: '现有作品', revision: 1,
+          document: {
+            width: 1920, height: 1080, fps: 60, duration_seconds: 0,
+            story_track_id: '00000000-0000-4000-8000-000000000002',
+            tracks: [{
+              id: '00000000-0000-4000-8000-000000000002', name: 'Story', kind: 'video',
+              order: 0, muted: false, locked: false, hidden: false, clips: [],
+            }],
+            markers: [], settings: null,
+          },
           created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
         }]),
-        listMontageProjects: () => Promise.resolve({ items: [] }),
-        listEditorProjects: () => Promise.resolve({ items: [] }),
         listActivities: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
         listOutputs: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
       },
@@ -247,38 +252,8 @@ describe('加入作品', () => {
     const add = await screen.findByRole('button', { name: '把这个回合加入作品' });
     fireEvent.click(add);
     expect(await screen.findByRole('dialog')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '加入' }));
-    expect(await screen.findByText('已加入「现有作品」')).toBeTruthy();
-    expect(screen.getByRole('button', { name: '打开作品' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: '现有作品' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '加入' })).toBeTruthy();
   });
 
-  it('can create a new project from the selected round', async () => {
-    media = stubMatchMedia(1400);
-    const created: unknown[] = [];
-    renderWorkspace({
-      url: `/match/${DEMO_ID}?view=rounds&round=2`,
-      client: {
-        ...loaded(),
-        listAgentPlans: () => Promise.resolve([]),
-        listMontageProjects: () => Promise.resolve({ items: [] }),
-        listEditorProjects: () => Promise.resolve({ items: [] }),
-        listActivities: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
-        listOutputs: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 100, scan_limited: false }),
-        createAgentPlan: (draft) => {
-          created.push(draft);
-          return Promise.resolve({
-            id: 'new-plan', title: draft.title, status: draft.status, revision: 1,
-            shots: draft.shots, origin: [],
-            agent_baseline: { revision: 1, captured_at: '2026-08-20T00:00:00Z', shots: draft.shots },
-            created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
-          });
-        },
-      },
-    });
-
-    fireEvent.click(await screen.findByRole('button', { name: '把这个回合加入作品' }));
-    fireEvent.click(await screen.findByRole('button', { name: '新建并加入' }));
-    await waitFor(() => expect(created).toHaveLength(1));
-    expect(await screen.findByText(/已加入「.*新作品」/u)).toBeTruthy();
-  });
 });

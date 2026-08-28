@@ -38,10 +38,8 @@ import type {
   ActivityFeed,
   AgentSessionPage,
   AgentSessionStorageStats,
-  AgentPlanSummary,
   AgentStatus,
   AgentThread,
-  AgentWorkspaceReferences,
   AgentWorkspaceSettings,
   ApiHealth,
   AppConfig,
@@ -56,7 +54,6 @@ import type {
   MatchAnalysisRecord,
   MatchHistoryItem,
   MediaAsset,
-  MontageProjectRecord,
   OutputPage,
   Paginated,
   PlayerDirectoryPage,
@@ -67,13 +64,11 @@ import type {
   QuickCheckResponse,
   RecordedClipRecord,
   RecordingJob,
-  RecordingShotPreset,
   RecoveryStatus,
   ReplayCacheStatus,
   ReviewTag,
   RuntimeState,
   StorageStatus,
-  EditorProject,
   ExportJobRecord,
   EvidenceAnnotation,
   MatchDownloadJob,
@@ -384,7 +379,6 @@ const OUTPUTS: OutputPage = {
       size_bytes: 486_539_264,
       media: null,
       project_id: 'proj-highlights',
-      agent_plan_id: null,
       demo_id: null,
       error: null,
       created_at: '2026-08-14T22:19:00Z',
@@ -405,7 +399,6 @@ const OUTPUTS: OutputPage = {
       size_bytes: 92_274_688,
       media: null,
       project_id: null,
-      agent_plan_id: null,
       demo_id: '3f2c9a10-11d4-4a6e-9d21-6b0f1a2c3d41',
       error: null,
       created_at: '2026-08-13T11:02:00Z',
@@ -426,7 +419,6 @@ const OUTPUTS: OutputPage = {
       size_bytes: null,
       media: null,
       project_id: null,
-      agent_plan_id: null,
       demo_id: '7d40b2f9-33d4-4a6e-9d21-6b0f1a2c3d43',
       error: null,
       created_at: '2026-08-12T16:41:00Z',
@@ -447,7 +439,6 @@ const OUTPUTS: OutputPage = {
       size_bytes: null,
       media: null,
       project_id: 'proj-tactics',
-      agent_plan_id: null,
       demo_id: null,
       error: '编码器在第 4 段返回 0xC0000005。',
       created_at: '2026-08-11T09:20:00Z',
@@ -781,7 +772,6 @@ const AGENT_SESSIONS: AgentSessionPage = {
       created_at: '2026-08-14T20:02:00Z',
       updated_at: '2026-08-15T09:20:00Z',
       entry_count: 12,
-      refs: [],
     },
     {
       id: 'sess-2',
@@ -789,38 +779,10 @@ const AGENT_SESSIONS: AgentSessionPage = {
       created_at: '2026-08-13T16:40:00Z',
       updated_at: '2026-08-13T18:11:00Z',
       entry_count: 7,
-      refs: [],
     },
   ],
   total: 2,
 };
-
-const AGENT_PLANS: AgentPlanSummary[] = [
-  {
-    id: 'plan-1',
-    title: 'Mirage 残局集锦 · 6 镜头',
-    status: 'draft',
-    revision: 4,
-    shot_count: 6,
-    snoozed_until: null,
-    total_duration_seconds: 47,
-    origin_count: 3,
-    created_at: '2026-08-14T20:12:00Z',
-    updated_at: '2026-08-15T09:20:00Z',
-  },
-  {
-    id: 'plan-2',
-    title: 'Inferno 香蕉道推进 · 4 镜头',
-    status: 'confirmed',
-    revision: 2,
-    shot_count: 4,
-    snoozed_until: null,
-    total_duration_seconds: 32,
-    origin_count: 1,
-    created_at: '2026-08-13T17:02:00Z',
-    updated_at: '2026-08-13T18:11:00Z',
-  },
-];
 
 const AGENT_THREAD: AgentThread = {
   id: 'thread-1',
@@ -828,133 +790,23 @@ const AGENT_THREAD: AgentThread = {
   updatedAt: '2026-08-15T09:20:00Z',
 };
 
-const AGENT_REFERENCES: AgentWorkspaceReferences = {
-  pending_plans: [
-    {
-      kind: 'plan',
-      id: 'plan-1',
-      label: 'Mirage 残局集锦 · 6 镜头',
-      status: 'draft',
-      progress_percent: null,
-      item_count: 6,
-      error: null,
-      updated_at: '2026-08-15T09:20:00Z',
-    },
-  ],
-  running_recording_tasks: [
-    {
-      kind: 'recording_task',
-      id: 'job-771',
-      label: 'NAVI vs FaZe · 第 19 回合 1v3',
-      status: 'running',
-      progress_percent: 62,
-      item_count: 8,
-      error: null,
-      updated_at: '2026-08-15T09:40:00Z',
-    },
-  ],
-  edit_projects: [
-    {
-      kind: 'edit_project',
-      id: 'proj-highlights',
-      label: '八月集锦',
-      status: 'ready',
-      progress_percent: null,
-      item_count: 14,
-      error: null,
-      updated_at: '2026-08-14T22:19:00Z',
-    },
-  ],
-  failed_outputs: [
-    {
-      kind: 'output',
-      id: 'out-571',
-      label: '战术板 · Inferno 香蕉道推进',
-      status: 'failed',
-      progress_percent: 78,
-      item_count: null,
-      error: '编码器在第 4 段返回 0xC0000005。',
-      updated_at: '2026-08-11T09:33:00Z',
-    },
-  ],
-};
-
 const AGENT_SETTINGS: AgentWorkspaceSettings = {
   session_retention: { mode: 'recent_count', count: 50 },
-  take_limit: 5,
-  auto_attach_context: true,
-  preview_before_apply: true,
   show_evidence_reads: false,
-  default_video_seconds: 45,
-  default_shot_view: 'observer',
+  default_video_seconds: 180,
+  default_camera_style: 'pov',
   commentary_tone: 'professional',
 };
 
 const AGENT_STORAGE: AgentSessionStorageStats = {
   session_count: 2,
   entry_count: 19,
-  object_ref_count: 6,
-  plan_count: 2,
-  plan_origin_count: 4,
   conversation_bytes: 184_320,
-  plan_bytes: 40_960,
   oldest_session_at: '2026-08-13T16:40:00Z',
   newest_session_at: '2026-08-14T20:02:00Z',
 };
 
 /* ── recording, editing, media ────────────────────────────────────────────── */
-
-const SHOT_PRESETS: RecordingShotPreset[] = [
-  {
-    id: 'preset-1',
-    name: '标准跟随',
-    camera_style: 'tracking',
-    victim_pov: false,
-    pre_roll_seconds: 3,
-    post_roll_seconds: 2,
-    presentation: {
-      camera_fov: 90,
-      viewmodel_fov: 68,
-      flash_alpha: 0.4,
-      show_hud: true,
-      show_radar: true,
-      voice: 'all_players',
-    },
-    created_at: '2026-08-01T10:00:00Z',
-    updated_at: '2026-08-01T10:00:00Z',
-  },
-];
-
-const EDITOR_PROJECTS: EditorProject[] = [
-  {
-    id: 'proj-highlights',
-    name: '八月集锦',
-    width: 1920,
-    height: 1080,
-    fps: 60,
-    duration_seconds: 96.5,
-    tracks: [],
-    markers: [],
-    settings: null,
-    revision: 12,
-    created_at: '2026-08-10T09:00:00Z',
-    updated_at: '2026-08-14T22:19:00Z',
-  },
-  {
-    id: 'proj-tactics',
-    name: '战术板 · Inferno',
-    width: 1920,
-    height: 1080,
-    fps: 60,
-    duration_seconds: 42,
-    tracks: [],
-    markers: [],
-    settings: null,
-    revision: 3,
-    created_at: '2026-08-11T08:30:00Z',
-    updated_at: '2026-08-11T09:33:00Z',
-  },
-];
 
 const MEDIA_ASSETS: MediaAsset[] = [
   {
@@ -990,33 +842,6 @@ const MEDIA_ASSETS: MediaAsset[] = [
     waveform: null,
     metadata_status: { status: 'ready' },
     created_at: '2026-08-10T09:12:00Z',
-  },
-];
-
-const MONTAGE_PROJECTS: MontageProjectRecord[] = [
-  {
-    id: 'montage-1',
-    name: '八月集锦 v3',
-    clips: [],
-    settings: {
-      width: 1920,
-      height: 1080,
-      fps: 60,
-      encoder: 'libx264',
-      quality: 21,
-      background_music: 'asset-2',
-      music_volume: 0.35,
-      transition_seconds: 0.4,
-      intro_title: '八月集锦',
-      intro_duration_seconds: 1.5,
-      include_name_cards: true,
-      name_card_duration_seconds: 1.2,
-      outro_title: null,
-      outro_duration_seconds: 2,
-      branding_theme: 'broadcast',
-    },
-    created_at: '2026-08-10T09:00:00Z',
-    updated_at: '2026-08-14T22:19:00Z',
   },
 ];
 
@@ -1250,14 +1075,11 @@ const ROUTES: Array<[string, string, Handler]> = [
 
   /* the Agent workspace */
   ['GET', '/agent/sessions', () => AGENT_SESSIONS],
-  ['GET', '/agent/plans', () => AGENT_PLANS],
-  ['GET', '/agent/workspace/referencable', () => AGENT_REFERENCES],
   ['GET', '/agent/workspace/settings', () => AGENT_SETTINGS],
   ['PUT', '/agent/workspace/settings', ({ body }) => ({ ...AGENT_SETTINGS, ...(body as Partial<AgentWorkspaceSettings>) })],
   ['GET', '/agent/workspace/storage', () => AGENT_STORAGE],
 
   /* recording */
-  ['GET', '/recording/shot-presets', () => ({ items: SHOT_PRESETS })],
   ['GET', '/playback/status', () => ({
     executable_available: true,
     executable: HLAE.cs2_executable,
@@ -1278,14 +1100,8 @@ const ROUTES: Array<[string, string, Handler]> = [
   ['POST', '/recording/jobs/:id/cancel', () => ({ ...RECORDING_JOB_DETAIL, status: 'cancelling' as const })],
 
   /* editing and delivery */
-  ['GET', '/editor/projects', () => ({ items: EDITOR_PROJECTS })],
-  ['GET', '/editor/projects/:id', ({ params }) =>
-    EDITOR_PROJECTS.find((project) => project.id === params.id) ?? EDITOR_PROJECTS[0]],
   ['GET', '/editor/presets', () => ({ items: [] })],
   ['GET', '/media/assets', () => ({ items: MEDIA_ASSETS })],
-  ['GET', '/montage/projects', () => ({ items: MONTAGE_PROJECTS })],
-  ['GET', '/montage/projects/:id', ({ params }) =>
-    MONTAGE_PROJECTS.find((project) => project.id === params.id) ?? MONTAGE_PROJECTS[0]],
   ['GET', '/recorded-clips', () => paged(RECORDED_CLIPS)],
   ['GET', '/exports', () => ({ items: [] as ExportJobRecord[] })],
 

@@ -92,6 +92,30 @@ export type { ScanResult } from './generated/ScanResult';
 export type { DemoWatchRootStatus } from './generated/DemoWatchRootStatus';
 export type { DemoWatchStatus } from './generated/DemoWatchStatus';
 
+/* ── canonical project editing ───────────────────────────────────────────── */
+
+export type { Project } from './generated/Project';
+export type { EditingDocument } from './generated/EditingDocument';
+export type { TimelineTrack } from './generated/TimelineTrack';
+export type { TimelineClip } from './generated/TimelineClip';
+export type { TimelinePlacement } from './generated/TimelinePlacement';
+export type { TimelineClipMaterial } from './generated/TimelineClipMaterial';
+export type { TimelineClipMaterializationState } from './generated/TimelineClipMaterializationState';
+export type { CaptureIntent } from './generated/CaptureIntent';
+export type { ProjectPatch } from './generated/ProjectPatch';
+export type { ProjectPatchScope } from './generated/ProjectPatchScope';
+export type { ProjectEditOperation } from './generated/ProjectEditOperation';
+export type { ProjectChangeAuthor } from './generated/ProjectChangeAuthor';
+export type { ProjectChangeGroup } from './generated/ProjectChangeGroup';
+export type { ProjectChangeGroupStatus } from './generated/ProjectChangeGroupStatus';
+export type { ProjectEditLease } from './generated/ProjectEditLease';
+export type { CreateProjectRequest } from './generated/CreateProjectRequest';
+export type { ProjectPatchResult } from './generated/ProjectPatchResult';
+export type { RevertProjectChangeGroupRequest } from './generated/RevertProjectChangeGroupRequest';
+export type { AcquireProjectEditLeaseRequest } from './generated/AcquireProjectEditLeaseRequest';
+export type { HeartbeatProjectEditLeaseRequest } from './generated/HeartbeatProjectEditLeaseRequest';
+export type { ProjectEditLeaseResponse } from './generated/ProjectEditLeaseResponse';
+
 /** The generic page envelope every paginated route flattens into its response. */
 export type { Page as Paginated } from './generated/Page';
 
@@ -265,12 +289,9 @@ export type { RecordingPresentation } from './generated/RecordingPresentation';
  *
  * `id` is nullable: Rust holds `Option<Uuid>` and
  * `RecordingJob::retryable_suffix` reasons explicitly about the `None` case
- * ("published recording request has no durable identity"). The request side of
- * the queue is `RecordingQueueItem`, whose `id` is required.
+ * ("published recording request has no durable identity").
  */
 export type { RecordingRequest } from './generated/RecordingRequest';
-export type { RecordingQueueItem } from './generated/RecordingQueueItem';
-export type { RecordingQueueRequest } from './generated/RecordingQueueRequest';
 export type { RecordingPlanResponse } from './generated/RecordingPlanResponse';
 export type { DirectorShotKind } from './generated/DirectorShotKind';
 export type { DirectorShot } from './generated/DirectorShot';
@@ -284,10 +305,6 @@ export type { DirectorPlan } from './generated/DirectorPlan';
  * contract is one sentence: **while `blocking > 0` the start-recording action
  * is disabled.** A warning never disables it.
  */
-export type { RecordingPreflight } from './generated/RecordingPreflight';
-export type { RecordingPreflightCheck } from './generated/RecordingPreflightCheck';
-export type { RecordingPreflightCode } from './generated/RecordingPreflightCode';
-export type { RecordingPreflightState } from './generated/RecordingPreflightState';
 
 /**
  * A saved set of shot settings, behind the shot inspector's "save as preset".
@@ -295,8 +312,6 @@ export type { RecordingPreflightState } from './generated/RecordingPreflightStat
  * Deliberately not `EditorPreset`, which is a multi-track editor clip preset
  * bound to a project revision and shares no field with this one.
  */
-export type { RecordingShotPreset } from './generated/RecordingShotPreset';
-export type { RecordingShotPresetDraft } from './generated/RecordingShotPresetDraft';
 
 export type { JobStatus } from './generated/JobStatus';
 export type { RecordingExecutionResponse } from './generated/RecordingExecutionResponse';
@@ -384,15 +399,7 @@ export type { DemoPlaybackStop } from './generated/DemoPlaybackStop';
  * service-owned `stream_url`. */
 export type { RecordedClipDto as RecordedClipRecord } from './generated/RecordedClipDto';
 
-export type { MontageClip as MontageClipRecord } from './generated/MontageClip';
-export type { MontageBrandingTheme } from './generated/MontageBrandingTheme';
-export type { MontageSettings as MontageSettingsRecord } from './generated/MontageSettings';
-export type { MontageProject as MontageProjectRecord } from './generated/MontageProject';
-export type { CreateMontageRequest as CreateMontageProject } from './generated/CreateMontageRequest';
-
-export type { EditorExportRequest as EditorExportOptions } from './generated/EditorExportRequest';
 export type { WaveformResponse } from './generated/WaveformResponse';
-export type { JobAccepted } from './generated/JobAccepted';
 export type { ExportJob } from './generated/ExportJob';
 export type { ExportJobRecord } from './generated/ExportJobRecord';
 
@@ -415,25 +422,12 @@ export type { EditorEffect } from './generated/EditorEffect';
 export type { EditorKeyframeProperty } from './generated/EditorKeyframeProperty';
 export type { EditorKeyframe } from './generated/EditorKeyframe';
 export type { EditorSpeedSegment } from './generated/EditorSpeedSegment';
-export type { EditorClip } from './generated/EditorClip';
 export type { TrackKind } from './generated/TrackKind';
-export type { EditorTrack } from './generated/EditorTrack';
 export type { EditorMarker } from './generated/EditorMarker';
-export type { EditorProject } from './generated/EditorProject';
-export type { EditorProjectSnapshot } from './generated/EditorProjectSnapshot';
-export type { CreateEditorProjectRequest as CreateEditorProject } from './generated/CreateEditorProjectRequest';
-export type { EditorColorAdjustPreset } from './generated/EditorColorAdjustPreset';
-export type { EditorPresetDocument } from './generated/EditorPresetDocument';
-export type { EditorTransitionPreset as EditorTransitionName } from './generated/EditorTransitionPreset';
-export type { PresetRecord as EditorPreset } from './generated/PresetRecord';
-export type { EditorProjectDeletionResponse as EditorProjectDeletionResult } from './generated/EditorProjectDeletionResponse';
 
 export type { MediaProxyStatus } from './generated/MediaProxyStatus';
 export type { MediaMetadataStatus } from './generated/MediaMetadataStatus';
 export type { MediaAsset } from './generated/MediaAsset';
-export type { SeparateEditorAudioResponse as EditorAudioSeparation } from './generated/SeparateEditorAudioResponse';
-export type { EditorPackageExportResponse as EditorPackageExport } from './generated/EditorPackageExportResponse';
-export type { EditorPackageImportResponse as EditorPackageImport } from './generated/EditorPackageImportResponse';
 export type { ProxyCleanupResponse as MediaProxyCleanup } from './generated/ProxyCleanupResponse';
 
 /* ── configuration ────────────────────────────────────────────────────────── */
@@ -537,8 +531,6 @@ export type { DesktopAgentToolCall as AgentToolCall } from './generated/DesktopA
 export type { DesktopAgentChatInput as AgentChatInput } from './generated/DesktopAgentChatInput';
 export type { DesktopAgentChatHistoryMessage as AgentChatHistoryMessage } from './generated/DesktopAgentChatHistoryMessage';
 export type { DesktopAgentWorkspaceContext as AgentWorkspaceContext } from './generated/DesktopAgentWorkspaceContext';
-export type { DesktopAgentWorkspaceWorkflow as AgentWorkspaceWorkflow } from './generated/DesktopAgentWorkspaceWorkflow';
-export type { DesktopAgentWorkspaceDestination as AgentWorkspaceDestination } from './generated/DesktopAgentWorkspaceDestination';
 export type { DesktopAgentEvent as AgentEvent } from './generated/DesktopAgentEvent';
 export type { DesktopAgentChatResult as AgentChatResult } from './generated/DesktopAgentChatResult';
 export type { DesktopAgentCommandError as AgentCommandError } from './generated/DesktopAgentCommandError';
@@ -551,53 +543,6 @@ export type { DesktopAgentCommandError as AgentCommandError } from './generated/
  * `CapturedPlanKind` is the enum, minted by the four tool handlers, and both
  * this type and `CapturedPlan` carry it.
  */
-export type { CapturedPlanKind } from './generated/CapturedPlanKind';
-export type { DesktopAgentProposal as AgentProposal } from './generated/DesktopAgentProposal';
-
-/* ── agent proposals: HLAE, beat alignment, highlight edit ────────────────── */
-
-export type { ProposalPrerequisite } from './generated/ProposalPrerequisite';
-
-/**
- * The confirmation half of every proposal apply.
- *
- * `confirm` is `boolean` and not the literal `true` the mirror asserted: the
- * server rejects `false` at runtime and no generated type can say so.
- */
-export type { ProposalConfirmation } from './generated/ProposalConfirmation';
-
-export type { HlaeProposalMode } from './generated/HlaeProposalMode';
-export type { HlaeProposalIntent } from './generated/HlaeProposalIntent';
-
-/**
- * An HLAE proposal preview.
- *
- * `typed_plan` and `compiled_preview` are `JsonValue` because the Rust fields
- * really are `Option<serde_json::Value>` — the weakness is in the Rust, not in
- * the mirror. Their contents are `HlaePlan` and `CompiledHlaePlan`, both of
- * which are now generated types above; narrow with those at the point of use.
- * Tightening the Rust field would make `crates/domain` depend on
- * `crates/hlae`, which is an architecture decision, not a binding fix.
- */
-export type { HlaeProposalPreview } from './generated/HlaeProposalPreview';
-export type { HlaeProposalExportResult } from './generated/HlaeProposalExportResult';
-
-export type { BeatAlignmentAudioPlacementIntent } from './generated/BeatAlignmentAudioPlacementIntent';
-export type { BeatAlignmentProposalRequest } from './generated/BeatAlignmentProposalRequest';
-export type { BeatAlignmentAudioBinding } from './generated/BeatAlignmentAudioBinding';
-export type { BeatAlignmentAudioPlacement } from './generated/BeatAlignmentAudioPlacement';
-export type { BeatAlignmentProposalPreview } from './generated/BeatAlignmentProposalPreview';
-export type { BeatAlignmentApplyResult } from './generated/BeatAlignmentApplyResult';
-
-export type { HighlightEditPacing } from './generated/HighlightEditPacing';
-export type { HighlightEditTransition } from './generated/HighlightEditTransition';
-export type { HighlightEditProposalIntent } from './generated/HighlightEditProposalIntent';
-export type { HighlightEditProposalRequest } from './generated/HighlightEditProposalRequest';
-export type { HighlightAssetMapping } from './generated/HighlightAssetMapping';
-export type { HighlightEditClipInsert } from './generated/HighlightEditClipInsert';
-export type { HighlightEditPlan } from './generated/HighlightEditPlan';
-export type { HighlightEditProposalPreview } from './generated/HighlightEditProposalPreview';
-export type { HighlightEditApplyResult } from './generated/HighlightEditApplyResult';
 
 /* ── the Agent session layer (spec §4.6) ──────────────────────────────────── */
 
@@ -612,24 +557,9 @@ export type { HighlightEditApplyResult } from './generated/HighlightEditApplyRes
  * is what keeps that distinction visible.
  */
 
-export type { AgentObjectKind } from './generated/AgentObjectKind';
-export type { AgentObjectLocator } from './generated/AgentObjectLocator';
-export type { AgentObjectRef } from './generated/AgentObjectRef';
-export type { AgentObjectSessionRef } from './generated/AgentObjectSessionRef';
-export type { AgentObjectRefTouch } from './generated/AgentObjectRefTouch';
-export type { AgentToolCall as AgentSessionToolCall } from './generated/AgentToolCall';
-export type { AgentProposal as AgentSessionProposal } from './generated/AgentProposal';
-export type { AgentProposalDecision } from './generated/AgentProposalDecision';
-export type { AgentProposalDecisionKind } from './generated/AgentProposalDecisionKind';
-export type { AgentProposalDecisionUpdate } from './generated/AgentProposalDecisionUpdate';
 export type { AgentTurnStatus } from './generated/AgentTurnStatus';
 export type { AgentTurnMetadata } from './generated/AgentTurnMetadata';
 export type { AgentTurnUpdate } from './generated/AgentTurnUpdate';
-
-export type { WorkspaceEditOperation } from './generated/WorkspaceEditOperation';
-export type { WorkspaceEditAuthor } from './generated/WorkspaceEditAuthor';
-export type { WorkspaceEditChange } from './generated/WorkspaceEditChange';
-export type { WorkspaceEditNotice } from './generated/WorkspaceEditNotice';
 
 export type { AgentSessionEntry } from './generated/AgentSessionEntry';
 export type { AgentSessionEntryDraft } from './generated/AgentSessionEntryDraft';
@@ -638,31 +568,6 @@ export type { AgentSessionSummary } from './generated/AgentSessionSummary';
 export type { AgentSessionPage } from './generated/AgentSessionPage';
 export type { AgentSessionQuery } from './generated/AgentSessionQuery';
 
-export type { AgentPlanStatus } from './generated/AgentPlanStatus';
-export type { AgentPlanAuthor } from './generated/AgentPlanAuthor';
-export type { AgentShotView } from './generated/AgentShotView';
-export type { AgentShotRecording } from './generated/AgentShotRecording';
-export type { AgentPlanShot } from './generated/AgentPlanShot';
-export type { AgentPlanOrigin } from './generated/AgentPlanOrigin';
-export type { AgentPlanOriginDraft } from './generated/AgentPlanOriginDraft';
-export type { AgentPlanBaseline } from './generated/AgentPlanBaseline';
-export type { AgentPlan } from './generated/AgentPlan';
-export type { AgentPlanCreate } from './generated/AgentPlanCreate';
-export type { AgentPlanEdit } from './generated/AgentPlanEdit';
-export type { AgentPlanRestore } from './generated/AgentPlanRestore';
-export type { AgentPlanSummary } from './generated/AgentPlanSummary';
-export type { AgentPlanQuery } from './generated/AgentPlanQuery';
-export type { AgentTakeDto as AgentTake } from './generated/AgentTakeDto';
-export type { AgentShotMaterializationState } from './generated/AgentShotMaterializationState';
-export type { AgentShotMaterialization } from './generated/AgentShotMaterialization';
-export type { AgentPlanWorkbench } from './generated/AgentPlanWorkbench';
-export type { AgentVideoWorkflow } from './generated/AgentVideoWorkflow';
-export type { AgentVideoWorkflowStage } from './generated/AgentVideoWorkflowStage';
-export type { Composition } from './generated/Composition';
-export type { CompositionExportResponse } from './generated/CompositionExportResponse';
-export type { CompositionItem } from './generated/CompositionItem';
-export type { CompositionStatus } from './generated/CompositionStatus';
-export type { PutAgentCompositionRequest } from './generated/PutAgentCompositionRequest';
 
 export type { AgentSessionRetention } from './generated/AgentSessionRetention';
 export type { AgentWorkspaceSettings } from './generated/AgentWorkspaceSettings';
@@ -679,8 +584,6 @@ export type { AgentSessionPurge } from './generated/AgentSessionPurge';
  * `&'static str`. Compare it against `AgentObjectKind` values rather than
  * switching exhaustively.
  */
-export type { WorkspaceReference as AgentWorkspaceReference } from './generated/WorkspaceReference';
-export type { WorkspaceReferences as AgentWorkspaceReferences } from './generated/WorkspaceReferences';
 
 /* ── audio intelligence ───────────────────────────────────────────────────── */
 

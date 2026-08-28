@@ -25,20 +25,6 @@ import type {
   AgentChatInput,
   AgentChatResult,
   AgentEvent,
-  AgentObjectKind,
-  AgentObjectRef,
-  AgentObjectRefTouch,
-  AgentObjectSessionRef,
-  AgentPlan,
-  AgentPlanCreate,
-  AgentPlanEdit,
-  AgentPlanQuery,
-  AgentPlanRestore,
-  AgentPlanSummary,
-  AgentPlanWorkbench,
-  AgentTake,
-  AgentVideoWorkflow,
-  AgentProposalDecisionUpdate,
   AgentSession,
   AgentSessionEntry,
   AgentSessionEntryDraft,
@@ -50,7 +36,6 @@ import type {
   AgentStatus,
   AgentThread,
   AgentTurnUpdate,
-  AgentWorkspaceReferences,
   AgentWorkspaceSettings,
   AnalysisRun,
   AnalysisRunDetail,
@@ -61,23 +46,17 @@ import type {
   AvatarCacheCleanup,
   AvatarCacheStatus,
   BatchDeleteOutputResult,
-  BeatAlignmentApplyResult,
   BeatAlignmentDraft,
-  BeatAlignmentProposalPreview,
-  BeatAlignmentProposalRequest,
   BeatAlignmentRequest,
   CleanupMissingOutputsResult,
   CleanupStagedOutputsResult,
-  Composition,
-  CompositionExportResponse,
+  CreateProjectRequest,
   CosmeticCatalog,
   CosmeticInspectionReport,
   CosmeticPlan,
   CosmeticRewriteRequest,
   CosmeticRewriteResponse,
-  CreateEditorProject,
   CreateEvidenceAnnotation,
-  CreateMontageProject,
   DeleteOutputResult,
   DemoMetadata,
   DemoMetadataBatchUpdate,
@@ -92,31 +71,14 @@ import type {
   DemoUpdate,
   DemoWatchStatus,
   DetectedPaths,
-  EditorAudioSeparation,
-  EditorExportOptions,
-  EditorPackageExport,
-  EditorPackageImport,
-  EditorPreset,
-  EditorPresetDocument,
-  EditorProject,
-  EditorProjectDeletionResult,
-  EditorProjectSnapshot,
   EvidenceAnnotation,
   EvidenceAnnotationQuery,
   EvidenceSearchQuery,
   EvidenceSearchResponse,
   ExportJobRecord,
   HeatPointRecord,
-  HighlightEditApplyResult,
-  HighlightEditPlan,
-  HighlightEditProposalPreview,
-  HighlightEditProposalRequest,
   HlaeBundleHandoff,
-  HlaeProposalExportResult,
-  HlaeProposalIntent,
-  HlaeProposalPreview,
   HlaeStatus,
-  JobAccepted,
   LineupDirectoryPage,
   LineupMapPage,
   LlmReviewRequest,
@@ -128,7 +90,6 @@ import type {
   MatchHistorySyncResult,
   MediaAsset,
   MediaProxyCleanup,
-  MontageProjectRecord,
   OutputItem,
   OutputKind,
   OutputPage,
@@ -142,18 +103,20 @@ import type {
   PlayerMatchPage,
   PlayerProfile,
   PlayerReviewMetadata,
-  ProposalConfirmation,
-  PutAgentCompositionRequest,
+  Project,
+  ProjectChangeGroup,
+  ProjectEditLease,
+  ProjectEditLeaseResponse,
+  ProjectPatch,
+  ProjectPatchResult,
+  AcquireProjectEditLeaseRequest,
+  HeartbeatProjectEditLeaseRequest,
   QuickCheckResponse,
   RadarOverviewRecord,
   RecordedClipRecord,
   RecordingExecutionResponse,
   RecordingJob,
   RecordingPlanResponse,
-  RecordingPreflight,
-  RecordingQueueRequest,
-  RecordingShotPreset,
-  RecordingShotPresetDraft,
   RecoveryStatus,
   ReplayCacheCleanup,
   ReplayCacheStatus,
@@ -504,7 +467,7 @@ export const commands = {
   /** Session drawer list and search over session title, Demo and player. */
   listAgentSessions: (query: AgentSessionQuery = {}, signal?: AbortSignal) =>
     request<AgentSessionPage>(
-      `/agent/sessions${queryString({ q: query.q, limit: query.limit })}`,
+      `/agent/sessions${queryString({ q: query.q ?? undefined, limit: query.limit ?? undefined })}`,
       { signal },
     ),
   createAgentSession: (title: string) =>
@@ -522,107 +485,63 @@ export const commands = {
     request<AgentSessionEntry>(`/agent/sessions/${encodeURIComponent(sessionId)}/entries`, {
       method: 'POST', body: draft,
     }),
-  setAgentProposalDecision: (sessionId: string, update: AgentProposalDecisionUpdate) =>
-    request<AgentSession>(`/agent/sessions/${encodeURIComponent(sessionId)}/proposal-decisions`, {
-      method: 'PUT', body: update,
-    }),
   updateAgentTurn: (sessionId: string, entryId: string, update: AgentTurnUpdate) =>
     request<AgentSessionEntry>(
       `/agent/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(entryId)}`,
       { method: 'PUT', body: update },
     ),
-  touchAgentObjectRef: (sessionId: string, touch: AgentObjectRefTouch) =>
-    request<AgentObjectRef>(`/agent/sessions/${encodeURIComponent(sessionId)}/refs`, {
-      method: 'POST', body: touch,
-    }),
-  listAgentObjectSessions: (kind: AgentObjectKind, objectId: string, signal?: AbortSignal) =>
-    request<AgentObjectSessionRef[]>(
-      `/agent/objects/${encodeURIComponent(kind)}/${encodeURIComponent(objectId)}/sessions`,
-      { signal },
-    ),
-  listAgentPlans: (query: AgentPlanQuery = {}, signal?: AbortSignal) =>
-    request<AgentPlanSummary[]>(
-      `/agent/plans${queryString({ status: query.status, limit: query.limit })}`,
-      { signal },
-    ),
-  getAgentPlan: (planId: string, signal?: AbortSignal) =>
-    request<AgentPlan>(`/agent/plans/${encodeURIComponent(planId)}`, { signal }),
-  createAgentPlan: (create: AgentPlanCreate) =>
-    request<AgentPlan>('/agent/plans', { method: 'POST', body: create }),
-  /**
-   * One manual plan edit: it bumps the server-authoritative revision, appends to
-   * the origin trail and writes the `workspace_edit` notice into the session, all
-   * in one conditional write. This is the workspace edit notification path - the
-   * notice is never sent separately, because its revision must be the one this
-   * write produced. Rejects with status 409 when `expected_revision` is stale.
-   */
-  applyAgentPlanEdit: (edit: AgentPlanEdit) =>
-    request<AgentPlan>(`/agent/plans/${encodeURIComponent(edit.plan_id)}`, {
-      method: 'PATCH', body: edit,
-    }),
-  /**
-   * 「稍后处理」 / 「现在就看」. `until` is an instant the caller computed,
-   * because 「今天不再提醒」 means the *user's* next local midnight and the
-   * service does not know their timezone. `null` clears it.
-   *
-   * Not an edit: it carries no `expected_revision` and bumps nothing.
-   */
-  snoozeAgentPlan: (planId: string, until: string | null) =>
-    request<AgentPlan>(`/agent/plans/${encodeURIComponent(planId)}/snooze`, {
-      method: 'POST', body: { until },
-    }),
-  /** Restores the immutable Agent version as an ordinary conditional edit. */
-  restoreAgentPlanBaseline: (restore: AgentPlanRestore) =>
-    request<AgentPlan>(`/agent/plans/${encodeURIComponent(restore.plan_id)}/restore`, {
-      method: 'POST', body: restore,
-    }),
-  listAgentTakes: (planId: string, shotId?: string, signal?: AbortSignal) =>
-    request<AgentTake[]>(
-      `/agent/plans/${encodeURIComponent(planId)}/takes${queryString({ shot_id: shotId })}`,
-      { signal },
-    ),
-  getAgentPlanWorkbench: (planId: string, signal?: AbortSignal) =>
-    request<AgentPlanWorkbench>(`/agent/plans/${encodeURIComponent(planId)}/workbench`, {
-      signal,
-    }),
-  getAgentComposition: (planId: string, signal?: AbortSignal) =>
-    request<Composition | null>(`/agent/plans/${encodeURIComponent(planId)}/composition`, {
-      signal,
-    }),
-  getAgentVideoWorkflow: (recordingJobId: string, signal?: AbortSignal) =>
-    request<AgentVideoWorkflow>(
-      `/agent/recording-jobs/${encodeURIComponent(recordingJobId)}/workflow`,
-      { signal },
-    ),
-  putAgentComposition: (planId: string, update: PutAgentCompositionRequest) =>
-    request<Composition>(`/agent/plans/${encodeURIComponent(planId)}/composition`, {
-      method: 'PUT', body: update,
-    }),
-  exportAgentComposition: (planId: string) =>
-    request<CompositionExportResponse>(
-      `/agent/plans/${encodeURIComponent(planId)}/composition/export`,
-      { method: 'POST', body: {}, timeoutMs: null },
-    ),
-  /**
-   * Turns a plan into a recording plan in one step, answering with the very
-   * same `RecordingPlanResponse` as `planRecording`: the recording plan screen
-   * (board 08) is the same page whichever door it was reached through.
-   *
-   * Soft-removed shots are left out; a shot whose `recording` is null rejects
-   * the call with status 422. The two codes are `agent_plan_shots_unbound` and
-   * `agent_plan_not_recordable`. The bridge keeps only `{status, code,
-   * message}` of an error, so *which* shots are unbound is not on the rejection
-   * — read it from the plan itself, where `shots[].recording === null` is the
-   * same fact.
-   */
-  planRecordingFromAgentPlan: (planId: string) =>
+  listProjects: (signal?: AbortSignal) => request<Project[]>('/projects', { signal }),
+  getProject: (projectId: string, signal?: AbortSignal) =>
+    request<Project>(`/projects/${encodeURIComponent(projectId)}`, { signal }),
+  createProject: (requestBody: CreateProjectRequest) =>
+    request<Project>('/projects', { method: 'POST', body: requestBody }),
+  createProjectRecordingPlan: (projectId: string, clipIds: string[] = []) =>
     request<RecordingPlanResponse>(
-      `/agent/plans/${encodeURIComponent(planId)}/recording-plan`,
-      { method: 'POST', body: {}, timeoutMs: null },
+      `/projects/${encodeURIComponent(projectId)}/recording-plan`,
+      { method: 'POST', body: { clip_ids: clipIds }, timeoutMs: null },
     ),
-  /** Cross-source list of what is currently in progress in the workspace. */
-  listAgentWorkspaceReferences: (signal?: AbortSignal) =>
-    request<AgentWorkspaceReferences>('/agent/workspace/referencable', { signal }),
+  exportProject: (
+    projectId: string,
+    options: { encoder: string; quality: number; range_start_seconds?: number | null; range_end_seconds?: number | null },
+  ) => request<{ job_id: string; status: string }>(
+    `/projects/${encodeURIComponent(projectId)}/export`,
+    { method: 'POST', body: { confirm: true, ...options }, timeoutMs: null },
+  ),
+  applyProjectPatch: (patch: ProjectPatch) =>
+    request<ProjectPatchResult>(`/projects/${encodeURIComponent(patch.project_id)}`, {
+      method: 'PATCH', body: patch,
+    }),
+  listProjectChangeGroups: (projectId: string, signal?: AbortSignal) =>
+    request<ProjectChangeGroup[]>(
+      `/projects/${encodeURIComponent(projectId)}/change-groups`,
+      { signal },
+    ),
+  revertProjectChangeGroup: (projectId: string, changeGroupId: string, expectedRevision: number) =>
+    request<ProjectPatchResult>(
+      `/projects/${encodeURIComponent(projectId)}/change-groups/${encodeURIComponent(changeGroupId)}/revert`,
+      { method: 'POST', body: { expected_revision: expectedRevision } },
+    ),
+  getProjectEditLease: (projectId: string, signal?: AbortSignal) =>
+    request<ProjectEditLease | null>(
+      `/projects/${encodeURIComponent(projectId)}/edit-lease`,
+      { signal },
+    ),
+  acquireProjectEditLease: (projectId: string, requestBody: AcquireProjectEditLeaseRequest) =>
+    request<ProjectEditLeaseResponse>(`/projects/${encodeURIComponent(projectId)}/edit-lease`, {
+      method: 'POST', body: requestBody,
+    }),
+  heartbeatProjectEditLease: (
+    projectId: string,
+    leaseId: string,
+    requestBody: HeartbeatProjectEditLeaseRequest,
+  ) => request<void>(
+    `/projects/${encodeURIComponent(projectId)}/edit-lease/${encodeURIComponent(leaseId)}`,
+    { method: 'PUT', body: requestBody },
+  ),
+  releaseProjectEditLease: (projectId: string, leaseId: string) => request<void>(
+    `/projects/${encodeURIComponent(projectId)}/edit-lease/${encodeURIComponent(leaseId)}`,
+    { method: 'DELETE' },
+  ),
   getAgentWorkspaceSettings: (signal?: AbortSignal) =>
     request<AgentWorkspaceSettings>('/agent/workspace/settings', { signal }),
   updateAgentWorkspaceSettings: (settings: AgentWorkspaceSettings) =>
@@ -641,34 +560,6 @@ export const commands = {
     request<AudioAnalysis>(`/media/assets/${encodeURIComponent(assetId)}/audio-analysis${queryString(options ?? DEFAULT_AUDIO_ANALYSIS_OPTIONS)}`),
   alignClipsToBeats: (body: BeatAlignmentRequest) =>
     request<BeatAlignmentDraft>('/media/audio/align-clips', { method: 'POST', body }),
-  previewHlaeProposal: (intent: HlaeProposalIntent) =>
-    request<HlaeProposalPreview>('/agent/proposals/hlae/preview', { method: 'POST', body: intent }),
-  exportHlaeProposal: (intent: HlaeProposalIntent, confirmation: ProposalConfirmation) =>
-    request<HlaeProposalExportResult>('/agent/proposals/hlae/export', {
-      method: 'POST', body: { intent, ...confirmation },
-    }),
-  previewBeatAlignmentProposal: (body: BeatAlignmentProposalRequest) =>
-    request<BeatAlignmentProposalPreview>('/agent/proposals/beat-alignment/preview', { method: 'POST', body }),
-  applyBeatAlignmentProposal: (body: BeatAlignmentProposalRequest, confirmation: ProposalConfirmation) =>
-    request<BeatAlignmentApplyResult>('/agent/proposals/beat-alignment/apply', {
-      method: 'POST',
-      body: {
-        project_id: body.project_id,
-        audio_asset_id: body.audio_asset_id,
-        audio_placement: body.audio_placement,
-        draft: body.draft,
-        ...confirmation,
-      },
-    }),
-  previewHighlightEditProposal: (body: HighlightEditProposalRequest) =>
-    request<HighlightEditProposalPreview>('/agent/proposals/highlight-edit/preview', { method: 'POST', body }),
-  applyHighlightEditProposal: (
-    requestBody: HighlightEditProposalRequest,
-    plan: HighlightEditPlan,
-    confirmation: ProposalConfirmation,
-  ) => request<HighlightEditApplyResult>('/agent/proposals/highlight-edit/apply', {
-    method: 'POST', body: { request: requestBody, plan, ...confirmation },
-  }),
   health: (signal?: AbortSignal) => request<ApiHealth>('/health', { signal }),
   quickCheck: (signal?: AbortSignal) =>
     request<QuickCheckResponse>('/config/quick-check', { signal }),
@@ -1066,20 +957,14 @@ export const commands = {
       `/maps/${encodeURIComponent(mapName)}/radar/metadata`,
       { signal },
     ),
-  planRecording: (body: RecordingQueueRequest) =>
-    request<RecordingPlanResponse>('/recording/plan', {
-      method: 'POST',
-      body,
-      timeoutMs: null,
-    }),
   planRecordingRetry: (jobId: string) =>
     request<RecordingPlanResponse>(
       `/recording/jobs/${encodeURIComponent(jobId)}/retry-plan`,
       { method: 'POST', body: {}, timeoutMs: null },
     ),
-  executeRecordingPlan: (planId: string, offlineInsecureAcknowledged: boolean) =>
+  executeRecordingPlan: (projectId: string, planId: string, offlineInsecureAcknowledged: boolean) =>
     request<RecordingExecutionResponse>(
-      `/recording/plans/${encodeURIComponent(planId)}/execute`,
+      `/projects/${encodeURIComponent(projectId)}/recording-plans/${encodeURIComponent(planId)}/execute`,
       {
         method: 'POST',
         body: { offline_insecure_acknowledged: offlineInsecureAcknowledged },
@@ -1098,11 +983,6 @@ export const commands = {
    * Blocked rows disable starting the recording: the server publishes the count
    * as `blocking`. Warnings never do.
    */
-  preflightRecordingPlan: (planId: string) =>
-    request<RecordingPreflight>(
-      `/recording/plans/${encodeURIComponent(planId)}/preflight`,
-      { method: 'POST', body: {}, timeoutMs: null },
-    ),
   getRecordingJob: (id: string, signal?: AbortSignal) =>
     request<RecordingJob>(`/recording/jobs/${encodeURIComponent(id)}`, { signal }),
   cancelRecordingJob: (id: string) =>
@@ -1110,22 +990,6 @@ export const commands = {
       method: 'POST',
       body: {},
     }),
-  listRecordingShotPresets: (signal?: AbortSignal) =>
-    request<{ items: RecordingShotPreset[] }>('/recording/shot-presets', { signal }),
-  createRecordingShotPreset: (draft: RecordingShotPresetDraft) =>
-    request<RecordingShotPreset>('/recording/shot-presets', { method: 'POST', body: draft }),
-  /**
-   * Whole-document replace. The preset keeps its id and creation time; there is
-   * no `expected_revision` because nothing on the server dereferences a preset
-   * id — applying one copies its values into the shot.
-   */
-  putRecordingShotPreset: (id: string, draft: RecordingShotPresetDraft) =>
-    request<RecordingShotPreset>(`/recording/shot-presets/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      body: draft,
-    }),
-  deleteRecordingShotPreset: (id: string) =>
-    request<void>(`/recording/shot-presets/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   listActivities: async (query: ActivityQuery = {}, signal?: AbortSignal) =>
     parseActivityFeed(await request<ActivityFeed>(
       `/activities${queryString({
@@ -1171,133 +1035,17 @@ export const commands = {
     }),
   deleteRecordedClip: (id: string) =>
     request<void>(`/recorded-clips/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  listMontageProjects: (signal?: AbortSignal) =>
-    request<{ items: MontageProjectRecord[] }>('/montage/projects', { signal }),
-  getMontageProject: (id: string, signal?: AbortSignal) =>
-    request<MontageProjectRecord>(`/montage/projects/${encodeURIComponent(id)}`, { signal }),
-  createMontageProject: (body: CreateMontageProject) =>
-    request<MontageProjectRecord>('/montage/projects', { method: 'POST', body }),
-  /** Whole-document replace. `project.id` must equal `id`; the server rejects a mismatch. */
-  putMontageProject: (id: string, project: MontageProjectRecord) =>
-    request<MontageProjectRecord>(`/montage/projects/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      body: project,
-    }),
-  deleteMontageProject: (id: string) =>
-    request<void>(`/montage/projects/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  exportMontageProject: (id: string) =>
-    request<JobAccepted>(`/montage/projects/${encodeURIComponent(id)}/export`, {
-      method: 'POST',
-      body: {},
-      timeoutMs: 30_000,
-    }),
-  listEditorProjects: (signal?: AbortSignal) =>
-    request<{ items: EditorProject[] }>('/editor/projects', { signal }),
-  getEditorProject: (id: string, signal?: AbortSignal) =>
-    request<EditorProject>(`/editor/projects/${encodeURIComponent(id)}`, { signal }),
   listMediaAssets: (projectId?: string, signal?: AbortSignal) =>
     request<{ items: MediaAsset[] }>(
       `/media/assets${queryString({ project_id: projectId })}`,
       { signal },
     ),
-  convertMontageToEditor: (id: string) =>
-    request<EditorProject>(`/montage/projects/${encodeURIComponent(id)}/convert/editor`, {
-      method: 'POST', body: {}, timeoutMs: null,
-    }),
   uploadMediaAssets: async (files: File[], projectId?: string) => {
     const results = await Promise.all(
       files.map((file) => uploadNativeFile<{ items: MediaAsset[] }>('/media/assets', file, projectId)),
     );
     return { items: results.flatMap((result) => result.items) };
   },
-  createEditorProject: (project: CreateEditorProject) =>
-    request<EditorProject>('/editor/projects', { method: 'POST', body: project }),
-  duplicateEditorProject: (projectId: string, name: string, asTemplate = false) =>
-    request<EditorProject>(`/editor/projects/${encodeURIComponent(projectId)}/duplicate`, {
-      method: 'POST',
-      body: { name, as_template: asTemplate },
-    }),
-  saveEditorProject: (project: EditorProject) =>
-    request<EditorProject>(`/editor/projects/${encodeURIComponent(project.id)}`, {
-      method: 'PATCH',
-      body: project,
-    }),
-  listEditorPresets: (signal?: AbortSignal) =>
-    request<{ items: EditorPreset[] }>('/editor/presets', { signal }),
-  createEditorPreset: (name: string, document: EditorPresetDocument) =>
-    request<EditorPreset>('/editor/presets', {
-      method: 'POST',
-      body: { name, document },
-    }),
-  updateEditorPreset: (preset: EditorPreset) =>
-    request<EditorPreset>(`/editor/presets/${encodeURIComponent(preset.id)}`, {
-      method: 'PUT',
-      body: {
-        name: preset.name,
-        expected_revision: preset.revision,
-        document: preset.document,
-      },
-    }),
-  deleteEditorPreset: (id: string, expectedRevision: number) =>
-    request<void>(
-      `/editor/presets/${encodeURIComponent(id)}${queryString({ expected_revision: expectedRevision })}`,
-      { method: 'DELETE' },
-    ),
-  applyEditorPreset: (
-    projectId: string,
-    clipId: string,
-    presetId: string,
-    expectedProjectRevision: number,
-    expectedPresetRevision: number,
-  ) => request<EditorProject>(
-    `/editor/projects/${encodeURIComponent(projectId)}/clips/${encodeURIComponent(clipId)}/apply-preset`,
-    {
-      method: 'POST',
-      body: {
-        preset_id: presetId,
-        expected_project_revision: expectedProjectRevision,
-        expected_preset_revision: expectedPresetRevision,
-      },
-    },
-  ),
-  deleteEditorProjects: (items: Array<{ id: string; expected_revision: number }>) =>
-    request<EditorProjectDeletionResult>('/editor/projects/delete-batch', {
-      method: 'POST',
-      body: { items },
-      timeoutMs: 120_000,
-    }),
-  exportEditorPackage: (projectId: string, outputPath?: string) =>
-    request<EditorPackageExport>(
-      `/editor/projects/${encodeURIComponent(projectId)}/package`,
-      {
-        method: 'POST',
-        body: { output_path: outputPath ?? null },
-        timeoutMs: 10 * 60_000,
-      },
-    ),
-  importEditorPackagePath: (path: string) =>
-    request<EditorPackageImport>('/editor/packages/import', {
-      method: 'POST',
-      body: { path },
-      timeoutMs: 10 * 60_000,
-    }),
-  uploadEditorPackage: (file: File) =>
-    uploadNativeFile<EditorPackageImport>('/editor/packages/upload', file),
-  listEditorSnapshots: (projectId: string, signal?: AbortSignal) =>
-    request<{ items: EditorProjectSnapshot[] }>(
-      `/editor/projects/${encodeURIComponent(projectId)}/snapshots`,
-      { signal },
-    ),
-  restoreEditorSnapshot: (projectId: string, snapshotId: string) =>
-    request<EditorProject>(
-      `/editor/projects/${encodeURIComponent(projectId)}/snapshots/${encodeURIComponent(snapshotId)}/restore`,
-      { method: 'POST', body: {} },
-    ),
-  exportEditorProject: (projectId: string, options: EditorExportOptions) =>
-    request<JobAccepted>(`/editor/projects/${encodeURIComponent(projectId)}/export`, {
-      method: 'POST',
-      body: options,
-    }),
   getAssetWaveform: (id: string, buckets = 120, signal?: AbortSignal) =>
     request<WaveformResponse>(
       `/media/assets/${encodeURIComponent(id)}/waveform${queryString({ buckets })}`,
@@ -1305,20 +1053,6 @@ export const commands = {
     ),
   getMediaAsset: (id: string, signal?: AbortSignal) =>
     request<MediaAsset>(`/media/assets/${encodeURIComponent(id)}`, { signal }),
-  separateEditorAudio: (
-    projectId: string,
-    clipId: string,
-    expectedRevision: number,
-    muteSource = true,
-  ) =>
-    request<EditorAudioSeparation>(
-      `/editor/projects/${encodeURIComponent(projectId)}/clips/${encodeURIComponent(clipId)}/separate-audio`,
-      {
-      method: 'POST',
-      body: { expected_revision: expectedRevision, mute_source: muteSource },
-      timeoutMs: 60 * 60_000,
-      },
-    ),
   /**
    * Registers a file already on disk as a managed asset, without copying it
    * through the upload path. Every field of the body is required by the route

@@ -102,8 +102,11 @@ beforeAll(() => {
   // A guard on the guard: an empty catalog would make every assertion below
   // pass by rendering the authored zh-CN fallback… which contains Han and so
   // would fail loudly instead. This checks the parser found something anyway,
-  // because a *partial* parse would silently narrow the test's reach.
-  expect(Object.keys(messages).length).toBeGreaterThan(1500);
+  // because a *partial* parse would silently narrow the test's reach. The
+  // unified Project rewrite deliberately removed the duplicate Agent, Plan,
+  // Montage, Editor, and Recording surfaces, so the current full catalog is
+  // smaller than the old multi-product catalog.
+  expect(Object.keys(messages).length).toBeGreaterThan(1300);
   i18n.loadAndActivate({ locale: 'en-US', messages });
 });
 

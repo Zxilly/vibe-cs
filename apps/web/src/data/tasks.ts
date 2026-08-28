@@ -45,7 +45,6 @@ import type {
   ActivityStatus,
   AnalysisRunDetail,
   AnalysisRunStatus,
-  AgentVideoWorkflow,
   RecordingPlanResponse,
 } from '../shared/desktop/dto';
 import type { ActivityFeed, ActivityItem } from '../shared/desktop/viewModels';
@@ -143,31 +142,6 @@ export function useRecordingJob(jobId: string | null, tuning: DataQueryTuning = 
     queryKey: qk.tasks.recordingJob(jobId ?? ''),
     queryFn: jobId === null ? skipToken : ({ signal }) => client.getRecordingJob(jobId, signal),
     ...resolveQueryTuning(tuning, { enabled: jobId !== null }),
-  });
-}
-
-export function useAgentVideoWorkflow(
-  recordingJobId: string | null,
-  tuning: TaskQueryTuning = {},
-) {
-  const client = useDesktopClient();
-  const { pollWhileActiveMs, ...rest } = tuning;
-  return useQuery({
-    queryKey: qk.tasks.agentVideoWorkflow(recordingJobId ?? ''),
-    queryFn:
-      recordingJobId === null
-        ? skipToken
-        : ({ signal }) => client.getAgentVideoWorkflow(recordingJobId, signal),
-    ...resolveQueryTuning(rest, { enabled: recordingJobId !== null }),
-    ...(pollWhileActiveMs === undefined
-      ? {}
-      : {
-        refetchInterval: (self: { state: { data: AgentVideoWorkflow | undefined } }) =>
-          self.state.data !== undefined
-          && !['completed', 'failed', 'ready_to_export'].includes(self.state.data.stage)
-            ? pollWhileActiveMs
-            : false,
-      }),
   });
 }
 

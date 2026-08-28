@@ -65,18 +65,12 @@ export function retentionFromOptionId(
  * ceiling that keeps the slider's steps meaningful — §4.5.2's takes are whole
  * plans, not undo entries.
  */
-export const TAKE_LIMIT_MIN = 1;
-export const TAKE_LIMIT_MAX = 10;
 
 /**
  * A stored limit outside the range is clamped for the control but never written
  * back on its own: the panel writes only what the user moved. A non-finite
  * value falls to the floor rather than to `NaN`, which would detach the thumb.
  */
-export function clampTakeLimit(value: number): number {
-  if (!Number.isFinite(value)) return TAKE_LIMIT_MIN;
-  return Math.min(TAKE_LIMIT_MAX, Math.max(TAKE_LIMIT_MIN, Math.round(value)));
-}
 
 /* ── 3. 录制前始终由你确认 ───────────────────────────────────────────────── */
 

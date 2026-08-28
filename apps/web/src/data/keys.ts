@@ -45,8 +45,6 @@
 import type {
   ActivityKind,
   ActivityQuery,
-  AgentObjectKind,
-  AgentPlanQuery,
   AgentSessionQuery,
   AudioAnalysisOptions,
   DemoQuery,
@@ -129,12 +127,10 @@ export const QUERY_NAMESPACE = {
   evidence: 'evidence',
   tasks: 'tasks',
   outputs: 'outputs',
+  projects: 'projects',
   config: 'config',
   sessions: 'sessions',
-  plans: 'plans',
   recording: 'recording',
-  montage: 'montage',
-  editor: 'editor',
   media: 'media',
 } as const;
 
@@ -281,8 +277,6 @@ export const qk = {
      *  the task refreshes both. */
     recordingJob: (jobId: string) =>
       [QUERY_NAMESPACE.tasks, DETAIL, 'recording', jobId, 'job'] as const,
-    agentVideoWorkflow: (jobId: string) =>
-      [QUERY_NAMESPACE.tasks, DETAIL, 'recording', jobId, 'agent-video'] as const,
     exportJob: (jobId: string) =>
       [QUERY_NAMESPACE.tasks, DETAIL, 'export', jobId, 'job'] as const,
     analysisRun: (runId: string) =>
@@ -301,6 +295,16 @@ export const qk = {
     all: [QUERY_NAMESPACE.outputs] as const,
     list: (query: OutputQuery) => [QUERY_NAMESPACE.outputs, LIST, query] as const,
     recordedClips: () => [QUERY_NAMESPACE.outputs, 'recorded-clips'] as const,
+  },
+
+  projects: {
+    all: [QUERY_NAMESPACE.projects] as const,
+    list: () => [QUERY_NAMESPACE.projects, LIST] as const,
+    detail: (projectId: string) => [QUERY_NAMESPACE.projects, DETAIL, projectId] as const,
+    changeGroups: (projectId: string) =>
+      [QUERY_NAMESPACE.projects, DETAIL, projectId, 'change-groups'] as const,
+    editLease: (projectId: string) =>
+      [QUERY_NAMESPACE.projects, DETAIL, projectId, 'edit-lease'] as const,
   },
 
   /**
@@ -329,25 +333,8 @@ export const qk = {
     all: [QUERY_NAMESPACE.sessions] as const,
     list: (query: AgentSessionQuery) => [QUERY_NAMESPACE.sessions, LIST, query] as const,
     detail: (sessionId: string) => [QUERY_NAMESPACE.sessions, DETAIL, sessionId] as const,
-    /** The reverse index: which sessions touched this object (§4.5.1). */
-    ofObject: (kind: AgentObjectKind, objectId: string) =>
-      [QUERY_NAMESPACE.sessions, 'of-object', kind, objectId] as const,
-    workspaceReferences: () => [QUERY_NAMESPACE.sessions, 'referencable'] as const,
     settings: () => [QUERY_NAMESPACE.sessions, 'settings'] as const,
     storage: () => [QUERY_NAMESPACE.sessions, 'storage'] as const,
-  },
-
-  /** Reserved for phase 3e (§4.5). No hooks yet. */
-  plans: {
-    all: [QUERY_NAMESPACE.plans] as const,
-    list: (query: AgentPlanQuery) => [QUERY_NAMESPACE.plans, LIST, query] as const,
-    detail: (planId: string) => [QUERY_NAMESPACE.plans, DETAIL, planId] as const,
-    workbench: (planId: string) =>
-      [QUERY_NAMESPACE.plans, DETAIL, planId, 'workbench'] as const,
-    takes: (planId: string, shotId?: string) =>
-      [QUERY_NAMESPACE.plans, DETAIL, planId, 'takes', shotId ?? 'all'] as const,
-    composition: (planId: string) =>
-      [QUERY_NAMESPACE.plans, DETAIL, planId, 'composition'] as const,
   },
 
   /**
@@ -390,81 +377,12 @@ export const qk = {
    */
   recording: {
     all: [QUERY_NAMESPACE.recording] as const,
-    /** `listRecordingShotPresets` — 「存为预设」's catalogue. */
-    shotPresets: () => [QUERY_NAMESPACE.recording, 'shot-presets'] as const,
     /**
      * `playbackStatus` — whether CS2 is already playing a Demo. Read before
      * 「在游戏里预览」 so the page can say why the action is unavailable rather
      * than launching a second process.
      */
     playback: () => [QUERY_NAMESPACE.recording, 'playback'] as const,
-  },
-
-  /**
-   * 「09 快速合辑」 (phase 3f) — montage projects and the export jobs they start.
-   *
-   * Written by: `createMontageProject` / `putMontageProject` /
-   * `deleteMontageProject` → invalidate **both** `montage.detail(id)` and
-   * `montage.list()`. The list is not a projection of the detail: its rows
-   * print 「5 段素材 · 2 分 04 秒 · 上次保存 3 分钟前」, so a save that only
-   * refreshed the open project would leave the switcher printing a stale clip
-   * count. `data/montage.ts` does both in one helper for that reason.
-   *
-   * `exports(projectId)` is a **sibling** of `detail(projectId)` rather than a
-   * child of it, which is the one place this namespace departs from the
-   * house rule at the top of this file. A save invalidates the detail several
-   * times a minute and cannot change a single export job; hanging the job list
-   * underneath would re-fetch `/exports` on every keystroke-driven autosave.
-   * The reverse direction is real and is honoured: `exportMontageProject`
-   * invalidates `exports(id)` *plus* `qk.tasks.all` and `qk.outputs.all`,
-   * because an export is an activity that ends in an output.
-   */
-  montage: {
-    all: [QUERY_NAMESPACE.montage] as const,
-    /** `listMontageProjects`. No query object — the route takes no filter. */
-    list: () => [QUERY_NAMESPACE.montage, LIST] as const,
-    detail: (projectId: string) => [QUERY_NAMESPACE.montage, DETAIL, projectId] as const,
-    /** `listExportJobs(projectId)`. A sibling — see the note above. */
-    exports: (projectId: string) => [QUERY_NAMESPACE.montage, 'exports', projectId] as const,
-  },
-
-  /**
-   * 「10 多轨编辑器」 (phase 3f-2) — editor projects, their version history and
-   * the clip presets the Inspector applies.
-   *
-   * ── why `snapshots` hangs below `detail` and `presets` does not ───────────
-   *
-   * A snapshot is a version *of one project*: taking one, restoring one and
-   * saving the project all change the same thing, so `snapshots(id)` sits
-   * under `detail(id)` and a save that invalidates the project refreshes its
-   * history for free. That is the 「版本历史」 panel of the artboard, which
-   * prints 「已保存 · 版本 24」 from the same number the detail carries.
-   *
-   * Presets are the opposite: `PresetRecord` is a library shared by every
-   * project (`/editor/presets`, no project id in the path), and applying one
-   * changes the *project*, not the preset. So `presets()` is a sibling of
-   * `list()`, and `applyEditorPreset` invalidates the project alone.
-   *
-   * Written by: `saveEditorProject` / `restoreEditorSnapshot` /
-   * `applyEditorPreset` / `separateEditorAudio` → `editor.detail(id)` **and**
-   * `editor.list()`. Both, for the same reason `montage` does it: the project
-   * switcher prints a name and a modified time that a detail-only refresh
-   * would leave stale.
-   *
-   * `exportEditorProject` invalidates neither — an export reads the project
-   * and writes an output, so it reaches `qk.tasks.all` and `qk.outputs.all`
-   * and leaves the document alone. `exportEditorPackage` is the same shape.
-   */
-  editor: {
-    all: [QUERY_NAMESPACE.editor] as const,
-    /** `listEditorProjects`. The route takes no filter. */
-    list: () => [QUERY_NAMESPACE.editor, LIST] as const,
-    detail: (projectId: string) => [QUERY_NAMESPACE.editor, DETAIL, projectId] as const,
-    /** `listEditorSnapshots(projectId)` — a child, so a save refreshes it. */
-    snapshots: (projectId: string) =>
-      [QUERY_NAMESPACE.editor, DETAIL, projectId, 'snapshots'] as const,
-    /** `listEditorPresets`. A library, not a property of any project. */
-    presets: () => [QUERY_NAMESPACE.editor, 'presets'] as const,
   },
 
   /**

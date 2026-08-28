@@ -43,7 +43,6 @@ import { ActiveProjectsPanel } from './home/ActiveProjectsPanel';
 import { EnvironmentNotice } from './home/EnvironmentNotice';
 import { FirstRunStrip } from './home/FirstRunStrip';
 import { HomeFailureNotice } from './home/HomeFailureNotice';
-import { PendingPlansPanel } from './home/PendingPlansPanel';
 import { RouteLink } from './RouteLink';
 
 export function HomePage() {
@@ -69,7 +68,6 @@ export function HomePage() {
         <section className="flex flex-col gap-3" data-home-block="needs-attention">
           <h2 className="border-l-2 border-accent pl-2 text-lg font-medium"><Trans>需要我处理</Trans></h2>
           <EnvironmentNotice />
-          <PendingPlansPanel />
           <HomeFailureNotice service={service} />
         </section>
 

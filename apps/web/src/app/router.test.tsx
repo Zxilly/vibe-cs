@@ -65,11 +65,8 @@ describe('application routes', () => {
     expect(routerMode).toBe('hash');
   });
 
-  it('declares the sixteen §7 destinations and one catch-all, all inside the shell', () => {
-    /* Sixteen since phase 3g added `/guide` (§10 note: the board wanted the
-       old guide page retired, and §10 kept it for the environment self-check
-       the three-step strip cannot carry). */
-    expect(ROUTE_PATHS).toHaveLength(18);
+  it('declares the current destinations and one catch-all inside the shell', () => {
+    expect(ROUTE_PATHS).toHaveLength(14);
 
     const shell = appRoutes.find((route) => route.id === 'app-shell');
     expect(shell?.children?.some((child) => child.id === 'not-found')).toBe(true);
@@ -84,12 +81,6 @@ describe('application routes', () => {
 
     expect(matches, path).not.toBeNull();
     expect(matches?.at(-1)?.route.id, path).not.toBe('not-found');
-  });
-
-  it('accepts the bare form of every optional-parameter route', () => {
-    expect(routeIdFor('/recording')).toBe('recording');
-    expect(routeIdFor('/montage')).toBe('montage');
-    expect(routeIdFor('/editor')).toBe('editor');
   });
 
   it('keeps the task detail out of the delivery route despite the shared prefix', () => {

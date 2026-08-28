@@ -296,12 +296,12 @@ describe('desktop command client', () => {
   it('executes the opaque server-side recording plan instead of resending queue items', async () => {
     invokeMock.mockResolvedValue({ job_id: 'job-1', status: 'queued' });
 
-    await commands.executeRecordingPlan('plan/unsafe id', false);
+    await commands.executeRecordingPlan('project/unsafe id', 'plan/unsafe id', false);
 
     expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
       call: {
         method: 'post',
-        path: '/recording/plans/plan%2Funsafe%20id/execute',
+        path: '/projects/project%2Funsafe%20id/recording-plans/plan%2Funsafe%20id/execute',
         body: { offline_insecure_acknowledged: false },
       },
     });
@@ -694,8 +694,8 @@ describe('desktop command client', () => {
     let preparationSettled = false;
     let analysisCancelSettled = false;
 
-    void commands.planRecording({ items: [] }).finally(() => { planSettled = true; });
-    void commands.executeRecordingPlan('plan-1', false).finally(() => { executeSettled = true; });
+    void commands.createProjectRecordingPlan('project-1').finally(() => { planSettled = true; });
+    void commands.executeRecordingPlan('project-1', 'plan-1', false).finally(() => { executeSettled = true; });
     void commands.prepareManagedHlae().finally(() => { preparationSettled = true; });
     void commands.cancelAnalysisRun('run-1').finally(() => { analysisCancelSettled = true; });
 
@@ -949,20 +949,6 @@ describe('desktop command client', () => {
     expect(() => desktopMediaUrl('https://evil.example/video.mp4')).toThrow(DesktopError);
   });
 
-  it('keeps editor audio separation as a revision-safe native command', async () => {
-    invokeMock.mockResolvedValue({ project: { revision: 8 }, asset: { id: 'audio-1' } });
-
-    await commands.separateEditorAudio('project 1', 'clip/1', 7);
-
-    expect(invokeMock).toHaveBeenCalledWith('desktop_call', {
-      call: {
-        method: 'post',
-        path: '/editor/projects/project%201/clips/clip%2F1/separate-audio',
-        body: { expected_revision: 7, mute_source: true },
-      },
-    });
-  });
-
   it('loads replay only through the current bounded binary route', async () => {
     invokeMock.mockResolvedValue(new Uint8Array([1, 2, 3]).buffer);
 
@@ -999,29 +985,6 @@ describe('desktop command client', () => {
     expect(invokeMock.mock.calls[1]).toEqual(['desktop_call', {
       call: { method: 'post', path: '/playback/stop', body: {} },
     }]);
-  });
-
-  it('keeps proposal preview and confirmed mutation on typed local routes', async () => {
-    invokeMock.mockResolvedValue({ ready: true, prerequisites: [] });
-    const intent = {
-      demo_id: '00000000-0000-4000-8000-000000000001',
-      highlight_ids: ['h-1'], camera_style: 'orbit' as const, mode: 'preview' as const,
-      lead_seconds: 2.5, tail_seconds: 2,
-    };
-    await commands.previewHlaeProposal(intent);
-    await commands.exportHlaeProposal(intent, {
-      base_fingerprint: 'base', proposal_fingerprint: 'proposal', confirmation_token: 'token',
-      expected_revision: 1, confirm: true,
-    });
-    expect(invokeMock.mock.calls[0]).toEqual(['desktop_call', {
-      call: { method: 'post', path: '/agent/proposals/hlae/preview', body: intent },
-    }]);
-    expect(invokeMock.mock.calls[1]?.[1]).toMatchObject({
-      call: {
-        method: 'post', path: '/agent/proposals/hlae/export',
-        body: { intent, confirm: true, confirmation_token: 'token' },
-      },
-    });
   });
 
   it('keeps managed HLAE preparation and bundle reveal behind typed desktop boundaries', async () => {

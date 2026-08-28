@@ -13,9 +13,16 @@ try {
     foreach ($member in $metadata.workspace_members) {
         $workspaceMembers[$member] = $true
     }
+    $vendorRoot = [IO.Path]::GetFullPath((Join-Path $workspaceRoot 'vendor')) + [IO.Path]::DirectorySeparatorChar
     $packages = @(
         $metadata.packages |
-            Where-Object { $workspaceMembers.ContainsKey($_.id) } |
+            Where-Object {
+                $workspaceMembers.ContainsKey($_.id) -and
+                    -not [IO.Path]::GetFullPath($_.manifest_path).StartsWith(
+                        $vendorRoot,
+                        [StringComparison]::OrdinalIgnoreCase
+                    )
+            } |
             Sort-Object name
     )
     if ($packages.Count -eq 0) {

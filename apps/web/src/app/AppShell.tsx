@@ -137,6 +137,7 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
   const mode = routeMode ?? storedMode;
 
   const crumb = routeCrumb(location.pathname, location.search);
+  const focusedProject = /^\/projects\/[^/]+$/u.test(location.pathname);
 
   useEffect(() => {
     if (routeMode === null) return;
@@ -173,9 +174,10 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
       className="flex h-full min-h-0 flex-col overflow-hidden bg-bg text-text"
     >
       <WindowTitleBar
+        compact={focusedProject}
         mode={mode}
         onModeChange={switchMode}
-        crumb={<RouteBreadcrumb segments={crumb} />}
+        crumb={focusedProject ? null : <RouteBreadcrumb segments={crumb} />}
         serviceStatus={service.status}
         navCollapsed={navCollapsed}
         adapter={adapter}
@@ -189,7 +191,7 @@ function ShellFrame({ collapsed, adapter, badges }: ShellFrameProps) {
       <ServiceOfflineNotice />
 
       <div data-shell-row className="flex min-h-0 flex-1">
-        <SideNav mode={mode} collapsed={navCollapsed} badges={badges} />
+        {focusedProject ? null : <SideNav mode={mode} collapsed={navCollapsed} badges={badges} />}
 
         <main
           id="main-content"

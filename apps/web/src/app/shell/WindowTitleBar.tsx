@@ -116,6 +116,8 @@ async function resolveDesktopWindow(): Promise<DesktopWindowAdapter | null> {
 }
 
 export interface WindowTitleBarProps {
+  /** Project workbench focus mode: keep drag/window controls, hide global chrome. */
+  compact?: boolean | undefined;
   /** Current work lens shown in the former brand block. */
   mode?: WorkspaceMode | undefined;
   /** Switches the shell navigation and lands on that lens's remembered entry. */
@@ -167,6 +169,7 @@ function startsOnDragRegion(target: EventTarget | null): boolean {
 }
 
 export function WindowTitleBar({
+  compact = false,
   mode,
   onModeChange,
   crumb,
@@ -208,6 +211,9 @@ export function WindowTitleBar({
     () => createWindowTitleBarController(desktopWindow, () => setActionFailed(true)),
     [desktopWindow],
   );
+  const controlClass = compact
+    ? 'grid w-8 flex-none place-items-center text-neutral-600 hover:bg-neutral-200 hover:text-text'
+    : CONTROL_CLASS;
 
   const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
     if (!startsOnDragRegion(event.target)) return;
@@ -222,83 +228,90 @@ export function WindowTitleBar({
 
   return (
     <header
+      data-titlebar-compact={String(compact)}
       data-shell-titlebar={collapsed ? 'nav-collapsed' : 'nav-expanded'}
       onPointerDown={onPointerDown}
       onDoubleClick={onDoubleClick}
       className={cn(
-        'flex h-[var(--h-titlebar)] flex-none items-stretch border-b border-divider bg-surface-chrome',
+        'flex flex-none items-stretch border-b border-divider bg-surface-chrome',
+        compact ? 'h-7' : 'h-[var(--h-titlebar)]',
         className,
       )}
     >
-      <div
-        data-titlebar-mode={currentMode}
-        className={cn(
-          'flex flex-none items-stretch border-r border-divider',
-          collapsed ? 'w-[var(--w-nav-collapsed)]' : 'w-[var(--w-nav)]',
-        )}
-      >
-        <WorkspaceModeMenu
-          mode={currentMode}
-          collapsed={collapsed}
-          onModeChange={onModeChange}
-        />
-      </div>
+      {compact ? null : (
+        <div
+          data-titlebar-mode={currentMode}
+          className={cn(
+            'flex flex-none items-stretch border-r border-divider',
+            collapsed ? 'w-[var(--w-nav-collapsed)]' : 'w-[var(--w-nav)]',
+          )}
+        >
+          <WorkspaceModeMenu
+            mode={currentMode}
+            collapsed={collapsed}
+            onModeChange={onModeChange}
+          />
+        </div>
+      )}
 
-      <div className="flex min-w-0 flex-1 items-center gap-3.5 px-4">
+      <div className={cn('flex min-w-0 flex-1 items-center gap-3.5', compact ? 'px-3' : 'px-4')}>
         {/* A `div`, not a `span`: the crumb is a `<nav>` with a list in it. */}
         <div className="flex min-w-0 items-center">{crumb}</div>
         <span className="flex-1" />
 
-        <button
-          type="button"
-          data-window-no-drag
-          data-titlebar-command
-          onClick={onOpenCommandPalette}
-          className={
-            'flex h-[var(--h-ctl-sm)] w-[var(--w-inspector)] max-w-full flex-none items-center gap-2 ' +
-            'border border-divider bg-bg px-2.5 text-sm text-neutral-600 ' +
-            'hover:border-neutral-500 hover:text-text'
-          }
-        >
-          <Search size={14} strokeWidth={1.5} aria-hidden="true" className="flex-none" />
-          <span className="min-w-0 flex-1 truncate text-left">
-            <Trans>跳转、搜索比赛或证据</Trans>
-          </span>
-          {/* A key name, not copy: it is the same three characters in every locale. */}
-          <Kbd className="tracking-wide">CTRL K</Kbd>
-        </button>
-
-        <span className="flex-1" />
-
-        {onOpenActivity === undefined ? null : (
-          <button
-            type="button"
-            data-window-no-drag
-            data-titlebar-activity
-            aria-label={
-              activityUnreadCount > 0
-                ? t`后台任务，${activityUnreadCount} 条未读`
-                : t`后台任务`
-            }
-            onClick={onOpenActivity}
-            className="relative grid size-[var(--h-ctl-sm)] flex-none place-items-center border border-divider text-neutral-700 hover:border-neutral-500 hover:text-text"
-          >
-            <Bell size={15} strokeWidth={1.5} aria-hidden="true" />
-            {activityUnreadCount > 0 ? (
-              <span
-                aria-hidden="true"
-                data-activity-unread={activityUnreadCount}
-                className="absolute -right-1 -top-1 min-w-4 border border-accent bg-accent px-0.5 font-mono text-2xs leading-tight text-bg"
-              >
-                {activityUnreadCount > 99 ? '99+' : activityUnreadCount}
+        {compact ? null : (
+          <>
+            <button
+              type="button"
+              data-window-no-drag
+              data-titlebar-command
+              onClick={onOpenCommandPalette}
+              className={
+                'flex h-[var(--h-ctl-sm)] w-[var(--w-inspector)] max-w-full flex-none items-center gap-2 ' +
+                'border border-divider bg-bg px-2.5 text-sm text-neutral-600 ' +
+                'hover:border-neutral-500 hover:text-text'
+              }
+            >
+              <Search size={14} strokeWidth={1.5} aria-hidden="true" className="flex-none" />
+              <span className="min-w-0 flex-1 truncate text-left">
+                <Trans>跳转、搜索比赛或证据</Trans>
               </span>
-            ) : null}
-          </button>
-        )}
+              <Kbd className="tracking-wide">CTRL K</Kbd>
+            </button>
 
-        <span data-titlebar-service={serviceStatus} className="flex flex-none items-center">
-          <ServiceStatusMarker status={serviceStatus} className={SERVICE_TEXT_CLASS[serviceStatus]} />
-        </span>
+            <span className="flex-1" />
+
+            {onOpenActivity === undefined ? null : (
+              <button
+                type="button"
+                data-window-no-drag
+                data-titlebar-activity
+                aria-label={
+                  activityUnreadCount > 0
+                    ? t`后台任务，${activityUnreadCount} 条未读`
+                    : t`后台任务`
+                }
+                onClick={onOpenActivity}
+                className="relative grid size-[var(--h-ctl-sm)] flex-none place-items-center border border-divider text-neutral-700 hover:border-neutral-500 hover:text-text"
+              >
+                <Bell size={15} strokeWidth={1.5} aria-hidden="true" />
+                {activityUnreadCount > 0 ? (
+                  <span
+                    aria-hidden="true"
+                    data-activity-unread={activityUnreadCount}
+                    className="absolute -right-1 -top-1 min-w-4 border border-accent bg-accent px-0.5 font-mono text-2xs leading-tight text-bg"
+                  >
+                    {activityUnreadCount > 99 ? '99+' : activityUnreadCount}
+                  </span>
+                ) : null}
+              </button>
+            )}
+
+            <span data-titlebar-service={serviceStatus} className="flex flex-none items-center">
+              <ServiceStatusMarker status={serviceStatus} className={SERVICE_TEXT_CLASS[serviceStatus]} />
+            </span>
+          </>
+        )}
       </div>
 
       <div data-window-no-drag className="flex flex-none items-stretch border-l border-divider">
@@ -317,7 +330,7 @@ export function WindowTitleBar({
           aria-label={t`最小化窗口`}
           title={t`最小化窗口`}
           onClick={() => void controller.minimize()}
-          className={CONTROL_CLASS}
+          className={controlClass}
         >
           <Minus size={14} strokeWidth={1.5} aria-hidden="true" />
         </button>
@@ -327,7 +340,7 @@ export function WindowTitleBar({
           aria-label={t`最大化或还原窗口`}
           title={t`最大化或还原窗口`}
           onClick={() => void controller.toggleMaximize()}
-          className={CONTROL_CLASS}
+          className={controlClass}
         >
           <Maximize size={12} strokeWidth={1.5} aria-hidden="true" />
         </button>
@@ -337,7 +350,7 @@ export function WindowTitleBar({
           aria-label={t`关闭窗口`}
           title={t`关闭窗口`}
           onClick={() => void controller.close()}
-          className={cn(CONTROL_CLASS, 'hover:bg-fail hover:text-bg')}
+          className={cn(controlClass, 'hover:bg-fail hover:text-bg')}
         >
           <X size={14} strokeWidth={1.5} aria-hidden="true" />
         </button>

@@ -63,6 +63,16 @@ describe('AppShell — the assembled frame', () => {
     expect(html).toContain('data-test-page');
   });
 
+  it('gives a Project workbench a focused shell without global navigation chrome', () => {
+    const html = renderShell('/projects/00000000-0000-4000-8000-000000000001');
+
+    expect(html).toContain('data-titlebar-compact="true"');
+    expect(html).not.toContain('data-shell-nav');
+    expect(html).not.toContain('data-titlebar-command');
+    expect(html).not.toContain('data-titlebar-activity');
+    expect(html).toContain('data-shell-main');
+  });
+
   it('gives every route one full-size clipped viewport', () => {
     const html = renderShell('/library');
 

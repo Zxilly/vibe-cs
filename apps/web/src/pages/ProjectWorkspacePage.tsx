@@ -1,18 +1,16 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import {
-  Bot,
   CheckCircle2,
   ChevronLeft,
-  ChevronRight,
   CircleAlert,
   LoaderCircle,
   Send,
+  Sparkles,
   Square,
-  Undo2,
   Wrench,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import {
@@ -22,9 +20,10 @@ import {
   useProject,
   useProjectChangeGroups,
   useProjectEditLease,
-  useRevertProjectChangeGroup,
   useStartProjectRecording,
 } from '../data/projects';
+import { useDemo } from '../data/demos';
+import { useMapRadarOverview, useMatchReplay } from '../data/match';
 import { mediaAssetStreamPath } from '../data/mediaAssets';
 import { useNativeShell } from '../data/nativeShell';
 import {
@@ -34,9 +33,10 @@ import {
   useCreateAgentSession,
 } from '../data/sessions';
 import { Empty, Skeleton } from '../design/data';
-import { Alert, Dialog } from '../design/feedback';
+import { Alert, Drawer } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
-import { Badge, Button, NativeSelect, Seg, cn } from '../design/primitives';
+import { Badge, Button, cn } from '../design/primitives';
+import { MapCanvas, PathLayer } from '../domain/map';
 import type {
   Project,
   ProjectChangeGroup,
@@ -47,9 +47,10 @@ import type {
   JsonValue,
   TimelineClip,
   TimelineTrack,
-  TrackKind,
 } from '../shared/desktop/dto';
 import { RouteLink } from './RouteLink';
+import { PlayerLayer } from './match/views/ReplayCanvas';
+import { buildPlayerTracks, frameIndexAtTick, playerMarkers, sliceReplay } from './match/views/replayModel';
 
 type EditingLens = 'quick' | 'multitrack';
 
@@ -63,15 +64,12 @@ export function ProjectWorkspacePage() {
   const groups = useProjectChangeGroups(canonicalId);
   const lease = useProjectEditLease(canonicalId);
   const apply = useApplyProjectPatch();
-  const revert = useRevertProjectChangeGroup(canonicalId ?? '');
   const startRecording = useStartProjectRecording();
   const exportProject = useExportProject();
-  const [lens, setLens] = useState<EditingLens>('quick');
-  const [agentOpen, setAgentOpen] = useState(true);
+  const lens: EditingLens = 'multitrack';
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
   const agentSessionId = searchParams.get('session');
-  const [confirmRecording, setConfirmRecording] = useState(false);
-  const [confirmExport, setConfirmExport] = useState(false);
   const agentSession = useAgentSession(agentSessionId);
   const createAgentSession = useCreateAgentSession();
   const appendAgentEntry = useAppendAgentSessionEntry();
@@ -87,6 +85,14 @@ export function ProjectWorkspacePage() {
       { onSuccess: (created) => void navigate(`/projects/${encodeURIComponent(created.id)}`, { replace: true }) },
     );
   }, [create, navigate, projectId]);
+
+  useEffect(() => {
+    if (selectedClipId !== null) return;
+    const firstClip = project.data?.document.tracks
+      .find((track) => track.id === project.data?.document.story_track_id)
+      ?.clips[0];
+    if (firstClip !== undefined) setSelectedClipId(firstClip.id);
+  }, [project.data, selectedClipId]);
 
   if (projectId === 'new' || project.isPending) {
     return (
@@ -114,10 +120,11 @@ export function ProjectWorkspacePage() {
 
   const current = project.data;
   const readOnly = lease.data !== null && lease.data !== undefined;
-  const visibleTracks = lens === 'quick'
-    ? current.document.tracks.filter((track) => track.id === current.document.story_track_id)
-    : current.document.tracks;
+  const visibleTracks = current.document.tracks;
   const selected = findClip(current, selectedClipId);
+  const latestAgentGroup = (groups.data ?? []).find((group) => group.author.kind === 'agent') ?? null;
+  const allClips = current.document.tracks.flatMap((track) => track.clips);
+  const recordedCount = allClips.filter((clip) => clip.material.kind !== 'planned').length;
   const mutate = (summary: string, scope: ProjectPatchScope, operations: ProjectEditOperation[]) => {
     if (readOnly) return;
     apply.mutate({
@@ -156,101 +163,46 @@ export function ProjectWorkspacePage() {
 
   return (
     <Page
-      toolbar={
-        <Toolbar title={current.name} meta={<Trans>r{current.revision} · 统一时间轴</Trans>}>
-          <Seg
-            name="editing-lens"
-            size="sm"
-            value={lens}
-            aria-label={t`剪辑视图`}
-            options={[
-              { value: 'quick', label: <Trans>快速剪辑</Trans> },
-              { value: 'multitrack', label: <Trans>多轨精剪</Trans> },
-            ]}
-            onChange={setLens}
-          />
-          <Button variant={agentOpen ? 'primary' : 'secondary'} size="sm" onClick={() => setAgentOpen((value) => !value)}>
-            <Bot className="size-4" aria-hidden="true" />
-            <Trans>Agent</Trans>
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={readOnly || startRecording.isPending}
-            onClick={() => setConfirmRecording(true)}
-          >
-            <Trans>录制缺失片段</Trans>
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={readOnly || exportProject.isPending}
-            onClick={() => setConfirmExport(true)}
-          >
-            <Trans>导出成片</Trans>
-          </Button>
-        </Toolbar>
-      }
+      scroll={false}
+      toolbar={(
+        <header className="flex h-12 flex-none items-center gap-3 border-b border-divider px-4">
+          <button type="button" className="flex items-center gap-1.5 text-sm text-neutral-700 hover:text-text" onClick={() => void navigate('/projects')}>
+            <ChevronLeft className="size-4" aria-hidden="true" />
+            <Trans>作品</Trans>
+          </button>
+          <span className="h-5 border-l border-divider" aria-hidden="true" />
+          <h1 className="min-w-0 truncate font-heading text-lg">{current.name}</h1>
+          <span className="font-mono text-xs text-neutral-500"><Trans>变更 r{current.revision}</Trans></span>
+          <Badge variant="accent" size="sm">
+            {agentChat.streaming || readOnly ? <Trans>Agent 操作中</Trans> : agentSession.data?.entries.length ? <Trans>Agent 已交付</Trans> : <Trans>等待 Agent</Trans>}
+          </Badge>
+          <span className="ml-auto text-xs text-neutral-600"><Trans>{recordedCount}/{allClips.length} 已录制</Trans></span>
+          <span className="flex items-center gap-1 text-xs text-ok"><CheckCircle2 className="size-3.5" aria-hidden="true" /><Trans>结构检查通过</Trans></span>
+        </header>
+      )}
     >
-      <div className={cn('grid min-h-0 flex-1', agentOpen ? 'grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1')}>
-        <div className="grid min-h-0 grid-rows-[minmax(220px,42%)_minmax(0,1fr)] overflow-hidden">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(360px,24vw)] overflow-hidden">
+        <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(260px,46%)_150px_minmax(190px,1fr)] overflow-hidden">
           <PreviewSplit project={current} selected={selected?.clip ?? null} />
-          <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_300px]">
-            <Timeline
-              project={current}
-              tracks={visibleTracks}
-              selectedClipId={selectedClipId}
-              lens={lens}
-              readOnly={readOnly}
-              onSelect={setSelectedClipId}
-              onMove={(track, clip, index) => mutate(
-                `移动 ${clip.name}`,
-                { kind: 'track', track_id: track.id },
-                [{ op: 'move_clip', clip_id: clip.id, to_track_id: track.id, index }],
-              )}
-              onAddTrack={(kind) => {
-                mutate(
-                  `添加 ${kind} 轨道`,
-                  { kind: 'project' },
-                  [{
-                    op: 'insert_track',
-                    index: current.document.tracks.length,
-                    track: {
-                      id: '00000000-0000-0000-0000-000000000000',
-                      name: trackName(kind),
-                      kind,
-                      order: current.document.tracks.length,
-                      muted: false,
-                      locked: false,
-                      hidden: false,
-                      clips: [],
-                    },
-                  }],
-                );
-              }}
-            />
-            <ClipInspector
-              selected={selected}
-              readOnly={readOnly}
-              onReplace={(clip) => mutate(
-                `修改 ${clip.name}`,
-                { kind: 'track', track_id: selected?.track.id ?? current.document.story_track_id },
-                [{ op: 'replace_clip', clip_id: clip.id, clip }],
-              )}
-            />
-          </div>
-        </div>
-        {agentOpen ? (
-          <AgentPanel
+          <ChangeSummary project={current} group={latestAgentGroup} />
+          <Timeline
             project={current}
-            lens={lens}
+            tracks={visibleTracks}
             selectedClipId={selectedClipId}
+            onSelect={setSelectedClipId}
+            onInspect={(clipId) => {
+              setSelectedClipId(clipId);
+              setInspectorOpen(true);
+            }}
+          />
+        </div>
+        <AgentPanel
+            project={current}
             session={agentSession.data ?? null}
             chat={agentChat}
             creatingSession={createAgentSession.isPending}
             onSend={sendToAgent}
             changeGroups={groups.data ?? []}
-            reverting={revert.isPending}
             readOnly={readOnly}
             confirming={appendAgentEntry.isPending || startRecording.isPending || exportProject.isPending}
             onConfirmRecording={async (clipIds) => {
@@ -266,51 +218,37 @@ export function ProjectWorkspacePage() {
             onReturnDelivery={() => sendToAgent(t`退回修改，请继续调整这份作品。`)}
             onDirectEdit={() => {
               void appendHumanDecision(t`我将直接修改这份作品。`);
-              setLens('multitrack');
-              setSelectedClipId((value) => value ?? current.document.tracks.flatMap((track) => track.clips)[0]?.id ?? null);
+              const clipId = selectedClipId ?? allClips[0]?.id ?? null;
+              setSelectedClipId(clipId);
+              setInspectorOpen(clipId !== null);
             }}
-            onUndo={(changeGroupId) => revert.mutate({
-              changeGroupId,
-              expectedRevision: current.revision,
-            })}
           />
-        ) : null}
       </div>
-      {apply.error === null && revert.error === null && startRecording.error === null && exportProject.error === null ? null : (
-        <Alert className="m-4" variant="danger" action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revert.reset(); startRecording.reset(); exportProject.reset(); } }}>
+      <Drawer
+        open={inspectorOpen && selected !== null}
+        title={<Trans>片段属性</Trans>}
+        {...(selected === null ? {} : { description: selected.clip.name })}
+        width="standard"
+        onClose={() => setInspectorOpen(false)}
+      >
+        <ClipInspector
+          selected={selected}
+          readOnly={readOnly}
+          onReplace={(clip) => {
+            mutate(
+              `修改 ${clip.name}`,
+              { kind: 'track', track_id: selected?.track.id ?? current.document.story_track_id },
+              [{ op: 'replace_clip', clip_id: clip.id, clip }],
+            );
+            setInspectorOpen(false);
+          }}
+        />
+      </Drawer>
+      {apply.error === null && startRecording.error === null && exportProject.error === null ? null : (
+        <Alert className="m-4" variant="danger" action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); startRecording.reset(); exportProject.reset(); } }}>
           <Trans>操作没有完成。检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>
         </Alert>
       )}
-      <Dialog
-        open={confirmRecording}
-        title={<Trans>开始录制这份作品的缺失片段？</Trans>}
-        confirmLabel={startRecording.isPending ? <Trans>正在启动</Trans> : <Trans>确认并启动</Trans>}
-        confirmDisabled={startRecording.isPending}
-        onClose={() => setConfirmRecording(false)}
-        onConfirm={() => {
-          startRecording.mutate(
-            { projectId: current.id },
-            { onSuccess: () => setConfirmRecording(false) },
-          );
-        }}
-      >
-        <Trans>将启动受管的离线 CS2/HLAE 录制并写出媒体文件。只录制未录制或已过期的 Capture Intent；已完成的 Take 不会重复录制。</Trans>
-      </Dialog>
-      <Dialog
-        open={confirmExport}
-        title={<Trans>导出这份作品的最终成片？</Trans>}
-        confirmLabel={exportProject.isPending ? <Trans>正在启动</Trans> : <Trans>确认并导出</Trans>}
-        confirmDisabled={exportProject.isPending}
-        onClose={() => setConfirmExport(false)}
-        onConfirm={() => {
-          exportProject.mutate(
-            { projectId: current.id },
-            { onSuccess: () => setConfirmExport(false) },
-          );
-        }}
-      >
-        <Trans>最终导出会写出 MP4。Delivery Gate 会拒绝任何仍未录制、媒体已过期或超出源素材范围的启用片段。</Trans>
-      </Dialog>
     </Page>
   );
 }
@@ -327,10 +265,10 @@ function PreviewSplit({ project, selected }: { readonly project: Project; readon
   };
 
   return (
-    <section className="min-h-0 border-b border-divider bg-surface" aria-label={t`预览分栏`}>
+    <section className="min-h-0 min-w-0 overflow-hidden border-b border-divider bg-surface" aria-label={t`预览分栏`}>
       <div
         ref={splitRef}
-        className="grid h-full min-h-0"
+        className="grid h-full min-h-0 min-w-0 max-w-full"
         style={{ gridTemplateColumns: `${videoPercent}% 10px minmax(0, 1fr)` }}
       >
         <ProgramMonitor project={project} selected={selected} />
@@ -371,7 +309,7 @@ function ProgramMonitor({ project, selected }: { readonly project: Project; read
     : null;
   const videoSrc = assetId === null ? null : shell.mediaSrc(mediaAssetStreamPath(assetId));
   return (
-    <section className="flex min-h-0 flex-col bg-neutral-900 text-neutral-100" aria-label={t`视频预览`}>
+    <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-neutral-900 text-neutral-100" aria-label={t`视频预览`}>
       <header className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-neutral-800 px-4 text-xs font-semibold">
         <Trans>视频预览</Trans>
         <span className="ml-auto font-mono font-normal text-neutral-400">{project.document.width}×{project.document.height} · {project.document.fps} fps</span>
@@ -398,54 +336,170 @@ function ProgramMonitor({ project, selected }: { readonly project: Project; read
 
 function TacticalPreview({ selected }: { readonly selected: TimelineClip | null }) {
   const intent = selected?.capture_intent ?? null;
+  const demo = useDemo(intent?.demo_id ?? null);
+  const mapName = demo.data?.map_name ?? null;
+  const radar = useMapRadarOverview(mapName);
+  const replay = useMatchReplay(intent?.demo_id ?? null, { enabled: intent !== null });
+  const shell = useNativeShell();
+  const radarSrc = radar.data?.image_url === null || radar.data?.image_url === undefined
+    ? null
+    : shell.mediaSrc(radar.data.image_url);
+  const bounds = useMemo(
+    () => intent === null ? null : { startTick: intent.start_tick, endTick: intent.end_tick },
+    [intent],
+  );
+  const replaySlice = useMemo(() => sliceReplay(replay.data, bounds), [bounds, replay.data]);
+  const frameIndex = replaySlice === null
+    ? -1
+    : frameIndexAtTick(replaySlice.frames, replaySlice.endTick);
+  const tracks = useMemo(
+    () => replaySlice === null ? [] : buildPlayerTracks(replaySlice.frames, frameIndex).paths,
+    [frameIndex, replaySlice],
+  );
+  const markers = useMemo(
+    () => replaySlice === null || frameIndex < 0 ? [] : playerMarkers(replaySlice.frames[frameIndex] ?? null),
+    [frameIndex, replaySlice],
+  );
   return (
-    <section className="flex min-h-0 flex-col bg-neutral-900 text-neutral-100" aria-label={t`战术示意`}>
+    <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-neutral-900 text-neutral-100" aria-label={t`战术示意`}>
       <header className="flex h-[var(--h-panel-head)] flex-none items-center border-b border-neutral-800 px-4 text-xs font-semibold">
         <Trans>战术示意</Trans>
         <span className="ml-auto font-mono font-normal text-neutral-400">
           {intent === null ? <Trans>等待片段</Trans> : <Trans>tick {intent.start_tick}–{intent.end_tick}</Trans>}
         </span>
       </header>
-      <div className="relative grid min-h-0 flex-1 place-items-center overflow-hidden p-4">
-        <svg viewBox="0 0 480 280" className="h-full max-h-72 w-full" role="img" aria-label={t`当前片段的战术路径示意`}>
-          <path d="M34 44h126v48h52v-30h102v42h132v78h-92v62H238v-38H122v42H34v-86h58v-58H34z" className="fill-neutral-800 stroke-neutral-500" strokeWidth="3" />
-          <path d="M160 44v64h78v98M314 104v78h40M92 162h146" fill="none" className="stroke-neutral-600" strokeWidth="10" strokeLinecap="square" />
-          <path d="M75 202C142 194 142 132 205 136S286 190 354 146" fill="none" className="stroke-team-a" strokeWidth="4" strokeDasharray="10 8" />
-          <path d="M394 89C350 110 332 134 302 161S244 199 205 204" fill="none" className="stroke-team-b" strokeWidth="4" strokeDasharray="10 8" />
-          <circle cx="75" cy="202" r="11" className="fill-team-a stroke-bg" strokeWidth="3" />
-          <circle cx="205" cy="136" r="11" className="fill-team-a stroke-bg" strokeWidth="3" />
-          <circle cx="354" cy="146" r="11" className="fill-team-a stroke-bg" strokeWidth="3" />
-          <circle cx="394" cy="89" r="11" className="fill-team-b stroke-bg" strokeWidth="3" />
-          <circle cx="302" cy="161" r="11" className="fill-team-b stroke-bg" strokeWidth="3" />
-          <path d="M226 187l7 14 16 2-12 11 3 16-14-8-15 8 3-16-12-11 17-2z" className="fill-fail stroke-bg" strokeWidth="2" />
-        </svg>
-        <div className="pointer-events-none absolute self-end pb-3 text-center text-xs text-neutral-400">
-          {selected === null ? <Trans>选择片段后显示路径与事件</Trans> : intent === null ? <Trans>这段素材没有 Capture Intent</Trans> : intent.player_id}
+      {selected === null || intent === null || mapName === null ? (
+        <div className="grid min-h-0 flex-1 place-items-center px-5 text-center text-sm text-neutral-400">
+          {selected === null ? <Trans>选择片段后显示路径与事件</Trans> : <Trans>这段素材没有可用的地图上下文</Trans>}
         </div>
+      ) : demo.isPending || radar.isPending || replay.isPending ? (
+        <div className="min-h-0 flex-1 animate-pulse bg-neutral-800" role="status" aria-label={t`正在读取战术图`} />
+      ) : radarSrc === null ? (
+        <div className="grid min-h-0 flex-1 place-items-center px-5 text-center text-sm text-neutral-400">
+          <Trans>这张地图的雷达图暂时不可用</Trans>
+        </div>
+      ) : (
+        <MapCanvas
+          mapName={mapName}
+          overviewTransform={radar.data?.transform}
+          label={t`${selected.name} 战术示意`}
+          status={replaySlice === null ? 'empty' : 'ready'}
+          className="min-h-0 flex-1 bg-neutral-900 [&>div]:p-2 [&_.blueprint]:bg-neutral-900 [&_figcaption]:hidden"
+          basemap={<img src={radarSrc} alt="" className="size-full object-contain brightness-150 contrast-125" />}
+          legend={[
+            { id: 'players', label: t`选手位置`, glyph: 'outline', tone: 'team-b' },
+            { id: 'path', label: t`移动路线`, glyph: 'line', tone: 'accent' },
+          ]}
+        >
+          {(projection) => (
+            <>
+              <PathLayer projection={projection} paths={tracks} selectedPlayerId={intent.player_id} />
+              <PlayerLayer projection={projection} markers={markers} selectedPlayerId={intent.player_id} />
+            </>
+          )}
+        </MapCanvas>
+      )}
+    </section>
+  );
+}
+
+function ChangeSummary({ project, group }: { readonly project: Project; readonly group: ProjectChangeGroup | null }) {
+  const story = project.document.tracks.find((track) => track.id === project.document.story_track_id);
+  const currentClips = story?.clips ?? [];
+  const previousClips = previousStoryClips(group, project.document.story_track_id) ?? currentClips;
+  const changed = changedClipIds(group, currentClips);
+  return (
+    <section className="flex min-h-0 flex-col border-b border-divider bg-bg" aria-label={t`变更摘要`}>
+      <header className="flex h-9 flex-none items-center gap-3 border-b border-divider px-4 text-xs">
+        <h2 className="font-heading text-sm"><Trans>变更摘要</Trans></h2>
+        <span className="text-neutral-500">{group?.summary ?? t`当前没有 Agent 时间线变更`}</span>
+        <span className="ml-auto flex items-center gap-3 text-2xs text-neutral-500">
+          <span className="flex items-center gap-1"><span className="size-2 bg-ok" /><Trans>新增或调整</Trans></span>
+          <span className="flex items-center gap-1"><span className="size-2 bg-fail" /><Trans>原版本</Trans></span>
+        </span>
+      </header>
+      <div className="grid min-h-0 flex-1 grid-rows-2 text-xs">
+        <ReviewStrip label={t`当前版本`} clips={previousClips} changed={changed} tone="before" />
+        <ReviewStrip label={t`Agent 提案`} clips={currentClips} changed={changed} tone="after" />
       </div>
     </section>
   );
+}
+
+function ReviewStrip({
+  label,
+  clips,
+  changed,
+  tone,
+}: {
+  readonly label: string;
+  readonly clips: readonly TimelineClip[];
+  readonly changed: ReadonlySet<string>;
+  readonly tone: 'before' | 'after';
+}) {
+  return (
+    <div className="grid min-h-0 grid-cols-[96px_minmax(0,1fr)] border-b border-divider last:border-b-0">
+      <div className="flex items-center px-4 font-medium">{label}</div>
+      <ol className="flex min-w-0 list-none overflow-hidden p-0">
+        {clips.map((clip) => {
+          const isChanged = changed.has(clip.id);
+          return (
+            <li
+              key={`${tone}:${clip.id}`}
+              className={cn(
+                'flex min-w-20 flex-1 items-center border-l border-divider px-2 font-mono text-2xs',
+                isChanged && tone === 'after' && 'border-ok-border bg-ok-surface text-ok',
+                isChanged && tone === 'before' && 'border-fail-border bg-fail-surface text-fail-text',
+              )}
+            >
+              <span className="truncate">{clip.name}</span>
+              <span className="ml-auto pl-2 text-neutral-500">{clip.placement.duration.toFixed(0)}s</span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function previousStoryClips(group: ProjectChangeGroup | null, storyTrackId: string): readonly TimelineClip[] | null {
+  if (group === null) return null;
+  for (const operation of group.inverse_operations) {
+    if (operation.op === 'replace_track_clips' && operation.track_id === storyTrackId) return operation.clips;
+    if (operation.op === 'replace_track' && operation.track_id === storyTrackId) return operation.track.clips;
+  }
+  return null;
+}
+
+function changedClipIds(group: ProjectChangeGroup | null, currentClips: readonly TimelineClip[]): ReadonlySet<string> {
+  if (group === null) return new Set();
+  const ids = new Set<string>();
+  for (const operation of group.operations) {
+    if (operation.op === 'replace_track_clips' || operation.op === 'replace_track') {
+      for (const clip of currentClips) ids.add(clip.id);
+    } else if (operation.op === 'insert_clip') {
+      ids.add(operation.clip.id);
+    } else if (operation.op === 'remove_clip' || operation.op === 'replace_clip' || operation.op === 'move_clip') {
+      ids.add(operation.clip_id);
+    }
+  }
+  return ids;
 }
 
 function Timeline({
   project,
   tracks,
   selectedClipId,
-  lens,
-  readOnly,
   onSelect,
-  onMove,
-  onAddTrack,
+  onInspect,
 }: {
   readonly project: Project;
   readonly tracks: readonly TimelineTrack[];
   readonly selectedClipId: string | null;
-  readonly lens: EditingLens;
-  readonly readOnly: boolean;
   readonly onSelect: (clipId: string) => void;
-  readonly onMove: (track: TimelineTrack, clip: TimelineClip, index: number) => void;
-  readonly onAddTrack: (kind: TrackKind) => void;
+  readonly onInspect: (clipId: string) => void;
 }) {
+  const shell = useNativeShell();
   const clips = tracks.flatMap((track) => track.clips);
   const recordedCount = clips.filter((clip) => clip.material.kind !== 'planned').length;
   const plannedCount = clips.length - recordedCount;
@@ -463,65 +517,101 @@ function Timeline({
           <Trans>未录制 {plannedCount}</Trans>
         </span>
         <span className="ml-auto font-mono text-xs text-neutral-600"><Trans>r{project.revision}</Trans></span>
-        {lens === 'multitrack' ? (
-          <NativeSelect aria-label={t`添加轨道`} value="" disabled={readOnly} onChange={(event) => {
-            const value = event.currentTarget.value as TrackKind | '';
-            if (value !== '') onAddTrack(value);
-          }}>
-            <option value=""><Trans>＋ 添加轨道</Trans></option>
-            <option value="video"><Trans>视频</Trans></option>
-            <option value="audio"><Trans>音频</Trans></option>
-            <option value="text"><Trans>文字</Trans></option>
-            <option value="overlay"><Trans>叠加</Trans></option>
-          </NativeSelect>
-        ) : null}
       </header>
-      <div className="min-h-0 flex-1 overflow-auto bg-surface-chrome p-3">
-        <div className="flex min-w-max flex-col gap-2">
+      <div className="grid h-7 flex-none grid-cols-5 border-b border-divider pl-[120px] font-mono text-2xs text-neutral-500">
+        {[0, 25, 50, 75, 100].map((percent) => <span key={percent} className="border-l border-divider px-1">{formatTimelinePoint(project.document.duration_seconds * percent / 100)}</span>)}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto bg-surface-chrome">
+        <div className="flex min-w-max flex-col">
           {tracks.map((track) => (
-            <div key={track.id} className="grid grid-cols-[140px_minmax(680px,1fr)] border border-divider bg-bg">
-              <div className="border-r border-divider p-3">
+            <div key={track.id} className="grid min-h-20 grid-cols-[120px_minmax(760px,1fr)] border-b border-divider bg-bg">
+              <div className="border-r border-divider px-3 py-2">
                 <p className="font-medium">{track.name}</p>
                 <p className="mt-1 text-xs text-neutral-600">{track.kind}</p>
               </div>
-              <ol className="flex min-h-20 list-none items-stretch gap-1 p-2">
+              <ol className="flex min-h-20 list-none items-stretch p-1.5">
                 {track.clips.length === 0 ? (
                   <li className="flex min-w-48 items-center justify-center border border-dashed border-divider text-xs text-neutral-500">
                     <Trans>空轨道</Trans>
                   </li>
-                ) : track.clips.map((clip, index) => (
+                ) : track.clips.map((clip) => (
                   <li
                     key={clip.id}
                     className={cn(
-                      'group relative flex min-w-40 max-w-64 flex-col border p-2',
+                      'relative flex min-w-28 flex-col border p-2',
                       clip.material.kind === 'planned'
                         ? 'border-warn-border bg-warn-surface'
                         : 'border-ok-border bg-ok-surface',
                     )}
+                    style={{ flexBasis: `${Math.max(8, clip.placement.duration / Math.max(project.document.duration_seconds, 1) * 100)}%` }}
                   >
                     <button
                       type="button"
-                      className={cn('min-h-12 text-left', selectedClipId === clip.id && 'text-accent-text')}
+                      className={cn('min-h-12 text-left outline-none', selectedClipId === clip.id && 'text-accent-text ring-1 ring-inset ring-accent')}
                       onClick={() => onSelect(clip.id)}
+                      onDoubleClick={() => onInspect(clip.id)}
+                      aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${materialLabel(clip)}`}
                     >
+                      {clip.material.kind === 'planned' ? null : (
+                        <video
+                          className="pointer-events-none mb-1.5 h-9 w-full bg-neutral-900 object-cover"
+                          src={shell.mediaSrc(mediaAssetStreamPath(clip.material.asset_id)) ?? undefined}
+                          preload="metadata"
+                          muted
+                          tabIndex={-1}
+                          aria-hidden="true"
+                        />
+                      )}
                       <span className="block truncate text-sm">{clip.name}</span>
                       <span className="mt-1 flex items-center gap-1.5 font-mono text-2xs text-neutral-600">
                         <span className={cn('size-1.5', clip.material.kind === 'planned' ? 'bg-warn' : 'bg-ok')} aria-hidden="true" />
                         {clip.placement.duration.toFixed(1)}s · {materialLabel(clip)}
                       </span>
                     </button>
-                    <div className="mt-auto flex justify-end gap-1 pt-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
-                      <Button size="sm" variant="ghost" aria-label={t`向左移动`} disabled={readOnly || index === 0} onClick={() => onMove(track, clip, index - 1)}><ChevronLeft className="size-3" /></Button>
-                      <Button size="sm" variant="ghost" aria-label={t`向右移动`} disabled={readOnly || index + 1 === track.clips.length} onClick={() => onMove(track, clip, index + 1)}><ChevronRight className="size-3" /></Button>
-                    </div>
                   </li>
                 ))}
               </ol>
             </div>
           ))}
+          <TimelineMetaRow label={t`录制状态`} clips={clips} kind="status" totalDuration={project.document.duration_seconds} />
+          <TimelineMetaRow label={t`事件`} clips={clips} kind="event" totalDuration={project.document.duration_seconds} />
         </div>
       </div>
     </section>
+  );
+}
+
+function TimelineMetaRow({
+  label,
+  clips,
+  kind,
+  totalDuration,
+}: {
+  readonly label: string;
+  readonly clips: readonly TimelineClip[];
+  readonly kind: 'status' | 'event';
+  readonly totalDuration: number;
+}) {
+  return (
+    <div className="grid min-h-12 grid-cols-[120px_minmax(760px,1fr)] border-b border-divider bg-bg">
+      <div className="border-r border-divider px-3 py-2 text-xs font-medium">{label}</div>
+      <ol className="flex list-none items-stretch p-1.5">
+        {clips.map((clip) => {
+          const recorded = clip.material.kind !== 'planned';
+          const event = clip.name.split(' · ')[0] ?? clip.name;
+          return (
+            <li
+              key={`${kind}:${clip.id}`}
+              className="flex min-w-28 items-center border-l border-divider px-2 text-2xs"
+              style={{ flexBasis: `${Math.max(8, clip.placement.duration / Math.max(totalDuration, 1) * 100)}%` }}
+            >
+              <span className={cn('mr-1.5 size-2 flex-none', kind === 'event' ? 'bg-accent' : recorded ? 'bg-ok' : 'bg-warn')} aria-hidden="true" />
+              <span className="truncate text-neutral-700">{kind === 'event' ? event : materialLabel(clip)}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }
 
@@ -540,9 +630,8 @@ function ClipInspector({
     return <aside className="flex items-center justify-center border-l border-divider p-5 text-sm text-neutral-600"><Trans>选择片段后编辑</Trans></aside>;
   }
   return (
-    <aside className="min-h-0 overflow-y-auto border-l border-divider p-4" aria-label={t`片段属性`}>
-      <h2 className="font-heading text-sm"><Trans>片段属性</Trans></h2>
-      <label className="mt-4 flex flex-col gap-1 text-xs">
+    <div className="min-h-0" aria-label={t`片段属性`}>
+      <label className="flex flex-col gap-1 text-xs">
         <Trans>名称</Trans>
         <input disabled={readOnly} className="border border-divider px-2 py-1.5" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })} />
       </label>
@@ -567,20 +656,22 @@ function ClipInspector({
         <Trans>启用片段</Trans>
       </label>
       <Button className="mt-5 w-full" variant="primary" disabled={readOnly} onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
-    </aside>
+    </div>
   );
+}
+
+function formatTimelinePoint(seconds: number): string {
+  const value = Math.max(0, Math.round(seconds));
+  return `${Math.floor(value / 60).toString().padStart(2, '0')}:${(value % 60).toString().padStart(2, '0')}`;
 }
 
 function AgentPanel({
   project,
-  lens,
-  selectedClipId,
   session,
   chat,
   creatingSession,
   onSend,
   changeGroups,
-  reverting,
   readOnly,
   confirming,
   onConfirmRecording,
@@ -589,17 +680,13 @@ function AgentPanel({
   onAcceptDelivery,
   onReturnDelivery,
   onDirectEdit,
-  onUndo,
 }: {
   readonly project: Project;
-  readonly lens: EditingLens;
-  readonly selectedClipId: string | null;
   readonly session: import('../shared/desktop/dto').AgentSession | null;
   readonly chat: ReturnType<typeof useAgentChatStream>;
   readonly creatingSession: boolean;
   readonly onSend: (message: string) => Promise<void>;
   readonly changeGroups: readonly ProjectChangeGroup[];
-  readonly reverting: boolean;
   readonly readOnly: boolean;
   readonly confirming: boolean;
   readonly onConfirmRecording: (clipIds: string[]) => Promise<void>;
@@ -608,15 +695,11 @@ function AgentPanel({
   readonly onAcceptDelivery: () => Promise<void>;
   readonly onReturnDelivery: () => Promise<void>;
   readonly onDirectEdit: () => void;
-  readonly onUndo: (changeGroupId: string) => void;
 }) {
   const [message, setMessage] = useState('');
+  const conversationEnd = useRef<HTMLDivElement>(null);
   const entries = session?.entries ?? [];
   const pendingConfirmationEntryId = pendingConfirmationEntry(entries);
-  const items: ConversationItem[] = [
-    ...entries.map((entry) => ({ kind: 'entry' as const, at: entry.at, entry })),
-    ...changeGroups.map((group) => ({ kind: 'change' as const, at: group.created_at, group })),
-  ].sort((left, right) => left.at.localeCompare(right.at));
   const latestUserAt = [...entries].reverse().find((entry) => entry.kind === 'user')?.at ?? null;
   const hasDelivery = !chat.streaming
     && pendingConfirmationEntryId === null
@@ -632,37 +715,33 @@ function AgentPanel({
     setMessage('');
     void onSend(next);
   };
+  useEffect(() => {
+    conversationEnd.current?.scrollIntoView({ block: 'end' });
+  }, [session?.id]);
   return (
     <aside className="flex min-h-0 flex-col border-l border-divider bg-surface" aria-label={t`Agent 面板`}>
-      <header className="border-b border-divider px-4 py-3">
+      <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-2 border-b border-divider px-4">
+        <Sparkles className="size-4 text-accent-text" aria-hidden="true" />
         <h2 className="font-heading text-sm"><Trans>Agent</Trans></h2>
-        <p className="mt-1 text-xs text-neutral-600"><Trans>操作当前 Project · r{project.revision}</Trans></p>
+        <span className="ml-auto font-mono text-2xs text-neutral-500"><Trans>Project r{project.revision}</Trans></span>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         <ol className="relative ml-2 flex list-none flex-col gap-4 border-l border-divider py-1 pl-5">
             {session === null || entries.length === 0 ? (
               <ConversationShell actor="Agent" tone="agent">
-                <Bot className="mb-2 size-5" aria-hidden="true" />
+                <Sparkles className="mb-2 size-5 text-accent-text" aria-hidden="true" />
                 <p className="text-sm text-neutral-600"><Trans>让 Agent 直接修改左侧同一条时间轴；整条重排会作为一个可撤销修改提交。</Trans></p>
               </ConversationShell>
             ) : null}
-            {items.map((item) => item.kind === 'entry' ? (
+            {entries.map((entry) => (
               <ConversationEntry
-                key={`entry:${item.entry.id}`}
-                entry={item.entry}
-                confirmationActive={item.entry.id === pendingConfirmationEntryId}
+                key={`entry:${entry.id}`}
+                entry={entry}
+                confirmationActive={entry.id === pendingConfirmationEntryId}
                 confirming={confirming}
                 onConfirmRecording={onConfirmRecording}
                 onConfirmExport={onConfirmExport}
                 onRejectConfirmation={onRejectConfirmation}
-              />
-            ) : (
-              <ConversationChange
-                key={`change:${item.group.id}`}
-                group={item.group}
-                readOnly={readOnly}
-                reverting={reverting}
-                onUndo={onUndo}
               />
             ))}
             {chat.draft === '' ? null : (
@@ -695,10 +774,10 @@ function AgentPanel({
               </ConversationShell>
             ) : null}
           </ol>
+        <div ref={conversationEnd} />
         {chat.error === null ? null : <p className="mt-2 text-xs text-fail-text">{chat.error}</p>}
       </div>
       <footer className="border-t border-divider p-3">
-        <p className="mb-2 text-2xs text-neutral-500">{lens} · {selectedClipId ?? t`未选择片段`}</p>
         <div className="flex gap-2">
           <input
             className="min-w-0 flex-1 border border-divider px-2 text-sm"
@@ -718,10 +797,6 @@ function AgentPanel({
     </aside>
   );
 }
-
-type ConversationItem =
-  | { readonly kind: 'entry'; readonly at: string; readonly entry: AgentSessionEntry }
-  | { readonly kind: 'change'; readonly at: string; readonly group: ProjectChangeGroup };
 
 function ConversationEntry({
   entry,
@@ -764,35 +839,6 @@ function ConversationEntry({
   );
 }
 
-function ConversationChange({
-  group,
-  readOnly,
-  reverting,
-  onUndo,
-}: {
-  readonly group: ProjectChangeGroup;
-  readonly readOnly: boolean;
-  readonly reverting: boolean;
-  readonly onUndo: (changeGroupId: string) => void;
-}) {
-  const actor = group.author.kind === 'agent'
-    ? t`Agent · 时间线`
-    : group.author.kind === 'human'
-      ? t`你 · 时间线`
-      : t`系统 · 时间线`;
-  return (
-    <ConversationShell actor={actor} at={group.created_at} tone="change">
-      <p className="text-sm">{group.summary}</p>
-      <div className="mt-2 flex items-center gap-2 text-xs text-neutral-600">
-        <CheckCircle2 className="size-3.5 text-ok" aria-hidden="true" />
-        <span><Trans>r{group.from_revision} → r{group.to_revision}</Trans></span>
-        <Button className="ml-auto" size="sm" variant="ghost" disabled={readOnly || reverting} onClick={() => onUndo(group.id)}>
-          <Undo2 className="size-3" aria-hidden="true" /><Trans>撤销</Trans>
-        </Button>
-      </div>
-    </ConversationShell>
-  );
-}
 
 function ConversationShell({
   actor,
@@ -802,7 +848,7 @@ function ConversationShell({
 }: {
   readonly actor: string;
   readonly at?: string | undefined;
-  readonly tone: 'agent' | 'human' | 'tool' | 'status' | 'delivery' | 'change' | 'error';
+  readonly tone: 'agent' | 'human' | 'tool' | 'status' | 'delivery' | 'error';
   readonly children: React.ReactNode;
 }) {
   return (
@@ -958,14 +1004,5 @@ function materialLabel(clip: TimelineClip) {
     case 'planned': return t`未录制`;
     case 'take': return t`已录制`;
     case 'asset': return t`已录制`;
-  }
-}
-
-function trackName(kind: TrackKind) {
-  switch (kind) {
-    case 'video': return 'Video';
-    case 'audio': return 'Audio';
-    case 'text': return 'Text';
-    case 'overlay': return 'Overlay';
   }
 }

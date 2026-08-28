@@ -135,25 +135,26 @@ describe('unified project workspace', () => {
       },
     });
 
-    const clipButton = (await screen.findByText('B')).closest('button');
-    expect(clipButton).not.toBeNull();
-    fireEvent.click(clipButton!);
+    fireEvent.click(await screen.findByRole('button', { name: /B 5\.0s · 已录制/u }));
     const preview = screen.getByLabelText('B 视频预览') as HTMLVideoElement;
     expect(preview.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-b/stream');
   });
 
-  it('switches editing lens without creating or copying a project', async () => {
+  it('shows the whole editing document without mode-switch chrome', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
 
     expect(await screen.findByText('Story')).toBeTruthy();
-    expect(screen.queryByText('Music')).toBeNull();
-    fireEvent.click(screen.getByRole('radio', { name: '多轨精剪' }));
     expect(screen.getByText('Music')).toBeTruthy();
+    expect(screen.queryByRole('radio', { name: '快速剪辑' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: '多轨精剪' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '录制缺失片段' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '导出成片' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Agent' })).toBeNull();
     expect(applyProjectPatch).not.toHaveBeenCalled();
   });
 
-  it('dispatches a human reorder against the same project revision', async () => {
+  it('opens clip properties on demand and writes against the same revision', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },
       change_group: {
@@ -163,7 +164,7 @@ describe('unified project workspace', () => {
         to_revision: 2,
         author: { kind: 'human' },
         status: 'completed',
-        summary: '移动 A',
+        summary: '修改 A',
         reverts_change_group_id: null,
         operations: [],
         inverse_operations: [],
@@ -172,14 +173,20 @@ describe('unified project workspace', () => {
       },
     }));
     renderWorkspace({ applyProjectPatch });
-    await screen.findByText('Story');
-
-    fireEvent.click(screen.getAllByLabelText('向右移动')[0]!);
+    const clipButton = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    fireEvent.doubleClick(clipButton);
+    const name = await screen.findByRole('textbox', { name: '名称' });
+    fireEvent.change(name, { target: { value: 'A revised' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
     await waitFor(() => {
       expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
         project_id: PROJECT.id,
         base_revision: 1,
-        operations: [{ op: 'move_clip', clip_id: CLIP_A, to_track_id: STORY_ID, index: 1 }],
+        operations: [expect.objectContaining({
+          op: 'replace_clip',
+          clip_id: CLIP_A,
+          clip: expect.objectContaining({ name: 'A revised' }),
+        })],
       }));
     });
   });
@@ -330,6 +337,7 @@ describe('unified project workspace', () => {
 
     expect(await screen.findByText('Agent 操作中 · 人类只读')).toBeTruthy();
     expect((screen.getByPlaceholderText('例如：重新规划成 3 分钟 NiKo 集锦') as HTMLInputElement).disabled).toBe(true);
-    expect((screen.getAllByLabelText('向右移动')[0] as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.doubleClick(screen.getByRole('button', { name: /A 5\.0s · 未录制/u }));
+    expect((await screen.findByRole('textbox', { name: '名称' }) as HTMLInputElement).disabled).toBe(true);
   });
 });

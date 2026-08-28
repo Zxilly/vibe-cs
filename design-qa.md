@@ -1,77 +1,77 @@
 # Project workbench design QA
 
-final result: passed
+final result: blocked
 
 ## Comparison target
 
 - Source visual truth: `C:\Users\12009\.codex\generated_images\01a044dc-e4a6-7103-b96a-31a535e92c75\exec-ca7332d7-3c66-46b6-bda2-70884c3912ff.png`.
-- Browser-rendered implementation: `target/design-qa-workbench/implementation-fidelity-final.png`.
-- Same-input comparison: `target/design-qa-workbench/comparison-fidelity-final.png`.
-- Focus comparisons: `comparison-focus-preview-final.png`, `comparison-focus-timeline-final.png`, and `comparison-focus-agent-final.png` in the same directory.
-- Route/state: Project `9ee43da6-8d88-4428-b54f-e2420a6f0a3a`, first recorded clip selected, persisted Agent session loaded, export HITL pending.
+- Normalized source: `target/design-qa-workbench/reference-normalized-1639x964.png`.
+- Browser-rendered implementation: `target/design-qa-workbench/timeline-waveform-v3.png`.
+- Full same-input comparison: `target/design-qa-workbench/comparison-timeline-fidelity-v3.png`.
+- Exact timeline comparison: `target/design-qa-workbench/timeline-comparison-v3.png`.
+- Route: Project `9ee43da6-8d88-4428-b54f-e2420a6f0a3a`, persisted Agent session `71ba4057-3c14-427d-a359-5dc3c88cc07f`.
 
 ## Viewport and normalization
 
-- Source pixels: 1635 x 962.
-- Normalized source: 1639 x 964. The resize is 0.24% horizontally and 0.21% vertically, with no crop.
-- Implementation pixels and CSS viewport: 1639 x 964 at device pixel ratio 1 through CDP emulation in the real Tauri WebView2.
-- State and crop are aligned. The full comparison contains no browser chrome or external canvas padding.
+- Source pixels: 1635 x 962, normalized without crop to 1639 x 964.
+- Implementation CSS viewport and screenshot: 1639 x 964 at device pixel ratio 1 in the real Tauri WebView2.
+- Exact timeline crop for both sides: x 0, y 676, width 1213, height 288.
+- Theme and route match. Product state does not yet match: the source depicts a fully recorded timeline, while the live Project has three recorded and eight planned clips.
 
 ## Findings
 
-No actionable P0, P1, or P2 visual mismatch remains after the fidelity rewrite.
+- [P1] Eight planned clips cannot show the reference's thumbnails and audio envelopes.
+  - Location: timeline video and audio tracks after 00:48.
+  - Evidence: the source contains recorded thumbnails and waveforms across the complete three-minute proposal; the implementation truthfully shows media only for three compatible Takes and empty planned ranges for eight clips.
+  - Impact: a claim of complete visual equality would require fabricated media or a different product state.
+  - Fix: run the eight pending recordings after explicit human confirmation, then recapture the same state and repeat the exact comparison.
 
-The implementation now follows the selected generated image rather than the former project artboard style:
+No other actionable P0, P1, or P2 timeline mismatch remains.
 
-- 56 px review header with breadcrumb, revision, review status, change count, check state, and compact window actions;
-- main/Agent split at approximately 74/26%;
-- preview begins at 68 px and uses the selected image's blue outline, white section headers, 50/50 draggable split, dark tactical stage, side legend, and bottom round/time strip;
-- change summary occupies the same middle band and uses before/Agent rows with red and green review semantics;
-- four-row editing timeline begins at approximately 676 px and uses the same dense ruler, track heads, thumbnails, materialization states, events, and footer;
-- Agent output, tool calls, HITL, and delivery remain one chronological line with the selected image's compact cards and inline confirmation actions.
+## Fixed timeline fidelity surfaces
 
-## Focused-region evidence
+- Layout: title and ruler bands, 190 px track gutter, video/audio/marker/event proportions, 50 px footer, section borders, and full panel bounds now align with the exact source crop.
+- Track heads: video camera/visibility/lock, audio add/volume/lock, marker, and event controls follow the source ordering and density.
+- Clip strip: duration-proportional cells, thumbnail crop, overlay glyphs, title strip, selection ring, and planned state share one implementation path.
+- Waveform: recorded Takes now render real peak buckets as a symmetric blue envelope; the timeline no longer displays a large empty-state card.
+- Marker and event rows: the marker row reads actual `EditingDocument.markers` and no longer mislabels recording state as markers; events retain the clip-derived editorial categories.
+- Playhead: the blue rule and time chip use the real selected clip position plus current preview time.
+- Footer: exact duration including milliseconds, recorded/planned legend, blocking view, settings, grid, and list controls are present.
 
-- Header and preview: `comparison-focus-preview-final.png`. Region bounds, divider position, header heights, video crop, tactical stage, legend, and footer strip match. The implementation deliberately shows the authentic local CS2 radar and the selected clip's real replay path instead of the generated image's illustrative path data.
-- Diff and timeline: `comparison-focus-timeline-final.png`. Section starts, track gutter, ruler density, row order, status colours, and footer placement align. The current Project truth is three recorded and eight planned clips, so it does not fabricate the generated image's completed thumbnails, waveforms, or playhead.
-- Agent stream: `comparison-focus-agent-final.png`. Timeline rail, actor labels, tool cards, timestamps, HITL card, composer, border treatment, and padding align. Content density differs because the live session is currently waiting at export confirmation, while the generated reference depicts a later delivered state.
+## Waveform defect diagnosis and proof
+
+- Original live repro: all three recorded Takes returned HTTP-style 500 command failures with `native FFmpeg operation failed: truncated decoded audio frame`.
+- External FFmpeg decoded the same AAC stereo stream successfully.
+- Instrumentation showed `F32(Planar)`, 1024 samples, two channels, plane lengths `[8192, 0]`: both planar channels were stored contiguously in the primary buffer while the second plane pointer was empty.
+- The shared native audio-frame reader now accepts a valid independent plane first and falls back to bounded contiguous primary storage. Waveform and audio-intelligence callers use the same implementation.
+- Original live repro after the fix: all three Take endpoints returned 120 real buckets. Maximum amplitudes were approximately 0.303, 0.328, and 0.437.
+- Debug instrumentation and the throwaway probe were removed.
 
 ## Required fidelity surfaces
 
-- Fonts and typography: the workbench uses a system sans stack matching the generated reference, with compact 10-13 px UI hierarchy, semibold labels, muted timestamps, controlled wrapping, and truncation.
-- Spacing and layout rhythm: header, 14 px left inset, 8 px region gaps, preview/change/timeline starts, 74/26 split, and Agent padding were measured against equal-size captures.
-- Colors and visual tokens: white review surfaces, pale neutral bands, thin grey borders, accent-blue focus, green additions, red prior state, amber HITL, and dark blue tactical surface match the source language.
-- Image quality and asset fidelity: preview and thumbnails use real recorded media. The radar is decoded from the installed CS2 `de_mirage_radar_psd.vtex_c`; no generated map, handmade tactical SVG, or copied CS Demo Manager PNG is used.
-- Copy and content: project revision, real recording state, Agent entries, tool results, and Delivery Gate actions remain authoritative runtime content. Only the editorial title is presented as `NiKo 3 分钟集锦`, matching the selected design and task.
+- Fonts and typography: system sans, compact UI weights, timestamp hierarchy, truncation, and timecode typography match the source.
+- Spacing and layout rhythm: exact viewport and timeline crop were compared side by side; persistent bands and gutters align.
+- Colors and visual tokens: blue waveform/playhead, neutral grid, dark thumbnail captions, semantic green events, and muted planned state match the selected design language.
+- Image and asset fidelity: every visible thumbnail and waveform comes from a real compatible Take. No waveform, thumbnail, or tactical asset is fabricated for planned clips.
+- Copy and content: duration, recording counts, event categories, marker content, and playback time are runtime data, not mock values from the source image.
 
 ## Comparison history
 
-1. `implementation-v14.png` was incorrectly accepted after matching only the information architecture. User review identified the P1 issue: it retained the old square, sparse project style and did not implement the selected generated image.
-2. `implementation-fidelity-v1.png` replaced the major visual system. It still had a P1 audio-row empty state that overflowed the compact timeline and a P2 header/row sizing drift.
-3. `implementation-fidelity-v2.png` fixed the take-versus-asset waveform query and compact fallback, but the capture used the host's 1816 x 900 viewport and could not support precise comparison.
-4. `implementation-fidelity-1639x964-v4.png` aligned the viewport and all major bands. Focus review found P2 map scale and typography drift.
-5. `implementation-fidelity-final.png` enlarged the real radar surface, moved workbench typography to the matching system sans stack, preserved actual data states, and passed the full and focused comparisons.
+1. `implementation-v14.png`: blocked by P1 self-designed workbench and timeline styling.
+2. `implementation-fidelity-final.png`: main composition aligned, but the timeline still had wrong row heights, no visible waveform, recording state in the marker row, two missing footer controls, and no playhead.
+3. `timeline-waveform-v1.png`: exposed the real backend waveform failure rather than treating the empty UI as a design-only problem.
+4. `timeline-waveform-v2.png`: real symmetric waveforms appeared, but the timeline band heights and marker semantics still differed.
+5. `timeline-waveform-v3.png`: all timeline styling and available-media rendering issues are fixed. The remaining P1 is the explicit product-state mismatch named above.
 
-## Interaction and runtime verification
+## Verification
 
-- Draggable preview divider remains pointer and keyboard operable and double-click resets it.
-- Recorded clip selection drives the real video preview and tactical replay.
-- Double-clicking a clip opens the same unified clip-property Drawer.
-- Agent confirmation remains inline and human editing remains read-only while the Agent owns the lease.
-- Tauri WebView2 page errors are empty after a full reload.
-- Web checks: 250 test files and 2856 tests passed; strict i18n, layer check, TypeScript, and production build passed.
+- `cargo test -p vibe-cs-media`: 22 passed.
+- `cargo clippy -p vibe-cs-media --all-targets -- -D warnings`: passed.
+- `cargo fmt --check`: passed.
+- Web suite: 250 files, 2857 tests passed.
+- Strict i18n compile, web layer check, TypeScript, and production build passed.
+- Tauri WebView2 page errors are empty.
 
-## Accepted state-specific differences
+## Blocking next action
 
-- The source image shows a later, fully recorded and delivered proposal. The live Project has three recorded and eight planned clips and is waiting for export confirmation. These are product-state differences, not visual drift.
-- Recorded takes currently return no audio peaks, so the audio row says `波形不可用` instead of drawing a fictional waveform.
-- The authentic Mirage radar and replay path differ from the illustrative radar/path rendered in the generated design.
-
-## Implementation checklist
-
-- [x] Replace the previous self-designed styling with the selected visual language.
-- [x] Match the equal-size viewport, region proportions, spacing, typography, colour, and card density.
-- [x] Keep real video, parsed CS2 radar, replay paths, Project state, Agent tools, and HITL.
-- [x] Preserve unified editing interactions and human-read-only Agent ownership.
-- [x] Run full and focused visual comparison in one input.
-- [x] Pass lint, build, full tests, and Tauri browser verification.
+Explicit human confirmation is required before CS2/HLAE records the eight planned clips. After those Takes exist, reload the Project, verify all eleven real envelopes and thumbnails, recapture at 1639 x 964, and change `final result` to `passed` only if the exact comparison has no P0/P1/P2 finding.

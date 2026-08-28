@@ -2,31 +2,17 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import {
   Bell,
-  Bookmark,
-  Camera,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clapperboard,
   CircleAlert,
   CircleHelp,
-  Eye,
-  Grid2X2,
-  LayoutList,
-  Link2,
-  List,
-  LockKeyhole,
   LoaderCircle,
   Send,
-  Settings2,
   Sparkles,
   Square,
-  SquarePlus,
   Star,
-  Volume2,
   Wrench,
-  ZoomIn,
-  ZoomOut,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -42,7 +28,7 @@ import {
 } from '../data/projects';
 import { useDemo } from '../data/demos';
 import { useMapRadarOverview, useMatchReplay } from '../data/match';
-import { mediaAssetStreamPath, useAssetWaveform, useRecordedClipWaveform } from '../data/mediaAssets';
+import { mediaAssetStreamPath } from '../data/mediaAssets';
 import { useNativeShell } from '../data/nativeShell';
 import {
   useAgentChatStream,
@@ -54,9 +40,9 @@ import { Empty, Skeleton } from '../design/data';
 import { Alert, Drawer } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
-import '../design/workbenchReview.css';
+import { ReviewPanel } from '../design/review';
+import { ProjectTimeline, resolveTimelineMaterial } from '../domain/editing';
 import { MapCanvas, PathLayer } from '../domain/map';
-import { Waveform } from '../domain/media';
 import type {
   Project,
   ProjectChangeGroup,
@@ -64,7 +50,6 @@ import type {
   ProjectPatchScope,
   AgentSessionEntry,
   AgentToolCall,
-  EditorMarker,
   JsonValue,
   TimelineClip,
   TimelineTrack,
@@ -144,7 +129,6 @@ export function ProjectWorkspacePage() {
 
   const current = project.data;
   const readOnly = lease.data !== null && lease.data !== undefined;
-  const visibleTracks = current.document.tracks;
   const selected = findClip(current, selectedClipId);
   const latestAgentGroup = (groups.data ?? []).find((group) => group.author.kind === 'agent') ?? null;
   const allClips = current.document.tracks.flatMap((track) => track.clips);
@@ -208,11 +192,10 @@ export function ProjectWorkspacePage() {
             <Bell className="size-4" strokeWidth={1.5} aria-hidden="true" />
             <CircleHelp className="size-4" strokeWidth={1.5} aria-hidden="true" />
             <span className="h-5 border-l border-divider" aria-hidden="true" />
-            <span className="review-circle grid size-7 place-items-center bg-neutral-200 text-xs font-medium">A</span>
+            <span className="grid size-7 place-items-center rounded-full bg-neutral-200 text-xs font-medium">A</span>
           </span>
         </header>
       )}
-      className="project-review-workbench"
     >
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(390px,26%)] overflow-hidden bg-neutral-100">
         <div
@@ -225,13 +208,12 @@ export function ProjectWorkspacePage() {
             onPreviewTimeChange={setPreviewOffsetSeconds}
           />
           <ChangeSummary project={current} group={latestAgentGroup} />
-          <Timeline
-            project={current}
-            tracks={visibleTracks}
+          <ProjectTimeline
+            document={current.document}
             selectedClipId={selectedClipId}
             previewOffsetSeconds={previewOffsetSeconds}
-            onSelect={setSelectedClipId}
-            onInspect={(clipId) => {
+            onSelectClip={setSelectedClipId}
+            onInspectClip={(clipId) => {
               setSelectedClipId(clipId);
               setInspectorOpen(true);
             }}
@@ -313,7 +295,7 @@ function PreviewSplit({
   };
 
   return (
-    <section className="review-panel min-h-0 min-w-0 overflow-hidden border border-accent-400 bg-bg shadow-[0_0_0_2px_var(--color-accent-100)]" aria-label={t`预览分栏`}>
+    <ReviewPanel emphasis="focus" className="min-h-0 min-w-0" aria-label={t`预览分栏`}>
       <div
         ref={splitRef}
         className="grid h-full min-h-0 min-w-0 max-w-full"
@@ -342,13 +324,13 @@ function PreviewSplit({
             if (event.currentTarget.hasPointerCapture?.(event.pointerId)) resize(event.clientX);
           }}
         >
-          <span className="review-circle absolute left-1/2 top-1/2 grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center border border-neutral-400 bg-bg text-neutral-700 shadow-sm group-hover:border-accent-500 group-hover:text-accent-text">
+          <span className="absolute left-1/2 top-1/2 grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-neutral-400 bg-bg text-neutral-700 shadow-sm group-hover:border-accent-500 group-hover:text-accent-text">
             <span className="text-sm leading-none">↔</span>
           </span>
         </div>
         <TacticalPreview selected={selected} />
       </div>
-    </section>
+    </ReviewPanel>
   );
 }
 
@@ -362,9 +344,7 @@ function ProgramMonitor({
   readonly onPreviewTimeChange: (seconds: number) => void;
 }) {
   const shell = useNativeShell();
-  const assetId = selected?.material.kind === 'take' || selected?.material.kind === 'asset'
-    ? selected.material.asset_id
-    : null;
+  const assetId = selected === null ? null : resolveTimelineMaterial(selected.material).streamAssetId;
   const videoSrc = assetId === null ? null : shell.mediaSrc(mediaAssetStreamPath(assetId));
   return (
     <section className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-divider bg-bg" aria-label={t`视频预览`}>
@@ -451,8 +431,8 @@ function TacticalPreview({ selected }: { readonly selected: TimelineClip | null 
             )}
           </MapCanvas>
           <ul className="absolute right-4 top-1/2 -translate-y-1/2 space-y-2 border border-neutral-500 bg-accent-900/95 px-3 py-2 text-2xs text-neutral-100 shadow-md">
-            <li className="flex items-center gap-2"><span className="review-circle size-3 border-2 border-bg bg-accent-500" /><span>CT</span></li>
-            <li className="flex items-center gap-2"><span className="review-circle size-3 border-2 border-bg bg-warn" /><span>T</span></li>
+            <li className="flex items-center gap-2"><span className="size-3 rounded-full border-2 border-bg bg-accent-500" /><span>CT</span></li>
+            <li className="flex items-center gap-2"><span className="size-3 rounded-full border-2 border-bg bg-warn" /><span>T</span></li>
             <li className="flex items-center gap-2"><span className="size-3 bg-fail" /><Trans>炸弹点</Trans></li>
             <li className="flex items-center gap-2"><Star className="size-3.5 text-warn" fill="currentColor" aria-hidden="true" /><Trans>事件</Trans></li>
           </ul>
@@ -474,7 +454,7 @@ function ChangeSummary({ project, group }: { readonly project: Project; readonly
   const removed = new Set(previousClips.filter((clip) => !currentIds.has(clip.id)).map((clip) => clip.id));
   const added = new Set(currentClips.filter((clip) => !previousIds.has(clip.id)).map((clip) => clip.id));
   return (
-    <section className="review-panel flex min-h-0 flex-col overflow-hidden border border-divider bg-bg" aria-label={t`变更摘要`}>
+    <ReviewPanel className="flex min-h-0 flex-col" aria-label={t`变更摘要`}>
       <header className="flex h-11 flex-none items-center gap-3 border-b border-divider px-4 text-xs">
         <ChevronRight className="size-3.5 rotate-90 text-neutral-500" strokeWidth={1.6} aria-hidden="true" />
         <h2 className="text-sm font-semibold"><Trans>变更摘要</Trans></h2>
@@ -494,7 +474,7 @@ function ChangeSummary({ project, group }: { readonly project: Project; readonly
         <ReviewStrip label={t`当前版本`} clips={previousClips} changed={removed} tone="before" />
         <ReviewStrip label={t`Agent 提案`} clips={currentClips} changed={added} tone="after" />
       </div>
-    </section>
+    </ReviewPanel>
   );
 }
 
@@ -541,260 +521,6 @@ function previousStoryClips(group: ProjectChangeGroup | null, storyTrackId: stri
     if (operation.op === 'replace_track' && operation.track_id === storyTrackId) return operation.track.clips;
   }
   return null;
-}
-
-function Timeline({
-  project,
-  tracks,
-  selectedClipId,
-  previewOffsetSeconds,
-  onSelect,
-  onInspect,
-}: {
-  readonly project: Project;
-  readonly tracks: readonly TimelineTrack[];
-  readonly selectedClipId: string | null;
-  readonly previewOffsetSeconds: number;
-  readonly onSelect: (clipId: string) => void;
-  readonly onInspect: (clipId: string) => void;
-}) {
-  const shell = useNativeShell();
-  const story = tracks.find((track) => track.id === project.document.story_track_id) ?? tracks[0];
-  const clips = story?.clips ?? [];
-  const recordedCount = clips.filter((clip) => clip.material.kind !== 'planned').length;
-  const plannedCount = clips.length - recordedCount;
-  const selectedClip = clips.find((clip) => clip.id === selectedClipId) ?? null;
-  const playheadSeconds = Math.min(
-    project.document.duration_seconds,
-    Math.max(0, (selectedClip?.placement.start ?? 0) + previewOffsetSeconds),
-  );
-  const playheadRatio = playheadSeconds / Math.max(project.document.duration_seconds, 1);
-  return (
-    <section className="review-panel relative flex min-h-0 flex-col overflow-hidden border border-divider bg-bg" aria-label={t`时间轴`}>
-      <span className="sr-only">{tracks.map((track) => <span key={track.id}>{track.name}</span>)}</span>
-      <header className="flex h-[clamp(25px,2.9vh,28px)] flex-none items-center gap-3 border-b border-divider px-3">
-        <h2 className="text-sm font-semibold"><Trans>时间轴（编辑预览）</Trans></h2>
-        <span className="ml-auto flex items-center gap-2 text-neutral-500">
-          <ZoomOut className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
-          <span className="review-circle h-1 w-12 bg-neutral-200"><span className="review-circle block h-1 w-7 bg-accent-500" /></span>
-          <ZoomIn className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
-          <button type="button" className="ml-1 flex h-6 items-center gap-1 border border-divider px-2 text-2xs"><Trans>适应</Trans><ChevronRight className="size-3 rotate-90" aria-hidden="true" /></button>
-        </span>
-      </header>
-      <div className="grid h-[clamp(25px,2.9vh,28px)] flex-none grid-cols-[190px_minmax(900px,1fr)] border-b border-divider font-mono text-2xs text-neutral-500">
-        <span />
-        <div className="grid grid-cols-7">
-          {[0, 30, 60, 90, 120, 150, 180].map((seconds) => <span key={seconds} className="border-l border-divider px-1 py-1 text-center">{formatTimelinePoint(seconds)}</span>)}
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="grid h-full min-w-[calc(var(--w-overlay)+var(--w-split))] grid-rows-[27fr_25fr_24fr_24fr]">
-          <div className="grid min-h-0 grid-cols-[190px_minmax(900px,1fr)] border-b border-divider">
-            <TimelineTrackLabel icon={<Camera className="size-4" />} label={t`视频轨道 1`} />
-            <ol className="flex min-h-0 list-none items-stretch p-0">
-              {clips.map((clip) => (
-                <li key={clip.id} className="min-w-0 flex-none border-r border-divider p-0.5" style={{ width: clipWidth(clip, project.document.duration_seconds) }}>
-                  <button
-                    type="button"
-                    className={cn(
-                      'relative flex h-full w-full min-w-0 flex-col overflow-hidden bg-neutral-100 text-left outline-none',
-                      selectedClipId === clip.id && 'border-accent-500 ring-1 ring-inset ring-accent-500',
-                    )}
-                    onClick={() => onSelect(clip.id)}
-                    onDoubleClick={() => onInspect(clip.id)}
-                    aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${materialLabel(clip)}`}
-                  >
-                    <span className="sr-only">{clip.placement.duration.toFixed(1)}s · {materialLabel(clip)}</span>
-                    {clip.material.kind === 'planned' ? (
-                      <span className="grid flex-1 place-items-center bg-neutral-100 text-2xs text-neutral-500"><Trans>待录制</Trans></span>
-                    ) : (
-                      <>
-                        <video
-                          className="pointer-events-none min-h-0 flex-1 bg-neutral-900 object-cover"
-                          src={shell.mediaSrc(mediaAssetStreamPath(clip.material.asset_id)) ?? undefined}
-                          preload="metadata"
-                          muted
-                          tabIndex={-1}
-                          aria-hidden="true"
-                        />
-                        <Clapperboard className="absolute left-1 top-1 size-3 border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />
-                        <Link2 className="absolute right-1 top-1 size-3 border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />
-                      </>
-                    )}
-                    <span className="absolute inset-x-0 bottom-0 truncate bg-neutral-900/80 px-1 py-px text-2xs text-bg">{clip.name}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-          </div>
-          <div className="grid min-h-0 grid-cols-[190px_minmax(900px,1fr)] border-b border-divider">
-            <TimelineTrackLabel icon={<SquarePlus className="size-4" />} label={t`音频轨道 1`} controls="audio" />
-            <ol className="flex min-h-0 list-none items-stretch p-0">
-              {clips.map((clip) => (
-                <li key={`audio:${clip.id}`} className="min-w-0 flex-none border-r border-divider" style={{ width: clipWidth(clip, project.document.duration_seconds) }}>
-                  <ClipWaveform clip={clip} />
-                </li>
-              ))}
-            </ol>
-          </div>
-          <TimelineMarkerRow markers={project.document.markers} totalDuration={project.document.duration_seconds} />
-          <TimelineMetaRow icon={<Star className="size-4" />} label={t`事件`} clips={clips} totalDuration={project.document.duration_seconds} />
-        </div>
-      </div>
-      <footer className="flex h-[clamp(40px,5.2vh,50px)] flex-none items-center gap-5 border-t border-divider px-2 text-2xs text-neutral-600">
-        <span><Trans>提案时长：</Trans><strong className="font-mono font-medium text-text">{formatTimelineDuration(project.document.duration_seconds)}</strong></span>
-        <span className="flex items-center gap-1.5"><span className="size-2 bg-accent-400" /><Trans>已录制 {recordedCount}</Trans></span>
-        <span className="flex items-center gap-1.5"><span className="size-2 bg-neutral-200" /><Trans>未录制 {plannedCount}</Trans></span>
-        <span className="ml-auto flex items-center gap-2">
-          <button type="button" className="flex h-7 items-center gap-1.5 border border-divider px-2"><LayoutList className="size-3.5" aria-hidden="true" /><Trans>阻塞显示</Trans></button>
-          <button type="button" className="grid size-7 place-items-center border border-divider" aria-label={t`时间轴设置`}><Settings2 className="size-3.5" aria-hidden="true" /></button>
-          <button type="button" className="grid size-7 place-items-center border border-divider" aria-label={t`网格视图`}><Grid2X2 className="size-3.5" aria-hidden="true" /></button>
-          <button type="button" className="grid size-7 place-items-center border border-divider" aria-label={t`列表视图`}><List className="size-3.5" aria-hidden="true" /></button>
-        </span>
-      </footer>
-      <div
-        className="pointer-events-none absolute bottom-[clamp(40px,5.2vh,50px)] top-[clamp(25px,2.9vh,28px)] z-20 w-px bg-accent-600"
-        style={{ left: `calc(${playheadRatio * 100}% + ${190 * (1 - playheadRatio)}px)` }}
-        aria-hidden="true"
-      >
-        <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap bg-accent-600 px-1.5 py-0.5 font-mono text-2xs text-bg">
-          {formatTimelinePlayhead(playheadSeconds)}
-        </span>
-      </div>
-    </section>
-  );
-}
-
-function TimelineMetaRow({
-  icon,
-  label,
-  clips,
-  totalDuration,
-}: {
-  readonly icon: React.ReactNode;
-  readonly label: string;
-  readonly clips: readonly TimelineClip[];
-  readonly totalDuration: number;
-}) {
-  return (
-    <div className="grid h-full min-h-0 grid-cols-[190px_minmax(900px,1fr)] border-b border-divider bg-bg">
-      <TimelineTrackLabel icon={icon} label={label} compact />
-      <ol className="relative flex min-h-0 list-none items-stretch p-0">
-        <li aria-hidden="true" className="pointer-events-none absolute inset-0 grid grid-cols-7">
-          {Array.from({ length: 7 }, (_, index) => <span key={index} className="border-l border-divider" />)}
-        </li>
-        {clips.map((clip) => {
-          const event = clip.name.split(' · ')[0] ?? clip.name;
-          return (
-            <li
-              key={`event:${clip.id}`}
-              className="relative z-10 flex min-w-0 flex-none items-center px-2 text-2xs"
-              style={{ width: clipWidth(clip, totalDuration) }}
-            >
-              <span className="mr-1.5 h-3 w-1.5 flex-none bg-ok" aria-hidden="true" />
-              <span className="truncate text-neutral-700">{event}</span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
-
-function TimelineMarkerRow({
-  markers,
-  totalDuration,
-}: {
-  readonly markers: readonly EditorMarker[];
-  readonly totalDuration: number;
-}) {
-  return (
-    <div className="grid h-full min-h-0 grid-cols-[190px_minmax(900px,1fr)] border-b border-divider bg-bg">
-      <TimelineTrackLabel icon={<Bookmark className="size-4" />} label={t`标记`} compact />
-      <div className="relative min-h-0">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 grid grid-cols-7">
-          {Array.from({ length: 7 }, (_, index) => <span key={index} className="border-l border-divider" />)}
-        </div>
-        {markers.map((marker) => (
-          <span
-            key={marker.id}
-            className="absolute inset-y-1 flex items-center gap-1.5 text-2xs text-neutral-700"
-            style={{ left: `${marker.time / Math.max(totalDuration, 1) * 100}%` }}
-          >
-            <span className="h-full w-1.5" style={{ backgroundColor: marker.color }} aria-hidden="true" />
-            <span className="whitespace-nowrap">{marker.label}</span>
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TimelineTrackLabel({
-  icon,
-  label,
-  compact = false,
-  controls = 'video',
-}: {
-  readonly icon: React.ReactNode;
-  readonly label: string;
-  readonly compact?: boolean;
-  readonly controls?: 'video' | 'audio' | 'none';
-}) {
-  return (
-    <div className={cn('flex items-center gap-3 border-r border-divider px-3 text-xs font-medium', compact && 'text-2xs')}>
-      <span className="text-neutral-600">{icon}</span>
-      <span>{label}</span>
-      <span className="ml-auto flex items-center gap-2 text-neutral-500">
-        {compact || controls === 'none' ? null : (
-          <>
-            {controls === 'audio' ? <Volume2 className="size-3.5" aria-hidden="true" /> : <Eye className="size-3.5" aria-hidden="true" />}
-            <LockKeyhole className="size-3.5" aria-hidden="true" />
-          </>
-        )}
-      </span>
-    </div>
-  );
-}
-
-function ClipWaveform({ clip }: { readonly clip: TimelineClip }) {
-  const assetId = clip.material.kind === 'asset' ? clip.material.asset_id : null;
-  const takeId = clip.material.kind === 'take' ? clip.material.take_id : null;
-  const waveform = useAssetWaveform(assetId, 64);
-  const recordedWaveform = useRecordedClipWaveform(takeId, 64);
-  const peaks = takeId === null ? waveform.data?.waveform : recordedWaveform.data?.waveform;
-  const pending = takeId === null ? waveform.isPending : recordedWaveform.isPending;
-  if (clip.material.kind === 'planned') return <div className="h-full bg-neutral-100" />;
-  if (!pending && (peaks?.length ?? 0) === 0) {
-    return <div className="grid h-full place-items-center bg-accent-100 text-2xs text-neutral-500"><Trans>波形不可用</Trans></div>;
-  }
-  return (
-    <Waveform
-      peaks={peaks ?? []}
-      durationSeconds={clip.placement.duration}
-      loading={pending}
-      symmetric
-      className="timeline-waveform !h-full !min-h-0 !border-0 bg-accent-100 [&_.blueprint]:border-0"
-    />
-  );
-}
-
-function clipWidth(clip: TimelineClip, totalDuration: number): string {
-  return `${Math.max(7, clip.placement.duration / Math.max(totalDuration, 1) * 100)}%`;
-}
-
-function formatTimelineDuration(seconds: number): string {
-  const totalMilliseconds = Math.max(0, Math.round(seconds * 1_000));
-  const whole = Math.floor(totalMilliseconds / 1_000);
-  const milliseconds = totalMilliseconds % 1_000;
-  return `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
-}
-
-function formatTimelinePlayhead(seconds: number): string {
-  const totalMilliseconds = Math.max(0, Math.round(seconds * 1_000));
-  const whole = Math.floor(totalMilliseconds / 1_000);
-  const milliseconds = totalMilliseconds % 1_000;
-  return `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
 }
 
 function ClipInspector({
@@ -901,7 +627,7 @@ function AgentPanel({
   return (
     <aside className="flex min-h-0 flex-col border-l border-divider bg-bg" aria-label={t`Agent 面板`}>
       <header className="flex h-[42px] flex-none items-center gap-2 border-b border-divider px-5">
-        <span className="review-circle grid size-6 place-items-center bg-accent-100 text-accent-text"><Sparkles className="size-3.5" aria-hidden="true" /></span>
+        <span className="grid size-6 place-items-center rounded-full bg-accent-100 text-accent-text"><Sparkles className="size-3.5" aria-hidden="true" /></span>
         <h2 className="text-base font-semibold"><Trans>Agent</Trans></h2>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
@@ -959,7 +685,7 @@ function AgentPanel({
       <footer className="border-t border-divider p-3">
         <div className="flex gap-2">
           <input
-            className="review-field h-10 min-w-0 flex-1 border border-divider bg-neutral-50 px-3 text-xs outline-none focus:border-accent-400"
+            className="h-10 min-w-0 flex-1 rounded-sm border border-divider bg-neutral-50 px-3 text-xs outline-none focus:border-accent-400"
             value={message}
             disabled={chat.streaming || creatingSession || readOnly}
             placeholder={t`例如：重新规划成 3 分钟 NiKo 集锦`}
@@ -1033,15 +759,15 @@ function ConversationShell({
   return (
     <li className="relative">
       <span className={cn(
-        'review-circle absolute -left-[25px] top-1.5 size-2 ring-4 ring-bg',
+        'absolute -left-[25px] top-1.5 size-2 rounded-full ring-4 ring-bg',
         tone === 'human' ? 'bg-neutral-500' : tone === 'error' ? 'bg-fail-text' : 'bg-accent-600',
       )} />
       <div className={cn(
         'min-w-0',
-        tone === 'human' && 'review-field bg-neutral-50 px-3 py-2',
-        tone === 'status' && 'review-field border border-accent-200 bg-accent-100 px-3 py-2',
-        tone === 'delivery' && 'review-field border border-ok-border bg-ok-surface px-3 py-3',
-        tone === 'error' && 'review-field border border-fail-border bg-fail-surface px-3 py-2',
+        tone === 'human' && 'rounded-sm bg-neutral-50 px-3 py-2',
+        tone === 'status' && 'rounded-sm border border-accent-200 bg-accent-100 px-3 py-2',
+        tone === 'delivery' && 'rounded-sm border border-ok-border bg-ok-surface px-3 py-3',
+        tone === 'error' && 'rounded-sm border border-fail-border bg-fail-surface px-3 py-2',
       )}>
         <header className="mb-1.5 flex items-center gap-2 text-2xs text-neutral-400">
           <span className="text-xs font-semibold text-neutral-700">{actor}</span>
@@ -1072,7 +798,7 @@ function ToolCallCard({
 }) {
   const confirmation = confirmationOf(call);
   return (
-    <article className={cn('review-card mt-2 border p-3 text-xs shadow-sm', confirmation === null ? 'border-divider bg-bg' : 'border-warn-border bg-warn-surface')}>
+    <article className={cn('mt-2 rounded-md border p-3 text-xs shadow-sm', confirmation === null ? 'border-divider bg-bg' : 'border-warn-border bg-warn-surface')}>
       <div className="flex items-center gap-2">
         {running ? <LoaderCircle className="size-4 animate-spin text-accent-text" aria-hidden="true" /> : confirmation === null ? <Wrench className="size-4 text-neutral-500" aria-hidden="true" /> : <CircleAlert className="size-4 text-warn-text" aria-hidden="true" />}
         <span className="font-medium">{toolLabel(call.name)}</span>

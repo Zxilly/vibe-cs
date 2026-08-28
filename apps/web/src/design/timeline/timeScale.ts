@@ -206,6 +206,21 @@ export function formatTimecode(seconds: number): string {
   return hours > 0 ? `${sign}${hours}:${pad(minutes)}:${pad(secs)}` : `${sign}${pad(minutes)}:${pad(secs)}`;
 }
 
+/** `mm:ss.mmm` review readout used by timeline playheads and proposal duration. */
+export function formatMillisecondTimecode(seconds: number): string {
+  const sign = seconds < 0 ? '-' : '';
+  const totalMilliseconds = Math.round(Math.abs(seconds) * 1_000);
+  const whole = Math.floor(totalMilliseconds / 1_000);
+  const milliseconds = totalMilliseconds % 1_000;
+  const hours = Math.floor(whole / 3_600);
+  const minutes = Math.floor((whole % 3_600) / 60);
+  const secs = whole % 60;
+  const clock = hours > 0
+    ? `${hours}:${pad(minutes)}:${pad(secs)}`
+    : `${pad(minutes)}:${pad(secs)}`;
+  return `${sign}${clock}.${pad(milliseconds, 3)}`;
+}
+
 /**
  * `hh:mm:ss:ff`, the form the artboard's monitor and Inspector use
  * (`00:00:31:12`, `00:00:04:08`). The prototype carries no frame grid — see the

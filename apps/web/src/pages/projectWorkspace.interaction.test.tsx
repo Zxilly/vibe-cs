@@ -122,8 +122,8 @@ describe('unified project workspace', () => {
 
     expect(await screen.findByText('已录制 1')).toBeTruthy();
     expect(screen.getByText('未录制 1')).toBeTruthy();
-    expect(screen.getAllByText(/5\.0s · 已录制/u)).toHaveLength(1);
-    expect(screen.getAllByText(/5\.0s · 未录制/u)).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /A 5\.0s · 未录制/u })).toBeTruthy();
   });
 
   it('plays the selected recorded asset through the desktop media bridge', async () => {
@@ -144,8 +144,8 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ applyProjectPatch });
 
-    expect(await screen.findByText('Story')).toBeTruthy();
-    expect(screen.getByText('Music')).toBeTruthy();
+    expect(await screen.findByRole('row', { name: 'Story' })).toBeTruthy();
+    expect(screen.getByRole('row', { name: 'Music' })).toBeTruthy();
     expect(screen.queryByRole('radio', { name: '快速剪辑' })).toBeNull();
     expect(screen.queryByRole('radio', { name: '多轨精剪' })).toBeNull();
     expect(screen.queryByRole('button', { name: '录制缺失片段' })).toBeNull();

@@ -1,5 +1,6 @@
 export {
   formatFrameTimecode,
+  formatMillisecondTimecode,
   formatTimecode,
   TIME_EPSILON,
 } from './timeScale';

@@ -20,6 +20,10 @@ _Avoid_: Agent Plan, quick-edit copy, multitrack copy
 A presentation of the same **Editing Document** with a particular level of editing detail. A lens controls visibility, not edit authority; changing lens never creates another Project or another editing document.
 _Avoid_: mode conversion, project copy, unsynchronized mode
 
+**Project Timeline**:
+The unified design-system view that renders every visible Timeline Track, Timeline Placement, marker, event, playhead, and Materialization directly from one Editing Document. It owns presentation geometry and media resolution but never creates a second editable timeline model.
+_Avoid_: page-private timeline, duplicate percentage geometry, hidden track asserted only for tests
+
 **Agent Panel**:
 The workspace surface for Agent instructions, progress, Change Groups, and Agent Cursor state. It is available beside every Editing Lens and never owns a timeline or Project document.
 _Avoid_: Agent page, Agent workspace, Agent lens

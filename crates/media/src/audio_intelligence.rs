@@ -14,6 +14,7 @@ use vibe_cs_domain::{
     AudioTimeRange, BeatAlignedClip, BeatAlignmentDraft, BeatAlignmentRequest,
 };
 
+use crate::audio_frame::planar_channel_data;
 use crate::{MediaError, MediaResult, ProcessCancellation};
 
 const FRAME_SIZE: usize = 1_024;
@@ -400,7 +401,7 @@ fn append_mono_frame(frame: &ffmpeg::frame::Audio, output: &mut Downsampler) -> 
         let mut mono = 0.0_f32;
         for channel in 0..channels {
             let (data, index) = if format.is_planar() {
-                (frame.data(channel), sample_index)
+                (planar_channel_data(frame, channel)?, sample_index)
             } else {
                 (
                     frame.data(0),

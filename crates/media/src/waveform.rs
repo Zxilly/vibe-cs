@@ -2,6 +2,7 @@ use std::path::Path;
 
 use ffmpeg_next as ffmpeg;
 
+use crate::audio_frame::planar_channel_data;
 use crate::{MediaError, MediaResult, ProcessCancellation, io_error};
 
 #[derive(Debug, Clone, Copy)]
@@ -138,9 +139,12 @@ fn append_decoded_samples(
         ));
     }
     if format.is_planar() {
+        let channel_data = (0..channels)
+            .map(|channel| planar_channel_data(decoded, channel))
+            .collect::<MediaResult<Vec<_>>>()?;
         for index in 0..decoded.samples() {
             let peak = (0..channels)
-                .map(|channel| decode_sample(format, decoded.data(channel), index))
+                .map(|channel| decode_sample(format, channel_data[channel], index))
                 .collect::<MediaResult<Vec<_>>>()?
                 .into_iter()
                 .map(f32::abs)

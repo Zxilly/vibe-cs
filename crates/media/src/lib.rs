@@ -1,5 +1,6 @@
 //! Shell-free `FFmpeg` planning, probing, waveform extraction, and execution.
 
+mod audio_frame;
 mod audio_intelligence;
 mod command;
 mod error;

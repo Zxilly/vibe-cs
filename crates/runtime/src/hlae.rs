@@ -21,6 +21,7 @@ use vibe_cs_hlae::{
 use vibe_cs_platform_windows::{
     NativeMp4VideoConfig, NativeMp4VideoInspection, NativeMp4VideoSummary, NativeMp4VideoWriter,
     PlatformError, ProcessCancellation, RationalFrameRate, inspect_native_h264_mp4,
+    inspect_native_pcm_wav,
 };
 
 /// Complete input contract for encoding one application-managed HLAE take.
@@ -532,14 +533,23 @@ impl RuntimeHlaeSequenceEncoder {
         let frame_count = u64::try_from(inventory.frames.len()).map_err(|_| {
             PlatformError::InvalidInput("HLAE frame count is unsupported".to_owned())
         })?;
+        let frame_rate = if request.require_audio {
+            let wav = inventory.audio_wav.as_deref().ok_or_else(|| {
+                PlatformError::InvalidInput("validated HLAE take has no audio.wav".to_owned())
+            })?;
+            let info = inspect_native_pcm_wav(wav)?;
+            audio_matched_frame_rate(frame_count, info.sample_rate_hz, info.sample_frame_count)?
+        } else {
+            RationalFrameRate {
+                numerator: request.fps,
+                denominator: 1,
+            }
+        };
         let config = NativeMp4VideoConfig {
             width: request.width,
             height: request.height,
             frame_count,
-            frame_rate: RationalFrameRate {
-                numerator: request.fps,
-                denominator: 1,
-            },
+            frame_rate,
             target_bitrate_bps: request.target_bitrate_bps,
         };
         let mut writer = if request.require_audio {
@@ -600,6 +610,45 @@ impl RuntimeHlaeSequenceEncoder {
             inspection,
         })
     }
+}
+
+fn audio_matched_frame_rate(
+    frame_count: u64,
+    sample_rate_hz: u32,
+    sample_frame_count: u64,
+) -> Result<RationalFrameRate, PlatformError> {
+    if frame_count == 0 || sample_frame_count == 0 {
+        return Err(PlatformError::InvalidInput(
+            "HLAE audio-matched frame rate is empty".to_owned(),
+        ));
+    }
+    let milli_fps = u64::from(sample_rate_hz)
+        .checked_mul(frame_count)
+        .and_then(|value| value.checked_mul(1_000))
+        .and_then(|value| value.checked_add(sample_frame_count / 2))
+        .map(|value| value / sample_frame_count)
+        .ok_or_else(|| {
+            PlatformError::InvalidInput("HLAE audio-matched frame rate overflow".to_owned())
+        })?;
+    let divisor = greatest_common_divisor(milli_fps, 1_000);
+    Ok(RationalFrameRate {
+        numerator: u32::try_from(milli_fps / divisor).map_err(|_| {
+            PlatformError::InvalidInput(
+                "HLAE audio-matched frame-rate numerator is unsupported".to_owned(),
+            )
+        })?,
+        denominator: u32::try_from(1_000 / divisor)
+            .expect("a divisor of 1000 always produces a u32 denominator"),
+    })
+}
+
+const fn greatest_common_divisor(mut left: u64, mut right: u64) -> u64 {
+    while right != 0 {
+        let remainder = left % right;
+        left = right;
+        right = remainder;
+    }
+    left
 }
 
 const MINIMUM_HLAE_GAME_DISCOVERY_TIMEOUT: Duration = Duration::from_millis(1);
@@ -849,6 +898,14 @@ mod tests {
     use std::time::Duration;
 
     use super::*;
+
+    #[test]
+    fn audio_matched_rate_preserves_the_complete_wav_duration_after_frame_drops() {
+        let rate = audio_matched_frame_rate(690, 44_100, 617_400).unwrap();
+        let video_seconds = 690.0 * f64::from(rate.denominator) / f64::from(rate.numerator);
+        let audio_seconds = 617_400.0 / 44_100.0;
+        assert!((video_seconds - audio_seconds).abs() < 0.001);
+    }
 
     #[test]
     fn ordered_frame_pipeline_writes_in_index_order_when_decodes_finish_out_of_order() {

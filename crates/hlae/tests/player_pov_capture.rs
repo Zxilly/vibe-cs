@@ -75,6 +75,7 @@ fn compiles_a_bounded_player_pov_program_without_fake_camera_artifacts() {
     assert!(xml.contains("tv_listen_voice_indices -1"));
     assert!(xml.contains("tv_listen_voice_indices_h -1"));
     assert!(xml.contains("mirv_streams record end; demo_pause"));
+    assert!(xml.contains("<c tick=\"161310\"><body>mirv_streams record end"));
     assert!(!xml.contains("mirv_campath load"));
     assert!(!xml.contains("<campath"));
 }

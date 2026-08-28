@@ -469,7 +469,7 @@ impl NativeMp4VideoWriter {
             if !inspection.video_subtype_is_h264
                 || inspection.width != writer.config.width
                 || inspection.height != writer.config.height
-                || inspection.frame_rate != writer.config.frame_rate
+                || !frame_rates_equivalent(inspection.frame_rate, writer.config.frame_rate)
                 || inspection.sample_count != writer.frames_written
                 || inspection.audio_stream_is_aac != expected_audio.is_some()
                 || expected_audio.is_some_and(|audio| {
@@ -530,6 +530,13 @@ impl NativeMp4VideoWriter {
             Err(PlatformError::Unsupported)
         }
     }
+}
+
+fn frame_rates_equivalent(left: RationalFrameRate, right: RationalFrameRate) -> bool {
+    let left_scaled = u128::from(left.numerator) * u128::from(right.denominator);
+    let right_scaled = u128::from(right.numerator) * u128::from(left.denominator);
+    let tolerance = left_scaled.max(right_scaled).div_ceil(1_000);
+    left_scaled.abs_diff(right_scaled) <= tolerance
 }
 
 /// Media Foundation's AAC-LC encoder can expose one padded access unit at the
@@ -2070,6 +2077,30 @@ mod native_mp4_windows {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn accepts_media_foundation_rational_normalization_within_one_per_mille() {
+        assert!(frame_rates_equivalent(
+            RationalFrameRate {
+                numerator: 373,
+                denominator: 10
+            },
+            RationalFrameRate {
+                numerator: 2_500_000,
+                denominator: 67_051
+            },
+        ));
+        assert!(!frame_rates_equivalent(
+            RationalFrameRate {
+                numerator: 60,
+                denominator: 1
+            },
+            RationalFrameRate {
+                numerator: 30,
+                denominator: 1
+            },
+        ));
+    }
 
     #[cfg(windows)]
     #[test]

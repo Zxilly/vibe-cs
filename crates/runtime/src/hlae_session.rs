@@ -830,7 +830,16 @@ impl RuntimeHlaeSessionOrchestrator {
             target_bitrate_bps: request.target_bitrate_bps,
             require_audio: prepared.capture.record_wav,
             maximum_frames: frame_count_bounds.maximum,
-            minimum_frames: frame_count_bounds.minimum,
+            // HLAE can drop image-sequence frames under encoder load while
+            // startMovieWav still covers the complete scheduled Take. For
+            // audio-backed Takes the native encoder retimes the surviving
+            // frames to that authoritative WAV duration; a 75% floor still
+            // rejects materially incomplete captures.
+            minimum_frames: if prepared.capture.record_wav {
+                frame_count_bounds.minimum.saturating_mul(3).div_ceil(4)
+            } else {
+                frame_count_bounds.minimum
+            },
         };
         let encoder = Arc::clone(&self.encoder);
         let encoding_cancel = ProcessCancellation::default();
@@ -1912,58 +1921,83 @@ fn remove_successful_capture_tree(
         .into());
     }
 
-    let mut capture_entries =
+    let mut found_bound_take = false;
+    for take_entry in
         fs::read_dir(&canonical_capture).map_err(|source| RuntimeHlaeSessionError::Io {
             operation: "enumerating successful capture directory at",
             path: canonical_capture.clone(),
             source,
-        })?;
-    let only_entry =
-        capture_entries
-            .next()
-            .transpose()
-            .map_err(|source| RuntimeHlaeSessionError::Io {
-                operation: "reading successful capture entry at",
-                path: canonical_capture.clone(),
-                source,
-            })?;
-    if capture_entries.next().is_some()
-        || only_entry
-            .as_ref()
-            .and_then(|entry| fs::canonicalize(entry.path()).ok())
-            .as_ref()
-            != Some(&canonical_take)
+        })?
     {
-        return Err(HlaeError::InvalidPlan(
-            "successful capture directory contains artifacts outside the bound take".to_owned(),
-        )
-        .into());
-    }
-    for entry in fs::read_dir(&canonical_take).map_err(|source| RuntimeHlaeSessionError::Io {
-        operation: "enumerating successful HLAE take at",
-        path: canonical_take.clone(),
-        source,
-    })? {
-        let entry = entry.map_err(|source| RuntimeHlaeSessionError::Io {
-            operation: "reading successful HLAE take entry at",
-            path: canonical_take.clone(),
+        let take_entry = take_entry.map_err(|source| RuntimeHlaeSessionError::Io {
+            operation: "reading successful capture entry at",
+            path: canonical_capture.clone(),
             source,
         })?;
-        let metadata =
-            fs::symlink_metadata(entry.path()).map_err(|source| RuntimeHlaeSessionError::Io {
-                operation: "revalidating successful HLAE take entry at",
-                path: entry.path(),
+        let take_metadata = fs::symlink_metadata(take_entry.path()).map_err(|source| {
+            RuntimeHlaeSessionError::Io {
+                operation: "revalidating successful capture entry at",
+                path: take_entry.path(),
                 source,
-            })?;
-        if metadata.file_type().is_symlink()
-            || metadata_is_reparse_point(&metadata)
-            || !metadata.is_file()
+            }
+        })?;
+        if take_metadata.file_type().is_symlink()
+            || metadata_is_reparse_point(&take_metadata)
+            || !take_metadata.is_dir()
         {
             return Err(HlaeError::InvalidPlan(
-                "successful HLAE take contains a linked or non-file entry".to_owned(),
+                "successful capture contains a linked or non-directory take".to_owned(),
             )
             .into());
         }
+        let canonical_entry =
+            fs::canonicalize(take_entry.path()).map_err(|source| RuntimeHlaeSessionError::Io {
+                operation: "canonicalizing successful capture entry at",
+                path: take_entry.path(),
+                source,
+            })?;
+        if canonical_entry.parent() != Some(canonical_capture.as_path()) {
+            return Err(HlaeError::InvalidPlan(
+                "successful capture take escaped its managed directory".to_owned(),
+            )
+            .into());
+        }
+        found_bound_take |= canonical_entry == canonical_take;
+        for entry in
+            fs::read_dir(&canonical_entry).map_err(|source| RuntimeHlaeSessionError::Io {
+                operation: "enumerating successful HLAE take at",
+                path: canonical_entry.clone(),
+                source,
+            })?
+        {
+            let entry = entry.map_err(|source| RuntimeHlaeSessionError::Io {
+                operation: "reading successful HLAE take entry at",
+                path: canonical_entry.clone(),
+                source,
+            })?;
+            let metadata = fs::symlink_metadata(entry.path()).map_err(|source| {
+                RuntimeHlaeSessionError::Io {
+                    operation: "revalidating successful HLAE take entry at",
+                    path: entry.path(),
+                    source,
+                }
+            })?;
+            if metadata.file_type().is_symlink()
+                || metadata_is_reparse_point(&metadata)
+                || !metadata.is_file()
+            {
+                return Err(HlaeError::InvalidPlan(
+                    "successful HLAE take contains a linked or non-file entry".to_owned(),
+                )
+                .into());
+            }
+        }
+    }
+    if !found_bound_take {
+        return Err(HlaeError::InvalidPlan(
+            "successful capture directory lost its bound take".to_owned(),
+        )
+        .into());
     }
     fs::remove_dir_all(&canonical_capture).map_err(|source| RuntimeHlaeSessionError::Io {
         operation: "removing encoded HLAE capture tree at",

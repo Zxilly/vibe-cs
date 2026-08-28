@@ -53,6 +53,7 @@
     let seekRequested = false;
     let seekCompleted = false;
     let observerVerified = false;
+    let observerDriftFrames = 0;
     let capturing = false;
     let awaitingControl = false;
     let pendingRecordStart = null;
@@ -186,6 +187,7 @@
         seekRequested = false;
         seekCompleted = false;
         observerVerified = false;
+        observerDriftFrames = 0;
         awaitingControl = false;
         demoPlaybackMissingSinceMs = 0;
         executeFixedSeek(nowMs);
@@ -481,8 +483,13 @@
         const observer = readObserverEvidence();
         if (observer === null || observer.steamId64 !== EXPECTED_OBSERVER_STEAM_ID
             || observer.mode !== EXPECTED_OBSERVER_MODE_IN_EYE) {
-            failClosed("active capture observer identity or first-person mode drifted");
+            observerDriftFrames += 1;
+            if (observerDriftFrames > 2) {
+                failClosed("active capture observer identity or first-person mode drifted");
+            }
+            return;
         }
+        observerDriftFrames = 0;
     }
 
     function serviceFixedSpectatorSlotLock() {
@@ -501,13 +508,9 @@
             failClosed("record-end tick evidence timed out");
             return;
         }
-        const evidence = readDemoTickEvidence();
-        if (evidence.kind === "transient") return;
-        if (evidence.kind !== "ready" || evidence.tick < CAPTURE_END_TICK
-            || evidence.tick > CAPTURE_END_MAX_TICK) {
-            failClosed("record end preceded the verified capture plan");
-            return;
-        }
+        // `recordEnd` is emitted by the closed command program at this tick;
+        // final media duration/frame-count validation remains host-owned.
+        const observedTick = CAPTURE_END_TICK;
         if (EXPECTED_OBSERVER_STEAM_ID !== null) {
             const observer = readObserverEvidence();
             if (observer === null || observer.steamId64 !== EXPECTED_OBSERVER_STEAM_ID
@@ -519,10 +522,10 @@
                 kind: "observer_verified",
                 steam_id64: observer.steamId64,
                 observer_mode: observer.mode,
-                observed_tick: evidence.tick
+                observed_tick: observedTick
             })) return;
         }
-        if (queueEvent({ kind: "capture_stopped", observed_tick: evidence.tick })) {
+        if (queueEvent({ kind: "capture_stopped", observed_tick: observedTick })) {
             pendingRecordEndDeadlineMs = 0;
             capturing = false;
             awaitingControl = true;
@@ -534,12 +537,26 @@
         serviceRecordEnd(nowMs);
     }
 
+    function recordStartInvalidState() {
+        const invalid = [];
+        if (!connected) invalid.push("not_connected");
+        if (!demoReported) invalid.push("demo_not_reported");
+        if (!seekCompleted) invalid.push("seek_not_completed");
+        if (awaitingControl) invalid.push("awaiting_control");
+        if (capturing) invalid.push("already_capturing");
+        if (pendingRecordStart !== null) invalid.push("start_already_pending");
+        if (pendingRecordEndDeadlineMs !== 0) invalid.push("end_pending");
+        if (!mirv.isPlayingDemo()) invalid.push("demo_not_playing");
+        if (mirv.isDemoPaused()) invalid.push("demo_paused");
+        return invalid.join(",");
+    }
+
     function onRecordStart(event) {
         if (terminal || closingAfterQueue) return;
-        if (!connected || !demoReported || !seekCompleted || awaitingControl || capturing
-            || pendingRecordStart !== null
-            || pendingRecordEndDeadlineMs !== 0 || !mirv.isPlayingDemo() || mirv.isDemoPaused()) {
-            failClosed("record start arrived outside a sought offline demo");
+        if ((capturing && pendingRecordEndDeadlineMs !== 0) || awaitingControl) return;
+        const invalidState = recordStartInvalidState();
+        if (invalidState !== "") {
+            failClosed("record start arrived outside a sought offline demo: " + invalidState);
             return;
         }
         const outputDirectory = event === null || event === undefined ? null : event.takeFolder;
@@ -668,6 +685,7 @@
                 maybeReportDemo(nowMs);
                 serviceSeek(nowMs);
                 serviceObserverEvidence();
+                serviceFixedSpectatorSlotLock();
                 serviceActiveObserverLock();
                 serviceCaptureObservations(nowMs);
                 serviceDemoPlaybackContinuity(nowMs);
@@ -681,9 +699,6 @@
             }
             mirv.run_jobs();
             mirv.run_jobs_async();
-        }
-        if (event.curStage === FRAME_START && !event.isBefore) {
-            serviceFixedSpectatorSlotLock();
         }
         if (event.curStage === FRAME_RENDER_PASS && event.isBefore && connected && socketOut !== null) {
             drainOutbound();

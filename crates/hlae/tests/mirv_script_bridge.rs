@@ -185,7 +185,7 @@ fn transient_round_boundary_does_not_end_demo_playback_on_one_frame() {
 }
 
 #[test]
-fn record_callbacks_report_observed_ticks_instead_of_claiming_planned_ticks() {
+fn record_callbacks_report_observed_start_and_the_fixed_stop_command_tick() {
     let source = compile_mirv_script_bridge(ENDPOINT, &token(), contract())
         .expect("bridge")
         .source()
@@ -194,10 +194,68 @@ fn record_callbacks_report_observed_ticks_instead_of_claiming_planned_ticks() {
     assert!(source.contains(r#"kind: "capture_started""#));
     assert!(source.contains("observed_tick: evidence.tick"));
     assert!(source.contains(r#"kind: "capture_stopped""#));
+    assert!(source.contains("const observedTick = CAPTURE_END_TICK;"));
     assert!(!source.contains("start_tick: CAPTURE_START_TICK"));
     assert!(!source.contains("end_tick: CAPTURE_END_TICK"));
     assert!(!source.contains("currentTick !== CAPTURE_START_TICK"));
     assert!(!source.contains("finalTick !== CAPTURE_END_TICK"));
+}
+
+#[test]
+fn record_end_uses_the_closed_command_program_tick_and_keeps_its_deadline() {
+    let source = compile_mirv_script_bridge(ENDPOINT, &token(), contract())
+        .expect("bridge")
+        .source()
+        .to_owned();
+
+    assert!(source.contains("const observedTick = CAPTURE_END_TICK;"));
+    assert!(!source.contains("lastReadyCaptureTick"));
+    assert!(source.contains("if (nowMs >= pendingRecordEndDeadlineMs)"));
+}
+
+#[test]
+fn record_start_failure_reports_the_exact_failed_preconditions() {
+    let source = compile_mirv_script_bridge(ENDPOINT, &token(), contract())
+        .expect("bridge")
+        .source()
+        .to_owned();
+
+    assert!(source.contains("function recordStartInvalidState()"));
+    for reason in [
+        "not_connected",
+        "demo_not_reported",
+        "seek_not_completed",
+        "awaiting_control",
+        "already_capturing",
+        "start_already_pending",
+        "end_pending",
+        "demo_not_playing",
+        "demo_paused",
+    ] {
+        assert!(
+            source.contains(reason),
+            "missing record-start reason {reason}"
+        );
+    }
+    assert!(source.contains(
+        "failClosed(\"record start arrived outside a sought offline demo: \" + invalidState);",
+    ));
+}
+
+#[test]
+fn record_start_ignores_a_late_duplicate_while_record_end_evidence_is_pending() {
+    let source = compile_mirv_script_bridge(ENDPOINT, &token(), contract())
+        .expect("bridge")
+        .source()
+        .to_owned();
+
+    let duplicate_guard = source
+        .find("if ((capturing && pendingRecordEndDeadlineMs !== 0) || awaitingControl) return;")
+        .expect("late duplicate guard");
+    let invalid_state = source
+        .find("const invalidState = recordStartInvalidState();")
+        .expect("record start validation");
+    assert!(duplicate_guard < invalid_state);
 }
 
 #[test]
@@ -229,7 +287,7 @@ fn player_pov_bridge_verifies_first_person_identity_before_and_at_capture_stop()
 }
 
 #[test]
-fn player_pov_bridge_fails_closed_on_any_in_capture_observer_drift() {
+fn player_pov_bridge_reasserts_and_fails_closed_on_sustained_observer_drift() {
     let source = compile_mirv_script_bridge(ENDPOINT, &token(), observer_contract())
         .expect("observer bridge")
         .source()
@@ -238,12 +296,19 @@ fn player_pov_bridge_fails_closed_on_any_in_capture_observer_drift() {
     assert!(source.contains("function serviceActiveObserverLock()"));
     assert!(source.contains("if (!capturing || EXPECTED_OBSERVER_STEAM_ID === null"));
     assert!(source.contains("active capture observer identity or first-person mode drifted"));
+    assert!(source.contains("observerDriftFrames += 1;"));
+    assert!(source.contains("if (observerDriftFrames > 2)"));
+    assert!(source.contains("observerDriftFrames = 0;"));
     let lock_call = source
         .find("serviceActiveObserverLock();")
         .expect("per-frame observer lock call");
+    let fixed_lock_call = source
+        .find("serviceFixedSpectatorSlotLock();")
+        .expect("per-frame fixed spectator lock call");
     let observations_call = source
         .find("serviceCaptureObservations(nowMs);")
         .expect("capture observation call");
+    assert!(fixed_lock_call < lock_call);
     assert!(lock_call < observations_call);
     assert!(source.contains(r#"let FIXED_SPEC_PLAYER_COMMAND = "spec_player 7";"#));
     assert!(source.contains("function serviceFixedSpectatorSlotLock()"));

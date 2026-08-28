@@ -462,6 +462,7 @@ mod tests {
         assert!(xml.contains("demo_ui_mode 0; gameui_hide; cl_showdemooverlay 0"));
         assert!(xml.contains("record start"));
         assert!(xml.contains("record end"));
+        assert!(xml.contains("<c tick=\"1300\"><body>mirv_streams record end"));
         assert!(!xml.to_ascii_lowercase().contains("ffmpeg"));
     }
 

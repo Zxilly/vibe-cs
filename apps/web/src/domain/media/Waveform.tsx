@@ -69,6 +69,8 @@ export interface WaveformProps {
   /** Seconds the peaks span. Drives the selection and playhead offsets. */
   readonly durationSeconds: number;
   readonly columns?: number;
+  /** Mirrors magnitude-only peak buckets around zero for a conventional audio envelope. */
+  readonly symmetric?: boolean;
   /** Seconds. Draws the playhead when given. */
   readonly currentTime?: number;
   /** Seconds. Everything outside [in, out] is dimmed. */
@@ -94,6 +96,7 @@ export function Waveform({
   peaks,
   durationSeconds,
   columns = DEFAULT_PEAK_COLUMNS,
+  symmetric = false,
   currentTime,
   inPoint,
   outPoint,
@@ -103,10 +106,15 @@ export function Waveform({
   label,
   className,
 }: WaveformProps) {
-  const envelope = useMemo(
-    () => peakEnvelopePath(downsamplePeaks(peaks, columns)),
-    [peaks, columns],
-  );
+  const envelope = useMemo(() => {
+    const sampled = downsamplePeaks(peaks, columns);
+    return peakEnvelopePath(symmetric
+      ? sampled.map(({ min, max }) => {
+        const magnitude = Math.max(Math.abs(min), Math.abs(max));
+        return { min: -magnitude, max: magnitude };
+      })
+      : sampled);
+  }, [peaks, columns, symmetric]);
 
   if (failure !== undefined) {
     return (

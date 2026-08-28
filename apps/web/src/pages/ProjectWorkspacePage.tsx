@@ -7,16 +7,21 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Clapperboard,
   CircleAlert,
   CircleHelp,
   Eye,
+  Grid2X2,
   LayoutList,
+  Link2,
+  List,
   LockKeyhole,
   LoaderCircle,
   Send,
   Settings2,
   Sparkles,
   Square,
+  SquarePlus,
   Star,
   Volume2,
   Wrench,
@@ -59,6 +64,7 @@ import type {
   ProjectPatchScope,
   AgentSessionEntry,
   AgentToolCall,
+  EditorMarker,
   JsonValue,
   TimelineClip,
   TimelineTrack,
@@ -83,6 +89,7 @@ export function ProjectWorkspacePage() {
   const exportProject = useExportProject();
   const lens: EditingLens = 'multitrack';
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [previewOffsetSeconds, setPreviewOffsetSeconds] = useState(0);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const agentSessionId = searchParams.get('session');
   const agentSession = useAgentSession(agentSessionId);
@@ -108,6 +115,8 @@ export function ProjectWorkspacePage() {
       ?.clips[0];
     if (firstClip !== undefined) setSelectedClipId(firstClip.id);
   }, [project.data, selectedClipId]);
+
+  useEffect(() => setPreviewOffsetSeconds(0), [selectedClipId]);
 
   if (projectId === 'new' || project.isPending) {
     return (
@@ -207,15 +216,20 @@ export function ProjectWorkspacePage() {
     >
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(390px,26%)] overflow-hidden bg-neutral-100">
         <div
-          className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] gap-[8px] overflow-hidden pb-[8px] pl-[14px] pr-[8px] pt-[12px]"
+          className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] gap-[8px] overflow-hidden pl-[14px] pr-[8px] pt-[12px]"
           style={{ gridTemplateRows: 'minmax(320px, 46.2%) 182px minmax(250px, 1fr)' }}
         >
-          <PreviewSplit project={current} selected={selected?.clip ?? null} />
+          <PreviewSplit
+            project={current}
+            selected={selected?.clip ?? null}
+            onPreviewTimeChange={setPreviewOffsetSeconds}
+          />
           <ChangeSummary project={current} group={latestAgentGroup} />
           <Timeline
             project={current}
             tracks={visibleTracks}
             selectedClipId={selectedClipId}
+            previewOffsetSeconds={previewOffsetSeconds}
             onSelect={setSelectedClipId}
             onInspect={(clipId) => {
               setSelectedClipId(clipId);
@@ -279,7 +293,15 @@ export function ProjectWorkspacePage() {
   );
 }
 
-function PreviewSplit({ project, selected }: { readonly project: Project; readonly selected: TimelineClip | null }) {
+function PreviewSplit({
+  project,
+  selected,
+  onPreviewTimeChange,
+}: {
+  readonly project: Project;
+  readonly selected: TimelineClip | null;
+  readonly onPreviewTimeChange: (seconds: number) => void;
+}) {
   const [videoPercent, setVideoPercent] = useState(51);
   const splitRef = useRef<HTMLDivElement>(null);
 
@@ -297,7 +319,7 @@ function PreviewSplit({ project, selected }: { readonly project: Project; readon
         className="grid h-full min-h-0 min-w-0 max-w-full"
         style={{ gridTemplateColumns: `${videoPercent}% 4px minmax(0, 1fr)` }}
       >
-        <ProgramMonitor project={project} selected={selected} />
+        <ProgramMonitor project={project} selected={selected} onPreviewTimeChange={onPreviewTimeChange} />
         <div
           role="separator"
           aria-label={t`调整视频与战术图宽度`}
@@ -330,7 +352,15 @@ function PreviewSplit({ project, selected }: { readonly project: Project; readon
   );
 }
 
-function ProgramMonitor({ project, selected }: { readonly project: Project; readonly selected: TimelineClip | null }) {
+function ProgramMonitor({
+  project,
+  selected,
+  onPreviewTimeChange,
+}: {
+  readonly project: Project;
+  readonly selected: TimelineClip | null;
+  readonly onPreviewTimeChange: (seconds: number) => void;
+}) {
   const shell = useNativeShell();
   const assetId = selected?.material.kind === 'take' || selected?.material.kind === 'asset'
     ? selected.material.asset_id
@@ -354,6 +384,7 @@ function ProgramMonitor({ project, selected }: { readonly project: Project; read
           src={videoSrc}
           controls
           preload="metadata"
+          onTimeUpdate={(event) => onPreviewTimeChange(event.currentTarget.currentTime)}
           aria-label={t`${selected?.name ?? project.name} 视频预览`}
         />
       )}
@@ -516,12 +547,14 @@ function Timeline({
   project,
   tracks,
   selectedClipId,
+  previewOffsetSeconds,
   onSelect,
   onInspect,
 }: {
   readonly project: Project;
   readonly tracks: readonly TimelineTrack[];
   readonly selectedClipId: string | null;
+  readonly previewOffsetSeconds: number;
   readonly onSelect: (clipId: string) => void;
   readonly onInspect: (clipId: string) => void;
 }) {
@@ -530,10 +563,16 @@ function Timeline({
   const clips = story?.clips ?? [];
   const recordedCount = clips.filter((clip) => clip.material.kind !== 'planned').length;
   const plannedCount = clips.length - recordedCount;
+  const selectedClip = clips.find((clip) => clip.id === selectedClipId) ?? null;
+  const playheadSeconds = Math.min(
+    project.document.duration_seconds,
+    Math.max(0, (selectedClip?.placement.start ?? 0) + previewOffsetSeconds),
+  );
+  const playheadRatio = playheadSeconds / Math.max(project.document.duration_seconds, 1);
   return (
-    <section className="review-panel flex min-h-0 flex-col overflow-hidden border border-divider bg-bg" aria-label={t`时间轴`}>
+    <section className="review-panel relative flex min-h-0 flex-col overflow-hidden border border-divider bg-bg" aria-label={t`时间轴`}>
       <span className="sr-only">{tracks.map((track) => <span key={track.id}>{track.name}</span>)}</span>
-      <header className="flex h-11 flex-none items-center gap-3 border-b border-divider px-4">
+      <header className="flex h-[clamp(25px,2.9vh,28px)] flex-none items-center gap-3 border-b border-divider px-3">
         <h2 className="text-sm font-semibold"><Trans>时间轴（编辑预览）</Trans></h2>
         <span className="ml-auto flex items-center gap-2 text-neutral-500">
           <ZoomOut className="size-3.5" strokeWidth={1.5} aria-hidden="true" />
@@ -542,23 +581,23 @@ function Timeline({
           <button type="button" className="ml-1 flex h-6 items-center gap-1 border border-divider px-2 text-2xs"><Trans>适应</Trans><ChevronRight className="size-3 rotate-90" aria-hidden="true" /></button>
         </span>
       </header>
-      <div className="grid h-7 flex-none grid-cols-[190px_minmax(900px,1fr)] border-b border-divider font-mono text-2xs text-neutral-500">
+      <div className="grid h-[clamp(25px,2.9vh,28px)] flex-none grid-cols-[190px_minmax(900px,1fr)] border-b border-divider font-mono text-2xs text-neutral-500">
         <span />
         <div className="grid grid-cols-7">
           {[0, 30, 60, 90, 120, 150, 180].map((seconds) => <span key={seconds} className="border-l border-divider px-1 py-1 text-center">{formatTimelinePoint(seconds)}</span>)}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
-        <div className="min-w-[calc(var(--w-overlay)+var(--w-split))]">
-          <div className="grid h-[62px] grid-cols-[190px_minmax(900px,1fr)] border-b border-divider">
+        <div className="grid h-full min-w-[calc(var(--w-overlay)+var(--w-split))] grid-rows-[27fr_25fr_24fr_24fr]">
+          <div className="grid min-h-0 grid-cols-[190px_minmax(900px,1fr)] border-b border-divider">
             <TimelineTrackLabel icon={<Camera className="size-4" />} label={t`视频轨道 1`} />
-            <ol className="flex list-none items-stretch p-1">
+            <ol className="flex min-h-0 list-none items-stretch p-0">
               {clips.map((clip) => (
-                <li key={clip.id} className="min-w-0 flex-none" style={{ width: clipWidth(clip, project.document.duration_seconds) }}>
+                <li key={clip.id} className="min-w-0 flex-none border-r border-divider p-0.5" style={{ width: clipWidth(clip, project.document.duration_seconds) }}>
                   <button
                     type="button"
                     className={cn(
-                      'relative flex h-full w-full min-w-0 flex-col overflow-hidden border border-divider bg-neutral-100 text-left outline-none',
+                      'relative flex h-full w-full min-w-0 flex-col overflow-hidden bg-neutral-100 text-left outline-none',
                       selectedClipId === clip.id && 'border-accent-500 ring-1 ring-inset ring-accent-500',
                     )}
                     onClick={() => onSelect(clip.id)}
@@ -569,24 +608,28 @@ function Timeline({
                     {clip.material.kind === 'planned' ? (
                       <span className="grid flex-1 place-items-center bg-neutral-100 text-2xs text-neutral-500"><Trans>待录制</Trans></span>
                     ) : (
-                      <video
-                        className="pointer-events-none min-h-0 flex-1 bg-neutral-900 object-cover"
-                        src={shell.mediaSrc(mediaAssetStreamPath(clip.material.asset_id)) ?? undefined}
-                        preload="metadata"
-                        muted
-                        tabIndex={-1}
-                        aria-hidden="true"
-                      />
+                      <>
+                        <video
+                          className="pointer-events-none min-h-0 flex-1 bg-neutral-900 object-cover"
+                          src={shell.mediaSrc(mediaAssetStreamPath(clip.material.asset_id)) ?? undefined}
+                          preload="metadata"
+                          muted
+                          tabIndex={-1}
+                          aria-hidden="true"
+                        />
+                        <Clapperboard className="absolute left-1 top-1 size-3 border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />
+                        <Link2 className="absolute right-1 top-1 size-3 border border-neutral-700 bg-neutral-900/75 p-px text-bg" aria-hidden="true" />
+                      </>
                     )}
-                    <span className="absolute inset-x-0 bottom-0 truncate bg-neutral-900/75 px-1 py-0.5 text-2xs text-bg">{clip.name}</span>
+                    <span className="absolute inset-x-0 bottom-0 truncate bg-neutral-900/80 px-1 py-px text-2xs text-bg">{clip.name}</span>
                   </button>
                 </li>
               ))}
             </ol>
           </div>
-          <div className="grid h-[42px] grid-cols-[190px_minmax(900px,1fr)] border-b border-divider">
-            <TimelineTrackLabel icon={<Volume2 className="size-4" />} label={t`音频轨道 1`} />
-            <ol className="flex list-none items-stretch p-1">
+          <div className="grid min-h-0 grid-cols-[190px_minmax(900px,1fr)] border-b border-divider">
+            <TimelineTrackLabel icon={<SquarePlus className="size-4" />} label={t`音频轨道 1`} controls="audio" />
+            <ol className="flex min-h-0 list-none items-stretch p-0">
               {clips.map((clip) => (
                 <li key={`audio:${clip.id}`} className="min-w-0 flex-none border-r border-divider" style={{ width: clipWidth(clip, project.document.duration_seconds) }}>
                   <ClipWaveform clip={clip} />
@@ -594,19 +637,30 @@ function Timeline({
               ))}
             </ol>
           </div>
-          <TimelineMetaRow icon={<Bookmark className="size-4" />} label={t`标记`} clips={clips} kind="status" totalDuration={project.document.duration_seconds} />
-          <TimelineMetaRow icon={<Star className="size-4" />} label={t`事件`} clips={clips} kind="event" totalDuration={project.document.duration_seconds} />
+          <TimelineMarkerRow markers={project.document.markers} totalDuration={project.document.duration_seconds} />
+          <TimelineMetaRow icon={<Star className="size-4" />} label={t`事件`} clips={clips} totalDuration={project.document.duration_seconds} />
         </div>
       </div>
-      <footer className="flex h-10 flex-none items-center gap-5 border-t border-divider px-2 text-2xs text-neutral-600">
+      <footer className="flex h-[clamp(40px,5.2vh,50px)] flex-none items-center gap-5 border-t border-divider px-2 text-2xs text-neutral-600">
         <span><Trans>提案时长：</Trans><strong className="font-mono font-medium text-text">{formatTimelineDuration(project.document.duration_seconds)}</strong></span>
         <span className="flex items-center gap-1.5"><span className="size-2 bg-accent-400" /><Trans>已录制 {recordedCount}</Trans></span>
         <span className="flex items-center gap-1.5"><span className="size-2 bg-neutral-200" /><Trans>未录制 {plannedCount}</Trans></span>
         <span className="ml-auto flex items-center gap-2">
           <button type="button" className="flex h-7 items-center gap-1.5 border border-divider px-2"><LayoutList className="size-3.5" aria-hidden="true" /><Trans>阻塞显示</Trans></button>
           <button type="button" className="grid size-7 place-items-center border border-divider" aria-label={t`时间轴设置`}><Settings2 className="size-3.5" aria-hidden="true" /></button>
+          <button type="button" className="grid size-7 place-items-center border border-divider" aria-label={t`网格视图`}><Grid2X2 className="size-3.5" aria-hidden="true" /></button>
+          <button type="button" className="grid size-7 place-items-center border border-divider" aria-label={t`列表视图`}><List className="size-3.5" aria-hidden="true" /></button>
         </span>
       </footer>
+      <div
+        className="pointer-events-none absolute bottom-[clamp(40px,5.2vh,50px)] top-[clamp(25px,2.9vh,28px)] z-20 w-px bg-accent-600"
+        style={{ left: `calc(${playheadRatio * 100}% + ${190 * (1 - playheadRatio)}px)` }}
+        aria-hidden="true"
+      >
+        <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap bg-accent-600 px-1.5 py-0.5 font-mono text-2xs text-bg">
+          {formatTimelinePlayhead(playheadSeconds)}
+        </span>
+      </div>
     </section>
   );
 }
@@ -615,30 +669,30 @@ function TimelineMetaRow({
   icon,
   label,
   clips,
-  kind,
   totalDuration,
 }: {
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly clips: readonly TimelineClip[];
-  readonly kind: 'status' | 'event';
   readonly totalDuration: number;
 }) {
   return (
-    <div className="grid h-[34px] grid-cols-[190px_minmax(900px,1fr)] border-b border-divider bg-bg">
+    <div className="grid h-full min-h-0 grid-cols-[190px_minmax(900px,1fr)] border-b border-divider bg-bg">
       <TimelineTrackLabel icon={icon} label={label} compact />
-      <ol className="flex list-none items-stretch p-0">
+      <ol className="relative flex min-h-0 list-none items-stretch p-0">
+        <li aria-hidden="true" className="pointer-events-none absolute inset-0 grid grid-cols-7">
+          {Array.from({ length: 7 }, (_, index) => <span key={index} className="border-l border-divider" />)}
+        </li>
         {clips.map((clip) => {
-          const recorded = clip.material.kind !== 'planned';
           const event = clip.name.split(' · ')[0] ?? clip.name;
           return (
             <li
-              key={`${kind}:${clip.id}`}
-              className="flex min-w-0 flex-none items-center border-r border-divider px-2 text-2xs"
+              key={`event:${clip.id}`}
+              className="relative z-10 flex min-w-0 flex-none items-center px-2 text-2xs"
               style={{ width: clipWidth(clip, totalDuration) }}
             >
-              <span className={cn('mr-1.5 h-3 w-1.5 flex-none', kind === 'event' ? 'bg-ok' : recorded ? 'bg-accent-400' : 'bg-neutral-200')} aria-hidden="true" />
-              <span className="truncate text-neutral-700">{kind === 'event' ? event : materialLabel(clip)}</span>
+              <span className="mr-1.5 h-3 w-1.5 flex-none bg-ok" aria-hidden="true" />
+              <span className="truncate text-neutral-700">{event}</span>
             </li>
           );
         })}
@@ -647,13 +701,57 @@ function TimelineMetaRow({
   );
 }
 
-function TimelineTrackLabel({ icon, label, compact = false }: { readonly icon: React.ReactNode; readonly label: string; readonly compact?: boolean }) {
+function TimelineMarkerRow({
+  markers,
+  totalDuration,
+}: {
+  readonly markers: readonly EditorMarker[];
+  readonly totalDuration: number;
+}) {
+  return (
+    <div className="grid h-full min-h-0 grid-cols-[190px_minmax(900px,1fr)] border-b border-divider bg-bg">
+      <TimelineTrackLabel icon={<Bookmark className="size-4" />} label={t`标记`} compact />
+      <div className="relative min-h-0">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 grid grid-cols-7">
+          {Array.from({ length: 7 }, (_, index) => <span key={index} className="border-l border-divider" />)}
+        </div>
+        {markers.map((marker) => (
+          <span
+            key={marker.id}
+            className="absolute inset-y-1 flex items-center gap-1.5 text-2xs text-neutral-700"
+            style={{ left: `${marker.time / Math.max(totalDuration, 1) * 100}%` }}
+          >
+            <span className="h-full w-1.5" style={{ backgroundColor: marker.color }} aria-hidden="true" />
+            <span className="whitespace-nowrap">{marker.label}</span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TimelineTrackLabel({
+  icon,
+  label,
+  compact = false,
+  controls = 'video',
+}: {
+  readonly icon: React.ReactNode;
+  readonly label: string;
+  readonly compact?: boolean;
+  readonly controls?: 'video' | 'audio' | 'none';
+}) {
   return (
     <div className={cn('flex items-center gap-3 border-r border-divider px-3 text-xs font-medium', compact && 'text-2xs')}>
       <span className="text-neutral-600">{icon}</span>
       <span>{label}</span>
       <span className="ml-auto flex items-center gap-2 text-neutral-500">
-        {compact ? null : <><Eye className="size-3.5" aria-hidden="true" /><LockKeyhole className="size-3.5" aria-hidden="true" /></>}
+        {compact || controls === 'none' ? null : (
+          <>
+            {controls === 'audio' ? <Volume2 className="size-3.5" aria-hidden="true" /> : <Eye className="size-3.5" aria-hidden="true" />}
+            <LockKeyhole className="size-3.5" aria-hidden="true" />
+          </>
+        )}
       </span>
     </div>
   );
@@ -675,7 +773,8 @@ function ClipWaveform({ clip }: { readonly clip: TimelineClip }) {
       peaks={peaks ?? []}
       durationSeconds={clip.placement.duration}
       loading={pending}
-      className="!h-full !min-h-0 !border-0 bg-accent-100 [&_.blueprint]:border-0"
+      symmetric
+      className="timeline-waveform !h-full !min-h-0 !border-0 bg-accent-100 [&_.blueprint]:border-0"
     />
   );
 }
@@ -685,8 +784,17 @@ function clipWidth(clip: TimelineClip, totalDuration: number): string {
 }
 
 function formatTimelineDuration(seconds: number): string {
-  const rounded = Math.max(0, Math.round(seconds));
-  return `${String(Math.floor(rounded / 60)).padStart(2, '0')}:${String(rounded % 60).padStart(2, '0')}.000`;
+  const totalMilliseconds = Math.max(0, Math.round(seconds * 1_000));
+  const whole = Math.floor(totalMilliseconds / 1_000);
+  const milliseconds = totalMilliseconds % 1_000;
+  return `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+}
+
+function formatTimelinePlayhead(seconds: number): string {
+  const totalMilliseconds = Math.max(0, Math.round(seconds * 1_000));
+  const whole = Math.floor(totalMilliseconds / 1_000);
+  const milliseconds = totalMilliseconds % 1_000;
+  return `${String(Math.floor(whole / 60)).padStart(2, '0')}:${String(whole % 60).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
 }
 
 function ClipInspector({

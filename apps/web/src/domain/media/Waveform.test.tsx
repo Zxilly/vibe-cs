@@ -31,6 +31,13 @@ describe('Waveform markup', () => {
     expect(asArray.length).toBeGreaterThan(0);
   });
 
+  it('mirrors magnitude buckets around zero when requested', () => {
+    const markup = renderMarkup(
+      <Waveform peaks={[0.25, 0.5]} durationSeconds={2} columns={2} symmetric />,
+    );
+    expect(markup).toContain('M0,37.5 L1000,25 L1000,75 L0,62.5 Z');
+  });
+
   it('has no playhead until it is given a time', () => {
     expect(renderMarkup(<Waveform peaks={peaks} durationSeconds={124} />)).not.toContain('data-playhead');
 

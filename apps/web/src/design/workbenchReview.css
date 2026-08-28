@@ -14,3 +14,15 @@
 .review-circle {
   border-radius: 999px;
 }
+
+.timeline-waveform {
+  background: #eef6ff;
+}
+
+.timeline-waveform svg path:first-child {
+  fill: #8fb8ef;
+}
+
+.timeline-waveform svg path:nth-child(2) {
+  stroke: #6f9fdc;
+}

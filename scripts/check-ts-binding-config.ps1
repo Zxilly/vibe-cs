@@ -6,8 +6,12 @@ $workspaceRoot = Split-Path -Parent $PSScriptRoot
 
 Push-Location $workspaceRoot
 try {
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     $featureTree = cargo tree -e features -i ts-rs 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) {
+    $cargoExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorActionPreference
+    if ($cargoExitCode -ne 0) {
         throw "cargo tree could not resolve the ts-rs feature graph.`n$featureTree"
     }
 

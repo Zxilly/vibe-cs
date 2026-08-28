@@ -6,6 +6,12 @@ export type Take = {
   shot_id: string;
   recorded_clip_id: string;
   recording_job_id: string;
+  /**
+   * Hash of the footage-producing [`crate::RecordingRequest`] fields.
+   * `None` keeps older takes readable; the workbench may recover their
+   * fingerprint from the immutable recording job request.
+   */
+  shot_spec_fingerprint?: string | null;
   ordinal: number;
   label: string;
   duration_seconds: number;

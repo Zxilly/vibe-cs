@@ -35,6 +35,7 @@ import type {
   AgentPlanQuery,
   AgentPlanRestore,
   AgentPlanSummary,
+  AgentPlanWorkbench,
   AgentTake,
   AgentVideoWorkflow,
   AgentProposalDecisionUpdate,
@@ -580,6 +581,10 @@ export const commands = {
       `/agent/plans/${encodeURIComponent(planId)}/takes${queryString({ shot_id: shotId })}`,
       { signal },
     ),
+  getAgentPlanWorkbench: (planId: string, signal?: AbortSignal) =>
+    request<AgentPlanWorkbench>(`/agent/plans/${encodeURIComponent(planId)}/workbench`, {
+      signal,
+    }),
   getAgentComposition: (planId: string, signal?: AbortSignal) =>
     request<Composition | null>(`/agent/plans/${encodeURIComponent(planId)}/composition`, {
       signal,
@@ -1429,7 +1434,7 @@ export const commands = {
   updateConfig: (config: AppConfig) =>
     request<AppConfig>('/config', { method: 'PUT', body: configUpdatePayload(config) }),
   testLlm: (llm: AppConfig['llm']) =>
-    request<LlmTestResult>('/llm/test', { method: 'POST', body: llm }),
+    request<LlmTestResult>('/llm/test', { method: 'POST', body: llm, timeoutMs: 60_000 }),
   listMatchHistory: (page = 1, pageSize = 50, signal?: AbortSignal, search?: string) =>
     request<Paginated<MatchHistoryItem>>(
       `/match-history/matches${queryString({ page, page_size: pageSize, search: search?.trim() })}`,

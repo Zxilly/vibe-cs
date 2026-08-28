@@ -33,6 +33,21 @@ describe('PlanStrip', () => {
     expect(html).toContain('aria-label="03 选手 POV · 三杀主体 24.0s"');
   });
 
+  it('prints durable recording materialization in the timeline blocks', () => {
+    const states = new Map([
+      [SHOT_ESTABLISH.id, 'recorded' as const],
+      [SHOT_TRACKING.id, 'stale' as const],
+    ]);
+    const html = renderMarkup(
+      <PlanStrip shots={PLAN_SHOTS} materializationByShotId={states} label="当前方案" />,
+    );
+
+    expect(html).toContain('data-shot-materialization="recorded"');
+    expect(html).toContain('data-shot-materialization="stale"');
+    expect(html).toContain('已录制');
+    expect(html).toContain('需重录');
+  });
+
   it('marks the longest shot with its own tone and the rest with theirs', () => {
     const html = renderMarkup(<PlanStrip shots={PLAN_SHOTS} label="当前方案" />);
 

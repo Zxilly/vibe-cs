@@ -10,7 +10,7 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useAgentPlan, useRestoreAgentPlanBaseline } from '../../data/plans';
+import { useAgentPlanWorkbench, useRestoreAgentPlanBaseline } from '../../data/plans';
 import { useAgentSession } from '../../data/sessions';
 import { SHOT_CRANE_REMOVED } from '../../domain/agent/agentFixtures.testing';
 import type { AgentPlan } from '../../shared/desktop/dto';
@@ -30,7 +30,7 @@ import { reasonOf } from '../../test/reason';
 
 vi.mock('../../data/plans', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../data/plans')>();
-  return { ...actual, useAgentPlan: vi.fn(), useRestoreAgentPlanBaseline: vi.fn() };
+  return { ...actual, useAgentPlanWorkbench: vi.fn(), useRestoreAgentPlanBaseline: vi.fn() };
 });
 
 vi.mock('../../data/sessions', async (importOriginal) => {
@@ -58,7 +58,16 @@ function mount(
   const updateContext = vi.fn();
   const plan = options.plan ?? PLAN;
 
-  vi.mocked(useAgentPlan).mockReturnValue(queryResult(plan) as never);
+  vi.mocked(useAgentPlanWorkbench).mockReturnValue(queryResult({
+    plan,
+    materializations: plan.shots.map((shot) => ({
+      shot_id: shot.id,
+      state: shot.removed_by === null ? 'unrecorded' as const : 'removed' as const,
+      compatible_take_count: 0,
+      stale_take_count: 0,
+    })),
+    composition: null,
+  }) as never);
   vi.mocked(useAgentSession).mockReturnValue(
     queryResult(options.session === undefined ? SESSION : options.session) as never,
   );
@@ -315,7 +324,16 @@ describe('the Agent’s change cards', () => {
 
   it('cannot recompute while the Agent is already speaking', () => {
     const notifier = recordingNotifier();
-    vi.mocked(useAgentPlan).mockReturnValue(queryResult(PLAN) as never);
+    vi.mocked(useAgentPlanWorkbench).mockReturnValue(queryResult({
+      plan: PLAN,
+      materializations: PLAN.shots.map((shot) => ({
+        shot_id: shot.id,
+        state: 'unrecorded' as const,
+        compatible_take_count: 0,
+        stale_take_count: 0,
+      })),
+      composition: null,
+    }) as never);
     vi.mocked(useAgentSession).mockReturnValue(queryResult(SESSION) as never);
     vi.mocked(useRestoreAgentPlanBaseline).mockReturnValue(mutationResult() as never);
 

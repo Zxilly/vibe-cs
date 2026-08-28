@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AgentPlanSummary } from '../shared/desktop/dto';
@@ -22,6 +22,16 @@ function client(overrides: Record<string, unknown> = {}) {
   return {
     listAgentPlans: () => Promise.resolve([SUMMARY]),
     getAgentPlan: () => Promise.resolve(PLAN),
+    getAgentPlanWorkbench: () => Promise.resolve({
+      plan: PLAN,
+      materializations: PLAN.shots.map((shot) => ({
+        shot_id: shot.id,
+        state: 'unrecorded' as const,
+        compatible_take_count: 0,
+        stale_take_count: 0,
+      })),
+      composition: null,
+    }),
     listMontageProjects: () => Promise.resolve({ items: [] }),
     listEditorProjects: () => Promise.resolve({ items: [] }),
     listActivities: () => Promise.resolve({ items: [], total: 0, page: 1, page_size: 50, summary: { total: 0, active: 0, failed: 0, completed: 0, cancelled: 0 } }),
@@ -81,24 +91,35 @@ describe('Agent mode inside the project shot-list step', () => {
       created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
     };
     const getMontageProject = vi.fn(() => Promise.resolve(montage));
+    const composition = {
+      id: montage.id,
+      plan_id: PLAN.id,
+      plan_revision: PLAN.revision,
+      title: PLAN.title,
+      status: 'exported' as const,
+      items: [],
+      export_job_id: 'export-1',
+      export_status: 'completed' as const,
+      output_path: 'C:/outputs/final.mp4',
+      error: null,
+      created_at: '2026-08-20T00:00:00Z',
+      updated_at: '2026-08-20T00:00:00Z',
+    };
     renderPage({
       element: <ProjectWorkspacePage />,
       client: client({
         listMontageProjects: () => Promise.resolve({ items: [montage] }),
         getMontageProject,
-        getAgentComposition: () => Promise.resolve({
-          id: montage.id,
-          plan_id: PLAN.id,
-          plan_revision: PLAN.revision,
-          title: PLAN.title,
-          status: 'exported',
-          items: [],
-          export_job_id: 'export-1',
-          export_status: 'completed',
-          output_path: 'C:/outputs/final.mp4',
-          error: null,
-          created_at: '2026-08-20T00:00:00Z',
-          updated_at: '2026-08-20T00:00:00Z',
+        getAgentComposition: () => Promise.resolve(composition),
+        getAgentPlanWorkbench: () => Promise.resolve({
+          plan: PLAN,
+          materializations: PLAN.shots.map((shot) => ({
+            shot_id: shot.id,
+            state: 'recorded' as const,
+            compatible_take_count: 1,
+            stale_take_count: 0,
+          })),
+          composition,
         }),
       }),
       route: `/projects/${encodeURIComponent(`plan:${PLAN.id}`)}?step=shotlist`,
@@ -107,6 +128,9 @@ describe('Agent mode inside the project shot-list step', () => {
 
     await screen.findByRole('radio', { name: '快速剪辑' });
     await waitFor(() => expect(getMontageProject).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
     fireEvent.click(screen.getByRole('radio', { name: '快速剪辑' }));
 
     expect(screen.getByText(/已确认 Composition 生成的快速剪辑工程/u)).toBeTruthy();

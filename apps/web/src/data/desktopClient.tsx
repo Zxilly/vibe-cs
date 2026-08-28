@@ -204,6 +204,7 @@ export type DesktopClient = Pick<
   | 'restoreAgentPlanBaseline'
   | 'snoozeAgentPlan'
   | 'listAgentTakes'
+  | 'getAgentPlanWorkbench'
   | 'getAgentComposition'
   | 'getAgentVideoWorkflow'
   | 'putAgentComposition'

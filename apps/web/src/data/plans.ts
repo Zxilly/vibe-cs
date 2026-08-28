@@ -115,6 +115,24 @@ export function useAgentPlan(planId: string | null, tuning: DataQueryTuning = {}
   });
 }
 
+/**
+ * One collaboration workbench read: the authoritative plan revision together
+ * with per-shot recording materialization and the current compatible
+ * composition. The server owns the Take/spec comparison so the renderer never
+ * guesses whether edited footage is still usable.
+ */
+export function useAgentPlanWorkbench(planId: string | null, tuning: DataQueryTuning = {}) {
+  const client = useDesktopClient();
+  return useQuery({
+    queryKey: qk.plans.workbench(planId ?? ''),
+    queryFn:
+      planId === null
+        ? skipToken
+        : ({ signal }: { signal: AbortSignal }) => client.getAgentPlanWorkbench(planId, signal),
+    ...resolveQueryTuning(tuning, { enabled: planId !== null }),
+  });
+}
+
 export function useAgentTakes(
   planId: string | null,
   shotId?: string,

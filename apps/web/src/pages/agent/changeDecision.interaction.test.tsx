@@ -66,6 +66,16 @@ function mount(url = '/agent?plan=P-118&session=session-kael&mode=changes'): Har
 
   const stub = {
     getAgentPlan: () => Promise.resolve<AgentPlan>({ ...PLAN, revision }),
+    getAgentPlanWorkbench: () => Promise.resolve({
+      plan: { ...PLAN, revision },
+      materializations: PLAN.shots.map((shot) => ({
+        shot_id: shot.id,
+        state: 'unrecorded' as const,
+        compatible_take_count: 0,
+        stale_take_count: 0,
+      })),
+      composition: null,
+    }),
     getAgentSession: (sessionId: string) => Promise.resolve({ ...session, id: sessionId }),
     applyAgentPlanEdit: (edit: AgentPlanEdit) => {
       edits.push(edit);

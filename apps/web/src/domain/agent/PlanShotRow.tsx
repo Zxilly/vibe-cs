@@ -47,7 +47,7 @@ import type { ReactNode } from 'react';
 
 import { Skeleton } from '../../design/data';
 import { Button, Badge, cn } from '../../design/primitives';
-import type { AgentPlanShot } from '../../shared/desktop/dto';
+import type { AgentPlanShot, AgentShotMaterializationState } from '../../shared/desktop/dto';
 
 import { formatShotDuration, formatTickRange } from './shotFormat';
 import { AGENT_PLAN_AUTHOR, AGENT_SHOT_KIND, AGENT_SHOT_VIEW } from './types';
@@ -60,6 +60,8 @@ export interface PlanShotRowProps {
   readonly index: number;
   readonly density?: PlanShotDensity | undefined;
   readonly selected?: boolean | undefined;
+  /** Durable Take compatibility projected by the collaboration workbench. */
+  readonly materializationState?: AgentShotMaterializationState | undefined;
   readonly onSelect?: ((shot: AgentPlanShot) => void) | undefined;
   /** 「撤销删除」. Offered only while `removed_by` is set. */
   readonly onRestore?: ((shot: AgentPlanShot) => void) | undefined;
@@ -82,6 +84,7 @@ export function PlanShotRow({
   index,
   density = 'card',
   selected = false,
+  materializationState,
   onSelect,
   onRestore,
   restoreDisabledReason,
@@ -101,6 +104,17 @@ export function PlanShotRow({
   const number = String(index).padStart(2, '0');
   const duration = formatShotDuration(shot.duration_seconds);
   const KindIcon = kind.icon;
+  const materializationLabel = materializationState === undefined
+    ? null
+    : materializationState === 'recorded'
+      ? <Trans>已录制</Trans>
+      : materializationState === 'stale'
+        ? <Trans>需重录</Trans>
+        : materializationState === 'unbound'
+          ? <Trans>未绑定</Trans>
+          : materializationState === 'removed'
+            ? <Trans>已移除</Trans>
+            : <Trans>待录制</Trans>;
 
   const header = (
     <div className="flex min-w-0 items-center gap-2">
@@ -127,6 +141,7 @@ export function PlanShotRow({
     density === 'compact' ? (
       <p className="truncate text-xs text-neutral-700">
         {kind.code}
+        {materializationLabel === null ? null : <> · {materializationLabel}</>}
         {shot.rationale === '' ? null : <> · {shot.rationale}</>}
       </p>
     ) : (
@@ -171,6 +186,14 @@ export function PlanShotRow({
           {i18n._(author.sourceBadge)}
         </Badge>
         <Badge variant="neutral">{i18n._(view.label)}</Badge>
+        {materializationLabel === null ? null : (
+          <Badge
+            data-shot-materialization={materializationState}
+            variant={materializationState === 'recorded' ? 'accent' : 'outline'}
+          >
+            {materializationLabel}
+          </Badge>
+        )}
         {removedBy === null ? null : (
           <Badge data-shot-removed="" variant="outline">
             {i18n._(removedBy.removedBadge)}

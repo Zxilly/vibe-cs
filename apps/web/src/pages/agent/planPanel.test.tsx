@@ -10,7 +10,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { useAgentPlan, useRestoreAgentPlanBaseline } from '../../data/plans';
+import { useAgentPlanWorkbench, useRestoreAgentPlanBaseline } from '../../data/plans';
 import { useAgentSession } from '../../data/sessions';
 import {
   SHOT_CRANE_REMOVED,
@@ -30,7 +30,7 @@ import {
 
 vi.mock('../../data/plans', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../data/plans')>();
-  return { ...actual, useAgentPlan: vi.fn(), useRestoreAgentPlanBaseline: vi.fn() };
+  return { ...actual, useAgentPlanWorkbench: vi.fn(), useRestoreAgentPlanBaseline: vi.fn() };
 });
 
 vi.mock('../../data/sessions', async (importOriginal) => {
@@ -46,8 +46,18 @@ interface Stubs {
 }
 
 function stub(overrides: Stubs = {}) {
-  vi.mocked(useAgentPlan).mockReturnValue(
-    queryResult(overrides.planPending === true ? undefined : (overrides.plan ?? PLAN), {
+  const plan = overrides.plan ?? PLAN;
+  vi.mocked(useAgentPlanWorkbench).mockReturnValue(
+    queryResult(overrides.planPending === true ? undefined : {
+      plan,
+      materializations: plan.shots.map((shot) => ({
+        shot_id: shot.id,
+        state: shot.removed_by === null ? 'unrecorded' as const : 'removed' as const,
+        compatible_take_count: 0,
+        stale_take_count: 0,
+      })),
+      composition: null,
+    }, {
       isPending: overrides.planPending ?? false,
       ...(overrides.planError === undefined ? {} : { error: overrides.planError }),
     }) as never,
@@ -135,7 +145,7 @@ describe('the change cards', () => {
     stub();
     const html = markupPanel(<PlanPanel {...blockProps()} />);
 
-    expect(html).toContain('本次修改');
+    expect(html).toContain('协作审阅');
     expect(html).toContain('基于第 6 版');
     expect(html).toContain('把它压到 30 秒以内');
   });
@@ -177,9 +187,9 @@ describe('the change cards', () => {
     expect(html).toContain('接受');
   });
 
-  it('draws no 本次修改 section at all when the conversation proposed nothing', () => {
+  it('draws no 协作审阅 section at all when the conversation proposed nothing', () => {
     stub({ session: SESSION_WITHOUT_PROPOSALS });
-    expect(markupPanel(<PlanPanel {...blockProps()} />)).not.toContain('本次修改');
+    expect(markupPanel(<PlanPanel {...blockProps()} />)).not.toContain('协作审阅');
   });
 });
 
@@ -248,7 +258,7 @@ describe('the three states', () => {
 
   it('puts the failure next to the thing that failed, with a retry', () => {
     stub({ planError: new Error('读不到'), plan: undefined });
-    vi.mocked(useAgentPlan).mockReturnValue(
+    vi.mocked(useAgentPlanWorkbench).mockReturnValue(
       queryResult(undefined, { error: new Error('读不到') }) as never,
     );
     const html = markupPanel(<PlanPanel {...blockProps()} />);

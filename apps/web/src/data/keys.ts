@@ -342,6 +342,8 @@ export const qk = {
     all: [QUERY_NAMESPACE.plans] as const,
     list: (query: AgentPlanQuery) => [QUERY_NAMESPACE.plans, LIST, query] as const,
     detail: (planId: string) => [QUERY_NAMESPACE.plans, DETAIL, planId] as const,
+    workbench: (planId: string) =>
+      [QUERY_NAMESPACE.plans, DETAIL, planId, 'workbench'] as const,
     takes: (planId: string, shotId?: string) =>
       [QUERY_NAMESPACE.plans, DETAIL, planId, 'takes', shotId ?? 'all'] as const,
     composition: (planId: string) =>

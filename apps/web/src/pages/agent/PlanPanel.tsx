@@ -52,7 +52,7 @@ import { Trans } from '@lingui/react/macro';
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { dataErrorMessage } from '../../data/errors';
-import { isRevisionConflict, useAgentPlan, useRestoreAgentPlanBaseline } from '../../data/plans';
+import { isRevisionConflict, useAgentPlanWorkbench, useRestoreAgentPlanBaseline } from '../../data/plans';
 import { useAgentSession, useAgentWorkspaceSettings } from '../../data/sessions';
 import { Empty, Skeleton } from '../../design/data';
 import { Dialog, Alert } from '../../design/feedback';
@@ -70,7 +70,11 @@ import {
   planShotCount,
 } from '../../domain/agent';
 import type { PlanChange } from '../../domain/agent';
-import type { AgentPlan, AgentPlanShot } from '../../shared/desktop/dto';
+import type {
+  AgentPlan,
+  AgentPlanShot,
+  AgentShotMaterialization,
+} from '../../shared/desktop/dto';
 import { RouteLink } from '../RouteLink';
 
 import type { AgentBlock, AgentBlockProps } from './agentContract';
@@ -99,7 +103,7 @@ import { ChangePreviewDialog } from './ChangePreviewDialog';
 /* ── the block ───────────────────────────────────────────────────────────── */
 
 export const PlanPanel: AgentBlock = (props) => {
-  const plan = useAgentPlan(props.context.plan);
+  const workbench = useAgentPlanWorkbench(props.context.plan);
 
   if (props.context.plan === null) {
     return (
@@ -120,17 +124,17 @@ export const PlanPanel: AgentBlock = (props) => {
     );
   }
 
-  if (plan.isPending) return <PlanPanelSkeleton />;
+  if (workbench.isPending) return <PlanPanelSkeleton />;
 
-  if (plan.data === undefined) {
+  if (workbench.data === undefined) {
     return (
       <div className="p-5">
         <Alert
           variant="danger"
-          action={{ label: <Trans>重试</Trans>, onAction: () => void plan.refetch() }}
+          action={{ label: <Trans>重试</Trans>, onAction: () => void workbench.refetch() }}
           detail={<Trans>方案本身没有被改动，重试是安全的。</Trans>}
         >
-          <Trans>这份方案没能打开：{dataErrorMessage(plan.error) ?? ''}</Trans>
+          <Trans>这份方案没能打开：{dataErrorMessage(workbench.error) ?? ''}</Trans>
         </Alert>
       </div>
     );
@@ -139,7 +143,18 @@ export const PlanPanel: AgentBlock = (props) => {
   /* Keyed by the plan: switching plans throws away the edit draft, the local
      shots and every accept/reject, which is what 「一个 buffer 不跨对象」 means
      at the page level. */
-  return <PlanPanelBody key={plan.data.id} plan={plan.data} refetchPlan={plan.refetch} {...props} />;
+  return (
+    <PlanPanelBody
+      key={workbench.data.plan.id}
+      plan={workbench.data.plan}
+      materializations={workbench.data.materializations}
+      refetchPlan={async () => {
+        const result = await workbench.refetch();
+        return { data: result.data?.plan };
+      }}
+      {...props}
+    />
+  );
 };
 
 function PlanPanelSkeleton() {
@@ -161,12 +176,14 @@ function PlanPanelSkeleton() {
 
 interface PlanPanelBodyProps extends AgentBlockProps {
   readonly plan: AgentPlan;
+  readonly materializations: readonly AgentShotMaterialization[];
   /** `useAgentPlan(...).refetch`, narrowed to the one field this file reads. */
   readonly refetchPlan: () => Promise<{ readonly data: AgentPlan | undefined }>;
 }
 
 function PlanPanelBody({
   plan,
+  materializations,
   refetchPlan,
   context,
   updateContext,
@@ -196,6 +213,15 @@ function PlanPanelBody({
 
   const decisions = changes.decisions;
   const shots = changes.shots ?? plan.shots;
+  const materializationByShotId = useMemo(
+    () => new Map(materializations.map((item) => [item.shot_id, item.state] as const)),
+    [materializations],
+  );
+  const activeMaterializationStates = shots
+    .filter((shot) => shot.removed_by === null)
+    .map((shot) => materializationByShotId.get(shot.id) ?? 'unrecorded');
+  const recordedCount = activeMaterializationStates.filter((state) => state === 'recorded').length;
+  const needsRecordingCount = activeMaterializationStates.length - recordedCount;
   /* The whole transcript is walked to find this plan's proposals, and the shell
      re-renders every block on each streaming token — so this is memoised on the
      two things it actually depends on rather than repeated per token. */
@@ -374,6 +400,14 @@ function PlanPanelBody({
           <span className="font-mono">{formatShotDuration(duration)}</span>
           <span>·</span>
           <Trans>{count} 个镜头</Trans>
+          <span>·</span>
+          <span data-plan-recorded-count={recordedCount} className="text-ok">
+            <Trans>已录制 {recordedCount}</Trans>
+          </span>
+          <span>·</span>
+          <span data-plan-unrecorded-count={needsRecordingCount} className="text-neutral-700">
+            <Trans>待录制 {needsRecordingCount}</Trans>
+          </span>
           {touched === 0 ? null : (
             <>
               <span>·</span>
@@ -388,6 +422,7 @@ function PlanPanelBody({
           <PlanStrip
             label={t`当前方案`}
             shots={shots}
+            materializationByShotId={materializationByShotId}
             ruler={!collapsed}
             selectedShotId={selectedId}
             onSelectShot={(shot) => {
@@ -461,6 +496,7 @@ function PlanPanelBody({
                     ) : (
                       <PlanShotRow
                         shot={shot}
+                        materializationState={materializationByShotId.get(shot.id) ?? 'unrecorded'}
                         index={position}
                         density={density}
                         selected={shot.id === selectedId}
@@ -608,7 +644,7 @@ function ProposalSection({
   if (proposals.length === 0) return null;
 
   return (
-    <PanelSection title={<Trans>本次修改</Trans>}>
+    <PanelSection title={<Trans>协作审阅</Trans>}>
       <div className="flex flex-col gap-4">
         {proposals.map((proposal) => {
           /* `null` cannot happen for a `PlanProposal` — `readPlanProposals`

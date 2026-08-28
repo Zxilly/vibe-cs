@@ -26,12 +26,14 @@
  */
 
 import { msg } from '@lingui/core/macro';
+import type { MessageDescriptor } from '@lingui/core';
 import { Trans } from '@lingui/react/macro';
 import { useLingui } from '@lingui/react';
+import { CircleCheck, CircleDashed, Link2Off, RefreshCw, Trash2, type LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { cn } from '../../design/primitives';
-import type { AgentPlanShot } from '../../shared/desktop/dto';
+import type { AgentPlanShot, AgentShotMaterializationState } from '../../shared/desktop/dto';
 
 import { formatShotDuration, formatStripTimecode } from './shotFormat';
 import {
@@ -57,6 +59,17 @@ const TONE_CLASS: Readonly<Record<PlanStripTone, string>> = {
 /** The 留白 block's word. A descriptor, because `planStrip.ts` takes a string. */
 const LEAD_LABEL = msg`留白`;
 
+const MATERIALIZATION = {
+  unbound: { label: msg`未绑定`, icon: Link2Off },
+  unrecorded: { label: msg`待录制`, icon: CircleDashed },
+  recorded: { label: msg`已录制`, icon: CircleCheck },
+  stale: { label: msg`需重录`, icon: RefreshCw },
+  removed: { label: msg`已移除`, icon: Trash2 },
+} satisfies Readonly<Record<
+  AgentShotMaterializationState,
+  { readonly label: MessageDescriptor; readonly icon: LucideIcon }
+>>;
+
 /** §3.4 has no token for this band; the artboards draw it 24–34px. */
 const HEIGHT_CLASS = { sm: 'h-6', md: 'h-[30px]' } as const;
 
@@ -72,6 +85,7 @@ export interface PlanStripProps {
   readonly ruler?: boolean | undefined;
   readonly selectedShotId?: string | null | undefined;
   readonly onSelectShot?: ((shot: AgentPlanShot) => void) | undefined;
+  readonly materializationByShotId?: ReadonlyMap<string, AgentShotMaterializationState> | undefined;
   readonly height?: PlanStripHeight | undefined;
   /** Accessible name of the band itself — 「当前方案」 / 「接受全部变更后」. */
   readonly label: string;
@@ -85,6 +99,7 @@ export function PlanStrip({
   ruler = false,
   selectedShotId,
   onSelectShot,
+  materializationByShotId,
   height = 'md',
   label,
   className,
@@ -109,6 +124,7 @@ export function PlanStrip({
               key={segment.id}
               segment={segment}
               selected={segment.id === selectedShotId}
+              materializationState={materializationByShotId?.get(segment.id)}
               {...(onSelectShot === undefined || segment.index === null
                 ? {}
                 : { onSelect: () => {
@@ -139,15 +155,23 @@ export function PlanStrip({
 interface StripBlockProps {
   readonly segment: PlanStripSegment;
   readonly selected: boolean;
+  readonly materializationState?: AgentShotMaterializationState | undefined;
   readonly onSelect?: (() => void) | undefined;
 }
 
-function StripBlock({ segment, selected, onSelect }: StripBlockProps) {
+function StripBlock({ segment, selected, materializationState, onSelect }: StripBlockProps) {
+  const { i18n } = useLingui();
   const duration = formatShotDuration(segment.durationSeconds);
   const number = segment.index === null ? null : String(segment.index).padStart(2, '0');
+  const materialization = materializationState === undefined ? null : MATERIALIZATION[materializationState];
+  const MaterializationIcon = materialization?.icon;
+  const materializationLabel = materialization === null ? null : i18n._(materialization.label);
 
   const body = (
     <>
+      {MaterializationIcon === undefined ? null : (
+        <MaterializationIcon size={11} strokeWidth={1.7} aria-hidden={true} />
+      )}
       {number === null ? null : <span className="font-mono">{number}</span>}
       <span className="min-w-0 truncate">
         {segment.tone === 'removed' ? (
@@ -167,7 +191,7 @@ function StripBlock({ segment, selected, onSelect }: StripBlockProps) {
   const name =
     number === null
       ? `${segment.label} ${duration}`
-      : `${number} ${segment.label} ${duration}`;
+      : `${number} ${segment.label} ${duration}${materializationLabel === null ? '' : ` ${materializationLabel}`}`;
 
   const shared = cn(
     'flex min-w-0 items-center justify-center gap-1.5 overflow-hidden px-1 text-2xs whitespace-nowrap',
@@ -179,6 +203,9 @@ function StripBlock({ segment, selected, onSelect }: StripBlockProps) {
     <li
       data-plan-strip-segment={segment.id}
       data-tone={segment.tone}
+      {...(materializationState === undefined
+        ? {}
+        : { 'data-shot-materialization': materializationState })}
       style={{ width: `${String(segment.percent)}%` }}
       className="flex min-w-0"
       title={`${segment.label} · ${duration}`}

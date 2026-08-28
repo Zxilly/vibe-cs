@@ -2428,11 +2428,16 @@ impl Storage {
                             "Agent recording output has no valid shot request identity".to_owned(),
                         ))
                     })?;
-                if !job.items.iter().any(|item| item.id == Some(shot_id)) {
-                    return Err(StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
-                        "Agent recording output does not belong to its recording job".to_owned(),
-                    )));
-                }
+                let request = job
+                    .items
+                    .iter()
+                    .find(|item| item.id == Some(shot_id))
+                    .ok_or_else(|| {
+                        StorageError::Domain(vibe_cs_domain::DomainError::Conflict(
+                            "Agent recording output does not belong to its recording job".to_owned(),
+                        ))
+                    })?;
+                let shot_spec_fingerprint = request.spec_fingerprint()?;
                 let existing = transaction
                     .query_row(
                         "SELECT document_json FROM agent_takes WHERE recorded_clip_id = ?1",
@@ -2441,7 +2446,17 @@ impl Storage {
                     )
                     .optional()?;
                 let take = if let Some(document) = existing {
-                    decode::<Take>(&document)?
+                    let mut take = decode::<Take>(&document)?;
+                    if take.shot_spec_fingerprint.is_none() {
+                        take.shot_spec_fingerprint = Some(shot_spec_fingerprint.clone());
+                        take.validate()?;
+                        transaction.execute(
+                            "UPDATE agent_takes SET document_json = ?1 WHERE id = ?2",
+                            params![encode(&take)?, take.id.to_string()],
+                        )?;
+                        changed = true;
+                    }
+                    take
                 } else {
                     let ordinal = transaction.query_row(
                         "SELECT COALESCE(MAX(ordinal), 0) + 1 FROM agent_takes WHERE plan_id = ?1 AND shot_id = ?2",
@@ -2458,6 +2473,7 @@ impl Storage {
                         shot_id,
                         recorded_clip_id: clip.id,
                         recording_job_id,
+                        shot_spec_fingerprint: Some(shot_spec_fingerprint),
                         ordinal,
                         label: format!("Take {ordinal}"),
                         duration_seconds: clip.duration_seconds,
@@ -11486,6 +11502,15 @@ mod tests {
 
         let first = record_take(1).await;
         assert_eq!(first.len(), 1);
+        assert_eq!(
+            first[0].shot_spec_fingerprint.as_deref(),
+            Some(
+                plan.shots[0]
+                    .recording_spec_fingerprint()
+                    .expect("shot fingerprint")
+                    .as_str()
+            )
+        );
         let selected = storage
             .get_agent_composition(plan.id)
             .await

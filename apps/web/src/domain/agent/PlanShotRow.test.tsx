@@ -76,6 +76,20 @@ describe('PlanShotRow · the card', () => {
     expect(edited).not.toContain('等待确认');
   });
 
+  it('shows whether the current shot specification has compatible recorded footage', () => {
+    const recorded = renderMarkup(
+      <PlanShotRow shot={SHOT_ESTABLISH} index={1} materializationState="recorded" />,
+    );
+    const stale = renderMarkup(
+      <PlanShotRow shot={SHOT_TRACKING} index={2} materializationState="stale" />,
+    );
+
+    expect(recorded).toContain('data-shot-materialization="recorded"');
+    expect(recorded).toContain('已录制');
+    expect(stale).toContain('data-shot-materialization="stale"');
+    expect(stale).toContain('需重录');
+  });
+
   it('keeps a deleted shot readable, badged 「你删除的」 and undoable', () => {
     const html = renderMarkup(
       <PlanShotRow shot={SHOT_CRANE_REMOVED} index={4} onRestore={() => undefined} />,

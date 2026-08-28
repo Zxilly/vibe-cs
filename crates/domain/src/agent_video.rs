@@ -20,6 +20,12 @@ pub struct Take {
     pub shot_id: Uuid,
     pub recorded_clip_id: Uuid,
     pub recording_job_id: Uuid,
+    /// Hash of the footage-producing [`crate::RecordingRequest`] fields.
+    /// `None` keeps older takes readable; the workbench may recover their
+    /// fingerprint from the immutable recording job request.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub shot_spec_fingerprint: Option<String>,
     pub ordinal: u32,
     pub label: String,
     pub duration_seconds: f64,
@@ -28,6 +34,12 @@ pub struct Take {
 
 impl Take {
     /// Validates the stable identity and presentation fields of a recorded take.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when an identity is nil, the
+    /// ordinal/label/duration is invalid, or a supplied shot fingerprint is not
+    /// a lowercase SHA-256 digest.
     pub fn validate(&self) -> Result<(), DomainError> {
         if self.id.is_nil()
             || self.plan_id.is_nil()
@@ -42,6 +54,16 @@ impl Take {
         if self.ordinal == 0 {
             return Err(DomainError::InvalidInput(
                 "take ordinal must be positive".to_owned(),
+            ));
+        }
+        if self.shot_spec_fingerprint.as_ref().is_some_and(|value| {
+            value.len() != 64
+                || !value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
+        }) {
+            return Err(DomainError::InvalidInput(
+                "take shot_spec_fingerprint must be a lowercase SHA-256".to_owned(),
             ));
         }
         if self.label.trim().is_empty() || self.label.chars().count() > 80 {
@@ -112,6 +134,11 @@ pub struct Composition {
 impl Composition {
     /// Validates the document-local invariants. Storage additionally checks
     /// that every take belongs to this plan and to the paired shot.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when identities, revision, title,
+    /// item order/uniqueness or a non-draft empty selection is invalid.
     pub fn validate(&self) -> Result<(), DomainError> {
         if self.id.is_nil() || self.plan_id.is_nil() {
             return Err(DomainError::InvalidInput(

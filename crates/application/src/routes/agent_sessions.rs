@@ -38,6 +38,34 @@ use ts_rs::TS;
 /// shortlist of what is currently in progress, not a directory.
 const REFERENCE_PICKER_LIMIT: usize = 20;
 
+#[derive(Debug, Clone, Copy, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+enum AgentShotMaterializationState {
+    Unbound,
+    Unrecorded,
+    Recorded,
+    Stale,
+    Removed,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
+struct AgentShotMaterialization {
+    shot_id: Uuid,
+    state: AgentShotMaterializationState,
+    compatible_take_count: usize,
+    stale_take_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[ts(export)]
+struct AgentPlanWorkbench {
+    plan: AgentPlan,
+    materializations: Vec<AgentShotMaterialization>,
+    composition: Option<Composition>,
+}
+
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route(
@@ -74,6 +102,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/agent/plans/{id}/snooze", post(snooze_plan))
         .route("/api/agent/plans/{id}/recording-plan", post(plan_recording))
         .route("/api/agent/plans/{id}/takes", get(list_plan_takes))
+        .route("/api/agent/plans/{id}/workbench", get(get_plan_workbench))
         .route(
             "/api/agent/plans/{id}/composition",
             get(get_plan_composition).put(put_plan_composition),
@@ -464,6 +493,93 @@ async fn list_plan_takes(
     ))
 }
 
+async fn take_spec_fingerprints(
+    state: &AppState,
+    takes: &[Take],
+) -> ApiResult<std::collections::HashMap<Uuid, String>> {
+    let mut recording_jobs = std::collections::HashMap::<Uuid, RecordingJob>::new();
+    let mut take_fingerprints = std::collections::HashMap::<Uuid, String>::new();
+    for take in takes {
+        if let Some(fingerprint) = &take.shot_spec_fingerprint {
+            take_fingerprints.insert(take.id, fingerprint.clone());
+            continue;
+        }
+        if !recording_jobs.contains_key(&take.recording_job_id)
+            && let Some(job) = state
+                .storage
+                .get_recording_job(take.recording_job_id)
+                .await?
+        {
+            recording_jobs.insert(job.id, job);
+        }
+        if let Some(request) = recording_jobs
+            .get(&take.recording_job_id)
+            .and_then(|job| job.items.iter().find(|item| item.id == Some(take.shot_id)))
+        {
+            take_fingerprints.insert(take.id, request.spec_fingerprint()?);
+        }
+    }
+    Ok(take_fingerprints)
+}
+
+async fn get_plan_workbench(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> ApiResult<Json<AgentPlanWorkbench>> {
+    let plan = state
+        .storage
+        .get_agent_plan(id)
+        .await?
+        .ok_or_else(|| ApiError::not_found("agent plan"))?;
+    let takes = state.storage.list_agent_takes(id, None).await?;
+    let take_fingerprints = take_spec_fingerprints(&state, &takes).await?;
+    let mut materializations = Vec::with_capacity(plan.shots.len());
+    for shot in &plan.shots {
+        let shot_takes = takes
+            .iter()
+            .filter(|take| take.shot_id == shot.id)
+            .collect::<Vec<_>>();
+        let (state, compatible_take_count, stale_take_count) = if shot.removed_by.is_some() {
+            (AgentShotMaterializationState::Removed, 0, shot_takes.len())
+        } else if shot.recording.is_none() {
+            (AgentShotMaterializationState::Unbound, 0, shot_takes.len())
+        } else {
+            let fingerprint = shot.recording_spec_fingerprint()?;
+            let compatible = shot_takes
+                .iter()
+                .filter(|take| {
+                    take_fingerprints.get(&take.id).map(String::as_str)
+                        == Some(fingerprint.as_str())
+                })
+                .count();
+            let stale_count = shot_takes.len().saturating_sub(compatible);
+            let state = if compatible > 0 {
+                AgentShotMaterializationState::Recorded
+            } else if stale_count > 0 {
+                AgentShotMaterializationState::Stale
+            } else {
+                AgentShotMaterializationState::Unrecorded
+            };
+            (state, compatible, stale_count)
+        };
+        materializations.push(AgentShotMaterialization {
+            shot_id: shot.id,
+            state,
+            compatible_take_count,
+            stale_take_count,
+        });
+    }
+    let composition =
+        refresh_composition_export(&state, state.storage.get_agent_composition(id).await?)
+            .await?
+            .filter(|composition| composition.plan_revision == plan.revision);
+    Ok(Json(AgentPlanWorkbench {
+        plan,
+        materializations,
+        composition,
+    }))
+}
+
 async fn get_plan_composition(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
@@ -570,7 +686,7 @@ async fn get_agent_video_workflow(
         .filter(|shot| shot.removed_by.is_none())
         .count();
     let recorded_takes = state.storage.list_agent_takes(plan_id, None).await?.len();
-    let stage = match composition.status {
+    let workflow_stage = match composition.status {
         CompositionStatus::Exported => AgentVideoWorkflowStage::Completed,
         CompositionStatus::Exporting => AgentVideoWorkflowStage::Exporting,
         CompositionStatus::Failed => AgentVideoWorkflowStage::Failed,
@@ -588,7 +704,7 @@ async fn get_agent_video_workflow(
     Ok(Json(AgentVideoWorkflow {
         plan_id,
         composition,
-        stage,
+        stage: workflow_stage,
         recording_status: recording.status,
         recorded_takes,
         total_shots,
@@ -764,7 +880,7 @@ pub(super) async fn export_confirmed_composition(
         created_at: composition.created_at,
         updated_at: now,
     };
-    super::media::validate_montage_project(&state, &montage).await?;
+    super::media::validate_montage_project(state, &montage).await?;
     let claimed = state
         .storage
         .claim_agent_composition_export(id)
@@ -866,6 +982,31 @@ async fn put_plan_composition(
         ));
     }
     validate_composition_selection(&plan, request.status, &request.items)?;
+    let take_list = state.storage.list_agent_takes(plan.id, None).await?;
+    let take_fingerprints = take_spec_fingerprints(&state, &take_list).await?;
+    let takes = take_list
+        .into_iter()
+        .map(|take| (take.id, take))
+        .collect::<std::collections::HashMap<_, _>>();
+    for item in &request.items {
+        let shot = plan
+            .shots
+            .iter()
+            .find(|shot| shot.id == item.shot_id)
+            .ok_or_else(|| ApiError::invalid("composition shot is missing"))?;
+        let take = takes
+            .get(&item.take_id)
+            .filter(|take| take.shot_id == shot.id)
+            .ok_or_else(|| ApiError::invalid("composition take does not belong to its shot"))?;
+        let fingerprint = shot.recording_spec_fingerprint()?;
+        if take_fingerprints.get(&take.id).map(String::as_str) != Some(fingerprint.as_str()) {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "composition_take_stale",
+                format!("take {} no longer matches shot {}", take.id, shot.id),
+            ));
+        }
+    }
     let existing = state.storage.get_agent_composition(id).await?;
     if existing.as_ref().is_some_and(|composition| {
         matches!(
@@ -953,8 +1094,9 @@ async fn ensure_composition_for_plan(state: &AppState, plan: &AgentPlan) -> ApiR
     {
         return Ok(composition.clone());
     }
-    let takes = state.storage.list_agent_takes(plan.id, None).await?;
-    let takes = takes
+    let take_list = state.storage.list_agent_takes(plan.id, None).await?;
+    let take_fingerprints = take_spec_fingerprints(state, &take_list).await?;
+    let takes = take_list
         .into_iter()
         .map(|take| (take.id, take))
         .collect::<std::collections::HashMap<_, _>>();
@@ -974,9 +1116,14 @@ async fn ensure_composition_for_plan(state: &AppState, plan: &AgentPlan) -> ApiR
         .filter(|shot| shot.removed_by.is_none())
         .filter_map(|shot| {
             let take_id = *previous.get(&shot.id)?;
+            let fingerprint = shot.recording_spec_fingerprint().ok()?;
             takes
                 .get(&take_id)
-                .filter(|take| take.shot_id == shot.id)
+                .filter(|take| {
+                    take.shot_id == shot.id
+                        && take_fingerprints.get(&take.id).map(String::as_str)
+                            == Some(fingerprint.as_str())
+                })
                 .map(|_| (shot.id, take_id))
         })
         .enumerate()
@@ -2451,6 +2598,37 @@ mod tests {
         assert_eq!(status, 404);
     }
 
+    #[tokio::test]
+    async fn workbench_projects_unbound_unrecorded_and_removed_shot_states() {
+        let storage = Storage::open_in_memory().await.expect("storage");
+        let (router, _directory) = dispatcher(storage);
+        let demo_id = Uuid::new_v4();
+        let plan_id = plan_with_shots(
+            &router,
+            vec![
+                bound_shot("01 待录制", demo_id),
+                shot("02 未绑定", 4.0),
+                removed(bound_shot("03 已移除", demo_id)),
+            ],
+        )
+        .await;
+
+        let (status, workbench) = call(
+            &router,
+            Method::GET,
+            &format!("/api/agent/plans/{plan_id}/workbench"),
+            None,
+        )
+        .await;
+
+        assert_eq!(status, 200, "unexpected body: {workbench}");
+        assert_eq!(workbench["plan"]["id"], plan_id.to_string());
+        assert_eq!(workbench["materializations"][0]["state"], "unrecorded");
+        assert_eq!(workbench["materializations"][1]["state"], "unbound");
+        assert_eq!(workbench["materializations"][2]["state"], "removed");
+        assert!(workbench["composition"].is_null());
+    }
+
     /// A soft-removed shot stays in the plan so the removal can be undone. It
     /// must not reach the capture queue, and it must not block the queue either.
     #[tokio::test]
@@ -2610,17 +2788,16 @@ mod tests {
             montage.settings.intro_title.as_deref(),
             Some("Kael Mirage 1v3")
         );
-        assert_eq!(montage.settings.intro_duration_seconds, 0.8);
+        assert!((montage.settings.intro_duration_seconds - 0.8).abs() < f64::EPSILON);
         assert!(montage.settings.include_name_cards);
         assert_eq!(
             montage.settings.branding_theme,
             MontageBrandingTheme::Broadcast
         );
         assert!(
-            composition["output_path"]
-                .as_str()
-                .expect("output path")
-                .ends_with(".mp4")
+            std::path::Path::new(composition["output_path"].as_str().expect("output path"))
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("mp4"))
         );
 
         let (status, workflow) = call(

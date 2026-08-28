@@ -537,7 +537,7 @@ async fn execute_plan(
                 Ok(Some(_)) => {
                     state
                         .events
-                        .publish("agent_plan", "confirmed", Some(source.plan_id))
+                        .publish("agent_plan", "confirmed", Some(source.plan_id));
                 }
                 Ok(None) => {
                     restore_recording_plan(&state, plan_id, job_id).await;

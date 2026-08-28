@@ -272,7 +272,6 @@ impl Storage {
                 status,
                 request_id,
                 retry_of,
-                metadata: _,
                 ..
             } = entry
             else {
@@ -677,7 +676,7 @@ impl Storage {
             }
             let revision = next_revision(edit.plan_id, current.revision)?;
             let now = Utc::now();
-            let changed = transaction.execute(
+            let affected_rows = transaction.execute(
                 "UPDATE agent_plans SET status = ?2, revision = ?3, updated_at = ?4, \
                     shots_json = ?5 WHERE id = ?1 AND revision = ?6",
                 params![
@@ -689,7 +688,7 @@ impl Storage {
                     edit.expected_revision,
                 ],
             )?;
-            if changed != 1 {
+            if affected_rows != 1 {
                 return conflict_from_current(&transaction, edit.plan_id, edit.expected_revision);
             }
             append_plan_origin(&transaction, edit.plan_id, &edit.origin, now)?;
@@ -776,7 +775,7 @@ impl Storage {
                 );
             }
             append_plan_origin(&transaction, generation.plan_id, &generation.origin, now)?;
-            let changes = generation
+            let edit_changes = generation
                 .shots
                 .iter()
                 .enumerate()
@@ -799,7 +798,7 @@ impl Storage {
                     revision,
                     by: WorkspaceEditAuthor::Agent,
                     at: now,
-                    changes,
+                    changes: edit_changes,
                     note: Some("Agent generated the initial shot list".to_owned()),
                 },
                 &title,

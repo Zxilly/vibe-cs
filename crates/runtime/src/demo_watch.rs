@@ -167,10 +167,8 @@ async fn run_watch_loop(
                         // keeping the HTTP config write attached to that scan made the client
                         // time out after the config had already been persisted. The watcher
                         // owns the scan below and publishes completion through status/events.
-                        if !wait_for_scan {
-                            if let Some(response) = response.take() {
-                                let _ = response.send(status.read().await.clone());
-                            }
+                        if !wait_for_scan && let Some(response) = response.take() {
+                            let _ = response.send(status.read().await.clone());
                         }
                         scan_and_update(
                             &storage,
@@ -180,10 +178,8 @@ async fn run_watch_loop(
                             &status,
                         ).await;
                         events.publish("demo_watch", "configured", None);
-                        if wait_for_scan {
-                            if let Some(response) = response.take() {
-                                let _ = response.send(status.read().await.clone());
-                            }
+                        if wait_for_scan && let Some(response) = response.take() {
+                            let _ = response.send(status.read().await.clone());
                         }
                         last_reconciliation = tokio::time::Instant::now();
                         last_full_reconciliation = last_reconciliation;

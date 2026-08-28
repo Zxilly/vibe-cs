@@ -4216,8 +4216,8 @@ mod tests {
         assert_eq!(status, StatusCode::CREATED);
         assert_ne!(editor.id, montage.id, "conversion creates a copy");
         assert_eq!(editor.tracks[0].clips.len(), 1);
-        assert_eq!(editor.tracks[0].clips[0].source_in, 0.25);
-        assert_eq!(editor.tracks[0].clips[0].source_out, 1.75);
+        assert!((editor.tracks[0].clips[0].source_in - 0.25).abs() < f64::EPSILON);
+        assert!((editor.tracks[0].clips[0].source_out - 1.75).abs() < f64::EPSILON);
         assert_eq!(editor.settings["conversion"], "copy");
         assert_eq!(editor.settings["reverse_sync"], false);
         assert_eq!(

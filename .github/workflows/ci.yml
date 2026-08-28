@@ -23,6 +23,8 @@ jobs:
         env:
           RUSTFLAGS: -D warnings
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-rust-format.ps1
+      - name: ts-rs binding configuration is accurate and quiet
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-ts-binding-config.ps1
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       # `cargo test --workspace` above re-runs every ts-rs `export_bindings_*`

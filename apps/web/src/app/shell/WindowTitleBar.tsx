@@ -212,7 +212,7 @@ export function WindowTitleBar({
     [desktopWindow],
   );
   const controlClass = compact
-    ? 'grid w-8 flex-none place-items-center text-neutral-600 hover:bg-neutral-200 hover:text-text'
+    ? 'pointer-events-auto grid w-9 flex-none place-items-center text-neutral-500 hover:bg-neutral-200 hover:text-text'
     : CONTROL_CLASS;
 
   const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
@@ -234,7 +234,9 @@ export function WindowTitleBar({
       onDoubleClick={onDoubleClick}
       className={cn(
         'flex flex-none items-stretch border-b border-divider bg-surface-chrome',
-        compact ? 'h-7' : 'h-[var(--h-titlebar)]',
+        compact
+          ? 'pointer-events-none absolute inset-x-0 top-0 z-50 h-[56px] border-b-0 bg-transparent'
+          : 'h-[var(--h-titlebar)]',
         className,
       )}
     >
@@ -254,7 +256,7 @@ export function WindowTitleBar({
         </div>
       )}
 
-      <div className={cn('flex min-w-0 flex-1 items-center gap-3.5', compact ? 'px-3' : 'px-4')}>
+      <div className={cn('flex min-w-0 flex-1 items-center gap-3.5', compact ? 'px-0' : 'px-4')}>
         {/* A `div`, not a `span`: the crumb is a `<nav>` with a list in it. */}
         <div className="flex min-w-0 items-center">{crumb}</div>
         <span className="flex-1" />

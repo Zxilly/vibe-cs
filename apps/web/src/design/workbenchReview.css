@@ -1,0 +1,16 @@
+.project-review-workbench {
+  font-family: system-ui, 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC', sans-serif;
+}
+
+.review-panel,
+.review-card {
+  border-radius: 4px;
+}
+
+.review-field {
+  border-radius: 3px;
+}
+
+.review-circle {
+  border-radius: 999px;
+}

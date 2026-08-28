@@ -25,26 +25,24 @@ jobs:
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-rust-format.ps1
       - name: ts-rs binding configuration is accurate and quiet
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-ts-binding-config.ps1
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
-      # `cargo test --workspace` above re-runs every ts-rs `export_bindings_*`
-      # test, which rewrites apps/web/src/shared/desktop/generated/ from the
-      # `#[derive(TS)]` types. If that leaves a diff, the checked-in TypeScript
-      # no longer describes the Rust it was generated from.
+      - name: generate TypeScript bindings with one Windows writer
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-ts-bindings.ps1
       - name: wire types are in step with the Rust
         shell: bash
         run: |
-          # --intent-to-add so a binding for a newly derived type, which is
-          # untracked rather than modified, also shows up as a diff.
           git add --intent-to-add -- apps/web/src/shared/desktop/generated/
           if ! git diff --exit-code -- apps/web/src/shared/desktop/generated/; then
             echo
             echo "The Rust structures changed and the checked-in TypeScript bindings did not."
-            echo "Run 'cargo test --workspace' locally, then commit the changes under"
+            echo "Run 'pnpm bindings' locally, then commit the changes under"
             echo "apps/web/src/shared/desktop/generated/ together with the Rust change."
-            echo "Never edit a file in that directory by hand: the next 'cargo test' overwrites it."
+            echo "Never edit a file in that directory by hand: the next binding run overwrites it."
             exit 1
           fi
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      # `.cargo/config.toml` redirects normal ts-rs export tests to the ignored
+      # workspace target directory. Only `pnpm bindings` writes the contract.
+      - run: cargo test --workspace
 
   web:
     runs-on: ubuntu-latest

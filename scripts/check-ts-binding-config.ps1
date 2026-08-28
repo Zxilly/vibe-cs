@@ -6,6 +6,15 @@ $workspaceRoot = Split-Path -Parent $PSScriptRoot
 
 Push-Location $workspaceRoot
 try {
+    $cargoConfig = Get-Content -Raw (Join-Path $workspaceRoot '.cargo\config.toml')
+    if ($cargoConfig -notmatch 'TS_RS_EXPORT_DIR\s*=\s*\{\s*value\s*=\s*"target/ts-rs-test-output"\s*,\s*relative\s*=\s*true\s*\}') {
+        throw @"
+Ordinary cargo tests must export ts-rs output into the ignored workspace
+target/ts-rs-test-output directory. Keep checked-in binding writes exclusive to
+scripts/generate-ts-bindings.ps1.
+"@
+    }
+
     $previousErrorActionPreference = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     $featureTree = cargo tree -e features -i ts-rs 2>&1 | Out-String
@@ -33,7 +42,7 @@ uses the same accurate, quiet configuration.
 "@
     }
 
-    Write-Host 'ts-rs binding feature configuration passed'
+    Write-Host 'ts-rs binding path and feature configuration passed'
 }
 finally {
     Pop-Location

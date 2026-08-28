@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --filter @vibe-cs/web dev",
     "demo-worker:sidecar": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-demo-worker-sidecar.ps1",
+    "bindings": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-ts-bindings.ps1",
     "desktop:dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm demo-worker:sidecar && pnpm --filter @vibe-cs/desktop dev",
     "desktop:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-ffmpeg-sdk.ps1 && pnpm demo-worker:sidecar && pnpm --filter @vibe-cs/desktop build",
     "build": "pnpm --filter @vibe-cs/web build",

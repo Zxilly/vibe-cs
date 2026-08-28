@@ -6,10 +6,7 @@ import type { DesktopAgentWorkspaceContext } from "./DesktopAgentWorkspaceContex
 export type DesktopAgentChatInput = {
   requestId: string;
   threadId: string | null;
-  demoId: string | null;
-  demoIds: Array<string>;
-  editorProjectId: string | null;
-  audioAssetId: string | null;
+  projectId: string;
   workspaceContext: DesktopAgentWorkspaceContext;
   history: Array<DesktopAgentChatHistoryMessage>;
   mode: AgentMode;

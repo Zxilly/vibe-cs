@@ -19,9 +19,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::Notify;
 use ts_rs::TS;
-use uuid::Uuid;
 
-pub use tools::{CapturedPlan, CapturedPlanKind, CapturedToolCall};
+pub use tools::CapturedToolCall;
 
 const MAXIMUM_CONTEXT_BYTES: usize = 2 * 1024 * 1024;
 
@@ -86,17 +85,7 @@ pub struct AgentContext {
     pub demo: Value,
     pub analysis: Value,
     pub map_context: Value,
-    pub editor_project: Value,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct HitlRequest {
-    pub proposal_id: Uuid,
-    pub title: String,
-    pub summary: String,
-    #[serde(default)]
-    pub risks: Vec<String>,
+    pub project: Value,
 }
 
 #[async_trait]
@@ -104,32 +93,14 @@ pub trait AgentToolHost: std::fmt::Debug + Send + Sync {
     /// Return bounded replay-derived scenes for the requested highlight identifiers.
     async fn read_cinematic_context(&self, highlight_ids: &[String]) -> Result<Value, String>;
 
-    /// Analyze one explicitly referenced managed audio asset on demand.
-    async fn read_audio_analysis(&self, _audio_asset_id: Uuid) -> Result<Value, String> {
-        Err("audio analysis host is unavailable".to_owned())
+    /// Apply a bounded local edit to the canonical Project.
+    async fn apply_project_patch(&self, _input: Value) -> Result<Value, String> {
+        Err("project edit host is unavailable".to_owned())
     }
 
-    /// Compute one advisory Beat Alignment Proposal from explicit object
-    /// references. This does not apply the Proposal.
-    async fn draft_beat_alignment(
-        &self,
-        _editor_project_id: Uuid,
-        _expected_revision: u64,
-        _audio_asset_id: Uuid,
-        _audio_placement: Value,
-    ) -> Result<Value, String> {
-        Err("beat-alignment host is unavailable".to_owned())
-    }
-
-    /// Execute an Auto-approved structured confirmation through the product's
-    /// authoritative preview/apply boundary. Unsupported proposal kinds return
-    /// a structured deferred result rather than gaining a generic mutation API.
-    async fn execute_confirmation(
-        &self,
-        _confirmation: &str,
-        _proposal: &CapturedPlan,
-    ) -> Result<Value, String> {
-        Ok(serde_json::json!({"status":"deferred_to_ui"}))
+    /// Atomically replace the story track through one Agent-only high-level operation.
+    async fn replace_story_timeline(&self, _input: Value) -> Result<Value, String> {
+        Err("story timeline host is unavailable".to_owned())
     }
 }
 
@@ -151,14 +122,12 @@ pub struct AgentRequest {
 pub enum AgentStreamEvent {
     TextDelta(String),
     ToolCall(CapturedToolCall),
-    Proposal(CapturedPlan),
 }
 
 #[derive(Debug, Clone)]
 pub struct AgentResponse {
     pub content: String,
     pub tool_calls: Vec<CapturedToolCall>,
-    pub plans: Vec<CapturedPlan>,
     pub usage: Option<AgentUsage>,
 }
 
@@ -249,7 +218,6 @@ where
     let mut content = String::new();
     let mut usage = None;
     let mut emitted_tool_calls = 0_usize;
-    let mut emitted_plans = 0_usize;
     for attempt in 0..2 {
         let mut stream = agent
             .stream_prompt(prompt)
@@ -262,12 +230,9 @@ where
         loop {
             let item = tokio::select! {
                 () = cancellation.cancelled() => {
-                    let (tool_calls, plans) = state.snapshot().await;
+                    let tool_calls = state.snapshot().await;
                     for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
                         emit(AgentStreamEvent::ToolCall(tool_call.clone()));
-                    }
-                    for plan in plans.iter().skip(emitted_plans) {
-                        emit(AgentStreamEvent::Proposal(plan.clone()));
                     }
                     return Err(AgentError::Cancelled);
                 },
@@ -281,12 +246,9 @@ where
                     // evidence reads. Emit those completed calls before returning
                     // the terminal error so the durable turn retains what really
                     // happened and a retry is reviewable rather than opaque.
-                    let (tool_calls, plans) = state.snapshot().await;
+                    let tool_calls = state.snapshot().await;
                     for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
                         emit(AgentStreamEvent::ToolCall(tool_call.clone()));
-                    }
-                    for plan in plans.iter().skip(emitted_plans) {
-                        emit(AgentStreamEvent::Proposal(plan.clone()));
                     }
                     return Err(AgentError::Provider(safe_error(
                         &error.to_string(),
@@ -313,40 +275,29 @@ where
             // Rig can spend a long time reasoning between tool turns. Checkpoint
             // every completed structured call as soon as the stream yields again,
             // so a later provider failure or host deadline does not erase it.
-            let (tool_calls, plans) = state.snapshot().await;
+            let tool_calls = state.snapshot().await;
             for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
                 emit(AgentStreamEvent::ToolCall(tool_call.clone()));
             }
-            for plan in plans.iter().skip(emitted_plans) {
-                emit(AgentStreamEvent::Proposal(plan.clone()));
-            }
             emitted_tool_calls = tool_calls.len();
-            emitted_plans = plans.len();
         }
-        let (tool_calls, plans) = state.snapshot().await;
+        let tool_calls = state.snapshot().await;
         for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
             emit(AgentStreamEvent::ToolCall(tool_call.clone()));
         }
-        for plan in plans.iter().skip(emitted_plans) {
-            emit(AgentStreamEvent::Proposal(plan.clone()));
-        }
         emitted_tool_calls = tool_calls.len();
-        emitted_plans = plans.len();
 
         if content.trim().is_empty() && attempt == 0 && !tool_calls.is_empty() {
-            prompt = continuation_prompt(&original_message, &tool_calls, &plans);
+            prompt = continuation_prompt(&original_message, &tool_calls);
             content.clear();
             usage = None;
             continue;
         }
         break;
     }
-    let (tool_calls, plans) = state.snapshot().await;
+    let tool_calls = state.snapshot().await;
     for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
         emit(AgentStreamEvent::ToolCall(tool_call.clone()));
-    }
-    for plan in plans.iter().skip(emitted_plans) {
-        emit(AgentStreamEvent::Proposal(plan.clone()));
     }
     let content = content.trim().to_owned();
     if content.is_empty() {
@@ -357,20 +308,14 @@ where
     Ok(AgentResponse {
         content,
         tool_calls,
-        plans,
         usage,
     })
 }
 
-fn continuation_prompt(
-    original_message: &str,
-    tool_calls: &[CapturedToolCall],
-    plans: &[CapturedPlan],
-) -> String {
+fn continuation_prompt(original_message: &str, tool_calls: &[CapturedToolCall]) -> String {
     const MAXIMUM_CHECKPOINT_CHARS: usize = 48_000;
     let checkpoint = serde_json::to_string(&serde_json::json!({
         "toolCalls": tool_calls,
-        "proposals": plans,
     }))
     .unwrap_or_else(|_| "{\"toolCalls\":[],\"proposals\":[]}".to_owned());
     let checkpoint = checkpoint
@@ -424,7 +369,7 @@ fn validate_request(request: &AgentRequest) -> Result<(), AgentError> {
         "demo": request.context.demo,
         "analysis": request.context.analysis,
         "mapContext": request.context.map_context,
-        "editorProject": request.context.editor_project,
+        "project": request.context.project,
     }))
     .map_err(|error| AgentError::Invalid(error.to_string()))?;
     if context_bytes.len() > MAXIMUM_CONTEXT_BYTES {
@@ -498,10 +443,10 @@ fn system_prompt(mode: AgentMode, auto_mode: bool, custom: &str) -> String {
             "Coach the user using verified demo evidence. Explain what happened, cite rounds/ticks/highlight IDs, and say when evidence is unavailable."
         }
         AgentMode::Edit => {
-            "Collaborate on an edit using only structured Vibe CS objects. First read workspace context and copy exact object references into every later Tool input. If planAvailable is true, call read_agent_plan with planId and planRevision before drafting changes; workspace context intentionally does not embed Shot data. When an audioAssetId is available, call read_audio_evidence with view summary before making pacing claims and view rhythm_map before choosing musical boundaries. Use native BPM, confidence, sections, silence ranges, spectral flux, frequency-band changes, and ranked cut points as evidence. A phrase_boundary is only an assumed four-beat position, not a detected downbeat; spectral values do not prove genre, mood, instruments, or semantic section names. Align visual action peaks to strong musical boundaries while preserving shot readability and narrative escalation; do not cut every beat or hide weak footage behind fast cuts. Otherwise inspect an explicit editorProjectId and Demo reference, then use draft_edit_plan. Every draft returns proposalId; pass that exact ID to its kind-specific confirmation Tool. Auto mode approves without pausing but does not change Tool semantics. Never claim execution until a structured Execution Result is present."
+            "Collaborate inside the single canonical Project. Call read_workspace before every edit and use the exact projectId and revision it returns. Use apply_project_patch for small progressive edits. Use replace_story_timeline only for a deliberate whole-story replan; it stages and validates the complete result before one atomic commit. Never create a second plan, montage, or editor document. The tool result is the only proof that a change was applied. Recording and export always require request_project_recording or request_project_export and explicit human confirmation, even in Auto mode."
         }
         AgentMode::Hlae => {
-            "Create publishable highlight videos using only structured Vibe CS objects. First read workspace context, resolve the requested player once, then pass the exact demoIds and playerId to one bounded read_highlights call whenever possible. Pass the selected non-overlapping Highlight IDs to read_cinematic_context. The cinematic reader returns cinematicEvidenceId; draft_video_plan must consume that exact reference and may not silently fetch missing Evidence. Multi-Demo projects use namespaced Highlight IDs and remain one cross-Demo sequence. Pass the user's requested duration as targetDurationSeconds; when the draft reports that the target is not met, select additional non-overlapping evidence or explain that the available action cannot honestly fill the target. Rank candidates by action density, escalation, visual readability, and narrative role; prefer multi-kills, clutches, decisive entries, and match-point actions over padding. Give the video a title, assign one global hook/build/climax sequence, choose pacing and a supported transition, and never stretch low-action footage. Design shots from verified map, route, action, movement, spread, and engagement purpose. Use player_pov when spatial or collision Evidence is unavailable. Never invent measurements. The draft returns proposalId only when its deterministic checks pass; pass it exactly to confirm_video_plan. Auto mode approves without pausing but does not change semantics. Do not claim completion until a structured recording Execution Result and MP4 output exist."
+            "Build highlight timelines only inside the canonical Project. Call read_workspace and read_demo_evidence first, select only verified non-overlapping moments for the requested player, and use read_cinematic_context when camera reasoning needs replay evidence. Use replace_story_timeline for a complete hook/build/climax replan and target the requested duration without padding weak action. The host allocates identities and commits atomically. After the timeline is accepted, call request_project_recording; it only prepares a human confirmation and never starts capture. Export likewise requires request_project_export and explicit human confirmation. Do not claim that footage or an MP4 exists until a later structured result proves it."
         }
     };
     let automation_instruction = if auto_mode {
@@ -622,75 +567,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn rig_streams_an_openai_compatible_tool_round_trip() {
-        let listener = TcpListener::bind(("127.0.0.1", 0))
-            .await
-            .expect("bind provider");
-        let address = listener.local_addr().expect("provider address");
-        let provider = tokio::spawn(serve_provider(listener));
-        let request = AgentRequest {
-            request_id: "request-1".into(),
-            mode: AgentMode::Hlae,
-            message: "请把 ace-1 做成完整的 MP4 高光视频。".into(),
-            history: Vec::new(),
-            config: AgentConfig {
-                provider: "openrouter".into(),
-                model: "rig-e2e-model".into(),
-                base_url: format!("http://{address}/v1"),
-                api_key: "rig-e2e-secret".into(),
-                custom_instructions: String::new(),
-                provider_parameters: json!({
-                    "reasoning": {"effort": "low"},
-                    "temperature": 0.2
-                }),
-            },
-            context: AgentContext {
-                workspace: json!({"demoIds":["00000000-0000-4000-8000-0000000000d1"]}),
-                demo: json!({"id":"00000000-0000-4000-8000-0000000000d1"}),
-                analysis: json!({"tick_rate":64,"highlights":[{
-                    "id":"ace-1","kind":"multi_kill","title":"Ace","player_id":"player-1",
-                    "round":7,"start_tick":1000,"end_tick":1500,"description":"Five verified eliminations"
-                }]}),
-                ..AgentContext::default()
-            },
-            tool_host: None,
-            auto_mode: true,
-        };
-        let mut deltas = String::new();
-        let response = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            run_agent(request, &Cancellation::new(), |event| {
-                if let AgentStreamEvent::TextDelta(delta) = event {
-                    deltas.push_str(&delta);
-                }
-            }),
-        )
-        .await
-        .expect("agent timeout")
-        .expect("agent response");
-        let requests = provider.await.expect("provider task");
-        assert_eq!(requests.len(), 4);
-        assert!(requests[0].get("max_tokens").is_none());
-        assert_eq!(requests[0]["reasoning"]["effort"], "low");
-        assert_eq!(requests[0]["temperature"], 0.2);
-        assert!(
-            requests[3]["messages"]
-                .as_array()
-                .is_some_and(|messages| messages.iter().any(|message| message["role"] == "tool"))
-        );
-        assert!(deltas.contains("ace-1"));
-        assert_eq!(response.tool_calls[0].name, "read_cinematic_context");
-        assert_eq!(response.tool_calls[1].name, "draft_video_plan");
-        assert_eq!(response.tool_calls[2].name, "confirm_video_plan");
-        assert_eq!(response.plans[0].kind, CapturedPlanKind::VideoRender);
-        assert_eq!(
-            response.plans[0].payload["source_highlight_ids"],
-            json!(["ace-1"])
-        );
-        assert_eq!(response.plans[0].payload["output"]["container"], "mp4");
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn tool_loop_has_no_fixed_total_turn_ceiling() {
         const TOOL_TURNS: usize = 40;
         let listener = TcpListener::bind(("127.0.0.1", 0))
@@ -709,7 +585,7 @@ mod tests {
                                 "index":0,
                                 "id":format!("call-context-{index}"),
                                 "type":"function",
-                                "function":{"name":"read_workspace_context","arguments":"{}"}
+                                "function":{"name":"read_workspace","arguments":"{}"}
                             }]}),
                             None,
                         ),
@@ -782,7 +658,7 @@ mod tests {
                         stream_chunk(
                             &json!({"role":"assistant","tool_calls":[{
                                 "index":0,"id":"call-context","type":"function",
-                                "function":{"name":"read_workspace_context","arguments":"{}"}
+                                "function":{"name":"read_workspace","arguments":"{}"}
                             }]}),
                             None,
                         ),
@@ -841,107 +717,6 @@ mod tests {
                     .is_some_and(|content| content.contains("Completed checkpoints"))
             })
         }));
-    }
-
-    async fn serve_provider(listener: TcpListener) -> Vec<Value> {
-        let mut requests = Vec::new();
-        for index in 0..4 {
-            let (mut stream, _) = listener.accept().await.expect("provider request");
-            requests.push(read_http_json(&mut stream).await);
-            let chunks = if index == 0 {
-                let arguments = serde_json::to_string(&json!({
-                    "demoIds":["00000000-0000-4000-8000-0000000000d1"],
-                    "highlightIds":["ace-1"]
-                }))
-                .expect("arguments");
-                vec![
-                    stream_chunk(
-                        &json!({"role":"assistant","tool_calls":[{
-                            "index":0,"id":"call-cinematic","type":"function",
-                            "function":{"name":"read_cinematic_context","arguments":arguments}
-                        }]}),
-                        None,
-                    ),
-                    stream_chunk(&json!({}), Some("tool_calls")),
-                ]
-            } else if index == 1 {
-                let evidence_id =
-                    last_tool_output(requests.last().expect("request"))["cinematicEvidenceId"]
-                        .clone();
-                let arguments = serde_json::to_string(&json!({
-                    "demoIds":["00000000-0000-4000-8000-0000000000d1"],
-                    "cinematicEvidenceId":evidence_id,
-                    "title":"ACE impact cut",
-                    "highlightIds":["ace-1"],"leadSeconds":2.0,"tailSeconds":2.5,
-                    "pacing":"impact","storyRoles":["climax"],"transitionStyle":"flash",
-                    "cameraIntents":["player_pov"],
-                    "cameraRationales":["Spatial evidence is unavailable, so preserve the player perspective."]
-                }))
-                .expect("arguments");
-                vec![
-                    stream_chunk(
-                        &json!({"role":"assistant","tool_calls":[{
-                            "index":0,"id":"call-video-plan","type":"function",
-                            "function":{"name":"draft_video_plan","arguments":arguments}
-                        }]}),
-                        None,
-                    ),
-                    stream_chunk(&json!({}), Some("tool_calls")),
-                ]
-            } else if index == 2 {
-                let proposal_id =
-                    last_tool_output(requests.last().expect("request"))["proposalId"].clone();
-                let arguments = serde_json::to_string(&json!({
-                    "proposalId":proposal_id,
-                    "title":"Generate the selected highlight video",
-                    "summary":"Record ace-1 and export a bounded MP4",
-                    "risks":["Starts the managed offline capture workflow"]
-                }))
-                .expect("arguments");
-                vec![
-                    stream_chunk(
-                        &json!({"role":"assistant","tool_calls":[{
-                            "index":0,"id":"call-hitl","type":"function",
-                            "function":{"name":"confirm_video_plan","arguments":arguments}
-                        }]}),
-                        None,
-                    ),
-                    stream_chunk(&json!({}), Some("tool_calls")),
-                ]
-            } else {
-                vec![
-                    stream_chunk(
-                        &json!({"role":"assistant","content":"已基于 ace-1 生成完整 MP4 视频任务，确认后将开始录制。"}),
-                        None,
-                    ),
-                    stream_chunk(&json!({}), Some("stop")),
-                ]
-            };
-            write_sse(&mut stream, &chunks).await;
-        }
-        requests
-    }
-
-    fn last_tool_output(request: &Value) -> Value {
-        let content = &request["messages"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .rev()
-            .find(|message| message["role"] == "tool")
-            .expect("tool output message")["content"];
-        if let Some(content) = content.as_str() {
-            return serde_json::from_str(content).expect("tool output JSON");
-        }
-        if let Some(text) = content
-            .as_array()
-            .and_then(|parts| parts.last())
-            .and_then(|part| part.get("text"))
-            .and_then(Value::as_str)
-        {
-            return serde_json::from_str(text).expect("tool output JSON text");
-        }
-        content.clone()
     }
 
     fn stream_chunk(delta: &Value, finish_reason: Option<&str>) -> Value {

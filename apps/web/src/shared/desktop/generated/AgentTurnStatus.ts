@@ -4,5 +4,5 @@ export type AgentTurnStatus =
   | "pending"
   | "streaming"
   | "completed"
-  | "cancelled"
-  | "failed";
+  | "failed"
+  | "cancelled";

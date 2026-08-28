@@ -579,6 +579,42 @@ mod tests {
     };
     use tower::ServiceExt as _;
 
+    async fn create_export_project(storage: &vibe_cs_storage::Storage) -> Uuid {
+        let now = Utc::now();
+        let id = Uuid::new_v4();
+        let track_id = Uuid::new_v4();
+        storage
+            .create_project(vibe_cs_domain::Project {
+                id,
+                name: "Export owner".to_owned(),
+                revision: 1,
+                document: vibe_cs_domain::EditingDocument {
+                    width: 1920,
+                    height: 1080,
+                    fps: 60,
+                    duration_seconds: 0.0,
+                    story_track_id: track_id,
+                    tracks: vec![vibe_cs_domain::TimelineTrack {
+                        id: track_id,
+                        name: "Story".to_owned(),
+                        kind: vibe_cs_domain::TrackKind::Video,
+                        order: 0,
+                        muted: false,
+                        locked: false,
+                        hidden: false,
+                        clips: Vec::new(),
+                    }],
+                    markers: Vec::new(),
+                    settings: serde_json::json!({}),
+                },
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("export Project");
+        id
+    }
+
     #[tokio::test]
     async fn exact_activity_route_returns_the_requested_authoritative_row() {
         let directory = tempfile::tempdir().expect("temporary directory");
@@ -587,12 +623,13 @@ mod tests {
             .expect("storage");
         let now = Utc::now();
         let job_id = Uuid::new_v4();
+        let project_id = create_export_project(&storage).await;
         storage
             .put_export_job(ExportJobRecord {
-                kind: "editor".to_owned(),
+                kind: "project".to_owned(),
                 job: vibe_cs_domain::ExportJob {
                     id: job_id,
-                    project_id: Uuid::new_v4(),
+                    project_id,
                     status: JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/exact.mp4".to_owned(),
@@ -638,12 +675,13 @@ mod tests {
             .expect("storage");
         let now = Utc::now();
         let job_id = Uuid::new_v4();
+        let project_id = create_export_project(&storage).await;
         storage
             .put_export_job(ExportJobRecord {
-                kind: "editor".to_owned(),
+                kind: "project".to_owned(),
                 job: vibe_cs_domain::ExportJob {
                     id: job_id,
-                    project_id: Uuid::new_v4(),
+                    project_id,
                     status: JobStatus::Failed,
                     progress: 0.4,
                     output_path: "C:/exports/full-disk.mp4".to_owned(),
@@ -686,12 +724,13 @@ mod tests {
             .expect("storage");
         let now = Utc::now();
         let job_id = Uuid::new_v4();
+        let project_id = create_export_project(&storage).await;
         storage
             .put_export_job(ExportJobRecord {
-                kind: "editor".to_owned(),
+                kind: "project".to_owned(),
                 job: vibe_cs_domain::ExportJob {
                     id: job_id,
-                    project_id: Uuid::new_v4(),
+                    project_id,
                     status: JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/fine.mp4".to_owned(),

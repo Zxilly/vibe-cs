@@ -3,10 +3,6 @@
 export type TextStyle = {
   content: string;
   font_family: string;
-  /**
-   * Optional managed font asset. Exporters resolve the identifier through
-   * the media library instead of accepting an ambient filesystem path.
-   */
   font_asset_id: string | null;
   font_size: number;
   color: string;

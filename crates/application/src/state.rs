@@ -16,10 +16,9 @@ use uuid::Uuid;
 use crate::{
     AnalysisPort, ApiError, ApiResult, CosmeticsPort, DemoWatchPort, DisabledAnalysisPort,
     DisabledCosmeticsPort, DisabledDemoWatchPort, DisabledExportPort, DisabledIntegrationPort,
-    DisabledMediaPort, DisabledPlayerPort, DisabledProposalExecutionPort, DisabledRecordingPort,
-    DisabledReviewPort, DisabledSourceAssetPort, ExportPort, IntegrationPort, MediaPort,
-    PlayerPort, ProposalExecutionPort, RecordingPort, ReviewPort, SourceAssetPort,
-    analysis_tasks::AnalysisTaskRegistry,
+    DisabledMediaPort, DisabledPlayerPort, DisabledRecordingPort, DisabledReviewPort,
+    DisabledSourceAssetPort, ExportPort, IntegrationPort, MediaPort, PlayerPort, RecordingPort,
+    ReviewPort, SourceAssetPort, analysis_tasks::AnalysisTaskRegistry,
 };
 
 /// Keyed by path *and* size, so a file replaced in place is probed again
@@ -31,17 +30,7 @@ pub(crate) type OutputMediaCache =
 pub(crate) struct RecordingPlanLease {
     pub(crate) items: Vec<vibe_cs_domain::RecordingRequest>,
     pub(crate) retry_of: Option<Uuid>,
-    pub(crate) agent_source: Option<crate::routes::recording::AgentRecordingSource>,
-    /// The document this plan was answered with, kept verbatim so
-    /// `GET /api/recording/plans/{id}` can hand back *the same* plan.
-    ///
-    /// Recomputing it on read would be the obvious alternative and it is the
-    /// wrong one: the director plan and the duration estimate are derived from
-    /// persisted analyses, and an analysis that changed between the plan and
-    /// the reload would produce a different document under the same id. The
-    /// whole point of `binding_sha256` is that a lease describes one fixed set
-    /// of inputs, so the plan it produced is fixed too.
-    pub(crate) response: Arc<crate::routes::recording::RecordingPlanResponse>,
+    pub(crate) project_source: Option<crate::routes::recording::ProjectRecordingSource>,
     pub(crate) binding_sha256: String,
     pub(crate) expires_at: DateTime<Utc>,
     pub(crate) deadline: Instant,
@@ -249,7 +238,6 @@ pub struct AppState {
     pub(crate) source_assets: Arc<dyn SourceAssetPort>,
     pub(crate) integrations: Arc<dyn IntegrationPort>,
     pub(crate) demo_watch: Arc<dyn DemoWatchPort>,
-    pub(crate) proposal_execution: Arc<dyn ProposalExecutionPort>,
     pub(crate) events: EventHub,
     pub(crate) started_at: DateTime<Utc>,
     pub(crate) active_recording: Arc<Mutex<Option<Uuid>>>,
@@ -283,7 +271,6 @@ impl std::fmt::Debug for AppState {
             .field("source_assets", &self.source_assets)
             .field("integrations", &self.integrations)
             .field("demo_watch", &self.demo_watch)
-            .field("proposal_execution", &self.proposal_execution)
             .field("events", &self.events)
             .field("started_at", &self.started_at)
             .field("data_dir", &self.data_dir)
@@ -307,7 +294,6 @@ impl AppState {
             source_assets: Arc::new(DisabledSourceAssetPort),
             integrations: Arc::new(DisabledIntegrationPort),
             demo_watch: Arc::new(DisabledDemoWatchPort),
-            proposal_execution: Arc::new(DisabledProposalExecutionPort),
             events: EventHub::default(),
             started_at: Utc::now(),
             active_recording: Arc::new(Mutex::new(None)),
@@ -380,12 +366,6 @@ impl AppState {
     #[must_use]
     pub fn with_demo_watch(mut self, port: Arc<dyn DemoWatchPort>) -> Self {
         self.demo_watch = port;
-        self
-    }
-
-    #[must_use]
-    pub fn with_proposal_execution(mut self, port: Arc<dyn ProposalExecutionPort>) -> Self {
-        self.proposal_execution = port;
         self
     }
 

@@ -115,10 +115,6 @@ struct OutputItemDto {
     /// containers per keystroke in the search box.
     media: Option<OutputMediaInfo>,
     project_id: Option<Uuid>,
-    /// Agent exports use a Composition as the generic export project. This
-    /// keeps the owning user-facing plan addressable without overloading
-    /// `project_id` for montage and editor exports.
-    agent_plan_id: Option<Uuid>,
     demo_id: Option<Uuid>,
     error: Option<String>,
     created_at: DateTime<Utc>,
@@ -326,7 +322,7 @@ impl StoredOutput {
         }
     }
 
-    async fn into_dto(self, roots: &ManagedRoots, agent_plan_id: Option<Uuid>) -> OutputItemDto {
+    async fn into_dto(self, roots: &ManagedRoots) -> OutputItemDto {
         let path_state = inspect_output_path(self.path(), roots).await;
         let path = self.path().to_owned();
         let file_name = FilePath::new(&path)
@@ -350,7 +346,6 @@ impl StoredOutput {
                 size_bytes: path_state.size_bytes,
                 media: None,
                 project_id: None,
-                agent_plan_id: None,
                 demo_id: clip.demo_id,
                 error: None,
                 created_at: clip.created_at,
@@ -378,7 +373,6 @@ impl StoredOutput {
                     size_bytes: path_state.size_bytes,
                     media: None,
                     project_id: Some(record.job.project_id),
-                    agent_plan_id,
                     demo_id: None,
                     error: record.job.error,
                     created_at: record.job.created_at,
@@ -438,26 +432,13 @@ async fn list_all_outputs(
         .into_iter()
         .take(MAXIMUM_OUTPUT_SCAN_PER_KIND as usize)
     {
-        items.push(StoredOutput::Recording(clip).into_dto(roots, None).await);
+        items.push(StoredOutput::Recording(clip).into_dto(roots).await);
     }
     for export in exports
         .into_iter()
         .take(MAXIMUM_OUTPUT_SCAN_PER_KIND as usize)
     {
-        let agent_plan_id = state
-            .storage
-            .get_agent_composition_by_id(export.job.project_id)
-            .await?
-            .map(|composition| composition.plan_id);
-        let mut item = StoredOutput::Export(export)
-            .into_dto(roots, agent_plan_id)
-            .await;
-        if let Some(plan_id) = agent_plan_id
-            && let Some(plan) = state.storage.get_agent_plan(plan_id).await?
-        {
-            item.title = plan.title;
-        }
-        items.push(item);
+        items.push(StoredOutput::Export(export).into_dto(roots).await);
     }
     items.sort_by_key(|item| std::cmp::Reverse(item.updated_at));
     Ok((items, scan_limited))
@@ -648,8 +629,7 @@ async fn rename_output(
         .file_name()
         .is_some_and(|name| name == request.file_name.as_str())
     {
-        let agent_plan_id = output_agent_plan_id(&state, &output).await?;
-        return Ok(Json(output.into_dto(&roots, agent_plan_id).await));
+        return Ok(Json(output.into_dto(&roots).await));
     }
     let destination = source
         .parent()
@@ -668,19 +648,7 @@ async fn rename_output(
         return Err(error);
     }
     publish_output_change(&state, kind, id, "renamed");
-    let agent_plan_id = output_agent_plan_id(&state, &output).await?;
-    Ok(Json(output.into_dto(&roots, agent_plan_id).await))
-}
-
-async fn output_agent_plan_id(state: &AppState, output: &StoredOutput) -> ApiResult<Option<Uuid>> {
-    let StoredOutput::Export(record) = output else {
-        return Ok(None);
-    };
-    Ok(state
-        .storage
-        .get_agent_composition_by_id(record.job.project_id)
-        .await?
-        .map(|composition| composition.plan_id))
+    Ok(Json(output.into_dto(&roots).await))
 }
 
 #[derive(Debug, Deserialize)]
@@ -1491,14 +1459,15 @@ mod tests {
         let fixture = Fixture::new().await;
         let now = Utc::now();
         let id = Uuid::new_v4();
+        let project_id = fixture.project().await;
         fixture
             .state
             .storage
             .put_export_job(ExportJobRecord {
-                kind: "montage".to_owned(),
+                kind: "project".to_owned(),
                 job: ExportJob {
                     id,
-                    project_id: Uuid::new_v4(),
+                    project_id,
                     status: JobStatus::Running,
                     progress: 0.5,
                     output_path: fixture
@@ -1585,6 +1554,43 @@ mod tests {
                 .await
                 .expect("put clip");
             clip
+        }
+
+        async fn project(&self) -> Uuid {
+            let now = Utc::now();
+            let id = Uuid::new_v4();
+            let track_id = Uuid::new_v4();
+            self.state
+                .storage
+                .create_project(vibe_cs_domain::Project {
+                    id,
+                    name: "Output owner".to_owned(),
+                    revision: 1,
+                    document: vibe_cs_domain::EditingDocument {
+                        width: 1920,
+                        height: 1080,
+                        fps: 60,
+                        duration_seconds: 0.0,
+                        story_track_id: track_id,
+                        tracks: vec![vibe_cs_domain::TimelineTrack {
+                            id: track_id,
+                            name: "Story".to_owned(),
+                            kind: vibe_cs_domain::TrackKind::Video,
+                            order: 0,
+                            muted: false,
+                            locked: false,
+                            hidden: false,
+                            clips: Vec::new(),
+                        }],
+                        markers: Vec::new(),
+                        settings: serde_json::json!({}),
+                    },
+                    created_at: now,
+                    updated_at: now,
+                })
+                .await
+                .expect("output Project");
+            id
         }
     }
 }

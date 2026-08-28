@@ -25,12 +25,6 @@ export type OutputItemDto = {
    */
   media: OutputMediaInfo | null;
   project_id: string | null;
-  /**
-   * Agent exports use a Composition as the generic export project. This
-   * keeps the owning user-facing plan addressable without overloading
-   * `project_id` for montage and editor exports.
-   */
-  agent_plan_id: string | null;
   demo_id: string | null;
   error: string | null;
   created_at: string;

@@ -2,6 +2,7 @@
 
 mod analysis;
 mod avatar_cache;
+mod camera_planning;
 mod cosmetics;
 mod demo_watch;
 mod export;
@@ -14,7 +15,6 @@ mod llm_review;
 mod log_retention;
 mod media;
 mod player;
-mod proposal_execution;
 mod recording;
 mod recording_progress;
 mod replay_cache;
@@ -49,7 +49,6 @@ pub use llm_review::RuntimeReviewPort;
 pub use log_retention::prune_daily_logs;
 pub use media::RuntimeMediaPort;
 pub use player::RuntimePlayerPort;
-pub use proposal_execution::RuntimeProposalExecutionPort;
 pub use recording::{
     OrphanedRecordingRecovery, PreparedRecording, RecordingBackend, RecordingCancellation,
     RuntimeRecordingPort,
@@ -153,15 +152,6 @@ pub async fn build_app_state_with_demo_worker(
         .with_analysis(analysis.clone()),
     );
     recording.recover_orphaned_jobs().await;
-    let proposal_execution: Arc<dyn vibe_cs_application::ProposalExecutionPort> =
-        match RuntimeProposalExecutionPort::new(&data_dir) {
-            Ok(port) => Arc::new(port),
-            Err(error) => {
-                tracing::error!(%error, "unable to initialize proposal confirmation adapter");
-                Arc::new(vibe_cs_application::DisabledProposalExecutionPort)
-            }
-        };
-
     let state = vibe_cs_application::AppState::new(storage.clone(), data_dir);
     // §10.1 gap 2 / §10.5: retention is enforced by the runtime on a clock, not
     // by the renderer at startup. See `session_retention`.
@@ -179,7 +169,6 @@ pub async fn build_app_state_with_demo_worker(
         .with_source_assets(source_assets)
         .with_integrations(integrations)
         .with_recording(recording)
-        .with_proposal_execution(proposal_execution)
         .with_demo_watch(demo_watch))
 }
 

@@ -8,11 +8,9 @@ use serde_json::Value;
 use uuid::Uuid;
 use vibe_cs_cosmetics::{CosmeticInspectionReport, RewriteReport, RewriteRequest};
 use vibe_cs_domain::{
-    AgentProposalAction, AnalysisInputFingerprint, AudioAnalysis, AudioAnalysisOptions,
-    BeatAlignmentDraft, BeatAlignmentRequest, DemoRecord, DomainError, ExportJob, HeatPoint,
-    HlaeProposalEvidence, HlaeProposalExportResult, HlaeProposalIntent, HlaeProposalPreview,
-    MatchAnalysis, ProposalConfirmation, RecordingJob, RecordingRequest, ReplayFidelityMetadata,
-    ReplayFrame,
+    AnalysisInputFingerprint, AudioAnalysis, AudioAnalysisOptions, BeatAlignmentDraft,
+    BeatAlignmentRequest, DemoRecord, DomainError, ExportJob, HeatPoint, MatchAnalysis,
+    RecordingJob, RecordingRequest, ReplayFidelityMetadata, ReplayFrame,
 };
 
 #[async_trait]
@@ -71,120 +69,6 @@ impl AnalysisCancellationSource {
         self.sender.send_replace(true);
     }
 }
-use vibe_cs_hlae::HlaeBundleLaunchInputs;
-
-#[async_trait]
-pub trait ProposalExecutionPort: Send + Sync + std::fmt::Debug {
-    /// Builds a process-free preview from trusted Rust evidence.
-    ///
-    /// # Errors
-    ///
-    /// Returns a domain error when the evidence or generated typed plan is
-    /// invalid, or the local adapter cannot create a confirmation token.
-    async fn preview_hlae(
-        &self,
-        intent: &HlaeProposalIntent,
-        evidence: &HlaeProposalEvidence,
-    ) -> Result<HlaeProposalPreview, DomainError>;
-
-    /// Revalidates and exports a confirmed plan without launching a process.
-    ///
-    /// # Errors
-    ///
-    /// Returns a domain error for stale evidence, revision, fingerprint, token,
-    /// typed plan validation, or managed file publication failures.
-    async fn export_hlae(
-        &self,
-        intent: &HlaeProposalIntent,
-        evidence: &HlaeProposalEvidence,
-        launch_inputs: &HlaeBundleLaunchInputs,
-        confirmation: &ProposalConfirmation,
-    ) -> Result<HlaeProposalExportResult, DomainError>;
-
-    /// Signs a proposal identity for an explicit UI confirmation round-trip.
-    ///
-    /// # Errors
-    ///
-    /// Returns a domain error if the local confirmation authority is not
-    /// available.
-    fn confirmation_token(
-        &self,
-        action: AgentProposalAction,
-        base_fingerprint: &str,
-        proposal_fingerprint: &str,
-        expected_revision: u64,
-    ) -> Result<String, DomainError>;
-
-    /// Verifies that a token is bound to this action, evidence, proposal, and
-    /// revision.
-    ///
-    /// # Errors
-    ///
-    /// Returns a conflict when the token is malformed, stale, or belongs to a
-    /// different proposal operation.
-    fn verify_confirmation(
-        &self,
-        action: AgentProposalAction,
-        base_fingerprint: &str,
-        proposal_fingerprint: &str,
-        expected_revision: u64,
-        confirmation_token: &str,
-    ) -> Result<(), DomainError>;
-}
-
-#[derive(Debug, Default)]
-pub struct DisabledProposalExecutionPort;
-
-#[async_trait]
-impl ProposalExecutionPort for DisabledProposalExecutionPort {
-    async fn preview_hlae(
-        &self,
-        _intent: &HlaeProposalIntent,
-        _evidence: &HlaeProposalEvidence,
-    ) -> Result<HlaeProposalPreview, DomainError> {
-        Err(DomainError::DependencyUnavailable(
-            "AI proposal execution adapter".to_owned(),
-        ))
-    }
-
-    async fn export_hlae(
-        &self,
-        _intent: &HlaeProposalIntent,
-        _evidence: &HlaeProposalEvidence,
-        _launch_inputs: &HlaeBundleLaunchInputs,
-        _confirmation: &ProposalConfirmation,
-    ) -> Result<HlaeProposalExportResult, DomainError> {
-        Err(DomainError::DependencyUnavailable(
-            "AI proposal execution adapter".to_owned(),
-        ))
-    }
-
-    fn confirmation_token(
-        &self,
-        _action: AgentProposalAction,
-        _base_fingerprint: &str,
-        _proposal_fingerprint: &str,
-        _expected_revision: u64,
-    ) -> Result<String, DomainError> {
-        Err(DomainError::DependencyUnavailable(
-            "AI proposal confirmation adapter".to_owned(),
-        ))
-    }
-
-    fn verify_confirmation(
-        &self,
-        _action: AgentProposalAction,
-        _base_fingerprint: &str,
-        _proposal_fingerprint: &str,
-        _expected_revision: u64,
-        _confirmation_token: &str,
-    ) -> Result<(), DomainError> {
-        Err(DomainError::DependencyUnavailable(
-            "AI proposal confirmation adapter".to_owned(),
-        ))
-    }
-}
-
 #[async_trait]
 pub trait AnalysisPort: Send + Sync + std::fmt::Debug {
     async fn validate_input(

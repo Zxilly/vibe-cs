@@ -5,65 +5,6 @@ use sha2::{Digest, Sha256};
 
 use crate::{Result, StorageError};
 
-const PRE_AGENT_VIDEO_SCHEMA_FINGERPRINT: &str =
-    "05f735f18021eb954cf20fee8398d5d69e39b1df507d74de19e7128a3d177c17";
-
-const AGENT_VIDEO_MIGRATION: &str = r"
-    CREATE TABLE agent_takes (
-        id TEXT PRIMARY KEY NOT NULL,
-        plan_id TEXT NOT NULL,
-        shot_id TEXT NOT NULL,
-        recorded_clip_id TEXT NOT NULL UNIQUE,
-        recording_job_id TEXT NOT NULL,
-        ordinal INTEGER NOT NULL CHECK(ordinal >= 1),
-        created_at TEXT NOT NULL,
-        document_json TEXT NOT NULL,
-        UNIQUE(plan_id, shot_id, ordinal),
-        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE,
-        FOREIGN KEY (recorded_clip_id) REFERENCES recorded_clips(id) ON DELETE RESTRICT
-    );
-
-    CREATE TABLE agent_compositions (
-        id TEXT PRIMARY KEY NOT NULL,
-        plan_id TEXT NOT NULL UNIQUE,
-        plan_revision INTEGER NOT NULL CHECK(plan_revision >= 1),
-        status TEXT NOT NULL CHECK(status IN (
-            'draft', 'confirmed', 'exporting', 'exported', 'failed'
-        )),
-        updated_at TEXT NOT NULL,
-        document_json TEXT NOT NULL,
-        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE agent_composition_items (
-        composition_id TEXT NOT NULL,
-        shot_id TEXT NOT NULL,
-        take_id TEXT NOT NULL,
-        position INTEGER NOT NULL CHECK(position >= 0),
-        PRIMARY KEY(composition_id, shot_id),
-        UNIQUE(composition_id, take_id),
-        UNIQUE(composition_id, position),
-        FOREIGN KEY (composition_id) REFERENCES agent_compositions(id) ON DELETE CASCADE,
-        FOREIGN KEY (take_id) REFERENCES agent_takes(id) ON DELETE RESTRICT
-    );
-
-    CREATE TABLE agent_recording_runs (
-        recording_job_id TEXT PRIMARY KEY NOT NULL,
-        plan_id TEXT NOT NULL,
-        composition_id TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE,
-        FOREIGN KEY (composition_id) REFERENCES agent_compositions(id) ON DELETE CASCADE
-    );
-
-    CREATE INDEX agent_takes_plan_shot_idx
-        ON agent_takes(plan_id, shot_id, created_at DESC, ordinal DESC);
-    CREATE INDEX agent_compositions_updated_idx
-        ON agent_compositions(updated_at DESC, id);
-    CREATE INDEX agent_recording_runs_plan_idx
-        ON agent_recording_runs(plan_id, created_at DESC);
-";
-
 const CURRENT_SCHEMA: &str = r"
     CREATE TABLE storage_contract (
         singleton INTEGER PRIMARY KEY NOT NULL CHECK(singleton = 1),
@@ -75,6 +16,45 @@ const CURRENT_SCHEMA: &str = r"
         document_json TEXT NOT NULL,
         updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE projects (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL CHECK(length(name) BETWEEN 1 AND 200),
+        revision INTEGER NOT NULL CHECK(revision >= 1),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        document_json TEXT NOT NULL
+    );
+
+    CREATE TABLE project_change_groups (
+        id TEXT PRIMARY KEY NOT NULL,
+        project_id TEXT NOT NULL,
+        from_revision INTEGER NOT NULL CHECK(from_revision >= 1),
+        to_revision INTEGER NOT NULL CHECK(to_revision > from_revision),
+        status TEXT NOT NULL CHECK(status IN ('completed', 'interrupted')),
+        reverts_change_group_id TEXT UNIQUE,
+        created_at TEXT NOT NULL,
+        completed_at TEXT NOT NULL,
+        document_json TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (reverts_change_group_id) REFERENCES project_change_groups(id) ON DELETE RESTRICT,
+        UNIQUE(project_id, to_revision)
+    );
+
+    CREATE TABLE project_edit_leases (
+        project_id TEXT PRIMARY KEY NOT NULL,
+        id TEXT NOT NULL UNIQUE,
+        session_id TEXT NOT NULL,
+        turn_id TEXT NOT NULL,
+        base_revision INTEGER NOT NULL CHECK(base_revision >= 1),
+        acquired_at TEXT NOT NULL,
+        heartbeat_at TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX projects_updated_idx ON projects(updated_at DESC, id);
+    CREATE INDEX project_change_groups_project_idx
+        ON project_change_groups(project_id, to_revision DESC);
 
     CREATE TABLE demos (
         id TEXT PRIMARY KEY NOT NULL,
@@ -260,21 +240,6 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (demo_id) REFERENCES demos(id) ON DELETE SET NULL
     );
 
-    CREATE TABLE montage_projects (
-        id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        document_json TEXT NOT NULL
-    );
-
-    CREATE TABLE editor_projects (
-        id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        revision INTEGER NOT NULL,
-        updated_at TEXT NOT NULL,
-        document_json TEXT NOT NULL
-    );
-
     CREATE TABLE media_assets (
         id TEXT PRIMARY KEY NOT NULL,
         project_id TEXT,
@@ -282,16 +247,8 @@ const CURRENT_SCHEMA: &str = r"
         name TEXT NOT NULL,
         path TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        document_json TEXT NOT NULL
-    );
-
-    CREATE TABLE editor_presets (
-        id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL,
-        revision INTEGER NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        document_json TEXT NOT NULL
+        document_json TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
     CREATE TABLE export_jobs (
@@ -300,7 +257,8 @@ const CURRENT_SCHEMA: &str = r"
         kind TEXT NOT NULL,
         status TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        document_json TEXT NOT NULL
+        document_json TEXT NOT NULL,
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
     CREATE TABLE recording_jobs (
@@ -310,18 +268,6 @@ const CURRENT_SCHEMA: &str = r"
         updated_at TEXT NOT NULL,
         document_json TEXT NOT NULL,
         FOREIGN KEY (retry_of) REFERENCES recording_jobs(id)
-    );
-
-    -- Saved shot settings behind the shot inspector's save-as-preset action.
-    -- Only what the preset list is ordered and addressed by is a column; the
-    -- settings themselves live in document_json, exactly as agent_plans keeps
-    -- its shots. The name bound matches RECORDING_SHOT_PRESET_MAX_NAME_CHARS.
-    CREATE TABLE recording_shot_presets (
-        id TEXT PRIMARY KEY NOT NULL,
-        name TEXT NOT NULL CHECK(length(name) <= 200 AND instr(name, char(0)) = 0),
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        document_json TEXT NOT NULL
     );
 
     CREATE TABLE steam_matches (
@@ -498,7 +444,7 @@ const CURRENT_SCHEMA: &str = r"
     CREATE TABLE agent_session_entries (
         session_id TEXT NOT NULL,
         sequence INTEGER NOT NULL CHECK(sequence >= 0),
-        kind TEXT NOT NULL CHECK(kind IN ('user', 'assistant', 'workspace_edit')),
+        kind TEXT NOT NULL CHECK(kind IN ('user', 'assistant')),
         created_at TEXT NOT NULL,
         search_text TEXT NOT NULL,
         document_json TEXT NOT NULL,
@@ -506,103 +452,11 @@ const CURRENT_SCHEMA: &str = r"
         FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
     );
 
-    -- A reference is the durable record of one touch, not ownership. It has no
-    -- foreign key to the referenced plan, recording job, editor project or
-    -- output, so deleting a session removes the conversation only and deleting
-    -- an object leaves the historical reference readable.
-    CREATE TABLE agent_session_object_refs (
-        session_id TEXT NOT NULL,
-        object_kind TEXT NOT NULL CHECK(object_kind IN (
-            'plan', 'recording_task', 'edit_project', 'output'
-        )),
-        object_id TEXT NOT NULL,
-        label TEXT NOT NULL CHECK(length(label) <= 200 AND instr(label, char(0)) = 0),
-        summary TEXT NOT NULL CHECK(length(summary) <= 400),
-        status TEXT NOT NULL CHECK(length(status) <= 120),
-        touch_count INTEGER NOT NULL CHECK(touch_count >= 1),
-        touched_at TEXT NOT NULL,
-        PRIMARY KEY(session_id, object_kind, object_id),
-        FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE agent_plans (
-        id TEXT PRIMARY KEY NOT NULL,
-        title TEXT NOT NULL CHECK(length(title) <= 200 AND instr(title, char(0)) = 0),
-        status TEXT NOT NULL CHECK(status IN (
-            'draft', 'awaiting_confirmation', 'confirmed', 'archived'
-        )),
-        revision INTEGER NOT NULL CHECK(revision >= 1),
-        baseline_revision INTEGER NOT NULL CHECK(baseline_revision >= 1),
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        -- 「稍后处理」: the instant the plan comes back on its own. NULL is the
-        -- normal state. It is not a status, because a snoozed plan is still
-        -- awaiting confirmation — `archived` is the permanent answer.
-        snoozed_until TEXT,
-        shots_json TEXT NOT NULL,
-        agent_baseline_json TEXT NOT NULL,
-        CHECK(baseline_revision <= revision)
-    );
-
-    -- The origin trail keeps the session identity and its title as captured at
-    -- edit time. It has no foreign key to agent_sessions: deleting a session
-    -- must never rewrite the history of a plan it changed.
-    CREATE TABLE agent_plan_origins (
-        plan_id TEXT NOT NULL,
-        sequence INTEGER NOT NULL CHECK(sequence >= 0),
-        at TEXT NOT NULL,
-        session_id TEXT NOT NULL,
-        session_title TEXT NOT NULL CHECK(length(session_title) <= 200),
-        summary TEXT NOT NULL CHECK(length(summary) <= 400),
-        PRIMARY KEY(plan_id, sequence),
-        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE agent_takes (
-        id TEXT PRIMARY KEY NOT NULL,
-        plan_id TEXT NOT NULL,
-        shot_id TEXT NOT NULL,
-        recorded_clip_id TEXT NOT NULL UNIQUE,
-        recording_job_id TEXT NOT NULL,
-        ordinal INTEGER NOT NULL CHECK(ordinal >= 1),
-        created_at TEXT NOT NULL,
-        document_json TEXT NOT NULL,
-        UNIQUE(plan_id, shot_id, ordinal),
-        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE,
-        FOREIGN KEY (recorded_clip_id) REFERENCES recorded_clips(id) ON DELETE RESTRICT
-    );
-
-    CREATE TABLE agent_compositions (
-        id TEXT PRIMARY KEY NOT NULL,
-        plan_id TEXT NOT NULL UNIQUE,
-        plan_revision INTEGER NOT NULL CHECK(plan_revision >= 1),
-        status TEXT NOT NULL CHECK(status IN (
-            'draft', 'confirmed', 'exporting', 'exported', 'failed'
-        )),
-        updated_at TEXT NOT NULL,
-        document_json TEXT NOT NULL,
-        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE agent_composition_items (
-        composition_id TEXT NOT NULL,
-        shot_id TEXT NOT NULL,
-        take_id TEXT NOT NULL,
-        position INTEGER NOT NULL CHECK(position >= 0),
-        PRIMARY KEY(composition_id, shot_id),
-        UNIQUE(composition_id, take_id),
-        UNIQUE(composition_id, position),
-        FOREIGN KEY (composition_id) REFERENCES agent_compositions(id) ON DELETE CASCADE,
-        FOREIGN KEY (take_id) REFERENCES agent_takes(id) ON DELETE RESTRICT
-    );
-
-    CREATE TABLE agent_recording_runs (
+    CREATE TABLE project_recording_runs (
         recording_job_id TEXT PRIMARY KEY NOT NULL,
-        plan_id TEXT NOT NULL,
-        composition_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        FOREIGN KEY (plan_id) REFERENCES agent_plans(id) ON DELETE CASCADE,
-        FOREIGN KEY (composition_id) REFERENCES agent_compositions(id) ON DELETE CASCADE
+        FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
 
     CREATE INDEX demos_status_idx ON demos(status);
@@ -623,8 +477,6 @@ const CURRENT_SCHEMA: &str = r"
     CREATE INDEX recording_jobs_activity_idx ON recording_jobs(updated_at DESC, id);
     CREATE INDEX recording_jobs_activity_status_idx ON recording_jobs(status, updated_at DESC, id);
     CREATE INDEX recording_jobs_retry_of_idx ON recording_jobs(retry_of);
-    CREATE INDEX recording_shot_presets_updated_idx
-        ON recording_shot_presets(updated_at DESC, id);
     CREATE INDEX steam_matches_account_idx ON steam_matches(steam_id, match_id DESC);
     CREATE INDEX match_download_jobs_match_idx
         ON match_download_jobs(match_record_id, updated_at DESC);
@@ -635,7 +487,6 @@ const CURRENT_SCHEMA: &str = r"
         ON match_download_jobs(updated_at DESC, id);
     CREATE INDEX match_download_jobs_activity_status_idx
         ON match_download_jobs(status, updated_at DESC, id);
-    CREATE INDEX editor_presets_updated_idx ON editor_presets(updated_at DESC);
     CREATE INDEX cosmetic_plans_demo_idx ON cosmetic_plans(demo_id, updated_at DESC);
     CREATE UNIQUE INDEX demos_content_sha256_unique
         ON demos(content_sha256) WHERE content_sha256 IS NOT NULL;
@@ -671,19 +522,6 @@ const CURRENT_SCHEMA: &str = r"
         ON lineup_map_members(steam_id, lineup_id);
     CREATE INDEX agent_sessions_updated_idx ON agent_sessions(updated_at DESC, id);
     CREATE INDEX agent_session_entries_kind_idx ON agent_session_entries(session_id, kind);
-    CREATE INDEX agent_session_object_refs_object_idx
-        ON agent_session_object_refs(object_kind, object_id, touched_at DESC, session_id);
-    CREATE INDEX agent_session_object_refs_session_idx
-        ON agent_session_object_refs(session_id, touched_at DESC);
-    CREATE INDEX agent_plans_updated_idx ON agent_plans(updated_at DESC, id);
-    CREATE INDEX agent_plan_origins_plan_idx ON agent_plan_origins(plan_id, at DESC, sequence DESC);
-    CREATE INDEX agent_plan_origins_session_idx ON agent_plan_origins(session_id, at DESC);
-    CREATE INDEX agent_takes_plan_shot_idx
-        ON agent_takes(plan_id, shot_id, created_at DESC, ordinal DESC);
-    CREATE INDEX agent_compositions_updated_idx
-        ON agent_compositions(updated_at DESC, id);
-    CREATE INDEX agent_recording_runs_plan_idx
-        ON agent_recording_runs(plan_id, created_at DESC);
 ";
 
 pub(crate) fn configure(connection: &Connection) -> Result<()> {
@@ -729,16 +567,6 @@ pub(crate) fn run(connection: &mut Connection) -> Result<()> {
             }
             other => StorageError::Database(other),
         })?;
-    if stored.as_deref() == Some(PRE_AGENT_VIDEO_SCHEMA_FINGERPRINT) {
-        let transaction = connection.transaction()?;
-        transaction.execute_batch(AGENT_VIDEO_MIGRATION)?;
-        transaction.execute(
-            "UPDATE storage_contract SET fingerprint = ?1 WHERE singleton = 1",
-            params![fingerprint],
-        )?;
-        transaction.commit()?;
-        return Ok(());
-    }
     if stored.as_deref() != Some(fingerprint.as_str()) {
         return Err(StorageError::CurrentSchemaRequired);
     }
@@ -802,41 +630,5 @@ mod tests {
             run(&mut connection),
             Err(StorageError::CurrentSchemaRequired)
         ));
-    }
-
-    #[test]
-    fn previous_contract_adds_agent_video_tables_without_losing_rows() {
-        let mut connection = Connection::open_in_memory().expect("open sqlite");
-        configure(&connection).expect("configure");
-        connection
-            .execute_batch(&format!(
-                "CREATE TABLE storage_contract(singleton INTEGER PRIMARY KEY NOT NULL, fingerprint TEXT NOT NULL);\
-                 CREATE TABLE agent_plans(id TEXT PRIMARY KEY NOT NULL);\
-                 CREATE TABLE recorded_clips(id TEXT PRIMARY KEY NOT NULL);\
-                 INSERT INTO storage_contract(singleton, fingerprint) VALUES (1, '{PRE_AGENT_VIDEO_SCHEMA_FINGERPRINT}');\
-                 INSERT INTO agent_plans(id) VALUES ('plan-before-migration');"
-            ))
-            .expect("previous contract fixture");
-
-        run(&mut connection).expect("migrate previous contract");
-
-        assert_eq!(
-            connection
-                .query_row("SELECT COUNT(*) FROM agent_plans", [], |row| row
-                    .get::<_, i64>(0))
-                .expect("preserved plan"),
-            1
-        );
-        assert_eq!(
-            connection
-                .query_row(
-                    "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'agent_compositions'",
-                    [],
-                    |row| row.get::<_, i64>(0),
-                )
-                .expect("composition table"),
-            1
-        );
-        run(&mut connection).expect("reopen migrated contract");
     }
 }

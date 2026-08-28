@@ -1307,7 +1307,7 @@ fn build_camera_plan(
                 .map(|player| (frame.tick, (player, frame)))
         })
         .collect::<Vec<_>>();
-    let samples = crate::proposal_execution::sample_four_frames(&candidates).ok_or_else(|| {
+    let samples = crate::camera_planning::sample_four_frames(&candidates).ok_or_else(|| {
         DomainError::DependencyUnavailable(
             "this shot needs at least four spatial replay samples for camera movement".to_owned(),
         )
@@ -1324,13 +1324,13 @@ fn build_camera_plan(
         .zip(target_ticks)
         .enumerate()
         .map(|(index, ((_, (player, frame)), tick))| {
-            crate::proposal_execution::camera_keyframe_for_scene(
+            crate::camera_planning::camera_keyframe_for_scene(
                 tick,
                 player,
                 samples[0].1.0,
                 item.request.camera_style,
                 index,
-                crate::proposal_execution::engagement_focus(frame, player),
+                crate::camera_planning::engagement_focus(frame, player),
             )
         })
         .collect();

@@ -4,6 +4,20 @@ use sha2::{Digest, Sha256};
 use ts_rs::TS;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum HlaeCameraStyle {
+    #[default]
+    Pov,
+    Orbit,
+    Dolly,
+    Static,
+    Tracking,
+    Crane,
+    Flyby,
+}
+
 /// Lowest camera field of view the managed capture grammar accepts.
 ///
 /// Copied from `vibe_cs_hlae::player_pov_capture::validate_player_pov_plan`,
@@ -450,103 +464,6 @@ pub struct RecordedClip {
     pub tags: Vec<String>,
     pub metadata: serde_json::Value,
     pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
-#[serde(deny_unknown_fields)]
-#[ts(export)]
-pub struct MontageProject {
-    pub id: Uuid,
-    pub name: String,
-    pub clips: Vec<MontageClip>,
-    pub settings: MontageSettings,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
-#[serde(deny_unknown_fields)]
-#[ts(export)]
-pub struct MontageClip {
-    pub clip_id: Uuid,
-    pub order: u32,
-    pub trim_start: f64,
-    pub trim_end: Option<f64>,
-    pub transition: String,
-    pub title: Option<String>,
-    /// Optional managed image asset used by the name card.
-    pub avatar_asset_id: Option<Uuid>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
-#[serde(deny_unknown_fields)]
-#[ts(export)]
-pub struct MontageSettings {
-    pub width: u32,
-    pub height: u32,
-    pub fps: u32,
-    pub encoder: String,
-    pub quality: u8,
-    pub background_music: Option<String>,
-    pub music_volume: f64,
-    /// Duration shared by cross-fade and slide transitions.
-    pub transition_seconds: f64,
-    /// Optional opening title rendered on a generated title card.
-    pub intro_title: Option<String>,
-    /// Opening title-card duration. A zero value disables the card.
-    pub intro_duration_seconds: f64,
-    /// Burn the per-clip title into the beginning of each clip.
-    pub include_name_cards: bool,
-    /// Maximum time for which a clip name card remains visible.
-    pub name_card_duration_seconds: f64,
-    /// Optional closing title rendered after the final clip.
-    pub outro_title: Option<String>,
-    /// Closing title-card duration. A zero value disables the card.
-    pub outro_duration_seconds: f64,
-    /// Reusable built-in visual package. The renderer owns the exact palette
-    /// and typography so projects remain portable.
-    pub branding_theme: MontageBrandingTheme,
-}
-
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(export)]
-pub enum MontageBrandingTheme {
-    #[default]
-    Vibe,
-    Broadcast,
-    Minimal,
-    Neon,
-}
-
-const fn default_montage_transition_seconds() -> f64 {
-    0.35
-}
-
-const fn default_name_card_seconds() -> f64 {
-    2.5
-}
-
-impl Default for MontageSettings {
-    fn default() -> Self {
-        Self {
-            width: 1920,
-            height: 1080,
-            fps: 60,
-            encoder: "auto".to_owned(),
-            quality: 80,
-            background_music: None,
-            music_volume: 0.25,
-            transition_seconds: default_montage_transition_seconds(),
-            intro_title: None,
-            intro_duration_seconds: 0.0,
-            include_name_cards: false,
-            name_card_duration_seconds: default_name_card_seconds(),
-            outro_title: None,
-            outro_duration_seconds: 0.0,
-            branding_theme: MontageBrandingTheme::default(),
-        }
-    }
 }
 
 #[cfg(test)]

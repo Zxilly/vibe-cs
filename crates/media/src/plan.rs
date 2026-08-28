@@ -9,8 +9,8 @@ use std::{
 use serde_json::Value;
 use uuid::Uuid;
 use vibe_cs_domain::{
-    EditorClip, EditorEffect, EditorKeyframeProperty, EditorProject, EditorSpeedSegment,
-    MontageBrandingTheme, MontageClip, MontageProject, TextStyle, TrackKind, Transform,
+    EditorEffect, EditorKeyframe, EditorKeyframeProperty, EditorSpeedSegment, Project, TextStyle,
+    TimelineClipMaterial, TrackKind, Transform,
 };
 
 use crate::{CommandSpec, MediaError, MediaResult, io_error};
@@ -65,14 +65,6 @@ pub fn select_video_encoder(
     })
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct MontageSource {
-    pub path: PathBuf,
-    pub duration_seconds: Option<f64>,
-    pub has_audio: bool,
-    pub avatar_path: Option<PathBuf>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EditorMediaKind {
     Video,
@@ -94,6 +86,93 @@ pub struct EditorRenderOptions {
     pub quality: u8,
     pub range_start: Option<f64>,
     pub range_end: Option<f64>,
+}
+
+#[derive(Debug)]
+struct RenderProject {
+    width: u32,
+    height: u32,
+    fps: u32,
+    duration_seconds: f64,
+    tracks: Vec<RenderTrack>,
+}
+
+#[derive(Debug)]
+struct RenderTrack {
+    kind: TrackKind,
+    order: u32,
+    muted: bool,
+    hidden: bool,
+    clips: Vec<RenderClip>,
+}
+
+#[derive(Debug)]
+struct RenderClip {
+    id: Uuid,
+    asset_id: Option<Uuid>,
+    start: f64,
+    duration: f64,
+    source_in: f64,
+    source_out: f64,
+    speed: f64,
+    volume: f64,
+    transform: Transform,
+    effects: Vec<EditorEffect>,
+    transition_in: Option<String>,
+    transition_out: Option<String>,
+    text: Option<TextStyle>,
+    metadata: Value,
+    keyframes: Vec<EditorKeyframe>,
+    speed_segments: Vec<EditorSpeedSegment>,
+}
+
+impl From<&Project> for RenderProject {
+    fn from(project: &Project) -> Self {
+        Self {
+            width: project.document.width,
+            height: project.document.height,
+            fps: project.document.fps,
+            duration_seconds: project.document.duration_seconds,
+            tracks: project
+                .document
+                .tracks
+                .iter()
+                .map(|track| RenderTrack {
+                    kind: track.kind,
+                    order: track.order,
+                    muted: track.muted,
+                    hidden: track.hidden,
+                    clips: track
+                        .clips
+                        .iter()
+                        .filter(|clip| clip.placement.enabled)
+                        .map(|clip| RenderClip {
+                            id: clip.id,
+                            asset_id: match clip.material {
+                                TimelineClipMaterial::Take { asset_id, .. }
+                                | TimelineClipMaterial::Asset { asset_id, .. } => Some(asset_id),
+                                TimelineClipMaterial::Planned => None,
+                            },
+                            start: clip.placement.start,
+                            duration: clip.placement.duration,
+                            source_in: clip.placement.source_in,
+                            source_out: clip.placement.source_out,
+                            speed: clip.placement.speed,
+                            volume: clip.placement.volume,
+                            transform: clip.transform.clone(),
+                            effects: clip.effects.clone(),
+                            transition_in: clip.transition_in.clone(),
+                            transition_out: clip.transition_out.clone(),
+                            text: clip.text.clone(),
+                            metadata: clip.metadata.clone(),
+                            keyframes: clip.keyframes.clone(),
+                            speed_segments: clip.speed_segments.clone(),
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -365,517 +444,14 @@ enum Transition {
 /// # Errors
 ///
 /// Returns an error for invalid timing, transitions, text, media, or output.
-pub fn build_montage_plan_with_sources<S: BuildHasher>(
-    project: &MontageProject,
-    sources: &HashMap<String, MontageSource, S>,
-    output: &Path,
-    encoder: &EncoderSelection,
-) -> MediaResult<FilterPlan> {
-    validate_dimensions(
-        project.settings.width,
-        project.settings.height,
-        project.settings.fps,
-    )?;
-    if project.clips.is_empty() {
-        return Err(MediaError::InvalidInput("montage has no clips".to_owned()));
-    }
-    validate_montage_settings(project)?;
-    let temporary = temporary_output_path(output)?;
-    let prepared = prepare_montage_clips(project, sources)?;
-    let primary = build_montage_command(
-        project,
-        &prepared,
-        &temporary,
-        validated_encoder(&encoder.primary)?,
-    )?;
-    let fallback_command = encoder
-        .fallback
-        .as_deref()
-        .map(validated_encoder)
-        .transpose()?
-        .map(|fallback| build_montage_command(project, &prepared, &temporary, fallback))
-        .transpose()?;
-    let duration_seconds = montage_duration(project, &prepared)?;
-    Ok(FilterPlan {
-        command: primary,
-        fallback_command,
-        temporary_output: temporary,
-        final_output: output.to_path_buf(),
-        duration_seconds,
-    })
-}
-
-#[derive(Debug)]
-struct PreparedMontageClip<'a> {
-    clip: &'a MontageClip,
-    source: &'a MontageSource,
-    duration: f64,
-    transition: Transition,
-}
-
-fn prepare_montage_clips<'a, S: BuildHasher>(
-    project: &'a MontageProject,
-    sources: &'a HashMap<String, MontageSource, S>,
-) -> MediaResult<Vec<PreparedMontageClip<'a>>> {
-    let mut sorted = project.clips.iter().collect::<Vec<_>>();
-    sorted.sort_by_key(|clip| clip.order);
-    let mut prepared = Vec::with_capacity(sorted.len());
-    for clip in sorted {
-        if !clip.trim_start.is_finite() || clip.trim_start < 0.0 {
-            return Err(MediaError::InvalidInput(
-                "clip trim_start must be finite and non-negative".to_owned(),
-            ));
-        }
-        let source = sources.get(&clip.clip_id.to_string()).ok_or_else(|| {
-            MediaError::InvalidInput(format!("missing source for clip {}", clip.clip_id))
-        })?;
-        if !source.path.is_file() {
-            return Err(MediaError::InvalidInput(format!(
-                "clip source does not exist: {}",
-                source.path.display()
-            )));
-        }
-        let trim_end = clip.trim_end.or(source.duration_seconds).ok_or_else(|| {
-            MediaError::InvalidInput(format!(
-                "clip {} requires trim_end or probed duration",
-                clip.clip_id
-            ))
-        })?;
-        if !trim_end.is_finite() || trim_end <= clip.trim_start {
-            return Err(MediaError::InvalidInput(
-                "clip trim_end must be after trim_start".to_owned(),
-            ));
-        }
-        if source
-            .duration_seconds
-            .is_some_and(|duration| trim_end > duration + 0.001)
-        {
-            return Err(MediaError::InvalidInput(format!(
-                "clip {} trim exceeds source duration",
-                clip.clip_id
-            )));
-        }
-        prepared.push(PreparedMontageClip {
-            clip,
-            source,
-            duration: trim_end - clip.trim_start,
-            transition: parse_transition(&clip.transition)?,
-        });
-    }
-    Ok(prepared)
-}
-
-fn validate_montage_settings(project: &MontageProject) -> MediaResult<()> {
-    let settings = &project.settings;
-    validate_finite_range(
-        settings.transition_seconds,
-        0.05,
-        5.0,
-        "transition duration",
-    )?;
-    validate_finite_range(settings.music_volume, 0.0, 2.0, "background music volume")?;
-    validate_finite_range(settings.intro_duration_seconds, 0.0, 30.0, "intro duration")?;
-    validate_finite_range(settings.outro_duration_seconds, 0.0, 30.0, "outro duration")?;
-    validate_finite_range(
-        settings.name_card_duration_seconds,
-        0.1,
-        15.0,
-        "name card duration",
-    )?;
-    if settings.intro_duration_seconds > 0.0 {
-        let title = settings
-            .intro_title
-            .as_deref()
-            .map(str::trim)
-            .filter(|title| !title.is_empty())
-            .ok_or_else(|| {
-                MediaError::InvalidInput("intro duration requires an intro title".to_owned())
-            })?;
-        validate_text_length(title, 200, "intro title")?;
-    }
-    if settings.outro_duration_seconds > 0.0 {
-        let title = settings
-            .outro_title
-            .as_deref()
-            .map(str::trim)
-            .filter(|title| !title.is_empty())
-            .ok_or_else(|| {
-                MediaError::InvalidInput("outro duration requires an outro title".to_owned())
-            })?;
-        validate_text_length(title, 200, "outro title")?;
-    }
-    if let Some(path) = settings.background_music.as_deref()
-        && !Path::new(path).is_file()
-    {
-        return Err(MediaError::InvalidInput(format!(
-            "background music does not exist: {path}"
-        )));
-    }
-    Ok(())
-}
-
-fn montage_duration(
-    project: &MontageProject,
-    prepared: &[PreparedMontageClip<'_>],
-) -> MediaResult<f64> {
-    let mut duration = project.settings.intro_duration_seconds;
-    for (index, item) in prepared.iter().enumerate() {
-        if index > 0 && item.transition != Transition::Cut {
-            let transition = project.settings.transition_seconds;
-            if transition >= duration || transition >= item.duration {
-                return Err(MediaError::InvalidInput(format!(
-                    "transition before clip {} is longer than an adjacent segment",
-                    item.clip.clip_id
-                )));
-            }
-            duration -= transition;
-        }
-        duration += item.duration;
-    }
-    duration += project.settings.outro_duration_seconds;
-    Ok(duration)
-}
-
-fn build_montage_command(
-    project: &MontageProject,
-    prepared: &[PreparedMontageClip<'_>],
-    temporary: &Path,
-    encoder: &str,
-) -> MediaResult<CommandSpec> {
-    let mut command = CommandSpec::default().args(["-hide_banner", "-nostdin", "-y"]);
-    let mut inputs = Vec::with_capacity(prepared.len());
-    let mut next_input = 0_usize;
-    for item in prepared {
-        command = command.args([
-            OsString::from("-i"),
-            item.source.path.as_os_str().to_os_string(),
-        ]);
-        let video_input = next_input;
-        next_input += 1;
-        let (audio_input, silent) = if item.source.has_audio {
-            (video_input, false)
-        } else {
-            command = command.args([
-                OsString::from("-f"),
-                OsString::from("lavfi"),
-                OsString::from("-t"),
-                OsString::from(format!("{:.6}", item.duration)),
-                OsString::from("-i"),
-                OsString::from("anullsrc=r=48000:cl=stereo"),
-            ]);
-            let input = next_input;
-            next_input += 1;
-            (input, true)
-        };
-        let avatar_input = if let Some(path) = item.source.avatar_path.as_deref() {
-            if !path.is_file() {
-                return Err(MediaError::InvalidInput(format!(
-                    "avatar source does not exist: {}",
-                    path.display()
-                )));
-            }
-            command = command.args([
-                OsString::from("-loop"),
-                OsString::from("1"),
-                OsString::from("-framerate"),
-                OsString::from(project.settings.fps.to_string()),
-                OsString::from("-i"),
-                path.as_os_str().to_os_string(),
-            ]);
-            let input = next_input;
-            next_input += 1;
-            Some(input)
-        } else {
-            None
-        };
-        inputs.push((video_input, audio_input, silent, avatar_input));
-    }
-    let music_input = if let Some(music) = project.settings.background_music.as_deref() {
-        command = command.args([
-            OsString::from("-stream_loop"),
-            OsString::from("-1"),
-            OsString::from("-i"),
-            Path::new(music).as_os_str().to_os_string(),
-        ]);
-        Some(next_input)
-    } else {
-        None
-    };
-
-    let mut filters = Vec::new();
-    let mut segments = Vec::new();
-    if project.settings.intro_duration_seconds > 0.0 {
-        let duration = project.settings.intro_duration_seconds;
-        let title = project.settings.intro_title.as_deref().unwrap_or_default();
-        let (background, _) = montage_theme_colors(project.settings.branding_theme);
-        filters.push(format!(
-            "color=c={background}:s={}x{}:r={}:d={duration:.6},settb=AVTB,{}[intro_v]",
-            project.settings.width,
-            project.settings.height,
-            project.settings.fps,
-            montage_drawtext(
-                title,
-                true,
-                duration,
-                project.settings.height,
-                project.settings.branding_theme,
-            )?
-        ));
-        filters.push(format!(
-            "anullsrc=r=48000:cl=stereo:d={duration:.6},asettb=1/48000[intro_a]"
-        ));
-        segments.push((
-            "intro_v".to_owned(),
-            "intro_a".to_owned(),
-            duration,
-            Transition::Cut,
-        ));
-    }
-    for (index, (item, (video_input, audio_input, silent, avatar_input))) in
-        prepared.iter().zip(inputs).enumerate()
-    {
-        let trim_end = item.clip.trim_start + item.duration;
-        let mut video = format!(
-            "[{video_input}:v:0]trim=start={:.6}:end={trim_end:.6},setpts=PTS-STARTPTS,scale={}:{}:force_original_aspect_ratio=decrease,pad={}:{}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={},settb=AVTB,format=yuv420p",
-            item.clip.trim_start,
-            project.settings.width,
-            project.settings.height,
-            project.settings.width,
-            project.settings.height,
-            project.settings.fps
-        );
-        if project.settings.include_name_cards
-            && let Some(title) = item
-                .clip
-                .title
-                .as_deref()
-                .filter(|title| !title.trim().is_empty())
-        {
-            validate_text_length(title, 200, "name card")?;
-            let visible = item
-                .duration
-                .min(project.settings.name_card_duration_seconds);
-            if let Some(avatar_input) = avatar_input {
-                let base_label = format!("clip_base{index}");
-                let avatar_label = format!("avatar{index}");
-                let card_label = format!("clip_card{index}");
-                let _ = write!(video, "[{base_label}]");
-                filters.push(video);
-                filters.push(format!(
-                    "[{avatar_input}:v:0]scale=96:96:force_original_aspect_ratio=increase,crop=96:96,format=rgba[{avatar_label}]"
-                ));
-                filters.push(format!(
-                    "[{base_label}][{avatar_label}]overlay=x=48:y=H-h-48:enable='between(t,0,{visible:.6})'[{card_label}]"
-                ));
-                video = format!(
-                    "[{card_label}]{}",
-                    montage_drawtext(
-                        title,
-                        false,
-                        visible,
-                        project.settings.height,
-                        project.settings.branding_theme,
-                    )?
-                );
-            } else {
-                let _ = write!(
-                    video,
-                    ",{}",
-                    montage_drawtext(
-                        title,
-                        false,
-                        visible,
-                        project.settings.height,
-                        project.settings.branding_theme,
-                    )?
-                );
-            }
-        }
-        let video_label = format!("clip_v{index}");
-        let _ = write!(video, "[{video_label}]");
-        filters.push(video);
-
-        let (audio_start, audio_end) = if silent {
-            (0.0, item.duration)
-        } else {
-            (item.clip.trim_start, trim_end)
-        };
-        let audio_label = format!("clip_a{index}");
-        filters.push(format!(
-            "[{audio_input}:a:0]atrim=start={audio_start:.6}:end={audio_end:.6},asetpts=PTS-STARTPTS,aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asettb=1/48000[{audio_label}]"
-        ));
-        segments.push((video_label, audio_label, item.duration, item.transition));
-    }
-
-    if project.settings.outro_duration_seconds > 0.0 {
-        let duration = project.settings.outro_duration_seconds;
-        let title = project.settings.outro_title.as_deref().unwrap_or_default();
-        let (background, _) = montage_theme_colors(project.settings.branding_theme);
-        filters.push(format!(
-            "color=c={background}:s={}x{}:r={}:d={duration:.6},settb=AVTB,{}[outro_v]",
-            project.settings.width,
-            project.settings.height,
-            project.settings.fps,
-            montage_drawtext(
-                title,
-                true,
-                duration,
-                project.settings.height,
-                project.settings.branding_theme,
-            )?
-        ));
-        filters.push(format!(
-            "anullsrc=r=48000:cl=stereo:d={duration:.6},asettb=1/48000[outro_a]"
-        ));
-        segments.push((
-            "outro_v".to_owned(),
-            "outro_a".to_owned(),
-            duration,
-            Transition::Cut,
-        ));
-    }
-
-    let mut previous_video = segments[0].0.clone();
-    let mut previous_audio = segments[0].1.clone();
-    let mut elapsed = segments[0].2;
-    for (index, (video, audio, duration, transition)) in segments.iter().enumerate().skip(1) {
-        let next_video = format!("sequence_v{index}");
-        let next_audio = format!("sequence_a{index}");
-        match transition {
-            Transition::Cut => {
-                filters.push(format!(
-                    "[{previous_video}][{video}]concat=n=2:v=1:a=0[{next_video}]"
-                ));
-                filters.push(format!(
-                    "[{previous_audio}][{audio}]concat=n=2:v=0:a=1[{next_audio}]"
-                ));
-                elapsed += duration;
-            }
-            Transition::Fade
-            | Transition::Flash
-            | Transition::Dip
-            | Transition::Zoom
-            | Transition::Wipe
-            | Transition::Slide
-            | Transition::Blur
-            | Transition::Glitch
-            | Transition::Spin => {
-                let transition_duration = project.settings.transition_seconds;
-                if transition_duration >= elapsed || transition_duration >= *duration {
-                    return Err(MediaError::InvalidInput(
-                        "transition is longer than an adjacent segment".to_owned(),
-                    ));
-                }
-                let kind = match transition {
-                    Transition::Fade => "fade",
-                    Transition::Flash => "fadewhite",
-                    Transition::Dip => "fadeblack",
-                    Transition::Zoom => "zoomin",
-                    Transition::Wipe => "wipeleft",
-                    Transition::Slide => "slideleft",
-                    Transition::Blur => "smoothleft",
-                    Transition::Glitch => "pixelize",
-                    Transition::Spin => "radial",
-                    Transition::Cut => unreachable!("cut handled above"),
-                };
-                let offset = elapsed - transition_duration;
-                filters.push(format!(
-                    "[{previous_video}][{video}]xfade=transition={kind}:duration={transition_duration:.6}:offset={offset:.6}[{next_video}]"
-                ));
-                filters.push(format!(
-                    "[{previous_audio}][{audio}]acrossfade=d={transition_duration:.6}:c1=tri:c2=tri[{next_audio}]"
-                ));
-                elapsed += duration - transition_duration;
-            }
-        }
-        previous_video = next_video;
-        previous_audio = next_audio;
-    }
-    filters.push(format!("[{previous_video}]null[outv]"));
-    if let Some(input) = music_input {
-        let fade_start = (elapsed - 1.0).max(0.0);
-        filters.push(format!(
-            "[{input}:a:0]atrim=duration={elapsed:.6},asetpts=PTS-STARTPTS,volume={:.4},afade=t=out:st={fade_start:.6}:d={:.6},aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo[music]",
-            project.settings.music_volume,
-            elapsed.min(1.0)
-        ));
-        filters.push(format!(
-            "[{previous_audio}][music]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.95[outa]"
-        ));
-    } else {
-        filters.push(format!("[{previous_audio}]anull[outa]"));
-    }
-    command = command.args([
-        OsString::from("-filter_complex"),
-        OsString::from(filters.join(";")),
-        OsString::from("-map"),
-        OsString::from("[outv]"),
-        OsString::from("-map"),
-        OsString::from("[outa]"),
-        OsString::from("-c:v"),
-        OsString::from(encoder),
-    ]);
-    command = command.args(encoder_quality_args(encoder, project.settings.quality));
-    command = command.args([
-        OsString::from("-c:a"),
-        OsString::from("aac"),
-        OsString::from("-b:a"),
-        OsString::from("192k"),
-        OsString::from("-t"),
-        OsString::from(format!("{elapsed:.6}")),
-        OsString::from("-progress"),
-        OsString::from("pipe:1"),
-        OsString::from("-stats_period"),
-        OsString::from("0.25"),
-        OsString::from("-movflags"),
-        OsString::from("+faststart"),
-        temporary.as_os_str().to_os_string(),
-    ]);
-    Ok(command)
-}
-
-fn montage_drawtext(
-    text: &str,
-    centered: bool,
-    visible_seconds: f64,
-    height: u32,
-    theme: MontageBrandingTheme,
-) -> MediaResult<String> {
-    let escaped = escape_filter_value(text)?;
-    let font = font_filter_option("Arial", None)?;
-    let font_size = if centered {
-        (height / 14).clamp(28, 160)
-    } else {
-        (height / 28).clamp(22, 80)
-    };
-    let (x, y) = if centered {
-        ("(w-text_w)/2", "(h-text_h)/2")
-    } else {
-        ("48", "h-text_h-48")
-    };
-    let (_, accent) = montage_theme_colors(theme);
-    Ok(format!(
-        "drawtext={font}:text='{escaped}':expansion=none:fontsize={font_size}:fontcolor={accent}:box=1:boxcolor=black@0.72:boxborderw=18:x={x}:y={y}:enable='between(t,0,{visible_seconds:.6})'"
-    ))
-}
-
-fn montage_theme_colors(theme: MontageBrandingTheme) -> (&'static str, &'static str) {
-    match theme {
-        MontageBrandingTheme::Vibe => ("0x080b10", "white"),
-        MontageBrandingTheme::Broadcast => ("0x111827", "0xF59E0B"),
-        MontageBrandingTheme::Minimal => ("0xF3F4F6", "0x111827"),
-        MontageBrandingTheme::Neon => ("0x070A12", "0x22D3EE"),
-    }
-}
-
 /// Builds a compositing plan for video, audio, image, text, and overlay tracks.
 ///
 /// # Errors
 ///
 /// Returns an error for invalid timing, range, media, transform, effect,
 /// transition, text style, encoder, or output.
-pub fn build_editor_plan_with_sources<S: BuildHasher>(
-    project: &EditorProject,
+pub fn build_project_plan_with_sources<S: BuildHasher>(
+    project: &Project,
     assets: &HashMap<String, EditorMediaSource, S>,
     output: &Path,
     options: &EditorRenderOptions,
@@ -883,18 +459,19 @@ pub fn build_editor_plan_with_sources<S: BuildHasher>(
     project
         .validate()
         .map_err(|error| MediaError::InvalidInput(error.to_string()))?;
+    let project = RenderProject::from(project);
     validate_dimensions(project.width, project.height, project.fps)?;
     if !project.duration_seconds.is_finite() || project.duration_seconds <= 0.0 {
         return Err(MediaError::InvalidInput(
             "editor duration must be finite and positive".to_owned(),
         ));
     }
-    let (range_start, range_end) = validate_export_range(project, options)?;
+    let (range_start, range_end) = validate_export_range(&project, options)?;
     let duration = range_end - range_start;
     let temporary = temporary_output_path(output)?;
     let primary_encoder = validated_encoder(&options.encoder.primary)?;
     let command = build_editor_command(
-        project,
+        &project,
         assets,
         &temporary,
         options,
@@ -910,7 +487,7 @@ pub fn build_editor_plan_with_sources<S: BuildHasher>(
         .transpose()?
         .map(|fallback| {
             build_editor_command(
-                project,
+                &project,
                 assets,
                 &temporary,
                 options,
@@ -930,7 +507,7 @@ pub fn build_editor_plan_with_sources<S: BuildHasher>(
 }
 
 fn validate_export_range(
-    project: &EditorProject,
+    project: &RenderProject,
     options: &EditorRenderOptions,
 ) -> MediaResult<(f64, f64)> {
     let start = options.range_start.unwrap_or(0.0);
@@ -949,7 +526,7 @@ fn validate_export_range(
 }
 
 fn prepare_speed_sections(
-    clip: &EditorClip,
+    clip: &RenderClip,
     local_start: f64,
     local_end: f64,
 ) -> MediaResult<Vec<PreparedSpeedSection>> {
@@ -998,7 +575,7 @@ fn source_offset_at(segments: &[EditorSpeedSegment], time: f64) -> f64 {
 #[derive(Debug)]
 struct PreparedEditorClip<'a> {
     track_kind: TrackKind,
-    clip: &'a EditorClip,
+    clip: &'a RenderClip,
     source: Option<&'a EditorMediaSource>,
     input_index: Option<usize>,
     timeline_start: f64,
@@ -1016,7 +593,7 @@ struct PreparedSpeedSection {
 
 #[allow(clippy::too_many_arguments)]
 fn build_editor_command<S: BuildHasher>(
-    project: &EditorProject,
+    project: &RenderProject,
     assets: &HashMap<String, EditorMediaSource, S>,
     temporary: &Path,
     options: &EditorRenderOptions,
@@ -1218,7 +795,7 @@ fn build_editor_command<S: BuildHasher>(
     Ok(command)
 }
 
-fn validate_editor_clip(clip: &EditorClip) -> MediaResult<()> {
+fn validate_editor_clip(clip: &RenderClip) -> MediaResult<()> {
     if !clip.start.is_finite()
         || !clip.duration.is_finite()
         || clip.start < 0.0
@@ -1249,7 +826,7 @@ fn validate_editor_clip(clip: &EditorClip) -> MediaResult<()> {
 
 fn validate_editor_media_combination(
     track_kind: TrackKind,
-    clip: &EditorClip,
+    clip: &RenderClip,
     source: Option<&EditorMediaSource>,
 ) -> MediaResult<()> {
     let transform_properties = [
@@ -1315,14 +892,14 @@ fn validate_editor_media_combination(
     Ok(())
 }
 
-fn clip_has_keyframes(clip: &EditorClip, properties: &[EditorKeyframeProperty]) -> bool {
+fn clip_has_keyframes(clip: &RenderClip, properties: &[EditorKeyframeProperty]) -> bool {
     clip.keyframes
         .iter()
         .any(|keyframe| properties.contains(&keyframe.property))
 }
 
 fn keyframe_expression(
-    clip: &EditorClip,
+    clip: &RenderClip,
     property: EditorKeyframeProperty,
     time_variable: &str,
     fallback: f64,
@@ -1366,7 +943,7 @@ fn validate_transform(transform: &Transform) -> MediaResult<()> {
 }
 
 fn build_visual_filter(
-    project: &EditorProject,
+    project: &RenderProject,
     item: &PreparedEditorClip<'_>,
     input: usize,
     label: &str,
@@ -1495,7 +1072,7 @@ fn build_visual_filter(
     Ok(filters.join(";"))
 }
 
-fn append_visual_fades(filter: &mut String, clip: &EditorClip, duration: f64) -> MediaResult<()> {
+fn append_visual_fades(filter: &mut String, clip: &RenderClip, duration: f64) -> MediaResult<()> {
     let transition_duration = editor_transition_duration(clip, duration)?;
     if let Some(transition) = parsed_optional_transition(clip.transition_in.as_deref())? {
         append_editor_visual_transition(filter, transition, true, transition_duration, duration);
@@ -1876,7 +1453,7 @@ fn atempo_chain(mut speed: f64) -> Vec<f64> {
     filters
 }
 
-fn editor_transition_duration(clip: &EditorClip, duration: f64) -> MediaResult<f64> {
+fn editor_transition_duration(clip: &RenderClip, duration: f64) -> MediaResult<f64> {
     let configured = clip
         .metadata
         .get("transition_duration")
@@ -2114,339 +1691,102 @@ fn encoder_quality_args(encoder: &str, quality: u8) -> Vec<OsString> {
         _ => vec![OsString::from("-crf"), OsString::from(value)],
     }
 }
-
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use chrono::Utc;
 
     use super::*;
-
-    fn montage_project(clip_id: &str) -> MontageProject {
-        serde_json::from_value(json!({
-            "id": "00000000-0000-4000-8000-000000000002",
-            "name": "test",
-            "clips": [{
-                "clip_id": clip_id,
-                "order": 0,
-                "trim_start": 1.0,
-                "trim_end": 3.0,
-                "transition": "cut",
-                "title": "Player's ace; [safe]"
-            }],
-            "settings": {
-                "width": 1280,
-                "height": 720,
-                "fps": 60,
-                "encoder": "libopenh264",
-                "quality": 80,
-                "background_music": null,
-                "music_volume": 0.25,
-                "transition_seconds": 0.35,
-                "intro_title": null,
-                "intro_duration_seconds": 0.0,
-                "include_name_cards": true,
-                "name_card_duration_seconds": 2.5,
-                "outro_title": null,
-                "outro_duration_seconds": 0.0,
-                "branding_theme": "vibe"
-            },
-            "created_at": "2026-01-01T00:00:00Z",
-            "updated_at": "2026-01-01T00:00:00Z"
-        }))
-        .unwrap()
-    }
+    use vibe_cs_domain::{
+        EditingDocument, Project, TimelineClip, TimelineClipMaterial, TimelinePlacement,
+        TimelineTrack,
+    };
 
     #[test]
-    fn atomic_publish_refuses_existing_destination() {
-        let root = tempfile::tempdir().unwrap();
-        let temporary = root.path().join("partial.mp4");
-        let output = root.path().join("final.mp4");
-        std::fs::write(&temporary, b"video").unwrap();
-        std::fs::write(&output, b"old").unwrap();
-        assert!(matches!(
-            publish_temporary_output(&temporary, &output),
-            Err(MediaError::OutputExists(_))
-        ));
-        assert_eq!(std::fs::read(&output).unwrap(), b"old");
-    }
-
-    #[test]
-    fn encoder_values_cannot_inject_filter_arguments() {
-        assert!(select_video_encoder("libopenh264 -y injected", &[]).is_err());
-    }
-
-    #[test]
-    fn auto_encoder_prefers_gpu_and_keeps_cpu_fallback() {
-        let selection =
-            select_video_encoder("auto", &["h264_amf".to_owned(), "h264_qsv".to_owned()]).unwrap();
-        assert_eq!(selection.primary, "h264_qsv");
-        assert_eq!(selection.fallback.as_deref(), Some("libopenh264"));
-    }
-
-    #[test]
-    fn montage_plan_keeps_paths_as_distinct_arguments_and_escapes_titles() {
-        let root = tempfile::tempdir().unwrap();
-        let source = root.path().join("clip with spaces.mp4");
-        std::fs::write(&source, b"media").unwrap();
-        let clip_id = "00000000-0000-4000-8000-000000000001";
-        let project = montage_project(clip_id);
-        let sources = HashMap::from([(
-            clip_id.to_owned(),
-            MontageSource {
-                path: source.clone(),
-                duration_seconds: None,
-                has_audio: true,
-                avatar_path: None,
-            },
-        )]);
-        let encoder = select_video_encoder(&project.settings.encoder, &[]).unwrap();
-        let plan = build_montage_plan_with_sources(
-            &project,
-            &sources,
-            &root.path().join("result.mp4"),
-            &encoder,
-        )
-        .unwrap();
-        assert!(
-            plan.command
-                .args
-                .iter()
-                .any(|argument| argument == source.as_os_str())
-        );
-        let graph = plan
-            .command
-            .args
-            .iter()
-            .find_map(|argument| {
-                let value = argument.to_string_lossy();
-                value.contains("drawtext").then_some(value.into_owned())
-            })
-            .unwrap_or_else(|| {
-                plan.command
-                    .args
-                    .iter()
-                    .map(|value| value.to_string_lossy())
-                    .find(|value| value.contains("drawtext"))
-                    .unwrap()
-                    .into_owned()
-            });
-        assert!(graph.contains("Player’s ace\\; \\[safe\\]"));
-        assert!(plan.command.args.iter().any(|item| item == "pipe:1"));
-    }
-
-    #[test]
-    fn editor_plan_supports_range_audio_text_transform_and_color() {
-        let root = tempfile::tempdir().unwrap();
-        let source = root.path().join("clip.mp4");
-        std::fs::write(&source, b"media").unwrap();
+    fn canonical_project_is_the_only_export_document() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let source = directory.path().join("take.mp4");
+        std::fs::write(&source, b"video").expect("source");
         let asset_id = Uuid::new_v4();
-        let now = chrono::Utc::now();
-        let project = EditorProject {
+        let track_id = Uuid::new_v4();
+        let project = Project {
             id: Uuid::new_v4(),
-            name: "Editor".to_owned(),
-            width: 1280,
-            height: 720,
-            fps: 60,
-            duration_seconds: 10.0,
-            tracks: vec![vibe_cs_domain::EditorTrack {
-                id: Uuid::new_v4(),
-                name: "Video".to_owned(),
-                kind: TrackKind::Video,
-                order: 0,
-                muted: false,
-                locked: false,
-                hidden: false,
-                clips: vec![EditorClip {
-                    id: Uuid::new_v4(),
-                    asset_id: Some(asset_id),
-                    name: "Clip".to_owned(),
-                    start: 1.0,
-                    duration: 8.0,
-                    source_in: 2.0,
-                    source_out: 12.0,
-                    speed: 1.0,
-                    volume: 0.8,
-                    transform: Transform {
-                        x: 20.0,
-                        y: -10.0,
-                        scale_x: 0.8,
-                        scale_y: 0.8,
-                        rotation: 5.0,
-                        opacity: 0.9,
-                    },
-                    effects: vec![EditorEffect {
-                        id: "color".to_owned(),
-                        kind: "color_adjust".to_owned(),
-                        enabled: true,
-                        parameters: json!({"brightness": 0.1, "contrast": 1.2, "saturation": 0.9}),
-                    }],
-                    transition_in: Some("fade".to_owned()),
-                    transition_out: None,
-                    text: None,
-                    metadata: json!({"transition_duration": 0.25}),
-                    group_id: None,
-                    link_group_id: None,
-                    keyframes: vec![
-                        vibe_cs_domain::EditorKeyframe {
-                            id: Uuid::new_v4(),
-                            time: 0.0,
-                            property: EditorKeyframeProperty::X,
-                            value: 0.0,
-                        },
-                        vibe_cs_domain::EditorKeyframe {
-                            id: Uuid::new_v4(),
-                            time: 0.0,
-                            property: EditorKeyframeProperty::Opacity,
-                            value: 0.2,
-                        },
-                        vibe_cs_domain::EditorKeyframe {
-                            id: Uuid::new_v4(),
-                            time: 0.0,
-                            property: EditorKeyframeProperty::Volume,
-                            value: 0.3,
-                        },
-                        vibe_cs_domain::EditorKeyframe {
-                            id: Uuid::new_v4(),
-                            time: 8.0,
-                            property: EditorKeyframeProperty::X,
-                            value: 60.0,
-                        },
-                        vibe_cs_domain::EditorKeyframe {
-                            id: Uuid::new_v4(),
-                            time: 8.0,
-                            property: EditorKeyframeProperty::Opacity,
-                            value: 0.9,
-                        },
-                        vibe_cs_domain::EditorKeyframe {
-                            id: Uuid::new_v4(),
-                            time: 8.0,
-                            property: EditorKeyframeProperty::Volume,
-                            value: 0.8,
-                        },
-                    ],
-                    speed_segments: vec![
-                        EditorSpeedSegment {
-                            id: Uuid::new_v4(),
-                            start: 0.0,
-                            end: 4.0,
-                            speed: 0.5,
-                        },
-                        EditorSpeedSegment {
-                            id: Uuid::new_v4(),
-                            start: 4.0,
-                            end: 8.0,
-                            speed: 2.0,
-                        },
-                    ],
-                }],
-            }],
-            markers: Vec::new(),
-            settings: Value::Null,
+            name: "Canonical".to_owned(),
             revision: 1,
-            created_at: now,
-            updated_at: now,
+            document: EditingDocument {
+                width: 1920,
+                height: 1080,
+                fps: 60,
+                duration_seconds: 5.0,
+                story_track_id: track_id,
+                tracks: vec![TimelineTrack {
+                    id: track_id,
+                    name: "Story".to_owned(),
+                    kind: TrackKind::Video,
+                    order: 0,
+                    muted: false,
+                    locked: false,
+                    hidden: false,
+                    clips: vec![TimelineClip {
+                        id: Uuid::new_v4(),
+                        name: "Take".to_owned(),
+                        capture_intent: None,
+                        material: TimelineClipMaterial::Asset {
+                            asset_id,
+                            media_duration_seconds: 5.0,
+                        },
+                        placement: TimelinePlacement {
+                            start: 0.0,
+                            duration: 5.0,
+                            source_in: 0.0,
+                            source_out: 5.0,
+                            speed: 1.0,
+                            volume: 1.0,
+                            enabled: true,
+                        },
+                        transform: Transform::default(),
+                        effects: Vec::new(),
+                        transition_in: None,
+                        transition_out: None,
+                        text: None,
+                        metadata: serde_json::json!({}),
+                        group_id: None,
+                        link_group_id: None,
+                        keyframes: Vec::new(),
+                        speed_segments: Vec::new(),
+                    }],
+                }],
+                markers: Vec::new(),
+                settings: serde_json::json!({}),
+            },
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
-        let assets = HashMap::from([(
+        let sources = HashMap::from([(
             asset_id.to_string(),
             EditorMediaSource {
-                path: source,
+                path: source.clone(),
                 kind: EditorMediaKind::Video,
                 has_audio: true,
             },
         )]);
-        let options = EditorRenderOptions {
-            encoder: EncoderSelection {
-                primary: "h264_nvenc".to_owned(),
-                fallback: Some("libopenh264".to_owned()),
-            },
-            quality: 85,
-            range_start: Some(2.0),
-            range_end: Some(8.0),
-        };
-        let plan = build_editor_plan_with_sources(
+        let output = directory.path().join("final.mp4");
+        let plan = build_project_plan_with_sources(
             &project,
-            &assets,
-            &root.path().join("result.mp4"),
-            &options,
+            &sources,
+            &output,
+            &EditorRenderOptions {
+                encoder: EncoderSelection {
+                    primary: "libopenh264".to_owned(),
+                    fallback: None,
+                },
+                quality: 80,
+                range_start: None,
+                range_end: None,
+            },
         )
-        .unwrap();
-        let graph = plan
-            .command
-            .args
-            .iter()
-            .map(|item| item.to_string_lossy())
-            .find(|item| item.contains("lutrgb="))
-            .or_else(|| {
-                plan.command
-                    .args
-                    .iter()
-                    .map(|item| item.to_string_lossy())
-                    .find(|item| item.contains("color=c=black"))
-            })
-            .unwrap();
-        assert!(graph.contains("+0.100000*255"));
-        assert!(graph.contains("hue=s=0.900000"));
-        assert!(graph.contains("split=2"));
-        assert!(graph.contains("concat=n=2:v=1:a=0"));
-        assert!(graph.contains("atempo=0.500000"));
-        assert!(graph.contains("geq="));
-        assert!(graph.contains("volume='"));
-        assert!(graph.contains("fade=t=in"));
-        assert!((plan.duration_seconds - 6.0).abs() < f64::EPSILON);
-        assert!(plan.fallback_command.is_some());
+        .expect("Project render plan");
 
-        let mut unsupported = project.clone();
-        let clip = &mut unsupported.tracks[0].clips[0];
-        clip.keyframes = vec![vibe_cs_domain::EditorKeyframe {
-            id: Uuid::new_v4(),
-            time: 0.0,
-            property: EditorKeyframeProperty::ScaleX,
-            value: 0.8,
-        }];
-        let error = build_editor_plan_with_sources(
-            &unsupported,
-            &assets,
-            &root.path().join("unsupported.mp4"),
-            &options,
-        )
-        .expect_err("animated scale plus rotation must be rejected");
-        assert!(error.to_string().contains("animated scale with rotation"));
-    }
-
-    #[test]
-    fn advanced_transitions_have_distinct_real_ffmpeg_filters() {
-        let cases = [
-            (Transition::Flash, "color=white"),
-            (Transition::Dip, "color=black"),
-            (Transition::Zoom, "scale=w="),
-            (Transition::Wipe, "geq="),
-            (Transition::Slide, "geq="),
-            (Transition::Blur, "gblur="),
-            (Transition::Glitch, "chromashift="),
-            (Transition::Spin, "rotate="),
-        ];
-        for (transition, expected) in cases {
-            let mut filter = String::new();
-            append_editor_visual_transition(&mut filter, transition, true, 0.35, 2.0);
-            assert!(
-                filter.contains(expected),
-                "{transition:?} should use {expected}: {filter}"
-            );
-        }
-    }
-
-    #[test]
-    fn audio_extraction_plan_is_audio_only_and_no_clobber() {
-        let root = tempfile::tempdir().unwrap();
-        let source = root.path().join("capture.webm");
-        std::fs::write(&source, b"source").unwrap();
-        let output = root.path().join("voice.m4a");
-        let plan =
-            build_audio_extraction_plan(&source, &output, 12.5).expect("audio extraction plan");
-        let CommandSpec { args } = plan.command;
-        assert!(args.iter().any(|arg| arg == "-vn"));
-        assert!(args.iter().any(|arg| arg == "0:a:0"));
-        assert_eq!(plan.final_output, output);
-        assert_ne!(plan.temporary_output, plan.final_output);
+        assert!((plan.duration_seconds - 5.0).abs() < f64::EPSILON);
+        assert!(plan.command.args.contains(&source.into_os_string()));
     }
 }

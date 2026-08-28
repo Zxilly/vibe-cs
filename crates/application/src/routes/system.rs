@@ -222,25 +222,6 @@ pub(super) async fn current_hlae_status(state: &AppState) -> ApiResult<HlaeStatu
     Ok(status)
 }
 
-pub(super) async fn current_hlae_launch_inputs(
-    state: &AppState,
-) -> ApiResult<Option<HlaeBundleLaunchInputs>> {
-    let config = state.storage.get_config().await?.unwrap_or_default();
-    let managed_root = managed_hlae_root(state);
-    tokio::task::spawn_blocking(move || {
-        let config = config_with_discovered_game_paths(config);
-        resolve_hlae_launch_inputs(&config, &managed_root)
-    })
-    .await
-    .map_err(|error| {
-        ApiError::new(
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            "hlae_status_failed",
-            format!("HLAE launch input task failed: {error}"),
-        )
-    })
-}
-
 fn config_with_discovered_game_paths(config: AppConfig) -> AppConfig {
     let paths = discover_paths(&config);
     apply_discovered_game_paths(config, paths)

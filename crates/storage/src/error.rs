@@ -7,10 +7,8 @@ pub enum StorageError {
     Database(#[from] rusqlite::Error),
     #[error("stored document is invalid: {0}")]
     Serialization(#[from] serde_json::Error),
-    #[error("stored editor data is invalid: {0}")]
+    #[error("stored domain data is invalid: {0}")]
     Domain(#[from] vibe_cs_domain::DomainError),
-    #[error("managed file transaction failed: {0}")]
-    ManagedFile(String),
     #[error("evidence search projection is invalid: {0}")]
     EvidenceProjection(String),
     #[error("activity projection is invalid: {0}")]
@@ -27,20 +25,14 @@ pub enum StorageError {
     Worker(#[from] tokio::task::JoinError),
     #[error("database lock was poisoned")]
     LockPoisoned,
-    #[error("editor project {0} revision cannot be incremented")]
-    EditorProjectRevisionOverflow(Uuid),
-    #[error("editor project {0} already exists")]
-    EditorProjectAlreadyExists(Uuid),
+    #[error("project {0} already exists")]
+    ProjectAlreadyExists(Uuid),
     #[error("media asset {0} already exists")]
     MediaAssetAlreadyExists(Uuid),
     #[error("recording retry for {0} was already claimed by another durable job")]
     RecordingRetryAlreadyClaimed(Uuid),
     #[error("recording job {0} retry lineage is immutable")]
     RecordingRetryLineageImmutable(Uuid),
-    #[error("editor preset {0} revision cannot be incremented")]
-    EditorPresetRevisionOverflow(Uuid),
-    #[error("agent plan {0} revision cannot be incremented")]
-    AgentPlanRevisionOverflow(Uuid),
     #[error("integer {0} cannot be represented by SQLite")]
     IntegerOutOfRange(u64),
     #[error("LLM API key could not be protected for secure persistence")]
@@ -72,19 +64,15 @@ impl StorageError {
             | Self::LockPoisoned
             | Self::Serialization(_)
             | Self::Domain(_)
-            | Self::ManagedFile(_)
             | Self::EvidenceProjection(_)
             | Self::ActivityProjection(_)
             | Self::PlayerProjection(_)
             | Self::LineupProjection(_)
             | Self::CurrentSchemaRequired
-            | Self::EditorProjectRevisionOverflow(_)
-            | Self::EditorProjectAlreadyExists(_)
+            | Self::ProjectAlreadyExists(_)
             | Self::MediaAssetAlreadyExists(_)
             | Self::RecordingRetryAlreadyClaimed(_)
             | Self::RecordingRetryLineageImmutable(_)
-            | Self::EditorPresetRevisionOverflow(_)
-            | Self::AgentPlanRevisionOverflow(_)
             | Self::IntegerOutOfRange(_)
             | Self::SecretProtection
             | Self::SecretRecovery

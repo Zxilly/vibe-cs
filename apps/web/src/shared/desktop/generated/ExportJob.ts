@@ -9,11 +9,6 @@ export type ExportJob = {
   progress: number;
   output_path: string;
   error: string | null;
-  /**
-   * The classified reason, beside the free-text one. See
-   * [`crate::JobFailureCode`] — `error` says what happened, this says what
-   * the user can do about it.
-   */
   error_code: JobFailureCode | null;
   created_at: string;
   updated_at: string;

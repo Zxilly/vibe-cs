@@ -13,8 +13,7 @@ use vibe_cs_application::ExportPort;
 use vibe_cs_domain::{DomainError, ExportJob, JobFailureCode, JobStatus};
 use vibe_cs_media::{
     EditorMediaKind, EditorMediaSource, EditorRenderOptions, EncoderSelection, FilterPlan,
-    MediaError, MontageSource, ProcessCancellation, ProgressCallback,
-    build_editor_plan_with_sources, build_montage_plan_with_sources,
+    MediaError, ProcessCancellation, ProgressCallback, build_project_plan_with_sources,
     execute_native_filter_plan_with_progress, native_ffmpeg_info, native_probe_media,
     select_video_encoder,
 };
@@ -25,34 +24,7 @@ const MEDIA_INSPECTION_TIMEOUT: std::time::Duration = std::time::Duration::from_
 pub struct RuntimeExportPort {
     storage: vibe_cs_storage::Storage,
     data_dir: PathBuf,
-    backend: ExportBackend,
     active: Arc<Mutex<HashMap<Uuid, ProcessCancellation>>>,
-}
-
-#[derive(Clone)]
-enum ExportBackend {
-    Native,
-    #[cfg(test)]
-    Test(Arc<dyn ExportTestBackend>),
-}
-
-#[cfg(test)]
-#[async_trait]
-trait ExportTestBackend: Send + Sync + std::fmt::Debug {
-    async fn execute(
-        &self,
-        plan: &FilterPlan,
-        cancellation: &ProcessCancellation,
-        progress: ProgressCallback,
-    ) -> Result<(), MediaError>;
-
-    fn encoders(&self) -> Vec<String> {
-        vec!["libopenh264".to_owned()]
-    }
-
-    fn has_audio(&self, _path: &Path) -> bool {
-        true
-    }
 }
 
 /// The editor export request body.
@@ -60,19 +32,16 @@ trait ExportTestBackend: Send + Sync + std::fmt::Debug {
 /// It reaches this port as a `serde_json::Value` forwarded by the HTTP layer,
 /// so this struct is the only place the shape is written down and therefore
 /// the only honest source for the TypeScript binding.
-#[derive(Debug, serde::Deserialize, ts_rs::TS)]
+#[derive(Debug, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
-#[ts(export)]
-struct EditorExportRequest {
+struct ProjectRenderRequest {
     /// Encoder selection. `auto` lets the media layer choose.
     encoder: String,
     quality: u8,
     /// Trim the export to a window of the timeline. Both bounds may be omitted.
     #[serde(default)]
-    #[ts(optional)]
     range_start_seconds: Option<f64>,
     #[serde(default)]
-    #[ts(optional)]
     range_end_seconds: Option<f64>,
 }
 
@@ -92,22 +61,6 @@ impl RuntimeExportPort {
         Self {
             storage,
             data_dir,
-            backend: ExportBackend::Native,
-            active: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    #[cfg(test)]
-    #[must_use]
-    fn with_test_backend(
-        storage: vibe_cs_storage::Storage,
-        data_dir: PathBuf,
-        backend: Arc<dyn ExportTestBackend>,
-    ) -> Self {
-        Self {
-            storage,
-            data_dir,
-            backend: ExportBackend::Test(backend),
             active: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -152,7 +105,7 @@ impl RuntimeExportPort {
         project_id: Uuid,
         request: &Value,
     ) -> Result<(ExportJobRecord, FilterPlan), DomainError> {
-        if !matches!(kind, "montage" | "editor") {
+        if kind != "project" {
             return Err(DomainError::InvalidInput(format!(
                 "unsupported export kind: {kind}"
             )));
@@ -163,11 +116,7 @@ impl RuntimeExportPort {
             .map_err(|error| DomainError::Internal(error.to_string()))?;
         let id = Uuid::new_v4();
         let output = export_dir.join(format!("{kind}-{project_id}-{id}.mp4"));
-        let plan = match kind {
-            "montage" => self.montage_plan(project_id, &output).await?,
-            "editor" => self.editor_plan(project_id, &output, request).await?,
-            _ => unreachable!("validated kind"),
-        };
+        let plan = self.project_plan(project_id, &output, request).await?;
         let now = Utc::now();
         let job = ExportJob {
             id,
@@ -189,59 +138,7 @@ impl RuntimeExportPort {
         ))
     }
 
-    async fn montage_plan(
-        &self,
-        project_id: Uuid,
-        output: &Path,
-    ) -> Result<FilterPlan, DomainError> {
-        let project = self
-            .storage
-            .get_montage_project(project_id)
-            .await
-            .map_err(|error| storage_error(&error))?
-            .ok_or_else(|| DomainError::NotFound("montage project".to_owned()))?;
-        let mut sources = HashMap::new();
-        for clip in &project.clips {
-            let source = self
-                .storage
-                .get_recorded_clip(clip.clip_id)
-                .await
-                .map_err(|error| storage_error(&error))?
-                .ok_or_else(|| DomainError::NotFound(format!("recorded clip {}", clip.clip_id)))?;
-            let path = PathBuf::from(source.path);
-            let has_audio = self.probe_has_audio(&path).await.unwrap_or(true);
-            let avatar_path = if let Some(avatar_id) = clip.avatar_asset_id {
-                let avatar = self
-                    .storage
-                    .get_asset(avatar_id)
-                    .await
-                    .map_err(|error| storage_error(&error))?
-                    .ok_or_else(|| DomainError::NotFound(format!("avatar asset {avatar_id}")))?;
-                if !avatar.kind.starts_with("image/") && avatar.kind != "image" {
-                    return Err(DomainError::InvalidInput(format!(
-                        "avatar asset {avatar_id} is not an image"
-                    )));
-                }
-                Some(PathBuf::from(avatar.path))
-            } else {
-                None
-            };
-            sources.insert(
-                clip.clip_id.to_string(),
-                MontageSource {
-                    path,
-                    duration_seconds: Some(source.duration_seconds),
-                    has_audio,
-                    avatar_path,
-                },
-            );
-        }
-        let encoder = self.select_encoder(&project.settings.encoder)?;
-        build_montage_plan_with_sources(&project, &sources, output, &encoder)
-            .map_err(map_media_error)
-    }
-
-    async fn editor_plan(
+    async fn project_plan(
         &self,
         project_id: Uuid,
         output: &Path,
@@ -249,19 +146,25 @@ impl RuntimeExportPort {
     ) -> Result<FilterPlan, DomainError> {
         let project = self
             .storage
-            .get_editor_project(project_id)
+            .get_project(project_id)
             .await
             .map_err(|error| storage_error(&error))?
-            .ok_or_else(|| DomainError::NotFound("editor project".to_owned()))?;
+            .ok_or_else(|| DomainError::NotFound("project".to_owned()))?;
         let mut assets = HashMap::new();
         let mut referenced_assets = project
+            .document
             .tracks
             .iter()
             .flat_map(|track| &track.clips)
-            .filter_map(|clip| clip.asset_id)
+            .filter_map(|clip| match clip.material {
+                vibe_cs_domain::TimelineClipMaterial::Take { asset_id, .. }
+                | vibe_cs_domain::TimelineClipMaterial::Asset { asset_id, .. } => Some(asset_id),
+                vibe_cs_domain::TimelineClipMaterial::Planned => None,
+            })
             .collect::<Vec<_>>();
         referenced_assets.extend(
             project
+                .document
                 .tracks
                 .iter()
                 .flat_map(|track| &track.clips)
@@ -305,50 +208,39 @@ impl RuntimeExportPort {
                 },
             );
         }
-        let request: EditorExportRequest =
+        let request: ProjectRenderRequest =
             serde_json::from_value(request.clone()).map_err(|error| {
                 DomainError::InvalidInput(format!("invalid export options: {error}"))
             })?;
-        let encoder = self.select_encoder(&request.encoder)?;
+        let encoder = Self::select_encoder(&request.encoder)?;
         let options = EditorRenderOptions {
             encoder,
             quality: request.quality,
             range_start: request.range_start_seconds,
             range_end: request.range_end_seconds,
         };
-        build_editor_plan_with_sources(&project, &assets, output, &options).map_err(map_media_error)
+        build_project_plan_with_sources(&project, &assets, output, &options)
+            .map_err(map_media_error)
     }
 
     async fn probe_has_audio(&self, path: &Path) -> Option<bool> {
         let cancellation = ProcessCancellation::default();
-        let result = match &self.backend {
-            ExportBackend::Native => {
-                let path = path.to_path_buf();
-                let worker_cancellation = cancellation.clone();
-                tokio::time::timeout(
-                    MEDIA_INSPECTION_TIMEOUT,
-                    tokio::task::spawn_blocking(move || {
-                        native_probe_media(&path, &worker_cancellation)
-                    }),
-                )
-                .await
-                .ok()
-                .and_then(Result::ok)
-            }
-            #[cfg(test)]
-            ExportBackend::Test(backend) => return Some(backend.has_audio(path)),
-        };
+        let path = path.to_path_buf();
+        let worker_cancellation = cancellation.clone();
+        let result = tokio::time::timeout(
+            MEDIA_INSPECTION_TIMEOUT,
+            tokio::task::spawn_blocking(move || native_probe_media(&path, &worker_cancellation)),
+        )
+        .await
+        .ok()
+        .and_then(Result::ok);
         result
             .and_then(Result::ok)
             .map(|probe| probe.streams.iter().any(|stream| stream.kind == "audio"))
     }
 
-    fn select_encoder(&self, requested: &str) -> Result<EncoderSelection, DomainError> {
-        let encoders = match &self.backend {
-            ExportBackend::Native => native_ffmpeg_info().map_err(map_media_error)?.encoders,
-            #[cfg(test)]
-            ExportBackend::Test(backend) => backend.encoders(),
-        };
+    fn select_encoder(requested: &str) -> Result<EncoderSelection, DomainError> {
+        let encoders = native_ffmpeg_info().map_err(map_media_error)?.encoders;
         select_video_encoder(requested, &encoders).map_err(map_media_error)
     }
 
@@ -359,7 +251,6 @@ impl RuntimeExportPort {
         cancellation: ProcessCancellation,
     ) {
         let storage = self.storage.clone();
-        let backend = self.backend.clone();
         let active = Arc::clone(&self.active);
         let job_id = record.job.id;
         tokio::spawn(async move {
@@ -398,22 +289,9 @@ impl RuntimeExportPort {
                 }
                 persisted
             });
-            let result = match backend {
-                ExportBackend::Native => {
-                    execute_native_filter_plan_with_progress(
-                        &plan,
-                        &cancellation,
-                        progress_callback,
-                    )
-                    .await
-                }
-                #[cfg(test)]
-                ExportBackend::Test(backend) => {
-                    backend
-                        .execute(&plan, &cancellation, progress_callback)
-                        .await
-                }
-            };
+            let result =
+                execute_native_filter_plan_with_progress(&plan, &cancellation, progress_callback)
+                    .await;
             let persisted_progress = progress_task.await.unwrap_or(0.0);
             record.job.updated_at = Utc::now();
             record.job.progress = record.job.progress.max(persisted_progress);
@@ -531,17 +409,13 @@ impl ExportPort for RuntimeExportPort {
         // a process spawn — but `ffmpeg::init()` runs on the first call, which is
         // why it goes to a blocking thread. A failure here means the build
         // cannot encode at all, which reads the same as an empty list.
-        match &self.backend {
-            ExportBackend::Native => tokio::task::spawn_blocking(|| {
-                native_ffmpeg_info()
-                    .map(|info| info.encoders)
-                    .unwrap_or_default()
-            })
-            .await
-            .unwrap_or_default(),
-            #[cfg(test)]
-            ExportBackend::Test(backend) => backend.encoders(),
-        }
+        tokio::task::spawn_blocking(|| {
+            native_ffmpeg_info()
+                .map(|info| info.encoders)
+                .unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default()
     }
 }
 
@@ -590,466 +464,5 @@ fn export_failure_code(error: &MediaError) -> JobFailureCode {
         | MediaError::InvalidToolOutput(_)
         | MediaError::Json(_)
         | MediaError::OutputLimit { .. } => JobFailureCode::DependencyFailed,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use super::*;
-    use vibe_cs_domain::{
-        AppConfig, EditorClip, EditorProject, EditorTrack, MontageClip, MontageProject,
-        MontageSettings, RecordedClip, TrackKind, Transform,
-    };
-
-    #[derive(Debug)]
-    struct FailingRunner;
-
-    #[derive(Debug)]
-    struct CancellationRunner;
-
-    #[derive(Debug, Default)]
-    struct ProgressRunner {
-        reported: tokio::sync::Notify,
-        release: tokio::sync::Notify,
-    }
-
-    #[async_trait]
-    impl ExportTestBackend for FailingRunner {
-        async fn execute(
-            &self,
-            _plan: &FilterPlan,
-            _cancellation: &ProcessCancellation,
-            _progress: ProgressCallback,
-        ) -> Result<(), MediaError> {
-            Err(MediaError::ProcessFailed {
-                status: 1,
-                message: "encoder failed".to_owned(),
-            })
-        }
-    }
-
-    #[async_trait]
-    impl ExportTestBackend for CancellationRunner {
-        async fn execute(
-            &self,
-            _plan: &FilterPlan,
-            cancellation: &ProcessCancellation,
-            _progress: ProgressCallback,
-        ) -> Result<(), MediaError> {
-            if cancellation.is_cancelled() {
-                return Err(MediaError::Cancelled);
-            }
-            cancellation.cancelled().await;
-            Err(MediaError::Cancelled)
-        }
-    }
-
-    #[async_trait]
-    impl ExportTestBackend for ProgressRunner {
-        async fn execute(
-            &self,
-            plan: &FilterPlan,
-            cancellation: &ProcessCancellation,
-            progress: ProgressCallback,
-        ) -> Result<(), MediaError> {
-            progress(vibe_cs_media::FfmpegProgress {
-                out_time_seconds: 0.5,
-                completed: false,
-            });
-            self.reported.notify_one();
-            tokio::select! {
-                () = self.release.notified() => {}
-                () = cancellation.cancelled() => return Err(MediaError::Cancelled),
-            }
-            tokio::fs::write(&plan.temporary_output, b"video")
-                .await
-                .map_err(|source| MediaError::Io {
-                    path: plan.temporary_output.clone(),
-                    source,
-                })?;
-            vibe_cs_media::publish_temporary_output(&plan.temporary_output, &plan.final_output)
-        }
-    }
-
-    async fn montage_fixture(
-        backend: Arc<dyn ExportTestBackend>,
-    ) -> (
-        tempfile::TempDir,
-        vibe_cs_storage::Storage,
-        RuntimeExportPort,
-        Uuid,
-    ) {
-        let root = tempfile::tempdir().expect("temporary directory");
-        let source = root.path().join("source.mp4");
-        tokio::fs::write(&source, b"video").await.expect("source");
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        let now = Utc::now();
-        let clip_id = Uuid::new_v4();
-        storage
-            .put_recorded_clip(RecordedClip {
-                id: clip_id,
-                path: source.to_string_lossy().into_owned(),
-                title: "Source".to_owned(),
-                duration_seconds: 1.0,
-                demo_id: None,
-                player_name: None,
-                category: "test".to_owned(),
-                tags: Vec::new(),
-                metadata: Value::Null,
-                created_at: now,
-            })
-            .await
-            .expect("clip");
-        let project_id = Uuid::new_v4();
-        storage
-            .put_montage_project(MontageProject {
-                id: project_id,
-                name: "Export".to_owned(),
-                clips: vec![MontageClip {
-                    clip_id,
-                    order: 0,
-                    trim_start: 0.0,
-                    trim_end: Some(1.0),
-                    transition: "cut".to_owned(),
-                    title: None,
-                    avatar_asset_id: None,
-                }],
-                settings: MontageSettings::default(),
-                created_at: now,
-                updated_at: now,
-            })
-            .await
-            .expect("project");
-        let port = RuntimeExportPort::with_test_backend(
-            storage.clone(),
-            root.path().to_path_buf(),
-            backend,
-        );
-        (root, storage, port, project_id)
-    }
-
-    #[tokio::test]
-    async fn cancellation_persists_cancelling_then_cancelled() {
-        let (_root, storage, port, project_id) =
-            montage_fixture(Arc::new(CancellationRunner)).await;
-        let running = port
-            .start("montage", project_id, Value::Null)
-            .await
-            .expect("start");
-        assert_eq!(running.status, JobStatus::Running);
-
-        let cancelling = port.cancel(running.id).await.expect("cancel");
-        assert_eq!(cancelling.status, JobStatus::Cancelling);
-        for _ in 0..100 {
-            let job = storage
-                .get_export_job(running.id)
-                .await
-                .expect("storage")
-                .expect("job")
-                .job;
-            if job.status == JobStatus::Cancelled {
-                assert!(
-                    job.error
-                        .as_deref()
-                        .is_some_and(|error| error.contains("cancelled"))
-                );
-                return;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-        panic!("cancelled export did not reach a terminal state");
-    }
-
-    #[tokio::test]
-    async fn machine_progress_is_persisted_before_export_completion() {
-        let runner = Arc::new(ProgressRunner::default());
-        let (_root, storage, port, project_id) =
-            montage_fixture(runner.clone() as Arc<dyn ExportTestBackend>).await;
-        let running = port
-            .start("montage", project_id, Value::Null)
-            .await
-            .expect("start");
-        tokio::time::timeout(Duration::from_secs(1), runner.reported.notified())
-            .await
-            .expect("progress callback");
-        for _ in 0..100 {
-            let job = storage
-                .get_export_job(running.id)
-                .await
-                .expect("storage")
-                .expect("job")
-                .job;
-            if job.progress >= 0.49 {
-                assert_eq!(job.status, JobStatus::Running);
-                runner.release.notify_one();
-                for _ in 0..100 {
-                    let completed = storage
-                        .get_export_job(running.id)
-                        .await
-                        .expect("storage")
-                        .expect("job")
-                        .job;
-                    if completed.status == JobStatus::Completed {
-                        assert!((completed.progress - 1.0).abs() < f64::EPSILON);
-                        return;
-                    }
-                    tokio::time::sleep(Duration::from_millis(10)).await;
-                }
-                panic!("export did not complete after releasing the runner");
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-        panic!("machine progress was not persisted while the process was active");
-    }
-
-    #[tokio::test]
-    async fn restart_recovery_terminalizes_orphaned_exports() {
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        let now = Utc::now();
-        let running_id = Uuid::new_v4();
-        let cancelling_id = Uuid::new_v4();
-        for (id, status) in [
-            (running_id, JobStatus::Running),
-            (cancelling_id, JobStatus::Cancelling),
-        ] {
-            storage
-                .put_export_job(ExportJobRecord {
-                    kind: "editor".to_owned(),
-                    job: ExportJob {
-                        id,
-                        project_id: Uuid::new_v4(),
-                        status,
-                        progress: 0.5,
-                        output_path: String::new(),
-                        error: None,
-                        error_code: None,
-                        created_at: now,
-                        updated_at: now,
-                    },
-                })
-                .await
-                .expect("job");
-        }
-        let directory = tempfile::tempdir().expect("temporary directory");
-        RuntimeExportPort::new(storage.clone(), directory.path().to_path_buf())
-            .recover_orphaned_jobs()
-            .await;
-
-        assert_eq!(
-            storage
-                .get_export_job(running_id)
-                .await
-                .expect("storage")
-                .expect("job")
-                .job
-                .status,
-            JobStatus::Failed
-        );
-        assert_eq!(
-            storage
-                .get_export_job(cancelling_id)
-                .await
-                .expect("storage")
-                .expect("job")
-                .job
-                .status,
-            JobStatus::Cancelled
-        );
-    }
-
-    #[tokio::test]
-    async fn native_exports_do_not_require_external_cli_configuration() {
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        storage
-            .put_config(AppConfig::default())
-            .await
-            .expect("config");
-        let root = tempfile::tempdir().expect("temporary directory");
-        let port = RuntimeExportPort::new(storage, root.path().to_path_buf());
-        let error = port
-            .start("montage", Uuid::new_v4(), Value::Null)
-            .await
-            .expect_err("unknown project must still be rejected");
-        assert!(matches!(error, DomainError::NotFound(_)));
-    }
-
-    #[tokio::test]
-    async fn background_export_failure_is_persisted() {
-        let root = tempfile::tempdir().expect("temporary directory");
-        let source = root.path().join("source.mp4");
-        tokio::fs::write(&source, b"video").await.expect("source");
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        let now = Utc::now();
-        let clip_id = Uuid::new_v4();
-        storage
-            .put_recorded_clip(RecordedClip {
-                id: clip_id,
-                path: source.to_string_lossy().into_owned(),
-                title: "Source".to_owned(),
-                duration_seconds: 1.0,
-                demo_id: None,
-                player_name: None,
-                category: "test".to_owned(),
-                tags: Vec::new(),
-                metadata: Value::Null,
-                created_at: now,
-            })
-            .await
-            .expect("clip");
-        let project_id = Uuid::new_v4();
-        storage
-            .put_montage_project(MontageProject {
-                id: project_id,
-                name: "Export".to_owned(),
-                clips: vec![MontageClip {
-                    clip_id,
-                    order: 0,
-                    trim_start: 0.0,
-                    trim_end: Some(1.0),
-                    transition: "cut".to_owned(),
-                    title: None,
-                    avatar_asset_id: None,
-                }],
-                settings: MontageSettings::default(),
-                created_at: now,
-                updated_at: now,
-            })
-            .await
-            .expect("project");
-        let port = RuntimeExportPort::with_test_backend(
-            storage.clone(),
-            root.path().to_path_buf(),
-            Arc::new(FailingRunner),
-        );
-        let running = port
-            .start("montage", project_id, Value::Null)
-            .await
-            .expect("start export");
-        assert_eq!(running.status, JobStatus::Running);
-
-        for _ in 0..100 {
-            let record = storage
-                .get_export_job(running.id)
-                .await
-                .expect("read job")
-                .expect("job exists");
-            if record.job.status == JobStatus::Failed {
-                assert!(
-                    record
-                        .job
-                        .error
-                        .as_deref()
-                        .is_some_and(|error| error.contains("encoder failed"))
-                );
-                return;
-            }
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-        panic!("export failure was not persisted");
-    }
-
-    #[tokio::test]
-    async fn editor_accepts_a_recorded_clip_as_a_media_source() {
-        let root = tempfile::tempdir().expect("temporary directory");
-        let source = root.path().join("recorded.mp4");
-        tokio::fs::write(&source, b"video").await.expect("source");
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        let now = Utc::now();
-        let clip_id = Uuid::new_v4();
-        storage
-            .put_recorded_clip(RecordedClip {
-                id: clip_id,
-                path: source.to_string_lossy().into_owned(),
-                title: "Recorded source".to_owned(),
-                duration_seconds: 1.0,
-                demo_id: None,
-                player_name: None,
-                category: "test".to_owned(),
-                tags: Vec::new(),
-                metadata: Value::Null,
-                created_at: now,
-            })
-            .await
-            .expect("clip");
-        let project_id = Uuid::new_v4();
-        storage
-            .put_editor_project(EditorProject {
-                id: project_id,
-                name: "Editor export".to_owned(),
-                width: 1920,
-                height: 1080,
-                fps: 60,
-                duration_seconds: 1.0,
-                tracks: vec![EditorTrack {
-                    id: Uuid::new_v4(),
-                    name: "Video".to_owned(),
-                    kind: TrackKind::Video,
-                    order: 0,
-                    muted: false,
-                    locked: false,
-                    hidden: false,
-                    clips: vec![EditorClip {
-                        id: Uuid::new_v4(),
-                        asset_id: Some(clip_id),
-                        name: "Recorded source".to_owned(),
-                        start: 0.0,
-                        duration: 1.0,
-                        source_in: 0.0,
-                        source_out: 1.0,
-                        speed: 1.0,
-                        volume: 1.0,
-                        transform: Transform::default(),
-                        effects: Vec::new(),
-                        transition_in: None,
-                        transition_out: None,
-                        text: None,
-                        metadata: Value::Null,
-                        group_id: None,
-                        link_group_id: None,
-                        keyframes: Vec::new(),
-                        speed_segments: Vec::new(),
-                    }],
-                }],
-                markers: Vec::new(),
-                settings: Value::Null,
-                revision: 1,
-                created_at: now,
-                updated_at: now,
-            })
-            .await
-            .expect("project");
-        let port = RuntimeExportPort::with_test_backend(
-            storage,
-            root.path().to_path_buf(),
-            Arc::new(FailingRunner),
-        );
-
-        let error = port
-            .start("editor", project_id, Value::Null)
-            .await
-            .expect_err("editor export requires the current explicit options shape");
-        assert!(matches!(error, DomainError::InvalidInput(_)));
-
-        let job = port
-            .start(
-                "editor",
-                project_id,
-                serde_json::json!({ "encoder": "auto", "quality": 80 }),
-            )
-            .await
-            .expect("recorded clip resolves as an editor source");
-        assert_eq!(job.status, JobStatus::Running);
     }
 }

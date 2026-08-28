@@ -2,10 +2,6 @@
 import type { AgentSession } from "./AgentSession";
 import type { AgentWorkspaceSettings } from "./AgentWorkspaceSettings";
 
-/**
- * A portable dump of the Agent conversation layer, used by the settings pane's
- * export action. Plans are excluded: they outlive the conversations.
- */
 export type AgentSessionExport = {
   exported_at: string;
   settings: AgentWorkspaceSettings;

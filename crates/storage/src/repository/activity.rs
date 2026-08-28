@@ -769,12 +769,49 @@ mod tests {
         run_id
     }
 
+    async fn create_export_project(storage: &Storage) -> uuid::Uuid {
+        let now = chrono::Utc::now();
+        let project_id = uuid::Uuid::new_v4();
+        let story_track_id = uuid::Uuid::new_v4();
+        storage
+            .create_project(vibe_cs_domain::Project {
+                id: project_id,
+                name: "Export owner".to_owned(),
+                revision: 1,
+                document: vibe_cs_domain::EditingDocument {
+                    width: 1920,
+                    height: 1080,
+                    fps: 60,
+                    duration_seconds: 0.0,
+                    story_track_id,
+                    tracks: vec![vibe_cs_domain::TimelineTrack {
+                        id: story_track_id,
+                        name: "Story".to_owned(),
+                        kind: vibe_cs_domain::TrackKind::Video,
+                        order: 0,
+                        muted: false,
+                        locked: false,
+                        hidden: false,
+                        clips: Vec::new(),
+                    }],
+                    markers: Vec::new(),
+                    settings: serde_json::json!({}),
+                },
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("create export Project");
+        project_id
+    }
+
     #[tokio::test]
     async fn activity_search_accepts_each_copyable_exact_activity_id() {
         let storage = Storage::open_in_memory().await.expect("open storage");
         let now = chrono::Utc::now();
         let recording_id = uuid::Uuid::new_v4();
         let export_id = uuid::Uuid::new_v4();
+        let export_project_id = create_export_project(&storage).await;
         let download_id = uuid::Uuid::new_v4();
         let analysis_demo_id = uuid::Uuid::new_v4();
         let match_record_id = "76561198000000000:copied-id";
@@ -800,7 +837,7 @@ mod tests {
                 kind: "editor".to_owned(),
                 job: vibe_cs_domain::ExportJob {
                     id: export_id,
-                    project_id: uuid::Uuid::new_v4(),
+                    project_id: export_project_id,
                     status: vibe_cs_domain::JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/copied-id.mp4".to_owned(),
@@ -925,12 +962,13 @@ mod tests {
         let storage = Storage::open_in_memory().await.expect("open storage");
         let now = chrono::Utc::now();
         let export_id = uuid::Uuid::new_v4();
+        let export_project_id = create_export_project(&storage).await;
         storage
             .put_export_job(ExportJobRecord {
                 kind: "editor".to_owned(),
                 job: vibe_cs_domain::ExportJob {
                     id: export_id,
-                    project_id: uuid::Uuid::new_v4(),
+                    project_id: export_project_id,
                     status: vibe_cs_domain::JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/exact.mp4".to_owned(),

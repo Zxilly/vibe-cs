@@ -99,12 +99,9 @@ mod tests {
     fn settings(retention: AgentSessionRetention) -> AgentWorkspaceSettings {
         AgentWorkspaceSettings {
             session_retention: retention,
-            take_limit: 5,
-            auto_attach_context: true,
-            preview_before_apply: true,
             show_evidence_reads: true,
-            default_video_seconds: 40,
-            default_shot_view: vibe_cs_domain::AgentShotView::Observer,
+            default_video_seconds: 180,
+            default_camera_style: vibe_cs_domain::HlaeCameraStyle::Pov,
             commentary_tone: CommentaryTone::Professional,
         }
     }

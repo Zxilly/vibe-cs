@@ -19,10 +19,9 @@ pub use ports::{
     CosmeticCatalogDto, CosmeticCatalogItemDto, CosmeticImageOutput, CosmeticPaintKitDto,
     CosmeticRewriteOutput, CosmeticsPort, DemoWatchPort, DemoWatchRootStatus, DemoWatchStatus,
     DisabledAnalysisPort, DisabledCosmeticsPort, DisabledDemoWatchPort, DisabledExportPort,
-    DisabledIntegrationPort, DisabledMediaPort, DisabledProposalExecutionPort,
-    DisabledRecordingPort, DisabledReviewPort, DisabledSourceAssetPort, ExportPort,
-    IntegrationPort, LlmReviewRequest, LlmReviewResult, MediaPort, MediaProxyRequest,
-    ProbedMediaMetadata, ProposalExecutionPort, RadarImageData, RadarOverviewData,
+    DisabledIntegrationPort, DisabledMediaPort, DisabledRecordingPort, DisabledReviewPort,
+    DisabledSourceAssetPort, ExportPort, IntegrationPort, LlmReviewRequest, LlmReviewResult,
+    MediaPort, MediaProxyRequest, ProbedMediaMetadata, RadarImageData, RadarOverviewData,
     RadarTransformData, RecordingPort, ReplayCacheCleanup, ReplayCacheMetadata, ReplayCacheState,
     ReplayCacheStatus, ReplayPayload, ReviewPort, ReviewScope, ReviewTone, SourceAssetPort,
 };
@@ -68,6 +67,42 @@ mod tests {
     use vibe_cs_storage::ExportJobRecord;
 
     use super::*;
+
+    async fn create_export_project(storage: &vibe_cs_storage::Storage) -> Uuid {
+        let now = Utc::now();
+        let id = Uuid::new_v4();
+        let track_id = Uuid::new_v4();
+        storage
+            .create_project(vibe_cs_domain::Project {
+                id,
+                name: "Export owner".to_owned(),
+                revision: 1,
+                document: vibe_cs_domain::EditingDocument {
+                    width: 1920,
+                    height: 1080,
+                    fps: 60,
+                    duration_seconds: 0.0,
+                    story_track_id: track_id,
+                    tracks: vec![vibe_cs_domain::TimelineTrack {
+                        id: track_id,
+                        name: "Story".to_owned(),
+                        kind: vibe_cs_domain::TrackKind::Video,
+                        order: 0,
+                        muted: false,
+                        locked: false,
+                        hidden: false,
+                        clips: Vec::new(),
+                    }],
+                    markers: Vec::new(),
+                    settings: serde_json::json!({}),
+                },
+                created_at: now,
+                updated_at: now,
+            })
+            .await
+            .expect("export Project");
+        id
+    }
 
     async fn persist_completed_analysis(
         storage: &vibe_cs_storage::Storage,
@@ -954,126 +989,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn dispatcher_exposes_only_the_current_collection_analysis_and_replay_routes() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
-        let missing_id = Uuid::new_v4();
-
-        for (method, path, body) in [
-            (Method::GET, "/api/demos/compact".to_owned(), ""),
-            (
-                Method::POST,
-                format!("/api/demos/{missing_id}/analysis-runs"),
-                "",
-            ),
-            (Method::GET, "/api/match-history/matches".to_owned(), ""),
-            (
-                Method::PATCH,
-                format!("/api/editor/projects/{missing_id}"),
-                "{}",
-            ),
-            (
-                Method::GET,
-                format!("/api/demos/{missing_id}/replay.bin"),
-                "",
-            ),
-        ] {
-            let response = dispatcher
-                .clone()
-                .oneshot(
-                    Request::builder()
-                        .method(method)
-                        .uri(&path)
-                        .header(axum::http::header::CONTENT_TYPE, "application/json")
-                        .body(Body::from(body))
-                        .expect("request"),
-                )
-                .await
-                .expect("response");
-            let status = response.status();
-            let body = to_bytes(response.into_body(), 64 * 1024)
-                .await
-                .expect("response body");
-            let code = serde_json::from_slice::<serde_json::Value>(&body)
-                .ok()
-                .and_then(|value| value["code"].as_str().map(ToOwned::to_owned));
-            assert_ne!(
-                status,
-                axum::http::StatusCode::METHOD_NOT_ALLOWED,
-                "current route rejected its method: {path}"
-            );
-            assert_ne!(
-                code.as_deref(),
-                Some("route_not_found"),
-                "current route was not registered: {path}"
-            );
-        }
-
-        for (method, path) in [
-            (Method::GET, "/api/demos".to_owned()),
-            (Method::POST, format!("/api/demos/{missing_id}/analyze")),
-            (Method::GET, "/api/steam/matches".to_owned()),
-            (Method::GET, format!("/api/demos/{missing_id}/replay")),
-        ] {
-            let response = dispatcher
-                .clone()
-                .oneshot(
-                    Request::builder()
-                        .method(method)
-                        .uri(&path)
-                        .header(axum::http::header::CONTENT_TYPE, "application/json")
-                        .body(Body::from("{}"))
-                        .expect("request"),
-                )
-                .await
-                .expect("response");
-            let body = to_bytes(response.into_body(), 64 * 1024)
-                .await
-                .expect("response body");
-            let payload: serde_json::Value = serde_json::from_slice(&body).expect("error payload");
-            assert_eq!(
-                payload["code"], "route_not_found",
-                "retired route remained reachable: {path}"
-            );
-        }
-
-        let retired_analysis_post = dispatcher
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri(format!("/api/demos/{missing_id}/analysis"))
-                    .body(Body::empty())
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(
-            retired_analysis_post.status(),
-            axum::http::StatusCode::METHOD_NOT_ALLOWED
-        );
-
-        let retired_put = dispatcher
-            .oneshot(
-                Request::builder()
-                    .method(Method::PUT)
-                    .uri(format!("/api/editor/projects/{missing_id}"))
-                    .header(axum::http::header::CONTENT_TYPE, "application/json")
-                    .body(Body::from("{}"))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(
-            retired_put.status(),
-            axum::http::StatusCode::METHOD_NOT_ALLOWED
-        );
-    }
-
-    #[tokio::test]
     async fn demo_collection_returns_only_the_current_summary_shape() {
         let directory = tempfile::tempdir().expect("temporary directory");
         let storage = vibe_cs_storage::Storage::open_in_memory()
@@ -1150,105 +1065,6 @@ mod tests {
             ]
         );
         assert_eq!(item["players"], serde_json::json!(["donk", "ZywOo"]));
-    }
-
-    #[tokio::test]
-    async fn editor_project_creation_accepts_only_the_current_four_field_shape() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
-
-        let response = dispatcher
-            .clone()
-            .oneshot(
-                Request::builder()
-                    .method(Method::POST)
-                    .uri("/api/editor/projects")
-                    .header(axum::http::header::CONTENT_TYPE, "application/json")
-                    .body(Body::from(
-                        r#"{"name":"Current","width":1920,"height":1080,"fps":60}"#,
-                    ))
-                    .expect("request"),
-            )
-            .await
-            .expect("response");
-        assert_eq!(response.status(), axum::http::StatusCode::CREATED);
-
-        for body in [
-            r#"{"name":"Implicit defaults"}"#,
-            r#"{"id":"00000000-0000-4000-8000-000000000001","name":"Injected","width":1920,"height":1080,"fps":60,"duration_seconds":9,"tracks":[],"markers":[],"settings":{},"revision":99,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-01T00:00:00Z"}"#,
-        ] {
-            let response = dispatcher
-                .clone()
-                .oneshot(
-                    Request::builder()
-                        .method(Method::POST)
-                        .uri("/api/editor/projects")
-                        .header(axum::http::header::CONTENT_TYPE, "application/json")
-                        .body(Body::from(body))
-                        .expect("request"),
-                )
-                .await
-                .expect("response");
-            assert_eq!(
-                response.status(),
-                axum::http::StatusCode::BAD_REQUEST,
-                "retired editor creation shape remained accepted: {body}"
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn mutation_routes_reject_requests_missing_current_required_fields() {
-        let directory = tempfile::tempdir().expect("temporary directory");
-        let storage = vibe_cs_storage::Storage::open_in_memory()
-            .await
-            .expect("storage");
-        let dispatcher = build_dispatcher(AppState::new(storage, directory.path().to_path_buf()));
-        let missing_id = Uuid::new_v4();
-
-        for (path, body) in [
-            (
-                "/api/demos/import".to_owned(),
-                r#"{"paths":["C:/missing.dem"]}"#,
-            ),
-            (
-                "/api/demos/scan".to_owned(),
-                r#"{"paths":["C:/missing.dem"]}"#,
-            ),
-            (
-                "/api/montage/projects".to_owned(),
-                r#"{"name":"Missing shape"}"#,
-            ),
-            (
-                format!("/api/editor/projects/{missing_id}/duplicate"),
-                r#"{"name":"Copy"}"#,
-            ),
-            (
-                format!("/api/editor/projects/{missing_id}/clips/{missing_id}/separate-audio"),
-                r#"{"expected_revision":1}"#,
-            ),
-        ] {
-            let response = dispatcher
-                .clone()
-                .oneshot(
-                    Request::builder()
-                        .method(Method::POST)
-                        .uri(&path)
-                        .header(axum::http::header::CONTENT_TYPE, "application/json")
-                        .body(Body::from(body))
-                        .expect("request"),
-                )
-                .await
-                .expect("response");
-            assert_eq!(
-                response.status(),
-                axum::http::StatusCode::BAD_REQUEST,
-                "request missing a current required field was accepted: {path}"
-            );
-        }
     }
 
     #[tokio::test]
@@ -1399,6 +1215,7 @@ mod tests {
         let export_id = Uuid::new_v4();
         let demo_id = Uuid::new_v4();
         let now = Utc::now();
+        let export_project_id = create_export_project(&storage).await;
 
         storage
             .put_recording_job(RecordingJob {
@@ -1418,10 +1235,10 @@ mod tests {
             .expect("persist recording job");
         storage
             .put_export_job(ExportJobRecord {
-                kind: "montage".to_owned(),
+                kind: "project".to_owned(),
                 job: ExportJob {
                     id: export_id,
-                    project_id: Uuid::new_v4(),
+                    project_id: export_project_id,
                     status: JobStatus::Completed,
                     progress: 1.0,
                     output_path: "C:/exports/middle.mp4".to_owned(),
@@ -1595,11 +1412,11 @@ mod tests {
             .await
             .expect("storage");
         let job_id = Uuid::new_v4();
-        let project_id = Uuid::new_v4();
+        let project_id = create_export_project(&storage).await;
         let now = Utc::now();
         storage
             .put_export_job(ExportJobRecord {
-                kind: "montage".to_owned(),
+                kind: "project".to_owned(),
                 job: ExportJob {
                     id: job_id,
                     project_id,
@@ -1632,7 +1449,7 @@ mod tests {
 
         assert_eq!(payload["items"][0]["id"], format!("export:{job_id}"));
         assert_eq!(payload["items"][0]["kind"], "export");
-        assert_eq!(payload["items"][0]["subtype"], "montage");
+        assert_eq!(payload["items"][0]["subtype"], "project");
         assert_eq!(payload["items"][0]["context_id"], project_id.to_string());
         assert_eq!(payload["items"][0]["status"], "failed");
         assert_eq!(payload["items"][0]["progress_percent"], 67);

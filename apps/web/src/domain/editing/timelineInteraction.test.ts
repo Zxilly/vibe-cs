@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { TimelineClip } from '../../shared/desktop/dto';
-import { moveTimelineClip, snapTimeToFrame, trimTimelineClip } from './timelineInteraction';
+import { moveTimelineClip, resolveTimelineSnap, snapTimeToFrame, trimTimelineClip } from './timelineInteraction';
 
 const CLIP: TimelineClip = {
   id: 'clip',
@@ -36,5 +36,23 @@ describe('timeline direct manipulation', () => {
     const trimmed = trimTimelineClip(CLIP, 'end', 30, 60, 12);
     expect(trimmed.placement.duration).toBe(10);
     expect(trimmed.placement.source_out).toBe(12);
+  });
+
+  it('snaps the closest moving edge within a screen-derived threshold', () => {
+    expect(resolveTimelineSnap(9.84, [0, 5], [0, 10, 20], 0.2)).toEqual({
+      anchorTime: 10,
+      snapTime: 10,
+    });
+    expect(resolveTimelineSnap(14.84, [0, 5], [0, 10, 20], 0.2)).toEqual({
+      anchorTime: 15,
+      snapTime: 20,
+    });
+  });
+
+  it('does not snap outside the threshold', () => {
+    expect(resolveTimelineSnap(9.7, [0], [10], 0.2)).toEqual({
+      anchorTime: 9.7,
+      snapTime: null,
+    });
   });
 });

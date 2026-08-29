@@ -2,9 +2,37 @@ import type { TimelineClip } from '../../shared/desktop/dto';
 
 const MINIMUM_CLIP_FRAMES = 1;
 
+export interface TimelineSnapResult {
+  readonly anchorTime: number;
+  readonly snapTime: number | null;
+}
+
 export function snapTimeToFrame(seconds: number, fps: number): number {
   const safeFps = Math.max(1, fps);
   return Math.round(Math.max(0, seconds) * safeFps) / safeFps;
+}
+
+export function resolveTimelineSnap(
+  anchorTime: number,
+  anchorOffsets: readonly number[],
+  candidates: readonly number[],
+  thresholdSeconds: number,
+): TimelineSnapResult {
+  let closestDistance = Number.POSITIVE_INFINITY;
+  let adjustment = 0;
+  let snapTime: number | null = null;
+  for (const offset of anchorOffsets) {
+    const target = anchorTime + offset;
+    for (const candidate of candidates) {
+      const distance = Math.abs(candidate - target);
+      if (distance <= thresholdSeconds && distance < closestDistance) {
+        closestDistance = distance;
+        adjustment = candidate - target;
+        snapTime = candidate;
+      }
+    }
+  }
+  return { anchorTime: Math.max(0, anchorTime + adjustment), snapTime };
 }
 
 export function moveTimelineClip(clip: TimelineClip, start: number, fps: number): TimelineClip {

@@ -447,6 +447,63 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('marks an In/Out range and extracts it from Story with ripple', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'i' });
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(timeline, { key: 'o' });
+    expect(screen.getByLabelText('入出点范围 00:00.000 到 00:01.000')).toBeTruthy();
+    fireEvent.keyDown(timeline, { key: "'" });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 4, source_in: 1 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4 }) }),
+        ],
+      }],
+    })));
+    expect(screen.queryByLabelText('入出点范围 00:00.000 到 00:01.000')).toBeNull();
+  });
+
+  it('supports Premiere Q and W ripple trims through the shared Story edit path', async () => {
+    const qPatch = vi.fn();
+    const qRender = renderWorkspace({ applyProjectPatch: qPatch });
+    const qTimeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(qTimeline, { key: 'q' });
+    await waitFor(() => expect(qPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 4, source_in: 1 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4 }) }),
+        ],
+      })],
+    })));
+
+    qRender.unmount();
+    const wPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch: wPatch });
+    const wTimeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(wTimeline, { key: 'w' });
+    await waitFor(() => expect(wPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 1, source_out: 1 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 1 }) }),
+        ],
+      })],
+    })));
+  });
+
   it('deletes a Story clip and closes the gap', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },

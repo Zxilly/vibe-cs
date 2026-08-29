@@ -62,6 +62,7 @@ import {
   moveRippleClip,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,
+  removeTimelineRange,
   splitRippleClip,
   trimRippleClip,
 } from './timelineEditing';
@@ -143,6 +144,8 @@ export function ProjectTimeline({
   const [scrollLeft, setScrollLeft] = useState(0);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
   const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
+  const [rangeInSeconds, setRangeInSeconds] = useState<number | null>(null);
+  const [rangeOutSeconds, setRangeOutSeconds] = useState<number | null>(null);
   const [clipboard, setClipboard] = useState<{
     readonly groups: readonly {
       readonly trackId: string;
@@ -157,6 +160,7 @@ export function ProjectTimeline({
     .flatMap((track) => track.clips)
     .find((clip) => clip.id === selectedClipId) ?? null;
   const selectedTrack = document.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClipId)) ?? null;
+  const rangeTargetTrack = selectedTrack ?? story;
   const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
   const selectedTrackGroups = useMemo(() => document.tracks.flatMap((track) => {
     const selected = track.clips.filter((clip) => selectedClipIdSet.has(clip.id));
@@ -248,6 +252,23 @@ export function ProjectTimeline({
     && clipboard !== null
     && clipboardTracks.length === clipboard.groups.length
     && clipboardTracks.every((track) => track !== null && !track.locked);
+  const rangeStart = rangeInSeconds === null || rangeOutSeconds === null
+    ? null
+    : Math.min(rangeInSeconds, rangeOutSeconds);
+  const rangeEnd = rangeInSeconds === null || rangeOutSeconds === null
+    ? null
+    : Math.max(rangeInSeconds, rangeOutSeconds);
+  const canExtractRange = !readOnly
+    && rangeTargetTrack !== null
+    && !rangeTargetTrack.locked
+    && rangeStart !== null
+    && rangeEnd !== null
+    && rangeEnd - rangeStart >= 1 / document.fps;
+  const canRippleTrimToPlayhead = !readOnly
+    && selectedClip !== null
+    && selectedTrack?.id === document.story_track_id
+    && playheadSeconds > selectedClip.placement.start + 1 / document.fps
+    && playheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
 
   const selectAdjacentChange = (direction: -1 | 1) => {
     if (directChanges.length === 0) return;
@@ -348,6 +369,32 @@ export function ProjectTimeline({
       color: DEFAULT_TIMELINE_MARKER_COLOR,
     }]);
   };
+  const extractRange = () => {
+    if (!canExtractRange || rangeTargetTrack === null || rangeStart === null || rangeEnd === null) return;
+    onReplaceTrackClips(
+      rangeTargetTrack.id,
+      removeTimelineRange(
+        rangeTargetTrack.clips,
+        rangeStart,
+        rangeEnd,
+        globalThis.crypto.randomUUID(),
+        rangeTargetTrack.id === document.story_track_id,
+      ),
+    );
+    setRangeInSeconds(null);
+    setRangeOutSeconds(null);
+  };
+  const rippleTrimToPlayhead = (edge: 'start' | 'end') => {
+    if (!canRippleTrimToPlayhead || selectedClip === null || selectedTrack === null) return;
+    const replacement = trimTimelineClip(
+      selectedClip,
+      edge,
+      playheadSeconds,
+      document.fps,
+      clipMediaDuration(selectedClip),
+    );
+    onReplaceTrackClips(selectedTrack.id, trimRippleClip(selectedTrack.clips, replacement));
+  };
 
   useEffect(() => () => {
     if (seekFrameRef.current !== null) cancelAnimationFrame(seekFrameRef.current);
@@ -411,6 +458,31 @@ export function ProjectTimeline({
           addMarker();
           return;
         }
+        if (event.key.toLowerCase() === 'i' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          setRangeInSeconds(playheadSeconds);
+          return;
+        }
+        if (event.key.toLowerCase() === 'o' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          setRangeOutSeconds(playheadSeconds);
+          return;
+        }
+        if (event.key.toLowerCase() === 'q' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          rippleTrimToPlayhead('start');
+          return;
+        }
+        if (event.key.toLowerCase() === 'w' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          rippleTrimToPlayhead('end');
+          return;
+        }
+        if (event.key === "'" && !event.ctrlKey && !event.metaKey && !event.altKey && canExtractRange) {
+          event.preventDefault();
+          extractRange();
+          return;
+        }
         if ((event.key === 'Delete' || event.key === 'Backspace') && canDelete) {
           event.preventDefault();
           deleteSelected();
@@ -435,6 +507,16 @@ export function ProjectTimeline({
             { id: 'text', label: t`添加文字轨道`, disabled: readOnly, onSelect: () => addTrack('text') },
           ]}
         />
+        <span className="flex items-center overflow-hidden rounded-sm border border-divider text-2xs">
+          <button type="button" className="h-7 px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => setRangeInSeconds(playheadSeconds)}>I</button>
+          <button type="button" className="h-7 border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => setRangeOutSeconds(playheadSeconds)}>O</button>
+          {rangeStart === null || rangeEnd === null ? null : (
+            <span className="border-l border-divider px-2 font-mono text-accent-text">{formatMillisecondTimecode(rangeStart)}–{formatMillisecondTimecode(rangeEnd)}</span>
+          )}
+          {rangeInSeconds === null && rangeOutSeconds === null ? null : (
+            <button type="button" className="h-7 border-l border-divider px-2 hover:bg-neutral-100" aria-label={t`清除入出点`} onClick={() => { setRangeInSeconds(null); setRangeOutSeconds(null); }}>×</button>
+          )}
+        </span>
         {reviewChangeCount === 0 ? null : (
           <>
             <span className="text-xs text-neutral-500"><Trans>{reviewChangeCount} 处变更</Trans></span>
@@ -491,12 +573,17 @@ export function ProjectTimeline({
         canPaste={canPaste}
         canUndo={canUndo && !readOnly}
         canAddMarker={!readOnly}
+        canExtractRange={canExtractRange}
+        canRippleTrim={canRippleTrimToPlayhead}
         onSplit={splitSelected}
         onDelete={deleteSelected}
         onCopy={copySelected}
         onPaste={pasteClipboard}
         onUndo={onUndo}
         onAddMarker={addMarker}
+        onExtractRange={extractRange}
+        onRippleTrimStart={() => rippleTrimToPlayhead('start')}
+        onRippleTrimEnd={() => rippleTrimToPlayhead('end')}
       />
 
       <div className="grid h-8 flex-none grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider font-mono text-2xs text-neutral-500">
@@ -659,6 +746,16 @@ export function ProjectTimeline({
           className="pointer-events-none absolute bottom-14 top-[var(--h-panel-head)] z-30 w-0.5 bg-accent-400/80"
           style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, snapGuideTime) - scrollLeft}px)` }}
           aria-label={t`吸附到 ${formatMillisecondTimecode(snapGuideTime)}`}
+        />
+      )}
+      {rangeStart === null || rangeEnd === null || rangeEnd <= rangeStart ? null : (
+        <span
+          className="pointer-events-none absolute bottom-14 top-[var(--h-panel-head)] z-10 border-x border-accent-400 bg-accent-100/35"
+          style={{
+            left: `calc(var(--w-track-head) + ${timeToPx(scale, rangeStart) - scrollLeft}px)`,
+            width: timeToPx(scale, rangeEnd - rangeStart),
+          }}
+          aria-label={t`入出点范围 ${formatMillisecondTimecode(rangeStart)} 到 ${formatMillisecondTimecode(rangeEnd)}`}
         />
       )}
       <Drawer
@@ -1021,12 +1118,17 @@ function TimelineToolStrip({
   canPaste,
   canUndo,
   canAddMarker,
+  canExtractRange,
+  canRippleTrim,
   onSplit,
   onDelete,
   onCopy,
   onPaste,
   onUndo,
   onAddMarker,
+  onExtractRange,
+  onRippleTrimStart,
+  onRippleTrimEnd,
 }: {
   readonly canSplit: boolean;
   readonly canDelete: boolean;
@@ -1034,17 +1136,25 @@ function TimelineToolStrip({
   readonly canPaste: boolean;
   readonly canUndo: boolean;
   readonly canAddMarker: boolean;
+  readonly canExtractRange: boolean;
+  readonly canRippleTrim: boolean;
   readonly onSplit: () => void;
   readonly onDelete: () => void;
   readonly onCopy: () => void;
   readonly onPaste: () => void;
   readonly onUndo: () => void;
   readonly onAddMarker: () => void;
+  readonly onExtractRange: () => void;
+  readonly onRippleTrimStart: () => void;
+  readonly onRippleTrimEnd: () => void;
 }) {
   const tools = [
     { label: t`选择工具`, icon: <MousePointer2 className="size-4" aria-hidden="true" />, enabled: true, pressed: true, action: undefined },
     { label: t`在播放头切分片段`, icon: <Scissors className="size-4" aria-hidden="true" />, enabled: canSplit, pressed: false, action: onSplit },
     { label: t`在播放头添加标记`, icon: <BookmarkPlus className="size-4" aria-hidden="true" />, enabled: canAddMarker, pressed: false, action: onAddMarker },
+    { label: t`提取入出点范围`, icon: <span className="font-mono text-sm" aria-hidden="true">'</span>, enabled: canExtractRange, pressed: false, action: onExtractRange },
+    { label: t`波纹裁切片段起点到播放头`, icon: <span className="font-mono text-xs" aria-hidden="true">Q</span>, enabled: canRippleTrim, pressed: false, action: onRippleTrimStart },
+    { label: t`波纹裁切播放头到片段终点`, icon: <span className="font-mono text-xs" aria-hidden="true">W</span>, enabled: canRippleTrim, pressed: false, action: onRippleTrimEnd },
     { label: t`复制所选片段`, icon: <Copy className="size-4" aria-hidden="true" />, enabled: canCopy, pressed: false, action: onCopy },
     { label: t`在播放头粘贴片段`, icon: <ClipboardPaste className="size-4" aria-hidden="true" />, enabled: canPaste, pressed: false, action: onPaste },
     { label: t`删除所选片段并闭合间隙`, icon: <Trash2 className="size-4" aria-hidden="true" />, enabled: canDelete, pressed: false, action: onDelete },

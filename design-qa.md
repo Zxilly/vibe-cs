@@ -23,6 +23,7 @@ final result: passed
 - Linked group trim pass: `target/editor-iteration/17-linked-trim.png`.
 - Transform keyframe pass: `target/editor-iteration/18-transform-keyframes.png`.
 - Transform preview pass: `target/editor-iteration/19-transform-preview.png`.
+- Direct Program transform pass: `target/editor-iteration/20-program-direct-transform.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -67,6 +68,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Multi-selection trim computes one frame-snapped delta constrained by every member's source start, media end, and one-frame minimum. Story members apply that delta then reflow once; free-track members keep absolute semantics. Linked cross-track trims submit all affected tracks in one Project Patch, and start extension can no longer produce a negative `source_in`.
 - Clip Inspector now exposes renderer-supported Transform properties by track kind and authors canonical linear keyframes at clip-local frame times. Same-property frames are unique and sorted; values hold before the first keyframe, interpolate linearly, and hold after the last exactly like the production FFmpeg expression. Timeline diamonds group properties at one time and seek the shared transport when activated.
 - Program Monitor evaluates the same canonical Transform keyframes at its clip-local transport time and applies X/Y, Scale, Rotation, and Opacity to the existing pooled video. The project stage uses container-query geometry to retain the exact project aspect ratio; transform style changes do not mount media or mutate `src`.
+- When the visible Program clip is the primary selection, paused, and writable, one transparent stage overlay supports direct X/Y movement and keyboard nudging. CSS deltas convert through measured stage dimensions into project pixels; animated properties upsert the current local keyframe while static properties update base Transform. Linked-selection click promotion preserves the group but makes the explicitly clicked member primary.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -108,6 +110,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A thirteenth live pass dragged the linked audio primary's start handle 30px. Both Story Build and audio Build changed from 13.8 to 12.9 seconds; Story remained ripple-closed after Hook while the audio absolute start moved right by the same delta. The two track replacements committed only revision 44, with page errors empty.
 - A fourteenth live pass authored Story Build X keyframes at clip-local 0s=100 and 1s=200 through Effect Controls, committing one revision 45. Two canonical timeline diamonds appeared; activating the 0s diamond sought global transport to the Build start at 12.2333333 seconds. Page errors remained empty.
 - A fifteenth live pass measured the 1920×1080 Program stage at 594.82×334.58 (ratio 1.7778). At the 0s diamond active X was 100; activating 1s produced X=199.999997 and a 10.4167% translation. The warm pool remained two videos with identical source URLs and no page errors.
+- A sixteenth live pass selected linked Story Build as primary at local 0 and dragged the Program overlay by 60×30 CSS pixels. The draft preview reached project X=293.671 and Y=96.837 while revision remained 45; mouse-up updated the existing X keyframe and static Y in exactly revision 46. Page errors remained empty.
 
 ## Comparison history
 
@@ -137,10 +140,11 @@ No actionable P0, P1, or P2 mismatch remains.
 24. `target/editor-iteration/17-linked-trim.png`: the linked Story and free-track Build clips preview the same constrained start trim before their single commit.
 25. `target/editor-iteration/18-transform-keyframes.png`: two keyframe diamonds sit on the canonical Build clip while Program Monitor and timeline share its global transport position.
 26. `target/editor-iteration/19-transform-preview.png`: the exact-ratio Program stage previews the second canonical X keyframe without replacing either pooled video.
+27. `target/editor-iteration/20-program-direct-transform.png`: the selected Program clip previews its project-pixel X/Y draft under the direct manipulation border before commit.
 
 ## Verification
 
-- Focused keyframe editing and Project workbench tests: 54 passed.
-- Full web suite: 257 files and 2933 tests passed.
+- Focused keyframe editing and Project workbench tests: 56 passed.
+- Full web suite: 257 files and 2935 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

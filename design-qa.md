@@ -35,6 +35,7 @@ final result: passed
 - Slide edit pass: `target/editor-iteration/27-slide-preview.png`.
 - Docked Project Media pass: `target/editor-iteration/30-project-media-panel-empty-fixed.png`.
 - Compact Project Media overlay pass: `target/editor-iteration/31-project-media-panel-1100-overlay.png`.
+- V/A media routing pass: `target/editor-iteration/34-audio-authoritative-id.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -61,6 +62,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - Project media exposes distinct insert and overwrite edits. Insert keeps Story ripple semantics; overwrite removes only the covered interval, preserves surviving source ranges, and does not move the later timeline.
 - Project Media is now a production dock rather than a transient file drawer. It projects canonical Story clips and unreferenced imported assets as one project-facing library: planned clips read `TimelineClip.material = planned`, recorded clips retain the same clip identity and resolve their media, and already-referenced assets are not duplicated as raw files. Search and the planned/recorded/imported filter operate on that projection; selecting a timeline item also selects and seeks the canonical clip. A planned item can request recording for its exact clip ID through the same explicit CS2/HLAE confirmation used by the all-missing action.
 - Imported sources expose Premiere-style Insert and Overwrite through the same callbacks as `,` and `.`. The source surface is a still-frame monitor without native playback controls. It keeps the previous decoded source mounted until the newly selected asset reports `loadeddata`, uses `object-fit: contain`, and never takes authority from Timeline Transport or Program Monitor.
+- Project Media routes by real target-track kind. Video on Story uses ripple Insert; non-Story video and audio preserve free positions, while Overwrite trims only the covered interval without moving later placements. An audio source falls back to the current audio target or creates one audio track and its first clip in the same Project Patch. The action surface names `Story（波纹）`, the exact target, or `新建音频轨道` before commit.
+- Inserted track and clip identities are backend-owned. After an `insert_track` Patch, the UI resolves the real Track/Clip UUIDs from the returned Project Head before targeting or selecting them; it never keeps the provisional frontend UUIDs that Storage deliberately replaces. Project Media reads every non-text Timeline Track, so an inserted audio asset becomes one recorded timeline item rather than remaining duplicated as an imported file.
 - Markers are editable canonical `EditingDocument.markers`: M or the visible tool adds one at the playhead; clicking seeks; double-clicking edits label, frame-snapped time, and colour; save and delete both use `replace_markers`.
 - I/O or the visible header controls mark a frame-aligned time range on the shared ruler geometry. Extract removes that range from the current target: Story closes the interval while free tracks retain absolute later placements.
 - Premiere Q/W ripple trims use the same selected Story clip, transport playhead, trim constraints, and `replace_track_clips` commit path as pointer trimming. Trimming the first Story clip now preserves the original track origin.
@@ -139,6 +142,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A twenty-second live pass restarted Tauri after the Rust invariant change, selected Rate Stretch, and dragged Hook's right edge. While held, revision remained 56; duration changed `11.033s → 11.783s`, speed previewed `1.063649× / 106.4%`, source In/Out stayed `0.2666667–12.8`, and Build rippled to the exact new boundary. Program exposed the same draft speed while retaining two identical URLs. Release alone committed revision 57; the independent audio kept overall Project duration at `00:29.567`, and page errors remained empty.
 - A twenty-third live pass used Project Media at the exact Story end to insert a real Anubis clip as revision 58, producing a three-clip Story and six stable `program/trim` video roles. A cold-reload Slide initially exposed an effect-order readiness race; after identity-keyed readiness, four decoded `124.28125px` slots appeared immediately. The final −0.633-second Slide held revision 61 and duration `00:38.340`; the middle clip retained source `3.200000033–15.7666667` and duration, while adjacent source bounds compensated. Release alone committed revision 62, restored normal Program, and kept transport at the exact previewed start `11.9333333`. All six role URLs remained unchanged and page errors were empty.
 - A twenty-fourth live pass replaced the old media drawer with the docked Project Media projection. At 1440×900 it occupied 280px and left the canonical Timeline 711px; hiding it restored the Timeline to 998px. At 1100×700 a fresh load kept the Timeline at 658px and the document at zero horizontal overflow; opening media produced a 340px workspace overlay without changing Timeline width. A final reload had no browser errors or console failures.
+- A twenty-fifth live pass imported an eight-second WAV extracted from an existing NiKo recording into the empty development Project. Insert created one independent audio track while Story stayed empty. Two undo/reinsert probes exposed first a stale-head target reset and then Storage's intentional UUID reallocation; after resolving identities from the returned Project Head, revision 8 showed `目标：音频轨道 1`, only the new A-track target was pressed, the waveform rendered on that track, and Project Media contained exactly one recorded item. Page errors were empty.
 
 ## Comparison history
 
@@ -178,6 +182,7 @@ No actionable P0, P1, or P2 mismatch remains.
 34. `target/editor-iteration/27-slide-preview.png`: four real source frames label previous Out, selected In/Out, and next In while the same three canonical timeline blocks preview one Slide delta.
 35. `target/editor-iteration/30-project-media-panel-empty-fixed.png`: the docked Project Media panel reserves complete source-preview, action, and library regions beside the unchanged canonical Timeline.
 36. `target/editor-iteration/31-project-media-panel-1100-overlay.png`: the compact workspace opens Project Media as a bounded overlay while the full Timeline geometry remains available underneath.
+37. `target/editor-iteration/34-audio-authoritative-id.png`: one imported audio source appears once in Project Media and once on the targeted free-positioned A track, with the returned backend identity selected.
 
 ## Verification
 
@@ -187,8 +192,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - Focused Rolling/Slip interaction and Project workbench tests: 78 passed.
 - Focused Rate Stretch/Rolling/Slip interaction and Project workbench tests: 83 passed.
 - Focused Slide/Rate Stretch/Rolling/Slip interaction and Project workbench tests: 88 passed.
-- Focused Project Media and Project workbench interaction tests: 67 passed.
-- Full web suite: 259 files and 2969 tests passed.
+- Focused Project Media, routing, and Project workbench interaction tests: 87 passed.
+- Full web suite: 259 files and 2972 tests passed.
 - Domain Project invariants: 205 tests passed; `cargo fmt -p vibe-cs-domain -- --check` passed.
 - Full Rust workspace tests and doc-tests passed; only explicitly environment-gated tests remained ignored.
 - Strict i18n/layer lint and TypeScript build passed.

@@ -8,6 +8,7 @@ import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
 import type { Project, TimelineClip } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
+import { clipFadeDuration } from './timelineInteraction';
 import { resolveTimelineMaterial } from './timelineMaterial';
 
 interface PreviewMedia {
@@ -283,6 +284,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   } | null>(null);
   const windowMouseUpRef = useRef<(() => void) | null>(null);
   const transform = draftTransform ?? evaluatedTransform;
+  const audio = evaluatePreviewAudio(clip, offsetSeconds);
   const hasScaleKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'scale_x' || keyframe.property === 'scale_y');
   const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');
   const canScaleDirectly = !hasScaleKeyframes || (Math.abs(clip.transform.rotation) <= 1e-6 && !hasRotationKeyframes);
@@ -324,6 +326,11 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       if (!video.paused) video.pause();
     };
   }, [clip.placement.speed, playing, transportRate]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video !== null) video.volume = Math.min(1, Math.max(0, audio.outputVolume));
+  }, [audio.outputVolume]);
 
   useEffect(() => () => {
     if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
@@ -416,6 +423,9 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       data-preview-scale-y={transform.scaleY}
       data-preview-rotation={transform.rotation}
       data-preview-opacity={transform.opacity}
+      data-preview-canonical-volume={audio.canonicalVolume}
+      data-preview-fade-factor={audio.fadeFactor}
+      data-preview-output-volume={audio.outputVolume}
       onLoadedMetadata={seekLatest}
       onLoadedData={() => {
         seekLatest();
@@ -669,6 +679,17 @@ function evaluatePreviewTransform(clip: TimelineClip, localTime: number) {
     rotation: evaluateClipKeyframeProperty(clip, 'rotation', localTime, clip.transform.rotation),
     opacity: evaluateClipKeyframeProperty(clip, 'opacity', localTime, clip.transform.opacity),
   };
+}
+
+function evaluatePreviewAudio(clip: TimelineClip, localTime: number) {
+  const canonicalVolume = evaluateClipKeyframeProperty(clip, 'volume', localTime, clip.placement.volume);
+  const fadeIn = clipFadeDuration(clip, 'in');
+  const fadeOut = clipFadeDuration(clip, 'out');
+  const fadeInFactor = fadeIn > 0 ? Math.min(1, Math.max(0, localTime / fadeIn)) : 1;
+  const remaining = clip.placement.duration - localTime;
+  const fadeOutFactor = fadeOut > 0 ? Math.min(1, Math.max(0, remaining / fadeOut)) : 1;
+  const fadeFactor = Math.min(fadeInFactor, fadeOutFactor);
+  return { canonicalVolume, fadeFactor, outputVolume: canonicalVolume * fadeFactor };
 }
 
 function sourceTime(clip: TimelineClip, offsetSeconds: number): number {

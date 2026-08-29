@@ -62,6 +62,7 @@ import {
   TimelineProgramMonitor,
   trimRippleClip,
   removeClipKeyframe,
+  setClipVolumeAtTime,
   upsertClipKeyframe,
 } from '../domain/editing';
 import { MapCanvas, PathLayer, type MapProjection } from '../domain/map';
@@ -971,7 +972,7 @@ function ClipInspector({
         <Trans>名称</Trans>
         <input disabled={readOnly} className="border border-divider px-2 py-1.5" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })} />
       </label>
-      {(['duration', 'source_in', 'source_out', 'speed', 'volume'] as const).map((field) => (
+      {(['duration', 'source_in', 'source_out', 'speed'] as const).map((field) => (
         <label key={field} className="mt-3 flex flex-col gap-1 text-xs">
           {field}
           <input
@@ -987,6 +988,49 @@ function ClipInspector({
           />
         </label>
       ))}
+      {selected?.track.kind === 'text' ? null : (() => {
+        const volumeKeyframes = draft.keyframes.filter((keyframe) => keyframe.property === 'volume');
+        const current = clipKeyframeAtTime(draft, 'volume', localTime, fps);
+        const volume = evaluateClipKeyframeProperty(draft, 'volume', localTime, draft.placement.volume);
+        return (
+          <section className="mt-4 border-t border-divider pt-3" aria-label={t`音量关键帧`}>
+            <div className="grid grid-cols-[minmax(0,1fr)_88px_28px] items-center gap-2 text-xs">
+              <span><Trans>音量</Trans>{volumeKeyframes.length === 0 ? null : <span className="ml-1 text-2xs text-neutral-500">{volumeKeyframes.length}</span>}</span>
+              <input
+                type="number"
+                min={0}
+                max={4}
+                step={0.01}
+                className="min-w-0 border border-divider px-2 py-1.5 font-mono"
+                disabled={readOnly}
+                value={volume}
+                aria-label={t`音量`}
+                onChange={(event) => setDraft(setClipVolumeAtTime(
+                  draft,
+                  localTime,
+                  Number(event.currentTarget.value),
+                  fps,
+                  globalThis.crypto.randomUUID(),
+                ))}
+              />
+              <button
+                type="button"
+                className={cn(
+                  'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300',
+                  current !== null && 'border-accent-300 bg-accent-100 text-accent-text',
+                )}
+                disabled={readOnly}
+                aria-label={current === null ? t`在播放头添加 音量 关键帧` : t`删除播放头的 音量 关键帧`}
+                onClick={() => setDraft(current === null
+                  ? upsertClipKeyframe(draft, 'volume', localTime, volume, globalThis.crypto.randomUUID(), fps)
+                  : removeClipKeyframe(draft, 'volume', localTime, fps))}
+              >
+                <Diamond className="size-3" fill={current === null ? 'none' : 'currentColor'} aria-hidden="true" />
+              </button>
+            </div>
+          </section>
+        );
+      })()}
       {visualProperties.length === 0 ? null : (
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`变换与关键帧`}>
           <div className="mb-2 flex items-center gap-2">

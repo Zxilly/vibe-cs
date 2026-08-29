@@ -348,6 +348,46 @@ describe('unified project workspace', () => {
     }));
   });
 
+  it('edits the current Volume keyframe from the derived audio rubber band', async () => {
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            keyframes: [
+              { id: 'volume-0', time: 0, property: 'volume', value: 1 },
+              { id: 'volume-1', time: 1, property: 'volume', value: 2 },
+            ],
+          }),
+        }),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+    fireEvent.keyDown(await screen.findByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+
+    const gain = await screen.findByRole('slider', { name: '调整片段增益 A' });
+    expect(Number(gain.getAttribute('aria-valuenow'))).toBeCloseTo(20 * Math.log10(2));
+    fireEvent.keyDown(gain, { key: 'ArrowDown' });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({
+          placement: expect.objectContaining({ volume: 1 }),
+          keyframes: [
+            expect.objectContaining({ id: 'volume-0', time: 0, value: 1 }),
+            expect.objectContaining({ id: 'volume-1', time: 1, property: 'volume', value: expect.closeTo(1.782_502, 5) }),
+          ],
+        }),
+      })],
+    })));
+  });
+
   it('edits renderer-backed fades from Story derived audio handles', async () => {
     const keyboardPatch = vi.fn();
     const keyboardRender = renderWorkspace({ applyProjectPatch: keyboardPatch });
@@ -849,6 +889,47 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
     await waitFor(() => expect((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewTransformX).toBe('192'));
     expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(2);
+  });
+
+  it('previews Volume keyframes and the canonical fade envelope on Program audio', async () => {
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            transition_in: 'fade',
+            metadata: { transition_duration: 1 },
+            keyframes: [
+              { id: 'volume-0', time: 0, property: 'volume', value: 0.5 },
+              { id: 'volume-1', time: 1, property: 'volume', value: 1 },
+            ],
+          }),
+        }),
+      },
+    };
+    renderWorkspace({
+      project,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const preview = await screen.findByLabelText('A 视频预览') as HTMLVideoElement;
+    await waitFor(() => expect(preview.dataset.previewCanonicalVolume).toBe('0.5'));
+    expect(preview.dataset.previewFadeFactor).toBe('0');
+    expect(preview.dataset.previewOutputVolume).toBe('0');
+    expect(preview.volume).toBe(0);
+
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    await waitFor(() => expect((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewCanonicalVolume).toBe('1'));
+    expect(preview.dataset.previewFadeFactor).toBe('1');
+    expect(preview.dataset.previewOutputVolume).toBe('1');
+    expect(preview.volume).toBe(1);
   });
 
   it('directly moves the selected Program clip and commits the latest transform once', async () => {
@@ -1546,6 +1627,31 @@ describe('unified project workspace', () => {
           keyframes: [
             expect.objectContaining({ time: 0, property: 'x', value: 100 }),
             expect.objectContaining({ time: 1, property: 'x', value: 200 }),
+          ],
+        })]),
+      })],
+    })));
+  });
+
+  it('authors Volume keyframes from Inspector and keeps base volume unchanged', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
+    fireEvent.click(await screen.findByRole('button', { name: '在播放头添加 音量 关键帧' }));
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    fireEvent.change(screen.getByRole('spinbutton', { name: '音量' }), { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: expect.arrayContaining([expect.objectContaining({
+          id: CLIP_A,
+          placement: expect.objectContaining({ volume: 1 }),
+          keyframes: [
+            expect.objectContaining({ time: 0, property: 'volume', value: 1 }),
+            expect.objectContaining({ time: 1, property: 'volume', value: 2 }),
           ],
         })]),
       })],

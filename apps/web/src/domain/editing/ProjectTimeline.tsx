@@ -57,6 +57,7 @@ import {
   type TimelineClipChange,
 } from './timelineChangeProjection';
 import { resolveTimelineMaterial } from './timelineMaterial';
+import { clipLocalTimeAtTimeline, evaluateClipKeyframeProperty, setClipVolumeAtTime } from './keyframeEditing';
 import {
   deleteRippleClips,
   moveRippleClip,
@@ -1047,6 +1048,7 @@ export function ProjectTimeline({
               nonStoryTrackIds={nonStoryTrackIds}
               onReorderTrack={reorderTrack}
               targetTrackId={targetTrackId}
+              timelineTimeSeconds={playheadSeconds}
               onTargetTrack={onTargetTrack}
               height={collapsedTrackRows.has(track.id)
                 ? MIN_TRACK_HEIGHT
@@ -1250,7 +1252,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -1275,6 +1277,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly nonStoryTrackIds: readonly string[];
   readonly onReorderTrack: (trackId: string, direction: -1 | 1) => void;
   readonly targetTrackId: string;
+  readonly timelineTimeSeconds: number;
   readonly onTargetTrack: (trackId: string) => void;
   readonly height: number;
   readonly collapsed: boolean;
@@ -1327,6 +1330,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             readOnly={readOnly || track.track.locked || track.derivedAudio}
             gainReadOnly={readOnly || track.track.locked}
             trackHeight={height}
+            localTime={clipLocalTimeAtTimeline(clip, timelineTimeSeconds, fps)}
             change={changeByClipId.get(clip.id) ?? null}
             onSelect={(additive, range) => onSelectClip(clip.id, additive, range)}
             onPromote={() => onPromoteClip(clip.id)}
@@ -1460,7 +1464,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.height === next.height
   && previous.collapsed === next.collapsed);
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, gainReadOnly, trackHeight, change, onSelect, onPromote, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -1471,6 +1475,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly readOnly: boolean;
   readonly gainReadOnly: boolean;
   readonly trackHeight: number;
+  readonly localTime: number;
   readonly change: TimelineClipChange | null;
   readonly onSelect: (additive: boolean, range: boolean) => void;
   readonly onPromote: () => void;
@@ -1531,6 +1536,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
           trackHeight={trackHeight}
           readOnly={gainReadOnly}
           selected={selected}
+          localTime={localTime}
+          fps={fps}
           onReplace={(replacement) => onReplace(replacement, 'volume')}
         />
         <TimelineFadeControls
@@ -1690,6 +1697,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
             trackHeight={trackHeight}
             readOnly={gainReadOnly}
             selected={selected}
+            localTime={localTime}
+            fps={fps}
             onReplace={(replacement) => onReplace(replacement, 'volume')}
           />
           <TimelineFadeControls
@@ -1771,18 +1780,22 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.readOnly === next.readOnly
   && previous.gainReadOnly === next.gainReadOnly
   && previous.trackHeight === next.trackHeight
+  && previous.localTime === next.localTime
   && previous.change === next.change
   && previous.snapPoints === next.snapPoints
   && previous.snapThresholdSeconds === next.snapThresholdSeconds);
 
-function TimelineGainControl({ clip, trackHeight, readOnly, selected, onReplace }: {
+function TimelineGainControl({ clip, trackHeight, readOnly, selected, localTime, fps, onReplace }: {
   readonly clip: TimelineClip;
   readonly trackHeight: number;
   readonly readOnly: boolean;
   readonly selected: boolean;
+  readonly localTime: number;
+  readonly fps: number;
   readonly onReplace: (clip: TimelineClip) => void;
 }) {
-  const [visualVolume, setVisualVolume] = useState(clip.placement.volume);
+  const persistedVolume = evaluateClipKeyframeProperty(clip, 'volume', localTime, clip.placement.volume);
+  const [visualVolume, setVisualVolume] = useState(persistedVolume);
   const [active, setActive] = useState(false);
   const visualVolumeRef = useRef(visualVolume);
   visualVolumeRef.current = visualVolume;
@@ -1792,12 +1805,12 @@ function TimelineGainControl({ clip, trackHeight, readOnly, selected, onReplace 
     readonly volume: number;
   } | null>(null);
   useEffect(() => {
-    setVisualVolume(clip.placement.volume);
-    visualVolumeRef.current = clip.placement.volume;
-  }, [clip.placement.volume]);
+    setVisualVolume(persistedVolume);
+    visualVolumeRef.current = persistedVolume;
+  }, [persistedVolume]);
   const commit = (volume: number) => {
-    if (Math.abs(volume - clip.placement.volume) <= 1e-6) return;
-    onReplace({ ...clip, placement: { ...clip.placement, volume } });
+    if (Math.abs(volume - persistedVolume) <= 1e-6) return;
+    onReplace(setClipVolumeAtTime(clip, localTime, volume, fps, globalThis.crypto.randomUUID()));
   };
   const db = linearGainToDb(visualVolume);
   return (
@@ -1820,7 +1833,7 @@ function TimelineGainControl({ clip, trackHeight, readOnly, selected, onReplace 
         event.preventDefault();
         event.stopPropagation();
         event.currentTarget.setPointerCapture?.(event.pointerId);
-        gesture.current = { pointerId: event.pointerId, clientY: event.clientY, volume: clip.placement.volume };
+        gesture.current = { pointerId: event.pointerId, clientY: event.clientY, volume: persistedVolume };
         setActive(true);
       }}
       onPointerMove={(event) => {
@@ -1846,7 +1859,7 @@ function TimelineGainControl({ clip, trackHeight, readOnly, selected, onReplace 
       onPointerCancel={() => {
         gesture.current = null;
         setActive(false);
-        setVisualVolume(clip.placement.volume);
+        setVisualVolume(persistedVolume);
       }}
       onKeyDown={(event) => {
         if (readOnly || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;

@@ -1,4 +1,5 @@
 import type { MediaAsset, TimelineClip } from '../../shared/desktop/dto';
+import { clipMediaDuration, constrainClipGroupTrimDelta, trimTimelineClip } from './timelineInteraction';
 
 const TIME_EPSILON = 1e-6;
 
@@ -88,6 +89,47 @@ export function trimRippleClip(
   const next = [...clips];
   next[index] = replacement;
   return reflow(next, clips[0]?.placement.start ?? 0);
+}
+
+function trimClipGroup(
+  clips: readonly TimelineClip[],
+  clipIds: ReadonlySet<string>,
+  edge: 'start' | 'end',
+  requestedDelta: number,
+  fps: number,
+  ripple: boolean,
+): TimelineClip[] {
+  const selected = clips.filter((clip) => clipIds.has(clip.id));
+  if (selected.length === 0) return [...clips];
+  const delta = constrainClipGroupTrimDelta(selected, edge, requestedDelta, fps);
+  const next = clips.map((clip) => {
+    if (!clipIds.has(clip.id)) return clip;
+    const timelineTime = edge === 'start'
+      ? clip.placement.start + delta
+      : clip.placement.start + clip.placement.duration + delta;
+    return trimTimelineClip(clip, edge, timelineTime, fps, clipMediaDuration(clip));
+  });
+  return ripple ? reflow(next, clips[0]?.placement.start ?? 0) : next;
+}
+
+export function trimRippleClipGroup(
+  clips: readonly TimelineClip[],
+  clipIds: ReadonlySet<string>,
+  edge: 'start' | 'end',
+  requestedDelta: number,
+  fps: number,
+): TimelineClip[] {
+  return trimClipGroup(clips, clipIds, edge, requestedDelta, fps, true);
+}
+
+export function trimFreeClipGroup(
+  clips: readonly TimelineClip[],
+  clipIds: ReadonlySet<string>,
+  edge: 'start' | 'end',
+  requestedDelta: number,
+  fps: number,
+): TimelineClip[] {
+  return trimClipGroup(clips, clipIds, edge, requestedDelta, fps, false);
 }
 
 export function splitRippleClip(

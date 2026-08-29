@@ -15,6 +15,8 @@ import {
   splitRippleClip,
   timelineClipFromMediaAsset,
   trimRippleClip,
+  trimRippleClipGroup,
+  trimFreeClipGroup,
 } from './timelineEditing';
 
 function clip(id: string, start: number, duration = 10): TimelineClip {
@@ -82,6 +84,20 @@ describe('ripple Story Track edits', () => {
 
     expect(trimmed.map((item) => item.placement.start)).toEqual([0, 8, 18]);
     expect(trimmed[0]?.placement).toMatchObject({ duration: 8, source_in: 2 });
+  });
+
+  it('trims selected Story clips with one shared delta and one reflow', () => {
+    const trimmed = trimRippleClipGroup(CLIPS, new Set(['a', 'b']), 'start', 2, 60);
+    expect(trimmed.map((item) => item.placement.start)).toEqual([0, 8, 16]);
+    expect(trimmed[0]?.placement).toMatchObject({ duration: 8, source_in: 2 });
+    expect(trimmed[1]?.placement).toMatchObject({ duration: 8, source_in: 2 });
+  });
+
+  it('trims selected free clips without moving unselected placements', () => {
+    const trimmed = trimFreeClipGroup(CLIPS, new Set(['a', 'b']), 'end', -2, 60);
+    expect(trimmed.map((item) => item.placement.start)).toEqual([0, 10, 20]);
+    expect(trimmed[0]?.placement).toMatchObject({ duration: 8, source_out: 8 });
+    expect(trimmed[1]?.placement).toMatchObject({ duration: 8, source_out: 8 });
   });
 
   it('splits at the playhead while preserving source coverage and total duration', () => {

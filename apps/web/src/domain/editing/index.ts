@@ -16,4 +16,6 @@ export {
   splitRippleClip,
   timelineClipFromMediaAsset,
   trimRippleClip,
+  trimRippleClipGroup,
+  trimFreeClipGroup,
 } from './timelineEditing';

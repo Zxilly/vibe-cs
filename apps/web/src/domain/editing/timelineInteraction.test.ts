@@ -7,6 +7,7 @@ import {
   gainToTrackPercent,
   linearGainToDb,
   clipFadeDuration,
+  constrainClipGroupTrimDelta,
   maximumClipFadeDuration,
   moveTimelineClip,
   resolveTimelineSnap,
@@ -43,6 +44,11 @@ describe('timeline direct manipulation', () => {
   it('trims the start while preserving the source/timeline relationship', () => {
     const trimmed = trimTimelineClip(CLIP, 'start', 12, 60, 12);
     expect(trimmed.placement).toMatchObject({ start: 12, duration: 6, source_in: 4, source_out: 10 });
+  });
+
+  it('does not extend a start trim before the available source', () => {
+    const trimmed = trimTimelineClip(CLIP, 'start', 0, 60, 12);
+    expect(trimmed.placement).toMatchObject({ start: 8, duration: 10, source_in: 0, source_out: 10 });
   });
 
   it('trims the end without extending past recorded media', () => {
@@ -104,5 +110,15 @@ describe('timeline direct manipulation', () => {
     expect(timelineEdgeScrollStep(224, 200, 1_000)).toBe(-12);
     expect(timelineEdgeScrollStep(976, 200, 1_000)).toBe(12);
     expect(timelineEdgeScrollStep(1_100, 200, 1_000)).toBe(24);
+  });
+
+  it('constrains one trim delta by every selected source boundary', () => {
+    const second = {
+      ...CLIP,
+      id: 'second',
+      placement: { ...CLIP.placement, start: 20, duration: 4, source_in: 1, source_out: 5 },
+    };
+    expect(constrainClipGroupTrimDelta([CLIP, second], 'start', -5, 60)).toBe(-1);
+    expect(constrainClipGroupTrimDelta([CLIP, second], 'end', 10, 60)).toBe(2);
   });
 });

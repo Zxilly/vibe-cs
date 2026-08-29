@@ -146,6 +146,32 @@ export function moveTimelineClip(clip: TimelineClip, start: number, fps: number)
   };
 }
 
+export function constrainClipGroupTrimDelta(
+  clips: readonly TimelineClip[],
+  edge: 'start' | 'end',
+  requestedDelta: number,
+  fps: number,
+): number {
+  const frame = 1 / Math.max(1, fps);
+  let minimum = Number.NEGATIVE_INFINITY;
+  let maximum = Number.POSITIVE_INFINITY;
+  for (const clip of clips) {
+    const placement = clip.placement;
+    if (edge === 'start') {
+      minimum = Math.max(minimum, -placement.start, -placement.source_in / placement.speed);
+      maximum = Math.min(maximum, placement.duration - frame);
+    } else {
+      minimum = Math.max(minimum, -(placement.duration - frame));
+      const mediaDuration = clipMediaDuration(clip);
+      if (mediaDuration !== null) {
+        maximum = Math.min(maximum, (mediaDuration - placement.source_out) / placement.speed);
+      }
+    }
+  }
+  const snapped = Math.round(requestedDelta * Math.max(1, fps)) / Math.max(1, fps);
+  return Math.min(maximum, Math.max(minimum, snapped));
+}
+
 export function trimTimelineClip(
   clip: TimelineClip,
   edge: 'start' | 'end',
@@ -159,12 +185,13 @@ export function trimTimelineClip(
 
   if (edge === 'start') {
     const maximumStart = placement.start + placement.duration - minimumDuration;
-    const nextStart = snapTimeToFrame(Math.min(maximumStart, Math.max(0, timelineSeconds)), fps);
+    const minimumStart = Math.max(0, placement.start - placement.source_in / placement.speed);
+    const nextStart = snapTimeToFrame(Math.min(maximumStart, Math.max(minimumStart, timelineSeconds)), fps);
     const timelineDelta = nextStart - placement.start;
-    const nextSourceIn = Math.min(
+    const nextSourceIn = Math.max(0, Math.min(
       placement.source_out - minimumDuration * placement.speed,
       placement.source_in + timelineDelta * placement.speed,
-    );
+    ));
     const nextDuration = (placement.source_out - nextSourceIn) / placement.speed;
     return {
       ...clip,

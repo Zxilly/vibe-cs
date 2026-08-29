@@ -7,6 +7,7 @@ import { mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
 import type { Project, TimelineClip } from '../../shared/desktop/dto';
+import { evaluateClipKeyframeProperty } from './keyframeEditing';
 import { resolveTimelineMaterial } from './timelineMaterial';
 
 interface PreviewMedia {
@@ -119,41 +120,53 @@ export function TimelineProgramMonitor({
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col bg-neutral-900">
-          <div className="relative min-h-0 flex-1 overflow-hidden">
-            {media.map(({ clip, src }) => {
-              const isTarget = clip.id === targetId;
-              const isPresented = clip.id === presentedId;
-              const offset = isTarget ? previewOffsetSeconds : 0;
-              return (
-                <PooledPreviewVideo
-                  key={clip.id}
-                  clip={clip}
-                  src={src}
-                  fps={project.document.fps}
-                  offsetSeconds={offset}
-                  target={isTarget}
-                  presented={isPresented}
-                  playing={playing && isTarget && isPresented}
-                  transportRate={playbackRate}
-                  onTimelineTimeChange={(sourceSeconds) => {
-                    const timelineSeconds = clip.placement.start
-                      + (sourceSeconds - clip.placement.source_in) / clip.placement.speed;
-                    onTimelineTimeChange(Math.min(
-                      clip.placement.start + clip.placement.duration,
-                      Math.max(clip.placement.start, timelineSeconds),
-                    ));
-                  }}
-                  onEnded={() => {
-                    const end = clip.placement.start + clip.placement.duration;
-                    onTimelineTimeChange(end);
-                    if (end >= project.document.duration_seconds - 1 / project.document.fps) onPlaybackEnd();
-                  }}
-                  onReady={() => {
-                    if (clip.id === targetId) setPresentedId(clip.id);
-                  }}
-                />
-              );
-            })}
+          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden" style={{ containerType: 'size' }}>
+            <div
+              className="relative max-h-full max-w-full overflow-hidden bg-neutral-900"
+              style={{
+                aspectRatio: `${project.document.width} / ${project.document.height}`,
+                width: `min(100cqw, ${project.document.width / project.document.height * 100}cqh)`,
+                height: `min(100cqh, ${project.document.height / project.document.width * 100}cqw)`,
+              }}
+              aria-label={t`节目画布`}
+            >
+              {media.map(({ clip, src }) => {
+                const isTarget = clip.id === targetId;
+                const isPresented = clip.id === presentedId;
+                const offset = isTarget ? previewOffsetSeconds : 0;
+                return (
+                  <PooledPreviewVideo
+                    key={clip.id}
+                    clip={clip}
+                    src={src}
+                    fps={project.document.fps}
+                    projectWidth={project.document.width}
+                    projectHeight={project.document.height}
+                    offsetSeconds={offset}
+                    target={isTarget}
+                    presented={isPresented}
+                    playing={playing && isTarget && isPresented}
+                    transportRate={playbackRate}
+                    onTimelineTimeChange={(sourceSeconds) => {
+                      const timelineSeconds = clip.placement.start
+                        + (sourceSeconds - clip.placement.source_in) / clip.placement.speed;
+                      onTimelineTimeChange(Math.min(
+                        clip.placement.start + clip.placement.duration,
+                        Math.max(clip.placement.start, timelineSeconds),
+                      ));
+                    }}
+                    onEnded={() => {
+                      const end = clip.placement.start + clip.placement.duration;
+                      onTimelineTimeChange(end);
+                      if (end >= project.document.duration_seconds - 1 / project.document.fps) onPlaybackEnd();
+                    }}
+                    onReady={() => {
+                      if (clip.id === targetId) setPresentedId(clip.id);
+                    }}
+                  />
+                );
+              })}
+            </div>
             {presentedId === targetId ? null : (
               <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-2 py-1 text-2xs text-neutral-100">
                 <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
@@ -195,6 +208,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   clip,
   src,
   fps,
+  projectWidth,
+  projectHeight,
   offsetSeconds,
   target,
   presented,
@@ -207,6 +222,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   readonly clip: TimelineClip;
   readonly src: string;
   readonly fps: number;
+  readonly projectWidth: number;
+  readonly projectHeight: number;
   readonly offsetSeconds: number;
   readonly target: boolean;
   readonly presented: boolean;
@@ -219,6 +236,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const videoRef = useRef<HTMLVideoElement>(null);
   const desiredTimeRef = useRef(sourceTime(clip, offsetSeconds));
   desiredTimeRef.current = sourceTime(clip, offsetSeconds);
+  const transform = evaluatePreviewTransform(clip, offsetSeconds);
 
   const seekLatest = () => {
     const video = videoRef.current;
@@ -274,7 +292,16 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
         opacity: presented ? 1 : 0,
         visibility: presented ? 'visible' : 'hidden',
         pointerEvents: 'none',
+        transform: `translate3d(${transform.x / Math.max(1, projectWidth) * 100}%, ${transform.y / Math.max(1, projectHeight) * 100}%, 0) rotate(${transform.rotation}deg) scale(${transform.scaleX}, ${transform.scaleY})`,
+        transformOrigin: 'center',
+        ...(presented ? { opacity: transform.opacity } : {}),
       }}
+      data-preview-transform-x={transform.x}
+      data-preview-transform-y={transform.y}
+      data-preview-scale-x={transform.scaleX}
+      data-preview-scale-y={transform.scaleY}
+      data-preview-rotation={transform.rotation}
+      data-preview-opacity={transform.opacity}
       onLoadedMetadata={seekLatest}
       onLoadedData={() => {
         seekLatest();
@@ -294,11 +321,24 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
 }, (previous, next) => previous.clip === next.clip
   && previous.src === next.src
   && previous.fps === next.fps
+  && previous.projectWidth === next.projectWidth
+  && previous.projectHeight === next.projectHeight
   && previous.offsetSeconds === next.offsetSeconds
   && previous.target === next.target
   && previous.presented === next.presented
   && previous.playing === next.playing
   && previous.transportRate === next.transportRate);
+
+function evaluatePreviewTransform(clip: TimelineClip, localTime: number) {
+  return {
+    x: evaluateClipKeyframeProperty(clip, 'x', localTime, clip.transform.x),
+    y: evaluateClipKeyframeProperty(clip, 'y', localTime, clip.transform.y),
+    scaleX: evaluateClipKeyframeProperty(clip, 'scale_x', localTime, clip.transform.scale_x),
+    scaleY: evaluateClipKeyframeProperty(clip, 'scale_y', localTime, clip.transform.scale_y),
+    rotation: evaluateClipKeyframeProperty(clip, 'rotation', localTime, clip.transform.rotation),
+    opacity: evaluateClipKeyframeProperty(clip, 'opacity', localTime, clip.transform.opacity),
+  };
+}
 
 function sourceTime(clip: TimelineClip, offsetSeconds: number): number {
   const placement = clip.placement;

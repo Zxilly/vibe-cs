@@ -809,6 +809,48 @@ describe('unified project workspace', () => {
     });
   });
 
+  it('previews canonical static and animated transforms on the stable Program Monitor pool', async () => {
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            transform: { ...candidate.transform, y: 54, scale_x: 1.2, scale_y: 0.8, rotation: 15, opacity: 0.5 },
+            keyframes: [
+              { id: 'x-0', time: 0, property: 'x', value: 96 },
+              { id: 'x-1', time: 1, property: 'x', value: 192 },
+            ],
+          }),
+        }),
+      },
+    };
+    renderWorkspace({
+      project,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const preview = await screen.findByLabelText('A 视频预览') as HTMLVideoElement;
+    expect(preview.dataset.previewTransformX).toBe('96');
+    expect(preview.dataset.previewTransformY).toBe('54');
+    expect(preview.dataset.previewScaleX).toBe('1.2');
+    expect(preview.dataset.previewScaleY).toBe('0.8');
+    expect(preview.dataset.previewRotation).toBe('15');
+    expect(preview.dataset.previewOpacity).toBe('0.5');
+    expect(preview.style.transform).toContain('translate3d(5%');
+    expect(preview.style.opacity).toBe('0.5');
+
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    await waitFor(() => expect((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewTransformX).toBe('192'));
+    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(2);
+  });
+
   it('uses one J/K/L transport with frame and edit-point navigation', async () => {
     renderWorkspace({
       project: RECORDED_PROJECT,

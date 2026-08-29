@@ -12,6 +12,7 @@ final result: passed
 - In/Out range pass: `target/editor-iteration/06-in-out.png`.
 - Ripple trim pass: `target/editor-iteration/07-ripple-trim.png`.
 - Transport and track-target pass: `target/editor-iteration/08-transport-target.png`.
+- Track layout pass: `target/editor-iteration/09-track-layout.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -42,6 +43,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - One Timeline Transport now owns J/K/L shuttle state, 1×/2×/4× direction changes, pause, frame stepping, and previous/next edit-point navigation. Forward playback drives the warm media pool; reverse playback advances the same timeline through an rAF clock without assigning an invalid negative HTML video rate.
 - Exact sequence end retains the last clip and presented frame, so transport controls remain available for reverse playback. Continuous playback time is frame-snapped only at edit commit seams, keeping monitoring smooth while preventing sub-frame placements and markers.
 - V/A/T track-head badges are real target controls. Single-group paste and In/Out extraction use the explicit target; multi-track clipboard groups retain their original tracks. Targeting remains navigational while an Agent edit lease makes mutation read-only.
+- Rendered tracks have independent production heights instead of fractional squeeze: video 84px, audio 64px, text 52px, marker/event 44px. The track viewport scrolls vertically when their sum exceeds available space; each editable row can collapse to 32px or resize between 32px and 180px through its shared separator.
+- Shift-click selects the contiguous clip range from the primary anchor without acquiring a move gesture. Ctrl/Cmd+A selects every clip on the explicit target track; Ctrl/Cmd additive selection remains cross-track.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -72,6 +75,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A third live pass overwrote the first 15.767 seconds at revision 28. Sequence duration stayed exactly 28 seconds and the covered Hook tail became 12.233 seconds without ripple. Revisions 29 and 30 added a marker and edited it to `开场` at `00:03.000`; page errors remained empty.
 - A fourth live pass marked `00:00.000–00:01.000` and extracted it as revision 31, reducing the sequence to 27 seconds and clearing the range. Q then ripple-trimmed another second as revision 32, producing a 13.8-second first clip and 26-second sequence. Page errors remained empty.
 - A fifth live pass shuttled forward at 2× to the 26-second endpoint, retained the last frame and controls, then reversed across clips to 18.71 seconds at −1×. A new audio track became the explicit target and received the selected Build clip at frame-aligned 2.600 seconds as revision 34. Page errors remained empty.
+- A sixth live pass added a fourth rendered track as revision 35. Its 295px viewport contained 352px of explicit rows and scrolled vertically; the new video row resized from 84px to 124px through the separator without a Project revision. Collapsing the audio row changed only its local layout from 64px to 32px. Page errors remained empty.
 
 ## Comparison history
 
@@ -90,10 +94,11 @@ No actionable P0, P1, or P2 mismatch remains.
 13. `target/editor-iteration/06-in-out.png`: the one-second In/Out overlay shares the ruler and all track rows without intercepting editing.
 14. `target/editor-iteration/07-ripple-trim.png`: the live Q trim closes the Story gap while keeping the playhead and marker independent.
 15. `target/editor-iteration/08-transport-target.png`: the Program Monitor exposes the shared shuttle controls while an independently targeted audio track receives a frame-aligned paste.
+16. `target/editor-iteration/09-track-layout.png`: explicit per-track heights preserve readable waveforms and thumbnails while overflow becomes a real vertical track viewport.
 
 ## Verification
 
-- Focused Project workbench interaction tests: 35 passed.
-- Full web suite: 256 files and 2903 tests passed.
+- Focused Project workbench interaction tests: 37 passed.
+- Full web suite: 256 files and 2905 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

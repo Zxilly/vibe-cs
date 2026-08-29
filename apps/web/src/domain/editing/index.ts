@@ -6,6 +6,7 @@ export {
   deleteRippleClips,
   insertRippleClipAtTime,
   moveRippleClip,
+  overwriteStoryClipAtTime,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,
   splitRippleClip,

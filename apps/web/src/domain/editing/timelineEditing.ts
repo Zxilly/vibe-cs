@@ -157,6 +157,54 @@ export function insertRippleClipAtTime(
   return reflow(next, origin);
 }
 
+export function overwriteStoryClipAtTime(
+  clips: readonly TimelineClip[],
+  inserted: TimelineClip,
+  timelineTime: number,
+  rightClipId: string,
+): TimelineClip[] {
+  const overwriteEnd = timelineTime + inserted.placement.duration;
+  const next: TimelineClip[] = [];
+  for (const clip of clips) {
+    const clipStart = clip.placement.start;
+    const clipEnd = clipStart + clip.placement.duration;
+    if (clipEnd <= timelineTime + TIME_EPSILON || clipStart >= overwriteEnd - TIME_EPSILON) {
+      next.push(clip);
+      continue;
+    }
+    const leftDuration = Math.max(0, timelineTime - clipStart);
+    const rightDuration = Math.max(0, clipEnd - overwriteEnd);
+    if (leftDuration > TIME_EPSILON) {
+      next.push({
+        ...clip,
+        placement: {
+          ...clip.placement,
+          duration: leftDuration,
+          source_out: clip.placement.source_in + leftDuration * clip.placement.speed,
+        },
+      });
+    }
+    if (rightDuration > TIME_EPSILON) {
+      next.push({
+        ...clip,
+        id: leftDuration > TIME_EPSILON ? rightClipId : clip.id,
+        name: leftDuration > TIME_EPSILON ? `${clip.name} · B` : clip.name,
+        placement: {
+          ...clip.placement,
+          start: overwriteEnd,
+          duration: rightDuration,
+          source_in: clip.placement.source_out - rightDuration * clip.placement.speed,
+        },
+      });
+    }
+  }
+  next.push({
+    ...inserted,
+    placement: { ...inserted.placement, start: timelineTime },
+  });
+  return next.sort((left, right) => left.placement.start - right.placement.start);
+}
+
 function copiesAtTime(
   copied: readonly TimelineClip[],
   timelineTime: number,

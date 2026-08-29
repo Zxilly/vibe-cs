@@ -277,9 +277,6 @@ export function ProjectWorkspacePage() {
       if (!additive) return currentSelection.length === 1 && currentSelection[0] === clipId
         ? currentSelection
         : [clipId];
-      const targetTrack = current.document.tracks.find((track) => track.clips.some((clip) => clip.id === clipId));
-      const currentTrack = current.document.tracks.find((track) => track.clips.some((clip) => currentSelection.includes(clip.id)));
-      if (targetTrack === undefined || (currentTrack !== undefined && currentTrack.id !== targetTrack.id)) return [clipId];
       return currentSelection.includes(clipId)
         ? currentSelection.filter((selectedId) => selectedId !== clipId)
         : [...currentSelection, clipId];
@@ -435,6 +432,13 @@ export function ProjectWorkspacePage() {
               { kind: 'track', track_id: trackId },
               [{ op: 'replace_track_clips', track_id: trackId, clips: [...clips] }],
             )}
+            onReplaceTrackClipGroups={(updates) => mutate(
+              updates.length === 1 ? `调整轨道片段` : `调整 ${updates.length} 条轨道的片段`,
+              updates.length === 1
+                ? { kind: 'track', track_id: updates[0]!.trackId }
+                : { kind: 'project' },
+              updates.map((update) => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
+            )}
             onInsertTrack={(track, index) => mutate(
               `添加轨道 ${track.name}`,
               { kind: 'project' },
@@ -444,6 +448,11 @@ export function ProjectWorkspacePage() {
               `删除轨道`,
               { kind: 'track', track_id: trackId },
               [{ op: 'remove_track', track_id: trackId }],
+            )}
+            onReorderTracks={(trackIds) => mutate(
+              `重排轨道`,
+              { kind: 'project' },
+              [{ op: 'reorder_tracks', track_ids: [...trackIds] }],
             )}
             canUndo={latestUndoableGroup !== undefined}
             onUndo={() => {

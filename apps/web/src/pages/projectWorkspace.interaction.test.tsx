@@ -292,6 +292,52 @@ describe('unified project workspace', () => {
     expect(screen.getAllByRole('button', { name: /A 5\.0s · 未录制/u })).toHaveLength(1);
   });
 
+  it('deletes a cross-track selection in one Project revision', async () => {
+    const audioClipId = '00000000-0000-4000-8000-000000000016';
+    const audioClip: TimelineClip = {
+      ...clip(audioClipId, 'Bed'),
+      material: { kind: 'asset', asset_id: 'asset-audio', media_duration_seconds: 30 },
+      placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+    };
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.kind === 'audio'
+          ? { ...track, clips: [audioClip] }
+          : track),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+
+    const storyClip = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    const audioButton = screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u });
+    fireEvent.pointerDown(audioButton, { pointerId: 41, button: 0, ctrlKey: true, clientX: 400 });
+    await waitFor(() => {
+      expect(storyClip.className).toContain('ring-accent');
+      expect(audioButton.className).toContain('ring-accent');
+    });
+    fireEvent.click(screen.getByRole('button', { name: '删除所选片段并闭合间隙' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [
+        {
+          op: 'replace_track_clips',
+          track_id: STORY_ID,
+          clips: [expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 0 }) })],
+        },
+        {
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000013',
+          clips: [],
+        },
+      ],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
   it('commits one clip replacement after a pointer drag and exposes trim handles on selection', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },
@@ -630,6 +676,38 @@ describe('unified project workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: '删除轨道 Notes' }));
     await waitFor(() => expect(removePatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [{ op: 'remove_track', track_id: textTrackId }],
+    })));
+  });
+
+  it('reorders non-Story tracks through the canonical reorder operation', async () => {
+    const textTrackId = '00000000-0000-4000-8000-000000000017';
+    const reorderPatch = vi.fn();
+    renderWorkspace({
+      applyProjectPatch: reorderPatch,
+      project: {
+        ...PROJECT,
+        document: {
+          ...PROJECT.document,
+          tracks: [...PROJECT.document.tracks, {
+            id: textTrackId,
+            name: 'Notes',
+            kind: 'text',
+            order: 2,
+            muted: false,
+            locked: false,
+            hidden: false,
+            clips: [],
+          }],
+        },
+      },
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: '下移轨道 Music' }));
+    await waitFor(() => expect(reorderPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'reorder_tracks',
+        track_ids: [STORY_ID, textTrackId, '00000000-0000-4000-8000-000000000013'],
+      }],
     })));
   });
 

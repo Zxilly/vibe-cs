@@ -5,6 +5,8 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Clapperboard,
   ClipboardPaste,
   Copy,
@@ -63,6 +65,7 @@ import {
 import {
   clipMediaDuration,
   moveTimelineClip,
+  resolveTimelineSnap,
   snapTimeToFrame,
   trimTimelineClip,
 } from './timelineInteraction';
@@ -81,8 +84,10 @@ export interface ProjectTimelineProps {
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
+  readonly onReplaceTrackClipGroups: (groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[]) => void;
   readonly onInsertTrack: (track: TimelineTrack, index: number) => void;
   readonly onRemoveTrack: (trackId: string) => void;
+  readonly onReorderTracks: (trackIds: readonly string[]) => void;
   readonly canUndo: boolean;
   readonly onUndo: () => void;
 }
@@ -119,8 +124,10 @@ export function ProjectTimeline({
   onReplaceClip,
   onReplaceTrack,
   onReplaceTrackClips,
+  onReplaceTrackClipGroups,
   onInsertTrack,
   onRemoveTrack,
+  onReorderTracks,
   canUndo,
   onUndo,
 }: ProjectTimelineProps) {
@@ -129,9 +136,12 @@ export function ProjectTimeline({
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
   const [changeFilter, setChangeFilter] = useState<'all' | 'selected'>('all');
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
   const [clipboard, setClipboard] = useState<{
-    readonly trackId: string;
-    readonly clips: readonly TimelineClip[];
+    readonly groups: readonly {
+      readonly trackId: string;
+      readonly clips: readonly TimelineClip[];
+    }[];
   } | null>(null);
   const seekFrameRef = useRef<number | null>(null);
   const queuedSeekRef = useRef<number | null>(null);
@@ -142,6 +152,10 @@ export function ProjectTimeline({
     .find((clip) => clip.id === selectedClipId) ?? null;
   const selectedTrack = document.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClipId)) ?? null;
   const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
+  const selectedTrackGroups = useMemo(() => document.tracks.flatMap((track) => {
+    const selected = track.clips.filter((clip) => selectedClipIdSet.has(clip.id));
+    return selected.length === 0 ? [] : [{ track, clips: selected }];
+  }), [document.tracks, selectedClipIdSet]);
   const selectedTrackClipIds = selectedTrack === null
     ? new Set<string>()
     : new Set(selectedTrack.clips.filter((clip) => selectedClipIdSet.has(clip.id)).map((clip) => clip.id));
@@ -149,7 +163,19 @@ export function ProjectTimeline({
     document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
   );
+  const snapPoints = useMemo(() => [
+    ...document.tracks.flatMap((track) => track.clips.flatMap((clip) => [
+      { time: clip.placement.start, clipId: clip.id },
+      { time: clip.placement.start + clip.placement.duration, clipId: clip.id },
+    ])),
+    ...document.markers.map((marker) => ({ time: marker.time, clipId: null })),
+    { time: playheadSeconds, clipId: null },
+  ], [document.markers, document.tracks, playheadSeconds]);
   const renderedTracks = useMemo(() => buildRenderedTracks(document), [document]);
+  const nonStoryTrackIds = useMemo(() => [...document.tracks]
+    .filter((track) => track.id !== document.story_track_id)
+    .sort((left, right) => left.order - right.order)
+    .map((track) => track.id), [document.story_track_id, document.tracks]);
   const recordedCount = clips.filter((clip) => resolveTimelineMaterial(clip.material).state === 'recorded').length;
   const plannedCount = clips.length - recordedCount;
   const changeProjection = useMemo(
@@ -207,12 +233,15 @@ export function ProjectTimeline({
     && selectedTrack?.id === document.story_track_id
     && playheadSeconds > selectedClip.placement.start + 1 / document.fps
     && playheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
-  const canDelete = !readOnly && selectedTrackClipIds.size > 0;
-  const canCopy = selectedTrackClipIds.size > 0;
-  const clipboardTrack = clipboard === null
-    ? null
-    : document.tracks.find((track) => track.id === clipboard.trackId) ?? null;
-  const canPaste = !readOnly && clipboard !== null && clipboardTrack !== null && !clipboardTrack.locked;
+  const canDelete = !readOnly && selectedTrackGroups.length > 0;
+  const canCopy = selectedTrackGroups.length > 0;
+  const clipboardTracks = clipboard === null
+    ? []
+    : clipboard.groups.map((group) => document.tracks.find((track) => track.id === group.trackId) ?? null);
+  const canPaste = !readOnly
+    && clipboard !== null
+    && clipboardTracks.length === clipboard.groups.length
+    && clipboardTracks.every((track) => track !== null && !track.locked);
 
   const selectAdjacentChange = (direction: -1 | 1) => {
     if (directChanges.length === 0) return;
@@ -238,47 +267,45 @@ export function ProjectTimeline({
   };
 
   const deleteSelected = () => {
-    if (!canDelete || selectedClip === null || selectedTrack === null) return;
-    const firstSelectedIndex = selectedTrack.clips.findIndex((clip) => selectedTrackClipIds.has(clip.id));
-    const remaining = selectedTrack.clips.filter((clip) => !selectedTrackClipIds.has(clip.id));
-    const nextSelection = remaining[Math.min(firstSelectedIndex, remaining.length - 1)]
-      ?? remaining[remaining.length - 1]
-      ?? null;
-    if (selectedTrack.id === document.story_track_id) {
-      onReplaceTrackClips(selectedTrack.id, deleteRippleClips(selectedTrack.clips, selectedTrackClipIds));
-    } else {
-      onReplaceTrackClips(selectedTrack.id, remaining);
-    }
+    if (!canDelete) return;
+    const updates = selectedTrackGroups.map(({ track, clips: selected }) => {
+      const ids = new Set(selected.map((clip) => clip.id));
+      return {
+        trackId: track.id,
+        clips: track.id === document.story_track_id
+          ? deleteRippleClips(track.clips, ids)
+          : track.clips.filter((clip) => !ids.has(clip.id)),
+      };
+    });
+    const remaining = document.tracks.flatMap((track) => track.clips.filter((clip) => !selectedClipIdSet.has(clip.id)));
+    const nextSelection = remaining[0] ?? null;
+    onReplaceTrackClipGroups(updates);
     if (nextSelection !== null) onSelectClip(nextSelection.id, false);
   };
 
   const copySelected = () => {
-    if (!canCopy || selectedTrack === null) return;
+    if (!canCopy) return;
     setClipboard({
-      trackId: selectedTrack.id,
-      clips: selectedTrack.clips.filter((clip) => selectedTrackClipIds.has(clip.id)),
+      groups: selectedTrackGroups.map(({ track, clips: selected }) => ({ trackId: track.id, clips: selected })),
     });
   };
 
   const pasteClipboard = () => {
-    if (!canPaste || clipboard === null || clipboardTrack === null) return;
-    const clipIds = clipboard.clips.map(() => globalThis.crypto.randomUUID());
-    const next = clipboardTrack.id === document.story_track_id
-      ? pasteRippleClipsAtTime(
-        clipboardTrack.clips,
-        clipboard.clips,
-        playheadSeconds,
-        clipIds,
-        globalThis.crypto.randomUUID(),
-      )
-      : pasteFreePositionedClipsAtTime(
-        clipboardTrack.clips,
-        clipboard.clips,
-        playheadSeconds,
-        clipIds,
-      );
-    onReplaceTrackClips(clipboardTrack.id, next);
-    clipIds.forEach((clipId, index) => onSelectClip(clipId, index > 0));
+    if (!canPaste || clipboard === null) return;
+    const pastedIds: string[] = [];
+    const updates = clipboard.groups.map((group) => {
+      const track = document.tracks.find((candidate) => candidate.id === group.trackId)!;
+      const clipIds = group.clips.map(() => globalThis.crypto.randomUUID());
+      pastedIds.push(...clipIds);
+      return {
+        trackId: track.id,
+        clips: track.id === document.story_track_id
+          ? pasteRippleClipsAtTime(track.clips, group.clips, playheadSeconds, clipIds, globalThis.crypto.randomUUID())
+          : pasteFreePositionedClipsAtTime(track.clips, group.clips, playheadSeconds, clipIds),
+      };
+    });
+    onReplaceTrackClipGroups(updates);
+    pastedIds.forEach((clipId, index) => onSelectClip(clipId, index > 0));
   };
 
   const addTrack = (kind: TimelineTrack['kind']) => {
@@ -295,6 +322,15 @@ export function ProjectTimeline({
       hidden: false,
       clips: [],
     }, document.tracks.length);
+  };
+  const reorderTrack = (trackId: string, direction: -1 | 1) => {
+    if (readOnly || trackId === document.story_track_id) return;
+    const nonStoryIds = [...nonStoryTrackIds];
+    const index = nonStoryIds.indexOf(trackId);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= nonStoryIds.length) return;
+    [nonStoryIds[index], nonStoryIds[target]] = [nonStoryIds[target]!, nonStoryIds[index]!];
+    onReorderTracks([document.story_track_id, ...nonStoryIds]);
   };
 
   useEffect(() => () => {
@@ -520,6 +556,11 @@ export function ProjectTimeline({
               storyTrackId={document.story_track_id}
               changeByClipId={changeByClipId}
               ghostChanges={ghostChanges}
+              snapPoints={snapPoints}
+              snapThresholdSeconds={10 / scale.pixelsPerSecond}
+              onSnapChange={setSnapGuideTime}
+              nonStoryTrackIds={nonStoryTrackIds}
+              onReorderTrack={reorderTrack}
             />
           ))}
           <TimelineMarkerRow markers={document.markers} scale={scale} contentWidth={contentWidth} ticks={ticks} />
@@ -583,6 +624,13 @@ export function ProjectTimeline({
           }}
         />
       </div>
+      {snapGuideTime === null ? null : (
+        <span
+          className="pointer-events-none absolute bottom-14 top-[var(--h-panel-head)] z-30 w-0.5 bg-accent-400/80"
+          style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, snapGuideTime) - scrollLeft}px)` }}
+          aria-label={t`吸附到 ${formatMillisecondTimecode(snapGuideTime)}`}
+        />
+      )}
     </ReviewPanel>
   );
 }
@@ -613,7 +661,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -630,7 +678,13 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly storyTrackId: string;
   readonly changeByClipId: ReadonlyMap<string, TimelineClipChange>;
   readonly ghostChanges: readonly TimelineClipChange[];
+  readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
+  readonly snapThresholdSeconds: number;
+  readonly onSnapChange: (time: number | null) => void;
+  readonly nonStoryTrackIds: readonly string[];
+  readonly onReorderTrack: (trackId: string, direction: -1 | 1) => void;
 }) {
+  const nonStoryIndex = nonStoryTrackIds.indexOf(track.track.id);
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={track.ariaLabel}>
       <TimelineTrackHead
@@ -642,6 +696,9 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         onReplaceTrack={onReplaceTrack}
         removable={track.track.id !== storyTrackId && !track.derivedAudio}
         onRemoveTrack={onRemoveTrack}
+        canMoveUp={!track.derivedAudio && nonStoryIndex > 0}
+        canMoveDown={!track.derivedAudio && nonStoryIndex >= 0 && nonStoryIndex < nonStoryTrackIds.length - 1}
+        onMoveTrack={onReorderTrack}
       />
       <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         {track.track.id === storyTrackId ? (
@@ -665,6 +722,9 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             change={changeByClipId.get(clip.id) ?? null}
             onSelect={(additive) => onSelectClip(clip.id, additive)}
             onInspect={() => onInspectClip(clip.id)}
+            snapPoints={snapPoints}
+            snapThresholdSeconds={snapThresholdSeconds}
+            onSnapChange={onSnapChange}
             onReplace={(replacement, mode) => {
               if (track.track.id !== storyTrackId) {
                 onReplaceClip(replacement);
@@ -689,9 +749,12 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.readOnly === next.readOnly
   && previous.storyTrackId === next.storyTrackId
   && previous.changeByClipId === next.changeByClipId
-  && previous.ghostChanges === next.ghostChanges);
+  && previous.ghostChanges === next.ghostChanges
+  && previous.snapPoints === next.snapPoints
+  && previous.snapThresholdSeconds === next.snapThresholdSeconds
+  && previous.nonStoryTrackIds === next.nonStoryTrackIds);
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, change, onSelect, onInspect, onReplace }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, change, onSelect, onInspect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -704,6 +767,9 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onSelect: (additive: boolean) => void;
   readonly onInspect: () => void;
   readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end') => void;
+  readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
+  readonly snapThresholdSeconds: number;
+  readonly onSnapChange: (time: number | null) => void;
 }) {
   const shell = useNativeShell();
   const material = resolveTimelineMaterial(clip.material);
@@ -750,14 +816,24 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     if (active === null || active.pointerId !== event.pointerId) return;
     event.preventDefault();
     const deltaSeconds = pxToTime(scale, event.clientX - active.clientX);
+    const rawAnchor = active.mode === 'end'
+      ? active.clip.placement.start + active.clip.placement.duration + deltaSeconds
+      : active.clip.placement.start + deltaSeconds;
+    const snap = event.shiftKey
+      ? { anchorTime: rawAnchor, snapTime: null }
+      : resolveTimelineSnap(
+        rawAnchor,
+        active.mode === 'move' ? [0, active.clip.placement.duration] : [0],
+        snapPoints.filter((point) => point.clipId !== active.clip.id).map((point) => point.time),
+        snapThresholdSeconds,
+      );
+    onSnapChange(snap.snapTime);
     const next = active.mode === 'move'
-      ? moveTimelineClip(active.clip, active.clip.placement.start + deltaSeconds, fps)
+      ? moveTimelineClip(active.clip, snap.anchorTime, fps)
       : trimTimelineClip(
         active.clip,
         active.mode,
-        active.mode === 'start'
-          ? active.clip.placement.start + deltaSeconds
-          : active.clip.placement.start + active.clip.placement.duration + deltaSeconds,
+        snap.anchorTime,
         fps,
         clipMediaDuration(active.clip),
       );
@@ -768,6 +844,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     if (active === null || active.pointerId !== event.pointerId) return;
     event.preventDefault();
     gesture.current = null;
+    onSnapChange(null);
     event.currentTarget.releasePointerCapture?.(event.pointerId);
     if (JSON.stringify(visualClip.placement) !== JSON.stringify(clip.placement)) {
       onReplace(visualClip, active.mode);
@@ -791,7 +868,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       onPointerDown={(event) => beginGesture(event, 'move')}
       onPointerMove={updateGesture}
       onPointerUp={finishGesture}
-      onPointerCancel={() => { gesture.current = null; setVisualClip(clip); }}
+      onPointerCancel={() => { gesture.current = null; setVisualClip(clip); onSnapChange(null); }}
       onKeyDown={(event) => {
         if (readOnly || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
         event.preventDefault();
@@ -848,7 +925,9 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
   && previous.fps === next.fps
   && previous.readOnly === next.readOnly
-  && previous.change === next.change);
+  && previous.change === next.change
+  && previous.snapPoints === next.snapPoints
+  && previous.snapThresholdSeconds === next.snapThresholdSeconds);
 
 function TimelineToolStrip({
   canSplit,
@@ -1142,15 +1221,18 @@ function TimelineClipWaveform({ clip, change }: { readonly clip: TimelineClip; r
   );
 }
 
-function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, onReplaceTrack, onRemoveTrack }: {
+function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, onReplaceTrack, onRemoveTrack, onMoveTrack }: {
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly controls: RenderedTrack['controls'];
   readonly track?: TimelineTrack | undefined;
   readonly readOnly?: boolean | undefined;
   readonly removable?: boolean | undefined;
+  readonly canMoveUp?: boolean | undefined;
+  readonly canMoveDown?: boolean | undefined;
   readonly onReplaceTrack?: ((track: TimelineTrack) => void) | undefined;
   readonly onRemoveTrack?: ((trackId: string) => void) | undefined;
+  readonly onMoveTrack?: ((trackId: string, direction: -1 | 1) => void) | undefined;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2 border-r border-divider py-2 pl-12 pr-2 text-xs font-medium">
@@ -1187,15 +1269,19 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
             <LockKeyhole className="size-3" aria-hidden="true" />
           </button>
           {removable ? (
-            <button
-              type="button"
-              className="grid size-5 place-items-center rounded-sm hover:bg-fail-surface hover:text-fail-text"
-              aria-label={t`删除轨道 ${track.name}`}
-              disabled={readOnly || track.locked}
-              onClick={() => onRemoveTrack?.(track.id)}
-            >
-              <Trash2 className="size-3" aria-hidden="true" />
-            </button>
+            <>
+              <button type="button" className="grid size-5 place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300" aria-label={t`上移轨道 ${track.name}`} disabled={readOnly || track.locked || !canMoveUp} onClick={() => onMoveTrack?.(track.id, -1)}><ChevronUp className="size-3" aria-hidden="true" /></button>
+              <button type="button" className="grid size-5 place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300" aria-label={t`下移轨道 ${track.name}`} disabled={readOnly || track.locked || !canMoveDown} onClick={() => onMoveTrack?.(track.id, 1)}><ChevronDown className="size-3" aria-hidden="true" /></button>
+              <button
+                type="button"
+                className="grid size-5 place-items-center rounded-sm hover:bg-fail-surface hover:text-fail-text"
+                aria-label={t`删除轨道 ${track.name}`}
+                disabled={readOnly || track.locked}
+                onClick={() => onRemoveTrack?.(track.id)}
+              >
+                <Trash2 className="size-3" aria-hidden="true" />
+              </button>
+            </>
           ) : null}
         </span>
       )}

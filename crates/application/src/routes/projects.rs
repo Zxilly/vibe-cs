@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use uuid::Uuid;
 use vibe_cs_domain::{
-    EditingDocument, Project, ProjectChangeAuthor, ProjectChangeGroup, ProjectEditLease,
-    ProjectPatch, TimelineTrack, TrackKind,
+    EditingDocument, EditingDocumentSettings, Project, ProjectChangeAuthor, ProjectChangeGroup,
+    ProjectEditLease, ProjectPatch, TimelineTrack, TrackKind,
 };
 use vibe_cs_storage::ProjectLeaseAcquire;
 
@@ -53,6 +53,7 @@ struct CreateProjectRequest {
     width: u32,
     height: u32,
     fps: u32,
+    source_demo_ids: Vec<Uuid>,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -166,7 +167,9 @@ async fn create_project(
                 clips: Vec::new(),
             }],
             markers: Vec::new(),
-            settings: serde_json::json!({}),
+            settings: EditingDocumentSettings {
+                source_demo_ids: request.source_demo_ids,
+            },
         },
         created_at: now,
         updated_at: now,
@@ -444,11 +447,21 @@ mod tests {
             &router,
             Method::POST,
             "/api/projects",
-            Some(json!({"name":"Unified","width":1920,"height":1080,"fps":60})),
+            Some(json!({
+                "name":"Unified",
+                "width":1920,
+                "height":1080,
+                "fps":60,
+                "source_demo_ids":["00000000-0000-0000-0000-000000000001"]
+            })),
         )
         .await;
         assert_eq!(status, 201);
         let project_id = created["id"].as_str().expect("project id");
+        assert_eq!(
+            created["document"]["settings"]["source_demo_ids"],
+            json!(["00000000-0000-0000-0000-000000000001"])
+        );
 
         let (status, patched) = call(
             &router,

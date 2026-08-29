@@ -26,7 +26,7 @@ const PROJECT: Project = {
       clips: [],
     }],
     markers: [],
-    settings: {},
+    settings: { source_demo_ids: [] },
   },
   created_at: '2026-08-19T00:00:00Z',
   updated_at: '2026-08-19T01:00:00Z',
@@ -59,7 +59,13 @@ describe('/projects', () => {
     await screen.findByText('还没有作品');
     fireEvent.click(screen.getAllByRole('button', { name: '新建作品' })[0]!);
     await waitFor(() => {
-      expect(createProject).toHaveBeenCalledWith({ name: '新作品', width: 1920, height: 1080, fps: 60 });
+      expect(createProject).toHaveBeenCalledWith({
+        name: '新作品',
+        width: 1920,
+        height: 1080,
+        fps: 60,
+        source_demo_ids: [],
+      });
     });
   });
 });

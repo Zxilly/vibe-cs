@@ -191,7 +191,13 @@ function DemoLibraryPage() {
   };
 
   const createProject = (demo: DemoSummary) => {
-    void create.mutateAsync({ name: demo.display_name, width: 1920, height: 1080, fps: 60 })
+    void create.mutateAsync({
+      name: demo.display_name,
+      width: 1920,
+      height: 1080,
+      fps: 60,
+      source_demo_ids: [demo.id],
+    })
       .then(async (project) => {
         await applyProject.mutateAsync(collectedClipsPatch(project, [wholeMatchClip(demo)]));
         void navigate(`/projects/${encodeURIComponent(project.id)}`);
@@ -204,7 +210,13 @@ function DemoLibraryPage() {
     const title = demos.length === 1
       ? demos[0]!.display_name
       : `${demos[0]!.display_name} +${String(demos.length - 1)}`;
-    void create.mutateAsync({ name: title, width: 1920, height: 1080, fps: 60 })
+    void create.mutateAsync({
+      name: title,
+      width: 1920,
+      height: 1080,
+      fps: 60,
+      source_demo_ids: demos.map((demo) => demo.id),
+    })
       .then(async (project) => {
         await applyProject.mutateAsync(collectedClipsPatch(project, demos.map(wholeMatchClip)));
         void navigate(`/projects/${encodeURIComponent(project.id)}`);

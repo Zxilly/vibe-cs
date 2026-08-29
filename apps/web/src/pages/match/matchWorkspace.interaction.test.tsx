@@ -240,7 +240,7 @@ describe('加入作品', () => {
               id: '00000000-0000-4000-8000-000000000002', name: 'Story', kind: 'video',
               order: 0, muted: false, locked: false, hidden: false, clips: [],
             }],
-            markers: [], settings: null,
+            markers: [], settings: { source_demo_ids: [] },
           },
           created_at: '2026-08-20T00:00:00Z', updated_at: '2026-08-20T00:00:00Z',
         }]),

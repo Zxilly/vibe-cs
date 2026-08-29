@@ -13,6 +13,7 @@ use crate::{
 };
 
 const MAX_PROJECT_PATCH_OPERATIONS: usize = 1_024;
+pub const MAX_PROJECT_SOURCE_DEMOS: usize = 12;
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
@@ -47,7 +48,18 @@ pub struct EditingDocument {
     pub story_track_id: Uuid,
     pub tracks: Vec<TimelineTrack>,
     pub markers: Vec<EditorMarker>,
-    pub settings: serde_json::Value,
+    pub settings: EditingDocumentSettings,
+}
+
+/// Project-wide editing inputs that are not Timeline placements.
+///
+/// Source Demos are explicit because an empty Story Track must still give the
+/// Agent enough evidence to plan the first set of capture-ready clips.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(export)]
+pub struct EditingDocumentSettings {
+    pub source_demo_ids: Vec<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
@@ -191,7 +203,7 @@ pub enum ProjectEditOperation {
         name: String,
     },
     ReplaceSettings {
-        settings: serde_json::Value,
+        settings: EditingDocumentSettings,
     },
     ReplaceMarkers {
         markers: Vec<EditorMarker>,
@@ -646,6 +658,22 @@ impl EditingDocument {
         if story.kind != TrackKind::Video {
             return Err(invalid("story track must be a video track"));
         }
+        if self.settings.source_demo_ids.len() > MAX_PROJECT_SOURCE_DEMOS {
+            return Err(invalid(
+                "project cannot reference more than 12 source demos",
+            ));
+        }
+        if self
+            .settings
+            .source_demo_ids
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>()
+            .len()
+            != self.settings.source_demo_ids.len()
+        {
+            return Err(invalid("project source demo identities must be unique"));
+        }
 
         let mut track_ids = HashSet::new();
         let mut clip_ids = HashSet::new();
@@ -897,7 +925,7 @@ mod tests {
                     clips: vec![clip(100), clip(101)],
                 }],
                 markers: Vec::new(),
-                settings: serde_json::json!({}),
+                settings: EditingDocumentSettings::default(),
             },
             created_at: DateTime::UNIX_EPOCH,
             updated_at: DateTime::UNIX_EPOCH,
@@ -1049,6 +1077,19 @@ mod tests {
     fn project_document_rejects_a_non_video_story_track() {
         let mut current = project();
         current.document.tracks[0].kind = TrackKind::Audio;
+        assert!(current.validate().is_err());
+    }
+
+    #[test]
+    fn project_source_demos_are_explicit_bounded_unique_inputs() {
+        let mut current = project();
+        current.document.settings.source_demo_ids = vec![Uuid::from_u128(1), Uuid::from_u128(2)];
+        assert!(current.validate().is_ok());
+
+        current.document.settings.source_demo_ids = vec![Uuid::from_u128(1), Uuid::from_u128(1)];
+        assert!(current.validate().is_err());
+
+        current.document.settings.source_demo_ids = (1..=13).map(Uuid::from_u128).collect();
         assert!(current.validate().is_err());
     }
 

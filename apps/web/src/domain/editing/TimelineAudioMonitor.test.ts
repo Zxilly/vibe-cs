@@ -47,7 +47,7 @@ function project(audioTracks: TimelineTrack[]): Project {
         clips: [],
       }, ...audioTracks],
       markers: [],
-      settings: {},
+      settings: { source_demo_ids: [] },
     },
     created_at: '2026-08-30T00:00:00Z',
     updated_at: '2026-08-30T00:00:00Z',

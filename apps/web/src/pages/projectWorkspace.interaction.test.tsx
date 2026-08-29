@@ -95,7 +95,7 @@ const PROJECT: Project = {
       { id: '00000000-0000-4000-8000-000000000013', name: 'Music', kind: 'audio', order: 1, muted: false, locked: false, hidden: false, clips: [] },
     ],
     markers: [],
-    settings: {},
+    settings: { source_demo_ids: [] },
   },
   created_at: '2026-08-28T00:00:00Z',
   updated_at: '2026-08-28T00:00:00Z',
@@ -1905,7 +1905,8 @@ describe('unified project workspace', () => {
     expect(within(panel).getByRole('option', { name: '选择素材 A' }).textContent).toContain('准备录制');
     expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('已录制');
     expect(within(panel).getByRole('option', { name: '选择素材 New angle' }).textContent).toContain('导入');
-    expect(within(panel).getByRole('region', { name: '时间线片段' })).toBeTruthy();
+    expect(within(panel).getByRole('region', { name: '准备录制' })).toBeTruthy();
+    expect(within(panel).getByRole('region', { name: '已录制' })).toBeTruthy();
     expect(within(panel).getByRole('region', { name: '导入素材' })).toBeTruthy();
 
     fireEvent.change(within(panel).getByRole('combobox', { name: '筛选素材状态' }), { target: { value: 'planned' } });

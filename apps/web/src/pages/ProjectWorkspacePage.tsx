@@ -229,7 +229,7 @@ export function ProjectWorkspacePage() {
   useEffect(() => {
     if (projectId !== 'new' || create.isPending || create.data !== undefined) return;
     create.mutate(
-      { name: '新作品', width: 1920, height: 1080, fps: 60 },
+      { name: '新作品', width: 1920, height: 1080, fps: 60, source_demo_ids: [] },
       { onSuccess: (created) => void navigate(`/projects/${encodeURIComponent(created.id)}`, { replace: true }) },
     );
   }, [create, navigate, projectId]);

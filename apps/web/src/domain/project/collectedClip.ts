@@ -28,19 +28,29 @@ export function collectedClipsPatch(
 ): ProjectPatch {
   const story = project.document.tracks.find((track) => track.id === project.document.story_track_id);
   const startIndex = story?.clips.length ?? 0;
+  const sourceDemoIds = [...new Set([
+    ...project.document.settings.source_demo_ids,
+    ...clips.map((clip) => clip.demoId),
+  ])];
   return {
     project_id: project.id,
     base_revision: project.revision,
-    scope: { kind: 'track', track_id: project.document.story_track_id },
+    scope: { kind: 'project' },
     author: { kind: 'human' },
     reverts_change_group_id: null,
     summary: clips.length === 1 ? `加入 ${clips[0]?.label ?? '素材'}` : `加入 ${String(clips.length)} 个素材`,
-    operations: clips.map((clip, offset) => ({
-      op: 'insert_clip',
-      track_id: project.document.story_track_id,
-      index: startIndex + offset,
-      clip: timelineClipFromCollected(clip),
-    })),
+    operations: [
+      {
+        op: 'replace_settings',
+        settings: { source_demo_ids: sourceDemoIds },
+      },
+      ...clips.map((clip, offset) => ({
+        op: 'insert_clip' as const,
+        track_id: project.document.story_track_id,
+        index: startIndex + offset,
+        clip: timelineClipFromCollected(clip),
+      })),
+    ],
   };
 }
 

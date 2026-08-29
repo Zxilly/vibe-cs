@@ -531,7 +531,7 @@ mod tests {
                     }],
                 }],
                 markers: Vec::new(),
-                settings: serde_json::json!({}),
+                settings: vibe_cs_domain::EditingDocumentSettings::default(),
             },
             created_at: DateTime::UNIX_EPOCH,
             updated_at: DateTime::UNIX_EPOCH,

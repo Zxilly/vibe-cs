@@ -5,4 +5,5 @@ export type CreateProjectRequest = {
   width: number;
   height: number;
   fps: number;
+  source_demo_ids: Array<string>;
 };

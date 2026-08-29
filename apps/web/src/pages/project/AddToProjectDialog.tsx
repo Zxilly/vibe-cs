@@ -48,6 +48,7 @@ export function AddToProjectDialog({
           width: 1920,
           height: 1080,
           fps: 60,
+          source_demo_ids: [...new Set(clips.map((entry) => entry.demoId))],
         })
         : rows.find((entry) => entry.id === selected);
       if (project === undefined) return;

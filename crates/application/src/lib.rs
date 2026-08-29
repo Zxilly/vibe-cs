@@ -94,7 +94,7 @@ mod tests {
                         clips: Vec::new(),
                     }],
                     markers: Vec::new(),
-                    settings: serde_json::json!({}),
+                    settings: vibe_cs_domain::EditingDocumentSettings::default(),
                 },
                 created_at: now,
                 updated_at: now,

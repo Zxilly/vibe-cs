@@ -101,7 +101,8 @@ export function ProjectMediaPanel({
     (stateFilter === 'all' || item.state === stateFilter)
     && (normalizedQuery === '' || item.name.toLocaleLowerCase().includes(normalizedQuery))
   )), [items, normalizedQuery, stateFilter]);
-  const timelineItems = filtered.filter((item) => item.timelineClip !== null);
+  const plannedItems = filtered.filter((item) => item.state === 'planned');
+  const recordedItems = filtered.filter((item) => item.state === 'recorded');
   const importedItems = filtered.filter((item) => item.importedAsset !== null);
   const selectedSourceAsset = selected?.sourceAsset ?? null;
   const selectedImportedAsset = selected?.importedAsset ?? null;
@@ -135,7 +136,13 @@ export function ProjectMediaPanel({
     >
       <header className="flex items-center gap-2 border-b border-divider px-2.5">
         <h2 className="text-sm font-semibold"><Trans>项目素材</Trans></h2>
-        <span className="text-2xs tabular-nums text-neutral-500">{items.length}</span>
+        <span className="text-2xs tabular-nums text-neutral-500">
+          <Trans>
+            待录 {items.filter((item) => item.state === 'planned').length}
+            {' · '}
+            已录 {items.filter((item) => item.state === 'recorded').length}
+          </Trans>
+        </span>
         <Button
           className="ml-auto"
           size="sm"
@@ -284,8 +291,19 @@ export function ProjectMediaPanel({
         {pending ? <Skeleton className="m-2 h-24" /> : filtered.length > 0 ? (
           <div role="listbox" aria-label={t`项目素材列表`}>
             <MediaItemSection
-              label={t`时间线片段`}
-              items={timelineItems}
+              label={t`准备录制`}
+              items={plannedItems}
+              selectedKey={selectedKey}
+              onSelect={(item) => {
+                setSelectedKey(item.key);
+                if (item.timelineClip !== null) {
+                  onSelectTimelineClip(item.timelineClip.id, item.timelineClip.placement.start);
+                }
+              }}
+            />
+            <MediaItemSection
+              label={t`已录制`}
+              items={recordedItems}
               selectedKey={selectedKey}
               onSelect={(item) => {
                 setSelectedKey(item.key);

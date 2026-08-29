@@ -1030,26 +1030,7 @@ async fn run_agent_chat(
         .await
         .map_err(|error| AgentCommandError::internal(format!("unable to read Project: {error}")))?
         .ok_or_else(|| AgentCommandError::invalid("Project does not exist"))?;
-    let mut requested_demo_ids = project
-        .document
-        .tracks
-        .iter()
-        .flat_map(|track| &track.clips)
-        .filter_map(|clip| {
-            clip.capture_intent
-                .as_ref()
-                .map(|intent| intent.demo_id)
-                .or_else(|| {
-                    clip.metadata
-                        .get("demo_id")
-                        .and_then(Value::as_str)
-                        .and_then(|value| Uuid::parse_str(value).ok())
-                })
-        })
-        .collect::<Vec<_>>();
-    requested_demo_ids.sort_unstable();
-    requested_demo_ids.dedup();
-    requested_demo_ids.truncate(12);
+    let requested_demo_ids = project_demo_ids(&project);
     let mut series = Vec::with_capacity(requested_demo_ids.len());
     for id in requested_demo_ids.iter().copied() {
         let demo = serde_json::to_value(state.storage.get_demo(id).await.map_err(|error| {
@@ -1349,6 +1330,32 @@ async fn run_agent_chat(
         },
     });
     Ok(AgentChatResult { thread_id })
+}
+
+fn project_demo_ids(project: &vibe_cs_domain::Project) -> Vec<Uuid> {
+    let mut requested = project.document.settings.source_demo_ids.clone();
+    requested.extend(
+        project
+            .document
+            .tracks
+            .iter()
+            .flat_map(|track| &track.clips)
+            .filter_map(|clip| {
+                clip.capture_intent
+                    .as_ref()
+                    .map(|intent| intent.demo_id)
+                    .or_else(|| {
+                        clip.metadata
+                            .get("demo_id")
+                            .and_then(Value::as_str)
+                            .and_then(|value| Uuid::parse_str(value).ok())
+                    })
+            }),
+    );
+    requested.sort_unstable();
+    requested.dedup();
+    requested.truncate(vibe_cs_domain::MAX_PROJECT_SOURCE_DEMOS);
+    requested
 }
 
 fn summarize_demo(demo: &Value) -> Value {

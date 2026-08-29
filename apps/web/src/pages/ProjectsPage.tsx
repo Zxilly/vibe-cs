@@ -18,7 +18,7 @@ export function ProjectsPage() {
 
   const createProject = () => {
     create.mutate(
-      { name: '新作品', width: 1920, height: 1080, fps: 60 },
+      { name: '新作品', width: 1920, height: 1080, fps: 60, source_demo_ids: [] },
       { onSuccess: (project) => void navigate(`/projects/${encodeURIComponent(project.id)}`) },
     );
   };

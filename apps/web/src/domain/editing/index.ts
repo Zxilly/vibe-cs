@@ -7,6 +7,7 @@ export {
   clipLocalTimeAtTimeline,
   evaluateClipKeyframeProperty,
   removeClipKeyframe,
+  setClipTransformAtTime,
   transformPropertyValue,
   upsertClipKeyframe,
 } from './keyframeEditing';

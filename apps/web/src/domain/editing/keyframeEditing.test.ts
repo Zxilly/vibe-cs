@@ -6,6 +6,7 @@ import {
   clipLocalTimeAtTimeline,
   evaluateClipKeyframeProperty,
   removeClipKeyframe,
+  setClipTransformAtTime,
   upsertClipKeyframe,
 } from './keyframeEditing';
 
@@ -62,5 +63,23 @@ describe('canonical clip keyframe editing', () => {
     expect(evaluateClipKeyframeProperty(animated, 'x', 4, 0)).toBe(60);
     expect(evaluateClipKeyframeProperty(animated, 'x', 8, 0)).toBe(100);
     expect(evaluateClipKeyframeProperty(CLIP, 'x', 4, 7)).toBe(7);
+  });
+
+  it('updates animated properties at the playhead and static properties at the base', () => {
+    const animated = upsertClipKeyframe(CLIP, 'x', 0, 10, 'x-0', 60);
+    let nextId = 0;
+    const moved = setClipTransformAtTime(
+      animated,
+      1,
+      { x: 100, y: 50 },
+      60,
+      () => `new-${nextId += 1}`,
+    );
+
+    expect(moved.transform).toMatchObject({ x: 0, y: 50 });
+    expect(moved.keyframes).toEqual([
+      { id: 'x-0', time: 0, property: 'x', value: 10 },
+      { id: 'new-1', time: 1, property: 'x', value: 100 },
+    ]);
   });
 });

@@ -54,6 +54,28 @@ export function transformPropertyValue(clip: TimelineClip, property: Exclude<Edi
   return clip.transform[property];
 }
 
+export function setClipTransformAtTime(
+  clip: TimelineClip,
+  localTime: number,
+  values: Partial<Record<Exclude<EditorKeyframeProperty, 'volume'>, number>>,
+  fps: number,
+  createId: () => string,
+): TimelineClip {
+  let next = clip;
+  for (const [property, value] of Object.entries(values) as Array<[
+    Exclude<EditorKeyframeProperty, 'volume'>,
+    number,
+  ]>) {
+    if (value === undefined) continue;
+    if (next.keyframes.some((keyframe) => keyframe.property === property)) {
+      next = upsertClipKeyframe(next, property, localTime, value, createId(), fps);
+    } else {
+      next = { ...next, transform: { ...next.transform, [property]: value } };
+    }
+  }
+  return next;
+}
+
 export function evaluateClipKeyframeProperty(
   clip: TimelineClip,
   property: EditorKeyframeProperty,

@@ -343,6 +343,16 @@ export function ProjectWorkspacePage() {
   const selectTimelineClips = (clipIds: readonly string[]) => {
     setSelectedClipIds(linkedSelectionEnabled ? expandLinkedClipIds(current, clipIds) : clipIds);
   };
+  const promoteTimelineClip = (clipId: string) => {
+    setSelectedClipIds((currentSelection) => currentSelection.includes(clipId)
+      ? [...currentSelection.filter((selectedId) => selectedId !== clipId), clipId]
+      : currentSelection);
+  };
+  const replaceTimelineClip = (clip: TimelineClip) => mutate(
+    `调整 ${clip.name}`,
+    { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
+    [{ op: 'replace_clip', clip_id: clip.id, clip }],
+  );
   const addMediaAsset = (asset: MediaAsset, mode: 'insert' | 'overwrite') => {
     if (storyTrack === null || asset.duration_seconds === null || asset.duration_seconds <= 0) return;
     const insertedClipId = globalThis.crypto.randomUUID();
@@ -465,6 +475,8 @@ export function ProjectWorkspacePage() {
             project={current}
             transportClip={transportClip}
             timelineTimeSeconds={transportTimeSeconds}
+            selectedClipId={selectedClipId}
+            readOnly={readOnly || apply.isPending}
             playing={playing}
             playbackRate={playbackRate}
             onTogglePlayback={togglePlayback}
@@ -472,6 +484,7 @@ export function ProjectWorkspacePage() {
             onStepFrame={stepTimelineFrame}
             onTimelineTimeChange={seekTimeline}
             onPlaybackEnd={() => setPlaying(false)}
+            onReplaceClip={replaceTimelineClip}
           />
           <ProjectTimeline
             document={current.document}
@@ -485,6 +498,7 @@ export function ProjectWorkspacePage() {
             readOnly={readOnly || apply.isPending || revertChange.isPending}
             onSelectClip={selectTimelineClip}
             onSelectClips={selectTimelineClips}
+            onPromoteClip={promoteTimelineClip}
             onTargetTrack={setTargetTrackId}
             onToggleLinkedSelection={() => setLinkedSelectionEnabled((value) => !value)}
             onInspectClip={(clipId) => {
@@ -497,11 +511,7 @@ export function ProjectWorkspacePage() {
             }}
             onTogglePlayback={togglePlayback}
             onShuttle={shuttlePlayback}
-            onReplaceClip={(clip) => mutate(
-              `调整 ${clip.name}`,
-              { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
-              [{ op: 'replace_clip', clip_id: clip.id, clip }],
-            )}
+            onReplaceClip={replaceTimelineClip}
             onReplaceTrack={(track) => mutate(
               `修改轨道 ${track.name}`,
               { kind: 'track', track_id: track.id },
@@ -674,6 +684,7 @@ export function ProjectWorkspacePage() {
           readOnly={readOnly}
           timelineTimeSeconds={transportTimeSeconds}
           fps={current.document.fps}
+          onSeek={seekTimeline}
           onReplace={(clip) => {
             const track = selected?.track ?? null;
             if (track?.id === current.document.story_track_id) {
@@ -706,6 +717,8 @@ function PreviewSplit({
   project,
   transportClip,
   timelineTimeSeconds,
+  selectedClipId,
+  readOnly,
   playing,
   playbackRate,
   onTogglePlayback,
@@ -713,10 +726,13 @@ function PreviewSplit({
   onStepFrame,
   onTimelineTimeChange,
   onPlaybackEnd,
+  onReplaceClip,
 }: {
   readonly project: Project;
   readonly transportClip: TimelineClip | null;
   readonly timelineTimeSeconds: number;
+  readonly selectedClipId: string | null;
+  readonly readOnly: boolean;
   readonly playing: boolean;
   readonly playbackRate: number;
   readonly onTogglePlayback: () => void;
@@ -724,6 +740,7 @@ function PreviewSplit({
   readonly onStepFrame: (direction: -1 | 1) => void;
   readonly onTimelineTimeChange: (seconds: number) => void;
   readonly onPlaybackEnd: () => void;
+  readonly onReplaceClip: (clip: TimelineClip) => void;
 }) {
   return (
     <ReviewPanel emphasis="focus" className="min-h-0 min-w-0" aria-label={t`预览分栏`}>
@@ -734,6 +751,8 @@ function PreviewSplit({
         <TimelineProgramMonitor
           project={project}
           timelineTimeSeconds={timelineTimeSeconds}
+          selectedClipId={selectedClipId}
+          readOnly={readOnly}
           playing={playing}
           playbackRate={playbackRate}
           onTogglePlayback={onTogglePlayback}
@@ -741,6 +760,7 @@ function PreviewSplit({
           onStepFrame={onStepFrame}
           onTimelineTimeChange={onTimelineTimeChange}
           onPlaybackEnd={onPlaybackEnd}
+          onReplaceClip={onReplaceClip}
         />
         <div className="bg-divider" aria-hidden="true" />
         <TacticalPreview selected={transportClip} />
@@ -903,12 +923,14 @@ function ClipInspector({
   readOnly,
   timelineTimeSeconds,
   fps,
+  onSeek,
   onReplace,
 }: {
   readonly selected: { readonly track: TimelineTrack; readonly clip: TimelineClip } | null;
   readonly readOnly: boolean;
   readonly timelineTimeSeconds: number;
   readonly fps: number;
+  readonly onSeek: (seconds: number) => void;
   readonly onReplace: (clip: TimelineClip) => void;
 }) {
   const [draft, setDraft] = useState<TimelineClip | null>(selected?.clip ?? null);
@@ -917,6 +939,9 @@ function ClipInspector({
     return <aside className="flex items-center justify-center border-l border-divider p-5 text-sm text-neutral-600"><Trans>选择片段后编辑</Trans></aside>;
   }
   const localTime = clipLocalTimeAtTimeline(draft, timelineTimeSeconds, fps);
+  const keyframeTimes = [...new Set(draft.keyframes.map((keyframe) => keyframe.time))].sort((left, right) => left - right);
+  const previousKeyframeTime = [...keyframeTimes].reverse().find((time) => time < localTime - 0.5 / fps);
+  const nextKeyframeTime = keyframeTimes.find((time) => time > localTime + 0.5 / fps);
   const visualProperties: Array<{
     readonly property: Exclude<EditorKeyframeProperty, 'volume'>;
     readonly label: string;
@@ -965,6 +990,22 @@ function ClipInspector({
         <section className="mt-4 border-t border-divider pt-3" aria-label={t`变换与关键帧`}>
           <div className="mb-2 flex items-center gap-2">
             <h3 className="text-xs font-semibold"><Trans>变换</Trans></h3>
+            <span className="flex items-center overflow-hidden rounded-sm border border-divider">
+              <button
+                type="button"
+                className="grid size-6 place-items-center hover:bg-neutral-100 disabled:text-neutral-300"
+                aria-label={t`上一个关键帧`}
+                disabled={previousKeyframeTime === undefined}
+                onClick={() => previousKeyframeTime === undefined ? undefined : onSeek(draft.placement.start + previousKeyframeTime)}
+              ><ChevronLeft className="size-3" aria-hidden="true" /></button>
+              <button
+                type="button"
+                className="grid size-6 place-items-center border-l border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+                aria-label={t`下一个关键帧`}
+                disabled={nextKeyframeTime === undefined}
+                onClick={() => nextKeyframeTime === undefined ? undefined : onSeek(draft.placement.start + nextKeyframeTime)}
+              ><ChevronRight className="size-3" aria-hidden="true" /></button>
+            </span>
             <span className="ml-auto font-mono text-2xs text-neutral-500"><Trans>片段内</Trans> {localTime.toFixed(3)}s</span>
           </div>
           {visualProperties.map(({ property, label, step, min, max }) => {
@@ -1448,6 +1489,7 @@ function findClip(project: Project, clipId: string | null) {
 
 function expandLinkedClipIds(project: Project, clipIds: readonly string[]): readonly string[] {
   const selected = new Set(clipIds);
+  const anchor = clipIds[clipIds.length - 1];
   const groups = new Set(project.document.tracks
     .flatMap((track) => track.clips)
     .filter((clip) => selected.has(clip.id) && clip.link_group_id !== null)
@@ -1456,5 +1498,8 @@ function expandLinkedClipIds(project: Project, clipIds: readonly string[]): read
   for (const clip of project.document.tracks.flatMap((track) => track.clips)) {
     if (clip.link_group_id !== null && groups.has(clip.link_group_id)) selected.add(clip.id);
   }
-  return [...selected];
+  const expanded = [...selected];
+  return anchor === undefined
+    ? expanded
+    : [...expanded.filter((clipId) => clipId !== anchor), anchor];
 }

@@ -7,7 +7,7 @@ import { mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
 import type { Project, TimelineClip } from '../../shared/desktop/dto';
-import { evaluateClipKeyframeProperty } from './keyframeEditing';
+import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import { resolveTimelineMaterial } from './timelineMaterial';
 
 interface PreviewMedia {
@@ -18,6 +18,8 @@ interface PreviewMedia {
 export interface TimelineProgramMonitorProps {
   readonly project: Project;
   readonly timelineTimeSeconds: number;
+  readonly selectedClipId: string | null;
+  readonly readOnly: boolean;
   readonly playing: boolean;
   readonly playbackRate: number;
   readonly onTogglePlayback: () => void;
@@ -25,6 +27,7 @@ export interface TimelineProgramMonitorProps {
   readonly onStepFrame: (direction: -1 | 1) => void;
   readonly onTimelineTimeChange: (seconds: number) => void;
   readonly onPlaybackEnd: () => void;
+  readonly onReplaceClip: (clip: TimelineClip) => void;
 }
 
 /**
@@ -38,6 +41,8 @@ export interface TimelineProgramMonitorProps {
 export function TimelineProgramMonitor({
   project,
   timelineTimeSeconds,
+  selectedClipId,
+  readOnly,
   playing,
   playbackRate,
   onTogglePlayback,
@@ -45,6 +50,7 @@ export function TimelineProgramMonitor({
   onStepFrame,
   onTimelineTimeChange,
   onPlaybackEnd,
+  onReplaceClip,
 }: TimelineProgramMonitorProps) {
   const shell = useNativeShell();
   const story = project.document.tracks.find((track) => track.id === project.document.story_track_id) ?? null;
@@ -107,7 +113,14 @@ export function TimelineProgramMonitor({
   }, [playbackRate, playing]);
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-divider bg-bg" aria-label={t`视频预览`}>
+    <section
+      className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-divider bg-bg"
+      aria-label={t`视频预览`}
+      data-monitor-selected-clip-id={selectedClipId ?? ''}
+      data-monitor-target-clip-id={targetId ?? ''}
+      data-monitor-read-only={readOnly}
+      data-monitor-playing={playing}
+    >
       <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
         <Trans>视频预览</Trans>
       </header>
@@ -146,6 +159,7 @@ export function TimelineProgramMonitor({
                     target={isTarget}
                     presented={isPresented}
                     playing={playing && isTarget && isPresented}
+                    editable={!playing && !readOnly && isTarget && isPresented && selectedClipId === clip.id}
                     transportRate={playbackRate}
                     onTimelineTimeChange={(sourceSeconds) => {
                       const timelineSeconds = clip.placement.start
@@ -163,6 +177,7 @@ export function TimelineProgramMonitor({
                     onReady={() => {
                       if (clip.id === targetId) setPresentedId(clip.id);
                     }}
+                    onReplaceClip={onReplaceClip}
                   />
                 );
               })}
@@ -214,10 +229,12 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   target,
   presented,
   playing,
+  editable,
   transportRate,
   onTimelineTimeChange,
   onEnded,
   onReady,
+  onReplaceClip,
 }: {
   readonly clip: TimelineClip;
   readonly src: string;
@@ -228,15 +245,30 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   readonly target: boolean;
   readonly presented: boolean;
   readonly playing: boolean;
+  readonly editable: boolean;
   readonly transportRate: number;
   readonly onTimelineTimeChange: (sourceSeconds: number) => void;
   readonly onEnded: () => void;
   readonly onReady: () => void;
+  readonly onReplaceClip: (clip: TimelineClip) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const desiredTimeRef = useRef(sourceTime(clip, offsetSeconds));
   desiredTimeRef.current = sourceTime(clip, offsetSeconds);
-  const transform = evaluatePreviewTransform(clip, offsetSeconds);
+  const evaluatedTransform = evaluatePreviewTransform(clip, offsetSeconds);
+  const [draftTransform, setDraftTransform] = useState<typeof evaluatedTransform | null>(null);
+  const draftTransformRef = useRef(draftTransform);
+  draftTransformRef.current = draftTransform;
+  const moveGesture = useRef<{
+    readonly pointerId: number;
+    readonly clientX: number;
+    readonly clientY: number;
+    readonly transform: typeof evaluatedTransform;
+    readonly stageWidth: number;
+    readonly stageHeight: number;
+  } | null>(null);
+  const windowMouseUpRef = useRef<(() => void) | null>(null);
+  const transform = draftTransform ?? evaluatedTransform;
 
   const seekLatest = () => {
     const video = videoRef.current;
@@ -275,7 +307,32 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     };
   }, [clip.placement.speed, playing, transportRate]);
 
+  useEffect(() => () => {
+    if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
+  }, []);
+
+  const commitTransformMove = () => {
+    const gesture = moveGesture.current;
+    const draft = draftTransformRef.current;
+    if (gesture === null || draft === null) return;
+    moveGesture.current = null;
+    if (windowMouseUpRef.current !== null) {
+      window.removeEventListener('mouseup', windowMouseUpRef.current);
+      windowMouseUpRef.current = null;
+    }
+    setDraftTransform(null);
+    if (Math.abs(draft.x - gesture.transform.x) <= 1e-6 && Math.abs(draft.y - gesture.transform.y) <= 1e-6) return;
+    onReplaceClip(setClipTransformAtTime(
+      clip,
+      offsetSeconds,
+      { x: draft.x, y: draft.y },
+      fps,
+      () => globalThis.crypto.randomUUID(),
+    ));
+  };
+
   return (
+    <>
     <video
       ref={videoRef}
       className="absolute inset-0 size-full bg-neutral-900 object-contain transition-opacity duration-75"
@@ -286,6 +343,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       controls={false}
       data-preview-target={target}
       data-preview-active={presented}
+      data-preview-editable={editable}
       aria-label={target ? t`${clip.name} 视频预览` : undefined}
       aria-hidden={!target}
       style={{
@@ -317,6 +375,80 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       }}
       onEnded={onEnded}
     />
+    {editable ? (
+      <button
+        type="button"
+        className="absolute inset-0 z-30 touch-none cursor-move border border-accent-400 bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+        style={{
+          transform: `translate3d(${transform.x / Math.max(1, projectWidth) * 100}%, ${transform.y / Math.max(1, projectHeight) * 100}%, 0) rotate(${transform.rotation}deg) scale(${transform.scaleX}, ${transform.scaleY})`,
+          transformOrigin: 'center',
+        }}
+        aria-label={t`在节目画布中移动 ${clip.name}`}
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const stage = event.currentTarget.parentElement?.getBoundingClientRect();
+          if (stage === undefined) return;
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+          moveGesture.current = {
+            pointerId: event.pointerId,
+            clientX: event.clientX,
+            clientY: event.clientY,
+            transform,
+            stageWidth: Math.max(1, stage.width),
+            stageHeight: Math.max(1, stage.height),
+          };
+          setDraftTransform(transform);
+          draftTransformRef.current = transform;
+          const finishFromWindow = () => commitTransformMove();
+          windowMouseUpRef.current = finishFromWindow;
+          window.addEventListener('mouseup', finishFromWindow, { once: true });
+        }}
+        onPointerMove={(event) => {
+          const gesture = moveGesture.current;
+          if (gesture === null || gesture.pointerId !== event.pointerId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const next = {
+            ...gesture.transform,
+            x: gesture.transform.x + (event.clientX - gesture.clientX) * projectWidth / gesture.stageWidth,
+            y: gesture.transform.y + (event.clientY - gesture.clientY) * projectHeight / gesture.stageHeight,
+          };
+          draftTransformRef.current = next;
+          setDraftTransform(next);
+        }}
+        onPointerUp={(event) => {
+          if (moveGesture.current?.pointerId !== event.pointerId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          commitTransformMove();
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
+        }}
+        onPointerCancel={() => {
+          moveGesture.current = null;
+          if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
+          windowMouseUpRef.current = null;
+          draftTransformRef.current = null;
+          setDraftTransform(null);
+        }}
+        onKeyDown={(event) => {
+          if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+          event.preventDefault();
+          const step = event.shiftKey ? 10 : 1;
+          const x = transform.x + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0);
+          const y = transform.y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0);
+          onReplaceClip(setClipTransformAtTime(
+            clip,
+            offsetSeconds,
+            { x, y },
+            fps,
+            () => globalThis.crypto.randomUUID(),
+          ));
+        }}
+      />
+    ) : null}
+    </>
   );
 }, (previous, next) => previous.clip === next.clip
   && previous.src === next.src
@@ -327,7 +459,9 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   && previous.target === next.target
   && previous.presented === next.presented
   && previous.playing === next.playing
-  && previous.transportRate === next.transportRate);
+  && previous.editable === next.editable
+  && previous.transportRate === next.transportRate
+  && previous.onReplaceClip === next.onReplaceClip);
 
 function evaluatePreviewTransform(clip: TimelineClip, localTime: number) {
   return {

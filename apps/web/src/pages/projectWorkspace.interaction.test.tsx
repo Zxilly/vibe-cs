@@ -851,6 +851,55 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(2);
   });
 
+  it('directly moves the selected Program clip and commits the latest transform once', async () => {
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            transform: { ...candidate.transform, y: 54 },
+            keyframes: [{ id: 'x-0', time: 0, property: 'x', value: 96 }],
+          }),
+        }),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({
+      project,
+      applyProjectPatch,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const overlay = await screen.findByRole('button', { name: '在节目画布中移动 A' });
+    vi.spyOn(overlay.parentElement!, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 960, bottom: 540, left: 0, width: 960, height: 540, toJSON: () => ({}),
+    });
+    fireEvent.pointerDown(overlay, { pointerId: 101, button: 0, clientX: 100, clientY: 100 });
+    fireEvent.pointerMove(overlay, { pointerId: 101, clientX: 196, clientY: 154 });
+    await waitFor(() => expect((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewTransformX).toBe('288'));
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+    fireEvent.pointerUp(overlay, { pointerId: 101, clientX: 196, clientY: 154 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({
+          transform: expect.objectContaining({ x: 0, y: 162 }),
+          keyframes: [expect.objectContaining({ id: 'x-0', time: 0, property: 'x', value: 288 })],
+        }),
+      })],
+    }));
+  });
+
   it('uses one J/K/L transport with frame and edit-point navigation', async () => {
     renderWorkspace({
       project: RECORDED_PROJECT,
@@ -1030,6 +1079,14 @@ describe('unified project workspace', () => {
       expect(story.className).toContain('ring-accent');
       expect(audio.className).toContain('ring-accent');
     });
+    fireEvent.pointerDown(audio, { pointerId: 94, button: 0, clientX: 300 });
+    fireEvent.pointerUp(audio, { pointerId: 94, clientX: 300 });
+    fireEvent.click(audio, { detail: 1 });
+    expect(screen.getByRole('separator', { name: '裁切片段起点' }).closest('button')).toBe(audio);
+    fireEvent.pointerDown(story, { pointerId: 95, button: 0, clientX: 200 });
+    fireEvent.pointerUp(story, { pointerId: 95, clientX: 200 });
+    fireEvent.click(story, { detail: 1 });
+    expect(screen.getByRole('separator', { name: '裁切片段起点' }).closest('button')).toBe(story);
     expect(screen.getByRole('button', { name: '切换链接选择' }).getAttribute('aria-pressed')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: '取消链接所选片段' }));
 
@@ -1420,6 +1477,10 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
     expect((screen.getByRole('spinbutton', { name: '位置 X' }) as HTMLInputElement).value).toBe('100');
     fireEvent.change(screen.getByRole('spinbutton', { name: '位置 X' }), { target: { value: '200' } });
+    fireEvent.click(screen.getByRole('button', { name: '上一个关键帧' }));
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(0);
+    fireEvent.click(screen.getByRole('button', { name: '下一个关键帧' }));
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(1);
     fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({

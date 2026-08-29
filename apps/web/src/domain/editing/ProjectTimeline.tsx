@@ -102,6 +102,7 @@ export interface ProjectTimelineProps {
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
   readonly onSelectClips: (clipIds: readonly string[]) => void;
+  readonly onPromoteClip: (clipId: string) => void;
   readonly onTargetTrack: (trackId: string) => void;
   readonly onToggleLinkedSelection: () => void;
   readonly onInspectClip: (clipId: string) => void;
@@ -160,6 +161,7 @@ export function ProjectTimeline({
   readOnly,
   onSelectClip,
   onSelectClips,
+  onPromoteClip,
   onTargetTrack,
   onToggleLinkedSelection,
   onInspectClip,
@@ -1029,6 +1031,7 @@ export function ProjectTimeline({
               fps={document.fps}
               readOnly={readOnly}
               onSelectClip={onSelectClip}
+              onPromoteClip={onPromoteClip}
               onInspectClip={onInspectClip}
               onSeek={onSeek}
               onReplaceClip={onReplaceClip}
@@ -1247,7 +1250,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -1256,6 +1259,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly fps: number;
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
+  readonly onPromoteClip: (clipId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
@@ -1325,6 +1329,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             trackHeight={height}
             change={changeByClipId.get(clip.id) ?? null}
             onSelect={(additive, range) => onSelectClip(clip.id, additive, range)}
+            onPromote={() => onPromoteClip(clip.id)}
             onInspect={() => onInspectClip(clip.id)}
             onSeek={onSeek}
             snapPoints={snapPoints}
@@ -1455,7 +1460,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.height === next.height
   && previous.collapsed === next.collapsed);
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, gainReadOnly, trackHeight, change, onSelect, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, gainReadOnly, trackHeight, change, onSelect, onPromote, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -1468,6 +1473,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly trackHeight: number;
   readonly change: TimelineClipChange | null;
   readonly onSelect: (additive: boolean, range: boolean) => void;
+  readonly onPromote: () => void;
   readonly onInspect: () => void;
   readonly onSeek: (seconds: number) => void;
   readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'volume' | 'fade') => void;
@@ -1488,6 +1494,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   const visualClipRef = useRef(visualClip);
   visualClipRef.current = visualClip;
   const windowMouseUpRef = useRef<(() => void) | null>(null);
+  const lastGestureWasDragRef = useRef(false);
   const gesture = useRef<{
     readonly pointerId: number;
     readonly clientX: number;
@@ -1496,6 +1503,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     readonly clip: TimelineClip;
     lastClientX: number;
     shiftKey: boolean;
+    moved: boolean;
   } | null>(null);
   useEffect(() => {
     setVisualClip(clip);
@@ -1572,6 +1580,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       );
     visualClipRef.current = next;
     setVisualClip(next);
+    if (Math.abs(clientX - active.clientX + currentScrollLeft - active.scrollLeft) > 5) active.moved = true;
   };
   const finishGestureCore = () => {
     const active = gesture.current;
@@ -1584,6 +1593,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     onDragAutoScroll(null);
     onSnapChange(null);
     const replacement = visualClipRef.current;
+    lastGestureWasDragRef.current = active.moved;
     if (JSON.stringify(replacement.placement) !== JSON.stringify(active.clip.placement)) {
       onReplace(replacement, active.mode);
     }
@@ -1605,7 +1615,9 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       clip,
       lastClientX: event.clientX,
       shiftKey: event.shiftKey,
+      moved: false,
     };
+    lastGestureWasDragRef.current = false;
     onDragAutoScroll(event.clientX, (nextScrollLeft) => {
       const active = gesture.current;
       if (active !== null) updateVisualGesture(active, active.lastClientX, nextScrollLeft, active.shiftKey);
@@ -1643,6 +1655,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       aria-disabled={readOnly}
       onClick={(event) => {
         if (event.detail === 0) onSelect(event.ctrlKey || event.metaKey, event.shiftKey);
+        else if (selected && !lastGestureWasDragRef.current) onPromote();
       }}
       onDoubleClick={onInspect}
       onPointerDown={(event) => beginGesture(event, 'move')}

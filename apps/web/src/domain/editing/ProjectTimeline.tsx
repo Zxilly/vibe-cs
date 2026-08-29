@@ -2,6 +2,7 @@ import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
 import {
   Bookmark,
+  BookmarkPlus,
   Camera,
   ChevronLeft,
   ChevronRight,
@@ -31,6 +32,8 @@ import { mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { ReviewPanel } from '../../design/review';
 import { OverflowMenu } from '../../design/layout';
+import { Drawer } from '../../design/feedback';
+import { Button, cn } from '../../design/primitives';
 import {
   BASE_PIXELS_PER_SECOND,
   createTimeScale,
@@ -39,8 +42,8 @@ import {
   rulerTicks,
   timeToPx,
 } from '../../design/timeline/timeScale';
+import { DEFAULT_TIMELINE_MARKER_COLOR } from '../../design/timeline';
 import { Waveform } from '../media';
-import { cn } from '../../design/primitives';
 import type {
   EditingDocument,
   EditorMarker,
@@ -88,6 +91,7 @@ export interface ProjectTimelineProps {
   readonly onInsertTrack: (track: TimelineTrack, index: number) => void;
   readonly onRemoveTrack: (trackId: string) => void;
   readonly onReorderTracks: (trackIds: readonly string[]) => void;
+  readonly onReplaceMarkers: (markers: readonly EditorMarker[]) => void;
   readonly canUndo: boolean;
   readonly onUndo: () => void;
 }
@@ -128,6 +132,7 @@ export function ProjectTimeline({
   onInsertTrack,
   onRemoveTrack,
   onReorderTracks,
+  onReplaceMarkers,
   canUndo,
   onUndo,
 }: ProjectTimelineProps) {
@@ -137,6 +142,7 @@ export function ProjectTimeline({
   const [changeFilter, setChangeFilter] = useState<'all' | 'selected'>('all');
   const [scrollLeft, setScrollLeft] = useState(0);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
+  const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
   const [clipboard, setClipboard] = useState<{
     readonly groups: readonly {
       readonly trackId: string;
@@ -332,6 +338,16 @@ export function ProjectTimeline({
     [nonStoryIds[index], nonStoryIds[target]] = [nonStoryIds[target]!, nonStoryIds[index]!];
     onReorderTracks([document.story_track_id, ...nonStoryIds]);
   };
+  const addMarker = () => {
+    if (readOnly) return;
+    const number = document.markers.length + 1;
+    onReplaceMarkers([...document.markers, {
+      id: globalThis.crypto.randomUUID(),
+      time: playheadSeconds,
+      label: t`标记 ${number}`,
+      color: DEFAULT_TIMELINE_MARKER_COLOR,
+    }]);
+  };
 
   useEffect(() => () => {
     if (seekFrameRef.current !== null) cancelAnimationFrame(seekFrameRef.current);
@@ -388,6 +404,11 @@ export function ProjectTimeline({
         if (event.key.toLowerCase() === 's' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           splitSelected();
+          return;
+        }
+        if (event.key.toLowerCase() === 'm' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          addMarker();
           return;
         }
         if ((event.key === 'Delete' || event.key === 'Backspace') && canDelete) {
@@ -469,11 +490,13 @@ export function ProjectTimeline({
         canCopy={canCopy}
         canPaste={canPaste}
         canUndo={canUndo && !readOnly}
+        canAddMarker={!readOnly}
         onSplit={splitSelected}
         onDelete={deleteSelected}
         onCopy={copySelected}
         onPaste={pasteClipboard}
         onUndo={onUndo}
+        onAddMarker={addMarker}
       />
 
       <div className="grid h-8 flex-none grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider font-mono text-2xs text-neutral-500">
@@ -563,7 +586,14 @@ export function ProjectTimeline({
               onReorderTrack={reorderTrack}
             />
           ))}
-          <TimelineMarkerRow markers={document.markers} scale={scale} contentWidth={contentWidth} ticks={ticks} />
+          <TimelineMarkerRow
+            markers={document.markers}
+            scale={scale}
+            contentWidth={contentWidth}
+            ticks={ticks}
+            onSeek={onSeek}
+            onEditMarker={(marker) => setMarkerDraft({ ...marker })}
+          />
           <TimelineEventRow clips={clips} scale={scale} contentWidth={contentWidth} ticks={ticks} />
         </div>
       </div>
@@ -631,6 +661,61 @@ export function ProjectTimeline({
           aria-label={t`吸附到 ${formatMillisecondTimecode(snapGuideTime)}`}
         />
       )}
+      <Drawer
+        open={markerDraft !== null}
+        title={<Trans>编辑标记</Trans>}
+        description={markerDraft === null ? undefined : formatMillisecondTimecode(markerDraft.time)}
+        width="standard"
+        onClose={() => setMarkerDraft(null)}
+        footer={markerDraft === null ? undefined : (
+          <>
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => {
+                onReplaceMarkers(document.markers.filter((marker) => marker.id !== markerDraft.id));
+                setMarkerDraft(null);
+              }}
+            >
+              <Trans>删除标记</Trans>
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={markerDraft.label.trim() === ''}
+              onClick={() => {
+                onReplaceMarkers(document.markers.map((marker) => marker.id === markerDraft.id
+                  ? {
+                    ...markerDraft,
+                    label: markerDraft.label.trim(),
+                    time: snapTimeToFrame(Math.min(document.duration_seconds, Math.max(0, markerDraft.time)), document.fps),
+                  }
+                  : marker));
+                setMarkerDraft(null);
+              }}
+            >
+              <Trans>保存标记</Trans>
+            </Button>
+          </>
+        )}
+      >
+        {markerDraft === null ? <span /> : (
+          <div className="space-y-3">
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>名称</Trans>
+              <input className="border border-divider bg-bg px-2 py-1.5" value={markerDraft.label} onChange={(event) => setMarkerDraft({ ...markerDraft, label: event.currentTarget.value })} />
+            </label>
+            <label className="flex flex-col gap-1 text-xs">
+              <Trans>时间</Trans>
+              <input type="number" min={0} max={document.duration_seconds} step={1 / document.fps} className="border border-divider bg-bg px-2 py-1.5 font-mono" value={markerDraft.time} onChange={(event) => setMarkerDraft({ ...markerDraft, time: Number(event.currentTarget.value) })} />
+            </label>
+            <label className="flex items-center gap-2 text-xs">
+              <Trans>颜色</Trans>
+              <input type="color" value={markerDraft.color} onChange={(event) => setMarkerDraft({ ...markerDraft, color: event.currentTarget.value.toUpperCase() })} />
+            </label>
+          </div>
+        )}
+      </Drawer>
     </ReviewPanel>
   );
 }
@@ -935,26 +1020,31 @@ function TimelineToolStrip({
   canCopy,
   canPaste,
   canUndo,
+  canAddMarker,
   onSplit,
   onDelete,
   onCopy,
   onPaste,
   onUndo,
+  onAddMarker,
 }: {
   readonly canSplit: boolean;
   readonly canDelete: boolean;
   readonly canCopy: boolean;
   readonly canPaste: boolean;
   readonly canUndo: boolean;
+  readonly canAddMarker: boolean;
   readonly onSplit: () => void;
   readonly onDelete: () => void;
   readonly onCopy: () => void;
   readonly onPaste: () => void;
   readonly onUndo: () => void;
+  readonly onAddMarker: () => void;
 }) {
   const tools = [
     { label: t`选择工具`, icon: <MousePointer2 className="size-4" aria-hidden="true" />, enabled: true, pressed: true, action: undefined },
     { label: t`在播放头切分片段`, icon: <Scissors className="size-4" aria-hidden="true" />, enabled: canSplit, pressed: false, action: onSplit },
+    { label: t`在播放头添加标记`, icon: <BookmarkPlus className="size-4" aria-hidden="true" />, enabled: canAddMarker, pressed: false, action: onAddMarker },
     { label: t`复制所选片段`, icon: <Copy className="size-4" aria-hidden="true" />, enabled: canCopy, pressed: false, action: onCopy },
     { label: t`在播放头粘贴片段`, icon: <ClipboardPaste className="size-4" aria-hidden="true" />, enabled: canPaste, pressed: false, action: onPaste },
     { label: t`删除所选片段并闭合间隙`, icon: <Trash2 className="size-4" aria-hidden="true" />, enabled: canDelete, pressed: false, action: onDelete },
@@ -1289,11 +1379,34 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   );
 }
 
-const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, contentWidth, ticks }: { readonly markers: readonly EditorMarker[]; readonly scale: ReturnType<typeof createTimeScale>; readonly contentWidth: number; readonly ticks: ReturnType<typeof rulerTicks> }) {
+const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, contentWidth, ticks, onSeek, onEditMarker }: {
+  readonly markers: readonly EditorMarker[];
+  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly contentWidth: number;
+  readonly ticks: ReturnType<typeof rulerTicks>;
+  readonly onSeek: (seconds: number) => void;
+  readonly onEditMarker: (marker: EditorMarker) => void;
+}) {
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`标记`}>
       <TimelineTrackHead icon={<Bookmark className="size-4" />} label={t`标记`} controls="none" />
-      <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}><TimelineGrid ticks={ticks} />{markers.map((marker) => <span key={marker.id} className="absolute inset-y-1 flex items-center gap-1.5 text-2xs text-neutral-700" style={{ left: timeToPx(scale, marker.time) }}><span className="h-full w-1.5" style={{ backgroundColor: marker.color }} aria-hidden="true" /><span className="whitespace-nowrap">{marker.label}</span></span>)}</div>
+      <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
+        <TimelineGrid ticks={ticks} />
+        {markers.map((marker) => (
+          <button
+            key={marker.id}
+            type="button"
+            className="absolute inset-y-1 z-10 flex items-center gap-1.5 text-2xs text-neutral-700 hover:bg-neutral-100 focus-visible:ring-1 focus-visible:ring-accent-500"
+            style={{ left: timeToPx(scale, marker.time) }}
+            aria-label={t`标记 ${marker.label} ${formatMillisecondTimecode(marker.time)}`}
+            onClick={() => onSeek(marker.time)}
+            onDoubleClick={() => onEditMarker(marker)}
+          >
+            <span className="h-full w-1.5" style={{ backgroundColor: marker.color }} aria-hidden="true" />
+            <span className="whitespace-nowrap">{marker.label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }, (previous, next) => previous.markers === next.markers

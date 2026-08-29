@@ -401,6 +401,52 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('adds a canonical marker at the playhead', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '在播放头添加标记' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_markers',
+        markers: [expect.objectContaining({ time: 0, label: '标记 1', color: '#2F6FED' })],
+      }],
+    })));
+  });
+
+  it('edits and deletes an existing timeline marker', async () => {
+    const marker = { id: '00000000-0000-4000-8000-000000000018', time: 8, label: 'ACE', color: '#2F6FED' };
+    const project: Project = {
+      ...PROJECT,
+      document: { ...PROJECT.document, markers: [marker] },
+    };
+    const editPatch = vi.fn();
+    const rendered = renderWorkspace({ project, applyProjectPatch: editPatch });
+
+    const markerButton = await screen.findByRole('button', { name: '标记 ACE 00:08.000' });
+    fireEvent.doubleClick(markerButton);
+    fireEvent.change(screen.getByRole('textbox', { name: '名称' }), { target: { value: 'ACE revised' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: '时间' }), { target: { value: '9' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存标记' }));
+
+    await waitFor(() => expect(editPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_markers',
+        markers: [{ ...marker, time: 9, label: 'ACE revised' }],
+      }],
+    })));
+
+    rendered.unmount();
+    const deletePatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch: deletePatch });
+    fireEvent.doubleClick(await screen.findByRole('button', { name: '标记 ACE 00:08.000' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除标记' }));
+    await waitFor(() => expect(deletePatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{ op: 'replace_markers', markers: [] }],
+    })));
+  });
+
   it('deletes a Story clip and closes the gap', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },
@@ -607,7 +653,7 @@ describe('unified project workspace', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: '项目素材' }));
     expect(screen.getByRole('heading', { name: '项目素材' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '将 New angle 加入时间线' }));
+    fireEvent.click(screen.getByRole('button', { name: '在播放头插入 New angle' }));
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -617,6 +663,42 @@ describe('unified project workspace', () => {
           expect.objectContaining({ name: 'New angle', placement: expect.objectContaining({ start: 0, duration: 6 }) }),
           expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 6 }) }),
           expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 11 }) }),
+        ],
+      })],
+    })));
+  });
+
+  it('overwrites Story media at the transport without rippling the later timeline', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-overwrite',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\overwrite.mp4',
+      name: 'Overwrite angle',
+      kind: 'video',
+      duration_seconds: 6,
+      width: 1920,
+      height: 1080,
+      file_size: 2_048,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ assets: [asset], applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '项目素材' }));
+    fireEvent.click(screen.getByRole('button', { name: '在播放头覆盖 Overwrite angle' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ name: 'Overwrite angle', placement: expect.objectContaining({ start: 0, duration: 6 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 6, duration: 4, source_in: 1 }) }),
         ],
       })],
     })));

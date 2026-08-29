@@ -50,6 +50,7 @@ import { Button, cn } from '../design/primitives';
 import { ReviewPanel } from '../design/review';
 import {
   insertRippleClipAtTime,
+  overwriteStoryClipAtTime,
   ProjectTimeline,
   timelineClipFromMediaAsset,
   TimelineProgramMonitor,
@@ -282,17 +283,25 @@ export function ProjectWorkspacePage() {
         : [...currentSelection, clipId];
     });
   };
-  const addMediaAsset = (asset: MediaAsset) => {
+  const addMediaAsset = (asset: MediaAsset, mode: 'insert' | 'overwrite') => {
     if (storyTrack === null || asset.duration_seconds === null || asset.duration_seconds <= 0) return;
     const insertedClipId = globalThis.crypto.randomUUID();
-    const clips = insertRippleClipAtTime(
-      storyTrack.clips,
-      timelineClipFromMediaAsset(asset, insertedClipId),
-      transportTimeSeconds,
-      globalThis.crypto.randomUUID(),
-    );
+    const inserted = timelineClipFromMediaAsset(asset, insertedClipId);
+    const clips = mode === 'insert'
+      ? insertRippleClipAtTime(
+        storyTrack.clips,
+        inserted,
+        transportTimeSeconds,
+        globalThis.crypto.randomUUID(),
+      )
+      : overwriteStoryClipAtTime(
+        storyTrack.clips,
+        inserted,
+        transportTimeSeconds,
+        globalThis.crypto.randomUUID(),
+      );
     mutate(
-      `插入素材 ${asset.name}`,
+      `${mode === 'insert' ? '插入' : '覆盖'}素材 ${asset.name}`,
       { kind: 'track', track_id: storyTrack.id },
       [{ op: 'replace_track_clips', track_id: storyTrack.id, clips }],
     );
@@ -454,6 +463,11 @@ export function ProjectWorkspacePage() {
               { kind: 'project' },
               [{ op: 'reorder_tracks', track_ids: [...trackIds] }],
             )}
+            onReplaceMarkers={(markers) => mutate(
+              `更新标记`,
+              { kind: 'project' },
+              [{ op: 'replace_markers', markers: [...markers] }],
+            )}
             canUndo={latestUndoableGroup !== undefined}
             onUndo={() => {
               if (latestUndoableGroup === undefined || readOnly) return;
@@ -515,15 +529,26 @@ export function ProjectWorkspacePage() {
                   <span className="block truncate text-sm font-medium">{asset.name}</span>
                   <span className="block text-2xs text-neutral-500">{asset.kind} · {asset.duration_seconds === null ? t`时长未知` : `${asset.duration_seconds.toFixed(3)}s`}</span>
                 </span>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  disabled={readOnly || apply.isPending || asset.duration_seconds === null || asset.duration_seconds <= 0}
-                  aria-label={t`将 ${asset.name} 加入时间线`}
-                  onClick={() => addMediaAsset(asset)}
-                >
-                  <Trans>加入</Trans>
-                </Button>
+                <span className="flex flex-none items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={readOnly || apply.isPending || asset.duration_seconds === null || asset.duration_seconds <= 0}
+                    aria-label={t`在播放头插入 ${asset.name}`}
+                    onClick={() => addMediaAsset(asset, 'insert')}
+                  >
+                    <Trans>插入</Trans>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={readOnly || apply.isPending || asset.duration_seconds === null || asset.duration_seconds <= 0}
+                    aria-label={t`在播放头覆盖 ${asset.name}`}
+                    onClick={() => addMediaAsset(asset, 'overwrite')}
+                  >
+                    <Trans>覆盖</Trans>
+                  </Button>
+                </span>
               </li>
             ))}
           </ul>

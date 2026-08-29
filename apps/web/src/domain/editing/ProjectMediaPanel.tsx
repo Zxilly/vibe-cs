@@ -15,6 +15,11 @@ import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
 import { Button, Input, NativeSelect, cn } from '../../design/primitives';
 import type { MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
+import {
+  clearProjectMediaDrag,
+  projectMediaAssetKind,
+  writeProjectMediaDrag,
+} from './mediaDrag';
 import { resolveTimelineMaterial } from './timelineMaterial';
 
 export interface ProjectMediaPanelProps {
@@ -289,9 +294,21 @@ function MediaItemSection({
               aria-label={t`选择素材 ${item.name}`}
               className={cn(
                 'grid w-full grid-cols-[30px_minmax(0,1fr)] gap-2 px-2.5 py-2 text-left hover:bg-neutral-100',
+                item.asset !== null && item.durationSeconds !== null && item.durationSeconds > 0
+                  ? 'cursor-grab active:cursor-grabbing'
+                  : 'cursor-default',
                 selected && 'bg-accent-100 ring-1 ring-inset ring-accent-300',
               )}
+              draggable={item.asset !== null && item.durationSeconds !== null && item.durationSeconds > 0}
               onClick={() => onSelect(item)}
+              onDragStart={(event) => {
+                if (item.asset === null || writeProjectMediaDrag(event.dataTransfer, item.asset) === null) {
+                  event.preventDefault();
+                  return;
+                }
+                onSelect(item);
+              }}
+              onDragEnd={clearProjectMediaDrag}
             >
               <span className="grid size-[30px] place-items-center border border-divider bg-neutral-50 text-neutral-500">
                 <Icon className="size-4" aria-hidden="true" />
@@ -412,17 +429,13 @@ function projectMediaItems(
       key: `asset:${asset.id}`,
       name: asset.name,
       durationSeconds: asset.duration_seconds,
-      kind: mediaKind(asset),
+      kind: projectMediaAssetKind(asset),
       state: 'imported',
-      previewAssetId: mediaKind(asset) === 'video' ? asset.id : null,
+      previewAssetId: projectMediaAssetKind(asset) === 'video' ? asset.id : null,
       timelineClip: null,
       asset,
     }));
   return [...timelineItems, ...importedItems];
-}
-
-function mediaKind(asset: MediaAsset): 'video' | 'audio' {
-  return asset.kind.toLocaleLowerCase().includes('audio') ? 'audio' : 'video';
 }
 
 function formatDuration(seconds: number | null): string {

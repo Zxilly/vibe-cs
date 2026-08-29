@@ -1,5 +1,15 @@
 export { ProjectTimeline, type ProjectTimelineProps } from './ProjectTimeline';
 export { ProjectMediaPanel, type ProjectMediaPanelProps } from './ProjectMediaPanel';
+export {
+  clearProjectMediaDrag,
+  hasProjectMediaDrag,
+  PROJECT_MEDIA_DRAG_TYPE,
+  projectMediaAssetKind,
+  readProjectMediaDrag,
+  writeProjectMediaDrag,
+  type ProjectMediaDataTransfer,
+  type ProjectMediaDragPayload,
+} from './mediaDrag';
 export { TimelineProgramMonitor, type TimelineProgramMonitorProps } from './TimelineProgramMonitor';
 export { resolveTimelineMaterial, type TimelineMaterialView, type TimelineWaveformLocator } from './timelineMaterial';
 export {

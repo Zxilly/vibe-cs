@@ -61,6 +61,12 @@ import {
   type TimelineClipChange,
 } from './timelineChangeProjection';
 import { resolveTimelineMaterial } from './timelineMaterial';
+import {
+  clearProjectMediaDrag,
+  hasProjectMediaDrag,
+  readProjectMediaDrag,
+  type ProjectMediaDragPayload,
+} from './mediaDrag';
 import { clipLocalTimeAtTimeline, evaluateClipKeyframeProperty, setClipVolumeAtTime } from './keyframeEditing';
 import {
   deleteRippleClips,
@@ -108,6 +114,13 @@ import {
 
 type TimelineEditTool = 'selection' | 'slip' | 'rolling' | 'rate' | 'slide';
 
+export interface TimelineMediaDrop {
+  readonly assetId: string;
+  readonly trackId: string;
+  readonly timeSeconds: number;
+  readonly mode: 'insert' | 'overwrite';
+}
+
 export interface ProjectTimelineProps {
   readonly document: EditingDocument;
   readonly selectedClipId: string | null;
@@ -139,6 +152,7 @@ export interface ProjectTimelineProps {
   readonly onRemoveTrack: (trackId: string) => void;
   readonly onReorderTracks: (trackIds: readonly string[]) => void;
   readonly onReplaceMarkers: (markers: readonly EditorMarker[]) => void;
+  readonly onDropMediaAsset: (drop: TimelineMediaDrop) => void;
   readonly canUndo: boolean;
   readonly onUndo: () => void;
 }
@@ -201,6 +215,7 @@ export function ProjectTimeline({
   onRemoveTrack,
   onReorderTracks,
   onReplaceMarkers,
+  onDropMediaAsset,
   canUndo,
   onUndo,
 }: ProjectTimelineProps) {
@@ -211,6 +226,11 @@ export function ProjectTimeline({
   const [rollingPreviewTime, setRollingPreviewTime] = useState<number | null>(null);
   const [ratePreviewDuration, setRatePreviewDuration] = useState<number | null>(null);
   const [slidePreviewTime, setSlidePreviewTime] = useState<number | null>(null);
+  const [mediaDropPreview, setMediaDropPreview] = useState<(ProjectMediaDragPayload & {
+    readonly trackId: string;
+    readonly timeSeconds: number;
+    readonly mode: 'insert' | 'overwrite';
+  }) | null>(null);
   const [changeFilter, setChangeFilter] = useState<'all' | 'selected'>('all');
   const [scrollLeft, setScrollLeft] = useState(0);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
@@ -563,13 +583,64 @@ export function ProjectTimeline({
     if (marqueeWindowMouseUpRef.current !== null) window.removeEventListener('mouseup', marqueeWindowMouseUpRef.current);
   }, []);
 
-  const pointerTime = (event: React.PointerEvent<HTMLElement>) => {
+  const timeAtClientX = (clientX: number) => {
+    if (!Number.isFinite(clientX)) return null;
     const viewport = viewportRef.current;
     if (viewport === null) return null;
     const bounds = viewport.getBoundingClientRect();
     const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
-    const contentX = event.clientX - bounds.left - trackHead + viewport.scrollLeft;
-    return Math.min(document.duration_seconds, snapTimeToFrame(pxToTime(scale, contentX), document.fps));
+    const contentX = clientX - bounds.left - trackHead + viewport.scrollLeft;
+    if (contentX < 0) return null;
+    return Math.min(
+      document.duration_seconds,
+      snapTimeToFrame(pxToTime(scale, contentX), document.fps),
+    );
+  };
+
+  const pointerTime = (event: React.PointerEvent<HTMLElement>) => timeAtClientX(event.clientX);
+
+  const canDropMediaOnTrack = (track: RenderedTrack, payload: ProjectMediaDragPayload) => (
+    !readOnly
+    && !track.track.locked
+    && !track.derivedAudio
+    && track.kind === payload.kind
+  );
+
+  const previewMediaDrop = (event: React.DragEvent<HTMLElement>, track: RenderedTrack) => {
+    if (!hasProjectMediaDrag(event.dataTransfer)) return;
+    const payload = readProjectMediaDrag(event.dataTransfer);
+    if (payload === null || !canDropMediaOnTrack(track, payload)) {
+      event.dataTransfer.dropEffect = 'none';
+      if (mediaDropPreview?.trackId === track.track.id) setMediaDropPreview(null);
+      return;
+    }
+    const timeSeconds = timeAtClientX(event.clientX);
+    if (timeSeconds === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'copy';
+    setMediaDropPreview({
+      ...payload,
+      trackId: track.track.id,
+      timeSeconds,
+      mode: event.ctrlKey || event.metaKey ? 'insert' : 'overwrite',
+    });
+  };
+
+  const commitMediaDrop = (event: React.DragEvent<HTMLElement>, track: RenderedTrack) => {
+    const payload = readProjectMediaDrag(event.dataTransfer);
+    const timeSeconds = timeAtClientX(event.clientX);
+    setMediaDropPreview(null);
+    clearProjectMediaDrag();
+    if (payload === null || timeSeconds === null || !canDropMediaOnTrack(track, payload)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onDropMediaAsset({
+      assetId: payload.assetId,
+      trackId: track.track.id,
+      timeSeconds,
+      mode: event.ctrlKey || event.metaKey ? 'insert' : 'overwrite',
+    });
   };
 
   const seekFromPointer = (event: React.PointerEvent<HTMLElement>) => {
@@ -1179,6 +1250,13 @@ export function ProjectTimeline({
               onPreviewDuration={(clips) => setRatePreviewDuration(clips === null
                 ? null
                 : timelineDurationWithTrack(document, track.track.id, clips))}
+              mediaDropPreview={mediaDropPreview?.trackId === track.track.id ? mediaDropPreview : null}
+              onMediaDragOver={(event) => previewMediaDrop(event, track)}
+              onMediaDragLeave={(event) => {
+                if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+                if (mediaDropPreview?.trackId === track.track.id) setMediaDropPreview(null);
+              }}
+              onMediaDrop={(event) => commitMediaDrop(event, track)}
             />
           ))}
           <TimelineMarkerRow
@@ -1381,7 +1459,7 @@ function timelineDurationWithTrack(
     .reduce((duration, clip) => Math.max(duration, clip.placement.start + clip.placement.duration), 0);
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration, mediaDropPreview, onMediaDragOver, onMediaDragLeave, onMediaDrop }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -1422,6 +1500,13 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onPreviewSlideEdit: (preview: TimelineSlidePreview | null) => void;
   readonly onStopTransport: () => void;
   readonly onPreviewDuration: (clips: readonly TimelineClip[] | null) => void;
+  readonly mediaDropPreview: (ProjectMediaDragPayload & {
+    readonly timeSeconds: number;
+    readonly mode: 'insert' | 'overwrite';
+  }) | null;
+  readonly onMediaDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
+  readonly onMediaDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
+  readonly onMediaDrop: (event: React.DragEvent<HTMLDivElement>) => void;
 }) {
   const nonStoryIndex = nonStoryTrackIds.indexOf(track.track.id);
   const resizeGesture = useRef<{ readonly pointerId: number; readonly clientY: number; readonly height: number } | null>(null);
@@ -1509,7 +1594,14 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
     }));
   };
   return (
-    <div className="relative grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={track.ariaLabel}>
+    <div
+      className="relative grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider"
+      role="row"
+      aria-label={track.ariaLabel}
+      onDragOver={onMediaDragOver}
+      onDragLeave={onMediaDragLeave}
+      onDrop={onMediaDrop}
+    >
       <TimelineTrackHead
         icon={track.icon}
         label={track.label}
@@ -1528,6 +1620,20 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         onToggleCollapse={onToggleCollapse}
       />
       <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
+        {mediaDropPreview === null ? null : (
+          <div
+            className="pointer-events-none absolute inset-y-1 z-30 min-w-2 border-2 border-dashed border-accent-500 bg-accent-100/80"
+            style={{
+              left: timeToPx(scale, mediaDropPreview.timeSeconds),
+              width: Math.max(8, timeToPx(scale, mediaDropPreview.durationSeconds)),
+            }}
+            aria-label={t`素材落点 ${track.label}`}
+          >
+            <span className="absolute left-1 top-1 whitespace-nowrap rounded-sm bg-accent-600 px-1 py-0.5 text-2xs text-bg">
+              {mediaDropPreview.mode === 'insert' ? t`插入` : t`覆盖`} · {mediaDropPreview.kind === 'audio' ? t`音频` : t`视频`} · {formatMillisecondTimecode(mediaDropPreview.durationSeconds)}
+            </span>
+          </div>
+        )}
         {track.track.id === storyTrackId ? (
           <TimelineChangeGhosts
             changes={ghostChanges}
@@ -1764,7 +1870,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.nonStoryTrackIds === next.nonStoryTrackIds
   && previous.targetTrackId === next.targetTrackId
   && previous.height === next.height
-  && previous.collapsed === next.collapsed);
+  && previous.collapsed === next.collapsed
+  && previous.mediaDropPreview === next.mediaDropPreview);
 
 interface RollingEditPoint {
   readonly left: TimelineClip;

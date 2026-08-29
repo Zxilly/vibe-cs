@@ -31,6 +31,39 @@ function clip(id: string, name: string): TimelineClip {
   };
 }
 
+function mediaDragTransfer(): DataTransfer {
+  const values = new Map<string, string>();
+  return {
+    effectAllowed: 'none',
+    dropEffect: 'none',
+    get types() { return [...values.keys()]; },
+    files: [] as unknown as FileList,
+    items: [] as unknown as DataTransferItemList,
+    clearData: (format?: string) => {
+      if (format === undefined) values.clear();
+      else values.delete(format);
+    },
+    getData: (format: string) => values.get(format) ?? '',
+    setData: (format: string, data: string) => { values.set(format, data); },
+    setDragImage: () => undefined,
+  };
+}
+
+function mediaDragEvent(
+  type: 'dragstart' | 'dragover' | 'drop',
+  dataTransfer: DataTransfer,
+  options: { readonly clientX?: number; readonly ctrlKey?: boolean } = {},
+): MouseEvent {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX: options.clientX ?? 0,
+    ctrlKey: options.ctrlKey ?? false,
+  });
+  Object.defineProperty(event, 'dataTransfer', { value: dataTransfer });
+  return event;
+}
+
 const PROJECT: Project = {
   id: '00000000-0000-4000-8000-000000000001',
   name: '统一作品',
@@ -1894,6 +1927,107 @@ describe('unified project workspace', () => {
           expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 11 }) }),
         ],
       })],
+    })));
+  });
+
+  it('drags Project Media onto Story through shared Timeline geometry and Ctrl Insert semantics', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-drag-video',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\drag.mp4',
+      name: 'Drag angle',
+      kind: 'video',
+      duration_seconds: 6,
+      width: 1920,
+      height: 1080,
+      file_size: 8_192,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ assets: [asset], applyProjectPatch });
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 1_000, bottom: 400, left: 0, width: 1_000, height: 400, toJSON: () => ({}),
+    });
+    const source = screen.getByRole('option', { name: '选择素材 Drag angle' });
+    const story = screen.getByRole('row', { name: 'Story' });
+    const dataTransfer = mediaDragTransfer();
+
+    fireEvent(source, mediaDragEvent('dragstart', dataTransfer));
+    expect(source.getAttribute('draggable')).toBe('true');
+    fireEvent(story, mediaDragEvent('dragover', dataTransfer, { clientX: 200, ctrlKey: true }));
+    expect(screen.getByLabelText('素材落点 视频轨道 1').textContent).toContain('插入');
+    fireEvent(story, mediaDragEvent('drop', dataTransfer, { clientX: 200, ctrlKey: true }));
+    expect(screen.queryByLabelText('素材落点 视频轨道 1')).toBeNull();
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'track', track_id: STORY_ID },
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ name: 'Drag angle', placement: expect.objectContaining({ start: 0, duration: 6 }) }),
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 6 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 11 }) }),
+        ],
+      })],
+    })));
+  });
+
+  it('rejects the derived Story audio row and drops audio on a real free-positioned target', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-drag-audio',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\drag.wav',
+      name: 'Drag bed',
+      kind: 'audio',
+      duration_seconds: 4,
+      width: null,
+      height: null,
+      file_size: 4_096,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: [0.1, 0.5],
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ assets: [asset], applyProjectPatch });
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 1_000, bottom: 400, left: 0, width: 1_000, height: 400, toJSON: () => ({}),
+    });
+    const source = screen.getByRole('option', { name: '选择素材 Drag bed' });
+    const derived = screen.getByRole('row', { name: 'Story 音频' });
+    const music = screen.getByRole('row', { name: 'Music' });
+    const dataTransfer = mediaDragTransfer();
+
+    fireEvent(source, mediaDragEvent('dragstart', dataTransfer));
+    fireEvent(derived, mediaDragEvent('dragover', dataTransfer, { clientX: 200 }));
+    expect(dataTransfer.dropEffect).toBe('none');
+    expect(screen.queryByLabelText('素材落点 音频轨道 1')).toBeNull();
+
+    fireEvent(music, mediaDragEvent('dragover', dataTransfer, { clientX: 200 }));
+    expect(screen.getByLabelText('素材落点 Music').textContent).toContain('覆盖');
+    fireEvent(music, mediaDragEvent('drop', dataTransfer, { clientX: 200 }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'track', track_id: '00000000-0000-4000-8000-000000000013' },
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: '00000000-0000-4000-8000-000000000013',
+        clips: [expect.objectContaining({ name: 'Drag bed', placement: expect.objectContaining({ start: 0, duration: 4 }) })],
+      }],
     })));
   });
 

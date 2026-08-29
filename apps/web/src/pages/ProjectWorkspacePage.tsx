@@ -64,6 +64,7 @@ import {
   insertRippleClipAtTime,
   overwriteClipsAtTime,
   placeFreeClipAtTime,
+  projectMediaAssetKind,
   ProjectMediaPanel,
   ProjectTimeline,
   MAX_TIMELINE_CLIP_SPEED,
@@ -397,21 +398,25 @@ export function ProjectWorkspacePage() {
     { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
     [{ op: 'replace_clip', clip_id: clip.id, clip }],
   );
-  const mediaTargetTrack = (asset: MediaAsset): TimelineTrack | null => {
-    const desiredKind = mediaAssetTrackKind(asset);
-    const explicit = current.document.tracks.find((track) => track.id === targetTrackId) ?? null;
+  const mediaTargetTrack = (asset: MediaAsset, preferredTrackId = targetTrackId): TimelineTrack | null => {
+    const desiredKind = projectMediaAssetKind(asset);
+    const explicit = current.document.tracks.find((track) => track.id === preferredTrackId) ?? null;
     if (explicit?.kind === desiredKind) return explicit;
     if (desiredKind === 'video') return storyTrack;
     return current.document.tracks.find((track) => track.kind === 'audio') ?? null;
   };
-  const addMediaAsset = (asset: MediaAsset, mode: 'insert' | 'overwrite') => {
+  const addMediaAsset = (
+    asset: MediaAsset,
+    mode: 'insert' | 'overwrite',
+    placement?: { readonly trackId: string; readonly timeSeconds: number },
+  ) => {
     if (asset.duration_seconds === null || asset.duration_seconds <= 0) return;
     const insertedClipId = globalThis.crypto.randomUUID();
     const inserted = timelineClipFromMediaAsset(asset, insertedClipId);
-    const editTimeSeconds = snapTimeToFrame(transportTimeSeconds, current.document.fps);
-    const target = mediaTargetTrack(asset);
+    const editTimeSeconds = snapTimeToFrame(placement?.timeSeconds ?? transportTimeSeconds, current.document.fps);
+    const target = mediaTargetTrack(asset, placement?.trackId ?? targetTrackId);
     if (target === null) {
-      if (mediaAssetTrackKind(asset) !== 'audio') return;
+      if (projectMediaAssetKind(asset) !== 'audio' || placement !== undefined) return;
       const trackId = globalThis.crypto.randomUUID();
       const track: TimelineTrack = {
         id: trackId,
@@ -462,6 +467,7 @@ export function ProjectWorkspacePage() {
       { kind: 'track', track_id: target.id },
       [{ op: 'replace_track_clips', track_id: target.id, clips }],
     );
+    setTargetTrackId(target.id);
     setSelectedClipIds([insertedClipId]);
   };
   const importProjectMedia = async () => {
@@ -608,7 +614,7 @@ export function ProjectWorkspacePage() {
                   busy={apply.isPending}
                   canEditAsset={(asset) => {
                     const target = mediaTargetTrack(asset);
-                    return target === null ? mediaAssetTrackKind(asset) === 'audio' : !target.locked;
+                    return target === null ? projectMediaAssetKind(asset) === 'audio' : !target.locked;
                   }}
                   editTargetLabel={(asset) => {
                     const target = mediaTargetTrack(asset);
@@ -701,6 +707,12 @@ export function ProjectWorkspacePage() {
               { kind: 'project' },
               [{ op: 'replace_markers', markers: [...markers] }],
             )}
+            onDropMediaAsset={({ assetId, trackId, timeSeconds, mode }) => {
+              const asset = mediaAssets.data?.items.find((candidate) => candidate.id === assetId);
+              const track = current.document.tracks.find((candidate) => candidate.id === trackId);
+              if (asset === undefined || track === undefined || track.locked || track.kind !== projectMediaAssetKind(asset)) return;
+              addMediaAsset(asset, mode, { trackId, timeSeconds });
+            }}
             canUndo={latestUndoableGroup !== undefined}
             onUndo={() => {
               if (latestUndoableGroup === undefined || readOnly) return;
@@ -1803,10 +1815,6 @@ function toolSummary(call: AgentToolCall | AgentToolActivity): string {
 function conversationTime(value: string): string {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function mediaAssetTrackKind(asset: MediaAsset): 'video' | 'audio' {
-  return asset.kind.toLocaleLowerCase().includes('audio') ? 'audio' : 'video';
 }
 
 function projectWithPreviewClips(project: Project, clips: readonly TimelineClip[]): Project {

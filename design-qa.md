@@ -5,8 +5,8 @@ final result: passed
 ## Comparison target
 
 - Source visual truth: `C:\Users\12009\.codex\generated_images\01a044dc-e4a6-7103-b96a-31a535e92c75\exec-e64a95ce-7302-4770-b145-796da6f17a24.png`.
-- Browser-rendered implementation: `target/transport-selection/01-fixed.png`.
-- Full same-input comparison: `target/transport-selection/01-full-comparison.png`.
+- Browser-rendered implementation: `target/complete-preview/02-fixed.png`.
+- Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
 - State: real Project revision 11, Hook change Δ1 selected, transport at 01:48.967 on Anubis R13, 11/11 Story clips materialized.
@@ -26,6 +26,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - Agent changes are rendered against the canonical Story Track: change pins share the ruler and scroll transform; additions, removals, prior positions, old out points, duration deltas, and downstream ripple shifts decorate real clips rather than a second timeline.
 - The timeline exposes only working tools: selection, split at playhead, ripple-delete, and Change Group undo. Space, S, Delete, and Ctrl/Cmd+Z continue to invoke the same Interfaces.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
+- Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
+- The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
 - The selected source depicts a staged `18.000s → 28.400s` replacement. The current managed Project contains a real full Story replacement instead. The non-equal replacement state is verified in `timelineChangeProjection.test.ts` and the page interaction fixture; no database or screenshot data was fabricated.
 - The source depicts a pale generated radar while the implementation renders the actual decoded CS2 overview. Keeping the real radar is an intentional asset-fidelity constraint.
 - The source depicts a populated Agent delivery session while this route was opened without a session query. The rail correctly renders its real empty-session state; conversation behavior is covered independently.
@@ -47,6 +49,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Clip move/trim still commits one revision-bound Human Edit on pointer-up; pointer-move intermediates are not persisted.
 - The inline change filter and previous/next navigation select the real changed clip and seek the shared transport.
 - Browser page errors were empty after a final reload and interaction pass.
+- The project media drawer listed 11 real assets with per-asset insert actions. Export opened a real confirmation dialog; recording was correctly disabled because the current Project had no planned clips.
 
 ## Comparison history
 
@@ -57,10 +60,12 @@ No actionable P0, P1, or P2 mismatch remains.
 5. `05-final.png`: track-head truncation was corrected.
 6. `07-final.png`: V1/A1 source-patch badges, real-media preview, exact playhead state, and the final light layout passed.
 7. `target/transport-selection/01-fixed.png`: transport/selection coupling was removed and the preview split was made fixed; real scrub kept Δ1 stationary while preview advanced to Anubis R13.
+8. `target/complete-preview/02-fixed.png`: video, radar, and tactical overlay were changed from cropped/zoomed presentation to complete contained presentation with non-overlapping transport chrome.
+9. `target/editor-foundation/01-media-bin.png`: inert footer controls were removed and the human media/record/export workflow was verified in the live Tauri app.
 
 ## Verification
 
 - Focused interaction and projection tests: 21 passed.
-- Full web suite: 256 files and 2875 tests passed.
+- Full web suite: 256 files and 2877 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

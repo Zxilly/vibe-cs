@@ -3,6 +3,7 @@ import { Trans } from '@lingui/react/macro';
 import {
   Bookmark,
   BookmarkPlus,
+  BetweenHorizontalEnd,
   Camera,
   ChevronLeft,
   ChevronRight,
@@ -74,6 +75,7 @@ import {
 } from './timelineEditing';
 import {
   clipMediaDuration,
+  canRollTimelineEdit,
   canSlipTimelineClip,
   constrainClipGroupSlipDelta,
   constrainClipGroupTrimDelta,
@@ -91,9 +93,13 @@ import {
   timelineEdgeScrollStep,
   moveTimelineClip,
   resolveTimelineSnap,
+  rollTimelineEdit,
   snapTimeToFrame,
   trimTimelineClip,
+  type TimelineRollingPreview,
 } from './timelineInteraction';
+
+type TimelineEditTool = 'selection' | 'slip' | 'rolling';
 
 export interface ProjectTimelineProps {
   readonly document: EditingDocument;
@@ -120,6 +126,7 @@ export interface ProjectTimelineProps {
   readonly onReplaceTrackClipGroups: (groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[]) => void;
   readonly onReplaceClips: (clips: readonly TimelineClip[]) => void;
   readonly onPreviewClips: (clips: readonly TimelineClip[]) => void;
+  readonly onPreviewRollingEdit: (preview: TimelineRollingPreview | null) => void;
   readonly onInsertTrack: (track: TimelineTrack, index: number) => void;
   readonly onRemoveTrack: (trackId: string) => void;
   readonly onReorderTracks: (trackIds: readonly string[]) => void;
@@ -180,6 +187,7 @@ export function ProjectTimeline({
   onReplaceTrackClipGroups,
   onReplaceClips,
   onPreviewClips,
+  onPreviewRollingEdit,
   onInsertTrack,
   onRemoveTrack,
   onReorderTracks,
@@ -190,7 +198,8 @@ export function ProjectTimeline({
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(1_000);
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
-  const [editTool, setEditTool] = useState<'selection' | 'slip'>('selection');
+  const [editTool, setEditTool] = useState<TimelineEditTool>('selection');
+  const [rollingPreviewTime, setRollingPreviewTime] = useState<number | null>(null);
   const [changeFilter, setChangeFilter] = useState<'all' | 'selected'>('all');
   const [scrollLeft, setScrollLeft] = useState(0);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
@@ -752,12 +761,25 @@ export function ProjectTimeline({
           event.preventDefault();
           setEditTool('selection');
           onPreviewClips([]);
+          setRollingPreviewTime(null);
+          onPreviewRollingEdit(null);
           return;
         }
         if (event.key.toLowerCase() === 'y' && !event.ctrlKey && !event.metaKey && !event.altKey && !readOnly) {
           event.preventDefault();
           onShuttle(0);
           setEditTool('slip');
+          onPreviewClips([]);
+          setRollingPreviewTime(null);
+          onPreviewRollingEdit(null);
+          return;
+        }
+        if (event.key.toLowerCase() === 'n' && !event.ctrlKey && !event.metaKey && !event.altKey && !readOnly) {
+          event.preventDefault();
+          onShuttle(0);
+          setEditTool('rolling');
+          onPreviewClips([]);
+          setRollingPreviewTime(null);
           return;
         }
         if (event.key.toLowerCase() === 'c' && (event.ctrlKey || event.metaKey) && !event.altKey) {
@@ -923,6 +945,7 @@ export function ProjectTimeline({
       <TimelineToolStrip
         editTool={editTool}
         canSlipTool={!readOnly && document.tracks.some((track) => !track.locked && track.clips.some((clip) => canSlipTimelineClip(clip, document.fps)))}
+        canRollTool={!readOnly && document.tracks.some((track) => !track.locked && rollingEditPoints(track.clips, document.fps).length > 0)}
         canSplit={canSplit}
         canDelete={canDelete}
         canCopy={canCopy}
@@ -942,8 +965,11 @@ export function ProjectTimeline({
         onRippleTrimEnd={() => rippleTrimToPlayhead('end')}
         onChangeTool={(tool) => {
           if (tool === 'slip') onShuttle(0);
+          if (tool === 'rolling') onShuttle(0);
           setEditTool(tool);
-          if (tool !== 'slip') onPreviewClips([]);
+          onPreviewClips([]);
+          setRollingPreviewTime(null);
+          onPreviewRollingEdit(null);
         }}
       />
 
@@ -1088,6 +1114,11 @@ export function ProjectTimeline({
               selectedTrackGroups={selectedTrackGroups}
               onReplaceTrackClipGroups={onReplaceTrackClipGroups}
               onPreviewClips={onPreviewClips}
+              onPreviewRollingEdit={(preview) => {
+                setRollingPreviewTime(preview?.editTime ?? null);
+                onPreviewRollingEdit(preview);
+              }}
+              onStopTransport={() => onShuttle(0)}
             />
           ))}
           <TimelineMarkerRow
@@ -1120,10 +1151,10 @@ export function ProjectTimeline({
 
       <div
         className="absolute bottom-14 top-[var(--h-panel-head)] z-20 w-px bg-accent-600"
-        style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, playheadSeconds) - scrollLeft}px)` }}
+        style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, rollingPreviewTime ?? playheadSeconds) - scrollLeft}px)` }}
       >
         <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-accent-600 px-1.5 py-0.5 font-mono text-2xs text-bg">
-          {formatMillisecondTimecode(playheadSeconds)}
+          {formatMillisecondTimecode(rollingPreviewTime ?? playheadSeconds)}
         </span>
         <button
           type="button"
@@ -1131,8 +1162,8 @@ export function ProjectTimeline({
           aria-label={t`时间轴播放头`}
           aria-valuemin={0}
           aria-valuemax={document.duration_seconds}
-          aria-valuenow={playheadSeconds}
-          aria-valuetext={formatMillisecondTimecode(playheadSeconds)}
+          aria-valuenow={rollingPreviewTime ?? playheadSeconds}
+          aria-valuetext={formatMillisecondTimecode(rollingPreviewTime ?? playheadSeconds)}
           className="absolute -left-2 top-0 h-full w-4 touch-none select-none cursor-col-resize bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
           onPointerDown={(event) => {
             if (event.button !== 0) return;
@@ -1280,13 +1311,13 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onStopTransport }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
   readonly selectedClipId: string | null;
   readonly selectedClipIds: ReadonlySet<string>;
-  readonly editTool: 'selection' | 'slip';
+  readonly editTool: TimelineEditTool;
   readonly fps: number;
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
@@ -1317,9 +1348,16 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly selectedTrackGroups: readonly { readonly track: TimelineTrack; readonly clips: readonly TimelineClip[] }[];
   readonly onReplaceTrackClipGroups: (groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[]) => void;
   readonly onPreviewClips: (clips: readonly TimelineClip[]) => void;
+  readonly onPreviewRollingEdit: (preview: TimelineRollingPreview | null) => void;
+  readonly onStopTransport: () => void;
 }) {
   const nonStoryIndex = nonStoryTrackIds.indexOf(track.track.id);
   const resizeGesture = useRef<{ readonly pointerId: number; readonly clientY: number; readonly height: number } | null>(null);
+  const [rollingDrafts, setRollingDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
+  const editPoints = useMemo(() => rollingEditPoints(track.track.clips, fps), [fps, track.track.clips]);
+  useEffect(() => {
+    if (editTool !== 'rolling' && rollingDrafts.size > 0) setRollingDrafts(new Map());
+  }, [editTool, rollingDrafts.size]);
   const previewSlip = (clip: TimelineClip, requestedSourceDelta: number) => {
     const selected = selectedClipIds.has(clip.id)
       ? selectedTrackGroups.flatMap((group) => group.clips)
@@ -1328,6 +1366,26 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
     const previews = selected.map((candidate) => slipTimelineClip(candidate, delta, fps));
     onPreviewClips(previews);
     return previews.find((candidate) => candidate.id === clip.id) ?? clip;
+  };
+  const previewRolling = (edit: NonNullable<ReturnType<typeof rollTimelineEdit>>) => {
+    setRollingDrafts(new Map([[edit.left.id, edit.left], [edit.right.id, edit.right]]));
+    onPreviewClips([edit.left, edit.right]);
+    onPreviewRollingEdit({ leftClipId: edit.left.id, rightClipId: edit.right.id, editTime: edit.editTime });
+  };
+  const clearRollingPreview = () => {
+    setRollingDrafts(new Map());
+    onPreviewClips([]);
+    onPreviewRollingEdit(null);
+  };
+  const commitRolling = (edit: NonNullable<ReturnType<typeof rollTimelineEdit>>) => {
+    onSeek(edit.editTime);
+    clearRollingPreview();
+    if (Math.abs(edit.delta) <= 1e-9) return;
+    onReplaceTrackClips(track.track.id, track.track.clips.map((clip) => {
+      if (clip.id === edit.left.id) return edit.left;
+      if (clip.id === edit.right.id) return edit.right;
+      return clip;
+    }));
   };
   return (
     <div className="relative grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={track.ariaLabel}>
@@ -1359,7 +1417,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         {track.clips.map((clip) => (
           <TimelineClipCell
             key={`${track.id}:${clip.id}`}
-            clip={clip}
+            clip={rollingDrafts.get(clip.id) ?? clip}
             kind={track.kind}
             derivedAudio={track.derivedAudio}
             selected={selectedClipIds.has(clip.id)}
@@ -1483,6 +1541,28 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             }}
           />
         ))}
+        {editTool !== 'rolling' || track.derivedAudio ? null : editPoints.map((point) => (
+          <TimelineRollingHandle
+            key={`${point.left.id}:${point.right.id}`}
+            left={point.left}
+            right={point.right}
+            scale={scale}
+            fps={fps}
+            readOnly={readOnly || track.track.locked}
+            snapPoints={snapPoints}
+            snapThresholdSeconds={snapThresholdSeconds}
+            scrollLeftRef={scrollLeftRef}
+            onDragAutoScroll={onDragAutoScroll}
+            onSnapChange={onSnapChange}
+            onBegin={(editTime) => {
+              onStopTransport();
+              onSeek(editTime);
+            }}
+            onPreview={previewRolling}
+            onCancel={clearRollingPreview}
+            onCommit={commitRolling}
+          />
+        ))}
       </div>
       <span
         role="separator"
@@ -1534,13 +1614,189 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.height === next.height
   && previous.collapsed === next.collapsed);
 
+interface RollingEditPoint {
+  readonly left: TimelineClip;
+  readonly right: TimelineClip;
+}
+
+function rollingEditPoints(clips: readonly TimelineClip[], fps: number): RollingEditPoint[] {
+  const ordered = [...clips].sort((left, right) => left.placement.start - right.placement.start);
+  const points: RollingEditPoint[] = [];
+  for (let index = 0; index < ordered.length - 1; index += 1) {
+    const left = ordered[index]!;
+    const right = ordered[index + 1]!;
+    if (canRollTimelineEdit(left, right, fps)) points.push({ left, right });
+  }
+  return points;
+}
+
+function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, snapThresholdSeconds, scrollLeftRef, onDragAutoScroll, onSnapChange, onBegin, onPreview, onCancel, onCommit }: {
+  readonly left: TimelineClip;
+  readonly right: TimelineClip;
+  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly fps: number;
+  readonly readOnly: boolean;
+  readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
+  readonly snapThresholdSeconds: number;
+  readonly scrollLeftRef: React.RefObject<number>;
+  readonly onDragAutoScroll: (clientX: number | null, onScroll?: (scrollLeft: number) => void) => void;
+  readonly onSnapChange: (time: number | null) => void;
+  readonly onBegin: (editTime: number) => void;
+  readonly onPreview: (edit: NonNullable<ReturnType<typeof rollTimelineEdit>>) => void;
+  readonly onCancel: () => void;
+  readonly onCommit: (edit: NonNullable<ReturnType<typeof rollTimelineEdit>>) => void;
+}) {
+  const boundary = left.placement.start + left.placement.duration;
+  const [draft, setDraft] = useState<NonNullable<ReturnType<typeof rollTimelineEdit>> | null>(null);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const gesture = useRef<{
+    readonly pointerId: number;
+    readonly clientX: number;
+    readonly scrollLeft: number;
+    lastClientX: number;
+    shiftKey: boolean;
+    moved: boolean;
+  } | null>(null);
+  const windowMouseUpRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => {
+    if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
+  }, []);
+  const update = (active: NonNullable<typeof gesture.current>, clientX: number, scrollLeft: number, shiftKey: boolean) => {
+    const delta = pxToTime(scale, clientX - active.clientX + scrollLeft - active.scrollLeft);
+    const rawEditTime = boundary + delta;
+    const snap = shiftKey
+      ? { anchorTime: rawEditTime, snapTime: null }
+      : resolveTimelineSnap(
+          rawEditTime,
+          [0],
+          snapPoints
+            .filter((point) => point.clipId !== left.id && point.clipId !== right.id)
+            .map((point) => point.time),
+          snapThresholdSeconds,
+        );
+    const next = rollTimelineEdit(left, right, snap.anchorTime, fps);
+    if (next === null) return;
+    onSnapChange(snap.snapTime);
+    draftRef.current = next;
+    setDraft(next);
+    onPreview(next);
+    if (Math.abs(clientX - active.clientX + scrollLeft - active.scrollLeft) > 5) active.moved = true;
+  };
+  const finishCore = () => {
+    const active = gesture.current;
+    if (active === null) return;
+    gesture.current = null;
+    if (windowMouseUpRef.current !== null) {
+      window.removeEventListener('mouseup', windowMouseUpRef.current);
+      windowMouseUpRef.current = null;
+    }
+    onDragAutoScroll(null);
+    onSnapChange(null);
+    const result = draftRef.current;
+    draftRef.current = null;
+    setDraft(null);
+    if (active.moved && result !== null) onCommit(result);
+    else onCancel();
+  };
+  const visualEditTime = draft?.editTime ?? boundary;
+  return (
+    <span
+      role="separator"
+      tabIndex={readOnly ? -1 : 0}
+      aria-label={t`滚动编辑 ${left.name} / ${right.name}`}
+      aria-orientation="vertical"
+      aria-valuenow={visualEditTime}
+      aria-valuetext={formatMillisecondTimecode(visualEditTime)}
+      className={cn(
+        'absolute inset-y-0 z-[60] w-3 -translate-x-1/2 touch-none select-none outline-none',
+        readOnly ? 'cursor-not-allowed' : 'cursor-col-resize focus-visible:ring-2 focus-visible:ring-accent-500',
+      )}
+      style={{ left: timeToPx(scale, visualEditTime) }}
+      data-rolling-left-clip-id={left.id}
+      data-rolling-right-clip-id={right.id}
+      data-rolling-edit-time={visualEditTime}
+      onPointerDown={(event) => {
+        if (readOnly || event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        onBegin(boundary);
+        const initial = rollTimelineEdit(left, right, boundary, fps);
+        draftRef.current = initial;
+        setDraft(initial);
+        if (initial !== null) onPreview(initial);
+        gesture.current = {
+          pointerId: event.pointerId,
+          clientX: event.clientX,
+          scrollLeft: scrollLeftRef.current ?? 0,
+          lastClientX: event.clientX,
+          shiftKey: event.shiftKey,
+          moved: false,
+        };
+        onDragAutoScroll(event.clientX, (nextScrollLeft) => {
+          const active = gesture.current;
+          if (active !== null) update(active, active.lastClientX, nextScrollLeft, active.shiftKey);
+        });
+        const finishFromWindow = () => finishCore();
+        windowMouseUpRef.current = finishFromWindow;
+        window.addEventListener('mouseup', finishFromWindow, { once: true });
+      }}
+      onPointerMove={(event) => {
+        const active = gesture.current;
+        if (active === null || active.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        active.lastClientX = event.clientX;
+        active.shiftKey = event.shiftKey;
+        onDragAutoScroll(event.clientX);
+        update(active, event.clientX, scrollLeftRef.current ?? 0, event.shiftKey);
+      }}
+      onPointerUp={(event) => {
+        if (gesture.current?.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        finishCore();
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+      }}
+      onPointerCancel={() => {
+        gesture.current = null;
+        if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
+        windowMouseUpRef.current = null;
+        draftRef.current = null;
+        setDraft(null);
+        onDragAutoScroll(null);
+        onSnapChange(null);
+        onCancel();
+      }}
+      onKeyDown={(event) => {
+        if (readOnly || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+        event.preventDefault();
+        const direction = event.key === 'ArrowRight' ? 1 : -1;
+        const next = rollTimelineEdit(left, right, boundary + direction * (event.shiftKey ? 1 : 1 / fps), fps);
+        if (next === null || Math.abs(next.delta) <= 1e-9) return;
+        onBegin(boundary);
+        onPreview(next);
+        onCommit(next);
+      }}
+    >
+      <span className="pointer-events-none absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-accent-600" />
+      <span className="pointer-events-none absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-l-sm border border-r-0 border-accent-600 bg-accent-100" />
+      <span className="pointer-events-none absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-sm border border-l-0 border-accent-600 bg-accent-100" />
+      {draft === null ? null : (
+        <span className="pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-neutral-950 px-2 py-1 font-mono text-2xs text-bg" aria-label={t`滚动编辑预览 ${formatSignedTimelineDelta(draft.delta)}`}>
+          {formatSignedTimelineDelta(draft.delta)} · {formatMillisecondTimecode(draft.left.placement.source_out)} | {formatMillisecondTimecode(draft.right.placement.source_in)}
+        </span>
+      )}
+    </span>
+  );
+}
+
 const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, editTool, scale, fps, readOnly, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onClearPreview }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
   readonly selected: boolean;
   readonly primary: boolean;
-  readonly editTool: 'selection' | 'slip';
+  readonly editTool: TimelineEditTool;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly fps: number;
   readonly readOnly: boolean;
@@ -1758,7 +2014,16 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         else if (selected && !lastGestureWasDragRef.current) onPromote();
       }}
       onDoubleClick={onInspect}
-      onPointerDown={(event) => beginGesture(event, editTool === 'slip' ? 'slip' : 'move')}
+      onPointerDown={(event) => {
+        if (editTool === 'rolling') {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onSelect(event.ctrlKey || event.metaKey, event.shiftKey);
+          return;
+        }
+        beginGesture(event, editTool === 'slip' ? 'slip' : 'move');
+      }}
       onPointerMove={updateGesture}
       onPointerUp={finishGesture}
       onPointerCancel={() => {
@@ -1775,6 +2040,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         if (readOnly || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
         event.preventDefault();
         const direction = event.key === 'ArrowRight' ? 1 : -1;
+        if (editTool === 'rolling') return;
         if (editTool === 'slip') {
           if (!canSlip) return;
           const replacement = onPreviewSlip(direction * (event.shiftKey ? 1 : 1 / fps));
@@ -2134,6 +2400,7 @@ function formatSignedTimelineDelta(seconds: number): string {
 function TimelineToolStrip({
   editTool,
   canSlipTool,
+  canRollTool,
   canSplit,
   canDelete,
   canCopy,
@@ -2153,8 +2420,9 @@ function TimelineToolStrip({
   onRippleTrimEnd,
   onChangeTool,
 }: {
-  readonly editTool: 'selection' | 'slip';
+  readonly editTool: TimelineEditTool;
   readonly canSlipTool: boolean;
+  readonly canRollTool: boolean;
   readonly canSplit: boolean;
   readonly canDelete: boolean;
   readonly canCopy: boolean;
@@ -2172,11 +2440,12 @@ function TimelineToolStrip({
   readonly onExtractRange: () => void;
   readonly onRippleTrimStart: () => void;
   readonly onRippleTrimEnd: () => void;
-  readonly onChangeTool: (tool: 'selection' | 'slip') => void;
+  readonly onChangeTool: (tool: TimelineEditTool) => void;
 }) {
   const tools = [
     { label: t`选择工具 (V)`, icon: <MousePointer2 className="size-4" aria-hidden="true" />, enabled: true, pressed: editTool === 'selection', action: () => onChangeTool('selection') },
     { label: t`滑移工具 (Y)`, icon: <MoveHorizontal className="size-4" aria-hidden="true" />, enabled: canSlipTool, pressed: editTool === 'slip', action: () => onChangeTool('slip') },
+    { label: t`滚动编辑工具 (N)`, icon: <BetweenHorizontalEnd className="size-4" aria-hidden="true" />, enabled: canRollTool, pressed: editTool === 'rolling', action: () => onChangeTool('rolling') },
     { label: t`在播放头切分片段`, icon: <Scissors className="size-4" aria-hidden="true" />, enabled: canSplit, pressed: false, action: onSplit },
     { label: t`在播放头添加标记`, icon: <BookmarkPlus className="size-4" aria-hidden="true" />, enabled: canAddMarker, pressed: false, action: onAddMarker },
     { label: t`提取入出点范围`, icon: <span className="font-mono text-sm" aria-hidden="true">'</span>, enabled: canExtractRange, pressed: false, action: onExtractRange },

@@ -67,6 +67,7 @@ import {
   snapTimeToFrame,
   timelineClipFromMediaAsset,
   TimelineProgramMonitor,
+  type TimelineRollingPreview,
   trimRippleClip,
   removeClipKeyframe,
   isSupportedEditorEffectKind,
@@ -159,6 +160,7 @@ export function ProjectWorkspacePage() {
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [timelinePreviewClips, setTimelinePreviewClips] = useState<readonly TimelineClip[]>([]);
+  const [timelineRollingPreview, setTimelineRollingPreview] = useState<TimelineRollingPreview | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [externalConfirm, setExternalConfirm] = useState<'recording' | 'export' | null>(null);
@@ -246,6 +248,7 @@ export function ProjectWorkspacePage() {
 
   useEffect(() => {
     setTimelinePreviewClips([]);
+    setTimelineRollingPreview(null);
   }, [project.data?.revision]);
 
   if (projectId === 'new' || project.isPending) {
@@ -498,6 +501,7 @@ export function ProjectWorkspacePage() {
             readOnly={readOnly || apply.isPending}
             playing={playing}
             playbackRate={playbackRate}
+            rollingPreview={timelineRollingPreview}
             onTogglePlayback={togglePlayback}
             onShuttle={shuttlePlayback}
             onStepFrame={stepTimelineFrame}
@@ -554,6 +558,7 @@ export function ProjectWorkspacePage() {
               clips.map((clip) => ({ op: 'replace_clip', clip_id: clip.id, clip })),
             )}
             onPreviewClips={setTimelinePreviewClips}
+            onPreviewRollingEdit={setTimelineRollingPreview}
             onInsertTrack={(track, index) => mutate(
               `添加轨道 ${track.name}`,
               { kind: 'project' },
@@ -741,6 +746,7 @@ function PreviewSplit({
   readOnly,
   playing,
   playbackRate,
+  rollingPreview,
   onTogglePlayback,
   onShuttle,
   onStepFrame,
@@ -755,6 +761,7 @@ function PreviewSplit({
   readonly readOnly: boolean;
   readonly playing: boolean;
   readonly playbackRate: number;
+  readonly rollingPreview: TimelineRollingPreview | null;
   readonly onTogglePlayback: () => void;
   readonly onShuttle: (direction: -1 | 0 | 1) => void;
   readonly onStepFrame: (direction: -1 | 1) => void;
@@ -775,6 +782,7 @@ function PreviewSplit({
           readOnly={readOnly}
           playing={playing}
           playbackRate={playbackRate}
+          rollingPreview={rollingPreview}
           onTogglePlayback={onTogglePlayback}
           onShuttle={onShuttle}
           onStepFrame={onStepFrame}

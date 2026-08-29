@@ -9,6 +9,7 @@ import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
 import type { Project, TimelineClip } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import { clipFadeDuration } from './timelineInteraction';
+import type { TimelineRollingPreview } from './timelineInteraction';
 import { EDITOR_EFFECT_SCHEMAS, editorEffectParameter, isSupportedEditorEffectKind } from './effectEditing';
 import { resolveTimelineMaterial } from './timelineMaterial';
 
@@ -24,6 +25,7 @@ export interface TimelineProgramMonitorProps {
   readonly readOnly: boolean;
   readonly playing: boolean;
   readonly playbackRate: number;
+  readonly rollingPreview: TimelineRollingPreview | null;
   readonly onTogglePlayback: () => void;
   readonly onShuttle: (direction: -1 | 0 | 1) => void;
   readonly onStepFrame: (direction: -1 | 1) => void;
@@ -47,6 +49,7 @@ export function TimelineProgramMonitor({
   readOnly,
   playing,
   playbackRate,
+  rollingPreview,
   onTogglePlayback,
   onShuttle,
   onStepFrame,
@@ -71,7 +74,17 @@ export function TimelineProgramMonitor({
   const previewOffsetSeconds = selected === null
     ? 0
     : targetTimelineTime - selected.placement.start;
+  const rollingLeft = rollingPreview === null ? null : clips.find((clip) => clip.id === rollingPreview.leftClipId) ?? null;
+  const rollingRight = rollingPreview === null ? null : clips.find((clip) => clip.id === rollingPreview.rightClipId) ?? null;
+  const rollingActive = rollingLeft !== null
+    && rollingRight !== null
+    && resolveTimelineMaterial(rollingLeft.material).streamAssetId !== null
+    && resolveTimelineMaterial(rollingRight.material).streamAssetId !== null;
   const [presentedId, setPresentedId] = useState<string | null>(targetId);
+  const [rollingReadyIds, setRollingReadyIds] = useState<ReadonlySet<string>>(new Set());
+  const rollingReady = rollingActive
+    && rollingReadyIds.has(rollingLeft.id)
+    && rollingReadyIds.has(rollingRight.id);
   const timelineTimeRef = useRef(targetTimelineTime);
   const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
   const onPlaybackEndRef = useRef(onPlaybackEnd);
@@ -93,6 +106,10 @@ export function TimelineProgramMonitor({
   useEffect(() => {
     if (targetId === null) setPresentedId(null);
   }, [targetId]);
+
+  useEffect(() => {
+    setRollingReadyIds(new Set());
+  }, [rollingPreview?.leftClipId, rollingPreview?.rightClipId]);
 
   useEffect(() => {
     if (!playing || playbackRate >= 0) return undefined;
@@ -122,9 +139,12 @@ export function TimelineProgramMonitor({
       data-monitor-target-clip-id={targetId ?? ''}
       data-monitor-read-only={readOnly}
       data-monitor-playing={playing}
+      data-monitor-mode={rollingActive ? 'rolling' : 'program'}
+      data-monitor-rolling-left-clip-id={rollingPreview?.leftClipId ?? ''}
+      data-monitor-rolling-right-clip-id={rollingPreview?.rightClipId ?? ''}
     >
       <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
-        <Trans>视频预览</Trans>
+        {rollingActive ? <Trans>滚动编辑预览</Trans> : <Trans>视频预览</Trans>}
       </header>
       {targetId === null ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-neutral-900 p-5 text-center text-neutral-100">
@@ -144,11 +164,25 @@ export function TimelineProgramMonitor({
                 height: `min(100cqh, ${project.document.height / project.document.width * 100}cqw)`,
               }}
               aria-label={t`节目画布`}
+              data-program-stage
             >
               {media.map(({ clip, src }) => {
-                const isTarget = clip.id === targetId;
-                const isPresented = clip.id === presentedId;
-                const offset = isTarget ? previewOffsetSeconds : 0;
+                const rollingSide = !rollingActive
+                  ? null
+                  : clip.id === rollingLeft.id
+                    ? 'left' as const
+                    : clip.id === rollingRight.id
+                      ? 'right' as const
+                      : null;
+                const isTarget = rollingActive ? rollingSide !== null : clip.id === targetId;
+                const isPresented = rollingActive
+                  ? rollingReady ? rollingSide !== null : clip.id === presentedId
+                  : clip.id === presentedId;
+                const offset = rollingSide === 'left'
+                  ? Math.max(0, clip.placement.duration - 1 / project.document.fps)
+                  : rollingSide === 'right'
+                    ? 0
+                    : isTarget ? previewOffsetSeconds : 0;
                 return (
                   <PooledPreviewVideo
                     key={clip.id}
@@ -160,10 +194,12 @@ export function TimelineProgramMonitor({
                     offsetSeconds={offset}
                     target={isTarget}
                     presented={isPresented}
-                    playing={playing && isTarget && isPresented}
-                    editable={!playing && !readOnly && isTarget && isPresented && selectedClipId === clip.id}
+                    previewSide={rollingReady ? rollingSide : null}
+                    playing={!rollingActive && playing && isTarget && isPresented}
+                    editable={!rollingActive && !playing && !readOnly && isTarget && isPresented && selectedClipId === clip.id}
                     transportRate={playbackRate}
                     onTimelineTimeChange={(sourceSeconds) => {
+                      if (rollingSide !== null) return;
                       const timelineSeconds = clip.placement.start
                         + (sourceSeconds - clip.placement.source_in) / clip.placement.speed;
                       onTimelineTimeChange(Math.min(
@@ -177,14 +213,22 @@ export function TimelineProgramMonitor({
                       if (end >= project.document.duration_seconds - 1 / project.document.fps) onPlaybackEnd();
                     }}
                     onReady={() => {
-                      if (clip.id === targetId) setPresentedId(clip.id);
+                      if (rollingSide !== null) {
+                        setRollingReadyIds((current) => current.has(clip.id) ? current : new Set([...current, clip.id]));
+                      } else if (clip.id === targetId) setPresentedId(clip.id);
                     }}
                     onReplaceClip={onReplaceClip}
                   />
                 );
               })}
+              {!rollingReady ? null : (
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 grid grid-cols-2 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
+                  <span className="truncate px-2 py-1"><Trans>出点</Trans> · {rollingLeft.name}</span>
+                  <span className="truncate border-l border-neutral-700 px-2 py-1"><Trans>入点</Trans> · {rollingRight.name}</span>
+                </div>
+              )}
             </div>
-            {presentedId === targetId ? null : (
+            {(rollingActive ? rollingReady : presentedId === targetId) ? null : (
               <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-2 py-1 text-2xs text-neutral-100">
                 <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
                 <Trans>正在定位帧</Trans>
@@ -211,9 +255,9 @@ export function TimelineProgramMonitor({
             </button>
             <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
             <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
-            <span className="min-w-0 truncate font-medium">{selected?.name}</span>
+            <span className="min-w-0 truncate font-medium">{rollingActive ? `${rollingLeft.name} ↔ ${rollingRight.name}` : selected?.name}</span>
             <span className="font-mono text-neutral-500">{playing ? `${playbackRate.toFixed(1)}x` : '0.0x'}</span>
-            <span className="ml-auto font-mono">{formatMillisecondTimecode(targetTimelineTime)}</span>
+            <span className="ml-auto font-mono">{formatMillisecondTimecode(rollingPreview?.editTime ?? targetTimelineTime)}</span>
           </div>
         </div>
       )}
@@ -230,6 +274,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   offsetSeconds,
   target,
   presented,
+  previewSide,
   playing,
   editable,
   transportRate,
@@ -246,6 +291,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   readonly offsetSeconds: number;
   readonly target: boolean;
   readonly presented: boolean;
+  readonly previewSide: 'left' | 'right' | null;
   readonly playing: boolean;
   readonly editable: boolean;
   readonly transportRate: number;
@@ -397,7 +443,15 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   };
 
   return (
-    <>
+    <div
+      className="absolute inset-y-0 overflow-hidden"
+      style={{
+        left: previewSide === 'right' ? '50%' : 0,
+        width: previewSide === null ? '100%' : '50%',
+        pointerEvents: editable ? 'auto' : 'none',
+      }}
+      data-preview-slot={previewSide ?? 'program'}
+    >
     <video
       ref={videoRef}
       className="absolute inset-0 size-full bg-neutral-900 object-contain transition-opacity duration-75"
@@ -408,6 +462,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       controls={false}
       data-preview-target={target}
       data-preview-active={presented}
+      data-preview-side={previewSide ?? ''}
       data-preview-editable={editable}
       aria-label={target ? t`${clip.name} 视频预览` : undefined}
       aria-hidden={!target}
@@ -441,7 +496,10 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
         seekLatest();
         if (target) onReady();
       }}
-      onSeeked={seekLatest}
+      onSeeked={() => {
+        seekLatest();
+        if (target) onReady();
+      }}
       onTimeUpdate={(event) => {
         if (target && presented) onTimelineTimeChange(event.currentTarget.currentTime);
       }}
@@ -533,7 +591,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
               if (event.button !== 0) return;
               event.preventDefault();
               event.stopPropagation();
-              const stage = event.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
+              const stage = event.currentTarget.closest<HTMLElement>('[data-program-stage]')?.getBoundingClientRect();
               if (stage === undefined) return;
               const centerX = stage.left + stage.width / 2 + transform.x / projectWidth * stage.width;
               const centerY = stage.top + stage.height / 2 + transform.y / projectHeight * stage.height;
@@ -597,7 +655,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
               if (event.button !== 0) return;
               event.preventDefault();
               event.stopPropagation();
-              const stage = event.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
+              const stage = event.currentTarget.closest<HTMLElement>('[data-program-stage]')?.getBoundingClientRect();
               if (stage === undefined) return;
               const centerX = stage.left + stage.width / 2 + transform.x / projectWidth * stage.width;
               const centerY = stage.top + stage.height / 2 + transform.y / projectHeight * stage.height;
@@ -661,7 +719,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
         ) : null}
       </div>
     ) : null}
-    </>
+    </div>
   );
 }, (previous, next) => previous.clip === next.clip
   && previous.src === next.src
@@ -671,6 +729,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   && previous.offsetSeconds === next.offsetSeconds
   && previous.target === next.target
   && previous.presented === next.presented
+  && previous.previewSide === next.previewSide
   && previous.playing === next.playing
   && previous.editable === next.editable
   && previous.transportRate === next.transportRate

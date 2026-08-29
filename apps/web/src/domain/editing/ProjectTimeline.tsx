@@ -80,6 +80,7 @@ import {
   clipFadeDuration,
   maximumClipFadeDuration,
   setClipFadeDuration,
+  timelineEdgeScrollStep,
   moveTimelineClip,
   resolveTimelineSnap,
   snapTimeToFrame,
@@ -203,6 +204,11 @@ export function ProjectTimeline({
   } | null>(null);
   const seekFrameRef = useRef<number | null>(null);
   const queuedSeekRef = useRef<number | null>(null);
+  const timelineScrollLeftRef = useRef(scrollLeft);
+  timelineScrollLeftRef.current = scrollLeft;
+  const dragPointerXRef = useRef<number | null>(null);
+  const dragScrollFrameRef = useRef<number | null>(null);
+  const dragScrollUpdateRef = useRef<((scrollLeft: number) => void) | null>(null);
   const story = document.tracks.find((track) => track.id === document.story_track_id) ?? null;
   const clips = story?.clips ?? [];
   const selectedClip = document.tracks
@@ -492,6 +498,7 @@ export function ProjectTimeline({
 
   useEffect(() => () => {
     if (seekFrameRef.current !== null) cancelAnimationFrame(seekFrameRef.current);
+    if (dragScrollFrameRef.current !== null) cancelAnimationFrame(dragScrollFrameRef.current);
   }, []);
 
   const pointerTime = (event: React.PointerEvent<HTMLElement>) => {
@@ -568,6 +575,41 @@ export function ProjectTimeline({
       queuedSeekRef.current = null;
       if (queued !== null) onSeek(queued);
     });
+  };
+
+  const updateDragAutoScroll = (clientX: number | null, onScroll?: (scrollLeft: number) => void) => {
+    dragPointerXRef.current = clientX;
+    if (clientX === null) dragScrollUpdateRef.current = null;
+    else if (onScroll !== undefined) dragScrollUpdateRef.current = onScroll;
+    if (clientX === null) {
+      if (dragScrollFrameRef.current !== null) cancelAnimationFrame(dragScrollFrameRef.current);
+      dragScrollFrameRef.current = null;
+      return;
+    }
+    if (dragScrollFrameRef.current !== null) return;
+    const tick = () => {
+      const pointerX = dragPointerXRef.current;
+      const viewport = viewportRef.current;
+      if (pointerX === null || viewport === null) {
+        dragScrollFrameRef.current = null;
+        return;
+      }
+      const bounds = viewport.getBoundingClientRect();
+      const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+      const step = timelineEdgeScrollStep(pointerX, bounds.left + trackHead, bounds.right);
+      if (step !== 0) {
+        const maximum = Math.max(0, trackHead + contentWidth - viewport.clientWidth);
+        const next = Math.min(maximum, Math.max(0, viewport.scrollLeft + step));
+        if (Math.abs(next - viewport.scrollLeft) > 0.01) {
+          viewport.scrollLeft = next;
+          timelineScrollLeftRef.current = next;
+          setScrollLeft(next);
+          dragScrollUpdateRef.current?.(next);
+        }
+      }
+      dragScrollFrameRef.current = requestAnimationFrame(tick);
+    };
+    dragScrollFrameRef.current = requestAnimationFrame(tick);
   };
 
   return (
@@ -793,7 +835,10 @@ export function ProjectTimeline({
         )}
         role="region"
         aria-label={t`时间轴内容`}
-        onScroll={(event) => setScrollLeft(event.currentTarget.scrollLeft)}
+        onScroll={(event) => {
+          timelineScrollLeftRef.current = event.currentTarget.scrollLeft;
+          setScrollLeft(event.currentTarget.scrollLeft);
+        }}
         onPointerDown={(event) => {
           if (event.button === 0 && event.target === event.currentTarget) {
             event.preventDefault();
@@ -879,6 +924,8 @@ export function ProjectTimeline({
               collapsed={collapsedTrackRows.has(track.id)}
               onHeightChange={(height) => updateTrackHeight(track.id, height)}
               onToggleCollapse={() => toggleTrackCollapse(track.id)}
+              scrollLeftRef={timelineScrollLeftRef}
+              onDragAutoScroll={updateDragAutoScroll}
             />
           ))}
           <TimelineMarkerRow
@@ -1071,7 +1118,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -1099,6 +1146,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly collapsed: boolean;
   readonly onHeightChange: (height: number) => void;
   readonly onToggleCollapse: () => void;
+  readonly scrollLeftRef: React.RefObject<number>;
+  readonly onDragAutoScroll: (clientX: number | null, onScroll?: (scrollLeft: number) => void) => void;
 }) {
   const nonStoryIndex = nonStoryTrackIds.indexOf(track.track.id);
   const resizeGesture = useRef<{ readonly pointerId: number; readonly clientY: number; readonly height: number } | null>(null);
@@ -1148,6 +1197,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             snapPoints={snapPoints}
             snapThresholdSeconds={snapThresholdSeconds}
             onSnapChange={onSnapChange}
+            scrollLeftRef={scrollLeftRef}
+            onDragAutoScroll={onDragAutoScroll}
             onReplace={(replacement, mode) => {
               if (mode === 'volume') {
                 onReplaceClip(replacement);
@@ -1230,7 +1281,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.height === next.height
   && previous.collapsed === next.collapsed);
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, gainReadOnly, trackHeight, change, onSelect, onInspect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, gainReadOnly, trackHeight, change, onSelect, onInspect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -1248,17 +1299,31 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
   readonly onSnapChange: (time: number | null) => void;
+  readonly scrollLeftRef: React.RefObject<number>;
+  readonly onDragAutoScroll: (clientX: number | null, onScroll?: (scrollLeft: number) => void) => void;
 }) {
   const shell = useNativeShell();
   const material = resolveTimelineMaterial(clip.material);
   const [visualClip, setVisualClip] = useState(clip);
+  const visualClipRef = useRef(visualClip);
+  visualClipRef.current = visualClip;
+  const windowMouseUpRef = useRef<(() => void) | null>(null);
   const gesture = useRef<{
     readonly pointerId: number;
     readonly clientX: number;
+    readonly scrollLeft: number;
     readonly mode: 'move' | 'start' | 'end';
     readonly clip: TimelineClip;
+    lastClientX: number;
+    shiftKey: boolean;
   } | null>(null);
-  useEffect(() => setVisualClip(clip), [clip]);
+  useEffect(() => {
+    setVisualClip(clip);
+    visualClipRef.current = clip;
+  }, [clip]);
+  useEffect(() => () => {
+    if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
+  }, []);
   if (derivedAudio) {
     return (
       <div
@@ -1294,26 +1359,20 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   }
   const visualLeft = timeToPx(scale, visualClip.placement.start);
   const visualWidth = Math.max(2, timeToPx(scale, visualClip.placement.duration));
-  const beginGesture = (event: React.PointerEvent<HTMLElement>, mode: 'move' | 'start' | 'end') => {
-    if (readOnly || event.button !== 0) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const additive = event.ctrlKey || event.metaKey;
-    const range = event.shiftKey;
-    if (!selected || additive || range) onSelect(additive, range);
-    if (additive || range) return;
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    gesture.current = { pointerId: event.pointerId, clientX: event.clientX, mode, clip };
-  };
-  const updateGesture = (event: React.PointerEvent<HTMLElement>) => {
-    const active = gesture.current;
-    if (active === null || active.pointerId !== event.pointerId) return;
-    event.preventDefault();
-    const deltaSeconds = pxToTime(scale, event.clientX - active.clientX);
+  const updateVisualGesture = (
+    active: NonNullable<typeof gesture.current>,
+    clientX: number,
+    currentScrollLeft: number,
+    shiftKey: boolean,
+  ) => {
+    const deltaSeconds = pxToTime(
+      scale,
+      clientX - active.clientX + currentScrollLeft - active.scrollLeft,
+    );
     const rawAnchor = active.mode === 'end'
       ? active.clip.placement.start + active.clip.placement.duration + deltaSeconds
       : active.clip.placement.start + deltaSeconds;
-    const snap = event.shiftKey
+    const snap = shiftKey
       ? { anchorTime: rawAnchor, snapTime: null }
       : resolveTimelineSnap(
         rawAnchor,
@@ -1331,18 +1390,65 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         fps,
         clipMediaDuration(active.clip),
       );
+    visualClipRef.current = next;
     setVisualClip(next);
+  };
+  const finishGestureCore = () => {
+    const active = gesture.current;
+    if (active === null) return;
+    gesture.current = null;
+    if (windowMouseUpRef.current !== null) {
+      window.removeEventListener('mouseup', windowMouseUpRef.current);
+      windowMouseUpRef.current = null;
+    }
+    onDragAutoScroll(null);
+    onSnapChange(null);
+    const replacement = visualClipRef.current;
+    if (JSON.stringify(replacement.placement) !== JSON.stringify(active.clip.placement)) {
+      onReplace(replacement, active.mode);
+    }
+  };
+  const beginGesture = (event: React.PointerEvent<HTMLElement>, mode: 'move' | 'start' | 'end') => {
+    if (readOnly || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const additive = event.ctrlKey || event.metaKey;
+    const range = event.shiftKey;
+    if (!selected || additive || range) onSelect(additive, range);
+    if (additive || range) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    gesture.current = {
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      scrollLeft: scrollLeftRef.current ?? 0,
+      mode,
+      clip,
+      lastClientX: event.clientX,
+      shiftKey: event.shiftKey,
+    };
+    onDragAutoScroll(event.clientX, (nextScrollLeft) => {
+      const active = gesture.current;
+      if (active !== null) updateVisualGesture(active, active.lastClientX, nextScrollLeft, active.shiftKey);
+    });
+    const finishFromWindow = () => finishGestureCore();
+    windowMouseUpRef.current = finishFromWindow;
+    window.addEventListener('mouseup', finishFromWindow, { once: true });
+  };
+  const updateGesture = (event: React.PointerEvent<HTMLElement>) => {
+    const active = gesture.current;
+    if (active === null || active.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    active.lastClientX = event.clientX;
+    active.shiftKey = event.shiftKey;
+    onDragAutoScroll(event.clientX);
+    updateVisualGesture(active, event.clientX, scrollLeftRef.current ?? 0, event.shiftKey);
   };
   const finishGesture = (event: React.PointerEvent<HTMLElement>) => {
     const active = gesture.current;
     if (active === null || active.pointerId !== event.pointerId) return;
     event.preventDefault();
-    gesture.current = null;
-    onSnapChange(null);
+    finishGestureCore();
     event.currentTarget.releasePointerCapture?.(event.pointerId);
-    if (JSON.stringify(visualClip.placement) !== JSON.stringify(clip.placement)) {
-      onReplace(visualClip, active.mode);
-    }
   };
   return (
     <button
@@ -1362,7 +1468,15 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       onPointerDown={(event) => beginGesture(event, 'move')}
       onPointerMove={updateGesture}
       onPointerUp={finishGesture}
-      onPointerCancel={() => { gesture.current = null; setVisualClip(clip); onSnapChange(null); }}
+      onPointerCancel={() => {
+        gesture.current = null;
+        if (windowMouseUpRef.current !== null) window.removeEventListener('mouseup', windowMouseUpRef.current);
+        windowMouseUpRef.current = null;
+        visualClipRef.current = clip;
+        setVisualClip(clip);
+        onSnapChange(null);
+        onDragAutoScroll(null);
+      }}
       onKeyDown={(event) => {
         if (readOnly || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
         event.preventDefault();

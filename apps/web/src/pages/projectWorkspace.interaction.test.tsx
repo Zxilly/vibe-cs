@@ -443,6 +443,34 @@ describe('unified project workspace', () => {
     }));
   });
 
+  it('auto-scrolls at the viewport edge and includes scroll delta in a trim gesture', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 1_000, bottom: 400, left: 0, width: 1_000, height: 400, toJSON: () => ({}),
+    });
+    fireEvent.change(screen.getByRole('slider', { name: '时间轴缩放' }), { target: { value: '4' } });
+    const startHandle = screen.getByRole('separator', { name: '裁切片段起点' });
+    fireEvent.pointerDown(startHandle, { pointerId: 81, button: 0, clientX: 900 });
+    fireEvent.pointerMove(startHandle, { pointerId: 81, clientX: 990 });
+    await waitFor(() => expect(viewport.scrollLeft).toBeGreaterThan(0));
+    fireEvent.pointerUp(startHandle, { pointerId: 81, clientX: 990 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
+    const operation = applyProjectPatch.mock.calls[0]?.[0]?.operations[0];
+    expect(operation).toMatchObject({ op: 'replace_track_clips', track_id: STORY_ID });
+    if (operation?.op !== 'replace_track_clips') throw new Error('expected Story replacement');
+    expect(operation.clips[0]?.placement.source_in).toBeGreaterThan(0);
+    const stoppedAt = viewport.scrollLeft;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(viewport.scrollLeft).toBe(stoppedAt);
+    clientWidth.mockRestore();
+  });
+
   it('splits the selected Story clip at the global playhead', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },

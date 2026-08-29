@@ -293,6 +293,40 @@ describe('unified project workspace', () => {
     expect(screen.getAllByRole('button', { name: /A 5\.0s · 未录制/u })).toHaveLength(1);
   });
 
+  it('edits Story clip gain directly from its derived audio rubber band', async () => {
+    const keyboardPatch = vi.fn();
+    const keyboardRender = renderWorkspace({ applyProjectPatch: keyboardPatch });
+
+    const gain = await screen.findByRole('slider', { name: '调整片段增益 A' });
+    expect(gain.getAttribute('aria-disabled')).toBe('false');
+    expect(gain.getAttribute('aria-valuetext')).toBe('+0.0 dB');
+    fireEvent.keyDown(gain, { key: 'ArrowUp' });
+    await waitFor(() => expect(keyboardPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({ placement: expect.objectContaining({ volume: expect.closeTo(1.122_018, 5) }) }),
+      })],
+    })));
+
+    keyboardRender.unmount();
+    const pointerPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch: pointerPatch });
+    const pointerGain = await screen.findByRole('slider', { name: '调整片段增益 A' });
+    fireEvent.pointerDown(pointerGain, { pointerId: 71, button: 0, clientY: 100 });
+    fireEvent.pointerMove(pointerGain, { pointerId: 71, clientY: 94.65 });
+    await waitFor(() => expect(pointerGain.getAttribute('aria-valuetext')).toBe('+6.0 dB'));
+    fireEvent.pointerUp(pointerGain, { pointerId: 71, clientY: 94.65 });
+    await waitFor(() => expect(pointerPatch).toHaveBeenCalledTimes(1));
+    expect(pointerPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({ placement: expect.objectContaining({ volume: expect.closeTo(2, 1) }) }),
+      })],
+    }));
+  });
+
   it('deletes a cross-track selection in one Project revision', async () => {
     const audioClipId = '00000000-0000-4000-8000-000000000016';
     const audioClip: TimelineClip = {

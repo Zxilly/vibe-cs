@@ -70,6 +70,12 @@ import {
 } from './timelineEditing';
 import {
   clipMediaDuration,
+  adjustLinearGainByTrackDelta,
+  dbToLinearGain,
+  gainToTrackPercent,
+  linearGainToDb,
+  MAX_CLIP_GAIN_DB,
+  MIN_CLIP_GAIN_DB,
   moveTimelineClip,
   resolveTimelineSnap,
   snapTimeToFrame,
@@ -1109,6 +1115,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             scale={scale}
             fps={fps}
             readOnly={readOnly || track.track.locked || track.derivedAudio}
+            gainReadOnly={readOnly || track.track.locked}
+            trackHeight={height}
             change={changeByClipId.get(clip.id) ?? null}
             onSelect={(additive, range) => onSelectClip(clip.id, additive, range)}
             onInspect={() => onInspectClip(clip.id)}
@@ -1116,6 +1124,10 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             snapThresholdSeconds={snapThresholdSeconds}
             onSnapChange={onSnapChange}
             onReplace={(replacement, mode) => {
+              if (mode === 'volume') {
+                onReplaceClip(replacement);
+                return;
+              }
               const selectedOnTrack = new Set(track.track.clips
                 .filter((candidate) => selectedClipIds.has(candidate.id))
                 .map((candidate) => candidate.id));
@@ -1189,7 +1201,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.height === next.height
   && previous.collapsed === next.collapsed);
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, change, onSelect, onInspect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, gainReadOnly, trackHeight, change, onSelect, onInspect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -1198,10 +1210,12 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly fps: number;
   readonly readOnly: boolean;
+  readonly gainReadOnly: boolean;
+  readonly trackHeight: number;
   readonly change: TimelineClipChange | null;
   readonly onSelect: (additive: boolean, range: boolean) => void;
   readonly onInspect: () => void;
-  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end') => void;
+  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'volume') => void;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
   readonly onSnapChange: (time: number | null) => void;
@@ -1230,6 +1244,13 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         }}
       >
         <TimelineClipWaveform clip={clip} change={change} />
+        <TimelineGainControl
+          clip={clip}
+          trackHeight={trackHeight}
+          readOnly={gainReadOnly}
+          selected={selected}
+          onReplace={(replacement) => onReplace(replacement, 'volume')}
+        />
         {change === null ? null : <TimelineClipChangeOverlay change={change} clip={clip} scale={scale} compact />}
       </div>
     );
@@ -1318,7 +1339,16 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       data-timeline-clip-id={clip.id}
     >
       {kind === 'audio' ? (
-        <TimelineClipWaveform clip={clip} change={change} />
+        <>
+          <TimelineClipWaveform clip={clip} change={change} />
+          <TimelineGainControl
+            clip={clip}
+            trackHeight={trackHeight}
+            readOnly={gainReadOnly}
+            selected={selected}
+            onReplace={(replacement) => onReplace(replacement, 'volume')}
+          />
+        </>
       ) : kind === 'text' ? <span className="grid size-full place-items-center text-2xs">{clip.name}</span> : material.streamAssetId === null ? (
         <span className="grid size-full place-items-center text-2xs text-neutral-500"><Trans>待录制</Trans></span>
       ) : (
@@ -1362,9 +1392,106 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
   && previous.fps === next.fps
   && previous.readOnly === next.readOnly
+  && previous.gainReadOnly === next.gainReadOnly
+  && previous.trackHeight === next.trackHeight
   && previous.change === next.change
   && previous.snapPoints === next.snapPoints
   && previous.snapThresholdSeconds === next.snapThresholdSeconds);
+
+function TimelineGainControl({ clip, trackHeight, readOnly, selected, onReplace }: {
+  readonly clip: TimelineClip;
+  readonly trackHeight: number;
+  readonly readOnly: boolean;
+  readonly selected: boolean;
+  readonly onReplace: (clip: TimelineClip) => void;
+}) {
+  const [visualVolume, setVisualVolume] = useState(clip.placement.volume);
+  const [active, setActive] = useState(false);
+  const visualVolumeRef = useRef(visualVolume);
+  visualVolumeRef.current = visualVolume;
+  const gesture = useRef<{
+    readonly pointerId: number;
+    readonly clientY: number;
+    readonly volume: number;
+  } | null>(null);
+  useEffect(() => {
+    setVisualVolume(clip.placement.volume);
+    visualVolumeRef.current = clip.placement.volume;
+  }, [clip.placement.volume]);
+  const commit = (volume: number) => {
+    if (Math.abs(volume - clip.placement.volume) <= 1e-6) return;
+    onReplace({ ...clip, placement: { ...clip.placement, volume } });
+  };
+  const db = linearGainToDb(visualVolume);
+  return (
+    <span
+      role="slider"
+      tabIndex={readOnly ? -1 : 0}
+      aria-label={t`调整片段增益 ${clip.name}`}
+      aria-disabled={readOnly}
+      aria-valuemin={MIN_CLIP_GAIN_DB}
+      aria-valuemax={MAX_CLIP_GAIN_DB}
+      aria-valuenow={db}
+      aria-valuetext={formatGainDb(db)}
+      className={cn(
+        'absolute inset-x-0 z-30 h-3 -translate-y-1/2 touch-none cursor-ns-resize outline-none focus-visible:ring-1 focus-visible:ring-accent-500',
+        readOnly && 'pointer-events-none',
+      )}
+      style={{ top: `${gainToTrackPercent(visualVolume)}%` }}
+      onPointerDown={(event) => {
+        if (readOnly || event.button !== 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        gesture.current = { pointerId: event.pointerId, clientY: event.clientY, volume: clip.placement.volume };
+        setActive(true);
+      }}
+      onPointerMove={(event) => {
+        const current = gesture.current;
+        if (current === null || current.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setVisualVolume(adjustLinearGainByTrackDelta(
+          current.volume,
+          event.clientY - current.clientY,
+          Math.max(MIN_TRACK_HEIGHT, trackHeight),
+        ));
+      }}
+      onPointerUp={(event) => {
+        if (gesture.current?.pointerId !== event.pointerId) return;
+        event.preventDefault();
+        event.stopPropagation();
+        gesture.current = null;
+        setActive(false);
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+        commit(visualVolumeRef.current);
+      }}
+      onPointerCancel={() => {
+        gesture.current = null;
+        setActive(false);
+        setVisualVolume(clip.placement.volume);
+      }}
+      onKeyDown={(event) => {
+        if (readOnly || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const direction = event.key === 'ArrowUp' ? 1 : -1;
+        const volume = dbToLinearGain(db + direction * (event.shiftKey ? 3 : 1));
+        setVisualVolume(volume);
+        commit(volume);
+      }}
+    >
+      <span className={cn('absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-accent-500/80', selected && 'bg-accent-600')} aria-hidden="true" />
+      <span className={cn('absolute left-1/2 top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-accent-600 bg-bg', !selected && !active && 'opacity-60')} aria-hidden="true" />
+      {active ? <span className="absolute left-1/2 bottom-full mb-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-neutral-900 px-1.5 py-0.5 font-mono text-2xs text-bg">{formatGainDb(db)}</span> : null}
+    </span>
+  );
+}
+
+function formatGainDb(db: number): string {
+  if (db <= MIN_CLIP_GAIN_DB + 1e-6) return '−∞ dB';
+  return `${db >= 0 ? '+' : ''}${db.toFixed(1)} dB`;
+}
 
 function TimelineToolStrip({
   canSplit,

@@ -9,6 +9,7 @@ export {
   overwriteStoryClipAtTime,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,
+  removeTimelineRange,
   splitRippleClip,
   timelineClipFromMediaAsset,
   trimRippleClip,

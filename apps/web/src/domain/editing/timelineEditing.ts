@@ -44,7 +44,7 @@ export function trimRippleClip(
   if (index < 0) return [...clips];
   const next = [...clips];
   next[index] = replacement;
-  return reflow(next);
+  return reflow(next, clips[0]?.placement.start ?? 0);
 }
 
 export function splitRippleClip(
@@ -203,6 +203,54 @@ export function overwriteStoryClipAtTime(
     placement: { ...inserted.placement, start: timelineTime },
   });
   return next.sort((left, right) => left.placement.start - right.placement.start);
+}
+
+export function removeTimelineRange(
+  clips: readonly TimelineClip[],
+  rangeStart: number,
+  rangeEnd: number,
+  rightClipId: string,
+  ripple: boolean,
+): TimelineClip[] {
+  const from = Math.min(rangeStart, rangeEnd);
+  const to = Math.max(rangeStart, rangeEnd);
+  if (to - from <= TIME_EPSILON) return [...clips];
+  const next: TimelineClip[] = [];
+  for (const clip of clips) {
+    const clipStart = clip.placement.start;
+    const clipEnd = clipStart + clip.placement.duration;
+    if (clipEnd <= from + TIME_EPSILON || clipStart >= to - TIME_EPSILON) {
+      next.push(clip);
+      continue;
+    }
+    const leftDuration = Math.max(0, from - clipStart);
+    const rightDuration = Math.max(0, clipEnd - to);
+    if (leftDuration > TIME_EPSILON) {
+      next.push({
+        ...clip,
+        placement: {
+          ...clip.placement,
+          duration: leftDuration,
+          source_out: clip.placement.source_in + leftDuration * clip.placement.speed,
+        },
+      });
+    }
+    if (rightDuration > TIME_EPSILON) {
+      next.push({
+        ...clip,
+        id: leftDuration > TIME_EPSILON ? rightClipId : clip.id,
+        name: leftDuration > TIME_EPSILON ? `${clip.name} · B` : clip.name,
+        placement: {
+          ...clip.placement,
+          start: to,
+          duration: rightDuration,
+          source_in: clip.placement.source_out - rightDuration * clip.placement.speed,
+        },
+      });
+    }
+  }
+  const ordered = next.sort((left, right) => left.placement.start - right.placement.start);
+  return ripple ? reflow(ordered, clips[0]?.placement.start ?? 0) : ordered;
 }
 
 function copiesAtTime(

@@ -40,7 +40,12 @@ import { useAgentStatus } from '../data/config';
 import { useTask } from '../data/tasks';
 import { useMapRadarOverview, useMatchReplay } from '../data/match';
 import { useNativeShell } from '../data/nativeShell';
-import { useImportMediaAsset, useMediaAssets } from '../data/mediaAssets';
+import {
+  useDeleteMediaAsset,
+  useImportMediaAsset,
+  useMediaAssets,
+  useRelinkMediaAsset,
+} from '../data/mediaAssets';
 import {
   useAgentChatStream,
   useAgentSession,
@@ -157,6 +162,8 @@ export function ProjectWorkspacePage() {
   const lease = useProjectEditLease(canonicalId);
   const mediaAssets = useMediaAssets(canonicalId, { enabled: canonicalId !== null });
   const importMedia = useImportMediaAsset();
+  const relinkMedia = useRelinkMediaAsset();
+  const deleteMedia = useDeleteMediaAsset();
   const nativeShell = useNativeShell();
   const apply = useApplyProjectPatch();
   const revertChange = useRevertProjectChangeGroup(canonicalId ?? '');
@@ -180,6 +187,7 @@ export function ProjectWorkspacePage() {
       ? globalThis.matchMedia('(min-width: 1280px)').matches
       : true
   ));
+  const [mediaPanelEpoch, setMediaPanelEpoch] = useState(0);
   const [externalConfirm, setExternalConfirm] = useState<ExternalConfirmation | null>(null);
   const agentSessionId = searchParams.get('session');
   const agentSession = useAgentSession(agentSessionId);
@@ -475,6 +483,13 @@ export function ProjectWorkspacePage() {
     const paths = await nativeShell.chooseFiles({ title: t`导入项目素材` });
     await Promise.all(paths.map((path) => importMedia.mutateAsync({ path, projectId: current.id })));
   };
+  const relinkProjectMedia = async (asset: MediaAsset) => {
+    if (!nativeShell.available) return;
+    const [path] = await nativeShell.chooseFiles({ title: t`重新定位 ${asset.name}` });
+    if (path === undefined) return;
+    await relinkMedia.mutateAsync({ id: asset.id, path });
+    setMediaPanelEpoch((epoch) => epoch + 1);
+  };
   const sendToAgent = async (message: string) => {
     let sessionId = agentSessionId;
     if (sessionId === null) {
@@ -606,12 +621,13 @@ export function ProjectWorkspacePage() {
             {mediaOpen ? (
               <div className="min-h-0 min-w-0 max-[1279px]:absolute max-[1279px]:inset-y-0 max-[1279px]:left-0 max-[1279px]:z-20 max-[1279px]:w-[340px] max-[1279px]:shadow-xl">
                 <ProjectMediaPanel
+                  key={mediaPanelEpoch}
                   assets={mediaAssets.data?.items ?? []}
                   timelineTracks={current.document.tracks}
                   selectedTimelineClipId={selectedClipId}
                   pending={mediaAssets.isPending}
                   readOnly={readOnly}
-                  busy={apply.isPending}
+                  busy={apply.isPending || relinkMedia.isPending || deleteMedia.isPending}
                   canEditAsset={(asset) => {
                     const target = mediaTargetTrack(asset);
                     return target === null ? projectMediaAssetKind(asset) === 'audio' : !target.locked;
@@ -622,6 +638,7 @@ export function ProjectWorkspacePage() {
                     return target.id === current.document.story_track_id ? t`Story（波纹）` : target.name;
                   }}
                   importAvailable={nativeShell.available}
+                  relinkAvailable={nativeShell.available}
                   importing={importMedia.isPending}
                   onSelectTimelineClip={(clipId, startSeconds) => {
                     setPlaying(false);
@@ -632,6 +649,8 @@ export function ProjectWorkspacePage() {
                   onImport={() => void importProjectMedia()}
                   onInsert={(asset) => addMediaAsset(asset, 'insert')}
                   onOverwrite={(asset) => addMediaAsset(asset, 'overwrite')}
+                  onRelink={(asset) => void relinkProjectMedia(asset)}
+                  onDelete={(asset) => deleteMedia.mutate(asset.id)}
                   onClose={() => setMediaOpen(false)}
                 />
               </div>
@@ -818,8 +837,8 @@ export function ProjectWorkspacePage() {
           }}
         />
       </Drawer>
-      {apply.error === null && revertChange.error === null && startRecording.error === null && exportProject.error === null && importMedia.error === null ? null : (
-        <Alert className="m-4" variant="danger" action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); importMedia.reset(); } }}>
+      {apply.error === null && revertChange.error === null && startRecording.error === null && exportProject.error === null && importMedia.error === null && relinkMedia.error === null && deleteMedia.error === null ? null : (
+        <Alert className="m-4" variant="danger" action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}>
           <Trans>操作没有完成。检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>
         </Alert>
       )}

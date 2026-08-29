@@ -27,10 +27,9 @@
  * `forgetMediaAsset` removes rather than invalidates: an invalidated waveform
  * for a deleted asset would be refetched on the next mount and 404.
  *
- * The one case that genuinely does invalidate a waveform is a file swap
- * (`relinkMediaAsset` / `replaceMediaAsset`), and neither is wired this round —
- * 「素材重新定位对话框」 belongs to 「10 多轨编辑器」. When it lands it must call
- * `forgetMediaAsset` too, and this comment is the reminder.
+ * The one case that genuinely invalidates those computations is relink: the
+ * asset identity stays stable while the bytes behind it change. That mutation
+ * removes the detail, waveform and analysis keys before refreshing the lists.
  *
  * ## Media URLs
  *
@@ -215,7 +214,10 @@ export function useRelinkMediaAsset() {
   return useMutation({
     mutationFn: ({ id, path }: { id: string; path: string }): Promise<MediaAsset> =>
       client.relinkMediaAsset(id, path),
-    onSuccess: () => invalidateMediaAssets(queryClient),
+    onSuccess: async (_asset, { id }) => {
+      forgetMediaAsset(queryClient, id);
+      await invalidateMediaAssets(queryClient);
+    },
   });
 }
 

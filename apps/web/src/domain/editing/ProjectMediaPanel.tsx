@@ -5,7 +5,9 @@ import {
   FileAudio2,
   FileVideo2,
   FolderInput,
+  Link2,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -13,6 +15,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { Empty, Skeleton } from '../../design/data';
+import { Dialog } from '../../design/feedback';
 import { Button, Input, NativeSelect, cn } from '../../design/primitives';
 import type { MediaAsset, TimelineClip, TimelineTrack } from '../../shared/desktop/dto';
 import {
@@ -32,12 +35,15 @@ export interface ProjectMediaPanelProps {
   readonly canEditAsset: (asset: MediaAsset) => boolean;
   readonly editTargetLabel: (asset: MediaAsset) => string;
   readonly importAvailable: boolean;
+  readonly relinkAvailable: boolean;
   readonly importing: boolean;
   readonly onSelectTimelineClip: (clipId: string, startSeconds: number) => void;
   readonly onRequestRecording: (clipId: string) => void;
   readonly onImport: () => void;
   readonly onInsert: (asset: MediaAsset) => void;
   readonly onOverwrite: (asset: MediaAsset) => void;
+  readonly onRelink: (asset: MediaAsset) => void;
+  readonly onDelete: (asset: MediaAsset) => void;
   readonly onClose: () => void;
 }
 
@@ -64,17 +70,21 @@ export function ProjectMediaPanel({
   canEditAsset,
   editTargetLabel,
   importAvailable,
+  relinkAvailable,
   importing,
   onSelectTimelineClip,
   onRequestRecording,
   onImport,
   onInsert,
   onOverwrite,
+  onRelink,
+  onDelete,
   onClose,
 }: ProjectMediaPanelProps) {
   const [query, setQuery] = useState('');
   const [stateFilter, setStateFilter] = useState<MediaStateFilter>('all');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<MediaAsset | null>(null);
   const items = useMemo(() => projectMediaItems(timelineTracks, assets), [assets, timelineTracks]);
 
   useEffect(() => {
@@ -117,7 +127,7 @@ export function ProjectMediaPanel({
 
   return (
     <section
-      className="grid min-h-0 min-w-0 grid-rows-[36px_auto_196px_minmax(0,1fr)] overflow-hidden border border-divider bg-bg"
+      className="grid min-h-0 min-w-0 grid-rows-[36px_auto_214px_minmax(0,1fr)] overflow-hidden border border-divider bg-bg"
       aria-label={t`项目素材`}
     >
       <header className="flex items-center gap-2 border-b border-divider px-2.5">
@@ -171,7 +181,7 @@ export function ProjectMediaPanel({
         </NativeSelect>
       </div>
 
-      <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_54px]">
+      <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_72px]">
         <SourceStillPreview item={selected} />
         <div className="border-t border-divider bg-bg p-1">
           {selected?.state === 'planned' && selected.timelineClip !== null ? (
@@ -193,7 +203,30 @@ export function ProjectMediaPanel({
             </p>
           ) : (
             <div>
-              <p className="mb-0.5 truncate text-2xs text-neutral-500"><Trans>目标：{editTargetLabel(selectedAsset)}</Trans></p>
+              <div className="mb-0.5 flex min-w-0 items-center gap-0.5">
+                <p className="min-w-0 flex-1 truncate text-2xs text-neutral-500"><Trans>目标：{editTargetLabel(selectedAsset)}</Trans></p>
+                <Button
+                  size="sm"
+                  icon
+                  variant="ghost"
+                  disabled={!relinkAvailable || busy}
+                  aria-label={t`重新定位素材 ${selectedAsset.name}`}
+                  onClick={() => onRelink(selectedAsset)}
+                >
+                  <Link2 className="size-3.5" aria-hidden="true" />
+                </Button>
+                <Button
+                  className="text-fail-text"
+                  size="sm"
+                  icon
+                  variant="ghost"
+                  disabled={busy}
+                  aria-label={t`从项目移除素材 ${selectedAsset.name}`}
+                  onClick={() => setDeleteCandidate(selectedAsset)}
+                >
+                  <Trash2 className="size-3.5" aria-hidden="true" />
+                </Button>
+              </div>
               <div className="flex items-center gap-1.5">
                 <Button
                   className="flex-1"
@@ -259,6 +292,23 @@ export function ProjectMediaPanel({
           />
         )}
       </div>
+
+      <Dialog
+        open={deleteCandidate !== null}
+        title={<Trans>从项目移除素材？</Trans>}
+        confirmLabel={<Trans>移除素材</Trans>}
+        tone="destructive"
+        confirmDisabled={busy}
+        onConfirm={() => {
+          if (deleteCandidate === null) return;
+          const candidate = deleteCandidate;
+          setDeleteCandidate(null);
+          onDelete(candidate);
+        }}
+        onClose={() => setDeleteCandidate(null)}
+      >
+        <p><Trans>只移除项目中的素材记录；磁盘上的源文件不会删除。</Trans></p>
+      </Dialog>
     </section>
   );
 }
@@ -333,6 +383,12 @@ function SourceStillPreview({ item }: { readonly item: ProjectMediaItem | null }
   const [mountedAssetIds, setMountedAssetIds] = useState<readonly string[]>([]);
   const [displayedAssetId, setDisplayedAssetId] = useState<string | null>(null);
   const previewAssetId = item?.previewAssetId ?? null;
+
+  useEffect(() => {
+    if (item !== null) return;
+    setMountedAssetIds([]);
+    setDisplayedAssetId(null);
+  }, [item]);
 
   useEffect(() => {
     if (previewAssetId === null) return;

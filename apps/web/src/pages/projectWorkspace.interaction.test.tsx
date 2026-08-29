@@ -182,6 +182,8 @@ function renderWorkspace({
   agentConfigured = true,
   project = PROJECT,
   getProject,
+  relinkMediaAsset,
+  deleteMediaAsset,
   shell,
 }: {
   readonly applyProjectPatch?: ReturnType<typeof vi.fn>;
@@ -193,6 +195,8 @@ function renderWorkspace({
   readonly agentConfigured?: boolean;
   readonly project?: Project;
   readonly getProject?: (() => Promise<Project>) | undefined;
+  readonly relinkMediaAsset?: ReturnType<typeof vi.fn> | undefined;
+  readonly deleteMediaAsset?: ReturnType<typeof vi.fn> | undefined;
   readonly shell?: NativeShell | undefined;
 } = {}) {
   return renderPage({
@@ -201,6 +205,8 @@ function renderWorkspace({
       getProject: getProject ?? (() => Promise.resolve(project)),
       listProjectChangeGroups: () => Promise.resolve(groups),
       listMediaAssets: () => Promise.resolve({ items: assets }),
+      ...(relinkMediaAsset === undefined ? {} : { relinkMediaAsset }),
+      ...(deleteMediaAsset === undefined ? {} : { deleteMediaAsset }),
       getProjectEditLease: () => Promise.resolve(lease),
       agentStatus: () => Promise.resolve({ runtimeAvailable: true, configured: agentConfigured, provider: agentConfigured ? 'test' : '', model: agentConfigured ? 'test' : '', streaming: true }),
       ...(session === null ? {} : { getAgentSession: () => Promise.resolve(session) }),
@@ -1891,6 +1897,54 @@ describe('unified project workspace', () => {
     fireEvent.loadedData(sourceB!);
     expect(sourceA?.dataset.sourcePreviewVisible).toBe('false');
     expect(sourceB?.dataset.sourcePreviewVisible).toBe('true');
+  });
+
+  it('relinks and removes only an unreferenced imported asset while preserving its source file', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-manage',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\manage.wav',
+      name: 'Manage me',
+      kind: 'audio',
+      duration_seconds: 6,
+      width: null,
+      height: null,
+      file_size: 4_096,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: [0.2],
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    const relinkMediaAsset = vi.fn(async () => ({ ...asset, path: 'E:\\moved\\manage.wav' }));
+    const deleteMediaAsset = vi.fn(async () => undefined);
+    const chooseFiles = vi.fn(async () => ['E:\\moved\\manage.wav']);
+    renderWorkspace({
+      assets: [asset],
+      relinkMediaAsset,
+      deleteMediaAsset,
+      shell: { ...unavailableNativeShell, available: true, chooseFiles },
+    });
+
+    fireEvent.click(await screen.findByRole('option', { name: '选择素材 Manage me' }));
+    fireEvent.click(screen.getByRole('button', { name: '重新定位素材 Manage me' }));
+    await waitFor(() => expect(relinkMediaAsset).toHaveBeenCalledWith('asset-manage', 'E:\\moved\\manage.wav'));
+
+    fireEvent.click(await screen.findByRole('option', { name: '选择素材 Manage me' }));
+    fireEvent.click(screen.getByRole('button', { name: '从项目移除素材 Manage me' }));
+    const dialog = screen.getByRole('dialog', { name: '从项目移除素材？' });
+    expect(dialog.textContent).toContain('磁盘上的源文件不会删除');
+    fireEvent.click(within(dialog).getByRole('button', { name: '移除素材' }));
+    await waitFor(() => expect(deleteMediaAsset).toHaveBeenCalledWith('asset-manage'));
+  });
+
+  it('does not expose relink or delete actions for an asset already referenced by Timeline', async () => {
+    renderWorkspace({ project: RECORDED_PROJECT });
+
+    fireEvent.click(await screen.findByRole('option', { name: '选择素材 A' }));
+    expect(screen.queryByRole('button', { name: '重新定位素材 A' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '从项目移除素材 A' })).toBeNull();
   });
 
   it('inserts a selected imported asset at the transport time through the Premiere comma shortcut', async () => {

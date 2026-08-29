@@ -25,6 +25,7 @@ import {
   useGenerateMediaProxy,
   useImportMediaAsset,
   useMediaAssets,
+  useRelinkMediaAsset,
 } from './mediaAssets';
 import { countingStub, renderDataHook } from './test/renderDataHook';
 
@@ -182,6 +183,37 @@ describe('useDeleteMediaAsset', () => {
        must not have gone up because of the delete. */
     expect(waveform.calls()).toBe(1);
     await waitFor(() => expect(list.calls()).toBe(2));
+  });
+});
+
+describe('useRelinkMediaAsset', () => {
+  it('forgets computations over the old bytes before refreshing the stable asset identity', async () => {
+    const list = countingStub({ items: [asset()] });
+    const waveform = countingStub({ waveform: [0.4], cached: true });
+    const relink = countingStub(asset({ path: 'E:\\moved\\low-orbit.mp3' }));
+    const { result } = renderDataHook(
+      () => ({
+        assets: useMediaAssets(null),
+        waveform: useAssetWaveform('asset-1'),
+        relink: useRelinkMediaAsset(),
+      }),
+      {
+        client: {
+          listMediaAssets: list.call,
+          getAssetWaveform: waveform.call,
+          relinkMediaAsset: relink.call,
+        },
+      },
+    );
+
+    await waitFor(() => expect(result.current.waveform.isSuccess).toBe(true));
+    await act(async () => {
+      await result.current.relink.mutateAsync({ id: 'asset-1', path: 'E:\\moved\\low-orbit.mp3' });
+    });
+
+    expect(relink.lastArgs()).toEqual(['asset-1', 'E:\\moved\\low-orbit.mp3']);
+    await waitFor(() => expect(list.calls()).toBe(2));
+    await waitFor(() => expect(waveform.calls()).toBe(2));
   });
 });
 

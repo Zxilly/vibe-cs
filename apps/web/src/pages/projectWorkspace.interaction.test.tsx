@@ -123,29 +123,14 @@ function renderWorkspace({
 }
 
 describe('unified project workspace', () => {
-  it('uses one adjustable video and tactical split preview', async () => {
+  it('uses one fixed video and tactical split preview', async () => {
     renderWorkspace();
 
     expect(await screen.findByRole('region', { name: '视频预览' })).toBeTruthy();
     expect(screen.getByRole('region', { name: '战术示意' })).toBeTruthy();
-    const separator = screen.getByRole('separator', { name: '调整视频与战术图宽度' });
-    const split = separator.parentElement!;
-    vi.spyOn(split, 'getBoundingClientRect').mockReturnValue({
-      x: 0,
-      y: 0,
-      top: 0,
-      right: 1000,
-      bottom: 400,
-      left: 0,
-      width: 1000,
-      height: 400,
-      toJSON: () => ({}),
-    });
-
-    fireEvent.pointerDown(separator, { clientX: 680, pointerId: 1 });
-    expect(separator.getAttribute('aria-valuenow')).toBe('68');
-    fireEvent.doubleClick(separator);
-    expect(separator.getAttribute('aria-valuenow')).toBe('52');
+    expect(screen.queryByRole('separator', { name: '调整视频与战术图宽度' })).toBeNull();
+    const split = screen.getByRole('region', { name: '预览分栏' }).firstElementChild as HTMLElement;
+    expect(split.style.gridTemplateColumns).toBe('minmax(0, 1fr) 1px minmax(0, 1fr)');
   });
 
   it('shows recorded and unrecorded state on the unified timeline', async () => {
@@ -206,10 +191,18 @@ describe('unified project workspace', () => {
   });
 
   it('seeks by dragging the timeline playhead', async () => {
-    renderWorkspace();
+    renderWorkspace({
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
 
     const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
     const timeline = screen.getByRole('region', { name: '时间轴内容' });
+    timeline.style.setProperty('--w-track-head', '0px');
     vi.spyOn(timeline, 'getBoundingClientRect').mockReturnValue({
       x: 190,
       y: 0,
@@ -222,11 +215,15 @@ describe('unified project workspace', () => {
       toJSON: () => ({}),
     });
 
-    expect(fireEvent.pointerDown(playhead, { clientX: 310, pointerId: 7, button: 0 })).toBe(false);
-    fireEvent.pointerMove(playhead, { clientX: 550, pointerId: 7 });
-    fireEvent.pointerUp(playhead, { clientX: 550, pointerId: 7 });
+    expect(clipA.className).toContain('ring-accent');
+    expect(fireEvent.pointerDown(playhead, { clientX: 199, pointerId: 7, button: 0 })).toBe(false);
+    fireEvent.pointerMove(playhead, { clientX: 199.2, pointerId: 7 });
+    fireEvent.pointerUp(playhead, { clientX: 199.2, pointerId: 7 });
 
-    expect(Number(playhead.getAttribute('aria-valuenow'))).toBeGreaterThan(0);
+    await waitFor(() => expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBeGreaterThan(5));
+    expect(screen.getByRole('button', { name: /A 5\.0s · 未录制/u }).className).toContain('ring-accent');
+    expect(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }).className).not.toContain('ring-accent');
+    expect(screen.getByLabelText('B 视频预览')).toBeTruthy();
     expect(screen.getByRole('region', { name: '时间轴' }).classList.contains('select-none')).toBe(true);
   });
 
@@ -383,7 +380,7 @@ describe('unified project workspace', () => {
   });
 
 
-  it('plays the selected recorded asset through the desktop media bridge', async () => {
+  it('plays the recorded asset at the transport time through the desktop media bridge', async () => {
     renderWorkspace({
       shell: {
         ...unavailableNativeShell,
@@ -392,8 +389,11 @@ describe('unified project workspace', () => {
       },
     });
 
-    fireEvent.click(await screen.findByRole('button', { name: /B 5\.0s · 已录制/u }));
-    const preview = screen.getByLabelText('B 视频预览') as HTMLVideoElement;
+    await screen.findByRole('button', { name: /B 5\.0s · 已录制/u });
+    for (let second = 0; second < 5; second += 1) {
+      fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    }
+    const preview = await screen.findByLabelText('B 视频预览') as HTMLVideoElement;
     expect(preview.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-b/stream');
   });
 
@@ -424,8 +424,10 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(play).toHaveBeenCalled());
     fireEvent.click(screen.getByRole('button', { name: '暂停时间轴' }));
 
-    fireEvent.click(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }));
-    const target = screen.getByLabelText('B 视频预览') as HTMLVideoElement;
+    for (let second = 0; second < 5; second += 1) {
+      fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    }
+    const target = await screen.findByLabelText('B 视频预览') as HTMLVideoElement;
     Object.defineProperty(target, 'readyState', { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA });
     fireEvent.loadedData(target);
     await waitFor(() => {

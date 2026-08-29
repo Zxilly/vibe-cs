@@ -16,8 +16,7 @@ interface PreviewMedia {
 
 export interface TimelineProgramMonitorProps {
   readonly project: Project;
-  readonly selectedClipId: string | null;
-  readonly previewOffsetSeconds: number;
+  readonly timelineTimeSeconds: number;
   readonly playing: boolean;
   readonly onTogglePlayback: () => void;
   readonly onTimelineTimeChange: (seconds: number) => void;
@@ -34,8 +33,7 @@ export interface TimelineProgramMonitorProps {
  */
 export function TimelineProgramMonitor({
   project,
-  selectedClipId,
-  previewOffsetSeconds,
+  timelineTimeSeconds,
   playing,
   onTogglePlayback,
   onTimelineTimeChange,
@@ -44,13 +42,18 @@ export function TimelineProgramMonitor({
   const shell = useNativeShell();
   const story = project.document.tracks.find((track) => track.id === project.document.story_track_id) ?? null;
   const clips = story?.clips ?? [];
-  const selectedIndex = clips.findIndex((clip) => clip.id === selectedClipId);
+  const targetTimelineTime = Math.min(
+    project.document.duration_seconds,
+    Math.max(0, timelineTimeSeconds),
+  );
+  const selectedIndex = clips.findIndex((clip) => targetTimelineTime >= clip.placement.start
+    && targetTimelineTime < clip.placement.start + clip.placement.duration);
   const selected = selectedIndex < 0 ? null : clips[selectedIndex] ?? null;
   const selectedMaterial = selected === null ? null : resolveTimelineMaterial(selected.material);
   const targetId = selectedMaterial?.streamAssetId === null ? null : selected?.id ?? null;
-  const targetTimelineTime = selected === null
+  const previewOffsetSeconds = selected === null
     ? 0
-    : Math.min(project.document.duration_seconds, selected.placement.start + previewOffsetSeconds);
+    : targetTimelineTime - selected.placement.start;
   const [presentedId, setPresentedId] = useState<string | null>(targetId);
 
   const media = useMemo(() => {

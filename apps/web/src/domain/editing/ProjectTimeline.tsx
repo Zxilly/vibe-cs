@@ -64,7 +64,7 @@ import {
 export interface ProjectTimelineProps {
   readonly document: EditingDocument;
   readonly selectedClipId: string | null;
-  readonly previewOffsetSeconds: number;
+  readonly timelineTimeSeconds: number;
   readonly reviewGroup: ProjectChangeGroup | null;
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string) => void;
@@ -100,7 +100,7 @@ interface RenderedTrack {
 export function ProjectTimeline({
   document,
   selectedClipId,
-  previewOffsetSeconds,
+  timelineTimeSeconds,
   reviewGroup,
   readOnly,
   onSelectClip,
@@ -129,7 +129,7 @@ export function ProjectTimeline({
   const selectedTrack = document.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClipId)) ?? null;
   const playheadSeconds = Math.min(
     document.duration_seconds,
-    Math.max(0, (selectedClip?.placement.start ?? 0) + previewOffsetSeconds),
+    Math.max(0, timelineTimeSeconds),
   );
   const renderedTracks = useMemo(() => buildRenderedTracks(document), [document]);
   const recordedCount = clips.filter((clip) => resolveTimelineMaterial(clip.material).state === 'recorded').length;

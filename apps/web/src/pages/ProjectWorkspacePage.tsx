@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  ChevronsLeftRight,
   CircleAlert,
   CircleHelp,
   LoaderCircle,
@@ -116,7 +115,7 @@ export function ProjectWorkspacePage() {
   const exportProject = useExportProject();
   const lens: EditingLens = 'multitrack';
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
-  const [previewOffsetSeconds, setPreviewOffsetSeconds] = useState(0);
+  const [timelineTimeSeconds, setTimelineTimeSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const agentSessionId = searchParams.get('session');
@@ -172,7 +171,11 @@ export function ProjectWorkspacePage() {
     if (firstClip !== undefined) setSelectedClipId(firstClip.id);
   }, [project.data, selectedClipId]);
 
-  useEffect(() => setPreviewOffsetSeconds(0), [selectedClipId]);
+  useEffect(() => {
+    const duration = project.data?.document.duration_seconds;
+    if (duration === undefined) return;
+    setTimelineTimeSeconds((time) => Math.min(duration, Math.max(0, time)));
+  }, [project.data?.document.duration_seconds]);
 
   if (projectId === 'new' || project.isPending) {
     return (
@@ -201,6 +204,14 @@ export function ProjectWorkspacePage() {
   const current = project.data;
   const readOnly = lease.data !== null && lease.data !== undefined;
   const selected = findClip(current, selectedClipId);
+  const transportTimeSeconds = Math.min(
+    current.document.duration_seconds,
+    Math.max(0, timelineTimeSeconds),
+  );
+  const transportClip = current.document.tracks
+    .find((track) => track.id === current.document.story_track_id)
+    ?.clips.find((clip) => transportTimeSeconds >= clip.placement.start
+      && transportTimeSeconds < clip.placement.start + clip.placement.duration) ?? null;
   const latestAgentGroup = (groups.data ?? []).find((group) => group.author.kind === 'agent') ?? null;
   const revertedChangeGroupIds = new Set(
     (groups.data ?? []).flatMap((group) => group.reverts_change_group_id === null ? [] : [group.reverts_change_group_id]),
@@ -225,16 +236,10 @@ export function ProjectWorkspacePage() {
     });
   };
   const seekTimeline = (seconds: number) => {
-    const target = current.document.tracks
-      .find((track) => track.id === current.document.story_track_id)
-      ?.clips.find((clip) => seconds >= clip.placement.start
-        && seconds < clip.placement.start + clip.placement.duration);
-    if (target !== undefined) {
-      setSelectedClipId(target.id);
-      setPreviewOffsetSeconds(Math.max(0, seconds - target.placement.start));
-      return;
-    }
-    setPreviewOffsetSeconds(Math.max(0, seconds - (selected?.clip.placement.start ?? 0)));
+    setTimelineTimeSeconds(Math.min(
+      current.document.duration_seconds,
+      Math.max(0, seconds),
+    ));
   };
   const sendToAgent = async (message: string) => {
     let sessionId = agentSessionId;
@@ -297,8 +302,8 @@ export function ProjectWorkspacePage() {
         >
           <PreviewSplit
             project={current}
-            selected={selected?.clip ?? null}
-            previewOffsetSeconds={previewOffsetSeconds}
+            transportClip={transportClip}
+            timelineTimeSeconds={transportTimeSeconds}
             playing={playing}
             onTogglePlayback={() => setPlaying((value) => !value)}
             onTimelineTimeChange={seekTimeline}
@@ -307,7 +312,7 @@ export function ProjectWorkspacePage() {
           <ProjectTimeline
             document={current.document}
             selectedClipId={selectedClipId}
-            previewOffsetSeconds={previewOffsetSeconds}
+            timelineTimeSeconds={transportTimeSeconds}
             reviewGroup={latestAgentGroup}
             readOnly={readOnly || apply.isPending || revertChange.isPending}
             onSelectClip={setSelectedClipId}
@@ -421,74 +426,37 @@ export function ProjectWorkspacePage() {
 
 function PreviewSplit({
   project,
-  selected,
-  previewOffsetSeconds,
+  transportClip,
+  timelineTimeSeconds,
   playing,
   onTogglePlayback,
   onTimelineTimeChange,
   onPlaybackEnd,
 }: {
   readonly project: Project;
-  readonly selected: TimelineClip | null;
-  readonly previewOffsetSeconds: number;
+  readonly transportClip: TimelineClip | null;
+  readonly timelineTimeSeconds: number;
   readonly playing: boolean;
   readonly onTogglePlayback: () => void;
   readonly onTimelineTimeChange: (seconds: number) => void;
   readonly onPlaybackEnd: () => void;
 }) {
-  const [videoPercent, setVideoPercent] = useState(51.2);
-  const splitRef = useRef<HTMLDivElement>(null);
-
-  const resize = (clientX: number) => {
-    const bounds = splitRef.current?.getBoundingClientRect();
-    if (bounds === undefined || bounds.width === 0) return;
-    const percent = ((clientX - bounds.left) / bounds.width) * 100;
-    setVideoPercent(Math.min(72, Math.max(28, percent)));
-  };
-
   return (
     <ReviewPanel emphasis="focus" className="min-h-0 min-w-0" aria-label={t`预览分栏`}>
       <div
-        ref={splitRef}
         className="grid h-full min-h-0 min-w-0 max-w-full"
-        style={{ gridTemplateColumns: `${videoPercent}% 4px minmax(0, 1fr)` }}
+        style={{ gridTemplateColumns: 'minmax(0, 1fr) 1px minmax(0, 1fr)' }}
       >
         <TimelineProgramMonitor
           project={project}
-          selectedClipId={selected?.id ?? null}
-          previewOffsetSeconds={previewOffsetSeconds}
+          timelineTimeSeconds={timelineTimeSeconds}
           playing={playing}
           onTogglePlayback={onTogglePlayback}
           onTimelineTimeChange={onTimelineTimeChange}
           onPlaybackEnd={onPlaybackEnd}
         />
-        <div
-          role="separator"
-          aria-label={t`调整视频与战术图宽度`}
-          aria-orientation="vertical"
-          aria-valuemin={28}
-          aria-valuemax={72}
-          aria-valuenow={Math.round(videoPercent)}
-          tabIndex={0}
-          className="group relative z-10 cursor-col-resize bg-neutral-200 outline-none focus-visible:bg-accent-100"
-          onDoubleClick={() => setVideoPercent(52)}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowLeft') setVideoPercent((value) => Math.max(28, value - 2));
-            if (event.key === 'ArrowRight') setVideoPercent((value) => Math.min(72, value + 2));
-          }}
-          onPointerDown={(event) => {
-            event.currentTarget.setPointerCapture?.(event.pointerId);
-            resize(event.clientX);
-          }}
-          onPointerMove={(event) => {
-            if (event.currentTarget.hasPointerCapture?.(event.pointerId)) resize(event.clientX);
-          }}
-        >
-          <span className="absolute left-1/2 top-1/2 grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-neutral-400 bg-bg text-neutral-700 shadow-sm group-hover:border-accent-500 group-hover:text-accent-text">
-            <ChevronsLeftRight className="size-4" aria-hidden="true" />
-          </span>
-        </div>
-        <TacticalPreview selected={selected} />
+        <div className="bg-divider" aria-hidden="true" />
+        <TacticalPreview selected={transportClip} />
       </div>
     </ReviewPanel>
   );

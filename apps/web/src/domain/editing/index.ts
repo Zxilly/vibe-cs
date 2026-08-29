@@ -3,6 +3,16 @@ export { TimelineProgramMonitor, type TimelineProgramMonitorProps } from './Time
 export { resolveTimelineMaterial, type TimelineMaterialView, type TimelineWaveformLocator } from './timelineMaterial';
 export { snapTimeToFrame } from './timelineInteraction';
 export {
+  createEditorEffect,
+  EDITOR_EFFECT_SCHEMAS,
+  editorEffectParameter,
+  isSupportedEditorEffectKind,
+  moveEditorEffect,
+  setEditorEffectParameter,
+  type EffectParameterSchema,
+  type SupportedEditorEffectKind,
+} from './effectEditing';
+export {
   canAnimateTransformProperty,
   clipKeyframeAtTime,
   clipLocalTimeAtTimeline,

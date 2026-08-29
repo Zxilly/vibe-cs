@@ -9,6 +9,8 @@ final result: passed
 - Functional editor pass: `target/editor-iteration/03-transition.png`.
 - Timeline snapping pass: `target/editor-iteration/04-snap-guide.png`.
 - Overwrite and marker pass: `target/editor-iteration/05-overwrite-marker.png`.
+- In/Out range pass: `target/editor-iteration/06-in-out.png`.
+- Ripple trim pass: `target/editor-iteration/07-ripple-trim.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -34,6 +36,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - Additive selection can span tracks. Batch delete and paste submit one Project Patch containing per-track replacements, with Story ripple semantics and free positioning preserved per track. Non-Story tracks can be reordered through the canonical `reorder_tracks` operation.
 - Project media exposes distinct insert and overwrite edits. Insert keeps Story ripple semantics; overwrite removes only the covered interval, preserves surviving source ranges, and does not move the later timeline.
 - Markers are editable canonical `EditingDocument.markers`: M or the visible tool adds one at the playhead; clicking seeks; double-clicking edits label, frame-snapped time, and colour; save and delete both use `replace_markers`.
+- I/O or the visible header controls mark a frame-aligned time range on the shared ruler geometry. Extract removes that range from the current target: Story closes the interval while free tracks retain absolute later placements.
+- Premiere Q/W ripple trims use the same selected Story clip, transport playhead, trim constraints, and `replace_track_clips` commit path as pointer trimming. Trimming the first Story clip now preserves the original track origin.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -62,6 +66,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A live editor pass advanced the real development Project from revision 21 to 26: inserted one media asset, selected it, copied and pasted it at the playhead, added and removed a text track, and saved a `fade` transition. Every action produced one Project revision and the final page error list was empty.
 - A second live pass reordered the two Story clips as revision 27, then held a clip five pixels off its neighbour. The editor visibly snapped it back to `00:14.000`; releasing the unchanged placement created no extra revision. Page errors remained empty.
 - A third live pass overwrote the first 15.767 seconds at revision 28. Sequence duration stayed exactly 28 seconds and the covered Hook tail became 12.233 seconds without ripple. Revisions 29 and 30 added a marker and edited it to `开场` at `00:03.000`; page errors remained empty.
+- A fourth live pass marked `00:00.000–00:01.000` and extracted it as revision 31, reducing the sequence to 27 seconds and clearing the range. Q then ripple-trimmed another second as revision 32, producing a 13.8-second first clip and 26-second sequence. Page errors remained empty.
 
 ## Comparison history
 
@@ -77,10 +82,12 @@ No actionable P0, P1, or P2 mismatch remains.
 10. `target/editor-iteration/03-transition.png`: real media insert, copy/paste, track add/remove, editable audio separation, and renderer-backed transition controls passed in Tauri.
 11. `target/editor-iteration/04-snap-guide.png`: the shared time geometry renders the active snap guide at the real adjacent clip boundary.
 12. `target/editor-iteration/05-overwrite-marker.png`: the live sequence preserves duration after overwrite and renders the edited `开场` marker at three seconds.
+13. `target/editor-iteration/06-in-out.png`: the one-second In/Out overlay shares the ruler and all track rows without intercepting editing.
+14. `target/editor-iteration/07-ripple-trim.png`: the live Q trim closes the Story gap while keeping the playhead and marker independent.
 
 ## Verification
 
-- Focused timeline editing and workbench interaction tests: 40 passed.
-- Full web suite: 256 files and 2895 tests passed.
+- Focused timeline editing and workbench interaction tests: 45 passed.
+- Full web suite: 256 files and 2900 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

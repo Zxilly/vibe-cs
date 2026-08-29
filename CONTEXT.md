@@ -21,12 +21,20 @@ A presentation of the same **Editing Document** with a particular level of editi
 _Avoid_: mode conversion, project copy, unsynchronized mode
 
 **Project Timeline**:
-The unified design-system view that renders every visible Timeline Track, Timeline Placement, marker, event, playhead, and Materialization directly from one Editing Document. It owns presentation geometry and media resolution but never creates a second editable timeline model.
+The unified design-system view that renders and directly manipulates every visible Timeline Track, Timeline Placement, marker, event, playhead, and Materialization from one Editing Document. It owns one frame-snapped geometry for ruler, scroll, zoom, seek, move, trim, keyboard nudge, media resolution, and Edit Lease read-only behavior; one completed gesture submits one Human Edit and never creates a second editable timeline model.
 _Avoid_: page-private timeline, duplicate percentage geometry, hidden track asserted only for tests
 
 **Agent Panel**:
 The workspace surface for Agent instructions, progress, Change Groups, and Agent Cursor state. It is available beside every Editing Lens and never owns a timeline or Project document.
 _Avoid_: Agent page, Agent workspace, Agent lens
+
+**Agent Conversation Projection**:
+The single UI stream that combines durable AgentSession messages, completed tool calls, HITL decisions, External Execution progress/results, delivery actions, and the Edit Lease state. It renders host-owned truth and sends instructions, cancel, approve, or reject intents; it does not own another Agent runtime.
+_Avoid_: inferring running tools from completed outputs, JSON-scanned workflow state, a second chat runtime
+
+**Current Turn Checkpoint**:
+A bounded host-owned Project snapshot injected at the start of every Agent turn. It is authoritative over stale project facts in conversation history for read-only answers; edits still re-read the Project Head and bind to the returned revision.
+_Avoid_: answering current counts from old assistant messages, replaying the full Project as unbounded transcript
 
 **Agent**:
 An automated editing collaborator that can directly change the same **Editing Document** a person is editing. Agent operations may be higher-level than human controls and may change many clips or tracks at once; Cross-Lens Changes remain disclosed, revealable, and undoable.
@@ -136,6 +144,7 @@ _Avoid_: client-side project aggregation, editable read model
 - Existing pre-release Agent Plan, Montage Project, and Editor Project data is intentionally outside the new model. The product is unreleased, so the unified Editing Document replaces those roots without migration or compatibility behavior; see `AGENTS.md` release status.
 - The rewrite includes every current editing action plus recording and export. “Avoid over-design” rejects speculative frameworks and redundant internal guards; it does not defer real existing product capabilities.
 - The repository retains one implementation per capability. Legacy Plan, Montage, and Editor code is deleted when its callers move; no adapter or compatibility path remains in the product.
+- CopilotKit / AG-UI is not a presentation dependency for the local workbench because it would duplicate the Rust Agent loop, Tauri stream, AgentSession, Edit Lease, and HITL lifecycle. assistant-ui may be evaluated only as a replaceable presentation Adapter over the Agent Conversation Projection; it never becomes a second state authority.
 
 ## Example dialogue
 

@@ -76,6 +76,19 @@ export function setClipTransformAtTime(
   return next;
 }
 
+export function setClipVolumeAtTime(
+  clip: TimelineClip,
+  localTime: number,
+  volume: number,
+  fps: number,
+  keyframeId: string,
+): TimelineClip {
+  const constrained = Math.min(4, Math.max(0, volume));
+  return clip.keyframes.some((keyframe) => keyframe.property === 'volume')
+    ? upsertClipKeyframe(clip, 'volume', localTime, constrained, keyframeId, fps)
+    : { ...clip, placement: { ...clip.placement, volume: constrained } };
+}
+
 export function canAnimateTransformProperty(
   clip: TimelineClip,
   property: Exclude<EditorKeyframeProperty, 'volume'>,

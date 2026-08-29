@@ -8,6 +8,7 @@ import {
   evaluateClipKeyframeProperty,
   removeClipKeyframe,
   setClipTransformAtTime,
+  setClipVolumeAtTime,
   upsertClipKeyframe,
 } from './keyframeEditing';
 
@@ -92,5 +93,19 @@ describe('canonical clip keyframe editing', () => {
     const scaled = upsertClipKeyframe(CLIP, 'scale_x', 0, 1.2, 'scale', 60);
     expect(canAnimateTransformProperty(scaled, 'rotation')).toBe(false);
     expect(canAnimateTransformProperty(scaled, 'opacity')).toBe(true);
+  });
+
+  it('updates static volume or the current animated volume frame', () => {
+    const staticVolume = setClipVolumeAtTime(CLIP, 1, 2, 60, 'unused');
+    expect(staticVolume.placement.volume).toBe(2);
+    expect(staticVolume.keyframes).toEqual([]);
+
+    const animated = upsertClipKeyframe(CLIP, 'volume', 0, 1, 'volume-0', 60);
+    const keyed = setClipVolumeAtTime(animated, 1, 1.5, 60, 'volume-1');
+    expect(keyed.placement.volume).toBe(1);
+    expect(keyed.keyframes).toEqual([
+      { id: 'volume-0', time: 0, property: 'volume', value: 1 },
+      { id: 'volume-1', time: 1, property: 'volume', value: 1.5 },
+    ]);
   });
 });

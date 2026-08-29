@@ -9,6 +9,7 @@ export {
   evaluateClipKeyframeProperty,
   removeClipKeyframe,
   setClipTransformAtTime,
+  setClipVolumeAtTime,
   transformPropertyValue,
   upsertClipKeyframe,
 } from './keyframeEditing';

@@ -14,6 +14,7 @@ final result: passed
 - Transport and track-target pass: `target/editor-iteration/08-transport-target.png`.
 - Track layout pass: `target/editor-iteration/09-track-layout.png`.
 - Marquee selection pass: `target/editor-iteration/10-marquee.png`.
+- Clip gain pass: `target/editor-iteration/11-clip-gain.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -48,6 +49,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Shift-click selects the contiguous clip range from the primary anchor without acquiring a move gesture. Ctrl/Cmd+A selects every clip on the explicit target track; Ctrl/Cmd additive selection remains cross-track.
 - Background drag uses the reference editor's five-pixel activation threshold to separate click-to-seek from marquee selection. The live selection box intersects real clip DOM geometry across visible tracks; Ctrl/Cmd preserves the pre-drag set, while buttons and height separators cannot start a box gesture.
 - Dragging an already-selected member preserves the group. Story groups move as one ordered ripple block; free-track groups share one frame-snapped delta and retain their internal gaps. A completed group drag still commits one `replace_track_clips` operation.
+- Audio clips expose a canonical gain rubber-band over the real waveform. Linear renderer volume 0–4 maps to −60dB through +12.04dB; pointer drag previews dB continuously and commits one `replace_clip` on release, while Arrow and Shift+Arrow nudge 1dB and 3dB. Story's derived waveform permits gain edits without becoming independently movable or trimmable.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -80,6 +82,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A fifth live pass shuttled forward at 2× to the 26-second endpoint, retained the last frame and controls, then reversed across clips to 18.71 seconds at −1×. A new audio track became the explicit target and received the selected Build clip at frame-aligned 2.600 seconds as revision 34. Page errors remained empty.
 - A sixth live pass added a fourth rendered track as revision 35. Its 295px viewport contained 352px of explicit rows and scrolled vertically; the new video row resized from 84px to 124px through the separator without a Project revision. Collapsing the audio row changed only its local layout from 64px to 32px. Page errors remained empty.
 - The same revision-35 workspace then marquee-selected both Story clips and the independent audio clip by dragging from the empty video track across their rendered bounds. The box and three selections updated live, no Project revision was created, and page errors remained empty.
+- A seventh live pass raised the independent audio clip from 0dB to +3dB by keyboard as revision 36. Dragging the Story-derived Build gain line five pixels previewed +5.6dB while revision stayed 36, then committed exactly revision 37 on pointer-up. Page errors remained empty.
 
 ## Comparison history
 
@@ -100,10 +103,11 @@ No actionable P0, P1, or P2 mismatch remains.
 15. `target/editor-iteration/08-transport-target.png`: the Program Monitor exposes the shared shuttle controls while an independently targeted audio track receives a frame-aligned paste.
 16. `target/editor-iteration/09-track-layout.png`: explicit per-track heights preserve readable waveforms and thumbnails while overflow becomes a real vertical track viewport.
 17. `target/editor-iteration/10-marquee.png`: one marquee crosses video and audio rows and selects three canonical clips without moving them.
+18. `target/editor-iteration/11-clip-gain.png`: the derived Story waveform shows its live +5.6dB rubber-band value before the single commit.
 
 ## Verification
 
-- Focused timeline editing and Project workbench tests: 54 passed.
-- Full web suite: 256 files and 2909 tests passed.
+- Focused timeline interaction and Project workbench tests: 47 passed.
+- Full web suite: 256 files and 2912 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

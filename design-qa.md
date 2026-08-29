@@ -47,6 +47,15 @@ No actionable P0, P1, or P2 visual mismatch remains.
 - OpenCode `kimi-for-coding / k3` was saved without exposing the key, connection-tested, and exercised in a real read-only turn.
 - Browser console and page errors were empty after the final reload.
 
+## Scrub and preview performance regression
+
+- Baseline trace: `target/scrub-baseline-profile.json`; one head-to-tail scrub rewrote the visible Program Monitor `src` 10 times and emitted 10 `emptied/loadstart` cycles. The video stayed at source time 0 and exposed native controls.
+- Final trace: `target/scrub-final4-profile.json`; the same pointer trajectory produced 0 video mounts, 0 removals, 0 `src` changes, 0 visible `emptied/loadstart/waiting` events, and no radar-empty rendered frames.
+- Renderer main-thread maximum task fell from 130.31 ms to 48.85 ms. Tasks over 16 ms fell from 14 to 7; tasks over 50 ms fell from 1 to 0 on the repeat final run.
+- The Program Monitor keeps stable clip-keyed media slots, coalesces seeks, presents the selected source time, and retains the previous decoded frame until the new target is ready. Radar images use the same retained-pool handoff.
+- The visible video no longer has an independent progress bar. Space/play-pause drives the global Timeline Transport, and a real Tauri playback check advanced the playhead and active video together.
+- Story Track now supports ripple drag/trim, split, delete-and-close-gap, and Change Group undo through visible controls plus Space, S, Delete, and Ctrl/Cmd+Z.
+
 ## Agent architecture decision
 
 - CopilotKit / AG-UI is not introduced: it would duplicate the existing Rust Rig loop, Tauri Channel, AgentSession, Edit Lease, Project Patch, and HITL lifecycle.

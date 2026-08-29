@@ -24,6 +24,18 @@ _Avoid_: mode conversion, project copy, unsynchronized mode
 The unified design-system view that renders and directly manipulates every visible Timeline Track, Timeline Placement, marker, event, playhead, and Materialization from one Editing Document. It owns one frame-snapped geometry for ruler, scroll, zoom, seek, move, trim, keyboard nudge, media resolution, and Edit Lease read-only behavior; one completed gesture submits one Human Edit and never creates a second editable timeline model.
 _Avoid_: page-private timeline, duplicate percentage geometry, hidden track asserted only for tests
 
+**Timeline Transport**:
+The Project Timeline's single playhead, playback state, and seek command stream. The Program Monitor samples this transport and never exposes a second media progress bar or an independent time authority.
+_Avoid_: deriving the playhead from a native video control, resetting to source time zero on clip selection
+
+**Preview Media Pool**:
+Stable clip-keyed media elements and decoded radar images retained around the Timeline Transport. Seeks coalesce to the latest requested source time, the previous presented frame remains visible until the target is ready, and changing Timeline Clip identity never rewrites the visible media element's source.
+_Avoid_: selected clip directly replacing video src, loading fallback tearing down the prior map, React reconciliation at frame rate
+
+**Ripple Edit**:
+A Story Track move, trim, split, or delete that preserves clip order and closes downstream gaps in the same Human Edit. Free-position tracks do not inherit ripple semantics merely because Story does.
+_Avoid_: overlapping Story clips after drag, deleting without closing the narrative gap, applying ripple to every track kind
+
 **Agent Panel**:
 The workspace surface for Agent instructions, progress, Change Groups, and Agent Cursor state. It is available beside every Editing Lens and never owns a timeline or Project document.
 _Avoid_: Agent page, Agent workspace, Agent lens

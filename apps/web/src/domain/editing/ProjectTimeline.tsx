@@ -10,14 +10,19 @@ import {
   Link2,
   List,
   LockKeyhole,
+  Pause,
+  Play,
   Settings2,
   SquarePlus,
   Star,
+  Scissors,
+  Trash2,
+  Undo2,
   Volume2,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { useAssetWaveform, useRecordedClipWaveform } from '../../data/mediaAssets';
 import { mediaAssetStreamPath } from '../../data/mediaAssets';
@@ -40,6 +45,7 @@ import type {
   TimelineTrack,
 } from '../../shared/desktop/dto';
 import { resolveTimelineMaterial } from './timelineMaterial';
+import { deleteRippleClip, moveRippleClip, splitRippleClip, trimRippleClip } from './timelineEditing';
 import {
   clipMediaDuration,
   moveTimelineClip,
@@ -51,12 +57,18 @@ export interface ProjectTimelineProps {
   readonly document: EditingDocument;
   readonly selectedClipId: string | null;
   readonly previewOffsetSeconds: number;
+  readonly playing: boolean;
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
+  readonly onTogglePlayback: () => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
+  readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
+  readonly onRemoveClip: (clipId: string) => void;
+  readonly canUndo: boolean;
+  readonly onUndo: () => void;
 }
 
 interface RenderedTrack {
@@ -81,22 +93,31 @@ export function ProjectTimeline({
   document,
   selectedClipId,
   previewOffsetSeconds,
+  playing,
   readOnly,
   onSelectClip,
   onInspectClip,
   onSeek,
+  onTogglePlayback,
   onReplaceClip,
   onReplaceTrack,
+  onReplaceTrackClips,
+  onRemoveClip,
+  canUndo,
+  onUndo,
 }: ProjectTimelineProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [viewportWidth, setViewportWidth] = useState(1_000);
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const seekFrameRef = useRef<number | null>(null);
+  const queuedSeekRef = useRef<number | null>(null);
   const story = document.tracks.find((track) => track.id === document.story_track_id) ?? null;
   const clips = story?.clips ?? [];
   const selectedClip = document.tracks
     .flatMap((track) => track.clips)
     .find((clip) => clip.id === selectedClipId) ?? null;
+  const selectedTrack = document.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClipId)) ?? null;
   const playheadSeconds = Math.min(
     document.duration_seconds,
     Math.max(0, (selectedClip?.placement.start ?? 0) + previewOffsetSeconds),
@@ -131,20 +152,131 @@ export function ProjectTimeline({
     '24fr',
     '24fr',
   ].join(' ');
+  const canSplit = !readOnly
+    && selectedClip !== null
+    && selectedTrack?.id === document.story_track_id
+    && playheadSeconds > selectedClip.placement.start + 1 / document.fps
+    && playheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
+  const canDelete = !readOnly && selectedClip !== null;
 
-  const seekFromPointer = (event: React.PointerEvent<HTMLElement>) => {
+  const splitSelected = () => {
+    if (!canSplit || selectedClip === null || selectedTrack === null) return;
+    const clips = splitRippleClip(
+      selectedTrack.clips,
+      selectedClip.id,
+      playheadSeconds,
+      globalThis.crypto.randomUUID(),
+    );
+    onReplaceTrackClips(selectedTrack.id, clips);
+  };
+
+  const deleteSelected = () => {
+    if (!canDelete || selectedClip === null || selectedTrack === null) return;
+    const index = selectedTrack.clips.findIndex((clip) => clip.id === selectedClip.id);
+    const nextSelection = selectedTrack.clips[index + 1] ?? selectedTrack.clips[index - 1] ?? null;
+    if (selectedTrack.id === document.story_track_id) {
+      onReplaceTrackClips(selectedTrack.id, deleteRippleClip(selectedTrack.clips, selectedClip.id));
+    } else {
+      onRemoveClip(selectedClip.id);
+    }
+    if (nextSelection !== null) onSelectClip(nextSelection.id);
+  };
+
+  useEffect(() => () => {
+    if (seekFrameRef.current !== null) cancelAnimationFrame(seekFrameRef.current);
+  }, []);
+
+  const pointerTime = (event: React.PointerEvent<HTMLElement>) => {
     const viewport = viewportRef.current;
-    if (viewport === null) return;
+    if (viewport === null) return null;
     const bounds = viewport.getBoundingClientRect();
     const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
     const contentX = event.clientX - bounds.left - trackHead + viewport.scrollLeft;
-    onSeek(Math.min(document.duration_seconds, snapTimeToFrame(pxToTime(scale, contentX), document.fps)));
+    return Math.min(document.duration_seconds, snapTimeToFrame(pxToTime(scale, contentX), document.fps));
+  };
+
+  const seekFromPointer = (event: React.PointerEvent<HTMLElement>) => {
+    const time = pointerTime(event);
+    if (time !== null) onSeek(time);
+  };
+
+  const queueSeekFromPointer = (event: React.PointerEvent<HTMLElement>) => {
+    const time = pointerTime(event);
+    if (time === null) return;
+    queuedSeekRef.current = time;
+    if (seekFrameRef.current !== null) return;
+    seekFrameRef.current = requestAnimationFrame(() => {
+      seekFrameRef.current = null;
+      const queued = queuedSeekRef.current;
+      queuedSeekRef.current = null;
+      if (queued !== null) onSeek(queued);
+    });
   };
 
   return (
-    <ReviewPanel className="relative flex min-h-0 flex-col" aria-label={t`时间轴`}>
+    <ReviewPanel
+      className="relative flex min-h-0 flex-col"
+      aria-label={t`时间轴`}
+      onKeyDown={(event) => {
+        if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+        if (event.key === ' ' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          onTogglePlayback();
+          return;
+        }
+        if (event.key.toLowerCase() === 's' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          splitSelected();
+          return;
+        }
+        if ((event.key === 'Delete' || event.key === 'Backspace') && canDelete) {
+          event.preventDefault();
+          deleteSelected();
+          return;
+        }
+        if (event.key.toLowerCase() === 'z' && (event.ctrlKey || event.metaKey) && canUndo && !readOnly) {
+          event.preventDefault();
+          onUndo();
+        }
+      }}
+    >
       <header className="flex h-[clamp(25px,2.9vh,28px)] flex-none items-center gap-3 border-b border-divider px-3">
         <h2 className="text-sm font-semibold"><Trans>时间轴（编辑预览）</Trans></h2>
+        <button
+          type="button"
+          className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
+          aria-label={playing ? t`暂停时间轴` : t`播放时间轴`}
+          onClick={onTogglePlayback}
+        >
+          {playing ? <Pause className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}
+        </button>
+        <button
+          type="button"
+          className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300"
+          aria-label={t`在播放头切分片段`}
+          disabled={!canSplit}
+          onClick={splitSelected}
+        >
+          <Scissors className="size-3.5" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300"
+          aria-label={t`删除所选片段并闭合间隙`}
+          disabled={!canDelete}
+          onClick={deleteSelected}
+        >
+          <Trash2 className="size-3.5" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300"
+          aria-label={t`撤销上一次剪辑`}
+          disabled={readOnly || !canUndo}
+          onClick={onUndo}
+        >
+          <Undo2 className="size-3.5" aria-hidden="true" />
+        </button>
         <span className="ml-auto flex items-center gap-2 text-neutral-500">
           <button
             type="button"
@@ -229,6 +361,8 @@ export function ProjectTimeline({
               onInspectClip={onInspectClip}
               onReplaceClip={onReplaceClip}
               onReplaceTrack={onReplaceTrack}
+              onReplaceTrackClips={onReplaceTrackClips}
+              storyTrackId={document.story_track_id}
             />
           ))}
           <TimelineMarkerRow markers={document.markers} scale={scale} contentWidth={contentWidth} ticks={ticks} />
@@ -270,9 +404,17 @@ export function ProjectTimeline({
             seekFromPointer(event);
           }}
           onPointerMove={(event) => {
-            if (event.currentTarget.hasPointerCapture?.(event.pointerId)) seekFromPointer(event);
+            if (event.currentTarget.hasPointerCapture?.(event.pointerId)) queueSeekFromPointer(event);
           }}
-          onPointerUp={(event) => event.currentTarget.releasePointerCapture?.(event.pointerId)}
+          onPointerUp={(event) => {
+            queuedSeekRef.current = null;
+            if (seekFrameRef.current !== null) {
+              cancelAnimationFrame(seekFrameRef.current);
+              seekFrameRef.current = null;
+            }
+            seekFromPointer(event);
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+          }}
           onKeyDown={(event) => {
             if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
             event.preventDefault();
@@ -312,7 +454,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, storyTrackId }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -323,6 +465,8 @@ function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, fps, rea
   readonly onInspectClip: (clipId: string) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
+  readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
+  readonly storyTrackId: string;
 }) {
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={track.ariaLabel}>
@@ -346,15 +490,30 @@ function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, fps, rea
             readOnly={readOnly || track.track.locked || track.derivedAudio}
             onSelect={() => onSelectClip(clip.id)}
             onInspect={() => onInspectClip(clip.id)}
-            onReplace={onReplaceClip}
+            onReplace={(replacement, mode) => {
+              if (track.track.id !== storyTrackId) {
+                onReplaceClip(replacement);
+                return;
+              }
+              const clips = mode === 'move'
+                ? moveRippleClip(track.track.clips, replacement.id, replacement.placement.start)
+                : trimRippleClip(track.track.clips, replacement);
+              onReplaceTrackClips(track.track.id, clips);
+            }}
           />
         ))}
       </div>
     </div>
   );
-}
+}, (previous, next) => previous.track === next.track
+  && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
+  && previous.contentWidth === next.contentWidth
+  && previous.selectedClipId === next.selectedClipId
+  && previous.fps === next.fps
+  && previous.readOnly === next.readOnly
+  && previous.storyTrackId === next.storyTrackId);
 
-function TimelineClipCell({ clip, kind, selected, scale, fps, readOnly, onSelect, onInspect, onReplace }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, selected, scale, fps, readOnly, onSelect, onInspect, onReplace }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly selected: boolean;
@@ -363,7 +522,7 @@ function TimelineClipCell({ clip, kind, selected, scale, fps, readOnly, onSelect
   readonly readOnly: boolean;
   readonly onSelect: () => void;
   readonly onInspect: () => void;
-  readonly onReplace: (clip: TimelineClip) => void;
+  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end') => void;
 }) {
   const shell = useNativeShell();
   const material = resolveTimelineMaterial(clip.material);
@@ -419,7 +578,9 @@ function TimelineClipCell({ clip, kind, selected, scale, fps, readOnly, onSelect
     if (active === null || active.pointerId !== event.pointerId) return;
     gesture.current = null;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
-    if (JSON.stringify(visualClip.placement) !== JSON.stringify(clip.placement)) onReplace(visualClip);
+    if (JSON.stringify(visualClip.placement) !== JSON.stringify(clip.placement)) {
+      onReplace(visualClip, active.mode);
+    }
   };
   return (
     <button
@@ -437,7 +598,10 @@ function TimelineClipCell({ clip, kind, selected, scale, fps, readOnly, onSelect
         if (readOnly || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
         event.preventDefault();
         const direction = event.key === 'ArrowRight' ? 1 : -1;
-        onReplace(moveTimelineClip(clip, clip.placement.start + direction * (event.shiftKey ? 1 : 1 / fps), fps));
+        onReplace(
+          moveTimelineClip(clip, clip.placement.start + direction * (event.shiftKey ? 1 : 1 / fps), fps),
+          'move',
+        );
       }}
       aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${material.state === 'planned' ? t`未录制` : t`已录制`}`}
     >
@@ -473,7 +637,12 @@ function TimelineClipCell({ clip, kind, selected, scale, fps, readOnly, onSelect
       ) : null}
     </button>
   );
-}
+}, (previous, next) => previous.clip === next.clip
+  && previous.kind === next.kind
+  && previous.selected === next.selected
+  && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
+  && previous.fps === next.fps
+  && previous.readOnly === next.readOnly);
 
 function TimelineClipWaveform({ clip }: { readonly clip: TimelineClip }) {
   const locator = resolveTimelineMaterial(clip.material).waveform;
@@ -531,23 +700,27 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, onRe
   );
 }
 
-function TimelineMarkerRow({ markers, scale, contentWidth, ticks }: { readonly markers: readonly EditorMarker[]; readonly scale: ReturnType<typeof createTimeScale>; readonly contentWidth: number; readonly ticks: ReturnType<typeof rulerTicks> }) {
+const TimelineMarkerRow = memo(function TimelineMarkerRow({ markers, scale, contentWidth, ticks }: { readonly markers: readonly EditorMarker[]; readonly scale: ReturnType<typeof createTimeScale>; readonly contentWidth: number; readonly ticks: ReturnType<typeof rulerTicks> }) {
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`标记`}>
       <TimelineTrackHead icon={<Bookmark className="size-4" />} label={t`标记`} controls="none" />
       <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}><TimelineGrid ticks={ticks} />{markers.map((marker) => <span key={marker.id} className="absolute inset-y-1 flex items-center gap-1.5 text-2xs text-neutral-700" style={{ left: timeToPx(scale, marker.time) }}><span className="h-full w-1.5" style={{ backgroundColor: marker.color }} aria-hidden="true" /><span className="whitespace-nowrap">{marker.label}</span></span>)}</div>
     </div>
   );
-}
+}, (previous, next) => previous.markers === next.markers
+  && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
+  && previous.contentWidth === next.contentWidth);
 
-function TimelineEventRow({ clips, scale, contentWidth, ticks }: { readonly clips: readonly TimelineClip[]; readonly scale: ReturnType<typeof createTimeScale>; readonly contentWidth: number; readonly ticks: ReturnType<typeof rulerTicks> }) {
+const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentWidth, ticks }: { readonly clips: readonly TimelineClip[]; readonly scale: ReturnType<typeof createTimeScale>; readonly contentWidth: number; readonly ticks: ReturnType<typeof rulerTicks> }) {
   return (
     <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={t`事件`}>
       <TimelineTrackHead icon={<Star className="size-4" />} label={t`事件`} controls="none" />
       <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}><TimelineGrid ticks={ticks} />{clips.map((clip) => <span key={`event:${clip.id}`} className="absolute inset-y-0 flex items-center gap-1.5 text-2xs text-neutral-700" style={{ left: timeToPx(scale, clip.placement.start) }}><span className="h-3 w-1.5 bg-ok" aria-hidden="true" /><span>{clip.name.split(' · ')[0]}</span></span>)}</div>
     </div>
   );
-}
+}, (previous, next) => previous.clips === next.clips
+  && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
+  && previous.contentWidth === next.contentWidth);
 
 function TimelineGrid({ ticks }: { readonly ticks: ReturnType<typeof rulerTicks> }) {
   return <>{ticks.filter((tick) => tick.major).map((tick) => <span key={`grid:${tick.time}`} className="pointer-events-none absolute inset-y-0 border-l border-divider" style={{ left: tick.px }} aria-hidden="true" />)}</>;

@@ -14,7 +14,7 @@ import {
   Star,
   Wrench,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -25,13 +25,13 @@ import {
   useProject,
   useProjectChangeGroups,
   useProjectEditLease,
+  useRevertProjectChangeGroup,
   useStartProjectRecording,
 } from '../data/projects';
 import { useDemo } from '../data/demos';
 import { useAgentStatus } from '../data/config';
 import { useTask } from '../data/tasks';
 import { useMapRadarOverview, useMatchReplay } from '../data/match';
-import { mediaAssetStreamPath } from '../data/mediaAssets';
 import { useNativeShell } from '../data/nativeShell';
 import {
   useAgentChatStream,
@@ -44,13 +44,14 @@ import { Alert, Drawer } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
 import { ReviewPanel } from '../design/review';
-import { ProjectTimeline, resolveTimelineMaterial } from '../domain/editing';
-import { MapCanvas, PathLayer } from '../domain/map';
+import { ProjectTimeline, TimelineProgramMonitor, trimRippleClip } from '../domain/editing';
+import { MapCanvas, PathLayer, type MapProjection } from '../domain/map';
 import type {
   Project,
   ProjectChangeGroup,
   ProjectEditOperation,
   ProjectPatchScope,
+  RadarTransformResponse,
   AgentSessionEntry,
   AgentToolCall,
   JsonValue,
@@ -60,9 +61,44 @@ import type {
 import type { ActivityItem } from '../shared/desktop/viewModels';
 import { RouteLink } from './RouteLink';
 import { PlayerLayer } from './match/views/ReplayCanvas';
-import { buildPlayerTracks, frameIndexAtTick, playerMarkers, sliceReplay } from './match/views/replayModel';
+import { buildPlayerTracks, frameIndexAtTick, playerMarkers, sliceReplay, type PlayerMarker } from './match/views/replayModel';
 
 type EditingLens = 'quick' | 'multitrack';
+
+interface TacticalScene {
+  readonly clipId: string;
+  readonly mapName: string;
+  readonly radarSrc: string;
+  readonly transform: RadarTransformResponse | null | undefined;
+  readonly label: string;
+  readonly selectedPlayerId: string;
+  readonly status: 'ready' | 'empty';
+  readonly tracks: ReturnType<typeof buildPlayerTracks>['paths'];
+  readonly markers: readonly PlayerMarker[];
+}
+
+const radarImageReadiness = new Map<string, Promise<void>>();
+const StableMapCanvas = memo(MapCanvas);
+const TRANSPARENT_MAP_BASEMAP = <span className="block size-full" aria-hidden="true" />;
+
+function preloadRadarImage(src: string): Promise<void> {
+  const existing = radarImageReadiness.get(src);
+  if (existing !== undefined) return existing;
+  const pending = new Promise<void>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      if (typeof image.decode !== 'function') {
+        resolve();
+        return;
+      }
+      void image.decode().then(resolve, resolve);
+    };
+    image.onerror = () => reject(new Error('radar image failed to preload'));
+    image.src = src;
+  });
+  radarImageReadiness.set(src, pending);
+  return pending;
+}
 
 export function ProjectWorkspacePage() {
   const { projectId = '' } = useParams<{ projectId: string }>();
@@ -74,11 +110,13 @@ export function ProjectWorkspacePage() {
   const groups = useProjectChangeGroups(canonicalId);
   const lease = useProjectEditLease(canonicalId);
   const apply = useApplyProjectPatch();
+  const revertChange = useRevertProjectChangeGroup(canonicalId ?? '');
   const startRecording = useStartProjectRecording();
   const exportProject = useExportProject();
   const lens: EditingLens = 'multitrack';
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
   const [previewOffsetSeconds, setPreviewOffsetSeconds] = useState(0);
+  const [playing, setPlaying] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const agentSessionId = searchParams.get('session');
   const agentSession = useAgentSession(agentSessionId);
@@ -163,6 +201,15 @@ export function ProjectWorkspacePage() {
   const readOnly = lease.data !== null && lease.data !== undefined;
   const selected = findClip(current, selectedClipId);
   const latestAgentGroup = (groups.data ?? []).find((group) => group.author.kind === 'agent') ?? null;
+  const revertedChangeGroupIds = new Set(
+    (groups.data ?? []).flatMap((group) => group.reverts_change_group_id === null ? [] : [group.reverts_change_group_id]),
+  );
+  const latestUndoableGroup = (groups.data ?? []).find((group) =>
+    group.status === 'completed'
+    && group.operations.length > 0
+    && group.author.kind !== 'system'
+    && group.reverts_change_group_id === null
+    && !revertedChangeGroupIds.has(group.id));
   const allClips = current.document.tracks.flatMap((track) => track.clips);
   const mutate = (summary: string, scope: ProjectPatchScope, operations: ProjectEditOperation[]) => {
     if (readOnly || apply.isPending) return;
@@ -180,7 +227,7 @@ export function ProjectWorkspacePage() {
     const target = current.document.tracks
       .find((track) => track.id === current.document.story_track_id)
       ?.clips.find((clip) => seconds >= clip.placement.start
-        && seconds <= clip.placement.start + clip.placement.duration);
+        && seconds < clip.placement.start + clip.placement.duration);
     if (target !== undefined) {
       setSelectedClipId(target.id);
       setPreviewOffsetSeconds(Math.max(0, seconds - target.placement.start));
@@ -249,20 +296,28 @@ export function ProjectWorkspacePage() {
           <PreviewSplit
             project={current}
             selected={selected?.clip ?? null}
-            onPreviewTimeChange={setPreviewOffsetSeconds}
+            previewOffsetSeconds={previewOffsetSeconds}
+            playing={playing}
+            onTimelineTimeChange={seekTimeline}
+            onPlaybackEnd={() => setPlaying(false)}
           />
           <ChangeSummary project={current} group={latestAgentGroup} />
           <ProjectTimeline
             document={current.document}
             selectedClipId={selectedClipId}
             previewOffsetSeconds={previewOffsetSeconds}
-            readOnly={readOnly || apply.isPending}
+            playing={playing}
+            readOnly={readOnly || apply.isPending || revertChange.isPending}
             onSelectClip={setSelectedClipId}
             onInspectClip={(clipId) => {
               setSelectedClipId(clipId);
               setInspectorOpen(true);
             }}
-            onSeek={seekTimeline}
+            onSeek={(seconds) => {
+              setPlaying(false);
+              seekTimeline(seconds);
+            }}
+            onTogglePlayback={() => setPlaying((value) => !value)}
             onReplaceClip={(clip) => mutate(
               `调整 ${clip.name}`,
               { kind: 'time_range', start: clip.placement.start, end: clip.placement.start + clip.placement.duration },
@@ -273,6 +328,24 @@ export function ProjectWorkspacePage() {
               { kind: 'track', track_id: track.id },
               [{ op: 'replace_track', track_id: track.id, track }],
             )}
+            onReplaceTrackClips={(trackId, clips) => mutate(
+              `调整轨道片段`,
+              { kind: 'track', track_id: trackId },
+              [{ op: 'replace_track_clips', track_id: trackId, clips: [...clips] }],
+            )}
+            onRemoveClip={(clipId) => mutate(
+              `删除片段`,
+              { kind: 'project' },
+              [{ op: 'remove_clip', clip_id: clipId }],
+            )}
+            canUndo={latestUndoableGroup !== undefined}
+            onUndo={() => {
+              if (latestUndoableGroup === undefined || readOnly) return;
+              revertChange.mutate({
+                changeGroupId: latestUndoableGroup.id,
+                expectedRevision: current.revision,
+              });
+            }}
           />
         </div>
         <AgentPanel
@@ -317,17 +390,26 @@ export function ProjectWorkspacePage() {
           selected={selected}
           readOnly={readOnly}
           onReplace={(clip) => {
-            mutate(
-              `修改 ${clip.name}`,
-              { kind: 'track', track_id: selected?.track.id ?? current.document.story_track_id },
-              [{ op: 'replace_clip', clip_id: clip.id, clip }],
-            );
+            const track = selected?.track ?? null;
+            if (track?.id === current.document.story_track_id) {
+              mutate(
+                `修改 ${clip.name}`,
+                { kind: 'track', track_id: track.id },
+                [{ op: 'replace_track_clips', track_id: track.id, clips: trimRippleClip(track.clips, clip) }],
+              );
+            } else {
+              mutate(
+                `修改 ${clip.name}`,
+                { kind: 'track', track_id: track?.id ?? current.document.story_track_id },
+                [{ op: 'replace_clip', clip_id: clip.id, clip }],
+              );
+            }
             setInspectorOpen(false);
           }}
         />
       </Drawer>
-      {apply.error === null && startRecording.error === null && exportProject.error === null ? null : (
-        <Alert className="m-4" variant="danger" action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); startRecording.reset(); exportProject.reset(); } }}>
+      {apply.error === null && revertChange.error === null && startRecording.error === null && exportProject.error === null ? null : (
+        <Alert className="m-4" variant="danger" action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); } }}>
           <Trans>操作没有完成。检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>
         </Alert>
       )}
@@ -338,11 +420,17 @@ export function ProjectWorkspacePage() {
 function PreviewSplit({
   project,
   selected,
-  onPreviewTimeChange,
+  previewOffsetSeconds,
+  playing,
+  onTimelineTimeChange,
+  onPlaybackEnd,
 }: {
   readonly project: Project;
   readonly selected: TimelineClip | null;
-  readonly onPreviewTimeChange: (seconds: number) => void;
+  readonly previewOffsetSeconds: number;
+  readonly playing: boolean;
+  readonly onTimelineTimeChange: (seconds: number) => void;
+  readonly onPlaybackEnd: () => void;
 }) {
   const [videoPercent, setVideoPercent] = useState(51);
   const splitRef = useRef<HTMLDivElement>(null);
@@ -361,7 +449,14 @@ function PreviewSplit({
         className="grid h-full min-h-0 min-w-0 max-w-full"
         style={{ gridTemplateColumns: `${videoPercent}% 4px minmax(0, 1fr)` }}
       >
-        <ProgramMonitor project={project} selected={selected} onPreviewTimeChange={onPreviewTimeChange} />
+        <TimelineProgramMonitor
+          project={project}
+          selectedClipId={selected?.id ?? null}
+          previewOffsetSeconds={previewOffsetSeconds}
+          playing={playing}
+          onTimelineTimeChange={onTimelineTimeChange}
+          onPlaybackEnd={onPlaybackEnd}
+        />
         <div
           role="separator"
           aria-label={t`调整视频与战术图宽度`}
@@ -394,45 +489,7 @@ function PreviewSplit({
   );
 }
 
-function ProgramMonitor({
-  project,
-  selected,
-  onPreviewTimeChange,
-}: {
-  readonly project: Project;
-  readonly selected: TimelineClip | null;
-  readonly onPreviewTimeChange: (seconds: number) => void;
-}) {
-  const shell = useNativeShell();
-  const assetId = selected === null ? null : resolveTimelineMaterial(selected.material).streamAssetId;
-  const videoSrc = assetId === null ? null : shell.mediaSrc(mediaAssetStreamPath(assetId));
-  return (
-    <section className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-divider bg-bg" aria-label={t`视频预览`}>
-      <header className="flex h-[32px] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
-        <Trans>视频预览</Trans>
-      </header>
-      {videoSrc === null ? (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-neutral-900 p-5 text-center text-neutral-100">
-          <h2 className="font-heading text-2xl">{selected?.name ?? project.name}</h2>
-          <p className="mt-2 text-sm text-neutral-400">
-            {selected === null ? <Trans>从时间轴选择一个片段</Trans> : materialLabel(selected)}
-          </p>
-        </div>
-      ) : (
-        <video
-          className="min-h-0 w-full flex-1 bg-neutral-900 object-cover"
-          src={videoSrc}
-          controls
-          preload="metadata"
-          onTimeUpdate={(event) => onPreviewTimeChange(event.currentTarget.currentTime)}
-          aria-label={t`${selected?.name ?? project.name} 视频预览`}
-        />
-      )}
-    </section>
-  );
-}
-
-function TacticalPreview({ selected }: { readonly selected: TimelineClip | null }) {
+const TacticalPreview = memo(function TacticalPreview({ selected }: { readonly selected: TimelineClip | null }) {
   const intent = selected?.capture_intent ?? null;
   const demo = useDemo(intent?.demo_id ?? null);
   const mapName = demo.data?.map_name ?? null;
@@ -458,54 +515,130 @@ function TacticalPreview({ selected }: { readonly selected: TimelineClip | null 
     () => replaySlice === null || frameIndex < 0 ? [] : playerMarkers(replaySlice.frames[frameIndex] ?? null),
     [frameIndex, replaySlice],
   );
+  const candidate = useMemo<TacticalScene | null>(() => {
+    if (
+      selected === null
+      || intent === null
+      || mapName === null
+      || radarSrc === null
+      || demo.isPending
+      || radar.isPending
+      || replay.isPending
+    ) return null;
+    return {
+      clipId: selected.id,
+      mapName,
+      radarSrc,
+      transform: radar.data?.transform,
+      label: t`${selected.name} 战术示意`,
+      selectedPlayerId: intent.player_id,
+      // A decoded radar remains useful even when this clip has no replay path;
+      // empty overlays must not tear down the basemap while scrubbing.
+      status: 'ready',
+      tracks,
+      markers,
+    };
+  }, [demo.isPending, intent, mapName, markers, radar.data?.transform, radar.isPending, radarSrc, replay.isPending, replaySlice, selected, tracks]);
+  const [displayed, setDisplayed] = useState<TacticalScene | null>(null);
+  const [mountedRadarSources, setMountedRadarSources] = useState<readonly string[]>([]);
+  const mountedRadarSourcesRef = useRef(new Set<string>());
+  const pendingRadarScenesRef = useRef(new Map<string, TacticalScene>());
+  const selectedClipIdRef = useRef(selected?.id ?? null);
+  selectedClipIdRef.current = selected?.id ?? null;
+
+  useEffect(() => {
+    if (selected === null || intent === null) {
+      setDisplayed(null);
+      return undefined;
+    }
+    if (mapName === null) return undefined;
+    if (candidate === null) return undefined;
+    let cancelled = false;
+    void preloadRadarImage(candidate.radarSrc)
+      .catch(() => undefined)
+      .then(() => {
+        if (cancelled) return;
+        pendingRadarScenesRef.current.set(candidate.radarSrc, candidate);
+        if (mountedRadarSourcesRef.current.has(candidate.radarSrc)) {
+          if (selectedClipIdRef.current === candidate.clipId) setDisplayed(candidate);
+          return;
+        }
+        mountedRadarSourcesRef.current.add(candidate.radarSrc);
+        setMountedRadarSources((current) => [...current, candidate.radarSrc]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [candidate, intent, mapName, selected]);
+  const renderTacticalLayers = useCallback((projection: MapProjection) => displayed === null ? null : (
+    <>
+      <PathLayer projection={projection} paths={displayed.tracks} selectedPlayerId={displayed.selectedPlayerId} />
+      <PlayerLayer projection={projection} markers={displayed.markers} selectedPlayerId={displayed.selectedPlayerId} />
+    </>
+  ), [displayed]);
+
   return (
     <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-bg" aria-label={t`战术示意`}>
       <header className="flex h-[32px] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
         <Trans>战术示意</Trans>
       </header>
-      {selected === null || intent === null || mapName === null ? (
+      {selected === null || intent === null ? (
         <div className="grid min-h-0 flex-1 place-items-center px-5 text-center text-sm text-neutral-400">
           {selected === null ? <Trans>选择片段后显示路径与事件</Trans> : <Trans>这段素材没有可用的地图上下文</Trans>}
         </div>
-      ) : demo.isPending || radar.isPending || replay.isPending ? (
-        <div className="min-h-0 flex-1 animate-pulse bg-neutral-800" role="status" aria-label={t`正在读取战术图`} />
-      ) : radarSrc === null ? (
-        <div className="grid min-h-0 flex-1 place-items-center px-5 text-center text-sm text-neutral-400">
-          <Trans>这张地图的雷达图暂时不可用</Trans>
-        </div>
       ) : (
         <div className="relative min-h-0 flex-1 overflow-hidden bg-accent-900">
-          <MapCanvas
-            mapName={mapName}
-            overviewTransform={radar.data?.transform}
-            label={t`${selected.name} 战术示意`}
-            status={replaySlice === null ? 'empty' : 'ready'}
-            className="h-full min-h-0 bg-accent-900 [&>div]:p-0 [&_.blueprint]:h-full [&_.blueprint]:max-w-none [&_.blueprint]:scale-[1.18] [&_.blueprint]:bg-accent-900 [&_figcaption]:hidden"
-            basemap={<img src={radarSrc} alt="" className="size-full object-contain brightness-110 contrast-110" />}
-          >
-            {(projection) => (
-              <>
-                <PathLayer projection={projection} paths={tracks} selectedPlayerId={intent.player_id} />
-                <PlayerLayer projection={projection} markers={markers} selectedPlayerId={intent.player_id} />
-              </>
-            )}
-          </MapCanvas>
-          <ul className="absolute right-4 top-1/2 -translate-y-1/2 space-y-2 border border-neutral-500 bg-accent-900/95 px-3 py-2 text-2xs text-neutral-100 shadow-md">
-            <li className="flex items-center gap-2"><span className="size-3 rounded-full border-2 border-bg bg-accent-500" /><span>CT</span></li>
-            <li className="flex items-center gap-2"><span className="size-3 rounded-full border-2 border-bg bg-warn" /><span>T</span></li>
-            <li className="flex items-center gap-2"><span className="size-3 bg-fail" /><Trans>炸弹点</Trans></li>
-            <li className="flex items-center gap-2"><Star className="size-3.5 text-warn" fill="currentColor" aria-hidden="true" /><Trans>事件</Trans></li>
-          </ul>
-          <div className="absolute inset-x-0 bottom-0 flex h-8 items-center border-t border-neutral-600 bg-accent-900/95 px-3 text-xs text-neutral-100">
-            <span><Trans>回合: 15</Trans></span><span className="ml-4"><Trans>时间: 01:08</Trans></span>
-          </div>
+          {mountedRadarSources.map((src) => (
+            <img
+              key={src}
+              src={src}
+              alt=""
+              className="pointer-events-none absolute inset-0 z-0 size-full scale-[1.18] object-contain brightness-110 contrast-110 transition-opacity duration-75"
+              style={{ opacity: displayed?.radarSrc === src ? 1 : 0 }}
+              onLoad={() => {
+                const scene = pendingRadarScenesRef.current.get(src);
+                if (scene !== undefined && selectedClipIdRef.current === scene.clipId) setDisplayed(scene);
+              }}
+            />
+          ))}
+          {displayed === null ? (
+            <div className="absolute inset-0 z-10 animate-pulse bg-neutral-800" role="status" aria-label={t`正在读取战术图`} />
+          ) : (
+            <>
+              <StableMapCanvas
+                mapName={displayed.mapName}
+                overviewTransform={displayed.transform}
+                label={displayed.label}
+                status={displayed.status}
+                className="relative z-10 h-full min-h-0 bg-transparent [&>div]:p-0 [&_.blueprint]:h-full [&_.blueprint]:max-w-none [&_.blueprint]:scale-[1.18] [&_.blueprint]:bg-transparent [&_figcaption]:hidden"
+                basemap={TRANSPARENT_MAP_BASEMAP}
+              >
+                {renderTacticalLayers}
+              </StableMapCanvas>
+              {displayed.clipId === selected.id ? null : (
+                <span className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-1.5 rounded-sm bg-accent-900/85 px-2 py-1 text-2xs text-neutral-100">
+                  <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
+                  <Trans>正在更新战术图</Trans>
+                </span>
+              )}
+              <ul className="absolute right-4 top-1/2 z-20 -translate-y-1/2 space-y-2 border border-neutral-500 bg-accent-900/95 px-3 py-2 text-2xs text-neutral-100 shadow-md">
+                <li className="flex items-center gap-2"><span className="size-3 rounded-full border-2 border-bg bg-accent-500" /><span>CT</span></li>
+                <li className="flex items-center gap-2"><span className="size-3 rounded-full border-2 border-bg bg-warn" /><span>T</span></li>
+                <li className="flex items-center gap-2"><span className="size-3 bg-fail" /><Trans>炸弹点</Trans></li>
+                <li className="flex items-center gap-2"><Star className="size-3.5 text-warn" fill="currentColor" aria-hidden="true" /><Trans>事件</Trans></li>
+              </ul>
+              <div className="absolute inset-x-0 bottom-0 z-20 flex h-8 items-center border-t border-neutral-600 bg-accent-900/95 px-3 text-xs text-neutral-100">
+                <span><Trans>回合: 15</Trans></span><span className="ml-4"><Trans>时间: 01:08</Trans></span>
+              </div>
+            </>
+          )}
         </div>
       )}
     </section>
   );
-}
+});
 
-function ChangeSummary({ project, group }: { readonly project: Project; readonly group: ProjectChangeGroup | null }) {
+const ChangeSummary = memo(function ChangeSummary({ project, group }: { readonly project: Project; readonly group: ProjectChangeGroup | null }) {
   const story = project.document.tracks.find((track) => track.id === project.document.story_track_id);
   const currentClips = story?.clips ?? [];
   const previousClips = previousStoryClips(group, project.document.story_track_id) ?? currentClips;
@@ -536,7 +669,7 @@ function ChangeSummary({ project, group }: { readonly project: Project; readonly
       </div>
     </ReviewPanel>
   );
-}
+});
 
 function ReviewStrip({
   label,
@@ -633,25 +766,7 @@ function formatTimelinePoint(seconds: number): string {
   return `${Math.floor(value / 60).toString().padStart(2, '0')}:${(value % 60).toString().padStart(2, '0')}`;
 }
 
-function AgentPanel({
-  session,
-  chat,
-  creatingSession,
-  onSend,
-  changeGroups,
-  readOnly,
-  agentReady,
-  agentStatusPending,
-  externalExecutions,
-  onOpenAgentSettings,
-  confirming,
-  onConfirmRecording,
-  onConfirmExport,
-  onRejectConfirmation,
-  onAcceptDelivery,
-  onReturnDelivery,
-  onDirectEdit,
-}: {
+interface AgentPanelProps {
   readonly session: import('../shared/desktop/dto').AgentSession | null;
   readonly chat: ReturnType<typeof useAgentChatStream>;
   readonly creatingSession: boolean;
@@ -669,7 +784,27 @@ function AgentPanel({
   readonly onAcceptDelivery: () => Promise<void>;
   readonly onReturnDelivery: () => Promise<void>;
   readonly onDirectEdit: () => void;
-}) {
+}
+
+const AgentPanel = memo(function AgentPanel({
+  session,
+  chat,
+  creatingSession,
+  onSend,
+  changeGroups,
+  readOnly,
+  agentReady,
+  agentStatusPending,
+  externalExecutions,
+  onOpenAgentSettings,
+  confirming,
+  onConfirmRecording,
+  onConfirmExport,
+  onRejectConfirmation,
+  onAcceptDelivery,
+  onReturnDelivery,
+  onDirectEdit,
+}: AgentPanelProps) {
   const [message, setMessage] = useState('');
   const conversationEnd = useRef<HTMLDivElement>(null);
   const entries = session?.entries ?? [];
@@ -799,6 +934,25 @@ function AgentPanel({
       </footer>
     </aside>
   );
+}, areAgentPanelPropsEqual);
+
+function areAgentPanelPropsEqual(previous: AgentPanelProps, next: AgentPanelProps): boolean {
+  const previousActivity = previous.chat.activity ?? [];
+  const nextActivity = next.chat.activity ?? [];
+  const sameExecutions = previous.externalExecutions.length === next.externalExecutions.length
+    && previous.externalExecutions.every((item, index) => item === next.externalExecutions[index]);
+  return previous.session === next.session
+    && previous.chat.streaming === next.chat.streaming
+    && previous.chat.draft === next.chat.draft
+    && previous.chat.error === next.chat.error
+    && previousActivity === nextActivity
+    && previous.creatingSession === next.creatingSession
+    && previous.changeGroups === next.changeGroups
+    && previous.readOnly === next.readOnly
+    && previous.agentReady === next.agentReady
+    && previous.agentStatusPending === next.agentStatusPending
+    && previous.confirming === next.confirming
+    && sameExecutions;
 }
 
 function ConversationEntry({
@@ -1013,12 +1167,4 @@ function findClip(project: Project, clipId: string | null) {
     if (clip !== undefined) return { track, clip };
   }
   return null;
-}
-
-function materialLabel(clip: TimelineClip) {
-  switch (clip.material.kind) {
-    case 'planned': return t`未录制`;
-    case 'take': return t`已录制`;
-    case 'asset': return t`已录制`;
-  }
 }

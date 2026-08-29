@@ -51,7 +51,11 @@ const PROJECT: Project = {
         hidden: false,
         clips: [
           clip(CLIP_A, 'A'),
-          { ...clip(CLIP_B, 'B'), material: { kind: 'asset', asset_id: 'asset-b', media_duration_seconds: 5 } },
+          {
+            ...clip(CLIP_B, 'B'),
+            material: { kind: 'asset', asset_id: 'asset-b', media_duration_seconds: 5 },
+            placement: { start: 5, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+          },
         ],
       },
       { id: '00000000-0000-4000-8000-000000000013', name: 'Music', kind: 'audio', order: 1, muted: false, locked: false, hidden: false, clips: [] },
@@ -63,32 +67,56 @@ const PROJECT: Project = {
   updated_at: '2026-08-28T00:00:00Z',
 };
 
+const RECORDED_PROJECT: Project = {
+  ...PROJECT,
+  document: {
+    ...PROJECT.document,
+    duration_seconds: 10,
+    tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+      ...track,
+      clips: [
+        { ...clip(CLIP_A, 'A'), material: { kind: 'asset', asset_id: 'asset-a', media_duration_seconds: 5 } },
+        {
+          ...clip(CLIP_B, 'B'),
+          material: { kind: 'asset', asset_id: 'asset-b', media_duration_seconds: 6 },
+          placement: { start: 5, duration: 5, source_in: 1, source_out: 6, speed: 1, volume: 1, enabled: true },
+        },
+      ],
+    }),
+  },
+};
+
 function renderWorkspace({
   applyProjectPatch = vi.fn(),
+  revertProjectChangeGroup = vi.fn(),
   session = null,
   lease = null,
   groups = [],
   agentConfigured = true,
+  project = PROJECT,
   shell,
 }: {
   readonly applyProjectPatch?: ReturnType<typeof vi.fn>;
+  readonly revertProjectChangeGroup?: ReturnType<typeof vi.fn>;
   readonly session?: AgentSession | null;
   readonly lease?: ProjectEditLease | null;
   readonly groups?: readonly ProjectChangeGroup[];
   readonly agentConfigured?: boolean;
+  readonly project?: Project;
   readonly shell?: NativeShell | undefined;
 } = {}) {
   return renderPage({
     element: <ProjectWorkspacePage />,
     client: {
-      getProject: () => Promise.resolve(PROJECT),
+      getProject: () => Promise.resolve(project),
       listProjectChangeGroups: () => Promise.resolve(groups),
       getProjectEditLease: () => Promise.resolve(lease),
       agentStatus: () => Promise.resolve({ runtimeAvailable: true, configured: agentConfigured, provider: agentConfigured ? 'test' : '', model: agentConfigured ? 'test' : '', streaming: true }),
       ...(session === null ? {} : { getAgentSession: () => Promise.resolve(session) }),
       applyProjectPatch,
+      revertProjectChangeGroup,
     },
-    route: `/projects/${PROJECT.id}${session === null ? '' : `?session=${session.id}`}`,
+    route: `/projects/${project.id}${session === null ? '' : `?session=${session.id}`}`,
     pattern: '/projects/:projectId',
     shell,
   });
@@ -172,9 +200,12 @@ describe('unified project workspace', () => {
       project_id: PROJECT.id,
       base_revision: 1,
       operations: [expect.objectContaining({
-        op: 'replace_clip',
-        clip_id: CLIP_A,
-        clip: expect.objectContaining({ placement: expect.objectContaining({ start: 1 }) }),
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 5 }) }),
+        ],
       })],
     })));
   });
@@ -203,12 +234,105 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledTimes(1));
     expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
-        op: 'replace_clip',
-        clip_id: CLIP_A,
-        clip: expect.objectContaining({ placement: expect.objectContaining({ start: expect.any(Number) }) }),
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: expect.arrayContaining([
+          expect.objectContaining({ id: CLIP_A }),
+          expect.objectContaining({ id: CLIP_B }),
+        ]),
       })],
     }));
   });
+
++  it('splits the selected Story clip at the global playhead', async () => {
+    const applyProjectPatch = vi.fn(() => Promise.resolve({
+      project: { ...PROJECT, revision: 2 },
+      change_group: {
+        id: '00000000-0000-4000-8000-000000000022', project_id: PROJECT.id,
+        from_revision: 1, to_revision: 2, author: { kind: 'human' as const }, status: 'completed' as const,
+        summary: '切分 A', reverts_change_group_id: null, operations: [], inverse_operations: [],
+        created_at: PROJECT.updated_at, completed_at: PROJECT.updated_at,
+      },
+    }));
+    renderWorkspace({ applyProjectPatch });
+
+    const playhead = await screen.findByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.click(screen.getByRole('button', { name: '在播放头切分片段' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ duration: 1 }) }),
+          expect.objectContaining({ placement: expect.objectContaining({ start: 1, duration: 4 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 5 }) }),
+        ],
+      })],
+    })));
+  });
+
+  it('deletes a Story clip and closes the gap', async () => {
+    const applyProjectPatch = vi.fn(() => Promise.resolve({
+      project: { ...PROJECT, revision: 2 },
+      change_group: {
+        id: '00000000-0000-4000-8000-000000000023', project_id: PROJECT.id,
+        from_revision: 1, to_revision: 2, author: { kind: 'human' as const }, status: 'completed' as const,
+        summary: '删除 B', reverts_change_group_id: null, operations: [], inverse_operations: [],
+        created_at: PROJECT.updated_at, completed_at: PROJECT.updated_at,
+      },
+    }));
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: /B 5\.0s · 已录制/u }));
+    fireEvent.click(screen.getByRole('button', { name: '删除所选片段并闭合间隙' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0 }) })],
+      }],
+    })));
+  });
+
+
++  it('undoes the latest completed human Change Group', async () => {
+    const revertProjectChangeGroup = vi.fn(() => Promise.resolve({
+      project: { ...PROJECT, revision: 3 },
+      change_group: {
+        id: '00000000-0000-4000-8000-000000000025', project_id: PROJECT.id,
+        from_revision: 2, to_revision: 3, author: { kind: 'human' as const }, status: 'completed' as const,
+        summary: '撤销移动 A', reverts_change_group_id: '00000000-0000-4000-8000-000000000024',
+        operations: [], inverse_operations: [], created_at: PROJECT.updated_at, completed_at: PROJECT.updated_at,
+      },
+    }));
+    const group: ProjectChangeGroup = {
+      id: '00000000-0000-4000-8000-000000000024',
+      project_id: PROJECT.id,
+      from_revision: 1,
+      to_revision: 2,
+      author: { kind: 'human' },
+      status: 'completed',
+      summary: '移动 A',
+      reverts_change_group_id: null,
+      operations: [{ op: 'replace_track_clips', track_id: STORY_ID, clips: PROJECT.document.tracks[0]!.clips }],
+      inverse_operations: [],
+      created_at: PROJECT.updated_at,
+      completed_at: PROJECT.updated_at,
+    };
+    renderWorkspace({ groups: [group], revertProjectChangeGroup });
+
+    fireEvent.click(await screen.findByRole('button', { name: '撤销上一次剪辑' }));
+
+    await waitFor(() => expect(revertProjectChangeGroup).toHaveBeenCalledWith(
+      PROJECT.id,
+      group.id,
+      PROJECT.revision,
+    ));
+  });
+
 
   it('plays the selected recorded asset through the desktop media bridge', async () => {
     renderWorkspace({
@@ -222,6 +346,44 @@ describe('unified project workspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: /B 5\.0s · 已录制/u }));
     const preview = screen.getByLabelText('B 视频预览') as HTMLVideoElement;
     expect(preview.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-b/stream');
+  });
+
+  it('uses a warm timeline-driven preview without native media transport', async () => {
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const monitor = await screen.findByRole('region', { name: '视频预览' });
+    const videos = monitor.querySelectorAll('video');
+    expect(videos).toHaveLength(2);
+    expect([...videos].every((video) => !video.controls)).toBe(true);
+    const first = screen.getByLabelText('A 视频预览') as HTMLVideoElement;
+    const play = vi.fn(() => Promise.resolve());
+    const pause = vi.fn();
+    Object.defineProperties(first, {
+      readyState: { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA },
+      play: { configurable: true, value: play },
+      pause: { configurable: true, value: pause },
+    });
+    fireEvent.loadedData(first);
+    fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole('button', { name: '暂停时间轴' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /B 5\.0s · 已录制/u }));
+    const target = screen.getByLabelText('B 视频预览') as HTMLVideoElement;
+    Object.defineProperty(target, 'readyState', { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA });
+    fireEvent.loadedData(target);
+    await waitFor(() => {
+      const active = monitor.querySelector<HTMLVideoElement>('[data-preview-active="true"]');
+      expect(active?.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-b/stream');
+      expect(active?.currentTime).toBe(1);
+    });
   });
 
   it('shows the whole editing document without mode-switch chrome', async () => {
@@ -267,9 +429,9 @@ describe('unified project workspace', () => {
         project_id: PROJECT.id,
         base_revision: 1,
         operations: [expect.objectContaining({
-          op: 'replace_clip',
-          clip_id: CLIP_A,
-          clip: expect.objectContaining({ name: 'A revised' }),
+          op: 'replace_track_clips',
+          track_id: STORY_ID,
+          clips: expect.arrayContaining([expect.objectContaining({ id: CLIP_A, name: 'A revised' })]),
         })],
       }));
     });

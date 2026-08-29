@@ -1030,6 +1030,7 @@ export function ProjectTimeline({
               readOnly={readOnly}
               onSelectClip={onSelectClip}
               onInspectClip={onInspectClip}
+              onSeek={onSeek}
               onReplaceClip={onReplaceClip}
               onReplaceTrack={onReplaceTrack}
               onReplaceTrackClips={onReplaceTrackClips}
@@ -1246,7 +1247,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -1256,6 +1257,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
   readonly onInspectClip: (clipId: string) => void;
+  readonly onSeek: (seconds: number) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
@@ -1324,6 +1326,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             change={changeByClipId.get(clip.id) ?? null}
             onSelect={(additive, range) => onSelectClip(clip.id, additive, range)}
             onInspect={() => onInspectClip(clip.id)}
+            onSeek={onSeek}
             snapPoints={snapPoints}
             snapThresholdSeconds={snapThresholdSeconds}
             onSnapChange={onSnapChange}
@@ -1452,7 +1455,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.height === next.height
   && previous.collapsed === next.collapsed);
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, gainReadOnly, trackHeight, change, onSelect, onInspect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, gainReadOnly, trackHeight, change, onSelect, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -1466,6 +1469,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly change: TimelineClipChange | null;
   readonly onSelect: (additive: boolean, range: boolean) => void;
   readonly onInspect: () => void;
+  readonly onSeek: (seconds: number) => void;
   readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'volume' | 'fade') => void;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
@@ -1475,6 +1479,11 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
 }) {
   const shell = useNativeShell();
   const material = resolveTimelineMaterial(clip.material);
+  const keyframeGroups = useMemo(() => {
+    const groups = new Map<number, number>();
+    for (const keyframe of clip.keyframes) groups.set(keyframe.time, (groups.get(keyframe.time) ?? 0) + 1);
+    return [...groups.entries()].sort((left, right) => left[0] - right[0]);
+  }, [clip.keyframes]);
   const [visualClip, setVisualClip] = useState(clip);
   const visualClipRef = useRef(visualClip);
   visualClipRef.current = visualClip;
@@ -1691,6 +1700,31 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       {change === null ? null : <TimelineClipChangeOverlay change={change} clip={visualClip} scale={scale} />}
       {clip.transition_in === null ? null : <span className="pointer-events-none absolute left-0 top-0 z-20 border-l-8 border-t-8 border-l-accent-500 border-t-transparent" aria-label={t`入场转场 ${clip.transition_in}`} />}
       {clip.transition_out === null ? null : <span className="pointer-events-none absolute right-0 top-0 z-20 border-r-8 border-t-8 border-r-accent-500 border-t-transparent" aria-label={t`出场转场 ${clip.transition_out}`} />}
+      {keyframeGroups.map(([time, count]) => (
+        <span
+          key={`keyframe:${time}`}
+          role="button"
+          tabIndex={0}
+          className="absolute bottom-4 z-40 size-2 -translate-x-1/2 rotate-45 border border-accent-700 bg-accent-100 outline-none focus-visible:ring-1 focus-visible:ring-accent-500"
+          style={{ left: timeToPx(scale, time) }}
+          aria-label={t`关键帧 ${formatMillisecondTimecode(time)} ${count} 个属性`}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onSeek(clip.placement.start + time);
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            event.stopPropagation();
+            onSeek(clip.placement.start + time);
+          }}
+        />
+      ))}
       <span className="absolute inset-x-0 bottom-0 truncate bg-neutral-900/80 px-1 py-px text-2xs text-bg">{clip.name}</span>
       {primary && !readOnly ? (
         <>

@@ -8,6 +8,7 @@ import {
   CircleAlert,
   CircleHelp,
   Download,
+  Diamond,
   FolderOpen,
   LoaderCircle,
   Send,
@@ -49,6 +50,9 @@ import { Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
 import { ReviewPanel } from '../design/review';
 import {
+  clipKeyframeAtTime,
+  clipLocalTimeAtTimeline,
+  evaluateClipKeyframeProperty,
   insertRippleClipAtTime,
   overwriteStoryClipAtTime,
   ProjectTimeline,
@@ -56,6 +60,8 @@ import {
   timelineClipFromMediaAsset,
   TimelineProgramMonitor,
   trimRippleClip,
+  removeClipKeyframe,
+  upsertClipKeyframe,
 } from '../domain/editing';
 import { MapCanvas, PathLayer, type MapProjection } from '../domain/map';
 import type {
@@ -66,6 +72,7 @@ import type {
   RadarTransformResponse,
   AgentSessionEntry,
   AgentToolCall,
+  EditorKeyframeProperty,
   JsonValue,
   MediaAsset,
   TimelineClip,
@@ -665,6 +672,8 @@ export function ProjectWorkspacePage() {
         <ClipInspector
           selected={selected}
           readOnly={readOnly}
+          timelineTimeSeconds={transportTimeSeconds}
+          fps={current.document.fps}
           onReplace={(clip) => {
             const track = selected?.track ?? null;
             if (track?.id === current.document.story_track_id) {
@@ -892,10 +901,14 @@ const TacticalPreview = memo(function TacticalPreview({ selected }: { readonly s
 function ClipInspector({
   selected,
   readOnly,
+  timelineTimeSeconds,
+  fps,
   onReplace,
 }: {
   readonly selected: { readonly track: TimelineTrack; readonly clip: TimelineClip } | null;
   readonly readOnly: boolean;
+  readonly timelineTimeSeconds: number;
+  readonly fps: number;
   readonly onReplace: (clip: TimelineClip) => void;
 }) {
   const [draft, setDraft] = useState<TimelineClip | null>(selected?.clip ?? null);
@@ -903,6 +916,29 @@ function ClipInspector({
   if (draft === null) {
     return <aside className="flex items-center justify-center border-l border-divider p-5 text-sm text-neutral-600"><Trans>选择片段后编辑</Trans></aside>;
   }
+  const localTime = clipLocalTimeAtTimeline(draft, timelineTimeSeconds, fps);
+  const visualProperties: Array<{
+    readonly property: Exclude<EditorKeyframeProperty, 'volume'>;
+    readonly label: string;
+    readonly step: number;
+    readonly min?: number;
+    readonly max?: number;
+  }> = selected?.track.kind === 'audio'
+    ? []
+    : selected?.track.kind === 'text'
+      ? [
+        { property: 'x', label: t`位置 X`, step: 1 },
+        { property: 'y', label: t`位置 Y`, step: 1 },
+        { property: 'opacity', label: t`透明度`, step: 0.01, min: 0, max: 1 },
+      ]
+      : [
+        { property: 'x', label: t`位置 X`, step: 1 },
+        { property: 'y', label: t`位置 Y`, step: 1 },
+        { property: 'scale_x', label: t`水平缩放`, step: 0.01, min: 0.01, max: 10 },
+        { property: 'scale_y', label: t`垂直缩放`, step: 0.01, min: 0.01, max: 10 },
+        { property: 'rotation', label: t`旋转`, step: 1 },
+        { property: 'opacity', label: t`透明度`, step: 0.01, min: 0, max: 1 },
+      ];
   return (
     <div className="min-h-0" aria-label={t`片段属性`}>
       <label className="flex flex-col gap-1 text-xs">
@@ -925,6 +961,57 @@ function ClipInspector({
           />
         </label>
       ))}
+      {visualProperties.length === 0 ? null : (
+        <section className="mt-4 border-t border-divider pt-3" aria-label={t`变换与关键帧`}>
+          <div className="mb-2 flex items-center gap-2">
+            <h3 className="text-xs font-semibold"><Trans>变换</Trans></h3>
+            <span className="ml-auto font-mono text-2xs text-neutral-500"><Trans>片段内</Trans> {localTime.toFixed(3)}s</span>
+          </div>
+          {visualProperties.map(({ property, label, step, min, max }) => {
+            const propertyKeyframes = draft.keyframes.filter((keyframe) => keyframe.property === property);
+            const current = clipKeyframeAtTime(draft, property, localTime, fps);
+            const fallback = draft.transform[property];
+            const value = evaluateClipKeyframeProperty(draft, property, localTime, fallback);
+            return (
+              <div key={property} className="mt-2 grid grid-cols-[minmax(0,1fr)_88px_28px] items-center gap-2 text-xs">
+                <span className="truncate">{label}{propertyKeyframes.length === 0 ? null : <span className="ml-1 text-2xs text-neutral-500">{propertyKeyframes.length}</span>}</span>
+                <input
+                  type="number"
+                  step={step}
+                  {...(min === undefined ? {} : { min })}
+                  {...(max === undefined ? {} : { max })}
+                  className="min-w-0 border border-divider px-2 py-1.5 font-mono"
+                  disabled={readOnly}
+                  value={value}
+                  onChange={(event) => {
+                    const nextValue = Number(event.currentTarget.value);
+                    if (propertyKeyframes.length === 0) {
+                      setDraft({ ...draft, transform: { ...draft.transform, [property]: nextValue } });
+                    } else {
+                      setDraft(upsertClipKeyframe(draft, property, localTime, nextValue, globalThis.crypto.randomUUID(), fps));
+                    }
+                  }}
+                  aria-label={label}
+                />
+                <button
+                  type="button"
+                  className={cn(
+                    'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300',
+                    current !== null && 'border-accent-300 bg-accent-100 text-accent-text',
+                  )}
+                  disabled={readOnly}
+                  aria-label={current === null ? t`在播放头添加 ${label} 关键帧` : t`删除播放头的 ${label} 关键帧`}
+                  onClick={() => setDraft(current === null
+                    ? upsertClipKeyframe(draft, property, localTime, value, globalThis.crypto.randomUUID(), fps)
+                    : removeClipKeyframe(draft, property, localTime, fps))}
+                >
+                  <Diamond className="size-3" fill={current === null ? 'none' : 'currentColor'} aria-hidden="true" />
+                </button>
+              </div>
+            );
+          })}
+        </section>
+      )}
       {(['transition_in', 'transition_out'] as const).map((field) => (
         <label key={field} className="mt-3 flex flex-col gap-1 text-xs">
           {field === 'transition_in' ? <Trans>入场转场</Trans> : <Trans>出场转场</Trans>}

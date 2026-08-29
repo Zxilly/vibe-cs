@@ -1367,6 +1367,60 @@ describe('unified project workspace', () => {
     });
   });
 
+  it('authors frame-aligned transform keyframes at the shared playhead', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
+    const x = await screen.findByRole('spinbutton', { name: '位置 X' });
+    fireEvent.change(x, { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: '在播放头添加 位置 X 关键帧' }));
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    expect((screen.getByRole('spinbutton', { name: '位置 X' }) as HTMLInputElement).value).toBe('100');
+    fireEvent.change(screen.getByRole('spinbutton', { name: '位置 X' }), { target: { value: '200' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: expect.arrayContaining([expect.objectContaining({
+          id: CLIP_A,
+          transform: expect.objectContaining({ x: 100 }),
+          keyframes: [
+            expect.objectContaining({ time: 0, property: 'x', value: 100 }),
+            expect.objectContaining({ time: 1, property: 'x', value: 200 }),
+          ],
+        })]),
+      })],
+    })));
+  });
+
+  it('projects grouped keyframe diamonds onto the canonical clip and seeks them', async () => {
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            keyframes: [
+              { id: 'x-1', time: 1, property: 'x', value: 100 },
+              { id: 'opacity-1', time: 1, property: 'opacity', value: 0.5 },
+              { id: 'x-3', time: 3, property: 'x', value: 200 },
+            ],
+          }),
+        }),
+      },
+    };
+    renderWorkspace({ project });
+
+    fireEvent.click(await screen.findByRole('button', { name: '关键帧 00:01.000 2 个属性' }));
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(1);
+    expect(screen.getByRole('button', { name: '关键帧 00:03.000 1 个属性' })).toBeTruthy();
+  });
+
   it('renders Agent text, tool output and HITL in one conversation flow', async () => {
     const session: AgentSession = {
       id: '00000000-0000-4000-8000-000000000030',

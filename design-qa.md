@@ -25,6 +25,7 @@ final result: passed
 - Transform preview pass: `target/editor-iteration/19-transform-preview.png`.
 - Direct Program transform pass: `target/editor-iteration/20-program-direct-transform.png`.
 - Program scale/rotation pass: `target/editor-iteration/21-program-scale-rotation.png`.
+- Volume keyframe pass: `target/editor-iteration/22-volume-keyframes.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -71,6 +72,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Program Monitor evaluates the same canonical Transform keyframes at its clip-local transport time and applies X/Y, Scale, Rotation, and Opacity to the existing pooled video. The project stage uses container-query geometry to retain the exact project aspect ratio; transform style changes do not mount media or mutate `src`.
 - When the visible Program clip is the primary selection, paused, and writable, one transparent stage overlay supports direct X/Y movement and keyboard nudging. CSS deltas convert through measured stage dimensions into project pixels; animated properties upsert the current local keyframe while static properties update base Transform. Linked-selection click promotion preserves the group but makes the explicitly clicked member primary.
 - The Program overlay also exposes a uniform corner Scale handle and center Rotation handle with pointer and keyboard control. Scale is constrained to 0.01–10×; Rotation nudges 1°/15°. Inspector and canvas mirror the renderer rule that animated Scale cannot coexist with non-zero or animated Rotation, while static Scale+Rotation remains valid.
+- Volume is a first-class keyframe property in Effect Controls and the waveform rubber-band. Static clips update placement volume; animated clips upsert the current local frame and display evaluated dB as transport moves. Program audio evaluates canonical volume times fade envelope, applies the browser's 0–1 portion, and preserves >1 gain for exact FFmpeg export.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -114,6 +116,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A fifteenth live pass measured the 1920×1080 Program stage at 594.82×334.58 (ratio 1.7778). At the 0s diamond active X was 100; activating 1s produced X=199.999997 and a 10.4167% translation. The warm pool remained two videos with identical source URLs and no page errors.
 - A sixteenth live pass selected linked Story Build as primary at local 0 and dragged the Program overlay by 60×30 CSS pixels. The draft preview reached project X=293.671 and Y=96.837 while revision remained 45; mouse-up updated the existing X keyframe and static Y in exactly revision 46. Page errors remained empty.
 - A seventeenth live pass used the Program Scale handle to change 1.00→1.10 as revision 47, then the Rotation handle to set 15° as revision 48. The live style combined translate(15.2954%, 8.96638%), rotate(15deg), and scale(1.1) without changing the warm media pool or producing page errors.
+- An eighteenth live pass authored Story Build Volume keyframes at local 0s=1.911661 (+5.6dB) and 1s=1.0 (0dB), committing one revision 49. Both timeline diamonds grouped two properties; Program canonical/output data and the Story rubber-band switched together while browser volume clamped at 1. Page errors remained empty.
 
 ## Comparison history
 
@@ -145,10 +148,11 @@ No actionable P0, P1, or P2 mismatch remains.
 26. `target/editor-iteration/19-transform-preview.png`: the exact-ratio Program stage previews the second canonical X keyframe without replacing either pooled video.
 27. `target/editor-iteration/20-program-direct-transform.png`: the selected Program clip previews its project-pixel X/Y draft under the direct manipulation border before commit.
 28. `target/editor-iteration/21-program-scale-rotation.png`: the Program frame shows the selected clip with canonical 1.1× scale and 15° rotation controls.
+29. `target/editor-iteration/22-volume-keyframes.png`: the Build clip shows two-property diamonds while Program and waveform evaluate the local 1-second Volume keyframe.
 
 ## Verification
 
-- Focused keyframe editing and Project workbench tests: 58 passed.
-- Full web suite: 257 files and 2937 tests passed.
+- Focused keyframe editing and Project workbench tests: 62 passed.
+- Full web suite: 257 files and 2941 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

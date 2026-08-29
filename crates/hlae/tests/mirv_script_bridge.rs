@@ -119,6 +119,12 @@ fn observes_demo_seek_and_recording_through_reviewed_hlae_apis() {
     ] {
         assert!(source.contains(api), "missing reviewed API call {api}");
     }
+    assert_eq!(
+        source.matches(".off(EVENT_ID)").count(),
+        3,
+        "only terminal cleanup may unregister handlers in a fresh managed CS2 process"
+    );
+    assert!(source.contains("startConnectionAttempt(Date.now());"));
     for kind in [
         "demo_loaded",
         "seek_requested",
@@ -139,8 +145,9 @@ fn bridge_inlines_hlae_const_enum_values_for_the_javascript_runtime() {
         .source()
         .to_owned();
 
-    assert!(source.contains("const FRAME_START = 0;"));
     assert!(source.contains("const FRAME_RENDER_PASS = 12;"));
+    assert!(!source.contains("FRAME_START"));
+    assert!(source.contains("event.curStage === FRAME_RENDER_PASS && event.isBefore"));
     assert!(!source.contains("SOURCESDK_CS2.ClientFrameStage_t"));
 }
 

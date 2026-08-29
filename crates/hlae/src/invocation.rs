@@ -241,6 +241,7 @@ fn validate_fixed_game_command_line(profile: &HlaeLaunchProfile) -> Result<Strin
         width,
         height_flag,
         height,
+        fix_net_con,
         disable_steam_storage,
     ] = profile.arguments.as_slice()
     else {
@@ -254,6 +255,7 @@ fn validate_fixed_game_command_line(profile: &HlaeLaunchProfile) -> Result<Strin
         || windowed != "-sw"
         || width_flag != "-w"
         || height_flag != "-h"
+        || fix_net_con != "-afxFixNetCon"
         || disable_steam_storage != "-afxDisableSteamStorage"
         || !is_canonical_dimension(width, 320, 4_096)
         || !is_canonical_dimension(height, 240, 2_304)

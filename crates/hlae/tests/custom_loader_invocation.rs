@@ -82,7 +82,7 @@ fn builds_the_documented_custom_loader_argv_without_a_shell() {
             fixture.game.into_os_string(),
             OsString::from("-cmdLine"),
             OsString::from(
-                "-steam -insecure +sv_lan 1 -console -sw -w 1920 -h 1080 -afxDisableSteamStorage",
+                "-steam -insecure +sv_lan 1 -console -sw -w 1920 -h 1080 -afxFixNetCon -afxDisableSteamStorage",
             ),
             OsString::from("-addEnv"),
             OsString::from("SteamAppId=730"),

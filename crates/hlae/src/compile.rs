@@ -195,6 +195,7 @@ pub fn build_hlae_launch_profile(
             resolution.width.to_string(),
             "-h".to_owned(),
             resolution.height.to_string(),
+            "-afxFixNetCon".to_owned(),
             "-afxDisableSteamStorage".to_owned(),
         ],
         environment,

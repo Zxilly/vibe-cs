@@ -18,7 +18,6 @@
     // These are HLAE's documented TypeScript `const enum` values. `const enum`
     // members are compile-time constants and no SOURCESDK_CS2 object exists in
     // the embedded JavaScript runtime.
-    const FRAME_START = 0;
     const FRAME_RENDER_PASS = 12;
     const MAX_MESSAGE_BYTES = 16384;
     const MAX_TAKES = __MAX_TAKES__;
@@ -678,7 +677,7 @@
 
     function onClientFrameStageNotify(event) {
         if (terminal) return;
-        if (event.curStage === FRAME_START && event.isBefore) {
+        if (event.curStage === FRAME_RENDER_PASS && event.isBefore) {
             const nowMs = Date.now();
             serviceConnection(nowMs);
             if (connected && !closingAfterQueue) {
@@ -705,10 +704,8 @@
         }
     }
 
-    mirv.events.recordStart.off(EVENT_ID);
-    mirv.events.recordEnd.off(EVENT_ID);
-    mirv.events.clientFrameStageNotify.off(EVENT_ID);
     mirv.events.recordStart.on(EVENT_ID, onRecordStart);
     mirv.events.recordEnd.on(EVENT_ID, onRecordEnd);
     mirv.events.clientFrameStageNotify.on(EVENT_ID, onClientFrameStageNotify);
+    startConnectionAttempt(Date.now());
 }

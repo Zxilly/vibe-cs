@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { AgentSession, Project, ProjectChangeGroup, ProjectEditLease, TimelineClip } from '../shared/desktop/dto';
+import type { AgentSession, MediaAsset, Project, ProjectChangeGroup, ProjectEditLease, TimelineClip } from '../shared/desktop/dto';
 import { unavailableNativeShell, type NativeShell } from '../data/nativeShell';
 import { renderPage } from './delivery/test/renderPage';
 import { ProjectWorkspacePage } from './ProjectWorkspacePage';
@@ -92,6 +92,7 @@ function renderWorkspace({
   session = null,
   lease = null,
   groups = [],
+  assets = [],
   agentConfigured = true,
   project = PROJECT,
   shell,
@@ -101,6 +102,7 @@ function renderWorkspace({
   readonly session?: AgentSession | null;
   readonly lease?: ProjectEditLease | null;
   readonly groups?: readonly ProjectChangeGroup[];
+  readonly assets?: readonly MediaAsset[];
   readonly agentConfigured?: boolean;
   readonly project?: Project;
   readonly shell?: NativeShell | undefined;
@@ -110,6 +112,7 @@ function renderWorkspace({
     client: {
       getProject: () => Promise.resolve(project),
       listProjectChangeGroups: () => Promise.resolve(groups),
+      listMediaAssets: () => Promise.resolve({ items: assets }),
       getProjectEditLease: () => Promise.resolve(lease),
       agentStatus: () => Promise.resolve({ runtimeAvailable: true, configured: agentConfigured, provider: agentConfigured ? 'test' : '', model: agentConfigured ? 'test' : '', streaming: true }),
       ...(session === null ? {} : { getAgentSession: () => Promise.resolve(session) }),
@@ -411,6 +414,7 @@ describe('unified project workspace', () => {
     const videos = monitor.querySelectorAll('video');
     expect(videos).toHaveLength(2);
     expect([...videos].every((video) => !video.controls)).toBe(true);
+    expect([...videos].every((video) => video.classList.contains('object-contain') && !video.classList.contains('object-cover'))).toBe(true);
     const first = screen.getByLabelText('A 视频预览') as HTMLVideoElement;
     const play = vi.fn(() => Promise.resolve());
     const pause = vi.fn();
@@ -445,10 +449,52 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('row', { name: 'Music' })).toBeTruthy();
     expect(screen.queryByRole('radio', { name: '快速剪辑' })).toBeNull();
     expect(screen.queryByRole('radio', { name: '多轨精剪' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '录制缺失片段' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '导出成片' })).toBeNull();
+    expect(screen.getByRole('button', { name: '录制缺失片段' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '导出成片' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Agent' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '阻塞显示' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '时间轴设置' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull();
     expect(applyProjectPatch).not.toHaveBeenCalled();
+  });
+
+  it('opens the project media bin and inserts a full asset at the transport time', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-new',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\new.mp4',
+      name: 'New angle',
+      kind: 'video',
+      duration_seconds: 6,
+      width: 1920,
+      height: 1080,
+      file_size: 1_024,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ assets: [asset], applyProjectPatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '项目素材' }));
+    expect(screen.getByRole('heading', { name: '项目素材' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '将 New angle 加入时间线' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ name: 'New angle', placement: expect.objectContaining({ start: 0, duration: 6 }) }),
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 6 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 11 }) }),
+        ],
+      })],
+    })));
   });
 
   it('opens clip properties on demand and writes against the same revision', async () => {

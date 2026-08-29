@@ -7,14 +7,10 @@ import {
   ChevronRight,
   Clapperboard,
   Eye,
-  Grid2X2,
-  LayoutList,
   Link2,
-  List,
   LockKeyhole,
   MoveRight,
   MousePointer2,
-  Settings2,
   SquarePlus,
   Star,
   Scissors,
@@ -435,12 +431,6 @@ export function ProjectTimeline({
         ) : null}
         <span className="flex items-center gap-1.5"><span className="size-2 bg-accent-400" /><Trans>已录制 {recordedCount}</Trans></span>
         <span className="flex items-center gap-1.5"><span className="size-2 bg-neutral-200" /><Trans>未录制 {plannedCount}</Trans></span>
-        <span className="ml-auto flex items-center gap-2">
-          <button type="button" className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2"><LayoutList className="size-3.5" aria-hidden="true" /><Trans>阻塞显示</Trans></button>
-          <TimelineFooterButton label={t`时间轴设置`}><Settings2 className="size-3.5" aria-hidden="true" /></TimelineFooterButton>
-          <TimelineFooterButton label={t`网格视图`}><Grid2X2 className="size-3.5" aria-hidden="true" /></TimelineFooterButton>
-          <TimelineFooterButton label={t`列表视图`}><List className="size-3.5" aria-hidden="true" /></TimelineFooterButton>
-        </span>
       </footer>
 
       <div
@@ -1090,8 +1080,4 @@ const TimelineEventRow = memo(function TimelineEventRow({ clips, scale, contentW
 
 function TimelineGrid({ ticks }: { readonly ticks: ReturnType<typeof rulerTicks> }) {
   return <>{ticks.filter((tick) => tick.major).map((tick) => <span key={`grid:${tick.time}`} className="pointer-events-none absolute inset-y-0 border-l border-divider" style={{ left: tick.px }} aria-hidden="true" />)}</>;
-}
-
-function TimelineFooterButton({ label, children }: { readonly label: string; readonly children: React.ReactNode }) {
-  return <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider" aria-label={label}>{children}</button>;
 }

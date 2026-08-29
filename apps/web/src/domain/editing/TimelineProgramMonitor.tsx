@@ -84,47 +84,49 @@ export function TimelineProgramMonitor({
           </p>
         </div>
       ) : (
-        <div className="relative min-h-0 flex-1 overflow-hidden bg-neutral-900">
-          {media.map(({ clip, src }) => {
-            const isTarget = clip.id === targetId;
-            const isPresented = clip.id === presentedId;
-            const offset = isTarget ? previewOffsetSeconds : 0;
-            return (
-              <PooledPreviewVideo
-                key={clip.id}
-                clip={clip}
-                src={src}
-                fps={project.document.fps}
-                offsetSeconds={offset}
-                target={isTarget}
-                presented={isPresented}
-                playing={playing && isTarget && isPresented}
-                onTimelineTimeChange={(sourceSeconds) => {
-                  const timelineSeconds = clip.placement.start
-                    + (sourceSeconds - clip.placement.source_in) / clip.placement.speed;
-                  onTimelineTimeChange(Math.min(
-                    clip.placement.start + clip.placement.duration,
-                    Math.max(clip.placement.start, timelineSeconds),
-                  ));
-                }}
-                onEnded={() => {
-                  const end = clip.placement.start + clip.placement.duration;
-                  onTimelineTimeChange(end);
-                  if (end >= project.document.duration_seconds - 1 / project.document.fps) onPlaybackEnd();
-                }}
-                onReady={() => {
-                  if (clip.id === targetId) setPresentedId(clip.id);
-                }}
-              />
-            );
-          })}
-          {presentedId === targetId ? null : (
-            <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-2 py-1 text-2xs text-neutral-100">
-              <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
-              <Trans>正在定位帧</Trans>
-            </span>
-          )}
-          <div className="absolute inset-x-0 bottom-0 flex h-[var(--h-panel-head)] items-center gap-3 border-t border-divider bg-bg/95 px-3 text-xs text-text backdrop-blur-sm">
+        <div className="flex min-h-0 flex-1 flex-col bg-neutral-900">
+          <div className="relative min-h-0 flex-1 overflow-hidden">
+            {media.map(({ clip, src }) => {
+              const isTarget = clip.id === targetId;
+              const isPresented = clip.id === presentedId;
+              const offset = isTarget ? previewOffsetSeconds : 0;
+              return (
+                <PooledPreviewVideo
+                  key={clip.id}
+                  clip={clip}
+                  src={src}
+                  fps={project.document.fps}
+                  offsetSeconds={offset}
+                  target={isTarget}
+                  presented={isPresented}
+                  playing={playing && isTarget && isPresented}
+                  onTimelineTimeChange={(sourceSeconds) => {
+                    const timelineSeconds = clip.placement.start
+                      + (sourceSeconds - clip.placement.source_in) / clip.placement.speed;
+                    onTimelineTimeChange(Math.min(
+                      clip.placement.start + clip.placement.duration,
+                      Math.max(clip.placement.start, timelineSeconds),
+                    ));
+                  }}
+                  onEnded={() => {
+                    const end = clip.placement.start + clip.placement.duration;
+                    onTimelineTimeChange(end);
+                    if (end >= project.document.duration_seconds - 1 / project.document.fps) onPlaybackEnd();
+                  }}
+                  onReady={() => {
+                    if (clip.id === targetId) setPresentedId(clip.id);
+                  }}
+                />
+              );
+            })}
+            {presentedId === targetId ? null : (
+              <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-2 py-1 text-2xs text-neutral-100">
+                <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
+                <Trans>正在定位帧</Trans>
+              </span>
+            )}
+          </div>
+          <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-t border-divider bg-bg px-3 text-xs text-text">
             <button
               type="button"
               className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
@@ -209,7 +211,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   return (
     <video
       ref={videoRef}
-      className="absolute inset-0 size-full bg-neutral-900 object-cover transition-opacity duration-75"
+      className="absolute inset-0 size-full bg-neutral-900 object-contain transition-opacity duration-75"
       src={src}
       preload={target || presented ? 'auto' : 'metadata'}
       playsInline

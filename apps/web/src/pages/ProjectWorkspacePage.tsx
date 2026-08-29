@@ -7,11 +7,14 @@ import {
   ChevronRight,
   CircleAlert,
   CircleHelp,
+  Download,
+  FolderOpen,
   LoaderCircle,
   Send,
   Sparkles,
   Square,
   Star,
+  Video,
   Wrench,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -33,6 +36,7 @@ import { useAgentStatus } from '../data/config';
 import { useTask } from '../data/tasks';
 import { useMapRadarOverview, useMatchReplay } from '../data/match';
 import { useNativeShell } from '../data/nativeShell';
+import { useImportMediaAsset, useMediaAssets } from '../data/mediaAssets';
 import {
   useAgentChatStream,
   useAgentSession,
@@ -40,11 +44,17 @@ import {
   useCreateAgentSession,
 } from '../data/sessions';
 import { Empty, Skeleton } from '../design/data';
-import { Alert, Drawer } from '../design/feedback';
+import { Alert, Dialog, Drawer } from '../design/feedback';
 import { Page, Toolbar } from '../design/layout';
 import { Button, cn } from '../design/primitives';
 import { ReviewPanel } from '../design/review';
-import { ProjectTimeline, TimelineProgramMonitor, trimRippleClip } from '../domain/editing';
+import {
+  insertRippleClipAtTime,
+  ProjectTimeline,
+  timelineClipFromMediaAsset,
+  TimelineProgramMonitor,
+  trimRippleClip,
+} from '../domain/editing';
 import { MapCanvas, PathLayer, type MapProjection } from '../domain/map';
 import type {
   Project,
@@ -55,6 +65,7 @@ import type {
   AgentSessionEntry,
   AgentToolCall,
   JsonValue,
+  MediaAsset,
   TimelineClip,
   TimelineTrack,
 } from '../shared/desktop/dto';
@@ -109,6 +120,9 @@ export function ProjectWorkspacePage() {
   const project = useProject(canonicalId);
   const groups = useProjectChangeGroups(canonicalId);
   const lease = useProjectEditLease(canonicalId);
+  const mediaAssets = useMediaAssets(canonicalId, { enabled: canonicalId !== null });
+  const importMedia = useImportMediaAsset();
+  const nativeShell = useNativeShell();
   const apply = useApplyProjectPatch();
   const revertChange = useRevertProjectChangeGroup(canonicalId ?? '');
   const startRecording = useStartProjectRecording();
@@ -118,6 +132,8 @@ export function ProjectWorkspacePage() {
   const [timelineTimeSeconds, setTimelineTimeSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [externalConfirm, setExternalConfirm] = useState<'recording' | 'export' | null>(null);
   const agentSessionId = searchParams.get('session');
   const agentSession = useAgentSession(agentSessionId);
   const createAgentSession = useCreateAgentSession();
@@ -223,6 +239,10 @@ export function ProjectWorkspacePage() {
     && group.reverts_change_group_id === null
     && !revertedChangeGroupIds.has(group.id));
   const allClips = current.document.tracks.flatMap((track) => track.clips);
+  const storyTrack = current.document.tracks.find((track) => track.id === current.document.story_track_id) ?? null;
+  const plannedClipIds = storyTrack?.clips
+    .filter((clip) => clip.material.kind === 'planned')
+    .map((clip) => clip.id) ?? [];
   const mutate = (summary: string, scope: ProjectPatchScope, operations: ProjectEditOperation[]) => {
     if (readOnly || apply.isPending) return;
     apply.mutate({
@@ -240,6 +260,25 @@ export function ProjectWorkspacePage() {
       current.document.duration_seconds,
       Math.max(0, seconds),
     ));
+  };
+  const addMediaAsset = (asset: MediaAsset) => {
+    if (storyTrack === null || asset.duration_seconds === null || asset.duration_seconds <= 0) return;
+    const clips = insertRippleClipAtTime(
+      storyTrack.clips,
+      timelineClipFromMediaAsset(asset, globalThis.crypto.randomUUID()),
+      transportTimeSeconds,
+      globalThis.crypto.randomUUID(),
+    );
+    mutate(
+      `插入素材 ${asset.name}`,
+      { kind: 'track', track_id: storyTrack.id },
+      [{ op: 'replace_track_clips', track_id: storyTrack.id, clips }],
+    );
+  };
+  const importProjectMedia = async () => {
+    if (!nativeShell.available) return;
+    const paths = await nativeShell.chooseFiles({ title: t`导入项目素材` });
+    await Promise.all(paths.map((path) => importMedia.mutateAsync({ path, projectId: current.id })));
   };
   const sendToAgent = async (message: string) => {
     let sessionId = agentSessionId;
@@ -286,6 +325,35 @@ export function ProjectWorkspacePage() {
           <span className="text-neutral-300">·</span>
           <span className="whitespace-nowrap text-xs text-neutral-500"><Trans>共 {latestAgentGroup?.operations.length ?? 0} 处变更</Trans></span>
           <span className="ml-1 flex items-center gap-1 whitespace-nowrap text-xs text-ok"><CheckCircle2 className="size-3.5" strokeWidth={1.6} aria-hidden="true" /><Trans>检查通过</Trans></span>
+          <button
+            type="button"
+            data-window-no-drag
+            className="ml-3 flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100"
+            onClick={() => setMediaOpen(true)}
+          >
+            <FolderOpen className="size-3.5" aria-hidden="true" />
+            <Trans>项目素材</Trans>
+          </button>
+          <button
+            type="button"
+            data-window-no-drag
+            className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300"
+            disabled={readOnly || plannedClipIds.length === 0 || startRecording.isPending}
+            onClick={() => setExternalConfirm('recording')}
+          >
+            <Video className="size-3.5" aria-hidden="true" />
+            <Trans>录制缺失片段</Trans>
+          </button>
+          <button
+            type="button"
+            data-window-no-drag
+            className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-accent bg-accent px-2 text-xs text-bg hover:bg-accent-700 disabled:border-divider disabled:bg-neutral-200 disabled:text-neutral-400"
+            disabled={readOnly || plannedClipIds.length > 0 || exportProject.isPending}
+            onClick={() => setExternalConfirm('export')}
+          >
+            <Download className="size-3.5" aria-hidden="true" />
+            <Trans>导出成片</Trans>
+          </button>
           <span className="ml-auto flex items-center gap-5 text-neutral-600" data-window-no-drag>
             <Bell className="size-4" strokeWidth={1.5} aria-hidden="true" />
             <CircleHelp className="size-4" strokeWidth={1.5} aria-hidden="true" />
@@ -387,6 +455,72 @@ export function ProjectWorkspacePage() {
           />
       </div>
       <Drawer
+        open={mediaOpen}
+        title={<Trans>项目素材</Trans>}
+        description={<Trans>{mediaAssets.data?.items.length ?? 0} 个素材</Trans>}
+        width="standard"
+        onClose={() => setMediaOpen(false)}
+        footer={(
+          <Button size="sm" variant="secondary" disabled={!nativeShell.available || importMedia.isPending} onClick={() => void importProjectMedia()}>
+            <Trans>导入文件</Trans>
+          </Button>
+        )}
+      >
+        {mediaAssets.isPending ? <Skeleton className="h-24" /> : mediaAssets.data?.items.length ? (
+          <ul className="list-none divide-y divide-divider">
+            {mediaAssets.data.items.map((asset) => (
+              <li key={asset.id} className="flex items-center gap-3 py-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{asset.name}</span>
+                  <span className="block text-2xs text-neutral-500">{asset.kind} · {asset.duration_seconds === null ? t`时长未知` : `${asset.duration_seconds.toFixed(3)}s`}</span>
+                </span>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={readOnly || apply.isPending || asset.duration_seconds === null || asset.duration_seconds <= 0}
+                  aria-label={t`将 ${asset.name} 加入时间线`}
+                  onClick={() => addMediaAsset(asset)}
+                >
+                  <Trans>加入</Trans>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <Empty
+            title={<Trans>项目还没有素材</Trans>}
+            description={<Trans>导入视频或音频后，可直接加入播放头所在位置。</Trans>}
+            actions={<Button size="sm" variant="secondary" disabled={!nativeShell.available || importMedia.isPending} onClick={() => void importProjectMedia()}><Trans>导入文件</Trans></Button>}
+          />
+        )}
+      </Drawer>
+      <Dialog
+        open={externalConfirm === 'recording'}
+        title={<Trans>录制缺失片段</Trans>}
+        confirmLabel={<Trans>开始录制</Trans>}
+        confirmDisabled={plannedClipIds.length === 0 || startRecording.isPending}
+        onConfirm={() => {
+          setExternalConfirm(null);
+          startRecording.mutate({ projectId: current.id, clipIds: plannedClipIds });
+        }}
+        onClose={() => setExternalConfirm(null)}
+      >
+        <p><Trans>将启动 CS2/HLAE，录制 {plannedClipIds.length} 个尚未物化的时间线片段。</Trans></p>
+      </Dialog>
+      <Dialog
+        open={externalConfirm === 'export'}
+        title={<Trans>导出成片</Trans>}
+        confirmLabel={<Trans>开始导出</Trans>}
+        confirmDisabled={plannedClipIds.length > 0 || exportProject.isPending}
+        onConfirm={() => {
+          setExternalConfirm(null);
+          exportProject.mutate({ projectId: current.id });
+        }}
+        onClose={() => setExternalConfirm(null)}
+      >
+        <p><Trans>按当前 Project Head 和统一时间线导出最终 MP4。</Trans></p>
+      </Dialog>
+      <Drawer
         open={inspectorOpen && selected !== null}
         title={<Trans>片段属性</Trans>}
         {...(selected === null ? {} : { description: selected.clip.name })}
@@ -415,8 +549,8 @@ export function ProjectWorkspacePage() {
           }}
         />
       </Drawer>
-      {apply.error === null && revertChange.error === null && startRecording.error === null && exportProject.error === null ? null : (
-        <Alert className="m-4" variant="danger" action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); } }}>
+      {apply.error === null && revertChange.error === null && startRecording.error === null && exportProject.error === null && importMedia.error === null ? null : (
+        <Alert className="m-4" variant="danger" action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); importMedia.reset(); } }}>
           <Trans>操作没有完成。检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>
         </Alert>
       )}
@@ -566,7 +700,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected }: { readonly s
               key={src}
               src={src}
               alt=""
-              className="pointer-events-none absolute inset-0 z-0 size-full scale-[1.18] object-contain brightness-110 contrast-110 transition-opacity duration-75"
+              className="pointer-events-none absolute inset-0 z-0 size-full object-contain brightness-110 contrast-110 transition-opacity duration-75"
               style={{ opacity: displayed?.radarSrc === src ? 1 : 0 }}
               onLoad={() => {
                 const scene = pendingRadarScenesRef.current.get(src);
@@ -583,7 +717,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected }: { readonly s
                 overviewTransform={displayed.transform}
                 label={displayed.label}
                 status={displayed.status}
-                className="relative z-10 h-full min-h-0 bg-transparent [&>div]:p-0 [&_.blueprint]:h-full [&_.blueprint]:max-w-none [&_.blueprint]:scale-[1.18] [&_.blueprint]:bg-transparent [&_figcaption]:hidden"
+                className="relative z-10 h-full min-h-0 bg-transparent [&>div]:p-0 [&_.blueprint]:aspect-square [&_.blueprint]:h-full [&_.blueprint]:w-auto [&_.blueprint]:max-h-full [&_.blueprint]:max-w-full [&_.blueprint]:bg-transparent [&_figcaption]:hidden"
                 basemap={TRANSPARENT_MAP_BASEMAP}
               >
                 {renderTacticalLayers}

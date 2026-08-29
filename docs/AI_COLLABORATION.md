@@ -21,6 +21,15 @@ plan, montage, editor, or conversion pipeline.
   Agent text, live and completed tool calls, Edit Lease state, inline HITL
   requests, and final delivery actions stay in that stream rather than opening
   separate workflow or review pages.
+- Every tool invocation receives one request-scoped stable ID before execution.
+  The Channel projects `started` and exactly one terminal state (`completed`,
+  `failed`, or `awaiting_confirmation`) under that identity. Terminal calls are
+  persisted in the assistant turn; the live projection is handed to that
+  durable turn before a background refetch, so the UI never flashes a stale
+  “running” card after completion.
+- HITL decisions are structured conversation entries bound to the originating
+  `tool_call_id`. Unrelated human text cannot approve, reject, or dismiss a
+  pending recording/export request, and reload preserves the decision link.
 - Video playback and the tactical diagram share one docked left/right preview
   region. Their divider changes the width ratio; neither side is a floating
   window or a separate editing surface.
@@ -52,12 +61,13 @@ the webview or tool output.
 
 ## Model configuration
 
-The development override uses Kimi Code's OpenAI-compatible endpoint:
+The development override uses Kimi Code's Anthropic-compatible transport:
 
 ```text
 provider = kimi-for-coding
 model = k3
 base URL = https://api.kimi.com/coding/v1
+parameter style = Anthropic
 ```
 
 The API key is read by the desktop host from Vibe CS configuration or, in a

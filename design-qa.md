@@ -4,6 +4,8 @@ final result: passed
 
 ## Comparison target
 
+- Interaction reference: Adobe Premiere's official Project panel / Source Monitor Insert and Overwrite workflow: <https://helpx.adobe.com/premiere/desktop/edit-projects/intro-to-editing/add-or-remove-clips.html>.
+- Open-source reference: FreeCut `4d62e8082c5eb387a96275bcbd323d28f6e41a62`, especially `media-library.tsx`, `media-grid.tsx`, `source-monitor.tsx`, and `source-edit-actions.ts`. Only the proven Project panel selection/filter/source-edit semantics were adopted; its separate store/runtime was not copied.
 - Source visual truth: `C:\Users\12009\.codex\generated_images\01a044dc-e4a6-7103-b96a-31a535e92c75\exec-e64a95ce-7302-4770-b145-796da6f17a24.png`.
 - Browser-rendered implementation: `target/complete-preview/02-fixed.png`.
 - Functional editor pass: `target/editor-iteration/03-transition.png`.
@@ -31,6 +33,8 @@ final result: passed
 - Rolling edit pass: `target/editor-iteration/25-rolling-preview.png`.
 - Rate Stretch pass: `target/editor-iteration/26-rate-stretch.png`.
 - Slide edit pass: `target/editor-iteration/27-slide-preview.png`.
+- Docked Project Media pass: `target/editor-iteration/30-project-media-panel-empty-fixed.png`.
+- Compact Project Media overlay pass: `target/editor-iteration/31-project-media-panel-1100-overlay.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -55,6 +59,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - Timeline snapping follows a screen-space threshold like the reference editors: ten pixels are converted through the shared time scale; candidates include other clip edges, markers, and the playhead; moving clips compare both edges; Shift bypasses snapping; the active guide shares ruler geometry.
 - Additive selection can span tracks. Batch delete and paste submit one Project Patch containing per-track replacements, with Story ripple semantics and free positioning preserved per track. Non-Story tracks can be reordered through the canonical `reorder_tracks` operation.
 - Project media exposes distinct insert and overwrite edits. Insert keeps Story ripple semantics; overwrite removes only the covered interval, preserves surviving source ranges, and does not move the later timeline.
+- Project Media is now a production dock rather than a transient file drawer. It projects canonical Story clips and unreferenced imported assets as one project-facing library: planned clips read `TimelineClip.material = planned`, recorded clips retain the same clip identity and resolve their media, and already-referenced assets are not duplicated as raw files. Search and the planned/recorded/imported filter operate on that projection; selecting a timeline item also selects and seeks the canonical clip.
+- Imported sources expose Premiere-style Insert and Overwrite through the same callbacks as `,` and `.`. The source surface is a still-frame monitor without native playback controls. It keeps the previous decoded source mounted until the newly selected asset reports `loadeddata`, uses `object-fit: contain`, and never takes authority from Timeline Transport or Program Monitor.
 - Markers are editable canonical `EditingDocument.markers`: M or the visible tool adds one at the playhead; clicking seeks; double-clicking edits label, frame-snapped time, and colour; save and delete both use `replace_markers`.
 - I/O or the visible header controls mark a frame-aligned time range on the shared ruler geometry. Extract removes that range from the current target: Story closes the interval while free tracks retain absolute later placements.
 - Premiere Q/W ripple trims use the same selected Story clip, transport playhead, trim constraints, and `replace_track_clips` commit path as pointer trimming. Trimming the first Story clip now preserves the original track origin.
@@ -132,6 +138,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A twenty-first live pass fully reloaded Tauri, selected Rolling Edit, and moved the Hook/Build cut by −0.450 seconds. While held, revision remained 54, duration stayed `00:29.567`, the shared playhead/cut moved to `12.5333333`, and both canonical clip blocks/source bounds updated in place. Program showed two decoded `297.40625px` slots with exact `left/right` identities, `overflow:hidden`, and the original two URLs. Release alone committed revision 55, restored normal Program mode, and retained the new cut as transport position with no page errors.
 - A twenty-second live pass restarted Tauri after the Rust invariant change, selected Rate Stretch, and dragged Hook's right edge. While held, revision remained 56; duration changed `11.033s → 11.783s`, speed previewed `1.063649× / 106.4%`, source In/Out stayed `0.2666667–12.8`, and Build rippled to the exact new boundary. Program exposed the same draft speed while retaining two identical URLs. Release alone committed revision 57; the independent audio kept overall Project duration at `00:29.567`, and page errors remained empty.
 - A twenty-third live pass used Project Media at the exact Story end to insert a real Anubis clip as revision 58, producing a three-clip Story and six stable `program/trim` video roles. A cold-reload Slide initially exposed an effect-order readiness race; after identity-keyed readiness, four decoded `124.28125px` slots appeared immediately. The final −0.633-second Slide held revision 61 and duration `00:38.340`; the middle clip retained source `3.200000033–15.7666667` and duration, while adjacent source bounds compensated. Release alone committed revision 62, restored normal Program, and kept transport at the exact previewed start `11.9333333`. All six role URLs remained unchanged and page errors were empty.
+- A twenty-fourth live pass replaced the old media drawer with the docked Project Media projection. At 1440×900 it occupied 280px and left the canonical Timeline 711px; hiding it restored the Timeline to 998px. At 1100×700 a fresh load kept the Timeline at 658px and the document at zero horizontal overflow; opening media produced a 340px workspace overlay without changing Timeline width. A final reload had no browser errors or console failures.
 
 ## Comparison history
 
@@ -169,6 +176,8 @@ No actionable P0, P1, or P2 mismatch remains.
 32. `target/editor-iteration/25-rolling-preview.png`: the common Hook/Build cut and playhead move together while the existing Program pool presents effect-correct outgoing and incoming frames in isolated half-width slots.
 33. `target/editor-iteration/26-rate-stretch.png`: Hook displays the live `106.4%` duration tooltip while its fixed source range, downstream Story ripple, waveform, and stable Program frame remain visible together.
 34. `target/editor-iteration/27-slide-preview.png`: four real source frames label previous Out, selected In/Out, and next In while the same three canonical timeline blocks preview one Slide delta.
+35. `target/editor-iteration/30-project-media-panel-empty-fixed.png`: the docked Project Media panel reserves complete source-preview, action, and library regions beside the unchanged canonical Timeline.
+36. `target/editor-iteration/31-project-media-panel-1100-overlay.png`: the compact workspace opens Project Media as a bounded overlay while the full Timeline geometry remains available underneath.
 
 ## Verification
 
@@ -178,7 +187,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - Focused Rolling/Slip interaction and Project workbench tests: 78 passed.
 - Focused Rate Stretch/Rolling/Slip interaction and Project workbench tests: 83 passed.
 - Focused Slide/Rate Stretch/Rolling/Slip interaction and Project workbench tests: 88 passed.
-- Full web suite: 258 files and 2965 tests passed.
+- Focused Project Media and Project workbench interaction tests: 67 passed.
+- Full web suite: 259 files and 2969 tests passed.
 - Domain Project invariants: 205 tests passed; `cargo fmt -p vibe-cs-domain -- --check` passed.
 - Full Rust workspace tests and doc-tests passed; only explicitly environment-gated tests remained ignored.
 - Strict i18n/layer lint and TypeScript build passed.

@@ -466,21 +466,93 @@ async fn list_assets(
     State(state): State<AppState>,
     ApiQuery(query): ApiQuery<AssetQuery>,
 ) -> ApiResult<Json<ItemList<MediaAsset>>> {
-    Ok(Json(ItemList {
-        items: state.storage.list_assets(query.project_id).await?,
-    }))
+    let assets = state.storage.list_assets(query.project_id).await?;
+    let items = stream::iter(assets)
+        .map(project_media_availability)
+        .buffered(16)
+        .collect()
+        .await;
+    Ok(Json(ItemList { items }))
 }
 
 async fn get_asset(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<MediaAsset>> {
-    state
+    let asset = state
         .storage
         .get_asset(parse_id(&id)?)
         .await?
-        .map(Json)
-        .ok_or_else(|| ApiError::not_found("media asset"))
+        .ok_or_else(|| ApiError::not_found("media asset"))?;
+    Ok(Json(project_media_availability(asset).await))
+}
+
+async fn project_media_availability(mut asset: MediaAsset) -> MediaAsset {
+    let unavailable = match tokio::fs::metadata(&asset.path).await {
+        Ok(metadata) if metadata.is_file() => None,
+        Ok(_) => Some("source media path is not a regular file".to_owned()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Some("source media file is missing; relink it to continue editing".to_owned())
+        }
+        Err(_) => {
+            Some("source media file is unavailable; relink it to continue editing".to_owned())
+        }
+    };
+    if let Some(message) = unavailable {
+        asset.metadata_status = MediaMetadataStatus::Unavailable { message };
+    }
+    asset
+}
+
+#[cfg(test)]
+mod media_availability_tests {
+    use super::*;
+
+    fn asset(path: &FsPath) -> MediaAsset {
+        MediaAsset {
+            id: Uuid::from_u128(1),
+            project_id: None,
+            path: path.to_string_lossy().into_owned(),
+            name: "source.wav".to_owned(),
+            kind: "audio".to_owned(),
+            duration_seconds: Some(1.0),
+            width: None,
+            height: None,
+            file_size: 4,
+            has_audio: true,
+            proxy_path: None,
+            proxy_status: MediaProxyStatus::NotRequested,
+            waveform: None,
+            metadata_status: MediaMetadataStatus::Ready,
+            created_at: DateTime::UNIX_EPOCH,
+        }
+    }
+
+    #[tokio::test]
+    async fn availability_projection_preserves_present_metadata_truth() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("source.wav");
+        std::fs::write(&path, b"RIFF").expect("fixture");
+
+        assert_eq!(
+            project_media_availability(asset(&path))
+                .await
+                .metadata_status,
+            MediaMetadataStatus::Ready
+        );
+    }
+
+    #[tokio::test]
+    async fn availability_projection_marks_a_missing_source_without_mutating_storage() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let path = directory.path().join("missing.wav");
+        let projected = project_media_availability(asset(&path)).await;
+
+        assert!(matches!(
+            projected.metadata_status,
+            MediaMetadataStatus::Unavailable { ref message } if message.contains("missing")
+        ));
+    }
 }
 
 async fn stream_asset(

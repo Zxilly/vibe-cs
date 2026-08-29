@@ -29,6 +29,7 @@ final result: passed
 - Clip effects pass: `target/editor-iteration/23-effects.png`.
 - Slip edit pass: `target/editor-iteration/24-slip-preview.png`.
 - Rolling edit pass: `target/editor-iteration/25-rolling-preview.png`.
+- Rate Stretch pass: `target/editor-iteration/26-rate-stretch.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -79,6 +80,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Clip effects use one closed renderer-backed vocabulary shared by the Inspector and Program Monitor: Color Adjust, Grayscale, and Blur. The Inspector adds, enables, orders, deletes, and constrains their canonical parameters; enabled unknown effects block save instead of creating a preview/export mismatch. The canonical video clip shows the enabled count as an `fxN` badge, and Program evaluates the ordered stack without remounting pooled media.
 - Slip is an independent Premiere-style timeline tool rather than an alias for move or trim. V selects Selection and Y selects Slip; dragging changes source In/Out by one shared frame-snapped delta while timeline start/duration stay fixed. Linked multi-track selections intersect every media boundary, locked/planned/full-range clips cannot pretend to move, and the completed gesture submits one Project Patch. The transient draft is projected into the existing Program Monitor without changing clip identity or media `src`, then discarded before persistence.
 - Rolling Edit is a distinct N-key tool over one real adjacent cut. The shared handle trims the outgoing Out and incoming In by the same frame delta, preserves both outer edges and their combined duration, snaps through the common timeline geometry, edge-scrolls, and commits one `replace_track_clips` operation. Gaps and variable-speed clips do not expose a false rolling point. During the gesture Program reuses the same two pooled media elements as a decoded outgoing/incoming Trim Monitor; stable half-width overflow slots preserve canonical Transform/effects without allowing either frame to cross the center boundary, and media `timeupdate` never becomes transport authority.
+- Rate Stretch is a distinct R-key tool backed by one constant-speed invariant. Dragging a right edge retains source In/Out, derives speed from source span / frame-snapped duration, proportionally retimes clip keyframes, and live-ripples the Story Track; free tracks additionally expose the left edge without inventing Story gaps. Program and FFmpeg share the canonical `0.0625×–16×` range, while Rust rejects speed/duration/source documents that disagree. Inspector duration and speed call the same Rate Stretch operation; `speed_segments` explicitly require the separate time-remapping editor instead of being overwritten.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -126,6 +128,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A nineteenth live pass added Color Adjust (brightness 0.2, contrast 1.2, saturation 0.8) and Blur (radius 4), reordered Blur before Color Adjust, and saved exactly revision 50. Program exposed `blur,color_adjust` and the matching ordered CSS filter while retaining two pooled videos; the canonical clip displayed `fx2` and page errors remained empty.
 - A twentieth live pass selected Slip and dragged Hook 50 CSS pixels right. While held, revision remained 50; source In/Out previewed `1.7666667–14.0 → 0.2666667–12.5`, Program source time became `0.2666667`, and timeline `left=0px` / `width=408.375px` stayed exact. The warm pool retained two identical URLs. Release alone committed revision 51; V restored Selection and both trim handles, with no page errors.
 - A twenty-first live pass fully reloaded Tauri, selected Rolling Edit, and moved the Hook/Build cut by −0.450 seconds. While held, revision remained 54, duration stayed `00:29.567`, the shared playhead/cut moved to `12.5333333`, and both canonical clip blocks/source bounds updated in place. Program showed two decoded `297.40625px` slots with exact `left/right` identities, `overflow:hidden`, and the original two URLs. Release alone committed revision 55, restored normal Program mode, and retained the new cut as transport position with no page errors.
+- A twenty-second live pass restarted Tauri after the Rust invariant change, selected Rate Stretch, and dragged Hook's right edge. While held, revision remained 56; duration changed `11.033s → 11.783s`, speed previewed `1.063649× / 106.4%`, source In/Out stayed `0.2666667–12.8`, and Build rippled to the exact new boundary. Program exposed the same draft speed while retaining two identical URLs. Release alone committed revision 57; the independent audio kept overall Project duration at `00:29.567`, and page errors remained empty.
 
 ## Comparison history
 
@@ -161,6 +164,7 @@ No actionable P0, P1, or P2 mismatch remains.
 30. `target/editor-iteration/23-effects.png`: the Build clip and Program Monitor show the same enabled two-effect stack after one canonical save.
 31. `target/editor-iteration/24-slip-preview.png`: Hook keeps its exact timeline geometry while the live In/Out overlay and Program frame preview a negative 1.5-second Slip draft before commit.
 32. `target/editor-iteration/25-rolling-preview.png`: the common Hook/Build cut and playhead move together while the existing Program pool presents effect-correct outgoing and incoming frames in isolated half-width slots.
+33. `target/editor-iteration/26-rate-stretch.png`: Hook displays the live `106.4%` duration tooltip while its fixed source range, downstream Story ripple, waveform, and stable Program frame remain visible together.
 
 ## Verification
 
@@ -168,6 +172,9 @@ No actionable P0, P1, or P2 mismatch remains.
 - Focused clip-effects and Project workbench tests: 60 passed.
 - Focused Slip interaction and Project workbench tests: 74 passed.
 - Focused Rolling/Slip interaction and Project workbench tests: 78 passed.
-- Full web suite: 258 files and 2955 tests passed.
+- Focused Rate Stretch/Rolling/Slip interaction and Project workbench tests: 83 passed.
+- Full web suite: 258 files and 2960 tests passed.
+- Domain Project invariants: 205 tests passed; `cargo fmt -p vibe-cs-domain -- --check` passed.
+- Full Rust workspace tests and doc-tests passed; only explicitly environment-gated tests remained ignored.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

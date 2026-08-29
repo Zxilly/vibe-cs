@@ -76,6 +76,10 @@ import {
   linearGainToDb,
   MAX_CLIP_GAIN_DB,
   MIN_CLIP_GAIN_DB,
+  MIN_CLIP_FADE_SECONDS,
+  clipFadeDuration,
+  maximumClipFadeDuration,
+  setClipFadeDuration,
   moveTimelineClip,
   resolveTimelineSnap,
   snapTimeToFrame,
@@ -1128,6 +1132,10 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
                 onReplaceClip(replacement);
                 return;
               }
+              if (mode === 'fade') {
+                onReplaceClip(replacement);
+                return;
+              }
               const selectedOnTrack = new Set(track.track.clips
                 .filter((candidate) => selectedClipIds.has(candidate.id))
                 .map((candidate) => candidate.id));
@@ -1215,7 +1223,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly change: TimelineClipChange | null;
   readonly onSelect: (additive: boolean, range: boolean) => void;
   readonly onInspect: () => void;
-  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'volume') => void;
+  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'volume' | 'fade') => void;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
   readonly onSnapChange: (time: number | null) => void;
@@ -1234,7 +1242,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     return (
       <div
         className={cn(
-          'absolute inset-y-0 z-10 border-r border-divider',
+          'absolute inset-y-0 border-r border-divider',
           change?.kind === 'added' && 'border-ok-border bg-ok-surface',
           change?.kind === 'modified' && 'border-accent-400 bg-accent-100',
         )}
@@ -1250,6 +1258,14 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
           readOnly={gainReadOnly}
           selected={selected}
           onReplace={(replacement) => onReplace(replacement, 'volume')}
+        />
+        <TimelineFadeControls
+          clip={clip}
+          scale={scale}
+          fps={fps}
+          readOnly={gainReadOnly}
+          selected={selected}
+          onReplace={(replacement) => onReplace(replacement, 'fade')}
         />
         {change === null ? null : <TimelineClipChangeOverlay change={change} clip={clip} scale={scale} compact />}
       </div>
@@ -1311,7 +1327,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     <button
       type="button"
       className={cn(
-        'absolute inset-y-0.5 z-10 touch-none select-none overflow-hidden border border-divider bg-neutral-100 text-left outline-none',
+        'absolute inset-y-0.5 touch-none select-none overflow-hidden border border-divider bg-neutral-100 text-left outline-none',
         change?.kind === 'added' && 'border-ok-border bg-ok-surface',
         change?.kind === 'modified' && 'border-accent-400 bg-accent-100',
         selected && 'ring-1 ring-inset ring-accent-600',
@@ -1347,6 +1363,14 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
             readOnly={gainReadOnly}
             selected={selected}
             onReplace={(replacement) => onReplace(replacement, 'volume')}
+          />
+          <TimelineFadeControls
+            clip={clip}
+            scale={scale}
+            fps={fps}
+            readOnly={gainReadOnly}
+            selected={selected}
+            onReplace={(replacement) => onReplace(replacement, 'fade')}
           />
         </>
       ) : kind === 'text' ? <span className="grid size-full place-items-center text-2xs">{clip.name}</span> : material.streamAssetId === null ? (
@@ -1491,6 +1515,136 @@ function TimelineGainControl({ clip, trackHeight, readOnly, selected, onReplace 
 function formatGainDb(db: number): string {
   if (db <= MIN_CLIP_GAIN_DB + 1e-6) return '−∞ dB';
   return `${db >= 0 ? '+' : ''}${db.toFixed(1)} dB`;
+}
+
+function TimelineFadeControls({ clip, scale, fps, readOnly, selected, onReplace }: {
+  readonly clip: TimelineClip;
+  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly fps: number;
+  readonly readOnly: boolean;
+  readonly selected: boolean;
+  readonly onReplace: (clip: TimelineClip) => void;
+}) {
+  return (
+    <>
+      <TimelineFadeHandle clip={clip} edge="in" scale={scale} fps={fps} readOnly={readOnly} selected={selected} onReplace={onReplace} />
+      <TimelineFadeHandle clip={clip} edge="out" scale={scale} fps={fps} readOnly={readOnly} selected={selected} onReplace={onReplace} />
+    </>
+  );
+}
+
+function TimelineFadeHandle({ clip, edge, scale, fps, readOnly, selected, onReplace }: {
+  readonly clip: TimelineClip;
+  readonly edge: 'in' | 'out';
+  readonly scale: ReturnType<typeof createTimeScale>;
+  readonly fps: number;
+  readonly readOnly: boolean;
+  readonly selected: boolean;
+  readonly onReplace: (clip: TimelineClip) => void;
+}) {
+  const persistedDuration = clipFadeDuration(clip, edge);
+  const [visualDuration, setVisualDuration] = useState(persistedDuration);
+  const [active, setActive] = useState(false);
+  const visualDurationRef = useRef(visualDuration);
+  visualDurationRef.current = visualDuration;
+  const gesture = useRef<{
+    readonly pointerId: number;
+    readonly clientX: number;
+    readonly duration: number;
+  } | null>(null);
+  useEffect(() => {
+    setVisualDuration(persistedDuration);
+    visualDurationRef.current = persistedDuration;
+  }, [persistedDuration]);
+  const maximum = maximumClipFadeDuration(clip, edge, fps);
+  const percent = clip.placement.duration <= 0 ? 0 : visualDuration / clip.placement.duration * 100;
+  const commit = (duration: number) => {
+    const replacement = setClipFadeDuration(clip, edge, duration, fps);
+    if (replacement !== clip) onReplace(replacement);
+  };
+  const increaseKey = edge === 'in' ? 'ArrowRight' : 'ArrowLeft';
+  const decreaseKey = edge === 'in' ? 'ArrowLeft' : 'ArrowRight';
+  return (
+    <>
+      {visualDuration <= 0 ? null : (
+        <span
+          className={cn(
+            'pointer-events-none absolute inset-y-0 z-20 bg-accent-100/40',
+            edge === 'in'
+              ? 'left-0 [clip-path:polygon(0_100%,100%_0,100%_100%)]'
+              : 'right-0 [clip-path:polygon(0_0,100%_100%,0_100%)]',
+          )}
+          style={{ width: `${percent}%` }}
+          aria-hidden="true"
+        />
+      )}
+      <span
+        role="slider"
+        tabIndex={readOnly ? -1 : 0}
+        aria-label={edge === 'in' ? t`调整淡入 ${clip.name}` : t`调整淡出 ${clip.name}`}
+        aria-disabled={readOnly}
+        aria-valuemin={0}
+        aria-valuemax={maximum}
+        aria-valuenow={visualDuration}
+        aria-valuetext={`${visualDuration.toFixed(3)}s`}
+        className={cn(
+          'absolute z-40 size-3 -translate-x-1/2 touch-none cursor-ew-resize rounded-full border border-accent-600 bg-bg outline-none focus-visible:ring-1 focus-visible:ring-accent-500',
+          edge === 'in' ? 'top-0' : 'bottom-0',
+          edge === 'out' && 'translate-x-1/2',
+          !selected && !active && 'opacity-65',
+          readOnly && 'pointer-events-none',
+        )}
+        style={edge === 'in' ? { left: `${percent}%` } : { right: `${percent}%` }}
+        onPointerDown={(event) => {
+          if (readOnly || event.button !== 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+          gesture.current = { pointerId: event.pointerId, clientX: event.clientX, duration: persistedDuration };
+          setActive(true);
+        }}
+        onPointerMove={(event) => {
+          const current = gesture.current;
+          if (current === null || current.pointerId !== event.pointerId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const delta = pxToTime(scale, event.clientX - current.clientX) * (edge === 'in' ? 1 : -1);
+          setVisualDuration(Math.min(maximum, Math.max(0, current.duration + delta)));
+        }}
+        onPointerUp={(event) => {
+          if (gesture.current?.pointerId !== event.pointerId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          gesture.current = null;
+          setActive(false);
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
+          commit(visualDurationRef.current);
+        }}
+        onPointerCancel={() => {
+          gesture.current = null;
+          setActive(false);
+          setVisualDuration(persistedDuration);
+        }}
+        onKeyDown={(event) => {
+          if (readOnly || (event.key !== increaseKey && event.key !== decreaseKey)) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const direction = event.key === increaseKey ? 1 : -1;
+          const requested = visualDuration + direction * (event.shiftKey ? 0.25 : 1 / fps);
+          const duration = Math.min(maximum, Math.max(
+            0,
+            direction > 0 && visualDuration < MIN_CLIP_FADE_SECONDS
+              ? MIN_CLIP_FADE_SECONDS
+              : requested,
+          ));
+          setVisualDuration(duration);
+          commit(duration);
+        }}
+      >
+        {active ? <span className="absolute left-1/2 bottom-full mb-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-neutral-900 px-1.5 py-0.5 font-mono text-2xs text-bg">{visualDuration.toFixed(3)}s</span> : null}
+      </span>
+    </>
+  );
 }
 
 function TimelineToolStrip({
@@ -1796,7 +1950,7 @@ function TimelineClipWaveform({ clip, change }: { readonly clip: TimelineClip; r
       loading={query.isPending}
       symmetric
       className={cn(
-        '!h-full !min-h-0 !rounded-none !border-0 bg-accent-100 [&_.blueprint]:border-0 [&_svg_path:first-child]:fill-accent-400 [&_svg_path:nth-child(2)]:stroke-accent-600',
+        'pointer-events-none !h-full !min-h-0 !rounded-none !border-0 bg-accent-100 [&_.blueprint]:border-0 [&_svg_path:first-child]:fill-accent-400 [&_svg_path:nth-child(2)]:stroke-accent-600',
         change?.kind === 'added' && 'bg-ok-surface [&_svg_path:first-child]:fill-ok-border [&_svg_path:nth-child(2)]:stroke-ok',
       )}
     />

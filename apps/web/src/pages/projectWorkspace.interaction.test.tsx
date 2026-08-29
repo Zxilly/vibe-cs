@@ -327,6 +327,42 @@ describe('unified project workspace', () => {
     }));
   });
 
+  it('edits renderer-backed fades from Story derived audio handles', async () => {
+    const keyboardPatch = vi.fn();
+    const keyboardRender = renderWorkspace({ applyProjectPatch: keyboardPatch });
+
+    const fadeIn = await screen.findByRole('slider', { name: '调整淡入 A' });
+    const storyAudio = screen.getByRole('row', { name: 'Story 音频' });
+    expect(storyAudio.querySelector('[role="img"]')?.classList.contains('pointer-events-none')).toBe(true);
+    expect(fadeIn.parentElement?.classList.contains('z-10')).toBe(false);
+    expect(fadeIn.getAttribute('aria-valuetext')).toBe('0.000s');
+    fireEvent.keyDown(fadeIn, { key: 'ArrowRight' });
+    await waitFor(() => expect(keyboardPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({ transition_in: 'fade', metadata: expect.objectContaining({ transition_duration: 0.05 }) }),
+      })],
+    })));
+
+    keyboardRender.unmount();
+    const pointerPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch: pointerPatch });
+    const fadeOut = await screen.findByRole('slider', { name: '调整淡出 A' });
+    fireEvent.pointerDown(fadeOut, { pointerId: 72, button: 0, clientX: 400 });
+    fireEvent.pointerMove(fadeOut, { pointerId: 72, clientX: 390 });
+    await waitFor(() => expect(Number(fadeOut.getAttribute('aria-valuenow'))).toBeGreaterThan(0.5));
+    fireEvent.pointerUp(fadeOut, { pointerId: 72, clientX: 390 });
+    await waitFor(() => expect(pointerPatch).toHaveBeenCalledTimes(1));
+    expect(pointerPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: CLIP_A,
+        clip: expect.objectContaining({ transition_out: 'fade', metadata: expect.objectContaining({ transition_duration: expect.any(Number) }) }),
+      })],
+    }));
+  });
+
   it('deletes a cross-track selection in one Project revision', async () => {
     const audioClipId = '00000000-0000-4000-8000-000000000016';
     const audioClip: TimelineClip = {

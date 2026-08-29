@@ -378,6 +378,22 @@ impl Project {
         self.document.validate()
     }
 
+    /// Returns whether any canonical Timeline Clip resolves through the asset.
+    #[must_use]
+    pub fn references_media_asset(&self, asset_id: Uuid) -> bool {
+        self.document.tracks.iter().any(|track| {
+            track.clips.iter().any(|clip| match &clip.material {
+                TimelineClipMaterial::Take {
+                    asset_id: current, ..
+                }
+                | TimelineClipMaterial::Asset {
+                    asset_id: current, ..
+                } => *current == asset_id,
+                TimelineClipMaterial::Planned => false,
+            })
+        })
+    }
+
     /// Applies one revision-bound patch and returns its undoable Change Group.
     ///
     /// # Errors
@@ -1034,5 +1050,18 @@ mod tests {
         let mut current = project();
         current.document.tracks[0].kind = TrackKind::Audio;
         assert!(current.validate().is_err());
+    }
+
+    #[test]
+    fn media_asset_references_follow_every_timeline_track_material() {
+        let mut current = project();
+        let asset_id = Uuid::from_u128(800);
+        current.document.tracks[0].clips[0].material = TimelineClipMaterial::Asset {
+            asset_id,
+            media_duration_seconds: 10.0,
+        };
+
+        assert!(current.references_media_asset(asset_id));
+        assert!(!current.references_media_asset(Uuid::from_u128(801)));
     }
 }

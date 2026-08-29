@@ -1369,6 +1369,19 @@ async fn delete_asset(
     Path(id): Path<String>,
 ) -> ApiResult<StatusCode> {
     let id = parse_id(&id)?;
+    if state
+        .storage
+        .list_projects()
+        .await?
+        .iter()
+        .any(|project| project.references_media_asset(id))
+    {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "media_asset_in_use",
+            "Media referenced by a Project Timeline cannot be deleted",
+        ));
+    }
     if !state.storage.delete_asset(id).await? {
         return Err(ApiError::not_found("media asset"));
     }

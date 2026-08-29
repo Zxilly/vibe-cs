@@ -9,6 +9,7 @@ import { ProjectWorkspacePage } from './ProjectWorkspacePage';
 const STORY_ID = '00000000-0000-4000-8000-000000000010';
 const CLIP_A = '00000000-0000-4000-8000-000000000011';
 const CLIP_B = '00000000-0000-4000-8000-000000000012';
+const CLIP_C = '00000000-0000-4000-8000-000000000019';
 
 function clip(id: string, name: string): TimelineClip {
   return {
@@ -828,6 +829,74 @@ describe('unified project workspace', () => {
       expect(clipA.className).toContain('ring-accent');
       expect(clipB.className).toContain('ring-accent');
     });
+  });
+
+  it('drags selected Story clips as one ordered ripple group', async () => {
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: [
+            track.clips[0]!,
+            track.clips[1]!,
+            { ...clip(CLIP_C, 'C'), placement: { ...clip(CLIP_C, 'C').placement, start: 10 } },
+          ],
+        }),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+
+    const clipB = await screen.findByRole('button', { name: /B 5\.0s · 已录制/u });
+    fireEvent.pointerDown(clipB, { pointerId: 61, button: 0, shiftKey: true, clientX: 300 });
+    fireEvent.pointerDown(clipB, { pointerId: 62, button: 0, clientX: 300 });
+    fireEvent.pointerMove(clipB, { pointerId: 62, clientX: 700 });
+    fireEvent.pointerUp(clipB, { pointerId: 62, clientX: 700 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_C, placement: expect.objectContaining({ start: 0 }) }),
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 5 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 10 }) }),
+        ],
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('marquee-selects intersecting clips after the drag threshold', async () => {
+    renderWorkspace();
+
+    const viewport = await screen.findByRole('region', { name: '时间轴内容' });
+    const grid = screen.getByRole('rowgroup', { name: '时间轴轨道网格' });
+    const clipA = screen.getByRole('button', { name: /A 5\.0s · 未录制/u });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    viewport.style.setProperty('--w-track-head', '0px');
+    vi.spyOn(viewport, 'getBoundingClientRect').mockReturnValue({
+      x: 0, y: 0, top: 0, right: 900, bottom: 400, left: 0, width: 900, height: 400, toJSON: () => ({}),
+    });
+    vi.spyOn(clipA, 'getBoundingClientRect').mockReturnValue({
+      x: 150, y: 100, top: 100, right: 250, bottom: 180, left: 150, width: 100, height: 80, toJSON: () => ({}),
+    });
+    vi.spyOn(clipB, 'getBoundingClientRect').mockReturnValue({
+      x: 300, y: 100, top: 100, right: 400, bottom: 180, left: 300, width: 100, height: 80, toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(grid, { pointerId: 63, button: 0, clientX: 100, clientY: 80 });
+    expect(screen.queryByLabelText('框选范围')).toBeNull();
+    fireEvent.pointerMove(grid, { pointerId: 63, clientX: 420, clientY: 200 });
+    expect(screen.getByLabelText('框选范围')).toBeTruthy();
+    await waitFor(() => {
+      expect(clipA.className).toContain('ring-accent');
+      expect(clipB.className).toContain('ring-accent');
+    });
+    fireEvent.pointerUp(grid, { pointerId: 63, clientX: 420, clientY: 200 });
+    expect(screen.queryByLabelText('框选范围')).toBeNull();
   });
 
   it('opens the project media bin and inserts a full asset at the transport time', async () => {

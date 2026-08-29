@@ -60,6 +60,8 @@ import { resolveTimelineMaterial } from './timelineMaterial';
 import {
   deleteRippleClips,
   moveRippleClip,
+  moveRippleClipGroup,
+  moveFreeClipGroup,
   pasteFreePositionedClipsAtTime,
   pasteRippleClipsAtTime,
   removeTimelineRange,
@@ -165,6 +167,22 @@ export function ProjectTimeline({
   const [rangeOutSeconds, setRangeOutSeconds] = useState<number | null>(null);
   const [trackHeights, setTrackHeights] = useState<Readonly<Record<string, number>>>({});
   const [collapsedTrackRows, setCollapsedTrackRows] = useState<ReadonlySet<string>>(new Set());
+  const [marqueeBounds, setMarqueeBounds] = useState<{
+    readonly left: number;
+    readonly top: number;
+    readonly width: number;
+    readonly height: number;
+  } | null>(null);
+  const marqueeGesture = useRef<{
+    readonly pointerId: number;
+    readonly startClientX: number;
+    readonly startClientY: number;
+    readonly startContentX: number;
+    readonly startContentY: number;
+    readonly additive: boolean;
+    readonly initialSelection: readonly string[];
+    active: boolean;
+  } | null>(null);
   const [clipboard, setClipboard] = useState<{
     readonly groups: readonly {
       readonly trackId: string;
@@ -459,6 +477,55 @@ export function ProjectTimeline({
     if (time !== null) onSeek(time);
   };
 
+  const marqueeContentPosition = (event: React.PointerEvent<HTMLElement>) => {
+    const viewport = viewportRef.current;
+    if (viewport === null) return null;
+    const bounds = viewport.getBoundingClientRect();
+    return {
+      x: event.clientX - bounds.left + viewport.scrollLeft,
+      y: event.clientY - bounds.top + viewport.scrollTop,
+    };
+  };
+
+  const updateMarqueeSelection = (event: React.PointerEvent<HTMLElement>) => {
+    const gesture = marqueeGesture.current;
+    const viewport = viewportRef.current;
+    if (gesture === null || viewport === null || gesture.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const position = marqueeContentPosition(event);
+    if (position === null) return;
+    const deltaX = Math.abs(event.clientX - gesture.startClientX);
+    const deltaY = Math.abs(event.clientY - gesture.startClientY);
+    if (!gesture.active && deltaX <= 5 && deltaY <= 5) return;
+    gesture.active = true;
+    const bounds = {
+      left: Math.min(gesture.startContentX, position.x),
+      top: Math.min(gesture.startContentY, position.y),
+      width: Math.abs(position.x - gesture.startContentX),
+      height: Math.abs(position.y - gesture.startContentY),
+    };
+    setMarqueeBounds(bounds);
+    const selectionRect = {
+      left: Math.min(gesture.startClientX, event.clientX),
+      right: Math.max(gesture.startClientX, event.clientX),
+      top: Math.min(gesture.startClientY, event.clientY),
+      bottom: Math.max(gesture.startClientY, event.clientY),
+    };
+    const intersected = [...viewport.querySelectorAll<HTMLElement>('[data-timeline-clip-id]')]
+      .filter((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.right >= selectionRect.left
+          && rect.left <= selectionRect.right
+          && rect.bottom >= selectionRect.top
+          && rect.top <= selectionRect.bottom;
+      })
+      .map((element) => element.dataset.timelineClipId)
+      .filter((clipId): clipId is string => clipId !== undefined);
+    onSelectClips(gesture.additive
+      ? [...new Set([...gesture.initialSelection, ...intersected])]
+      : [...new Set(intersected)]);
+  };
+
   const queueSeekFromPointer = (event: React.PointerEvent<HTMLElement>) => {
     const time = pointerTime(event);
     if (time === null) return;
@@ -704,15 +771,49 @@ export function ProjectTimeline({
         }}
       >
         <div
-          className="grid min-h-full"
+          className="relative grid min-h-full"
           role="rowgroup"
           aria-label={t`时间轴轨道网格`}
           style={{ minWidth: `calc(var(--w-track-head) + ${contentWidth}px)`, gridTemplateRows: rowTemplate }}
           onPointerDown={(event) => {
-            if (event.button === 0 && !(event.target instanceof Element && event.target.closest('button'))) {
-              event.preventDefault();
+            if (event.button !== 0 || !(event.target instanceof Element)) return;
+            if (event.target.closest('button,[role="separator"]')) return;
+            const position = marqueeContentPosition(event);
+            const viewport = viewportRef.current;
+            if (position === null || viewport === null) return;
+            const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+            if (position.x < trackHead) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+            marqueeGesture.current = {
+              pointerId: event.pointerId,
+              startClientX: event.clientX,
+              startClientY: event.clientY,
+              startContentX: position.x,
+              startContentY: position.y,
+              additive: event.ctrlKey || event.metaKey,
+              initialSelection: selectedClipIds,
+              active: false,
+            };
+          }}
+          onPointerMove={updateMarqueeSelection}
+          onPointerUp={(event) => {
+            const gesture = marqueeGesture.current;
+            if (gesture === null || gesture.pointerId !== event.pointerId) return;
+            event.preventDefault();
+            if (!gesture.active) {
+              if (!gesture.additive) onSelectClips([]);
               seekFromPointer(event);
             }
+            marqueeGesture.current = null;
+            setMarqueeBounds(null);
+            event.currentTarget.releasePointerCapture?.(event.pointerId);
+          }}
+          onPointerCancel={() => {
+            const gesture = marqueeGesture.current;
+            if (gesture !== null) onSelectClips(gesture.initialSelection);
+            marqueeGesture.current = null;
+            setMarqueeBounds(null);
           }}
         >
           {renderedTracks.map((track) => (
@@ -758,6 +859,13 @@ export function ProjectTimeline({
             onEditMarker={(marker) => setMarkerDraft({ ...marker })}
           />
           <TimelineEventRow clips={clips} scale={scale} contentWidth={contentWidth} ticks={ticks} />
+          {marqueeBounds === null ? null : (
+            <span
+              className="pointer-events-none absolute z-50 border border-accent-500 bg-accent-100/45"
+              style={marqueeBounds}
+              aria-label={t`框选范围`}
+            />
+          )}
         </div>
       </div>
 
@@ -1008,6 +1116,18 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             snapThresholdSeconds={snapThresholdSeconds}
             onSnapChange={onSnapChange}
             onReplace={(replacement, mode) => {
+              const selectedOnTrack = new Set(track.track.clips
+                .filter((candidate) => selectedClipIds.has(candidate.id))
+                .map((candidate) => candidate.id));
+              if (mode === 'move' && selectedOnTrack.has(replacement.id) && selectedOnTrack.size > 1) {
+                onReplaceTrackClips(
+                  track.track.id,
+                  track.track.id === storyTrackId
+                    ? moveRippleClipGroup(track.track.clips, selectedOnTrack, replacement.id, replacement.placement.start)
+                    : moveFreeClipGroup(track.track.clips, selectedOnTrack, replacement.id, replacement.placement.start, fps),
+                );
+                return;
+              }
               if (track.track.id !== storyTrackId) {
                 onReplaceClip(replacement);
                 return;
@@ -1122,7 +1242,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     event.stopPropagation();
     const additive = event.ctrlKey || event.metaKey;
     const range = event.shiftKey;
-    onSelect(additive, range);
+    if (!selected || additive || range) onSelect(additive, range);
     if (additive || range) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     gesture.current = { pointerId: event.pointerId, clientX: event.clientX, mode, clip };
@@ -1195,6 +1315,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         );
       }}
       aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${material.state === 'planned' ? t`未录制` : t`已录制`}`}
+      data-timeline-clip-id={clip.id}
     >
       {kind === 'audio' ? (
         <TimelineClipWaveform clip={clip} change={change} />

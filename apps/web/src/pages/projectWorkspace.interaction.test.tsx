@@ -1494,6 +1494,79 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
+  it('rate-stretches one Story clip with live ripple and one commit', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      applyProjectPatch,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'r' });
+    expect(screen.getByRole('button', { name: '比率伸缩工具 (R)' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.queryByRole('separator', { name: '从起点比率伸缩 A' })).toBeNull();
+    const handle = screen.getByRole('separator', { name: '从终点比率伸缩 A' });
+    fireEvent.pointerDown(handle, { pointerId: 114, button: 0, clientX: 500 });
+    fireEvent.pointerMove(handle, { pointerId: 114, clientX: 400 });
+
+    const clipA = screen.getByRole('button', { name: /A 4\.0s · 已录制/u });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    expect(clipA.style.width).toBe('400px');
+    expect(clipA.dataset.sourceIn).toBe('0');
+    expect(clipA.dataset.sourceOut).toBe('5');
+    expect(Number(clipA.dataset.clipSpeed)).toBeCloseTo(1.25);
+    expect(screen.getByLabelText('比率伸缩 125.0%')).toBeTruthy();
+    expect(clipB.style.left).toBe('400px');
+    expect(screen.getByText('00:09.000')).toBeTruthy();
+    expect(Number((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewClipSpeed)).toBeCloseTo(1.25);
+    const monitor = screen.getByRole('region', { name: '视频预览' });
+    expect(Number(monitor.dataset.monitorDuration)).toBe(9);
+    expect(monitor.querySelectorAll('video')).toHaveLength(2);
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(handle, { pointerId: 114, clientX: 400 });
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 4, source_in: 0, source_out: 5, speed: 1.25 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4, duration: 5 }) }),
+        ],
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+    clientWidth.mockRestore();
+  });
+
+  it('keeps Inspector duration and speed on the same Rate Stretch operation', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: RECORDED_PROJECT, applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 已录制/u }));
+    const duration = await screen.findByRole('spinbutton', { name: 'duration' });
+    const speed = screen.getByRole('spinbutton', { name: 'speed' });
+    fireEvent.change(duration, { target: { value: '2.5' } });
+    expect(Number((speed as HTMLInputElement).value)).toBe(2);
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ duration: 2.5, source_in: 0, source_out: 5, speed: 2 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 2.5 }) }),
+        ],
+      })],
+    })));
+  });
+
   it('drags selected Story clips as one ordered ripple group', async () => {
     const project: Project = {
       ...PROJECT,

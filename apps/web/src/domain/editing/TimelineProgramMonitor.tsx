@@ -8,7 +8,7 @@ import { useNativeShell } from '../../data/nativeShell';
 import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
 import type { Project, TimelineClip } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
-import { clipFadeDuration } from './timelineInteraction';
+import { clipFadeDuration, MAX_TIMELINE_CLIP_SPEED, MIN_TIMELINE_CLIP_SPEED } from './timelineInteraction';
 import type { TimelineRollingPreview } from './timelineInteraction';
 import { EDITOR_EFFECT_SCHEMAS, editorEffectParameter, isSupportedEditorEffectKind } from './effectEditing';
 import { resolveTimelineMaterial } from './timelineMaterial';
@@ -139,6 +139,7 @@ export function TimelineProgramMonitor({
       data-monitor-target-clip-id={targetId ?? ''}
       data-monitor-read-only={readOnly}
       data-monitor-playing={playing}
+      data-monitor-duration={project.document.duration_seconds}
       data-monitor-mode={rollingActive ? 'rolling' : 'program'}
       data-monitor-rolling-left-clip-id={rollingPreview?.leftClipId ?? ''}
       data-monitor-rolling-right-clip-id={rollingPreview?.rightClipId ?? ''}
@@ -362,7 +363,10 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   useEffect(() => {
     const video = videoRef.current;
     if (video === null) return;
-    video.playbackRate = Math.min(16, clip.placement.speed * Math.max(1, transportRate));
+    video.playbackRate = Math.min(
+      MAX_TIMELINE_CLIP_SPEED,
+      Math.max(MIN_TIMELINE_CLIP_SPEED, clip.placement.speed * Math.max(1, transportRate)),
+    );
     if (!playing || transportRate < 0) {
       if (!video.paused) video.pause();
       return;
@@ -485,6 +489,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       data-preview-fade-factor={audio.fadeFactor}
       data-preview-output-volume={audio.outputVolume}
       data-preview-source-time={desiredTimeRef.current}
+      data-preview-clip-speed={clip.placement.speed}
       data-preview-effects={previewFilter.kinds.join(',')}
       data-preview-filter={previewFilter.filter}
       onLoadedMetadata={seekLatest}

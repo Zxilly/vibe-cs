@@ -64,6 +64,9 @@ import {
   insertRippleClipAtTime,
   overwriteStoryClipAtTime,
   ProjectTimeline,
+  MAX_TIMELINE_CLIP_SPEED,
+  MIN_TIMELINE_CLIP_SPEED,
+  rateStretchTimelineClip,
   snapTimeToFrame,
   timelineClipFromMediaAsset,
   TimelineProgramMonitor,
@@ -1000,6 +1003,9 @@ function ClipInspector({
         <Trans>名称</Trans>
         <input disabled={readOnly} className="border border-divider px-2 py-1.5" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.currentTarget.value })} />
       </label>
+      {draft.speed_segments.length === 0 ? null : (
+        <p className="mt-3 border border-warn-border bg-warn-surface px-2 py-1.5 text-2xs text-warn-text"><Trans>分段变速片段需要使用时间重映射编辑器，不能在此改写常量速度。</Trans></p>
+      )}
       {(['duration', 'source_in', 'source_out', 'speed'] as const).map((field) => (
         <label key={field} className="mt-3 flex flex-col gap-1 text-xs">
           {field}
@@ -1007,12 +1013,9 @@ function ClipInspector({
             type="number"
             step="0.1"
             className="border border-divider px-2 py-1.5 font-mono"
-            disabled={readOnly}
+            disabled={readOnly || draft.speed_segments.length > 0}
             value={draft.placement[field]}
-            onChange={(event) => setDraft({
-              ...draft,
-              placement: { ...draft.placement, [field]: Number(event.currentTarget.value) },
-            })}
+            onChange={(event) => setDraft(updateClipTimingField(draft, field, Number(event.currentTarget.value), fps))}
           />
         </label>
       ))}
@@ -1234,6 +1237,56 @@ function ClipInspector({
       <Button className="mt-5 w-full" variant="primary" disabled={readOnly || hasUnsupportedEnabledEffect} onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
     </div>
   );
+}
+
+function updateClipTimingField(
+  clip: TimelineClip,
+  field: 'duration' | 'source_in' | 'source_out' | 'speed',
+  value: number,
+  fps: number,
+): TimelineClip {
+  if (!Number.isFinite(value) || clip.speed_segments.length > 0) return clip;
+  const placement = clip.placement;
+  if (field === 'duration') {
+    return rateStretchTimelineClip(clip, 'end', placement.start + value, fps);
+  }
+  if (field === 'speed') {
+    const speed = Math.min(MAX_TIMELINE_CLIP_SPEED, Math.max(MIN_TIMELINE_CLIP_SPEED, value));
+    const sourceDuration = placement.source_out - placement.source_in;
+    return rateStretchTimelineClip(clip, 'end', placement.start + sourceDuration / speed, fps);
+  }
+  const frame = 1 / Math.max(1, fps);
+  if (field === 'source_in') {
+    const sourceIn = Math.min(
+      placement.source_out - placement.speed * frame,
+      Math.max(0, value),
+    );
+    const timelineDelta = (sourceIn - placement.source_in) / placement.speed;
+    return {
+      ...clip,
+      placement: {
+        ...placement,
+        start: placement.start + timelineDelta,
+        duration: (placement.source_out - sourceIn) / placement.speed,
+        source_in: sourceIn,
+      },
+    };
+  }
+  const mediaDuration = clip.material.kind === 'planned'
+    ? Number.POSITIVE_INFINITY
+    : clip.material.media_duration_seconds;
+  const sourceOut = Math.min(
+    mediaDuration,
+    Math.max(placement.source_in + placement.speed * frame, value),
+  );
+  return {
+    ...clip,
+    placement: {
+      ...placement,
+      duration: (sourceOut - placement.source_in) / placement.speed,
+      source_out: sourceOut,
+    },
+  };
 }
 
 function effectLabel(kind: string): string {
@@ -1652,14 +1705,18 @@ function conversationTime(value: string): string {
 function projectWithPreviewClips(project: Project, clips: readonly TimelineClip[]): Project {
   if (clips.length === 0) return project;
   const previews = new Map(clips.map((clip) => [clip.id, clip]));
+  const tracks = project.document.tracks.map((track) => ({
+    ...track,
+    clips: track.clips.map((clip) => previews.get(clip.id) ?? clip),
+  }));
   return {
     ...project,
     document: {
       ...project.document,
-      tracks: project.document.tracks.map((track) => ({
-        ...track,
-        clips: track.clips.map((clip) => previews.get(clip.id) ?? clip),
-      })),
+      duration_seconds: tracks.flatMap((track) => track.clips)
+        .filter((clip) => clip.placement.enabled)
+        .reduce((duration, clip) => Math.max(duration, clip.placement.start + clip.placement.duration), 0),
+      tracks,
     },
   };
 }

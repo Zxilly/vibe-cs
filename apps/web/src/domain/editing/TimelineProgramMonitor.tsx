@@ -12,6 +12,7 @@ import { clipFadeDuration, MAX_TIMELINE_CLIP_SPEED, MIN_TIMELINE_CLIP_SPEED } fr
 import type { TimelineRollingPreview, TimelineSlidePreview } from './timelineInteraction';
 import { EDITOR_EFFECT_SCHEMAS, editorEffectParameter, isSupportedEditorEffectKind } from './effectEditing';
 import { resolveTimelineMaterial } from './timelineMaterial';
+import { TimelineAudioMonitor } from './TimelineAudioMonitor';
 
 interface PreviewMedia {
   readonly clip: TimelineClip;
@@ -140,16 +141,22 @@ export function TimelineProgramMonitor({
   }, [targetId]);
 
   useEffect(() => {
-    if (!playing || playbackRate >= 0) return undefined;
+    const videoDrivesForward = playbackRate > 0 && targetId !== null && presentedId === targetId;
+    if (!playing || videoDrivesForward) return undefined;
     let frame = 0;
     let previous = performance.now();
     const tick = (now: number) => {
       const elapsed = Math.max(0, now - previous) / 1_000;
       previous = now;
-      const next = Math.max(0, timelineTimeRef.current + elapsed * playbackRate);
+      const next = advanceTimelineTransport(
+        timelineTimeRef.current,
+        elapsed,
+        playbackRate,
+        project.document.duration_seconds,
+      );
       timelineTimeRef.current = next;
       onTimelineTimeChangeRef.current(next);
-      if (next <= 0) {
+      if (transportReachedBoundary(next, playbackRate, project.document.duration_seconds)) {
         onPlaybackEndRef.current();
         return;
       }
@@ -157,7 +164,7 @@ export function TimelineProgramMonitor({
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playbackRate, playing]);
+  }, [playbackRate, playing, presentedId, project.document.duration_seconds, targetId]);
 
   return (
     <section
@@ -176,15 +183,32 @@ export function TimelineProgramMonitor({
       data-monitor-slide-next-clip-id={slidePreview?.nextClipId ?? ''}
       data-monitor-pool-size={pooledMedia.length}
     >
+      <TimelineAudioMonitor
+        project={project}
+        timelineTimeSeconds={targetTimelineTime}
+        playing={playing}
+        playbackRate={playbackRate}
+      />
       <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
         {slideActive ? <Trans>滑动编辑预览</Trans> : rollingActive ? <Trans>滚动编辑预览</Trans> : <Trans>视频预览</Trans>}
       </header>
       {targetId === null ? (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-neutral-900 p-5 text-center text-neutral-100">
-          <h2 className="font-heading text-2xl">{selected?.name ?? project.name}</h2>
-          <p className="mt-2 text-sm text-neutral-400">
-            {selected === null ? <Trans>从时间轴选择一个片段</Trans> : materialLabel(selected)}
-          </p>
+        <div className="flex min-h-0 flex-1 flex-col bg-neutral-900">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-5 text-center text-neutral-100">
+            <h2 className="font-heading text-2xl">{selected?.name ?? project.name}</h2>
+            <p className="mt-2 text-sm text-neutral-400">
+              {selected === null ? <Trans>从时间轴选择一个片段</Trans> : materialLabel(selected)}
+            </p>
+          </div>
+          <ProgramTransportBar
+            title={selected?.name}
+            playing={playing}
+            playbackRate={playbackRate}
+            timeSeconds={targetTimelineTime}
+            onTogglePlayback={onTogglePlayback}
+            onShuttle={onShuttle}
+            onStepFrame={onStepFrame}
+          />
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col bg-neutral-900">
@@ -312,33 +336,83 @@ export function TimelineProgramMonitor({
               </span>
             )}
           </div>
-          <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-t border-divider bg-bg px-3 text-xs text-text">
-            <button
-              type="button"
-              className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
-              aria-label={t`上一帧`}
-              onClick={() => onStepFrame(-1)}
-            >
-              <ChevronLeft className="size-4" aria-hidden="true" />
-            </button>
-            <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`J 反向播放`} onClick={() => onShuttle(-1)}><ChevronsLeft className="size-4" aria-hidden="true" /></button>
-            <button
-              type="button"
-              className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
-              aria-label={playing ? t`K 暂停时间轴` : t`播放时间轴`}
-              onClick={playing ? () => onShuttle(0) : onTogglePlayback}
-            >
-              {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
-            </button>
-            <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
-            <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
-            <span className="min-w-0 truncate font-medium">{slideActive ? `${slidePrevious.name} ← ${slideClip.name} → ${slideNext.name}` : rollingActive ? `${rollingLeft.name} ↔ ${rollingRight.name}` : selected?.name}</span>
-            <span className="font-mono text-neutral-500">{playing ? `${playbackRate.toFixed(1)}x` : '0.0x'}</span>
-            <span className="ml-auto font-mono">{formatMillisecondTimecode(slidePreview?.startTime ?? rollingPreview?.editTime ?? targetTimelineTime)}</span>
-          </div>
+          <ProgramTransportBar
+            title={slideActive ? `${slidePrevious.name} ← ${slideClip.name} → ${slideNext.name}` : rollingActive ? `${rollingLeft.name} ↔ ${rollingRight.name}` : selected?.name}
+            playing={playing}
+            playbackRate={playbackRate}
+            timeSeconds={slidePreview?.startTime ?? rollingPreview?.editTime ?? targetTimelineTime}
+            onTogglePlayback={onTogglePlayback}
+            onShuttle={onShuttle}
+            onStepFrame={onStepFrame}
+          />
         </div>
       )}
     </section>
+  );
+}
+
+export function advanceTimelineTransport(
+  currentTime: number,
+  elapsedSeconds: number,
+  playbackRate: number,
+  durationSeconds: number,
+): number {
+  return Math.min(
+    durationSeconds,
+    Math.max(0, currentTime + Math.max(0, elapsedSeconds) * playbackRate),
+  );
+}
+
+export function transportReachedBoundary(
+  timeSeconds: number,
+  playbackRate: number,
+  durationSeconds: number,
+): boolean {
+  return playbackRate < 0 ? timeSeconds <= 0 : playbackRate > 0 && timeSeconds >= durationSeconds;
+}
+
+function ProgramTransportBar({
+  title,
+  playing,
+  playbackRate,
+  timeSeconds,
+  onTogglePlayback,
+  onShuttle,
+  onStepFrame,
+}: {
+  readonly title: string | undefined;
+  readonly playing: boolean;
+  readonly playbackRate: number;
+  readonly timeSeconds: number;
+  readonly onTogglePlayback: () => void;
+  readonly onShuttle: (direction: -1 | 0 | 1) => void;
+  readonly onStepFrame: (direction: -1 | 1) => void;
+}) {
+  return (
+    <div className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-t border-divider bg-bg px-3 text-xs text-text">
+      <button
+        type="button"
+        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+        aria-label={t`上一帧`}
+        onClick={() => onStepFrame(-1)}
+      >
+        <ChevronLeft className="size-4" aria-hidden="true" />
+      </button>
+      <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`J 反向播放`} onClick={() => onShuttle(-1)}><ChevronsLeft className="size-4" aria-hidden="true" /></button>
+      <button
+        type="button"
+        className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm text-accent-text hover:bg-neutral-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+        aria-label={playing ? t`K 暂停时间轴` : t`播放时间轴`}
+        onClick={playing ? () => onShuttle(0) : onTogglePlayback}
+      >
+        {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
+      </button>
+      <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
+      <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
+      <span className="min-w-0 truncate font-medium">{title}</span>
+      <span className="font-mono text-neutral-500">{playing ? `${playbackRate.toFixed(1)}x` : '0.0x'}</span>
+      <span className="ml-auto font-mono">{formatMillisecondTimecode(timeSeconds)}</span>
+    </div>
   );
 }
 

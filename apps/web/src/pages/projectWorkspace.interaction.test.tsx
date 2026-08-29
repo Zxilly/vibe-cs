@@ -921,6 +921,53 @@ describe('unified project workspace', () => {
     });
   });
 
+  it('plays an independent A track under the shared transport when Story has no video clock', async () => {
+    const audioClip: TimelineClip = {
+      ...clip('00000000-0000-4000-8000-000000000088', 'Audio only'),
+      material: { kind: 'asset', asset_id: 'asset-audio-only', media_duration_seconds: 8 },
+      placement: { start: 0, duration: 8, source_in: 0, source_out: 8, speed: 1, volume: 0.5, enabled: true },
+    };
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        duration_seconds: 8,
+        tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+          ? { ...track, clips: [] }
+          : { ...track, clips: [audioClip] }),
+      },
+    };
+    renderWorkspace({
+      project,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    await screen.findByRole('region', { name: '视频预览' });
+    const audio = document.querySelector<HTMLAudioElement>('[data-timeline-audio-clip-id="00000000-0000-4000-8000-000000000088"]');
+    expect(audio).not.toBeNull();
+    const play = vi.fn(() => Promise.resolve());
+    const pause = vi.fn();
+    Object.defineProperties(audio!, {
+      currentTime: { configurable: true, writable: true, value: 0 },
+      play: { configurable: true, value: play },
+      pause: { configurable: true, value: pause },
+    });
+    fireEvent.loadedData(audio!);
+    expect(audio?.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-audio-only/stream');
+    expect(audio?.dataset.timelineAudioActive).toBe('true');
+    expect(audio?.dataset.timelineAudioMuted).toBe('false');
+    expect(audio?.dataset.timelineAudioOutputVolume).toBe('0.5');
+
+    fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
+    await waitFor(() => expect(play).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'K 暂停时间轴' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'K 暂停时间轴' }));
+  });
+
   it('rejects stale Program media time updates until the desired source frame is presented', async () => {
     renderWorkspace({
       project: RECORDED_PROJECT,

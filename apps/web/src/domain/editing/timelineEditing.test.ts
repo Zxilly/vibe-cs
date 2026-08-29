@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import type { MediaAsset, TimelineClip } from '../../shared/desktop/dto';
 import {
   deleteRippleClip,
+  deleteRippleClips,
   insertRippleClipAtTime,
   moveRippleClip,
+  pasteFreePositionedClipsAtTime,
+  pasteRippleClipsAtTime,
   splitRippleClip,
   timelineClipFromMediaAsset,
   trimRippleClip,
@@ -66,6 +69,12 @@ describe('ripple Story Track edits', () => {
     expect(deleted.map((item) => item.placement.start)).toEqual([0, 10]);
   });
 
+  it('deletes multiple Story clips and closes every resulting gap', () => {
+    const deleted = deleteRippleClips(CLIPS, new Set(['a', 'c']));
+    expect(deleted.map((item) => item.id)).toEqual(['b']);
+    expect(deleted[0]?.placement.start).toBe(0);
+  });
+
   it('inserts a full media asset at the playhead and ripples the split tail', () => {
     const asset: MediaAsset = {
       id: 'asset-new',
@@ -100,5 +109,24 @@ describe('ripple Story Track edits', () => {
       placement: { start: 14, duration: 6, source_in: 0, source_out: 6 },
     });
     expect(inserted[3]?.placement).toMatchObject({ duration: 6, source_in: 4, source_out: 10 });
+  });
+
+  it('pastes multiple Story clips at the playhead and ripples the existing tail', () => {
+    const pasted = pasteRippleClipsAtTime(CLIPS, [CLIPS[0]!, CLIPS[2]!], 14, ['a-copy', 'c-copy'], 'b-tail');
+
+    expect(pasted.map((item) => item.id)).toEqual(['a', 'b', 'a-copy', 'c-copy', 'b-tail', 'c']);
+    expect(pasted.map((item) => item.placement.start)).toEqual([0, 10, 14, 24, 34, 40]);
+    expect(pasted[2]).toMatchObject({ group_id: null, link_group_id: null });
+  });
+
+  it('pastes free-positioned clips without moving existing placements', () => {
+    const pasted = pasteFreePositionedClipsAtTime(CLIPS, [CLIPS[1]!], 4, ['b-copy']);
+
+    expect(pasted.map((item) => [item.id, item.placement.start])).toEqual([
+      ['a', 0],
+      ['b-copy', 4],
+      ['b', 10],
+      ['c', 20],
+    ]);
   });
 });

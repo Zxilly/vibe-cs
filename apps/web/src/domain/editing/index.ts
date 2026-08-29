@@ -3,8 +3,11 @@ export { TimelineProgramMonitor, type TimelineProgramMonitorProps } from './Time
 export { resolveTimelineMaterial, type TimelineMaterialView, type TimelineWaveformLocator } from './timelineMaterial';
 export {
   deleteRippleClip,
+  deleteRippleClips,
   insertRippleClipAtTime,
   moveRippleClip,
+  pasteFreePositionedClipsAtTime,
+  pasteRippleClipsAtTime,
   splitRippleClip,
   timelineClipFromMediaAsset,
   trimRippleClip,

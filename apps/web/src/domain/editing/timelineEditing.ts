@@ -89,7 +89,17 @@ export function deleteRippleClip(
   clips: readonly TimelineClip[],
   clipId: string,
 ): TimelineClip[] {
-  return reflow(clips.filter((clip) => clip.id !== clipId));
+  return deleteRippleClips(clips, new Set([clipId]));
+}
+
+export function deleteRippleClips(
+  clips: readonly TimelineClip[],
+  clipIds: ReadonlySet<string>,
+): TimelineClip[] {
+  return reflow(
+    clips.filter((clip) => !clipIds.has(clip.id)),
+    clips[0]?.placement.start ?? 0,
+  );
 }
 
 export function timelineClipFromMediaAsset(asset: MediaAsset, clipId: string): TimelineClip {
@@ -145,4 +155,57 @@ export function insertRippleClipAtTime(
   });
   const origin = Math.min(clips[0]?.placement.start ?? timelineTime, timelineTime);
   return reflow(next, origin);
+}
+
+function copiesAtTime(
+  copied: readonly TimelineClip[],
+  timelineTime: number,
+  clipIds: readonly string[],
+): TimelineClip[] {
+  const copiedOrigin = copied[0]?.placement.start ?? 0;
+  return copied.map((clip, index) => ({
+    ...clip,
+    id: clipIds[index]!,
+    placement: {
+      ...clip.placement,
+      start: timelineTime + clip.placement.start - copiedOrigin,
+    },
+    group_id: null,
+    link_group_id: null,
+  }));
+}
+
+export function pasteRippleClipsAtTime(
+  clips: readonly TimelineClip[],
+  copied: readonly TimelineClip[],
+  timelineTime: number,
+  clipIds: readonly string[],
+  splitTailId: string,
+): TimelineClip[] {
+  if (copied.length === 0) return [...clips];
+  const containingIndex = clips.findIndex((clip) => timelineTime > clip.placement.start + TIME_EPSILON
+    && timelineTime < clip.placement.start + clip.placement.duration - TIME_EPSILON);
+  let next = [...clips];
+  let insertionIndex: number;
+  if (containingIndex >= 0) {
+    const containing = clips[containingIndex]!;
+    next = splitRippleClip(clips, containing.id, timelineTime, splitTailId);
+    insertionIndex = containingIndex + 1;
+  } else {
+    const boundaryIndex = clips.findIndex((clip) => clip.placement.start >= timelineTime - TIME_EPSILON);
+    insertionIndex = boundaryIndex < 0 ? clips.length : boundaryIndex;
+  }
+  next.splice(insertionIndex, 0, ...copiesAtTime(copied, timelineTime, clipIds));
+  const origin = Math.min(clips[0]?.placement.start ?? timelineTime, timelineTime);
+  return reflow(next, origin);
+}
+
+export function pasteFreePositionedClipsAtTime(
+  clips: readonly TimelineClip[],
+  copied: readonly TimelineClip[],
+  timelineTime: number,
+  clipIds: readonly string[],
+): TimelineClip[] {
+  return [...clips, ...copiesAtTime(copied, timelineTime, clipIds)]
+    .sort((left, right) => left.placement.start - right.placement.start);
 }

@@ -30,6 +30,7 @@ final result: passed
 - Slip edit pass: `target/editor-iteration/24-slip-preview.png`.
 - Rolling edit pass: `target/editor-iteration/25-rolling-preview.png`.
 - Rate Stretch pass: `target/editor-iteration/26-rate-stretch.png`.
+- Slide edit pass: `target/editor-iteration/27-slide-preview.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -81,6 +82,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Slip is an independent Premiere-style timeline tool rather than an alias for move or trim. V selects Selection and Y selects Slip; dragging changes source In/Out by one shared frame-snapped delta while timeline start/duration stay fixed. Linked multi-track selections intersect every media boundary, locked/planned/full-range clips cannot pretend to move, and the completed gesture submits one Project Patch. The transient draft is projected into the existing Program Monitor without changing clip identity or media `src`, then discarded before persistence.
 - Rolling Edit is a distinct N-key tool over one real adjacent cut. The shared handle trims the outgoing Out and incoming In by the same frame delta, preserves both outer edges and their combined duration, snaps through the common timeline geometry, edge-scrolls, and commits one `replace_track_clips` operation. Gaps and variable-speed clips do not expose a false rolling point. During the gesture Program reuses the same two pooled media elements as a decoded outgoing/incoming Trim Monitor; stable half-width overflow slots preserve canonical Transform/effects without allowing either frame to cross the center boundary, and media `timeupdate` never becomes transport authority.
 - Rate Stretch is a distinct R-key tool backed by one constant-speed invariant. Dragging a right edge retains source In/Out, derives speed from source span / frame-snapped duration, proportionally retimes clip keyframes, and live-ripples the Story Track; free tracks additionally expose the left edge without inventing Story gaps. Program and FFmpeg share the canonical `0.0625×–16×` range, while Rust rejects speed/duration/source documents that disagree. Inspector duration and speed call the same Rate Stretch operation; `speed_segments` explicitly require the separate time-remapping editor instead of being overwritten.
+- Slide is a distinct U-key tool over one contiguous three-clip window. Moving the middle clip keeps its source In/Out and duration fixed, adds the same frame delta to the previous Out and next In, preserves all outer edges and total duration, and submits one `replace_track_clips` operation. Program maintains stable `program/trim` roles per Story clip; only the four Slide roles decode as previous Out / selected In / selected Out / next In, each in an isolated 25% slot without changing `src`. Preview readiness is identity-keyed rather than effect-order-dependent, and paused stale media frames cannot move transport until they match the current desired source frame; playing media remains authoritative.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -129,6 +131,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A twentieth live pass selected Slip and dragged Hook 50 CSS pixels right. While held, revision remained 50; source In/Out previewed `1.7666667–14.0 → 0.2666667–12.5`, Program source time became `0.2666667`, and timeline `left=0px` / `width=408.375px` stayed exact. The warm pool retained two identical URLs. Release alone committed revision 51; V restored Selection and both trim handles, with no page errors.
 - A twenty-first live pass fully reloaded Tauri, selected Rolling Edit, and moved the Hook/Build cut by −0.450 seconds. While held, revision remained 54, duration stayed `00:29.567`, the shared playhead/cut moved to `12.5333333`, and both canonical clip blocks/source bounds updated in place. Program showed two decoded `297.40625px` slots with exact `left/right` identities, `overflow:hidden`, and the original two URLs. Release alone committed revision 55, restored normal Program mode, and retained the new cut as transport position with no page errors.
 - A twenty-second live pass restarted Tauri after the Rust invariant change, selected Rate Stretch, and dragged Hook's right edge. While held, revision remained 56; duration changed `11.033s → 11.783s`, speed previewed `1.063649× / 106.4%`, source In/Out stayed `0.2666667–12.8`, and Build rippled to the exact new boundary. Program exposed the same draft speed while retaining two identical URLs. Release alone committed revision 57; the independent audio kept overall Project duration at `00:29.567`, and page errors remained empty.
+- A twenty-third live pass used Project Media at the exact Story end to insert a real Anubis clip as revision 58, producing a three-clip Story and six stable `program/trim` video roles. A cold-reload Slide initially exposed an effect-order readiness race; after identity-keyed readiness, four decoded `124.28125px` slots appeared immediately. The final −0.633-second Slide held revision 61 and duration `00:38.340`; the middle clip retained source `3.200000033–15.7666667` and duration, while adjacent source bounds compensated. Release alone committed revision 62, restored normal Program, and kept transport at the exact previewed start `11.9333333`. All six role URLs remained unchanged and page errors were empty.
 
 ## Comparison history
 
@@ -165,6 +168,7 @@ No actionable P0, P1, or P2 mismatch remains.
 31. `target/editor-iteration/24-slip-preview.png`: Hook keeps its exact timeline geometry while the live In/Out overlay and Program frame preview a negative 1.5-second Slip draft before commit.
 32. `target/editor-iteration/25-rolling-preview.png`: the common Hook/Build cut and playhead move together while the existing Program pool presents effect-correct outgoing and incoming frames in isolated half-width slots.
 33. `target/editor-iteration/26-rate-stretch.png`: Hook displays the live `106.4%` duration tooltip while its fixed source range, downstream Story ripple, waveform, and stable Program frame remain visible together.
+34. `target/editor-iteration/27-slide-preview.png`: four real source frames label previous Out, selected In/Out, and next In while the same three canonical timeline blocks preview one Slide delta.
 
 ## Verification
 
@@ -173,7 +177,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - Focused Slip interaction and Project workbench tests: 74 passed.
 - Focused Rolling/Slip interaction and Project workbench tests: 78 passed.
 - Focused Rate Stretch/Rolling/Slip interaction and Project workbench tests: 83 passed.
-- Full web suite: 258 files and 2960 tests passed.
+- Focused Slide/Rate Stretch/Rolling/Slip interaction and Project workbench tests: 88 passed.
+- Full web suite: 258 files and 2965 tests passed.
 - Domain Project invariants: 205 tests passed; `cargo fmt -p vibe-cs-domain -- --check` passed.
 - Full Rust workspace tests and doc-tests passed; only explicitly environment-gated tests remained ignored.
 - Strict i18n/layer lint and TypeScript build passed.

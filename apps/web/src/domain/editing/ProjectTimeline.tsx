@@ -1490,6 +1490,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
 }) {
   const shell = useNativeShell();
   const material = resolveTimelineMaterial(clip.material);
+  const enabledEffectCount = clip.effects.filter((effect) => effect.enabled).length;
   const keyframeGroups = useMemo(() => {
     const groups = new Map<number, number>();
     for (const keyframe of clip.keyframes) groups.set(keyframe.time, (groups.get(keyframe.time) ?? 0) + 1);
@@ -1722,6 +1723,9 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       {change === null ? null : <TimelineClipChangeOverlay change={change} clip={visualClip} scale={scale} />}
       {clip.transition_in === null ? null : <span className="pointer-events-none absolute left-0 top-0 z-20 border-l-8 border-t-8 border-l-accent-500 border-t-transparent" aria-label={t`入场转场 ${clip.transition_in}`} />}
       {clip.transition_out === null ? null : <span className="pointer-events-none absolute right-0 top-0 z-20 border-r-8 border-t-8 border-r-accent-500 border-t-transparent" aria-label={t`出场转场 ${clip.transition_out}`} />}
+      {kind === 'video' && enabledEffectCount > 0 ? (
+        <span className="pointer-events-none absolute bottom-4 right-1 z-30 rounded-sm border border-accent-500 bg-bg/90 px-1 font-mono text-2xs text-accent-text" aria-label={t`已启用 ${enabledEffectCount} 个效果`}>fx{enabledEffectCount}</span>
+      ) : null}
       {keyframeGroups.map(([time, count]) => (
         <span
           key={`keyframe:${time}`}

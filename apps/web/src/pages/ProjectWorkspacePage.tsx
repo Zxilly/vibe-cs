@@ -5,16 +5,20 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   CircleAlert,
   CircleHelp,
   Download,
   Diamond,
   FolderOpen,
   LoaderCircle,
+  Plus,
   Send,
   Sparkles,
   Square,
   Star,
+  Trash2,
   Video,
   Wrench,
 } from 'lucide-react';
@@ -54,6 +58,9 @@ import {
   clipKeyframeAtTime,
   clipLocalTimeAtTimeline,
   evaluateClipKeyframeProperty,
+  createEditorEffect,
+  EDITOR_EFFECT_SCHEMAS,
+  editorEffectParameter,
   insertRippleClipAtTime,
   overwriteStoryClipAtTime,
   ProjectTimeline,
@@ -62,8 +69,12 @@ import {
   TimelineProgramMonitor,
   trimRippleClip,
   removeClipKeyframe,
+  isSupportedEditorEffectKind,
+  moveEditorEffect,
+  setEditorEffectParameter,
   setClipVolumeAtTime,
   upsertClipKeyframe,
+  type SupportedEditorEffectKind,
 } from '../domain/editing';
 import { MapCanvas, PathLayer, type MapProjection } from '../domain/map';
 import type {
@@ -936,6 +947,7 @@ function ClipInspector({
   readonly onReplace: (clip: TimelineClip) => void;
 }) {
   const [draft, setDraft] = useState<TimelineClip | null>(selected?.clip ?? null);
+  const [effectKind, setEffectKind] = useState<SupportedEditorEffectKind>('color_adjust');
   useEffect(() => setDraft(selected?.clip ?? null), [selected?.clip]);
   if (draft === null) {
     return <aside className="flex items-center justify-center border-l border-divider p-5 text-sm text-neutral-600"><Trans>选择片段后编辑</Trans></aside>;
@@ -966,6 +978,7 @@ function ClipInspector({
         { property: 'rotation', label: t`旋转`, step: 1 },
         { property: 'opacity', label: t`透明度`, step: 0.01, min: 0, max: 1 },
       ];
+  const hasUnsupportedEnabledEffect = draft.effects.some((effect) => effect.enabled && !isSupportedEditorEffectKind(effect.kind));
   return (
     <div className="min-h-0" aria-label={t`片段属性`}>
       <label className="flex flex-col gap-1 text-xs">
@@ -1102,6 +1115,81 @@ function ClipInspector({
             : null}
         </section>
       )}
+      {selected?.track.kind === 'video' || selected?.track.kind === 'overlay' ? (
+        <section className="mt-4 border-t border-divider pt-3" aria-label={t`效果`}>
+          <div className="flex items-center gap-2">
+            <h3 className="text-xs font-semibold"><Trans>效果</Trans> <span className="text-2xs text-neutral-500">{draft.effects.length}</span></h3>
+            <select
+              className="ml-auto h-7 min-w-0 border border-divider bg-bg px-2 text-2xs"
+              aria-label={t`添加效果类型`}
+              disabled={readOnly}
+              value={effectKind}
+              onChange={(event) => setEffectKind(event.currentTarget.value as SupportedEditorEffectKind)}
+            >
+              <option value="color_adjust"><Trans>颜色调整</Trans></option>
+              <option value="grayscale"><Trans>黑白</Trans></option>
+              <option value="blur"><Trans>模糊</Trans></option>
+            </select>
+            <button
+              type="button"
+              className="grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100 disabled:text-neutral-300"
+              aria-label={t`添加效果`}
+              disabled={readOnly}
+              onClick={() => setDraft({ ...draft, effects: [...draft.effects, createEditorEffect(effectKind, globalThis.crypto.randomUUID())] })}
+            ><Plus className="size-3.5" aria-hidden="true" /></button>
+          </div>
+          <ol className="mt-2 list-none space-y-2">
+            {draft.effects.map((effect, index) => {
+              const supportedKind = isSupportedEditorEffectKind(effect.kind) ? effect.kind : null;
+              const schema = supportedKind === null ? [] : EDITOR_EFFECT_SCHEMAS[supportedKind];
+              return (
+                <li key={effect.id} className="border border-divider bg-neutral-100/50 p-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      aria-label={t`启用效果 ${effectLabel(effect.kind)}`}
+                      disabled={readOnly}
+                      checked={effect.enabled}
+                      onChange={(event) => setDraft({
+                        ...draft,
+                        effects: draft.effects.map((candidate) => candidate.id === effect.id
+                          ? { ...candidate, enabled: event.currentTarget.checked }
+                          : candidate),
+                      })}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium">{effectLabel(effect.kind)}</span>
+                    <button type="button" className="grid size-6 place-items-center hover:bg-neutral-200 disabled:text-neutral-300" aria-label={t`上移效果 ${effectLabel(effect.kind)}`} disabled={readOnly || index === 0} onClick={() => setDraft({ ...draft, effects: moveEditorEffect(draft.effects, effect.id, -1) })}><ChevronUp className="size-3" aria-hidden="true" /></button>
+                    <button type="button" className="grid size-6 place-items-center hover:bg-neutral-200 disabled:text-neutral-300" aria-label={t`下移效果 ${effectLabel(effect.kind)}`} disabled={readOnly || index === draft.effects.length - 1} onClick={() => setDraft({ ...draft, effects: moveEditorEffect(draft.effects, effect.id, 1) })}><ChevronDown className="size-3" aria-hidden="true" /></button>
+                    <button type="button" className="grid size-6 place-items-center text-fail-text hover:bg-fail-surface disabled:text-neutral-300" aria-label={t`删除效果 ${effectLabel(effect.kind)}`} disabled={readOnly} onClick={() => setDraft({ ...draft, effects: draft.effects.filter((candidate) => candidate.id !== effect.id) })}><Trash2 className="size-3" aria-hidden="true" /></button>
+                  </div>
+                  {supportedKind === null ? <p className="mt-1 text-2xs text-fail-text"><Trans>该效果不受当前渲染器支持，请禁用或删除。</Trans></p> : null}
+                  {schema.map((parameter) => (
+                    <label key={parameter.key} className="mt-2 grid grid-cols-[minmax(0,1fr)_88px] items-center gap-2 text-2xs">
+                      <span>{effectParameterLabel(parameter.key)}</span>
+                      <input
+                        type="number"
+                        min={parameter.minimum}
+                        max={parameter.maximum}
+                        step={parameter.step}
+                        className="min-w-0 border border-divider bg-bg px-2 py-1 font-mono"
+                        aria-label={`${effectLabel(effect.kind)} ${effectParameterLabel(parameter.key)}`}
+                        disabled={readOnly || !effect.enabled}
+                        value={editorEffectParameter(effect, parameter)}
+                        onChange={(event) => setDraft({
+                          ...draft,
+                          effects: draft.effects.map((candidate) => candidate.id === effect.id
+                            ? setEditorEffectParameter(candidate, parameter, Number(event.currentTarget.value))
+                            : candidate),
+                        })}
+                      />
+                    </label>
+                  ))}
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      ) : null}
       {(['transition_in', 'transition_out'] as const).map((field) => (
         <label key={field} className="mt-3 flex flex-col gap-1 text-xs">
           {field === 'transition_in' ? <Trans>入场转场</Trans> : <Trans>出场转场</Trans>}
@@ -1128,9 +1216,28 @@ function ClipInspector({
         <input type="checkbox" disabled={readOnly} checked={draft.placement.enabled} onChange={(event) => setDraft({ ...draft, placement: { ...draft.placement, enabled: event.currentTarget.checked } })} />
         <Trans>启用片段</Trans>
       </label>
-      <Button className="mt-5 w-full" variant="primary" disabled={readOnly} onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
+      <Button className="mt-5 w-full" variant="primary" disabled={readOnly || hasUnsupportedEnabledEffect} onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
     </div>
   );
+}
+
+function effectLabel(kind: string): string {
+  switch (kind) {
+    case 'color_adjust': return t`颜色调整`;
+    case 'grayscale': return t`黑白`;
+    case 'blur': return t`模糊`;
+    default: return kind;
+  }
+}
+
+function effectParameterLabel(key: string): string {
+  switch (key) {
+    case 'brightness': return t`亮度`;
+    case 'contrast': return t`对比度`;
+    case 'saturation': return t`饱和度`;
+    case 'radius': return t`半径`;
+    default: return key;
+  }
 }
 
 interface AgentPanelProps {

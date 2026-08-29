@@ -932,6 +932,40 @@ describe('unified project workspace', () => {
     expect(preview.volume).toBe(1);
   });
 
+  it('previews enabled renderer-backed effects in canonical order', async () => {
+    const project: Project = {
+      ...RECORDED_PROJECT,
+      document: {
+        ...RECORDED_PROJECT.document,
+        tracks: RECORDED_PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            effects: [
+              { id: 'color', kind: 'color_adjust', enabled: true, parameters: { brightness: 0.2, contrast: 1.5, saturation: 0.8 } },
+              { id: 'gray', kind: 'grayscale', enabled: true, parameters: {} },
+              { id: 'blur', kind: 'blur', enabled: true, parameters: { radius: 4 } },
+            ],
+          }),
+        }),
+      },
+    };
+    renderWorkspace({
+      project,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const preview = await screen.findByLabelText('A 视频预览') as HTMLVideoElement;
+    expect(preview.dataset.previewEffects).toBe('color_adjust,grayscale,blur');
+    expect(preview.style.filter).toContain('brightness(1.2) contrast(1.5) saturate(0.8) grayscale(1) blur(');
+    expect(screen.getByLabelText('已启用 3 个效果')).toBeTruthy();
+    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(2);
+  });
+
   it('directly moves the selected Program clip and commits the latest transform once', async () => {
     const project: Project = {
       ...RECORDED_PROJECT,
@@ -1598,6 +1632,35 @@ describe('unified project workspace', () => {
         })],
       }));
     });
+  });
+
+  it('authors and reorders only renderer-backed clip effects', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
+    const kind = await screen.findByRole('combobox', { name: '添加效果类型' });
+    fireEvent.change(kind, { target: { value: 'color_adjust' } });
+    fireEvent.click(screen.getByRole('button', { name: '添加效果' }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: '颜色调整 亮度' }), { target: { value: '0.25' } });
+    fireEvent.change(kind, { target: { value: 'blur' } });
+    fireEvent.click(screen.getByRole('button', { name: '添加效果' }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: '模糊 半径' }), { target: { value: '5' } });
+    fireEvent.click(screen.getByRole('button', { name: '上移效果 模糊' }));
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: expect.arrayContaining([expect.objectContaining({
+          id: CLIP_A,
+          effects: [
+            expect.objectContaining({ kind: 'blur', enabled: true, parameters: { radius: 5 } }),
+            expect.objectContaining({ kind: 'color_adjust', enabled: true, parameters: { brightness: 0.25, contrast: 1, saturation: 1 } }),
+          ],
+        })]),
+      })],
+    })));
   });
 
   it('authors frame-aligned transform keyframes at the shared playhead', async () => {

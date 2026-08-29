@@ -9,6 +9,7 @@ import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
 import type { Project, TimelineClip } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import { clipFadeDuration } from './timelineInteraction';
+import { EDITOR_EFFECT_SCHEMAS, editorEffectParameter, isSupportedEditorEffectKind } from './effectEditing';
 import { resolveTimelineMaterial } from './timelineMaterial';
 
 interface PreviewMedia {
@@ -285,6 +286,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   const windowMouseUpRef = useRef<(() => void) | null>(null);
   const transform = draftTransform ?? evaluatedTransform;
   const audio = evaluatePreviewAudio(clip, offsetSeconds);
+  const previewFilter = evaluatePreviewFilter(clip, projectWidth);
   const hasScaleKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'scale_x' || keyframe.property === 'scale_y');
   const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');
   const canScaleDirectly = !hasScaleKeyframes || (Math.abs(clip.transform.rotation) <= 1e-6 && !hasRotationKeyframes);
@@ -415,6 +417,7 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
         pointerEvents: 'none',
         transform: `translate3d(${transform.x / Math.max(1, projectWidth) * 100}%, ${transform.y / Math.max(1, projectHeight) * 100}%, 0) rotate(${transform.rotation}deg) scale(${transform.scaleX}, ${transform.scaleY})`,
         transformOrigin: 'center',
+        filter: previewFilter.filter,
         ...(presented ? { opacity: transform.opacity } : {}),
       }}
       data-preview-transform-x={transform.x}
@@ -426,6 +429,8 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       data-preview-canonical-volume={audio.canonicalVolume}
       data-preview-fade-factor={audio.fadeFactor}
       data-preview-output-volume={audio.outputVolume}
+      data-preview-effects={previewFilter.kinds.join(',')}
+      data-preview-filter={previewFilter.filter}
       onLoadedMetadata={seekLatest}
       onLoadedData={() => {
         seekLatest();
@@ -690,6 +695,28 @@ function evaluatePreviewAudio(clip: TimelineClip, localTime: number) {
   const fadeOutFactor = fadeOut > 0 ? Math.min(1, Math.max(0, remaining / fadeOut)) : 1;
   const fadeFactor = Math.min(fadeInFactor, fadeOutFactor);
   return { canonicalVolume, fadeFactor, outputVolume: canonicalVolume * fadeFactor };
+}
+
+function evaluatePreviewFilter(clip: TimelineClip, projectWidth: number) {
+  const kinds: string[] = [];
+  const filters: string[] = [];
+  for (const effect of clip.effects) {
+    if (!effect.enabled || !isSupportedEditorEffectKind(effect.kind)) continue;
+    kinds.push(effect.kind);
+    if (effect.kind === 'color_adjust') {
+      const [brightnessSchema, contrastSchema, saturationSchema] = EDITOR_EFFECT_SCHEMAS.color_adjust;
+      const brightness = editorEffectParameter(effect, brightnessSchema!);
+      const contrast = editorEffectParameter(effect, contrastSchema!);
+      const saturation = editorEffectParameter(effect, saturationSchema!);
+      filters.push(`brightness(${Math.max(0, 1 + brightness)}) contrast(${contrast}) saturate(${saturation})`);
+    } else if (effect.kind === 'grayscale') {
+      filters.push('grayscale(1)');
+    } else {
+      const radius = editorEffectParameter(effect, EDITOR_EFFECT_SCHEMAS.blur[0]!);
+      filters.push(`blur(${radius / Math.max(1, projectWidth) * 100}cqw)`);
+    }
+  }
+  return { kinds, filter: filters.join(' ') || 'none' };
 }
 
 function sourceTime(clip: TimelineClip, offsetSeconds: number): number {

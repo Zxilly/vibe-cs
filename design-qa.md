@@ -7,6 +7,7 @@ final result: passed
 - Source visual truth: `C:\Users\12009\.codex\generated_images\01a044dc-e4a6-7103-b96a-31a535e92c75\exec-e64a95ce-7302-4770-b145-796da6f17a24.png`.
 - Browser-rendered implementation: `target/complete-preview/02-fixed.png`.
 - Functional editor pass: `target/editor-iteration/03-transition.png`.
+- Timeline snapping pass: `target/editor-iteration/04-snap-guide.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -28,6 +29,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - The timeline exposes only working tools: same-track additive selection, split at playhead, copy, paste, ripple-delete, and Change Group undo. Space, S, Delete, Ctrl/Cmd+C, Ctrl/Cmd+V, and Ctrl/Cmd+Z invoke the same Interfaces.
 - Video, audio, and text tracks can be created through canonical `insert_track` operations; non-Story tracks can be removed through `remove_track`. Story audio remains a derived read-only waveform while independent audio clips use the normal move, trim, inspect, and delete path.
 - The clip inspector exposes the transition vocabulary already consumed by the production renderer. Saved in/out transitions are visible on the canonical clip, not in a separate effects model.
+- Timeline snapping follows a screen-space threshold like the reference editors: ten pixels are converted through the shared time scale; candidates include other clip edges, markers, and the playhead; moving clips compare both edges; Shift bypasses snapping; the active guide shares ruler geometry.
+- Additive selection can span tracks. Batch delete and paste submit one Project Patch containing per-track replacements, with Story ripple semantics and free positioning preserved per track. Non-Story tracks can be reordered through the canonical `reorder_tracks` operation.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -54,6 +57,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Browser page errors were empty after a final reload and interaction pass.
 - The project media drawer listed 11 real assets with per-asset insert actions. Export opened a real confirmation dialog; recording was correctly disabled because the current Project had no planned clips.
 - A live editor pass advanced the real development Project from revision 21 to 26: inserted one media asset, selected it, copied and pasted it at the playhead, added and removed a text track, and saved a `fade` transition. Every action produced one Project revision and the final page error list was empty.
+- A second live pass reordered the two Story clips as revision 27, then held a clip five pixels off its neighbour. The editor visibly snapped it back to `00:14.000`; releasing the unchanged placement created no extra revision. Page errors remained empty.
 
 ## Comparison history
 
@@ -67,10 +71,11 @@ No actionable P0, P1, or P2 mismatch remains.
 8. `target/complete-preview/02-fixed.png`: video, radar, and tactical overlay were changed from cropped/zoomed presentation to complete contained presentation with non-overlapping transport chrome.
 9. `target/editor-foundation/01-media-bin.png`: inert footer controls were removed and the human media/record/export workflow was verified in the live Tauri app.
 10. `target/editor-iteration/03-transition.png`: real media insert, copy/paste, track add/remove, editable audio separation, and renderer-backed transition controls passed in Tauri.
+11. `target/editor-iteration/04-snap-guide.png`: the shared time geometry renders the active snap guide at the real adjacent clip boundary.
 
 ## Verification
 
-- Focused timeline editing and workbench interaction tests: 33 passed.
-- Full web suite: 256 files and 2886 tests passed.
+- Focused timeline editing and workbench interaction tests: 32 passed.
+- Full web suite: 256 files and 2890 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

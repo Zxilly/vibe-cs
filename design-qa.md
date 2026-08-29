@@ -42,6 +42,7 @@ final result: passed
 - Project Media delete confirmation pass: `target/editor-iteration/39-media-delete-confirm.png`.
 - Missing recorded media pass: `target/editor-iteration/40-missing-recorded-media.png`.
 - Audio-only transport pass: `target/editor-iteration/41-audio-only-transport.png`.
+- Audio-only final export pass: `target/editor-iteration/42-audio-only-export.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -77,6 +78,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Timeline-recorded items resolve their stable source asset separately from raw imported-item privileges. They expose Relink even while unavailable, but never Delete or Place-again actions. Relink keeps clip identities and Project revision unchanged while the source monitor is remounted against the repaired stream.
 - Independent A tracks now participate in real Program monitoring through one bounded clip-keyed audio pool. Each audio track keeps its active clip plus the nearest previous/next sources warm; audio elements never publish transport time. They follow the Program video clock or the same rAF fallback, evaluate canonical Volume keyframes and fade envelopes, honor Track mute and clip enabled state, and pause/mute inactive warm elements.
 - Program Transport remains available when Story has no recorded video. Forward and reverse fallback clocks are clamped to Project bounds with direction-specific endpoint detection, so a forward play from zero cannot be mistaken for the reverse boundary. Audio-only playback crosses edit points, switches the active pooled element, and stops exactly at Project duration.
+- Final Project export consumes the same independent A tracks as Program monitoring. Visible, unmuted, enabled clips keep source trim/speed, frame-evaluated Volume keyframes, fade envelopes and timeline offsets; multiple sources use non-normalizing `amix`, while muted tracks are omitted before input planning. Audio-only Projects render the canonical black Program canvas plus the mixed AAC stream rather than rejecting an empty Story.
 - Markers are editable canonical `EditingDocument.markers`: M or the visible tool adds one at the playhead; clicking seeks; double-clicking edits label, frame-snapped time, and colour; save and delete both use `replace_markers`.
 - I/O or the visible header controls mark a frame-aligned time range on the shared ruler geometry. Extract removes that range from the current target: Story closes the interval while free tracks retain absolute later placements.
 - Premiere Q/W ripple trims use the same selected Story clip, transport playhead, trim constraints, and `replace_track_clips` commit path as pointer trimming. Trimming the first Story clip now preserves the original track origin.
@@ -160,6 +162,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A twenty-seventh live pass restarted Tauri on the new backend and proved both asset-management boundaries. Direct deletion of the Timeline-referenced drag source returned `409 media_asset_in_use`. A third unused NiKo WAV exposed Relink/Remove controls; its destructive dialog stated that the disk file would remain. Confirming removed the record without changing Project revision 11, while `Test-Path` still returned true. A separate relink to a copied path retained the exact asset ID and eight-second duration. Page errors were empty.
 - A twenty-eighth live pass temporarily moved the source WAV shared by two recorded Timeline items. A fresh Tauri read immediately labeled both `已录制 · 不可用`, made both non-draggable, and exposed only Relink on selection; no Delete/Insert/Overwrite action appeared. Relinking the first stable asset ID to the moved copy restored only that item, while the other stayed unavailable. Restoring the original file made the remaining item ready on the next reload. Project stayed at revision 11 and page errors were empty.
 - A twenty-ninth live pass played the audio-only revision-11 Project from zero to 15.750 seconds with Program controls visible despite an empty Story. At 10.36 seconds the first clip was warm/muted/paused while the second was active, audible and advancing from its own source time; Project time remained the only authority. Playback stopped automatically at 15.750. A real Track Mute Patch made the active source immediately muted, and revision-13 Undo restored it. Page errors and the final console were empty.
+- A thirtieth live pass explicitly confirmed final export of the revision-13 audio-only Project. Job `562b5d50-c3fd-46c5-941f-581d1a272f12` completed and appeared as one real deliverable. `ffprobe` reported H.264 1920×1080 at 60fps plus 48kHz stereo AAC; both streams and the MP4 container were exactly 15.750 seconds. `volumedetect` measured −23.4dB mean and −0.1dB max, proving the exported A-track mix was not silent. Page errors were empty.
 
 ## Comparison history
 
@@ -206,6 +209,7 @@ No actionable P0, P1, or P2 mismatch remains.
 41. `target/editor-iteration/39-media-delete-confirm.png`: the destructive confirmation names the exact record-only blast radius and explicitly preserves the disk file.
 42. `target/editor-iteration/40-missing-recorded-media.png`: a recorded Timeline item with a missing source is visibly unavailable and offers only the stable-ID Relink repair.
 43. `target/editor-iteration/41-audio-only-transport.png`: Program controls and the shared playhead advance across two independent A-track clips while Story remains empty.
+44. `target/editor-iteration/42-audio-only-export.png`: the completed 15.75-second H.264/AAC audio-only Project appears as one playable deliverable with authoritative metadata.
 
 ## Verification
 
@@ -221,6 +225,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Focused availability, media data, drag, and workbench interaction tests: 84 passed.
 - Focused audio pool, fallback transport, and Project workbench tests: 77 passed.
 - Full web suite: 261 files and 2983 tests passed.
+- Media export planner: 23 tests passed, including independent A-track mix/mute/gain/fade coverage.
 - Domain Project invariants: 210 tests passed; scoped Domain/Application rustfmt passed.
 - Full Rust workspace tests and doc-tests passed; only explicitly environment-gated tests remained ignored.
 - Strict i18n/layer lint and TypeScript build passed.

@@ -1939,12 +1939,33 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(deleteMediaAsset).toHaveBeenCalledWith('asset-manage'));
   });
 
-  it('does not expose relink or delete actions for an asset already referenced by Timeline', async () => {
-    renderWorkspace({ project: RECORDED_PROJECT });
+  it('allows a referenced Timeline asset to relink but never to delete or place again', async () => {
+    const referencedAsset: MediaAsset = {
+      id: 'asset-a',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\a.mp4',
+      name: 'A source',
+      kind: 'video',
+      duration_seconds: 5,
+      width: 1920,
+      height: 1080,
+      file_size: 8_192,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'unavailable', message: 'source media file is missing' },
+      created_at: PROJECT.updated_at,
+    };
+    renderWorkspace({ project: RECORDED_PROJECT, assets: [referencedAsset] });
 
-    fireEvent.click(await screen.findByRole('option', { name: '选择素材 A' }));
-    expect(screen.queryByRole('button', { name: '重新定位素材 A' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '从项目移除素材 A' })).toBeNull();
+    const option = await screen.findByRole('option', { name: '选择素材 A' });
+    expect(option.textContent).toContain('不可用');
+    fireEvent.click(option);
+    expect(screen.getByRole('button', { name: '重新定位素材 A source' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '从项目移除素材 A source' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '在播放头插入 A source' })).toBeNull();
+    expect(screen.getByText('源文件不可用')).toBeTruthy();
   });
 
   it('inserts a selected imported asset at the transport time through the Premiere comma shortcut', async () => {

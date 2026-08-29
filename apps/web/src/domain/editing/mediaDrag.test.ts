@@ -20,7 +20,11 @@ function transfer(): ProjectMediaDataTransfer {
   };
 }
 
-function asset(kind: string, duration: number | null = 8): MediaAsset {
+function asset(
+  kind: string,
+  duration: number | null = 8,
+  metadataStatus: MediaAsset['metadata_status'] = { status: 'ready' },
+): MediaAsset {
   return {
     id: 'asset-1',
     project_id: 'project-1',
@@ -35,7 +39,7 @@ function asset(kind: string, duration: number | null = 8): MediaAsset {
     proxy_path: null,
     proxy_status: { status: 'not_requested' },
     waveform: null,
-    metadata_status: { status: 'ready' },
+    metadata_status: metadataStatus,
     created_at: '2026-08-30T00:00:00Z',
   };
 }
@@ -56,6 +60,10 @@ describe('Project Media drag payload', () => {
 
   it('rejects missing duration and malformed external payloads', () => {
     expect(writeProjectMediaDrag(transfer(), asset('video', null))).toBeNull();
+    expect(writeProjectMediaDrag(
+      transfer(),
+      asset('video', 8, { status: 'unavailable', message: 'missing' }),
+    )).toBeNull();
     const data = transfer();
     data.setData(PROJECT_MEDIA_DRAG_TYPE, JSON.stringify({ assetId: '', kind: 'shell', durationSeconds: -1 }));
     clearProjectMediaDrag();

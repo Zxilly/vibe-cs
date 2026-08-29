@@ -27,7 +27,10 @@ export function writeProjectMediaDrag(
   asset: MediaAsset,
 ): ProjectMediaDragPayload | null {
   const durationSeconds = asset.duration_seconds;
-  if (durationSeconds === null || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return null;
+  if (asset.metadata_status.status !== 'ready'
+    || durationSeconds === null
+    || !Number.isFinite(durationSeconds)
+    || durationSeconds <= 0) return null;
   const payload: ProjectMediaDragPayload = {
     assetId: asset.id,
     kind: projectMediaAssetKind(asset),

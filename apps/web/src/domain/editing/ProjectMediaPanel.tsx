@@ -57,7 +57,8 @@ type ProjectMediaItem = {
   readonly state: 'planned' | 'recorded' | 'imported';
   readonly previewAssetId: string | null;
   readonly timelineClip: TimelineClip | null;
-  readonly asset: MediaAsset | null;
+  readonly sourceAsset: MediaAsset | null;
+  readonly importedAsset: MediaAsset | null;
 };
 
 export function ProjectMediaPanel({
@@ -101,29 +102,31 @@ export function ProjectMediaPanel({
     && (normalizedQuery === '' || item.name.toLocaleLowerCase().includes(normalizedQuery))
   )), [items, normalizedQuery, stateFilter]);
   const timelineItems = filtered.filter((item) => item.timelineClip !== null);
-  const importedItems = filtered.filter((item) => item.asset !== null);
-  const selectedAsset = selected?.asset ?? null;
-  const canEditSource = selectedAsset !== null
-    && selectedAsset.duration_seconds !== null
-    && selectedAsset.duration_seconds > 0
+  const importedItems = filtered.filter((item) => item.importedAsset !== null);
+  const selectedSourceAsset = selected?.sourceAsset ?? null;
+  const selectedImportedAsset = selected?.importedAsset ?? null;
+  const canEditSource = selectedImportedAsset !== null
+    && selectedImportedAsset.metadata_status.status === 'ready'
+    && selectedImportedAsset.duration_seconds !== null
+    && selectedImportedAsset.duration_seconds > 0
     && !readOnly
     && !busy
-    && canEditAsset(selectedAsset);
+    && canEditAsset(selectedImportedAsset);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!canEditSource || selectedAsset === null || isTextEditingTarget(event.target)) return;
+      if (!canEditSource || selectedImportedAsset === null || isTextEditingTarget(event.target)) return;
       if (event.key === ',') {
         event.preventDefault();
-        onInsert(selectedAsset);
+        onInsert(selectedImportedAsset);
       } else if (event.key === '.') {
         event.preventDefault();
-        onOverwrite(selectedAsset);
+        onOverwrite(selectedImportedAsset);
       }
     };
     globalThis.addEventListener('keydown', handleKeyDown);
     return () => globalThis.removeEventListener('keydown', handleKeyDown);
-  }, [canEditSource, onInsert, onOverwrite, selectedAsset]);
+  }, [canEditSource, onInsert, onOverwrite, selectedImportedAsset]);
 
   return (
     <section
@@ -197,21 +200,42 @@ export function ProjectMediaPanel({
             >
               <Trans>录制此片段</Trans>
             </Button>
-          ) : selectedAsset === null ? (
+          ) : selectedSourceAsset === null ? (
             <p className="truncate px-0.5 py-2 text-2xs text-neutral-500">
-              {selected?.state === 'recorded' ? t`该片段已录制并位于时间线中。` : t`选择导入素材可插入或覆盖。`}
+              {selected?.state === 'recorded' ? t`该片段缺少可解析的素材记录。` : t`选择导入素材可插入或覆盖。`}
             </p>
+          ) : selectedImportedAsset === null ? (
+            <div className="flex h-full items-center gap-1">
+              <p className={cn(
+                'min-w-0 flex-1 truncate text-2xs',
+                selectedSourceAsset.metadata_status.status === 'unavailable' ? 'text-fail-text' : 'text-neutral-500',
+              )}>
+                {selectedSourceAsset.metadata_status.status === 'unavailable'
+                  ? t`源文件不可用，请重新定位。`
+                  : t`该片段已录制并位于时间线中。`}
+              </p>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!relinkAvailable || busy}
+                aria-label={t`重新定位素材 ${selectedSourceAsset.name}`}
+                onClick={() => onRelink(selectedSourceAsset)}
+              >
+                <Link2 className="size-3.5" aria-hidden="true" />
+                <Trans>重新定位</Trans>
+              </Button>
+            </div>
           ) : (
             <div>
               <div className="mb-0.5 flex min-w-0 items-center gap-0.5">
-                <p className="min-w-0 flex-1 truncate text-2xs text-neutral-500"><Trans>目标：{editTargetLabel(selectedAsset)}</Trans></p>
+                <p className="min-w-0 flex-1 truncate text-2xs text-neutral-500"><Trans>目标：{editTargetLabel(selectedImportedAsset)}</Trans></p>
                 <Button
                   size="sm"
                   icon
                   variant="ghost"
                   disabled={!relinkAvailable || busy}
-                  aria-label={t`重新定位素材 ${selectedAsset.name}`}
-                  onClick={() => onRelink(selectedAsset)}
+                  aria-label={t`重新定位素材 ${selectedImportedAsset.name}`}
+                  onClick={() => onRelink(selectedImportedAsset)}
                 >
                   <Link2 className="size-3.5" aria-hidden="true" />
                 </Button>
@@ -221,8 +245,8 @@ export function ProjectMediaPanel({
                   icon
                   variant="ghost"
                   disabled={busy}
-                  aria-label={t`从项目移除素材 ${selectedAsset.name}`}
-                  onClick={() => setDeleteCandidate(selectedAsset)}
+                  aria-label={t`从项目移除素材 ${selectedImportedAsset.name}`}
+                  onClick={() => setDeleteCandidate(selectedImportedAsset)}
                 >
                   <Trash2 className="size-3.5" aria-hidden="true" />
                 </Button>
@@ -233,8 +257,8 @@ export function ProjectMediaPanel({
                   size="sm"
                   variant="secondary"
                   disabled={!canEditSource}
-                  aria-label={t`在播放头插入 ${selectedAsset.name}`}
-                  onClick={() => onInsert(selectedAsset)}
+                  aria-label={t`在播放头插入 ${selectedImportedAsset.name}`}
+                  onClick={() => onInsert(selectedImportedAsset)}
                 >
                   <Trans>插入</Trans>
                   <span className="text-2xs text-neutral-500">,</span>
@@ -244,8 +268,8 @@ export function ProjectMediaPanel({
                   size="sm"
                   variant="ghost"
                   disabled={!canEditSource}
-                  aria-label={t`在播放头覆盖 ${selectedAsset.name}`}
-                  onClick={() => onOverwrite(selectedAsset)}
+                  aria-label={t`在播放头覆盖 ${selectedImportedAsset.name}`}
+                  onClick={() => onOverwrite(selectedImportedAsset)}
                 >
                   <Trans>覆盖</Trans>
                   <span className="text-2xs text-neutral-500">.</span>
@@ -335,6 +359,9 @@ function MediaItemSection({
         {items.map((item) => {
           const selected = item.key === selectedKey;
           const Icon = item.state === 'planned' ? CircleDashed : item.kind === 'audio' ? FileAudio2 : FileVideo2;
+          const draggableAsset = item.importedAsset?.metadata_status.status === 'ready'
+            ? item.importedAsset
+            : null;
           return (
             <button
               key={item.key}
@@ -344,15 +371,15 @@ function MediaItemSection({
               aria-label={t`选择素材 ${item.name}`}
               className={cn(
                 'grid w-full grid-cols-[30px_minmax(0,1fr)] gap-2 px-2.5 py-2 text-left hover:bg-neutral-100',
-                item.asset !== null && item.durationSeconds !== null && item.durationSeconds > 0
+                draggableAsset !== null && item.durationSeconds !== null && item.durationSeconds > 0
                   ? 'cursor-grab active:cursor-grabbing'
                   : 'cursor-default',
                 selected && 'bg-accent-100 ring-1 ring-inset ring-accent-300',
               )}
-              draggable={item.asset !== null && item.durationSeconds !== null && item.durationSeconds > 0}
+              draggable={draggableAsset !== null && item.durationSeconds !== null && item.durationSeconds > 0}
               onClick={() => onSelect(item)}
               onDragStart={(event) => {
-                if (item.asset === null || writeProjectMediaDrag(event.dataTransfer, item.asset) === null) {
+                if (draggableAsset === null || writeProjectMediaDrag(event.dataTransfer, draggableAsset) === null) {
                   event.preventDefault();
                   return;
                 }
@@ -368,6 +395,9 @@ function MediaItemSection({
                 <span className="mt-0.5 flex items-center gap-1.5 text-2xs text-neutral-500">
                   <span className="tabular-nums">{formatDuration(item.durationSeconds)}</span>
                   <span className={stateTone(item.state)}>{stateLabel(item.state)}</span>
+                  {item.sourceAsset?.metadata_status.status === 'unavailable' ? (
+                    <span className="text-fail-text"><Trans>不可用</Trans></span>
+                  ) : null}
                 </span>
               </span>
             </button>
@@ -427,6 +457,14 @@ function SourceStillPreview({ item }: { readonly item: ProjectMediaItem | null }
         <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-neutral-400">
           <Trans>选择素材以预览源画面</Trans>
         </div>
+      ) : item.sourceAsset?.metadata_status.status === 'unavailable' ? (
+        <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-fail-text">
+          <span>
+            <Link2 className="mx-auto mb-2 size-8" strokeWidth={1.2} aria-hidden="true" />
+            <span className="block"><Trans>源文件不可用</Trans></span>
+            <span className="mt-1 block text-2xs text-neutral-400"><Trans>重新定位后可继续预览和编辑。</Trans></span>
+          </span>
+        </div>
       ) : item.state === 'planned' ? (
         <div className="absolute inset-0 grid place-items-center bg-neutral-900 px-4 text-center text-xs text-neutral-300">
           <span>
@@ -463,20 +501,23 @@ function projectMediaItems(
   assets: readonly MediaAsset[],
 ): ProjectMediaItem[] {
   const referencedAssetIds = new Set<string>();
+  const assetsById = new Map(assets.map((asset) => [asset.id, asset]));
   const timelineItems = tracks
     .filter((track) => track.kind !== 'text')
     .flatMap((track) => track.clips.map((clip): ProjectMediaItem => {
       const material = resolveTimelineMaterial(clip.material);
       if (material.streamAssetId !== null) referencedAssetIds.add(material.streamAssetId);
+      const sourceAsset = material.streamAssetId === null ? null : assetsById.get(material.streamAssetId) ?? null;
       return {
         key: `clip:${clip.id}`,
         name: clip.name,
         durationSeconds: clip.placement.duration,
         kind: track.kind === 'audio' ? 'audio' : 'video',
         state: material.state,
-        previewAssetId: material.streamAssetId,
+        previewAssetId: sourceAsset?.metadata_status.status === 'unavailable' ? null : material.streamAssetId,
         timelineClip: clip,
-        asset: null,
+        sourceAsset,
+        importedAsset: null,
       };
     }));
   const importedItems = assets
@@ -487,9 +528,10 @@ function projectMediaItems(
       durationSeconds: asset.duration_seconds,
       kind: projectMediaAssetKind(asset),
       state: 'imported',
-      previewAssetId: projectMediaAssetKind(asset) === 'video' ? asset.id : null,
+      previewAssetId: projectMediaAssetKind(asset) === 'video' && asset.metadata_status.status === 'ready' ? asset.id : null,
       timelineClip: null,
-      asset,
+      sourceAsset: asset,
+      importedAsset: asset,
     }));
   return [...timelineItems, ...importedItems];
 }

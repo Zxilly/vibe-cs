@@ -6,9 +6,12 @@ import {
   dbToLinearGain,
   gainToTrackPercent,
   linearGainToDb,
+  clipFadeDuration,
+  maximumClipFadeDuration,
   moveTimelineClip,
   resolveTimelineSnap,
   snapTimeToFrame,
+  setClipFadeDuration,
   trimTimelineClip,
 } from './timelineInteraction';
 
@@ -77,5 +80,21 @@ describe('timeline direct manipulation', () => {
     expect(linearGainToDb(adjustLinearGainByTrackDelta(1, -5.35, 64))).toBeCloseTo(6.02, 1);
     expect(adjustLinearGainByTrackDelta(4, -64, 64)).toBe(4);
     expect(adjustLinearGainByTrackDelta(0, 64, 64)).toBe(0);
+  });
+
+  it('reads renderer-backed fade duration and enables a frame-snapped fade', () => {
+    expect(clipFadeDuration(CLIP, 'in')).toBe(0);
+    const faded = setClipFadeDuration(CLIP, 'in', 0.363, 60);
+    expect(faded.transition_in).toBe('fade');
+    expect(faded.metadata).toMatchObject({ transition_duration: 0.366_666_666_666_666_64 });
+    expect(clipFadeDuration(faded, 'in')).toBeCloseTo(0.366_666_667);
+  });
+
+  it('constrains dual fades to less than the clip duration and disables below threshold', () => {
+    const withOut = { ...CLIP, transition_out: 'fade' };
+    expect(maximumClipFadeDuration(withOut, 'in', 60)).toBeCloseTo(8 / 2 - 1 / 60);
+    const faded = setClipFadeDuration(withOut, 'in', 5, 60);
+    expect(clipFadeDuration(faded, 'in')).toBeCloseTo(3.983_333_333);
+    expect(setClipFadeDuration(faded, 'in', 0.01, 60).transition_in).toBeNull();
   });
 });

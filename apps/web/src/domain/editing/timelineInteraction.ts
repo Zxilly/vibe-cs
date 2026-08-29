@@ -1,6 +1,9 @@
 import type { TimelineClip } from '../../shared/desktop/dto';
 
 const MINIMUM_CLIP_FRAMES = 1;
+export const DEFAULT_CLIP_FADE_SECONDS = 0.35;
+export const MIN_CLIP_FADE_SECONDS = 0.05;
+export const MAX_CLIP_FADE_SECONDS = 5;
 export const MIN_CLIP_GAIN_DB = -60;
 export const MAX_CLIP_GAIN_DB = 20 * Math.log10(4);
 
@@ -56,6 +59,63 @@ export function adjustLinearGainByTrackDelta(volume: number, deltaY: number, tra
   const dbRange = MAX_CLIP_GAIN_DB - MIN_CLIP_GAIN_DB;
   const nextDb = linearGainToDb(volume) - deltaY / Math.max(1, trackHeight) * dbRange;
   return dbToLinearGain(nextDb);
+}
+
+export function clipHasActiveTransition(value: string | null): boolean {
+  const normalized = value?.trim().toLowerCase() ?? '';
+  return normalized !== '' && normalized !== 'none' && normalized !== 'cut';
+}
+
+export function clipTransitionDuration(clip: TimelineClip): number {
+  if (typeof clip.metadata === 'object' && clip.metadata !== null && !Array.isArray(clip.metadata)) {
+    const duration = clip.metadata.transition_duration;
+    if (typeof duration === 'number' && Number.isFinite(duration)) return duration;
+  }
+  return DEFAULT_CLIP_FADE_SECONDS;
+}
+
+export function clipFadeDuration(clip: TimelineClip, edge: 'in' | 'out'): number {
+  return clipHasActiveTransition(edge === 'in' ? clip.transition_in : clip.transition_out)
+    ? clipTransitionDuration(clip)
+    : 0;
+}
+
+export function maximumClipFadeDuration(clip: TimelineClip, edge: 'in' | 'out', fps: number): number {
+  const other = edge === 'in' ? clip.transition_out : clip.transition_in;
+  const frame = 1 / Math.max(1, fps);
+  const available = clipHasActiveTransition(other)
+    ? clip.placement.duration / 2 - frame
+    : clip.placement.duration - frame;
+  return Math.max(0, Math.min(MAX_CLIP_FADE_SECONDS, available));
+}
+
+export function setClipFadeDuration(
+  clip: TimelineClip,
+  edge: 'in' | 'out',
+  requestedDuration: number,
+  fps: number,
+): TimelineClip {
+  const transitionField = edge === 'in' ? 'transition_in' : 'transition_out';
+  if (requestedDuration < MIN_CLIP_FADE_SECONDS) {
+    return clip[transitionField] === null ? clip : { ...clip, [transitionField]: null };
+  }
+  const maximum = maximumClipFadeDuration(clip, edge, fps);
+  if (maximum < MIN_CLIP_FADE_SECONDS) return clip;
+  const duration = snapTimeToFrame(
+    Math.min(maximum, Math.max(MIN_CLIP_FADE_SECONDS, requestedDuration)),
+    fps,
+  );
+  const metadata = typeof clip.metadata === 'object' && clip.metadata !== null && !Array.isArray(clip.metadata)
+    ? clip.metadata
+    : {};
+  if (clip[transitionField] === 'fade'
+    && typeof metadata.transition_duration === 'number'
+    && Math.abs(metadata.transition_duration - duration) <= 1e-6) return clip;
+  return {
+    ...clip,
+    [transitionField]: 'fade',
+    metadata: { ...metadata, transition_duration: duration },
+  };
 }
 
 export function moveTimelineClip(clip: TimelineClip, start: number, fps: number): TimelineClip {

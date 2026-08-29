@@ -239,6 +239,28 @@ describe('unified project workspace', () => {
     expect(screen.getByRole('button', { name: /A 5\.0s · 未录制/u })).toBeTruthy();
   });
 
+  it('projects a recorded file that cannot cover source-out as needing another recording', async () => {
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((clip) => clip.id !== CLIP_B ? clip : {
+            ...clip,
+            material: { kind: 'asset', asset_id: 'asset-b', media_duration_seconds: 4.97 },
+          }),
+        }),
+      },
+    };
+    renderWorkspace({ project });
+
+    expect(await screen.findByRole('button', { name: /B 5\.0s · 需要重录/u })).toBeTruthy();
+    const panel = screen.getByRole('region', { name: '项目素材' });
+    expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('需要重录');
+    expect(panel.textContent).toContain('待录 2 · 已录 0');
+  });
+
   it('renders a non-equal Agent replacement inline on the canonical timeline', async () => {
     const previousClips = PROJECT.document.tracks[0]!.clips;
     const replacement = {

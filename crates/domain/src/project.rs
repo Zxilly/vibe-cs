@@ -372,6 +372,61 @@ impl TimelineClip {
             ),
         }
     }
+
+    /// Attaches one verified recording while preserving the edited Timeline duration.
+    ///
+    /// A managed capture may start a few ticks after its scheduled boundary. When the
+    /// resulting file is slightly shorter than the planned source range, the Take is
+    /// fitted by narrowing `source_out` and applying the matching constant speed. This
+    /// keeps Story timing stable without claiming media coverage the file does not have.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DomainError::InvalidInput`] when the clip has no Capture Intent, the
+    /// media cannot cover its source-in point, or fitting would require segmented or
+    /// unsupported speed.
+    pub fn with_recorded_take(
+        &self,
+        take_id: Uuid,
+        asset_id: Uuid,
+        media_duration_seconds: f64,
+    ) -> Result<Self, DomainError> {
+        validate_media_duration(media_duration_seconds)?;
+        let intent = self
+            .capture_intent
+            .as_ref()
+            .ok_or_else(|| invalid("recorded Take requires a Capture Intent"))?;
+        let mut recorded = self.clone();
+        if recorded.placement.source_out > media_duration_seconds {
+            if !recorded.speed_segments.is_empty() {
+                return Err(invalid(
+                    "a short recorded Take cannot fit a segmented-speed clip",
+                ));
+            }
+            let source_span = media_duration_seconds - recorded.placement.source_in;
+            if source_span <= 0.0 || recorded.placement.duration <= 0.0 {
+                return Err(invalid(
+                    "recorded Take does not cover the clip source range",
+                ));
+            }
+            let fitted_speed = source_span / recorded.placement.duration;
+            if !(MIN_EDITOR_CLIP_SPEED..=MAX_EDITOR_CLIP_SPEED).contains(&fitted_speed) {
+                return Err(invalid(
+                    "recorded Take requires an unsupported fitted speed",
+                ));
+            }
+            recorded.placement.source_out = media_duration_seconds;
+            recorded.placement.speed = fitted_speed;
+        }
+        recorded.material = TimelineClipMaterial::Take {
+            take_id,
+            asset_id,
+            capture_fingerprint: intent.fingerprint()?,
+            media_duration_seconds,
+        };
+        validate_clip(&recorded)?;
+        Ok(recorded)
+    }
 }
 
 impl Project {
@@ -978,6 +1033,46 @@ mod tests {
         assert_eq!(
             timeline_clip.materialization_state().expect("state"),
             TimelineClipMaterializationState::Stale
+        );
+    }
+
+    #[test]
+    fn short_recorded_take_fits_source_truth_without_changing_timeline_duration() {
+        let current = clip(100);
+        let recorded = current
+            .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 4.98)
+            .expect("fit Take");
+
+        assert!((recorded.placement.duration - 5.0).abs() < f64::EPSILON);
+        assert!((recorded.placement.source_out - 4.98).abs() < f64::EPSILON);
+        assert!((recorded.placement.speed - 0.996).abs() < 1e-12);
+        assert_eq!(
+            recorded.materialization_state().expect("state"),
+            TimelineClipMaterializationState::Recorded
+        );
+    }
+
+    #[test]
+    fn short_recorded_take_rejects_uncoverable_or_segmented_source_ranges() {
+        let mut current = clip(100);
+        current.placement.source_in = 2.0;
+        current.placement.source_out = 7.0;
+        assert!(
+            current
+                .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 2.0)
+                .is_err()
+        );
+
+        current.speed_segments.push(EditorSpeedSegment {
+            id: Uuid::from_u128(42),
+            start: 0.0,
+            end: 5.0,
+            speed: 1.0,
+        });
+        assert!(
+            current
+                .with_recorded_take(Uuid::from_u128(40), Uuid::from_u128(41), 6.0)
+                .is_err()
         );
     }
 

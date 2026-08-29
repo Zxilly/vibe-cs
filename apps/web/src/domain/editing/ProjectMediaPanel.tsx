@@ -54,7 +54,7 @@ type ProjectMediaItem = {
   readonly name: string;
   readonly durationSeconds: number | null;
   readonly kind: 'video' | 'audio';
-  readonly state: 'planned' | 'recorded' | 'imported';
+  readonly state: 'planned' | 'recorded' | 'stale' | 'imported';
   readonly previewAssetId: string | null;
   readonly timelineClip: TimelineClip | null;
   readonly sourceAsset: MediaAsset | null;
@@ -98,10 +98,10 @@ export function ProjectMediaPanel({
   const selected = items.find((item) => item.key === selectedKey) ?? null;
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const filtered = useMemo(() => items.filter((item) => (
-    (stateFilter === 'all' || item.state === stateFilter)
+    (stateFilter === 'all' || item.state === stateFilter || (stateFilter === 'planned' && item.state === 'stale'))
     && (normalizedQuery === '' || item.name.toLocaleLowerCase().includes(normalizedQuery))
   )), [items, normalizedQuery, stateFilter]);
-  const plannedItems = filtered.filter((item) => item.state === 'planned');
+  const plannedItems = filtered.filter((item) => item.state === 'planned' || item.state === 'stale');
   const recordedItems = filtered.filter((item) => item.state === 'recorded');
   const importedItems = filtered.filter((item) => item.importedAsset !== null);
   const selectedSourceAsset = selected?.sourceAsset ?? null;
@@ -138,7 +138,7 @@ export function ProjectMediaPanel({
         <h2 className="text-sm font-semibold"><Trans>项目素材</Trans></h2>
         <span className="text-2xs tabular-nums text-neutral-500">
           <Trans>
-            待录 {items.filter((item) => item.state === 'planned').length}
+            待录 {items.filter((item) => item.state === 'planned' || item.state === 'stale').length}
             {' · '}
             已录 {items.filter((item) => item.state === 'recorded').length}
           </Trans>
@@ -194,7 +194,7 @@ export function ProjectMediaPanel({
       <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_72px]">
         <SourceStillPreview item={selected} />
         <div className="border-t border-divider bg-bg p-1">
-          {selected?.state === 'planned' && selected.timelineClip !== null ? (
+          {(selected?.state === 'planned' || selected?.state === 'stale') && selected.timelineClip !== null ? (
             <Button
               className="w-full"
               size="sm"
@@ -376,7 +376,9 @@ function MediaItemSection({
       <div className="divide-y divide-divider">
         {items.map((item) => {
           const selected = item.key === selectedKey;
-          const Icon = item.state === 'planned' ? CircleDashed : item.kind === 'audio' ? FileAudio2 : FileVideo2;
+          const Icon = item.state === 'planned' || item.state === 'stale'
+            ? CircleDashed
+            : item.kind === 'audio' ? FileAudio2 : FileVideo2;
           const draggableAsset = item.importedAsset?.metadata_status.status === 'ready'
             ? item.importedAsset
             : null;
@@ -523,7 +525,7 @@ function projectMediaItems(
   const timelineItems = tracks
     .filter((track) => track.kind !== 'text')
     .flatMap((track) => track.clips.map((clip): ProjectMediaItem => {
-      const material = resolveTimelineMaterial(clip.material);
+      const material = resolveTimelineMaterial(clip.material, clip.placement);
       if (material.streamAssetId !== null) referencedAssetIds.add(material.streamAssetId);
       const sourceAsset = material.streamAssetId === null ? null : assetsById.get(material.streamAssetId) ?? null;
       return {
@@ -563,12 +565,14 @@ function formatDuration(seconds: number | null): string {
 
 function stateLabel(state: ProjectMediaItem['state']): string {
   if (state === 'planned') return t`准备录制`;
+  if (state === 'stale') return t`需要重录`;
   if (state === 'recorded') return t`已录制`;
   return t`导入`;
 }
 
 function stateTone(state: ProjectMediaItem['state']): string {
   if (state === 'planned') return 'text-warn';
+  if (state === 'stale') return 'text-fail-text';
   if (state === 'recorded') return 'text-ok';
   return 'text-accent-text';
 }

@@ -24,4 +24,17 @@ describe('resolveTimelineMaterial', () => {
       state: 'planned',
     });
   });
+
+  it('does not present a Take whose file cannot cover source-out as ready', () => {
+    expect(resolveTimelineMaterial(
+      {
+        kind: 'take',
+        take_id: 'take-short',
+        asset_id: 'asset-short',
+        capture_fingerprint: 'a'.repeat(64),
+        media_duration_seconds: 9.97,
+      },
+      { start: 0, duration: 10, source_in: 0, source_out: 10, speed: 1, volume: 1, enabled: true },
+    ).state).toBe('stale');
+  });
 });

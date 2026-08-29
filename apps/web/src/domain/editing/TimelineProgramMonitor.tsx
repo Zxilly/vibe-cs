@@ -991,5 +991,7 @@ function sourceTime(clip: TimelineClip, offsetSeconds: number): number {
 }
 
 function materialLabel(clip: TimelineClip) {
-  return resolveTimelineMaterial(clip.material).state === 'planned' ? <Trans>未录制</Trans> : <Trans>已录制</Trans>;
+  const state = resolveTimelineMaterial(clip.material, clip.placement).state;
+  if (state === 'stale') return <Trans>需要重录</Trans>;
+  return state === 'planned' ? <Trans>未录制</Trans> : <Trans>已录制</Trans>;
 }

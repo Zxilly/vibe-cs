@@ -868,10 +868,6 @@ async fn reconcile_project_recording(state: &AppState, job_id: Uuid) -> ApiResul
         {
             continue;
         }
-        let intent = clip
-            .capture_intent
-            .as_ref()
-            .ok_or_else(|| ApiError::invalid(format!("clip {clip_id} lost its Capture Intent")))?;
         let metadata = tokio::fs::metadata(&output.path).await.map_err(|error| {
             ApiError::invalid(format!(
                 "recorded media {} is unavailable: {error}",
@@ -899,13 +895,7 @@ async fn reconcile_project_recording(state: &AppState, job_id: Uuid) -> ApiResul
                 created_at: output.created_at,
             })
             .await?;
-        let mut recorded = clip.clone();
-        recorded.material = TimelineClipMaterial::Take {
-            take_id: output.id,
-            asset_id,
-            capture_fingerprint: intent.fingerprint()?,
-            media_duration_seconds: output.duration_seconds,
-        };
+        let recorded = clip.with_recorded_take(output.id, asset_id, output.duration_seconds)?;
         replacements.push(ProjectEditOperation::ReplaceClip {
             clip_id,
             clip: Box::new(recorded),

@@ -317,7 +317,9 @@ export function ProjectTimeline({
     .filter((track) => track.id !== document.story_track_id)
     .sort((left, right) => left.order - right.order)
     .map((track) => track.id), [document.story_track_id, document.tracks]);
-  const recordedCount = clips.filter((clip) => resolveTimelineMaterial(clip.material).state === 'recorded').length;
+  const recordedCount = clips.filter((clip) => (
+    resolveTimelineMaterial(clip.material, clip.placement).state === 'recorded'
+  )).length;
   const plannedCount = clips.length - recordedCount;
   const changeProjection = useMemo(
     () => projectStoryTimelineChanges(clips, document.story_track_id, reviewGroup),
@@ -2100,7 +2102,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onClearPreview: () => void;
 }) {
   const shell = useNativeShell();
-  const material = resolveTimelineMaterial(clip.material);
+  const material = resolveTimelineMaterial(clip.material, clip.placement);
   const enabledEffectCount = clip.effects.filter((effect) => effect.enabled).length;
   const keyframeGroups = useMemo(() => {
     const groups = new Map<number, number>();
@@ -2389,7 +2391,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
           'move',
         );
       }}
-      aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${material.state === 'planned' ? t`未录制` : t`已录制`}`}
+      aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${material.state === 'recorded' ? t`已录制` : material.state === 'stale' ? t`需要重录` : t`未录制`}`}
       data-timeline-clip-id={clip.id}
       data-source-in={visualClip.placement.source_in}
       data-source-out={visualClip.placement.source_out}

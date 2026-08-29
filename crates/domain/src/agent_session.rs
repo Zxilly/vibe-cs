@@ -23,9 +23,28 @@ where
 #[serde(deny_unknown_fields)]
 #[ts(export)]
 pub struct AgentToolCall {
+    pub id: String,
     pub name: String,
     pub input: Value,
     pub output: Value,
+    pub status: AgentToolCallStatus,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum AgentToolCallStatus {
+    Completed,
+    Failed,
+    AwaitingConfirmation,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum AgentToolDecisionKind {
+    Approved,
+    Rejected,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
@@ -68,6 +87,13 @@ pub enum AgentSessionEntry {
         at: DateTime<Utc>,
         content: String,
     },
+    ToolDecision {
+        id: Uuid,
+        at: DateTime<Utc>,
+        tool_call_id: String,
+        decision: AgentToolDecisionKind,
+        content: String,
+    },
     Assistant {
         id: Uuid,
         at: DateTime<Utc>,
@@ -90,21 +116,27 @@ impl AgentSessionEntry {
     #[must_use]
     pub const fn id(&self) -> Uuid {
         match self {
-            Self::User { id, .. } | Self::Assistant { id, .. } => *id,
+            Self::User { id, .. } | Self::ToolDecision { id, .. } | Self::Assistant { id, .. } => {
+                *id
+            }
         }
     }
 
     #[must_use]
     pub const fn at(&self) -> DateTime<Utc> {
         match self {
-            Self::User { at, .. } | Self::Assistant { at, .. } => *at,
+            Self::User { at, .. } | Self::ToolDecision { at, .. } | Self::Assistant { at, .. } => {
+                *at
+            }
         }
     }
 
     #[must_use]
     pub fn search_text(&self) -> String {
         match self {
-            Self::User { content, .. } | Self::Assistant { content, .. } => content.to_lowercase(),
+            Self::User { content, .. }
+            | Self::ToolDecision { content, .. }
+            | Self::Assistant { content, .. } => content.to_lowercase(),
         }
     }
 }
@@ -114,6 +146,11 @@ impl AgentSessionEntry {
 #[ts(export)]
 pub enum AgentSessionEntryDraft {
     User {
+        content: String,
+    },
+    ToolDecision {
+        tool_call_id: String,
+        decision: AgentToolDecisionKind,
         content: String,
     },
     Assistant {
@@ -146,6 +183,20 @@ impl AgentSessionEntryDraft {
                     return Err(invalid("agent entry content is too long"));
                 }
             }
+            Self::ToolDecision {
+                tool_call_id,
+                content,
+                ..
+            } => {
+                *tool_call_id = tool_call_id.trim().to_owned();
+                *content = content.trim().to_owned();
+                if tool_call_id.is_empty() || tool_call_id.len() > 256 {
+                    return Err(invalid("agent tool decision call identity is invalid"));
+                }
+                if content.is_empty() || content.chars().count() > 2_000 {
+                    return Err(invalid("agent tool decision content is invalid"));
+                }
+            }
             Self::Assistant {
                 content,
                 tool_calls,
@@ -160,6 +211,9 @@ impl AgentSessionEntryDraft {
                     return Err(invalid("agent entry has too many tool calls"));
                 }
                 for call in tool_calls {
+                    if call.id.trim().is_empty() || call.id.len() > 256 {
+                        return Err(invalid("agent tool call identity is invalid"));
+                    }
                     if call.name.trim().is_empty() || call.name.len() > 128 {
                         return Err(invalid("agent tool call name is invalid"));
                     }
@@ -398,4 +452,57 @@ pub fn normalize_session_title(value: &str) -> Result<String, DomainError> {
 
 fn invalid(message: &str) -> DomainError {
     DomainError::InvalidInput(message.to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tool_decision_requires_one_explicit_call_identity_and_content() {
+        let decision = AgentSessionEntryDraft::ToolDecision {
+            tool_call_id: " turn-1:tool:2 ".to_owned(),
+            decision: AgentToolDecisionKind::Approved,
+            content: " Allow export. ".to_owned(),
+        }
+        .normalize()
+        .expect("decision");
+        assert_eq!(
+            decision,
+            AgentSessionEntryDraft::ToolDecision {
+                tool_call_id: "turn-1:tool:2".to_owned(),
+                decision: AgentToolDecisionKind::Approved,
+                content: "Allow export.".to_owned(),
+            }
+        );
+        assert!(
+            AgentSessionEntryDraft::ToolDecision {
+                tool_call_id: " ".to_owned(),
+                decision: AgentToolDecisionKind::Rejected,
+                content: "No".to_owned(),
+            }
+            .normalize()
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn persisted_tool_call_requires_stable_identity() {
+        let draft = AgentSessionEntryDraft::Assistant {
+            content: String::new(),
+            tool_calls: vec![AgentToolCall {
+                id: String::new(),
+                name: "read_workspace".to_owned(),
+                input: Value::Null,
+                output: Value::Null,
+                status: AgentToolCallStatus::Completed,
+            }],
+            status: Some(AgentTurnStatus::Completed),
+            request_id: None,
+            retry_of: None,
+            error: None,
+            metadata: None,
+        };
+        assert!(draft.normalize().is_err());
+    }
 }

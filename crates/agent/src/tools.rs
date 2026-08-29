@@ -1,10 +1,13 @@
-use std::sync::Arc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
 
 use rig_agent::tool::DynamicTool;
 use rig_core::tool::{ToolExecutionError, ToolOutput};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, mpsc};
 use ts_rs::TS;
 
 use crate::{AgentContext, AgentMode, AgentToolHost};
@@ -15,9 +18,30 @@ const MAXIMUM_CAPTURED_TOOL_OUTPUT_BYTES: usize = 64 * 1024;
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct CapturedToolCall {
+    pub id: String,
     pub name: String,
     pub input: Value,
     pub output: Value,
+    pub status: CapturedToolCallStatus,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export)]
+pub enum CapturedToolCallStatus {
+    Completed,
+    Failed,
+    AwaitingConfirmation,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum ToolLifecycleEvent {
+    Started {
+        id: String,
+        name: String,
+        input: Value,
+    },
+    Finished(CapturedToolCall),
 }
 
 #[derive(Debug, Default)]
@@ -30,15 +54,29 @@ pub(crate) struct ToolState {
     context: Arc<AgentContext>,
     tool_host: Option<Arc<dyn AgentToolHost>>,
     captures: Arc<Mutex<Captures>>,
+    request_id: Arc<str>,
+    sequence: Arc<AtomicU64>,
+    lifecycle: mpsc::UnboundedSender<ToolLifecycleEvent>,
 }
 
 impl ToolState {
-    pub(crate) fn new(context: AgentContext, tool_host: Option<Arc<dyn AgentToolHost>>) -> Self {
-        Self {
-            context: Arc::new(context),
-            tool_host,
-            captures: Arc::new(Mutex::new(Captures::default())),
-        }
+    pub(crate) fn new(
+        context: AgentContext,
+        tool_host: Option<Arc<dyn AgentToolHost>>,
+        request_id: &str,
+    ) -> (Self, mpsc::UnboundedReceiver<ToolLifecycleEvent>) {
+        let (lifecycle, receiver) = mpsc::unbounded_channel();
+        (
+            Self {
+                context: Arc::new(context),
+                tool_host,
+                captures: Arc::new(Mutex::new(Captures::default())),
+                request_id: Arc::from(request_id),
+                sequence: Arc::new(AtomicU64::new(0)),
+                lifecycle,
+            },
+            receiver,
+        )
     }
 
     pub(crate) async fn snapshot(&self) -> Vec<CapturedToolCall> {
@@ -51,45 +89,80 @@ impl ToolState {
         name: &str,
         input: Value,
     ) -> Result<Value, ToolExecutionError> {
-        let output = match kind {
-            ToolKind::ReadWorkspace => json!({
-                "workspace": self.context.workspace,
-                "project": self.context.project,
-            }),
-            ToolKind::ReadDemoEvidence => json!({
-                "demo": self.context.demo,
-                "analysis": self.context.analysis,
-                "mapContext": self.context.map_context,
-            }),
-            ToolKind::ReadCinematicContext => {
-                let host = self.host()?;
-                let ids = string_array(&input, "highlightIds", 64)?;
-                host.read_cinematic_context(&ids)
+        let sequence = self.sequence.fetch_add(1, Ordering::Relaxed) + 1;
+        let id = format!("{}:tool:{sequence}", self.request_id);
+        let _ = self.lifecycle.send(ToolLifecycleEvent::Started {
+            id: id.clone(),
+            name: name.to_owned(),
+            input: input.clone(),
+        });
+        let result = async {
+            let output = match kind {
+                ToolKind::ReadWorkspace => json!({
+                    "workspace": self.context.workspace,
+                    "project": self.context.project,
+                }),
+                ToolKind::ReadDemoEvidence => json!({
+                    "demo": self.context.demo,
+                    "analysis": self.context.analysis,
+                    "mapContext": self.context.map_context,
+                }),
+                ToolKind::ReadCinematicContext => {
+                    let host = self.host()?;
+                    let ids = string_array(&input, "highlightIds", 64)?;
+                    host.read_cinematic_context(&ids)
+                        .await
+                        .map_err(ToolExecutionError::other)?
+                }
+                ToolKind::ApplyProjectPatch => self
+                    .host()?
+                    .apply_project_patch(input.clone())
                     .await
-                    .map_err(ToolExecutionError::other)?
+                    .map_err(ToolExecutionError::other)?,
+                ToolKind::ReplaceStoryTimeline => self
+                    .host()?
+                    .replace_story_timeline(input.clone())
+                    .await
+                    .map_err(ToolExecutionError::other)?,
+                ToolKind::RequestRecording => confirmation_request("recording", &input)?,
+                ToolKind::RequestExport => confirmation_request("export", &input)?,
+            };
+            Ok::<_, ToolExecutionError>(output)
+        }
+        .await;
+        let (output, status) = match result {
+            Ok(output) => {
+                let status = if output.get("status").and_then(Value::as_str)
+                    == Some("requires_human_confirmation")
+                {
+                    CapturedToolCallStatus::AwaitingConfirmation
+                } else {
+                    CapturedToolCallStatus::Completed
+                };
+                (output, status)
             }
-            ToolKind::ApplyProjectPatch => self
-                .host()?
-                .apply_project_patch(input.clone())
-                .await
-                .map_err(ToolExecutionError::other)?,
-            ToolKind::ReplaceStoryTimeline => self
-                .host()?
-                .replace_story_timeline(input.clone())
-                .await
-                .map_err(ToolExecutionError::other)?,
-            ToolKind::RequestRecording => confirmation_request("recording", &input)?,
-            ToolKind::RequestExport => confirmation_request("export", &input)?,
+            Err(error) => {
+                let call = CapturedToolCall {
+                    id,
+                    name: name.to_owned(),
+                    input,
+                    output: bounded_output(&json!({ "error": error.to_string() })),
+                    status: CapturedToolCallStatus::Failed,
+                };
+                self.captures.lock().await.tool_calls.push(call.clone());
+                let _ = self.lifecycle.send(ToolLifecycleEvent::Finished(call));
+                return Err(error);
+            }
         };
-        self.captures
-            .lock()
-            .await
-            .tool_calls
-            .push(CapturedToolCall {
-                name: name.to_owned(),
-                input,
-                output: bounded_output(&output),
-            });
+        let call = CapturedToolCall {
+            id,
+            name: name.to_owned(),
+            input,
+            output: bounded_output(&output),
+            status,
+        };
+        self.captures.lock().await.tool_calls.push(call.clone());
+        let _ = self.lifecycle.send(ToolLifecycleEvent::Finished(call));
         Ok(output)
     }
 
@@ -401,5 +474,38 @@ mod tests {
             .expect("valid request");
             assert_eq!(result["status"], "requires_human_confirmation");
         }
+    }
+
+    #[tokio::test]
+    async fn confirmation_tool_has_one_stable_started_and_finished_identity() {
+        let (state, mut lifecycle) = ToolState::new(AgentContext::default(), None, "turn-hitl");
+        state
+            .execute(
+                ToolKind::RequestExport,
+                "request_project_export",
+                json!({
+                    "projectId":"00000000-0000-4000-8000-000000000001",
+                    "baseRevision":1
+                }),
+            )
+            .await
+            .expect("confirmation checkpoint");
+        let calls = state.snapshot().await;
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "turn-hitl:tool:1");
+        assert_eq!(
+            calls[0].status,
+            CapturedToolCallStatus::AwaitingConfirmation
+        );
+        assert!(matches!(
+            lifecycle.recv().await,
+            Some(ToolLifecycleEvent::Started { ref id, .. }) if id == "turn-hitl:tool:1"
+        ));
+        assert!(matches!(
+            lifecycle.recv().await,
+            Some(ToolLifecycleEvent::Finished(ref call))
+                if call.id == "turn-hitl:tool:1"
+                    && call.status == CapturedToolCallStatus::AwaitingConfirmation
+        ));
     }
 }

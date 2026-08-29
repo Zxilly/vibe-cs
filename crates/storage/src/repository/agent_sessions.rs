@@ -135,6 +135,17 @@ impl Storage {
                     at,
                     content,
                 },
+                AgentSessionEntryDraft::ToolDecision {
+                    tool_call_id,
+                    decision,
+                    content,
+                } => AgentSessionEntry::ToolDecision {
+                    id: Uuid::new_v4(),
+                    at,
+                    tool_call_id,
+                    decision,
+                    content,
+                },
                 AgentSessionEntryDraft::Assistant {
                     content,
                     tool_calls,
@@ -385,6 +396,7 @@ fn append_entry(
             sequence,
             match entry {
                 AgentSessionEntry::User { .. } => "user",
+                AgentSessionEntry::ToolDecision { .. } => "tool_decision",
                 AgentSessionEntry::Assistant { .. } => "assistant",
             },
             entry.at().to_rfc3339(),

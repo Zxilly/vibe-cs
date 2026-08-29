@@ -14,11 +14,13 @@ use tokio::sync::{Mutex, Semaphore};
 use uuid::Uuid;
 use vibe_cs_agent::{
     AgentConfig as EmbeddedAgentConfig, AgentContext as EmbeddedAgentContext,
-    AgentMode as EmbeddedAgentMode, AgentRequest as EmbeddedAgentRequest,
-    AgentStreamEvent as EmbeddedAgentStreamEvent, AgentToolHost, Cancellation, HistoryMessage,
+    AgentMode as EmbeddedAgentMode, AgentProviderProtocol as EmbeddedAgentProviderProtocol,
+    AgentRequest as EmbeddedAgentRequest, AgentStreamEvent as EmbeddedAgentStreamEvent,
+    AgentToolHost, Cancellation, HistoryMessage,
 };
 use vibe_cs_domain::{
-    AnalysisRunStatus, CaptureIntent, HlaeCameraStyle, ProjectChangeAuthor, ProjectEditLease,
+    AgentToolCall as DomainAgentToolCall, AgentToolCallStatus, AnalysisRunStatus, CaptureIntent,
+    HlaeCameraStyle, LlmParameterStyle, ProjectChangeAuthor, ProjectEditLease,
     ProjectEditOperation, ProjectPatch, ProjectPatchScope, RoundReplayArtifact, TimelineClip,
     TimelineClipMaterial, TimelinePlacement, Transform,
 };
@@ -683,7 +685,7 @@ pub(crate) struct AgentMessage {
     role: AgentRole,
     content: String,
     created_at: String,
-    tool_calls: Vec<AgentToolCall>,
+    tool_calls: Vec<DomainAgentToolCall>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
@@ -695,13 +697,13 @@ pub(crate) struct AgentThread {
     updated_at: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[ts(export, rename = "DesktopAgentToolCall")]
-pub(crate) struct AgentToolCall {
+#[ts(export, rename = "DesktopAgentToolCallStarted")]
+pub(crate) struct AgentToolCallStarted {
+    id: String,
     name: String,
     input: Value,
-    output: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
@@ -782,8 +784,11 @@ pub(crate) enum AgentEvent {
     TextDelta {
         delta: String,
     },
-    ToolCall {
-        tool_call: AgentToolCall,
+    ToolCallStarted {
+        tool_call: AgentToolCallStarted,
+    },
+    ToolCallFinished {
+        tool_call: DomainAgentToolCall,
     },
     Complete {
         thread: AgentThread,
@@ -794,13 +799,19 @@ pub(crate) enum AgentEvent {
     },
 }
 
-impl From<vibe_cs_agent::CapturedToolCall> for AgentToolCall {
-    fn from(value: vibe_cs_agent::CapturedToolCall) -> Self {
-        Self {
-            name: value.name,
-            input: value.input,
-            output: value.output,
-        }
+fn domain_tool_call(value: vibe_cs_agent::CapturedToolCall) -> DomainAgentToolCall {
+    DomainAgentToolCall {
+        id: value.id,
+        name: value.name,
+        input: value.input,
+        output: value.output,
+        status: match value.status {
+            vibe_cs_agent::CapturedToolCallStatus::Completed => AgentToolCallStatus::Completed,
+            vibe_cs_agent::CapturedToolCallStatus::Failed => AgentToolCallStatus::Failed,
+            vibe_cs_agent::CapturedToolCallStatus::AwaitingConfirmation => {
+                AgentToolCallStatus::AwaitingConfirmation
+            }
+        },
     }
 }
 
@@ -1196,6 +1207,10 @@ async fn run_agent_chat(
             model: config.llm.model,
             base_url: config.llm.base_url,
             api_key,
+            provider_protocol: match config.llm.parameter_style {
+                LlmParameterStyle::OpenAi => EmbeddedAgentProviderProtocol::OpenAi,
+                LlmParameterStyle::Anthropic => EmbeddedAgentProviderProtocol::Anthropic,
+            },
             custom_instructions: config.llm.prompt,
             provider_parameters: config.llm.parameters,
         },
@@ -1230,9 +1245,14 @@ async fn run_agent_chat(
                     text_event_count += 1;
                 }
             }
-            EmbeddedAgentStreamEvent::ToolCall(tool_call) => {
-                let _ = on_event.send(AgentEvent::ToolCall {
-                    tool_call: AgentToolCall::from(tool_call),
+            EmbeddedAgentStreamEvent::ToolCallStarted { id, name, input } => {
+                let _ = on_event.send(AgentEvent::ToolCallStarted {
+                    tool_call: AgentToolCallStarted { id, name, input },
+                });
+            }
+            EmbeddedAgentStreamEvent::ToolCallFinished(tool_call) => {
+                let _ = on_event.send(AgentEvent::ToolCallFinished {
+                    tool_call: domain_tool_call(tool_call),
                 });
             }
         }),
@@ -1280,7 +1300,7 @@ async fn run_agent_chat(
     let tool_calls = response
         .tool_calls
         .into_iter()
-        .map(AgentToolCall::from)
+        .map(domain_tool_call)
         .collect::<Vec<_>>();
     let usage = response.usage;
     let now = Utc::now().to_rfc3339();

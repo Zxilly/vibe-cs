@@ -444,7 +444,7 @@ const CURRENT_SCHEMA: &str = r"
     CREATE TABLE agent_session_entries (
         session_id TEXT NOT NULL,
         sequence INTEGER NOT NULL CHECK(sequence >= 0),
-        kind TEXT NOT NULL CHECK(kind IN ('user', 'assistant')),
+        kind TEXT NOT NULL CHECK(kind IN ('user', 'tool_decision', 'assistant')),
         created_at TEXT NOT NULL,
         search_text TEXT NOT NULL,
         document_json TEXT NOT NULL,

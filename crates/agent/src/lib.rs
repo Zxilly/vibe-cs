@@ -1,5 +1,6 @@
 mod tools;
 
+use std::collections::HashSet;
 use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
@@ -10,9 +11,9 @@ use futures_util::StreamExt;
 use rig_agent::{AgentBuilder, prelude::MultiTurnStreamItem, streaming::StreamingPrompt};
 use rig_core::{
     client::CompletionClient,
-    completion::{Message, Usage},
+    completion::{CompletionModel, Message, Usage},
     message::Text,
-    providers::openai,
+    providers::{anthropic, openai},
     streaming::StreamedAssistantContent,
 };
 use serde::{Deserialize, Serialize};
@@ -20,7 +21,7 @@ use serde_json::Value;
 use tokio::sync::Notify;
 use ts_rs::TS;
 
-pub use tools::CapturedToolCall;
+pub use tools::{CapturedToolCall, CapturedToolCallStatus};
 
 const MAXIMUM_CONTEXT_BYTES: usize = 2 * 1024 * 1024;
 
@@ -75,8 +76,15 @@ pub struct AgentConfig {
     pub model: String,
     pub base_url: String,
     pub api_key: String,
+    pub provider_protocol: AgentProviderProtocol,
     pub custom_instructions: String,
     pub provider_parameters: Value,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentProviderProtocol {
+    OpenAi,
+    Anthropic,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -121,7 +129,12 @@ pub struct AgentRequest {
 #[derive(Debug, Clone)]
 pub enum AgentStreamEvent {
     TextDelta(String),
-    ToolCall(CapturedToolCall),
+    ToolCallStarted {
+        id: String,
+        name: String,
+        input: Value,
+    },
+    ToolCallFinished(CapturedToolCall),
 }
 
 #[derive(Debug, Clone)]
@@ -170,24 +183,68 @@ pub enum AgentError {
 pub async fn run_agent<F>(
     request: AgentRequest,
     cancellation: &Cancellation,
-    mut emit: F,
+    emit: F,
 ) -> Result<AgentResponse, AgentError>
 where
     F: FnMut(AgentStreamEvent),
 {
     validate_request(&request)?;
+    let provider_secret = request.config.api_key.clone();
+    let base_url = request.config.base_url.trim_end_matches('/');
+    let model_name = request.config.model.clone();
+    match request.config.provider_protocol {
+        AgentProviderProtocol::OpenAi => {
+            let client = openai::Client::builder()
+                .api_key(provider_secret)
+                .base_url(base_url)
+                .build()
+                .map_err(|error| {
+                    AgentError::Invalid(format!("invalid provider configuration: {error}"))
+                })?
+                .completions_api();
+            run_agent_with_model(
+                request,
+                client.completion_model(model_name),
+                cancellation,
+                emit,
+            )
+            .await
+        }
+        AgentProviderProtocol::Anthropic => {
+            let client = anthropic::Client::builder()
+                .api_key(provider_secret)
+                .base_url(base_url)
+                .build()
+                .map_err(|error| {
+                    AgentError::Invalid(format!("invalid provider configuration: {error}"))
+                })?;
+            run_agent_with_model(
+                request,
+                client.completion_model(model_name),
+                cancellation,
+                emit,
+            )
+            .await
+        }
+    }
+}
+
+async fn run_agent_with_model<M, F>(
+    request: AgentRequest,
+    model: M,
+    cancellation: &Cancellation,
+    mut emit: F,
+) -> Result<AgentResponse, AgentError>
+where
+    M: CompletionModel + 'static,
+    F: FnMut(AgentStreamEvent),
+{
     let original_message = request.message;
     let mut prompt = current_turn_prompt(&original_message, &request.context);
-    let state = tools::ToolState::new(request.context, request.tool_host);
+    let (state, mut tool_events) =
+        tools::ToolState::new(request.context, request.tool_host, &request.request_id);
     let dynamic_tools = tools::create_tools(&state, request.mode);
     let provider_secret = request.config.api_key.clone();
-    let client = openai::Client::builder()
-        .api_key(provider_secret.clone())
-        .base_url(request.config.base_url.trim_end_matches('/'))
-        .build()
-        .map_err(|error| AgentError::Invalid(format!("invalid provider configuration: {error}")))?
-        .completions_api();
-    let model = client.completion_model(request.config.model.clone());
     let preamble = system_prompt(
         request.mode,
         request.auto_mode,
@@ -217,7 +274,7 @@ where
         .collect::<Vec<_>>();
     let mut content = String::new();
     let mut usage = None;
-    let mut emitted_tool_calls = 0_usize;
+    let mut emitted_tool_calls = HashSet::<String>::new();
     for attempt in 0..2 {
         let mut stream = agent
             .stream_prompt(prompt)
@@ -231,10 +288,27 @@ where
             let item = tokio::select! {
                 () = cancellation.cancelled() => {
                     let tool_calls = state.snapshot().await;
-                    for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
-                        emit(AgentStreamEvent::ToolCall(tool_call.clone()));
+                    for tool_call in &tool_calls {
+                        if emitted_tool_calls.insert(tool_call.id.clone()) {
+                            emit(AgentStreamEvent::ToolCallFinished(tool_call.clone()));
+                        }
                     }
                     return Err(AgentError::Cancelled);
+                },
+                tool_event = tool_events.recv() => {
+                    if let Some(tool_event) = tool_event {
+                        match tool_event {
+                            tools::ToolLifecycleEvent::Started { id, name, input } => {
+                                emit(AgentStreamEvent::ToolCallStarted { id, name, input });
+                            }
+                            tools::ToolLifecycleEvent::Finished(tool_call) => {
+                                if emitted_tool_calls.insert(tool_call.id.clone()) {
+                                    emit(AgentStreamEvent::ToolCallFinished(tool_call));
+                                }
+                            }
+                        }
+                    }
+                    continue;
                 },
                 item = stream.next() => item,
             };
@@ -247,8 +321,10 @@ where
                     // the terminal error so the durable turn retains what really
                     // happened and a retry is reviewable rather than opaque.
                     let tool_calls = state.snapshot().await;
-                    for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
-                        emit(AgentStreamEvent::ToolCall(tool_call.clone()));
+                    for tool_call in &tool_calls {
+                        if emitted_tool_calls.insert(tool_call.id.clone()) {
+                            emit(AgentStreamEvent::ToolCallFinished(tool_call.clone()));
+                        }
                     }
                     return Err(AgentError::Provider(safe_error(
                         &error.to_string(),
@@ -276,16 +352,18 @@ where
             // every completed structured call as soon as the stream yields again,
             // so a later provider failure or host deadline does not erase it.
             let tool_calls = state.snapshot().await;
-            for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
-                emit(AgentStreamEvent::ToolCall(tool_call.clone()));
+            for tool_call in &tool_calls {
+                if emitted_tool_calls.insert(tool_call.id.clone()) {
+                    emit(AgentStreamEvent::ToolCallFinished(tool_call.clone()));
+                }
             }
-            emitted_tool_calls = tool_calls.len();
         }
         let tool_calls = state.snapshot().await;
-        for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
-            emit(AgentStreamEvent::ToolCall(tool_call.clone()));
+        for tool_call in &tool_calls {
+            if emitted_tool_calls.insert(tool_call.id.clone()) {
+                emit(AgentStreamEvent::ToolCallFinished(tool_call.clone()));
+            }
         }
-        emitted_tool_calls = tool_calls.len();
 
         if content.trim().is_empty() && attempt == 0 && !tool_calls.is_empty() {
             prompt = continuation_prompt(&original_message, &tool_calls);
@@ -296,8 +374,10 @@ where
         break;
     }
     let tool_calls = state.snapshot().await;
-    for tool_call in tool_calls.iter().skip(emitted_tool_calls) {
-        emit(AgentStreamEvent::ToolCall(tool_call.clone()));
+    for tool_call in &tool_calls {
+        if emitted_tool_calls.insert(tool_call.id.clone()) {
+            emit(AgentStreamEvent::ToolCallFinished(tool_call.clone()));
+        }
     }
     let content = content.trim().to_owned();
     if content.is_empty() {
@@ -613,6 +693,7 @@ mod tests {
                     model,
                     base_url,
                     api_key,
+                    provider_protocol: AgentProviderProtocol::OpenAi,
                     custom_instructions: String::new(),
                     provider_parameters: json!({}),
                 },
@@ -706,6 +787,7 @@ mod tests {
             requests
         });
 
+        let mut events = Vec::new();
         let response = tokio::time::timeout(
             std::time::Duration::from_secs(20),
             run_agent(
@@ -719,6 +801,7 @@ mod tests {
                         model: "rig-e2e-model".into(),
                         base_url: format!("http://{address}/v1"),
                         api_key: "rig-e2e-secret".into(),
+                        provider_protocol: AgentProviderProtocol::OpenAi,
                         custom_instructions: String::new(),
                         provider_parameters: json!({}),
                     },
@@ -730,7 +813,7 @@ mod tests {
                     auto_mode: true,
                 },
                 &Cancellation::new(),
-                |_| {},
+                |event| events.push(event),
             ),
         )
         .await
@@ -740,6 +823,27 @@ mod tests {
 
         assert_eq!(requests.len(), TOOL_TURNS + 1);
         assert_eq!(response.tool_calls.len(), TOOL_TURNS);
+        assert!(response.tool_calls.iter().enumerate().all(|(index, call)| {
+            call.id == format!("unbounded-tool-loop:tool:{}", index + 1)
+                && call.status == CapturedToolCallStatus::Completed
+        }));
+        let started = events
+            .iter()
+            .filter_map(|event| match event {
+                AgentStreamEvent::ToolCallStarted { id, .. } => Some(id),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let finished = events
+            .iter()
+            .filter_map(|event| match event {
+                AgentStreamEvent::ToolCallFinished(call) => Some(&call.id),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(started.len(), TOOL_TURNS);
+        assert_eq!(finished.len(), TOOL_TURNS);
+        assert_eq!(started, finished);
         assert_eq!(response.content, "已完成全部结构化检查。");
     }
 
@@ -792,6 +896,7 @@ mod tests {
                     model: "rig-e2e-model".into(),
                     base_url: format!("http://{address}/v1"),
                     api_key: "rig-e2e-secret".into(),
+                    provider_protocol: AgentProviderProtocol::OpenAi,
                     custom_instructions: String::new(),
                     provider_parameters: json!({}),
                 },

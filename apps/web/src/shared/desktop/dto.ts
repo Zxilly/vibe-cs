@@ -527,7 +527,9 @@ export type { DesktopAgentStatus as AgentStatus } from './generated/DesktopAgent
 export type { DesktopAgentRole as AgentRole } from './generated/DesktopAgentRole';
 export type { DesktopAgentMessage as AgentMessage } from './generated/DesktopAgentMessage';
 export type { DesktopAgentThread as AgentThread } from './generated/DesktopAgentThread';
-export type { DesktopAgentToolCall as AgentToolCall } from './generated/DesktopAgentToolCall';
+export type { AgentToolCall } from './generated/AgentToolCall';
+export type { AgentToolCallStatus } from './generated/AgentToolCallStatus';
+export type { DesktopAgentToolCallStarted as AgentToolCallStarted } from './generated/DesktopAgentToolCallStarted';
 export type { DesktopAgentChatInput as AgentChatInput } from './generated/DesktopAgentChatInput';
 export type { DesktopAgentChatHistoryMessage as AgentChatHistoryMessage } from './generated/DesktopAgentChatHistoryMessage';
 export type { DesktopAgentWorkspaceContext as AgentWorkspaceContext } from './generated/DesktopAgentWorkspaceContext';
@@ -560,6 +562,7 @@ export type { DesktopAgentCommandError as AgentCommandError } from './generated/
 export type { AgentTurnStatus } from './generated/AgentTurnStatus';
 export type { AgentTurnMetadata } from './generated/AgentTurnMetadata';
 export type { AgentTurnUpdate } from './generated/AgentTurnUpdate';
+export type { AgentToolDecisionKind } from './generated/AgentToolDecisionKind';
 
 export type { AgentSessionEntry } from './generated/AgentSessionEntry';
 export type { AgentSessionEntryDraft } from './generated/AgentSessionEntryDraft';

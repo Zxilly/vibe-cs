@@ -6,6 +6,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Clapperboard,
+  ClipboardPaste,
+  Copy,
   Eye,
   Link2,
   LockKeyhole,
@@ -26,6 +28,7 @@ import { useAssetWaveform, useRecordedClipWaveform } from '../../data/mediaAsset
 import { mediaAssetStreamPath } from '../../data/mediaAssets';
 import { useNativeShell } from '../../data/nativeShell';
 import { ReviewPanel } from '../../design/review';
+import { OverflowMenu } from '../../design/layout';
 import {
   BASE_PIXELS_PER_SECOND,
   createTimeScale,
@@ -49,7 +52,14 @@ import {
   type TimelineClipChange,
 } from './timelineChangeProjection';
 import { resolveTimelineMaterial } from './timelineMaterial';
-import { deleteRippleClip, moveRippleClip, splitRippleClip, trimRippleClip } from './timelineEditing';
+import {
+  deleteRippleClips,
+  moveRippleClip,
+  pasteFreePositionedClipsAtTime,
+  pasteRippleClipsAtTime,
+  splitRippleClip,
+  trimRippleClip,
+} from './timelineEditing';
 import {
   clipMediaDuration,
   moveTimelineClip,
@@ -60,17 +70,19 @@ import {
 export interface ProjectTimelineProps {
   readonly document: EditingDocument;
   readonly selectedClipId: string | null;
+  readonly selectedClipIds: readonly string[];
   readonly timelineTimeSeconds: number;
   readonly reviewGroup: ProjectChangeGroup | null;
   readonly readOnly: boolean;
-  readonly onSelectClip: (clipId: string) => void;
+  readonly onSelectClip: (clipId: string, additive?: boolean) => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
   readonly onTogglePlayback: () => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
-  readonly onRemoveClip: (clipId: string) => void;
+  readonly onInsertTrack: (track: TimelineTrack, index: number) => void;
+  readonly onRemoveTrack: (trackId: string) => void;
   readonly canUndo: boolean;
   readonly onUndo: () => void;
 }
@@ -96,6 +108,7 @@ interface RenderedTrack {
 export function ProjectTimeline({
   document,
   selectedClipId,
+  selectedClipIds,
   timelineTimeSeconds,
   reviewGroup,
   readOnly,
@@ -106,7 +119,8 @@ export function ProjectTimeline({
   onReplaceClip,
   onReplaceTrack,
   onReplaceTrackClips,
-  onRemoveClip,
+  onInsertTrack,
+  onRemoveTrack,
   canUndo,
   onUndo,
 }: ProjectTimelineProps) {
@@ -115,6 +129,10 @@ export function ProjectTimeline({
   const [zoomMultiplier, setZoomMultiplier] = useState(1);
   const [changeFilter, setChangeFilter] = useState<'all' | 'selected'>('all');
   const [scrollLeft, setScrollLeft] = useState(0);
+  const [clipboard, setClipboard] = useState<{
+    readonly trackId: string;
+    readonly clips: readonly TimelineClip[];
+  } | null>(null);
   const seekFrameRef = useRef<number | null>(null);
   const queuedSeekRef = useRef<number | null>(null);
   const story = document.tracks.find((track) => track.id === document.story_track_id) ?? null;
@@ -123,6 +141,10 @@ export function ProjectTimeline({
     .flatMap((track) => track.clips)
     .find((clip) => clip.id === selectedClipId) ?? null;
   const selectedTrack = document.tracks.find((track) => track.clips.some((clip) => clip.id === selectedClipId)) ?? null;
+  const selectedClipIdSet = useMemo(() => new Set(selectedClipIds), [selectedClipIds]);
+  const selectedTrackClipIds = selectedTrack === null
+    ? new Set<string>()
+    : new Set(selectedTrack.clips.filter((clip) => selectedClipIdSet.has(clip.id)).map((clip) => clip.id));
   const playheadSeconds = Math.min(
     document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
@@ -180,11 +202,17 @@ export function ProjectTimeline({
     '20fr',
   ].join(' ');
   const canSplit = !readOnly
+    && selectedTrackClipIds.size === 1
     && selectedClip !== null
     && selectedTrack?.id === document.story_track_id
     && playheadSeconds > selectedClip.placement.start + 1 / document.fps
     && playheadSeconds < selectedClip.placement.start + selectedClip.placement.duration - 1 / document.fps;
-  const canDelete = !readOnly && selectedClip !== null;
+  const canDelete = !readOnly && selectedTrackClipIds.size > 0;
+  const canCopy = selectedTrackClipIds.size > 0;
+  const clipboardTrack = clipboard === null
+    ? null
+    : document.tracks.find((track) => track.id === clipboard.trackId) ?? null;
+  const canPaste = !readOnly && clipboard !== null && clipboardTrack !== null && !clipboardTrack.locked;
 
   const selectAdjacentChange = (direction: -1 | 1) => {
     if (directChanges.length === 0) return;
@@ -211,14 +239,62 @@ export function ProjectTimeline({
 
   const deleteSelected = () => {
     if (!canDelete || selectedClip === null || selectedTrack === null) return;
-    const index = selectedTrack.clips.findIndex((clip) => clip.id === selectedClip.id);
-    const nextSelection = selectedTrack.clips[index + 1] ?? selectedTrack.clips[index - 1] ?? null;
+    const firstSelectedIndex = selectedTrack.clips.findIndex((clip) => selectedTrackClipIds.has(clip.id));
+    const remaining = selectedTrack.clips.filter((clip) => !selectedTrackClipIds.has(clip.id));
+    const nextSelection = remaining[Math.min(firstSelectedIndex, remaining.length - 1)]
+      ?? remaining[remaining.length - 1]
+      ?? null;
     if (selectedTrack.id === document.story_track_id) {
-      onReplaceTrackClips(selectedTrack.id, deleteRippleClip(selectedTrack.clips, selectedClip.id));
+      onReplaceTrackClips(selectedTrack.id, deleteRippleClips(selectedTrack.clips, selectedTrackClipIds));
     } else {
-      onRemoveClip(selectedClip.id);
+      onReplaceTrackClips(selectedTrack.id, remaining);
     }
-    if (nextSelection !== null) onSelectClip(nextSelection.id);
+    if (nextSelection !== null) onSelectClip(nextSelection.id, false);
+  };
+
+  const copySelected = () => {
+    if (!canCopy || selectedTrack === null) return;
+    setClipboard({
+      trackId: selectedTrack.id,
+      clips: selectedTrack.clips.filter((clip) => selectedTrackClipIds.has(clip.id)),
+    });
+  };
+
+  const pasteClipboard = () => {
+    if (!canPaste || clipboard === null || clipboardTrack === null) return;
+    const clipIds = clipboard.clips.map(() => globalThis.crypto.randomUUID());
+    const next = clipboardTrack.id === document.story_track_id
+      ? pasteRippleClipsAtTime(
+        clipboardTrack.clips,
+        clipboard.clips,
+        playheadSeconds,
+        clipIds,
+        globalThis.crypto.randomUUID(),
+      )
+      : pasteFreePositionedClipsAtTime(
+        clipboardTrack.clips,
+        clipboard.clips,
+        playheadSeconds,
+        clipIds,
+      );
+    onReplaceTrackClips(clipboardTrack.id, next);
+    clipIds.forEach((clipId, index) => onSelectClip(clipId, index > 0));
+  };
+
+  const addTrack = (kind: TimelineTrack['kind']) => {
+    if (readOnly) return;
+    const number = document.tracks.filter((track) => track.kind === kind).length + 1;
+    const kindLabel = kind === 'video' ? t`视频` : kind === 'audio' ? t`音频` : t`文字`;
+    onInsertTrack({
+      id: globalThis.crypto.randomUUID(),
+      name: `${kindLabel} ${number}`,
+      kind,
+      order: document.tracks.length,
+      muted: false,
+      locked: false,
+      hidden: false,
+      clips: [],
+    }, document.tracks.length);
   };
 
   useEffect(() => () => {
@@ -263,6 +339,16 @@ export function ProjectTimeline({
           onTogglePlayback();
           return;
         }
+        if (event.key.toLowerCase() === 'c' && (event.ctrlKey || event.metaKey) && !event.altKey) {
+          event.preventDefault();
+          copySelected();
+          return;
+        }
+        if (event.key.toLowerCase() === 'v' && (event.ctrlKey || event.metaKey) && !event.altKey && canPaste) {
+          event.preventDefault();
+          pasteClipboard();
+          return;
+        }
         if (event.key.toLowerCase() === 's' && !event.ctrlKey && !event.metaKey && !event.altKey) {
           event.preventDefault();
           splitSelected();
@@ -281,6 +367,17 @@ export function ProjectTimeline({
     >
       <header className="flex h-[var(--h-panel-head)] flex-none items-center gap-3 border-b border-divider px-3">
         <h2 className="text-base font-semibold"><Trans>时间轴（变更审阅）</Trans></h2>
+        <OverflowMenu
+          label={t`添加轨道`}
+          triggerLabel={<><SquarePlus className="size-3.5" aria-hidden="true" /><Trans>添加轨道</Trans></>}
+          align="start"
+          triggerClassName="h-7 rounded-sm border border-divider px-2 text-xs disabled:text-neutral-300"
+          items={[
+            { id: 'video', label: t`添加视频轨道`, disabled: readOnly, onSelect: () => addTrack('video') },
+            { id: 'audio', label: t`添加音频轨道`, disabled: readOnly, onSelect: () => addTrack('audio') },
+            { id: 'text', label: t`添加文字轨道`, disabled: readOnly, onSelect: () => addTrack('text') },
+          ]}
+        />
         {reviewChangeCount === 0 ? null : (
           <>
             <span className="text-xs text-neutral-500"><Trans>{reviewChangeCount} 处变更</Trans></span>
@@ -333,9 +430,13 @@ export function ProjectTimeline({
       <TimelineToolStrip
         canSplit={canSplit}
         canDelete={canDelete}
+        canCopy={canCopy}
+        canPaste={canPaste}
         canUndo={canUndo && !readOnly}
         onSplit={splitSelected}
         onDelete={deleteSelected}
+        onCopy={copySelected}
+        onPaste={pasteClipboard}
         onUndo={onUndo}
       />
 
@@ -407,6 +508,7 @@ export function ProjectTimeline({
               scale={scale}
               contentWidth={contentWidth}
               selectedClipId={selectedClipId}
+              selectedClipIds={selectedClipIdSet}
               fps={document.fps}
               readOnly={readOnly}
               onSelectClip={onSelectClip}
@@ -414,6 +516,7 @@ export function ProjectTimeline({
               onReplaceClip={onReplaceClip}
               onReplaceTrack={onReplaceTrack}
               onReplaceTrackClips={onReplaceTrackClips}
+              onRemoveTrack={onRemoveTrack}
               storyTrackId={document.story_track_id}
               changeByClipId={changeByClipId}
               ghostChanges={ghostChanges}
@@ -510,18 +613,20 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, storyTrackId, changeByClipId, ghostChanges }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
   readonly selectedClipId: string | null;
+  readonly selectedClipIds: ReadonlySet<string>;
   readonly fps: number;
   readonly readOnly: boolean;
-  readonly onSelectClip: (clipId: string) => void;
+  readonly onSelectClip: (clipId: string, additive?: boolean) => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
+  readonly onRemoveTrack: (trackId: string) => void;
   readonly storyTrackId: string;
   readonly changeByClipId: ReadonlyMap<string, TimelineClipChange>;
   readonly ghostChanges: readonly TimelineClipChange[];
@@ -535,6 +640,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         track={track.track}
         readOnly={readOnly}
         onReplaceTrack={onReplaceTrack}
+        removable={track.track.id !== storyTrackId && !track.derivedAudio}
+        onRemoveTrack={onRemoveTrack}
       />
       <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         {track.track.id === storyTrackId ? (
@@ -549,12 +656,14 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             key={`${track.id}:${clip.id}`}
             clip={clip}
             kind={track.kind}
-            selected={selectedClipId === clip.id}
+            derivedAudio={track.derivedAudio}
+            selected={selectedClipIds.has(clip.id)}
+            primary={selectedClipId === clip.id}
             scale={scale}
             fps={fps}
             readOnly={readOnly || track.track.locked || track.derivedAudio}
             change={changeByClipId.get(clip.id) ?? null}
-            onSelect={() => onSelectClip(clip.id)}
+            onSelect={(additive) => onSelectClip(clip.id, additive)}
             onInspect={() => onInspectClip(clip.id)}
             onReplace={(replacement, mode) => {
               if (track.track.id !== storyTrackId) {
@@ -575,21 +684,24 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
   && previous.contentWidth === next.contentWidth
   && previous.selectedClipId === next.selectedClipId
+  && previous.selectedClipIds === next.selectedClipIds
   && previous.fps === next.fps
   && previous.readOnly === next.readOnly
   && previous.storyTrackId === next.storyTrackId
   && previous.changeByClipId === next.changeByClipId
   && previous.ghostChanges === next.ghostChanges);
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, selected, scale, fps, readOnly, change, onSelect, onInspect, onReplace }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, change, onSelect, onInspect, onReplace }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
+  readonly derivedAudio: boolean;
   readonly selected: boolean;
+  readonly primary: boolean;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly fps: number;
   readonly readOnly: boolean;
   readonly change: TimelineClipChange | null;
-  readonly onSelect: () => void;
+  readonly onSelect: (additive: boolean) => void;
   readonly onInspect: () => void;
   readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end') => void;
 }) {
@@ -603,7 +715,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, selected, 
     readonly clip: TimelineClip;
   } | null>(null);
   useEffect(() => setVisualClip(clip), [clip]);
-  if (kind === 'audio') {
+  if (derivedAudio) {
     return (
       <div
         className={cn(
@@ -627,9 +739,11 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, selected, 
     if (readOnly || event.button !== 0) return;
     event.preventDefault();
     event.stopPropagation();
+    const additive = event.ctrlKey || event.metaKey;
+    onSelect(additive);
+    if (additive) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     gesture.current = { pointerId: event.pointerId, clientX: event.clientX, mode, clip };
-    onSelect();
   };
   const updateGesture = (event: React.PointerEvent<HTMLElement>) => {
     const active = gesture.current;
@@ -670,7 +784,9 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, selected, 
       )}
       style={{ left: visualLeft, width: visualWidth }}
       aria-disabled={readOnly}
-      onClick={onSelect}
+      onClick={(event) => {
+        if (event.detail === 0) onSelect(event.ctrlKey || event.metaKey);
+      }}
       onDoubleClick={onInspect}
       onPointerDown={(event) => beginGesture(event, 'move')}
       onPointerMove={updateGesture}
@@ -687,7 +803,9 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, selected, 
       }}
       aria-label={`${clip.name} ${clip.placement.duration.toFixed(1)}s · ${material.state === 'planned' ? t`未录制` : t`已录制`}`}
     >
-      {kind === 'text' ? <span className="grid size-full place-items-center text-2xs">{clip.name}</span> : material.streamAssetId === null ? (
+      {kind === 'audio' ? (
+        <TimelineClipWaveform clip={clip} change={change} />
+      ) : kind === 'text' ? <span className="grid size-full place-items-center text-2xs">{clip.name}</span> : material.streamAssetId === null ? (
         <span className="grid size-full place-items-center text-2xs text-neutral-500"><Trans>待录制</Trans></span>
       ) : (
         <>
@@ -697,8 +815,10 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, selected, 
         </>
       )}
       {change === null ? null : <TimelineClipChangeOverlay change={change} clip={visualClip} scale={scale} />}
+      {clip.transition_in === null ? null : <span className="pointer-events-none absolute left-0 top-0 z-20 border-l-8 border-t-8 border-l-accent-500 border-t-transparent" aria-label={t`入场转场 ${clip.transition_in}`} />}
+      {clip.transition_out === null ? null : <span className="pointer-events-none absolute right-0 top-0 z-20 border-r-8 border-t-8 border-r-accent-500 border-t-transparent" aria-label={t`出场转场 ${clip.transition_out}`} />}
       <span className="absolute inset-x-0 bottom-0 truncate bg-neutral-900/80 px-1 py-px text-2xs text-bg">{clip.name}</span>
-      {selected && !readOnly ? (
+      {primary && !readOnly ? (
         <>
           <span
             role="separator"
@@ -722,7 +842,9 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, selected, 
   );
 }, (previous, next) => previous.clip === next.clip
   && previous.kind === next.kind
+  && previous.derivedAudio === next.derivedAudio
   && previous.selected === next.selected
+  && previous.primary === next.primary
   && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
   && previous.fps === next.fps
   && previous.readOnly === next.readOnly
@@ -731,21 +853,31 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, selected, 
 function TimelineToolStrip({
   canSplit,
   canDelete,
+  canCopy,
+  canPaste,
   canUndo,
   onSplit,
   onDelete,
+  onCopy,
+  onPaste,
   onUndo,
 }: {
   readonly canSplit: boolean;
   readonly canDelete: boolean;
+  readonly canCopy: boolean;
+  readonly canPaste: boolean;
   readonly canUndo: boolean;
   readonly onSplit: () => void;
   readonly onDelete: () => void;
+  readonly onCopy: () => void;
+  readonly onPaste: () => void;
   readonly onUndo: () => void;
 }) {
   const tools = [
     { label: t`选择工具`, icon: <MousePointer2 className="size-4" aria-hidden="true" />, enabled: true, pressed: true, action: undefined },
     { label: t`在播放头切分片段`, icon: <Scissors className="size-4" aria-hidden="true" />, enabled: canSplit, pressed: false, action: onSplit },
+    { label: t`复制所选片段`, icon: <Copy className="size-4" aria-hidden="true" />, enabled: canCopy, pressed: false, action: onCopy },
+    { label: t`在播放头粘贴片段`, icon: <ClipboardPaste className="size-4" aria-hidden="true" />, enabled: canPaste, pressed: false, action: onPaste },
     { label: t`删除所选片段并闭合间隙`, icon: <Trash2 className="size-4" aria-hidden="true" />, enabled: canDelete, pressed: false, action: onDelete },
     { label: t`撤销上一次剪辑`, icon: <Undo2 className="size-4" aria-hidden="true" />, enabled: canUndo, pressed: false, action: onUndo },
   ] as const;
@@ -1010,13 +1142,15 @@ function TimelineClipWaveform({ clip, change }: { readonly clip: TimelineClip; r
   );
 }
 
-function TimelineTrackHead({ icon, label, controls, track, readOnly = true, onReplaceTrack }: {
+function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, onReplaceTrack, onRemoveTrack }: {
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly controls: RenderedTrack['controls'];
   readonly track?: TimelineTrack | undefined;
   readonly readOnly?: boolean | undefined;
+  readonly removable?: boolean | undefined;
   readonly onReplaceTrack?: ((track: TimelineTrack) => void) | undefined;
+  readonly onRemoveTrack?: ((trackId: string) => void) | undefined;
 }) {
   return (
     <div className="flex min-w-0 items-center gap-2 border-r border-divider py-2 pl-12 pr-2 text-xs font-medium">
@@ -1028,18 +1162,20 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, onRe
         </span>
       )}
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {controls === 'none' || track === undefined ? null : (
+      {track === undefined ? null : (
         <span className="flex flex-none items-center text-neutral-500">
-          <button
-            type="button"
-            className={cn('grid size-5 place-items-center rounded-sm hover:bg-neutral-100', track.muted && 'text-fail-text')}
-            aria-label={controls === 'audio' ? t`切换轨道静音` : t`切换视频轨道输出`}
-            aria-pressed={track.muted}
-            disabled={readOnly}
-            onClick={() => onReplaceTrack?.({ ...track, muted: !track.muted })}
-          >
-            {controls === 'audio' ? <Volume2 className="size-3" aria-hidden="true" /> : <Eye className="size-3" aria-hidden="true" />}
-          </button>
+          {controls === 'none' ? null : (
+            <button
+              type="button"
+              className={cn('grid size-5 place-items-center rounded-sm hover:bg-neutral-100', track.muted && 'text-fail-text')}
+              aria-label={controls === 'audio' ? t`切换轨道静音` : t`切换视频轨道输出`}
+              aria-pressed={track.muted}
+              disabled={readOnly}
+              onClick={() => onReplaceTrack?.({ ...track, muted: !track.muted })}
+            >
+              {controls === 'audio' ? <Volume2 className="size-3" aria-hidden="true" /> : <Eye className="size-3" aria-hidden="true" />}
+            </button>
+          )}
           <button
             type="button"
             className={cn('grid size-5 place-items-center rounded-sm hover:bg-neutral-100', track.locked && 'text-accent-text')}
@@ -1050,6 +1186,17 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, onRe
           >
             <LockKeyhole className="size-3" aria-hidden="true" />
           </button>
+          {removable ? (
+            <button
+              type="button"
+              className="grid size-5 place-items-center rounded-sm hover:bg-fail-surface hover:text-fail-text"
+              aria-label={t`删除轨道 ${track.name}`}
+              disabled={readOnly || track.locked}
+              onClick={() => onRemoveTrack?.(track.id)}
+            >
+              <Trash2 className="size-3" aria-hidden="true" />
+            </button>
+          ) : null}
         </span>
       )}
     </div>

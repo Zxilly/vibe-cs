@@ -128,7 +128,9 @@ export function ProjectWorkspacePage() {
   const startRecording = useStartProjectRecording();
   const exportProject = useExportProject();
   const lens: EditingLens = 'multitrack';
-  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [selectedClipIds, setSelectedClipIds] = useState<readonly string[]>([]);
+  const selectedClipId = selectedClipIds[selectedClipIds.length - 1] ?? null;
+  const initializedSelectionProjectId = useRef<string | null>(null);
   const [timelineTimeSeconds, setTimelineTimeSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -180,12 +182,21 @@ export function ProjectWorkspacePage() {
   }, [create, navigate, projectId]);
 
   useEffect(() => {
-    if (selectedClipId !== null) return;
-    const firstClip = project.data?.document.tracks
-      .find((track) => track.id === project.data?.document.story_track_id)
+    const loaded = project.data;
+    if (loaded === undefined) return;
+    const allIds = new Set(loaded.document.tracks.flatMap((track) => track.clips.map((clip) => clip.id)));
+    const firstClip = loaded.document.tracks
+      .find((track) => track.id === loaded.document.story_track_id)
       ?.clips[0];
-    if (firstClip !== undefined) setSelectedClipId(firstClip.id);
-  }, [project.data, selectedClipId]);
+    setSelectedClipIds((currentSelection) => {
+      if (initializedSelectionProjectId.current !== loaded.id) {
+        initializedSelectionProjectId.current = loaded.id;
+        return firstClip === undefined ? [] : [firstClip.id];
+      }
+      const next = currentSelection.filter((clipId) => allIds.has(clipId));
+      return next.length === currentSelection.length ? currentSelection : next;
+    });
+  }, [project.data]);
 
   useEffect(() => {
     const duration = project.data?.document.duration_seconds;
@@ -261,11 +272,25 @@ export function ProjectWorkspacePage() {
       Math.max(0, seconds),
     ));
   };
+  const selectTimelineClip = (clipId: string, additive = false) => {
+    setSelectedClipIds((currentSelection) => {
+      if (!additive) return currentSelection.length === 1 && currentSelection[0] === clipId
+        ? currentSelection
+        : [clipId];
+      const targetTrack = current.document.tracks.find((track) => track.clips.some((clip) => clip.id === clipId));
+      const currentTrack = current.document.tracks.find((track) => track.clips.some((clip) => currentSelection.includes(clip.id)));
+      if (targetTrack === undefined || (currentTrack !== undefined && currentTrack.id !== targetTrack.id)) return [clipId];
+      return currentSelection.includes(clipId)
+        ? currentSelection.filter((selectedId) => selectedId !== clipId)
+        : [...currentSelection, clipId];
+    });
+  };
   const addMediaAsset = (asset: MediaAsset) => {
     if (storyTrack === null || asset.duration_seconds === null || asset.duration_seconds <= 0) return;
+    const insertedClipId = globalThis.crypto.randomUUID();
     const clips = insertRippleClipAtTime(
       storyTrack.clips,
-      timelineClipFromMediaAsset(asset, globalThis.crypto.randomUUID()),
+      timelineClipFromMediaAsset(asset, insertedClipId),
       transportTimeSeconds,
       globalThis.crypto.randomUUID(),
     );
@@ -274,6 +299,7 @@ export function ProjectWorkspacePage() {
       { kind: 'track', track_id: storyTrack.id },
       [{ op: 'replace_track_clips', track_id: storyTrack.id, clips }],
     );
+    setSelectedClipIds([insertedClipId]);
   };
   const importProjectMedia = async () => {
     if (!nativeShell.available) return;
@@ -380,12 +406,13 @@ export function ProjectWorkspacePage() {
           <ProjectTimeline
             document={current.document}
             selectedClipId={selectedClipId}
+            selectedClipIds={selectedClipIds}
             timelineTimeSeconds={transportTimeSeconds}
             reviewGroup={latestAgentGroup}
             readOnly={readOnly || apply.isPending || revertChange.isPending}
-            onSelectClip={setSelectedClipId}
+            onSelectClip={selectTimelineClip}
             onInspectClip={(clipId) => {
-              setSelectedClipId(clipId);
+              setSelectedClipIds([clipId]);
               setInspectorOpen(true);
             }}
             onSeek={(seconds) => {
@@ -408,10 +435,15 @@ export function ProjectWorkspacePage() {
               { kind: 'track', track_id: trackId },
               [{ op: 'replace_track_clips', track_id: trackId, clips: [...clips] }],
             )}
-            onRemoveClip={(clipId) => mutate(
-              `删除片段`,
+            onInsertTrack={(track, index) => mutate(
+              `添加轨道 ${track.name}`,
               { kind: 'project' },
-              [{ op: 'remove_clip', clip_id: clipId }],
+              [{ op: 'insert_track', index, track }],
+            )}
+            onRemoveTrack={(trackId) => mutate(
+              `删除轨道`,
+              { kind: 'track', track_id: trackId },
+              [{ op: 'remove_track', track_id: trackId }],
             )}
             canUndo={latestUndoableGroup !== undefined}
             onUndo={() => {
@@ -449,7 +481,7 @@ export function ProjectWorkspacePage() {
             onDirectEdit={() => {
               void appendHumanDecision(t`我将直接修改这份作品。`);
               const clipId = selectedClipId ?? allClips[0]?.id ?? null;
-              setSelectedClipId(clipId);
+              setSelectedClipIds(clipId === null ? [] : [clipId]);
               setInspectorOpen(clipId !== null);
             }}
           />
@@ -779,6 +811,28 @@ function ClipInspector({
               placement: { ...draft.placement, [field]: Number(event.currentTarget.value) },
             })}
           />
+        </label>
+      ))}
+      {(['transition_in', 'transition_out'] as const).map((field) => (
+        <label key={field} className="mt-3 flex flex-col gap-1 text-xs">
+          {field === 'transition_in' ? <Trans>入场转场</Trans> : <Trans>出场转场</Trans>}
+          <select
+            className="border border-divider bg-bg px-2 py-1.5"
+            disabled={readOnly}
+            value={draft[field] ?? ''}
+            onChange={(event) => setDraft({ ...draft, [field]: event.currentTarget.value === '' ? null : event.currentTarget.value })}
+          >
+            <option value=""><Trans>无</Trans></option>
+            <option value="fade"><Trans>淡化</Trans></option>
+            <option value="dip"><Trans>黑场</Trans></option>
+            <option value="flash"><Trans>闪白</Trans></option>
+            <option value="zoom"><Trans>缩放</Trans></option>
+            <option value="wipe"><Trans>擦除</Trans></option>
+            <option value="slide"><Trans>滑动</Trans></option>
+            <option value="blur"><Trans>模糊</Trans></option>
+            <option value="glitch"><Trans>故障</Trans></option>
+            <option value="spin"><Trans>旋转</Trans></option>
+          </select>
         </label>
       ))}
       <label className="mt-3 flex items-center gap-2 text-xs">

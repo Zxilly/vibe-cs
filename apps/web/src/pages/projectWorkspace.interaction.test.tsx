@@ -259,6 +259,39 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('edits an independent audio-track clip while keeping Story audio derived', async () => {
+    const audioClipId = '00000000-0000-4000-8000-000000000015';
+    const audioClip: TimelineClip = {
+      ...clip(audioClipId, 'Bed'),
+      material: { kind: 'asset', asset_id: 'asset-audio', media_duration_seconds: 30 },
+      placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+    };
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.kind === 'audio'
+          ? { ...track, clips: [audioClip] }
+          : track),
+      },
+    };
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project, applyProjectPatch });
+
+    const audioButton = await screen.findByRole('button', { name: /Bed 5\.0s · 已录制/u });
+    fireEvent.click(audioButton);
+    fireEvent.keyDown(audioButton, { key: 'ArrowRight', shiftKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_clip',
+        clip_id: audioClipId,
+        clip: expect.objectContaining({ placement: expect.objectContaining({ start: 13 }) }),
+      })],
+    })));
+    expect(screen.getAllByRole('button', { name: /A 5\.0s · 未录制/u })).toHaveLength(1);
+  });
+
   it('commits one clip replacement after a pointer drag and exposes trim handles on selection', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },
@@ -344,6 +377,52 @@ describe('unified project workspace', () => {
         clips: [expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0 }) })],
       }],
     })));
+  });
+
+  it('adds to the same-track selection without dragging and deletes the batch in one ripple edit', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const clipA = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    fireEvent.pointerDown(clipB, { pointerId: 31, button: 0, ctrlKey: true, clientX: 400 });
+
+    await waitFor(() => {
+      expect(clipA.className).toContain('ring-accent');
+      expect(clipB.className).toContain('ring-accent');
+    });
+    expect(clipB.hasPointerCapture(31)).toBe(false);
+
+    fireEvent.click(screen.getByRole('button', { name: '删除所选片段并闭合间隙' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{ op: 'replace_track_clips', track_id: STORY_ID, clips: [] }],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('copies the selection and pastes it at the playhead through one Story ripple edit', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'c', ctrlKey: true });
+    fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(timeline, { key: 'v', ctrlKey: true });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 1 }) }),
+          expect.objectContaining({ placement: expect.objectContaining({ start: 1, duration: 5 }) }),
+          expect.objectContaining({ placement: expect.objectContaining({ start: 6, duration: 4 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 10 }) }),
+        ],
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
   });
 
 
@@ -497,6 +576,63 @@ describe('unified project workspace', () => {
     })));
   });
 
+  it('adds and removes real timeline tracks through Project operations', async () => {
+    const addPatch = vi.fn();
+    renderWorkspace({ applyProjectPatch: addPatch });
+
+    fireEvent.pointerDown(await screen.findByRole('button', { name: '添加轨道' }), { button: 0, ctrlKey: false });
+    fireEvent.click(screen.getByRole('menuitem', { name: '添加文字轨道' }));
+
+    await waitFor(() => expect(addPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'insert_track',
+        index: 2,
+        track: expect.objectContaining({ name: '文字 1', kind: 'text', order: 2, clips: [] }),
+      })],
+    })));
+  });
+
+  it('removes a non-Story track with a real Project operation', async () => {
+    const removePatch = vi.fn();
+    renderWorkspace({ applyProjectPatch: removePatch });
+
+    fireEvent.click(await screen.findByRole('button', { name: '删除轨道 Music' }));
+
+    await waitFor(() => expect(removePatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{ op: 'remove_track', track_id: '00000000-0000-4000-8000-000000000013' }],
+    })));
+  });
+
+  it('keeps lock and remove controls available on text tracks', async () => {
+    const textTrackId = '00000000-0000-4000-8000-000000000014';
+    const removePatch = vi.fn();
+    renderWorkspace({
+      applyProjectPatch: removePatch,
+      project: {
+        ...PROJECT,
+        document: {
+          ...PROJECT.document,
+          tracks: [...PROJECT.document.tracks, {
+            id: textTrackId,
+            name: 'Notes',
+            kind: 'text',
+            order: 2,
+            muted: false,
+            locked: false,
+            hidden: false,
+            clips: [],
+          }],
+        },
+      },
+    });
+
+    expect((await screen.findAllByRole('button', { name: '切换轨道锁定' })).length).toBeGreaterThan(3);
+    fireEvent.click(screen.getByRole('button', { name: '删除轨道 Notes' }));
+    await waitFor(() => expect(removePatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [{ op: 'remove_track', track_id: textTrackId }],
+    })));
+  });
+
   it('opens clip properties on demand and writes against the same revision', async () => {
     const applyProjectPatch = vi.fn(() => Promise.resolve({
       project: { ...PROJECT, revision: 2 },
@@ -520,6 +656,7 @@ describe('unified project workspace', () => {
     fireEvent.doubleClick(clipButton);
     const name = await screen.findByRole('textbox', { name: '名称' });
     fireEvent.change(name, { target: { value: 'A revised' } });
+    fireEvent.change(screen.getByRole('combobox', { name: '入场转场' }), { target: { value: 'fade' } });
     fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
     await waitFor(() => {
       expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -528,7 +665,7 @@ describe('unified project workspace', () => {
         operations: [expect.objectContaining({
           op: 'replace_track_clips',
           track_id: STORY_ID,
-          clips: expect.arrayContaining([expect.objectContaining({ id: CLIP_A, name: 'A revised' })]),
+          clips: expect.arrayContaining([expect.objectContaining({ id: CLIP_A, name: 'A revised', transition_in: 'fade' })]),
         })],
       }));
     });

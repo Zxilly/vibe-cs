@@ -247,6 +247,39 @@
   --shadow-lg: 0 12px 32px color-mix(in srgb, #2b2b2d 22%, transparent);
 }
 
+/* PR review workbench — the supplied production reference is a brighter,
+   white-canvas review surface than the general Industry shell. Components
+   continue to consume the same semantic tokens; the page only selects this
+   contextual palette instead of carrying local colour utilities. */
+.review-workbench {
+  --color-bg: #ffffff;
+  --color-surface: #f8fafc;
+  --color-surface-chrome: #f8fafc;
+  --color-divider: #e1e5ec;
+  --color-grid: color-mix(in oklab, var(--color-text) 5%, var(--color-bg));
+
+  --color-neutral-100: #f8fafc;
+  --color-neutral-200: #edf0f4;
+  --color-neutral-300: #d8dee8;
+  --color-neutral-400: #aab3c1;
+  --color-neutral-500: #7a8597;
+  --color-neutral-600: #606c7e;
+  --color-neutral-700: #465265;
+  --color-neutral-800: #303b4d;
+  --color-neutral-900: #1b2637;
+
+  --color-accent: #3678f6;
+  --color-accent-2: #5b8ff9;
+  --color-accent-100: #eef4ff;
+  --color-accent-200: #d9e7ff;
+  --color-accent-300: #b9d1ff;
+  --color-accent-400: #79a4f0;
+  --color-accent-500: #4f84f7;
+  --color-accent-600: #276ffa;
+  --color-accent-700: #205dce;
+  --color-accent-800: #214b98;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    Dark theme
 

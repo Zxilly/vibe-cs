@@ -1,6 +1,6 @@
 import { t } from '@lingui/core/macro';
 import { Trans } from '@lingui/react/macro';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, Pause, Play } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 import { mediaAssetStreamPath } from '../../data/mediaAssets';
@@ -19,6 +19,7 @@ export interface TimelineProgramMonitorProps {
   readonly selectedClipId: string | null;
   readonly previewOffsetSeconds: number;
   readonly playing: boolean;
+  readonly onTogglePlayback: () => void;
   readonly onTimelineTimeChange: (seconds: number) => void;
   readonly onPlaybackEnd: () => void;
 }
@@ -36,6 +37,7 @@ export function TimelineProgramMonitor({
   selectedClipId,
   previewOffsetSeconds,
   playing,
+  onTogglePlayback,
   onTimelineTimeChange,
   onPlaybackEnd,
 }: TimelineProgramMonitorProps) {
@@ -68,7 +70,7 @@ export function TimelineProgramMonitor({
 
   return (
     <section className="flex min-h-0 min-w-0 flex-col overflow-hidden border-r border-divider bg-bg" aria-label={t`视频预览`}>
-      <header className="flex h-[32px] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
+      <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
         <Trans>视频预览</Trans>
       </header>
       {targetId === null ? (
@@ -119,8 +121,16 @@ export function TimelineProgramMonitor({
               <Trans>正在定位帧</Trans>
             </span>
           )}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 flex h-8 items-center bg-neutral-900/80 px-3 text-xs text-neutral-100">
-            <span className="min-w-0 truncate">{selected?.name}</span>
+          <div className="absolute inset-x-0 bottom-0 flex h-[var(--h-panel-head)] items-center gap-3 border-t border-neutral-700 bg-neutral-900/90 px-3 text-xs text-neutral-100">
+            <button
+              type="button"
+              className="grid size-[var(--h-ctl-sm)] flex-none place-items-center rounded-sm hover:bg-neutral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-400"
+              aria-label={playing ? t`暂停时间轴` : t`播放时间轴`}
+              onClick={onTogglePlayback}
+            >
+              {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
+            </button>
+            <span className="min-w-0 truncate font-medium">{selected?.name}</span>
             <span className="ml-auto font-mono">{formatMillisecondTimecode(targetTimelineTime)}</span>
           </div>
         </div>

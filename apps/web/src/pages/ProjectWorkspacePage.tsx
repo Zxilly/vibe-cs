@@ -261,10 +261,11 @@ export function ProjectWorkspacePage() {
 
   return (
     <Page
+      className="review-workbench"
       scroll={false}
       toolbar={(
         <header data-tauri-drag-region className="flex h-[56px] flex-none items-center gap-2 border-b border-divider bg-bg px-5 pr-32">
-          <button type="button" data-window-no-drag className="flex items-center gap-2 text-sm font-medium text-neutral-700 hover:text-text" onClick={() => void navigate('/projects')}>
+          <button type="button" data-window-no-drag className="mr-3 flex items-center gap-4 text-sm font-medium text-neutral-700 hover:text-text" onClick={() => void navigate('/projects')}>
             <ChevronLeft className="size-4" strokeWidth={1.6} aria-hidden="true" />
             <Trans>作品</Trans>
           </button>
@@ -272,7 +273,7 @@ export function ProjectWorkspacePage() {
           <h1 className="min-w-0 truncate text-sm font-semibold">NiKo 3 分钟集锦</h1>
           <ChevronRight className="size-3.5 text-neutral-400" strokeWidth={1.5} aria-hidden="true" />
           <span className="whitespace-nowrap text-sm font-semibold"><Trans>变更 #{current.revision}</Trans></span>
-          <span className="ml-4 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-text">
+          <span className="ml-8 border border-accent-200 bg-accent-100 px-2 py-1 text-xs font-medium text-accent-text">
             <Trans>Agent 修改待审阅</Trans>
           </span>
           <span className="ml-2 whitespace-nowrap text-xs text-neutral-500"><Trans>创建于 2 小时前</Trans></span>
@@ -288,16 +289,17 @@ export function ProjectWorkspacePage() {
         </header>
       )}
     >
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(390px,26%)] overflow-hidden bg-neutral-100">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_420px] overflow-hidden bg-neutral-100">
         <div
           className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] gap-[8px] overflow-hidden pl-[14px] pr-[8px] pt-[12px]"
-          style={{ gridTemplateRows: 'minmax(320px, 46.2%) 182px minmax(250px, 1fr)' }}
+          style={{ gridTemplateRows: 'minmax(320px, 46%) 182px minmax(250px, 1fr)' }}
         >
           <PreviewSplit
             project={current}
             selected={selected?.clip ?? null}
             previewOffsetSeconds={previewOffsetSeconds}
             playing={playing}
+            onTogglePlayback={() => setPlaying((value) => !value)}
             onTimelineTimeChange={seekTimeline}
             onPlaybackEnd={() => setPlaying(false)}
           />
@@ -306,7 +308,6 @@ export function ProjectWorkspacePage() {
             document={current.document}
             selectedClipId={selectedClipId}
             previewOffsetSeconds={previewOffsetSeconds}
-            playing={playing}
             readOnly={readOnly || apply.isPending || revertChange.isPending}
             onSelectClip={setSelectedClipId}
             onInspectClip={(clipId) => {
@@ -422,6 +423,7 @@ function PreviewSplit({
   selected,
   previewOffsetSeconds,
   playing,
+  onTogglePlayback,
   onTimelineTimeChange,
   onPlaybackEnd,
 }: {
@@ -429,10 +431,11 @@ function PreviewSplit({
   readonly selected: TimelineClip | null;
   readonly previewOffsetSeconds: number;
   readonly playing: boolean;
+  readonly onTogglePlayback: () => void;
   readonly onTimelineTimeChange: (seconds: number) => void;
   readonly onPlaybackEnd: () => void;
 }) {
-  const [videoPercent, setVideoPercent] = useState(51);
+  const [videoPercent, setVideoPercent] = useState(51.2);
   const splitRef = useRef<HTMLDivElement>(null);
 
   const resize = (clientX: number) => {
@@ -454,6 +457,7 @@ function PreviewSplit({
           selectedClipId={selected?.id ?? null}
           previewOffsetSeconds={previewOffsetSeconds}
           playing={playing}
+          onTogglePlayback={onTogglePlayback}
           onTimelineTimeChange={onTimelineTimeChange}
           onPlaybackEnd={onPlaybackEnd}
         />
@@ -579,7 +583,7 @@ const TacticalPreview = memo(function TacticalPreview({ selected }: { readonly s
 
   return (
     <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-bg" aria-label={t`战术示意`}>
-      <header className="flex h-[32px] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
+      <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
         <Trans>战术示意</Trans>
       </header>
       {selected === null || intent === null ? (
@@ -659,13 +663,15 @@ const ChangeSummary = memo(function ChangeSummary({ project, group }: { readonly
           <span className="flex items-center gap-1"><span className="size-2 bg-fail" /><Trans>原版本</Trans></span>
         </span>
       </header>
-      <div className="grid min-h-0 flex-1 grid-rows-[24px_1fr_1fr] text-xs">
+      <div className="grid min-h-0 flex-1 grid-rows-[24px_28px_22px_28px_1fr] text-xs">
         <div className="grid grid-cols-[96px_repeat(7,minmax(0,1fr))] border-b border-divider font-mono text-2xs text-neutral-500">
           <span />
           {[0, 30, 60, 90, 120, 150, 180].map((seconds) => <span key={seconds} className="px-1 py-1 text-center">{formatTimelinePoint(seconds)}</span>)}
         </div>
         <ReviewStrip label={t`当前版本`} clips={previousClips} changed={removed} tone="before" />
+        <div aria-hidden="true" />
         <ReviewStrip label={t`Agent 提案`} clips={currentClips} changed={added} tone="after" />
+        <div aria-hidden="true" />
       </div>
     </ReviewPanel>
   );

@@ -17,9 +17,9 @@ export function ReviewPanel({
   return (
     <section
       className={cn(
-        'overflow-hidden rounded-md border bg-bg',
+        'overflow-hidden rounded-sm border bg-bg',
         emphasis === 'focus'
-          ? 'border-accent-400 shadow-[0_0_0_2px_var(--color-accent-100)]'
+          ? 'border-accent-500 shadow-[0_0_0_1px_var(--color-accent-200)]'
           : 'border-divider',
         className,
       )}

@@ -10,8 +10,6 @@ import {
   Link2,
   List,
   LockKeyhole,
-  Pause,
-  Play,
   Settings2,
   SquarePlus,
   Star,
@@ -57,7 +55,6 @@ export interface ProjectTimelineProps {
   readonly document: EditingDocument;
   readonly selectedClipId: string | null;
   readonly previewOffsetSeconds: number;
-  readonly playing: boolean;
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
@@ -93,7 +90,6 @@ export function ProjectTimeline({
   document,
   selectedClipId,
   previewOffsetSeconds,
-  playing,
   readOnly,
   onSelectClip,
   onInspectClip,
@@ -148,7 +144,7 @@ export function ProjectTimeline({
     minMinorGapPx: 28,
   });
   const rowTemplate = [
-    ...renderedTracks.map((track) => track.kind === 'video' ? '27fr' : '25fr'),
+    ...renderedTracks.map((track) => track.kind === 'video' ? '29fr' : '22fr'),
     '24fr',
     '24fr',
   ].join(' ');
@@ -240,43 +236,8 @@ export function ProjectTimeline({
         }
       }}
     >
-      <header className="flex h-[clamp(25px,2.9vh,28px)] flex-none items-center gap-3 border-b border-divider px-3">
-        <h2 className="text-sm font-semibold"><Trans>时间轴（编辑预览）</Trans></h2>
-        <button
-          type="button"
-          className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100"
-          aria-label={playing ? t`暂停时间轴` : t`播放时间轴`}
-          onClick={onTogglePlayback}
-        >
-          {playing ? <Pause className="size-3.5" aria-hidden="true" /> : <Play className="size-3.5" aria-hidden="true" />}
-        </button>
-        <button
-          type="button"
-          className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300"
-          aria-label={t`在播放头切分片段`}
-          disabled={!canSplit}
-          onClick={splitSelected}
-        >
-          <Scissors className="size-3.5" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300"
-          aria-label={t`删除所选片段并闭合间隙`}
-          disabled={!canDelete}
-          onClick={deleteSelected}
-        >
-          <Trash2 className="size-3.5" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm hover:bg-neutral-100 disabled:text-neutral-300"
-          aria-label={t`撤销上一次剪辑`}
-          disabled={readOnly || !canUndo}
-          onClick={onUndo}
-        >
-          <Undo2 className="size-3.5" aria-hidden="true" />
-        </button>
+      <header className="flex h-[var(--h-ctl-sm)] flex-none items-center gap-3 border-b border-divider px-3">
+        <h2 className="text-base font-semibold"><Trans>时间轴（编辑预览）</Trans></h2>
         <span className="ml-auto flex items-center gap-2 text-neutral-500">
           <button
             type="button"
@@ -308,7 +269,7 @@ export function ProjectTimeline({
         </span>
       </header>
 
-      <div className="grid h-[clamp(25px,2.9vh,28px)] flex-none grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider font-mono text-2xs text-neutral-500">
+      <div className="grid h-8 flex-none grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider font-mono text-2xs text-neutral-500">
         <span />
         <div
           className="relative min-w-0 cursor-text overflow-hidden"
@@ -370,20 +331,27 @@ export function ProjectTimeline({
         </div>
       </div>
 
-      <footer className="flex h-[clamp(40px,5.2vh,50px)] flex-none items-center gap-5 border-t border-divider px-2 text-2xs text-neutral-600">
+      <footer className="flex h-14 flex-none items-center gap-5 border-t border-divider px-2 text-2xs text-neutral-600">
         <span><Trans>提案时长：</Trans><strong className="font-mono font-medium text-text">{formatMillisecondTimecode(document.duration_seconds)}</strong></span>
         <span className="flex items-center gap-1.5"><span className="size-2 bg-accent-400" /><Trans>已录制 {recordedCount}</Trans></span>
         <span className="flex items-center gap-1.5"><span className="size-2 bg-neutral-200" /><Trans>未录制 {plannedCount}</Trans></span>
         <span className="ml-auto flex items-center gap-2">
           <button type="button" className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2"><LayoutList className="size-3.5" aria-hidden="true" /><Trans>阻塞显示</Trans></button>
-          <TimelineFooterButton label={t`时间轴设置`}><Settings2 className="size-3.5" aria-hidden="true" /></TimelineFooterButton>
+          <TimelineActionMenu
+            canSplit={canSplit}
+            canDelete={canDelete}
+            canUndo={canUndo && !readOnly}
+            onSplit={splitSelected}
+            onDelete={deleteSelected}
+            onUndo={onUndo}
+          />
           <TimelineFooterButton label={t`网格视图`}><Grid2X2 className="size-3.5" aria-hidden="true" /></TimelineFooterButton>
           <TimelineFooterButton label={t`列表视图`}><List className="size-3.5" aria-hidden="true" /></TimelineFooterButton>
         </span>
       </footer>
 
       <div
-        className="absolute bottom-[clamp(40px,5.2vh,50px)] top-[clamp(25px,2.9vh,28px)] z-20 w-px bg-accent-600"
+        className="absolute bottom-14 top-[var(--h-ctl-sm)] z-20 w-px bg-accent-600"
         style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, playheadSeconds) - scrollLeft}px)` }}
       >
         <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-accent-600 px-1.5 py-0.5 font-mono text-2xs text-bg">
@@ -670,7 +638,7 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, onRe
   readonly onReplaceTrack?: ((track: TimelineTrack) => void) | undefined;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 border-r border-divider px-3 text-xs font-medium">
+    <div className="flex min-w-0 items-center gap-3 border-r border-divider px-3 text-sm font-medium">
       <span className="text-neutral-600">{icon}</span><span className="truncate">{label}</span>
       {controls === 'none' || track === undefined ? null : (
         <span className="ml-auto flex items-center gap-1 text-neutral-500">
@@ -728,4 +696,53 @@ function TimelineGrid({ ticks }: { readonly ticks: ReturnType<typeof rulerTicks>
 
 function TimelineFooterButton({ label, children }: { readonly label: string; readonly children: React.ReactNode }) {
   return <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm border border-divider" aria-label={label}>{children}</button>;
+}
+
+function TimelineActionMenu({
+  canSplit,
+  canDelete,
+  canUndo,
+  onSplit,
+  onDelete,
+  onUndo,
+}: {
+  readonly canSplit: boolean;
+  readonly canDelete: boolean;
+  readonly canUndo: boolean;
+  readonly onSplit: () => void;
+  readonly onDelete: () => void;
+  readonly onUndo: () => void;
+}) {
+  const actions = [
+    { label: t`在播放头切分片段`, icon: <Scissors className="size-3.5" aria-hidden="true" />, enabled: canSplit, action: onSplit, shortcut: 'S' },
+    { label: t`删除所选片段并闭合间隙`, icon: <Trash2 className="size-3.5" aria-hidden="true" />, enabled: canDelete, action: onDelete, shortcut: 'Del' },
+    { label: t`撤销上一次剪辑`, icon: <Undo2 className="size-3.5" aria-hidden="true" />, enabled: canUndo, action: onUndo, shortcut: 'Ctrl Z' },
+  ] as const;
+  return (
+    <details className="group relative">
+      <summary
+        className="grid size-[var(--h-ctl-sm)] cursor-pointer list-none place-items-center rounded-sm border border-divider [&::-webkit-details-marker]:hidden"
+        aria-label={t`时间轴设置`}
+        role="button"
+      >
+        <Settings2 className="size-3.5" aria-hidden="true" />
+      </summary>
+      <div className="absolute bottom-[calc(100%+4px)] right-0 z-40 w-52 rounded-sm border border-divider bg-bg p-1 shadow-lg">
+        {actions.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            aria-label={item.label}
+            className="flex h-8 w-full items-center gap-2 rounded-sm px-2 text-left text-xs hover:bg-neutral-100 disabled:text-neutral-300"
+            disabled={!item.enabled}
+            onClick={item.action}
+          >
+            {item.icon}
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            <kbd className="font-mono text-2xs text-neutral-400">{item.shortcut}</kbd>
+          </button>
+        ))}
+      </div>
+    </details>
+  );
 }

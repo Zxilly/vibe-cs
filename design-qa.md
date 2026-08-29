@@ -26,6 +26,7 @@ final result: passed
 - Direct Program transform pass: `target/editor-iteration/20-program-direct-transform.png`.
 - Program scale/rotation pass: `target/editor-iteration/21-program-scale-rotation.png`.
 - Volume keyframe pass: `target/editor-iteration/22-volume-keyframes.png`.
+- Clip effects pass: `target/editor-iteration/23-effects.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -73,6 +74,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - When the visible Program clip is the primary selection, paused, and writable, one transparent stage overlay supports direct X/Y movement and keyboard nudging. CSS deltas convert through measured stage dimensions into project pixels; animated properties upsert the current local keyframe while static properties update base Transform. Linked-selection click promotion preserves the group but makes the explicitly clicked member primary.
 - The Program overlay also exposes a uniform corner Scale handle and center Rotation handle with pointer and keyboard control. Scale is constrained to 0.01–10×; Rotation nudges 1°/15°. Inspector and canvas mirror the renderer rule that animated Scale cannot coexist with non-zero or animated Rotation, while static Scale+Rotation remains valid.
 - Volume is a first-class keyframe property in Effect Controls and the waveform rubber-band. Static clips update placement volume; animated clips upsert the current local frame and display evaluated dB as transport moves. Program audio evaluates canonical volume times fade envelope, applies the browser's 0–1 portion, and preserves >1 gain for exact FFmpeg export.
+- Clip effects use one closed renderer-backed vocabulary shared by the Inspector and Program Monitor: Color Adjust, Grayscale, and Blur. The Inspector adds, enables, orders, deletes, and constrains their canonical parameters; enabled unknown effects block save instead of creating a preview/export mismatch. The canonical video clip shows the enabled count as an `fxN` badge, and Program evaluates the ordered stack without remounting pooled media.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -117,6 +119,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A sixteenth live pass selected linked Story Build as primary at local 0 and dragged the Program overlay by 60×30 CSS pixels. The draft preview reached project X=293.671 and Y=96.837 while revision remained 45; mouse-up updated the existing X keyframe and static Y in exactly revision 46. Page errors remained empty.
 - A seventeenth live pass used the Program Scale handle to change 1.00→1.10 as revision 47, then the Rotation handle to set 15° as revision 48. The live style combined translate(15.2954%, 8.96638%), rotate(15deg), and scale(1.1) without changing the warm media pool or producing page errors.
 - An eighteenth live pass authored Story Build Volume keyframes at local 0s=1.911661 (+5.6dB) and 1s=1.0 (0dB), committing one revision 49. Both timeline diamonds grouped two properties; Program canonical/output data and the Story rubber-band switched together while browser volume clamped at 1. Page errors remained empty.
+- A nineteenth live pass added Color Adjust (brightness 0.2, contrast 1.2, saturation 0.8) and Blur (radius 4), reordered Blur before Color Adjust, and saved exactly revision 50. Program exposed `blur,color_adjust` and the matching ordered CSS filter while retaining two pooled videos; the canonical clip displayed `fx2` and page errors remained empty.
 
 ## Comparison history
 
@@ -149,10 +152,12 @@ No actionable P0, P1, or P2 mismatch remains.
 27. `target/editor-iteration/20-program-direct-transform.png`: the selected Program clip previews its project-pixel X/Y draft under the direct manipulation border before commit.
 28. `target/editor-iteration/21-program-scale-rotation.png`: the Program frame shows the selected clip with canonical 1.1× scale and 15° rotation controls.
 29. `target/editor-iteration/22-volume-keyframes.png`: the Build clip shows two-property diamonds while Program and waveform evaluate the local 1-second Volume keyframe.
+30. `target/editor-iteration/23-effects.png`: the Build clip and Program Monitor show the same enabled two-effect stack after one canonical save.
 
 ## Verification
 
 - Focused keyframe editing and Project workbench tests: 62 passed.
-- Full web suite: 257 files and 2941 tests passed.
+- Focused clip-effects and Project workbench tests: 60 passed.
+- Full web suite: 258 files and 2946 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

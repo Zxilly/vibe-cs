@@ -3,6 +3,7 @@ export { TimelineProgramMonitor, type TimelineProgramMonitorProps } from './Time
 export { resolveTimelineMaterial, type TimelineMaterialView, type TimelineWaveformLocator } from './timelineMaterial';
 export { snapTimeToFrame } from './timelineInteraction';
 export {
+  canAnimateTransformProperty,
   clipKeyframeAtTime,
   clipLocalTimeAtTimeline,
   evaluateClipKeyframeProperty,

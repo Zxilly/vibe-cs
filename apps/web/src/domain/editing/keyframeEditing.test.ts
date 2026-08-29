@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { TimelineClip } from '../../shared/desktop/dto';
 import {
+  canAnimateTransformProperty,
   clipKeyframeAtTime,
   clipLocalTimeAtTimeline,
   evaluateClipKeyframeProperty,
@@ -81,5 +82,15 @@ describe('canonical clip keyframe editing', () => {
       { id: 'x-0', time: 0, property: 'x', value: 10 },
       { id: 'new-1', time: 1, property: 'x', value: 100 },
     ]);
+  });
+
+  it('mirrors the renderer animated-scale and rotation exclusion', () => {
+    expect(canAnimateTransformProperty(CLIP, 'scale_x')).toBe(true);
+    expect(canAnimateTransformProperty({ ...CLIP, transform: { ...CLIP.transform, rotation: 5 } }, 'scale_x')).toBe(false);
+    const rotated = upsertClipKeyframe(CLIP, 'rotation', 0, 10, 'rotation', 60);
+    expect(canAnimateTransformProperty(rotated, 'scale_y')).toBe(false);
+    const scaled = upsertClipKeyframe(CLIP, 'scale_x', 0, 1.2, 'scale', 60);
+    expect(canAnimateTransformProperty(scaled, 'rotation')).toBe(false);
+    expect(canAnimateTransformProperty(scaled, 'opacity')).toBe(true);
   });
 });

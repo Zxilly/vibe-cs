@@ -76,6 +76,19 @@ export function setClipTransformAtTime(
   return next;
 }
 
+export function canAnimateTransformProperty(
+  clip: TimelineClip,
+  property: Exclude<EditorKeyframeProperty, 'volume'>,
+): boolean {
+  const hasScaleKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'scale_x' || keyframe.property === 'scale_y');
+  const hasRotationKeyframes = clip.keyframes.some((keyframe) => keyframe.property === 'rotation');
+  if (property === 'scale_x' || property === 'scale_y') {
+    return Math.abs(clip.transform.rotation) <= 1e-6 && !hasRotationKeyframes;
+  }
+  if (property === 'rotation') return !hasScaleKeyframes;
+  return true;
+}
+
 export function evaluateClipKeyframeProperty(
   clip: TimelineClip,
   property: EditorKeyframeProperty,

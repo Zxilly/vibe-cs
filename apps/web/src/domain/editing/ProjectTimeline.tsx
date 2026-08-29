@@ -4,6 +4,7 @@ import {
   Bookmark,
   BookmarkPlus,
   BetweenHorizontalEnd,
+  BetweenHorizontalStart,
   Camera,
   ChevronLeft,
   ChevronRight,
@@ -78,6 +79,7 @@ import {
   clipMediaDuration,
   canRollTimelineEdit,
   canRateStretchTimelineClip,
+  canSlideTimelineClip,
   canSlipTimelineClip,
   constrainClipGroupSlipDelta,
   constrainClipGroupTrimDelta,
@@ -97,12 +99,14 @@ import {
   resolveTimelineSnap,
   rollTimelineEdit,
   rateStretchTimelineClip,
+  slideTimelineClip,
   snapTimeToFrame,
   trimTimelineClip,
   type TimelineRollingPreview,
+  type TimelineSlidePreview,
 } from './timelineInteraction';
 
-type TimelineEditTool = 'selection' | 'slip' | 'rolling' | 'rate';
+type TimelineEditTool = 'selection' | 'slip' | 'rolling' | 'rate' | 'slide';
 
 export interface ProjectTimelineProps {
   readonly document: EditingDocument;
@@ -130,6 +134,7 @@ export interface ProjectTimelineProps {
   readonly onReplaceClips: (clips: readonly TimelineClip[]) => void;
   readonly onPreviewClips: (clips: readonly TimelineClip[]) => void;
   readonly onPreviewRollingEdit: (preview: TimelineRollingPreview | null) => void;
+  readonly onPreviewSlideEdit: (preview: TimelineSlidePreview | null) => void;
   readonly onInsertTrack: (track: TimelineTrack, index: number) => void;
   readonly onRemoveTrack: (trackId: string) => void;
   readonly onReorderTracks: (trackIds: readonly string[]) => void;
@@ -191,6 +196,7 @@ export function ProjectTimeline({
   onReplaceClips,
   onPreviewClips,
   onPreviewRollingEdit,
+  onPreviewSlideEdit,
   onInsertTrack,
   onRemoveTrack,
   onReorderTracks,
@@ -204,6 +210,7 @@ export function ProjectTimeline({
   const [editTool, setEditTool] = useState<TimelineEditTool>('selection');
   const [rollingPreviewTime, setRollingPreviewTime] = useState<number | null>(null);
   const [ratePreviewDuration, setRatePreviewDuration] = useState<number | null>(null);
+  const [slidePreviewTime, setSlidePreviewTime] = useState<number | null>(null);
   const [changeFilter, setChangeFilter] = useState<'all' | 'selected'>('all');
   const [scrollLeft, setScrollLeft] = useState(0);
   const [snapGuideTime, setSnapGuideTime] = useState<number | null>(null);
@@ -768,7 +775,9 @@ export function ProjectTimeline({
           onPreviewClips([]);
           setRollingPreviewTime(null);
           setRatePreviewDuration(null);
+          setSlidePreviewTime(null);
           onPreviewRollingEdit(null);
+          onPreviewSlideEdit(null);
           return;
         }
         if (event.key.toLowerCase() === 'y' && !event.ctrlKey && !event.metaKey && !event.altKey && !readOnly) {
@@ -778,7 +787,9 @@ export function ProjectTimeline({
           onPreviewClips([]);
           setRollingPreviewTime(null);
           setRatePreviewDuration(null);
+          setSlidePreviewTime(null);
           onPreviewRollingEdit(null);
+          onPreviewSlideEdit(null);
           return;
         }
         if (event.key.toLowerCase() === 'n' && !event.ctrlKey && !event.metaKey && !event.altKey && !readOnly) {
@@ -788,6 +799,9 @@ export function ProjectTimeline({
           onPreviewClips([]);
           setRollingPreviewTime(null);
           setRatePreviewDuration(null);
+          setSlidePreviewTime(null);
+          onPreviewRollingEdit(null);
+          onPreviewSlideEdit(null);
           return;
         }
         if (event.key.toLowerCase() === 'r' && !event.ctrlKey && !event.metaKey && !event.altKey && !readOnly) {
@@ -797,7 +811,21 @@ export function ProjectTimeline({
           onPreviewClips([]);
           setRollingPreviewTime(null);
           setRatePreviewDuration(null);
+          setSlidePreviewTime(null);
           onPreviewRollingEdit(null);
+          onPreviewSlideEdit(null);
+          return;
+        }
+        if (event.key.toLowerCase() === 'u' && !event.ctrlKey && !event.metaKey && !event.altKey && !readOnly) {
+          event.preventDefault();
+          onShuttle(0);
+          setEditTool('slide');
+          onPreviewClips([]);
+          setRollingPreviewTime(null);
+          setRatePreviewDuration(null);
+          setSlidePreviewTime(null);
+          onPreviewRollingEdit(null);
+          onPreviewSlideEdit(null);
           return;
         }
         if (event.key.toLowerCase() === 'c' && (event.ctrlKey || event.metaKey) && !event.altKey) {
@@ -965,6 +993,7 @@ export function ProjectTimeline({
         canSlipTool={!readOnly && document.tracks.some((track) => !track.locked && track.clips.some((clip) => canSlipTimelineClip(clip, document.fps)))}
         canRollTool={!readOnly && document.tracks.some((track) => !track.locked && rollingEditPoints(track.clips, document.fps).length > 0)}
         canRateTool={!readOnly && document.tracks.some((track) => !track.locked && track.clips.some(canRateStretchTimelineClip))}
+        canSlideTool={!readOnly && document.tracks.some((track) => !track.locked && slideEditTriples(track.clips, document.fps).length > 0)}
         canSplit={canSplit}
         canDelete={canDelete}
         canCopy={canCopy}
@@ -986,11 +1015,14 @@ export function ProjectTimeline({
           if (tool === 'slip') onShuttle(0);
           if (tool === 'rolling') onShuttle(0);
           if (tool === 'rate') onShuttle(0);
+          if (tool === 'slide') onShuttle(0);
           setEditTool(tool);
           onPreviewClips([]);
           setRollingPreviewTime(null);
           setRatePreviewDuration(null);
+          setSlidePreviewTime(null);
           onPreviewRollingEdit(null);
+          onPreviewSlideEdit(null);
         }}
       />
 
@@ -1139,6 +1171,10 @@ export function ProjectTimeline({
                 setRollingPreviewTime(preview?.editTime ?? null);
                 onPreviewRollingEdit(preview);
               }}
+              onPreviewSlideEdit={(preview) => {
+                setSlidePreviewTime(preview?.startTime ?? null);
+                onPreviewSlideEdit(preview);
+              }}
               onStopTransport={() => onShuttle(0)}
               onPreviewDuration={(clips) => setRatePreviewDuration(clips === null
                 ? null
@@ -1175,10 +1211,10 @@ export function ProjectTimeline({
 
       <div
         className="absolute bottom-14 top-[var(--h-panel-head)] z-20 w-px bg-accent-600"
-        style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, rollingPreviewTime ?? playheadSeconds) - scrollLeft}px)` }}
+        style={{ left: `calc(var(--w-track-head) + ${timeToPx(scale, rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds) - scrollLeft}px)` }}
       >
         <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded-sm bg-accent-600 px-1.5 py-0.5 font-mono text-2xs text-bg">
-          {formatMillisecondTimecode(rollingPreviewTime ?? playheadSeconds)}
+          {formatMillisecondTimecode(rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds)}
         </span>
         <button
           type="button"
@@ -1186,8 +1222,8 @@ export function ProjectTimeline({
           aria-label={t`时间轴播放头`}
           aria-valuemin={0}
           aria-valuemax={document.duration_seconds}
-          aria-valuenow={rollingPreviewTime ?? playheadSeconds}
-          aria-valuetext={formatMillisecondTimecode(rollingPreviewTime ?? playheadSeconds)}
+          aria-valuenow={rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds}
+          aria-valuetext={formatMillisecondTimecode(rollingPreviewTime ?? slidePreviewTime ?? playheadSeconds)}
           className="absolute -left-2 top-0 h-full w-4 touch-none select-none cursor-col-resize bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
           onPointerDown={(event) => {
             if (event.button !== 0) return;
@@ -1345,7 +1381,7 @@ function timelineDurationWithTrack(
     .reduce((duration, clip) => Math.max(duration, clip.placement.start + clip.placement.duration), 0);
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onStopTransport, onPreviewDuration }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, editTool, fps, readOnly, onSelectClip, onPromoteClip, onInspectClip, onSeek, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, timelineTimeSeconds, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups, onPreviewClips, onPreviewRollingEdit, onPreviewSlideEdit, onStopTransport, onPreviewDuration }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -1383,6 +1419,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onReplaceTrackClipGroups: (groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[]) => void;
   readonly onPreviewClips: (clips: readonly TimelineClip[]) => void;
   readonly onPreviewRollingEdit: (preview: TimelineRollingPreview | null) => void;
+  readonly onPreviewSlideEdit: (preview: TimelineSlidePreview | null) => void;
   readonly onStopTransport: () => void;
   readonly onPreviewDuration: (clips: readonly TimelineClip[] | null) => void;
 }) {
@@ -1390,13 +1427,18 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   const resizeGesture = useRef<{ readonly pointerId: number; readonly clientY: number; readonly height: number } | null>(null);
   const [rollingDrafts, setRollingDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
   const [rateDrafts, setRateDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
+  const [slideDrafts, setSlideDrafts] = useState<ReadonlyMap<string, TimelineClip>>(new Map());
   const editPoints = useMemo(() => rollingEditPoints(track.track.clips, fps), [fps, track.track.clips]);
+  const slidePoints = useMemo(() => slideEditTriples(track.track.clips, fps), [fps, track.track.clips]);
   useEffect(() => {
     if (editTool !== 'rolling' && rollingDrafts.size > 0) setRollingDrafts(new Map());
   }, [editTool, rollingDrafts.size]);
   useEffect(() => {
     if (editTool !== 'rate' && rateDrafts.size > 0) setRateDrafts(new Map());
   }, [editTool, rateDrafts.size]);
+  useEffect(() => {
+    if (editTool !== 'slide' && slideDrafts.size > 0) setSlideDrafts(new Map());
+  }, [editTool, slideDrafts.size]);
   const previewSlip = (clip: TimelineClip, requestedSourceDelta: number) => {
     const selected = selectedClipIds.has(clip.id)
       ? selectedTrackGroups.flatMap((group) => group.clips)
@@ -1425,6 +1467,31 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
     setRateDrafts(new Map());
     onPreviewClips([]);
     onPreviewDuration(null);
+  };
+  const previewSlide = (clip: TimelineClip, requestedStart: number) => {
+    const point = slidePoints.find((candidate) => candidate.clip.id === clip.id);
+    if (point === undefined) return clip;
+    const edit = slideTimelineClip(point.previous, point.clip, point.next, requestedStart, fps);
+    if (edit === null) return clip;
+    const drafts = new Map([
+      [edit.previous.id, edit.previous],
+      [edit.clip.id, edit.clip],
+      [edit.next.id, edit.next],
+    ]);
+    setSlideDrafts(drafts);
+    onPreviewClips([edit.previous, edit.clip, edit.next]);
+    onPreviewSlideEdit({
+      previousClipId: edit.previous.id,
+      clipId: edit.clip.id,
+      nextClipId: edit.next.id,
+      startTime: edit.clip.placement.start,
+    });
+    return edit.clip;
+  };
+  const clearSlidePreview = () => {
+    setSlideDrafts(new Map());
+    onPreviewClips([]);
+    onPreviewSlideEdit(null);
   };
   const clearRollingPreview = () => {
     setRollingDrafts(new Map());
@@ -1471,7 +1538,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         {track.clips.map((clip) => (
           <TimelineClipCell
             key={`${track.id}:${clip.id}`}
-            clip={rollingDrafts.get(clip.id) ?? rateDrafts.get(clip.id) ?? clip}
+            clip={rollingDrafts.get(clip.id) ?? rateDrafts.get(clip.id) ?? slideDrafts.get(clip.id) ?? clip}
             kind={track.kind}
             derivedAudio={track.derivedAudio}
             selected={selectedClipIds.has(clip.id)}
@@ -1495,11 +1562,14 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             onDragAutoScroll={onDragAutoScroll}
             onPreviewSlip={(requestedSourceDelta) => previewSlip(clip, requestedSourceDelta)}
             storyTrack={track.track.id === storyTrackId}
+            canSlide={slidePoints.some((point) => point.clip.id === clip.id)}
             onPreviewRateStretch={(edge, timelineTime) => previewRateStretch(clip, edge, timelineTime)}
+            onPreviewSlide={(timelineTime) => previewSlide(clip, timelineTime)}
             onStopTransport={onStopTransport}
             onClearPreview={() => {
               clearRatePreview();
               onPreviewRollingEdit(null);
+              clearSlidePreview();
             }}
             onReplace={(replacement, mode) => {
               if (mode === 'slip') {
@@ -1526,6 +1596,20 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
                       ? slipTimelineClip(candidate, delta, fps)
                       : candidate),
                   };
+                }));
+                return;
+              }
+              if (mode === 'slide') {
+                const point = slidePoints.find((candidate) => candidate.clip.id === replacement.id);
+                if (point === undefined) return;
+                const edit = slideTimelineClip(point.previous, point.clip, point.next, replacement.placement.start, fps);
+                if (edit === null || Math.abs(edit.delta) <= 1e-9) return;
+                onSeek(edit.clip.placement.start);
+                onReplaceTrackClips(track.track.id, track.track.clips.map((candidate) => {
+                  if (candidate.id === edit.previous.id) return edit.previous;
+                  if (candidate.id === edit.clip.id) return edit.clip;
+                  if (candidate.id === edit.next.id) return edit.next;
+                  return candidate;
                 }));
                 return;
               }
@@ -1698,6 +1782,24 @@ function rollingEditPoints(clips: readonly TimelineClip[], fps: number): Rolling
   return points;
 }
 
+interface SlideEditTriple {
+  readonly previous: TimelineClip;
+  readonly clip: TimelineClip;
+  readonly next: TimelineClip;
+}
+
+function slideEditTriples(clips: readonly TimelineClip[], fps: number): SlideEditTriple[] {
+  const ordered = [...clips].sort((left, right) => left.placement.start - right.placement.start);
+  const triples: SlideEditTriple[] = [];
+  for (let index = 1; index < ordered.length - 1; index += 1) {
+    const previous = ordered[index - 1]!;
+    const clip = ordered[index]!;
+    const next = ordered[index + 1]!;
+    if (canSlideTimelineClip(previous, clip, next, fps)) triples.push({ previous, clip, next });
+  }
+  return triples;
+}
+
 function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, snapThresholdSeconds, scrollLeftRef, onDragAutoScroll, onSnapChange, onBegin, onPreview, onCancel, onCommit }: {
   readonly left: TimelineClip;
   readonly right: TimelineClip;
@@ -1858,7 +1960,7 @@ function TimelineRollingHandle({ left, right, scale, fps, readOnly, snapPoints, 
   );
 }
 
-const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, editTool, storyTrack, scale, fps, readOnly, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onStopTransport, onClearPreview }: {
+const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, editTool, storyTrack, canSlide, scale, fps, readOnly, gainReadOnly, trackHeight, localTime, change, onSelect, onPromote, onInspect, onSeek, onReplace, snapPoints, snapThresholdSeconds, onSnapChange, scrollLeftRef, onDragAutoScroll, onPreviewSlip, onPreviewRateStretch, onPreviewSlide, onStopTransport, onClearPreview }: {
   readonly clip: TimelineClip;
   readonly kind: RenderedTrack['kind'];
   readonly derivedAudio: boolean;
@@ -1866,6 +1968,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly primary: boolean;
   readonly editTool: TimelineEditTool;
   readonly storyTrack: boolean;
+  readonly canSlide: boolean;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly fps: number;
   readonly readOnly: boolean;
@@ -1877,7 +1980,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onPromote: () => void;
   readonly onInspect: () => void;
   readonly onSeek: (seconds: number) => void;
-  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'slip' | 'rate_start' | 'rate_end' | 'volume' | 'fade') => void;
+  readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end' | 'volume' | 'fade') => void;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
   readonly snapThresholdSeconds: number;
   readonly onSnapChange: (time: number | null) => void;
@@ -1885,6 +1988,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly onDragAutoScroll: (clientX: number | null, onScroll?: (scrollLeft: number) => void) => void;
   readonly onPreviewSlip: (requestedSourceDelta: number) => TimelineClip;
   readonly onPreviewRateStretch: (edge: 'start' | 'end', timelineTime: number) => TimelineClip;
+  readonly onPreviewSlide: (timelineTime: number) => TimelineClip;
   readonly onStopTransport: () => void;
   readonly onClearPreview: () => void;
 }) {
@@ -1905,7 +2009,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     readonly pointerId: number;
     readonly clientX: number;
     readonly scrollLeft: number;
-    readonly mode: 'move' | 'start' | 'end' | 'slip' | 'rate_start' | 'rate_end';
+    readonly mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end';
     readonly clip: TimelineClip;
     lastClientX: number;
     shiftKey: boolean;
@@ -1959,6 +2063,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   const canRateStretch = kind !== 'text' && canRateStretchTimelineClip(clip);
   const gestureBaseClip = gesture.current?.clip ?? clip;
   const slipDelta = visualClip.placement.source_in - gestureBaseClip.placement.source_in;
+  const slideDelta = visualClip.placement.start - gestureBaseClip.placement.start;
   const rateStretching = Math.abs(visualClip.placement.speed - gestureBaseClip.placement.speed) > 1e-9;
   const updateVisualGesture = (
     active: NonNullable<typeof gesture.current>,
@@ -1973,6 +2078,23 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     if (active.mode === 'slip') {
       onSnapChange(null);
       const next = onPreviewSlip(-deltaSeconds);
+      visualClipRef.current = next;
+      setVisualClip(next);
+      if (Math.abs(clientX - active.clientX + currentScrollLeft - active.scrollLeft) > 5) active.moved = true;
+      return;
+    }
+    if (active.mode === 'slide') {
+      const rawStart = active.clip.placement.start + deltaSeconds;
+      const snap = shiftKey
+        ? { anchorTime: rawStart, snapTime: null }
+        : resolveTimelineSnap(
+            rawStart,
+            [0, active.clip.placement.duration],
+            snapPoints.filter((point) => point.clipId !== active.clip.id).map((point) => point.time),
+            snapThresholdSeconds,
+          );
+      const next = onPreviewSlide(snap.anchorTime);
+      onSnapChange(snap.snapTime);
       visualClipRef.current = next;
       setVisualClip(next);
       if (Math.abs(clientX - active.clientX + currentScrollLeft - active.scrollLeft) > 5) active.moved = true;
@@ -2032,17 +2154,18 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     }
     onDragAutoScroll(null);
     onSnapChange(null);
-    if (active.mode === 'slip' || active.mode === 'rate_start' || active.mode === 'rate_end') onClearPreview();
+    if (active.mode === 'slip' || active.mode === 'slide' || active.mode === 'rate_start' || active.mode === 'rate_end') onClearPreview();
     const replacement = visualClipRef.current;
     lastGestureWasDragRef.current = active.moved;
     if (JSON.stringify(replacement.placement) !== JSON.stringify(active.clip.placement)) {
       onReplace(replacement, active.mode);
     }
   };
-  const beginGesture = (event: React.PointerEvent<HTMLElement>, mode: 'move' | 'start' | 'end' | 'slip' | 'rate_start' | 'rate_end') => {
+  const beginGesture = (event: React.PointerEvent<HTMLElement>, mode: 'move' | 'start' | 'end' | 'slip' | 'slide' | 'rate_start' | 'rate_end') => {
     if (readOnly
       || event.button !== 0
       || (mode === 'slip' && !canSlip)
+      || (mode === 'slide' && !canSlide)
       || ((mode === 'rate_start' || mode === 'rate_end') && !canRateStretch)) return;
     event.preventDefault();
     event.stopPropagation();
@@ -2050,7 +2173,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     const range = event.shiftKey;
     if (!selected || additive || range) onSelect(additive, range);
     if (additive || range) return;
-    if (mode === 'slip' || mode === 'rate_start' || mode === 'rate_end') {
+    if (mode === 'slip' || mode === 'slide' || mode === 'rate_start' || mode === 'rate_end') {
       onStopTransport();
       onSeek(clip.placement.start + Math.min(
         clip.placement.duration - 1 / fps,
@@ -2103,6 +2226,8 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         selected && 'ring-1 ring-inset ring-accent-600',
         editTool === 'slip' && canSlip && 'cursor-ew-resize',
         editTool === 'slip' && !canSlip && 'cursor-not-allowed',
+        editTool === 'slide' && canSlide && 'cursor-ew-resize',
+        editTool === 'slide' && !canSlide && 'cursor-not-allowed',
       )}
       style={{ left: visualLeft, width: visualWidth }}
       aria-disabled={readOnly}
@@ -2119,7 +2244,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
           onSelect(event.ctrlKey || event.metaKey, event.shiftKey);
           return;
         }
-        beginGesture(event, editTool === 'slip' ? 'slip' : 'move');
+        beginGesture(event, editTool === 'slip' ? 'slip' : editTool === 'slide' ? 'slide' : 'move');
       }}
       onPointerMove={updateGesture}
       onPointerUp={finishGesture}
@@ -2138,6 +2263,13 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
         event.preventDefault();
         const direction = event.key === 'ArrowRight' ? 1 : -1;
         if (editTool === 'rolling' || editTool === 'rate') return;
+        if (editTool === 'slide') {
+          if (!canSlide) return;
+          const replacement = onPreviewSlide(clip.placement.start + direction * (event.shiftKey ? 1 : 1 / fps));
+          onClearPreview();
+          onReplace(replacement, 'slide');
+          return;
+        }
         if (editTool === 'slip') {
           if (!canSlip) return;
           const replacement = onPreviewSlip(direction * (event.shiftKey ? 1 : 1 / fps));
@@ -2202,6 +2334,11 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       {!rateStretching ? null : (
         <span className="pointer-events-none absolute inset-x-1 top-1 z-50 rounded-sm bg-neutral-950/90 px-1.5 py-1 text-center font-mono text-2xs text-bg" aria-label={t`比率伸缩 ${(visualClip.placement.speed * 100).toFixed(1)}%`}>
           {(visualClip.placement.speed * 100).toFixed(1)}% · {formatMillisecondTimecode(visualClip.placement.duration)}
+        </span>
+      )}
+      {Math.abs(slideDelta) <= 1e-9 ? null : (
+        <span className="pointer-events-none absolute inset-x-1 top-1 z-50 rounded-sm bg-neutral-950/90 px-1.5 py-1 text-center font-mono text-2xs text-bg" aria-label={t`滑动 ${formatSignedTimelineDelta(slideDelta)}`}>
+          {formatSignedTimelineDelta(slideDelta)} · {formatMillisecondTimecode(visualClip.placement.start)}
         </span>
       )}
       {keyframeGroups.map(([time, count]) => (
@@ -2299,6 +2436,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   && previous.primary === next.primary
   && previous.editTool === next.editTool
   && previous.storyTrack === next.storyTrack
+  && previous.canSlide === next.canSlide
   && previous.scale.pixelsPerSecond === next.scale.pixelsPerSecond
   && previous.fps === next.fps
   && previous.readOnly === next.readOnly
@@ -2546,6 +2684,7 @@ function TimelineToolStrip({
   canSlipTool,
   canRollTool,
   canRateTool,
+  canSlideTool,
   canSplit,
   canDelete,
   canCopy,
@@ -2569,6 +2708,7 @@ function TimelineToolStrip({
   readonly canSlipTool: boolean;
   readonly canRollTool: boolean;
   readonly canRateTool: boolean;
+  readonly canSlideTool: boolean;
   readonly canSplit: boolean;
   readonly canDelete: boolean;
   readonly canCopy: boolean;
@@ -2593,6 +2733,7 @@ function TimelineToolStrip({
     { label: t`滑移工具 (Y)`, icon: <MoveHorizontal className="size-4" aria-hidden="true" />, enabled: canSlipTool, pressed: editTool === 'slip', action: () => onChangeTool('slip') },
     { label: t`滚动编辑工具 (N)`, icon: <BetweenHorizontalEnd className="size-4" aria-hidden="true" />, enabled: canRollTool, pressed: editTool === 'rolling', action: () => onChangeTool('rolling') },
     { label: t`比率伸缩工具 (R)`, icon: <Gauge className="size-4" aria-hidden="true" />, enabled: canRateTool, pressed: editTool === 'rate', action: () => onChangeTool('rate') },
+    { label: t`滑动工具 (U)`, icon: <BetweenHorizontalStart className="size-4" aria-hidden="true" />, enabled: canSlideTool, pressed: editTool === 'slide', action: () => onChangeTool('slide') },
     { label: t`在播放头切分片段`, icon: <Scissors className="size-4" aria-hidden="true" />, enabled: canSplit, pressed: false, action: onSplit },
     { label: t`在播放头添加标记`, icon: <BookmarkPlus className="size-4" aria-hidden="true" />, enabled: canAddMarker, pressed: false, action: onAddMarker },
     { label: t`提取入出点范围`, icon: <span className="font-mono text-sm" aria-hidden="true">'</span>, enabled: canExtractRange, pressed: false, action: onExtractRange },

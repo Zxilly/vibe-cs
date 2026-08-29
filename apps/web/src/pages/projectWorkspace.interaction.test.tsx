@@ -108,6 +108,37 @@ function linkedProject(): Project {
   };
 }
 
+function slideProject(): Project {
+  const recorded = (id: string, name: string, start: number, duration: number, sourceIn: number): TimelineClip => ({
+    ...clip(id, name),
+    material: { kind: 'asset', asset_id: `asset-${name.toLowerCase()}`, media_duration_seconds: 10 },
+    placement: {
+      ...clip(id, name).placement,
+      start,
+      duration,
+      source_in: sourceIn,
+      source_out: sourceIn + duration,
+    },
+  });
+  return {
+    ...PROJECT,
+    document: {
+      ...PROJECT.document,
+      duration_seconds: 10,
+      tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+        ? {
+            ...track,
+            clips: [
+              recorded(CLIP_A, 'A', 0, 4, 0),
+              recorded(CLIP_B, 'B', 4, 2, 1),
+              recorded(CLIP_C, 'C', 6, 4, 2),
+            ],
+          }
+        : track),
+    },
+  };
+}
+
 function renderWorkspace({
   applyProjectPatch = vi.fn(),
   revertProjectChangeGroup = vi.fn(),
@@ -820,7 +851,7 @@ describe('unified project workspace', () => {
 
     const monitor = await screen.findByRole('region', { name: '视频预览' });
     const videos = monitor.querySelectorAll('video');
-    expect(videos).toHaveLength(2);
+    expect(videos).toHaveLength(4);
     expect([...videos].every((video) => !video.controls)).toBe(true);
     expect([...videos].every((video) => video.classList.contains('object-contain') && !video.classList.contains('object-cover'))).toBe(true);
     const first = screen.getByLabelText('A 视频预览') as HTMLVideoElement;
@@ -847,6 +878,25 @@ describe('unified project workspace', () => {
       expect(active?.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-b/stream');
       expect(active?.currentTime).toBe(1);
     });
+  });
+
+  it('rejects stale Program media time updates until the desired source frame is presented', async () => {
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const preview = await screen.findByLabelText('A 视频预览') as HTMLVideoElement;
+    Object.defineProperties(preview, {
+      currentTime: { configurable: true, writable: true, value: 2 },
+      seeking: { configurable: true, value: false },
+    });
+    fireEvent.timeUpdate(preview);
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBe(0);
   });
 
   it('previews canonical static and animated transforms on the stable Program Monitor pool', async () => {
@@ -888,7 +938,7 @@ describe('unified project workspace', () => {
 
     fireEvent.keyDown(screen.getByRole('slider', { name: '时间轴播放头' }), { key: 'ArrowRight', shiftKey: true });
     await waitFor(() => expect((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewTransformX).toBe('192'));
-    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(2);
+    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(4);
   });
 
   it('previews Volume keyframes and the canonical fade envelope on Program audio', async () => {
@@ -963,7 +1013,7 @@ describe('unified project workspace', () => {
     expect(preview.dataset.previewEffects).toBe('color_adjust,grayscale,blur');
     expect(preview.style.filter).toContain('brightness(1.2) contrast(1.5) saturate(0.8) grayscale(1) blur(');
     expect(screen.getByLabelText('已启用 3 个效果')).toBeTruthy();
-    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(2);
+    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(4);
   });
 
   it('directly moves the selected Program clip and commits the latest transform once', async () => {
@@ -1163,8 +1213,11 @@ describe('unified project workspace', () => {
     Object.defineProperties(preview, {
       readyState: { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA },
       currentTime: { configurable: true, writable: true, value: 1.007 },
+      play: { configurable: true, value: vi.fn(() => Promise.resolve()) },
+      pause: { configurable: true, value: vi.fn() },
     });
     fireEvent.loadedData(preview);
+    fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
     preview.currentTime = 1.007;
     fireEvent.timeUpdate(preview);
     fireEvent.click(screen.getByRole('button', { name: '在播放头添加标记' }));
@@ -1366,7 +1419,7 @@ describe('unified project workspace', () => {
     expect(clipB.style.left).toBe('500px');
     expect(clipB.style.width).toBe('500px');
     expect(applyProjectPatch).not.toHaveBeenCalled();
-    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(2);
+    expect(screen.getByRole('region', { name: '视频预览' }).querySelectorAll('video')).toHaveLength(4);
 
     fireEvent.pointerUp(clipB, { pointerId: 111, clientX: 500 });
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -1476,7 +1529,7 @@ describe('unified project workspace', () => {
     await waitFor(() => expect(targetVideos.map((video) => video.dataset.previewSide).sort()).toEqual(['left', 'right']));
     expect(targetVideos.map((video) => video.closest<HTMLElement>('[data-preview-slot]')?.dataset.previewSlot).sort()).toEqual(['left', 'right']);
     expect(targetVideos.every((video) => video.closest('[data-preview-slot]')?.className.includes('overflow-hidden'))).toBe(true);
-    expect(monitor.querySelectorAll('video')).toHaveLength(2);
+    expect(monitor.querySelectorAll('video')).toHaveLength(4);
 
     fireEvent.pointerUp(handle, { pointerId: 113, clientX: 450 });
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
@@ -1527,7 +1580,7 @@ describe('unified project workspace', () => {
     expect(Number((screen.getByLabelText('A 视频预览') as HTMLVideoElement).dataset.previewClipSpeed)).toBeCloseTo(1.25);
     const monitor = screen.getByRole('region', { name: '视频预览' });
     expect(Number(monitor.dataset.monitorDuration)).toBe(9);
-    expect(monitor.querySelectorAll('video')).toHaveLength(2);
+    expect(monitor.querySelectorAll('video')).toHaveLength(4);
     expect(applyProjectPatch).not.toHaveBeenCalled();
 
     fireEvent.pointerUp(handle, { pointerId: 114, clientX: 400 });
@@ -1565,6 +1618,79 @@ describe('unified project workspace', () => {
         ],
       })],
     })));
+  });
+
+  it('slides a middle Story clip with four stable Trim Monitor frames and one commit', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({
+      project: slideProject(),
+      applyProjectPatch,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const timeline = await screen.findByRole('region', { name: '时间轴' });
+    fireEvent.keyDown(timeline, { key: 'u' });
+    expect(screen.getByRole('button', { name: '滑动工具 (U)' }).getAttribute('aria-pressed')).toBe('true');
+    const monitor = screen.getByRole('region', { name: '视频预览' });
+    for (const video of monitor.querySelectorAll<HTMLVideoElement>('video')) {
+      Object.defineProperty(video, 'readyState', { configurable: true, value: HTMLMediaElement.HAVE_ENOUGH_DATA });
+    }
+    const middle = screen.getByRole('button', { name: /B 2\.0s · 已录制/u });
+    fireEvent.pointerDown(middle, { pointerId: 115, button: 0, clientX: 500 });
+    fireEvent.pointerMove(middle, { pointerId: 115, clientX: 550 });
+
+    const previous = screen.getByRole('button', { name: /A 4\.5s · 已录制/u });
+    const selected = screen.getByRole('button', { name: /B 2\.0s · 已录制/u });
+    const next = screen.getByRole('button', { name: /C 3\.5s · 已录制/u });
+    expect(previous.style.width).toBe('450px');
+    expect(Number(previous.dataset.sourceOut)).toBeCloseTo(4.5);
+    expect(selected.style.left).toBe('450px');
+    expect(selected.style.width).toBe('200px');
+    expect(selected.dataset.sourceIn).toBe('1');
+    expect(selected.dataset.sourceOut).toBe('3');
+    expect(next.style.left).toBe('650px');
+    expect(next.style.width).toBe('350px');
+    expect(Number(next.dataset.sourceIn)).toBeCloseTo(2.5);
+    expect(screen.getByLabelText('滑动 +00:00.500')).toBeTruthy();
+    expect(applyProjectPatch).not.toHaveBeenCalled();
+
+    expect(monitor.dataset.monitorMode).toBe('slide');
+    expect(Number(monitor.dataset.monitorPoolSize)).toBe(6);
+    const targets = [...monitor.querySelectorAll<HTMLVideoElement>('video[data-preview-target="true"]')];
+    expect(targets).toHaveLength(4);
+    await waitFor(() => expect(targets.map((video) => video.dataset.previewSide).sort()).toEqual([
+      'slide-in',
+      'slide-next',
+      'slide-out',
+      'slide-previous',
+    ]));
+    expect(monitor.querySelectorAll('video')).toHaveLength(6);
+    expect(targets.map((video) => video.getAttribute('src'))).toEqual(expect.arrayContaining([
+      'vibe-cs-media://localhost/media/assets/asset-a/stream',
+      'vibe-cs-media://localhost/media/assets/asset-b/stream',
+      'vibe-cs-media://localhost/media/assets/asset-c/stream',
+    ]));
+
+    fireEvent.pointerUp(middle, { pointerId: 115, clientX: 550 });
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        track_id: STORY_ID,
+        clips: [
+          expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 0, duration: 4.5, source_in: 0, source_out: 4.5 }) }),
+          expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 4.5, duration: 2, source_in: 1, source_out: 3 }) }),
+          expect.objectContaining({ id: CLIP_C, placement: expect.objectContaining({ start: 6.5, duration: 3.5, source_in: 2.5, source_out: 6 }) }),
+        ],
+      })],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+    expect(Number(screen.getByRole('slider', { name: '时间轴播放头' }).getAttribute('aria-valuenow'))).toBeCloseTo(4.5);
+    clientWidth.mockRestore();
   });
 
   it('drags selected Story clips as one ordered ripple group', async () => {

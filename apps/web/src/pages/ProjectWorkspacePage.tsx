@@ -71,6 +71,7 @@ import {
   timelineClipFromMediaAsset,
   TimelineProgramMonitor,
   type TimelineRollingPreview,
+  type TimelineSlidePreview,
   trimRippleClip,
   removeClipKeyframe,
   isSupportedEditorEffectKind,
@@ -164,6 +165,7 @@ export function ProjectWorkspacePage() {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [timelinePreviewClips, setTimelinePreviewClips] = useState<readonly TimelineClip[]>([]);
   const [timelineRollingPreview, setTimelineRollingPreview] = useState<TimelineRollingPreview | null>(null);
+  const [timelineSlidePreview, setTimelineSlidePreview] = useState<TimelineSlidePreview | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [mediaOpen, setMediaOpen] = useState(false);
   const [externalConfirm, setExternalConfirm] = useState<'recording' | 'export' | null>(null);
@@ -252,6 +254,7 @@ export function ProjectWorkspacePage() {
   useEffect(() => {
     setTimelinePreviewClips([]);
     setTimelineRollingPreview(null);
+    setTimelineSlidePreview(null);
   }, [project.data?.revision]);
 
   if (projectId === 'new' || project.isPending) {
@@ -505,6 +508,7 @@ export function ProjectWorkspacePage() {
             playing={playing}
             playbackRate={playbackRate}
             rollingPreview={timelineRollingPreview}
+            slidePreview={timelineSlidePreview}
             onTogglePlayback={togglePlayback}
             onShuttle={shuttlePlayback}
             onStepFrame={stepTimelineFrame}
@@ -562,6 +566,7 @@ export function ProjectWorkspacePage() {
             )}
             onPreviewClips={setTimelinePreviewClips}
             onPreviewRollingEdit={setTimelineRollingPreview}
+            onPreviewSlideEdit={setTimelineSlidePreview}
             onInsertTrack={(track, index) => mutate(
               `添加轨道 ${track.name}`,
               { kind: 'project' },
@@ -750,6 +755,7 @@ function PreviewSplit({
   playing,
   playbackRate,
   rollingPreview,
+  slidePreview,
   onTogglePlayback,
   onShuttle,
   onStepFrame,
@@ -765,6 +771,7 @@ function PreviewSplit({
   readonly playing: boolean;
   readonly playbackRate: number;
   readonly rollingPreview: TimelineRollingPreview | null;
+  readonly slidePreview: TimelineSlidePreview | null;
   readonly onTogglePlayback: () => void;
   readonly onShuttle: (direction: -1 | 0 | 1) => void;
   readonly onStepFrame: (direction: -1 | 1) => void;
@@ -786,6 +793,7 @@ function PreviewSplit({
           playing={playing}
           playbackRate={playbackRate}
           rollingPreview={rollingPreview}
+          slidePreview={slidePreview}
           onTogglePlayback={onTogglePlayback}
           onShuttle={onShuttle}
           onStepFrame={onStepFrame}

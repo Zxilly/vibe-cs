@@ -9,7 +9,7 @@ import { formatMillisecondTimecode } from '../../design/timeline/timeScale';
 import type { Project, TimelineClip } from '../../shared/desktop/dto';
 import { evaluateClipKeyframeProperty, setClipTransformAtTime } from './keyframeEditing';
 import { clipFadeDuration, MAX_TIMELINE_CLIP_SPEED, MIN_TIMELINE_CLIP_SPEED } from './timelineInteraction';
-import type { TimelineRollingPreview } from './timelineInteraction';
+import type { TimelineRollingPreview, TimelineSlidePreview } from './timelineInteraction';
 import { EDITOR_EFFECT_SCHEMAS, editorEffectParameter, isSupportedEditorEffectKind } from './effectEditing';
 import { resolveTimelineMaterial } from './timelineMaterial';
 
@@ -17,6 +17,14 @@ interface PreviewMedia {
   readonly clip: TimelineClip;
   readonly src: string;
 }
+
+interface PreviewReadiness {
+  readonly previewKey: string;
+  readonly readyKeys: ReadonlySet<string>;
+}
+
+type PreviewPoolRole = 'program' | 'trim';
+type PreviewSlot = 'left' | 'right' | 'slide-previous' | 'slide-in' | 'slide-out' | 'slide-next';
 
 export interface TimelineProgramMonitorProps {
   readonly project: Project;
@@ -26,6 +34,7 @@ export interface TimelineProgramMonitorProps {
   readonly playing: boolean;
   readonly playbackRate: number;
   readonly rollingPreview: TimelineRollingPreview | null;
+  readonly slidePreview: TimelineSlidePreview | null;
   readonly onTogglePlayback: () => void;
   readonly onShuttle: (direction: -1 | 0 | 1) => void;
   readonly onStepFrame: (direction: -1 | 1) => void;
@@ -50,6 +59,7 @@ export function TimelineProgramMonitor({
   playing,
   playbackRate,
   rollingPreview,
+  slidePreview,
   onTogglePlayback,
   onShuttle,
   onStepFrame,
@@ -64,10 +74,12 @@ export function TimelineProgramMonitor({
     project.document.duration_seconds,
     Math.max(0, timelineTimeSeconds),
   );
-  const selectedIndex = targetTimelineTime >= project.document.duration_seconds - 0.5 / project.document.fps
-    ? clips.length - 1
-    : clips.findIndex((clip) => targetTimelineTime >= clip.placement.start
-      && targetTimelineTime < clip.placement.start + clip.placement.duration);
+  const selectedIndex = clipIndexAtTimelineTime(
+    clips,
+    targetTimelineTime,
+    project.document.duration_seconds,
+    project.document.fps,
+  );
   const selected = selectedIndex < 0 ? null : clips[selectedIndex] ?? null;
   const selectedMaterial = selected === null ? null : resolveTimelineMaterial(selected.material);
   const targetId = selectedMaterial?.streamAssetId === null ? null : selected?.id ?? null;
@@ -80,11 +92,27 @@ export function TimelineProgramMonitor({
     && rollingRight !== null
     && resolveTimelineMaterial(rollingLeft.material).streamAssetId !== null
     && resolveTimelineMaterial(rollingRight.material).streamAssetId !== null;
+  const slidePrevious = slidePreview === null ? null : clips.find((clip) => clip.id === slidePreview.previousClipId) ?? null;
+  const slideClip = slidePreview === null ? null : clips.find((clip) => clip.id === slidePreview.clipId) ?? null;
+  const slideNext = slidePreview === null ? null : clips.find((clip) => clip.id === slidePreview.nextClipId) ?? null;
+  const slideActive = slidePrevious !== null
+    && slideClip !== null
+    && slideNext !== null
+    && [slidePrevious, slideClip, slideNext].every((clip) => resolveTimelineMaterial(clip.material).streamAssetId !== null);
   const [presentedId, setPresentedId] = useState<string | null>(targetId);
-  const [rollingReadyIds, setRollingReadyIds] = useState<ReadonlySet<string>>(new Set());
+  const rollingPreviewKey = rollingPreview === null ? '' : `${rollingPreview.leftClipId}:${rollingPreview.rightClipId}`;
+  const slidePreviewKey = slidePreview === null ? '' : `${slidePreview.previousClipId}:${slidePreview.clipId}:${slidePreview.nextClipId}`;
+  const [rollingReadiness, setRollingReadiness] = useState<PreviewReadiness>({ previewKey: '', readyKeys: new Set() });
+  const [slideReadiness, setSlideReadiness] = useState<PreviewReadiness>({ previewKey: '', readyKeys: new Set() });
+  const rollingReadyIds = rollingReadiness.previewKey === rollingPreviewKey ? rollingReadiness.readyKeys : new Set<string>();
+  const slideReadyKeys = slideReadiness.previewKey === slidePreviewKey ? slideReadiness.readyKeys : new Set<string>();
   const rollingReady = rollingActive
     && rollingReadyIds.has(rollingLeft.id)
     && rollingReadyIds.has(rollingRight.id);
+  const slideReady = slideActive
+    && ['program', 'trim'].every((role) => slideReadyKeys.has(`${slideClip.id}:${role}`))
+    && slideReadyKeys.has(`${slidePrevious.id}:program`)
+    && slideReadyKeys.has(`${slideNext.id}:program`);
   const timelineTimeRef = useRef(targetTimelineTime);
   const onTimelineTimeChangeRef = useRef(onTimelineTimeChange);
   const onPlaybackEndRef = useRef(onPlaybackEnd);
@@ -102,14 +130,14 @@ export function TimelineProgramMonitor({
     }
     return result;
   }, [clips, shell]);
+  const pooledMedia = useMemo(() => media.flatMap((item) => [
+    { ...item, role: 'program' as const },
+    { ...item, role: 'trim' as const },
+  ]), [media]);
 
   useEffect(() => {
     if (targetId === null) setPresentedId(null);
   }, [targetId]);
-
-  useEffect(() => {
-    setRollingReadyIds(new Set());
-  }, [rollingPreview?.leftClipId, rollingPreview?.rightClipId]);
 
   useEffect(() => {
     if (!playing || playbackRate >= 0) return undefined;
@@ -140,12 +168,16 @@ export function TimelineProgramMonitor({
       data-monitor-read-only={readOnly}
       data-monitor-playing={playing}
       data-monitor-duration={project.document.duration_seconds}
-      data-monitor-mode={rollingActive ? 'rolling' : 'program'}
+      data-monitor-mode={slideActive ? 'slide' : rollingActive ? 'rolling' : 'program'}
       data-monitor-rolling-left-clip-id={rollingPreview?.leftClipId ?? ''}
       data-monitor-rolling-right-clip-id={rollingPreview?.rightClipId ?? ''}
+      data-monitor-slide-previous-clip-id={slidePreview?.previousClipId ?? ''}
+      data-monitor-slide-clip-id={slidePreview?.clipId ?? ''}
+      data-monitor-slide-next-clip-id={slidePreview?.nextClipId ?? ''}
+      data-monitor-pool-size={pooledMedia.length}
     >
       <header className="flex h-[var(--h-ctl-md)] flex-none items-center border-b border-divider bg-bg px-4 text-xs font-semibold text-text">
-        {rollingActive ? <Trans>滚动编辑预览</Trans> : <Trans>视频预览</Trans>}
+        {slideActive ? <Trans>滑动编辑预览</Trans> : rollingActive ? <Trans>滚动编辑预览</Trans> : <Trans>视频预览</Trans>}
       </header>
       {targetId === null ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-neutral-900 p-5 text-center text-neutral-100">
@@ -167,40 +199,64 @@ export function TimelineProgramMonitor({
               aria-label={t`节目画布`}
               data-program-stage
             >
-              {media.map(({ clip, src }) => {
-                const rollingSide = !rollingActive
+              {pooledMedia.map(({ clip, src, role }) => {
+                const rollingSide: PreviewSlot | null = !rollingActive || role !== 'program'
                   ? null
                   : clip.id === rollingLeft.id
-                    ? 'left' as const
+                    ? 'left'
                     : clip.id === rollingRight.id
-                      ? 'right' as const
+                      ? 'right'
                       : null;
-                const isTarget = rollingActive ? rollingSide !== null : clip.id === targetId;
-                const isPresented = rollingActive
-                  ? rollingReady ? rollingSide !== null : clip.id === presentedId
-                  : clip.id === presentedId;
-                const offset = rollingSide === 'left'
+                const slideSlot: PreviewSlot | null = !slideActive
+                  ? null
+                  : clip.id === slidePrevious.id && role === 'program'
+                    ? 'slide-previous'
+                    : clip.id === slideClip.id && role === 'program'
+                      ? 'slide-in'
+                      : clip.id === slideClip.id && role === 'trim'
+                        ? 'slide-out'
+                        : clip.id === slideNext.id && role === 'program'
+                          ? 'slide-next'
+                          : null;
+                const previewSlot = slideSlot ?? rollingSide;
+                const isTarget = slideActive
+                  ? slideSlot !== null
+                  : rollingActive
+                    ? rollingSide !== null
+                    : role === 'program' && clip.id === targetId;
+                const isPresented = slideActive
+                  ? slideReady ? slideSlot !== null : role === 'program' && clip.id === presentedId
+                  : rollingActive
+                    ? rollingReady ? rollingSide !== null : role === 'program' && clip.id === presentedId
+                    : role === 'program' && clip.id === presentedId;
+                const offset = previewSlot === 'left'
+                  || previewSlot === 'slide-previous'
+                  || previewSlot === 'slide-out'
                   ? Math.max(0, clip.placement.duration - 1 / project.document.fps)
-                  : rollingSide === 'right'
+                  : previewSlot === 'right'
+                    || previewSlot === 'slide-in'
+                    || previewSlot === 'slide-next'
                     ? 0
                     : isTarget ? previewOffsetSeconds : 0;
+                const poolKey = `${clip.id}:${role}`;
                 return (
                   <PooledPreviewVideo
-                    key={clip.id}
+                    key={poolKey}
                     clip={clip}
                     src={src}
+                    poolRole={role}
                     fps={project.document.fps}
                     projectWidth={project.document.width}
                     projectHeight={project.document.height}
                     offsetSeconds={offset}
                     target={isTarget}
                     presented={isPresented}
-                    previewSide={rollingReady ? rollingSide : null}
-                    playing={!rollingActive && playing && isTarget && isPresented}
-                    editable={!rollingActive && !playing && !readOnly && isTarget && isPresented && selectedClipId === clip.id}
+                    previewSlot={(slideActive ? slideReady : rollingActive ? rollingReady : false) ? previewSlot : null}
+                    playing={!slideActive && !rollingActive && playing && isTarget && isPresented}
+                    editable={!slideActive && !rollingActive && role === 'program' && !playing && !readOnly && isTarget && isPresented && selectedClipId === clip.id}
                     transportRate={playbackRate}
                     onTimelineTimeChange={(sourceSeconds) => {
-                      if (rollingSide !== null) return;
+                      if (previewSlot !== null || role !== 'program') return;
                       const timelineSeconds = clip.placement.start
                         + (sourceSeconds - clip.placement.source_in) / clip.placement.speed;
                       onTimelineTimeChange(Math.min(
@@ -214,22 +270,42 @@ export function TimelineProgramMonitor({
                       if (end >= project.document.duration_seconds - 1 / project.document.fps) onPlaybackEnd();
                     }}
                     onReady={() => {
-                      if (rollingSide !== null) {
-                        setRollingReadyIds((current) => current.has(clip.id) ? current : new Set([...current, clip.id]));
-                      } else if (clip.id === targetId) setPresentedId(clip.id);
+                      if (slideSlot !== null) {
+                        setSlideReadiness((current) => {
+                          const readyKeys = current.previewKey === slidePreviewKey ? current.readyKeys : new Set<string>();
+                          return readyKeys.has(poolKey)
+                            ? current
+                            : { previewKey: slidePreviewKey, readyKeys: new Set([...readyKeys, poolKey]) };
+                        });
+                      } else if (rollingSide !== null) {
+                        setRollingReadiness((current) => {
+                          const readyKeys = current.previewKey === rollingPreviewKey ? current.readyKeys : new Set<string>();
+                          return readyKeys.has(clip.id)
+                            ? current
+                            : { previewKey: rollingPreviewKey, readyKeys: new Set([...readyKeys, clip.id]) };
+                        });
+                      } else if (role === 'program' && clip.id === targetId) setPresentedId(clip.id);
                     }}
                     onReplaceClip={onReplaceClip}
                   />
                 );
               })}
-              {!rollingReady ? null : (
+              {!slideReady ? null : (
+                <div className="pointer-events-none absolute inset-x-0 top-0 z-20 grid grid-cols-4 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
+                  <span className="truncate px-1.5 py-1"><Trans>前 Out</Trans> · {slidePrevious.name}</span>
+                  <span className="truncate border-l border-neutral-700 px-1.5 py-1"><Trans>所选 In</Trans> · {slideClip.name}</span>
+                  <span className="truncate border-l border-neutral-700 px-1.5 py-1"><Trans>所选 Out</Trans> · {slideClip.name}</span>
+                  <span className="truncate border-l border-neutral-700 px-1.5 py-1"><Trans>后 In</Trans> · {slideNext.name}</span>
+                </div>
+              )}
+              {slideActive || !rollingReady ? null : (
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-20 grid grid-cols-2 border-b border-neutral-700 bg-neutral-950/85 text-2xs text-neutral-100">
                   <span className="truncate px-2 py-1"><Trans>出点</Trans> · {rollingLeft.name}</span>
                   <span className="truncate border-l border-neutral-700 px-2 py-1"><Trans>入点</Trans> · {rollingRight.name}</span>
                 </div>
               )}
             </div>
-            {(rollingActive ? rollingReady : presentedId === targetId) ? null : (
+            {(slideActive ? slideReady : rollingActive ? rollingReady : presentedId === targetId) ? null : (
               <span className="pointer-events-none absolute right-3 top-3 flex items-center gap-1.5 rounded-sm bg-neutral-900/75 px-2 py-1 text-2xs text-neutral-100">
                 <LoaderCircle className="size-3 animate-spin" aria-hidden="true" />
                 <Trans>正在定位帧</Trans>
@@ -256,9 +332,9 @@ export function TimelineProgramMonitor({
             </button>
             <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`L 正向播放`} onClick={() => onShuttle(1)}><ChevronsRight className="size-4" aria-hidden="true" /></button>
             <button type="button" className="grid size-[var(--h-ctl-sm)] place-items-center rounded-sm text-accent-text hover:bg-neutral-100" aria-label={t`下一帧`} onClick={() => onStepFrame(1)}><ChevronRight className="size-4" aria-hidden="true" /></button>
-            <span className="min-w-0 truncate font-medium">{rollingActive ? `${rollingLeft.name} ↔ ${rollingRight.name}` : selected?.name}</span>
+            <span className="min-w-0 truncate font-medium">{slideActive ? `${slidePrevious.name} ← ${slideClip.name} → ${slideNext.name}` : rollingActive ? `${rollingLeft.name} ↔ ${rollingRight.name}` : selected?.name}</span>
             <span className="font-mono text-neutral-500">{playing ? `${playbackRate.toFixed(1)}x` : '0.0x'}</span>
-            <span className="ml-auto font-mono">{formatMillisecondTimecode(rollingPreview?.editTime ?? targetTimelineTime)}</span>
+            <span className="ml-auto font-mono">{formatMillisecondTimecode(slidePreview?.startTime ?? rollingPreview?.editTime ?? targetTimelineTime)}</span>
           </div>
         </div>
       )}
@@ -266,16 +342,58 @@ export function TimelineProgramMonitor({
   );
 }
 
+function previewSlotGeometry(slot: PreviewSlot | null): { readonly left: string | number; readonly width: string } {
+  switch (slot) {
+    case 'left': return { left: 0, width: '50%' };
+    case 'right': return { left: '50%', width: '50%' };
+    case 'slide-previous': return { left: 0, width: '25%' };
+    case 'slide-in': return { left: '25%', width: '25%' };
+    case 'slide-out': return { left: '50%', width: '25%' };
+    case 'slide-next': return { left: '75%', width: '25%' };
+    default: return { left: 0, width: '100%' };
+  }
+}
+
+function clipIndexAtTimelineTime(
+  clips: readonly TimelineClip[],
+  time: number,
+  duration: number,
+  fps: number,
+): number {
+  if (time >= duration - 0.5 / Math.max(1, fps)) return clips.length - 1;
+  const epsilon = 1e-6;
+  let index = -1;
+  for (let candidate = 0; candidate < clips.length; candidate += 1) {
+    const clip = clips[candidate]!;
+    if (time + epsilon >= clip.placement.start
+      && time < clip.placement.start + clip.placement.duration + epsilon) index = candidate;
+  }
+  return index;
+}
+
+function previewVideoLabel(clip: TimelineClip, slot: PreviewSlot | null): string {
+  switch (slot) {
+    case 'left': return t`${clip.name} 出点预览`;
+    case 'right': return t`${clip.name} 入点预览`;
+    case 'slide-previous': return t`${clip.name} 前片段出点预览`;
+    case 'slide-in': return t`${clip.name} 所选片段入点预览`;
+    case 'slide-out': return t`${clip.name} 所选片段出点预览`;
+    case 'slide-next': return t`${clip.name} 后片段入点预览`;
+    default: return t`${clip.name} 视频预览`;
+  }
+}
+
 const PooledPreviewVideo = memo(function PooledPreviewVideo({
   clip,
   src,
+  poolRole,
   fps,
   projectWidth,
   projectHeight,
   offsetSeconds,
   target,
   presented,
-  previewSide,
+  previewSlot,
   playing,
   editable,
   transportRate,
@@ -286,13 +404,14 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
 }: {
   readonly clip: TimelineClip;
   readonly src: string;
+  readonly poolRole: PreviewPoolRole;
   readonly fps: number;
   readonly projectWidth: number;
   readonly projectHeight: number;
   readonly offsetSeconds: number;
   readonly target: boolean;
   readonly presented: boolean;
-  readonly previewSide: 'left' | 'right' | null;
+  readonly previewSlot: PreviewSlot | null;
   readonly playing: boolean;
   readonly editable: boolean;
   readonly transportRate: number;
@@ -450,11 +569,11 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
     <div
       className="absolute inset-y-0 overflow-hidden"
       style={{
-        left: previewSide === 'right' ? '50%' : 0,
-        width: previewSide === null ? '100%' : '50%',
+        ...previewSlotGeometry(previewSlot),
         pointerEvents: editable ? 'auto' : 'none',
       }}
-      data-preview-slot={previewSide ?? 'program'}
+      data-preview-slot={previewSlot ?? 'program'}
+      data-preview-pool-role={poolRole}
     >
     <video
       ref={videoRef}
@@ -462,13 +581,14 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
       src={src}
       preload={target || presented ? 'auto' : 'metadata'}
       playsInline
-      muted={!presented}
+      muted={poolRole === 'trim' || !presented}
       controls={false}
       data-preview-target={target}
       data-preview-active={presented}
-      data-preview-side={previewSide ?? ''}
+      data-preview-side={previewSlot ?? ''}
+      data-preview-pool-role={poolRole}
       data-preview-editable={editable}
-      aria-label={target ? t`${clip.name} 视频预览` : undefined}
+      aria-label={target ? previewVideoLabel(clip, previewSlot) : undefined}
       aria-hidden={!target}
       style={{
         opacity: presented ? 1 : 0,
@@ -506,7 +626,12 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
         if (target) onReady();
       }}
       onTimeUpdate={(event) => {
-        if (target && presented) onTimelineTimeChange(event.currentTarget.currentTime);
+        if (target
+          && presented
+          && !event.currentTarget.seeking
+          && (playing || Math.abs(event.currentTarget.currentTime - desiredTimeRef.current) <= 0.5 / Math.max(1, fps))) {
+          onTimelineTimeChange(event.currentTarget.currentTime);
+        }
       }}
       onEnded={onEnded}
     />
@@ -728,13 +853,14 @@ const PooledPreviewVideo = memo(function PooledPreviewVideo({
   );
 }, (previous, next) => previous.clip === next.clip
   && previous.src === next.src
+  && previous.poolRole === next.poolRole
   && previous.fps === next.fps
   && previous.projectWidth === next.projectWidth
   && previous.projectHeight === next.projectHeight
   && previous.offsetSeconds === next.offsetSeconds
   && previous.target === next.target
   && previous.presented === next.presented
-  && previous.previewSide === next.previewSide
+  && previous.previewSlot === next.previewSlot
   && previous.playing === next.playing
   && previous.editable === next.editable
   && previous.transportRate === next.transportRate

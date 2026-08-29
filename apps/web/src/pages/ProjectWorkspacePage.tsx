@@ -63,6 +63,7 @@ import {
   editorEffectParameter,
   insertRippleClipAtTime,
   overwriteStoryClipAtTime,
+  ProjectMediaPanel,
   ProjectTimeline,
   MAX_TIMELINE_CLIP_SPEED,
   MIN_TIMELINE_CLIP_SPEED,
@@ -168,7 +169,11 @@ export function ProjectWorkspacePage() {
   const [timelineRollingPreview, setTimelineRollingPreview] = useState<TimelineRollingPreview | null>(null);
   const [timelineSlidePreview, setTimelineSlidePreview] = useState<TimelineSlidePreview | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [mediaOpen, setMediaOpen] = useState(false);
+  const [mediaOpen, setMediaOpen] = useState(() => (
+    typeof globalThis.matchMedia === 'function'
+      ? globalThis.matchMedia('(min-width: 1280px)').matches
+      : true
+  ));
   const [externalConfirm, setExternalConfirm] = useState<'recording' | 'export' | null>(null);
   const agentSessionId = searchParams.get('session');
   const agentSession = useAgentSession(agentSessionId);
@@ -471,8 +476,12 @@ export function ProjectWorkspacePage() {
           <button
             type="button"
             data-window-no-drag
-            className="ml-3 flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100"
-            onClick={() => setMediaOpen(true)}
+            className={cn(
+              'ml-3 flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100',
+              mediaOpen && 'border-accent-300 bg-accent-100 text-accent-text',
+            )}
+            aria-pressed={mediaOpen}
+            onClick={() => setMediaOpen((open) => !open)}
           >
             <FolderOpen className="size-3.5" aria-hidden="true" />
             <Trans>项目素材</Trans>
@@ -528,7 +537,38 @@ export function ProjectWorkspacePage() {
             onPlaybackEnd={() => setPlaying(false)}
             onReplaceClip={replaceTimelineClip}
           />
-          <ProjectTimeline
+          <div
+            className={cn(
+              'relative grid min-h-0 min-w-0 gap-2 overflow-hidden',
+              mediaOpen
+                ? 'grid-cols-[minmax(220px,28%)_minmax(0,1fr)] max-[1279px]:grid-cols-[minmax(0,1fr)]'
+                : 'grid-cols-[minmax(0,1fr)]',
+            )}
+          >
+            {mediaOpen ? (
+              <div className="min-h-0 min-w-0 max-[1279px]:absolute max-[1279px]:inset-y-0 max-[1279px]:left-0 max-[1279px]:z-20 max-[1279px]:w-[340px] max-[1279px]:shadow-xl">
+                <ProjectMediaPanel
+                  assets={mediaAssets.data?.items ?? []}
+                  timelineClips={storyTrack?.clips ?? []}
+                  selectedTimelineClipId={selectedClipId}
+                  pending={mediaAssets.isPending}
+                  readOnly={readOnly}
+                  busy={apply.isPending}
+                  importAvailable={nativeShell.available}
+                  importing={importMedia.isPending}
+                  onSelectTimelineClip={(clipId, startSeconds) => {
+                    setPlaying(false);
+                    setSelectedClipIds([clipId]);
+                    seekTimeline(startSeconds);
+                  }}
+                  onImport={() => void importProjectMedia()}
+                  onInsert={(asset) => addMediaAsset(asset, 'insert')}
+                  onOverwrite={(asset) => addMediaAsset(asset, 'overwrite')}
+                  onClose={() => setMediaOpen(false)}
+                />
+              </div>
+            ) : null}
+            <ProjectTimeline
             document={current.document}
             selectedClipId={selectedClipId}
             selectedClipIds={selectedClipIds}
@@ -607,7 +647,8 @@ export function ProjectWorkspacePage() {
                 expectedRevision: current.revision,
               });
             }}
-          />
+            />
+          </div>
         </div>
         <AgentPanel
             session={agentSession.data ?? null}
@@ -643,57 +684,6 @@ export function ProjectWorkspacePage() {
             }}
           />
       </div>
-      <Drawer
-        open={mediaOpen}
-        title={<Trans>项目素材</Trans>}
-        description={<Trans>{mediaAssets.data?.items.length ?? 0} 个素材</Trans>}
-        width="standard"
-        onClose={() => setMediaOpen(false)}
-        footer={(
-          <Button size="sm" variant="secondary" disabled={!nativeShell.available || importMedia.isPending} onClick={() => void importProjectMedia()}>
-            <Trans>导入文件</Trans>
-          </Button>
-        )}
-      >
-        {mediaAssets.isPending ? <Skeleton className="h-24" /> : mediaAssets.data?.items.length ? (
-          <ul className="list-none divide-y divide-divider">
-            {mediaAssets.data.items.map((asset) => (
-              <li key={asset.id} className="flex items-center gap-3 py-2">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium">{asset.name}</span>
-                  <span className="block text-2xs text-neutral-500">{asset.kind} · {asset.duration_seconds === null ? t`时长未知` : `${asset.duration_seconds.toFixed(3)}s`}</span>
-                </span>
-                <span className="flex flex-none items-center gap-1">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={readOnly || apply.isPending || asset.duration_seconds === null || asset.duration_seconds <= 0}
-                    aria-label={t`在播放头插入 ${asset.name}`}
-                    onClick={() => addMediaAsset(asset, 'insert')}
-                  >
-                    <Trans>插入</Trans>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={readOnly || apply.isPending || asset.duration_seconds === null || asset.duration_seconds <= 0}
-                    aria-label={t`在播放头覆盖 ${asset.name}`}
-                    onClick={() => addMediaAsset(asset, 'overwrite')}
-                  >
-                    <Trans>覆盖</Trans>
-                  </Button>
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Empty
-            title={<Trans>项目还没有素材</Trans>}
-            description={<Trans>导入视频或音频后，可直接加入播放头所在位置。</Trans>}
-            actions={<Button size="sm" variant="secondary" disabled={!nativeShell.available || importMedia.isPending} onClick={() => void importProjectMedia()}><Trans>导入文件</Trans></Button>}
-          />
-        )}
-      </Drawer>
       <Dialog
         open={externalConfirm === 'recording'}
         title={<Trans>录制缺失片段</Trans>}

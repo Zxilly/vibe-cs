@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { AgentSession, MediaAsset, Project, ProjectChangeGroup, ProjectEditLease, TimelineClip } from '../shared/desktop/dto';
@@ -1793,7 +1793,68 @@ describe('unified project workspace', () => {
     clientWidth.mockRestore();
   });
 
-  it('opens the project media bin and inserts a full asset at the transport time', async () => {
+  it('projects planned, recorded and imported media in the docked project panel', async () => {
+    const asset: MediaAsset = {
+      id: 'asset-new',
+      project_id: PROJECT.id,
+      path: 'D:\\media\\new.mp4',
+      name: 'New angle',
+      kind: 'video',
+      duration_seconds: 6,
+      width: 1920,
+      height: 1080,
+      file_size: 1_024,
+      has_audio: true,
+      proxy_path: null,
+      proxy_status: { status: 'not_requested' },
+      waveform: null,
+      metadata_status: { status: 'ready' },
+      created_at: PROJECT.updated_at,
+    };
+    renderWorkspace({ assets: [asset] });
+
+    const panel = await screen.findByRole('region', { name: '项目素材' });
+    expect(within(panel).getByRole('option', { name: '选择素材 A' }).textContent).toContain('准备录制');
+    expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('已录制');
+    expect(within(panel).getByRole('option', { name: '选择素材 New angle' }).textContent).toContain('导入');
+    expect(within(panel).getByRole('region', { name: '时间线片段' })).toBeTruthy();
+    expect(within(panel).getByRole('region', { name: '导入素材' })).toBeTruthy();
+
+    fireEvent.change(within(panel).getByRole('combobox', { name: '筛选素材状态' }), { target: { value: 'planned' } });
+    expect(within(panel).getByRole('option', { name: '选择素材 A' })).toBeTruthy();
+    expect(within(panel).queryByRole('option', { name: '选择素材 B' })).toBeNull();
+    expect(within(panel).queryByRole('option', { name: '选择素材 New angle' })).toBeNull();
+  });
+
+  it('keeps the last recorded source frame mounted until the next selected source is ready', async () => {
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    const panel = await screen.findByRole('region', { name: '项目素材' });
+    fireEvent.click(within(panel).getByRole('option', { name: '选择素材 A' }));
+    const sourceA = panel.querySelector<HTMLVideoElement>('video[data-source-preview-asset-id="asset-a"]');
+    expect(sourceA?.getAttribute('src')).toBe('vibe-cs-media://localhost/media/assets/asset-a/stream');
+    expect(sourceA?.hasAttribute('controls')).toBe(false);
+    expect(sourceA?.className).toContain('object-contain');
+    fireEvent.loadedData(sourceA!);
+    expect(sourceA?.dataset.sourcePreviewVisible).toBe('true');
+
+    fireEvent.click(within(panel).getByRole('option', { name: '选择素材 B' }));
+    const sourceB = panel.querySelector<HTMLVideoElement>('video[data-source-preview-asset-id="asset-b"]');
+    expect(sourceA?.dataset.sourcePreviewVisible).toBe('true');
+    expect(sourceB?.dataset.sourcePreviewVisible).toBe('false');
+    fireEvent.loadedData(sourceB!);
+    expect(sourceA?.dataset.sourcePreviewVisible).toBe('false');
+    expect(sourceB?.dataset.sourcePreviewVisible).toBe('true');
+  });
+
+  it('inserts a selected imported asset at the transport time through the Premiere comma shortcut', async () => {
     const asset: MediaAsset = {
       id: 'asset-new',
       project_id: PROJECT.id,
@@ -1814,9 +1875,8 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ assets: [asset], applyProjectPatch });
 
-    fireEvent.click(await screen.findByRole('button', { name: '项目素材' }));
-    expect(screen.getByRole('heading', { name: '项目素材' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '在播放头插入 New angle' }));
+    fireEvent.click(await screen.findByRole('option', { name: '选择素材 New angle' }));
+    fireEvent.keyDown(window, { key: ',' });
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
       operations: [expect.objectContaining({
@@ -1852,7 +1912,7 @@ describe('unified project workspace', () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({ assets: [asset], applyProjectPatch });
 
-    fireEvent.click(await screen.findByRole('button', { name: '项目素材' }));
+    fireEvent.click(await screen.findByRole('option', { name: '选择素材 Overwrite angle' }));
     fireEvent.click(screen.getByRole('button', { name: '在播放头覆盖 Overwrite angle' }));
 
     await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({

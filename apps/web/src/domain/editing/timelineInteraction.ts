@@ -223,10 +223,10 @@ export function rollTimelineEdit(
     || right.speed_segments.length > 0) return null;
 
   const minimum = Math.max(
-    frame - left.placement.duration,
+    minimumClipTimelineDuration(left, fps) - left.placement.duration,
     -right.placement.source_in / right.placement.speed,
   );
-  let maximum = right.placement.duration - frame;
+  let maximum = right.placement.duration - minimumClipTimelineDuration(right, fps);
   const leftMediaDuration = clipMediaDuration(left);
   if (leftMediaDuration !== null) {
     maximum = Math.min(
@@ -270,6 +270,90 @@ export function canRollTimelineEdit(left: TimelineClip, right: TimelineClip, fps
   return (earlier !== null && earlier.delta < -1e-9) || (later !== null && later.delta > 1e-9);
 }
 
+export interface TimelineSlideEdit {
+  readonly previous: TimelineClip;
+  readonly clip: TimelineClip;
+  readonly next: TimelineClip;
+  readonly delta: number;
+}
+
+export interface TimelineSlidePreview {
+  readonly previousClipId: string;
+  readonly clipId: string;
+  readonly nextClipId: string;
+  readonly startTime: number;
+}
+
+export function slideTimelineClip(
+  previous: TimelineClip,
+  clip: TimelineClip,
+  next: TimelineClip,
+  requestedStart: number,
+  fps: number,
+): TimelineSlideEdit | null {
+  const frameRate = Math.max(1, fps);
+  const frame = 1 / frameRate;
+  const clipEnd = clip.placement.start + clip.placement.duration;
+  if (Math.abs(previous.placement.start + previous.placement.duration - clip.placement.start) > 0.5 * frame
+    || Math.abs(next.placement.start - clipEnd) > 0.5 * frame
+    || previous.speed_segments.length > 0
+    || next.speed_segments.length > 0) return null;
+
+  const minimum = Math.max(
+    minimumClipTimelineDuration(previous, fps) - previous.placement.duration,
+    -next.placement.source_in / next.placement.speed,
+  );
+  let maximum = next.placement.duration - minimumClipTimelineDuration(next, fps);
+  const previousMediaDuration = clipMediaDuration(previous);
+  if (previousMediaDuration !== null) {
+    maximum = Math.min(
+      maximum,
+      (previousMediaDuration - previous.placement.source_out) / previous.placement.speed,
+    );
+  }
+  const minimumFrames = Math.ceil(minimum * frameRate - 1e-6);
+  const maximumFrames = Math.floor(maximum * frameRate + 1e-6);
+  if (minimumFrames > maximumFrames) return null;
+  const requestedFrames = Math.round((requestedStart - clip.placement.start) * frameRate);
+  const delta = Math.min(maximumFrames, Math.max(minimumFrames, requestedFrames)) / frameRate;
+  return {
+    previous: {
+      ...previous,
+      placement: {
+        ...previous.placement,
+        duration: previous.placement.duration + delta,
+        source_out: previous.placement.source_out + delta * previous.placement.speed,
+      },
+    },
+    clip: {
+      ...clip,
+      placement: { ...clip.placement, start: clip.placement.start + delta },
+    },
+    next: {
+      ...next,
+      placement: {
+        ...next.placement,
+        start: next.placement.start + delta,
+        duration: next.placement.duration - delta,
+        source_in: next.placement.source_in + delta * next.placement.speed,
+      },
+    },
+    delta,
+  };
+}
+
+export function canSlideTimelineClip(
+  previous: TimelineClip,
+  clip: TimelineClip,
+  next: TimelineClip,
+  fps: number,
+): boolean {
+  const frame = 1 / Math.max(1, fps);
+  const earlier = slideTimelineClip(previous, clip, next, clip.placement.start - frame, fps);
+  const later = slideTimelineClip(previous, clip, next, clip.placement.start + frame, fps);
+  return (earlier !== null && earlier.delta < -1e-9) || (later !== null && later.delta > 1e-9);
+}
+
 export function canRateStretchTimelineClip(clip: TimelineClip): boolean {
   return clip.speed_segments.length === 0
     && clip.placement.source_out - clip.placement.source_in > 1e-9;
@@ -283,19 +367,16 @@ export function rateStretchTimelineClip(
 ): TimelineClip {
   if (!canRateStretchTimelineClip(clip)) return clip;
   const frameRate = Math.max(1, fps);
-  const frame = 1 / frameRate;
   const placement = clip.placement;
   const sourceDuration = placement.source_out - placement.source_in;
   const fixedEnd = placement.start + placement.duration;
   const requestedDuration = edge === 'start'
     ? fixedEnd - requestedTimelineTime
     : requestedTimelineTime - placement.start;
-  const fadeIn = clipFadeDuration(clip, 'in');
-  const fadeOut = clipFadeDuration(clip, 'out');
-  const transitionMinimum = fadeIn > 0 && fadeOut > 0
-    ? 2 * Math.max(fadeIn, fadeOut) + frame
-    : Math.max(fadeIn, fadeOut) + (fadeIn > 0 || fadeOut > 0 ? frame : 0);
-  const minimumDuration = Math.max(frame, sourceDuration / MAX_TIMELINE_CLIP_SPEED, transitionMinimum);
+  const minimumDuration = Math.max(
+    minimumClipTimelineDuration(clip, fps),
+    sourceDuration / MAX_TIMELINE_CLIP_SPEED,
+  );
   const maximumDuration = Math.min(
     sourceDuration / MIN_TIMELINE_CLIP_SPEED,
     edge === 'start' ? fixedEnd : Number.POSITIVE_INFINITY,
@@ -322,6 +403,15 @@ export function rateStretchTimelineClip(
       time: Math.round(keyframe.time * ratio * frameRate) / frameRate,
     })),
   };
+}
+
+function minimumClipTimelineDuration(clip: TimelineClip, fps: number): number {
+  const frame = 1 / Math.max(1, fps);
+  const fadeIn = clipFadeDuration(clip, 'in');
+  const fadeOut = clipFadeDuration(clip, 'out');
+  if (fadeIn > 0 && fadeOut > 0) return 2 * Math.max(fadeIn, fadeOut) + frame;
+  const fade = Math.max(fadeIn, fadeOut);
+  return fade > 0 ? fade + frame : frame;
 }
 
 export function constrainClipGroupTrimDelta(

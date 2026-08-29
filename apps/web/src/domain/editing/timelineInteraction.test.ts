@@ -10,6 +10,7 @@ import {
   canSlipTimelineClip,
   canRollTimelineEdit,
   canRateStretchTimelineClip,
+  canSlideTimelineClip,
   constrainClipGroupSlipDelta,
   constrainClipGroupTrimDelta,
   maximumClipFadeDuration,
@@ -20,6 +21,7 @@ import {
   slipTimelineClip,
   rollTimelineEdit,
   rateStretchTimelineClip,
+  slideTimelineClip,
   trimTimelineClip,
   timelineEdgeScrollStep,
 } from './timelineInteraction';
@@ -214,5 +216,42 @@ describe('timeline direct manipulation', () => {
     expect(rateStretchTimelineClip(CLIP, 'end', 10.01, 60).placement).toEqual(expect.objectContaining({ duration: 0.5, speed: 16 }));
     expect(rateStretchTimelineClip(CLIP, 'end', 10_000, 60).placement).toEqual(expect.objectContaining({ duration: 128, speed: 0.0625 }));
     expect(canRateStretchTimelineClip({ ...CLIP, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] })).toBe(false);
+  });
+
+  it('slides one clip while preserving its source and all three outer geometry', () => {
+    const previous = { ...CLIP, id: 'previous', placement: { ...CLIP.placement, start: 0, duration: 8, source_in: 0, source_out: 8 } };
+    const clip = { ...CLIP, id: 'middle', placement: { ...CLIP.placement, start: 8, duration: 4, source_in: 2, source_out: 6 } };
+    const next = { ...CLIP, id: 'next', material: { kind: 'asset' as const, asset_id: 'next', media_duration_seconds: 20 }, placement: { ...CLIP.placement, start: 12, duration: 6, source_in: 2, source_out: 8 } };
+    const slid = slideTimelineClip(previous, clip, next, 9.5, 60)!;
+    expect(slid.delta).toBe(1.5);
+    expect(slid.previous.placement).toEqual({ ...previous.placement, duration: 9.5, source_out: 9.5 });
+    expect(slid.clip.placement).toEqual({ ...clip.placement, start: 9.5 });
+    expect(slid.next.placement).toEqual({ ...next.placement, start: 13.5, duration: 4.5, source_in: 3.5 });
+    expect(slid.clip.placement.source_in).toBe(2);
+    expect(slid.clip.placement.source_out).toBe(6);
+    expect(slid.next.placement.start + slid.next.placement.duration).toBe(18);
+  });
+
+  it('constrains Slide by previous tail and next head handles', () => {
+    const previous = { ...CLIP, id: 'previous', placement: { ...CLIP.placement, start: 0, duration: 8, source_in: 0, source_out: 8 } };
+    const clip = { ...CLIP, id: 'middle', placement: { ...CLIP.placement, start: 8, duration: 4, source_in: 2, source_out: 6 } };
+    const next = { ...CLIP, id: 'next', placement: { ...CLIP.placement, start: 12, duration: 6, source_in: 1, source_out: 7 } };
+    expect(slideTimelineClip(previous, clip, next, 20, 60)?.delta).toBe(4);
+    expect(slideTimelineClip(previous, clip, next, 0, 60)?.delta).toBe(-1);
+    expect(canSlideTimelineClip(previous, clip, next, 60)).toBe(true);
+  });
+
+  it('does not expose Slide across gaps or variable-speed adjacent clips', () => {
+    const previous = { ...CLIP, id: 'previous', placement: { ...CLIP.placement, start: 0 } };
+    const middle = { ...CLIP, id: 'middle', placement: { ...CLIP.placement, start: 18 } };
+    const next = { ...CLIP, id: 'next', placement: { ...CLIP.placement, start: 26 } };
+    expect(slideTimelineClip(previous, middle, next, 18, 60)).toBeNull();
+    expect(slideTimelineClip(
+      previous,
+      { ...middle, placement: { ...middle.placement, start: 8 } },
+      { ...next, placement: { ...next.placement, start: 16 }, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] },
+      8,
+      60,
+    )).toBeNull();
   });
 });

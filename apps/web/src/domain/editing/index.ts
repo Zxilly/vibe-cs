@@ -7,7 +7,7 @@ export {
   rateStretchTimelineClip,
   snapTimeToFrame,
 } from './timelineInteraction';
-export type { TimelineRollingPreview } from './timelineInteraction';
+export type { TimelineRollingPreview, TimelineSlidePreview } from './timelineInteraction';
 export {
   createEditorEffect,
   EDITOR_EFFECT_SCHEMAS,

@@ -4,34 +4,39 @@ final result: passed
 
 ## Comparison target
 
-- Source visual truth: `C:\Users\12009\AppData\Local\Temp\codex-clipboard-de94fa37-f56a-4c67-afe4-ea1a74e37d2f.png`.
-- Browser-rendered implementation: `target/design-qa-workbench/14-final-1635x962.png`.
-- Full same-input comparison: `target/design-qa-workbench/14-reference-comparison.png`.
-- Focused timeline comparison: `target/design-qa-workbench/14-timeline-comparison.png`.
-- Route/state: Project `9ee43da6-8d88-4428-b54f-e2420a6f0a3a`, revision 11, 11/11 Timeline Clips materialized, playhead at 02:17.467, clean Agent session `17131bd0-02fa-4935-966a-01250c3640d1`.
+- Source visual truth: `C:\Users\12009\AppData\Local\Temp\codex-clipboard-f218d2ec-1f55-4b8c-aff1-43f59dcdd8d7.png`.
+- Browser-rendered implementation: `target/visual-align/06-current.png`.
+- Full same-input comparison: `target/visual-align/06-full-comparison.png`.
+- Focused timeline comparison: `target/visual-align/06-timeline-comparison.png`.
+- Focused Agent-rail comparison: `target/visual-align/06-agent-comparison.png`.
+- Route/state: Project `9ee43da6-8d88-4428-b54f-e2420a6f0a3a`, revision 11, 11/11 Timeline Clips materialized, playhead at 02:17.517, existing Agent session `71ba4057-3c14-427d-a359-5dc3c88cc07f`.
 
 ## Viewport and normalization
 
 - Source pixels: 1635 x 962.
 - Implementation CSS viewport and screenshot: 1635 x 962 at device pixel ratio 1, set through the active WebView2 CDP session.
 - No crop, stretch, or density conversion in the full comparison.
-- Focused timeline crop for both sides: x 0, y 672, width 1208, height 290.
+- Focused timeline crop for both sides: x 14, y 677, width 1207, height 285.
+- Focused Agent crop for both sides: x 1215, y 56, width 420, height 906.
 
 ## Findings
 
 No actionable P0, P1, or P2 visual mismatch remains.
 
-- The 74/26 review-workbench split, 56 px header, dual preview, 182 px Change Summary, Project Timeline, Agent rail, borders, neutral surfaces, and compact density align at the exact source viewport.
+- The 1215/420 review-workbench split, 56 px header, dual preview, 182 px Change Summary, 285 px Project Timeline, Agent rail, borders, neutral surfaces, and compact density align at the exact source viewport.
+- Timeline measurements now match the reference structure: 32 px title bar, 27.2 px ruler, 51.7/39.3/42.8/42.8 px rows, and 47.6 px footer.
+- The workbench selects one contextual design-system palette: white review canvas, #e1e5ec dividers, high-saturation review blue, and the shared neutral ramp. Page components do not carry local colour literals.
 - The Project Timeline now has one synchronized time geometry for ruler, clips, waveforms, markers, events, horizontal scroll, zoom, and the draggable playhead.
 - The source uses illustrative Mirage frames, edit regions, events, and a staged Agent workflow. The implementation intentionally renders the current Project Head: a real selected Inferno Take/radar path, the authoritative Change Group, real Take thumbnails/waveforms, and a verified read-only Agent turn.
-- The source's blue playhead is 02:17.482; the browser-tested implementation is 02:17.467, a one-frame difference at 60 fps.
+- The source's blue playhead is 02:17.482; the browser-tested implementation is 02:17.517, a two-frame difference at 60 fps.
+- The supplied visual includes a staged independent-looking video progress bar. The implementation intentionally omits that bar because the accepted product rule makes the Timeline Transport authoritative; the Program Monitor exposes only global play/pause and the global time readout.
 - Agent Markdown now renders as typography/lists instead of literal punctuation. Tool calls, HITL cards, External Execution status, human-only decisions, the Edit Lease read-only state, and delivery actions remain one conversation flow.
 
 ## Required fidelity surfaces
 
 - Fonts and typography: system sans and mono stacks, compact weights, line heights, timecodes, truncation, Agent Markdown, and tool-card hierarchy match the source density.
 - Spacing and layout rhythm: exact viewport comparison confirms panel insets, preview split, summary bands, track head, ruler, track rows, footer, and Agent rail.
-- Colors and visual tokens: all workbench surfaces use `theme.css` tokens; the compact timeline zoom scrubber is design-system owned.
+- Colors and visual tokens: all workbench surfaces use the contextual `.review-workbench` semantic tokens in `theme.css`; the compact timeline zoom scrubber is design-system owned.
 - Image quality and asset fidelity: video previews/thumbnails, waveform peaks, decoded CS2 radar, replay paths, and event positions are real local media/data rather than placeholders.
 - Copy and content: revision, clip counts, materialization, task status, tool results, Agent response, and timeline time values are runtime truth.
 
@@ -71,6 +76,7 @@ No actionable P0, P1, or P2 visual mismatch remains.
 4. `08-final-1635x962-reload.png`: exact viewport aligned, but the fit timeline still showed a horizontal scrollbar.
 5. `11-final-markdown.png`: Agent Markdown and the fit timeline were corrected.
 6. `14-final-1635x962.png`: final exact-viewport visual and interaction state passed.
+7. `target/visual-align/06-current.png`: aligned the latest supplied visual truth, including the 420 px Agent rail, bright review palette, preview split, compact Change Summary bands, and production timeline row geometry.
 
 ## Verification
 

@@ -8,6 +8,7 @@ import {
   linearGainToDb,
   clipFadeDuration,
   canSlipTimelineClip,
+  canRollTimelineEdit,
   constrainClipGroupSlipDelta,
   constrainClipGroupTrimDelta,
   maximumClipFadeDuration,
@@ -16,6 +17,7 @@ import {
   snapTimeToFrame,
   setClipFadeDuration,
   slipTimelineClip,
+  rollTimelineEdit,
   trimTimelineClip,
   timelineEdgeScrollStep,
 } from './timelineInteraction';
@@ -152,5 +154,39 @@ describe('timeline direct manipulation', () => {
     expect(canSlipTimelineClip(planned, 60)).toBe(false);
     expect(constrainClipGroupSlipDelta([planned], 1, 60)).toBe(0);
     expect(slipTimelineClip(planned, 1, 60)).toBe(planned);
+  });
+
+  it('rolls one shared edit point without changing the combined duration or outer edges', () => {
+    const right = {
+      ...CLIP,
+      id: 'right',
+      material: { kind: 'asset' as const, asset_id: 'right', media_duration_seconds: 10 },
+      placement: { ...CLIP.placement, start: 18, duration: 4, source_in: 1, source_out: 5 },
+    };
+    const rolled = rollTimelineEdit(CLIP, right, 19.5, 60)!;
+    expect(rolled.delta).toBe(1.5);
+    expect(rolled.left.placement).toEqual({ ...CLIP.placement, duration: 9.5, source_out: 11.5 });
+    expect(rolled.right.placement).toEqual({ ...right.placement, start: 19.5, duration: 2.5, source_in: 2.5 });
+    expect(rolled.left.placement.duration + rolled.right.placement.duration).toBe(12);
+    expect(rolled.right.placement.start + rolled.right.placement.duration).toBe(22);
+  });
+
+  it('constrains a rolling edit by both clips source handles', () => {
+    const right = {
+      ...CLIP,
+      id: 'right',
+      material: { kind: 'asset' as const, asset_id: 'right', media_duration_seconds: 10 },
+      placement: { ...CLIP.placement, start: 18, duration: 4, source_in: 1, source_out: 5 },
+    };
+    expect(rollTimelineEdit(CLIP, right, 30, 60)?.delta).toBe(2);
+    expect(rollTimelineEdit(CLIP, right, 10, 60)?.delta).toBe(-1);
+    expect(canRollTimelineEdit(CLIP, right, 60)).toBe(true);
+  });
+
+  it('rejects gaps and variable-speed clips as rolling edit points', () => {
+    const gap = { ...CLIP, id: 'gap', placement: { ...CLIP.placement, start: 19 } };
+    const remapped = { ...CLIP, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] };
+    expect(rollTimelineEdit(CLIP, gap, 18, 60)).toBeNull();
+    expect(rollTimelineEdit(remapped, { ...CLIP, id: 'right', placement: { ...CLIP.placement, start: 18 } }, 18, 60)).toBeNull();
   });
 });

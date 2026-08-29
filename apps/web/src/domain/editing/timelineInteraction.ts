@@ -194,6 +194,80 @@ export function slipTimelineClip(clip: TimelineClip, sourceDelta: number, fps: n
   };
 }
 
+export interface TimelineRollingEdit {
+  readonly left: TimelineClip;
+  readonly right: TimelineClip;
+  readonly editTime: number;
+  readonly delta: number;
+}
+
+export interface TimelineRollingPreview {
+  readonly leftClipId: string;
+  readonly rightClipId: string;
+  readonly editTime: number;
+}
+
+export function rollTimelineEdit(
+  left: TimelineClip,
+  right: TimelineClip,
+  requestedEditTime: number,
+  fps: number,
+): TimelineRollingEdit | null {
+  const frameRate = Math.max(1, fps);
+  const frame = 1 / frameRate;
+  const editTime = left.placement.start + left.placement.duration;
+  if (Math.abs(right.placement.start - editTime) > 0.5 * frame
+    || left.speed_segments.length > 0
+    || right.speed_segments.length > 0) return null;
+
+  const minimum = Math.max(
+    frame - left.placement.duration,
+    -right.placement.source_in / right.placement.speed,
+  );
+  let maximum = right.placement.duration - frame;
+  const leftMediaDuration = clipMediaDuration(left);
+  if (leftMediaDuration !== null) {
+    maximum = Math.min(
+      maximum,
+      (leftMediaDuration - left.placement.source_out) / left.placement.speed,
+    );
+  }
+  const minimumFrames = Math.ceil(minimum * frameRate - 1e-6);
+  const maximumFrames = Math.floor(maximum * frameRate + 1e-6);
+  if (minimumFrames > maximumFrames) return null;
+  const requestedFrames = Math.round((requestedEditTime - editTime) * frameRate);
+  const delta = Math.min(maximumFrames, Math.max(minimumFrames, requestedFrames)) / frameRate;
+  const nextEditTime = editTime + delta;
+  return {
+    left: {
+      ...left,
+      placement: {
+        ...left.placement,
+        duration: left.placement.duration + delta,
+        source_out: left.placement.source_out + delta * left.placement.speed,
+      },
+    },
+    right: {
+      ...right,
+      placement: {
+        ...right.placement,
+        start: nextEditTime,
+        duration: right.placement.duration - delta,
+        source_in: right.placement.source_in + delta * right.placement.speed,
+      },
+    },
+    editTime: nextEditTime,
+    delta,
+  };
+}
+
+export function canRollTimelineEdit(left: TimelineClip, right: TimelineClip, fps: number): boolean {
+  const editTime = left.placement.start + left.placement.duration;
+  const earlier = rollTimelineEdit(left, right, editTime - 1 / Math.max(1, fps), fps);
+  const later = rollTimelineEdit(left, right, editTime + 1 / Math.max(1, fps), fps);
+  return (earlier !== null && earlier.delta < -1e-9) || (later !== null && later.delta > 1e-9);
+}
+
 export function constrainClipGroupTrimDelta(
   clips: readonly TimelineClip[],
   edge: 'start' | 'end',

@@ -16,6 +16,7 @@ final result: passed
 - Marquee selection pass: `target/editor-iteration/10-marquee.png`.
 - Clip gain pass: `target/editor-iteration/11-clip-gain.png`.
 - Clip fade pass: `target/editor-iteration/12-clip-fade.png`.
+- Playback page-scroll pass: `target/editor-iteration/13-playback-scroll.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -53,6 +54,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Audio clips expose a canonical gain rubber-band over the real waveform. Linear renderer volume 0–4 maps to −60dB through +12.04dB; pointer drag previews dB continuously and commits one `replace_clip` on release, while Arrow and Shift+Arrow nudge 1dB and 3dB. Story's derived waveform permits gain edits without becoming independently movable or trimmable.
 - Audio waveform corners expose renderer-backed fade-in/out handles. Dragging previews the triangular envelope and stores `transition_in/out = fade` plus frame-snapped `metadata.transition_duration` only on release; keyboard adjusts by one frame or 0.25 seconds. Dual fades remain at least one frame below half the clip duration.
 - Adjacent fade-out/fade-in handles use separate vertical corners. Waveforms are pointer-transparent and clip parents do not create isolated stacking contexts, so both handles remain hittable at a shared edit boundary.
+- During transport playback, the horizontal viewport follows an off-screen playhead to an 80% forward or 20% reverse anchor in one page-scroll step. Paused seeks and edits preserve the user's scroll position. Timeline track heads are sticky within the same scroll authority while ruler, review lane, clips, range, snap guide, and playhead continue sharing `scrollLeft`.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -87,6 +89,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - The same revision-35 workspace then marquee-selected both Story clips and the independent audio clip by dragging from the empty video track across their rendered bounds. The box and three selections updated live, no Project revision was created, and page errors remained empty.
 - A seventh live pass raised the independent audio clip from 0dB to +3dB by keyboard as revision 36. Dragging the Story-derived Build gain line five pixels previewed +5.6dB while revision stayed 36, then committed exactly revision 37 on pointer-up. Page errors remained empty.
 - An eighth live pass enabled a 0.05-second independent-audio fade-in by keyboard as revision 38. The first boundary probe exposed overlapping handle/stacking bugs; after correcting the shared z hierarchy, dragging the Story Build fade-out previewed 0.527 seconds while revision stayed 38 and committed exactly revision 39 on release. Page errors remained empty.
+- A ninth live pass used 2.25× zoom (`scrollWidth=2411`, viewport `1177`). Starting playback at 26 seconds page-scrolled to `scrollLeft=1234`; all track heads stayed at x=48.67px. While paused, navigating to zero preserved 1234; starting reverse playback at zero returned scrollLeft to 0. No Project revision or page error was produced.
 
 ## Comparison history
 
@@ -109,10 +112,11 @@ No actionable P0, P1, or P2 mismatch remains.
 17. `target/editor-iteration/10-marquee.png`: one marquee crosses video and audio rows and selects three canonical clips without moving them.
 18. `target/editor-iteration/11-clip-gain.png`: the derived Story waveform shows its live +5.6dB rubber-band value before the single commit.
 19. `target/editor-iteration/12-clip-fade.png`: the Story waveform renders its live fade-out triangle and 0.527-second handle value at the shared edit boundary.
+20. `target/editor-iteration/13-playback-scroll.png`: the zoomed timeline follows the end playhead while every V/A track head remains fixed on the left.
 
 ## Verification
 
-- Focused timeline interaction and Project workbench tests: 50 passed.
-- Full web suite: 256 files and 2915 tests passed.
+- Focused Project workbench interaction tests: 42 passed.
+- Full web suite: 256 files and 2916 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

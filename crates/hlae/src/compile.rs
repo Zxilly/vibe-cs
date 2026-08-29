@@ -186,6 +186,7 @@ pub fn build_hlae_launch_profile(
         game_executable: cs2_executable.to_path_buf(),
         arguments: vec![
             "-steam".to_owned(),
+            "-worldwide".to_owned(),
             "-insecure".to_owned(),
             "+sv_lan".to_owned(),
             "1".to_owned(),

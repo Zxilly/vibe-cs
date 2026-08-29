@@ -114,7 +114,7 @@ fn managed_invocation_passes_only_the_fixed_validated_startup_commands() {
     assert_eq!(
         arguments[cmdline_index + 1],
         OsString::from(format!(
-            "-steam -insecure +sv_lan 1 -console -sw -w 1920 -h 1080 \
+            "-steam -worldwide -insecure +sv_lan 1 -console -sw -w 1920 -h 1080 \
              -afxFixNetCon -afxDisableSteamStorage +mirv_cmd clear +mirv_cmd load \"{}\" \
              +mirv_cmd enabled 1 +mirv_script_load \"{}\" +demo_ui_mode 0 \
              +gameui_hide +cl_showdemooverlay 0 +spec_autodirector 0 \

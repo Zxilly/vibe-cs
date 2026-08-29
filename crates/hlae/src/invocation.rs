@@ -232,6 +232,7 @@ fn validate_fixed_game_command_line(profile: &HlaeLaunchProfile) -> Result<Strin
     }
     let [
         steam,
+        worldwide,
         insecure,
         sv_lan,
         lan_value,
@@ -248,6 +249,7 @@ fn validate_fixed_game_command_line(profile: &HlaeLaunchProfile) -> Result<Strin
         return invalid_launch_profile();
     };
     if steam != "-steam"
+        || worldwide != "-worldwide"
         || insecure != "-insecure"
         || sv_lan != "+sv_lan"
         || lan_value != "1"

@@ -9,6 +9,7 @@ import {
   clipFadeDuration,
   canSlipTimelineClip,
   canRollTimelineEdit,
+  canRateStretchTimelineClip,
   constrainClipGroupSlipDelta,
   constrainClipGroupTrimDelta,
   maximumClipFadeDuration,
@@ -18,6 +19,7 @@ import {
   setClipFadeDuration,
   slipTimelineClip,
   rollTimelineEdit,
+  rateStretchTimelineClip,
   trimTimelineClip,
   timelineEdgeScrollStep,
 } from './timelineInteraction';
@@ -188,5 +190,29 @@ describe('timeline direct manipulation', () => {
     const remapped = { ...CLIP, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] };
     expect(rollTimelineEdit(CLIP, gap, 18, 60)).toBeNull();
     expect(rollTimelineEdit(remapped, { ...CLIP, id: 'right', placement: { ...CLIP.placement, start: 18 } }, 18, 60)).toBeNull();
+  });
+
+  it('rate-stretches duration and speed while retaining source In and Out', () => {
+    const keyed = { ...CLIP, keyframes: [{ id: 'x', time: 4, property: 'x' as const, value: 100 }] };
+    const faster = rateStretchTimelineClip(keyed, 'end', 14, 60);
+    expect(faster.placement).toEqual({ ...CLIP.placement, duration: 4, speed: 2 });
+    expect(faster.keyframes[0]?.time).toBe(2);
+
+    const slower = rateStretchTimelineClip(CLIP, 'end', 26, 60);
+    expect(slower.placement).toEqual({ ...CLIP.placement, duration: 16, speed: 0.5 });
+    expect(slower.placement.source_in).toBe(CLIP.placement.source_in);
+    expect(slower.placement.source_out).toBe(CLIP.placement.source_out);
+  });
+
+  it('rate-stretches from the left while keeping the original Out point fixed', () => {
+    const stretched = rateStretchTimelineClip(CLIP, 'start', 16, 60);
+    expect(stretched.placement).toEqual({ ...CLIP.placement, start: 16, duration: 2, speed: 4 });
+    expect(stretched.placement.start + stretched.placement.duration).toBe(18);
+  });
+
+  it('constrains rate stretch to Program and renderer speed limits', () => {
+    expect(rateStretchTimelineClip(CLIP, 'end', 10.01, 60).placement).toEqual(expect.objectContaining({ duration: 0.5, speed: 16 }));
+    expect(rateStretchTimelineClip(CLIP, 'end', 10_000, 60).placement).toEqual(expect.objectContaining({ duration: 128, speed: 0.0625 }));
+    expect(canRateStretchTimelineClip({ ...CLIP, speed_segments: [{ id: 'speed', start: 0, end: 8, speed: 1 }] })).toBe(false);
   });
 });

@@ -1,6 +1,8 @@
 import type { TimelineClip } from '../../shared/desktop/dto';
 
 const MINIMUM_CLIP_FRAMES = 1;
+export const MIN_TIMELINE_CLIP_SPEED = 0.0625;
+export const MAX_TIMELINE_CLIP_SPEED = 16;
 export const DEFAULT_CLIP_FADE_SECONDS = 0.35;
 export const MIN_CLIP_FADE_SECONDS = 0.05;
 export const MAX_CLIP_FADE_SECONDS = 5;
@@ -266,6 +268,60 @@ export function canRollTimelineEdit(left: TimelineClip, right: TimelineClip, fps
   const earlier = rollTimelineEdit(left, right, editTime - 1 / Math.max(1, fps), fps);
   const later = rollTimelineEdit(left, right, editTime + 1 / Math.max(1, fps), fps);
   return (earlier !== null && earlier.delta < -1e-9) || (later !== null && later.delta > 1e-9);
+}
+
+export function canRateStretchTimelineClip(clip: TimelineClip): boolean {
+  return clip.speed_segments.length === 0
+    && clip.placement.source_out - clip.placement.source_in > 1e-9;
+}
+
+export function rateStretchTimelineClip(
+  clip: TimelineClip,
+  edge: 'start' | 'end',
+  requestedTimelineTime: number,
+  fps: number,
+): TimelineClip {
+  if (!canRateStretchTimelineClip(clip)) return clip;
+  const frameRate = Math.max(1, fps);
+  const frame = 1 / frameRate;
+  const placement = clip.placement;
+  const sourceDuration = placement.source_out - placement.source_in;
+  const fixedEnd = placement.start + placement.duration;
+  const requestedDuration = edge === 'start'
+    ? fixedEnd - requestedTimelineTime
+    : requestedTimelineTime - placement.start;
+  const fadeIn = clipFadeDuration(clip, 'in');
+  const fadeOut = clipFadeDuration(clip, 'out');
+  const transitionMinimum = fadeIn > 0 && fadeOut > 0
+    ? 2 * Math.max(fadeIn, fadeOut) + frame
+    : Math.max(fadeIn, fadeOut) + (fadeIn > 0 || fadeOut > 0 ? frame : 0);
+  const minimumDuration = Math.max(frame, sourceDuration / MAX_TIMELINE_CLIP_SPEED, transitionMinimum);
+  const maximumDuration = Math.min(
+    sourceDuration / MIN_TIMELINE_CLIP_SPEED,
+    edge === 'start' ? fixedEnd : Number.POSITIVE_INFINITY,
+  );
+  if (minimumDuration > maximumDuration + 1e-9) return clip;
+  const minimumFrames = Math.ceil(minimumDuration * frameRate - 1e-6);
+  const maximumFrames = Math.max(minimumFrames, Math.floor(maximumDuration * frameRate + 1e-6));
+  const durationFrames = Math.min(maximumFrames, Math.max(
+    minimumFrames,
+    Math.round(requestedDuration * frameRate),
+  ));
+  const duration = durationFrames / frameRate;
+  const ratio = duration / placement.duration;
+  return {
+    ...clip,
+    placement: {
+      ...placement,
+      start: edge === 'start' ? fixedEnd - duration : placement.start,
+      duration,
+      speed: sourceDuration / duration,
+    },
+    keyframes: clip.keyframes.map((keyframe) => ({
+      ...keyframe,
+      time: Math.round(keyframe.time * ratio * frameRate) / frameRate,
+    })),
+  };
 }
 
 export function constrainClipGroupTrimDelta(

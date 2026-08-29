@@ -37,6 +37,7 @@ import {
 } from '../data/projects';
 import { useDemo } from '../data/demos';
 import { useAgentStatus } from '../data/config';
+import { dataErrorMessage } from '../data/errors';
 import { useTask } from '../data/tasks';
 import { useMapRadarOverview, useMatchReplay } from '../data/match';
 import { useNativeShell } from '../data/nativeShell';
@@ -201,6 +202,19 @@ export function ProjectWorkspacePage() {
   const recordingTask = useTask('recording', startRecording.data?.job_id ?? null, { pollWhileActiveMs: 1_000 });
   const exportTask = useTask('export', exportProject.data?.job_id ?? null, { pollWhileActiveMs: 1_000 });
   const reportedExecutionIds = useRef(new Set<string>());
+  const refreshedRecordingJobs = useRef(new Set<string>());
+
+  useEffect(() => {
+    const task = recordingTask.data;
+    if (task === undefined
+      || task.job_id === null
+      || !['completed', 'failed', 'cancelled'].includes(task.status)
+      || refreshedRecordingJobs.current.has(task.job_id)) {
+      return;
+    }
+    refreshedRecordingJobs.current.add(task.job_id);
+    void Promise.all([project.refetch(), mediaAssets.refetch()]);
+  }, [mediaAssets.refetch, project.refetch, recordingTask.data]);
 
   useEffect(() => {
     const projectId = project.data?.id;
@@ -524,6 +538,16 @@ export function ProjectWorkspacePage() {
       draft: { kind: 'tool_decision', tool_call_id: toolCallId, decision, content },
     });
   };
+  const mutationError = [
+    apply.error,
+    revertChange.error,
+    startRecording.error,
+    exportProject.error,
+    importMedia.error,
+    relinkMedia.error,
+    deleteMedia.error,
+  ].find((error) => error !== null) ?? null;
+  const mutationErrorDetail = dataErrorMessage(mutationError);
 
   return (
     <Page
@@ -837,9 +861,14 @@ export function ProjectWorkspacePage() {
           }}
         />
       </Drawer>
-      {apply.error === null && revertChange.error === null && startRecording.error === null && exportProject.error === null && importMedia.error === null && relinkMedia.error === null && deleteMedia.error === null ? null : (
-        <Alert className="m-4" variant="danger" action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}>
-          <Trans>操作没有完成。检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>
+      {mutationError === null ? null : (
+        <Alert
+          className="m-4"
+          variant="danger"
+          detail={mutationErrorDetail ?? <Trans>检查当前 revision、录制环境和 Delivery Gate 后重试。</Trans>}
+          action={{ label: <Trans>关闭</Trans>, onAction: () => { apply.reset(); revertChange.reset(); startRecording.reset(); exportProject.reset(); importMedia.reset(); relinkMedia.reset(); deleteMedia.reset(); } }}
+        >
+          <Trans>操作没有完成</Trans>
         </Alert>
       )}
     </Page>
@@ -1127,6 +1156,49 @@ function ClipInspector({
           />
         </label>
       ))}
+      {draft.capture_intent === null ? null : (
+        <section className="mt-4 border-t border-divider pt-3" aria-label={t`录制范围`}>
+          <h3 className="text-xs font-semibold"><Trans>录制范围</Trans></h3>
+          <label className="mt-2 flex flex-col gap-1 text-xs">
+            <Trans>录制视角</Trans>
+            <select
+              className="border border-divider bg-bg px-2 py-1.5"
+              disabled={readOnly}
+              value={draft.capture_intent.camera_style}
+              aria-label={t`录制视角`}
+              onChange={(event) => setDraft(updateCaptureIntent(draft, {
+                camera_style: event.currentTarget.value as NonNullable<TimelineClip['capture_intent']>['camera_style'],
+              }))}
+            >
+              <option value="pov"><Trans>第一人称</Trans></option>
+              <option value="static"><Trans>固定机位</Trans></option>
+              <option value="tracking"><Trans>跟随</Trans></option>
+              <option value="dolly"><Trans>推轨</Trans></option>
+              <option value="orbit"><Trans>环绕</Trans></option>
+              <option value="crane"><Trans>升降</Trans></option>
+              <option value="flyby"><Trans>掠过</Trans></option>
+            </select>
+          </label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <CaptureIntentNumberField label={t`开始 tick`} value={draft.capture_intent.start_tick} step={1} readOnly={readOnly} onChange={(value) => setDraft(updateCaptureIntent(draft, { start_tick: Math.max(0, Math.trunc(value)) }))} />
+            <CaptureIntentNumberField label={t`结束 tick`} value={draft.capture_intent.end_tick} step={1} readOnly={readOnly} onChange={(value) => setDraft(updateCaptureIntent(draft, { end_tick: Math.max(0, Math.trunc(value)) }))} />
+            <CaptureIntentNumberField label={t`前留白（秒）`} value={draft.capture_intent.pre_roll_seconds} step={0.1} readOnly={readOnly} onChange={(value) => setDraft(updateCaptureIntent(draft, { pre_roll_seconds: Math.max(0, value) }))} />
+            <CaptureIntentNumberField label={t`后留白（秒）`} value={draft.capture_intent.post_roll_seconds} step={0.1} readOnly={readOnly} onChange={(value) => setDraft(updateCaptureIntent(draft, { post_roll_seconds: Math.max(0, value) }))} />
+          </div>
+          <span className="mt-1 block text-2xs text-neutral-500"><Trans>非第一人称视角需要片段范围内至少四个空间采样点；回合边界镜头应在回合结束前停止。</Trans></span>
+          {draft.material.kind === 'planned' ? null : (
+            <Button
+              className="mt-2 w-full"
+              size="sm"
+              variant="secondary"
+              disabled={readOnly}
+              onClick={() => onReplace({ ...draft, material: { kind: 'planned' } })}
+            >
+              <Trans>重新录制（保留旧文件）</Trans>
+            </Button>
+          )}
+        </section>
+      )}
       {selected?.track.kind === 'text' ? null : (() => {
         const volumeKeyframes = draft.keyframes.filter((keyframe) => keyframe.property === 'volume');
         const current = clipKeyframeAtTime(draft, 'volume', localTime, fps);
@@ -1344,6 +1416,44 @@ function ClipInspector({
       </label>
       <Button className="mt-5 w-full" variant="primary" disabled={readOnly || hasUnsupportedEnabledEffect} onClick={() => onReplace(draft)}><Trans>保存修改</Trans></Button>
     </div>
+  );
+}
+
+function updateCaptureIntent(
+  clip: TimelineClip,
+  update: Partial<NonNullable<TimelineClip['capture_intent']>>,
+): TimelineClip {
+  if (clip.capture_intent === null) return clip;
+  return { ...clip, capture_intent: { ...clip.capture_intent, ...update } };
+}
+
+function CaptureIntentNumberField({
+  label,
+  value,
+  step,
+  readOnly,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: number;
+  readonly step: number;
+  readonly readOnly: boolean;
+  readonly onChange: (value: number) => void;
+}) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1 text-2xs">
+      {label}
+      <input
+        type="number"
+        min={0}
+        step={step}
+        className="min-w-0 border border-divider bg-bg px-2 py-1.5 font-mono"
+        disabled={readOnly}
+        value={value}
+        aria-label={label}
+        onChange={(event) => onChange(Number(event.currentTarget.value))}
+      />
+    </label>
   );
 }
 

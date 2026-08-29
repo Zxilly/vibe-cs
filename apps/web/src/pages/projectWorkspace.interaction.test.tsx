@@ -182,6 +182,10 @@ function renderWorkspace({
   agentConfigured = true,
   project = PROJECT,
   getProject,
+  getActivity,
+  listMediaAssets,
+  createProjectRecordingPlan,
+  executeRecordingPlan,
   relinkMediaAsset,
   deleteMediaAsset,
   shell,
@@ -195,6 +199,10 @@ function renderWorkspace({
   readonly agentConfigured?: boolean;
   readonly project?: Project;
   readonly getProject?: (() => Promise<Project>) | undefined;
+  readonly getActivity?: ReturnType<typeof vi.fn> | undefined;
+  readonly listMediaAssets?: ReturnType<typeof vi.fn> | undefined;
+  readonly createProjectRecordingPlan?: ReturnType<typeof vi.fn> | undefined;
+  readonly executeRecordingPlan?: ReturnType<typeof vi.fn> | undefined;
   readonly relinkMediaAsset?: ReturnType<typeof vi.fn> | undefined;
   readonly deleteMediaAsset?: ReturnType<typeof vi.fn> | undefined;
   readonly shell?: NativeShell | undefined;
@@ -203,8 +211,11 @@ function renderWorkspace({
     element: <ProjectWorkspacePage />,
     client: {
       getProject: getProject ?? (() => Promise.resolve(project)),
+      ...(getActivity === undefined ? {} : { getActivity }),
+      ...(createProjectRecordingPlan === undefined ? {} : { createProjectRecordingPlan }),
+      ...(executeRecordingPlan === undefined ? {} : { executeRecordingPlan }),
       listProjectChangeGroups: () => Promise.resolve(groups),
-      listMediaAssets: () => Promise.resolve({ items: assets }),
+      listMediaAssets: listMediaAssets ?? (() => Promise.resolve({ items: assets })),
       ...(relinkMediaAsset === undefined ? {} : { relinkMediaAsset }),
       ...(deleteMediaAsset === undefined ? {} : { deleteMediaAsset }),
       getProjectEditLease: () => Promise.resolve(lease),
@@ -259,6 +270,60 @@ describe('unified project workspace', () => {
     const panel = screen.getByRole('region', { name: '项目素材' });
     expect(within(panel).getByRole('option', { name: '选择素材 B' }).textContent).toContain('需要重录');
     expect(panel.textContent).toContain('待录 2 · 已录 0');
+  });
+
+  it('shows the recording preflight reason instead of a generic workspace failure', async () => {
+    const createProjectRecordingPlan = vi.fn(() => Promise.reject(new Error(
+      'external dependency is unavailable: this shot needs at least four spatial replay samples for camera movement',
+    )));
+    renderWorkspace({ createProjectRecordingPlan });
+
+    fireEvent.click(await screen.findByRole('button', { name: '录制缺失片段' }));
+    fireEvent.click(screen.getByRole('button', { name: '开始录制' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('操作没有完成');
+    expect(alert.textContent).toContain('this shot needs at least four spatial replay samples for camera movement');
+  });
+
+  it('refreshes the Project Head and media library when a recording reaches a terminal state', async () => {
+    const getProject = vi.fn(() => Promise.resolve(PROJECT));
+    const listMediaAssets = vi.fn(() => Promise.resolve({ items: [] }));
+    const createProjectRecordingPlan = vi.fn(() => Promise.resolve({ plan_id: 'plan-a' }));
+    const executeRecordingPlan = vi.fn(() => Promise.resolve({ job_id: 'job-a', status: 'running' }));
+    const getActivity = vi.fn(() => Promise.resolve({
+      id: 'recording:job-a',
+      kind: 'recording',
+      subtype: null,
+      job_id: 'job-a',
+      context_id: PROJECT.id,
+      subject: 'NiKo 3 分钟集锦',
+      status: 'failed',
+      stage: null,
+      progress_percent: 80,
+      completed_units: 8,
+      total_units: 11,
+      unit: 'stages',
+      error: 'observer drifted',
+      failure: null,
+      created_at: PROJECT.created_at,
+      updated_at: PROJECT.updated_at,
+      available_actions: [],
+    }));
+    renderWorkspace({
+      getProject,
+      getActivity,
+      listMediaAssets,
+      createProjectRecordingPlan,
+      executeRecordingPlan,
+    });
+
+    fireEvent.click(await screen.findByRole('button', { name: '录制缺失片段' }));
+    fireEvent.click(screen.getByRole('button', { name: '开始录制' }));
+
+    await waitFor(() => expect(getActivity).toHaveBeenCalled());
+    await waitFor(() => expect(getProject.mock.calls.length).toBeGreaterThanOrEqual(3));
+    expect(listMediaAssets.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it('renders a non-equal Agent replacement inline on the canonical timeline', async () => {
@@ -1726,6 +1791,100 @@ describe('unified project workspace', () => {
           expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ duration: 2.5, source_in: 0, source_out: 5, speed: 2 }) }),
           expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 2.5 }) }),
         ],
+      })],
+    })));
+  });
+
+  it('edits a planned clip recording camera through the canonical Project Patch', async () => {
+    const applyProjectPatch = vi.fn();
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_A ? candidate : {
+            ...candidate,
+            capture_intent: {
+              demo_id: 'demo-a',
+              highlight_id: 'highlight-a',
+              player_id: 'player-a',
+              start_tick: 100,
+              end_tick: 200,
+              pre_roll_seconds: 1,
+              post_roll_seconds: 1,
+              victim_pov: false,
+              camera_style: 'dolly',
+              presentation: null,
+            },
+          }),
+        }),
+      },
+    };
+    renderWorkspace({ project, applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /A 5\.0s · 未录制/u }));
+    fireEvent.change(await screen.findByRole('combobox', { name: '录制视角' }), { target: { value: 'pov' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: '结束 tick' }), { target: { value: '180' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: '前留白（秒）' }), { target: { value: '11.5' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: '后留白（秒）' }), { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存修改' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: expect.arrayContaining([
+          expect.objectContaining({
+            id: CLIP_A,
+            capture_intent: expect.objectContaining({
+              camera_style: 'pov',
+              end_tick: 180,
+              pre_roll_seconds: 11.5,
+              post_roll_seconds: 0,
+            }),
+          }),
+        ]),
+      })],
+    })));
+  });
+
+  it('returns an attached clip to Planned through the Inspector without deleting its file', async () => {
+    const applyProjectPatch = vi.fn();
+    const project: Project = {
+      ...PROJECT,
+      document: {
+        ...PROJECT.document,
+        tracks: PROJECT.document.tracks.map((track) => track.id !== STORY_ID ? track : {
+          ...track,
+          clips: track.clips.map((candidate) => candidate.id !== CLIP_B ? candidate : {
+            ...candidate,
+            capture_intent: {
+              demo_id: 'demo-b',
+              highlight_id: 'highlight-b',
+              player_id: 'player-b',
+              start_tick: 100,
+              end_tick: 200,
+              pre_roll_seconds: 1,
+              post_roll_seconds: 1,
+              victim_pov: false,
+              camera_style: 'pov',
+              presentation: null,
+            },
+          }),
+        }),
+      },
+    };
+    renderWorkspace({ project, applyProjectPatch });
+
+    fireEvent.doubleClick(await screen.findByRole('button', { name: /B 5\.0s · 已录制/u }));
+    fireEvent.click(await screen.findByRole('button', { name: '重新录制（保留旧文件）' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      operations: [expect.objectContaining({
+        op: 'replace_track_clips',
+        clips: expect.arrayContaining([
+          expect.objectContaining({ id: CLIP_B, material: { kind: 'planned' } }),
+        ]),
       })],
     })));
   });

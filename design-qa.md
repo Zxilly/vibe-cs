@@ -19,6 +19,7 @@ final result: passed
 - Playback page-scroll pass: `target/editor-iteration/13-playback-scroll.png`.
 - Edit drag auto-scroll pass: `target/editor-iteration/14-drag-scroll.png`.
 - Marquee auto-scroll pass: `target/editor-iteration/15-marquee-scroll.png`.
+- Linked selection pass: `target/editor-iteration/16-linked-selection.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -59,6 +60,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - During transport playback, the horizontal viewport follows an off-screen playhead to an 80% forward or 20% reverse anchor in one page-scroll step. Paused seeks and edits preserve the user's scroll position. Timeline track heads are sticky within the same scroll authority while ruler, review lane, clips, range, snap guide, and playhead continue sharing `scrollLeft`.
 - Active move/trim gestures run a bounded rAF edge-scroll loop over a 48px hot zone. Gesture time uses pointer delta plus scroll delta, so a stationary captured pointer keeps advancing the visual draft as the viewport moves. Pointer-up cancels the loop and commits once; a window mouse-up fallback handles releases over scrollbar/browser chrome with the latest draft ref.
 - Active marquee gestures reuse bounded edge velocity on both axes. Their box and clip intersections are resolved in timeline content coordinates rather than stale client rectangles, so clips entering through horizontal or vertical scroll join the selection immediately. Window mouse-up clears the box and both scroll loops without a Project edit.
+- Canonical `link_group_id` now drives Linked Selection across click, Shift, Ctrl/Cmd, marquee, and target-track select-all. Ctrl/Cmd+L or the visible action atomically links/unlinks selected clips. Dragging any member submits Story ripple reordering and free-track movement together in one multi-track Project Patch; disabling Linked Selection leaves link data intact but stops automatic expansion.
 - The Program Monitor and tactical view use a fixed equal split with one divider pixel. No separator role, drag handle, pointer capture, double-click reset, or keyboard resize path remains.
 - Video uses `object-fit: contain` in a dedicated 594.83 x 344.84 canvas; its 40 px transport bar is outside that canvas with zero overlap. Radar and tactical overlay use the same centered 384.84 px square with no transform scaling.
 - The editor has no inert footer controls. Project media, record-missing, and export are real human actions; imported media enters the canonical Story Track at transport time and ripples the split tail.
@@ -96,6 +98,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A ninth live pass used 2.25× zoom (`scrollWidth=2411`, viewport `1177`). Starting playback at 26 seconds page-scrolled to `scrollLeft=1234`; all track heads stayed at x=48.67px. While paused, navigating to zero preserved 1234; starting reverse playback at zero returned scrollLeft to 0. No Project revision or page error was produced.
 - A tenth live pass held the independent audio clip against the right edge until scrollLeft reached 1234 and its visual left reached 1850.62px. After committing revision 40, the reverse drag held at the left edge auto-scrolled 1234→0 and moved the draft to 0px; window mouse-up committed exactly revision 41. Page errors remained empty.
 - An eleventh live pass began a marquee at vertical scrollTop 104 on the empty video track and held at the upper-right edge under 2.25× zoom. It reached scrollLeft 1234 and scrollTop 0, expanded to 1429×279px in content space, and selected both Story clips plus the independent audio clip. Mouse-up stopped both axes, removed the box, preserved revision 41, and left page errors empty.
+- A twelfth live pass linked Story Build and independent-audio Build as one revision 42. Selecting Story Build after Hook expanded to exactly the two linked Build clips. Dragging the Story member then reordered Story to Hook→Build and moved the audio member in the same revision 43, with page errors empty.
 
 ## Comparison history
 
@@ -121,10 +124,11 @@ No actionable P0, P1, or P2 mismatch remains.
 20. `target/editor-iteration/13-playback-scroll.png`: the zoomed timeline follows the end playhead while every V/A track head remains fixed on the left.
 21. `target/editor-iteration/14-drag-scroll.png`: a captured audio clip remains under edit while the timeline auto-scrolls back to its zero boundary.
 22. `target/editor-iteration/15-marquee-scroll.png`: one content-space marquee grows across horizontal and vertical pages while newly revealed clips join the selection.
+23. `target/editor-iteration/16-linked-selection.png`: the linked Story and audio members remain selected while one gesture prepares their cross-track move.
 
 ## Verification
 
-- Focused timeline interaction and Project workbench tests: 54 passed.
-- Full web suite: 256 files and 2919 tests passed.
+- Focused Project workbench interaction tests: 46 passed.
+- Full web suite: 256 files and 2921 tests passed.
 - Strict i18n/layer lint and TypeScript build passed.
 - Production Vite build passed.

@@ -3,6 +3,14 @@ export { TimelineProgramMonitor, type TimelineProgramMonitorProps } from './Time
 export { resolveTimelineMaterial, type TimelineMaterialView, type TimelineWaveformLocator } from './timelineMaterial';
 export { snapTimeToFrame } from './timelineInteraction';
 export {
+  clipKeyframeAtTime,
+  clipLocalTimeAtTimeline,
+  evaluateClipKeyframeProperty,
+  removeClipKeyframe,
+  transformPropertyValue,
+  upsertClipKeyframe,
+} from './keyframeEditing';
+export {
   deleteRippleClip,
   deleteRippleClips,
   insertRippleClipAtTime,

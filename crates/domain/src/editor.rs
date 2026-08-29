@@ -7,6 +7,8 @@ use uuid::Uuid;
 pub const MAX_EDITOR_KEYFRAMES_PER_CLIP: usize = 128;
 pub const MAX_EDITOR_SPEED_SEGMENTS: usize = 16;
 pub const MAX_EDITOR_PROJECT_DURATION_SECONDS: f64 = 86_400.0;
+pub const MIN_EDITOR_CLIP_SPEED: f64 = 0.0625;
+pub const MAX_EDITOR_CLIP_SPEED: f64 = 16.0;
 
 fn deserialize_required_nullable<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where

@@ -7,8 +7,9 @@ use uuid::Uuid;
 
 use crate::{
     DomainError, EditorEffect, EditorKeyframe, EditorMarker, EditorSpeedSegment, HlaeCameraStyle,
-    MAX_EDITOR_KEYFRAMES_PER_CLIP, MAX_EDITOR_PROJECT_DURATION_SECONDS, MAX_EDITOR_SPEED_SEGMENTS,
-    RecordingPresentation, RecordingRequest, TextStyle, TrackKind, Transform,
+    MAX_EDITOR_CLIP_SPEED, MAX_EDITOR_KEYFRAMES_PER_CLIP, MAX_EDITOR_PROJECT_DURATION_SECONDS,
+    MAX_EDITOR_SPEED_SEGMENTS, MIN_EDITOR_CLIP_SPEED, RecordingPresentation, RecordingRequest,
+    TextStyle, TrackKind, Transform,
 };
 
 const MAX_PROJECT_PATCH_OPERATIONS: usize = 1_024;
@@ -669,7 +670,7 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
         || placement.duration < 0.0
         || placement.source_in < 0.0
         || placement.source_out < placement.source_in
-        || placement.speed <= 0.0
+        || !(MIN_EDITOR_CLIP_SPEED..=MAX_EDITOR_CLIP_SPEED).contains(&placement.speed)
         || placement.volume < 0.0
         || placement.volume > 4.0
     {
@@ -680,6 +681,15 @@ fn validate_clip(clip: &TimelineClip) -> Result<(), DomainError> {
     }
     if clip.speed_segments.len() > MAX_EDITOR_SPEED_SEGMENTS {
         return Err(invalid("clip has too many speed segments"));
+    }
+    if clip.speed_segments.is_empty()
+        && ((placement.source_out - placement.source_in) - placement.duration * placement.speed)
+            .abs()
+            > 0.001
+    {
+        return Err(invalid(
+            "constant-speed clip duration must match its source range",
+        ));
     }
     if let Some(intent) = &clip.capture_intent {
         intent.validate()?;
@@ -925,6 +935,22 @@ mod tests {
             timeline_clip.materialization_state().expect("state"),
             TimelineClipMaterializationState::Stale
         );
+    }
+
+    #[test]
+    fn constant_speed_placement_requires_renderer_and_timeline_to_share_one_duration() {
+        let mut current = project();
+        current.document.tracks[0].clips[0].placement.speed = MIN_EDITOR_CLIP_SPEED / 2.0;
+        assert!(current.validate().is_err());
+
+        current.document.tracks[0].clips[0].placement.speed = MAX_EDITOR_CLIP_SPEED + 1.0;
+        assert!(current.validate().is_err());
+
+        current.document.tracks[0].clips[0].placement.speed = 2.0;
+        assert!(current.validate().is_err());
+
+        current.document.tracks[0].clips[0].placement.duration = 2.5;
+        assert!(current.validate().is_ok());
     }
 
     #[test]

@@ -1245,10 +1245,12 @@ fn build_audio_filter(
             ",afade=t=out:st={start:.6}:d={transition_duration:.6}"
         );
     }
+    // `amix` consumes each input from sample zero; a positive PTS alone does not
+    // materialize the Timeline gap. Insert sample-exact silence before mixing.
+    let delay_samples = item.timeline_start * 48_000.0;
     let _ = write!(
         filter,
-        ",aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asetpts=PTS+{:.6}/TB[{label}]",
-        item.timeline_start
+        ",aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,asetpts=PTS-STARTPTS,adelay=delays={delay_samples:.0}S:all=1[{label}]"
     );
     filters.push(filter);
     Ok(filters.join(";"))
@@ -1800,7 +1802,7 @@ mod tests {
         let story_id = Uuid::new_v4();
         let first_asset = Uuid::new_v4();
         let second_asset = Uuid::new_v4();
-        let audio_clip = |name: &str, asset_id: Uuid, volume: f64, fade: bool| TimelineClip {
+        let audio_clip = |name: &str, asset_id: Uuid, start: f64, volume: f64, fade: bool| TimelineClip {
             id: Uuid::new_v4(),
             name: name.to_owned(),
             capture_intent: None,
@@ -1809,7 +1811,7 @@ mod tests {
                 media_duration_seconds: 8.0,
             },
             placement: TimelinePlacement {
-                start: 0.0,
+                start,
                 duration: 8.0,
                 source_in: 0.0,
                 source_out: 8.0,
@@ -1845,7 +1847,7 @@ mod tests {
                 width: 1920,
                 height: 1080,
                 fps: 60,
-                duration_seconds: 8.0,
+                duration_seconds: 12.0,
                 story_track_id: story_id,
                 tracks: vec![
                     TimelineTrack {
@@ -1866,7 +1868,7 @@ mod tests {
                         muted: false,
                         locked: false,
                         hidden: false,
-                        clips: vec![audio_clip("First", first_asset, 1.0, true)],
+                        clips: vec![audio_clip("First", first_asset, 0.0, 1.0, true)],
                     },
                     TimelineTrack {
                         id: Uuid::new_v4(),
@@ -1876,7 +1878,7 @@ mod tests {
                         muted: false,
                         locked: false,
                         hidden: false,
-                        clips: vec![audio_clip("Second", second_asset, 0.25, false)],
+                        clips: vec![audio_clip("Second", second_asset, 4.0, 0.25, false)],
                     },
                 ],
                 markers: Vec::new(),
@@ -1925,6 +1927,7 @@ mod tests {
         assert!(filter.contains("afade=t=in:st=0:d=1.500000"));
         assert!(filter.contains("afade=t=out:st=6.500000:d=1.500000"));
         assert!(filter.contains("volume=0.250000"));
+        assert!(filter.contains("adelay=delays=192000S:all=1"));
         assert!(filter.contains("amix=inputs=2"));
         assert!(
             plan.command

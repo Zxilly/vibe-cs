@@ -87,6 +87,27 @@ const RECORDED_PROJECT: Project = {
   },
 };
 
+const LINKED_AUDIO_CLIP_ID = '00000000-0000-4000-8000-000000000090';
+const LINK_GROUP_ID = '00000000-0000-4000-8000-000000000091';
+
+function linkedProject(): Project {
+  const audioClip: TimelineClip = {
+    ...clip(LINKED_AUDIO_CLIP_ID, 'Bed'),
+    material: { kind: 'asset', asset_id: 'asset-audio', media_duration_seconds: 30 },
+    placement: { start: 12, duration: 5, source_in: 0, source_out: 5, speed: 1, volume: 1, enabled: true },
+    link_group_id: LINK_GROUP_ID,
+  };
+  return {
+    ...PROJECT,
+    document: {
+      ...PROJECT.document,
+      tracks: PROJECT.document.tracks.map((track) => track.id === STORY_ID
+        ? { ...track, clips: track.clips.map((candidate) => candidate.id === CLIP_A ? { ...candidate, link_group_id: LINK_GROUP_ID } : candidate) }
+        : track.kind === 'audio' ? { ...track, clips: [audioClip] } : track),
+    },
+  };
+}
+
 function renderWorkspace({
   applyProjectPatch = vi.fn(),
   revertProjectChangeGroup = vi.fn(),
@@ -955,6 +976,65 @@ describe('unified project workspace', () => {
       expect(clipA.className).toContain('ring-accent');
       expect(clipB.className).toContain('ring-accent');
     });
+  });
+
+  it('expands linked selection and atomically unlinks the selected clips', async () => {
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: linkedProject(), applyProjectPatch });
+
+    const story = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    const audio = screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u });
+    await waitFor(() => {
+      expect(story.className).toContain('ring-accent');
+      expect(audio.className).toContain('ring-accent');
+    });
+    expect(screen.getByRole('button', { name: '切换链接选择' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: '取消链接所选片段' }));
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [
+        expect.objectContaining({ op: 'replace_clip', clip_id: CLIP_A, clip: expect.objectContaining({ link_group_id: null }) }),
+        expect.objectContaining({ op: 'replace_clip', clip_id: LINKED_AUDIO_CLIP_ID, clip: expect.objectContaining({ link_group_id: null }) }),
+      ],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves a linked cross-track selection in one Project Patch', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    const applyProjectPatch = vi.fn();
+    renderWorkspace({ project: linkedProject(), applyProjectPatch });
+
+    const story = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    await waitFor(() => expect(screen.getByRole('button', { name: /Bed 5\.0s · 已录制/u }).className).toContain('ring-accent'));
+    fireEvent.pointerDown(story, { pointerId: 91, button: 0, clientX: 200 });
+    fireEvent.pointerMove(story, { pointerId: 91, clientX: 600 });
+    fireEvent.pointerUp(story, { pointerId: 91, clientX: 600 });
+
+    await waitFor(() => expect(applyProjectPatch).toHaveBeenCalledWith(expect.objectContaining({
+      scope: { kind: 'project' },
+      operations: [
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: STORY_ID,
+          clips: [
+            expect.objectContaining({ id: CLIP_B, placement: expect.objectContaining({ start: 0 }) }),
+            expect.objectContaining({ id: CLIP_A, placement: expect.objectContaining({ start: 5 }) }),
+          ],
+        }),
+        expect.objectContaining({
+          op: 'replace_track_clips',
+          track_id: '00000000-0000-4000-8000-000000000013',
+          clips: [expect.objectContaining({ id: LINKED_AUDIO_CLIP_ID, placement: expect.objectContaining({ start: expect.any(Number) }) })],
+        }),
+      ],
+    })));
+    expect(applyProjectPatch).toHaveBeenCalledTimes(1);
+    const audioOperation = applyProjectPatch.mock.calls[0]?.[0]?.operations[1];
+    if (audioOperation?.op !== 'replace_track_clips') throw new Error('expected linked audio replacement');
+    expect(audioOperation.clips[0]?.placement.start).toBeGreaterThan(12);
+    clientWidth.mockRestore();
   });
 
   it('drags selected Story clips as one ordered ripple group', async () => {

@@ -134,6 +134,7 @@ export function ProjectWorkspacePage() {
   const selectedClipId = selectedClipIds[selectedClipIds.length - 1] ?? null;
   const initializedSelectionProjectId = useRef<string | null>(null);
   const [targetTrackId, setTargetTrackId] = useState<string | null>(null);
+  const [linkedSelectionEnabled, setLinkedSelectionEnabled] = useState(true);
   const [timelineTimeSeconds, setTimelineTimeSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -195,12 +196,19 @@ export function ProjectWorkspacePage() {
     setSelectedClipIds((currentSelection) => {
       if (initializedSelectionProjectId.current !== loaded.id) {
         initializedSelectionProjectId.current = loaded.id;
-        return firstClip === undefined ? [] : [firstClip.id];
+        return firstClip === undefined
+          ? []
+          : linkedSelectionEnabled ? expandLinkedClipIds(loaded, [firstClip.id]) : [firstClip.id];
       }
       const next = currentSelection.filter((clipId) => allIds.has(clipId));
       return next.length === currentSelection.length ? currentSelection : next;
     });
-  }, [project.data]);
+  }, [linkedSelectionEnabled, project.data]);
+
+  useEffect(() => {
+    if (!linkedSelectionEnabled || project.data === undefined) return;
+    setSelectedClipIds((currentSelection) => expandLinkedClipIds(project.data!, currentSelection));
+  }, [linkedSelectionEnabled, project.data]);
 
   useEffect(() => {
     const document = project.data?.document;
@@ -308,20 +316,25 @@ export function ProjectWorkspacePage() {
         const anchorId = currentSelection[currentSelection.length - 1];
         const track = current.document.tracks.find((candidate) => candidate.clips.some((clip) => clip.id === clipId)
           && candidate.clips.some((clip) => clip.id === anchorId));
-        if (track === undefined || anchorId === undefined) return [clipId];
+        if (track === undefined || anchorId === undefined) {
+          return linkedSelectionEnabled ? expandLinkedClipIds(current, [clipId]) : [clipId];
+        }
         const anchorIndex = track.clips.findIndex((clip) => clip.id === anchorId);
         const targetIndex = track.clips.findIndex((clip) => clip.id === clipId);
         const from = Math.min(anchorIndex, targetIndex);
         const to = Math.max(anchorIndex, targetIndex);
-        return track.clips.slice(from, to + 1).map((clip) => clip.id);
+        const rangeIds = track.clips.slice(from, to + 1).map((clip) => clip.id);
+        return linkedSelectionEnabled ? expandLinkedClipIds(current, rangeIds) : rangeIds;
       }
-      if (!additive) return currentSelection.length === 1 && currentSelection[0] === clipId
-        ? currentSelection
-        : [clipId];
-      return currentSelection.includes(clipId)
-        ? currentSelection.filter((selectedId) => selectedId !== clipId)
-        : [...currentSelection, clipId];
+      const group = linkedSelectionEnabled ? expandLinkedClipIds(current, [clipId]) : [clipId];
+      if (!additive) return group;
+      return group.every((groupId) => currentSelection.includes(groupId))
+        ? currentSelection.filter((selectedId) => !group.includes(selectedId))
+        : [...new Set([...currentSelection, ...group])];
     });
+  };
+  const selectTimelineClips = (clipIds: readonly string[]) => {
+    setSelectedClipIds(linkedSelectionEnabled ? expandLinkedClipIds(current, clipIds) : clipIds);
   };
   const addMediaAsset = (asset: MediaAsset, mode: 'insert' | 'overwrite') => {
     if (storyTrack === null || asset.duration_seconds === null || asset.duration_seconds <= 0) return;
@@ -458,13 +471,15 @@ export function ProjectWorkspacePage() {
             selectedClipId={selectedClipId}
             selectedClipIds={selectedClipIds}
             targetTrackId={targetTrackId ?? current.document.story_track_id}
+            linkedSelectionEnabled={linkedSelectionEnabled}
             timelineTimeSeconds={transportTimeSeconds}
             transportPlaying={playing}
             reviewGroup={latestAgentGroup}
             readOnly={readOnly || apply.isPending || revertChange.isPending}
             onSelectClip={selectTimelineClip}
-            onSelectClips={setSelectedClipIds}
+            onSelectClips={selectTimelineClips}
             onTargetTrack={setTargetTrackId}
+            onToggleLinkedSelection={() => setLinkedSelectionEnabled((value) => !value)}
             onInspectClip={(clipId) => {
               setSelectedClipIds([clipId]);
               setInspectorOpen(true);
@@ -496,6 +511,11 @@ export function ProjectWorkspacePage() {
                 ? { kind: 'track', track_id: updates[0]!.trackId }
                 : { kind: 'project' },
               updates.map((update) => ({ op: 'replace_track_clips', track_id: update.trackId, clips: [...update.clips] })),
+            )}
+            onReplaceClips={(clips) => mutate(
+              clips.every((clip) => clip.link_group_id === null) ? `取消链接片段` : `链接片段`,
+              { kind: 'project' },
+              clips.map((clip) => ({ op: 'replace_clip', clip_id: clip.id, clip })),
             )}
             onInsertTrack={(track, index) => mutate(
               `添加轨道 ${track.name}`,
@@ -1337,4 +1357,17 @@ function findClip(project: Project, clipId: string | null) {
     if (clip !== undefined) return { track, clip };
   }
   return null;
+}
+
+function expandLinkedClipIds(project: Project, clipIds: readonly string[]): readonly string[] {
+  const selected = new Set(clipIds);
+  const groups = new Set(project.document.tracks
+    .flatMap((track) => track.clips)
+    .filter((clip) => selected.has(clip.id) && clip.link_group_id !== null)
+    .map((clip) => clip.link_group_id!));
+  if (groups.size === 0) return [...selected];
+  for (const clip of project.document.tracks.flatMap((track) => track.clips)) {
+    if (clip.link_group_id !== null && groups.has(clip.link_group_id)) selected.add(clip.id);
+  }
+  return [...selected];
 }

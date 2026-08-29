@@ -92,6 +92,7 @@ export interface ProjectTimelineProps {
   readonly selectedClipId: string | null;
   readonly selectedClipIds: readonly string[];
   readonly targetTrackId: string;
+  readonly linkedSelectionEnabled: boolean;
   readonly timelineTimeSeconds: number;
   readonly transportPlaying: boolean;
   readonly reviewGroup: ProjectChangeGroup | null;
@@ -99,6 +100,7 @@ export interface ProjectTimelineProps {
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
   readonly onSelectClips: (clipIds: readonly string[]) => void;
   readonly onTargetTrack: (trackId: string) => void;
+  readonly onToggleLinkedSelection: () => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
   readonly onTogglePlayback: () => void;
@@ -107,6 +109,7 @@ export interface ProjectTimelineProps {
   readonly onReplaceTrack: (track: TimelineTrack) => void;
   readonly onReplaceTrackClips: (trackId: string, clips: readonly TimelineClip[]) => void;
   readonly onReplaceTrackClipGroups: (groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[]) => void;
+  readonly onReplaceClips: (clips: readonly TimelineClip[]) => void;
   readonly onInsertTrack: (track: TimelineTrack, index: number) => void;
   readonly onRemoveTrack: (trackId: string) => void;
   readonly onReorderTracks: (trackIds: readonly string[]) => void;
@@ -147,6 +150,7 @@ export function ProjectTimeline({
   selectedClipId,
   selectedClipIds,
   targetTrackId,
+  linkedSelectionEnabled,
   timelineTimeSeconds,
   transportPlaying,
   reviewGroup,
@@ -154,6 +158,7 @@ export function ProjectTimeline({
   onSelectClip,
   onSelectClips,
   onTargetTrack,
+  onToggleLinkedSelection,
   onInspectClip,
   onSeek,
   onTogglePlayback,
@@ -162,6 +167,7 @@ export function ProjectTimeline({
   onReplaceTrack,
   onReplaceTrackClips,
   onReplaceTrackClipGroups,
+  onReplaceClips,
   onInsertTrack,
   onRemoveTrack,
   onReorderTracks,
@@ -226,6 +232,17 @@ export function ProjectTimeline({
     const selected = track.clips.filter((clip) => selectedClipIdSet.has(clip.id));
     return selected.length === 0 ? [] : [{ track, clips: selected }];
   }), [document.tracks, selectedClipIdSet]);
+  const selectedClips = useMemo(
+    () => selectedTrackGroups.flatMap((group) => group.clips),
+    [selectedTrackGroups],
+  );
+  const sharedLinkGroupId = selectedClips.length < 2
+    ? null
+    : selectedClips[0]?.link_group_id !== null
+      && selectedClips.every((clip) => clip.link_group_id === selectedClips[0]?.link_group_id)
+      ? selectedClips[0]!.link_group_id
+      : null;
+  const canChangeLinks = !readOnly && selectedClips.length >= 2;
   const selectedTrackClipIds = selectedTrack === null
     ? new Set<string>()
     : new Set(selectedTrack.clips.filter((clip) => selectedClipIdSet.has(clip.id)).map((clip) => clip.id));
@@ -419,6 +436,11 @@ export function ProjectTimeline({
     setClipboard({
       groups: selectedTrackGroups.map(({ track, clips: selected }) => ({ trackId: track.id, clips: selected })),
     });
+  };
+  const toggleSelectedClipLinks = () => {
+    if (!canChangeLinks) return;
+    const linkGroupId = sharedLinkGroupId === null ? globalThis.crypto.randomUUID() : null;
+    onReplaceClips(selectedClips.map((clip) => ({ ...clip, link_group_id: linkGroupId })));
   };
 
   const pasteClipboard = () => {
@@ -723,6 +745,11 @@ export function ProjectTimeline({
           onSelectClips(targetTrack?.clips.map((clip) => clip.id) ?? []);
           return;
         }
+        if (event.key.toLowerCase() === 'l' && (event.ctrlKey || event.metaKey) && !event.altKey) {
+          event.preventDefault();
+          toggleSelectedClipLinks();
+          return;
+        }
         if (event.key.toLowerCase() === 'v' && (event.ctrlKey || event.metaKey) && !event.altKey && canPaste) {
           event.preventDefault();
           pasteClipboard();
@@ -788,6 +815,27 @@ export function ProjectTimeline({
           ]}
         />
         <span className="max-w-40 truncate text-2xs text-neutral-500"><Trans>目标：</Trans>{targetTrack?.name ?? '—'}</span>
+        <button
+          type="button"
+          className={cn(
+            'grid size-7 place-items-center rounded-sm border border-divider hover:bg-neutral-100',
+            linkedSelectionEnabled && 'border-accent-300 bg-accent-100 text-accent-text',
+          )}
+          aria-label={t`切换链接选择`}
+          aria-pressed={linkedSelectionEnabled}
+          onClick={onToggleLinkedSelection}
+        >
+          <Link2 className="size-3.5" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="h-7 rounded-sm border border-divider px-2 text-2xs hover:bg-neutral-100 disabled:text-neutral-300"
+          aria-label={sharedLinkGroupId === null ? t`链接所选片段` : t`取消链接所选片段`}
+          disabled={!canChangeLinks}
+          onClick={toggleSelectedClipLinks}
+        >
+          {sharedLinkGroupId === null ? <Trans>链接片段</Trans> : <Trans>取消链接</Trans>}
+        </button>
         <span className="flex items-center overflow-hidden rounded-sm border border-divider text-2xs">
           <button type="button" className="h-7 px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记入点`} onClick={() => setRangeInSeconds(editPlayheadSeconds)}>I</button>
           <button type="button" className="h-7 border-l border-divider px-2 font-mono hover:bg-neutral-100" aria-label={t`在播放头标记出点`} onClick={() => setRangeOutSeconds(editPlayheadSeconds)}>O</button>
@@ -1001,6 +1049,8 @@ export function ProjectTimeline({
               onToggleCollapse={() => toggleTrackCollapse(track.id)}
               scrollLeftRef={timelineScrollLeftRef}
               onDragAutoScroll={updateDragAutoScroll}
+              selectedTrackGroups={selectedTrackGroups}
+              onReplaceTrackClipGroups={onReplaceTrackClipGroups}
             />
           ))}
           <TimelineMarkerRow
@@ -1193,7 +1243,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse, scrollLeftRef, onDragAutoScroll, selectedTrackGroups, onReplaceTrackClipGroups }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -1223,6 +1273,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onToggleCollapse: () => void;
   readonly scrollLeftRef: React.RefObject<number>;
   readonly onDragAutoScroll: (clientX: number | null, onScroll?: (scrollLeft: number) => void) => void;
+  readonly selectedTrackGroups: readonly { readonly track: TimelineTrack; readonly clips: readonly TimelineClip[] }[];
+  readonly onReplaceTrackClipGroups: (groups: readonly { readonly trackId: string; readonly clips: readonly TimelineClip[] }[]) => void;
 }) {
   const nonStoryIndex = nonStoryTrackIds.indexOf(track.track.id);
   const resizeGesture = useRef<{ readonly pointerId: number; readonly clientY: number; readonly height: number } | null>(null);
@@ -1275,6 +1327,26 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             scrollLeftRef={scrollLeftRef}
             onDragAutoScroll={onDragAutoScroll}
             onReplace={(replacement, mode) => {
+              if (mode === 'move'
+                && selectedClipIds.has(replacement.id)
+                && selectedTrackGroups.length > 1) {
+                const original = track.track.clips.find((candidate) => candidate.id === replacement.id);
+                if (original === undefined) return;
+                const requestedDelta = replacement.placement.start - original.placement.start;
+                const minimumSelectedStart = Math.min(...selectedTrackGroups.flatMap((group) => group.clips.map((candidate) => candidate.placement.start)));
+                const delta = Math.max(requestedDelta, -minimumSelectedStart);
+                onReplaceTrackClipGroups(selectedTrackGroups.map((group) => {
+                  const ids = new Set(group.clips.map((candidate) => candidate.id));
+                  const anchor = group.clips[0]!;
+                  return {
+                    trackId: group.track.id,
+                    clips: group.track.id === storyTrackId
+                      ? moveRippleClipGroup(group.track.clips, ids, anchor.id, anchor.placement.start + delta)
+                      : moveFreeClipGroup(group.track.clips, ids, anchor.id, anchor.placement.start + delta, fps),
+                  };
+                }));
+                return;
+              }
               if (mode === 'volume') {
                 onReplaceClip(replacement);
                 return;

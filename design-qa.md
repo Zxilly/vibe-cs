@@ -40,6 +40,7 @@ final result: passed
 - Project Media drop commit pass: `target/editor-iteration/36-media-drop-complete.png`.
 - Project Media management pass: `target/editor-iteration/38-media-management-actions.png`.
 - Project Media delete confirmation pass: `target/editor-iteration/39-media-delete-confirm.png`.
+- Missing recorded media pass: `target/editor-iteration/40-missing-recorded-media.png`.
 - Full same-input comparison: `target/complete-preview/02-full-comparison.png`.
 - Focused timeline comparison: `target/premiere-light/07-timeline-comparison.png`.
 - Route: `http://localhost:5173/#/projects/9ee43da6-8d88-4428-b54f-e2420a6f0a3a`.
@@ -71,6 +72,8 @@ No actionable P0, P1, or P2 mismatch remains.
 - Unused imported sources can be dragged from Project Media directly onto real Timeline rows. The bounded custom payload carries only asset identity, V/A kind, and preview duration; the page re-resolves the asset before editing. Timeline owns track-kind/lock/derived-row admission plus the drop time from its current ruler, zoom, scroll, track-head offset, and frame snapping. Default drag is Overwrite; Ctrl/Cmd switches the same gesture to Insert, and the ghost labels the mode, media kind, and duration before release.
 - Unreferenced imported assets expose working Relink and Remove actions. Relink keeps the stable asset ID, rejects a shorter replacement, clears cached waveform/analysis over the old bytes, refreshes Project Media, and remounts its source monitor. Remove uses a destructive confirmation that explicitly preserves the disk source file. Canonical Timeline items never expose either raw-asset action.
 - The delete route independently scans every current Project Head and rejects any Asset/Take material reference with `409 media_asset_in_use`; UI filtering is not the integrity boundary. Removing an unused record does not create a Project revision and never deletes the external source file.
+- Media list/detail responses now project current filesystem availability without overwriting persisted probe truth. A missing/non-file/unreadable source becomes an explicit unavailable asset with a bounded relink instruction; restoring the file makes the next read ready again. Unavailable imports cannot Insert, Overwrite, or drag.
+- Timeline-recorded items resolve their stable source asset separately from raw imported-item privileges. They expose Relink even while unavailable, but never Delete or Place-again actions. Relink keeps clip identities and Project revision unchanged while the source monitor is remounted against the repaired stream.
 - Markers are editable canonical `EditingDocument.markers`: M or the visible tool adds one at the playhead; clicking seeks; double-clicking edits label, frame-snapped time, and colour; save and delete both use `replace_markers`.
 - I/O or the visible header controls mark a frame-aligned time range on the shared ruler geometry. Extract removes that range from the current target: Story closes the interval while free tracks retain absolute later placements.
 - Premiere Q/W ripple trims use the same selected Story clip, transport playhead, trim constraints, and `replace_track_clips` commit path as pointer trimming. Trimming the first Story clip now preserves the original track origin.
@@ -152,6 +155,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - A twenty-fifth live pass imported an eight-second WAV extracted from an existing NiKo recording into the empty development Project. Insert created one independent audio track while Story stayed empty. Two undo/reinsert probes exposed first a stale-head target reset and then Storage's intentional UUID reallocation; after resolving identities from the returned Project Head, revision 8 showed `目标：音频轨道 1`, only the new A-track target was pressed, the waveform rendered on that track, and Project Media contained exactly one recorded item. Page errors were empty.
 - A twenty-sixth live pass imported a second reference to the same eight-second NiKo WAV and dragged its Project Media row to the exact end of the real A track. While held, revision stayed 10 and a dashed `覆盖 · 音频 · 00:08.000` ghost occupied the Timeline-computed range. Release alone committed revision 11, removed the ghost, preserved the first source through 7.750 seconds, placed the new eight-second source at that boundary, and extended the Project to 15.750 seconds. Target stayed A1 and page errors were empty.
 - A twenty-seventh live pass restarted Tauri on the new backend and proved both asset-management boundaries. Direct deletion of the Timeline-referenced drag source returned `409 media_asset_in_use`. A third unused NiKo WAV exposed Relink/Remove controls; its destructive dialog stated that the disk file would remain. Confirming removed the record without changing Project revision 11, while `Test-Path` still returned true. A separate relink to a copied path retained the exact asset ID and eight-second duration. Page errors were empty.
+- A twenty-eighth live pass temporarily moved the source WAV shared by two recorded Timeline items. A fresh Tauri read immediately labeled both `已录制 · 不可用`, made both non-draggable, and exposed only Relink on selection; no Delete/Insert/Overwrite action appeared. Relinking the first stable asset ID to the moved copy restored only that item, while the other stayed unavailable. Restoring the original file made the remaining item ready on the next reload. Project stayed at revision 11 and page errors were empty.
 
 ## Comparison history
 
@@ -196,6 +200,7 @@ No actionable P0, P1, or P2 mismatch remains.
 39. `target/editor-iteration/36-media-drop-complete.png`: releasing the same drag replaces only the covered free-track interval and projects both resulting recorded sources without duplicate imported rows.
 40. `target/editor-iteration/38-media-management-actions.png`: an unused imported source exposes only the real Relink, Remove, Insert, and Overwrite actions above the unchanged Timeline.
 41. `target/editor-iteration/39-media-delete-confirm.png`: the destructive confirmation names the exact record-only blast radius and explicitly preserves the disk file.
+42. `target/editor-iteration/40-missing-recorded-media.png`: a recorded Timeline item with a missing source is visibly unavailable and offers only the stable-ID Relink repair.
 
 ## Verification
 
@@ -208,6 +213,7 @@ No actionable P0, P1, or P2 mismatch remains.
 - Focused Project Media, routing, and Project workbench interaction tests: 87 passed.
 - Focused Project Media drag/drop and Project workbench interaction tests: 73 passed.
 - Focused Project Media management/data/workbench interaction tests: 82 passed.
+- Focused availability, media data, drag, and workbench interaction tests: 84 passed.
 - Full web suite: 260 files and 2979 tests passed.
 - Domain Project invariants: 210 tests passed; scoped Domain/Application rustfmt passed.
 - Full Rust workspace tests and doc-tests passed; only explicitly environment-gated tests remained ignored.

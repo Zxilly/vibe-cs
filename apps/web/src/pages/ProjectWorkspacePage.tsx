@@ -104,6 +104,9 @@ import { PlayerLayer } from './match/views/ReplayCanvas';
 import { buildPlayerTracks, frameIndexAtTick, playerMarkers, sliceReplay, type PlayerMarker } from './match/views/replayModel';
 
 type EditingLens = 'quick' | 'multitrack';
+type ExternalConfirmation =
+  | { readonly kind: 'recording'; readonly clipIds: readonly string[] }
+  | { readonly kind: 'export' };
 
 interface TacticalScene {
   readonly clipId: string;
@@ -174,7 +177,7 @@ export function ProjectWorkspacePage() {
       ? globalThis.matchMedia('(min-width: 1280px)').matches
       : true
   ));
-  const [externalConfirm, setExternalConfirm] = useState<'recording' | 'export' | null>(null);
+  const [externalConfirm, setExternalConfirm] = useState<ExternalConfirmation | null>(null);
   const agentSessionId = searchParams.get('session');
   const agentSession = useAgentSession(agentSessionId);
   const createAgentSession = useCreateAgentSession();
@@ -491,7 +494,7 @@ export function ProjectWorkspacePage() {
             data-window-no-drag
             className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-divider px-2 text-xs hover:bg-neutral-100 disabled:text-neutral-300"
             disabled={readOnly || plannedClipIds.length === 0 || startRecording.isPending}
-            onClick={() => setExternalConfirm('recording')}
+            onClick={() => setExternalConfirm({ kind: 'recording', clipIds: plannedClipIds })}
           >
             <Video className="size-3.5" aria-hidden="true" />
             <Trans>录制缺失片段</Trans>
@@ -501,7 +504,7 @@ export function ProjectWorkspacePage() {
             data-window-no-drag
             className="flex h-[var(--h-ctl-sm)] items-center gap-1.5 rounded-sm border border-accent bg-accent px-2 text-xs text-bg hover:bg-accent-700 disabled:border-divider disabled:bg-neutral-200 disabled:text-neutral-400"
             disabled={readOnly || plannedClipIds.length > 0 || exportProject.isPending}
-            onClick={() => setExternalConfirm('export')}
+            onClick={() => setExternalConfirm({ kind: 'export' })}
           >
             <Download className="size-3.5" aria-hidden="true" />
             <Trans>导出成片</Trans>
@@ -561,6 +564,7 @@ export function ProjectWorkspacePage() {
                     setSelectedClipIds([clipId]);
                     seekTimeline(startSeconds);
                   }}
+                  onRequestRecording={(clipId) => setExternalConfirm({ kind: 'recording', clipIds: [clipId] })}
                   onImport={() => void importProjectMedia()}
                   onInsert={(asset) => addMediaAsset(asset, 'insert')}
                   onOverwrite={(asset) => addMediaAsset(asset, 'overwrite')}
@@ -685,20 +689,22 @@ export function ProjectWorkspacePage() {
           />
       </div>
       <Dialog
-        open={externalConfirm === 'recording'}
+        open={externalConfirm?.kind === 'recording'}
         title={<Trans>录制缺失片段</Trans>}
         confirmLabel={<Trans>开始录制</Trans>}
-        confirmDisabled={plannedClipIds.length === 0 || startRecording.isPending}
+        confirmDisabled={externalConfirm?.kind !== 'recording' || externalConfirm.clipIds.length === 0 || startRecording.isPending}
         onConfirm={() => {
+          if (externalConfirm?.kind !== 'recording') return;
+          const clipIds = [...externalConfirm.clipIds];
           setExternalConfirm(null);
-          startRecording.mutate({ projectId: current.id, clipIds: plannedClipIds });
+          startRecording.mutate({ projectId: current.id, clipIds });
         }}
         onClose={() => setExternalConfirm(null)}
       >
-        <p><Trans>将启动 CS2/HLAE，录制 {plannedClipIds.length} 个尚未物化的时间线片段。</Trans></p>
+        <p><Trans>将启动 CS2/HLAE，录制 {externalConfirm?.kind === 'recording' ? externalConfirm.clipIds.length : 0} 个尚未物化的时间线片段。</Trans></p>
       </Dialog>
       <Dialog
-        open={externalConfirm === 'export'}
+        open={externalConfirm?.kind === 'export'}
         title={<Trans>导出成片</Trans>}
         confirmLabel={<Trans>开始导出</Trans>}
         confirmDisabled={plannedClipIds.length > 0 || exportProject.isPending}

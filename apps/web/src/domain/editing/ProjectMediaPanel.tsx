@@ -27,6 +27,7 @@ export interface ProjectMediaPanelProps {
   readonly importAvailable: boolean;
   readonly importing: boolean;
   readonly onSelectTimelineClip: (clipId: string, startSeconds: number) => void;
+  readonly onRequestRecording: (clipId: string) => void;
   readonly onImport: () => void;
   readonly onInsert: (asset: MediaAsset) => void;
   readonly onOverwrite: (asset: MediaAsset) => void;
@@ -56,6 +57,7 @@ export function ProjectMediaPanel({
   importAvailable,
   importing,
   onSelectTimelineClip,
+  onRequestRecording,
   onImport,
   onInsert,
   onOverwrite,
@@ -162,9 +164,22 @@ export function ProjectMediaPanel({
       <div className="grid min-h-0 grid-rows-[minmax(0,1fr)_36px]">
         <SourceStillPreview item={selected} />
         <div className="border-t border-divider bg-bg p-1.5">
-          {selectedAsset === null ? (
+          {selected?.state === 'planned' && selected.timelineClip !== null ? (
+            <Button
+              className="w-full"
+              size="sm"
+              variant="secondary"
+              disabled={readOnly || busy}
+              aria-label={t`录制片段 ${selected.name}`}
+              onClick={() => {
+                if (selected.timelineClip !== null) onRequestRecording(selected.timelineClip.id);
+              }}
+            >
+              <Trans>录制此片段</Trans>
+            </Button>
+          ) : selectedAsset === null ? (
             <p className="truncate px-0.5 py-1 text-2xs text-neutral-500">
-              {selected?.state === 'planned' ? t`该片段已在时间线中，等待录制。` : selected?.state === 'recorded' ? t`该片段已录制并位于时间线中。` : t`选择导入素材可插入或覆盖。`}
+              {selected?.state === 'recorded' ? t`该片段已录制并位于时间线中。` : t`选择导入素材可插入或覆盖。`}
             </p>
           ) : (
             <div className="flex items-center gap-1.5">

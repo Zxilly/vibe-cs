@@ -1824,6 +1824,10 @@ describe('unified project workspace', () => {
     expect(within(panel).getByRole('option', { name: '选择素材 A' })).toBeTruthy();
     expect(within(panel).queryByRole('option', { name: '选择素材 B' })).toBeNull();
     expect(within(panel).queryByRole('option', { name: '选择素材 New angle' })).toBeNull();
+
+    fireEvent.click(within(panel).getByRole('option', { name: '选择素材 A' }));
+    fireEvent.click(within(panel).getByRole('button', { name: '录制片段 A' }));
+    expect(screen.getByRole('dialog', { name: '录制缺失片段' }).textContent).toContain('录制 1 个尚未物化的时间线片段');
   });
 
   it('keeps the last recorded source frame mounted until the next selected source is ready', async () => {

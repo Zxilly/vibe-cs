@@ -100,6 +100,10 @@ missing.
 - Execute a persisted, cancellable queue through the managed HLAE backend. Each segment is bound to
   a stable player identity and spectator slot; the authenticated bridge continuously verifies the
   observer mode and identity instead of treating a console command as proof.
+- Attach each verified Take through the canonical Timeline Clip. If seek overshoot makes the real
+  file a few frames shorter than the planned source range, preserve Timeline duration by fitting
+  source-out and constant speed to the probed media truth; files that still cannot cover the range
+  remain visibly stale and require another recording.
 - Apply validated camera FOV, viewmodel FOV, flash alpha, HUD/radar and voice policy for the whole
   capture. The isolated process and job-scoped configuration are torn down on success, failure or
   cancellation.

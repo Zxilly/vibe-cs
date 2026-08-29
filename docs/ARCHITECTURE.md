@@ -603,6 +603,11 @@ runtime PGP verification is not claimed. HLAE loader exit success is only a tran
 `HookHandshaking`; it never proves that the hook, demo, seek, or capture succeeded. Those claims
 require typed messages from the job-scoped, loopback-only session protocol.
 
+The fixed CS2 launch profile also selects `-worldwide`. On China-region Steam installations an
+unattended launch otherwise blocks inside engine2's Perfect World / Worldwide modal before any
+`mirv_*` command can run; the host would then report a misleading bridge accept timeout. The flag
+does not broaden capture beyond the existing `-insecure`, offline-Demo process boundary.
+
 Local playback and recording share an atomic runtime-session state. Playback moves from a unique
 launching token to an active token and then an exclusive stopping token without a guessed timeout;
 recording owns the state for the persisted job lifetime. A verified stop is bound to that token and

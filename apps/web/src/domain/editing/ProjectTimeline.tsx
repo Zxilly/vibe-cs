@@ -92,6 +92,7 @@ export interface ProjectTimelineProps {
   readonly selectedClipIds: readonly string[];
   readonly targetTrackId: string;
   readonly timelineTimeSeconds: number;
+  readonly transportPlaying: boolean;
   readonly reviewGroup: ProjectChangeGroup | null;
   readonly readOnly: boolean;
   readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
@@ -146,6 +147,7 @@ export function ProjectTimeline({
   selectedClipIds,
   targetTrackId,
   timelineTimeSeconds,
+  transportPlaying,
   reviewGroup,
   readOnly,
   onSelectClip,
@@ -281,6 +283,25 @@ export function ProjectTimeline({
     minMajorGapPx: 110,
     minMinorGapPx: 28,
   });
+  useEffect(() => {
+    if (!transportPlaying) return;
+    const viewport = viewportRef.current;
+    if (viewport === null) return;
+    const trackHead = Number.parseFloat(getComputedStyle(viewport).getPropertyValue('--w-track-head')) || 0;
+    const contentViewportWidth = Math.max(1, viewport.clientWidth - trackHead);
+    const playheadContentX = trackHead + timeToPx(scale, playheadSeconds);
+    const visibleX = playheadContentX - viewport.scrollLeft;
+    const leftBoundary = trackHead + 20;
+    const rightBoundary = viewport.clientWidth - 20;
+    if (visibleX >= leftBoundary && visibleX <= rightBoundary) return;
+    const desiredX = visibleX > rightBoundary
+      ? trackHead + contentViewportWidth * 0.8
+      : trackHead + contentViewportWidth * 0.2;
+    const maximumScroll = Math.max(0, trackHead + contentWidth - viewport.clientWidth);
+    const next = Math.min(maximumScroll, Math.max(0, playheadContentX - desiredX));
+    viewport.scrollLeft = next;
+    setScrollLeft(next);
+  }, [contentWidth, playheadSeconds, scale, transportPlaying]);
   const rowTemplate = [
     ...renderedTracks.map((track) => `${collapsedTrackRows.has(track.id)
       ? MIN_TRACK_HEIGHT
@@ -1975,7 +1996,7 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   readonly onToggleCollapse?: (() => void) | undefined;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-1 border-r border-divider py-1 pl-10 pr-2 text-xs font-medium">
+    <div className="sticky left-0 z-30 flex min-w-0 items-center gap-1 border-r border-divider bg-bg py-1 pl-10 pr-2 text-xs font-medium">
       {track === undefined ? null : (
         <button
           type="button"

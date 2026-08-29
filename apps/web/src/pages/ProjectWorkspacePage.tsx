@@ -459,6 +459,7 @@ export function ProjectWorkspacePage() {
             selectedClipIds={selectedClipIds}
             targetTrackId={targetTrackId ?? current.document.story_track_id}
             timelineTimeSeconds={transportTimeSeconds}
+            transportPlaying={playing}
             reviewGroup={latestAgentGroup}
             readOnly={readOnly || apply.isPending || revertChange.isPending}
             onSelectClip={selectTimelineClip}

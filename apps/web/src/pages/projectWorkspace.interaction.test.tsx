@@ -811,6 +811,34 @@ describe('unified project workspace', () => {
     fireEvent.keyDown(timeline, { key: 'k' });
   });
 
+  it('page-scrolls the timeline to follow playback while track heads stay sticky', async () => {
+    const clientWidth = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(1_000);
+    renderWorkspace({
+      project: RECORDED_PROJECT,
+      shell: {
+        ...unavailableNativeShell,
+        available: true,
+        mediaSrc: (path) => `vibe-cs-media://localhost${path.slice(4)}`,
+      },
+    });
+
+    await screen.findByLabelText('A 视频预览');
+    const viewport = screen.getByRole('region', { name: '时间轴内容' });
+    viewport.style.setProperty('--w-track-head', '200px');
+    fireEvent.change(screen.getByRole('slider', { name: '时间轴缩放' }), { target: { value: '4' } });
+    const playhead = screen.getByRole('slider', { name: '时间轴播放头' });
+    fireEvent.keyDown(playhead, { key: 'ArrowDown' });
+    fireEvent.keyDown(playhead, { key: 'ArrowDown' });
+    expect(Number(playhead.getAttribute('aria-valuenow'))).toBe(10);
+    expect(viewport.scrollLeft).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: '播放时间轴' }));
+    await waitFor(() => expect(viewport.scrollLeft).toBeGreaterThan(0));
+    expect((screen.getByRole('row', { name: 'Story' }).firstElementChild as HTMLElement).className).toContain('sticky');
+    fireEvent.click(screen.getByRole('button', { name: 'K 暂停时间轴' }));
+    clientWidth.mockRestore();
+  });
+
   it('frame-snaps edits made from a continuous playback position', async () => {
     const applyProjectPatch = vi.fn();
     renderWorkspace({

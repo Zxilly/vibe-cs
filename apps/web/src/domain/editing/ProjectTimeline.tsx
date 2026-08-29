@@ -82,7 +82,8 @@ export interface ProjectTimelineProps {
   readonly timelineTimeSeconds: number;
   readonly reviewGroup: ProjectChangeGroup | null;
   readonly readOnly: boolean;
-  readonly onSelectClip: (clipId: string, additive?: boolean) => void;
+  readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
+  readonly onSelectClips: (clipIds: readonly string[]) => void;
   readonly onTargetTrack: (trackId: string) => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onSeek: (seconds: number) => void;
@@ -112,6 +113,15 @@ interface RenderedTrack {
   readonly derivedAudio: boolean;
 }
 
+const MIN_TRACK_HEIGHT = 32;
+const MAX_TRACK_HEIGHT = 180;
+
+function defaultTrackHeight(track: RenderedTrack): number {
+  if (track.kind === 'video') return 84;
+  if (track.kind === 'audio') return 64;
+  return 52;
+}
+
 /**
  * Deep Timeline Module over the canonical Editing Document.
  *
@@ -127,6 +137,7 @@ export function ProjectTimeline({
   reviewGroup,
   readOnly,
   onSelectClip,
+  onSelectClips,
   onTargetTrack,
   onInspectClip,
   onSeek,
@@ -152,6 +163,8 @@ export function ProjectTimeline({
   const [markerDraft, setMarkerDraft] = useState<EditorMarker | null>(null);
   const [rangeInSeconds, setRangeInSeconds] = useState<number | null>(null);
   const [rangeOutSeconds, setRangeOutSeconds] = useState<number | null>(null);
+  const [trackHeights, setTrackHeights] = useState<Readonly<Record<string, number>>>({});
+  const [collapsedTrackRows, setCollapsedTrackRows] = useState<ReadonlySet<string>>(new Set());
   const [clipboard, setClipboard] = useState<{
     readonly groups: readonly {
       readonly trackId: string;
@@ -241,10 +254,32 @@ export function ProjectTimeline({
     minMinorGapPx: 28,
   });
   const rowTemplate = [
-    ...renderedTracks.map((track) => track.kind === 'video' ? '30fr' : '27fr'),
-    '20fr',
-    '20fr',
+    ...renderedTracks.map((track) => `${collapsedTrackRows.has(track.id)
+      ? MIN_TRACK_HEIGHT
+      : trackHeights[track.id] ?? defaultTrackHeight(track)}px`),
+    '44px',
+    '44px',
   ].join(' ');
+  const updateTrackHeight = (rowId: string, height: number) => {
+    setCollapsedTrackRows((current) => {
+      if (!current.has(rowId)) return current;
+      const next = new Set(current);
+      next.delete(rowId);
+      return next;
+    });
+    setTrackHeights((current) => ({
+      ...current,
+      [rowId]: Math.min(MAX_TRACK_HEIGHT, Math.max(MIN_TRACK_HEIGHT, height)),
+    }));
+  };
+  const toggleTrackCollapse = (rowId: string) => {
+    setCollapsedTrackRows((current) => {
+      const next = new Set(current);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
+      return next;
+    });
+  };
   const canSplit = !readOnly
     && selectedTrackClipIds.size === 1
     && selectedClip !== null
@@ -468,6 +503,11 @@ export function ProjectTimeline({
           copySelected();
           return;
         }
+        if (event.key.toLowerCase() === 'a' && (event.ctrlKey || event.metaKey) && !event.altKey) {
+          event.preventDefault();
+          onSelectClips(targetTrack?.clips.map((clip) => clip.id) ?? []);
+          return;
+        }
         if (event.key.toLowerCase() === 'v' && (event.ctrlKey || event.metaKey) && !event.altKey && canPaste) {
           event.preventDefault();
           pasteClipboard();
@@ -650,7 +690,7 @@ export function ProjectTimeline({
       <div
         ref={viewportRef}
         className={cn(
-          'min-h-0 flex-1 overflow-y-hidden',
+          'min-h-0 flex-1 overflow-y-auto',
           contentWidth <= viewportWidth + 0.5 ? 'overflow-x-hidden' : 'overflow-x-auto',
         )}
         role="region"
@@ -664,7 +704,9 @@ export function ProjectTimeline({
         }}
       >
         <div
-          className="grid h-full"
+          className="grid min-h-full"
+          role="rowgroup"
+          aria-label={t`时间轴轨道网格`}
           style={{ minWidth: `calc(var(--w-track-head) + ${contentWidth}px)`, gridTemplateRows: rowTemplate }}
           onPointerDown={(event) => {
             if (event.button === 0 && !(event.target instanceof Element && event.target.closest('button'))) {
@@ -699,6 +741,12 @@ export function ProjectTimeline({
               onReorderTrack={reorderTrack}
               targetTrackId={targetTrackId}
               onTargetTrack={onTargetTrack}
+              height={collapsedTrackRows.has(track.id)
+                ? MIN_TRACK_HEIGHT
+                : trackHeights[track.id] ?? defaultTrackHeight(track)}
+              collapsed={collapsedTrackRows.has(track.id)}
+              onHeightChange={(height) => updateTrackHeight(track.id, height)}
+              onToggleCollapse={() => toggleTrackCollapse(track.id)}
             />
           ))}
           <TimelineMarkerRow
@@ -884,7 +932,7 @@ function buildRenderedTracks(document: EditingDocument): RenderedTrack[] {
   return rows;
 }
 
-const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack }: {
+const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentWidth, selectedClipId, selectedClipIds, fps, readOnly, onSelectClip, onInspectClip, onReplaceClip, onReplaceTrack, onReplaceTrackClips, onRemoveTrack, storyTrackId, changeByClipId, ghostChanges, snapPoints, snapThresholdSeconds, onSnapChange, nonStoryTrackIds, onReorderTrack, targetTrackId, onTargetTrack, height, collapsed, onHeightChange, onToggleCollapse }: {
   readonly track: RenderedTrack;
   readonly scale: ReturnType<typeof createTimeScale>;
   readonly contentWidth: number;
@@ -892,7 +940,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly selectedClipIds: ReadonlySet<string>;
   readonly fps: number;
   readonly readOnly: boolean;
-  readonly onSelectClip: (clipId: string, additive?: boolean) => void;
+  readonly onSelectClip: (clipId: string, additive?: boolean, range?: boolean) => void;
   readonly onInspectClip: (clipId: string) => void;
   readonly onReplaceClip: (clip: TimelineClip) => void;
   readonly onReplaceTrack: (track: TimelineTrack) => void;
@@ -908,10 +956,15 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   readonly onReorderTrack: (trackId: string, direction: -1 | 1) => void;
   readonly targetTrackId: string;
   readonly onTargetTrack: (trackId: string) => void;
+  readonly height: number;
+  readonly collapsed: boolean;
+  readonly onHeightChange: (height: number) => void;
+  readonly onToggleCollapse: () => void;
 }) {
   const nonStoryIndex = nonStoryTrackIds.indexOf(track.track.id);
+  const resizeGesture = useRef<{ readonly pointerId: number; readonly clientY: number; readonly height: number } | null>(null);
   return (
-    <div className="grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={track.ariaLabel}>
+    <div className="relative grid min-h-0 grid-cols-[var(--w-track-head)_minmax(0,1fr)] border-b border-divider" role="row" aria-label={track.ariaLabel}>
       <TimelineTrackHead
         icon={track.icon}
         label={track.label}
@@ -926,6 +979,8 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
         onMoveTrack={onReorderTrack}
         targeted={targetTrackId === track.track.id}
         onTargetTrack={onTargetTrack}
+        collapsed={collapsed}
+        onToggleCollapse={onToggleCollapse}
       />
       <div className="relative min-h-0 overflow-hidden" style={{ width: contentWidth }}>
         {track.track.id === storyTrackId ? (
@@ -947,7 +1002,7 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
             fps={fps}
             readOnly={readOnly || track.track.locked || track.derivedAudio}
             change={changeByClipId.get(clip.id) ?? null}
-            onSelect={(additive) => onSelectClip(clip.id, additive)}
+            onSelect={(additive, range) => onSelectClip(clip.id, additive, range)}
             onInspect={() => onInspectClip(clip.id)}
             snapPoints={snapPoints}
             snapThresholdSeconds={snapThresholdSeconds}
@@ -965,6 +1020,36 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
           />
         ))}
       </div>
+      <span
+        role="separator"
+        aria-label={t`调整轨道高度 ${track.label}`}
+        aria-orientation="horizontal"
+        aria-valuemin={MIN_TRACK_HEIGHT}
+        aria-valuemax={MAX_TRACK_HEIGHT}
+        aria-valuenow={height}
+        className="absolute inset-x-0 -bottom-0.5 z-40 h-1 cursor-row-resize touch-none bg-transparent hover:bg-accent-300"
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          event.stopPropagation();
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+          resizeGesture.current = { pointerId: event.pointerId, clientY: event.clientY, height };
+        }}
+        onPointerMove={(event) => {
+          const gesture = resizeGesture.current;
+          if (gesture === null || gesture.pointerId !== event.pointerId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onHeightChange(gesture.height + event.clientY - gesture.clientY);
+        }}
+        onPointerUp={(event) => {
+          if (resizeGesture.current?.pointerId !== event.pointerId) return;
+          event.preventDefault();
+          event.stopPropagation();
+          resizeGesture.current = null;
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
+        }}
+      />
     </div>
   );
 }, (previous, next) => previous.track === next.track
@@ -980,7 +1065,9 @@ const TimelineTrackRow = memo(function TimelineTrackRow({ track, scale, contentW
   && previous.snapPoints === next.snapPoints
   && previous.snapThresholdSeconds === next.snapThresholdSeconds
   && previous.nonStoryTrackIds === next.nonStoryTrackIds
-  && previous.targetTrackId === next.targetTrackId);
+  && previous.targetTrackId === next.targetTrackId
+  && previous.height === next.height
+  && previous.collapsed === next.collapsed);
 
 const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAudio, selected, primary, scale, fps, readOnly, change, onSelect, onInspect, onReplace, snapPoints, snapThresholdSeconds, onSnapChange }: {
   readonly clip: TimelineClip;
@@ -992,7 +1079,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
   readonly fps: number;
   readonly readOnly: boolean;
   readonly change: TimelineClipChange | null;
-  readonly onSelect: (additive: boolean) => void;
+  readonly onSelect: (additive: boolean, range: boolean) => void;
   readonly onInspect: () => void;
   readonly onReplace: (clip: TimelineClip, mode: 'move' | 'start' | 'end') => void;
   readonly snapPoints: readonly { readonly time: number; readonly clipId: string | null }[];
@@ -1034,8 +1121,9 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
     event.preventDefault();
     event.stopPropagation();
     const additive = event.ctrlKey || event.metaKey;
-    onSelect(additive);
-    if (additive) return;
+    const range = event.shiftKey;
+    onSelect(additive, range);
+    if (additive || range) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     gesture.current = { pointerId: event.pointerId, clientX: event.clientX, mode, clip };
   };
@@ -1090,7 +1178,7 @@ const TimelineClipCell = memo(function TimelineClipCell({ clip, kind, derivedAud
       style={{ left: visualLeft, width: visualWidth }}
       aria-disabled={readOnly}
       onClick={(event) => {
-        if (event.detail === 0) onSelect(event.ctrlKey || event.metaKey);
+        if (event.detail === 0) onSelect(event.ctrlKey || event.metaKey, event.shiftKey);
       }}
       onDoubleClick={onInspect}
       onPointerDown={(event) => beginGesture(event, 'move')}
@@ -1467,7 +1555,7 @@ function TimelineClipWaveform({ clip, change }: { readonly clip: TimelineClip; r
   );
 }
 
-function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, targeted = false, onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack }: {
+function TimelineTrackHead({ icon, label, controls, track, readOnly = true, removable = false, canMoveUp = false, canMoveDown = false, targeted = false, collapsed = false, onReplaceTrack, onRemoveTrack, onMoveTrack, onTargetTrack, onToggleCollapse }: {
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly controls: RenderedTrack['controls'];
@@ -1477,13 +1565,26 @@ function TimelineTrackHead({ icon, label, controls, track, readOnly = true, remo
   readonly canMoveUp?: boolean | undefined;
   readonly canMoveDown?: boolean | undefined;
   readonly targeted?: boolean | undefined;
+  readonly collapsed?: boolean | undefined;
   readonly onReplaceTrack?: ((track: TimelineTrack) => void) | undefined;
   readonly onRemoveTrack?: ((trackId: string) => void) | undefined;
   readonly onMoveTrack?: ((trackId: string, direction: -1 | 1) => void) | undefined;
   readonly onTargetTrack?: ((trackId: string) => void) | undefined;
+  readonly onToggleCollapse?: (() => void) | undefined;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 border-r border-divider py-2 pl-12 pr-2 text-xs font-medium">
+    <div className="flex min-w-0 items-center gap-1 border-r border-divider py-1 pl-10 pr-2 text-xs font-medium">
+      {track === undefined ? null : (
+        <button
+          type="button"
+          className="grid size-5 flex-none place-items-center rounded-sm text-neutral-500 hover:bg-neutral-100"
+          aria-label={collapsed ? t`展开轨道 ${label}` : t`折叠轨道 ${label}`}
+          aria-expanded={!collapsed}
+          onClick={onToggleCollapse}
+        >
+          {collapsed ? <ChevronRight className="size-3" aria-hidden="true" /> : <ChevronDown className="size-3" aria-hidden="true" />}
+        </button>
+      )}
       {controls === 'none' ? (
         <span className="flex-none text-neutral-600">{icon}</span>
       ) : (

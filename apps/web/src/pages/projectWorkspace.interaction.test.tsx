@@ -785,7 +785,49 @@ describe('unified project workspace', () => {
     expect(screen.queryByRole('button', { name: '时间轴设置' })).toBeNull();
     expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull();
     expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull();
+    const trackGrid = screen.getByRole('rowgroup', { name: '时间轴轨道网格' });
+    expect(trackGrid.style.gridTemplateRows).toBe('84px 64px 64px 44px 44px');
+    expect(screen.getByRole('region', { name: '时间轴内容' }).className).toContain('overflow-y-auto');
     expect(applyProjectPatch).not.toHaveBeenCalled();
+  });
+
+  it('collapses and pointer-resizes independent timeline rows', async () => {
+    renderWorkspace();
+
+    const grid = await screen.findByRole('rowgroup', { name: '时间轴轨道网格' });
+    fireEvent.click(screen.getByRole('button', { name: '折叠轨道 Music' }));
+    await waitFor(() => expect(grid.style.gridTemplateRows).toBe('84px 64px 32px 44px 44px'));
+    fireEvent.click(screen.getByRole('button', { name: '展开轨道 Music' }));
+
+    const resize = screen.getByRole('separator', { name: '调整轨道高度 Music' });
+    fireEvent.pointerDown(resize, { pointerId: 51, button: 0, clientY: 100 });
+    fireEvent.pointerMove(resize, { pointerId: 51, clientY: 140 });
+    fireEvent.pointerUp(resize, { pointerId: 51, clientY: 140 });
+    await waitFor(() => {
+      expect(resize.getAttribute('aria-valuenow')).toBe('104');
+      expect(grid.style.gridTemplateRows).toBe('84px 64px 104px 44px 44px');
+    });
+  });
+
+  it('uses Shift range selection and target-track select-all without moving clips', async () => {
+    renderWorkspace();
+
+    const clipA = await screen.findByRole('button', { name: /A 5\.0s · 未录制/u });
+    const clipB = screen.getByRole('button', { name: /B 5\.0s · 已录制/u });
+    fireEvent.pointerDown(clipB, { pointerId: 52, button: 0, shiftKey: true, clientX: 400 });
+    await waitFor(() => {
+      expect(clipA.className).toContain('ring-accent');
+      expect(clipB.className).toContain('ring-accent');
+    });
+    expect(clipB.hasPointerCapture(52)).toBe(false);
+
+    fireEvent.pointerDown(clipA, { pointerId: 53, button: 0, clientX: 200 });
+    fireEvent.pointerUp(clipA, { pointerId: 53, clientX: 200 });
+    fireEvent.keyDown(screen.getByRole('region', { name: '时间轴' }), { key: 'a', ctrlKey: true });
+    await waitFor(() => {
+      expect(clipA.className).toContain('ring-accent');
+      expect(clipB.className).toContain('ring-accent');
+    });
   });
 
   it('opens the project media bin and inserts a full asset at the transport time', async () => {

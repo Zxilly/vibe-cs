@@ -302,8 +302,19 @@ export function ProjectWorkspacePage() {
     setPlaying(false);
     seekTimeline(transportTimeSeconds + direction / current.document.fps);
   };
-  const selectTimelineClip = (clipId: string, additive = false) => {
+  const selectTimelineClip = (clipId: string, additive = false, range = false) => {
     setSelectedClipIds((currentSelection) => {
+      if (range) {
+        const anchorId = currentSelection[currentSelection.length - 1];
+        const track = current.document.tracks.find((candidate) => candidate.clips.some((clip) => clip.id === clipId)
+          && candidate.clips.some((clip) => clip.id === anchorId));
+        if (track === undefined || anchorId === undefined) return [clipId];
+        const anchorIndex = track.clips.findIndex((clip) => clip.id === anchorId);
+        const targetIndex = track.clips.findIndex((clip) => clip.id === clipId);
+        const from = Math.min(anchorIndex, targetIndex);
+        const to = Math.max(anchorIndex, targetIndex);
+        return track.clips.slice(from, to + 1).map((clip) => clip.id);
+      }
       if (!additive) return currentSelection.length === 1 && currentSelection[0] === clipId
         ? currentSelection
         : [clipId];
@@ -451,6 +462,7 @@ export function ProjectWorkspacePage() {
             reviewGroup={latestAgentGroup}
             readOnly={readOnly || apply.isPending || revertChange.isPending}
             onSelectClip={selectTimelineClip}
+            onSelectClips={setSelectedClipIds}
             onTargetTrack={setTargetTrackId}
             onInspectClip={(clipId) => {
               setSelectedClipIds([clipId]);
